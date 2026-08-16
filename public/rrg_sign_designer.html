@@ -47,7 +47,7 @@ label.fld{display:block;font-size:10px;letter-spacing:.05em;text-transform:upper
 .afgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:2px;}
 .tool.af{margin:0;padding:8px 8px;font-size:12.5px;justify-content:center;text-align:center;}
 .tool.af.on{border-color:var(--navy);background:#f0f3fb;box-shadow:inset 0 0 0 1px var(--navy);}
-</style>
+.chk{font-size:11px;font-weight:800;padding:3px 10px;border-radius:99px;margin-right:4px}.chk.ok{background:#e8f5ee;color:#1f8a5b}.chk.warn{background:#fdf0e1;color:#b5791f;cursor:help}.f.aisug{outline:2px dashed #d0a13a!important;outline-offset:1px}</style>
 <style>.algrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}.algn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:8px 4px;font:inherit;font-size:13px;font-weight:800;color:var(--muted);cursor:pointer}.algn:hover{background:var(--wash);color:var(--ink)}.f.msel{outline:2px dashed #2647b0;outline-offset:1px}.applyall{width:100%;font:inherit;font-size:12px;font-weight:700;border-radius:7px;padding:7px 10px;cursor:pointer;border:1px solid #bcd;color:#2647b0;background:#fff;margin-top:2px}.applyall:hover{background:#eef3fb}.algnseg{display:flex;gap:4px;margin-bottom:8px}.algnseg button{flex:1;border:1px solid var(--line);background:#fff;border-radius:7px;padding:6px 4px;font:inherit;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer}.algnseg button.on{background:#2647b0;border-color:#2647b0;color:#fff}</style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
@@ -56,7 +56,7 @@ label.fld{display:block;font-size:10px;letter-spacing:.05em;text-transform:upper
   <span class="disc" id="brandDisc">RRG</span>
   <div><div class="tn" id="tName">Field Designer</div><div class="tsub" id="tSub">Loading…</div></div>
   <span class="sp"></span>
-  <span class="msg" id="msg"></span>
+  <span class="chk" id="checkbar"></span><span class="msg" id="msg"></span>
   <button class="back" onclick="location.href='/rrg_agreement_templates.html'">← Templates</button>
   <label class="back" id="repdfLabel" style="cursor:pointer" title="Upload a corrected PDF and keep every placed field exactly where it is">⤴ Replace PDF<input type="file" id="repdfFile" accept="application/pdf,.pdf" hidden></label><button class="save" id="saveBtn">Save &amp; close</button>
 </div>
@@ -69,11 +69,13 @@ label.fld{display:block;font-size:10px;letter-spacing:.05em;text-transform:upper
       <div class="hint" id="s2hint" style="display:none">Signer 2 is off. Turn on two signers below to place their fields.</div>
     </div>
     <div class="psec"><div class="plbl">Add field (click a spot on the page)</div>
+      <button class="tool" id="autoPlaceBtn" onclick="autoPlace()" style="background:#fff7ec;border-color:#e6c98a;color:#8a5a12;font-weight:800" title="Let the app detect and place the sign fields for you">✨ Auto-place fields</button>
       <button class="tool" data-tool="text"><span class="ti">▭</span>Text box</button>
       <button class="tool" data-tool="signature"><span class="ti">✍</span>Signature</button>
       <button class="tool" data-tool="initials"><span class="ti">✒</span>Initials</button>
       <button class="tool" data-tool="date"><span class="ti">▦</span>Date</button>
       <button class="tool" data-tool="checkbox"><span class="ti">☑</span>Checkbox</button>
+      <button class="tool" id="sigblockBtn" onclick="addSigBlock()" title="Drop a full signature block (signature · printed name · title · date) for the selected signer"><span class="ti">✍</span>Signature block</button>
       <button class="tool on" data-tool=""><span class="ti">✋</span>Select / move</button>
     </div>
     <div class="psec"><div class="plbl">Auto-fill fields (merge)</div>
@@ -177,12 +179,80 @@ function addField(page,xf,yf){
 function defaultLabel(t){ return t==='signature'?'Signature':t==='initials'?'Initials':t==='date'?'Date':t==='checkbox'?'':'Text'; }
 function autoFor(t){ return t==='date'?'date':''; }
 
+function addSigBlock(){
+  if(!NPAGES){ var _m=document.getElementById('msg'); if(_m) _m.textContent='Load the PDF first.'; return; }
+  var pg=Math.max(0,(NPAGES||1)-1), x=0.10, y=0.64, s=SIGNER;
+  var nameAf=(s===1?'party_name':'my_name'), titleAf=(s===1?'title':'my_title');
+  function mk(type,af,lbl,req){ var f={id:uid(),page:pg,x:x,y:Math.min(0.97-DEF[type].h,y),w:DEF[type].w,h:DEF[type].h,type:type,signer:s,label:lbl,required:!!req,autofill:af||'',font:'',fontSize:''}; FIELDS.push(f); return f; }
+  var a=mk('signature','','Signature',true); y+=0.075;
+  var b=mk('text',nameAf,'Printed name',false); y+=0.045;
+  var c=mk('text',titleAf,'Title',false); y+=0.045;
+  var d=mk('date','date','Date',false);
+  SELECTED=a.id; MULTI=[a.id,b.id,c.id,d.id]; setTool(''); drawFields(); openPanel(); scheduleSave();
+  var m=document.getElementById('msg'); if(m) m.textContent='Signature block added on page '+(pg+1)+' \u2014 drag it into place.';
+}
+function checkTemplate(){
+  var issues=[], n=sigCount();
+  if(!FIELDS.length){ issues.push('No fields placed yet.'); return issues; }
+  for(var s=1;s<=n;s++){
+    var le=document.getElementById('s'+s+'label'); var lbl=(le&&le.value)||('Signer '+s);
+    if(!FIELDS.some(function(f){ return f.signer===s && (f.type==='signature'||f.type==='initials'); })) issues.push(lbl+' has no signature field.');
+  }
+  var over=FIELDS.filter(function(f){ return f.signer>n; }).length;
+  if(over) issues.push(over+' field(s) assigned to a signer that is turned off.');
+  var reqNo=FIELDS.filter(function(f){ return f.required && (!f.signer||f.signer<1); }).length;
+  if(reqNo) issues.push(reqNo+' required field(s) not assigned to a signer.');
+  return issues;
+}
+function renderChecks(){
+  var el=document.getElementById('checkbar'); if(!el) return;
+  var iss=checkTemplate();
+  if(!iss.length){ el.className='chk ok'; el.textContent='\u2713 Ready to use'; el.removeAttribute('title'); }
+  else { el.className='chk warn'; el.textContent='\u26a0 '+iss.length+' to fix'; el.title=iss.join('\n'); }
+}
+async function autoPlace(){
+  var pdf=window._PDFDOC, msg=document.getElementById('msg');
+  if(!pdf){ if(msg) msg.textContent='Load the PDF first.'; return; }
+  if(FIELDS.length && !confirm('Auto-place adds suggested fields on top of the '+FIELDS.length+' already placed. Continue?')) return;
+  if(msg) msg.textContent='Reading the document\u2026';
+  var nSign=sigCount(), pages=[];
+  for(var pn=1;pn<=pdf.numPages;pn++){
+    var page=await pdf.getPage(pn), vp=page.getViewport({scale:1}), W=vp.width, H=vp.height;
+    var tc=await page.getTextContent();
+    var lines=tc.items.map(function(it){ return {x:it.transform[4]/W, y:(H-it.transform[5])/H, w:(it.width||0)/W, t:(it.str||'')}; }).filter(function(l){ return l.t.trim(); });
+    pages.push({page:pn-1,w:Math.round(W),h:Math.round(H),lines:lines});
+  }
+  var signers=[]; for(var i=1;i<=nSign;i++){ var le=document.getElementById('s'+i+'label'); signers.push({order:i,label:(le&&le.value)||('Signer '+i)}); }
+  var added=0, viaAI=false;
+  function near(pg,x,y){ return FIELDS.some(function(f){ return f.page===pg && Math.abs(f.x-x)<0.045 && Math.abs(f.y-y)<0.03; }); }
+  function push(pg,type,x,y,w,h,af,lbl,signer,req){ if(near(pg,x,y)) return; FIELDS.push({id:uid(),page:pg,x:Math.max(0,Math.min(1-w,x)),y:Math.max(0,Math.min(1-h,y)),w:w,h:h,type:type,signer:Math.min(signer||1,nSign||1),label:lbl,required:!!req,autofill:af||'',font:'',fontSize:'',_ai:1}); added++; }
+  if(msg) msg.textContent='Placing fields with AI\u2026';
+  try{
+    var r=await fetch('/api/admin/agreement-templates/'+encodeURIComponent(TID)+'/ai-place-fields',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({pages:pages,signers:signers})});
+    var j=await r.json();
+    if(j&&j.ok&&j.fields&&j.fields.length){ viaAI=true; j.fields.forEach(function(f){ push(f.page,f.type,f.x,f.y,f.w,f.h,f.autofill,(f.label||defaultLabel(f.type)),f.signer,f.required); }); }
+  }catch(e){}
+  if(!viaAI){
+    pages.forEach(function(p){ p.lines.forEach(function(l){
+      var t=l.t.trim(), xn=l.x, yTop=l.y, signer=(nSign>=2 && xn>0.5)?2:1;
+      if(/^[_\u2014\u2013-]{5,}$/.test(t)){ push(p.page,'signature',xn,yTop-0.055,0.24,0.05,'','Signature',signer,true); return; }
+      var low=t.toLowerCase().replace(/[:*_]+$/,'').replace(/^[:*_]+/,'').trim();
+      if(low==='signature'||low==='sign here'||low==='by'){ push(p.page,'signature',xn,yTop+0.006,0.24,0.05,'','Signature',signer,true); return; }
+      if(low==='printed name'||low==='print name'||low==='name'){ push(p.page,'text',xn+Math.min(0.16,l.w+0.01),yTop-0.018,0.22,0.028,(signer===1?'party_name':'my_name'),'Printed name',signer,false); return; }
+      if(low==='title'){ push(p.page,'text',xn+Math.min(0.10,l.w+0.01),yTop-0.018,0.18,0.028,(signer===1?'title':'my_title'),'Title',signer,false); return; }
+      if(low==='date'){ push(p.page,'date',xn+Math.min(0.10,l.w+0.01),yTop-0.018,0.16,0.028,'date','Date',signer,false); return; }
+      if(/special provisions|additional terms/.test(low)){ push(p.page,'text',0.08,yTop+0.012,0.84,0.14,'','Special provisions',1,false); return; }
+    }); });
+  }
+  SELECTED=null; MULTI=[]; setTool(''); drawFields(); openPanel(); scheduleSave();
+  if(msg) msg.textContent = added ? ((viaAI?'AI':'Auto')+'-placed '+added+' field'+(added===1?'':'s')+' (gold = suggestions) \u2014 review, drag to adjust, then Save.') : 'No fields detected \u2014 place them manually.';
+}
 function drawFields(){
   document.querySelectorAll('.ov').forEach(function(ov){ ov.innerHTML=''; });
   FIELDS.forEach(function(f){
     var ov=document.getElementById('ov'+f.page); if(!ov) return;
     var W=ov.clientWidth, H=ov.clientHeight;
-    var el=document.createElement('div'); el.className='f'+(f.signer===2?' s2':(f.signer===3?' s3':''))+(SELECTED===f.id?' sel':'')+((MULTI.indexOf(f.id)>=0&&f.id!==SELECTED)?' msel':''); el.setAttribute('data-id',f.id);
+    var el=document.createElement('div'); el.className='f'+(f.signer===2?' s2':(f.signer===3?' s3':''))+(SELECTED===f.id?' sel':'')+((MULTI.indexOf(f.id)>=0&&f.id!==SELECTED)?' msel':'')+(f._ai?' aisug':''); el.setAttribute('data-id',f.id);
     el.style.left=(f.x*W)+'px'; el.style.top=(f.y*H)+'px'; el.style.width=(f.w*W)+'px'; el.style.height=(f.h*H)+'px';
     if(f.type==='text'||f.type==='date'){ var _al=f.align||'left'; el.style.justifyContent=(_al==='center'?'center':(_al==='right'?'flex-end':'flex-start')); el.style.textAlign=_al; el.style.paddingLeft=(_al==='left'?'3px':'0'); el.style.paddingRight=(_al==='right'?'3px':'0'); if((f.h*H)>=34){ el.style.alignItems='flex-start'; el.style.paddingTop='3px'; } }
     el.textContent=f.label||TYPELBL[f.type]||f.type;
@@ -194,6 +264,7 @@ function drawFields(){
     rz.addEventListener('mousedown',function(e){ startResize(e,f,el); });
     if(SELECTED===f.id){ var fx=document.createElement('div'); fx.className='fx'; fx.textContent='\u00d7'; fx.title='Delete field'; el.appendChild(fx); fx.addEventListener('mousedown',function(e){ e.stopPropagation(); e.preventDefault(); }); fx.addEventListener('click',function(e){ e.stopPropagation(); FIELDS=FIELDS.filter(function(x){return x.id!==f.id;}); MULTI=MULTI.filter(function(x){return x!==f.id;}); SELECTED=null; drawFields(); openPanel(); scheduleSave(); }); }
   });
+  try{renderChecks();}catch(e){}
 }
 var DRAG=null;
 function _snap(v){ return SNAP?Math.round(v/0.01)*0.01:v; }
@@ -252,6 +323,7 @@ var SAVET=null;
 function scheduleSave(){ if(SAVET) clearTimeout(SAVET); var m=document.getElementById('msg'); if(m) m.textContent='Saving…'; SAVET=setTimeout(function(){ SAVET=null; doSave(false); },900); }
 function doSave(close){
   if(SAVET){ clearTimeout(SAVET); SAVET=null; }
+  if(close){ var _iss=checkTemplate(); if(_iss.length && !confirm('This template has '+_iss.length+' thing(s) to review:\n\n\u2022 '+_iss.join('\n\u2022 ')+'\n\nSave and close anyway?')){ var _b=document.getElementById('saveBtn'); if(_b) _b.disabled=false; return; } }
   var body={ pdfFields:FIELDS, signerCount:sigCount(), signer1Label:document.getElementById('s1label').value||'Signer 1', signer2Label:document.getElementById('s2label').value||'Signer 2', signer3Label:document.getElementById('s3label').value||'Signer 3' };
   var m=document.getElementById('msg'); if(m) m.textContent='Saving…';
   var btn=document.getElementById('saveBtn'); if(close) btn.disabled=true;
@@ -268,7 +340,7 @@ function renderPages(){
   fetch(url,{credentials:'same-origin'}).then(function(r){ if(!r.ok) throw new Error('no file'); return r.arrayBuffer(); }).then(function(buf){
     return pdfjsLib.getDocument({data:buf}).promise;
   }).then(function(pdf){
-    NPAGES=pdf.numPages;
+    NPAGES=pdf.numPages; window._PDFDOC=pdf;
     var chain=Promise.resolve();
     for(var i=1;i<=pdf.numPages;i++){ (function(pn){ chain=chain.then(function(){ return pdf.getPage(pn).then(function(page){
       var vp1=page.getViewport({scale:1}); if(pn===1){ PAGEPT={w:vp1.width,h:vp1.height}; } var targetW=Math.min(820, stage.clientWidth-44); var scale=targetW/vp1.width; var vp=page.getViewport({scale:scale});

@@ -471,6 +471,7 @@ function effCurrency(){ const s=loadSettings(); const c=(typeof s.currency==='st
 function currencySymbol(){ return CURRENCY_SYMBOLS[effCurrency()]||'$'; }
 function effSentSyncEnabled() { const s = loadSettings(); return s.sentSyncEnabled !== false; }
 function effSentSyncInterval() { const s = loadSettings(); const n = parseInt(s.sentSyncIntervalMin, 10); return (isFinite(n) && n >= 2) ? Math.min(720, n) : 10; }
+function effAgrRenewDays() { const s = loadSettings(); let a = parseInt(s.agrRemind1, 10); let b = parseInt(s.agrRemind2, 10); if (!(isFinite(a) && a > 0)) a = 60; if (!(isFinite(b) && b > 0)) b = 30; a = Math.min(365, a); b = Math.min(365, b); if (b > a) { const t = a; a = b; b = t; } return { first: a, second: b }; }
 // ---- Tool label overrides: admins can rename any tool (e.g. call "Contacts" "People").
 // Stored as { file: customLabel }; the dashboard applies them when rendering. ----
 const TOOL_DEFS = [
@@ -1562,6 +1563,20 @@ app.post('/api/admin/dataroom', requireAdmin, express.json(), (req, res) => {
   if (typeof b.watermark === 'boolean') s.roomWatermark = b.watermark;
   saveSettings(s);
   res.json({ ok: true, mfa: s.roomMfa !== false, alerts: s.roomAlerts !== false, watermark: s.roomWatermark !== false });
+});
+// ---- Agreement renewal reminder thresholds (admin-configurable) ----
+app.get('/api/admin/agreement-reminders', requireAdmin, (req, res) => {
+  const rd = effAgrRenewDays();
+  res.json({ ok: true, first: rd.first, second: rd.second });
+});
+app.post('/api/admin/agreement-reminders', requireAdmin, express.json(), (req, res) => {
+  const b = req.body || {}; const s = loadSettings();
+  let a = parseInt(b.first, 10), c = parseInt(b.second, 10);
+  if (!(isFinite(a) && a > 0) || !(isFinite(c) && c > 0)) return res.status(400).json({ ok: false, error: 'Enter two positive day counts.' });
+  a = Math.min(365, a); c = Math.min(365, c);
+  if (c > a) { const t = a; a = c; c = t; }
+  s.agrRemind1 = a; s.agrRemind2 = c; saveSettings(s);
+  res.json({ ok: true, first: a, second: c });
 });
 // Best-effort notification email. Silently no-ops if SMTP isn't configured, and never throws.
 async function sendNotifyMail(to, subject, text) {
@@ -12755,7 +12770,7 @@ function agreementStatus(a){
 }
 function agreementBrief(a) {
   var _as = agreementStatus(a);
-  return { id: a.id, type: a.type, name: a.name || '', personId: a.personId || '', personName: a.personName || '', companyId: a.companyId || '', dealKey: a.dealKey || '', effective: a.effective || '', expires: a.expires || '', startOnExec: !!a.startOnExec, termYears: a.termYears || 0, execAuto: a.execAuto || '', emailSubject: a.emailSubject || '', sendAuto: a.sendAuto || '', status: a.status || 'active', notes: a.notes || '', createdByName: a.createdByName || '', createdAt: a.createdAt || '', docExt: a.docExt || '', docName: a.docName || '', signStatus: a.signStatus || '', sentAt: a.sentAt || '', sentTo: a.sentTo || '', signedDate: a.signedDate || '', signToken: a.signToken || '', signedName: a.signedName || '', signedAt: a.signedAt || '', hasSignature: !!a.hasSignature, repSignedName: a.repSignedName || '', repSignedAt: a.repSignedAt || '', executedAt: a.executedAt || '', hasCountersign: !!a.hasCountersign, signedResponses: a.signedResponses || null, templateId: a.templateId || '', templateName: a.templateName || '', entryMethod: (a.entryMethod || (/^sign & return/i.test(a.name || '') ? 'signreturn' : ((a.signToken || a.templateId || a.sentAt || (Array.isArray(a.pdfFields) && a.pdfFields.length)) ? 'sent' : 'recorded'))), signers: Array.isArray(a.signers) ? a.signers.map(s => ({ order: s.order, role: s.role, label: s.label, name: s.name || '', email: s.email || '', status: s.status || 'pending', signedAt: s.signedAt || '' })) : [], signerCount: _clampSigners(a.signerCount), hasFinal: !!a.hasFinal, pdfFieldCount: Array.isArray(a.pdfFields) ? a.pdfFields.length : 0, statusKey: _as.key, statusLabel: _as.label };
+  return { id: a.id, type: a.type, name: a.name || '', personId: a.personId || '', personName: a.personName || '', companyId: a.companyId || '', dealKey: a.dealKey || '', effective: a.effective || '', expires: a.expires || '', startOnExec: !!a.startOnExec, termYears: a.termYears || 0, execAuto: a.execAuto || '', emailSubject: a.emailSubject || '', sendAuto: a.sendAuto || '', status: a.status || 'active', notes: a.notes || '', createdByName: a.createdByName || '', createdAt: a.createdAt || '', docExt: a.docExt || '', docName: a.docName || '', signStatus: a.signStatus || '', sentAt: a.sentAt || '', sentTo: a.sentTo || '', signedDate: a.signedDate || '', signToken: a.signToken || '', signedName: a.signedName || '', signedAt: a.signedAt || '', hasSignature: !!a.hasSignature, repSignedName: a.repSignedName || '', repSignedAt: a.repSignedAt || '', executedAt: a.executedAt || '', hasCountersign: !!a.hasCountersign, signedResponses: a.signedResponses || null, templateId: a.templateId || '', templateName: a.templateName || '', entryMethod: (a.entryMethod || (/^sign & return/i.test(a.name || '') ? 'signreturn' : ((a.signToken || a.templateId || a.sentAt || (Array.isArray(a.pdfFields) && a.pdfFields.length)) ? 'sent' : 'recorded'))), signers: Array.isArray(a.signers) ? a.signers.map(s => ({ order: s.order, role: s.role, label: s.label, name: s.name || '', email: s.email || '', status: s.status || 'pending', signedAt: s.signedAt || '' })) : [], signerCount: _clampSigners(a.signerCount), hasFinal: !!a.hasFinal, pdfFieldCount: Array.isArray(a.pdfFields) ? a.pdfFields.length : 0, statusKey: _as.key, statusLabel: _as.label, renewedById: a.renewedById || '', renewalOf: a.renewalOf || '' };
 }
 // ---------------- Uploaded documents (general file storage) ----------------
 const USERDOCS_DIR = path.join(BOV_DATA_DIR, 'userdocs');
@@ -13064,6 +13079,66 @@ app.get('/api/questionnaire/:id/view', (req, res) => {
 // records list is served by `GET /api/agreements/executed` (used by rrg_agreements.html);
 // the person and company cards read their agreements from the page payload. Removed to
 // end the duplicate-path collision. The POST below was never shadowed — only GETs collided.
+// ---- Renewal & expiration engine -------------------------------------------------
+// Durable reminder: on a schedule, create a follow-up TASK for the owner of any agreement
+// expiring within 60 / 30 days (idempotent via flags; re-arms if the expiry date moves).
+function agreementExpiryTick() {
+  try {
+    const all = loadAgreements(); const today = new Date().toISOString().slice(0, 10);
+    let changed = false, tasks = null;
+    const daysTo = (d) => { try { return Math.ceil((new Date(d + 'T00:00:00Z') - new Date(today + 'T00:00:00Z')) / 86400000); } catch (e) { return null; } };
+    const rd = effAgrRenewDays(); const cfgKey = rd.first + '/' + rd.second;
+    all.forEach(a => {
+      if (!a.expires || a.status === 'terminated' || a.renewedById) return;
+      if (a.remindExpires && a.remindExpires !== a.expires) { a.remindA = false; a.remindB = false; changed = true; }
+      if (a.remindCfg !== cfgKey) { a.remindA = false; a.remindB = false; a.remindCfg = cfgKey; changed = true; }
+      a.remindExpires = a.expires;
+      const dd = daysTo(a.expires); if (dd == null || dd < 0) return;
+      const owner = a.createdBy || ''; if (!owner) return;
+      const mk = (days, prio) => {
+        if (!tasks) tasks = loadTasks();
+        const label = agreementTypeLabel(a.type);
+        const who = a.personName || (a.personId ? ((personById(a.personId) || {}).name || '') : '');
+        const key = 'agrexp:' + a.id + ':' + days;
+        if (tasks.some(t => t.status === 'open' && t.expKey === key)) return;
+        const now = new Date().toISOString();
+        tasks.push({ id: newTaskId(), createdBy: owner, createdByName: a.createdByName || '', assignee: owner, assigneeName: a.createdByName || '', createdAt: now, status: 'open', doneAt: '', title: label + (who ? (' - ' + who) : '') + ' expires ' + a.expires + ' (' + days + ' days) - renew?', notes: 'Auto-created renewal reminder. Open the agreement to renew or extend.', due: today + 'T09:00', priority: prio, type: '', linkType: a.personId ? 'contact' : '', linkId: a.personId || '', linkLabel: who || '', expKey: key, remChannels: ['popup'] });
+      };
+      if (dd <= rd.first && !a.remindA) { mk(rd.first, 'Normal'); a.remindA = true; changed = true; }
+      if (dd <= rd.second && !a.remindB) { mk(rd.second, 'High'); a.remindB = true; changed = true; }
+    });
+    if (tasks) saveTasks(tasks);
+    if (changed) saveAgreements(all);
+  } catch (e) { console.error('agreementExpiryTick:', e && e.message); }
+}
+setInterval(agreementExpiryTick, 6 * 60 * 60 * 1000); setTimeout(agreementExpiryTick, 20 * 1000);
+
+// One-click renew / extend: clone the agreement into a fresh term, copy the doc + placed
+// fields so it is ready to re-send, and link parent <-> renewal.
+app.post('/api/agreements/:id/renew', express.json(), (req, res) => {
+  const all = loadAgreements(); const src = all.find(x => x.id === req.params.id);
+  if (!src) return res.status(404).json({ ok: false, error: 'Agreement not found.' });
+  const b = req.body || {}; const now = new Date().toISOString(); const tday = now.slice(0, 10);
+  let eff = String(b.effective || '').slice(0, 10);
+  if (!eff) eff = (src.expires && src.expires > tday) ? src.expires : tday;
+  let exp = String(b.expires || '').slice(0, 10);
+  const years = parseInt(b.termYears != null ? b.termYears : src.termYears, 10) || 1;
+  if (!exp) { try { const d = new Date(eff + 'T00:00:00Z'); d.setUTCFullYear(d.getUTCFullYear() + years); exp = d.toISOString().slice(0, 10); } catch (e) {} }
+  const a = {
+    id: newAgreementId(), createdBy: (req.user && req.user.username) || src.createdBy || '', createdByName: (req.user && req.user.name) || src.createdByName || '', createdAt: now,
+    type: src.type, name: (src.name ? (src.name.replace(/\s*\(renewal[^)]*\)\s*$/i, '') + ' (renewal)') : ''),
+    personId: src.personId || '', personName: src.personName || '', companyId: src.companyId || '', dealKey: src.dealKey || '',
+    effective: eff, expires: exp, termYears: years, startOnExec: !!src.startOnExec,
+    status: 'active', notes: src.notes || '', renewalOf: src.id, entryMethod: 'recorded',
+    pdfFields: Array.isArray(src.pdfFields) ? JSON.parse(JSON.stringify(src.pdfFields)) : [],
+    signerCount: src.signerCount || 1, signer1Label: src.signer1Label || '', signer2Label: src.signer2Label || '', signer3Label: src.signer3Label || '',
+    templateId: src.templateId || '', templateName: src.templateName || '', emailSubject: src.emailSubject || ''
+  };
+  try { const sp = path.join(AGREEMENT_DOC_DIR, src.id + '.pdf'); if (fs.existsSync(sp)) { binWrite(path.join(AGREEMENT_DOC_DIR, a.id + '.pdf'), fs.readFileSync(sp)); a.docExt = 'pdf'; a.docName = src.docName || ''; } } catch (e) {}
+  all.push(a); src.renewedById = a.id; src.updatedAt = now; saveAgreements(all);
+  try { if (a.personId) { const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.personId); if (pp) { logActivity(pp, 'Note', agreementTypeLabel(a.type) + ' renewed - new term ' + eff + ' to ' + exp, { auto: true }); savePeople(ppl); } } } catch (e) {}
+  res.json({ ok: true, agreement: agreementBrief(a) });
+});
 app.post('/api/agreements', express.json(), (req, res) => {
   const b = req.body || {}; const all = loadAgreements(); const now = new Date().toISOString();
   const type = String(b.type || '').trim();
@@ -13199,7 +13274,8 @@ function newSignToken() { return crypto.randomBytes(18).toString('base64url'); }
 function defaultSignFields() { return [{ label: 'Full name', required: true, type: 'text' }, { label: 'Title / Company', required: false, type: 'text' }]; }
 function reqOrigin(req) { const proto = String(req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0]; return String(process.env.APP_URL || (proto + '://' + req.get('host'))).replace(/\/$/, ''); }
 app.get('/sign/:token', (req, res) => {
-  const _found = findAgrByToken(loadAgreements(), req.params.token); const a = _found ? _found.a : null;
+  const _sgnAll = loadAgreements(); const _found = findAgrByToken(_sgnAll, req.params.token); const a = _found ? _found.a : null;
+  try { if (_found && _found.signer && !_found.signer.viewedAt && _found.signer.status !== 'signed') { _found.signer.viewedAt = new Date().toISOString(); _found.signer.viewIp = req.ip; saveAgreements(_sgnAll); } } catch (e) {}
   if (!a) return res.status(404).send(roomShell('Signature', { head: '<div class="kick">Signature</div><h1>Link not found</h1><div class="sub">This signing link is invalid or has been retired.</div>', body: '<div class="card"><div style="padding:20px;color:#6b7488">Please contact your RRG representative for a current link.</div></div>' }));
   if (_found.signer && Array.isArray(a.pdfFields) && a.pdfFields.length) return res.send(advancedSignPage(a, _found.signer, req));
   const label = agreementTypeLabel(a.type);
@@ -13433,6 +13509,33 @@ function cleanPdfFields(arr) {
     value: String((f && f.value) != null ? f.value : '').slice(0, 500)
   }; });
 }
+app.post('/api/admin/agreement-templates/:id/ai-place-fields', requireAdmin, express.json({ limit: '2mb' }), async (req, res) => {
+  const t0 = Date.now();
+  try {
+    const key = process.env.ANTHROPIC_API_KEY; if (!key) return res.status(400).json({ ok: false, error: 'AI is not configured (set ANTHROPIC_API_KEY).' });
+    const b = req.body || {};
+    const pages = Array.isArray(b.pages) ? b.pages.slice(0, 25) : [];
+    const signers = Array.isArray(b.signers) ? b.signers : [];
+    if (!pages.length) return res.status(400).json({ ok: false, error: 'No document text to read.' });
+    const roster = signers.map(function(sg){ return 'Signer ' + sg.order + ' = ' + String(sg.label || ('Signer ' + sg.order)).slice(0,40); }).join('; ') || 'Signer 1 = Client; Signer 2 = Broker (RRG, signs last)';
+    let doc = '';
+    pages.forEach(function(p){ doc += '\n=== PAGE ' + p.page + ' ===\n'; (Array.isArray(p.lines) ? p.lines : []).slice(0, 350).forEach(function(ln){ const y = Number(ln.y)||0, x = Number(ln.x)||0, w = Number(ln.w)||0; doc += '[y=' + y.toFixed(3) + ' x=' + x.toFixed(3) + ' w=' + w.toFixed(3) + '] ' + String(ln.t||'').slice(0,120) + '\n'; }); });
+    doc = doc.slice(0, 45000);
+    const sys = 'You place e-signature fields on a commercial real estate agreement for a brokerage that sells and leases restaurants and bars. You get the text lines of each page with NORMALIZED coordinates: x and y run 0..1 from the LEFT and TOP of the page, w is the line width as a fraction. Output ONLY fields a party actually must complete: signatures, initials, printed name, title, date, email or phone, checkboxes that get chosen, and any large special-provisions or additional-terms text area. Position each field using the given line coordinates: put a signature ON its signature rule or underscore line, put a short input just to the RIGHT of its label, and put a large text area BELOW its heading. Assign each field to the correct signer by reading the section or column header (a CLIENT block versus a broker or RESTAURANT REALTY GROUP block). Only place fields the document actually calls for; do not invent fields. Signer roster: ' + roster + '. Allowed types: signature, initials, text, date, checkbox. Allowed autofill keys (use an empty string if none apply): party_name, first_name, last_name, title, phone, email, company, my_name, my_title, my_email, my_phone, brokerage, date. Return ONLY minified JSON and no prose, shaped exactly like: {"fields":[{"page":0,"x":0.1,"y":0.8,"w":0.24,"h":0.05,"type":"signature","signer":1,"autofill":"","label":"Signature","required":true}]}';
+    const resp = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' }, body: JSON.stringify({ model: loadAiModel(), max_tokens: 3500, temperature: 0, system: sys, messages: [{ role: 'user', content: doc }] }) });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error((data && data.error && data.error.message) || 'AI request failed.');
+    let text = ''; try { text = (data.content || []).map(function(x){ return x.text || ''; }).join(''); } catch (e) {}
+    let parsed = null; try { const m = text.match(/\{[\s\S]*\}/); parsed = JSON.parse(m ? m[0] : text); } catch (e) { parsed = null; }
+    let fields = (parsed && Array.isArray(parsed.fields)) ? parsed.fields : [];
+    const T = { signature:1, initials:1, text:1, date:1, checkbox:1 };
+    const AF = { party_name:1, first_name:1, last_name:1, title:1, phone:1, email:1, company:1, my_name:1, my_title:1, my_email:1, my_phone:1, brokerage:1, date:1 };
+    const cl = function(v){ return Math.max(0, Math.min(1, Number(v)||0)); };
+    fields = fields.filter(function(f){ return f && T[String(f.type)]; }).slice(0,120).map(function(f){ return { page: Math.max(0, parseInt(f.page,10)||0), x: cl(f.x), y: cl(f.y), w: Math.max(0.02, Math.min(0.95, Number(f.w)||0.2)), h: Math.max(0.015, Math.min(0.4, Number(f.h)||0.028)), type: String(f.type), signer: Math.max(1, Math.min(3, parseInt(f.signer,10)||1)), autofill: AF[String(f.autofill)] ? String(f.autofill) : '', label: String(f.label||'').slice(0,60), required: !!f.required }; });
+    try { logAiCall('agreement_autoplace', req, Date.now() - t0); } catch (e) {}
+    res.json({ ok: true, fields: fields });
+  } catch (e) { console.error('ai-place-fields:', e && e.message); res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
 app.post('/api/admin/agreement-templates/:id/fields', requireAdmin, express.json({ limit: '1mb' }), (req, res) => {
   const all = loadTemplates(); const t = all.find(x => x.id === req.params.id);
   if (!t) return res.status(404).json({ ok: false, error: 'Template not found.' });
@@ -13736,16 +13839,28 @@ async function burnFinalPdf(a) {
       let _rawv = (a.fieldValues && a.fieldValues[f.id]); if (_rawv == null || _rawv === '') { try { _rawv = signerFieldPrefill(a, f) || ''; } catch (e) { _rawv = ''; } } const v = fmtSignVal(f.type, String(_rawv || '')); if (v) { const _fsz = parseFloat(f.fontSize); const size = (isFinite(_fsz) && _fsz > 0) ? Math.max(5, Math.min(48, _fsz)) : Math.max(7, Math.min(12, bh * 0.62)); const _ff = _fontFor(f.font); const _al = String(f.align || 'left'); const _lh = size * 1.18; const _tall = bh >= (_lh * 1.6); const _maxw = Math.max(4, bw - 4); const _widthOf = (s) => { try { return _ff.widthOfTextAtSize(s, size); } catch (e) { return s.length * size * 0.5; } }; let _lines = []; if (_tall) { const _paras = String(v).split(/\r?\n/); for (const _p of _paras) { const _words = _p.split(/\s+/).filter(Boolean); if (!_words.length) { _lines.push(''); continue; } let _cur = ''; for (const _w of _words) { const _tryLine = _cur ? _cur + ' ' + _w : _w; if (_widthOf(_tryLine) <= _maxw || !_cur) { _cur = _tryLine; } else { _lines.push(_cur); _cur = _w; } } if (_cur !== '' || !_lines.length) _lines.push(_cur); } const _maxLines = Math.max(1, Math.floor(bh / _lh)); if (_lines.length > _maxLines) _lines = _lines.slice(0, _maxLines); } else { _lines = [String(v).replace(/\r?\n/g, ' ').slice(0, 160)]; } const _y0 = _tall ? (byBottom + bh - size - 2) : (byBottom + Math.max(2, (bh - size) / 2)); for (let _i = 0; _i < _lines.length; _i++) { const _txt = _lines[_i]; if (_txt === '') continue; let _tx = bx + 2; const _tw = _widthOf(_txt); if (_al === 'center') _tx = bx + Math.max(2, (bw - _tw) / 2); else if (_al === 'right') _tx = bx + Math.max(2, bw - _tw - 2); page.drawText(_txt, { x: _tx, y: _y0 - _i * _lh, size, font: _ff, color: rgb(0.05, 0.09, 0.2) }); } }
     }
   }
-  const ap = pdf.addPage(); const asz = ap.getSize(); const ah = asz.height; let y = ah - 60;
-  ap.drawText('Electronic Signature Certificate', { x: 50, y, size: 16, font: bold, color: rgb(0.05, 0.09, 0.2) });
-  ap.drawText('Restaurant Realty Group', { x: 50, y: y - 16, size: 10, font, color: rgb(0.4, 0.45, 0.55) }); y -= 50;
-  ap.drawText('Agreement: ' + agreementTypeLabel(a.type), { x: 50, y, size: 11, font: bold }); y -= 24;
-  (a.signers || []).forEach(sg => {
-    ap.drawText((sg.label || ('Signer ' + sg.order)) + ':  ' + (sg.name || '') + '   <' + (sg.email || '') + '>', { x: 50, y, size: 10, font: bold }); y -= 15;
-    ap.drawText('Signed: ' + (sg.signedAt || '-') + '     IP: ' + (sg.ip || '-'), { x: 64, y, size: 9, font, color: rgb(0.4, 0.45, 0.55) }); y -= 24;
+  const fmtTs = (iso) => { if (!iso) return '\u2014'; try { return new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'UTC' }) + ' UTC'; } catch (e) { return String(iso).slice(0, 16).replace('T', ' ') + ' UTC'; } };
+  const ap = pdf.addPage(); const asz = ap.getSize(); const ah = asz.height, aw = asz.width; let y = ah - 56;
+  const _sub = rgb(0.42, 0.47, 0.57), _ink = rgb(0.05, 0.09, 0.2), _grn = rgb(0.16, 0.5, 0.34);
+  ap.drawText('Certificate of Completion', { x: 50, y, size: 17, font: bold, color: _ink }); y -= 17;
+  let _org = 'Restaurant Realty Group'; try { _org = orgDisplayName() || _org; } catch (e) {}
+  ap.drawText(_org + ' - electronic signature audit trail', { x: 50, y, size: 9.5, font, color: _sub }); y -= 26;
+  ap.drawText('Agreement:   ' + agreementTypeLabel(a.type), { x: 50, y, size: 11, font: bold, color: _ink }); y -= 15;
+  ap.drawText('Document ID:   ' + String(a.id || ''), { x: 50, y, size: 9, font, color: _sub }); y -= 13;
+  ap.drawText('Status:   Completed' + (a.executedAt ? (' - ' + fmtTs(a.executedAt)) : (a.signedAt ? (' - ' + fmtTs(a.signedAt)) : '')), { x: 50, y, size: 9, font, color: _sub }); y -= 20;
+  try { ap.drawLine({ start: { x: 50, y }, end: { x: aw - 50, y }, thickness: 0.7, color: rgb(0.82, 0.85, 0.9) }); } catch (e) {}
+  y -= 20;
+  (a.signers || []).slice().sort((x, z) => (x.order || 0) - (z.order || 0)).forEach(sg => {
+    if (y < 90) return;
+    ap.drawText((sg.label || ('Signer ' + sg.order)) + ':   ' + (sg.name || '\u2014'), { x: 50, y, size: 10.5, font: bold, color: _ink }); y -= 13;
+    if (sg.email) { ap.drawText(sg.email, { x: 64, y, size: 9, font, color: _sub }); y -= 12; }
+    ap.drawText('Sent:      ' + fmtTs(sg.sentAt || a.sentAt), { x: 64, y, size: 9, font, color: _sub }); y -= 12;
+    ap.drawText('Viewed:  ' + fmtTs(sg.viewedAt) + (sg.viewIp ? ('     IP ' + sg.viewIp) : ''), { x: 64, y, size: 9, font, color: _sub }); y -= 12;
+    ap.drawText('Signed:   ' + fmtTs(sg.signedAt) + (sg.ip ? ('     IP ' + sg.ip) : ''), { x: 64, y, size: 9, font, color: _grn }); y -= 20;
   });
-  ap.drawText('Each party consented to sign electronically. Drawn signatures are legally binding equivalents of', { x: 50, y: 46, size: 8, font, color: rgb(0.5, 0.55, 0.62) });
-  ap.drawText('handwritten signatures under applicable e-signature law.', { x: 50, y: 36, size: 8, font, color: rgb(0.5, 0.55, 0.62) });
+  ap.drawText('Each party consented to sign electronically; drawn signatures are legally binding equivalents of', { x: 50, y: 52, size: 8, font, color: rgb(0.5, 0.55, 0.62) });
+  ap.drawText('handwritten signatures under the U.S. ESIGN Act and applicable state law (UETA). This certificate', { x: 50, y: 42, size: 8, font, color: rgb(0.5, 0.55, 0.62) });
+  ap.drawText('records the sending, viewing, and signing of the document above.', { x: 50, y: 32, size: 8, font, color: rgb(0.5, 0.55, 0.62) });
   const out = await pdf.save();
   binWrite(path.join(AGREEMENT_DOC_DIR, 'final_' + a.id + '.pdf'), Buffer.from(out));
   a.hasFinal = true;
