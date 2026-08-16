@@ -13373,7 +13373,7 @@ app.post('/api/admin/agreement-templates', requireAdmin, express.json(), (req, r
   if (!name) return res.status(400).json({ ok: false, error: 'Give the template a name.' });
   let t;
   if (b.id) { t = all.find(x => x.id === b.id); if (!t) return res.status(404).json({ ok: false, error: 'Template not found.' }); }
-  else { t = { id: newTemplateId(), createdAt: now, active: true }; all.push(t); }
+  else { let _broker = 'Broker'; try { _broker = loadAppName() || orgDisplayName() || 'Broker'; } catch (e) {} t = { id: newTemplateId(), createdAt: now, active: true, signer1Label: 'Client', signer2Label: _broker, signer3Label: 'Signer 3' }; all.push(t); }
   t.name = name.slice(0, 120);
   if (typeof b.type === 'string') t.type = agreementTypeKeys().indexOf(b.type) >= 0 ? b.type : '';
   if (b.signFields !== undefined) t.signFields = cleanSignFields(b.signFields);

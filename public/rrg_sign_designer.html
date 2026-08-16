@@ -53,7 +53,7 @@ label.fld{display:block;font-size:10px;letter-spacing:.05em;text-transform:upper
 </head>
 <body>
 <div class="bar">
-  <span class="disc">RRG</span>
+  <span class="disc" id="brandDisc">RRG</span>
   <div><div class="tn" id="tName">Field Designer</div><div class="tsub" id="tSub">Loading…</div></div>
   <span class="sp"></span>
   <span class="msg" id="msg"></span>
@@ -86,7 +86,7 @@ label.fld{display:block;font-size:10px;letter-spacing:.05em;text-transform:upper
         <button class="tool af" data-af="phone">Phone</button>
         <button class="tool af" data-af="company">Company</button>
       </div>
-      <div class="mgh">You (RRG)</div>
+      <div class="mgh" id="youHdr">You (RRG)</div>
       <div class="afgrid">
         <button class="tool af" data-af="my_name">Name</button>
         <button class="tool af" data-af="my_title">Title</button>
@@ -113,8 +113,8 @@ label.fld{display:block;font-size:10px;letter-spacing:.05em;text-transform:upper
       <div class="plbl">Selected field</div>
       <div class="selbox">
         <label class="fld">Label</label><input id="f_label" placeholder="e.g. Tenant name">
-        <label class="fld">Auto-fill from record</label>
-        <select id="f_auto"><option value="">— none —</option><option value="email">Client — email</option><option value="first_name">Client — first name</option><option value="party_name">Client — full name</option><option value="last_name">Client — last name</option><option value="phone">Client — phone</option><option value="title">Client — title</option><option value="company">Company / firm</option><option value="my_email">Me — email</option><option value="my_name">Me — name</option><option value="my_phone">Me — phone</option><option value="my_title">Me — title</option><option value="brokerage">Brokerage — legal name</option><option value="date">Today's date</option></select>
+        <div id="f_auto_row"><label class="fld">Auto-fill from record</label>
+        <select id="f_auto"><option value="">— none —</option><option value="email">Client — email</option><option value="first_name">Client — first name</option><option value="party_name">Client — full name</option><option value="last_name">Client — last name</option><option value="phone">Client — phone</option><option value="title">Client — title</option><option value="company">Company / firm</option><option value="my_email">Me — email</option><option value="my_name">Me — name</option><option value="my_phone">Me — phone</option><option value="my_title">Me — title</option><option value="brokerage">Brokerage — legal name</option><option value="date">Today's date</option></select></div>
         <label class="chk"><input type="checkbox" id="f_req"> Required</label>
         <label class="chk" id="f_checked_row" style="display:none"><input type="checkbox" id="f_checked"> Checked by default</label>
         <div style="height:1px;background:var(--line);margin:10px 0"></div>
@@ -141,6 +141,9 @@ label.fld{display:block;font-size:10px;letter-spacing:.05em;text-transform:upper
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function qs(k){return new URLSearchParams(location.search).get(k);}
 var TID=qs('template'), TPL=null, FIELDS=[], TOOL='', SIGNER=1, SELECTED=null, MULTI=[], SNAP=false, PAGEPT={w:0,h:0}, SCALES=[], NPAGES=0;
+// SaaS branding: no hard-coded "RRG". Pull the brokerage/app name so the badge and
+// "You (…)" header reflect whichever org is signed in.
+(function(){ try{ fetch('/api/appname',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(!j||!j.ok) return; var short=(j.name||(j.org&&(j.org.name||j.org.legalName))||'').trim()||'RRG'; try{ document.title=short+' — Field Designer'; }catch(e){} var disc=document.getElementById('brandDisc'); if(disc){ var ini=String(short).replace(/[^A-Za-z0-9 ]/g,' ').trim().split(/\s+/).map(function(w){return w?w[0]:'';}).join('').slice(0,3).toUpperCase(); disc.textContent=ini||String(short).slice(0,3).toUpperCase(); } var yh=document.getElementById('youHdr'); if(yh) yh.textContent='You ('+short+')'; }).catch(function(){}); }catch(e){} })();
 var DEF={text:{w:0.22,h:0.028},signature:{w:0.26,h:0.06},initials:{w:0.09,h:0.05},date:{w:0.16,h:0.028},checkbox:{w:0.028,h:0.022}};
 var TYPELBL={text:'Text',signature:'✍ Sign',initials:'Init',date:'Date',checkbox:'☑'};
 
@@ -219,7 +222,7 @@ function openPanel(){
   (function(){ var _tx=(f.type==='text'||f.type==='date'); var _al=_tx?(f.align||'left'):'left'; var seg=document.getElementById('f_align'); if(seg){ seg.style.opacity=_tx?'1':'.4'; Array.prototype.forEach.call(seg.querySelectorAll('button'),function(b){ b.classList.toggle('on', b.getAttribute('data-a')===_al); }); } })();
   document.getElementById('f_height').value=(PAGEPT.h?Math.round(f.h*PAGEPT.h):'');
   var isTxt=(f.type==='text'||f.type==='date');
-  document.getElementById('f_auto').parentNode.style.opacity=isTxt?'1':'.4';
+  (function(){ var row=document.getElementById('f_auto_row'); if(row){ row.style.opacity=isTxt?'1':'.4'; row.style.pointerEvents=isTxt?'':'none'; } })();
   (function(){ var isCk=(f.type==='checkbox'); var row=document.getElementById('f_checked_row'); if(row) row.style.display=isCk?'':'none'; var _fc=document.getElementById('f_checked'); if(_fc) _fc.checked=(String(f.value)==='1'); })();
 }
 document.getElementById('f_label').addEventListener('input',function(){ var f=cur(); if(f){ f.label=this.value; drawFields(); scheduleSave(); } });
