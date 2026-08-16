@@ -201,7 +201,7 @@ function rowHtml(u){
     +'<td><span class="ts">'+(esc(u.commissionSplit)||'—')+'</span></td>'
     +'<td>'+status+'</td>'
     +'<td><span class="ts">'+(esc(u.last)||'Never')+'</span></td>'
-    +'<td style="text-align:center"><span class="chev">▶</span></td>'
+    +'<td style="text-align:right;white-space:nowrap"><button class="delx" type="button" data-udel="'+esc(u.username)+'" data-uname="'+esc(u.name||u.username)+'" title="Remove user" aria-label="Remove user">✕</button> <span class="chev">▶</span></td>'
     +'</tr>';
   return tr+(open?detailHtml(u):'');
 }
@@ -286,8 +286,10 @@ function wire(){
   var s=document.getElementById('search');
   if(s) s.addEventListener('input',function(){SEARCH=this.value;applySearch();});
 
+  if(!window._udelWired){ window._udelWired=1; document.addEventListener('click',function(e){ var d=e.target&&e.target.closest&&e.target.closest('[data-udel]'); if(!d) return; e.preventDefault(); e.stopPropagation(); var un=d.getAttribute('data-udel'), nm=d.getAttribute('data-uname'); (async function(){ var ok=window.rrgConfirm?await rrgConfirm('Remove '+(nm||un)+' completely? This wipes the account \u2014 disabling is usually safer.'):confirm('Remove '+(nm||un)+'?'); if(!ok) return; post('/api/admin/remove',{username:un}).then(function(j){ if(j&&j.ok){ OPEN=null; loadData(); } else alert((j&&j.error)||'Could not remove.'); }); })(); }); }
   document.querySelectorAll('tr.urow').forEach(function(row){
-    row.addEventListener('click',function(){
+    row.addEventListener('click',function(e){
+      if(e&&e.target&&e.target.closest&&e.target.closest('[data-udel]')) return;
       var un=row.getAttribute('data-open');
       OPEN=(OPEN===un)?null:un;
       render();

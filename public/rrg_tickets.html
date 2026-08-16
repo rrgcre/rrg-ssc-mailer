@@ -165,7 +165,8 @@ function ticketCfg(){
       { label:'Priority', sort:function(a,b){var o={Urgent:0,High:1,Normal:2};return (o[a.priority]==null?9:o[a.priority])-(o[b.priority]==null?9:o[b.priority]);}, cell:priorityCell },
       { label:'Requested by', defaultHidden:!ISADMIN, sort:function(a,b){return RRGList.cmp(a.by||'',b.by||'');}, cell:function(t){ return t.by?esc(t.by):'<span class="meta">\u2014</span>'; } },
       { label:'Status', sort:function(a,b){return RRGList.cmp(a.status||'',b.status||'');}, cell:statusCell },
-      { label:'Opened', sort:function(a,b){return openDays(a)-openDays(b);}, cell:function(t){ return '<span title="'+esc(fmtDate(t.createdAt))+'">'+esc(openLabel(t))+'</span>'; } }
+      { label:'Opened', sort:function(a,b){return openDays(a)-openDays(b);}, cell:function(t){ return '<span title="'+esc(fmtDate(t.createdAt))+'">'+esc(openLabel(t))+'</span>'; } },
+      { label:'', sortable:false, cell:function(t){ return ISADMIN?('<button class="delx" type="button" data-tdel="'+esc(t.id)+'" data-tno="'+esc(t.no)+'" title="Delete request" aria-label="Delete">✕</button>'):''; } }
     ]
   };
 }
@@ -179,6 +180,7 @@ function renderList(){
   CTL.refresh(list);
 }
 document.addEventListener('click',function(e){ var o=e.target&&e.target.closest&&e.target.closest('[data-open]'); if(o){ e.preventDefault(); openTicket(o.getAttribute('data-open')); } });
+document.addEventListener('click',function(e){ var d=e.target&&e.target.closest&&e.target.closest('[data-tdel]'); if(d){ e.preventDefault(); e.stopPropagation(); delTicket(d.getAttribute('data-tdel'), d.getAttribute('data-tno')); } });
 
 /* ---- detail / thread ---- */
 function renderThread(t){
