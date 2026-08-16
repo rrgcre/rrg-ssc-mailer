@@ -471,7 +471,7 @@ function effCurrency(){ const s=loadSettings(); const c=(typeof s.currency==='st
 function currencySymbol(){ return CURRENCY_SYMBOLS[effCurrency()]||'$'; }
 function effSentSyncEnabled() { const s = loadSettings(); return s.sentSyncEnabled !== false; }
 function effSentSyncInterval() { const s = loadSettings(); const n = parseInt(s.sentSyncIntervalMin, 10); return (isFinite(n) && n >= 2) ? Math.min(720, n) : 10; }
-function effAgrRenewDays() { const s = loadSettings(); let a = parseInt(s.agrRemind1, 10); let b = parseInt(s.agrRemind2, 10); if (!(isFinite(a) && a > 0)) a = 60; if (!(isFinite(b) && b > 0)) b = 30; a = Math.min(365, a); b = Math.min(365, b); if (b > a) { const t = a; a = b; b = t; } return { first: a, second: b, msg1: String(s.agrRemind1Msg || '').slice(0, 200), msg2: String(s.agrRemind2Msg || '').slice(0, 200) }; }
+function effAgrRenewDays() { const s = loadSettings(); let a = parseInt(s.agrRemind1, 10); let b = parseInt(s.agrRemind2, 10); if (!(isFinite(a) && a > 0)) a = 60; if (!(isFinite(b) && b > 0)) b = 30; a = Math.min(365, a); b = Math.min(365, b); if (b > a) { const t = a; a = b; b = t; } return { first: a, second: b, msg1: String(s.agrRemind1Msg || '').slice(0, 200), msg2: String(s.agrRemind2Msg || '').slice(0, 200), auto1: String(s.agrRemind1Auto || ''), auto2: String(s.agrRemind2Auto || '') }; }
 const DEFAULT_REMIND_MSG = '{type} expires {expires} ({days} days) \u2014 renew?';
 function renderReminderMsg(tmpl, ctx) { let t = String(tmpl || '').trim() || DEFAULT_REMIND_MSG; return t.replace(/\{type\}/g, ctx.type || 'Agreement').replace(/\{client\}/g, ctx.client || '').replace(/\{who\}/g, ctx.client || '').replace(/\{days\}/g, String(ctx.days)).replace(/\{expires\}/g, ctx.expires || '').replace(/\s{2,}/g, ' ').trim(); }
 // ---- Tool label overrides: admins can rename any tool (e.g. call "Contacts" "People").
@@ -1592,7 +1592,7 @@ app.post('/api/admin/agreement-renewable', requireAdmin, express.json(), (req, r
 // ---- Agreement renewal reminder thresholds (admin-configurable) ----
 app.get('/api/admin/agreement-reminders', requireAdmin, (req, res) => {
   const rd = effAgrRenewDays();
-  res.json({ ok: true, first: rd.first, second: rd.second, msg1: rd.msg1, msg2: rd.msg2, defaultMsg: DEFAULT_REMIND_MSG });
+  res.json({ ok: true, first: rd.first, second: rd.second, msg1: rd.msg1, msg2: rd.msg2, defaultMsg: DEFAULT_REMIND_MSG, auto1: rd.auto1, auto2: rd.auto2, automations: loadAutomations().filter(a => a.active !== false).map(a => ({ id: a.id, name: a.name || 'Automation' })) });
 });
 app.post('/api/admin/agreement-reminders', requireAdmin, express.json(), (req, res) => {
   const b = req.body || {}; const s = loadSettings();
@@ -1603,6 +1603,9 @@ app.post('/api/admin/agreement-reminders', requireAdmin, express.json(), (req, r
   s.agrRemind1 = a; s.agrRemind2 = c;
   if (b.msg1 !== undefined) s.agrRemind1Msg = String(b.msg1 || '').slice(0, 200);
   if (b.msg2 !== undefined) s.agrRemind2Msg = String(b.msg2 || '').slice(0, 200);
+  const _autoIds = loadAutomations().map(a => a.id);
+  if (b.auto1 !== undefined) s.agrRemind1Auto = (_autoIds.indexOf(String(b.auto1)) >= 0) ? String(b.auto1) : '';
+  if (b.auto2 !== undefined) s.agrRemind2Auto = (_autoIds.indexOf(String(b.auto2)) >= 0) ? String(b.auto2) : '';
   saveSettings(s);
   const rd = effAgrRenewDays();
   res.json({ ok: true, first: rd.first, second: rd.second, msg1: rd.msg1, msg2: rd.msg2 });
@@ -13273,7 +13276,8 @@ function agreementExpiryTick() {
         const key = 'agrexp:' + a.id + ':' + days;
         if (tasks.some(t => t.status === 'open' && t.expKey === key)) return;
         const now = new Date().toISOString();
-        const _rmTmpl = (days === rd.first) ? rd.msg1 : rd.msg2; const _rmTitle = renderReminderMsg(_rmTmpl, { type: label, client: who, days: days, expires: a.expires }); tasks.push({ id: newTaskId(), createdBy: owner, createdByName: a.createdByName || '', assignee: owner, assigneeName: a.createdByName || '', createdAt: now, status: 'open', doneAt: '', title: _rmTitle, notes: 'Auto-created renewal reminder. Open the agreement to renew or extend.', due: today + 'T09:00', priority: prio, type: '', linkType: a.personId ? 'contact' : '', linkId: a.personId || '', linkLabel: who || '', expKey: key, remChannels: ['popup'] });
+        const _rmTmpl = (days === rd.first) ? rd.msg1 : rd.msg2; const _rmTitle = renderReminderMsg(_rmTmpl, { type: label, client: who, days: days, expires: a.expires }); tasks.push({ id: newTaskId(), createdBy: owner, createdByName: a.createdByName || '', assignee: owner, assigneeName: a.createdByName || '', createdAt: now, status: 'open', doneAt: '', title: _rmTitle, notes: 'Auto-created renewal reminder. Open the agreement to renew or extend.', due: (a.expires || today) + 'T09:00', priority: prio, type: '', linkType: a.personId ? 'contact' : '', linkId: a.personId || '', linkLabel: who || '', expKey: key, remChannels: ['popup'] });
+        try { const autoId = (days === rd.first) ? rd.auto1 : rd.auto2; if (autoId && a.personId) { const _pp = loadPeople(); const _p = _pp.find(x => x.id === a.personId); const _plan = loadAutomations().find(x => x.id === autoId && x.active !== false); if (_p && _plan) { enrollPerson(_p, _plan, { byName: 'Renewal reminder', byUser: owner, dealKey: a.dealKey || '' }); savePeople(_pp); } } } catch (e) {}
       };
       if (dd <= rd.first && !a.remindA) { mk(rd.first, 'Normal'); a.remindA = true; changed = true; }
       if (dd <= rd.second && !a.remindB) { mk(rd.second, 'High'); a.remindB = true; changed = true; }

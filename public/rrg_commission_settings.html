@@ -20,7 +20,9 @@ h1{font-size:16px;font-weight:700;color:var(--navy);margin:0;}
 label.fl{display:block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--soft);margin:12px 0 6px;}
 input.tin{border:1px solid var(--inp);border-radius:4px;padding:9px 11px;font:inherit;font-size:13.5px;background:#fff;color:var(--ink);}
 input.tin:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(44,92,143,.15);}
-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:4px;}
+table{width:auto;border-collapse:collapse;font-size:13px;margin-top:4px;}
+td .t_to{width:150px;} td .t_rate{width:70px;}
+th,td{padding-right:14px;}
 th{text-align:left;font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--soft);font-weight:800;padding:6px 8px;border-bottom:1px solid var(--line);}
 td{padding:6px 8px;border-bottom:1px solid #eef1f6;vertical-align:middle;}
 td .tin{width:100%;}
@@ -113,7 +115,7 @@ function render(){
     +'<div class="sub">Set up both fee methods your firm uses. On each agreement, the broker picks which method applies to that deal, and the projected gross commission (GCI) is calculated and flowed to the linked deal automatically.</div>'
     +'<div class="card"><div class="cardh">Modified Lehman — tiered / marginal '+adminBadge+'</div><div class="cardb">'
       +'<p class="hint">Each tranche of the transaction value earns its own tier’s rate; the tiers are summed for the gross commission. This is the default method on the Commission Forecaster.</p>'
-      +'<table><thead><tr><th style="width:34px">Tier</th><th>Up to (deal value)</th><th style="width:130px">Rate</th><th></th></tr></thead><tbody id="tierBody"></tbody></table>'
+      +'<table><thead><tr><th style="width:34px">Tier</th><th>Up to (deal value)</th><th>Rate</th><th></th></tr></thead><tbody id="tierBody"></tbody></table>'
       +(ADMIN?'<button class="addrow" id="addTier">+ Add tier</button>':'')
       +'<label class="fl">Minimum fee per location <span style="text-transform:none;font-weight:600;color:var(--dim)">— for multi-unit deals, the minimum applies separately to each location (leave 0 for none)</span></label>'
       +'<span style="color:var(--soft)">$</span> <input class="tin" id="minFee" inputmode="numeric" value="'+esc(grp(String(MINFEE||0)))+'" style="width:160px"'+(ADMIN?'':' disabled')+'>'
