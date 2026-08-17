@@ -14,7 +14,7 @@ h1{font-size:20px;font-weight:800;color:var(--navy);margin:0;}
 .sub{font-size:13px;color:var(--muted);margin-top:6px;}
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:18px 0;}
 .tile{background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px 16px;}
-.tile .n{font-size:21px;font-weight:800;color:var(--navy);} .tile .n.money{color:var(--green);}
+.tile .n{font-size:21px;font-weight:800;color:var(--navy);} .tile .n.money{color:var(--green);} .tile .n.bad{color:#b23a2c;} .tile .ts{font-size:11px;color:var(--muted);margin-top:3px;font-weight:600;}
 .tile .l{font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--soft);margin-top:5px;}
 .card{background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden;}
 .ch{display:flex;align-items:center;gap:10px;padding:12px 18px;border-bottom:1px solid var(--line);background:var(--wash);}
@@ -60,15 +60,16 @@ fetch('/api/team',{credentials:'same-origin'}).then(function(r){return r.json();
 function render(j){
   var FEATS='<div class="feats" id="tmFeats">'+'<div class="featshd" id="tmFeatHd"><b>What you can do with Teams</b><span class="sh">your team\u2019s book, production and commission at a glance \u2014 tap any tile for help</span><span class="chev">\u25be</span></div>'+'<div class="featgrid">'+'<a class="feat" href="rrg_team_help.html#roster" target="_blank" rel="noopener"><span class="fic">\ud83d\udccb</span><div><b>Everyone at a glance</b><span>Every team member\u2019s book, production and commission on one screen \u2014 ranked and sortable.</span></div></a>'+'<a class="feat" href="rrg_team_help.html#kpis" target="_blank" rel="noopener"><span class="fic">\ud83d\udcca</span><div><b>Live production KPIs</b><span>Active listings, deals, GCI, received, waiting-on, net and pipeline \u2014 computed live from each rep\u2019s book.</span></div></a>'+'<a class="feat" href="rrg_team_help.html#overview" target="_blank" rel="noopener"><span class="fic">\ud83d\udc64</span><div><b>One record per person</b><span>Click a name for a contact-style employee record with their listings, deals and agreements.</span></div></a>'+'<a class="feat" href="rrg_team_help.html#kpis" target="_blank" rel="noopener"><span class="fic">\u23f3</span><div><b>Commission still owed</b><span>See what\u2019s been received vs. what you\u2019re waiting on \u2014 like the second half of a lease commission.</span></div></a>'+'<a class="feat" href="rrg_team_help.html#details" target="_blank" rel="noopener"><span class="fic">\ud83e\udeaa</span><div><b>Employee details</b><span>Home address, LinkedIn, start &amp; end dates and emergency contact, kept right on the record.</span></div></a>'+'<a class="feat" href="rrg_team_help.html#payroll" target="_blank" rel="noopener"><span class="fic">\ud83d\udd12</span><div><b>Payroll &amp; tax</b><span>Payment method, W-9 on file, tax classification and 1099 details \u2014 visible only to administrators.</span></div></a>'+'<a class="feat" href="rrg_team_help.html#commission" target="_blank" rel="noopener"><span class="fic">\ud83d\udcb0</span><div><b>Commission &amp; agent split</b><span>Net pay follows your firm\u2019s commission structure and agent split, set once in admin.</span></div></a>'+'<a class="feat" href="rrg_team_help.html#roster" target="_blank" rel="noopener"><span class="fic">\ud83d\udee1\ufe0f</span><div><b>Private by design</b><span>Reps see only their own record; the roster and payroll figures are admin-only.</span></div></a>'+'</div></div>';
   var t=j.team||[];
-  var tot=t.reduce(function(a,r){ a.listings+=r.activeListings; a.deals+=r.deals; a.closed+=r.closedDeals; a.gci+=r.gci; a.net+=r.net; a.received+=(r.received||0); a.waiting+=(r.waiting||0); a.pipeline+=r.pipeline; return a; },{listings:0,deals:0,closed:0,gci:0,net:0,received:0,waiting:0,pipeline:0});
+  var tot=t.reduce(function(a,r){ a.listings+=r.activeListings; a.deals+=r.deals; a.closed+=r.closedDeals; a.gci+=r.gci; a.net+=r.net; a.received+=(r.received||0); a.waiting+=(r.waiting||0); a.pipeline+=r.pipeline; a.gciYtd+=(r.gciYtd||0); a.closedYtd+=(r.closedDealsYtd||0); a.lost+=(r.lostDeals||0); return a; },{listings:0,deals:0,closed:0,gci:0,net:0,received:0,waiting:0,pipeline:0,gciYtd:0,closedYtd:0,lost:0});
   var html=''
     +'<div class="pkick">Firm</div><h1>Team</h1>'
     +'<div class="sub">'+t.length+' team member'+(t.length===1?'':'s')+' · book, production and commission at a glance. Click a name to open their employee record. <a href="rrg_team_help.html" style="margin-left:4px;font-weight:600">Help &amp; guide \u2192</a></div>'
     +FEATS
     +'<div class="tiles">'
       +tile(tot.listings,'Active Listings','')
-      +tile(tot.deals,'Deals','')
-      +tile(moneyShort(tot.gci),'Commission GCI','money')
+      +tile(tot.deals,'Deals','',tot.closed+' closed · '+tot.closedYtd+' YTD')
+      +tile(moneyShort(tot.gciYtd),'Commission GCI · YTD','money','All-time '+moneyShort(tot.gci))
+      +tile(tot.lost,'Didn’t close','bad','deals that fell through')
       +tile(moneyShort(tot.received),'Received','money')
       +tile(moneyShort(tot.waiting),'Waiting on','money')
       +tile(moneyShort(tot.pipeline),'Pipeline','money')
@@ -82,14 +83,16 @@ function render(j){
       {key:'title',label:'Title',cell:function(it){return esc(it.title||it.role||'—');},sort:function(a,b){return String(a.title||a.role).localeCompare(String(b.title||b.role));}},
       {key:'activeListings',label:'Listings',align:'right',cell:function(it){return String(it.activeListings);},sort:function(a,b){return a.activeListings-b.activeListings;}},
       {key:'deals',label:'Deals',align:'right',cell:function(it){return it.deals+' <span class="meta">('+it.closedDeals+' closed)</span>';},sort:function(a,b){return a.deals-b.deals;}},
+      {key:'lostDeals',label:'Didn’t close',align:'right',cell:function(it){return it.lostDeals?('<span style="color:#b23a2c;font-weight:700">'+it.lostDeals+'</span>'):'<span class="meta">—</span>';},sort:function(a,b){return (a.lostDeals||0)-(b.lostDeals||0);}},
       {key:'gci',label:'Commission GCI',align:'right',cell:function(it){return it.gci?money(it.gci):'<span class="meta">—</span>';},sort:function(a,b){return a.gci-b.gci;}},
+      {key:'gciYtd',label:'GCI YTD',align:'right',cell:function(it){return it.gciYtd?money(it.gciYtd):'<span class="meta">—</span>';},sort:function(a,b){return (a.gciYtd||0)-(b.gciYtd||0);}},
       {key:'received',label:'Received',align:'right',cell:function(it){return it.received?money(it.received):'<span class="meta">—</span>';},sort:function(a,b){return (a.received||0)-(b.received||0);}},
       {key:'waiting',label:'Waiting on',align:'right',cell:function(it){return it.waiting?money(it.waiting):'<span class="meta">—</span>';},sort:function(a,b){return (a.waiting||0)-(b.waiting||0);}},
       {key:'net',label:'Net',align:'right',cell:function(it){return it.net?money(it.net):'<span class="meta">—</span>';},sort:function(a,b){return a.net-b.net;}},
       {key:'pipeline',label:'Pipeline',align:'right',cell:function(it){return it.pipeline?money(it.pipeline):'<span class="meta">—</span>';},sort:function(a,b){return a.pipeline-b.pipeline;}}
     ]});
 }
-function tile(n,label,cls){ return '<div class="tile"><div class="n'+(cls==='money'?' money':'')+'">'+esc(n)+'</div><div class="l">'+esc(label)+'</div></div>'; }
+function tile(n,label,cls,sub){ return '<div class="tile"><div class="n'+(cls?(' '+cls):'')+'">'+esc(n)+'</div><div class="l">'+esc(label)+'</div>'+(sub?('<div class="ts">'+esc(sub)+'</div>'):'')+'</div>'; }
 </script>
 </body>
 </html>

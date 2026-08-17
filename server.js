@@ -10689,22 +10689,24 @@ function repRollup(u, opts) {
   const idx = assignmentsIndex(), overlay = loadAssignOverlay();
   const listings = [], deals = [];
   let activeListings = 0, closedDeals = 0, openDeals = 0, gci = 0, gciOpen = 0, pipeline = 0, received = 0, waiting = 0;
+  let closedDealsYtd = 0, gciYtd = 0, lostDeals = 0; const _KYR = new Date().getFullYear();
   for (const key in idx) {
     let v; try { v = assignmentView(idx[key], overlay); } catch (e) { continue; }
     if (!repMatchesOwner(v.owner, u)) continue;
     const t = v.transaction || null; const st = v.status || '';
     const active = (st !== 'Closed' && st !== 'Lost');
+    if (st === 'Lost') lostDeals++;
     if (active) { activeListings++; pipeline += _relNum(v.value); }
     if (opts.lists) listings.push({ key: key, business: v.business, market: v.market || '', status: st, value: v.value || '', expires: v.listingExpires || '', hasDeal: !!t });
     if (t) {
       const closed = (t.status === 'Closed'); const due = _relNum(t.commissionDue); const paid = _relNum(t.commissionPaid);
       received += paid;
-      if (closed) { closedDeals++; gci += due; waiting += Math.max(0, due - paid); } else { openDeals++; gciOpen += due; }
+      if (closed) { closedDeals++; gci += due; waiting += Math.max(0, due - paid); const _cd = String(t.closedDate || t.closedAt || ''); if (_cd && Number(String(_cd).slice(0, 4)) === _KYR) { closedDealsYtd++; gciYtd += due; } } else { openDeals++; gciOpen += due; }
       if (opts.lists) deals.push({ key: key, business: v.business, buyer: t.buyer || '', price: t.price || '', status: t.status || '', close: t.expectedClose || t.closedDate || '', commissionDue: t.commissionDue || '', commissionPaid: t.commissionPaid || '', commissionStatus: t.commissionStatus || '' });
     }
   }
   const splitPct = effCommissionAgentSplit(); const split = splitPct / 100;
-  const out = { activeListings, dealCount: (openDeals + closedDeals), openDeals, closedDeals, gci, gciOpen, net: Math.round(gci * split), netOpen: Math.round(gciOpen * split), pipeline, received: Math.round(received), waiting: Math.round(waiting), split: splitPct };
+  const out = { activeListings, dealCount: (openDeals + closedDeals), openDeals, closedDeals, gci, gciOpen, net: Math.round(gci * split), netOpen: Math.round(gciOpen * split), netYtd: Math.round(gciYtd * split), gciYtd, closedDealsYtd, lostDeals, pipeline, received: Math.round(received), waiting: Math.round(waiting), split: splitPct };
   if (opts.lists) { out.listings = listings.sort((a, b) => String(a.business).localeCompare(String(b.business))); out.deals = deals; }
   return out;
 }
@@ -10715,7 +10717,7 @@ app.get('/api/team', (req, res) => {
   const users = auth.loadUsers().filter(u => !u.disabled);
   const rows = users.map(u => {
     const r = repRollup(u, { lists: false });
-    return { username: u.username || '', name: u.name || u.username || '', title: u.title || '', role: u.role || '', email: u.email || '', photoUrl: repUserPhoto(u.username), activeListings: r.activeListings, deals: r.dealCount, closedDeals: r.closedDeals, gci: r.gci, net: r.net, received: r.received, waiting: r.waiting, pipeline: r.pipeline, self: (u.username === req.user.username) };
+    return { username: u.username || '', name: u.name || u.username || '', title: u.title || '', role: u.role || '', email: u.email || '', photoUrl: repUserPhoto(u.username), activeListings: r.activeListings, deals: r.dealCount, closedDeals: r.closedDeals, gci: r.gci, net: r.net, received: r.received, waiting: r.waiting, pipeline: r.pipeline, gciYtd: r.gciYtd, closedDealsYtd: r.closedDealsYtd, netYtd: r.netYtd, lostDeals: r.lostDeals, self: (u.username === req.user.username) };
   }).sort((a, b) => (b.gci - a.gci) || String(a.name).localeCompare(String(b.name)));
   res.json({ ok: true, team: rows, isAdmin: isAdmin, split: effCommissionAgentSplit(), me: req.user.username });
 });
