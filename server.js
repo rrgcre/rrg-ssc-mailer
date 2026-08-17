@@ -4900,7 +4900,7 @@ function assignmentView(d, overlay) {
     clientPersonId: deal ? (deal.contactPersonId || '') : '',
     companyId: deal ? (deal.companyId || '') : '', company: (deal && deal.companyId && companyById(deal.companyId)) ? companyBrief(companyById(deal.companyId)) : null,
     roomId: (room && room.id) || (deal && deal.roomId) || '',
-    status: o.status || 'New', notes: o.notes || '', owner: o.owner || by, businessOverride: o.businessOverride || '',
+    status: o.status || 'New', notes: o.notes || '', owner: o.owner || by, businessOverride: o.businessOverride || '', codeName: o.codeName || '', listingNo: o.listingNo || 0, listingId: (o.listingNo ? ('RRG-' + o.listingNo) : ''),
     stageFlags: o.stageFlags || {}, pipelineId: o.pipelineId || '', needsSetup: !!o.needsSetup, fromBbs: !!o.fromBbs, referredBy: o.referredBy || '', referralPct: o.referralPct || '', listingLive: o.listingLive || '', listingStart: o.listingStart || '', listingExpires: o.listingExpires || '', autoRenew: !!o.autoRenew, renewable: !!o.renewable,
     offers: Array.isArray(o.offers) ? o.offers : [],
     tours: Array.isArray(o.tours) ? o.tours : [],
@@ -4990,7 +4990,7 @@ function mktTeaser(key, view, m) {
   const units = (m.units && m.units > 1) ? (' · ' + m.units + ' units') : '';
   const badge = ((m.conceptType || m.conceptKey || 'Restaurant') + (m.reAvailable ? ' · RE available' : units)).trim();
   return {
-    id: key, headline: m.headline || 'Confidential restaurant opportunity',
+    id: key, headline: m.headline || (view.codeName || 'Confidential restaurant opportunity'),
     loc: m.loc || view.market || '', badge: badge,
     conceptKey: m.conceptKey || '', marketKey: m.marketKey || 'Other',
     priceBand: m.priceBand || '', cashBand: m.cashBand || '',
@@ -5504,6 +5504,7 @@ app.get('/api/assignment/:key', (req, res) => {
   if (!d) return res.status(404).json({ ok: false, error: 'Assignment not found.' });
   if (!(canSeeAllDeals(req) || ownsAssignment(req, d))) return res.status(403).json({ ok: false, error: 'Not yours.' });
   const origin = req.protocol + '://' + req.get('host');
+  try { const _o = overlay[d.key] || {}; if (!_o.listingNo) { _o.listingNo = nextListingNo(); overlay[d.key] = _o; saveAssignOverlay(overlay); } } catch (e) {}
   const dealAgreements = loadAgreements().filter(a => a.dealKey === d.key).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999')));
   res.json({ ok: true, statuses: ASSIGN_STATUSES, txnStatuses: TXN_STATUSES, commStatuses: TXN_COMM_STATUS, markets: effMarkets(), assignment: assignmentView(d, overlay), agreements: dealAgreements, agreementTypes: effAgreementTypes(), pipelines: loadPipelines(), automations: loadAutomations().filter(a => a.active !== false).map(a => ({ id: a.id, name: a.name || '' })), expenses: dealExpenseRollup(d.key, req.user), invoices: dealInvoiceRollup(d.key, req.user), roomActivity: roomActivityFor(d, origin) });
 });
@@ -5531,6 +5532,7 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   if (typeof b.notes === 'string') cur.notes = b.notes.slice(0, 8000);
   if (typeof b.owner === 'string') cur.owner = b.owner.slice(0, 120);
   if (typeof b.businessOverride === 'string') cur.businessOverride = b.businessOverride.slice(0, 120);
+  if (typeof b.codeName === 'string') cur.codeName = b.codeName.slice(0, 80);
   if (typeof b.marketOverride === 'string') cur.marketOverride = b.marketOverride.slice(0, 80);
   if (b.stageFlags && typeof b.stageFlags === 'object') {
     const allowedStages = ['outreach','agreed','offers','dd','closing'];
@@ -10189,6 +10191,7 @@ app.post('/api/companies/bulk-delete', express.json({ limit: '512kb' }), (req, r
   const people = loadPeople(); let ch = false; people.forEach(p => { if (tset[p.companyId]) { p.companyId = ''; ch = true; } }); if (ch) savePeople(people);
   res.json({ ok: true, deleted: targets.length, skipped: ids.length - targets.length, deletedDeals: linkedDeals.length, deletedPhotos: photos });
 });
+function nextListingNo() { try { const ov = loadAssignOverlay(); let max = 1000; Object.keys(ov).forEach(function(k){ var n = parseInt(ov[k] && ov[k].listingNo, 10); if (n > max) max = n; }); return max + 1; } catch (e) { return 1001; } }
 // ---- Deals (first-class) ----
 app.post('/api/deal/new', express.json(), (req, res) => {
   const b = req.body || {};
@@ -10211,6 +10214,7 @@ app.post('/api/deal/new', express.json(), (req, res) => {
   if (room) rec.roomId = room.id;
   saveDeals(arr);
   if (_isTR) { try { const _ov = loadAssignOverlay(); const _k = 'd_' + rec.id; _ov[_k] = Object.assign(_ov[_k] || {}, { assignmentType: 'tenant_rep' }); saveAssignOverlay(_ov); } catch (e) {} }
+  try { const _ov = loadAssignOverlay(); const _k = 'd_' + rec.id; if (!(_ov[_k] && _ov[_k].listingNo)) { _ov[_k] = Object.assign(_ov[_k] || {}, { listingNo: nextListingNo() }); saveAssignOverlay(_ov); } } catch (e) {}
   res.json({ ok: true, id: rec.id, key: 'd_' + rec.id, roomId: rec.roomId, contactPersonId: rec.contactPersonId, people: loadPeople().map(personBrief) });
 });
 app.post('/api/deal/:id', express.json(), (req, res) => {
@@ -11342,7 +11346,7 @@ app.get('/api/board', (req, res) => {
       catch (e) { stage = stageNames[0] || ''; }
     }
     const _prov = !!(d.screen && d.screen.provisional);
-    cards.push({ key: d.key, business: v.business, company: coNameById[v.companyId] || (d.screen && d.screen.data && d.screen.data.company) || '', companyId: v.companyId || '', contactPersonId: v.clientPersonId || '', concept: v.business, contact: v.contact || '', value: v.value || '', market: v.market || '', owner: v.owner || '', lastActivity: v.lastActivity || '', createdAt: v.createdAt || '', status: _prov ? 'Pending Approval' : (o.status || 'New'), provisional: _prov, bbsNumber: v.bbsNumber || '', stage: stage, stageSince: o.stageSince || v.createdAt || '', commission: (v.transaction && v.transaction.commissionDue) || '', ownerPhoto: ownerPhotoBy[String(v.owner || '').toLowerCase()] || '' });
+    cards.push({ key: d.key, business: v.business, listingNo: o.listingNo || 0, listingId: (o.listingNo ? ('RRG-' + o.listingNo) : ''), codeName: o.codeName || '', company: coNameById[v.companyId] || (d.screen && d.screen.data && d.screen.data.company) || '', companyId: v.companyId || '', contactPersonId: v.clientPersonId || '', concept: v.business, contact: v.contact || '', value: v.value || '', market: v.market || '', owner: v.owner || '', lastActivity: v.lastActivity || '', createdAt: v.createdAt || '', status: _prov ? 'Pending Approval' : (o.status || 'New'), provisional: _prov, bbsNumber: v.bbsNumber || '', stage: stage, stageSince: o.stageSince || v.createdAt || '', commission: (v.transaction && v.transaction.commissionDue) || '', ownerPhoto: ownerPhotoBy[String(v.owner || '').toLowerCase()] || '' });
   });
   res.json({ ok: true, pipelines: pipelines.map(p => ({ id: p.id, name: p.name })), pipelineId: pid, pipelineName: pipe.name || '', stages: stageNames, cards: cards, isAdmin: !!isAdmin });
 });

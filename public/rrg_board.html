@@ -393,6 +393,7 @@ function cardOwner(c){ if(!c.owner) return ''; var t=esc(c.owner); var ini=esc(i
 function fmtMoneyMaybe(v){ var str=String(v==null?'':v); if(/^[\s$,.\d]+$/.test(str) && /\d/.test(str)){ var m=fmtMoney(money(str)); if(m) return m; } return esc(str); }
 function cardFieldsHtml(c){
   var h='';
+  if(c.listingId||c.codeName){ h+='<div class="r" style="color:#8a94a6" title="Listing ID / code name"><span class="ic">#</span>'+esc(c.listingId||'')+((c.listingId&&c.codeName)?' \u00b7 ':'')+esc(c.codeName||'')+'</div>'; }
   if(CARDF.contact && c.contact){ var nm=esc(c.contact); h+='<div class="r"><span class="ic">○</span>'+(c.contactPersonId?('<a class="contactlink" href="./rrg_person.html?id='+encodeURIComponent(c.contactPersonId)+'">'+nm+'</a>'):nm)+'</div>'; }
   if(CARDF.value && c.value) h+='<div class="r"><span class="ic">$</span><span class="val">'+esc(c.value)+'</span></div>';
   if(CARDF.commission && c.commission) h+='<div class="r" title="Commission"><span class="ic">%</span><span class="val">'+fmtMoneyMaybe(c.commission)+'</span></div>';

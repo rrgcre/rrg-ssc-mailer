@@ -471,7 +471,7 @@ function fillMarketplaceCard(){
   mkPreview();
 }
 function mkCollect(){ var o={}; var body=document.getElementById('mktBody'); if(!body) return o; body.querySelectorAll('.mki').forEach(function(el){ var f=el.getAttribute('data-f'); o[f]=(el.type==='checkbox')?el.checked:el.value; }); var ps=body.querySelector('.pubsw'), fs=body.querySelector('.featsw'); o.published=!!(ps&&ps.classList.contains('on')); o.featured=!!(fs&&fs.classList.contains('on')); return o; }
-function mkPreview(){ var pc=document.getElementById('mkPrev'); if(!pc) return; var o=mkCollect(); var units=(o.units&&+o.units>1)?(' · '+o.units+' units'):''; var badge=((o.conceptType||o.conceptKey||'Restaurant')+(o.reAvailable?' · RE available':units)).trim(); var flag=o.flag==='new'?'<span class="mkfl new">New</span>':(o.flag==='price'?'<span class="mkfl price">New price</span>':(o.featured?'<span class="mkfl feat">Featured</span>':'')); var cells=[]; if(o.revenue)cells.push(['Revenue',o.revenue]); if(o.sde)cells.push([o.earnBasis||'SDE',o.sde]); if(o.guide)cells.push(['Guide',o.guide]); var met=cells.length?('<div class="mkmet">'+cells.map(function(c){return '<div><div class="mv">'+esc(c[1])+'</div><div class="mk">'+esc(c[0])+'</div></div>';}).join('')+'</div>'):'<div class="mkmet"><div><div class="mv">Under NDA</div><div class="mk">On request</div></div></div>'; pc.className='mkpc'+(o.featured?' feat':''); pc.innerHTML='<div class="mkth">'+flag+'<span class="mkbadge">'+esc(badge)+'</span></div><div class="mkpb"><div class="mkploc">'+esc(o.loc||'Texas')+'</div><h4>'+esc(o.headline||'Confidential restaurant opportunity')+'</h4>'+met+'<div class="mkplock">🔒 Blind until NDA · Request access →</div></div>'; }
+function mkPreview(){ var pc=document.getElementById('mkPrev'); if(!pc) return; var o=mkCollect(); var units=(o.units&&+o.units>1)?(' · '+o.units+' units'):''; var badge=((o.conceptType||o.conceptKey||'Restaurant')+(o.reAvailable?' · RE available':units)).trim(); var flag=o.flag==='new'?'<span class="mkfl new">New</span>':(o.flag==='price'?'<span class="mkfl price">New price</span>':(o.featured?'<span class="mkfl feat">Featured</span>':'')); var cells=[]; if(o.revenue)cells.push(['Revenue',o.revenue]); if(o.sde)cells.push([o.earnBasis||'SDE',o.sde]); if(o.guide)cells.push(['Guide',o.guide]); var met=cells.length?('<div class="mkmet">'+cells.map(function(c){return '<div><div class="mv">'+esc(c[1])+'</div><div class="mk">'+esc(c[0])+'</div></div>';}).join('')+'</div>'):'<div class="mkmet"><div><div class="mv">Under NDA</div><div class="mk">On request</div></div></div>'; pc.className='mkpc'+(o.featured?' feat':''); pc.innerHTML='<div class="mkth">'+flag+'<span class="mkbadge">'+esc(badge)+'</span></div><div class="mkpb"><div class="mkploc">'+esc(o.loc||'Texas')+'</div><h4>'+esc(o.headline||((typeof A!=='undefined'&&A&&A.codeName)?A.codeName:'Confidential restaurant opportunity'))+'</h4>'+met+'<div class="mkplock">🔒 Blind until NDA · Request access →</div></div>'; }
 function mkSave(){ var btn=document.getElementById('mkSave'), msg=document.getElementById('mkMsg'); if(!btn) return; var o=mkCollect(); btn.disabled=true; var was=btn.textContent; btn.textContent='Saving…'; msg.textContent=''; fetch('/api/marketplace/'+encodeURIComponent(KEY),{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(o)}).then(function(r){return r.json();}).then(function(j){ btn.disabled=false; btn.textContent=was; if(j&&j.ok){ if(MKT&&MKT.listing) MKT.listing.teaser=j.teaser; msg.style.color='#1f8a5b'; msg.textContent='Saved ✓'; var status=document.getElementById('mktStatus'); if(status) status.innerHTML=(j.teaser&&j.teaser.published)?'<span style="color:#1f8a5b;font-weight:700">● Public</span>':'<span style="color:#8a93a3">Not published</span>'; setTimeout(function(){msg.textContent='';},1600); } else { msg.style.color='#C0261B'; msg.textContent=(j&&j.error)||'Could not save.'; } }).catch(function(){ btn.disabled=false; btn.textContent=was; msg.style.color='#C0261B'; msg.textContent='Could not reach the server.'; }); }
 function render(){
   var s=A.stages||{};
@@ -493,9 +493,11 @@ function render(){
   var started=ST.filter(function(d){return d.manual?mf[d.k]:s[d.k];}).length;
 
   var facts='<div class="facts">'
+    +'<div class="fact"><div class="k">Listing ID</div><div class="v">'+(A.listingId?esc(A.listingId):'\u2014')+'</div></div>'
     +'<div class="fact"><div class="k">Estimated value</div><div class="v big">'+(A.value?esc(A.value):'—')+'</div></div>'
     +'<div class="fact"><div class="k">Basis</div><div class="v">'+(A.basis?esc(A.basis):'—')+'</div></div>'
     +'<div class="fact"><div class="k">Market</div><div class="v">'+(A.market?esc(A.market):'—')+'</div></div>'
+    +'<div class="fact"><div class="k">Code name</div><div class="v">'+(A.codeName?esc(A.codeName):'\u2014')+'</div></div>'
     +'<div class="fact"><div class="k">Seller contact</div><div class="v">'+(A.contact?esc(A.contact):'—')+'</div></div>'
     +'<div class="fact"><div class="k">Originated</div><div class="v">'+esc(fmt(A.createdAt))+'</div></div>'
     +'<div class="fact"><div class="k">Last activity</div><div class="v">'+esc(fmt(A.lastActivity))+'</div></div>'
@@ -535,6 +537,7 @@ function render(){
     + expensesCardDeal()
     + invoicesCardDeal()
     + roomActivityCard()
+    + activityCardListing()
     + '</div>'
     + '<div class="side"><div class="card"><div class="ch"><b>Manage</b></div><div class="cb" style="padding-top:14px">'
       + (A.canStart?('<button class="startdeal" id="startDealBtn">Start the listing →</button><div class="startnote">Opens a Seller Qualification Call and drops this listing into the pipeline.</div>'):'')
@@ -545,6 +548,7 @@ function render(){
       + '<div class="fldrow"><label class="fld">Referred by</label><input class="owner" id="f_refby" list="peopleList" value="'+esc(A.referredBy||'')+'" placeholder="Contact who referred this"></div>'
       + '<div class="fldrow"><label class="fld">Referral %</label><input class="owner" id="f_refpct" value="'+esc(A.referralPct||'')+'" placeholder="e.g. 10" inputmode="decimal" style="max-width:130px"></div>'
       + '<div class="fldrow"><label class="fld">Business name</label><input class="owner" id="f_biz" value="'+esc(A.businessOverride||A.business||'')+'" placeholder="Business / listing name"></div>'
+      + '<div class="fldrow"><label class="fld">Code name <span style="font-weight:500;color:var(--soft,#8a93a8)">\u2014 confidential alias</span></label><div style="display:flex;gap:6px"><input class="owner" id="f_codename" value="'+esc(A.codeName||'')+'" placeholder="e.g. Project Blue Agave" style="flex:1"><button type="button" id="f_codesuggest" class="slink ghost" style="white-space:nowrap;padding:0 10px">Suggest</button></div></div>'
       + '<div class="fldrow"><label class="fld">Market</label><select class="owner" id="f_market">'+mktOpts+'</select></div>'
       + '<div class="listingbox">'
         + '<div class="listinghd">Listing agreement</div>'
@@ -571,13 +575,13 @@ function render(){
     + '</div></div></div>'
     + peopleDatalistHTML();
 
-  ['f_status','f_owner','f_refby','f_refpct','f_biz','f_market','f_notes','f_lstart','f_lexp','f_llive','f_lauto','f_bbsref','f_bbsnum','f_costar','f_crexi','f_leadauto','cr_markets','cr_use','cr_budget','cr_sizemin','cr_sizemax','cr_term','cr_timeline','cr_parking','cr_features','cr_crnotes'].forEach(function(id){
+  ['f_status','f_owner','f_refby','f_refpct','f_biz','f_market','f_codename','f_notes','f_lstart','f_lexp','f_llive','f_lauto','f_bbsref','f_bbsnum','f_costar','f_crexi','f_leadauto','cr_markets','cr_use','cr_budget','cr_sizemin','cr_sizemax','cr_term','cr_timeline','cr_parking','cr_features','cr_crnotes'].forEach(function(id){
     var el=document.getElementById(id); if(!el) return;
     var ev=(el.tagName==='SELECT'||el.type==='checkbox'||el.type==='date')?'change':'input';
     el.addEventListener(ev,function(){ setDirty(true); if(id==='f_lexp'||id==='f_lauto') updateExpNote(); });
   });
   // Autosave: save on leaving a field (change/blur) or after a ~1s pause while typing.
-  (function(){ var _aAS=null; function commit(){ if(_aAS){ clearTimeout(_aAS); _aAS=null; } if(DIRTY) save(); } function pause(){ if(_aAS) clearTimeout(_aAS); _aAS=setTimeout(commit,1000); } ['f_status','f_owner','f_refby','f_refpct','f_biz','f_market','f_notes','f_lstart','f_lexp','f_llive','f_lauto','f_bbsref','f_bbsnum','f_costar','f_crexi','f_leadauto','cr_markets','cr_use','cr_budget','cr_sizemin','cr_sizemax','cr_term','cr_timeline','cr_parking','cr_features','cr_crnotes'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener('input',pause); el.addEventListener('change',commit); }); })();
+  (function(){ var _aAS=null; function commit(){ if(_aAS){ clearTimeout(_aAS); _aAS=null; } if(DIRTY) save(); } function pause(){ if(_aAS) clearTimeout(_aAS); _aAS=setTimeout(commit,1000); } ['f_status','f_owner','f_refby','f_refpct','f_biz','f_market','f_codename','f_notes','f_lstart','f_lexp','f_llive','f_lauto','f_bbsref','f_bbsnum','f_costar','f_crexi','f_leadauto','cr_markets','cr_use','cr_budget','cr_sizemin','cr_sizemax','cr_term','cr_timeline','cr_parking','cr_features','cr_crnotes'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener('input',pause); el.addEventListener('change',commit); }); })();
   updateExpNote();
   document.getElementById('savebtn').addEventListener('click',function(){save();});
   var pipeEl=document.getElementById('f_pipeline'); if(pipeEl) pipeEl.addEventListener('change',function(){ A.pipelineId=pipeEl.value; setDirty(true); save(true); });
@@ -1008,12 +1012,12 @@ function updateExpNote(){
 }
 function save(rerender){
   var b=document.getElementById('savebtn'); b.disabled=true; b.textContent='Saving…';
-  var body={ status:document.getElementById('f_status').value, owner:document.getElementById('f_owner').value, notes:document.getElementById('f_notes').value, businessOverride:document.getElementById('f_biz').value, marketOverride:(document.getElementById('f_market')||{}).value||'',
+  var body={ status:document.getElementById('f_status').value, owner:document.getElementById('f_owner').value, notes:document.getElementById('f_notes').value, businessOverride:document.getElementById('f_biz').value, marketOverride:(document.getElementById('f_market')||{}).value||'', codeName:(document.getElementById('f_codename')||{}).value||'',
     referredBy:document.getElementById('f_refby').value, referralPct:document.getElementById('f_refpct').value, listingLive:document.getElementById('f_llive').value, listingStart:document.getElementById('f_lstart').value, listingExpires:document.getElementById('f_lexp').value, autoRenew:document.getElementById('f_lauto').checked, renewable:document.getElementById('f_lrenew').checked, bbsRef:(document.getElementById('f_bbsref')||{}).value||'', bbsNumber:(document.getElementById('f_bbsnum')||{}).value||'', costarNo:(document.getElementById('f_costar')||{}).value||'', crexiNo:(document.getElementById('f_crexi')||{}).value||'', leadAutomationId:(document.getElementById('f_leadauto')||{}).value||'', assignmentType:(A&&A.assignmentType)||'listing', criteria:((A&&A.assignmentType==='tenant_rep')?{markets:(document.getElementById('cr_markets')||{}).value||'',useType:(document.getElementById('cr_use')||{}).value||'',budget:(document.getElementById('cr_budget')||{}).value||'',sizeMin:(document.getElementById('cr_sizemin')||{}).value||'',sizeMax:(document.getElementById('cr_sizemax')||{}).value||'',termYears:(document.getElementById('cr_term')||{}).value||'',timeline:(document.getElementById('cr_timeline')||{}).value||'',parking:(document.getElementById('cr_parking')||{}).value||'',features:(document.getElementById('cr_features')||{}).value||'',notes:(document.getElementById('cr_crnotes')||{}).value||''}:undefined), pipelineId:(document.getElementById('f_pipeline')||{}).value||(A.pipelineId||'') };
   fetch('/api/assignment/'+encodeURIComponent(KEY)+'/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
     .then(function(r){return r.json();}).then(function(j){
       b.textContent='Save changes';
-      if(j&&j.ok){ DIRTY=false; A.status=body.status; A.owner=body.owner; A.notes=body.notes; A.businessOverride=body.businessOverride; A.referredBy=body.referredBy; A.referralPct=body.referralPct; A.listingLive=body.listingLive; A.listingStart=body.listingStart; A.listingExpires=body.listingExpires; A.autoRenew=body.autoRenew; A.renewable=body.renewable; A.bbsRef=body.bbsRef; A.bbsNumber=body.bbsNumber; A.costarNo=body.costarNo; A.crexiNo=body.crexiNo; A.leadAutomationId=body.leadAutomationId; A.pipelineId=body.pipelineId; if(rerender===true){ render(); return; }
+      if(j&&j.ok){ DIRTY=false; A.status=body.status; A.owner=body.owner; A.notes=body.notes; A.businessOverride=body.businessOverride; A.codeName=body.codeName; A.referredBy=body.referredBy; A.referralPct=body.referralPct; A.listingLive=body.listingLive; A.listingStart=body.listingStart; A.listingExpires=body.listingExpires; A.autoRenew=body.autoRenew; A.renewable=body.renewable; A.bbsRef=body.bbsRef; A.bbsNumber=body.bbsNumber; A.costarNo=body.costarNo; A.crexiNo=body.crexiNo; A.leadAutomationId=body.leadAutomationId; A.pipelineId=body.pipelineId; if(rerender===true){ render(); return; }
         document.getElementById('subline').querySelector('.hpill').textContent=body.status;
         if(body.businessOverride){ A.business=body.businessOverride; document.getElementById('h1').textContent=body.businessOverride; document.getElementById('crumb').textContent=body.businessOverride; }
         var s=document.getElementById('saved'); s.classList.add('show'); setTimeout(function(){ s.classList.remove('show'); },2200);
@@ -1083,10 +1087,73 @@ function load(){
   fetch('/api/assignment/'+encodeURIComponent(KEY),{credentials:'same-origin'}).then(function(r){
     if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); });
     return r.json();
-  }).then(function(j){ A=j.assignment; if(j.statuses) STATUSES=j.statuses; TXN=(A&&A.transaction)||null; if(j.txnStatuses) TXNSTAT=j.txnStatuses; if(j.commStatuses) TXNCOMM=j.commStatuses; RA=j.roomActivity||null; OFFERS=(A&&A.offers)||[]; TOURS=(A&&A.tours)||[]; NDAS=(A&&A.ndas)||[]; INQUIRIES=(A&&A.inquiries)||[]; AGR=j.agreements||[]; ATYPES=j.agreementTypes||[]; PIPES=j.pipelines||[]; AUTOS=j.automations||[]; if(Array.isArray(j.markets)&&j.markets.length) MARKETS=j.markets; EXP=j.expenses||null; INVX=j.invoices||null; render(); loadPeople(); loadMatchingBuyers(); })
+  }).then(function(j){ A=j.assignment; if(j.statuses) STATUSES=j.statuses; TXN=(A&&A.transaction)||null; if(j.txnStatuses) TXNSTAT=j.txnStatuses; if(j.commStatuses) TXNCOMM=j.commStatuses; RA=j.roomActivity||null; OFFERS=(A&&A.offers)||[]; TOURS=(A&&A.tours)||[]; NDAS=(A&&A.ndas)||[]; INQUIRIES=(A&&A.inquiries)||[]; AGR=j.agreements||[]; ATYPES=j.agreementTypes||[]; PIPES=j.pipelines||[]; AUTOS=j.automations||[]; if(Array.isArray(j.markets)&&j.markets.length) MARKETS=j.markets; EXP=j.expenses||null; INVX=j.invoices||null; render(); loadPeople(); loadMatchingBuyers(); loadListingActivity(); })
   .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this deal.')+'<br><br><a href="./rrg_assignments.html" style="color:#000E31;font-weight:700">← Back to deals</a></div>'; });
 }
 load();
+</script>
+<script>
+/* ===== Listing activity feed (reuses the per-contact activity model) + code-name suggest ===== */
+var LISTACTS=null, LISTACTTYPES=[];
+var CODEWORDS=['Blue Agave','Firefly','Lantern','Copper','Harvest','Cardinal','Juniper','Saffron','Marquee','Northstar','Vermilion','Ember','Cobalt','Meridian','Anchor','Larkspur','Tavern','Mercer','Ledger','Sable'];
+function renderListActsHTML(){
+  if(!LISTACTS||!LISTACTS.length) return '<div class="noev" style="padding:14px 0;color:#8a94a6">No activity yet. Log the first call, email or note above.</div>';
+  return LISTACTS.map(listActRow).join('');
+}
+function listActRow(a){
+  var when=a.at||a.date||''; var d=when?fmt(when):''; var by=a.by?(' \u00b7 '+esc(a.by)):'';
+  var note=a.note?('<div style="color:#33415c;font-size:13px;margin-top:2px;white-space:pre-wrap">'+esc(a.note)+'</div>'):'';
+  var del=(a.id&&!a.auto)?('<button class="crm" data-ladel="'+esc(a.id)+'" title="Delete">&times;</button>'):'';
+  return '<div class="orow" style="display:flex;gap:10px;align-items:flex-start;padding:10px 2px;border-bottom:1px solid var(--line)"><div style="flex:1;min-width:0"><div style="font-weight:800;color:var(--navy);font-size:12.5px">'+esc(a.type||'Note')+'<span style="color:#8a94a6;font-weight:600;font-size:11.5px">'+(d?(' \u00b7 '+esc(d)):'')+by+'</span></div>'+note+'</div>'+del+'</div>';
+}
+function activityCardListing(){
+  if(typeof A==='undefined'||!A||!A.clientPersonId){ return '<div class="card"><div class="ch"><b>Activity</b></div><div class="cb"><div class="noev" style="padding:16px 0;color:#8a94a6">Link a seller contact to this listing to log and see its activity.</div></div></div>'; }
+  var types=(LISTACTTYPES&&LISTACTTYPES.length)?LISTACTTYPES:['Note','Call','Email','Text','Meeting','LOI Received','Agreement Sent','To-Do'];
+  var topts=types.map(function(t){return '<option>'+esc(t)+'</option>';}).join('');
+  var body=(LISTACTS===null)?'<div class="noev" style="padding:14px 0;color:#8a94a6">Loading\u2026</div>':renderListActsHTML();
+  return '<div class="card"><div class="ch" style="display:flex"><b>Activity</b><span style="margin-left:10px">'+(LISTACTS?LISTACTS.length:0)+' logged</span><a class="slink ghost" href="./rrg_person.html?id='+encodeURIComponent(A.clientPersonId)+'" style="margin-left:auto">Open contact &rarr;</a></div>'
+    +'<div class="cb">'
+    +'<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">'
+      +'<select id="la_type" style="padding:8px 9px;border:1px solid #cfd6e2;border-radius:6px;font:inherit;font-size:12.5px;flex:none">'+topts+'</select>'
+      +'<input id="la_note" placeholder="Log a call, email, note, LOI received\u2026" style="flex:1;border:1px solid #cfd6e2;border-radius:6px;padding:8px 10px;font:inherit;font-size:13px">'
+      +'<button type="button" id="la_add" class="slink" style="white-space:nowrap">+ Log</button>'
+    +'</div>'
+    +'<div id="listActsBody" style="max-height:340px;overflow:auto">'+body+'</div>'
+    +'</div></div>';
+}
+function loadListingActivity(){
+  if(typeof A==='undefined'||!A||!A.clientPersonId){ LISTACTS=[]; return; }
+  fetch('/api/person/'+encodeURIComponent(A.clientPersonId),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(j&&j.ok){ LISTACTS=j.activities||[]; LISTACTTYPES=j.activityTypes||[]; } else { LISTACTS=[]; }
+    var host=document.getElementById('listActsBody'); if(host) host.innerHTML=renderListActsHTML();
+    var sel=document.getElementById('la_type'); if(sel&&LISTACTTYPES.length){ var cur=sel.value; sel.innerHTML=LISTACTTYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join(''); if(cur) sel.value=cur; }
+    var hd=document.querySelector('#listActsBody'); var cnt=document.querySelector('.card .ch b'); 
+  }).catch(function(){ LISTACTS=[]; var host=document.getElementById('listActsBody'); if(host) host.innerHTML=renderListActsHTML(); });
+}
+function addListingActivity(){
+  if(typeof A==='undefined'||!A||!A.clientPersonId) return;
+  var t=(document.getElementById('la_type')||{}).value||'Note';
+  var no=((document.getElementById('la_note')||{}).value||'').trim();
+  if(!no){ var e=document.getElementById('la_note'); if(e) e.focus(); return; }
+  var btn=document.getElementById('la_add'); if(btn){ btn.disabled=true; btn.textContent='\u2026'; }
+  fetch('/api/person/'+encodeURIComponent(A.clientPersonId)+'/activity',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({type:t,note:no})}).then(function(r){return r.json();}).then(function(j){
+    if(btn){ btn.disabled=false; btn.textContent='+ Log'; }
+    if(j&&j.ok){ LISTACTS=j.activities||LISTACTS; var e=document.getElementById('la_note'); if(e) e.value=''; var host=document.getElementById('listActsBody'); if(host) host.innerHTML=renderListActsHTML(); }
+    else alert((j&&j.error)||'Could not log activity.');
+  }).catch(function(){ if(btn){ btn.disabled=false; btn.textContent='+ Log'; } alert('Could not reach the server.'); });
+}
+function delListingActivity(id){
+  if(typeof A==='undefined'||!A||!A.clientPersonId||!id) return;
+  fetch('/api/person/'+encodeURIComponent(A.clientPersonId)+'/activity/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ LISTACTS=j.activities||[]; var host=document.getElementById('listActsBody'); if(host) host.innerHTML=renderListActsHTML(); } });
+}
+function suggestCodeName(){ var f=document.getElementById('f_codename'); if(!f) return; var w=CODEWORDS[Math.floor(Math.random()*CODEWORDS.length)]; f.value='Project '+w; try{ if(typeof setDirty==='function') setDirty(true); }catch(e){} try{ if(typeof save==='function') save(); }catch(e){} }
+document.addEventListener('click',function(e){ var t=e.target; if(!t||!t.closest) return;
+  if(t.closest('#la_add')){ e.preventDefault(); addListingActivity(); return; }
+  if(t.closest('#f_codesuggest')){ e.preventDefault(); suggestCodeName(); return; }
+  var dl=t.closest('[data-ladel]'); if(dl){ e.preventDefault(); (async function(){ try{ if(typeof rrgConfirm==='function'){ if(!(await rrgConfirm('Delete this activity entry?'))) return; } }catch(_){}
+    delListingActivity(dl.getAttribute('data-ladel')); })(); return; }
+});
+document.addEventListener('keydown',function(e){ if(e.key==='Enter'&&e.target&&e.target.id==='la_note'){ e.preventDefault(); addListingActivity(); } });
 </script>
 </body>
 </html>
