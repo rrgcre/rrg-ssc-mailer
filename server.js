@@ -1228,7 +1228,7 @@ app.use(express.urlencoded({ extended: false }));
 const OPEN = new Set(['/health', '/login', '/api/login', '/logout', '/favicon.ico', '/api/appname', '/rrg_brand.js', '/rrg_theme.css', '/api/gmail/callback']);
 app.use((req, res, next) => {
   // Buyer-facing data-room links are public (the unguessable token is the gate).
-  if (OPEN.has(req.path) || req.path.startsWith('/room/') || req.path.startsWith('/deal/') || req.path.startsWith('/roomfile/') || req.path.startsWith('/roomview/') || req.path.startsWith('/vendor/') || req.path.startsWith('/sign/') || req.path.startsWith('/api/sign/') || req.path.startsWith('/eo/') || req.path.startsWith('/u/') || req.path.startsWith('/api/u/') || req.path.startsWith('/book/') || req.path.startsWith('/api/book/') || req.path === '/market' || req.path === '/api/market/public' || req.path === '/api/market/request-access' || req.path.startsWith('/s/') || req.path === '/seller_intake.html' || req.path === '/seller_record.html') return next();
+  if (OPEN.has(req.path) || req.path.startsWith('/room/') || req.path.startsWith('/deal/') || req.path.startsWith('/roomfile/') || req.path.startsWith('/roomview/') || req.path.startsWith('/vendor/') || req.path.startsWith('/sign/') || req.path.startsWith('/api/sign/') || req.path.startsWith('/eo/') || req.path.startsWith('/ec/') || req.path.startsWith('/u/') || req.path.startsWith('/api/u/') || req.path.startsWith('/book/') || req.path.startsWith('/api/book/') || req.path === '/market' || req.path === '/api/market/public' || req.path === '/api/market/request-access' || req.path.startsWith('/s/') || req.path === '/seller_intake.html' || req.path === '/seller_record.html') return next();
   const sess = auth.readSession(parseCookies(req)[COOKIE]);
   if (sess) {
     req.user = sess;
@@ -6106,6 +6106,11 @@ function mergeTokens(t, p, user) {
   });
 }
 function smsNotifyEnabled() { const s = loadSettings(); return s.smsNotifyEnabled === true; }
+let _unsubCache = null, _unsubCacheAt = 0;
+function unsubscribedEmailSet() { const now = Date.now(); if (_unsubCache && (now - _unsubCacheAt) < 60000) return _unsubCache; const set = new Set(); try { loadSubscribers().forEach(s => { if (s.status === 'unsubscribed') set.add(String(s.email || '').trim().toLowerCase()); }); } catch (e) {} _unsubCache = set; _unsubCacheAt = now; return set; }
+function isEmailUnsubscribed(email) { email = String(email || '').trim().toLowerCase(); return !!email && unsubscribedEmailSet().has(email); }
+function automationTallies() { const t = {}; try { loadPeople().forEach(p => { (p.enrollments || []).forEach(en => { if (!en || !en.automationId) return; const k = en.automationId; t[k] = t[k] || { enrolled: 0, active: 0, done: 0 }; t[k].enrolled++; if (en.status === 'active') t[k].active++; else if (en.status === 'done') t[k].done++; }); }); } catch (e) {} return t; }
+function personMatchesSeg(p, aud) { aud = aud || {}; const types = (aud.types || []).filter(Boolean).map(x => String(x).toLowerCase()); const tags = (aud.tags || []).filter(Boolean).map(x => String(x).toLowerCase()); const srcs = (aud.leadSources || []).filter(Boolean).map(x => String(x).toLowerCase()); if (types.length) { const pt = personTypesOf(p).map(x => String(x).toLowerCase()); if (!types.some(t => pt.indexOf(t) >= 0)) return false; } if (tags.length) { const pg = personTags(p).map(x => String(x).toLowerCase()); if (!tags.some(t => pg.indexOf(t) >= 0)) return false; } if (srcs.length) { if (srcs.indexOf(String(p.leadSource || '').toLowerCase()) < 0) return false; } return true; }
 function automationBrief(a, user) { return { id: a.id, name: a.name || '', bbsDefault: !!a.bbsDefault, execDefault: !!a.execDefault, active: a.active !== false, scope: (a.scope === 'private' ? 'private' : 'shared'), ownerUser: a.ownerUser || '', ownerName: a.ownerName || '', mine: !!(user && (a.ownerUser === user.username || isSuper(user))), steps: Array.isArray(a.steps) ? a.steps : [], stepCount: (a.steps || []).length, updatedAt: a.updatedAt || '' }; }
 function stepDelayMs(st) { if (!st) return 0; const d = Math.max(0, parseInt(st.delayDays, 10) || 0); const h = Math.max(0, parseInt(st.delayHours, 10) || 0); const m = Math.max(0, parseInt(st.delayMinutes, 10) || 0); return d * 86400000 + h * 3600000 + m * 60000; }
 function enrollPerson(p, plan, opts) {
@@ -6166,6 +6171,7 @@ async function runAutomationStep(p, en, step) {
   if (!isEmailConfigured()) return 'skipped: email not configured';
   const to = preferredEmailOf(p);
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return 'skipped: no valid email';
+  if (isEmailUnsubscribed(to)) return 'skipped: recipient unsubscribed';
   const subject = mergeTokens(step.subject, p).slice(0, 300) || '(no subject)';
   const body = mergeTokens(step.body, p).slice(0, 20000);
   const tok = newOpenToken();
@@ -6409,71 +6415,154 @@ app.post('/api/email-templates/:id/used', (req, res) => {
 });
 
 
-// ===== Mass Email Campaigns =====
-const CAMPAIGNS_FILE = path.join(BOV_DATA_DIR, 'campaigns.json');
-const MASS_MAX = 1000;
-function loadCampaigns() { try { return rj(CAMPAIGNS_FILE) || []; } catch (e) { return []; } }
-function saveCampaigns(a) { return writeJsonGuarded(CAMPAIGNS_FILE, a, 'saveCampaigns'); }
-function newCampaignId() { return 'camp_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+// ===== Subscribers (marketing audience — own store, separate from CRM contacts) =====
+const SUBSCRIBERS_FILE = path.join(BOV_DATA_DIR, 'subscribers.json');
+function loadSubscribers() { try { return rj(SUBSCRIBERS_FILE) || []; } catch (e) { return []; } }
+function saveSubscribers(a) { return writeJsonGuarded(SUBSCRIBERS_FILE, a, 'saveSubscribers'); }
+function newSubscriberId() { return 'sub_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function newUnsubToken() { return 'un_' + crypto.randomBytes(12).toString('base64url'); }
+function subKey(e) { return String(e || '').trim().toLowerCase(); }
 function massValidEmail(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(e || '')); }
-function massAudience(aud, campaignMetros) {
+function subDisplayName(s) { return s.name || ((s.firstName || '') + ' ' + (s.lastName || '')).trim() || s.email || ''; }
+function subscriberBrief(s) { return { id: s.id, email: s.email || '', firstName: s.firstName || '', lastName: s.lastName || '', name: subDisplayName(s), company: s.company || '', tags: Array.isArray(s.tags) ? s.tags : [], metros: Array.isArray(s.metros) ? s.metros : [], mode: (s.mode === 'metros' ? 'metros' : 'all'), status: (s.status === 'unsubscribed' ? 'unsubscribed' : 'subscribed'), source: s.source || '', personId: s.personId || '', lastEmailedAt: s.lastEmailedAt || '', createdAt: s.createdAt || '', updatedAt: s.updatedAt || '' }; }
+function subStats() { const a = loadSubscribers(); let sub = 0, un = 0, metros = 0; a.forEach(s => { if (s.status === 'unsubscribed') un++; else { sub++; if ((s.mode || 'all') === 'metros') metros++; } }); return { total: a.length, subscribed: sub, unsubscribed: un, metrosOnly: metros }; }
+function subTags() { return Array.from(loadSubscribers().reduce((m, s) => { (s.tags || []).forEach(t => t && m.add(t)); return m; }, new Set())).sort(); }
+app.get('/api/subscribers', (req, res) => {
+  const q = String(req.query.q || '').trim().toLowerCase();
+  const status = String(req.query.status || '').trim();
+  const tag = String(req.query.tag || '').trim().toLowerCase();
+  const metro = String(req.query.metro || '').trim().toLowerCase();
+  let list = loadSubscribers();
+  if (status === 'subscribed') list = list.filter(s => s.status !== 'unsubscribed');
+  else if (status === 'unsubscribed') list = list.filter(s => s.status === 'unsubscribed');
+  if (tag) list = list.filter(s => (s.tags || []).some(t => String(t).toLowerCase() === tag));
+  if (metro) list = list.filter(s => (s.metros || []).some(m => String(m).toLowerCase() === metro));
+  if (q) list = list.filter(s => ((subDisplayName(s)) + ' ' + (s.email || '') + ' ' + (s.company || '')).toLowerCase().indexOf(q) >= 0);
+  const total = list.length;
+  list.sort((a, b) => String(subDisplayName(a)).toLowerCase().localeCompare(String(subDisplayName(b)).toLowerCase()));
+  res.json({ ok: true, subscribers: list.slice(0, 2000).map(subscriberBrief), total, stats: subStats(), allTags: subTags(), metros: effMarkets() });
+});
+app.get('/api/subscribers/meta', (req, res) => { res.json({ ok: true, stats: subStats(), allTags: subTags(), metros: effMarkets(), contactTypes: effPersonTypes(), contactTags: allTagsList() }); });
+app.post('/api/subscribers', express.json(), (req, res) => {
+  const b = req.body || {}; const email = subKey(b.email); if (!massValidEmail(email)) return res.status(400).json({ ok: false, error: 'A valid email is required.' });
+  const all = loadSubscribers(); let s;
+  if (b.id) { s = all.find(x => x.id === b.id); if (!s) return res.status(404).json({ ok: false, error: 'Subscriber not found.' }); }
+  else { s = all.find(x => subKey(x.email) === email); if (!s) { s = { id: newSubscriberId(), unsubToken: newUnsubToken(), createdAt: new Date().toISOString(), status: 'subscribed' }; all.push(s); } }
+  s.email = email;
+  if (b.firstName !== undefined) s.firstName = String(b.firstName || '').slice(0, 80);
+  if (b.lastName !== undefined) s.lastName = String(b.lastName || '').slice(0, 80);
+  if (b.name !== undefined) s.name = String(b.name || '').slice(0, 160);
+  if (!s.name) s.name = ((s.firstName || '') + ' ' + (s.lastName || '')).trim();
+  if (b.company !== undefined) s.company = String(b.company || '').slice(0, 160);
+  if (Array.isArray(b.tags)) s.tags = b.tags.filter(Boolean).map(x => String(x).slice(0, 60)).slice(0, 40);
+  if (Array.isArray(b.metros)) s.metros = b.metros.filter(Boolean).map(x => String(x).slice(0, 80)).slice(0, 60);
+  if (b.mode !== undefined) s.mode = (b.mode === 'metros' ? 'metros' : 'all');
+  if (b.status !== undefined) s.status = (b.status === 'unsubscribed' ? 'unsubscribed' : 'subscribed');
+  if (b.source !== undefined) s.source = String(b.source || '').slice(0, 80);
+  if (b.personId !== undefined) s.personId = String(b.personId || '');
+  if (!s.unsubToken) s.unsubToken = newUnsubToken();
+  s.updatedAt = new Date().toISOString();
+  saveSubscribers(all); res.json({ ok: true, subscriber: subscriberBrief(s) });
+});
+app.delete('/api/subscribers/:id', (req, res) => { let a = loadSubscribers(); const t = a.find(x => x.id === req.params.id); if (!t) return res.status(404).json({ ok: false, error: 'Not found.' }); a = a.filter(x => x.id !== req.params.id); saveSubscribers(a); res.json({ ok: true }); });
+// People segment (used to pull CRM contacts into the subscriber list).
+function massAudiencePeople(aud) {
   aud = aud || {};
   const types = (aud.types || []).filter(Boolean).map(x => String(x).toLowerCase());
   const tags = (aud.tags || []).filter(Boolean).map(x => String(x).toLowerCase());
   const srcs = (aud.leadSources || []).filter(Boolean).map(x => String(x).toLowerCase());
-  const days = parseInt(aud.notContactedDays, 10) || 0;
-  const cutoff = days > 0 ? (Date.now() - days * 86400000) : 0;
-  const cm = (campaignMetros || []).filter(Boolean).map(x => String(x).toLowerCase());
   return loadPeople().filter(p => {
-    const email = preferredEmailOf(p); if (!massValidEmail(email)) return false;
-    if (p.emailOptOut) return false;
+    if (!massValidEmail(preferredEmailOf(p))) return false;
     if (types.length) { const pt = personTypesOf(p).map(x => String(x).toLowerCase()); if (!types.some(t => pt.indexOf(t) >= 0)) return false; }
     if (tags.length) { const pg = personTags(p).map(x => String(x).toLowerCase()); if (!tags.some(t => pg.indexOf(t) >= 0)) return false; }
     if (srcs.length) { if (srcs.indexOf(String(p.leadSource || '').toLowerCase()) < 0) return false; }
-    if (cutoff) { const lc = Date.parse((p.lastContacted || '') + 'T00:00:00') || 0; if (lc && lc > cutoff) return false; }
-    const _pref = p.emailPrefs || {};
-    if (_pref.mode === 'metros') { const pm = (_pref.metros || []).map(x => String(x).toLowerCase()); if (!cm.length || !cm.some(m => pm.indexOf(m) >= 0)) return false; }
     return true;
   });
 }
+app.post('/api/subscribers/import', express.json({ limit: '3mb' }), (req, res) => {
+  const b = req.body || {}; const all = loadSubscribers(); const byEmail = {}; all.forEach(s => { byEmail[subKey(s.email)] = s; });
+  let added = 0, updated = 0, skipped = 0; const now = new Date().toISOString();
+  const tags = Array.isArray(b.tags) ? b.tags.filter(Boolean).map(x => String(x).slice(0, 60)).slice(0, 40) : [];
+  const metros = Array.isArray(b.metros) ? b.metros.filter(Boolean).slice(0, 60) : [];
+  function upsert(email, first, last, name, company, source, personId) {
+    email = subKey(email); if (!massValidEmail(email)) { skipped++; return; }
+    let s = byEmail[email];
+    if (!s) { s = { id: newSubscriberId(), unsubToken: newUnsubToken(), email: email, createdAt: now, status: 'subscribed' }; all.push(s); byEmail[email] = s; added++; }
+    else updated++;
+    if (first && !s.firstName) s.firstName = String(first).slice(0, 80);
+    if (last && !s.lastName) s.lastName = String(last).slice(0, 80);
+    if (name && !s.name) s.name = String(name).slice(0, 160);
+    if (!s.name) s.name = ((s.firstName || '') + ' ' + (s.lastName || '')).trim() || email;
+    if (company && !s.company) s.company = String(company).slice(0, 160);
+    if (tags.length) s.tags = Array.from(new Set([].concat(s.tags || [], tags))).slice(0, 40);
+    if (metros.length) s.metros = Array.from(new Set([].concat(s.metros || [], metros))).slice(0, 60);
+    if (b.mode === 'metros') s.mode = 'metros';
+    if (source && !s.source) s.source = String(source).slice(0, 80);
+    if (personId && !s.personId) s.personId = String(personId);
+    if (!s.status) s.status = 'subscribed';
+    if (!s.unsubToken) s.unsubToken = newUnsubToken();
+    s.updatedAt = now;
+  }
+  if (b.text) { String(b.text).split(/[\n\r]+/).forEach(function (line) { const parts = line.split(/[,;\t]/).map(x => x.trim()); const em = parts.find(x => massValidEmail(x)); if (!em) return; const nm = parts.filter(x => x && !massValidEmail(x))[0] || ''; upsert(em, '', '', nm, parts.filter(x => x && !massValidEmail(x))[1] || '', 'import', ''); }); }
+  if (b.fromContacts) { massAudiencePeople(b.audience).forEach(function (p) { upsert(preferredEmailOf(p), personFirst(p), personLast(p), p.name || '', p.company || '', 'contacts', p.id); }); }
+  if (Array.isArray(b.list)) { b.list.forEach(function (r) { upsert(r.email, r.firstName || '', r.lastName || '', r.name || '', r.company || '', r.source || 'import', r.personId || ''); }); }
+  saveSubscribers(all); res.json({ ok: true, added, updated, skipped, stats: subStats() });
+});
+app.get('/api/subscribers/contact-count', (req, res) => { try { res.json({ ok: true, count: massAudiencePeople(req.query && req.query.audience ? JSON.parse(req.query.audience) : {}).length }); } catch (e) { res.json({ ok: true, count: 0 }); } });
+
+// ===== Mass Email Campaigns (send to the subscriber list) =====
+const CAMPAIGNS_FILE = path.join(BOV_DATA_DIR, 'campaigns.json');
+const MASS_MAX = 5000;
+function loadCampaigns() { try { return rj(CAMPAIGNS_FILE) || []; } catch (e) { return []; } }
+function saveCampaigns(a) { return writeJsonGuarded(CAMPAIGNS_FILE, a, 'saveCampaigns'); }
+function newCampaignId() { return 'camp_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function massAudience(aud, campaignMetros) {
+  aud = aud || {};
+  const tags = (aud.tags || []).filter(Boolean).map(x => String(x).toLowerCase());
+  const days = parseInt(aud.notContactedDays, 10) || 0;
+  const cutoff = days > 0 ? (Date.now() - days * 86400000) : 0;
+  const cm = (campaignMetros || []).filter(Boolean).map(x => String(x).toLowerCase());
+  return loadSubscribers().filter(s => {
+    if (s.status === 'unsubscribed') return false;
+    if (!massValidEmail(s.email)) return false;
+    if (tags.length) { const sg = (s.tags || []).map(x => String(x).toLowerCase()); if (!tags.some(t => sg.indexOf(t) >= 0)) return false; }
+    if (cutoff) { const le = Date.parse(s.lastEmailedAt || 0) || 0; if (le && le > cutoff) return false; }
+    if ((s.mode || 'all') === 'metros') { const pm = (s.metros || []).map(x => String(x).toLowerCase()); if (!cm.length || !cm.some(m => pm.indexOf(m) >= 0)) return false; }
+    return true;
+  });
+}
+function linkTrack(html, origin, token) {
+  if (!origin || !token) return html;
+  return String(html)
+    .replace(/href\s*=\s*"(https?:\/\/[^"]+)"/gi, function (m, url) { return 'href="' + origin + '/ec/' + token + '?u=' + encodeURIComponent(url) + '"'; })
+    .replace(/href\s*=\s*'(https?:\/\/[^']+)'/gi, function (m, url) { return "href='" + origin + '/ec/' + token + '?u=' + encodeURIComponent(url) + "'"; });
+}
+function subPseudoPerson(s) { return { id: s.personId || '', name: subDisplayName(s), firstName: s.firstName || '', lastName: s.lastName || '', company: s.company || '', email: s.email, emails: [s.email] }; }
 function campaignStats(id) {
-  let delivered = 0, opened = 0, opens = 0;
-  loadPeople().forEach(p => { (p.emailLog || []).forEach(e => { if (e && e.campaignId === id) { delivered++; if ((e.opens || 0) > 0) { opened++; opens += e.opens; } } }); });
-  return { delivered, opened, opens, openRate: delivered ? Math.round(opened / delivered * 100) : 0 };
+  let delivered = 0, opened = 0, opens = 0, clicked = 0, clicks = 0;
+  loadSubscribers().forEach(s => { (s.emailLog || []).forEach(e => { if (e && e.campaignId === id) { delivered++; if ((e.opens || 0) > 0) { opened++; opens += e.opens; } if ((e.clicks || 0) > 0) { clicked++; clicks += e.clicks; } } }); });
+  return { delivered, opened, opens, clicked, clicks, openRate: delivered ? Math.round(opened / delivered * 100) : 0, clickRate: delivered ? Math.round(clicked / delivered * 100) : 0 };
 }
 function campaignBrief(c) {
   const st = campaignStats(c.id);
-  return { id: c.id, name: c.name || '', subject: c.subject || '', status: c.status || 'draft', recipientCount: c.recipientCount || 0, sentCount: c.sentCount || 0, failedCount: c.failedCount || 0, delivered: st.delivered, opened: st.opened, opens: st.opens, openRate: st.openRate, metros: Array.isArray(c.metros) ? c.metros : [], by: c.by || '', createdAt: c.createdAt || '', sentAt: c.sentAt || '', updatedAt: c.updatedAt || '' };
+  return { id: c.id, name: c.name || '', subject: c.subject || '', status: c.status || 'draft', recipientCount: c.recipientCount || 0, sentCount: c.sentCount || 0, failedCount: c.failedCount || 0, delivered: st.delivered, opened: st.opened, opens: st.opens, openRate: st.openRate, clicked: st.clicked, clicks: st.clicks, clickRate: st.clickRate, metros: Array.isArray(c.metros) ? c.metros : [], by: c.by || '', createdAt: c.createdAt || '', sentAt: c.sentAt || '', updatedAt: c.updatedAt || '' };
 }
-app.get('/api/mass/meta', (req, res) => {
-  const ppl = loadPeople(); const ty = new Set(), tg = new Set(), sr = new Set(); let optOut = 0, noEmail = 0, reachable = 0;
-  ppl.forEach(p => { personTypesOf(p).forEach(t => t && ty.add(t)); personTags(p).forEach(t => t && tg.add(t)); if (p.leadSource) sr.add(p.leadSource); if (p.emailOptOut) optOut++; if (!massValidEmail(preferredEmailOf(p))) noEmail++; else if (!p.emailOptOut) reachable++; });
-  res.json({ ok: true, types: Array.from(ty).sort(), tags: Array.from(tg).sort(), leadSources: Array.from(sr).sort(), metros: effMarkets(), totalContacts: ppl.length, optOut, noEmail, reachable });
-});
+app.get('/api/mass/meta', (req, res) => { const st = subStats(); res.json({ ok: true, tags: subTags(), metros: effMarkets(), subscribed: st.subscribed, unsubscribed: st.unsubscribed, metrosOnly: st.metrosOnly, totalContacts: st.total, reachable: st.subscribed }); });
 app.post('/api/mass/audience', express.json(), (req, res) => {
   const list = massAudience(req.body && req.body.audience, req.body && req.body.metros);
-  res.json({ ok: true, count: list.length, sample: list.slice(0, 40).map(p => ({ id: p.id, name: p.name || '', email: preferredEmailOf(p), company: p.company || '', type: (personTypesOf(p)[0] || '') })) });
+  res.json({ ok: true, count: list.length, sample: list.slice(0, 40).map(s => ({ id: s.id, name: subDisplayName(s), email: s.email, company: s.company || '' })) });
 });
 app.get('/api/mass/campaigns', (req, res) => { res.json({ ok: true, campaigns: loadCampaigns().map(campaignBrief) }); });
-app.get('/api/mass/campaign/:id', (req, res) => {
-  const c = loadCampaigns().find(x => x.id === req.params.id);
-  if (!c) return res.status(404).json({ ok: false, error: 'Campaign not found.' });
-  res.json({ ok: true, campaign: Object.assign(campaignBrief(c), { body: c.body || '', templateId: c.templateId || '', audience: c.audience || {} }) });
-});
-app.post('/api/mass/campaign', express.json({ limit: '1mb' }), (req, res) => {
+app.get('/api/mass/campaign/:id', (req, res) => { const c = loadCampaigns().find(x => x.id === req.params.id); if (!c) return res.status(404).json({ ok: false, error: 'Campaign not found.' }); res.json({ ok: true, campaign: Object.assign(campaignBrief(c), { body: c.body || '', templateId: c.templateId || '', audience: c.audience || {} }) }); });
+app.post('/api/mass/campaign', requireAdmin, express.json({ limit: '1mb' }), (req, res) => {
   const b = req.body || {}; const camps = loadCampaigns(); const now = new Date().toISOString(); let c;
   if (b.id) { c = camps.find(x => x.id === b.id); if (!c) return res.status(404).json({ ok: false, error: 'Campaign not found.' }); if (c.status === 'sent' || c.status === 'sending') return res.status(400).json({ ok: false, error: 'Sent campaigns cannot be edited.' }); }
   else { c = { id: newCampaignId(), status: 'draft', by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', createdAt: now }; camps.unshift(c); }
   c.name = String(b.name || 'Untitled campaign').slice(0, 140); c.subject = String(b.subject || '').slice(0, 300); c.body = String(b.body || '').slice(0, 20000); c.templateId = b.templateId || ''; c.audience = b.audience || {}; c.metros = Array.isArray(b.metros) ? b.metros.slice(0, 40) : []; c.recipientCount = massAudience(b.audience, b.metros).length; c.updatedAt = now;
   saveCampaigns(camps); res.json({ ok: true, campaign: campaignBrief(c) });
 });
-app.delete('/api/mass/campaign/:id', (req, res) => {
-  let c = loadCampaigns(); const t = c.find(x => x.id === req.params.id);
-  if (!t) return res.status(404).json({ ok: false, error: 'Not found.' });
-  if (t.status === 'sending') return res.status(400).json({ ok: false, error: 'Campaign is still sending.' });
-  c = c.filter(x => x.id !== req.params.id); saveCampaigns(c); res.json({ ok: true });
-});
-app.post('/api/mass/send', express.json({ limit: '1mb' }), async (req, res) => {
+app.delete('/api/mass/campaign/:id', requireAdmin, (req, res) => { let c = loadCampaigns(); const t = c.find(x => x.id === req.params.id); if (!t) return res.status(404).json({ ok: false, error: 'Not found.' }); if (t.status === 'sending') return res.status(400).json({ ok: false, error: 'Campaign is still sending.' }); c = c.filter(x => x.id !== req.params.id); saveCampaigns(c); res.json({ ok: true }); });
+app.post('/api/mass/send', requireAdmin, express.json({ limit: '1mb' }), async (req, res) => {
   if (!isEmailConfigured()) return res.status(400).json({ ok: false, error: "Email isn't set up. Configure it in Admin -> Email." });
   const b = req.body || {};
   const name = String(b.name || '').trim().slice(0, 140) || 'Untitled campaign';
@@ -6482,70 +6571,64 @@ app.post('/api/mass/send', express.json({ limit: '1mb' }), async (req, res) => {
   if (!subject && !bodyRaw.trim()) return res.status(400).json({ ok: false, error: 'Add a subject and a message.' });
   const user = req.user || {}; const origin = reqOrigin(req); const sigHtml = userSignatureHtml(user.username); const sigTxt = userSignatureText(user.username);
   if (b.test) {
-    const sample = { name: 'Sample Buyer', firstName: 'Sample', lastName: 'Buyer', company: 'Blue Agave Cantina', title: 'Owner', email: user.email || '' };
+    const sample = { name: 'Sample Subscriber', firstName: 'Sample', lastName: 'Subscriber', company: 'Blue Agave Cantina', title: 'Owner', email: user.email || '' };
     const to = user.email; if (!massValidEmail(to)) return res.status(400).json({ ok: false, error: 'Your account has no email address for a test send. Set one in Account.' });
     try { const tok = newOpenToken(); const subj = mergeTokens(subject, sample, user) || '(no subject)'; const bod = mergeTokens(bodyRaw, sample, user); const txt = (_bodyLooksHtml(bod) ? htmlToText(bod) : bod) + (sigTxt ? ('\n\n' + sigTxt) : ''); await sendMailWL({ from: mailFrom(), to, subject: '[TEST] ' + subj, text: txt, html: trackedEmailHtml(bod, origin, tok, sigHtml) }); return res.json({ ok: true, test: true, to }); }
     catch (e) { return res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
   }
   const recips = massAudience(b.audience, b.metros).slice(0, MASS_MAX);
-  if (!recips.length) return res.status(400).json({ ok: false, error: 'No contacts match this segment.' });
+  if (!recips.length) return res.status(400).json({ ok: false, error: 'No subscribers match this segment.' });
   const now = new Date().toISOString();
   const camp = { id: newCampaignId(), name, subject, body: bodyRaw.slice(0, 20000), templateId: b.templateId || '', audience: b.audience || {}, metros: Array.isArray(b.metros) ? b.metros.slice(0, 40) : [], status: 'sending', recipientCount: recips.length, sentCount: 0, failedCount: 0, by: user.name || '', byUser: user.username || '', createdAt: now, sentAt: '' };
   const camps = loadCampaigns(); camps.unshift(camp); saveCampaigns(camps);
   res.json({ ok: true, campaignId: camp.id, recipientCount: recips.length });
   (async () => {
-    const arr = loadPeople(); let sent = 0, failed = 0; const ids = recips.map(r => r.id);
-    for (const pid of ids) {
-      const p = arr.find(x => x.id === pid); if (!p) { failed++; continue; }
-      const to = preferredEmailOf(p); if (!massValidEmail(to)) { failed++; continue; }
+    const arr = loadSubscribers(); let sent = 0, failed = 0; const ids = recips.map(r => r.id);
+    for (const sid of ids) {
+      const s = arr.find(x => x.id === sid); if (!s || s.status === 'unsubscribed') { failed++; continue; }
+      const to = s.email; if (!massValidEmail(to)) { failed++; continue; }
       try {
-        if (!p.unsubToken) p.unsubToken = 'un_' + crypto.randomBytes(12).toString('base64url');
-        const tok = newOpenToken();
-        const subj = mergeTokens(subject, p, user) || '(no subject)';
-        const bod = mergeTokens(bodyRaw, p, user);
-        const unsubUrl = origin + '/u/' + p.unsubToken;
-        const unsubHtml = '<div style="margin-top:20px;font-size:11px;color:#98a1b5">You are receiving this because you are a contact of ' + orgDisplayName() + '. <a href="' + unsubUrl + '" style="color:#98a1b5">Unsubscribe</a>.</div>';
-        const html = trackedEmailHtml(bod, origin, tok, sigHtml) + unsubHtml;
+        if (!s.unsubToken) s.unsubToken = newUnsubToken();
+        const tok = newOpenToken(); const pp = subPseudoPerson(s);
+        const subj = mergeTokens(subject, pp, user) || '(no subject)';
+        const bod = mergeTokens(bodyRaw, pp, user);
+        const unsubUrl = origin + '/u/' + s.unsubToken;
+        const unsubHtml = '<div style="margin-top:20px;font-size:11px;color:#98a1b5">You are receiving this because you subscribed to ' + orgDisplayName() + '. <a href="' + unsubUrl + '" style="color:#98a1b5">Unsubscribe or manage preferences</a>.</div>';
+        const html = trackedEmailHtml(linkTrack(bod, origin, tok), origin, tok, sigHtml) + unsubHtml;
         const txt = (_bodyLooksHtml(bod) ? htmlToText(bod) : bod) + (sigTxt ? ('\n\n' + sigTxt) : '') + '\n\nUnsubscribe: ' + unsubUrl;
         await sendMailWL({ from: mailFrom(), to, subject: subj, text: txt, html });
         const nowI = new Date().toISOString();
-        p.emailLog = Array.isArray(p.emailLog) ? p.emailLog : [];
-        p.emailLog.unshift({ id: 'eml_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), to, subject: subj, body: (_bodyLooksHtml(bod) ? htmlToText(bod) : bod).slice(0, 4000), sentAt: nowI, by: user.name || '', byUser: user.username || '', campaignId: camp.id, campaignName: name, openToken: tok, opens: 0 });
-        p.emailLog = p.emailLog.slice(0, 100);
-        try { logActivity(p, 'Email', subj || '(no subject)', { auto: true, by: user.name || '', byUser: user.username || '' }); } catch (e) {}
-        p.lastContacted = nowI.slice(0, 10); p.updatedAt = nowI;
+        s.emailLog = Array.isArray(s.emailLog) ? s.emailLog : [];
+        s.emailLog.unshift({ id: 'eml_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), to, subject: subj, sentAt: nowI, campaignId: camp.id, campaignName: name, openToken: tok, opens: 0 });
+        s.emailLog = s.emailLog.slice(0, 60);
+        s.lastEmailedAt = nowI; s.updatedAt = nowI;
         sent++;
       } catch (e) { failed++; }
-      if ((sent + failed) % 10 === 0) { try { savePeople(arr); const cc = loadCampaigns(); const ci = cc.find(x => x.id === camp.id); if (ci) { ci.sentCount = sent; ci.failedCount = failed; saveCampaigns(cc); } } catch (e) {} }
+      if ((sent + failed) % 10 === 0) { try { saveSubscribers(arr); const cc = loadCampaigns(); const ci = cc.find(x => x.id === camp.id); if (ci) { ci.sentCount = sent; ci.failedCount = failed; saveCampaigns(cc); } } catch (e) {} }
       await new Promise(r => setTimeout(r, 120));
     }
-    try { savePeople(arr); } catch (e) {}
+    try { saveSubscribers(arr); } catch (e) {}
     try { const cc = loadCampaigns(); const ci = cc.find(x => x.id === camp.id); if (ci) { ci.sentCount = sent; ci.failedCount = failed; ci.status = 'sent'; ci.sentAt = new Date().toISOString(); saveCampaigns(cc); } } catch (e) {}
   })().catch(e => { console.error('mass send:', e && e.message); try { const cc = loadCampaigns(); const ci = cc.find(x => x.id === camp.id); if (ci) { ci.status = 'sent'; ci.sentAt = new Date().toISOString(); saveCampaigns(cc); } } catch (e2) {} });
 });
-// Public email preference center — the unguessable token is the gate.
+
+// Public email preference center — the unguessable token gates a subscriber's own prefs.
 app.get('/u/:token', (req, res) => {
   const tok = String(req.params.token || '').replace(/[^A-Za-z0-9_-]/g, '');
   res.set('Content-Type', 'text/html; charset=utf-8');
   res.send('<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Email preferences</title><style>*{box-sizing:border-box}body{margin:0;background:#eef1f6;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;color:#1a2236}.card{max-width:560px;margin:56px auto;background:#fff;border:1px solid #e6e9f0;border-radius:14px;padding:32px 30px}h2{color:#000E31;margin:0 0 4px;font-size:22px}.sub{color:#6b7488;font-size:13.5px;margin:0 0 20px}.opt{display:flex;gap:10px;align-items:flex-start;padding:12px 0;border-top:1px solid #eef1f6}.opt input{margin-top:3px}.opt b{font-size:14.5px}.opt span{display:block;color:#6b7488;font-size:12.5px;margin-top:2px}#metros{margin:6px 0 4px 26px;display:none;flex-wrap:wrap;gap:8px}#metros label{display:inline-flex;align-items:center;gap:6px;font-size:13px;background:#f5f7fb;border:1px solid #e6e9f0;border-radius:8px;padding:6px 10px;cursor:pointer}.btn{margin-top:20px;background:#000E31;color:#fff;border:none;border-radius:9px;padding:11px 20px;font:inherit;font-weight:700;font-size:14px;cursor:pointer}.msg{margin-left:12px;font-size:13px;font-weight:700}.err{color:#DA2B1F}.ok{color:#1f8a5b}</style></head><body><div class="card" id="root">Loading…</div><script>var TOK="' + encodeURIComponent(tok) + '";var D=null;function esc(s){var d=document.createElement("div");d.textContent=s==null?"":String(s);return d.innerHTML;}function api(m,b){return fetch("/api/u/"+TOK,{method:m,headers:b?{"Content-Type":"application/json"}:undefined,body:b?JSON.stringify(b):undefined}).then(function(r){return r.json();});}function draw(){var r=document.getElementById("root");if(!D||!D.ok){r.innerHTML="<h2>Link not valid</h2><p class=sub>This preferences link is no longer active. Reply to any email from us and we will help.</p>";return;}var mode=D.optOut?"none":(D.mode==="metros"?"metros":"all");var mets=(D.allMetros||[]).map(function(m){var on=(D.metros||[]).indexOf(m)>=0;return "<label><input type=checkbox class=met value=\""+esc(m)+"\""+(on?" checked":"")+">"+esc(m)+"</label>";}).join("");r.innerHTML="<h2>Email preferences</h2><p class=sub>"+esc(D.email||"")+" &middot; "+esc(D.org||"")+"</p>"+"<label class=opt><input type=radio name=md value=all"+(mode==="all"?" checked":"")+"><span><b>All emails</b><span>Listing announcements, market updates, and news.</span></span></label>"+"<label class=opt><input type=radio name=md value=metros"+(mode==="metros"?" checked":"")+"><span><b>Only emails about specific markets</b><span>Pick the metros you care about — you will only hear from us about those.</span></span></label>"+"<div id=metros>"+mets+"</div>"+"<label class=opt><input type=radio name=md value=none"+(mode==="none"?" checked":"")+"><span><b>Unsubscribe from all</b><span>Stop all marketing emails.</span></span></label>"+"<div><button class=btn id=save>Save preferences</button><span class=msg id=msg></span></div>";function sync(){var v=(document.querySelector("input[name=md]:checked")||{}).value;document.getElementById("metros").style.display=(v==="metros")?"flex":"none";}Array.prototype.forEach.call(document.querySelectorAll("input[name=md]"),function(x){x.onchange=sync;});sync();document.getElementById("save").onclick=function(){var v=(document.querySelector("input[name=md]:checked")||{}).value;var body;if(v==="none")body={optOut:true};else{var ms=[];Array.prototype.forEach.call(document.querySelectorAll(".met:checked"),function(c){ms.push(c.value);});body={optOut:false,mode:v,metros:ms};}var mg=document.getElementById("msg");mg.textContent="Saving…";mg.className="msg";api("POST",body).then(function(j){if(j&&j.ok){mg.textContent="Saved ✓";mg.className="msg ok";}else{mg.textContent=(j&&j.error)||"Could not save.";mg.className="msg err";}});};}api("GET").then(function(j){D=j;draw();}).catch(function(){document.getElementById("root").innerHTML="<h2>Something went wrong</h2><p class=sub>Please try again later.</p>";});</script></body></html>');
 });
 app.get('/api/u/:token', (req, res) => {
-  const tok = String(req.params.token || ''); const arr = loadPeople(); const p = arr.find(x => x.unsubToken === tok);
-  if (!p) return res.status(404).json({ ok: false, error: 'This link is no longer valid.' });
-  const pref = p.emailPrefs || {};
-  res.json({ ok: true, org: orgDisplayName(), email: preferredEmailOf(p), optOut: !!p.emailOptOut, mode: (pref.mode === 'metros' ? 'metros' : 'all'), metros: Array.isArray(pref.metros) ? pref.metros : [], allMetros: effMarkets() });
+  const tok = String(req.params.token || ''); const arr = loadSubscribers(); const s = arr.find(x => x.unsubToken === tok);
+  if (!s) return res.status(404).json({ ok: false, error: 'This link is no longer valid.' });
+  res.json({ ok: true, org: orgDisplayName(), email: s.email || '', optOut: (s.status === 'unsubscribed'), mode: (s.mode === 'metros' ? 'metros' : 'all'), metros: Array.isArray(s.metros) ? s.metros : [], allMetros: effMarkets() });
 });
 app.post('/api/u/:token', express.json(), (req, res) => {
-  const tok = String(req.params.token || ''); const b = req.body || {}; const arr = loadPeople(); const p = arr.find(x => x.unsubToken === tok);
-  if (!p) return res.status(404).json({ ok: false, error: 'This link is no longer valid.' });
-  if (b.optOut) { p.emailOptOut = true; p.emailOptOutAt = new Date().toISOString(); }
-  else {
-    p.emailOptOut = false;
-    const mode = (b.mode === 'metros') ? 'metros' : 'all';
-    const metros = Array.isArray(b.metros) ? b.metros.filter(Boolean).map(x => String(x).slice(0, 80)).slice(0, 60) : [];
-    p.emailPrefs = { mode, metros };
-  }
-  p.updatedAt = new Date().toISOString(); savePeople(arr);
+  const tok = String(req.params.token || ''); const b = req.body || {}; const arr = loadSubscribers(); const s = arr.find(x => x.unsubToken === tok);
+  if (!s) return res.status(404).json({ ok: false, error: 'This link is no longer valid.' });
+  if (b.optOut) { s.status = 'unsubscribed'; s.unsubscribedAt = new Date().toISOString(); }
+  else { s.status = 'subscribed'; s.mode = (b.mode === 'metros') ? 'metros' : 'all'; s.metros = Array.isArray(b.metros) ? b.metros.filter(Boolean).map(x => String(x).slice(0, 80)).slice(0, 60) : []; }
+  s.updatedAt = new Date().toISOString(); saveSubscribers(arr);
   res.json({ ok: true });
 });
 
@@ -7557,7 +7640,20 @@ app.post('/api/gl/reset', requireAdmin, express.json(), (req, res) => {
   res.json({ ok: true, accounts: loadGlAccounts() });
 });
 
-app.get('/api/automations', (req, res) => { const u = req.user || {}; const vis = loadAutomations().filter(a => (a.scope !== 'private') || a.ownerUser === u.username || isSuper(u)); res.json({ ok: true, automations: vis.map(a => automationBrief(a, u)), isAdmin: !!(req.user && isSuper(req.user)), smsNotify: smsNotifyEnabled(), smsReady: isSmsConfigured(), me: u.username || '' }); });
+app.get('/api/automations', (req, res) => { const u = req.user || {}; const vis = loadAutomations().filter(a => (a.scope !== 'private') || a.ownerUser === u.username || isSuper(u)); const tally = automationTallies(); res.json({ ok: true, automations: vis.map(a => Object.assign(automationBrief(a, u), tally[a.id] || { enrolled: 0, active: 0, done: 0 })), personTypes: effPersonTypes(), tags: allTagsList(), isAdmin: !!(req.user && isSuper(req.user)), smsNotify: smsNotifyEnabled(), smsReady: isSmsConfigured(), me: u.username || '' });
+});
+app.get('/api/automations/segment-count', (req, res) => { try { const aud = req.query.audience ? JSON.parse(req.query.audience) : {}; let n = 0; loadPeople().forEach(p => { if (personMatchesSeg(p, aud)) n++; }); res.json({ ok: true, count: n }); } catch (e) { res.json({ ok: true, count: 0 }); } });
+app.post('/api/automations/:id/enroll-segment', requireAdmin, express.json(), (req, res) => {
+  const plan = loadAutomations().find(x => x.id === req.params.id && x.active !== false);
+  if (!plan) return res.status(404).json({ ok: false, error: 'Automation not found.' });
+  if (!Array.isArray(plan.steps) || !plan.steps.length) return res.status(400).json({ ok: false, error: 'This automation has no steps yet.' });
+  const aud = (req.body && req.body.audience) || {};
+  const arr = loadPeople(); let enrolled = 0, skipped = 0, matched = 0;
+  arr.forEach(p => { if (!personMatchesSeg(p, aud)) return; matched++; const r = enrollPerson(p, plan, { byName: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); if (r) enrolled++; else skipped++; });
+  if (enrolled) savePeople(arr);
+  res.json({ ok: true, enrolled, skipped, matched });
+});
+
 app.get('/api/admin/automation-sms', requireAdmin, (req, res) => res.json({ ok: true, enabled: smsNotifyEnabled(), configured: isSmsConfigured() }));
 app.post('/api/admin/automation-sms', requireAdmin, express.json(), (req, res) => { const s = loadSettings(); s.smsNotifyEnabled = !!(req.body && req.body.enabled); saveSettings(s); res.json({ ok: true, enabled: smsNotifyEnabled(), configured: isSmsConfigured() }); });
 app.post('/api/admin/automations', requireAdmin, express.json({ limit: '1mb' }), (req, res) => {
@@ -8392,6 +8488,27 @@ app.post('/api/person/merge-bulk', express.json({ limit: '8mb' }), (req, res) =>
 });
 // ---- Contact photo (optional headshot / logo) ----
 const PERSONPHOTO_DIR = path.join(BOV_DATA_DIR, 'personphotos');
+app.get('/ec/:token', (req, res) => {
+  const token = String(req.params.token || ''); const target = String(req.query.u || '');
+  try {
+    if (token && /^https?:\/\//i.test(target)) {
+      const ip = (req.headers['x-forwarded-for'] || req.ip || '').toString().split(',')[0].trim();
+      const subs = loadSubscribers(); let ch = false;
+      for (const s of subs) {
+        const e = (s.emailLog || []).find(x => x && x.openToken === token); if (!e) continue;
+        const nowIso = new Date().toISOString();
+        e.clickHits = Array.isArray(e.clickHits) ? e.clickHits : [];
+        e.clickHits.push({ at: nowIso, url: target.slice(0, 300), ip: ip }); e.clickHits = e.clickHits.slice(-50);
+        e.clicks = (e.clicks || 0) + 1; e.lastClick = nowIso; if (!e.firstClick) e.firstClick = nowIso;
+        if (!(e.opens > 0)) { e.opens = 1; e.lastOpen = nowIso; if (!e.firstOpen) e.firstOpen = nowIso; }
+        ch = true; break;
+      }
+      if (ch) saveSubscribers(subs);
+    }
+  } catch (e) {}
+  if (/^https?:\/\//i.test(target)) return res.redirect(302, target);
+  res.status(400).send('Invalid link.');
+});
 app.get('/eo/:token', (req, res) => {
   try {
     const token = String(req.params.token || '').replace(/\.(png|gif|jpg)$/i, '');
@@ -8414,6 +8531,22 @@ app.get('/eo/:token', (req, res) => {
         changed = true; break;
       }
       if (changed) savePeople(arr);
+      else {
+        const subs = loadSubscribers(); let sch = false;
+        for (const s of subs) {
+          const log = Array.isArray(s.emailLog) ? s.emailLog : [];
+          const e = log.find(x => x && x.openToken === token);
+          if (!e) continue;
+          const nowIso = new Date().toISOString();
+          const sentMs = Date.parse(e.sentAt || 0) || 0;
+          const counted = !(sentMs && (Date.now() - sentMs < 20000));
+          e.openHits = Array.isArray(e.openHits) ? e.openHits : [];
+          e.openHits.push({ at: nowIso, ip: ip, ua: ua, counted: counted }); e.openHits = e.openHits.slice(-50);
+          if (counted) { e.opens = (e.opens || 0) + 1; e.lastOpen = nowIso; if (!e.firstOpen) e.firstOpen = nowIso; }
+          sch = true; break;
+        }
+        if (sch) saveSubscribers(subs);
+      }
     }
   } catch (e) {}
   res.set('Content-Type', 'image/gif');
@@ -9076,7 +9209,7 @@ app.get('/api/companies', (req, res) => {
     return { id: c.id, name: c.name, markets: Object.keys(mk), market: c.market || '', address: (c.office && [c.office.address, c.office.city, c.office.state].filter(Boolean).join(', ')) || '', type: c.type || '', tags: Array.isArray(c.tags) ? c.tags : [], logo: c.logo || '', logoAuto: logoFromWebsite((c.office && c.office.website) || ((c.concepts && c.concepts[0] && c.concepts[0].website) || '')), concepts: (c.concepts || []).length, conceptNames: (c.concepts || []).map(cp => cp.name).filter(Boolean), contacts: _cp.length, locations: (c.locations || []).length, deals: deals.filter(d => d.companyId === c.id).length, mainContactId: (_main && _main.id) || '', mainContact: (_main && _main.name) || '', preferredContact: _pref, createdAt: c.createdAt, owner: c.by || '', leadSource: c.leadSource || '', interactions: (Array.isArray(c.activities) ? c.activities.length : 0), lastActiveAt: _companyLastActive(c, _coActMax[c.id] || '') };
   });
   const _cities = {}; cos.forEach(c => { if (c.office && c.office.city) _cities[c.office.city] = 1; (c.locations || []).forEach(l => { if (l.city) _cities[l.city] = 1; }); }); const _titles = {}; people.forEach(pp => { if (pp.title) _titles[pp.title] = 1; });
-  res.json({ ok: true, companies: rows, recencyDays: (effListRecencyEnabled() ? effListRecencyDays() : 0), canDelete: canDelete(req), types: effCompanyTypes(), cuisineTypes: effCuisineTypes(), conceptTypes: CONCEPT_TYPES, leadSources: effLeadSources(), users: auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => String(a.name).localeCompare(String(b.name))), defaultState: effDefaultState(), personTypes: effPersonTypes(), metros: effMarkets(), cities: Object.keys(_cities).sort((x,y)=>x.toLowerCase().localeCompare(y.toLowerCase())), titles: Object.keys(_titles).sort((x,y)=>x.toLowerCase().localeCompare(y.toLowerCase())), allTags: allTagsList(), isAdmin: !!(req.user && isSuper(req.user)) });
+  res.json({ ok: true, companies: rows, recencyDays: (effListRecencyEnabled() ? effListRecencyDays() : 0), canDelete: canDelete(req), types: effCompanyTypes(), cuisineTypes: effCuisineTypes(), conceptTypes: effConceptTypes(), leadSources: effLeadSources(), users: auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => String(a.name).localeCompare(String(b.name))), defaultState: effDefaultState(), personTypes: effPersonTypes(), metros: effMarkets(), cities: Object.keys(_cities).sort((x,y)=>x.toLowerCase().localeCompare(y.toLowerCase())), titles: Object.keys(_titles).sort((x,y)=>x.toLowerCase().localeCompare(y.toLowerCase())), allTags: allTagsList(), isAdmin: !!(req.user && isSuper(req.user)) });
 });
 // A person's full cross-book view: their company, the deals where they're the client,
 // and every offer / tour / NDA they're linked to across all deals.
@@ -9141,6 +9274,7 @@ app.get('/api/person/:id', (req, res) => {
 const LOCATION_STATUSES = ['Planned', 'Under Construction', 'Operating', 'Dark', 'Closed'];
 const LOCATION_SITETYPES = ['Freestanding', 'End Cap', 'Inline', 'Food Hall', 'Ghost Kitchen', 'Other'];
 const CONCEPT_TYPES = ['Full-Service', 'Fast-Casual', 'QSR', 'Bar / Nightlife', 'Dancehall', 'Cafe / Bakery', 'Food Truck', 'Ghost Kitchen', 'Other'];
+function effConceptTypes() { const s = loadSettings(); return (Array.isArray(s.conceptTypes) && s.conceptTypes.length) ? s.conceptTypes : CONCEPT_TYPES; }
 const PRICE_POINTS = ['$', '$$', '$$$', '$$$$'];
 // effMarkets() retired — CRM market fields now read effMarkets() (admin-editable, unified with matching).
 function newLocationId() { return 'loc_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
@@ -9387,15 +9521,15 @@ app.get('/api/admin/types', requireAdmin, (req, res) => {
   const s = loadSettings();
   res.json({
     ok: true,
-    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), markets: effMarkets(), ...calFeatFlags(),
-    defaults: { personTypes: PERSON_TYPES, companyTypes: COMPANY_TYPES, ticketCategories: TICKET_CATEGORIES, leadSources: LEAD_SOURCES, activityTypes: ACTIVITY_TYPES, roomCloseReasons: ROOM_CLOSE_REASONS, cuisineTypes: CUISINE_TYPES, agreementTypes: AGREEMENT_TYPES, markets: MARKETS },
-    isCustom: { personTypes: Array.isArray(s.personTypes), companyTypes: Array.isArray(s.companyTypes), ticketCategories: Array.isArray(s.ticketCategories), leadSources: Array.isArray(s.leadSources), activityTypes: Array.isArray(s.activityTypes), roomCloseReasons: Array.isArray(s.roomCloseReasons), cuisineTypes: Array.isArray(s.cuisineTypes), agreementTypes: Array.isArray(s.agreementTypes), markets: Array.isArray(s.markets) },
+    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), conceptTypes: effConceptTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), markets: effMarkets(), ...calFeatFlags(),
+    defaults: { personTypes: PERSON_TYPES, companyTypes: COMPANY_TYPES, ticketCategories: TICKET_CATEGORIES, leadSources: LEAD_SOURCES, activityTypes: ACTIVITY_TYPES, roomCloseReasons: ROOM_CLOSE_REASONS, cuisineTypes: CUISINE_TYPES, conceptTypes: CONCEPT_TYPES, agreementTypes: AGREEMENT_TYPES, markets: MARKETS },
+    isCustom: { personTypes: Array.isArray(s.personTypes), companyTypes: Array.isArray(s.companyTypes), ticketCategories: Array.isArray(s.ticketCategories), leadSources: Array.isArray(s.leadSources), activityTypes: Array.isArray(s.activityTypes), roomCloseReasons: Array.isArray(s.roomCloseReasons), cuisineTypes: Array.isArray(s.cuisineTypes), conceptTypes: Array.isArray(s.conceptTypes), agreementTypes: Array.isArray(s.agreementTypes), markets: Array.isArray(s.markets) },
     systemRequired: { leadSources: SYSTEM_LEAD_SOURCES, personTypes: SYSTEM_PERSON_TYPES, companyTypes: SYSTEM_COMPANY_TYPES, activityTypes: SYSTEM_ACTIVITY_TYPES, agreementTypes: AGREEMENT_TYPES.map(function(t){ return t.label; }), markets: SYSTEM_MARKETS },
   });
 });
 app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
   const b = req.body || {}; const s = loadSettings();
-  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; delete s.activityTypes; delete s.roomCloseReasons; delete s.cuisineTypes; delete s.markets; delete s.agreementTypes; delete s.maxPullLocations; delete s.defaultState; delete s.assistantName; delete s.listRecencyDays; delete s.listRecencyEnabled; delete s.conceptLabel; delete s.conceptLabelPlural; delete s.showRequestRibbon; delete s.pipelineRequiredOnCompany; delete s.showQuickLinks; delete s.sentSyncEnabled; delete s.sentSyncIntervalMin; delete s.currency; delete s.featCalSync; delete s.featCalTasks; delete s.featCalMeet; delete s.featWorkHours; delete s.featEventFiles; delete s.featBooking; delete s.featCalShare; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), ...calFeatFlags() }); }
+  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; delete s.activityTypes; delete s.roomCloseReasons; delete s.cuisineTypes; delete s.conceptTypes; delete s.markets; delete s.agreementTypes; delete s.maxPullLocations; delete s.defaultState; delete s.assistantName; delete s.listRecencyDays; delete s.listRecencyEnabled; delete s.conceptLabel; delete s.conceptLabelPlural; delete s.showRequestRibbon; delete s.pipelineRequiredOnCompany; delete s.showQuickLinks; delete s.sentSyncEnabled; delete s.sentSyncIntervalMin; delete s.currency; delete s.featCalSync; delete s.featCalTasks; delete s.featCalMeet; delete s.featWorkHours; delete s.featEventFiles; delete s.featBooking; delete s.featCalShare; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), conceptTypes: effConceptTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), ...calFeatFlags() }); }
   if (b.personTypes !== undefined) { s.personTypes = cleanStrList(b.personTypes, 40, 60) || []; s.personTypes = _mergeRequired(s.personTypes, SYSTEM_PERSON_TYPES); }
   if (b.companyTypes !== undefined) { s.companyTypes = cleanStrList(b.companyTypes, 40, 60) || []; s.companyTypes = _mergeRequired(s.companyTypes, SYSTEM_COMPANY_TYPES); }
   if (b.ticketCategories !== undefined) s.ticketCategories = cleanStrList(b.ticketCategories, 40, 60) || [];
@@ -9416,6 +9550,7 @@ app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
     if (out.length) s.agreementTypes = out.slice(0, 40); else delete s.agreementTypes;
   }
   if (b.cuisineTypes !== undefined) s.cuisineTypes = cleanStrList(b.cuisineTypes, 40, 60) || [];
+  if (b.conceptTypes !== undefined) s.conceptTypes = cleanStrList(b.conceptTypes, 40, 60) || [];
   if (b.markets !== undefined) s.markets = _mergeRequired(cleanStrList(b.markets, 60, 60) || [], SYSTEM_MARKETS);
   if (b.maxPullLocations !== undefined) { const n = parseInt(b.maxPullLocations, 10); s.maxPullLocations = (isFinite(n) && n > 0) ? Math.min(500, n) : 20; }
   if (typeof b.defaultState === 'string') s.defaultState = b.defaultState.trim().slice(0, 20);
@@ -9438,7 +9573,7 @@ app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
   if (b.sentSyncIntervalMin !== undefined) { const n = parseInt(b.sentSyncIntervalMin, 10); s.sentSyncIntervalMin = (isFinite(n) && n >= 2) ? Math.min(720, n) : 10; }
   if (typeof b.currency === 'string') s.currency = b.currency.trim().slice(0,3).toUpperCase();
   saveSettings(s);
-  res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), markets: effMarkets(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), ...calFeatFlags() });
+  res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), conceptTypes: effConceptTypes(), markets: effMarkets(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), ...calFeatFlags() });
 });
 
 // ---- Request-services notification recipients (multi-address) ----
@@ -9591,7 +9726,7 @@ app.get('/api/company/:id', (req, res) => {
   const companyAgreements = loadAgreements().filter(a => a.companyId === c.id || _cids.indexOf(a.personId) >= 0).map(a => Object.assign(agreementBrief(a), { personName: a.personName || _pn[a.personId] || '' })).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999')));
   const companyLogoAuto = logoFromWebsite(c.website || (c.office && c.office.website) || ((c.concepts && c.concepts[0] && c.concepts[0].website) || ''));
   const companyActivity = companyActivityFeed(c);
-  res.json({ ok: true, company: c, relationship: (function(){ try{ return relationshipRollupCompany(c.id); }catch(e){ return null; } })(), logoAuto: companyLogoAuto, contacts, deals: dealRows, agreements: companyAgreements, agreementTypes: effAgreementTypes(), automations: loadAutomations().filter(a => a.active !== false).map(a => ({ id: a.id, name: a.name || '' })), activity: companyActivity, users: auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => String(a.name).localeCompare(String(b.name))), activityTypes: effActivityTypes(), locations: c.locations || [], concepts: c.concepts || [], types: effCompanyTypes(), personTypes: effPersonTypes(), locationStatuses: LOCATION_STATUSES, siteTypes: LOCATION_SITETYPES, conceptTypes: CONCEPT_TYPES, pricePoints: PRICE_POINTS, cuisineTypes: effCuisineTypes(), leadSources: effLeadSources(), markets: effMarkets(), titles: Object.keys(loadPeople().reduce((m, pp) => { if (pp.title) m[pp.title] = 1; return m; }, {})).sort((x, y) => x.toLowerCase().localeCompare(y.toLowerCase())), allTags: allTagsList(), hasMaps: !!loadGmapsKey(), canRooms: userCan(req.user, 'tool:rrg_rooms_queue.html'), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
+  res.json({ ok: true, company: c, relationship: (function(){ try{ return relationshipRollupCompany(c.id); }catch(e){ return null; } })(), logoAuto: companyLogoAuto, contacts, deals: dealRows, agreements: companyAgreements, agreementTypes: effAgreementTypes(), automations: loadAutomations().filter(a => a.active !== false).map(a => ({ id: a.id, name: a.name || '' })), activity: companyActivity, users: auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => String(a.name).localeCompare(String(b.name))), activityTypes: effActivityTypes(), locations: c.locations || [], concepts: c.concepts || [], types: effCompanyTypes(), personTypes: effPersonTypes(), locationStatuses: LOCATION_STATUSES, siteTypes: LOCATION_SITETYPES, conceptTypes: effConceptTypes(), pricePoints: PRICE_POINTS, cuisineTypes: effCuisineTypes(), leadSources: effLeadSources(), markets: effMarkets(), titles: Object.keys(loadPeople().reduce((m, pp) => { if (pp.title) m[pp.title] = 1; return m; }, {})).sort((x, y) => x.toLowerCase().localeCompare(y.toLowerCase())), allTags: allTagsList(), hasMaps: !!loadGmapsKey(), canRooms: userCan(req.user, 'tool:rrg_rooms_queue.html'), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
 });
 // ---- Company-level activity: notes / calls / meetings logged against the company itself. ----
 app.post('/api/company/:id/activity', express.json(), (req, res) => {
@@ -9641,7 +9776,7 @@ app.post('/api/company/:id/concept', express.json(), (req, res) => {
     cpt.name = name.slice(0, 120);
     if (typeof b.website === 'string') cpt.website = b.website.slice(0, 300);
     if (Array.isArray(b.markets)) cpt.markets = b.markets.map(x => titleCaseMarket(String(x || '').slice(0, 80))).filter(Boolean).slice(0, 30);
-    if (typeof b.conceptType === 'string') cpt.conceptType = CONCEPT_TYPES.indexOf(b.conceptType) >= 0 ? b.conceptType : '';
+    if (typeof b.conceptType === 'string') cpt.conceptType = effConceptTypes().indexOf(b.conceptType) >= 0 ? b.conceptType : '';
     if (typeof b.pricePoint === 'string') cpt.pricePoint = PRICE_POINTS.indexOf(b.pricePoint) >= 0 ? b.pricePoint : '';
     if (typeof b.cuisine === 'string') cpt.cuisine = effCuisineTypes().indexOf(b.cuisine) >= 0 ? b.cuisine : '';
     // Logo: use the explicit value only. No auto-derivation from the website.
@@ -9655,7 +9790,7 @@ app.post('/api/company/:id/concept', express.json(), (req, res) => {
       // Idempotent: re-running the AI (or re-adding) must never create a second copy.
       // Fill in only blanks from the incoming data; never clobber values already on file.
       if (!String(_dup.website || '').trim() && typeof b.website === 'string' && b.website.trim()) _dup.website = b.website.slice(0, 300);
-      if (!String(_dup.conceptType || '').trim() && typeof b.conceptType === 'string' && CONCEPT_TYPES.indexOf(b.conceptType) >= 0) _dup.conceptType = b.conceptType;
+      if (!String(_dup.conceptType || '').trim() && typeof b.conceptType === 'string' && effConceptTypes().indexOf(b.conceptType) >= 0) _dup.conceptType = b.conceptType;
       if (!String(_dup.pricePoint || '').trim() && typeof b.pricePoint === 'string' && PRICE_POINTS.indexOf(b.pricePoint) >= 0) _dup.pricePoint = b.pricePoint;
       if (!String(_dup.cuisine || '').trim() && typeof b.cuisine === 'string' && effCuisineTypes().indexOf(b.cuisine) >= 0) _dup.cuisine = b.cuisine;
       if (Array.isArray(b.markets) && b.markets.length) { const _mk = {}; (_dup.markets || []).forEach(m => { if (m) _mk[normKey(m)] = m; }); b.markets.map(x => titleCaseMarket(String(x || '').slice(0, 80))).filter(Boolean).forEach(m => { if (!_mk[normKey(m)]) _mk[normKey(m)] = m; }); _dup.markets = Object.values(_mk).slice(0, 30); }
@@ -9664,7 +9799,7 @@ app.post('/api/company/:id/concept', express.json(), (req, res) => {
       return res.json({ ok: true, concepts: c.concepts, locations: c.locations || [], concept: _dup, existed: true });
     }
     const website = String(b.website || '').slice(0, 300);
-    cpt = { id: newConceptId(), name: name.slice(0, 120), website: website, logo: (typeof b.logo === 'string' && b.logo) ? b.logo.slice(0, 400) : '', markets: Array.isArray(b.markets) ? b.markets.map(x => String(x || '').slice(0, 80)).filter(Boolean).slice(0, 30) : [], conceptType: (typeof b.conceptType === 'string' && CONCEPT_TYPES.indexOf(b.conceptType) >= 0) ? b.conceptType : '', pricePoint: (typeof b.pricePoint === 'string' && PRICE_POINTS.indexOf(b.pricePoint) >= 0) ? b.pricePoint : '', cuisine: (typeof b.cuisine === 'string' && effCuisineTypes().indexOf(b.cuisine) >= 0) ? b.cuisine : '', createdAt: now };
+    cpt = { id: newConceptId(), name: name.slice(0, 120), website: website, logo: (typeof b.logo === 'string' && b.logo) ? b.logo.slice(0, 400) : '', markets: Array.isArray(b.markets) ? b.markets.map(x => String(x || '').slice(0, 80)).filter(Boolean).slice(0, 30) : [], conceptType: (typeof b.conceptType === 'string' && effConceptTypes().indexOf(b.conceptType) >= 0) ? b.conceptType : '', pricePoint: (typeof b.pricePoint === 'string' && PRICE_POINTS.indexOf(b.pricePoint) >= 0) ? b.pricePoint : '', cuisine: (typeof b.cuisine === 'string' && effCuisineTypes().indexOf(b.cuisine) >= 0) ? b.cuisine : '', createdAt: now };
     c.concepts.push(cpt);
   }
   c.updatedAt = now; saveCompanies(arr);
@@ -9875,11 +10010,11 @@ app.post('/api/company/:id/parse-list', express.json({ limit: '128kb' }), async 
     const text = String((req.body || {}).text || '').trim();
     if (!text) return res.status(400).json({ ok: false, error: 'Paste a list first.' });
     let out;
-    try { out = await aiassist.parseConceptList({ text, conceptTypes: CONCEPT_TYPES, cuisines: effCuisineTypes() }); }
+    try { out = await aiassist.parseConceptList({ text, conceptTypes: effConceptTypes(), cuisines: effCuisineTypes() }); }
     catch (e) { return res.status(502).json({ ok: false, error: String((e && e.message) || e) }); }
     const concepts = (Array.isArray(out && out.concepts) ? out.concepts : []).map(cc => ({
       name: String((cc && cc.name) || '').slice(0, 120),
-      conceptType: (CONCEPT_TYPES.indexOf(cc && cc.conceptType) >= 0) ? cc.conceptType : '',
+      conceptType: (effConceptTypes().indexOf(cc && cc.conceptType) >= 0) ? cc.conceptType : '',
       cuisine: (effCuisineTypes().indexOf(cc && cc.cuisine) >= 0) ? cc.cuisine : '',
       website: String((cc && cc.website) || '').slice(0, 300),
       locations: (Array.isArray(cc && cc.locations) ? cc.locations : []).map(l => ({
@@ -9904,7 +10039,7 @@ app.post('/api/company/:id/import-concepts', express.json({ limit: '256kb' }), (
     inC.slice(0, 60).forEach(rc => {
       const name = String((rc && rc.name) || '').trim(); if (!name) return;
       const website = String((rc && rc.website) || '').slice(0, 300);
-      const conceptType = (CONCEPT_TYPES.indexOf(rc && rc.conceptType) >= 0) ? rc.conceptType : '';
+      const conceptType = (effConceptTypes().indexOf(rc && rc.conceptType) >= 0) ? rc.conceptType : '';
       const cuisine = (effCuisineTypes().indexOf(rc && rc.cuisine) >= 0) ? rc.cuisine : '';
       let cpt = c.concepts.find(x => normKey(x.name) === normKey(name));
       if (cpt) {
@@ -9959,9 +10094,9 @@ app.post('/api/company/:id/build-concepts', express.json(), async (req, res) => 
     const compName = (loadCompanies().find(x => x.id === req.params.id) || {}).name || '';
     const resolved = await Promise.all(names.map(async (nm) => {
       try {
-        const r = await locationgen.resolveConcept({ name: nm, market, conceptTypes: CONCEPT_TYPES, cuisines: effCuisineTypes() });
+        const r = await locationgen.resolveConcept({ name: nm, market, conceptTypes: effConceptTypes(), cuisines: effCuisineTypes() });
         return { name: nm, website: String(r.website || '').trim(),
-          conceptType: (CONCEPT_TYPES.indexOf(r.conceptType) >= 0) ? r.conceptType : '',
+          conceptType: (effConceptTypes().indexOf(r.conceptType) >= 0) ? r.conceptType : '',
           cuisine: (effCuisineTypes().indexOf(r.cuisine) >= 0) ? r.cuisine : '',
           pricePoint: (PRICE_POINTS.indexOf(r.pricePoint) >= 0) ? r.pricePoint : '' };
       } catch (e) { return { name: nm, website: '', conceptType: '', cuisine: '', pricePoint: '', error: String((e && e.message) || e) }; }
@@ -10059,8 +10194,8 @@ app.post('/api/company/:id/concept-resolve', express.json(), async (req, res) =>
     const b = req.body || {};
     const name = String(b.name || '').trim();
     if (!name) return res.status(400).json({ ok: false, error: 'A concept name is required.' });
-    const r = await locationgen.resolveConcept({ name, market: String(b.market || '').trim(), conceptTypes: CONCEPT_TYPES, cuisines: effCuisineTypes() });
-    const ct = (CONCEPT_TYPES.indexOf(r.conceptType) >= 0) ? r.conceptType : '';
+    const r = await locationgen.resolveConcept({ name, market: String(b.market || '').trim(), conceptTypes: effConceptTypes(), cuisines: effCuisineTypes() });
+    const ct = (effConceptTypes().indexOf(r.conceptType) >= 0) ? r.conceptType : '';
     const cu = (effCuisineTypes().indexOf(r.cuisine) >= 0) ? r.cuisine : '';
     const pp = (PRICE_POINTS.indexOf(r.pricePoint) >= 0) ? r.pricePoint : '';
     res.json({ ok: true, profile: { website: r.website, conceptType: ct, cuisine: cu, pricePoint: pp, note: r.note } });
@@ -11953,13 +12088,13 @@ app.post('/api/admin/concepts-classify', requireAdmin, express.json(), async (re
   if (!resolved.length) return res.json({ ok: true, results: [] });
   const cuisines = effCuisineTypes();
   let cls = [];
-  try { cls = await aiassist.classifyConcepts({ items: resolved.map(r => ({ name: r.name, website: r.website })), conceptTypes: CONCEPT_TYPES, pricePoints: PRICE_POINTS, cuisines: cuisines }); }
+  try { cls = await aiassist.classifyConcepts({ items: resolved.map(r => ({ name: r.name, website: r.website })), conceptTypes: effConceptTypes(), pricePoints: PRICE_POINTS, cuisines: cuisines }); }
   catch (e) { return res.status(500).json({ ok: false, error: String((e && e.message) || 'AI request failed') }); }
   const byIdx = {}; cls.forEach(x => { if (isFinite(x.i)) byIdx[x.i] = x; });
   const results = resolved.map((r, i) => {
     const g = byIdx[i] || {};
     const cuisine = (cuisines.indexOf(g.cuisine) >= 0) ? g.cuisine : '';
-    const conceptType = (CONCEPT_TYPES.indexOf(g.conceptType) >= 0) ? g.conceptType : '';
+    const conceptType = (effConceptTypes().indexOf(g.conceptType) >= 0) ? g.conceptType : '';
     const pricePoint = (PRICE_POINTS.indexOf(g.pricePoint) >= 0) ? g.pricePoint : '';
     return { companyId: r.companyId, companyName: r.companyName, conceptId: r.conceptId, name: r.name, current: r.current, proposed: { cuisine: cuisine, conceptType: conceptType, pricePoint: pricePoint, multiUnit: !!g.multiUnit } };
   });
@@ -11975,7 +12110,7 @@ app.post('/api/admin/concepts-apply', requireAdmin, express.json({ limit: '2mb' 
       const cp = (c.concepts || []).find(x => x.id === it.conceptId); if (!cp) return;
       const a = it.apply || {};
       if (a.cuisine && effCuisineTypes().indexOf(a.cuisine) >= 0 && !String(cp.cuisine || '').trim()) cp.cuisine = a.cuisine;
-      if (a.conceptType && CONCEPT_TYPES.indexOf(a.conceptType) >= 0 && !String(cp.conceptType || '').trim()) cp.conceptType = a.conceptType;
+      if (a.conceptType && effConceptTypes().indexOf(a.conceptType) >= 0 && !String(cp.conceptType || '').trim()) cp.conceptType = a.conceptType;
       if (a.pricePoint && PRICE_POINTS.indexOf(a.pricePoint) >= 0 && !String(cp.pricePoint || '').trim()) cp.pricePoint = a.pricePoint;
       if (a.multiUnit) { c.tags = Array.isArray(c.tags) ? c.tags : []; if (c.tags.indexOf('Multi-Unit Operator') < 0) { c.tags.push('Multi-Unit Operator'); tagged++; } }
       applied++;

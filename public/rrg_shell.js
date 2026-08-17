@@ -192,7 +192,8 @@
       { ic: '➤', label: 'Market Attack Plans', href: 'rrg_attack_queue.html' },
       { ic: '▤', label: 'Marketplace', href: 'rrg_marketplace.html', admin: true },
       { ic: '✎', label: 'Email Templates', href: 'rrg_email_templates.html' },
-      { ic: '⇶', label: 'Mass Emails', href: 'rrg_mass_emails.html' },
+      { ic: '⇶', label: 'Mass Emails', href: 'rrg_mass_emails.html', admin: true },
+      { ic: '☷', label: 'Subscribers', href: 'rrg_subscribers.html' },
       { ic: '◉', label: 'Tracked Emails', href: 'rrg_tracked_emails.html' },
       { ic: '⟳', label: 'Automations', href: 'rrg_admin_automations.html', admin: true }
     ] },

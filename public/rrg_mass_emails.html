@@ -56,19 +56,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 <body>
 <div class="wrap">
   <h1 class="pgh">Mass Emails</h1>
-  <div class="pgs">Send one on-brand, personalized email to a whole segment of your book — a new-listing blast, a market update, a re-engagement note. Every message is merged one-to-one, tracked for opens, honors each contact's email preferences, and carries an unsubscribe link automatically.</div>
+  <div class="pgs">Send one on-brand, personalized email to a segment of your subscriber list — a new-listing blast, a market update, a re-engagement note. Every message is merged one-to-one, tracked for opens, honors each contact's email preferences, and carries an unsubscribe link automatically.</div>
   <div id="root"></div>
 </div>
 <script>
 var META={types:[],tags:[],leadSources:[],metros:[],reachable:0,optOut:0,noEmail:0,totalContacts:0};
 var TEMPLATES=[], CAMPAIGNS=[], POLL=null;
-var SEL={types:[],tags:[],leadSources:[],metros:[]}, NOTDAYS=0;
+var SEL={tags:[],metros:[]}, NOTDAYS=0;
 var SAMPLE={'{{first_name}}':'Maria','{{last_name}}':'Lopez','{{name}}':'Maria Lopez','{{company}}':'Blue Agave Cantina','{{title}}':'Owner','{{email}}':'maria@blueagave.com','{{phone}}':'(713) 555-0142','{{my_name}}':'Van','{{my_title}}':'Broker','{{my_phone}}':'(713) 555-0100','{{my_email}}':'van@rrgcre.com','{{listing_name}}':'Blue Agave Cantina','{{listing_number}}':'RRG-1042','{{code_name}}':'Project Cedar','{{asking_price}}':'$785,000','{{data_room_link}}':'app.rrgcre.com/room/9f2c…','{{booking_link}}':'app.rrgcre.com/book/van…','{{today}}':'August 17, 2026'};
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 function fmt(iso){ if(!iso) return ''; var x=String(iso).slice(0,10).split('-'); if(x.length!==3) return String(iso).slice(0,10); return x[1]+'/'+x[2]+'/'+x[0]; }
 function api(m,u,b){return fetch(u,{method:m,credentials:'same-origin',headers:b?{'Content-Type':'application/json'}:undefined,body:b?JSON.stringify(b):undefined}).then(function(r){return r.json();});}
 function mergePreview(str){ return String(str==null?'':str).replace(/\{\{\s*[\w.]+\s*\}\}/g,function(m){ var key=m.replace(/\s+/g,''); if(SAMPLE[key]!=null) return esc(SAMPLE[key]); return '<span class="tokmiss">'+esc(m)+'</span>'; }); }
-function audience(){ return { types:SEL.types.slice(), tags:SEL.tags.slice(), leadSources:SEL.leadSources.slice(), notContactedDays:NOTDAYS }; }
+function audience(){ return { tags:SEL.tags.slice(), notContactedDays:NOTDAYS }; }
 
 function chipRow(kind, items){ if(!items.length) return '<div class="hint">None on file yet.</div>'; return '<div class="chips">'+items.map(function(v){ var on=SEL[kind].indexOf(v)>=0; return '<button type="button" class="chip'+(kind==='metros'?' met':'')+(on?' on':'')+'" data-kind="'+kind+'" data-val="'+esc(v)+'">'+esc(v)+'</button>'; }).join('')+'</div>'; }
 
@@ -76,15 +76,11 @@ function shell(){
   return ''
   +'<div class="card"><div class="ch"><span class="stepno">1</span><b>Audience</b><span class="sp"><span class="hint" id="reach"></span></span></div><div class="body">'
     +'<div class="grid2">'
-      +'<div><div class="subhd">Contact type</div><div id="g_types"></div></div>'
-      +'<div><div class="subhd">Tags</div><div id="g_tags"></div></div>'
-    +'</div>'
-    +'<div class="grid2" style="margin-top:14px">'
-      +'<div><div class="subhd">Lead source</div><div id="g_src"></div></div>'
-      +'<div><div class="fld" style="margin:0"><label>Only contacts not emailed/contacted in the last…</label><select id="notdays"><option value="0">No limit — everyone</option><option value="30">30 days</option><option value="60">60 days</option><option value="90">90 days</option><option value="180">180 days</option></select></div></div>'
+      +'<div><div class="subhd">Subscriber tags</div><div id="g_tags"></div></div>'
+      +'<div><div class="fld" style="margin:0"><label>Only those not emailed in the last…</label><select id="notdays"><option value="0">No limit — all subscribers</option><option value="30">30 days</option><option value="60">60 days</option><option value="90">90 days</option><option value="180">180 days</option></select></div></div>'
     +'</div>'
     +'<div style="margin-top:16px"><div class="subhd">This campaign is about these markets <span style="text-transform:none;letter-spacing:0;font-weight:600;color:var(--soft)">(optional — powers each contact’s market preferences)</span></div><div id="g_metros"></div><div class="hint">Contacts who chose “only specific markets” get this only if it overlaps their picks. Leave blank for a general blast (those contacts are skipped).</div></div>'
-    +'<div class="count"><div class="n" id="aud_n">—</div><div class="l">contacts will receive this</div><span class="sp" style="margin-left:auto"></span><button class="btn sm" id="aud_refresh">Refresh</button></div>'
+    +'<div class="count"><div class="n" id="aud_n">—</div><div class="l">subscribers will receive this</div><span class="sp" style="margin-left:auto"></span><button class="btn sm" id="aud_refresh">Refresh</button></div>'
     +'<div class="samp" id="aud_samp"></div>'
   +'</div></div>'
 
@@ -112,11 +108,9 @@ function shell(){
 }
 
 function drawGroups(){
-  document.getElementById('g_types').innerHTML=chipRow('types',META.types);
   document.getElementById('g_tags').innerHTML=chipRow('tags',META.tags);
-  document.getElementById('g_src').innerHTML=chipRow('leadSources',META.leadSources);
   document.getElementById('g_metros').innerHTML=chipRow('metros',META.metros);
-  var reach=document.getElementById('reach'); if(reach) reach.textContent=META.reachable+' reachable of '+META.totalContacts+' contacts'+(META.optOut?(' · '+META.optOut+' opted out'):'')+(META.noEmail?(' · '+META.noEmail+' no email'):'');
+  var reach=document.getElementById('reach'); if(reach) reach.textContent=(META.reachable||0)+' subscribed of '+(META.totalContacts||0)+' subscribers'+(META.unsubscribed?(' · '+META.unsubscribed+' unsubscribed'):'');
 }
 function onChip(btn){ var kind=btn.getAttribute('data-kind'), val=btn.getAttribute('data-val'); var i=SEL[kind].indexOf(val); if(i>=0) SEL[kind].splice(i,1); else SEL[kind].push(val); btn.classList.toggle('on'); refreshCount(); }
 function refreshCount(){ var n=document.getElementById('aud_n'); if(n) n.textContent='…'; api('POST','/api/mass/audience',{audience:audience(),metros:SEL.metros}).then(function(j){ if(!j||!j.ok) return; if(n) n.textContent=j.count; var s=document.getElementById('aud_samp'); if(s){ if(j.count){ s.innerHTML='<b>Sample:</b> '+j.sample.slice(0,8).map(function(p){return esc(p.name||p.email)+(p.company?(' ('+esc(p.company)+')'):'');}).join(' · ')+(j.count>8?(' …and '+(j.count-8)+' more'):''); } else { s.innerHTML='<span style="color:var(--red)">No contacts match — loosen the filters.</span>'; } } }); }
@@ -130,9 +124,9 @@ function sMsg(t,cls){ var m=document.getElementById('s_msg'); if(m){ m.innerHTML
 
 function sendTest(){ var p=payload(); if(!p.subject && !p.body.trim()){ setMsg('Add a subject or message first.','err'); return; } var b=document.getElementById('s_test'); b.disabled=true; sMsg('Sending test…'); api('POST','/api/mass/send',{name:p.name,subject:p.subject,body:p.body,test:true}).then(function(j){ b.disabled=false; if(j&&j.ok){ sMsg('Test sent to '+esc(j.to)+' ✓','ok'); } else sMsg((j&&j.error)||'Test failed.','err'); }); }
 function saveDraft(){ var p=payload(); if(!p.name.trim()){ setMsg('Name the campaign to save a draft.','err'); return; } var b=document.getElementById('s_draft'); b.disabled=true; api('POST','/api/mass/campaign',p).then(function(j){ b.disabled=false; if(j&&j.ok){ setMsg('Draft saved','ok'); loadCampaigns(); } else setMsg((j&&j.error)||'Save failed.','err'); }); }
-async function sendCampaign(){ var p=payload(); if(!p.subject && !p.body.trim()){ setMsg('Add a subject and a message.','err'); return; } var n=(document.getElementById('aud_n')||{}).textContent||'0'; var cnt=parseInt(n,10)||0; if(!cnt){ sMsg('No contacts match this segment.','err'); return; } if(!(await rrgConfirm('Send “'+(p.name||'this campaign')+'” to '+cnt+' contact'+(cnt===1?'':'s')+'? Each gets a personalized, tracked email with an unsubscribe link.'))) return; var b=document.getElementById('s_send'); b.disabled=true; sMsg('Starting send…'); api('POST','/api/mass/send',p).then(function(j){ b.disabled=false; if(j&&j.ok){ sMsg('Sending to '+j.recipientCount+' contacts — watch progress below.','ok'); loadCampaigns(); startPoll(); } else sMsg((j&&j.error)||'Send failed.','err'); }); }
+async function sendCampaign(){ var p=payload(); if(!p.subject && !p.body.trim()){ setMsg('Add a subject and a message.','err'); return; } var n=(document.getElementById('aud_n')||{}).textContent||'0'; var cnt=parseInt(n,10)||0; if(!cnt){ sMsg('No subscribers match this segment.','err'); return; } if(!(await rrgConfirm('Send “'+(p.name||'this campaign')+'” to '+cnt+' subscriber'+(cnt===1?'':'s')+'? Each gets a personalized, tracked email with an unsubscribe link.'))) return; var b=document.getElementById('s_send'); b.disabled=true; sMsg('Starting send…'); api('POST','/api/mass/send',p).then(function(j){ b.disabled=false; if(j&&j.ok){ sMsg('Sending to '+j.recipientCount+' subscribers — watch progress below.','ok'); loadCampaigns(); startPoll(); } else sMsg((j&&j.error)||'Send failed.','err'); }); }
 
-function campRow(c){ var st=c.status||'draft'; var stc=(st==='sent')?'sent':(st==='sending'?'sending':'draft'); var prog=(st==='sending')?(' · '+c.sentCount+'/'+c.recipientCount+' sent'):''; var stats=(st==='sent')?(' · '+c.delivered+' delivered · '+c.openRate+'% open'):''; return '<div style="display:flex;align-items:center;gap:12px;padding:11px 12px;border-bottom:1px solid var(--line)"><div style="flex:1;min-width:0"><div style="font-weight:700;color:var(--navy);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(c.name||'Untitled')+'</div><div style="font-size:12px;color:var(--muted);margin-top:2px">'+esc(c.subject||'')+'</div></div><span class="stpill '+stc+'">'+esc(st)+'</span><span style="font-size:12px;color:var(--muted);white-space:nowrap;min-width:170px;text-align:right">'+esc(c.recipientCount+' recipient'+(c.recipientCount===1?'':'s'))+prog+stats+'</span><span style="font-size:12px;color:var(--soft);white-space:nowrap">'+esc(c.sentAt?fmt(c.sentAt):fmt(c.createdAt))+'</span>'+((st!=='sending')?('<button class="btn ghost sm" data-cdel="'+esc(c.id)+'" title="Delete">✕</button>'):'')+'</div>'; }
+function campRow(c){ var st=c.status||'draft'; var stc=(st==='sent')?'sent':(st==='sending'?'sending':'draft'); var prog=(st==='sending')?(' · '+c.sentCount+'/'+c.recipientCount+' sent'):''; var stats=(st==='sent')?(' · '+c.delivered+' delivered · '+c.openRate+'% open · '+(c.clickRate||0)+'% click'):''; return '<div style="display:flex;align-items:center;gap:12px;padding:11px 12px;border-bottom:1px solid var(--line)"><div style="flex:1;min-width:0"><div style="font-weight:700;color:var(--navy);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(c.name||'Untitled')+'</div><div style="font-size:12px;color:var(--muted);margin-top:2px">'+esc(c.subject||'')+'</div></div><span class="stpill '+stc+'">'+esc(st)+'</span><span style="font-size:12px;color:var(--muted);white-space:nowrap;min-width:170px;text-align:right">'+esc(c.recipientCount+' recipient'+(c.recipientCount===1?'':'s'))+prog+stats+'</span><span style="font-size:12px;color:var(--soft);white-space:nowrap">'+esc(c.sentAt?fmt(c.sentAt):fmt(c.createdAt))+'</span>'+((st!=='sending')?('<button class="btn ghost sm" data-cdel="'+esc(c.id)+'" title="Delete">✕</button>'):'')+'</div>'; }
 function drawCampaigns(){ var el=document.getElementById('camps'); if(!el) return; if(!CAMPAIGNS.length){ el.innerHTML='<div class="empty">No campaigns yet.</div>'; } else { el.innerHTML=CAMPAIGNS.map(campRow).join(''); } var c=document.getElementById('camp_count'); if(c) c.textContent=CAMPAIGNS.length+' total'; }
 function loadCampaigns(){ return api('GET','/api/mass/campaigns').then(function(j){ CAMPAIGNS=(j&&j.campaigns)||[]; drawCampaigns(); if(!CAMPAIGNS.some(function(c){return c.status==='sending';})) stopPoll(); }); }
 function startPoll(){ if(POLL) return; POLL=setInterval(loadCampaigns,4000); }

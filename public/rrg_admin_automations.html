@@ -60,6 +60,7 @@ textarea{resize:vertical;min-height:80px;line-height:1.5;}
 </style>
 <style>.tokbar{display:flex;flex-wrap:wrap;gap:5px;margin:2px 0 12px}.tokchip{background:#eef3fb;border:1px solid #d3e2f6;color:#2f6fd0;border-radius:100px;padding:3px 10px;font:inherit;font-size:11.5px;font-weight:700;cursor:pointer}.tokchip:hover{background:#e2eefb}.chanrow{display:flex;align-items:center;gap:8px;margin-bottom:6px}.chanrow select{font:inherit;font-size:13px;padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:#fff}</style>
 <script src="/rrg_brand.js"></script>
+<style>.chip{font:inherit;font-size:12px;font-weight:600;padding:5px 11px;border:1px solid #e6e9f0;border-radius:100px;background:#fff;color:#6b7488;cursor:pointer;} .chip.on{background:#000E31;color:#fff;border-color:#000E31;} .chips{display:flex;flex-wrap:wrap;gap:7px;} .enl{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#8a93a8;font-weight:800;margin-bottom:6px;} .ensel{width:100%;max-width:360px;border:1px solid #e6e9f0;border-radius:8px;padding:8px 10px;font:inherit;font-size:14px;background:#fff;}</style>
 </head>
 <body>
 <div class="wrap">
@@ -68,7 +69,7 @@ textarea{resize:vertical;min-height:80px;line-height:1.5;}
   <div id="root"></div>
 </div>
 <script>
-var PLANS=[], CTL=null, BUILT=false, IS_ADMIN=false, EDIT=null, STEPS=[], DEL_ARM=false, ETPLS=[], PIPES=[], SMSNOTIFY=false, SMSREADY=false, ME='';
+var PLANS=[], CTL=null, BUILT=false, IS_ADMIN=false, EDIT=null, STEPS=[], DEL_ARM=false, ETPLS=[], PIPES=[], SMSNOTIFY=false, SMSREADY=false, ME='', PTYPES=[], ALLTAGS=[], ENSEL={types:[],tags:[]}, ENROLL_ID='';
 var TOKENS=[['{{first_name}}','First name'],['{{last_name}}','Last name'],['{{name}}','Full name'],['{{company}}','Company'],['{{title}}','Title'],['{{email}}','Email'],['{{phone}}','Phone'],['{{listing_name}}','Listing name'],['{{listing_number}}','Listing #'],['{{my_name}}','My name'],['{{my_email}}','My email'],['{{my_phone}}','My phone'],['{{today}}','Today']];
 var LASTFLD=null;
 function tokBar(){ return '<div class="tokbar">'+TOKENS.map(function(t){return '<button type="button" class="tokchip" data-tok="'+t[0]+'">'+esc(t[1])+'</button>';}).join('')+'</div>'; }
@@ -76,7 +77,7 @@ function insTok(tok){ var el=LASTFLD; if(!el){ return; } var st=el.selectionStar
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 function fmt(iso){ if(!iso) return ''; var x=String(iso).slice(0,10).split('-'); if(x.length!==3) return String(iso).slice(0,10); return x[1]+'/'+x[2]+'/'+x[0]; }
 function api(m,u,b){return fetch(u,{method:m,credentials:'same-origin',headers:b?{'Content-Type':'application/json'}:undefined,body:b?JSON.stringify(b):undefined}).then(function(r){return r.json();});}
-var LIST_SHELL='<div class="card" id="smsCard" style="display:none;margin-bottom:12px"><div class="cb" style="padding:12px 14px"><label class="chk" style="margin:0"><input type="checkbox" id="smsToggle"> Allow <b style="margin:0 4px">text (SMS)</b> notifications in automations</label><div class="note" id="smsHint" style="margin:6px 0 0"></div></div></div><div class="card"><div class="hd"><b>Automations</b><span class="meta" id="tcount"></span><span class="sp"></span><button class="btn sm pri" id="t_new">+ New automation</button></div><div class="cb"><div id="tlist"><div class="empty">Loading…</div></div></div></div><div id="editor"></div>';
+var LIST_SHELL='<div class="card" id="smsCard" style="display:none;margin-bottom:12px"><div class="cb" style="padding:12px 14px"><label class="chk" style="margin:0"><input type="checkbox" id="smsToggle"> Allow <b style="margin:0 4px">text (SMS)</b> notifications in automations</label><div class="note" id="smsHint" style="margin:6px 0 0"></div></div></div><div class="card"><div class="hd"><b>Automations</b><span class="meta" id="tcount"></span><span class="sp"></span><button class="btn sm" id="t_enroll">Enroll a segment</button><button class="btn sm pri" id="t_new">+ New automation</button></div><div class="cb"><div id="tlist"><div class="empty">Loading…</div></div></div></div><div id="enrollPanel"></div><div id="editor"></div>';
 function actionsCell(p){ return '<div class="acts"><button class="btn ghost sm" data-edit="'+esc(p.id)+'">Edit</button><button class="delx" data-del="'+esc(p.id)+'" title="Delete" aria-label="Delete">✕</button></div>'; }
 function listCfg(){ return { mount:'#tlist', data:PLANS, key:'automations',
   empty:'<div class="empty">No automations yet. Click <b>+ New automation</b> to build your first sequence.</div>',
@@ -87,6 +88,7 @@ function listCfg(){ return { mount:'#tlist', data:PLANS, key:'automations',
     { label:'Status', sort:function(a,b){return (a.active===false?1:0)-(b.active===false?1:0);}, cell:function(p){ return p.active===false?'<span class="badge off">Off</span>':'<span class="badge on">Active</span>'; } },
     { label:'Visibility', sort:function(a,b){return RRGList.cmp(a.scope||'shared',b.scope||'shared');}, cell:function(p){ var who=p.ownerName?(' <span class="meta">· '+esc(p.ownerName)+'</span>'):''; return (p.scope==='private'?'<span class="badge off">Private</span>':'<span class="badge on">Shared</span>')+who; } },
     { label:'Steps', sort:function(a,b){return RRGList.cmp(a.stepCount,b.stepCount);}, cell:function(p){ var n=p.stepCount||0; return n?esc(n+' step'+(n===1?'':'s')):'<span class="meta">—</span>'; } },
+    { label:'Enrolled', sort:function(a,b){return (a.active||0)-(b.active||0);}, cell:function(p){ var act=p.active||0, en=p.enrolled||0; if(!en) return '<span class="meta">—</span>'; return '<span title="'+act+' active of '+en+' ever enrolled">'+act+' active<span class="meta"> / '+en+'</span></span>'; } },
     { label:'Updated', sort:function(a,b){return RRGList.cmp(a.updatedAt,b.updatedAt);}, cell:function(p){ return '<span class="meta">'+esc(fmt(p.updatedAt))+'</span>'; } },
     { label:'', sortable:false, cell:actionsCell }
   ] }; }
@@ -198,17 +200,44 @@ function renderEditor(){
   document.getElementById('addPipeline').onclick=function(){ collectSteps(); STEPS.push({type:'pipeline',delayDays:0,pipelineId:'',pipelineStage:'',subject:'',body:'',taskTitle:'',taskNote:'',message:'',channel:'email'}); renderSteps(); };
   var db=document.getElementById('delBtn'); if(db) db.onclick=onDelete;
 }
+function tog(arr,v){ var i=arr.indexOf(v); if(i>=0)arr.splice(i,1); else arr.push(v); }
+function enmsg(t,cls){ var m=document.getElementById('enmsg'); if(m){ m.textContent=t; m.className='msg '+(cls||''); } }
+function drawEnChips(){ var t=document.getElementById('en_types'); if(t) t.innerHTML=(PTYPES||[]).map(function(x){return '<button type="button" class="chip" data-entype="'+esc(x)+'">'+esc(x)+'</button>';}).join('')||'<span class="note">None</span>'; var g=document.getElementById('en_tags'); if(g) g.innerHTML=(ALLTAGS||[]).slice(0,80).map(function(x){return '<button type="button" class="chip" data-entag="'+esc(x)+'">'+esc(x)+'</button>';}).join('')||'<span class="note">None</span>'; }
+function enCount(){ var c=document.getElementById('en_count'); if(!c) return; api('GET','/api/automations/segment-count?audience='+encodeURIComponent(JSON.stringify({types:ENSEL.types,tags:ENSEL.tags}))).then(function(j){ if(c) c.textContent=(j&&j.ok)?('('+j.count+')'):''; }); }
+function doEnrollSegment(){ if(!ENROLL_ID){ enmsg('Choose an automation.','err'); return; } var b=document.getElementById('en_go'); b.disabled=true; enmsg('Enrolling…'); api('POST','/api/automations/'+encodeURIComponent(ENROLL_ID)+'/enroll-segment',{audience:{types:ENSEL.types,tags:ENSEL.tags}}).then(function(j){ b.disabled=false; if(j&&j.ok){ enmsg('Enrolled '+j.enrolled+' of '+j.matched+' matched'+(j.skipped?(' · '+j.skipped+' already enrolled'):'')+' ✓','ok'); load(); } else enmsg((j&&j.error)||'Enroll failed.','err'); }); }
+function openEnrollPanel(){
+  var host=document.getElementById('enrollPanel'); if(!host) return;
+  if(host._open){ host.innerHTML=''; host._open=false; return; }
+  host._open=true; ENSEL={types:[],tags:[]}; ENROLL_ID='';
+  var plans=PLANS.filter(function(p){return (p.stepCount||0)>0;});
+  var opts='<option value="">— choose an automation —</option>'+plans.map(function(p){return '<option value="'+esc(p.id)+'">'+esc(p.name||'Untitled')+'</option>';}).join('');
+  host.innerHTML='<div class="card"><div class="hd"><b>Enroll a segment</b><span class="sp"><span class="msg" id="enmsg"></span><button class="btn ghost sm" id="en_close">Close</button></span></div><div class="cb" style="padding:16px 18px">'
+    +'<div class="note" style="margin:0 0 12px">Drop everyone matching a segment of your contacts into an automation at once. Already-enrolled contacts are skipped, and anyone who has unsubscribed will not get email steps.</div>'
+    +'<div><label class="enl">Automation</label><select id="en_auto" class="ensel">'+opts+'</select></div>'
+    +'<div style="margin-top:12px"><div class="enl">Contact types</div><div class="chips" id="en_types"></div></div>'
+    +'<div style="margin-top:12px"><div class="enl">Tags</div><div class="chips" id="en_tags"></div></div>'
+    +'<div style="margin-top:16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><button class="btn pri" id="en_go">Enroll <span id="en_count"></span></button><span class="note" style="margin:0">Leave types and tags blank to enroll everyone.</span></div>'
+    +'</div></div>';
+  document.getElementById('en_close').onclick=function(){ host.innerHTML=''; host._open=false; };
+  document.getElementById('en_auto').onchange=function(){ ENROLL_ID=this.value; };
+  document.getElementById('en_go').onclick=doEnrollSegment;
+  drawEnChips();
+  host.addEventListener('click',function(e){ if(!e.target.closest) return; var ty=e.target.closest('[data-entype]'); if(ty){ tog(ENSEL.types,ty.getAttribute('data-entype')); ty.classList.toggle('on'); enCount(); return; } var tg=e.target.closest('[data-entag]'); if(tg){ tog(ENSEL.tags,tg.getAttribute('data-entag')); tg.classList.toggle('on'); enCount(); return; } });
+  enCount();
+  host.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
 function render(){
   var root=document.getElementById('root');
   if(!IS_ADMIN){ root.innerHTML='<div class="notadmin">Automations are admin-only. Ask a FullServe administrator to set up a plan.</div>'; return; }
-  if(!BUILT){ root.innerHTML=LIST_SHELL; BUILT=true; document.getElementById('t_new').onclick=newPlan; }
+  if(!BUILT){ root.innerHTML=LIST_SHELL; BUILT=true; document.getElementById('t_new').onclick=newPlan; var _te=document.getElementById('t_enroll'); if(_te) _te.onclick=openEnrollPanel; }
   var sc=document.getElementById('smsCard'); if(sc){ sc.style.display=IS_ADMIN?'':'none'; var tg=document.getElementById('smsToggle'); if(tg){ tg.checked=SMSNOTIFY; tg.disabled=!SMSREADY; if(!tg._wired){ tg._wired=true; tg.onchange=function(){ api('POST','/api/admin/automation-sms',{enabled:tg.checked}).then(function(j){ if(j&&j.ok){ SMSNOTIFY=!!j.enabled; if(EDIT&&document.getElementById('stepBox')) renderSteps(); } }); }; } var h=document.getElementById('smsHint'); if(h) h.innerHTML=SMSREADY?'When on, a notification step can text the enrolling rep instead of emailing. Each rep needs a mobile number on file.':'Set up SMS (Twilio) in Admin → SMS first, then you can enable texting here.'; } }
   refreshList(); renderEditor();
 }
 function openEdit(id){ var p=curById(id); if(!p) return; EDIT=JSON.parse(JSON.stringify(p)); renderEditor(); var ed=document.getElementById('editor'); if(ed) ed.scrollIntoView({behavior:'smooth',block:'start'}); }
 function newPlan(){ EDIT={id:'',name:'',active:true,bbsDefault:false,execDefault:false,scope:'shared',steps:[]}; renderEditor(); var ed=document.getElementById('editor'); if(ed) ed.scrollIntoView({behavior:'smooth',block:'start'}); }
 function msg(t,cls){ var m=document.getElementById('msg'); if(!m) return; m.textContent=t; m.className='msg '+(cls||''); if(t){ setTimeout(function(){ if(m.textContent===t){m.textContent='';m.className='msg';} },3000); } }
-function load(){ api('GET','/api/automations').then(function(j){ IS_ADMIN=!!j.isAdmin; PLANS=j.automations||[]; SMSNOTIFY=!!j.smsNotify; SMSREADY=!!j.smsReady; ME=j.me||''; render(); }); }
+function load(){ api('GET','/api/automations').then(function(j){ IS_ADMIN=!!j.isAdmin; PLANS=j.automations||[]; SMSNOTIFY=!!j.smsNotify; SMSREADY=!!j.smsReady; ME=j.me||''; PTYPES=j.personTypes||[]; ALLTAGS=j.tags||[]; render(); }); }
 function loadTpls(){ api('GET','/api/email-templates').then(function(j){ ETPLS=(j&&j.templates)||[]; if(document.getElementById('stepBox')) renderSteps(); }); }
 function loadPipes(){ api('GET','/api/pipelines').then(function(j){ PIPES=(j&&j.pipelines)||[]; if(document.getElementById('stepBox')) renderSteps(); }); }
 function save(){
