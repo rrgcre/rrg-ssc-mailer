@@ -183,10 +183,13 @@ textarea{min-height:120px;resize:vertical;line-height:1.5;}
 .drail{min-width:0;}
 .drail>.card{margin-bottom:16px;}
 .drail .card{position:static;}
-.drail .card .ch{cursor:grab;gap:4px;}
-.drail .card .ch .rchev{background:none;border:none;cursor:pointer;font-size:11px;color:#8a94a6;padding:0 3px;transition:transform .15s;flex:none;}
+.drail .card .ch{cursor:grab;display:flex !important;align-items:center;gap:6px;}
+.drail .card .ch>b{order:1;margin-right:auto !important;}
+.drail .card .ch .rgrip{order:0;flex:none;color:#c4ccda;font-size:13px;line-height:1;padding:0;margin:0;cursor:grab;}
+.drail .card .ch .rchev{order:0;flex:none;background:none;border:none;cursor:pointer;font-size:11px;color:#8a94a6;padding:0 1px;line-height:1;margin:0;transition:transform .15s;}
 .drail .card.railcollapsed .ch .rchev{transform:rotate(-90deg);}
-.drail .card .ch .rgrip{color:#c4ccda;font-size:12px;padding-right:2px;flex:none;cursor:grab;}
+.drail .card .ch span{order:2;margin-left:0 !important;}
+.drail .card .ch button{order:3;margin-left:0 !important;}
 .drail .card.railcollapsed > *:not(.ch){display:none;}
 </style>
 <style>
