@@ -10201,7 +10201,7 @@ app.post('/api/deal/new', express.json(), (req, res) => {
   if (!String(b.contact || '').trim() && !String(b.contactEmail || '').trim()) return res.status(400).json({ ok: false, error: 'A client contact is required — every listing must be linked to a contact.' });
   const rec = {
     id: newDealId(), business: business.slice(0, 120), market: String(b.market || '').slice(0, 80), contact: String(b.contact || '').slice(0, 120),
-    screenId: '', roomId: '', contactPersonId: '', companyId: '', createdAt: new Date().toISOString(),
+    screenId: '', roomId: '', contactPersonId: '', companyId: '', source: String(b.source || '').slice(0, 60), createdAt: new Date().toISOString(),
     by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
   };
   // Onboarding: open the company file for the subject business...
@@ -10690,13 +10690,16 @@ function repRollup(u, opts) {
   const listings = [], deals = [];
   let activeListings = 0, closedDeals = 0, openDeals = 0, gci = 0, gciOpen = 0, pipeline = 0, received = 0, waiting = 0;
   let closedDealsYtd = 0, gciYtd = 0, lostDeals = 0; const _KYR = new Date().getFullYear();
+  let leads = 0; const _pls = loadPipelines(); const _preByPipe = {}, _stgByPipe = {}; _pls.forEach(function(p){ _stgByPipe[p.id] = (p.stages||[]).map(function(x){return x.name;}); var m={}; (p.stages||[]).forEach(function(st){ if(st&&st.preListing) m[st.name]=1; }); _preByPipe[p.id]=m; });
   for (const key in idx) {
     let v; try { v = assignmentView(idx[key], overlay); } catch (e) { continue; }
     if (!repMatchesOwner(v.owner, u)) continue;
     const t = v.transaction || null; const st = v.status || '';
     const active = (st !== 'Closed' && st !== 'Lost');
     if (st === 'Lost') lostDeals++;
-    if (active) { activeListings++; pipeline += _relNum(v.value); }
+    const _o = overlay[key] || {}; const _pl = _o.pipelineId || 'p_bizsales'; const _stgs = _stgByPipe[_pl] || []; let _stage = _o.pipelineStage || ''; if (_stgs.indexOf(_stage) < 0) { try { const _ss = listingStageSummary(idx[key], overlay); const _si = Math.max(0, Math.min((_ss.done || 0), _stgs.length - 1)); _stage = _stgs[_si] || _stgs[0] || ''; } catch (e) { _stage = _stgs[0] || ''; } }
+    const _isLead = !!(active && _preByPipe[_pl] && _preByPipe[_pl][_stage]); if (_isLead) leads++;
+    if (active && !_isLead) { activeListings++; pipeline += _relNum(v.value); }
     if (opts.lists) listings.push({ key: key, business: v.business, market: v.market || '', status: st, value: v.value || '', expires: v.listingExpires || '', hasDeal: !!t });
     if (t) {
       const closed = (t.status === 'Closed'); const due = _relNum(t.commissionDue); const paid = _relNum(t.commissionPaid);
@@ -10706,7 +10709,7 @@ function repRollup(u, opts) {
     }
   }
   const splitPct = effCommissionAgentSplit(); const split = splitPct / 100;
-  const out = { activeListings, dealCount: (openDeals + closedDeals), openDeals, closedDeals, gci, gciOpen, net: Math.round(gci * split), netOpen: Math.round(gciOpen * split), netYtd: Math.round(gciYtd * split), gciYtd, closedDealsYtd, lostDeals, pipeline, received: Math.round(received), waiting: Math.round(waiting), split: splitPct };
+  const out = { activeListings, dealCount: (openDeals + closedDeals), openDeals, closedDeals, gci, gciOpen, net: Math.round(gci * split), netOpen: Math.round(gciOpen * split), netYtd: Math.round(gciYtd * split), gciYtd, closedDealsYtd, lostDeals, leads, pipeline, received: Math.round(received), waiting: Math.round(waiting), split: splitPct };
   if (opts.lists) { out.listings = listings.sort((a, b) => String(a.business).localeCompare(String(b.business))); out.deals = deals; }
   return out;
 }
@@ -10717,7 +10720,7 @@ app.get('/api/team', (req, res) => {
   const users = auth.loadUsers().filter(u => !u.disabled);
   const rows = users.map(u => {
     const r = repRollup(u, { lists: false });
-    return { username: u.username || '', name: u.name || u.username || '', title: u.title || '', role: u.role || '', email: u.email || '', photoUrl: repUserPhoto(u.username), activeListings: r.activeListings, deals: r.dealCount, closedDeals: r.closedDeals, gci: r.gci, net: r.net, received: r.received, waiting: r.waiting, pipeline: r.pipeline, gciYtd: r.gciYtd, closedDealsYtd: r.closedDealsYtd, netYtd: r.netYtd, lostDeals: r.lostDeals, self: (u.username === req.user.username) };
+    return { username: u.username || '', name: u.name || u.username || '', title: u.title || '', role: u.role || '', email: u.email || '', photoUrl: repUserPhoto(u.username), activeListings: r.activeListings, deals: r.dealCount, closedDeals: r.closedDeals, gci: r.gci, net: r.net, received: r.received, waiting: r.waiting, pipeline: r.pipeline, gciYtd: r.gciYtd, closedDealsYtd: r.closedDealsYtd, netYtd: r.netYtd, lostDeals: r.lostDeals, leads: r.leads, self: (u.username === req.user.username) };
   }).sort((a, b) => (b.gci - a.gci) || String(a.name).localeCompare(String(b.name)));
   res.json({ ok: true, team: rows, isAdmin: isAdmin, split: effCommissionAgentSplit(), me: req.user.username });
 });
@@ -11276,7 +11279,7 @@ function seedBizSalesStages() {
     console.log('Seeded Biz Sales pipeline (10 stages).');
   } catch (e) { console.error('seedBizSalesStages:', e && e.message); }
 }
-function cleanStages(arr) { return (Array.isArray(arr) ? arr : []).slice(0, 40).map(function(st, i){ return { name: String((st && st.name) || '').slice(0, 80) || ('Stage ' + (i + 1)), number: i + 1, abbr: String((st && st.abbr) || '').trim().slice(0, 10), autoComplete: String((st && st.autoComplete) || '').slice(0, 24), targetDays: Math.max(0, Math.min(3650, parseInt((st && st.targetDays), 10) || 0)), winPct: (st && st.winPct !== '' && st.winPct != null) ? Math.max(0, Math.min(100, parseInt(st.winPct, 10) || 0)) : '', onAssignAuto: String((st && st.onAssignAuto) || '').slice(0, 40), onUnassignAuto: String((st && st.onUnassignAuto) || '').slice(0, 40) }; }).filter(function(st){ return st.name; }); }
+function cleanStages(arr) { return (Array.isArray(arr) ? arr : []).slice(0, 40).map(function(st, i){ return { name: String((st && st.name) || '').slice(0, 80) || ('Stage ' + (i + 1)), number: i + 1, abbr: String((st && st.abbr) || '').trim().slice(0, 10), autoComplete: String((st && st.autoComplete) || '').slice(0, 24), preListing: !!(st && st.preListing), targetDays: Math.max(0, Math.min(3650, parseInt((st && st.targetDays), 10) || 0)), winPct: (st && st.winPct !== '' && st.winPct != null) ? Math.max(0, Math.min(100, parseInt(st.winPct, 10) || 0)) : '', onAssignAuto: String((st && st.onAssignAuto) || '').slice(0, 40), onUnassignAuto: String((st && st.onUnassignAuto) || '').slice(0, 40) }; }).filter(function(st){ return st.name; }); }
 app.get('/api/pipelines', (req, res) => { res.json({ ok: true, pipelines: loadPipelines(), automations: loadAutomations().filter(a => a.active !== false).map(a => ({ id: a.id, name: a.name || '' })), pipelineRequired: effPipelineRequired(), isAdmin: !!(req.user && isSuper(req.user)) }); });
 
 // ---- Deal-type → pipeline routing --------------------------------------
@@ -11331,6 +11334,7 @@ app.get('/api/board', (req, res) => {
   const pipe = pipelines.find(p => p.id === pid) || pipelines[0] || { id: pid, name: '', stages: [] };
   const stageNames = (pipe.stages || []).map(s => s.name);
   const overlay = loadAssignOverlay(), idx = assignmentsIndex();
+  const _preSet = {}; (pipe.stages || []).forEach(function(st){ if (st && st.preListing) _preSet[st.name] = 1; });
   const isAdmin = req.user && isSuper(req.user);
   const cards = [];
   const coNameById = {}; try { loadCompanies().forEach(c => { coNameById[c.id] = c.name; }); } catch (e) {}
@@ -11349,9 +11353,9 @@ app.get('/api/board', (req, res) => {
       catch (e) { stage = stageNames[0] || ''; }
     }
     const _prov = !!(d.screen && d.screen.provisional);
-    cards.push({ key: d.key, business: v.business, listingNo: o.listingNo || 0, listingId: (o.listingNo ? ('RRG-' + o.listingNo) : ''), codeName: o.codeName || '', company: coNameById[v.companyId] || (d.screen && d.screen.data && d.screen.data.company) || '', companyId: v.companyId || '', contactPersonId: v.clientPersonId || '', concept: v.business, contact: v.contact || '', value: v.value || '', market: v.market || '', owner: v.owner || '', lastActivity: v.lastActivity || '', createdAt: v.createdAt || '', status: _prov ? 'Pending Approval' : (o.status || 'New'), provisional: _prov, bbsNumber: v.bbsNumber || '', stage: stage, stageSince: o.stageSince || v.createdAt || '', commission: (v.transaction && v.transaction.commissionDue) || '', ownerPhoto: ownerPhotoBy[String(v.owner || '').toLowerCase()] || '' });
+    cards.push({ key: d.key, business: v.business, listingNo: o.listingNo || 0, listingId: (o.listingNo ? ('RRG-' + o.listingNo) : ''), codeName: o.codeName || '', company: coNameById[v.companyId] || (d.screen && d.screen.data && d.screen.data.company) || '', companyId: v.companyId || '', contactPersonId: v.clientPersonId || '', concept: v.business, contact: v.contact || '', value: v.value || '', market: v.market || '', owner: v.owner || '', lastActivity: v.lastActivity || '', createdAt: v.createdAt || '', status: _prov ? 'Pending Approval' : (o.status || 'New'), provisional: _prov, bbsNumber: v.bbsNumber || '', stage: stage, isLead: !!_preSet[stage], stageSince: o.stageSince || v.createdAt || '', commission: (v.transaction && v.transaction.commissionDue) || '', ownerPhoto: ownerPhotoBy[String(v.owner || '').toLowerCase()] || '' });
   });
-  res.json({ ok: true, pipelines: pipelines.map(p => ({ id: p.id, name: p.name })), pipelineId: pid, pipelineName: pipe.name || '', stages: stageNames, cards: cards, isAdmin: !!isAdmin });
+  res.json({ ok: true, pipelines: pipelines.map(p => ({ id: p.id, name: p.name })), pipelineId: pid, pipelineName: pipe.name || '', stages: stageNames, preStages: stageNames.filter(function(n){ return _preSet[n]; }), cards: cards, isAdmin: !!isAdmin });
 });
 function _fireStageAutos(pipe, d, oldStage, newStage, req) {
   try {
