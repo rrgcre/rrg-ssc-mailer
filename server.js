@@ -6235,7 +6235,18 @@ function _seedEmailTpls(a) {
 function loadEmailTpls() { try { return _seedEmailTpls(rj(EMAIL_TPL_FILE) || []); } catch (e) { return []; } }
 function saveEmailTpls(a) { return writeJsonGuarded(EMAIL_TPL_FILE, a, 'saveEmailTpls'); }
 function newEmailTplId() { return 'etpl_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
-function emailTplBrief(t, user) { return { id: t.id, name: t.name || '', subject: t.subject || '', body: t.body || '', scope: (t.scope === 'shared' ? 'shared' : 'personal'), ownerName: t.ownerName || '', ownerUser: t.ownerUser || '', mine: !!(user && (t.ownerUser === user.username || isSuper(user))), updatedAt: t.updatedAt || '' }; }
+const TPL_CATEGORIES = ['Buyer', 'Seller', 'NDA', 'Follow-up', 'Closing', 'General'];
+function inferTplCategory(t) {
+  if (t.category && TPL_CATEGORIES.indexOf(t.category) >= 0) return t.category;
+  const n = String(t.name || '').toLowerCase();
+  if (/\bnda\b/.test(n)) return 'NDA';
+  if (n.indexOf('buyer') === 0) return 'Buyer';
+  if (n.indexOf('seller') === 0) return 'Seller';
+  if (/(offer|closing|go to market|to market)/.test(n)) return 'Closing';
+  if (/(follow|day 5|last note|closing the loop|circling)/.test(n)) return 'Follow-up';
+  return 'General';
+}
+function emailTplBrief(t, user) { return { id: t.id, name: t.name || '', subject: t.subject || '', body: t.body || '', scope: (t.scope === 'shared' ? 'shared' : 'personal'), category: inferTplCategory(t), active: t.active !== false, useCount: t.useCount || 0, lastUsedAt: t.lastUsedAt || '', ownerName: t.ownerName || '', ownerUser: t.ownerUser || '', mine: !!(user && (t.ownerUser === user.username || isSuper(user))), canShare: !!(user && isSuper(user)), updatedAt: t.updatedAt || '' }; }
 const DEFAULT_SALES_TEMPLATES = [
   { name: 'Buyer — first response (inquiry)', subject: 'Thanks for your interest, {{first_name}}', body: `Hi {{first_name}},
 
@@ -6357,7 +6368,8 @@ function seedEmailTemplates() {
 
 app.get('/api/email-templates', (req, res) => {
   const u = req.user || {}; const all = loadEmailTpls();
-  const vis = all.filter(t => t.scope === 'shared' || t.ownerUser === u.username || isSuper(u));
+  const showAll = req.query.all === '1' || req.query.all === 'true';
+  const vis = all.filter(t => (t.scope === 'shared' || t.ownerUser === u.username || isSuper(u)) && (showAll || t.active !== false));
   vis.sort((a, b) => String(a.name || '').toLowerCase().localeCompare(String(b.name || '').toLowerCase()));
   res.json({ ok: true, templates: vis.map(t => emailTplBrief(t, u)) });
 });
@@ -6367,10 +6379,13 @@ app.post('/api/email-templates', express.json({ limit: '256kb' }), (req, res) =>
   let t;
   if (b.id) { t = all.find(x => x.id === b.id); if (!t) return res.status(404).json({ ok: false, error: 'Template not found.' }); if (!(t.ownerUser === u.username || isSuper(u))) return res.status(403).json({ ok: false, error: 'You can only edit your own templates.' }); }
   else { t = { id: newEmailTplId(), ownerUser: u.username || '', ownerName: u.name || '', createdAt: new Date().toISOString() }; all.push(t); }
+  if (b.scope === 'shared' && !isSuper(u)) return res.status(403).json({ ok: false, error: 'Only admins can publish Shared (firm) templates. Save it as Personal, or ask an admin to publish it firm-wide.' });
   t.name = name;
   if (b.subject !== undefined) t.subject = String(b.subject || '').slice(0, 300);
   if (b.body !== undefined) t.body = String(b.body || '').slice(0, 20000);
   if (b.scope !== undefined) t.scope = (b.scope === 'shared' ? 'shared' : 'personal');
+  if (b.category !== undefined) t.category = (TPL_CATEGORIES.indexOf(b.category) >= 0 ? b.category : 'General');
+  if (b.active !== undefined) t.active = !!b.active;
   t.updatedAt = new Date().toISOString(); saveEmailTpls(all);
   res.json({ ok: true, template: emailTplBrief(t, u) });
 });
@@ -6379,6 +6394,11 @@ app.delete('/api/email-templates/:id', (req, res) => {
   if (!t) return res.status(404).json({ ok: false, error: 'Not found.' });
   if (!(t.ownerUser === u.username || isSuper(u))) return res.status(403).json({ ok: false, error: 'You can only delete your own templates.' });
   all = all.filter(x => x.id !== req.params.id); saveEmailTpls(all);
+  res.json({ ok: true });
+});
+app.post('/api/email-templates/:id/used', (req, res) => {
+  const all = loadEmailTpls(); const t = all.find(x => x.id === req.params.id);
+  if (t) { t.useCount = (t.useCount || 0) + 1; t.lastUsedAt = new Date().toISOString(); saveEmailTpls(all); }
   res.json({ ok: true });
 });
 
