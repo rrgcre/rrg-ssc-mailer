@@ -12475,7 +12475,7 @@ app.get('/api/search', (req, res) => {
   try {
     loadPeople().forEach(function (p) {
       const hay = [p.name, personEmails(p).join(' '), personPhones(p).join(' '), p.company, p.title, personTags(p).join(' '), p.notes].join(' ');
-      const sc = _sScore(hay, toks, q); if (sc > 0) results.push({ type: 'contact', id: p.id, title: p.name || '(no name)', sub: [p.title, p.company].filter(Boolean).join(' · '), url: '/rrg_person.html?id=' + encodeURIComponent(p.id), score: sc + (String(p.name || '').toLowerCase().indexOf(q) === 0 ? 4 : 0) });
+      let sc = _sScore(hay, toks, q); try { const _qd = q.replace(/\D/g, ''); if (_qd.length >= 7 && personPhones(p).some(function (ph) { return String(ph).replace(/\D/g, '').indexOf(_qd) >= 0; })) sc = Math.max(sc, 12); } catch (e) {} if (sc > 0) results.push({ type: 'contact', id: p.id, title: p.name || '(no name)', sub: [p.title, p.company].filter(Boolean).join(' · '), url: '/rrg_person.html?id=' + encodeURIComponent(p.id), score: sc + (String(p.name || '').toLowerCase().indexOf(q) === 0 ? 4 : 0) });
     });
   } catch (e) {}
   try {
