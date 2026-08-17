@@ -90,7 +90,7 @@ input,select,textarea{border-radius:4px;}
     <div class="grid">
       <div><label class="fld">Task</label><input id="t_title" list="titleList" autocomplete="off" placeholder="What needs doing?"><datalist id="titleList"></datalist></div>
       <div><label class="fld">Due date</label><input type="date" id="t_due_date"></div>
-      <div><label class="fld">Due time</label><input type="time" id="t_due_time"></div>
+      <div><label class="fld">Due time</label><input type="time" step="900" id="t_due_time"></div>
       <div><label class="fld">Priority</label><select id="t_priority"></select></div>
       <div><label class="fld">Type</label><select id="t_type"></select></div>
       <div><label class="fld">Assign to</label><select id="t_assignee"></select></div>
@@ -104,7 +104,7 @@ input,select,textarea{border-radius:4px;}
     </div>
     <div style="margin-top:12px"><label class="fld">Notes</label><textarea id="t_notes" placeholder="Optional detail…"></textarea></div>
     <div class="btnrow">
-      <button class="btn red" id="addBtn">Add task</button>
+      <button class="btn red" id="addBtn">Save task</button>
       <button class="btn ghost" id="cancelEdit" style="display:none">Cancel edit</button>
       <span class="msg" id="msg"></span>
     </div>
@@ -217,7 +217,7 @@ function clearForm(){
   document.getElementById('t_linktype').value=''; fillTargets('','');
   var _rp=document.getElementById('t_repeat'); if(_rp) _rp.value='';
   fillSelects(); var _asg=document.getElementById('t_assignee'); if(_asg) _asg.value=ME; EDITID=''; document.getElementById('formTitle').textContent='New task';
-  document.getElementById('addBtn').textContent='Add task'; document.getElementById('cancelEdit').style.display='none';
+  document.getElementById('addBtn').textContent='Save task'; document.getElementById('cancelEdit').style.display='none';
 }
 function save(silent){
   var body=collect(); var msg=document.getElementById('msg');

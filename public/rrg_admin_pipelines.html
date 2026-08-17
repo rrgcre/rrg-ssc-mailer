@@ -44,6 +44,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 table.stg{width:100%;border-collapse:collapse;}
 table.stg th{text-align:left;padding:6px 8px;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);font-weight:700;}
 table.stg td{padding:4px 8px;border-top:1px solid #f0f2f7;vertical-align:middle;}
+.stgscroll{overflow-x:auto;border:1px solid var(--line);border-radius:12px;margin-top:6px;-webkit-overflow-scrolling:touch;}
+table.stg{min-width:1080px;}
+table.stg thead th{background:var(--wash);border-bottom:1px solid var(--line);white-space:nowrap;}
+table.stg tbody tr:hover{background:#fafbfd;}
+table.stg td,table.stg th{padding:7px 10px;}
 table.stg td.num{width:34px;color:var(--soft);font-weight:800;font-variant-numeric:tabular-nums;text-align:center;}
 table.stg input.nm{font:inherit;font-size:14px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;width:100%;}
 table.stg input.days{font:inherit;font-size:14px;padding:8px 8px;border:1px solid var(--line);border-radius:8px;width:80px;text-align:right;font-variant-numeric:tabular-nums;}
@@ -144,7 +149,7 @@ function renderEditor(){
         +'<div class="fld"><label>Practice area</label><select id="pArea">'+areas.map(function(a){return '<option'+(a===(p.area||'General')?' selected':'')+'>'+esc(a)+'</option>';}).join('')+'</select></div>'
       +'</div>'
       +'<div class="stgh"><b>Stages</b><span class="c" id="stgCount"></span></div>'
-      +'<table class="stg"><thead><tr><th>#</th><th>Stage name</th><th title="Short label shown on the deal pipeline track">Abbr</th><th>Target days</th><th>Win %</th><th title="Milestone that auto-checks this stage on the deal">Auto-complete when</th><th title="First stage(s) before it becomes a real listing — a card here is a Lead and is not counted as an active listing">Pre-listing</th><th>On enter (automation)</th><th>On leave (automation)</th><th></th></tr></thead><tbody id="stgBody"></tbody></table>'
+      +'<div class="stgscroll"><table class="stg"><thead><tr><th>#</th><th>Stage name</th><th title="Short label shown on the deal pipeline track">Abbr</th><th>Target days</th><th>Win %</th><th title="Milestone that auto-checks this stage on the deal">Auto-complete when</th><th title="First stage(s) before it becomes a real listing — a card here is a Lead and is not counted as an active listing">Pre-listing</th><th>On enter (automation)</th><th>On leave (automation)</th><th></th></tr></thead><tbody id="stgBody"></tbody></table></div>'
       +'<div class="days-note">Target days = how long a deal should stay in that stage before FullServe flags it as stalled (0 = no target). Win % = the likelihood a deal closes once it reaches that stage — used for weighted pipeline forecasting.</div>'
       +'<div style="margin-top:14px"><button class="btn" id="addStg">+ Add stage</button></div>'
     +'</div>';

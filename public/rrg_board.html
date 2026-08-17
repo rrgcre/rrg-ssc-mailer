@@ -73,6 +73,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .cardx.dragging{opacity:.4;}
 .cardx .t{font-size:13px;font-weight:700;color:var(--navy);line-height:1.22;margin-bottom:3px;}
 .pvbadge{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;padding:2px 7px;border-radius:999px;background:#fdf1df;color:#b5791f;border:1px solid #eddab0;vertical-align:middle;}
+.leadbadge{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;padding:2px 7px;border-radius:999px;background:#eef4ff;color:#2f5bd0;border:1px solid #cdddfa;vertical-align:middle;}
 .cardx .r{display:flex;align-items:center;gap:6px;font-size:12.5px;color:#33415c;margin-top:3px;line-height:1.3;}
 .cardx .r .ic{width:13px;text-align:center;color:#6b7488;flex:none;}
 .cardx .val{color:var(--navy);font-weight:700;}
@@ -174,10 +175,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 <div id="filterpanel"></div>
 <div id="root"><div class="gate">Loading…</div></div>
 <div id="dealModal" class="bmodal" hidden><div class="bmodalcard">
-  <div class="bmodalh">New listing</div>
+  <div class="bmodalh" id="nd_title">New listing</div>
   <div class="bmodalb">
     <label class="bmfld">Business / listing name</label><input id="nd_business" placeholder="e.g. Blue Agave Cantina">
     <label class="bmfld">Market</label><input id="nd_market" placeholder="e.g. Austin, TX" autocomplete="off">
+    <div id="nd_srcwrap" hidden><label class="bmfld">Lead source</label><select id="nd_source"><option value="">— select —</option><option>BizBuySell</option><option>Referral</option><option>Web</option><option>Cold call</option><option>Walk-in</option><option>Other</option></select></div>
     <label class="bmfld">Seller / client contact</label><input id="nd_contact" list="clientList" placeholder="Start typing to find an existing client…" autocomplete="off" oninput="updateClientHint()">
     <datalist id="clientList"></datalist>
     <div class="bmodalnote" id="clientHint">Creating a listing builds its data room automatically and links the client to your registry — a matching client is reused, a new one is onboarded.</div>
@@ -185,6 +187,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
   <div class="bmodalf"><button class="bmbtn ghost" onclick="closeDealModal()">Cancel</button><button id="nd_create" class="bmbtn" onclick="createDeal()">Create listing</button></div>
 </div></div>
 
+<div id="editModal" class="bmodal" hidden><div class="bmodalcard" id="editCard"></div></div>
 <script>
 var DATA=null, PID='', DRAGKEY='';
 var VIEW=(function(){ try{ return localStorage.getItem('rrg_board_view')||'board'; }catch(e){ return 'board'; } })(), LTBL=null;
@@ -247,13 +250,16 @@ var PEOPLE=[];
 function loadPeople(){ fetch('/api/people',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ PEOPLE=(j&&j.people)||[]; var dl=document.getElementById('clientList'); if(dl) dl.innerHTML=PEOPLE.map(function(p){ return '<option value="'+esc(p.name)+'">'+esc(p.company||p.email||p.type||'')+'</option>'; }).join(''); }).catch(function(){}); }
 function clientMatch(){ var v=(document.getElementById('nd_contact').value||'').trim().toLowerCase(); if(!v) return null; return PEOPLE.filter(function(p){ return (p.name||'').toLowerCase()===v; })[0]||null; }
 function updateClientHint(){ var h=document.getElementById('clientHint'); if(!h) return; var m=clientMatch(); if(m){ h.innerHTML='✓ Linking to existing client <b>'+esc(m.name)+'</b>'+(m.company?(' · '+esc(m.company)):'')+'. This listing joins their record.'; } else if((document.getElementById('nd_contact').value||'').trim()){ h.innerHTML='New client — <b>'+esc(document.getElementById('nd_contact').value.trim())+'</b> will be onboarded into your registry.'; } else { h.innerHTML='Creating a listing builds its data room automatically and links the client to your registry — a matching client is reused, a new one is onboarded.'; } }
+var ND_MODE='listing';
+function openListingModal(){ ND_MODE='listing'; var t=document.getElementById('nd_title'); if(t)t.textContent='New listing'; var sw=document.getElementById('nd_srcwrap'); if(sw)sw.hidden=true; var ct=document.getElementById('nd_create'); if(ct)ct.textContent='Create listing'; openDealModal(); }
+function openLeadModal(){ ND_MODE='lead'; var t=document.getElementById('nd_title'); if(t)t.textContent='New lead'; var sw=document.getElementById('nd_srcwrap'); if(sw)sw.hidden=false; var ct=document.getElementById('nd_create'); if(ct)ct.textContent='Add lead'; openDealModal(); var h=document.getElementById('clientHint'); if(h) h.innerHTML='Adds this lead to the front of the pipeline so you can start tracking it \u2014 it becomes a listing when you advance it.'; }
 function openDealModal(){ var m=document.getElementById('dealModal'); if(!m) return; m.removeAttribute('hidden'); var b=document.getElementById('nd_business'); if(b) b.focus(); loadPeople(); }
-function closeDealModal(){ var m=document.getElementById('dealModal'); if(!m) return; m.setAttribute('hidden',''); ['nd_business','nd_market','nd_contact'].forEach(function(id){var _e=document.getElementById(id); if(_e) _e.value='';}); updateClientHint(); }
-function createDeal(){ var business=(document.getElementById('nd_business').value||'').trim(); if(!business){ document.getElementById('nd_business').focus(); return; } var contact=(document.getElementById('nd_contact').value||'').trim(); if(!contact){ document.getElementById('nd_contact').focus(); var _h=document.getElementById('clientHint'); if(_h) _h.innerHTML='<b style="color:#DA2B1F">A client contact is required — every listing must be linked to a contact.</b>'; return; } var btn=document.getElementById('nd_create'); btn.disabled=true; btn.textContent='Creating…'; fetch('/api/deal/new',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({business:business,market:(document.getElementById('nd_market').value||'').trim(),contact:contact,type:'listing'})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_assignment.html?key='+encodeURIComponent(j.key); } else { btn.disabled=false; btn.textContent='Create listing'; alert((j&&j.error)||'Could not create the listing.'); } }).catch(function(){ btn.disabled=false; btn.textContent='Create listing'; alert('Could not reach the server.'); }); }
+function closeDealModal(){ var m=document.getElementById('dealModal'); if(!m) return; m.setAttribute('hidden',''); ['nd_business','nd_market','nd_contact'].forEach(function(id){var _e=document.getElementById(id); if(_e) _e.value='';}); var _sc=document.getElementById('nd_source'); if(_sc) _sc.value=''; ND_MODE='listing'; var _sw=document.getElementById('nd_srcwrap'); if(_sw) _sw.hidden=true; var _t=document.getElementById('nd_title'); if(_t) _t.textContent='New listing'; var _ct=document.getElementById('nd_create'); if(_ct) _ct.textContent='Create listing'; updateClientHint(); }
+function createDeal(){ var business=(document.getElementById('nd_business').value||'').trim(); if(!business){ document.getElementById('nd_business').focus(); return; } var contact=(document.getElementById('nd_contact').value||'').trim(); if(!contact){ document.getElementById('nd_contact').focus(); var _h=document.getElementById('clientHint'); if(_h) _h.innerHTML='<b style="color:#DA2B1F">A client contact is required — every listing must be linked to a contact.</b>'; return; } var btn=document.getElementById('nd_create'); btn.disabled=true; btn.textContent='Creating…'; fetch('/api/deal/new',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({business:business,market:(document.getElementById('nd_market').value||'').trim(),contact:contact,type:'listing',source:(ND_MODE==='lead'?((document.getElementById('nd_source')||{}).value||''):'')})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ if(ND_MODE==='lead'){ closeDealModal(); load(); } else { location.href='./rrg_assignment.html?key='+encodeURIComponent(j.key); } } else { btn.disabled=false; btn.textContent=(ND_MODE==='lead'?'Add lead':'Create listing'); alert((j&&j.error)||'Could not create the listing.'); } }).catch(function(){ btn.disabled=false; btn.textContent=(ND_MODE==='lead'?'Add lead':'Create listing'); alert('Could not reach the server.'); }); }
 function renderToolbar(){
   var vc=activeFilterCount();
   var perLabel=function(p){ return p===0?'All':String(p); };
-  var html='<div class="tb">'+'<span class="pgtitle">Listings</span>'+'<button class="tbtn" id="tb_newlisting" style="background:#000E31;color:#fff;border-color:#000E31;font-weight:800">+ New Listing</button>'
+  var html='<div class="tb">'+'<span class="pgtitle">Listings</span>'+'<button class="tbtn" id="tb_newlisting" style="background:#000E31;color:#fff;border-color:#000E31;font-weight:800">+ New Listing</button>'+'<button class="tbtn" id="tb_newlead" style="border-color:#2f5bd0;color:#2f5bd0;font-weight:800">+ Add Lead</button>'
     +'<div class="vtog"><button class="vbtn'+(VIEW==='board'?' on':'')+'" data-view="board">\u25a4 Board</button><button class="vbtn'+(VIEW==='list'?' on':'')+'" data-view="list">\u2630 List</button></div>'
     +'<div class="search"><span class="mag">⌕</span><input id="tb_q" placeholder="Search listings…" value="'+esc(TB.q)+'"></div>'
     +'<button class="tbtn'+(FILTER_OPEN?' on':'')+'" id="tb_filter">☰ Filters'+(vc?(' <span class="pip">'+vc+'</span>'):'')+'</button>'
@@ -264,7 +270,7 @@ function renderToolbar(){
     +'<div style="position:relative;display:inline-block"><button class="tbtn" id="tb_cardf">\u2699 Card fields \u25be</button><div id="cardfmenu"></div></div>'
     +'<div style="position:relative;display:inline-block"><button class="tbtn" id="tb_flags">\u2691 Card flags \u25be</button><div id="flagmenu"></div></div>'
     +'</div>';
-  document.getElementById('toolbar').innerHTML=html; var _nl=document.getElementById('tb_newlisting'); if(_nl) _nl.addEventListener('click',openDealModal);
+  document.getElementById('toolbar').innerHTML=html; var _nl=document.getElementById('tb_newlisting'); if(_nl) _nl.addEventListener('click',openListingModal); var _nld=document.getElementById('tb_newlead'); if(_nld) _nld.addEventListener('click',openLeadModal);
   renderFilterPanel();
   // wire
   var q=document.getElementById('tb_q'); q.addEventListener('input',function(){ TB.q=q.value; saveTB(); debouncedRender(); });
@@ -323,16 +329,39 @@ function renderList(cards){
       { label:'Contact', sort:function(a,b){return RRGList.cmp(a.contact,b.contact);}, cell:function(c){ if(!c.contact) return '<span style="color:#b0b8c6">—</span>'; return c.contactPersonId?('<a href="./rrg_person.html?id='+encodeURIComponent(c.contactPersonId)+'" style="color:var(--navy,#000E31);text-decoration:none">'+esc(c.contact)+'</a>'):esc(c.contact); } },
       { label:'Market', sort:function(a,b){return RRGList.cmp(a.market,b.market);}, cell:function(c){ return c.market?esc(c.market):'<span style="color:#b0b8c6">—</span>'; } },
       { label:'Value', sort:function(a,b){return money(a.value)-money(b.value);}, cell:function(c){ return c.value?esc(String(c.value)):'<span style="color:#b0b8c6">—</span>'; } },
+      { label:'Likelihood', sort:function(a,b){return (parseFloat(a.winPct)||0)-(parseFloat(b.winPct)||0);}, cell:function(c){ return (c.winPct!==''&&c.winPct!=null)?('<span style="font-weight:700">'+esc(c.winPct)+'%</span>'):'<span style="color:#b0b8c6">—</span>'; } },
       { label:'Status', sort:function(a,b){return RRGList.cmp(a.status,b.status);}, cell:function(c){ return c.status?('<span class="lstage" style="background:#eef1f6;color:#5b6472">'+esc(c.status)+'</span>'):'<span style="color:#b0b8c6">—</span>'; } },
       { label:'BBS #', defaultHidden:true, sort:function(a,b){return RRGList.cmp(a.bbsNumber,b.bbsNumber);}, cell:function(c){ return c.bbsNumber?esc(c.bbsNumber):'<span style="color:#b0b8c6">—</span>'; } },
       { label:'Owner', sort:function(a,b){return RRGList.cmp(a.owner,b.owner);}, cell:function(c){ return c.owner?esc(c.owner):'<span style="color:#b0b8c6">—</span>'; } },
       { label:'Last activity', sort:function(a,b){return RRGList.cmp(a.lastActivity||'',b.lastActivity||'');}, cell:function(c){ return c.lastActivity?esc(fmtDate(c.lastActivity)):'<span style="color:#b0b8c6">—</span>'; } },
-      { label:'', sort:function(){return 0;}, cell:function(c){ return '<span style="display:flex;justify-content:flex-end">'+trashBtn(c)+'</span>'; } }
+      { label:'', sort:function(){return 0;}, cell:function(c){ return '<span style="display:flex;justify-content:flex-end;gap:4px;align-items:center"><button class="rowedit" data-edit="'+esc(c.key)+'" title="Quick edit" style="background:none;border:none;cursor:pointer;color:#2f5bd0;font-weight:700;font-size:13px">\u270e</button>'+trashBtn(c)+'</span>'; } }
     ],
     bulk:[ { label:'Delete selected', danger:true, fn:function(ids,done){ bulkDelListings(ids,done); } } ]
   };
   if(LTBL) LTBL.refresh(cards); else LTBL=RRGList.create(cfg);
 }
+var EDIT_KEY='';
+function closeEditModal(){ var m=document.getElementById('editModal'); if(m) m.setAttribute('hidden',''); EDIT_KEY=''; }
+function openEditModal(key){ EDIT_KEY=key; var m=document.getElementById('editModal'), card=document.getElementById('editCard'); card.innerHTML='<div class="bmodalh">Edit listing</div><div class="bmodalb"><div style="color:#66738f;font-size:13px">Loading...</div></div>'; m.removeAttribute('hidden');
+  fetch('/api/assignment/'+encodeURIComponent(key),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ card.innerHTML='<div class="bmodalh">Edit listing</div><div class="bmodalb"><div style="color:#DA2B1F">'+esc((j&&j.error)||'Could not load this listing.')+'</div></div><div class="bmodalf"><button class="bmbtn ghost" onclick="closeEditModal()">Close</button></div>'; return; }
+    var a=j.assignment||{}, sts=j.statuses||[]; var sel='width:100%;border:1px solid var(--inp);border-radius:3px;padding:10px 12px;font:inherit;font-size:14px;color:#000E31;margin-bottom:13px;background:#fff';
+    var stOpts=sts.map(function(x){return '<option'+((a.status||'')===x?' selected':'')+'>'+esc(x)+'</option>';}).join('');
+    card.innerHTML='<div class="bmodalh">Edit '+esc(a.business||'listing')+(a.listingId?(' &middot; '+esc(a.listingId)):'')+'</div>'
+      +'<div class="bmodalb">'
+      +'<label class="bmfld">Business name</label><input id="ed_biz" value="'+esc(a.businessOverride||a.business||'')+'">'
+      +'<label class="bmfld">Code name (confidential alias)</label><input id="ed_code" value="'+esc(a.codeName||'')+'" placeholder="e.g. Project Blue Agave">'
+      +'<div style="display:flex;gap:12px"><div style="flex:1"><label class="bmfld">Status</label><select id="ed_status" style="'+sel+'">'+stOpts+'</select></div><div style="flex:1"><label class="bmfld">Owner</label><input id="ed_owner" value="'+esc(a.owner||'')+'"></div></div>'
+      +'<label class="bmfld">Market</label><input id="ed_market" value="'+esc(a.market||'')+'">'
+      +'<div style="display:flex;gap:12px"><div style="flex:1"><label class="bmfld">Live date</label><input id="ed_live" type="date" value="'+esc(a.listingLive||'')+'"></div><div style="flex:1"><label class="bmfld">Expires</label><input id="ed_exp" type="date" value="'+esc(a.listingExpires||'')+'"></div></div>'
+      +'<div id="ed_msg" style="color:#DA2B1F;font-size:12px"></div>'
+      +'</div>'
+      +'<div class="bmodalf"><a class="bmbtn ghost" href="./rrg_assignment.html?key='+encodeURIComponent(key)+'" style="margin-right:auto;text-decoration:none">Open full listing &rarr;</a><button class="bmbtn ghost" onclick="closeEditModal()">Cancel</button><button class="bmbtn" id="ed_save" onclick="saveEdit()">Save</button></div>';
+  }).catch(function(){ card.innerHTML='<div class="bmodalh">Edit listing</div><div class="bmodalb"><div style="color:#DA2B1F">Could not reach the server.</div></div><div class="bmodalf"><button class="bmbtn ghost" onclick="closeEditModal()">Close</button></div>'; });
+}
+function saveEdit(){ if(!EDIT_KEY) return; var b={ businessOverride:(document.getElementById('ed_biz')||{}).value||'', codeName:(document.getElementById('ed_code')||{}).value||'', status:(document.getElementById('ed_status')||{}).value||'', owner:(document.getElementById('ed_owner')||{}).value||'', marketOverride:(document.getElementById('ed_market')||{}).value||'', listingLive:(document.getElementById('ed_live')||{}).value||'', listingExpires:(document.getElementById('ed_exp')||{}).value||'' }; var btn=document.getElementById('ed_save'); if(btn){btn.disabled=true;btn.textContent='Saving...';} fetch('/api/assignment/'+encodeURIComponent(EDIT_KEY)+'/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(b)}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ closeEditModal(); load(); } else { if(btn){btn.disabled=false;btn.textContent='Save';} var m=document.getElementById('ed_msg'); if(m) m.textContent=(j&&j.error)||'Could not save.'; } }).catch(function(){ if(btn){btn.disabled=false;btn.textContent='Save';} var m=document.getElementById('ed_msg'); if(m) m.textContent='Could not reach the server.'; }); }
+document.addEventListener('click',function(e){ var t=e.target&&e.target.closest&&e.target.closest('[data-edit]'); if(t){ e.preventDefault(); e.stopPropagation(); openEditModal(t.getAttribute('data-edit')); } });
+document.addEventListener('click',function(e){ var m=document.getElementById('editModal'); if(m&&e.target===m) closeEditModal(); });
 function trashBtn(c){ return '<button class="cardtrash" data-del="'+esc(c.key)+'" title="Delete listing" aria-label="Delete listing"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>'; }
 async function delOneListing(key){ if(!key) return; var c=((typeof DATA!=='undefined'&&DATA&&DATA.cards)||[]).filter(function(x){return x.key===key;})[0]; var nm=(c&&(c.business||c.listingId))||'this listing'; var msg='Delete '+nm+'? This removes the listing and its records \u2014 this cannot be undone.'; var ok=window.rrgConfirm?(await rrgConfirm(msg)):window.confirm(msg); if(!ok) return; fetch('/api/assignment/'+encodeURIComponent(key),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ if(window.rrgToast) rrgToast('Listing deleted'); load(); } else alert((j&&j.error)||'Could not delete the listing.'); }).catch(function(){ alert('Could not reach the server.'); }); }
 document.addEventListener('click',function(e){ var t=e.target&&e.target.closest&&e.target.closest('[data-del]'); if(t){ e.preventDefault(); e.stopPropagation(); delOneListing(t.getAttribute('data-del')); } });
@@ -356,7 +385,7 @@ function render(){
   var byStage={}; stages.forEach(function(s){ byStage[s]=[]; });
   filtered.forEach(function(c){ (byStage[c.stage]||(byStage[c.stage]=[])).push(c); });
   var totalVal=filtered.reduce(function(a,c){return a+money(c.value);},0);
-  document.getElementById('tot').textContent=filtered.length+' of '+all.length+' · '+fmtMoney(totalVal);
+  var _leadN=(all||[]).filter(function(x){return x.isLead;}).length; document.getElementById('tot').textContent=filtered.length+' of '+all.length+' · '+fmtMoney(totalVal)+(_leadN?(' · '+_leadN+' lead'+(_leadN===1?'':'s')):'');
   if(VIEW==='list'){ renderList(filtered); return; }   // List toggle → full scrolling list (like Contacts/Companies)
   if(!stages.length){ document.getElementById('root').innerHTML='<div class="gate">This pipeline has no stages yet. Add stages in <b>Admin → Pipelines</b>.</div>'; return; }
   var per=TB.per;
@@ -423,17 +452,17 @@ function cardHtml(c){
   if(DENSITY==='compact'){
     var exp=!!EXPCARD[c.key];
     return '<div class="cardx compact'+(exp?' expanded':'')+'" draggable="true" data-key="'+esc(c.key)+'">'
-      +'<div class="chd"><span class="t">'+esc(c.business||'Listing')+(c.provisional?' <span class="pvbadge">Provisional</span>':'')+'</span>'+flags+cardOwner(c)+'</div>'
+      +'<div class="chd"><span class="t">'+esc(c.business||'Listing')+(c.provisional?' <span class="pvbadge">Provisional</span>':'')+(c.isLead?' <span class="leadbadge">Lead</span>':'')+'</span>'+flags+cardOwner(c)+'</div>'
       +'<div class="cbody">'+(cardFieldsHtml(c)||'<div class="r" style="color:#98a1b5">No extra details</div>')
         +'<div class="ft"><span class="dt">'+(CARDF.activity&&c.lastActivity?esc(fmtDate(c.lastActivity)):'')+'</span>'+trashBtn(c)+'<a class="opendeal" href="'+open+'">Open deal →</a></div>'
       +'</div></div>';
   }
   return '<div class="cardx'+(rolled?' rolled':'')+'" draggable="true" data-key="'+esc(c.key)+'">'
-    +'<div class="chd"><a class="t" href="'+open+'">'+esc(c.business||'Listing')+'</a>'+flags+chev+'</div>'
+    +'<div class="chd"><a class="t" href="'+open+'">'+esc(c.business||'Listing')+'</a>'+(c.isLead?' <span class="leadbadge">Lead</span>':'')+flags+chev+'</div>'
     +'<div class="cbody">'
       +(c.provisional?'<div style="margin:-2px 0 6px"><span class="pvbadge">Provisional</span></div>':'')
       +cardFieldsHtml(c)
-      +'<div class="ft"><a class="opendeal" href="'+open+'">\u270e Edit listing</a><span class="dt" style="margin-left:auto;margin-right:8px">'+(CARDF.activity&&c.lastActivity?esc(fmtDate(c.lastActivity)):'')+'</span>'+cardOwner(c)+trashBtn(c)+'</div>'
+      +'<div class="ft"><button class="opendeal" data-edit="'+esc(c.key)+'" style="background:none;border:none;cursor:pointer;font:inherit;padding:0" title="Quick edit">\u270e Edit</button><span class="dt" style="margin-left:auto;margin-right:8px">'+(CARDF.activity&&c.lastActivity?esc(fmtDate(c.lastActivity)):'')+'</span>'+cardOwner(c)+trashBtn(c)+'</div>'
     +'</div></div>';
 }
 function wireDnD(){
