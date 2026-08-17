@@ -6436,6 +6436,7 @@ function _seedEmailTpls(a) {
   return a;
 }
 const EMAIL_TPL_POF_FLAG = path.join(BOV_DATA_DIR, 'email_templates_pof_seeded.json');
+const EMAIL_TPL_POF_DELETED = path.join(BOV_DATA_DIR, 'email_templates_pof_deleted.json');
 const POF_TPL_ID = 'etpl_proof_of_funds';
 const POF_TPL_SUBJECT = 'Next step \u2014 proof of funds before we proceed';
 const POF_TPL_BODY =
@@ -6447,11 +6448,13 @@ const POF_TPL_BODY =
   '<p>Once I have it, I\u2019ll get you the full package right away. Any questions, just reply here.</p>' +
   '<p>Best,<br>{{my_name}}</p>';
 function _seedProofOfFunds(a) {
-  try { if (fs.existsSync(EMAIL_TPL_POF_FLAG)) return a; } catch (e) { return a; }
+  // If the user explicitly deleted this shared template, respect that and never re-add it.
+  try { if (fs.existsSync(EMAIL_TPL_POF_DELETED)) return a; } catch (e) { return a; }
+  // Otherwise ensure it exists — re-seed if it's missing (e.g. after a data reset).
   if (!a.some(t => t.id === POF_TPL_ID)) {
     a.push({ id: POF_TPL_ID, name: 'Buyer \u2014 proof of funds request', category: 'Buyer', scope: 'shared', ownerUser: '', ownerName: 'RRG', subject: POF_TPL_SUBJECT, body: POF_TPL_BODY, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), seeded: true });
+    try { writeJsonGuarded(EMAIL_TPL_FILE, a, 'seedPOF'); } catch (e) {}
   }
-  try { writeJsonGuarded(EMAIL_TPL_FILE, a, 'seedPOF'); fs.writeFileSync(EMAIL_TPL_POF_FLAG, JSON.stringify({ seededAt: new Date().toISOString() })); } catch (e) {}
   return a;
 }
 function loadEmailTpls() { try { return _seedProofOfFunds(_seedEmailTpls(rj(EMAIL_TPL_FILE) || [])); } catch (e) { return []; } }
@@ -6628,6 +6631,7 @@ app.delete('/api/email-templates/:id', (req, res) => {
   if (!t) return res.status(404).json({ ok: false, error: 'Not found.' });
   if (!(t.ownerUser === u.username || isSuper(u))) return res.status(403).json({ ok: false, error: 'You can only delete your own templates.' });
   all = all.filter(x => x.id !== req.params.id); saveEmailTpls(all);
+  if (req.params.id === POF_TPL_ID) { try { fs.writeFileSync(EMAIL_TPL_POF_DELETED, JSON.stringify({ deletedAt: new Date().toISOString(), by: u.username || '' })); } catch (e) {} }
   res.json({ ok: true });
 });
 app.post('/api/email-templates/:id/used', (req, res) => {

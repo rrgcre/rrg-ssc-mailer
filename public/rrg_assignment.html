@@ -23,10 +23,10 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .main,.side{min-width:0;}
 .main *{max-width:100%;} .main table{display:block;overflow-x:auto;}
 @media(max-width:840px){.wrap{grid-template-columns:1fr;}}
-.card{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04),0 1px 3px rgba(16,24,40,.05);overflow:hidden;margin-bottom:20px;}
-.card .ch{display:flex;align-items:center;gap:10px;padding:15px 20px;border-bottom:1px solid var(--line);}
-.card .ch b{color:var(--navy);font-size:13.5px;} .card .ch span{color:var(--muted);font-size:11.5px;margin-left:auto;}
-.card .cb{padding:6px 20px 16px;}
+.card{background:#fff;border:1px solid #e9edf3;border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04),0 1px 3px rgba(16,24,40,.05);overflow:hidden;margin-bottom:12px;}
+.card .ch{display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid #eef1f6;}
+.card .ch b{color:var(--ink);font-size:15px;font-weight:600;} .card .ch span{color:var(--soft);font-size:12.5px;font-weight:500;margin-left:auto;}
+.card .cb{padding:11px 16px 12px;}
 /* accordion */
 .card.acc > .ch{cursor:pointer;user-select:none;transition:background .15s;}
 .card.acc > .ch:hover{background:#fafbfe;}
@@ -184,11 +184,11 @@ textarea{min-height:120px;resize:vertical;line-height:1.5;}
 .drail>.card{margin-bottom:16px;}
 .drail .card{position:static;}
 .drail .card .ch{cursor:grab;display:flex !important;align-items:center;gap:6px;}
-.drail .card .ch>b{order:1;margin-right:auto !important;}
+.drail .card .ch>b{order:1;margin-right:auto !important;} .drail .card .ch b{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--soft);}
 .drail .card .ch .rgrip{order:0;flex:none;color:#c4ccda;font-size:13px;line-height:1;padding:0;margin:0;cursor:grab;}
 .drail .card .ch .rchev{order:0;flex:none;background:none;border:none;cursor:pointer;font-size:11px;color:#8a94a6;padding:0 1px;line-height:1;margin:0;transition:transform .15s;}
 .drail .card.railcollapsed .ch .rchev{transform:rotate(-90deg);}
-.drail .card .ch span{order:2;margin-left:0 !important;}
+.drail .card .ch span{order:2;margin-left:0 !important;font-size:10.5px;font-weight:700;color:#6b7488;background:#eef2f6;border-radius:999px;padding:1px 8px;line-height:1.7;font-variant-numeric:tabular-nums;}
 .drail .card .ch button{order:3;margin-left:0 !important;}
 .drail .card.railcollapsed > *:not(.ch){display:none;}
 </style>
