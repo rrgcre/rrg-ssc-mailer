@@ -420,7 +420,7 @@ function cardHtml(c){
     +'<div class="cbody">'
       +(c.provisional?'<div style="margin:-2px 0 6px"><span class="pvbadge">Provisional</span></div>':'')
       +cardFieldsHtml(c)
-      +'<div class="ft"><span class="dt">'+(CARDF.activity&&c.lastActivity?esc(fmtDate(c.lastActivity)):'')+'</span>'+cardOwner(c)+'</div>'
+      +'<div class="ft"><a class="opendeal" href="'+open+'">\u270e Edit listing</a><span class="dt" style="margin-left:auto;margin-right:8px">'+(CARDF.activity&&c.lastActivity?esc(fmtDate(c.lastActivity)):'')+'</span>'+cardOwner(c)+'</div>'
     +'</div></div>';
 }
 function wireDnD(){
@@ -429,6 +429,7 @@ function wireDnD(){
     el.addEventListener('dragend',function(){ el.classList.remove('dragging'); setTimeout(function(){el.__drag=false;},260); document.querySelectorAll('.col.dragover').forEach(function(c){c.classList.remove('dragover');}); });
   });
   document.querySelectorAll('.cardx.compact').forEach(function(el){ el.addEventListener('click',function(e){ if(el.__drag) return; if(e.target.closest('a')) return; var k=el.getAttribute('data-key'); EXPCARD[k]=!EXPCARD[k]; el.classList.toggle('expanded',!!EXPCARD[k]); }); });
+  document.querySelectorAll('.cardx:not(.compact)').forEach(function(el){ el.style.cursor='pointer'; el.addEventListener('click',function(e){ if(el.__drag) return; if(e.target.closest('a,button,input,select,textarea')) return; var k=el.getAttribute('data-key'); if(k) location.href='./rrg_assignment.html?key='+encodeURIComponent(k); }); });
   document.querySelectorAll('.cardx .rollup').forEach(function(el){
     el.addEventListener('mousedown',function(e){ e.stopPropagation(); });
     el.addEventListener('click',function(e){ e.preventDefault(); e.stopPropagation(); var k=el.getAttribute('data-roll'); ROLLED[k]=!ROLLED[k]; saveROLLED(); var card=el.closest('.cardx'); if(card) card.classList.toggle('rolled',!!ROLLED[k]); });
