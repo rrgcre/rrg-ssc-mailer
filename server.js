@@ -6478,7 +6478,7 @@ function _tplExecAuto(templateId, p, user) {
     enrollPerson(p, plan, { byName: (user && user.name) || '', byUser: (user && user.username) || '' });
   } catch (e) {}
 }
-function emailTplBrief(t, user) { return { id: t.id, name: t.name || '', subject: t.subject || '', body: t.body || '', scope: (t.scope === 'shared' ? 'shared' : 'personal'), category: inferTplCategory(t), active: t.active !== false, useCount: t.useCount || 0, lastUsedAt: t.lastUsedAt || '', ownerName: t.ownerName || '', ownerUser: t.ownerUser || '', mine: !!(user && (t.ownerUser === user.username || isSuper(user))), canShare: !!(user && isSuper(user)), execAuto: t.execAuto || '', updatedAt: t.updatedAt || '' }; }
+function emailTplBrief(t, user) { return { id: t.id, name: t.name || '', subject: t.subject || '', body: t.body || '', scope: (t.scope === 'shared' ? 'shared' : 'personal'), category: inferTplCategory(t), active: t.active !== false, useCount: t.useCount || 0, lastUsedAt: t.lastUsedAt || '', ownerName: t.ownerName || '', ownerUser: t.ownerUser || '', mine: !!(user && (t.ownerUser === user.username || isSuper(user))), canShare: !!(user && isSuper(user)), execAuto: t.execAuto || '', greeting: (['dear','hi','first','none'].indexOf(String(t.greeting)) >= 0 ? String(t.greeting) : 'none'), updatedAt: t.updatedAt || '' }; }
 const DEFAULT_SALES_TEMPLATES = [
   { name: 'Buyer — first response (inquiry)', subject: 'Thanks for your interest, {{first_name}}', body: `Hi {{first_name}},
 
@@ -6619,6 +6619,7 @@ app.post('/api/email-templates', express.json({ limit: '256kb' }), (req, res) =>
   if (b.category !== undefined) t.category = (TPL_CATEGORIES.indexOf(b.category) >= 0 ? b.category : 'General');
   if (b.active !== undefined) t.active = !!b.active;
   if (b.execAuto !== undefined) t.execAuto = String(b.execAuto || '');
+  if (b.greeting !== undefined) t.greeting = (['dear','hi','first','none'].indexOf(String(b.greeting)) >= 0 ? String(b.greeting) : 'none');
   t.updatedAt = new Date().toISOString(); saveEmailTpls(all);
   res.json({ ok: true, template: emailTplBrief(t, u) });
 });
@@ -11881,7 +11882,7 @@ app.get('/api/board', (req, res) => {
     const _prov = !!(d.screen && d.screen.provisional);
     cards.push({ key: d.key, business: v.business, listingNo: o.listingNo || 0, listingId: (o.listingNo ? ('RRG-' + o.listingNo) : ''), codeName: o.codeName || '', company: coNameById[v.companyId] || (d.screen && d.screen.data && d.screen.data.company) || '', companyId: v.companyId || '', contactPersonId: v.clientPersonId || '', concept: v.business, contact: v.contact || '', value: v.value || '', market: v.market || '', owner: v.owner || '', lastActivity: v.lastActivity || '', createdAt: v.createdAt || '', status: _prov ? 'Pending Approval' : (o.status || 'New'), provisional: _prov, bbsNumber: v.bbsNumber || '', stage: stage, isLead: !!_preSet[stage], winPct: (_winByStage[stage] != null ? _winByStage[stage] : ''), stageSince: o.stageSince || v.createdAt || '', commission: (v.transaction && v.transaction.commissionDue) || '', ownerPhoto: ownerPhotoBy[String(v.owner || '').toLowerCase()] || '' });
   });
-  res.json({ ok: true, pipelines: pipelines.map(p => ({ id: p.id, name: p.name })), pipelineId: pid, pipelineName: pipe.name || '', stages: stageNames, preStages: stageNames.filter(function(n){ return _preSet[n]; }), cards: cards, isAdmin: !!isAdmin });
+  res.json({ ok: true, pipelines: pipelines.map(p => ({ id: p.id, name: p.name })), pipelineId: pid, pipelineName: pipe.name || '', stages: stageNames, preStages: stageNames.filter(function(n){ return _preSet[n]; }), cards: cards, markets: effMarkets(), isAdmin: !!isAdmin });
 });
 function _fireStageAutos(pipe, d, oldStage, newStage, req) {
   try {

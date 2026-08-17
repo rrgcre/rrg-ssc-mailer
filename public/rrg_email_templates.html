@@ -76,7 +76,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
   <div id="root"></div>
 </div>
 <script>
-var TPLS=[], CTL=null, BUILT=false, EDIT=null, SCOPE='personal', CAT='General', ACTIVE=true, DEL_ARM=false, IS_ADMIN=false, CATFILTER='All', AUTOS=[], EXECAUTO='';
+var TPLS=[], CTL=null, BUILT=false, EDIT=null, SCOPE='personal', CAT='General', ACTIVE=true, DEL_ARM=false, IS_ADMIN=false, CATFILTER='All', AUTOS=[], EXECAUTO='', GREET='none';
 var CATS=['Buyer','Seller','NDA','Follow-up','Closing','General'];
 var SAMPLE={'{{first_name}}':'Maria','{{last_name}}':'Lopez','{{name}}':'Maria Lopez','{{company}}':'Blue Agave Cantina','{{title}}':'Owner','{{email}}':'maria@blueagave.com','{{phone}}':'(713) 555-0142','{{my_name}}':'Van','{{my_title}}':'Broker','{{my_phone}}':'(713) 555-0100','{{my_email}}':'van@rrgcre.com','{{listing_name}}':'Blue Agave Cantina','{{listing_number}}':'RRG-1042','{{code_name}}':'Project Cedar','{{asking_price}}':'$785,000','{{data_room_link}}':'app.rrgcre.com/room/9f2c\u2026','{{booking_link}}':'app.rrgcre.com/book/van\u2026','{{today}}':'August 17, 2026'};
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
@@ -88,7 +88,8 @@ function scopeBadge(t){ var b=t.scope==='shared'?'<span class="badge sh">Shared<
 function catBadge(t){ return '<span class="badge cat">'+esc(t.category||'General')+'</span>'; }
 function usedCell(t){ if(!t.useCount) return '<span class="meta">—</span>'; return '<span class="meta" style="color:var(--ink)">'+t.useCount+'×</span>'+(t.lastUsedAt?'<span class="meta"> · '+esc(fmt(t.lastUsedAt))+'</span>':''); }
 function actionsCell(t){ var s='<button class="btn ghost sm" data-edit="'+esc(t.id)+'">'+(t.mine?'Edit':'View')+'</button>'; s+='<button class="btn ghost sm" data-dup="'+esc(t.id)+'">Duplicate</button>'; if(t.mine){ s+='<button class="btn ghost sm" data-arch="'+esc(t.id)+'">'+(t.active===false?'Restore':'Archive')+'</button>'; s+='<button class="btn danger sm" data-del="'+esc(t.id)+'">Delete</button>'; } return '<div class="acts">'+s+'</div>'; }
-function filteredTpls(){ return TPLS.filter(function(t){ if(CATFILTER==='All') return true; if(CATFILTER==='Archived') return t.active===false; return (t.category===CATFILTER)&&(t.active!==false); }); }
+function tplCat(t){ return (t&&CATS.indexOf(t.category)>=0)?t.category:'General'; }
+function filteredTpls(){ return TPLS.filter(function(t){ if(CATFILTER==='All') return true; if(CATFILTER==='Archived') return t.active===false; return (tplCat(t)===CATFILTER)&&(t.active!==false); }); }
 function listCfg(){ return { mount:'#tlist', data:filteredTpls(), key:'emailtpls',
   empty:'<div class="empty">No templates here. Click <b>+ New template</b> to write one.</div>',
   rowId:function(t){return t.id;}, rowClass:function(t){return t.active===false?'tr-arch':'';}, defaultSort:0, defaultDir:1,
@@ -102,7 +103,7 @@ function listCfg(){ return { mount:'#tlist', data:filteredTpls(), key:'emailtpls
     { label:'Updated', sort:function(a,b){return RRGList.cmp(a.updatedAt,b.updatedAt);}, cell:function(t){ return '<span class="meta">'+esc(fmt(t.updatedAt))+'</span>'; } },
     { label:'', sortable:false, cell:actionsCell }
   ] }; }
-function renderCatBar(){ var el=document.getElementById('catbar'); if(!el) return; var opts=['All'].concat(CATS).concat(['Archived']); el.innerHTML=opts.map(function(c){ var n=(c==='All')?TPLS.length:((c==='Archived')?TPLS.filter(function(t){return t.active===false;}).length:TPLS.filter(function(t){return t.category===c&&t.active!==false;}).length); return '<button class="cf'+(CATFILTER===c?' on':'')+'" data-cat="'+esc(c)+'">'+esc(c)+' <span style="opacity:.55;font-weight:800">'+n+'</span></button>'; }).join(''); Array.prototype.forEach.call(el.querySelectorAll('.cf'),function(b){ b.onclick=function(){ CATFILTER=b.getAttribute('data-cat'); renderCatBar(); refreshList(); }; }); }
+function renderCatBar(){ var el=document.getElementById('catbar'); if(!el) return; var opts=['All'].concat(CATS).concat(['Archived']); el.innerHTML=opts.map(function(c){ var n=(c==='All')?TPLS.length:((c==='Archived')?TPLS.filter(function(t){return t.active===false;}).length:TPLS.filter(function(t){return tplCat(t)===c&&t.active!==false;}).length); return '<button class="cf'+(CATFILTER===c?' on':'')+'" data-cat="'+esc(c)+'">'+esc(c)+' <span style="opacity:.55;font-weight:800">'+n+'</span></button>'; }).join(''); Array.prototype.forEach.call(el.querySelectorAll('.cf'),function(b){ b.onclick=function(){ CATFILTER=b.getAttribute('data-cat'); renderCatBar(); refreshList(); }; }); }
 function refreshList(){ var d=filteredTpls(); if(CTL) CTL.refresh(d); else CTL=RRGList.create(listCfg()); var c=document.getElementById('tcount'); if(c) c.textContent=TPLS.length+' total'; }
 function curById(id){ return TPLS.filter(function(t){return t.id===id;})[0]||null; }
 function scopeControl(ro){
@@ -110,19 +111,20 @@ function scopeControl(ro){
   return '<div class="fld"><label>Visibility</label><div class="ro" style="margin:0">Personal — only you. Shared (firm) templates are published by an admin; ask an admin to promote this one firm-wide.</div></div>';
 }
 function catControl(ro){ return '<div class="fld"><label>Category</label><select id="tCat"'+(ro?' disabled':'')+'>'+CATS.map(function(c){return '<option'+((CAT===c)?' selected':'')+'>'+esc(c)+'</option>';}).join('')+'</select></div>'; }
+function greetControl(ro){ var opts=[['none','No salutation'],['dear','Dear {first name},'],['hi','Hi {first name},'],['first','{first name},']]; return '<div class="fld" style="margin-top:14px"><label>Salutation <span style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--soft)">(added to the top of the email, with the contact’s first name)</span></label><select id="tGreet"'+(ro?' disabled':'')+'>'+opts.map(function(o){return '<option value="'+o[0]+'"'+((GREET===o[0])?' selected':'')+'>'+esc(o[1])+'</option>';}).join('')+'</select></div>'; }
 function autoControl(ro){ var lbl='<label>After this template is sent, run automation <span style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--soft)">(when sent from a contact\u2019s Send Email)</span></label>'; if(!AUTOS.length){ return '<div class="fld" style="margin-top:14px">'+lbl+'<select id="tAuto" disabled><option value="">\u2014 no active automations yet \u2014</option></select><div style="font-size:12px;color:var(--soft);margin-top:6px;line-height:1.5">Build one under <b>Automations</b> (Marketing), make sure it\u2019s active, then it\u2019ll appear here to fire automatically each time you send this template.</div></div>'; } return '<div class="fld" style="margin-top:14px">'+lbl+'<select id="tAuto"'+(ro?' disabled':'')+'><option value="">\u2014 none \u2014</option>'+AUTOS.map(function(a){return '<option value="'+esc(a.id)+'"'+((EXECAUTO===a.id)?' selected':'')+'>'+esc(a.name)+'</option>';}).join('')+'</select></div>'; }
 function renderEditor(){
   var host=document.getElementById('editor'); if(!host) return;
   if(!EDIT){ host.innerHTML=''; return; }
   var t=EDIT; var ro=!t.mine;
-  SCOPE=(t.scope==='shared'?'shared':'personal'); CAT=(CATS.indexOf(t.category)>=0?t.category:'General'); ACTIVE=(t.active!==false); EXECAUTO=(t.execAuto||'');
+  SCOPE=(t.scope==='shared'?'shared':'personal'); CAT=(CATS.indexOf(t.category)>=0?t.category:'General'); ACTIVE=(t.active!==false); EXECAUTO=(t.execAuto||''); GREET=(t.greeting||'none');
   host.innerHTML='<div class="card"><div class="ch"><b>'+(ro?'View template':(t.id?'Edit template':'New template'))+'</b><span class="sp"><span class="msg" id="msg"></span><button class="btn ghost sm" id="pvBtn">Preview</button>'+((t.id&&t.mine)?'<button class="btn danger sm" id="delBtn">Delete</button>':'')+'<button class="btn ghost sm" id="closeBtn">Close</button>'+(ro?'':'<button class="btn red" id="saveBtn">Save</button>')+'</span></div><div class="body">'
     +(ro?'<div class="ro">Shared template'+(t.ownerName?(' by <b>'+esc(t.ownerName)+'</b>'):'')+' — view only. Use <b>Duplicate</b> to make your own editable copy.</div>':'')
     +'<div class="fld"><label>Template name</label><input type="text" id="tName" value="'+esc(t.name||'')+'"'+(ro?' readonly':'')+' placeholder="e.g. New buyer intro"></div>'
     +'<div class="selrow">'+catControl(ro)+scopeControl(ro)+'</div>'
     +((t.id&&t.mine)?'<div class="fld" style="margin-top:14px"><label class="chkline"><input type="checkbox" id="tActive"'+(ACTIVE?' checked':'')+'> Active — show in the send composer and automations (uncheck to archive)</label></div>':'')
     +'<div class="fld" style="margin-top:14px"><label>Subject</label><input type="text" id="tSubject" value="'+esc(t.subject||'')+'"'+(ro?' readonly':'')+' placeholder="e.g. Great connecting, {{first_name}}"></div>'
-    +'<div class="fld"><label>Body</label>'+(ro?('<div class="rrgrt" style="border:1px solid #cfd6e2;border-radius:9px"><div class="rrgrt-ed" style="padding:10px 12px;min-height:120px">'+RRGRte.toHtml(t.body||'')+'</div></div>'):RRGRte.html('tBody',{value:t.body||'',placeholder:'Write your email… use the { } menu for merge fields.'}))+'</div>'
+    +greetControl(ro)+'<div class="fld"><label>Body</label>'+(ro?('<div class="rrgrt" style="border:1px solid #cfd6e2;border-radius:9px"><div class="rrgrt-ed" style="padding:10px 12px;min-height:120px">'+RRGRte.toHtml(t.body||'')+'</div></div>'):RRGRte.html('tBody',{value:t.body||'',placeholder:'Write your email… use the { } menu for merge fields.'}))+'</div>'
     +autoControl(ro)+'<div id="pvPanel"></div>'
     +'</div></div>';
   document.getElementById('closeBtn').onclick=function(){ EDIT=null; renderEditor(); };
@@ -157,7 +159,7 @@ function msg(t,cls){ var m=document.getElementById('msg'); if(!m) return; m.text
 function load(){ api('GET','/api/email-templates?all=1').then(function(j){ TPLS=j.templates||[]; AUTOS=j.automations||[]; IS_ADMIN=TPLS.some(function(t){return t.canShare;}); render(); }); }
 function save(){
   var name=(document.getElementById('tName').value||'').trim(); if(!name){ msg('Name the template.','err'); return; }
-  var body={ name:name, scope:SCOPE, category:CAT, active:ACTIVE, execAuto:(function(){var a=document.getElementById('tAuto');return a?a.value:'';})(), subject:document.getElementById('tSubject').value, body:(window.RRGRte?RRGRte.get('tBody'):((document.getElementById('tBody')||{}).value||'')) };
+  var body={ name:name, scope:SCOPE, category:CAT, active:ACTIVE, execAuto:(function(){var a=document.getElementById('tAuto');return a?a.value:'';})(), greeting:(function(){var g=document.getElementById('tGreet');return g?g.value:'none';})(), subject:document.getElementById('tSubject').value, body:(window.RRGRte?RRGRte.get('tBody'):((document.getElementById('tBody')||{}).value||'')) };
   if(EDIT&&EDIT.id) body.id=EDIT.id;
   var btn=document.getElementById('saveBtn'); btn.disabled=true;
   api('POST','/api/email-templates',body).then(function(j){ btn.disabled=false; if(!j.ok){ msg(j.error||'Save failed.','err'); return; } EDIT=j.template||EDIT; load(); msg('Saved','ok'); });

@@ -178,7 +178,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
   <div class="bmodalh" id="nd_title">New listing</div>
   <div class="bmodalb">
     <label class="bmfld">Business / listing name</label><input id="nd_business" placeholder="e.g. Blue Agave Cantina">
-    <label class="bmfld">Market</label><input id="nd_market" placeholder="e.g. Austin, TX" autocomplete="off">
+    <label class="bmfld">Market</label><input id="nd_market" list="marketList" placeholder="Start typing or pick a market…" autocomplete="off"><datalist id="marketList"></datalist>
     <div id="nd_srcwrap" hidden><label class="bmfld">Lead source</label><select id="nd_source"><option value="">— select —</option><option>BizBuySell</option><option>Referral</option><option>Web</option><option>Cold call</option><option>Walk-in</option><option>Other</option></select></div>
     <label class="bmfld">Seller / client contact</label><input id="nd_contact" list="clientList" placeholder="Start typing to find an existing client…" autocomplete="off" oninput="updateClientHint()">
     <datalist id="clientList"></datalist>
@@ -189,7 +189,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 
 <div id="editModal" class="bmodal" hidden><div class="bmodalcard" id="editCard"></div></div>
 <script>
-var DATA=null, PID='', DRAGKEY='';
+var DATA=null, PID='', DRAGKEY='', MARKETS=[];
 var VIEW=(function(){ try{ return localStorage.getItem('rrg_board_view')||'board'; }catch(e){ return 'board'; } })(), LTBL=null;
 var TB={ q:'', owner:'', market:'', status:'', min:'', max:'', sort:'act_desc', per:25 };
 var FILTER_OPEN=false, SAVE_OPEN=false, EXPANDED={};
@@ -214,6 +214,7 @@ function saveTB(){ try{ localStorage.setItem(tbKey(),JSON.stringify(TB)); }catch
 function savedViews(){ try{ return JSON.parse(localStorage.getItem('rrgboard_saved')||'{}')||{}; }catch(e){ return {}; } }
 function setSavedViews(o){ try{ localStorage.setItem('rrgboard_saved',JSON.stringify(o)); }catch(e){} }
 function distinct(field){ var seen={}, out=[]; (DATA&&DATA.cards||[]).forEach(function(c){ var v=String(c[field]||'').trim(); if(v&&!seen[v]){ seen[v]=1; out.push(v); } }); out.sort(function(a,b){return a.toLowerCase()<b.toLowerCase()?-1:1;}); return out; }
+function fillMarketList(){ var dl=document.getElementById('marketList'); if(!dl) return; var seen={}, list=[]; (MARKETS||[]).forEach(function(m){ m=String(m||'').trim(); if(m&&!seen[m.toLowerCase()]){ seen[m.toLowerCase()]=1; list.push(m); } }); distinct('market').forEach(function(m){ if(m&&!seen[m.toLowerCase()]){ seen[m.toLowerCase()]=1; list.push(m); } }); dl.innerHTML=list.map(function(m){ return '<option value="'+esc(m)+'"></option>'; }).join(''); }
 function activeFilterCount(){ var n=0; ['owner','market','status'].forEach(function(k){ if(TB[k]) n++; }); if(TB.min!=='') n++; if(TB.max!=='') n++; return n; }
 function passFilters(c){
   if(TB.owner && String(c.owner||'')!==TB.owner) return false;
@@ -240,7 +241,7 @@ function sortCards(arr){
 function load(){
   fetch('/api/board'+(PID?('?pipelineId='+encodeURIComponent(PID)):''),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">Could not load the board.</div>'; return; }
-    DATA=j; PID=j.pipelineId; loadTB(); EXPANDED={};
+    DATA=j; PID=j.pipelineId; MARKETS=j.markets||[]; fillMarketList(); loadTB(); EXPANDED={};
     var sel=document.getElementById('psel');
     sel.innerHTML=(j.pipelines||[]).map(function(p){ return '<option value="'+esc(p.id)+'"'+(p.id===PID?' selected':'')+'>'+esc(p.name)+'</option>'; }).join('');
     renderToolbar(); render();
@@ -352,7 +353,7 @@ function openEditModal(key){ EDIT_KEY=key; var m=document.getElementById('editMo
       +'<label class="bmfld">Business name</label><input id="ed_biz" value="'+esc(a.businessOverride||a.business||'')+'">'
       +'<label class="bmfld">Code name (confidential alias)</label><input id="ed_code" value="'+esc(a.codeName||'')+'" placeholder="e.g. Project Blue Agave">'
       +'<div style="display:flex;gap:12px"><div style="flex:1"><label class="bmfld">Status</label><select id="ed_status" style="'+sel+'">'+stOpts+'</select></div><div style="flex:1"><label class="bmfld">Owner</label><input id="ed_owner" value="'+esc(a.owner||'')+'"></div></div>'
-      +'<label class="bmfld">Market</label><input id="ed_market" value="'+esc(a.market||'')+'">'
+      +'<label class="bmfld">Market</label><input id="ed_market" list="marketList" value="'+esc(a.market||'')+'">'
       +'<div style="display:flex;gap:12px"><div style="flex:1"><label class="bmfld">Live date</label><input id="ed_live" type="date" value="'+esc(a.listingLive||'')+'"></div><div style="flex:1"><label class="bmfld">Expires</label><input id="ed_exp" type="date" value="'+esc(a.listingExpires||'')+'"></div></div>'
       +'<div id="ed_msg" style="color:#DA2B1F;font-size:12px"></div>'
       +'</div>'
@@ -452,9 +453,9 @@ function cardHtml(c){
   if(DENSITY==='compact'){
     var exp=!!EXPCARD[c.key];
     return '<div class="cardx compact'+(exp?' expanded':'')+'" draggable="true" data-key="'+esc(c.key)+'">'
-      +'<div class="chd"><span class="t">'+esc(c.business||'Listing')+(c.provisional?' <span class="pvbadge">Provisional</span>':'')+(c.isLead?' <span class="leadbadge">Lead</span>':'')+'</span>'+flags+cardOwner(c)+'</div>'
+      +'<div class="chd"><a class="t" href="'+open+'" title="Open listing">'+esc(c.business||'Listing')+'</a>'+(c.provisional?' <span class="pvbadge">Provisional</span>':'')+(c.isLead?' <span class="leadbadge">Lead</span>':'')+flags+cardOwner(c)+'</div>'
       +'<div class="cbody">'+(cardFieldsHtml(c)||'<div class="r" style="color:#98a1b5">No extra details</div>')
-        +'<div class="ft"><span class="dt">'+(CARDF.activity&&c.lastActivity?esc(fmtDate(c.lastActivity)):'')+'</span>'+trashBtn(c)+'<a class="opendeal" href="'+open+'">Open deal →</a></div>'
+        +'<div class="ft"><span class="dt">'+(CARDF.activity&&c.lastActivity?esc(fmtDate(c.lastActivity)):'')+'</span>'+trashBtn(c)+'</div>'
       +'</div></div>';
   }
   return '<div class="cardx'+(rolled?' rolled':'')+'" draggable="true" data-key="'+esc(c.key)+'">'

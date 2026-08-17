@@ -545,7 +545,7 @@ function render(){
     +'<div class="fact"><div class="k">Estimated value</div><div class="v big">'+(A.value?esc(A.value):'—')+'</div></div>'
     +'<div class="fact"><div class="k">Basis</div><div class="v">'+(A.basis?esc(A.basis):'—')+'</div></div>'
     +'<div class="fact"><div class="k">Market</div><div class="v">'+(A.market?esc(A.market):'—')+'</div></div>'
-    +'<div class="fact"><div class="k">Code name</div><div class="v">'+(A.codeName?esc(A.codeName):'\u2014')+'</div></div>'
+    +'<div class="fact"><div class="k">Code name</div><div class="v" id="cnV">'+cnDisplayInner((A&&A.codeName)||'')+'</div></div>'
     +'<div class="fact"><div class="k">Seller contact</div><div class="v">'+(A.contact?esc(A.contact):'—')+'</div></div>'
     +'<div class="fact"><div class="k">Originated</div><div class="v">'+esc(fmt(A.createdAt))+'</div></div>'
     +'<div class="fact"><div class="k">Last activity</div><div class="v">'+esc(fmt(A.lastActivity))+'</div></div>'
@@ -582,7 +582,7 @@ function render(){
       + '<div class="fldrow"><label class="fld">Referred by</label><input class="owner" id="f_refby" list="peopleList" value="'+esc(A.referredBy||'')+'" placeholder="Contact who referred this"></div>'
       + '<div class="fldrow"><label class="fld">Referral %</label><input class="owner" id="f_refpct" value="'+esc(A.referralPct||'')+'" placeholder="e.g. 10" inputmode="decimal" style="max-width:130px"></div>'
       + '<div class="fldrow"><label class="fld">Business name</label><input class="owner" id="f_biz" value="'+esc(A.businessOverride||A.business||'')+'" placeholder="Business / listing name"></div>'
-      + '<div class="fldrow"><label class="fld">Code name <span style="font-weight:500;color:var(--soft,#8a93a8)">\u2014 confidential alias</span></label><div style="display:flex;gap:6px"><input class="owner" id="f_codename" value="'+esc(A.codeName||'')+'" placeholder="e.g. Project Blue Agave" style="flex:1"><button type="button" id="f_codesuggest" class="slink ghost" style="white-space:nowrap;padding:0 10px">Suggest</button></div></div>'
+      + '<div class="fldrow"><label class="fld">Code name <span style="font-weight:500;color:var(--soft,#8a93a8)">\u2014 confidential alias</span></label><div style="display:flex;gap:6px"><input class="owner" id="f_codename" value="'+esc(A.codeName||'')+'" placeholder="e.g. Blue Agave" style="flex:1"><button type="button" id="f_codesuggest" class="slink ghost" style="white-space:nowrap;padding:0 10px">Suggest</button></div></div>'
       + '<div class="fldrow"><label class="fld">Market</label><select class="owner" id="f_market">'+mktOpts+'</select></div>'
       + '<div class="listingbox">'
         + '<div class="listinghd">Listing agreement</div>'
@@ -609,19 +609,17 @@ function render(){
     + '</div></div>'
     + '</div>'
     + '<div class="main">'
+    + activityCardListing()
     + '<div class="card"><div class="ch"><b>Listing facts</b><span>'+done+' of '+ST.length+' stages complete</span></div><div class="cb">'+facts+'</div></div>'
     + mediaCard()
     + '<div class="card"><div class="ch"><b>Pipeline</b>'+(pipeName?('<span style="margin-left:8px;color:var(--navy);font-weight:700;font-size:11.5px;background:#eef2fb;border:1px solid #d3ddf3;border-radius:999px;padding:2px 10px">'+esc(pipeName)+'</span>'):'')+'<span>'+started+' of '+ST.length+' started</span></div><div class="track"><div class="hpipe">'+steps+'</div></div></div>'
     + mktCardShell()
-    + dealCard()
     + agreementsCardDeal()
-    + invoicesCardDeal()
-    + roomActivityCard()
-    + tasksCardListing()
-    + activityCardListing()
 
     + '</div>'
     + '<div class="drail">'
+    + tasksCardListing()
+    + roomActivityCard()
     + inquiriesCard()
     + matchBuyersShell()
     + ndasCard()
@@ -1197,14 +1195,22 @@ function delListingActivity(id){
   if(typeof A==='undefined'||!A||!A.clientPersonId||!id) return;
   fetch('/api/person/'+encodeURIComponent(A.clientPersonId)+'/activity/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ LISTACTS=j.activities||[]; var host=document.getElementById('listActsBody'); if(host) host.innerHTML=renderListActsHTML(); } });
 }
-function suggestCodeName(){ var f=document.getElementById('f_codename'); if(!f) return; var w=CODEWORDS[Math.floor(Math.random()*CODEWORDS.length)]; f.value='Project '+w; try{ if(typeof setDirty==='function') setDirty(true); }catch(e){} try{ if(typeof save==='function') save(); }catch(e){} }
+function cnDisplayInner(v){ return v?('<span class="cnedit" title="Click to change" style="cursor:pointer;border-bottom:1px dashed #c9d3e2">'+esc(v)+'</span> <button type="button" class="cnedit" title="Change code name" style="background:none;border:none;color:#9aa4b6;cursor:pointer;font-size:12px;padding:0;vertical-align:middle">\u270e</button>'):('<span class="cnedit" title="Add a code name" style="cursor:pointer;color:#2c5c8f;font-weight:600">+ Add code name</span>'); }
+function startCnEdit(){ var host=document.getElementById('cnV'); if(!host) return; var v=(typeof A!=='undefined'&&A&&A.codeName)||''; host.innerHTML='<span style="display:inline-flex;gap:5px;align-items:center;flex-wrap:wrap"><input id="cnInp" value="'+esc(v)+'" placeholder="e.g. Blue Agave" style="border:1px solid #cfd6e2;border-radius:6px;padding:4px 8px;font:inherit;font-size:13px;min-width:120px"><button type="button" id="cnSuggest" class="slink ghost" style="padding:2px 8px">Suggest</button><button type="button" id="cnSave" class="slink" style="padding:2px 10px">Save</button><button type="button" id="cnCancel" style="background:none;border:none;color:#8a93a8;cursor:pointer;font:inherit;font-size:12px">Cancel</button></span>'; var i=document.getElementById('cnInp'); if(i){ try{ i.focus(); i.select(); }catch(e){} } }
+function renderCnDisplay(){ var host=document.getElementById('cnV'); if(host) host.innerHTML=cnDisplayInner((typeof A!=='undefined'&&A&&A.codeName)||''); }
+function commitCnEdit(){ var i=document.getElementById('cnInp'); if(!i) return; var val=(i.value||'').trim(); fetch('/api/assignment/'+encodeURIComponent(KEY)+'/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({codeName:val})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ if(A) A.codeName=val; renderCnDisplay(); var fc=document.getElementById('f_codename'); if(fc) fc.value=val; if(window.rrgToast) rrgToast('Code name saved'); } else { alert((j&&j.error)||'Could not save the code name.'); } }).catch(function(){ alert('Could not reach the server.'); }); }
+function suggestCodeName(){ var f=document.getElementById('f_codename'); if(!f) return; var w=CODEWORDS[Math.floor(Math.random()*CODEWORDS.length)]; f.value=w; try{ if(typeof setDirty==='function') setDirty(true); }catch(e){} try{ if(typeof save==='function') save(); }catch(e){} }
 document.addEventListener('click',function(e){ var t=e.target; if(!t||!t.closest) return;
   if(t.closest('#la_add')){ e.preventDefault(); addListingActivity(); return; }
   if(t.closest('#f_codesuggest')){ e.preventDefault(); suggestCodeName(); return; }
+  if(t.closest('.cnedit')){ e.preventDefault(); startCnEdit(); return; }
+  if(t.closest('#cnSuggest')){ e.preventDefault(); var _ci=document.getElementById('cnInp'); if(_ci){ _ci.value=CODEWORDS[Math.floor(Math.random()*CODEWORDS.length)]; try{_ci.focus();}catch(_){} } return; }
+  if(t.closest('#cnSave')){ e.preventDefault(); commitCnEdit(); return; }
+  if(t.closest('#cnCancel')){ e.preventDefault(); renderCnDisplay(); return; }
   var dl=t.closest('[data-ladel]'); if(dl){ e.preventDefault(); (async function(){ try{ if(typeof rrgConfirm==='function'){ if(!(await rrgConfirm('Delete this activity entry?'))) return; } }catch(_){}
     delListingActivity(dl.getAttribute('data-ladel')); })(); return; }
 });
-document.addEventListener('keydown',function(e){ if(e.key==='Enter'&&e.target&&e.target.id==='la_note'){ e.preventDefault(); addListingActivity(); } });
+document.addEventListener('keydown',function(e){ if(e.key==='Enter'&&e.target&&e.target.id==='la_note'){ e.preventDefault(); addListingActivity(); } if(e.target&&e.target.id==='cnInp'){ if(e.key==='Enter'){ e.preventDefault(); commitCnEdit(); } else if(e.key==='Escape'){ e.preventDefault(); renderCnDisplay(); } } });
 </script>
 <script>
 /* ===== Tasks on the listing (deal-scoped, reuses /api/tasks) ===== */
