@@ -182,6 +182,36 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 .bbmatches{display:flex;flex-direction:column;gap:6px;}
 .bbmatch{display:block;text-decoration:none;color:inherit;border:1px solid #e6e9f0;border-radius:6px;padding:8px 10px;transition:background .12s;}
 .bbmatch:hover{background:#f7f9fc;border-color:#cfe0f2;}
+.nlmodal-ov{position:fixed;inset:0;background:rgba(6,14,32,.5);display:none;align-items:center;justify-content:center;z-index:200;padding:20px;}
+.nlmodal{background:#fff;border:1px solid #d5dbe6;border-radius:8px;width:100%;max-width:480px;box-shadow:0 18px 48px rgba(6,14,32,.22);overflow:hidden;}
+.nlmodal-hd{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;background:#f5f7fb;border-bottom:1px solid #e6e9f0;}
+.nlmodal-hd span{font-size:11.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#20334f;}
+.nlmodal-x{background:none;border:none;font-size:22px;line-height:1;color:#8a94a6;cursor:pointer;padding:0 2px;}
+.nlmodal-x:hover{color:#5b6472;}
+.nlmodal-bd{padding:16px 18px;}
+.nlmodal-client{font-size:12.5px;color:#5b6472;margin-bottom:13px;line-height:1.5;}
+.nlfld{display:block;font-size:10.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#6b7488;margin-bottom:5px;}
+.nlfld .req{color:#DA2B1F;}
+.nlinput{width:100%;border:1px solid #cfd6e2;border-radius:6px;padding:9px 11px;font:inherit;font-size:14px;color:#1a2236;}
+.nlinput:focus{outline:none;border-color:#2c5c8f;box-shadow:0 0 0 2px rgba(44,92,143,.14);}
+.nlac{position:relative;}
+.nlac-menu{position:absolute;left:0;right:0;top:calc(100% + 4px);background:#fff;border:1px solid #d5dbe6;border-radius:6px;box-shadow:0 10px 26px rgba(6,14,32,.16);max-height:238px;overflow:auto;z-index:5;}
+.nlac-item{display:flex;align-items:center;gap:9px;padding:8px 11px;cursor:pointer;border-bottom:1px solid #f0f2f7;text-decoration:none;color:inherit;}
+.nlac-item:last-child{border-bottom:none;}
+.nlac-item:hover{background:#f4f8fd;}
+.nlac-ic{width:22px;height:22px;border-radius:5px;flex:none;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;}
+.nlac-ic.listing{background:#eaf3ec;color:#1f8a5b;} .nlac-ic.company{background:#eef2fb;color:#23496f;}
+.nlac-tx{min-width:0;flex:1;}
+.nlac-tx b{display:block;font-size:13px;font-weight:700;color:#1a2236;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.nlac-tx>span{display:block;font-size:11px;color:#8a93a8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.nlac-open{font-size:11px;font-weight:700;color:#2c5c8f;flex:none;}
+.nlmatchnote{font-size:12px;margin-top:9px;padding:8px 10px;border-radius:6px;background:#fbf3e6;color:#9a6b12;border:1px solid #f0e2c4;line-height:1.5;}
+.nlmodal-err{color:#DA2B1F;font-size:12.5px;margin-top:8px;}
+.nlmodal-ft{display:flex;gap:9px;justify-content:flex-end;padding:12px 18px;background:#fafbfd;border-top:1px solid #e6e9f0;}
+.nlbtn-ghost{background:#fff;border:1px solid #cfd6e2;border-radius:6px;padding:8px 15px;font:inherit;font-size:13px;font-weight:600;color:#3a4560;cursor:pointer;}
+.nlbtn-ghost:hover{background:#f4f6f9;}
+.nlbtn-primary{background:#000E31;border:1px solid #000E31;border-radius:6px;padding:8px 17px;font:inherit;font-size:13px;font-weight:700;color:#fff;cursor:pointer;}
+.nlbtn-primary:disabled{opacity:.55;cursor:default;}
 .bbmt{display:flex;align-items:center;gap:6px;font-size:12.5px;color:#20334f;} .bbmt b{font-weight:700;}
 .bbpub{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#1f8a5b;background:#e7f5ee;border-radius:3px;padding:1px 5px;}
 .bbmm{font-size:11px;color:#6b7488;margin-top:1px;}
@@ -272,20 +302,28 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
   <div class="actionsbar" id="actionsBar"></div>
 </div></div>
 <div id="root" class="loading">Loading the contact…</div>
-<div id="nlModal" style="position:fixed;inset:0;background:rgba(6,14,32,.55);display:none;align-items:center;justify-content:center;z-index:200;padding:20px">
-  <div style="background:#fff;border-radius:16px;width:100%;max-width:460px;box-shadow:0 24px 60px rgba(0,0,0,.35)">
-    <div style="padding:18px 22px;font-weight:800;color:var(--navy,#000E31);border-bottom:1px solid var(--line,#e6e9f0);display:flex;justify-content:space-between;align-items:center">New listing<button type="button" id="nl_x" style="background:none;border:none;font-size:24px;color:#8a94a6;cursor:pointer">×</button></div>
-    <div style="padding:18px 22px">
-      <div style="font-size:12.5px;color:#5b6472;margin-bottom:12px">Client: <b id="nl_client"></b> — this listing links to them as the seller/client.</div>
-      <label class="fld">Business / listing name *</label><input id="nl_biz" placeholder="e.g. Blue Agave Cantina" style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:14px">
-      <label class="fld" style="display:block;margin-top:12px">Market</label><input id="nl_market" placeholder="e.g. Austin, TX" style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:14px">
-      <div id="nl_msg" style="color:#DA2B1F;font-size:12.5px;margin-top:8px"></div>
+<div id="nlModal" class="nlmodal-ov">
+  <div class="nlmodal">
+    <div class="nlmodal-hd"><span>New Listing</span><button type="button" id="nl_x" class="nlmodal-x" title="Close">&times;</button></div>
+    <div class="nlmodal-bd">
+      <div class="nlmodal-client">Client: <b id="nl_client"></b> &mdash; this listing links to them as the seller / client.</div>
+      <label class="nlfld">Business / listing name <span class="req">*</span></label>
+      <div class="nlac"><input id="nl_biz" autocomplete="off" placeholder="e.g. Blue Agave Cantina" class="nlinput"><div id="nl_matches" class="nlac-menu" hidden></div></div>
+      <div id="nl_matchnote" class="nlmatchnote" hidden></div>
+      <label class="nlfld" style="margin-top:13px">Market</label>
+      <input id="nl_market" placeholder="e.g. Austin, TX" class="nlinput">
+      <div id="nl_msg" class="nlmodal-err"></div>
     </div>
-    <div style="display:flex;gap:9px;justify-content:flex-end;padding:14px 22px;border-top:1px solid var(--line,#e6e9f0)"><button type="button" id="nl_cancel" class="mfadd">Cancel</button><button type="button" id="nl_save" class="savebtn" style="width:auto;padding:9px 16px">Create listing</button></div>
+    <div class="nlmodal-ft"><button type="button" id="nl_cancel" class="nlbtn-ghost">Cancel</button><button type="button" id="nl_save" class="nlbtn-primary">Create listing</button></div>
   </div>
 </div>
 <script>
-function openNewListing(){ if(typeof P==='undefined'||!P) return; document.getElementById('nl_client').textContent=P.name||'this contact'; document.getElementById('nl_biz').value=''; document.getElementById('nl_market').value=(typeof CO!=='undefined'&&CO&&CO.market)||''; document.getElementById('nl_msg').textContent=''; document.getElementById('nlModal').style.display='flex'; setTimeout(function(){var e=document.getElementById('nl_biz'); if(e) e.focus();},30); }
+function openNewListing(){ if(typeof P==='undefined'||!P) return; document.getElementById('nl_client').textContent=P.name||'this contact'; var _bz=document.getElementById('nl_biz'); _bz.value=(typeof CO!=='undefined'&&CO&&CO.name)||''; document.getElementById('nl_market').value=(typeof CO!=='undefined'&&CO&&CO.market)||''; document.getElementById('nl_msg').textContent=''; _nlHideMenu(); document.getElementById('nlModal').style.display='flex'; setTimeout(function(){ _bz.focus(); _bz.select(); _nlSearch(); },30); }
+var _nlT=null;
+function _nlHideMenu(){ var m=document.getElementById('nl_matches'); if(m){ m.hidden=true; m.innerHTML=''; } }
+function _nlDebounced(){ if(_nlT) clearTimeout(_nlT); _nlT=setTimeout(_nlSearch,180); }
+function _nlSearch(){ var bz=document.getElementById('nl_biz'); if(!bz) return; var q=bz.value.trim(); var note=document.getElementById('nl_matchnote'); if(q.length<2){ _nlHideMenu(); if(note) note.hidden=true; return; } fetch('/api/search?q='+encodeURIComponent(q),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(document.getElementById('nl_biz').value.trim()!==q) return; var res=((j&&j.results)||[]).filter(function(x){ return x.type==='listing'||x.type==='company'; }).slice(0,6); _nlRenderMenu(res,q); }).catch(function(){}); }
+function _nlRenderMenu(res,q){ var m=document.getElementById('nl_matches'), note=document.getElementById('nl_matchnote'); if(!res.length){ _nlHideMenu(); if(note) note.hidden=true; return; } m.innerHTML=res.map(function(x){ var lab=(x.type==='listing'?'Listing':'Company'); var ic=(x.type==='listing'?'L':'C'); return '<a class="nlac-item" href="'+esc(x.url)+'"><span class="nlac-ic '+x.type+'">'+ic+'</span><span class="nlac-tx"><b>'+esc(x.title)+'</b><span>'+esc(lab)+(x.sub?(' &middot; '+esc(x.sub)):'')+'</span></span><span class="nlac-open">Open &rarr;</span></a>'; }).join(''); m.hidden=false; var ql=q.toLowerCase(); var dup=res.filter(function(x){ return String(x.title||'').trim().toLowerCase()===ql; }); if(dup.length&&note){ var t=dup[0]; note.innerHTML='&ldquo;'+esc(q)+'&rdquo; already exists as a '+(t.type==='listing'?'listing':'company')+' &mdash; <a href="'+esc(t.url)+'" style="color:#9a6b12;font-weight:800;text-decoration:underline">open it</a> instead of creating a duplicate?'; note.hidden=false; } else if(note){ note.hidden=true; } }
 function closeNewListing(){ document.getElementById('nlModal').style.display='none'; }
 function createNewListing(){ var biz=document.getElementById('nl_biz').value.trim(); var msg=document.getElementById('nl_msg'); if(!biz){ msg.textContent='Enter the business / listing name.'; return; } var b=document.getElementById('nl_save'); b.disabled=true; b.textContent='Creating…'; fetch('/api/deal/new',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({business:biz,market:document.getElementById('nl_market').value.trim(),contact:(P&&P.name)||'',contactEmail:(P&&P.email)||''})}).then(function(r){return r.json();}).then(function(j){ b.disabled=false; b.textContent='Create listing'; if(j&&j.ok){ location.href='./rrg_assignment.html?key='+encodeURIComponent(j.key); } else msg.textContent=(j&&j.error)||'Could not create the listing.'; }).catch(function(){ b.disabled=false; b.textContent='Create listing'; msg.textContent='Could not reach the server.'; }); }
 document.addEventListener('click',function(e){ if(e.target.closest && e.target.closest('#newListingBtn')){ e.preventDefault(); openNewListing(); } });
@@ -295,7 +333,7 @@ document.addEventListener('click',function(e){ var t=e.target.closest&&e.target.
   if(t.id==='actAgr'){ if(typeof openSendModal==='function'){ openSendModal(); } else { alert('Agreements are still loading — try again in a moment.'); } return; }
   if(t.id==='actSQC'){ var nm=encodeURIComponent((typeof P!=='undefined'&&P&&P.name)||''); var co=encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.name)||(typeof P!=='undefined'&&P&&P.company)||''); var mk=encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.market)||''); var ad=encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.address)||''); var pid=encodeURIComponent((typeof P!=='undefined'&&P&&P.id)||(typeof ID!=='undefined'&&ID)||''); var cid=encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.id)||''); location.href='./seller_screening.html?sellerName='+nm+'&company='+co+'&market='+mk+'&address='+ad+'&contactId='+pid+'&companyId='+cid; return; }
 });
-(function(){ var c=document.getElementById('nl_cancel'); if(c) c.addEventListener('click',closeNewListing); var x=document.getElementById('nl_x'); if(x) x.addEventListener('click',closeNewListing); var sv=document.getElementById('nl_save'); if(sv) sv.addEventListener('click',createNewListing); var m=document.getElementById('nlModal'); if(m) m.addEventListener('click',function(e){ if(e.target===m){ /* stay open */ } }); })();
+(function(){ var c=document.getElementById('nl_cancel'); if(c) c.addEventListener('click',closeNewListing); var x=document.getElementById('nl_x'); if(x) x.addEventListener('click',closeNewListing); var sv=document.getElementById('nl_save'); if(sv) sv.addEventListener('click',createNewListing); var m=document.getElementById('nlModal'); if(m) m.addEventListener('click',function(e){ if(e.target===m){ /* stay open */ } }); var _bz=document.getElementById('nl_biz'); if(_bz){ _bz.addEventListener('input',_nlDebounced); _bz.addEventListener('focus',_nlSearch); _bz.addEventListener('blur',function(){ setTimeout(_nlHideMenu,170); }); } })();
 </script>
 <div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
 <script>
