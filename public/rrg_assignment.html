@@ -610,6 +610,7 @@ function render(){
     + '</div>'
     + '<div class="main">'
     + '<div class="card"><div class="ch"><b>Listing facts</b><span>'+done+' of '+ST.length+' stages complete</span></div><div class="cb">'+facts+'</div></div>'
+    + mediaCard()
     + '<div class="card"><div class="ch"><b>Pipeline</b>'+(pipeName?('<span style="margin-left:8px;color:var(--navy);font-weight:700;font-size:11.5px;background:#eef2fb;border:1px solid #d3ddf3;border-radius:999px;padding:2px 10px">'+esc(pipeName)+'</span>'):'')+'<span>'+started+' of '+ST.length+' started</span></div><div class="track"><div class="hpipe">'+steps+'</div></div></div>'
     + mktCardShell()
     + dealCard()
@@ -653,6 +654,7 @@ function render(){
   wireExpenses();
   setupAccordion();
   setupDealRail();
+  wireMedia();
 }
 function loadPeople(){ fetch('/api/people',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ PEOPLE=(j&&j.people)||[]; var dl=document.getElementById('peopleList'); if(dl) dl.innerHTML=PEOPLE.map(function(p){return '<option value="'+esc(p.name)+'">'+esc(p.company||p.email||'')+'</option>';}).join(''); }).catch(function(){}); }
 function matchBuyersShell(){ return '<div class="card" id="matchBuyersCard"><div class="ch"><b>Matching buyers</b><span id="mbCount" style="color:#8a93a8;font-weight:700;margin-left:6px"></span></div><div class="cb" style="padding:12px 16px"><div id="matchBuyers"><div style="color:#8a93a8;font-size:12.5px;padding:4px 0">Checking your buyer book…</div></div></div></div>'; }
@@ -1252,6 +1254,111 @@ document.addEventListener('click',function(e){ var t=e.target; if(!t||!t.closest
 });
 document.addEventListener('change',function(e){ var t=e.target; if(!t||!t.matches) return; if(t.matches('[data-lttoggle]')){ toggleListingTask(t.getAttribute('data-lttoggle')); } else if(t.matches('[data-ltsnooze]')){ var v=t.value; if(v) snoozeListingTask(t.getAttribute('data-ltsnooze'), v); } });
 document.addEventListener('keydown',function(e){ if(e.key==='Enter'&&e.target&&e.target.id==='lt_title'){ e.preventDefault(); addListingTask(); } });
+
+/* ===== Listing media: photos, video, Matterport ===== */
+var _mDrag=null;
+function mediaCSS(){
+  if(document.getElementById('mediaCss')) return;
+  var st=document.createElement('style'); st.id='mediaCss';
+  st.textContent='#mediaCard .mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:10px;margin-bottom:6px}'
+   +'#mediaCard .mtile{position:relative;border:1px solid #e2e7f0;border-radius:10px;overflow:hidden;background:#f5f7fb}'
+   +'#mediaCard .mtile.cover{border-color:#1f8a5b;box-shadow:0 0 0 2px rgba(31,138,91,.22)}'
+   +'#mediaCard .mtile.dragover{border-color:#23496f;box-shadow:0 0 0 2px rgba(35,73,111,.25)}'
+   +'#mediaCard .mtile img{display:block;width:100%;height:94px;object-fit:cover;cursor:grab;background:#e9edf4}'
+   +'#mediaCard .mtile .mcap{width:100%;box-sizing:border-box;border:none;border-top:1px solid #eef1f6;padding:5px 7px;font:inherit;font-size:11px;color:#3a4257;background:#fff}'
+   +'#mediaCard .mtb{position:absolute;top:5px;right:5px;display:flex;gap:4px}'
+   +'#mediaCard .mbtn{width:22px;height:22px;border:none;border-radius:6px;background:rgba(12,20,40,.6);color:#fff;font-size:12px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}'
+   +'#mediaCard .mbtn:hover{background:rgba(12,20,40,.85)}'
+   +'#mediaCard .mbtn.on{background:#1f8a5b}'
+   +'#mediaCard .mcoverbadge{position:absolute;top:5px;left:5px;background:#1f8a5b;color:#fff;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;border-radius:100px;padding:2px 7px;pointer-events:none}'
+   +'#mediaCard .mdrop{border:2px dashed #cfd6e2;border-radius:12px;padding:20px;text-align:center;color:#8a93a3;font-size:13px;cursor:pointer;transition:all .12s;margin:12px 0 4px}'
+   +'#mediaCard .mdrop.drag{border-color:#1f8a5b;background:#f0f8f3;color:#1f8a5b}'
+   +'#mediaCard .mediasec{margin-top:18px;padding-top:14px;border-top:1px solid #eef1f6}'
+   +'#mediaCard .mediasec h4{margin:0 0 8px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#6b7488}'
+   +'#mediaCard .mlinkrow{display:flex;gap:8px;flex-wrap:wrap}'
+   +'#mediaCard .mlinkrow input{flex:1;min-width:180px;border:1px solid #cfd6e2;border-radius:6px;padding:9px 11px;font:inherit;font-size:13px}'
+   +'#mediaCard .mlinkrow button{border:none;background:#000E31;color:#fff;border-radius:6px;padding:0 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}'
+   +'#mediaCard .mediaframe{margin-top:10px;border-radius:10px;overflow:hidden;border:1px solid #e2e7f0;aspect-ratio:16/9;background:#000}'
+   +'#mediaCard .mediaframe iframe{width:100%;height:100%;border:0;display:block}'
+   +'#mediaCard .mhint{font-size:11.5px;color:#9aa4b6;margin-top:6px}';
+  document.head.appendChild(st);
+}
+function mediaBodyHTML(){
+  var m=(A&&A.media)||{photos:[],videoUrl:'',matterportUrl:'',coverPhotoId:''};
+  var photos=m.photos||[];
+  var grid='';
+  if(photos.length){
+    grid='<div class="mgrid" id="mGrid">'+photos.map(function(p){
+      var isCover=(p.id===m.coverPhotoId);
+      return '<div class="mtile'+(isCover?' cover':'')+'" draggable="true" data-pid="'+esc(p.id)+'">'
+        +(isCover?'<span class="mcoverbadge">Cover</span>':'')
+        +'<div class="mtb">'
+          +'<button type="button" class="mbtn mcover'+(isCover?' on':'')+'" data-pid="'+esc(p.id)+'" title="'+(isCover?'Cover photo':'Make cover photo')+'">★</button>'
+          +'<button type="button" class="mbtn mdel" data-pid="'+esc(p.id)+'" title="Remove photo">✕</button>'
+        +'</div>'
+        +'<img src="'+esc(p.url)+'" alt="'+esc(p.caption||'Listing photo')+'" loading="lazy">'
+        +'<input class="mcap" data-pid="'+esc(p.id)+'" value="'+esc(p.caption||'')+'" placeholder="Add a caption…">'
+      +'</div>';
+    }).join('')+'</div>';
+  }
+  var drop='<div class="mdrop" id="mDrop">Drag photos here, or <b>click to choose</b> — JPG, PNG, GIF or WebP<div class="mhint">First photo becomes the cover. Drag tiles to reorder; ★ sets the cover.</div><input type="file" id="mFile" accept="image/*" multiple hidden></div>';
+  var vEmbed=m.videoEmbed?('<div class="mediaframe"><iframe src="'+esc(m.videoEmbed)+'" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe></div>'):'';
+  var video='<div class="mediasec"><h4>Video walkthrough</h4><div class="mlinkrow"><input id="mVideo" value="'+esc(m.videoUrl||'')+'" placeholder="Paste a YouTube, Vimeo, Loom or .mp4 link"><button type="button" id="mVideoSave">Save</button></div>'+vEmbed+'</div>';
+  var pEmbed=m.matterportEmbed?('<div class="mediaframe"><iframe src="'+esc(m.matterportEmbed)+'" allow="fullscreen;vr" allowfullscreen></iframe></div>'):'';
+  var matter='<div class="mediasec"><h4>Matterport 3D tour</h4><div class="mlinkrow"><input id="mMatter" value="'+esc(m.matterportUrl||'')+'" placeholder="Paste the Matterport share link (my.matterport.com/show/?m=…)"><button type="button" id="mMatterSave">Save</button></div>'+pEmbed+'</div>';
+  return grid+drop+video+matter;
+}
+function mediaCard(){
+  mediaCSS();
+  var m=(A&&A.media)||{count:0};
+  var n=m.count||((m.photos||[]).length)||0;
+  return '<div class="card" id="mediaCard"><div class="ch"><b>Photos &amp; Media</b><span id="mediaCount" style="margin-left:10px;color:#8a93a3;font-size:12px">'+n+' photo'+(n===1?'':'s')+'</span></div><div class="cb" id="mediaBody" style="padding-top:14px">'+mediaBodyHTML()+'</div></div>';
+}
+function rerenderMedia(){ var b=document.getElementById('mediaBody'); if(b) b.innerHTML=mediaBodyHTML(); var c=document.getElementById('mediaCount'); if(c){ var n=((A.media&&A.media.count)|| (A.media&&A.media.photos&&A.media.photos.length)||0); c.textContent=n+' photo'+(n===1?'':'s'); } }
+function _mMedResp(j){ if(j&&j.ok&&j.media){ A.media=j.media; rerenderMedia(); return true; } if(j&&j.error){ try{ if(window.rrgToast) rrgToast(j.error); else alert(j.error); }catch(_){}} return false; }
+function uploadMediaFiles(fileList){
+  var files=Array.prototype.slice.call(fileList||[]).filter(function(f){ return /^image\//.test(f.type); });
+  if(!files.length) return;
+  var drop=document.getElementById('mDrop'); if(drop){ drop.classList.remove('drag'); drop.firstChild&&(drop.innerHTML='<b>Uploading '+files.length+' photo'+(files.length===1?'':'s')+'…</b>'); }
+  var out=[]; var pending=files.length;
+  files.forEach(function(f){
+    var rd=new FileReader();
+    rd.onload=function(){ out.push({filename:f.name,dataB64:String(rd.result||'')}); if(--pending===0) _sendMedia(out); };
+    rd.onerror=function(){ if(--pending===0) _sendMedia(out); };
+    rd.readAsDataURL(f);
+  });
+}
+function _sendMedia(arr){
+  if(!arr.length){ rerenderMedia(); return; }
+  fetch('/api/assignment/'+encodeURIComponent(KEY)+'/photos',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({files:arr})})
+    .then(function(r){return r.json();}).then(function(j){ if(!_mMedResp(j)) rerenderMedia(); })
+    .catch(function(){ rerenderMedia(); try{ if(window.rrgToast) rrgToast('Could not upload photos.'); }catch(_){}} );
+}
+function _postMediaOrder(){
+  var grid=document.getElementById('mGrid'); if(!grid) return;
+  var order=Array.prototype.slice.call(grid.querySelectorAll('.mtile')).map(function(t){ return t.getAttribute('data-pid'); });
+  fetch('/api/assignment/'+encodeURIComponent(KEY)+'/photos/order',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({order:order})}).then(function(r){return r.json();}).then(_mMedResp).catch(function(){});
+}
+function wireMedia(){
+  var card=document.getElementById('mediaCard'); if(!card||card._mwired){ return; } card._mwired=true;
+  // file picker + drop zone (delegated so re-renders keep working)
+  card.addEventListener('click',function(e){
+    var drop=e.target.closest('#mDrop'); if(drop&&!e.target.closest('input')){ var fi=document.getElementById('mFile'); if(fi) fi.click(); return; }
+    var cov=e.target.closest('.mcover'); if(cov){ e.preventDefault(); fetch('/api/assignment/'+encodeURIComponent(KEY)+'/photos/order',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({coverPhotoId:cov.getAttribute('data-pid')})}).then(function(r){return r.json();}).then(_mMedResp).catch(function(){}); return; }
+    var del=e.target.closest('.mdel'); if(del){ e.preventDefault(); var pid=del.getAttribute('data-pid'); (window.rrgConfirm?rrgConfirm('Remove this photo?',{title:'Remove photo?',okText:'Remove',danger:true}):Promise.resolve(confirm('Remove this photo?'))).then(function(ok){ if(!ok) return; fetch('/api/assignment/'+encodeURIComponent(KEY)+'/photo/'+encodeURIComponent(pid),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(_mMedResp).catch(function(){}); }); return; }
+    var vs=e.target.closest('#mVideoSave'); if(vs){ e.preventDefault(); var v=(document.getElementById('mVideo')||{}).value||''; fetch('/api/assignment/'+encodeURIComponent(KEY)+'/media',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({videoUrl:v})}).then(function(r){return r.json();}).then(_mMedResp).catch(function(){}); return; }
+    var ps=e.target.closest('#mMatterSave'); if(ps){ e.preventDefault(); var pv=(document.getElementById('mMatter')||{}).value||''; fetch('/api/assignment/'+encodeURIComponent(KEY)+'/media',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({matterportUrl:pv})}).then(function(r){return r.json();}).then(_mMedResp).catch(function(){}); return; }
+  });
+  card.addEventListener('change',function(e){ if(e.target&&e.target.id==='mFile'){ uploadMediaFiles(e.target.files); e.target.value=''; } });
+  // caption save on blur
+  card.addEventListener('blur',function(e){ var cap=e.target&&e.target.closest?e.target.closest('.mcap'):null; if(cap){ var pid=cap.getAttribute('data-pid'); fetch('/api/assignment/'+encodeURIComponent(KEY)+'/photo/'+encodeURIComponent(pid),{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({caption:cap.value||''})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.media) A.media=j.media; }).catch(function(){}); } },true);
+  // drag-reorder tiles
+  card.addEventListener('dragstart',function(e){ var t=e.target&&e.target.closest?e.target.closest('.mtile'):null; if(t){ _mDrag=t; try{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',t.getAttribute('data-pid')||'');}catch(_){}} });
+  card.addEventListener('dragover',function(e){ var t=e.target&&e.target.closest?e.target.closest('.mtile'):null; var drop=e.target&&e.target.closest?e.target.closest('#mDrop'):null; if(t&&_mDrag&&t!==_mDrag){ e.preventDefault(); var g=t.parentNode; var r=t.getBoundingClientRect(); var after=(e.clientY-r.top)/r.height>0.5||(e.clientX-r.left)/r.width>0.5; g.insertBefore(_mDrag, after?t.nextSibling:t); } else if(drop&&e.dataTransfer&&e.dataTransfer.types&&Array.prototype.indexOf.call(e.dataTransfer.types,'Files')>=0){ e.preventDefault(); drop.classList.add('drag'); } });
+  card.addEventListener('dragleave',function(e){ var drop=e.target&&e.target.closest?e.target.closest('#mDrop'):null; if(drop) drop.classList.remove('drag'); });
+  card.addEventListener('drop',function(e){ var drop=e.target&&e.target.closest?e.target.closest('#mDrop'):null; if(drop&&e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files.length){ e.preventDefault(); drop.classList.remove('drag'); uploadMediaFiles(e.dataTransfer.files); return; } if(_mDrag){ e.preventDefault(); _postMediaOrder(); _mDrag=null; } });
+  card.addEventListener('dragend',function(){ _mDrag=null; });
+}
 </script>
 </body>
 </html>

@@ -111,6 +111,7 @@ input:focus{outline:none;border-color:var(--red);}
   <div class="card">
     <h2>Photos</h2>
     <div class="h">Dish, interior, exterior, signature items. A short caption on each helps the analyst place them.</div>
+    <div id="listingMediaNote" style="display:none;background:#eef7f1;border:1px solid #bfe3cd;color:#186a41;border-radius:8px;padding:9px 12px;font-size:12.5px;margin:2px 0 12px;line-height:1.5"></div>
     <div class="drop" onclick="document.getElementById('photoIn').click()">+ Click to add photos</div>
     <input type="file" id="photoIn" accept="image/*" multiple style="display:none" onchange="addPhotos(this.files)">
     <div id="photoList"></div>
@@ -153,6 +154,26 @@ function setStatus(msg){ var s=document.getElementById('status'); s.className='s
 
 // load the CIM header
 if(CIM_ID){ fetch('/api/cim/'+encodeURIComponent(CIM_ID),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.cim){ document.getElementById('hdr').textContent='Build Marketing Pack · '+(j.cim.business||''); } }).catch(function(){}); }
+
+// Pre-fill photos from the listing so the rep doesn't re-upload.
+function loadListingMedia(){
+  if(!CIM_ID) return;
+  fetch('/api/cim/'+encodeURIComponent(CIM_ID)+'/listing-media',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok) return;
+    var note=document.getElementById('listingMediaNote'); var bits=[];
+    if(Array.isArray(j.photos)&&j.photos.length&&!PHOTOS.length){
+      PHOTOS=j.photos.map(function(p){ return {dataB64:p.dataB64,type:p.type||'image/jpeg',caption:p.caption||''}; });
+      renderPhotos();
+      bits.push('Pulled <b>'+j.photos.length+' photo'+(j.photos.length===1?'':'s')+'</b> from the listing (cover first). Edit captions or remove any before building — or add more above.');
+    }
+    var extra=[];
+    if(j.videoUrl) extra.push('a video walkthrough');
+    if(j.matterportUrl) extra.push('a Matterport tour');
+    if(extra.length) bits.push('This listing also has '+extra.join(' and ')+' — '+(extra.length>1?'they live':'it lives')+' on the listing page for buyers, and stay'+(extra.length>1?'':'s')+' out of the printed pack.');
+    if(bits.length){ note.innerHTML=bits.join('<br>'); note.style.display='block'; }
+  }).catch(function(){});
+}
+loadListingMedia();
 
 // ---- build overlay + ambience + timer ----
 var AUDIO=null, AMB=null, AMB_VOL=0.085, AMB_SELECTED='analyst', T0=0, TIMER=null;

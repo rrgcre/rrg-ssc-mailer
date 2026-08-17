@@ -2574,6 +2574,34 @@ app.post('/api/generate-cim', express.json({ limit: '48mb' }), async (req, res) 
   }
 });
 
+// Pre-fill the CIM builder with the listing's photos — no re-uploading.
+app.get('/api/cim/:id/listing-media', (req, res) => {
+  const cim = loadCims().find(x => x.id === req.params.id);
+  if (!cim) return res.status(404).json({ ok: false, error: 'CIM not found.' });
+  if (!ownsCim(req, cim)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  let key = '';
+  try { const idx = assignmentsIndex(); for (const k in idx) { if (idx[k].cim && idx[k].cim.id === cim.id) { key = k; break; } } } catch (e) {}
+  if (!key) return res.json({ ok: true, photos: [], videoUrl: '', matterportUrl: '' });
+  const o = (loadAssignOverlay()[key]) || {};
+  const med = (o.media && typeof o.media === 'object') ? o.media : {};
+  let photos = Array.isArray(med.photos) ? med.photos.slice() : [];
+  // cover first, then by order
+  const coverId = med.coverPhotoId || (photos[0] && photos[0].id) || '';
+  photos.sort((a, b) => {
+    if (a.id === coverId) return -1; if (b.id === coverId) return 1;
+    return (a.ord || 0) - (b.ord || 0);
+  });
+  const safe = dealKeySafe(key);
+  const out = [];
+  photos.slice(0, 24).forEach(p => {
+    try {
+      const buf = fs.readFileSync(path.join(DEAL_PHOTO_DIR, safe, p.id + '.' + p.ext));
+      out.push({ dataB64: buf.toString('base64'), type: spaceFileMime(p.ext), caption: p.caption || '' });
+    } catch (e) {}
+  });
+  res.json({ ok: true, count: out.length, photos: out, videoUrl: med.videoUrl || '', matterportUrl: med.matterportUrl || '' });
+});
+
 // ================= Lease Abstracts =================
 function ownsLease(req, l) {
   if (req.user && isSuper(req.user)) return true;
