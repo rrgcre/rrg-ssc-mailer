@@ -265,6 +265,9 @@ async function searchLeadBodies(username, q, max) {
 }
 
 // Send a plain-text message via the Gmail API. Optionally thread a reply.
+// RFC 2047 encode a header value when it contains non-ASCII (em-dashes, accents, smart quotes),
+// so Subject lines don't arrive as mojibake. ASCII passes through untouched.
+function _mimeWord(v){ v = String(v == null ? '' : v); if (/^[\x00-\x7F]*$/.test(v)) return v; return '=?UTF-8?B?' + Buffer.from(v, 'utf8').toString('base64') + '?='; }
 async function sendMessage(username, opts) {
   const tok = loadToken(username);
   if (!tok || !tok.email) throw new Error('Gmail not connected.');
@@ -282,17 +285,17 @@ async function sendMessage(username, opts) {
   if (atts.length) {
     const mixed = 'rrgmx_' + crypto.randomBytes(9).toString('hex');
     const alt = 'rrgb_' + crypto.randomBytes(9).toString('hex');
-    const head = ['From: '+from, 'To: '+to, 'Subject: '+subject, 'MIME-Version: 1.0', 'Content-Type: multipart/mixed; boundary="'+mixed+'"'].concat(extra).join('\r\n');
+    const head = ['From: '+from, 'To: '+to, 'Subject: '+_mimeWord(subject), 'MIME-Version: 1.0', 'Content-Type: multipart/mixed; boundary="'+mixed+'"'].concat(extra).join('\r\n');
     let body = '--'+mixed+'\r\nContent-Type: multipart/alternative; boundary="'+alt+'"\r\n\r\n' + altPart(alt);
     atts.forEach(function(a){ const b64 = (Buffer.isBuffer(a.content) ? a.content : Buffer.from(String(a.content||''),'base64')).toString('base64').replace(/(.{76})/g,'$1\r\n'); const fn = String(a.filename).replace(/["\r\n]/g,''); body += '--'+mixed+'\r\nContent-Type: '+(a.contentType||'application/octet-stream')+'; name="'+fn+'"\r\nContent-Transfer-Encoding: base64\r\nContent-Disposition: attachment; filename="'+fn+'"\r\n\r\n'+b64+'\r\n'; });
     body += '--'+mixed+'--\r\n';
     raw = head + '\r\n\r\n' + body;
   } else if (opts.html) {
     const boundary = 'rrgb_' + crypto.randomBytes(9).toString('hex');
-    const head = ['From: '+from, 'To: '+to, 'Subject: '+subject, 'MIME-Version: 1.0', 'Content-Type: multipart/alternative; boundary="'+boundary+'"'].concat(extra).join('\r\n');
+    const head = ['From: '+from, 'To: '+to, 'Subject: '+_mimeWord(subject), 'MIME-Version: 1.0', 'Content-Type: multipart/alternative; boundary="'+boundary+'"'].concat(extra).join('\r\n');
     raw = head + '\r\n\r\n' + altPart(boundary);
   } else {
-    const head = ['From: '+from, 'To: '+to, 'Subject: '+subject, 'MIME-Version: 1.0', 'Content-Type: text/plain; charset="UTF-8"'].concat(extra).join('\r\n');
+    const head = ['From: '+from, 'To: '+to, 'Subject: '+_mimeWord(subject), 'MIME-Version: 1.0', 'Content-Type: text/plain; charset="UTF-8"'].concat(extra).join('\r\n');
     raw = head + '\r\n\r\n' + String(opts.body || '');
   }
   const encoded = Buffer.from(raw).toString('base64url');
