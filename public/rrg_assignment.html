@@ -340,7 +340,7 @@ function expensesCardDeal(){
     +'<div><div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:#8a93a8;font-weight:700">Unpaid</div><div style="font-size:19px;font-weight:800;color:#b7791f">'+expMoney(E.unpaid)+'</div></div>'
     +'<div><div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:#8a93a8;font-weight:700">Reimbursable open</div><div style="font-size:19px;font-weight:800;color:#1f8a5b">'+expMoney(E.reimbursable)+'</div></div>'
     +'</div>';
-  return '<div class="card" id="expCard"><div class="ch" style="display:flex"><b>Deal Expenses</b><span style="margin-left:12px">'+E.count+' logged</span><button class="addoffer" id="addExpBtn" style="margin-left:auto">+ Add expense</button></div>'
+  return '<div class="card" id="expCard"><div class="ch" style="display:flex"><b>Deal Expenses</b><span style="margin-left:12px">'+E.count+'</span><button class="addoffer" id="addExpBtn" style="margin-left:auto">+ Add expense</button></div>'
     +'<div class="cb" style="padding:8px 20px 16px"><div id="expForm" hidden></div>'+totals+rows+'</div></div>';
 }
 function openExpForm(){
@@ -818,7 +818,7 @@ function inquiriesCard(){
   var body;
   if(!INQUIRIES.length){ body='<div class="noev" style="padding:18px 20px">No buyer leads yet. Import them from BizBuySell (the \u2b07 Import leads button on the Listings page), or add one manually. Each lead is a tracked buyer inquiry you can move through the funnel.</div>'; }
   else { var sorted=INQUIRIES.slice().sort(function(a,b){ return String(b.createdAt||'').localeCompare(String(a.createdAt||'')); }); body='<div class="olist">'+sorted.map(inquiryHTML).join('')+'</div>'; }
-  return '<div class="card" id="inqCard"><div class="ch" style="display:flex"><b>Buyer Leads</b><span style="margin-left:12px">'+INQUIRIES.length+' logged</span><button class="addoffer" id="addInqBtn" style="margin-left:auto">+ Add lead</button></div><div class="cb offers"><div id="inqForm" hidden></div>'+body+'</div></div>';
+  return '<div class="card" id="inqCard"><div class="ch" style="display:flex"><b>Buyer Leads</b><span style="margin-left:12px">'+INQUIRIES.length+'</span><button class="addoffer" id="addInqBtn" style="margin-left:auto">+ Add lead</button></div><div class="cb offers"><div id="inqForm" hidden></div>'+body+'</div></div>';
 }
 function inquiryHTML(q){
   var ssel=INQ_STATUSES.map(function(x){return '<option'+((q.status||'New')===x?' selected':'')+'>'+esc(x)+'</option>';}).join('');
@@ -842,7 +842,7 @@ function offersCard(){
     body='<div class="olist">'+sorted.map(offerCardHTML).join('')+'</div>';
   }
   var addbtn='<button class="addoffer" id="addOfferBtn" style="margin-left:auto">+ Record offer</button>';
-  return '<div class="card" id="offersCard"><div class="ch" style="display:flex"><b>Offers — IOIs &amp; LOIs</b><span style="margin-left:12px">'+OFFERS.length+' logged</span>'+addbtn+'</div>'
+  return '<div class="card" id="offersCard"><div class="ch" style="display:flex"><b>Offers — IOIs &amp; LOIs</b><span style="margin-left:12px">'+OFFERS.length+'</span>'+addbtn+'</div>'
     + '<div class="cb offers"><div id="offerForm" hidden></div>'+body+'</div></div>';
 }
 function offerFormHTML(o){
@@ -959,7 +959,7 @@ function toursCard(){
     body='<div class="tlist">'+sorted.map(tourCardHTML).join('')+'</div>';
   }
   var addbtn='<button class="addoffer" id="addTourBtn" style="margin-left:auto">+ Log tour</button>';
-  return '<div class="card" id="toursCard"><div class="ch" style="display:flex"><b>Location Tours</b><span style="margin-left:12px">'+TOURS.length+' logged</span>'+addbtn+'</div>'
+  return '<div class="card" id="toursCard"><div class="ch" style="display:flex"><b>Location Tours</b><span style="margin-left:12px">'+TOURS.length+'</span>'+addbtn+'</div>'
     + '<div class="cb tours"><div id="tourForm" hidden></div>'+body+'</div></div>';
 }
 function tourFormHTML(t){
@@ -1034,7 +1034,7 @@ function ndasCard(){
   var body;
   if(!NDAS.length){ body='<div class="noev" style="padding:18px 20px">No NDAs logged yet. Record each signed NDA as it comes back — who signed, when, and how — so you know exactly who’s cleared to see the CIM and enter the data room.</div>'; }
   else { var sorted=NDAS.slice().sort(function(a,b){ return String(b.date||'').localeCompare(String(a.date||'')); }); body='<div class="tlist">'+sorted.map(ndaCardHTML).join('')+'</div>'; }
-  return '<div class="card" id="ndasSec"><div class="ch" style="display:flex"><b>NDAs</b><span style="margin-left:12px">'+NDAS.length+' logged</span><button class="addoffer" id="addNdaBtn" style="margin-left:auto">+ Log NDA</button></div>'
+  return '<div class="card" id="ndasSec"><div class="ch" style="display:flex"><b>NDAs</b><span style="margin-left:12px">'+NDAS.length+'</span><button class="addoffer" id="addNdaBtn" style="margin-left:auto">+ Log NDA</button></div>'
     +'<div class="cb ndas"><div id="ndaForm" hidden></div>'+body+'</div></div>';
 }
 function ndaFormHTML(n){
@@ -1176,7 +1176,7 @@ function activityCardListing(){
   var types=(LISTACTTYPES&&LISTACTTYPES.length)?LISTACTTYPES:['Note','Call','Email','Text','Meeting','LOI Received','Agreement Sent','To-Do'];
   var topts=types.map(function(t){return '<option>'+esc(t)+'</option>';}).join('');
   var body=(LISTACTS===null)?'<div class="noev" style="padding:14px 0;color:#8a94a6">Loading\u2026</div>':renderListActsHTML();
-  return '<div class="card"><div class="ch" style="display:flex"><b>Activity</b><span style="margin-left:10px">'+(LISTACTS?LISTACTS.length:0)+' logged</span><a class="slink ghost" href="./rrg_person.html?id='+encodeURIComponent(A.clientPersonId)+'" style="margin-left:auto">Open contact &rarr;</a></div>'
+  return '<div class="card"><div class="ch" style="display:flex"><b>Activity</b><span style="margin-left:10px">'+(LISTACTS?LISTACTS.length:0)+'</span><a class="slink ghost" href="./rrg_person.html?id='+encodeURIComponent(A.clientPersonId)+'" style="margin-left:auto">Open contact &rarr;</a></div>'
     +'<div class="cb">'
     +'<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">'
       +'<select id="la_type" style="padding:8px 9px;border:1px solid #cfd6e2;border-radius:6px;font:inherit;font-size:12.5px;flex:none">'+topts+'</select>'
