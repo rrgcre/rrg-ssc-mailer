@@ -191,7 +191,7 @@ function render(){
       { label:'Assignee', defaultHidden:true, sort:function(a,b){return RRGList.cmp(a.assigneeName,b.assigneeName);}, cell:function(t){ return t.assigneeName?esc(t.assigneeName):'<span class="meta">—</span>'; } },
       { label:'', align:'right', sortable:false, cell:function(t){ return '<button class="tbtn" data-edit="'+esc(t.id)+'">Edit</button>'+((ISADMIN||t.createdBy===ME)?(' <button class="tbtn delx" data-del="'+esc(t.id)+'" title="Delete" aria-label="Delete">✕</button>'):''); } }
     ],
-    bulk:[ { label:'Delete selected', danger:true, fn:function(ids,done){ bulkDelTasks(ids,done); } } ]
+    bulk:[ { label:'✓ Mark complete', fn:function(ids,done){ bulkCompleteTasks(ids,done); } }, { label:'Delete selected', danger:true, fn:function(ids,done){ bulkDelTasks(ids,done); } } ]
   };
   if(TCTL) TCTL.refresh(list); else TCTL=RRGList.create(cfg);
 }
@@ -243,6 +243,7 @@ function startEdit(id){
 }
 function toggle(id){ fetch('/api/tasks/'+encodeURIComponent(id)+'/toggle',{method:'POST',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ var t=TASKS.filter(function(x){return x.id===id;})[0]; if(t){t.status=j.task.status;t.doneAt=j.task.doneAt;} if(j.spawned){ if(window.rrgToast) rrgToast('Repeated — next one added for '+fmtD(j.spawned.due)); load(); } else { render(); } } }); }
 async function del(id){ if(!await rrgConfirm('Delete this task?')) return; fetch('/api/tasks/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ TASKS=TASKS.filter(function(x){return x.id!==id;}); render(); } else alert((j&&j.error)||'Could not delete.'); }); }
+function bulkCompleteTasks(ids,done){ if(!ids||!ids.length){ if(done)done(); return; } var n=0, okc=0; ids.forEach(function(id){ fetch('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:id,status:'done'})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok) okc++; }).catch(function(){}).then(function(){ if(++n===ids.length){ if(done)done(); if(window.rrgToast) rrgToast('Marked '+okc+' task'+(okc===1?'':'s')+' complete'); load(); } }); }); }
 async function bulkDelTasks(ids,done){
   if(!ids||!ids.length) return;
   if(!await rrgConfirm('Delete '+ids.length+' task'+(ids.length>1?'s':'')+'? This cannot be undone.')) return;
