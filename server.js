@@ -10542,7 +10542,7 @@ app.post('/api/company/:id/contact', express.json(), (req, res) => {
   // If the company has no primary contact yet, make this newly-added contact the primary.
   if (p) { try { const _cos = loadCompanies(); const _c = _cos.find(x => x.id === c.id); if (_c && !String(_c.mainContactId || '').trim()) { _c.mainContactId = p.id; _c.updatedAt = new Date().toISOString(); saveCompanies(_cos); } } catch (e) {} }
   const contacts = loadPeople().filter(x => x.companyId === c.id).map(companyContactRow);
-  res.json({ ok: true, contacts });
+  res.json({ ok: true, contacts, personId: p ? p.id : '' });
 });
 // Remove a contact's association from a company (does not delete the person).
 app.post('/api/company/:id/contact/:personId/remove', (req, res) => {
@@ -11720,7 +11720,9 @@ function loadTasks() { try { return rj(TASKS_FILE) || []; } catch (e) { return [
 function saveTasks(a) { return writeJsonGuarded(TASKS_FILE, a, 'saveTasks'); }
 function newTaskId() { return 'tsk_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 const TASK_PRIORITIES = ['Low', 'Normal', 'High'];
-const TASK_REPEATS = ['daily', 'weekly', 'biweekly', 'monthly', 'quarterly', 'yearly'];
+const TASK_REPEATS = ['daily', 'weekly', 'biweekly', 'monthly', 'monthly_last', 'quarterly', 'yearly'];
+// Snap a due value to the LAST day of its own month (used by the 'monthly_last' repeat).
+function _taskEomSnap(due){ if(!due) return due; const hasTime=String(due).length>10; const dp=String(due).slice(0,10); const tp=hasTime?String(due).slice(10):''; const d=new Date(dp+'T00:00:00'); if(isNaN(d.getTime())) return due; d.setMonth(d.getMonth()+1,0); const p2=n=>String(n).padStart(2,'0'); return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate())+(hasTime?tp:''); }
 // Roll a due value ('YYYY-MM-DD' or 'YYYY-MM-DDTHH:MM') forward by one repeat interval.
 function _taskAdvanceDue(due, repeat) {
   if (!due) return '';
@@ -11731,6 +11733,7 @@ function _taskAdvanceDue(due, repeat) {
     case 'weekly': d.setDate(d.getDate() + 7); break;
     case 'biweekly': d.setDate(d.getDate() + 14); break;
     case 'monthly': d.setMonth(d.getMonth() + 1); break;
+    case 'monthly_last': d.setMonth(d.getMonth() + 2, 0); break;
     case 'quarterly': d.setMonth(d.getMonth() + 3); break;
     case 'yearly': d.setFullYear(d.getFullYear() + 1); break;
     default: return '';
@@ -11754,6 +11757,32 @@ function _taskSpawnRecurrence(t, all, now) {
   all.push(nt);
   return nt;
 }
+// Calendar-driven recurrence: once a repeating task's due date passes, open its next
+// occurrence automatically — whether or not the current one was completed — so a monthly
+// (or any) recurring task keeps appearing on schedule. Each occurrence spawns exactly one
+// successor (completing it early can spawn it too; whichever fires first wins, no dupes).
+function taskRecurTick() {
+  try {
+    const all = loadTasks(); let changed = false; const now = new Date().toISOString(); const nowMs = Date.now();
+    let guard = 0;
+    while (guard++ < 600) {
+      const hasNext = {}; all.forEach(x => { if (x.prevTaskId) hasNext[x.prevTaskId] = true; });
+      const t = all.find(x => {
+        if (!x.repeat || TASK_REPEATS.indexOf(x.repeat) < 0) return false;
+        if (hasNext[x.id] || !x.due) return false;
+        const ms = new Date(String(x.due).length > 10 ? x.due : (x.due + 'T23:59')).getTime();
+        return !isNaN(ms) && ms <= nowMs;
+      });
+      if (!t) break;
+      const nt = _taskSpawnRecurrence(t, all, now);
+      if (!nt) break;
+      changed = true;
+    }
+    if (changed) saveTasks(all);
+  } catch (e) { console.error('taskRecurTick:', e && e.message); }
+}
+setInterval(function () { taskRecurTick(); }, 15 * 60 * 1000);
+setTimeout(function () { taskRecurTick(); }, 25000);
 function taskVisible(t, req) {
   if (req.user && isSuper(req.user)) return true;
   const u = req.user && req.user.username;
@@ -12915,6 +12944,7 @@ app.post('/api/tasks', express.json(), (req, res) => {
   if (typeof b.linkLabel === 'string') t.linkLabel = b.linkLabel.slice(0, 200);
   if (b.linkType === '') { t.linkId = ''; t.linkLabel = ''; }
   if (typeof b.repeat === 'string') t.repeat = TASK_REPEATS.indexOf(b.repeat) >= 0 ? b.repeat : '';
+  if (t.repeat === 'monthly_last' && t.due) t.due = _taskEomSnap(t.due);
   if (typeof b.reminder === 'string') { t.reminder = b.reminder.slice(0, 16); t.remSent = false; }
   if (Array.isArray(b.remChannels)) t.remChannels = b.remChannels.filter(x => ['popup', 'email', 'sms'].indexOf(x) >= 0);
   if (!Array.isArray(t.remChannels) || !t.remChannels.length) t.remChannels = taskChannels(t);
@@ -12957,7 +12987,7 @@ app.post('/api/tasks/:id/toggle', (req, res) => {
   const now = new Date().toISOString();
   t.status = t.status === 'done' ? 'open' : 'done'; t.doneAt = t.status === 'done' ? now : ''; t.updatedAt = now;
   let spawned = null;
-  if (t.status === 'done') { try { spawned = _taskSpawnRecurrence(t, all, now); } catch (e) {} }
+  if (t.status === 'done' && !all.some(x => x.prevTaskId === t.id)) { try { spawned = _taskSpawnRecurrence(t, all, now); } catch (e) {} }
   saveTasks(all); res.json({ ok: true, task: t, spawned: spawned ? { id: spawned.id, due: spawned.due } : null });
 });
 app.delete('/api/tasks/:id', (req, res) => {
