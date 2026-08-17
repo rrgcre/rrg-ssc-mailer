@@ -514,6 +514,21 @@ function setupDealRail(){
   ord.forEach(function(k){ var c=rail.querySelector('.card[data-rk="'+String(k).replace(/["\\]/g,'')+'"]'); if(c&&c.parentNode===rail) rail.appendChild(c); });
   _drChildren(rail).forEach(function(c){ var h=c.querySelector('.ch'); if(h&&!h._drwired){ h._drwired=true; h.style.cursor='grab'; h.style.touchAction='none'; h.title='Drag to reorder \u2014 click \u25be to collapse'; h.addEventListener('pointerdown',_drDown); } if(h&&!h._drcol){ h._drcol=true; var key=_drKey(c); var chev=document.createElement('button'); chev.type='button'; chev.className='rchev'; chev.setAttribute('aria-label','Collapse or expand'); chev.innerHTML='\u25be'; h.insertBefore(chev,h.firstChild); var grip=document.createElement('span'); grip.className='rgrip'; grip.setAttribute('aria-hidden','true'); grip.textContent='\u283f'; h.insertBefore(grip,chev); var col={}; try{col=JSON.parse(localStorage.getItem('rrgDealRailCollapsed')||'{}');}catch(e){} if(key&&col[key]) c.classList.add('railcollapsed'); chev.addEventListener('click',function(ev){ ev.stopPropagation(); ev.preventDefault(); c.classList.toggle('railcollapsed'); var st={}; try{st=JSON.parse(localStorage.getItem('rrgDealRailCollapsed')||'{}');}catch(e){} st[key]=c.classList.contains('railcollapsed'); try{localStorage.setItem('rrgDealRailCollapsed',JSON.stringify(st));}catch(e){} }); } });
 }
+function deliverablesBar(){
+  var bov=(A.stages&&A.stages.bov&&A.stages.bov.id)||(A.financials&&A.financials.bovId)||'';
+  var cim=(A.stages&&A.stages.pack&&A.stages.pack.id)||'';
+  var room=A.roomId||(A.stages&&A.stages.room&&A.stages.room.id)||'';
+  var base='display:inline-flex;align-items:center;gap:8px;padding:11px 16px;border-radius:10px;font:inherit;font-size:13px;font-weight:700;text-decoration:none;border:1px solid #d3ddf3;';
+  function btn(has,href,label,icon,hint){
+    if(has) return '<a href="'+href+'" style="'+base+'background:#fff;color:#23496f;box-shadow:0 1px 2px rgba(10,20,50,.05)" title="Open '+esc(label)+'"><span style="font-size:15px">'+icon+'</span>'+esc(label)+' <span style="color:#8aa0c4">→</span></a>';
+    return '<span style="'+base+'background:#f5f7fb;color:#7d879b;cursor:default;opacity:.85" title="'+esc(hint)+'"><span style="font-size:15px;filter:grayscale(1);opacity:.6">'+icon+'</span>'+esc(label)+' <span style="font-weight:500;color:#9aa4b6;font-size:11.5px">— not created yet</span></span>';
+  }
+  return '<div style="grid-column:1 / -1;display:flex;gap:10px;flex-wrap:wrap;margin:2px 0 2px">'
+    +btn(bov,'./rrg_bov_builder.html?bov='+encodeURIComponent(bov),'Valuation (BOV)','📊','Build the BOV from the Seller Interview in the pipeline below.')
+    +btn(cim,'./rrg_cim_builder.html?cim='+encodeURIComponent(cim),'Marketing Pack','📄','Advance the listing through the pipeline to create a Marketing Pack.')
+    +btn(room,'./rrg_room.html?room='+encodeURIComponent(room),'Data Room','🗄️','A data room is created automatically when you start the listing.')
+    +'</div>';
+}
 function kpiRow(){
   var views=0; try{ if(typeof RA!=='undefined'&&RA&&Array.isArray(RA.people)) views=RA.people.reduce(function(s,p){return s+(+p.views||0);},0); }catch(e){}
   var gci=0; try{ (AGR||[]).forEach(function(a){ gci+=(+a.projectedGci||0); }); }catch(e){}
@@ -572,6 +587,7 @@ function render(){
   document.getElementById('root').className='wrap';
   document.getElementById('root').innerHTML=
     '<div class="kpirow">'+kpiRow()+'</div>'
+    + deliverablesBar()
     + '<div class="mgcol">'
     + '<div class="card"><div class="ch"><b>Manage</b></div><div class="cb" style="padding-top:14px">'
       + (A.canStart?('<button class="startdeal" id="startDealBtn">Start the listing →</button><div class="startnote">Opens a Seller Qualification Call and drops this listing into the pipeline.</div>'):'')
