@@ -19,7 +19,7 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .subline{color:#aeb8cf;font-size:13px;margin-top:7px;display:flex;gap:14px;flex-wrap:wrap;}
 .subline b{color:#fff;font-weight:700;}
 .hpill{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:4px 11px;border-radius:999px;border:1px solid rgba(255,255,255,.3);color:#fff;background:rgba(255,255,255,.08);margin-top:14px;}
-.wrap{max-width:1440px;margin:22px auto;padding:0 24px 70px;display:grid;grid-template-columns:1fr 372px;gap:20px;align-items:start;}
+.wrap{max-width:1500px;margin:22px auto;padding:0 24px 70px;display:grid;grid-template-columns:330px minmax(0,1fr) 372px;gap:18px;align-items:start;}
 .main,.side{min-width:0;}
 .main *{max-width:100%;} .main table{display:block;overflow-x:auto;}
 @media(max-width:840px){.wrap{grid-template-columns:1fr;}}
@@ -188,6 +188,12 @@ textarea{min-height:120px;resize:vertical;line-height:1.5;}
 .drail .card.railcollapsed .ch .rchev{transform:rotate(-90deg);}
 .drail .card .ch .rgrip{color:#c4ccda;font-size:12px;padding-right:2px;flex:none;cursor:grab;}
 .drail .card.railcollapsed > *:not(.ch){display:none;}
+</style>
+<style>
+.mgcol{min-width:0;}
+.mgcol>.card{margin-bottom:16px;}
+@media(max-width:1220px){.wrap{grid-template-columns:320px minmax(0,1fr);}.drail{grid-column:1 / -1;}}
+@media(max-width:840px){.wrap{grid-template-columns:1fr;}.mgcol,.drail{grid-column:auto;}}
 </style>
 </head>
 <body>
@@ -563,16 +569,7 @@ function render(){
   document.getElementById('root').className='wrap';
   document.getElementById('root').innerHTML=
     '<div class="kpirow">'+kpiRow()+'</div>'
-    + '<div class="main">'
-    + '<div class="card"><div class="ch"><b>Listing facts</b><span>'+done+' of '+ST.length+' stages complete</span></div><div class="cb">'+facts+'</div></div>'
-    + '<div class="card"><div class="ch"><b>Pipeline</b>'+(pipeName?('<span style="margin-left:8px;color:var(--navy);font-weight:700;font-size:11.5px;background:#eef2fb;border:1px solid #d3ddf3;border-radius:999px;padding:2px 10px">'+esc(pipeName)+'</span>'):'')+'<span>'+started+' of '+ST.length+' started</span></div><div class="track"><div class="hpipe">'+steps+'</div></div></div>'
-    + mktCardShell()
-    + dealCard()
-    + agreementsCardDeal()
-    + invoicesCardDeal()
-    + roomActivityCard()
-    + tasksCardListing()
-    + activityCardListing()
+    + '<div class="mgcol">'
     + '<div class="card"><div class="ch"><b>Manage</b></div><div class="cb" style="padding-top:14px">'
       + (A.canStart?('<button class="startdeal" id="startDealBtn">Start the listing →</button><div class="startnote">Opens a Seller Qualification Call and drops this listing into the pipeline.</div>'):'')
       + (A.provisional?('<button class="startdeal" id="promoteBtn" style="background:#1f8a5b;border-color:#1f8a5b">Promote to Live listing →</button><div class="startnote">Marks this listing Live. Do this once financials are verified, value is aligned, and the agreement is signed.</div>'):'')
@@ -607,6 +604,18 @@ function render(){
       + '<div class="saved" id="saved">Saved ✓</div>'
       + (A.dealId?('<div class="dangerzone"><button class="deldeal" id="delDealBtn">Delete listing</button><div class="startnote">Removes the listing, its records, data room, and all files. Cannot be undone.</div></div>'):'')
     + '</div></div>'
+    + '</div>'
+    + '<div class="main">'
+    + '<div class="card"><div class="ch"><b>Listing facts</b><span>'+done+' of '+ST.length+' stages complete</span></div><div class="cb">'+facts+'</div></div>'
+    + '<div class="card"><div class="ch"><b>Pipeline</b>'+(pipeName?('<span style="margin-left:8px;color:var(--navy);font-weight:700;font-size:11.5px;background:#eef2fb;border:1px solid #d3ddf3;border-radius:999px;padding:2px 10px">'+esc(pipeName)+'</span>'):'')+'<span>'+started+' of '+ST.length+' started</span></div><div class="track"><div class="hpipe">'+steps+'</div></div></div>'
+    + mktCardShell()
+    + dealCard()
+    + agreementsCardDeal()
+    + invoicesCardDeal()
+    + roomActivityCard()
+    + tasksCardListing()
+    + activityCardListing()
+
     + '</div>'
     + '<div class="drail">'
     + inquiriesCard()
