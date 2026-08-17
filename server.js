@@ -85,7 +85,7 @@ function rj(file) {
 // existing files up and restores anything the disk is missing. Inert (disk-only,
 // exactly as before) until S3_BUCKET + AWS keys are set.
 const blobstore = require('./blobstore');
-const BINARY_PREFIXES = ['agreedocs/', 'agreetemplates/', 'documents/', 'userdocs/', 'rooms/', 'spacefiles/', 'personphotos/', 'locphotos/', 'userphotos/', 'centerphotos/', 'companylogos/', 'cptlogos/', 'cologos/', 'apptfiles/', 'brand_logo', 'brand_favicon'];
+const BINARY_PREFIXES = ['agreedocs/', 'agreetemplates/', 'documents/', 'userdocs/', 'rooms/', 'spacefiles/', 'personphotos/', 'locphotos/', 'userphotos/', 'centerphotos/', 'dealphotos/', 'companylogos/', 'cptlogos/', 'cologos/', 'apptfiles/', 'brand_logo', 'brand_favicon'];
 (function () { try { const on = blobstore.init(BOV_DATA_DIR, BINARY_PREFIXES); console.log(on ? '[BLOB] Object storage active — binary assets mirrored to the bucket.' : '[BLOB] Object storage not configured — binaries on disk only (set S3_BUCKET + AWS keys to enable).'); } catch (e) { console.error('[BLOB] init error: ' + (e && e.message)); } })();
 // Disk-first write/delete that also mirror to object storage. Drop-in for the
 // binary fs.writeFileSync / fs.unlinkSync call sites.
@@ -197,6 +197,7 @@ function saveSpaces(a) { return writeJsonGuarded(SPACES_FILE, a, 'saveSpaces'); 
 function newSpaceId() { return 'spc_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 const CENTERS_FILE = path.join(BOV_DATA_DIR, 'centers.json');
 const CENTER_PHOTO_DIR = path.join(BOV_DATA_DIR, 'centerphotos');
+const DEAL_PHOTO_DIR = path.join(BOV_DATA_DIR, 'dealphotos');
 function loadCenters() { try { return rj(CENTERS_FILE); } catch (e) { return []; } }
 function saveCenters(a) { return writeJsonGuarded(CENTERS_FILE, a, 'saveCenters'); }
 function newCenterId() { return 'ctr_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
@@ -4872,6 +4873,38 @@ function assignmentsIndex() {
   return deals;
 }
 function _cleanCriteria(c){ c=c||{}; var S=function(v,n){return String(v==null?'':v).slice(0,n);}; return { markets:S(c.markets,400), useType:S(c.useType,120), sizeMin:S(c.sizeMin,20), sizeMax:S(c.sizeMax,20), budget:S(c.budget,80), termYears:S(c.termYears,20), timeline:S(c.timeline,120), parking:S(c.parking,80), features:S(c.features,1000), notes:S(c.notes,4000) }; }
+// ---- Listing media: photos (disk) + video/Matterport embed URLs, stored on the listing overlay ----
+function dealKeySafe(k){ return String(k||'').replace(/[^A-Za-z0-9_]/g,'_').slice(0,80); }
+function newPhotoId(){ return 'ph_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function videoEmbedUrl(u){
+  u = String(u||'').trim(); if(!u) return '';
+  var m;
+  if((m = u.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([A-Za-z0-9_-]{6,})/))) return 'https://www.youtube.com/embed/' + m[1];
+  if((m = u.match(/vimeo\.com\/(?:video\/)?(\d+)/))) return 'https://player.vimeo.com/video/' + m[1];
+  if((m = u.match(/loom\.com\/share\/([A-Za-z0-9]+)/))) return 'https://www.loom.com/embed/' + m[1];
+  return u; // fall back to the raw URL (e.g. a hosted .mp4)
+}
+function matterportEmbedUrl(u){
+  u = String(u||'').trim(); if(!u) return '';
+  var m = u.match(/matterport\.com\/show\/\?m=([A-Za-z0-9]+)/);
+  if(m) return 'https://my.matterport.com/show/?m=' + m[1] + '&play=1';
+  return u;
+}
+function dealMediaView(o){
+  o = o || {};
+  var med = (o.media && typeof o.media === 'object') ? o.media : {};
+  var key = dealKeySafe(o._key || '');
+  var photos = (Array.isArray(med.photos) ? med.photos : []).slice().sort(function(a,b){ return (a.ord||0)-(b.ord||0); }).map(function(p){
+    return { id: p.id, ext: p.ext, caption: p.caption || '', ord: p.ord || 0,
+             url: '/api/dealphoto/' + key + '/' + p.id + '.' + p.ext + (p.at ? ('?v=' + encodeURIComponent(p.at)) : '') };
+  });
+  var cover = med.coverPhotoId && photos.some(function(p){ return p.id === med.coverPhotoId; }) ? med.coverPhotoId : (photos[0] ? photos[0].id : '');
+  return {
+    photos: photos, coverPhotoId: cover, count: photos.length,
+    videoUrl: med.videoUrl || '', videoEmbed: videoEmbedUrl(med.videoUrl || ''),
+    matterportUrl: med.matterportUrl || '', matterportEmbed: matterportEmbedUrl(med.matterportUrl || '')
+  };
+}
 function assignmentView(d, overlay) {
   const o = overlay[d.key] || {};
   const deal = d.deal || null;
@@ -4915,6 +4948,7 @@ function assignmentView(d, overlay) {
     // the latest generated valuation, which itself now reflects the Seller Interview.
     financials: bov ? { valueTarget: bov.targetText || '', valueRange: bov.rangeText || '', revenue: bov.revText || bovRevenueText(bov) || '', sde: bov.sdeText || '', multiple: bov.multText || '', ebitda: bov.ebitdaText || '', basis: bov.basis || '', units: bovUnits(bov), bovId: bov.id, state: bov.finalizedAt ? 'final' : (bov.aiGenerated ? 'built' : 'requested') } : null,
     units: bovUnits(bov) || (deal && deal.units) || '',
+    media: dealMediaView(Object.assign({}, o, { _key: d.key })),
     stages, lastActivity, createdAt: created,
   };
 }
@@ -5560,6 +5594,111 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   overlay[d.key] = cur; saveAssignOverlay(overlay);
   res.json({ ok: true });
 });
+// ===== Listing media: photos, video, Matterport =====
+function _assignForMedia(req, res){
+  const deals = assignmentsIndex();
+  const d = deals[req.params.key];
+  if (!d) { res.status(404).json({ ok: false, error: 'Listing not found.' }); return null; }
+  if (!ownsAssignment(req, d)) { res.status(403).json({ ok: false, error: 'Not yours.' }); return null; }
+  return d;
+}
+function _dealMediaOut(key){ const ov = loadAssignOverlay(); const o = Object.assign({}, ov[key] || {}, { _key: key }); return dealMediaView(o); }
+
+// Upload one or more photos to a listing
+app.post('/api/assignment/:key/photos', express.json({ limit: '40mb' }), (req, res) => {
+  const d = _assignForMedia(req, res); if (!d) return;
+  const b = req.body || {};
+  let files = Array.isArray(b.files) ? b.files : (b.dataB64 ? [{ filename: b.filename, dataB64: b.dataB64 }] : []);
+  files = files.slice(0, 24);
+  if (!files.length) return res.status(400).json({ ok: false, error: 'No image data.' });
+  const safe = dealKeySafe(d.key);
+  const dir = path.join(DEAL_PHOTO_DIR, safe);
+  const overlay = loadAssignOverlay();
+  const cur = overlay[d.key] || {};
+  const med = (cur.media && typeof cur.media === 'object') ? cur.media : {};
+  const photos = Array.isArray(med.photos) ? med.photos : [];
+  let ord = photos.reduce((m, p) => Math.max(m, p.ord || 0), 0);
+  const now = new Date().toISOString();
+  try { if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }); } catch (e) { return res.status(500).json({ ok: false, error: 'Could not prepare storage.' }); }
+  let added = 0;
+  for (const fobj of files) {
+    const data = String((fobj && fobj.dataB64) || '').replace(/^data:[^,]*,/, '');
+    if (!data) continue;
+    const ext = ((String((fobj && fobj.filename) || '').match(/\.(png|jpe?g|gif|webp)$/i) || [])[1] || 'jpg').toLowerCase().replace('jpeg', 'jpg');
+    const buf = Buffer.from(data, 'base64');
+    if (!buf.length || buf.length > 15 * 1024 * 1024) continue;
+    const id = newPhotoId();
+    try { binWrite(path.join(dir, id + '.' + ext), buf); } catch (e) { continue; }
+    ord += 1;
+    photos.push({ id: id, ext: ext, caption: String((fobj && fobj.caption) || '').slice(0, 300), ord: ord, at: now });
+    added += 1;
+  }
+  if (!added) return res.status(400).json({ ok: false, error: 'No valid images (JPG, PNG, GIF or WebP, up to 15 MB each).' });
+  med.photos = photos;
+  if (!med.coverPhotoId) med.coverPhotoId = photos[0].id;
+  cur.media = med; cur.updatedAt = now; overlay[d.key] = cur; saveAssignOverlay(overlay);
+  res.json({ ok: true, added: added, media: _dealMediaOut(d.key) });
+});
+
+// Serve a listing photo (auth-gated, same-origin cookie)
+app.get('/api/dealphoto/:key/:file', (req, res) => {
+  const safe = dealKeySafe(req.params.key);
+  const file = String(req.params.file || '').replace(/[^A-Za-z0-9_.]/g, '');
+  const m = file.match(/^(ph_[A-Za-z0-9]+)\.(png|jpg|gif|webp)$/i);
+  if (!m) return res.status(404).end();
+  try { const buf = fs.readFileSync(path.join(DEAL_PHOTO_DIR, safe, file)); res.set('Content-Type', spaceFileMime(m[2])); res.set('Cache-Control', 'private, max-age=300'); res.send(buf); }
+  catch (e) { res.status(404).end(); }
+});
+
+// Reorder photos and/or set the cover
+app.post('/api/assignment/:key/photos/order', express.json(), (req, res) => {
+  const d = _assignForMedia(req, res); if (!d) return;
+  const b = req.body || {};
+  const overlay = loadAssignOverlay(); const cur = overlay[d.key] || {}; const med = (cur.media && typeof cur.media === 'object') ? cur.media : {};
+  const photos = Array.isArray(med.photos) ? med.photos : [];
+  if (Array.isArray(b.order)) { const pos = {}; b.order.forEach((id, i) => { pos[id] = i + 1; }); photos.forEach(p => { if (pos[p.id]) p.ord = pos[p.id]; }); }
+  if (typeof b.coverPhotoId === 'string' && photos.some(p => p.id === b.coverPhotoId)) med.coverPhotoId = b.coverPhotoId;
+  med.photos = photos; cur.media = med; cur.updatedAt = new Date().toISOString(); overlay[d.key] = cur; saveAssignOverlay(overlay);
+  res.json({ ok: true, media: _dealMediaOut(d.key) });
+});
+
+// Caption a single photo
+app.post('/api/assignment/:key/photo/:pid', express.json(), (req, res) => {
+  const d = _assignForMedia(req, res); if (!d) return;
+  const overlay = loadAssignOverlay(); const cur = overlay[d.key] || {}; const med = (cur.media && typeof cur.media === 'object') ? cur.media : {};
+  const photos = Array.isArray(med.photos) ? med.photos : [];
+  const p = photos.find(x => x.id === req.params.pid);
+  if (!p) return res.status(404).json({ ok: false, error: 'Photo not found.' });
+  if (typeof (req.body || {}).caption === 'string') p.caption = req.body.caption.slice(0, 300);
+  cur.media = med; cur.updatedAt = new Date().toISOString(); overlay[d.key] = cur; saveAssignOverlay(overlay);
+  res.json({ ok: true, media: _dealMediaOut(d.key) });
+});
+
+// Delete a photo
+app.delete('/api/assignment/:key/photo/:pid', (req, res) => {
+  const d = _assignForMedia(req, res); if (!d) return;
+  const overlay = loadAssignOverlay(); const cur = overlay[d.key] || {}; const med = (cur.media && typeof cur.media === 'object') ? cur.media : {};
+  let photos = Array.isArray(med.photos) ? med.photos : [];
+  const p = photos.find(x => x.id === req.params.pid);
+  if (p) { try { binDel(path.join(DEAL_PHOTO_DIR, dealKeySafe(d.key), p.id + '.' + p.ext)); } catch (e) {} }
+  photos = photos.filter(x => x.id !== req.params.pid);
+  med.photos = photos;
+  if (med.coverPhotoId === req.params.pid) med.coverPhotoId = photos[0] ? photos[0].id : '';
+  cur.media = med; cur.updatedAt = new Date().toISOString(); overlay[d.key] = cur; saveAssignOverlay(overlay);
+  res.json({ ok: true, media: _dealMediaOut(d.key) });
+});
+
+// Set the video and Matterport links
+app.post('/api/assignment/:key/media', express.json(), (req, res) => {
+  const d = _assignForMedia(req, res); if (!d) return;
+  const b = req.body || {};
+  const overlay = loadAssignOverlay(); const cur = overlay[d.key] || {}; const med = (cur.media && typeof cur.media === 'object') ? cur.media : {};
+  if (typeof b.videoUrl === 'string') med.videoUrl = b.videoUrl.trim().slice(0, 500);
+  if (typeof b.matterportUrl === 'string') med.matterportUrl = b.matterportUrl.trim().slice(0, 500);
+  cur.media = med; cur.updatedAt = new Date().toISOString(); overlay[d.key] = cur; saveAssignOverlay(overlay);
+  res.json({ ok: true, media: _dealMediaOut(d.key) });
+});
+
 app.get('/api/deals', (req, res) => {
   const idx = assignmentsIndex(), overlay = loadAssignOverlay();
   const isAdmin = isSuper(req.user);
