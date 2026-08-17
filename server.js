@@ -6067,7 +6067,7 @@ function personPrimaryListing(p) {
       if (!num && o) num = o.bbsNumber || o.listingNumber || '';
       if (num) sc += 1;
       if (d.fromBizBuySell) sc += 0.5;
-      if (sc > bestScore) { bestScore = sc; best = { name: d.business || d.name || '', number: String(num || ''), codeName: (o && o.codeName) || d.codeName || '', value: d.value || d.price || '' }; }
+      if (sc > bestScore) { bestScore = sc; best = { name: d.business || d.name || '', number: String(num || ''), codeName: (o && o.codeName) || d.codeName || '', value: d.value || d.price || '', roomId: d.roomId || (o && o.roomId) || '' }; }
     }
     return best;
   } catch (e) { return null; }
@@ -6081,7 +6081,7 @@ function mergeTokens(t, p, user) {
   let today = ''; try { today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }); } catch (e) {}
   let _lst = null, _lstDone = false;
   function _listing() { if (!_lstDone) { _lstDone = true; try { _lst = (p && (p._listing || null)) || personPrimaryListing(p); } catch (e) { _lst = null; } } return _lst || { name: '', number: '' }; }
-  return String(t || '').replace(/\{\{\s*(first_name|firstname|last_name|lastname|name|company|title|email|phone|my_name|my_title|my_phone|my_email|brokerage|brokerage_legal|today|listing_name|listing_number|listing_no|listing|code_name|codename|asking_price|price)\s*\}\}/gi, function (_, k) {
+  return String(t || '').replace(/\{\{\s*(first_name|firstname|last_name|lastname|name|company|title|email|phone|my_name|my_title|my_phone|my_email|brokerage|brokerage_legal|today|listing_name|listing_number|listing_no|listing|code_name|codename|asking_price|price|data_room_link|dataroom_link|room_link|booking_link|book_link)\s*\}\}/gi, function (_, k) {
     k = k.toLowerCase();
     if (k === 'first_name' || k === 'firstname') return first;
     if (k === 'last_name' || k === 'lastname') return last;
@@ -6100,6 +6100,8 @@ function mergeTokens(t, p, user) {
     if (k === 'listing_number' || k === 'listing_no') return _listing().number || '';
     if (k === 'code_name' || k === 'codename') return _listing().codeName || '';
     if (k === 'asking_price' || k === 'price') { const _v = _listing().value; if (_v == null || _v === '') return ''; const _n = Number(String(_v).replace(/[^0-9.]/g, '')); return (isFinite(_n) && _n > 0) ? ('$' + _n.toLocaleString('en-US')) : String(_v); }
+    if (k === 'data_room_link' || k === 'dataroom_link' || k === 'room_link') { try { const _rid = _listing().roomId; if (!_rid) return ''; const _rm = loadRooms().find(r => r.id === _rid); if (!_rm || !_rm.token) return ''; return (appBaseUrl() || '') + '/room/' + _rm.token; } catch (e) { return ''; } }
+    if (k === 'booking_link' || k === 'book_link') { try { if (!user || !user.username) return ''; const _bk = loadBookings()[user.username]; if (!_bk || !_bk.token || !_bk.enabled) return ''; return (appBaseUrl() || '') + '/book/' + _bk.token; } catch (e) { return ''; } }
     return '';
   });
 }
@@ -8356,8 +8358,8 @@ app.post('/api/person/:id/email', express.json({ limit: '28mb' }), async (req, r
   const to = String(b.to || '').trim() || preferredEmailOf(p);
   const cc = cleanAddrList(b.cc); const bcc = cleanAddrList(b.bcc);
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return res.status(400).json({ ok: false, error: 'A valid recipient email is required.' });
-  const subject = String(b.subject || '').slice(0, 300);
-  const body = String(b.body || '').slice(0, 20000);
+  const subject = mergeTokens(String(b.subject || '').slice(0, 300), p || {}, req.user);
+  const body = mergeTokens(String(b.body || '').slice(0, 20000), p || {}, req.user);
   if (!subject.trim() && !body.trim()) return res.status(400).json({ ok: false, error: 'Add a subject or a message.' });
   try {
     const _origin = reqOrigin(req); const _tok = newOpenToken();
@@ -8810,8 +8812,8 @@ app.post('/api/gmail/send', express.json({ limit: '28mb' }), async (req, res) =>
   const to = String(b.to || '').trim() || (p ? preferredEmailOf(p) : '');
   const cc = cleanAddrList(b.cc); const bcc = cleanAddrList(b.bcc);
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return res.status(400).json({ ok: false, error: 'A valid recipient email is required.' });
-  const subject = String(b.subject || '').slice(0, 300);
-  const body = String(b.body || '').slice(0, 20000);
+  const subject = mergeTokens(String(b.subject || '').slice(0, 300), p || {}, req.user);
+  const body = mergeTokens(String(b.body || '').slice(0, 20000), p || {}, req.user);
   if (!subject.trim() && !body.trim()) return res.status(400).json({ ok: false, error: 'Add a subject or a message.' });
   try {
     const _tok = p ? newOpenToken() : ''; const _origin = reqOrigin(req);
