@@ -3,7 +3,7 @@
    merge fields, AI rewrite, and (opt-in) attach + template picker.
    API: RRGRte.html(id, opts) -> markup ; RRGRte.wire(id, opts) ; RRGRte.get(id)/getText(id)/set(id,html) */
 (function(){
-  var MERGE=[['Contact',[['{{first_name}}','First name'],['{{last_name}}','Last name'],['{{name}}','Full name'],['{{company}}','Company'],['{{title}}','Title'],['{{email}}','Email'],['{{phone}}','Phone']]],['You (sender)',[['{{my_name}}','My name'],['{{my_title}}','My title'],['{{my_phone}}','My phone'],['{{my_email}}','My email']]],['Listing',[['{{listing_name}}','Listing name'],['{{listing_number}}','Listing #']]],['Other',[['{{today}}','Today’s date']]]];
+  var MERGE=[['Contact',[['{{first_name}}','First name'],['{{last_name}}','Last name'],['{{name}}','Full name'],['{{company}}','Company'],['{{title}}','Title'],['{{email}}','Email'],['{{phone}}','Phone']]],['You (sender)',[['{{my_name}}','My name'],['{{my_title}}','My title'],['{{my_phone}}','My phone'],['{{my_email}}','My email']]],['Listing',[['{{listing_name}}','Listing name'],['{{listing_number}}','Listing #'],['{{code_name}}','Code name'],['{{asking_price}}','Asking price']]],['Other',[['{{today}}','Today’s date']]]];
   function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
   function aiName(){ return window.__rrgAssistant||'AI'; }
   function toPlainHtml(v){ v=String(v==null?'':v); return v.indexOf('<')<0 ? esc(v).split('\n').join('<br>') : v; }

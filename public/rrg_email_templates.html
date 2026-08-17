@@ -49,6 +49,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 </style>
 <script src="/rrg_brand.js"></script>
 <script src="/rrg_rte.js"></script>
+<style>
+.catbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:10px 8px 2px;}
+.catbar .cf{font:inherit;font-size:12px;font-weight:700;padding:5px 12px;border:1px solid var(--line);border-radius:100px;background:#fff;color:var(--muted);cursor:pointer;}
+.catbar .cf.on{background:var(--navy);color:#fff;border-color:var(--navy);}
+.badge.cat{color:#4a4370;background:#efedf9;border:1px solid #dcd7f0;}
+.badge.arch{color:#8a5a1f;background:#fbf1e2;border:1px solid #ecd9b8;}
+.selrow{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;}
+.selrow .fld{flex:0 0 auto;margin-bottom:0;}
+.selrow select{font:inherit;font-size:14px;padding:9px 11px;border:1px solid var(--line);border-radius:9px;color:var(--ink);background:#fff;}
+.pvw{border:1px solid var(--line);border-radius:11px;background:var(--wash);padding:14px 16px;margin-top:10px;}
+.pvw .pvs{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);font-weight:800;margin-bottom:4px;}
+.pvw .pvsub{font-weight:700;color:var(--navy);margin-bottom:10px;font-size:14.5px;}
+.pvw .pvbody{font-size:14px;line-height:1.55;color:var(--ink);}
+.pvw .pvbody p{margin:0 0 10px;}
+.tokmiss{background:#fdecec;color:#c0392b;border-radius:4px;padding:0 3px;font-weight:700;}
+.chkline{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--ink);cursor:pointer;}
+.chkline input{width:16px;height:16px;}
+.tr-arch{opacity:.55;}
+</style>
 </head>
 <body>
 <div class="wrap">
@@ -57,75 +76,105 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
   <div id="root"></div>
 </div>
 <script>
-var TPLS=[], CTL=null, BUILT=false, EDIT=null, SCOPE='personal', DEL_ARM=false;
+var TPLS=[], CTL=null, BUILT=false, EDIT=null, SCOPE='personal', CAT='General', ACTIVE=true, DEL_ARM=false, IS_ADMIN=false, CATFILTER='All';
+var CATS=['Buyer','Seller','NDA','Follow-up','Closing','General'];
+var SAMPLE={'{{first_name}}':'Maria','{{last_name}}':'Lopez','{{name}}':'Maria Lopez','{{company}}':'Blue Agave Cantina','{{title}}':'Owner','{{email}}':'maria@blueagave.com','{{phone}}':'(713) 555-0142','{{my_name}}':'Van','{{my_title}}':'Broker','{{my_phone}}':'(713) 555-0100','{{my_email}}':'van@rrgcre.com','{{listing_name}}':'Blue Agave Cantina','{{listing_number}}':'RRG-1042','{{code_name}}':'Project Cedar','{{asking_price}}':'$785,000','{{today}}':'August 17, 2026'};
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 function fmt(iso){ if(!iso) return ''; var x=String(iso).slice(0,10).split('-'); if(x.length!==3) return String(iso).slice(0,10); return x[1]+'/'+x[2]+'/'+x[0]; }
 function api(m,u,b){return fetch(u,{method:m,credentials:'same-origin',headers:b?{'Content-Type':'application/json'}:undefined,body:b?JSON.stringify(b):undefined}).then(function(r){return r.json();});}
-var LIST_SHELL='<div class="card"><div class="hd"><b>Email Templates</b><span class="meta" id="tcount"></span><span class="sp"></span><button class="btn sm pri" id="t_new">+ New template</button></div><div class="cb"><div id="tlist"><div class="empty">Loading…</div></div></div></div><div id="editor"></div>';
-function scopeBadge(t){ return t.scope==='shared'?'<span class="badge sh">Shared</span>':'<span class="badge pe">Personal</span>'; }
-function actionsCell(t){ var s='<button class="btn ghost sm" data-edit="'+esc(t.id)+'">'+(t.mine?'Edit':'View')+'</button>'; if(t.mine) s+='<button class="btn danger sm" data-del="'+esc(t.id)+'">Delete</button>'; return '<div class="acts">'+s+'</div>'; }
-function listCfg(){ return { mount:'#tlist', data:TPLS, key:'emailtpls',
-  empty:'<div class="empty">No templates yet. Click <b>+ New template</b> to write your first.</div>',
-  rowId:function(t){return t.id;}, defaultSort:0, defaultDir:1,
+function mergePreview(str){ return String(str==null?'':str).replace(/\{\{\s*[\w.]+\s*\}\}/g,function(m){ var key=m.replace(/\s+/g,''); if(SAMPLE[key]!=null) return esc(SAMPLE[key]); return '<span class="tokmiss">'+esc(m)+'</span>'; }); }
+var LIST_SHELL='<div class="card"><div class="hd"><b>Email Templates</b><span class="meta" id="tcount"></span><span class="sp"></span><button class="btn sm pri" id="t_new">+ New template</button></div><div class="catbar" id="catbar"></div><div class="cb"><div id="tlist"><div class="empty">Loading…</div></div></div></div><div id="editor"></div>';
+function scopeBadge(t){ var b=t.scope==='shared'?'<span class="badge sh">Shared</span>':'<span class="badge pe">Personal</span>'; if(t.active===false) b+=' <span class="badge arch">Archived</span>'; return b; }
+function catBadge(t){ return '<span class="badge cat">'+esc(t.category||'General')+'</span>'; }
+function usedCell(t){ if(!t.useCount) return '<span class="meta">—</span>'; return '<span class="meta" style="color:var(--ink)">'+t.useCount+'×</span>'+(t.lastUsedAt?'<span class="meta"> · '+esc(fmt(t.lastUsedAt))+'</span>':''); }
+function actionsCell(t){ var s='<button class="btn ghost sm" data-edit="'+esc(t.id)+'">'+(t.mine?'Edit':'View')+'</button>'; s+='<button class="btn ghost sm" data-dup="'+esc(t.id)+'">Duplicate</button>'; if(t.mine){ s+='<button class="btn ghost sm" data-arch="'+esc(t.id)+'">'+(t.active===false?'Restore':'Archive')+'</button>'; s+='<button class="btn danger sm" data-del="'+esc(t.id)+'">Delete</button>'; } return '<div class="acts">'+s+'</div>'; }
+function filteredTpls(){ return TPLS.filter(function(t){ if(CATFILTER==='All') return true; if(CATFILTER==='Archived') return t.active===false; return (t.category===CATFILTER)&&(t.active!==false); }); }
+function listCfg(){ return { mount:'#tlist', data:filteredTpls(), key:'emailtpls',
+  empty:'<div class="empty">No templates here. Click <b>+ New template</b> to write one.</div>',
+  rowId:function(t){return t.id;}, rowClass:function(t){return t.active===false?'tr-arch':'';}, defaultSort:0, defaultDir:1,
   columns:[
     { label:'Template', sort:function(a,b){return RRGList.cmp(a.name,b.name);}, cell:function(t){ return '<a class="lk" href="#" data-edit="'+esc(t.id)+'">'+esc(t.name||'Untitled')+'</a>'; } },
+    { label:'Category', sort:function(a,b){return RRGList.cmp(a.category,b.category);}, cell:catBadge },
     { label:'Visibility', sort:function(a,b){return RRGList.cmp(a.scope,b.scope);}, cell:scopeBadge },
     { label:'Subject', sort:function(a,b){return RRGList.cmp(a.subject,b.subject);}, cell:function(t){ return t.subject?('<span class="meta" style="color:var(--ink)">'+esc(t.subject)+'</span>'):'<span class="meta">—</span>'; } },
     { label:'Owner', sort:function(a,b){return RRGList.cmp(a.ownerName,b.ownerName);}, cell:function(t){ return t.ownerName?esc(t.ownerName):(t.mine?'You':'<span class="meta">—</span>'); } },
+    { label:'Used', sort:function(a,b){return (a.useCount||0)-(b.useCount||0);}, cell:usedCell },
     { label:'Updated', sort:function(a,b){return RRGList.cmp(a.updatedAt,b.updatedAt);}, cell:function(t){ return '<span class="meta">'+esc(fmt(t.updatedAt))+'</span>'; } },
     { label:'', sortable:false, cell:actionsCell }
   ] }; }
-function refreshList(){ if(CTL) CTL.refresh(TPLS); else CTL=RRGList.create(listCfg()); var c=document.getElementById('tcount'); if(c) c.textContent=TPLS.length+' total'; }
+function renderCatBar(){ var el=document.getElementById('catbar'); if(!el) return; var opts=['All'].concat(CATS).concat(['Archived']); el.innerHTML=opts.map(function(c){ var n=(c==='All')?TPLS.length:((c==='Archived')?TPLS.filter(function(t){return t.active===false;}).length:TPLS.filter(function(t){return t.category===c&&t.active!==false;}).length); return '<button class="cf'+(CATFILTER===c?' on':'')+'" data-cat="'+esc(c)+'">'+esc(c)+' <span style="opacity:.55;font-weight:800">'+n+'</span></button>'; }).join(''); Array.prototype.forEach.call(el.querySelectorAll('.cf'),function(b){ b.onclick=function(){ CATFILTER=b.getAttribute('data-cat'); renderCatBar(); refreshList(); }; }); }
+function refreshList(){ var d=filteredTpls(); if(CTL) CTL.refresh(d); else CTL=RRGList.create(listCfg()); var c=document.getElementById('tcount'); if(c) c.textContent=TPLS.length+' total'; }
 function curById(id){ return TPLS.filter(function(t){return t.id===id;})[0]||null; }
-var PAL_FIELDS=[['Contact',[['{{first_name}}','First name'],['{{last_name}}','Last name'],['{{name}}','Full name'],['{{company}}','Company'],['{{title}}','Title'],['{{email}}','Email'],['{{phone}}','Phone']]],['You (sender)',[['{{my_name}}','My name'],['{{my_title}}','My title'],['{{my_phone}}','My phone'],['{{my_email}}','My email']]],['Listing',[['{{listing_name}}','Listing name'],['{{listing_number}}','Listing #']]],['Other',[['{{today}}','Today\u2019s date']]]];
-function palHtml(){ return PAL_FIELDS.map(function(g){ return '<div class="palgrp"><span class="palgl">'+esc(g[0])+'</span>'+g[1].map(function(f){ return '<button type="button" class="tokchip" data-tok="'+esc(f[0])+'" title="'+esc(f[0])+'">'+esc(f[1])+'</button>'; }).join('')+'</div>'; }).join(''); }
+function scopeControl(ro){
+  if(IS_ADMIN){ return '<div class="fld"><label>Visibility</label><div class="seg" id="scopeSeg"><label id="sc_p"'+((SCOPE==='personal')?' class="on"':'')+'><input type="radio" name="sc" value="personal"'+((SCOPE==='personal')?' checked':'')+(ro?' disabled':'')+'>Personal</label><label id="sc_s"'+((SCOPE==='shared')?' class="on"':'')+'><input type="radio" name="sc" value="shared"'+((SCOPE==='shared')?' checked':'')+(ro?' disabled':'')+'>Shared (firm)</label></div><div class="tokens">Personal = only you. Shared = the whole firm can use it. Only admins publish shared templates.</div></div>'; }
+  return '<div class="fld"><label>Visibility</label><div class="ro" style="margin:0">Personal — only you. Shared (firm) templates are published by an admin; ask an admin to promote this one firm-wide.</div></div>';
+}
+function catControl(ro){ return '<div class="fld"><label>Category</label><select id="tCat"'+(ro?' disabled':'')+'>'+CATS.map(function(c){return '<option'+((CAT===c)?' selected':'')+'>'+esc(c)+'</option>';}).join('')+'</select></div>'; }
 function renderEditor(){
   var host=document.getElementById('editor'); if(!host) return;
   if(!EDIT){ host.innerHTML=''; return; }
   var t=EDIT; var ro=!t.mine;
-  SCOPE=(t.scope==='shared'?'shared':'personal');
-  host.innerHTML='<div class="card"><div class="ch"><b>'+(ro?'View template':(t.id?'Edit template':'New template'))+'</b><span class="sp"><span class="msg" id="msg"></span>'+((t.id&&t.mine)?'<button class="btn danger sm" id="delBtn">Delete</button>':'')+'<button class="btn ghost sm" id="closeBtn">Close</button>'+(ro?'':'<button class="btn red" id="saveBtn">Save</button>')+'</span></div><div class="body">'
-    +(ro?'<div class="ro">Shared template'+(t.ownerName?(' by <b>'+esc(t.ownerName)+'</b>'):'')+' — view only. Use + New template to make your own copy.</div>':'')
+  SCOPE=(t.scope==='shared'?'shared':'personal'); CAT=(CATS.indexOf(t.category)>=0?t.category:'General'); ACTIVE=(t.active!==false);
+  host.innerHTML='<div class="card"><div class="ch"><b>'+(ro?'View template':(t.id?'Edit template':'New template'))+'</b><span class="sp"><span class="msg" id="msg"></span><button class="btn ghost sm" id="pvBtn">Preview</button>'+((t.id&&t.mine)?'<button class="btn danger sm" id="delBtn">Delete</button>':'')+'<button class="btn ghost sm" id="closeBtn">Close</button>'+(ro?'':'<button class="btn red" id="saveBtn">Save</button>')+'</span></div><div class="body">'
+    +(ro?'<div class="ro">Shared template'+(t.ownerName?(' by <b>'+esc(t.ownerName)+'</b>'):'')+' — view only. Use <b>Duplicate</b> to make your own editable copy.</div>':'')
     +'<div class="fld"><label>Template name</label><input type="text" id="tName" value="'+esc(t.name||'')+'"'+(ro?' readonly':'')+' placeholder="e.g. New buyer intro"></div>'
-    +'<div class="fld"><label>Visibility</label><div class="seg" id="scopeSeg"><label id="sc_p"'+((SCOPE==='personal')?' class="on"':'')+'><input type="radio" name="sc" value="personal"'+((SCOPE==='personal')?' checked':'')+(ro?' disabled':'')+'>Personal</label><label id="sc_s"'+((SCOPE==='shared')?' class="on"':'')+'><input type="radio" name="sc" value="shared"'+((SCOPE==='shared')?' checked':'')+(ro?' disabled':'')+'>Shared</label></div><div class="tokens">Personal = only you. Shared = the whole team can use it.</div></div>'
-    +'<div class="fld"><label>Subject</label><input type="text" id="tSubject" value="'+esc(t.subject||'')+'"'+(ro?' readonly':'')+' placeholder="e.g. Great connecting, {{first_name}}"></div>'
+    +'<div class="selrow">'+catControl(ro)+scopeControl(ro)+'</div>'
+    +((t.id&&t.mine)?'<div class="fld" style="margin-top:14px"><label class="chkline"><input type="checkbox" id="tActive"'+(ACTIVE?' checked':'')+'> Active — show in the send composer and automations (uncheck to archive)</label></div>':'')
+    +'<div class="fld" style="margin-top:14px"><label>Subject</label><input type="text" id="tSubject" value="'+esc(t.subject||'')+'"'+(ro?' readonly':'')+' placeholder="e.g. Great connecting, {{first_name}}"></div>'
     +'<div class="fld"><label>Body</label>'+(ro?('<div class="rrgrt" style="border:1px solid #cfd6e2;border-radius:9px"><div class="rrgrt-ed" style="padding:10px 12px;min-height:120px">'+RRGRte.toHtml(t.body||'')+'</div></div>'):RRGRte.html('tBody',{value:t.body||'',placeholder:'Write your email… use the { } menu for merge fields.'}))+'</div>'
+    +'<div id="pvPanel"></div>'
     +'</div></div>';
   document.getElementById('closeBtn').onclick=function(){ EDIT=null; renderEditor(); };
+  document.getElementById('pvBtn').onclick=doPreview;
   if(!ro){
     if(window.RRGRte) RRGRte.wire('tBody',{});
     var seg=document.getElementById('scopeSeg');
-    Array.prototype.forEach.call(seg.querySelectorAll('input'),function(r){ r.onchange=function(){ SCOPE=r.value; document.getElementById('sc_p').classList.toggle('on',SCOPE==='personal'); document.getElementById('sc_s').classList.toggle('on',SCOPE==='shared'); }; });
+    if(seg){ Array.prototype.forEach.call(seg.querySelectorAll('input'),function(r){ r.onchange=function(){ SCOPE=r.value; document.getElementById('sc_p').classList.toggle('on',SCOPE==='personal'); document.getElementById('sc_s').classList.toggle('on',SCOPE==='shared'); }; }); }
+    var cs=document.getElementById('tCat'); if(cs) cs.onchange=function(){ CAT=cs.value; };
+    var ac=document.getElementById('tActive'); if(ac) ac.onchange=function(){ ACTIVE=ac.checked; };
     document.getElementById('saveBtn').onclick=save;
     var db=document.getElementById('delBtn'); if(db) db.onclick=onDelete;
-    var lastFld=document.getElementById('tBody');
-    ['tSubject','tBody'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener('focus',function(){ lastFld=el; }); });
-    var pal=document.getElementById('tokpal'); if(pal){ Array.prototype.forEach.call(pal.querySelectorAll('.tokchip'),function(c){ c.addEventListener('click',function(){ var tok=c.getAttribute('data-tok'); var el=lastFld||document.getElementById('tBody'); if(!el) return; var st=el.selectionStart||0, en=el.selectionEnd||0, v=el.value; el.value=v.slice(0,st)+tok+v.slice(en); var np=st+tok.length; el.focus(); try{el.setSelectionRange(np,np);}catch(e){} }); }); }
   }
+}
+function doPreview(){
+  var panel=document.getElementById('pvPanel'); if(!panel) return;
+  if(panel.innerHTML){ panel.innerHTML=''; var pb=document.getElementById('pvBtn'); if(pb) pb.textContent='Preview'; return; }
+  var subj = EDIT.mine ? ((document.getElementById('tSubject')||{}).value||'') : (EDIT.subject||'');
+  var body = EDIT.mine ? (window.RRGRte?RRGRte.get('tBody'):((document.getElementById('tBody')||{}).value||'')) : (EDIT.body||'');
+  var bodyHtml = window.RRGRte ? RRGRte.toHtml(body) : esc(body).replace(/\n/g,'<br>');
+  panel.innerHTML='<div class="pvw"><div class="pvs">Preview — sample data ('+esc(SAMPLE['{{name}}'])+')</div><div class="pvsub">'+mergePreview(subj)+'</div><div class="pvbody">'+mergePreview(bodyHtml)+'</div><div class="tokens" style="margin-top:10px">Anything <span class="tokmiss">highlighted</span> is a merge field that won’t fill from this contact — check the spelling.</div></div>';
+  var pb2=document.getElementById('pvBtn'); if(pb2) pb2.textContent='Hide preview';
 }
 function render(){
   var root=document.getElementById('root');
   if(!BUILT){ root.innerHTML=LIST_SHELL; BUILT=true; document.getElementById('t_new').onclick=newTpl; }
-  refreshList(); renderEditor();
+  renderCatBar(); refreshList(); renderEditor();
 }
 function openEdit(id){ var t=curById(id); if(!t) return; EDIT=JSON.parse(JSON.stringify(t)); renderEditor(); var ed=document.getElementById('editor'); if(ed) ed.scrollIntoView({behavior:'smooth',block:'start'}); }
-function newTpl(){ EDIT={id:'',name:'',subject:'',body:'',scope:'personal',mine:true}; SCOPE='personal'; renderEditor(); var ed=document.getElementById('editor'); if(ed) ed.scrollIntoView({behavior:'smooth',block:'start'}); }
-function msg(t,cls){ var m=document.getElementById('msg'); if(!m) return; m.textContent=t; m.className='msg '+(cls||''); if(t){ setTimeout(function(){ if(m.textContent===t){m.textContent='';m.className='msg';} },3000); } }
-function load(){ api('GET','/api/email-templates').then(function(j){ TPLS=j.templates||[]; render(); }); }
+function newTpl(){ EDIT={id:'',name:'',subject:'',body:'',scope:'personal',category:'General',active:true,mine:true}; SCOPE='personal'; CAT='General'; ACTIVE=true; renderEditor(); var ed=document.getElementById('editor'); if(ed) ed.scrollIntoView({behavior:'smooth',block:'start'}); }
+function msg(t,cls){ var m=document.getElementById('msg'); if(!m) return; m.textContent=t; m.className='msg '+(cls||''); if(t){ setTimeout(function(){ if(m.textContent===t){m.textContent='';m.className='msg';} },3500); } }
+function load(){ api('GET','/api/email-templates?all=1').then(function(j){ TPLS=j.templates||[]; IS_ADMIN=TPLS.some(function(t){return t.canShare;}); render(); }); }
 function save(){
   var name=(document.getElementById('tName').value||'').trim(); if(!name){ msg('Name the template.','err'); return; }
-  var body={ name:name, scope:SCOPE, subject:document.getElementById('tSubject').value, body:(window.RRGRte?RRGRte.get('tBody'):((document.getElementById('tBody')||{}).value||'')) };
+  var body={ name:name, scope:SCOPE, category:CAT, active:ACTIVE, subject:document.getElementById('tSubject').value, body:(window.RRGRte?RRGRte.get('tBody'):((document.getElementById('tBody')||{}).value||'')) };
   if(EDIT&&EDIT.id) body.id=EDIT.id;
   var btn=document.getElementById('saveBtn'); btn.disabled=true;
   api('POST','/api/email-templates',body).then(function(j){ btn.disabled=false; if(!j.ok){ msg(j.error||'Save failed.','err'); return; } EDIT=j.template||EDIT; load(); msg('Saved','ok'); });
 }
+function duplicate(id){ var t=curById(id); if(!t) return; api('POST','/api/email-templates',{ name:('Copy of '+(t.name||'template')).slice(0,120), scope:'personal', category:(t.category||'General'), active:true, subject:t.subject||'', body:t.body||'' }).then(function(j){ if(!j.ok){ alert(j.error||'Could not duplicate.'); return; } load(); if(j.template){ EDIT=JSON.parse(JSON.stringify(j.template)); setTimeout(function(){ renderEditor(); var ed=document.getElementById('editor'); if(ed) ed.scrollIntoView({behavior:'smooth',block:'start'}); },60); } }); }
+function toggleArchive(id){ var t=curById(id); if(!t) return; api('POST','/api/email-templates',{ id:t.id, name:t.name, active:(t.active===false) }).then(function(j){ if(!j.ok){ alert(j.error||'Could not update.'); return; } load(); }); }
 function onDelete(){
   if(!EDIT||!EDIT.id) return;
   if(!DEL_ARM){ DEL_ARM=true; var b=document.getElementById('delBtn'); b.textContent='Really delete?'; b.classList.add('red'); setTimeout(function(){ if(DEL_ARM){ DEL_ARM=false; var x=document.getElementById('delBtn'); if(x){x.textContent='Delete';x.classList.remove('red');} } },3500); return; }
   DEL_ARM=false;
   api('DELETE','/api/email-templates/'+encodeURIComponent(EDIT.id)).then(function(j){ if(!j.ok){ msg(j.error||'Delete failed.','err'); return; } EDIT=null; load(); });
 }
-document.addEventListener('click',async function(e){ if(!e.target.closest) return; var ed=e.target.closest('[data-edit]'); if(ed){ e.preventDefault(); openEdit(ed.getAttribute('data-edit')); return; } var dl=e.target.closest('[data-del]'); if(dl){ e.preventDefault(); var _t=curById(dl.getAttribute('data-del')); if(_t && await rrgConfirm('Delete "'+(_t.name||'this template')+'"?')){ api('DELETE','/api/email-templates/'+encodeURIComponent(_t.id)).then(function(j){ if(j&&j.ok){ if(EDIT&&EDIT.id===_t.id) EDIT=null; load(); } else alert((j&&j.error)||'Delete failed.'); }); } return; } });
+document.addEventListener('click',async function(e){ if(!e.target.closest) return;
+  var ed=e.target.closest('[data-edit]'); if(ed){ e.preventDefault(); openEdit(ed.getAttribute('data-edit')); return; }
+  var dp=e.target.closest('[data-dup]'); if(dp){ e.preventDefault(); duplicate(dp.getAttribute('data-dup')); return; }
+  var ar=e.target.closest('[data-arch]'); if(ar){ e.preventDefault(); toggleArchive(ar.getAttribute('data-arch')); return; }
+  var dl=e.target.closest('[data-del]'); if(dl){ e.preventDefault(); var _t=curById(dl.getAttribute('data-del')); if(_t && await rrgConfirm('Delete "'+(_t.name||'this template')+'"?')){ api('DELETE','/api/email-templates/'+encodeURIComponent(_t.id)).then(function(j){ if(j&&j.ok){ if(EDIT&&EDIT.id===_t.id) EDIT=null; load(); } else alert((j&&j.error)||'Delete failed.'); }); } return; }
+});
 load();
 </script>
 </body>

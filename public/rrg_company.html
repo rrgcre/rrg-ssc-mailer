@@ -284,6 +284,13 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 </style>
 <script src="/rrg_brand.js"></script>
 <script src="/rrg_docs_card.js"></script>
+<style>
+.orphan-note{font-size:12px;color:#8a5a1f;background:#fdf7ec;border:1px solid #f0e2c6;border-radius:8px;padding:8px 10px;margin:2px 6px 8px;line-height:1.45;}
+.orphan-bulk{display:flex;align-items:center;gap:8px;margin:0 6px 8px;font-size:12px;color:#6b7488;font-weight:700;flex-wrap:wrap;}
+.orphan-bulk select,.orphan-assign{font:inherit;font-size:12px;padding:5px 8px;border:1px solid #d5dbe6;border-radius:7px;background:#fff;color:#20334f;max-width:190px;}
+.orphan-hint{font-size:12px;color:#8a5a1f;margin:0 6px 8px;}
+.orphan-assign{margin-right:6px;}
+</style>
 </head>
 <body>
 <!--rrgback--><a href="./rrg_companies.html" class="rrg-back" aria-label="Back to companies" style="position:fixed;right:22px;bottom:22px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28)"><span style="font-size:14px;line-height:1">←</span> Companies</a>
@@ -543,6 +550,8 @@ function render(){
     var comm=l.commissary?' <span class="commtag" title="Commissary / central kitchen">Commissary</span>':'';
     return '<div class="crow locnamerow"><div class="locthumbwrap">'+locThumb(l)+'</div><div class="cinfo" style="min-width:0"><div class="cname"><span class="lnameedit" data-le="'+esc(l.id)+'" title="Open location details">'+esc(l.name||l.address||'Location')+'</span>'+comm+'</div></div><span class="ctype '+locStatusClass(st)+'">'+esc(st)+'</span><button class="crm" data-lrm="'+esc(l.id)+'" title="Remove location">\u2212</button></div>';
   }
+  function conceptOptions(){ return '<option value="">\u2014 assign to concept \u2014</option>'+CONCEPTS.map(function(c){ return '<option value="'+esc(c.name)+'">'+esc(c.name)+'</option>'; }).join(''); }
+  function orphanRow(l){ var st=l.status||'Open'; return '<div class="crow locnamerow"><div class="locthumbwrap">'+locThumb(l)+'</div><div class="cinfo" style="min-width:0"><div class="cname"><span class="lnameedit" data-le="'+esc(l.id)+'" title="Open location details">'+esc(l.name||l.address||'Location')+'</span></div>'+(l.concept?('<div class="csub" style="color:#b5641a;font-size:11px">was: '+esc(l.concept)+'</div>'):'')+'</div>'+(CONCEPTS.length?('<select class="orphan-assign" data-oassign="'+esc(l.id)+'" title="File under a concept">'+conceptOptions()+'</select>'):'')+'<span class="ctype '+locStatusClass(st)+'">'+esc(st)+'</span><button class="crm" data-lrm="'+esc(l.id)+'" title="Remove location">\u2212</button></div>'; }
   function conceptBlock(cpt){
     var mine=LOCATIONS.filter(function(l){ return (l.concept||'')===cpt.name && !l.commissary; });
     var tp=[]; if(cpt.conceptType) tp.push(esc(cpt.conceptType)); if(cpt.pricePoint) tp.push(esc(cpt.pricePoint));
@@ -574,7 +583,10 @@ function render(){
   else {
     locs=CONCEPTS.map(conceptBlock).join('');
     if(commissaries.length) locs+=commissaryBlock();
-    if(orphans.length){ var oOpen=!!EXPANDED['__orphan__']; locs+='<div class="cptblock'+(oOpen?' open':'')+'"><div class="cptbar" data-cpt="__orphan__"><span class="cptchev">▸</span><div class="cptname">Unassigned <span class="cptcount">'+orphans.length+' loc'+(orphans.length===1?'':'s')+'</span></div></div><div class="cptlocs">'+orphans.map(locNameRow).join('')+'</div></div>'; }
+    if(orphans.length){ var oOpen=!!EXPANDED['__orphan__'];
+      var _obulk = CONCEPTS.length ? '<div class="orphan-bulk"><span>Assign all to</span><select id="orphanAllSel">'+conceptOptions()+'</select><button class="mini" id="orphanAllGo">Assign all</button></div>' : '<div class="orphan-hint">Add a concept above, then file these locations under it.</div>';
+      locs+='<div class="cptblock'+(oOpen?' open':'')+'"><div class="cptbar" data-cpt="__orphan__"><span class="cptchev">\u25b8</span><span class="cptlogo cptlogo-mono" style="background:#fbf1e2;color:#8a5a1f">?</span><div class="cptname">Unassigned <span class="cptcount">'+orphans.length+' loc'+(orphans.length===1?'':'s')+'</span><span class="cptmkts">not linked to a concept</span></div></div><div class="cptlocs"><div class="orphan-note">These locations have no concept yet. Pick one to file each under, or use Assign all. Once assigned, this group clears.</div>'+_obulk+orphans.map(orphanRow).join('')+'</div></div>';
+    }
   }
   var deals = DEALS.length ? DEALS.map(function(d){
     var _mn='<a class="rrow" href="./rrg_assignment.html?key='+encodeURIComponent(d.key)+'"><span class="rric">$</span><div class="rrmain"><div class="rrnm">'+esc(d.business)+'</div>'+(d.market?'<div class="rrmt">'+esc(d.market)+'</div>':'')+'</div><span class="rchip">'+(d.started?'In pipeline':'Not started')+'</span></a>';
@@ -646,6 +658,8 @@ function render(){
   document.querySelectorAll('.cptbar[data-cpt]').forEach(function(bar){ bar.addEventListener('click',function(e){ if(e.target.closest('button,a')) return; var id=bar.getAttribute('data-cpt'); EXPANDED[id]=!EXPANDED[id]; bar.parentNode.classList.toggle('open',EXPANDED[id]); }); });
   document.querySelectorAll('.ledit, .lnameedit').forEach(function(b){ b.addEventListener('click',function(){ var l=LOCATIONS.filter(function(x){return x.id===b.getAttribute('data-le');})[0]; if(l) openLocForm(l); }); });
   document.querySelectorAll('.crm[data-lrm]').forEach(function(b){ b.addEventListener('click',function(){ removeLoc(b.getAttribute('data-lrm')); }); });
+  document.querySelectorAll('select[data-oassign]').forEach(function(sel){ sel.addEventListener('change',function(){ if(sel.value) assignOrphan(sel.getAttribute('data-oassign'), sel.value); }); });
+  var _oAllGo=document.getElementById('orphanAllGo'); if(_oAllGo) _oAllGo.addEventListener('click',function(){ var s2=document.getElementById('orphanAllSel'); if(s2&&s2.value) assignAllOrphans(s2.value); });
   wireCoComposer();
   applyRailOrder();
 }
@@ -1082,6 +1096,8 @@ function runFindLocations(){
     })
     .catch(function(){ b.disabled=false;b.textContent='Search the web & add locations'; msg.textContent='Could not reach the server.'; });
 }
+function assignOrphan(locId, conceptName){ if(!conceptName) return; fetch('/api/company/'+encodeURIComponent(ID)+'/location',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:locId,concept:conceptName})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ LOCATIONS=j.locations||LOCATIONS; var cpt=CONCEPTS.filter(function(x){return x.name===conceptName;})[0]; if(cpt) EXPANDED[cpt.id]=true; render(); if(window.rrgToast) rrgToast('Filed under '+conceptName+' \u2713'); } else alert((j&&j.error)||'Could not assign.'); }).catch(function(){ alert('Could not reach the server.'); }); }
+function assignAllOrphans(conceptName){ if(!conceptName) return; var known={}; CONCEPTS.forEach(function(x){known[x.name]=1;}); var ids=LOCATIONS.filter(function(l){ return (!l.concept || !known[l.concept]) && !l.commissary; }).map(function(l){return l.id;}); if(!ids.length) return; var i=0; (function next(){ if(i>=ids.length){ var cpt=CONCEPTS.filter(function(x){return x.name===conceptName;})[0]; if(cpt) EXPANDED[cpt.id]=true; render(); if(window.rrgToast) rrgToast('Filed '+ids.length+' location'+(ids.length===1?'':'s')+' under '+conceptName+' \u2713'); return; } fetch('/api/company/'+encodeURIComponent(ID)+'/location',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:ids[i],concept:conceptName})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok) LOCATIONS=j.locations||LOCATIONS; i++; next(); }).catch(function(){ i++; next(); }); })(); }
 function saveLoc(id,silent){
   var comm=document.getElementById('lo_comm').checked;
   var servesAll=false, serves=[];

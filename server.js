@@ -6055,17 +6055,19 @@ function personPrimaryListing(p) {
   try {
     if (!p) return null;
     const deals = loadDeals(); if (!Array.isArray(deals) || !deals.length) return null;
+    let ov = null; try { ov = loadAssignOverlay(); } catch (e) {}
     let best = null, bestScore = -1;
     for (const d of deals) {
       let sc = -1;
       if (d.contactPersonId && d.contactPersonId === p.id) sc = 3;
       else if (p.companyId && d.companyId && d.companyId === p.companyId) sc = 2;
       if (sc < 0) continue;
+      const o = ov && ov['d_' + d.id];
       let num = d.bbsNumber || d.listingNumber || '';
-      if (!num) { try { const ov = loadAssignOverlay(); const o = ov && ov['d_' + d.id]; if (o) num = o.bbsNumber || o.listingNumber || ''; } catch (e) {} }
+      if (!num && o) num = o.bbsNumber || o.listingNumber || '';
       if (num) sc += 1;
       if (d.fromBizBuySell) sc += 0.5;
-      if (sc > bestScore) { bestScore = sc; best = { name: d.business || d.name || '', number: String(num || '') }; }
+      if (sc > bestScore) { bestScore = sc; best = { name: d.business || d.name || '', number: String(num || ''), codeName: (o && o.codeName) || d.codeName || '', value: d.value || d.price || '' }; }
     }
     return best;
   } catch (e) { return null; }
@@ -6079,7 +6081,7 @@ function mergeTokens(t, p, user) {
   let today = ''; try { today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }); } catch (e) {}
   let _lst = null, _lstDone = false;
   function _listing() { if (!_lstDone) { _lstDone = true; try { _lst = (p && (p._listing || null)) || personPrimaryListing(p); } catch (e) { _lst = null; } } return _lst || { name: '', number: '' }; }
-  return String(t || '').replace(/\{\{\s*(first_name|firstname|last_name|lastname|name|company|title|email|phone|my_name|my_title|my_phone|my_email|brokerage|brokerage_legal|today|listing_name|listing_number|listing_no|listing)\s*\}\}/gi, function (_, k) {
+  return String(t || '').replace(/\{\{\s*(first_name|firstname|last_name|lastname|name|company|title|email|phone|my_name|my_title|my_phone|my_email|brokerage|brokerage_legal|today|listing_name|listing_number|listing_no|listing|code_name|codename|asking_price|price)\s*\}\}/gi, function (_, k) {
     k = k.toLowerCase();
     if (k === 'first_name' || k === 'firstname') return first;
     if (k === 'last_name' || k === 'lastname') return last;
@@ -6096,6 +6098,8 @@ function mergeTokens(t, p, user) {
     if (k === 'today') return today;
     if (k === 'listing_name' || k === 'listing') return _listing().name || '';
     if (k === 'listing_number' || k === 'listing_no') return _listing().number || '';
+    if (k === 'code_name' || k === 'codename') return _listing().codeName || '';
+    if (k === 'asking_price' || k === 'price') { const _v = _listing().value; if (_v == null || _v === '') return ''; const _n = Number(String(_v).replace(/[^0-9.]/g, '')); return (isFinite(_n) && _n > 0) ? ('$' + _n.toLocaleString('en-US')) : String(_v); }
     return '';
   });
 }
@@ -6379,7 +6383,7 @@ app.post('/api/email-templates', express.json({ limit: '256kb' }), (req, res) =>
   let t;
   if (b.id) { t = all.find(x => x.id === b.id); if (!t) return res.status(404).json({ ok: false, error: 'Template not found.' }); if (!(t.ownerUser === u.username || isSuper(u))) return res.status(403).json({ ok: false, error: 'You can only edit your own templates.' }); }
   else { t = { id: newEmailTplId(), ownerUser: u.username || '', ownerName: u.name || '', createdAt: new Date().toISOString() }; all.push(t); }
-  if (b.scope === 'shared' && !isSuper(u)) return res.status(403).json({ ok: false, error: 'Only admins can publish Shared (firm) templates. Save it as Personal, or ask an admin to publish it firm-wide.' });
+  if (b.scope === 'shared' && !isSuper(u) && !(b.id && t.scope === 'shared')) return res.status(403).json({ ok: false, error: 'Only admins can publish Shared (firm) templates. Save it as Personal, or ask an admin to publish it firm-wide.' });
   t.name = name;
   if (b.subject !== undefined) t.subject = String(b.subject || '').slice(0, 300);
   if (b.body !== undefined) t.body = String(b.body || '').slice(0, 20000);
