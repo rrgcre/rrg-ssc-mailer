@@ -549,4 +549,20 @@ window.rrgSetAvatar=function(url){
     document.body.appendChild(ov); function close(){ ov.remove(); } ov.addEventListener('click',function(e){ if(e.target===ov) close(); });
     ov.querySelector('#rrgaicfcancel').addEventListener('click',close);
     ov.querySelector('#rrgaicfgo').addEventListener('click',function(){ if(document.getElementById('rrgaidontask').checked){ try{localStorage.setItem(key,'1');}catch(e){} } close(); if(opts.onProceed) opts.onProceed(); }); };
+  // ---- Automation "flash dialog" steps: interruptive info modals queued for the enrolling rep ----
+  function _rrgFlashStyle(){ if(document.getElementById('rrgflash-css'))return; var st=document.createElement('style'); st.id='rrgflash-css'; st.textContent='#rrgflash-ov{position:fixed;inset:0;background:rgba(6,14,32,.55);z-index:4000;display:flex;align-items:center;justify-content:center;padding:20px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;opacity:0;transition:opacity .14s;}#rrgflash-ov.show{opacity:1;}#rrgflash-bx{background:#fff;border:1px solid #dbe0e9;border-radius:12px;max-width:460px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.28);overflow:hidden;transform:translateY(8px) scale(.985);transition:transform .16s cubic-bezier(.2,.8,.2,1);}#rrgflash-ov.show #rrgflash-bx{transform:none;}#rrgflash-hd{padding:16px 20px 4px;font-size:16px;font-weight:800;color:#000E31;}#rrgflash-bd{padding:6px 20px 16px;font-size:14px;line-height:1.55;color:#2a3654;white-space:pre-wrap;}#rrgflash-meta{padding:0 20px 12px;font-size:11.5px;color:#8a94a6;}#rrgflash-ft{padding:12px 20px;border-top:1px solid #eef1f6;display:flex;justify-content:flex-end;gap:8px;}#rrgflash-ok{background:#000E31;color:#fff;border:none;border-radius:9px;padding:9px 22px;font:inherit;font-weight:700;font-size:13.5px;cursor:pointer;}#rrgflash-ok:hover{background:#0a1a44;}'; document.head.appendChild(st); }
+  function _rrgShowFlash(dlg, onDone){
+    _rrgFlashStyle();
+    var ov=document.createElement('div'); ov.id='rrgflash-ov';
+    var meta=dlg.contactName?('Re: '+esc(dlg.contactName)+(dlg.automationName?(' · '+esc(dlg.automationName)):'')):(dlg.automationName?esc(dlg.automationName):'');
+    ov.innerHTML='<div id="rrgflash-bx" role="dialog" aria-modal="true">'+(dlg.title?('<div id="rrgflash-hd">'+esc(dlg.title)+'</div>'):'')+'<div id="rrgflash-bd">'+esc(dlg.body||'')+'</div>'+(meta?('<div id="rrgflash-meta">'+meta+'</div>'):'')+'<div id="rrgflash-ft"><button type="button" id="rrgflash-ok">OK</button></div></div>';
+    document.body.appendChild(ov); requestAnimationFrame(function(){ ov.classList.add('show'); });
+    function done(){ try{ fetch('/api/my-dialogs/'+encodeURIComponent(dlg.id)+'/ack',{method:'POST',credentials:'same-origin'}); }catch(e){} ov.classList.remove('show'); setTimeout(function(){ if(ov.parentNode) ov.remove(); if(onDone) onDone(); },160); }
+    var okb=ov.querySelector('#rrgflash-ok'); okb.addEventListener('click',done); try{ okb.focus(); }catch(e){}
+  }
+  function _rrgPollFlash(){
+    try{ fetch('/api/my-dialogs',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ var ds=(j&&j.dialogs)||[]; if(!ds.length) return; if(document.getElementById('rrgflash-ov')) return; var i=0; (function next(){ if(i>=ds.length) return; _rrgShowFlash(ds[i], function(){ i++; next(); }); })(); }).catch(function(){}); }catch(e){}
+  }
+  try{ setTimeout(_rrgPollFlash, 1500); setInterval(_rrgPollFlash, 180000); }catch(e){}
+
 })();

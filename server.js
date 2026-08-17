@@ -6040,7 +6040,7 @@ function newAutomationId() { return 'auto_' + Date.now().toString(36) + Math.ran
 function newEnrollId() { return 'enr_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function cleanAutoSteps(arr) {
   return (Array.isArray(arr) ? arr : []).slice(0, 30).map(function (st, i) {
-    const type = ['task', 'notification', 'logactivity', 'assignment', 'pipeline'].indexOf(st && st.type) >= 0 ? st.type : 'email';
+    const type = ['task', 'notification', 'logactivity', 'assignment', 'pipeline', 'dialog'].indexOf(st && st.type) >= 0 ? st.type : 'email';
     const o = { type: type, delayDays: Math.max(0, Math.min(3650, parseInt((st && st.delayDays), 10) || 0)), delayHours: Math.max(0, Math.min(23, parseInt((st && st.delayHours), 10) || 0)), delayMinutes: Math.max(0, Math.min(59, parseInt((st && st.delayMinutes), 10) || 0)), name: String((st && st.name) || '').slice(0, 80) };
     if (type === 'email') { o.subject = String((st && st.subject) || '').slice(0, 300); o.body = String((st && st.body) || '').slice(0, 20000); }
     else if (type === 'task') { o.taskTitle = String((st && st.taskTitle) || '').slice(0, 300); o.taskNote = String((st && st.taskNote) || '').slice(0, 2000); }
@@ -6048,9 +6048,32 @@ function cleanAutoSteps(arr) {
     else if (type === 'logactivity') { o.actType = String((st && st.actType) || 'Note').slice(0, 40); o.actNote = String((st && st.actNote) || '').slice(0, 2000); }
     else if (type === 'assignment') { o.setStatus = String((st && st.setStatus) || '').slice(0, 40); o.advanceStage = String((st && st.advanceStage) || '').slice(0, 20); o.markLive = !!(st && st.markLive); }
     else if (type === 'pipeline') { o.pipelineId = String((st && st.pipelineId) || '').slice(0, 40); o.pipelineStage = String((st && st.pipelineStage) || '').slice(0, 80); }
+    else if (type === 'dialog') { o.dialogTitle = String((st && st.dialogTitle) || '').slice(0, 120); o.dialogBody = String((st && st.dialogBody) || '').slice(0, 2000); }
     return o;
-  }).filter(function (st) { return (st.type === 'logactivity' || st.type === 'assignment') ? true : (st.type === 'pipeline' ? st.pipelineId : (st.type === 'task' ? st.taskTitle : (st.type === 'notification' ? st.message : (st.subject || st.body)))); });
+  }).filter(function (st) { return (st.type === 'logactivity' || st.type === 'assignment') ? true : (st.type === 'pipeline' ? st.pipelineId : (st.type === 'dialog' ? (st.dialogBody || st.dialogTitle) : (st.type === 'task' ? st.taskTitle : (st.type === 'notification' ? st.message : (st.subject || st.body))))); });
 }
+const FLASH_DIALOGS_FILE = path.join(BOV_DATA_DIR, 'flash_dialogs.json');
+function loadFlashDialogs() { try { return rj(FLASH_DIALOGS_FILE) || []; } catch (e) { return []; } }
+function saveFlashDialogs(a) { return writeJsonGuarded(FLASH_DIALOGS_FILE, a, 'saveFlashDialogs'); }
+function queueFlashDialog(forUser, title, body, p, en) {
+  forUser = String(forUser || '').trim(); if (!forUser) return;
+  if (!String(title || '').trim() && !String(body || '').trim()) return;
+  const all = loadFlashDialogs();
+  all.push({ id: 'dlg_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), forUser: forUser, title: String(title || '').slice(0, 200), body: String(body || '').slice(0, 4000), createdAt: new Date().toISOString(), automationName: (en && en.automationName) || '', contactId: (p && p.id) || '', contactName: (p && p.name) || '' });
+  saveFlashDialogs(all.slice(-500));
+}
+app.get('/api/my-dialogs', (req, res) => {
+  const un = (req.user && req.user.username) || ''; if (!un) return res.json({ ok: true, dialogs: [] });
+  const mine = loadFlashDialogs().filter(d => d.forUser === un).slice(0, 25);
+  res.json({ ok: true, dialogs: mine });
+});
+app.post('/api/my-dialogs/:id/ack', (req, res) => {
+  const un = (req.user && req.user.username) || '';
+  let all = loadFlashDialogs(); const before = all.length;
+  all = all.filter(d => !(d.id === req.params.id && d.forUser === un));
+  if (all.length !== before) saveFlashDialogs(all);
+  res.json({ ok: true });
+});
 function personPrimaryListing(p) {
   try {
     if (!p) return null;
@@ -6124,6 +6147,7 @@ function enrollPerson(p, plan, opts) {
   return en;
 }
 async function runAutomationStep(p, en, step) {
+  if (step.type === 'dialog') { try { queueFlashDialog(en.enrolledByUser || en.enrolledBy || '', mergeTokens(step.dialogTitle || '', p), mergeTokens(step.dialogBody || '', p), p, en); return 'dialog queued for ' + (en.enrolledByUser || 'rep'); } catch (e) { return 'dialog error: ' + (e && e.message); } }
   if (step.type === 'logactivity') { try { logActivity(p, (step.actType || 'Note'), mergeTokens(step.actNote || '', p) || 'Logged by automation', { auto: true, by: 'Automation' }); return 'activity logged'; } catch (e) { return 'activity error: ' + (e && e.message); } }
   if (step.type === 'assignment') { if (!en.dealKey) return 'skipped: no linked assignment'; try { const ov = loadAssignOverlay(); const cur = ov[en.dealKey] || {}; if (step.setStatus && ASSIGN_STATUSES.indexOf(step.setStatus) >= 0) cur.status = step.setStatus; if (step.advanceStage && ['outreach','agreed','offers','dd','closing'].indexOf(step.advanceStage) >= 0) { cur.stageFlags = cur.stageFlags || {}; cur.stageFlags[step.advanceStage] = true; } if (step.markLive && !cur.listingStart) cur.listingStart = new Date().toISOString().slice(0, 10); cur.updatedAt = new Date().toISOString(); ov[en.dealKey] = cur; saveAssignOverlay(ov); logActivity(p, 'Note', 'Automation updated the linked assignment', { auto: true, by: 'Automation' }); return 'assignment updated'; } catch (e) { return 'assignment error: ' + (e && e.message); } }
   if (step.type === 'pipeline') {
@@ -6277,7 +6301,17 @@ function inferTplCategory(t) {
   if (/(follow|day 5|last note|closing the loop|circling)/.test(n)) return 'Follow-up';
   return 'General';
 }
-function emailTplBrief(t, user) { return { id: t.id, name: t.name || '', subject: t.subject || '', body: t.body || '', scope: (t.scope === 'shared' ? 'shared' : 'personal'), category: inferTplCategory(t), active: t.active !== false, useCount: t.useCount || 0, lastUsedAt: t.lastUsedAt || '', ownerName: t.ownerName || '', ownerUser: t.ownerUser || '', mine: !!(user && (t.ownerUser === user.username || isSuper(user))), canShare: !!(user && isSuper(user)), updatedAt: t.updatedAt || '' }; }
+function _tplExecAuto(templateId, p, user) {
+  try {
+    if (!templateId || !p) return;
+    const t = loadEmailTpls().find(x => x.id === templateId);
+    if (!t || !t.execAuto) return;
+    const plan = loadAutomations().find(x => x.id === t.execAuto && x.active !== false);
+    if (!plan) return;
+    enrollPerson(p, plan, { byName: (user && user.name) || '', byUser: (user && user.username) || '' });
+  } catch (e) {}
+}
+function emailTplBrief(t, user) { return { id: t.id, name: t.name || '', subject: t.subject || '', body: t.body || '', scope: (t.scope === 'shared' ? 'shared' : 'personal'), category: inferTplCategory(t), active: t.active !== false, useCount: t.useCount || 0, lastUsedAt: t.lastUsedAt || '', ownerName: t.ownerName || '', ownerUser: t.ownerUser || '', mine: !!(user && (t.ownerUser === user.username || isSuper(user))), canShare: !!(user && isSuper(user)), execAuto: t.execAuto || '', updatedAt: t.updatedAt || '' }; }
 const DEFAULT_SALES_TEMPLATES = [
   { name: 'Buyer — first response (inquiry)', subject: 'Thanks for your interest, {{first_name}}', body: `Hi {{first_name}},
 
@@ -6402,7 +6436,7 @@ app.get('/api/email-templates', (req, res) => {
   const showAll = req.query.all === '1' || req.query.all === 'true';
   const vis = all.filter(t => (t.scope === 'shared' || t.ownerUser === u.username || isSuper(u)) && (showAll || t.active !== false));
   vis.sort((a, b) => String(a.name || '').toLowerCase().localeCompare(String(b.name || '').toLowerCase()));
-  res.json({ ok: true, templates: vis.map(t => emailTplBrief(t, u)) });
+  res.json({ ok: true, templates: vis.map(t => emailTplBrief(t, u)), automations: loadAutomations().filter(a => a.active !== false && ((a.scope !== 'private') || a.ownerUser === u.username || isSuper(u))).map(a => ({ id: a.id, name: a.name || '' })) });
 });
 app.post('/api/email-templates', express.json({ limit: '256kb' }), (req, res) => {
   const u = req.user || {}; const b = req.body || {}; const all = loadEmailTpls();
@@ -6417,6 +6451,7 @@ app.post('/api/email-templates', express.json({ limit: '256kb' }), (req, res) =>
   if (b.scope !== undefined) t.scope = (b.scope === 'shared' ? 'shared' : 'personal');
   if (b.category !== undefined) t.category = (TPL_CATEGORIES.indexOf(b.category) >= 0 ? b.category : 'General');
   if (b.active !== undefined) t.active = !!b.active;
+  if (b.execAuto !== undefined) t.execAuto = String(b.execAuto || '');
   t.updatedAt = new Date().toISOString(); saveEmailTpls(all);
   res.json({ ok: true, template: emailTplBrief(t, u) });
 });
@@ -8667,6 +8702,7 @@ app.post('/api/person/:id/email', express.json({ limit: '28mb' }), async (req, r
     p.emailLog.unshift(entry); p.emailLog = p.emailLog.slice(0, 100);
     logActivity(p, 'Email', subject || '(no subject)', { auto: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' });
     p.lastContacted = now.slice(0, 10); p.updatedAt = now;
+    _tplExecAuto(b.templateId, p, req.user);
     savePeople(arr);
     res.json({ ok: true, entry, emailLog: p.emailLog, lastContacted: p.lastContacted });
   } catch (e) { console.error('person email error:', e && e.message); res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
@@ -9121,7 +9157,7 @@ app.post('/api/gmail/send', express.json({ limit: '28mb' }), async (req, res) =>
       const entry = { id: 'eml_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), to, subject, body: _bodyText.slice(0, 6000), sentAt: now, by: (req.user && req.user.name) || '', byUser: u, messageId: sent.id, via: 'gmail', cc, bcc, openToken: _tok, opens: 0, senderIp: (req.headers['x-forwarded-for'] || req.ip || '').toString().split(',')[0].trim() };
       p.emailLog.unshift(entry); p.emailLog = p.emailLog.slice(0, 100);
       logActivity(p, 'Email', subject || '(no subject)', { auto: true, by: (req.user && req.user.name) || '', byUser: u });
-      p.lastContacted = now.slice(0, 10); p.updatedAt = now; savePeople(arr);
+      p.lastContacted = now.slice(0, 10); p.updatedAt = now; _tplExecAuto(b.templateId, p, req.user); savePeople(arr);
       emailLog = p.emailLog; lastContacted = p.lastContacted;
     }
     res.json({ ok: true, sent, emailLog, lastContacted });
