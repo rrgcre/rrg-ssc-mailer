@@ -189,7 +189,7 @@ function render(){
       { label:'Completed', sort:function(a,b){return RRGList.cmp(a.doneAt||'',b.doneAt||'');}, cell:function(t){ return t.doneAt?esc(fmtD(t.doneAt)):'<span class="meta">—</span>'; } },
       { label:'Reminder', defaultHidden:true, sort:function(a,b){return RRGList.cmp(a.reminder||'',b.reminder||'');}, cell:function(t){ return t.reminder?('⏰ '+esc(fmt(t.reminder))):'<span class="meta">—</span>'; } },
       { label:'Assignee', defaultHidden:true, sort:function(a,b){return RRGList.cmp(a.assigneeName,b.assigneeName);}, cell:function(t){ return t.assigneeName?esc(t.assigneeName):'<span class="meta">—</span>'; } },
-      { label:'', align:'right', sortable:false, cell:function(t){ return '<button class="tbtn" data-edit="'+esc(t.id)+'">Edit</button>'+((ISADMIN||t.createdBy===ME)?(' <button class="tbtn delx" data-del="'+esc(t.id)+'" title="Delete" aria-label="Delete">✕</button>'):''); } }
+      { label:'', align:'right', sortable:false, width:132, cell:function(t){ return '<span style="white-space:nowrap;display:inline-flex;gap:4px;justify-content:flex-end"><button class="tbtn" data-edit="'+esc(t.id)+'">Edit</button>'+((ISADMIN||t.createdBy===ME)?('<button class="tbtn delx" data-del="'+esc(t.id)+'" title="Delete" aria-label="Delete">✕</button>'):'')+'</span>'; } }
     ],
     bulk:[ { label:'✓ Mark complete', fn:function(ids,done){ bulkCompleteTasks(ids,done); } }, { label:'Delete selected', danger:true, fn:function(ids,done){ bulkDelTasks(ids,done); } } ]
   };
