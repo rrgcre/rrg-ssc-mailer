@@ -20,7 +20,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px;}
 .tile{background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px 16px;}
 .tile .n{font-size:21px;font-weight:800;color:var(--navy);line-height:1.1;}
-.tile .n.money{color:var(--green);} .tile .n.wait{color:var(--gold);}
+.tile .n.money{color:var(--green);} .tile .n.wait{color:var(--gold);} .tile .n.bad{color:#b23a2c;}
 .tile .l{font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--soft);margin-top:5px;}
 .tile .s{font-size:11px;color:var(--muted);margin-top:3px;}
 .card{background:#fff;border:1px solid var(--line);border-radius:8px;margin-bottom:16px;overflow:hidden;}
@@ -120,12 +120,13 @@ function render(){
     +'<div class="rechero"><div class="rhlogo">'+av+'</div><div><div class="rhname">'+esc(u.name||u.username)+'</div><div class="rhmeta">'+esc(contact||'Team member')+(reach?(' · '+reach):'')+(e.startDate?(' · started '+fmtD(e.startDate)):'')+'</div></div></div>'
     +'<div class="tiles">'
       +tile(k.activeListings,'Active Listings','')
-      +tile(k.deals,'Deals',(k.openDeals+' open · '+k.closedDeals+' closed'))
-      +tile(moneyShort(k.gci),'Commission','GCI · closed, pre-split','money')
+      +tile(k.deals,'Deals',(k.openDeals+' open · '+k.closedDealsYtd+' closed YTD'))
+      +tile(moneyShort(k.gciYtd),'Commission · YTD','All-time '+moneyShort(k.gci)+' pre-split','money')
       +tile(moneyShort(k.received),'Received','commission paid','money')
       +tile(moneyShort(k.waiting),'Waiting on','owed · 2nd-half','wait')
       +tile(moneyShort(k.net),'Net','after '+k.split+'% split','money')
       +tile(moneyShort(k.pipeline),'Pipeline','active listing value','money')
+      +tile(k.lostDeals,'Didn’t close','deals that fell through','bad')
     +'</div>'
     +details+payroll
     +'<div class="card"><div class="ch"><b>Listings</b><span>'+D.listings.length+'</span></div><div class="cb tbl"><div id="lst"></div></div></div>'

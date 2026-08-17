@@ -10747,7 +10747,7 @@ app.get('/api/portal', (req, res) => {
   const awaiting = myAgr.filter(a => ['sent', 'partial', 'awaiting_countersign'].indexOf(String(a.signStatus)) >= 0).length;
   res.json({ ok: true,
     user: { username: u.username || '', name: u.name || u.username || '', title: u.title || '', photoUrl: repUserPhoto(u.username) },
-    kpis: { activeListings: r.activeListings, deals: r.dealCount, openDeals: r.openDeals, closedDeals: r.closedDeals, gci: r.gci, received: r.received, waiting: r.waiting, net: r.net, pipeline: r.pipeline, split: r.split },
+    kpis: { activeListings: r.activeListings, deals: r.dealCount, openDeals: r.openDeals, closedDeals: r.closedDeals, gci: r.gci, received: r.received, waiting: r.waiting, net: r.net, pipeline: r.pipeline, gciYtd: r.gciYtd, closedDealsYtd: r.closedDealsYtd, netYtd: r.netYtd, lostDeals: r.lostDeals, leads: r.leads, split: r.split },
     goal: goal, monthly: monthly, curMonth: parseInt(today.slice(5, 7), 10) - 1,
     tasks: tasks, appointments: appts, listings: r.listings.slice(0, 6), deals: r.deals.slice(0, 6), agreements: agreements, agreementTypes: effAgreementTypes(),
     pulse: { dueToday: dueToday, meetToday: meetToday, awaiting: awaiting } });
@@ -10765,7 +10765,7 @@ app.get('/api/user/:username/detail', (req, res) => {
     .map(a => Object.assign(agreementBrief(a), { personName: a.personName || nameById[a.personId] || '', companyName: coById[a.companyId] || '' }))
     .sort((x, y) => String(y.createdAt || '').localeCompare(String(x.createdAt || '')));
   const payload = { ok: true, user: { username: u.username || '', name: u.name || u.username || '', title: u.title || '', role: u.role || '', email: u.email || '', phone: u.phone || '', photoUrl: repUserPhoto(u.username), created: (u.createdAt || '').slice(0, 10) }, employee: effEmployee(u.username),
-    kpis: { activeListings: r.activeListings, deals: r.dealCount, openDeals: r.openDeals, closedDeals: r.closedDeals, gci: r.gci, gciOpen: r.gciOpen, net: r.net, netOpen: r.netOpen, received: r.received, waiting: r.waiting, pipeline: r.pipeline, split: r.split },
+    kpis: { activeListings: r.activeListings, deals: r.dealCount, openDeals: r.openDeals, closedDeals: r.closedDeals, gci: r.gci, gciOpen: r.gciOpen, net: r.net, netOpen: r.netOpen, received: r.received, waiting: r.waiting, pipeline: r.pipeline, gciYtd: r.gciYtd, closedDealsYtd: r.closedDealsYtd, netYtd: r.netYtd, lostDeals: r.lostDeals, leads: r.leads, split: r.split },
     listings: r.listings, deals: r.deals, agreements: agreements, agreementTypes: effAgreementTypes(), isAdmin: isSuper(req.user), isSelf: (String(req.user.username).toLowerCase() === String(u.username).toLowerCase()) };
   if (isSuper(req.user)) payload.payroll = effPayroll(u.username);
   res.json(payload);
