@@ -4890,6 +4890,7 @@ function assignmentView(d, overlay) {
     attack: map ? { done: !map.pending, id: map.id } : null,
     room: room ? { done: (room.docs || []).length > 0, id: room.id, docs: (room.docs || []).length, gated: roomIsGated(room) } : null,
     lease: lease ? { done: !lease.pending, id: lease.id } : null,
+    nda: (Array.isArray(o.ndas) && o.ndas.length) ? { done: o.ndas.some(function(n){ return n && (n.status === 'Received' || n.status === 'Countersigned'); }) } : null,
   };
   const times = [deal, d.screen, d.quest, d.bov, d.cim, d.map, d.room, d.lease].filter(Boolean).map(r => r.builtAt || r.updatedAt || r.createdAt || '').filter(Boolean);
   const lastActivity = times.sort().slice(-1)[0] || '';
@@ -11273,7 +11274,7 @@ function seedBizSalesStages() {
     console.log('Seeded Biz Sales pipeline (10 stages).');
   } catch (e) { console.error('seedBizSalesStages:', e && e.message); }
 }
-function cleanStages(arr) { return (Array.isArray(arr) ? arr : []).slice(0, 40).map(function(st, i){ return { name: String((st && st.name) || '').slice(0, 80) || ('Stage ' + (i + 1)), number: i + 1, abbr: String((st && st.abbr) || '').trim().slice(0, 10), targetDays: Math.max(0, Math.min(3650, parseInt((st && st.targetDays), 10) || 0)), winPct: (st && st.winPct !== '' && st.winPct != null) ? Math.max(0, Math.min(100, parseInt(st.winPct, 10) || 0)) : '', onAssignAuto: String((st && st.onAssignAuto) || '').slice(0, 40), onUnassignAuto: String((st && st.onUnassignAuto) || '').slice(0, 40) }; }).filter(function(st){ return st.name; }); }
+function cleanStages(arr) { return (Array.isArray(arr) ? arr : []).slice(0, 40).map(function(st, i){ return { name: String((st && st.name) || '').slice(0, 80) || ('Stage ' + (i + 1)), number: i + 1, abbr: String((st && st.abbr) || '').trim().slice(0, 10), autoComplete: String((st && st.autoComplete) || '').slice(0, 24), targetDays: Math.max(0, Math.min(3650, parseInt((st && st.targetDays), 10) || 0)), winPct: (st && st.winPct !== '' && st.winPct != null) ? Math.max(0, Math.min(100, parseInt(st.winPct, 10) || 0)) : '', onAssignAuto: String((st && st.onAssignAuto) || '').slice(0, 40), onUnassignAuto: String((st && st.onUnassignAuto) || '').slice(0, 40) }; }).filter(function(st){ return st.name; }); }
 app.get('/api/pipelines', (req, res) => { res.json({ ok: true, pipelines: loadPipelines(), automations: loadAutomations().filter(a => a.active !== false).map(a => ({ id: a.id, name: a.name || '' })), pipelineRequired: effPipelineRequired(), isAdmin: !!(req.user && isSuper(req.user)) }); });
 
 // ---- Deal-type → pipeline routing --------------------------------------

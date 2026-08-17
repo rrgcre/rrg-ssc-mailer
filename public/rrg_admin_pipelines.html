@@ -144,7 +144,7 @@ function renderEditor(){
         +'<div class="fld"><label>Practice area</label><select id="pArea">'+areas.map(function(a){return '<option'+(a===(p.area||'General')?' selected':'')+'>'+esc(a)+'</option>';}).join('')+'</select></div>'
       +'</div>'
       +'<div class="stgh"><b>Stages</b><span class="c" id="stgCount"></span></div>'
-      +'<table class="stg"><thead><tr><th>#</th><th>Stage name</th><th title="Short label shown on the deal pipeline track">Abbr</th><th>Target days</th><th>Win %</th><th>On enter (automation)</th><th>On leave (automation)</th><th></th></tr></thead><tbody id="stgBody"></tbody></table>'
+      +'<table class="stg"><thead><tr><th>#</th><th>Stage name</th><th title="Short label shown on the deal pipeline track">Abbr</th><th>Target days</th><th>Win %</th><th title="Milestone that auto-checks this stage on the deal">Auto-complete when</th><th>On enter (automation)</th><th>On leave (automation)</th><th></th></tr></thead><tbody id="stgBody"></tbody></table>'
       +'<div class="days-note">Target days = how long a deal should stay in that stage before FullServe flags it as stalled (0 = no target). Win % = the likelihood a deal closes once it reaches that stage — used for weighted pipeline forecasting.</div>'
       +'<div style="margin-top:14px"><button class="btn" id="addStg">+ Add stage</button></div>'
     +'</div>';
@@ -154,6 +154,7 @@ function renderEditor(){
   var db=document.getElementById('delBtn'); if(db) db.onclick=onDelete;
 }
 
+var STAGE_TRIGGERS=[['','\u2014 Auto by name \u2014'],['manual','Manual (toggle by hand)'],['call','Qualification Call logged'],['questionnaire','Seller Interview completed'],['nda','NDA executed'],['bov','BOV built'],['room','Data Room populated'],['pack','Marketing Pack built'],['attack','Attack Plan built'],['lease','Lease Abstract done']];
 function autoAbbr(n){ n=String(n||''); if(!n) return ''; if(n.length<=11) return n; var w=n.split(/\s+/); if(w.length>1){ return w.map(function(x){return x[0];}).join('').toUpperCase().slice(0,5); } return n.slice(0,10); }
 function renderStages(stages){
   var tb=document.getElementById('stgBody');
@@ -165,6 +166,7 @@ function renderStages(stages){
       +'<td><input class="abbr" data-i="'+i+'" maxlength="10" style="max-width:92px" value="'+esc(st.abbr||'')+'" placeholder="'+esc(autoAbbr(st.name))+'" title="Short label shown on the pipeline track. Leave blank to auto-shorten the name."></td>'
       +'<td class="days"><input class="days" type="number" min="0" data-i="'+i+'" value="'+(st.targetDays==null?'':st.targetDays)+'"></td>'
       +'<td class="days"><input class="winpct" type="number" min="0" max="100" data-i="'+i+'" value="'+(st.winPct==null?'':st.winPct)+'" title="% likelihood of a sale at this stage"></td>'
+      +'<td><select class="auto" data-i="'+i+'" style="font:inherit;font-size:12.5px;padding:5px 7px;border:1px solid var(--line,#cfd6e2);border-radius:7px;max-width:200px">'+STAGE_TRIGGERS.map(function(o){return '<option value="'+esc(o[0])+'"'+((st.autoComplete||'')===o[0]?' selected':'')+'>'+esc(o[1])+'</option>';}).join('')+'</select></td>'
       +'<td><select class="saA" data-i="'+i+'" style="font:inherit;font-size:12.5px;padding:5px 7px;border:1px solid var(--line,#cfd6e2);border-radius:7px;max-width:180px"><option value="">\u2014 none \u2014</option>'+AUTOS.map(function(a){return '<option value="'+esc(a.id)+'"'+(st.onAssignAuto===a.id?' selected':'')+'>'+esc(a.name)+'</option>';}).join('')+'</select></td>'
       +'<td><select class="saU" data-i="'+i+'" style="font:inherit;font-size:12.5px;padding:5px 7px;border:1px solid var(--line,#cfd6e2);border-radius:7px;max-width:180px"><option value="">\u2014 none \u2014</option>'+AUTOS.map(function(a){return '<option value="'+esc(a.id)+'"'+(st.onUnassignAuto===a.id?' selected':'')+'>'+esc(a.name)+'</option>';}).join('')+'</select></td>'
       +'<td class="act">'
@@ -172,7 +174,7 @@ function renderStages(stages){
         +'<button class="ib dn" data-i="'+i+'"'+(i===stages.length-1?' disabled':'')+' title="Move down">↓</button>'
         +'<button class="ib x" data-i="'+i+'" title="Remove">✕</button>'
       +'</td></tr>';
-  }).join('') || '<tr><td colspan="8" class="empty" style="padding:24px">No stages yet — add your first stage below.</td></tr>';
+  }).join('') || '<tr><td colspan="9" class="empty" style="padding:24px">No stages yet — add your first stage below.</td></tr>';
   Array.prototype.forEach.call(tb.querySelectorAll('.ib.up'),function(b){b.onclick=function(){move(+b.getAttribute('data-i'),-1);};});
   Array.prototype.forEach.call(tb.querySelectorAll('.ib.dn'),function(b){b.onclick=function(){move(+b.getAttribute('data-i'),1);};});
   Array.prototype.forEach.call(tb.querySelectorAll('.ib.x'),function(b){b.onclick=function(){removeStage(+b.getAttribute('data-i'));};});
@@ -185,8 +187,9 @@ function gatherStages(){
   var saU=document.querySelectorAll('#stgBody select.saU');
   var wp=document.querySelectorAll('#stgBody input.winpct');
   var ab=document.querySelectorAll('#stgBody input.abbr');
+  var au=document.querySelectorAll('#stgBody select.auto');
   var out=[];
-  for(var i=0;i<names.length;i++){ out.push({name:names[i].value,abbr:(ab[i]?String(ab[i].value||'').trim().slice(0,10):''),targetDays:(days[i].value===''?0:Math.max(0,parseInt(days[i].value,10)||0)),winPct:(wp[i]&&wp[i].value!==''?Math.max(0,Math.min(100,parseInt(wp[i].value,10)||0)):''),onAssignAuto:(saA[i]?saA[i].value:''),onUnassignAuto:(saU[i]?saU[i].value:'')}); }
+  for(var i=0;i<names.length;i++){ out.push({name:names[i].value,abbr:(ab[i]?String(ab[i].value||'').trim().slice(0,10):''),autoComplete:(au[i]?au[i].value:''),targetDays:(days[i].value===''?0:Math.max(0,parseInt(days[i].value,10)||0)),winPct:(wp[i]&&wp[i].value!==''?Math.max(0,Math.min(100,parseInt(wp[i].value,10)||0)):''),onAssignAuto:(saA[i]?saA[i].value:''),onUnassignAuto:(saU[i]?saU[i].value:'')}); }
   return out;
 }
 function move(i,d){ var s=gatherStages(); var j=i+d; if(j<0||j>=s.length)return; var t=s[i];s[i]=s[j];s[j]=t; curPipe().stages=s; renderStages(s); }

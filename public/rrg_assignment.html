@@ -202,6 +202,7 @@ var STAGES=[
   { k:'outreach', name:'Outreach', lbl:'Out', manual:true },
   { k:'call', name:'Seller Qualification Call', lbl:'Call', href:function(s){return './seller_screening.html?screening='+encodeURIComponent(s.id);}, open:'Open call' },
   { k:'questionnaire', name:'Seller Interview', lbl:'SI', href:function(s){return './valuation_questionnaire.html?q='+encodeURIComponent(s.id);}, open:'Open questionnaire' },
+  { k:'nda', name:'NDA Executed', lbl:'NDA', href:function(s){return '#ndasSec';}, open:'View NDAs' },
   { k:'bov', name:'Broker Opinion of Value', lbl:'BOV', href:function(s){return './rrg_bov_builder.html?bov='+encodeURIComponent(s.id);}, open:'Open BOV' },
   { k:'agreed', name:'Agreed', lbl:'Agreed', manual:true },
   { k:'pack', name:'Marketing Pack', lbl:'Pack', href:function(s){return './rrg_cim_builder.html?cim='+encodeURIComponent(s.id);}, open:'Open pack' },
@@ -235,9 +236,11 @@ function _stageTool(name){
 function pipeStages(p){
   var used={};
   return (p.stages||[]).map(function(st,i){
-    var c=_stageTool(st.name);
-    if(c && !used[c.k]){ used[c.k]=1; return { k:c.k, name:st.name, lbl:(st.abbr&&String(st.abbr).trim()?String(st.abbr).trim():shortLbl(st.name)), href:c.href, open:c.open }; }
-    return { k:'g'+i, name:st.name, lbl:(st.abbr&&String(st.abbr).trim()?String(st.abbr).trim():shortLbl(st.name)), manual:true, targetDays:st.targetDays };
+    var lbl=(st.abbr&&String(st.abbr).trim())?String(st.abbr).trim():shortLbl(st.name);
+    var mk=(st.autoComplete!==undefined&&st.autoComplete!=='')?(st.autoComplete==='manual'?'':st.autoComplete):(function(){var c=_stageTool(st.name);return c?c.k:'';})();
+    var base=mk?(STAGES.filter(function(x){return x.k===mk;})[0]||null):null;
+    if(base && !used[base.k]){ used[base.k]=1; return { k:base.k, name:st.name, lbl:lbl, href:base.href, open:base.open }; }
+    return { k:'g'+i, name:st.name, lbl:lbl, manual:true, targetDays:st.targetDays };
   });
 }
 // A listing shows its assigned pipeline's actual stages. With no pipeline (or a stageless one),
@@ -969,7 +972,7 @@ function ndasCard(){
   var body;
   if(!NDAS.length){ body='<div class="noev" style="padding:18px 20px">No NDAs logged yet. Record each signed NDA as it comes back — who signed, when, and how — so you know exactly who’s cleared to see the CIM and enter the data room.</div>'; }
   else { var sorted=NDAS.slice().sort(function(a,b){ return String(b.date||'').localeCompare(String(a.date||'')); }); body='<div class="tlist">'+sorted.map(ndaCardHTML).join('')+'</div>'; }
-  return '<div class="card"><div class="ch" style="display:flex"><b>NDAs</b><span style="margin-left:12px">'+NDAS.length+' logged</span><button class="addoffer" id="addNdaBtn" style="margin-left:auto">+ Log NDA</button></div>'
+  return '<div class="card" id="ndasSec"><div class="ch" style="display:flex"><b>NDAs</b><span style="margin-left:12px">'+NDAS.length+' logged</span><button class="addoffer" id="addNdaBtn" style="margin-left:auto">+ Log NDA</button></div>'
     +'<div class="cb ndas"><div id="ndaForm" hidden></div>'+body+'</div></div>';
 }
 function ndaFormHTML(n){

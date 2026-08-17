@@ -97,6 +97,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .cardx.compact.expanded .cbody{display:block;}
 .cardx .opendeal{font-size:11px;font-weight:700;color:var(--navy,#000E31);text-decoration:none;white-space:nowrap;}
 .cardx .opendeal:hover{text-decoration:underline;}
+.cardtrash{background:none;border:none;color:#b7bfcc;cursor:pointer;padding:2px 4px;border-radius:5px;line-height:0;flex:none;display:inline-flex;align-items:center;}
+.cardtrash:hover{color:#DA2B1F;background:#fbeceb;}
 .cfrow{display:flex;align-items:center;gap:7px;padding:5px 9px;font-size:13px;color:#26324a;cursor:pointer;border-radius:7px;}
 .cfrow:hover{background:#f4f7fb;}
 /* --- enhanced pipeline cards --- */
@@ -156,6 +158,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
     <div class="feat"><span class="fic">🧲</span><div><b>Buyer leads auto-attach</b><span>BizBuySell and CoStar inquiries land on the matching listing as deduped buyers with a follow-up task already waiting.</span></div></div>
     <div class="feat"><span class="fic">🎯</span><div><b>Matching buyers on every listing</b><span>Open a listing and see the active buyers whose Buy-Box fits it — with one-click open and email.</span></div></div>
     <div class="feat"><span class="fic">🔒</span><div><b>Data room &amp; documents built in</b><span>Every listing carries its confidential data room, agreements, NDAs, tours and files — all on the listing record.</span></div></div>
+    <div class="feat"><span class="fic">🎭</span><div><b>Code name for confidential deals</b><span>Give a blind listing a code name (“Project Blue Agave”) — it headlines the teaser and CIM so buyers and your team have a handle, while the real business name stays locked until NDA.</span></div></div>
+    <div class="feat"><span class="fic">🔖</span><div><b>Every listing has an ID#</b><span>Each listing gets a permanent RRG-#### number for agreements, invoices and quick reference — shown on the card, the list columns and the listing header.</span></div></div>
+    <div class="feat"><span class="fic">✎</span><div><b>Edit or delete right from the board</b><span>Click any card to open and edit the listing; use the trash on a card to delete one, or select several in list view to remove in bulk.</span></div></div>
+    <div class="feat"><span class="fic">🗒️</span><div><b>Activity feed on every listing</b><span>Log calls, emails, notes and LOIs received on the listing — the same activity model as your contacts, newest first, right beside its buyer leads, offers and tours.</span></div></div>
   </div>
 </div>
 <script>(function(){ var fs=document.getElementById('bdFeatStrip'), hd=document.getElementById('bdFeatHd'); if(!fs||!hd) return; try{ if(localStorage.getItem('rrg_bdfeats')!=='1') fs.classList.add('collapsed'); }catch(e){ fs.classList.add('collapsed'); } hd.addEventListener('click',function(){ var col=fs.classList.toggle('collapsed'); try{ localStorage.setItem('rrg_bdfeats', col?'0':'1'); }catch(e){} }); })();</script>
@@ -309,8 +315,10 @@ function renderList(cards){
   var cfg={ mount:'#boardlist', data:cards, key:'boardlist', rowId:function(c){return c.key;},
     empty:'<div style="padding:26px;text-align:center;color:#8a94a6">No deals match your filters.</div>',
     columns:[
+      { label:'ID', sort:function(a,b){return (a.listingNo||0)-(b.listingNo||0);}, cell:function(c){ return c.listingId?('<a href="./rrg_assignment.html?key='+encodeURIComponent(c.key)+'" style="color:#6b7488;font-weight:700;text-decoration:none;font-variant-numeric:tabular-nums">'+esc(c.listingId)+'</a>'):'<span style="color:#b0b8c6">\u2014</span>'; } },
       { label:'Company', sort:function(a,b){return RRGList.cmp(a.company||a.business,b.company||b.business);}, cell:function(c){ var href=c.companyId?('./rrg_company.html?id='+encodeURIComponent(c.companyId)):('./rrg_assignment.html?key='+encodeURIComponent(c.key)); return '<a href="'+href+'" style="color:var(--navy,#000E31);font-weight:700;text-decoration:none">'+esc(c.company||c.business||'Listing')+'</a>'; } },
       { label:'Concept', sort:function(a,b){return RRGList.cmp(a.concept||a.business,b.concept||b.business);}, cell:function(c){ var cc=c.concept||c.business; return cc?('<a href="./rrg_assignment.html?key='+encodeURIComponent(c.key)+'" style="color:var(--navy,#000E31);text-decoration:none" title="Open listing">'+esc(cc)+'</a>'):'<span style="color:#b0b8c6">—</span>'; } },
+      { label:'Code name', sort:function(a,b){return RRGList.cmp(a.codeName,b.codeName);}, cell:function(c){ return c.codeName?esc(c.codeName):'<span style="color:#b0b8c6">\u2014</span>'; } },
       { label:'Stage', sort:function(a,b){return RRGList.cmp(a.stage,b.stage);}, cell:function(c){ return '<span class="lstage">'+esc(c.stage||'—')+'</span>'; } },
       { label:'Contact', sort:function(a,b){return RRGList.cmp(a.contact,b.contact);}, cell:function(c){ if(!c.contact) return '<span style="color:#b0b8c6">—</span>'; return c.contactPersonId?('<a href="./rrg_person.html?id='+encodeURIComponent(c.contactPersonId)+'" style="color:var(--navy,#000E31);text-decoration:none">'+esc(c.contact)+'</a>'):esc(c.contact); } },
       { label:'Market', sort:function(a,b){return RRGList.cmp(a.market,b.market);}, cell:function(c){ return c.market?esc(c.market):'<span style="color:#b0b8c6">—</span>'; } },
@@ -324,6 +332,9 @@ function renderList(cards){
   };
   if(LTBL) LTBL.refresh(cards); else LTBL=RRGList.create(cfg);
 }
+function trashBtn(c){ return '<button class="cardtrash" data-del="'+esc(c.key)+'" title="Delete listing" aria-label="Delete listing"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>'; }
+async function delOneListing(key){ if(!key) return; var c=((typeof DATA!=='undefined'&&DATA&&DATA.cards)||[]).filter(function(x){return x.key===key;})[0]; var nm=(c&&(c.business||c.listingId))||'this listing'; var msg='Delete '+nm+'? This removes the listing and its records \u2014 this cannot be undone.'; var ok=window.rrgConfirm?(await rrgConfirm(msg)):window.confirm(msg); if(!ok) return; fetch('/api/assignment/'+encodeURIComponent(key),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ if(window.rrgToast) rrgToast('Listing deleted'); load(); } else alert((j&&j.error)||'Could not delete the listing.'); }).catch(function(){ alert('Could not reach the server.'); }); }
+document.addEventListener('click',function(e){ var t=e.target&&e.target.closest&&e.target.closest('[data-del]'); if(t){ e.preventDefault(); e.stopPropagation(); delOneListing(t.getAttribute('data-del')); } });
 async function bulkDelListings(ids,done){
   if(!ids||!ids.length) return;
   var _msg='Delete '+ids.length+' listing'+(ids.length>1?'s':'')+'? This removes the listing and its records — this cannot be undone.';
@@ -413,7 +424,7 @@ function cardHtml(c){
     return '<div class="cardx compact'+(exp?' expanded':'')+'" draggable="true" data-key="'+esc(c.key)+'">'
       +'<div class="chd"><span class="t">'+esc(c.business||'Listing')+(c.provisional?' <span class="pvbadge">Provisional</span>':'')+'</span>'+flags+cardOwner(c)+'</div>'
       +'<div class="cbody">'+(cardFieldsHtml(c)||'<div class="r" style="color:#98a1b5">No extra details</div>')
-        +'<div class="ft"><span class="dt">'+(CARDF.activity&&c.lastActivity?esc(fmtDate(c.lastActivity)):'')+'</span><a class="opendeal" href="'+open+'">Open deal →</a></div>'
+        +'<div class="ft"><span class="dt">'+(CARDF.activity&&c.lastActivity?esc(fmtDate(c.lastActivity)):'')+'</span>'+trashBtn(c)+'<a class="opendeal" href="'+open+'">Open deal →</a></div>'
       +'</div></div>';
   }
   return '<div class="cardx'+(rolled?' rolled':'')+'" draggable="true" data-key="'+esc(c.key)+'">'
@@ -421,7 +432,7 @@ function cardHtml(c){
     +'<div class="cbody">'
       +(c.provisional?'<div style="margin:-2px 0 6px"><span class="pvbadge">Provisional</span></div>':'')
       +cardFieldsHtml(c)
-      +'<div class="ft"><a class="opendeal" href="'+open+'">\u270e Edit listing</a><span class="dt" style="margin-left:auto;margin-right:8px">'+(CARDF.activity&&c.lastActivity?esc(fmtDate(c.lastActivity)):'')+'</span>'+cardOwner(c)+'</div>'
+      +'<div class="ft"><a class="opendeal" href="'+open+'">\u270e Edit listing</a><span class="dt" style="margin-left:auto;margin-right:8px">'+(CARDF.activity&&c.lastActivity?esc(fmtDate(c.lastActivity)):'')+'</span>'+cardOwner(c)+trashBtn(c)+'</div>'
     +'</div></div>';
 }
 function wireDnD(){
