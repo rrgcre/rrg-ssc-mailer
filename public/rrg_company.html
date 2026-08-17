@@ -319,6 +319,9 @@ function qs(k){ return new URLSearchParams(location.search).get(k)||''; }
 function initials(n){ n=String(n||'').trim(); if(!n) return '?'; var p=n.split(/\s+/); return ((p[0]||'')[0]||'')+((p[1]||'')[0]||''); }
 var ID=qs('id'), C=null, CONTACTS=[], DEALS=[], LOCATIONS=[], CONCEPTS=[], CTYPES=['Restaurant Group'], PTYPES=['Buying'], LSTATUSES=['Planned','Under Construction','Operating','Dark','Closed'], SITETYPES=['Freestanding','End Cap','Inline','Food Hall','Ghost Kitchen','Other'], CONCEPT_TYPES=['Full-Service','Fast-Casual','QSR','Bar / Nightlife','Dancehall','Cafe / Bakery','Food Truck','Ghost Kitchen','Other'], PRICE_POINTS=['$','$$','$$$','$$$$'], CUISINE_TYPES=[], MARKETS=['Austin','Dallas','Houston','San Antonio','Rio Grande Valley','Central Texas'], IS_ADMIN=false, CAN_DELETE=false, CANROOMS=false, HASMAPS=false, AGREEMENTS=[], ATYPES=[], AUTOMATIONS=[], LOGOAUTO='', TITLES=[], LEADSOURCES=[], CO_AGR_FILE=null, ACTIVITY=[], ACTTYPES=[], USERS=[], CO_ACTFILTER='', DIRTY=false, ALLTAGS=[], CT_TAGF=null, C_TAGF=null, REL=null;
 var EXPANDED={};
+// After a bulk find/build/import, open the first concept so its locations show right away.
+function expandFirstConcept(){ try{ if(CONCEPTS&&CONCEPTS.length&&CONCEPTS[0]&&CONCEPTS[0].id) EXPANDED[CONCEPTS[0].id]=true; }catch(e){} }
+function _scrollToFirstConcept(){ setTimeout(function(){ try{ var el=document.querySelector('.cptblock.open')||document.querySelector('.cptblock'); if(el&&el.scrollIntoView) el.scrollIntoView({behavior:'smooth',block:'nearest'}); }catch(e){} }, 60); }
 function conceptById(id){ return CONCEPTS.filter(function(x){return x.id===id;})[0]||null; }
 function normUrl(u){ u=String(u||'').trim(); if(!u) return ''; return /^https?:\/\//i.test(u)?u:('https://'+u); }
 function hostOf(u){ try{ return new URL(normUrl(u)).hostname.replace(/^www\./,''); }catch(e){ return String(u||''); } }
@@ -888,7 +891,9 @@ function commitPastedList(){
     if(!j||!j.ok){ if(go){ go.disabled=false; go.textContent='Import all'; } if(msg) msg.textContent=(j&&j.error)||'Could not import.'; return; }
     CONCEPTS=j.concepts||CONCEPTS; LOCATIONS=j.locations||LOCATIONS; _pastedConcepts=null;
     var f=document.getElementById('conceptForm'); if(f){ f.setAttribute('hidden','');f.innerHTML=''; }
+    expandFirstConcept();
     render();
+    _scrollToFirstConcept();
     if(window.rrgToast) rrgToast('Imported '+(j.addedConcepts||0)+' '+((j.addedConcepts===1)?CLABEL.toLowerCase():CLABELP.toLowerCase())+' · '+(j.addedLocations||0)+' location'+((j.addedLocations===1)?'':'s')+' ✓');
   }).catch(function(){ if(go){ go.disabled=false; go.textContent='Import all'; } if(msg) msg.textContent='Could not reach the server.'; });
 }
@@ -920,7 +925,9 @@ function _doRunBuildConcepts(names,metro,count,website){
       if(!j||!j.ok){ if(!_cbStop) alert((j&&j.error)||'Could not build concepts.'); return; }
       CONCEPTS=j.concepts||CONCEPTS; LOCATIONS=j.locations||LOCATIONS;
       if(C){ if(j.logo) C.logo=j.logo; if(j.officeWebsite){ C.office=C.office||{}; if(!C.office.website) C.office.website=j.officeWebsite; } }
+      expandFirstConcept();
       render();
+      _scrollToFirstConcept();
       if(j.noSite&&j.noSite.length){ var _cl=(typeof CLABELP!=='undefined'?CLABELP:'concepts').toLowerCase(); alert('Built '+(j.addedConcepts||0)+' new '+_cl+' and added '+(j.addedLocations||0)+' location'+((j.addedLocations===1)?'':'s')+'.\nNo website found for: '+j.noSite.join(', ')+' — add a site to those to pull their locations.'); }
     })
     .catch(function(err){ aiHide(); if(_cbStop||(err&&err.name==='AbortError')) return; alert('Could not reach the server.'); });
