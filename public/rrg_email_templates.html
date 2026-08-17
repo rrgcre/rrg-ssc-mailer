@@ -110,7 +110,7 @@ function scopeControl(ro){
   return '<div class="fld"><label>Visibility</label><div class="ro" style="margin:0">Personal — only you. Shared (firm) templates are published by an admin; ask an admin to promote this one firm-wide.</div></div>';
 }
 function catControl(ro){ return '<div class="fld"><label>Category</label><select id="tCat"'+(ro?' disabled':'')+'>'+CATS.map(function(c){return '<option'+((CAT===c)?' selected':'')+'>'+esc(c)+'</option>';}).join('')+'</select></div>'; }
-function autoControl(ro){ if(!AUTOS.length) return ''; return '<div class="fld" style="margin-top:14px"><label>After this template is sent, run automation <span style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--soft)">(from a contact\u2019s Send Email)</span></label><select id="tAuto"'+(ro?' disabled':'')+'><option value="">\u2014 none \u2014</option>'+AUTOS.map(function(a){return '<option value="'+esc(a.id)+'"'+((EXECAUTO===a.id)?' selected':'')+'>'+esc(a.name)+'</option>';}).join('')+'</select></div>'; }
+function autoControl(ro){ var lbl='<label>After this template is sent, run automation <span style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--soft)">(when sent from a contact\u2019s Send Email)</span></label>'; if(!AUTOS.length){ return '<div class="fld" style="margin-top:14px">'+lbl+'<select id="tAuto" disabled><option value="">\u2014 no active automations yet \u2014</option></select><div style="font-size:12px;color:var(--soft);margin-top:6px;line-height:1.5">Build one under <b>Automations</b> (Marketing), make sure it\u2019s active, then it\u2019ll appear here to fire automatically each time you send this template.</div></div>'; } return '<div class="fld" style="margin-top:14px">'+lbl+'<select id="tAuto"'+(ro?' disabled':'')+'><option value="">\u2014 none \u2014</option>'+AUTOS.map(function(a){return '<option value="'+esc(a.id)+'"'+((EXECAUTO===a.id)?' selected':'')+'>'+esc(a.name)+'</option>';}).join('')+'</select></div>'; }
 function renderEditor(){
   var host=document.getElementById('editor'); if(!host) return;
   if(!EDIT){ host.innerHTML=''; return; }
@@ -121,9 +121,9 @@ function renderEditor(){
     +'<div class="fld"><label>Template name</label><input type="text" id="tName" value="'+esc(t.name||'')+'"'+(ro?' readonly':'')+' placeholder="e.g. New buyer intro"></div>'
     +'<div class="selrow">'+catControl(ro)+scopeControl(ro)+'</div>'
     +((t.id&&t.mine)?'<div class="fld" style="margin-top:14px"><label class="chkline"><input type="checkbox" id="tActive"'+(ACTIVE?' checked':'')+'> Active — show in the send composer and automations (uncheck to archive)</label></div>':'')
-    +autoControl(ro)+'<div class="fld" style="margin-top:14px"><label>Subject</label><input type="text" id="tSubject" value="'+esc(t.subject||'')+'"'+(ro?' readonly':'')+' placeholder="e.g. Great connecting, {{first_name}}"></div>'
+    +'<div class="fld" style="margin-top:14px"><label>Subject</label><input type="text" id="tSubject" value="'+esc(t.subject||'')+'"'+(ro?' readonly':'')+' placeholder="e.g. Great connecting, {{first_name}}"></div>'
     +'<div class="fld"><label>Body</label>'+(ro?('<div class="rrgrt" style="border:1px solid #cfd6e2;border-radius:9px"><div class="rrgrt-ed" style="padding:10px 12px;min-height:120px">'+RRGRte.toHtml(t.body||'')+'</div></div>'):RRGRte.html('tBody',{value:t.body||'',placeholder:'Write your email… use the { } menu for merge fields.'}))+'</div>'
-    +'<div id="pvPanel"></div>'
+    +autoControl(ro)+'<div id="pvPanel"></div>'
     +'</div></div>';
   document.getElementById('closeBtn').onclick=function(){ EDIT=null; renderEditor(); };
   document.getElementById('pvBtn').onclick=doPreview;
