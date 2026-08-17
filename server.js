@@ -6244,7 +6244,26 @@ function _seedEmailTpls(a) {
   try { writeJsonGuarded(EMAIL_TPL_FILE, a, 'seedEmailTpls'); fs.writeFileSync(EMAIL_TPL_SEED_FLAG, JSON.stringify({ seededAt: new Date().toISOString() })); } catch (e) {}
   return a;
 }
-function loadEmailTpls() { try { return _seedEmailTpls(rj(EMAIL_TPL_FILE) || []); } catch (e) { return []; } }
+const EMAIL_TPL_POF_FLAG = path.join(BOV_DATA_DIR, 'email_templates_pof_seeded.json');
+const POF_TPL_ID = 'etpl_proof_of_funds';
+const POF_TPL_SUBJECT = 'Next step \u2014 proof of funds before we proceed';
+const POF_TPL_BODY =
+  '<p>Hi {{first_name}},</p>' +
+  '<p>Thanks for your continued interest. Before we go further and open the confidential details on the offering we discussed, I need to confirm you are positioned to close.</p>' +
+  '<p>Please send over <b>proof of funds</b> covering the down payment and working capital for a purchase in this range \u2014 any one of these works:</p>' +
+  '<p>\u2022 A recent bank or brokerage statement (you may redact the account number)<br>\u2022 A letter from your bank or financial institution<br>\u2022 A lender pre-qualification or SBA pre-approval letter, if you are financing</p>' +
+  '<p>This is a standard step that protects the seller\u2019s confidentiality and keeps the process moving with serious, qualified buyers. Everything you share stays strictly confidential and is used only to verify capacity.</p>' +
+  '<p>Once I have it, I\u2019ll get you the full package right away. Any questions, just reply here.</p>' +
+  '<p>Best,<br>{{my_name}}</p>';
+function _seedProofOfFunds(a) {
+  try { if (fs.existsSync(EMAIL_TPL_POF_FLAG)) return a; } catch (e) { return a; }
+  if (!a.some(t => t.id === POF_TPL_ID)) {
+    a.push({ id: POF_TPL_ID, name: 'Buyer \u2014 proof of funds request', category: 'Buyer', scope: 'shared', ownerUser: '', ownerName: 'RRG', subject: POF_TPL_SUBJECT, body: POF_TPL_BODY, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), seeded: true });
+  }
+  try { writeJsonGuarded(EMAIL_TPL_FILE, a, 'seedPOF'); fs.writeFileSync(EMAIL_TPL_POF_FLAG, JSON.stringify({ seededAt: new Date().toISOString() })); } catch (e) {}
+  return a;
+}
+function loadEmailTpls() { try { return _seedProofOfFunds(_seedEmailTpls(rj(EMAIL_TPL_FILE) || [])); } catch (e) { return []; } }
 function saveEmailTpls(a) { return writeJsonGuarded(EMAIL_TPL_FILE, a, 'saveEmailTpls'); }
 function newEmailTplId() { return 'etpl_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 const TPL_CATEGORIES = ['Buyer', 'Seller', 'NDA', 'Follow-up', 'Closing', 'General'];
@@ -13394,6 +13413,19 @@ app.delete('/api/files/:id', (req, res) => {
   try { binDel(path.join(USERDOCS_DIR, fRec.id + '.' + fRec.ext)); } catch (e) {}
   saveUserFiles(files.filter(x => x.id !== req.params.id));
   res.json({ ok:true });
+});
+app.post('/api/files/:id/to-room', express.json(), (req, res) => {
+  const files = loadUserFiles(); const f = files.find(x => x.id === req.params.id);
+  if (!f) return res.status(404).json({ ok: false, error: 'File not found.' });
+  const rooms = loadRooms(); const room = rooms.find(x => x.id === ((req.body && req.body.roomId) || ''));
+  if (!room) return res.status(404).json({ ok: false, error: 'Data room not found.' });
+  if (!ownsRoom(req, room)) return res.status(403).json({ ok: false, error: 'Not your data room.' });
+  let buf; try { buf = fs.readFileSync(path.join(USERDOCS_DIR, f.id + '.' + f.ext)); } catch (e) { return res.status(500).json({ ok: false, error: 'Could not read the file from storage.' }); }
+  const category = (ROOM_CATEGORIES.indexOf(f.docType) >= 0) ? f.docType : 'Other';
+  const r = addFileToRoomEx(room, { dataB64: buf.toString('base64'), filename: (f.originalName || (f.id + '.' + f.ext)), label: (f.name || f.originalName || '') }, { by: (req.user && req.user.name) || '', category: category, title: (f.name || '') });
+  if (r && r.error) return res.status(400).json({ ok: false, error: r.error });
+  saveRooms(rooms);
+  res.json({ ok: true, doc: (r && r.doc) || null, roomId: room.id, roomName: room.business || '' });
 });
 
 // Unified documents repository — merges agreements, valuations, marketing packs, and uploaded files.

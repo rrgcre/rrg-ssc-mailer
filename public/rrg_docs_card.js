@@ -56,6 +56,7 @@
       +'.dbody textarea{min-height:64px;resize:vertical;}'
       +'.ddrop{border:2px dashed #cfd6e2;border-radius:11px;padding:18px;text-align:center;color:#6b7488;font-size:12.5px;cursor:pointer;background:#f5f7fb;}'
       +'.ddrop.has{border-color:#1f8a5b;color:#1f8a5b;background:#f2faf5;font-weight:700;}'
+      +'.docroom{flex:none;background:none;border:none;color:#9aa4b6;cursor:pointer;font-size:13px;line-height:1;padding:0 3px;}.docroom:hover{color:#23496f;}'
       +'.dfoot{display:flex;gap:9px;justify-content:flex-end;align-items:center;padding:13px 21px;border-top:1px solid #e6e9f0;}'
       +'.dbtn{background:#000E31;color:#fff;border:1px solid #000E31;border-radius:9px;padding:9px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;}'
       +'.dbtn[disabled]{opacity:.85;cursor:default;}'
@@ -99,12 +100,13 @@
     if(d.kind==='file' && d.size) sub+=(sub?' · ':'')+fmtSize(d.size);
     if(d.createdAt) sub+=(sub?' · ':'')+fmt(d.createdAt);
     var del=d.deleteUrl?('<button type="button" class="docdel" data-docdel="'+esc(d.id)+'" title="Delete">\u2715</button>'):'';
+    var toroom=(d.kind==='file')?('<button type="button" class="docroom" data-doctoroom="'+esc(d.id)+'" title="Send to a data room">\u25a5</button>'):'';
     var _icoCls='k-'+d.kind, _icoGlyph=(KICON[d.kind]||KICON.file);
     if(d.kind==='file'){ var _cat=extCat(d.ext); if(_cat){ _icoCls='x-'+_cat; _icoGlyph=EXTICON[_cat]; } }
     return '<div class="rrow docrow" data-docurl="'+esc(d.openUrl||'')+'" data-dockind="'+esc(d.kind)+'" title="Open '+esc(d.title||'document')+'">'
       +'<span class="dico '+esc(_icoCls)+'">'+_icoGlyph+'</span>'
       +'<div class="rrmain" style="min-width:0"><div class="docttl">'+esc(top)+'</div><div class="docmeta">'+esc(sub)+'</div></div>'
-      +del
+      +toroom+del
       +'</div>';
   }
   function rowsHtml(){ return DOCS.filter(function(d){ return d.kind!=='file'; }).map(rowHtml).join(''); }
@@ -122,12 +124,24 @@
   // One delegated listener for the whole page -- survives every re-render of the card.
   document.addEventListener('click', function(e){
     if(!e.target||!e.target.closest) return;
+    var rm=e.target.closest('[data-doctoroom]');
+    if(rm){ e.preventDefault(); e.stopPropagation(); openRoomPicker(rm, rm.getAttribute('data-doctoroom')); return; }
     var db=e.target.closest('[data-docdel]');
     if(db){ e.preventDefault(); e.stopPropagation(); delDoc(db.getAttribute('data-docdel')); return; }
     var r=e.target.closest('.docrow[data-docurl]');
     if(r){ e.preventDefault(); open(r.getAttribute('data-docurl')); }
   });
 
+  function openRoomPicker(anchor, fileId){
+    fetch('/api/rooms',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+      var rooms=(j&&j.rooms)||[];
+      if(!rooms.length){ alert('No data rooms yet. Create one from a listing first.'); return; }
+      menu(anchor, rooms.slice(0,40).map(function(rm){ return [ (rm.business||rm.name||rm.title||'Data room'), function(){ sendToRoom(fileId, rm.id); } ]; }));
+    }).catch(function(){ alert('Could not load data rooms.'); });
+  }
+  function sendToRoom(fileId, roomId){
+    fetch('/api/files/'+encodeURIComponent(fileId)+'/to-room',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({roomId:roomId})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ if(window.rrgToast) rrgToast('Sent to '+((j.roomName)||'the data room')+' \u2713'); else alert('Sent to the data room.'); } else alert((j&&j.error)||'Could not send to the room.'); }).catch(function(){ alert('Could not reach the server.'); });
+  }
   function menu(anchor, items){
     var old=document.querySelector('.docmenu'); if(old) old.remove();
     var m=document.createElement('div'); m.className='docmenu';
@@ -139,7 +153,7 @@
     setTimeout(function(){ document.addEventListener('click', function h(ev){ if(!m.contains(ev.target)){ m.remove(); document.removeEventListener('click',h); } }); },0);
   }
 
-  function upload(){
+  function upload(initialFiles){
     styles();
     var pickedFiles=[];
     var mask=document.createElement('div'); mask.className='dmask';
@@ -188,6 +202,7 @@
     }
     dp.addEventListener('click',function(){ fi.click(); });
     fi.addEventListener('change',function(){ pickedFiles=Array.prototype.slice.call(fi.files||[]); msg.textContent=''; renderPicked(); });
+    if(initialFiles && initialFiles.length){ pickedFiles=Array.prototype.slice.call(initialFiles); msg.textContent=''; renderPicked(); }
     mask.querySelector('#_dCancel').addEventListener('click',close);
     mask.addEventListener('click',function(e){ if(e.target===mask) close(); });
     function readFile(f){ return new Promise(function(res,rej){ var rd=new FileReader(); rd.onload=function(){ var s=String(rd.result||''), i=s.indexOf(','); res(i>=0?s.slice(i+1):s); }; rd.onerror=function(){ rej(new Error('read')); }; rd.readAsDataURL(f); }); }
