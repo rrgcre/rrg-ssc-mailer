@@ -378,4 +378,15 @@ async function refineBov({ state, message, history, agentName }) {
   }
   return out;
 }
-module.exports = { parseSpaceListing, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, parseEmailContact, parseConceptList, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary, buildQuestionnaire, classifyRoomDocs, polishPrompts, refineBov };
+function _emailHtmlOut(s) {
+  s = String(s || "").trim();
+  s = s.replace(/^```[a-z]*\s*/i, "").replace(/```\s*$/, "").trim();
+  if (s.indexOf("<") < 0) { s = s.split(/\n{2,}/).map(function (para) { return "<p>" + para.replace(/\n/g, "<br>") + "</p>"; }).join(""); }
+  return s;
+}
+async function rewriteEmail({ text }) {
+  const sys = "You are helping a commercial real estate broker who works exclusively with restaurants and bars rewrite a draft email. Rewrite it to be clear, warm, professional, and concise, in the broker\u2019s own first-person voice. Fix grammar and flow. Do NOT invent facts, names, numbers, prices, dates, links, or commitments that are not in the draft. Keep any merge tokens like {{first_name}} exactly as written. Return ONLY the rewritten email body as simple HTML using <p> paragraphs (and <br> for line breaks) \u2014 no subject line, no markdown, no code fences, no commentary.";
+  const out = await callClaude(sys, "DRAFT EMAIL (may contain HTML):\n" + String(text || "").slice(0, 12000), 1400);
+  return _emailHtmlOut(out);
+}
+module.exports = { rewriteEmail, parseSpaceListing, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, parseEmailContact, parseConceptList, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary, buildQuestionnaire, classifyRoomDocs, polishPrompts, refineBov };

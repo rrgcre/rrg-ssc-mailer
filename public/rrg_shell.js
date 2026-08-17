@@ -194,7 +194,6 @@
       { ic: '✎', label: 'Email Templates', href: 'rrg_email_templates.html' },
       { ic: '⇶', label: 'Mass Emails', href: 'rrg_mass_emails.html', admin: true },
       { ic: '☷', label: 'Subscribers', href: 'rrg_subscribers.html' },
-      { ic: '◉', label: 'Tracked Emails', href: 'rrg_tracked_emails.html' },
       { ic: '⟳', label: 'Automations', href: 'rrg_admin_automations.html', admin: true }
     ] },
     { grp: 'Accounting', admin: true, color: '#4fb0a6', items: [
@@ -206,6 +205,7 @@
     ] },
     { grp: 'Tools', color: '#a99be0', items: [
       { ic: '▭', label: 'Lease Abstracts', href: 'rrg_lease_queue.html' },
+      { ic: '◉', label: 'Tracked Emails', href: 'rrg_tracked_emails.html' },
       { ic: '∑', label: 'Calculators', href: 'rrg_calculators.html' }
     ] },
     { grp: 'Admin', admin: true, color: '#dd8a82', items: [

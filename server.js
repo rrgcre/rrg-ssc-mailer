@@ -9091,9 +9091,10 @@ app.post('/api/gmail/send', express.json({ limit: '28mb' }), async (req, res) =>
   if (!subject.trim() && !body.trim()) return res.status(400).json({ ok: false, error: 'Add a subject or a message.' });
   try {
     const _tok = p ? newOpenToken() : ''; const _origin = reqOrigin(req);
-    const _bodyText = _bodyLooksHtml(body) ? htmlToText(body) : body;
+    const _sigHtml = userSignatureHtml(u); const _sigTxt = userSignatureText(u);
+    const _bodyText = (_bodyLooksHtml(body) ? htmlToText(body) : body) + (_sigTxt ? ('\n\n' + _sigTxt) : '');
     const _atts = parseEmailAttachments(req.body && req.body.attachments);
-    const sent = await gmail.sendMessage(u, { to, cc, bcc, subject, body: _bodyText, threadId: b.threadId || '', inReplyTo: b.inReplyTo || '', html: _tok ? trackedEmailHtml(body, _origin, _tok) : '', attachments: _atts });
+    const sent = await gmail.sendMessage(u, { to, cc, bcc, subject, body: _bodyText, threadId: b.threadId || '', inReplyTo: b.inReplyTo || '', html: trackedEmailHtml(body, _origin, _tok, _sigHtml), attachments: _atts });
     let emailLog = null, lastContacted = null;
     if (p) {
       const now = new Date().toISOString();
@@ -12757,41 +12758,44 @@ app.post('/api/tasks/bulk-delete', express.json({ limit: '512kb' }), (req, res) 
 
 
 // ================= Global search =================
+function _norm(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
 function _sScore(hay, toks, q) {
-  hay = String(hay || '').toLowerCase(); if (!hay) return 0;
+  hay = _norm(hay); if (!hay) return 0;
   let sc = 0;
   const wi = hay.indexOf(q);
-  if (wi >= 0) sc += (wi === 0 ? 8 : 5);
+  if (wi >= 0) sc += (wi === 0 ? 10 : 6);
+  let matched = 0;
   toks.forEach(function (t) {
     const i = hay.indexOf(t);
-    if (i >= 0) { sc += (i === 0 ? 3 : 2); }
-    else if (t.length >= 3) { let k = 0; for (let j = 0; j < hay.length && k < t.length; j++) { if (hay[j] === t[k]) k++; } if (k === t.length) sc += 1; }
+    if (i >= 0) { sc += (i === 0 ? 3 : 2); matched++; }
+    else if (t.length >= 4) { let k = 0; for (let j = 0; j < hay.length && k < t.length; j++) { if (hay[j] === t[k]) k++; } if (k === t.length) { sc += 1; matched++; } }
   });
+  if (matched < toks.length) return 0;
   return sc;
 }
 app.get('/api/search', (req, res) => {
-  const q = String(req.query.q || '').trim().toLowerCase();
+  const q = _norm(String(req.query.q || '').trim());
   if (q.length < 2) return res.json({ ok: true, q: q, results: [] });
   const toks = q.split(/\s+/).filter(Boolean);
   const results = [];
   try {
     loadPeople().forEach(function (p) {
-      const hay = [p.name, personEmails(p).join(' '), personPhones(p).join(' '), p.company, p.title, personTags(p).join(' '), p.notes].join(' ');
-      let sc = _sScore(hay, toks, q); try { const _qd = q.replace(/\D/g, ''); if (_qd.length >= 7 && personPhones(p).some(function (ph) { return String(ph).replace(/\D/g, '').indexOf(_qd) >= 0; })) sc = Math.max(sc, 12); } catch (e) {} if (sc > 0) results.push({ type: 'contact', id: p.id, title: p.name || '(no name)', sub: [p.title, p.company].filter(Boolean).join(' · '), url: '/rrg_person.html?id=' + encodeURIComponent(p.id), score: sc + (String(p.name || '').toLowerCase().indexOf(q) === 0 ? 4 : 0) });
+      const hay = [p.name, p.nickname, personEmails(p).join(' '), personPhones(p).join(' '), p.company, p.title, p.leadSource, personTags(p).join(' '), p.notes].join(' ');
+      let sc = _sScore(hay, toks, q); try { const _qd = q.replace(/\D/g, ''); if (_qd.length >= 7 && personPhones(p).some(function (ph) { return String(ph).replace(/\D/g, '').indexOf(_qd) >= 0; })) sc = Math.max(sc, 12); } catch (e) {} if (sc > 0) results.push({ type: 'contact', id: p.id, title: p.name || '(no name)', sub: [p.title, p.company].filter(Boolean).join(' · '), url: '/rrg_person.html?id=' + encodeURIComponent(p.id), score: sc + (_norm(p.name).indexOf(q) === 0 ? 4 : 0) });
     });
   } catch (e) {}
   try {
     loadCompanies().forEach(function (c) {
       const o = c.office || {};
       const hay = [c.name, c.market, o.city, o.state, o.website, o.phone, (Array.isArray(c.tags) ? c.tags.join(' ') : ''), (c.concepts || []).map(function (x) { return x.name; }).join(' ')].join(' ');
-      const sc = _sScore(hay, toks, q); if (sc > 0) results.push({ type: 'company', id: c.id, title: c.name || '(no name)', sub: [c.type, c.market || o.city].filter(Boolean).join(' · '), url: '/rrg_company.html?id=' + encodeURIComponent(c.id), score: sc + (String(c.name || '').toLowerCase().indexOf(q) === 0 ? 4 : 0) });
+      const sc = _sScore(hay, toks, q); if (sc > 0) results.push({ type: 'company', id: c.id, title: c.name || '(no name)', sub: [c.type, c.market || o.city].filter(Boolean).join(' · '), url: '/rrg_company.html?id=' + encodeURIComponent(c.id), score: sc + (_norm(c.name).indexOf(q) === 0 ? 4 : 0) });
     });
   } catch (e) {}
   try {
     const ov = loadAssignOverlay(), idx = assignmentsIndex();
     Object.keys(idx).forEach(function (k) {
       let v; try { v = assignmentView(idx[k], ov); } catch (e) { return; }
-      const hay = [v.business, v.market, v.contact, v.status].join(' ');
+      const hay = [v.business, v.market, v.contact, v.status, v.codeName, v.listingNo, v.listingId].join(' ');
       const sc = _sScore(hay, toks, q); if (sc > 0) results.push({ type: 'listing', id: k, title: v.business || 'Listing', sub: [v.market, v.status].filter(Boolean).join(' · '), url: '/rrg_assignment.html?key=' + encodeURIComponent(k), score: sc });
     });
   } catch (e) {}
