@@ -107,11 +107,11 @@ function render(){
         +'<div><label class="fld">Tax classification</label><select id="p_class">'+['','Individual / Sole proprietor','Single-member LLC','LLC','S-Corporation','C-Corporation','Partnership'].map(function(o){return '<option'+(p.taxClass===o?' selected':'')+'>'+esc(o)+'</option>';}).join('')+'</select></div>'
         +'<div><label class="fld">W-9 on file</label><div class="chkline" style="padding-top:8px"><input type="checkbox" id="p_w9" '+(p.w9OnFile?'checked':'')+'> <span>W-9 received &amp; on file</span></div></div>'
         +'<div><label class="fld">W-9 date</label><input type="date" id="p_w9date" value="'+esc(p.w9Date||'')+'"></div>'
-        +'<div class="full"><label class="fld">Tax ID (SSN / EIN)</label><input type="text" id="p_taxid" value="'+esc(p.taxId||'')+'" placeholder="On file for 1099 reporting" autocomplete="off"></div>'
+        +'<div class="full"><label class="fld">SSN — last 4 only</label><div style="display:flex;align-items:center;gap:7px"><span style="font-family:monospace;color:#8a93a8;font-size:15px;letter-spacing:1px">\u2022\u2022\u2022-\u2022\u2022-</span><input type="text" id="p_taxid" value="'+esc(p.taxId||'')+'" maxlength="4" inputmode="numeric" placeholder="1234" autocomplete="off" style="max-width:80px"></div></div>'
         +'<div class="full"><label class="fld">Payment notes</label><textarea id="p_notes" placeholder="Direct-deposit setup status, 1099 vendor #, etc.">'+esc(p.payNotes||'')+'</textarea></div>'
       +'</div>'
       +'<div class="savebar"><button class="savebtn" id="p_save">Save payroll &amp; tax</button><span class="msg" id="p_msg"></span></div>'
-      +'<div class="pnote">Sensitive — visible only to administrators. For security, consider storing only the last four of the SSN plus a "W-9 on file" flag; ask me to switch to masked storage if your data policy requires it.</div>'
+      +'<div class="pnote">Sensitive — visible only to administrators. Only the <b>last four</b> of the SSN is stored; the full number is never kept in the system. The signed <b>W-9</b> is your document of record — mark it “on file” above.</div>'
     +'</div></div>';
   }
 

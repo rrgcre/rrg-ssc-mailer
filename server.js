@@ -6277,6 +6277,7 @@ try { seedEmailTemplates(); } catch (e) { console.error('seed email tpl:', e && 
 try { seedBizSalesStages(); } catch (e) { console.error('seed biz sales:', e && e.message); }
 try { seedUnqualifiedStage(); } catch (e) { console.error('seed unqualified:', e && e.message); }
 try { seedBuyerPipeline(); } catch (e) { console.error('seed buyer pipeline:', e && e.message); }
+try { maskPayrollSsns(); } catch (e) { console.error('mask payroll ssn:', e && e.message); }
 
 // ================= Automations (email / task drip sequences) =================
 const AUTOMATIONS_FILE = path.join(BOV_DATA_DIR, 'automations.json');
@@ -11438,7 +11439,19 @@ app.get('/api/admin/users', requireAdmin, (req, res) => {
   } catch (e) { res.status(400).json({ ok: false, error: String(e.message || e) }); }
 });
 // ===== Rep / user records — a team member's book, KPIs and lists =====
-function effPayroll(un) { const s = loadSettings(); const m = (s.payroll && typeof s.payroll === 'object') ? s.payroll : {}; const p = m[String(un).toLowerCase()] || {}; return { paymentMethod: p.paymentMethod || '', w9OnFile: !!p.w9OnFile, w9Date: p.w9Date || '', taxClass: p.taxClass || '', taxId: p.taxId || '', payNotes: p.payNotes || '' }; }
+function _taxLast4(v){ return String(v||'').replace(/\D/g,'').slice(-4); }
+function effPayroll(un) { const s = loadSettings(); const m = (s.payroll && typeof s.payroll === 'object') ? s.payroll : {}; const p = m[String(un).toLowerCase()] || {}; return { paymentMethod: p.paymentMethod || '', w9OnFile: !!p.w9OnFile, w9Date: p.w9Date || '', taxClass: p.taxClass || '', taxId: _taxLast4(p.taxId), payNotes: p.payNotes || '' }; }
+// One-time purge: reduce any already-stored full SSN/EIN to its last four digits.
+function maskPayrollSsns() {
+  try {
+    const flag = path.join(BOV_DATA_DIR, 'payroll_ssn_masked.json');
+    if (fs.existsSync(flag)) return;
+    const s = loadSettings(); const m = (s.payroll && typeof s.payroll === 'object') ? s.payroll : null; let changed = false;
+    if (m) { Object.keys(m).forEach(function(k){ const p = m[k]; if (p && typeof p.taxId === 'string') { const dig = p.taxId.replace(/\D/g,''); if (dig.length > 4) { p.taxId = dig.slice(-4); changed = true; } } }); }
+    if (changed) saveSettings(s);
+    try { fs.writeFileSync(flag, JSON.stringify({ maskedAt: new Date().toISOString() })); } catch(e){}
+  } catch (e) { console.error('maskPayrollSsns:', e && e.message); }
+}
 function effEmployee(un) { const s = loadSettings(); const m = (s.employees && typeof s.employees === 'object') ? s.employees : {}; const e = m[String(un).toLowerCase()] || {}; return { homeAddress: e.homeAddress || '', personalEmail: e.personalEmail || '', personalPhone: e.personalPhone || '', linkedIn: e.linkedIn || '', startDate: e.startDate || '', endDate: e.endDate || '', emergencyName: e.emergencyName || '', emergencyPhone: e.emergencyPhone || '', notes: e.notes || '', goal: e.goal || '' }; }
 function repMatchesOwner(owner, u) { const o = String(owner || '').trim().toLowerCase(); if (!o) return false; return o === String(u.username || '').toLowerCase() || o === String(u.name || '').toLowerCase(); }
 function repUserPhoto(username) { try { const prof = auth.profileOf(auth.findUser(username)); if (prof && prof.photoExt) return '/api/userphoto/' + String(username).replace(/[^a-z0-9_.-]/gi, '_') + '.' + prof.photoExt + '?v=' + encodeURIComponent(prof.photoAt || 0); } catch (e) {} return ''; }
@@ -11537,7 +11550,7 @@ app.post('/api/user/:username/payroll', requireAdmin, express.json(), (req, res)
   if (b.w9OnFile !== undefined) cur.w9OnFile = !!b.w9OnFile;
   if (typeof b.w9Date === 'string') cur.w9Date = b.w9Date.slice(0, 10);
   if (typeof b.taxClass === 'string') cur.taxClass = b.taxClass.slice(0, 60);
-  if (typeof b.taxId === 'string') cur.taxId = b.taxId.slice(0, 40);
+  if (typeof b.taxId === 'string') cur.taxId = _taxLast4(b.taxId);
   if (typeof b.payNotes === 'string') cur.payNotes = b.payNotes.slice(0, 2000);
   s.payroll[key] = cur; saveSettings(s);
   res.json({ ok: true, payroll: effPayroll(u.username) });
