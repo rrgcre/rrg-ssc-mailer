@@ -8051,6 +8051,10 @@ app.post('/api/assignment/:key/buyer', express.json(), (req, res) => {
   const bStages = buyerStagesFor(cur); const stageNames = bStages.map(function(x){ return x.name; });
   const b = req.body || {}; const now = new Date().toISOString();
   let rec = b.id ? buyers.find(x => x.id === b.id) : null;
+  if (!rec && !b.id) {
+    const _em = String(b.email||'').trim().toLowerCase(); const _pid = String(b.personId||'');
+    rec = buyers.find(function(x){ return (_pid && x.personId===_pid) || (_em && String(x.email||'').trim().toLowerCase()===_em); }) || null;
+  }
   if (!rec) { const first = stageNames[0] || 'Inquiry'; rec = { id: newBuyerId(), stage:first, pof:'none', backup:false, lost:false, source: (b.source||'Manual'), stageAt:{}, createdAt: now, by:(req.user&&req.user.name)||'', byUser:(req.user&&req.user.username)||'' }; rec.stageAt[first]=now; buyers.push(rec); }
   if (b.personId && !rec.personId) rec.personId = String(b.personId).slice(0,40);
   _buyerClean(rec, b, now, stageNames);
