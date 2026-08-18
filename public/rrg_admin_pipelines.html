@@ -93,11 +93,11 @@ function load(){
 
 function routingCardHtml(){
   if(!MAP_CATS.length) return '';
-  var opts=function(sel){ return '<option value="">— not set —</option>'+PIPES.map(function(p){return '<option value="'+esc(p.id)+'"'+(sel===p.id?' selected':'')+'>'+esc(p.name)+(p.area?(' ('+esc(p.area)+')'):'')+'</option>';}).join(''); };
-  var flds=MAP_CATS.map(function(c){ return '<div class="fld"><label>'+esc(c.label)+'</label><select id="map_'+esc(c.key)+'">'+opts(MAP[c.key]||'')+'</select></div>'; }).join('');
+  var opts=function(sel,key){ var list=(key==='buyer')?PIPES.filter(function(p){return String(p.area||'')==='Buyer';}):PIPES; return '<option value="">— not set —</option>'+list.map(function(p){return '<option value="'+esc(p.id)+'"'+(sel===p.id?' selected':'')+'>'+esc(p.name)+(p.area?(' ('+esc(p.area)+')'):'')+'</option>';}).join(''); };
+  var flds=MAP_CATS.map(function(c){ return '<div class="fld"><label>'+esc(c.label)+'</label><select id="map_'+esc(c.key)+'">'+opts(MAP[c.key]||'', c.key)+'</select></div>'; }).join('');
   return '<div class="card" style="margin-bottom:20px"><div class="mh"><span class="t">Deal-type routing</span>'
     +'<span class="sp"><span class="msg" id="mapMsg"></span><button class="btn pri" id="mapSave">Save routing</button></span></div>'
-    +'<div class="body"><div class="pgs" style="margin:0 0 14px">Choose which pipeline each kind of deal enters. When a rep <b>starts a seller screening call</b>, that call drops straight into the <b>Business Sales</b> pipeline you pick here. The rest are used as each deal type gets routed.</div>'
+    +'<div class="body"><div class="pgs" style="margin:0 0 14px">Choose which pipeline each kind of deal enters. When a rep <b>starts a seller screening call</b>, that call drops straight into the <b>Business Sales</b> pipeline you pick here. The rest are used as each deal type gets routed. The <b>Buyer (default)</b> pipeline is the buy-side funnel every listing uses unless you pick a different one on the listing itself.</div>'
     +'<div class="frow">'+flds+'</div></div></div>';
 }
 function mapMsg(t,cls){ var m=document.getElementById('mapMsg'); if(!m)return; m.textContent=t; m.className='msg '+(cls||''); if(t){ setTimeout(function(){ if(m.textContent===t){m.textContent='';m.className='msg';} },3000); } }

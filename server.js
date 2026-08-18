@@ -4630,13 +4630,17 @@ const BUYER_STAGES = [
 const BUYER_STAGE_KEYS = BUYER_STAGES.map(s => s.k);
 const BUYER_POF = ['none','requested','received'];
 function buyerPipelinesAll() { try { return loadPipelines().filter(function(p){ return String(p.area||'') === 'Buyer'; }); } catch(e){ return []; } }
-function defaultBuyerPipelineId() { const a = buyerPipelinesAll(); return (a[0] && a[0].id) || ''; }
+function defaultBuyerPipelineId() {
+  try { const m = loadPipelineMap(); const pls = loadPipelines(); if (m.buyer && pls.some(function(p){ return p.id === m.buyer; })) return m.buyer; } catch(e){}
+  const a = buyerPipelinesAll(); return (a[0] && a[0].id) || '';
+}
 function buyerStagesFor(o) {
   o = o || {};
-  const all = buyerPipelinesAll();
+  const pls = loadPipelines();
   let p = null;
-  if (o.buyerPipelineId) p = all.find(function(x){ return x.id === o.buyerPipelineId; }) || null;
-  if (!p) p = all[0] || null;
+  if (o.buyerPipelineId) p = pls.find(function(x){ return x.id === o.buyerPipelineId; }) || null;
+  if (!p) { const did = defaultBuyerPipelineId(); if (did) p = pls.find(function(x){ return x.id === did; }) || null; }
+  if (!p) p = buyerPipelinesAll()[0] || null;
   const names = p ? (p.stages||[]).map(function(s){ return String((s&&s.name)||''); }).filter(Boolean) : [];
   if (names.length) return names.map(function(n){ return { k:n, name:n }; });
   return BUYER_STAGES.slice();
@@ -12021,6 +12025,7 @@ const PIPELINE_CATEGORIES = [
   { key: 'tenantRep',     label: 'Tenant Rep',      fallback: 'p_tenantrep' },
   { key: 'landlordSale',  label: 'Landlord Sale',   fallback: 'p_llrep' },
   { key: 'landlordLease', label: 'Landlord Lease',  fallback: 'p_llrep' },
+  { key: 'buyer',         label: 'Buyer (default)', fallback: 'p_buyer' },
 ];
 function loadPipelineMap() {
   const raw = loadSettings().pipelineMap; const src = (raw && typeof raw === 'object') ? raw : {};
