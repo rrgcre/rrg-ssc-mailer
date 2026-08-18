@@ -4616,6 +4616,46 @@ const ASSIGN_FILE = path.join(BOV_DATA_DIR, 'assignments.json');
 function loadAssignOverlay() { try { return rj(ASSIGN_FILE) || {}; } catch (e) { return {}; } }
 function saveAssignOverlay(o) { return writeJsonGuarded(ASSIGN_FILE, o, 'saveAssignOverlay'); }
 const ASSIGN_STATUSES = ['Unqualified', 'New', 'Active', 'Under Contract', 'Closed', 'On Hold', 'Lost'];
+// ===== Buyer pipeline (buy-side funnel, per listing) =====
+const BUYER_STAGES = [
+  { k:'inquiry',  name:'Inquiry' },
+  { k:'nda',      name:'NDA' },
+  { k:'call',     name:'Buyer Call' },
+  { k:'dataroom', name:'Data Room' },
+  { k:'seller',   name:'Seller Intro' },
+  { k:'offer',    name:'Offer' },
+  { k:'dd',       name:'Due Diligence' },
+  { k:'closed',   name:'Closed' },
+];
+const BUYER_STAGE_KEYS = BUYER_STAGES.map(s => s.k);
+const BUYER_POF = ['none','requested','received'];
+function newBuyerId() { return 'byr_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function _buyerClean(rec, b, now) {
+  if (typeof b.name === 'string') rec.name = b.name.slice(0,120);
+  if (typeof b.email === 'string') rec.email = b.email.slice(0,160);
+  if (typeof b.phone === 'string') rec.phone = b.phone.slice(0,60);
+  if (typeof b.company === 'string') rec.company = b.company.slice(0,160);
+  if (typeof b.source === 'string') rec.source = b.source.slice(0,80);
+  if (typeof b.stage === 'string' && BUYER_STAGE_KEYS.indexOf(b.stage) >= 0) {
+    if (rec.stage !== b.stage) { rec.stageAt = rec.stageAt || {}; rec.stageAt[b.stage] = now; }
+    rec.stage = b.stage;
+  }
+  if (typeof b.pof === 'string' && BUYER_POF.indexOf(b.pof) >= 0) rec.pof = b.pof;
+  if (b.offerAmount != null) rec.offerAmount = String(b.offerAmount).replace(/[^0-9.]/g,'').slice(0,15);
+  if (typeof b.backup === 'boolean') rec.backup = b.backup;
+  if (typeof b.lost === 'boolean') rec.lost = b.lost;
+  if (typeof b.lostReason === 'string') rec.lostReason = b.lostReason.slice(0,300);
+  if (typeof b.notes === 'string') rec.notes = b.notes.slice(0,4000);
+  rec.updatedAt = now;
+  return rec;
+}
+function buyerSummary(list) {
+  list = Array.isArray(list) ? list : [];
+  const counts = {}; BUYER_STAGE_KEYS.forEach(k => counts[k] = 0);
+  let active = 0, lost = 0, inOffer = 0, closed = 0;
+  list.forEach(b => { const st = BUYER_STAGE_KEYS.indexOf(b.stage) >= 0 ? b.stage : 'inquiry'; counts[st] = (counts[st]||0)+1; if (b.lost) { lost++; } else { active++; if (st==='offer'||st==='dd') inOffer++; if (st==='closed') closed++; } });
+  return { counts, total: list.length, active, lost, inOffer, closed };
+}
 const TXN_STATUSES = ['LOI', 'Under Contract', 'Due Diligence', 'Financing', 'Closing', 'Closed', 'Dead'];
 const TXN_COMM_STATUS = ['Unpaid', 'Invoiced', 'Partial', 'Paid'];
 const OFFER_TYPES = ['IOI', 'LOI'];
@@ -4972,6 +5012,8 @@ function assignmentView(d, overlay, _opts) {
     tours: Array.isArray(o.tours) ? o.tours : [],
     ndas: Array.isArray(o.ndas) ? o.ndas : [],
     inquiries: Array.isArray(o.inquiries) ? o.inquiries : [],
+    buyers: Array.isArray(o.buyers) ? o.buyers : [],
+    buyerSummary: buyerSummary(o.buyers),
     bbsRef: o.bbsRef || '', bbsNumber: o.bbsNumber || '', costarNo: o.costarNo || '', crexiNo: o.crexiNo || '', leadAutomationId: o.leadAutomationId || '',
     assignmentType: (o.assignmentType === 'tenant_rep') ? 'tenant_rep' : 'listing', criteria: (o.criteria && typeof o.criteria === 'object') ? o.criteria : {},
     transaction: (o.transaction && typeof o.transaction === 'object') ? o.transaction : null,
@@ -5580,7 +5622,7 @@ app.get('/api/assignment/:key', (req, res) => {
   const origin = req.protocol + '://' + req.get('host');
   try { const _o = overlay[d.key] || {}; if (!_o.listingNo) { _o.listingNo = nextListingNo(); overlay[d.key] = _o; saveAssignOverlay(overlay); } } catch (e) {}
   const dealAgreements = loadAgreements().filter(a => a.dealKey === d.key).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999')));
-  res.json({ ok: true, statuses: ASSIGN_STATUSES, txnStatuses: TXN_STATUSES, commStatuses: TXN_COMM_STATUS, markets: effMarkets(), assignment: assignmentView(d, overlay), agreements: dealAgreements, agreementTypes: effAgreementTypes(), pipelines: loadPipelines(), automations: loadAutomations().filter(a => a.active !== false).map(a => ({ id: a.id, name: a.name || '' })), expenses: dealExpenseRollup(d.key, req.user), invoices: dealInvoiceRollup(d.key, req.user), roomActivity: roomActivityFor(d, origin) });
+  res.json({ ok: true, statuses: ASSIGN_STATUSES, txnStatuses: TXN_STATUSES, commStatuses: TXN_COMM_STATUS, markets: effMarkets(), assignment: assignmentView(d, overlay), buyerStages: BUYER_STAGES, buyerPof: BUYER_POF, agreements: dealAgreements, agreementTypes: effAgreementTypes(), pipelines: loadPipelines(), automations: loadAutomations().filter(a => a.active !== false).map(a => ({ id: a.id, name: a.name || '' })), expenses: dealExpenseRollup(d.key, req.user), invoices: dealInvoiceRollup(d.key, req.user), roomActivity: roomActivityFor(d, origin) });
 });
 app.post('/api/assignment/:key/promote', express.json(), (req, res) => {
   const key = req.params.key;
@@ -7975,6 +8017,54 @@ app.post('/api/assignment/:key/inquiry/:id/remove', (req, res) => {
   cur.inquiries = (Array.isArray(cur.inquiries) ? cur.inquiries : []).filter(x => x.id !== req.params.id);
   cur.updatedAt = new Date().toISOString(); overlay[d.key] = cur; saveAssignOverlay(overlay);
   res.json({ ok: true, inquiries: cur.inquiries });
+});
+// ---- Buyer pipeline: per-listing buy-side funnel (add/update/remove + firm-wide rollup) ----
+app.post('/api/assignment/:key/buyer', express.json(), (req, res) => {
+  const deals = assignmentsIndex(); const d = deals[req.params.key];
+  if (!d) return res.status(404).json({ ok:false, error:'Assignment not found.' });
+  if (!ownsAssignment(req, d)) return res.status(403).json({ ok:false, error:'Not yours.' });
+  const overlay = loadAssignOverlay(); const cur = overlay[d.key] || {};
+  const buyers = Array.isArray(cur.buyers) ? cur.buyers : [];
+  const b = req.body || {}; const now = new Date().toISOString();
+  let rec = b.id ? buyers.find(x => x.id === b.id) : null;
+  if (!rec) { rec = { id: newBuyerId(), stage:'inquiry', pof:'none', backup:false, lost:false, source: (b.source||'Manual'), stageAt:{ inquiry: now }, createdAt: now, by:(req.user&&req.user.name)||'', byUser:(req.user&&req.user.username)||'' }; buyers.push(rec); }
+  if (b.personId && !rec.personId) rec.personId = String(b.personId).slice(0,40);
+  _buyerClean(rec, b, now);
+  if ((rec.name || rec.email) && !rec.personId) { const pp = findOrCreatePerson(req, { name: rec.name||'', email: rec.email||'', phones: rec.phone?[rec.phone]:[], company: rec.company||'', type:'Buying' }); if (pp) rec.personId = pp.id; }
+  cur.buyers = buyers; cur.updatedAt = now; overlay[d.key] = cur; saveAssignOverlay(overlay);
+  res.json({ ok:true, buyers, buyerSummary: buyerSummary(buyers), stages: BUYER_STAGES });
+});
+app.post('/api/assignment/:key/buyer/:id/remove', (req, res) => {
+  const deals = assignmentsIndex(); const d = deals[req.params.key];
+  if (!d) return res.status(404).json({ ok:false, error:'Assignment not found.' });
+  if (!ownsAssignment(req, d)) return res.status(403).json({ ok:false, error:'Not yours.' });
+  const overlay = loadAssignOverlay(); const cur = overlay[d.key] || {};
+  cur.buyers = (Array.isArray(cur.buyers) ? cur.buyers : []).filter(x => x.id !== req.params.id);
+  cur.updatedAt = new Date().toISOString(); overlay[d.key] = cur; saveAssignOverlay(overlay);
+  res.json({ ok:true, buyers: cur.buyers, buyerSummary: buyerSummary(cur.buyers) });
+});
+app.get('/api/buyers', (req, res) => {
+  res.set('Cache-Control','no-store');
+  const overlay = loadAssignOverlay(), idx = assignmentsIndex();
+  const isAdmin = req.user && isSuper(req.user);
+  const out = [];
+  Object.values(idx).forEach(d => {
+    if (!(isAdmin || canSeeAllDeals(req) || ownsAssignment(req, d))) return;
+    const o = overlay[d.key] || {};
+    const buyers = Array.isArray(o.buyers) ? o.buyers : [];
+    if (!buyers.length) return;
+    let v; try { v = assignmentView(d, overlay); } catch(e){ v = {}; }
+    buyers.forEach(bb => {
+      const st = BUYER_STAGE_KEYS.indexOf(bb.stage) >= 0 ? bb.stage : 'inquiry';
+      const sd = BUYER_STAGES.find(x => x.k === st) || BUYER_STAGES[0];
+      out.push({ id: bb.id, listingKey: d.key, business: v.business||'', listingId: v.listingId||'', market: v.market||'', owner: v.owner||'',
+        name: bb.name||'', email: bb.email||'', phone: bb.phone||'', company: bb.company||'', personId: bb.personId||'',
+        stage: st, stageName: sd.name, pof: bb.pof||'none', offerAmount: bb.offerAmount||'', backup: !!bb.backup, lost: !!bb.lost, lostReason: bb.lostReason||'',
+        source: bb.source||'', createdAt: bb.createdAt||'', updatedAt: bb.updatedAt||'' });
+    });
+  });
+  out.sort((a,b2) => String(b2.updatedAt).localeCompare(String(a.updatedAt)));
+  res.json({ ok:true, buyers: out, stages: BUYER_STAGES, pof: BUYER_POF, isAdmin: !!isAdmin });
 });
 // Run the RRG analyst on one offer — scores it and returns a broker's assessment.
 app.post('/api/assignment/:key/offer/:offerId/analyze', express.json(), async (req, res) => {
