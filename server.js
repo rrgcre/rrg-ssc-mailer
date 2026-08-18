@@ -8055,10 +8055,15 @@ app.post('/api/assignment/:key/buyer', express.json(), (req, res) => {
     const _em = String(b.email||'').trim().toLowerCase(); const _pid = String(b.personId||'');
     rec = buyers.find(function(x){ return (_pid && x.personId===_pid) || (_em && String(x.email||'').trim().toLowerCase()===_em); }) || null;
   }
-  if (!rec) { const first = stageNames[0] || 'Inquiry'; rec = { id: newBuyerId(), stage:first, pof:'none', backup:false, lost:false, source: (b.source||'Manual'), stageAt:{}, createdAt: now, by:(req.user&&req.user.name)||'', byUser:(req.user&&req.user.username)||'' }; rec.stageAt[first]=now; buyers.push(rec); }
+  let _created = false;
+  if (!rec) { const first = stageNames[0] || 'Inquiry'; rec = { id: newBuyerId(), stage:first, pof:'none', backup:false, lost:false, source: (b.source||'Manual'), stageAt:{}, createdAt: now, by:(req.user&&req.user.name)||'', byUser:(req.user&&req.user.username)||'' }; rec.stageAt[first]=now; buyers.push(rec); _created = true; }
   if (b.personId && !rec.personId) rec.personId = String(b.personId).slice(0,40);
+  const _oldStage = _created ? '' : (rec.stage || '');
   _buyerClean(rec, b, now, stageNames);
   if ((rec.name || rec.email) && !rec.personId) { const pp = findOrCreatePerson(req, { name: rec.name||'', email: rec.email||'', phones: rec.phone?[rec.phone]:[], company: rec.company||'', type:'Buying' }); if (pp) rec.personId = pp.id; }
+  // Fire the buyer stage's on-leave / on-enter automations against this buyer (config in Admin -> Pipelines).
+  const _bpipe = (function(){ const pls = loadPipelines(); let pp = cur.buyerPipelineId ? pls.find(function(x){ return x.id === cur.buyerPipelineId; }) : null; if (!pp) { const did = defaultBuyerPipelineId(); if (did) pp = pls.find(function(x){ return x.id === did; }); } if (!pp) pp = buyerPipelinesAll()[0] || null; return pp; })();
+  try { _fireBuyerStageAutos(_bpipe, d.key, rec, _oldStage, rec.stage || '', req); } catch (e) {}
   cur.buyers = buyers; cur.updatedAt = now; overlay[d.key] = cur; saveAssignOverlay(overlay);
   res.json({ ok:true, buyers, buyerSummary: buyerSummary(buyers, stageNames), stages: bStages });
 });
@@ -12111,6 +12116,24 @@ function _fireStageAutos(pipe, d, oldStage, newStage, req) {
     jobs.forEach(function (aid) { const plan = loadAutomations().find(function (x) { return x.id === aid && x.active !== false; }); if (plan) { enrollPerson(pp, plan, { byName: (req && req.user && req.user.name) || '', byUser: (req && req.user && req.user.username) || '', dealKey: d.key }); changed = true; } });
     if (changed) savePeople(ppl);
   } catch (e) { console.error('_fireStageAutos:', e && e.message); }
+}
+// Same idea for the buy-side: when a buyer moves stage in a listing's buyer funnel,
+// fire the stage's On-leave (old) and On-enter (new) automations against the BUYER's person.
+function _fireBuyerStageAutos(pipe, listingKey, buyerRec, oldStage, newStage, req) {
+  try {
+    if (!pipe || oldStage === newStage) return;
+    const pid = buyerRec && buyerRec.personId; if (!pid) return;
+    const stages = pipe.stages || [];
+    const _find = function (nm) { return stages.filter(function (s) { return s.name === nm; })[0]; };
+    const jobs = [];
+    const _o = _find(oldStage); if (_o && _o.onUnassignAuto) jobs.push(_o.onUnassignAuto);
+    const _n = _find(newStage); if (_n && _n.onAssignAuto) jobs.push(_n.onAssignAuto);
+    if (!jobs.length) return;
+    const ppl = loadPeople(); const pp = ppl.find(function (x) { return x.id === pid; }); if (!pp) return;
+    let changed = false;
+    jobs.forEach(function (aid) { const plan = loadAutomations().find(function (x) { return x.id === aid && x.active !== false; }); if (plan) { enrollPerson(pp, plan, { byName: (req && req.user && req.user.name) || '', byUser: (req && req.user && req.user.username) || '', dealKey: listingKey }); changed = true; } });
+    if (changed) savePeople(ppl);
+  } catch (e) { console.error('_fireBuyerStageAutos:', e && e.message); }
 }
 app.post('/api/assignment/:key/stage', express.json(), (req, res) => {
   const deals = assignmentsIndex(); const d = deals[req.params.key];
