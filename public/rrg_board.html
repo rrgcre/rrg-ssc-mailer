@@ -448,7 +448,7 @@ function cardFieldsHtml(c){
   if(CARDF.contact && c.contact){ var nm=esc(c.contact); h+='<div class="r"><span class="ic">○</span>'+(c.contactPersonId?('<a class="contactlink" href="./rrg_person.html?id='+encodeURIComponent(c.contactPersonId)+'">'+nm+'</a>'):nm)+'</div>'; }
   if(CARDF.value && c.value) h+='<div class="r"><span class="ic">$</span><span class="val">'+esc(c.value)+'</span></div>';
   if(CARDF.listPrice && c.listPrice) h+='<div class="r" title="Listing price"><span class="ic">$</span><span class="val">'+fmtMoneyMaybe(c.listPrice)+'</span></div>';
-  if(CARDF.commission && c.totalCommission) h+='<div class="r" title="Full commission"><span class="ic">%</span><span class="val">'+fmtMoneyMaybe(c.totalCommission)+'</span></div>';
+  if(CARDF.commission && c.totalCommission) h+='<div class="r" title="Full commission"><span class="ic">$</span><span class="val">'+fmtMoneyMaybe(c.totalCommission)+' <span style="color:#8a93a8;font-weight:600;font-size:10px">comm</span></span></div>';
   if(CARDF.days){ var dd=daysInStage(c); if(dd!=null) h+='<div class="r" title="'+dd+' day'+(dd===1?'':'s')+' in '+esc(c.stage||'this stage')+'"><span class="ic">◷</span>'+dd+'d in stage</div>'; }
   if(CARDF.market && c.market) h+='<div class="r"><span class="ic">◎</span>'+esc(c.market)+'</div>';
   if(CARDF.status && c.status) h+='<div class="r"><span class="ic">◈</span>'+esc(c.status)+'</div>';
