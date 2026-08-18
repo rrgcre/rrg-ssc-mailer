@@ -141,7 +141,7 @@ h1{font-size:30px;font-weight:800;margin:0;letter-spacing:-.01em;}
     </div>
     <div class="msg" id="au_status" style="margin-top:12px;color:var(--muted)"></div>
   </div>
-  <div class="mf"><button class="btn primary" id="au_save">Save</button><button class="btn" id="au_scan">\u27f3 Scan now</button><span class="msg" id="au_msg"></span></div>
+  <div class="mf"><button class="btn primary" id="au_save">Save</button><button class="btn" id="au_scan">⟳ Scan now</button><span class="msg" id="au_msg"></span></div>
 </div></div>
 <script src="/rrg_list.js"></script>
 <script>
@@ -322,7 +322,21 @@ function openAuto(){ var m=document.getElementById('autoOv'); if(m){ m.removeAtt
 function closeAuto(){ var m=document.getElementById('autoOv'); if(m) m.setAttribute('hidden',''); }
 function loadAutoCfg(){ var st=document.getElementById('au_status'); fetch('/api/spaces/scan-poll',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(!j||!j.ok) return; document.getElementById('au_on').checked=!!j.enabled; document.getElementById('au_iv').value=String(j.intervalMin||30); document.getElementById('au_days').value=String(j.days||30); var msg=''; if(!j.configured){ msg='Gmail isn\u2019t set up on the server yet \u2014 an admin enables it in Settings.'; } else if(!j.connected){ msg='Connect your Gmail (open any contact \u2192 Email \u2192 Connect Gmail) to enable auto-import.'; } else { msg=j.enabled?('On \u2014 last check '+(j.lastRun?fmtDate(j.lastRun):'pending')+(j.lastCount?(' \u00b7 '+j.lastCount+' added'):'')+'.'):'Off \u2014 turn on to monitor your inbox.'; } if(st) st.textContent=msg; }).catch(function(){}); }
 function saveAutoCfg(){ var b={enabled:document.getElementById('au_on').checked,intervalMin:parseInt(document.getElementById('au_iv').value,10)||30,days:parseInt(document.getElementById('au_days').value,10)||30}; var msg=document.getElementById('au_msg'); if(msg)msg.textContent='Saving\u2026'; fetch('/api/spaces/scan-poll',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(b)}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ if(msg)msg.textContent='Saved \u2713'; loadAutoCfg(); setTimeout(function(){ if(msg&&msg.textContent==='Saved \u2713') msg.textContent=''; },1500); } else if(msg){ msg.textContent=(j&&j.error)||'Save failed.'; } }).catch(function(){ if(msg)msg.textContent='Network error.'; }); }
-function scanNow(){ var days=parseInt(document.getElementById('au_days').value,10)||30; var msg=document.getElementById('au_msg'); var btn=document.getElementById('au_scan'); if(btn) btn.disabled=true; if(msg)msg.textContent='Scanning your email\u2026'; fetch('/api/spaces/ai-email-scan',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({days:days})}).then(function(r){return r.json();}).then(function(j){ if(btn) btn.disabled=false; if(j&&j.ok){ if(msg)msg.textContent='Added '+j.created+' space'+(j.created===1?'':'s')+(j.centersMade?(' \u00b7 '+j.centersMade+' new center'+(j.centersMade===1?'':'s')):'')+' (scanned '+j.scanned+').'; if(j.spaces){ SPACES=j.spaces; renderTiles(); draw(); } } else if(msg){ msg.textContent=(j&&j.error)||'Scan failed.'; } }).catch(function(){ if(btn) btn.disabled=false; if(msg)msg.textContent='Network error.'; }); }
+function scanNow(){
+  var days=parseInt((document.getElementById('au_days')||{}).value,10)||30;
+  var msg=document.getElementById('au_msg'); var btn=document.getElementById('au_scan'); if(btn) btn.disabled=true;
+  var orb=window.rrgAiWork; var t0=Date.now(); var total=0, done=0, created=0;
+  if(orb&&orb.show) orb.show('Scanning your inbox for available spaces…'); if(msg) msg.textContent='';
+  var es; try{ es=new EventSource('/api/spaces/ai-email-scan-stream?days='+days); }catch(e){ if(btn)btn.disabled=false; if(orb&&orb.hide)orb.hide(); if(msg)msg.textContent='Could not start the scan.'; return; }
+  function fin(text){ if(es){ try{es.close();}catch(_){}} if(btn) btn.disabled=false; if(msg) msg.textContent=text||''; }
+  es.onmessage=function(ev){ var d; try{ d=JSON.parse(ev.data); }catch(_){ return; }
+    if(d.phase==='listed'){ total=d.total||0; if(orb&&orb.setMsg) orb.setMsg(total?('Found '+total+' possible listing email'+(total===1?'':'s')+' — reading each…'):'No new listing emails to read.'); }
+    else if(d.phase==='item'){ done=d.done||done; created=(d.created!=null?d.created:created); var m='Imported '+created+' space'+(created===1?'':'s')+' · read '+done+' of '+total; if(orb&&orb.progress) orb.progress(done,total,{msg:m}); else if(orb&&orb.setMsg) orb.setMsg(m); }
+    else if(d.phase==='done'){ var secs=((Date.now()-t0)/1000).toFixed(1); var sum='Imported '+d.created+' space'+(d.created===1?'':'s')+(d.centersMade?(' · '+d.centersMade+' new center'+(d.centersMade===1?'':'s')):'')+' · scanned '+d.scanned+' · '+secs+'s'; if(orb&&orb.done) orb.done({msg:sum}); else if(orb&&orb.hide) orb.hide(); fin(sum); load(); }
+    else if(d.phase==='error'){ if(orb&&orb.hide) orb.hide(); fin(d.error||'Scan failed.'); }
+  };
+  es.onerror=function(){ if(orb&&orb.hide) orb.hide(); fin((msg&&msg.textContent)?msg.textContent:'Connection interrupted — try again.'); };
+}
 document.addEventListener('click',function(e){ if(e.target.closest&&e.target.closest('#autoBtn')){ openAuto(); return; } if(e.target.closest&&e.target.closest('#autoX')){ closeAuto(); return; } if(e.target.closest&&e.target.closest('#au_save')){ saveAutoCfg(); return; } if(e.target.closest&&e.target.closest('#au_scan')){ scanNow(); return; } var _ov=document.getElementById('autoOv'); if(_ov&&e.target===_ov){ closeAuto(); } });
 function load(){
   fetch('/api/session',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(s){ IS_ADMIN=!!(s&&(s.role==='admin'||s.role==='creator')); }).catch(function(){}).then(function(){
