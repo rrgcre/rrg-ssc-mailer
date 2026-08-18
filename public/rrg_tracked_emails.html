@@ -46,13 +46,13 @@ thead th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(
 <div class="wrap">
   <div class="stats" id="stats"></div>
   <div class="card">
-    <div class="note" style="margin-bottom:10px">Every email sent from a contact's page, by an automation, or straight from your Gmail — matched to the contact by email address. Opens are tracked on app sends (opens from the sending device in the first 20 seconds are ignored); Gmail sends show as <b>not tracked</b>.</div>
-    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px"><button id="gmSync" onclick="syncGmail(this)" style="background:#000E31;color:#fff;border:none;border-radius:9px;padding:9px 14px;font:inherit;font-size:13px;font-weight:700;cursor:pointer">⟳ Sync sent from Gmail</button><span class="note" id="gmMsg"></span></div>
+    <div class="note" style="margin-bottom:10px">Every email sent from a contact's page, by an automation, or straight from your Gmail — matched to the contact by email address. Opens are tracked on app sends (opens from the sending device in the first 20 seconds are ignored). Gmail sends can’t carry a tracking pixel, so they’re <b>hidden by default</b> — toggle <b>Show Gmail (untracked) sends</b> to see the full log.</div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px"><button id="gmSync" onclick="syncGmail(this)" style="background:#000E31;color:#fff;border:none;border-radius:9px;padding:9px 14px;font:inherit;font-size:13px;font-weight:700;cursor:pointer">⟳ Sync sent from Gmail</button><span class="note" id="gmMsg"></span><label style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:#6b7488;font-weight:600;cursor:pointer;margin-left:auto"><input type="checkbox" id="showUntracked"> Show Gmail (untracked) sends</label></div>
     <div id="list"><div class="empty">Loading…</div></div>
   </div>
 </div>
 <script>
-var EMAILS=[], TBL=null;
+var EMAILS=[], TBL=null, SHOW_UNTRACKED=(function(){ try{ return localStorage.getItem('rrgTrkShowUntracked')==='1'; }catch(e){ return false; } })();
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function fmtDT(iso){ if(!iso) return '—'; var t=Date.parse(iso); if(isNaN(t)) return '—'; var d=new Date(t); return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2)+' '+d.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}); }
 function ago(iso){ if(!iso) return ''; var t=Date.parse(iso); if(isNaN(t)) return ''; var s=Math.max(0,(Date.now()-t)/1000); if(s<60) return 'just now'; var m=Math.floor(s/60); if(m<60) return m+'m ago'; var h=Math.floor(m/60); if(h<24) return h+'h ago'; var d=Math.floor(h/24); return d+'d ago'; }
@@ -73,7 +73,8 @@ function render(){
     +'<div class="stat"><div class="n">'+tracked+'</div><div class="l">Tracked · app sends</div></div>'
     +'<div class="stat"><div class="n green">'+opened+'</div><div class="l">Opened</div></div>'
     +'<div class="stat"><div class="n amber">'+(tracked?rate+'%':'—')+'</div><div class="l">Open rate · of tracked</div></div>';
-  var cfg={ mount:'#list', data:EMAILS, key:'trackedEmails', empty:'<div class="empty">No tracked emails yet. Send an email from a contact’s page and it will show up here.</div>', rowId:function(e){return e.id;},
+  var VIEW = SHOW_UNTRACKED ? EMAILS : EMAILS.filter(function(e){return e.tracked;});
+  var cfg={ mount:'#list', data:VIEW, key:'trackedEmails', empty:'<div class="empty">No tracked emails to show. Send an email from a contact’s page, or turn on “Show Gmail (untracked) sends” for the full log.</div>', rowId:function(e){return e.id;},
     defaultSort:0, defaultDir:1,
     columns:[
       { label:'Sent', sort:function(a,b){return RRGList.cmp(a.sentAt,b.sentAt);}, cell:function(e){ return '<span title="'+esc(e.sentAt)+'">'+esc(fmtDT(e.sentAt))+'</span>'; } },
@@ -86,8 +87,9 @@ function render(){
       { label:'Sent by', sort:function(a,b){return RRGList.cmp(a.by,b.by);}, cell:function(e){ var via=e.via?('<span class="viap '+(e.via==='automation'?'automation':'')+'">'+esc(e.via)+'</span> '):''; return via+'<span class="meta">'+esc(e.by||'—')+'</span>'; } }
     ]
   };
-  if(TBL) TBL.refresh(EMAILS); else TBL=RRGList.create(cfg);
+  if(TBL) TBL.refresh(VIEW); else TBL=RRGList.create(cfg);
 }
+(function(){ var _c=document.getElementById('showUntracked'); if(_c){ _c.checked=SHOW_UNTRACKED; _c.addEventListener('change',function(){ SHOW_UNTRACKED=_c.checked; try{ localStorage.setItem('rrgTrkShowUntracked', SHOW_UNTRACKED?'1':'0'); }catch(e){} render(); }); } })();
 load();
 </script>
 </body>
