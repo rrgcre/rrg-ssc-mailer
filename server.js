@@ -5241,17 +5241,21 @@ function _spaceMatchFields(sp) {
 // excluded. Requires the tenant to be active AND at least one concrete positive hit.
 function tenantBoxMatch(tb, S) {
   if (!tb || !tb.active) return { match: false, reasons: [] };
-  const reasons = []; let specified = 0, positive = 0;
+  const reasons = []; let otherPos = 0;
+  // A non-size criterion: box silent -> wildcard; space silent -> neutral; satisfied -> positive; conflict -> exclude.
   function crit(isSpec, spaceHas, ok, label) {
-    if (!isSpec) return true; specified++;
+    if (!isSpec) return true;
     if (!spaceHas) return true;
-    if (ok) { positive++; if (label) reasons.push(label); return true; }
+    if (ok) { otherPos++; if (label && reasons.indexOf(label) < 0) reasons.push(label); return true; }
     return false;
   }
+  // SIZE is mandatory: the box must specify a SF range, the space must have a size, and it must be in range.
   const sfMin = (tb.sfMin !== '' && tb.sfMin != null) ? Number(tb.sfMin) : null;
   const sfMax = (tb.sfMax !== '' && tb.sfMax != null) ? Number(tb.sfMax) : null;
-  if (!crit(sfMin != null, S.size != null, S.size >= sfMin, 'size')) return { match: false, reasons: [] };
-  if (!crit(sfMax != null, S.size != null, S.size <= sfMax, 'size')) return { match: false, reasons: [] };
+  if ((sfMin == null && sfMax == null) || S.size == null) return { match: false, reasons: [] };
+  if (sfMin != null && S.size < sfMin) return { match: false, reasons: [] };
+  if (sfMax != null && S.size > sfMax) return { match: false, reasons: [] };
+  reasons.push('size');
   if (!crit(!!(tb.markets && tb.markets.length), !!S.marketKey, !!(S.marketKey && tb.markets.indexOf(S.marketKey) >= 0), 'market')) return { match: false, reasons: [] };
   if (!crit(!!(tb.condition && tb.condition.length), !!S.condition, !!(S.condition && tb.condition.indexOf(S.condition) >= 0), 'condition')) return { match: false, reasons: [] };
   // Position — end-cap / inline / pad / freestanding. A space silent on position is not excluded.
@@ -5260,10 +5264,11 @@ function tenantBoxMatch(tb, S) {
   if (tb.deal === 'lease') { if (!crit(true, !!S.dealType, S.dealType === 'lease' || S.dealType === 'both', 'lease')) return { match: false, reasons: [] }; }
   else if (tb.deal === 'purchase') { if (!crit(true, !!S.dealType, S.dealType === 'sale' || S.dealType === 'both', 'purchase')) return { match: false, reasons: [] }; }
   // Amenities — when a space is characterized with features, every requested amenity must be present.
-  if (tb.amenities && tb.amenities.length) { specified++; if (S.features && S.features.length) { const miss = tb.amenities.filter(a => S.features.indexOf(a) < 0); if (miss.length) return { match: false, reasons: [] }; positive++; reasons.push('amenities'); } }
+  if (tb.amenities && tb.amenities.length) { if (S.features && S.features.length) { const miss = tb.amenities.filter(a => S.features.indexOf(a) < 0); if (miss.length) return { match: false, reasons: [] }; otherPos++; reasons.push('amenities'); } }
   // Budget — max rent $/SF/yr; only bites for lease/both tenants against a priced space.
-  if ((tb.budget !== '' && tb.budget != null && tb.budget) && tb.deal !== 'purchase') { specified++; if (S.rent != null) { if (S.rent > Number(tb.budget)) return { match: false, reasons: [] }; positive++; reasons.push('budget'); } }
-  if (specified === 0 || positive === 0) return { match: false, reasons: [] };
+  if ((tb.budget !== '' && tb.budget != null && tb.budget) && tb.deal !== 'purchase') { if (S.rent != null) { if (S.rent > Number(tb.budget)) return { match: false, reasons: [] }; otherPos++; reasons.push('budget'); } }
+  // Must match SF PLUS at least one other criterion (more than one hit, one of them size).
+  if (otherPos < 1) return { match: false, reasons: [] };
   return { match: true, reasons: reasons.filter((v, i, a) => a.indexOf(v) === i) };
 }
 // A tenant can carry MULTIPLE requirement sets — one per concept, each with its own needs.
