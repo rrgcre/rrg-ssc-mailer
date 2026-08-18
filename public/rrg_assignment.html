@@ -238,6 +238,7 @@ var STAGES=[
   { k:'closing', name:'Closing', lbl:'Closing', manual:true }
 ];
 var TOOLPIPE='p_bizsales';
+function moneyInputFmt(v){ var n=String(v==null?'':v).replace(/[^0-9.]/g,''); if(!n) return ''; var num=Math.round(parseFloat(n)); if(isNaN(num)) return ''; return '$'+num.toLocaleString('en-US'); }
 function activePipe(){ var _pid=(A&&A.pipelineId)||TOOLPIPE; return PIPES.filter(function(p){return p.id===_pid;})[0]||null; }
 function usingGeneric(){ return !!(A&&A.pipelineId && A.pipelineId!==TOOLPIPE && activePipe()); }
 function shortLbl(n){ n=String(n||''); if(n.length<=11) return n; var w=n.split(/\s+/); if(w.length>1){ return w.map(function(x){return x[0];}).join('').toUpperCase().slice(0,5); } return n.slice(0,10); }
@@ -532,7 +533,7 @@ function deliverablesBar(){
 function kpiRow(){
   var views=0; try{ if(typeof RA!=='undefined'&&RA&&Array.isArray(RA.people)) views=RA.people.reduce(function(s,p){return s+(+p.views||0);},0); }catch(e){}
   var gci=0; try{ (AGR||[]).forEach(function(a){ gci+=(+a.projectedGci||0); }); }catch(e){}
-  var tiles=[['Asking Price', A.value?esc(A.value):'\u2014'],['Days on Market', domDays()||'\u2014'],['Interested Parties', String((INQUIRIES||[]).length)],['Data-Room Views', String(views)],['NDAs', String((NDAS||[]).length)],['Tours', String((TOURS||[]).length)],['Offers', String((OFFERS||[]).length)],['Projected Commission', gci>0?money(gci):'\u2014']];
+  var tiles=[['Asking Price', A.listPrice?esc(moneyInputFmt(A.listPrice)):(A.value?esc(A.value):'\u2014')],['Days on Market', domDays()||'\u2014'],['Interested Parties', String((INQUIRIES||[]).length)],['Data-Room Views', String(views)],['NDAs', String((NDAS||[]).length)],['Tours', String((TOURS||[]).length)],['Offers', String((OFFERS||[]).length)],['Projected Commission', A.totalCommission?esc(moneyInputFmt(A.totalCommission)):(gci>0?money(gci):'\u2014')]];
   return tiles.map(function(t){ return '<div class="kpi"><div class="kn">'+t[1]+'</div><div class="kl">'+esc(t[0])+'</div></div>'; }).join('');
 }
 
@@ -557,7 +558,7 @@ function render(){
 
   var facts='<div class="facts">'
     +'<div class="fact"><div class="k">Listing ID</div><div class="v">'+(A.listingId?esc(A.listingId):'\u2014')+'</div></div>'
-    +'<div class="fact"><div class="k">Estimated value</div><div class="v big">'+(A.value?esc(A.value):'—')+'</div></div>'
+    +'<div class="fact"><div class="k">'+(A.listPrice?'Listing price':'Estimated value')+'</div><div class="v big">'+(A.listPrice?esc(moneyInputFmt(A.listPrice)):(A.value?esc(A.value):'—'))+'</div></div>'
     +'<div class="fact"><div class="k">Basis</div><div class="v">'+(A.basis?esc(A.basis):'—')+'</div></div>'
     +'<div class="fact"><div class="k">Market</div><div class="v">'+(A.market?esc(A.market):'—')+'</div></div>'
     +'<div class="fact"><div class="k">Code name</div><div class="v" id="cnV">'+cnDisplayInner((A&&A.codeName)||'')+'</div></div>'
@@ -566,15 +567,19 @@ function render(){
     +'<div class="fact"><div class="k">Last activity</div><div class="v">'+esc(fmt(A.lastActivity))+'</div></div>'
     +'</div>';
 
-  var steps=ST.map(function(d){
+  var _stNames=ST.map(function(x){return x.name;});
+  var _curIdx=(A&&A.boardStage)?_stNames.indexOf(A.boardStage):-1;
+  var steps=ST.map(function(d,i){
     var manual=d.manual, st, cls, mark;
     if(manual){ var on=!!mf[d.k]; cls=on?'done':'absent'; mark=on?'\u2713':''; st=on; }
     else { st=s[d.k]; cls=!st?'absent':(st.done?'done':'pend'); mark=!st?'':(st.done?'\u2713':'\u2026'); }
     var statTxt=manual?(st?'Done':'Not yet'):(!st?'\u2014':(st.done?'Done':'In progress'));
+    // Sync the track to the board: color by the card's actual pipeline position.
+    if(_curIdx>=0){ if(i<_curIdx){ cls='done'; mark='\u2713'; statTxt='Done'; } else if(i===_curIdx){ cls='pend'; mark='\u25cf'; statTxt='Current stage'; } else { cls='absent'; mark=''; statTxt='Upcoming'; } }
     var inner='<div class="hpdot '+cls+'">'+mark+'</div><div class="hpname">'+esc(d.lbl||d.name)+'</div><div class="hpstat">'+statTxt+'</div>';
-    if(manual){ return '<button type="button" class="hpstep hpman'+((mf[d.k])?' on done':'')+'" data-mstage="'+d.k+'" title="'+esc(d.name)+' \u2014 click to toggle">'+inner+'</button>'; }
-    if(st){ return '<a class="hpstep'+(st.done?' done':'')+'" href="'+d.href(st)+'" title="'+esc(d.name)+' \u2014 open">'+inner+'</a>'; }
-    return '<div class="hpstep" title="'+esc(d.name)+' \u2014 not started">'+inner+'</div>';
+    if(manual){ var mcls=(_curIdx>=0)?(i<_curIdx?' on done':(i===_curIdx?' on':'')):((mf[d.k])?' on done':''); return '<button type="button" class="hpstep hpman'+mcls+'" data-mstage="'+d.k+'" title="'+esc(d.name)+' \u2014 click to toggle">'+inner+'</button>'; }
+    if(st){ return '<a class="hpstep'+((_curIdx>=0?i<_curIdx:st.done)?' done':'')+'" href="'+d.href(st)+'" title="'+esc(d.name)+' \u2014 open">'+inner+'</a>'; }
+    return '<div class="hpstep'+((_curIdx>=0&&i<_curIdx)?' done':'')+'" title="'+esc(d.name)+' \u2014 not started">'+inner+'</div>';
   }).join('');
 
   var opts=STATUSES.map(function(x){ return '<option'+(A.status===x?' selected':'')+'>'+esc(x)+'</option>'; }).join('');
@@ -600,7 +605,7 @@ function render(){
       + '<div class="fldrow"><label class="fld">Business name</label><input class="owner" id="f_biz" value="'+esc(A.businessOverride||A.business||'')+'" placeholder="Business / listing name"></div>'
       + '<div class="fldrow"><label class="fld">Code name <span style="font-weight:500;color:var(--soft,#8a93a8)">\u2014 confidential alias</span></label><div style="display:flex;gap:6px"><input class="owner" id="f_codename" value="'+esc(A.codeName||'')+'" placeholder="e.g. Project Blue Agave" style="flex:1"><button type="button" id="f_codesuggest" class="slink ghost" style="white-space:nowrap;padding:0 10px">Suggest</button></div></div>'
       + '<div class="fldrow"><label class="fld">Market</label><select class="owner" id="f_market">'+mktOpts+'</select></div>'
-      + '<div class="fldrow2"><div><label class="fld">Listing price</label><input class="owner" id="f_listprice" value="'+esc(A.listPrice||'')+'" placeholder="e.g. $850,000" inputmode="decimal"></div><div><label class="fld">Full commission</label><input class="owner" id="f_totalcomm" value="'+esc(A.totalCommission||'')+'" placeholder="e.g. $85,000" inputmode="decimal"></div></div>'
+      + '<div class="fldrow2"><div><label class="fld">Listing price</label><input class="owner" id="f_listprice" value="'+esc(moneyInputFmt(A.listPrice||''))+'" placeholder="e.g. $850,000" inputmode="decimal"></div><div><label class="fld">Full commission</label><input class="owner" id="f_totalcomm" value="'+esc(moneyInputFmt(A.totalCommission||''))+'" placeholder="e.g. $85,000" inputmode="decimal"></div></div>'
       + '<div class="listingbox">'
         + '<div class="listinghd">Listing agreement</div>'
         + '<div class="fldrow2"><div><label class="fld">Listed on</label><input type="date" class="owner" id="f_lstart" value="'+esc(A.listingStart||'')+'"></div>'
@@ -654,6 +659,7 @@ function render(){
   // Autosave: save on leaving a field (change/blur) or after a ~1s pause while typing.
   (function(){ var _aAS=null; function commit(){ if(_aAS){ clearTimeout(_aAS); _aAS=null; } if(DIRTY) save(); } function pause(){ if(_aAS) clearTimeout(_aAS); _aAS=setTimeout(commit,1000); } ['f_status','f_owner','f_refby','f_refpct','f_listprice','f_totalcomm','f_biz','f_market','f_codename','f_notes','f_lstart','f_lexp','f_llive','f_lauto','f_bbsref','f_bbsnum','f_costar','f_crexi','f_leadauto','cr_markets','cr_use','cr_budget','cr_sizemin','cr_sizemax','cr_term','cr_timeline','cr_parking','cr_features','cr_crnotes'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener('input',pause); el.addEventListener('change',commit); }); })();
   (function(){ var _cn=document.getElementById('f_codename'); if(_cn) _cn.addEventListener('input',function(){ if(A) A.codeName=this.value; if(typeof renderCnDisplay==='function') renderCnDisplay(); }); })();
+  ['f_listprice','f_totalcomm'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener('blur',function(){ var f=moneyInputFmt(this.value); if(f!==this.value) this.value=f; if(A){ if(id==='f_listprice') A.listPrice=this.value; else A.totalCommission=this.value; } var _kr=document.querySelector('.kpirow'); if(_kr) _kr.innerHTML=kpiRow(); }); });
   updateExpNote();
   document.getElementById('savebtn').addEventListener('click',function(){save();});
   var pipeEl=document.getElementById('f_pipeline'); if(pipeEl) pipeEl.addEventListener('change',function(){ A.pipelineId=pipeEl.value; setDirty(true); save(true); });

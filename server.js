@@ -4976,6 +4976,7 @@ function assignmentView(d, overlay) {
     // the latest generated valuation, which itself now reflects the Seller Interview.
     financials: bov ? { valueTarget: bov.targetText || '', valueRange: bov.rangeText || '', revenue: bov.revText || bovRevenueText(bov) || '', sde: bov.sdeText || '', multiple: bov.multText || '', ebitda: bov.ebitdaText || '', basis: bov.basis || '', units: bovUnits(bov), bovId: bov.id, state: bov.finalizedAt ? 'final' : (bov.aiGenerated ? 'built' : 'requested') } : null,
     units: bovUnits(bov) || (deal && deal.units) || '',
+    boardStage: (function(){ try { return listingBoardStage(d, overlay); } catch(e){ return ''; } })(),
     media: dealMediaView(Object.assign({}, o, { _key: d.key })),
     stages, lastActivity, createdAt: created,
   };
@@ -9458,6 +9459,24 @@ const BIZ_PIPE = [
   { k: 'lease', name: 'Lease Abstract', manual: false }, { k: 'offers', name: 'Offers', manual: true },
   { k: 'dd', name: 'Due Diligence', manual: true }, { k: 'closing', name: 'Closing', manual: true },
 ];
+// The single source of truth for which pipeline stage a listing sits in — the same
+// value the board uses to place the card. Explicit pipelineStage wins; otherwise it is
+// derived from completed stages. Used by both the board and the listing page so they agree.
+function listingBoardStage(d, overlay) {
+  try {
+    const o = (overlay || {})[d.key] || {};
+    const lp = o.pipelineId || 'p_bizsales';
+    const pipe = loadPipelines().find(p => p.id === lp) || null;
+    const stageNames = pipe ? (pipe.stages || []).map(s => s.name) : [];
+    if (!stageNames.length) return '';
+    let stage = o.pipelineStage || '';
+    if (stageNames.indexOf(stage) < 0) {
+      const ss = listingStageSummary(d, overlay); const si = Math.max(0, Math.min((ss.done || 0), stageNames.length - 1));
+      stage = stageNames[si] || stageNames[0] || '';
+    }
+    return stage;
+  } catch (e) { return ''; }
+}
 function listingStageSummary(d, overlay) {
   try {
     const o = overlay[d.key] || {}; const mf = o.stageFlags || {};
@@ -11918,11 +11937,8 @@ app.get('/api/board', (req, res) => {
     const lp = o.pipelineId || 'p_bizsales';
     if (lp !== pid) return;
     let v; try { v = assignmentView(d, overlay); } catch (e) { return; }
-    let stage = o.pipelineStage || '';
-    if (stageNames.indexOf(stage) < 0) {
-      try { const ss = listingStageSummary(d, overlay); const si = Math.max(0, Math.min((ss.done || 0), stageNames.length - 1)); stage = stageNames[si] || stageNames[0] || ''; }
-      catch (e) { stage = stageNames[0] || ''; }
-    }
+    let stage = listingBoardStage(d, overlay);
+    if (stageNames.indexOf(stage) < 0) stage = stageNames[0] || '';
     const _prov = !!(d.screen && d.screen.provisional);
     cards.push({ key: d.key, business: v.business, listingNo: o.listingNo || 0, listingId: (o.listingNo ? ('RRG-' + o.listingNo) : ''), codeName: o.codeName || '', company: coNameById[v.companyId] || (d.screen && d.screen.data && d.screen.data.company) || '', companyId: v.companyId || '', contactPersonId: v.clientPersonId || '', concept: v.business, contact: v.contact || '', value: v.value || '', market: v.market || '', owner: v.owner || '', lastActivity: v.lastActivity || '', createdAt: v.createdAt || '', status: _prov ? 'Pending Approval' : (o.status || 'New'), provisional: _prov, bbsNumber: v.bbsNumber || '', stage: stage, isLead: !!_preSet[stage], winPct: (_winByStage[stage] != null ? _winByStage[stage] : ''), stageSince: o.stageSince || v.createdAt || '', listPrice: o.listPrice || v.value || '', commission: (v.transaction && v.transaction.commissionDue) || '', totalCommission: o.totalCommission || (v.transaction && v.transaction.commissionDue) || '', ownerPhoto: ownerPhotoBy[String(v.owner || '').toLowerCase()] || '' });
   });
