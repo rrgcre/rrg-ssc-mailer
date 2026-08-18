@@ -71,6 +71,10 @@ h1{font-size:30px;font-weight:800;margin:0;letter-spacing:-.01em;}
 .mscore{font-size:20px;font-weight:800;min-width:40px;text-align:center;}
 .mnm{font-weight:700;color:var(--navy);font-size:13.5px;}
 .mrs{color:var(--muted);font-size:12.5px;margin-top:2px;}
+.spdel{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;background:#fff;color:var(--red);border:1px solid #f0c9c6;border-radius:8px;cursor:pointer;vertical-align:middle;margin-left:6px;}
+.spdel:hover{background:var(--red);color:#fff;border-color:var(--red);}
+.acell{white-space:nowrap;}
+.acell .btn.sm{vertical-align:middle;}
 </style>
 </head>
 <body>
@@ -84,7 +88,7 @@ h1{font-size:30px;font-weight:800;margin:0;letter-spacing:-.01em;}
 
 <div class="wrap">
   <div class="card">
-    <div class="ch"><b>All spaces</b><span class="hint" id="cnt"></span><div class="searchwrap"><svg class="searchic" viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"></circle><line x1="12.8" y1="12.8" x2="17.5" y2="17.5"></line></svg><input id="sp_search" oninput="spSearch(this.value)" placeholder="Search spaces…" autocomplete="off"></div><button class="btn" id="matchBtn" data-ai="" style="margin-left:10px">✨ AI match</button><button class="btn primary" id="addBtn" style="margin-left:8px">+ Add space</button></div>
+    <div class="ch"><b>All spaces</b><span class="hint" id="cnt"></span><div class="searchwrap"><svg class="searchic" viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"></circle><line x1="12.8" y1="12.8" x2="17.5" y2="17.5"></line></svg><input id="sp_search" oninput="spSearch(this.value)" placeholder="Search spaces…" autocomplete="off"></div><button class="btn" id="autoBtn" style="margin-left:10px">📥 Auto-import</button><button class="btn" id="matchBtn" data-ai="" style="margin-left:8px">✨ AI match</button><button class="btn primary" id="addBtn" style="margin-left:8px">+ Add space</button></div>
     <div class="tiles" id="tiles"></div>
     <div class="cb"><div id="list"></div></div>
   </div>
@@ -126,9 +130,23 @@ h1{font-size:30px;font-weight:800;margin:0;letter-spacing:-.01em;}
     <div id="mres" style="margin-top:14px"></div>
   </div>
 </div></div>
+<div class="ov" id="autoOv" hidden><div class="modal" style="max-width:560px">
+  <div class="mh"><b>📥 Auto-import brochures from email</b><button class="x" id="autoX">✕</button></div>
+  <div class="mb">
+    <p style="font-size:13px;color:var(--muted);line-height:1.55;margin:0 0 14px">Monitor your Gmail for broker marketing brochures — spaces available for lease or sale — and add them here automatically. The PDF flyer is stored on the space, and its shopping center is created if it&rsquo;s new. Matched by address so nothing duplicates.</p>
+    <label style="display:flex;align-items:center;gap:9px;font-size:13.5px;font-weight:700;color:var(--navy);margin-bottom:16px;cursor:pointer"><input type="checkbox" id="au_on" style="width:16px;height:16px"> Auto-import on</label>
+    <div class="grid" style="grid-template-columns:1fr 1fr">
+      <div class="f"><label class="fld">Check every</label><select id="au_iv"><option value="15">15 minutes</option><option value="30" selected>30 minutes</option><option value="60">1 hour</option><option value="240">4 hours</option><option value="720">12 hours</option></select></div>
+      <div class="f"><label class="fld">Look back</label><select id="au_days"><option value="14">14 days</option><option value="30" selected>30 days</option><option value="60">60 days</option><option value="90">90 days</option></select></div>
+    </div>
+    <div class="msg" id="au_status" style="margin-top:12px;color:var(--muted)"></div>
+  </div>
+  <div class="mf"><button class="btn primary" id="au_save">Save</button><button class="btn" id="au_scan">\u27f3 Scan now</button><span class="msg" id="au_msg"></span></div>
+</div></div>
 <script src="/rrg_list.js"></script>
 <script>
 var TYPES=[], STATUS=[], FEATURES=[], SPACES=[], CENTERS=[], CTL=null, IS_ADMIN=false, EDIT=null, SEL={}, FILTER='';
+var TRASH_SVG='<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>';
 var SEARCH='';
 function _spHay(sp){ return [sp.name,sp.address,sp.market,sp.center,sp.spaceType,sp.landlord,sp.status,sp.notes].filter(Boolean).join(' ').toLowerCase(); }
 function spSearch(v){ SEARCH=String(v||''); draw(); }
@@ -169,7 +187,7 @@ function draw(){
       { label:'Status', sort:function(a,b){ return RRGList.cmp(a.status,b.status); }, cell:function(sp){ return stPill(sp.status); } },
       { label:'Notes', defaultHidden:true, sortable:false, cell:function(sp){ return sp.notes?esc(sp.notes):'<span class="meta">—</span>'; } },
       { label:'Updated', sort:function(a,b){ return RRGList.cmp(a.updatedAt,b.updatedAt); }, cell:function(sp){ return '<span class="meta">'+esc(fmtDate(sp.updatedAt||sp.createdAt))+'</span>'; } },
-      { label:'', align:'right', sortable:false, cell:function(sp){ return '<span class="acell"><button class="btn sm sp-edit" data-id="'+esc(sp.id)+'">Edit</button>'+(IS_ADMIN?('<button class="btn sm ghost sp-del" data-id="'+esc(sp.id)+'">Delete</button>'):'')+'</span>'; } }
+      { label:'', align:'right', sortable:false, cell:function(sp){ return '<span class="acell"><button class="btn sm sp-edit" data-id="'+esc(sp.id)+'">Edit</button>'+(IS_ADMIN?('<button class="spdel sp-del" title="Delete space" aria-label="Delete space" data-id="'+esc(sp.id)+'">'+TRASH_SVG+'</button>'):'')+'</span>'; } }
     ]
   };
   if(CTL) CTL.refresh(rows); else CTL=RRGList.create(cfg);
@@ -300,10 +318,16 @@ async function delSpace(id){
     .catch(function(){ alert('Network error.'); });
 }
 
+function openAuto(){ var m=document.getElementById('autoOv'); if(m){ m.removeAttribute('hidden'); loadAutoCfg(); } }
+function closeAuto(){ var m=document.getElementById('autoOv'); if(m) m.setAttribute('hidden',''); }
+function loadAutoCfg(){ var st=document.getElementById('au_status'); fetch('/api/spaces/scan-poll',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(!j||!j.ok) return; document.getElementById('au_on').checked=!!j.enabled; document.getElementById('au_iv').value=String(j.intervalMin||30); document.getElementById('au_days').value=String(j.days||30); var msg=''; if(!j.configured){ msg='Gmail isn\u2019t set up on the server yet \u2014 an admin enables it in Settings.'; } else if(!j.connected){ msg='Connect your Gmail (open any contact \u2192 Email \u2192 Connect Gmail) to enable auto-import.'; } else { msg=j.enabled?('On \u2014 last check '+(j.lastRun?fmtDate(j.lastRun):'pending')+(j.lastCount?(' \u00b7 '+j.lastCount+' added'):'')+'.'):'Off \u2014 turn on to monitor your inbox.'; } if(st) st.textContent=msg; }).catch(function(){}); }
+function saveAutoCfg(){ var b={enabled:document.getElementById('au_on').checked,intervalMin:parseInt(document.getElementById('au_iv').value,10)||30,days:parseInt(document.getElementById('au_days').value,10)||30}; var msg=document.getElementById('au_msg'); if(msg)msg.textContent='Saving\u2026'; fetch('/api/spaces/scan-poll',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(b)}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ if(msg)msg.textContent='Saved \u2713'; loadAutoCfg(); setTimeout(function(){ if(msg&&msg.textContent==='Saved \u2713') msg.textContent=''; },1500); } else if(msg){ msg.textContent=(j&&j.error)||'Save failed.'; } }).catch(function(){ if(msg)msg.textContent='Network error.'; }); }
+function scanNow(){ var days=parseInt(document.getElementById('au_days').value,10)||30; var msg=document.getElementById('au_msg'); var btn=document.getElementById('au_scan'); if(btn) btn.disabled=true; if(msg)msg.textContent='Scanning your email\u2026'; fetch('/api/spaces/ai-email-scan',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({days:days})}).then(function(r){return r.json();}).then(function(j){ if(btn) btn.disabled=false; if(j&&j.ok){ if(msg)msg.textContent='Added '+j.created+' space'+(j.created===1?'':'s')+(j.centersMade?(' \u00b7 '+j.centersMade+' new center'+(j.centersMade===1?'':'s')):'')+' (scanned '+j.scanned+').'; if(j.spaces){ SPACES=j.spaces; renderTiles(); draw(); } } else if(msg){ msg.textContent=(j&&j.error)||'Scan failed.'; } }).catch(function(){ if(btn) btn.disabled=false; if(msg)msg.textContent='Network error.'; }); }
+document.addEventListener('click',function(e){ if(e.target.closest&&e.target.closest('#autoBtn')){ openAuto(); return; } if(e.target.closest&&e.target.closest('#autoX')){ closeAuto(); return; } if(e.target.closest&&e.target.closest('#au_save')){ saveAutoCfg(); return; } if(e.target.closest&&e.target.closest('#au_scan')){ scanNow(); return; } var _ov=document.getElementById('autoOv'); if(_ov&&e.target===_ov){ closeAuto(); } });
 function load(){
   fetch('/api/session',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(s){ IS_ADMIN=!!(s&&(s.role==='admin'||s.role==='creator')); }).catch(function(){}).then(function(){
     fetch('/api/spaces',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
-      SPACES=(j&&j.spaces)||[]; TYPES=(j&&j.types)||[]; STATUS=(j&&j.statuses)||[]; FEATURES=(j&&j.features)||[]; CENTERS=(j&&j.centers)||[];
+      SPACES=(j&&j.spaces)||[]; TYPES=(j&&j.types)||[]; STATUS=(j&&j.statuses)||[]; FEATURES=(j&&j.features)||[]; CENTERS=(j&&j.centers)||[]; if(j&&j.canDelete!==undefined) IS_ADMIN=!!j.canDelete;
       renderTiles(); draw();
     }).catch(function(){ document.getElementById('list').innerHTML='<div class="empty">Could not load spaces.</div>'; });
   });

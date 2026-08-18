@@ -8442,7 +8442,7 @@ app.post('/api/people/bulk-delete', express.json({ limit: '512kb' }), (req, res)
 });
 // ---------- Space Tracker: available-space inventory ----------
 app.get('/api/spaces', (req, res) => {
-  res.json({ ok: true, spaces: loadSpaces(), types: SPACE_TYPES, statuses: SPACE_STATUS, features: SPACE_FEATURES, centers: loadCenters().map(function(c){ return { id: c.id, name: c.name || '', market: c.market || c.city || '', centerType: c.centerType || '' }; }) });
+  res.json({ ok: true, spaces: loadSpaces(), types: SPACE_TYPES, statuses: SPACE_STATUS, features: SPACE_FEATURES, canDelete: !!(req.user && isSuper(req.user)), isAdmin: !!(req.user && isSuper(req.user)), centers: loadCenters().map(function(c){ return { id: c.id, name: c.name || '', market: c.market || c.city || '', centerType: c.centerType || '' }; }) });
 });
 app.post('/api/space', express.json(), (req, res) => {
   const b = req.body || {};
@@ -8695,7 +8695,7 @@ app.post('/api/spaces/ai-email-scan', express.json(), async (req, res) => {
     const r = await _scanSpacesForUser(u, (req.user && req.user.name) || u, days, []);
     // Record processed ids on the poll record so the background poller won't re-parse these.
     try { const store = loadSpacePoll(); const rec = store[u] || {}; if (Array.isArray(r.processedIds) && r.processedIds.length) { rec.seenIds = (Array.isArray(rec.seenIds) ? rec.seenIds : []).concat(r.processedIds).slice(-800); store[u] = rec; saveSpacePoll(store); } } catch (e) {}
-    res.json({ ok: true, created: r.created, scanned: r.scanned, results: r.results, spaces: r.spaces || loadSpaces() });
+    res.json({ ok: true, created: r.created, centersMade: r.centersMade || 0, scanned: r.scanned, results: r.results, spaces: r.spaces || loadSpaces() });
   } catch (e) { res.status(502).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 // ---- Space Tracker: background email poller (auto-import brochures on an interval) ----
