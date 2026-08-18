@@ -11092,7 +11092,19 @@ app.post('/api/deal/new', express.json(), (req, res) => {
   if (room) rec.roomId = room.id;
   saveDeals(arr);
   if (_isTR) { try { const _ov = loadAssignOverlay(); const _k = 'd_' + rec.id; _ov[_k] = Object.assign(_ov[_k] || {}, { assignmentType: 'tenant_rep' }); saveAssignOverlay(_ov); } catch (e) {} }
-  try { const _ov = loadAssignOverlay(); const _k = 'd_' + rec.id; if (!(_ov[_k] && _ov[_k].listingNo)) { _ov[_k] = Object.assign(_ov[_k] || {}, { listingNo: nextListingNo() }); saveAssignOverlay(_ov); } } catch (e) {}
+  // Manually-entered listings begin life as Unqualified (front of the pipeline) until the rep
+  // qualifies them — mirrors how a new contact-linked lead enters the board.
+  try {
+    const _ov = loadAssignOverlay(); const _k = 'd_' + rec.id; const _nowIso = new Date().toISOString();
+    if (!_ov[_k]) _ov[_k] = {};
+    if (!_ov[_k].listingNo) _ov[_k].listingNo = nextListingNo();
+    if (!_ov[_k].status) _ov[_k].status = 'Unqualified';
+    if (!_ov[_k].stageSince) _ov[_k].stageSince = _nowIso;
+    let _pipe = null;
+    try { const _cat = _isTR ? 'tenantRep' : 'businessSale'; const _pid = (typeof pipelineForCategory === 'function' && pipelineForCategory(_cat)) || (_isTR ? 'p_tenantrep' : 'p_bizsales'); const _pls = loadPipelines(); _pipe = _pls.find(pl => pl.id === _pid) || _pls.find(pl => pl.id === 'p_bizsales'); } catch (e) {}
+    if (_pipe && !_ov[_k].pipelineStage) { _ov[_k].pipelineId = _pipe.id; _ov[_k].pipelineStage = (_pipe.stages && _pipe.stages[0] && _pipe.stages[0].name) || 'Unqualified'; }
+    saveAssignOverlay(_ov);
+  } catch (e) {}
   res.json({ ok: true, id: rec.id, key: 'd_' + rec.id, roomId: rec.roomId, contactPersonId: rec.contactPersonId, people: loadPeople().map(personBrief) });
 });
 app.post('/api/deal/:id', express.json(), (req, res) => {
