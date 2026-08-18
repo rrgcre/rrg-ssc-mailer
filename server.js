@@ -10462,6 +10462,8 @@ app.post('/api/company', express.json(), (req, res) => {
   if (b.tags !== undefined) c.tags = (cleanStrList(b.tags, 30, 40) || []);
   if (typeof b.notes === 'string') c.notes = b.notes.slice(0, 6000);
   if (typeof b.leadSource === 'string') c.leadSource = b.leadSource.slice(0, 160);
+  if (typeof b.referredBy === 'string') c.referredBy = b.referredBy.slice(0, 160);
+  if (typeof b.referredById === 'string') c.referredById = b.referredById.slice(0, 40);
   if (typeof b.website === 'string') {
     const _raw = b.website.trim().slice(0, 300);
     if (!_raw) { c.website = ''; }
