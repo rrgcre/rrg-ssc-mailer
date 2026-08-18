@@ -170,10 +170,12 @@ const CUISINE_TYPES = ['American', 'Tex-Mex', 'Mexican', 'Italian', 'Pizza', 'Bu
 // "Other" is system-required: the matching engine uses it as the catch-all bucket.
 const MARKETS = ['Austin', 'Dallas', 'Fort Worth', 'Houston', 'San Antonio', 'Rio Grande Valley', 'Central Texas', 'Other'];
 const SYSTEM_MARKETS = ['Other'];
-function loadPeople() { try { return rj(PEOPLE_FILE); } catch (e) { return []; } }
+let _pplCache = null, _pplCacheAt = 0;
+function loadPeople() { const _n = Date.now(); if (_pplCache && (_n - _pplCacheAt) < 4000) return _pplCache; try { const a = rj(PEOPLE_FILE); _pplCache = Array.isArray(a) ? a : []; } catch (e) { _pplCache = []; } _pplCacheAt = _n; return _pplCache; }
 function savePeople(a) {
   try {
     if (!Array.isArray(a)) return;
+    _pplCache = a; _pplCacheAt = Date.now();
     if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true });
     if (a.length === 0) {
       try {
@@ -303,10 +305,12 @@ const COMPANY_TYPES = ['Restaurant Group'];
 // Retired company types — removed from the picker everywhere, even if a previously-saved
 // custom list still contains them. Existing companies keep their stored value historically.
 const RETIRED_COMPANY_TYPES = ['seller', 'buyer', 'tenant'];
-function loadCompanies() { try { return rj(COMPANIES_FILE); } catch (e) { return []; } }
+let _coCache = null, _coCacheAt = 0;
+function loadCompanies() { const _n = Date.now(); if (_coCache && (_n - _coCacheAt) < 4000) return _coCache; try { const a = rj(COMPANIES_FILE); _coCache = Array.isArray(a) ? a : []; } catch (e) { _coCache = []; } _coCacheAt = _n; return _coCache; }
 function saveCompanies(a) {
   try {
     if (!Array.isArray(a)) return;
+    _coCache = a; _coCacheAt = Date.now();
     if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true });
     if (a.length === 0) {
       try {
