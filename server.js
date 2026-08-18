@@ -5036,7 +5036,7 @@ function assignmentView(d, overlay, _opts) {
     clientPersonId: deal ? (deal.contactPersonId || '') : '',
     companyId: deal ? (deal.companyId || '') : '', company: (deal && deal.companyId && companyById(deal.companyId)) ? companyBrief(companyById(deal.companyId)) : null,
     roomId: (room && room.id) || (deal && deal.roomId) || '',
-    status: o.status || 'New', notes: o.notes || '', owner: o.owner || by, businessOverride: o.businessOverride || '', codeName: o.codeName || '', listingNo: o.listingNo || 0, listingId: (o.listingNo ? ('RRG-' + o.listingNo) : ''),
+    status: o.status || 'New', notes: o.notes || '', shareTeam: !!o.shareTeam, owner: o.owner || by, businessOverride: o.businessOverride || '', codeName: o.codeName || '', listingNo: o.listingNo || 0, listingId: (o.listingNo ? ('RRG-' + o.listingNo) : ''),
     stageFlags: o.stageFlags || {}, pipelineId: o.pipelineId || '', needsSetup: !!o.needsSetup, fromBbs: !!o.fromBbs, referredBy: o.referredBy || '', referredById: o.referredById || '', referralPct: o.referralPct || '', listPrice: o.listPrice || '', totalCommission: o.totalCommission || '', listingLive: o.listingLive || '', listingStart: o.listingStart || '', listingExpires: o.listingExpires || '', autoRenew: !!o.autoRenew, renewable: !!o.renewable,
     offers: Array.isArray(o.offers) ? o.offers : [],
     tours: Array.isArray(o.tours) ? o.tours : [],
@@ -5693,6 +5693,7 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   if (typeof b.listPrice === 'string') cur.listPrice = b.listPrice.slice(0, 40);
   if (typeof b.totalCommission === 'string') cur.totalCommission = b.totalCommission.slice(0, 40);
   if (typeof b.buyerPipelineId === 'string') cur.buyerPipelineId = b.buyerPipelineId.slice(0, 40);
+  if (typeof b.shareTeam === 'boolean') cur.shareTeam = b.shareTeam;
   if (b.referralPct != null) cur.referralPct = String(b.referralPct).replace(/[^0-9.]/g,'').slice(0, 6);
   if (typeof b.listingLive === 'string') cur.listingLive = b.listingLive.slice(0, 10);
   if (typeof b.listingStart === 'string') cur.listingStart = b.listingStart.slice(0, 10);
