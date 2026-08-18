@@ -96,7 +96,7 @@ input,select,textarea{border-radius:4px;}
       <div><label class="fld">Assign to</label><select id="t_assignee"></select></div>
     </div>
     <div class="grid2">
-      <div><label class="fld">Link to</label><select id="t_linktype"><option value="">— Nothing —</option><option value="contact">Contact</option><option value="deal">Project / deal</option></select></div>
+      <div><label class="fld">Link to</label><select id="t_linktype"><option value="">— Nothing —</option><option value="contact">Contact</option><option value="deal">Listing / Assignment</option></select></div>
       <div><label class="fld">Which one</label><select id="t_linktarget" disabled><option value="">—</option></select></div>
       <div><label class="fld">Reminder</label><select id="t_remsel" onchange="document.getElementById('t_reminder').style.display=this.value==='custom'?'block':'none';"><option value="">No reminder</option><option value="0">At due date/time</option><option value="10">10 minutes before</option><option value="30">30 minutes before</option><option value="60">1 hour before</option><option value="1440">1 day before</option><option value="custom">Custom time…</option></select><input type="datetime-local" id="t_reminder" style="display:none;width:100%;margin-top:6px"></div>
       <div><label class="fld">Repeat</label><select id="t_repeat"><option value="">Does not repeat</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="biweekly">Every 2 weeks</option><option value="monthly">Monthly</option><option value="monthly_last">Monthly — last day</option><option value="quarterly">Quarterly</option><option value="yearly">Yearly</option></select></div>
@@ -152,12 +152,12 @@ function fillSelects(){
 function fillTargets(type,selId){
   var sel=document.getElementById('t_linktarget');
   if(type==='contact'){ sel.disabled=false; sel.innerHTML='<option value="">— pick a contact —</option>'+CONTACTS.map(function(c){return '<option value="'+esc(c.id)+'"'+(c.id===selId?' selected':'')+'>'+esc(c.name)+'</option>';}).join(''); }
-  else if(type==='deal'){ sel.disabled=false; sel.innerHTML='<option value="">— pick a project —</option>'+DEALS.map(function(d){return '<option value="'+esc(d.key)+'"'+(d.key===selId?' selected':'')+'>'+esc(d.business||d.key)+'</option>';}).join(''); }
+  else if(type==='deal'){ sel.disabled=false; sel.innerHTML='<option value="">— pick a listing —</option>'+DEALS.map(function(d){return '<option value="'+esc(d.key)+'"'+(d.key===selId?' selected':'')+'>'+esc(d.business||d.key)+'</option>';}).join(''); }
   else { sel.disabled=true; sel.innerHTML='<option value="">—</option>'; }
 }
 function linkChip(t){
   if(t.linkType==='contact'&&t.linkId) return '<a class="linkchip" href="./rrg_person.html?id='+encodeURIComponent(t.linkId)+'">👤 '+esc(t.linkLabel||'Contact')+'</a>';
-  if(t.linkType==='deal'&&t.linkId) return '<a class="linkchip deal" href="./rrg_assignment.html?key='+encodeURIComponent(t.linkId)+'">📁 '+esc(t.linkLabel||'Project')+'</a>';
+  if(t.linkType==='deal'&&t.linkId) return '<a class="linkchip deal" href="./rrg_assignment.html?key='+encodeURIComponent(t.linkId)+'">📁 '+esc(t.linkLabel||'Listing')+'</a>';
   return '';
 }
 var TSEARCH='';

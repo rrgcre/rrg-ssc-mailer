@@ -8159,7 +8159,7 @@ app.post('/api/person', express.json(), (req, res) => {
   if (typeof b.url === 'string') p.url = b.url.slice(0, 300);
   if (b.vip !== undefined) p.vip = !!b.vip;
   if (b.caution !== undefined) p.caution = !!b.caution;
-  if (b.star !== undefined) p.star = !!b.star;
+  if (b.star !== undefined) { p.star = !!b.star; if (p.star && p.companyId) { try { const _cos = loadCompanies(); const _co = _cos.find(x => x.id === p.companyId); if (_co && !_co.star) { _co.star = true; _co.updatedAt = now; saveCompanies(_cos); } } catch (e) {} } }
   if (b.preferred !== undefined) p.preferred = !!b.preferred;
   if (b.tags !== undefined) p.tags = (cleanStrList(b.tags, 30, 40) || []);
   if (typeof b.notes === 'string') p.notes = b.notes.slice(0, 4000);
