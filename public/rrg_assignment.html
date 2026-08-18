@@ -603,7 +603,8 @@ function render(){
 
   var opts=STATUSES.map(function(x){ return '<option'+(A.status===x?' selected':'')+'>'+esc(x)+'</option>'; }).join('');
   var curPid=(A.pipelineId&&PIPES.some(function(p){return p.id===A.pipelineId;}))?A.pipelineId:TOOLPIPE;
-  var pipeOpts=PIPES.map(function(p){ return '<option value="'+esc(p.id)+'"'+(p.id===curPid?' selected':'')+'>'+esc(p.name)+'</option>'; }).join('');
+  var pipeOpts=PIPES.filter(function(p){ return String(p.area||'')!=='Buyer'; }).map(function(p){ return '<option value="'+esc(p.id)+'"'+(p.id===curPid?' selected':'')+'>'+esc(p.name)+'</option>'; }).join('');
+  var buyerPipeOpts=(BUYERPIPES||[]).map(function(p){ return '<option value="'+esc(p.id)+'"'+(p.id===BUYERPIPEID?' selected':'')+'>'+esc(p.name)+'</option>'; }).join('');
   var _apipe=activePipe(); var pipeName=(_apipe&&(_apipe.stages||[]).length)?(_apipe.name||''):'';
   var _curMkt=(A.market||''); var _mktList=(MARKETS||[]).slice(); if(_curMkt&&_mktList.indexOf(_curMkt)<0) _mktList.unshift(_curMkt);
   var mktOpts='<option value="">— none —</option>'+_mktList.map(function(m){ return '<option'+(_curMkt===m?' selected':'')+'>'+esc(m)+'</option>'; }).join('');
@@ -617,7 +618,8 @@ function render(){
       + (A.canStart?('<button class="startdeal" id="startDealBtn">Start the listing →</button><div class="startnote">Opens a Seller Qualification Call and drops this listing into the pipeline.</div>'):'')
       + (A.provisional?('<button class="startdeal" id="promoteBtn" style="background:#1f8a5b;border-color:#1f8a5b">Promote to Live listing →</button><div class="startnote">Marks this listing Live. Do this once financials are verified, value is aligned, and the agreement is signed.</div>'):'')
       + '<div class="fldrow"><label class="fld">Status</label><select id="f_status">'+opts+'</select></div>'
-      + (PIPES.length?('<div class="fldrow"><label class="fld">Pipeline</label><select id="f_pipeline">'+pipeOpts+'</select></div>'):'')
+      + (pipeOpts?('<div class="fldrow"><label class="fld">Seller pipeline <span style="font-weight:500;color:var(--soft,#8a93a8)">\u2014 sell-side (board)</span></label><select id="f_pipeline">'+pipeOpts+'</select></div>'):'')
+      + (buyerPipeOpts?('<div class="fldrow"><label class="fld">Buyer pipeline <span style="font-weight:500;color:var(--soft,#8a93a8)">\u2014 buy-side funnel</span></label><select id="f_buyerpipeline">'+buyerPipeOpts+'</select></div>'):'')
       + '<div class="fldrow"><label class="fld">Owner</label><input class="owner" id="f_owner" value="'+esc(A.owner||'')+'" placeholder="Assigned rep"></div>'
       + '<div class="fldrow"><label class="fld">Referred by'+(A.referredById?(' <a href="./rrg_person.html?id='+encodeURIComponent(A.referredById)+'" title="Open the referring contact" style="font-weight:600;color:#2c5c8f;text-decoration:none;font-size:11px;text-transform:none;letter-spacing:0">\u2197 open</a>'):'')+'</label><input class="owner" id="f_refby" list="peopleList" value="'+esc(A.referredBy||'')+'" placeholder="Type a contact who referred this"></div>'
       + '<div class="fldrow"><label class="fld">Referral %</label><input class="owner" id="f_refpct" value="'+esc(A.referralPct||'')+'" placeholder="e.g. 10" inputmode="decimal" style="max-width:130px"></div>'
@@ -683,6 +685,7 @@ function render(){
   updateExpNote();
   document.getElementById('savebtn').addEventListener('click',function(){save();});
   var pipeEl=document.getElementById('f_pipeline'); if(pipeEl) pipeEl.addEventListener('change',function(){ A.pipelineId=pipeEl.value; setDirty(true); save(true); });
+  var bpEl=document.getElementById('f_buyerpipeline'); if(bpEl) bpEl.addEventListener('change',function(){ changeBuyerPipeline(bpEl.value); });
   var sdb=document.getElementById('startDealBtn'); if(sdb) sdb.addEventListener('click',startDeal);
   var pmb=document.getElementById('promoteBtn'); if(pmb) pmb.addEventListener('click',promoteListing);
   var ddb=document.getElementById('delDealBtn'); if(ddb) ddb.addEventListener('click',deleteDeal);
@@ -870,7 +873,7 @@ function buyerById(id){ for(var i=0;i<BUYERS.length;i++){ if(BUYERS[i].id===id) 
 function buyerPofGateIdx(){ var a=buyerStages(); for(var i=0;i<a.length;i++){ if(/data\s*room/i.test(a[i].name||a[i].k||'')) return i; } return -1; }
 function buyerShowOffer(idx){ var a=buyerStages(); var oi=-1; for(var i=0;i<a.length;i++){ if(/offer|loi|letter of intent/i.test(a[i].name||a[i].k||'')){ oi=i; break; } } if(oi>=0) return idx>=oi; return idx>=Math.max(0,a.length-3); }
 function changeBuyerPipeline(pid){ fetch('/api/assignment/'+encodeURIComponent(KEY)+'/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({buyerPipelineId:pid})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.reload(); } else alert((j&&j.error)||'Could not set the buyer pipeline.'); }).catch(function(){ alert('Could not reach the server.'); }); }
-function buyersCard(){ var n=BUYERS.filter(function(b){return !b.lost;}).length; var psel=BUYERPIPES.length?('<select id="buyerPipeSel" title="Buyer pipeline used for this listing" style="margin-left:auto;padding:5px 8px;border:1px solid #cfd6e2;border-radius:6px;font:inherit;font-size:12px;background:#fff">'+BUYERPIPES.map(function(pp){return '<option value="'+esc(pp.id)+'"'+(pp.id===BUYERPIPEID?' selected':'')+'>'+esc(pp.name)+'</option>';}).join('')+'</select>'):''; return '<div class="card" id="buyersCard"><div class="ch" style="display:flex;align-items:center"><b>Buyers</b><span style="margin-left:12px" id="buyersHdCount">'+n+' active</span>'+psel+'<button class="addoffer" id="addBuyerBtn" style="margin-left:'+(psel?'8px':'auto')+'">+ Add buyer</button></div><div class="cb offers" id="buyersBody">'+buyersBodyHTML()+'</div></div>'; }
+function buyersCard(){ var n=BUYERS.filter(function(b){return !b.lost;}).length; var pn=''; for(var i=0;i<BUYERPIPES.length;i++){ if(BUYERPIPES[i].id===BUYERPIPEID){ pn=BUYERPIPES[i].name; break; } } var pnl=pn?('<span style="margin-left:10px;color:#8a93a8;font-size:11.5px;font-weight:600">'+esc(pn)+'</span>'):''; return '<div class="card" id="buyersCard"><div class="ch" style="display:flex;align-items:center"><b>Buyers</b><span style="margin-left:12px" id="buyersHdCount">'+n+' active</span>'+pnl+'<button class="addoffer" id="addBuyerBtn" style="margin-left:auto">+ Add buyer</button></div><div class="cb offers" id="buyersBody">'+buyersBodyHTML()+'</div></div>'; }
 function buyersBodyHTML(){
   var stages=buyerStages();
   var counts={}; stages.forEach(function(s){counts[s.k]=0;});
