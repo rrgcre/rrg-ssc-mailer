@@ -148,7 +148,7 @@ function renderEditor(){
         +'<div class="fld"><label>Pipeline name</label><input type="text" id="pName" value="'+esc(p.name||'')+'" placeholder="e.g. Business Sales"></div>'
         +'<div class="fld"><label>Practice area</label><select id="pArea">'+areas.map(function(a){return '<option'+(a===(p.area||'General')?' selected':'')+'>'+esc(a)+'</option>';}).join('')+'</select></div>'
       +'</div>'
-      +'<div class="stgh"><b>Stages</b><span class="c" id="stgCount"></span></div>'
+      +'<div class="stgh"><b>Stages</b><span class="c" id="stgCount"></span><span id="stgDays" title="Sum of target days across every stage — the realistic end-to-end timeline for a deal in this pipeline" style="margin-left:auto;font-size:12px;font-weight:700;color:#1f4b8f;background:#eef4fb;border:1px solid #d3e0f5;border-radius:999px;padding:4px 12px"></span></div>'
       +'<div class="stgscroll"><table class="stg"><thead><tr><th>#</th><th>Stage name</th><th title="Short label shown on the deal pipeline track">Abbr</th><th>Target days</th><th>Win %</th><th title="Milestone that auto-checks this stage on the deal">Auto-complete when</th><th title="First stage(s) before it becomes a real listing — a card here is a Lead and is not counted as an active listing">Pre-listing</th><th>On enter (automation)</th><th>On leave (automation)</th><th></th></tr></thead><tbody id="stgBody"></tbody></table></div>'
       +'<div class="days-note">Target days = how long a deal should stay in that stage before FullServe flags it as stalled (0 = no target). Win % = the likelihood a deal closes once it reaches that stage — used for weighted pipeline forecasting.</div>'
       +'<div style="margin-top:14px"><button class="btn" id="addStg">+ Add stage</button></div>'
@@ -161,6 +161,16 @@ function renderEditor(){
 
 var STAGE_TRIGGERS=[['','\u2014 Auto by name \u2014'],['manual','Manual (toggle by hand)'],['call','Qualification Call logged'],['questionnaire','Seller Interview completed'],['nda','NDA executed'],['bov','BOV built'],['room','Data Room populated'],['pack','Marketing Pack built'],['attack','Attack Plan built'],['lease','Lease Abstract done']];
 function autoAbbr(n){ n=String(n||''); if(!n) return ''; if(n.length<=11) return n; var w=n.split(/\s+/); if(w.length>1){ return w.map(function(x){return x[0];}).join('').toUpperCase().slice(0,5); } return n.slice(0,10); }
+function updateDaysTotal(){
+  var el=document.getElementById('stgDays'); if(!el) return;
+  var days=document.querySelectorAll('#stgBody input.days'); var total=0;
+  for(var i=0;i<days.length;i++){ total+=Math.max(0,parseInt(days[i].value,10)||0); }
+  if(!total){ el.textContent='Set target days to see the full timeline'; el.style.color='#8a93a8'; el.style.background='#f5f7fb'; el.style.borderColor='#e6e9f0'; return; }
+  el.style.color='#1f4b8f'; el.style.background='#eef4fb'; el.style.borderColor='#d3e0f5';
+  var wks=Math.round(total/7*10)/10, mos=Math.round(total/30.4*10)/10;
+  var ctx = total>=60 ? (' \u00b7 ~'+mos+' month'+(mos===1?'':'s')) : (' \u00b7 ~'+wks+' week'+(wks===1?'':'s'));
+  el.textContent='\u23f1 '+total+' days end-to-end'+ctx;
+}
 function renderStages(stages){
   var tb=document.getElementById('stgBody');
   document.getElementById('stgCount').textContent=stages.length+' stage'+(stages.length===1?'':'s');
@@ -181,6 +191,8 @@ function renderStages(stages){
         +'<button class="ib x" data-i="'+i+'" title="Remove">✕</button>'
       +'</td></tr>';
   }).join('') || '<tr><td colspan="10" class="empty" style="padding:24px">No stages yet — add your first stage below.</td></tr>';
+  updateDaysTotal();
+  Array.prototype.forEach.call(tb.querySelectorAll('#stgBody input.days'),function(inp){ inp.addEventListener('input',updateDaysTotal); });
   Array.prototype.forEach.call(tb.querySelectorAll('.ib.up'),function(b){b.onclick=function(){move(+b.getAttribute('data-i'),-1);};});
   Array.prototype.forEach.call(tb.querySelectorAll('.ib.dn'),function(b){b.onclick=function(){move(+b.getAttribute('data-i'),1);};});
   Array.prototype.forEach.call(tb.querySelectorAll('.ib.x'),function(b){b.onclick=function(){removeStage(+b.getAttribute('data-i'));};});
