@@ -9,12 +9,12 @@
 *{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f7;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
 .top{background:radial-gradient(90% 130% at 25% 10%,#22346a,#152752 42%,#0b1636 72%,#060f26 100%);color:#fff;padding:24px 0 22px;}
-.top-in{max-width:1180px;margin:0 auto;padding:0 24px;display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+.top-in{max-width:none;margin:0 auto;padding:0 28px;display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;}
 .kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8fa2c4;font-weight:800;margin-bottom:4px;}
 h1{margin:0;font-size:25px;font-weight:800;} .sub{color:#aeb8cf;font-size:13px;margin-top:6px;max-width:640px;line-height:1.5;}
 .btn{border:1px solid var(--inp);background:#fff;color:var(--navy);font-weight:700;font-size:13px;padding:9px 14px;border-radius:9px;cursor:pointer;}
 .btn:hover{border-color:#9fb0cc;} .btn.pri{background:var(--red);color:#fff;border-color:var(--red);}
-.wrap{max-width:1180px;margin:20px auto;padding:0 24px 90px;}
+.wrap{max-width:none;margin:20px 0;padding:0 28px 90px;}
 .tools{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;}
 .search{flex:1;min-width:200px;border:1px solid var(--inp);border-radius:9px;padding:9px 12px;font:inherit;font-size:13px;}
 .msg{font-size:12px;color:var(--muted);}
@@ -50,18 +50,46 @@ h1{margin:0;font-size:25px;font-weight:800;} .sub{color:#aeb8cf;font-size:13px;m
 .phrow .thumb{width:88px;height:60px;border-radius:8px;background:var(--wash) center/cover no-repeat;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:#b7c0d4;font-size:22px;flex:0 0 auto;}
 .rrg-back{position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);}
 body.rrg-shelled .rrg-back{display:none;}
+/* --- netsuite list --- */
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 6px 24px rgba(10,20,50,.06);}
+.hd{display:flex;align-items:center;padding:13px 18px;border-bottom:1px solid var(--line);gap:10px;flex-wrap:wrap;}
+.hd b{color:var(--navy);font-size:14px;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th,td{text-align:left;padding:11px 16px;border-bottom:1px solid var(--line);vertical-align:middle;}
+th{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;background:var(--wash);white-space:nowrap;}
+tr:hover td{background:#fbfcfe;}
+.cwho{display:flex;align-items:center;gap:10px;}
+.cthumb{width:38px;height:38px;border-radius:8px;background:var(--wash) center/cover no-repeat;border:1px solid var(--line);flex:0 0 auto;display:flex;align-items:center;justify-content:center;color:#b7c0d4;font-size:15px;}
+.cnm{font-weight:600;color:var(--navy);font-size:13.5px;}
+.cmeta{color:var(--muted);font-size:11.5px;margin-top:2px;}
+.splist{display:flex;flex-direction:column;gap:1px;}
+.spline{font-size:11.5px;color:#3a4560;}
+.spmore{font-size:11px;color:var(--muted);margin-top:1px;}
+.ctrash{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;background:#fff;color:var(--red);border:1px solid #f0c9c6;border-radius:8px;cursor:pointer;vertical-align:middle;}
+.ctrash:hover{background:var(--red);color:#fff;border-color:var(--red);}
+.brand{display:inline-flex;align-items:center;cursor:pointer;}
+.disc{background:var(--red);color:#fff;border-radius:50%;width:42px;height:42px;font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.bar{background:#fff;width:3px;height:30px;margin:0 12px;}
+.wm{font-weight:800;font-size:14px;text-transform:uppercase;line-height:.95;}
+.searchwrap{margin-left:auto;position:relative;display:flex;align-items:center;}
+.searchwrap .searchic{position:absolute;left:11px;color:#9aa3b2;pointer-events:none;}
+.searchwrap input{border:1px solid var(--line);border-radius:9px;padding:8px 12px 8px 34px;font:inherit;font-size:13px;min-width:230px;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
 <body>
 <a href="./index.html" class="rrg-back"><span style="font-size:14px;line-height:1">←</span> Toolbox</a>
 <div class="top"><div class="top-in">
-  <div><div class="kicker">Tenant Rep · Inventory</div><h1>Shopping Centers</h1><div class="sub">Your book of centers. One center holds many spaces — link a space to its center in the Space Tracker.</div></div>
-  <button class="btn pri" onclick="openEdit()">＋ Add center</button>
+  <div style="display:flex;align-items:center;gap:16px">
+    <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+    <div><div class="kicker">Tenant Rep · Inventory</div><h1>Shopping Centers</h1><div class="sub">Your book of centers. One center holds many spaces — spaces link here from the Space Tracker.</div></div>
+  </div>
 </div></div>
 <div class="wrap">
-  <div class="tools"><input class="search" id="q" placeholder="Search by name, market, anchor…" oninput="draw()"><span class="msg" id="count"></span></div>
-  <div id="grid" class="grid"><div class="empty">Loading…</div></div>
+  <div class="card">
+    <div class="hd"><b>Shopping Centers</b><span class="msg" id="count"></span><div class="searchwrap"><svg class="searchic" viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"></circle><line x1="12.8" y1="12.8" x2="17.5" y2="17.5"></line></svg><input id="q" placeholder="Search name, market, anchor…" oninput="draw()" autocomplete="off"></div><button class="btn pri" onclick="openEdit()" style="margin-left:10px">＋ Add center</button></div>
+    <div id="list"><div class="empty">Loading…</div></div>
+  </div>
 </div>
 
 <div class="ov" id="ov" hidden>
@@ -90,45 +118,45 @@ body.rrg-shelled .rrg-back{display:none;}
   </div>
 </div>
 
+<script src="/rrg_list.js"></script>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function fmtN(n){ return (n==null||n==='')?'':Number(n).toLocaleString('en-US'); }
 var CENTERS=[], SPACES=[], TYPES=[], CANDEL=false, EDIT=null, PENDING_PHOTO=null;
+var CTL=null;
+var TRASH_SVG='<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>';
 function load(){
   Promise.all([
     fetch('/api/centers',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}),
     fetch('/api/spaces',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).catch(function(){return {spaces:[]};})
   ]).then(function(res){
-    var j=res[0]||{}; if(!j.ok){ document.getElementById('grid').innerHTML='<div class="empty">Could not load centers.</div>'; return; }
+    var j=res[0]||{}; if(!j.ok){ document.getElementById('list').innerHTML='<div class="empty">Could not load centers.</div>'; return; }
     CENTERS=j.centers||[]; TYPES=j.types||[]; CANDEL=!!j.canDelete; SPACES=(res[1]&&res[1].spaces)||[];
     var sel=document.getElementById('c_type'); sel.innerHTML='<option value="">— type —</option>'+TYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join('');
     draw();
-  }).catch(function(){ document.getElementById('grid').innerHTML='<div class="empty">Could not load centers.</div>'; });
+  }).catch(function(){ document.getElementById('list').innerHTML='<div class="empty">Could not load centers.</div>'; });
 }
 function spacesFor(id){ return SPACES.filter(function(s){return s.centerId===id;}); }
 function draw(){
+  if(!window.RRGList){ setTimeout(draw,80); return; }
   var q=(document.getElementById('q').value||'').toLowerCase().trim();
-  var list=CENTERS.slice().sort(function(a,b){return String(a.name||'').toLowerCase().localeCompare(String(b.name||'').toLowerCase());});
-  if(q) list=list.filter(function(c){ return [c.name,c.market,c.city,c.anchor,c.coTenants,c.address].filter(Boolean).join(' ').toLowerCase().indexOf(q)>=0; });
+  var list=CENTERS.filter(function(c){ if(!q) return true; return [c.name,c.market,c.city,c.anchor,c.coTenants,c.address,c.landlord].filter(Boolean).join(' ').toLowerCase().indexOf(q)>=0; });
   document.getElementById('count').textContent=CENTERS.length?(list.length+' of '+CENTERS.length+' center'+(CENTERS.length===1?'':'s')):'';
-  var g=document.getElementById('grid');
-  if(!list.length){ g.innerHTML='<div class="empty">'+(CENTERS.length?'No centers match your search.':'No shopping centers yet — add your first one.')+'</div>'; return; }
-  g.innerHTML=list.map(function(c){
-    var ph=c.hasPhoto?('<div class="ph" style="background-image:url(/api/center-photo/'+esc(c.id)+'?t='+encodeURIComponent(c.updatedAt||'')+')"></div>'):'<div class="ph">▤</div>';
-    var stats=[]; if(c.gla) stats.push('<span>GLA <b>'+fmtN(c.gla)+'</b> SF</span>'); if(c.vpd) stats.push('<span>VPD <b>'+fmtN(c.vpd)+'</b></span>');
-    var meta=[c.centerType?('<span class="chip">'+esc(c.centerType)+'</span>'):'', '<span class="spb">'+(c.spaceCount||0)+' space'+(c.spaceCount===1?'':'s')+'</span>'].filter(Boolean).join(' ');
-    var linked=spacesFor(c.id);
-    var sph=linked.length?('<div class="spaces">'+linked.map(function(s){return '<div class="sp">'+esc(s.name||s.address||'Space')+(s.status?(' · '+esc(s.status)):'')+'</div>';}).join('')+'</div>'):'';
-    return '<div class="cc">'+ph+'<div class="bd">'
-      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px"><div class="nm">'+esc(c.name||'Untitled')+'</div><div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end">'+meta+'</div></div>'
-      +((c.address||c.market||c.city)?('<div class="addr">'+[c.address,c.market||c.city].filter(Boolean).map(esc).join(' · ')+'</div>'):'')
-      +(c.anchor?('<div class="addr">Anchor: <b style="color:var(--ink)">'+esc(c.anchor)+'</b>'+(c.coTenants?(' · '+esc(c.coTenants)):'')+'</div>'):'')
-      +((stats.length||c.landlord)?('<div class="stats">'+stats.join('')+(c.landlord?('<span>'+esc(c.landlord)+'</span>'):'')+'</div>'):'')
-      +'</div>'+sph
-      +'<div class="ccf"><button class="lnk" onclick="openEdit(\''+c.id+'\')">Edit</button>'+(CANDEL?('<button class="lnk" style="color:#DA2B1F;margin-left:auto" onclick="delCenter(\''+c.id+'\')">Delete</button>'):'')+'</div>'
-      +'</div>';
-  }).join('');
+  var cfg={ mount:'#list', data:list, key:'centers', empty:'<div class="empty">'+(CENTERS.length?'No centers match your search.':'No shopping centers yet — add your first one.')+'</div>', rowId:function(c){return c.id;}, defaultSort:0, defaultDir:1,
+    columns:[
+      { label:'Center', sort:function(a,b){return RRGList.cmp(a.name,b.name);}, cell:function(c){ var ph=c.hasPhoto?('<div class="cthumb" style="background-image:url(/api/center-photo/'+esc(c.id)+'?t='+encodeURIComponent(c.updatedAt||'')+')"></div>'):'<div class="cthumb">▤</div>'; var sub=[c.address,c.market||c.city].filter(Boolean).map(esc).join(' · '); return '<div class="cwho">'+ph+'<div><div class="cnm">'+esc(c.name||'Untitled')+'</div>'+(sub?('<div class="cmeta">'+sub+'</div>'):'')+'</div></div>'; } },
+      { label:'Type', sort:function(a,b){return RRGList.cmp(a.centerType,b.centerType);}, cell:function(c){ return c.centerType?('<span class="chip">'+esc(c.centerType)+'</span>'):'<span class="cmeta">—</span>'; } },
+      { label:'Anchor / co-tenants', sortable:false, cell:function(c){ if(!c.anchor&&!c.coTenants) return '<span class="cmeta">—</span>'; return (c.anchor?('<b style="color:var(--navy)">'+esc(c.anchor)+'</b>'):'')+(c.coTenants?('<div class="cmeta">'+esc(c.coTenants)+'</div>'):''); } },
+      { label:'GLA', align:'right', sort:function(a,b){return (a.gla||0)-(b.gla||0);}, cell:function(c){ return c.gla?(esc(fmtN(c.gla))+' SF'):'<span class="cmeta">—</span>'; } },
+      { label:'VPD', align:'right', sort:function(a,b){return (a.vpd||0)-(b.vpd||0);}, cell:function(c){ return c.vpd?esc(fmtN(c.vpd)):'<span class="cmeta">—</span>'; } },
+      { label:'Spaces', sort:function(a,b){return spacesFor(a.id).length-spacesFor(b.id).length;}, cell:function(c){ var ls=spacesFor(c.id); if(!ls.length) return '<span class="cmeta">—</span>'; var head='<span class="spb">'+ls.length+' space'+(ls.length===1?'':'s')+'</span>'; var lines=ls.slice(0,4).map(function(sx){ return '<div class="spline">'+esc(sx.name||sx.address||'Space')+(sx.status?(' · '+esc(sx.status)):'')+'</div>'; }).join(''); var more=ls.length>4?('<div class="spmore">+'+(ls.length-4)+' more</div>'):''; return '<div class="splist">'+head+lines+more+'</div>'; } },
+      { label:'Landlord', defaultHidden:true, sort:function(a,b){return RRGList.cmp(a.landlord,b.landlord);}, cell:function(c){ return c.landlord?esc(c.landlord):'<span class="cmeta">—</span>'; } },
+      { label:'', align:'right', sortable:false, cell:function(c){ return '<span style="white-space:nowrap"><button class="btn c-edit" data-id="'+esc(c.id)+'" style="padding:5px 11px;font-size:12px">Edit</button>'+(CANDEL?('<button class="ctrash c-del" data-id="'+esc(c.id)+'" title="Delete center" style="margin-left:6px">'+TRASH_SVG+'</button>'):'')+'</span>'; } }
+    ]
+  };
+  if(CTL) CTL.refresh(list); else CTL=RRGList.create(cfg);
 }
+document.addEventListener('click',function(e){ var ed=e.target.closest&&e.target.closest('.c-edit'); if(ed){ openEdit(ed.getAttribute('data-id')); return; } var dl=e.target.closest&&e.target.closest('.c-del'); if(dl){ delCenter(dl.getAttribute('data-id')); return; } });
 function setv(id,v){ var el=document.getElementById(id); if(el) el.value=(v==null?'':v); }
 function openEdit(id){
   EDIT=id?CENTERS.find(function(c){return c.id===id;}):null; PENDING_PHOTO=null;
