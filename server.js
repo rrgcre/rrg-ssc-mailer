@@ -11998,23 +11998,19 @@ function seedBizSalesStages() {
   } catch (e) { console.error('seedBizSalesStages:', e && e.message); }
 }
 function seedBuyerPipeline() {
+  // Self-healing: guarantee at least one Buyer-area pipeline exists (needed for the buy-side funnel).
   try {
-    if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true });
-    const marker = path.join(BOV_DATA_DIR, 'buyer_pipeline_seeded.flag');
-    if (fs.existsSync(marker)) return;
     const all = loadPipelines();
-    if (!all.some(function(p){ return String(p.area||'') === 'Buyer'; })) {
-      const names = ['Inquiry','NDA','Buyer Call','Data Room','Seller Intro','Offer','Due Diligence','Closed'];
-      const steps = names.map(function(n,i){ return { name:n, number:i+1, targetDays:0 }; });
-      all.push({ id:'p_buyer', name:'Buyer Pipeline', area:'Buyer', stages:steps });
-      savePipelines(all);
-      console.log('Seeded default Buyer pipeline (8 stages).');
-    }
-    fs.writeFileSync(marker, new Date().toISOString());
+    if (all.some(function(p){ return String(p.area||'') === 'Buyer'; })) return;
+    const names = ['Inquiry','NDA','Buyer Call','Data Room','Seller Intro','Offer','Due Diligence','Closed'];
+    const steps = names.map(function(n,i){ return { name:n, number:i+1, targetDays:0 }; });
+    all.push({ id:'p_buyer', name:'Buyer Pipeline', area:'Buyer', stages:steps });
+    savePipelines(all);
+    console.log('Seeded default Buyer pipeline (8 stages).');
   } catch (e) { console.error('seedBuyerPipeline:', e && e.message); }
 }
 function cleanStages(arr) { return (Array.isArray(arr) ? arr : []).slice(0, 40).map(function(st, i){ return { name: String((st && st.name) || '').slice(0, 80) || ('Stage ' + (i + 1)), number: i + 1, abbr: String((st && st.abbr) || '').trim().slice(0, 10), autoComplete: String((st && st.autoComplete) || '').slice(0, 24), preListing: !!(st && st.preListing), targetDays: Math.max(0, Math.min(3650, parseInt((st && st.targetDays), 10) || 0)), winPct: (st && st.winPct !== '' && st.winPct != null) ? Math.max(0, Math.min(100, parseInt(st.winPct, 10) || 0)) : '', onAssignAuto: String((st && st.onAssignAuto) || '').slice(0, 40), onUnassignAuto: String((st && st.onUnassignAuto) || '').slice(0, 40) }; }).filter(function(st){ return st.name; }); }
-app.get('/api/pipelines', (req, res) => { res.json({ ok: true, pipelines: loadPipelines(), automations: loadAutomations().filter(a => a.active !== false).map(a => ({ id: a.id, name: a.name || '' })), pipelineRequired: effPipelineRequired(), isAdmin: !!(req.user && isSuper(req.user)) }); });
+app.get('/api/pipelines', (req, res) => { try { seedBuyerPipeline(); } catch(e){} res.json({ ok: true, pipelines: loadPipelines(), automations: loadAutomations().filter(a => a.active !== false).map(a => ({ id: a.id, name: a.name || '' })), pipelineRequired: effPipelineRequired(), isAdmin: !!(req.user && isSuper(req.user)) }); });
 
 // ---- Deal-type → pipeline routing --------------------------------------
 // Which pipeline each kind of deal enters. A started seller screening call
