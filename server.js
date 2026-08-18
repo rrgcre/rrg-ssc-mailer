@@ -4629,14 +4629,27 @@ const BUYER_STAGES = [
 ];
 const BUYER_STAGE_KEYS = BUYER_STAGES.map(s => s.k);
 const BUYER_POF = ['none','requested','received'];
+function buyerPipelinesAll() { try { return loadPipelines().filter(function(p){ return String(p.area||'') === 'Buyer'; }); } catch(e){ return []; } }
+function defaultBuyerPipelineId() { const a = buyerPipelinesAll(); return (a[0] && a[0].id) || ''; }
+function buyerStagesFor(o) {
+  o = o || {};
+  const all = buyerPipelinesAll();
+  let p = null;
+  if (o.buyerPipelineId) p = all.find(function(x){ return x.id === o.buyerPipelineId; }) || null;
+  if (!p) p = all[0] || null;
+  const names = p ? (p.stages||[]).map(function(s){ return String((s&&s.name)||''); }).filter(Boolean) : [];
+  if (names.length) return names.map(function(n){ return { k:n, name:n }; });
+  return BUYER_STAGES.slice();
+}
+function buyerStageNamesFor(o) { return buyerStagesFor(o).map(function(s){ return s.name; }); }
 function newBuyerId() { return 'byr_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
-function _buyerClean(rec, b, now) {
+function _buyerClean(rec, b, now, _bStageNames) {
   if (typeof b.name === 'string') rec.name = b.name.slice(0,120);
   if (typeof b.email === 'string') rec.email = b.email.slice(0,160);
   if (typeof b.phone === 'string') rec.phone = b.phone.slice(0,60);
   if (typeof b.company === 'string') rec.company = b.company.slice(0,160);
   if (typeof b.source === 'string') rec.source = b.source.slice(0,80);
-  if (typeof b.stage === 'string' && BUYER_STAGE_KEYS.indexOf(b.stage) >= 0) {
+  if (typeof b.stage === 'string' && b.stage && (!Array.isArray(_bStageNames) || !_bStageNames.length || _bStageNames.indexOf(b.stage) >= 0)) {
     if (rec.stage !== b.stage) { rec.stageAt = rec.stageAt || {}; rec.stageAt[b.stage] = now; }
     rec.stage = b.stage;
   }
@@ -4649,12 +4662,14 @@ function _buyerClean(rec, b, now) {
   rec.updatedAt = now;
   return rec;
 }
-function buyerSummary(list) {
+function buyerSummary(list, stageNames) {
   list = Array.isArray(list) ? list : [];
-  const counts = {}; BUYER_STAGE_KEYS.forEach(k => counts[k] = 0);
-  let active = 0, lost = 0, inOffer = 0, closed = 0;
-  list.forEach(b => { const st = BUYER_STAGE_KEYS.indexOf(b.stage) >= 0 ? b.stage : 'inquiry'; counts[st] = (counts[st]||0)+1; if (b.lost) { lost++; } else { active++; if (st==='offer'||st==='dd') inOffer++; if (st==='closed') closed++; } });
-  return { counts, total: list.length, active, lost, inOffer, closed };
+  stageNames = (Array.isArray(stageNames) && stageNames.length) ? stageNames : BUYER_STAGES.map(function(s){return s.name;});
+  const lastName = stageNames[stageNames.length-1];
+  const counts = {}; stageNames.forEach(function(n){ counts[n] = 0; });
+  let active = 0, lost = 0, closed = 0;
+  list.forEach(function(b){ const st = (stageNames.indexOf(b.stage) >= 0) ? b.stage : stageNames[0]; counts[st] = (counts[st]||0)+1; if (b.lost) { lost++; } else { active++; if (st===lastName) closed++; } });
+  return { counts, total: list.length, active, lost, closed };
 }
 const TXN_STATUSES = ['LOI', 'Under Contract', 'Due Diligence', 'Financing', 'Closing', 'Closed', 'Dead'];
 const TXN_COMM_STATUS = ['Unpaid', 'Invoiced', 'Partial', 'Paid'];
@@ -5013,7 +5028,9 @@ function assignmentView(d, overlay, _opts) {
     ndas: Array.isArray(o.ndas) ? o.ndas : [],
     inquiries: Array.isArray(o.inquiries) ? o.inquiries : [],
     buyers: Array.isArray(o.buyers) ? o.buyers : [],
-    buyerSummary: buyerSummary(o.buyers),
+    buyerPipelineId: o.buyerPipelineId || defaultBuyerPipelineId(),
+    buyerStages: buyerStagesFor(o),
+    buyerSummary: buyerSummary(o.buyers, buyerStageNamesFor(o)),
     bbsRef: o.bbsRef || '', bbsNumber: o.bbsNumber || '', costarNo: o.costarNo || '', crexiNo: o.crexiNo || '', leadAutomationId: o.leadAutomationId || '',
     assignmentType: (o.assignmentType === 'tenant_rep') ? 'tenant_rep' : 'listing', criteria: (o.criteria && typeof o.criteria === 'object') ? o.criteria : {},
     transaction: (o.transaction && typeof o.transaction === 'object') ? o.transaction : null,
@@ -5622,7 +5639,7 @@ app.get('/api/assignment/:key', (req, res) => {
   const origin = req.protocol + '://' + req.get('host');
   try { const _o = overlay[d.key] || {}; if (!_o.listingNo) { _o.listingNo = nextListingNo(); overlay[d.key] = _o; saveAssignOverlay(overlay); } } catch (e) {}
   const dealAgreements = loadAgreements().filter(a => a.dealKey === d.key).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999')));
-  res.json({ ok: true, statuses: ASSIGN_STATUSES, txnStatuses: TXN_STATUSES, commStatuses: TXN_COMM_STATUS, markets: effMarkets(), assignment: assignmentView(d, overlay), buyerStages: BUYER_STAGES, buyerPof: BUYER_POF, agreements: dealAgreements, agreementTypes: effAgreementTypes(), pipelines: loadPipelines(), automations: loadAutomations().filter(a => a.active !== false).map(a => ({ id: a.id, name: a.name || '' })), expenses: dealExpenseRollup(d.key, req.user), invoices: dealInvoiceRollup(d.key, req.user), roomActivity: roomActivityFor(d, origin) });
+  res.json({ ok: true, statuses: ASSIGN_STATUSES, txnStatuses: TXN_STATUSES, commStatuses: TXN_COMM_STATUS, markets: effMarkets(), assignment: assignmentView(d, overlay), buyerPipelines: buyerPipelinesAll().map(function(p){return {id:p.id,name:p.name,stages:(p.stages||[]).map(function(x){return x.name;})};}), buyerPof: BUYER_POF, agreements: dealAgreements, agreementTypes: effAgreementTypes(), pipelines: loadPipelines(), automations: loadAutomations().filter(a => a.active !== false).map(a => ({ id: a.id, name: a.name || '' })), expenses: dealExpenseRollup(d.key, req.user), invoices: dealInvoiceRollup(d.key, req.user), roomActivity: roomActivityFor(d, origin) });
 });
 app.post('/api/assignment/:key/promote', express.json(), (req, res) => {
   const key = req.params.key;
@@ -5660,6 +5677,7 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   if (typeof b.referredById === 'string') cur.referredById = b.referredById.slice(0, 40);
   if (typeof b.listPrice === 'string') cur.listPrice = b.listPrice.slice(0, 40);
   if (typeof b.totalCommission === 'string') cur.totalCommission = b.totalCommission.slice(0, 40);
+  if (typeof b.buyerPipelineId === 'string') cur.buyerPipelineId = b.buyerPipelineId.slice(0, 40);
   if (b.referralPct != null) cur.referralPct = String(b.referralPct).replace(/[^0-9.]/g,'').slice(0, 6);
   if (typeof b.listingLive === 'string') cur.listingLive = b.listingLive.slice(0, 10);
   if (typeof b.listingStart === 'string') cur.listingStart = b.listingStart.slice(0, 10);
@@ -6254,6 +6272,7 @@ try { noCompanyCompany(); noContactPerson(); backlinkBbsLeads(); cleanupPeopleAd
 try { seedEmailTemplates(); } catch (e) { console.error('seed email tpl:', e && e.message); }
 try { seedBizSalesStages(); } catch (e) { console.error('seed biz sales:', e && e.message); }
 try { seedUnqualifiedStage(); } catch (e) { console.error('seed unqualified:', e && e.message); }
+try { seedBuyerPipeline(); } catch (e) { console.error('seed buyer pipeline:', e && e.message); }
 
 // ================= Automations (email / task drip sequences) =================
 const AUTOMATIONS_FILE = path.join(BOV_DATA_DIR, 'automations.json');
@@ -8025,14 +8044,15 @@ app.post('/api/assignment/:key/buyer', express.json(), (req, res) => {
   if (!ownsAssignment(req, d)) return res.status(403).json({ ok:false, error:'Not yours.' });
   const overlay = loadAssignOverlay(); const cur = overlay[d.key] || {};
   const buyers = Array.isArray(cur.buyers) ? cur.buyers : [];
+  const bStages = buyerStagesFor(cur); const stageNames = bStages.map(function(x){ return x.name; });
   const b = req.body || {}; const now = new Date().toISOString();
   let rec = b.id ? buyers.find(x => x.id === b.id) : null;
-  if (!rec) { rec = { id: newBuyerId(), stage:'inquiry', pof:'none', backup:false, lost:false, source: (b.source||'Manual'), stageAt:{ inquiry: now }, createdAt: now, by:(req.user&&req.user.name)||'', byUser:(req.user&&req.user.username)||'' }; buyers.push(rec); }
+  if (!rec) { const first = stageNames[0] || 'Inquiry'; rec = { id: newBuyerId(), stage:first, pof:'none', backup:false, lost:false, source: (b.source||'Manual'), stageAt:{}, createdAt: now, by:(req.user&&req.user.name)||'', byUser:(req.user&&req.user.username)||'' }; rec.stageAt[first]=now; buyers.push(rec); }
   if (b.personId && !rec.personId) rec.personId = String(b.personId).slice(0,40);
-  _buyerClean(rec, b, now);
+  _buyerClean(rec, b, now, stageNames);
   if ((rec.name || rec.email) && !rec.personId) { const pp = findOrCreatePerson(req, { name: rec.name||'', email: rec.email||'', phones: rec.phone?[rec.phone]:[], company: rec.company||'', type:'Buying' }); if (pp) rec.personId = pp.id; }
   cur.buyers = buyers; cur.updatedAt = now; overlay[d.key] = cur; saveAssignOverlay(overlay);
-  res.json({ ok:true, buyers, buyerSummary: buyerSummary(buyers), stages: BUYER_STAGES });
+  res.json({ ok:true, buyers, buyerSummary: buyerSummary(buyers, stageNames), stages: bStages });
 });
 app.post('/api/assignment/:key/buyer/:id/remove', (req, res) => {
   const deals = assignmentsIndex(); const d = deals[req.params.key];
@@ -8041,30 +8061,37 @@ app.post('/api/assignment/:key/buyer/:id/remove', (req, res) => {
   const overlay = loadAssignOverlay(); const cur = overlay[d.key] || {};
   cur.buyers = (Array.isArray(cur.buyers) ? cur.buyers : []).filter(x => x.id !== req.params.id);
   cur.updatedAt = new Date().toISOString(); overlay[d.key] = cur; saveAssignOverlay(overlay);
-  res.json({ ok:true, buyers: cur.buyers, buyerSummary: buyerSummary(cur.buyers) });
+  res.json({ ok:true, buyers: cur.buyers, buyerSummary: buyerSummary(cur.buyers, buyerStageNamesFor(cur)) });
 });
 app.get('/api/buyers', (req, res) => {
   res.set('Cache-Control','no-store');
   const overlay = loadAssignOverlay(), idx = assignmentsIndex();
   const isAdmin = req.user && isSuper(req.user);
-  const out = [];
+  const out = []; const stageSet = {};
   Object.values(idx).forEach(d => {
     if (!(isAdmin || canSeeAllDeals(req) || ownsAssignment(req, d))) return;
     const o = overlay[d.key] || {};
     const buyers = Array.isArray(o.buyers) ? o.buyers : [];
     if (!buyers.length) return;
+    const bStages = buyerStagesFor(o); const names = bStages.map(function(x){ return x.name; }); const lastName = names[names.length-1];
+    let gateIdx = -1; for (let gi=0; gi<names.length; gi++){ if (/data\s*room/i.test(names[gi])) { gateIdx = gi; break; } }
+    const bpipe = buyerPipelinesAll().find(function(x){ return x.id === (o.buyerPipelineId||''); }) || buyerPipelinesAll()[0] || null;
+    const pipeName = bpipe ? (bpipe.name||'') : '';
     let v; try { v = assignmentView(d, overlay); } catch(e){ v = {}; }
     buyers.forEach(bb => {
-      const st = BUYER_STAGE_KEYS.indexOf(bb.stage) >= 0 ? bb.stage : 'inquiry';
-      const sd = BUYER_STAGES.find(x => x.k === st) || BUYER_STAGES[0];
+      const st = (names.indexOf(bb.stage) >= 0) ? bb.stage : (names[0] || bb.stage || '');
+      const sidx = names.indexOf(st);
+      const pofOut = (gateIdx >= 0 && sidx >= 0 && sidx >= gateIdx && bb.pof !== 'received' && !bb.lost);
+      if (st) stageSet[st] = 1;
       out.push({ id: bb.id, listingKey: d.key, business: v.business||'', listingId: v.listingId||'', market: v.market||'', owner: v.owner||'',
         name: bb.name||'', email: bb.email||'', phone: bb.phone||'', company: bb.company||'', personId: bb.personId||'',
-        stage: st, stageName: sd.name, pof: bb.pof||'none', offerAmount: bb.offerAmount||'', backup: !!bb.backup, lost: !!bb.lost, lostReason: bb.lostReason||'',
+        stage: st, stageName: st, stageOrder: (sidx<0?999:sidx), pipeline: pipeName, isClosed: (st===lastName && !bb.lost),
+        pof: bb.pof||'none', pofOut: pofOut, offerAmount: bb.offerAmount||'', backup: !!bb.backup, lost: !!bb.lost, lostReason: bb.lostReason||'',
         source: bb.source||'', createdAt: bb.createdAt||'', updatedAt: bb.updatedAt||'' });
     });
   });
   out.sort((a,b2) => String(b2.updatedAt).localeCompare(String(a.updatedAt)));
-  res.json({ ok:true, buyers: out, stages: BUYER_STAGES, pof: BUYER_POF, isAdmin: !!isAdmin });
+  res.json({ ok:true, buyers: out, stages: Object.keys(stageSet).sort(), pof: BUYER_POF, isAdmin: !!isAdmin });
 });
 // Run the RRG analyst on one offer — scores it and returns a broker's assessment.
 app.post('/api/assignment/:key/offer/:offerId/analyze', express.json(), async (req, res) => {
@@ -11969,6 +11996,22 @@ function seedBizSalesStages() {
     fs.writeFileSync(marker, new Date().toISOString());
     console.log('Seeded Biz Sales pipeline (10 stages).');
   } catch (e) { console.error('seedBizSalesStages:', e && e.message); }
+}
+function seedBuyerPipeline() {
+  try {
+    if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true });
+    const marker = path.join(BOV_DATA_DIR, 'buyer_pipeline_seeded.flag');
+    if (fs.existsSync(marker)) return;
+    const all = loadPipelines();
+    if (!all.some(function(p){ return String(p.area||'') === 'Buyer'; })) {
+      const names = ['Inquiry','NDA','Buyer Call','Data Room','Seller Intro','Offer','Due Diligence','Closed'];
+      const steps = names.map(function(n,i){ return { name:n, number:i+1, targetDays:0 }; });
+      all.push({ id:'p_buyer', name:'Buyer Pipeline', area:'Buyer', stages:steps });
+      savePipelines(all);
+      console.log('Seeded default Buyer pipeline (8 stages).');
+    }
+    fs.writeFileSync(marker, new Date().toISOString());
+  } catch (e) { console.error('seedBuyerPipeline:', e && e.message); }
 }
 function cleanStages(arr) { return (Array.isArray(arr) ? arr : []).slice(0, 40).map(function(st, i){ return { name: String((st && st.name) || '').slice(0, 80) || ('Stage ' + (i + 1)), number: i + 1, abbr: String((st && st.abbr) || '').trim().slice(0, 10), autoComplete: String((st && st.autoComplete) || '').slice(0, 24), preListing: !!(st && st.preListing), targetDays: Math.max(0, Math.min(3650, parseInt((st && st.targetDays), 10) || 0)), winPct: (st && st.winPct !== '' && st.winPct != null) ? Math.max(0, Math.min(100, parseInt(st.winPct, 10) || 0)) : '', onAssignAuto: String((st && st.onAssignAuto) || '').slice(0, 40), onUnassignAuto: String((st && st.onUnassignAuto) || '').slice(0, 40) }; }).filter(function(st){ return st.name; }); }
 app.get('/api/pipelines', (req, res) => { res.json({ ok: true, pipelines: loadPipelines(), automations: loadAutomations().filter(a => a.active !== false).map(a => ({ id: a.id, name: a.name || '' })), pipelineRequired: effPipelineRequired(), isAdmin: !!(req.user && isSuper(req.user)) }); });
