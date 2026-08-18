@@ -57,6 +57,8 @@
       +'.ddrop{border:2px dashed #cfd6e2;border-radius:11px;padding:18px;text-align:center;color:#6b7488;font-size:12.5px;cursor:pointer;background:#f5f7fb;}'
       +'.ddrop.has{border-color:#1f8a5b;color:#1f8a5b;background:#f2faf5;font-weight:700;}'
       +'.docroom{flex:none;background:none;border:none;color:#9aa4b6;cursor:pointer;font-size:13px;line-height:1;padding:0 3px;}.docroom:hover{color:#23496f;}'
+      +'.docroom.in{color:#1f8a5b;}.docroom.in:hover{color:#166b45;}'
+      +'.docinroom{flex:none;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;color:#1f8a5b;background:#e7f5ee;border:1px solid #bfe3ce;border-radius:999px;padding:1px 6px;white-space:nowrap;margin-left:2px;}'
       +'.dfoot{display:flex;gap:9px;justify-content:flex-end;align-items:center;padding:13px 21px;border-top:1px solid #e6e9f0;}'
       +'.dbtn{background:#000E31;color:#fff;border:1px solid #000E31;border-radius:9px;padding:9px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;}'
       +'.dbtn[disabled]{opacity:.85;cursor:default;}'
@@ -100,13 +102,16 @@
     if(d.kind==='file' && d.size) sub+=(sub?' · ':'')+fmtSize(d.size);
     if(d.createdAt) sub+=(sub?' · ':'')+fmt(d.createdAt);
     var del=d.deleteUrl?('<button type="button" class="docdel" data-docdel="'+esc(d.id)+'" title="Delete">\u2715</button>'):'';
-    var toroom=(d.kind==='file')?('<button type="button" class="docroom" data-doctoroom="'+esc(d.id)+'" title="Send to a data room">\u25a5</button>'):'';
+    var _inrooms=(d.kind==='file' && d.rooms && d.rooms.length)?d.rooms:null;
+    var _rnames=_inrooms?_inrooms.map(function(r){return (r&&r.name)||'Data room';}).join(', '):'';
+    var roombadge=_inrooms?('<span class="docinroom" title="In data room: '+esc(_rnames)+'">\u2713 room</span>'):'';
+    var toroom=(d.kind==='file')?('<button type="button" class="docroom'+(_inrooms?' in':'')+'" data-doctoroom="'+esc(d.id)+'" title="'+(_inrooms?('In: '+esc(_rnames)+' \u2014 send to another data room'):'Send to a data room')+'">\u25a5</button>'):'';
     var _icoCls='k-'+d.kind, _icoGlyph=(KICON[d.kind]||KICON.file);
     if(d.kind==='file'){ var _cat=extCat(d.ext); if(_cat){ _icoCls='x-'+_cat; _icoGlyph=EXTICON[_cat]; } }
     return '<div class="rrow docrow" data-docurl="'+esc(d.openUrl||'')+'" data-dockind="'+esc(d.kind)+'" title="Open '+esc(d.title||'document')+'">'
       +'<span class="dico '+esc(_icoCls)+'">'+_icoGlyph+'</span>'
       +'<div class="rrmain" style="min-width:0"><div class="docttl">'+esc(top)+'</div><div class="docmeta">'+esc(sub)+'</div></div>'
-      +toroom+del
+      +roombadge+toroom+del
       +'</div>';
   }
   function rowsHtml(){ return DOCS.filter(function(d){ return d.kind!=='file'; }).map(rowHtml).join(''); }
@@ -140,7 +145,7 @@
     }).catch(function(){ alert('Could not load data rooms.'); });
   }
   function sendToRoom(fileId, roomId){
-    fetch('/api/files/'+encodeURIComponent(fileId)+'/to-room',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({roomId:roomId})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ if(window.rrgToast) rrgToast('Sent to '+((j.roomName)||'the data room')+' \u2713'); else alert('Sent to the data room.'); } else alert((j&&j.error)||'Could not send to the room.'); }).catch(function(){ alert('Could not reach the server.'); });
+    fetch('/api/files/'+encodeURIComponent(fileId)+'/to-room',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({roomId:roomId})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ if(window.rrgToast) rrgToast('Sent to '+((j.roomName)||'the data room')+' \u2713'); else alert('Sent to the data room.'); load(); } else alert((j&&j.error)||'Could not send to the room.'); }).catch(function(){ alert('Could not reach the server.'); });
   }
   function menu(anchor, items){
     var old=document.querySelector('.docmenu'); if(old) old.remove();

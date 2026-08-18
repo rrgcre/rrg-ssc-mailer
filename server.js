@@ -14069,6 +14069,7 @@ app.post('/api/files/:id/to-room', express.json(), (req, res) => {
   const r = addFileToRoomEx(room, { dataB64: buf.toString('base64'), filename: (f.originalName || (f.id + '.' + f.ext)), label: (f.name || f.originalName || '') }, { by: (req.user && req.user.name) || '', category: category, title: (f.name || '') });
   if (r && r.error) return res.status(400).json({ ok: false, error: r.error });
   saveRooms(rooms);
+  try { const _rn = room.business || room.name || ''; if (!Array.isArray(f.rooms)) f.rooms = []; if (!f.rooms.some(x => x && x.id === room.id)) { f.rooms.push({ id: room.id, name: _rn }); saveUserFiles(files); } } catch (e) {}
   res.json({ ok: true, doc: (r && r.doc) || null, roomId: room.id, roomName: room.business || '' });
 });
 
@@ -14088,7 +14089,7 @@ app.get('/api/documents', (req, res) => {
   cm.forEach(c => { out.push({ id:c.id, kind:'marketingpack', title: c.business || 'Marketing Pack', typeLabel:'Marketing Pack', matchNames:[c.business||''], personId:c.personId||'', companyId:c.companyId||'', companyName: coNameById[c.companyId] || c.market||'', personName: nameById[c.personId]||'', dealName:'', status: c.pending ? 'Draft' : 'Built', statusKey: c.pending ? 'pending' : 'built', owner: c.by || c.byUser || '', createdAt: c.createdAt || '', deleteUrl: '/api/document/marketingpack/'+c.id, openUrl: (c.pending ? 'rrg_cim_generate.html?cim=' : 'rrg_cim_builder.html?cim=') + encodeURIComponent(c.id), downloadUrl:'' }); });
   let uf = loadUserFiles();
   if (restrictToOwn(req)) uf = uf.filter(fr => permOwnerMatch(req, fr.createdBy));
-  uf.forEach(fr => { out.push({ id:fr.id, kind:'file', title: fr.name || fr.originalName || 'File', docType: fr.docType||'', typeLabel: fr.docType || (fr.ext||'file').toUpperCase(), personId:fr.personId||'', dealKey:fr.dealKey||'', companyId:fr.companyId||'', companyName: coNameById[fr.companyId]||'', personName: nameById[fr.personId]||'', dealName: bizByKey[fr.dealKey]||'', relatesToName: fr.relatesToName||'', status: fr.note || '', statusKey:'file', owner: fr.by || fr.byUser || '', createdAt: fr.uploadedAt || '', openUrl: '/api/files/'+fr.id+'/download', downloadUrl: '/api/files/'+fr.id+'/download', deleteUrl: '/api/files/'+fr.id, ext: fr.ext, size: fr.size }); });
+  uf.forEach(fr => { out.push({ id:fr.id, kind:'file', title: fr.name || fr.originalName || 'File', docType: fr.docType||'', typeLabel: fr.docType || (fr.ext||'file').toUpperCase(), personId:fr.personId||'', dealKey:fr.dealKey||'', companyId:fr.companyId||'', companyName: coNameById[fr.companyId]||'', personName: nameById[fr.personId]||'', dealName: bizByKey[fr.dealKey]||'', relatesToName: fr.relatesToName||'', status: fr.note || '', statusKey:'file', owner: fr.by || fr.byUser || '', createdAt: fr.uploadedAt || '', openUrl: '/api/files/'+fr.id+'/download', downloadUrl: '/api/files/'+fr.id+'/download', deleteUrl: '/api/files/'+fr.id, ext: fr.ext, size: fr.size, rooms: (Array.isArray(fr.rooms)?fr.rooms:[]) }); });
   // Firm-wide forms (admin-managed, org-wide). Surface them in the unified library under
   // the "Firm-wide" filter so there is one place to find every document. They carry no
   // record link, so they never scope onto a single contact or company card below.
