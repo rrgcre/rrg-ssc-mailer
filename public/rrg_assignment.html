@@ -193,10 +193,10 @@ textarea{min-height:120px;resize:vertical;line-height:1.5;}
 </style>
 <script src="/rrg_brand.js"></script>
 <style>
-.kpirow{grid-column:1 / -1;display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:11px;margin-bottom:2px;}
+.kpirow{grid-column:1 / -1;display:flex;flex-wrap:wrap;justify-content:flex-start;gap:11px;margin-bottom:2px;}
 @media(max-width:1150px){.kpirow{grid-template-columns:repeat(4,1fr);}}
 @media(max-width:600px){.kpirow{grid-template-columns:repeat(2,1fr);}}
-.kpi{background:#fff;border:1px solid #e6e9f0;border-radius:12px;padding:12px 14px;box-shadow:0 4px 16px rgba(10,20,50,.05);min-width:0;}
+.kpi{background:#fff;border:1px solid #e6e9f0;border-radius:12px;padding:12px 14px;box-shadow:0 4px 16px rgba(10,20,50,.05);min-width:132px;flex:0 0 auto;}
 .kpi .kn{font-size:19px;font-weight:800;color:#000E31;line-height:1.15;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .kpi .kl{font-size:10px;color:#6b7488;margin-top:3px;text-transform:uppercase;letter-spacing:.03em;font-weight:700;}
 .drail{min-width:0;}
@@ -538,18 +538,15 @@ function deliverablesBar(){
   var bov=(A.stages&&A.stages.bov&&A.stages.bov.id)||(A.financials&&A.financials.bovId)||'';
   var cim=(A.stages&&A.stages.pack&&A.stages.pack.id)||'';
   var room=A.roomId||(A.stages&&A.stages.room&&A.stages.room.id)||'';
-  var base='display:inline-flex;align-items:center;gap:8px;padding:11px 16px;border-radius:10px;font:inherit;font-size:13px;font-weight:700;text-decoration:none;border:1px solid #d3ddf3;';
-  var _v=window.__rrgVal||{}; var bovGated=!(_v.ready||_v.bovId||_v._failopen); var bovTip=_v.bovId?'Open the valuation':(_v.ready?'Create the broker opinion of value':('BOV needs: '+((_v.missing&&_v.missing.length&&_v.missing.join(', '))||'financials & lease'))); var _cimBuilt=(_v.state==='built'||_v.state==='final'); var cimGated=!(_v.bovId&&_cimBuilt); var cimTip=cimGated?(_v.bovId?'Build the valuation (BOV) first':'Create the BOV first \u2014 the CIM is built from it'):'Create the Marketing Pack from the valuation';
-  function btn(has,href,label,icon,hint,action,gated,gtip){
-    if(has) return '<a href="'+href+'" style="'+base+'background:#fff;color:#23496f;box-shadow:0 1px 2px rgba(10,20,50,.05)" title="Open '+esc(label)+'"><span style="font-size:15px">'+icon+'</span>'+esc(label)+' <span style="color:#8aa0c4">→</span></a>';
-    if(action) return '<button type="button" onclick="'+action+'()" style="'+base+'background:#fff;color:#23496f;cursor:pointer'+(gated?';opacity:.55':'')+'" title="'+esc(gtip||hint)+'"><span style="font-size:15px'+(gated?';filter:grayscale(1);opacity:.6':'')+'">'+icon+'</span>Create '+esc(label)+' <span style="color:#8aa0c4;font-size:11.5px;font-weight:600">'+(gated?'- locked':'+')+'</span></button>';
-    return '<span style="'+base+'background:#f5f7fb;color:#7d879b;cursor:default;opacity:.85" title="'+esc(hint)+'"><span style="font-size:15px;filter:grayscale(1);opacity:.6">'+icon+'</span>'+esc(label)+' <span style="font-weight:500;color:#9aa4b6;font-size:11.5px">— not created yet</span></span>';
-  }
-  return '<div id="deliverablesBar" style="grid-column:1 / -1;display:flex;gap:10px;flex-wrap:wrap;margin:2px 0 2px">'
-    +btn(bov,'./rrg_bov_builder.html?bov='+encodeURIComponent(bov),'Valuation (BOV)','📊','Build the BOV from the Seller Interview in the pipeline below.','listingCreateBOV',bovGated,bovTip)
-    +btn(cim,'./rrg_cim_builder.html?cim='+encodeURIComponent(cim),'Marketing Pack','📄','Advance the listing through the pipeline to create a Marketing Pack.','listingCreateCIM',cimGated,cimTip)
-    +btn(room,'./rrg_room.html?room='+encodeURIComponent(room),'Data Room','🗄️','A data room is created automatically when you start the listing.')
-    +'</div>';
+  var _v=window.__rrgVal||{};
+  var pill='display:inline-flex;align-items:center;gap:6px;padding:9px 13px;border-radius:8px;font:inherit;font-size:13px;font-weight:700;text-decoration:none;border:1px solid #c4ccda;background:#fff;color:#20334f;white-space:nowrap;';
+  function openPill(href,label){ return '<a href="'+href+'" style="'+pill+'" title="Open '+esc(label)+'">'+esc(label)+' <span style="color:#8aa0c4">\u2192</span></a>'; }
+  function createPill(action,label,gated,tip){ return '<button type="button" onclick="'+action+'()" style="'+pill+'cursor:pointer'+(gated?';opacity:.5':'')+'" title="'+esc(tip)+'"><span style="font-size:15px;line-height:1;font-weight:800;color:#2c5c8f'+(gated?';filter:grayscale(1);opacity:.7':'')+'">+</span>'+esc(label)+'</button>'; }
+  var bovBtn=bov?openPill('./rrg_bov_builder.html?bov='+encodeURIComponent(bov),'BOV'):createPill('listingCreateBOV','BOV',!(_v.ready||_v.bovId||_v._failopen),(_v.ready?'Create the broker opinion of value':('BOV needs: '+((_v.missing&&_v.missing.length&&_v.missing.join(', '))||'financials & lease'))));
+  var _cimBuilt=(_v.state==='built'||_v.state==='final');
+  var cimBtn=cim?openPill('./rrg_cim_builder.html?cim='+encodeURIComponent(cim),'CIM'):createPill('listingCreateCIM','CIM',!(_v.bovId&&_cimBuilt),(_v.bovId?(_cimBuilt?'Create the Marketing Pack (CIM) from the valuation':'Build the valuation (BOV) first'):'Create the BOV first \u2014 the CIM is built from it'));
+  var roomBtn=room?openPill('./rrg_room.html?room='+encodeURIComponent(room),'Data Room'):'<span style="'+pill+'opacity:.55;cursor:default;color:#7d879b" title="A data room is created automatically when you start the listing.">Data Room <span style="font-weight:500;color:#9aa4b6;font-size:11.5px">\u2014 not yet</span></span>';
+  return '<div id="deliverablesBar" style="grid-column:1 / -1;display:flex;gap:8px;flex-wrap:wrap;margin:2px 0 2px">'+bovBtn+cimBtn+roomBtn+'</div>';
 }
 function listingValPCK(){ return { pid:(typeof A!=='undefined'&&A&&A.clientPersonId)||'', cid:(typeof A!=='undefined'&&A&&A.companyId)||'', lk:KEY }; }
 function listingCreateBOV(){ var v=window.__rrgVal||{}, x=listingValPCK(); if(v.bovId){ location.href='./rrg_bov_generate.html?bov='+encodeURIComponent(v.bovId); return; } if(!v.ready){ var _m='BOV not ready yet \u2014 needs: '+((v.missing&&v.missing.length&&v.missing.join(', '))||'financials & lease')+'. Run the Seller Screening Call, then add the financials & lease to the data room.'; if(window.rrgToast) rrgToast(_m); else alert(_m); return; } fetch('/api/valuation-ensure',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({personId:x.pid,companyId:x.cid,listingKey:x.lk})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.bovId){ location.href='./rrg_bov_generate.html?bov='+encodeURIComponent(j.bovId); } else { alert((j&&j.error)||'Could not open the valuation.'); } }).catch(function(){ alert('Could not reach the server.'); }); }
@@ -558,8 +555,9 @@ function loadValReady(){ if(typeof A==='undefined'||!A) return; var pid=(A&&A.cl
 function kpiRow(){
   var views=0; try{ if(typeof RA!=='undefined'&&RA&&Array.isArray(RA.people)) views=RA.people.reduce(function(s,p){return s+(+p.views||0);},0); }catch(e){}
   var gci=0; try{ (AGR||[]).forEach(function(a){ gci+=(+a.projectedGci||0); }); }catch(e){}
-  var tiles=[['Asking Price', A.listPrice?esc(moneyInputFmt(A.listPrice)):(A.value?esc(A.value):'\u2014')],['Days on Market', domDays()||'\u2014'],['Interested Parties', String((INQUIRIES||[]).length)],['Data-Room Views', String(views)],['NDAs', String((NDAS||[]).length)],['Tours', String((TOURS||[]).length)],['Offers', String((OFFERS||[]).length)],['Projected Commission', A.totalCommission?esc(moneyInputFmt(A.totalCommission)):(gci>0?money(gci):'\u2014')]];
-  return tiles.map(function(t){ return '<div class="kpi"><div class="kn">'+t[1]+'</div><div class="kl">'+esc(t[0])+'</div></div>'; }).join('');
+  var price=A.listPrice?moneyInputFmt(A.listPrice):(A.value||''); var _dom=domDays(); var domN=parseInt(String(_dom).replace(/[^0-9]/g,''),10)||0; var comm=A.totalCommission?moneyInputFmt(A.totalCommission):(gci>0?money(gci):'');
+  var tiles=[['Asking Price', price, !!price],['Days on Market', String(_dom), domN>0],['Interested Parties', String((INQUIRIES||[]).length), (INQUIRIES||[]).length>0],['Data-Room Views', String(views), views>0],['NDAs', String((NDAS||[]).length), (NDAS||[]).length>0],['Tours', String((TOURS||[]).length), (TOURS||[]).length>0],['Offers', String((OFFERS||[]).length), (OFFERS||[]).length>0],['Projected Commission', comm, !!comm]];
+  return tiles.filter(function(t){return t[2];}).map(function(t){ return '<div class="kpi"><div class="kn">'+esc(t[1])+'</div><div class="kl">'+esc(t[0])+'</div></div>'; }).join('');
 }
 
 function render(){
