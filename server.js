@@ -6278,6 +6278,21 @@ try { seedBizSalesStages(); } catch (e) { console.error('seed biz sales:', e && 
 try { seedUnqualifiedStage(); } catch (e) { console.error('seed unqualified:', e && e.message); }
 try { seedBuyerPipeline(); } catch (e) { console.error('seed buyer pipeline:', e && e.message); }
 try { maskPayrollSsns(); } catch (e) { console.error('mask payroll ssn:', e && e.message); }
+// A company is starred iff at least one of its contacts is starred. One-time backfill to bring
+// existing data in line with that rule (contact-star changes keep it in sync from then on).
+function reconcileCompanyStarsOnce() {
+  const st = loadSettings();
+  if (st.companyStarBackfillV1) return;
+  const people = loadPeople(), companies = loadCompanies();
+  const starredCos = new Set();
+  people.forEach(p => { if (p && p.star && p.companyId) starredCos.add(p.companyId); });
+  let ch = false;
+  companies.forEach(c => { const want = starredCos.has(c.id); if (!!c.star !== want) { c.star = want; c.updatedAt = new Date().toISOString(); ch = true; } });
+  if (ch) saveCompanies(companies);
+  st.companyStarBackfillV1 = true; saveSettings(st);
+}
+try { reconcileCompanyStarsOnce(); } catch (e) { console.error('company star backfill:', e && e.message); }
+
 
 // ================= Automations (email / task drip sequences) =================
 const AUTOMATIONS_FILE = path.join(BOV_DATA_DIR, 'automations.json');
@@ -8361,7 +8376,7 @@ app.post('/api/person', express.json(), (req, res) => {
   if (typeof b.url === 'string') p.url = b.url.slice(0, 300);
   if (b.vip !== undefined) p.vip = !!b.vip;
   if (b.caution !== undefined) p.caution = !!b.caution;
-  if (b.star !== undefined) { p.star = !!b.star; if (p.star && p.companyId) { try { const _cos = loadCompanies(); const _co = _cos.find(x => x.id === p.companyId); if (_co && !_co.star) { _co.star = true; _co.updatedAt = now; saveCompanies(_cos); } } catch (e) {} } }
+  if (b.star !== undefined) { p.star = !!b.star; if (p.companyId) { try { const _cos = loadCompanies(); const _co = _cos.find(x => x.id === p.companyId); if (_co) { const _anyStar = arr.some(x => x.companyId === p.companyId && x.star); if (_anyStar && !_co.star) { _co.star = true; _co.updatedAt = now; saveCompanies(_cos); } else if (!_anyStar && _co.star) { _co.star = false; _co.updatedAt = now; saveCompanies(_cos); } } } catch (e) {} } }
   if (b.preferred !== undefined) p.preferred = !!b.preferred;
   if (b.tags !== undefined) p.tags = (cleanStrList(b.tags, 30, 40) || []);
   if (typeof b.notes === 'string') p.notes = b.notes.slice(0, 4000);
