@@ -1961,7 +1961,18 @@ app.post('/api/valuation-ensure', express.json(), (req, res) => {
         _arr.push(rec); saveBovs(_arr);
         return res.json({ ok: true, bovId: rec.id });
       }
-      return res.status(409).json({ ok: false, error: 'No Seller Interview on file yet. Send the Seller Interview (form or video), have the seller complete it, then generate the valuation.' });
+      // No questionnaire and no interview yet — stand up a bare valuation anyway so the rep can
+      // get moving; the BOV builder then collects the financials, lease and remaining inputs.
+      let _biz = '', _mkt = '';
+      try { const _sd = _lk ? _dealFromListingKey(_lk) : (loadDeals().filter(hit)[0] || null); if (_sd) { _biz = _sd.business || ''; _mkt = _sd.market || _sd.city || ''; } } catch (e) {}
+      if (!_biz && cid) { try { const _c = loadCompanies().find(c => c.id === cid); if (_c) _biz = _c.name || ''; } catch (e) {} }
+      const _arr2 = loadBovs();
+      const rec2 = { id: newBovId(), srcFormId: '', srcQuestId: '', pending: true,
+        personId: pid || '', companyId: cid || '', listingKey: _lk || '',
+        business: _biz || 'Business', market: _mkt || '', date: '', rangeText: '', targetText: '', multText: '', ebitdaText: '',
+        by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', createdAt: new Date().toISOString() };
+      _arr2.push(rec2); saveBovs(_arr2);
+      return res.json({ ok: true, bovId: rec2.id });
     }
     if (!q.processed) { const arr2 = loadQuests(); const q2 = arr2.find(x => x.id === q.id) || q; q2.processed = true; q2.processedAt = new Date().toISOString(); saveQuests(arr2); }
     const nb = ensureBovForQuest(q);
