@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Buyers</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.top{color:#fff;padding:30px 0 30px;position:relative;overflow:hidden;background:radial-gradient(95% 130% at 28% 15%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
+.top-in{max-width:1320px;margin:0 auto;padding:0 24px;position:relative;z-index:2;}
+.brand{display:inline-flex;align-items:center;cursor:pointer;} .disc{background:var(--red);color:#fff;border-radius:50%;width:42px;height:42px;font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.bar{background:#fff;width:3px;height:30px;margin:0 12px;} .wm{font-weight:800;font-size:14px;text-transform:uppercase;line-height:.95;}
+.kicker{margin:20px 0 4px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:11px;text-transform:uppercase;}
+h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
+.sub{color:#aeb8cf;font-size:13px;margin-top:7px;max-width:720px;}
+.kpis{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;}
+.kpi{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:10px;padding:9px 15px;min-width:96px;}
+.kpi .n{font-size:22px;font-weight:800;color:#fff;line-height:1;}
+.kpi .l{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#aeb8cf;margin-top:4px;font-weight:700;}
+.wrap{max-width:none;margin:20px 0;padding:0 28px 56px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 6px 24px rgba(10,20,50,.06);}
+.hd{display:flex;align-items:center;padding:13px 18px;border-bottom:1px solid var(--line);gap:10px;flex-wrap:wrap;}
+.hd b{color:var(--navy);font-size:14px;} .hd .cnt{color:var(--muted);font-size:12.5px;}
+.hd select{border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit;font-size:12.5px;background:#fff;color:var(--ink);}
+.hd .ck{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);font-weight:600;cursor:pointer;}
+.searchwrap{margin-left:auto;position:relative;display:flex;align-items:center;}
+.searchwrap .searchic{position:absolute;left:12px;color:#9aa3b2;pointer-events:none;}
+.searchwrap input{border:1px solid var(--line);border-radius:9px;padding:8px 13px 8px 36px;font:inherit;font-size:13px;min-width:240px;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th,td{text-align:left;padding:11px 16px;border-bottom:1px solid var(--line);vertical-align:middle;}
+th{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;background:var(--wash);cursor:pointer;white-space:nowrap;}
+tr:hover td{background:#fbfcfe;}
+.nm{font-weight:600;color:var(--navy);font-size:13.5px;} .nmlink{color:var(--navy);font-weight:600;text-decoration:none;} .nmlink:hover{text-decoration:underline;}
+.meta{color:var(--muted);font-size:11.5px;margin-top:2px;}
+.spill{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;padding:3px 9px;border-radius:999px;white-space:nowrap;}
+.pof{display:inline-block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;padding:2px 8px;border-radius:999px;}
+.pof.received{background:#e7f5ee;color:#1f8a5b;} .pof.requested{background:#fdf1df;color:#b5791f;} .pof.none{background:#eef1f6;color:#8a93a8;}
+.pof.req-warn{background:#fdecea;color:#DA2B1F;}
+.lostrow td{opacity:.6;} .lostrow .nm{text-decoration:line-through;color:#98a1b5;}
+.bk{color:#e0a207;font-size:13px;}
+.open{background:#fff;color:var(--navy);border:1px solid #cdd6e6;border-radius:7px;padding:5px 11px;font:inherit;font-size:11.5px;font-weight:700;text-decoration:none;white-space:nowrap;}
+.open:hover{background:var(--navy);color:#fff;border-color:var(--navy);}
+.empty{text-align:center;color:var(--muted);padding:54px 20px;} .empty b{color:var(--navy);display:block;font-size:15px;margin-bottom:6px;}
+.listloading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:72px 20px;color:#6b7488;font-size:14px;font-weight:600;gap:15px}
+.listspin{width:38px;height:38px;border-radius:50%;border:3px solid #e6e9f0;border-top-color:#DA2B1F;animation:listspin .8s linear infinite}@keyframes listspin{to{transform:rotate(360deg)}}
+.foot{max-width:1320px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<a href="./index.html" class="rrg-back" aria-label="Back to toolbox" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28)"><span style="font-size:14px;line-height:1">&larr;</span> Toolbox</a>
+<div class="top"><div class="top-in">
+  <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+  <div class="kicker">CRM</div>
+  <h1>Buyers</h1>
+  <div class="sub">Every buyer across all your listings and where each one stands in the funnel &mdash; from first inquiry through NDA, data room, offer and close. Each buyer lives on its listing; this is the firm-wide roll-up.</div>
+  <div class="kpis" id="kpis"></div>
+</div></div>
+<div class="wrap">
+  <div class="card">
+    <div class="hd">
+      <b>All buyers</b><span class="cnt" id="cnt"></span>
+      <select id="fStage"><option value="">All stages</option></select>
+      <select id="fMarket"><option value="">All markets</option></select>
+      <select id="fPof"><option value="">Any POF</option><option value="received">POF received</option><option value="requested">POF requested</option><option value="none">POF not started</option></select>
+      <label class="ck"><input type="checkbox" id="fLost"> Show passed / lost</label>
+      <div class="searchwrap"><svg class="searchic" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"></circle><line x1="12.8" y1="12.8" x2="17.5" y2="17.5"></line></svg><input id="search" placeholder="Search buyer, company, listing, market&hellip;" autocomplete="off"></div>
+    </div>
+    <div id="body"><div class="listloading"><div class="listspin"></div>Loading buyers&hellip;</div></div>
+  </div>
+</div>
+<div class="foot">Proprietary &amp; Confidential &middot; Property of Restaurant Realty Group, LLC &middot; Internal RRG use only.</div>
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+var ALL=[], STAGES=[], SORT={k:'updatedAt',dir:-1};
+var STAGE_COLORS={inquiry:['#eef1f6','#6b7488'],nda:['#e8f0fd','#2c5c8f'],call:['#f3edfb','#7a4fd0'],dataroom:['#e6f5f3','#0f766e'],seller:['#fdf1df','#b5791f'],offer:['#e7f5ee','#1f8a5b'],dd:['#e0f0e8','#137a52'],closed:['#e3e8f5','#20335f']};
+function stagePill(k,nm){ var c=STAGE_COLORS[k]||['#eef1f6','#6b7488']; return '<span class="spill" style="background:'+c[0]+';color:'+c[1]+'">'+esc(nm||k)+'</span>'; }
+function money(v){ var m=String(v==null?'':v).replace(/[, $]/g,'').match(/-?\d+(\.\d+)?/); return m?parseFloat(m[0]):0; }
+function fmtMoney(v){ var n=money(v); if(!n) return ''; return '$'+Math.round(n).toLocaleString('en-US'); }
+function fmtDate(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2); }
+function stageIdx(k){ for(var i=0;i<STAGES.length;i++){ if(STAGES[i].k===k) return i; } return 0; }
+
+function load(){
+  fetch('/api/buyers',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ document.getElementById('body').innerHTML='<div class="empty"><b>Could not load buyers</b>Try again in a moment.</div>'; return; }
+    ALL=j.buyers||[]; STAGES=j.stages||[];
+    var st=document.getElementById('fStage'); STAGES.forEach(function(s){ var o=document.createElement('option'); o.value=s.k; o.textContent=s.name; st.appendChild(o); });
+    var mkts={}; ALL.forEach(function(b){ if(b.market) mkts[b.market]=1; }); var mf=document.getElementById('fMarket'); Object.keys(mkts).sort().forEach(function(m){ var o=document.createElement('option'); o.value=m; o.textContent=m; mf.appendChild(o); });
+    renderKpis(); apply();
+  }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty"><b>Could not reach the server</b></div>'; });
+}
+function renderKpis(){
+  var active=ALL.filter(function(b){return !b.lost;});
+  var inOffer=active.filter(function(b){return b.stage==='offer'||b.stage==='dd';}).length;
+  var closed=active.filter(function(b){return b.stage==='closed';}).length;
+  var pofPend=active.filter(function(b){return stageIdx(b.stage)>=stageIdx('dataroom')&&b.pof!=='received';}).length;
+  var h='<div class="kpi"><div class="n">'+active.length+'</div><div class="l">Active buyers</div></div>'
+   +'<div class="kpi"><div class="n">'+inOffer+'</div><div class="l">In offer / DD</div></div>'
+   +'<div class="kpi"><div class="n">'+closed+'</div><div class="l">Closed</div></div>'
+   +'<div class="kpi"><div class="n" style="color:'+(pofPend?'#ffb3ab':'#fff')+'">'+pofPend+'</div><div class="l">POF outstanding</div></div>';
+  document.getElementById('kpis').innerHTML=h;
+}
+function apply(){
+  var q=(document.getElementById('search').value||'').trim().toLowerCase();
+  var fs=document.getElementById('fStage').value, fm=document.getElementById('fMarket').value, fp=document.getElementById('fPof').value, showLost=document.getElementById('fLost').checked;
+  var rows=ALL.filter(function(b){
+    if(!showLost && b.lost) return false;
+    if(fs && b.stage!==fs) return false;
+    if(fm && b.market!==fm) return false;
+    if(fp && (b.pof||'none')!==fp) return false;
+    if(q){ var hay=[b.name,b.company,b.email,b.business,b.market,b.owner].join(' ').toLowerCase(); if(hay.indexOf(q)<0) return false; }
+    return true;
+  });
+  rows.sort(function(a,b){ var k=SORT.k, av, bv;
+    if(k==='stage'){ av=stageIdx(a.stage); bv=stageIdx(b.stage); }
+    else if(k==='offerAmount'){ av=money(a.offerAmount); bv=money(b.offerAmount); }
+    else { av=String(a[k]||''); bv=String(b[k]||''); return SORT.dir*av.localeCompare(bv); }
+    return SORT.dir*(av-bv);
+  });
+  document.getElementById('cnt').textContent=rows.length+(rows.length===1?' buyer':' buyers');
+  if(!rows.length){ document.getElementById('body').innerHTML='<div class="empty"><b>No buyers match</b>Add buyers from a listing&rsquo;s Buyers funnel, or adjust the filters above.</div>'; return; }
+  var html='<table><thead><tr>'
+    +'<th data-s="name">Buyer</th><th data-s="business">Listing</th><th data-s="market">Market</th><th data-s="stage">Stage</th><th>POF</th><th data-s="offerAmount">Offer</th><th data-s="owner">Owner</th><th data-s="updatedAt">Updated</th><th></th>'
+    +'</tr></thead><tbody>'
+    + rows.map(rowHTML).join('')
+    + '</tbody></table>';
+  document.getElementById('body').innerHTML=html;
+  document.querySelectorAll('th[data-s]').forEach(function(th){ th.addEventListener('click',function(){ var k=th.getAttribute('data-s'); if(SORT.k===k) SORT.dir=-SORT.dir; else { SORT.k=k; SORT.dir=(k==='updatedAt'||k==='offerAmount'||k==='stage')?-1:1; } apply(); }); });
+}
+function rowHTML(b){
+  var name=b.personId?('<a class="nmlink" href="./rrg_person.html?id='+encodeURIComponent(b.personId)+'">'+esc(b.name||'Buyer')+'</a>'):esc(b.name||'Buyer');
+  var bk=b.backup?' <span class="bk" title="Backup buyer">&#9733;</span>':'';
+  var sub=[b.email,b.company].filter(Boolean).map(esc).join(' &middot; ');
+  var needPof=stageIdx(b.stage)>=stageIdx('dataroom')&&b.pof!=='received';
+  var pofCls=needPof?'req-warn':(b.pof||'none');
+  var pofTxt=b.pof==='received'?'Received':(b.pof==='requested'?'Requested':(needPof?'Required':'—'));
+  var offer=b.offerAmount?fmtMoney(b.offerAmount):'<span style="color:#c3ccd9">—</span>';
+  return '<tr class="'+(b.lost?'lostrow':'')+'">'
+    +'<td><div class="nm">'+name+bk+'</div>'+(sub?('<div class="meta">'+sub+'</div>'):'')+'</td>'
+    +'<td><a class="nmlink" href="./rrg_assignment.html?key='+encodeURIComponent(b.listingKey)+'">'+esc(b.business||'Listing')+'</a>'+(b.listingId?('<div class="meta">'+esc(b.listingId)+'</div>'):'')+'</td>'
+    +'<td>'+(b.market?esc(b.market):'<span style="color:#c3ccd9">—</span>')+'</td>'
+    +'<td>'+stagePill(b.stage,b.stageName)+(b.lost?' <span class="spill" style="background:#fdecea;color:#DA2B1F">Passed</span>':'')+'</td>'
+    +'<td><span class="pof '+pofCls+'">'+pofTxt+'</span></td>'
+    +'<td>'+offer+'</td>'
+    +'<td>'+(b.owner?esc(b.owner):'<span style="color:#c3ccd9">—</span>')+'</td>'
+    +'<td style="color:#8a94a6;font-size:12px">'+esc(fmtDate(b.updatedAt))+'</td>'
+    +'<td style="text-align:right"><a class="open" href="./rrg_assignment.html?key='+encodeURIComponent(b.listingKey)+'">Open listing</a></td>'
+    +'</tr>';
+}
+['search','fStage','fMarket','fPof','fLost'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener(id==='search'?'input':'change',apply); });
+load();
+window.addEventListener('pageshow',function(e){ if(e.persisted) load(); });
+</script>
+</body>
+</html>
