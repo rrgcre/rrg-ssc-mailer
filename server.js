@@ -4937,7 +4937,7 @@ function dealMediaView(o){
     matterportUrl: med.matterportUrl || '', matterportEmbed: matterportEmbedUrl(med.matterportUrl || '')
   };
 }
-function assignmentView(d, overlay) {
+function assignmentView(d, overlay, _opts) {
   const o = overlay[d.key] || {};
   const deal = d.deal || null;
   const pick = (f) => (deal && deal[f]) || (d.quest && d.quest[f]) || (d.bov && d.bov[f]) || (d.cim && d.cim[f]) || (d.map && d.map[f]) || (d.screen && d.screen[f]) || (d.lease && d.lease[f]) || (d.room && d.room[f]) || '';
@@ -4980,7 +4980,7 @@ function assignmentView(d, overlay) {
     // the latest generated valuation, which itself now reflects the Seller Interview.
     financials: bov ? { valueTarget: bov.targetText || '', valueRange: bov.rangeText || '', revenue: bov.revText || bovRevenueText(bov) || '', sde: bov.sdeText || '', multiple: bov.multText || '', ebitda: bov.ebitdaText || '', basis: bov.basis || '', units: bovUnits(bov), bovId: bov.id, state: bov.finalizedAt ? 'final' : (bov.aiGenerated ? 'built' : 'requested') } : null,
     units: bovUnits(bov) || (deal && deal.units) || '',
-    boardStage: (function(){ try { return listingBoardStage(d, overlay); } catch(e){ return ''; } })(),
+    boardStage: (_opts && _opts.noBoard) ? '' : (function(){ try { return listingBoardStage(d, overlay); } catch(e){ return ''; } })(),
     media: dealMediaView(Object.assign({}, o, { _key: d.key })),
     stages, lastActivity, createdAt: created,
   };
@@ -9490,7 +9490,7 @@ function listingStageSummary(d, overlay) {
       if (p && Array.isArray(p.stages) && p.stages.length) stages = p.stages.map((st, i) => ({ k: 'g' + i, name: st.name, manual: true }));
     }
     if (!stages) stages = BIZ_PIPE;
-    let auto = {}; try { auto = (assignmentView(d, overlay).stages) || {}; } catch (e) {}
+    let auto = {}; try { auto = (assignmentView(d, overlay, { noBoard: true }).stages) || {}; } catch (e) {}
     const isDone = s => s.manual ? !!mf[s.k] : !!(auto[s.k] && auto[s.k].done);
     const total = stages.length; const done = stages.filter(isDone).length;
     let cur = stages.findIndex(s => !isDone(s)); const allDone = cur < 0;
@@ -9508,7 +9508,8 @@ app.get('/api/person/:id', (req, res) => {
   const _pEmails = personEmails(p).map(e => String(e || '').toLowerCase()).filter(Boolean);
   const deals = [], offers = [], tours = [], ndas = [], interested = [];
   (Array.isArray(p.tours) ? p.tours : []).forEach(x => tours.push({ id: x.id, key: '', business: '', date: x.date, interest: x.interest, notes: x.notes, personLevel: true }));
-  loadDeals().filter(d => d.contactPersonId === p.id).forEach(d => { const key = d.screenId ? ('s_' + d.screenId) : ('d_' + d.id); const _st = idx[key] ? listingStageSummary(idx[key], overlay) : null; deals.push({ key: key, business: d.business, market: d.market || '', role: 'Client', roomId: (function(){ var cand = (idx[key] && idx[key].room && idx[key].room.id) || d.roomId || ''; if (!cand) return ''; try { return loadRooms().some(r => r.id === cand) ? cand : ''; } catch (e) { return ''; } })(), stage: _st ? _st.label : '', stageDone: _st ? _st.done : 0, stageTotal: _st ? _st.total : 0 }); });
+  let _roomIds = null; const _hasRoom = (id) => { if (!id) return false; if (!_roomIds) { try { _roomIds = new Set(loadRooms().map(r => r.id)); } catch (e) { _roomIds = new Set(); } } return _roomIds.has(id); };
+  loadDeals().filter(d => d.contactPersonId === p.id).forEach(d => { const key = d.screenId ? ('s_' + d.screenId) : ('d_' + d.id); const _st = idx[key] ? listingStageSummary(idx[key], overlay) : null; deals.push({ key: key, business: d.business, market: d.market || '', role: 'Client', roomId: (function(){ var cand = (idx[key] && idx[key].room && idx[key].room.id) || d.roomId || ''; return _hasRoom(cand) ? cand : ''; })(), stage: _st ? _st.label : '', stageDone: _st ? _st.done : 0, stageTotal: _st ? _st.total : 0 }); });
   for (const key in overlay) {
     const o = overlay[key], biz = bizByKey[key] || '(deal)';
     const _keyStage = idx[key] ? listingStageSummary(idx[key], overlay) : null;
