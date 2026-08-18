@@ -5398,21 +5398,21 @@ function _relFromListing(d, overlay, roll) {
   const o = overlay[key] || {}; const t = o.transaction || null; const st = o.status || '';
   if (st !== 'Closed' && st !== 'Lost') roll.activeListings++;
   if (t) {
-    if (t.status === 'Closed') { roll.closedDeals++; roll.commission += _relNum(t.commissionDue); }
+    if (t.status === 'Closed') { roll.closedDeals++; roll.commission += _relNum(t.commissionDue); roll.volume += _relNum(t.price); }
     else if (t.status && t.status !== 'Dead') roll.pipeline += _relNum(t.price);
   }
 }
 function relationshipRollup(personId) {
   const deals = loadDeals(), overlay = loadAssignOverlay();
-  const roll = { activeListings: 0, closedDeals: 0, commission: 0, pipeline: 0 };
+  const roll = { activeListings: 0, closedDeals: 0, commission: 0, pipeline: 0, volume: 0 };
   deals.filter(d => d.contactPersonId === personId).forEach(d => _relFromListing(d, overlay, roll));
   // Also count closed deals where this contact was the buyer.
-  for (const key in overlay) { const t = overlay[key] && overlay[key].transaction; if (t && t.personId === personId && t.status === 'Closed') roll.closedDeals++; }
+  for (const key in overlay) { const t = overlay[key] && overlay[key].transaction; if (t && t.personId === personId && t.status === 'Closed') { roll.closedDeals++; roll.volume += _relNum(t.price); } }
   return roll;
 }
 function relationshipRollupCompany(companyId) {
   const deals = loadDeals(), overlay = loadAssignOverlay();
-  const roll = { activeListings: 0, closedDeals: 0, commission: 0, pipeline: 0 };
+  const roll = { activeListings: 0, closedDeals: 0, commission: 0, pipeline: 0, volume: 0 };
   deals.filter(d => d.companyId === companyId).forEach(d => _relFromListing(d, overlay, roll));
   return roll;
 }
