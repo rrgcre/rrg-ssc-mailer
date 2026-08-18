@@ -75,31 +75,29 @@ tr:hover td{background:#fbfcfe;}
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 var ALL=[], STAGES=[], SORT={k:'updatedAt',dir:-1};
-var STAGE_COLORS={inquiry:['#eef1f6','#6b7488'],nda:['#e8f0fd','#2c5c8f'],call:['#f3edfb','#7a4fd0'],dataroom:['#e6f5f3','#0f766e'],seller:['#fdf1df','#b5791f'],offer:['#e7f5ee','#1f8a5b'],dd:['#e0f0e8','#137a52'],closed:['#e3e8f5','#20335f']};
-function stagePill(k,nm){ var c=STAGE_COLORS[k]||['#eef1f6','#6b7488']; return '<span class="spill" style="background:'+c[0]+';color:'+c[1]+'">'+esc(nm||k)+'</span>'; }
+function stageColor(name){ var pal=[['#eef1f6','#6b7488'],['#e8f0fd','#2c5c8f'],['#f3edfb','#7a4fd0'],['#e6f5f3','#0f766e'],['#fdf1df','#b5791f'],['#e7f5ee','#1f8a5b'],['#fdeef4','#b83280'],['#e3e8f5','#20335f']]; var t=String(name||''); var h=0; for(var i=0;i<t.length;i++) h=(h*31+t.charCodeAt(i))>>>0; return pal[h%pal.length]; }
+function stagePill(name){ var c=stageColor(name); return '<span class="spill" style="background:'+c[0]+';color:'+c[1]+'">'+esc(name||'—')+'</span>'; }
 function money(v){ var m=String(v==null?'':v).replace(/[, $]/g,'').match(/-?\d+(\.\d+)?/); return m?parseFloat(m[0]):0; }
 function fmtMoney(v){ var n=money(v); if(!n) return ''; return '$'+Math.round(n).toLocaleString('en-US'); }
 function fmtDate(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2); }
-function stageIdx(k){ for(var i=0;i<STAGES.length;i++){ if(STAGES[i].k===k) return i; } return 0; }
-
 function load(){
   fetch('/api/buyers',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok){ document.getElementById('body').innerHTML='<div class="empty"><b>Could not load buyers</b>Try again in a moment.</div>'; return; }
     ALL=j.buyers||[]; STAGES=j.stages||[];
-    var st=document.getElementById('fStage'); STAGES.forEach(function(s){ var o=document.createElement('option'); o.value=s.k; o.textContent=s.name; st.appendChild(o); });
+    var st=document.getElementById('fStage'); STAGES.forEach(function(nm){ var o=document.createElement('option'); o.value=nm; o.textContent=nm; st.appendChild(o); });
     var mkts={}; ALL.forEach(function(b){ if(b.market) mkts[b.market]=1; }); var mf=document.getElementById('fMarket'); Object.keys(mkts).sort().forEach(function(m){ var o=document.createElement('option'); o.value=m; o.textContent=m; mf.appendChild(o); });
     renderKpis(); apply();
   }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty"><b>Could not reach the server</b></div>'; });
 }
 function renderKpis(){
   var active=ALL.filter(function(b){return !b.lost;});
-  var inOffer=active.filter(function(b){return b.stage==='offer'||b.stage==='dd';}).length;
-  var closed=active.filter(function(b){return b.stage==='closed';}).length;
-  var pofPend=active.filter(function(b){return stageIdx(b.stage)>=stageIdx('dataroom')&&b.pof!=='received';}).length;
+  var closed=active.filter(function(b){return b.isClosed;}).length;
+  var pofOut=ALL.filter(function(b){return b.pofOut;}).length;
+  var lset={}; active.forEach(function(b){ lset[b.listingKey]=1; }); var listings=Object.keys(lset).length;
   var h='<div class="kpi"><div class="n">'+active.length+'</div><div class="l">Active buyers</div></div>'
-   +'<div class="kpi"><div class="n">'+inOffer+'</div><div class="l">In offer / DD</div></div>'
+   +'<div class="kpi"><div class="n">'+listings+'</div><div class="l">Listings in play</div></div>'
    +'<div class="kpi"><div class="n">'+closed+'</div><div class="l">Closed</div></div>'
-   +'<div class="kpi"><div class="n" style="color:'+(pofPend?'#ffb3ab':'#fff')+'">'+pofPend+'</div><div class="l">POF outstanding</div></div>';
+   +'<div class="kpi"><div class="n" style="color:'+(pofOut?'#ffb3ab':'#fff')+'">'+pofOut+'</div><div class="l">POF outstanding</div></div>';
   document.getElementById('kpis').innerHTML=h;
 }
 function apply(){
@@ -110,17 +108,16 @@ function apply(){
     if(fs && b.stage!==fs) return false;
     if(fm && b.market!==fm) return false;
     if(fp && (b.pof||'none')!==fp) return false;
-    if(q){ var hay=[b.name,b.company,b.email,b.business,b.market,b.owner].join(' ').toLowerCase(); if(hay.indexOf(q)<0) return false; }
+    if(q){ var hay=[b.name,b.company,b.email,b.business,b.market,b.owner,b.pipeline].join(' ').toLowerCase(); if(hay.indexOf(q)<0) return false; }
     return true;
   });
   rows.sort(function(a,b){ var k=SORT.k, av, bv;
-    if(k==='stage'){ av=stageIdx(a.stage); bv=stageIdx(b.stage); }
-    else if(k==='offerAmount'){ av=money(a.offerAmount); bv=money(b.offerAmount); }
-    else { av=String(a[k]||''); bv=String(b[k]||''); return SORT.dir*av.localeCompare(bv); }
-    return SORT.dir*(av-bv);
+    if(k==='stage'){ var pc=String(a.pipeline||'').localeCompare(String(b.pipeline||'')); if(pc!==0) return SORT.dir*pc; return SORT.dir*((a.stageOrder||0)-(b.stageOrder||0)); }
+    if(k==='offerAmount'){ av=money(a.offerAmount); bv=money(b.offerAmount); return SORT.dir*(av-bv); }
+    av=String(a[k]||''); bv=String(b[k]||''); return SORT.dir*av.localeCompare(bv);
   });
   document.getElementById('cnt').textContent=rows.length+(rows.length===1?' buyer':' buyers');
-  if(!rows.length){ document.getElementById('body').innerHTML='<div class="empty"><b>No buyers match</b>Add buyers from a listing&rsquo;s Buyers funnel, or adjust the filters above.</div>'; return; }
+  if(!rows.length){ document.getElementById('body').innerHTML='<div class="empty"><b>No buyers match</b>Add buyers from a listing’s Buyers funnel, or adjust the filters above.</div>'; return; }
   var html='<table><thead><tr>'
     +'<th data-s="name">Buyer</th><th data-s="business">Listing</th><th data-s="market">Market</th><th data-s="stage">Stage</th><th>POF</th><th data-s="offerAmount">Offer</th><th data-s="owner">Owner</th><th data-s="updatedAt">Updated</th><th></th>'
     +'</tr></thead><tbody>'
@@ -131,17 +128,17 @@ function apply(){
 }
 function rowHTML(b){
   var name=b.personId?('<a class="nmlink" href="./rrg_person.html?id='+encodeURIComponent(b.personId)+'">'+esc(b.name||'Buyer')+'</a>'):esc(b.name||'Buyer');
-  var bk=b.backup?' <span class="bk" title="Backup buyer">&#9733;</span>':'';
-  var sub=[b.email,b.company].filter(Boolean).map(esc).join(' &middot; ');
-  var needPof=stageIdx(b.stage)>=stageIdx('dataroom')&&b.pof!=='received';
-  var pofCls=needPof?'req-warn':(b.pof||'none');
-  var pofTxt=b.pof==='received'?'Received':(b.pof==='requested'?'Requested':(needPof?'Required':'—'));
+  var bk=b.backup?' <span class="bk" title="Backup buyer">★</span>':'';
+  var sub=[b.email,b.company].filter(Boolean).map(esc).join(' · ');
+  var pofCls=b.pofOut?'req-warn':(b.pof||'none');
+  var pofTxt=b.pof==='received'?'Received':(b.pof==='requested'?'Requested':(b.pofOut?'Required':'—'));
   var offer=b.offerAmount?fmtMoney(b.offerAmount):'<span style="color:#c3ccd9">—</span>';
+  var pl=b.pipeline?('<div class="meta">'+esc(b.pipeline)+'</div>'):'';
   return '<tr class="'+(b.lost?'lostrow':'')+'">'
     +'<td><div class="nm">'+name+bk+'</div>'+(sub?('<div class="meta">'+sub+'</div>'):'')+'</td>'
     +'<td><a class="nmlink" href="./rrg_assignment.html?key='+encodeURIComponent(b.listingKey)+'">'+esc(b.business||'Listing')+'</a>'+(b.listingId?('<div class="meta">'+esc(b.listingId)+'</div>'):'')+'</td>'
     +'<td>'+(b.market?esc(b.market):'<span style="color:#c3ccd9">—</span>')+'</td>'
-    +'<td>'+stagePill(b.stage,b.stageName)+(b.lost?' <span class="spill" style="background:#fdecea;color:#DA2B1F">Passed</span>':'')+'</td>'
+    +'<td>'+stagePill(b.stageName)+(b.lost?' <span class="spill" style="background:#fdecea;color:#DA2B1F">Passed</span>':'')+pl+'</td>'
     +'<td><span class="pof '+pofCls+'">'+pofTxt+'</span></td>'
     +'<td>'+offer+'</td>'
     +'<td>'+(b.owner?esc(b.owner):'<span style="color:#c3ccd9">—</span>')+'</td>'

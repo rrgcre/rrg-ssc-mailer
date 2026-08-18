@@ -69,7 +69,7 @@ table.stg td.act{width:96px;white-space:nowrap;text-align:right;}
 <body>
 <div class="wrap">
   <h1 class="pgh">Pipelines</h1>
-  <div class="pgs">Build and manage the deal pipelines your reps work. Each pipeline is a named set of stages, in order, with a target number of days a deal should sit in each stage before it needs attention. Business Sales, Tenant Rep, and Landlord Rep can each run their own.</div>
+  <div class="pgs">Build and manage the deal pipelines your reps work. Each pipeline is a named set of stages, in order, with a target number of days a deal should sit in each stage before it needs attention. Business Sales, Buyer (the buy-side funnel you assign to a listing), Tenant Rep, and Landlord Rep can each run their own.</div>
   <div id="root"></div>
 </div>
 
@@ -136,7 +136,7 @@ function renderEditor(){
   var main=document.getElementById('main');
   var p=curPipe();
   if(!p){ main.innerHTML='<div class="empty">Select a pipeline on the left, or create a new one.</div>'; return; }
-  var areas=['Business Sales','Tenant Rep','Landlord Rep','General'];
+  var areas=['Business Sales','Buyer','Tenant Rep','Landlord Rep','General'];
   if(p.area && areas.indexOf(p.area)<0) areas.unshift(p.area);
   var stages=(p.stages||[]);
   main.innerHTML='<div class="mh"><span class="t">'+(p.id?'Edit pipeline':'New pipeline')+'</span>'
