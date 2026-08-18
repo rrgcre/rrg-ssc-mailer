@@ -198,7 +198,7 @@
       var densTog = '<label class="rl-dens" title="Compact rows"><input type="checkbox" class="rl-densCk"'+(state.compact?' checked':'')+'> Compact</label>';
       var fcount = activeFilterKeys().length;
       var filtBtn = '<button class="rl-btn rl-filtbtn'+(state._filterOpen?' on':'')+'" title="Filter rows"><span class="rlic">\u2261</span>Filter'+(fcount?('<span class="rlfcount">'+fcount+'</span>'):'')+'</button>';
-      var savedBtn = '<div class="rl-colwrap"><button class="rl-btn rl-savedbtn" title="Saved searches"><span class="rlic">\u2606</span>Saved</button><div class="rl-savedmenu" hidden></div></div>';
+      var savedBtn = opts.savedButton ? '<div class="rl-colwrap" style="display:none"><button class="rl-btn rl-savedbtn"></button><div class="rl-savedmenu" hidden></div></div>' : '<div class="rl-colwrap"><button class="rl-btn rl-savedbtn" title="Saved searches"><span class="rlic">\u2606</span>Saved</button><div class="rl-savedmenu" hidden></div></div>';
       var colsBtn = '<div class="rl-colwrap"><button class="rl-btn rl-colbtn" title="Choose columns"><span class="rlic">▦</span>Columns</button><div class="rl-colmenu" hidden></div></div>';
       var expBtn = '<button class="rl-btn rl-export" title="Export to CSV"><span class="rlic">⬇</span>Export</button>';
       var prnBtn = '<button class="rl-btn rl-print" title="Print this list"><span class="rlic">⎙</span>Print</button>';
@@ -261,6 +261,7 @@
       // Group the page's own filter button into the toolbar, right before Saved,
       // so Filters + Saved sit together in the same spot on every list.
       if(opts.filterButton){ try{ var _bar=mount.querySelector('.rl-bar'), _sb=mount.querySelector('.rl-savedbtn'); var _anchor=_sb?(_sb.closest('.rl-colwrap')||_sb):null; if(_bar&&_anchor){ opts.filterButton.style.marginLeft='0'; _bar.insertBefore(opts.filterButton,_anchor); } }catch(e){} }
+      if(opts.savedButton){ try{ var _bar2=mount.querySelector('.rl-bar'), _sb2=mount.querySelector('.rl-savedbtn'); var _anc2=_sb2?(_sb2.closest('.rl-colwrap')||_sb2):null; if(_bar2&&_anc2){ opts.savedButton.style.marginLeft='0'; _bar2.insertBefore(opts.savedButton,_anc2); } }catch(e){} }
       mount.classList.toggle('rl-compact', !!state.compact);
       wire();
       if(keepMenu){ keepMenu=false; openColMenu(); }
