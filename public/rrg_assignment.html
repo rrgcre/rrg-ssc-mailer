@@ -171,6 +171,25 @@ textarea{min-height:120px;resize:vertical;line-height:1.5;}
 .jbeans{display:flex;flex-wrap:wrap;gap:8px;}
 .jbean{display:inline-flex;align-items:center;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:600;line-height:1;}
 .jbean b{font-weight:800;}
+.bfstrip{display:flex;align-items:stretch;overflow-x:auto;padding:12px 16px 6px;gap:0}
+.bfseg{flex:1 0 auto;min-width:60px;text-align:center;padding:6px 8px;border-radius:6px;background:#f5f7fb;border:1px solid #e6e9f0;margin:0 2px}
+.bfseg .bfsn{font-size:9px;font-weight:800;letter-spacing:.02em;text-transform:uppercase;color:#6b7488;white-space:nowrap}
+.bfseg .bfsc{font-size:17px;font-weight:800;color:#000E31;margin-top:1px}
+.bfseg.hot{background:#eef4fb;border-color:#cfe0f5}
+.bfarrow{display:flex;align-items:center;color:#c3ccd9;font-size:15px;padding:0 1px}
+.brow{display:flex;align-items:center;gap:8px;padding:11px 20px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.brow .bnm{font-weight:800;color:var(--navy)}
+.brow .bmeta{color:#8a94a6;font-size:12px;width:100%;margin-top:2px}
+.bstage{padding:6px 8px;border:1px solid #cfd6e2;border-radius:4px;font:inherit;font-size:12.5px;background:#fff}
+.bpof{padding:5px 7px;border:1px solid #cfd6e2;border-radius:4px;font:inherit;font-size:11.5px;background:#fff}
+.bpof.warn{border-color:#DA2B1F;color:#DA2B1F;background:#fdecea}
+.boffer{width:104px;padding:5px 7px;border:1px solid #cfd6e2;border-radius:4px;font:inherit;font-size:12px}
+.bbackup{cursor:pointer;font-size:15px;color:#c9ced8;background:none;border:none;padding:0 2px;line-height:1}
+.bbackup.on{color:#e0a207}
+.bpass,.breact{cursor:pointer;background:none;border:1px solid #cfd6e2;border-radius:4px;font:inherit;font-size:11px;color:#6b7488;padding:3px 8px}
+.breact{border-color:#1f8a5b;color:#1f8a5b}
+.blost .bnm{text-decoration:line-through;color:#98a1b5}
+.bflosthd{padding:8px 20px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#98a1b5;background:#fafbfc;border-bottom:1px solid var(--line)}
 </style>
 <script src="/rrg_brand.js"></script>
 <style>
@@ -635,6 +654,7 @@ function render(){
     + '<div class="card"><div class="ch"><b>Listing facts</b><span>'+done+' of '+ST.length+' stages complete</span></div><div class="cb">'+facts+'</div></div>'
     + mediaCard()
     + '<div class="card"><div class="ch"><b>Pipeline</b>'+(pipeName?('<span style="margin-left:8px;color:var(--navy);font-weight:700;font-size:11.5px;background:#eef2fb;border:1px solid #d3ddf3;border-radius:999px;padding:2px 10px">'+esc(pipeName)+'</span>'):'')+'<span>'+started+' of '+ST.length+' started</span></div><div class="track"><div class="hpipe">'+steps+'</div></div></div>'
+    + buyersCard()
     + mktCardShell()
     + agreementsCardDeal()
 
@@ -822,6 +842,8 @@ function offerCardHTML(o){
   +'</div>';
 }
 var INQUIRIES=[], INQ_STATUSES=['Unqualified','Contacted','Qualified','NDA Sent','Toured','Offer','Passed','Dead'];
+var BUYERS=[], BUYERSTAGES=[], BUYERPOF=['none','requested','received'];
+var BUYERSTAGES_DEF=[{k:'inquiry',name:'Inquiry'},{k:'nda',name:'NDA'},{k:'call',name:'Buyer Call'},{k:'dataroom',name:'Data Room'},{k:'seller',name:'Seller Intro'},{k:'offer',name:'Offer'},{k:'dd',name:'Due Diligence'},{k:'closed',name:'Closed'}];
 function inquiriesCard(){
   var body;
   if(!INQUIRIES.length){ body='<div class="noev" style="padding:18px 20px">No buyer leads yet. Import them from BizBuySell (the \u2b07 Import leads button on the Listings page), or add one manually. Each lead is a tracked buyer inquiry you can move through the funnel.</div>'; }
@@ -841,6 +863,54 @@ async function removeInquiry(id){ if(!await rrgConfirm('Remove this buyer lead f
 function openInqForm(){ var f=document.getElementById('inqForm'); if(!f) return; if(!f.hidden){ f.hidden=true; f.innerHTML=''; return; } f.innerHTML='<div class="ofgrid"><div class="off"><label class="fld">Name</label><input id="iq_name" list="peopleList" placeholder="Buyer name"></div><div class="off"><label class="fld">Email</label><input id="iq_email" placeholder="buyer@email.com"></div><div class="off"><label class="fld">Phone</label><input id="iq_phone" placeholder="(555) 555-5555"></div><div class="off wide"><label class="fld">Note</label><input id="iq_note" placeholder="Where they came from, interest, listing they asked about\u2026"></div></div><div class="ofbtns"><button class="savebtn2" id="iq_save">Add lead</button><button class="cancelbtn" id="iq_cancel">Cancel</button></div>'; f.hidden=false; var sv=document.getElementById('iq_save'); if(sv) sv.addEventListener('click',function(){ var nm=document.getElementById('iq_name').value.trim(), em=document.getElementById('iq_email').value.trim(); if(!nm&&!em){ alert('Enter a name or email.'); return; } saveInquiry({name:nm,email:em,phone:document.getElementById('iq_phone').value.trim(),note:document.getElementById('iq_note').value.trim(),source:'Manual'}); }); var cn=document.getElementById('iq_cancel'); if(cn) cn.addEventListener('click',function(){ f.hidden=true; f.innerHTML=''; }); }
 document.addEventListener('click',function(e){ if(!e.target.closest) return; if(e.target.closest('#addInqBtn')){ openInqForm(); return; } var d=e.target.closest('[data-inqdel]'); if(d){ removeInquiry(d.getAttribute('data-inqdel')); return; } });
 document.addEventListener('change',function(e){ if(!e.target.closest) return; var st=e.target.closest('.inqstat'); if(st){ saveInquiry({id:st.getAttribute('data-inq'),status:st.value}, function(){}); } });
+function buyerStages(){ return (BUYERSTAGES&&BUYERSTAGES.length)?BUYERSTAGES:BUYERSTAGES_DEF; }
+function buyerStageIdx(k){ var a=buyerStages(); for(var i=0;i<a.length;i++){ if(a[i].k===k) return i; } return 0; }
+function buyerStageName(k){ var a=buyerStages(); for(var i=0;i<a.length;i++){ if(a[i].k===k) return a[i].name; } return a[0]?a[0].name:''; }
+function buyerById(id){ for(var i=0;i<BUYERS.length;i++){ if(BUYERS[i].id===id) return BUYERS[i]; } return null; }
+function buyersCard(){ var n=BUYERS.filter(function(b){return !b.lost;}).length; return '<div class="card" id="buyersCard"><div class="ch" style="display:flex"><b>Buyers</b><span style="margin-left:12px" id="buyersHdCount">'+n+' active</span><button class="addoffer" id="addBuyerBtn" style="margin-left:auto">+ Add buyer</button></div><div class="cb offers" id="buyersBody">'+buyersBodyHTML()+'</div></div>'; }
+function buyersBodyHTML(){
+  var stages=buyerStages();
+  var counts={}; stages.forEach(function(s){counts[s.k]=0;});
+  BUYERS.forEach(function(b){ if(b.lost) return; var k=b.stage; if(counts[k]===undefined) k='inquiry'; counts[k]=(counts[k]||0)+1; });
+  var strip='<div class="bfstrip">'+stages.map(function(s,i){ return (i?'<div class="bfarrow">›</div>':'')+'<div class="bfseg'+(counts[s.k]?' hot':'')+'"><div class="bfsn">'+esc(s.name)+'</div><div class="bfsc">'+(counts[s.k]||0)+'</div></div>'; }).join('')+'</div>';
+  var active=BUYERS.filter(function(b){return !b.lost;}).slice().sort(function(a,b){ var ai=buyerStageIdx(a.stage),bi=buyerStageIdx(b.stage); if(ai!==bi) return bi-ai; return String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')); });
+  var lost=BUYERS.filter(function(b){return b.lost;});
+  var rows=active.length?active.map(buyerRowHTML).join(''):'<div class="noev" style="padding:16px 20px">No buyers in the funnel yet. Add the first interested buyer and move them Inquiry → NDA → Call → Data room → Seller intro → Offer → DD → Close.</div>';
+  var lrows=lost.length?('<div class="bflosthd">Passed / lost · '+lost.length+'</div>'+lost.map(buyerRowHTML).join('')):'';
+  return strip+'<div id="buyerForm" hidden></div>'+rows+lrows;
+}
+function buyerRowHTML(b){
+  var stages=buyerStages(); var idx=buyerStageIdx(b.stage);
+  var needPof=(idx>=buyerStageIdx('dataroom'))&&(b.pof!=='received');
+  var stageSel='<select class="bstage" data-bstage="'+esc(b.id)+'">'+stages.map(function(s){return '<option value="'+esc(s.k)+'"'+(b.stage===s.k?' selected':'')+'>'+esc(s.name)+'</option>';}).join('')+'</select>';
+  var pofSel='<select class="bpof'+(needPof?' warn':'')+'" data-bpof="'+esc(b.id)+'"><option value="none"'+((!b.pof||b.pof==='none')?' selected':'')+'>POF: —</option><option value="requested"'+(b.pof==='requested'?' selected':'')+'>POF: Requested</option><option value="received"'+(b.pof==='received'?' selected':'')+'>POF: Received</option></select>';
+  var showOffer=(idx>=buyerStageIdx('offer'));
+  var offerInp=showOffer?('<input class="boffer" data-boffer="'+esc(b.id)+'" value="'+esc(b.offerAmount?moneyInputFmt(b.offerAmount):'')+'" placeholder="Offer $">'):'';
+  var who=esc(b.name||'Buyer')+(b.company?(' <span style="color:#6b7488;font-weight:600;font-size:12px">· '+esc(b.company)+'</span>'):'');
+  var plink=b.personId?('<a class="slink ghost" href="./rrg_person.html?id='+encodeURIComponent(b.personId)+'">Open →</a>'):'';
+  var contact=[b.email,b.phone].filter(Boolean).map(esc).join(' · ');
+  var star='<button class="bbackup'+(b.backup?' on':'')+'" data-bbackup="'+esc(b.id)+'" title="Mark as backup buyer">★</button>';
+  var passBtn=b.lost?('<button class="breact" data-breact="'+esc(b.id)+'">Reactivate</button>'):('<button class="bpass" data-bpass="'+esc(b.id)+'" title="Buyer passed / dropped out">Pass</button>');
+  var backupTag=b.backup?' <span class="stag" style="background:#fff6df;color:#a9791a;border-radius:3px;padding:1px 5px;font-size:9.5px;font-weight:800;text-transform:uppercase">Backup</span>':'';
+  return '<div class="brow'+(b.lost?' blost':'')+'">'+star+'<div style="flex:1;min-width:120px"><div class="bnm">'+who+backupTag+'</div></div>'+stageSel+pofSel+offerInp+plink+passBtn+'<button class="crm" data-bdel="'+esc(b.id)+'" title="Remove buyer">×</button><div class="bmeta">'+(contact||'No contact info')+(b.source?(' · '+esc(b.source)):'')+(needPof?' · <b style="color:#DA2B1F">Proof of funds required before data-room access</b>':'')+'</div></div>';
+}
+function openBuyerForm(){ var f=document.getElementById('buyerForm'); if(!f) return; if(!f.hidden){ f.hidden=true; f.innerHTML=''; return; } f.innerHTML='<div class="ofgrid"><div class="off"><label class="fld">Buyer name</label><input id="by_name" list="peopleList" placeholder="Buyer or contact name"></div><div class="off"><label class="fld">Email</label><input id="by_email" placeholder="buyer@email.com"></div><div class="off"><label class="fld">Phone</label><input id="by_phone" placeholder="(555) 555-5555"></div><div class="off"><label class="fld">Company</label><input id="by_co" placeholder="Buyer entity (optional)"></div></div><div class="ofbtns"><button class="savebtn2" id="by_save">Add to funnel</button><button class="cancelbtn" id="by_cancel">Cancel</button></div>'; f.hidden=false; var sv=document.getElementById('by_save'); if(sv) sv.addEventListener('click',function(){ var nm=document.getElementById('by_name').value.trim(), em=document.getElementById('by_email').value.trim(); if(!nm&&!em){ alert('Enter a buyer name or email.'); return; } var pid=(PEOPLE_REF[nm.toLowerCase()]||''); saveBuyer({name:nm,email:em,phone:document.getElementById('by_phone').value.trim(),company:document.getElementById('by_co').value.trim(),personId:pid,stage:'inquiry',source:'Manual'}); }); var cn=document.getElementById('by_cancel'); if(cn) cn.addEventListener('click',function(){ f.hidden=true; f.innerHTML=''; }); }
+function saveBuyer(payload, cb){ fetch('/api/assignment/'+encodeURIComponent(KEY)+'/buyer',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(payload)}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ BUYERS=j.buyers||BUYERS; if(A){ A.buyers=BUYERS; if(j.buyerSummary) A.buyerSummary=j.buyerSummary; } if(cb)cb(j); else rerenderBuyers(); } else alert((j&&j.error)||'Could not save the buyer.'); }).catch(function(){ alert('Could not reach the server.'); }); }
+async function removeBuyer(id){ if(!await rrgConfirm('Remove this buyer from the funnel? The contact stays in your registry.')) return; fetch('/api/assignment/'+encodeURIComponent(KEY)+'/buyer/'+encodeURIComponent(id)+'/remove',{method:'POST',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ BUYERS=j.buyers||[]; if(A){ A.buyers=BUYERS; if(j.buyerSummary) A.buyerSummary=j.buyerSummary; } rerenderBuyers(); } }); }
+function rerenderBuyers(){ var b=document.getElementById('buyersBody'); if(b) b.innerHTML=buyersBodyHTML(); var h=document.getElementById('buyersHdCount'); if(h) h.textContent=BUYERS.filter(function(x){return !x.lost;}).length+' active'; }
+async function setBuyerStage(id, stage, sel){ var b=buyerById(id); if(!b) return; var needData=buyerStageIdx(stage)>=buyerStageIdx('dataroom'); if(needData && b.pof!=='received'){ var ok=await rrgConfirm('Proof of funds hasn’t been received for this buyer. Best practice is to clear POF before granting data-room access.\n\nMove them to “'+buyerStageName(stage)+'” anyway?'); if(!ok){ if(sel) sel.value=b.stage; return; } } saveBuyer({id:id,stage:stage}); }
+document.addEventListener('click',function(e){ if(!e.target.closest) return;
+  if(e.target.closest('#addBuyerBtn')){ openBuyerForm(); return; }
+  var d=e.target.closest('[data-bdel]'); if(d){ removeBuyer(d.getAttribute('data-bdel')); return; }
+  var bk=e.target.closest('[data-bbackup]'); if(bk){ var b=buyerById(bk.getAttribute('data-bbackup')); if(b) saveBuyer({id:b.id,backup:!b.backup}); return; }
+  var ps=e.target.closest('[data-bpass]'); if(ps){ saveBuyer({id:ps.getAttribute('data-bpass'),lost:true}); return; }
+  var rc=e.target.closest('[data-breact]'); if(rc){ saveBuyer({id:rc.getAttribute('data-breact'),lost:false}); return; }
+});
+document.addEventListener('change',function(e){ if(!e.target.closest) return;
+  var ss=e.target.closest('[data-bstage]'); if(ss){ setBuyerStage(ss.getAttribute('data-bstage'), ss.value, ss); return; }
+  var pf=e.target.closest('[data-bpof]'); if(pf){ saveBuyer({id:pf.getAttribute('data-bpof'),pof:pf.value}); return; }
+});
+document.addEventListener('blur',function(e){ if(!e.target||!e.target.closest) return; var of=e.target.closest('[data-boffer]'); if(of){ var v=String(of.value||'').replace(/[^0-9.]/g,''); saveBuyer({id:of.getAttribute('data-boffer'),offerAmount:v}); } }, true);
 function offersCard(){
   var body;
   if(!OFFERS.length){
@@ -1160,7 +1230,7 @@ function load(){
   fetch('/api/assignment/'+encodeURIComponent(KEY),{credentials:'same-origin'}).then(function(r){
     if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); });
     return r.json();
-  }).then(function(j){ A=j.assignment; if(j.statuses) STATUSES=j.statuses; TXN=(A&&A.transaction)||null; if(j.txnStatuses) TXNSTAT=j.txnStatuses; if(j.commStatuses) TXNCOMM=j.commStatuses; RA=j.roomActivity||null; OFFERS=(A&&A.offers)||[]; TOURS=(A&&A.tours)||[]; NDAS=(A&&A.ndas)||[]; INQUIRIES=(A&&A.inquiries)||[]; AGR=j.agreements||[]; ATYPES=j.agreementTypes||[]; PIPES=j.pipelines||[]; AUTOS=j.automations||[]; if(Array.isArray(j.markets)&&j.markets.length) MARKETS=j.markets; EXP=j.expenses||null; INVX=j.invoices||null; render(); loadPeople(); loadMatchingBuyers(); loadListingActivity(); loadListingTasks(); })
+  }).then(function(j){ A=j.assignment; if(j.statuses) STATUSES=j.statuses; TXN=(A&&A.transaction)||null; if(j.txnStatuses) TXNSTAT=j.txnStatuses; if(j.commStatuses) TXNCOMM=j.commStatuses; RA=j.roomActivity||null; OFFERS=(A&&A.offers)||[]; TOURS=(A&&A.tours)||[]; NDAS=(A&&A.ndas)||[]; INQUIRIES=(A&&A.inquiries)||[]; BUYERS=(A&&A.buyers)||[]; if(Array.isArray(j.buyerStages)&&j.buyerStages.length) BUYERSTAGES=j.buyerStages; if(Array.isArray(j.buyerPof)) BUYERPOF=j.buyerPof; AGR=j.agreements||[]; ATYPES=j.agreementTypes||[]; PIPES=j.pipelines||[]; AUTOS=j.automations||[]; if(Array.isArray(j.markets)&&j.markets.length) MARKETS=j.markets; EXP=j.expenses||null; INVX=j.invoices||null; render(); loadPeople(); loadMatchingBuyers(); loadListingActivity(); loadListingTasks(); })
   .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this deal.')+'<br><br><a href="./rrg_board.html" style="color:#000E31;font-weight:700">← Back to deals</a></div>'; });
 }
 load();
