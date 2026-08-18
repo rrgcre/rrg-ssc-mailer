@@ -6536,7 +6536,69 @@ function _seedProofOfFunds(a) {
   }
   return a;
 }
-function loadEmailTpls() { try { return _seedProofOfFunds(_seedEmailTpls(rj(EMAIL_TPL_FILE) || [])); } catch (e) { return []; } }
+// ---- Broker deal-stage shared templates: NDA, CIM, BOV, screening call, seller interview, listing agreement ----
+const EMAIL_TPL_BROKER_FLAG = path.join(BOV_DATA_DIR, 'email_templates_broker_seeded.json');
+const BROKER_TEMPLATES = [
+  { id:'etpl_send_nda', name:'NDA — send for signature', category:'NDA',
+    subject:'Confidentiality agreement — quick signature to move forward',
+    body:'<p>Hi {{first_name}},</p>'
+      +'<p>Great speaking with you about the opportunity. Before I can share the confidential details — the financials, the location, and the full package — I’ll need a signed non-disclosure agreement in place. It’s a standard step that protects the seller’s confidentiality while their business is quietly on the market.</p>'
+      +'<p>The NDA is attached. It takes about a minute: review, sign, and send it back (or sign electronically if I’ve sent it that way).</p>'
+      +'<p>As soon as it’s executed, I’ll release the full offering to you right away. Any questions on the terms, just reply here.</p>'
+      +'<p>Best,<br>{{my_name}}</p>' },
+  { id:'etpl_send_cim', name:'CIM — send the offering package', category:'Buyer',
+    subject:'The confidential offering package — {{code_name}}',
+    body:'<p>Hi {{first_name}},</p>'
+      +'<p>Thank you — your NDA is in place, so here is the full confidential information memorandum (CIM) on {{code_name}}. It covers the business overview, financial performance, the lease and location, and what makes this a strong opportunity.</p>'
+      +'<p>A few notes as you review:</p>'
+      +'<p>• Everything in this package is strictly confidential — please don’t share it or contact the business, its staff, the landlord, or vendors directly.<br>'
+      +'• Financials and supporting documents are in the data room: {{data_room_link}}<br>'
+      +'• When you’re ready, I’m happy to walk you through the numbers and answer anything.</p>'
+      +'<p>If the fit looks right, the next step is a call to discuss and, when appropriate, a tour. Just reply with a few times that work for you.</p>'
+      +'<p>Best,<br>{{my_name}}</p>' },
+  { id:'etpl_send_bov', name:'BOV — send valuation to seller', category:'Seller',
+    subject:'Your business valuation — Broker Opinion of Value',
+    body:'<p>Hi {{first_name}},</p>'
+      +'<p>Thank you for the time and the information — I’ve completed the Broker Opinion of Value (BOV) for your business, attached here.</p>'
+      +'<p>The report walks through how I arrived at the value: your financial performance (revenue and cash flow / SDE), the multiples buyers are actually paying for comparable restaurants and bars, and the specific strengths and risks of your operation. My goal is a realistic, defensible range you can make decisions on — not an inflated number to win a listing.</p>'
+      +'<p>I’d like to set up a short call to walk you through it, answer your questions, and talk through your goals and timing. What does your week look like?</p>'
+      +'<p>Best,<br>{{my_name}}</p>' },
+  { id:'etpl_schedule_screening', name:'Seller — schedule qualification call', category:'Seller',
+    subject:'Let’s set up a quick call about your business',
+    body:'<p>Hi {{first_name}},</p>'
+      +'<p>Thanks for reaching out about selling your business. The best first step is a short, confidential call so I can learn about your operation, your goals, and your timing — and give you a straight read on where things stand and what the process looks like.</p>'
+      +'<p>There’s no cost and no obligation. You can grab a time that works right on my calendar here: {{booking_link}}</p>'
+      +'<p>If you’d rather, just reply with a couple of windows that suit you and I’ll confirm.</p>'
+      +'<p>Looking forward to it.</p>'
+      +'<p>Best,<br>{{my_name}}</p>' },
+  { id:'etpl_seller_interview', name:'Seller — send interview link', category:'Seller',
+    subject:'Your seller interview — a few minutes to tell your story',
+    body:'<p>Hi {{first_name}},</p>'
+      +'<p>The next step is your seller interview. It’s a short, guided set of questions about your business — your story, what makes it special, the day-to-day, and what a new owner is really buying. Your answers become the backbone of how we present the opportunity to qualified buyers (confidentially, and only after they’ve signed an NDA).</p>'
+      +'<p>Here’s your private link to complete it: <b>[paste the seller interview link here]</b></p>'
+      +'<p>It takes about 15–20 minutes and you can do it whenever it’s convenient — the more detail you give, the stronger your listing.</p>'
+      +'<p>Any questions, just reply.</p>'
+      +'<p>Best,<br>{{my_name}}</p>' },
+  { id:'etpl_send_listing_agreement', name:'Listing agreement — send for signature', category:'Seller',
+    subject:'Listing agreement — ready for your signature',
+    body:'<p>Hi {{first_name}},</p>'
+      +'<p>It was a pleasure talking through your goals — I’m glad to represent the sale of your business. Attached is the listing agreement that formalizes our engagement so we can begin marketing to qualified buyers.</p>'
+      +'<p>A quick summary of what it covers: the term of the engagement, the commission, and confidentiality — everything we discussed is reflected here.</p>'
+      +'<p>Please review, sign, and return it (or sign electronically if I’ve sent it that way). As soon as it’s executed, I get to work — valuation finalized, the confidential marketing package built, and your business in front of the right buyers.</p>'
+      +'<p>If anything needs adjusting or you have questions on the terms, just reply and we’ll sort it out.</p>'
+      +'<p>Best,<br>{{my_name}}</p>' },
+];
+function _seedBrokerTemplates(a) {
+  try { if (fs.existsSync(EMAIL_TPL_BROKER_FLAG)) return a; } catch (e) { return a; }
+  BROKER_TEMPLATES.forEach(function(tpl){
+    if (!a.some(function(t){ return t.id === tpl.id; })) {
+      a.push({ id: tpl.id, name: tpl.name, category: tpl.category, scope: 'shared', ownerUser: '', ownerName: 'RRG', greeting: 'none', subject: tpl.subject, body: tpl.body, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), seeded: true });
+    }
+  });
+  try { writeJsonGuarded(EMAIL_TPL_FILE, a, 'seedBrokerTpls'); fs.writeFileSync(EMAIL_TPL_BROKER_FLAG, JSON.stringify({ seededAt: new Date().toISOString() })); } catch (e) {}
+  return a;
+}
+function loadEmailTpls() { try { return _seedProofOfFunds(_seedBrokerTemplates(_seedEmailTpls(rj(EMAIL_TPL_FILE) || []))); } catch (e) { return []; } }
 function saveEmailTpls(a) { return writeJsonGuarded(EMAIL_TPL_FILE, a, 'saveEmailTpls'); }
 function newEmailTplId() { return 'etpl_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 const TPL_CATEGORIES = ['Buyer', 'Seller', 'NDA', 'Follow-up', 'Closing', 'General'];
