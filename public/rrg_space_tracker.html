@@ -9,12 +9,20 @@
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;background:#e9edf3;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
-.top{background:radial-gradient(115% 130% at 50% 0%, #182a54 0%, #0d1b3d 55%, #04091d 100%);color:#fff;padding:22px 0;}
-.top-inner{max-width:1240px;margin:0 auto;padding:0 20px;}
+.top{background:radial-gradient(115% 130% at 50% 0%, #182a54 0%, #0d1b3d 55%, #04091d 100%);color:#fff;padding:30px 0;}
+.top-inner{max-width:none;margin:0 auto;padding:0 28px;}
+.brand{display:inline-flex;align-items:center;cursor:pointer;}
+.disc{background:var(--red);color:#fff;border-radius:50%;width:42px;height:42px;font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.bar{background:#fff;width:3px;height:30px;margin:0 12px;}
+.wm{font-weight:800;font-size:14px;text-transform:uppercase;line-height:.95;}
+.kicker{margin:20px 0 4px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:11px;text-transform:uppercase;}
+.searchwrap{margin-left:auto;position:relative;display:flex;align-items:center;}
+.searchwrap .searchic{position:absolute;left:11px;color:#9aa3b2;pointer-events:none;}
+.searchwrap input{border:1px solid var(--line);border-radius:9px;padding:8px 12px 8px 34px;font:inherit;font-size:13px;min-width:230px;}
 .kick{color:var(--gold);font-weight:700;letter-spacing:.28em;font-size:11px;text-transform:uppercase;}
-h1{font-size:27px;font-weight:800;margin:5px 0 0;letter-spacing:-.01em;}
+h1{font-size:30px;font-weight:800;margin:0;letter-spacing:-.01em;}
 .sub{color:#d8cfae;font-size:13px;margin-top:6px;max-width:680px;line-height:1.5;}
-.wrap{max-width:1240px;margin:20px auto;padding:0 20px;}
+.wrap{max-width:none;margin:20px 0;padding:0 28px 56px;}
 .card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 26px rgba(10,20,50,.06);}
 .ch{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line);}
 .ch b{color:var(--navy);font-size:14px;}
@@ -66,15 +74,17 @@ h1{font-size:27px;font-weight:800;margin:5px 0 0;letter-spacing:-.01em;}
 </style>
 </head>
 <body>
+<a href="./index.html" class="rrg-back" aria-label="Back to toolbox" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28)"><span style="font-size:14px;line-height:1">&larr;</span> Toolbox</a>
 <div class="top"><div class="top-inner">
-  <div class="kick">Tenant Rep · Pipeline</div>
+  <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+  <div class="kicker">Tenant Rep &middot; Pipeline</div>
   <h1>Space Tracker</h1>
   <div class="sub">Every available space in one place — the economics ($/SF, NNN, size), the position, and the bones already built, so you can match a space to a client fast.</div>
 </div></div>
 
 <div class="wrap">
   <div class="card">
-    <div class="ch"><b>All spaces</b><span class="hint" id="cnt"></span><button class="btn" id="matchBtn" data-ai="" style="margin-left:auto">✨ AI match</button><button class="btn primary" id="addBtn" style="margin-left:8px">+ Add space</button></div>
+    <div class="ch"><b>All spaces</b><span class="hint" id="cnt"></span><div class="searchwrap"><svg class="searchic" viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"></circle><line x1="12.8" y1="12.8" x2="17.5" y2="17.5"></line></svg><input id="sp_search" oninput="spSearch(this.value)" placeholder="Search spaces…" autocomplete="off"></div><button class="btn" id="matchBtn" data-ai="" style="margin-left:10px">✨ AI match</button><button class="btn primary" id="addBtn" style="margin-left:8px">+ Add space</button></div>
     <div class="tiles" id="tiles"></div>
     <div class="cb"><div id="list"></div></div>
   </div>
@@ -119,6 +129,9 @@ h1{font-size:27px;font-weight:800;margin:5px 0 0;letter-spacing:-.01em;}
 <script src="/rrg_list.js"></script>
 <script>
 var TYPES=[], STATUS=[], FEATURES=[], SPACES=[], CENTERS=[], CTL=null, IS_ADMIN=false, EDIT=null, SEL={}, FILTER='';
+var SEARCH='';
+function _spHay(sp){ return [sp.name,sp.address,sp.market,sp.center,sp.spaceType,sp.landlord,sp.status,sp.notes].filter(Boolean).join(' ').toLowerCase(); }
+function spSearch(v){ SEARCH=String(v||''); draw(); }
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function money(n){ return (n==null||n==='')?'':('$'+Number(n).toFixed(2)); }
 function sf(n){ return (n==null||n==='')?'':(Number(n).toLocaleString()+' SF'); }
@@ -138,7 +151,8 @@ function renderTiles(){
 
 function draw(){
   if(!window.RRGList){ setTimeout(draw,80); return; }
-  var rows=SPACES.filter(function(sp){ return !FILTER || sp.status===FILTER; });
+  var q=SEARCH.trim().toLowerCase();
+  var rows=SPACES.filter(function(sp){ if(FILTER && sp.status!==FILTER) return false; if(q && _spHay(sp).indexOf(q)<0) return false; return true; });
   document.getElementById('cnt').textContent=rows.length?(rows.length+' space'+(rows.length===1?'':'s')):'';
   var cfg={ mount:'#list', data:rows, key:'spaces', countEl:null,
     empty:'<div class="empty"><b>No spaces yet.</b> Click <b>+ Add space</b> to log an available space and its bones.</div>',
