@@ -5012,6 +5012,7 @@ function roomActivityFor(d, origin) {
   };
 }
 app.get('/api/assignments', (req, res) => {
+  res.set('Cache-Control','no-store');
   const deals = assignmentsIndex(), overlay = loadAssignOverlay();
   const isAdmin = req.user && isSuper(req.user);
   const list = Object.values(deals).filter(d => isAdmin || canSeeAllDeals(req) || ownsAssignment(req, d)).map(d => assignmentView(d, overlay));
@@ -11929,6 +11930,7 @@ app.post('/api/admin/pipeline-map', requireAdmin, express.json(), (req, res) => 
   res.json({ ok: true, map: clean });
 });
 app.get('/api/board', (req, res) => {
+  res.set('Cache-Control','no-store');
   const pipelines = loadPipelines();
   const pid = String(req.query.pipelineId || '') || ((pipelines[0] && pipelines[0].id) || 'p_bizsales');
   const pipe = pipelines.find(p => p.id === pid) || pipelines[0] || { id: pid, name: '', stages: [] };

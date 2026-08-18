@@ -503,5 +503,7 @@ function moveCard(key,stage){
 document.getElementById('psel').addEventListener('change',function(){ PID=this.value; EXPANDED={}; load(); });
 load();
 </script>
+<script>/* board bfcache: re-fetch listings on back/forward restore so newly created or edited listings show without a hard refresh */
+window.addEventListener("pageshow",function(e){ if(e.persisted){ try{ if(typeof load==="function"){ load(); } else { location.reload(); } }catch(_e){ location.reload(); } } });</script>
 </body>
 </html>
