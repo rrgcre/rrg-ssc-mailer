@@ -436,7 +436,7 @@ function daysSince(iso){ if(!iso) return null; var t=new Date(iso).getTime(); if
 function daysInStage(c){ return daysSince(c.stageSince||c.createdAt||''); }
 function flagBadges(c){
   var h='';
-  if(FLAGS.highValue.on && FLAGS.highValue.amount && money(c.value)>=Number(FLAGS.highValue.amount)) h+='<span class="fbadge hv" title="High value (\u2265 '+esc(fmtMoney(Number(FLAGS.highValue.amount)))+')">$</span>';
+  if(FLAGS.highValue.on && FLAGS.highValue.amount){ var _hv=money(c.listPrice)||money(c.value); if(_hv>=Number(FLAGS.highValue.amount)) h+='<span class="fbadge hv" title="High value (\u2265 '+esc(fmtMoney(Number(FLAGS.highValue.amount)))+')">$</span>'; }
   if(FLAGS.slipping.on && FLAGS.slipping.days){ var ds=daysSince(c.lastActivity); if(ds!=null && ds>=Number(FLAGS.slipping.days)) h+='<span class="fbadge slip" title="Slipping \u2014 '+ds+'d with no activity">\u2193</span>'; }
   return h?('<span class="flags">'+h+'</span>'):'';
 }
