@@ -174,7 +174,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 </div>
 <script>(function(){ var fs=document.getElementById('bdFeatStrip'), hd=document.getElementById('bdFeatHd'); if(!fs||!hd) return; try{ if(localStorage.getItem('rrg_bdfeats')!=='1') fs.classList.add('collapsed'); }catch(e){ fs.classList.add('collapsed'); } hd.addEventListener('click',function(){ var col=fs.classList.toggle('collapsed'); try{ localStorage.setItem('rrg_bdfeats', col?'0':'1'); }catch(e){} }); })();</script>
 <div class="boardctl">
-  <label class="boardctl-l">Pipeline</label>
+  <label class="boardctl-l">» Pipeline</label>
   <select class="psel" id="psel"></select>
   <span class="tot" id="tot"></span>
 </div>
