@@ -8998,7 +8998,7 @@ app.get('/api/tracked-emails', (req, res) => {
     (Array.isArray(p.emailLog) ? p.emailLog : []).forEach(e => {
       if (!e) return;
       if (restrict && e.byUser && e.byUser !== uname) return;
-      out.push({ id: e.id || '', personId: p.id, personName: p.name || 'Contact', company: (p.companyId && coName[p.companyId]) || p.company || '', to: e.to || '', subject: e.subject || '', sentAt: e.sentAt || '', by: e.by || '', byUser: e.byUser || '', via: e.via || '', opens: e.opens || 0, firstOpen: e.firstOpen || '', lastOpen: e.lastOpen || '', tracked: !!e.openToken });
+      out.push({ id: e.id || '', personId: p.id, personName: p.name || 'Contact', company: (p.companyId && coName[p.companyId]) || p.company || '', to: e.to || '', subject: e.subject || '', sentAt: e.sentAt || '', by: e.by || '', byUser: e.byUser || '', via: e.via || '', opens: e.opens || 0, firstOpen: e.firstOpen || '', lastOpen: e.lastOpen || '', openHits: (Array.isArray(e.openHits) ? e.openHits.filter(function(h){ return h && h.counted !== false; }).slice(-30) : []), tracked: !!e.openToken });
     });
   });
   out.sort((a, b) => String(b.sentAt || '').localeCompare(String(a.sentAt || '')));
