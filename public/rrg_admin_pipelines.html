@@ -115,7 +115,7 @@ function render(){
   var root=document.getElementById('root');
   root.innerHTML=routingCardHtml()
     +'<div class="cols">'
-    +'<div class="card side"><div class="sh">Pipelines</div><ul class="pl" id="pl"></ul>'
+    +'<div class="card side"><div class="sh">» Pipelines</div><ul class="pl" id="pl"></ul>'
       +'<div class="sf"><button class="btn full" id="newBtn">+ New pipeline</button></div></div>'
     +'<div class="card main" id="main"></div>'
   +'</div>';
@@ -139,13 +139,13 @@ function renderEditor(){
   var areas=['Business Sales','Buyer','Tenant Rep','Landlord Rep','General'];
   if(p.area && areas.indexOf(p.area)<0) areas.unshift(p.area);
   var stages=(p.stages||[]);
-  main.innerHTML='<div class="mh"><span class="t">'+(p.id?'Edit pipeline':'New pipeline')+'</span>'
+  main.innerHTML='<div class="mh"><span class="t">'+(p.id?'» Edit pipeline':'» New pipeline')+'</span>'
     +'<span class="sp"><span class="msg" id="msg"></span>'
     +(p.id?'<button class="btn dng" id="delBtn">Delete</button>':'')
     +'<button class="btn pri" id="saveBtn">Save</button></span></div>'
     +'<div class="body">'
       +'<div class="frow">'
-        +'<div class="fld"><label>Pipeline name</label><input type="text" id="pName" value="'+esc(p.name||'')+'" placeholder="e.g. Business Sales"></div>'
+        +'<div class="fld"><label>» Pipeline name</label><input type="text" id="pName" value="'+esc(p.name||'')+'" placeholder="e.g. Business Sales"></div>'
         +'<div class="fld"><label>Practice area</label><select id="pArea">'+areas.map(function(a){return '<option'+(a===(p.area||'General')?' selected':'')+'>'+esc(a)+'</option>';}).join('')+'</select></div>'
       +'</div>'
       +'<div class="stgh"><b>Stages</b><span class="c" id="stgCount"></span><span id="stgDays" title="Sum of target days across every stage — the realistic end-to-end timeline for a deal in this pipeline" style="margin-left:auto;font-size:12px;font-weight:700;color:#1f4b8f;background:#eef4fb;border:1px solid #d3e0f5;border-radius:999px;padding:4px 12px"></span></div>'
