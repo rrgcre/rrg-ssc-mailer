@@ -8627,35 +8627,120 @@ function _spaceFromFields(fd, req, extra) {
     features: Array.isArray(fd.features) ? fd.features.map(x => String(x).slice(0, 40)).filter(Boolean).slice(0, 40) : [],
     notes: String(fd.notes || '').slice(0, 4000) }, extra || {});
 }
-// Scan the rep's Gmail for listing emails + PDF flyers and auto-create spaces from them.
+// Store a brochure/flyer file onto a space (used by the email scanner). Mirrors POST /api/space/:id/file.
+function _storeSpaceBrochure(sp, filename, buf, byName) {
+  try {
+    if (!buf || !buf.length || buf.length > 25 * 1024 * 1024) return null;
+    const m = String(filename || '').toLowerCase().match(/\.(pdf|png|jpg|jpeg|gif|webp|doc|docx)$/); if (!m) return null;
+    const ext = m[1] === 'jpeg' ? 'jpg' : m[1];
+    if (!fs.existsSync(SPACEFILES_DIR)) fs.mkdirSync(SPACEFILES_DIR, { recursive: true });
+    const fid = 'spf_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    binWrite(path.join(SPACEFILES_DIR, sp.id + '_' + fid + '.' + ext), buf);
+    sp.files = Array.isArray(sp.files) ? sp.files : [];
+    sp.files.push({ id: fid, name: String(filename || ('brochure.' + ext)).slice(0, 200), ext, kind: spaceFileKind(ext), size: buf.length, uploadedAt: new Date().toISOString(), by: byName || '' });
+    return fid;
+  } catch (e) { return null; }
+}
+// Core Gmail -> Space Tracker scan. Reused by the manual button and the background poller.
+// Finds broker listing emails + PDF flyers, AI-parses each into a space, dedupes by address,
+// and stores the brochure PDF on the created space. Skips message ids in skipIds (poller cost control).
+async function _scanSpacesForUser(username, byName, days, skipIds) {
+  if (!gmail.statusFor(username).connected) return { ok: false, error: 'Gmail not connected', created: 0, scanned: 0, results: [], processedIds: [] };
+  const skip = new Set(Array.isArray(skipIds) ? skipIds : []);
+  const cands = await gmail.listListingCandidates(username, 30, days);
+  const arr = loadSpaces();
+  const centers = loadCenters(); let centersDirty = false; let centersMade = 0;
+  const seen = new Set(arr.map(s => String(s.address || '').toLowerCase().trim()).filter(Boolean));
+  const results = []; let created = 0; const processedIds = [];
+  const actor = { user: { name: byName || username, username: username } };
+  for (const c of cands) {
+    if (skip.has(c.id)) continue;
+    processedIds.push(c.id);
+    let text = String(c.body || '').slice(0, 20000);
+    const pdfs = (c.attachments || []).filter(a => /\.(pdf|docx?)$/i.test(a.filename)).slice(0, 2);
+    const pdfBufs = [];
+    for (const a of pdfs) {
+      try { const buf = await gmail.getAttachment(username, c.id, a.attachmentId); if (buf && buf.length) { pdfBufs.push({ filename: a.filename, buf }); const t = String(await extractQuestionnaireText(a.filename, buf.toString('base64')) || ''); if (t) text += '\n\n' + t.slice(0, 20000); } } catch (e) {}
+    }
+    if (!text.trim()) continue;
+    let fd; try { fd = await aiassist.parseSpaceListing({ text: text.slice(0, 60000), types: SPACE_TYPES, features: SPACE_FEATURES }); } catch (e) { fd = null; }
+    if (!fd || (!fd.address && fd.size == null)) { results.push({ ok: false, subject: c.subject || '', reason: 'not a listing' }); continue; }
+    const key = String(fd.address || '').toLowerCase().trim();
+    if (key && seen.has(key)) { results.push({ ok: false, subject: c.subject || '', reason: 'already in system' }); continue; }
+    const sp = _spaceFromFields(fd, actor, { source: 'email:' + c.id });
+    // Each space usually belongs to a shopping center — find it by name or create it.
+    if (fd.center && String(fd.center).trim()) {
+      const _cn = String(fd.center).trim().toLowerCase();
+      let ctr = centers.find(x => String(x.name || '').trim().toLowerCase() === _cn);
+      if (!ctr) { ctr = { id: newCenterId(), name: String(fd.center).slice(0, 160), market: String(fd.market || '').slice(0, 120), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), by: byName || '', byUser: username, source: 'email-scan' }; centers.push(ctr); centersDirty = true; centersMade++; }
+      sp.centerId = ctr.id; sp.center = ctr.name;
+    }
+    // Store the brochure — prefer a PDF flyer if present.
+    const bro = pdfBufs.filter(x => /\.pdf$/i.test(x.filename))[0] || pdfBufs[0];
+    let fileName = '';
+    if (bro) { const fid = _storeSpaceBrochure(sp, bro.filename, bro.buf, byName); if (fid) fileName = bro.filename; }
+    arr.push(sp); created++; if (key) seen.add(key);
+    results.push({ ok: true, subject: c.subject || '', address: sp.address || sp.name || '', center: sp.center || '', file: fileName });
+  }
+  if (centersDirty) saveCenters(centers);
+  if (created) saveSpaces(arr);
+  return { ok: true, created, centersMade, scanned: cands.length, results, processedIds, spaces: arr };
+}
+// Scan the rep's Gmail for listing emails + PDF flyers and auto-create spaces from them (manual button).
 app.post('/api/spaces/ai-email-scan', express.json(), async (req, res) => {
   const u = (req.user && req.user.username) || '';
   if (!gmail.statusFor(u).connected) return res.status(400).json({ ok: false, error: 'Connect your Gmail first on the Account page.' });
   const days = Math.min(Math.max(parseInt((req.body || {}).days, 10) || 90, 1), 730);
   try {
-    const cands = await gmail.listListingCandidates(u, 30, days);
-    const arr = loadSpaces();
-    const seen = new Set(arr.map(s => String(s.address || '').toLowerCase().trim()).filter(Boolean));
-    const results = []; let created = 0;
-    for (const c of cands) {
-      let text = String(c.body || '').slice(0, 20000);
-      const pdfs = (c.attachments || []).filter(a => /\.(pdf|docx?)$/i.test(a.filename)).slice(0, 2);
-      for (const a of pdfs) {
-        try { const buf = await gmail.getAttachment(u, c.id, a.attachmentId); const t = String(await extractQuestionnaireText(a.filename, buf.toString('base64')) || ''); if (t) text += '\n\n' + t.slice(0, 20000); } catch (e) {}
-      }
-      if (!text.trim()) continue;
-      let fd; try { fd = await aiassist.parseSpaceListing({ text: text.slice(0, 60000), types: SPACE_TYPES, features: SPACE_FEATURES }); } catch (e) { fd = null; }
-      if (!fd || (!fd.address && fd.size == null)) { results.push({ ok: false, subject: c.subject || '', reason: 'not a listing' }); continue; }
-      const key = String(fd.address || '').toLowerCase().trim();
-      if (key && seen.has(key)) { results.push({ ok: false, subject: c.subject || '', reason: 'already in system' }); continue; }
-      const sp = _spaceFromFields(fd, req, { source: 'email:' + c.id });
-      arr.push(sp); created++; if (key) seen.add(key);
-      results.push({ ok: true, subject: c.subject || '', address: sp.address || sp.name || '' });
-    }
-    if (created) saveSpaces(arr);
-    res.json({ ok: true, created, scanned: cands.length, results, spaces: arr });
+    const r = await _scanSpacesForUser(u, (req.user && req.user.name) || u, days, []);
+    // Record processed ids on the poll record so the background poller won't re-parse these.
+    try { const store = loadSpacePoll(); const rec = store[u] || {}; if (Array.isArray(r.processedIds) && r.processedIds.length) { rec.seenIds = (Array.isArray(rec.seenIds) ? rec.seenIds : []).concat(r.processedIds).slice(-800); store[u] = rec; saveSpacePoll(store); } } catch (e) {}
+    res.json({ ok: true, created: r.created, scanned: r.scanned, results: r.results, spaces: r.spaces || loadSpaces() });
   } catch (e) { res.status(502).json({ ok: false, error: String((e && e.message) || e) }); }
 });
+// ---- Space Tracker: background email poller (auto-import brochures on an interval) ----
+const SPACEPOLL_FILE = path.join(BOV_DATA_DIR, 'spacescan_poll.json');
+function loadSpacePoll() { try { return rj(SPACEPOLL_FILE) || {}; } catch (e) { return {}; } }
+function saveSpacePoll(o) { return writeJsonGuarded(SPACEPOLL_FILE, o, 'saveSpacePoll'); }
+app.get('/api/spaces/scan-poll', (req, res) => {
+  const u = (req.user && req.user.username) || ''; const rec = (loadSpacePoll()[u]) || {};
+  res.json({ ok: true, enabled: !!rec.enabled, intervalMin: rec.intervalMin || 30, days: rec.days || 30, connected: gmail.statusFor(u).connected, configured: gmail.isConfigured(), lastRun: rec.lastRun || '', lastCount: rec.lastCount || 0 });
+});
+app.post('/api/spaces/scan-poll', express.json(), (req, res) => {
+  const u = (req.user && req.user.username) || ''; if (!u) return res.status(401).json({ ok: false, error: 'Sign in required.' });
+  const b = req.body || {}; const store = loadSpacePoll(); const rec = store[u] || {};
+  if (typeof b.enabled === 'boolean') rec.enabled = b.enabled;
+  if (b.intervalMin != null) { const m = parseInt(b.intervalMin, 10); rec.intervalMin = (isFinite(m) && m >= 5) ? Math.min(m, 720) : 30; }
+  if (b.days != null) { const d = parseInt(b.days, 10); if (isFinite(d)) rec.days = Math.max(1, Math.min(365, d)); }
+  store[u] = rec; saveSpacePoll(store);
+  res.json({ ok: true, enabled: !!rec.enabled, intervalMin: rec.intervalMin || 30, days: rec.days || 30 });
+});
+let _spacePolling = false;
+async function spacePollTick() {
+  if (_spacePolling) return; _spacePolling = true;
+  try {
+    if (gmail.isConfigured()) {
+      const store = loadSpacePoll(); const users = auth.loadUsers(); const now = Date.now(); let dirty = false;
+      for (const uname of Object.keys(store)) {
+        const rec = store[uname]; if (!rec || !rec.enabled) continue;
+        if (!gmail.statusFor(uname).connected) continue;
+        const iv = (rec.intervalMin || 30) * 60 * 1000; const last = rec.lastRun ? Date.parse(rec.lastRun) : 0;
+        if (now - last < iv) continue;
+        const prof = (users || []).find(x => x.username === uname) || {};
+        try {
+          const r = await _scanSpacesForUser(uname, prof.name || uname, rec.days || 30, rec.seenIds || []);
+          rec.lastRun = new Date().toISOString(); rec.lastCount = (r && r.created) || 0;
+          if (r && Array.isArray(r.processedIds) && r.processedIds.length) rec.seenIds = (Array.isArray(rec.seenIds) ? rec.seenIds : []).concat(r.processedIds).slice(-800);
+          if (r && r.created) console.log('Space scan poll: created ' + r.created + ' space(s) for ' + uname);
+        } catch (e) { console.error('space poll error ' + uname + ':', e && e.message); rec.lastRun = new Date().toISOString(); }
+        dirty = true;
+      }
+      if (dirty) saveSpacePoll(store);
+    }
+  } catch (e) { console.error('space poll tick:', e && e.message); }
+  _spacePolling = false;
+}
+setInterval(spacePollTick, 60 * 1000);
 app.get('/api/site-criteria', (req, res) => {
   try { const list = store.readAll().filter(r => r.form === 'ssc').map(r => ({ key: r.timestamp, name: r.name || 'Untitled', market: r.market || '', rep: r.rep || '', when: r.timestamp || '', summary: r.highlights || '' })).reverse(); res.json({ ok: true, criteria: list }); }
   catch (e) { res.json({ ok: true, criteria: [] }); }
