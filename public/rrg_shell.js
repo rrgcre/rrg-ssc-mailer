@@ -403,6 +403,12 @@
     if(page.indexOf('rrg_center')===0) return 'Center';
     return ''; }
   function _recentIcon(type){ var m={ 'Contact':'◑','Company':'▦','Listing':'⊞','Data Room':'▤','Deal':'◈','Marketing Pack':'▧','Valuation':'§','Space':'▭','Center':'⌂' }; return m[type]||'•'; }
+  function _recentSub(page){ try{
+      if(page.indexOf('rrg_person')===0){ var P=window.P; if(P){ var co=String(P.companyName||P.company||(window.CO&&window.CO.name)||''); if(co==='No Company') co=''; var t=String(P.title||''); return [co,t].filter(Boolean).join(' · '); } }
+      else if(page.indexOf('rrg_assignment')===0){ var A=window.A; if(A){ return [String(A.market||''), String(A.status||'')].filter(Boolean).join(' · '); } }
+      else if(page.indexOf('rrg_compan')===0){ var C=window.C||window.CO; if(C){ return [String(C.type||''), String(C.market||'')].filter(Boolean).join(' · '); } }
+      else if(page.indexOf('rrg_room')===0){ var RM=window.ROOM||window.R; if(RM){ return String((RM.business||RM.name||'')); } }
+    }catch(e){} return ''; }
   function _recentList(){ try{ return JSON.parse(localStorage.getItem('rrgRecent')||'[]')||[]; }catch(e){ return []; } }
   function _recordRecent(){ try{
       var page=(location.pathname.split('/').pop()||'').toLowerCase();
@@ -417,7 +423,8 @@
       var type=_recentType(page);
       var url=(location.pathname.split('/').pop()||'')+location.search;
       var list=_recentList().filter(function(x){ return x && x.url!==url; });
-      list.unshift({ url:url, label:label.slice(0,90), type:type });
+      var sub=_recentSub(page);
+      list.unshift({ url:url, label:label.slice(0,90), type:type, sub:sub.slice(0,80) });
       list=list.slice(0,12);
       try{ localStorage.setItem('rrgRecent', JSON.stringify(list)); }catch(e){}
     }catch(e){} }
@@ -425,7 +432,7 @@
     var here=(location.pathname.split('/').pop()||'')+location.search;
     var items=_recentList().filter(function(x){ return x&&x.url&&x.url!==here; });
     if(!items.length){ menu.innerHTML='<div class="rrgrecempty">No recently viewed pages yet. As you open contacts, companies and listings, they’ll show up here.</div>'; return; }
-    menu.innerHTML='<div class="rrgrechd">Recently viewed</div>'+items.map(function(x){ return '<a href="'+esc(x.url)+'"><span class="rmi">'+esc(_recentIcon(x.type))+'</span><span class="rml"><span class="rmt">'+esc(x.label)+'</span>'+(x.type?('<span class="rmy">'+esc(x.type)+'</span>'):'')+'</span></a>'; }).join(''); }
+    menu.innerHTML='<div class="rrgrechd">Recently viewed</div>'+items.map(function(x){ return '<a href="'+esc(x.url)+'"><span class="rmi">'+esc(_recentIcon(x.type))+'</span><span class="rml"><span class="rmt">'+esc(x.label)+'</span>'+((x.sub||x.type)?('<span class="rmy">'+esc(x.sub||x.type)+'</span>'):'')+'</span></a>'; }).join(''); }
   function mount(){
     if (document.getElementById('rrgnav')) return;
     document.body.insertBefore(nav, document.body.firstChild);
