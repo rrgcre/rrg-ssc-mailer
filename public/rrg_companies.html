@@ -44,6 +44,7 @@ tr:hover td{background:#fbfcfe;}
 .codel:hover{background:var(--red);color:#fff;border-color:var(--red);}
 .dupe{background:#fff5f4;border:1px solid #f6d4d0;color:#7a2b25;border-radius:9px;padding:9px 12px;font-size:12.5px;margin:8px 0 2px;line-height:1.5;} .dupe a{color:#b23a2c;font-weight:800;text-decoration:none;} .dupe b{color:#7a2b25;}
 .empty{text-align:center;color:var(--muted);padding:54px 20px;} .empty b{color:var(--navy);display:block;font-size:15px;margin-bottom:6px;}
+.costarcell{background:none;border:none;cursor:pointer;font-size:16px;line-height:1;color:#cdd6e6;padding:2px 4px;transition:color .12s;}.costarcell:hover{color:#f0b400;}.costarcell.on{color:#f5b301;}
 .foot{max-width:1320px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
 .newbtn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:9px;padding:8px 14px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;margin-left:auto;}
 .hd input{margin-left:10px;}
@@ -169,7 +170,8 @@ var CF=(window.RRGFilters&&document.getElementById('filterBtn'))?RRGFilters.crea
   { key:'owners', label:'Owner', type:'multi', options:coOwners, get:function(c){return c.owner||'';} },
   { key:'leadSources', label:'Lead source', type:'multi', options:coLeads, get:function(c){return c.leadSource||'';} },
   { key:'tags', label:'Tags', type:'tags', options:coTags, get:function(c){return c.tags||[];} },
-  { key:'created', label:'Created', type:'daterange', get:function(c){return c.createdAt||'';} }
+  { key:'created', label:'Created', type:'daterange', get:function(c){return c.createdAt||'';} },
+  { key:'star', label:'Starred only', type:'bool', get:function(c){return !!c.star;} }
 ], onChange:applyFilter }):null;
 function fuzzyMatch(hay,q){ hay=(hay||'').toLowerCase(); q=(q||'').toLowerCase().trim(); if(!q) return true; return q.split(/\s+/).every(function(t){ if(!t) return true; if(hay.indexOf(t)>=0) return true; var i=0; for(var j=0;j<hay.length&&i<t.length;j++){ if(hay.charAt(j)===t.charAt(i)) i++; } return i===t.length; }); }
 var RECENCY_DAYS=90, RECENCY_SHOWALL=false;
@@ -187,6 +189,7 @@ function recencyNote(noun, active, shown, total){
   if(RECENCY_SHOWALL){ note.innerHTML='Showing all '+total+' '+noun+'. <button type="button" style="'+bstyle+'" onclick="RECENCY_SHOWALL=false;applyFilter();">Show only recently active</button>'; }
   else { var hidden=total-shown; if(hidden<0) hidden=0; note.innerHTML='Showing '+shown+' '+noun+' active in the last '+RECENCY_DAYS+' days'+(hidden>0?(' \u00b7 '+hidden+' hidden'):'')+'. <button type="button" style="'+bstyle+'" onclick="RECENCY_SHOWALL=true;applyFilter();">Show all '+total+'</button>'; }
 }
+document.addEventListener('click',function(e){ var b=e.target&&e.target.closest&&e.target.closest('[data-costar]'); if(!b) return; e.preventDefault(); e.stopPropagation(); var id=b.getAttribute('data-costar'); var co=(ALL||[]).filter(function(x){return x.id===id;})[0]; var nv=!(co&&co.star); fetch('/api/company',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:id,star:nv})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ if(co) co.star=nv; b.className='costarcell'+(nv?' on':''); b.title=nv?'Starred \u2014 click to remove':'Star this company'; } }).catch(function(){}); });
 function applyFilter(){
   var q=(document.getElementById('search').value||'').trim();
   var base=(typeof CF!=='undefined'&&CF)?CF.filter(ALL):ALL;
@@ -206,6 +209,7 @@ function renderList(list){
     rowId:function(c){ return c.id; }, defaultSort:0, defaultDir:1,
     bulk: (function(){ var _b=[]; if(IS_ADMIN) _b.push({ label:'Merge\u2026', min:2, fn:openCompanyMergePicker }); if(CAN_DELETE) _b.push({ label:'Delete', danger:true, min:1, fn:bulkDeleteCompanies }); return _b.length?_b:null; })(),
     columns:[
+      { label:'\u2605', key:'star', width:40, align:'center', sort:function(a,b){ return (b.star?1:0)-(a.star?1:0); }, cell:function(c){ return '<button type="button" class="costarcell'+(c.star?' on':'')+'" data-costar="'+esc(c.id)+'" title="'+(c.star?'Starred \u2014 click to remove':'Star this company')+'">\u2605</button>'; } },
       { label:'Company', width:250, sort:function(a,b){ return RRGList.cmp(a.name,b.name); }, edit:{ type:'text', get:function(c){return c.name||'';}, save:function(c,val){ val=(val||'').trim(); if(!val) return Promise.reject(new Error('Name is required.')); return fetch('/api/company',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:c.id,name:val})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ c.name=val; return true; } throw new Error((j&&j.error)||'Save failed'); }); } }, cell:function(c){ var mk=(c.markets||[]).join(' · '); var tags=(c.tags&&c.tags.length)?('<div class="meta">'+esc(c.tags.join(', '))+'</div>'):''; var lg=(c.logo||c.logoAuto||''); var lt=esc((c.name||'?').charAt(0).toUpperCase()); var av=lg?('<span class="colistlogo"><span>'+lt+'</span><img src="'+esc(lg)+'" onerror="this.remove()"></span>'):('<span class="colistlogo"><span>'+lt+'</span></span>'); return '<div class="cowho">'+av+'<div class="cowhotext"><div class="nm"><a class="nmlink" href="./rrg_company.html?id='+encodeURIComponent(c.id)+'">'+esc(c.name)+'</a></div>'+(mk?('<div class="meta">'+esc(mk)+'</div>'):'')+tags+'</div></div>'; } },
       { label:'Type', width:110, sort:function(a,b){ return RRGList.cmp(a.type,b.type); }, edit:{ type:'select', options:function(){return CTYPES;}, get:function(c){return c.type||'';}, save:function(c,val){ return fetch('/api/company',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:c.id,type:val})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ c.type=val; return true; } throw new Error((j&&j.error)||'Save failed'); }); } }, cell:function(c){ var t=c.type||'Seller', col=typeColor(t); return '<span style="display:inline-block;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;background:'+col[0]+';color:'+col[1]+'">'+esc(t)+'</span>'; } },
       { label:'Main contact', width:160, sort:function(a,b){ return RRGList.cmp(a.mainContact,b.mainContact); }, cell:function(c){ return c.mainContact?('<a href="./rrg_person.html?id='+encodeURIComponent(c.mainContactId)+'" style="color:var(--navy);text-decoration:none;font-weight:500">'+esc(c.mainContact)+'</a>'):'<span class="meta">—</span>'; } },
