@@ -201,7 +201,7 @@ var VIEW=(function(){ try{ return localStorage.getItem('rrg_board_view')||'board
 var TB={ q:'', owner:'', market:'', status:'', min:'', max:'', sort:'act_desc', per:25 };
 var FILTER_OPEN=false, SAVE_OPEN=false, EXPANDED={};
 var DENSITY=(function(){try{return localStorage.getItem('rrg_board_density')||'full';}catch(e){return 'full';}})();
-var CARDF=(function(){var d={contact:true,value:true,commission:true,days:true,market:true,status:false,bbs:false,activity:true};try{var o=JSON.parse(localStorage.getItem('rrg_board_cardf')||'null');if(o&&typeof o==='object')return Object.assign(d,o);}catch(e){}return d;})();
+var CARDF=(function(){var d={contact:true,value:false,listPrice:true,commission:true,days:true,market:true,status:false,bbs:false,activity:true};try{var o=JSON.parse(localStorage.getItem('rrg_board_cardf')||'null');if(o&&typeof o==='object')return Object.assign(d,o);}catch(e){}return d;})();
 var CARDF_OPEN=false, EXPCARD={};
 var ROLLED=(function(){try{return JSON.parse(localStorage.getItem('rrg_board_rolled')||'{}')||{};}catch(e){return {};}})();
 function saveROLLED(){ try{ localStorage.setItem('rrg_board_rolled',JSON.stringify(ROLLED)); }catch(e){} }
@@ -337,6 +337,8 @@ function renderList(cards){
       { label:'Contact', sort:function(a,b){return RRGList.cmp(a.contact,b.contact);}, cell:function(c){ if(!c.contact) return '<span style="color:#b0b8c6">—</span>'; return c.contactPersonId?('<a href="./rrg_person.html?id='+encodeURIComponent(c.contactPersonId)+'" style="color:var(--navy,#000E31);text-decoration:none">'+esc(c.contact)+'</a>'):esc(c.contact); } },
       { label:'Market', sort:function(a,b){return RRGList.cmp(a.market,b.market);}, cell:function(c){ return c.market?esc(c.market):'<span style="color:#b0b8c6">—</span>'; } },
       { label:'Value', sort:function(a,b){return money(a.value)-money(b.value);}, cell:function(c){ return c.value?esc(String(c.value)):'<span style="color:#b0b8c6">—</span>'; } },
+      { label:'Listing Price', sort:function(a,b){return money(a.listPrice)-money(b.listPrice);}, cell:function(c){ return c.listPrice?fmtMoneyMaybe(c.listPrice):'<span style="color:#b0b8c6">\u2014</span>'; } },
+      { label:'Full Commission', sort:function(a,b){return money(a.totalCommission)-money(b.totalCommission);}, cell:function(c){ return c.totalCommission?fmtMoneyMaybe(c.totalCommission):'<span style="color:#b0b8c6">\u2014</span>'; } },
       { label:'Likelihood', sort:function(a,b){return (parseFloat(a.winPct)||0)-(parseFloat(b.winPct)||0);}, cell:function(c){ return (c.winPct!==''&&c.winPct!=null)?('<span style="font-weight:700">'+esc(c.winPct)+'%</span>'):'<span style="color:#b0b8c6">—</span>'; } },
       { label:'Status', sort:function(a,b){return RRGList.cmp(a.status,b.status);}, cell:function(c){ return c.status?('<span class="lstage" style="background:#eef1f6;color:#5b6472">'+esc(c.status)+'</span>'):'<span style="color:#b0b8c6">—</span>'; } },
       { label:'BBS #', defaultHidden:true, sort:function(a,b){return RRGList.cmp(a.bbsNumber,b.bbsNumber);}, cell:function(c){ return c.bbsNumber?esc(c.bbsNumber):'<span style="color:#b0b8c6">—</span>'; } },
@@ -409,7 +411,7 @@ function render(){
   document.querySelectorAll('[data-more]').forEach(function(el){ el.addEventListener('click',function(ev){ ev.preventDefault(); EXPANDED[el.getAttribute('data-more')]=true; render(); }); });
   wireDnD();
 }
-var CARDF_FIELDS=[['contact','Contact'],['value','Value'],['commission','Commission'],['days','Days in stage'],['market','Market'],['status','Status'],['bbs','BBS #'],['activity','Last activity']];
+var CARDF_FIELDS=[['contact','Contact'],['listPrice','Listing Price'],['value','Est. value (BOV)'],['commission','Full Commission'],['days','Days in stage'],['market','Market'],['status','Status'],['bbs','BBS #'],['activity','Last activity']];
 function saveCARDF(){ try{ localStorage.setItem('rrg_board_cardf',JSON.stringify(CARDF)); }catch(e){} }
 function renderCardfMenu(){
   var host=document.getElementById('cardfmenu'); if(!host) return;
@@ -445,7 +447,8 @@ function cardFieldsHtml(c){
   if(c.listingId||c.codeName){ h+='<div class="r" style="color:#8a94a6" title="Listing ID / code name"><span class="ic">#</span>'+esc(c.listingId||'')+((c.listingId&&c.codeName)?' \u00b7 ':'')+esc(c.codeName||'')+'</div>'; }
   if(CARDF.contact && c.contact){ var nm=esc(c.contact); h+='<div class="r"><span class="ic">○</span>'+(c.contactPersonId?('<a class="contactlink" href="./rrg_person.html?id='+encodeURIComponent(c.contactPersonId)+'">'+nm+'</a>'):nm)+'</div>'; }
   if(CARDF.value && c.value) h+='<div class="r"><span class="ic">$</span><span class="val">'+esc(c.value)+'</span></div>';
-  if(CARDF.commission && c.commission) h+='<div class="r" title="Commission"><span class="ic">%</span><span class="val">'+fmtMoneyMaybe(c.commission)+'</span></div>';
+  if(CARDF.listPrice && c.listPrice) h+='<div class="r" title="Listing price"><span class="ic">$</span><span class="val">'+fmtMoneyMaybe(c.listPrice)+'</span></div>';
+  if(CARDF.commission && c.totalCommission) h+='<div class="r" title="Full commission"><span class="ic">%</span><span class="val">'+fmtMoneyMaybe(c.totalCommission)+'</span></div>';
   if(CARDF.days){ var dd=daysInStage(c); if(dd!=null) h+='<div class="r" title="'+dd+' day'+(dd===1?'':'s')+' in '+esc(c.stage||'this stage')+'"><span class="ic">◷</span>'+dd+'d in stage</div>'; }
   if(CARDF.market && c.market) h+='<div class="r"><span class="ic">◎</span>'+esc(c.market)+'</div>';
   if(CARDF.status && c.status) h+='<div class="r"><span class="ic">◈</span>'+esc(c.status)+'</div>';
