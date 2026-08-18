@@ -298,7 +298,7 @@
     + '#rrgtop .pt{font-size:16.5px;font-weight:600;color:#1d2739;min-width:90px;}'
     + '#rrgtop .rrgback{display:inline-flex;align-items:center;gap:6px;color:#1d2739;text-decoration:none;font-size:13.5px;font-weight:500;padding:7px 13px;border:1px solid #e9edf3;border-radius:9px;background:#fff;white-space:nowrap;transition:background .12s;}'
     + '#rrgtop .rrgback:hover{background:#f2f4f8;}'
-    + '#rrgtop .srch{position:relative;flex:1 1 auto;min-width:170px;max-width:560px;}'
+    + '#rrgtop .srch{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:46%;max-width:560px;}'
     + '#rrgtop .srch input{width:100%;border:1px solid #e9edf3;background:#f7f9fc;border-radius:10px;padding:9px 12px 9px 36px;font:inherit;font-size:13.5px;color:#1d2739;}'
     + '#rrgtop .srch .si{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#98a1b5;}'
     + '.rrgsr{position:absolute;top:calc(100% + 6px);left:0;right:0;background:#fff;border:1px solid #e1e6ef;border-radius:11px;box-shadow:0 14px 44px rgba(10,20,50,.18);z-index:120;max-height:70vh;overflow:auto;padding:5px;}'
@@ -311,22 +311,14 @@
     + '.rrgsr .ric{width:26px;height:26px;border-radius:7px;background:#f1f4f9;display:flex;align-items:center;justify-content:center;font-size:13px;color:#6b7488;flex:none;}'
     + '.rrgsr .rnone{padding:15px 12px;color:#8a93a8;font-size:13px;}'
     + '#rrgtop .acts{display:flex;align-items:center;gap:10px;margin-left:auto;}'
-    + '#rrgtop .rrgrecwrap{position:relative;flex:none;}'
-    + '#rrgtop .rrgrecent{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid #e9edf3;border-radius:9px;padding:7px 12px;font:inherit;font-size:13px;font-weight:600;color:#1d2739;cursor:pointer;white-space:nowrap;}'
-    + '#rrgtop .rrgrecent:hover{background:#f2f4f8;}'
-    + '#rrgtop .rrgrecent .rric{color:#69748a;font-size:13px;line-height:1;}'
-    + '#rrgtop .rrgrecent .rcar{color:#98a1b5;font-size:10px;}'
-    + '#rrgtop .rrgrecmenu{position:absolute;top:calc(100% + 6px);left:0;min-width:284px;max-width:344px;background:#fff;border:1px solid #dbe0e9;border-radius:6px;box-shadow:0 12px 34px rgba(12,22,54,.16);padding:5px;z-index:70;max-height:60vh;overflow:auto;}'
-    + '#rrgtop .rrgrecmenu[hidden]{display:none;}'
-    + '#rrgtop .rrgrecmenu .rrgrechd{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#98a1b5;padding:6px 10px 5px;}'
-    + '#rrgtop .rrgrecmenu a{display:flex;align-items:center;gap:10px;padding:8px 11px;border-radius:4px;color:#2b3648;text-decoration:none;}'
-    + '#rrgtop .rrgrecmenu a:hover{background:#eef2f7;}'
-    + '#rrgtop .rrgrecmenu .rmi{width:18px;text-align:center;color:#69748a;flex:none;font-size:13px;}'
-    + '#rrgtop .rrgrecmenu .rml{min-width:0;display:flex;flex-direction:column;line-height:1.25;}'
-    + '#rrgtop .rrgrecmenu .rmt{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px;}'
-    + '#rrgtop .rrgrecmenu .rmy{font-size:10.5px;color:#8a93a8;font-weight:600;}'
-    + '#rrgtop .rrgrecmenu .rrgrecempty{padding:11px;color:#8a93a8;font-size:12.5px;line-height:1.5;}'
-    + '@media(max-width:820px){#rrgtop .rrgrecent{padding:7px 9px;} #rrgtop .rrgrecent span:not(.rric){display:none;}}'
+    + '#rrgRecentBar{display:flex;align-items:center;gap:2px;padding:10px 24px 0;margin:0;overflow-x:auto;scrollbar-width:thin;-ms-overflow-style:none;}'
+    + '#rrgRecentBar::-webkit-scrollbar{height:0;}'
+    + '#rrgRecentBar .rrgreclbl{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#9aa4b6;flex:none;margin-right:8px;white-space:nowrap;}'
+    + '#rrgRecentBar a{flex:none;display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;border:1px solid #e4e8ef;background:#fff;color:#2c4260;text-decoration:none;font-size:12.5px;font-weight:600;white-space:nowrap;max-width:230px;overflow:hidden;text-overflow:ellipsis;}'
+    + '#rrgRecentBar a:hover{background:#eef2f8;border-color:#c9d3e2;color:#20334f;}'
+    + '#rrgRecentBar a .ri{color:#8593ab;font-size:11px;flex:none;}'
+    + '#rrgRecentBar a .rs{color:#98a1b5;font-weight:500;}'
+    + '#rrgRecentBar .rsep{flex:none;color:#c7cedb;padding:0 2px;}'
     + '#rrgtop .ic{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#6b7488;cursor:pointer;text-decoration:none;}'
     + '#rrgtop .ic:hover{background:#f2f4f8;color:#1d2739;}'
     + '#rrgtop .uav{width:32px;height:32px;border-radius:50%;background:var(--navbg,#233a68);color:#fff;font-weight:600;font-size:12.5px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:none;padding:0;}'
@@ -374,7 +366,6 @@
   var top = document.createElement('div'); top.id='rrgtop';
   top.innerHTML = ''
     + '<div class="ic" id="rrgburger" style="display:none">≡</div>'
-    + '<div class="rrgrecwrap"><button class="rrgrecent" id="rrgRecentBtn" type="button" aria-haspopup="true" aria-expanded="false" title="Recently viewed"><span class="rric">◷</span>Recent<span class="rcar">▾</span></button><div class="rrgrecmenu" id="rrgRecentMenu" hidden></div></div>'
     + '<div class="srch"><span class="si">⌕</span><input placeholder="Search contacts, companies, listings…" id="rrgsearch" autocomplete="off"><div class="rrgsr" id="rrgsr" hidden></div></div>'
     + '<div class="acts"><div class="createwrap">'
       + '<button class="create" id="rrgCreateBtn" type="button" aria-haspopup="true" aria-expanded="false"><span class="cplus">+</span> Create New</button>'
@@ -427,11 +418,20 @@
       list=list.slice(0,12);
       try{ localStorage.setItem('rrgRecent', JSON.stringify(list)); }catch(e){}
     }catch(e){} }
-  function _renderRecentMenu(){ var menu=document.getElementById('rrgRecentMenu'); if(!menu) return;
-    var here=(location.pathname.split('/').pop()||'')+location.search;
-    var items=_recentList().filter(function(x){ return x&&x.url&&x.url!==here; });
-    if(!items.length){ menu.innerHTML='<div class="rrgrecempty">No recently viewed pages yet. As you open contacts, companies and listings, they’ll show up here.</div>'; return; }
-    menu.innerHTML='<div class="rrgrechd">Recently viewed</div>'+items.map(function(x){ return '<a href="'+esc(x.url)+'"><span class="rmi">'+esc(_recentIcon(x.type))+'</span><span class="rml"><span class="rmt">'+esc(x.label)+'</span>'+((x.sub||x.type)?('<span class="rmy">'+esc(x.sub||x.type)+'</span>'):'')+'</span></a>'; }).join(''); }
+  function _renderRecentBar(){ try{
+      var here=(location.pathname.split('/').pop()||'')+location.search;
+      var items=_recentList().filter(function(x){ return x&&x.url&&x.url!==here; }).slice(0,8);
+      var bar=document.getElementById('rrgRecentBar');
+      if(!items.length){ if(bar) bar.parentNode.removeChild(bar); return; }
+      if(!bar){ bar=document.createElement('div'); bar.id='rrgRecentBar';
+        var crumb=document.querySelector('.rrgcrumb');
+        if(crumb && crumb.parentNode){ crumb.parentNode.insertBefore(bar, crumb.nextSibling); }
+        else { document.body.insertBefore(bar, document.body.firstChild); }
+      }
+      var html='<span class="rrgreclbl">Recent</span>';
+      items.forEach(function(x,idx){ var sub=(x.sub||x.type||''); html+='<a href="'+esc(x.url)+'" title="'+esc(x.label+(sub?(' \u2014 '+sub):''))+'"><span class="ri">'+esc(_recentIcon(x.type))+'</span>'+esc(x.label)+(sub?(' <span class="rs">\u00b7 '+esc(sub)+'</span>'):'')+'</a>'; });
+      bar.innerHTML=html;
+    }catch(e){} }
   function mount(){
     if (document.getElementById('rrgnav')) return;
     document.body.insertBefore(nav, document.body.firstChild);
@@ -466,13 +466,8 @@
       cb.addEventListener('click',function(e){ e.preventDefault(); e.stopPropagation(); if(cm.hidden) openM(); else closeM(); });
       document.addEventListener('click',function(e){ if(cm.hidden) return; if(!cm.contains(e.target)&&e.target!==cb) closeM(); });
     })();
-    (function(){ var rb=document.getElementById('rrgRecentBtn'), rm=document.getElementById('rrgRecentMenu'); if(!rb||!rm) return;
-      function openM(){ _renderRecentMenu(); rm.hidden=false; rb.setAttribute('aria-expanded','true'); }
-      function closeM(){ rm.hidden=true; rb.setAttribute('aria-expanded','false'); }
-      rb.addEventListener('click',function(e){ e.preventDefault(); e.stopPropagation(); if(rm.hidden) openM(); else closeM(); });
-      document.addEventListener('click',function(e){ if(rm.hidden) return; if(!rm.contains(e.target)&&!rb.contains(e.target)) closeM(); });
-      _recordRecent(); setTimeout(_recordRecent,500); setTimeout(_recordRecent,1500);
-      document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeM(); });
+    (function(){ function _go(){ _recordRecent(); _renderRecentBar(); } _go(); setTimeout(_go,500); setTimeout(_go,1500);
+      window.addEventListener('storage',function(e){ if(e && e.key==='rrgRecent') _renderRecentBar(); });
     })();
     // Account menu (top-right avatar)
     (function(){ var ab=document.getElementById('rrguav'), am=document.getElementById('rrguavMenu'); if(!ab||!am) return;
