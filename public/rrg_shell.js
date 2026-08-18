@@ -399,17 +399,23 @@
       else if(page.indexOf('rrg_compan')===0){ var C=window.C||window.CO; if(C){ return [String(C.type||''), String(C.market||'')].filter(Boolean).join(' · '); } }
       else if(page.indexOf('rrg_room')===0){ var RM=window.ROOM||window.R; if(RM){ return String((RM.business||RM.name||'')); } }
     }catch(e){} return ''; }
+  function _recentName(page){ try{
+      if(page.indexOf('rrg_person')===0){ if(window.P&&window.P.name) return String(window.P.name); }
+      else if(page.indexOf('rrg_compan')===0){ var C=window.C||window.CO; if(C&&C.name) return String(C.name); }
+      else if(page.indexOf('rrg_assignment')===0){ if(window.A) return String(window.A.businessOverride||window.A.business||''); }
+      else if(page.indexOf('rrg_room')===0){ var R=window.ROOM||window.R; if(R&&(R.business||R.name)) return String(R.business||R.name); }
+    }catch(e){}
+    try{ var cur=document.querySelector('.rrgcrumb .rrgcrumb-cur'); if(cur){ var t=(cur.textContent||'').trim(); if(t) return t; } }catch(e){}
+    return ''; }
   function _recentList(){ try{ return JSON.parse(localStorage.getItem('rrgRecent')||'[]')||[]; }catch(e){ return []; } }
   function _recordRecent(){ try{
       var page=(location.pathname.split('/').pop()||'').toLowerCase();
       var qs=new URLSearchParams(location.search);
       var idp=qs.get('id')||qs.get('key')||qs.get('room')||qs.get('deal')||qs.get('cim')||qs.get('bov')||qs.get('center')||qs.get('space')||'';
       if(!idp) return;
-      var label='';
-      var cur=document.querySelector('.rrgcrumb .rrgcrumb-cur'); if(cur) label=(cur.textContent||'').trim();
-      if(!label){ var segs=document.querySelectorAll('.rrgcrumb a, .rrgcrumb .rrgcrumb-cur'); if(segs.length) label=(segs[segs.length-1].textContent||'').trim(); }
-      if(!label){ label=((document.title||'').split('—')[0].split(' - ')[0].trim()); }
-      if(!label || label.toLowerCase()==='command') return;
+      var label=_recentName(page);
+      var GEN={'command':1,'companies':1,'company':1,'contacts':1,'contact':1,'listings':1,'listing':1,'deals':1,'deal':1,'data rooms':1,'data room':1,'buyers':1,'buyer':1,'spaces':1,'space':1,'centers':1,'center':1,'shopping centers':1,'valuation':1,'marketing pack':1};
+      if(!label || GEN[label.toLowerCase()]) return;
       var type=_recentType(page);
       var url=(location.pathname.split('/').pop()||'')+location.search;
       var list=_recentList().filter(function(x){ return x && x.url!==url; });
@@ -466,7 +472,7 @@
       cb.addEventListener('click',function(e){ e.preventDefault(); e.stopPropagation(); if(cm.hidden) openM(); else closeM(); });
       document.addEventListener('click',function(e){ if(cm.hidden) return; if(!cm.contains(e.target)&&e.target!==cb) closeM(); });
     })();
-    (function(){ function _go(){ _recordRecent(); _renderRecentBar(); } _go(); setTimeout(_go,500); setTimeout(_go,1500);
+    (function(){ function _go(){ _recordRecent(); _renderRecentBar(); } _go(); setTimeout(_go,500); setTimeout(_go,1500); setTimeout(_go,3000);
       window.addEventListener('storage',function(e){ if(e && e.key==='rrgRecent') _renderRecentBar(); });
     })();
     // Account menu (top-right avatar)
