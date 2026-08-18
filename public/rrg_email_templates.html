@@ -160,7 +160,7 @@ function renderEditor(){
     +((t.id&&t.mine)?'<div class="fld" style="margin-top:14px"><label class="chkline"><input type="checkbox" id="tActive"'+(ACTIVE?' checked':'')+'> Active — show in the send composer and automations (uncheck to archive)</label></div>':'')
     +'<div class="fld" style="margin-top:14px"><label>Subject</label><input type="text" id="tSubject" value="'+esc(t.subject||'')+'"'+(ro?' readonly':'')+' placeholder="e.g. Great connecting, {{first_name}}"></div>'
     +greetControl(ro)+'<div class="fld"><label>Body</label>'+(ro?('<div class="rrgrt" style="border:1px solid #cfd6e2;border-radius:9px"><div class="rrgrt-ed" style="padding:10px 12px;min-height:120px">'+RRGRte.toHtml(t.body||'')+'</div></div>'):RRGRte.html('tBody',{value:t.body||'',placeholder:'Write your email… use the { } menu for merge fields.'}))+'</div>'
-    +autoControl(ro)+'<div id="pvPanel"></div>'
+    +'<div id="pvPanel"></div>'+autoControl(ro)
     +'</div></div>';
   document.getElementById('closeBtn').onclick=function(){ EDIT=null; renderEditor(); };
   document.getElementById('pvBtn').onclick=doPreview;
@@ -182,6 +182,7 @@ function doPreview(){
   var bodyHtml = window.RRGRte ? RRGRte.toHtml(body) : esc(body).replace(/\n/g,'<br>');
   panel.innerHTML='<div class="pvw"><div class="pvs">Preview — sample data ('+esc(SAMPLE['{{name}}'])+')</div><div class="pvsub">'+mergePreview(subj)+'</div><div class="pvbody">'+mergePreview(bodyHtml)+'</div><div class="tokens" style="margin-top:10px">Anything <span class="tokmiss">highlighted</span> is a merge field that won’t fill from this contact — check the spelling.</div></div>';
   var pb2=document.getElementById('pvBtn'); if(pb2) pb2.textContent='Hide preview';
+  try{ panel.scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){}
 }
 function render(){
   var root=document.getElementById('root');
