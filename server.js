@@ -11828,8 +11828,14 @@ function defaultPipelines() {
     _seedPipeline('p_llrep', 'Landlord Rep', 'Landlord Rep', ['Listing Setup','Marketing','Tours','LOI Received','Lease Negotiation','Executed'], 14)
   ];
 }
-function loadPipelines() { try { const a = rj(PIPELINES_FILE); if (Array.isArray(a) && a.length) return a; } catch (e) {} const d = defaultPipelines(); try { savePipelines(d); } catch (e) {} return d; }
-function savePipelines(a) { return writeJsonGuarded(PIPELINES_FILE, a, 'savePipelines'); }
+let _pipeCache = null, _pipeCacheAt = 0;
+function loadPipelines() {
+  const _now = Date.now();
+  if (_pipeCache && (_now - _pipeCacheAt) < 10000) return _pipeCache;
+  try { const a = rj(PIPELINES_FILE); if (Array.isArray(a) && a.length) { _pipeCache = a; _pipeCacheAt = _now; return a; } } catch (e) {}
+  const d = defaultPipelines(); try { savePipelines(d); } catch (e) {} _pipeCache = d; _pipeCacheAt = _now; return d;
+}
+function savePipelines(a) { _pipeCache = a; _pipeCacheAt = Date.now(); return writeJsonGuarded(PIPELINES_FILE, a, 'savePipelines'); }
 function newPipelineId() { return 'pl_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function seedUnqualifiedStage() {
   try {
