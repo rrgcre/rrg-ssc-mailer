@@ -650,7 +650,7 @@ function render(){
         + '<div><label class="fld">BizBuySell #</label><input class="owner" id="f_bbsnum" value="'+esc(A.bbsNumber||'')+'" placeholder="e.g. 2502434"></div></div>'
         + '<div class="fldrow2"><div><label class="fld">CoStar / LoopNet #</label><input class="owner" id="f_costar" value="'+esc(A.costarNo||'')+'" placeholder="e.g. 12345678"></div>'
         + '<div><label class="fld">Crexi #</label><input class="owner" id="f_crexi" value="'+esc(A.crexiNo||'')+'" placeholder="e.g. 987654"></div></div>'
-        + '<div class="fldrow"><label class="fld">Select Automation</label><select class="owner" id="f_leadauto"><option value="">— none (use BizBuySell default) —</option>'+(AUTOS||[]).map(function(a){return '<option value="'+esc(a.id)+'"'+(A.leadAutomationId===a.id?' selected':'')+'>'+esc(a.name)+'</option>';}).join('')+'</select></div>'
+        + '<div class="fldrow"><label class="fld">⟳ Select Automation</label><select class="owner" id="f_leadauto"><option value="">— none (use BizBuySell default) —</option>'+(AUTOS||[]).map(function(a){return '<option value="'+esc(a.id)+'"'+(A.leadAutomationId===a.id?' selected':'')+'>'+esc(a.name)+'</option>';}).join('')+'</select></div>'
         + '<div class="expnote">Set the IDs so imported BizBuySell / CoStar buyer leads auto-attach to this listing — and pick an automation to run on every lead that comes in for it.</div>'
       + '</div>'))
       + '<div class="fldrow"><label class="fld">Notes</label><textarea id="f_notes" placeholder="Private notes on this listing — next steps, seller temperature, key dates…">'+esc(A.notes||'')+'</textarea></div>'

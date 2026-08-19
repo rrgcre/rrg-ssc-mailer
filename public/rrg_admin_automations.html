@@ -216,7 +216,7 @@ function openEnrollPanel(){
   var opts='<option value="">— choose an automation —</option>'+plans.map(function(p){return '<option value="'+esc(p.id)+'">'+esc(p.name||'Untitled')+'</option>';}).join('');
   host.innerHTML='<div class="card"><div class="hd"><b>Enroll a segment</b><span class="sp"><span class="msg" id="enmsg"></span><button class="btn ghost sm" id="en_close">Close</button></span></div><div class="cb" style="padding:16px 18px">'
     +'<div class="note" style="margin:0 0 12px">Drop everyone matching a segment of your contacts into an automation at once. Already-enrolled contacts are skipped, and anyone who has unsubscribed will not get email steps.</div>'
-    +'<div><label class="enl">Automation</label><select id="en_auto" class="ensel">'+opts+'</select></div>'
+    +'<div><label class="enl">⟳ Automation</label><select id="en_auto" class="ensel">'+opts+'</select></div>'
     +'<div style="margin-top:12px"><div class="enl">Contact types</div><div class="chips" id="en_types"></div></div>'
     +'<div style="margin-top:12px"><div class="enl">Tags</div><div class="chips" id="en_tags"></div></div>'
     +'<div style="margin-top:16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><button class="btn pri" id="en_go">Enroll <span id="en_count"></span></button><span class="note" style="margin:0">Leave types and tags blank to enroll everyone.</span></div>'
