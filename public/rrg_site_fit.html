@@ -20,35 +20,34 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 
 .wrap{max-width:920px;margin:22px auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 8px 30px rgba(10,20,50,.08);}
 
-.band{color:#fff;padding:38px 46px 30px;position:relative;overflow:hidden;
+.band{color:#fff;padding:20px 40px 18px;position:relative;overflow:hidden;
   background:radial-gradient(96% 130% at 27% 12%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
 .band > *{position:relative;z-index:2;}
-.band::after{content:"";position:absolute;z-index:0;width:1300px;height:1300px;right:-380px;top:120px;border-radius:50%;
-  background:radial-gradient(circle at 34% 30%, #0b1430 0%, #08112a 48%, #050c22 82%);border:1px solid rgba(120,150,220,.10);pointer-events:none;}
-.confline{font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:#8fa0c2;font-weight:700;margin-bottom:22px;}
+.band::after{content:none;}
+.confline{font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:#8fa0c2;font-weight:700;margin-bottom:14px;}
 .rrg{display:inline-flex;align-items:center;}
 .rrg .disc{background:var(--red);color:#fff;border-radius:50%;width:44px;height:44px;font-family:'Arial Black',Arial,Helvetica,sans-serif;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
 .rrg .bar{background:#fff;width:3px;height:32px;margin:0 12px;} .rrg .wm{font-weight:800;font-size:14px;text-transform:uppercase;line-height:.95;}
-.kicker{margin:26px 0 6px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:11px;text-transform:uppercase;}
-.band h1 input{font-size:29px;font-weight:800;letter-spacing:-.01em;margin:0;color:#fff;background:transparent;border:none;border-bottom:1px dashed rgba(255,255,255,.22);width:100%;font-family:inherit;padding:0 0 3px;}
+.kicker{margin:13px 0 5px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:11px;text-transform:uppercase;}
+.band h1 input{font-size:23px;font-weight:800;letter-spacing:-.01em;margin:0;color:#fff;background:transparent;border:none;border-bottom:1px dashed rgba(255,255,255,.22);width:100%;font-family:inherit;padding:0 0 3px;}
 .band h1 input:focus{outline:none;border-bottom-color:var(--red);}
 .subin{background:transparent;border:none;border-bottom:1px dashed rgba(255,255,255,.16);color:#c3ccdf;font-size:14px;font-weight:600;font-family:inherit;padding:6px 0 2px;width:100%;margin-top:8px;}
 .subin.tag{color:#9fb0cc;font-size:12px;font-style:italic;}
 .subin:focus{outline:none;border-bottom-color:var(--red);color:#fff;}
-.accent{width:58px;height:5px;background:var(--red);border-radius:3px;margin:16px 0 14px;}
-.prep{display:flex;flex-direction:column;gap:9px;margin-top:6px;max-width:560px;}
+.accent{width:52px;height:4px;background:var(--red);border-radius:3px;margin:14px 0 10px;}
+.prep{display:flex;flex-direction:row;flex-wrap:wrap;gap:6px 26px;margin-top:14px;max-width:none;}
 .pf{display:flex;flex-direction:column;gap:2px;} .pf label{font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:#8093b6;font-weight:700;}
 .pf input{background:transparent;border:none;border-bottom:1px dashed rgba(255,255,255,.18);color:#dce3f0;font-size:12px;font-weight:600;font-family:inherit;padding:2px 0;width:100%;}
 .pf input:focus{outline:none;border-bottom-color:var(--red);color:#fff;}
 
 /* verdict / score strip */
-.strip{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;margin-top:22px;border:1px solid rgba(255,255,255,.14);border-radius:12px;overflow:hidden;position:relative;z-index:2;}
-.strip .c{padding:13px 16px;border-right:1px solid rgba(255,255,255,.12);}
-.strip .c:last-child{border-right:none;}
-.strip .k{font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:#8fa0c2;font-weight:700;}
-.strip .v{font-family:inherit;font-weight:800;font-size:18px;color:#fff;margin-top:4px;line-height:1.05;}
-.strip .v.big{font-size:30px;}
-.strip .v.g{color:#5fe0a0;} .strip .v.a{color:#ffc861;} .strip .v.r{color:#ff7a5c;}
+.strip{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:12px;margin:16px 40px 2px;}
+.strip .c{background:#fff;border:1px solid var(--line);border-radius:12px;padding:13px 16px;box-shadow:0 1px 2px rgba(16,32,70,.04);}
+.strip .k{font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700;}
+.strip .v{font-family:inherit;font-weight:800;font-size:18px;color:var(--navy);margin-top:6px;line-height:1.05;}
+.strip .v.big{font-size:28px;}
+.strip .v.g{color:var(--green);} .strip .v.a{color:var(--amber);} .strip .v.r{color:var(--red);}
+.strip .pill.g{background:var(--gwash);color:var(--green);} .strip .pill.a{background:var(--awash);color:var(--amber);} .strip .pill.r{background:var(--rwash);color:var(--red);} .strip .pill.n{background:#eef1f6;color:var(--muted);}
 .pill{display:inline-block;font-size:12px;font-weight:800;padding:4px 12px;border-radius:20px;margin-top:4px;letter-spacing:.02em;}
 .pill.g{background:rgba(63,190,120,.18);color:#5fe0a0;} .pill.a{background:rgba(200,150,40,.2);color:#ffc861;} .pill.r{background:rgba(220,60,50,.2);color:#ff7a5c;} .pill.n{background:rgba(150,165,200,.16);color:#c3ccdf;}
 
@@ -189,12 +188,12 @@ tr.tot td.scoreval{color:var(--red);text-align:right;}
       <div class="pf"><label>Prepared By</label><input data-k="preparedBy" value="Van Rinn, President & Founder · 210-362-0678 · van@rrgcre.com"></div>
       <div class="pf"><label>Date</label><input data-k="date" placeholder="Month DD, YYYY"></div>
     </div>
-    <div class="strip">
-      <div class="c"><div class="k">Overall Fit</div><div class="v big" id="hScore">—</div></div>
-      <div class="c"><div class="k">Verdict</div><div><span class="pill n" id="hVerdict">—</span></div></div>
-      <div class="c"><div class="k">Occupancy Cost</div><div class="v" id="hOcc">—</div></div>
-      <div class="c"><div class="k">Est. Annual Sales</div><div class="v" id="hSales">—</div></div>
-    </div>
+  </div>
+  <div class="strip">
+    <div class="c"><div class="k">Overall Fit</div><div class="v big" id="hScore">—</div></div>
+    <div class="c"><div class="k">Verdict</div><div><span class="pill n" id="hVerdict">—</span></div></div>
+    <div class="c"><div class="k">Occupancy Cost</div><div class="v" id="hOcc">—</div></div>
+    <div class="c"><div class="k">Est. Annual Sales</div><div class="v" id="hSales">—</div></div>
   </div>
 
   <div class="inner">
