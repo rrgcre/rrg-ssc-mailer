@@ -277,6 +277,7 @@ function renderToolbar(){
     +'<span class="tblabel">Cards</span><div class="vtog"><button class="dbtn'+(DENSITY==='full'?' on':'')+'" data-density="full">Full</button><button class="dbtn'+(DENSITY==='compact'?' on':'')+'" data-density="compact">Compressed</button></div>'
     +'<div style="position:relative;display:inline-block"><button class="tbtn" id="tb_cardf">\u2699 Card fields \u25be</button><div id="cardfmenu"></div></div>'
     +'<div style="position:relative;display:inline-block"><button class="tbtn" id="tb_flags">\u2691 Card flags \u25be</button><div id="flagmenu"></div></div>'
+    +'<a class="tbtn" href="/market" target="_blank" rel="noopener" title="Open the public buyer-facing marketplace" style="margin-left:auto;text-decoration:none;border-color:#2c5c8f;color:#2c5c8f;font-weight:700">\u2197 Public marketplace</a>'
     +'</div>';
   document.getElementById('toolbar').innerHTML=html; var _nl=document.getElementById('tb_newlisting'); if(_nl) _nl.addEventListener('click',openListingModal); var _nld=document.getElementById('tb_newlead'); if(_nld) _nld.addEventListener('click',openLeadModal);
   renderFilterPanel();
