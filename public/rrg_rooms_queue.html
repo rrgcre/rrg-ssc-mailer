@@ -121,7 +121,39 @@ tr:hover td{background:#fbfcfe;}
 .rcreate{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:3px;padding:9px 16px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;}
 .rcreate:disabled{opacity:.55;cursor:default;}
 .rcancel{background:#fff;color:var(--muted);border:1px solid #c4ccda;border-radius:3px;padding:9px 14px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;}
+.fpbtn{width:100%;text-align:left;border:1px solid #c4ccda;border-radius:4px;padding:9px 11px;font:inherit;font-size:14px;color:var(--ink);background:#fff;cursor:pointer;}
+.fpbtn:hover{border-color:#9fb0cc;background:#f7f9fb;}
+.fpbtn.on{border-color:var(--navy);color:var(--navy);font-weight:700;background:#eef2f9;}
+.fpmode{display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-size:12.5px;color:#3a475f;padding-bottom:10px;border-bottom:1px solid var(--line);}
+.fpmode .fpmlbl{font-weight:700;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em;}
+.fpmode label{display:inline-flex;align-items:center;gap:5px;cursor:pointer;}
+.fpmode input{width:auto;}
+.fpbar{display:flex;align-items:center;gap:8px;padding:9px 0 6px;font-size:12px;}
+.fplink{background:none;border:none;color:#23496f;font:inherit;font-size:12px;font-weight:700;cursor:pointer;padding:0;}
+.fplink:hover{text-decoration:underline;} .fpsep{color:#c4ccda;}
+.fpcount{margin-left:auto;color:#8a93a8;font-weight:600;}
+.fptree{max-height:46vh;overflow:auto;border:1px solid var(--line);border-radius:6px;padding:6px 4px;}
+.fprow{display:flex;align-items:center;gap:8px;padding:4px 8px;font-size:13px;color:var(--ink);cursor:pointer;border-radius:4px;}
+.fprow:hover{background:#f4f7fb;}
+.fprow input{width:auto;margin:0;flex:none;}
+.fprow.d1{padding-left:30px;} .fprow.d2{padding-left:54px;color:#5a6478;font-size:12.5px;}
 </style>
+<div class="rmodal" id="folderPickModal" hidden>
+  <div class="rmodalcard" style="max-width:520px">
+    <div class="rmhd"><b>Choose folders</b><button class="rmx" type="button" onclick="fpClose()" aria-label="Close">&times;</button></div>
+    <div class="rmbd">
+      <div class="fpmode">
+        <span class="fpmlbl">Sub-periods under each year</span>
+        <label><input type="radio" name="fpmode" value="" checked onchange="fpSetMode(this.value)"> None</label>
+        <label><input type="radio" name="fpmode" value="months" onchange="fpSetMode(this.value)"> 12 months</label>
+        <label><input type="radio" name="fpmode" value="periods" onchange="fpSetMode(this.value)"> 13 periods</label>
+      </div>
+      <div class="fpbar"><button type="button" class="fplink" onclick="fpAll(true)">Select all</button><span class="fpsep">&middot;</span><button type="button" class="fplink" onclick="fpAll(false)">Clear all</button><span class="fpcount" id="fpCount"></span></div>
+      <div class="fptree" id="fpTree"></div>
+    </div>
+    <div class="rmft"><button class="rcreate" type="button" onclick="fpApply()">Use these folders</button><button class="rcancel" type="button" onclick="fpClose()">Cancel</button></div>
+  </div>
+</div>
 <div class="rmodal" id="newRoomModal" hidden>
   <div class="rmodalcard">
     <div class="rmhd"><b>New data room</b><button class="rmx" type="button" onclick="closeNewRoom()" aria-label="Close">×</button></div>
@@ -139,13 +171,17 @@ tr:hover td{background:#fbfcfe;}
         <div><label class="rfld">Date</label><input type="date" id="nr_date"></div>
       </div>
       <div class="rfldwrap" style="margin-top:2px">
-        <label class="rfld">Per-year subfolders <span style="font-weight:500;color:#8a93a8">— inside each Financials &amp; Tax Returns year</span></label>
-        <select id="nr_submode">
+        <label class="rfld">Per-year subfolders <span style="font-weight:500;text-transform:none;letter-spacing:0;color:var(--muted)">— inside each Financials &amp; Tax year</span></label>
+        <select id="nr_submode" onchange="_fpSyncMode()">
           <option value="">None</option>
           <option value="months">12 calendar months + Full Year (13)</option>
           <option value="periods">13 four-week periods + Full Year (14)</option>
         </select>
-        <div style="font-size:11px;color:#8a93a8;margin-top:5px;line-height:1.4">4-week periods are the standard restaurant fiscal calendar. You can add, rename, or remove folders anytime.</div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:7px;flex-wrap:wrap">
+          <button type="button" class="fplink" id="nr_customBtn" onclick="openFolderPick()">Customize folders&hellip;</button>
+          <span id="nr_folderState" style="font-size:11px;color:#8a93a8;font-weight:600">Standard set</span>
+          <button type="button" class="fplink" id="nr_resetFolders" onclick="fpReset()" style="display:none;color:#b23a2c">Reset</button>
+        </div>
       </div>
       <div class="rmsg" id="nr_msg"></div>
     </div>
@@ -163,7 +199,7 @@ function copyLink(id){ var url=LINKS[id]||''; if(!url) return; function ok(){ to
 function buyerView(id){ var url=LINKS[id]||''; if(!url){ url='./rrg_room.html?room='+encodeURIComponent(id); window.open(url,'_blank','noopener'); return; } url += (url.indexOf('?')>=0?'&':'?')+'preview=1'; window.open(url,'_blank','noopener'); }
 function newRoom(){
   var m=document.getElementById('newRoomModal'); if(!m) return;
-  document.getElementById('nr_name').value=''; var _sm=document.getElementById('nr_submode'); if(_sm) _sm.value='';
+  document.getElementById('nr_name').value=''; var _sm=document.getElementById('nr_submode'); if(_sm) _sm.value=''; SELECTED_FOLDERS=null; FP_MODE=''; if(typeof _fpState==='function') _fpState();
   document.getElementById('nr_contact').value='';
   var _nl=document.getElementById('nr_listing'); if(_nl) _nl.value='';
   var rep=document.getElementById('nr_rep');
@@ -193,6 +229,22 @@ function loadListingsOnce(){
     if(dl) dl.innerHTML=LISTINGS.map(function(a){ var lbl=a.business+(a.market?(' — '+a.market):''); return '<option value="'+esc(lbl)+'"></option>'; }).join('');
   }).catch(function(){ LISTINGS_LOADED=false; });
 }
+function _fpSyncMode(){ var d=document.getElementById('nr_submode'); FP_MODE=d?d.value:''; SELECTED_FOLDERS=null; _fpState(); }
+var SELECTED_FOLDERS=null, FP_MODE='', FP_CHK={};
+var FP_YEARS=(function(){ var y=(new Date()).getFullYear(); return [y,y-1,y-2,y-3,y-4]; })();
+var FP_MONTHS=['01 January','02 February','03 March','04 April','05 May','06 June','07 July','08 August','09 September','10 October','11 November','12 December'];
+var FP_PERIODS=['Period 01','Period 02','Period 03','Period 04','Period 05','Period 06','Period 07','Period 08','Period 09','Period 10','Period 11','Period 12','Period 13'];
+var FP_TOPS=[['Financials',1],['Tax Returns',1],['Lease',0],['Equipment & FF&E',0],['Staffing & Payroll',0],['Licenses & Permits',0],['Legal & Corporate',0],['Menus & Marketing',0],['Photos',0],['Other',0]];
+function _fpCandidates(){ var c=[]; FP_TOPS.forEach(function(t){ c.push({path:t[0],depth:0,def:true}); if(t[1]){ FP_YEARS.forEach(function(y){ var yp=t[0]+' / '+y; c.push({path:yp,depth:1,def:true}); if(FP_MODE){ var labs=(FP_MODE==='periods')?FP_PERIODS:FP_MONTHS; labs.forEach(function(m){ c.push({path:yp+' / '+m,depth:2,def:true}); }); c.push({path:yp+' / Full Year',depth:2,def:true}); } }); } }); return c; }
+function _fpState(){ var st=document.getElementById('nr_folderState'), rs=document.getElementById('nr_resetFolders'); if(SELECTED_FOLDERS&&SELECTED_FOLDERS.length){ if(st){ st.textContent='Custom \u2014 '+SELECTED_FOLDERS.length+' folders'; st.style.color='#23496f'; } if(rs) rs.style.display=''; } else { if(st){ st.textContent='Standard set'; st.style.color='#8a93a8'; } if(rs) rs.style.display='none'; } }
+function fpReset(){ SELECTED_FOLDERS=null; _fpState(); }
+function openFolderPick(){ var d=document.getElementById('nr_submode'); FP_MODE=d?d.value:''; try{ document.querySelectorAll('input[name=fpmode]').forEach(function(r){ r.checked=(r.value===FP_MODE); }); }catch(e){} var cand=_fpCandidates(); FP_CHK={}; if(SELECTED_FOLDERS&&SELECTED_FOLDERS.length){ var sel={}; SELECTED_FOLDERS.forEach(function(p){ sel[p]=1; }); cand.forEach(function(x){ FP_CHK[x.path]=!!sel[x.path]; }); } else { cand.forEach(function(x){ FP_CHK[x.path]=x.def; }); } _fpRender(); var m=document.getElementById('folderPickModal'); if(m) m.removeAttribute('hidden'); }
+function fpClose(){ var m=document.getElementById('folderPickModal'); if(m) m.setAttribute('hidden',''); }
+function fpSetMode(v){ FP_MODE=v||''; var cand=_fpCandidates(); cand.forEach(function(x){ if(!(x.path in FP_CHK)) FP_CHK[x.path]=x.def; }); _fpRender(); }
+function _fpRender(){ var cand=_fpCandidates(), host=document.getElementById('fpTree'); if(!host) return; var n=0; host.innerHTML=cand.map(function(x){ var on=!!FP_CHK[x.path]; if(on) n++; var lbl=x.path.split(' / ').slice(-1)[0]; return '<label class="fprow d'+x.depth+'"><input type="checkbox" data-fp="'+encodeURIComponent(x.path)+'"'+(on?' checked':'')+'><span>'+esc(lbl)+'</span></label>'; }).join(''); var cc=document.getElementById('fpCount'); if(cc) cc.textContent=n+' of '+cand.length+' selected'; }
+function fpAll(on){ _fpCandidates().forEach(function(x){ FP_CHK[x.path]=!!on; }); _fpRender(); }
+function fpApply(){ var cand=_fpCandidates(), set={}, out=[]; cand.forEach(function(x){ if(FP_CHK[x.path]){ var acc=''; x.path.split(' / ').forEach(function(sg){ acc=acc?(acc+' / '+sg):sg; set[acc]=1; }); } }); cand.forEach(function(x){ if(set[x.path]){ out.push(x.path); delete set[x.path]; } }); Object.keys(set).forEach(function(k){ out.push(k); }); SELECTED_FOLDERS=out; var d=document.getElementById('nr_submode'); if(d) d.value=FP_MODE; _fpState(); fpClose(); }
+document.addEventListener('change',function(e){ var t=e.target; if(!(t&&t.matches&&t.matches('#fpTree input[type=checkbox]'))) return; var p=decodeURIComponent(t.getAttribute('data-fp')||''); if(!p) return; FP_CHK[p]=t.checked; if(t.checked){ var acc=''; p.split(' / ').forEach(function(sg){ acc=acc?(acc+' / '+sg):sg; FP_CHK[acc]=true; }); } else { Object.keys(FP_CHK).forEach(function(k){ if(k===p||k.indexOf(p+' / ')===0) FP_CHK[k]=false; }); } _fpRender(); });
 function createRoomSubmit(){
   var msg=document.getElementById('nr_msg'); msg.style.color='';
   var name=document.getElementById('nr_name').value.trim();
@@ -202,7 +254,7 @@ function createRoomSubmit(){
   var pid=''; if(cname){ var hit=CONTACTS.filter(function(p){ return String(p.name||'').trim().toLowerCase()===cname.toLowerCase(); })[0]; if(hit) pid=hit.id; }
   var lval=(document.getElementById('nr_listing')?document.getElementById('nr_listing').value:'').trim(); var lkey='', llabel='';
   if(lval){ var lh=LISTINGS.filter(function(a){ var full=(a.business+(a.market?(' — '+a.market):'')).toLowerCase(); return full===lval.toLowerCase() || String(a.business||'').trim().toLowerCase()===lval.toLowerCase(); })[0]; if(lh){ lkey=lh.key; llabel=lh.business||''; } }
-  var body={ business:name, personId:pid, personName:(pid?'':cname), byUser:(document.getElementById('nr_rep').value||''), date:(document.getElementById('nr_date').value||''), listingKey:lkey, listingLabel:llabel, subfolderMode:(document.getElementById('nr_submode')?document.getElementById('nr_submode').value:'') };
+  var body={ business:name, personId:pid, personName:(pid?'':cname), byUser:(document.getElementById('nr_rep').value||''), date:(document.getElementById('nr_date').value||''), listingKey:lkey, listingLabel:llabel, subfolderMode:(document.getElementById('nr_submode')?document.getElementById('nr_submode').value:''), folders:(SELECTED_FOLDERS&&SELECTED_FOLDERS.length?SELECTED_FOLDERS:null) };
   var btn=document.getElementById('nr_create'); btn.disabled=true; btn.textContent='Creating…'; msg.textContent='';
   fetch('/api/room/new',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
     .then(function(r){return r.json();}).then(function(j){

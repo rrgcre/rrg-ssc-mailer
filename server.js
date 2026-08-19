@@ -3416,6 +3416,22 @@ function roomFolderMonths(folders, mode){
   });
   return out;
 }
+// Sanitize an explicit folder list chosen in the create-room folder picker: clean each
+// path, auto-include every ancestor so nesting is intact, dedupe (case-insensitive), cap.
+function _sanitizeRoomFolders(list){
+  const out = []; const seen = {};
+  (Array.isArray(list) ? list : []).forEach(function(raw){
+    const f = _cleanFolderName(raw); if (!f) return;
+    let acc = '';
+    f.split(' / ').forEach(function(seg){
+      seg = seg.trim(); if (!seg) return;
+      acc = acc ? (acc + ' / ' + seg) : seg;
+      const k = acc.toLowerCase();
+      if (!seen[k]) { seen[k] = 1; out.push(acc); }
+    });
+  });
+  return out.slice(0, 500);
+}
 function roomServeCats(r){
   let base = (r && Array.isArray(r.folders) && r.folders.length) ? r.folders.slice() : roomCategories();
   (r && Array.isArray(r.docs) ? r.docs : []).forEach(function(d){ const c = d && d.category; if (c && base.indexOf(c) < 0) base.push(c); });
@@ -3788,7 +3804,7 @@ app.post('/api/room/new', express.json(), (req, res) => {
     personId: personId || '', companyId: companyId || '',
     listingKey: listingKey, listingLabel: listingLabel,
     by: by, byUser: byUser,
-    createdAt: createdAt, folders: ((b.subfolderMode === 'months' || b.subfolderMode === 'periods') ? roomFolderMonths(roomCategories(), b.subfolderMode) : roomCategories()), docs: [], access: [], grants: [],
+    createdAt: createdAt, folders: ((Array.isArray(b.folders) && b.folders.length) ? _sanitizeRoomFolders(b.folders) : ((b.subfolderMode === 'months' || b.subfolderMode === 'periods') ? roomFolderMonths(roomCategories(), b.subfolderMode) : roomCategories())), docs: [], access: [], grants: [],
   };
   const arr = loadRooms(); arr.push(rec); saveRooms(arr);
   res.json({ ok: true, id: rec.id });
