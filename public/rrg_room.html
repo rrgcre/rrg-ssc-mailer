@@ -769,21 +769,6 @@ function _rmApplyCollapse(){ var raw=null; try{ raw=localStorage.getItem(_RMKEY)
 function rmToggle(hd){ var c=hd&&hd.closest?hd.closest('.card'):null; if(c){ c.classList.toggle('collapsed'); _rmSaveCollapse(); } }
 if(document.readyState!=='loading'){ _rmApplyCollapse(); } else { document.addEventListener('DOMContentLoaded', _rmApplyCollapse); }
 function _docRow(d){ var dl=Number(d.downloads)||0; var dlTxt=dl?(' \u00b7 '+dl+' download'+(dl===1?'':'s')):''; return '<div class="docrow"><span class="ext">'+fileIcon(d.ext)+'</span><div style="flex:1"><div class="dt">'+esc(d.title||d.originalName)+'</div><div class="dm">'+esc(fmtBytes(d.size))+' \u00b7 added '+esc(fmtWhen(d.uploadedAt))+(d.by?(' \u00b7 '+esc(d.by)):'')+dlTxt+'</div></div><a class="view" href="/roomfile/'+esc(ROOM.token)+'/'+esc(d.id)+'" target="_blank" rel="noopener">View</a><button class="x" onclick="openDocAccess(\''+d.id+'\')" title="Set which buyers can see this file">Access</button><button class="x" onclick="delDoc(\''+d.id+'\')">Remove</button></div>'; }
-function renderDocs(){
-  var el=document.getElementById('docList'); if(!el) return; var cats=(ROOM.categories||[]), docs=(ROOM.docs||[]);
-  var tops=cats.filter(function(c){ return String(c).indexOf(' / ')<0; });
-  var subs={}; cats.forEach(function(c){ var i=String(c).indexOf(' / '); if(i>=0){ var par=c.slice(0,i).trim(); (subs[par]=subs[par]||[]).push(c); } });
-  function filesIn(cat){ return docs.filter(function(d){ return (d.category||'Other')===cat; }); }
-  el.innerHTML=tops.map(function(cat){
-    var own=filesIn(cat), mySubs=subs[cat]||[]; var subCount=0; mySubs.forEach(function(sc){ subCount+=filesIn(sc).length; });
-    var total=own.length+subCount; var body='';
-    if(own.length){ body+=own.map(_docRow).join(''); } else if(!mySubs.length){ body+='<div class="catempty">No files in this section yet.</div>'; }
-    mySubs.forEach(function(sc){ var sf=filesIn(sc), label=String(sc).split(' / ').slice(1).join(' / ');
-      var srows=sf.length? sf.map(_docRow).join('') : '<div class="catempty">No files in this section yet.</div>';
-      body+='<div class="subcat'+(sf.length?' open':'')+'"><div class="cathd sub" onclick="toggleCat(this)"><span class="cav">\u25b8</span>'+esc(label)+'<span class="n">'+sf.length+'</span></div><div class="catbody">'+srows+'</div></div>'; });
-    return '<div class="cat'+(total>0?' open':'')+'"><div class="cathd" onclick="toggleCat(this)"><span class="cav">\u25b8</span>'+esc(cat)+'<span class="n">'+total+'</span></div><div class="catbody">'+body+'</div></div>';
-  }).join('');
-}
 applyAiName();
 function _folderOpts(cur){ return ((window.ROOM&&ROOM.categories)||[]).map(function(c){ return '<option value="'+esc(c)+'"'+(String(c)===String(cur)?' selected':'')+'>'+esc(c)+'</option>'; }).join(''); }
 function moveDoc(id,cat){ if(!id) return; cat=cat||''; fetch('/api/room/'+encodeURIComponent(RID)+'/move-doc',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:id,category:cat})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ROOM.docs=j.docs||ROOM.docs; renderDocs(); toast('Moved \u2713'); } else alert((j&&j.error)||'Could not move the file.'); }).catch(function(){ alert('Could not reach the server.'); }); }
