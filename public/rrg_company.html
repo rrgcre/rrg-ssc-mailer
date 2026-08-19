@@ -1165,15 +1165,19 @@ function mkTagField(hostId, initial, suggestions, onChange){
 function openContactForm(){
   var f=document.getElementById('contactForm');
   var ptsel='<option value="">— select —</option>'+PTYPES.map(function(t){return '<option'+((C&&C.type&&t===C.type)?' selected':'')+'>'+esc(t)+'</option>';}).join('');
+  var _PTS=(PTYPES&&PTYPES.length)?PTYPES:['Buying','Selling','Investing','Referring','Working','Other'];
+  var ptChips=_PTS.map(function(t){return '<label class="cttypechip"><input type="checkbox" class="ct_typechk" value="'+esc(t)+'">'+esc(t)+'</label>';}).join('');
+  if(!document.getElementById('cttypecss')){var _st=document.createElement('style');_st.id='cttypecss';_st.textContent='.cttypechips{display:flex;flex-wrap:wrap;gap:7px}.cttypechip{display:inline-flex;align-items:center;gap:6px;border:1px solid #cfd6e2;border-radius:100px;padding:6px 12px;font-size:12.5px;font-weight:600;color:#3a4560;cursor:pointer;background:#fff}.cttypechip input{margin:0}.cttypechip.on{background:#eef4ff;border-color:#2f5bd0;color:#23496f}#ct_refbyrow{grid-column:1/-1}';document.head.appendChild(_st);}
   var LEADSRC=(LEADSOURCES&&LEADSOURCES.length)?LEADSOURCES:['Referral','Cold Call','Website','CoStar','LoopNet','Walk-in','Event / Networking','Existing Client','Social Media','Other']; var leadOpts=LEADSRC.map(function(x){return '<option value="'+esc(x)+'">';}).join(''); var titleOpts=(TITLES||[]).map(function(x){return '<option value="'+esc(x)+'">';}).join('');
   f.innerHTML='<div class="cform"><div class="cgrid">'
     +'<div class="wide"><label class="fld">Headshot</label><div style="display:flex;align-items:center;gap:12px"><div id="ct_photoprev" style="width:56px;height:56px;border-radius:50%;background:#eef1f6 center/cover no-repeat;border:1px solid #dfe4ec;flex:none;display:flex;align-items:center;justify-content:center;color:#9aa4b6;font-size:22px">\uD83D\uDC64</div><label class="phadd" style="cursor:pointer">+ Add headshot<input type="file" id="ct_photo" accept="image/*" hidden></label><button type="button" id="ct_photormv" style="display:none;background:none;border:none;color:#8a93a8;cursor:pointer;font-size:12px">Remove</button></div></div>'
     +'<div><label class="fld">First name *</label><input id="ct_first" placeholder="First"></div>'
     +'<div><label class="fld">Last name *</label><input id="ct_last" placeholder="Last"></div>'
-    +'<div><label class="fld">Main Interests *</label><select id="ct_type">'+ptsel+'</select></div>'
+    +'<div class="wide"><label class="fld">Main Interests * <span style="font-weight:400;color:#8a93a8;font-size:11px">\u2014 pick all that apply</span></label><div id="ct_type" class="cttypechips">'+ptChips+'</div></div>'
     +'<div><label class="fld">Title / role</label><input id="ct_title" list="ct_titlelist" autocomplete="off" placeholder="Owner, partner, GM…"><datalist id="ct_titlelist">'+titleOpts+'</datalist></div>'
     +'<div><label class="fld">Nickname</label><input id="ct_nick" placeholder="Optional"></div>'
-    +'<div><label class="fld">Lead source</label><input id="ct_lead" list="ct_leadlist" autocomplete="off" placeholder="Referral, CoStar, event"><datalist id="ct_leadlist">'+leadOpts+'</datalist></div>'
+    +'<div><label class="fld">Lead source</label><select id="ct_lead" onchange="ctToggleRef()"><option value="">\u2014 select \u2014</option>'+LEADSRC.map(function(x){return '<option>'+esc(x)+'</option>';}).join('')+'</select></div>'
+    +'<div id="ct_refbyrow" hidden><label class="fld">Referring source</label><input id="ct_refby" autocomplete="off" placeholder="Name, company, or contact who referred them"></div>'
     +'<div class="wide"><label class="fld">Emails</label>'+multiFieldHtml('ct_email',[],'name@email.com')+'</div>'
     +'<div class="wide"><label class="fld">Phones</label>'+multiFieldHtml('ct_phone',[],'(555) 555-5555')+'</div>'
     +'<div class="wide"><label class="fld">Preferred contact method</label><div style="display:flex;gap:18px;font-size:13px;padding:4px 0 2px"><label style="display:inline-flex;align-items:center;gap:5px"><input type="checkbox" class="ct_pref" value="phone"> Phone</label><label style="display:inline-flex;align-items:center;gap:5px"><input type="checkbox" class="ct_pref" value="text"> Text</label><label style="display:inline-flex;align-items:center;gap:5px"><input type="checkbox" class="ct_pref" value="email"> Email</label></div></div>'
@@ -1187,6 +1191,7 @@ function openContactForm(){
   document.getElementById('ct_cancel').addEventListener('click',function(){ f.setAttribute('hidden',''); f.innerHTML=''; CT_TAGF=null; CT_PHOTO=null; });
   CT_TAGF=mkTagField('ct_tags', [], ALLTAGS);
   document.getElementById('ct_first').focus();
+  (function(){ var _ce=document.getElementById('ct_type'); if(_ce) _ce.addEventListener('change',function(e){ var t=e.target; if(t&&t.classList&&t.classList.contains('ct_typechk')){ var l=t.closest('.cttypechip'); if(l) l.classList.toggle('on',t.checked); } }); })();
 }
 // Link an existing contact from your book to this company — search, click, linked (no dupe).
 function openLinkContact(){
@@ -1207,14 +1212,17 @@ function openLinkContact(){
 }
 function linkExistingContact(pid,name,confirm){ var msg=document.getElementById('lc_msg'); if(msg){ msg.style.color='#6b7488'; msg.textContent='Linking '+(name||'contact')+'…'; }
   fetch('/api/company/'+encodeURIComponent(ID)+'/contact/'+encodeURIComponent(pid)+'/link',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({confirm:!!confirm})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ CONTACTS=j.contacts||[]; var f=document.getElementById('contactForm'); if(f){ f.setAttribute('hidden',''); f.innerHTML=''; } render(); if(window.rrgToast) rrgToast('Linked '+(name||'contact')+' to '+((C&&C.name)||'this company')+' ✓'); } else if(j&&j.needsConfirm){ if(msg) msg.textContent=''; (window.rrgConfirm?rrgConfirm((name||'This contact')+' is currently linked to '+(j.currentCompany||'another company')+'. Move them to '+((C&&C.name)||'this company')+'?',{title:'Move contact?',okText:'Move here'}):Promise.resolve(confirm(name+' is linked to '+j.currentCompany+'. Move?'))).then(function(ok){ if(ok) linkExistingContact(pid,name,true); }); } else { if(msg){ msg.style.color='#DA2B1F'; msg.textContent=(j&&j.error)||'Could not link.'; } } }).catch(function(){ if(msg){ msg.style.color='#DA2B1F'; msg.textContent='Could not reach the server.'; } }); }
+function ctToggleRef(){ var v=(document.getElementById('ct_lead')||{}).value||''; var r=document.getElementById('ct_refbyrow'); if(!r) return; if(/referr/i.test(v)){ r.removeAttribute('hidden'); } else { r.setAttribute('hidden',''); var i=document.getElementById('ct_refby'); if(i) i.value=''; } }
 function saveContact(){
   var f=document.getElementById('contactForm'), msg=document.getElementById('ct_msg');
-  var first=document.getElementById('ct_first').value.trim(), last=document.getElementById('ct_last').value.trim(), type=document.getElementById('ct_type').value;
+  var first=document.getElementById('ct_first').value.trim(), last=document.getElementById('ct_last').value.trim();
+  var types=[]; f.querySelectorAll('#ct_type .ct_typechk:checked').forEach(function(c){ types.push(c.value); });
   if(!first||!last){ msg.textContent='First and last name are required.'; return; }
-  if(!type){ msg.textContent='Pick a main interest.'; return; }
+  if(!types.length){ msg.textContent='Pick at least one main interest.'; return; }
   var pref=[]; f.querySelectorAll('.ct_pref').forEach(function(c){ if(c.checked) pref.push(c.value); });
   var tags=CT_TAGF?CT_TAGF.get():[];
-  var body={ firstName:first, lastName:last, type:type, title:document.getElementById('ct_title').value.trim(), nickname:document.getElementById('ct_nick').value.trim(), leadSource:document.getElementById('ct_lead').value.trim(), tags:tags, prefContact:pref, emails:collectMulti(f,'ct_email'), phones:collectMulti(f,'ct_phone') };
+  var _lead=(document.getElementById('ct_lead')||{}).value||''; var _ref=/referr/i.test(_lead)?(((document.getElementById('ct_refby')||{}).value||'').trim()):'';
+  var body={ firstName:first, lastName:last, types:types, type:types[0], title:document.getElementById('ct_title').value.trim(), nickname:document.getElementById('ct_nick').value.trim(), leadSource:_lead, referredBy:_ref, tags:tags, prefContact:pref, emails:collectMulti(f,'ct_email'), phones:collectMulti(f,'ct_phone') };
   var b=document.getElementById('ct_save'); b.disabled=true; b.textContent='Saving…';
   fetch('/api/company/'+encodeURIComponent(ID)+'/contact',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
     .then(async function(r){return r.json();}).then(async function(j){ if(j&&j.ok){ if(CT_PHOTO&&j.personId){ var _ph=CT_PHOTO; CT_PHOTO=null; fetch('/api/person/'+encodeURIComponent(j.personId)+'/photo',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(_ph)}).then(function(r2){return r2.json();}).then(function(pj){ CONTACTS=j.contacts||[]; if(pj&&pj.ok&&pj.photoUrl){ var cc=CONTACTS.filter(function(x){return x.id===j.personId;})[0]; if(cc){ cc.photoUrl=pj.photoUrl; cc.hasPhoto=true; } } render(); }).catch(function(){ CONTACTS=j.contacts||[]; render(); }); } else { CONTACTS=j.contacts||[]; render(); } } else if(j&&j.existingId){ b.disabled=false;b.textContent='Save'; if(await rrgConfirm((j.error||'That email already exists.')+'\n\nOpen that contact?')) location.href='./rrg_person.html?id='+encodeURIComponent(j.existingId); } else { b.disabled=false;b.textContent='Save'; msg.textContent=(j&&j.error)||'Could not add the contact.'; } })
