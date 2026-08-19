@@ -8679,7 +8679,8 @@ function _storeReviewFile(revId, filename, buf) { try { if (!buf || !buf.length 
 async function _scanSpacesForUser(username, byName, days, skipIds, onProgress) {
   if (!gmail.statusFor(username).connected) return { ok: false, error: 'Gmail not connected', created: 0, scanned: 0, results: [], processedIds: [] };
   const skip = new Set(Array.isArray(skipIds) ? skipIds : []);
-  const cands = await gmail.listListingCandidates(username, 50, days);
+  let _srcList = []; try { const _r = (loadSpacePoll()[username]) || {}; if (Array.isArray(_r.sources)) _srcList = _r.sources; } catch (e) {}
+  const cands = await gmail.listListingCandidates(username, 50, days, _srcList);
   const arr = loadSpaces();
   const centers = loadCenters(); let centersDirty = false; let centersMade = 0;
   const review = loadSpaceReview(); let reviewDirty = false; let reviewMade = 0;
@@ -8807,7 +8808,7 @@ function loadSpacePoll() { try { return rj(SPACEPOLL_FILE) || {}; } catch (e) { 
 function saveSpacePoll(o) { return writeJsonGuarded(SPACEPOLL_FILE, o, 'saveSpacePoll'); }
 app.get('/api/spaces/scan-poll', (req, res) => {
   const u = (req.user && req.user.username) || ''; const rec = (loadSpacePoll()[u]) || {};
-  res.json({ ok: true, enabled: !!rec.enabled, intervalMin: rec.intervalMin || 30, days: rec.days || 30, connected: gmail.statusFor(u).connected, configured: gmail.isConfigured(), lastRun: rec.lastRun || '', lastCount: rec.lastCount || 0 });
+  res.json({ ok: true, enabled: !!rec.enabled, intervalMin: rec.intervalMin || 30, days: rec.days || 30, sources: Array.isArray(rec.sources) ? rec.sources : [], connected: gmail.statusFor(u).connected, configured: gmail.isConfigured(), lastRun: rec.lastRun || '', lastCount: rec.lastCount || 0 });
 });
 app.post('/api/spaces/scan-poll', express.json(), (req, res) => {
   const u = (req.user && req.user.username) || ''; if (!u) return res.status(401).json({ ok: false, error: 'Sign in required.' });
@@ -8815,6 +8816,7 @@ app.post('/api/spaces/scan-poll', express.json(), (req, res) => {
   if (typeof b.enabled === 'boolean') rec.enabled = b.enabled;
   if (b.intervalMin != null) { const m = parseInt(b.intervalMin, 10); rec.intervalMin = (isFinite(m) && m >= 5) ? Math.min(m, 720) : 30; }
   if (b.days != null) { const d = parseInt(b.days, 10); if (isFinite(d)) rec.days = Math.max(1, Math.min(365, d)); }
+  if (b.sources !== undefined) { const raw = Array.isArray(b.sources) ? b.sources : String(b.sources || '').split(/[\s,;\n]+/); rec.sources = raw.map(x => String(x).trim().toLowerCase().replace(/^from:/, '').replace(/[<>]/g, '')).filter(x => x && x.indexOf('.') > 0 && x.length < 120).slice(0, 40); }
   store[u] = rec; saveSpacePoll(store);
   res.json({ ok: true, enabled: !!rec.enabled, intervalMin: rec.intervalMin || 30, days: rec.days || 30 });
 });
