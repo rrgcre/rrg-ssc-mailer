@@ -101,7 +101,7 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .addbtn.ghost{background:#fff;color:var(--navy);border-color:#cdd6e6;}
 .ch .chact{margin-left:auto;display:flex;align-items:center;gap:7px;}
 .ch .chsep{width:1px;height:16px;background:var(--line);flex:none;}
-.cocount{font-size:11px;color:#8a93a8;font-weight:600;padding:1px 2px 9px;letter-spacing:.01em;}
+.cocount{font-size:11px;color:#8a93a8;font-weight:600;padding:2px 16px 9px;letter-spacing:.01em;}
 .chbtn{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 12px;background:#fff;color:var(--navy);border:1px solid #cdd6e6;border-radius:8px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;transition:background .12s,border-color .12s;}
 .chbtn:hover{background:var(--wash);border-color:#b4c0d6;}
 .chbtn svg{opacity:.7;}
@@ -584,7 +584,7 @@ function render(){
     return '<div class="cptblock commblock'+(open?' open':'')+'"><div class="cptbar" data-cpt="__commissary__"><span class="cptchev">▸</span><span class="cptlogo cptlogo-mono" style="background:#fdf0e6;color:#b5641a">⛏</span><div class="cptname">Commissaries &amp; shared kitchens <span class="cptcount">'+commissaries.length+'</span><span class="cptmkts">serve across concepts</span></div><div class="cptacts"><button class="mini" data-addcomm="1">+ Commissary</button></div></div><div class="cptlocs">'+rows+'</div></div>';
   }
   var locs;
-  if(!CONCEPTS.length && !LOCATIONS.length){ locs='<div class="empty">No concepts yet. A company runs one or more concepts (brands) — e.g. a group with Cane Rosso, Zoli’s, and Thunderbird. Add a concept, then add or auto-find its locations.</div>'; }
+  if(!CONCEPTS.length && !LOCATIONS.length){ locs='<div class="empty" style="padding:8px 16px 14px">No concepts yet. A company runs one or more concepts (brands) — e.g. a group with Cane Rosso, Zoli’s, and Thunderbird. Add a concept, then add or auto-find its locations.</div>'; }
   else {
     locs=CONCEPTS.map(conceptBlock).join('');
     if(commissaries.length) locs+=commissaryBlock();
