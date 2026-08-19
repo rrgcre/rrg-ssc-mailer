@@ -270,6 +270,9 @@ function bulkUpload(dropped){
 </script>
 <script>
 var RID=(new URLSearchParams(location.search)).get('room')||'';
+var FOLDOPEN=(function(){ try{ return JSON.parse(localStorage.getItem('rrgFold_'+RID)||'{}')||{}; }catch(e){ return {}; } })();
+function _foldOpen(p){ return !!FOLDOPEN[p]; }
+function _saveFold(){ try{ localStorage.setItem('rrgFold_'+RID, JSON.stringify(FOLDOPEN)); }catch(e){} }
 var ROOM=null;
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function fmtBytes(n){ n=Number(n)||0; if(n<1024) return n+' B'; if(n<1048576) return (n/1024).toFixed(0)+' KB'; return (n/1048576).toFixed(1)+' MB'; }
@@ -315,11 +318,11 @@ function folderNodeHtml(node, depth){
   var docsHtml=node.docs.length? node.docs.map(docRowHtml).join('') : (node.order.length?'':'<div class="catempty">No files in this folder yet.</div>');
   var cls=(depth>=2)?'subcat':'cat';
   var ctrls='<span class="fctrls"><button class="fbtn" data-fact="sub" data-fp="'+esc(node.path)+'">+ Subfolder</button><button class="fbtn" data-fact="ren" data-fp="'+esc(node.path)+'">Rename</button><button class="fbtn danger" data-fact="del" data-fp="'+esc(node.path)+'">Delete</button></span>';
-  return '<div class="'+cls+'"><div class="cathd"><span class="cav" data-tog="1">\u25b8</span><span class="fnm">'+esc(node.name)+'</span><span class="n">'+_countDocs(node)+'</span>'+ctrls+'</div><div class="catbody">'+docsHtml+kids+(node.path==='Lease'?leaseFlagHtml():'')+'</div></div>';
+  return '<div class="'+cls+(_foldOpen(node.path)?' open':'')+'" data-fp="'+esc(node.path)+'"><div class="cathd"><span class="cav" data-tog="1">\u25b8</span><span class="fnm">'+esc(node.name)+'</span><span class="n">'+_countDocs(node)+'</span>'+ctrls+'</div><div class="catbody">'+docsHtml+kids+(node.path==='Lease'?leaseFlagHtml():'')+'</div></div>';
 }
 function _wireDocList(el){ if(el._wired) return; el._wired=1;
   el.addEventListener('change',function(e){ var t=e.target; if(t&&t.classList&&t.classList.contains('movesel')){ moveDoc(t.getAttribute('data-mv'), t.value); } });
-  el.addEventListener('click',function(e){ var t=e.target&&e.target.closest?e.target.closest('[data-fact],[data-del],[data-acc],[data-ren],[data-tog]'):null; if(!t) return; if(t.hasAttribute('data-del')){ delDoc(t.getAttribute('data-del')); return; } if(t.hasAttribute('data-acc')){ openDocAccess(t.getAttribute('data-acc')); return; } if(t.hasAttribute('data-ren')){ renameDoc(t.getAttribute('data-ren')); return; } if(t.hasAttribute('data-tog')){ var c=t.closest('.cat,.subcat'); if(c) c.classList.toggle('open'); return; } var act=t.getAttribute('data-fact'), fp=t.getAttribute('data-fp'); if(act==='new') addFolder(); else if(act==='sub') addSubfolder(fp); else if(act==='ren') renameFolder(fp); else if(act==='del') deleteFolder(fp); });
+  el.addEventListener('click',function(e){ var t=e.target&&e.target.closest?e.target.closest('[data-fact],[data-del],[data-acc],[data-ren],[data-tog]'):null; if(!t) return; if(t.hasAttribute('data-del')){ delDoc(t.getAttribute('data-del')); return; } if(t.hasAttribute('data-acc')){ openDocAccess(t.getAttribute('data-acc')); return; } if(t.hasAttribute('data-ren')){ renameDoc(t.getAttribute('data-ren')); return; } if(t.hasAttribute('data-tog')){ var c=t.closest('.cat,.subcat'); if(c){ c.classList.toggle('open'); var _p=c.getAttribute('data-fp'); if(_p){ if(c.classList.contains('open')) FOLDOPEN[_p]=1; else delete FOLDOPEN[_p]; _saveFold(); } } return; } var act=t.getAttribute('data-fact'), fp=t.getAttribute('data-fp'); if(act==='new') addFolder(); else if(act==='sub') addSubfolder(fp); else if(act==='ren') renameFolder(fp); else if(act==='del') deleteFolder(fp); });
 }
 function renderDocs(){
   var el=document.getElementById('docList'); if(!el) return; _wireDocList(el);
