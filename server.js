@@ -6290,6 +6290,7 @@ try { seedBizSalesStages(); } catch (e) { console.error('seed biz sales:', e && 
 try { seedUnqualifiedStage(); } catch (e) { console.error('seed unqualified:', e && e.message); }
 try { seedBuyerPipeline(); } catch (e) { console.error('seed buyer pipeline:', e && e.message); }
 try { maskPayrollSsns(); } catch (e) { console.error('mask payroll ssn:', e && e.message); }
+try { const _sss = loadSettings(); if (_sss.spaceScanSources === undefined) { _sss.spaceScanSources = ['cbre.com','jll.com','cushmanwakefield.com','colliers.com','marcusmillichap.com','nmrk.com','kidder.com','srsre.com','streetsense.com','loopnet.com','crexi.com','costar.com']; saveSettings(_sss); console.log('Seeded default Space Tracker flyer sources.'); } } catch (e) { console.error('seed space sources:', e && e.message); }
 // A company is starred iff at least one of its contacts is starred. One-time backfill to bring
 // existing data in line with that rule (contact-star changes keep it in sync from then on).
 function reconcileCompanyStarsOnce() {
