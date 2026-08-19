@@ -4,28 +4,21 @@
 const API_URL = 'https://api.anthropic.com/v1/messages';
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5';
 
-async function callClaude(system, userText, maxTokens) {
+async function _callCore(system, content, maxTokens) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new Error('AI is not configured — set the Anthropic API key in Admin → Settings.');
   const body = JSON.stringify({
     model: MODEL, max_tokens: maxTokens || 1500, temperature: 0,
     system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
-    messages: [{ role: 'user', content: [{ type: 'text', text: userText }] }],
+    messages: [{ role: 'user', content: content }],
   });
-  // Retry once on connection-level failures ("fetch failed"), with a hard timeout so
-  // the request fails clean instead of hanging. HTTP/API errors surface immediately.
   let lastConnErr = null;
   for (let attempt = 0; attempt < 2; attempt++) {
     if (attempt) await new Promise(r => setTimeout(r, 700));
     const ctrl = new AbortController();
     const timer = setTimeout(() => { try { ctrl.abort(); } catch (e) {} }, 90000);
     try {
-      const resp = await fetch(API_URL, {
-        method: 'POST',
-        headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-        body,
-        signal: ctrl.signal,
-      });
+      const resp = await fetch(API_URL, { method: 'POST', headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' }, body, signal: ctrl.signal });
       clearTimeout(timer);
       if (!resp.ok) { const t = await resp.text().catch(() => ''); throw new Error('AI service error ' + resp.status + ': ' + t.slice(0, 300)); }
       const data = await resp.json();
@@ -34,15 +27,37 @@ async function callClaude(system, userText, maxTokens) {
       clearTimeout(timer);
       const msg = String((e && e.message) || e);
       const isConn = (e && e.name === 'AbortError') || /fetch failed|network|socket|ECONN|ETIMEDOUT|EAI_AGAIN|ENOTFOUND|UND_ERR|terminated|aborted|timeout/i.test(msg);
-      if (!isConn) throw e;            // real API/HTTP error — don't retry, surface it
+      if (!isConn) throw e;
       lastConnErr = e;
       if (attempt === 1) throw new Error('Couldn’t reach the AI service — check the server’s network and Anthropic API key, then try again.');
     }
   }
   throw lastConnErr || new Error('Couldn’t reach the AI service.');
 }
+async function callClaude(system, userText, maxTokens) { return _callCore(system, [{ type: 'text', text: String(userText || '') }], maxTokens); }
+async function callClaudeDoc(system, userText, blocks, maxTokens) { return _callCore(system, (blocks || []).concat([{ type: 'text', text: String(userText || '') }]), maxTokens); }
+
 function extractJson(t) { if (!t) return null; const a = t.indexOf('{'), b = t.lastIndexOf('}'); if (a >= 0 && b > a) { try { return JSON.parse(t.slice(a, b + 1)); } catch (e) {} } return null; }
 
+function _spaceListingSys(types, features) {
+  return "You are a restaurant/bar commercial real estate broker's assistant. Extract ONE available-space listing from the material (email text and/or an attached flyer PDF whose address/size/rent may live inside images or graphics — READ THE IMAGES TOO) into STRICT JSON. Return ONLY this object, no prose:\n" +
+    '{"address":"","center":"","market":"","spaceType":"","size":null,"rent":null,"nnn":null,"features":[],"notes":""}\n' +
+    '- address: street address of the space. center: shopping center / building name. market: city.\n' +
+    '- spaceType MUST be one of ' + JSON.stringify(types) + ' or "".\n' +
+    '- size: square feet as digits only, else null. rent: base $/SF/YR number else null. nnn: NNN $/SF/YR number else null (if only monthly/lump given and size known, convert; else null + raw in notes).\n' +
+    '- features: subset of ' + JSON.stringify(features) + ' EXPLICITLY shown as already built/present. Do NOT infer.\n' +
+    '- notes: other key terms (available SF, term, TI/allowance, delivery, second-gen, timing, listing broker).\n' +
+    'Use ONLY facts present. Never fabricate. Numbers digits only. Output JSON only.';
+}
+function _shapeSpace(j, types, features) { j = j || {}; return { address: String(j.address || ''), center: String(j.center || ''), market: String(j.market || ''), spaceType: (types.indexOf(j.spaceType) >= 0 ? j.spaceType : ''), size: (j.size == null ? null : Number(j.size)), rent: (j.rent == null ? null : Number(j.rent)), nnn: (j.nnn == null ? null : Number(j.nnn)), features: Array.isArray(j.features) ? j.features.filter(f => features.indexOf(f) >= 0) : [], notes: String(j.notes || '') }; }
+// Vision parse: send the flyer PDF as a document block so image-based flyers are actually read.
+async function parseSpaceListingDoc({ pdfB64, text, types, features }) {
+  const sys = _spaceListingSys(types, features);
+  const blocks = pdfB64 ? [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfB64 } }] : [];
+  const user = 'Read the attached flyer PDF (above) AND this email text, then extract the listing.\n\nEMAIL TEXT:\n' + String(text || '').slice(0, 8000);
+  const out = await callClaudeDoc(sys, user, blocks, 1200);
+  return _shapeSpace(extractJson(out), types, features);
+}
 // 1) Parse a pasted listing (CoStar/LoopNet/Crexi/broker email/flyer) into space fields.
 async function parseSpaceListing({ text, types, features }) {
   const sys =
@@ -389,4 +404,4 @@ async function rewriteEmail({ text }) {
   const out = await callClaude(sys, "DRAFT EMAIL (may contain HTML):\n" + String(text || "").slice(0, 12000), 1400);
   return _emailHtmlOut(out);
 }
-module.exports = { rewriteEmail, parseSpaceListing, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, parseEmailContact, parseConceptList, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary, buildQuestionnaire, classifyRoomDocs, polishPrompts, refineBov };
+module.exports = { rewriteEmail, parseSpaceListing, parseSpaceListingDoc, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, parseEmailContact, parseConceptList, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary, buildQuestionnaire, classifyRoomDocs, polishPrompts, refineBov };

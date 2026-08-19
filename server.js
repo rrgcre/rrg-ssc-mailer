@@ -8668,6 +8668,11 @@ function _storeSpaceBrochure(sp, filename, buf, byName) {
     return fid;
   } catch (e) { return null; }
 }
+const SPACEREVIEW_FILE = path.join(BOV_DATA_DIR, 'space_review.json');
+function loadSpaceReview() { try { return rj(SPACEREVIEW_FILE) || []; } catch (e) { return []; } }
+function saveSpaceReview(a) { return writeJsonGuarded(SPACEREVIEW_FILE, a, 'saveSpaceReview'); }
+function newReviewId() { return 'srv_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function _storeReviewFile(revId, filename, buf) { try { if (!buf || !buf.length || buf.length > 25 * 1024 * 1024) return ''; const m = String(filename || '').toLowerCase().match(/\.(pdf|png|jpg|jpeg|gif|webp|doc|docx)$/); if (!m) return ''; const ext = m[1] === 'jpeg' ? 'jpg' : m[1]; if (!fs.existsSync(SPACEFILES_DIR)) fs.mkdirSync(SPACEFILES_DIR, { recursive: true }); binWrite(path.join(SPACEFILES_DIR, revId + '.' + ext), buf); return ext; } catch (e) { return ''; } }
 // Core Gmail -> Space Tracker scan. Reused by the manual button and the background poller.
 // Finds broker listing emails + PDF flyers, AI-parses each into a space, dedupes by address,
 // and stores the brochure PDF on the created space. Skips message ids in skipIds (poller cost control).
@@ -8677,6 +8682,7 @@ async function _scanSpacesForUser(username, byName, days, skipIds, onProgress) {
   const cands = await gmail.listListingCandidates(username, 30, days);
   const arr = loadSpaces();
   const centers = loadCenters(); let centersDirty = false; let centersMade = 0;
+  const review = loadSpaceReview(); let reviewDirty = false; let reviewMade = 0;
   const seen = new Set(arr.map(s => String(s.address || '').toLowerCase().trim()).filter(Boolean));
   const results = []; let created = 0; const processedIds = [];
   const actor = { user: { name: byName || username, username: username } };
@@ -8691,30 +8697,45 @@ async function _scanSpacesForUser(username, byName, days, skipIds, onProgress) {
     for (const a of pdfs) {
       try { const buf = await gmail.getAttachment(username, c.id, a.attachmentId); if (buf && buf.length) { pdfBufs.push({ filename: a.filename, buf }); const t = String(await extractQuestionnaireText(a.filename, buf.toString('base64')) || ''); if (t) text += '\n\n' + t.slice(0, 20000); } } catch (e) {}
     }
-    if (!text.trim()) { if (typeof onProgress === 'function') onProgress({ phase: 'item', total: cands.length, done: _done, created }); continue; }
-    let fd; try { fd = await aiassist.parseSpaceListing({ text: text.slice(0, 60000), types: SPACE_TYPES, features: SPACE_FEATURES }); } catch (e) { fd = null; }
-    if (!fd || (!fd.address && fd.size == null)) { results.push({ ok: false, subject: c.subject || '', reason: 'not a listing' }); if (typeof onProgress === 'function') onProgress({ phase: 'item', total: cands.length, done: _done, created }); continue; }
-    const key = String(fd.address || '').toLowerCase().trim();
-    if (key && seen.has(key)) { results.push({ ok: false, subject: c.subject || '', reason: 'already in system' }); if (typeof onProgress === 'function') onProgress({ phase: 'item', total: cands.length, done: _done, created }); continue; }
-    const sp = _spaceFromFields(fd, actor, { source: 'email:' + c.id });
-    // Each space usually belongs to a shopping center — find it by name or create it.
-    if (fd.center && String(fd.center).trim()) {
-      const _cn = String(fd.center).trim().toLowerCase();
-      let ctr = centers.find(x => String(x.name || '').trim().toLowerCase() === _cn);
-      if (!ctr) { ctr = { id: newCenterId(), name: String(fd.center).slice(0, 160), market: String(fd.market || '').slice(0, 120), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), by: byName || '', byUser: username, source: 'email-scan' }; centers.push(ctr); centersDirty = true; centersMade++; }
-      sp.centerId = ctr.id; sp.center = ctr.name;
-    }
-    // Store the brochure — prefer a PDF flyer if present.
     const bro = pdfBufs.filter(x => /\.pdf$/i.test(x.filename))[0] || pdfBufs[0];
-    let fileName = '';
-    if (bro) { const fid = _storeSpaceBrochure(sp, bro.filename, bro.buf, byName); if (fid) fileName = bro.filename; }
-    arr.push(sp); created++; if (key) seen.add(key);
-    results.push({ ok: true, subject: c.subject || '', address: sp.address || sp.name || '', center: sp.center || '', file: fileName });
+    const hasAttach = pdfBufs.length > 0;
+    if (!text.trim() && !hasAttach) { if (typeof onProgress === 'function') onProgress({ phase: 'item', total: cands.length, done: _done, created }); continue; }
+    // Parse — prefer VISION on the flyer PDF so image-based flyers actually read; fall back to text.
+    let fd = null;
+    const _broPdf = pdfBufs.filter(x => /\.pdf$/i.test(x.filename))[0];
+    if (_broPdf && _broPdf.buf && _broPdf.buf.length < 10 * 1024 * 1024) {
+      try { fd = await aiassist.parseSpaceListingDoc({ pdfB64: _broPdf.buf.toString('base64'), text: text.slice(0, 8000), types: SPACE_TYPES, features: SPACE_FEATURES }); } catch (e) { fd = null; }
+    }
+    if ((!fd || (!fd.address && fd.size == null)) && text.trim()) { try { fd = await aiassist.parseSpaceListing({ text: text.slice(0, 60000), types: SPACE_TYPES, features: SPACE_FEATURES }); } catch (e) { /* keep fd */ } }
+    const key = fd ? String(fd.address || '').toLowerCase().trim() : '';
+    if (key && seen.has(key)) { results.push({ ok: false, subject: c.subject || '', reason: 'already in system' }); if (typeof onProgress === 'function') onProgress({ phase: 'item', total: cands.length, done: _done, created }); continue; }
+    if (fd && fd.address) {
+      const sp = _spaceFromFields(fd, actor, { source: 'email:' + c.id });
+      if (fd.center && String(fd.center).trim()) {
+        const _cn = String(fd.center).trim().toLowerCase();
+        let ctr = centers.find(x => String(x.name || '').trim().toLowerCase() === _cn);
+        if (!ctr) { ctr = { id: newCenterId(), name: String(fd.center).slice(0, 160), market: String(fd.market || '').slice(0, 120), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), by: byName || '', byUser: username, source: 'email-scan' }; centers.push(ctr); centersDirty = true; centersMade++; }
+        sp.centerId = ctr.id; sp.center = ctr.name;
+      }
+      let fileName = '';
+      if (bro) { const fid = _storeSpaceBrochure(sp, bro.filename, bro.buf, byName); if (fid) fileName = bro.filename; }
+      arr.push(sp); created++; if (key) seen.add(key);
+      results.push({ ok: true, subject: c.subject || '', address: sp.address || sp.name || '', center: sp.center || '', file: fileName });
+    } else if (hasAttach && !review.some(x => x.messageId === c.id)) {
+      // Couldn't confidently extract, but there IS a flyer — send it to the review queue instead of dropping it.
+      const rid = newReviewId(); let rext = ''; if (bro) rext = _storeReviewFile(rid, bro.filename, bro.buf) || '';
+      review.push({ id: rid, messageId: c.id, subject: c.subject || '', from: c.from || '', date: c.date || '', byUser: username, byName: byName || '', createdAt: new Date().toISOString(), reason: (fd && (fd.center || fd.size != null)) ? 'needs an address' : 'couldn\u2019t read the flyer', fields: { address: (fd && fd.address) || '', center: (fd && fd.center) || '', market: (fd && fd.market) || '', spaceType: (fd && fd.spaceType) || '', size: (fd && fd.size != null ? fd.size : ''), rent: (fd && fd.rent != null ? fd.rent : ''), nnn: (fd && fd.nnn != null ? fd.nnn : ''), features: (fd && fd.features) || [], notes: (fd && fd.notes) || '' }, file: rext ? { name: bro.filename, ext: rext } : null });
+      reviewDirty = true; reviewMade++;
+      results.push({ ok: false, subject: c.subject || '', reason: 'needs review' });
+    } else {
+      results.push({ ok: false, subject: c.subject || '', reason: 'not a listing' });
+    }
     if (typeof onProgress === 'function') onProgress({ phase: 'item', total: cands.length, done: _done, created });
   }
   if (centersDirty) saveCenters(centers);
+  if (reviewDirty) saveSpaceReview(review);
   if (created) saveSpaces(arr);
-  return { ok: true, created, centersMade, scanned: cands.length, results, processedIds, spaces: arr };
+  return { ok: true, created, centersMade, reviewMade, scanned: cands.length, results, processedIds, spaces: arr };
 }
 // Scan the rep's Gmail for listing emails + PDF flyers and auto-create spaces from them (manual button).
 app.post('/api/spaces/ai-email-scan', express.json(), async (req, res) => {
@@ -8725,8 +8746,45 @@ app.post('/api/spaces/ai-email-scan', express.json(), async (req, res) => {
     const r = await _scanSpacesForUser(u, (req.user && req.user.name) || u, days, []);
     // Record processed ids on the poll record so the background poller won't re-parse these.
     try { const store = loadSpacePoll(); const rec = store[u] || {}; if (Array.isArray(r.processedIds) && r.processedIds.length) { rec.seenIds = (Array.isArray(rec.seenIds) ? rec.seenIds : []).concat(r.processedIds).slice(-800); store[u] = rec; saveSpacePoll(store); } } catch (e) {}
-    res.json({ ok: true, created: r.created, centersMade: r.centersMade || 0, scanned: r.scanned, results: r.results, spaces: r.spaces || loadSpaces() });
+    res.json({ ok: true, created: r.created, centersMade: r.centersMade || 0, reviewMade: r.reviewMade || 0, scanned: r.scanned, results: r.results, spaces: r.spaces || loadSpaces() });
   } catch (e) { res.status(502).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+// ---- Space Tracker email-import review queue (near-misses that need a human eye) ----
+app.get('/api/spaces/review', (req, res) => {
+  const me = (req.user && req.user.username) || ''; const isAdm = !!(req.user && isSuper(req.user));
+  const items = loadSpaceReview().filter(x => isAdm || x.byUser === me).sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+  res.json({ ok: true, items, count: items.length });
+});
+app.get('/api/spaces/review/:id/file', (req, res) => {
+  const it = loadSpaceReview().find(x => x.id === req.params.id);
+  if (!it || !it.file) return res.status(404).end();
+  const fp = path.join(SPACEFILES_DIR, it.id + '.' + it.file.ext);
+  if (!fp.startsWith(SPACEFILES_DIR) || !fs.existsSync(fp)) return res.status(404).end();
+  res.setHeader('Content-Type', it.file.ext === 'pdf' ? 'application/pdf' : 'application/octet-stream');
+  res.setHeader('Content-Disposition', 'inline; filename="' + String(it.file.name || ('brochure.' + it.file.ext)).replace(/[^\w.\-]+/g, '_') + '"');
+  fs.createReadStream(fp).pipe(res);
+});
+app.post('/api/spaces/review/:id/accept', express.json(), (req, res) => {
+  const all = loadSpaceReview(); const i = all.findIndex(x => x.id === req.params.id);
+  if (i < 0) return res.status(404).json({ ok: false, error: 'Review item not found.' });
+  const it = all[i]; const b = req.body || {}; const fd = Object.assign({}, it.fields || {}, (b.fields && typeof b.fields === 'object') ? b.fields : {});
+  if (!String(fd.address || '').trim() && !String(fd.name || '').trim()) return res.status(400).json({ ok: false, error: 'Add at least an address or a name before accepting.' });
+  const arr = loadSpaces(); const sp = _spaceFromFields(fd, req, { source: 'email-review:' + (it.messageId || '') });
+  if (fd.center && String(fd.center).trim()) {
+    const centers = loadCenters(); const _cn = String(fd.center).trim().toLowerCase();
+    let ctr = centers.find(x => String(x.name || '').trim().toLowerCase() === _cn);
+    if (!ctr) { ctr = { id: newCenterId(), name: String(fd.center).slice(0, 160), market: String(fd.market || '').slice(0, 120), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', source: 'email-review' }; centers.push(ctr); saveCenters(centers); }
+    sp.centerId = ctr.id; sp.center = ctr.name;
+  }
+  if (it.file) { try { const fp = path.join(SPACEFILES_DIR, it.id + '.' + it.file.ext); if (fs.existsSync(fp)) { const buf = fs.readFileSync(fp); _storeSpaceBrochure(sp, it.file.name || ('brochure.' + it.file.ext), buf, (req.user && req.user.name) || ''); try { fs.unlinkSync(fp); } catch (e) {} } } catch (e) {} }
+  arr.push(sp); saveSpaces(arr); all.splice(i, 1); saveSpaceReview(all);
+  res.json({ ok: true, spaceId: sp.id });
+});
+app.post('/api/spaces/review/:id/dismiss', (req, res) => {
+  const all = loadSpaceReview(); const i = all.findIndex(x => x.id === req.params.id);
+  if (i < 0) return res.status(404).json({ ok: false });
+  const it = all[i]; if (it.file) { try { fs.unlinkSync(path.join(SPACEFILES_DIR, it.id + '.' + it.file.ext)); } catch (e) {} }
+  all.splice(i, 1); saveSpaceReview(all); res.json({ ok: true });
 });
 // Streaming version of the manual scan — emits live progress so the UI can count as it imports.
 app.get('/api/spaces/ai-email-scan-stream', async (req, res) => {
@@ -8739,7 +8797,7 @@ app.get('/api/spaces/ai-email-scan-stream', async (req, res) => {
   try {
     const r = await _scanSpacesForUser(u, (req.user && req.user.name) || u, days, [], function (evt) { send(evt); });
     try { const store = loadSpacePoll(); const rec = store[u] || {}; if (Array.isArray(r.processedIds) && r.processedIds.length) { rec.seenIds = (Array.isArray(rec.seenIds) ? rec.seenIds : []).concat(r.processedIds).slice(-800); store[u] = rec; saveSpacePoll(store); } } catch (e) {}
-    send({ phase: 'done', created: r.created, centersMade: r.centersMade || 0, scanned: r.scanned, results: r.results });
+    send({ phase: 'done', created: r.created, centersMade: r.centersMade || 0, reviewMade: r.reviewMade || 0, scanned: r.scanned, results: r.results });
   } catch (e) { send({ phase: 'error', error: String((e && e.message) || e) }); }
   res.end();
 });

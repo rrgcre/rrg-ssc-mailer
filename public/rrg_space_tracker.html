@@ -88,7 +88,7 @@ h1{font-size:30px;font-weight:800;margin:0;letter-spacing:-.01em;}
 
 <div class="wrap">
   <div class="card">
-    <div class="ch"><b>All spaces</b><span class="hint" id="cnt"></span><div class="searchwrap"><svg class="searchic" viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"></circle><line x1="12.8" y1="12.8" x2="17.5" y2="17.5"></line></svg><input id="sp_search" oninput="spSearch(this.value)" placeholder="Search spaces…" autocomplete="off"></div><button class="btn" id="autoBtn" style="margin-left:10px">📥 Auto-import</button><button class="btn" id="matchBtn" data-ai="" style="margin-left:8px">✨ AI match</button><button class="btn primary" id="addBtn" style="margin-left:8px">+ Add space</button></div>
+    <div class="ch"><b>All spaces</b><span class="hint" id="cnt"></span><div class="searchwrap"><svg class="searchic" viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"></circle><line x1="12.8" y1="12.8" x2="17.5" y2="17.5"></line></svg><input id="sp_search" oninput="spSearch(this.value)" placeholder="Search spaces…" autocomplete="off"></div><button class="btn" id="reviewBtn" style="margin-left:10px;display:none">⚑ Review<span id="revCount"></span></button><button class="btn" id="autoBtn" style="margin-left:10px">📥 Auto-import</button><button class="btn" id="matchBtn" data-ai="" style="margin-left:8px">✨ AI match</button><button class="btn primary" id="addBtn" style="margin-left:8px">+ Add space</button></div>
     <div class="tiles" id="tiles"></div>
     <div class="cb"><div id="list"></div></div>
   </div>
@@ -142,6 +142,10 @@ h1{font-size:30px;font-weight:800;margin:0;letter-spacing:-.01em;}
     <div class="msg" id="au_status" style="margin-top:12px;color:var(--muted)"></div>
   </div>
   <div class="mf"><button class="btn primary" id="au_save">Save</button><button class="btn" id="au_scan">⟳ Scan now</button><span class="msg" id="au_msg"></span></div>
+</div></div>
+<div class="ov" id="revOv" hidden><div class="modal" style="max-width:680px">
+  <div class="mh"><b>⚑ Brochures needing review</b><button class="x" id="revX">✕</button></div>
+  <div class="mb"><p style="font-size:13px;color:var(--muted);line-height:1.5;margin:0 0 12px">Flyers the auto-import couldn’t read cleanly. Check the details (open the flyer if you need to), fix anything, then <b>Accept</b> to add the space — or <b>Dismiss</b>.</p><div id="revList"></div></div>
 </div></div>
 <script src="/rrg_list.js"></script>
 <script>
@@ -322,6 +326,24 @@ function openAuto(){ var m=document.getElementById('autoOv'); if(m){ m.removeAtt
 function closeAuto(){ var m=document.getElementById('autoOv'); if(m) m.setAttribute('hidden',''); }
 function loadAutoCfg(){ var st=document.getElementById('au_status'); fetch('/api/spaces/scan-poll',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(!j||!j.ok) return; document.getElementById('au_on').checked=!!j.enabled; document.getElementById('au_iv').value=String(j.intervalMin||30); document.getElementById('au_days').value=String(j.days||30); var msg=''; if(!j.configured){ msg='Gmail isn\u2019t set up on the server yet \u2014 an admin enables it in Settings.'; } else if(!j.connected){ msg='Connect your Gmail (open any contact \u2192 Email \u2192 Connect Gmail) to enable auto-import.'; } else { msg=j.enabled?('On \u2014 last check '+(j.lastRun?fmtDate(j.lastRun):'pending')+(j.lastCount?(' \u00b7 '+j.lastCount+' added'):'')+'.'):'Off \u2014 turn on to monitor your inbox.'; } if(st) st.textContent=msg; }).catch(function(){}); }
 function saveAutoCfg(){ var b={enabled:document.getElementById('au_on').checked,intervalMin:parseInt(document.getElementById('au_iv').value,10)||30,days:parseInt(document.getElementById('au_days').value,10)||30}; var msg=document.getElementById('au_msg'); if(msg)msg.textContent='Saving\u2026'; fetch('/api/spaces/scan-poll',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(b)}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ if(msg)msg.textContent='Saved \u2713'; loadAutoCfg(); setTimeout(function(){ if(msg&&msg.textContent==='Saved \u2713') msg.textContent=''; },1500); } else if(msg){ msg.textContent=(j&&j.error)||'Save failed.'; } }).catch(function(){ if(msg)msg.textContent='Network error.'; }); }
+function _rvNum(v){ return (v===''||v==null)?'':String(v); }
+function loadReviewCount(){ fetch('/api/spaces/review',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ var n=(j&&j.count)||0; var b=document.getElementById('reviewBtn'), c=document.getElementById('revCount'); if(c) c.textContent=n?(' '+n):''; if(b){ b.style.display=n?'inline-block':'none'; b.classList.toggle('primary',n>0); } }).catch(function(){}); }
+function openReview(){ var m=document.getElementById('revOv'); if(m){ m.removeAttribute('hidden'); renderReviewList(); } }
+function closeReview(){ var m=document.getElementById('revOv'); if(m) m.setAttribute('hidden',''); }
+function _rvTypeOpts(cur){ return '<option value="">\u2014 type \u2014</option>'+(TYPES||[]).map(function(t){ return '<option'+(t===cur?' selected':'')+'>'+esc(t)+'</option>'; }).join(''); }
+function renderReviewList(){ var host=document.getElementById('revList'); if(!host) return; host.innerHTML='<div style="color:var(--muted);font-size:13px;padding:10px 0">Loading\u2026</div>'; fetch('/api/spaces/review',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ var items=(j&&j.items)||[]; if(!items.length){ host.innerHTML='<div style="color:var(--muted);font-size:13px;padding:10px 0">Nothing to review right now.</div>'; return; } host.innerHTML=items.map(function(it){ var f=it.fields||{}; var fileLink=it.file?('<a href="/api/spaces/review/'+encodeURIComponent(it.id)+'/file" target="_blank" rel="noopener" style="color:#2c5c8f;font-weight:700;text-decoration:none;font-size:12px">\uD83D\uDCC4 Open flyer</a>'):''; return '<div class="revcard" data-rid="'+esc(it.id)+'" style="border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:12px">'
+  +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px"><b style="font-size:13px;color:var(--navy)">'+esc(it.subject||'(no subject)')+'</b><span style="font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;color:#b5641a;background:#fdf0e6;border:1px solid #f4d8bd;border-radius:999px;padding:1px 7px">'+esc(it.reason||'review')+'</span>'+fileLink+'<span style="margin-left:auto;font-size:11px;color:var(--muted);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(it.from||'')+'</span></div>'
+  +'<div class="grid" style="grid-template-columns:2fr 1fr;gap:8px"><div class="f"><label class="fld">Address</label><input class="rv" data-k="address" value="'+esc(f.address||'')+'"></div><div class="f"><label class="fld">Market</label><input class="rv" data-k="market" value="'+esc(f.market||'')+'"></div></div>'
+  +'<div class="grid" style="grid-template-columns:2fr 1fr;gap:8px"><div class="f"><label class="fld">Center</label><input class="rv" data-k="center" value="'+esc(f.center||'')+'"></div><div class="f"><label class="fld">Type</label><select class="rv" data-k="spaceType">'+_rvTypeOpts(f.spaceType||'')+'</select></div></div>'
+  +'<div class="grid" style="grid-template-columns:1fr 1fr 1fr;gap:8px"><div class="f"><label class="fld">Size (SF)</label><input class="rv" data-k="size" value="'+esc(_rvNum(f.size))+'"></div><div class="f"><label class="fld">Rent $/SF</label><input class="rv" data-k="rent" value="'+esc(_rvNum(f.rent))+'"></div><div class="f"><label class="fld">NNN $/SF</label><input class="rv" data-k="nnn" value="'+esc(_rvNum(f.nnn))+'"></div></div>'
+  +'<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px"><button class="btn rvdismiss">Dismiss</button><button class="btn primary rvaccept">Accept \u2192 add space</button></div></div>'; }).join(''); }).catch(function(){ host.innerHTML='<div style="color:var(--red)">Could not load.</div>'; }); }
+document.addEventListener('click',function(e){ if(!e.target.closest) return;
+  if(e.target.closest('#reviewBtn')){ openReview(); return; }
+  if(e.target.closest('#revX')){ closeReview(); return; }
+  var acc=e.target.closest('.rvaccept'); if(acc){ var card=acc.closest('.revcard'); if(!card) return; var rid=card.getAttribute('data-rid'); var fields={}; card.querySelectorAll('.rv').forEach(function(el){ fields[el.getAttribute('data-k')]=el.value; }); acc.disabled=true; acc.textContent='Adding\u2026'; fetch('/api/spaces/review/'+encodeURIComponent(rid)+'/accept',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({fields:fields})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ if(window.rrgToast) rrgToast('Space added \u2713'); renderReviewList(); loadReviewCount(); load(); } else { acc.disabled=false; acc.textContent='Accept \u2192 add space'; alert((j&&j.error)||'Could not add.'); } }).catch(function(){ acc.disabled=false; acc.textContent='Accept \u2192 add space'; alert('Network error.'); }); return; }
+  var dis=e.target.closest('.rvdismiss'); if(dis){ var card2=dis.closest('.revcard'); if(!card2) return; var rid2=card2.getAttribute('data-rid'); fetch('/api/spaces/review/'+encodeURIComponent(rid2)+'/dismiss',{method:'POST',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(){ renderReviewList(); loadReviewCount(); }); return; }
+  var _rov=document.getElementById('revOv'); if(_rov&&e.target===_rov){ closeReview(); }
+});
 function scanNow(){
   var days=parseInt((document.getElementById('au_days')||{}).value,10)||30;
   var msg=document.getElementById('au_msg'); var btn=document.getElementById('au_scan'); if(btn) btn.disabled=true;
@@ -332,7 +354,7 @@ function scanNow(){
   es.onmessage=function(ev){ var d; try{ d=JSON.parse(ev.data); }catch(_){ return; }
     if(d.phase==='listed'){ total=d.total||0; if(orb&&orb.setMsg) orb.setMsg(total?('Found '+total+' possible listing email'+(total===1?'':'s')+' — reading each…'):'No new listing emails to read.'); }
     else if(d.phase==='item'){ done=d.done||done; created=(d.created!=null?d.created:created); var m='Imported '+created+' space'+(created===1?'':'s')+' · read '+done+' of '+total; if(orb&&orb.progress) orb.progress(done,total,{msg:m}); else if(orb&&orb.setMsg) orb.setMsg(m); }
-    else if(d.phase==='done'){ var secs=((Date.now()-t0)/1000).toFixed(1); var sum='Imported '+d.created+' space'+(d.created===1?'':'s')+(d.centersMade?(' · '+d.centersMade+' new center'+(d.centersMade===1?'':'s')):'')+' · scanned '+d.scanned+' · '+secs+'s'; if(orb&&orb.done) orb.done({msg:sum}); else if(orb&&orb.hide) orb.hide(); fin(sum); load(); }
+    else if(d.phase==='done'){ var secs=((Date.now()-t0)/1000).toFixed(1); var sum='Imported '+d.created+' space'+(d.created===1?'':'s')+(d.centersMade?(' · '+d.centersMade+' new center'+(d.centersMade===1?'':'s')):'')+((d.reviewMade)?(' · '+d.reviewMade+' to review'):'')+' · scanned '+d.scanned+' · '+secs+'s'; if(orb&&orb.done) orb.done({msg:sum}); else if(orb&&orb.hide) orb.hide(); fin(sum); load(); loadReviewCount(); }
     else if(d.phase==='error'){ if(orb&&orb.hide) orb.hide(); fin(d.error||'Scan failed.'); }
   };
   es.onerror=function(){ if(orb&&orb.hide) orb.hide(); fin((msg&&msg.textContent)?msg.textContent:'Connection interrupted — try again.'); };
@@ -452,6 +474,7 @@ document.getElementById('ov').addEventListener('click',function(e){ if(e.target=
   var bones=document.getElementById('bones'); if(bones) bones.addEventListener('click',function(e){ if(e.target&&e.target.closest&&e.target.closest('.chip')) commit(); });
 })();
 load();
+loadReviewCount();
 </script>
 <script src="/rrg_brand.js"></script>
 </body>
