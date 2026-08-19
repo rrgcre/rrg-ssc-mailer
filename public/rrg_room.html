@@ -83,7 +83,7 @@ body.rrg-shelled .pagehd{display:block;}
 #dropOverlay .doic{font-size:38px;line-height:1;margin-bottom:12px;}
 #dropOverlay .dot{font-size:20px;font-weight:800;}
 #dropOverlay .dos{font-size:13px;margin-top:8px;color:#cdd8ea;}
-.fbar{padding:6px 0 8px;} .fbtn{background:#fff;border:1px solid var(--inp);color:#26324a;border-radius:6px;padding:5px 10px;font:inherit;font-size:11.5px;font-weight:700;cursor:pointer;} .fbtn:hover{background:#f4f7fb;} .fbtn.add{background:#eef2fb;border-color:#cfe0ff;color:#23496f;} .fbtn.danger{color:#b23a2c;border-color:#f0c9c6;}
+.fbar{padding:6px 0 8px;display:flex;justify-content:flex-end;} .fbtn{background:#fff;border:1px solid var(--inp);color:#26324a;border-radius:6px;padding:5px 10px;font:inherit;font-size:11.5px;font-weight:700;cursor:pointer;} .fbtn:hover{background:#f4f7fb;} .fbtn.add{background:#eef2fb;border-color:#cfe0ff;color:#23496f;} .fbtn.danger{color:#b23a2c;border-color:#f0c9c6;}
 .cathd{display:flex;align-items:center;gap:8px;}
 .fctrls{margin-left:auto;display:inline-flex;gap:5px;opacity:0;transition:opacity .1s;} .cathd:hover .fctrls{opacity:1;}
 .movesel{border:1px solid var(--inp);border-radius:5px;padding:4px 6px;font:inherit;font-size:11px;color:#26324a;background:#fff;max-width:160px;}
@@ -135,7 +135,7 @@ body.rrg-shelled .pagehd{display:block;}
     <div id="docList"></div>
   </div>
 
-  <div class="card"><div class="cbody">
+  <div class="card" id="addDocsCard"><div class="cbody">
     <h2 class="rmhd" onclick="rmToggle(this)"><span class="rmcav">▸</span>Add documents</h2>
     <div class="h">PDF, Word, Excel, CSV, PowerPoint, images, or text — up to <b>25 MB</b> each. Give it a clear name and drop it in the right section.</div>
     <div class="up">
@@ -309,7 +309,7 @@ function moveOptions(cur){ return '<option value="">\u2014 Root \u2014</option>'
 function docRowHtml(d){ var dl=Number(d.downloads)||0; var dlTxt=dl?(' \u00b7 '+dl+' download'+(dl===1?'':'s')):'';
   return '<div class="docrow"><span class="ext">'+fileIcon(d.ext)+'</span><div style="flex:1;min-width:0"><div class="dt">'+esc(d.title||d.originalName)+'</div><div class="dm">'+esc(fmtBytes(d.size))+' \u00b7 added '+esc(fmtWhen(d.uploadedAt))+(d.by?(' \u00b7 '+esc(d.by)):'')+dlTxt+'</div></div>'
     +'<select class="movesel" data-mv="'+esc(d.id)+'" title="Move to a folder">'+moveOptions(d.category)+'</select>'
-    +'<a class="view" href="/roomfile/'+esc(ROOM.token)+'/'+esc(d.id)+'" target="_blank" rel="noopener">View</a><button class="x" data-acc="'+esc(d.id)+'" title="Set which buyers can see this file">Access</button><button class="x" data-del="'+esc(d.id)+'">Remove</button></div>'; }
+    +'<a class="view" href="/roomfile/'+esc(ROOM.token)+'/'+esc(d.id)+'" target="_blank" rel="noopener">View</a><button class="x" data-ren="'+esc(d.id)+'" title="Rename this file">Rename</button><button class="x" data-acc="'+esc(d.id)+'" title="Set which buyers can see this file">Access</button><button class="x" data-del="'+esc(d.id)+'">Remove</button></div>'; }
 function folderNodeHtml(node, depth){
   var kids=node.order.map(function(seg){ return folderNodeHtml(node.ch[seg], depth+1); }).join('');
   var docsHtml=node.docs.length? node.docs.map(docRowHtml).join('') : (node.order.length?'':'<div class="catempty">No files in this folder yet.</div>');
@@ -319,7 +319,7 @@ function folderNodeHtml(node, depth){
 }
 function _wireDocList(el){ if(el._wired) return; el._wired=1;
   el.addEventListener('change',function(e){ var t=e.target; if(t&&t.classList&&t.classList.contains('movesel')){ moveDoc(t.getAttribute('data-mv'), t.value); } });
-  el.addEventListener('click',function(e){ var t=e.target&&e.target.closest?e.target.closest('[data-fact],[data-del],[data-acc],[data-tog]'):null; if(!t) return; if(t.hasAttribute('data-del')){ delDoc(t.getAttribute('data-del')); return; } if(t.hasAttribute('data-acc')){ openDocAccess(t.getAttribute('data-acc')); return; } if(t.hasAttribute('data-tog')){ var c=t.closest('.cat,.subcat'); if(c) c.classList.toggle('open'); return; } var act=t.getAttribute('data-fact'), fp=t.getAttribute('data-fp'); if(act==='new') addFolder(); else if(act==='sub') addSubfolder(fp); else if(act==='ren') renameFolder(fp); else if(act==='del') deleteFolder(fp); });
+  el.addEventListener('click',function(e){ var t=e.target&&e.target.closest?e.target.closest('[data-fact],[data-del],[data-acc],[data-ren],[data-tog]'):null; if(!t) return; if(t.hasAttribute('data-del')){ delDoc(t.getAttribute('data-del')); return; } if(t.hasAttribute('data-acc')){ openDocAccess(t.getAttribute('data-acc')); return; } if(t.hasAttribute('data-ren')){ renameDoc(t.getAttribute('data-ren')); return; } if(t.hasAttribute('data-tog')){ var c=t.closest('.cat,.subcat'); if(c) c.classList.toggle('open'); return; } var act=t.getAttribute('data-fact'), fp=t.getAttribute('data-fp'); if(act==='new') addFolder(); else if(act==='sub') addSubfolder(fp); else if(act==='ren') renameFolder(fp); else if(act==='del') deleteFolder(fp); });
 }
 function renderDocs(){
   var el=document.getElementById('docList'); if(!el) return; _wireDocList(el);
@@ -333,6 +333,7 @@ function addFolder(){ var n=prompt('New folder name:'); if(n&&n.trim()) foldersA
 function addSubfolder(parent){ var n=prompt('New subfolder inside "'+parent+'":'); if(n&&n.trim()) foldersApi({action:'add',name:n.trim(),parent:parent},'Subfolder added \u2713'); }
 function renameFolder(path){ var segs=String(path).split(' / '); var cur=segs[segs.length-1]; var n=prompt('Rename folder "'+cur+'" to:',cur); if(n&&n.trim()&&n.trim()!==cur){ segs[segs.length-1]=n.trim(); foldersApi({action:'rename',from:path,to:segs.join(' / ')},'Renamed \u2713'); } }
 async function deleteFolder(path){ var ok=window.rrgConfirm?(await rrgConfirm('Delete folder "'+path+'"? Any files inside move to Root (nothing is deleted); subfolders are removed.')):confirm('Delete folder "'+path+'"? Files inside move to Root.'); if(ok) foldersApi({action:'delete',name:path},'Folder deleted \u2713'); }
+function renameDoc(id){ if(!id) return; var d=((window.ROOM&&ROOM.docs)||[]).filter(function(x){return x.id===id;})[0]; var cur=d?(d.title||d.originalName||''):''; var n=prompt('Rename file to:',cur); if(n==null) return; n=String(n).trim(); if(!n||n===cur) return; fetch('/api/room/'+encodeURIComponent(RID)+'/rename-doc',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:id,title:n})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ROOM.docs=j.docs||ROOM.docs; renderDocs(); if(window.toast) toast('Renamed \u2713'); } else alert((j&&j.error)||'Could not rename the file.'); }).catch(function(){ alert('Could not reach the server.'); }); }
 function leaseFlagHtml(){
   var on=!!(ROOM&&ROOM.noLease);
   return '<label style="display:inline-flex;align-items:center;gap:8px;margin-top:10px;font-size:12.5px;font-weight:600;color:'+(on?'#0e7a53':'#6b7488')+';cursor:pointer"><input type="checkbox" '+(on?'checked ':'')+'onchange="setNoLease(this.checked)" style="width:15px;height:15px;cursor:pointer"> No lease — business owns / N/A'+(on?' <span style="font-weight:500;color:#8a93a8">(counts as satisfied)</span>':'')+'</label>';
@@ -622,9 +623,10 @@ function setDocAccess(docId,gid,level,sel){
     .then(function(r){return r.json();}).then(function(j){ if(sel) sel.disabled=false; if(j&&j.ok){ ROOM.grants=j.grants||ROOM.grants; toast('Access updated ✓'); } else { alert((j&&j.error)||'Could not update.'); } })
     .catch(function(){ if(sel) sel.disabled=false; alert('Could not reach the server.'); });
 }
+function _maybeJumpUpload(){ try{ if((new URLSearchParams(location.search)).get('upload')!=='1') return; var c=document.getElementById('addDocsCard'); if(!c) return; c.classList.remove('collapsed'); setTimeout(function(){ c.scrollIntoView({behavior:'smooth',block:'center'}); c.style.transition='box-shadow .3s'; c.style.boxShadow='0 0 0 3px rgba(35,73,111,.4)'; setTimeout(function(){ c.style.boxShadow=''; },1700); },140); }catch(e){} }
 function load(){
   fetch('/api/room/'+encodeURIComponent(RID),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
-    if(j&&j.ok&&j.room){ ROOM=j.room; paint(); loadAnalytics(); } else { document.getElementById('docList').innerHTML='<div class="catempty">Could not load this data room.</div>'; }
+    if(j&&j.ok&&j.room){ ROOM=j.room; paint(); loadAnalytics(); _maybeJumpUpload(); } else { document.getElementById('docList').innerHTML='<div class="catempty">Could not load this data room.</div>'; }
   }).catch(function(){ document.getElementById('docList').innerHTML='<div class="catempty">Could not reach the server.</div>'; });
 }
 function uploadDoc(){

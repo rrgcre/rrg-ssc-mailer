@@ -3893,6 +3893,20 @@ app.post('/api/room/:id/move-doc', express.json(), (req, res) => {
   saveRooms(arr);
   res.json({ ok: true, docs: r.docs });
 });
+app.post('/api/room/:id/rename-doc', express.json(), (req, res) => {
+  const arr = loadRooms();
+  const r = arr.find(x => x.id === req.params.id);
+  if (!r) return res.status(404).json({ ok: false, error: 'Data room not found.' });
+  if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const b = req.body || {};
+  const d = (r.docs || []).find(x => x.id === String(b.id || ''));
+  if (!d) return res.status(404).json({ ok: false, error: 'File not found.' });
+  let name = String(b.title == null ? '' : b.title).replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 160);
+  if (!name) return res.status(400).json({ ok: false, error: 'Name required.' });
+  d.title = name; d.updatedAt = new Date().toISOString();
+  saveRooms(arr);
+  res.json({ ok: true, docs: r.docs });
+});
 // ---- Custom folders: admins add their own folders / subfolders (path convention "Parent / Child"),
 // rename, delete (files fall back to root), or reorder. Buyers see whatever folders exist. ----
 function _cleanFolderName(x){ return String(x==null?'':x).replace(/\s*\/\s*/g,' / ').replace(/[^\w &().,'/+\-]/g,'').replace(/\s+/g,' ').trim().slice(0,80); }
