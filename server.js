@@ -8679,7 +8679,7 @@ function _storeReviewFile(revId, filename, buf) { try { if (!buf || !buf.length 
 async function _scanSpacesForUser(username, byName, days, skipIds, onProgress) {
   if (!gmail.statusFor(username).connected) return { ok: false, error: 'Gmail not connected', created: 0, scanned: 0, results: [], processedIds: [] };
   const skip = new Set(Array.isArray(skipIds) ? skipIds : []);
-  const cands = await gmail.listListingCandidates(username, 30, days);
+  const cands = await gmail.listListingCandidates(username, 50, days);
   const arr = loadSpaces();
   const centers = loadCenters(); let centersDirty = false; let centersMade = 0;
   const review = loadSpaceReview(); let reviewDirty = false; let reviewMade = 0;
@@ -8721,7 +8721,7 @@ async function _scanSpacesForUser(username, byName, days, skipIds, onProgress) {
       if (bro) { const fid = _storeSpaceBrochure(sp, bro.filename, bro.buf, byName); if (fid) fileName = bro.filename; }
       arr.push(sp); created++; if (key) seen.add(key);
       results.push({ ok: true, subject: c.subject || '', address: sp.address || sp.name || '', center: sp.center || '', file: fileName });
-    } else if (hasAttach && !review.some(x => x.messageId === c.id)) {
+    } else if (hasAttach && !review.some(x => x.messageId === c.id) && ((fd && (fd.center || fd.size != null || fd.spaceType || (fd.features && fd.features.length))) || /(for lease|for sublease|available|sq ?ft|square feet|\bNNN\b|triple net|2nd gen|second generation|end cap|retail space|restaurant space|lease rate|offering memorandum)/i.test(text))) {
       // Couldn't confidently extract, but there IS a flyer — send it to the review queue instead of dropping it.
       const rid = newReviewId(); let rext = ''; if (bro) rext = _storeReviewFile(rid, bro.filename, bro.buf) || '';
       review.push({ id: rid, messageId: c.id, subject: c.subject || '', from: c.from || '', date: c.date || '', byUser: username, byName: byName || '', createdAt: new Date().toISOString(), reason: (fd && (fd.center || fd.size != null)) ? 'needs an address' : 'couldn\u2019t read the flyer', fields: { address: (fd && fd.address) || '', center: (fd && fd.center) || '', market: (fd && fd.market) || '', spaceType: (fd && fd.spaceType) || '', size: (fd && fd.size != null ? fd.size : ''), rent: (fd && fd.rent != null ? fd.rent : ''), nnn: (fd && fd.nnn != null ? fd.nnn : ''), features: (fd && fd.features) || [], notes: (fd && fd.notes) || '' }, file: rext ? { name: bro.filename, ext: rext } : null });
