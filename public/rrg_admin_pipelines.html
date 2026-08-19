@@ -78,6 +78,7 @@ var PIPES=[], CUR=null, IS_ADMIN=false, DEL_ARM=false, DRAFT=null, AUTOS=[], MAP
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 function api(m,u,b){return fetch(u,{method:m,credentials:'same-origin',headers:b?{'Content-Type':'application/json'}:undefined,body:b?JSON.stringify(b):undefined}).then(function(r){return r.json().then(function(j){j._status=r.status;return j;});});}
 
+var BCFIELDS=null, BCFLAGS=null;
 function load(){
   api('GET','/api/pipelines').then(function(j){
     IS_ADMIN=!!j.isAdmin; PIPES=(j.pipelines||[]); AUTOS=(j.automations||[]);
@@ -86,7 +87,7 @@ function load(){
       if(m&&m.ok){ MAP=m.map||{}; MAP_CATS=m.categories||[]; }
       if(CUR && !PIPES.some(function(p){return p.id===CUR;})) CUR=null;
       if(!CUR && PIPES.length) CUR=PIPES[0].id;
-      render();
+      api('GET','/api/admin/types').then(function(t){ if(t&&t.ok){ BCFIELDS=t.boardCardFields||null; BCFLAGS=t.boardCardFlags||null; } render(); });
     });
   });
 }
@@ -111,15 +112,42 @@ function saveMap(){
   });
 }
 
+function boardDisplayCardHtml(){
+  if(!BCFIELDS||!BCFLAGS) return '';
+  var F=[['contact','Contact'],['listPrice','Listing Price'],['value','Est. value (BOV)'],['commission','Full Commission'],['days','Days in stage'],['market','Market'],['status','Status'],['bbs','BBS #'],['activity','Last activity']];
+  var chks=F.map(function(f){ return '<label style="display:flex;align-items:center;gap:7px;font-size:13px;color:#26324a"><input type="checkbox" id="bd_'+f[0]+'"'+(BCFIELDS[f[0]]?' checked':'')+'> '+esc(f[1])+'</label>'; }).join('');
+  var hv=BCFLAGS.highValue||{on:true,amount:'200000'}, sl=BCFLAGS.slipping||{on:true,days:'30'};
+  var lbl='font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#8a94a6;font-weight:700';
+  var num='width:120px;border:1px solid #c4ccda;border-radius:6px;padding:6px 9px;font:inherit;font-size:13px';
+  var hint='color:#8a94a6;font-size:12px';
+  var flag='display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:13px';
+  return '<div class="card" style="margin-bottom:20px"><div class="mh"><span class="t">Board card display</span>'
+    +'<span class="sp"><span class="msg" id="bdMsg"></span><button class="btn pri" id="bdSave">Save board display</button></span></div>'
+    +'<div class="body"><div class="pgs" style="margin:0 0 12px">What every rep sees on the <b>Listings board</b> cards, and the automatic flag badges. Firm-wide.</div>'
+    +'<div style="'+lbl+';margin-bottom:8px">Fields shown on each card</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px 14px">'+chks+'</div>'
+    +'<div style="'+lbl+';margin:16px 0 8px">Flag badges</div>'
+    +'<div style="'+flag+'"><label style="display:flex;align-items:center;gap:7px"><input type="checkbox" id="bd_hv_on"'+(hv.on?' checked':'')+'> <b>High Value</b></label><span style="'+hint+'">value &ge;</span><input style="'+num+'" id="bd_hv_amt" inputmode="numeric" value="'+esc(hv.amount||'')+'"></div>'
+    +'<div style="'+flag+'"><label style="display:flex;align-items:center;gap:7px"><input type="checkbox" id="bd_sl_on"'+(sl.on?' checked':'')+'> <b>Slipping</b></label><span style="'+hint+'">no activity for</span><input style="'+num+'" id="bd_sl_days" inputmode="numeric" value="'+esc(sl.days||'')+'"><span style="'+hint+'">days</span></div>'
+    +'</div></div>';
+}
+function saveBoardDisplay(){
+  var F=['contact','listPrice','value','commission','days','market','status','bbs','activity'];
+  var flds={}; F.forEach(function(k){ var el=document.getElementById('bd_'+k); flds[k]=!!(el&&el.checked); });
+  var flags={ highValue:{ on:!!(document.getElementById('bd_hv_on')||{}).checked, amount:((document.getElementById('bd_hv_amt')||{}).value||'').replace(/[^0-9]/g,'') }, slipping:{ on:!!(document.getElementById('bd_sl_on')||{}).checked, days:((document.getElementById('bd_sl_days')||{}).value||'').replace(/[^0-9]/g,'') } };
+  var b=document.getElementById('bdSave'); if(b) b.disabled=true;
+  api('POST','/api/admin/types',{boardCardFields:flds,boardCardFlags:flags}).then(function(j){ if(b) b.disabled=false; var m=document.getElementById('bdMsg'); if(!j||!j.ok){ if(m){m.textContent=(j&&j.error)||'Save failed.';m.className='msg err';} return; } BCFIELDS=j.boardCardFields||flds; BCFLAGS=j.boardCardFlags||flags; if(m){m.textContent='Saved';m.className='msg ok'; setTimeout(function(){ if(m.textContent==='Saved'){m.textContent='';m.className='msg';} },3000);} });
+}
 function render(){
   var root=document.getElementById('root');
-  root.innerHTML=routingCardHtml()
+  root.innerHTML=routingCardHtml()+boardDisplayCardHtml()
     +'<div class="cols">'
     +'<div class="card side"><div class="sh">» Pipelines</div><ul class="pl" id="pl"></ul>'
       +'<div class="sf"><button class="btn full" id="newBtn">+ New pipeline</button></div></div>'
     +'<div class="card main" id="main"></div>'
   +'</div>';
   var _ms=document.getElementById('mapSave'); if(_ms) _ms.onclick=saveMap;
+  var _bd=document.getElementById('bdSave'); if(_bd) _bd.onclick=saveBoardDisplay;
   var pl=document.getElementById('pl');
   pl.innerHTML=PIPES.map(function(p){
     var n=(p.stages||[]).length;

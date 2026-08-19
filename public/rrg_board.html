@@ -249,7 +249,7 @@ function sortCards(arr){
 function load(){
   fetch('/api/board'+(PID?('?pipelineId='+encodeURIComponent(PID)):''),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">Could not load the board.</div>'; return; }
-    DATA=j; PID=j.pipelineId; MARKETS=j.markets||[]; fillMarketList(); loadTB(); EXPANDED={};
+    DATA=j; PID=j.pipelineId; MARKETS=j.markets||[]; if(j.cardFields&&typeof j.cardFields==='object') CARDF=Object.assign({},CARDF,j.cardFields); if(j.cardFlags&&typeof j.cardFlags==='object'){ if(j.cardFlags.highValue) FLAGS.highValue=Object.assign({},FLAGS.highValue,j.cardFlags.highValue); if(j.cardFlags.slipping) FLAGS.slipping=Object.assign({},FLAGS.slipping,j.cardFlags.slipping); } fillMarketList(); loadTB(); EXPANDED={};
     var sel=document.getElementById('psel');
     sel.innerHTML=(j.pipelines||[]).map(function(p){ return '<option value="'+esc(p.id)+'"'+(p.id===PID?' selected':'')+'>'+esc(p.name)+'</option>'; }).join('');
     renderToolbar(); render();
@@ -285,8 +285,6 @@ function renderToolbar(){
     +'<button class="tbtn'+(FILTER_OPEN?' on':'')+'" id="tb_filter">'+ico('filter')+'Filters'+(vc?(' <span class="pip">'+vc+'</span>'):'')+'</button>'
     +'<div style="position:relative;display:inline-block"><button class="tbtn" id="tb_saved">'+ico('saved')+'Saved views ▾</button><div id="savemenu"></div></div>'
     +'<span class="tblabel">Sort</span><select class="tbsel" id="tb_sort">'+SORTS.map(function(o){return '<option value="'+o[0]+'"'+(TB.sort===o[0]?' selected':'')+'>'+esc(o[1])+'</option>';}).join('')+'</select>'
-    +'<div style="position:relative;display:inline-block"><button class="tbtn" id="tb_cardf">'+ico('fields')+'Card fields ▾</button><div id="cardfmenu"></div></div>'
-    +'<div style="position:relative;display:inline-block"><button class="tbtn" id="tb_flags">'+ico('flags')+'Card flags ▾</button><div id="flagmenu"></div></div>'
     +'<div class="search" style="margin-left:auto"><span class="mag">'+ico('search')+'</span><input id="tb_q" placeholder="Search listings\u2026" value="'+esc(TB.q)+'"></div>'
     +'</div>';
   document.getElementById('toolbar').innerHTML=html; var _nl=document.getElementById('tb_newlisting'); if(_nl) _nl.addEventListener('click',openListingModal); var _nld=document.getElementById('tb_newlead'); if(_nld) _nld.addEventListener('click',openLeadModal);
@@ -298,8 +296,6 @@ function renderToolbar(){
   document.getElementById('tb_saved').addEventListener('click',function(e){ e.stopPropagation(); SAVE_OPEN=!SAVE_OPEN; renderSaveMenu(); });
   document.querySelectorAll('.vbtn[data-view]').forEach(function(b){ b.addEventListener('click',function(){ VIEW=b.getAttribute('data-view'); try{localStorage.setItem('rrg_board_view',VIEW);}catch(e){} renderToolbar(); render(); }); });
   document.querySelectorAll('.dbtn[data-density]').forEach(function(b){ b.addEventListener('click',function(){ DENSITY=b.getAttribute('data-density'); try{localStorage.setItem('rrg_board_density',DENSITY);}catch(e){} renderToolbar(); render(); }); });
-  var _cf=document.getElementById('tb_cardf'); if(_cf) _cf.addEventListener('click',function(e){ e.stopPropagation(); CARDF_OPEN=!CARDF_OPEN; renderCardfMenu(); });
-  var _fl=document.getElementById('tb_flags'); if(_fl) _fl.addEventListener('click',function(e){ e.stopPropagation(); FLAGS_OPEN=!FLAGS_OPEN; renderFlagMenu(); });
 }
 function renderFilterPanel(){
   var host=document.getElementById('filterpanel');
