@@ -315,7 +315,7 @@ function folderNodeHtml(node, depth){
   var docsHtml=node.docs.length? node.docs.map(docRowHtml).join('') : (node.order.length?'':'<div class="catempty">No files in this folder yet.</div>');
   var cls=(depth>=2)?'subcat':'cat';
   var ctrls='<span class="fctrls"><button class="fbtn" data-fact="sub" data-fp="'+esc(node.path)+'">+ Subfolder</button><button class="fbtn" data-fact="ren" data-fp="'+esc(node.path)+'">Rename</button><button class="fbtn danger" data-fact="del" data-fp="'+esc(node.path)+'">Delete</button></span>';
-  return '<div class="'+cls+' open"><div class="cathd"><span class="cav" data-tog="1">\u25b8</span><span class="fnm">'+esc(node.name)+'</span><span class="n">'+_countDocs(node)+'</span>'+ctrls+'</div><div class="catbody">'+docsHtml+kids+(node.path==='Lease'?leaseFlagHtml():'')+'</div></div>';
+  return '<div class="'+cls+'"><div class="cathd"><span class="cav" data-tog="1">\u25b8</span><span class="fnm">'+esc(node.name)+'</span><span class="n">'+_countDocs(node)+'</span>'+ctrls+'</div><div class="catbody">'+docsHtml+kids+(node.path==='Lease'?leaseFlagHtml():'')+'</div></div>';
 }
 function _wireDocList(el){ if(el._wired) return; el._wired=1;
   el.addEventListener('change',function(e){ var t=e.target; if(t&&t.classList&&t.classList.contains('movesel')){ moveDoc(t.getAttribute('data-mv'), t.value); } });
