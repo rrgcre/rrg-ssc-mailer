@@ -55,6 +55,15 @@ tr:hover td{background:#fbfcfe;}
 .foot{max-width:1080px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
 .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:var(--navy);color:#fff;font-size:12.5px;font-weight:700;padding:10px 18px;border-radius:100px;box-shadow:0 8px 24px rgba(0,0,0,.3);opacity:0;transition:opacity .2s;pointer-events:none;z-index:99;}
 .toast.show{opacity:1;}
+.qbar{display:flex;align-items:center;gap:8px;padding:11px 22px;border-bottom:1px solid var(--line);flex-wrap:wrap;}
+.qbar .qlbl{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-right:3px;}
+.qchip{font:inherit;font-size:12px;font-weight:700;color:#3a475f;background:#fff;border:1px solid #d6dbe6;border-radius:999px;padding:6px 13px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;white-space:nowrap;transition:background .12s,border-color .12s,color .12s;}
+.qchip:hover{border-color:#9fb0cc;background:#f7f9fb;}
+.qchip.on{background:var(--navy);border-color:var(--navy);color:#fff;}
+.qchip .qn{font-size:11px;font-weight:800;background:#eef2fb;color:#23496f;border-radius:999px;padding:0 7px;line-height:1.5;}
+.qchip.on .qn{background:rgba(255,255,255,.22);color:#fff;}
+.act .del.delx{padding:6px 9px;display:inline-flex;align-items:center;justify-content:center;}
+.act .del.delx svg{display:block;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -85,6 +94,12 @@ tr:hover td{background:#fbfcfe;}
   </div>
   <div class="card">
     <div class="hd"><b>Data Rooms</b><span class="cnt" id="cnt"></span><button id="newRoomBtn" class="newbtn" onclick="newRoom()">+ New data room</button><label id="hideArchWrap" style="display:none;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap"><input type="checkbox" id="hideArch" checked style="cursor:pointer;margin:0"> Hide archived <span id="archCnt" style="display:none;color:#8a5a12;background:#fff4e6;border:1px solid #f3d9a8;border-radius:99px;padding:1px 7px;font-size:11px;font-weight:700"></span></label><button id="filterBtn" class="fbtn" onclick="toggleRoomFilter()">⚙ Filters</button><div class="searchwrap"><svg class="searchic" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"></circle><line x1="12.8" y1="12.8" x2="17.5" y2="17.5"></line></svg><input id="roomSearch" placeholder="Search data rooms by name, creator, or buyer…" oninput="applyFilter()" autocomplete="off"><button type="button" class="searchx" id="roomSearchx" title="Clear search" onclick="var s=document.getElementById('roomSearch');s.value='';applyFilter();s.focus();">×</button></div></div>
+    <div class="qbar" id="qbar">
+      <span class="qlbl">Quick view</span>
+      <button type="button" class="qchip on" id="qf_all" onclick="setQFilt('all')">All rooms <span class="qn" id="qn_all">0</span></button>
+      <button type="button" class="qchip" id="qf_active" onclick="setQFilt('active')">Active <span class="qn" id="qn_active">0</span></button>
+      <button type="button" class="qchip" id="qf_pop" onclick="setQFilt('pop')">Active &amp; populated <span class="qn" id="qn_pop">0</span></button>
+    </div>
     <div id="body"></div>
   </div>
 </div>
@@ -206,7 +221,7 @@ function renderList(list){
       { label:'Downloads', key:'downloads', align:'left', filterType:'number', filterVal:function(c){ return c.downloads||0; }, sort:function(a,b){ return (a.downloads||0)-(b.downloads||0); },
         cell:function(c){ return '<span class="pill">'+(c.downloads||0)+'</span>'; } },
       { label:'Actions', key:'actions', align:'right', sortable:false, filterable:false,
-        cell:function(c){ var bv=c.closed?'':'<button class="view" onclick="buyerView(\''+c.id+'\')" title="See this room exactly as an NDA’d buyer does">👁 Buyer view</button>'; return '<div class="act"><a class="open" href="./rrg_room.html?room='+encodeURIComponent(c.id)+'" title="Edit this data room">Edit data room</a><a class="open" href="./rrg_room.html?room='+encodeURIComponent(c.id)+'" title="Open this data room to upload files">Upload files</a>'+bv+'<button class="link" onclick="copyLink(\''+c.id+'\')">Copy general access link</button><button class="del" onclick="delRoom(\''+c.id+'\',this)">Delete</button></div>'; } }
+        cell:function(c){ var bv=c.closed?'':'<button class="view" onclick="buyerView(\''+c.id+'\')" title="See this room exactly as an NDA’d buyer does">👁 Buyer view</button>'; return '<div class="act"><a class="open" href="./rrg_room.html?room='+encodeURIComponent(c.id)+'" title="Edit this data room">Edit data room</a><a class="open" href="./rrg_room.html?room='+encodeURIComponent(c.id)+'" title="Open this data room to upload files">Upload files</a>'+bv+'<button class="link" onclick="copyLink(\''+c.id+'\')">Copy general access link</button><button class="del delx" title="Delete data room" aria-label="Delete data room" onclick="delRoom(\''+c.id+'\',this)"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"></path></svg></button></div>'; } }
     ],
     bulk:[ { label:'Delete selected', danger:true, fn:function(ids,done){ bulkDel(ids,done); } } ]
   };
@@ -216,6 +231,8 @@ function renderList(list){
 function toggleRoomFilter(){ if(CTL&&CTL.toggleFilter){ CTL.toggleFilter(); updateRoomFilterBtn(); var b=document.getElementById('filterBtn'); if(b&&CTL.filterOpen&&CTL.filterOpen()){ var mt=document.getElementById('body'); if(mt) mt.scrollIntoView({block:'nearest'}); } } }
 function updateRoomFilterBtn(){ var b=document.getElementById('filterBtn'); if(!b||!CTL) return; var n=(CTL.activeFilterCount?CTL.activeFilterCount():0); b.innerHTML='⚙ Filters'+(n?(' <span class="fbadge">'+n+'</span>'):''); b.classList.toggle('on', !!n || (CTL.filterOpen&&CTL.filterOpen())); }
 var ALL_ROOMS=[];
+var QFILT='all';
+function setQFilt(v){ QFILT=v||'all'; ['all','active','pop'].forEach(function(k){ var b=document.getElementById('qf_'+k); if(b) b.classList.toggle('on', k===QFILT); }); applyFilter(); }
 function applyFilter(){
   var arch=ALL_ROOMS.filter(function(r){ return r.closed; });
   var wrap=document.getElementById('hideArchWrap'), cnt=document.getElementById('archCnt');
@@ -225,6 +242,12 @@ function applyFilter(){
   var list = (hide&&hide.checked) ? ALL_ROOMS.filter(function(r){ return !r.closed; }) : ALL_ROOMS.slice();
   var qEl=document.getElementById('roomSearch'), q=((qEl&&qEl.value)||'').trim().toLowerCase();
   if(q){ list=list.filter(function(r){ return String(r.business||'').toLowerCase().indexOf(q)>=0 || String(r.by||'').toLowerCase().indexOf(q)>=0 || String(r.lastAccessBy||'').toLowerCase().indexOf(q)>=0; }); }
+  var _act=ALL_ROOMS.filter(function(r){ return !r.closed; });
+  var _pop=_act.filter(function(r){ return (r.docCount||0)>0; });
+  var _sn=function(id,n){ var e=document.getElementById(id); if(e) e.textContent=n; };
+  _sn('qn_all',ALL_ROOMS.length); _sn('qn_active',_act.length); _sn('qn_pop',_pop.length);
+  if(QFILT==='active'){ list=list.filter(function(r){ return !r.closed; }); }
+  else if(QFILT==='pop'){ list=list.filter(function(r){ return !r.closed && (r.docCount||0)>0; }); }
   renderList(list);
 }
 function load(){
