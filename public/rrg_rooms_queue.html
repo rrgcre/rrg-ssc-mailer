@@ -138,6 +138,15 @@ tr:hover td{background:#fbfcfe;}
         <div><label class="rfld">Rep</label><select id="nr_rep"></select></div>
         <div><label class="rfld">Date</label><input type="date" id="nr_date"></div>
       </div>
+      <div class="rfldwrap" style="margin-top:2px">
+        <label class="rfld">Per-year subfolders <span style="font-weight:500;color:#8a93a8">— inside each Financials &amp; Tax Returns year</span></label>
+        <select id="nr_submode">
+          <option value="">None</option>
+          <option value="months">12 calendar months + Full Year (13)</option>
+          <option value="periods">13 four-week periods + Full Year (14)</option>
+        </select>
+        <div style="font-size:11px;color:#8a93a8;margin-top:5px;line-height:1.4">4-week periods are the standard restaurant fiscal calendar. You can add, rename, or remove folders anytime.</div>
+      </div>
       <div class="rmsg" id="nr_msg"></div>
     </div>
     <div class="rmft"><button class="rcreate" type="button" id="nr_create" onclick="createRoomSubmit()">Create data room</button><button class="rcancel" type="button" onclick="closeNewRoom()">Cancel</button></div>
@@ -154,7 +163,7 @@ function copyLink(id){ var url=LINKS[id]||''; if(!url) return; function ok(){ to
 function buyerView(id){ var url=LINKS[id]||''; if(!url){ url='./rrg_room.html?room='+encodeURIComponent(id); window.open(url,'_blank','noopener'); return; } url += (url.indexOf('?')>=0?'&':'?')+'preview=1'; window.open(url,'_blank','noopener'); }
 function newRoom(){
   var m=document.getElementById('newRoomModal'); if(!m) return;
-  document.getElementById('nr_name').value='';
+  document.getElementById('nr_name').value=''; var _sm=document.getElementById('nr_submode'); if(_sm) _sm.value='';
   document.getElementById('nr_contact').value='';
   var _nl=document.getElementById('nr_listing'); if(_nl) _nl.value='';
   var rep=document.getElementById('nr_rep');
@@ -193,7 +202,7 @@ function createRoomSubmit(){
   var pid=''; if(cname){ var hit=CONTACTS.filter(function(p){ return String(p.name||'').trim().toLowerCase()===cname.toLowerCase(); })[0]; if(hit) pid=hit.id; }
   var lval=(document.getElementById('nr_listing')?document.getElementById('nr_listing').value:'').trim(); var lkey='', llabel='';
   if(lval){ var lh=LISTINGS.filter(function(a){ var full=(a.business+(a.market?(' — '+a.market):'')).toLowerCase(); return full===lval.toLowerCase() || String(a.business||'').trim().toLowerCase()===lval.toLowerCase(); })[0]; if(lh){ lkey=lh.key; llabel=lh.business||''; } }
-  var body={ business:name, personId:pid, personName:(pid?'':cname), byUser:(document.getElementById('nr_rep').value||''), date:(document.getElementById('nr_date').value||''), listingKey:lkey, listingLabel:llabel };
+  var body={ business:name, personId:pid, personName:(pid?'':cname), byUser:(document.getElementById('nr_rep').value||''), date:(document.getElementById('nr_date').value||''), listingKey:lkey, listingLabel:llabel, subfolderMode:(document.getElementById('nr_submode')?document.getElementById('nr_submode').value:'') };
   var btn=document.getElementById('nr_create'); btn.disabled=true; btn.textContent='Creating…'; msg.textContent='';
   fetch('/api/room/new',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
     .then(function(r){return r.json();}).then(function(j){

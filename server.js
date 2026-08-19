@@ -3400,6 +3400,22 @@ function roomCategories(baseYear){
     'Tax Returns', 'Tax Returns / ' + y, 'Tax Returns / ' + (y-1), 'Tax Returns / ' + (y-2), 'Tax Returns / ' + (y-3), 'Tax Returns / ' + (y-4),
     'Lease', 'Equipment & FF&E', 'Staffing & Payroll', 'Licenses & Permits', 'Legal & Corporate', 'Menus & Marketing', 'Photos', 'Other'];
 }
+const _ROOM_MONTHS = ['01 January','02 February','03 March','04 April','05 May','06 June','07 July','08 August','09 September','10 October','11 November','12 December'];
+const _ROOM_PERIODS = ['Period 01','Period 02','Period 03','Period 04','Period 05','Period 06','Period 07','Period 08','Period 09','Period 10','Period 11','Period 12','Period 13'];
+// Optional: seed each Financials / <year> and Tax Returns / <year> folder with 12 month
+// subfolders (sorted) plus a "Full Year" folder — 13 per year.
+function roomFolderMonths(folders, mode){
+  const labels = (mode === 'periods') ? _ROOM_PERIODS : _ROOM_MONTHS;
+  const out = [];
+  (folders || []).forEach(function(f){
+    out.push(f);
+    if (/^(Financials|Tax Returns) \/ \d{4}$/.test(f)) {
+      labels.forEach(function(m){ out.push(f + ' / ' + m); });
+      out.push(f + ' / Full Year');
+    }
+  });
+  return out;
+}
 function roomServeCats(r){
   let base = (r && Array.isArray(r.folders) && r.folders.length) ? r.folders.slice() : roomCategories();
   (r && Array.isArray(r.docs) ? r.docs : []).forEach(function(d){ const c = d && d.category; if (c && base.indexOf(c) < 0) base.push(c); });
@@ -3772,7 +3788,7 @@ app.post('/api/room/new', express.json(), (req, res) => {
     personId: personId || '', companyId: companyId || '',
     listingKey: listingKey, listingLabel: listingLabel,
     by: by, byUser: byUser,
-    createdAt: createdAt, folders: roomCategories(), docs: [], access: [], grants: [],
+    createdAt: createdAt, folders: ((b.subfolderMode === 'months' || b.subfolderMode === 'periods') ? roomFolderMonths(roomCategories(), b.subfolderMode) : roomCategories()), docs: [], access: [], grants: [],
   };
   const arr = loadRooms(); arr.push(rec); saveRooms(arr);
   res.json({ ok: true, id: rec.id });
@@ -3923,7 +3939,7 @@ app.post('/api/room/:id/folders', express.json(), (req, res) => {
     if (parent && !has(parent)) return res.status(400).json({ ok: false, error: 'Parent folder not found.' });
     const full = parent ? (parent + ' / ' + name) : name;
     if (has(full)) return res.status(409).json({ ok: false, error: 'That folder already exists.' });
-    if (folders.length >= 100) return res.status(400).json({ ok: false, error: 'Too many folders.' });
+    if (folders.length >= 500) return res.status(400).json({ ok: false, error: 'Too many folders.' });
     folders.push(full);
   } else if (action === 'rename') {
     const from = _cleanFolderName(b.from), to = _cleanFolderName(b.to);
@@ -3940,7 +3956,7 @@ app.post('/api/room/:id/folders', express.json(), (req, res) => {
     const set = {}; cleaned.forEach(f => set[f.toLowerCase()] = 1);
     folders = cleaned.concat(folders.filter(f => !set[f.toLowerCase()]));
   } else return res.status(400).json({ ok: false, error: 'Unknown action.' });
-  const seen = {}; folders = folders.filter(f => { const k = f.toLowerCase(); if (seen[k]) return false; seen[k] = 1; return true; }).slice(0, 120);
+  const seen = {}; folders = folders.filter(f => { const k = f.toLowerCase(); if (seen[k]) return false; seen[k] = 1; return true; }).slice(0, 500);
   r.folders = folders; r.updatedAt = new Date().toISOString();
   saveRooms(arr);
   res.json({ ok: true, folders: roomServeCats(r), docs: r.docs });
