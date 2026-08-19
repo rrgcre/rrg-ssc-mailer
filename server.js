@@ -5504,13 +5504,19 @@ header{background:var(--navy);border-bottom:2px solid var(--primary);position:st
 .bwm{font-weight:700;font-size:11px;text-transform:uppercase;line-height:1.05;color:#cdd6e4;letter-spacing:.02em;}
 .bwm i{font-style:normal;color:#8fa2be;font-weight:600;}
 .hauth a{font-size:12px;font-weight:700;text-decoration:none;color:var(--navy);background:#fff;padding:8px 14px;border-radius:3px;}
-.hero{background:linear-gradient(135deg,#12224a,#000E31 70%);color:#fff;position:relative;overflow:hidden;}
-.hero:after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(135deg,rgba(255,255,255,.03) 0 14px,transparent 14px 28px);}
-.heroin{padding:40px 0 26px;position:relative;z-index:2;}
-.kick{color:#8fa2be;font-weight:700;letter-spacing:.16em;font-size:10.5px;text-transform:uppercase;margin-bottom:12px;}
-.hero h1{font-size:28px;font-weight:800;letter-spacing:-.01em;max-width:760px;line-height:1.12;}
+.hero{background:radial-gradient(130% 200% at 10% -40%, #294a86 0%, #14264f 46%, #000B26 100%);color:#fff;position:relative;overflow:hidden;border-bottom:2px solid var(--primary);}
+.hero:after{content:"";position:absolute;right:-60px;top:-90px;width:280px;height:280px;border-radius:50%;background:radial-gradient(circle,rgba(72,120,200,.28),transparent 62%);pointer-events:none;}
+.heroin{padding:15px 0 15px;position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+.herot{display:flex;align-items:baseline;gap:13px;flex-wrap:wrap;}
+.hstats{display:flex;gap:9px;flex-wrap:wrap;}
+.hstat{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);border-radius:100px;padding:6px 14px;}
+.hstat .d{width:6px;height:6px;border-radius:50%;background:#f0a24b;box-shadow:0 0 0 3px rgba(240,162,75,.22);}
+.hstat b{font-size:13px;font-weight:800;color:#fff;font-variant-numeric:tabular-nums;}
+.hstat span{font-size:11px;color:#aebbd6;font-weight:600;}
+.kick{color:#a9bbdd;font-weight:700;letter-spacing:.14em;font-size:10px;text-transform:uppercase;margin:0;white-space:nowrap;}
+.hero h1{font-size:18.5px;font-weight:800;letter-spacing:-.01em;max-width:760px;line-height:1.2;}
 .hero p{color:#c6d0e6;font-size:14px;margin-top:12px;max-width:600px;}
-.filters{background:#fff;border:1px solid var(--line);border-radius:4px;box-shadow:none;padding:9px;display:flex;gap:8px;flex-wrap:wrap;margin-top:22px;}
+.filters{background:#fff;border:1px solid var(--line);border-radius:4px;box-shadow:none;padding:9px;display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;}
 .filters select,.filters input{border:1px solid var(--inp);border-radius:3px;padding:9px 11px;font:inherit;font-size:12.5px;background:#fff;color:var(--ink);}
 .filters .search{flex:1;min-width:190px;}
 .barrow{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin:20px 0 14px;}
@@ -5614,9 +5620,10 @@ table.lg{width:100%;border-collapse:collapse;}
   <span class="hauth"><a href="mailto:?subject=Buyer%20registration">Register as a buyer</a></span>
 </div></header>
 <div class="hero"><div class="wrap heroin">
-  <div class="kick">Confidential · NDA-gated · Texas</div>
-  <h1>The confidential marketplace for restaurant &amp; bar acquisitions</h1>
-  <p>Every opportunity is presented blind. Browse the field, then request access to the full offering and data room under NDA.</p>
+  <div class="herot"><span class="kick">Confidential · NDA-gated · Texas</span><h1>Confidential restaurant &amp; bar opportunities</h1></div>
+  <div class="hstats"><span class="hstat"><span class="d"></span><b id="stCount">—</b> <span>opportunities</span></span><span class="hstat"><b id="stMkt">—</b> <span>markets</span></span></div>
+</div></div>
+<div class="wrap">
   <div class="filters">
     <input class="search" id="fSearch" placeholder="Search concept, keyword…">
     <select id="fMarket">${mkOpts}</select>
@@ -5624,8 +5631,6 @@ table.lg{width:100%;border-collapse:collapse;}
     <select id="fPrice">${opts(MKT_PRICE)}</select>
     <select id="fCash">${opts(MKT_CASH)}</select>
   </div>
-</div></div>
-<div class="wrap">
   <div class="barrow">
     <div class="cnt" id="cnt">Loading confidential opportunities…</div>
     <div class="right">
@@ -5708,6 +5713,7 @@ function registerHtml(rows){
     return '<div class="reggrp"><div class="reghd"><h2>'+esc(k)+'</h2><span class="ln"></span><span class="n">'+groups[k].length+' deal'+(groups[k].length>1?'s':'')+'</span></div>'+items+'</div>';
   }).join('');
 }
+function updateHeaderStats(){ var c=document.getElementById('stCount'); if(c) c.textContent=ALL.length; var mk={}; ALL.forEach(function(l){ if(l.marketKey) mk[l.marketKey]=1; }); var me=document.getElementById('stMkt'); if(me) me.textContent=Object.keys(mk).length; }
 function render(){
   var q=(document.getElementById('fSearch').value||'').toLowerCase().trim();
   var mk=document.getElementById('fMarket').value, cc=document.getElementById('fConcept').value;
@@ -5725,7 +5731,7 @@ function render(){
   if(STYLE==='ledger'){ g.className='ledgerwrap'; g.innerHTML=ledgerHtml(rows); }
   else if(STYLE==='register'){ g.className='regwrap'; g.innerHTML=registerHtml(rows); }
   else { g.className=(VIEW==='list'?'list':'grid'); g.innerHTML=rows.length?rows.map(VIEW==='list'?listRow:card).join(''):'<div class="empty">No opportunities match those filters right now. Adjust the filters, or register as a buyer to be notified as new listings come to market.</div>'; }
-  document.getElementById('cnt').innerHTML='Showing <b>'+rows.length+'</b> of <b>'+ALL.length+'</b> confidential opportunities';
+  document.getElementById('cnt').innerHTML='Showing <b>'+rows.length+'</b> of <b>'+ALL.length+'</b> confidential opportunities'; updateHeaderStats();
   g.querySelectorAll('.req').forEach(function(b){ b.addEventListener('click',function(){ openReq(b.getAttribute('data-k')); }); });
 }
 document.querySelectorAll('.vtog button[data-view]').forEach(function(b){ b.addEventListener('click',function(){ VIEW=b.getAttribute('data-view'); document.querySelectorAll('.vtog button').forEach(function(x){ x.classList.toggle('on',x===b); }); render(); }); });
