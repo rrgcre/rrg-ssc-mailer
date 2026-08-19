@@ -401,6 +401,12 @@ function saveTickets(a) { return writeJsonGuarded(TICKETS_FILE, a, 'saveTickets'
 function newTicketId() { return 'tkt_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function ownsTicket(req, t) { if (req.user && isSuper(req.user)) return true; return t.byUser && t.byUser === (req.user && req.user.username); }
 function ticketNo(t) { return t.num ? ('#' + String(t.num)) : ('#' + String(t.id).slice(-5)); }
+const TICKETFILES_DIR = path.join(BOV_DATA_DIR, 'ticketfiles');
+function _ticketFileId() { return 'tf_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function _ticketNoteId() { return 'tn_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function _ticketOverdue(t) { if (!t || !t.dueDate) return false; if (String(t.status) === 'Closed') return false; try { const due = new Date(String(t.dueDate).length <= 10 ? (t.dueDate + 'T23:59:59') : t.dueDate).getTime(); return due < Date.now(); } catch (e) { return false; } }
+function _ticketDefaultDue(priority) { const days = priority === 'Urgent' ? 1 : (priority === 'High' ? 2 : 5); const d = new Date(); d.setDate(d.getDate() + days); return d.toISOString().slice(0, 10); }
+function _ticketOffice(req, t) { if (!req || !req.user) return false; if (isSuper(req.user)) return true; return userDepartmentIds(req.user && req.user.username).indexOf(t.department) >= 0; }
 const TICKET_PROMPT_FILE = path.join(BOV_DATA_DIR, 'ticket_prompt.txt');
 function loadTicketPromptCustom() { try { const t = fs.readFileSync(TICKET_PROMPT_FILE, 'utf8'); return (t && t.trim()) ? t : ''; } catch (e) { return ''; } }
 function saveTicketPromptCustom(t) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(TICKET_PROMPT_FILE, String(t)); } catch (e) {} }
@@ -1224,7 +1230,7 @@ app.use(cors({ origin: process.env.ALLOW_ORIGIN || '*' }));
 // The document-upload endpoints declare their own larger JSON limits below.
 // Exempt them here so this 1 MB global cap doesn't 413 real uploads first.
 app.use((req, res, next) => {
-  if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/generate-lease' || req.path === '/api/generate-map' || req.path === '/api/valuation-factors' || req.path === '/api/admin/backup/restore' || req.path === '/api/admin/upload-doc' || req.path === '/api/admin/logo' || req.path === '/api/admin/favicon' || req.path === '/api/files' || req.path === '/api/form/build' || req.path === '/api/room-upload' || /^\/api\/room\/[^/]+\/bulk-upload$/.test(req.path) || /^\/api\/company\/[^/]+\/location\/[^/]+\/photo$/.test(req.path) || /^\/api\/company\/[^/]+\/concept\/[^/]+\/logo$/.test(req.path) || /^\/api\/company\/[^/]+\/logo$/.test(req.path) || /^\/api\/agreements\/[^/]+\/doc$/.test(req.path) || /^\/api\/admin\/agreement-templates\/[^/]+\/file$/.test(req.path) || /^\/api\/sign\/[^/]+$/.test(req.path) || req.path.indexOf('/api/admin/import/') === 0 || req.path === '/api/admin/enrich-apply' || req.path === '/api/admin/concepts-apply' || req.path === '/api/admin/cleanup-apply' || req.path === '/api/admin/apply-logos' || req.path === '/api/admin/emaildomain-apply' || req.path === '/api/gmail/send' || /^\/api\/person\/[^/]+\/email$/.test(req.path)) return next();
+  if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/generate-lease' || req.path === '/api/generate-map' || req.path === '/api/valuation-factors' || req.path === '/api/admin/backup/restore' || req.path === '/api/admin/upload-doc' || req.path === '/api/admin/logo' || req.path === '/api/admin/favicon' || req.path === '/api/files' || req.path === '/api/form/build' || req.path === '/api/room-upload' || /^\/api\/room\/[^/]+\/bulk-upload$/.test(req.path) || /^\/api\/company\/[^/]+\/location\/[^/]+\/photo$/.test(req.path) || /^\/api\/company\/[^/]+\/concept\/[^/]+\/logo$/.test(req.path) || /^\/api\/company\/[^/]+\/logo$/.test(req.path) || /^\/api\/agreements\/[^/]+\/doc$/.test(req.path) || /^\/api\/admin\/agreement-templates\/[^/]+\/file$/.test(req.path) || /^\/api\/sign\/[^/]+$/.test(req.path) || req.path.indexOf('/api/admin/import/') === 0 || req.path === '/api/admin/enrich-apply' || req.path === '/api/admin/concepts-apply' || req.path === '/api/admin/cleanup-apply' || req.path === '/api/admin/apply-logos' || req.path === '/api/admin/emaildomain-apply' || req.path === '/api/gmail/send' || /^\/api\/person\/[^/]+\/email$/.test(req.path) || /^\/api\/ticket\/[^/]+\/file$/.test(req.path)) return next();
   express.json({ limit: '1mb' })(req, res, next);
 });
 app.use(express.urlencoded({ extended: false }));
@@ -11293,16 +11299,21 @@ function ticketBrief(t) {
     priority: t.priority || 'Normal', status: t.status || 'Open',
     by: t.by || '', byUser: t.byUser || '', createdAt: t.createdAt || '', updatedAt: t.updatedAt || t.createdAt || '',
     messages: msgs.length, lastFrom: last ? last.from : '', lastAt: last ? last.at : (t.createdAt || ''),
+    dueDate: t.dueDate || '', overdue: _ticketOverdue(t), files: (Array.isArray(t.files) ? t.files.length : 0),
   };
 }
-function ticketFull(t) {
-  return {
+function ticketFull(t, office) {
+  const o = {
     id: t.id, num: t.num || 0, no: ticketNo(t), subject: t.subject || '', category: t.category || 'Other',
     department: t.department || '', departmentName: (ticketDept(t) || {}).name || '',
     priority: t.priority || 'Normal', status: t.status || 'Open', by: t.by || '', byUser: t.byUser || '',
     createdAt: t.createdAt || '', updatedAt: t.updatedAt || t.createdAt || '',
+    dueDate: t.dueDate || '', overdue: _ticketOverdue(t), isOffice: !!office,
+    files: (Array.isArray(t.files) ? t.files : []).map(ff => ({ id: ff.id, name: ff.name || '', ext: ff.ext || '', size: ff.size || 0, at: ff.at || '', by: ff.by || '' })),
     thread: (Array.isArray(t.thread) ? t.thread : []).map(m => ({ from: m.from, name: m.name || '', at: m.at || '', text: m.text || '', status: m.status || '' })),
   };
+  if (office) o.internal = (Array.isArray(t.internal) ? t.internal : []).map(n => ({ id: n.id, name: n.name || '', at: n.at || '', text: n.text || '' }));
+  return o;
 }
 // Run the AI brokerage-office assistant on a ticket; appends its reply to the thread and sets status.
 async function runTicketAI(t, req) {
@@ -11337,7 +11348,7 @@ app.get('/api/ticket/:id', (req, res) => {
   const t = loadTickets().find(x => x.id === req.params.id);
   if (!t) return res.status(404).json({ ok: false, error: 'Ticket not found.' });
   if (!canSeeTicket(req, t)) return res.status(403).json({ ok: false, error: 'Not yours.' });
-  res.json({ ok: true, ticket: ticketFull(t), canDelete: ownsTicket(req, t), categories: effTicketCategories(), priorities: TICKET_PRIORITIES, statuses: TICKET_STATUSES, isAdmin: !!(req.user && isSuper(req.user)), departments: effDepartments().map(d => ({ id: d.id, name: d.name, cats: d.cats })) });
+  res.json({ ok: true, ticket: ticketFull(t, _ticketOffice(req, t)), canDelete: ownsTicket(req, t), categories: effTicketCategories(), priorities: TICKET_PRIORITIES, statuses: TICKET_STATUSES, isAdmin: !!(req.user && isSuper(req.user)), departments: effDepartments().map(d => ({ id: d.id, name: d.name, cats: d.cats })) });
 });
 app.post('/api/ticket', express.json(), async (req, res) => {
   const b = req.body || {};
@@ -11355,6 +11366,7 @@ app.post('/api/ticket', express.json(), async (req, res) => {
     category: _cat, department: _dept ? _dept.id : '',
     priority: TICKET_PRIORITIES.indexOf(b.priority) >= 0 ? b.priority : 'Normal',
     status: 'Open', createdAt: now, updatedAt: now,
+    dueDate: (/^\d{4}-\d{2}-\d{2}$/.test(b.dueDate || '') ? b.dueDate : _ticketDefaultDue(TICKET_PRIORITIES.indexOf(b.priority) >= 0 ? b.priority : 'Normal')),
     by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
     thread: [{ from: 'rep', name: (req.user && req.user.name) || 'Rep', at: now, text: details.slice(0, 8000) }],
   };
@@ -11365,7 +11377,7 @@ app.post('/api/ticket', express.json(), async (req, res) => {
   sendNotifyMail(deptNotifyEmails(_dept), 'New request ' + ticketNo(t) + ' · ' + t.subject,
     'A new office request was submitted.\n\nFrom: ' + (t.by || 'a rep') + '\nDepartment: ' + (_dept ? _dept.name : 'Unassigned') + '\nCategory: ' + t.category + '\nPriority: ' + t.priority + '\n\n' + details +
     (base ? ('\n\nOpen it: ' + base + '/rrg_tickets.html') : '')).catch(() => {});
-  res.json({ ok: true, ticket: ticketFull(t) });
+  res.json({ ok: true, ticket: ticketFull(t, _ticketOffice(req, t)) });
 });
 app.post('/api/ticket/:id/reply', express.json(), async (req, res) => {
   const arr = loadTickets(); const t = arr.find(x => x.id === req.params.id);
@@ -11385,14 +11397,14 @@ app.post('/api/ticket/:id/reply', express.json(), async (req, res) => {
     sendNotifyMail(oe, 'Reply on your request ' + ticketNo(t) + ' · ' + t.subject,
       'The brokerage office replied to your request ' + ticketNo(t) + ':\n\n"' + text.slice(0, 600) + '"\n\nStatus: ' + t.status +
       (base ? ('\n\nView it: ' + base + '/rrg_tickets.html') : '')).catch(() => {});
-    return res.json({ ok: true, ticket: ticketFull(t) });
+    return res.json({ ok: true, ticket: ticketFull(t, true) });
   }
   // Owner follow-up → the AI office assistant responds.
   t.thread.push({ from: 'rep', name: (req.user && req.user.name) || 'Rep', at: now, text: text.slice(0, 8000) });
   t.status = 'Open';
   await runTicketAI(t, req);
   saveTickets(arr);
-  res.json({ ok: true, ticket: ticketFull(t) });
+  res.json({ ok: true, ticket: ticketFull(t, _ticketOffice(req, t)) });
 });
 app.post('/api/ticket/:id/status', express.json(), (req, res) => {
   const arr = loadTickets(); const t = arr.find(x => x.id === req.params.id);
@@ -11401,7 +11413,7 @@ app.post('/api/ticket/:id/status', express.json(), (req, res) => {
   const s = String((req.body && req.body.status) || '');
   if (TICKET_STATUSES.indexOf(s) < 0) return res.status(400).json({ ok: false, error: 'Bad status.' });
   t.status = s; t.updatedAt = new Date().toISOString(); saveTickets(arr);
-  res.json({ ok: true, ticket: ticketFull(t) });
+  res.json({ ok: true, ticket: ticketFull(t, _ticketOffice(req, t)) });
 });
 app.delete('/api/ticket/:id', (req, res) => {
   const arr = loadTickets(); const t = arr.find(x => x.id === req.params.id);
@@ -11409,6 +11421,74 @@ app.delete('/api/ticket/:id', (req, res) => {
   if (!ownsTicket(req, t)) return res.status(403).json({ ok: false, error: 'Not yours.' });
   saveTickets(arr.filter(x => x.id !== req.params.id));
   res.json({ ok: true });
+});
+// Set or clear a ticket's due date (anyone on the ticket can set the target).
+app.post('/api/ticket/:id/due', express.json(), (req, res) => {
+  const arr = loadTickets(); const t = arr.find(x => x.id === req.params.id);
+  if (!t) return res.status(404).json({ ok: false, error: 'Ticket not found.' });
+  if (!canSeeTicket(req, t)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const d = String((req.body && req.body.dueDate) || '').trim();
+  if (d && !/^\d{4}-\d{2}-\d{2}$/.test(d)) return res.status(400).json({ ok: false, error: 'Use a YYYY-MM-DD date.' });
+  t.dueDate = d; t.updatedAt = new Date().toISOString(); saveTickets(arr);
+  res.json({ ok: true, ticket: ticketFull(t, _ticketOffice(req, t)) });
+});
+// Internal office notes — visible only to the office team on the ticket's department, never the requester.
+app.post('/api/ticket/:id/internal', express.json(), (req, res) => {
+  const arr = loadTickets(); const t = arr.find(x => x.id === req.params.id);
+  if (!t) return res.status(404).json({ ok: false, error: 'Ticket not found.' });
+  if (!_ticketOffice(req, t)) return res.status(403).json({ ok: false, error: 'Office only.' });
+  const text = String((req.body && req.body.text) || '').trim();
+  if (!text) return res.status(400).json({ ok: false, error: 'Note is empty.' });
+  if (!Array.isArray(t.internal)) t.internal = [];
+  t.internal.push({ id: _ticketNoteId(), name: (req.user && req.user.name) || 'Office', at: new Date().toISOString(), text: text.slice(0, 8000) });
+  t.updatedAt = new Date().toISOString(); saveTickets(arr);
+  res.json({ ok: true, ticket: ticketFull(t, true) });
+});
+app.delete('/api/ticket/:id/internal/:nid', (req, res) => {
+  const arr = loadTickets(); const t = arr.find(x => x.id === req.params.id);
+  if (!t) return res.status(404).json({ ok: false, error: 'Ticket not found.' });
+  if (!_ticketOffice(req, t)) return res.status(403).json({ ok: false, error: 'Office only.' });
+  t.internal = (Array.isArray(t.internal) ? t.internal : []).filter(n => n.id !== req.params.nid);
+  t.updatedAt = new Date().toISOString(); saveTickets(arr);
+  res.json({ ok: true, ticket: ticketFull(t, true) });
+});
+// Ticket attachments — anyone on the ticket (requester or office team) can add and view files.
+app.post('/api/ticket/:id/file', express.json({ limit: '30mb' }), (req, res) => {
+  const arr = loadTickets(); const t = arr.find(x => x.id === req.params.id);
+  if (!t) return res.status(404).json({ ok: false, error: 'Ticket not found.' });
+  if (!canSeeTicket(req, t)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const b = req.body || {};
+  const orig = String(b.filename || '').trim(); const m = orig.match(/\.([a-z0-9]+)$/i); const ext = m ? m[1].toLowerCase() : '';
+  if (!/^(pdf|docx?|xlsx?|csv|pptx?|png|jpe?g|gif|webp|txt|zip)$/i.test(ext)) return res.status(400).json({ ok: false, error: 'Unsupported file type.' });
+  const data = String(b.dataB64 || '').replace(/^data:[^,]*,/, ''); if (!data) return res.status(400).json({ ok: false, error: 'No file data received.' });
+  let buf; try { buf = Buffer.from(data, 'base64'); } catch (e) { return res.status(400).json({ ok: false, error: 'Could not read the file.' }); }
+  if (!buf.length) return res.status(400).json({ ok: false, error: 'The file is empty.' });
+  if (buf.length > 20 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'File too large (max 20 MB).' });
+  try { if (!fs.existsSync(TICKETFILES_DIR)) fs.mkdirSync(TICKETFILES_DIR, { recursive: true }); } catch (e) { return res.status(500).json({ ok: false, error: 'Could not create the folder.' }); }
+  const fid = _ticketFileId();
+  try { binWrite(path.join(TICKETFILES_DIR, t.id + '_' + fid + '.' + ext), buf); } catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the file.' }); }
+  if (!Array.isArray(t.files)) t.files = [];
+  t.files.push({ id: fid, name: String(b.filename || ('file.' + ext)).slice(0, 200), ext, size: buf.length, at: new Date().toISOString(), by: (req.user && req.user.name) || '' });
+  t.updatedAt = new Date().toISOString(); saveTickets(arr);
+  res.json({ ok: true, ticket: ticketFull(t, _ticketOffice(req, t)) });
+});
+app.get('/api/ticket/:id/file/:fid', (req, res) => {
+  const t = loadTickets().find(x => x.id === req.params.id); if (!t) return res.status(404).end();
+  if (!canSeeTicket(req, t)) return res.status(403).end();
+  const f = (t.files || []).find(x => x.id === req.params.fid); if (!f) return res.status(404).end();
+  const fp = path.join(TICKETFILES_DIR, t.id + '_' + f.id + '.' + f.ext);
+  if (!fp.startsWith(TICKETFILES_DIR) || !fs.existsSync(fp)) return res.status(404).end();
+  res.setHeader('Content-Disposition', 'inline; filename="' + encodeURIComponent(f.name) + '"');
+  res.sendFile(fp);
+});
+app.delete('/api/ticket/:id/file/:fid', (req, res) => {
+  const arr = loadTickets(); const t = arr.find(x => x.id === req.params.id);
+  if (!t) return res.status(404).json({ ok: false, error: 'Ticket not found.' });
+  if (!canSeeTicket(req, t)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const f = (t.files || []).find(x => x.id === req.params.fid); if (!f) return res.status(404).json({ ok: false, error: 'File not found.' });
+  try { binDel(path.join(TICKETFILES_DIR, t.id + '_' + f.id + '.' + f.ext)); } catch (e) {}
+  t.files = (t.files || []).filter(x => x.id !== f.id); t.updatedAt = new Date().toISOString(); saveTickets(arr);
+  res.json({ ok: true, ticket: ticketFull(t, _ticketOffice(req, t)) });
 });
 // Record counts per tool file — powers the little count badges on the dashboard.
 app.get('/api/counts', (req, res) => {

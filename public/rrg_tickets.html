@@ -3,19 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RRG — Requests</title>
+<title>RRG — Office Requests</title>
+<meta name="rrg-back" content="index.html|Toolbox">
 <style>
 :root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;}
 *{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
-.top{color:#fff;padding:26px 0 28px;position:relative;overflow:hidden;background:radial-gradient(95% 130% at 28% 15%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
-.top-in{max-width:1240px;margin:0 auto;padding:0 24px;position:relative;z-index:2;}
+.top{color:#fff;padding:22px 0 22px;position:relative;overflow:hidden;background:radial-gradient(90% 130% at 25% 10%, #22346a 0%, #152752 42%, #0b1636 72%, #060f26 100%);}
+.top-in{max-width:none;margin:0 auto;padding:0 28px;position:relative;z-index:2;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
 .brand{display:inline-flex;align-items:center;cursor:pointer;} .disc{background:var(--red);color:#fff;border-radius:50%;width:40px;height:40px;font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
 .bar{background:#fff;width:3px;height:28px;margin:0 11px;} .wm{font-weight:800;font-size:13px;text-transform:uppercase;line-height:.95;}
-.kicker{margin:18px 0 3px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:10.5px;text-transform:uppercase;}
+.kicker{margin:0 0 3px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:10.5px;text-transform:uppercase;}
 h1{font-size:28px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
 .sub{color:#aeb8cf;font-size:13px;margin-top:7px;max-width:640px;line-height:1.5;}
-.wrap{max-width:1240px;margin:22px auto;padding:0 24px 70px;}
+.wrap{max-width:none;margin:20px auto;padding:0 28px 90px;}
 .card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 6px 24px rgba(10,20,50,.06);}
 .hd{display:flex;align-items:center;padding:15px 20px;border-bottom:1px solid var(--line);gap:12px;}
 .hd b{color:var(--navy);font-size:14px;} .hd .cnt{color:var(--muted);font-size:12.5px;}
@@ -38,7 +39,7 @@ h1{font-size:28px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
 .st-closed{background:#f2f4f8;color:#6b7488;border:1px solid #e0e5ee;}
 .pr-High,.pr-Urgent{color:var(--red);font-weight:800;}
 .empty{text-align:center;color:var(--muted);padding:54px 20px;} .empty b{color:var(--navy);display:block;font-size:15px;margin-bottom:6px;}
-.foot{max-width:1240px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
+.foot{max-width:none;margin:0 auto;padding:0 28px 40px;color:var(--muted);font-size:11.5px;}
 /* modal */
 .modal{position:fixed;inset:0;background:rgba(6,14,32,.55);display:flex;align-items:center;justify-content:center;z-index:200;padding:20px;}
 .modal[hidden]{display:none!important;}
@@ -72,19 +73,50 @@ h1{font-size:28px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
 .detmeta .dchip{font-size:11px;color:var(--muted);background:var(--wash);border:1px solid var(--line);border-radius:100px;padding:4px 10px;font-weight:600;}
 .thinking{padding:14px 22px;color:var(--muted);font-size:12.5px;font-style:italic;}
 .backlink{background:none;border:none;color:var(--muted);font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;padding:0;}
+
+/* --- netsuite back + shell --- */
+.rrg-back{position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);}
+body.rrg-shelled .rrg-back{display:none;}
+/* --- KPI tiles --- */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;} @media(max-width:820px){.kpis{grid-template-columns:repeat(2,1fr);}}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:13px;padding:14px 16px;box-shadow:0 1px 2px rgba(16,32,70,.04);}
+.kpi .l{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;display:flex;align-items:center;gap:7px;} .kpi .l .b{width:15px;height:3px;border-radius:2px;background:var(--a,#2647b0);}
+.kpi .v{font-size:25px;font-weight:800;margin-top:7px;letter-spacing:-.015em;color:var(--navy);}
+.kpi.warn .v{color:var(--red);}
+/* --- due date / overdue --- */
+.due-ok{font-variant-numeric:tabular-nums;color:var(--ink);}
+.due-over{font-variant-numeric:tabular-nums;color:var(--red);font-weight:800;}
+.ovbadge{display:inline-block;font-size:9px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:2px 7px;border-radius:999px;background:#fdeceb;color:var(--red);border:1px solid #f3c9c6;margin-left:6px;}
+.dchip.due input{border:none;background:transparent;font:inherit;font-size:11px;font-weight:700;color:var(--navy);padding:0 0 0 4px;cursor:pointer;}
+.dchip.due{display:inline-flex;align-items:center;}
+.dchip.due.over{background:#fdeceb;border-color:#f3c9c6;color:var(--red);} .dchip.due.over input{color:var(--red);}
+/* --- attachments --- */
+.filesec{padding:14px 22px;border-top:1px solid var(--line);}
+.filesec h4{margin:0 0 9px;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);font-weight:800;}
+.frow{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;margin-bottom:7px;background:#fbfcfe;}
+.frow .fi{width:30px;height:30px;flex:none;border-radius:7px;background:#eef2fb;color:#2647b0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;}
+.frow .fn{min-width:0;flex:1;} .frow .fn a{color:var(--navy);font-weight:700;font-size:12.5px;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;} .frow .fn a:hover{text-decoration:underline;}
+.frow .fm{font-size:11px;color:var(--muted);margin-top:1px;} .frow .fx{background:none;border:none;color:var(--soft);font-size:14px;cursor:pointer;padding:2px 6px;} .frow .fx:hover{color:var(--red);}
+.attachbtn{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px dashed #c3ccdd;color:var(--muted);border-radius:9px;padding:9px 14px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;} .attachbtn:hover{border-color:var(--navy);color:var(--navy);}
+/* --- internal office notes --- */
+.intsec{margin:0 22px 18px;border:1px solid #f0d7ad;border-radius:12px;background:#fffaf1;overflow:hidden;}
+.intsec .inth{display:flex;align-items:center;gap:8px;padding:11px 15px;border-bottom:1px solid #f2e0c0;font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#a9741c;}
+.intsec .inth .lock{font-size:12px;}
+.intnote{padding:11px 15px;border-bottom:1px solid #f4e7cf;}
+.intnote:last-of-type{border-bottom:none;} .intnote .inm{font-size:11px;color:#a9741c;font-weight:700;} .intnote .inm span{color:#b79a63;font-weight:600;margin-left:7px;} .intnote .intx{font-size:13px;color:#5c4a22;line-height:1.5;margin-top:3px;white-space:pre-wrap;} .intnote .indel{float:right;background:none;border:none;color:#c19a55;cursor:pointer;font-size:13px;}
+.intadd{padding:12px 15px;background:#fffdf8;} .intadd textarea{width:100%;border:1px solid #ecd8b2;border-radius:9px;padding:10px 12px;font:inherit;font-size:13px;min-height:56px;resize:vertical;background:#fff;} .intbtn{margin-top:8px;background:#a9741c;color:#fff;border:none;border-radius:8px;padding:8px 14px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;} .intempty{padding:11px 15px;color:#b79a63;font-size:12px;}
 </style>
 <script src="/rrg_brand.js"></script>
 <script src="/rrg_list.js"></script>
 </head>
 <body>
-<!--rrgback--><a href="./index.html" class="rrg-back" aria-label="Back to toolbox" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28)"><span style="font-size:14px;line-height:1">←</span> Toolbox</a>
+<a href="./index.html" class="rrg-back"><span style="font-size:14px;line-height:1">←</span> Toolbox</a>
 <div class="top"><div class="top-in">
   <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
-  <div class="kicker">Brokerage Office</div>
-  <h1>Requests</h1>
-  <div class="sub">Need something from the office — collateral, signage, photography, a listing action, a compliance question? Open a request and the brokerage office answers it right away.</div>
+  <div><div class="kicker">Brokerage Office</div><h1>Office Requests</h1><div class="sub">Need something from the office — collateral, signage, photography, a listing action, a compliance question? Open a request and the brokerage office works it right away.</div></div>
 </div></div>
 <div class="wrap">
+  <div id="kpis" class="kpis" hidden></div>
   <div id="listView">
     <div class="card">
       <div class="hd"><b>Your requests</b><span class="cnt" id="cnt"></span><button id="newBtn" class="newbtn">+ New request</button></div>
@@ -121,7 +153,7 @@ function openLabel(t){ var d=openDays(t); var closed=t.status==='Closed'; return
 var ALL=[], CATS=[], PRIS=[], STATUSES=[], DEPTS=[], ISADMIN=false, FILTER='all', SORT='new', USERFILTER='', CANDEL=false;
 
 function renderFilters(){
-  var opts=[{k:'all',l:'All'},{k:'open',l:'Needs you'},{k:'Answered',l:'Answered'},{k:'Closed',l:'Closed'}];
+  var opts=[{k:'all',l:'All'},{k:'open',l:'Needs you'},{k:'overdue',l:'Overdue'},{k:'Answered',l:'Answered'},{k:'Closed',l:'Closed'}];
   var chips=opts.map(function(o){ return '<button class="fchip'+(FILTER===o.k?' on':'')+'" data-f="'+o.k+'">'+esc(o.l)+'</button>'; }).join('');
   var userSel='';
   if(ISADMIN){
@@ -137,6 +169,7 @@ function passFilter(t){
   if(USERFILTER && t.by!==USERFILTER) return false;
   if(FILTER==='all') return true;
   if(FILTER==='open') return ['Info Needed','Action Needed','Open'].indexOf(t.status)>=0;
+  if(FILTER==='overdue') return !!t.overdue;
   return t.status===FILTER;
 }
 function sortList(list){
@@ -159,19 +192,29 @@ function ticketCfg(){
     rowId:function(t){return t.id;}, defaultSort:7, defaultDir:1,
     columns:[
       { label:'#', sort:function(a,b){return RRGList.cmp(a.no,b.no);}, cell:function(t){ return '<a class="lk" href="#" data-open="'+esc(t.id)+'">'+esc(t.no)+'</a>'; } },
-      { label:'Subject', sort:function(a,b){return RRGList.cmp(a.subject,b.subject);}, cell:function(t){ return '<a class="lk" href="#" data-open="'+esc(t.id)+'">'+esc(t.subject||'(no subject)')+'</a>'; } },
+      { label:'Subject', sort:function(a,b){return RRGList.cmp(a.subject,b.subject);}, cell:function(t){ return '<a class="lk" href="#" data-open="'+esc(t.id)+'">'+esc(t.subject||'(no subject)')+'</a>'+(t.files>0?(' <span title="'+t.files+' attachment'+(t.files>1?'s':'')+'" style="color:#9aa3b2;font-size:11px">\uD83D\uDCCE'+(t.files>1?(' '+t.files):'')+'</span>'):''); } },
       { label:'Department', sort:function(a,b){return RRGList.cmp(a.departmentName||'',b.departmentName||'');}, cell:function(t){ return t.departmentName?esc(t.departmentName):'<span class="meta">\u2014</span>'; } },
       { label:'Category', sort:function(a,b){return RRGList.cmp(a.category||'',b.category||'');}, cell:function(t){ return t.category?esc(t.category):'<span class="meta">\u2014</span>'; } },
       { label:'Priority', sort:function(a,b){var o={Urgent:0,High:1,Normal:2};return (o[a.priority]==null?9:o[a.priority])-(o[b.priority]==null?9:o[b.priority]);}, cell:priorityCell },
       { label:'Requested by', defaultHidden:!ISADMIN, sort:function(a,b){return RRGList.cmp(a.by||'',b.by||'');}, cell:function(t){ return t.by?esc(t.by):'<span class="meta">\u2014</span>'; } },
       { label:'Status', sort:function(a,b){return RRGList.cmp(a.status||'',b.status||'');}, cell:statusCell },
+      { label:'Due', sort:function(a,b){return RRGList.cmp(a.dueDate||'~',b.dueDate||'~');}, cell:function(t){ if(!t.dueDate) return '<span class="meta">\u2014</span>'; return '<span class="'+(t.overdue?'due-over':'due-ok')+'" title="'+(t.overdue?'Overdue':'Due')+'">'+esc(fmtDate(t.dueDate))+(t.overdue?' \u26A0':'')+'</span>'; } },
       { label:'Opened', sort:function(a,b){return openDays(a)-openDays(b);}, cell:function(t){ return '<span title="'+esc(fmtDate(t.createdAt))+'">'+esc(openLabel(t))+'</span>'; } },
       { label:'', sortable:false, cell:function(t){ return ISADMIN?('<button class="delx" type="button" data-tdel="'+esc(t.id)+'" data-tno="'+esc(t.no)+'" title="Delete request" aria-label="Delete">✕</button>'):''; } }
     ]
   };
 }
+function renderKpis(){
+  var box=document.getElementById('kpis'); if(!box) return;
+  if(!ALL.length){ box.setAttribute('hidden',''); return; }
+  var openN=0,overN=0,ansN=0,closN=0;
+  ALL.forEach(function(t){ if(['Open','Action Needed','Info Needed'].indexOf(t.status)>=0) openN++; if(t.overdue) overN++; if(t.status==='Answered') ansN++; if(t.status==='Closed') closN++; });
+  var tiles=[{l:'Open',v:openN,a:'#2647b0'},{l:'Overdue',v:overN,a:'#DA2B1F',warn:overN>0},{l:'Answered',v:ansN,a:'#1f8a5b'},{l:'Closed',v:closN,a:'#6b7488'}];
+  box.innerHTML=tiles.map(function(x){ return '<div class="kpi'+(x.warn?' warn':'')+'" style="--a:'+x.a+'"><div class="l"><span class="b"></span>'+esc(x.l)+'</div><div class="v">'+x.v+'</div></div>'; }).join('');
+  box.removeAttribute('hidden');
+}
 function renderList(){
-  renderFilters();
+  renderFilters(); renderKpis();
   var list=ALL.filter(passFilter);
   var c=document.getElementById('cnt'); if(c) c.textContent=list.length?('\u00b7 '+list.length):'';
   var body=document.getElementById('body');
@@ -183,7 +226,18 @@ document.addEventListener('click',function(e){ var o=e.target&&e.target.closest&
 document.addEventListener('click',function(e){ var d=e.target&&e.target.closest&&e.target.closest('[data-tdel]'); if(d){ e.preventDefault(); e.stopPropagation(); delTicket(d.getAttribute('data-tdel'), d.getAttribute('data-tno')); } });
 
 /* ---- detail / thread ---- */
+function fmtSize(n){ n=+n||0; if(n<1024) return n+' B'; if(n<1048576) return Math.round(n/1024)+' KB'; return (n/1048576).toFixed(1)+' MB'; }
+function fileGlyph(ext){ ext=String(ext||'').toLowerCase(); if(ext==='pdf') return 'PDF'; if(/^(png|jpg|jpeg|gif|webp)$/.test(ext)) return '\uD83D\uDDBC'; if(/^(xls|xlsx|csv)$/.test(ext)) return '\uD83D\uDCCA'; if(/^(doc|docx)$/.test(ext)) return '\uD83D\uDCC4'; if(/^(ppt|pptx)$/.test(ext)) return '\uD83D\uDCD1'; if(ext==='zip') return '\uD83D\uDDDC'; return '\uD83D\uDCCE'; }
 function renderThread(t){
+  var files=(t.files||[]);
+  var frows=files.map(function(fl){ return '<div class="frow"><div class="fi">'+esc(fileGlyph(fl.ext))+'</div><div class="fn"><a href="/api/ticket/'+encodeURIComponent(t.id)+'/file/'+encodeURIComponent(fl.id)+'" target="_blank" rel="noopener">'+esc(fl.name)+'</a><div class="fm">'+esc((fl.ext||'').toUpperCase())+' \u00b7 '+fmtSize(fl.size)+(fl.by?(' \u00b7 '+esc(fl.by)):'')+' \u00b7 '+ago(fl.at)+'</div></div><button class="fx" title="Remove" data-fdel="'+esc(fl.id)+'">\u2715</button></div>'; }).join('');
+  var filesHtml='<div class="filesec"><h4>Attachments'+(files.length?(' \u00b7 '+files.length):'')+'</h4>'+frows+'<button class="attachbtn" id="attachBtn">\uD83D\uDCCE Attach a file</button><input type="file" id="fileInp" style="display:none"></div>';
+  var intHtml='';
+  if(t.isOffice){
+    var notes=(t.internal||[]);
+    var nrows=notes.length?notes.map(function(n){ return '<div class="intnote"><button class="indel" title="Delete note" data-ndel="'+esc(n.id)+'">\u2715</button><div class="inm">'+esc(n.name||'Office')+'<span>'+ago(n.at)+'</span></div><div class="intx">'+esc(n.text)+'</div></div>'; }).join(''):'<div class="intempty">No internal notes yet \u2014 these are visible to the office team only. The requester never sees them.</div>';
+    intHtml='<div class="intsec"><div class="inth"><span class="lock">\uD83D\uDD12</span> Internal office notes \u00b7 office only</div>'+nrows+'<div class="intadd"><textarea id="intText" placeholder="Add a private note for the office team\u2026"></textarea><div><button class="intbtn" id="intAdd">Add internal note</button></div></div></div>';
+  }
   var msgs=(t.thread||[]).map(function(m){
     var isOffice=m.from==='office';
     var av='<div class="mav '+(isOffice?'office':'rep')+'">'+(isOffice?'RRG':esc(initials(m.name).toUpperCase()))+'</div>';
@@ -197,8 +251,10 @@ function renderThread(t){
     '<button class="backlink" id="backBtn">← All requests</button>'
     + '<div class="card" style="margin-top:12px">'
     + '<div class="hd"><b>'+esc(t.no)+' · '+esc(t.subject)+'</b><span class="stpill '+stClass(t.status)+'" style="margin-left:auto">'+esc(t.status)+'</span></div>'
-    + '<div class="detmeta">'+(t.departmentName?('<span class="dchip" style="background:#eef4ff;border-color:#cfe0ff;color:#2f5bd0">'+esc(t.departmentName)+'</span>'):'')+'<span class="dchip">'+esc(t.category)+'</span>'+((t.priority&&t.priority!=='Normal')?('<span class="dchip">'+esc(t.priority)+' priority</span>'):'')+(ISADMIN&&t.by?('<span class="dchip">From '+esc(t.by)+'</span>'):'')+'<span class="dchip">Opened '+esc(fmtDate(t.createdAt))+'</span><span class="dchip">'+esc(openLabel(t))+'</span>'+(ISADMIN?('<select class="detsel" id="detStatus">'+(STATUSES||[]).map(function(s){return '<option'+(t.status===s?' selected':'')+'>'+esc(s)+'</option>';}).join('')+'</select>'):'')+'</div>'
+    + '<div class="detmeta">'+(t.departmentName?('<span class="dchip" style="background:#eef4ff;border-color:#cfe0ff;color:#2f5bd0">'+esc(t.departmentName)+'</span>'):'')+'<span class="dchip">'+esc(t.category)+'</span>'+((t.priority&&t.priority!=='Normal')?('<span class="dchip">'+esc(t.priority)+' priority</span>'):'')+(ISADMIN&&t.by?('<span class="dchip">From '+esc(t.by)+'</span>'):'')+'<span class="dchip">Opened '+esc(fmtDate(t.createdAt))+'</span><span class="dchip">'+esc(openLabel(t))+'</span>'+'<span class="dchip due'+(t.overdue?' over':'')+'">Due <input type="date" id="dueInput" value="'+esc((t.dueDate||'').slice(0,10))+'">'+(t.overdue?'<span class="ovbadge">Overdue</span>':'')+'</span>'+(ISADMIN?('<select class="detsel" id="detStatus">'+(STATUSES||[]).map(function(s){return '<option'+(t.status===s?' selected':'')+'>'+esc(s)+'</option>';}).join('')+'</select>'):'')+'</div>'
     + '<div class="thwrap">'+msgs+'</div>'
+    + filesHtml
+    + intHtml
     + '<div id="thinkSlot"></div>'
     + reply
     + (CANDEL?('<div class="delrow"><button class="linkbtn danger" id="delTicketBtn">🗑 Delete this request</button><span class="delnote">Permanently removes the request and its entire thread. This can’t be undone — use <b>Close</b> instead to keep the record.</span></div>'):'')
@@ -209,6 +265,42 @@ function renderThread(t){
   var rb=document.getElementById('reopenBtn'); if(rb) rb.addEventListener('click',function(){ setStatus(t.id,'Open'); });
   var ds=document.getElementById('detStatus'); if(ds) ds.addEventListener('change',function(){ setStatus(t.id,ds.value); });
   var db=document.getElementById('delTicketBtn'); if(db) db.addEventListener('click',function(){ delTicket(t.id, t.no); });
+  var di=document.getElementById('dueInput'); if(di) di.addEventListener('change',function(){ setDue(t.id, di.value); });
+  var ab=document.getElementById('attachBtn'); var fi=document.getElementById('fileInp'); if(ab&&fi){ ab.addEventListener('click',function(){ fi.click(); }); fi.addEventListener('change',function(){ if(fi.files&&fi.files[0]) attachFile(t.id, fi.files[0]); }); }
+  document.querySelectorAll('[data-fdel]').forEach(function(b){ b.addEventListener('click',function(){ delFile(t.id, b.getAttribute('data-fdel')); }); });
+  var ia=document.getElementById('intAdd'); if(ia) ia.addEventListener('click',function(){ addInternal(t.id); });
+  document.querySelectorAll('[data-ndel]').forEach(function(b){ b.addEventListener('click',function(){ delInternal(t.id, b.getAttribute('data-ndel')); }); });
+}
+function setDue(id,val){
+  fetch('/api/ticket/'+encodeURIComponent(id)+'/due',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({dueDate:val||''})})
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ showDetail(j.ticket); if(window.rrgToast) rrgToast(val?'Due date set':'Due date cleared'); } else alert((j&&j.error)||'Could not update the due date.'); }).catch(function(){ alert('Could not reach the server.'); });
+}
+function attachFile(id,file){
+  if(!file) return;
+  if(file.size>20*1024*1024){ alert('That file is larger than 20 MB.'); return; }
+  var rd=new FileReader();
+  rd.onload=function(){
+    fetch('/api/ticket/'+encodeURIComponent(id)+'/file',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({filename:file.name,dataB64:rd.result})})
+      .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ showDetail(j.ticket); if(window.rrgToast) rrgToast('File attached'); } else alert((j&&j.error)||'Could not attach the file.'); }).catch(function(){ alert('Could not reach the server.'); });
+  };
+  rd.onerror=function(){ alert('Could not read that file.'); };
+  rd.readAsDataURL(file);
+}
+async function delFile(id,fid){
+  if(!(window.rrgConfirm?await rrgConfirm('Remove this attachment?'):confirm('Remove this attachment?'))) return;
+  fetch('/api/ticket/'+encodeURIComponent(id)+'/file/'+encodeURIComponent(fid),{method:'DELETE',credentials:'same-origin'})
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ showDetail(j.ticket); } else alert((j&&j.error)||'Could not remove.'); }).catch(function(){ alert('Could not reach the server.'); });
+}
+function addInternal(id){
+  var ta=document.getElementById('intText'); var text=(ta.value||'').trim(); if(!text){ ta.focus(); return; }
+  var b=document.getElementById('intAdd'); b.disabled=true; b.textContent='Adding\u2026';
+  fetch('/api/ticket/'+encodeURIComponent(id)+'/internal',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({text:text})})
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ showDetail(j.ticket); } else { b.disabled=false;b.textContent='Add internal note'; alert((j&&j.error)||'Could not add the note.'); } }).catch(function(){ b.disabled=false;b.textContent='Add internal note'; alert('Could not reach the server.'); });
+}
+async function delInternal(id,nid){
+  if(!(window.rrgConfirm?await rrgConfirm('Delete this internal note?'):confirm('Delete this internal note?'))) return;
+  fetch('/api/ticket/'+encodeURIComponent(id)+'/internal/'+encodeURIComponent(nid),{method:'DELETE',credentials:'same-origin'})
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ showDetail(j.ticket); } }).catch(function(){});
 }
 async function delTicket(id, no){
   if(!(window.rrgConfirm?await rrgConfirm('Delete request '+(no||'')+'? This permanently removes it and its whole thread. This cannot be undone.'):confirm('Delete request '+(no||'')+'? This cannot be undone.'))) return;
@@ -267,6 +359,7 @@ function load(){
   fetch('/api/tickets',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     ALL=(j&&j.tickets)||[]; CATS=(j&&j.categories)||[]; PRIS=(j&&j.priorities)||[]; STATUSES=(j&&j.statuses)||[]; DEPTS=(j&&j.departments)||[]; ISADMIN=!!(j&&j.isAdmin);
     renderFilters(); renderList();
+    try{ if(window.rrgSetCrumb) rrgSetCrumb([{label:'Toolbox',href:'index.html'},{label:'Office Requests'}]); }catch(e){}
   }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load requests.</div>'; });
 }
 load();
