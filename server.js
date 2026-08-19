@@ -5120,6 +5120,9 @@ function effMktBadges() { const s = loadSettings(); const a = Array.isArray(s.mk
 function mktBadgeById(id) { if (!id) return null; return effMktBadges().find(function(b) { return b.id === id; }) || null; }
 // The badge to SHOW for a teaser right now, or null if none / expired.
 function mktActiveBadge(m) { if (!m || !m.flag) return null; const b = mktBadgeById(m.flag); if (!b) return null; const days = +b.days || 0; if (days <= 0) return b; const anchor = m.flagAt || m.publishedAt || m.updatedAt || ''; if (!anchor) return b; let t; try { t = new Date(anchor).getTime(); } catch (e) { return b; } if (!isFinite(t)) return b; const ageDays = (Date.now() - t) / 86400000; return (ageDays <= days) ? b : null; }
+// Marketplace presentation style — admin-selectable so each firm's public /market can differ.
+const MKT_STYLES = { grid: 'Card grid', ledger: 'Ledger (table)', register: 'Register (index)' };
+function effMarketStyle() { const s = loadSettings(); const v = String(s.marketStyle || ''); return MKT_STYLES[v] ? v : 'ledger'; }
 function mktClean(b, prev) {
   prev = prev || {};
   const s = (v, n) => String(v == null ? '' : v).slice(0, n);
@@ -5188,7 +5191,7 @@ app.get('/api/marketplace', (req, res) => {
         teaser: o.market || null, suggest: mktSuggest(view) };
     });
   rows.sort((a, b) => ((b.live ? 1 : 0) - (a.live ? 1 : 0)) || String(a.business).localeCompare(String(b.business)));
-  res.json({ ok: true, isAdmin: !!isAdmin, metros: effMarkets(), concepts: MKT_CONCEPTS, priceBands: MKT_PRICE, cashBands: MKT_CASH, flags: MKT_FLAGS, badges: effMktBadges(), publicUrl: (req.protocol + '://' + req.get('host') + '/market'), listings: rows });
+  res.json({ ok: true, isAdmin: !!isAdmin, metros: effMarkets(), concepts: MKT_CONCEPTS, priceBands: MKT_PRICE, cashBands: MKT_CASH, flags: MKT_FLAGS, badges: effMktBadges(), marketStyle: effMarketStyle(), publicUrl: (req.protocol + '://' + req.get('host') + '/market'), listings: rows });
 });
 // Single listing's marketplace teaser — powers the "Publish to Marketplace" panel on the listing page.
 app.get('/api/marketplace/:key', (req, res) => {
@@ -5196,7 +5199,7 @@ app.get('/api/marketplace/:key', (req, res) => {
   if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
   if (!(canSeeAllDeals(req) || ownsAssignment(req, d))) return res.status(403).json({ ok: false, error: 'Not yours.' });
   const overlay = loadAssignOverlay(); const view = assignmentView(d, overlay); const o = overlay[key] || {};
-  res.json({ ok: true, metros: effMarkets(), concepts: MKT_CONCEPTS, priceBands: MKT_PRICE, cashBands: MKT_CASH, flags: MKT_FLAGS, badges: effMktBadges(), publicUrl: (req.protocol + '://' + req.get('host') + '/market'),
+  res.json({ ok: true, metros: effMarkets(), concepts: MKT_CONCEPTS, priceBands: MKT_PRICE, cashBands: MKT_CASH, flags: MKT_FLAGS, badges: effMktBadges(), marketStyle: effMarketStyle(), publicUrl: (req.protocol + '://' + req.get('host') + '/market'),
     listing: { key: key, business: view.business, market: view.market, value: view.value, roomId: view.roomId, status: view.status, teaser: o.market || null, suggest: mktSuggest(view) } });
 });
 // ===== Buyer buy-box + matching =====
@@ -5483,6 +5486,7 @@ app.post('/api/market/request-access', express.json(), (req, res) => {
 app.get('/market', (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8').send(marketplacePublicPage(req)); });
 function marketplacePublicPage(req) {
   const org = esc(orgDisplayName());
+  const style = effMarketStyle();
   const opts = (o) => Object.keys(o).map(k => '<option value="' + esc(k) + '">' + esc(o[k]) + '</option>').join('');
   const mkOpts = ['<option value="">All markets</option>'].concat(effMarkets().map(m => '<option value="' + esc(m) + '">' + esc(m) + '</option>')).join('');
   const cOpts = ['<option value="">All concepts</option>'].concat(MKT_CONCEPTS.map(c => '<option value="' + esc(c) + '">' + esc(c) + '</option>')).join('');
@@ -5566,6 +5570,43 @@ footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} 
 .mmsg{font-size:12px;margin-top:10px;min-height:15px;}
 @media(max-width:900px){.grid{grid-template-columns:1fr 1fr;}.lrow{grid-template-columns:1fr;gap:10px;}.lrow .lmet{border-left:none;padding-left:0;}}
 @media(max-width:620px){.grid{grid-template-columns:1fr;}.hero h1{font-size:23px;}}
+.cicow{width:36px;height:36px;flex:none;border-radius:4px;background:var(--wash);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--primary);}
+.cicow.sm{width:30px;height:30px;} .cico{width:19px;height:19px;} .cicow.sm .cico{width:16px;height:16px;}
+.ledgerwrap{background:var(--card);border:1px solid var(--line);border-radius:4px;overflow:hidden;margin-bottom:26px;}
+table.lg{width:100%;border-collapse:collapse;}
+.lg thead th{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);font-weight:700;text-align:left;padding:12px 16px;background:var(--wash);border-bottom:1px solid var(--line);white-space:nowrap;}
+.lg thead th.num{text-align:right;}
+.lg tbody td{padding:15px 16px;border-bottom:1px solid #e9edf3;vertical-align:middle;}
+.lg tbody tr:last-child td{border-bottom:none;}
+.lg tbody tr:hover{background:#f8fafc;cursor:pointer;} .lg tbody tr:hover .lgreq{opacity:1;}
+.opw{display:flex;gap:13px;align-items:flex-start;}
+.opw .ey{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--primary);font-weight:700;}
+.opw h3{font-size:15px;font-weight:700;color:var(--slate);line-height:1.28;margin:3px 0 5px;}
+.opw .lk{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--soft);font-weight:600;}
+.opw .lk svg{width:11px;height:11px;stroke:var(--soft);fill:none;stroke-width:2;}
+.lg td.mkc{font-size:12px;color:var(--ink);font-weight:600;white-space:nowrap;}
+.lg td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.lg .g{font-size:15px;font-weight:800;color:var(--navy);} .lg .s{font-size:12.5px;color:var(--ink);font-weight:600;}
+.lgreq{opacity:0;transition:opacity .12s;font-size:12px;font-weight:700;color:var(--primary);white-space:nowrap;background:none;border:none;cursor:pointer;padding:0;}
+@media(hover:none){.lgreq{opacity:1;}}
+@media(max-width:860px){.lg .hs{display:none;}}
+.regwrap{padding-bottom:26px;}
+.reghd{display:flex;align-items:baseline;gap:14px;padding:22px 0 2px;}
+.reghd h2{font-size:13px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--slate);}
+.reghd .ln{flex:1;height:1px;background:var(--line);}
+.reghd .n{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);font-weight:700;}
+.reg{display:flex;align-items:center;gap:13px;padding:14px 4px;border-bottom:1px solid var(--line);cursor:pointer;}
+.reg:hover .rh{color:var(--primary);} .reg:hover .rreq{opacity:1;}
+.reg .rt{min-width:0;}
+.reg .ey{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--primary);font-weight:700;}
+.reg .rh{font-size:15.5px;font-weight:700;color:var(--slate);line-height:1.22;margin-top:2px;}
+.reg .leader{flex:1;border-bottom:1px dotted var(--soft);transform:translateY(-3px);min-width:20px;opacity:.5;}
+.reg .fig{text-align:right;white-space:nowrap;}
+.reg .fig .g{font-size:15px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums;}
+.reg .fig .s{font-size:11.5px;color:var(--muted);font-weight:600;margin-top:2px;}
+.reg .rreq{opacity:0;transition:opacity .12s;font-size:11px;font-weight:700;color:var(--primary);margin-top:5px;}
+@media(hover:none){.reg .rreq{opacity:1;}}
+@media(max-width:600px){.reg .leader{display:none;}}
 </style></head>
 <body>
 <header><div class="wrap hrow">
@@ -5588,7 +5629,7 @@ footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} 
   <div class="barrow">
     <div class="cnt" id="cnt">Loading confidential opportunities…</div>
     <div class="right">
-      <span class="vtog"><button data-view="grid" class="on">▦ Grid</button><button data-view="list">☰ List</button></span>
+      ${style==='grid' ? '<span class="vtog"><button data-view="grid" class="on">\u25a6 Grid</button><button data-view="list">\u2630 List</button></span>' : ''}
       <div class="sort">Sort<select id="fSort"><option value="new">Newest</option><option value="price">Guide: high → low</option></select></div>
     </div>
   </div>
@@ -5611,6 +5652,7 @@ footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} 
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 var ALL=[], CUR='', VIEW='grid';
+var STYLE=${JSON.stringify(style)};
 var PB=${JSON.stringify(MKT_PRICE)}, CB=${JSON.stringify(MKT_CASH)};
 function flagTag(l){ if(l.flagLabel){ var c=l.flagColor||'#2f7a55'; return '<span class="ltag" style="background:'+c+'18;color:'+c+';border-color:'+c+'55">'+esc(l.flagLabel)+'</span>'; } return l.featured?'<span class="ltag" style="background:#fdf1df;color:#b5791f;border-color:#eddab0">Featured</span>':''; }
 function listRow(l){
@@ -5623,12 +5665,49 @@ function listRow(l){
 function metricsHtml(l){ var cells=[]; if(l.revenue) cells.push(['Revenue',l.revenue]); if(l.sde) cells.push([l.earnBasis||'SDE',l.sde]); if(l.guide) cells.push(['Guide',l.guide]);
   if(!cells.length) return '<div class="metrics"><div class="m"><div class="v">Under NDA</div><div class="k">Financials on request</div></div></div>';
   return '<div class="metrics">'+cells.map(function(c){return '<div class="m"><div class="v">'+esc(c[1])+'</div><div class="k">'+esc(c[0])+'</div></div>';}).join('')+'</div>'; }
-function card(l){ var flag=l.flagLabel?('<span class="flag" style="background:'+(l.flagColor||'#2f7a55')+'22;color:'+(l.flagColor||'#2f7a55')+'">'+esc(l.flagLabel)+'</span>'):(l.featured?'<span class="flag feat">Featured</span>':''));
+function card(l){ var flag=l.flagLabel?('<span class="flag" style="background:'+(l.flagColor||'#2f7a55')+'22;color:'+(l.flagColor||'#2f7a55')+'">'+esc(l.flagLabel)+'</span>'):(l.featured?'<span class="flag feat">Featured</span>':'');
   return '<div class="card'+(l.featured?' feat':'')+'"><div class="thumb">'+flag+'<span class="badge">'+esc(l.badge||'Restaurant')+'</span></div>'
     +'<div class="cbody"><div class="loc">'+esc(l.loc||'Texas')+'</div><h3>'+esc(l.headline)+'</h3>'+metricsHtml(l)
     +'<div class="cfoot"><span class="lock"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Blind until NDA</span>'
     +'<button class="req" data-k="'+esc(l.id)+'">Request access →</button></div></div></div>'; }
 function priceRank(l){ var m={u1m:1,'1-3m':2,'3-5m':3,'5m+':4}; return m[l.priceBand]||0; }
+function conceptIcon(l){
+  var t=((l.conceptKey||'')+' '+(l.badge||'')).toLowerCase(); var p;
+  if(/bar|cocktail|night|lounge|tavern|pub|wine|brew|speakeasy/.test(t)) p='<path d="M4 4h16l-8 9v6"/><path d="M8 20h8"/>';
+  else if(/coffee|caf|bakery|bake|espresso|donut|pastry/.test(t)) p='<path d="M4 8h13v4a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V8z"/><path d="M17 9h2a2 2 0 0 1 0 4h-2"/><path d="M7 3v2M11 3v2"/>';
+  else if(/pizza|pizzeria/.test(t)) p='<path d="M12 3l9 16H3z"/><circle cx="10" cy="13" r=".7"/><circle cx="14" cy="15" r=".7"/>';
+  else if(/seafood|oyster|fish|sushi|water/.test(t)) p='<path d="M3 12c4-6 12-6 16 0-4 6-12 6-16 0z"/><path d="M19 12l3-3v6z"/><circle cx="8" cy="11" r=".8"/>';
+  else if(/taco|mexic|burrito|cantina|tex/.test(t)) p='<path d="M3 16a9 9 0 0 1 18 0z"/><path d="M3 16h18"/>';
+  else if(/brunch|breakfast|diner|pancake|egg/.test(t)) p='<circle cx="12" cy="14" r="4"/><path d="M12 3v3M4.5 8l2 2M19.5 8l-2 2M3 19h18"/>';
+  else if(/fast|bowl|casual|salad|poke|noodle/.test(t)) p='<path d="M3 11h18a9 9 0 0 1-18 0z"/><path d="M8 11a4 4 0 0 1 8 0"/>';
+  else p='<path d="M6 3v8M9 3v8M7.5 11v10"/><path d="M6 3v4M9 3v4"/><path d="M16 3c-1.5 1.5-1.5 6 0 7v11"/>';
+  return '<svg class="cico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">'+p+'</svg>';
+}
+function guideOf(l){ return l.guide || (l.priceBand&&PB[l.priceBand]) || ''; }
+var LOCKSVG='<svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
+function ledgerHtml(rows){
+  if(!rows.length) return '<div class="empty" style="background:#fff;border:1px solid var(--line);border-radius:4px">No opportunities match those filters right now. Adjust the filters, or register as a buyer to be notified as new listings come to market.</div>';
+  var body=rows.map(function(l){ var g=guideOf(l);
+    return '<tr data-k="'+esc(l.id)+'">'
+      +'<td><div class="opw"><span class="cicow">'+conceptIcon(l)+'</span><div class="opt"><div class="ey">'+esc(l.badge||'Restaurant')+'</div><h3>'+esc(l.headline)+'</h3><span class="lk">'+LOCKSVG+'Blind until NDA</span></div></div></td>'
+      +'<td class="mkc hs">'+esc(l.loc||l.marketKey||'Texas')+'</td>'
+      +'<td class="num"><span class="g">'+(g?esc(g):'—')+'</span></td>'
+      +'<td class="num hs"><span class="s">'+(l.revenue?esc(l.revenue):'—')+'</span></td>'
+      +'<td class="num hs"><span class="s">'+(l.sde?esc(l.sde):'—')+'</span></td>'
+      +'<td>'+flagTag(l)+'</td>'
+      +'<td><button class="lgreq req" data-k="'+esc(l.id)+'">Request →</button></td></tr>';
+  }).join('');
+  return '<table class="lg"><thead><tr><th>Opportunity</th><th class="hs">Market</th><th class="num">Guide</th><th class="num hs">Revenue</th><th class="num hs">SDE</th><th>Status</th><th></th></tr></thead><tbody>'+body+'</tbody></table>';
+}
+function registerHtml(rows){
+  if(!rows.length) return '<div class="empty">No opportunities match those filters right now. Adjust the filters, or register as a buyer to be notified as new listings come to market.</div>';
+  var groups={}, order=[]; rows.forEach(function(l){ var k=l.marketKey||l.loc||'Other'; if(!groups[k]){groups[k]=[];order.push(k);} groups[k].push(l); }); order.sort();
+  return order.map(function(k){ var items=groups[k].map(function(l){ var g=guideOf(l); var sub=l.sde?((l.earnBasis||'SDE')+' '+l.sde):'';
+      return '<div class="reg" data-k="'+esc(l.id)+'"><span class="cicow sm">'+conceptIcon(l)+'</span><div class="rt"><div class="ey">'+esc(l.badge||'Restaurant')+'</div><div class="rh">'+esc(l.headline)+'</div></div><div class="leader"></div><div class="fig"><div class="g">'+(g?esc(g):'Under NDA')+'</div>'+(sub?'<div class="s">'+esc(sub)+'</div>':'')+'<div class="rreq req" data-k="'+esc(l.id)+'">Request access →</div></div></div>';
+    }).join('');
+    return '<div class="reggrp"><div class="reghd"><h2>'+esc(k)+'</h2><span class="ln"></span><span class="n">'+groups[k].length+' deal'+(groups[k].length>1?'s':'')+'</span></div>'+items+'</div>';
+  }).join('');
+}
 function render(){
   var q=(document.getElementById('fSearch').value||'').toLowerCase().trim();
   var mk=document.getElementById('fMarket').value, cc=document.getElementById('fConcept').value;
@@ -5642,8 +5721,10 @@ function render(){
     return true;
   });
   if(sort==='price') rows.sort(function(a,b){ return priceRank(b)-priceRank(a); });
-  var g=document.getElementById('results'); g.className=(VIEW==='list'?'list':'grid');
-  g.innerHTML=rows.length?rows.map(VIEW==='list'?listRow:card).join(''):'<div class="empty">No opportunities match those filters right now. Adjust the filters, or register as a buyer to be notified as new listings come to market.</div>';
+  var g=document.getElementById('results');
+  if(STYLE==='ledger'){ g.className='ledgerwrap'; g.innerHTML=ledgerHtml(rows); }
+  else if(STYLE==='register'){ g.className='regwrap'; g.innerHTML=registerHtml(rows); }
+  else { g.className=(VIEW==='list'?'list':'grid'); g.innerHTML=rows.length?rows.map(VIEW==='list'?listRow:card).join(''):'<div class="empty">No opportunities match those filters right now. Adjust the filters, or register as a buyer to be notified as new listings come to market.</div>'; }
   document.getElementById('cnt').innerHTML='Showing <b>'+rows.length+'</b> of <b>'+ALL.length+'</b> confidential opportunities';
   g.querySelectorAll('.req').forEach(function(b){ b.addEventListener('click',function(){ openReq(b.getAttribute('data-k')); }); });
 }
@@ -10190,7 +10271,7 @@ app.get('/api/admin/types', requireAdmin, (req, res) => {
   const s = loadSettings();
   res.json({
     ok: true,
-    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), conceptTypes: effConceptTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), markets: effMarkets(), spaceScanSources: effSpaceScanSources(), mktBadges: effMktBadges(), ...calFeatFlags(),
+    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), conceptTypes: effConceptTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), markets: effMarkets(), spaceScanSources: effSpaceScanSources(), mktBadges: effMktBadges(), marketStyle: effMarketStyle(), ...calFeatFlags(),
     defaults: { personTypes: PERSON_TYPES, companyTypes: COMPANY_TYPES, ticketCategories: TICKET_CATEGORIES, leadSources: LEAD_SOURCES, activityTypes: ACTIVITY_TYPES, roomCloseReasons: ROOM_CLOSE_REASONS, cuisineTypes: CUISINE_TYPES, conceptTypes: CONCEPT_TYPES, agreementTypes: AGREEMENT_TYPES, markets: MARKETS },
     isCustom: { personTypes: Array.isArray(s.personTypes), companyTypes: Array.isArray(s.companyTypes), ticketCategories: Array.isArray(s.ticketCategories), leadSources: Array.isArray(s.leadSources), activityTypes: Array.isArray(s.activityTypes), roomCloseReasons: Array.isArray(s.roomCloseReasons), cuisineTypes: Array.isArray(s.cuisineTypes), conceptTypes: Array.isArray(s.conceptTypes), agreementTypes: Array.isArray(s.agreementTypes), markets: Array.isArray(s.markets) },
     systemRequired: { leadSources: SYSTEM_LEAD_SOURCES, personTypes: SYSTEM_PERSON_TYPES, companyTypes: SYSTEM_COMPANY_TYPES, activityTypes: SYSTEM_ACTIVITY_TYPES, agreementTypes: AGREEMENT_TYPES.map(function(t){ return t.label; }), markets: SYSTEM_MARKETS },
@@ -10198,9 +10279,10 @@ app.get('/api/admin/types', requireAdmin, (req, res) => {
 });
 app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
   const b = req.body || {}; const s = loadSettings();
-  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; delete s.activityTypes; delete s.roomCloseReasons; delete s.cuisineTypes; delete s.conceptTypes; delete s.markets; delete s.agreementTypes; delete s.maxPullLocations; delete s.defaultState; delete s.assistantName; delete s.listRecencyDays; delete s.listRecencyEnabled; delete s.conceptLabel; delete s.conceptLabelPlural; delete s.showRequestRibbon; delete s.pipelineRequiredOnCompany; delete s.showQuickLinks; delete s.sentSyncEnabled; delete s.sentSyncIntervalMin; delete s.currency; delete s.mktBadges; delete s.featCalSync; delete s.featCalTasks; delete s.featCalMeet; delete s.featWorkHours; delete s.featEventFiles; delete s.featBooking; delete s.featCalShare; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), conceptTypes: effConceptTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), spaceScanSources: effSpaceScanSources(), ...calFeatFlags() }); }
+  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; delete s.activityTypes; delete s.roomCloseReasons; delete s.cuisineTypes; delete s.conceptTypes; delete s.markets; delete s.agreementTypes; delete s.maxPullLocations; delete s.defaultState; delete s.assistantName; delete s.listRecencyDays; delete s.listRecencyEnabled; delete s.conceptLabel; delete s.conceptLabelPlural; delete s.showRequestRibbon; delete s.pipelineRequiredOnCompany; delete s.showQuickLinks; delete s.sentSyncEnabled; delete s.sentSyncIntervalMin; delete s.currency; delete s.mktBadges; delete s.marketStyle; delete s.featCalSync; delete s.featCalTasks; delete s.featCalMeet; delete s.featWorkHours; delete s.featEventFiles; delete s.featBooking; delete s.featCalShare; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), conceptTypes: effConceptTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), spaceScanSources: effSpaceScanSources(), ...calFeatFlags() }); }
   if (b.spaceScanSources !== undefined) s.spaceScanSources = _normSourcesList(b.spaceScanSources);
   if (b.mktBadges !== undefined) { const _mb = cleanMktBadges(b.mktBadges); if (_mb && _mb.length) s.mktBadges = _mb; else delete s.mktBadges; }
+  if (typeof b.marketStyle === 'string' && MKT_STYLES[b.marketStyle]) s.marketStyle = b.marketStyle;
   if (b.personTypes !== undefined) { s.personTypes = cleanStrList(b.personTypes, 40, 60) || []; s.personTypes = _mergeRequired(s.personTypes, SYSTEM_PERSON_TYPES); }
   if (b.companyTypes !== undefined) { s.companyTypes = cleanStrList(b.companyTypes, 40, 60) || []; s.companyTypes = _mergeRequired(s.companyTypes, SYSTEM_COMPANY_TYPES); }
   if (b.ticketCategories !== undefined) s.ticketCategories = cleanStrList(b.ticketCategories, 40, 60) || [];
