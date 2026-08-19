@@ -176,6 +176,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 <div class="boardctl">
   <label class="boardctl-l">» Pipeline</label>
   <select class="psel" id="psel"></select>
+  <a class="psel" href="/market" target="_blank" rel="noopener" title="Open the public buyer-facing marketplace" style="text-decoration:none;color:#2c5c8f;border-color:#bcd0e6;display:inline-flex;align-items:center;gap:6px"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="opacity:.85"><path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M19 13v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h6"/></svg>Public marketplace</a>
   <span class="tot" id="tot"></span>
 </div>
 <div id="toolbar"></div>
@@ -264,20 +265,29 @@ function openLeadModal(){ ND_MODE='lead'; var t=document.getElementById('nd_titl
 function openDealModal(){ var m=document.getElementById('dealModal'); if(!m) return; m.removeAttribute('hidden'); var b=document.getElementById('nd_business'); if(b) b.focus(); loadPeople(); }
 function closeDealModal(){ var m=document.getElementById('dealModal'); if(!m) return; m.setAttribute('hidden',''); ['nd_business','nd_market','nd_contact'].forEach(function(id){var _e=document.getElementById(id); if(_e) _e.value='';}); var _sc=document.getElementById('nd_source'); if(_sc) _sc.value=''; ND_MODE='listing'; var _sw=document.getElementById('nd_srcwrap'); if(_sw) _sw.hidden=true; var _t=document.getElementById('nd_title'); if(_t) _t.textContent='New listing'; var _ct=document.getElementById('nd_create'); if(_ct) _ct.textContent='Create listing'; updateClientHint(); }
 function createDeal(){ var business=(document.getElementById('nd_business').value||'').trim(); if(!business){ document.getElementById('nd_business').focus(); return; } var contact=(document.getElementById('nd_contact').value||'').trim(); if(!contact){ document.getElementById('nd_contact').focus(); var _h=document.getElementById('clientHint'); if(_h) _h.innerHTML='<b style="color:#DA2B1F">A client contact is required — every listing must be linked to a contact.</b>'; return; } var btn=document.getElementById('nd_create'); btn.disabled=true; btn.textContent='Creating…'; fetch('/api/deal/new',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({business:business,market:(document.getElementById('nd_market').value||'').trim(),contact:contact,type:'listing',source:(ND_MODE==='lead'?((document.getElementById('nd_source')||{}).value||''):'')})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ if(ND_MODE==='lead'){ closeDealModal(); load(); } else { location.href='./rrg_assignment.html?key='+encodeURIComponent(j.key); } } else { btn.disabled=false; btn.textContent=(ND_MODE==='lead'?'Add lead':'Create listing'); alert((j&&j.error)||'Could not create the listing.'); } }).catch(function(){ btn.disabled=false; btn.textContent=(ND_MODE==='lead'?'Add lead':'Create listing'); alert('Could not reach the server.'); }); }
+function ico(n){ var P={
+board:'<rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="16" rx="1"/><rect x="17" y="4" width="4" height="16" rx="1"/>',
+list:'<line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/>',
+search:'<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
+filter:'<path d="M3 5h18l-7 8v6l-4-2v-4z"/>',
+saved:'<path d="M6 3h12v18l-6-4-6 4z"/>',
+fields:'<line x1="4" y1="8" x2="20" y2="8"/><circle cx="9" cy="8" r="2.3"/><line x1="4" y1="16" x2="20" y2="16"/><circle cx="15" cy="16" r="2.3"/>',
+flags:'<path d="M5 22V4"/><path d="M5 4h13l-2.5 4L18 12H5"/>',
+ext:'<path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M19 13v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h6"/>'
+}; return '<svg class="tbico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'+(P[n]||'')+'</svg>'; }
 function renderToolbar(){
   var vc=activeFilterCount();
   var perLabel=function(p){ return p===0?'All':String(p); };
-  var html='<div class="tb">'+'<span class="pgtitle">Listings</span>'+'<button class="tbtn" id="tb_newlisting" style="background:#000E31;color:#fff;border-color:#000E31;font-weight:800">+ New Listing</button>'+'<button class="tbtn" id="tb_newlead" style="border-color:#2f5bd0;color:#2f5bd0;font-weight:800">+ Add Lead</button>'
-    +'<div class="vtog"><button class="vbtn'+(VIEW==='board'?' on':'')+'" data-view="board">\u25a4 Board</button><button class="vbtn'+(VIEW==='list'?' on':'')+'" data-view="list">\u2630 List</button></div>'
-    +'<div class="search"><span class="mag">⌕</span><input id="tb_q" placeholder="Search listings…" value="'+esc(TB.q)+'"></div>'
-    +'<button class="tbtn'+(FILTER_OPEN?' on':'')+'" id="tb_filter">☰ Filters'+(vc?(' <span class="pip">'+vc+'</span>'):'')+'</button>'
-    +'<div style="position:relative;display:inline-block"><button class="tbtn" id="tb_saved">★ Saved views ▾</button><div id="savemenu"></div></div>'
+  if(!document.getElementById('tbicocss')){var _ts=document.createElement('style');_ts.id='tbicocss';_ts.textContent='.tbico{width:14px;height:14px;opacity:.78;flex:none}.vbtn,.dbtn{display:inline-flex;align-items:center;gap:6px}.search .mag .tbico{width:15px;height:15px;opacity:.55;display:block}';document.head.appendChild(_ts);}
+  var html='<div class="tb">'+'<span class="pgtitle">Listings</span>'+'<button class="tbtn" id="tb_newlisting" style="background:#000E31;color:#fff;border-color:#000E31;font-weight:800">+ New Listing</button>'
+    +'<div class="vtog"><button class="vbtn'+(VIEW==='board'?' on':'')+'" data-view="board">'+ico('board')+'Board</button><button class="vbtn'+(VIEW==='list'?' on':'')+'" data-view="list">'+ico('list')+'List</button></div>'
+    +'<div class="vtog"><button class="dbtn'+(DENSITY==='full'?' on':'')+'" data-density="full">Full</button><button class="dbtn'+(DENSITY==='compact'?' on':'')+'" data-density="compact">Compressed</button></div>'
+    +'<button class="tbtn'+(FILTER_OPEN?' on':'')+'" id="tb_filter">'+ico('filter')+'Filters'+(vc?(' <span class="pip">'+vc+'</span>'):'')+'</button>'
+    +'<div style="position:relative;display:inline-block"><button class="tbtn" id="tb_saved">'+ico('saved')+'Saved views ▾</button><div id="savemenu"></div></div>'
     +'<span class="tblabel">Sort</span><select class="tbsel" id="tb_sort">'+SORTS.map(function(o){return '<option value="'+o[0]+'"'+(TB.sort===o[0]?' selected':'')+'>'+esc(o[1])+'</option>';}).join('')+'</select>'
-    +'<span class="tblabel">Per column</span><select class="tbsel" id="tb_per">'+PER_OPTS.map(function(p){return '<option value="'+p+'"'+(TB.per===p?' selected':'')+'>'+perLabel(p)+'</option>';}).join('')+'</select>'
-    +'<span class="tblabel">Cards</span><div class="vtog"><button class="dbtn'+(DENSITY==='full'?' on':'')+'" data-density="full">Full</button><button class="dbtn'+(DENSITY==='compact'?' on':'')+'" data-density="compact">Compressed</button></div>'
-    +'<div style="position:relative;display:inline-block"><button class="tbtn" id="tb_cardf">\u2699 Card fields \u25be</button><div id="cardfmenu"></div></div>'
-    +'<div style="position:relative;display:inline-block"><button class="tbtn" id="tb_flags">\u2691 Card flags \u25be</button><div id="flagmenu"></div></div>'
-    +'<a class="tbtn" href="/market" target="_blank" rel="noopener" title="Open the public buyer-facing marketplace" style="margin-left:auto;text-decoration:none;border-color:#2c5c8f;color:#2c5c8f;font-weight:700">\u2197 Public marketplace</a>'
+    +'<div style="position:relative;display:inline-block"><button class="tbtn" id="tb_cardf">'+ico('fields')+'Card fields ▾</button><div id="cardfmenu"></div></div>'
+    +'<div style="position:relative;display:inline-block"><button class="tbtn" id="tb_flags">'+ico('flags')+'Card flags ▾</button><div id="flagmenu"></div></div>'
+    +'<div class="search" style="margin-left:auto"><span class="mag">'+ico('search')+'</span><input id="tb_q" placeholder="Search listings\u2026" value="'+esc(TB.q)+'"></div>'
     +'</div>';
   document.getElementById('toolbar').innerHTML=html; var _nl=document.getElementById('tb_newlisting'); if(_nl) _nl.addEventListener('click',openListingModal); var _nld=document.getElementById('tb_newlead'); if(_nld) _nld.addEventListener('click',openLeadModal);
   renderFilterPanel();
@@ -285,7 +295,6 @@ function renderToolbar(){
   var q=document.getElementById('tb_q'); q.addEventListener('input',function(){ TB.q=q.value; saveTB(); debouncedRender(); });
   document.getElementById('tb_filter').addEventListener('click',function(){ FILTER_OPEN=!FILTER_OPEN; renderToolbar(); });
   document.getElementById('tb_sort').addEventListener('change',function(){ TB.sort=this.value; saveTB(); render(); });
-  document.getElementById('tb_per').addEventListener('change',function(){ TB.per=Number(this.value); saveTB(); EXPANDED={}; render(); });
   document.getElementById('tb_saved').addEventListener('click',function(e){ e.stopPropagation(); SAVE_OPEN=!SAVE_OPEN; renderSaveMenu(); });
   document.querySelectorAll('.vbtn[data-view]').forEach(function(b){ b.addEventListener('click',function(){ VIEW=b.getAttribute('data-view'); try{localStorage.setItem('rrg_board_view',VIEW);}catch(e){} renderToolbar(); render(); }); });
   document.querySelectorAll('.dbtn[data-density]').forEach(function(b){ b.addEventListener('click',function(){ DENSITY=b.getAttribute('data-density'); try{localStorage.setItem('rrg_board_density',DENSITY);}catch(e){} renderToolbar(); render(); }); });
@@ -307,7 +316,7 @@ function renderFilterPanel(){
   host.querySelectorAll('[data-ff]').forEach(function(el){ var k=el.getAttribute('data-ff'); var ev=(el.tagName==='SELECT')?'change':'input'; el.addEventListener(ev,function(){ TB[k]=el.value; saveTB(); debouncedRender(); renderToolbarPipOnly(); }); });
   document.getElementById('ff_clear').addEventListener('click',function(){ TB.owner=TB.market=TB.status=TB.min=TB.max=''; TB.q=''; saveTB(); FILTER_OPEN=true; renderToolbar(); render(); });
 }
-function renderToolbarPipOnly(){ var b=document.getElementById('tb_filter'); if(!b) return; var vc=activeFilterCount(); b.innerHTML='☰ Filters'+(vc?(' <span class="pip">'+vc+'</span>'):''); }
+function renderToolbarPipOnly(){ var b=document.getElementById('tb_filter'); if(!b) return; var vc=activeFilterCount(); b.innerHTML=ico('filter')+'Filters'+(vc?(' <span class="pip">'+vc+'</span>'):''); }
 function renderSaveMenu(){
   var host=document.getElementById('savemenu'); if(!host) return;
   if(!SAVE_OPEN){ host.innerHTML=''; host.className=''; return; }
@@ -400,7 +409,7 @@ function render(){
   var _leadN=(all||[]).filter(function(x){return x.isLead;}).length; document.getElementById('tot').textContent=filtered.length+' of '+all.length+' · '+fmtMoney(totalVal)+(_leadN?(' · '+_leadN+' lead'+(_leadN===1?'':'s')):'');
   if(VIEW==='list'){ renderList(filtered); return; }   // List toggle → full scrolling list (like Contacts/Companies)
   if(!stages.length){ document.getElementById('root').innerHTML='<div class="gate">This pipeline has no stages yet. Add stages in <b>Admin → Pipelines</b>.</div>'; return; }
-  var per=TB.per;
+  var per=0;
   var cols=stages.map(function(st){
     var list=byStage[st]||[]; var sum=list.reduce(function(a,c){return a+money(c.value);},0);
     var cap=(per>0 && !EXPANDED[st])?per:list.length;
