@@ -5107,6 +5107,19 @@ const MKT_CONCEPTS = ['Breakfast / Brunch', 'Bar / Nightlife', 'Fast Casual', 'F
 const MKT_PRICE = { '': 'Any price', u1m: 'Under $1M', '1-3m': '$1M – $3M', '3-5m': '$3M – $5M', '5m+': '$5M+' };
 const MKT_CASH = { '': 'Any cash flow', '250k': '$250K+ SDE', '500k': '$500K+ SDE', '1m': '$1M+ SDE' };
 const MKT_FLAGS = ['', 'new', 'price'];
+// Marketplace badges — admin-editable list; each badge auto-expires after N days (0 = stays until removed).
+const MKT_BADGES_DEFAULT = [ { id: 'new', label: 'New', days: 30, color: '#2f7a55' }, { id: 'price', label: 'New price', days: 14, color: '#b23a2c' } ];
+function _slugBadge(x) { return String(x || '').toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 24); }
+function cleanMktBadges(arr) {
+  if (!Array.isArray(arr)) return null;
+  const seen = {}, out = [];
+  arr.forEach(function(b) { if (!b) return; const label = String(b.label == null ? '' : b.label).trim().slice(0, 40); if (!label) return; let id = _slugBadge(b.id || label) || ('b' + out.length); let uid = id, n = 2; while (seen[uid]) { uid = id + n; n++; } seen[uid] = 1; let days = parseInt(b.days, 10); if (!isFinite(days) || days < 0) days = 0; days = Math.min(3650, days); let color = String(b.color || '').trim(); if (!/^#[0-9a-fA-F]{6}$/.test(color)) color = '#2f7a55'; out.push({ id: uid, label: label, days: days, color: color }); });
+  return out.slice(0, 24);
+}
+function effMktBadges() { const s = loadSettings(); const a = Array.isArray(s.mktBadges) ? cleanMktBadges(s.mktBadges) : null; return (a && a.length) ? a : MKT_BADGES_DEFAULT.slice(); }
+function mktBadgeById(id) { if (!id) return null; return effMktBadges().find(function(b) { return b.id === id; }) || null; }
+// The badge to SHOW for a teaser right now, or null if none / expired.
+function mktActiveBadge(m) { if (!m || !m.flag) return null; const b = mktBadgeById(m.flag); if (!b) return null; const days = +b.days || 0; if (days <= 0) return b; const anchor = m.flagAt || m.publishedAt || m.updatedAt || ''; if (!anchor) return b; let t; try { t = new Date(anchor).getTime(); } catch (e) { return b; } if (!isFinite(t)) return b; const ageDays = (Date.now() - t) / 86400000; return (ageDays <= days) ? b : null; }
 function mktClean(b, prev) {
   prev = prev || {};
   const s = (v, n) => String(v == null ? '' : v).slice(0, n);
@@ -5126,7 +5139,7 @@ function mktClean(b, prev) {
   if (b.priceBand !== undefined) out.priceBand = (b.priceBand in MKT_PRICE) ? b.priceBand : '';
   if (b.cashBand !== undefined) out.cashBand = (b.cashBand in MKT_CASH) ? b.cashBand : '';
   if (b.reAvailable !== undefined) out.reAvailable = !!b.reAvailable;
-  if (b.flag !== undefined) out.flag = MKT_FLAGS.indexOf(b.flag) >= 0 ? b.flag : '';
+  if (b.flag !== undefined) out.flag = mktBadgeById(b.flag) ? b.flag : '';
   return out;
 }
 function mktSuggest(view) {
@@ -5138,13 +5151,14 @@ function mktTeaser(key, view, m) {
   // PUBLIC-safe — deliberately omits business name, address, and contact.
   const units = (m.units && m.units > 1) ? (' · ' + m.units + ' units') : '';
   const badge = ((m.conceptType || m.conceptKey || 'Restaurant') + (m.reAvailable ? ' · RE available' : units)).trim();
+  const ab = mktActiveBadge(m);
   return {
     id: key, headline: m.headline || (view.codeName || 'Confidential restaurant opportunity'),
     loc: m.loc || view.market || '', badge: badge,
     conceptKey: m.conceptKey || '', marketKey: m.marketKey || 'Other',
     priceBand: m.priceBand || '', cashBand: m.cashBand || '',
     revenue: m.revenue || '', sde: m.sde || '', earnBasis: m.earnBasis || 'SDE', guide: m.guide || '',
-    flag: m.flag || '', featured: !!m.featured, publishedAt: m.publishedAt || ''
+    flag: ab ? ab.id : '', flagLabel: ab ? ab.label : '', flagColor: ab ? ab.color : '', featured: !!m.featured, publishedAt: m.publishedAt || ''
   };
 }
 function mktPublicList() {
@@ -5174,7 +5188,7 @@ app.get('/api/marketplace', (req, res) => {
         teaser: o.market || null, suggest: mktSuggest(view) };
     });
   rows.sort((a, b) => ((b.live ? 1 : 0) - (a.live ? 1 : 0)) || String(a.business).localeCompare(String(b.business)));
-  res.json({ ok: true, isAdmin: !!isAdmin, metros: effMarkets(), concepts: MKT_CONCEPTS, priceBands: MKT_PRICE, cashBands: MKT_CASH, flags: MKT_FLAGS, publicUrl: (req.protocol + '://' + req.get('host') + '/market'), listings: rows });
+  res.json({ ok: true, isAdmin: !!isAdmin, metros: effMarkets(), concepts: MKT_CONCEPTS, priceBands: MKT_PRICE, cashBands: MKT_CASH, flags: MKT_FLAGS, badges: effMktBadges(), publicUrl: (req.protocol + '://' + req.get('host') + '/market'), listings: rows });
 });
 // Single listing's marketplace teaser — powers the "Publish to Marketplace" panel on the listing page.
 app.get('/api/marketplace/:key', (req, res) => {
@@ -5182,7 +5196,7 @@ app.get('/api/marketplace/:key', (req, res) => {
   if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
   if (!(canSeeAllDeals(req) || ownsAssignment(req, d))) return res.status(403).json({ ok: false, error: 'Not yours.' });
   const overlay = loadAssignOverlay(); const view = assignmentView(d, overlay); const o = overlay[key] || {};
-  res.json({ ok: true, metros: effMarkets(), concepts: MKT_CONCEPTS, priceBands: MKT_PRICE, cashBands: MKT_CASH, flags: MKT_FLAGS, publicUrl: (req.protocol + '://' + req.get('host') + '/market'),
+  res.json({ ok: true, metros: effMarkets(), concepts: MKT_CONCEPTS, priceBands: MKT_PRICE, cashBands: MKT_CASH, flags: MKT_FLAGS, badges: effMktBadges(), publicUrl: (req.protocol + '://' + req.get('host') + '/market'),
     listing: { key: key, business: view.business, market: view.market, value: view.value, roomId: view.roomId, status: view.status, teaser: o.market || null, suggest: mktSuggest(view) } });
 });
 // ===== Buyer buy-box + matching =====
@@ -5443,6 +5457,8 @@ app.post('/api/marketplace/:key', express.json(), (req, res) => {
   const m = mktClean(req.body || {}, cur.market || {});
   const now = new Date().toISOString();
   m.updatedAt = now; if (m.published && !wasPub) m.publishedAt = now;
+  const prevFlag = (cur.market && cur.market.flag) || '';
+  if (m.flag && m.flag !== prevFlag) m.flagAt = now; else if (!m.flag) delete m.flagAt;
   cur.market = m; overlay[key] = cur; saveAssignOverlay(overlay);
   res.json({ ok: true, teaser: m });
 });
@@ -5596,7 +5612,7 @@ footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} 
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 var ALL=[], CUR='', VIEW='grid';
 var PB=${JSON.stringify(MKT_PRICE)}, CB=${JSON.stringify(MKT_CASH)};
-function flagTag(l){ return l.flag==='new'?'<span class="ltag" style="background:#e8f3ec;color:#2f7a55;border-color:#cfe6d6">New</span>':(l.flag==='price'?'<span class="ltag" style="background:#fbecea;color:#b23a2c;border-color:#f0cfca">New price</span>':(l.featured?'<span class="ltag" style="background:#fdf1df;color:#b5791f;border-color:#eddab0">Featured</span>':'')); }
+function flagTag(l){ if(l.flagLabel){ var c=l.flagColor||'#2f7a55'; return '<span class="ltag" style="background:'+c+'18;color:'+c+';border-color:'+c+'55">'+esc(l.flagLabel)+'</span>'; } return l.featured?'<span class="ltag" style="background:#fdf1df;color:#b5791f;border-color:#eddab0">Featured</span>':''; }
 function listRow(l){
   var mets=[]; if(l.guide) mets.push(['Guide',l.guide]); else if(l.priceBand&&PB[l.priceBand]) mets.push(['Guide',PB[l.priceBand]]);
   if(l.sde) mets.push([l.earnBasis||'SDE',l.sde]); if(l.revenue) mets.push(['Revenue',l.revenue]);
@@ -5607,7 +5623,7 @@ function listRow(l){
 function metricsHtml(l){ var cells=[]; if(l.revenue) cells.push(['Revenue',l.revenue]); if(l.sde) cells.push([l.earnBasis||'SDE',l.sde]); if(l.guide) cells.push(['Guide',l.guide]);
   if(!cells.length) return '<div class="metrics"><div class="m"><div class="v">Under NDA</div><div class="k">Financials on request</div></div></div>';
   return '<div class="metrics">'+cells.map(function(c){return '<div class="m"><div class="v">'+esc(c[1])+'</div><div class="k">'+esc(c[0])+'</div></div>';}).join('')+'</div>'; }
-function card(l){ var flag=l.flag==='new'?'<span class="flag new">New</span>':(l.flag==='price'?'<span class="flag price">New price</span>':(l.featured?'<span class="flag feat">Featured</span>':''));
+function card(l){ var flag=l.flagLabel?('<span class="flag" style="background:'+(l.flagColor||'#2f7a55')+'22;color:'+(l.flagColor||'#2f7a55')+'">'+esc(l.flagLabel)+'</span>'):(l.featured?'<span class="flag feat">Featured</span>':''));
   return '<div class="card'+(l.featured?' feat':'')+'"><div class="thumb">'+flag+'<span class="badge">'+esc(l.badge||'Restaurant')+'</span></div>'
     +'<div class="cbody"><div class="loc">'+esc(l.loc||'Texas')+'</div><h3>'+esc(l.headline)+'</h3>'+metricsHtml(l)
     +'<div class="cfoot"><span class="lock"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Blind until NDA</span>'
@@ -10174,7 +10190,7 @@ app.get('/api/admin/types', requireAdmin, (req, res) => {
   const s = loadSettings();
   res.json({
     ok: true,
-    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), conceptTypes: effConceptTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), markets: effMarkets(), spaceScanSources: effSpaceScanSources(), ...calFeatFlags(),
+    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), conceptTypes: effConceptTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), markets: effMarkets(), spaceScanSources: effSpaceScanSources(), mktBadges: effMktBadges(), ...calFeatFlags(),
     defaults: { personTypes: PERSON_TYPES, companyTypes: COMPANY_TYPES, ticketCategories: TICKET_CATEGORIES, leadSources: LEAD_SOURCES, activityTypes: ACTIVITY_TYPES, roomCloseReasons: ROOM_CLOSE_REASONS, cuisineTypes: CUISINE_TYPES, conceptTypes: CONCEPT_TYPES, agreementTypes: AGREEMENT_TYPES, markets: MARKETS },
     isCustom: { personTypes: Array.isArray(s.personTypes), companyTypes: Array.isArray(s.companyTypes), ticketCategories: Array.isArray(s.ticketCategories), leadSources: Array.isArray(s.leadSources), activityTypes: Array.isArray(s.activityTypes), roomCloseReasons: Array.isArray(s.roomCloseReasons), cuisineTypes: Array.isArray(s.cuisineTypes), conceptTypes: Array.isArray(s.conceptTypes), agreementTypes: Array.isArray(s.agreementTypes), markets: Array.isArray(s.markets) },
     systemRequired: { leadSources: SYSTEM_LEAD_SOURCES, personTypes: SYSTEM_PERSON_TYPES, companyTypes: SYSTEM_COMPANY_TYPES, activityTypes: SYSTEM_ACTIVITY_TYPES, agreementTypes: AGREEMENT_TYPES.map(function(t){ return t.label; }), markets: SYSTEM_MARKETS },
@@ -10182,8 +10198,9 @@ app.get('/api/admin/types', requireAdmin, (req, res) => {
 });
 app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
   const b = req.body || {}; const s = loadSettings();
-  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; delete s.activityTypes; delete s.roomCloseReasons; delete s.cuisineTypes; delete s.conceptTypes; delete s.markets; delete s.agreementTypes; delete s.maxPullLocations; delete s.defaultState; delete s.assistantName; delete s.listRecencyDays; delete s.listRecencyEnabled; delete s.conceptLabel; delete s.conceptLabelPlural; delete s.showRequestRibbon; delete s.pipelineRequiredOnCompany; delete s.showQuickLinks; delete s.sentSyncEnabled; delete s.sentSyncIntervalMin; delete s.currency; delete s.featCalSync; delete s.featCalTasks; delete s.featCalMeet; delete s.featWorkHours; delete s.featEventFiles; delete s.featBooking; delete s.featCalShare; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), conceptTypes: effConceptTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), spaceScanSources: effSpaceScanSources(), ...calFeatFlags() }); }
+  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; delete s.activityTypes; delete s.roomCloseReasons; delete s.cuisineTypes; delete s.conceptTypes; delete s.markets; delete s.agreementTypes; delete s.maxPullLocations; delete s.defaultState; delete s.assistantName; delete s.listRecencyDays; delete s.listRecencyEnabled; delete s.conceptLabel; delete s.conceptLabelPlural; delete s.showRequestRibbon; delete s.pipelineRequiredOnCompany; delete s.showQuickLinks; delete s.sentSyncEnabled; delete s.sentSyncIntervalMin; delete s.currency; delete s.mktBadges; delete s.featCalSync; delete s.featCalTasks; delete s.featCalMeet; delete s.featWorkHours; delete s.featEventFiles; delete s.featBooking; delete s.featCalShare; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), conceptTypes: effConceptTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), spaceScanSources: effSpaceScanSources(), ...calFeatFlags() }); }
   if (b.spaceScanSources !== undefined) s.spaceScanSources = _normSourcesList(b.spaceScanSources);
+  if (b.mktBadges !== undefined) { const _mb = cleanMktBadges(b.mktBadges); if (_mb && _mb.length) s.mktBadges = _mb; else delete s.mktBadges; }
   if (b.personTypes !== undefined) { s.personTypes = cleanStrList(b.personTypes, 40, 60) || []; s.personTypes = _mergeRequired(s.personTypes, SYSTEM_PERSON_TYPES); }
   if (b.companyTypes !== undefined) { s.companyTypes = cleanStrList(b.companyTypes, 40, 60) || []; s.companyTypes = _mergeRequired(s.companyTypes, SYSTEM_COMPANY_TYPES); }
   if (b.ticketCategories !== undefined) s.ticketCategories = cleanStrList(b.ticketCategories, 40, 60) || [];
