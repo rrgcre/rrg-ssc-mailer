@@ -1177,7 +1177,7 @@ function openContactForm(){
     +'<div><label class="fld">Title / role</label><input id="ct_title" list="ct_titlelist" autocomplete="off" placeholder="Owner, partner, GM…"><datalist id="ct_titlelist">'+titleOpts+'</datalist></div>'
     +'<div><label class="fld">Nickname</label><input id="ct_nick" placeholder="Optional"></div>'
     +'<div><label class="fld">Lead source</label><select id="ct_lead" onchange="ctToggleRef()"><option value="">\u2014 select \u2014</option>'+LEADSRC.map(function(x){return '<option>'+esc(x)+'</option>';}).join('')+'</select></div>'
-    +'<div id="ct_refbyrow" hidden><label class="fld">Referring source</label><input id="ct_refby" autocomplete="off" placeholder="Name, company, or contact who referred them"></div>'
+    +'<div id="ct_refbyrow" hidden><label class="fld">Referred by</label><input id="ct_refby" list="ct_refbylist" autocomplete="off" placeholder="Type a contact name…"><datalist id="ct_refbylist"></datalist></div>'
     +'<div class="wide"><label class="fld">Emails</label>'+multiFieldHtml('ct_email',[],'name@email.com')+'</div>'
     +'<div class="wide"><label class="fld">Phones</label>'+multiFieldHtml('ct_phone',[],'(555) 555-5555')+'</div>'
     +'<div class="wide"><label class="fld">Preferred contact method</label><div style="display:flex;gap:18px;font-size:13px;padding:4px 0 2px"><label style="display:inline-flex;align-items:center;gap:5px"><input type="checkbox" class="ct_pref" value="phone"> Phone</label><label style="display:inline-flex;align-items:center;gap:5px"><input type="checkbox" class="ct_pref" value="text"> Text</label><label style="display:inline-flex;align-items:center;gap:5px"><input type="checkbox" class="ct_pref" value="email"> Email</label></div></div>'
@@ -1191,7 +1191,7 @@ function openContactForm(){
   document.getElementById('ct_cancel').addEventListener('click',function(){ f.setAttribute('hidden',''); f.innerHTML=''; CT_TAGF=null; CT_PHOTO=null; });
   CT_TAGF=mkTagField('ct_tags', [], ALLTAGS);
   document.getElementById('ct_first').focus();
-  (function(){ var _ce=document.getElementById('ct_type'); if(_ce) _ce.addEventListener('change',function(e){ var t=e.target; if(t&&t.classList&&t.classList.contains('ct_typechk')){ var l=t.closest('.cttypechip'); if(l) l.classList.toggle('on',t.checked); } }); })();
+  (function(){ var _ce=document.getElementById('ct_type'); if(_ce) _ce.addEventListener('change',function(e){ var t=e.target; if(t&&t.classList&&t.classList.contains('ct_typechk')){ var l=t.closest('.cttypechip'); if(l) l.classList.toggle('on',t.checked); } }); var _rbb=document.getElementById('ct_refby'); if(_rbb) _rbb.addEventListener('input',_ctRefbySearch); })();
 }
 // Link an existing contact from your book to this company — search, click, linked (no dupe).
 function openLinkContact(){
@@ -1221,8 +1221,8 @@ function saveContact(){
   if(!types.length){ msg.textContent='Pick at least one main interest.'; return; }
   var pref=[]; f.querySelectorAll('.ct_pref').forEach(function(c){ if(c.checked) pref.push(c.value); });
   var tags=CT_TAGF?CT_TAGF.get():[];
-  var _lead=(document.getElementById('ct_lead')||{}).value||''; var _ref=/referr/i.test(_lead)?(((document.getElementById('ct_refby')||{}).value||'').trim()):'';
-  var body={ firstName:first, lastName:last, types:types, type:types[0], title:document.getElementById('ct_title').value.trim(), nickname:document.getElementById('ct_nick').value.trim(), leadSource:_lead, referredBy:_ref, tags:tags, prefContact:pref, emails:collectMulti(f,'ct_email'), phones:collectMulti(f,'ct_phone') };
+  var _lead=(document.getElementById('ct_lead')||{}).value||''; var _ref=/referr/i.test(_lead)?(((document.getElementById('ct_refby')||{}).value||'').trim()):''; var _refId=(_ref?(CT_REFMAP[_ref.toLowerCase()]||''):'');
+  var body={ firstName:first, lastName:last, types:types, type:types[0], title:document.getElementById('ct_title').value.trim(), nickname:document.getElementById('ct_nick').value.trim(), leadSource:_lead, referredBy:_ref, referredById:_refId, tags:tags, prefContact:pref, emails:collectMulti(f,'ct_email'), phones:collectMulti(f,'ct_phone') };
   var b=document.getElementById('ct_save'); b.disabled=true; b.textContent='Saving…';
   fetch('/api/company/'+encodeURIComponent(ID)+'/contact',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
     .then(async function(r){return r.json();}).then(async function(j){ if(j&&j.ok){ if(CT_PHOTO&&j.personId){ var _ph=CT_PHOTO; CT_PHOTO=null; fetch('/api/person/'+encodeURIComponent(j.personId)+'/photo',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(_ph)}).then(function(r2){return r2.json();}).then(function(pj){ CONTACTS=j.contacts||[]; if(pj&&pj.ok&&pj.photoUrl){ var cc=CONTACTS.filter(function(x){return x.id===j.personId;})[0]; if(cc){ cc.photoUrl=pj.photoUrl; cc.hasPhoto=true; } } render(); }).catch(function(){ CONTACTS=j.contacts||[]; render(); }); } else { CONTACTS=j.contacts||[]; render(); } } else if(j&&j.existingId){ b.disabled=false;b.textContent='Save'; if(await rrgConfirm((j.error||'That email already exists.')+'\n\nOpen that contact?')) location.href='./rrg_person.html?id='+encodeURIComponent(j.existingId); } else { b.disabled=false;b.textContent='Save'; msg.textContent=(j&&j.error)||'Could not add the contact.'; } })
@@ -1262,6 +1262,8 @@ function validateWebsite(){
   clear(); return {ok:true, val:t};
 }
 var CO_REFMAP={};
+var CT_REFMAP={};
+function _ctRefbySearch(){ var rb=document.getElementById('ct_refby'); if(!rb) return; var q=(rb.value||'').trim(); if(window._ctRefbyT) clearTimeout(window._ctRefbyT); if(q.length<2) return; window._ctRefbyT=setTimeout(function(){ fetch('/api/search?q='+encodeURIComponent(q),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ var rs=((j&&j.results)||[]).filter(function(x){ return x.type==='contact'; }).slice(0,12); var dl=document.getElementById('ct_refbylist'); if(!dl) return; dl.innerHTML=rs.map(function(x){ var nm=x.title||x.name||'Contact'; var lbl=nm+(x.sub?(' \u2014 '+x.sub):''); CT_REFMAP[lbl.toLowerCase()]=x.id; CT_REFMAP[String(nm).toLowerCase()]=x.id; return '<option value="'+esc(lbl)+'">'; }).join(''); }).catch(function(){}); }, 200); }
 function _isRefCo(s){ return /referr/i.test(String(s||'')); }
 function _coRefbySeed(){ if(typeof C!=='undefined'&&C&&C.referredBy&&C.referredById) CO_REFMAP[String(C.referredBy).toLowerCase()]=C.referredById; }
 function _coRefbySearch(){ var rb=document.getElementById('c_refby'); if(!rb) return; var q=(rb.value||'').trim(); if(window._coRefbyT) clearTimeout(window._coRefbyT); if(q.length<2) return; window._coRefbyT=setTimeout(function(){ fetch('/api/search?q='+encodeURIComponent(q),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ var rs=((j&&j.results)||[]).filter(function(x){ return x.type==='contact'; }).slice(0,12); var dl=document.getElementById('c_refbylist'); if(!dl) return; dl.innerHTML=rs.map(function(x){ var nm=x.title||x.name||'Contact'; var lbl=nm+(x.sub?(' \u2014 '+x.sub):''); CO_REFMAP[lbl.toLowerCase()]=x.id; CO_REFMAP[String(nm).toLowerCase()]=x.id; return '<option value="'+esc(lbl)+'">'; }).join(''); }).catch(function(){}); }, 200); }
