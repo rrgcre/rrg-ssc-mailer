@@ -3671,7 +3671,7 @@ app.post('/api/room/:id/grant-perms', express.json(), (req, res) => {
   const g = (r.grants || []).find(x => x.id === String(b.grantId || ''));
   if (!g) return res.status(404).json({ ok: false, error: 'Buyer not found.' });
   const cat = String(b.category || ''); const lvl = String(b.level || '');
-  if (ROOM_CATEGORIES.indexOf(cat) < 0) return res.status(400).json({ ok: false, error: 'Unknown folder.' });
+  if (cat === '' || roomServeCats(r).indexOf(cat) < 0) return res.status(400).json({ ok: false, error: 'Unknown folder.' });
   g.catPerms = g.catPerms || {};
   if (lvl === 'inherit') { delete g.catPerms[cat]; }
   else if (ROOM_CELL_LEVELS.indexOf(lvl) >= 0) { g.catPerms[cat] = lvl; }
@@ -3809,7 +3809,8 @@ app.post('/api/room-upload', express.json({ limit: '40mb' }), (req, res) => {
     const dup = byHash || byName;
     if (dup) return res.json({ ok: false, duplicate: true, reason: byHash ? 'content' : 'name', existing: { title: dup.title || dup.originalName || '', originalName: dup.originalName || '', category: dup.category || '', uploadedAt: dup.uploadedAt || '' } });
   }
-  const category = (ROOM_CATEGORIES.indexOf(b.category) >= 0) ? b.category : 'Other';
+  const _rcats = roomServeCats(r);
+  const category = (b.category === '' ? '' : (_rcats.indexOf(b.category) >= 0 ? b.category : 'Other'));
   const title = String(b.title || '').trim().slice(0, 140) || prettyName(orig);
   try { if (!fs.existsSync(ROOMS_DIR)) fs.mkdirSync(ROOMS_DIR, { recursive: true }); } catch (e) { return res.status(500).json({ ok: false, error: 'Could not create the rooms folder.' }); }
   const id = newRoomDocId();
@@ -3887,10 +3888,48 @@ app.post('/api/room/:id/move-doc', express.json(), (req, res) => {
   const d = (r.docs || []).find(x => x.id === String(b.id || ''));
   if (!d) return res.status(404).json({ ok: false, error: 'File not found.' });
   const cat = String(b.category || '');
-  if (roomServeCats(r).indexOf(cat) < 0) return res.status(400).json({ ok: false, error: 'Unknown folder.' });
+  if (cat !== '' && roomServeCats(r).indexOf(cat) < 0) return res.status(400).json({ ok: false, error: 'Unknown folder.' });
   d.category = cat; d.updatedAt = new Date().toISOString();
   saveRooms(arr);
   res.json({ ok: true, docs: r.docs });
+});
+// ---- Custom folders: admins add their own folders / subfolders (path convention "Parent / Child"),
+// rename, delete (files fall back to root), or reorder. Buyers see whatever folders exist. ----
+function _cleanFolderName(x){ return String(x==null?'':x).replace(/\s*\/\s*/g,' / ').replace(/[^\w &().,'/+\-]/g,'').replace(/\s+/g,' ').trim().slice(0,80); }
+app.post('/api/room/:id/folders', express.json(), (req, res) => {
+  const arr = loadRooms(); const r = arr.find(x => x.id === req.params.id);
+  if (!r) return res.status(404).json({ ok: false, error: 'Data room not found.' });
+  if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const b = req.body || {}; const action = String(b.action || '');
+  let folders = (Array.isArray(r.folders) && r.folders.length) ? r.folders.slice() : roomServeCats(r).slice();
+  const has = (n) => folders.some(f => f.toLowerCase() === n.toLowerCase());
+  if (action === 'add') {
+    const name = _cleanFolderName(b.name); const parent = _cleanFolderName(b.parent);
+    if (!name) return res.status(400).json({ ok: false, error: 'Folder name required.' });
+    if (parent && !has(parent)) return res.status(400).json({ ok: false, error: 'Parent folder not found.' });
+    const full = parent ? (parent + ' / ' + name) : name;
+    if (has(full)) return res.status(409).json({ ok: false, error: 'That folder already exists.' });
+    if (folders.length >= 100) return res.status(400).json({ ok: false, error: 'Too many folders.' });
+    folders.push(full);
+  } else if (action === 'rename') {
+    const from = _cleanFolderName(b.from), to = _cleanFolderName(b.to);
+    if (!from || !to) return res.status(400).json({ ok: false, error: 'Bad rename.' });
+    folders = folders.map(f => (f === from ? to : (f.indexOf(from + ' / ') === 0 ? (to + f.slice(from.length)) : f)));
+    (r.docs || []).forEach(d => { const c = String(d.category || ''); if (c === from) d.category = to; else if (c.indexOf(from + ' / ') === 0) d.category = to + c.slice(from.length); });
+    (r.grants || []).forEach(g => { if (g.catPerms) Object.keys(g.catPerms).forEach(k => { if (k === from) { g.catPerms[to] = g.catPerms[k]; delete g.catPerms[k]; } else if (k.indexOf(from + ' / ') === 0) { g.catPerms[to + k.slice(from.length)] = g.catPerms[k]; delete g.catPerms[k]; } }); });
+  } else if (action === 'delete') {
+    const name = _cleanFolderName(b.name);
+    folders = folders.filter(f => !(f === name || f.indexOf(name + ' / ') === 0));
+    (r.docs || []).forEach(d => { const c = String(d.category || ''); if (c === name || c.indexOf(name + ' / ') === 0) d.category = ''; });
+  } else if (action === 'reorder' && Array.isArray(b.folders)) {
+    const cleaned = b.folders.map(_cleanFolderName).filter(Boolean);
+    const set = {}; cleaned.forEach(f => set[f.toLowerCase()] = 1);
+    folders = cleaned.concat(folders.filter(f => !set[f.toLowerCase()]));
+  } else return res.status(400).json({ ok: false, error: 'Unknown action.' });
+  const seen = {}; folders = folders.filter(f => { const k = f.toLowerCase(); if (seen[k]) return false; seen[k] = 1; return true; }).slice(0, 120);
+  r.folders = folders; r.updatedAt = new Date().toISOString();
+  saveRooms(arr);
+  res.json({ ok: true, folders: roomServeCats(r), docs: r.docs });
 });
 // ---- Redact a PDF: burn black boxes in DESTRUCTIVELY (mupdf truly removes the covered text/vector
 // content — not a cosmetic overlay), save the redacted copy as the buyer-facing document, and keep
