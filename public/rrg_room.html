@@ -241,8 +241,8 @@ function showFileResult(added, byCat, skips){
 function bulkUpload(dropped){
   var fi=document.getElementById('bulkFiles'), files=(typeof dropped!=='undefined'&&dropped&&dropped.length)?Array.prototype.slice.call(dropped):(fi&&fi.files?Array.prototype.slice.call(fi.files):[]), m=document.getElementById('umsg');
   if(!files.length) return;
-  var skippedBig=files.filter(function(f){ return f.size>25*1024*1024; }).length;
-  files=files.filter(function(f){ return f.size<=25*1024*1024; });
+  var skippedBig=files.filter(function(f){ return f.size>25*1024*1024 && !/\.zip$/i.test(f.name); }).length;
+  files=files.filter(function(f){ return (/\.zip$/i.test(f.name)) ? (f.size<=60*1024*1024) : (f.size<=25*1024*1024); });
   if(files.length>40){ files=files.slice(0,40); }
   if(!files.length){ m.textContent=(skippedBig?('Those file(s) are over 25 MB — add smaller ones.'):''); fi.value=''; return; }
   showOrb('Reading '+files.length+' document'+(files.length===1?'':'s')+'…',aiName()+' is sorting each file into the right folder.');
@@ -636,7 +636,7 @@ function load(){
 function uploadDoc(){
   var fi=document.getElementById('docFile'), f=fi&&fi.files&&fi.files[0], m=document.getElementById('umsg');
   if(!f){ return; }
-  if(f.size>25*1024*1024){ m.textContent='That file is over 25 MB — please add a smaller file.'; fi.value=''; return; }
+  if(f.size>25*1024*1024 && !/\.zip$/i.test(f.name)){ m.textContent='That file is over 25 MB — please add a smaller file.'; fi.value=''; return; }
   if(/\.zip$/i.test(f.name)){
     if(!(window.ROOM&&ROOM.allowZip)){ m.textContent='Turn on “Allow ZIP files” below to upload a zip.'; fi.value=''; return; }
     _zipChoose(f.name, function(mode){ if(!mode){ fi.value=''; m.textContent=''; return; } _doUpload(f,fi,m,mode); });
