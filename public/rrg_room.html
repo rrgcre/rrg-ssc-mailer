@@ -245,6 +245,11 @@ function bulkUpload(dropped){
   files=files.filter(function(f){ return (/\.zip$/i.test(f.name)) ? (f.size<=60*1024*1024) : (f.size<=25*1024*1024); });
   if(files.length>40){ files=files.slice(0,40); }
   if(!files.length){ m.textContent=(skippedBig?('Those file(s) are over 25 MB — add smaller ones.'):''); fi.value=''; return; }
+  var _hz=files.some(function(f){ return /\.zip$/i.test(f.name); });
+  if(_hz && window.ROOM && ROOM.allowZip){ _zipChoose((files.length===1?files[0].name:'the zip file(s)'), function(_zm){ if(!_zm){ fi.value=''; if(m) m.textContent=''; return; } _bulkGo(files,m,fi,_zm); }); return; }
+  _bulkGo(files,m,fi,'');
+}
+function _bulkGo(files,m,fi,zipMode){
   showOrb('Reading '+files.length+' document'+(files.length===1?'':'s')+'…',aiName()+' is sorting each file into the right folder.');
   var reads=files.map(function(f){ return new Promise(function(resolve){ var rd=new FileReader(); rd.onload=function(){ var s=String(rd.result||''),i=s.indexOf(','),b64=(i>=0?s.slice(i+1):s); resolve({filename:f.name,dataB64:b64}); }; rd.onerror=function(){ resolve(null); }; rd.readAsDataURL(f); }); });
   Promise.all(reads).then(function(payload){ payload=payload.filter(Boolean);
@@ -260,7 +265,7 @@ function bulkUpload(dropped){
       if(ci>=chunks.length){ finish(); return; }
       var chunk=chunks[ci];
       showOrb('Filing '+(done+1)+(chunk.length>1?('–'+(done+chunk.length)):'')+' of '+total+'…',aiName()+' is sorting each file into the right folder.');
-      fetch('/api/room/'+encodeURIComponent(RID)+'/bulk-upload',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({files:chunk})})
+      fetch('/api/room/'+encodeURIComponent(RID)+'/bulk-upload',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({files:chunk, zipMode:(zipMode||undefined)})})
         .then(function(r){ return r.json().catch(function(){ return {ok:false,error:'Server error ('+r.status+')'}; }); })
         .then(function(j){ if(j&&j.ok){ added+=(j.added||0); (j.results||[]).forEach(function(x){ results.push(x); }); if(j.docs) lastDocs=j.docs; } else { chunk.forEach(function(p){ results.push({ok:false,name:p.filename||'',error:(j&&j.error)||'Upload failed'}); }); } done+=chunk.length; post(ci+1); })
         .catch(function(){ chunk.forEach(function(p){ results.push({ok:false,name:p.filename||'',error:'Upload failed'}); }); done+=chunk.length; post(ci+1); });

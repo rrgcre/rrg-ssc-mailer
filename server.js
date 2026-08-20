@@ -3885,6 +3885,7 @@ app.post('/api/room/:id/bulk-upload', express.json({ limit: '80mb' }), async (re
   if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
   const files = Array.isArray((req.body || {}).files) ? (req.body.files || []).slice(0, 40) : [];
   if (!files.length) return res.status(400).json({ ok: false, error: 'No files received.' });
+  const _zmode = (['extract','store','both'].indexOf(String((req.body||{}).zipMode||'')) >= 0) ? String((req.body||{}).zipMode) : 'both';
   const _rc = roomServeCats(r);
   // Classify by file name only — fast. AI sorts when it answers quickly; otherwise a name
   // heuristic files each doc so the upload NEVER stalls on a slow/unavailable AI call.
@@ -3903,7 +3904,7 @@ app.post('/api/room/:id/bulk-upload', express.json({ limit: '80mb' }), async (re
     const _fn = String(f.filename || ''); const _fm = _fn.match(/\.([a-z0-9]+)$/i); const _fe = _fm ? _fm[1].toLowerCase() : '';
     if (_fe === 'zip') {
       if (!r.allowZip) { results.push({ ok:false, name:_fn, error:'ZIP is off for this room — enable "Allow ZIP files" first.' }); continue; }
-      const zres = ingestZipToRoom(r, { name:_fn, dataB64:f.dataB64 }, { by: ((req.user && req.user.name) || '') + ' · zip', keepZip:true });
+      const zres = ingestZipToRoom(r, { name:_fn, dataB64:f.dataB64 }, { by: ((req.user && req.user.name) || '') + ' · zip', mode:_zmode });
       if (zres && zres.ok) { added += zres.added + (zres.zipDoc ? 1 : 0); results.push({ ok:true, name:_fn, category:'(zip — extracted '+zres.added+')', id: zres.zipDoc && zres.zipDoc.id }); (zres.results||[]).forEach(function(rr){ results.push(rr); }); }
       else { results.push({ ok:false, name:_fn, error:(zres && zres.error) || 'Could not process the zip.' }); }
       continue;
