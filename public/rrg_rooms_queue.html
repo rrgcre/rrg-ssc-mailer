@@ -79,7 +79,6 @@ tr:hover td{background:#fbfcfe;}
   <div class="feats" id="featStrip">
     <div class="featshd" id="featHd"><b>What your data rooms do</b><span class="sh">the confidential deal room, at a glance — tap any tile for help</span><span class="chev" id="featChev">▾</span></div>
     <div class="featgrid">
-      
             <a class="feat" href="rrg_dataroom_help.html#create" target="_blank" rel="noopener"><span class="fic">⚡</span><div><b>Instant, structured setup</b><span>Create a room in one click — it comes pre-built with the standard folders and per-year subfolders for financials, nothing to assemble.</span></div></a>
       <a class="feat" href="rrg_dataroom_help.html#upload" target="_blank" rel="noopener"><span class="fic">📁</span><div><b>Bulk upload, automatic filing</b><span>Drop up to 40 files; the assistant reads each one and sorts it into the right folder.</span></div></a>
       <a class="feat" href="rrg_dataroom_help.html#alerts" target="_blank" rel="noopener"><span class="fic">🔔</span><div><b>Real-time alerts</b><span>Emailed the moment a buyer first opens the P&amp;L, financials, lease, or tax returns.</span></div></a>
@@ -92,7 +91,261 @@ tr:hover td{background:#fbfcfe;}
       <a class="feat" href="rrg_dataroom_help.html#verify" target="_blank" rel="noopener"><span class="fic">🔑</span><div><b>Two-step verification</b><span>Optional one-time email code on top of the access code, with 10-day trusted devices.</span></div></a>
       <a class="feat" href="rrg_dataroom_help.html#redact" target="_blank" rel="noopener"><span class="fic">✂️</span><div><b>Redact before you share</b><span>Black out sensitive lines on any PDF — the covered text is permanently removed from the buyer's copy while your untouched original stays private.</span></div></a>
     
-    
     </div>
   </div>
   <div class="card">
+    <div class="hd"><b>Data Rooms</b><span class="cnt" id="cnt"></span><button id="newRoomBtn" class="newbtn" onclick="newRoom()">+ New data room</button><label id="hideArchWrap" style="display:none;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap"><input type="checkbox" id="hideArch" checked style="cursor:pointer;margin:0"> Hide archived <span id="archCnt" style="display:none;color:#8a5a12;background:#fff4e6;border:1px solid #f3d9a8;border-radius:99px;padding:1px 7px;font-size:11px;font-weight:700"></span></label><button id="filterBtn" class="fbtn" onclick="toggleRoomFilter()">⚙ Filters</button><div class="searchwrap"><svg class="searchic" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"></circle><line x1="12.8" y1="12.8" x2="17.5" y2="17.5"></line></svg><input id="roomSearch" placeholder="Search data rooms by name, creator, or buyer…" oninput="applyFilter()" autocomplete="off"><button type="button" class="searchx" id="roomSearchx" title="Clear search" onclick="var s=document.getElementById('roomSearch');s.value='';applyFilter();s.focus();">×</button></div></div>
+    <div class="qbar" id="qbar">
+      <span class="qlbl">Quick view</span>
+      <button type="button" class="qchip on" id="qf_all" onclick="setQFilt('all')">All rooms <span class="qn" id="qn_all">0</span></button>
+      <button type="button" class="qchip" id="qf_live" onclick="setQFilt('live')">Live <span class="qn" id="qn_live">0</span></button>
+      <button type="button" class="qchip" id="qf_setup" onclick="setQFilt('setup')">Setup <span class="qn" id="qn_setup">0</span></button>
+      <button type="button" class="qchip" id="qf_shared" onclick="setQFilt('shared')">Shared <span class="qn" id="qn_shared">0</span></button>
+    </div>
+    <div id="body"></div>
+  </div>
+</div>
+<div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
+<style>
+.rmodal{position:fixed;inset:0;background:rgba(6,14,32,.5);display:flex;align-items:flex-start;justify-content:center;z-index:400;padding:44px 18px;overflow:auto;}
+.rmodal[hidden]{display:none;}
+.rmodalcard{background:#fff;border:1px solid var(--line);border-radius:6px;width:100%;max-width:460px;box-shadow:0 18px 44px rgba(0,0,0,.24);}
+.rmhd{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--line);background:var(--wash,#f4f6f9);}
+.rmhd b{font-size:14px;color:var(--navy);font-weight:700;}
+.rmx{background:none;border:none;font-size:22px;line-height:1;color:#8a93a8;cursor:pointer;padding:0 4px;}
+.rmbd{padding:16px 18px;}
+.rfld{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;margin:12px 0 5px;}
+.rmbd .rfld:first-child{margin-top:0;}
+.rmbd input,.rmbd select{width:100%;border:1px solid #c4ccda;border-radius:4px;padding:9px 11px;font:inherit;font-size:14px;color:var(--ink);background:#fff;}
+.rrow2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.rmsg{font-size:12.5px;color:var(--red);margin-top:10px;min-height:15px;}
+.rmft{display:flex;gap:9px;align-items:center;padding:12px 20px;border-top:1px solid var(--line);background:var(--wash,#f4f6f9);}
+.rcreate{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:3px;padding:9px 16px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;}
+.rcreate:disabled{opacity:.55;cursor:default;}
+.rcancel{background:#fff;color:var(--muted);border:1px solid #c4ccda;border-radius:3px;padding:9px 14px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;}
+.livepill{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:1px 8px;border-radius:999px;background:#e8f6ee;color:#1f8a5b;border:1px solid #bfe6cf;vertical-align:middle;margin-left:6px;}
+.sharedpill{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:1px 8px;border-radius:999px;background:#eaf1fb;color:#23496f;border:1px solid #cddcf1;vertical-align:middle;margin-left:6px;}
+.setuppill{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:1px 8px;border-radius:999px;background:#eef1f6;color:#8a93a8;border:1px solid #dfe4ec;vertical-align:middle;margin-left:6px;}
+#folderPickModal{z-index:520;}
+.fpbtn{width:100%;text-align:left;border:1px solid #c4ccda;border-radius:4px;padding:9px 11px;font:inherit;font-size:14px;color:var(--ink);background:#fff;cursor:pointer;}
+.fpbtn:hover{border-color:#9fb0cc;background:#f7f9fb;}
+.fpbtn.on{border-color:var(--navy);color:var(--navy);font-weight:700;background:#eef2f9;}
+.fpmode{display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-size:12.5px;color:#3a475f;padding-bottom:10px;border-bottom:1px solid var(--line);}
+.fpmode .fpmlbl{font-weight:700;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em;}
+.fpmode label{display:inline-flex;align-items:center;gap:5px;cursor:pointer;}
+.fpmode input{width:auto;}
+.fpbar{display:flex;align-items:center;gap:8px;padding:9px 0 6px;font-size:12px;}
+.fplink{background:none;border:none;color:#23496f;font:inherit;font-size:12px;font-weight:700;cursor:pointer;padding:0;}
+.fplink:hover{text-decoration:underline;} .fpsep{color:#c4ccda;}
+.fpcount{margin-left:auto;color:#8a93a8;font-weight:600;}
+.fptree{max-height:46vh;overflow:auto;border:1px solid var(--line);border-radius:6px;padding:6px 4px;}
+.fprow{display:flex;align-items:center;gap:8px;padding:4px 8px;font-size:13px;color:var(--ink);cursor:pointer;border-radius:4px;}
+.fprow:hover{background:#f4f7fb;}
+.fprow input{width:auto;margin:0;flex:none;}
+.fprow.d1{padding-left:30px;} .fprow.d2{padding-left:54px;color:#5a6478;font-size:12.5px;}
+</style>
+<div class="rmodal" id="folderPickModal" hidden>
+  <div class="rmodalcard" style="max-width:520px">
+    <div class="rmhd"><b>Choose folders</b><button class="rmx" type="button" onclick="fpClose()" aria-label="Close">&times;</button></div>
+    <div class="rmbd">
+      <div class="fpmode">
+        <span class="fpmlbl">Sub-periods under each year</span>
+        <label><input type="radio" name="fpmode" value="" checked onchange="fpSetMode(this.value)"> None</label>
+        <label><input type="radio" name="fpmode" value="months" onchange="fpSetMode(this.value)"> 12 months</label>
+        <label><input type="radio" name="fpmode" value="periods" onchange="fpSetMode(this.value)"> 13 periods</label>
+      </div>
+      <div class="fpbar"><button type="button" class="fplink" onclick="fpAll(true)">Select all</button><span class="fpsep">&middot;</span><button type="button" class="fplink" onclick="fpAll(false)">Clear all</button><span class="fpcount" id="fpCount"></span></div>
+      <div class="fptree" id="fpTree"></div>
+    </div>
+    <div class="rmft"><button class="rcreate" type="button" onclick="fpApply()">Use these folders</button><button class="rcancel" type="button" onclick="fpClose()">Cancel</button></div>
+  </div>
+</div>
+<div class="rmodal" id="newRoomModal" hidden>
+  <div class="rmodalcard">
+    <div class="rmhd"><b>New data room</b><button class="rmx" type="button" onclick="closeNewRoom()" aria-label="Close">×</button></div>
+    <div class="rmbd">
+      <label class="rfld">Dataroom name</label>
+      <input id="nr_name" placeholder="e.g. Magnolia Pancake Haus">
+      <label class="rfld">Contact <span style="font-weight:500;text-transform:none;letter-spacing:0;color:var(--muted)">— the seller / owner (required)</span></label>
+      <input id="nr_contact" list="nr_contacts" autocomplete="off" placeholder="Type a contact name…">
+      <datalist id="nr_contacts"></datalist>
+      <label class="rfld">Listing <span style="font-weight:500;text-transform:none;letter-spacing:0;color:var(--muted)">— link to an existing listing (optional)</span></label>
+      <input id="nr_listing" list="nr_listings" autocomplete="off" placeholder="Type a listing name…">
+      <datalist id="nr_listings"></datalist>
+      <div class="rrow2">
+        <div><label class="rfld">Rep</label><select id="nr_rep"></select></div>
+        <div><label class="rfld">Date</label><input type="date" id="nr_date"></div>
+      </div>
+      <div class="rfldwrap" style="margin-top:2px">
+        <label class="rfld">Per-year subfolders <span style="font-weight:500;text-transform:none;letter-spacing:0;color:var(--muted)">— inside each Financials &amp; Tax year</span></label>
+        <select id="nr_submode" onchange="_fpSyncMode()">
+          <option value="">None</option>
+          <option value="months">12 calendar months + Full Year (13)</option>
+          <option value="periods">13 four-week periods + Full Year (14)</option>
+        </select>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:7px;flex-wrap:wrap">
+          <button type="button" class="fplink" id="nr_customBtn" onclick="openFolderPick()">Customize folders&hellip;</button>
+          <span id="nr_folderState" style="font-size:11px;color:#8a93a8;font-weight:600">Standard set</span>
+          <button type="button" class="fplink" id="nr_resetFolders" onclick="fpReset()" style="display:none;color:#b23a2c">Reset</button>
+        </div>
+      </div>
+      <div class="rmsg" id="nr_msg"></div>
+    </div>
+    <div class="rmft"><button class="rcreate" type="button" id="nr_create" onclick="createRoomSubmit()">Create data room</button><button class="rcancel" type="button" onclick="closeNewRoom()">Cancel</button></div>
+  </div>
+</div>
+<div class="toast" id="toast">Link copied ✓</div>
+<script src="/rrg_list.js"></script>
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function fmt(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2); }
+var CTL=null, LINKS={}, USERS=[], ME=null, CONTACTS=[], CONTACTS_LOADED=false, LISTINGS=[], LISTINGS_LOADED=false;
+function toast(msg){ var t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(function(){ t.classList.remove('show'); },1400); }
+function copyLink(id){ var url=LINKS[id]||''; if(!url) return; function ok(){ toast('Buyer link copied ✓'); } if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(url).then(ok).catch(function(){ rrgPrompt('Copy the buyer link:', url); }); } else { rrgPrompt('Copy the buyer link:', url); } }
+function buyerView(id){ var url=LINKS[id]||''; if(!url){ url='./rrg_room.html?room='+encodeURIComponent(id); window.open(url,'_blank','noopener'); return; } url += (url.indexOf('?')>=0?'&':'?')+'preview=1'; window.open(url,'_blank','noopener'); }
+function newRoom(){
+  var m=document.getElementById('newRoomModal'); if(!m) return;
+  document.getElementById('nr_name').value=''; var _sm=document.getElementById('nr_submode'); if(_sm) _sm.value=''; SELECTED_FOLDERS=null; FP_MODE=''; if(typeof _fpState==='function') _fpState();
+  document.getElementById('nr_contact').value='';
+  var _nl=document.getElementById('nr_listing'); if(_nl) _nl.value='';
+  var rep=document.getElementById('nr_rep');
+  rep.innerHTML=(USERS||[]).map(function(u){ return '<option value="'+esc(u.username)+'">'+esc(u.name)+'</option>'; }).join('');
+  if(ME&&ME.username){ rep.value=ME.username; }
+  document.getElementById('nr_date').value=(new Date()).toISOString().slice(0,10);
+  var msg=document.getElementById('nr_msg'); msg.textContent=''; msg.style.color='';
+  var b=document.getElementById('nr_create'); b.disabled=false; b.textContent='Create data room';
+  loadContactsOnce();
+  loadListingsOnce();
+  m.removeAttribute('hidden');
+  setTimeout(function(){ try{ document.getElementById('nr_name').focus(); }catch(e){} },30);
+}
+function closeNewRoom(){ var m=document.getElementById('newRoomModal'); if(m) m.setAttribute('hidden',''); }
+function loadContactsOnce(){
+  if(CONTACTS_LOADED) return; CONTACTS_LOADED=true;
+  fetch('/api/people',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    CONTACTS=(j&&j.people)||[]; var dl=document.getElementById('nr_contacts');
+    if(dl) dl.innerHTML=CONTACTS.map(function(p){ return '<option value="'+esc(p.name)+'"></option>'; }).join('');
+  }).catch(function(){ CONTACTS_LOADED=false; });
+}
+function loadListingsOnce(){
+  if(LISTINGS_LOADED) return; LISTINGS_LOADED=true;
+  fetch('/api/assignments',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    LISTINGS=((j&&j.assignments)||[]).filter(function(a){ return a && a.business; });
+    var dl=document.getElementById('nr_listings');
+    if(dl) dl.innerHTML=LISTINGS.map(function(a){ var lbl=a.business+(a.market?(' — '+a.market):''); return '<option value="'+esc(lbl)+'"></option>'; }).join('');
+  }).catch(function(){ LISTINGS_LOADED=false; });
+}
+function _fpSyncMode(){ var d=document.getElementById('nr_submode'); FP_MODE=d?d.value:''; SELECTED_FOLDERS=null; _fpState(); }
+var SELECTED_FOLDERS=null, FP_MODE='', FP_CHK={};
+var FP_YEARS=(function(){ var y=(new Date()).getFullYear(); return [y,y-1,y-2,y-3,y-4]; })();
+var FP_MONTHS=['01 January','02 February','03 March','04 April','05 May','06 June','07 July','08 August','09 September','10 October','11 November','12 December'];
+var FP_PERIODS=['Period 01','Period 02','Period 03','Period 04','Period 05','Period 06','Period 07','Period 08','Period 09','Period 10','Period 11','Period 12','Period 13'];
+var FP_TOPS=[['Financials',1,1],['Tax Returns',1,0],['Lease',0,0],['Equipment & FF&E',0,0],['Staffing & Payroll',0,0],['Licenses & Permits',0,0],['Legal & Corporate',0,0],['Menus & Marketing',0,0],['Photos',0,0],['Other',0,0]];
+function _fpCandidates(){ var c=[]; FP_TOPS.forEach(function(t){ c.push({path:t[0],depth:0,def:true}); if(t[1]){ FP_YEARS.forEach(function(y){ var yp=t[0]+' / '+y; c.push({path:yp,depth:1,def:true}); if(t[0]==='Financials'){ c.push({path:yp+' / T12',depth:2,def:true}); } if(FP_MODE&&t[2]){ var labs=(FP_MODE==='periods')?FP_PERIODS:FP_MONTHS; labs.forEach(function(m){ c.push({path:yp+' / '+m,depth:2,def:true}); }); c.push({path:yp+' / Full Year',depth:2,def:true}); } }); } }); return c; }
+function _fpState(){ var st=document.getElementById('nr_folderState'), rs=document.getElementById('nr_resetFolders'); if(SELECTED_FOLDERS&&SELECTED_FOLDERS.length){ if(st){ st.textContent='Custom \u2014 '+SELECTED_FOLDERS.length+' folders'; st.style.color='#23496f'; } if(rs) rs.style.display=''; } else { if(st){ st.textContent='Standard set'; st.style.color='#8a93a8'; } if(rs) rs.style.display='none'; } }
+function fpReset(){ SELECTED_FOLDERS=null; _fpState(); }
+function openFolderPick(){ var d=document.getElementById('nr_submode'); FP_MODE=d?d.value:''; try{ document.querySelectorAll('input[name=fpmode]').forEach(function(r){ r.checked=(r.value===FP_MODE); }); }catch(e){} var cand=_fpCandidates(); FP_CHK={}; if(SELECTED_FOLDERS&&SELECTED_FOLDERS.length){ var sel={}; SELECTED_FOLDERS.forEach(function(p){ sel[p]=1; }); cand.forEach(function(x){ FP_CHK[x.path]=!!sel[x.path]; }); } else { cand.forEach(function(x){ FP_CHK[x.path]=x.def; }); } _fpRender(); var m=document.getElementById('folderPickModal'); if(m) m.removeAttribute('hidden'); }
+function fpClose(){ var m=document.getElementById('folderPickModal'); if(m) m.setAttribute('hidden',''); }
+function fpSetMode(v){ FP_MODE=v||''; var cand=_fpCandidates(); cand.forEach(function(x){ if(!(x.path in FP_CHK)) FP_CHK[x.path]=x.def; }); _fpRender(); }
+function _fpRender(){ var cand=_fpCandidates(), host=document.getElementById('fpTree'); if(!host) return; var n=0; host.innerHTML=cand.map(function(x){ var on=!!FP_CHK[x.path]; if(on) n++; var lbl=x.path.split(' / ').slice(-1)[0]; return '<label class="fprow d'+x.depth+'"><input type="checkbox" data-fp="'+encodeURIComponent(x.path)+'"'+(on?' checked':'')+'><span>'+esc(lbl)+'</span></label>'; }).join(''); var cc=document.getElementById('fpCount'); if(cc) cc.textContent=n+' of '+cand.length+' selected'; }
+function fpAll(on){ _fpCandidates().forEach(function(x){ FP_CHK[x.path]=!!on; }); _fpRender(); }
+function fpApply(){ var cand=_fpCandidates(), set={}, out=[]; cand.forEach(function(x){ if(FP_CHK[x.path]){ var acc=''; x.path.split(' / ').forEach(function(sg){ acc=acc?(acc+' / '+sg):sg; set[acc]=1; }); } }); cand.forEach(function(x){ if(set[x.path]){ out.push(x.path); delete set[x.path]; } }); Object.keys(set).forEach(function(k){ out.push(k); }); SELECTED_FOLDERS=out; var d=document.getElementById('nr_submode'); if(d) d.value=FP_MODE; _fpState(); fpClose(); }
+document.addEventListener('change',function(e){ var t=e.target; if(!(t&&t.matches&&t.matches('#fpTree input[type=checkbox]'))) return; var p=decodeURIComponent(t.getAttribute('data-fp')||''); if(!p) return; FP_CHK[p]=t.checked; if(t.checked){ var acc=''; p.split(' / ').forEach(function(sg){ acc=acc?(acc+' / '+sg):sg; FP_CHK[acc]=true; }); } else { Object.keys(FP_CHK).forEach(function(k){ if(k===p||k.indexOf(p+' / ')===0) FP_CHK[k]=false; }); } _fpRender(); });
+function createRoomSubmit(){
+  var msg=document.getElementById('nr_msg'); msg.style.color='';
+  var name=document.getElementById('nr_name').value.trim();
+  if(!name){ msg.textContent='Give the data room a name.'; return; }
+  var cname=document.getElementById('nr_contact').value.trim();
+  if(!cname){ msg.textContent='Enter the contact (seller / owner).'; try{ document.getElementById('nr_contact').focus(); }catch(e){} return; }
+  var pid=''; if(cname){ var hit=CONTACTS.filter(function(p){ return String(p.name||'').trim().toLowerCase()===cname.toLowerCase(); })[0]; if(hit) pid=hit.id; }
+  var lval=(document.getElementById('nr_listing')?document.getElementById('nr_listing').value:'').trim(); var lkey='', llabel='';
+  if(lval){ var lh=LISTINGS.filter(function(a){ var full=(a.business+(a.market?(' — '+a.market):'')).toLowerCase(); return full===lval.toLowerCase() || String(a.business||'').trim().toLowerCase()===lval.toLowerCase(); })[0]; if(lh){ lkey=lh.key; llabel=lh.business||''; } }
+  var body={ business:name, personId:pid, personName:(pid?'':cname), byUser:(document.getElementById('nr_rep').value||''), date:(document.getElementById('nr_date').value||''), listingKey:lkey, listingLabel:llabel, subfolderMode:(document.getElementById('nr_submode')?document.getElementById('nr_submode').value:''), folders:(SELECTED_FOLDERS&&SELECTED_FOLDERS.length?SELECTED_FOLDERS:null) };
+  var btn=document.getElementById('nr_create'); btn.disabled=true; btn.textContent='Creating…'; msg.textContent='';
+  fetch('/api/room/new',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
+    .then(function(r){return r.json();}).then(function(j){
+      if(j&&j.ok&&j.id){ location.href='./rrg_room.html?room='+encodeURIComponent(j.id); }
+      else { btn.disabled=false; btn.textContent='Create data room'; msg.textContent=(j&&j.error)||'Could not create the data room.'; }
+    }).catch(function(){ btn.disabled=false; btn.textContent='Create data room'; msg.textContent='Could not reach the server.'; });
+}
+function renderList(list){
+  (list||[]).forEach(function(r){ LINKS[r.id]=r.link; });
+  var cfg={
+    mount:'#body', data:list, key:'rooms_v2', countEl:'#cnt', filterButton:document.getElementById('filterBtn'),
+    empty:'<div class="empty"><b>No data rooms yet.</b>Start your first confidential deal room.<br><button onclick="newRoom()" style="display:inline-block;margin-top:16px;background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:3px;padding:10px 18px;font:inherit;font-size:13px;font-weight:600;cursor:pointer">+ New data room</button></div>',
+    rowId:function(c){ return c.id; }, defaultSort:0, defaultDir:1, onFilterChange:function(){ updateRoomFilterBtn(); },
+    columns:[
+      { label:'Dataroom Name', key:'name', filterable:false, sort:function(a,b){ return RRGList.cmp(a.business,b.business); },
+        cell:function(c){ var meta='Created '+fmt(c.createdAt)+(c.by?(' · '+esc(c.by)):'')+((c.closed&&c.closedAt)?(' · archived '+fmt(c.closedAt)+(c.closeReason?(' — '+esc(c.closeReason)):'')):''); var arch=c.closed?' <span style="display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:1px 7px;border-radius:999px;background:#fff4e6;color:#8a5a12;border:1px solid #f3d9a8;vertical-align:middle;margin-left:6px">Archived</span>':''; var live=(!c.closed&&(c.docCount||0)>0)?' <span class="livepill" title="Active and has documents">● Live</span>':''; var shared=(!c.closed&&(c.buyerCount||0)>0)?(' <span class="sharedpill" title="Shared with '+(c.buyerCount)+' buyer'+(c.buyerCount===1?'':'s')+'">🔗 Shared</span>'):''; var setup=(!c.closed&&!(c.docCount||0)&&!(c.buyerCount||0))?' <span class="setuppill" title="Active — not yet populated or shared">Setup</span>':'';
+      return '<div class="biz"><a class="bizlink" href="./rrg_room.html?room='+encodeURIComponent(c.id)+'" title="Open this data room">'+esc(c.business||'Business')+'</a>'+live+shared+setup+arch+'</div><div class="meta">'+meta+'</div>'; } },
+      { label:'Documents', key:'docs', align:'left', filterType:'number', filterVal:function(c){ return c.docCount||0; }, sort:function(a,b){ return (a.docCount||0)-(b.docCount||0); },
+        cell:function(c){ return '<span class="pill">'+(c.docCount||0)+' file'+((c.docCount===1)?'':'s')+'</span>'; } },
+      { label:'Created', key:'created', filterType:'date', filterVal:function(c){ return c.createdAt||''; }, sort:function(a,b){ return RRGList.cmp(a.createdAt||'',b.createdAt||''); },
+        cell:function(c){ return c.createdAt?('<span class="meta">'+esc(fmt(c.createdAt))+'</span>'):'<span class="meta">\u2014</span>'; } },
+      { label:'Last access', key:'lastaccess', filterType:'date', filterVal:function(c){ return c.lastAccessAt||''; }, sort:function(a,b){ return RRGList.cmp(a.lastAccessAt||'',b.lastAccessAt||''); },
+        cell:function(c){ return c.lastAccessAt?('<span class="meta">'+esc(fmt(c.lastAccessAt))+'</span>'):'<span class="meta">\u2014</span>'; } },
+      { label:'Accessed by', key:'accessedby', sort:function(a,b){ return RRGList.cmp(a.lastAccessBy||'',b.lastAccessBy||''); },
+        cell:function(c){ return c.lastAccessBy?esc(c.lastAccessBy):'<span class="meta">\u2014</span>'; } },
+      { label:'Downloads', key:'downloads', align:'left', filterType:'number', filterVal:function(c){ return c.downloads||0; }, sort:function(a,b){ return (a.downloads||0)-(b.downloads||0); },
+        cell:function(c){ return '<span class="pill">'+(c.downloads||0)+'</span>'; } },
+      { label:'Actions', key:'actions', align:'right', sortable:false, filterable:false,
+        cell:function(c){ var bv=c.closed?'':'<button class="view" onclick="buyerView(\''+c.id+'\')" title="See this room exactly as an NDA’d buyer does">👁 Buyer view</button>'; return '<div class="act"><a class="open" href="./rrg_room.html?room='+encodeURIComponent(c.id)+'" title="Edit this data room">Edit data room</a><a class="open" href="./rrg_room.html?room='+encodeURIComponent(c.id)+'&upload=1" title="Jump straight to the upload panel">Upload files</a>'+bv+'<button class="link" onclick="copyLink(\''+c.id+'\')">Copy general access link</button><button class="del delx" title="Delete data room" aria-label="Delete data room" onclick="delRoom(\''+c.id+'\',this)"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"></path></svg></button></div>'; } }
+    ],
+    bulk:[ { label:'Delete selected', danger:true, fn:function(ids,done){ bulkDel(ids,done); } } ]
+  };
+  if(CTL) CTL.refresh(list); else CTL=RRGList.create(cfg);
+  updateRoomFilterBtn();
+}
+function toggleRoomFilter(){ if(CTL&&CTL.toggleFilter){ CTL.toggleFilter(); updateRoomFilterBtn(); var b=document.getElementById('filterBtn'); if(b&&CTL.filterOpen&&CTL.filterOpen()){ var mt=document.getElementById('body'); if(mt) mt.scrollIntoView({block:'nearest'}); } } }
+function updateRoomFilterBtn(){ var b=document.getElementById('filterBtn'); if(!b||!CTL) return; var n=(CTL.activeFilterCount?CTL.activeFilterCount():0); b.innerHTML='⚙ Filters'+(n?(' <span class="fbadge">'+n+'</span>'):''); b.classList.toggle('on', !!n || (CTL.filterOpen&&CTL.filterOpen())); }
+var ALL_ROOMS=[];
+var QFILT='all';
+function setQFilt(v){ QFILT=v||'all'; ['all','live','setup','shared'].forEach(function(k){ var b=document.getElementById('qf_'+k); if(b) b.classList.toggle('on', k===QFILT); }); applyFilter(); }
+function applyFilter(){
+  var arch=ALL_ROOMS.filter(function(r){ return r.closed; });
+  var wrap=document.getElementById('hideArchWrap'), cnt=document.getElementById('archCnt');
+  if(wrap) wrap.style.display=arch.length?'inline-flex':'none';
+  if(cnt){ if(arch.length){ cnt.textContent=arch.length; cnt.style.display='inline-block'; } else { cnt.style.display='none'; } }
+  var hide=document.getElementById('hideArch');
+  var list = (hide&&hide.checked) ? ALL_ROOMS.filter(function(r){ return !r.closed; }) : ALL_ROOMS.slice();
+  var qEl=document.getElementById('roomSearch'), q=((qEl&&qEl.value)||'').trim().toLowerCase();
+  if(q){ list=list.filter(function(r){ return String(r.business||'').toLowerCase().indexOf(q)>=0 || String(r.by||'').toLowerCase().indexOf(q)>=0 || String(r.lastAccessBy||'').toLowerCase().indexOf(q)>=0; }); }
+  var _live=ALL_ROOMS.filter(function(r){ return !r.closed && (r.docCount||0)>0; });
+  var _shared=ALL_ROOMS.filter(function(r){ return !r.closed && (r.buyerCount||0)>0; });
+  var _setup=ALL_ROOMS.filter(function(r){ return !r.closed && !(r.docCount||0) && !(r.buyerCount||0); });
+  var _sn=function(id,n){ var e=document.getElementById(id); if(e) e.textContent=n; };
+  _sn('qn_all',ALL_ROOMS.length); _sn('qn_live',_live.length); _sn('qn_setup',_setup.length); _sn('qn_shared',_shared.length);
+  if(QFILT==='live'){ list=list.filter(function(r){ return !r.closed && (r.docCount||0)>0; }); }
+  else if(QFILT==='setup'){ list=list.filter(function(r){ return !r.closed && !(r.docCount||0) && !(r.buyerCount||0); }); }
+  else if(QFILT==='shared'){ list=list.filter(function(r){ return !r.closed && (r.buyerCount||0)>0; }); }
+  renderList(list);
+}
+function load(){
+  fetch('/api/rooms',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    ALL_ROOMS=(j&&j.rooms)||[]; USERS=(j&&j.users)||[]; ME=(j&&j.me)||null; applyFilter();
+    try{ if(new URLSearchParams(location.search).get('new')==='1'){ newRoom(); history.replaceState({},'',location.pathname); } }catch(e){}
+  }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load data rooms.</div>'; });
+}
+document.addEventListener('change',function(e){ if(e.target&&e.target.id==='hideArch') applyFilter(); });
+async function bulkDel(ids,done){
+  if(!ids||!ids.length) return;
+  if(!await rrgConfirm('Delete '+ids.length+' data room'+(ids.length>1?'s':'')+'? This removes the room and its files.')) return;
+  fetch('/api/rooms/bulk-delete',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({ids:ids})})
+    .then(function(r){return r.json();})
+    .then(function(j){ if(done) done(); load(); if(j&&j.skipped) alert(j.deleted+' deleted · '+j.skipped+' skipped (not yours).'); })
+    .catch(function(){ if(done) done(); load(); alert('Could not reach the server.'); });
+}
+async function delRoom(id,btn){
+  if(!await rrgConfirm('Delete this data room? This removes the room and all its files. The buyer link will stop working.')) return;
+  if(btn){ btn.disabled=true; btn.textContent='Deleting…'; }
+  fetch('/api/room/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();})
+    .then(function(j){ if(j&&j.ok){ load(); } else { if(btn){btn.disabled=false;btn.textContent='Delete';} alert((j&&j.error)||'Could not delete.'); } })
+    .catch(function(){ if(btn){btn.disabled=false;btn.textContent='Delete';} alert('Could not reach the server.'); });
+}
+load();
+</script>
+<script>window.addEventListener("pageshow",function(e){if(e.persisted)location.reload();});</script>
+<script>/*rrgbfcache*/window.addEventListener("pageshow",function(e){if(e.persisted)location.reload();});</script>
+<script>(function(){ var fs=document.getElementById('featStrip'), hd=document.getElementById('featHd'); if(!fs||!hd) return; try{ if(localStorage.getItem('rrg_roomfeats')!=='1') fs.classList.add('collapsed'); }catch(e){ fs.classList.add('collapsed'); } hd.addEventListener('click',function(){ var col=fs.classList.toggle('collapsed'); try{ localStorage.setItem('rrg_roomfeats', col?'0':'1'); }catch(e){} }); })();</script>
+</body>
+</html>
