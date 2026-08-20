@@ -459,7 +459,9 @@ function openLocMap(){
     var host=document.getElementById('locMap'); if(!host) return;
     if(err||!window.L){ host.innerHTML='<div style="padding:22px;color:#b5791f;font-size:13px;text-align:center">Could not load the map. Check your connection and try again.</div>'; return; }
     var map=L.map('locMap',{scrollWheelZoom:true});
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{maxZoom:19,attribution:'\u00a9 OpenStreetMap \u00a9 CARTO'}).addTo(map);
+    var _MS={light:'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',voyager:'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',dark:'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'};
+    var _mk=(window.__rrgSession&&window.__rrgSession.mapStyle)||'light'; if(!_MS[_mk]) _mk='light';
+    L.tileLayer(_MS[_mk],{maxZoom:19,attribution:'\u00a9 OpenStreetMap \u00a9 CARTO'}).addTo(map);
     var palette=['#2f5bd0','#DA2B1F','#1f8a5b','#b5791f','#7a3fb0','#0d8c8c','#c0392b','#556170'];
     var concepts={}, byConcept={}, hidden={}, ci=0, group=[];
     pts.forEach(function(l){ var pt=_locPt(l); var key=l.concept||(l.commissary?'Commissary':'Other'); if(concepts[key]===undefined){ concepts[key]=palette[ci%palette.length]; ci++; } var col=concepts[key];
