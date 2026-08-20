@@ -144,11 +144,12 @@ body.rrg-shelled .pagehd{display:block;}
       <div class="fld"><label aria-hidden="true" style="visibility:hidden">Upload</label><button class="btn green" id="docChooseBtn" onclick="document.getElementById('docFile').click()">Choose file</button></div>
     </div>
     <input type="file" id="docFile" style="display:none" onchange="uploadDoc()">
-    <input type="file" id="bulkFiles" multiple style="display:none" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.gif,.csv,.txt" onchange="bulkUpload()">
+    <input type="file" id="bulkFiles" multiple style="display:none" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.gif,.csv,.txt,.zip" onchange="bulkUpload()">
     <div style="margin-top:12px;display:flex;align-items:center;gap:11px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:13px">
       <button class="btn primary" onclick="document.getElementById('bulkFiles').click()">Add multiple documents — <span class="ainame">Claude</span> sorts them</button>
       <span style="font-size:11.5px;color:var(--soft);flex:1;min-width:200px">Drop in a batch (up to 40 files, 25 MB each). <span class="ainame">Claude</span> reads each one and files it into the right folder automatically — move any it gets wrong with the folder controls.</span>
     </div>
+    <label id="zipTglRow" style="display:flex;align-items:flex-start;gap:9px;margin-top:11px;font-size:12.5px;color:#3a475f;cursor:pointer;line-height:1.4"><input type="checkbox" id="allowZipTgl" onchange="setAllowZip(this.checked)" style="margin-top:2px;flex:none;cursor:pointer"><span><b>Allow ZIP files</b> — off by default. When on, uploading a .zip lets you unzip &amp; file the contents, store the zip as-is, or both.</span></label>
     <div class="umsg" id="umsg"></div>
   </div></div>
 
@@ -629,28 +630,55 @@ function setDocAccess(docId,gid,level,sel){
 function _maybeJumpUpload(){ try{ if((new URLSearchParams(location.search)).get('upload')!=='1') return; var c=document.getElementById('addDocsCard'); if(!c) return; c.classList.remove('collapsed'); setTimeout(function(){ c.scrollIntoView({behavior:'smooth',block:'center'}); c.style.transition='box-shadow .3s'; c.style.boxShadow='0 0 0 3px rgba(35,73,111,.4)'; setTimeout(function(){ c.style.boxShadow=''; },1700); },140); }catch(e){} }
 function load(){
   fetch('/api/room/'+encodeURIComponent(RID),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
-    if(j&&j.ok&&j.room){ ROOM=j.room; paint(); loadAnalytics(); _maybeJumpUpload(); } else { document.getElementById('docList').innerHTML='<div class="catempty">Could not load this data room.</div>'; }
+    if(j&&j.ok&&j.room){ ROOM=j.room; paint(); loadAnalytics(); _maybeJumpUpload(); _syncZipTgl(); } else { document.getElementById('docList').innerHTML='<div class="catempty">Could not load this data room.</div>'; }
   }).catch(function(){ document.getElementById('docList').innerHTML='<div class="catempty">Could not reach the server.</div>'; });
 }
 function uploadDoc(){
   var fi=document.getElementById('docFile'), f=fi&&fi.files&&fi.files[0], m=document.getElementById('umsg');
   if(!f){ return; }
   if(f.size>25*1024*1024){ m.textContent='That file is over 25 MB — please add a smaller file.'; fi.value=''; return; }
+  if(/\.zip$/i.test(f.name)){
+    if(!(window.ROOM&&ROOM.allowZip)){ m.textContent='Turn on “Allow ZIP files” below to upload a zip.'; fi.value=''; return; }
+    _zipChoose(f.name, function(mode){ if(!mode){ fi.value=''; m.textContent=''; return; } _doUpload(f,fi,m,mode); });
+    return;
+  }
+  _doUpload(f,fi,m,'');
+}
+function _doUpload(f,fi,m,zipMode){
   var _cb=document.getElementById('docChooseBtn'); if(_cb){ _cb.disabled=true; if(!_cb.dataset.orig) _cb.dataset.orig=_cb.textContent; _cb.textContent='Uploading…'; }
   m.innerHTML='<span style="color:#2c5c8f;font-weight:700">Saving “'+esc(f.name)+'” to the room…</span>';
   var rd=new FileReader(); rd.onload=function(){ var s=String(rd.result||''), i=s.indexOf(','), b64=(i>=0?s.slice(i+1):s);
     var payload={roomId:RID, filename:f.name, dataB64:b64, title:document.getElementById('docTitle').value, category:document.getElementById('docCategory').value};
+    if(zipMode) payload.zipMode=zipMode;
     _sendUpload(payload, fi, m, false);
   };
   rd.onerror=function(){ m.textContent='Could not read that file.'; };
   rd.readAsDataURL(f);
 }
+function _zipChoose(name, cb){
+  var ov=document.createElement('div'); ov.style.cssText='position:fixed;inset:0;background:rgba(6,14,32,.5);display:flex;align-items:center;justify-content:center;z-index:600;padding:20px';
+  ov.innerHTML='<div style="background:#fff;border-radius:10px;max-width:460px;width:100%;box-shadow:0 18px 44px rgba(0,0,0,.24);overflow:hidden">'
+    +'<div style="padding:16px 20px;border-bottom:1px solid #e6e9f0"><div style="font-size:15px;font-weight:800;color:#000E31">This is a zip file</div><div style="font-size:12.5px;color:#6b7488;margin-top:3px">How should the room handle “'+esc(name)+'”?</div></div>'
+    +'<div style="padding:14px 20px;display:flex;flex-direction:column;gap:9px">'
+    +'<button type="button" data-zm="both" class="btn primary" style="text-align:left">Unzip &amp; file the contents — and keep the zip <span style="font-weight:500;opacity:.85">(recommended)</span></button>'
+    +'<button type="button" data-zm="extract" class="btn" style="text-align:left">Unzip &amp; file the contents only</button>'
+    +'<button type="button" data-zm="store" class="btn" style="text-align:left">Store the zip as-is (download only)</button>'
+    +'</div>'
+    +'<div style="padding:2px 20px 16px;text-align:right"><button type="button" data-zm="" class="btn" style="background:#fff;color:#6b7488;border:1px solid #d6dbe6">Cancel</button></div>'
+    +'</div>';
+  ov.addEventListener('click',function(e){ var t=e.target&&e.target.closest?e.target.closest('[data-zm]'):null; if(t){ var zm=t.getAttribute('data-zm'); if(ov.parentNode) document.body.removeChild(ov); cb(zm||null); } else if(e.target===ov){ if(ov.parentNode) document.body.removeChild(ov); cb(null); } });
+  document.body.appendChild(ov);
+}
+function setAllowZip(on){
+  fetch('/api/room/'+encodeURIComponent(RID)+'/allow-zip',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({allowZip:!!on})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ if(!window.ROOM) ROOM={}; ROOM.allowZip=!!j.allowZip; if(window.toast) toast(j.allowZip?'ZIP uploads on ✓':'ZIP uploads off'); } else { alert((j&&j.error)||'Could not update.'); _syncZipTgl(); } }).catch(function(){ alert('Could not reach the server.'); _syncZipTgl(); });
+}
+function _syncZipTgl(){ var t=document.getElementById('allowZipTgl'); if(t) t.checked=!!(window.ROOM&&ROOM.allowZip); }
 function _restoreUpBtn(){ var b=document.getElementById('docChooseBtn'); if(b){ b.disabled=false; b.textContent=b.dataset.orig||'Choose file'; } }
 function _sendUpload(payload, fi, m, force){
   if(force) payload.force=true;
   fetch('/api/room-upload',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(payload)})
     .then(function(r){return r.json();}).then(async function(j){
-      if(j&&j.ok){ ROOM.docs=j.docs||[]; renderDocs(); _restoreUpBtn(); m.innerHTML='<span style="color:#1f7a4d;font-weight:700">✓ Saved to the room</span>'; if(window.rrgToast) rrgToast('Document added ✓'); else if(typeof toast==='function') toast('Document added ✓'); document.getElementById('docTitle').value=''; fi.value=''; setTimeout(function(){ m.textContent=''; },2600); return; }
+      if(j&&j.ok){ ROOM.docs=j.docs||[]; renderDocs(); _restoreUpBtn(); m.innerHTML='<span style="color:#1f7a4d;font-weight:700">'+((j.zip)?('✓ Unzipped — added '+(j.extracted||0)+' file'+((j.extracted===1)?'':'s')+(j.skipped?(' · '+j.skipped+' skipped'):'')):'✓ Saved to the room')+'</span>'; if(window.rrgToast) rrgToast('Document added ✓'); else if(typeof toast==='function') toast('Document added ✓'); document.getElementById('docTitle').value=''; fi.value=''; setTimeout(function(){ m.textContent=''; },2600); return; }
       if(j&&j.duplicate){
         var ex=j.existing||{}; var where=ex.category?(' in the “'+esc(ex.category)+'” folder'):''; var when=ex.uploadedAt?(' on '+fmtWhen(ex.uploadedAt)):'';
         var what=(j.reason==='content')?'An identical file is already in this data room':('A file named “'+esc(ex.originalName||payload.filename)+'” is already in this data room');

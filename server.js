@@ -3827,6 +3827,16 @@ app.post('/api/room-upload', express.json({ limit: '40mb' }), (req, res) => {
   if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
   const orig = String(b.filename || '').trim();
   const m = orig.match(/\.([a-z0-9]+)$/i); const ext = m ? m[1].toLowerCase() : '';
+  if (ext === 'zip') {
+    if (!r.allowZip) return res.status(400).json({ ok: false, error: 'ZIP uploads are off for this room. Turn on "Allow ZIP files" in the room to auto-extract and file the contents.' });
+    const zdata = String(b.dataB64 || ''); if (!zdata) return res.status(400).json({ ok: false, error: 'No file data received.' });
+    const _zc = (b.category === '' ? '' : (roomServeCats(r).indexOf(b.category) >= 0 ? b.category : ''));
+    const _zmode = (['extract','store','both'].indexOf(String(b.zipMode||'')) >= 0) ? String(b.zipMode) : 'both';
+    const zres = ingestZipToRoom(r, { name: orig, dataB64: zdata }, { category: _zc, by: (req.user && req.user.name) || '', mode: _zmode });
+    if (!zres || zres.error) return res.status(400).json({ ok: false, error: (zres && zres.error) || 'Could not process the zip.' });
+    saveRooms(arr);
+    return res.json({ ok: true, docs: r.docs, extracted: zres.added, skipped: zres.skipped, zip: true });
+  }
   if (!ROOM_EXT.test(ext)) return res.status(400).json({ ok: false, error: 'That file type isn\'t supported. Use PDF, Word, Excel, CSV, PowerPoint, an image, or text.' });
   const data = String(b.dataB64 || ''); if (!data) return res.status(400).json({ ok: false, error: 'No file data received.' });
   let buf; try { buf = Buffer.from(data, 'base64'); } catch (e) { return res.status(400).json({ ok: false, error: 'Could not read the file data.' }); }
@@ -3889,7 +3899,16 @@ app.post('/api/room/:id/bulk-upload', express.json({ limit: '80mb' }), async (re
   } catch (e) { console.error('classifyRoomDocs:', e && e.message); }
   const results = []; let added = 0;
   for (let i = 0; i < files.length; i++) {
-    const f = files[i] || {}; const cat = _rc.indexOf(byIdx[i]) >= 0 ? byIdx[i] : roomCatFromName(f.filename, _rc);
+    const f = files[i] || {};
+    const _fn = String(f.filename || ''); const _fm = _fn.match(/\.([a-z0-9]+)$/i); const _fe = _fm ? _fm[1].toLowerCase() : '';
+    if (_fe === 'zip') {
+      if (!r.allowZip) { results.push({ ok:false, name:_fn, error:'ZIP is off for this room — enable "Allow ZIP files" first.' }); continue; }
+      const zres = ingestZipToRoom(r, { name:_fn, dataB64:f.dataB64 }, { by: ((req.user && req.user.name) || '') + ' · zip', keepZip:true });
+      if (zres && zres.ok) { added += zres.added + (zres.zipDoc ? 1 : 0); results.push({ ok:true, name:_fn, category:'(zip — extracted '+zres.added+')', id: zres.zipDoc && zres.zipDoc.id }); (zres.results||[]).forEach(function(rr){ results.push(rr); }); }
+      else { results.push({ ok:false, name:_fn, error:(zres && zres.error) || 'Could not process the zip.' }); }
+      continue;
+    }
+    const cat = _rc.indexOf(byIdx[i]) >= 0 ? byIdx[i] : roomCatFromName(f.filename, _rc);
     const out = addFileToRoomEx(r, { name: f.filename, dataB64: f.dataB64 }, { category: cat, title: (String(f.title || '').trim() || prettyName(f.filename || '')), by: ((req.user && req.user.name) || '') + ' · AI-filed', source: 'bulk:' + Date.now() + ':' + i });
     if (out && out.doc) { added++; results.push({ ok: true, name: f.filename || '', category: cat, id: out.doc.id }); }
     else { const reason = (out && out.error) || 'Skipped.'; console.error('bulk-upload skip:', f.filename || ('file ' + (i + 1)), '→', reason); results.push({ ok: false, name: f.filename || '', category: cat, error: reason }); }
@@ -3938,6 +3957,14 @@ app.post('/api/room/:id/rename-doc', express.json(), (req, res) => {
   d.title = name; d.updatedAt = new Date().toISOString();
   saveRooms(arr);
   res.json({ ok: true, docs: r.docs });
+});
+app.post('/api/room/:id/allow-zip', express.json(), (req, res) => {
+  const arr = loadRooms(); const r = arr.find(x => x.id === req.params.id);
+  if (!r) return res.status(404).json({ ok: false, error: 'Data room not found.' });
+  if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  r.allowZip = !!(req.body || {}).allowZip; r.updatedAt = new Date().toISOString();
+  saveRooms(arr);
+  res.json({ ok: true, allowZip: r.allowZip });
 });
 // ---- Custom folders: admins add their own folders / subfolders (path convention "Parent / Child"),
 // rename, delete (files fall back to root), or reorder. Buyers see whatever folders exist. ----
@@ -4993,6 +5020,49 @@ function addFileToRoomEx(room, file, opts) {
   } catch (e) { return { error: 'Unexpected error: ' + ((e && e.message) || 'unknown') + '.' }; }
 }
 function addFileToRoom(room, file, opts) { const r = addFileToRoomEx(room, file, opts); return (r && r.doc) || null; }
+// Auto-extract a .zip uploaded to a room: file each supported document inside individually
+// (so buyers get preview + per-doc tracking + watermarking), and keep the original zip too.
+function _isJunkZipEntry(name){ name=String(name||''); const base=name.split('/').pop()||''; return /(^|\/)__MACOSX\//.test(name) || /^\._/.test(base) || base==='.DS_Store' || base.toLowerCase()==='desktop.ini' || base.toLowerCase()==='thumbs.db'; }
+function ingestZipToRoom(room, file, opts){
+  opts = opts || {};
+  const orig = String(file.name || file.filename || '').trim();
+  let zbuf; try { zbuf = Buffer.from(String(file.dataB64 || ''), 'base64'); } catch(e){ return { error: 'Could not read the zip data.' }; }
+  if (!zbuf || !zbuf.length) return { error: 'The zip came through empty.' };
+  let AdmZip; try { AdmZip = require('adm-zip'); } catch(e){ return { error: 'Zip support is unavailable on the server.' }; }
+  let zip, entries; try { zip = new AdmZip(zbuf); entries = zip.getEntries(); } catch(e){ return { error: 'That file is not a readable zip archive.' }; }
+  const cat = (opts.category != null) ? String(opts.category) : '';
+  const results = []; let added = 0, skipped = 0;
+  const tag = 'zip:' + newRoomDocId();
+  const _mode = String(opts.mode || 'both');
+  if (_mode !== 'store') entries.forEach(function(e){
+    if (e.isDirectory) return;
+    const nm = String(e.entryName || '');
+    if (_isJunkZipEntry(nm)) return;
+    const base = nm.split('/').pop() || nm;
+    let ibuf; try { ibuf = e.getData(); } catch(err){ skipped++; results.push({ ok:false, name:base, error:'Could not read from the zip.' }); return; }
+    const mm = base.match(/\.([a-z0-9]+)$/i); const iext = mm ? mm[1].toLowerCase() : '';
+    if (!ROOM_EXT.test(iext)) { skipped++; results.push({ ok:false, name:base, error: iext ? ('Unsupported (.'+iext+') — skipped.') : 'No extension — skipped.' }); return; }
+    const icat = (cat !== '') ? cat : roomCatFromName(base, roomServeCats(room));
+    const out = addFileToRoomEx(room, { name: base, dataB64: ibuf.toString('base64') }, { category: icat, title: prettyName(base), by: opts.by || '', source: tag + ':' + added });
+    if (out && out.doc) { added++; results.push({ ok:true, name:base, category:icat, id:out.doc.id }); }
+    else { skipped++; results.push({ ok:false, name:base, error:(out&&out.error)||'Skipped.' }); }
+  });
+  let zipDoc = null;
+  if (_mode !== 'extract') {
+    try {
+      const hash = crypto.createHash('sha256').update(zbuf).digest('hex');
+      if (!(room.docs||[]).some(function(d){ return d.hash===hash; })) {
+        try { if (!fs.existsSync(ROOMS_DIR)) fs.mkdirSync(ROOMS_DIR, { recursive: true }); } catch(e){}
+        const id = newRoomDocId();
+        binWrite(path.join(ROOMS_DIR, id + '.zip'), zbuf);
+        zipDoc = { id, title: prettyName(orig), category: cat, ext:'zip', originalName: orig, size: zbuf.length, hash, uploadedAt: new Date().toISOString(), by: opts.by || '', isZip:true };
+        room.docs = room.docs || []; room.docs.push(zipDoc);
+      }
+    } catch(e){}
+  }
+  if (!room.builtAt) room.builtAt = new Date().toISOString();
+  return { ok:true, zipDoc, added, skipped, results };
+}
 // Remove every room doc contributed by a given source id (e.g. 'bov:ID' or 'cim:ID').
 function removeRoomDocsBySource(source) {
   if (!source) return 0;
