@@ -3934,6 +3934,20 @@ app.post('/api/room/:id/delete-doc', express.json(), (req, res) => {
   saveRooms(arr);
   res.json({ ok: true, docs: r.docs });
 });
+// Empty a data room: permanently delete every file (and its stored blob). Folders, buyer grants,
+// and the room itself stay — a clean shell to reuse. Owner/admin only.
+app.post('/api/room/:id/clear', express.json(), (req, res) => {
+  const arr = loadRooms();
+  const r = arr.find(x => x.id === req.params.id);
+  if (!r) return res.status(404).json({ ok: false, error: 'Data room not found.' });
+  if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const n = (r.docs || []).length;
+  (r.docs || []).forEach(d => { try { binDel(path.join(ROOMS_DIR, d.id + '.' + d.ext)); } catch (e) {} });
+  r.docs = [];
+  r.updatedAt = new Date().toISOString();
+  saveRooms(arr);
+  res.json({ ok: true, cleared: n, docs: r.docs });
+});
 
 // Move a file to another folder (fix a mis-filed document).
 app.post('/api/room/:id/move-doc', express.json(), (req, res) => {
