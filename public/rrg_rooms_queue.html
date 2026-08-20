@@ -97,8 +97,9 @@ tr:hover td{background:#fbfcfe;}
     <div class="qbar" id="qbar">
       <span class="qlbl">Quick view</span>
       <button type="button" class="qchip on" id="qf_all" onclick="setQFilt('all')">All rooms <span class="qn" id="qn_all">0</span></button>
-      <button type="button" class="qchip" id="qf_active" onclick="setQFilt('active')">Active <span class="qn" id="qn_active">0</span></button>
-      <button type="button" class="qchip" id="qf_pop" onclick="setQFilt('pop')">Active &amp; populated <span class="qn" id="qn_pop">0</span></button>
+      <button type="button" class="qchip" id="qf_live" onclick="setQFilt('live')">Live <span class="qn" id="qn_live">0</span></button>
+      <button type="button" class="qchip" id="qf_setup" onclick="setQFilt('setup')">Setup <span class="qn" id="qn_setup">0</span></button>
+      <button type="button" class="qchip" id="qf_shared" onclick="setQFilt('shared')">Shared <span class="qn" id="qn_shared">0</span></button>
     </div>
     <div id="body"></div>
   </div>
@@ -298,7 +299,7 @@ function toggleRoomFilter(){ if(CTL&&CTL.toggleFilter){ CTL.toggleFilter(); upda
 function updateRoomFilterBtn(){ var b=document.getElementById('filterBtn'); if(!b||!CTL) return; var n=(CTL.activeFilterCount?CTL.activeFilterCount():0); b.innerHTML='⚙ Filters'+(n?(' <span class="fbadge">'+n+'</span>'):''); b.classList.toggle('on', !!n || (CTL.filterOpen&&CTL.filterOpen())); }
 var ALL_ROOMS=[];
 var QFILT='all';
-function setQFilt(v){ QFILT=v||'all'; ['all','active','pop'].forEach(function(k){ var b=document.getElementById('qf_'+k); if(b) b.classList.toggle('on', k===QFILT); }); applyFilter(); }
+function setQFilt(v){ QFILT=v||'all'; ['all','live','setup','shared'].forEach(function(k){ var b=document.getElementById('qf_'+k); if(b) b.classList.toggle('on', k===QFILT); }); applyFilter(); }
 function applyFilter(){
   var arch=ALL_ROOMS.filter(function(r){ return r.closed; });
   var wrap=document.getElementById('hideArchWrap'), cnt=document.getElementById('archCnt');
@@ -308,12 +309,14 @@ function applyFilter(){
   var list = (hide&&hide.checked) ? ALL_ROOMS.filter(function(r){ return !r.closed; }) : ALL_ROOMS.slice();
   var qEl=document.getElementById('roomSearch'), q=((qEl&&qEl.value)||'').trim().toLowerCase();
   if(q){ list=list.filter(function(r){ return String(r.business||'').toLowerCase().indexOf(q)>=0 || String(r.by||'').toLowerCase().indexOf(q)>=0 || String(r.lastAccessBy||'').toLowerCase().indexOf(q)>=0; }); }
-  var _act=ALL_ROOMS.filter(function(r){ return !r.closed; });
-  var _pop=_act.filter(function(r){ return (r.docCount||0)>0; });
+  var _live=ALL_ROOMS.filter(function(r){ return !r.closed && (r.docCount||0)>0; });
+  var _shared=ALL_ROOMS.filter(function(r){ return !r.closed && (r.buyerCount||0)>0; });
+  var _setup=ALL_ROOMS.filter(function(r){ return !r.closed && !(r.docCount||0) && !(r.buyerCount||0); });
   var _sn=function(id,n){ var e=document.getElementById(id); if(e) e.textContent=n; };
-  _sn('qn_all',ALL_ROOMS.length); _sn('qn_active',_act.length); _sn('qn_pop',_pop.length);
-  if(QFILT==='active'){ list=list.filter(function(r){ return !r.closed; }); }
-  else if(QFILT==='pop'){ list=list.filter(function(r){ return !r.closed && (r.docCount||0)>0; }); }
+  _sn('qn_all',ALL_ROOMS.length); _sn('qn_live',_live.length); _sn('qn_setup',_setup.length); _sn('qn_shared',_shared.length);
+  if(QFILT==='live'){ list=list.filter(function(r){ return !r.closed && (r.docCount||0)>0; }); }
+  else if(QFILT==='setup'){ list=list.filter(function(r){ return !r.closed && !(r.docCount||0) && !(r.buyerCount||0); }); }
+  else if(QFILT==='shared'){ list=list.filter(function(r){ return !r.closed && (r.buyerCount||0)>0; }); }
   renderList(list);
 }
 function load(){
