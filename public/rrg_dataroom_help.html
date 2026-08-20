@@ -148,7 +148,7 @@ table.mx td b{color:var(--slate);}
         <li><b>Listing</b> — optionally link the room to an existing listing.</li>
         <li><b>Rep</b> — who's running the deal.</li>
         <li><b>Date</b> — when the room is opened.</li>
-        <li><b>Per-year subfolders</b> — optionally seed each Financials year with sub-periods: <b>None</b>, <b>12 calendar months</b> (+ Full Year), or <b>13 four-week periods</b> (+ Full Year — the standard restaurant fiscal calendar).</li>
+        <li><b>Per-year subfolders</b> — optionally seed each Financials year with sub-periods: <b>None</b>, <b>12 calendar months</b> (+ Full Year), or <b>13 four-week periods</b> (+ Full Year — the standard restaurant fiscal calendar). Every Financials year also carries a <b>T12</b> (trailing-twelve-month) folder automatically.</li>
         <li><b>Customize folders…</b> — for full control, open the folder picker and check exactly which folders the room should start with (every section, each year, and each month/period). You can always add, rename, or remove folders later.</li>
         <li>Left as-is, the room is created with the standard folder structure already in place — no building from scratch.</li>
       </ol>
@@ -178,7 +178,7 @@ table.mx td b{color:var(--slate);}
       <p>Every file has a <b>Rename</b> control next to it — click it, type a clearer name, and it updates everywhere, including the watermarked copy a buyer downloads.</p>
       <h3>Opens closed, remembers your layout</h3>
       <p>A room opens with <b>all folders collapsed</b> so you see the full structure at a glance; click any folder to expand it. Your open/closed layout is <b>remembered per room</b> after the first visit — for you internally, and separately for each buyer on their own link.</p>
-      <p>You can <b>move</b> documents between folders and <b>delete</b> them at any time. If a deal genuinely has no lease (owner-occupied or N/A), flag it with the <b>"No lease"</b> toggle so the structure stays honest and the missing folder doesn't read as a gap.</p>
+      <p>You can <b>move</b> documents between folders and <b>delete</b> them at any time. To refile a batch, tick the checkbox on each file and use <b>Move selected to…</b> to move the whole selection into one folder in a single step. If a deal genuinely has no lease (owner-occupied or N/A), flag it with the <b>"No lease"</b> toggle so the structure stays honest and the missing folder doesn't read as a gap.</p>
     </section>
 
     <section class="card" id="upload">
@@ -241,7 +241,7 @@ table.mx td b{color:var(--slate);}
       <p class="lead">Two-step verification (MFA) adds a one-time email code on top of the access code — so only someone with the code <i>and</i> the buyer's inbox can get in.</p>
       <ul>
         <li><b>Per-room toggle</b>, on by default, with a clear <b>On / Off</b> state indicator next to the switch.</li>
-        <li><b>Trust this device for 30 days</b> — a verified buyer isn't re-challenged on every visit.</li>
+        <li><b>Trust this device for 10 days</b> — a verified buyer isn't re-challenged on every visit.</li>
         <li><b>Email becomes required</b> to authorize a buyer while verification is on (the code has to go somewhere).</li>
         <li><b>Firm default</b> — a room can follow the brokerage default or override it; you can always snap it back to "Use firm default."</li>
       </ul>

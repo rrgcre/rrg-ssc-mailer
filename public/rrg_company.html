@@ -464,7 +464,14 @@ function openLocMap(){
     L.tileLayer(_MS[_mk],{maxZoom:19,attribution:'\u00a9 OpenStreetMap \u00a9 CARTO'}).addTo(map);
     var palette=['#2f5bd0','#DA2B1F','#1f8a5b','#b5791f','#7a3fb0','#0d8c8c','#c0392b','#556170'];
     var concepts={}, byConcept={}, hidden={}, ci=0, group=[];
-    pts.forEach(function(l){ var pt=_locPt(l); var key=l.concept||(l.commissary?'Commissary':'Other'); if(concepts[key]===undefined){ concepts[key]=palette[ci%palette.length]; ci++; } var col=concepts[key];
+    // Fan out markers that share (near) identical coordinates so every location is
+    // individually visible and clickable instead of stacking into one pin.
+    var _ckey=function(p){ return p[0].toFixed(5)+','+p[1].toFixed(5); };
+    var _coGrp={}; pts.forEach(function(l){ var _p=_locPt(l); if(_p){ var _k=_ckey(_p); (_coGrp[_k]=_coGrp[_k]||[]).push(l); } });
+    var _coIdx={};
+    pts.forEach(function(l){ var pt=_locPt(l);       var _k=_ckey(pt), _g=_coGrp[_k]||[];
+       if(_g.length>1){ var _n=_g.length, _i=(_coIdx[_k]=(_coIdx[_k]||0)); _coIdx[_k]++; var _a=2*Math.PI*_i/_n, _r=0.00011+0.00006*Math.min(_n,6); var _cl=Math.cos(pt[0]*Math.PI/180); pt=[pt[0]+_r*Math.cos(_a), pt[1]+(_r*Math.sin(_a))/Math.max(0.2,Math.abs(_cl))]; }
+       var key=l.concept||(l.commissary?'Commissary':'Other'); if(concepts[key]===undefined){ concepts[key]=palette[ci%palette.length]; ci++; } var col=concepts[key];
       var m=L.circleMarker(pt,{radius:8,color:'#fff',weight:2,fillColor:col,fillOpacity:.92}).addTo(map);
       m.bindTooltip(esc(l.name||l.address||'Location'),{permanent:false,direction:'top',offset:[0,-9],className:'locpin-lbl',opacity:1});
       var addr=esc((l.google&&l.google.address)||l.address||''); var st=esc(l.status||'');
@@ -571,10 +578,10 @@ function render(){
   function locNameRow(l){
     var st=l.status||'Open';
     var comm=l.commissary?' <span class="commtag" title="Commissary / central kitchen">Commissary</span>':'';
-    return '<div class="crow locnamerow"><div class="locthumbwrap">'+locThumb(l)+'</div><div class="cinfo" style="min-width:0"><div class="cname"><span class="lnameedit" data-le="'+esc(l.id)+'" title="Open location details">'+esc(l.name||l.address||'Location')+'</span>'+comm+'</div></div><span class="ctype '+locStatusClass(st)+'">'+esc(st)+'</span><button class="crm" data-lrm="'+esc(l.id)+'" title="Remove location">\u2212</button></div>';
+    return '<div class="crow locnamerow"><div class="locthumbwrap">'+locThumb(l)+'</div><div class="cinfo" style="min-width:0"><div class="cname"><span class="lnameedit" data-le="'+esc(l.id)+'" title="Open location details">'+esc(l.name||l.address||'Location')+'</span>'+comm+'</div></div><span class="ctype '+locStatusClass(st)+'">'+esc(st)+'</span><button class="crm" data-lrm="'+esc(l.id)+'" title="Remove location"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"></path></svg></button></div>';
   }
   function conceptOptions(){ return '<option value="">\u2014 assign to concept \u2014</option>'+CONCEPTS.map(function(c){ return '<option value="'+esc(c.name)+'">'+esc(c.name)+'</option>'; }).join(''); }
-  function orphanRow(l){ var st=l.status||'Open'; return '<div class="crow locnamerow"><div class="locthumbwrap">'+locThumb(l)+'</div><div class="cinfo" style="min-width:0"><div class="cname"><span class="lnameedit" data-le="'+esc(l.id)+'" title="Open location details">'+esc(l.name||l.address||'Location')+'</span></div>'+(l.concept?('<div class="csub" style="color:#b5641a;font-size:11px">was: '+esc(l.concept)+'</div>'):'')+'</div>'+(CONCEPTS.length?('<select class="orphan-assign" data-oassign="'+esc(l.id)+'" title="File under a concept">'+conceptOptions()+'</select>'):'')+'<span class="ctype '+locStatusClass(st)+'">'+esc(st)+'</span><button class="crm" data-lrm="'+esc(l.id)+'" title="Remove location">\u2212</button></div>'; }
+  function orphanRow(l){ var st=l.status||'Open'; return '<div class="crow locnamerow"><div class="locthumbwrap">'+locThumb(l)+'</div><div class="cinfo" style="min-width:0"><div class="cname"><span class="lnameedit" data-le="'+esc(l.id)+'" title="Open location details">'+esc(l.name||l.address||'Location')+'</span></div>'+(l.concept?('<div class="csub" style="color:#b5641a;font-size:11px">was: '+esc(l.concept)+'</div>'):'')+'</div>'+(CONCEPTS.length?('<select class="orphan-assign" data-oassign="'+esc(l.id)+'" title="File under a concept">'+conceptOptions()+'</select>'):'')+'<span class="ctype '+locStatusClass(st)+'">'+esc(st)+'</span><button class="crm" data-lrm="'+esc(l.id)+'" title="Remove location"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"></path></svg></button></div>'; }
   function conceptBlock(cpt){
     var mine=LOCATIONS.filter(function(l){ return (l.concept||'')===cpt.name && !l.commissary; });
     var tp=[]; if(cpt.conceptType) tp.push(esc(cpt.conceptType)); if(cpt.pricePoint) tp.push(esc(cpt.pricePoint));
@@ -590,7 +597,7 @@ function render(){
     var logo=cpt.logo?('<img class="cptlogo" src="'+esc(cpt.logo)+'" alt="" data-mono="'+esc(mletter)+'" onerror="cptLogoFail(this)">'):mono;
     return '<div class="cptblock'+(open?' open':'')+'"><div class="cptbar" data-cpt="'+esc(cpt.id)+'"><span class="cptchev">▸</span>'+logo
       + '<div class="cptname"><div class="cptnm" title="Click to open · use Edit to rename">'+esc(cpt.name)+'</div>'+metaLine+'</div>'
-      + '<div class="cptacts"><button class="mini" data-addloc="'+esc(cpt.id)+'">+ Location</button><button class="mini" data-editc="'+esc(cpt.id)+'">Edit</button><button class="mini danger" data-rmc="'+esc(cpt.id)+'" title="Remove concept">\u2212 Remove</button></div></div>'
+      + '<div class="cptacts"><button class="mini" data-addloc="'+esc(cpt.id)+'">+ Location</button><button class="mini" data-editc="'+esc(cpt.id)+'">Edit</button><button class="mini danger" data-rmc="'+esc(cpt.id)+'" title="Remove concept"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"></path></svg> Remove</button></div></div>'
       + '<div class="cptlocs">'+rows+'</div></div>';
   }
   var known={}; CONCEPTS.forEach(function(x){known[x.name]=1;});

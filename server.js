@@ -3398,9 +3398,12 @@ const ROOM_CATEGORIES = ['Financials', 'Tax Returns', 'Lease', 'Equipment & FF&E
 // (captured per-room at creation so filed documents never orphan when the calendar year rolls over).
 function roomCategories(baseYear){
   const y = Number(baseYear) || new Date().getFullYear();
-  return ['Financials', 'Financials / ' + y, 'Financials / ' + (y-1), 'Financials / ' + (y-2), 'Financials / ' + (y-3), 'Financials / ' + (y-4),
-    'Tax Returns', 'Tax Returns / ' + y, 'Tax Returns / ' + (y-1), 'Tax Returns / ' + (y-2), 'Tax Returns / ' + (y-3), 'Tax Returns / ' + (y-4),
-    'Lease', 'Equipment & FF&E', 'Staffing & Payroll', 'Licenses & Permits', 'Legal & Corporate', 'Menus & Marketing', 'Photos', 'Other'];
+  const _fy = [y, y-1, y-2, y-3, y-4];
+  const _fin = ['Financials'];
+  _fy.forEach(function(yy){ _fin.push('Financials / ' + yy); _fin.push('Financials / ' + yy + ' / T12'); });
+  const _tax = ['Tax Returns'];
+  _fy.forEach(function(yy){ _tax.push('Tax Returns / ' + yy); });
+  return _fin.concat(_tax, ['Lease', 'Equipment & FF&E', 'Staffing & Payroll', 'Licenses & Permits', 'Legal & Corporate', 'Menus & Marketing', 'Photos', 'Other']);
 }
 const _ROOM_MONTHS = ['01 January','02 February','03 March','04 April','05 May','06 June','07 July','08 August','09 September','10 October','11 November','12 December'];
 const _ROOM_PERIODS = ['Period 01','Period 02','Period 03','Period 04','Period 05','Period 06','Period 07','Period 08','Period 09','Period 10','Period 11','Period 12','Period 13'];
@@ -3478,11 +3481,11 @@ function readRoomSess(tok) {
 function setRoomCookie(res, token) { res.append('Set-Cookie', ROOM_COOKIE + '=' + token + '; Path=/; HttpOnly; SameSite=Lax; Max-Age=' + (ROOM_IDLE_MS / 1000)); }
 // ---- Buyer MFA (email one-time code) cookies ----
 // rrg_room_mfa: short-lived proof the buyer passed the access code and is mid-verification.
-// rrg_room_trust: 30-day "remember this device" so a buyer isn't emailed a code every visit.
+// rrg_room_trust: 10-day "remember this device" so a buyer isn't emailed a code every visit.
 const ROOM_MFA_COOKIE = 'rrg_room_mfa';
 const ROOM_TRUST_COOKIE = 'rrg_room_trust';
 const ROOM_MFA_MS = 10 * 60 * 1000;
-const ROOM_TRUST_MS = 30 * 24 * 60 * 60 * 1000;
+const ROOM_TRUST_MS = 10 * 24 * 60 * 60 * 1000;
 function setRoomMfaCookie(res, token) { res.append('Set-Cookie', ROOM_MFA_COOKIE + '=' + token + '; Path=/; HttpOnly; SameSite=Lax; Max-Age=' + (ROOM_MFA_MS / 1000)); }
 function clearRoomMfaCookie(res) { res.append('Set-Cookie', ROOM_MFA_COOKIE + '=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0'); }
 function setRoomTrustCookie(res, token) { res.append('Set-Cookie', ROOM_TRUST_COOKIE + '=' + token + '; Path=/; HttpOnly; SameSite=Lax; Max-Age=' + (ROOM_TRUST_MS / 1000)); }
@@ -3947,6 +3950,21 @@ app.post('/api/room/:id/move-doc', express.json(), (req, res) => {
   saveRooms(arr);
   res.json({ ok: true, docs: r.docs });
 });
+// Bulk-move a selection of files into one folder (or Root when category is empty).
+app.post('/api/room/:id/move-docs', express.json(), (req, res) => {
+  const arr = loadRooms();
+  const r = arr.find(x => x.id === req.params.id);
+  if (!r) return res.status(404).json({ ok: false, error: 'Data room not found.' });
+  if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const b = req.body || {};
+  const ids = Array.isArray(b.ids) ? b.ids.map(String) : [];
+  const cat = String(b.category || '');
+  if (cat !== '' && roomServeCats(r).indexOf(cat) < 0) return res.status(400).json({ ok: false, error: 'Unknown folder.' });
+  const now = new Date().toISOString(); let moved = 0;
+  (r.docs || []).forEach(function(d){ if (ids.indexOf(String(d.id)) >= 0) { d.category = cat; d.updatedAt = now; moved++; } });
+  if (moved) saveRooms(arr);
+  res.json({ ok: true, moved: moved, docs: r.docs });
+});
 app.post('/api/room/:id/rename-doc', express.json(), (req, res) => {
   const arr = loadRooms();
   const r = arr.find(x => x.id === req.params.id);
@@ -4273,7 +4291,7 @@ app.post('/room/:token/verify', (req, res) => {
   const ok = entered.length === 6 && crypto.timingSafeEqual(Buffer.from(otpHash(r, grant, entered)), Buffer.from(otp.hash));
   if (!ok) { saveRooms(arr); return res.set('Content-Type', 'text/html; charset=utf-8').send(roomOtpPage(r, grant, 'That code isn’t right. ' + Math.max(0, 6 - otp.tries) + ' attempt' + ((6 - otp.tries) === 1 ? '' : 's') + ' left.')); }
   grant.otp = null;
-  // Verify once per device: once the buyer passes the one-time code, trust this device for 30 days
+  // Verify once per device: once the buyer passes the one-time code, trust this device for 10 days
   // so opening documents never re-prompts for the code. The access code is still required each visit.
   setRoomTrustCookie(res, signRoomSess({ r: r.id, g: grant.id, trust: 1, exp: Date.now() + ROOM_TRUST_MS }));
   grantRoomSession(res, r, grant, arr, req);
@@ -4601,7 +4619,7 @@ function roomPublicPage(r, grant, opts) {
   const visibleCats = _roomCats.filter(c => catLevel(c) !== 'none' || docs.some(d => (d.category || 'Other') === c && docLevel(d) !== 'none'));
   const visCount = docs.filter(d => docLevel(d) !== 'none').length;
   const lvlLabel = grant ? (editCats.length ? 'You can view, download & upload in some folders' : 'Folder-level access set by RRG') : '';
-  const who = grant ? `<div class="sub" style="margin-top:8px;color:#cdd6ea">Signed in as ${esc(grant.name || grant.email)} · ${esc(lvlLabel)} · this device is verified for 30 days</div>` : '';
+  const who = grant ? `<div class="sub" style="margin-top:8px;color:#cdd6ea">Signed in as ${esc(grant.name || grant.email)} · ${esc(lvlLabel)} · this device is verified for 10 days</div>` : '';
   const head = `<div class="kick">Confidential Data Room</div><h1>${esc(r.business || 'Confidential Opportunity')}</h1><div class="sub">${visCount} document${visCount === 1 ? '' : 's'} · Provided by ${esc(orgDisplayName())} under NDA</div>${who}`;
   let body = '';
   if (_preview) body += `<nav style="margin-bottom:10px;font-size:12.5px;font-weight:600;color:#5f6a7d;line-height:1.4"><a href="/index.html" style="color:#2c5c8f;text-decoration:none">Command</a><span style="color:#96a1b2;margin:0 7px">›</span><a href="/rrg_rooms_queue.html" style="color:#2c5c8f;text-decoration:none">Data Rooms</a><span style="color:#96a1b2;margin:0 7px">›</span><a href="/rrg_room.html?room=${esc(r.id)}" style="color:#2c5c8f;text-decoration:none">${esc(r.business || 'Data Room')}</a><span style="color:#96a1b2;margin:0 7px">›</span><span style="color:#20334f;font-weight:700">Preview</span></nav><div id="rrgPrevBar" style="margin-bottom:12px;display:flex;align-items:center;gap:10px;color:#8a5a12;background:#fff4e6;border:1px solid #f3d9a8;border-radius:4px;padding:7px 11px;font-size:11.5px;font-weight:600"><span style="flex:1">Preview — this is exactly what an NDA'd buyer sees. They do not see this bar.</span><a href="#" onclick="var b=document.getElementById('rrgPrevBar');if(b)b.style.display='none';return false;" title="Dismiss this notice" style="flex:none;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;border:1px solid #e2cfa0;border-radius:3px;color:#8a5a12;text-decoration:none;font-weight:700;font-size:14px;line-height:1;background:#fff">×</a></div>`;
@@ -11947,7 +11965,7 @@ function roomOtpPage(r, grant, err) {
     + `<form method="POST" action="/room/${esc(r.token)}/verify">`
     + `<label style="display:block;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:#8a93a8;font-weight:700;margin-bottom:6px">6-digit code</label>`
     + `<input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*" maxlength="6" autofocus placeholder="000000" style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:13px;font:inherit;font-size:22px;font-weight:700;letter-spacing:.4em;text-align:center">`
-    + `<label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:12.5px;color:#4a5468;cursor:pointer"><input type="checkbox" name="remember" value="1" style="width:16px;height:16px">Trust this device for 30 days (skip the code next time)</label>`
+    + `<label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:12.5px;color:#4a5468;cursor:pointer"><input type="checkbox" name="remember" value="1" style="width:16px;height:16px">Trust this device for 10 days (skip the code next time)</label>`
     + `<button type="submit" style="width:100%;margin-top:14px;background:#000E31;color:#fff;border:none;border-radius:9px;padding:13px;font:inherit;font-size:14px;font-weight:700;cursor:pointer">Verify &amp; enter →</button>`
     + `</form>`
     + `<form method="POST" action="/room/${esc(r.token)}/resend" style="margin-top:12px;text-align:center"><button type="submit" style="background:none;border:none;color:#2647b0;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;text-decoration:underline">Didn’t get it? Send a new code</button></form>`
