@@ -12165,6 +12165,56 @@ app.post('/api/user/:username/profile', express.json(), (req, res) => {
   s.employees[key] = cur; saveSettings(s);
   res.json({ ok: true, employee: effEmployee(u.username) });
 });
+// Account identity (name / title / phone) + headshot for a team member — admin or the user themselves.
+app.post('/api/user/:username/account', express.json(), (req, res) => {
+  if (!req.user) return res.status(401).json({ ok: false, error: 'Sign in required.' });
+  const u = auth.findUser(String(req.params.username || ''));
+  if (!u) return res.status(404).json({ ok: false, error: 'User not found.' });
+  const admin = isSuper(req.user); const self = String(req.user.username).toLowerCase() === String(u.username).toLowerCase();
+  if (!admin && !self) return res.status(403).json({ ok: false, error: 'Not allowed.' });
+  const b = req.body || {};
+  try {
+    const fields = {};
+    if (typeof b.name === 'string') fields.name = b.name.slice(0, 120);
+    if (typeof b.title === 'string') fields.title = b.title.slice(0, 120);
+    if (typeof b.phone === 'string') fields.phone = b.phone.slice(0, 40);
+    const pr = auth.updateProfile(u.username, fields);
+    res.json({ ok: true, user: { username: u.username, name: (pr && pr.name) || u.name || '', title: (pr && pr.title) || '', phone: (pr && pr.phone) || '', role: u.role || '', email: u.email || '', photoUrl: repUserPhoto(u.username) } });
+  } catch (e) { res.status(400).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+app.post('/api/user/:username/photo', express.json({ limit: '8mb' }), (req, res) => {
+  if (!req.user) return res.status(401).json({ ok: false, error: 'Sign in required.' });
+  const u = auth.findUser(String(req.params.username || ''));
+  if (!u) return res.status(404).json({ ok: false, error: 'User not found.' });
+  const admin = isSuper(req.user); const self = String(req.user.username).toLowerCase() === String(u.username).toLowerCase();
+  if (!admin && !self) return res.status(403).json({ ok: false, error: 'Not allowed.' });
+  const uname = u.username;
+  const dataB64 = String((req.body && req.body.dataB64) || '').replace(/^data:[^,]*,/, '');
+  if (!dataB64) return res.status(400).json({ ok: false, error: 'No image data.' });
+  const ext = photoExtFromName((req.body && req.body.filename) || '');
+  const buf = Buffer.from(dataB64, 'base64');
+  if (buf.length > 6 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'Image too large (max 6 MB).' });
+  try {
+    if (!fs.existsSync(USERPHOTO_DIR)) fs.mkdirSync(USERPHOTO_DIR, { recursive: true });
+    const cur = auth.profileOf(u);
+    if (cur && cur.photoExt && cur.photoExt !== ext) { try { binDel(userPhotoFile(uname, cur.photoExt)); } catch (e) {} }
+    binWrite(userPhotoFile(uname, ext), buf);
+  } catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the photo.' }); }
+  try { auth.setUserPhoto(uname, ext); } catch (e) { return res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+  res.json({ ok: true, hasPhoto: true, photoUrl: '/api/userphoto/' + String(uname).replace(/[^a-z0-9_.-]/gi, '_') + '.' + ext + '?v=' + Date.now() });
+});
+app.post('/api/user/:username/photo/clear', (req, res) => {
+  if (!req.user) return res.status(401).json({ ok: false, error: 'Sign in required.' });
+  const u = auth.findUser(String(req.params.username || ''));
+  if (!u) return res.status(404).json({ ok: false, error: 'User not found.' });
+  const admin = isSuper(req.user); const self = String(req.user.username).toLowerCase() === String(u.username).toLowerCase();
+  if (!admin && !self) return res.status(403).json({ ok: false, error: 'Not allowed.' });
+  const uname = u.username;
+  const cur = auth.profileOf(u);
+  if (cur && cur.photoExt) { try { binDel(userPhotoFile(uname, cur.photoExt)); } catch (e) {} }
+  try { auth.clearUserPhoto(uname); } catch (e) {}
+  res.json({ ok: true, hasPhoto: false });
+});
 app.get('/api/admin/tool-access', requireAdmin, (req, res) => {
   try { res.json({ ok: true, tools: TOOL_LIST.map(t => ({ name: t.name, file: t.file })), adminOnly: auth.loadToolAccess() }); }
   catch (e) { res.status(400).json({ ok: false, error: String(e.message || e) }); }

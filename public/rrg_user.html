@@ -14,6 +14,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .rechero{display:flex;align-items:center;gap:16px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:18px 22px;margin-bottom:16px;}
 .rhlogo{width:60px;height:60px;border-radius:50%;background:var(--navy);color:#fff;font-size:24px;font-weight:800;display:flex;align-items:center;justify-content:center;overflow:hidden;flex:none;}
 .rhlogo img{width:100%;height:100%;object-fit:cover;}
+.rhlogo.editable{cursor:pointer;position:relative;}
+.rhlogo .avcam{position:absolute;bottom:-2px;right:-2px;background:#fff;border:1px solid var(--line);border-radius:50%;width:22px;height:22px;font-size:11px;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.15);}
+.editbtn{margin-left:auto;align-self:center;background:#fff;border:1px solid #cfd6e2;border-radius:6px;padding:8px 14px;font:inherit;font-size:12.5px;font-weight:700;color:var(--navy);cursor:pointer;}
+.editbtn:hover{background:#f4f7fb;}
 .rhname{font-size:20px;font-weight:800;color:var(--navy);}
 .rhmeta{font-size:13px;color:var(--muted);margin-top:3px;}
 .rhmeta a{color:var(--muted);text-decoration:none;} .rhmeta a:hover{color:var(--navy);}
@@ -120,7 +124,7 @@ function render(){
 
   var html=''
     +'<div class="crumb">'+(D.isAdmin?'<a href="rrg_team.html">← Team</a> \u00b7 ':'')+(D.isSelf?'<a href="rrg_account.html">Account settings</a> \u00b7 ':'')+'<a href="rrg_team_help.html">Help &amp; guide</a></div>'
-    +'<div class="rechero"><div class="rhlogo">'+av+'</div><div><div class="rhname">'+esc(u.name||u.username)+'</div><div class="rhmeta">'+esc(contact||'Team member')+(reach?(' · '+reach):'')+(e.startDate?(' · started '+fmtD(e.startDate)):'')+'</div></div></div>'
+    +'<div class="rechero"><div class="rhlogo'+(canEdit?' editable':'')+'" id="_uav"'+(canEdit?' title="Click to upload a headshot"':'')+'>'+av+(canEdit?'<span class="avcam">📷</span>':'')+'</div><div style="flex:1;min-width:0"><div class="rhname">'+esc(u.name||u.username)+'</div><div class="rhmeta">'+esc(contact||'Team member')+(reach?(' · '+reach):'')+(e.startDate?(' · started '+fmtD(e.startDate)):'')+'</div></div>'+(canEdit?'<button type="button" class="editbtn" id="_editprof">Edit profile</button>':'')+'</div>'    +(canEdit?('<div class="card" id="_profedit" style="display:none"><div class="ch"><b>Edit profile</b></div><div class="cb"><div class="grid2"><div><label class="fld">Full name</label><input id="_pf_name" value="'+esc(u.name||'')+'"></div><div><label class="fld">Title</label><input id="_pf_title" value="'+esc(u.title||'')+'" placeholder="e.g. Associate Broker"></div><div><label class="fld">Phone</label><input id="_pf_phone" value="'+esc(u.phone||'')+'" placeholder="210-..."></div></div><div class="savebar"><button class="savebtn" id="_pf_save">Save profile</button><button class="savebtn" id="_pf_cancel" style="background:#fff;color:var(--navy);border:1px solid #cfd6e2">Cancel</button><span class="msg" id="_pf_msg"></span></div><div class="pnote">Name, title and headshot show across the app and on reports. Role and login email are set by an admin on the Team page.</div></div></div>'):'')    +(canEdit?'<input type="file" id="_uphoto" accept="image/*" style="display:none">':'')
     +'<div class="tiles">'
       +tile(k.activeListings,'Active Listings','')
       +tile(k.deals,'Deals',(k.openDeals+' open · '+k.closedDealsYtd+' closed YTD'))
@@ -140,6 +144,17 @@ function render(){
 
   var es=document.getElementById('e_save'); if(es) es.addEventListener('click',saveEmployee);
   var ps=document.getElementById('p_save'); if(ps) ps.addEventListener('click',savePayroll);
+  var uav=document.getElementById('_uav'), uph=document.getElementById('_uphoto');
+  if(uav&&uph){
+    uav.addEventListener('click',async function(){
+      if(D.user&&D.user.photoUrl){ if(await rrgConfirm('Remove this headshot?')){ fetch('/api/user/'+encodeURIComponent(UN)+'/photo/clear',{method:'POST',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ D.user.photoUrl=''; render(); if(window.rrgSetAvatar&&D.isSelf) window.rrgSetAvatar(''); } }); } }
+      else { uph.click(); }
+    });
+    uph.addEventListener('change',function(){ var f=uph.files&&uph.files[0]; uph.value=''; if(!f) return; if(f.size>6*1024*1024){ alert('Image too large (max 6 MB).'); return; } var rd=new FileReader(); rd.onload=function(){ fetch('/api/user/'+encodeURIComponent(UN)+'/photo',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({dataB64:rd.result,filename:f.name})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ D.user.photoUrl=j.photoUrl; render(); if(window.rrgSetAvatar&&D.isSelf) window.rrgSetAvatar(j.photoUrl); } else alert((j&&j.error)||'Upload failed.'); }).catch(function(){ alert('Could not reach the server.'); }); }; rd.readAsDataURL(f); });
+  }
+  var eb=document.getElementById('_editprof'); if(eb) eb.addEventListener('click',function(){ var pe=document.getElementById('_profedit'); if(pe){ pe.style.display=(pe.style.display==='none'?'block':'none'); if(pe.style.display==='block'){ var n=document.getElementById('_pf_name'); if(n) n.focus(); } } });
+  var pfc=document.getElementById('_pf_cancel'); if(pfc) pfc.addEventListener('click',function(){ var pe=document.getElementById('_profedit'); if(pe) pe.style.display='none'; });
+  var pfs=document.getElementById('_pf_save'); if(pfs) pfs.addEventListener('click',function(){ var m=document.getElementById('_pf_msg'); pfs.disabled=true; if(m){m.textContent='Saving…';m.className='msg';} var body={ name:val('_pf_name'), title:val('_pf_title'), phone:val('_pf_phone') }; fetch('/api/user/'+encodeURIComponent(UN)+'/account',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){ pfs.disabled=false; if(j&&j.ok){ D.user.name=j.user.name; D.user.title=j.user.title; D.user.phone=j.user.phone; render(); } else { if(m){m.textContent=(j&&j.error)||'Could not save.';m.className='msg err';} } }).catch(function(){ pfs.disabled=false; if(m){m.textContent='Could not reach the server.';m.className='msg err';} }); });
   buildLists();
 }
 
