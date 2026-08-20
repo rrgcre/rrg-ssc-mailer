@@ -15239,7 +15239,8 @@ function cleanPdfFields(arr) {
     font: String((f && f.font) || '').slice(0, 30),
     align: (['center', 'right'].indexOf(String(f && f.align)) >= 0) ? String(f.align) : 'left',
     fontSize: (function(){ var n = parseFloat(f && f.fontSize); return (isFinite(n) && n > 0) ? Math.max(5, Math.min(48, n)) : ''; })(),
-    value: String((f && f.value) != null ? f.value : '').slice(0, 500)
+    value: String((f && f.value) != null ? f.value : '').slice(0, 500),
+    section: String((f && f.section) || '').slice(0, 60)
   }; });
 }
 app.post('/api/admin/agreement-templates/:id/ai-place-fields', requireAdmin, express.json({ limit: '2mb' }), async (req, res) => {
