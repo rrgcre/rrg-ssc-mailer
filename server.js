@@ -3409,7 +3409,7 @@ function roomFolderMonths(folders, mode){
   const out = [];
   (folders || []).forEach(function(f){
     out.push(f);
-    if (/^(Financials|Tax Returns) \/ \d{4}$/.test(f)) {
+    if (/^Financials \/ \d{4}$/.test(f)) {
       labels.forEach(function(m){ out.push(f + ' / ' + m); });
       out.push(f + ' / Full Year');
     }
