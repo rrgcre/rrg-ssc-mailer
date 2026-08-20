@@ -24,6 +24,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .tile .l{font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--soft);margin-top:5px;}
 .tile .s{font-size:11px;color:var(--muted);margin-top:3px;}
 .card{background:#fff;border:1px solid var(--line);border-radius:8px;margin-bottom:16px;overflow:hidden;}
+.cols{display:grid;grid-template-columns:380px minmax(0,1fr);gap:18px;align-items:start;}
+@media(max-width:900px){.cols{grid-template-columns:1fr;}}
+.side .card,.main .card{margin-bottom:16px;}
 .ch{display:flex;align-items:center;gap:10px;padding:12px 18px;border-bottom:1px solid var(--line);background:var(--wash);}
 .ch b{color:var(--navy);font-size:11.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;}
 .ch span{color:var(--muted);font-size:12px;}
@@ -122,16 +125,17 @@ function render(){
       +tile(k.activeListings,'Active Listings','')
       +tile(k.deals,'Deals',(k.openDeals+' open · '+k.closedDealsYtd+' closed YTD'))
       +tile(moneyShort(k.gciYtd),'Commission · YTD','All-time '+moneyShort(k.gci)+' pre-split','money')
+      +tile(moneyShort(k.net),'Net','after '+k.split+'% split','money')
       +tile(moneyShort(k.received),'Received','commission paid','money')
       +tile(moneyShort(k.waiting),'Waiting on','owed · 2nd-half','wait')
-      +tile(moneyShort(k.net),'Net','after '+k.split+'% split','money')
       +tile(moneyShort(k.pipeline),'Pipeline','active listing value','money')
       +tile(k.lostDeals,'Didn’t close','deals that fell through','bad')
     +'</div>'
-    +details+payroll
+    +'<div class="cols"><div class="side">'+details+payroll+'</div><div class="main">'
     +'<div class="card"><div class="ch"><b>Listings</b><span>'+D.listings.length+'</span></div><div class="cb tbl"><div id="lst"></div></div></div>'
     +'<div class="card"><div class="ch"><b>Deals</b><span>'+D.deals.length+'</span></div><div class="cb tbl"><div id="dls"></div></div></div>'
-    +'<div class="card"><div class="ch"><b>Agreements</b><span>'+D.agreements.length+'</span></div><div class="cb tbl"><div id="agr"></div></div></div>';
+    +'<div class="card"><div class="ch"><b>Agreements</b><span>'+D.agreements.length+'</span></div><div class="cb tbl"><div id="agr"></div></div></div>'
+    +'</div></div>';
   document.getElementById('root').innerHTML=html;
 
   var es=document.getElementById('e_save'); if(es) es.addEventListener('click',saveEmployee);

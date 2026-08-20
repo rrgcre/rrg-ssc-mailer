@@ -538,6 +538,7 @@ function openApptModal(a){
     +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;margin-top:10px"><div><label class="fld">Date</label><input type="date" id="_apdate" value="'+esc(a?String(a.start).slice(0,10):today)+'" style="'+_apInp+'"></div>'
     +'<div><label class="fld">Time</label><input type="time" step="900" id="_apstart" value="'+esc(a?tv(a.start):'09:00')+'" style="'+_apInp+'"></div>'
     +'<div><label class="fld">End</label><input type="time" step="900" id="_apend" value="'+esc(a?tv(a.end):'09:30')+'" style="'+_apInp+'"></div></div>'
+    +'<label class="fld" style="margin-top:10px;display:block">Reminder</label><select id="_aprem" style="'+_apInp+'"><option value="">No reminder</option><option value="0">At start time</option><option value="10">10 min before</option><option value="30">30 min before</option><option value="60">1 hour before</option><option value="120">2 hours before</option><option value="1440">1 day before</option></select>'
     +'<label class="fld" style="display:flex;align-items:center;justify-content:space-between;gap:8px">Attendee email (to send an invite)<a href="#" id="_apccbtn" style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#6b7488;text-decoration:none;cursor:pointer">Cc / Bcc</a></label><input id="_apemail" value="'+esc(a?((a.attendees&&a.attendees[0]&&a.attendees[0].email)||''):pEmail)+'" placeholder="name@example.com" style="'+_apInp+'">'
     +'<div id="_apccrow" style="display:'+((a&&((a.cc&&a.cc.length)||(a.bcc&&a.bcc.length)))?'block':'none')+';margin-top:10px"><label class="fld">Cc</label><input id="_apcc" value="'+esc(a?((a.cc||[]).join(', ')):'')+'" placeholder="Comma-separated emails" style="'+_apInp+'"></div>'
     +'<div id="_apbccrow" style="display:'+((a&&((a.cc&&a.cc.length)||(a.bcc&&a.bcc.length)))?'block':'none')+';margin-top:10px"><label class="fld">Bcc</label><input id="_apbcc" value="'+esc(a?((a.bcc||[]).join(', ')):'')+'" placeholder="Comma-separated emails" style="'+_apInp+'"></div>'
@@ -547,6 +548,7 @@ function openApptModal(a){
     +'<div style="display:flex;gap:10px;align-items:center;padding:14px 20px;border-top:1px solid #e6e9f0;background:#f4f6f9"><button type="button" class="savebtn" id="_apsave" style="width:auto;padding:9px 18px">Save meeting</button>'+(a&&a.byUser===((window.__rrgSession&&window.__rrgSession.username)||'')?'<button type="button" class="mfadd" id="_apdel" style="color:#DA2B1F;border:1px solid #f0c9c6">Delete</button>':'')+'<span id="_apmsg" style="font-size:12.5px;font-weight:700"></span></div>'
     +'</div>';
   document.body.appendChild(ov);
+  (function(){ var _re=ov.querySelector('#_aprem'); if(_re) _re.value=(a&&a.remMinutes!=null&&a.remMinutes!=='')?String(a.remMinutes):''; })();
   function close(){ ov.remove(); }
   ov.addEventListener('click',function(e){ if(e.target===ov){ /* stay open */ } });
   if(!a && typeof GMAILCONN!=='undefined' && GMAILCONN){ var _sb=ov.querySelector('#_apsave'); if(_sb) _sb.textContent='Save & open Google Calendar'; }
@@ -558,7 +560,7 @@ function openApptModal(a){
     var em=ov.querySelector('#_apemail').value.trim();
     function _emails(sel){ var el=ov.querySelector(sel); return el?el.value.split(/[,;\s]+/).map(function(s){return s.trim();}).filter(Boolean):[]; }
     var _cc=_emails('#_apcc'), _bcc=_emails('#_apbcc');
-    var body={ id:a?a.id:undefined, title:ov.querySelector('#_aptitle').value.trim(), type:ov.querySelector('#_aptype').value, contactPersonId:ID, contactName:pName, start:date?(date+'T'+st):'', end:date?(date+'T'+en):'', location:ov.querySelector('#_aploc').value.trim(), notes:ov.querySelector('#_apnotes').value.trim(), attendees:em?[{name:pName,email:em}]:[], cc:_cc, bcc:_bcc };
+    var body={ id:a?a.id:undefined, title:ov.querySelector('#_aptitle').value.trim(), type:ov.querySelector('#_aptype').value, contactPersonId:ID, contactName:pName, start:date?(date+'T'+st):'', end:date?(date+'T'+en):'', location:ov.querySelector('#_aploc').value.trim(), notes:ov.querySelector('#_apnotes').value.trim(), attendees:em?[{name:pName,email:em}]:[], cc:_cc, bcc:_bcc, remMinutes:(ov.querySelector('#_aprem')||{}).value||'' };
     var msg=ov.querySelector('#_apmsg');
     if(!body.title){ msg.style.color='#DA2B1F'; msg.textContent='Add a title.'; return; }
     if(!body.start){ msg.style.color='#DA2B1F'; msg.textContent='Pick a date.'; return; }

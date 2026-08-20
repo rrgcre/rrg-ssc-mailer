@@ -6846,6 +6846,17 @@ const POF_TPL_BODY =
   '<p>This is a standard step that protects the seller\u2019s confidentiality and keeps the process moving with serious, qualified buyers. Everything you share stays strictly confidential and is used only to verify capacity.</p>' +
   '<p>Once I have it, I\u2019ll get you the full package right away. Any questions, just reply here.</p>' +
   '<p>Best,<br>{{my_name}}</p>';
+const EMAIL_TPL_CIMFU_FLAG = path.join(BOV_DATA_DIR, 'email_templates_cimfu_seeded.flag');
+const CIM_FU_TPL_ID = 'etpl_cim_followup';
+const CIM_FU_TPL_SUBJECT = 'Following up \u2014 {{company}}';
+const CIM_FU_TPL_BODY =
+  '<p>Hi {{first_name}},</p>' +
+  '<p>Circling back on the {{company}} opportunity \u2014 I sent the confidential memorandum over a little while ago and wanted to be sure it reached you.</p>' +
+  '<p>I know deals like this cross your desk constantly, so I\u2019ll keep this short: is it worth a closer look, or should I take you off the list for it? Either answer helps me move things forward.</p>' +
+  '<p>A couple of quick reasons it may be worth fifteen minutes:</p>' +
+  '<p>\u2022 [Your strongest number \u2014 e.g., trailing-twelve SDE on a below-market lease with solid term]<br>\u2022 [A second hook \u2014 e.g., liquor license conveys, seller financing available, or turnkey with no build-out]</p>' +
+  '<p>Happy to walk you through the numbers or anything the memorandum didn\u2019t cover. Are you open to a short call this week?</p>' +
+  '<p>Best,<br>{{my_name}}</p>';
 function _seedProofOfFunds(a) {
   // If the user explicitly deleted this shared template, respect that and never re-add it.
   try { if (fs.existsSync(EMAIL_TPL_POF_DELETED)) return a; } catch (e) { return a; }
@@ -6918,7 +6929,15 @@ function _seedBrokerTemplates(a) {
   try { writeJsonGuarded(EMAIL_TPL_FILE, a, 'seedBrokerTpls'); fs.writeFileSync(EMAIL_TPL_BROKER_FLAG, JSON.stringify({ seededAt: new Date().toISOString() })); } catch (e) {}
   return a;
 }
-function loadEmailTpls() { try { return _seedProofOfFunds(_seedBrokerTemplates(_seedEmailTpls(rj(EMAIL_TPL_FILE) || []))); } catch (e) { return []; } }
+function _seedCimFollowup(a) {
+  try { if (fs.existsSync(EMAIL_TPL_CIMFU_FLAG)) return a; } catch (e) { return a; }
+  if (!a.some(function(t){ return t.id === CIM_FU_TPL_ID; })) {
+    a.push({ id: CIM_FU_TPL_ID, name: 'Follow-up \u2014 CIM sent, no reply', category: 'Follow-up', scope: 'shared', ownerUser: '', ownerName: 'RRG', greeting: 'none', subject: CIM_FU_TPL_SUBJECT, body: CIM_FU_TPL_BODY, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), seeded: true });
+  }
+  try { writeJsonGuarded(EMAIL_TPL_FILE, a, 'seedCimFollowup'); fs.writeFileSync(EMAIL_TPL_CIMFU_FLAG, JSON.stringify({ seededAt: new Date().toISOString() })); } catch (e) {}
+  return a;
+}
+function loadEmailTpls() { try { return _seedCimFollowup(_seedProofOfFunds(_seedBrokerTemplates(_seedEmailTpls(rj(EMAIL_TPL_FILE) || [])))); } catch (e) { return []; } }
 function saveEmailTpls(a) { return writeJsonGuarded(EMAIL_TPL_FILE, a, 'saveEmailTpls'); }
 function newEmailTplId() { return 'etpl_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 const TPL_CATEGORIES = ['Buyer', 'Seller', 'NDA', 'Follow-up', 'Closing', 'General'];

@@ -181,7 +181,8 @@ function draw(){
     empty:'<div class="empty"><b>No spaces yet.</b> Click <b>+ Add space</b> to log an available space and its bones.</div>',
     rowId:function(sp){return sp.id;}, defaultSort:10, defaultDir:-1,
     columns:[
-      { label:'Space', sort:function(a,b){ return RRGList.cmp(a.name||a.address,b.name||b.address); }, cell:function(sp){ var t=esc(sp.name||sp.address||'Untitled space'); var sub=[ (sp.name?sp.address:''), sp.center ].filter(Boolean).map(esc).join(' · '); var head=sp.url?('<a class="spname" href="'+esc(sp.url)+'" target="_blank" rel="noopener">'+t+'</a>'):('<span class="spname">'+t+'</span>'); return '<div>'+head+'</div>'+(sub?('<div class="meta">'+sub+'</div>'):''); } },
+      { label:'Space', sort:function(a,b){ return RRGList.cmp(a.name||a.address,b.name||b.address); }, cell:function(sp){ var t=esc(sp.name||sp.address||'Untitled space'); var sub=[ (sp.name?sp.address:'') ].filter(Boolean).map(esc).join(' · '); var head=sp.url?('<a class="spname" href="'+esc(sp.url)+'" target="_blank" rel="noopener">'+t+'</a>'):('<span class="spname">'+t+'</span>'); return '<div>'+head+'</div>'+(sub?('<div class="meta">'+sub+'</div>'):''); } },
+      { label:'Shopping center', sort:function(a,b){ return RRGList.cmp(a.center,b.center); }, cell:function(sp){ return sp.center?esc(sp.center):'<span class="meta">—</span>'; } },
       { label:'Market', sort:function(a,b){ return RRGList.cmp(a.market,b.market); }, cell:function(sp){ return sp.market?esc(sp.market):'<span class="meta">—</span>'; } },
       { label:'Type', sort:function(a,b){ return RRGList.cmp(a.spaceType,b.spaceType); }, cell:function(sp){ return sp.spaceType?esc(sp.spaceType):'<span class="meta">—</span>'; } },
       { label:'Size', align:'right', sort:function(a,b){ return (a.size||0)-(b.size||0); }, cell:function(sp){ return sp.size!=null?esc(sf(sp.size)):'<span class="meta">—</span>'; } },
