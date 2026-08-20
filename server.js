@@ -13595,7 +13595,7 @@ function dashboardData(req) {
   const counts = {}; stageNames.forEach(n => counts[n] = 0);
   Object.keys(idx).forEach(k => { const o = ov[k] || {}; if ((o.pipelineId || 'p_bizsales') !== 'p_bizsales') return; let st = o.pipelineStage; if (stageNames.indexOf(st) < 0) { try { const ss = listingStageSummary(idx[k], ov); const si = Math.max(0, Math.min(ss.done || 0, stageNames.length - 1)); st = stageNames[si] || stageNames[0]; } catch (e) { st = stageNames[0]; } } if (st) counts[st] = (counts[st] || 0) + 1; });
   const pipeline = stageNames.map(n => ({ name: n, count: counts[n] || 0 }));
-  let tasks = []; try { tasks = loadTasks().filter(t => taskVisible(t, req) && t.status !== 'done').sort((a, b) => String(a.due || '9999').localeCompare(String(b.due || '9999'))).slice(0, 7).map(t => ({ title: t.title, due: t.due || '', priority: t.priority || '', link: t.linkLabel || '' })); } catch (e) {}
+  let tasks = []; try { tasks = loadTasks().filter(t => taskVisible(t, req) && t.status !== 'done').sort((a, b) => String(a.due || '9999').localeCompare(String(b.due || '9999'))).slice(0, 7).map(t => ({ id: t.id, title: t.title, due: t.due || '', priority: t.priority || '', link: t.linkLabel || '' })); } catch (e) {}
   let acts = []; people.forEach(p => { (Array.isArray(p.activities) ? p.activities : []).forEach(a => { acts.push({ who: p.name, id: p.id || '', type: a.type || 'Note', text: String(a.text || a.note || '').slice(0, 160), at: a.at || a.date || a.createdAt || '' }); }); });
   acts.sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')));
   acts.sort((a, b) => String(b.at).localeCompare(String(a.at))); acts = acts.slice(0, 8);
