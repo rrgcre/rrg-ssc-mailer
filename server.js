@@ -15307,6 +15307,21 @@ app.post('/api/agreements/:id/signers', express.json(), (req, res) => {
   res.json({ ok: true, agreement: agreementBrief(a) });
 });
 
+app.post('/api/agreements/:id/adv-setup', express.json({ limit: '2mb' }), (req, res) => {
+  const all = loadAgreements(); const a = all.find(x => x.id === req.params.id);
+  if (!a) return res.status(404).json({ ok: false, error: 'Agreement not found.' });
+  const b = req.body || {};
+  if (a.docExt !== 'pdf') return res.status(400).json({ ok: false, error: 'The document must be a PDF.' });
+  const pf = cleanPdfFields(Array.isArray(b.pdfFields) ? b.pdfFields : []);
+  if (!pf.length) return res.status(400).json({ ok: false, error: 'Place at least one signature field on the document.' });
+  a.signerCount = _clampSigners(b.signerCount);
+  a.pdfFields = pf;
+  ensureSigners(a);
+  a.entryMethod = a.entryMethod || 'sent';
+  a.updatedAt = new Date().toISOString();
+  saveAgreements(all);
+  res.json({ ok: true, agreement: agreementBrief(a) });
+});
 app.post('/api/agreements/:id/send-adv', express.json(), async (req, res) => {
  try {
   const all = loadAgreements(); const a = all.find(x => x.id === req.params.id);
@@ -15546,7 +15561,7 @@ function submitAdvancedSign(req, res, all, a, me) {
       try { await burnFinalPdf(a); } catch (e) { console.error('burnFinalPdf:', e && e.message); }
       a.signStatus = 'signed'; a.signedDate = now.slice(0, 10); a.signedAt = now; a.status = 'active'; a.updatedAt = now; saveAgreements(all); runPostExecution(a, req);
       if (a.personId) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.personId); if (pp) { logActivity(pp, 'Agreement Signed', agreementTypeLabel(a.type) + ' fully signed', { auto: true, date: a.signedDate }); savePeople(ppl); } } catch (e) {} }
-      try { if (isEmailConfigured() && a.hasFinal) { const fp = path.join(AGREEMENT_DOC_DIR, 'final_' + a.id + '.pdf'); (a.signers || []).map(s => s.email).filter(Boolean).forEach(to => { sendMailWL({ from: mailFrom(), to, subject: agreementTypeLabel(a.type) + ' - fully signed', text: 'All parties have signed. A copy is attached.', attachments: [{ filename: 'signed-agreement.pdf', path: fp }] }).catch(() => {}); }); } } catch (e) {}
+      try { if (isEmailConfigured() && a.hasFinal) { const fp = path.join(AGREEMENT_DOC_DIR, 'final_' + a.id + '.pdf'); let _reps = []; try { const _u = auth.loadUsers().find(x => x.username === a.createdBy); if (_u && _u.email) _reps.push(_u.email); } catch (e) {} const _rcpts = Array.from(new Set([].concat((a.signers || []).map(s => s.email), _reps).filter(Boolean))); _rcpts.forEach(to => { sendMailWL({ from: mailFrom(), to, subject: agreementTypeLabel(a.type) + ' - fully signed', text: 'All parties have signed. The fully-executed copy is attached.', attachments: [{ filename: 'signed-agreement.pdf', path: fp }] }).catch(() => {}); }); } } catch (e) {}
       return res.json({ ok: true, done: true });
     } else {
       if (!next.token) next.token = newSignToken(); next.status = 'sent'; a.signStatus = 'partial'; a.updatedAt = now; saveAgreements(all);
