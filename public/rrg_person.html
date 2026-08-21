@@ -589,7 +589,7 @@ function refreshDocList(){
 }
 function agreementsCard(){
   var opts=ATYPES.map(function(t){return '<option value="'+esc(t.key)+'">'+esc(t.label)+'</option>';}).join('');
-  return '<div class="card"><div class="ch"><b>Documents</b><span id="docCount">'+docCount()+'</span><button type="button" class="mfadd" onclick="openSendAgrMenu(this)" style="margin-left:auto;padding:5px 11px;font-size:12px">✉ Send agreement ▾</button></div>'
+  return '<div class="card"><div class="ch"><b>Documents</b><span id="docCount">'+docCount()+'</span><button type="button" class="mfadd" onclick="sendAgrRepeat(this)" title="Send the agreement — opens your last-used template, ready to review and send" style="margin-left:auto;padding:5px 11px;font-size:12px">✉ Send agreement</button></div>'
     +'<div class="cb"><div class="agrlist" id="docList">'+docListHtml()+'</div>'
     +'<div id="agrForm" hidden style="margin-top:12px;border-top:1px solid #e6e9f0;padding-top:12px">'
       +'<input type="hidden" id="agr_id">'
@@ -967,6 +967,15 @@ function openSignReturn(){
     }).then(function(fj){ if(fj&&fj.ok){ ov.remove(); if(window.rrgToast) rrgToast('Sent to '+(fj.to||'signer')+' \u2713'); load(); } else { go.disabled=false; go.textContent='Send for signature'; msg.textContent=(fj&&fj.error)||'Could not send.'; } }).catch(function(e){ go.disabled=false; go.textContent='Send for signature'; msg.textContent=e.message||'Error.'; });
   });
 }
+// One-click Send agreement: replay the last agreement you sent — open the send modal preset to
+// your most recently used template (the modal's dropdown still lets you switch or upload). First
+// time (nothing sent yet), it opens with the template picker.
+function sendAgrRepeat(){
+  var last=''; try{ last=localStorage.getItem('rrgLastAgrTpl')||''; }catch(e){}
+  var ok=last && (TEMPLATES||[]).some(function(t){ return t.id===last && t.fileExt && t.active!==false; });
+  if(typeof openSendModal!=='function'){ alert('Agreements are still loading — try again in a moment.'); return; }
+  openSendModal(ok?last:undefined);
+}
 function openSendAgrMenu(btn){
   var ex=document.getElementById('sendAgrMenu'); if(ex){ ex.remove(); return; }
   var IST='display:block;width:100%;text-align:left;border:none;background:none;padding:8px 9px;border-radius:6px;cursor:pointer;font:inherit;font-size:13px;color:#1a2236';
@@ -1233,6 +1242,7 @@ function doSendAgreement(){
   if(!EMAILREADY){ alert('Email is not set up yet (Admin → Email).'); return; }
   var v=document.getElementById('sm_tpl').value;
   if(!v){ out.textContent='Pick a template, or choose to attach your own file.'; return; }
+  try{ if(v&&v!=='__file') localStorage.setItem('rrgLastAgrTpl',v); }catch(e){}
   var tpl=(v!=='__file')?TEMPLATES.filter(function(t){return t.id===v;})[0]:null;
   var adv=!!(tpl&&tpl.pdfFields&&tpl.pdfFields.length);
   var repVals=[];
