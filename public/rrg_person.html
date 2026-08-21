@@ -589,7 +589,7 @@ function refreshDocList(){
 }
 function agreementsCard(){
   var opts=ATYPES.map(function(t){return '<option value="'+esc(t.key)+'">'+esc(t.label)+'</option>';}).join('');
-  return '<div class="card"><div class="ch"><b>Documents</b><span id="docCount">'+docCount()+'</span><button type="button" class="mfadd" onclick="sendAgrRepeat(this)" title="Send the agreement — opens your last-used template, ready to review and send" style="margin-left:auto;padding:5px 11px;font-size:12px">✉ Send agreement</button></div>'
+  return '<div class="card"><div class="ch"><b>Documents</b><span id="docCount">'+docCount()+'</span><button type="button" class="mfadd" onclick="openAgrChooser()" title="Add an agreement — send a template, record a signed one, or upload a PDF for signature" style="margin-left:auto;padding:5px 11px;font-size:12px">✉ Send agreement</button></div>'
     +'<div class="cb"><div class="agrlist" id="docList">'+docListHtml()+'</div>'
     +'<div id="agrForm" hidden style="margin-top:12px;border-top:1px solid #e6e9f0;padding-top:12px">'
       +'<input type="hidden" id="agr_id">'
