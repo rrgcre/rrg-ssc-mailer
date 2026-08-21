@@ -122,6 +122,7 @@ label.fld{display:block;font-size:10px;letter-spacing:.05em;text-transform:upper
         <div style="height:1px;background:var(--line);margin:10px 0"></div>
         <label class="fld">Font</label>
         <select id="f_font"><option value="">Helvetica (default)</option><option value="Arial">Arial</option><option value="Helvetica">Helvetica</option><option value="Times New Roman">Times New Roman</option><option value="Palatino">Palatino</option><option value="Calibri">Calibri</option><option value="Courier">Courier</option></select>
+        <label class="chk" id="f_bold_row" style="margin-top:8px"><input type="checkbox" id="f_bold"> Bold text</label>
         <label class="fld">Text alignment</label>
         <div class="algnseg" id="f_align"><button type="button" data-a="left" class="on">Left</button><button type="button" data-a="center">Center</button><button type="button" data-a="right">Right</button></div>
         <div style="display:flex;gap:8px"><div style="flex:1"><label class="fld">Width (pt)</label><input id="f_width" type="number" min="8" max="2000" step="1" placeholder="auto"></div><div style="flex:1"><label class="fld">Height (pt)</label><input id="f_height" type="number" min="6" max="2000" step="1" placeholder="auto"></div></div><div style="margin-top:2px"><label class="fld">Text size (pt)</label><input id="f_size" type="number" min="5" max="72" step="1" placeholder="auto"></div>
@@ -254,7 +255,7 @@ function drawFields(){
     var W=ov.clientWidth, H=ov.clientHeight;
     var el=document.createElement('div'); el.className='f'+(f.signer===2?' s2':(f.signer===3?' s3':''))+(SELECTED===f.id?' sel':'')+((MULTI.indexOf(f.id)>=0&&f.id!==SELECTED)?' msel':'')+(f._ai?' aisug':''); el.setAttribute('data-id',f.id);
     el.style.left=(f.x*W)+'px'; el.style.top=(f.y*H)+'px'; el.style.width=(f.w*W)+'px'; el.style.height=(f.h*H)+'px';
-    if(f.type==='text'||f.type==='date'){ var _al=f.align||'left'; el.style.justifyContent=(_al==='center'?'center':(_al==='right'?'flex-end':'flex-start')); el.style.textAlign=_al; el.style.paddingLeft=(_al==='left'?'3px':'0'); el.style.paddingRight=(_al==='right'?'3px':'0'); if((f.h*H)>=34){ el.style.alignItems='flex-start'; el.style.paddingTop='3px'; } }
+    if(f.type==='text'||f.type==='date'){ if(f.bold) el.style.fontWeight='800'; var _al=f.align||'left'; el.style.justifyContent=(_al==='center'?'center':(_al==='right'?'flex-end':'flex-start')); el.style.textAlign=_al; el.style.paddingLeft=(_al==='left'?'3px':'0'); el.style.paddingRight=(_al==='right'?'3px':'0'); if((f.h*H)>=34){ el.style.alignItems='flex-start'; el.style.paddingTop='3px'; } }
     el.textContent=f.label||TYPELBL[f.type]||f.type;
     if(f.required){ var rq=document.createElement('span'); rq.className='rq'; rq.textContent='*'; el.appendChild(rq); }
     var rz=document.createElement('div'); rz.className='rz'; el.appendChild(rz);
@@ -288,6 +289,8 @@ function openPanel(){
   document.getElementById('f_auto').value=f.autofill||'';
   document.getElementById('f_req').checked=!!f.required;
   document.getElementById('f_font').value=f.font||'';
+  var _bc=document.getElementById('f_bold'); if(_bc) _bc.checked=!!f.bold;
+  var _br=document.getElementById('f_bold_row'); if(_br) _br.style.display=((f.type==='text'||f.type==='date')?'flex':'none');
   document.getElementById('f_size').value=f.fontSize||'';
   document.getElementById('f_width').value=(PAGEPT.w?Math.round(f.w*PAGEPT.w):'');
   (function(){ var _tx=(f.type==='text'||f.type==='date'); var _al=_tx?(f.align||'left'):'left'; var seg=document.getElementById('f_align'); if(seg){ seg.style.opacity=_tx?'1':'.4'; Array.prototype.forEach.call(seg.querySelectorAll('button'),function(b){ b.classList.toggle('on', b.getAttribute('data-a')===_al); }); } })();
@@ -308,11 +311,12 @@ function align(mode){ if(MULTI.length<2){ var _am=document.getElementById('msg')
 Array.prototype.forEach.call(document.querySelectorAll('.algn'),function(b){ b.addEventListener('click',function(){ align(b.getAttribute('data-al')); }); });
 document.getElementById('snapGrid').addEventListener('change',function(){ SNAP=this.checked; });
 document.getElementById('f_font').addEventListener('change',function(){ var f=cur(); if(f){ f.font=this.value; drawFields(); scheduleSave(); } });
+document.getElementById('f_bold').addEventListener('change',function(){ var f=cur(); if(f){ f.bold=this.checked; drawFields(); scheduleSave(); } });
 document.getElementById('f_size').addEventListener('input',function(){ var f=cur(); if(f){ var n=parseFloat(this.value); f.fontSize=(isFinite(n)&&n>0)?n:''; scheduleSave(); } });
 document.getElementById('f_height').addEventListener('input',function(){ var f=cur(); if(f&&PAGEPT.h){ var pt=parseFloat(this.value); if(isFinite(pt)&&pt>0){ f.h=Math.max(0.005,Math.min(1-f.y, pt/PAGEPT.h)); drawFields(); scheduleSave(); } } });
 document.getElementById('f_width').addEventListener('input',function(){ var f=cur(); if(f&&PAGEPT.w){ var pt=parseFloat(this.value); if(isFinite(pt)&&pt>0){ f.w=Math.max(0.01,Math.min(1-f.x, pt/PAGEPT.w)); drawFields(); scheduleSave(); } } });
 (function(){ var seg=document.getElementById('f_align'); if(seg){ Array.prototype.forEach.call(seg.querySelectorAll('button'),function(b){ b.addEventListener('click',function(){ var f=cur(); if(!f||(f.type!=='text'&&f.type!=='date')) return; f.align=b.getAttribute('data-a'); Array.prototype.forEach.call(seg.querySelectorAll('button'),function(x){x.classList.remove('on');}); b.classList.add('on'); drawFields(); scheduleSave(); }); }); } })();
-document.getElementById('f_applyall').addEventListener('click',function(){ var f=cur(); if(!f) return; FIELDS.forEach(function(g){ g.font=f.font; g.fontSize=f.fontSize; g.align=f.align; g.w=Math.min(1-g.x,f.w); g.h=Math.min(1-g.y,f.h); }); drawFields(); scheduleSave(); var m=document.getElementById('msg'); if(m) m.textContent='Applied to all ✓'; });
+document.getElementById('f_applyall').addEventListener('click',function(){ var f=cur(); if(!f) return; FIELDS.forEach(function(g){ g.font=f.font; g.fontSize=f.fontSize; g.align=f.align; g.bold=f.bold; g.w=Math.min(1-g.x,f.w); g.h=Math.min(1-g.y,f.h); }); drawFields(); scheduleSave(); var m=document.getElementById('msg'); if(m) m.textContent='Applied to all ✓'; });
 document.addEventListener('keydown',function(e){
   var t=e.target; var typing=t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='SELECT'||t.isContentEditable);
   if(e.key==='Delete'||e.key==='Backspace'){ if(typing) return; if(MULTI.length){ e.preventDefault(); FIELDS=FIELDS.filter(function(x){return MULTI.indexOf(x.id)<0;}); MULTI=[]; SELECTED=null; drawFields(); openPanel(); scheduleSave(); } return; }

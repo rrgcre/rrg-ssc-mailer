@@ -15240,7 +15240,8 @@ function cleanPdfFields(arr) {
     align: (['center', 'right'].indexOf(String(f && f.align)) >= 0) ? String(f.align) : 'left',
     fontSize: (function(){ var n = parseFloat(f && f.fontSize); return (isFinite(n) && n > 0) ? Math.max(5, Math.min(48, n)) : ''; })(),
     value: String((f && f.value) != null ? f.value : '').slice(0, 500),
-    section: String((f && f.section) || '').slice(0, 60)
+    section: String((f && f.section) || '').slice(0, 60),
+    bold: !!(f && f.bold)
   }; });
 }
 app.post('/api/admin/agreement-templates/:id/ai-place-fields', requireAdmin, express.json({ limit: '2mb' }), async (req, res) => {
@@ -15484,7 +15485,7 @@ app.get('/api/sign/:token/data', (req, res) => {
     if (!isSig && !value) value = signerFieldPrefill(a, f);
     if (f.type === 'checkbox' && !(a.fieldValues && a.fieldValues[f.id] != null)) value = (String(f.value) === '1' || f.value === true) ? '1' : '';
     if (!isSig) value = fmtSignVal(f.type, value);
-    return { id: f.id, page: f.page, x: f.x, y: f.y, w: f.w, h: f.h, type: f.type, label: f.label, required: f.required, mine, locked, value };
+    return { id: f.id, page: f.page, x: f.x, y: f.y, w: f.w, h: f.h, type: f.type, label: f.label, required: f.required, mine, locked, value, bold: !!f.bold };
   });
   res.json({ ok: true, label: agreementTypeLabel(a.type), notes: a.notes || '', signerLabel: me.label, signerName: me.name, order: me.order, already: (me.status === 'signed'), fields });
 });
@@ -15595,8 +15596,10 @@ async function burnFinalPdf(a) {
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
   const times = await pdf.embedFont(StandardFonts.TimesRoman);
+  const timesBold = await pdf.embedFont(StandardFonts.TimesRomanBold);
   const courier = await pdf.embedFont(StandardFonts.Courier);
-  const _fontFor = function (nm) { nm = String(nm || '').toLowerCase(); if (nm.indexOf('times') >= 0 || nm.indexOf('palatino') >= 0 || nm.indexOf('georgia') >= 0 || nm.indexOf('serif') >= 0) return times; if (nm.indexOf('courier') >= 0 || nm.indexOf('mono') >= 0) return courier; return font; };
+  const courierBold = await pdf.embedFont(StandardFonts.CourierBold);
+  const _fontFor = function (nm, isBold) { nm = String(nm || '').toLowerCase(); if (nm.indexOf('times') >= 0 || nm.indexOf('palatino') >= 0 || nm.indexOf('georgia') >= 0 || nm.indexOf('serif') >= 0) return isBold ? timesBold : times; if (nm.indexOf('courier') >= 0 || nm.indexOf('mono') >= 0) return isBold ? courierBold : courier; return isBold ? bold : font; };
   const pages = pdf.getPages();
   for (const f of (a.pdfFields || [])) {
     const page = pages[f.page]; if (!page) continue;
@@ -15608,7 +15611,7 @@ async function burnFinalPdf(a) {
     } else if (f.type === 'checkbox') {
       let v = (a.fieldValues && a.fieldValues[f.id]); if (v == null) v = (String(f.value) === '1' || f.value === true) ? '1' : ''; if (v === '1' || v === true || v === 'true') { const s = Math.min(bw, bh); page.drawText('X', { x: bx + Math.max(1, (bw - s * 0.6) / 2), y: byBottom + Math.max(1, (bh - s * 0.72) / 2), size: s * 0.9, font: bold, color: rgb(0.05, 0.09, 0.2) }); }
     } else {
-      let _rawv = (a.fieldValues && a.fieldValues[f.id]); if (_rawv == null || _rawv === '') { try { _rawv = signerFieldPrefill(a, f) || ''; } catch (e) { _rawv = ''; } } const v = fmtSignVal(f.type, String(_rawv || '')); if (v) { const _fsz = parseFloat(f.fontSize); const size = (isFinite(_fsz) && _fsz > 0) ? Math.max(5, Math.min(48, _fsz)) : Math.max(7, Math.min(12, bh * 0.62)); const _ff = _fontFor(f.font); const _al = String(f.align || 'left'); const _lh = size * 1.18; const _tall = bh >= (_lh * 1.6); const _maxw = Math.max(4, bw - 4); const _widthOf = (s) => { try { return _ff.widthOfTextAtSize(s, size); } catch (e) { return s.length * size * 0.5; } }; let _lines = []; if (_tall) { const _paras = String(v).split(/\r?\n/); for (const _p of _paras) { const _words = _p.split(/\s+/).filter(Boolean); if (!_words.length) { _lines.push(''); continue; } let _cur = ''; for (const _w of _words) { const _tryLine = _cur ? _cur + ' ' + _w : _w; if (_widthOf(_tryLine) <= _maxw || !_cur) { _cur = _tryLine; } else { _lines.push(_cur); _cur = _w; } } if (_cur !== '' || !_lines.length) _lines.push(_cur); } const _maxLines = Math.max(1, Math.floor(bh / _lh)); if (_lines.length > _maxLines) _lines = _lines.slice(0, _maxLines); } else { _lines = [String(v).replace(/\r?\n/g, ' ').slice(0, 160)]; } const _y0 = _tall ? (byBottom + bh - size - 2) : (byBottom + Math.max(2, (bh - size) / 2)); for (let _i = 0; _i < _lines.length; _i++) { const _txt = _lines[_i]; if (_txt === '') continue; let _tx = bx + 2; const _tw = _widthOf(_txt); if (_al === 'center') _tx = bx + Math.max(2, (bw - _tw) / 2); else if (_al === 'right') _tx = bx + Math.max(2, bw - _tw - 2); page.drawText(_txt, { x: _tx, y: _y0 - _i * _lh, size, font: _ff, color: rgb(0.05, 0.09, 0.2) }); } }
+      let _rawv = (a.fieldValues && a.fieldValues[f.id]); if (_rawv == null || _rawv === '') { try { _rawv = signerFieldPrefill(a, f) || ''; } catch (e) { _rawv = ''; } } const v = fmtSignVal(f.type, String(_rawv || '')); if (v) { const _fsz = parseFloat(f.fontSize); const size = (isFinite(_fsz) && _fsz > 0) ? Math.max(5, Math.min(48, _fsz)) : Math.max(7, Math.min(12, bh * 0.62)); const _ff = _fontFor(f.font, !!f.bold); const _al = String(f.align || 'left'); const _lh = size * 1.18; const _tall = bh >= (_lh * 1.6); const _maxw = Math.max(4, bw - 4); const _widthOf = (s) => { try { return _ff.widthOfTextAtSize(s, size); } catch (e) { return s.length * size * 0.5; } }; let _lines = []; if (_tall) { const _paras = String(v).split(/\r?\n/); for (const _p of _paras) { const _words = _p.split(/\s+/).filter(Boolean); if (!_words.length) { _lines.push(''); continue; } let _cur = ''; for (const _w of _words) { const _tryLine = _cur ? _cur + ' ' + _w : _w; if (_widthOf(_tryLine) <= _maxw || !_cur) { _cur = _tryLine; } else { _lines.push(_cur); _cur = _w; } } if (_cur !== '' || !_lines.length) _lines.push(_cur); } const _maxLines = Math.max(1, Math.floor(bh / _lh)); if (_lines.length > _maxLines) _lines = _lines.slice(0, _maxLines); } else { _lines = [String(v).replace(/\r?\n/g, ' ').slice(0, 160)]; } const _y0 = _tall ? (byBottom + bh - size - 2) : (byBottom + Math.max(2, (bh - size) / 2)); for (let _i = 0; _i < _lines.length; _i++) { const _txt = _lines[_i]; if (_txt === '') continue; let _tx = bx + 2; const _tw = _widthOf(_txt); if (_al === 'center') _tx = bx + Math.max(2, (bw - _tw) / 2); else if (_al === 'right') _tx = bx + Math.max(2, bw - _tw - 2); page.drawText(_txt, { x: _tx, y: _y0 - _i * _lh, size, font: _ff, color: rgb(0.05, 0.09, 0.2) }); } }
     }
   }
   const fmtTs = (iso) => { if (!iso) return '\u2014'; try { return new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'UTC' }) + ' UTC'; } catch (e) { return String(iso).slice(0, 16).replace('T', ' ') + ' UTC'; } };
@@ -15715,6 +15718,7 @@ function advancedSignPage(a, me, req) {
     box.innerHTML=''; box.className='fbox';
     var _tallBox=(f.type!=='signature'&&f.type!=='initials'&&f.type!=='checkbox'&&f.type!=='date'&&(box.offsetHeight>=34));
     if(_tallBox){ box.style.alignItems='flex-start'; box.style.paddingTop='2px'; }
+    if(f.bold){ box.style.fontWeight='bold'; }
     if(f.locked){ box.classList.add('locked'); if(f.type==='signature'||f.type==='initials'){ var im=document.createElement('img'); im.src='/sign/'+encodeURIComponent(TOKEN)+'/fieldimg/'+encodeURIComponent(f.id); im.style.maxWidth='100%'; im.style.maxHeight='100%'; box.appendChild(im); } else if(f.type==='checkbox'){ box.textContent=f.value?'X':''; box.style.justifyContent='center'; box.style.fontWeight='900'; var _ls=Math.max(9,Math.min(20,(box.offsetHeight||14)*0.82)); box.style.fontSize=_ls+'px'; } else { box.textContent=f.value||''; } return; }
     if(!f.mine){ box.classList.add('other'); if(f.type==='signature'||f.type==='initials'){ box.textContent='Signature'; } else if(f.type==='checkbox'){ box.classList.add('prefilled'); box.textContent=(String(f.value)==='1')?'X':''; box.style.justifyContent='center'; box.style.fontWeight='900'; box.style.color='#0b1a3a'; var _cs=Math.max(9,Math.min(20,(box.offsetHeight||14)*0.82)); box.style.fontSize=_cs+'px'; } else { var ov=(f.value!=null?String(f.value):''); if(ov.trim()!==''){ box.textContent=ov; box.classList.add('prefilled'); } else { box.textContent=(f.label||''); } } return; }
     box.classList.add('mine');

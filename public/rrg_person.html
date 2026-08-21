@@ -910,6 +910,7 @@ function smAdvFillHtml(tpl){
     var secHdr=''; var sec=(String((f&&f.section)||'').trim())||_agrSection(f&&f.label);
     if(sec!==_lastSec){ _lastSec=sec; if(sec){ secHdr='<div style="font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#98a1b5;margin:15px 0 3px;padding-top:12px;border-top:1px solid #eef1f5">'+esc(sec)+'</div>'; } }
     var mine=(!f.signer||f.signer===repOrd);
+    var _bw=(f&&f.bold)?';font-weight:700':'';
     var val=(f.value!=null&&f.value!=='')?f.value:smPrefill(f);
     var reqStar=(f.required&&mine)?' <span style="color:#DA2B1F">*</span>':'';
     var note=mine?'':' <span style="color:#8a93a8;font-weight:600;text-transform:none;letter-spacing:0">— the signer completes this</span>';
@@ -918,7 +919,7 @@ function smAdvFillHtml(tpl){
     var inp;
     if(f.type==='checkbox'){ inp='<label style="display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:#1a2236"><input type="checkbox" class="sm_af" data-ff="'+esc(f.id)+'"'+((String(val)==='1'||val===true)?' checked':'')+reqAttr+' style="width:16px;height:16px"> Yes</label>'; }
     else if(f.type==='date'){ inp='<input type="date" class="sm_af" data-ff="'+esc(f.id)+'" value="'+esc(val||'')+'"'+reqAttr+' style="width:100%;box-sizing:border-box;border:1px solid #cfd6e2;border-radius:8px;padding:7px 9px;font:inherit;font-size:13px">'; }
-    else { var tall=((f.h||0)*792)>=34; if(tall){ inp='<textarea class="sm_af" data-ff="'+esc(f.id)+'" rows="3"'+reqAttr+' placeholder="'+esc(f.label||'')+'" style="width:100%;box-sizing:border-box;border:1px solid #cfd6e2;border-radius:8px;padding:7px 9px;font:inherit;font-size:13px;resize:vertical;line-height:1.35">'+esc(val||'')+'</textarea>'; } else { inp='<input type="text" class="sm_af" data-ff="'+esc(f.id)+'" value="'+esc(val||'')+'"'+reqAttr+' placeholder="'+esc(f.label||'')+'" style="width:100%;box-sizing:border-box;border:1px solid #cfd6e2;border-radius:8px;padding:7px 9px;font:inherit;font-size:13px">'; } }
+    else { var tall=((f.h||0)*792)>=34; if(tall){ inp='<textarea class="sm_af" data-ff="'+esc(f.id)+'" rows="3"'+reqAttr+' placeholder="'+esc(f.label||'')+'" style="width:100%;box-sizing:border-box;border:1px solid #cfd6e2;border-radius:8px;padding:7px 9px;font:inherit;font-size:13px;resize:vertical;line-height:1.35'+_bw+'">'+esc(val||'')+'</textarea>'; } else { inp='<input type="text" class="sm_af" data-ff="'+esc(f.id)+'" value="'+esc(val||'')+'"'+reqAttr+' placeholder="'+esc(f.label||'')+'" style="width:100%;box-sizing:border-box;border:1px solid #cfd6e2;border-radius:8px;padding:7px 9px;font:inherit;font-size:13px'+_bw+'">'; } }
     return secHdr+lbl+inp;
   }).join('');
   return '<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#8a94a6;margin:12px 0 2px">Complete the details</div><div style="font-size:12px;color:#8a93a8;margin:0 0 2px">Fill the deal-specific fields now. Blanks that auto-fill — your name, brokerage, today’s date — are handled for you.</div>'+rows;
