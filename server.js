@@ -15477,10 +15477,12 @@ app.get('/api/sign/:token/data', (req, res) => {
     // their own signature/initials, never change what an earlier party agreed to.
     const repLocked = !isSig && Array.isArray(a.repLockedFields) && a.repLockedFields.indexOf(f.id) >= 0;
     const frozen = !isSig && anySigned;
+    const _stored = (a.fieldValues && a.fieldValues[f.id]);
+    const _hasContent = !isSig && _stored != null && String(_stored).trim() !== '';
     // A field is fillable by whoever it's assigned to — text, date, checkbox AND signature —
     // until that signer has signed, and only if it isn't rep-locked or frozen by a prior signature.
-    const mine = (f.signer === me.order) && me.status !== 'signed' && !repLocked && !frozen;
-    const locked = signerSigned || repLocked || frozen;
+    const mine = (f.signer === me.order) && me.status !== 'signed' && !frozen && (!repLocked || !_hasContent);
+    const locked = signerSigned || frozen || (repLocked && _hasContent);
     let value = (a.fieldValues && a.fieldValues[f.id]) || '';
     if (!isSig && !value) value = signerFieldPrefill(a, f);
     if (f.type === 'checkbox' && !(a.fieldValues && a.fieldValues[f.id] != null)) value = (String(f.value) === '1' || f.value === true) ? '1' : '';
@@ -15650,7 +15652,8 @@ function submitAdvancedSign(req, res, all, a, me) {
   // Security: never accept edits to rep-locked details, or — once another party has already
   // signed — to any content field. A signer may only add their own signature/initials.
   const _anyOtherSigned = (a.signers || []).some(s => s.order !== me.order && s.status === 'signed');
-  const _fieldLocked = (f) => (f.type !== 'signature' && f.type !== 'initials') && ((Array.isArray(a.repLockedFields) && a.repLockedFields.indexOf(f.id) >= 0) || _anyOtherSigned);
+  const _fieldHasContent = (f) => { const v = a.fieldValues && a.fieldValues[f.id]; return v != null && String(v).trim() !== ''; };
+  const _fieldLocked = (f) => (f.type !== 'signature' && f.type !== 'initials') && (_anyOtherSigned || (Array.isArray(a.repLockedFields) && a.repLockedFields.indexOf(f.id) >= 0 && _fieldHasContent(f)));
   for (const f of myFields) {
     if (f.type === 'signature' || f.type === 'initials') { if (f.required && !sigs[f.id] && !fs.existsSync(sigFieldPath(a, f.id))) return res.status(400).json({ ok: false, error: 'Please complete: ' + (f.label || 'Signature') }); }
     else if (f.type === 'checkbox') { if (_fieldLocked(f)) continue; if (f.required && !values[f.id]) return res.status(400).json({ ok: false, error: 'Please check: ' + (f.label || 'the required box') }); }
