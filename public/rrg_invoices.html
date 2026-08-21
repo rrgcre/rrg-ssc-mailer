@@ -11,12 +11,12 @@
 *{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);}
 .wrap{max-width:1180px;margin:0 auto;padding:24px 28px 60px;}
-.pgh{font-size:26px;font-weight:800;color:var(--navy);margin:6px 0 2px;}
+.pgh{font-size:26px;font-weight:700;color:var(--navy);margin:6px 0 2px;}
 .pgs{color:var(--muted);font-size:13.5px;margin-bottom:18px;max-width:820px;line-height:1.5;}
 .stats{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;}
 .stat{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 16px;box-shadow:0 4px 16px rgba(10,20,50,.04);min-width:140px;}
 .stat .k{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);font-weight:700;}
-.stat .v{font-size:20px;font-weight:800;color:var(--navy);margin-top:3px;}
+.stat .v{font-size:20px;font-weight:700;color:var(--navy);margin-top:3px;}
 .stat.amber .v{color:#b7791f;} .stat.green .v{color:var(--green);}
 .card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 24px rgba(10,20,50,.06);overflow:hidden;margin-bottom:20px;}
 .hd{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;}
@@ -26,7 +26,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .meta{color:var(--muted);font-size:12px;}
 .amt{font-variant-numeric:tabular-nums;font-weight:700;color:var(--ink);}
 .acts{display:flex;gap:6px;flex-wrap:nowrap;justify-content:flex-end;white-space:nowrap;}
-.badge{display:inline-block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;border-radius:5px;padding:2px 8px;white-space:nowrap;}
+.badge{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;border-radius:5px;padding:2px 8px;white-space:nowrap;}
 .badge.draft{color:#5b6472;background:#eef1f6;border:1px solid #d9e0ea;}
 .badge.sent{color:#2647b0;background:#eef2fb;border:1px solid #d6e0f5;}
 .badge.partial{color:#a15c00;background:#fdf3e2;border:1px solid #f0d9ab;}
@@ -50,17 +50,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .fld input[type=text],.fld input[type=date],.fld input[type=number],.fld input[type=email],.fld select,.fld textarea{font:inherit;font-size:14px;padding:9px 11px;border:1px solid var(--line);border-radius:9px;width:100%;color:var(--ink);background:#fff;}
 .fld textarea{min-height:64px;resize:vertical;line-height:1.5;}
 .sec{margin-top:20px;padding-top:16px;border-top:1px solid var(--line);}
-.sec h3{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);font-weight:800;margin:0 0 12px;}
+.sec h3{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);font-weight:700;margin:0 0 12px;}
 .li{display:flex;gap:10px;align-items:center;margin-bottom:8px;}
 .li input.desc{flex:1;font:inherit;font-size:14px;padding:9px 11px;border:1px solid var(--line);border-radius:9px;}
 .li .money-in{width:170px;}
 .money-in{position:relative;} .money-in span{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--soft);font-size:14px;font-weight:700;} .money-in input{padding-left:24px !important;font:inherit;font-size:14px;padding:9px 11px;border:1px solid var(--line);border-radius:9px;width:100%;text-align:right;}
 .li .rm{border:none;background:#fdeceb;color:var(--red);width:30px;height:30px;border-radius:8px;font-size:16px;cursor:pointer;flex:0 0 auto;}
 .totals{display:flex;justify-content:flex-end;gap:26px;padding:12px 2px 2px;}
-.totals .tt{text-align:right;} .totals .tt .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--soft);font-weight:700;} .totals .tt .v{font-size:19px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums;}
+.totals .tt{text-align:right;} .totals .tt .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--soft);font-weight:700;} .totals .tt .v{font-size:19px;font-weight:700;color:var(--navy);font-variant-numeric:tabular-nums;}
 .totals .tt.bal .v{color:var(--red);} .totals .tt.paid .v{color:var(--green);}
 .payrow{display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid #eef1f6;font-size:13px;}
-.payrow .pd{width:64px;color:var(--muted);font-variant-numeric:tabular-nums;} .payrow .pm{flex:1;color:var(--ink);} .payrow .pa{font-weight:800;font-variant-numeric:tabular-nums;} .payrow .px{width:30px;text-align:right;}
+.payrow .pd{width:64px;color:var(--muted);font-variant-numeric:tabular-nums;} .payrow .pm{flex:1;color:var(--ink);} .payrow .pa{font-weight:700;font-variant-numeric:tabular-nums;} .payrow .px{width:30px;text-align:right;}
 .payrow .px button{border:none;background:none;color:var(--red);cursor:pointer;font-size:15px;}
 .payform{display:grid;grid-template-columns:120px 150px 1fr auto;gap:9px;align-items:end;margin-top:10px;background:var(--wash);border:1px solid var(--line);border-radius:10px;padding:11px 12px;}
 @media(max-width:700px){.payform{grid-template-columns:1fr 1fr;}}
@@ -73,7 +73,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .stat{border:1px solid var(--line) !important;}
 .btn,.fld input[type=text],.fld input[type=date],.fld input[type=number],.fld input[type=email],.fld select,.fld textarea,.li input.desc,.money-in input,.roinfo,.li .rm{border-radius:4px !important;}
 .badge{border-radius:3px !important;}
-.pgh{font-weight:800;letter-spacing:-.01em;}
+.pgh{font-weight:700;letter-spacing:-.01em;}
 .fld input:focus,.fld select:focus,.fld textarea:focus,.li input.desc:focus,.money-in input:focus{outline:none;border-color:#2c5c8f !important;box-shadow:0 0 0 3px rgba(44,92,143,.14) !important;}
 .lk{color:#2c5c8f;}
 </style>

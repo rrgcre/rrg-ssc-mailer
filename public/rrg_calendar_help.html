@@ -26,7 +26,7 @@ a:hover{text-decoration:underline;}
 .backlink:hover{color:#fff;text-decoration:none;}
 .shell{max-width:1180px;margin:22px auto;padding:0 24px 70px;display:grid;grid-template-columns:250px minmax(0,1fr);gap:26px;align-items:start;}
 .toc{position:sticky;top:74px;background:#fff;border:1px solid var(--line);border-radius:6px;overflow:hidden;}
-.toc .th{background:var(--wash);border-bottom:1px solid var(--line);padding:11px 15px;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--soft);}
+.toc .th{background:var(--wash);border-bottom:1px solid var(--line);padding:11px 15px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--soft);}
 .tsearch{padding:10px 12px;border-bottom:1px solid var(--line);}
 .tsearch input{width:100%;border:1px solid var(--inp);border-radius:4px;padding:7px 10px;font:inherit;font-size:12.5px;}
 .toc nav{max-height:calc(100vh - 200px);overflow:auto;padding:6px 0;}
@@ -42,26 +42,26 @@ a:hover{text-decoration:underline;}
 .tag{font-size:11px;font-weight:700;color:var(--slate);background:var(--wash);border:1px solid var(--line);border-radius:3px;padding:4px 10px;}
 section.card{background:#fff;border:1px solid var(--line);border-radius:6px;padding:22px 26px;margin-bottom:16px;scroll-margin-top:74px;}
 section.card>h2{font-size:16px;font-weight:700;color:var(--navy);letter-spacing:-.01em;padding-bottom:10px;border-bottom:1px solid var(--line);margin-bottom:14px;display:flex;align-items:center;gap:9px;}
-section.card>h2 .n{width:24px;height:24px;border-radius:4px;background:var(--navy);color:#fff;font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex:none;}
-h3{font-size:14.5px;font-weight:800;color:var(--slate);margin:18px 0 7px;}
+section.card>h2 .n{width:24px;height:24px;border-radius:4px;background:var(--navy);color:#fff;font-size:12px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex:none;}
+h3{font-size:14.5px;font-weight:700;color:var(--slate);margin:18px 0 7px;}
 p{margin:9px 0;}
 .lead{color:var(--muted);font-size:14px;}
 ul,ol{margin:9px 0 9px 4px;padding-left:22px;}
 li{margin:5px 0;}
 ol.steps{counter-reset:st;list-style:none;padding-left:0;margin:12px 0;}
 ol.steps>li{position:relative;padding:0 0 14px 40px;margin:0;}
-ol.steps>li:before{counter-increment:st;content:counter(st);position:absolute;left:0;top:-1px;width:26px;height:26px;border-radius:4px;background:#eef4fa;color:var(--primary-d);border:1px solid #cddcec;font-weight:800;font-size:12.5px;display:flex;align-items:center;justify-content:center;}
+ol.steps>li:before{counter-increment:st;content:counter(st);position:absolute;left:0;top:-1px;width:26px;height:26px;border-radius:4px;background:#eef4fa;color:var(--primary-d);border:1px solid #cddcec;font-weight:700;font-size:12.5px;display:flex;align-items:center;justify-content:center;}
 ol.steps>li:not(:last-child):after{content:"";position:absolute;left:13px;top:27px;bottom:2px;width:1px;background:var(--line);}
 ol.steps b{color:var(--slate);}
 .kbd{display:inline-block;background:var(--wash);border:1px solid var(--inp);border-bottom-width:2px;border-radius:3px;padding:1px 7px;font-size:12px;font-weight:700;color:var(--slate);}
 .callout{border:1px solid var(--line);border-left:3px solid var(--primary);background:#f7fafd;border-radius:0 4px 4px 0;padding:13px 16px;margin:14px 0;font-size:13.5px;}
 .callout.tip{border-left-color:var(--green);background:#f1f8f4;}
 .callout.warn{border-left-color:var(--red);background:#fbf3f2;}
-.callout .lbl{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:3px;}
+.callout .lbl{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:3px;}
 .callout.tip .lbl{color:var(--green);} .callout.warn .lbl{color:var(--red);}
 table.mx{width:100%;border-collapse:collapse;margin:14px 0;font-size:13px;}
 table.mx th,table.mx td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top;}
-table.mx th{background:var(--wash);font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:800;}
+table.mx th{background:var(--wash);font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:700;}
 table.mx td b{color:var(--slate);}
 .fq{border-top:1px solid var(--line);padding:13px 0;}
 .fq:first-of-type{border-top:none;}
@@ -214,7 +214,7 @@ table.mx td b{color:var(--slate);}
       </ul>
       <h3 id="tasks" style="scroll-margin-top:80px">Track tasks on your calendar</h3>
       <p>Add a date and time to any task and it appears on your calendar automatically, right alongside your meetings — so your to-dos and your schedule live in one view. Toggle them with the <b>✓ Tasks</b> button on the Calendar toolbar.</p>
-      <h3 id="gmailsync" style="scroll-margin-top:80px">Sync events from Gmail <span style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#8a5a12;background:#fff4e6;border:1px solid #f3d9a8;border-radius:999px;padding:1px 7px;vertical-align:middle">On the roadmap</span></h3>
+      <h3 id="gmailsync" style="scroll-margin-top:80px">Sync events from Gmail <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#8a5a12;background:#fff4e6;border:1px solid #f3d9a8;border-radius:999px;padding:1px 7px;vertical-align:middle">On the roadmap</span></h3>
       <p>Flights, hotels, and restaurant reservations sitting in your inbox will be added to your calendar automatically, so travel and bookings show up without you entering them by hand.</p>
       <h3 id="meet" style="scroll-margin-top:80px">Collaborate with Google Meet</h3>
       <p>Open a meeting and click <b>🎥 Add Google Meet</b> (when your Google account is connected) to mint a real Meet link on the event in one click, so you and your attendees can connect virtually without leaving the calendar.</p>

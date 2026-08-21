@@ -11,9 +11,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .top{color:#fff;padding:24px 0 26px;position:relative;overflow:hidden;background:radial-gradient(95% 130% at 28% 15%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
 .top-in{max-width:940px;margin:0 auto;padding:0 24px;position:relative;z-index:2;}
 .brand{display:inline-flex;align-items:center;cursor:pointer;} .disc{background:var(--red);color:#fff;border-radius:50%;width:38px;height:38px;font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:12px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
-.bar{background:#fff;width:3px;height:26px;margin:0 11px;} .wm{font-weight:800;font-size:12px;text-transform:uppercase;line-height:.95;}
+.bar{background:#fff;width:3px;height:26px;margin:0 11px;} .wm{font-weight:700;font-size:12px;text-transform:uppercase;line-height:.95;}
 .kicker{margin:16px 0 3px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:10px;text-transform:uppercase;}
-h1{font-size:26px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
+h1{font-size:26px;font-weight:700;margin:0;color:#fff;letter-spacing:-.01em;}
 .sub{color:#aeb8cf;font-size:13px;margin-top:6px;max-width:640px;}
 .wrap{max-width:940px;margin:22px auto;padding:0 24px 70px;}
 .card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 24px rgba(10,20,50,.05);overflow:hidden;margin-bottom:20px;}
@@ -22,8 +22,8 @@ h1{font-size:26px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
 /* pipeline flow */
 .flow{display:flex;flex-wrap:wrap;gap:10px;padding:16px 22px 4px;}
 .step{flex:1;min-width:150px;background:var(--wash);border:1px solid var(--line);border-radius:11px;padding:12px 14px;position:relative;}
-.step .n{width:22px;height:22px;border-radius:50%;background:var(--navy);color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-bottom:7px;}
-.step h4{margin:0 0 3px;font-size:13.5px;color:var(--navy);font-weight:800;} .step p{margin:0;font-size:11.5px;color:var(--muted);line-height:1.4;}
+.step .n{width:22px;height:22px;border-radius:50%;background:var(--navy);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-bottom:7px;}
+.step h4{margin:0 0 3px;font-size:13.5px;color:var(--navy);font-weight:700;} .step p{margin:0;font-size:11.5px;color:var(--muted);line-height:1.4;}
 .flownote{padding:12px 22px 4px;font-size:12.5px;color:var(--muted);line-height:1.55;}
 .tenant{padding:4px 22px 16px;font-size:12.5px;color:var(--ink);line-height:1.6;}
 .tenant b{color:var(--navy);}
@@ -171,7 +171,7 @@ var FAQ=[
   {isNew:true,q:"Can an automation pop up a message on my screen?",a:"Yes \u2014 add a <b>Flash a dialog</b> step to any automation (<b>Settings \u2192 Automations</b>). Give it a title and message (merge fields work). When the step runs it queues an on-screen dialog for the rep who enrolled the contact; the next time they are in the app it flashes with your message and an <b>OK</b> button. It informs \u2014 it does not ask anything."}
 ];
 document.getElementById('faqs').innerHTML=FAQ.map(function(f,i){
-  return '<div class="faq" data-i="'+i+'"><button class="faqq" type="button"><span class="chev">▶</span>'+esc(f.q)+(f.isNew?'<span style="display:inline-block;font-size:9px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#0e7a53;background:#e7f7ee;border:1px solid #bfe6d0;border-radius:999px;padding:1px 6px;margin-left:6px;vertical-align:middle">New</span>':'')+'</button><div class="faqa">'+f.a+'</div></div>';
+  return '<div class="faq" data-i="'+i+'"><button class="faqq" type="button"><span class="chev">▶</span>'+esc(f.q)+(f.isNew?'<span style="display:inline-block;font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#0e7a53;background:#e7f7ee;border:1px solid #bfe6d0;border-radius:999px;padding:1px 6px;margin-left:6px;vertical-align:middle">New</span>':'')+'</button><div class="faqa">'+f.a+'</div></div>';
 }).join('');
 document.querySelectorAll('.faqq').forEach(function(b){ b.addEventListener('click',function(){ b.closest('.faq').classList.toggle('open'); }); });
 </script>

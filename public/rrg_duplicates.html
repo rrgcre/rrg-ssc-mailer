@@ -25,24 +25,24 @@ h1{margin:0;font-size:16px;font-weight:700;color:var(--navy);} .sub{color:var(--
 .grp{background:#fff;border:1px solid var(--line);border-radius:6px;padding:16px 18px 18px;margin-bottom:16px;}
 .grp.gone{display:none;}
 .ghead{display:flex;align-items:center;gap:10px;margin:-16px -18px 14px;padding:11px 18px;background:var(--wash);border-bottom:1px solid var(--line);border-radius:6px 6px 0 0;}
-.ghead .lbl{font-weight:800;font-size:13.5px;color:var(--navy);}
+.ghead .lbl{font-weight:700;font-size:13.5px;color:var(--navy);}
 .ghead .why{font-size:11px;color:var(--faint);font-weight:600;}
 .ghead .gsp{margin-left:auto;display:flex;gap:8px;align-items:center;}
 .mrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;}
 .mc{border:1px solid var(--line);border-radius:6px;padding:13px 14px;position:relative;transition:.12s;background:#fff;}
 .mc.keep{border-color:var(--green);background:#f1f8f4;box-shadow:inset 0 0 0 1px var(--green);}
 .mc.drop{border-color:var(--line);background:#fff;opacity:.9;}
-.mc .pick{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;color:var(--dim);margin-bottom:9px;}
+.mc .pick{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;color:var(--dim);margin-bottom:9px;}
 .mc.keep .pick{color:var(--green);}
 .mc .radio{width:17px;height:17px;border-radius:50%;border:2px solid var(--inp);display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;}
 .mc.keep .radio{border-color:var(--green);} .mc.keep .radio::after{content:'';width:8px;height:8px;border-radius:50%;background:var(--green);}
-.mc .nm{font-weight:800;font-size:15px;color:var(--ink);line-height:1.2;}
+.mc .nm{font-weight:700;font-size:15px;color:var(--ink);line-height:1.2;}
 .mc .logo{width:30px;height:30px;border-radius:4px;object-fit:contain;background:#f2f5fa;border:1px solid var(--line);vertical-align:middle;margin-right:8px;}
 .mc .fld{font-size:12px;color:var(--dim);margin-top:5px;line-height:1.35;word-break:break-word;}
 .mc .fld b{color:var(--ink);font-weight:600;}
 .mc .badge{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:999px;background:var(--wash);color:var(--dim);margin:6px 5px 0 0;}
 .mc .badge.hot{background:#eaf4ec;color:var(--green);}
-.mc .keepflag{position:absolute;top:11px;right:12px;font-size:10px;font-weight:800;letter-spacing:.06em;color:var(--green);text-transform:uppercase;display:none;}
+.mc .keepflag{position:absolute;top:11px;right:12px;font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--green);text-transform:uppercase;display:none;}
 .mc.keep .keepflag{display:block;}
 .empty{text-align:center;color:var(--dim);padding:64px 20px;background:#fff;border:1px solid var(--line);border-radius:6px;} .empty b{color:var(--navy);display:block;font-size:17px;margin-bottom:7px;}
 .msg{font-size:12.5px;font-weight:700;} .msg.ok{color:var(--green);} .msg.err{color:var(--red);}
@@ -50,7 +50,7 @@ h1{margin:0;font-size:16px;font-weight:700;color:var(--navy);} .sub{color:var(--
 .spin{display:inline-block;width:15px;height:15px;border:2px solid var(--inp);border-top-color:var(--navy);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-3px;margin-right:7px;}
 @keyframes sp{to{transform:rotate(360deg);}}
 .navcrumb{display:none;max-width:1040px;margin:16px auto -2px;padding:0 24px;font-size:12.5px;color:var(--dim);font-weight:600;} body.rrg-shelled .navcrumb{display:block;} .navcrumb a{color:var(--primary);text-decoration:none;} .navcrumb a:hover{text-decoration:underline;} .navcrumb span{color:var(--faint);margin:0 7px;}
-.pkick{font-size:10.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--soft);margin:0 0 3px;}
+.pkick{font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--soft);margin:0 0 3px;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -211,7 +211,7 @@ function dupConfirm(msg,opts){
   opts=opts||{};
   return new Promise(function(resolve){
     var ov=document.createElement('div'); ov.style.cssText='position:fixed;inset:0;background:rgba(10,16,34,.5);display:flex;align-items:center;justify-content:center;z-index:1002';
-    ov.innerHTML='<div style="background:#fff;border-radius:14px;padding:22px 24px;width:410px;max-width:92vw;box-shadow:0 18px 60px rgba(0,0,0,.35)"><div style="font-weight:800;color:#000E31;font-size:16px">'+esc(opts.title||'Please confirm')+'</div><div style="color:#5a6478;font-size:13.5px;margin-top:9px;line-height:1.5">'+esc(msg||'')+'</div><div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px"><button type="button" id="_dcx" style="background:#fff;border:1px solid #d5dbe6;border-radius:9px;padding:9px 16px;font:inherit;font-size:13px;font-weight:700;color:#5a6478;cursor:pointer">'+esc(opts.cancelText||'Cancel')+'</button><button type="button" id="_dcok" style="background:'+(opts.danger?'#DA2B1F':'#000E31')+';border:none;border-radius:9px;padding:9px 18px;font:inherit;font-size:13px;font-weight:700;color:#fff;cursor:pointer">'+esc(opts.okText||'OK')+'</button></div></div>';
+    ov.innerHTML='<div style="background:#fff;border-radius:14px;padding:22px 24px;width:410px;max-width:92vw;box-shadow:0 18px 60px rgba(0,0,0,.35)"><div style="font-weight:700;color:#000E31;font-size:16px">'+esc(opts.title||'Please confirm')+'</div><div style="color:#5a6478;font-size:13.5px;margin-top:9px;line-height:1.5">'+esc(msg||'')+'</div><div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px"><button type="button" id="_dcx" style="background:#fff;border:1px solid #d5dbe6;border-radius:9px;padding:9px 16px;font:inherit;font-size:13px;font-weight:700;color:#5a6478;cursor:pointer">'+esc(opts.cancelText||'Cancel')+'</button><button type="button" id="_dcok" style="background:'+(opts.danger?'#DA2B1F':'#000E31')+';border:none;border-radius:9px;padding:9px 18px;font:inherit;font-size:13px;font-weight:700;color:#fff;cursor:pointer">'+esc(opts.okText||'OK')+'</button></div></div>';
     document.body.appendChild(ov);
     function done(v){ if(ov.parentNode) ov.parentNode.removeChild(ov); resolve(v); }
     ov.querySelector('#_dcx').addEventListener('click',function(){ done(false); });

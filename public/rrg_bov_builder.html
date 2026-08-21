@@ -12,13 +12,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 
 .toolbar{position:sticky;top:0;z-index:50;background:#fff;border-bottom:2px solid var(--primary,#2c5c8f);}
 .tb-inner{max-width:920px;margin:0 auto;padding:11px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
-.tt{font-weight:800;color:var(--navy);font-size:14px;} .tt span{color:var(--muted);font-weight:500;font-size:12px;margin-left:6px;}
+.tt{font-weight:700;color:var(--navy);font-size:14px;} .tt span{color:var(--muted);font-weight:500;font-size:12px;margin-left:6px;}
 /* NetSuite-style breadcrumb */
 .bovcrumb{display:flex;align-items:center;gap:7px;font-size:12.5px;min-width:0;flex-wrap:wrap;}
 .bovcrumb a{color:#5f6a7d;text-decoration:none;font-weight:600;}
 .bovcrumb a:hover{color:#2c5c8f;text-decoration:underline;}
 .bovcrumb .sep{color:#b7c0d0;font-size:12px;}
-.bovcrumb .cur{color:#20334f;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:340px;}
+.bovcrumb .cur{color:#20334f;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:340px;}
 .actions{display:flex;gap:8px;flex-wrap:wrap;}
 .btn{border:1px solid var(--inp);background:#fff;color:var(--navy);font-weight:600;font-size:12.5px;padding:8px 13px;border-radius:4px;cursor:pointer;}
 .btn:hover{border-color:#9fb0cc;} .btn.print{background:var(--navy);color:#fff;border-color:var(--navy);}
@@ -38,9 +38,9 @@ body.bov-locked #sheet .rrg-noprint button{display:none!important;}
 .confline{font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:#8fa0c2;font-weight:700;margin-bottom:22px;}
 .rrg{display:inline-flex;align-items:center;}
 .rrg .disc{background:var(--red);color:#fff;border-radius:50%;width:44px;height:44px;font-family:'Arial Black',Arial,Helvetica,sans-serif;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
-.rrg .bar{background:#fff;width:3px;height:32px;margin:0 12px;} .rrg .wm{font-weight:800;font-size:14px;text-transform:uppercase;line-height:.95;}
+.rrg .bar{background:#fff;width:3px;height:32px;margin:0 12px;} .rrg .wm{font-weight:700;font-size:14px;text-transform:uppercase;line-height:.95;}
 .kicker{margin:26px 0 6px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:11px;text-transform:uppercase;}
-.band h1 input{font-size:29px;font-weight:800;letter-spacing:-.01em;margin:0;color:#fff;background:transparent;border:none;border-bottom:1px dashed rgba(255,255,255,.22);width:100%;font-family:inherit;padding:0 0 3px;}
+.band h1 input{font-size:29px;font-weight:700;letter-spacing:-.01em;margin:0;color:#fff;background:transparent;border:none;border-bottom:1px dashed rgba(255,255,255,.22);width:100%;font-family:inherit;padding:0 0 3px;}
 .band h1 input:focus{outline:none;border-bottom-color:var(--red);}
 .subin{background:transparent;border:none;border-bottom:1px dashed rgba(255,255,255,.16);color:#c3ccdf;font-size:14px;font-weight:600;font-family:inherit;padding:6px 0 2px;width:100%;margin-top:8px;}
 .subin.tag{color:#9fb0cc;font-size:12px;font-style:italic;}
@@ -56,13 +56,13 @@ body.bov-locked #sheet .rrg-noprint button{display:none!important;}
 .strip .c{padding:13px 16px;border-right:1px solid rgba(255,255,255,.12);}
 .strip .c:last-child{border-right:none;}
 .strip .k{font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:#8fa0c2;font-weight:700;}
-.strip .v{font-family:inherit;font-weight:800;font-size:18px;color:#fff;margin-top:4px;line-height:1.05;}
+.strip .v{font-family:inherit;font-weight:700;font-size:18px;color:#fff;margin-top:4px;line-height:1.05;}
 .strip .v.red{color:#ff7a5c;}
 
 .inner{padding:6px 46px 34px;}
-.kl{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--red);font-weight:800;margin:30px 0 3px;}
+.kl{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--red);font-weight:700;margin:30px 0 3px;}
 .sec{display:flex;align-items:center;gap:12px;margin:2px 0 12px;}
-.sec h2{font-size:17px;color:var(--navy);margin:0;font-weight:800;letter-spacing:-.01em;}
+.sec h2{font-size:17px;color:var(--navy);margin:0;font-weight:700;letter-spacing:-.01em;}
 .sec .flex{flex:1;height:1px;background:var(--line);}
 .lead{font-size:12.5px;line-height:1.6;color:var(--ink);}
 .narr{width:100%;border:1px solid var(--inp);border-radius:9px;padding:11px 13px;font-family:inherit;font-size:12.5px;color:var(--ink);min-height:80px;resize:vertical;line-height:1.55;margin-top:8px;}
@@ -70,7 +70,7 @@ body.bov-locked #sheet .rrg-noprint button{display:none!important;}
 .sublabel{font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:14px 0 5px;}
 
 .callout{border-left:4px solid var(--red);background:var(--wash);border-radius:0 10px 10px 0;padding:13px 16px;margin-top:14px;}
-.callout .ct{font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--red);font-weight:800;margin-bottom:5px;}
+.callout .ct{font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--red);font-weight:700;margin-bottom:5px;}
 .callout textarea{width:100%;border:none;background:transparent;font-family:inherit;font-size:12px;color:var(--ink);line-height:1.55;resize:vertical;min-height:52px;}
 .callout textarea:focus{outline:none;} .callout textarea{overflow:hidden;}
 
@@ -81,7 +81,7 @@ th{font-size:8.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--mut
 td input{width:100%;border:1px solid transparent;border-radius:6px;padding:5px 6px;font-size:12px;font-family:inherit;color:var(--ink);background:#fff;text-align:right;font-weight:500;}
 td.l input{text-align:left;} td input:hover{border-color:var(--line);} td input:focus{outline:none;border-color:var(--red);background:#fffdfd;}
 td.calc{font-weight:700;color:var(--navy);}
-tr.tot td{font-weight:800;color:var(--navy);border-top:2px solid var(--navy);}
+tr.tot td{font-weight:700;color:var(--navy);border-top:2px solid var(--navy);}
 tr.tot td.calc{color:var(--red);}
 tr.baserow td{background:#fdeceb;font-weight:700;}
 .matrix td.calc,.matrix th{white-space:nowrap;}
@@ -89,7 +89,7 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
 .multguide{font-size:11.5px;color:var(--red);font-weight:700;background:#fdf1f0;border:1px solid #f2c9c6;border-radius:8px;padding:8px 11px;margin:2px 0 10px;max-width:470px;}
 .multtable td.multtd{padding:8px 6px;}
 .multwrap{display:inline-flex;align-items:center;gap:3px;justify-content:center;}
-.multwrap input{width:64px;border:1px solid var(--inp);border-radius:9px;padding:7px 4px;font-size:23px;font-weight:800;color:var(--navy);text-align:center;background:#fff;}
+.multwrap input{width:64px;border:1px solid var(--inp);border-radius:9px;padding:7px 4px;font-size:23px;font-weight:700;color:var(--navy);text-align:center;background:#fff;}
 .multwrap input:hover{border-color:#9fb0cc;} .multwrap input:focus{outline:none;border-color:var(--red);background:#fffdfd;}
 .multwrap .mx{font-size:18px;font-weight:700;color:var(--muted);}
 .multtd.base .multwrap input{border-color:var(--red);box-shadow:0 0 0 2px rgba(218,43,31,.12);}
@@ -97,7 +97,7 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
 .dualtable th{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;padding:6px 6px;text-align:center;}
 .dualtable td{padding:8px 6px;vertical-align:middle;text-align:center;border-top:1px solid var(--line);}
 .dualtable td.l{text-align:left;font-size:13px;color:var(--navy);}
-.dualtable td.calc{font-weight:800;color:var(--navy);white-space:nowrap;font-variant-numeric:tabular-nums;}
+.dualtable td.calc{font-weight:700;color:var(--navy);white-space:nowrap;font-variant-numeric:tabular-nums;}
 .dualtable .multwrap input{width:52px;font-size:16px;padding:6px 3px;border-radius:6px;}
 .dualtable .multwrap .mx{font-size:13px;}
 .dualtable tr.headrow{background:#eef4fb;}
@@ -471,14 +471,14 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
     BRIDGE_SPEC.forEach(function(row){
       if(row.op==='grp'){
         var gr=document.createElement('tr'); gr.className='grphead';
-        gr.innerHTML='<td colspan="2" style="padding:11px 0 3px;font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);border:none">'+esc(row.label)+'</td>';
+        gr.innerHTML='<td colspan="2" style="padding:11px 0 3px;font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);border:none">'+esc(row.label)+'</td>';
         tb.appendChild(gr); return;
       }
       var tr=document.createElement('tr');
       if(row.op==='st'){
         tr.className='subtot';
         var id = row.st==='ebitda'?'stEbitda':(row.st==='sde'?'stSde':'stAdj');
-        tr.innerHTML='<td class="l" style="font-weight:800;color:var(--navy)">'+esc(row.label)+'</td><td class="calc"><b id="'+id+'">$0</b></td>';
+        tr.innerHTML='<td class="l" style="font-weight:700;color:var(--navy)">'+esc(row.label)+'</td><td class="calc"><b id="'+id+'">$0</b></td>';
       } else {
         tr.innerHTML='<td class="l">'+esc(row.label)+'</td>'+
           '<td><input data-bk="'+row.key+'" inputmode="numeric" value="'+esc(state.bridge[row.key]||'')+'" placeholder="0"></td>';

@@ -14,13 +14,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .brand{display:inline-flex;align-items:center;cursor:pointer;}
 .disc{background:var(--red);color:#fff;border-radius:50%;width:42px;height:42px;font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
 .bar{background:#fff;width:3px;height:30px;margin:0 12px;}
-.wm{font-weight:800;font-size:14px;text-transform:uppercase;line-height:.95;}
+.wm{font-weight:700;font-size:14px;text-transform:uppercase;line-height:.95;}
 .kicker{margin:20px 0 4px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:11px;text-transform:uppercase;}
 .searchwrap{margin-left:auto;position:relative;display:flex;align-items:center;}
 .searchwrap .searchic{position:absolute;left:11px;color:#9aa3b2;pointer-events:none;}
 .searchwrap input{border:1px solid var(--line);border-radius:9px;padding:8px 12px 8px 34px;font:inherit;font-size:13px;min-width:230px;}
 .kick{color:var(--gold);font-weight:700;letter-spacing:.28em;font-size:11px;text-transform:uppercase;}
-h1{font-size:30px;font-weight:800;margin:0;letter-spacing:-.01em;}
+h1{font-size:30px;font-weight:700;margin:0;letter-spacing:-.01em;}
 .sub{color:#d8cfae;font-size:13px;margin-top:6px;max-width:680px;line-height:1.5;}
 .wrap{max-width:none;margin:20px 0;padding:0 28px 56px;}
 .card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 26px rgba(10,20,50,.06);}
@@ -36,7 +36,7 @@ h1{font-size:30px;font-weight:800;margin:0;letter-spacing:-.01em;}
 .tiles{display:flex;gap:9px;flex-wrap:wrap;padding:0 20px 4px;}
 .tile{border:1px solid var(--line);background:#fff;border-radius:11px;padding:9px 14px;cursor:pointer;min-width:96px;}
 .tile.on{border-color:var(--navy);box-shadow:0 0 0 1px var(--navy) inset;}
-.tile .n{font-size:20px;font-weight:800;color:var(--navy);}
+.tile .n{font-size:20px;font-weight:700;color:var(--navy);}
 .tile .l{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;margin-top:1px;}
 .bone{display:inline-block;font-size:10.5px;font-weight:700;color:#3a4c74;background:#eef2fb;border:1px solid #dbe4f5;border-radius:6px;padding:1px 7px;margin:1px 3px 1px 0;white-space:nowrap;}
 .spname{color:var(--navy);text-decoration:none;font-weight:600;}
@@ -63,12 +63,12 @@ h1{font-size:30px;font-weight:800;margin:0;letter-spacing:-.01em;}
 .msg{font-size:12.5px;color:var(--muted);}
 .acell a{margin-right:6px;}
 .aibox{background:#f6f4ff;border:1px solid #e2dcf6;border-radius:12px;padding:12px 14px;margin-bottom:16px;}
-.aihd{font-size:12.5px;font-weight:800;color:#5b46b8;}
+.aihd{font-size:12.5px;font-weight:700;color:#5b46b8;}
 .aihd span{display:block;font-weight:600;color:#8a80b3;font-size:11px;margin-top:2px;}
 .aibox textarea{width:100%;min-height:74px;margin-top:8px;border:1px solid #d7cff0;border-radius:9px;padding:9px 11px;font:inherit;font-size:13px;resize:vertical;}
 .airow{display:flex;align-items:center;gap:10px;margin-top:8px;}
 .mrow{display:flex;gap:12px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--line);}
-.mscore{font-size:20px;font-weight:800;min-width:40px;text-align:center;}
+.mscore{font-size:20px;font-weight:700;min-width:40px;text-align:center;}
 .mnm{font-weight:700;color:var(--navy);font-size:13.5px;}
 .mrs{color:var(--muted);font-size:12.5px;margin-top:2px;}
 .spdel{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;background:#fff;color:var(--red);border:1px solid #f0c9c6;border-radius:8px;cursor:pointer;vertical-align:middle;margin-left:6px;}
@@ -160,7 +160,7 @@ function money(n){ return (n==null||n==='')?'':('$'+Number(n).toFixed(2)); }
 function sf(n){ return (n==null||n==='')?'':(Number(n).toLocaleString()+' SF'); }
 function fmtDate(d){ if(!d) return ''; try{ return new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }catch(e){ return String(d).slice(0,10); } }
 function stColor(s){ return ({'Available':['#e7f5ee','#1f8a5b'],'Toured':['#e8f0fd','#2f6fd0'],'LOI Out':['#fdf1df','#b5791f'],'Leased':['#eceff5','#3a4c74'],'Passed':['#f3f4f7','#98a1b5']})[s]||['#eceff5','#3a4c74']; }
-function stPill(s){ var c=stColor(s); return '<span style="background:'+c[0]+';color:'+c[1]+';font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;white-space:nowrap">'+esc(s||'—')+'</span>'; }
+function stPill(s){ var c=stColor(s); return '<span style="background:'+c[0]+';color:'+c[1]+';font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;white-space:nowrap">'+esc(s||'—')+'</span>'; }
 function totalRent(sp){ if(sp.rent==null && sp.nnn==null) return null; return (Number(sp.rent)||0)+(Number(sp.nnn)||0); }
 
 function renderTiles(){
@@ -275,7 +275,7 @@ function renderSpaceFiles(){
   if(!files.length){ host.innerHTML='<div style="font-size:11.5px;color:#98a1b5">No brochures or photos yet.</div>'; return; }
   host.innerHTML='<div style="display:flex;flex-wrap:wrap;gap:10px">'+files.map(function(f){
     var url='/api/space-file/'+encodeURIComponent(EDIT.id)+'/'+encodeURIComponent(f.id);
-    var del='<button type="button" title="Remove" onclick="spaceFileDel(\''+f.id+'\')" style="position:absolute;top:-7px;right:-7px;width:20px;height:20px;border-radius:50%;border:1px solid #e5c0bd;background:#fff;color:#DA2B1F;font-weight:800;cursor:pointer;line-height:1;padding:0">\u00d7</button>';
+    var del='<button type="button" title="Remove" onclick="spaceFileDel(\''+f.id+'\')" style="position:absolute;top:-7px;right:-7px;width:20px;height:20px;border-radius:50%;border:1px solid #e5c0bd;background:#fff;color:#DA2B1F;font-weight:700;cursor:pointer;line-height:1;padding:0">\u00d7</button>';
     if(f.kind==='photo'){ return '<div style="position:relative"><a href="'+url+'" target="_blank" rel="noopener"><img src="'+url+'" alt="'+esc(f.name)+'" style="width:66px;height:66px;object-fit:cover;border-radius:9px;border:1px solid #e5e9f0;display:block"></a>'+del+'</div>'; }
     return '<div style="position:relative"><a href="'+url+'" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;max-width:190px;padding:9px 12px;border:1px solid #e5e9f0;border-radius:9px;background:#f7f9fc;color:#000E31;text-decoration:none;font-size:12px;font-weight:600"><span>\ud83d\udcc4</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(f.name)+'</span></a>'+del+'</div>';
   }).join('')+'</div>';
@@ -334,7 +334,7 @@ function openReview(){ var m=document.getElementById('revOv'); if(m){ m.removeAt
 function closeReview(){ var m=document.getElementById('revOv'); if(m) m.setAttribute('hidden',''); }
 function _rvTypeOpts(cur){ return '<option value="">\u2014 type \u2014</option>'+(TYPES||[]).map(function(t){ return '<option'+(t===cur?' selected':'')+'>'+esc(t)+'</option>'; }).join(''); }
 function renderReviewList(){ var host=document.getElementById('revList'); if(!host) return; host.innerHTML='<div style="color:var(--muted);font-size:13px;padding:10px 0">Loading\u2026</div>'; fetch('/api/spaces/review',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ var items=(j&&j.items)||[]; if(!items.length){ host.innerHTML='<div style="color:var(--muted);font-size:13px;padding:10px 0">Nothing to review right now.</div>'; return; } host.innerHTML=items.map(function(it){ var f=it.fields||{}; var fileLink=it.file?('<a href="/api/spaces/review/'+encodeURIComponent(it.id)+'/file" target="_blank" rel="noopener" style="color:#2c5c8f;font-weight:700;text-decoration:none;font-size:12px">\uD83D\uDCC4 Open flyer</a>'):''; return '<div class="revcard" data-rid="'+esc(it.id)+'" style="border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:12px">'
-  +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px"><b style="font-size:13px;color:var(--navy)">'+esc(it.subject||'(no subject)')+'</b><span style="font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;color:#b5641a;background:#fdf0e6;border:1px solid #f4d8bd;border-radius:999px;padding:1px 7px">'+esc(it.reason||'review')+'</span>'+fileLink+'<span style="margin-left:auto;font-size:11px;color:var(--muted);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(it.from||'')+'</span></div>'
+  +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px"><b style="font-size:13px;color:var(--navy)">'+esc(it.subject||'(no subject)')+'</b><span style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:#b5641a;background:#fdf0e6;border:1px solid #f4d8bd;border-radius:999px;padding:1px 7px">'+esc(it.reason||'review')+'</span>'+fileLink+'<span style="margin-left:auto;font-size:11px;color:var(--muted);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(it.from||'')+'</span></div>'
   +'<div class="grid" style="grid-template-columns:2fr 1fr;gap:8px"><div class="f"><label class="fld">Address</label><input class="rv" data-k="address" value="'+esc(f.address||'')+'"></div><div class="f"><label class="fld">Market</label><input class="rv" data-k="market" value="'+esc(f.market||'')+'"></div></div>'
   +'<div class="grid" style="grid-template-columns:2fr 1fr;gap:8px"><div class="f"><label class="fld">Center</label><input class="rv" data-k="center" value="'+esc(f.center||'')+'"></div><div class="f"><label class="fld">Type</label><select class="rv" data-k="spaceType">'+_rvTypeOpts(f.spaceType||'')+'</select></div></div>'
   +'<div class="grid" style="grid-template-columns:1fr 1fr 1fr;gap:8px"><div class="f"><label class="fld">Size (SF)</label><input class="rv" data-k="size" value="'+esc(_rvNum(f.size))+'"></div><div class="f"><label class="fld">Rent $/SF</label><input class="rv" data-k="rent" value="'+esc(_rvNum(f.rent))+'"></div><div class="f"><label class="fld">NNN $/SF</label><input class="rv" data-k="nnn" value="'+esc(_rvNum(f.nnn))+'"></div></div>'
