@@ -15713,6 +15713,8 @@ function advancedSignPage(a, me, req) {
   function renderField(f){
     var box=document.querySelector('[data-fid="'+f.id+'"]'); if(!box) return;
     box.innerHTML=''; box.className='fbox';
+    var _tallBox=(f.type!=='signature'&&f.type!=='initials'&&f.type!=='checkbox'&&f.type!=='date'&&(box.offsetHeight>=34));
+    if(_tallBox){ box.style.alignItems='flex-start'; box.style.paddingTop='2px'; }
     if(f.locked){ box.classList.add('locked'); if(f.type==='signature'||f.type==='initials'){ var im=document.createElement('img'); im.src='/sign/'+encodeURIComponent(TOKEN)+'/fieldimg/'+encodeURIComponent(f.id); im.style.maxWidth='100%'; im.style.maxHeight='100%'; box.appendChild(im); } else if(f.type==='checkbox'){ box.textContent=f.value?'X':''; box.style.justifyContent='center'; box.style.fontWeight='900'; var _ls=Math.max(9,Math.min(20,(box.offsetHeight||14)*0.82)); box.style.fontSize=_ls+'px'; } else { box.textContent=f.value||''; } return; }
     if(!f.mine){ box.classList.add('other'); if(f.type==='signature'||f.type==='initials'){ box.textContent='Signature'; } else if(f.type==='checkbox'){ box.classList.add('prefilled'); box.textContent=(String(f.value)==='1')?'X':''; box.style.justifyContent='center'; box.style.fontWeight='900'; box.style.color='#0b1a3a'; var _cs=Math.max(9,Math.min(20,(box.offsetHeight||14)*0.82)); box.style.fontSize=_cs+'px'; } else { var ov=(f.value!=null?String(f.value):''); if(ov.trim()!==''){ box.textContent=ov; box.classList.add('prefilled'); } else { box.textContent=(f.label||''); } } return; }
     box.classList.add('mine');
