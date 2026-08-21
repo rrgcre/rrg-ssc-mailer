@@ -816,6 +816,7 @@ function sendModalHtml(){
     +'<div class="agrmodalhd">Send an agreement</div>'
     +'<div class="agrmodalsub">Pick a saved agreement, confirm who signs, and send. This creates the record and emails it in one step.</div>'
     +'<label class="fld">Agreement</label><select id="sm_tpl"></select>'
+    +'<div id="sm_termwrap" hidden><label class="fld">Term (years)</label><input type="number" id="sm_term" min="0" max="99" step="1" placeholder="e.g. 1"><div class="agrmodalsub" style="margin-top:2px">The listing/agreement term for this send. Commission is tracked on the listing.</div></div>'
     +'<div id="sm_typewrap" hidden><label class="fld">Type</label><select id="sm_type">'+typeOpts+'</select></div>'
     +'<div id="sm_filewrap" hidden><label class="fld">Document</label><label class="mfadd" style="cursor:pointer">📎 Attach a PDF or Word file<input type="file" id="sm_file" accept=".pdf,.doc,.docx" hidden></label> <span id="sm_filename" style="font-size:12px;color:#1f8a5b"></span></div>'
     +'<div id="sm_simplewrap"><label class="fld">Send to</label><input id="sm_to" placeholder="name@email.com"></div>'
@@ -864,6 +865,8 @@ function smOnTpl(){
   document.getElementById('sm_simplewrap').hidden=(adv||!v); if(!adv&&v){ var _to=document.getElementById('sm_to'); if(_to&&!_to.value.trim()) _to.value=_pEmail(); }
   if(adv) document.getElementById('sm_signerswrap').innerHTML=smSignerRows(tpl);
   var fw=document.getElementById('sm_fields'); if(fw){ if(adv){ fw.innerHTML=smAdvFillHtml(tpl); } else if(tpl && tpl.signFields && tpl.signFields.length){ fw.innerHTML='<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#8a94a6;margin:10px 0 4px">Fill in before sending</div>'+tpl.signFields.map(function(fld,i){ return '<label class="fld">'+esc(fld.label)+(fld.required?' *':'')+'</label>'+smInput(fld,i); }).join(''); } else { fw.innerHTML=''; } }
+  (function(){ var _tw=document.getElementById('sm_termwrap'); var _ti=document.getElementById('sm_term');
+    if(_tw&&_ti){ if(tpl){ _tw.hidden=false; if(!_ti.value){ _ti.value=(tpl.termYears!=null&&tpl.termYears!=='')?tpl.termYears:''; } } else { _tw.hidden=true; _ti.value=''; } } })();
   smApplyMsg(tpl);
 }
 var _smAutoMsg='';
@@ -900,11 +903,12 @@ function _agrSection(label){ var L=String(label||'').toLowerCase();
   if(/special provision|location list/.test(L)) return 'Additional Details';
   return ''; }
 function smAdvFillHtml(tpl){
-  // Only surface the deal-specific blanks the rep must type. Auto-fill fields (brokerage,
-  // your name, party name, date, email) resolve automatically, so they never appear here.
-  var flds=((tpl&&tpl.pdfFields)||[]).filter(function(f){ return f && f.type!=='signature' && f.type!=='initials' && !String(f.autofill||'').trim(); });
-  if(!flds.length) return '';
+  // Only surface the deal-specific blanks the REP must type. Auto-fill fields resolve
+  // automatically, and fields assigned to another signer (“the signer completes this”) are
+  // theirs to fill on their own signing page — so they never appear here.
   var repOrd=smRepOrder(tpl);
+  var flds=((tpl&&tpl.pdfFields)||[]).filter(function(f){ return f && f.type!=='signature' && f.type!=='initials' && !String(f.autofill||'').trim() && (!f.signer || f.signer===repOrd); });
+  if(!flds.length) return '';
   var _lastSec=null;
   var rows=flds.map(function(f){
     var secHdr=''; var sec=(String((f&&f.section)||'').trim())||_agrSection(f&&f.label);
@@ -1252,7 +1256,7 @@ function doSendAgreement(){
   var msg=rrgRTText('sm_msg'); var msgHtml=rrgRTGet('sm_msg');
   var type=tpl?(tpl.type||'NDA'):(document.getElementById('sm_type').value||'NDA');
   var btn=document.getElementById('sm_send'); btn.disabled=true; out.style.color='#6b7488'; out.textContent='Creating…';
-  fetch('/api/agreements',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({personId:ID,type:type})})
+  fetch('/api/agreements',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({personId:ID,type:type,termYears:(function(){var _t=document.getElementById('sm_term');var _v=_t?parseInt(_t.value,10):NaN;return isFinite(_v)?_v:undefined;})()})})
     .then(function(r){return r.json();}).then(function(j){
       if(!(j&&j.ok)) throw new Error((j&&j.error)||'Could not create the agreement.');
       var id=j.agreement.id;
@@ -1286,7 +1290,7 @@ function doCopyLink(){
   var adv=!!(tpl&&tpl.pdfFields&&tpl.pdfFields.length);
   var type=tpl?(tpl.type||'NDA'):(document.getElementById('sm_type').value||'NDA');
   var cb=document.getElementById('sm_copylink'), sb=document.getElementById('sm_send'); if(cb) cb.disabled=true; if(sb) sb.disabled=true; out.style.color='#6b7488'; out.textContent='Creating link…';
-  fetch('/api/agreements',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({personId:ID,type:type})}).then(function(r){return r.json();}).then(function(j){
+  fetch('/api/agreements',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({personId:ID,type:type,termYears:(function(){var _t=document.getElementById('sm_term');var _v=_t?parseInt(_t.value,10):NaN;return isFinite(_v)?_v:undefined;})()})}).then(function(r){return r.json();}).then(function(j){
     if(!(j&&j.ok)) throw new Error((j&&j.error)||'Could not create the agreement.');
     var id=j.agreement.id; var step;
     if(tpl){ step=fetch('/api/agreements/'+encodeURIComponent(id)+'/apply-template',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({templateId:tpl.id})}).then(function(r){return r.json();}); }

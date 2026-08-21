@@ -97,7 +97,7 @@ function curById(id){ return PLANS.filter(function(p){return p.id===id;})[0]||nu
 
 function initSteps(){
   var p=EDIT;
-  STEPS=(p&&p.steps&&p.steps.length)?p.steps.map(function(s){ return {type:(['task','notification','logactivity','assignment','pipeline','dialog'].indexOf(s.type)>=0?s.type:'email'),delayDays:(s.delayDays||0),delayHours:(s.delayHours||0),delayMinutes:(s.delayMinutes||0),name:s.name||'',subject:s.subject||'',body:s.body||'',taskTitle:s.taskTitle||'',taskNote:s.taskNote||'',message:s.message||'',notifyEmail:s.notifyEmail||'',channel:(s.channel==='text'?'text':'email'),actType:s.actType||'Note',actNote:s.actNote||'',setStatus:s.setStatus||'',advanceStage:s.advanceStage||'',markLive:!!s.markLive,pipelineId:s.pipelineId||'',pipelineStage:s.pipelineStage||'',dialogTitle:s.dialogTitle||'',dialogBody:s.dialogBody||''}; }):((p&&p.id)?[]:[{type:'email',delayDays:0,subject:'',body:'',taskTitle:'',taskNote:''}]);
+  STEPS=(p&&p.steps&&p.steps.length)?p.steps.map(function(s){ return {type:(['task','notification','logactivity','assignment','pipeline','dialog','createcontact'].indexOf(s.type)>=0?s.type:'email'),delayDays:(s.delayDays||0),delayHours:(s.delayHours||0),delayMinutes:(s.delayMinutes||0),name:s.name||'',subject:s.subject||'',body:s.body||'',taskTitle:s.taskTitle||'',taskNote:s.taskNote||'',message:s.message||'',notifyEmail:s.notifyEmail||'',channel:(s.channel==='text'?'text':'email'),actType:s.actType||'Note',actNote:s.actNote||'',setStatus:s.setStatus||'',advanceStage:s.advanceStage||'',markLive:!!s.markLive,pipelineId:s.pipelineId||'',pipelineStage:s.pipelineStage||'',dialogTitle:s.dialogTitle||'',dialogBody:s.dialogBody||'',cName:s.cName||'',cCompany:s.cCompany||'',cEmail:s.cEmail||'',cPhone:s.cPhone||'',cNotes:s.cNotes||''}; }):((p&&p.id)?[]:[{type:'email',delayDays:0,subject:'',body:'',taskTitle:'',taskNote:''}]);
 }
 function _stepTypeLabel(t){ return ({email:'Send email',task:'Create task',notification:'Send notification',logactivity:'Log activity',assignment:'Update assignment',pipeline:'Move to pipeline & stage',dialog:'Flash a dialog'})[t]||t; }
 function _fmtDur(mins){ mins=Math.max(0,Math.round(mins)); if(!mins) return '0m'; var d=Math.floor(mins/1440); mins-=d*1440; var h=Math.floor(mins/60); var m=mins-h*60; var parts=[]; if(d)parts.push(d+'d'); if(h)parts.push(h+'h'); if(m)parts.push(m+'m'); return parts.join(' '); }
@@ -107,7 +107,7 @@ function renderSteps(){
   if(!STEPS.length){ box.innerHTML='<div class="note" style="margin:0 0 6px">No steps yet — add an email or task step below.</div>'; return; }
   box.innerHTML=STEPS.map(function(s,i){
     var waitLabel=(i===0)?'when enrolled (wait':'wait';
-    var typeSel='<select class="st-type" data-i="'+i+'"><option value="email"'+(s.type==='email'?' selected':'')+'>Send email</option><option value="task"'+(s.type==='task'?' selected':'')+'>Create task</option><option value="notification"'+(s.type==='notification'?' selected':'')+'>Send notification</option><option value="logactivity"'+(s.type==='logactivity'?' selected':'')+'>Log activity</option><option value="assignment"'+(s.type==='assignment'?' selected':'')+'>Update assignment</option><option value="pipeline"'+(s.type==='pipeline'?' selected':'')+'>Move to pipeline &amp; stage</option><option value="dialog"'+(s.type==='dialog'?' selected':'')+'>Flash a dialog</option></select>';
+    var typeSel='<select class="st-type" data-i="'+i+'"><option value="email"'+(s.type==='email'?' selected':'')+'>Send email</option><option value="task"'+(s.type==='task'?' selected':'')+'>Create task</option><option value="notification"'+(s.type==='notification'?' selected':'')+'>Send notification</option><option value="logactivity"'+(s.type==='logactivity'?' selected':'')+'>Log activity</option><option value="assignment"'+(s.type==='assignment'?' selected':'')+'>Update assignment</option><option value="pipeline"'+(s.type==='pipeline'?' selected':'')+'>Move to pipeline &amp; stage</option><option value="dialog"'+(s.type==='dialog'?' selected':'')+'>Flash a dialog</option><option value="createcontact"'+(s.type==='createcontact'?' selected':'')+'>Create a record (contact + company)</option></select>';
     var content;
     if(s.type==='notification'){
       var _txAvail=(SMSNOTIFY&&SMSREADY);
@@ -130,10 +130,12 @@ function renderSteps(){
       content='<div class="stx">'+_noPipeNote+'<div class="note" style="margin:0 0 6px">Moves the linked listing into a pipeline and stage. Runs only when the enrolled contact has a linked listing.</div><label>» Pipeline</label><select class="st-pipeline" data-i="'+i+'">'+_pipeOpts+'</select><label>Stage</label><select class="st-stage" data-i="'+i+'"'+(_curPipe?'':' disabled')+'>'+_stageOpts+'</select></div>';
     } else if(s.type==='dialog'){
       content='<div class="stx"><div class="note" style="margin:0 0 6px">Flashes an on-screen message to the enrolling rep the next time they are in the app \u2014 informational, with an OK button to close.</div><label>Dialog title (optional)</label><input type="text" class="st-dialogtitle" data-i="'+i+'" value="'+esc(s.dialogTitle||'')+'" placeholder="e.g. Follow up now"><label>Message</label><textarea class="st-dialogbody" data-i="'+i+'" placeholder="What the rep should see \u2014 e.g. {{first_name}}\u2019s NDA is signed. Send the CIM today.">'+esc(s.dialogBody||'')+'</textarea></div>';
+    } else if(s.type==='createcontact'){
+      content='<div class="stx"><div class="note" style="margin:0 0 6px">Creates a new contact record (and its company / concept if given), linked to the enrolled contact as referrer. Use {{tokens}} to pull from the enrolled contact.</div><label>Contact name</label><input type="text" class="st-cname" data-i="'+i+'" value="'+esc(s.cName||'')+'" placeholder="e.g. Referred owner name"><label>Company / concept (optional)</label><input type="text" class="st-ccompany" data-i="'+i+'" value="'+esc(s.cCompany||'')+'" placeholder="Business or concept name"><label>Email (optional)</label><input type="text" class="st-cemail" data-i="'+i+'" value="'+esc(s.cEmail||'')+'" placeholder="name@example.com"><label>Phone (optional)</label><input type="text" class="st-cphone" data-i="'+i+'" value="'+esc(s.cPhone||'')+'" placeholder="(555) 555-5555"><label>Notes (optional)</label><textarea class="st-cnotes" data-i="'+i+'" placeholder="Anything to capture about this contact…">'+esc(s.cNotes||'')+'</textarea></div>';
     } else {
       content='<div class="stx">'+((ETPLS&&ETPLS.length)?('<label>Start from a template</label><select class="st-tplpick" data-i="'+i+'" style="font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:#fff;width:100%;max-width:340px;margin-bottom:2px"><option value="">— choose a template —</option>'+ETPLS.map(function(t){return '<option value="'+esc(t.id)+'">'+esc(t.name)+(t.scope==='shared'?' (shared)':'')+'</option>';}).join('')+'</select>'):'')+'<label>Subject</label><input type="text" class="st-subject" data-i="'+i+'" value="'+esc(s.subject||'')+'" placeholder="e.g. Great to connect, {{first_name}}"><label>Body</label><textarea class="st-body" data-i="'+i+'" placeholder="Write the email… use {{first_name}} to personalize.">'+esc(s.body||'')+'</textarea></div>';
     }
-    var _ic={email:'✉',task:'✓',notification:'!',logactivity:'✎',assignment:'⇄',pipeline:'⇉'}[s.type]||'•';
+    var _ic={email:'✉',task:'✓',notification:'!',logactivity:'✎',assignment:'⇄',pipeline:'⇉',createcontact:'+'}[s.type]||'•';
     var _lead=(i===0)?'When enrolled,':'Then';
     var _waitInner=(i===0?'Run':'Wait')+' <input type="number" min="0" max="3650" class="days st-delay" data-i="'+i+'" value="'+(s.delayDays==null?0:s.delayDays)+'"> d <input type="number" min="0" max="23" class="days st-delayh" data-i="'+i+'" value="'+(s.delayHours==null?0:s.delayHours)+'"> h <input type="number" min="0" max="59" class="days st-delaym" data-i="'+i+'" value="'+(s.delayMinutes==null?0:s.delayMinutes)+'"> m '+(i===0?'after enrollment':'after the previous step');
     return '<div class="step" data-si="'+i+'"><div class="sr"><span class="sn c-'+s.type+'">'+_ic+'</span><span class="lead">'+_lead+'</span>'+typeSel
@@ -147,7 +149,7 @@ function renderSteps(){
   Array.prototype.forEach.call(box.querySelectorAll('.st-channel'),function(el){ el.onchange=function(){ collectSteps(); STEPS[+el.getAttribute('data-i')].channel=el.value; renderSteps(); }; });
   Array.prototype.forEach.call(box.querySelectorAll('.st-pipeline'),function(el){ el.onchange=function(){ collectSteps(); var i=+el.getAttribute('data-i'); STEPS[i].pipelineId=el.value; STEPS[i].pipelineStage=''; renderSteps(); }; });
   Array.prototype.forEach.call(box.querySelectorAll('.st-stage'),function(el){ el.onchange=function(){ collectSteps(); }; });
-  Array.prototype.forEach.call(box.querySelectorAll('.st-subject,.st-body,.st-message,.st-tasktitle,.st-tasknote'),function(el){ el.addEventListener('focus',function(){ LASTFLD=el; }); });
+  Array.prototype.forEach.call(box.querySelectorAll('.st-subject,.st-body,.st-message,.st-tasktitle,.st-tasknote,.st-cname,.st-ccompany,.st-cemail,.st-cphone,.st-cnotes'),function(el){ el.addEventListener('focus',function(){ LASTFLD=el; }); });
   Array.prototype.forEach.call(box.querySelectorAll('.st-tplpick'),function(el){ el.onchange=function(){ if(!el.value) return; var t=(ETPLS||[]).filter(function(x){return x.id===el.value;})[0]; if(!t) return; collectSteps(); var i=+el.getAttribute('data-i'); STEPS[i].subject=t.subject||''; STEPS[i].body=t.body||''; renderSteps(); }; });
   Array.prototype.forEach.call(box.querySelectorAll('.ib.up'),function(b){ b.onclick=function(){ moveStep(+b.getAttribute('data-i'),-1); }; });
   Array.prototype.forEach.call(box.querySelectorAll('.ib.dn'),function(b){ b.onclick=function(){ moveStep(+b.getAttribute('data-i'),1); }; });
@@ -174,6 +176,11 @@ function collectSteps(){
     var ml=row.querySelector('.st-marklive'); if(ml) s.markLive=ml.checked;
     var pp=row.querySelector('.st-pipeline'); if(pp) s.pipelineId=pp.value;
     var pst=row.querySelector('.st-stage'); if(pst) s.pipelineStage=pst.value;
+    var cn=row.querySelector('.st-cname'); if(cn) s.cName=cn.value;
+    var cc=row.querySelector('.st-ccompany'); if(cc) s.cCompany=cc.value;
+    var ce=row.querySelector('.st-cemail'); if(ce) s.cEmail=ce.value;
+    var cph=row.querySelector('.st-cphone'); if(cph) s.cPhone=cph.value;
+    var cno=row.querySelector('.st-cnotes'); if(cno) s.cNotes=cno.value;
   });
 }
 function moveStep(i,d){ collectSteps(); var j=i+d; if(j<0||j>=STEPS.length) return; var t=STEPS[i]; STEPS[i]=STEPS[j]; STEPS[j]=t; renderSteps(); }
@@ -188,7 +195,7 @@ function renderEditor(){
     +'<div class="fld" style="margin:6px 0 4px"><label>Visibility</label><select id="pScope" style="max-width:340px"><option value="shared"'+((p.scope!=='private')?' selected':'')+'>Shared — everyone on the team can use it</option><option value="private"'+((p.scope==='private')?' selected':'')+'>Private — only you (and admins)</option></select></div>'
     +'<div class="stephd"><b>Steps</b></div><div class="note" style="margin:2px 0 8px">Click a token to drop it into the field you last clicked:</div>'+tokBar()
     +'<div id="stepBox"></div>'
-    +'<div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn" id="addEmail">+ Email step</button><button type="button" class="btn" id="addTask">+ Task step</button><button type="button" class="btn" id="addNotify">+ Notify step</button><button type="button" class="btn" id="addLogAct">+ Log activity</button><button type="button" class="btn" id="addAssign">+ Update assignment</button><button type="button" class="btn" id="addPipeline">+ Move stage</button></div>'
+    +'<div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn" id="addEmail">+ Email step</button><button type="button" class="btn" id="addTask">+ Task step</button><button type="button" class="btn" id="addNotify">+ Notify step</button><button type="button" class="btn" id="addLogAct">+ Log activity</button><button type="button" class="btn" id="addAssign">+ Update assignment</button><button type="button" class="btn" id="addPipeline">+ Move stage</button><button type="button" class="btn" id="addRecord">+ Create record</button></div>'
     +'<div class="note">The first step fires when a contact is enrolled (set its wait to 0 days). Each later step waits that many days after the previous one. Emails only go to contacts with a valid email; if email isn’t set up or a contact has none, that step is skipped and noted — the sequence keeps going.</div>'
     +'</div></div>';
   renderSteps();
@@ -201,6 +208,7 @@ function renderEditor(){
   document.getElementById('addLogAct').onclick=function(){ collectSteps(); STEPS.push({type:'logactivity',delayDays:0,actType:'Note',actNote:'',subject:'',body:'',taskTitle:'',taskNote:'',message:'',channel:'email'}); renderSteps(); };
   document.getElementById('addAssign').onclick=function(){ collectSteps(); STEPS.push({type:'assignment',delayDays:0,setStatus:'Active',advanceStage:'agreed',markLive:true,subject:'',body:'',taskTitle:'',taskNote:'',message:'',channel:'email'}); renderSteps(); };
   document.getElementById('addPipeline').onclick=function(){ collectSteps(); STEPS.push({type:'pipeline',delayDays:0,pipelineId:'',pipelineStage:'',subject:'',body:'',taskTitle:'',taskNote:'',message:'',channel:'email'}); renderSteps(); };
+  var _arb=document.getElementById('addRecord'); if(_arb) _arb.onclick=function(){ collectSteps(); STEPS.push({type:'createcontact',delayDays:0,cName:'',cCompany:'',cEmail:'',cPhone:'',cNotes:''}); renderSteps(); };
   var db=document.getElementById('delBtn'); if(db) db.onclick=onDelete;
 }
 function tog(arr,v){ var i=arr.indexOf(v); if(i>=0)arr.splice(i,1); else arr.push(v); }

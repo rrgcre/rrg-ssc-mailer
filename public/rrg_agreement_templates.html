@@ -93,6 +93,10 @@ textarea{min-height:92px;resize:vertical;line-height:1.5;}
 .ovd{font-size:12px;color:var(--muted);line-height:1.55;}
 .ovd b{color:var(--ink);font-weight:700;}
 #agrOverview.collapsed .cb{display:none;}
+.tcsec{margin-top:18px;border:1px solid #e6ebf3;border-radius:12px;overflow:hidden;}
+.tchd{background:#f4f7fb;padding:10px 14px;border-bottom:1px solid #e6ebf3;font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#33415c;}
+.tchd span{font-weight:600;text-transform:none;letter-spacing:0;color:#8a93a8;}
+.tcbody{padding:14px;}
 </style>
 <script src="/rrg_list.js"></script>
 <script src="/rrg_brand.js"></script>
@@ -249,6 +253,10 @@ function renderEditor(){
       +rrgRT('t_emailmsg', _msgToHtml(e.emailMessage), DEFAULT_EMAIL_MSG)
       +'<div style="margin-top:12px;display:flex;gap:14px;flex-wrap:wrap"><div style="flex:1;min-width:210px"><label class="fld">⟳ When sent, run automation'+AUTOICON+'</label><select id="t_sendauto" style="width:100%"><option value="">\u2014 none \u2014</option>'+autoOpts(e.sendAuto)+'</select></div><div style="flex:1;min-width:210px"><label class="fld">⟳ After fully executed, run automation'+AUTOICON+'</label><select id="t_execauto" style="width:100%"><option value="">\u2014 none \u2014</option>'+autoOpts(e.execAuto)+'</select></div></div>'+
       '<div class="note">Default note the signer gets with their link. The rep can tweak it per send. Leave blank to use the system default.</div></div>'+
+    '<div class="tcsec"><div class="tchd">\u23F3 Default term <span>\u2014 the starting term for agreements sent from this template; the rep can change it per send. Commission is tracked on the listing.</span></div><div class="tcbody">'+
+      '<div class="grid2"><div><label class="fld">Term (years)</label><input id="t_termyears" type="number" min="0" max="99" step="1" value="'+esc(e.termYears||'')+'" placeholder="e.g. 1"></div><div><label class="fld">Expiration clock</label><label class="chk" style="margin-top:8px"><input type="checkbox" id="t_startonexec" '+(e.startOnExec?'checked':'')+'> Starts on the execution (signed) date</label></div></div>'+
+      '<div class="note" style="margin-top:9px">On execution, the <b>effective date</b> and <b>expiration</b> fill in from the term, and the agreement flows into your expiring-soon dashboard.</div>'+
+    '</div></div>'+
     '<div class="chk"><input type="checkbox" id="t_active"'+((e.active===false)?'':' checked')+'> Active (reps can pick this template)</div>'+
     '<div class="btnrow">'+((e.fileExt==='pdf')?('<a class="btn ghost" href="/rrg_sign_designer.html?template='+esc(e.id)+'">✍ '+((e.pdfFields&&e.pdfFields.length)?('Edit placed fields ('+e.pdfFields.length+')'):'Design fields on the PDF')+'</a>'):'')+'<button class="btn red" id="t_save">'+(e.id?'Save changes':'Create template')+'</button><span class="msg" id="t_msg"></span></div>'+
     '</div></div>';
@@ -290,7 +298,7 @@ function saveTpl(){
   var name=(document.getElementById('t_name').value||'').trim();
   var msg=document.getElementById('t_msg');
   if(!name){ document.getElementById('t_name').focus(); if(msg){msg.textContent='Name the template first.';msg.className='msg err';} return; }
-  var body={ name:name, type:document.getElementById('t_type').value, signFields:(collectFieldRows(),TFIELDS.filter(function(f){return (f.label||'').trim();})), emailMessage:rrgRTGet('t_emailmsg'), greeting:((document.getElementById('t_greeting')||{}).value||'none'), emailSubject:((document.getElementById('t_subject')||{}).value||''), sendAuto:((document.getElementById('t_sendauto')||{}).value||''), execAuto:((document.getElementById('t_execauto')||{}).value||''), active:document.getElementById('t_active').checked };
+  var body={ name:name, type:document.getElementById('t_type').value, signFields:(collectFieldRows(),TFIELDS.filter(function(f){return (f.label||'').trim();})), emailMessage:rrgRTGet('t_emailmsg'), greeting:((document.getElementById('t_greeting')||{}).value||'none'), emailSubject:((document.getElementById('t_subject')||{}).value||''), sendAuto:((document.getElementById('t_sendauto')||{}).value||''), execAuto:((document.getElementById('t_execauto')||{}).value||''), active:document.getElementById('t_active').checked, termYears:(parseInt((document.getElementById('t_termyears')||{}).value,10)||0), startOnExec:!!((document.getElementById('t_startonexec')||{}).checked) };
   if(EDIT&&EDIT.id) body.id=EDIT.id;
   var fileEl=document.getElementById('t_file'); var file=(fileEl&&fileEl.files&&fileEl.files[0])||null;
   if(file&&file.size>20*1024*1024){ if(msg){msg.textContent='File too large (max 20 MB).';msg.className='msg err';} return; }

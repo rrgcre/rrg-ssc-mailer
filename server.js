@@ -6620,7 +6620,7 @@ function newAutomationId() { return 'auto_' + Date.now().toString(36) + Math.ran
 function newEnrollId() { return 'enr_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function cleanAutoSteps(arr) {
   return (Array.isArray(arr) ? arr : []).slice(0, 30).map(function (st, i) {
-    const type = ['task', 'notification', 'logactivity', 'assignment', 'pipeline', 'dialog'].indexOf(st && st.type) >= 0 ? st.type : 'email';
+    const type = ['task', 'notification', 'logactivity', 'assignment', 'pipeline', 'dialog', 'createcontact'].indexOf(st && st.type) >= 0 ? st.type : 'email';
     const o = { type: type, delayDays: Math.max(0, Math.min(3650, parseInt((st && st.delayDays), 10) || 0)), delayHours: Math.max(0, Math.min(23, parseInt((st && st.delayHours), 10) || 0)), delayMinutes: Math.max(0, Math.min(59, parseInt((st && st.delayMinutes), 10) || 0)), name: String((st && st.name) || '').slice(0, 80) };
     if (type === 'email') { o.subject = String((st && st.subject) || '').slice(0, 300); o.body = String((st && st.body) || '').slice(0, 20000); }
     else if (type === 'task') { o.taskTitle = String((st && st.taskTitle) || '').slice(0, 300); o.taskNote = String((st && st.taskNote) || '').slice(0, 2000); }
@@ -6629,8 +6629,9 @@ function cleanAutoSteps(arr) {
     else if (type === 'assignment') { o.setStatus = String((st && st.setStatus) || '').slice(0, 40); o.advanceStage = String((st && st.advanceStage) || '').slice(0, 20); o.markLive = !!(st && st.markLive); }
     else if (type === 'pipeline') { o.pipelineId = String((st && st.pipelineId) || '').slice(0, 40); o.pipelineStage = String((st && st.pipelineStage) || '').slice(0, 80); }
     else if (type === 'dialog') { o.dialogTitle = String((st && st.dialogTitle) || '').slice(0, 120); o.dialogBody = String((st && st.dialogBody) || '').slice(0, 2000); }
+    else if (type === 'createcontact') { o.cName = String((st && st.cName) || '').slice(0, 160); o.cCompany = String((st && st.cCompany) || '').slice(0, 160); o.cEmail = String((st && st.cEmail) || '').slice(0, 160); o.cPhone = String((st && st.cPhone) || '').slice(0, 60); o.cNotes = String((st && st.cNotes) || '').slice(0, 2000); }
     return o;
-  }).filter(function (st) { return (st.type === 'logactivity' || st.type === 'assignment') ? true : (st.type === 'pipeline' ? st.pipelineId : (st.type === 'dialog' ? (st.dialogBody || st.dialogTitle) : (st.type === 'task' ? st.taskTitle : (st.type === 'notification' ? st.message : (st.subject || st.body))))); });
+  }).filter(function (st) { return (st.type === 'logactivity' || st.type === 'assignment') ? true : (st.type === 'pipeline' ? st.pipelineId : (st.type === 'dialog' ? (st.dialogBody || st.dialogTitle) : (st.type === 'createcontact' ? st.cName : (st.type === 'task' ? st.taskTitle : (st.type === 'notification' ? st.message : (st.subject || st.body)))))); });
 }
 const FLASH_DIALOGS_FILE = path.join(BOV_DATA_DIR, 'flash_dialogs.json');
 function loadFlashDialogs() { try { return rj(FLASH_DIALOGS_FILE) || []; } catch (e) { return []; } }
@@ -6771,6 +6772,29 @@ async function runAutomationStep(p, en, step) {
       logActivity(p, 'To-Do', 'Automation created a task: ' + mergeTokens(step.taskTitle, p), { auto: true, by: 'Automation' });
       return 'task created';
     } catch (e) { return 'task error: ' + (e && e.message); }
+  }
+  if (step.type === 'createcontact') {
+    try {
+      const _nm = mergeTokens(step.cName || '', p).replace(/\s+/g, ' ').trim();
+      if (!_nm) return 'skipped: no contact name';
+      const _now = new Date().toISOString();
+      const _coName = mergeTokens(step.cCompany || '', p).replace(/\s+/g, ' ').trim().slice(0, 160);
+      let _companyId = '', _companyNm = '';
+      if (_coName) {
+        const _cos = loadCompanies();
+        let _co = _cos.find(function (c) { return String(c.name || '').trim().toLowerCase() === _coName.toLowerCase(); });
+        if (!_co) { _co = { id: newCompanyId(), name: _coName, type: '', concepts: [], createdAt: _now, by: 'Automation (' + (en.automationName || '') + ')', byUser: 'automation' }; _cos.push(_co); saveCompanies(_cos); }
+        _companyId = _co.id; _companyNm = _co.name;
+      }
+      const _email = mergeTokens(step.cEmail || '', p).trim().slice(0, 160);
+      const _phone = mergeTokens(step.cPhone || '', p).trim().slice(0, 60);
+      const _notes = mergeTokens(step.cNotes || '', p).slice(0, 2000);
+      const _parts = _nm.split(' ');
+      const _np = { id: newPersonId(), name: _nm.slice(0, 160), firstName: (_parts[0] || _nm).slice(0, 80), lastName: _parts.slice(1).join(' ').slice(0, 80), company: _companyNm, companyId: _companyId, emails: _email ? [_email] : [], phones: _phone ? [_phone] : [], type: 'Other', notes: _notes, referredById: p.id, referredBy: p.name || '', leadSource: 'Referral', createdAt: _now, updatedAt: _now, by: 'Automation (' + (en.automationName || '') + ')', byUser: 'automation' };
+      const _ppl = loadPeople(); _ppl.push(_np); savePeople(_ppl);
+      logActivity(p, 'Note', 'Automation created a contact: ' + _nm + (_companyNm ? (' \u2014 ' + _companyNm) : ''), { auto: true, by: 'Automation' });
+      return 'contact created: ' + _nm;
+    } catch (e) { return 'create-contact error: ' + (e && e.message); }
   }
   if (!isEmailConfigured()) return 'skipped: email not configured';
   const to = preferredEmailOf(p);
@@ -15025,7 +15049,7 @@ app.get('/sign/:token', (req, res) => {
   const _party = p ? p.name : (a.personName || '');
   const _coName = a.companyId ? ((companyById(a.companyId) || {}).name || '') : '';
   const _today = new Date().toISOString().slice(0, 10);
-  function prefillFor(fld) { const k = String(fld.autofill || '').toLowerCase(); const L = String(fld.label || '').toLowerCase(); const _rep = repUserForAgreement(a); if (k === 'party_name' || k === 'name' || (!k && /\bname\b/.test(L))) return _party; if (k === 'first_name') return p ? (personFirst(p) || '') : ''; if (k === 'last_name') return p ? (personLast(p) || '') : ''; if (k === 'title') return p ? (p.title || '') : ''; if (k === 'phone') return p ? preferredPhoneOf(p) : ''; if (k === 'company' || (!k && /(company|firm)/.test(L))) return _coName; if (k === 'my_name') return _rep.name; if (k === 'my_title') return _rep.title; if (k === 'my_email') return _rep.email; if (k === 'my_phone') return _rep.phone; if (k === 'brokerage' || k === 'brokerage_legal' || (!k && /(brokerage|broker legal)/.test(L))) return orgLegalName(); if (k === 'date' || (!k && /date/.test(L))) return _today; if (k === 'email' || (!k && /email/.test(L))) return (p ? preferredEmailOf(p) : ''); return ''; }
+  function prefillFor(fld) { const k = String(fld.autofill || '').toLowerCase(); const L = String(fld.label || '').toLowerCase(); const _rep = repUserForAgreement(a); if (k === 'party_name' || k === 'name') return _party; if (k === 'first_name') return p ? (personFirst(p) || '') : ''; if (k === 'last_name') return p ? (personLast(p) || '') : ''; if (k === 'title') return p ? (p.title || '') : ''; if (k === 'phone') return p ? preferredPhoneOf(p) : ''; if (k === 'company') return _coName; if (k === 'my_name') return _rep.name; if (k === 'my_title') return _rep.title; if (k === 'my_email') return _rep.email; if (k === 'my_phone') return _rep.phone; if (k === 'brokerage' || k === 'brokerage_legal') return orgLegalName(); if (k === 'date') return _today; if (k === 'email') return (p ? preferredEmailOf(p) : ''); return ''; }
   const _vals = Array.isArray(a.fieldValues) ? a.fieldValues : [];
   const fieldHtml = '<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#8a93a8;margin:4px 0 8px">Agreement details</div>'+fields.map(function(fld, i){ var val=(_vals[i]!=null && String(_vals[i])!=='')?_vals[i]:prefillFor(fld); return '<div style="display:flex;justify-content:space-between;gap:14px;padding:9px 0;border-bottom:1px solid #eef1f6"><span style="font-size:12.5px;font-weight:700;color:#8a93a8">'+esc(fld.label)+'</span><span style="font-size:14.5px;color:#1a2236;font-weight:600;text-align:right">'+esc(fmtSignVal(fld.type==='autofill'?(fld.autofill||'text'):fld.type, val)||'\u2014')+'</span></div>'; }).join('');
   const docLink = (function(){ if(!a.docExt) return ''; var src='/sign/'+esc(a.signToken)+'/doc'; var open='<div style="text-align:right;margin-top:8px"><a href="'+src+'" target="_blank" rel="noopener" style="color:#2647b0;font-weight:700;font-size:12.5px;text-decoration:none">Open full document ↗</a></div>'; var hdr='<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#8a93a8;margin:4px 0 10px">Document preview</div>'; if(a.docExt==='pdf') return hdr+'<div style="border:1px solid #e6e9f0;border-radius:10px;overflow:hidden;background:#f5f7fb"><iframe src="'+src+'#view=FitH" title="Agreement document" style="width:100%;height:540px;border:0;display:block"></iframe></div>'+open; if(a.docExt==='png'||a.docExt==='jpg') return hdr+'<div style="border:1px solid #e6e9f0;border-radius:10px;overflow:hidden;background:#f5f7fb;text-align:center"><img src="'+src+'" alt="Agreement document" style="max-width:100%;display:block;margin:0 auto"></div>'+open; return hdr+'<a href="'+src+'" target="_blank" rel="noopener" style="display:block;text-align:center;border:1px dashed #cfd6e2;border-radius:10px;padding:18px;color:#2647b0;font-weight:700;text-decoration:none;background:#f8fafc">Open the '+esc(label)+' document to review →</a>'; })();
@@ -15167,7 +15191,7 @@ function fmtSignVal(type, val) {
   if (type === 'currency') { const raw = val.replace(/[^0-9.\-]/g, ''); const c = Number(raw); return (raw !== '' && isFinite(c)) ? ('$' + c.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })) : val; }
   return val;
 }
-function templateBrief(t) { return { id: t.id, name: t.name || '', type: t.type || '', fileExt: t.fileExt || '', fileName: t.fileName || '', signFields: Array.isArray(t.signFields) ? t.signFields : [], greeting: t.greeting || 'none', emailSubject: t.emailSubject || '', emailMessage: t.emailMessage || '', sendAuto: t.sendAuto || '', execAuto: t.execAuto || '', pdfFields: Array.isArray(t.pdfFields) ? t.pdfFields : [], signerCount: _clampSigners(t.signerCount), signer1Label: t.signer1Label || 'Signer 1', signer2Label: t.signer2Label || 'Signer 2', signer3Label: t.signer3Label || 'Signer 3', active: t.active !== false, updatedAt: t.updatedAt || '', createdAt: t.createdAt || '', lastUsedAt: t.lastUsedAt || '', useCount: t.useCount || 0 }; }
+function templateBrief(t) { return { id: t.id, name: t.name || '', type: t.type || '', fileExt: t.fileExt || '', fileName: t.fileName || '', signFields: Array.isArray(t.signFields) ? t.signFields : [], greeting: t.greeting || 'none', emailSubject: t.emailSubject || '', emailMessage: t.emailMessage || '', sendAuto: t.sendAuto || '', execAuto: t.execAuto || '', pdfFields: Array.isArray(t.pdfFields) ? t.pdfFields : [], signerCount: _clampSigners(t.signerCount), signer1Label: t.signer1Label || 'Signer 1', signer2Label: t.signer2Label || 'Signer 2', signer3Label: t.signer3Label || 'Signer 3', active: t.active !== false, termYears: t.termYears || 0, startOnExec: !!t.startOnExec, commBasis: t.commBasis || '', commRate: (t.commRate!=null?t.commRate:''), commFlat: (t.commFlat!=null?t.commFlat:''), updatedAt: t.updatedAt || '', createdAt: t.createdAt || '', lastUsedAt: t.lastUsedAt || '', useCount: t.useCount || 0 }; }
 app.get('/api/agreement-templates', (req, res) => {
   const isAdmin = !!(req.user && isSuper(req.user));
   let all = loadTemplates().map(templateBrief);
@@ -15191,6 +15215,11 @@ app.post('/api/admin/agreement-templates', requireAdmin, express.json(), (req, r
   if (b.sendAuto !== undefined) t.sendAuto = String(b.sendAuto || '').slice(0, 40);
   if (b.execAuto !== undefined) t.execAuto = String(b.execAuto || '').slice(0, 40);
   if (b.active !== undefined) t.active = !!b.active;
+  if (b.termYears !== undefined) { const _ty = parseInt(b.termYears, 10); t.termYears = (isFinite(_ty) && _ty > 0 && _ty <= 99) ? _ty : 0; }
+  if (b.startOnExec !== undefined) t.startOnExec = !!b.startOnExec;
+  if (b.commBasis !== undefined) { const _cb = String(b.commBasis || ''); t.commBasis = (['custompct','flatfee'].indexOf(_cb) >= 0) ? _cb : ''; }
+  if (b.commRate !== undefined) { const _cr = agrNum(b.commRate); t.commRate = (_cr > 0) ? Math.min(100, _cr) : ''; }
+  if (b.commFlat !== undefined) { const _cf = agrNum(b.commFlat); t.commFlat = (_cf > 0) ? _cf : ''; }
   t.updatedAt = now; saveTemplates(all);
   res.json({ ok: true, template: templateBrief(t) });
 });
@@ -15349,6 +15378,8 @@ app.post('/api/agreements/:id/apply-template', express.json(), (req, res) => {
   a.emailSubject = t.emailSubject || '';
   a.sendAuto = t.sendAuto || '';
   a.execAuto = t.execAuto || a.execAuto || '';
+  if (t.termYears && !a.termYears) a.termYears = t.termYears;   // template default; a per-send term (set at create) wins
+  if (t.startOnExec != null && a.startOnExec == null) a.startOnExec = !!t.startOnExec;
   if (Array.isArray(t.signFields) && t.signFields.length) a.signFields = t.signFields;
   if (t.type && agreementTypeKeys().indexOf(t.type) >= 0) a.type = t.type;
   a.updatedAt = new Date().toISOString(); saveAgreements(all);

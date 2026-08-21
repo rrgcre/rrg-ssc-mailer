@@ -138,9 +138,11 @@ function loadUser(user, host){
   }).catch(function(){ host.innerHTML='<div class="uloading">Could not reach the server.</div>'; });
 }
 
+var TOOLNAMES={'rrg_rooms_queue':'Data Rooms','rrg_room':'Data Room','rrg_company':'Company','rrg_person':'Contact','rrg_contacts':'Contacts','rrg_companies':'Companies','rrg_space_tracker':'Space Tracker','rrg_shopping_centers':'Shopping Centers','rrg_agreement_templates':'Agreement Templates','rrg_agreements':'Agreements','rrg_sign_designer':'Field Designer','rrg_settings':'Settings','rrg_activity':'Activity & Logs','rrg_team':'Team','rrg_loi_builder':'LOI Builder','rrg_cim_builder':'CIM Builder','rrg_bov_builder':'BOV Builder','rrg_attack_builder':'Attack Plan','rrg_form_builder':'Form Builder','rrg_assignment':'Listing','rrg_assignments':'Listings','rrg_board':'Pipeline Board','rrg_deals':'Deals','rrg_calendar':'Calendar','rrg_reports':'Reports','rrg_account':'Account','rrg_user':'Team member','rrg_email_templates':'Email Templates','rrg_ai_prompts':'AI Prompts','rrg_valuation_rules':'Valuation Rules'};
+function toolName(pth){ var p=String(pth||''); if(!p) return '(tool)'; var f=p.replace(/^\//,'').replace(/\.html$/,'').split('?')[0]; if(f===''||f==='index') return 'Dashboard'; if(TOOLNAMES[f]) return TOOLNAMES[f]; return f.replace(/^rrg_/,'').replace(/_/g,' ').replace(/\b\w/g,function(c){return c.toUpperCase();}); }
 function buildSessions(usage,logins){
   var ev=[];
-  (usage||[]).forEach(function(u){ ev.push({ts:u.ts,when:u.when,label:u.tool||'(tool)',kind:'tool',ip:u.ip||''}); });
+  (usage||[]).forEach(function(u){ ev.push({ts:u.ts,when:u.when,label:toolName(u.tool),kind:'tool',ip:u.ip||''}); });
   (logins||[]).forEach(function(l){ ev.push({ts:l.ts,when:l.when,label:(l.result==='success'?'Signed in':'Failed sign-in'),kind:(l.result==='success'?'login':'loginfail'),ip:l.ip||''}); });
   ev=ev.filter(function(e){return e.ts;});
   ev.sort(function(a,b){ return a.ts<b.ts?-1:(a.ts>b.ts?1:0); });
