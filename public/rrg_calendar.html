@@ -472,6 +472,7 @@ gcalStatus();
 (function(){ var tb=document.getElementById('taskToggle'); if(!tb) return; function sync(){ tb.classList.toggle('on',SHOWTASKS); } sync(); tb.addEventListener('click',function(){ SHOWTASKS=!SHOWTASKS; try{ localStorage.setItem('rrg_cal_showtasks',SHOWTASKS?'1':'0'); }catch(e){} sync(); render(); }); })();
 function fillAutos(){ var sel=document.getElementById("f_auto"); if(!sel) return; var cur=sel.value; sel.innerHTML='<option value="">\u2014 none \u2014</option>'+AUTOS.map(function(x){return '<option value="'+esc(x.id)+'">'+esc(x.name)+'</option>';}).join(""); sel.value=cur; }
 fetch("/api/automations",{credentials:"same-origin"}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ AUTOS=(j.automations||[]).map(function(x){return {id:x.id,name:x.name||"Automation"};}); fillAutos(); } }).catch(function(){});
+try{ fetch('/api/me/bookings-seen',{method:'POST',credentials:'same-origin'}); }catch(e){}
 load();
 </script>
 </body></html>

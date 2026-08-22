@@ -11878,7 +11878,10 @@ app.get('/api/counts', (req, res) => {
   let tasksToday = 0;
   loadTasks().forEach(t => { if (t.status === 'open' && taskVisible(t, req) && t.due && String(t.due).slice(0, 10) === _ts) tasksToday++; });
   const dueToday = { 'rrg_tasks.html': tasksToday };
-  res.json({ ok: true, counts, active, expiring, overdue, dueToday });
+  let newBookings = 0;
+  try { const me = req.user && req.user.username; if (me) { const seen = ((loadSettings().bookingSeen || {})[String(me).toLowerCase()]) || ''; loadAppts().forEach(a => { if (a && a.source === 'booking' && a.byUser === me && a.status !== 'cancelled' && a.status !== 'deleted' && String(a.createdAt || '') > seen) newBookings++; }); } } catch (e) {}
+  const newbookings = { 'rrg_calendar.html': newBookings };
+  res.json({ ok: true, counts, active, expiring, overdue, dueToday, newbookings });
 });
 // ---- Command Center — management + prospecting intelligence across the book & pipeline ----
 function daysUntil(dateStr) {
@@ -14373,6 +14376,12 @@ app.post('/api/me/booking', express.json(), (req, res) => {
   if (cur.enabled && !cur.token) cur.token = _bookToken();
   all[un] = cur; saveBookings(all); const base = appBaseUrl();
   res.json({ ok: true, enabled: !!cur.enabled, token: cur.token || '', length: cur.length || 30, buffer: cur.buffer || 0, minNotice: cur.minNotice || 0, title: cur.title || '', types: (Array.isArray(cur.types) ? cur.types : []), questions: (Array.isArray(cur.questions) ? cur.questions : []), lengths: BOOK_LENGTHS, ownerTz: GSYNC_TZ, link: (cur.token ? ((base || '') + '/book/' + cur.token) : '') });
+});
+app.post('/api/me/bookings-seen', express.json(), (req, res) => {
+  const un = req.user && req.user.username; if (!un) return res.status(401).json({ ok: false });
+  const s = loadSettings(); if (!s.bookingSeen || typeof s.bookingSeen !== 'object') s.bookingSeen = {};
+  s.bookingSeen[String(un).toLowerCase()] = new Date().toISOString(); saveSettings(s);
+  res.json({ ok: true });
 });
 app.get('/book/:token', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'rrg_book.html')); });
 app.get('/api/book/:token', (req, res) => {

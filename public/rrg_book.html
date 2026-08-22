@@ -138,6 +138,7 @@ function sideHtml(showBack, showPick){
   h+='<div class="evname">'+esc((TYPE&&TYPE.name)||'Meeting')+'</div>';
   h+='<div class="irow"><span class="ic">⏱</span><span>'+(LEN||(TYPE&&TYPE.length)||30)+' min</span></div>';
   if(TYPE&&TYPE.location) h+='<div class="irow"><span class="ic">📍</span><span>'+esc(TYPE.location)+'</span></div>';
+  else h+='<div class="irow"><span class="ic">📹</span><span>Web conferencing details provided upon confirmation.</span></div>';
   if(showPick&&SELSLOT) h+='<div class="irow"><span class="ic">📅</span><span>'+esc(fmtLong(SELSLOT))+'</span></div>';
   h+='<div class="irow"><span class="ic">🌐</span><span>'+esc(tzLabel())+' ('+esc(tzShort())+')</span></div>';
   if(TYPE&&TYPE.description) h+='<div class="desc">'+String(TYPE.description)+'</div>';
