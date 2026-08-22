@@ -12073,9 +12073,10 @@ app.get('/api/admin/users', requireAdmin, (req, res) => {
 });
 // ===== Rep / user records — a team member's book, KPIs and lists =====
 function _taxLast4(v){ return String(v||'').replace(/\D/g,'').slice(-4); }
-function effPayroll(un) { const s = loadSettings(); const m = (s.payroll && typeof s.payroll === 'object') ? s.payroll : {}; const p = m[String(un).toLowerCase()] || {}; return { paymentMethod: p.paymentMethod || '', w9OnFile: !!p.w9OnFile, w9Date: p.w9Date || '', taxClass: p.taxClass || '', taxId: _taxLast4(p.taxId), payNotes: p.payNotes || '' }; }
+function effPayroll(un) { const s = loadSettings(); const m = (s.payroll && typeof s.payroll === 'object') ? s.payroll : {}; const p = m[String(un).toLowerCase()] || {}; return { paymentMethod: p.paymentMethod || '', w9OnFile: !!p.w9OnFile, w9Date: p.w9Date || '', taxClass: p.taxClass || '', taxId: p.taxId || '', payNotes: p.payNotes || '' }; }
 // One-time purge: reduce any already-stored full SSN/EIN to its last four digits.
 function maskPayrollSsns() {
+  return; // full SSN is retained for 1099 reporting (admin-only)
   try {
     const flag = path.join(BOV_DATA_DIR, 'payroll_ssn_masked.json');
     if (fs.existsSync(flag)) return;
@@ -12183,7 +12184,7 @@ app.post('/api/user/:username/payroll', requireAdmin, express.json(), (req, res)
   if (b.w9OnFile !== undefined) cur.w9OnFile = !!b.w9OnFile;
   if (typeof b.w9Date === 'string') cur.w9Date = b.w9Date.slice(0, 10);
   if (typeof b.taxClass === 'string') cur.taxClass = b.taxClass.slice(0, 60);
-  if (typeof b.taxId === 'string') cur.taxId = _taxLast4(b.taxId);
+  if (typeof b.taxId === 'string') cur.taxId = b.taxId.replace(/\D/g,'').slice(0,9);
   if (typeof b.payNotes === 'string') cur.payNotes = b.payNotes.slice(0, 2000);
   s.payroll[key] = cur; saveSettings(s);
   res.json({ ok: true, payroll: effPayroll(u.username) });
@@ -14031,7 +14032,7 @@ function _apptReminderIso(start, mins) { try { const d = new Date(start); if (is
 function _apptStep(iso, repeat, n) { try { const d = new Date(iso); if (isNaN(d.getTime())) return iso; if (repeat === 'weekly') d.setDate(d.getDate() + 7 * n); else if (repeat === 'biweekly') d.setDate(d.getDate() + 14 * n); else if (repeat === 'monthly') d.setMonth(d.getMonth() + n); return _apptFmt(d); } catch (e) { return iso; } }
 const APPT_TYPES = ['Meeting', 'Call', 'Tour', 'Listing Presentation', 'Closing', 'Follow-up', 'Other'];
 function _cleanAttendees(arr) { return (Array.isArray(arr) ? arr : []).slice(0, 20).map(function (x) { return { name: String((x && x.name) || '').slice(0, 120), email: String((x && x.email) || '').slice(0, 160).trim() }; }).filter(function (x) { return x.name || x.email; }); }
-function apptBrief(a) { return { id: a.id, title: a.title || '', contactPersonId: a.contactPersonId || '', contactName: a.contactName || '', companyId: a.companyId || '', start: a.start || '', end: a.end || '', allDay: !!a.allDay, location: a.location || '', type: a.type || '', notes: a.notes || '', attendees: Array.isArray(a.attendees) ? a.attendees : [], cc: Array.isArray(a.cc) ? a.cc : [], bcc: Array.isArray(a.bcc) ? a.bcc : [], byUser: a.byUser || '', byName: a.byName || '', status: a.status || 'scheduled', invitedAt: a.invitedAt || '', meetUrl: a.meetUrl || '', googleEventId: a.googleEventId || '', files: Array.isArray(a.files) ? a.files : [], remMinutes: (a.remMinutes == null ? '' : a.remMinutes), remChannels: Array.isArray(a.remChannels) ? a.remChannels : [], reminder: a.reminder || '', seriesId: a.seriesId || '', repeat: a.repeat || '', createdAt: a.createdAt || '', updatedAt: a.updatedAt || '' }; }
+function apptBrief(a) { return { id: a.id, title: a.title || '', contactPersonId: a.contactPersonId || '', contactName: a.contactName || '', companyId: a.companyId || '', start: a.start || '', end: a.end || '', allDay: !!a.allDay, location: a.location || '', type: a.type || '', notes: a.notes || '', attendees: Array.isArray(a.attendees) ? a.attendees : [], cc: Array.isArray(a.cc) ? a.cc : [], bcc: Array.isArray(a.bcc) ? a.bcc : [], byUser: a.byUser || '', byName: a.byName || '', status: a.status || 'scheduled', invitedAt: a.invitedAt || '', meetUrl: a.meetUrl || '', googleEventId: a.googleEventId || '', files: Array.isArray(a.files) ? a.files : [], remMinutes: (a.remMinutes == null ? '' : a.remMinutes), remChannels: Array.isArray(a.remChannels) ? a.remChannels : [], reminder: a.reminder || '', seriesId: a.seriesId || '', repeat: a.repeat || '', autoId: a.autoId || '', createdAt: a.createdAt || '', updatedAt: a.updatedAt || '' }; }
 function apptIcs(a) {
   function e(s) { return String(s || '').replace(/([,;\\])/g, '\\$1').replace(/\r?\n/g, '\\n'); }
   function dt(s) { var m = String(s || '').match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/); return m ? (m[1] + m[2] + m[3] + 'T' + m[4] + m[5] + '00') : ''; }
@@ -14136,6 +14137,29 @@ app.post('/api/appointments', express.json(), (req, res) => {
     a.remSent = false;
   }
   a.updatedAt = now;
+  // Scheduling a meeting captures the guest as a contact (find-or-create from an external
+  // attendee) and, when an automation is chosen, enrolls them. Teammates are never auto-added.
+  if (typeof b.autoId === 'string') a.autoId = b.autoId.slice(0, 40);
+  try {
+    if (!a.contactPersonId && Array.isArray(a.attendees) && a.attendees.length) {
+      const _team = {}; try { auth.loadUsers().forEach(uu => { const e = ((auth.profileOf(uu) || {}).email || uu.email || ''); if (e) _team[String(e).toLowerCase()] = 1; }); } catch (e) {}
+      const _ppl = loadPeople(); let _linked = false;
+      for (const at of a.attendees) {
+        const em = String(at.email || '').trim(); const emlc = em.toLowerCase();
+        if (!em || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em) || _team[emlc]) continue;
+        let _per = _ppl.find(x => Array.isArray(x.emails) && x.emails.some(e => String(e).toLowerCase() === emlc));
+        if (!_per) { const _nm = String(at.name || em).trim(); const _pt = _nm.split(' '); _per = { id: newPersonId(), name: _nm.slice(0,160), firstName:(_pt[0]||_nm).slice(0,80), lastName:_pt.slice(1).join(' ').slice(0,80), emails:[em], phones:[], type:'Other', leadSource:'Meeting', createdAt: now, updatedAt: now, by: u.name || '', byUser: u.username || '' }; _ppl.push(_per); }
+        a.contactPersonId = _per.id; a.contactName = _per.name; if (_per.companyId) a.companyId = _per.companyId; _linked = true; break;
+      }
+      if (_linked) savePeople(_ppl);
+    }
+  } catch (e) {}
+  try {
+    if (!b.id && a.autoId && a.contactPersonId) {
+      const _plan = loadAutomations().find(x => x.id === a.autoId && x.active !== false);
+      if (_plan) { const _ppl2 = loadPeople(); const _p2 = _ppl2.find(x => x.id === a.contactPersonId); if (_p2) { try { enrollPerson(_p2, _plan, { byName: u.name || '', byUser: u.username || '' }); } catch (e) {} savePeople(_ppl2); } }
+    }
+  } catch (e) {}
   // Recurrence — materialize the series as real instances so each shows on the calendar and
   // reminds on its own. Only on create (editing one instance never re-spawns the series).
   const _rep = ['weekly', 'biweekly', 'monthly'].indexOf(b.repeat) >= 0 ? b.repeat : '';
@@ -14355,7 +14379,7 @@ app.get('/api/book/:token', (req, res) => {
   const bk = bookingByToken(req.params.token); if (!bk) return res.status(404).json({ ok: false, error: 'This booking link is not active.' });
   const types = bookTypes(bk);
   const av = bookingAvailability(bk.username, 1, types[0].length);
-  res.json({ ok: true, owner: av.owner, length: av.length, title: bk.title || '', business: loadAppName(), types: types, questions: (Array.isArray(bk.questions) ? bk.questions : []), ownerTz: GSYNC_TZ });
+  res.json({ ok: true, owner: av.owner, length: av.length, title: bk.title || '', business: (effOrg().name || loadAppName()), types: types, questions: (Array.isArray(bk.questions) ? bk.questions : []), ownerTz: GSYNC_TZ });
 });
 app.get('/api/book/:token/slots', (req, res) => {
   const bk = bookingByToken(req.params.token); if (!bk) return res.status(404).json({ ok: false, error: 'This booking link is not active.' });
@@ -14383,19 +14407,19 @@ app.post('/api/book/:token', express.json(), async (req, res) => {
   const prof = auth.profileOf(auth.findUser(bk.username)) || {};
   const all = loadAppts(); const now = new Date().toISOString();
   const _tt = (t.id !== 'default' && t.name) ? t.name : (bk.title || ('Meeting with ' + name));
-  // Per-meeting-type automation: find-or-create the booker as a contact and enroll them.
+  // Every booking captures the guest as a contact (find-or-create by email), links the
+  // meeting to them, and enrolls them in the meeting type's automation when one is set.
   let _personId = '', _personName = '';
   try {
-    if (t.automationId) {
-      const _ppl = loadPeople(); const _elc = email.toLowerCase();
-      let _per = _ppl.find(x => Array.isArray(x.emails) && x.emails.some(e => String(e).toLowerCase() === _elc));
-      if (!_per) { const _pt = name.split(' '); _per = { id: newPersonId(), name: name.slice(0,160), firstName:(_pt[0]||name).slice(0,80), lastName:_pt.slice(1).join(' ').slice(0,80), emails:[email], phones:[], type:'Other', leadSource:'Booking', createdAt: now, updatedAt: now, by:'Booking', byUser: bk.username }; _ppl.push(_per); }
-      _personId = _per.id; _personName = _per.name;
-      const _plan = loadAutomations().find(x => x.id === t.automationId && x.active !== false);
-      if (_plan) { try { enrollPerson(_per, _plan, { byName: prof.name || bk.username, byUser: bk.username }); } catch (e) {} }
-      try { logActivity(_per, 'Note', 'Booked \u201c' + String(_tt) + '\u201d for ' + start.replace('T',' at ') + (_plan ? (' \u2014 automation \u201c' + (_plan.name || '') + '\u201d started') : ''), { auto: true, by: 'Booking' }); } catch (e) {}
-      savePeople(_ppl);
-    }
+    const _ppl = loadPeople(); const _elc = email.toLowerCase();
+    let _per = _ppl.find(x => Array.isArray(x.emails) && x.emails.some(e => String(e).toLowerCase() === _elc));
+    let _isNew = false;
+    if (!_per) { const _pt = name.split(' '); _per = { id: newPersonId(), name: name.slice(0,160), firstName:(_pt[0]||name).slice(0,80), lastName:_pt.slice(1).join(' ').slice(0,80), emails:[email], phones:[], type:'Other', leadSource:'Booking', createdAt: now, updatedAt: now, by:'Booking', byUser: bk.username }; _ppl.push(_per); _isNew = true; }
+    _personId = _per.id; _personName = _per.name;
+    let _plan = null;
+    if (t.automationId) { _plan = loadAutomations().find(x => x.id === t.automationId && x.active !== false); if (_plan) { try { enrollPerson(_per, _plan, { byName: prof.name || bk.username, byUser: bk.username }); } catch (e) {} } }
+    try { logActivity(_per, 'Meeting', 'Booked \u201c' + String(_tt) + '\u201d for ' + start.replace('T',' at ') + (_isNew ? ' \u2014 new contact from booking' : '') + (_plan ? (' \u2014 automation \u201c' + (_plan.name || '') + '\u201d started') : ''), { auto: true, by: 'Booking', byUser: bk.username }); } catch (e) {}
+    savePeople(_ppl);
   } catch (e) {}
   let _notes = String(b.notes || '').slice(0, 2000);
   if (_answered.length) { const _qa = _answered.map(x => x.q + ': ' + x.a).join('\n'); _notes = (_notes ? _notes + '\n\n' : '') + _qa; }
@@ -14417,7 +14441,7 @@ app.get('/book/manage/:token', (req, res) => { res.sendFile(path.join(__dirname,
 app.get('/api/book/manage/:token', (req, res) => {
   const a = _apptByManageToken(req.params.token); if (!a) return res.status(404).json({ ok: false, error: 'This link is no longer valid.' });
   const prof = auth.profileOf(auth.findUser(a.byUser)) || {};
-  res.json({ ok: true, title: a.title, start: a.start, end: a.end, location: a.location || '', status: a.status || 'scheduled', owner: prof.name || a.byName || '', business: loadAppName(), ownerTz: GSYNC_TZ, rebook: a.bookToken ? ('/book/' + a.bookToken) : '' });
+  res.json({ ok: true, title: a.title, start: a.start, end: a.end, location: a.location || '', status: a.status || 'scheduled', owner: prof.name || a.byName || '', business: (effOrg().name || loadAppName()), ownerTz: GSYNC_TZ, rebook: a.bookToken ? ('/book/' + a.bookToken) : '' });
 });
 app.post('/api/book/manage/:token/cancel', express.json(), (req, res) => {
   const all = loadAppts(); const a = all.find(x => x.manageToken === req.params.token);

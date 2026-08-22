@@ -74,7 +74,7 @@ textarea.f{min-height:74px;resize:vertical;}
 <div class="top"><div class="top-in"><span class="disc">RRG</span><span class="biz" id="biz">Restaurant Realty Group</span></div></div>
 <div class="wrap">
   <div class="card" id="card"><div class="empty" style="padding:60px">Loading availability…</div></div>
-  <div class="foot">Scheduling powered by Restaurant Realty Group</div>
+  <div class="foot" id="foot">Scheduling powered by Restaurant Realty Group</div>
 </div>
 <script>
 var TOKEN=(location.pathname.match(/\/book\/([^\/?#]+)/)||[])[1]||'';
@@ -101,7 +101,7 @@ function init(){
     if(!j||!j.ok){ fail((j&&j.error)||'This booking link is not active.'); return; }
     OWNER=j.owner||{}; OWNER_TZ=j.ownerTz||OWNER_TZ; BUSINESS=j.business||BUSINESS;
     TYPES=(j.types&&j.types.length)?j.types:[{id:'default',name:j.title||'Meeting',length:j.length||30,location:'',description:'',questions:(j.questions||[])}];
-    var b=document.getElementById('biz'); if(b) b.textContent=BUSINESS;
+    var b=document.getElementById('biz'); if(b) b.textContent=BUSINESS; var _ft=document.getElementById('foot'); if(_ft) _ft.textContent='Scheduling powered by '+BUSINESS;
     var pt=PTYPE?TYPES.filter(function(t){return String(t.id)===String(PTYPE);})[0]:null;
     if(pt){ TYPE=pt; LOCKED=true; loadType(); }
     else if(TYPES.length>1){ renderChooser(); }

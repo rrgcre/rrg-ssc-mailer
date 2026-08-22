@@ -66,7 +66,7 @@ a.feat:hover{background:#f4f7fb;} a.feat:hover b{color:var(--primary,#2c5c8f);}
 <script>(function(){ var fs=document.getElementById('admFeatStrip'), hd=document.getElementById('admFeatHd'); if(!fs||!hd) return; try{ if(localStorage.getItem('rrg_adminfeats')!=='1') fs.classList.add('collapsed'); }catch(e){ fs.classList.add('collapsed'); } hd.addEventListener('click',function(){ var col=fs.classList.toggle('collapsed'); try{ localStorage.setItem('rrg_adminfeats', col?'0':'1'); }catch(e){} }); })();</script>
 <script>
 var GROUPS=[
- { title:'', items:[ {k:'general', label:'General Settings', src:'rrg_admin_settings.html'} ] },
+ { title:'', items:[ {k:'brokerage', label:'\ud83c\udfe2 Brokerage Info', src:'rrg_admin_brokerage.html'}, {k:'general', label:'General Settings', src:'rrg_admin_settings.html'} ] },
  { title:'Users & Access', items:[
    {k:'users', label:'Users', src:'rrg_users.html'},
    {k:'roles', label:'Roles & Permissions', src:'rrg_roles.html'},

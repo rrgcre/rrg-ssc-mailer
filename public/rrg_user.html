@@ -122,13 +122,13 @@ function render(){
       +'<div class="grid2">'
         +'<div><label class="fld">Payment method</label><select id="p_method">'+['','Direct deposit','Check','Zelle','Wire','Other'].map(function(o){return '<option'+(p.paymentMethod===o?' selected':'')+'>'+esc(o)+'</option>';}).join('')+'</select></div>'
         +'<div><label class="fld">Tax classification</label><select id="p_class">'+['','Individual / Sole proprietor','Single-member LLC','LLC','S-Corporation','C-Corporation','Partnership'].map(function(o){return '<option'+(p.taxClass===o?' selected':'')+'>'+esc(o)+'</option>';}).join('')+'</select></div>'
-        +'<div><label class="fld">W-9 on file</label><div class="chkline" style="padding-top:8px"><input type="checkbox" id="p_w9" '+(p.w9OnFile?'checked':'')+'> <span>W-9 received &amp; on file</span></div></div>'
+        +'<div><label class="fld">W-9 on file</label><div class="chkline" style="padding-top:8px"><input type="checkbox" id="p_w9" '+(p.w9OnFile?'checked':'')+'> <span>W-9 on file</span></div></div>'
         +'<div><label class="fld">W-9 date</label><input type="date" id="p_w9date" value="'+esc(p.w9Date||'')+'"></div>'
-        +'<div class="full"><label class="fld">SSN — last 4 only</label><div style="display:flex;align-items:center;gap:7px"><span style="font-family:monospace;color:#8a93a8;font-size:15px;letter-spacing:1px">\u2022\u2022\u2022-\u2022\u2022-</span><input type="text" id="p_taxid" value="'+esc(p.taxId||'')+'" maxlength="4" inputmode="numeric" placeholder="1234" autocomplete="off" style="max-width:80px"></div></div>'
+        +'<div class="full"><label class="fld">SSN / Tax ID (full)</label><input type="text" id="p_taxid" value="'+esc(p.taxId||'')+'" maxlength="11" inputmode="numeric" placeholder="123-45-6789" autocomplete="off" style="max-width:180px;font-family:monospace;letter-spacing:1px"></div>'
         +'<div class="full"><label class="fld">Payment notes</label><textarea id="p_notes" placeholder="Direct-deposit setup status, 1099 vendor #, etc.">'+esc(p.payNotes||'')+'</textarea></div>'
       +'</div>'
       +'<div class="savebar"><button class="savebtn" id="p_save">Save payroll &amp; tax</button><span class="msg" id="p_msg"></span></div>'
-      +'<div class="pnote">Sensitive — visible only to administrators. Only the <b>last four</b> of the SSN is stored; the full number is never kept in the system. The signed <b>W-9</b> is your document of record — mark it “on file” above.</div>'
+      +'<div class="pnote">Sensitive — visible only to administrators. The <b>full SSN / Tax ID</b> is stored for <b>1099 and tax reporting</b>. Keep the signed <b>W-9</b> as your document of record — mark it “on file” above.</div>'
     +'</div></div>';
   }
 

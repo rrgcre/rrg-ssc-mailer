@@ -102,7 +102,7 @@ var ROLES=[];              // [{key,name,builtin?}]
 var DEPTS=[];              // [{id,name}] — departments a user can belong to
 var ENABLED=false;         // permission enforcement master flag
 var OPEN=null;             // username of expanded row
-var SEARCH='';
+var SEARCH=''; var ADD_OPEN=false, LASTADDED='';
 
 function roleName(k){for(var i=0;i<ROLES.length;i++){if(ROLES[i].key===k)return ROLES[i].name;}return k||'—';}
 function roleByKey(k){return (ST&&ST.roles||[]).filter(function(r){return r.key===k;})[0];}
@@ -150,11 +150,15 @@ function merge(usersJson,permJson){
   }).sort(function(x,y){return String(x.name).localeCompare(String(y.name));});
 }
 
+function toggleAdd(v){ ADD_OPEN=!!v; if(v) LASTADDED=''; render(); if(v){ setTimeout(function(){ var el=document.querySelector('#addf input[name=firstName]'); if(el) el.focus(); },30); } }
 /* ---------- render ---------- */
 function render(){
   var root=document.getElementById('root');
   var roleSelOpts=ROLES.map(function(r){return '<option value="'+esc(r.key)+'"'+(r.key==='associate'?' selected':'')+'>'+esc(r.name)+'</option>';}).join('')||'<option value="">No roles</option>';
 
+  var addCard;
+  if(!ADD_OPEN){ addCard='<div class="card"><div class="ch"><b>Add a user</b><span>'+(LASTADDED?('\u2713 '+esc(LASTADDED)+' added'):'create a sign-in \u2014 username &amp; password given directly, nothing is emailed')+'</span><button class="btn" type="button" onclick="toggleAdd(true)" style="margin-left:auto">+ Add a user</button></div></div>'; }
+  else {
   var addCard='<div class="card"><div class="ch"><b>Add a user</b><span>creates the sign-in — give them the username &amp; password directly, nothing is emailed</span></div><div class="cb">'
     +'<form id="addf" onsubmit="return addUser(this)">'
     +'<div class="inrow" style="margin-bottom:10px">'
@@ -170,10 +174,12 @@ function render(){
     +'<div class="inrow" style="align-items:flex-end">'
       +'<div class="field" style="min-width:200px"><label class="lbl">Temporary password</label><input name="password" type="text" placeholder="Min 6 characters" required autocomplete="off"></div>'
       +'<div class="field" style="max-width:190px"><label class="lbl">Role</label><select name="role" id="roleSel" style="width:100%">'+roleSelOpts+'</select></div>'
-      +'<button class="btn" type="submit">Add user</button>'
+      +'<button class="btn" type="submit">Add user</button>'+'<button class="btn" type="button" onclick="toggleAdd(false)" style="background:#fff;color:var(--navy);border:1px solid #cfd6e2;margin-left:6px">Cancel</button>'
       +'<span id="addmsg" class="msg"></span>'
     +'</div>'
     +'</form></div></div>';
+  }
+
 
   var head='<thead><tr>'
     +'<th>Name</th><th>Username</th><th>Email</th><th>Role</th><th>Commission split</th><th>Status</th><th>Last login</th><th style="width:34px"></th>'
@@ -373,7 +379,7 @@ function applySearch(){
 function addUser(f){
   var m=document.getElementById('addmsg'); m.textContent='Adding…'; m.className='msg';
   post('/api/admin/add-user',{firstName:f.firstName.value,lastName:f.lastName.value,username:f.username.value,email:f.email.value,password:f.password.value,role:f.role.value,title:f.title.value,phone:f.phone.value})
-    .then(function(j){ if(j&&j.ok){ m.textContent='Added ✓'; m.className='msg ok'; f.reset(); loadData(); } else { m.textContent=(j&&j.error)||'Failed'; m.className='msg err'; } })
+    .then(function(j){ if(j&&j.ok){ LASTADDED=((f.firstName.value+' '+f.lastName.value).trim()||f.username.value); ADD_OPEN=false; loadData(); } else { m.textContent=(j&&j.error)||'Failed'; m.className='msg err'; } })
     .catch(function(){ m.textContent='Failed'; m.className='msg err'; });
   return false;
 }

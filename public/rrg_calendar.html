@@ -221,6 +221,9 @@ a.feat:hover{background:#f4f7fb;} a.feat:hover b{color:var(--blue);}
     <div id="f_atts"></div>
     <button type="button" class="btn" id="addatt" style="font-size:12px;padding:6px 10px">+ Add attendee</button>
     <label class="fld">Notes</label><textarea id="f_notes" placeholder="Agenda, prep, anything to remember…"></textarea>
+    <label class="fld">When scheduled, run automation (optional)</label>
+    <select id="f_auto"><option value="">— none —</option></select>
+    <div style="font-size:11px;color:#8a93a8;margin-top:4px">Enrolls the linked contact (or the guest you added by email) in this automation when you save. New guests are added to your contacts automatically.</div>
     <div id="meetRow" style="margin-top:12px"></div>
     <div id="attRow" style="margin-top:12px"></div>
     <input type="file" id="attFile" style="display:none">
@@ -235,7 +238,7 @@ a.feat:hover{background:#f4f7fb;} a.feat:hover b{color:var(--blue);}
 </div></div>
 
 <script>
-var APPTS=[],TASKS=[],CONTACTS=[],USERS=[],TYPES=[],ME='',EMAILREADY=false,MEWORK={},FEATURES={};
+var APPTS=[],TASKS=[],CONTACTS=[],USERS=[],TYPES=[],ME='',EMAILREADY=false,MEWORK={},FEATURES={},AUTOS=[];
 var VIEW='month',SCOPE='all',EDIT=null,CANSEEALL=false,USERSEL='',HASSHARED=false;
 var SHOWTASKS=false; // Tasks are kept OFF the calendar by design — they live only in Tasks / the contact's Tasks card.
 var CUR=(function(){var d=new Date();return new Date(d.getFullYear(),d.getMonth(),d.getDate());})();
@@ -370,7 +373,7 @@ function addMeet(btn){ var m=document.getElementById('mmsg'); var mr=document.ge
   if(EDIT&&EDIT.id){ doMeet(EDIT.id); return; }
   var body=bodyFromForm(); if(!body.title){ m.className='msg err'; m.textContent='Add a title first.'; return; } if(!body.start){ m.className='msg err'; m.textContent='Pick a date first.'; return; } m.className='msg'; m.textContent='Saving…'; fetch('/api/appointments',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ EDIT=j.appointment; m.textContent=''; doMeet(j.appointment.id); } else { m.className='msg err'; m.textContent=(j&&j.error)||'Could not save.'; } }).catch(function(){ m.className='msg err'; m.textContent='Could not reach the server.'; }); }
 function openForm(a,presetDate){
-  EDIT=a||null; fillTypes();
+  EDIT=a||null; fillTypes(); fillAutos(); (function(){ var _fa=document.getElementById('f_auto'); if(_fa) _fa.value=(a&&a.autoId)?a.autoId:''; })();
   document.getElementById('mtitle2').textContent=a?'Edit meeting':'New meeting';
   document.getElementById('f_title').value=a?a.title:'';
   var cq=document.getElementById('f_contactq'); cq.value=a?(a.contactName||''):''; document.getElementById('f_contact').value=a?(a.contactPersonId||''):'';
@@ -406,7 +409,7 @@ function bodyFromForm(){
   var date=document.getElementById('f_date').value; var st=document.getElementById('f_start').value||'09:00'; var en=document.getElementById('f_end').value||st;
   var rep=document.getElementById('f_repeat'); var repVal=(rep&&document.getElementById('f_repeatWrap')&&document.getElementById('f_repeatWrap').style.display!=='none')?rep.value:'';
   return { id:EDIT?EDIT.id:undefined, title:document.getElementById('f_title').value.trim(), contactPersonId:document.getElementById('f_contact').value||'', contactName:document.getElementById('f_contactq').value.trim(), type:document.getElementById('f_type').value, start:date?(date+'T'+st):'', end:date?(date+'T'+en):'', location:document.getElementById('f_loc').value.trim(), notes:document.getElementById('f_notes').value.trim(), attendees:collectAtts(),
-    remMinutes:(document.getElementById('f_remind')||{}).value||'', remChannels:[].slice.call(document.querySelectorAll('.remch:checked')).map(function(x){return x.value;}), repeat:repVal, repeatCount:(document.getElementById('f_repeatCount')||{}).value||'' };
+    remMinutes:(document.getElementById('f_remind')||{}).value||'', remChannels:[].slice.call(document.querySelectorAll('.remch:checked')).map(function(x){return x.value;}), repeat:repVal, repeatCount:(document.getElementById('f_repeatCount')||{}).value||'', autoId:(document.getElementById('f_auto')||{}).value||'' };
 }
 function save(){
   var body=bodyFromForm(); var m=document.getElementById('mmsg');
@@ -467,6 +470,8 @@ document.getElementById('gcalBtn').addEventListener('click',gcalSync);
 document.getElementById('attFile').addEventListener('change',function(){ var f=this.files&&this.files[0]; this.value=''; if(!f||!EDIT||!EDIT.id) return; var m=document.getElementById('mmsg'); if(f.size>20*1024*1024){ m.className='msg err'; m.textContent='File too large (max 20 MB).'; return; } var rd=new FileReader(); rd.onload=function(){ m.className='msg'; m.textContent='Uploading…'; fetch('/api/appointments/'+encodeURIComponent(EDIT.id)+'/files',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({filename:f.name,dataB64:rd.result})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ EDIT.files=j.files; m.textContent=''; renderAtt(); load(); } else { m.className='msg err'; m.textContent=(j&&j.error)||'Upload failed.'; } }).catch(function(){ m.className='msg err'; m.textContent='Could not reach the server.'; }); }; rd.readAsDataURL(f); });
 gcalStatus();
 (function(){ var tb=document.getElementById('taskToggle'); if(!tb) return; function sync(){ tb.classList.toggle('on',SHOWTASKS); } sync(); tb.addEventListener('click',function(){ SHOWTASKS=!SHOWTASKS; try{ localStorage.setItem('rrg_cal_showtasks',SHOWTASKS?'1':'0'); }catch(e){} sync(); render(); }); })();
+function fillAutos(){ var sel=document.getElementById("f_auto"); if(!sel) return; var cur=sel.value; sel.innerHTML='<option value="">\u2014 none \u2014</option>'+AUTOS.map(function(x){return '<option value="'+esc(x.id)+'">'+esc(x.name)+'</option>';}).join(""); sel.value=cur; }
+fetch("/api/automations",{credentials:"same-origin"}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ AUTOS=(j.automations||[]).map(function(x){return {id:x.id,name:x.name||"Automation"};}); fillAutos(); } }).catch(function(){});
 load();
 </script>
 </body></html>
