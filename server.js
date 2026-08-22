@@ -12085,7 +12085,7 @@ function maskPayrollSsns() {
     try { fs.writeFileSync(flag, JSON.stringify({ maskedAt: new Date().toISOString() })); } catch(e){}
   } catch (e) { console.error('maskPayrollSsns:', e && e.message); }
 }
-function effEmployee(un) { const s = loadSettings(); const m = (s.employees && typeof s.employees === 'object') ? s.employees : {}; const e = m[String(un).toLowerCase()] || {}; return { homeAddress: e.homeAddress || '', personalEmail: e.personalEmail || '', personalPhone: e.personalPhone || '', linkedIn: e.linkedIn || '', startDate: e.startDate || '', endDate: e.endDate || '', emergencyName: e.emergencyName || '', emergencyPhone: e.emergencyPhone || '', notes: e.notes || '', goal: e.goal || '' }; }
+function effEmployee(un) { const s = loadSettings(); const m = (s.employees && typeof s.employees === 'object') ? s.employees : {}; const e = m[String(un).toLowerCase()] || {}; return { homeAddress: e.homeAddress || '', personalEmail: e.personalEmail || '', personalPhone: e.personalPhone || '', linkedIn: e.linkedIn || '', startDate: e.startDate || '', endDate: e.endDate || '', emergencyName: e.emergencyName || '', emergencyPhone: e.emergencyPhone || '', notes: e.notes || '', goal: e.goal || '', territory: e.territory || '' }; }
 function repMatchesOwner(owner, u) { const o = String(owner || '').trim().toLowerCase(); if (!o) return false; return o === String(u.username || '').toLowerCase() || o === String(u.name || '').toLowerCase(); }
 function repUserPhoto(username) { try { const prof = auth.profileOf(auth.findUser(username)); if (prof && prof.photoExt) return '/api/userphoto/' + String(username).replace(/[^a-z0-9_.-]/gi, '_') + '.' + prof.photoExt + '?v=' + encodeURIComponent(prof.photoAt || 0); } catch (e) {} return ''; }
 function repRollup(u, opts) {
@@ -12196,7 +12196,7 @@ app.post('/api/user/:username/profile', express.json(), (req, res) => {
   if (!admin && !self) return res.status(403).json({ ok: false, error: 'Not allowed.' });
   const b = req.body || {}; const s = loadSettings(); if (!s.employees || typeof s.employees !== 'object') s.employees = {};
   const key = String(u.username).toLowerCase(); const cur = s.employees[key] || {};
-  const selfFields = ['homeAddress', 'personalEmail', 'personalPhone', 'linkedIn', 'emergencyName', 'emergencyPhone', 'goal'];
+  const selfFields = ['homeAddress', 'personalEmail', 'personalPhone', 'linkedIn', 'emergencyName', 'emergencyPhone', 'goal', 'territory'];
   const adminFields = ['startDate', 'endDate', 'notes'];
   selfFields.forEach(fld => { if (typeof b[fld] === 'string') cur[fld] = b[fld].slice(0, 300); });
   if (admin) adminFields.forEach(fld => { if (typeof b[fld] === 'string') cur[fld] = b[fld].slice(0, fld === 'notes' ? 2000 : 300); });
@@ -14261,7 +14261,7 @@ function loadBookings() { try { return rj(BOOKINGS_FILE) || {}; } catch (e) { re
 function saveBookings(b) { return writeJsonGuarded(BOOKINGS_FILE, b, 'saveBookings'); }
 function _bookToken() { return 'bk_' + Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6); }
 function bookingByToken(tok) { if (!calFeatOn('booking')) return null; const all = loadBookings(); for (const un in all) { if (all[un] && all[un].token === tok && all[un].enabled) return Object.assign({ username: un }, all[un]); } return null; }
-const BOOK_LENGTHS = [15, 30, 45, 60];
+const BOOK_LENGTHS = [15, 20, 30, 45, 60];
 function _bmToMin(hm) { const p = String(hm || '').split(':'); return (+p[0] || 0) * 60 + (+p[1] || 0); }
 function _bAddMin(naive, min) { const d = new Date(naive + ':00Z'); d.setUTCMinutes(d.getUTCMinutes() + min); return d.toISOString().slice(0, 16); }
 function _bAddDays(dstr, n) { const d = new Date(dstr + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }

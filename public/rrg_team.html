@@ -139,7 +139,6 @@ function openAddMember(){
     +'<div class="tmbar"><button type="button" class="tmsave" id="tm_go">Add member</button><button type="button" class="tmcancel" id="tm_cancel">Cancel</button><span class="tmmsg" id="tm_msg"></span></div>'
   +'</div>';
   document.body.appendChild(ov);
-  ov.addEventListener('click',function(e){ if(e.target===ov) _tmClose(); });
   document.getElementById('tmX').addEventListener('click',_tmClose);
   document.getElementById('tm_cancel').addEventListener('click',_tmClose);
   document.getElementById('tm_go').addEventListener('click',submitAddMember);
