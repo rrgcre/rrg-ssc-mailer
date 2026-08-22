@@ -14302,8 +14302,8 @@ function sanitizeRich(html) {
   s = s.replace(/<p[^>]*>/gi, '').replace(/<\/p>/gi, '<br>');
   s = s.replace(/<br\s*\/?>/gi, '<br>');
   // keep only b, strong, i, em, u (no attributes); drop everything else
-  s = s.replace(/<(\/?)(b|strong|i|em|u)(?:\s[^>]*)?>/gi, '<$1$2>');
-  s = s.replace(/<(?!\/?(?:b|strong|i|em|u|br)\b)[^>]*>/gi, '');
+  s = s.replace(/<(\/?)(b|strong|i|em|u|ul|ol|li)(?:\s[^>]*)?>/gi, '<$1$2>');
+  s = s.replace(/<(?!\/?(?:b|strong|i|em|u|br|ul|ol|li)\b)[^>]*>/gi, '');
   s = s.replace(/(<br>\s*){3,}/gi, '<br><br>');
   return s.slice(0, 2000);
 }
