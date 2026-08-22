@@ -14268,13 +14268,19 @@ function _bAddDays(dstr, n) { const d = new Date(dstr + 'T12:00:00Z'); d.setUTCD
 function _bDow(dstr) { return new Date(dstr + 'T12:00:00Z').getUTCDay(); }
 function _bNow() { try { const p = new Intl.DateTimeFormat('en-CA', { timeZone: GSYNC_TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date()); const o = {}; p.forEach(x => o[x.type] = x.value); const hh = (o.hour === '24' ? '00' : o.hour); return o.year + '-' + o.month + '-' + o.day + 'T' + hh + ':' + o.minute; } catch (e) { return new Date().toISOString().slice(0, 16); } }
 // Meeting types on a booking page. Back-compat: a page with only a single `length` becomes one type.
+function cleanBookQ(q) {
+  const type = ['text','textarea','select'].indexOf(String(q && q.type || 'text')) >= 0 ? String(q.type) : 'text';
+  const out = { q: String((q && q.q) || '').trim().slice(0, 200), required: !!(q && q.required), type: type };
+  if (type === 'select') out.options = (Array.isArray(q.options) ? q.options : []).map(o => String(o).trim()).filter(Boolean).slice(0, 25);
+  return out;
+}
 function bookTypes(bk) {
   bk = bk || {};
   if (Array.isArray(bk.types) && bk.types.length) {
-    return bk.types.filter(t => t && t.name).slice(0, 8).map((t, i) => ({ id: String(t.id || ('t' + i)), name: String(t.name).slice(0, 80), length: BOOK_LENGTHS.indexOf(+t.length) >= 0 ? +t.length : 30, location: String(t.location || '').slice(0, 160), questions: (Array.isArray(t.questions) ? t.questions.filter(q => q && q.q).slice(0, 5).map(q => ({ q: String(q.q).slice(0, 200), required: !!q.required })) : []) }));
+    return bk.types.filter(t => t && t.name).slice(0, 8).map((t, i) => ({ id: String(t.id || ('t' + i)), name: String(t.name).slice(0, 80), length: BOOK_LENGTHS.indexOf(+t.length) >= 0 ? +t.length : 30, location: String(t.location || '').slice(0, 160), description: String(t.description || '').slice(0, 600), questions: (Array.isArray(t.questions) ? t.questions.filter(q => q && q.q).slice(0, 5).map(cleanBookQ) : []) }));
   }
   const len = BOOK_LENGTHS.indexOf(+bk.length) >= 0 ? +bk.length : 30;
-  return [{ id: 'default', name: bk.title || 'Meeting', length: len, location: '', questions: (Array.isArray(bk.questions) ? bk.questions.slice(0, 5) : []) }];
+  return [{ id: 'default', name: bk.title || 'Meeting', length: len, location: '', description: String(bk.description || '').slice(0, 600), questions: (Array.isArray(bk.questions) ? bk.questions.slice(0, 5) : []) }];
 }
 function bookTypeById(bk, id) { const ts = bookTypes(bk); return ts.find(t => t.id === id) || ts[0]; }
 function bookingAvailability(username, days, lenOverride) {
@@ -14322,11 +14328,11 @@ app.post('/api/me/booking', express.json(), (req, res) => {
   if (b.title !== undefined) cur.title = String(b.title || '').slice(0, 120);
   // Meeting types — a named list, each with its own length. Empty list falls back to the single length.
   if (Array.isArray(b.types)) {
-    cur.types = b.types.filter(t => t && String(t.name || '').trim()).slice(0, 8).map((t, i) => ({ id: String(t.id || ('t' + Date.now().toString(36) + i)).slice(0, 24), name: String(t.name).trim().slice(0, 80), length: BOOK_LENGTHS.indexOf(+t.length) >= 0 ? +t.length : 30, location: String(t.location || '').slice(0, 160), questions: (Array.isArray(t.questions) ? t.questions.filter(q => q && String(q.q || '').trim()).slice(0, 5).map(q => ({ q: String(q.q).trim().slice(0, 200), required: !!q.required })) : []) }));
+    cur.types = b.types.filter(t => t && String(t.name || '').trim()).slice(0, 8).map((t, i) => ({ id: String(t.id || ('t' + Date.now().toString(36) + i)).slice(0, 24), name: String(t.name).trim().slice(0, 80), length: BOOK_LENGTHS.indexOf(+t.length) >= 0 ? +t.length : 30, location: String(t.location || '').slice(0, 160), description: String(t.description || '').slice(0, 600), questions: (Array.isArray(t.questions) ? t.questions.filter(q => q && String(q.q || '').trim()).slice(0, 5).map(cleanBookQ) : []) }));
   }
   // Invitee questions — up to 5 custom questions shown on the booking form.
   if (Array.isArray(b.questions)) {
-    cur.questions = b.questions.filter(q => q && String(q.q || '').trim()).slice(0, 5).map(q => ({ q: String(q.q).trim().slice(0, 200), required: !!q.required }));
+    cur.questions = b.questions.filter(q => q && String(q.q || '').trim()).slice(0, 5).map(cleanBookQ);
   }
   if (cur.enabled && !cur.token) cur.token = _bookToken();
   all[un] = cur; saveBookings(all); const base = appBaseUrl();
@@ -14342,7 +14348,8 @@ app.get('/api/book/:token', (req, res) => {
 app.get('/api/book/:token/slots', (req, res) => {
   const bk = bookingByToken(req.params.token); if (!bk) return res.status(404).json({ ok: false, error: 'This booking link is not active.' });
   const t = bookTypeById(bk, String(req.query.type || ''));
-  const av = bookingAvailability(bk.username, 21, t.length);
+  const _dw = Math.max(1, Math.min(62, parseInt(req.query.days, 10) || 21));
+  const av = bookingAvailability(bk.username, _dw, t.length);
   res.json({ ok: true, length: av.length, days: av.days, owner: av.owner, ownerTz: GSYNC_TZ, type: t });
 });
 app.post('/api/book/:token', express.json(), async (req, res) => {
@@ -14621,6 +14628,23 @@ app.delete('/api/files/:id', (req, res) => {
   try { binDel(path.join(USERDOCS_DIR, fRec.id + '.' + fRec.ext)); } catch (e) {}
   saveUserFiles(files.filter(x => x.id !== req.params.id));
   res.json({ ok:true });
+});
+app.post('/api/files/:id', express.json(), (req, res) => {
+  const b = req.body || {};
+  const files = loadUserFiles(); const fRec = files.find(x => x.id === req.params.id);
+  if (!fRec) return res.status(404).json({ ok:false, error:'Not found.' });
+  if (restrictToOwn(req) && !permOwnerMatch(req, fRec.createdBy)) return res.status(403).json({ ok:false, error:'Not yours.' });
+  if (typeof b.title === 'string') { const nm = b.title.trim().slice(0,160); if (nm) fRec.name = nm; }
+  if (typeof b.docType === 'string') fRec.docType = b.docType.slice(0,40);
+  if (typeof b.note === 'string') fRec.note = b.note.slice(0,400);
+  if (b.relatesToType !== undefined) {
+    const rt = String(b.relatesToType||''), rid = String(b.relatesToId||'');
+    fRec.companyId = ''; fRec.personId = ''; fRec.dealKey = '';
+    if (rt==='company' && rid) fRec.companyId = rid; else if (rt==='contact' && rid) fRec.personId = rid; else if (rt==='listing' && rid) fRec.dealKey = rid;
+    fRec.relatesToType = rt; fRec.relatesToName = String(b.relatesToName||'').slice(0,160);
+  }
+  saveUserFiles(files);
+  res.json({ ok:true, file: fRec });
 });
 app.post('/api/files/:id/to-room', express.json(), (req, res) => {
   const files = loadUserFiles(); const f = files.find(x => x.id === req.params.id);

@@ -19,10 +19,10 @@ h1{font-size:30px;font-weight:700;margin:0;color:#fff;letter-spacing:-.01em;}
 .tabs a{color:#aeb8cf;text-decoration:none;font-size:12.5px;font-weight:700;padding:7px 14px;border-radius:100px;border:1px solid rgba(255,255,255,.2);cursor:pointer;display:inline-flex;gap:7px;align-items:center;}
 .tabs a.on{background:#fff;color:var(--navy);border-color:#fff;}
 .tabs a .tc{font-size:11px;font-weight:700;opacity:.6;}
-.doctabs{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 14px;}
-.doctabs a{color:#5a6274;text-decoration:none;font-size:12.5px;font-weight:700;padding:7px 13px;border-radius:6px;border:1px solid var(--line);background:#fff;cursor:pointer;display:inline-flex;gap:7px;align-items:center;}
-.doctabs a:hover{border-color:#b9c3d6;}
-.doctabs a.on{background:var(--navy);color:#fff;border-color:var(--navy);}
+.doctabs{display:flex;gap:2px;flex-wrap:wrap;margin:2px 0 16px;border-bottom:2px solid var(--line);}
+.doctabs a{color:#6b7488;text-decoration:none;font-size:13px;font-weight:700;padding:11px 16px;border:none;background:none;cursor:pointer;display:inline-flex;gap:7px;align-items:center;border-bottom:2px solid transparent;margin-bottom:-2px;}
+.doctabs a:hover{color:var(--navy);}
+.doctabs a.on{color:var(--navy);border-bottom-color:var(--red);}
 .doctabs a .tc{font-size:11px;font-weight:700;opacity:.55;}
 .doctabs a.on .tc{opacity:.75;}
 .wrap{max-width:none;margin:20px 0;padding:0 28px 56px;}
@@ -38,7 +38,11 @@ h1{font-size:30px;font-weight:700;margin:0;color:#fff;letter-spacing:-.01em;}
 .nmlink{color:var(--navy);font-weight:500;text-decoration:none;} .nmlink:hover{text-decoration:underline;}
 .count{font-weight:700;color:var(--ink);} .count span{color:var(--soft);font-weight:600;font-size:11px;}
 .newbtn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:9px;padding:8px 14px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;}
-.codel{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;padding:0;background:#fff;color:var(--red);border:1px solid #f0c9c6;border-radius:6px;font:inherit;font-size:17px;line-height:1;font-weight:700;cursor:pointer;} .codel:hover{background:var(--red);color:#fff;border-color:var(--red);}
+.codel{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;padding:0;background:#fff;color:var(--red);border:1px solid #f0c9c6;border-radius:6px;font:inherit;font-size:17px;line-height:1;font-weight:700;cursor:pointer;}
+.coedit{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;padding:0;background:#fff;color:#33415c;border:1px solid var(--line);border-radius:6px;cursor:pointer;margin-right:6px;}
+.coedit:hover{background:#eef1f6;border-color:#b9c3d6;}
+.codel:hover{background:#fbeceb;}
+.codel svg,.coedit svg{display:block;} .codel:hover{background:var(--red);color:#fff;border-color:var(--red);}
 .empty{text-align:center;color:var(--muted);padding:54px 20px;} .empty b{color:var(--navy);display:block;font-size:15px;margin-bottom:6px;}
 .foot{max-width:1320px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
 .cowho{display:flex;align-items:center;gap:10px;} .cowhotext{min-width:0;}
@@ -189,7 +193,9 @@ function cDate(v){ return (v&&String(v).trim())?('<span class="meta">'+esc(fmtDa
 function stCls(k){ return 's-'+String(k||'').toLowerCase().replace(/[^a-z0-9]+/g,''); }
 function cStatus(d){ return d.status?('<span class="st '+stCls(d.statusKey||d.status)+'">'+esc(d.status)+'</span>'):_muted(); }
 function cText(v){ return (v&&String(v).trim())?esc(v):_muted(); }
-function cActions(d){ if(d.kind==='firmwide') return IS_ADMIN?('<button class="codel delx" data-del="'+esc(d.id)+'" title="Remove" aria-label="Remove">✕</button>'):_muted(); return (d.kind==='file'||d.deleteUrl)?('<button class="codel delx" data-del="'+esc(d.id)+'" title="'+(d.kind==='seller'?'Delete':'Remove')+'" aria-label="'+(d.kind==='seller'?'Delete':'Remove')+'">✕</button>'):_muted(); }
+var _TRASH='<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>';
+var _PENCIL='<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path></svg>';
+function cActions(d){ if(d.kind==='firmwide'&&!IS_ADMIN) return _muted(); var del=(d.kind==='file'||d.kind==='firmwide'||d.deleteUrl); var b=''; if(d.kind==='file') b+='<button class="coedit" data-edit="'+esc(d.id)+'" title="Edit" aria-label="Edit">'+_PENCIL+'</button>'; if(del) b+='<button class="codel delx" data-del="'+esc(d.id)+'" title="'+(d.kind==='seller'?'Delete':'Delete')+'" aria-label="Delete">'+_TRASH+'</button>'; return b||_muted(); }
 function _s(field){ return function(a,b){ return cmp(a[field],b[field]); }; }
 
 var C_NAME={ label:'Name', sort:_s('title'), cell:cName };
@@ -262,6 +268,7 @@ function load(){
 }
 
 document.addEventListener('click', function(e){ var b=e.target.closest?e.target.closest('[data-del]'):null; if(b){ e.preventDefault(); e.stopPropagation(); delFile(b.getAttribute('data-del')); } });
+document.addEventListener('click', function(e){ var b=e.target.closest?e.target.closest('[data-edit]'):null; if(b){ e.preventDefault(); e.stopPropagation(); openEditFile(b.getAttribute('data-edit')); } });
 async function bulkDeleteDocs(ids, done){
   var docs=ids.map(function(id){ return DOCS.find(function(x){return x.id===id;}); }).filter(Boolean);
   var deletable=docs.filter(function(d){ if(d.kind==='firmwide') return IS_ADMIN; return d.kind==='file'||d.deleteUrl; });
@@ -283,14 +290,33 @@ async function delFile(id){ var d=DOCS.find(function(x){return x.id===id;}); if(
 var PICKED=null, REL=null, _relT=null;
 var DOCTYPES=['General','Agreement / Contract','Lease','Financials','Tax / W-9','Insurance / COI','Inspection','Exhibit / Addendum','Offer / LOI','Invoice / Receipt','Marketing','Legal / Entity','ID / License','Photo','Other'];
 function fillTypes(){ var sel=document.getElementById('upType'); if(sel.options.length) return; sel.innerHTML=DOCTYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join(''); }
-function openUpload(){ PICKED=null; REL=null; document.getElementById('upFile').value=''; document.getElementById('upName').value=''; document.getElementById('upNote').value=''; document.getElementById('upRel').value=''; document.getElementById('upRelChosen').style.display='none'; document.getElementById('upRelRes').style.display='none'; document.getElementById('upMsg').textContent=''; fillTypes(); try{ var nm=(window.__rrgSession&&window.__rrgSession.name)||''; if(nm) document.getElementById('upWho').textContent=nm; }catch(e){} var dp=document.getElementById('drop'); dp.className='drop'; dp.textContent='Click to choose a file — PDF, Word, Excel, PowerPoint, image, TXT, CSV or ZIP (max 25 MB)'; var fw=document.getElementById('upFirmwide'); if(fw) fw.checked=(FILTER==='firmwide'&&IS_ADMIN); document.getElementById('fwWrap').style.display=IS_ADMIN?'block':'none'; onFwToggle(); document.getElementById('upMask').removeAttribute('hidden'); }
+function openUpload(){ EDIT_ID=null; PICKED=null; REL=null; (function(){ var dp=document.getElementById('drop'); if(dp) dp.style.display=''; var mh=document.querySelector('#upMask .modalh'); if(mh) mh.textContent='Upload a document'; var sv=document.getElementById('upSave'); if(sv) sv.textContent='Upload'; })(); document.getElementById('upFile').value=''; document.getElementById('upName').value=''; document.getElementById('upNote').value=''; document.getElementById('upRel').value=''; document.getElementById('upRelChosen').style.display='none'; document.getElementById('upRelRes').style.display='none'; document.getElementById('upMsg').textContent=''; fillTypes(); try{ var nm=(window.__rrgSession&&window.__rrgSession.name)||''; if(nm) document.getElementById('upWho').textContent=nm; }catch(e){} var dp=document.getElementById('drop'); dp.className='drop'; dp.textContent='Click to choose a file — PDF, Word, Excel, PowerPoint, image, TXT, CSV or ZIP (max 25 MB)'; var fw=document.getElementById('upFirmwide'); if(fw) fw.checked=(FILTER==='firmwide'&&IS_ADMIN); document.getElementById('fwWrap').style.display=IS_ADMIN?'block':'none'; onFwToggle(); document.getElementById('upMask').removeAttribute('hidden'); }
 function onFwToggle(){ var fw=document.getElementById('upFirmwide'); var on=!!(fw&&fw.checked); document.getElementById('relRow').style.display=on?'none':''; document.getElementById('docTypeRow').style.display=on?'none':''; document.getElementById('noteRow').style.display=on?'none':''; document.getElementById('fwShelfRow').style.display=on?'':'none'; }
-function closeUpload(){ document.getElementById('upMask').setAttribute('hidden',''); }
+function closeUpload(){ EDIT_ID=null; document.getElementById('upMask').setAttribute('hidden',''); }
 function onPick(){ var f=document.getElementById('upFile').files[0]; if(!f) return; PICKED=f; var dp=document.getElementById('drop'); dp.className='drop has'; dp.textContent='✓ '+f.name+' ('+fmtSize(f.size)+')'; }
 function relSearch(){ var q=document.getElementById('upRel').value.trim(); REL=null; document.getElementById('upRelChosen').style.display='none'; var box=document.getElementById('upRelRes'); if(q.length<2){ box.style.display='none'; return; } if(_relT) clearTimeout(_relT); _relT=setTimeout(function(){ fetch('/api/search?q='+encodeURIComponent(q),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ var rs=((j&&j.results)||[]).filter(function(x){return x.type==='contact'||x.type==='company'||x.type==='listing';}).slice(0,12); if(!rs.length){ box.innerHTML='<div style="padding:11px 14px;color:#8a93a8;font-size:12.5px">No match — press Upload to save “'+esc(q)+'” as a plain reference.</div>'; box.style.display='block'; return; } box.innerHTML=rs.map(function(x){ return '<div class="relrow" data-t="'+x.type+'" data-i="'+esc(x.id)+'" data-n="'+esc(x.title)+'" style="padding:9px 13px;cursor:pointer;display:flex;align-items:center;gap:9px;border-bottom:1px solid #f1f3f8"><span style="color:#23496f">'+(RELICON[x.type]||'•')+'</span><span><b style="color:#0b1a3a;font-size:13px">'+esc(x.title)+'</b>'+(x.sub?(' <span style="color:#8a93a8;font-size:11.5px">'+esc(x.sub)+'</span>'):'')+'</span></div>'; }).join(''); box.style.display='block'; [].slice.call(box.querySelectorAll('.relrow')).forEach(function(el){ el.onclick=function(){ chooseRel(el.getAttribute('data-t'),el.getAttribute('data-i'),el.getAttribute('data-n')); }; }); }).catch(function(){ box.style.display='none'; }); },180); }
 function chooseRel(t,i,n){ REL={type:t,id:i,name:n}; document.getElementById('upRelRes').style.display='none'; document.getElementById('upRel').value=n; var ch=document.getElementById('upRelChosen'); ch.style.display='block'; ch.innerHTML='<span style="display:inline-flex;align-items:center;gap:8px;background:#eef2fb;border:1px solid #d3ddf3;color:#23496f;border-radius:100px;padding:5px 12px;font-size:12.5px;font-weight:700">'+(RELICON[t]||'•')+' '+esc(n)+' <span style="cursor:pointer;color:#8a93a8" onclick="clearRel()">×</span></span>'; }
 function clearRel(){ REL=null; document.getElementById('upRelChosen').style.display='none'; document.getElementById('upRel').value=''; document.getElementById('upRel').focus(); }
+var EDIT_ID=null;
+function openEditFile(id){ var d=DOCS.find(function(x){return x.id===id;}); if(!d||d.kind!=='file') return; EDIT_ID=id; fillTypes();
+  var sel=document.getElementById('upType'); if(d.docType){ var has=false; for(var i=0;i<sel.options.length;i++){ if(sel.options[i].value===d.docType){has=true;break;} } if(!has){ var o=document.createElement('option'); o.textContent=d.docType; sel.appendChild(o); } sel.value=d.docType; }
+  document.getElementById('upName').value=d.title||d.name||'';
+  document.getElementById('upNote').value=d.status||d.note||'';
+  REL=null; document.getElementById('upRelChosen').style.display='none'; document.getElementById('upRel').value=''; document.getElementById('upRelRes').style.display='none';
+  var rt='',rid='',rn=''; if(d.companyId){rt='company';rid=d.companyId;rn=d.companyName||'';} else if(d.personId){rt='contact';rid=d.personId;rn=d.personName||'';} else if(d.dealKey){rt='listing';rid=d.dealKey;rn=d.dealName||'';}
+  if(rt&&rid){ chooseRel(rt,rid,rn); } else if(d.relatesToName){ document.getElementById('upRel').value=d.relatesToName; }
+  var dp=document.getElementById('drop'); if(dp) dp.style.display='none';
+  var fw=document.getElementById('upFirmwide'); if(fw) fw.checked=false; document.getElementById('fwWrap').style.display='none'; onFwToggle();
+  var mh=document.querySelector('#upMask .modalh'); if(mh) mh.textContent='Edit document';
+  var sv=document.getElementById('upSave'); if(sv) sv.textContent='Save changes';
+  document.getElementById('upMsg').textContent=''; document.getElementById('upMask').removeAttribute('hidden');
+}
+function saveEditFile(){ var msg=document.getElementById('upMsg'); var sv=document.getElementById('upSave'); sv.disabled=true; msg.textContent='Saving…';
+  var body={ title:document.getElementById('upName').value.trim(), docType:document.getElementById('upType').value, note:document.getElementById('upNote').value.trim(), relatesToType:(REL?REL.type:''), relatesToId:(REL?REL.id:''), relatesToName:(REL?REL.name:document.getElementById('upRel').value.trim()) };
+  fetch('/api/files/'+encodeURIComponent(EDIT_ID),{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){ sv.disabled=false; if(j&&j.ok){ closeUpload(); load(); } else { msg.textContent=(j&&j.error)||'Could not save.'; } }).catch(function(){ sv.disabled=false; msg.textContent='Could not reach the server.'; });
+}
 function doUpload(){
+  if(EDIT_ID){ return saveEditFile(); }
   var m=document.getElementById('upMsg'); if(!PICKED){ m.textContent='Choose a file first.'; return; }
   if(PICKED.size>25*1024*1024){ m.textContent='File too large (max 25 MB).'; return; }
   var btn=document.getElementById('upSave'); btn.disabled=true; m.textContent='Uploading…';
