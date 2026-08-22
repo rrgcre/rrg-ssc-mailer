@@ -14289,7 +14289,7 @@ function cleanBookQ(q) {
 function bookTypes(bk) {
   bk = bk || {};
   if (Array.isArray(bk.types) && bk.types.length) {
-    return bk.types.filter(t => t && t.name).slice(0, 8).map((t, i) => ({ id: String(t.id || ('t' + i)), name: String(t.name).slice(0, 80), length: BOOK_LENGTHS.indexOf(+t.length) >= 0 ? +t.length : 30, location: String(t.location || '').slice(0, 160), description: String(t.description || '').slice(0, 600), questions: (Array.isArray(t.questions) ? t.questions.filter(q => q && q.q).slice(0, 5).map(cleanBookQ) : []) }));
+    return bk.types.filter(t => t && t.name).slice(0, 8).map((t, i) => ({ id: String(t.id || ('t' + i)), name: String(t.name).slice(0, 80), length: BOOK_LENGTHS.indexOf(+t.length) >= 0 ? +t.length : 30, location: String(t.location || '').slice(0, 160), description: String(t.description || '').slice(0, 600), automationId: String(t.automationId || ''), questions: (Array.isArray(t.questions) ? t.questions.filter(q => q && q.q).slice(0, 5).map(cleanBookQ) : []) }));
   }
   const len = BOOK_LENGTHS.indexOf(+bk.length) >= 0 ? +bk.length : 30;
   return [{ id: 'default', name: bk.title || 'Meeting', length: len, location: '', description: String(bk.description || '').slice(0, 600), questions: (Array.isArray(bk.questions) ? bk.questions.slice(0, 5) : []) }];
@@ -14340,7 +14340,7 @@ app.post('/api/me/booking', express.json(), (req, res) => {
   if (b.title !== undefined) cur.title = String(b.title || '').slice(0, 120);
   // Meeting types — a named list, each with its own length. Empty list falls back to the single length.
   if (Array.isArray(b.types)) {
-    cur.types = b.types.filter(t => t && String(t.name || '').trim()).slice(0, 8).map((t, i) => ({ id: String(t.id || ('t' + Date.now().toString(36) + i)).slice(0, 24), name: String(t.name).trim().slice(0, 80), length: BOOK_LENGTHS.indexOf(+t.length) >= 0 ? +t.length : 30, location: String(t.location || '').slice(0, 160), description: sanitizeRich(t.description), questions: (Array.isArray(t.questions) ? t.questions.filter(q => q && String(q.q || '').trim()).slice(0, 5).map(cleanBookQ) : []) }));
+    cur.types = b.types.filter(t => t && String(t.name || '').trim()).slice(0, 8).map((t, i) => ({ id: String(t.id || ('t' + Date.now().toString(36) + i)).slice(0, 24), name: String(t.name).trim().slice(0, 80), length: BOOK_LENGTHS.indexOf(+t.length) >= 0 ? +t.length : 30, location: String(t.location || '').slice(0, 160), description: sanitizeRich(t.description), automationId: String(t.automationId || '').slice(0, 40), questions: (Array.isArray(t.questions) ? t.questions.filter(q => q && String(q.q || '').trim()).slice(0, 5).map(cleanBookQ) : []) }));
   }
   // Invitee questions — up to 5 custom questions shown on the booking form.
   if (Array.isArray(b.questions)) {
@@ -14383,9 +14383,23 @@ app.post('/api/book/:token', express.json(), async (req, res) => {
   const prof = auth.profileOf(auth.findUser(bk.username)) || {};
   const all = loadAppts(); const now = new Date().toISOString();
   const _tt = (t.id !== 'default' && t.name) ? t.name : (bk.title || ('Meeting with ' + name));
+  // Per-meeting-type automation: find-or-create the booker as a contact and enroll them.
+  let _personId = '', _personName = '';
+  try {
+    if (t.automationId) {
+      const _ppl = loadPeople(); const _elc = email.toLowerCase();
+      let _per = _ppl.find(x => Array.isArray(x.emails) && x.emails.some(e => String(e).toLowerCase() === _elc));
+      if (!_per) { const _pt = name.split(' '); _per = { id: newPersonId(), name: name.slice(0,160), firstName:(_pt[0]||name).slice(0,80), lastName:_pt.slice(1).join(' ').slice(0,80), emails:[email], phones:[], type:'Other', leadSource:'Booking', createdAt: now, updatedAt: now, by:'Booking', byUser: bk.username }; _ppl.push(_per); }
+      _personId = _per.id; _personName = _per.name;
+      const _plan = loadAutomations().find(x => x.id === t.automationId && x.active !== false);
+      if (_plan) { try { enrollPerson(_per, _plan, { byName: prof.name || bk.username, byUser: bk.username }); } catch (e) {} }
+      try { logActivity(_per, 'Note', 'Booked \u201c' + String(_tt) + '\u201d for ' + start.replace('T',' at ') + (_plan ? (' \u2014 automation \u201c' + (_plan.name || '') + '\u201d started') : ''), { auto: true, by: 'Booking' }); } catch (e) {}
+      savePeople(_ppl);
+    }
+  } catch (e) {}
   let _notes = String(b.notes || '').slice(0, 2000);
   if (_answered.length) { const _qa = _answered.map(x => x.q + ': ' + x.a).join('\n'); _notes = (_notes ? _notes + '\n\n' : '') + _qa; }
-  const a = { id: newApptId(), byUser: bk.username, byName: prof.name || bk.username, createdAt: now, status: 'scheduled', title: String(_tt).slice(0, 200), start, end: _bAddMin(start, t.length), type: 'Meeting', location: t.location || prof.workLocation || '', notes: _notes, bookingAnswers: _answered, contactName: name, attendees: [{ name, email }], source: 'booking', bookToken: bk.token || '', manageToken: _bookToken(), invitedAt: now };
+  const a = { id: newApptId(), byUser: bk.username, byName: prof.name || bk.username, personId: _personId, personName: _personName, createdAt: now, status: 'scheduled', title: String(_tt).slice(0, 200), start, end: _bAddMin(start, t.length), type: 'Meeting', location: t.location || prof.workLocation || '', notes: _notes, bookingAnswers: _answered, contactName: name, attendees: [{ name, email }], source: 'booking', bookToken: bk.token || '', manageToken: _bookToken(), invitedAt: now };
   all.push(a); saveAppts(all);
   try {
     if (isEmailConfigured()) {
