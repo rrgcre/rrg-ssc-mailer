@@ -152,6 +152,10 @@ a.feat:hover{background:#f4f7fb;} a.feat:hover b{color:var(--blue);}
 .legend .sw.mine{background:#eaf7f0;border-left-color:#1f8a5b;}
 .legend .sw.other{background:#eaeff6;border-left-color:#2c5c8f;}
 .legend .sw.task{background:#fff6e6;border-left-color:#e0a53a;}
+.chip.booked{border-left-width:4px !important;box-shadow:inset 0 0 0 1px #f0c9c6;font-weight:800;}
+.chip .bkm{margin-right:3px;}
+.agitem.booked{background:#fdf6f5;}
+.bktag{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:#a5352c;background:#f7dedb;border-radius:4px;padding:1px 6px;margin-left:6px;vertical-align:middle;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -273,14 +277,14 @@ var CALPAL=[
  {bg:'#f2ebe4',text:'#6e4b2a',border:'#9c6f42'},{bg:'#e3f0f7',text:'#1f5a78',border:'#2f89b5'}
 ];
 function colorForUser(u){ u=String(u||''); var h=0; for(var i=0;i<u.length;i++){ h=(h*31+u.charCodeAt(i))>>>0; } return CALPAL[h%CALPAL.length]; }
-function chip(a){ var c=colorForUser(a.byUser); var st='background:'+c.bg+';color:'+c.text+';border-left-color:'+c.border+';'; return '<span class="chip'+(a.status==='cancelled'?' cancelled':'')+'" style="'+st+'" data-appt="'+esc(a.id)+'" title="'+esc(a.title)+(a.byName?(' · '+esc(a.byName)):'')+(a.contactName?(' · '+esc(a.contactName)):'')+'"><span class="t">'+esc(fmtTime(timeOf(a.start)))+'</span>'+esc(a.title)+'</span>'; }
+function chip(a){ var c=colorForUser(a.byUser); var bk=(a.source==='booking'); var st='background:'+c.bg+';color:'+c.text+';border-left-color:'+(bk?'#DA2B1F':c.border)+';'; return '<span class="chip'+(a.status==='cancelled'?' cancelled':'')+(bk?' booked':'')+'" style="'+st+'" data-appt="'+esc(a.id)+'" title="'+esc(a.title)+(bk?' · Booked online':'')+(a.byName?(' · '+esc(a.byName)):'')+(a.contactName?(' · '+esc(a.contactName)):'')+'">'+(bk?'<span class="bkm">🔗</span>':'')+'<span class="t">'+esc(fmtTime(timeOf(a.start)))+'</span>'+esc(a.title)+'</span>'; }
 function tasksOn(dstr){ if(!SHOWTASKS) return []; return (TASKS||[]).filter(function(t){return String(t.due||'').slice(0,10)===dstr;}).sort(function(a,b){return String(a.due).localeCompare(String(b.due));}); }
 function taskChip(t){ var tm=String(t.due||'').slice(11,16); return '<span class="tchip" data-task="'+esc(t.id)+'" title="Task: '+esc(t.title)+(t.assigneeName?(' · '+esc(t.assigneeName)):'')+(t.linkLabel?(' · '+esc(t.linkLabel)):'')+'"><span class="tk">✓</span>'+(tm?('<span class="t">'+esc(fmtTime(tm))+'</span>'):'')+esc(t.title)+'</span>'; }
 function taskItem(t){ var tm=String(t.due||'').slice(11,16); return '<div class="agitem tk" data-task="'+esc(t.id)+'" style="border-left:3px solid #e0a53a;padding-left:11px"><div class="atime">'+(tm?esc(fmtTime(tm)):'Task')+'</div><div class="abody"><b>'+esc(t.title)+'</b><div class="ameta">Task'+(t.priority&&t.priority!=='Normal'?(' · '+esc(t.priority)):'')+(t.assigneeName?(' · '+esc(t.assigneeName)):'')+(t.linkLabel?(' · '+esc(t.linkLabel)):'')+'</div></div></div>'; }
 function renderDay(){
   var ds=ymd(CUR); var list=apptsOn(ds); var tks=tasksOn(ds);
   if(!list.length && !tks.length){ document.getElementById('cal').innerHTML='<div class="agenda"><div class="empty">Nothing on this day. Click <b>+ New meeting</b> to schedule one.</div></div>'; return; }
-  var html='<div class="agenda"><div class="agday"><div class="ah">'+esc(DOW[CUR.getDay()]+', '+MON[CUR.getMonth()]+' '+CUR.getDate())+'</div>'+list.map(function(a){ return '<div class="agitem" data-appt="'+esc(a.id)+'" style="border-left:3px solid '+colorForUser(a.byUser).border+';padding-left:11px"><div class="atime">'+esc(fmtTime(timeOf(a.start)))+(a.end&&timeOf(a.end)!==timeOf(a.start)?('-'+esc(fmtTime(timeOf(a.end)))):'')+'</div><div class="abody"><b'+(a.status==='cancelled'?' style="text-decoration:line-through;opacity:.6"':'')+'>'+esc(a.title)+'</b><div class="ameta">'+esc(a.type||'Meeting')+(a.contactName?(' · '+esc(a.contactName)):'')+(a.location?(' · '+esc(a.location)):'')+' · '+esc(a.byName||'')+'</div></div></div>'; }).join('')+tks.map(taskItem).join('')+'</div></div>';
+  var html='<div class="agenda"><div class="agday"><div class="ah">'+esc(DOW[CUR.getDay()]+', '+MON[CUR.getMonth()]+' '+CUR.getDate())+'</div>'+list.map(function(a){ return '<div class="agitem'+(a.source==='booking'?' booked':'')+'" data-appt="'+esc(a.id)+'" style="border-left:3px solid '+(a.source==='booking'?'#DA2B1F':colorForUser(a.byUser).border)+';padding-left:11px"><div class="atime">'+esc(fmtTime(timeOf(a.start)))+(a.end&&timeOf(a.end)!==timeOf(a.start)?('-'+esc(fmtTime(timeOf(a.end)))):'')+'</div><div class="abody"><b'+(a.status==='cancelled'?' style="text-decoration:line-through;opacity:.6"':'')+'>'+esc(a.title)+(a.source==='booking'?' <span class="bktag">Booked online</span>':'')+'</b><div class="ameta">'+esc(a.type||'Meeting')+(a.contactName?(' · '+esc(a.contactName)):'')+(a.location?(' · '+esc(a.location)):'')+' · '+esc(a.byName||'')+'</div></div></div>'; }).join('')+tks.map(taskItem).join('')+'</div></div>';
   document.getElementById('cal').innerHTML=html; wireGrid();
 }
 function renderWeek(){
@@ -315,7 +319,7 @@ function renderAgenda(){
   var html='<div class="agenda">'+order.map(function(k){
     var dt=new Date(k+'T00:00'); var hd=DOW[dt.getDay()]+', '+MON[dt.getMonth()]+' '+dt.getDate();
     return '<div class="agday"><div class="ah">'+esc(hd)+'</div>'+days[k].appts.map(function(a){
-      return '<div class="agitem" data-appt="'+esc(a.id)+'" style="border-left:3px solid '+colorForUser(a.byUser).border+';padding-left:11px"><div class="atime">'+esc(fmtTime(timeOf(a.start)))+(a.end&&timeOf(a.end)!==timeOf(a.start)?('–'+esc(fmtTime(timeOf(a.end)))):'')+'</div><div class="abody"><b'+(a.status==='cancelled'?' style="text-decoration:line-through;opacity:.6"':'')+'>'+esc(a.title)+'</b><div class="ameta">'+esc(a.type||'Meeting')+(a.contactName?(' · '+esc(a.contactName)):'')+(a.location?(' · '+esc(a.location)):'')+' · '+esc(a.byName||'')+'</div></div></div>';
+      return '<div class="agitem'+(a.source==='booking'?' booked':'')+'" data-appt="'+esc(a.id)+'" style="border-left:3px solid '+(a.source==='booking'?'#DA2B1F':colorForUser(a.byUser).border)+';padding-left:11px"><div class="atime">'+esc(fmtTime(timeOf(a.start)))+(a.end&&timeOf(a.end)!==timeOf(a.start)?('–'+esc(fmtTime(timeOf(a.end)))):'')+'</div><div class="abody"><b'+(a.status==='cancelled'?' style="text-decoration:line-through;opacity:.6"':'')+'>'+esc(a.title)+(a.source==='booking'?' <span class="bktag">Booked online</span>':'')+'</b><div class="ameta">'+esc(a.type||'Meeting')+(a.contactName?(' · '+esc(a.contactName)):'')+(a.location?(' · '+esc(a.location)):'')+' · '+esc(a.byName||'')+'</div></div></div>';
     }).join('')+days[k].tasks.map(taskItem).join('')+'</div>';
   }).join('')+'</div>';
   document.getElementById('cal').innerHTML=html;
