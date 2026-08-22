@@ -200,19 +200,20 @@ function goDetails(){
   setMain('<div class="steptitle">Enter Details</div>'
     +'<label class="fl">Name <span class="req">*</span></label><input class="f" id="bk_name">'
     +'<label class="fl">Email <span class="req">*</span></label><input class="f" id="bk_email" type="email">'
+    +'<label class="fl">Phone <span class="req">*</span></label><input class="f" id="bk_phone" type="tel" placeholder="(210) 555-1234">'
     +qHtml
     +'<div class="confirm"><button class="btn" id="bk_go">Schedule Event</button><span class="msg" id="bk_msg"></span></div>');
   var go=document.getElementById('bk_go'); if(go) go.addEventListener('click',book);
 }
 function book(){
   var msg=document.getElementById('bk_msg'), go=document.getElementById('bk_go');
-  var name=(document.getElementById('bk_name').value||'').trim(), email=(document.getElementById('bk_email').value||'').trim();
-  if(!name||!email){ msg.className='msg err'; msg.textContent='Please enter your name and email.'; return; }
+  var name=(document.getElementById('bk_name').value||'').trim(), email=(document.getElementById('bk_email').value||'').trim(), phone=(document.getElementById('bk_phone').value||'').trim();
+  if(!name||!email||!phone){ msg.className='msg err'; msg.textContent='Please enter your name, email and phone.'; return; }
   var qs=(TYPE&&Array.isArray(TYPE.questions))?TYPE.questions:[]; var answers=[], missing=null;
   Array.prototype.forEach.call(document.querySelectorAll('.q'),function(el){ var qi=+el.getAttribute('data-qi'); var q=qs[qi]||{}; var v=(el.value||'').trim(); if(q.required&&!v&&!missing) missing=q.q; answers.push({q:q.q,a:v}); });
   if(missing){ msg.className='msg err'; msg.textContent='Please answer: '+missing; return; }
   go.disabled=true; msg.className='msg'; msg.textContent='Scheduling…';
-  fetch('/api/book/'+encodeURIComponent(TOKEN),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,email:email,answers:answers,start:SELSLOT,type:(TYPE&&TYPE.id)||''})}).then(function(r){return r.json();}).then(function(j){
+  fetch('/api/book/'+encodeURIComponent(TOKEN),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,email:email,phone:phone,answers:answers,start:SELSLOT,type:(TYPE&&TYPE.id)||''})}).then(function(r){return r.json();}).then(function(j){
     if(j&&j.ok){ showDone(); }
     else { go.disabled=false; msg.className='msg err'; msg.textContent=(j&&j.error)||'Could not book.'; if(j&&/taken/i.test(j.error||'')){ SELSLOT=''; renderCalStep(); } }
   }).catch(function(){ go.disabled=false; msg.className='msg err'; msg.textContent='Could not reach the server.'; });

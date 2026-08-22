@@ -14400,9 +14400,9 @@ app.get('/api/book/:token/slots', (req, res) => {
 app.post('/api/book/:token', express.json(), async (req, res) => {
   const bk = bookingByToken(req.params.token); if (!bk) return res.status(404).json({ ok: false, error: 'This booking link is not active.' });
   const b = req.body || {};
-  const name = String(b.name || '').trim().slice(0, 120); const email = String(b.email || '').trim().slice(0, 160);
+  const name = String(b.name || '').trim().slice(0, 120); const email = String(b.email || '').trim().slice(0, 160); const phone = String(b.phone || '').trim().slice(0, 40);
   const start = String(b.start || '').slice(0, 16);
-  if (!name || !email) return res.status(400).json({ ok: false, error: 'Please enter your name and email.' });
+  if (!name || !email || !phone) return res.status(400).json({ ok: false, error: 'Please enter your name, email and phone.' });
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(start)) return res.status(400).json({ ok: false, error: 'Please pick a time.' });
   const t = bookTypeById(bk, String(b.type || ''));
   const av = bookingAvailability(bk.username, 30, t.length);
@@ -14423,7 +14423,8 @@ app.post('/api/book/:token', express.json(), async (req, res) => {
     const _ppl = loadPeople(); const _elc = email.toLowerCase();
     let _per = _ppl.find(x => Array.isArray(x.emails) && x.emails.some(e => String(e).toLowerCase() === _elc));
     let _isNew = false;
-    if (!_per) { const _pt = name.split(' '); _per = { id: newPersonId(), name: name.slice(0,160), firstName:(_pt[0]||name).slice(0,80), lastName:_pt.slice(1).join(' ').slice(0,80), emails:[email], phones:[], type:'Other', leadSource:'Booking', createdAt: now, updatedAt: now, by:'Booking', byUser: bk.username }; _ppl.push(_per); _isNew = true; }
+    if (!_per) { const _pt = name.split(' '); _per = { id: newPersonId(), name: name.slice(0,160), firstName:(_pt[0]||name).slice(0,80), lastName:_pt.slice(1).join(' ').slice(0,80), emails:[email], phones:(phone?[phone]:[]), type:'Other', leadSource:'Booking', createdAt: now, updatedAt: now, by:'Booking', byUser: bk.username }; _ppl.push(_per); _isNew = true; }
+    if (phone && (!Array.isArray(_per.phones) || !_per.phones.length)) { _per.phones = [phone]; }
     _personId = _per.id; _personName = _per.name;
     let _plan = null;
     if (t.automationId) { _plan = loadAutomations().find(x => x.id === t.automationId && x.active !== false); if (_plan) { try { enrollPerson(_per, _plan, { byName: prof.name || bk.username, byUser: bk.username }); } catch (e) {} } }
@@ -14432,7 +14433,7 @@ app.post('/api/book/:token', express.json(), async (req, res) => {
   } catch (e) {}
   let _notes = String(b.notes || '').slice(0, 2000);
   if (_answered.length) { const _qa = _answered.map(x => x.q + ': ' + x.a).join('\n'); _notes = (_notes ? _notes + '\n\n' : '') + _qa; }
-  const a = { id: newApptId(), byUser: bk.username, byName: prof.name || bk.username, personId: _personId, personName: _personName, createdAt: now, status: 'scheduled', title: String(_tt).slice(0, 200), start, end: _bAddMin(start, t.length), type: 'Meeting', location: t.location || prof.workLocation || '', notes: _notes, bookingAnswers: _answered, contactName: name, attendees: [{ name, email }], source: 'booking', bookToken: bk.token || '', manageToken: _bookToken(), invitedAt: now };
+  const a = { id: newApptId(), byUser: bk.username, byName: prof.name || bk.username, personId: _personId, personName: _personName, createdAt: now, status: 'scheduled', title: String(_tt).slice(0, 200), start, end: _bAddMin(start, t.length), type: 'Meeting', location: t.location || prof.workLocation || '', notes: _notes, bookingAnswers: _answered, contactName: name, attendees: [{ name, email, phone }], contactPhone: phone, source: 'booking', bookToken: bk.token || '', manageToken: _bookToken(), invitedAt: now };
   all.push(a); saveAppts(all);
   try {
     if (isEmailConfigured()) {
