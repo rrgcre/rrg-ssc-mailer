@@ -12126,7 +12126,7 @@ app.get('/api/team', (req, res) => {
     const r = repRollup(u, { lists: false });
     return { username: u.username || '', name: u.name || u.username || '', title: u.title || '', role: u.role || '', email: u.email || '', photoUrl: repUserPhoto(u.username), activeListings: r.activeListings, deals: r.dealCount, closedDeals: r.closedDeals, gci: r.gci, net: r.net, received: r.received, waiting: r.waiting, pipeline: r.pipeline, gciYtd: r.gciYtd, closedDealsYtd: r.closedDealsYtd, netYtd: r.netYtd, lostDeals: r.lostDeals, leads: r.leads, self: (u.username === req.user.username) };
   }).sort((a, b) => (b.gci - a.gci) || String(a.name).localeCompare(String(b.name)));
-  res.json({ ok: true, team: rows, isAdmin: isAdmin, split: effCommissionAgentSplit(), me: req.user.username });
+  res.json({ ok: true, team: rows, isAdmin: isAdmin, split: effCommissionAgentSplit(), me: req.user.username, roles: loadRoles().filter(r => r.key !== 'creator').map(r => ({ key: r.key, name: r.name })) });
 });
 app.get('/api/portal', (req, res) => {
   if (!req.user) return res.status(401).json({ ok: false, error: 'Sign in required.' });

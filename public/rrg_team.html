@@ -39,6 +39,27 @@ a.feat:hover{background:#f4f7fb;} a.feat:hover b{color:#2c5c8f;}
 .feat .fic{font-size:17px;line-height:1.25;flex:none;width:24px;text-align:center;}
 .feat b{display:block;font-size:12.5px;color:var(--navy);font-weight:700;}
 .feat span{display:block;font-size:11.5px;color:var(--muted);line-height:1.45;margin-top:2px;}
+.tmhdact{margin-left:auto;display:flex;gap:8px;align-items:center;}
+.tmbtn{background:var(--navy);color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:700;padding:7px 13px;cursor:pointer;}
+.tmbtn:hover{background:#0a1a44;}
+.tmlink{color:#2c5c8f;font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap;}
+.tmlink:hover{text-decoration:underline;}
+.tmact{background:#fbeceb;color:#b23a2c;border:1px solid #f3d6d3;border-radius:6px;width:30px;height:28px;cursor:pointer;font-size:14px;line-height:1;padding:0;}
+.tmact:hover{background:#f6dcd9;}
+.tmov{position:fixed;inset:0;background:rgba(6,14,33,.5);display:flex;align-items:flex-start;justify-content:center;padding:6vh 16px;z-index:9999;overflow:auto;}
+.tmbox{background:#fff;border-radius:12px;max-width:520px;width:100%;box-shadow:0 24px 70px rgba(6,14,33,.35);}
+.tmbox .hd{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;}
+.tmbox .hd b{font-size:15px;color:var(--navy);} .tmbox .hd .x{margin-left:auto;cursor:pointer;color:var(--soft);font-size:20px;line-height:1;background:none;border:none;}
+.tmbox .bd{padding:16px 20px;}
+.tmgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.tmf label{display:block;font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--soft);margin-bottom:4px;}
+.tmf input,.tmf select{width:100%;border:1px solid #cfd6e2;border-radius:7px;padding:9px 10px;font-size:13.5px;color:var(--ink);background:#fff;}
+.tmf.full{grid-column:1 / -1;}
+.tmbar{display:flex;gap:10px;align-items:center;padding:14px 20px;border-top:1px solid var(--line);}
+.tmsave{background:var(--navy);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;padding:9px 18px;cursor:pointer;}
+.tmsave:disabled{opacity:.6;}
+.tmcancel{background:#fff;color:var(--navy);border:1px solid #cfd6e2;border-radius:8px;font-size:13px;font-weight:700;padding:9px 16px;cursor:pointer;}
+.tmmsg{font-size:12.5px;} .tmmsg.err{color:#b23a2c;} .tmmsg.ok{color:var(--green);}
 </style>
 <script src="/rrg_brand.js"></script>
 <script src="/rrg_list.js"></script>
@@ -50,6 +71,7 @@ function esc(s){var d=document.createElement('div');d.textContent=s==null?'':Str
 function money(n){ n=Math.round(Number(n)||0); return '$'+n.toLocaleString('en-US'); }
 function moneyShort(n){ n=Number(n)||0; var neg=n<0?'-':''; n=Math.abs(n); if(n>=1000000) return neg+'$'+(n/1000000).toFixed(n%1000000?1:0)+'M'; if(n>=1000) return neg+'$'+Math.round(n/1000)+'K'; return neg+'$'+Math.round(n); }
 function num(s){ return Number(String(s==null?'':s).replace(/[^0-9.\-]/g,''))||0; }
+var IS_ADMIN=false, ROLES=[], TEAM=[];
 
 fetch('/api/team',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
   if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">'+esc((j&&j.error)||'Could not load the team.')+'</div>'; return; }
@@ -58,6 +80,7 @@ fetch('/api/team',{credentials:'same-origin'}).then(function(r){return r.json();
 }).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not reach the server.</div>'; });
 
 function render(j){
+  IS_ADMIN=!!j.isAdmin; ROLES=j.roles||[]; TEAM=j.team||[];
   var FEATS='<div class="feats" id="tmFeats">'+'<div class="featshd" id="tmFeatHd"><b>What you can do with Teams</b><span class="sh">your team\u2019s book, production and commission at a glance \u2014 tap any tile for help</span><span class="chev">\u25be</span></div>'+'<div class="featgrid">'+'<a class="feat" href="rrg_team_help.html#roster" target="_blank" rel="noopener"><span class="fic">\ud83d\udccb</span><div><b>Everyone at a glance</b><span>Every team member\u2019s book, production and commission on one screen \u2014 ranked and sortable.</span></div></a>'+'<a class="feat" href="rrg_team_help.html#kpis" target="_blank" rel="noopener"><span class="fic">\ud83d\udcca</span><div><b>Live production KPIs</b><span>Active listings, deals, GCI, received, waiting-on, net and pipeline \u2014 computed live from each rep\u2019s book.</span></div></a>'+'<a class="feat" href="rrg_team_help.html#overview" target="_blank" rel="noopener"><span class="fic">\ud83d\udc64</span><div><b>One record per person</b><span>Click a name for a contact-style employee record with their listings, deals and agreements.</span></div></a>'+'<a class="feat" href="rrg_team_help.html#kpis" target="_blank" rel="noopener"><span class="fic">\u23f3</span><div><b>Commission still owed</b><span>See what\u2019s been received vs. what you\u2019re waiting on \u2014 like the second half of a lease commission.</span></div></a>'+'<a class="feat" href="rrg_team_help.html#details" target="_blank" rel="noopener"><span class="fic">\ud83e\udeaa</span><div><b>Employee details</b><span>Home address, LinkedIn, start &amp; end dates and emergency contact, kept right on the record.</span></div></a>'+'<a class="feat" href="rrg_team_help.html#payroll" target="_blank" rel="noopener"><span class="fic">\ud83d\udd12</span><div><b>Payroll &amp; tax</b><span>Payment method, W-9 on file, tax classification and 1099 details \u2014 visible only to administrators.</span></div></a>'+'<a class="feat" href="rrg_team_help.html#commission" target="_blank" rel="noopener"><span class="fic">\ud83d\udcb0</span><div><b>Commission &amp; agent split</b><span>Net pay follows your firm\u2019s commission structure and agent split, set once in admin.</span></div></a>'+'<a class="feat" href="rrg_team_help.html#roster" target="_blank" rel="noopener"><span class="fic">\ud83d\udee1\ufe0f</span><div><b>Private by design</b><span>Reps see only their own record; the roster and payroll figures are admin-only.</span></div></a>'+'</div></div>';
   var t=j.team||[];
   var tot=t.reduce(function(a,r){ a.listings+=r.activeListings; a.deals+=r.deals; a.closed+=r.closedDeals; a.gci+=r.gci; a.net+=r.net; a.received+=(r.received||0); a.waiting+=(r.waiting||0); a.pipeline+=r.pipeline; a.gciYtd+=(r.gciYtd||0); a.closedYtd+=(r.closedDealsYtd||0); a.lost+=(r.lostDeals||0); return a; },{listings:0,deals:0,closed:0,gci:0,net:0,received:0,waiting:0,pipeline:0,gciYtd:0,closedYtd:0,lost:0});
@@ -74,11 +97,11 @@ function render(j){
       +tile(moneyShort(tot.waiting),'Waiting on','money')
       +tile(moneyShort(tot.pipeline),'Pipeline','money')
     +'</div>'
-    +'<div class="card"><div class="ch"><b>Team members</b><span>'+t.length+' · '+j.split+'% agent split</span></div><div class="cb"><div id="tm"></div></div></div>';
+    +'<div class="card"><div class="ch"><b>Team members</b><span>'+t.length+' · '+j.split+'% agent split</span>'+(IS_ADMIN?'<span class="tmhdact"><button type="button" class="tmbtn" id="tmAdd">+ Add member</button><a class="tmlink" href="rrg_users.html">Manage users &rarr;</a></span>':'')+'</div><div class="cb"><div id="tm"></div></div></div>';
   document.getElementById('root').innerHTML=html;
   (function(){ var fs=document.getElementById('tmFeats'), hd=document.getElementById('tmFeatHd'); if(fs&&hd){ try{ if(localStorage.getItem('rrg_tmfeats')!=='1') fs.classList.add('collapsed'); }catch(e){ fs.classList.add('collapsed'); } hd.addEventListener('click',function(){ var col=fs.classList.toggle('collapsed'); try{ localStorage.setItem('rrg_tmfeats', col?'0':'1'); }catch(e){} }); } })();
   RRGList.create({ mount:document.getElementById('tm'), key:'team_roster', data:t, rowId:function(it){return it.username;}, defaultSort:3, defaultDir:-1, empty:'No team members.',
-    columns:[
+    columns:([
       {key:'name',label:'Name',cell:function(it){ var ini=(it.name||it.username||'?').trim().split(/\s+/).map(function(w){return w.charAt(0);}).join('').slice(0,2).toUpperCase(); var av=it.photoUrl?('<img src="'+esc(it.photoUrl)+'" onerror="this.remove()">'):esc(ini); return '<div class="rp"><span class="rpav">'+av+'</span><a class="lk" href="rrg_user.html?u='+encodeURIComponent(it.username)+'">'+esc(it.name||it.username)+(it.self?' <span class="meta">(you)</span>':'')+'</a></div>'; },sort:function(a,b){return String(a.name).localeCompare(String(b.name));}},
       {key:'title',label:'Title',cell:function(it){return esc(it.title||it.role||'—');},sort:function(a,b){return String(a.title||a.role).localeCompare(String(b.title||b.role));}},
       {key:'activeListings',label:'Listings',align:'right',cell:function(it){return String(it.activeListings);},sort:function(a,b){return a.activeListings-b.activeListings;}},
@@ -90,9 +113,58 @@ function render(j){
       {key:'waiting',label:'Waiting on',align:'right',cell:function(it){return it.waiting?money(it.waiting):'<span class="meta">—</span>';},sort:function(a,b){return (a.waiting||0)-(b.waiting||0);}},
       {key:'net',label:'Net',align:'right',cell:function(it){return it.net?money(it.net):'<span class="meta">—</span>';},sort:function(a,b){return a.net-b.net;}},
       {key:'pipeline',label:'Pipeline',align:'right',cell:function(it){return it.pipeline?money(it.pipeline):'<span class="meta">—</span>';},sort:function(a,b){return a.pipeline-b.pipeline;}}
-    ]});
+    ].concat(IS_ADMIN?[{key:'_act',label:'',align:'right',cell:function(it){ return it.self?'<span class="meta">\u2014</span>':'<button type="button" class="tmact" data-rm="'+esc(it.username)+'" data-nm="'+esc(it.name||it.username)+'" title="Remove from team">\ud83d\uddd1</button>'; },sort:null}]:[])) });
+  var _add=document.getElementById('tmAdd'); if(_add) _add.addEventListener('click',openAddMember);
+  var _tm=document.getElementById('tm'); if(_tm && !_tm._rmwired){ _tm._rmwired=true; _tm.addEventListener('click',function(e){ var b=e.target.closest&&e.target.closest('[data-rm]'); if(!b) return; removeMember(b.getAttribute('data-rm'), b.getAttribute('data-nm')); }); }
 }
 function tile(n,label,cls,sub){ return '<div class="tile"><div class="n'+(cls?(' '+cls):'')+'">'+esc(n)+'</div><div class="l">'+esc(label)+'</div>'+(sub?('<div class="ts">'+esc(sub)+'</div>'):'')+'</div>'; }
+
+function _tmClose(){ var ov=document.getElementById('tmOv'); if(ov) ov.remove(); }
+function openAddMember(){
+  _tmClose();
+  var roleOpts=(ROLES.length?ROLES:[{key:'associate',name:'Associate'},{key:'rep',name:'Agent'}]).map(function(r){ return '<option value="'+esc(r.key)+'"'+(r.key==='associate'?' selected':'')+'>'+esc(r.name)+'</option>'; }).join('');
+  var ov=document.createElement('div'); ov.className='tmov'; ov.id='tmOv';
+  ov.innerHTML='<div class="tmbox" role="dialog" aria-modal="true">'
+    +'<div class="hd"><b>Add a team member</b><button type="button" class="x" id="tmX" aria-label="Close">&times;</button></div>'
+    +'<div class="bd"><div class="tmgrid">'
+      +'<div class="tmf"><label>First name</label><input id="tm_first" placeholder="Jane"></div>'
+      +'<div class="tmf"><label>Last name</label><input id="tm_last" placeholder="Doe"></div>'
+      +'<div class="tmf"><label>Username *</label><input id="tm_user" placeholder="jdoe" autocapitalize="off" autocomplete="off"></div>'
+      +'<div class="tmf"><label>Role</label><select id="tm_role">'+roleOpts+'</select></div>'
+      +'<div class="tmf full"><label>Email</label><input id="tm_email" type="email" placeholder="jane@rrgcre.com"></div>'
+      +'<div class="tmf"><label>Title</label><input id="tm_title" placeholder="Associate Broker"></div>'
+      +'<div class="tmf"><label>Phone</label><input id="tm_phone" placeholder="210-..."></div>'
+      +'<div class="tmf full"><label>Temporary password *</label><input id="tm_pw" type="text" placeholder="At least 6 characters"></div>'
+    +'</div><div style="font-size:11.5px;color:#8a93a8;margin-top:10px">They sign in with this username and temporary password, then change it under Account. Role sets what they can see and do \u2014 manage roles in detail under Settings \u2192 Users.</div></div>'
+    +'<div class="tmbar"><button type="button" class="tmsave" id="tm_go">Add member</button><button type="button" class="tmcancel" id="tm_cancel">Cancel</button><span class="tmmsg" id="tm_msg"></span></div>'
+  +'</div>';
+  document.body.appendChild(ov);
+  ov.addEventListener('click',function(e){ if(e.target===ov) _tmClose(); });
+  document.getElementById('tmX').addEventListener('click',_tmClose);
+  document.getElementById('tm_cancel').addEventListener('click',_tmClose);
+  document.getElementById('tm_go').addEventListener('click',submitAddMember);
+  setTimeout(function(){ var el=document.getElementById('tm_first'); if(el) el.focus(); },40);
+}
+function submitAddMember(){
+  var msg=document.getElementById('tm_msg'); var go=document.getElementById('tm_go');
+  function v(id){ var el=document.getElementById(id); return el?String(el.value||'').trim():''; }
+  var user=v('tm_user'), pw=v('tm_pw');
+  if(!user){ msg.className='tmmsg err'; msg.textContent='Enter a username.'; return; }
+  if(pw.length<6){ msg.className='tmmsg err'; msg.textContent='Password must be at least 6 characters.'; return; }
+  var body={ firstName:v('tm_first'), lastName:v('tm_last'), username:user, email:v('tm_email'), password:pw, role:v('tm_role'), title:v('tm_title'), phone:v('tm_phone') };
+  go.disabled=true; msg.className='tmmsg'; msg.textContent='Adding\u2026';
+  fetch('/api/admin/add-user',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ msg.className='tmmsg ok'; msg.textContent='Added \u2713'; setTimeout(function(){ _tmClose(); location.reload(); },500); } else { go.disabled=false; msg.className='tmmsg err'; msg.textContent=(j&&j.error)||'Could not add.'; } })
+    .catch(function(){ go.disabled=false; msg.className='tmmsg err'; msg.textContent='Could not reach the server.'; });
+}
+function removeMember(un,nm){
+  if(!un) return;
+  if(!window.confirm('Remove '+(nm||un)+' from the team? Their login is deactivated and they are removed from the roster. Their listings, deals and records stay in the system.')) return;
+  fetch('/api/admin/remove',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({username:un})})
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.reload(); } else { alert((j&&j.error)||'Could not remove.'); } })
+    .catch(function(){ alert('Could not reach the server.'); });
+}
+
 </script>
 </body>
 </html>
