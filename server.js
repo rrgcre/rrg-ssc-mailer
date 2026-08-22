@@ -14268,6 +14268,18 @@ function _bAddDays(dstr, n) { const d = new Date(dstr + 'T12:00:00Z'); d.setUTCD
 function _bDow(dstr) { return new Date(dstr + 'T12:00:00Z').getUTCDay(); }
 function _bNow() { try { const p = new Intl.DateTimeFormat('en-CA', { timeZone: GSYNC_TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date()); const o = {}; p.forEach(x => o[x.type] = x.value); const hh = (o.hour === '24' ? '00' : o.hour); return o.year + '-' + o.month + '-' + o.day + 'T' + hh + ':' + o.minute; } catch (e) { return new Date().toISOString().slice(0, 16); } }
 // Meeting types on a booking page. Back-compat: a page with only a single `length` becomes one type.
+function sanitizeRich(html) {
+  let s = String(html == null ? '' : html).slice(0, 4000);
+  s = s.replace(/<\/?(script|style|iframe|object|embed|link|meta)[^>]*>/gi, '');
+  s = s.replace(/<div[^>]*>/gi, '').replace(/<\/div>/gi, '<br>');
+  s = s.replace(/<p[^>]*>/gi, '').replace(/<\/p>/gi, '<br>');
+  s = s.replace(/<br\s*\/?>/gi, '<br>');
+  // keep only b, strong, i, em, u (no attributes); drop everything else
+  s = s.replace(/<(\/?)(b|strong|i|em|u)(?:\s[^>]*)?>/gi, '<$1$2>');
+  s = s.replace(/<(?!\/?(?:b|strong|i|em|u|br)\b)[^>]*>/gi, '');
+  s = s.replace(/(<br>\s*){3,}/gi, '<br><br>');
+  return s.slice(0, 2000);
+}
 function cleanBookQ(q) {
   const type = ['text','textarea','select'].indexOf(String(q && q.type || 'text')) >= 0 ? String(q.type) : 'text';
   const out = { q: String((q && q.q) || '').trim().slice(0, 200), required: !!(q && q.required), type: type };
@@ -14328,7 +14340,7 @@ app.post('/api/me/booking', express.json(), (req, res) => {
   if (b.title !== undefined) cur.title = String(b.title || '').slice(0, 120);
   // Meeting types — a named list, each with its own length. Empty list falls back to the single length.
   if (Array.isArray(b.types)) {
-    cur.types = b.types.filter(t => t && String(t.name || '').trim()).slice(0, 8).map((t, i) => ({ id: String(t.id || ('t' + Date.now().toString(36) + i)).slice(0, 24), name: String(t.name).trim().slice(0, 80), length: BOOK_LENGTHS.indexOf(+t.length) >= 0 ? +t.length : 30, location: String(t.location || '').slice(0, 160), description: String(t.description || '').slice(0, 600), questions: (Array.isArray(t.questions) ? t.questions.filter(q => q && String(q.q || '').trim()).slice(0, 5).map(cleanBookQ) : []) }));
+    cur.types = b.types.filter(t => t && String(t.name || '').trim()).slice(0, 8).map((t, i) => ({ id: String(t.id || ('t' + Date.now().toString(36) + i)).slice(0, 24), name: String(t.name).trim().slice(0, 80), length: BOOK_LENGTHS.indexOf(+t.length) >= 0 ? +t.length : 30, location: String(t.location || '').slice(0, 160), description: sanitizeRich(t.description), questions: (Array.isArray(t.questions) ? t.questions.filter(q => q && String(q.q || '').trim()).slice(0, 5).map(cleanBookQ) : []) }));
   }
   // Invitee questions — up to 5 custom questions shown on the booking form.
   if (Array.isArray(b.questions)) {

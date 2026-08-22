@@ -111,7 +111,7 @@ function init(){
 function fail(msg){ document.getElementById('card').innerHTML='<div class="empty" style="padding:60px">'+esc(msg)+'</div>'; }
 
 function renderChooser(){
-  var rows=TYPES.map(function(t,i){ return '<button class="typebtn" data-ti="'+i+'"><span><span class="tn">'+esc(t.name)+'</span>'+(t.description?'<span class="td">'+esc(String(t.description).split('\n')[0]).slice(0,90)+'</span>':'')+'</span><span class="tl">'+(t.length||30)+' min ›</span></button>'; }).join('');
+  var rows=TYPES.map(function(t,i){ return '<button class="typebtn" data-ti="'+i+'"><span><span class="tn">'+esc(t.name)+'</span>'+(t.description?'<span class="td">'+esc(String(t.description).replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().slice(0,90))+'</span>':'')+'</span><span class="tl">'+(t.length||30)+' min ›</span></button>'; }).join('');
   document.getElementById('card').innerHTML='<div class="split"><div class="side">'+sideHtml(false,false)+'</div><div class="main"><div class="steptitle">Select a meeting</div><div class="typelist">'+rows+'</div></div></div>';
   Array.prototype.forEach.call(document.querySelectorAll('.typebtn'),function(b){ b.addEventListener('click',function(){ TYPE=TYPES[+b.getAttribute('data-ti')]; loadType(); }); });
 }
@@ -140,7 +140,7 @@ function sideHtml(showBack, showPick){
   if(TYPE&&TYPE.location) h+='<div class="irow"><span class="ic">📍</span><span>'+esc(TYPE.location)+'</span></div>';
   if(showPick&&SELSLOT) h+='<div class="irow"><span class="ic">📅</span><span>'+esc(fmtLong(SELSLOT))+'</span></div>';
   h+='<div class="irow"><span class="ic">🌐</span><span>'+esc(tzLabel())+' ('+esc(tzShort())+')</span></div>';
-  if(TYPE&&TYPE.description) h+='<div class="desc">'+esc(TYPE.description)+'</div>';
+  if(TYPE&&TYPE.description) h+='<div class="desc">'+String(TYPE.description)+'</div>';
   return h;
 }
 function tzLabel(){ for(var i=0;i<TZ_OPTS.length;i++){ if(TZ_OPTS[i][0]===TZ) return TZ_OPTS[i][1]; } return TZ.split('/').pop().replace(/_/g,' '); }
