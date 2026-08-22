@@ -32,9 +32,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 @media(max-width:900px){.cols{grid-template-columns:1fr;}}
 .side .card,.main .card{margin-bottom:16px;}
 .ch{display:flex;align-items:center;gap:10px;padding:12px 18px;border-bottom:1px solid var(--line);background:var(--wash);}
+.ch{cursor:pointer;user-select:none;}
+.ch::after{content:'';margin-left:auto;width:7px;height:7px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);transition:transform .15s ease;flex:none;margin-top:-2px;}
+.card.collapsed .ch{border-bottom:none;}
+.card.collapsed .ch::after{transform:rotate(-45deg);margin-top:2px;}
+.card.collapsed .cb{display:none;}
 .ch b{color:var(--navy);font-size:11.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;}
 .ch span{color:var(--muted);font-size:12px;}
-.ch .adm{margin-left:auto;font-size:10px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:#fff;background:var(--gold);border-radius:3px;padding:2px 8px;}
+.ch .adm{margin-left:0;font-size:10px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:#fff;background:var(--gold);border-radius:3px;padding:2px 8px;}
 .cb{padding:16px 18px;}
 .cb.tbl{padding:4px 8px 8px;}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;} @media(max-width:640px){.grid2{grid-template-columns:1fr;}}
@@ -81,6 +86,10 @@ else { fetch('/api/session',{credentials:'same-origin'}).then(function(r){return
 function tile(n,label,sub,cls){ return '<div class="tile"><div class="n'+(cls?(' '+cls):'')+'">'+esc(n)+'</div><div class="l">'+esc(label)+'</div>'+(sub?('<div class="s">'+esc(sub)+'</div>'):'')+'</div>'; }
 function statusPill(st){ st=String(st||''); var cls='dim'; if(/closed/i.test(st)) cls='ok'; else if(/active|under|pending|live/i.test(st)) cls='warn'; return '<span class="pill '+cls+'">'+esc(st||'—')+'</span>'; }
 
+function _chKey(card){ var b=card.querySelector('.ch b'); return b?(b.textContent||'').trim():''; }
+function _loadCollapsed(){ try{ return JSON.parse(localStorage.getItem('rrg_user_collapsed')||'{}')||{}; }catch(e){ return {}; } }
+function saveCollapsed(){ var m={}; var cards=document.querySelectorAll('#root .card'); Array.prototype.forEach.call(cards,function(c){ var k=_chKey(c); if(k) m[k]=c.classList.contains('collapsed'); }); try{ localStorage.setItem('rrg_user_collapsed',JSON.stringify(m)); }catch(e){} }
+function applyCollapsed(){ var m=_loadCollapsed(); var cards=document.querySelectorAll('#root .card'); Array.prototype.forEach.call(cards,function(c){ var k=_chKey(c); if(k && m[k]) c.classList.add('collapsed'); }); }
 function render(){
   var u=D.user, k=D.kpis, e=D.employee||{}, canEdit=(D.isSelf||D.isAdmin), adm=D.isAdmin;
   var initials=(u.name||u.username||'?').trim().split(/\s+/).map(function(w){return w.charAt(0);}).join('').slice(0,2).toUpperCase();
@@ -141,6 +150,11 @@ function render(){
     +'<div class="card"><div class="ch"><b>Agreements</b><span>'+D.agreements.length+'</span></div><div class="cb tbl"><div id="agr"></div></div></div>'
     +'</div></div>';
   document.getElementById('root').innerHTML=html;
+  applyCollapsed();
+  if(!window._chToggleWired){ window._chToggleWired=true;
+    var _root=document.getElementById('root');
+    _root.addEventListener('click',function(e){ var h=e.target.closest?e.target.closest('.ch'):null; if(!h||!_root.contains(h)) return; if(e.target.closest('a,button,input,select,textarea')) return; var card=h.closest('.card'); if(!card) return; card.classList.toggle('collapsed'); saveCollapsed(); });
+  }
 
   var es=document.getElementById('e_save'); if(es) es.addEventListener('click',saveEmployee);
   var ps=document.getElementById('p_save'); if(ps) ps.addEventListener('click',savePayroll);
@@ -152,7 +166,7 @@ function render(){
     });
     uph.addEventListener('change',function(){ var f=uph.files&&uph.files[0]; uph.value=''; if(!f) return; if(f.size>6*1024*1024){ alert('Image too large (max 6 MB).'); return; } var rd=new FileReader(); rd.onload=function(){ fetch('/api/user/'+encodeURIComponent(UN)+'/photo',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({dataB64:rd.result,filename:f.name})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ D.user.photoUrl=j.photoUrl; render(); if(window.rrgSetAvatar&&D.isSelf) window.rrgSetAvatar(j.photoUrl); } else alert((j&&j.error)||'Upload failed.'); }).catch(function(){ alert('Could not reach the server.'); }); }; rd.readAsDataURL(f); });
   }
-  var eb=document.getElementById('_editprof'); if(eb) eb.addEventListener('click',function(){ var pe=document.getElementById('_profedit'); if(pe){ pe.style.display=(pe.style.display==='none'?'block':'none'); if(pe.style.display==='block'){ var n=document.getElementById('_pf_name'); if(n) n.focus(); } } });
+  var eb=document.getElementById('_editprof'); if(eb) eb.addEventListener('click',function(){ var pe=document.getElementById('_profedit'); if(pe){ pe.style.display=(pe.style.display==='none'?'block':'none'); pe.classList.remove('collapsed'); if(pe.style.display==='block'){ var n=document.getElementById('_pf_name'); if(n) n.focus(); } } });
   var pfc=document.getElementById('_pf_cancel'); if(pfc) pfc.addEventListener('click',function(){ var pe=document.getElementById('_profedit'); if(pe) pe.style.display='none'; });
   var pfs=document.getElementById('_pf_save'); if(pfs) pfs.addEventListener('click',function(){ var m=document.getElementById('_pf_msg'); pfs.disabled=true; if(m){m.textContent='Saving…';m.className='msg';} var body={ name:val('_pf_name'), title:val('_pf_title'), phone:val('_pf_phone') }; fetch('/api/user/'+encodeURIComponent(UN)+'/account',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){ pfs.disabled=false; if(j&&j.ok){ D.user.name=j.user.name; D.user.title=j.user.title; D.user.phone=j.user.phone; render(); } else { if(m){m.textContent=(j&&j.error)||'Could not save.';m.className='msg err';} } }).catch(function(){ pfs.disabled=false; if(m){m.textContent='Could not reach the server.';m.className='msg err';} }); });
   buildLists();

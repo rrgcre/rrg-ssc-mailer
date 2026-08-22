@@ -14271,10 +14271,10 @@ function _bNow() { try { const p = new Intl.DateTimeFormat('en-CA', { timeZone: 
 function bookTypes(bk) {
   bk = bk || {};
   if (Array.isArray(bk.types) && bk.types.length) {
-    return bk.types.filter(t => t && t.name).slice(0, 8).map((t, i) => ({ id: String(t.id || ('t' + i)), name: String(t.name).slice(0, 80), length: BOOK_LENGTHS.indexOf(+t.length) >= 0 ? +t.length : 30, location: String(t.location || '').slice(0, 160) }));
+    return bk.types.filter(t => t && t.name).slice(0, 8).map((t, i) => ({ id: String(t.id || ('t' + i)), name: String(t.name).slice(0, 80), length: BOOK_LENGTHS.indexOf(+t.length) >= 0 ? +t.length : 30, location: String(t.location || '').slice(0, 160), questions: (Array.isArray(t.questions) ? t.questions.filter(q => q && q.q).slice(0, 5).map(q => ({ q: String(q.q).slice(0, 200), required: !!q.required })) : []) }));
   }
   const len = BOOK_LENGTHS.indexOf(+bk.length) >= 0 ? +bk.length : 30;
-  return [{ id: 'default', name: bk.title || 'Meeting', length: len, location: '' }];
+  return [{ id: 'default', name: bk.title || 'Meeting', length: len, location: '', questions: (Array.isArray(bk.questions) ? bk.questions.slice(0, 5) : []) }];
 }
 function bookTypeById(bk, id) { const ts = bookTypes(bk); return ts.find(t => t.id === id) || ts[0]; }
 function bookingAvailability(username, days, lenOverride) {
@@ -14310,7 +14310,7 @@ function bookingAvailability(username, days, lenOverride) {
 }
 app.get('/api/me/booking', (req, res) => {
   const un = req.user && req.user.username; const bk = (loadBookings()[un]) || {}; const base = appBaseUrl();
-  res.json({ ok: true, enabled: !!bk.enabled, token: bk.token || '', length: bk.length || 30, buffer: bk.buffer || 0, minNotice: bk.minNotice || 0, title: bk.title || '', types: (Array.isArray(bk.types) ? bk.types : []), lengths: BOOK_LENGTHS, ownerTz: GSYNC_TZ, link: (bk.token ? ((base || '') + '/book/' + bk.token) : '') });
+  res.json({ ok: true, enabled: !!bk.enabled, token: bk.token || '', length: bk.length || 30, buffer: bk.buffer || 0, minNotice: bk.minNotice || 0, title: bk.title || '', types: (Array.isArray(bk.types) ? bk.types : []), questions: (Array.isArray(bk.questions) ? bk.questions : []), lengths: BOOK_LENGTHS, ownerTz: GSYNC_TZ, link: (bk.token ? ((base || '') + '/book/' + bk.token) : '') });
 });
 app.post('/api/me/booking', express.json(), (req, res) => {
   const un = req.user && req.user.username; if (!un) return res.status(401).json({ ok: false });
@@ -14322,18 +14322,22 @@ app.post('/api/me/booking', express.json(), (req, res) => {
   if (b.title !== undefined) cur.title = String(b.title || '').slice(0, 120);
   // Meeting types — a named list, each with its own length. Empty list falls back to the single length.
   if (Array.isArray(b.types)) {
-    cur.types = b.types.filter(t => t && String(t.name || '').trim()).slice(0, 8).map((t, i) => ({ id: String(t.id || ('t' + Date.now().toString(36) + i)).slice(0, 24), name: String(t.name).trim().slice(0, 80), length: BOOK_LENGTHS.indexOf(+t.length) >= 0 ? +t.length : 30, location: String(t.location || '').slice(0, 160) }));
+    cur.types = b.types.filter(t => t && String(t.name || '').trim()).slice(0, 8).map((t, i) => ({ id: String(t.id || ('t' + Date.now().toString(36) + i)).slice(0, 24), name: String(t.name).trim().slice(0, 80), length: BOOK_LENGTHS.indexOf(+t.length) >= 0 ? +t.length : 30, location: String(t.location || '').slice(0, 160), questions: (Array.isArray(t.questions) ? t.questions.filter(q => q && String(q.q || '').trim()).slice(0, 5).map(q => ({ q: String(q.q).trim().slice(0, 200), required: !!q.required })) : []) }));
+  }
+  // Invitee questions — up to 5 custom questions shown on the booking form.
+  if (Array.isArray(b.questions)) {
+    cur.questions = b.questions.filter(q => q && String(q.q || '').trim()).slice(0, 5).map(q => ({ q: String(q.q).trim().slice(0, 200), required: !!q.required }));
   }
   if (cur.enabled && !cur.token) cur.token = _bookToken();
   all[un] = cur; saveBookings(all); const base = appBaseUrl();
-  res.json({ ok: true, enabled: !!cur.enabled, token: cur.token || '', length: cur.length || 30, buffer: cur.buffer || 0, minNotice: cur.minNotice || 0, title: cur.title || '', types: (Array.isArray(cur.types) ? cur.types : []), lengths: BOOK_LENGTHS, ownerTz: GSYNC_TZ, link: (cur.token ? ((base || '') + '/book/' + cur.token) : '') });
+  res.json({ ok: true, enabled: !!cur.enabled, token: cur.token || '', length: cur.length || 30, buffer: cur.buffer || 0, minNotice: cur.minNotice || 0, title: cur.title || '', types: (Array.isArray(cur.types) ? cur.types : []), questions: (Array.isArray(cur.questions) ? cur.questions : []), lengths: BOOK_LENGTHS, ownerTz: GSYNC_TZ, link: (cur.token ? ((base || '') + '/book/' + cur.token) : '') });
 });
 app.get('/book/:token', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'rrg_book.html')); });
 app.get('/api/book/:token', (req, res) => {
   const bk = bookingByToken(req.params.token); if (!bk) return res.status(404).json({ ok: false, error: 'This booking link is not active.' });
   const types = bookTypes(bk);
   const av = bookingAvailability(bk.username, 1, types[0].length);
-  res.json({ ok: true, owner: av.owner, length: av.length, title: bk.title || '', business: loadAppName(), types: types, ownerTz: GSYNC_TZ });
+  res.json({ ok: true, owner: av.owner, length: av.length, title: bk.title || '', business: loadAppName(), types: types, questions: (Array.isArray(bk.questions) ? bk.questions : []), ownerTz: GSYNC_TZ });
 });
 app.get('/api/book/:token/slots', (req, res) => {
   const bk = bookingByToken(req.params.token); if (!bk) return res.status(404).json({ ok: false, error: 'This booking link is not active.' });
@@ -14352,17 +14356,24 @@ app.post('/api/book/:token', express.json(), async (req, res) => {
   const av = bookingAvailability(bk.username, 30, t.length);
   const stillFree = av.days.some(d => d.slots.some(s => s.start === start));
   if (!stillFree) return res.status(409).json({ ok: false, error: 'Sorry — that time was just taken. Please pick another.' });
+  // Invitee question answers — validate required, then fold into the meeting.
+  const _bq = Array.isArray(t.questions) ? t.questions : [];
+  const _ans = Array.isArray(b.answers) ? b.answers.slice(0, 5).map(x => ({ q: String((x && x.q) || '').slice(0, 200), a: String((x && x.a) || '').trim().slice(0, 1000) })) : [];
+  for (const q of _bq) { if (q && q.required) { const hit = _ans.find(x => x.q === q.q); if (!hit || !hit.a) return res.status(400).json({ ok: false, error: 'Please answer: ' + q.q }); } }
+  const _answered = _ans.filter(x => x.a);
   const prof = auth.profileOf(auth.findUser(bk.username)) || {};
   const all = loadAppts(); const now = new Date().toISOString();
   const _tt = (t.id !== 'default' && t.name) ? t.name : (bk.title || ('Meeting with ' + name));
-  const a = { id: newApptId(), byUser: bk.username, byName: prof.name || bk.username, createdAt: now, status: 'scheduled', title: String(_tt).slice(0, 200), start, end: _bAddMin(start, t.length), type: 'Meeting', location: t.location || prof.workLocation || '', notes: String(b.notes || '').slice(0, 2000), contactName: name, attendees: [{ name, email }], source: 'booking', bookToken: bk.token || '', manageToken: _bookToken(), invitedAt: now };
+  let _notes = String(b.notes || '').slice(0, 2000);
+  if (_answered.length) { const _qa = _answered.map(x => x.q + ': ' + x.a).join('\n'); _notes = (_notes ? _notes + '\n\n' : '') + _qa; }
+  const a = { id: newApptId(), byUser: bk.username, byName: prof.name || bk.username, createdAt: now, status: 'scheduled', title: String(_tt).slice(0, 200), start, end: _bAddMin(start, t.length), type: 'Meeting', location: t.location || prof.workLocation || '', notes: _notes, bookingAnswers: _answered, contactName: name, attendees: [{ name, email }], source: 'booking', bookToken: bk.token || '', manageToken: _bookToken(), invitedAt: now };
   all.push(a); saveAppts(all);
   try {
     if (isEmailConfigured()) {
       const when = start.replace('T', ' at ');
       const mUrl = (appBaseUrl() || (req.protocol + '://' + req.get('host'))) + '/book/manage/' + a.manageToken;
       await sendInviteMail([email], 'Booked: ' + a.title, 'Your meeting is booked for ' + when + (a.location ? ('\nWhere: ' + a.location) : '') + '\n\n— ' + a.byName + '\n\nNeed to change it? Reschedule or cancel here:\n' + mUrl, apptIcs(a), [], []);
-      const ownerEmail = (prof.email || '').trim(); if (ownerEmail) sendNotifyMail(ownerEmail, 'New booking: ' + name, name + ' (' + email + ') booked ' + when + '.').catch(() => {});
+      const ownerEmail = (prof.email || '').trim(); if (ownerEmail) sendNotifyMail(ownerEmail, 'New booking: ' + name, name + ' (' + email + ') booked ' + when + '.' + (_answered.length ? ('\n\n' + _answered.map(x => x.q + ': ' + x.a).join('\n')) : '')).catch(() => {});
     }
   } catch (e) {}
   res.json({ ok: true, when: start });

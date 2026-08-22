@@ -73,6 +73,8 @@ textarea{min-height:66px;resize:vertical;}
 <script>
 var TOKEN=(location.pathname.match(/\/book\/([^\/?#]+)/)||[])[1]||'';
 var LEN=30, DAYS=[], SEL=null, OWNER={}, OWNER_TZ='America/Chicago', TYPES=[], TYPE=null;
+var QUESTIONS=[], LOCKED=false;
+var PTYPE=(function(){ try{ return (new URLSearchParams(location.search)).get('type')||''; }catch(e){ return ''; } })();
 var TZ=(function(){ try{ return Intl.DateTimeFormat().resolvedOptions().timeZone||'America/Chicago'; }catch(e){ return 'America/Chicago'; } })();
 var TZ_OPTS=[['America/New_York','Eastern'],['America/Chicago','Central'],['America/Denver','Mountain'],['America/Phoenix','Arizona'],['America/Los_Angeles','Pacific'],['America/Anchorage','Alaska'],['Pacific/Honolulu','Hawaii']];
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
@@ -86,11 +88,14 @@ function dObj(dstr){return new Date(dstr+'T12:00:00Z');}
 function init(){
   fetch('/api/book/'+encodeURIComponent(TOKEN)).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok){ fail((j&&j.error)||'This booking link is not active.'); return; }
-    OWNER=j.owner||{}; OWNER_TZ=j.ownerTz||OWNER_TZ; TYPES=(j.types&&j.types.length)?j.types:[{id:'default',name:j.title||'Meeting',length:j.length||30}];
+    OWNER=j.owner||{}; OWNER_TZ=j.ownerTz||OWNER_TZ; TYPES=(j.types&&j.types.length)?j.types:[{id:'default',name:j.title||'Meeting',length:j.length||30,questions:(j.questions||[])}];
+    QUESTIONS=(j.questions&&j.questions.length)?j.questions:[];
     if(j.business) document.getElementById('biz').textContent=j.business;
     document.getElementById('h1').textContent=j.title||('Book time with '+(OWNER.name||''));
     document.getElementById('who').textContent='with '+(OWNER.name||'')+(OWNER.title?(' · '+OWNER.title):'');
-    if(TYPES.length>1){ renderTypes(); } else { TYPE=TYPES[0]; startSlots(); }
+    var _pt=PTYPE?TYPES.filter(function(t){return String(t.id)===String(PTYPE);})[0]:null;
+    if(_pt){ TYPE=_pt; LOCKED=true; document.getElementById('h1').textContent=_pt.name||document.getElementById('h1').textContent; startSlots(); }
+    else if(TYPES.length>1){ renderTypes(); } else { TYPE=TYPES[0]; startSlots(); }
   }).catch(function(){ fail('Could not reach the server.'); });
 }
 function fail(msg){ document.getElementById('who').textContent=''; document.getElementById('meta').innerHTML=''; document.getElementById('body').innerHTML='<div class="empty">'+esc(msg)+'</div>'; }
@@ -100,7 +105,7 @@ function renderTypes(){
   document.querySelectorAll('.typebtn').forEach(function(b){ b.addEventListener('click',function(){ TYPE=TYPES[+b.getAttribute('data-ti')]; startSlots(); }); });
 }
 function startSlots(){
-  document.getElementById('meta').innerHTML='<span class="tag">'+TYPE.length+' min</span>'+(OWNER.location?('<span class="tag">'+esc(OWNER.location)+'</span>'):'')+(TYPES.length>1?'<button class="tag lnk" id="changeType">↺ Change meeting</button>':'');
+  document.getElementById('meta').innerHTML='<span class="tag">'+TYPE.length+' min</span>'+(OWNER.location?('<span class="tag">'+esc(OWNER.location)+'</span>'):'')+((TYPES.length>1&&!LOCKED)?'<button class="tag lnk" id="changeType">↺ Change meeting</button>':'');
   var ct=document.getElementById('changeType'); if(ct) ct.addEventListener('click',renderTypes);
   document.getElementById('body').innerHTML='<div class="empty">Loading times…</div>'; loadSlots();
 }
@@ -122,7 +127,8 @@ function renderPicker(){
   if(SEL){ var day=DAYS[SEL.di]; slotsHtml='<div class="slots">'+day.slots.map(function(s,si){ return '<button class="slot'+(SEL.si===si?' on':'')+'" data-si="'+si+'">'+fmtTime(s.start)+'</button>'; }).join('')+'</div>'; }
   var formHtml='';
   if(SEL&&SEL.si!=null){ var pick=DAYS[SEL.di].slots[SEL.si].start;
-    formHtml='<div class="form"><div class="pick">📅 '+esc(fmtLong(pick))+' · '+LEN+' min</div><label class="fl">Your name</label><input id="bk_name" placeholder="Full name"><label class="fl">Email</label><input id="bk_email" type="email" placeholder="you@example.com"><label class="fl">Anything to add? (optional)</label><textarea id="bk_notes" placeholder="What would you like to discuss?"></textarea><div class="confirm"><button class="btn" id="bk_go">Confirm booking</button><span class="msg" id="bk_msg"></span></div></div>';
+    var CURQ=(TYPE&&Array.isArray(TYPE.questions))?TYPE.questions:QUESTIONS; var qHtml=CURQ.map(function(q,qi){ return '<label class="fl">'+esc(q.q)+(q.required?' <span style=\'color:#b23a2c\'>*</span>':'')+'</label><input class="bkq" data-qi="'+qi+'" placeholder="'+(q.required?'Required':'Optional')+'">'; }).join('');
+    formHtml='<div class="form"><div class="pick">📅 '+esc(fmtLong(pick))+' · '+LEN+' min</div><label class="fl">Your name</label><input id="bk_name" placeholder="Full name"><label class="fl">Email</label><input id="bk_email" type="email" placeholder="you@example.com">'+qHtml+'<label class="fl">Anything to add? (optional)</label><textarea id="bk_notes" placeholder="What would you like to discuss?"></textarea><div class="confirm"><button class="btn" id="bk_go">Confirm booking</button><span class="msg" id="bk_msg"></span></div></div>';
   }
   document.getElementById('body').innerHTML=tzSelectorHtml()+dates+slotsHtml+formHtml;
   var tzs=document.getElementById('tzSel'); if(tzs) tzs.addEventListener('change',function(){ TZ=tzs.value; renderPicker(); });
@@ -135,9 +141,12 @@ function book(){
   var name=(document.getElementById('bk_name').value||'').trim(), email=(document.getElementById('bk_email').value||'').trim();
   var notes=(document.getElementById('bk_notes').value||'').trim();
   if(!name||!email){ msg.className='msg err'; msg.textContent='Please enter your name and email.'; return; }
+  var answers=[]; var missing=null;
+  var _cq=(TYPE&&Array.isArray(TYPE.questions))?TYPE.questions:QUESTIONS; document.querySelectorAll('.bkq').forEach(function(el){ var qi=+el.getAttribute('data-qi'); var q=_cq[qi]||{}; var v=(el.value||'').trim(); if(q.required&&!v&&!missing) missing=q.q; answers.push({q:q.q,a:v}); });
+  if(missing){ msg.className='msg err'; msg.textContent='Please answer: '+missing; return; }
   var start=DAYS[SEL.di].slots[SEL.si].start;
   go.disabled=true; msg.className='msg'; msg.textContent='Booking…';
-  fetch('/api/book/'+encodeURIComponent(TOKEN),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,email:email,notes:notes,start:start,type:(TYPE&&TYPE.id)||''})}).then(function(r){return r.json();}).then(function(j){
+  fetch('/api/book/'+encodeURIComponent(TOKEN),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,email:email,notes:notes,answers:answers,start:start,type:(TYPE&&TYPE.id)||''})}).then(function(r){return r.json();}).then(function(j){
     if(j&&j.ok){ showDone(start,name); }
     else { go.disabled=false; msg.className='msg err'; msg.textContent=(j&&j.error)||'Could not book.'; if(j&&/taken/i.test(j.error||'')) loadSlots(); }
   }).catch(function(){ go.disabled=false; msg.className='msg err'; msg.textContent='Could not reach the server.'; });
