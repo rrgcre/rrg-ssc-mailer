@@ -110,7 +110,7 @@ function loadBrand() { try { return rj(BRAND_FILE); } catch (e) { return {}; } }
 function saveBrand(b) { return writeJsonGuarded(BRAND_FILE, b, 'saveBrand'); }
 function brandLogoObj() { try { const b = loadBrand(); if (!b.logoExt) return null; const buf = fs.readFileSync(path.join(BOV_DATA_DIR, 'brand_logo.' + b.logoExt)); return { dataB64: buf.toString('base64'), type: b.logoType || LOGO_MIME[b.logoExt] || 'image/png' }; } catch (e) { return null; } }
 // Brokerage / organization profile — legal name, address, contact — used for white-label documents.
-function effOrg() { const b = loadBrand(); const o = (b && b.org) || {}; return { name: o.name || '', legalName: o.legalName || '', address: o.address || '', city: o.city || '', state: o.state || '', zip: o.zip || '', phone: o.phone || '', email: o.email || '', website: o.website || '', license: o.license || '' }; }
+function effOrg() { const b = loadBrand(); const o = (b && b.org) || {}; return { name: o.name || '', legalName: o.legalName || '', address: o.address || '', city: o.city || '', state: o.state || '', zip: o.zip || '', phone: o.phone || '', email: o.email || '', website: o.website || '', license: o.license || '', ein: o.ein || '' }; }
 function orgOneLine() { const o = effOrg(); const loc = [o.city, o.state].filter(Boolean).join(', ') + (o.zip ? (' ' + o.zip) : ''); return [o.name || o.legalName, o.address, loc, o.phone].filter(Boolean).join(' · '); }
 function orgDisplayName() { const o = effOrg(); return o.name || o.legalName || loadAppName(); }
 function orgLegalName() { const o = effOrg(); return o.legalName || o.name || loadAppName(); }
@@ -3297,7 +3297,7 @@ app.post('/api/admin/app-name', requireAdmin, express.json(), (req, res) => {
 app.get('/api/admin/org', requireAdmin, (req, res) => res.json({ ok: true, org: effOrg() }));
 app.post('/api/admin/org', requireAdmin, express.json(), (req, res) => {
   const b = loadBrand(); const x = req.body || {}; const S = (v, n) => String(v == null ? '' : v).trim().slice(0, n);
-  b.org = { name: S(x.name, 120), legalName: S(x.legalName, 160), address: S(x.address, 200), city: S(x.city, 80), state: S(x.state, 20), zip: S(x.zip, 20), phone: S(x.phone, 40), email: S(x.email, 160), website: S(x.website, 200), license: S(x.license, 60) };
+  b.org = { name: S(x.name, 120), legalName: S(x.legalName, 160), address: S(x.address, 200), city: S(x.city, 80), state: S(x.state, 20), zip: S(x.zip, 20), phone: S(x.phone, 40), email: S(x.email, 160), website: S(x.website, 200), license: S(x.license, 60), ein: S(x.ein, 40) };
   b.updatedAt = new Date().toISOString(); saveBrand(b);
   res.json({ ok: true, org: effOrg() });
 });
@@ -9760,6 +9760,32 @@ app.get('/api/gmail/contacts/scan', async (req, res) => {
 // ---- Feed "Keep things moving": inbox threads awaiting a reply (from me or from them) ----
 function _hdrEmail(v) { var m = String(v || '').match(/<([^>]+)>/); return (m ? m[1] : String(v || '')).trim().toLowerCase(); }
 function _hdrName(v) { var s = String(v || '').trim(); var m = s.match(/^(.*?)\s*<[^>]+>/); if (m && m[1]) return m[1].replace(/^"|"$/g, '').trim(); return ''; }
+// Feed left-rail pipeline snapshot — firm-wide counts the rep can see. Cheap, no AI.
+app.get('/api/feed/snapshot', (req, res) => {
+  try {
+    const seeAll = isSuper(req.user) || canSeeAllDeals(req);
+    const overlay = loadAssignOverlay(); const idx = assignmentsIndex();
+    const listings = Object.values(idx).filter(d => seeAll || ownsAssignment(req, d)).map(d => assignmentView(d, overlay));
+    const ym = new Date().toISOString().slice(0, 7);
+    let active = 0, openOffers = 0, inDiligence = 0, closingThisMonth = 0;
+    listings.forEach(l => {
+      const st = String(l.status || '');
+      if (st !== 'Closed' && st !== 'Lost') active++;
+      (Array.isArray(l.offers) ? l.offers : []).forEach(o => {
+        const os = String((o && o.status) || '').toLowerCase();
+        if (!/accept|reject|withdraw|dead|declin|expired|lost/.test(os)) openOffers++;
+      });
+      const t = l.transaction;
+      if (t) {
+        const ts = String(t.status || '');
+        if (/diligence|under contract/i.test(ts)) inDiligence++;
+        const close = String(t.expectedClose || t.closedDate || '');
+        if (close.slice(0, 7) === ym && !/closed/i.test(ts)) closingThisMonth++;
+      }
+    });
+    res.json({ ok: true, activeListings: active, openOffers: openOffers, inDiligence: inDiligence, closingThisMonth: closingThisMonth });
+  } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
 app.get('/api/feed/nudges', async (req, res) => {
   const u = (req.user && req.user.username) || '';
   const st = gmail.statusFor(u);

@@ -64,6 +64,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .railcard{background:#fff;border:1px solid var(--line);border-radius:6px;box-shadow:0 1px 2px rgba(16,24,40,.04);overflow:hidden;}
 .railh{padding:13px 15px;border-bottom:1px solid var(--line);font-size:12px;font-weight:700;color:var(--navy);letter-spacing:.04em;text-transform:uppercase;display:flex;align-items:center;justify-content:space-between;}
 .railh .rcnt{color:var(--soft);font-weight:700;font-size:11px;letter-spacing:0;}
+.statrow{display:flex;align-items:center;justify-content:space-between;padding:8px 15px;border-top:1px solid #f1f3f8;font-size:12.5px;}
+.statrow:first-child{border-top:none;}
+.statrow .sl{color:#42506b;font-weight:600;display:flex;align-items:center;gap:8px;min-width:0;}
+.statrow .sv{font-weight:700;color:var(--navy);font-variant-numeric:tabular-nums;padding-left:8px;}
+.statrow .sdot{width:8px;height:8px;border-radius:50%;flex:none;}
+.statrow.hot .sl{color:#a5352c;} .statrow.hot .sv{color:#DA2B1F;}
+.statrow.zero{opacity:.5;}
+.uprow{display:block;padding:9px 15px;border-top:1px solid #f1f3f8;text-decoration:none;color:inherit;}
+.uprow:first-child{border-top:none;}
+.uprow:hover{background:#f4f7fb;}
+.uprow .uw{font-size:11px;color:var(--soft);font-weight:700;}
+.uprow .un{font-size:12.5px;color:var(--navy);font-weight:600;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .savebtn{width:100%;text-align:left;background:#f7f9fc;border:none;border-bottom:1px solid var(--line);padding:11px 15px;font:inherit;font-size:12.5px;font-weight:700;color:var(--navy);cursor:pointer;display:flex;align-items:center;gap:8px;}
 .savebtn:hover{background:#eef2f8;}
 .saveform{padding:11px 13px;border-bottom:1px solid var(--line);background:#f7f9fc;display:none;}
@@ -118,6 +130,9 @@ a.feat:hover{background:#f4f7fb;} a.feat:hover b{color:#2c5c8f;}
       <div id="viewList"></div>
     </div>
     <div class="railnote">Views remember your scope, activity type, user and system toggle. Saved on this browser.</div>
+    <div class="kcard" style="margin-top:16px"><div class="kch">This week</div><div id="weekSnap"><div class="kempty">Tallying…</div></div></div>
+    <div class="kcard"><div class="kch">Coming up</div><div id="upNext"><div class="kempty">Loading…</div></div></div>
+    <div class="kcard"><div class="kch">Pipeline</div><div id="pipeSnap"><div class="kempty">Loading…</div></div></div>
   </aside>
   <div class="wrap" style="margin:0;max-width:none;padding:0;flex:1;min-width:0">
     <h1 class="pgh">Activity Feed</h1>
@@ -176,7 +191,7 @@ function load(){
   var _qs=[]; if(SCOPE==='mine') _qs.push('scope=mine'); if(USERF) _qs.push('user='+encodeURIComponent(USERF)); fetch('/api/feed'+(_qs.length?('?'+_qs.join('&')):''),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
   if(j&&j.canScope){ document.querySelectorAll('#scoperow [data-scope]').forEach(function(b){ b.style.display=''; }); var _uf=document.getElementById('userFilter'); if(_uf) _uf.style.display=''; buildUserFilter(j.users); }
   var el=document.getElementById('feed');
-  ALLITEMS=((j&&j.items)||[]); buildTypePanel(); buildEntityList();
+  ALLITEMS=((j&&j.items)||[]); buildTypePanel(); buildEntityList(); renderWeekSnap(); renderUpNext();
   var items=ALLITEMS.filter(function(a){ return (HIDE_SYSTEM?!a.system:true) && matchType(a) && inDateRange(a.at) && matchEntity(a); });
   if(!items.length){ el.innerHTML='<div class="empty">'+(filtersActive()?'No activity matches these filters'+(HIDE_SYSTEM?' (system activity is hidden)':'')+'. Clear or widen them to see more.':'No activity logged across your contacts yet. Log a call, tour, or note on a contact and it shows up here.')+'</div>'; return; }
   el.innerHTML=items.map(function(a){
@@ -253,6 +268,45 @@ load=function(){ reflectControls(); renderViews(); return _origLoad.apply(this,a
 
 load();
 
+/* ---- Left rail: This week / Coming up / Pipeline ---- */
+function renderWeekSnap(){
+  var host=document.getElementById('weekSnap'); if(!host) return;
+  var since=Date.now()-7*864e5;
+  var recent=ALLITEMS.filter(function(a){ if(a.system) return false; var t=new Date(a.at).getTime(); return !isNaN(t)&&t>=since; });
+  var meet=0,call=0,agr=0,tour=0,dr=0; var hotSet={};
+  recent.forEach(function(a){
+    var ty=String(a.type||'');
+    if(a.room||ty==='Data Room'){ dr++; if(a.hot&&a.buyer) hotSet[a.buyer]=1; return; }
+    if(ty==='Meeting') meet++;
+    else if(ty==='Call') call++;
+    else if(ty==='Tour') tour++;
+    else if(/agreement|loi/i.test(ty)) agr++;
+  });
+  var hot=Object.keys(hotSet).length;
+  function row(dotColor,label,val,extraCls){ return '<div class="statrow'+(val?'':' zero')+(extraCls?(' '+extraCls):'')+'"><span class="sl"><span class="sdot" style="background:'+dotColor+'"></span>'+label+'</span><span class="sv">'+val+'</span></div>'; }
+  var html=row('#3949ab','Meetings',meet)+row('#1f8a5b','Calls',call)+row('#b9761a','Agreements',agr)+row('#23496f','Tours',tour)+row('#2c5c8f','Data room',dr);
+  html+='<div class="statrow hot'+(hot?'':' zero')+'"><span class="sl"><span class="sdot" style="background:#DA2B1F"></span>Hot buyers</span><span class="sv">'+hot+'</span></div>';
+  host.innerHTML=html;
+}
+function renderUpNext(){
+  var host=document.getElementById('upNext'); if(!host) return;
+  var up=ALLITEMS.filter(function(a){ return a.appt&&a.upcoming; }).slice().sort(function(x,y){ return new Date(x.at).getTime()-new Date(y.at).getTime(); }).slice(0,5);
+  if(!up.length){ host.innerHTML='<div class="kempty">Nothing on the calendar ahead.</div>'; return; }
+  host.innerHTML=up.map(function(a){
+    var who=esc(a.personName||a.type||'Meeting'); var when=esc(fmtDT(a.at));
+    var href=a.href?String(a.href):(a.personId?('./rrg_person.html?id='+encodeURIComponent(a.personId)):'');
+    var inner='<div class="uw">'+when+'</div><div class="un">'+who+'</div>';
+    return href?('<a class="uprow" href="'+esc(href)+'">'+inner+'</a>'):('<div class="uprow" style="cursor:default">'+inner+'</div>');
+  }).join('');
+}
+function loadPipe(){
+  var host=document.getElementById('pipeSnap'); if(!host) return;
+  fetch('/api/feed/snapshot',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ host.innerHTML='<div class="kempty">Not available right now.</div>'; return; }
+    function row(label,val){ return '<div class="statrow'+(val?'':' zero')+'"><span class="sl">'+label+'</span><span class="sv">'+val+'</span></div>'; }
+    host.innerHTML=row('Active listings',j.activeListings||0)+row('Open offers',j.openOffers||0)+row('In diligence',j.inDiligence||0)+row('Closing this month',j.closingThisMonth||0);
+  }).catch(function(){ host.innerHTML='<div class="kempty">Not available right now.</div>'; });
+}
 /* ---- Right rail: Keep things moving + Add suggested people ---- */
 function nudgeIco(kind){ var map={hotbuyer:{bg:'#fdeceb',fg:'#DA2B1F',g:'▲'},coolbuyer:{bg:'#eef2fb',fg:'#3f4b63',g:'▽'},task:{bg:'#fbeceb',fg:'#b23a2c',g:'✔'},reply:{bg:'#e8eef7',fg:'#274b7a',g:'↩'},followup:{bg:'#fbf0e2',fg:'#8a5a12',g:'➤'},quiet:{bg:'#eaedf2',fg:'#3f4b63',g:'◷'}}; return map[kind]||map.quiet; }
 function loadNudges(){ var host=document.getElementById('nudges'); if(!host) return; fetch('/api/feed/nudges',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ var n=(j&&j.nudges)||[]; if(!n.length){ host.innerHTML='<div class="kempty">'+((j&&j.connected)?'You’re all caught up — nothing needs a nudge right now.':'Nothing pressing. Connect Gmail on your Account page to also surface unanswered emails.')+'</div>'; return; }
@@ -266,7 +320,7 @@ function loadNudges(){ var host=document.getElementById('nudges'); if(!host) ret
     return '<div class="nudge"><div class="nico" style="background:'+ic.bg+';color:'+ic.fg+'">'+ic.g+'</div><div class="nbody"><div class="ntitle">'+title+'</div><div class="nsub">'+(x.contactName?('<b>'+esc(x.contactName)+'</b> \u00b7 '):'')+esc(x.sub||'')+'</div><div class="nact">'+acts+'</div></div><button class="nx" title="Dismiss">×</button></div>'; }).join('');
   host.querySelectorAll('.nx').forEach(function(b){ b.addEventListener('click',function(){ var el=b.closest('.nudge'); if(el) el.remove(); if(!host.querySelector('.nudge')) host.innerHTML='<div class="kempty">All clear.</div>'; }); }); }).catch(function(){ host.innerHTML='<div class="kempty">Could not load right now.</div>'; }); }
 function loadSuggested(){ var host=document.getElementById('suggested'); if(!host) return; fetch('/api/gmail/contacts/scan?months=2',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(!j||!j.ok){ host.innerHTML='<div class="kempty">'+((j&&j.error&&/connect/i.test(j.error))?'Connect Gmail on your Account page to see people worth adding.':'Not available right now.')+'</div>'; return; } var list=((j.contacts)||[]).filter(function(c){return !c.existing && c.email && !/no-?reply|notification|mailer|do-?not-?reply|automated/i.test(c.email);}).sort(function(a,b){return (b.count||0)-(a.count||0);}).slice(0,5); if(!list.length){ host.innerHTML='<div class="kempty">No new people to add from recent email.</div>'; return; } host.innerHTML=list.map(function(c,i){ return '<div class="sugg"><div class="sname"><b>'+esc(c.name||c.email)+'</b><span>'+esc(c.email)+(c.count?(' · '+c.count+' emails'):'')+'</span></div><button class="saddbtn" data-add="'+i+'">Add</button></div>'; }).join(''); host.querySelectorAll('[data-add]').forEach(function(b){ b.addEventListener('click',function(){ var c=list[+b.getAttribute('data-add')]; if(!c) return; b.disabled=true; b.textContent='Adding…'; fetch('/api/gmail/contacts/import',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({contacts:[{name:c.name,email:c.email}]})}).then(function(r){return r.json();}).then(function(k){ if(k&&k.ok){ b.textContent='Added ✓'; b.style.borderColor='#cfe6d6'; b.style.color='#1f8a5b'; } else { b.disabled=false; b.textContent='Add'; } }).catch(function(){ b.disabled=false; b.textContent='Add'; }); }); }); }).catch(function(){ host.innerHTML='<div class="kempty">Not available right now.</div>'; }); }
-loadNudges(); loadSuggested();
+loadNudges(); loadSuggested(); loadPipe();
 /* "What your feed does" — collapsible, remembers its state per browser (matches calendar) */
 (function(){ var fs=document.getElementById('featStrip'), hd=document.getElementById('featHd'); if(!fs||!hd) return; try{ if(localStorage.getItem('rrg_feedfeats')==='1') fs.classList.remove('collapsed'); }catch(e){} hd.addEventListener('click',function(){ var col=fs.classList.toggle('collapsed'); try{ localStorage.setItem('rrg_feedfeats', col?'0':'1'); }catch(e){} }); })();
 </script>
