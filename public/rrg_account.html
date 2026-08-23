@@ -166,9 +166,9 @@ input.f:disabled{background:var(--wash);color:var(--soft);}
       <div><label class="fl">Meeting length</label><select class="f" id="bkLength"></select></div>
       <div><label class="fl">Title (optional)</label><input class="f" id="bkTitle" placeholder="e.g. Intro call"></div>
     </div>
-    <div class="row2" style="margin-top:12px">
-      <div><label class="fl">Buffer between meetings</label><select class="f" id="bkBuffer"><option value="0">None</option><option value="5">5 min</option><option value="10">10 min</option><option value="15">15 min</option><option value="30">30 min</option></select></div>
-      <div><label class="fl">Minimum notice</label><select class="f" id="bkMinNotice"><option value="0">None</option><option value="2">2 hours</option><option value="4">4 hours</option><option value="12">12 hours</option><option value="24">1 day</option><option value="48">2 days</option></select></div>
+    <div class="row2" style="margin-top:12px;justify-content:flex-start">
+      <div style="flex:0 0 220px;max-width:220px"><label class="fl">Buffer between meetings</label><select class="f" id="bkBuffer"><option value="0">None</option><option value="5">5 min</option><option value="10">10 min</option><option value="15">15 min</option><option value="30">30 min</option></select></div>
+      <div style="flex:0 0 220px;max-width:220px"><label class="fl">Minimum notice</label><select class="f" id="bkMinNotice"><option value="0">None</option><option value="2">2 hours</option><option value="4">4 hours</option><option value="12">12 hours</option><option value="24">1 day</option><option value="48">2 days</option></select></div>
     </div>
     <div class="hint" style="font-size:12px;color:#8a93a8;margin-top:6px">Buffer pads each meeting so bookings never land back-to-back. Minimum notice keeps someone from grabbing a slot minutes from now. Your booking page already respects your working hours and existing calendar, and shows times in each visitor's own time zone.</div>
     <div style="margin-top:16px"><label class="fl">Meeting types (optional)</label>
