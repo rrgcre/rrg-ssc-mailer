@@ -29,6 +29,13 @@ h1{font-size:30px;font-weight:700;margin:0;color:#fff;letter-spacing:-.01em;}
 .searchwrap .searchx{position:absolute;right:8px;background:none;border:none;color:#b0b8c6;font-size:18px;line-height:1;cursor:pointer;padding:0 4px;display:none;}
 .searchwrap .searchx.show{display:block;}
 .searchwrap .searchx:hover{color:#DA2B1F;}
+.filters{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;}
+.qflbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#8a93a8;}
+.qseg{display:inline-flex;border:1px solid #d7dde8;border-radius:4px;overflow:hidden;}
+.qseg button{background:#fff;border:none;border-left:1px solid #e6e9f0;padding:6px 13px;font:inherit;font-size:12.5px;font-weight:600;color:#5b6472;cursor:pointer;}
+.qseg button:first-child{border-left:none;}
+.qseg button:hover{background:#f4f6f9;}
+.qseg button.on{background:#20334f;color:#fff;}
 table{width:100%;border-collapse:collapse;font-size:13px;}
 th,td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--line);vertical-align:middle;}
 th{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;background:var(--wash);}
@@ -111,6 +118,7 @@ tr:hover td{background:#fbfcfe;}
     </div>
   </div>
   <script>(function(){ var fs=document.getElementById('coFeatStrip'), hd=document.getElementById('coFeatHd'); if(!fs||!hd) return; try{ if(localStorage.getItem('rrg_cofeats')!=='1') fs.classList.add('collapsed'); }catch(e){ fs.classList.add('collapsed'); } hd.addEventListener('click',function(){ var col=fs.classList.toggle('collapsed'); try{ localStorage.setItem('rrg_cofeats', col?'0':'1'); }catch(e){} }); })();</script>
+  <div class="filters" id="filters"></div>
   <div class="card">
     <div class="hd"><b>Companies</b><span class="cnt" id="cnt"></span><button id="newBtn" class="newbtn">+ New company</button><button id="filterBtn" class="rlf-btn" style="margin-left:8px">⚙ Filters</button><div class="searchwrap"><svg class="searchic" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"></circle><line x1="12.8" y1="12.8" x2="17.5" y2="17.5"></line></svg><input id="search" placeholder="Search companies by name or market…" oninput="applyFilter()" autocomplete="off"><button type="button" class="searchx" id="searchx" title="Clear search" onclick="var s=document.getElementById(&#39;search&#39;);s.value=&#39;&#39;;applyFilter();s.focus();">×</button></div></div>
     <style>.listloading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:72px 20px;color:#6b7488;font-size:14px;font-weight:600;gap:15px}.listspin{width:38px;height:38px;border-radius:50%;border:3px solid #e6e9f0;border-top-color:#DA2B1F;animation:listspin .8s linear infinite}@keyframes listspin{to{transform:rotate(360deg)}}</style><div id="body"><div class="listloading"><div class="listspin"></div>Loading companies…</div></div>
@@ -161,6 +169,12 @@ function aiShow(msg,onCancel){ if(window.rrgAiWork) rrgAiWork.show(msg,onCancel)
 function aiSetMsg(msg){ if(window.rrgAiWork) rrgAiWork.setMsg(msg); }
 function aiHide(){ if(window.rrgAiWork) rrgAiWork.hide(); }
 var ALL=[], CTL=null, IS_ADMIN=false, CAN_DELETE=false, _foundGroupSite='', USERS=[];
+var NEWPERIOD='';
+function _ymd(d){ return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
+function periodCutoffYMD(period){ var d=new Date(); d.setHours(0,0,0,0); if(period==='today'){} else if(period==='week'){ d.setDate(d.getDate()-d.getDay()); } else if(period==='month'){ d.setDate(1); } else { return ''; } return _ymd(d); }
+function _qseg(p,l){ return '<button type="button" data-p="'+p+'">'+l+'</button>'; }
+function paintQseg(){ var seg=document.getElementById('qseg'); if(!seg) return; seg.querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-p')===NEWPERIOD); }); }
+function renderFilters(){ var _fl=document.getElementById('filters'); if(!_fl) return; _fl.innerHTML='<span class="qflbl">New companies</span><div class="qseg" id="qseg">'+_qseg('','All')+_qseg('today','Today')+_qseg('week','This week')+_qseg('month','This month')+'</div>'; _fl.querySelectorAll('#qseg button').forEach(function(b){ b.addEventListener('click',function(){ NEWPERIOD=b.getAttribute('data-p'); paintQseg(); applyFilter(); }); }); paintQseg(); }
 function coOwners(){ var m={}; (USERS||[]).forEach(function(u){ if(u&&u.name) m[u.name]=1; }); (ALL||[]).forEach(function(c){ if(c.owner) m[c.owner]=1; }); return Object.keys(m).sort(); }
 function coLeads(){ var m={}; (LEADSOURCES||[]).forEach(function(x){ if(x) m[x]=1; }); (ALL||[]).forEach(function(c){ if(c.leadSource) m[c.leadSource]=1; }); return Object.keys(m).sort(); }
 function coMarkets(){ var m={}; (METROS||[]).forEach(function(x){ if(x) m[x]=1; }); (ALL||[]).forEach(function(c){ (c.markets||[]).forEach(function(x){ if(x) m[x]=1; }); }); return Object.keys(m).sort(); }
@@ -177,8 +191,8 @@ var CF=(window.RRGFilters&&document.getElementById('filterBtn'))?RRGFilters.crea
 function fuzzyMatch(hay,q){ hay=(hay||'').toLowerCase(); q=(q||'').toLowerCase().trim(); if(!q) return true; return q.split(/\s+/).every(function(t){ if(!t) return true; if(hay.indexOf(t)>=0) return true; var i=0; for(var j=0;j<hay.length&&i<t.length;j++){ if(hay.charAt(j)===t.charAt(i)) i++; } return i===t.length; }); }
 var RECENCY_DAYS=90, RECENCY_SHOWALL=false;
 var VIEWKEY='rrgview_companies_v1';
-function saveView(){ try{ var q=(document.getElementById('search')||{}).value||''; localStorage.setItem(VIEWKEY, JSON.stringify({q:q,showAll:RECENCY_SHOWALL})); }catch(e){} }
-function loadView(){ try{ var raw=localStorage.getItem(VIEWKEY); if(!raw) return false; var v=JSON.parse(raw)||{}; var s=document.getElementById('search'); if(s && typeof v.q==='string' && !s.value) s.value=v.q; RECENCY_SHOWALL=!!v.showAll; return true; }catch(e){ return false; } }
+function saveView(){ try{ var q=(document.getElementById('search')||{}).value||''; localStorage.setItem(VIEWKEY, JSON.stringify({q:q,showAll:RECENCY_SHOWALL,newPeriod:NEWPERIOD})); }catch(e){} }
+function loadView(){ try{ var raw=localStorage.getItem(VIEWKEY); if(!raw) return false; var v=JSON.parse(raw)||{}; var s=document.getElementById('search'); if(s && typeof v.q==='string' && !s.value) s.value=v.q; RECENCY_SHOWALL=!!v.showAll; NEWPERIOD=v.newPeriod||''; return true; }catch(e){ return false; } }
 function recencyCutoff(days){ try{ return new Date(Date.now()-(days*86400000)).toISOString(); }catch(e){ return ''; } }
 function recencyNote(noun, active, shown, total){
   var host=document.getElementById('body'); if(!host||!host.parentNode) return;
@@ -195,9 +209,9 @@ function applyFilter(){
   var q=(document.getElementById('search').value||'').trim();
   var base=(typeof CF!=='undefined'&&CF)?CF.filter(ALL):ALL;
   var _qt=q.toLowerCase().split(/\s+/).filter(Boolean);
-  var list=base.filter(function(c){ if(!_qt.length) return true; var hay=((c.name||'')+' '+((c.markets||[]).join(' '))+' '+(c.type||'')+' '+((c.tags||[]).join(' '))+' '+(c.mainContact||'')).toLowerCase(); return _qt.every(function(t){return hay.indexOf(t)>=0;}); });
+  var list=base.filter(function(c){ if(NEWPERIOD){ var _cr=(c.createdAt||'').slice(0,10); var _nc=periodCutoffYMD(NEWPERIOD); if(!_cr||_cr<_nc) return false; } if(!_qt.length) return true; var hay=((c.name||'')+' '+((c.markets||[]).join(' '))+' '+(c.type||'')+' '+((c.tags||[]).join(' '))+' '+(c.mainContact||'')).toLowerCase(); return _qt.every(function(t){return hay.indexOf(t)>=0;}); });
   var _sx=document.getElementById('searchx'); if(_sx) _sx.classList.toggle('show', !!(q&&q.trim()));
-  var _noFilter=(!_qt.length && !(typeof CF!=='undefined'&&CF&&CF.activeCount&&CF.activeCount()>0));
+  var _noFilter=(!_qt.length && !NEWPERIOD && !(typeof CF!=='undefined'&&CF&&CF.activeCount&&CF.activeCount()>0));
   if(_noFilter && !RECENCY_SHOWALL && RECENCY_DAYS>0){ var _cut=recencyCutoff(RECENCY_DAYS); list=list.filter(function(c){ return String(c.lastActiveAt||'')>=_cut; }); }
   recencyNote('companies', _noFilter, list.length, ALL.length);
   renderList(list); if(typeof CF!=='undefined'&&CF) CF.updateBtn(); saveView();
@@ -420,6 +434,7 @@ document.getElementById('modal').addEventListener('click',function(e){ /* clicki
 function reloadCompanies(){ return fetch('/api/companies',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.companies)||[]; if(j&&j.recencyDays!=null) RECENCY_DAYS=j.recencyDays; CTYPES=(j&&j.types)||CTYPES; CUISINE=(j&&j.cuisineTypes)||CUISINE; CONCEPTTYPES=(j&&j.conceptTypes)||CONCEPTTYPES; LEADSOURCES=(j&&j.leadSources)||LEADSOURCES; USERS=(j&&j.users)||USERS; DEFAULTSTATE=(j&&j.defaultState)||DEFAULTSTATE; PERSONTYPES=(j&&j.personTypes)||PERSONTYPES; CAN_DELETE=!!(j&&j.canDelete); CITIES=(j&&j.cities)||[]; TITLES=(j&&j.titles)||[]; ALLTAGS=(j&&j.allTags)||[]; METROS=(j&&j.metros)||[]; var _ml=document.getElementById('metrolist'); if(_ml) _ml.innerHTML=METROS.map(function(m){return '<option value="'+esc(m)+'">';}).join(''); IS_ADMIN=!!(j&&j.isAdmin); window._lastCoLoad=Date.now(); try{ var _mm=document.getElementById('modal'); if(_mm && !_mm.hasAttribute('hidden')) _syncModalSelects(); }catch(e){} var _cs=ALL.length+'::'+ALL.map(function(c){return (c.id||'')+'~'+(c.updatedAt||c.lastActivity||'');}).join('|'); if(!(window._coRendered&&_cs===window._coSig)){ window._coSig=_cs; window._coRendered=true; applyFilter(); } try{ if(new URLSearchParams(location.search).get('new')==='1'){ var _mo=document.getElementById('modal'); if(_mo&&_mo.hasAttribute('hidden')) openModal(); else _syncModalSelects(); history.replaceState({},'',location.pathname); } }catch(e){} }).catch(function(){ if(!ALL.length){ var _b=document.getElementById('body'); if(_b) _b.innerHTML='<div class="empty">Could not load companies.</div>'; } }); }
 window.reloadCompanies=reloadCompanies;
 (function(){ try{ if(!loadView()) RECENCY_SHOWALL=true; }catch(e){} })();
+renderFilters();
 reloadCompanies();
 // Show the New Company window immediately when arriving via Create New → Company,
 // instead of waiting for the company list to finish loading first.

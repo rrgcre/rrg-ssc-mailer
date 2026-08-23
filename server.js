@@ -7458,7 +7458,17 @@ function saveInvoices(a) { return writeJsonGuarded(INVOICES_FILE, a, 'saveInvoic
 function newInvoiceId() { return 'inv_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function newPaymentId() { return 'pay_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function nextInvoiceNumber(all) { let mx = 1000; all.forEach(x => { const n = parseInt(String(x.number || '').replace(/\D/g, ''), 10); if (isFinite(n) && n > mx) mx = n; }); return 'INV-' + (mx + 1); }
-function cleanLineItems(arr) { if (!Array.isArray(arr)) return []; return arr.map(li => ({ desc: String((li && li.desc) || '').slice(0, 300), amount: _expNum(li && li.amount), account: String((li && li.account) || '').slice(0, 20) })).filter(li => li.desc || li.amount).slice(0, 60); }
+function cleanLineItems(arr) {
+  if (!Array.isArray(arr)) return [];
+  return arr.map(li => {
+    const hasQty = li && li.qty !== undefined && li.qty !== null && li.qty !== '';
+    const hasRate = li && li.rate !== undefined && li.rate !== null && li.rate !== '';
+    const qty = hasQty ? _expNum(li.qty) : '';
+    const rate = hasRate ? _expNum(li.rate) : '';
+    const amount = (hasQty && hasRate) ? _glR2(_expNum(li.qty) * _expNum(li.rate)) : _expNum(li && li.amount);
+    return { desc: String((li && li.desc) || '').slice(0, 300), qty: qty, rate: rate, amount: amount, account: String((li && li.account) || '').slice(0, 20) };
+  }).filter(li => li.desc || li.amount).slice(0, 60);
+}
 function cleanPayments(arr) { if (!Array.isArray(arr)) return []; return arr.map(p => ({ id: p.id || newPaymentId(), date: String((p && p.date) || '').slice(0, 10), amount: _expNum(p && p.amount), method: String((p && p.method) || '').slice(0, 40), reference: String((p && p.reference) || '').slice(0, 120), notes: String((p && p.notes) || '').slice(0, 600), createdAt: p.createdAt || new Date().toISOString() })); }
 function invoiceStatusDisplay(x, total, paid) {
   if (x.status === 'Void') return 'Void';
@@ -7484,7 +7494,7 @@ function invoiceBrief(x, user, opts) {
     recur: (x.recur && INVOICE_RECUR_FREQS.indexOf(x.recur.freq) >= 0) ? { freq: x.recur.freq, nextDate: x.recur.nextDate || '', active: x.recur.active !== false, count: x.recur.count || 0, lastGenerated: x.recur.lastGenerated || '' } : null,
     seriesId: x.seriesId || '',
     mine: !!(user && (x.ownerUser === user.username || isSuper(user))), createdAt: x.createdAt || '', updatedAt: x.updatedAt || '' };
-  if (opts.full) { b.payToken = x.payToken || ''; b.noOnlinePay = !!x.noOnlinePay; b.lineItems = items.map(li => ({ desc: li.desc || '', amount: _expNum(li.amount), account: li.account || '' }));
+  if (opts.full) { b.payToken = x.payToken || ''; b.noOnlinePay = !!x.noOnlinePay; b.lineItems = items.map(li => ({ desc: li.desc || '', qty: (li.qty != null ? li.qty : ''), rate: (li.rate != null ? li.rate : ''), amount: _expNum(li.amount), account: li.account || '' }));
     b.payments = pays.slice().sort((p, q) => String(q.date || '').localeCompare(String(p.date || ''))).map(p => ({ id: p.id, date: p.date || '', amount: _expNum(p.amount), fee: _expNum(p.fee || 0), method: p.method || '', reference: p.reference || '', notes: p.notes || '' })); }
   return b;
 }
@@ -7521,7 +7531,7 @@ function generateDueRecurringInvoices() {
     let guard = 0;
     while (String(rc.nextDate) <= today && guard < 120) {
       guard++;
-      const child = { id: newInvoiceId(), number: nextInvoiceNumber(all), listingKey: inv.listingKey || '', listingLabel: inv.listingLabel || '', billTo: inv.billTo || '', billToEmail: inv.billToEmail || '', issueDate: rc.nextDate, dueDate: _invDueFrom(inv, rc.nextDate), status: 'Sent', lineItems: (inv.lineItems || []).map(li => ({ desc: li.desc || '', amount: _expNum(li.amount), account: li.account || '' })), taxRate: inv.taxRate || 0, taxLabel: inv.taxLabel || '', payments: [], notes: inv.notes || '', terms: inv.terms || '', ownerUser: inv.ownerUser || '', ownerName: inv.ownerName || '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), seriesId: inv.seriesId || inv.id };
+      const child = { id: newInvoiceId(), number: nextInvoiceNumber(all), listingKey: inv.listingKey || '', listingLabel: inv.listingLabel || '', billTo: inv.billTo || '', billToEmail: inv.billToEmail || '', issueDate: rc.nextDate, dueDate: _invDueFrom(inv, rc.nextDate), status: 'Sent', lineItems: (inv.lineItems || []).map(li => ({ desc: li.desc || '', qty: (li.qty != null ? li.qty : ''), rate: (li.rate != null ? li.rate : ''), amount: _expNum(li.amount), account: li.account || '' })), taxRate: inv.taxRate || 0, taxLabel: inv.taxLabel || '', payments: [], notes: inv.notes || '', terms: inv.terms || '', ownerUser: inv.ownerUser || '', ownerName: inv.ownerName || '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), seriesId: inv.seriesId || inv.id };
       all.push(child); made++; changed = true;
       rc.nextDate = _invAdvanceDate(rc.nextDate, rc.freq); rc.count = (rc.count || 0) + 1; rc.lastGenerated = child.issueDate;
     }
@@ -7537,13 +7547,13 @@ app.get('/api/invoices', (req, res) => {
   const filt = req.query.listingKey ? all.filter(x => x.listingKey === req.query.listingKey) : all;
   const vis = filt.filter(x => admin || x.ownerUser === u.username);
   const rows = vis.map(x => invoiceBrief(x, u)).sort((a, b) => String(b.issueDate || '').localeCompare(String(a.issueDate || '')) || String(b.number).localeCompare(String(a.number)));
-  res.json({ ok: true, isAdmin: !!admin, statuses: INVOICE_STATUSES, methods: paymentMethods(), terms: invoiceTerms(), stripeEnabled: stripeReady(), taxDefault: { rate: Number(loadSettings().taxRate || 0) || 0, label: loadSettings().taxLabel || 'Sales Tax' }, incomeAccounts: loadGlAccounts().filter(a => a.type === 'Income').map(a => ({ code: a.code, name: a.name })), invoices: rows });
+  res.json({ ok: true, isAdmin: !!admin, statuses: INVOICE_STATUSES, methods: paymentMethods(), terms: invoiceTerms(), stripeEnabled: stripeReady(), taxDefault: { rate: Number(loadSettings().taxRate || 0) || 0, label: loadSettings().taxLabel || 'Sales Tax' }, lineDetail: !!loadSettings().invoiceLineDetail, incomeAccounts: loadGlAccounts().filter(a => a.type === 'Income').map(a => ({ code: a.code, name: a.name })), invoices: rows });
 });
 app.get('/api/invoices/:id', (req, res) => {
   const u = req.user || {}; const x = loadInvoices().find(e => e.id === req.params.id);
   if (!x) return res.status(404).json({ ok: false, error: 'Invoice not found.' });
   if (!(isSuper(u) || x.ownerUser === u.username)) return res.status(403).json({ ok: false, error: 'Not yours.' });
-  res.json({ ok: true, statuses: INVOICE_STATUSES, methods: paymentMethods(), terms: invoiceTerms(), stripeEnabled: stripeReady(), taxDefault: { rate: Number(loadSettings().taxRate || 0) || 0, label: loadSettings().taxLabel || 'Sales Tax' }, incomeAccounts: loadGlAccounts().filter(a => a.type === 'Income').map(a => ({ code: a.code, name: a.name })), invoice: invoiceBrief(x, u, { full: true }) });
+  res.json({ ok: true, statuses: INVOICE_STATUSES, methods: paymentMethods(), terms: invoiceTerms(), stripeEnabled: stripeReady(), taxDefault: { rate: Number(loadSettings().taxRate || 0) || 0, label: loadSettings().taxLabel || 'Sales Tax' }, lineDetail: !!loadSettings().invoiceLineDetail, incomeAccounts: loadGlAccounts().filter(a => a.type === 'Income').map(a => ({ code: a.code, name: a.name })), invoice: invoiceBrief(x, u, { full: true }) });
 });
 app.post('/api/invoices', express.json({ limit: '512kb' }), (req, res) => {
   const u = req.user || {}; const b = req.body || {}; const all = loadInvoices();
@@ -7602,7 +7612,7 @@ app.delete('/api/invoices/:id/payment/:pid', (req, res) => {
 });
 // Accounting basis — accrual (revenue when invoiced) vs cash (revenue when collected).
 function effAccountingBasis() { return loadSettings().accountingBasis === 'cash' ? 'cash' : 'accrual'; }
-app.get('/api/admin/accounting', (req, res) => { res.json({ ok: true, basis: effAccountingBasis(), invoiceTerms: invoiceTerms(), paymentMethods: paymentMethods(), taxRate: Number(loadSettings().taxRate || 0) || 0, taxLabel: loadSettings().taxLabel || 'Sales Tax', isAdmin: !!(req.user && isSuper(req.user)) }); });
+app.get('/api/admin/accounting', (req, res) => { res.json({ ok: true, basis: effAccountingBasis(), invoiceTerms: invoiceTerms(), paymentMethods: paymentMethods(), taxRate: Number(loadSettings().taxRate || 0) || 0, taxLabel: loadSettings().taxLabel || 'Sales Tax', lineDetail: !!loadSettings().invoiceLineDetail, isAdmin: !!(req.user && isSuper(req.user)) }); });
 // Admin-editable default sales tax applied to new invoices.
 app.post('/api/admin/invoice-tax', express.json(), (req, res) => {
   if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Admins only.' });
@@ -7612,6 +7622,12 @@ app.post('/api/admin/invoice-tax', express.json(), (req, res) => {
   saveSettings(s);
   if (s.taxRate > 0) ensureTaxPayableAccount();
   res.json({ ok: true, taxRate: s.taxRate, taxLabel: s.taxLabel });
+});
+// Admin: show/hide Qty / Each / Extended columns on invoice lines (off by default).
+app.post('/api/admin/invoice-linedetail', express.json(), (req, res) => {
+  if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Admins only.' });
+  const s = loadSettings(); s.invoiceLineDetail = !!(req.body || {}).enabled; saveSettings(s);
+  res.json({ ok: true, lineDetail: !!s.invoiceLineDetail });
 });
 // Admin-editable invoice payment terms. Empty list resets to the built-in defaults.
 app.post('/api/admin/invoice-terms', express.json(), (req, res) => {
@@ -7749,7 +7765,7 @@ function _payPageHtml(x, o) {
   if (!x) { return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Invoice</title></head><body style="font-family:-apple-system,Segoe UI,Arial,sans-serif;background:#eef1f6;margin:0"><div style="max-width:520px;margin:70px auto;background:#fff;border:1px solid #e6e9f0;border-radius:12px;padding:34px;text-align:center"><h2 style="color:#000E31;margin:0 0 6px">Invoice not found</h2><p style="color:#6b7488">This payment link is not valid. Please contact us for an up-to-date link.</p></div></body></html>'; }
   const bal = _invBalance(x); const money = n => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const items = Array.isArray(x.lineItems) ? x.lineItems : [];
-  const rows = items.map(li => '<tr><td style="padding:9px 0;border-top:1px solid #eef1f6;color:#1a2236">' + esc(li.desc || '') + '</td><td style="padding:9px 0;border-top:1px solid #eef1f6;text-align:right;color:#1a2236;white-space:nowrap">' + money(_expNum(li.amount)) + '</td></tr>').join('');
+  const rows = items.map(li => { const q = (li.qty != null && li.qty !== '') ? Number(li.qty) : null; const r = (li.rate != null && li.rate !== '') ? Number(li.rate) : null; const sub = (q != null && r != null) ? ('<div style="color:#8a93a8;font-size:11.5px">' + q + ' \u00d7 ' + money(r) + '</div>') : ''; return '<tr><td style="padding:9px 0;border-top:1px solid #eef1f6;color:#1a2236">' + esc(li.desc || '') + sub + '</td><td style="padding:9px 0;border-top:1px solid #eef1f6;text-align:right;color:#1a2236;white-space:nowrap;vertical-align:top">' + money(_expNum(li.amount)) + '</td></tr>'; }).join('');
   const paidInFull = !(bal.balance > 0);
   const canPay = o.ready && !paidInFull && x.status !== 'Void' && !x.noOnlinePay;
   const banner = o.paid ? '<div style="background:#e7f5ee;border:1px solid #bfe4d0;color:#1f7a52;border-radius:8px;padding:12px 14px;font-size:13.5px;font-weight:600;margin-bottom:16px">Thank you — your payment is being processed and will post to this invoice shortly.</div>' : '';

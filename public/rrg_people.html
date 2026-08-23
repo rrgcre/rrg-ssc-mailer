@@ -20,6 +20,12 @@ h1{font-size:30px;font-weight:700;margin:0;color:#fff;letter-spacing:-.01em;}
 .tabs a.on{background:#fff;color:var(--navy);border-color:#fff;}
 .wrap{max-width:none;margin:20px 0;padding:0 28px 56px;}
 .filters{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;}
+.qflbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#8a93a8;}
+.qseg{display:inline-flex;border:1px solid #d7dde8;border-radius:4px;overflow:hidden;}
+.qseg button{background:#fff;border:none;border-left:1px solid #e6e9f0;padding:6px 13px;font:inherit;font-size:12.5px;font-weight:600;color:#5b6472;cursor:pointer;}
+.qseg button:first-child{border-left:none;}
+.qseg button:hover{background:#f4f6f9;}
+.qseg button.on{background:#20334f;color:#fff;}
 .flagcell{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:7px;border:1px solid transparent;background:none;color:#c2c9d6;cursor:pointer;padding:0;transition:color .12s,background .12s;}
 .flagcell svg{width:15px;height:15px;}
 .flagcell:hover{background:#f2f5fa;color:#8a93a8;}
@@ -226,6 +232,9 @@ function typeColor(t){ var m={'Buyer':['#e7f5ee','#1f8a5b'],'Seller':['#e8f0fd',
 function initials(n){ n=String(n||'').trim(); if(!n) return '?'; var p=n.split(/\s+/); return (((p[0]||'')[0]||'')+((p[1]||'')[0]||'')).toUpperCase(); }
 function tclass(t){ return 't-'+String(t||'other').toLowerCase().replace(/[^a-z]+/g,''); }
 var ALL=[], CTL=null, FILTER='', TYPES=[], IS_ADMIN=false, CAN_DELETE=false, VIPONLY=false, PIPELINES=[];
+var NEWPERIOD='';
+function _ymd(d){ return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
+function periodCutoffYMD(period){ var d=new Date(); d.setHours(0,0,0,0); if(period==='today'){} else if(period==='week'){ d.setDate(d.getDate()-d.getDay()); } else if(period==='month'){ d.setDate(1); } else { return ''; } return _ymd(d); }
 function loadPipelinesList(){ return fetch('/api/pipelines',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ PIPELINES=(j&&j.pipelines)||[]; fillPipelineSelect(); }).catch(function(){}); }
 function fillPipelineSelect(){ var ps=document.getElementById('m_pipeline'); if(!ps) return; var cur=ps.value; ps.innerHTML='<option value="">— None (don’t start a listing) —</option>'+(PIPELINES||[]).map(function(pp){return '<option value="'+esc(pp.id)+'">'+esc(pp.name)+'</option>';}).join(''); if(cur) ps.value=cur; }
 var FILTERS=emptyFilters(), SAVEDLIST=[];
@@ -239,10 +248,15 @@ function flagCell(kind,on,pid){ return '<button type="button" class="flagcell '+
 function flagMark(kind){ return '<span class="fmark '+kind+'" title="'+_FTIP[kind]+'">'+_FSVG[kind]+'</span>'; }
 function emptyFilters(){ return {types:[],owners:[],leadSources:[],tags:[],vip:false,star:false,caution:false,primary:false,createdFrom:'',createdTo:'',contactedFrom:'',contactedTo:''}; }
 var VIEWKEY='rrgview_contacts_v1';
-function saveView(){ try{ var q=(document.getElementById('search')||{}).value||''; localStorage.setItem(VIEWKEY, JSON.stringify({filters:FILTERS,q:q,showAll:RECENCY_SHOWALL})); }catch(e){} }
-function loadView(){ try{ var raw=localStorage.getItem(VIEWKEY); if(!raw) return false; var v=JSON.parse(raw)||{}; if(v.filters) FILTERS=Object.assign(emptyFilters(), v.filters); var s=document.getElementById('search'); if(s && typeof v.q==='string' && !s.value) s.value=v.q; RECENCY_SHOWALL=!!v.showAll; return true; }catch(e){ return false; } }
+function saveView(){ try{ var q=(document.getElementById('search')||{}).value||''; localStorage.setItem(VIEWKEY, JSON.stringify({filters:FILTERS,q:q,showAll:RECENCY_SHOWALL,newPeriod:NEWPERIOD})); }catch(e){} }
+function loadView(){ try{ var raw=localStorage.getItem(VIEWKEY); if(!raw) return false; var v=JSON.parse(raw)||{}; if(v.filters) FILTERS=Object.assign(emptyFilters(), v.filters); var s=document.getElementById('search'); if(s && typeof v.q==='string' && !s.value) s.value=v.q; RECENCY_SHOWALL=!!v.showAll; NEWPERIOD=v.newPeriod||''; return true; }catch(e){ return false; } }
+function _qseg(p,l){ return '<button type="button" data-p="'+p+'">'+l+'</button>'; }
+function paintQseg(){ var seg=document.getElementById('qseg'); if(!seg) return; seg.querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-p')===NEWPERIOD); }); }
 function renderFilters(){
-  var _fl=document.getElementById('filters'); if(_fl) _fl.innerHTML='';
+  var _fl=document.getElementById('filters'); if(!_fl) return;
+  _fl.innerHTML='<span class="qflbl">New contacts</span><div class="qseg" id="qseg">'+_qseg('','All')+_qseg('today','Today')+_qseg('week','This week')+_qseg('month','This month')+'</div>';
+  _fl.querySelectorAll('#qseg button').forEach(function(b){ b.addEventListener('click',function(){ NEWPERIOD=b.getAttribute('data-p'); paintQseg(); applyFilter(); }); });
+  paintQseg();
 }
 var RECENCY_DAYS=90, RECENCY_SHOWALL=true;
 function recencyCutoff(days){ try{ return new Date(Date.now()-(days*86400000)).toISOString(); }catch(e){ return ''; } }
@@ -268,12 +282,13 @@ function applyFilter(){
     if(F.primary && !p.isMainContact) return false;
     if(F.tags.length){ var pt=(p.tags||[]).map(function(x){return String(x).toLowerCase();}); if(!F.tags.every(function(t){ return pt.indexOf(String(t).toLowerCase())>=0; })) return false; }
     var cr=(p.createdAt||'').slice(0,10); if(F.createdFrom && (!cr || cr<F.createdFrom)) return false; if(F.createdTo && cr && cr>F.createdTo) return false;
+    if(NEWPERIOD){ var _nc=periodCutoffYMD(NEWPERIOD); if(!cr || cr<_nc) return false; }
     var lc=(p.lastContacted||'').slice(0,10); if(F.contactedFrom && (!lc || lc<F.contactedFrom)) return false; if(F.contactedTo && lc && lc>F.contactedTo) return false;
     if(q){ var hay=((p.name||'')+' '+(p.nickname||'')+' '+(p.companyName||p.company||'')+' '+((p.emails||[p.email||'']).join(' '))+' '+((p.phones||[]).join(' '))+' '+((p.tags||[]).join(' '))+' '+(p.leadSource||'')).toLowerCase(); var _qt=q.split(/\s+/).filter(Boolean); if(!_qt.every(function(t){ return hay.indexOf(t)>=0; })) return false; }
     return true;
   });
   var _sx=document.getElementById('searchx'); if(_sx) _sx.classList.toggle('show', !!q);
-  var _noFilter=(!q && filterActiveCount()===0);
+  var _noFilter=(!q && filterActiveCount()===0 && !NEWPERIOD);
   if(_noFilter && !RECENCY_SHOWALL && RECENCY_DAYS>0){ var _cut=recencyCutoff(RECENCY_DAYS); list=list.filter(function(p){ return String(p.lastActiveAt||'')>=_cut; }); }
   recencyNote('contacts', _noFilter, list.length, ALL.length);
   renderList(list); updateFilterBtn(); saveView();
