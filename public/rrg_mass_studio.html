@@ -3,6 +3,7 @@
 <title>Email Studio — RRG</title>
 <script src="/rrg_brand.js"></script>
 <script src="/rrg_email_composer.js"></script>
+<script src="/rrg_list.js"></script>
 <style>
 :root{--navy:#20334f;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;--red:#DA2B1F;--blue:#2c5c8f;}
 *{box-sizing:border-box;}
@@ -216,61 +217,68 @@ function loadCampaigns(){
   if(EDIT){ renderEditor(); return; }
   if(CAMPVIEW==null) CAMPVIEW='active';
   var arch = CAMPVIEW==='archived' ? '1':'0';
-  var qv = encodeURIComponent((CAMPQ||'').trim());
-  api('GET','/api/mail/campaigns?archived='+arch+'&q='+qv+'&days='+(CAMPDAYS||0)).then(function(r){
+  api('GET','/api/mail/campaigns?archived='+arch+'&days=0').then(function(r){
     var rows=(r&&r.campaigns)||[];
-    var h='<div class="card" style="padding:0;overflow:hidden">';
-    // header bar
-    h+='<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding:16px 20px;border-bottom:1px solid var(--line);">'
+    var h='<div class="card" style="padding:0;overflow:visible">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line);">'
       +'<div class="tabs" style="border:none;margin:0;gap:2px;">'
-      +'<button data-cv="active" class="'+(CAMPVIEW==='active'?'on':'')+'" style="padding:6px 12px;">Campaigns</button>'
+      +'<button data-cv="active" class="'+(CAMPVIEW==='active'?'on':'')+'" style="padding:6px 12px;">Campaigns <span id="campCnt" style="color:var(--soft);font-weight:600;"></span></button>'
       +'<button data-cv="archived" class="'+(CAMPVIEW==='archived'?'on':'')+'" style="padding:6px 12px;">Archived</button>'
       +'</div>'
-      +'<div class="toolbar" style="margin:0;">'
-      +'<select id="campRange" style="max-width:150px;"><option value="0">All time</option><option value="1">Today</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option></select>'
-      +'<input id="campSearch" placeholder="Search name or subject..." value="'+esc(CAMPQ||'')+'" style="max-width:230px;">'
       +'<button class="btn primary" id="newCamp">+ New campaign</button>'
-      +'</div></div>';
-    if(!rows.length){
-      h+='<div class="pgs" style="padding:26px 20px;">'+(CAMPVIEW==='archived'?'No archived campaigns.':(CAMPQ?'No campaigns match your search.':'No campaigns yet. Create one to get started.'))+'</div></div>';
-      $('tabCamps').innerHTML=h; wireCampHead(); return;
-    }
-    h+='<div style="overflow-x:auto;"><table style="min-width:940px;"><thead><tr>'
-      +'<th>Campaign / Subject</th><th>Audience</th><th>Started</th><th>Finished</th><th style="text-align:right;">Recipients</th>'
-      +'<th style="text-align:right;">Opens</th><th style="text-align:right;">Clicks</th><th style="text-align:right;">Unsubs</th><th style="text-align:right;">Compl.</th><th style="text-align:right;">Bounces</th><th></th>'
-      +'</tr></thead><tbody>';
-    rows.forEach(function(c){
-      var denom=c.total||c.sent||0;
-      h+='<tr>'
-        +'<td style="max-width:250px;"><div style="font-weight:700;color:var(--navy);">'+esc(c.name||'(untitled)')+' <span class="pill '+esc(c.status)+'" style="margin-left:4px;vertical-align:middle;">'+esc(c.status)+'</span>'+(c.ab_enabled?' <span class="pill" style="background:#eef3fb;color:var(--blue);vertical-align:middle;">A/B'+(c.ab_winner?(' &middot; '+esc(c.ab_winner)+' won'):'')+'</span>':'')+(c.next_run?' <span style="color:var(--blue);font-size:11px;">next '+esc(fmtDate(c.next_run))+(c.sched_pending>1?(' (+'+(c.sched_pending-1)+')'):'')+'</span>':'')+((c.runs||0)>1?' <span style="color:var(--muted);font-size:11px;">sent '+c.runs+'\u00d7</span>':'')+'</div><div style="color:var(--muted);font-size:12px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(c.subject||'')+'</div></td>'
-        +'<td style="font-size:12.5px;">'+esc(c.list_name||'All active subscribers')+'</td>'
-        +'<td style="font-size:12px;color:var(--muted);white-space:nowrap;">'+fmtDate(c.started_at)+'</td>'
-        +'<td style="font-size:12px;color:var(--muted);white-space:nowrap;">'+fmtDate(c.finished_at)+'</td>'
-        +'<td style="text-align:right;font-variant-numeric:tabular-nums;">'+num(denom)+'</td>'
-        +metricCell(c.opens,denom)+metricCell(c.clicks,denom)+metricCell(c.unsubs,denom)+metricCell(c.complaints,denom)+metricCell(c.bounces,denom)
-        +'<td style="text-align:right;white-space:nowrap;"><span class="campact" data-open="'+c.id+'" style="color:var(--blue);cursor:pointer;font-weight:600;">Open</span>'
-          +' <span class="campact" data-prev="'+c.id+'" style="color:var(--blue);cursor:pointer;">Preview</span>'
-          +' <span class="campact" data-exp="'+c.id+'" style="color:var(--blue);cursor:pointer;">Export</span>'
-          +' <span class="campact" data-arch="'+c.id+'" data-a="'+(c.archived?'0':'1')+'" style="color:var(--muted);cursor:pointer;">'+(c.archived?'Restore':'Archive')+'</span></td>'
-        +'</tr>';
-    });
-    h+='</tbody></table></div></div>';
+      +'</div>'
+      +'<div id="campBody" style="padding:6px 8px 14px;"></div>'
+      +'</div>';
     $('tabCamps').innerHTML=h;
     wireCampHead();
-    bindAll('[data-open]', function(el){ openCampaign(el.getAttribute('data-open')); });
-    bindAll('[data-prev]', function(el){ previewCampaign(el.getAttribute('data-prev')); });
-    bindAll('[data-exp]',  function(el){ window.open('/api/mail/campaigns/'+el.getAttribute('data-exp')+'/export','_blank'); });
-    bindAll('[data-arch]', function(el){ api('POST','/api/mail/campaigns/'+el.getAttribute('data-arch')+'/archive',{ archived: el.getAttribute('data-a')==='1' }).then(function(){ loadCampaigns(); }); });
+    var cfg={
+      mount:'#campBody', data:rows, key:'mm_campaigns', countEl:'#campCnt',
+      empty:'<div class="pgs" style="padding:24px 12px;">'+(CAMPVIEW==='archived'?'No archived campaigns.':'No campaigns yet. Click <b>+ New campaign</b> to start.')+'</div>',
+      rowId:function(c){ return String(c.id); }, defaultSort:8, defaultDir:1,
+      columns:[
+        { label:'Campaign / Subject', sort:function(a,b){ return RRGList.cmp((a.name||'').toLowerCase(),(b.name||'').toLowerCase()); }, cell:campNameCell },
+        { label:'Audience', sort:function(a,b){ return RRGList.cmp(a.list_name||'',b.list_name||''); }, cell:function(c){ return '<span style="font-size:12.5px;">'+esc(c.list_name||'All active subscribers')+'</span>'; } },
+        { label:'Status', sort:function(a,b){ return RRGList.cmp(a.status,b.status); }, cell:function(c){ return '<span class="pill '+esc(c.status)+'">'+esc(c.status)+'</span>'; } },
+        { label:'Recipients', align:'right', sort:function(a,b){ return (a.total||a.sent||0)-(b.total||b.sent||0); }, cell:function(c){ return '<span style="font-variant-numeric:tabular-nums;">'+num(c.total||c.sent||0)+'</span>'; } },
+        { label:'Opens', align:'right', sort:function(a,b){ return rate(a,'opens')-rate(b,'opens'); }, cell:function(c){ return metricInline(c.opens,c.total||c.sent||0); } },
+        { label:'Clicks', align:'right', sort:function(a,b){ return rate(a,'clicks')-rate(b,'clicks'); }, cell:function(c){ return metricInline(c.clicks,c.total||c.sent||0); } },
+        { label:'Unsubs', align:'right', sort:function(a,b){ return (a.unsubs||0)-(b.unsubs||0); }, cell:function(c){ return metricInline(c.unsubs,c.total||c.sent||0); } },
+        { label:'Bounces', align:'right', sort:function(a,b){ return (a.bounces||0)-(b.bounces||0); }, cell:function(c){ return metricInline(c.bounces,c.total||c.sent||0); } },
+        { label:'Date', sort:function(a,b){ return RRGList.cmp(a.started_at||a.created_at||'',b.started_at||b.created_at||''); }, cell:function(c){ return '<span style="font-size:12px;color:var(--muted);white-space:nowrap;">'+fmtDate(c.started_at||c.created_at)+'</span>'; } },
+        { label:'Actions', align:'right', sortable:false, cell:campActionsCell }
+      ]
+    };
+    RRGList.create(cfg);
+    var body=$('campBody');
+    if(body){ body.addEventListener('click',function(e){
+      var t=e.target.closest?e.target.closest('[data-open],[data-prev],[data-exp],[data-arch]'):null; if(!t) return;
+      if(t.hasAttribute('data-open')) openCampaign(t.getAttribute('data-open'));
+      else if(t.hasAttribute('data-prev')) previewCampaign(t.getAttribute('data-prev'));
+      else if(t.hasAttribute('data-exp')) window.open('/api/mail/campaigns/'+t.getAttribute('data-exp')+'/export','_blank');
+      else if(t.hasAttribute('data-arch')) api('POST','/api/mail/campaigns/'+t.getAttribute('data-arch')+'/archive',{ archived:t.getAttribute('data-a')==='1' }).then(function(){ loadCampaigns(); });
+    }); }
   });
 }
+function campNameCell(c){
+  return '<div style="font-weight:700;color:var(--navy);">'+esc(c.name||'(untitled)')
+    +(c.ab_enabled?' <span class="pill" style="background:#eef3fb;color:var(--blue);vertical-align:middle;">A/B'+(c.ab_winner?(' &middot; '+esc(c.ab_winner)+' won'):'')+'</span>':'')
+    +(c.next_run?' <span style="color:var(--blue);font-size:11px;">next '+esc(fmtDate(c.next_run))+(c.sched_pending>1?(' (+'+(c.sched_pending-1)+')'):'')+'</span>':'')
+    +((c.runs||0)>1?' <span style="color:var(--muted);font-size:11px;">sent '+c.runs+'\u00d7</span>':'')
+    +'</div><div style="color:var(--muted);font-size:12px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:280px;">'+esc(c.subject||'')+'</div>';
+}
+function campActionsCell(c){
+  return '<span data-open="'+c.id+'" style="color:var(--blue);cursor:pointer;font-weight:600;">Open</span>'
+    +' <span data-prev="'+c.id+'" style="color:var(--blue);cursor:pointer;">Preview</span>'
+    +' <span data-exp="'+c.id+'" style="color:var(--blue);cursor:pointer;">Export</span>'
+    +' <span data-arch="'+c.id+'" data-a="'+(c.archived?'0':'1')+'" style="color:var(--muted);cursor:pointer;">'+(c.archived?'Restore':'Archive')+'</span>';
+}
+function rate(c,k){ var d=c.total||c.sent||0; return d? (c[k]||0)/d : 0; }
+function metricInline(v,denom){ v=Number(v||0); var p=denom? (Math.round((v/denom)*1000)/10):0; return '<span style="font-variant-numeric:tabular-nums;"><b style="font-weight:600;">'+num(v)+'</b> <span style="color:var(--muted);font-size:11px;">'+p+'%</span></span>'; }
 function wireCampHead(){
   bindAll('[data-cv]', function(el){ CAMPVIEW=el.getAttribute('data-cv'); loadCampaigns(); });
-  var rg=$('campRange'); if(rg){ rg.value=String(CAMPDAYS||0); rg.onchange=function(){ CAMPDAYS=parseInt(rg.value,10)||0; loadCampaigns(); }; }
   var nc=$('newCamp'); if(nc) nc.onclick=function(){ EDIT={ from_name:CFG.fromName||'', from_email:CFG.from||'', reply_to:'', html:starterHtml() }; renderEditor(); };
-  var se=$('campSearch'); if(se){ se.addEventListener('keydown',function(e){ if(e.key==='Enter'){ CAMPQ=se.value; loadCampaigns(); } }); se.addEventListener('blur',function(){ if((se.value||'')!==(CAMPQ||'')){ CAMPQ=se.value; loadCampaigns(); } }); }
 }
 function bindAll(sel, fn){ var n=$('tabCamps').querySelectorAll(sel); for(var i=0;i<n.length;i++){ (function(el){ el.onclick=function(){ fn(el); }; })(n[i]); } }
-function metricCell(v,denom){ v=Number(v||0); var p=denom? (Math.round((v/denom)*1000)/10):0; return '<td style="text-align:right;font-variant-numeric:tabular-nums;"><div style="font-weight:600;">'+num(v)+'</div><div style="color:var(--muted);font-size:11px;">'+p+'%</div></td>'; }
 function num(n){ return Number(n||0).toLocaleString(); }
 function fmtDate(d){ if(!d) return '—'; try{ var x=new Date(d); return (x.getMonth()+1)+'/'+x.getDate()+'/'+String(x.getFullYear()).slice(2)+' '+x.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}); }catch(e){ return '—'; } }
 function previewCampaign(id){
