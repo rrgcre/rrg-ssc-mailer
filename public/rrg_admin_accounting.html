@@ -48,7 +48,7 @@ h1{font-size:16px;font-weight:700;color:var(--navy);margin:0;}
 <div class="wrap" id="root"><div class="gate">Loading…</div></div>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
-var BASIS='accrual', ADMIN=false, SEL='accrual', TERMS=[];
+var BASIS='accrual', ADMIN=false, SEL='accrual', TERMS=[], TAXRATE=0, TAXLABEL='Sales Tax';
 function termIsNet(v){ v=String(v||'').trim(); return /^due on receipt$/i.test(v)||/net\s*\d+/i.test(v); }
 function termBadge(v){ return termIsNet(v)?'<span class="tnet">auto due date</span>':'<span class="tnet tmile">milestone</span>'; }
 function termRowHTML(v){ return '<div class="trow"><input type="text" value="'+esc(v)+'" placeholder="e.g. Net 45"><button class="trm" title="Remove">\u00d7</button></div>'; }
@@ -59,6 +59,14 @@ function collectTerms(){ var out=[]; document.querySelectorAll('#termRows .trow 
 function wireTerms(){ if(!ADMIN) return; renderTermRows(); var add=document.getElementById('addTerm'); if(add) add.onclick=function(){ var host=document.getElementById('termRows'); var d=document.createElement('div'); d.innerHTML=termRowHTML(''); var row=d.firstChild; host.appendChild(row); row.querySelector('.trm').addEventListener('click',function(){ row.remove(); }); row.querySelector('input').focus(); }; var sv=document.getElementById('saveTerms'); if(sv) sv.onclick=saveTerms; var rs=document.getElementById('resetTerms'); if(rs) rs.onclick=resetTerms; }
 function saveTerms(){ var m=document.getElementById('tmsg'); var list=collectTerms(); m.style.color=''; m.textContent='Saving\u2026'; fetch('/api/admin/invoice-terms',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({terms:list})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ TERMS=j.invoiceTerms||[]; renderTermRows(); m.style.color='#2f7a55'; m.textContent='Saved \u2713'; setTimeout(function(){m.textContent='';},1800); } else { m.style.color='#b23a2c'; m.textContent=(j&&j.error)||'Could not save.'; } }).catch(function(){ m.style.color='#b23a2c'; m.textContent='Could not reach the server.'; }); }
 async function resetTerms(){ if(window.rrgConfirm){ if(!await window.rrgConfirm('Reset invoice terms to the built-in defaults?')) return; } var m=document.getElementById('tmsg'); m.style.color=''; m.textContent='Resetting\u2026'; fetch('/api/admin/invoice-terms',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({terms:[]})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ TERMS=j.invoiceTerms||[]; renderTermRows(); m.style.color='#2f7a55'; m.textContent='Reset \u2713'; setTimeout(function(){m.textContent='';},1800); } }); }
+function taxCardEdit(){ return '<div class="card"><div class="cardh">Default sales tax</div><div class="cardb">'
+  +'<p class="hint">Applied to <b>new</b> invoices by default \u2014 set the rate to <b>0</b> for none, and change it per invoice as needed. Tax collected posts to <b>Sales Tax Payable</b> (a liability you remit), not income.</p>'
+  +'<div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:4px"><div><label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);margin-bottom:5px">Rate %</label><input type="number" id="txRate" min="0" step="0.001" value="'+(TAXRATE?esc(TAXRATE):'')+'" placeholder="0" style="width:120px;font:inherit;font-size:13.5px;padding:9px 11px;border:1px solid var(--inp);border-radius:4px;text-align:right"></div><div style="flex:1;min-width:160px"><label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);margin-bottom:5px">Label</label><input type="text" id="txLabel" value="'+esc(TAXLABEL||'')+'" placeholder="Sales Tax" style="width:100%;font:inherit;font-size:13.5px;padding:9px 11px;border:1px solid var(--inp);border-radius:4px"></div></div>'
+  +'<div class="savebar"><button class="savebtn" id="txSave">Save tax</button><span class="msg" id="txmsg"></span></div>'
+  +'</div></div>'; }
+function taxCardRO(){ return '<div class="card"><div class="cardh">Default sales tax</div><div class="cardb"><p class="hint" style="margin:0">Default tax on new invoices: '+(TAXRATE>0?('<b>'+esc(TAXLABEL||'Sales Tax')+' '+TAXRATE+'%</b>'):'none')+'. Only an administrator can change this.</p></div></div>'; }
+function wireTax(){ if(!ADMIN) return; var sv=document.getElementById('txSave'); if(sv) sv.onclick=saveTax; }
+function saveTax(){ var m=document.getElementById('txmsg'); m.style.color=''; m.textContent='Saving\u2026'; fetch('/api/admin/invoice-tax',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({rate:Number((document.getElementById('txRate').value)||0)||0,label:document.getElementById('txLabel').value||''})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ TAXRATE=j.taxRate; TAXLABEL=j.taxLabel; m.style.color='#2f7a55'; m.textContent='Saved \u2713'; setTimeout(function(){m.textContent='';},1800); } else { m.style.color='#b23a2c'; m.textContent=(j&&j.error)||'Could not save.'; } }).catch(function(){ m.style.color='#b23a2c'; m.textContent='Could not reach the server.'; }); }
 var METHODS=[];
 function methodRowHTML(v){ return '<div class="trow"><input type="text" value="'+esc(v)+'" placeholder="e.g. Zelle"><button class="trm" title="Remove">\u00d7</button></div>'; }
 function methodsCardEdit(){ return '<div class="card"><div class="cardh">Payment methods</div><div class="cardb">'+'<p class="hint">These fill the <b>Method</b> dropdown when you record a payment on an invoice.</p>'+'<div id="methodRows"></div>'+'<button class="addbtn" id="addMethod">+ Add method</button>'+'<div class="savebar"><button class="savebtn" id="saveMethods">Save methods</button><button class="savebtn ghost" id="resetMethods">Reset to defaults</button><span class="msg" id="mmsg"></span></div>'+'</div></div>'; }
@@ -89,7 +97,7 @@ async function clearStripe(){ if(window.rrgConfirm){ if(!await window.rrgConfirm
 function render(){
   if(!ADMIN){
     document.getElementById('root').innerHTML='<div class="pkick">Admin · Finance</div><h1>Accounting &amp; Invoicing</h1>'
-      +'<div class="card"><div class="cardh">Revenue recognition</div><div class="cardb"><p class="hint" style="margin:0">Your reports currently use <b>'+(BASIS==='cash'?'cash (collected)':'accrual (invoiced)')+'</b> basis. Only an administrator can change this.</p></div></div>'+termsCardRO()+methodsCardRO()+stripeCardRO();
+      +'<div class="card"><div class="cardh">Revenue recognition</div><div class="cardb"><p class="hint" style="margin:0">Your reports currently use <b>'+(BASIS==='cash'?'cash (collected)':'accrual (invoiced)')+'</b> basis. Only an administrator can change this.</p></div></div>'+termsCardRO()+taxCardRO()+methodsCardRO()+stripeCardRO();
     return;
   }
   function opt(v,title,tag,desc){ return '<div class="opt'+(SEL===v?' on':'')+'" data-v="'+v+'"><div class="rad"></div><div class="tx"><b>'+title+'</b>'+(tag?'<span class="tag">'+tag+'</span>':'')+'<p>'+desc+'</p></div></div>'; }
@@ -104,10 +112,11 @@ function render(){
       +'</div>'
       +'<div class="savebar"><button class="savebtn" id="save">Save</button><span class="msg" id="msg"></span></div>'
       +'<div class="note">Changing this affects everyone&rsquo;s reports firm-wide.</div>'
-    +'</div></div>'+termsCardEdit()+methodsCardEdit()+stripeCardEdit();
+    +'</div></div>'+termsCardEdit()+taxCardEdit()+methodsCardEdit()+stripeCardEdit();
   document.querySelectorAll('.opt').forEach(function(o){ o.addEventListener('click',function(){ SEL=o.getAttribute('data-v'); document.querySelectorAll('.opt').forEach(function(x){ x.classList.toggle('on', x===o); }); }); });
   document.getElementById('save').addEventListener('click',save);
   wireTerms();
+  wireTax();
   wireMethods();
   wireStripe();
 }
@@ -122,7 +131,7 @@ function save(){
 }
 fetch('/api/admin/accounting',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
   if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">Could not load accounting settings.</div>'; return; }
-  BASIS=j.basis||'accrual'; SEL=BASIS; ADMIN=!!j.isAdmin; TERMS=j.invoiceTerms||[]; METHODS=j.paymentMethods||[]; fetch('/api/admin/stripe',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(k){ if(k&&k.ok) STRIPE=k; render(); }).catch(function(){ render(); });
+  BASIS=j.basis||'accrual'; SEL=BASIS; ADMIN=!!j.isAdmin; TERMS=j.invoiceTerms||[]; METHODS=j.paymentMethods||[]; TAXRATE=j.taxRate||0; TAXLABEL=j.taxLabel||'Sales Tax'; fetch('/api/admin/stripe',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(k){ if(k&&k.ok) STRIPE=k; render(); }).catch(function(){ render(); });
 }).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not reach the server.</div>'; });
 </script>
 </body>

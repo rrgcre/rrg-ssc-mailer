@@ -7466,22 +7466,26 @@ function invoiceStatusDisplay(x, total, paid) {
   if (paid > 0) return 'Partial';
   return x.status === 'Sent' ? 'Sent' : 'Draft';
 }
+function _invTaxRate(x){ const r = Number(x && x.taxRate || 0); return (isFinite(r) && r > 0) ? Math.min(100, r) : 0; }
+function _invSubtotal(x){ const items = Array.isArray(x.lineItems) ? x.lineItems : []; return _glR2(items.reduce((s, li) => s + _expNum(li.amount), 0)); }
+function _invTaxAmt(x){ return _glR2(_invSubtotal(x) * _invTaxRate(x) / 100); }
+function _invGrandTotal(x){ return _glR2(_invSubtotal(x) + _invTaxAmt(x)); }
 function invoiceBrief(x, user, opts) {
   opts = opts || {};
   const items = Array.isArray(x.lineItems) ? x.lineItems : [];
-  const total = items.reduce((s2, li) => s2 + _expNum(li.amount), 0);
+  const subtotal = _invSubtotal(x); const taxRate = _invTaxRate(x); const taxAmt = _invTaxAmt(x); const total = _glR2(subtotal + taxAmt);
   const pays = Array.isArray(x.payments) ? x.payments : [];
   const paid = pays.reduce((s2, p) => s2 + _expNum(p.amount), 0);
   const b = { id: x.id, number: x.number || '', listingKey: x.listingKey || '', listingLabel: x.listingLabel || '',
     billTo: x.billTo || '', billToEmail: x.billToEmail || '', issueDate: x.issueDate || '', dueDate: x.dueDate || '',
     baseStatus: INVOICE_STATUSES.indexOf(x.status) >= 0 ? x.status : 'Draft', total: total, paid: paid, balance: total - paid,
-    status: invoiceStatusDisplay(x, total, paid), notes: x.notes || '', terms: x.terms || '',
+    status: invoiceStatusDisplay(x, total, paid), subtotal: subtotal, taxRate: taxRate, taxAmt: taxAmt, taxLabel: x.taxLabel || 'Sales Tax', notes: x.notes || '', terms: x.terms || '',
     paymentCount: pays.length, ownerUser: x.ownerUser || '', ownerName: x.ownerName || '',
     recur: (x.recur && INVOICE_RECUR_FREQS.indexOf(x.recur.freq) >= 0) ? { freq: x.recur.freq, nextDate: x.recur.nextDate || '', active: x.recur.active !== false, count: x.recur.count || 0, lastGenerated: x.recur.lastGenerated || '' } : null,
     seriesId: x.seriesId || '',
     mine: !!(user && (x.ownerUser === user.username || isSuper(user))), createdAt: x.createdAt || '', updatedAt: x.updatedAt || '' };
-  if (opts.full) { b.payToken = x.payToken || ''; b.lineItems = items.map(li => ({ desc: li.desc || '', amount: _expNum(li.amount), account: li.account || '' }));
-    b.payments = pays.slice().sort((p, q) => String(q.date || '').localeCompare(String(p.date || ''))).map(p => ({ id: p.id, date: p.date || '', amount: _expNum(p.amount), method: p.method || '', reference: p.reference || '', notes: p.notes || '' })); }
+  if (opts.full) { b.payToken = x.payToken || ''; b.noOnlinePay = !!x.noOnlinePay; b.lineItems = items.map(li => ({ desc: li.desc || '', amount: _expNum(li.amount), account: li.account || '' }));
+    b.payments = pays.slice().sort((p, q) => String(q.date || '').localeCompare(String(p.date || ''))).map(p => ({ id: p.id, date: p.date || '', amount: _expNum(p.amount), fee: _expNum(p.fee || 0), method: p.method || '', reference: p.reference || '', notes: p.notes || '' })); }
   return b;
 }
 function dealInvoiceRollup(key, user) {
@@ -7517,7 +7521,7 @@ function generateDueRecurringInvoices() {
     let guard = 0;
     while (String(rc.nextDate) <= today && guard < 120) {
       guard++;
-      const child = { id: newInvoiceId(), number: nextInvoiceNumber(all), listingKey: inv.listingKey || '', listingLabel: inv.listingLabel || '', billTo: inv.billTo || '', billToEmail: inv.billToEmail || '', issueDate: rc.nextDate, dueDate: _invDueFrom(inv, rc.nextDate), status: 'Sent', lineItems: (inv.lineItems || []).map(li => ({ desc: li.desc || '', amount: _expNum(li.amount), account: li.account || '' })), payments: [], notes: inv.notes || '', terms: inv.terms || '', ownerUser: inv.ownerUser || '', ownerName: inv.ownerName || '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), seriesId: inv.seriesId || inv.id };
+      const child = { id: newInvoiceId(), number: nextInvoiceNumber(all), listingKey: inv.listingKey || '', listingLabel: inv.listingLabel || '', billTo: inv.billTo || '', billToEmail: inv.billToEmail || '', issueDate: rc.nextDate, dueDate: _invDueFrom(inv, rc.nextDate), status: 'Sent', lineItems: (inv.lineItems || []).map(li => ({ desc: li.desc || '', amount: _expNum(li.amount), account: li.account || '' })), taxRate: inv.taxRate || 0, taxLabel: inv.taxLabel || '', payments: [], notes: inv.notes || '', terms: inv.terms || '', ownerUser: inv.ownerUser || '', ownerName: inv.ownerName || '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), seriesId: inv.seriesId || inv.id };
       all.push(child); made++; changed = true;
       rc.nextDate = _invAdvanceDate(rc.nextDate, rc.freq); rc.count = (rc.count || 0) + 1; rc.lastGenerated = child.issueDate;
     }
@@ -7533,13 +7537,13 @@ app.get('/api/invoices', (req, res) => {
   const filt = req.query.listingKey ? all.filter(x => x.listingKey === req.query.listingKey) : all;
   const vis = filt.filter(x => admin || x.ownerUser === u.username);
   const rows = vis.map(x => invoiceBrief(x, u)).sort((a, b) => String(b.issueDate || '').localeCompare(String(a.issueDate || '')) || String(b.number).localeCompare(String(a.number)));
-  res.json({ ok: true, isAdmin: !!admin, statuses: INVOICE_STATUSES, methods: paymentMethods(), terms: invoiceTerms(), stripeEnabled: stripeReady(), incomeAccounts: loadGlAccounts().filter(a => a.type === 'Income').map(a => ({ code: a.code, name: a.name })), invoices: rows });
+  res.json({ ok: true, isAdmin: !!admin, statuses: INVOICE_STATUSES, methods: paymentMethods(), terms: invoiceTerms(), stripeEnabled: stripeReady(), taxDefault: { rate: Number(loadSettings().taxRate || 0) || 0, label: loadSettings().taxLabel || 'Sales Tax' }, incomeAccounts: loadGlAccounts().filter(a => a.type === 'Income').map(a => ({ code: a.code, name: a.name })), invoices: rows });
 });
 app.get('/api/invoices/:id', (req, res) => {
   const u = req.user || {}; const x = loadInvoices().find(e => e.id === req.params.id);
   if (!x) return res.status(404).json({ ok: false, error: 'Invoice not found.' });
   if (!(isSuper(u) || x.ownerUser === u.username)) return res.status(403).json({ ok: false, error: 'Not yours.' });
-  res.json({ ok: true, statuses: INVOICE_STATUSES, methods: paymentMethods(), terms: invoiceTerms(), stripeEnabled: stripeReady(), incomeAccounts: loadGlAccounts().filter(a => a.type === 'Income').map(a => ({ code: a.code, name: a.name })), invoice: invoiceBrief(x, u, { full: true }) });
+  res.json({ ok: true, statuses: INVOICE_STATUSES, methods: paymentMethods(), terms: invoiceTerms(), stripeEnabled: stripeReady(), taxDefault: { rate: Number(loadSettings().taxRate || 0) || 0, label: loadSettings().taxLabel || 'Sales Tax' }, incomeAccounts: loadGlAccounts().filter(a => a.type === 'Income').map(a => ({ code: a.code, name: a.name })), invoice: invoiceBrief(x, u, { full: true }) });
 });
 app.post('/api/invoices', express.json({ limit: '512kb' }), (req, res) => {
   const u = req.user || {}; const b = req.body || {}; const all = loadInvoices();
@@ -7557,6 +7561,9 @@ app.post('/api/invoices', express.json({ limit: '512kb' }), (req, res) => {
   if (b.lineItems !== undefined) x.lineItems = cleanLineItems(b.lineItems);
   if (b.notes !== undefined) x.notes = String(b.notes || '').slice(0, 4000);
   if (b.terms !== undefined) x.terms = String(b.terms || '').slice(0, 600);
+  if (b.noOnlinePay !== undefined) x.noOnlinePay = !!b.noOnlinePay;
+  if (b.taxRate !== undefined) { const r = Number(b.taxRate); x.taxRate = (isFinite(r) && r > 0) ? Math.min(100, Math.round(r * 1000) / 1000) : 0; }
+  if (b.taxLabel !== undefined) x.taxLabel = String(b.taxLabel || '').slice(0, 60);
   if (b.recur !== undefined) {
     const rc = b.recur || {};
     if (rc && INVOICE_RECUR_FREQS.indexOf(rc.freq) >= 0) {
@@ -7564,6 +7571,7 @@ app.post('/api/invoices', express.json({ limit: '512kb' }), (req, res) => {
     } else { x.recur = null; }
   }
   ensurePayToken(x);
+  if (_invTaxRate(x) > 0) ensureTaxPayableAccount();
   x.updatedAt = new Date().toISOString(); saveInvoices(all);
   res.json({ ok: true, invoice: invoiceBrief(x, u, { full: true }) });
 });
@@ -7594,7 +7602,17 @@ app.delete('/api/invoices/:id/payment/:pid', (req, res) => {
 });
 // Accounting basis — accrual (revenue when invoiced) vs cash (revenue when collected).
 function effAccountingBasis() { return loadSettings().accountingBasis === 'cash' ? 'cash' : 'accrual'; }
-app.get('/api/admin/accounting', (req, res) => { res.json({ ok: true, basis: effAccountingBasis(), invoiceTerms: invoiceTerms(), paymentMethods: paymentMethods(), isAdmin: !!(req.user && isSuper(req.user)) }); });
+app.get('/api/admin/accounting', (req, res) => { res.json({ ok: true, basis: effAccountingBasis(), invoiceTerms: invoiceTerms(), paymentMethods: paymentMethods(), taxRate: Number(loadSettings().taxRate || 0) || 0, taxLabel: loadSettings().taxLabel || 'Sales Tax', isAdmin: !!(req.user && isSuper(req.user)) }); });
+// Admin-editable default sales tax applied to new invoices.
+app.post('/api/admin/invoice-tax', express.json(), (req, res) => {
+  if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Admins only.' });
+  const b = req.body || {}; const s = loadSettings();
+  const r = Number(b.rate); s.taxRate = (isFinite(r) && r > 0) ? Math.min(100, Math.round(r * 1000) / 1000) : 0;
+  s.taxLabel = String(b.label || '').slice(0, 60) || 'Sales Tax';
+  saveSettings(s);
+  if (s.taxRate > 0) ensureTaxPayableAccount();
+  res.json({ ok: true, taxRate: s.taxRate, taxLabel: s.taxLabel });
+});
 // Admin-editable invoice payment terms. Empty list resets to the built-in defaults.
 app.post('/api/admin/invoice-terms', express.json(), (req, res) => {
   if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Admins only.' });
@@ -7623,10 +7641,15 @@ function stripeCfg() { const c = loadSettings().stripe; return (c && typeof c ==
 function stripeReady() { const c = stripeCfg(); return !!(c.enabled && c.secretKey); }
 function _formEncode(obj) { const p = []; Object.keys(obj).forEach(k => { const v = obj[k]; if (v === undefined || v === null) return; p.push(encodeURIComponent(k) + '=' + encodeURIComponent(String(v))); }); return p.join('&'); }
 async function stripeApi(path, params) { const c = stripeCfg(); if (!c.secretKey) throw new Error('Stripe is not configured.'); const r = await fetch('https://api.stripe.com/v1/' + path, { method: 'POST', headers: { 'Authorization': 'Bearer ' + c.secretKey, 'Content-Type': 'application/x-www-form-urlencoded' }, body: _formEncode(params) }); const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error((j && j.error && j.error.message) || ('Stripe error ' + r.status)); return j; }
+async function stripeGet(path) { const c = stripeCfg(); if (!c.secretKey) throw new Error('Stripe is not configured.'); const r = await fetch('https://api.stripe.com/v1/' + path, { headers: { 'Authorization': 'Bearer ' + c.secretKey } }); const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error((j && j.error && j.error.message) || ('Stripe error ' + r.status)); return j; }
+const GL_STRIPE_FEE_CODE = '5900';
+const GL_TAX_PAYABLE_CODE = '2200';
+function ensureTaxPayableAccount() { try { const a = loadGlAccounts(); if (!a.some(x => x.code === GL_TAX_PAYABLE_CODE)) { a.push({ code: GL_TAX_PAYABLE_CODE, name: 'Sales Tax Payable', type: 'Liability' }); saveGlAccounts(a); } } catch (e) {} }
+function ensureStripeFeeAccount() { try { const a = loadGlAccounts(); if (!a.some(x => x.code === GL_STRIPE_FEE_CODE)) { a.push({ code: GL_STRIPE_FEE_CODE, name: 'Merchant / Processing Fees', type: 'Expense' }); saveGlAccounts(a); } } catch (e) {} }
 function newPayToken() { return require('crypto').randomBytes(18).toString('hex'); }
 function ensurePayToken(x) { if (x && !x.payToken) x.payToken = newPayToken(); return x && x.payToken; }
 function _invByPayToken(tok) { if (!tok) return null; return loadInvoices().find(x => x.payToken === tok) || null; }
-function _invBalance(x) { const items = Array.isArray(x.lineItems) ? x.lineItems : []; const total = _glR2(items.reduce((s, li) => s + _expNum(li.amount), 0)); const paid = _glR2((x.payments || []).reduce((s, p) => s + _expNum(p.amount), 0)); return { total: total, paid: paid, balance: _glR2(total - paid) }; }
+function _invBalance(x) { const subtotal = _invSubtotal(x); const taxAmt = _invTaxAmt(x); const total = _glR2(subtotal + taxAmt); const paid = _glR2((x.payments || []).reduce((s, p) => s + _expNum(p.amount), 0)); return { subtotal: subtotal, taxAmt: taxAmt, taxRate: _invTaxRate(x), taxLabel: x.taxLabel || 'Sales Tax', total: total, paid: paid, balance: _glR2(total - paid) }; }
 function _stripeVerify(payload, header, secret) {
   try {
     const parts = {}; String(header || '').split(',').forEach(kv => { const i = kv.indexOf('='); if (i > 0) parts[kv.slice(0, i)] = kv.slice(i + 1); });
@@ -7637,18 +7660,22 @@ function _stripeVerify(payload, header, secret) {
     return a.length === b.length && crypto.timingSafeEqual(a, b);
   } catch (e) { return false; }
 }
-function _recordStripePayment(sess) {
+async function _recordStripePayment(sess) {
   try {
-    const all = loadInvoices(); const md = sess.metadata || {};
+    const md = sess.metadata || {}; const ref = String(sess.payment_intent || sess.id || '');
+    const amt = _glR2((sess.amount_total || 0) / 100);
+    if (!(amt > 0)) return;
+    // Pull the actual Stripe processing fee off the charge's balance transaction so the books match the bank.
+    let fee = 0;
+    try { if (sess.payment_intent) { const pi = await stripeGet('payment_intents/' + encodeURIComponent(sess.payment_intent) + '?expand[]=latest_charge.balance_transaction'); const ch = pi && pi.latest_charge; const bt = ch && ch.balance_transaction; if (bt && typeof bt.fee === 'number') fee = _glR2(bt.fee / 100); } } catch (e) { console.error('stripe fee fetch:', e && e.message); }
+    const all = loadInvoices();
     let x = md.invoiceId ? all.find(e => e.id === md.invoiceId) : null;
     if (!x && md.payToken) x = all.find(e => e.payToken === md.payToken);
     if (!x) return;
-    const ref = String(sess.payment_intent || sess.id || '');
     x.payments = Array.isArray(x.payments) ? x.payments : [];
     if (x.payments.some(p => p.reference === ref)) return;
-    const amt = _glR2((sess.amount_total || 0) / 100);
-    if (!(amt > 0)) return;
-    x.payments.push({ id: newPaymentId(), date: new Date().toISOString().slice(0, 10), amount: amt, method: 'Online (Stripe)', reference: ref, notes: 'Paid online via Stripe', createdAt: new Date().toISOString() });
+    if (fee > 0) ensureStripeFeeAccount();
+    x.payments.push({ id: newPaymentId(), date: new Date().toISOString().slice(0, 10), amount: amt, fee: fee, method: 'Online (Stripe)', reference: ref, notes: 'Paid online via Stripe' + (fee > 0 ? (' \u2014 processing fee $' + fee.toFixed(2)) : ''), createdAt: new Date().toISOString() });
     if (x.status === 'Draft') x.status = 'Sent';
     x.updatedAt = new Date().toISOString(); saveInvoices(all);
   } catch (e) { console.error('record stripe payment:', e && e.message); }
@@ -7674,6 +7701,7 @@ app.post('/api/pay/:token/checkout', async (req, res) => {
     const x = _invByPayToken(req.params.token); if (!x) return res.status(404).json({ ok: false, error: 'Invoice not found.' });
     if (!stripeReady()) return res.status(400).json({ ok: false, error: 'Online payments are not enabled.' });
     if (x.status === 'Void') return res.status(400).json({ ok: false, error: 'This invoice is void.' });
+    if (x.noOnlinePay) return res.status(400).json({ ok: false, error: 'Online payment is turned off for this invoice.' });
     const bal = _invBalance(x).balance; if (!(bal > 0)) return res.status(400).json({ ok: false, error: 'This invoice has no balance due.' });
     const base = appBaseUrl() || (req.protocol + '://' + req.get('host'));
     const org = effOrg();
@@ -7696,14 +7724,14 @@ app.post('/api/pay/:token/checkout', async (req, res) => {
     res.json({ ok: true, url: sess.url });
   } catch (e) { res.status(502).json({ ok: false, error: String((e && e.message) || e) }); }
 });
-app.post('/api/stripe/webhook', express.raw({ type: '*/*', limit: '1mb' }), (req, res) => {
+app.post('/api/stripe/webhook', express.raw({ type: '*/*', limit: '1mb' }), async (req, res) => {
   try {
     const c = stripeCfg();
     const raw = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : String(req.body || '');
     if (c.webhookSecret) { if (!_stripeVerify(raw, req.headers['stripe-signature'] || '', c.webhookSecret)) return res.status(400).send('bad signature'); }
     const evt = JSON.parse(raw); const type = evt.type || ''; const obj = (evt.data && evt.data.object) || {};
-    if (type === 'checkout.session.completed' && obj.payment_status === 'paid') _recordStripePayment(obj);
-    else if (type === 'checkout.session.async_payment_succeeded') _recordStripePayment(obj);
+    if (type === 'checkout.session.completed' && obj.payment_status === 'paid') await _recordStripePayment(obj);
+    else if (type === 'checkout.session.async_payment_succeeded') await _recordStripePayment(obj);
     res.json({ received: true });
   } catch (e) { console.error('stripe webhook:', e && e.message); res.status(200).json({ received: true }); }
 });
@@ -7723,13 +7751,13 @@ function _payPageHtml(x, o) {
   const items = Array.isArray(x.lineItems) ? x.lineItems : [];
   const rows = items.map(li => '<tr><td style="padding:9px 0;border-top:1px solid #eef1f6;color:#1a2236">' + esc(li.desc || '') + '</td><td style="padding:9px 0;border-top:1px solid #eef1f6;text-align:right;color:#1a2236;white-space:nowrap">' + money(_expNum(li.amount)) + '</td></tr>').join('');
   const paidInFull = !(bal.balance > 0);
-  const canPay = o.ready && !paidInFull && x.status !== 'Void';
+  const canPay = o.ready && !paidInFull && x.status !== 'Void' && !x.noOnlinePay;
   const banner = o.paid ? '<div style="background:#e7f5ee;border:1px solid #bfe4d0;color:#1f7a52;border-radius:8px;padding:12px 14px;font-size:13.5px;font-weight:600;margin-bottom:16px">Thank you — your payment is being processed and will post to this invoice shortly.</div>' : '';
   const payBtn = canPay
     ? '<button id="payBtn" style="width:100%;background:#000E31;color:#fff;border:none;border-radius:10px;padding:14px;font:inherit;font-size:15px;font-weight:700;cursor:pointer">Pay ' + money(bal.balance) + '</button><div id="perr" style="color:#b23a2c;font-size:12.5px;font-weight:600;margin-top:8px;text-align:center"></div><div style="color:#8a93a8;font-size:11.5px;text-align:center;margin-top:10px">Secure payment by card or bank (ACH), powered by Stripe.</div>'
     : (paidInFull ? '<div style="text-align:center;color:#1f8a5b;font-weight:700;font-size:15px;padding:8px 0">Paid in full — thank you.</div>' : (x.status === 'Void' ? '<div style="text-align:center;color:#8a93a8;font-weight:600">This invoice is void.</div>' : '<div style="text-align:center;color:#8a93a8;font-size:12.5px">Online payment is not available for this invoice. Please contact us to arrange payment.</div>'));
   const script = canPay ? '<script>document.getElementById("payBtn").addEventListener("click",function(){var b=this,e=document.getElementById("perr");b.disabled=true;b.textContent="Redirecting…";e.textContent="";fetch("/api/pay/' + esc(x.payToken) + '/checkout",{method:"POST"}).then(function(r){return r.json();}).then(function(j){if(j&&j.ok&&j.url){location.href=j.url;}else{b.disabled=false;b.textContent="Pay ' + money(bal.balance) + '";e.textContent=(j&&j.error)||"Could not start checkout.";}}).catch(function(){b.disabled=false;b.textContent="Pay ' + money(bal.balance) + '";e.textContent="Could not reach the payment server.";});});<\/script>' : '';
-  return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Invoice ' + esc(x.number || '') + '</title></head><body style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;background:#eef1f6;margin:0;color:#1a2236"><div style="max-width:540px;margin:48px auto;padding:0 16px"><div style="background:#000E31;color:#fff;border-radius:12px 12px 0 0;padding:20px 24px"><div style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#8fa2be;font-weight:700">' + esc(brandName) + '</div><div style="font-size:20px;font-weight:700;margin-top:4px">Invoice ' + esc(x.number || '') + '</div></div><div style="background:#fff;border:1px solid #e6e9f0;border-top:none;border-radius:0 0 12px 12px;padding:22px 24px 26px">' + banner + (x.billTo ? ('<div style="color:#6b7488;font-size:12.5px;margin-bottom:2px">Billed to</div><div style="font-weight:700;color:#000E31;margin-bottom:16px">' + esc(x.billTo) + '</div>') : '') + '<table style="width:100%;border-collapse:collapse;font-size:14px">' + rows + '</table><table style="width:100%;border-collapse:collapse;font-size:14px;margin-top:6px"><tr><td style="padding:8px 0;border-top:2px solid #e6e9f0;color:#6b7488">Total</td><td style="padding:8px 0;border-top:2px solid #e6e9f0;text-align:right;color:#1a2236">' + money(bal.total) + '</td></tr>' + (bal.paid > 0 ? ('<tr><td style="padding:4px 0;color:#6b7488">Paid</td><td style="padding:4px 0;text-align:right;color:#1f8a5b">-' + money(bal.paid) + '</td></tr>') : '') + '<tr><td style="padding:8px 0;font-weight:700;color:#000E31;font-size:15px">Balance due</td><td style="padding:8px 0;text-align:right;font-weight:700;color:#000E31;font-size:15px">' + money(bal.balance) + '</td></tr></table>' + (x.terms ? ('<div style="color:#8a93a8;font-size:12px;margin:10px 0 4px">Terms: ' + esc(x.terms) + '</div>') : '') + '<div style="margin-top:18px">' + payBtn + '</div></div><div style="text-align:center;color:#aab3c2;font-size:11px;margin-top:14px">' + esc(org.legalName || org.name || '') + (org.phone ? (' · ' + esc(org.phone)) : '') + '</div></div>' + script + '</body></html>';
+  return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Invoice ' + esc(x.number || '') + '</title></head><body style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;background:#eef1f6;margin:0;color:#1a2236"><div style="max-width:540px;margin:48px auto;padding:0 16px"><div style="background:#000E31;color:#fff;border-radius:12px 12px 0 0;padding:20px 24px"><div style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#8fa2be;font-weight:700">' + esc(brandName) + '</div><div style="font-size:20px;font-weight:700;margin-top:4px">Invoice ' + esc(x.number || '') + '</div></div><div style="background:#fff;border:1px solid #e6e9f0;border-top:none;border-radius:0 0 12px 12px;padding:22px 24px 26px">' + banner + (x.billTo ? ('<div style="color:#6b7488;font-size:12.5px;margin-bottom:2px">Billed to</div><div style="font-weight:700;color:#000E31;margin-bottom:16px">' + esc(x.billTo) + '</div>') : '') + '<table style="width:100%;border-collapse:collapse;font-size:14px">' + rows + '</table><table style="width:100%;border-collapse:collapse;font-size:14px;margin-top:6px">' + (bal.taxAmt > 0 ? ('<tr><td style="padding:8px 0;border-top:2px solid #e6e9f0;color:#6b7488">Subtotal</td><td style="padding:8px 0;border-top:2px solid #e6e9f0;text-align:right;color:#1a2236">' + money(bal.subtotal) + '</td></tr><tr><td style="padding:4px 0;color:#6b7488">' + esc(bal.taxLabel || 'Sales Tax') + ' (' + bal.taxRate + '%)</td><td style="padding:4px 0;text-align:right;color:#1a2236">' + money(bal.taxAmt) + '</td></tr>') : '') + '<tr><td style="padding:8px 0;border-top:2px solid #e6e9f0;color:#6b7488">Total</td><td style="padding:8px 0;border-top:2px solid #e6e9f0;text-align:right;color:#1a2236">' + money(bal.total) + '</td></tr>' + (bal.paid > 0 ? ('<tr><td style="padding:4px 0;color:#6b7488">Paid</td><td style="padding:4px 0;text-align:right;color:#1f8a5b">-' + money(bal.paid) + '</td></tr>') : '') + '<tr><td style="padding:8px 0;font-weight:700;color:#000E31;font-size:15px">Balance due</td><td style="padding:8px 0;text-align:right;font-weight:700;color:#000E31;font-size:15px">' + money(bal.balance) + '</td></tr></table>' + (x.terms ? ('<div style="color:#8a93a8;font-size:12px;margin:10px 0 4px">Terms: ' + esc(x.terms) + '</div>') : '') + '<div style="margin-top:18px">' + payBtn + '</div></div><div style="text-align:center;color:#aab3c2;font-size:11px;margin-top:14px">' + esc(org.legalName || org.name || '') + (org.phone ? (' · ' + esc(org.phone)) : '') + '</div></div>' + script + '</body></html>';
 }
 
 app.post('/api/admin/accounting', express.json(), (req, res) => {
@@ -8457,9 +8485,11 @@ function _glDefaultAccounts() {
     { code: '1000', name: 'Cash / Operating Bank', type: 'Asset' },
     { code: '1100', name: 'Accounts Receivable', type: 'Asset' },
     { code: '2000', name: 'Accounts Payable', type: 'Liability' },
+    { code: '2200', name: 'Sales Tax Payable', type: 'Liability' },
     { code: '3000', name: "Owner's Equity", type: 'Equity' },
     { code: '4000', name: 'Commission Income', type: 'Income' },
     { code: '4100', name: 'Other Income', type: 'Income' },
+    { code: '5900', name: 'Merchant / Processing Fees', type: 'Expense' },
   ];
   (EXPENSE_CATEGORIES || []).forEach((cat, i) => base.push({ code: String(5000 + i * 10), name: cat, type: 'Expense', cat: cat }));
   return base;
@@ -8477,19 +8507,33 @@ function glAutoEntries(accounts) {
   try {
     loadInvoices().forEach(x => {
       const items = Array.isArray(x.lineItems) ? x.lineItems : [];
-      const total = _glR2(items.reduce((s, li) => s + _expNum(li.amount), 0));
+      const subtotal = _glR2(items.reduce((s, li) => s + _expNum(li.amount), 0));
+      const taxAmt = _invTaxAmt(x);
+      const grand = _glR2(subtotal + taxAmt);
       const label = x.billTo || x.listingLabel || '';
-      if (x.status === 'Sent' && total > 0) {
-        // Debit A/R for the whole invoice; credit each line to its own Income account (default 4000 Commission Income).
+      if (x.status === 'Sent' && grand > 0) {
+        // Debit A/R for the full invoice; credit each line to its Income account (default 4000);
+        // sales tax collected is a liability (Sales Tax Payable), not income.
         const _valid = new Set(accounts.map(a => a.code));
         const _cr = {};
         items.forEach(li => { const amt = _expNum(li.amount); if (amt > 0) { let acct = String((li && li.account) || ''); if (!acct || !_valid.has(acct)) acct = '4000'; _cr[acct] = _glR2((_cr[acct] || 0) + amt); } });
-        const _lines = [{ account: '1100', debit: total, credit: 0 }];
+        const _lines = [{ account: '1100', debit: grand, credit: 0 }];
         Object.keys(_cr).forEach(acct => _lines.push({ account: acct, debit: 0, credit: _cr[acct] }));
+        if (taxAmt > 0) _lines.push({ account: GL_TAX_PAYABLE_CODE, debit: 0, credit: taxAmt });
         out.push({ id: 'auto:inv:' + x.id, date: x.issueDate || x.createdAt || '', memo: 'Invoice ' + (x.number || '') + (label ? (' — ' + label) : ''), source: 'invoice', editable: false, lines: _lines });
       }
       if (x.status !== 'Void') {
-        (x.payments || []).forEach(p => { const amt = _glR2(p.amount); if (amt > 0) out.push({ id: 'auto:pay:' + p.id, date: p.date || '', memo: 'Payment received — Invoice ' + (x.number || '') + (label ? (' — ' + label) : ''), source: 'payment', editable: false, lines: [{ account: '1000', debit: amt, credit: 0 }, { account: '1100', debit: 0, credit: amt }] }); });
+        (x.payments || []).forEach(p => {
+          const amt = _glR2(p.amount); if (!(amt > 0)) return;
+          const fee = _glR2(p.fee || 0);
+          const memo = 'Payment received — Invoice ' + (x.number || '') + (label ? (' — ' + label) : '');
+          if (fee > 0) {
+            // Bank gets the net; the processing fee is booked as an expense; A/R clears the full gross.
+            out.push({ id: 'auto:pay:' + p.id, date: p.date || '', memo: memo, source: 'payment', editable: false, lines: [{ account: '1000', debit: _glR2(amt - fee), credit: 0 }, { account: GL_STRIPE_FEE_CODE, debit: fee, credit: 0 }, { account: '1100', debit: 0, credit: amt }] });
+          } else {
+            out.push({ id: 'auto:pay:' + p.id, date: p.date || '', memo: memo, source: 'payment', editable: false, lines: [{ account: '1000', debit: amt, credit: 0 }, { account: '1100', debit: 0, credit: amt }] });
+          }
+        });
       }
     });
   } catch (e) {}
