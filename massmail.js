@@ -434,12 +434,19 @@ function mount(app, deps) {
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.post('/api/mail/import', requireAdmin, guard, express.json({ limit: '60mb' }), async (req, res) => { try {
     const b = req.body || {}; const rows = Array.isArray(b.rows) ? b.rows : (b.csv ? parseCsv(b.csv) : []);
-    const r = await importSubscribers(rows, b.source || 'import'); res.json(Object.assign({ ok: true }, r));
+    const r = await importSubscribers(rows, b.source || 'import');
+    let listId = b.listId ? Number(b.listId) : 0; const listName = String(b.listName || '').trim().slice(0, 160); let listed = 0;
+    if (!listId && listName) { listId = (await q('INSERT INTO mm_lists(tenant,name) VALUES($1,$2) RETURNING id', [TENANT, listName])).rows[0].id; }
+    if (listId) {
+      const emails = rows.map(x => _norm((x && x.email) || (typeof x === 'string' ? x : ''))).filter(Boolean);
+      if (emails.length) { const ins = await q(`INSERT INTO mm_list_members(list_id, subscriber_id) SELECT $1, s.id FROM mm_subscribers s WHERE s.tenant=$2 AND s.email = ANY($3::text[]) ON CONFLICT (list_id, subscriber_id) DO NOTHING`, [listId, TENANT, emails]); listed = ins.rowCount || 0; }
+    }
+    res.json(Object.assign({ ok: true, listId: listId || null, listed: listed }, r));
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.get('/api/mail/subscribers', requireAdmin, guard, async (req, res) => { try {
     const lim = Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || 100)); const off = Math.max(0, parseInt(req.query.offset, 10) || 0);
-    const st = String(req.query.status || ''); const qq = String(req.query.q || '').trim().toLowerCase();
-    const wh = ['tenant=$1']; const p = [TENANT]; if (st) { p.push(st); wh.push('status=$' + p.length); } if (qq) { p.push('%' + qq + '%'); wh.push('email ILIKE $' + p.length); }
+    const st = String(req.query.status || ''); const qq = String(req.query.q || '').trim().toLowerCase(); const listId = parseInt(req.query.list, 10) || 0;
+    const wh = ['tenant=$1']; const p = [TENANT]; if (st) { p.push(st); wh.push('status=$' + p.length); } if (qq) { p.push('%' + qq + '%'); wh.push('email ILIKE $' + p.length); } if (listId) { p.push(listId); wh.push('id IN (SELECT subscriber_id FROM mm_list_members WHERE list_id=$' + p.length + ')'); }
     p.push(lim); p.push(off);
     const rows = (await q(`SELECT id,email,first_name,last_name,status,source,created_at FROM mm_subscribers WHERE ${wh.join(' AND ')} ORDER BY id DESC LIMIT $${p.length - 1} OFFSET $${p.length}`, p)).rows;
     res.json({ ok: true, subscribers: rows });
@@ -479,6 +486,10 @@ function mount(app, deps) {
     if (added) await q(`UPDATE mm_campaigns SET status='scheduled' WHERE tenant=$1 AND id=$2 AND status IN('draft')`, [TENANT, id]);
     const rows = (await q(`SELECT id, run_at, status FROM mm_schedules WHERE tenant=$1 AND campaign_id=$2 AND status='pending' ORDER BY run_at ASC`, [TENANT, id])).rows;
     res.json({ ok: true, added: added, schedules: rows });
+  } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
+  app.get('/api/mail/schedule-events', requireAdmin, guard, async (req, res) => { try {
+    const rows = (await q(`SELECT s.id, s.campaign_id, s.run_at, c.name FROM mm_schedules s JOIN mm_campaigns c ON c.id=s.campaign_id WHERE s.tenant=$1 AND s.status='pending' ORDER BY s.run_at ASC LIMIT 500`, [TENANT])).rows;
+    res.json({ ok: true, events: rows });
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.post('/api/mail/schedules/:sid/cancel', requireAdmin, guard, async (req, res) => { try {
     await q(`UPDATE mm_schedules SET status='canceled', done_at=now() WHERE tenant=$1 AND id=$2 AND status='pending'`, [TENANT, Number(req.params.sid)]);

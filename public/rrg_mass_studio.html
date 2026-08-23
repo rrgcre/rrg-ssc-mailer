@@ -46,6 +46,11 @@ iframe.prev{width:100%;height:420px;border:1px solid var(--line);border-radius:6
 .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;}
 .gate{max-width:560px;margin:70px auto;text-align:center;color:var(--muted);}
 .gate b{display:block;color:var(--navy);font-size:17px;margin-bottom:6px;}
+.res{position:absolute;left:0;right:0;top:42px;z-index:40;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(10,20,50,.14);max-height:240px;overflow:auto;display:none;}
+.res .ri{padding:8px 11px;font-size:13px;cursor:pointer;border-bottom:1px solid #f2f4f8;}
+.res .ri:last-child{border-bottom:none;}
+.res .ri:hover{background:#eef2f7;}
+.res .ri small{color:var(--muted);display:block;font-size:11.5px;}
 </style></head>
 <body>
 <div class="wrap" id="app">
@@ -63,7 +68,7 @@ iframe.prev{width:100%;height:420px;border:1px solid var(--line);border-radius:6
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function $(id){return document.getElementById(id);}
 function api(m,u,b){return fetch(u,{method:m,headers:b?{'Content-Type':'application/json'}:undefined,credentials:'same-origin',body:b?JSON.stringify(b):undefined}).then(function(r){return r.json();});}
-var CFG={}, EDIT=null, POLL=null, CAMPVIEW=null, CAMPQ="", CAMPDAYS=0;
+var CFG={}, EDIT=null, POLL=null, CAMPVIEW=null, CAMPQ="", CAMPDAYS=0, LISTS=[];
 var TAB='subs';
 
 function boot(){
@@ -112,38 +117,55 @@ function loadStats(){
 /* ---------- SUBSCRIBERS ---------- */
 function buildSubs(){
   $('tabSubs').innerHTML=
+    '<div class="card"><h2>Lists</h2>'+
+    '<div class="pgs" style="margin-bottom:10px">Keep audiences separate \u2014 e.g. Restaurants and Brokers. Everyone lives in one database with one shared suppression list; you pick a list when you send, and a global unsubscribe applies across all lists.</div>'+
+    '<div id="listChips" style="margin-bottom:12px"></div>'+
+    '<div class="toolbar"><input id="newListName" placeholder="New list name (e.g. Brokers)" style="max-width:260px"><button class="btn" id="newListBtn">+ Create list</button><span class="msg" id="listMsg"></span></div></div>'+
     '<div class="card"><h2>Import subscribers</h2>'+
-    '<div class="pgs" style="margin-bottom:10px">Paste a CSV with a header row (<code>email,first_name,last_name</code>) or just one email per line. Duplicates and already-suppressed addresses are skipped automatically. This list stays separate from your CRM contacts.</div>'+
+    '<div class="pgs" style="margin-bottom:10px">Paste a CSV with a header row (<code>email,first_name,last_name</code>) or one email per line. Duplicates and already-suppressed addresses are skipped. Separate from your CRM contacts.</div>'+
     '<div class="fld"><textarea id="impText" class="code" placeholder="email,first_name,last_name&#10;jane@example.com,Jane,Doe&#10;&#10;--- or ---&#10;&#10;jane@example.com&#10;john@example.com"></textarea></div>'+
-    '<div class="row"><div class="fld half"><label class="fl">Source label</label><input id="impSrc" placeholder="e.g. 2026 master list"></div></div>'+
+    '<div class="row"><div class="fld half"><label class="fl">Source label</label><input id="impSrc" placeholder="e.g. 2026 master list"></div>'+
+    '<div class="fld half"><label class="fl">Add to list</label><select id="impList"></select></div></div>'+
     '<div><button class="btn primary" id="impBtn">Import</button><span class="msg" id="impMsg"></span></div></div>'+
     '<div class="card"><h2>Subscribers</h2>'+
-    '<div class="toolbar"><input id="subQ" placeholder="Search email..." style="max-width:260px"><select id="subStatus" style="max-width:180px"><option value="">All statuses</option><option value="active">Active</option><option value="unsubscribed">Unsubscribed</option><option value="bounced">Bounced</option><option value="complained">Complained</option></select><button class="btn" id="subGo">Search</button></div>'+
+    '<div class="toolbar"><input id="subQ" placeholder="Search email..." style="max-width:230px"><select id="subStatus" style="max-width:160px"><option value="">All statuses</option><option value="active">Active</option><option value="unsubscribed">Unsubscribed</option><option value="bounced">Bounced</option><option value="complained">Complained</option></select><select id="subList" style="max-width:180px"></select><button class="btn" id="subGo">Search</button></div>'+
     '<div id="subTable"><div class="pgs">Loading...</div></div></div>';
   $('impBtn').onclick=doImport;
   $('subGo').onclick=loadSubs;
   $('subQ').addEventListener('keydown',function(e){ if(e.key==='Enter') loadSubs(); });
+  $('newListBtn').onclick=createList;
+  if($('subList')) $('subList').onchange=loadSubs;
+  loadLists();
 }
+function loadLists(){ if(!CFG.storage) return; api('GET','/api/mail/lists').then(function(r){ LISTS=(r&&r.lists)||[]; renderLists(); }).catch(function(){}); }
+function renderLists(){
+  var chips=$('listChips'); if(chips){ chips.innerHTML = LISTS.length? LISTS.map(function(l){ return '<span class="pill" style="background:#eef2f7;color:var(--navy);margin:0 6px 6px 0;display:inline-block;">'+esc(l.name)+' &middot; '+num(l.members)+'</span>'; }).join('') : '<span class="pgs">No lists yet \u2014 create Restaurants and Brokers to segment your sends.</span>'; }
+  var imp=$('impList'); if(imp){ imp.innerHTML='<option value="">\u2014 No list \u2014</option>'+LISTS.map(function(l){ return '<option value="'+l.id+'">'+esc(l.name)+'</option>'; }).join('')+'<option value="__new">+ New list\u2026</option>'; imp.onchange=function(){ if(imp.value==='__new'){ var n=window.prompt('New list name:'); if(n&&n.trim()){ imp.setAttribute('data-newname',n.trim()); imp.options[imp.options.length-1].textContent='+ '+n.trim(); } else { imp.value=''; imp.removeAttribute('data-newname'); } } else { imp.removeAttribute('data-newname'); } }; }
+  var sf=$('subList'); if(sf){ var cur=sf.value; sf.innerHTML='<option value="">All lists</option>'+LISTS.map(function(l){ return '<option value="'+l.id+'">'+esc(l.name)+' ('+num(l.members)+')</option>'; }).join(''); if(cur) sf.value=cur; }
+}
+function createList(){ var n=($('newListName').value||'').trim(); var m=$('listMsg'); if(!n){ m.className='msg err'; m.textContent='Name the list.'; return; } api('POST','/api/mail/lists',{ name:n }).then(function(r){ if(!r||!r.ok){ m.className='msg err'; m.textContent=(r&&r.error)||'Failed.'; return; } m.className='msg ok'; m.textContent='Created.'; $('newListName').value=''; loadLists(); }); }
 function doImport(){
   if(!CFG.storage){ return; }
   var txt=$('impText').value.trim();
   var m=$('impMsg');
   if(!txt){ m.className='msg err'; m.textContent='Paste some addresses first.'; return; }
   var btn=$('impBtn'); btn.disabled=true; m.className='msg'; m.textContent='Importing...';
-  api('POST','/api/mail/import',{ csv:txt, source:($('impSrc').value||'import') }).then(function(r){
+  var imp=$('impList'); var body={ csv:txt, source:($('impSrc').value||'import') };
+  if(imp){ if(imp.value==='__new' && imp.getAttribute('data-newname')){ body.listName=imp.getAttribute('data-newname'); } else if(imp.value && imp.value!=='__new'){ body.listId=imp.value; } }
+  api('POST','/api/mail/import',body).then(function(r){
     btn.disabled=false;
     if(!r||!r.ok){ m.className='msg err'; m.textContent=(r&&r.error)||'Import failed.'; return; }
-    m.className='msg ok'; m.textContent='Added '+(r.added||0)+', updated '+(r.updated||0)+', skipped '+(r.skipped||0)+', suppressed '+(r.suppressed||0)+'.';
+    m.className='msg ok'; m.textContent='Added '+(r.added||0)+', updated '+(r.updated||0)+', skipped '+(r.skipped||0)+', suppressed '+(r.suppressed||0)+(r.listed?(' \u00b7 '+r.listed+' added to list'):'')+'.';
     $('impText').value='';
-    loadStats(); loadSubs();
+    loadStats(); loadLists(); loadSubs();
   }).catch(function(){ btn.disabled=false; m.className='msg err'; m.textContent='Import failed.'; });
 }
 function loadSubs(){
   if(!CFG.storage){ $('subTable') && ($('subTable').innerHTML='<div class="note warn">Connect Postgres to browse subscribers.</div>'); return; }
   if(!$('subTable')) return;
   var qv=encodeURIComponent(($('subQ')?$('subQ').value:'').trim());
-  var st=$('subStatus')?$('subStatus').value:'';
-  api('GET','/api/mail/subscribers?limit=200&q='+qv+'&status='+encodeURIComponent(st)).then(function(r){
+  var st=$('subStatus')?$('subStatus').value:''; var lf=$('subList')?$('subList').value:'';
+  api('GET','/api/mail/subscribers?limit=200&q='+qv+'&status='+encodeURIComponent(st)+'&list='+encodeURIComponent(lf)).then(function(r){
     if(!r||!r.ok){ $('subTable').innerHTML='<div class="note warn">Could not load subscribers.</div>'; return; }
     var rows=r.subscribers||[];
     if(!rows.length){ $('subTable').innerHTML='<div class="pgs">No subscribers match.</div>'; return; }
@@ -309,8 +331,9 @@ function renderEditor(){
    '</div>'+
    '<div class="fld"><label class="fl">Reply-to</label><input id="cRT" value="'+esc(c.reply_to||'')+'" placeholder="Optional"></div>'+
    '</div>'+
-   '<div class="card"><div class="toolbar" style="justify-content:space-between"><h2 style="margin:0">Design</h2><div style="display:flex;gap:6px;"><button class="btn primary" id="mVis" type="button">Visual</button><button class="btn" id="mHtml" type="button">HTML</button><button class="btn" id="cOpenPrev" type="button">Open preview</button></div></div>'+
+   '<div class="card"><div class="toolbar" style="justify-content:space-between"><h2 style="margin:0">Design</h2><div style="display:flex;gap:6px;"><button class="btn primary" id="mVis" type="button">Visual</button><button class="btn" id="mHtml" type="button">HTML</button><button class="btn" id="pullListing" type="button">Pull from listing</button><button class="btn" id="cOpenPrev" type="button">Open preview</button></div></div>'+
    '<div class="pgs" style="margin-bottom:10px">Build with blocks, or switch to HTML for full control. Use <code>{{first_name}}</code>, <code>{{last_name}}</code>, <code>{{email}}</code> to personalize; a compliant unsubscribe link is added automatically.</div>'+
+   '<div id="pullRow" style="display:none;position:relative;margin-bottom:10px;"><input id="pullIn" placeholder="Search listings by name..." autocomplete="off" style="max-width:340px;font:inherit;font-size:13.5px;padding:9px 11px;border:1px solid #c4ccda;border-radius:4px;"><div class="res" id="pullRes"></div></div>'+
    '<div id="composerWrap"></div>'+
    '<textarea id="cHtml" class="code" style="min-height:420px;display:none">'+esc(c.html||'')+'</textarea>'+
    '</div>'+
@@ -362,10 +385,45 @@ function initDesign(){
   $('mVis').onclick=function(){ if(live) return; var bl=window.RRGComposer&&window.RRGComposer.parse($('cHtml').value); if(!bl){ if(!window.confirm('This email has custom HTML the visual editor cannot read. Switch to Visual and start from the template? Your manual HTML edits will be replaced.')) return; bl=window.RRGComposer.defaultBlocks(); } toVisual(bl); };
   $('mHtml').onclick=function(){ live=false; if($('composerWrap')) $('composerWrap').innerHTML=''; toHtml(); };
   $('cOpenPrev').onclick=function(){ openPreviewHtml($('cHtml').value); };
+  if($('pullListing')) $('pullListing').onclick=function(){ var r=$('pullRow'); r.style.display=(r.style.display==='none'?'':'none'); if(r.style.display!=='none'&&$('pullIn')) $('pullIn').focus(); };
+  if($('pullIn')) $('pullIn').oninput=pullListingSearch;
   var init=window.RRGComposer&&window.RRGComposer.parse($('cHtml').value);
   if(init){ toVisual(init); }
   else if(window.RRGComposer && !$('cHtml').value.trim()){ $('cHtml').value=window.RRGComposer.export(window.RRGComposer.defaultBlocks(), CFG.brand||{}); toVisual(window.RRGComposer.parse($('cHtml').value)); }
   else { toHtml(); }
+}
+function listingBlocks(a){
+  var price=a.listPrice||'Call for price'; var loc=a.market||''; var sub=[a.market,a.listingId].filter(Boolean).join(' \u00b7 ');
+  return [
+    { type:'header', props:{} },
+    { type:'hero', props:{ url:'', alt:'', caption:'Representative image \u2014 does not depict the business offered.' } },
+    { type:'title', props:{ eyebrow:'New Listing', headline:(a.business||'New Listing'), subtitle:sub } },
+    { type:'stats', props:{ items:[ {label:'Asking Price',value:price}, {label:'Location',value:loc||'\u2014'}, {label:'Listing #',value:(a.listingId||'\u2014')}, {label:'Status',value:(a.status||'Available')} ] } },
+    { type:'text', props:{ text:'Hi {{first_name}}, we just brought '+(a.business||'a new opportunity')+' to market'+(loc?(' in '+loc):'')+'. Reply for the full offering and financials.' } },
+    { type:'highlights', props:{ title:'Highlights', items:['Add a key highlight','Add a key highlight','Add a key highlight'] } },
+    { type:'button', props:{ text:'View this listing', url:'https://rrgcre.com', subtext:'NDA required \u00b7 Financials available to qualified buyers' } },
+    { type:'signature', props:{ name:'Your RRG Advisor', line:'Restaurant Realty Group \u00b7 deals@rrgcre.com' } },
+    { type:'footer', props:{ cities:'Austin \u00b7 Dallas \u00b7 Houston \u00b7 San Antonio', optin:'You are receiving this because you opted in to RRG listing alerts.' } }
+  ];
+}
+function pullListingSearch(){
+  var q=($('pullIn').value||'').trim(); var res=$('pullRes'); if(!res) return;
+  if(q.length<2){ res.style.display='none'; res.innerHTML=''; return; }
+  api('GET','/api/search?q='+encodeURIComponent(q)).then(function(j){
+    var items=((j&&j.results)||[]).filter(function(x){return x.type==='listing';}).slice(0,8);
+    res.innerHTML= items.length? items.map(function(x){ return '<div class="ri" data-k="'+esc(x.id)+'" data-t="'+esc(x.title||'')+'">'+esc(x.title||'')+'<small>'+esc(x.sub||'')+'</small></div>'; }).join('') : '<div class="ri"><small>No listings match</small></div>';
+    res.style.display='block';
+    var n=res.querySelectorAll('.ri[data-k]'); for(var i=0;i<n.length;i++){ (function(el){ el.onclick=function(){ fillFromListing(el.getAttribute('data-k'), el.getAttribute('data-t')); }; })(n[i]); }
+  }).catch(function(){});
+}
+function fillFromListing(key,title){
+  var res=$('pullRes'); if(res){ res.style.display='none'; } if($('pullRow')) $('pullRow').style.display='none'; if($('pullIn')) $('pullIn').value='';
+  api('GET','/api/assignment/'+encodeURIComponent(key)).then(function(j){
+    var a=(j&&j.assignment)||{ business:title||'New Listing' };
+    if(!window.RRGComposer){ return; }
+    $('cHtml').value=window.RRGComposer.export(listingBlocks(a), CFG.brand||{});
+    initDesign();
+  }).catch(function(){});
 }
 function openPreviewHtml(html){
   html=String(html||'').replace(/{{\s*first_name\s*}}/g,'Jane').replace(/{{\s*last_name\s*}}/g,'Doe').replace(/{{\s*email\s*}}/g,'jane@example.com').replace(/{{\s*unsubscribe_url\s*}}/g,'#');
