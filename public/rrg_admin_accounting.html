@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Accounting Basis</title>
+<title>Accounting &amp; Invoicing</title>
 <style>
 :root{--navy:#20334f;--navy2:#23496f;--primary:#2c5c8f;--red:#b23a2c;--ink:#2b3648;--dim:#5f6a7d;--soft:#8a93a3;--line:#dbe0e9;--wash:#f4f6f9;--green:#2f7a55;--inp:#c4ccda;}
 *{box-sizing:border-box;} html,body{margin:0;padding:0;background:#fff;}
@@ -31,6 +31,16 @@ h1{font-size:16px;font-weight:700;color:var(--navy);margin:0;}
 .msg{font-size:12.5px;font-weight:700;}
 .note{font-size:12px;color:var(--soft);margin-top:14px;line-height:1.6;}
 .gate{color:var(--dim);font-size:13.5px;padding:30px 0;}
+.trow{display:flex;gap:9px;align-items:center;margin-bottom:8px;}
+.trow input{flex:1;font:inherit;font-size:13.5px;padding:9px 11px;border:1px solid var(--inp);border-radius:4px;color:var(--ink);background:#fff;}
+.trow input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(44,92,143,.14);}
+.trow .trm{flex:none;width:32px;height:32px;border:1px solid var(--line);background:#fff;border-radius:4px;color:var(--soft);font-size:16px;line-height:1;cursor:pointer;}
+.trow .trm:hover{border-color:#e2b3ad;color:var(--red);}
+.addbtn{background:#fff;border:1px dashed #c3ccdd;color:var(--primary);border-radius:4px;padding:8px 14px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;margin-top:2px;}
+.savebtn.ghost{background:#fff;color:var(--navy);border-color:var(--line);}
+.termsread{margin:0;padding-left:18px;color:var(--dim);font-size:13px;line-height:1.9;}
+.tnet{font-size:10.5px;font-weight:700;color:var(--green);background:#e7f3ec;border:1px solid #cfe6d6;border-radius:3px;padding:1px 6px;margin-left:8px;text-transform:uppercase;letter-spacing:.03em;}
+.tmile{color:var(--soft);background:#eef1f6;border-color:#dbe0e9;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -38,16 +48,53 @@ h1{font-size:16px;font-weight:700;color:var(--navy);margin:0;}
 <div class="wrap" id="root"><div class="gate">Loading…</div></div>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
-var BASIS='accrual', ADMIN=false, SEL='accrual';
+var BASIS='accrual', ADMIN=false, SEL='accrual', TERMS=[];
+function termIsNet(v){ v=String(v||'').trim(); return /^due on receipt$/i.test(v)||/net\s*\d+/i.test(v); }
+function termBadge(v){ return termIsNet(v)?'<span class="tnet">auto due date</span>':'<span class="tnet tmile">milestone</span>'; }
+function termRowHTML(v){ return '<div class="trow"><input type="text" value="'+esc(v)+'" placeholder="e.g. Net 45"><button class="trm" title="Remove">\u00d7</button></div>'; }
+function termsCardEdit(){ return '<div class="card"><div class="cardh">Invoice payment terms</div><div class="cardb">'+'<p class="hint">These fill the <b>Terms</b> dropdown on every invoice. A term written as <b>Net 30</b> (or <b>Due on receipt</b>) auto-fills the due date; anything else \u2014 e.g. <b>Due at Closing</b> \u2014 is treated as a milestone and leaves the due date blank for you to set.</p>'+'<div id="termRows"></div>'+'<button class="addbtn" id="addTerm">+ Add term</button>'+'<div class="savebar"><button class="savebtn" id="saveTerms">Save terms</button><button class="savebtn ghost" id="resetTerms">Reset to defaults</button><span class="msg" id="tmsg"></span></div>'+'</div></div>'; }
+function termsCardRO(){ return '<div class="card"><div class="cardh">Invoice payment terms</div><div class="cardb"><p class="hint" style="margin:0 0 10px">Terms available on invoices. Only an administrator can change these.</p><ul class="termsread">'+(TERMS.length?TERMS.map(function(v){return '<li>'+esc(v)+' '+termBadge(v)+'</li>';}).join(''):'<li>None</li>')+'</ul></div></div>'; }
+function renderTermRows(){ var host=document.getElementById('termRows'); if(!host) return; host.innerHTML=(TERMS.length?TERMS:['']).map(termRowHTML).join(''); host.querySelectorAll('.trm').forEach(function(b){ b.addEventListener('click',function(){ var r=b.closest('.trow'); if(r) r.remove(); }); }); }
+function collectTerms(){ var out=[]; document.querySelectorAll('#termRows .trow input').forEach(function(i){ var v=(i.value||'').trim(); if(v) out.push(v); }); return out; }
+function wireTerms(){ if(!ADMIN) return; renderTermRows(); var add=document.getElementById('addTerm'); if(add) add.onclick=function(){ var host=document.getElementById('termRows'); var d=document.createElement('div'); d.innerHTML=termRowHTML(''); var row=d.firstChild; host.appendChild(row); row.querySelector('.trm').addEventListener('click',function(){ row.remove(); }); row.querySelector('input').focus(); }; var sv=document.getElementById('saveTerms'); if(sv) sv.onclick=saveTerms; var rs=document.getElementById('resetTerms'); if(rs) rs.onclick=resetTerms; }
+function saveTerms(){ var m=document.getElementById('tmsg'); var list=collectTerms(); m.style.color=''; m.textContent='Saving\u2026'; fetch('/api/admin/invoice-terms',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({terms:list})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ TERMS=j.invoiceTerms||[]; renderTermRows(); m.style.color='#2f7a55'; m.textContent='Saved \u2713'; setTimeout(function(){m.textContent='';},1800); } else { m.style.color='#b23a2c'; m.textContent=(j&&j.error)||'Could not save.'; } }).catch(function(){ m.style.color='#b23a2c'; m.textContent='Could not reach the server.'; }); }
+async function resetTerms(){ if(window.rrgConfirm){ if(!await window.rrgConfirm('Reset invoice terms to the built-in defaults?')) return; } var m=document.getElementById('tmsg'); m.style.color=''; m.textContent='Resetting\u2026'; fetch('/api/admin/invoice-terms',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({terms:[]})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ TERMS=j.invoiceTerms||[]; renderTermRows(); m.style.color='#2f7a55'; m.textContent='Reset \u2713'; setTimeout(function(){m.textContent='';},1800); } }); }
+var METHODS=[];
+function methodRowHTML(v){ return '<div class="trow"><input type="text" value="'+esc(v)+'" placeholder="e.g. Zelle"><button class="trm" title="Remove">\u00d7</button></div>'; }
+function methodsCardEdit(){ return '<div class="card"><div class="cardh">Payment methods</div><div class="cardb">'+'<p class="hint">These fill the <b>Method</b> dropdown when you record a payment on an invoice.</p>'+'<div id="methodRows"></div>'+'<button class="addbtn" id="addMethod">+ Add method</button>'+'<div class="savebar"><button class="savebtn" id="saveMethods">Save methods</button><button class="savebtn ghost" id="resetMethods">Reset to defaults</button><span class="msg" id="mmsg"></span></div>'+'</div></div>'; }
+function methodsCardRO(){ return '<div class="card"><div class="cardh">Payment methods</div><div class="cardb"><p class="hint" style="margin:0 0 10px">Methods available when recording a payment. Only an administrator can change these.</p><ul class="termsread">'+(METHODS.length?METHODS.map(function(v){return '<li>'+esc(v)+'</li>';}).join(''):'<li>None</li>')+'</ul></div></div>'; }
+function renderMethodRows(){ var host=document.getElementById('methodRows'); if(!host) return; host.innerHTML=(METHODS.length?METHODS:['']).map(methodRowHTML).join(''); host.querySelectorAll('.trm').forEach(function(b){ b.addEventListener('click',function(){ var r=b.closest('.trow'); if(r) r.remove(); }); }); }
+function collectMethods(){ var out=[]; document.querySelectorAll('#methodRows .trow input').forEach(function(i){ var v=(i.value||'').trim(); if(v) out.push(v); }); return out; }
+function wireMethods(){ if(!ADMIN) return; renderMethodRows(); var add=document.getElementById('addMethod'); if(add) add.onclick=function(){ var host=document.getElementById('methodRows'); var d=document.createElement('div'); d.innerHTML=methodRowHTML(''); var row=d.firstChild; host.appendChild(row); row.querySelector('.trm').addEventListener('click',function(){ row.remove(); }); row.querySelector('input').focus(); }; var sv=document.getElementById('saveMethods'); if(sv) sv.onclick=saveMethods; var rs=document.getElementById('resetMethods'); if(rs) rs.onclick=resetMethods; }
+function saveMethods(){ var m=document.getElementById('mmsg'); var list=collectMethods(); m.style.color=''; m.textContent='Saving\u2026'; fetch('/api/admin/payment-methods',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({methods:list})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ METHODS=j.paymentMethods||[]; renderMethodRows(); m.style.color='#2f7a55'; m.textContent='Saved \u2713'; setTimeout(function(){m.textContent='';},1800); } else { m.style.color='#b23a2c'; m.textContent=(j&&j.error)||'Could not save.'; } }).catch(function(){ m.style.color='#b23a2c'; m.textContent='Could not reach the server.'; }); }
+async function resetMethods(){ if(window.rrgConfirm){ if(!await window.rrgConfirm('Reset payment methods to the built-in defaults?')) return; } var m=document.getElementById('mmsg'); m.style.color=''; m.textContent='Resetting\u2026'; fetch('/api/admin/payment-methods',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({methods:[]})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ METHODS=j.paymentMethods||[]; renderMethodRows(); m.style.color='#2f7a55'; m.textContent='Reset \u2713'; setTimeout(function(){m.textContent='';},1800); } }); }
+var STRIPE={};
+function stripeCardEdit(){
+  var mode=STRIPE.mode?('<span class="tnet'+(STRIPE.mode==='live'?'':' tmile')+'">'+STRIPE.mode+' mode</span>'):'';
+  var secPh=STRIPE.hasSecret?'\u2022\u2022\u2022\u2022 configured \u2014 leave blank to keep':'sk_live_\u2026 or sk_test_\u2026';
+  var whPh=STRIPE.hasWebhook?'\u2022\u2022\u2022\u2022 configured \u2014 leave blank to keep':'whsec_\u2026';
+  return '<div class="card"><div class="cardh">Online payments (Stripe) '+mode+'</div><div class="cardb">'
+    +'<p class="hint">Turn on a <b>Pay</b> link on your invoices so clients can pay by card or bank (ACH). Card data never touches this app \u2014 Stripe hosts the checkout. Fees are Stripe\u2019s (about 2.9% + 30\u00a2 card, ~0.8% ACH).</p>'
+    +'<label style="display:flex;align-items:center;gap:9px;font-size:13.5px;font-weight:700;color:var(--navy);cursor:pointer;margin-bottom:14px"><input type="checkbox" id="stEnabled"'+(STRIPE.enabled?' checked':'')+' style="width:auto"> Enable online payments</label>'
+    +'<div style="margin-bottom:12px"><label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);margin-bottom:5px">Stripe secret key</label><input type="password" id="stSecret" autocomplete="off" placeholder="'+secPh+'" style="width:100%;font:inherit;font-size:13.5px;padding:9px 11px;border:1px solid var(--inp);border-radius:4px"></div>'
+    +'<div style="margin-bottom:12px"><label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);margin-bottom:5px">Webhook signing secret</label><input type="password" id="stWebhook" autocomplete="off" placeholder="'+whPh+'" style="width:100%;font:inherit;font-size:13.5px;padding:9px 11px;border:1px solid var(--inp);border-radius:4px"></div>'
+    +'<div style="background:var(--wash);border:1px solid var(--line);border-radius:6px;padding:11px 13px;margin-bottom:14px"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);margin-bottom:4px">Webhook endpoint \u2014 add this in Stripe</div><code style="font-size:12px;color:var(--navy);word-break:break-all">'+esc(STRIPE.webhookUrl||'')+'</code><div class="hint" style="margin:8px 0 0">In Stripe \u2192 Developers \u2192 Webhooks, add this endpoint, subscribe to <b>checkout.session.completed</b> and <b>checkout.session.async_payment_succeeded</b>, then paste its signing secret above.</div></div>'
+    +'<div class="savebar"><button class="savebtn" id="stSave">Save</button><button class="savebtn ghost" id="stClear">Disconnect</button><span class="msg" id="stmsg"></span></div>'
+    +'</div></div>';
+}
+function stripeCardRO(){ return '<div class="card"><div class="cardh">Online payments (Stripe)</div><div class="cardb"><p class="hint" style="margin:0">Online invoice payments are '+((STRIPE.enabled&&STRIPE.hasSecret)?'<b>on</b>':'off')+'. Only an administrator can change this.</p></div></div>'; }
+function wireStripe(){ if(!ADMIN) return; var sv=document.getElementById('stSave'); if(sv) sv.onclick=saveStripe; var cl=document.getElementById('stClear'); if(cl) cl.onclick=clearStripe; }
+function saveStripe(){ var m=document.getElementById('stmsg'); m.style.color=''; m.textContent='Saving\u2026'; var body={ enabled:document.getElementById('stEnabled').checked }; var sk=(document.getElementById('stSecret').value||'').trim(); if(sk) body.secretKey=sk; var wh=(document.getElementById('stWebhook').value||'').trim(); if(wh) body.webhookSecret=wh; fetch('/api/admin/stripe',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ STRIPE.enabled=j.enabled; STRIPE.hasSecret=j.hasSecret; STRIPE.hasWebhook=j.hasWebhook; m.style.color='#2f7a55'; m.textContent='Saved \u2713'; var ss=document.getElementById('stSecret'); if(ss) ss.value=''; var ws=document.getElementById('stWebhook'); if(ws) ws.value=''; setTimeout(function(){m.textContent='';},1800); } else { m.style.color='#b23a2c'; m.textContent=(j&&j.error)||'Could not save.'; } }).catch(function(){ m.style.color='#b23a2c'; m.textContent='Could not reach the server.'; }); }
+async function clearStripe(){ if(window.rrgConfirm){ if(!await window.rrgConfirm('Disconnect Stripe and turn off online payments?')) return; } var m=document.getElementById('stmsg'); m.style.color=''; m.textContent='Disconnecting\u2026'; fetch('/api/admin/stripe',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({clear:true})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ STRIPE={webhookUrl:STRIPE.webhookUrl,enabled:false,hasSecret:false,hasWebhook:false}; if(ADMIN) render(); m.style.color='#2f7a55'; m.textContent='Disconnected \u2713'; } }); }
 function render(){
   if(!ADMIN){
-    document.getElementById('root').innerHTML='<div class="pkick">Admin · Finance</div><h1>Accounting Basis</h1>'
-      +'<div class="card"><div class="cardh">Revenue recognition</div><div class="cardb"><p class="hint" style="margin:0">Your reports currently use <b>'+(BASIS==='cash'?'cash (collected)':'accrual (invoiced)')+'</b> basis. Only an administrator can change this.</p></div></div>';
+    document.getElementById('root').innerHTML='<div class="pkick">Admin · Finance</div><h1>Accounting &amp; Invoicing</h1>'
+      +'<div class="card"><div class="cardh">Revenue recognition</div><div class="cardb"><p class="hint" style="margin:0">Your reports currently use <b>'+(BASIS==='cash'?'cash (collected)':'accrual (invoiced)')+'</b> basis. Only an administrator can change this.</p></div></div>'+termsCardRO()+methodsCardRO()+stripeCardRO();
     return;
   }
   function opt(v,title,tag,desc){ return '<div class="opt'+(SEL===v?' on':'')+'" data-v="'+v+'"><div class="rad"></div><div class="tx"><b>'+title+'</b>'+(tag?'<span class="tag">'+tag+'</span>':'')+'<p>'+desc+'</p></div></div>'; }
   document.getElementById('root').innerHTML=''
-    +'<div class="pkick">Admin · Finance</div><h1>Accounting Basis</h1>'
+    +'<div class="pkick">Admin · Finance</div><h1>Accounting &amp; Invoicing</h1>'
     +'<div class="sub">Choose how the Profit &amp; Loss report recognizes revenue. This is a firm-wide setting.</div>'
     +'<div class="card"><div class="cardh">Revenue recognition</div><div class="cardb">'
       +'<p class="hint">Either method shows both invoiced and collected figures plus outstanding A/R on the report — this only sets which number headlines your net income.</p>'
@@ -57,9 +104,12 @@ function render(){
       +'</div>'
       +'<div class="savebar"><button class="savebtn" id="save">Save</button><span class="msg" id="msg"></span></div>'
       +'<div class="note">Changing this affects everyone&rsquo;s reports firm-wide.</div>'
-    +'</div></div>';
+    +'</div></div>'+termsCardEdit()+methodsCardEdit()+stripeCardEdit();
   document.querySelectorAll('.opt').forEach(function(o){ o.addEventListener('click',function(){ SEL=o.getAttribute('data-v'); document.querySelectorAll('.opt').forEach(function(x){ x.classList.toggle('on', x===o); }); }); });
   document.getElementById('save').addEventListener('click',save);
+  wireTerms();
+  wireMethods();
+  wireStripe();
 }
 function save(){
   var b=document.getElementById('save'), m=document.getElementById('msg');
@@ -72,7 +122,7 @@ function save(){
 }
 fetch('/api/admin/accounting',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
   if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">Could not load accounting settings.</div>'; return; }
-  BASIS=j.basis||'accrual'; SEL=BASIS; ADMIN=!!j.isAdmin; render();
+  BASIS=j.basis||'accrual'; SEL=BASIS; ADMIN=!!j.isAdmin; TERMS=j.invoiceTerms||[]; METHODS=j.paymentMethods||[]; fetch('/api/admin/stripe',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(k){ if(k&&k.ok) STRIPE=k; render(); }).catch(function(){ render(); });
 }).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not reach the server.</div>'; });
 </script>
 </body>

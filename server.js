@@ -1246,7 +1246,7 @@ app.use(express.urlencoded({ extended: false }));
 const OPEN = new Set(['/health', '/login', '/api/login', '/logout', '/favicon.ico', '/api/appname', '/rrg_brand.js', '/rrg_theme.css', '/api/gmail/callback']);
 app.use((req, res, next) => {
   // Buyer-facing data-room links are public (the unguessable token is the gate).
-  if (OPEN.has(req.path) || req.path.startsWith('/room/') || req.path.startsWith('/deal/') || req.path.startsWith('/roomfile/') || req.path.startsWith('/roomview/') || req.path.startsWith('/vendor/') || req.path.startsWith('/sign/') || req.path.startsWith('/api/sign/') || req.path.startsWith('/eo/') || req.path.startsWith('/ec/') || req.path.startsWith('/u/') || req.path.startsWith('/api/u/') || req.path.startsWith('/book/') || req.path.startsWith('/api/book/') || req.path === '/market' || req.path === '/api/market/public' || req.path === '/api/market/request-access' || req.path.startsWith('/s/') || req.path === '/seller_intake.html' || req.path === '/seller_record.html') return next();
+  if (OPEN.has(req.path) || req.path.startsWith('/room/') || req.path.startsWith('/deal/') || req.path.startsWith('/roomfile/') || req.path.startsWith('/roomview/') || req.path.startsWith('/vendor/') || req.path.startsWith('/sign/') || req.path.startsWith('/api/sign/') || req.path.startsWith('/eo/') || req.path.startsWith('/ec/') || req.path.startsWith('/u/') || req.path.startsWith('/api/u/') || req.path.startsWith('/book/') || req.path.startsWith('/api/book/') || req.path.startsWith('/pay/') || req.path.startsWith('/api/pay/') || req.path === '/api/stripe/webhook' || req.path === '/market' || req.path === '/api/market/public' || req.path === '/api/market/request-access' || req.path.startsWith('/s/') || req.path === '/seller_intake.html' || req.path === '/seller_record.html') return next();
   const sess = auth.readSession(parseCookies(req)[COOKIE]);
   if (sess) {
     req.user = sess;
@@ -7449,8 +7449,10 @@ app.delete('/api/expenses/:id', (req, res) => {
 // ===== Invoices & Payments (Accounting) =====
 const INVOICES_FILE = path.join(BOV_DATA_DIR, 'invoices.json');
 const INVOICE_STATUSES = ['Draft', 'Sent', 'Void'];
-const INVOICE_TERMS = ['Due on receipt', 'Net 10', 'Net 15', 'Net 30', 'Due on Lease Execution', 'Due on Rent Commencement', '50% Execution / 50% Rent Commencement', 'Due at Closing', 'Upon Receipt of Landlord Payment'];
-const PAYMENT_METHODS = ['Check', 'ACH / Wire', 'Card', 'Cash', 'Other'];
+const INVOICE_TERMS_DEFAULT = ['Due on receipt', 'Net 10', 'Net 15', 'Net 30', 'Due on Lease Execution', 'Due on Rent Commencement', '50% Execution / 50% Rent Commencement', 'Due at Closing', 'Upon Receipt of Landlord Payment'];
+function invoiceTerms() { const t = loadSettings().invoiceTerms; return (Array.isArray(t) && t.length) ? t : INVOICE_TERMS_DEFAULT; }
+const PAYMENT_METHODS_DEFAULT = ['Check', 'ACH / Wire', 'Card', 'Cash', 'Other'];
+function paymentMethods() { const m = loadSettings().paymentMethods; return (Array.isArray(m) && m.length) ? m : PAYMENT_METHODS_DEFAULT; }
 function loadInvoices() { try { return rj(INVOICES_FILE) || []; } catch (e) { return []; } }
 function saveInvoices(a) { return writeJsonGuarded(INVOICES_FILE, a, 'saveInvoices'); }
 function newInvoiceId() { return 'inv_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
@@ -7478,7 +7480,7 @@ function invoiceBrief(x, user, opts) {
     recur: (x.recur && INVOICE_RECUR_FREQS.indexOf(x.recur.freq) >= 0) ? { freq: x.recur.freq, nextDate: x.recur.nextDate || '', active: x.recur.active !== false, count: x.recur.count || 0, lastGenerated: x.recur.lastGenerated || '' } : null,
     seriesId: x.seriesId || '',
     mine: !!(user && (x.ownerUser === user.username || isSuper(user))), createdAt: x.createdAt || '', updatedAt: x.updatedAt || '' };
-  if (opts.full) { b.lineItems = items.map(li => ({ desc: li.desc || '', amount: _expNum(li.amount), account: li.account || '' }));
+  if (opts.full) { b.payToken = x.payToken || ''; b.lineItems = items.map(li => ({ desc: li.desc || '', amount: _expNum(li.amount), account: li.account || '' }));
     b.payments = pays.slice().sort((p, q) => String(q.date || '').localeCompare(String(p.date || ''))).map(p => ({ id: p.id, date: p.date || '', amount: _expNum(p.amount), method: p.method || '', reference: p.reference || '', notes: p.notes || '' })); }
   return b;
 }
@@ -7487,7 +7489,7 @@ function dealInvoiceRollup(key, user) {
   rows.sort((a, b) => String(b.issueDate || '').localeCompare(String(a.issueDate || '')) || String(b.number).localeCompare(String(a.number)));
   let billed = 0, collected = 0;
   rows.forEach(r => { if (r.baseStatus !== 'Void') { billed += r.total; collected += r.paid; } });
-  return { items: rows, billed: billed, collected: collected, outstanding: billed - collected, count: rows.length, statuses: INVOICE_STATUSES, methods: PAYMENT_METHODS };
+  return { items: rows, billed: billed, collected: collected, outstanding: billed - collected, count: rows.length, statuses: INVOICE_STATUSES, methods: paymentMethods() };
 }
 function _invCanEdit(x, u) { return !!(x.ownerUser === u.username || isSuper(u)); }
 // ---- Recurring invoices ----
@@ -7531,13 +7533,13 @@ app.get('/api/invoices', (req, res) => {
   const filt = req.query.listingKey ? all.filter(x => x.listingKey === req.query.listingKey) : all;
   const vis = filt.filter(x => admin || x.ownerUser === u.username);
   const rows = vis.map(x => invoiceBrief(x, u)).sort((a, b) => String(b.issueDate || '').localeCompare(String(a.issueDate || '')) || String(b.number).localeCompare(String(a.number)));
-  res.json({ ok: true, isAdmin: !!admin, statuses: INVOICE_STATUSES, methods: PAYMENT_METHODS, terms: INVOICE_TERMS, incomeAccounts: loadGlAccounts().filter(a => a.type === 'Income').map(a => ({ code: a.code, name: a.name })), invoices: rows });
+  res.json({ ok: true, isAdmin: !!admin, statuses: INVOICE_STATUSES, methods: paymentMethods(), terms: invoiceTerms(), stripeEnabled: stripeReady(), incomeAccounts: loadGlAccounts().filter(a => a.type === 'Income').map(a => ({ code: a.code, name: a.name })), invoices: rows });
 });
 app.get('/api/invoices/:id', (req, res) => {
   const u = req.user || {}; const x = loadInvoices().find(e => e.id === req.params.id);
   if (!x) return res.status(404).json({ ok: false, error: 'Invoice not found.' });
   if (!(isSuper(u) || x.ownerUser === u.username)) return res.status(403).json({ ok: false, error: 'Not yours.' });
-  res.json({ ok: true, statuses: INVOICE_STATUSES, methods: PAYMENT_METHODS, terms: INVOICE_TERMS, incomeAccounts: loadGlAccounts().filter(a => a.type === 'Income').map(a => ({ code: a.code, name: a.name })), invoice: invoiceBrief(x, u, { full: true }) });
+  res.json({ ok: true, statuses: INVOICE_STATUSES, methods: paymentMethods(), terms: invoiceTerms(), stripeEnabled: stripeReady(), incomeAccounts: loadGlAccounts().filter(a => a.type === 'Income').map(a => ({ code: a.code, name: a.name })), invoice: invoiceBrief(x, u, { full: true }) });
 });
 app.post('/api/invoices', express.json({ limit: '512kb' }), (req, res) => {
   const u = req.user || {}; const b = req.body || {}; const all = loadInvoices();
@@ -7561,6 +7563,7 @@ app.post('/api/invoices', express.json({ limit: '512kb' }), (req, res) => {
       x.recur = { freq: rc.freq, nextDate: String(rc.nextDate || x.issueDate || '').slice(0, 10), active: rc.active !== false, count: (x.recur && x.recur.count) || 0, lastGenerated: (x.recur && x.recur.lastGenerated) || '' };
     } else { x.recur = null; }
   }
+  ensurePayToken(x);
   x.updatedAt = new Date().toISOString(); saveInvoices(all);
   res.json({ ok: true, invoice: invoiceBrief(x, u, { full: true }) });
 });
@@ -7591,7 +7594,144 @@ app.delete('/api/invoices/:id/payment/:pid', (req, res) => {
 });
 // Accounting basis — accrual (revenue when invoiced) vs cash (revenue when collected).
 function effAccountingBasis() { return loadSettings().accountingBasis === 'cash' ? 'cash' : 'accrual'; }
-app.get('/api/admin/accounting', (req, res) => { res.json({ ok: true, basis: effAccountingBasis(), isAdmin: !!(req.user && isSuper(req.user)) }); });
+app.get('/api/admin/accounting', (req, res) => { res.json({ ok: true, basis: effAccountingBasis(), invoiceTerms: invoiceTerms(), paymentMethods: paymentMethods(), isAdmin: !!(req.user && isSuper(req.user)) }); });
+// Admin-editable invoice payment terms. Empty list resets to the built-in defaults.
+app.post('/api/admin/invoice-terms', express.json(), (req, res) => {
+  if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Admins only.' });
+  const raw = Array.isArray((req.body || {}).terms) ? req.body.terms : [];
+  const seen = {}; const clean = [];
+  raw.forEach(t => { const v = String(t == null ? '' : t).trim().slice(0, 80); const k = v.toLowerCase(); if (v && !seen[k]) { seen[k] = 1; clean.push(v); } });
+  const s = loadSettings();
+  if (clean.length) s.invoiceTerms = clean.slice(0, 40); else delete s.invoiceTerms;
+  saveSettings(s);
+  res.json({ ok: true, invoiceTerms: invoiceTerms() });
+});
+// Admin-editable payment methods. Empty list resets to the built-in defaults.
+app.post('/api/admin/payment-methods', express.json(), (req, res) => {
+  if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Admins only.' });
+  const raw = Array.isArray((req.body || {}).methods) ? req.body.methods : [];
+  const seen = {}; const clean = [];
+  raw.forEach(t => { const v = String(t == null ? '' : t).trim().slice(0, 40); const k = v.toLowerCase(); if (v && !seen[k]) { seen[k] = 1; clean.push(v); } });
+  const s = loadSettings();
+  if (clean.length) s.paymentMethods = clean.slice(0, 40); else delete s.paymentMethods;
+
+  saveSettings(s);
+  res.json({ ok: true, paymentMethods: paymentMethods() });
+});
+/* ===================== Online payments (Stripe) ===================== */
+function stripeCfg() { const c = loadSettings().stripe; return (c && typeof c === 'object') ? c : {}; }
+function stripeReady() { const c = stripeCfg(); return !!(c.enabled && c.secretKey); }
+function _formEncode(obj) { const p = []; Object.keys(obj).forEach(k => { const v = obj[k]; if (v === undefined || v === null) return; p.push(encodeURIComponent(k) + '=' + encodeURIComponent(String(v))); }); return p.join('&'); }
+async function stripeApi(path, params) { const c = stripeCfg(); if (!c.secretKey) throw new Error('Stripe is not configured.'); const r = await fetch('https://api.stripe.com/v1/' + path, { method: 'POST', headers: { 'Authorization': 'Bearer ' + c.secretKey, 'Content-Type': 'application/x-www-form-urlencoded' }, body: _formEncode(params) }); const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error((j && j.error && j.error.message) || ('Stripe error ' + r.status)); return j; }
+function newPayToken() { return require('crypto').randomBytes(18).toString('hex'); }
+function ensurePayToken(x) { if (x && !x.payToken) x.payToken = newPayToken(); return x && x.payToken; }
+function _invByPayToken(tok) { if (!tok) return null; return loadInvoices().find(x => x.payToken === tok) || null; }
+function _invBalance(x) { const items = Array.isArray(x.lineItems) ? x.lineItems : []; const total = _glR2(items.reduce((s, li) => s + _expNum(li.amount), 0)); const paid = _glR2((x.payments || []).reduce((s, p) => s + _expNum(p.amount), 0)); return { total: total, paid: paid, balance: _glR2(total - paid) }; }
+function _stripeVerify(payload, header, secret) {
+  try {
+    const parts = {}; String(header || '').split(',').forEach(kv => { const i = kv.indexOf('='); if (i > 0) parts[kv.slice(0, i)] = kv.slice(i + 1); });
+    if (!parts.t || !parts.v1) return false;
+    const crypto = require('crypto');
+    const expected = crypto.createHmac('sha256', secret).update(parts.t + '.' + payload).digest('hex');
+    const a = Buffer.from(expected), b = Buffer.from(parts.v1);
+    return a.length === b.length && crypto.timingSafeEqual(a, b);
+  } catch (e) { return false; }
+}
+function _recordStripePayment(sess) {
+  try {
+    const all = loadInvoices(); const md = sess.metadata || {};
+    let x = md.invoiceId ? all.find(e => e.id === md.invoiceId) : null;
+    if (!x && md.payToken) x = all.find(e => e.payToken === md.payToken);
+    if (!x) return;
+    const ref = String(sess.payment_intent || sess.id || '');
+    x.payments = Array.isArray(x.payments) ? x.payments : [];
+    if (x.payments.some(p => p.reference === ref)) return;
+    const amt = _glR2((sess.amount_total || 0) / 100);
+    if (!(amt > 0)) return;
+    x.payments.push({ id: newPaymentId(), date: new Date().toISOString().slice(0, 10), amount: amt, method: 'Online (Stripe)', reference: ref, notes: 'Paid online via Stripe', createdAt: new Date().toISOString() });
+    if (x.status === 'Draft') x.status = 'Sent';
+    x.updatedAt = new Date().toISOString(); saveInvoices(all);
+  } catch (e) { console.error('record stripe payment:', e && e.message); }
+}
+app.get('/api/admin/stripe', (req, res) => {
+  const admin = !!(req.user && isSuper(req.user)); const c = stripeCfg();
+  const base = appBaseUrl() || (req.protocol + '://' + req.get('host'));
+  res.json({ ok: true, isAdmin: admin, enabled: !!c.enabled, hasSecret: !!c.secretKey, hasWebhook: !!c.webhookSecret, mode: (c.secretKey && /^sk_live/.test(c.secretKey)) ? 'live' : (c.secretKey ? 'test' : ''), webhookUrl: base + '/api/stripe/webhook' });
+});
+app.post('/api/admin/stripe', express.json(), (req, res) => {
+  if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Admins only.' });
+  const b = req.body || {}; const s = loadSettings();
+  if (b.clear) { delete s.stripe; saveSettings(s); return res.json({ ok: true, cleared: true, enabled: false, hasSecret: false, hasWebhook: false }); }
+  const c = (s.stripe && typeof s.stripe === 'object') ? s.stripe : {};
+  if (typeof b.secretKey === 'string' && b.secretKey.trim() && !/[•*]/.test(b.secretKey)) c.secretKey = b.secretKey.trim().slice(0, 200);
+  if (typeof b.webhookSecret === 'string' && b.webhookSecret.trim() && !/[•*]/.test(b.webhookSecret)) c.webhookSecret = b.webhookSecret.trim().slice(0, 200);
+  c.enabled = !!b.enabled;
+  s.stripe = c; saveSettings(s);
+  res.json({ ok: true, enabled: !!c.enabled, hasSecret: !!c.secretKey, hasWebhook: !!c.webhookSecret });
+});
+app.post('/api/pay/:token/checkout', async (req, res) => {
+  try {
+    const x = _invByPayToken(req.params.token); if (!x) return res.status(404).json({ ok: false, error: 'Invoice not found.' });
+    if (!stripeReady()) return res.status(400).json({ ok: false, error: 'Online payments are not enabled.' });
+    if (x.status === 'Void') return res.status(400).json({ ok: false, error: 'This invoice is void.' });
+    const bal = _invBalance(x).balance; if (!(bal > 0)) return res.status(400).json({ ok: false, error: 'This invoice has no balance due.' });
+    const base = appBaseUrl() || (req.protocol + '://' + req.get('host'));
+    const org = effOrg();
+    const params = {
+      mode: 'payment',
+      'payment_method_types[0]': 'card',
+      'payment_method_types[1]': 'us_bank_account',
+      'line_items[0][quantity]': 1,
+      'line_items[0][price_data][currency]': 'usd',
+      'line_items[0][price_data][unit_amount]': Math.round(bal * 100),
+      'line_items[0][price_data][product_data][name]': ('Invoice ' + (x.number || '') + (org.name ? (' — ' + org.name) : '')).slice(0, 120),
+      success_url: base + '/pay/' + x.payToken + '?paid=1',
+      cancel_url: base + '/pay/' + x.payToken,
+      'metadata[invoiceId]': x.id,
+      'metadata[payToken]': x.payToken,
+      'metadata[invoiceNumber]': x.number || ''
+    };
+    if (x.billToEmail) params.customer_email = x.billToEmail;
+    const sess = await stripeApi('checkout/sessions', params);
+    res.json({ ok: true, url: sess.url });
+  } catch (e) { res.status(502).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+app.post('/api/stripe/webhook', express.raw({ type: '*/*', limit: '1mb' }), (req, res) => {
+  try {
+    const c = stripeCfg();
+    const raw = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : String(req.body || '');
+    if (c.webhookSecret) { if (!_stripeVerify(raw, req.headers['stripe-signature'] || '', c.webhookSecret)) return res.status(400).send('bad signature'); }
+    const evt = JSON.parse(raw); const type = evt.type || ''; const obj = (evt.data && evt.data.object) || {};
+    if (type === 'checkout.session.completed' && obj.payment_status === 'paid') _recordStripePayment(obj);
+    else if (type === 'checkout.session.async_payment_succeeded') _recordStripePayment(obj);
+    res.json({ received: true });
+  } catch (e) { console.error('stripe webhook:', e && e.message); res.status(200).json({ received: true }); }
+});
+app.get('/pay/:token', (req, res) => {
+  const x = _invByPayToken(req.params.token);
+  res.set('Content-Type', 'text/html; charset=utf-8').send(_payPageHtml(x, { paid: req.query.paid === '1', ready: stripeReady() }));
+});
+app.get('/api/pay/:token', (req, res) => {
+  const x = _invByPayToken(req.params.token); if (!x) return res.status(404).json({ ok: false, error: 'Not found.' });
+  const bal = _invBalance(x); res.json({ ok: true, number: x.number || '', total: bal.total, paid: bal.paid, balance: bal.balance, status: invoiceStatusDisplay(x, bal.total, bal.paid) });
+});
+function _payPageHtml(x, o) {
+  o = o || {}; const esc = v => String(v == null ? '' : v).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const org = effOrg(); const brandName = (loadBrand().displayName || org.name || 'Invoice');
+  if (!x) { return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Invoice</title></head><body style="font-family:-apple-system,Segoe UI,Arial,sans-serif;background:#eef1f6;margin:0"><div style="max-width:520px;margin:70px auto;background:#fff;border:1px solid #e6e9f0;border-radius:12px;padding:34px;text-align:center"><h2 style="color:#000E31;margin:0 0 6px">Invoice not found</h2><p style="color:#6b7488">This payment link is not valid. Please contact us for an up-to-date link.</p></div></body></html>'; }
+  const bal = _invBalance(x); const money = n => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const items = Array.isArray(x.lineItems) ? x.lineItems : [];
+  const rows = items.map(li => '<tr><td style="padding:9px 0;border-top:1px solid #eef1f6;color:#1a2236">' + esc(li.desc || '') + '</td><td style="padding:9px 0;border-top:1px solid #eef1f6;text-align:right;color:#1a2236;white-space:nowrap">' + money(_expNum(li.amount)) + '</td></tr>').join('');
+  const paidInFull = !(bal.balance > 0);
+  const canPay = o.ready && !paidInFull && x.status !== 'Void';
+  const banner = o.paid ? '<div style="background:#e7f5ee;border:1px solid #bfe4d0;color:#1f7a52;border-radius:8px;padding:12px 14px;font-size:13.5px;font-weight:600;margin-bottom:16px">Thank you — your payment is being processed and will post to this invoice shortly.</div>' : '';
+  const payBtn = canPay
+    ? '<button id="payBtn" style="width:100%;background:#000E31;color:#fff;border:none;border-radius:10px;padding:14px;font:inherit;font-size:15px;font-weight:700;cursor:pointer">Pay ' + money(bal.balance) + '</button><div id="perr" style="color:#b23a2c;font-size:12.5px;font-weight:600;margin-top:8px;text-align:center"></div><div style="color:#8a93a8;font-size:11.5px;text-align:center;margin-top:10px">Secure payment by card or bank (ACH), powered by Stripe.</div>'
+    : (paidInFull ? '<div style="text-align:center;color:#1f8a5b;font-weight:700;font-size:15px;padding:8px 0">Paid in full — thank you.</div>' : (x.status === 'Void' ? '<div style="text-align:center;color:#8a93a8;font-weight:600">This invoice is void.</div>' : '<div style="text-align:center;color:#8a93a8;font-size:12.5px">Online payment is not available for this invoice. Please contact us to arrange payment.</div>'));
+  const script = canPay ? '<script>document.getElementById("payBtn").addEventListener("click",function(){var b=this,e=document.getElementById("perr");b.disabled=true;b.textContent="Redirecting…";e.textContent="";fetch("/api/pay/' + esc(x.payToken) + '/checkout",{method:"POST"}).then(function(r){return r.json();}).then(function(j){if(j&&j.ok&&j.url){location.href=j.url;}else{b.disabled=false;b.textContent="Pay ' + money(bal.balance) + '";e.textContent=(j&&j.error)||"Could not start checkout.";}}).catch(function(){b.disabled=false;b.textContent="Pay ' + money(bal.balance) + '";e.textContent="Could not reach the payment server.";});});<\/script>' : '';
+  return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Invoice ' + esc(x.number || '') + '</title></head><body style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;background:#eef1f6;margin:0;color:#1a2236"><div style="max-width:540px;margin:48px auto;padding:0 16px"><div style="background:#000E31;color:#fff;border-radius:12px 12px 0 0;padding:20px 24px"><div style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#8fa2be;font-weight:700">' + esc(brandName) + '</div><div style="font-size:20px;font-weight:700;margin-top:4px">Invoice ' + esc(x.number || '') + '</div></div><div style="background:#fff;border:1px solid #e6e9f0;border-top:none;border-radius:0 0 12px 12px;padding:22px 24px 26px">' + banner + (x.billTo ? ('<div style="color:#6b7488;font-size:12.5px;margin-bottom:2px">Billed to</div><div style="font-weight:700;color:#000E31;margin-bottom:16px">' + esc(x.billTo) + '</div>') : '') + '<table style="width:100%;border-collapse:collapse;font-size:14px">' + rows + '</table><table style="width:100%;border-collapse:collapse;font-size:14px;margin-top:6px"><tr><td style="padding:8px 0;border-top:2px solid #e6e9f0;color:#6b7488">Total</td><td style="padding:8px 0;border-top:2px solid #e6e9f0;text-align:right;color:#1a2236">' + money(bal.total) + '</td></tr>' + (bal.paid > 0 ? ('<tr><td style="padding:4px 0;color:#6b7488">Paid</td><td style="padding:4px 0;text-align:right;color:#1f8a5b">-' + money(bal.paid) + '</td></tr>') : '') + '<tr><td style="padding:8px 0;font-weight:700;color:#000E31;font-size:15px">Balance due</td><td style="padding:8px 0;text-align:right;font-weight:700;color:#000E31;font-size:15px">' + money(bal.balance) + '</td></tr></table>' + (x.terms ? ('<div style="color:#8a93a8;font-size:12px;margin:10px 0 4px">Terms: ' + esc(x.terms) + '</div>') : '') + '<div style="margin-top:18px">' + payBtn + '</div></div><div style="text-align:center;color:#aab3c2;font-size:11px;margin-top:14px">' + esc(org.legalName || org.name || '') + (org.phone ? (' · ' + esc(org.phone)) : '') + '</div></div>' + script + '</body></html>';
+}
+
 app.post('/api/admin/accounting', express.json(), (req, res) => {
   if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Admins only.' });
   const s = loadSettings(); s.accountingBasis = ((req.body || {}).basis === 'cash') ? 'cash' : 'accrual'; saveSettings(s);
@@ -8302,7 +8442,7 @@ app.get('/api/payments', (req, res) => {
   vis.forEach(x => { (x.payments || []).forEach(p => { rows.push({ id: p.id, invoiceId: x.id, number: x.number || '', listingKey: x.listingKey || '', listingLabel: x.listingLabel || '', billTo: x.billTo || '', date: p.date || '', amount: _expNum(p.amount), method: p.method || '', reference: p.reference || '', ownerName: x.ownerName || '', mine: !!(u && (x.ownerUser === u.username || admin)) }); }); });
   rows.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
   const total = rows.reduce((s2, p) => s2 + _expNum(p.amount), 0);
-  res.json({ ok: true, isAdmin: !!admin, methods: PAYMENT_METHODS, total: total, payments: rows });
+  res.json({ ok: true, isAdmin: !!admin, methods: paymentMethods(), total: total, payments: rows });
 });
 
 // ===== General Ledger (simple double-entry) =====
