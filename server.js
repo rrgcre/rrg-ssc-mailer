@@ -9774,7 +9774,9 @@ app.get('/api/feed/nudges', async (req, res) => {
       const due = String(t.due || '').slice(0, 10); if (!/^\d{4}-\d{2}-\d{2}/.test(due)) return;
       const overdue = Math.floor((now - new Date(due + 'T00:00:00').getTime()) / DAY);
       if (overdue < 0) return;
-      out.push({ kind: 'task', name: t.title || 'Task', sub: overdue === 0 ? 'Due today' : ('Overdue ' + overdue + ' day' + (overdue === 1 ? '' : 's')), score: 1000 + overdue, taskId: t.id, personId: (t.linkType === 'contact' ? t.linkId : '') || '' });
+      var _tpid = (t.linkType === 'contact' ? t.linkId : '') || '';
+      var _tcn = t.linkLabel || ''; if (!_tcn && _tpid) { try { var _tp = personById(_tpid); if (_tp) _tcn = _tp.name || ''; } catch (e) {} }
+      out.push({ kind: 'task', name: t.title || 'Task', contactName: _tcn, sub: overdue === 0 ? 'Due today' : ('Overdue ' + overdue + ' day' + (overdue === 1 ? '' : 's')), score: 1000 + overdue, taskId: t.id, personId: _tpid });
     });
   } catch (e) {}
   // 1.5) Data-room buyers heating up or cooling off — the sharpest money signal we have.
