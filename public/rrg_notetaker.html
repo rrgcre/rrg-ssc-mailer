@@ -1,0 +1,408 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Meeting Notetaker — RRG</title>
+<script src="/rrg_brand.js"></script>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;--blue:#2c5c8f;}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:#fbfcfe;}
+.wrap{max-width:820px;margin:18px auto;padding:0 22px 80px;}
+.pgh{font-size:22px;font-weight:700;color:var(--navy);margin:0 0 2px;}
+.pgs{color:var(--muted);font-size:13px;margin-bottom:16px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:8px;padding:20px 22px;margin-bottom:16px;box-shadow:0 1px 2px rgba(16,24,40,.04);}
+.card h2{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--navy);margin:0 0 12px;}
+.mtitle{font-size:18px;font-weight:700;color:var(--navy);margin:0 0 4px;}
+.mmeta{color:var(--muted);font-size:13px;line-height:1.6;}
+.mmeta .dot{color:#c4ccda;margin:0 7px;}
+.backlink{display:inline-block;color:var(--blue);font-size:12.5px;font-weight:600;text-decoration:none;margin-bottom:12px;}
+.backlink:hover{text-decoration:underline;}
+.modes{display:inline-flex;border:1px solid #d7dde8;border-radius:8px;overflow:hidden;margin-bottom:14px;}
+.modes button{background:#fff;border:none;padding:9px 16px;font:inherit;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;}
+.modes button.on{background:var(--navy);color:#fff;}
+.stage{position:relative;background:#0b1636;border-radius:8px;overflow:hidden;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;margin-bottom:14px;}
+.stage.audio{aspect-ratio:auto;min-height:150px;}
+video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);background:#000;display:block;}
+.ph{color:#8a93a8;font-size:13px;text-align:center;padding:24px;}
+.miclvl{display:flex;align-items:center;gap:12px;color:#cbd4e6;font-size:13px;font-weight:600;}
+.micdot{width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:22px;}
+.meter{width:200px;height:8px;background:rgba(255,255,255,.14);border-radius:99px;overflow:hidden;}
+.meter>i{display:block;height:100%;width:0;background:#3fbf76;transition:width .1s;}
+.recbar{position:absolute;top:12px;left:12px;display:none;align-items:center;gap:8px;background:rgba(6,12,30,.62);border-radius:100px;padding:6px 12px;}
+.recbar.on{display:flex;}
+.recdot{width:9px;height:9px;border-radius:50%;background:#e0342a;animation:rp 1.4s infinite;}
+@keyframes rp{0%{box-shadow:0 0 0 0 rgba(224,52,42,.5)}70%{box-shadow:0 0 0 7px rgba(224,52,42,0)}100%{box-shadow:0 0 0 0 rgba(224,52,42,0)}}
+.rectime{color:#fff;font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums;}
+.reclbl{color:#ff8a82;font-size:11px;font-weight:700;letter-spacing:.06em;}
+.btnrow{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+.bbtn{border:none;border-radius:8px;padding:12px 22px;font:inherit;font-size:14px;font-weight:700;cursor:pointer;}
+.bbtn.go{background:var(--red);color:#fff;} .bbtn.stop{background:#0b1636;color:#fff;} .bbtn.ghost{background:#f2f5fb;color:var(--navy);border:1px solid #dfe6f2;}
+.bbtn:disabled{opacity:.5;cursor:default;}
+.btn{background:#fff;border:1px solid #d7dde8;border-radius:8px;padding:9px 15px;font:inherit;font-size:13px;font-weight:600;color:var(--navy);cursor:pointer;text-decoration:none;display:inline-block;}
+.btn:hover{background:#f6f8fc;}
+.btn.primary{background:var(--navy);color:#fff;border-color:var(--navy);}
+.btn.red{background:var(--red);color:#fff;border-color:var(--red);}
+.btn:disabled{opacity:.5;cursor:default;}
+#umsg{margin-top:12px;font-size:13px;font-weight:600;min-height:18px;}
+.prog{height:7px;background:#eef1f6;border-radius:99px;overflow:hidden;margin-top:12px;display:none;}
+.prog.on{display:block;} .prog>i{display:block;height:100%;width:0;background:var(--blue);transition:width .2s;}
+.note{background:#eef2f7;border:1px solid #d3dbe6;border-radius:8px;padding:12px 14px;color:#33465f;font-size:12.5px;line-height:1.55;}
+.note.warn{background:#fef3d6;border-color:#f0dca6;color:#7a5a12;}
+label.fld{display:block;font-size:12px;font-weight:700;color:var(--navy);margin:14px 0 5px;}
+textarea{width:100%;border:1px solid #c4ccda;border-radius:8px;padding:11px 12px;font:inherit;font-size:13.5px;line-height:1.55;resize:vertical;min-height:90px;background:#fff;color:var(--ink);}
+.recap{white-space:pre-wrap;font-size:13.5px;line-height:1.6;min-height:200px;}
+.statusrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-bottom:12px;}
+.pill{display:inline-flex;align-items:center;gap:5px;background:#f2f5fb;border:1px solid #e2e8f2;border-radius:99px;padding:3px 10px;font-size:11.5px;font-weight:700;color:var(--navy);}
+.pill.ok{background:#e7f5ee;border-color:#bfe4d0;color:#1f8a5b;}
+.pill.wait{background:#fff5e6;border-color:#f2ddb0;color:#8a5a12;}
+.pill.err{background:#fdebe9;border-color:#f3cdc8;color:#a5352c;}
+.hist{border-top:1px solid #eef1f6;padding:10px 0;display:flex;align-items:center;gap:10px;cursor:pointer;}
+.hist:first-of-type{border-top:none;}
+.hist b{font-size:13px;color:var(--ink);} .hist .hm{font-size:12px;color:var(--muted);}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid #c9d3e6;border-top-color:var(--blue);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px;}
+@keyframes sp{to{transform:rotate(360deg)}}
+.gate{max-width:520px;margin:70px auto;text-align:center;color:var(--muted);padding:0 20px;}
+.gate b{display:block;color:var(--navy);font-size:17px;margin-bottom:6px;}
+.msg{font-size:12.5px;font-weight:700;margin-left:6px;}
+.msg.ok{color:var(--green);} .msg.err{color:var(--red);}
+</style>
+</head>
+<body>
+<div class="wrap" id="app" style="display:none">
+  <a class="backlink" href="/rrg_calendar.html">&larr; Back to calendar</a>
+  <div class="pgh">🎙 Meeting Notetaker</div>
+  <div class="pgs">Record the meeting on this device, get an automatic transcript and an AI recap, and keep it on the meeting and contact record.</div>
+
+  <div class="card" id="mcard">
+    <div class="mtitle" id="mt_title">Meeting</div>
+    <div class="mmeta" id="mt_meta"></div>
+  </div>
+
+  <div class="card" id="setupNote" style="display:none"></div>
+
+  <div class="card" id="recCard">
+    <h2>Record</h2>
+    <div class="modes" id="modes">
+      <button type="button" data-mode="audio" class="on">🎙 Audio (call)</button>
+      <button type="button" data-mode="video">🎥 Video</button>
+    </div>
+    <div class="stage audio" id="stage">
+      <div class="ph" id="ph">
+        <div class="miclvl"><span class="micdot">🎙</span><div><div style="color:#fff;font-weight:700;margin-bottom:6px">Ready to record</div><div class="meter"><i id="meterbar"></i></div></div></div>
+      </div>
+      <video id="pv" autoplay muted playsinline style="display:none"></video>
+      <div class="recbar" id="recbar"><span class="recdot"></span><span class="reclbl">REC</span><span class="rectime" id="rectime">0:00</span></div>
+    </div>
+    <div class="btnrow">
+      <button class="bbtn go" id="startBtn" type="button">● Start recording</button>
+      <button class="bbtn stop" id="stopBtn" type="button" style="display:none">■ Stop &amp; process</button>
+      <button class="bbtn ghost" id="cancelBtn" type="button" style="display:none">Cancel</button>
+    </div>
+    <div class="prog" id="prog"><i id="progbar"></i></div>
+    <div id="umsg"></div>
+    <div class="note" style="margin-top:14px">Everyone on the call should know they're being recorded. Recording happens on this device; audio is sent securely for transcription only. Keep this tab open while it processes.</div>
+  </div>
+
+  <div class="card" id="recapCard" style="display:none">
+    <h2>Recap &amp; transcript</h2>
+    <div class="statusrow" id="statusRow"></div>
+    <div class="btnrow" style="margin-bottom:14px">
+      <a class="btn" id="dlRec" style="display:none">⬇ Download recording</a>
+      <button class="btn" id="exportBtn" type="button">⬇ Export transcript</button>
+      <button class="btn" id="rerunBtn" type="button">↻ Re-run recap</button>
+      <button class="btn red" id="delBtn" type="button" style="margin-left:auto">Delete</button>
+    </div>
+    <label class="fld">AI recap <span style="font-weight:500;color:var(--muted)">— draft; edit as needed, then Save</span></label>
+    <textarea id="recapBox" class="recap" placeholder="The recap will appear here once the transcript is ready…"></textarea>
+    <div class="btnrow" style="margin-top:8px">
+      <button class="btn primary" id="saveRecap" type="button">Save recap</button>
+      <span class="msg" id="recapMsg"></span>
+    </div>
+    <label class="fld">Transcript</label>
+    <div id="txWrap" class="note" style="max-height:260px;overflow:auto;white-space:pre-wrap;background:#fff;border-color:#e6e9f0;color:var(--ink)">—</div>
+  </div>
+
+  <div class="card" id="histCard" style="display:none">
+    <h2>Recordings on this meeting</h2>
+    <div id="histList"></div>
+  </div>
+</div>
+<div id="gate" class="gate" style="display:none"></div>
+<script>
+(function(){
+  function qp(k){ try{ return new URLSearchParams(location.search).get(k)||''; }catch(e){ return ''; } }
+  function esc(s){ var d=document.createElement('div'); d.textContent=s==null?'':String(s); return d.innerHTML; }
+  function $(id){ return document.getElementById(id); }
+  var APPT_ID=qp('appt');
+  var app=$('app'), gate=$('gate');
+  function showGate(msg){ gate.innerHTML='<b>Notetaker unavailable</b>'+esc(msg||'Open the Notetaker from a meeting on the calendar.'); gate.style.display='block'; }
+  if(!APPT_ID){ showGate('No meeting selected. Open the Notetaker from a meeting on the calendar.'); return; }
+
+  var CFG={ready:false,transcribe:false,ai:false}, APPT=null, MODE='audio', CUR_ID='';
+
+  function fmtWhen(iso){ if(!iso) return ''; var m=String(iso).match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/); if(!m) return iso; var d=new Date(+m[1],+m[2]-1,+m[3],+m[4],+m[5]); var days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],mon=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; var h=+m[4],ap=h>=12?'p':'a',h12=((h%12)||12); return days[d.getDay()]+', '+mon[d.getMonth()]+' '+(+m[3])+' · '+h12+(m[5]==='00'?'':(':'+m[5]))+ap; }
+
+  function renderMeeting(){
+    if(!APPT){ return; }
+    $('mt_title').textContent=APPT.title||'Meeting';
+    var bits=[];
+    if(APPT.start) bits.push(esc(fmtWhen(APPT.start)));
+    if(APPT.type) bits.push(esc(APPT.type));
+    if(APPT.contactName) bits.push('👤 '+esc(APPT.contactName));
+    if(APPT.location) bits.push('📍 '+esc(APPT.location));
+    $('mt_meta').innerHTML=bits.join('<span class="dot">·</span>');
+    try{ document.title='Notetaker — '+(APPT.title||'Meeting'); }catch(e){}
+  }
+
+  function setupNotes(){
+    var el=$('setupNote');
+    if(!CFG.transcribe){
+      el.style.display='block'; el.className='card';
+      el.innerHTML='<div class="note warn"><b>Transcription isn’t set up yet.</b><br>You can still record and download the audio, but automatic transcripts and AI recaps need the OpenAI (Whisper) key. Ask an admin to add OPENAI_API_KEY.</div>';
+    } else { el.style.display='none'; }
+  }
+
+  Promise.all([
+    fetch('/api/interview/config',{credentials:'same-origin'}).then(function(r){return r.json();}).catch(function(){return {};}),
+    fetch('/api/appointments/'+encodeURIComponent(APPT_ID),{credentials:'same-origin'}).then(function(r){return r.json();}).catch(function(){return {};})
+  ]).then(function(res){
+    var c=res[0]||{}; CFG={ ready:!!c.ready, transcribe:!!c.transcribe, ai:!!c.ai };
+    var a=res[1]||{};
+    if(!a.ok||!a.appointment){ showGate('That meeting could not be found. It may have been deleted.'); return; }
+    APPT=a.appointment; app.style.display='block'; renderMeeting(); setupNotes();
+    var ids=(APPT.notetakerIds&&APPT.notetakerIds.length)?APPT.notetakerIds:(APPT.notetakerId?[APPT.notetakerId]:[]);
+    if(ids.length){ renderHistory(ids); loadRecap(ids[0]); }
+  }).catch(function(){ showGate('We could not load this page. Please try again in a moment.'); });
+
+  Array.prototype.forEach.call(document.querySelectorAll('#modes button'),function(b){
+    b.addEventListener('click',function(){
+      if(RECORDING) return;
+      MODE=b.getAttribute('data-mode');
+      Array.prototype.forEach.call(document.querySelectorAll('#modes button'),function(x){ x.classList.toggle('on',x===b); });
+      var st=$('stage'); if(MODE==='video'){ st.classList.remove('audio'); } else { st.classList.add('audio'); }
+      teardownPreview();
+    });
+  });
+
+  var stream=null, vrec=null, vchunks=[], arec=null, achunks=[], t0=0, timer=null, RECORDING=false, CANCELLED=false;
+  var mediaBlob=null, mediaUrl='', audioBlob=null, S3_ID='';
+  var actx=null, ana=null, meterRAF=0;
+  function fmt(s){ s=Math.floor(s); var m=Math.floor(s/60),ss=s%60; return m+':'+(ss<10?'0':'')+ss; }
+  function msg(t,c){ var m=$('umsg'); m.textContent=t||''; m.style.color=c||'#6b7488'; }
+  function prog(p){ var w=$('prog'),b=$('progbar'); if(p==null){ w.classList.remove('on'); return; } w.classList.add('on'); b.style.width=Math.max(3,Math.min(100,p))+'%'; }
+
+  function meterLoop(){
+    if(!ana) return;
+    var arr=new Uint8Array(ana.frequencyBinCount); ana.getByteFrequencyData(arr);
+    var sum=0; for(var i=0;i<arr.length;i++) sum+=arr[i]; var avg=sum/arr.length;
+    var mb=$('meterbar'); if(mb) mb.style.width=Math.min(100,Math.round(avg/1.4))+'%';
+    meterRAF=requestAnimationFrame(meterLoop);
+  }
+  function startMeter(s){ try{ actx=new (window.AudioContext||window.webkitAudioContext)(); var src=actx.createMediaStreamSource(s); ana=actx.createAnalyser(); ana.fftSize=256; src.connect(ana); meterLoop(); }catch(e){} }
+  function stopMeter(){ try{ if(meterRAF) cancelAnimationFrame(meterRAF); }catch(e){} meterRAF=0; try{ if(actx) actx.close(); }catch(e){} actx=null; ana=null; var mb=$('meterbar'); if(mb) mb.style.width='0'; }
+
+  function ensureMedia(){
+    return new Promise(function(resolve,reject){
+      if(stream){ resolve(stream); return; }
+      if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia&&window.MediaRecorder)){ reject(new Error('unsupported')); return; }
+      var want=(MODE==='video')?{video:{width:{ideal:1280},height:{ideal:720},facingMode:'user'},audio:true}:{audio:true};
+      navigator.mediaDevices.getUserMedia(want).then(function(s){
+        stream=s;
+        if(MODE==='video'){ var pv=$('pv'); pv.srcObject=s; pv.style.display='block'; $('ph').style.display='none'; try{ pv.play&&pv.play(); }catch(e){} }
+        else { startMeter(s); }
+        resolve(s);
+      }).catch(reject);
+    });
+  }
+  function teardownPreview(){ try{ if(stream&&!RECORDING){ stream.getTracks().forEach(function(t){t.stop();}); stream=null; } }catch(e){} stopMeter(); var pv=$('pv'); pv.style.display='none'; try{ pv.srcObject=null; }catch(e){} $('ph').style.display='block'; }
+  $('startBtn').addEventListener('click',function(){
+    if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia&&window.MediaRecorder)){ msg('This browser can’t record. Try the latest Chrome, Edge, or Safari.','#DA2B1F'); return; }
+    $('startBtn').disabled=true; msg('Starting…');
+    ensureMedia().then(function(s){
+      msg(''); vchunks=[]; achunks=[]; mediaBlob=null; audioBlob=null;
+      var isVid=(MODE==='video');
+      if(isVid){
+        var vmime=''; ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm','video/mp4'].some(function(m){ try{ if(MediaRecorder.isTypeSupported(m)){ vmime=m; return true; } }catch(e){} return false; });
+        try{ vrec=vmime?new MediaRecorder(s,{mimeType:vmime}):new MediaRecorder(s); }catch(e){ vrec=new MediaRecorder(s); }
+        vrec.ondataavailable=function(e){ if(e.data&&e.data.size) vchunks.push(e.data); };
+        vrec.onstop=function(){ finalize(); };
+        vrec.start(1000);
+        try{ var at=s.getAudioTracks?s.getAudioTracks():[]; if(at.length){ var am=''; ['audio/webm;codecs=opus','audio/webm'].some(function(m){ try{ if(MediaRecorder.isTypeSupported(m)){ am=m; return true; } }catch(e){} return false; }); var ao={audioBitsPerSecond:32000}; if(am) ao.mimeType=am; try{ arec=new MediaRecorder(new MediaStream(at),ao); }catch(e){ arec=null; } if(arec){ arec.ondataavailable=function(e){ if(e.data&&e.data.size) achunks.push(e.data); }; arec.onstop=function(){ try{ if(achunks.length) audioBlob=new Blob(achunks,{type:(arec.mimeType&&String(arec.mimeType).split(';')[0])||'audio/webm'}); }catch(e){} }; arec.start(1000); } } }catch(e){}
+      } else {
+        var am2=''; ['audio/webm;codecs=opus','audio/webm','audio/mp4'].some(function(m){ try{ if(MediaRecorder.isTypeSupported(m)){ am2=m; return true; } }catch(e){} return false; });
+        var ao2={audioBitsPerSecond:48000}; if(am2) ao2.mimeType=am2;
+        try{ arec=am2?new MediaRecorder(s,ao2):new MediaRecorder(s); }catch(e){ arec=new MediaRecorder(s); }
+        arec.ondataavailable=function(e){ if(e.data&&e.data.size) achunks.push(e.data); };
+        arec.onstop=function(){ finalize(); };
+        arec.start(1000);
+      }
+      t0=Date.now(); RECORDING=true; CANCELLED=false;
+      $('startBtn').style.display='none'; $('stopBtn').style.display='inline-block'; $('stopBtn').disabled=false; $('cancelBtn').style.display='inline-block';
+      $('recbar').classList.add('on');
+      msg(isVid?'Recording video + audio…':'Recording the call…','#1f8a5b');
+      timer=setInterval(function(){ $('rectime').textContent=fmt((Date.now()-t0)/1000); },500);
+    }).catch(function(err){ $('startBtn').disabled=false; msg('We couldn’t start ('+((err&&err.name)||'blocked')+'). Allow microphone'+(MODE==='video'?' and camera':'')+' access and try again.','#DA2B1F'); });
+  });
+
+  $('stopBtn').addEventListener('click',function(){
+    $('stopBtn').disabled=true; $('cancelBtn').style.display='none'; if(timer){ clearInterval(timer); timer=null; } $('recbar').classList.remove('on'); RECORDING=false; stopMeter();
+    try{ if(arec&&arec.state&&arec.state!=='inactive') arec.stop(); }catch(e){}
+    try{ if(MODE==='video'){ if(vrec&&vrec.state&&vrec.state!=='inactive') vrec.stop(); else finalize(); } else { if(!(arec&&arec.state==='recording')) finalize(); } }catch(e){ finalize(); }
+  });
+  $('cancelBtn').addEventListener('click',function(){
+    if(!window.confirm('Discard this recording? Nothing will be saved.')) return;
+    CANCELLED=true; RECORDING=false; if(timer){ clearInterval(timer); timer=null; } $('recbar').classList.remove('on'); stopMeter();
+    try{ if(arec&&arec.state&&arec.state!=='inactive') arec.stop(); }catch(e){}
+    try{ if(vrec&&vrec.state&&vrec.state!=='inactive') vrec.stop(); }catch(e){}
+    setTimeout(resetRecorder,150);
+  });
+  function stopStream(){ try{ if(stream) stream.getTracks().forEach(function(t){t.stop();}); }catch(e){} stream=null; }
+  function dur(){ return t0?Math.max(1,Math.round((Date.now()-t0)/1000)):0; }
+  function resetRecorder(){
+    stopStream(); stopMeter(); teardownPreview();
+    $('startBtn').style.display='inline-block'; $('startBtn').disabled=false;
+    $('stopBtn').style.display='none'; $('cancelBtn').style.display='none';
+    $('recbar').classList.remove('on'); prog(null);
+    vchunks=[]; achunks=[]; mediaBlob=null; audioBlob=null;
+    msg('','');
+  }
+
+  function finalize(){
+    if(CANCELLED){ CANCELLED=false; resetRecorder(); return; }
+    var isVid=(MODE==='video');
+    try{
+      if(isVid){
+        if(vchunks.length) mediaBlob=new Blob(vchunks,{type:(vrec&&vrec.mimeType)||'video/webm'});
+        // Build the transcription audio from whatever the audio track captured (guards against the two recorders stopping out of order).
+        if((!audioBlob||!audioBlob.size)&&achunks.length){ audioBlob=new Blob(achunks,{type:(arec&&arec.mimeType&&String(arec.mimeType).split(';')[0])||'audio/webm'}); }
+      } else {
+        if(achunks.length){ audioBlob=new Blob(achunks,{type:(arec&&arec.mimeType&&String(arec.mimeType).split(';')[0])||'audio/webm'}); mediaBlob=audioBlob; }
+      }
+    }catch(e){}
+    stopStream(); teardownPreview();
+    if(!mediaBlob||!mediaBlob.size){ msg('We didn’t capture anything. Please try again.','#DA2B1F'); resetRecorder(); return; }
+    try{ if(mediaUrl) URL.revokeObjectURL(mediaUrl); mediaUrl=URL.createObjectURL(mediaBlob); }catch(e){}
+    var d=dur(), ct=mediaBlob.type||(isVid?'video/webm':'audio/webm');
+    prog(5); msg('Saving the recording…');
+    var recId='';
+    var archive = CFG.ready ? archiveToS3(ct,d) : Promise.resolve('');
+    archive.then(function(){
+      if(S3_ID){ return {ok:true,id:S3_ID}; }
+      return fetch('/api/notetaker/create',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({apptId:APPT_ID,title:(APPT&&APPT.title)||'',durationSec:d,contentType:ct,sizeBytes:mediaBlob.size})}).then(function(r){return r.json();});
+    }).then(function(j){
+      if(!j||!j.ok) throw new Error((j&&j.error)||'save');
+      recId=j.id; CUR_ID=recId; prog(60);
+      if(CFG.transcribe && audioBlob && audioBlob.size && audioBlob.size<24*1024*1024){
+        msg('Transcribing and writing the recap…'); var act=(audioBlob.type&&String(audioBlob.type).split(';')[0])||'audio/webm';
+        return fetch('/api/interview/'+encodeURIComponent(recId)+'/transcribe',{method:'POST',headers:{'Content-Type':act},credentials:'same-origin',body:audioBlob}).then(function(r){return r.json();});
+      } else if(CFG.transcribe && audioBlob && audioBlob.size>=24*1024*1024){
+        return {ok:true,tooLarge:true};
+      }
+      return {ok:true,skipped:true};
+    }).then(function(j){
+      prog(100); msg('Done — recap ready below.','#1f8a5b');
+      setTimeout(function(){ prog(null); },900);
+      var ids=(APPT.notetakerIds&&APPT.notetakerIds.length)?APPT.notetakerIds.slice():[];
+      if(ids.indexOf(recId)<0) ids.unshift(recId); APPT.notetakerIds=ids; APPT.notetakerId=recId;
+      renderHistory(ids);
+      if(j&&j.tooLarge){ msg('Recording saved. It was too long to auto-transcribe (over ~30 min); you can still download it.','#8a5a12'); }
+      loadRecap(recId, mediaUrl); resetRecorder();
+    }).catch(function(err){
+      prog(null); msg('Something went wrong ('+((err&&err.message)||'error')+'). The recording is still downloadable below.','#DA2B1F');
+      if(mediaUrl){ var dl=$('dlRec'); dl.style.display='inline-block'; dl.href=mediaUrl; dl.download='meeting-recording.'+((ct.indexOf('mp4')>=0)?'mp4':'webm'); $('recapCard').style.display='block'; }
+      resetRecorder();
+    });
+  }
+
+  function archiveToS3(ct,d){
+    S3_ID='';
+    return fetch('/api/interview/presign',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({apptId:APPT_ID,contentType:ct})}).then(function(r){return r.json();}).then(function(j){
+      if(!j||!j.ok||!j.uploadUrl) throw new Error((j&&j.error)||'presign');
+      return new Promise(function(resolve,reject){
+        var xhr=new XMLHttpRequest(); xhr.open('PUT',j.uploadUrl,true); try{ xhr.setRequestHeader('Content-Type',ct); }catch(e){}
+        xhr.upload.onprogress=function(ev){ if(ev.lengthComputable){ prog(5+Math.round(ev.loaded/ev.total*45)); msg('Uploading the recording…'); } };
+        xhr.onload=function(){ (xhr.status>=200&&xhr.status<300)?resolve(j.key):reject(new Error('put '+xhr.status)); };
+        xhr.onerror=function(){ reject(new Error('put-net')); };
+        xhr.send(mediaBlob);
+      });
+    }).then(function(key){
+      return fetch('/api/interview/register',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({apptId:APPT_ID,kind:'meeting',title:(APPT&&APPT.title)||'',key:key,sizeBytes:mediaBlob.size,durationSec:d,contentType:ct})}).then(function(r){return r.json();});
+    }).then(function(j){ if(j&&j.ok) S3_ID=j.id; return S3_ID; }).catch(function(e){ S3_ID=''; return ''; });
+  }
+  var VIEW_ID='', POLLS=0, pollTimer=null;
+  function statusPill(t,cls){ return '<span class="pill '+(cls||'')+'">'+t+'</span>'; }
+  function loadRecap(id, localUrl){
+    if(!id) return;
+    VIEW_ID=id; CUR_ID=id; $('recapCard').style.display='block';
+    if(pollTimer){ clearTimeout(pollTimer); pollTimer=null; } POLLS=0;
+    fetchRecap(id, localUrl||'');
+  }
+  function fetchRecap(id, localUrl){
+    fetch('/api/interview/'+encodeURIComponent(id),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+      if(!j||!j.ok){ $('statusRow').innerHTML=statusPill('Not found','err'); return; }
+      renderRecap(j, localUrl);
+      var pending=(CFG.transcribe && j.transcriptStatus!=='done'&&j.transcriptStatus!=='empty'&&j.transcriptStatus!=='error'&&j.transcriptStatus!=='too_large')||(j.transcript&&!j.summary&&CFG.ai&&j.summaryStatus!=='error');
+      if(pending && POLLS<20){ POLLS++; pollTimer=setTimeout(function(){ fetchRecap(id, localUrl); },3000); }
+    }).catch(function(){ $('statusRow').innerHTML=statusPill('Could not load','err'); });
+  }
+  function renderRecap(j, localUrl){
+    var sr=[];
+    if(j.durationSec) sr.push(statusPill('⏱ '+fmt(j.durationSec)));
+    var ts=j.transcriptStatus;
+    if(ts==='done') sr.push(statusPill('Transcript ready','ok'));
+    else if(ts==='empty') sr.push(statusPill('No speech detected','wait'));
+    else if(ts==='too_large') sr.push(statusPill('Too long to auto-transcribe','wait'));
+    else if(ts==='error') sr.push(statusPill('Transcription failed','err'));
+    else if(!CFG.transcribe) sr.push(statusPill('Transcription off','wait'));
+    else sr.push('<span class="pill wait"><span class="spin"></span> Transcribing…</span>');
+    if(j.summary){ sr.push(statusPill('Recap '+(j.summaryStatus==='edited'?'edited':'ready'),'ok')); }
+    else if(j.transcript&&CFG.ai){ sr.push('<span class="pill wait"><span class="spin"></span> Writing recap…</span>'); }
+    $('statusRow').innerHTML=sr.join(' ');
+    $('recapBox').value=j.summary||'';
+    $('txWrap').textContent=j.transcript||'—';
+    var dl=$('dlRec');
+    if(localUrl){ dl.style.display='inline-block'; dl.href=localUrl; dl.download='meeting-recording.'+((j.contentType&&j.contentType.indexOf('mp4')>=0)?'mp4':'webm'); dl.removeAttribute('target'); }
+    else if(j.hasMedia && j.viewUrl){ dl.style.display='inline-block'; dl.href=j.viewUrl; dl.setAttribute('target','_blank'); dl.removeAttribute('download'); }
+    else { dl.style.display='none'; }
+    window.__recap={ id:j.id, title:j.title||(APPT&&APPT.title)||'Meeting', transcript:j.transcript||'', summary:j.summary||'', when:(APPT&&APPT.start)||j.createdAt||'' };
+  }
+
+  $('saveRecap').addEventListener('click',function(){
+    if(!VIEW_ID) return; var b=$('saveRecap'); b.disabled=true; setMsg('recapMsg','','Saving…');
+    fetch('/api/interview/'+encodeURIComponent(VIEW_ID)+'/summary',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({summary:$('recapBox').value})}).then(function(r){return r.json();}).then(function(j){
+      b.disabled=false; if(j&&j.ok){ setMsg('recapMsg','ok','Saved ✓'); if(window.__recap) window.__recap.summary=$('recapBox').value; } else setMsg('recapMsg','err',(j&&j.error)||'Could not save.');
+    }).catch(function(){ b.disabled=false; setMsg('recapMsg','err','Could not reach the server.'); });
+  });
+  $('rerunBtn').addEventListener('click',function(){
+    if(!VIEW_ID) return; if(!CFG.ai){ setMsg('recapMsg','err','AI recap isn’t set up (Anthropic key).'); return; }
+    var b=$('rerunBtn'); b.disabled=true; setMsg('recapMsg','','Rewriting…');
+    fetch('/api/interview/'+encodeURIComponent(VIEW_ID)+'/redraft',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'}).then(function(r){return r.json();}).then(function(j){
+      b.disabled=false; if(j&&j.ok){ $('recapBox').value=j.summary||''; setMsg('recapMsg','ok','Fresh draft ✓'); if(window.__recap) window.__recap.summary=j.summary||''; } else setMsg('recapMsg','err',(j&&j.error)||'Could not rewrite.');
+    }).catch(function(){ b.disabled=false; setMsg('recapMsg','err','Could not reach the server.'); });
+  });
+  $('exportBtn').addEventListener('click',function(){
+    var r=window.__recap||{}; var title=r.title||'Meeting';
+    var lines=[]; lines.push(title); if(r.when) lines.push(fmtWhen(r.when)); lines.push('');
+    if(r.summary){ lines.push('=== RECAP ==='); lines.push(r.summary); lines.push(''); }
+    lines.push('=== TRANSCRIPT ==='); lines.push(r.transcript||'(no transcript)');
+    var blob=new Blob([lines.join('\n')],{type:'text/plain'});
+    var u=URL.createObjectURL(blob); var a=document.createElement('a'); a.href=u; a.download=(title.replace(/[^a-z0-9]+/gi,'_').slice(0,50)||'meeting')+'_notes.txt'; document.body.appendChild(a); a.click(); setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(u); },200);
+  });
+  $('delBtn').addEventListener('click',function(){
+    if(!VIEW_ID) return; if(!window.confirm('Delete this recording, transcript, and recap? This cannot be undone.')) return;
+    var b=$('delBtn'); b.disabled=true;
+    fetch('/api/interview/'+encodeURIComponent(VIEW_ID),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+      b.disabled=false; if(j&&j.ok){ var ids=(APPT.notetakerIds||[]).filter(function(x){return x!==VIEW_ID;}); APPT.notetakerIds=ids; APPT.notetakerId=ids[0]||''; renderHistory(ids); if(ids.length){ loadRecap(ids[0]); } else { $('recapCard').style.display='none'; $('histCard').style.display='none'; } }
+      else { window.alert((j&&j.error)||'Could not delete.'); }
+    }).catch(function(){ b.disabled=false; window.alert('Could not reach the server.'); });
+  });
+
+  function renderHistory(ids){
+    if(!ids||ids.length<2){ $('histCard').style.display='none'; return; }
+    $('histCard').style.display='block';
+    $('histList').innerHTML=ids.map(function(id,i){ return '<div class="hist" data-id="'+esc(id)+'"><b>Recording '+(ids.length-i)+'</b><span class="hm">'+(id===VIEW_ID?' · viewing':' · view')+'</span></div>'; }).join('');
+    Array.prototype.forEach.call(document.querySelectorAll('#histList .hist'),function(el){ el.addEventListener('click',function(){ loadRecap(el.getAttribute('data-id')); }); });
+  }
+  function setMsg(id,cls,t){ var e=$(id); if(!e) return; e.className='msg'+(cls?(' '+cls):''); e.textContent=t||''; }
+})();
+</script>
+</body></html>

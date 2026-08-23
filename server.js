@@ -2207,7 +2207,18 @@ app.delete('/api/interview/:id', (req, res) => {
   const isAdmin = !!(req.user && isSuper(req.user));
   if (!isAdmin && restrictToOwn(req) && !permOwnerMatch(req, iv.byUser)) return res.status(403).json({ ok: false, error: 'Not yours.' });
   saveInterviews(arr.filter(x => x.id !== req.params.id));
-  try { logSysEvent(req, 'Documents', 'Deleted the seller interview' + (iv.business ? ' for “' + iv.business + '”' : ''), { tool: 'interview', kind: 'delete', id: iv.id }); } catch (e) {}
+  // Unlink from its meeting if this was a Notetaker recap.
+  if (iv.apptId) {
+    try {
+      const appts = loadAppts(); const ap = appts.find(x => x.id === iv.apptId);
+      if (ap) {
+        ap.notetakerIds = (Array.isArray(ap.notetakerIds) ? ap.notetakerIds : []).filter(id => id !== iv.id);
+        if (ap.notetakerId === iv.id) ap.notetakerId = ap.notetakerIds[0] || '';
+        ap.updatedAt = new Date().toISOString(); saveAppts(appts);
+      }
+    } catch (e) {}
+  }
+  try { logSysEvent(req, 'Documents', 'Deleted the ' + (iv.kind === 'meeting' ? 'meeting recording' : 'seller interview') + (iv.business ? ' for \u201c' + iv.business + '\u201d' : ''), { tool: 'interview', kind: 'delete', id: iv.id }); } catch (e) {}
   res.json({ ok: true });
 });
 app.get('/log.csv', (_req, res) => {
@@ -6132,7 +6143,7 @@ app.get('/api/deals', (req, res) => {
     if (!(isAdmin || canSeeAllDeals(req) || ownsAssignment(req, d))) return;
     let business = cur.businessOverride || '';
     try { business = business || assignmentView(d, overlay).business; } catch (e) {}
-    out.push({ key: d.key, business: business || '', buyer: t.buyer || '', buyerCompany: t.buyerCompany || '', personId: t.personId || '', price: t.price || '', status: t.status || '', opened: t.opened || '', expectedClose: t.expectedClose || '', closedDate: t.closedDate || '', terms: t.terms || '', commissionRate: t.commissionRate || '', commissionDue: t.commissionDue || '', commissionPaid: t.commissionPaid || '', commissionStatus: t.commissionStatus || '', updatedAt: t.updatedAt || '' });
+    out.push({ key: d.key, business: business || '', buyer: t.buyer || '', buyerCompany: t.buyerCompany || '', personId: t.personId || '', price: t.price || '', status: t.status || '', opened: t.opened || '', expectedClose: t.expectedClose || '', closedDate: t.closedDate || '', terms: t.terms || '', commissionRate: t.commissionRate || '', commissionDue: t.commissionDue || '', commissionPaid: t.commissionPaid || '', commissionStatus: t.commissionStatus || '', coBrokeRep: t.coBrokeRep || '', coBrokeSplit: (t.coBrokeSplit===0?0:(t.coBrokeSplit||'')), updatedAt: t.updatedAt || '' });
   });
   out.sort(function (a, b) { return String(b.updatedAt).localeCompare(String(a.updatedAt)); });
   res.json({ ok: true, deals: out, statuses: TXN_STATUSES, commStatuses: TXN_COMM_STATUS, isAdmin: !!isAdmin });
@@ -6161,6 +6172,8 @@ app.post('/api/assignment/:key/deal', express.json(), (req, res) => {
   if (typeof b.commissionDue === 'string') t.commissionDue = b.commissionDue.slice(0, 40);
   if (typeof b.commissionPaid === 'string') t.commissionPaid = b.commissionPaid.slice(0, 40);
   if (typeof b.commissionStatus === 'string' && TXN_COMM_STATUS.indexOf(b.commissionStatus) >= 0) t.commissionStatus = b.commissionStatus;
+  if (typeof b.coBrokeRep === 'string') t.coBrokeRep = b.coBrokeRep.slice(0, 80);
+  if (b.coBrokeSplit !== undefined) { const _cs = parseInt(b.coBrokeSplit, 10); t.coBrokeSplit = (isFinite(_cs) && _cs >= 0 && _cs <= 100) ? _cs : ''; }
   t.updatedAt = new Date().toISOString();
   if (t.buyer || b.buyerEmail) { const p = findOrCreatePerson(req, { name: t.buyer, email: b.buyerEmail, company: t.buyerCompany, type: 'Buying' }); if (p) t.personId = p.id; }
   cur.transaction = t; cur.updatedAt = new Date().toISOString();
@@ -7801,7 +7814,7 @@ function _drainBrandQueue() {
     if (_brandQueue.length) setImmediate(_drainBrandQueue);
   });
 }
-app.get('/api/interview/config', (req, res) => { res.json({ ok: true, ready: s3Configured() }); });
+app.get('/api/interview/config', (req, res) => { res.json({ ok: true, ready: s3Configured(), transcribe: !!process.env.OPENAI_API_KEY, ai: !!process.env.ANTHROPIC_API_KEY }); });
 app.post('/api/interview/presign', express.json(), async (req, res) => {
   try {
     if (!s3Configured()) return res.status(503).json({ ok: false, error: 'Video storage isn’t set up yet (check the S3 environment variables).' });
@@ -7809,11 +7822,14 @@ app.post('/api/interview/presign', express.json(), async (req, res) => {
     const personId = String(b.personId || '').replace(/[^a-z0-9_-]/gi, '').slice(0, 48);
     const companyId = String(b.companyId || '').replace(/[^a-z0-9_-]/gi, '').slice(0, 48);
     const screenId = String(b.screenId || '').replace(/[^a-z0-9_-]/gi, '').slice(0, 48);
+    const apptId = String(b.apptId || '').replace(/[^a-z0-9_-]/gi, '').slice(0, 48);
     const ct = String(b.contentType || 'video/webm').slice(0, 60);
-    const ext = ct.indexOf('mp4') >= 0 ? 'mp4' : 'webm';
+    const ext = ct.indexOf('mp4') >= 0 ? 'mp4' : (ct.indexOf('ogg') >= 0 ? 'ogg' : 'webm');
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const folder = companyId || personId || screenId || 'misc';
-    const key = 'interviews/' + folder + '/' + stamp + '_' + Math.random().toString(36).slice(2, 7) + '.' + ext;
+    // Meeting Notetaker recordings live under notetaker/<meeting>; seller interviews under interviews/<contact>.
+    const prefix = apptId ? 'notetaker/' : 'interviews/';
+    const folder = apptId ? ('mtg_' + apptId) : (companyId || personId || screenId || 'misc');
+    const key = prefix + folder + '/' + stamp + '_' + Math.random().toString(36).slice(2, 7) + '.' + ext;
     const { PutObjectCommand } = require('@aws-sdk/client-s3');
     const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
     const url = await getSignedUrl(s3client(), new PutObjectCommand({ Bucket: s3Bucket(), Key: key, ContentType: ct }), { expiresIn: 900 });
@@ -7824,23 +7840,81 @@ app.post('/api/interview/register', express.json(), (req, res) => {
   try {
     const b = req.body || {}; const key = String(b.key || '').slice(0, 300); if (!key) return res.status(400).json({ ok: false, error: 'Missing key.' });
     const now = new Date().toISOString();
-    const rec = { id: newInterviewId(), key: key, personId: String(b.personId || '').slice(0, 48), companyId: String(b.companyId || '').slice(0, 48), screenId: String(b.screenId || '').slice(0, 48),
+    const kind = String(b.kind || '').slice(0, 24);
+    const apptId = String(b.apptId || '').slice(0, 48);
+    const rec = { id: newInterviewId(), key: key, kind: kind, apptId: apptId, title: String(b.title || '').slice(0, 200),
+      personId: String(b.personId || '').slice(0, 48), companyId: String(b.companyId || '').slice(0, 48), screenId: String(b.screenId || '').slice(0, 48),
       business: String(b.business || '').slice(0, 160), sizeBytes: Number(b.sizeBytes || b.size || 0) || 0, durationSec: Number(b.durationSec || 0) || 0,
       contentType: String(b.contentType || 'video/webm').slice(0, 60), transcript: '', transcriptStatus: '', createdAt: now,
       by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', roomId: '' };
+    // A Meeting Notetaker recording pulls its contact/company/title from the linked meeting.
+    if (apptId) {
+      try {
+        const _ap = loadAppts().find(x => x.id === apptId);
+        if (_ap) {
+          if (!rec.personId && _ap.contactPersonId) rec.personId = _ap.contactPersonId;
+          if (!rec.companyId && _ap.companyId) rec.companyId = _ap.companyId;
+          if (!rec.title) rec.title = _ap.title || '';
+          if (!rec.business) rec.business = _ap.contactName || _ap.title || '';
+        }
+      } catch (e) {}
+    }
     try {
       const rooms = loadRooms();
       const room = rooms.find(r => (rec.personId && r.personId === rec.personId) || (rec.companyId && r.companyId === rec.companyId));
       if (room) { room.interviews = Array.isArray(room.interviews) ? room.interviews : []; room.interviews.push({ id: rec.id, key: key, createdAt: now, durationSec: rec.durationSec, sizeBytes: rec.sizeBytes, by: rec.by }); room.updatedAt = now; saveRooms(rooms); rec.roomId = room.id; }
     } catch (e) { console.error('attach interview to room:', e && e.message); }
     const all = loadInterviews(); all.push(rec); saveInterviews(all);
+    // Attach the recap to its meeting so the calendar shows it (newest first).
+    if (rec.apptId) {
+      try {
+        const appts = loadAppts(); const ap = appts.find(x => x.id === rec.apptId);
+        if (ap) {
+          ap.notetakerIds = Array.isArray(ap.notetakerIds) ? ap.notetakerIds : [];
+          if (ap.notetakerIds.indexOf(rec.id) < 0) ap.notetakerIds.unshift(rec.id);
+          ap.notetakerId = rec.id; ap.updatedAt = now; saveAppts(appts);
+          if (ap.contactPersonId) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === ap.contactPersonId); if (pp) { logActivity(pp, 'Meeting', 'Recorded a meeting with the Notetaker: ' + (rec.title || ap.title || 'Meeting'), { by: rec.by, byUser: rec.byUser }); savePeople(ppl); } } catch (e) {} }
+        }
+      } catch (e) { console.error('attach notetaker to appt:', e && e.message); }
+    }
     res.json({ ok: true, id: rec.id, roomId: rec.roomId, viewUrl: '/api/interview/' + rec.id + '/view' });
   } catch (e) { console.error('register interview:', e && e.message); res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
+// Meeting Notetaker: create a recap record WITHOUT object storage (transcript + AI recap are
+// the core value; the audio/video download is served from the browser this session, and also
+// archived to S3 when it's configured via the presign/register path). Internal, authenticated.
+app.post('/api/notetaker/create', express.json(), (req, res) => {
+  try {
+    const b = req.body || {}; const now = new Date().toISOString();
+    const apptId = String(b.apptId || '').slice(0, 48);
+    const rec = { id: newInterviewId(), key: '', kind: 'meeting', apptId: apptId, title: String(b.title || '').slice(0, 200),
+      personId: '', companyId: '', screenId: '', business: '', sizeBytes: Number(b.sizeBytes || 0) || 0, durationSec: Number(b.durationSec || 0) || 0,
+      contentType: String(b.contentType || 'audio/webm').slice(0, 60), transcript: '', transcriptStatus: '', createdAt: now,
+      by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', roomId: '', noMedia: true };
+    if (apptId) {
+      try { const _ap = loadAppts().find(x => x.id === apptId); if (_ap) { rec.personId = _ap.contactPersonId || ''; rec.companyId = _ap.companyId || ''; if (!rec.title) rec.title = _ap.title || ''; rec.business = _ap.contactName || _ap.title || ''; } } catch (e) {}
+    }
+    const all = loadInterviews(); all.push(rec); saveInterviews(all);
+    if (rec.apptId) {
+      try {
+        const appts = loadAppts(); const ap = appts.find(x => x.id === rec.apptId);
+        if (ap) {
+          ap.notetakerIds = Array.isArray(ap.notetakerIds) ? ap.notetakerIds : [];
+          if (ap.notetakerIds.indexOf(rec.id) < 0) ap.notetakerIds.unshift(rec.id);
+          ap.notetakerId = rec.id; ap.updatedAt = now; saveAppts(appts);
+          if (ap.contactPersonId) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === ap.contactPersonId); if (pp) { logActivity(pp, 'Meeting', 'Recorded a meeting with the Notetaker: ' + (rec.title || ap.title || 'Meeting'), { by: rec.by, byUser: rec.byUser }); savePeople(ppl); } } catch (e) {} }
+        }
+      } catch (e) { console.error('notetaker attach:', e && e.message); }
+    }
+    res.json({ ok: true, id: rec.id });
+  } catch (e) { console.error('notetaker create:', e && e.message); res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
 app.get('/api/interview/:id/view', async (req, res) => {
   try {
+    const rec0 = loadInterviews().find(x => x.id === req.params.id); if (!rec0) return res.status(404).send('Recording not found.');
+    if (!rec0.key) return res.status(404).send('This recap has no stored recording. The recording download is available on the device where it was recorded, or set up object storage to archive recordings.');
     if (!s3Configured()) return res.status(503).send('Video storage is not configured.');
-    const rec = loadInterviews().find(x => x.id === req.params.id); if (!rec) return res.status(404).send('Recording not found.');
+    const rec = rec0;
     const { GetObjectCommand } = require('@aws-sdk/client-s3');
     const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
     // Serve the branded (title-card + segue) version once it's built; fall back to the raw
@@ -7866,14 +7940,32 @@ async function summarizeInterview(rec) {
   let text = ''; try { text = (data.content || []).map(x => x.text || '').join(''); } catch (e) {}
   return String(text || '').trim();
 }
+// Turn a raw MEETING transcript into a broker's recap — general purpose (any meeting or call),
+// not the seller-interview debrief. Draft: the rep verifies before relying on it.
+async function summarizeMeeting(rec) {
+  const key = process.env.ANTHROPIC_API_KEY; if (!key) return '';
+  const t = String((rec && rec.transcript) || '').trim(); if (!t) return '';
+  const sys = 'You are assisting a commercial real estate broker who sells and leases restaurants and bars. You are given the raw transcript of a recorded meeting or phone call (broker with a client, prospect, landlord, buyer, or partner). Produce a clean, well-organized recap the broker can drop straight into the deal or contact file. Use ONLY what the transcript supports — never invent names, numbers, dates, or commitments; where something was vague or unstated, say so. Organize under these headings, omitting any that had nothing said: Summary (2-4 sentences); Key points discussed; Decisions made; Action items (one per line, with the owner and any due date the transcript states, marked TBD if not stated); Open questions & follow-ups; Numbers & terms mentioned (prices, rent, dates, square footage, deadlines). Keep it tight, factual, and skimmable. This is a DRAFT for the broker to verify.';
+  const content = 'Meeting: ' + (String((rec && rec.title) || rec && rec.business || '').slice(0, 200) || '(untitled meeting)') + '\n\nTranscript:\n\n' + t.slice(0, 60000) + '\n\nWrite the recap now.';
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+    body: JSON.stringify({ model: loadAiModel(), max_tokens: 2200, temperature: 0.2, system: sys, messages: [{ role: 'user', content }] }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) throw new Error((data && data.error && data.error.message) || 'AI request failed.');
+  let text = ''; try { text = (data.content || []).map(x => x.text || '').join(''); } catch (e) {}
+  return String(text || '').trim();
+}
 app.get('/api/interview/:id', (req, res) => {
   const rec = loadInterviews().find(x => x.id === req.params.id);
   if (!rec) return res.status(404).json({ ok: false, error: 'Interview not found.' });
-  res.json({ ok: true, id: rec.id, business: rec.business || '', personId: rec.personId || '', companyId: rec.companyId || '', screenId: rec.screenId || '',
+  res.json({ ok: true, id: rec.id, business: rec.business || '', kind: rec.kind || '', apptId: rec.apptId || '', title: rec.title || '', contentType: rec.contentType || '',
+    personId: rec.personId || '', companyId: rec.companyId || '', screenId: rec.screenId || '',
     durationSec: rec.durationSec || 0, sizeBytes: rec.sizeBytes || 0, createdAt: rec.createdAt || '', by: rec.by || '', roomId: rec.roomId || '',
     transcript: rec.transcript || '', transcriptStatus: rec.transcriptStatus || '', summary: rec.summary || '', summaryStatus: rec.summaryStatus || '',
     cleanTranscript: rec.cleanTranscript || '', cleanStatus: rec.cleanStatus || '', cleanedAt: rec.cleanedAt || '',
-    branded: !!rec.finishedKey, finishStatus: rec.finishStatus || '',
+    branded: !!rec.finishedKey, finishStatus: rec.finishStatus || '', hasMedia: !!rec.key,
     viewUrl: '/api/interview/' + rec.id + '/view' });
 });
 // Polish the raw transcript into a clean, readable version fit to show a buyer — same
@@ -7956,7 +8048,7 @@ app.post('/api/interview/:id/transcribe', express.raw({ type: ['audio/*', 'appli
     saveInterviews(all);
     let summary = '';
     try {
-      summary = await summarizeInterview(rec);
+      summary = await (rec.kind === 'meeting' ? summarizeMeeting(rec) : summarizeInterview(rec));
       if (summary) { const a2 = loadInterviews(); const r2 = a2.find(x => x.id === rec.id); if (r2) { r2.summary = summary; r2.summaryStatus = 'done'; r2.summarizedAt = new Date().toISOString(); saveInterviews(a2); } }
     } catch (e) { console.error('summarize interview:', e && e.message); }
     res.json({ ok: true, transcript: text, transcriptStatus: rec.transcriptStatus, summary: summary, summaryStatus: summary ? 'done' : '' });
@@ -7980,7 +8072,7 @@ app.post('/api/interview/:id/redraft', express.json(), async (req, res) => {
     const all = loadInterviews(); const rec = all.find(x => x.id === req.params.id);
     if (!rec) return res.status(404).json({ ok: false, error: 'Interview not found.' });
     if (!String(rec.transcript || '').trim()) return res.status(400).json({ ok: false, error: 'No transcript to work from yet.' });
-    const summary = await summarizeInterview(rec);
+    const summary = await (rec.kind === 'meeting' ? summarizeMeeting(rec) : summarizeInterview(rec));
     if (summary) { rec.summary = summary; rec.summaryStatus = 'done'; rec.summarizedAt = new Date().toISOString(); saveInterviews(all); }
     res.json({ ok: true, summary: summary, summaryStatus: rec.summaryStatus });
   } catch (e) { console.error('redraft interview:', e && e.message); res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
@@ -8730,6 +8822,7 @@ app.post('/api/person', express.json(), (req, res) => {
   if (typeof b.title === 'string') p.title = b.title.slice(0, 120);
   if (typeof b.nickname === 'string') p.nickname = b.nickname.slice(0, 80);
   if (typeof b.leadSource === 'string') p.leadSource = b.leadSource.slice(0, 160);
+  if (typeof b.market === 'string') p.market = b.market.slice(0, 60);
   if (typeof b.referredBy === 'string') p.referredBy = b.referredBy.slice(0, 160);
   if (typeof b.referredById === 'string') p.referredById = b.referredById.slice(0, 40);
   if (Array.isArray(b.prefContact)) p.prefContact = b.prefContact.filter(x => ['phone', 'text', 'email'].indexOf(x) >= 0);
@@ -14035,7 +14128,7 @@ function _apptReminderIso(start, mins) { try { const d = new Date(start); if (is
 function _apptStep(iso, repeat, n) { try { const d = new Date(iso); if (isNaN(d.getTime())) return iso; if (repeat === 'weekly') d.setDate(d.getDate() + 7 * n); else if (repeat === 'biweekly') d.setDate(d.getDate() + 14 * n); else if (repeat === 'monthly') d.setMonth(d.getMonth() + n); return _apptFmt(d); } catch (e) { return iso; } }
 const APPT_TYPES = ['Meeting', 'Call', 'Tour', 'Listing Presentation', 'Closing', 'Follow-up', 'Other'];
 function _cleanAttendees(arr) { return (Array.isArray(arr) ? arr : []).slice(0, 20).map(function (x) { return { name: String((x && x.name) || '').slice(0, 120), email: String((x && x.email) || '').slice(0, 160).trim() }; }).filter(function (x) { return x.name || x.email; }); }
-function apptBrief(a) { return { id: a.id, title: a.title || '', contactPersonId: a.contactPersonId || '', contactName: a.contactName || '', companyId: a.companyId || '', start: a.start || '', end: a.end || '', allDay: !!a.allDay, location: a.location || '', type: a.type || '', notes: a.notes || '', attendees: Array.isArray(a.attendees) ? a.attendees : [], cc: Array.isArray(a.cc) ? a.cc : [], bcc: Array.isArray(a.bcc) ? a.bcc : [], byUser: a.byUser || '', byName: a.byName || '', status: a.status || 'scheduled', source: a.source || '', invitedAt: a.invitedAt || '', meetUrl: a.meetUrl || '', googleEventId: a.googleEventId || '', files: Array.isArray(a.files) ? a.files : [], remMinutes: (a.remMinutes == null ? '' : a.remMinutes), remChannels: Array.isArray(a.remChannels) ? a.remChannels : [], reminder: a.reminder || '', seriesId: a.seriesId || '', repeat: a.repeat || '', autoId: a.autoId || '', createdAt: a.createdAt || '', updatedAt: a.updatedAt || '' }; }
+function apptBrief(a) { return { id: a.id, title: a.title || '', contactPersonId: a.contactPersonId || '', contactName: a.contactName || '', companyId: a.companyId || '', start: a.start || '', end: a.end || '', allDay: !!a.allDay, location: a.location || '', type: a.type || '', notes: a.notes || '', attendees: Array.isArray(a.attendees) ? a.attendees : [], cc: Array.isArray(a.cc) ? a.cc : [], bcc: Array.isArray(a.bcc) ? a.bcc : [], byUser: a.byUser || '', byName: a.byName || '', status: a.status || 'scheduled', source: a.source || '', invitedAt: a.invitedAt || '', meetUrl: a.meetUrl || '', googleEventId: a.googleEventId || '', files: Array.isArray(a.files) ? a.files : [], remMinutes: (a.remMinutes == null ? '' : a.remMinutes), remChannels: Array.isArray(a.remChannels) ? a.remChannels : [], reminder: a.reminder || '', seriesId: a.seriesId || '', repeat: a.repeat || '', autoId: a.autoId || '', notetakerId: a.notetakerId || '', notetakerIds: Array.isArray(a.notetakerIds) ? a.notetakerIds : [], createdAt: a.createdAt || '', updatedAt: a.updatedAt || '' }; }
 function apptIcs(a) {
   function e(s) { return String(s || '').replace(/([,;\\])/g, '\\$1').replace(/\r?\n/g, '\\n'); }
   function dt(s) { var m = String(s || '').match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/); return m ? (m[1] + m[2] + m[3] + 'T' + m[4] + m[5] + '00') : ''; }
@@ -14114,6 +14207,11 @@ app.post('/api/me/calendar-shares', express.json(), (req, res) => {
   const list = Array.isArray(req.body && req.body.shares) ? req.body.shares.filter(x => valid.has(x) && x !== me).slice(0, 200) : [];
   const all = loadCalShares(); all[me] = list; saveCalShares(all);
   res.json({ ok: true, shares: list });
+});
+app.get('/api/appointments/:id', (req, res) => {
+  const a = loadAppts().find(x => x.id === req.params.id && x.status !== 'deleted');
+  if (!a) return res.status(404).json({ ok: false, error: 'Meeting not found.' });
+  res.json({ ok: true, appointment: apptBrief(a) });
 });
 app.post('/api/appointments', express.json(), (req, res) => {
   const u = req.user || {}; const b = req.body || {}; const all = loadAppts(); const now = new Date().toISOString();

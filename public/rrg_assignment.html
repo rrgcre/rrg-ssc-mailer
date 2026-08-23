@@ -1212,6 +1212,7 @@ function dealCard(){
     if(TXN.commissionDue) rows.push(['Commission due', esc(TXN.commissionDue)]);
     if(TXN.commissionPaid) rows.push(['Commission paid', esc(TXN.commissionPaid)]);
     if(TXN.commissionStatus) rows.push(['Commission', esc(TXN.commissionStatus)]);
+    if(TXN.coBrokeRep) rows.push(['Co-broke', esc(TXN.coBrokeRep)+(TXN.coBrokeSplit!==''&&TXN.coBrokeSplit!=null?(' \u00b7 '+esc(TXN.coBrokeSplit)+'%'):'')]);
     if(TXN.notes) rows.push(['Notes', esc(TXN.notes)]);
     var meta=rows.map(function(r){ return '<div class="dealkv"><span class="dkk">'+r[0]+'</span><span class="dkv">'+r[1]+'</span></div>'; }).join('');
     body='<div class="dealview"><span class="dealpill" style="background:'+c[0]+';color:'+c[1]+'">'+esc(TXN.status||'LOI')+'</span>'+meta
@@ -1236,11 +1237,12 @@ function dealFormHTML(){
     + '<div><label class="fld">Terms</label><textarea id="dl_terms" placeholder="Deal terms">'+esc(t.terms||'')+'</textarea></div>'
     + '<div class="fldrow2"><div><label class="fld">Commission rate</label><input id="dl_crate" value="'+esc(t.commissionRate||'')+'" placeholder="e.g. 6%"></div><div><label class="fld">Commission due</label><input id="dl_cdue" value="'+esc(t.commissionDue||'')+'" placeholder="$"></div></div>'
     + '<div class="fldrow2"><div><label class="fld">Commission paid</label><input id="dl_cpaid" value="'+esc(t.commissionPaid||'')+'" placeholder="$"></div><div><label class="fld">Commission status</label><select id="dl_cstatus">'+copts+'</select></div></div>'
+    + '<div class="fldrow2"><div><label class="fld">Co-broke rep <span style="text-transform:none;font-weight:600;color:#8a93a8;font-size:11px">(cross-market)</span></label><input id="dl_cobroke" value="'+esc(t.coBrokeRep||'')+'" placeholder="Relationship rep in another market"></div><div><label class="fld">Their split %</label><input id="dl_cosplit" type="number" min="0" max="100" value="'+esc(t.coBrokeSplit!==''&&t.coBrokeSplit!=null?t.coBrokeSplit:'')+'" placeholder="e.g. 25"></div></div>'
     + '<div class="dealformf"><button class="mbtn ghost" id="dl_cancel">Cancel</button><button class="mbtn" id="dl_save">Save deal</button></div></div>';
 }
 function openDealForm(){ var f=document.getElementById('dealForm'); if(!f) return; f.innerHTML=dealFormHTML(); f.removeAttribute('hidden'); document.getElementById('dl_cancel').addEventListener('click',function(){ f.setAttribute('hidden',''); f.innerHTML=''; }); document.getElementById('dl_save').addEventListener('click',saveDeal); }
 function saveDeal(){
-  var body={ buyer:dlv('dl_buyer'), buyerEmail:dlv('dl_email'), buyerCompany:dlv('dl_co'), price:dlv('dl_price'), status:dlv('dl_status'), opened:dlv('dl_opened'), expectedClose:dlv('dl_exp'), closedDate:dlv('dl_closed'), notes:dlv('dl_notes'), terms:dlv('dl_terms'), commissionRate:dlv('dl_crate'), commissionDue:dlv('dl_cdue'), commissionPaid:dlv('dl_cpaid'), commissionStatus:dlv('dl_cstatus') };
+  var body={ buyer:dlv('dl_buyer'), buyerEmail:dlv('dl_email'), buyerCompany:dlv('dl_co'), price:dlv('dl_price'), status:dlv('dl_status'), opened:dlv('dl_opened'), expectedClose:dlv('dl_exp'), closedDate:dlv('dl_closed'), notes:dlv('dl_notes'), terms:dlv('dl_terms'), commissionRate:dlv('dl_crate'), commissionDue:dlv('dl_cdue'), commissionPaid:dlv('dl_cpaid'), commissionStatus:dlv('dl_cstatus'), coBrokeRep:dlv('dl_cobroke'), coBrokeSplit:dlv('dl_cosplit') };
   var b=document.getElementById('dl_save'); if(b){b.disabled=true;b.textContent='Saving…';}
   fetch('/api/assignment/'+encodeURIComponent(KEY)+'/deal',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ TXN=j.transaction||null; if(A) A.transaction=TXN; if(j.people) PEOPLE=j.people; rerenderDeal(); } else { if(b){b.disabled=false;b.textContent='Save deal';} alert((j&&j.error)||'Could not save the deal.'); } })

@@ -182,7 +182,6 @@ a.feat:hover{background:#f4f7fb;} a.feat:hover b{color:var(--blue);}
       <a class="feat" href="rrg_calendar_help.html#views" target="_blank" rel="noopener"><span class="fic">🔭</span><div><b>Four ways to look</b><span>Day, Week, Month and Agenda views — step through with ‹ Today ›.</span></div></a>
       <a class="feat" href="rrg_calendar_help.html#scope" target="_blank" rel="noopener"><span class="fic">👥</span><div><b>See the whole team</b><span>Switch between everyone’s calendar, one person’s, or just your own meetings.</span></div></a>
       <a class="feat" href="rrg_calendar_help.html#sync" target="_blank" rel="noopener"><span class="fic">🔄</span><div><b>Always in sync</b><span>Meetings booked from a contact’s page appear here automatically; edit or cancel anytime.</span></div></a>
-      <a class="feat" href="rrg_calendar_help.html#gmailsync" target="_blank" rel="noopener"><span class="fic">📥</span><div><b>Events from your inbox <span class="soon">Soon</span></b><span>Flights, hotels and reservations sitting in Gmail get added to your calendar automatically.</span></div></a>
     </div>
   </div>
   <div class="calbar">
@@ -233,6 +232,7 @@ a.feat:hover{background:#f4f7fb;} a.feat:hover b{color:var(--blue);}
     <select id="f_auto"><option value="">— none —</option></select>
     <div style="font-size:11px;color:#8a93a8;margin-top:4px">Enrolls the linked contact (or the guest you added by email) in this automation when you save. New guests are added to your contacts automatically.</div>
     <div id="meetRow" style="margin-top:12px"></div>
+    <div id="noteRow" style="margin-top:12px"></div>
     <div id="attRow" style="margin-top:12px"></div>
     <input type="file" id="attFile" style="display:none">
     <label class="chk" id="invwrap"><input type="checkbox" id="f_invite"> Email a calendar invite to attendees now</label>
@@ -288,7 +288,7 @@ function taskItem(t){ var tm=String(t.due||'').slice(11,16); return '<div class=
 function renderDay(){
   var ds=ymd(CUR); var list=apptsOn(ds); var tks=tasksOn(ds);
   if(!list.length && !tks.length){ document.getElementById('cal').innerHTML='<div class="agenda"><div class="empty">Nothing on this day. Click <b>+ New meeting</b> to schedule one.</div></div>'; return; }
-  var html='<div class="agenda"><div class="agday"><div class="ah">'+esc(DOW[CUR.getDay()]+', '+MON[CUR.getMonth()]+' '+CUR.getDate())+'</div>'+list.map(function(a){ return '<div class="agitem'+(a.source==='booking'?' booked':'')+'" data-appt="'+esc(a.id)+'" style="border-left:3px solid '+(a.source==='booking'?'#DA2B1F':colorForUser(a.byUser).border)+';padding-left:11px"><div class="atime">'+esc(fmtTime(timeOf(a.start)))+(a.end&&timeOf(a.end)!==timeOf(a.start)?('-'+esc(fmtTime(timeOf(a.end)))):'')+'</div><div class="abody"><b'+(a.status==='cancelled'?' style="text-decoration:line-through;opacity:.6"':'')+'>'+esc(a.title)+(a.source==='booking'?' <span class="bktag">Booked online</span>':'')+'</b><div class="ameta">'+esc(a.type||'Meeting')+(a.contactName?(' · '+esc(a.contactName)):'')+(a.location?(' · '+esc(a.location)):'')+' · '+esc(a.byName||'')+'</div></div></div>'; }).join('')+tks.map(taskItem).join('')+'</div></div>';
+  var html='<div class="agenda"><div class="agday"><div class="ah">'+esc(DOW[CUR.getDay()]+', '+MON[CUR.getMonth()]+' '+CUR.getDate())+'</div>'+list.map(function(a){ return '<div class="agitem'+(a.source==='booking'?' booked':'')+'" data-appt="'+esc(a.id)+'" style="border-left:3px solid '+(a.source==='booking'?'#DA2B1F':colorForUser(a.byUser).border)+';padding-left:11px"><div class="atime">'+esc(fmtTime(timeOf(a.start)))+(a.end&&timeOf(a.end)!==timeOf(a.start)?('-'+esc(fmtTime(timeOf(a.end)))):'')+'</div><div class="abody"><b'+(a.status==='cancelled'?' style="text-decoration:line-through;opacity:.6"':'')+'>'+esc(a.title)+(a.source==='booking'?' <span class="bktag">Booked online</span>':'')+'</b><div class="ameta">'+esc(a.type||'Meeting')+(a.contactName?(' · '+esc(a.contactName)):'')+(a.location?(' · '+esc(a.location)):'')+' · '+esc(a.byName||'')+(a.notetakerId?' · <span style="color:#a5352c;font-weight:700">\uD83C\uDF99 Recap</span>':'')+'</div></div></div>'; }).join('')+tks.map(taskItem).join('')+'</div></div>';
   document.getElementById('cal').innerHTML=html; wireGrid();
 }
 function renderWeek(){
@@ -323,7 +323,7 @@ function renderAgenda(){
   var html='<div class="agenda">'+order.map(function(k){
     var dt=new Date(k+'T00:00'); var hd=DOW[dt.getDay()]+', '+MON[dt.getMonth()]+' '+dt.getDate();
     return '<div class="agday"><div class="ah">'+esc(hd)+'</div>'+days[k].appts.map(function(a){
-      return '<div class="agitem'+(a.source==='booking'?' booked':'')+'" data-appt="'+esc(a.id)+'" style="border-left:3px solid '+(a.source==='booking'?'#DA2B1F':colorForUser(a.byUser).border)+';padding-left:11px"><div class="atime">'+esc(fmtTime(timeOf(a.start)))+(a.end&&timeOf(a.end)!==timeOf(a.start)?('–'+esc(fmtTime(timeOf(a.end)))):'')+'</div><div class="abody"><b'+(a.status==='cancelled'?' style="text-decoration:line-through;opacity:.6"':'')+'>'+esc(a.title)+(a.source==='booking'?' <span class="bktag">Booked online</span>':'')+'</b><div class="ameta">'+esc(a.type||'Meeting')+(a.contactName?(' · '+esc(a.contactName)):'')+(a.location?(' · '+esc(a.location)):'')+' · '+esc(a.byName||'')+'</div></div></div>';
+      return '<div class="agitem'+(a.source==='booking'?' booked':'')+'" data-appt="'+esc(a.id)+'" style="border-left:3px solid '+(a.source==='booking'?'#DA2B1F':colorForUser(a.byUser).border)+';padding-left:11px"><div class="atime">'+esc(fmtTime(timeOf(a.start)))+(a.end&&timeOf(a.end)!==timeOf(a.start)?('–'+esc(fmtTime(timeOf(a.end)))):'')+'</div><div class="abody"><b'+(a.status==='cancelled'?' style="text-decoration:line-through;opacity:.6"':'')+'>'+esc(a.title)+(a.source==='booking'?' <span class="bktag">Booked online</span>':'')+'</b><div class="ameta">'+esc(a.type||'Meeting')+(a.contactName?(' · '+esc(a.contactName)):'')+(a.location?(' · '+esc(a.location)):'')+' · '+esc(a.byName||'')+(a.notetakerId?' · <span style="color:#a5352c;font-weight:700">\uD83C\uDF99 Recap</span>':'')+'</div></div></div>';
     }).join('')+days[k].tasks.map(taskItem).join('')+'</div>';
   }).join('')+'</div>';
   document.getElementById('cal').innerHTML=html;
@@ -398,6 +398,7 @@ function openForm(a,presetDate){
   document.getElementById('del').style.display=(a&&(a.byUser===ME))?'':'none';
   document.getElementById('sendinv').style.display=(a&&EMAILREADY)?'':'none';
   var mr=document.getElementById('meetRow'); if(mr){ if(_GCAL.state==='ready' && FEATURES.calMeet!==false){ mr.style.display=''; showMeet(a&&a.meetUrl?a.meetUrl:''); } else { mr.style.display='none'; mr.innerHTML=''; } }
+  renderNoteRow(a);
   renderAtt();
   // Reminder + repeat
   var rem=document.getElementById('f_remind'); if(rem) rem.value=(a&&a.remMinutes!=null&&a.remMinutes!=='')?String(a.remMinutes):'';
@@ -412,6 +413,16 @@ function openForm(a,presetDate){
 }
 function _remChToggle(){ var r=document.getElementById('f_remind'), w=document.getElementById('f_remChwrap'); if(w) w.style.display=(r&&r.value!=='')?'flex':'none'; }
 function _repToggle(){ var r=document.getElementById('f_repeat'), w=document.getElementById('f_repCntWrap'); if(w) w.style.display=(r&&r.value!=='')?'':'none'; }
+function renderNoteRow(a){
+  var w=document.getElementById('noteRow'); if(!w) return;
+  if(!(a&&a.id)){ w.style.display='none'; w.innerHTML=''; return; }
+  w.style.display='';
+  var url='/rrg_notetaker.html?appt='+encodeURIComponent(a.id);
+  var n=(a.notetakerIds&&a.notetakerIds.length)||(a.notetakerId?1:0);
+  var btn='<a href="'+url+'" target="_blank" style="background:#000E31;color:#fff;border:none;border-radius:8px;padding:9px 14px;font-weight:700;font-size:13px;text-decoration:none;display:inline-block">🎙 '+(n?'Open Notetaker':'Record with Notetaker')+'</a>';
+  var side=n?('<span style="margin-left:10px;font-size:12px;color:#1f8a5b;font-weight:700">\u2713 '+n+' recording'+(n>1?'s':'')+' &amp; recap on file</span>'):('<span style="margin-left:10px;font-size:12px;color:#8a93a8">Record the call/meeting \u2192 transcript &amp; AI recap</span>');
+  w.innerHTML=btn+side;
+}
 function closeForm(){ document.getElementById('modal').setAttribute('hidden',''); EDIT=null; }
 function bodyFromForm(){
   var date=document.getElementById('f_date').value; var st=document.getElementById('f_start').value||'09:00'; var en=document.getElementById('f_end').value||st;

@@ -17,6 +17,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 h1{font-size:21px;font-weight:700;margin:3px 0 0;color:#fff;letter-spacing:-.01em;}
 .subline{color:#aeb8cf;font-size:12.5px;margin-top:5px;display:flex;gap:14px;flex-wrap:wrap;align-items:center;}
 .hpill{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:4px 11px;border-radius:999px;border:1px solid rgba(255,255,255,.3);color:#fff;background:rgba(255,255,255,.08);}
+.ownpill{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:4px 11px;border-radius:999px;color:#fff;background:#DA2B1F;}
 .interestpills{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px;}
 .interestpills button{border:1px solid #dbe0e9;border-radius:999px;padding:6px 13px;font:inherit;font-size:12.5px;cursor:pointer;transition:background .12s,color .12s,border-color .12s;}
 .subline a{color:#fff;font-weight:700;text-decoration:underline;text-underline-offset:2px;}
@@ -349,6 +350,7 @@ document.addEventListener('click',function(e){ var t=e.target.closest&&e.target.
 </script>
 <div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
 <script>
+var MARKETS=['Austin','Houston','Dallas','San Antonio'];
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 // Gmail returns snippets/subjects/bodies HTML-escaped (&#39; &amp; …). Decode them once so
 // esc() below doesn't double-escape and show the raw entities.
@@ -1572,6 +1574,9 @@ function render(){
   if(P.email) sub.push('<span>'+esc(P.email)+'</span>'); if(P.phone) sub.push('<span>'+esc(P.phone)+'</span>');
   if(P.url){ var u=/^https?:\/\//i.test(P.url)?P.url:('https://'+P.url); sub.push('<span><a href="'+esc(u)+'" target="_blank" rel="noopener">'+esc(P.url)+'</a></span>'); }
   if(P.leadSource) sub.push('<span>Source: '+esc(P.leadSource)+'</span>');
+  if(P.market) sub.push('<span>\ud83d\udccd '+esc(P.market)+'</span>');
+  { var _own=(P.byName||P.by||''); if(_own) sub.push('<span class="ownpill">Owned by '+esc(_own)+'</span>'); }
+
   if(P.referredBy){ var rbh=P.referredById?('<a href="./rrg_person.html?id='+encodeURIComponent(P.referredById)+'">'+esc(P.referredBy)+'</a>'):esc(P.referredBy); sub.push('<span>Referred by: '+rbh+'</span>'); }
   if(P.prefContact&&P.prefContact.length) sub.push('<span>Prefers: '+P.prefContact.map(function(x){return esc(x);}).join(' / ')+'</span>');
   if(P.tags&&P.tags.length) sub.push('<span>'+P.tags.map(function(t){return '<span class="hpill" style="text-transform:none;letter-spacing:.02em">'+esc(t)+'</span>';}).join(' ')+'</span>');
@@ -1605,6 +1610,7 @@ function render(){
       + '<div class="fldrow"><label class="fld">Emails <span class="prefhint">★ marks preferred</span></label><div id="p_emails">'+prefFieldHtml('p_email',pemails,'name@email.com','prefemail',P.preferredEmail)+'</div><div id="p_emailwarn" style="font-size:12px;color:#b23a2c;margin-top:5px;display:none"></div></div>'
       + '<div class="fldrow"><label class="fld">Phones <span class="prefhint">★ marks preferred</span></label><div id="p_phones">'+prefFieldHtml('p_phone',pphones,'(555) 555-5555','prefphone',P.preferredPhone,true)+'</div></div>'
       + '<div class="fldrow2"><div><label class="fld">Lead source</label><select id="p_lead">'+leadOpts+'</select></div><div><label class="fld">LinkedIn</label><input id="p_url" value="'+esc(P.url||'')+'" placeholder="linkedin.com/in/…"></div></div>'
+      + '<div class="fldrow2"><div><label class="fld">Market / Territory</label><select id="p_market"><option value="">\u2014 Select market \u2014</option>'+MARKETS.map(function(m){return '<option'+((P.market||'')===m?' selected':'')+'>'+esc(m)+'</option>';}).join('')+((P.market&&MARKETS.indexOf(P.market)<0)?('<option selected>'+esc(P.market)+'</option>'):'')+'</select></div><div></div></div>'
       + '<div class="fldrow" id="p_refbyrow"'+(_isRef(P.leadSource)?'':' hidden')+'><label class="fld">Referred by</label><input id="p_refby" list="p_refbylist" autocomplete="off" value="'+esc(P.referredBy||'')+'" placeholder="Type a contact name…"><datalist id="p_refbylist"></datalist></div>'
       + '<div class="fldrow"><label class="fld">Preferred contact method</label><div id="p_pref" style="display:flex;gap:16px;font-size:13px;padding-top:2px">'+['phone','text','email'].map(function(k){ var pc=Array.isArray(P.prefContact)?P.prefContact:[]; return '<label style="display:inline-flex;align-items:center;gap:5px"><input type="checkbox" class="p_prefchk" value="'+k+'"'+(pc.indexOf(k)>=0?' checked':'')+'> '+k.charAt(0).toUpperCase()+k.slice(1)+'</label>'; }).join('')+'</div></div>'
       + '</div></div>'
@@ -1839,7 +1845,7 @@ function savePerson(silent){
   if(!first||!last){ if(m)m.textContent='First and last name are required.'; return; }
   if(!types.length){ if(m)m.textContent='Pick at least one main interest.'; return; }
   if(m) m.textContent=''; if(st){ st.textContent='Saving…'; st.classList.add('show'); }
-  var body={ id:ID, firstName:first, lastName:last, types:types, nickname:document.getElementById('p_nick').value.trim(), title:(document.getElementById('p_title')||{}).value||'', company:document.getElementById('p_company').value.trim(), companyName:document.getElementById('p_company').value.trim(), emails:collectMulti(root,'p_email'), phones:collectMulti(root,'p_phone'), preferredEmail:collectPreferred(root,'prefemail','p_email'), preferredPhone:collectPreferred(root,'prefphone','p_phone'), leadSource:(document.getElementById('p_lead')||{}).value||'', referredBy:(_isRef((document.getElementById('p_lead')||{}).value)?(((document.getElementById('p_refby')||{}).value||'').trim()):''), referredById:(function(){ var lv=(document.getElementById('p_lead')||{}).value; if(!_isRef(lv)) return ''; var v=(((document.getElementById('p_refby')||{}).value||'').trim()); return v?(P_REFMAP[v.toLowerCase()]||''):''; })(), prefContact:(function(){var o=[];document.querySelectorAll('.p_prefchk').forEach(function(c){if(c.checked)o.push(c.value);});return o;})(), lastContacted:(document.getElementById('p_lastcontact')||{}).value||'', url:document.getElementById('p_url').value.trim(), vip:!!(P&&P.vip), caution:!!(P&&P.caution), tags:CURTAGS.slice(), notes:document.getElementById('p_notes').value };
+  var body={ id:ID, firstName:first, lastName:last, types:types, nickname:document.getElementById('p_nick').value.trim(), title:(document.getElementById('p_title')||{}).value||'', company:document.getElementById('p_company').value.trim(), companyName:document.getElementById('p_company').value.trim(), emails:collectMulti(root,'p_email'), phones:collectMulti(root,'p_phone'), preferredEmail:collectPreferred(root,'prefemail','p_email'), preferredPhone:collectPreferred(root,'prefphone','p_phone'), leadSource:(document.getElementById('p_lead')||{}).value||'', market:(document.getElementById('p_market')||{}).value||'', referredBy:(_isRef((document.getElementById('p_lead')||{}).value)?(((document.getElementById('p_refby')||{}).value||'').trim()):''), referredById:(function(){ var lv=(document.getElementById('p_lead')||{}).value; if(!_isRef(lv)) return ''; var v=(((document.getElementById('p_refby')||{}).value||'').trim()); return v?(P_REFMAP[v.toLowerCase()]||''):''; })(), prefContact:(function(){var o=[];document.querySelectorAll('.p_prefchk').forEach(function(c){if(c.checked)o.push(c.value);});return o;})(), lastContacted:(document.getElementById('p_lastcontact')||{}).value||'', url:document.getElementById('p_url').value.trim(), vip:!!(P&&P.vip), caution:!!(P&&P.caution), tags:CURTAGS.slice(), notes:document.getElementById('p_notes').value };
   fetch('/api/person',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ P=j.person; DIRTY=false; document.getElementById('h1').textContent=P.name; document.getElementById('crumb').textContent=P.name; if(st){ st.textContent='Saved ✓'; st.classList.add('show'); } } else { if(m)m.textContent=(j&&j.error)||'Could not save.'; if(st)st.textContent=''; } })
     .catch(function(){ if(m)m.textContent='Could not reach the server.'; if(st)st.textContent=''; });
