@@ -56,7 +56,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .pri{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:1px 6px;border-radius:100px;background:#eef1f7;color:#6d7c9c;} .pri.high{background:#fbeceb;color:var(--red);} .pri.med{background:#fbf3e7;color:var(--gold);}
 .empty{color:var(--soft);font-size:12.5px;padding:14px 2px;}
 .gate{max-width:520px;margin:80px auto;text-align:center;color:var(--dim);}
-</style>
+.rtoast{position:fixed;right:20px;bottom:20px;z-index:99999;background:#0b1a38;color:#fff;font-size:13.5px;font-weight:600;padding:12px 16px;border-radius:10px;box-shadow:0 10px 30px rgba(6,14,33,.35);opacity:0;transform:translateY(12px);transition:opacity .25s,transform .25s;max-width:320px;}.rtoast.show{opacity:1;transform:translateY(0);}.rtoast + .rtoast{bottom:74px;}.onav{width:26px;height:26px;border-radius:50%;object-fit:cover;flex:none;}</style>
 <script src="/rrg_brand.js"></script>
 </head>
 <body>
@@ -99,7 +99,13 @@ function expiringHtml(D){ var e=(D.expiring||[]); if(!e.length) return ''; retur
 function activityHtml(D){ var a=(D.activity||[]); var body=a.length?('<div class="feed">'+a.slice(0,7).map(function(x){ var who=x.id?('<a class="flink" href="./rrg_person.html?id='+encodeURIComponent(x.id)+'">'+esc(x.who||'')+'</a>'):('<b>'+esc(x.who||'')+'</b>'); return '<div class="fitem"><span class="fico">•</span><span class="ftxt">'+who+' · '+esc(x.type||'')+(x.text?(' — '+esc(x.text)):'')+'</span><span class="ftime">'+esc(fmtDate(x.at))+'</span></div>'; }).join('')+'</div>'):'<div class="empty">No recent activity.</div>'; return '<div class="card"><div class="ch"><b>Recent activity</b><a class="more" href="./rrg_activity.html">All →</a></div><div class="cb">'+body+'</div></div>'; }
 function verText(M){ M=M||{}; var v=M.version?('v'+String(M.version).replace(/^v/i,'')):(M.build||(M.buildNo?('build '+M.buildNo):'')); return v||''; }
 function verTitle(M){ M=M||{}; var p=[]; if(M.build) p.push('Build '+M.build); if(M.buildNo) p.push('#'+M.buildNo); if(M.sha) p.push(String(M.sha).slice(0,7)); if(M.booted){ try{ p.push('booted '+new Date(M.booted).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})); }catch(e){} } return p.join(' · '); }
-function render(NAME,D,META){
+function onlineRow(u){ var ini=(u.name||u.username||'?').trim().split(/\s+/).map(function(w){return w.charAt(0);}).join('').slice(0,2).toUpperCase(); var av=u.photoUrl?('<img class="onav" src="'+esc(u.photoUrl)+'" onerror="this.remove()">'):('<span class="fico" style="background:#e7f5ee;color:#1f8a5b">'+esc(ini)+'</span>'); var when=(u.minsAgo<=1?'active now':(u.minsAgo+'m ago')); return '<div class="fitem" data-u="'+esc(u.username)+'">'+av+'<span class="ftxt"><b>'+esc(u.name||u.username)+'</b></span><span class="ftime">'+esc(when)+'</span></div>'; }
+function onlineListHtml(list){ list=list||[]; return list.length?('<div class="feed" id="onlineList">'+list.map(onlineRow).join('')+'</div>'):'<div class="empty" id="onlineList">No one else is online right now.</div>'; }
+function onlineHtml(list){ list=list||[]; return '<div class="card"><div class="ch"><b>Who\u2019s online</b><span class="live" style="margin-left:auto"><span class="d"></span><span id="onlineCount">'+list.length+'</span></span></div><div class="cb">'+onlineListHtml(list)+'</div></div>'; }
+function toast(msg){ var t=document.createElement('div'); t.className='rtoast'; t.textContent=msg; document.body.appendChild(t); setTimeout(function(){ t.classList.add('show'); },20); setTimeout(function(){ t.classList.remove('show'); setTimeout(function(){ if(t.parentNode) t.parentNode.removeChild(t); },300); }, 5000); }
+var PREV_ONLINE=null;
+function startPresence(seed){ PREV_ONLINE={}; (seed||[]).forEach(function(u){ PREV_ONLINE[u.username]=1; }); setInterval(function(){ fetch('/api/online',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(!j||!j.ok) return; var list=j.online||[]; var host=document.getElementById('onlineList'); if(host){ var wrap=document.createElement('div'); wrap.innerHTML=onlineListHtml(list); host.replaceWith(wrap.firstChild); } var cc=document.getElementById('onlineCount'); if(cc) cc.textContent=String(list.length); var cur={}; list.forEach(function(u){ cur[u.username]=1; if(PREV_ONLINE && !PREV_ONLINE[u.username]) toast('\ud83d\udfe2 '+(u.name||u.username)+' just came online'); }); PREV_ONLINE=cur; }).catch(function(){}); }, 30000); }
+function render(NAME,D,META,ONLINE,ISADMIN){
   var vt=verText(META);
   var vw=''; try{ if(META.booted) vw=new Date(META.booted).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }catch(e){}
   var vlabel=(vt?('FullServe '+vt):'FullServe')+(vw?(' · '+vw):'');
@@ -109,14 +115,14 @@ function render(NAME,D,META){
       +'<div class="headright">'+((vt||vw)?('<span class="ver" title="'+esc(verTitle(META))+'">'+esc(vlabel)+'</span>'):'')+'<div class="qa"><a class="pri" href="./rrg_board.html">Pipeline board</a><a href="./rrg_companies.html">+ Company</a><a href="./rrg_people.html">+ Contact</a></div></div>'
     +'</div>'
     +kpiHtml(D)
-    +'<div class="grid"><div class="col">'+pipelineHtml(D)+linksHtml()+'</div><div class="col">'+tasksHtml(D)+expiringHtml(D)+activityHtml(D)+'</div></div>'
+    +'<div class="grid"><div class="col">'+(ISADMIN?onlineHtml(ONLINE):'')+pipelineHtml(D)+linksHtml()+'</div><div class="col">'+tasksHtml(D)+expiringHtml(D)+activityHtml(D)+'</div></div>'
     +'</div>';
   setTimeout(function(){ document.querySelectorAll('.stage .fill[data-w]').forEach(function(el){ el.style.width=el.getAttribute('data-w')+'%'; }); },60);
 }
 document.addEventListener('click',function(e){ var b=e.target&&e.target.closest?e.target.closest('.ftask'):null; if(!b||!b.getAttribute('data-tid')) return; var tid=b.getAttribute('data-tid'); b.disabled=true; b.textContent='\u2026'; fetch('/api/tasks/'+encodeURIComponent(tid)+'/toggle',{method:'POST',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ var row=b.closest('.fitem'); if(row){ row.style.transition='opacity .2s'; row.style.opacity='0'; setTimeout(function(){ if(row.parentNode) row.parentNode.removeChild(row); },200); } } else { b.disabled=false; b.textContent='\u2714'; alert((j&&j.error)||'Could not update the task.'); } }).catch(function(){ b.disabled=false; b.textContent='\u2714'; alert('Could not reach the server.'); }); });
 fetch('/api/dashboard',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
   if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="wrap"><div class="gate">Could not load your command center.</div></div>'; return; }
-  render(j.name||'', j.data||{}, {build:j.build,version:j.version,buildNo:j.buildNo,sha:j.sha,booted:j.booted});
+  render(j.name||'', j.data||{}, {build:j.build,version:j.version,buildNo:j.buildNo,sha:j.sha,booted:j.booted}, j.online||[], !!j.isAdmin); if(j.isAdmin) startPresence(j.online||[]);
 }).catch(function(){ document.getElementById('root').innerHTML='<div class="wrap"><div class="gate">Could not reach the server.</div></div>'; });
 </script>
 </body>
