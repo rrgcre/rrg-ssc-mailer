@@ -25,7 +25,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .fwhen{font-size:12.5px;color:var(--soft);margin-left:auto;font-weight:500;}
 .fnote{font-size:12.5px;color:var(--muted);margin-top:2px;line-height:1.4;}
 .empty{color:var(--soft);font-size:13.5px;padding:40px 20px;text-align:center;}
-.scoperow{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+.scoperow{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center;}
+.fctl{font:inherit;font-size:13px;font-weight:600;border:1px solid var(--line,#e6e9f0);border-radius:8px;padding:7px 10px;background:#fff;color:var(--ink);cursor:pointer;}
+.tmwrap{position:relative;display:inline-block;}
+.tmpanel{position:absolute;top:calc(100% + 4px);left:0;z-index:50;background:#fff;border:1px solid var(--line,#e6e9f0);border-radius:8px;box-shadow:0 10px 30px rgba(16,24,40,.14);padding:6px;min-width:180px;max-height:280px;overflow:auto;}
+.tmpanel label{display:flex;align-items:center;gap:8px;padding:6px 9px;border-radius:6px;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;white-space:nowrap;}
+.tmpanel label:hover{background:#f4f7fb;}
+.tmpanel input{width:auto;margin:0;}
+.tmpanel .tmdiv{border-top:1px solid #eef1f6;margin:5px 0;}
+.tmpanel .tmclear{color:#2c5c8f;font-weight:700;font-size:12px;}
 .scbtn{border:1px solid #cfd6e2;background:#fff;color:var(--ink);border-radius:4px;padding:7px 14px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;}
 .scbtn.on{background:var(--navy);border-color:var(--navy);color:#fff;}
 .feedshell{display:flex;gap:22px;align-items:flex-start;max-width:1360px;margin:22px auto;padding:0 24px 70px;}
@@ -127,7 +135,7 @@ a.feat:hover{background:#f4f7fb;} a.feat:hover b{color:#2c5c8f;}
         <a class="feat" href="rrg_feed_help.html#suggested" target="_blank" rel="noopener"><span class="fic">➕</span><div><b>People worth adding</b><span>Frequent email contacts you haven't saved yet, surfaced from your inbox — add in one click.</span></div></a>
       </div>
     </div>
-    <div class="scoperow" id="scoperow"><button class="scbtn on" data-scope="all" style="display:none">All activity</button><button class="scbtn" data-scope="mine" style="display:none">My activity</button><button class="scbtn on" id="sysToggle" title="Show or hide automated system activity">System activity: On</button><select id="userFilter" style="display:none;margin-left:8px;font:inherit;font-size:13px;font-weight:600;border:1px solid var(--line,#e6e9f0);border-radius:8px;padding:7px 10px;background:#fff;color:var(--ink);cursor:pointer"><option value="">All users</option></select><select id="typeFilter" style="margin-left:8px;font:inherit;font-size:13px;font-weight:600;border:1px solid var(--line,#e6e9f0);border-radius:8px;padding:7px 10px;background:#fff;color:var(--ink);cursor:pointer"><option value="">All types</option></select></div>
+    <div class="scoperow" id="scoperow"><button class="scbtn on" data-scope="all" style="display:none">All activity</button><button class="scbtn" data-scope="mine" style="display:none">My activity</button><button class="scbtn on" id="sysToggle" title="Show or hide automated system activity">System activity: On</button><select id="userFilter" style="display:none;margin-left:8px;font:inherit;font-size:13px;font-weight:600;border:1px solid var(--line,#e6e9f0);border-radius:8px;padding:7px 10px;background:#fff;color:var(--ink);cursor:pointer"><option value="">All users</option></select><select id="dateFilter" class="fctl" style="margin-left:8px"><option value="">All time</option><option value="today">Today</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="qtr">This quarter</option><option value="custom">Custom\u2026</option></select><input type="date" id="dateFrom" class="fctl" style="display:none;margin-left:6px"><input type="date" id="dateTo" class="fctl" style="display:none;margin-left:6px"><input id="entityFilter" class="fctl" list="entityList" placeholder="Any contact / company / listing" autocomplete="off" style="margin-left:8px;min-width:210px;cursor:text"><datalist id="entityList"></datalist><span class="tmwrap" style="margin-left:8px"><button type="button" id="typeBtn" class="fctl">All types \u25be</button><div id="typePanel" class="tmpanel" hidden></div></span></div>
     <div class="card" id="feed"><div class="empty">Loading…</div></div>
   </div>
   <aside class="railR" id="railR">
@@ -140,18 +148,37 @@ function esc(s){var d=document.createElement('div');d.textContent=s==null?'':Str
 function fmt(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return String(iso); return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2); }
 function fmtDT(v){ if(!v) return ''; var s=String(v); var dOnly=/^\d{4}-\d{2}-\d{2}$/.test(s); var d=new Date(dOnly?(s+'T00:00:00'):s); if(isNaN(d.getTime())) return fmt(v); var base=(d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2); if(dOnly) return base; var h=d.getHours(),mi=String(d.getMinutes()).padStart(2,'0'),ap=h<12?'AM':'PM',h12=(h%12)||12; return base+' '+h12+':'+mi+' '+ap; }
 function actColor(t){ var m={'Tour':['#eef2fb','#23496f'],'Photo Shoot':['#f1ebfb','#6d28d9'],'Meal':['#fdf1df','#b5791f'],'Text':['#e6f5f3','#0f766e'],'Call':['#e7f5ee','#1f8a5b'],'Email':['#eef2fb','#3949ab'],'Form Submitted':['#eef1f6','#5b6472'],'Contact Added':['#e7f5ee','#1f8a5b'],'Agreement Sent':['#fff4e6','#b9761a'],'Agreement Signed':['#e7f5ee','#1f8a5b'],'LOI Sent':['#e9f1ff','#1d6fd6'],'LOI Received':['#eef7ee','#2f9e50'],'Diligence':['#eef2fb','#23496f'],'Note':['#eef1f6','#5b6472'],'To-Do':['#fdeceb','#DA2B1F'],'Data Room':['#eaf0fb','#2c5c8f'],'Meeting':['#eef2fb','#3949ab'],'Listing Presentation':['#f1ebfb','#6d28d9'],'Closing':['#e7f5ee','#1f8a5b'],'Follow-up':['#fdf1df','#b5791f'],'Other':['#eef1f6','#5b6472']}; return m[t]||['#eef1f6','#5b6472']; }
-var SCOPE='all', HIDE_SYSTEM=true, ALLITEMS=[], TYPEF='', USERF='';
+var SCOPE='all', HIDE_SYSTEM=true, ALLITEMS=[], USERF='', TYPESEL=[], DATEF='', DATE_FROM='', DATE_TO='', ENTITYF='';
 try{ HIDE_SYSTEM=(localStorage.getItem('rrgFeedHideSystem')!=='0'); }catch(e){ HIDE_SYSTEM=true; }
 function syncSysBtn(){ var b=document.getElementById('sysToggle'); if(!b) return; b.textContent='System activity: '+(HIDE_SYSTEM?'Off':'On'); b.classList.toggle('on',!HIDE_SYSTEM); }
-function buildTypeFilter(){ var sel=document.getElementById('typeFilter'); if(!sel) return; var types={}; ALLITEMS.forEach(function(a){ if(a.type) types[a.type]=1; }); sel.innerHTML='<option value="">All types</option>'+Object.keys(types).sort().map(function(t){ return '<option value="'+esc(t)+'"'+(t===TYPEF?' selected':'')+'>'+esc(t)+'</option>'; }).join(''); }
+function typeBtnLabel(){ var b=document.getElementById('typeBtn'); if(!b) return; b.textContent=(TYPESEL.length? (TYPESEL.length+' type'+(TYPESEL.length===1?'':'s')) : 'All types')+' \u25be'; }
+function buildTypePanel(){ var p=document.getElementById('typePanel'); if(!p) return; var types={}; ALLITEMS.forEach(function(a){ if(a.type) types[a.type]=1; }); var list=Object.keys(types).sort();
+  TYPESEL=TYPESEL.filter(function(t){ return list.indexOf(t)>=0; });
+  p.innerHTML=list.map(function(t){ return '<label><input type="checkbox" class="tmck" value="'+esc(t)+'"'+(TYPESEL.indexOf(t)>=0?' checked':'')+'> '+esc(t)+'</label>'; }).join('')+(list.length?'<div class="tmdiv"></div><label class="tmclear" id="tmClear">Clear all types</label>':'');
+  p.querySelectorAll('.tmck').forEach(function(c){ c.addEventListener('change',function(){ if(c.checked){ if(TYPESEL.indexOf(c.value)<0) TYPESEL.push(c.value); } else { TYPESEL=TYPESEL.filter(function(x){return x!==c.value;}); } typeBtnLabel(); renderViews(); load(); }); });
+  var clr=document.getElementById('tmClear'); if(clr) clr.addEventListener('click',function(){ TYPESEL=[]; buildTypePanel(); typeBtnLabel(); renderViews(); load(); });
+  typeBtnLabel();
+}
+function buildEntityList(){ var dl=document.getElementById('entityList'); if(!dl) return; var names={}; ALLITEMS.forEach(function(a){ [a.personName,a.company,a.business,a.buyer].forEach(function(v){ v=String(v||'').trim(); if(v) names[v]=1; }); }); dl.innerHTML=Object.keys(names).sort(function(x,y){return x.toLowerCase()<y.toLowerCase()?-1:1;}).map(function(n){ return '<option value="'+esc(n)+'"></option>'; }).join(''); }
+function _qStart(){ var d=new Date(); var q=Math.floor(d.getMonth()/3)*3; return new Date(d.getFullYear(),q,1).getTime(); }
+function inDateRange(at){ if(!DATEF) return true; var t=new Date(at).getTime(); if(isNaN(t)) return true; var now=Date.now();
+  if(DATEF==='today'){ var d=new Date(); d.setHours(0,0,0,0); return t>=d.getTime(); }
+  if(DATEF==='7') return t>=now-7*864e5;
+  if(DATEF==='30') return t>=now-30*864e5;
+  if(DATEF==='qtr') return t>=_qStart();
+  if(DATEF==='custom'){ var fr=DATE_FROM?new Date(DATE_FROM+'T00:00:00').getTime():-Infinity; var to=DATE_TO?new Date(DATE_TO+'T23:59:59').getTime():Infinity; return t>=fr&&t<=to; }
+  return true; }
+function matchEntity(a){ if(!ENTITYF) return true; var q=ENTITYF.toLowerCase(); return [a.personName,a.company,a.business,a.buyer].some(function(v){ return v&&String(v).toLowerCase().indexOf(q)>=0; }); }
+function matchType(a){ return !TYPESEL.length || TYPESEL.indexOf(a.type)>=0; }
+function filtersActive(){ return !!(TYPESEL.length||DATEF||ENTITYF); }
 function buildUserFilter(users){ var sel=document.getElementById('userFilter'); if(!sel) return; sel.innerHTML='<option value="">All users</option>'+(users||[]).map(function(u){ return '<option value="'+esc(u.username)+'"'+(u.username===USERF?' selected':'')+'>'+esc(u.name)+'</option>'; }).join(''); }
 function load(){
   var _qs=[]; if(SCOPE==='mine') _qs.push('scope=mine'); if(USERF) _qs.push('user='+encodeURIComponent(USERF)); fetch('/api/feed'+(_qs.length?('?'+_qs.join('&')):''),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
   if(j&&j.canScope){ document.querySelectorAll('#scoperow [data-scope]').forEach(function(b){ b.style.display=''; }); var _uf=document.getElementById('userFilter'); if(_uf) _uf.style.display=''; buildUserFilter(j.users); }
   var el=document.getElementById('feed');
-  ALLITEMS=((j&&j.items)||[]); buildTypeFilter();
-  var items=ALLITEMS.filter(function(a){ return (HIDE_SYSTEM?!a.system:true) && (!TYPEF||a.type===TYPEF); });
-  if(!items.length){ el.innerHTML='<div class="empty">'+(TYPEF?('No '+esc(TYPEF)+' activity'+(HIDE_SYSTEM?' (system activity is hidden)':'')+'.'):'No activity logged across your contacts yet. Log a call, tour, or note on a contact and it shows up here.')+'</div>'; return; }
+  ALLITEMS=((j&&j.items)||[]); buildTypePanel(); buildEntityList();
+  var items=ALLITEMS.filter(function(a){ return (HIDE_SYSTEM?!a.system:true) && matchType(a) && inDateRange(a.at) && matchEntity(a); });
+  if(!items.length){ el.innerHTML='<div class="empty">'+(filtersActive()?'No activity matches these filters'+(HIDE_SYSTEM?' (system activity is hidden)':'')+'. Clear or widen them to see more.':'No activity logged across your contacts yet. Log a call, tour, or note on a contact and it shows up here.')+'</div>'; return; }
   el.innerHTML=items.map(function(a){
     var c=actColor(a.type);
     var when='<span class="fwhen">'+esc(fmtDT(a.at))+'</span>';
@@ -177,7 +204,12 @@ function load(){
 }
 document.querySelectorAll('.scbtn[data-scope]').forEach(function(b){ b.addEventListener('click',function(){ SCOPE=b.getAttribute('data-scope'); document.querySelectorAll('.scbtn[data-scope]').forEach(function(x){x.classList.toggle('on',x===b);}); load(); }); });
 var _st=document.getElementById('sysToggle'); if(_st) _st.addEventListener('click',function(){ HIDE_SYSTEM=!HIDE_SYSTEM; try{ localStorage.setItem('rrgFeedHideSystem',HIDE_SYSTEM?'1':'0'); }catch(e){} syncSysBtn(); load(); }); syncSysBtn();
-var _tf=document.getElementById('typeFilter'); if(_tf) _tf.addEventListener('change',function(){ TYPEF=_tf.value; load(); });
+var _df=document.getElementById('dateFilter'); if(_df) _df.addEventListener('change',function(){ DATEF=_df.value; var cust=(DATEF==='custom'); var a=document.getElementById('dateFrom'),b=document.getElementById('dateTo'); if(a) a.style.display=cust?'':'none'; if(b) b.style.display=cust?'':'none'; renderViews(); load(); });
+var _dfr=document.getElementById('dateFrom'); if(_dfr) _dfr.addEventListener('change',function(){ DATE_FROM=_dfr.value; renderViews(); load(); });
+var _dto=document.getElementById('dateTo'); if(_dto) _dto.addEventListener('change',function(){ DATE_TO=_dto.value; renderViews(); load(); });
+var _ef=document.getElementById('entityFilter'); if(_ef){ var _et=null; _ef.addEventListener('input',function(){ if(_et) clearTimeout(_et); _et=setTimeout(function(){ ENTITYF=_ef.value.trim(); renderViews(); load(); },250); }); }
+var _tb=document.getElementById('typeBtn'); if(_tb) _tb.addEventListener('click',function(e){ e.stopPropagation(); var p=document.getElementById('typePanel'); if(p) p.hidden=!p.hidden; });
+document.addEventListener('click',function(e){ var p=document.getElementById('typePanel'); if(p&&!p.hidden&&!e.target.closest('.tmwrap')) p.hidden=true; });
 var _uf2=document.getElementById('userFilter'); if(_uf2) _uf2.addEventListener('change',function(){ USERF=_uf2.value; renderViews(); load(); });
 
 /* ---- Saved views rail ---- */
@@ -185,13 +217,17 @@ var VIEWS=[];
 try{ VIEWS=JSON.parse(localStorage.getItem('rrgFeedViews')||'[]')||[]; }catch(e){ VIEWS=[]; }
 if(!Array.isArray(VIEWS)) VIEWS=[];
 function saveViews(){ try{ localStorage.setItem('rrgFeedViews', JSON.stringify(VIEWS)); }catch(e){} }
-function curSig(){ return JSON.stringify({s:SCOPE,h:HIDE_SYSTEM,t:TYPEF,u:USERF}); }
-function viewSig(v){ return JSON.stringify({s:v.scope,h:v.hideSystem,t:v.type,u:v.user}); }
-function viewSub(v){ var p=[]; if(v.scope==='mine') p.push('My activity'); if(v.type) p.push(v.type); if(v.user) p.push('user'); p.push(v.hideSystem?'system off':'system on'); return p.join(' · '); }
+function curSig(){ return JSON.stringify({s:SCOPE,h:HIDE_SYSTEM,t:TYPESEL.slice().sort().join('|'),u:USERF,d:DATEF,f:DATE_FROM,o:DATE_TO,e:ENTITYF}); }
+function viewSig(v){ return JSON.stringify({s:v.scope,h:v.hideSystem,t:(v.types?v.types.slice().sort().join('|'):(v.type||'')),u:v.user,d:v.datef||'',f:v.dateFrom||'',o:v.dateTo||'',e:v.entity||''}); }
+function _dateLbl(d){ return {today:'Today','7':'Last 7 days','30':'Last 30 days',qtr:'This quarter',custom:'Custom dates'}[d]||''; }
+function viewSub(v){ var p=[]; if(v.scope==='mine') p.push('My activity'); var ty=(v.types&&v.types.length)?v.types:(v.type?[v.type]:[]); if(ty.length) p.push(ty.length===1?ty[0]:(ty.length+' types')); if(v.datef) p.push(_dateLbl(v.datef)); if(v.entity) p.push('\u201c'+v.entity+'\u201d'); if(v.user) p.push('user'); p.push(v.hideSystem?'system off':'system on'); return p.join(' \u00b7 '); }
 function reflectControls(){
   document.querySelectorAll('.scbtn[data-scope]').forEach(function(x){ x.classList.toggle('on', x.getAttribute('data-scope')===SCOPE); });
   syncSysBtn();
-  var tf=document.getElementById('typeFilter'); if(tf) tf.value=TYPEF;
+  var df=document.getElementById('dateFilter'); if(df) df.value=DATEF;
+  var cust=(DATEF==='custom'); var a=document.getElementById('dateFrom'),b=document.getElementById('dateTo'); if(a){ a.style.display=cust?'':'none'; a.value=DATE_FROM; } if(b){ b.style.display=cust?'':'none'; b.value=DATE_TO; }
+  var ef=document.getElementById('entityFilter'); if(ef) ef.value=ENTITYF;
+  buildTypePanel();
   var uf=document.getElementById('userFilter'); if(uf) uf.value=USERF;
 }
 function renderViews(){
@@ -203,11 +239,11 @@ function renderViews(){
   host.querySelectorAll('.viewitem').forEach(function(el){ el.addEventListener('click',function(e){ if(e.target.closest('[data-del]')) return; applyView(el.getAttribute('data-id')); }); });
   host.querySelectorAll('[data-del]').forEach(function(x){ x.addEventListener('click',function(e){ e.stopPropagation(); delView(x.getAttribute('data-del')); }); });
 }
-function applyView(id){ var v=VIEWS.filter(function(x){return x.id===id;})[0]; if(!v) return; SCOPE=v.scope||'all'; HIDE_SYSTEM=!!v.hideSystem; TYPEF=v.type||''; USERF=v.user||''; try{ localStorage.setItem('rrgFeedHideSystem',HIDE_SYSTEM?'1':'0'); }catch(e){} reflectControls(); renderViews(); load(); }
+function applyView(id){ var v=VIEWS.filter(function(x){return x.id===id;})[0]; if(!v) return; SCOPE=v.scope||'all'; HIDE_SYSTEM=!!v.hideSystem; TYPESEL=(v.types?v.types.slice():(v.type?[v.type]:[])); USERF=v.user||''; DATEF=v.datef||''; DATE_FROM=v.dateFrom||''; DATE_TO=v.dateTo||''; ENTITYF=v.entity||''; try{ localStorage.setItem('rrgFeedHideSystem',HIDE_SYSTEM?'1':'0'); }catch(e){} reflectControls(); renderViews(); load(); }
 function delView(id){ VIEWS=VIEWS.filter(function(x){return x.id!==id;}); saveViews(); renderViews(); }
 function openSaveForm(){ var f=document.getElementById('saveForm'); if(!f) return; f.classList.add('on'); var i=document.getElementById('viewName'); if(i){ i.value=''; i.focus(); } }
 function closeSaveForm(){ var f=document.getElementById('saveForm'); if(f) f.classList.remove('on'); }
-function commitSave(){ var i=document.getElementById('viewName'); var nm=(i&&i.value||'').trim(); if(!nm){ if(i) i.focus(); return; } VIEWS.push({ id:'v'+Date.now()+Math.floor(Math.random()*1000), name:nm, scope:SCOPE, hideSystem:HIDE_SYSTEM, type:TYPEF, user:USERF }); saveViews(); closeSaveForm(); renderViews(); }
+function commitSave(){ var i=document.getElementById('viewName'); var nm=(i&&i.value||'').trim(); if(!nm){ if(i) i.focus(); return; } VIEWS.push({ id:'v'+Date.now()+Math.floor(Math.random()*1000), name:nm, scope:SCOPE, hideSystem:HIDE_SYSTEM, types:TYPESEL.slice(), user:USERF, datef:DATEF, dateFrom:DATE_FROM, dateTo:DATE_TO, entity:ENTITYF }); saveViews(); closeSaveForm(); renderViews(); }
 (function(){ var b=document.getElementById('saveViewBtn'); if(b) b.addEventListener('click',openSaveForm); var s=document.getElementById('sfSave'); if(s) s.addEventListener('click',commitSave); var c=document.getElementById('sfCancel'); if(c) c.addEventListener('click',closeSaveForm); var i=document.getElementById('viewName'); if(i) i.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); commitSave(); } else if(e.key==='Escape'){ e.preventDefault(); closeSaveForm(); } }); })();
 renderViews();
 
