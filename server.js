@@ -2649,13 +2649,31 @@ function ownsLease(req, l) {
   if (l.byUser) return l.byUser === (req.user && req.user.username);
   return l.by && l.by === (req.user && req.user.name);
 }
+function _leaseMonths(l){
+  const st = (l && l.state) || {}; const term = st.term || {}, opts = st.options || {};
+  function monthsFromText(t){ if(!t) return null; t=String(t);
+    let m=t.match(/([\d.]+)\s*(year|yr|month|mo)/i); if(!m) return null;
+    let n=parseFloat(m[1]); if(isNaN(n)) return null;
+    return /year|yr/i.test(m[2]) ? Math.round(n*12) : Math.round(n); }
+  let rem=null;
+  const exp = String(term.expiration||'');
+  const ed = exp ? new Date(exp) : null;
+  if(ed && !isNaN(ed.getTime())){ const now=new Date(); rem=Math.max(0, Math.round((ed-now)/(1000*60*60*24*30.44))); }
+  if(rem==null) rem=monthsFromText(term.remainingTerm);
+  // option term: e.g. "Two (2) x 5 years" -> count * per-option; else first figure
+  let opt=null; const os=String(opts.renewalOptions||'');
+  let mm=os.match(/(?:x|\u00d7|\*)\s*([\d.]+)\s*(year|yr|month|mo)/i) || os.match(/([\d.]+)\s*(year|yr|month|mo)/i);
+  if(mm){ let n=parseFloat(mm[1]); if(!isNaN(n)) opt=/year|yr/i.test(mm[2])?Math.round(n*12):Math.round(n); }
+  return { rem: rem, opt: opt, expiration: exp };
+}
 app.get('/api/leases', (req, res) => {
   const isAdmin = req.user && isSuper(req.user);
   const list = loadLeases().slice().reverse().filter(l => isAdmin || ownsLease(req, l));
   res.json({ ok: true, isAdmin: !!isAdmin, leases: list.map(l => ({
     id: l.id, business: l.business, propertyAddress: l.propertyAddress || '', pending: !!l.pending,
-    srcQuestId: l.srcQuestId || '', srcBovId: l.srcBovId || '', by: l.by, byUser: l.byUser,
-    createdAt: l.createdAt, builtAt: l.builtAt || '',
+    srcQuestId: l.srcQuestId || '', srcBovId: l.srcBovId || '', personId: l.personId || '', companyId: l.companyId || '', dealKey: l.dealKey || '', by: l.by, byUser: l.byUser,
+    createdAt: l.createdAt, builtAt: l.builtAt || '', updatedAt: l.updatedAt || '',
+    remMonths: _leaseMonths(l).rem, optMonths: _leaseMonths(l).opt, expiration: _leaseMonths(l).expiration,
   })) });
 });
 app.get('/api/lease/:id', (req, res) => {
@@ -2755,12 +2773,18 @@ app.post('/api/lease-save', express.json({ limit: '4mb' }), (req, res) => {
   const l = arr.find(x => x.id === b.id);
   if (!l) return res.status(404).json({ ok: false, error: 'Lease abstract not found.' });
   if (!ownsLease(req, l)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  let dirty = false;
   if (b.state && typeof b.state === 'object') {
     l.state = b.state;
     if (l.state.header) { l.business = String(l.state.header.business || l.business || 'Lease Abstract').slice(0, 120); l.propertyAddress = String(l.state.header.propertyAddress || l.propertyAddress || '').slice(0, 200); }
     if (l.pending) { l.pending = false; if (!l.builtAt) l.builtAt = new Date().toISOString(); }  // a saved abstract is a built one
-    l.updatedAt = new Date().toISOString(); saveLeases(arr);
+    dirty = true;
   }
+  if (typeof b.business === 'string' && b.business.trim()) { l.business = b.business.trim().slice(0, 120); dirty = true; }
+  if ('personId' in b)  { l.personId  = String(b.personId  || '').slice(0, 48); dirty = true; }
+  if ('companyId' in b) { l.companyId = String(b.companyId || '').slice(0, 48); dirty = true; }
+  if ('dealKey' in b)   { l.dealKey   = String(b.dealKey   || '').slice(0, 80); dirty = true; }
+  if (dirty) { l.updatedAt = new Date().toISOString(); saveLeases(arr); }
   res.json({ ok: true });
 });
 // Generate the abstract from the uploaded lease document(s).
@@ -15076,6 +15100,8 @@ app.get('/api/documents', (req, res) => {
   bv.forEach(b => { out.push({ id:b.id, kind:'valuation', title: b.business || 'Valuation', typeLabel:'Valuation', matchNames:[b.business||''], valueText: (b.targetText||b.rangeText||b.sdeText||''), basis: b.basis||'', personId:b.personId||'', companyId:b.companyId||'', companyName: coNameById[b.companyId]||'', personName: nameById[b.personId]||'', dealName:'', status: b.finalizedAt ? ('Final' + ((b.version||1) > 1 ? (' v'+(b.version||1)) : '')) : (b.pending ? 'Requested' : 'Built'), statusKey: b.finalizedAt ? 'final' : (b.pending ? 'pending' : 'built'), owner: b.by || b.byUser || '', createdAt: b.createdAt || '', deleteUrl: '/api/document/valuation/'+b.id, openUrl: (b.pending ? 'rrg_bov_generate.html?bov=' : 'rrg_bov_builder.html?bov=') + encodeURIComponent(b.id), downloadUrl:'' }); });
   let cm = loadCims().filter(c => isAdmin || ownsCim(req, c));
   cm.forEach(c => { out.push({ id:c.id, kind:'marketingpack', title: c.business || 'Marketing Pack', typeLabel:'Marketing Pack', matchNames:[c.business||''], personId:c.personId||'', companyId:c.companyId||'', companyName: coNameById[c.companyId] || c.market||'', personName: nameById[c.personId]||'', dealName:'', status: c.pending ? 'Draft' : 'Built', statusKey: c.pending ? 'pending' : 'built', owner: c.by || c.byUser || '', createdAt: c.createdAt || '', deleteUrl: '/api/document/marketingpack/'+c.id, openUrl: (c.pending ? 'rrg_cim_generate.html?cim=' : 'rrg_cim_builder.html?cim=') + encodeURIComponent(c.id), downloadUrl:'' }); });
+  let lz = loadLeases().filter(l => isAdmin || ownsLease(req, l));
+  lz.forEach(l => { out.push({ id:l.id, kind:'lease', title: l.business || 'Lease Abstract', typeLabel:'Lease Abstract', matchNames:[l.business||''], personId:l.personId||'', companyId:l.companyId||'', dealKey:l.dealKey||'', companyName: coNameById[l.companyId]||'', personName: nameById[l.personId]||'', dealName: bizByKey[l.dealKey]||'', status: l.pending ? 'Started' : 'Abstracted', statusKey: l.pending ? 'pending' : 'built', owner: l.by || l.byUser || '', createdAt: l.createdAt || '', openUrl: (l.pending ? 'rrg_lease_generate.html?lease=' : 'rrg_lease_abstract.html?lease=') + encodeURIComponent(l.id), downloadUrl:'', deleteUrl: '/api/lease/'+l.id }); });
   let uf = loadUserFiles();
   if (restrictToOwn(req)) uf = uf.filter(fr => permOwnerMatch(req, fr.createdBy));
   uf.forEach(fr => { out.push({ id:fr.id, kind:'file', title: fr.name || fr.originalName || 'File', docType: fr.docType||'', typeLabel: fr.docType || (fr.ext||'file').toUpperCase(), personId:fr.personId||'', dealKey:fr.dealKey||'', companyId:fr.companyId||'', companyName: coNameById[fr.companyId]||'', personName: nameById[fr.personId]||'', dealName: bizByKey[fr.dealKey]||'', relatesToName: fr.relatesToName||'', status: fr.note || '', statusKey:'file', owner: fr.by || fr.byUser || '', createdAt: fr.uploadedAt || '', openUrl: '/api/files/'+fr.id+'/download', downloadUrl: '/api/files/'+fr.id+'/download', deleteUrl: '/api/files/'+fr.id, ext: fr.ext, size: fr.size, rooms: (Array.isArray(fr.rooms)?fr.rooms:[]) }); });
