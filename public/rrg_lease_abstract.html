@@ -58,7 +58,7 @@ table.sch th,table.sch td{text-align:left;padding:7px 11px;border:1px solid var(
 table.sch th{background:var(--tint);color:var(--blue);font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;}
 .foot{color:var(--soft);font-size:10px;margin-top:30px;border-top:1px solid var(--line);padding-top:12px;line-height:1.55;display:flex;justify-content:space-between;gap:24px;}
 .foot .cf{color:var(--blue);font-weight:700;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;}
-.ed{outline:none;} body.editing .ed{background:rgba(120,150,220,.06);border-radius:3px;} body.editing .ed:hover{background:rgba(120,150,220,.12);}
+.ed{outline:none;border-radius:3px;transition:background .1s;} body.editing .ed:hover{background:rgba(44,92,143,.10);} body.editing .ed:focus{background:rgba(44,92,143,.14);}
 .loading{max-width:840px;margin:60px auto;text-align:center;color:var(--muted);font-size:14px;}
 @media print{
   @page{size:Letter;margin:0.6in 0.65in;}
