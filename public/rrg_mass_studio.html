@@ -2,6 +2,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Email Studio — RRG</title>
 <script src="/rrg_brand.js"></script>
+<script src="/rrg_email_composer.js"></script>
 <style>
 :root{--navy:#20334f;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;--red:#DA2B1F;--blue:#2c5c8f;}
 *{box-sizing:border-box;}
@@ -60,7 +61,7 @@ iframe.prev{width:100%;height:420px;border:1px solid var(--line);border-radius:6
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function $(id){return document.getElementById(id);}
 function api(m,u,b){return fetch(u,{method:m,headers:b?{'Content-Type':'application/json'}:undefined,credentials:'same-origin',body:b?JSON.stringify(b):undefined}).then(function(r){return r.json();});}
-var CFG={}, EDIT=null, POLL=null, CAMPVIEW=null, CAMPQ="";
+var CFG={}, EDIT=null, POLL=null, CAMPVIEW=null, CAMPQ="", CAMPDAYS=0;
 var TAB='subs';
 
 function boot(){
@@ -164,6 +165,7 @@ function suppressOne(email){
 
 /* ---------- CAMPAIGNS ---------- */
 function starterHtml(){
+  if(window.RRGComposer){ try{ return window.RRGComposer.export(window.RRGComposer.defaultBlocks(), CFG.brand||{}); }catch(e){} }
   var b=CFG.brand||{}; var P=b.primary||'#16233f', A=b.accent||'#DA2B1F';
   var logo = b.logo
     ? '<img src="'+b.logo+'" alt="Restaurant Realty Group" height="40" style="display:block;height:40px;width:auto;border:0;">'
@@ -214,7 +216,7 @@ function loadCampaigns(){
   if(CAMPVIEW==null) CAMPVIEW='active';
   var arch = CAMPVIEW==='archived' ? '1':'0';
   var qv = encodeURIComponent((CAMPQ||'').trim());
-  api('GET','/api/mail/campaigns?archived='+arch+'&q='+qv).then(function(r){
+  api('GET','/api/mail/campaigns?archived='+arch+'&q='+qv+'&days='+(CAMPDAYS||0)).then(function(r){
     var rows=(r&&r.campaigns)||[];
     var h='<div class="card" style="padding:0;overflow:hidden">';
     // header bar
@@ -224,6 +226,7 @@ function loadCampaigns(){
       +'<button data-cv="archived" class="'+(CAMPVIEW==='archived'?'on':'')+'" style="padding:6px 12px;">Archived</button>'
       +'</div>'
       +'<div class="toolbar" style="margin:0;">'
+      +'<select id="campRange" style="max-width:150px;"><option value="0">All time</option><option value="1">Today</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option></select>'
       +'<input id="campSearch" placeholder="Search name or subject..." value="'+esc(CAMPQ||'')+'" style="max-width:230px;">'
       +'<button class="btn primary" id="newCamp">+ New campaign</button>'
       +'</div></div>';
@@ -238,7 +241,7 @@ function loadCampaigns(){
     rows.forEach(function(c){
       var denom=c.total||c.sent||0;
       h+='<tr>'
-        +'<td style="max-width:250px;"><div style="font-weight:700;color:var(--navy);">'+esc(c.name||'(untitled)')+' <span class="pill '+esc(c.status)+'" style="margin-left:4px;vertical-align:middle;">'+esc(c.status)+'</span></div><div style="color:var(--muted);font-size:12px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(c.subject||'')+'</div></td>'
+        +'<td style="max-width:250px;"><div style="font-weight:700;color:var(--navy);">'+esc(c.name||'(untitled)')+' <span class="pill '+esc(c.status)+'" style="margin-left:4px;vertical-align:middle;">'+esc(c.status)+'</span>'+(c.ab_enabled?' <span class="pill" style="background:#eef3fb;color:var(--blue);vertical-align:middle;">A/B'+(c.ab_winner?(' &middot; '+esc(c.ab_winner)+' won'):'')+'</span>':'')+'</div><div style="color:var(--muted);font-size:12px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(c.subject||'')+'</div></td>'
         +'<td style="font-size:12.5px;">'+esc(c.list_name||'All active subscribers')+'</td>'
         +'<td style="font-size:12px;color:var(--muted);white-space:nowrap;">'+fmtDate(c.started_at)+'</td>'
         +'<td style="font-size:12px;color:var(--muted);white-space:nowrap;">'+fmtDate(c.finished_at)+'</td>'
@@ -261,6 +264,7 @@ function loadCampaigns(){
 }
 function wireCampHead(){
   bindAll('[data-cv]', function(el){ CAMPVIEW=el.getAttribute('data-cv'); loadCampaigns(); });
+  var rg=$('campRange'); if(rg){ rg.value=String(CAMPDAYS||0); rg.onchange=function(){ CAMPDAYS=parseInt(rg.value,10)||0; loadCampaigns(); }; }
   var nc=$('newCamp'); if(nc) nc.onclick=function(){ EDIT={ from_name:CFG.fromName||'', from_email:CFG.from||'', reply_to:'', html:starterHtml() }; renderEditor(); };
   var se=$('campSearch'); if(se){ se.addEventListener('keydown',function(e){ if(e.key==='Enter'){ CAMPQ=se.value; loadCampaigns(); } }); se.addEventListener('blur',function(){ if((se.value||'')!==(CAMPQ||'')){ CAMPQ=se.value; loadCampaigns(); } }); }
 }
@@ -296,10 +300,21 @@ function renderEditor(){
    '</div>'+
    '<div class="fld"><label class="fl">Reply-to</label><input id="cRT" value="'+esc(c.reply_to||'')+'" placeholder="Optional"></div>'+
    '</div>'+
-   '<div class="split">'+
-     '<div class="card"><h2>HTML body</h2><div class="pgs" style="margin-bottom:8px">Use <code>{{first_name}}</code>, <code>{{last_name}}</code>, <code>{{email}}</code> to personalize. A CAN-SPAM footer with your postal address and a one-click unsubscribe link is appended automatically.</div><textarea id="cHtml" class="code" style="min-height:420px">'+esc(c.html||'')+'</textarea></div>'+
-     '<div class="card"><h2>Live preview</h2><iframe class="prev" id="cPrev"></iframe></div>'+
+   '<div class="card"><div class="toolbar" style="justify-content:space-between"><h2 style="margin:0">Design</h2><div style="display:flex;gap:6px;"><button class="btn primary" id="mVis" type="button">Visual</button><button class="btn" id="mHtml" type="button">HTML</button><button class="btn" id="cOpenPrev" type="button">Open preview</button></div></div>'+
+   '<div class="pgs" style="margin-bottom:10px">Build with blocks, or switch to HTML for full control. Use <code>{{first_name}}</code>, <code>{{last_name}}</code>, <code>{{email}}</code> to personalize; a compliant unsubscribe link is added automatically.</div>'+
+   '<div id="composerWrap"></div>'+
+   '<textarea id="cHtml" class="code" style="min-height:420px;display:none">'+esc(c.html||'')+'</textarea>'+
    '</div>'+
+   '<div class="card"><div class="toolbar" style="justify-content:space-between"><h2 style="margin:0">A/B split test</h2><label style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--navy);cursor:pointer"><input type="checkbox" id="abOn" style="width:auto"'+(c.ab_enabled?' checked':'')+'> Enable</label></div>'+
+   '<div id="abBody"'+(c.ab_enabled?'':' style="display:none"')+'>'+
+     '<div class="pgs" style="margin-bottom:10px">Send two subject lines to a slice of your list; after the test window the winner is sent to everyone else automatically.</div>'+
+     '<div class="fld"><label class="fl">Subject B (variant)</label><input id="abSubjB" value="'+esc(c.subject_b||'')+'" placeholder="Alternate subject line to test against the one above"></div>'+
+     '<div class="row">'+
+       '<div class="fld half"><label class="fl">Test audience %</label><input id="abPct" type="number" min="5" max="100" value="'+(c.ab_pct||30)+'"></div>'+
+       '<div class="fld half"><label class="fl">Winner by</label><select id="abMetric"><option value="opens"'+((c.ab_metric!=='clicks')?' selected':'')+'>Open rate</option><option value="clicks"'+((c.ab_metric==='clicks')?' selected':'')+'>Click rate</option></select></div>'+
+       '<div class="fld half"><label class="fl">Decide after (hours)</label><input id="abHours" type="number" min="1" max="72" value="'+(c.ab_hours||4)+'"></div>'+
+     '</div>'+
+   '</div></div>'+
    '<div class="card"><div class="toolbar">'+
      '<button class="btn primary" id="cSave">Save draft</button>'+
      '<input id="cTest" placeholder="you@example.com" style="max-width:220px">'+
@@ -317,11 +332,28 @@ function renderEditor(){
   $('cSave').onclick=function(){ saveCampaign(false); };
   $('cTestBtn').onclick=sendTest;
   $('cSend').onclick=sendCampaign;
-  ['cHtml','cSubj','cPre'].forEach(function(id){ $(id).addEventListener('input',updatePreview); });
-  updatePreview();
+  if($('abOn')) $('abOn').onclick=function(){ $('abBody').style.display=$('abOn').checked?'':'none'; };
+  initDesign();
+}
+function initDesign(){
+  var live=false;
+  function toHtml(){ if($('composerWrap')) $('composerWrap').style.display='none'; $('cHtml').style.display=''; $('mHtml').classList.add('primary'); $('mVis').classList.remove('primary'); }
+  function toVisual(blocks){ if(!window.RRGComposer){ toHtml(); return; } window.RRGComposer.mount($('composerWrap'), { blocks:blocks, brand:CFG.brand||{}, onChange:function(bl,html){ $('cHtml').value=html; } }); live=true; $('composerWrap').style.display=''; $('cHtml').style.display='none'; $('mVis').classList.add('primary'); $('mHtml').classList.remove('primary'); }
+  $('mVis').onclick=function(){ if(live) return; var bl=window.RRGComposer&&window.RRGComposer.parse($('cHtml').value); if(!bl){ if(!window.confirm('This email has custom HTML the visual editor cannot read. Switch to Visual and start from the template? Your manual HTML edits will be replaced.')) return; bl=window.RRGComposer.defaultBlocks(); } toVisual(bl); };
+  $('mHtml').onclick=function(){ live=false; if($('composerWrap')) $('composerWrap').innerHTML=''; toHtml(); };
+  $('cOpenPrev').onclick=function(){ openPreviewHtml($('cHtml').value); };
+  var init=window.RRGComposer&&window.RRGComposer.parse($('cHtml').value);
+  if(init){ toVisual(init); }
+  else if(window.RRGComposer && !$('cHtml').value.trim()){ $('cHtml').value=window.RRGComposer.export(window.RRGComposer.defaultBlocks(), CFG.brand||{}); toVisual(window.RRGComposer.parse($('cHtml').value)); }
+  else { toHtml(); }
+}
+function openPreviewHtml(html){
+  html=String(html||'').replace(/{{\s*first_name\s*}}/g,'Jane').replace(/{{\s*last_name\s*}}/g,'Doe').replace(/{{\s*email\s*}}/g,'jane@example.com').replace(/{{\s*unsubscribe_url\s*}}/g,'#');
+  var w=window.open('','_blank'); if(w){ w.document.open(); w.document.write('<!doctype html><meta charset="utf-8"><title>Preview</title>'+html); w.document.close(); }
 }
 function formData(){
-  return { id:EDIT.id, name:$('cName').value.trim(), subject:$('cSubj').value.trim(), preheader:$('cPre').value.trim(), from_name:$('cFN').value.trim(), from_email:$('cFE').value.trim(), reply_to:$('cRT').value.trim(), html:$('cHtml').value, list_id:($('cList').value||null) };
+  return { id:EDIT.id, name:$('cName').value.trim(), subject:$('cSubj').value.trim(), preheader:$('cPre').value.trim(), fromName:$('cFN').value.trim(), fromEmail:$('cFE').value.trim(), replyTo:$('cRT').value.trim(), html:$('cHtml').value, listId:($('cList').value||null),
+    abEnabled: !!($('abOn')&&$('abOn').checked), subjectB: ($('abSubjB')?$('abSubjB').value.trim():''), abPct: ($('abPct')?$('abPct').value:30), abMetric: ($('abMetric')?$('abMetric').value:'opens'), abHours: ($('abHours')?$('abHours').value:4) };
 }
 function saveCampaign(silent){
   var d=formData(); var m=$('cMsg');

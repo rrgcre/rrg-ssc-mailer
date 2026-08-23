@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const { Pool } = require('pg');
 
 const TENANT = process.env.MAIL_TENANT || 'default';
-let pool = null, DB_READY = false, _migrated = null, _drainTimer = null;
+let pool = null, DB_READY = false, _migrated = null, _drainTimer = null, _abTimer = null;
 
 function _ssl() { const m = String(process.env.PGSSL || '').toLowerCase(); if (m === 'disable' || m === 'off' || m === 'false') return false; return { rejectUnauthorized: false }; }
 function dbReady() { return DB_READY; }
@@ -57,6 +57,15 @@ async function migrate() {
       id BIGSERIAL PRIMARY KEY, tenant TEXT NOT NULL DEFAULT 'default', email TEXT, campaign_id BIGINT,
       type TEXT, ses_message_id TEXT, at TIMESTAMPTZ DEFAULT now(), meta JSONB DEFAULT '{}'::jsonb)`);
     await pool.query(`ALTER TABLE mm_campaigns ADD COLUMN IF NOT EXISTS archived BOOLEAN DEFAULT false`);
+    await pool.query(`ALTER TABLE mm_campaigns ADD COLUMN IF NOT EXISTS ab_enabled BOOLEAN DEFAULT false`);
+    await pool.query(`ALTER TABLE mm_campaigns ADD COLUMN IF NOT EXISTS subject_b TEXT DEFAULT ''`);
+    await pool.query(`ALTER TABLE mm_campaigns ADD COLUMN IF NOT EXISTS html_b TEXT DEFAULT ''`);
+    await pool.query(`ALTER TABLE mm_campaigns ADD COLUMN IF NOT EXISTS ab_pct INT DEFAULT 30`);
+    await pool.query(`ALTER TABLE mm_campaigns ADD COLUMN IF NOT EXISTS ab_metric TEXT DEFAULT 'opens'`);
+    await pool.query(`ALTER TABLE mm_campaigns ADD COLUMN IF NOT EXISTS ab_hours INT DEFAULT 4`);
+    await pool.query(`ALTER TABLE mm_campaigns ADD COLUMN IF NOT EXISTS ab_winner TEXT DEFAULT ''`);
+    await pool.query(`ALTER TABLE mm_campaigns ADD COLUMN IF NOT EXISTS ab_decided_at TIMESTAMPTZ`);
+    await pool.query(`ALTER TABLE mm_sends ADD COLUMN IF NOT EXISTS variant TEXT DEFAULT 'A'`);
   })().catch(e => { console.error('[MAIL] migrate failed: ' + (e && e.message)); _migrated = null; throw e; });
   return _migrated;
 }
@@ -187,20 +196,35 @@ function _csvRows(s) {
 }
 
 /* ---------------- Campaigns ---------------- */
+function _abFields(b){
+  return {
+    enabled: !!b.abEnabled,
+    subjectB: String(b.subjectB || '').slice(0, 300),
+    htmlB: String(b.htmlB || ''),
+    pct: Math.max(5, Math.min(100, parseInt(b.abPct, 10) || 30)),
+    metric: (b.abMetric === 'clicks' ? 'clicks' : 'opens'),
+    hours: Math.max(1, Math.min(72, parseInt(b.abHours, 10) || 4))
+  };
+}
 async function createCampaign(b, user) {
-  const r = await q(`INSERT INTO mm_campaigns(tenant,name,subject,preheader,from_name,from_email,reply_to,html,list_id,by_user)
-    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
+  const ab = _abFields(b);
+  const r = await q(`INSERT INTO mm_campaigns(tenant,name,subject,preheader,from_name,from_email,reply_to,html,list_id,by_user,ab_enabled,subject_b,html_b,ab_pct,ab_metric,ab_hours)
+    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING id`,
     [TENANT, String(b.name || '').slice(0, 200), String(b.subject || '').slice(0, 300), String(b.preheader || '').slice(0, 300),
      String(b.fromName || process.env.MAIL_FROM_NAME || '').slice(0, 120), String(b.fromEmail || process.env.SES_FROM || '').slice(0, 200),
-     String(b.replyTo || '').slice(0, 200), String(b.html || ''), b.listId ? Number(b.listId) : null, String((user && user.name) || '').slice(0, 120)]);
+     String(b.replyTo || '').slice(0, 200), String(b.html || ''), b.listId ? Number(b.listId) : null, String((user && user.name) || '').slice(0, 120),
+     ab.enabled, ab.subjectB, ab.htmlB, ab.pct, ab.metric, ab.hours]);
   return r.rows[0].id;
 }
 async function updateCampaign(id, b) {
-  await q(`UPDATE mm_campaigns SET name=$3,subject=$4,preheader=$5,from_name=$6,from_email=$7,reply_to=$8,html=$9,list_id=$10
+  const ab = _abFields(b);
+  await q(`UPDATE mm_campaigns SET name=$3,subject=$4,preheader=$5,from_name=$6,from_email=$7,reply_to=$8,html=$9,list_id=$10,
+           ab_enabled=$11,subject_b=$12,html_b=$13,ab_pct=$14,ab_metric=$15,ab_hours=$16
            WHERE tenant=$1 AND id=$2 AND status IN('draft','scheduled')`,
     [TENANT, id, String(b.name || '').slice(0, 200), String(b.subject || '').slice(0, 300), String(b.preheader || '').slice(0, 300),
      String(b.fromName || '').slice(0, 120), String(b.fromEmail || '').slice(0, 200), String(b.replyTo || '').slice(0, 200),
-     String(b.html || ''), b.listId ? Number(b.listId) : null]);
+     String(b.html || ''), b.listId ? Number(b.listId) : null,
+     ab.enabled, ab.subjectB, ab.htmlB, ab.pct, ab.metric, ab.hours]);
 }
 // Materialize the recipient set (active subscribers in the list, minus suppression) into mm_sends.
 async function materialize(campaignId) {
@@ -218,6 +242,18 @@ async function materialize(campaignId) {
   await q(sql, params);
   const tot = (await q('SELECT count(*)::int AS n FROM mm_sends WHERE campaign_id=$1', [campaignId])).rows[0].n;
   await q('UPDATE mm_campaigns SET total=$2 WHERE id=$1', [campaignId, tot]);
+  if (c.ab_enabled) {
+    // Randomly split the newly-pending sends: test portion (ab_pct%) into A/B halves, remainder held.
+    const pct = Math.max(5, Math.min(100, c.ab_pct || 30));
+    await q(`WITH ranked AS (
+        SELECT id, row_number() OVER (ORDER BY random()) AS rn, count(*) OVER () AS n
+        FROM mm_sends WHERE campaign_id=$1 AND status='pending')
+      UPDATE mm_sends d SET
+        status = CASE WHEN r.rn > ceil(r.n * $2 / 100.0) THEN 'hold' ELSE 'pending' END,
+        variant = CASE WHEN r.rn > ceil(r.n * $2 / 100.0) THEN 'H'
+                       WHEN r.rn <= ceil(r.n * $2 / 100.0 / 2.0) THEN 'A' ELSE 'B' END
+      FROM ranked r WHERE d.id = r.id`, [campaignId, pct]);
+  }
   return tot;
 }
 async function startCampaign(campaignId) {
@@ -237,14 +273,38 @@ const RATE = Math.max(1, Number(process.env.SES_MAX_RATE || 10)); // messages pe
 function _sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 function _injectPreheader(html, txt) { const ph = '<div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all">' + escapeHtml(txt) + '</div>'; if (/<body[^>]*>/i.test(html)) return html.replace(/(<body[^>]*>)/i, '$1' + ph); return ph + html; }
 function kickDrainer() { if (_draining) return; if (!DB_READY || !sesConfigured()) return; _draining = true; _loop().catch(e => console.error('[MAIL] drain loop: ' + (e && e.message))).finally(() => { _draining = false; }); }
+async function maybeDecideAb() {
+  if (!DB_READY) return false;
+  let released = false;
+  const cands = (await q(`SELECT id, ab_metric, ab_hours FROM mm_campaigns
+     WHERE tenant=$1 AND status='sending' AND ab_enabled=true AND (ab_winner='' OR ab_winner IS NULL)
+       AND started_at IS NOT NULL AND now() >= started_at + ((ab_hours||4) * interval '1 hour')`, [TENANT])).rows;
+  for (const c of cands) {
+    const pend = (await q(`SELECT count(*)::int n FROM mm_sends WHERE campaign_id=$1 AND variant IN('A','B') AND status='pending'`, [c.id])).rows[0].n;
+    if (pend > 0) continue;
+    const metricCol = c.ab_metric === 'clicks' ? 'clicked_at' : 'opened_at';
+    const stat = (await q(`SELECT variant, count(*) FILTER (WHERE status='sent')::int AS sent, count(*) FILTER (WHERE ${metricCol} IS NOT NULL)::int AS hits FROM mm_sends WHERE campaign_id=$1 AND variant IN('A','B') GROUP BY variant`, [c.id])).rows;
+    let a = { sent: 0, hits: 0 }, b = { sent: 0, hits: 0 };
+    stat.forEach(r => { if (r.variant === 'A') a = r; else if (r.variant === 'B') b = r; });
+    const ra = a.sent ? a.hits / a.sent : 0, rb = b.sent ? b.hits / b.sent : 0;
+    const winner = rb > ra ? 'B' : 'A';
+    await q(`UPDATE mm_campaigns SET ab_winner=$2, ab_decided_at=now() WHERE id=$1`, [c.id, winner]);
+    const upd = await q(`UPDATE mm_sends SET status='pending', variant=$2 WHERE campaign_id=$1 AND status='hold'`, [c.id, winner]);
+    if (upd.rowCount > 0) released = true;
+  }
+  return released;
+}
 async function _loop() {
   while (true) {
-    const batch = (await q(`SELECT d.id,d.email,d.token,d.campaign_id,s.first_name,s.last_name
+    await maybeDecideAb();
+    const batch = (await q(`SELECT d.id,d.email,d.token,d.campaign_id,d.variant,s.first_name,s.last_name
       FROM mm_sends d JOIN mm_subscribers s ON s.id=d.subscriber_id JOIN mm_campaigns c ON c.id=d.campaign_id
       WHERE d.status='pending' AND c.status='sending' ORDER BY d.id ASC LIMIT $1`, [RATE])).rows;
     if (!batch.length) {
       await q(`UPDATE mm_campaigns SET status='sent', finished_at=now()
-               WHERE status='sending' AND NOT EXISTS(SELECT 1 FROM mm_sends d WHERE d.campaign_id=mm_campaigns.id AND d.status='pending')`);
+               WHERE status='sending'
+                 AND NOT EXISTS(SELECT 1 FROM mm_sends d WHERE d.campaign_id=mm_campaigns.id AND d.status='pending')
+                 AND NOT EXISTS(SELECT 1 FROM mm_sends d WHERE d.campaign_id=mm_campaigns.id AND d.status='hold')`);
       break;
     }
     const t0 = Date.now(); const camps = {};
@@ -256,11 +316,14 @@ async function _loop() {
         const sub = { first_name: row.first_name, last_name: row.last_name, email: row.email };
         const unsubUrl = BASE + '/mail/u/' + row.token;
         const openUrl = BASE + '/mail/o/' + row.token + '.gif';
-        let html = mergeFields(c.html, sub);
+        const useB = (row.variant === 'B');
+        const rawHtml = (useB && c.html_b) ? c.html_b : c.html;
+        const rawSubj = (useB && c.subject_b) ? c.subject_b : c.subject;
+        let html = mergeFields(rawHtml, sub);
         if (c.preheader) html = _injectPreheader(html, mergeFields(c.preheader, sub));
         html = ensureFooter(html, unsubUrl);
         html = openPixel(html, openUrl);
-        const subject = mergeFields(c.subject, sub);
+        const subject = mergeFields(rawSubj, sub);
         const mime = buildMime({ to: row.email, subject: subject, html: html, text: htmlToText(html), fromName: c.from_name, fromEmail: c.from_email, replyTo: c.reply_to, unsubUrl: unsubUrl, unsubMailto: process.env.MAIL_UNSUB_MAILTO || '' });
         const msgId = await sesSendRaw(mime);
         await q(`UPDATE mm_sends SET status='sent', ses_message_id=$2, sent_at=now(), tries=tries+1 WHERE id=$1`, [row.id, msgId || '']);
@@ -353,9 +416,11 @@ function mount(app, deps) {
 
   app.get('/api/mail/campaigns', requireAdmin, guard, async (req, res) => { try {
     const arch = String(req.query.archived||'')==='1'; const qq=String(req.query.q||'').trim().toLowerCase();
+    const days = Math.max(0, parseInt(req.query.days,10) || 0);
     const p=[TENANT]; let wh='c.tenant=$1 AND COALESCE(c.archived,false)=$2'; p.push(arch);
     if(qq){ p.push('%'+qq+'%'); wh+=' AND (LOWER(c.name) LIKE $'+p.length+' OR LOWER(c.subject) LIKE $'+p.length+')'; }
-    const rows = (await q(`SELECT c.id,c.name,c.subject,c.status,c.total,c.sent,c.failed,c.opens,c.clicks,c.bounces,c.complaints,c.unsubs,c.created_at,c.started_at,c.finished_at,COALESCE(c.archived,false) AS archived,l.name AS list_name FROM mm_campaigns c LEFT JOIN mm_lists l ON l.id=c.list_id WHERE ${wh} ORDER BY c.id DESC LIMIT 500`, p)).rows;
+    if(days>0){ p.push(days); wh+=' AND c.created_at >= now() - ($'+p.length+" * interval '1 day')"; }
+    const rows = (await q(`SELECT c.id,c.name,c.subject,c.status,c.total,c.sent,c.failed,c.opens,c.clicks,c.bounces,c.complaints,c.unsubs,c.created_at,c.started_at,c.finished_at,COALESCE(c.archived,false) AS archived,COALESCE(c.ab_enabled,false) AS ab_enabled,COALESCE(c.ab_winner,'') AS ab_winner,l.name AS list_name FROM mm_campaigns c LEFT JOIN mm_lists l ON l.id=c.list_id WHERE ${wh} ORDER BY c.id DESC LIMIT 500`, p)).rows;
     res.json({ ok: true, campaigns: rows });
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.get('/api/mail/campaigns/:id', requireAdmin, guard, async (req, res) => { try { const c = (await q('SELECT * FROM mm_campaigns WHERE tenant=$1 AND id=$2', [TENANT, req.params.id])).rows[0]; if (!c) return res.status(404).json({ ok: false, error: 'Not found.' }); res.json({ ok: true, campaign: c }); } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
@@ -384,6 +449,7 @@ function mount(app, deps) {
   app.post('/mail/u/:token', express.urlencoded({ extended: false }), async (req, res) => { try { if (DB_READY) await handleUnsub(String(req.params.token)); } catch (e) {} res.json({ ok: true }); });
 
   if (DB_READY && sesConfigured()) { migrate().then(() => kickDrainer()).catch(() => {}); }
+  if (DB_READY && !_abTimer) { _abTimer = setInterval(() => { maybeDecideAb().then(r => { if (r) kickDrainer(); }).catch(() => {}); }, 60000); }
 }
 
 module.exports = { mount, dbReady, sesConfigured, importSubscribers, parseCsv };

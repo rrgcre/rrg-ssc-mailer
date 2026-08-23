@@ -5,43 +5,68 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>RRG — Lease Abstract</title>
 <style>
-:root{--navy:#000E31;--red:#DA2B1F;--ink:#1c2536;--muted:#6b7488;--soft:#8a93a8;--line:#e3e7ef;--wash:#f6f8fc;}
+:root{--navy:#20334f;--blue:#2c5c8f;--red:#c0392b;--ink:#2a2f3a;--muted:#6b7488;--soft:#9aa3b2;--line:#e3e7ef;--tint:#f6f8fb;}
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;background:#e9edf3;}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
-.toolbar{position:sticky;top:0;z-index:40;background:rgba(9,17,40,.97);color:#fff;}
-.tb-inner{max-width:840px;margin:0 auto;padding:10px 20px;display:flex;align-items:center;gap:12px;}
-.tt{font-weight:700;font-size:13px;} .tt span{font-weight:500;color:#aeb8cf;font-size:11.5px;margin-left:6px;}
-.actions{margin-left:auto;display:flex;gap:8px;align-items:center;}
-.btn{font:inherit;font-size:12.5px;font-weight:700;padding:7px 13px;border-radius:8px;border:1px solid rgba(255,255,255,.24);background:transparent;color:#fff;cursor:pointer;text-decoration:none;}
-.btn:hover{background:rgba(255,255,255,.1);} .btn.on{background:#fff;color:var(--navy);} .btn.print{background:var(--red);border-color:var(--red);}
-.savechip{font-size:11.5px;color:#8fe6b6;opacity:0;transition:opacity .2s;} .savechip.show{opacity:1;}
-.doc{max-width:840px;margin:22px auto;background:#fff;border:1px solid var(--line);box-shadow:0 10px 40px rgba(10,20,50,.10);padding:44px 46px 40px;}
-.hd{border-bottom:2px solid var(--navy);padding-bottom:16px;margin-bottom:18px;}
-.hd .rrg{color:var(--red);font-weight:900;font-size:15px;letter-spacing:.02em;}
-.hd .kt{color:var(--red);font-weight:700;letter-spacing:.26em;font-size:10.5px;text-transform:uppercase;margin-top:14px;}
-.hd h1{font-size:27px;font-weight:700;color:var(--navy);margin:3px 0 2px;letter-spacing:-.01em;}
+body{font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.toolbar{position:sticky;top:0;z-index:40;background:#fff;border-bottom:1px solid var(--line);}
+.tb-inner{max-width:840px;margin:0 auto;padding:9px 20px;display:flex;align-items:center;gap:12px;}
+.tt{font-weight:700;font-size:13px;color:var(--navy);} .tt span{font-weight:500;color:var(--soft);font-size:11.5px;margin-left:6px;}
+.actions{margin-left:auto;display:flex;gap:7px;align-items:center;}
+.btn{font:inherit;font-size:12.5px;font-weight:600;padding:7px 13px;border-radius:6px;border:1px solid #d7dde8;background:#fff;color:var(--navy);cursor:pointer;text-decoration:none;}
+.btn:hover{background:#f4f6f9;} .btn.on{background:var(--blue);color:#fff;border-color:var(--blue);} .btn.print{background:var(--navy);color:#fff;border-color:var(--navy);}
+.savechip{font-size:11.5px;color:var(--blue);opacity:0;transition:opacity .2s;} .savechip.show{opacity:1;}
+.addrow{display:none;margin:9px 0 2px;background:#fff;border:1px dashed #c4ccda;border-radius:5px;padding:6px 11px;font:inherit;font-size:12px;font-weight:600;color:var(--blue);cursor:pointer;}
+body.editing .addrow{display:inline-block;}
+.help-ov{position:fixed;inset:0;background:rgba(20,30,55,.35);z-index:60;opacity:0;visibility:hidden;transition:.18s;}
+.help-ov.show{opacity:1;visibility:visible;}
+.help-pan{position:fixed;top:0;right:0;bottom:0;width:390px;max-width:92vw;background:#fff;z-index:61;box-shadow:-8px 0 30px rgba(10,20,50,.18);transform:translateX(100%);transition:transform .22s;overflow:auto;}
+.help-ov.show .help-pan{transform:none;}
+.help-pan h3{margin:0;padding:17px 22px;font-size:15px;color:var(--navy);border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;}
+.help-pan .x{cursor:pointer;color:var(--soft);font-size:22px;line-height:1;background:none;border:none;padding:0;}
+.help-b{padding:16px 22px 30px;}
+.help-b h4{color:var(--blue);font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;margin:18px 0 6px;}
+.help-b h4:first-child{margin-top:0;}
+.help-b p{margin:0 0 10px;font-size:13px;line-height:1.62;color:var(--ink);}
+.help-b b{color:var(--navy);}
+.doc{max-width:840px;margin:22px auto;background:#fff;border:1px solid var(--line);box-shadow:0 10px 40px rgba(10,20,50,.10);padding:46px 54px 42px;}
+.runhead{display:flex;align-items:center;gap:10px;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);border-bottom:1px solid var(--line);padding-bottom:9px;margin-bottom:26px;}
+.runhead .rh-org{color:var(--navy);font-weight:700;} .runhead .rh-sep{color:#c9d0dc;}
+.eyebrow{color:var(--blue);font-weight:700;letter-spacing:.2em;font-size:10.5px;text-transform:uppercase;margin-bottom:8px;}
+.hd h1{font-size:26px;font-weight:700;color:var(--navy);margin:0 0 4px;letter-spacing:-.01em;line-height:1.15;}
 .hd .addr{color:var(--muted);font-size:13px;}
-.hd .docl{color:var(--soft);font-size:11.5px;margin-top:6px;}
-.summary{background:var(--wash);border:1px solid var(--line);border-left:4px solid var(--navy);border-radius:8px;padding:13px 16px;margin:6px 0 18px;font-size:13.5px;line-height:1.55;color:#2a3446;}
-.flags{margin:0 0 18px;} .flags .fl{display:flex;gap:9px;font-size:12.5px;color:#7a2018;background:#fdeeec;border:1px solid #f3cfc9;border-radius:7px;padding:8px 11px;margin-bottom:6px;line-height:1.4;}
-.flags .fl:before{content:'▲';color:var(--red);font-size:10px;line-height:1.4;}
-.sec{margin:18px 0 6px;color:var(--navy);font-weight:700;font-size:13px;letter-spacing:.04em;text-transform:uppercase;border-bottom:1px solid var(--line);padding-bottom:5px;}
-.rows{display:grid;grid-template-columns:190px 1fr;gap:0;}
-.rows .lbl{color:var(--muted);font-size:12px;font-weight:700;padding:8px 12px 8px 0;border-bottom:1px solid #f0f2f7;}
+.meta{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--tint);margin:22px 0 24px;}
+.meta .cell{padding:12px 16px;border-bottom:1px solid var(--line);}
+.meta .cell:nth-child(odd){border-right:1px solid var(--line);}
+.meta .cell:nth-last-child(-n+2){border-bottom:none;}
+.meta .ml{color:var(--blue);font-weight:700;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:3px;}
+.meta .mv{color:var(--ink);font-size:13px;line-height:1.4;}
+.summary{border-left:3px solid var(--blue);padding:1px 0 1px 16px;margin:0 0 22px;font-size:13.5px;line-height:1.6;color:#3a4152;}
+.summary b{color:var(--navy);}
+.flags{margin:2px 0 20px;}
+.flags .fl{display:flex;gap:10px;font-size:12.5px;color:#4a3330;padding:7px 0;border-bottom:1px solid var(--line);line-height:1.45;}
+.flags .fl:last-child{border-bottom:none;}
+.flags .fl:before{content:'\25B2';color:var(--red);font-size:8.5px;line-height:1.7;flex:none;}
+.sec{margin:22px 0 8px;color:var(--navy);font-weight:700;font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--line);padding-bottom:6px;display:flex;align-items:baseline;gap:10px;}
+.sec .n{color:var(--blue);font-weight:700;}
+.rows{display:grid;grid-template-columns:200px 1fr;gap:0;}
+.rows .lbl{color:var(--muted);font-size:12px;font-weight:600;padding:8px 14px 8px 0;border-bottom:1px solid #f0f2f7;}
 .rows .val{font-size:13px;color:var(--ink);padding:8px 0;border-bottom:1px solid #f0f2f7;line-height:1.5;}
 .redacted{color:var(--soft);font-style:italic;}
-table.sch{width:100%;border-collapse:collapse;font-size:12.5px;margin:8px 0 4px;}
-table.sch th,table.sch td{text-align:left;padding:7px 10px;border:1px solid var(--line);}
-table.sch th{background:var(--wash);color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;}
-.foot{color:var(--soft);font-size:10.5px;margin-top:26px;border-top:1px solid var(--line);padding-top:12px;line-height:1.5;}
+table.sch{width:100%;border-collapse:collapse;font-size:12.5px;margin:10px 0 4px;}
+table.sch th,table.sch td{text-align:left;padding:7px 11px;border:1px solid var(--line);}
+table.sch th{background:var(--tint);color:var(--blue);font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;}
+.foot{color:var(--soft);font-size:10px;margin-top:30px;border-top:1px solid var(--line);padding-top:12px;line-height:1.55;display:flex;justify-content:space-between;gap:24px;}
+.foot .cf{color:var(--blue);font-weight:700;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;}
 .ed{outline:none;} body.editing .ed{background:rgba(120,150,220,.06);border-radius:3px;} body.editing .ed:hover{background:rgba(120,150,220,.12);}
 .loading{max-width:840px;margin:60px auto;text-align:center;color:var(--muted);font-size:14px;}
 @media print{
-  @page{size:Letter;margin:0.5in 0.6in;}
+  @page{size:Letter;margin:0.6in 0.65in;}
   html,body{background:#fff;} .toolbar,.rrg-back,.savechip{display:none!important;}
   .doc{max-width:none;margin:0;border:none;box-shadow:none;padding:0;}
-  .ed{background:none!important;} .flags .fl{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .ed{background:none!important;}
+  .meta,table.sch th,.flags .fl:before{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .sec,.rows{page-break-inside:avoid;}
 }
 </style>
 <script src="/rrg_brand.js"></script>
@@ -56,9 +81,29 @@ table.sch th{background:var(--wash);color:var(--muted);font-size:10.5px;text-tra
     <button class="btn" id="redactLLBtn" onclick="toggleRedactLL()">Redact Landlord: Off</button>
     <button class="btn" id="redactTenBtn" onclick="toggleRedactTenant()">Redact Tenant: Off</button>
     <a class="btn" href="./rrg_lease_queue.html">Lease Abstracts</a>
+    <button class="btn" onclick="toggleHelp()">Help</button>
     <button class="btn print" onclick="window.print()">Print</button>
   </div>
 </div></div>
+<div class="help-ov" id="helpOv" onclick="if(event.target===this)toggleHelp()">
+  <div class="help-pan">
+    <h3>Lease Abstract &mdash; Help <button class="x" onclick="toggleHelp()">&times;</button></h3>
+    <div class="help-b">
+      <h4>What this is</h4>
+      <p>A concise summary of a lease&rsquo;s key business terms &mdash; parties, premises, term, rent, options, charges, and risk items &mdash; for fast review and buyer packages. It never replaces the executed lease.</p>
+      <h4>Edit in place</h4>
+      <p>With <b>Editing: On</b>, click any value and type. Changes <b>save automatically</b> &mdash; watch for the &ldquo;Saved &check;&rdquo; chip. Turn editing off for a clean, read-only view.</p>
+      <h4>Add rows</h4>
+      <p>In edit mode, use <b>+ Add</b> under Watch Items, Base Rent, and Critical Dates to add lines.</p>
+      <h4>Redaction</h4>
+      <p><b>Redact Landlord</b> and <b>Redact Tenant</b> withhold those party names, replacing them with &ldquo;Withheld &mdash; available under NDA.&rdquo; Use this for buyer-facing copies before an NDA is signed; the guarantor follows the tenant.</p>
+      <h4>Print / PDF</h4>
+      <p><b>Print</b> opens your browser&rsquo;s print dialog &mdash; choose &ldquo;Save as PDF&rdquo; for a clean file. The toolbar and edit highlights are hidden automatically.</p>
+      <h4>Confidential</h4>
+      <p>Every abstract carries a confidentiality notice and disclaimer in the footer. Treat it as confidential work product.</p>
+    </div>
+  </div>
+</div>
 <div id="doc"><div class="loading">Loading the abstract…</div></div>
 <script>
 var LID=(new URLSearchParams(location.search)).get('lease')||'';
@@ -83,18 +128,26 @@ function partyRow(label,path,val){
 function render(s){
   var h=s.header||{}, biz=h.business||A.business||'Lease Abstract';
   var out='<div class="doc">';
-  out+='<div class="hd"><div class="rrg">RRG · RESTAURANT REALTY GROUP</div>'
-    +'<div class="kt">Lease Abstract</div>'
+  out+='<div class="runhead"><span class="rh-org">Restaurant Realty Group</span><span class="rh-sep">/</span><span>Lease Abstract</span></div>'
+    +'<div class="hd"><div class="eyebrow">Lease Abstract</div>'
     +'<h1 class="ed" contenteditable data-k="header.business">'+esc(biz)+'</h1>'
-    +'<div class="addr">'+ed('header.propertyAddress',h.propertyAddress)+'</div>'
-    +'<div class="docl">Documents abstracted: '+ed('header.documentList',h.documentList)+' · Lease dated '+ed('header.leaseDate',h.leaseDate)+'</div></div>';
+    +'<div class="addr">Confidential summary of selected lease terms</div></div>';
 
-  if(s.summary || document.body) out+='<div class="summary"><b style="color:#1a2740">Summary — </b>'+ed('summary',s.summary)+'</div>';
+  out+='<div class="meta">'
+    +'<div class="cell"><div class="ml">Property</div><div class="mv">'+ed('header.propertyAddress',h.propertyAddress)+'</div></div>'
+    +'<div class="cell"><div class="ml">Lease Dated</div><div class="mv">'+ed('header.leaseDate',h.leaseDate)+'</div></div>'
+    +'<div class="cell"><div class="ml">Documents Abstracted</div><div class="mv">'+ed('header.documentList',h.documentList)+'</div></div>'
+    +'<div class="cell"><div class="ml">Prepared By</div><div class="mv">Restaurant Realty Group</div></div>'
+    +'</div>';
+
+  out+='<div class="summary"><b>Summary.</b> '+ed('summary',s.summary)+'</div>';
 
   var flags=(s.flags||[]).filter(function(x){return x&&String(x).trim();});
-  if(flags.length){ out+='<div class="flags">'+flags.map(function(f,i){ return '<div class="fl"><span class="ed" contenteditable data-k="flags.'+i+'" style="flex:1">'+esc(f)+'</span></div>'; }).join('')+'</div>'; }
+  if(flags.length){ out+='<div class="sec">Watch Items</div><div class="flags">'+flags.map(function(f,i){ return '<div class="fl"><span class="ed" contenteditable data-k="flags.'+i+'" style="flex:1">'+esc(f)+'</span></div>'; }).join('')+'</div>'; }
+  out+='<button class="addrow" onclick="addFlag()">+ Add watch item</button>';
 
-  function block(title, rowsHtml){ return '<div class="sec">'+title+'</div><div class="rows">'+rowsHtml+'</div>'; }
+  var _n=0;
+  function block(title, rowsHtml){ _n++; return '<div class="sec"><span class="n">'+_n+'</span>'+title+'</div><div class="rows">'+rowsHtml+'</div>'; }
   var p=s.parties||{};
   out+=block('Parties', partyRow('Landlord','parties.landlord',p.landlord)+partyRow('Tenant','parties.tenant',p.tenant)+partyRow('Guarantor','parties.guarantor',p.guarantor));
   var pr=s.premises||{};
@@ -107,6 +160,7 @@ function render(s){
   var sch=(r.schedule||[]);
   if(sch.length){ out+='<table class="sch"><thead><tr><th>Period</th><th>Monthly</th><th>Annual</th></tr></thead><tbody>'
     +sch.map(function(x,i){ return '<tr><td>'+ed('rent.schedule.'+i+'.period',x.period)+'</td><td>'+ed('rent.schedule.'+i+'.monthlyRent',x.monthlyRent)+'</td><td>'+ed('rent.schedule.'+i+'.annualRent',x.annualRent)+'</td></tr>'; }).join('')+'</tbody></table>'; }
+  out+='<button class="addrow" onclick="addRentRow()">+ Add rent period</button>';
   var o=s.options||{};
   out+=block('Renewal Options', row('Options','options.renewalOptions',o.renewalOptions)+row('Notice to exercise','options.renewalNotice',o.renewalNotice)+row('Option rent basis','options.renewalRent',o.renewalRent));
   var c=s.charges||{};
@@ -120,12 +174,13 @@ function render(s){
   var g=s.guaranty||{};
   out+=block('Guaranty', row('Type','guaranty.type',g.type)+row('Personal guaranty','guaranty.personalGuaranty',g.personalGuaranty)+row('Burn-off / limitation','guaranty.burnoff',g.burnoff));
   var k=s.keyProvisions||{};
-  out+=block('Key Provisions', row('Maintenance','keyProvisions.maintenance',k.maintenance)+row('Improvements / TI','keyProvisions.improvements',k.improvements)+row('Signage','keyProvisions.signage',k.signage)+row('Parking','keyProvisions.parking',k.parking)+row('Insurance','keyProvisions.insurance',k.insurance)+row('Holdover','keyProvisions.holdover',k.holdover)+row('Default &amp; cure','keyProvisions.default',k.default)+row('Estoppel / SNDA','keyProvisions.estoppelSNDA',k.estoppelSNDA));
+  out+=block('Key Provisions', row('Maintenance','keyProvisions.maintenance',k.maintenance)+row('Improvements / TI','keyProvisions.improvements',k.improvements)+row('Signage','keyProvisions.signage',k.signage)+row('Parking','keyProvisions.parking',k.parking)+row('Insurance','keyProvisions.insurance',k.insurance)+row('Holdover','keyProvisions.holdover',k.holdover)+row('Default & cure','keyProvisions.default',k.default)+row('Estoppel / SNDA','keyProvisions.estoppelSNDA',k.estoppelSNDA));
   var cd=(s.criticalDates||[]);
-  if(cd.length){ out+='<div class="sec">Critical Dates</div><table class="sch"><thead><tr><th>Date</th><th>Event</th></tr></thead><tbody>'
+  if(cd.length){ out+='<div class="sec"><span class="n">'+(++_n)+'</span>Critical Dates</div><table class="sch"><thead><tr><th>Date</th><th>Event</th></tr></thead><tbody>'
     +cd.map(function(x,i){ return '<tr><td>'+ed('criticalDates.'+i+'.date',x.date)+'</td><td>'+ed('criticalDates.'+i+'.event',x.event)+'</td></tr>'; }).join('')+'</tbody></table>'; }
+  out+='<button class="addrow" onclick="addCriticalDate()">+ Add critical date</button>';
 
-  out+='<div class="foot">Prepared by Restaurant Realty Group, LLC · This abstract summarizes selected lease provisions for convenience only and does not replace the lease. Terms are subject to the executed lease and any amendments. Strictly confidential.</div>';
+  out+='<div class="foot"><div><b style="color:var(--muted)">Disclaimer.</b> This lease abstract is prepared by Restaurant Realty Group, LLC for convenience only and summarizes selected provisions of the referenced lease and related documents. It is not a substitute for the executed lease, is qualified in its entirety by the actual lease and any amendments, and may omit terms. Redacted party information is available to qualified parties under an executed non-disclosure agreement. No representation or warranty is made as to accuracy or completeness; recipients should independently verify all terms. Nothing herein constitutes legal, tax, or accounting advice.</div><div class="cf">Strictly<br>Confidential</div></div>';
   out+='</div>';
   document.getElementById('doc').innerHTML=out;
   wireEdits();
@@ -142,6 +197,10 @@ function queueSave(){ var chip=document.getElementById('savechip'); if(_t) clear
 function toggleEdit(){ var on=document.body.classList.toggle('editing'); var b=document.getElementById('editBtn'); b.textContent='Editing: '+(on?'On':'Off'); b.classList.toggle('on',on); document.querySelectorAll('#doc [contenteditable]').forEach(function(el){ el.setAttribute('contenteditable', on?'true':'false'); }); }
 function toggleRedactLL(){ A.state.redactLandlord=!A.state.redactLandlord; render(A.state); queueSave(); }
 function toggleRedactTenant(){ A.state.redactTenant=!A.state.redactTenant; render(A.state); queueSave(); }
+function toggleHelp(){ document.getElementById('helpOv').classList.toggle('show'); }
+function addFlag(){ if(!A||!A.state) return; if(!A.state.flags) A.state.flags=[]; A.state.flags.push(''); render(A.state); queueSave(); }
+function addRentRow(){ if(!A||!A.state) return; if(!A.state.rent) A.state.rent={}; if(!A.state.rent.schedule) A.state.rent.schedule=[]; A.state.rent.schedule.push({period:'',monthlyRent:'',annualRent:''}); render(A.state); queueSave(); }
+function addCriticalDate(){ if(!A||!A.state) return; if(!A.state.criticalDates) A.state.criticalDates=[]; A.state.criticalDates.push({date:'',event:''}); render(A.state); queueSave(); }
 function normalizeRedact(s){ if(!s) return; // migrate legacy single "redact" flag to the two-flag model
   if(typeof s.redactLandlord==='undefined') s.redactLandlord = (typeof s.redact==='undefined') ? true : !!s.redact;
   if(typeof s.redactTenant==='undefined')   s.redactTenant   = (typeof s.redact==='undefined') ? true : !!s.redact; }
