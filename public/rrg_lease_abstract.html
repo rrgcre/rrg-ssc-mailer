@@ -119,6 +119,10 @@ table.sch th{background:var(--tint);color:var(--blue);font-size:9.5px;font-weigh
 <script>
 var LID=(new URLSearchParams(location.search)).get('lease')||'';
 var ISNEW=(new URLSearchParams(location.search)).get('new')==='1';
+var ORG={ name:'Restaurant Realty Group', legalName:'Restaurant Realty Group, LLC' };
+function orgName(){ return ORG.name || 'Restaurant Realty Group'; }
+function orgLegal(){ return ORG.legalName || ORG.name || 'Restaurant Realty Group, LLC'; }
+fetch('/api/appname',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ var o=(j&&j.org)||{}; ORG.name=o.name||o.legalName||(j&&j.name)||ORG.name; ORG.legalName=o.legalName||o.name||ORG.legalName; if(A&&A.state) render(A.state); }).catch(function(){});
 var A=null;   // the abstract record
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function getPath(o,p){ return p.split('.').reduce(function(a,k){ return (a==null)?a:a[k]; }, o); }
@@ -139,7 +143,7 @@ function partyRow(label,path,val){
 function render(s){
   var h=s.header||{}, biz=h.business||A.business||'Lease Abstract';
   var out='<div class="doc">';
-  out+='<div class="runhead"><span class="rh-org">Restaurant Realty Group</span><span class="rh-sep">/</span><span>Lease Abstract</span></div>'
+  out+='<div class="runhead"><span class="rh-org">'+esc(orgName())+'</span><span class="rh-sep">/</span><span>Lease Abstract</span></div>'
     +'<div class="hd"><div class="eyebrow">Lease Abstract</div>'
     +'<h1 class="ed" contenteditable data-k="header.business">'+esc(biz)+'</h1>'
     +'<div class="addr">Confidential summary of selected lease terms</div></div>';
@@ -148,7 +152,7 @@ function render(s){
     +'<div class="cell"><div class="ml">Property</div><div class="mv">'+ed('header.propertyAddress',h.propertyAddress)+'</div></div>'
     +'<div class="cell"><div class="ml">Lease Dated</div><div class="mv">'+ed('header.leaseDate',h.leaseDate)+'</div></div>'
     +'<div class="cell"><div class="ml">Documents Abstracted</div><div class="mv">'+ed('header.documentList',h.documentList)+'</div></div>'
-    +'<div class="cell"><div class="ml">Prepared By</div><div class="mv">Restaurant Realty Group</div></div>'
+    +'<div class="cell"><div class="ml">Prepared By</div><div class="mv">'+esc(orgName())+'</div></div>'
     +'</div>';
 
   out+='<div class="summary"><b>Summary.</b> '+ed('summary',s.summary)+'</div>';
@@ -191,7 +195,7 @@ function render(s){
     +cd.map(function(x,i){ return '<tr><td>'+ed('criticalDates.'+i+'.date',x.date)+'</td><td>'+ed('criticalDates.'+i+'.event',x.event)+'</td></tr>'; }).join('')+'</tbody></table>'; }
   out+='<button class="addrow" onclick="addCriticalDate()">+ Add critical date</button>';
 
-  out+='<div class="foot"><div><b style="color:var(--muted)">Disclaimer.</b> This lease abstract is prepared by Restaurant Realty Group, LLC for convenience only and summarizes selected provisions of the referenced lease and related documents. It is not a substitute for the executed lease, is qualified in its entirety by the actual lease and any amendments, and may omit terms. Redacted party information is available to qualified parties under an executed non-disclosure agreement. No representation or warranty is made as to accuracy or completeness; recipients should independently verify all terms. Nothing herein constitutes legal, tax, or accounting advice.</div><div class="cf">Strictly<br>Confidential</div></div>';
+  out+='<div class="foot"><div><b style="color:var(--muted)">Disclaimer.</b> This lease abstract is prepared by '+esc(orgLegal())+' for convenience only and summarizes selected provisions of the referenced lease and related documents. It is not a substitute for the executed lease, is qualified in its entirety by the actual lease and any amendments, and may omit terms. Redacted party information is available to qualified parties under an executed non-disclosure agreement. No representation or warranty is made as to accuracy or completeness; recipients should independently verify all terms. Nothing herein constitutes legal, tax, or accounting advice.</div><div class="cf">Strictly<br>Confidential</div></div>';
   out+='</div>';
   document.getElementById('doc').innerHTML=out;
   wireEdits();
