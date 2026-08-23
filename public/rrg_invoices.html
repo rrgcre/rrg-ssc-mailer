@@ -53,6 +53,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .sec h3{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);font-weight:700;margin:0 0 12px;}
 .li{display:flex;gap:10px;align-items:center;margin-bottom:8px;}
 .li input.desc{flex:1;font:inherit;font-size:14px;padding:9px 11px;border:1px solid var(--line);border-radius:9px;}
+.li select.liacct{flex:0 0 210px;max-width:210px;font:inherit;font-size:13px;padding:9px 10px;border:1px solid var(--line);border-radius:4px;background:#fff;color:var(--ink);}
+@media(max-width:640px){.li{flex-wrap:wrap;}.li select.liacct{flex:1 1 100%;max-width:none;}}
 .li .money-in{width:170px;}
 .money-in{position:relative;} .money-in span{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--soft);font-size:14px;font-weight:700;} .money-in input{padding-left:24px !important;font:inherit;font-size:14px;padding:9px 11px;border:1px solid var(--line);border-radius:9px;width:100%;text-align:right;}
 .li .rm{border:none;background:#fdeceb;color:var(--red);width:30px;height:30px;border-radius:8px;font-size:16px;cursor:pointer;flex:0 0 auto;}
@@ -88,7 +90,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 </div>
 <script>
 var ROWS=[], CTL=null, BUILT=false, EDIT=null, DEL_ARM=false;
-var STATUSES=['Draft','Sent','Void'], METHODS=[], IS_ADMIN=false, LISTINGS=[];
+var STATUSES=['Draft','Sent','Void'], METHODS=[], IS_ADMIN=false, LISTINGS=[], INCOME_ACCTS=[];
+var TERMS=[{v:'Due on receipt',net:0},{v:'Net 10',net:10},{v:'Net 15',net:15},{v:'Net 30',net:30},{v:'Due on Lease Execution'},{v:'Due on Rent Commencement'},{v:'50% Execution / 50% Rent Commencement'},{v:'Due at Closing'},{v:'Upon Receipt of Landlord Payment'}];
+function addDaysISO(dateStr,n){ var d=new Date(String(dateStr)+'T00:00:00'); if(isNaN(d.getTime())) return dateStr; d.setDate(d.getDate()+(+n||0)); return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
+function termById(v){ return TERMS.filter(function(t){return t.v===v;})[0]||null; }
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 function fmtDate(iso){ if(!iso) return ''; var x=String(iso).slice(0,10).split('-'); if(x.length!==3) return String(iso).slice(0,10); return x[1]+'/'+x[2]+'/'+x[0].slice(2); }
 function money(n){ n=Number(n||0); return (window.RRG_CCYSYM||String.fromCharCode(36))+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
@@ -126,8 +131,11 @@ function renderStats(){
 function curById(id){ return ROWS.filter(function(x){return x.id===id;})[0]||null; }
 function opt(list,val){ return list.map(function(o){ return '<option value="'+esc(o)+'"'+(o===val?' selected':'')+'>'+esc(o)+'</option>'; }).join(''); }
 function listingOpts(val){ var s='<option value="">— None —</option>'; LISTINGS.forEach(function(l){ s+='<option value="'+esc(l.key)+'"'+(l.key===val?' selected':'')+'>'+esc(l.business||l.key)+'</option>'; }); return s; }
-function liRow(li,i,ro){ return '<div class="li" data-li="'+i+'"><input class="desc" data-lidesc="'+i+'" value="'+esc(li.desc||'')+'"'+(ro?' readonly':'')+' placeholder="e.g. Sale-side commission — 123 Main St"><div class="money-in"><span>$</span><input type="number" step="0.01" data-liamt="'+i+'" value="'+(li.amount?esc(li.amount):'')+'"'+(ro?' readonly':'')+' placeholder="0.00"></div>'+(ro?'':'<button class="rm" data-lirm="'+i+'" title="Remove line">×</button>')+'</div>'; }
-function collectLines(){ var arr=[]; document.querySelectorAll('#liWrap .li').forEach(function(row){ var i=row.getAttribute('data-li'); var d=document.querySelector('[data-lidesc="'+i+'"]'); var a=document.querySelector('[data-liamt="'+i+'"]'); arr.push({desc:d?d.value:'',amount:a?Number(a.value||0):0}); }); return arr; }
+function termsOpts(cur){ var out='<option value="">\u2014 none \u2014</option>'; var found=false; TERMS.forEach(function(t){ if(t.v===cur) found=true; out+='<option'+(t.v===cur?' selected':'')+'>'+esc(t.v)+'</option>'; }); if(cur&&!found){ out='<option value="'+esc(cur)+'" selected>'+esc(cur)+' (custom)</option>'+out; } return out; }
+function onTermsChange(){ var sel=document.getElementById('f_terms'); if(!sel) return; var t=termById(sel.value); var due=document.getElementById('f_due'); if(t&&typeof t.net==='number'&&due){ var iss=(document.getElementById('f_issue')||{}).value||todayISO(); due.value=addDaysISO(iss,t.net); } }
+function acctOpts(cur){ cur=cur||'4000'; if(!INCOME_ACCTS.length) return '<option value="'+esc(cur)+'" selected>'+esc(cur)+'</option>'; return INCOME_ACCTS.map(function(a){ return '<option value="'+esc(a.code)+'"'+(a.code===cur?' selected':'')+'>'+esc(a.code)+' '+esc(a.name)+'</option>'; }).join(''); }
+function liRow(li,i,ro){ return '<div class="li" data-li="'+i+'"><input class="desc" data-lidesc="'+i+'" value="'+esc(li.desc||'')+'"'+(ro?' readonly':'')+' placeholder="e.g. Sale-side commission — 123 Main St"><select class="liacct" data-liacct="'+i+'"'+(ro?' disabled':'')+' title="Income account (Chart of Accounts)">'+acctOpts(li.account)+'</select><div class="money-in"><span>$</span><input type="number" step="0.01" data-liamt="'+i+'" value="'+(li.amount?esc(li.amount):'')+'"'+(ro?' readonly':'')+' placeholder="0.00"></div>'+(ro?'':'<button class="rm" data-lirm="'+i+'" title="Remove line">×</button>')+'</div>'; }
+function collectLines(){ var arr=[]; document.querySelectorAll('#liWrap .li').forEach(function(row){ var i=row.getAttribute('data-li'); var d=document.querySelector('[data-lidesc="'+i+'"]'); var a=document.querySelector('[data-liamt="'+i+'"]'); var ac=document.querySelector('[data-liacct="'+i+'"]'); arr.push({desc:d?d.value:'',amount:a?Number(a.value||0):0,account:ac?ac.value:''}); }); return arr; }
 function lineTotal(){ return collectLines().reduce(function(s,li){return s+Number(li.amount||0);},0); }
 function renderLines(ro){ var w=document.getElementById('liWrap'); if(!w) return; var arr=(EDIT.lineItems&&EDIT.lineItems.length)?EDIT.lineItems:[{desc:'',amount:''}]; w.innerHTML=arr.map(function(li,i){return liRow(li,i,ro);}).join(''); wireLines(ro); updateEditorTotals(); }
 function wireLines(ro){ if(ro) return; document.querySelectorAll('#liWrap [data-liamt]').forEach(function(el){ el.addEventListener('input',updateEditorTotals); }); document.querySelectorAll('#liWrap [data-lirm]').forEach(function(el){ el.addEventListener('click',function(){ EDIT.lineItems=collectLines(); var i=Number(el.getAttribute('data-lirm')); EDIT.lineItems.splice(i,1); if(!EDIT.lineItems.length) EDIT.lineItems=[{desc:'',amount:''}]; renderLines(ro); }); }); }
@@ -148,7 +156,7 @@ function renderEditor(){
     +'</div>'
     +'<div class="sec"><h3>Line items</h3><div id="liWrap"></div>'+(ro?'':'<button class="btn ghost sm" id="addLine" style="margin-top:4px">+ Add line</button>')
     +'<div class="totals"><div class="tt"><div class="k">Total</div><div class="v" id="edTotal">$0.00</div></div><div class="tt paid"><div class="k">Paid</div><div class="v" id="edPaid">$0.00</div></div><div class="tt bal"><div class="k">Balance</div><div class="v" id="edBal">$0.00</div></div></div></div>'
-    +'<div class="grid" style="margin-top:16px"><div class="fld two"><label>Notes</label><textarea id="f_notes"'+(ro?' readonly':'')+' placeholder="Internal notes on this invoice">'+esc(x.notes||'')+'</textarea></div><div class="fld"><label>Terms</label><input type="text" id="f_terms" value="'+esc(x.terms||'')+'"'+(ro?' readonly':'')+' placeholder="e.g. Net 15, due on close"></div></div>'
+    +'<div class="grid" style="margin-top:16px"><div class="fld two"><label>Notes</label><textarea id="f_notes"'+(ro?' readonly':'')+' placeholder="Internal notes on this invoice">'+esc(x.notes||'')+'</textarea></div><div class="fld"><label>Terms</label><select id="f_terms"'+(ro?' disabled':'')+'>'+termsOpts(x.terms||'')+'</select></div></div>'
     +'<div class="sec"><h3>Recurring</h3>'+(x.seriesId?'<div class="roinfo">Auto-generated from a recurring invoice series.</div>':'')+'<div class="grid"><div class="fld"><label>Repeat</label><select id="f_recur"'+(ro?' disabled':'')+'><option value="">Does not repeat</option><option value="weekly">Weekly</option><option value="biweekly">Every 2 weeks</option><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="yearly">Yearly</option></select></div><div class="fld" id="recNextWrap" style="display:none"><label>Next issue date</label><input type="date" id="f_recnext"'+(ro?' disabled':'')+'></div><div class="fld" id="recActWrap" style="display:none"><label>Series status</label><select id="f_recactive"'+(ro?' disabled':'')+'><option value="1">Active — generating</option><option value="0">Paused</option></select></div></div><div class="hint" id="recHint"></div></div>'
     +'<div class="sec"><h3>Payments</h3>'+(saved?('<div id="payList">'+payListHTML(ro)+'</div>'+(ro?'':'<div class="payform"><div class="fld"><label>Date</label><input type="date" id="p_date" value="'+todayISO()+'"></div><div class="fld"><label>Amount</label><div class="money-in"><span>$</span><input type="number" step="0.01" id="p_amt" placeholder="0.00"></div></div><div class="fld"><label>Method / reference</label><input type="text" id="p_ref" placeholder="Check #, wire, etc."><select id="p_method" style="margin-top:8px">'+opt(METHODS,'')+'</select></div><div class="fld"><label>&nbsp;</label><button class="btn green" id="addPay">Record payment</button></div></div>')):'<div class="roinfo">Save the invoice first, then you can record payments against it.</div>')+'</div>'
     +'</div></div>';
@@ -158,6 +166,8 @@ function renderEditor(){
   if(!ro){
     var al=document.getElementById('addLine'); if(al) al.onclick=function(){ EDIT.lineItems=collectLines(); EDIT.lineItems.push({desc:'',amount:''}); renderLines(ro); };
     document.getElementById('saveBtn').onclick=save;
+    var _tsel=document.getElementById('f_terms'); if(_tsel) _tsel.onchange=onTermsChange;
+    var _iss=document.getElementById('f_issue'); if(_iss) _iss.addEventListener('change',onTermsChange);
     var db=document.getElementById('delBtn'); if(db) db.onclick=onDelete;
     var ap=document.getElementById('addPay'); if(ap) ap.onclick=addPayment;
     document.querySelectorAll('#payList [data-payrm]').forEach(function(el){ el.addEventListener('click',function(){ removePayment(el.getAttribute('data-payrm')); }); });
@@ -165,7 +175,7 @@ function renderEditor(){
   }
 }
 function render(){ var root=document.getElementById('root'); if(!BUILT){ root.innerHTML=LIST_SHELL; BUILT=true; document.getElementById('i_new').onclick=newInv; } refreshList(); renderEditor(); }
-function openEdit(id){ var x=curById(id); if(!x) return; api('GET','/api/invoices/'+encodeURIComponent(id)).then(function(j){ if(!j.ok){ alert(j.error||'Could not open invoice.'); return; } EDIT=j.invoice; if(j.methods) METHODS=j.methods; renderEditor(); var ed=document.getElementById('editor'); if(ed) ed.scrollIntoView({behavior:'smooth',block:'start'}); }); }
+function openEdit(id){ var x=curById(id); if(!x) return; api('GET','/api/invoices/'+encodeURIComponent(id)).then(function(j){ if(!j.ok){ alert(j.error||'Could not open invoice.'); return; } EDIT=j.invoice; if(j.methods) METHODS=j.methods; if(j.incomeAccounts) INCOME_ACCTS=j.incomeAccounts; renderEditor(); var ed=document.getElementById('editor'); if(ed) ed.scrollIntoView({behavior:'smooth',block:'start'}); }); }
 function newInv(){ EDIT={id:'',number:'',listingKey:'',listingLabel:'',billTo:'',billToEmail:'',issueDate:todayISO(),dueDate:'',baseStatus:'Draft',lineItems:[{desc:'',amount:''}],payments:[],notes:'',terms:'',mine:true}; renderEditor(); var ed=document.getElementById('editor'); if(ed) ed.scrollIntoView({behavior:'smooth',block:'start'}); }
 function msg(t,cls){ var m=document.getElementById('msg'); if(!m) return; m.textContent=t; m.className='msg '+(cls||''); if(t){ setTimeout(function(){ if(m.textContent===t){m.textContent='';m.className='msg';} },3000); } }
 function save(){
@@ -196,7 +206,7 @@ function onDelete(){
 }
 document.addEventListener('click',async function(e){ if(!e.target.closest) return; var ed=e.target.closest('[data-edit]'); if(ed){ e.preventDefault(); openEdit(ed.getAttribute('data-edit')); return; } var dl=e.target.closest('[data-del]'); if(dl){ e.preventDefault(); var _x=curById(dl.getAttribute('data-del')); if(_x && await rrgConfirm('Delete invoice '+(_x.number||'')+'? This removes its payments too.')){ api('DELETE','/api/invoices/'+encodeURIComponent(_x.id)).then(function(j){ if(j&&j.ok){ if(EDIT&&EDIT.id===_x.id) EDIT=null; load(); } else alert((j&&j.error)||'Delete failed.'); }); } return; } });
 function loadListings(){ return api('GET','/api/assignments').then(function(j){ LISTINGS=(j&&j.assignments)?j.assignments.map(function(a){return {key:a.key,business:a.business};}):[]; }).catch(function(){ LISTINGS=[]; }); }
-function applyList(j){ ROWS=j.invoices||[]; if(j.methods) METHODS=j.methods; if(j.statuses) STATUSES=j.statuses; IS_ADMIN=!!j.isAdmin; }
+function applyList(j){ ROWS=j.invoices||[]; if(j.methods) METHODS=j.methods; if(j.statuses) STATUSES=j.statuses; if(j.incomeAccounts) INCOME_ACCTS=j.incomeAccounts; IS_ADMIN=!!j.isAdmin; }
 function load(){ api('GET','/api/invoices').then(function(j){ applyList(j); render(); }); }
 function loadKeepEditor(){ api('GET','/api/invoices').then(function(j){ applyList(j); if(!BUILT){ render(); } else { refreshList(); renderEditor(); } }); }
 function qsParam(k){ try{ return new URLSearchParams(location.search).get(k)||""; }catch(e){ return ""; } }

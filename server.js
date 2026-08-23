@@ -7449,13 +7449,14 @@ app.delete('/api/expenses/:id', (req, res) => {
 // ===== Invoices & Payments (Accounting) =====
 const INVOICES_FILE = path.join(BOV_DATA_DIR, 'invoices.json');
 const INVOICE_STATUSES = ['Draft', 'Sent', 'Void'];
+const INVOICE_TERMS = ['Due on receipt', 'Net 10', 'Net 15', 'Net 30', 'Due on Lease Execution', 'Due on Rent Commencement', '50% Execution / 50% Rent Commencement', 'Due at Closing', 'Upon Receipt of Landlord Payment'];
 const PAYMENT_METHODS = ['Check', 'ACH / Wire', 'Card', 'Cash', 'Other'];
 function loadInvoices() { try { return rj(INVOICES_FILE) || []; } catch (e) { return []; } }
 function saveInvoices(a) { return writeJsonGuarded(INVOICES_FILE, a, 'saveInvoices'); }
 function newInvoiceId() { return 'inv_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function newPaymentId() { return 'pay_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function nextInvoiceNumber(all) { let mx = 1000; all.forEach(x => { const n = parseInt(String(x.number || '').replace(/\D/g, ''), 10); if (isFinite(n) && n > mx) mx = n; }); return 'INV-' + (mx + 1); }
-function cleanLineItems(arr) { if (!Array.isArray(arr)) return []; return arr.map(li => ({ desc: String((li && li.desc) || '').slice(0, 300), amount: _expNum(li && li.amount) })).filter(li => li.desc || li.amount).slice(0, 60); }
+function cleanLineItems(arr) { if (!Array.isArray(arr)) return []; return arr.map(li => ({ desc: String((li && li.desc) || '').slice(0, 300), amount: _expNum(li && li.amount), account: String((li && li.account) || '').slice(0, 20) })).filter(li => li.desc || li.amount).slice(0, 60); }
 function cleanPayments(arr) { if (!Array.isArray(arr)) return []; return arr.map(p => ({ id: p.id || newPaymentId(), date: String((p && p.date) || '').slice(0, 10), amount: _expNum(p && p.amount), method: String((p && p.method) || '').slice(0, 40), reference: String((p && p.reference) || '').slice(0, 120), notes: String((p && p.notes) || '').slice(0, 600), createdAt: p.createdAt || new Date().toISOString() })); }
 function invoiceStatusDisplay(x, total, paid) {
   if (x.status === 'Void') return 'Void';
@@ -7477,7 +7478,7 @@ function invoiceBrief(x, user, opts) {
     recur: (x.recur && INVOICE_RECUR_FREQS.indexOf(x.recur.freq) >= 0) ? { freq: x.recur.freq, nextDate: x.recur.nextDate || '', active: x.recur.active !== false, count: x.recur.count || 0, lastGenerated: x.recur.lastGenerated || '' } : null,
     seriesId: x.seriesId || '',
     mine: !!(user && (x.ownerUser === user.username || isSuper(user))), createdAt: x.createdAt || '', updatedAt: x.updatedAt || '' };
-  if (opts.full) { b.lineItems = items.map(li => ({ desc: li.desc || '', amount: _expNum(li.amount) }));
+  if (opts.full) { b.lineItems = items.map(li => ({ desc: li.desc || '', amount: _expNum(li.amount), account: li.account || '' }));
     b.payments = pays.slice().sort((p, q) => String(q.date || '').localeCompare(String(p.date || ''))).map(p => ({ id: p.id, date: p.date || '', amount: _expNum(p.amount), method: p.method || '', reference: p.reference || '', notes: p.notes || '' })); }
   return b;
 }
@@ -7514,7 +7515,7 @@ function generateDueRecurringInvoices() {
     let guard = 0;
     while (String(rc.nextDate) <= today && guard < 120) {
       guard++;
-      const child = { id: newInvoiceId(), number: nextInvoiceNumber(all), listingKey: inv.listingKey || '', listingLabel: inv.listingLabel || '', billTo: inv.billTo || '', billToEmail: inv.billToEmail || '', issueDate: rc.nextDate, dueDate: _invDueFrom(inv, rc.nextDate), status: 'Sent', lineItems: (inv.lineItems || []).map(li => ({ desc: li.desc || '', amount: _expNum(li.amount) })), payments: [], notes: inv.notes || '', terms: inv.terms || '', ownerUser: inv.ownerUser || '', ownerName: inv.ownerName || '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), seriesId: inv.seriesId || inv.id };
+      const child = { id: newInvoiceId(), number: nextInvoiceNumber(all), listingKey: inv.listingKey || '', listingLabel: inv.listingLabel || '', billTo: inv.billTo || '', billToEmail: inv.billToEmail || '', issueDate: rc.nextDate, dueDate: _invDueFrom(inv, rc.nextDate), status: 'Sent', lineItems: (inv.lineItems || []).map(li => ({ desc: li.desc || '', amount: _expNum(li.amount), account: li.account || '' })), payments: [], notes: inv.notes || '', terms: inv.terms || '', ownerUser: inv.ownerUser || '', ownerName: inv.ownerName || '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), seriesId: inv.seriesId || inv.id };
       all.push(child); made++; changed = true;
       rc.nextDate = _invAdvanceDate(rc.nextDate, rc.freq); rc.count = (rc.count || 0) + 1; rc.lastGenerated = child.issueDate;
     }
@@ -7530,13 +7531,13 @@ app.get('/api/invoices', (req, res) => {
   const filt = req.query.listingKey ? all.filter(x => x.listingKey === req.query.listingKey) : all;
   const vis = filt.filter(x => admin || x.ownerUser === u.username);
   const rows = vis.map(x => invoiceBrief(x, u)).sort((a, b) => String(b.issueDate || '').localeCompare(String(a.issueDate || '')) || String(b.number).localeCompare(String(a.number)));
-  res.json({ ok: true, isAdmin: !!admin, statuses: INVOICE_STATUSES, methods: PAYMENT_METHODS, invoices: rows });
+  res.json({ ok: true, isAdmin: !!admin, statuses: INVOICE_STATUSES, methods: PAYMENT_METHODS, terms: INVOICE_TERMS, incomeAccounts: loadGlAccounts().filter(a => a.type === 'Income').map(a => ({ code: a.code, name: a.name })), invoices: rows });
 });
 app.get('/api/invoices/:id', (req, res) => {
   const u = req.user || {}; const x = loadInvoices().find(e => e.id === req.params.id);
   if (!x) return res.status(404).json({ ok: false, error: 'Invoice not found.' });
   if (!(isSuper(u) || x.ownerUser === u.username)) return res.status(403).json({ ok: false, error: 'Not yours.' });
-  res.json({ ok: true, statuses: INVOICE_STATUSES, methods: PAYMENT_METHODS, invoice: invoiceBrief(x, u, { full: true }) });
+  res.json({ ok: true, statuses: INVOICE_STATUSES, methods: PAYMENT_METHODS, terms: INVOICE_TERMS, incomeAccounts: loadGlAccounts().filter(a => a.type === 'Income').map(a => ({ code: a.code, name: a.name })), invoice: invoiceBrief(x, u, { full: true }) });
 });
 app.post('/api/invoices', express.json({ limit: '512kb' }), (req, res) => {
   const u = req.user || {}; const b = req.body || {}; const all = loadInvoices();
@@ -8339,7 +8340,13 @@ function glAutoEntries(accounts) {
       const total = _glR2(items.reduce((s, li) => s + _expNum(li.amount), 0));
       const label = x.billTo || x.listingLabel || '';
       if (x.status === 'Sent' && total > 0) {
-        out.push({ id: 'auto:inv:' + x.id, date: x.issueDate || x.createdAt || '', memo: 'Invoice ' + (x.number || '') + (label ? (' — ' + label) : ''), source: 'invoice', editable: false, lines: [{ account: '1100', debit: total, credit: 0 }, { account: '4000', debit: 0, credit: total }] });
+        // Debit A/R for the whole invoice; credit each line to its own Income account (default 4000 Commission Income).
+        const _valid = new Set(accounts.map(a => a.code));
+        const _cr = {};
+        items.forEach(li => { const amt = _expNum(li.amount); if (amt > 0) { let acct = String((li && li.account) || ''); if (!acct || !_valid.has(acct)) acct = '4000'; _cr[acct] = _glR2((_cr[acct] || 0) + amt); } });
+        const _lines = [{ account: '1100', debit: total, credit: 0 }];
+        Object.keys(_cr).forEach(acct => _lines.push({ account: acct, debit: 0, credit: _cr[acct] }));
+        out.push({ id: 'auto:inv:' + x.id, date: x.issueDate || x.createdAt || '', memo: 'Invoice ' + (x.number || '') + (label ? (' — ' + label) : ''), source: 'invoice', editable: false, lines: _lines });
       }
       if (x.status !== 'Void') {
         (x.payments || []).forEach(p => { const amt = _glR2(p.amount); if (amt > 0) out.push({ id: 'auto:pay:' + p.id, date: p.date || '', memo: 'Payment received — Invoice ' + (x.number || '') + (label ? (' — ' + label) : ''), source: 'payment', editable: false, lines: [{ account: '1000', debit: amt, credit: 0 }, { account: '1100', debit: 0, credit: amt }] }); });
