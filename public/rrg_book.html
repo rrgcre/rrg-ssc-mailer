@@ -191,7 +191,7 @@ function goDetails(){
   refreshSide(true);
   var qs=(TYPE&&Array.isArray(TYPE.questions))?TYPE.questions:[];
   var qHtml=qs.map(function(q,qi){
-    var lab='<label class="fl">'+(qi+1)+'. '+esc(q.q)+(q.required?' <span class="req">*</span>':'')+'</label>';
+    var lab='<label class="fl">'+esc(q.q)+(q.required?' <span class="req">*</span>':'')+'</label>';
     var t=q.type||'text';
     if(t==='textarea') return lab+'<textarea class="f q" data-qi="'+qi+'"></textarea>';
     if(t==='select'){ var opts='<option value="">Select…</option>'+(q.options||[]).map(function(o){return '<option>'+esc(o)+'</option>';}).join(''); return lab+'<select class="f q" data-qi="'+qi+'">'+opts+'</select>'; }
