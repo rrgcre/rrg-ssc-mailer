@@ -88,6 +88,20 @@ input.txt.sm{padding:9px 12px;font-size:13px;}
   </div>
 
   <div class="card">
+    <h2>Email Template Style</h2>
+    <span class="cs">The visual style Email Studio uses for outbound campaigns. Pick the look that fits your brokerage &mdash; every campaign uses it automatically.</span>
+    <div class="inrow" style="margin-top:11px">
+      <select id="emailStyle" class="txt sm">
+        <option value="modern">Modern &mdash; clean navy header, crisp stat grid (default)</option>
+        <option value="bold">Bold / Impact &mdash; color header, big headline, pill button</option>
+        <option value="warm">Warm / Boutique &mdash; cream tones, rounded, softer</option>
+      </select>
+      <button class="btn primary" onclick="saveEmailStyle()">Save style</button>
+      <span id="emailStyleMsg" class="msg"></span>
+    </div>
+  </div>
+
+  <div class="card">
     <h2>Favicon</h2>
     <span class="cs">The little icon in the browser tab. Use a square image (ICO, PNG or SVG), ideally 32×32 or larger, up to 1&nbsp;MB. Applies across every page.</span>
     <div id="favPreview" style="margin-bottom:12px"></div>
@@ -169,6 +183,10 @@ fetch('/api/admin/app-name',{credentials:'same-origin'}).then(function(r){ if(r.
   document.getElementById('appName').value=j.name||''; _appnState(j);
   loadHdrMsg(); loadLogo(); loadFavicon(); loadPalette();
 }).catch(function(){ gate(); });
+
+function loadEmailStyle(){ fetch('/api/admin/email-style',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ var el=document.getElementById('emailStyle'); if(el) el.value=j.emailStyle||'modern'; } }).catch(function(){}); }
+function saveEmailStyle(){ var v=document.getElementById('emailStyle').value, m=document.getElementById('emailStyleMsg'); m.textContent='Saving\u2026'; post('/api/admin/email-style',{emailStyle:v}).then(function(j){ if(j&&j.ok){ m.textContent='Saved \u2713'; } else { m.textContent=(j&&j.error)||'Failed'; } }); }
+loadEmailStyle();
 </script>
 </body>
 </html>

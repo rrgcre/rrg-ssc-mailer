@@ -3208,7 +3208,7 @@ function effAiConfirm() { const b = loadBrand(); return b.aiConfirm !== false; }
 const PALETTE_DEFAULT = { primary: '#000E31', accent: '#DA2B1F', sidebar: '#0b1a38', positive: '#1f8a5b' };
 function isHexColor(v) { return /^#[0-9a-fA-F]{6}$/.test(String(v || '')); }
 function effPalette() { const b = loadBrand(); const pl = (b.palette && typeof b.palette === 'object') ? b.palette : {}; return { primary: isHexColor(pl.primary) ? pl.primary : PALETTE_DEFAULT.primary, accent: isHexColor(pl.accent) ? pl.accent : PALETTE_DEFAULT.accent, sidebar: isHexColor(pl.sidebar) ? pl.sidebar : PALETTE_DEFAULT.sidebar, positive: isHexColor(pl.positive) ? pl.positive : PALETTE_DEFAULT.positive }; }
-app.get('/api/appname', (req, res) => res.json({ ok: true, name: loadAppName(), assistant: effAssistantName(), concept: effConceptLabel(), conceptPlural: effConceptLabelPlural(), palette: effPalette(), aiConfirm: effAiConfirm(), logoUrl: (function(){ const _b = loadBrand(); return _b.logoExt ? ('/api/brand/logo?v=' + encodeURIComponent(_b.updatedAt || '')) : ''; })(), org: effOrg() }));
+app.get('/api/appname', (req, res) => res.json({ ok: true, name: loadAppName(), assistant: effAssistantName(), concept: effConceptLabel(), conceptPlural: effConceptLabelPlural(), palette: effPalette(), aiConfirm: effAiConfirm(), logoUrl: (function(){ const _b = loadBrand(); return _b.logoExt ? ('/api/brand/logo?v=' + encodeURIComponent(_b.updatedAt || '')) : ''; })(), org: effOrg(), emailStyle: (function(){ const _b = loadBrand(); return (['modern','bold','warm'].indexOf(_b.emailStyle) >= 0) ? _b.emailStyle : 'modern'; })() }));
 // Data-room buyer engagement → feed rows. Each buyer's raw view/download hits are
 // collapsed into per-visit "sessions" (a >45-min gap starts a new one): what they
 // opened, how many they pulled, and whether they touched the money. That last part is
@@ -3299,6 +3299,8 @@ app.get('/api/feed', (req, res) => {
   res.json({ ok: true, items: out.slice(0, 200), scope: wantUser ? 'user' : (mine ? 'mine' : 'all'), user: wantUser, users: users, canScope: canScope });
 });
 app.get('/api/admin/palette', requireAdmin, (req, res) => res.json({ ok: true, palette: effPalette(), defaults: PALETTE_DEFAULT }));
+app.get('/api/admin/email-style', requireAdmin, (req, res) => { const b = loadBrand(); res.json({ ok: true, emailStyle: (['modern','bold','warm'].indexOf(b.emailStyle) >= 0) ? b.emailStyle : 'modern', styles: ['modern','bold','warm'] }); });
+app.post('/api/admin/email-style', requireAdmin, express.json(), (req, res) => { const v = String((req.body || {}).emailStyle || '').toLowerCase(); if (['modern','bold','warm'].indexOf(v) < 0) return res.status(400).json({ ok: false, error: 'Unknown style.' }); const b = loadBrand(); b.emailStyle = v; saveBrand(b); res.json({ ok: true, emailStyle: v }); });
 app.post('/api/admin/palette', requireAdmin, express.json(), (req, res) => {
   const bd = req.body || {};
   const b = loadBrand();

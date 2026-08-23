@@ -24,14 +24,48 @@
     footer:   { label:'Footer',      once:true }
   };
 
+  // Three brokerage-selectable visual styles. Same block model, different look.
+  function styleTokens(brand){
+    var c=colors(brand), P=c.P, A=c.A;
+    var st=(brand&&brand.style)||'modern';
+    var base={ st:'modern', P:P, A:A, bodyFont:"Arial,Helvetica,sans-serif",
+      pageBg:"#eef1f6", cardBg:"#ffffff", cardRadius:"14px", cardShadow:"0 6px 22px rgba(20,30,55,.10)",
+      headerPad:"24px 34px", ruleColor:A, ruleH:"3px",
+      eyebrowColor:A, eyebrowLS:"2px",
+      titleColor:P, titleSize:"27px", titleWeight:"700", titleLS:"-.3px", titleAlign:"left",
+      subColor:"#5c667d", bodyColor:"#3d4453", bodySize:"15px",
+      metaBg:"#f8fafc", metaBorder:"#e6e9f0", statLabel:"#8a93a8", statVal:P, metaRadius:"10px",
+      secMode:"underline", secColor:P, secRule:P, checkColor:A,
+      btnBg:P, btnColor:"#ffffff", btnRadius:"8px", btnPad:"15px 34px",
+      sigLine:"#5c667d", lineColor:"#e6e9f0",
+      footBg:"#f5f7fb", footTop:"#e6e9f0", footCity:"#8a93a8", footText:"#9aa3b5", footLink:"#5c667d" };
+    if(st==='bold') return Object.assign({},base,{ st:'bold',
+      headerPad:"32px 34px", cardRadius:"8px", ruleH:"5px",
+      titleSize:"34px", titleWeight:"800", titleLS:"-.6px",
+      statVal:A, secMode:"chip",
+      btnBg:A, btnRadius:"999px", btnPad:"16px 42px",
+      footBg:P, footTop:"rgba(255,255,255,.14)", footCity:"rgba(255,255,255,.72)", footText:"rgba(255,255,255,.6)", footLink:"#ffffff" });
+    if(st==='warm') return Object.assign({},base,{ st:'warm',
+      pageBg:"#f4efe7", cardBg:"#fffdfa", cardRadius:"20px", cardShadow:"0 8px 26px rgba(90,70,40,.12)",
+      headerPad:"26px 36px", ruleH:"2px",
+      titleSize:"26px", titleLS:"-.2px",
+      metaBg:"#faf6ef", metaBorder:"#ece3d5", statLabel:"#a08a6a", metaRadius:"14px",
+      secMode:"softcaps", secRule:"#e6ddcd",
+      btnRadius:"14px", btnPad:"14px 32px", sigLine:"#7a6a52", lineColor:"#ece3d5",
+      footBg:"#faf6ef", footTop:"#ece3d5", footCity:"#a08a6a", footText:"#9a8b76", footLink:"#7a6a52" });
+    return base;
+  }
+
   function logoMarkup(brand){
     var c=colors(brand);
+    var org=(brand&&brand.orgName)||'Restaurant Realty Group';
     if(brand && brand.logo){
-      return '<img src="'+esc(brand.logo)+'" alt="Restaurant Realty Group" height="40" style="display:block;height:40px;width:auto;border:0;">';
+      return '<img src="'+esc(brand.logo)+'" alt="'+esc(org)+'" height="40" style="display:block;height:40px;width:auto;border:0;">';
     }
+    var abbr=(org.match(/\b[A-Za-z]/g)||['R','R','G']).slice(0,3).join('').toUpperCase();
     return '<table role="presentation" cellpadding="0" cellspacing="0"><tr>'
-      +'<td style="vertical-align:middle;padding-right:12px;"><div style="width:44px;height:44px;background:'+c.A+';border-radius:50%;text-align:center;line-height:44px;color:#fff;font:700 15px/44px Arial,Helvetica,sans-serif;letter-spacing:.5px;">RRG</div></td>'
-      +'<td style="vertical-align:middle;border-left:2px solid rgba(255,255,255,.25);padding-left:12px;"><div style="color:#fff;font:700 16px/1.15 Arial,Helvetica,sans-serif;letter-spacing:.4px;">RESTAURANT REALTY GROUP</div><div style="color:rgba(255,255,255,.62);font:600 10.5px/1.5 Arial,Helvetica,sans-serif;letter-spacing:1.4px;text-transform:uppercase;margin-top:3px;">Restaurant Transactions. Done Right.</div></td>'
+      +'<td style="vertical-align:middle;padding-right:12px;"><div style="width:44px;height:44px;background:'+c.A+';border-radius:50%;text-align:center;line-height:44px;color:#fff;font:700 15px/44px Arial,Helvetica,sans-serif;letter-spacing:.5px;">'+esc(abbr)+'</div></td>'
+      +'<td style="vertical-align:middle;border-left:2px solid rgba(255,255,255,.25);padding-left:12px;"><div style="color:#fff;font:700 16px/1.15 Arial,Helvetica,sans-serif;letter-spacing:.4px;text-transform:uppercase;">'+esc(org)+'</div><div style="color:rgba(255,255,255,.62);font:600 10.5px/1.5 Arial,Helvetica,sans-serif;letter-spacing:1.4px;text-transform:uppercase;margin-top:3px;">Restaurant Transactions. Done Right.</div></td>'
       +'</tr></table>';
   }
 
@@ -41,23 +75,23 @@
 
   // Each block -> one or more <tr> rows within the 600px card table.
   function blockRows(b, brand){
-    var c=colors(brand), P=c.P, A=c.A, p=b.props||{};
+    var T=styleTokens(brand), P=T.P, A=T.A, F=T.bodyFont, p=b.props||{};
     switch(b.type){
       case 'header':
-        return '<tr><td style="background:'+P+';padding:24px 34px;">'+logoMarkup(brand)+'</td></tr>\n'
-             + '<tr><td style="height:3px;background:'+A+';line-height:3px;font-size:0;">&nbsp;</td></tr>';
+        return '<tr><td style="background:'+P+';padding:'+T.headerPad+';">'+logoMarkup(brand)+'</td></tr>\n'
+             + '<tr><td style="height:'+T.ruleH+';background:'+T.ruleColor+';line-height:'+T.ruleH+';font-size:0;">&nbsp;</td></tr>';
       case 'hero': {
         var img = p.url
           ? '<img src="'+esc(p.url)+'" width="600" alt="'+esc(p.alt||'')+'" style="display:block;width:100%;max-width:600px;height:auto;border:0;">'
-          : '<div style="background:#dfe4ec;height:240px;text-align:center;color:#9aa3b5;font:600 12px/240px Arial,Helvetica,sans-serif;">Your listing photo &mdash; add an image URL</div>';
-        var cap = p.caption ? '<tr><td style="padding:9px 34px 0;"><div style="color:#9aa3b5;font:italic 400 11px/1.5 Arial,Helvetica,sans-serif;">'+esc(p.caption)+'</div></td></tr>' : '';
+          : '<div style="background:#dfe4ec;height:240px;text-align:center;color:#9aa3b5;font:600 12px/240px '+F+';">Your listing photo &mdash; add an image URL</div>';
+        var cap = p.caption ? '<tr><td style="padding:9px 34px 0;"><div style="color:#9aa3b5;font:italic 400 11px/1.5 '+F+';">'+esc(p.caption)+'</div></td></tr>' : '';
         return '<tr><td style="padding:0;">'+img+'</td></tr>'+(cap?('\n'+cap):'');
       }
       case 'title':
-        return '<tr><td style="padding:22px 34px 0;">'
-          +(p.eyebrow?'<div style="color:'+A+';font:700 11px/1.4 Arial,Helvetica,sans-serif;letter-spacing:2px;text-transform:uppercase;">'+esc(p.eyebrow)+'</div>':'')
-          +'<h1 style="margin:8px 0 6px;color:'+P+';font:700 27px/1.2 Arial,Helvetica,sans-serif;letter-spacing:-.3px;">'+esc(p.headline||'')+'</h1>'
-          +(p.subtitle?'<div style="color:#5c667d;font:600 14px/1.5 Arial,Helvetica,sans-serif;">'+esc(p.subtitle)+'</div>':'')
+        return '<tr><td style="padding:22px 34px 0;text-align:'+T.titleAlign+';">'
+          +(p.eyebrow?'<div style="color:'+T.eyebrowColor+';font:700 11px/1.4 '+F+';letter-spacing:'+T.eyebrowLS+';text-transform:uppercase;">'+esc(p.eyebrow)+'</div>':'')
+          +'<h1 style="margin:8px 0 6px;color:'+T.titleColor+';font:'+T.titleWeight+' '+T.titleSize+'/1.2 '+F+';letter-spacing:'+T.titleLS+';">'+esc(p.headline||'')+'</h1>'
+          +(p.subtitle?'<div style="color:'+T.subColor+';font:600 14px/1.5 '+F+';">'+esc(p.subtitle)+'</div>':'')
           +'</td></tr>';
       case 'stats': {
         var items=(p.items||[]).filter(function(it){ return it && (it.label||it.value); });
@@ -66,51 +100,56 @@
         for(var i=0;i<items.length;i+=2){
           var lastRow=(i+2>=items.length);
           var left=items[i], right=items[i+1];
-          function cell(it,isLeft){ return '<td width="50%" style="padding:16px 18px;'+(isLeft?'border-right:1px solid #e6e9f0;':'')+(lastRow?'':'border-bottom:1px solid #e6e9f0;')+'"><div style="color:#8a93a8;font:700 10px/1.4 Arial,Helvetica,sans-serif;letter-spacing:1.2px;text-transform:uppercase;">'+esc(it.label||'')+'</div><div style="color:'+P+';font:700 21px/1.25 Arial,Helvetica,sans-serif;margin-top:3px;">'+esc(it.value||'')+'</div></td>'; }
-          cells+='<tr>'+cell(left,true)+(right?cell(right,false):'<td width="50%" style="padding:16px 18px;'+(lastRow?'':'border-bottom:1px solid #e6e9f0;')+'"></td>')+'</tr>';
+          function cell(it,isLeft){ return '<td width="50%" style="padding:16px 18px;'+(isLeft?'border-right:1px solid '+T.metaBorder+';':'')+(lastRow?'':'border-bottom:1px solid '+T.metaBorder+';')+'"><div style="color:'+T.statLabel+';font:700 10px/1.4 '+F+';letter-spacing:1.2px;text-transform:uppercase;">'+esc(it.label||'')+'</div><div style="color:'+T.statVal+';font:700 21px/1.25 '+F+';margin-top:3px;">'+esc(it.value||'')+'</div></td>'; }
+          cells+='<tr>'+cell(left,true)+(right?cell(right,false):'<td width="50%" style="padding:16px 18px;'+(lastRow?'':'border-bottom:1px solid '+T.metaBorder+';')+'"></td>')+'</tr>';
         }
-        return '<tr><td style="padding:20px 34px 4px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e6e9f0;border-radius:10px;background:#f8fafc;">'+cells+'</table></td></tr>';
+        return '<tr><td style="padding:20px 34px 4px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid '+T.metaBorder+';border-radius:'+T.metaRadius+';background:'+T.metaBg+';">'+cells+'</table></td></tr>';
       }
       case 'text': {
         var parts=String(p.text||'').split(/\n\s*\n/);
-        var html=parts.map(function(seg,idx){ var last=(idx===parts.length-1); return '<p style="margin:0'+(last?'':' 0 15px')+';color:#3d4453;font:400 15px/1.65 Arial,Helvetica,sans-serif;">'+inlineText(seg,P)+'</p>'; }).join('');
+        var html=parts.map(function(seg,idx){ var last=(idx===parts.length-1); return '<p style="margin:0'+(last?'':' 0 15px')+';color:'+T.bodyColor+';font:400 '+T.bodySize+'/1.65 '+F+';">'+inlineText(seg,P)+'</p>'; }).join('');
         return '<tr><td style="padding:20px 34px 0;">'+html+'</td></tr>';
       }
       case 'highlights': {
         var its=(p.items||[]).filter(function(t){ return t; });
-        var rows=its.map(function(t){ return '<tr><td style="padding:6px 0;vertical-align:top;width:22px;color:'+A+';font:700 15px/1.5 Arial,Helvetica,sans-serif;">&#10003;</td><td style="padding:6px 0;color:#3d4453;font:400 14.5px/1.55 Arial,Helvetica,sans-serif;">'+esc(t)+'</td></tr>'; }).join('');
-        return '<tr><td style="padding:24px 34px 0;"><div style="color:'+P+';font:700 12px/1.4 Arial,Helvetica,sans-serif;letter-spacing:1.6px;text-transform:uppercase;padding-bottom:10px;border-bottom:2px solid '+P+';">'+esc(p.title||'Highlights')+'</div><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:12px;">'+rows+'</table></td></tr>';
+        var rows=its.map(function(t){ return '<tr><td style="padding:6px 0;vertical-align:top;width:22px;color:'+T.checkColor+';font:700 15px/1.5 '+F+';">&#10003;</td><td style="padding:6px 0;color:'+T.bodyColor+';font:400 14.5px/1.55 '+F+';">'+esc(t)+'</td></tr>'; }).join('');
+        var ti=esc(p.title||'Highlights'), head;
+        if(T.secMode==='chip') head='<div style="display:inline-block;background:'+P+';color:#fff;font:700 11px/1.4 '+F+';letter-spacing:1.4px;text-transform:uppercase;padding:6px 14px;border-radius:5px;">'+ti+'</div>';
+        else if(T.secMode==='softcaps') head='<div style="color:'+T.secColor+';font:700 12px/1.4 '+F+';letter-spacing:1.6px;text-transform:uppercase;padding-bottom:9px;border-bottom:1px solid '+T.secRule+';">'+ti+'</div>';
+        else head='<div style="color:'+T.secColor+';font:700 12px/1.4 '+F+';letter-spacing:1.6px;text-transform:uppercase;padding-bottom:10px;border-bottom:2px solid '+T.secRule+';">'+ti+'</div>';
+        return '<tr><td style="padding:24px 34px 0;">'+head+'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:12px;">'+rows+'</table></td></tr>';
       }
       case 'button':
-        return '<tr><td style="padding:28px 34px 6px;" align="center"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:8px;background:'+P+';"><a href="'+esc(p.url||'#')+'" style="display:inline-block;padding:15px 34px;color:#fff;font:700 15px/1 Arial,Helvetica,sans-serif;letter-spacing:.3px;text-decoration:none;border-radius:8px;">'+esc(p.text||'Learn more')+'</a></td></tr></table>'+(p.subtext?'<div style="margin-top:12px;color:#8a93a8;font:400 12.5px/1.5 Arial,Helvetica,sans-serif;">'+esc(p.subtext)+'</div>':'')+'</td></tr>';
+        return '<tr><td style="padding:28px 34px 6px;" align="center"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:'+T.btnRadius+';background:'+T.btnBg+';"><a href="'+esc(p.url||'#')+'" style="display:inline-block;padding:'+T.btnPad+';color:'+T.btnColor+';font:700 15px/1 '+F+';letter-spacing:.3px;text-decoration:none;border-radius:'+T.btnRadius+';">'+esc(p.text||'Learn more')+'</a></td></tr></table>'+(p.subtext?'<div style="margin-top:12px;color:'+T.statLabel+';font:400 12.5px/1.5 '+F+';">'+esc(p.subtext)+'</div>':'')+'</td></tr>';
       case 'image': {
         var im='<img src="'+esc(p.url||'')+'" width="532" alt="'+esc(p.alt||'')+'" style="display:block;width:100%;max-width:532px;height:auto;border:0;border-radius:8px;">';
         if(p.link) im='<a href="'+esc(p.link)+'">'+im+'</a>';
         return '<tr><td style="padding:18px 34px 0;">'+im+'</td></tr>';
       }
       case 'divider':
-        return '<tr><td style="padding:20px 34px 0;"><div style="border-top:1px solid #e6e9f0;font-size:0;line-height:0;">&nbsp;</div></td></tr>';
+        return '<tr><td style="padding:20px 34px 0;"><div style="border-top:1px solid '+T.lineColor+';font-size:0;line-height:0;">&nbsp;</div></td></tr>';
       case 'spacer': {
         var h=Math.max(4,Math.min(120,parseInt(p.height,10)||24));
         return '<tr><td style="height:'+h+'px;line-height:'+h+'px;font-size:0;">&nbsp;</td></tr>';
       }
       case 'signature':
-        return '<tr><td style="padding:22px 34px 4px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #e6e9f0;"><tr><td style="padding-top:18px;"><div style="color:'+P+';font:700 15px/1.3 Arial,Helvetica,sans-serif;">'+esc(p.name||'Your RRG Advisor')+'</div><div style="color:#5c667d;font:400 13px/1.6 Arial,Helvetica,sans-serif;margin-top:2px;">'+esc(p.line||'')+'</div></td></tr></table></td></tr>';
+        return '<tr><td style="padding:22px 34px 4px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid '+T.lineColor+';"><tr><td style="padding-top:18px;"><div style="color:'+P+';font:700 15px/1.3 '+F+';">'+esc(p.name||'Your RRG Advisor')+'</div><div style="color:'+T.sigLine+';font:400 13px/1.6 '+F+';margin-top:2px;">'+esc(p.line||'')+'</div></td></tr></table></td></tr>';
       case 'footer':
-        return '<tr><td style="padding:22px 34px 26px;background:#f5f7fb;border-top:1px solid #e6e9f0;"><div style="color:#8a93a8;font:600 10px/1.6 Arial,Helvetica,sans-serif;letter-spacing:1.2px;text-transform:uppercase;text-align:center;">'+esc(p.cities||'')+'</div><div style="color:#9aa3b5;font:400 11.5px/1.7 Arial,Helvetica,sans-serif;text-align:center;margin-top:10px;">'+esc(p.optin||'')+'<br><a href="{{unsubscribe_url}}" style="color:#5c667d;text-decoration:underline;">Unsubscribe</a></div></td></tr>';
+        return '<tr><td style="padding:22px 34px 26px;background:'+T.footBg+';border-top:1px solid '+T.footTop+';"><div style="color:'+T.footCity+';font:600 10px/1.6 '+F+';letter-spacing:1.2px;text-transform:uppercase;text-align:center;">'+esc(p.cities||'')+'</div><div style="color:'+T.footText+';font:400 11.5px/1.7 '+F+';text-align:center;margin-top:10px;">'+esc(p.optin||'')+'<br><a href="{{unsubscribe_url}}" style="color:'+T.footLink+';text-decoration:underline;">Unsubscribe</a></div></td></tr>';
       default: return '';
     }
   }
 
   function exportHtml(blocks, brand){
     blocks=blocks||[];
+    var T=styleTokens(brand);
     var rows=blocks.map(function(b){ return blockRows(b, brand); }).join('\n');
     var html=''
-      +'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef1f6;font-family:Arial,Helvetica,sans-serif;"><tr><td align="center" style="padding:28px 14px;">\n'
-      +'<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 6px 22px rgba(20,30,55,.10);">\n'
+      +'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:'+T.pageBg+';font-family:'+T.bodyFont+';"><tr><td align="center" style="padding:28px 14px;">\n'
+      +'<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background:'+T.cardBg+';border-radius:'+T.cardRadius+';overflow:hidden;box-shadow:'+T.cardShadow+';">\n'
       +rows+'\n'
       +'</table>\n</td></tr></table>';
-    var model='<!--RRGB:'+b64e(JSON.stringify({ v:1, blocks:blocks }))+'-->';
+    var model='<!--RRGB:'+b64e(JSON.stringify({ v:1, blocks:blocks, style:(brand&&brand.style)||'modern' }))+'-->';
     return html+'\n'+model;
   }
 

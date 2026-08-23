@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const { Pool } = require('pg');
 
 const TENANT = process.env.MAIL_TENANT || 'default';
-let pool = null, DB_READY = false, _migrated = null, _drainTimer = null, _abTimer = null;
+let pool = null, DB_READY = false, _migrated = null, _drainTimer = null, _abTimer = null, _schedTimer = null;
 
 function _ssl() { const m = String(process.env.PGSSL || '').toLowerCase(); if (m === 'disable' || m === 'off' || m === 'false') return false; return { rejectUnauthorized: false }; }
 function dbReady() { return DB_READY; }
@@ -66,6 +66,14 @@ async function migrate() {
     await pool.query(`ALTER TABLE mm_campaigns ADD COLUMN IF NOT EXISTS ab_winner TEXT DEFAULT ''`);
     await pool.query(`ALTER TABLE mm_campaigns ADD COLUMN IF NOT EXISTS ab_decided_at TIMESTAMPTZ`);
     await pool.query(`ALTER TABLE mm_sends ADD COLUMN IF NOT EXISTS variant TEXT DEFAULT 'A'`);
+    await pool.query(`ALTER TABLE mm_sends ADD COLUMN IF NOT EXISTS run_seq INT DEFAULT 1`);
+    await pool.query(`ALTER TABLE mm_campaigns ADD COLUMN IF NOT EXISTS runs INT DEFAULT 0`);
+    await pool.query(`ALTER TABLE mm_campaigns ADD COLUMN IF NOT EXISTS last_run_at TIMESTAMPTZ`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS mm_schedules(
+      id BIGSERIAL PRIMARY KEY, tenant TEXT NOT NULL DEFAULT 'default', campaign_id BIGINT NOT NULL,
+      run_at TIMESTAMPTZ NOT NULL, status TEXT NOT NULL DEFAULT 'pending', note TEXT DEFAULT '',
+      created_at TIMESTAMPTZ DEFAULT now(), done_at TIMESTAMPTZ)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS mm_sched_due ON mm_schedules(run_at) WHERE status='pending'`);
   })().catch(e => { console.error('[MAIL] migrate failed: ' + (e && e.message)); _migrated = null; throw e; });
   return _migrated;
 }
@@ -227,27 +235,27 @@ async function updateCampaign(id, b) {
      ab.enabled, ab.subjectB, ab.htmlB, ab.pct, ab.metric, ab.hours]);
 }
 // Materialize the recipient set (active subscribers in the list, minus suppression) into mm_sends.
-async function materialize(campaignId) {
+async function materialize(campaignId, runSeq, useAB) {
+  runSeq = runSeq || 1;
   const c = (await q('SELECT * FROM mm_campaigns WHERE tenant=$1 AND id=$2', [TENANT, campaignId])).rows[0];
   if (!c) throw new Error('Campaign not found.');
   const listFilter = c.list_id ? ' AND s.id IN (SELECT subscriber_id FROM mm_list_members WHERE list_id=$2)' : '';
   const params = c.list_id ? [TENANT, c.list_id] : [TENANT];
-  // insert pending sends for eligible subscribers not already queued and not suppressed
-  const sql = `INSERT INTO mm_sends(tenant,campaign_id,subscriber_id,email,token,status)
-    SELECT $1, ${campaignId}, s.id, s.email, md5(random()::text||clock_timestamp()::text||s.id::text), 'pending'
+  // insert pending sends for this run: eligible subscribers not already queued in THIS run and not suppressed
+  const sql = `INSERT INTO mm_sends(tenant,campaign_id,subscriber_id,email,token,status,run_seq)
+    SELECT $1, ${campaignId}, s.id, s.email, md5(random()::text||clock_timestamp()::text||s.id::text||'${runSeq}'), 'pending', ${runSeq}
     FROM mm_subscribers s
     WHERE s.tenant=$1 AND s.status='active'${listFilter}
       AND NOT EXISTS (SELECT 1 FROM mm_suppressions x WHERE x.tenant=$1 AND x.email=s.email)
-      AND NOT EXISTS (SELECT 1 FROM mm_sends d WHERE d.campaign_id=${campaignId} AND d.subscriber_id=s.id)`;
+      AND NOT EXISTS (SELECT 1 FROM mm_sends d WHERE d.campaign_id=${campaignId} AND d.run_seq=${runSeq} AND d.subscriber_id=s.id)`;
   await q(sql, params);
   const tot = (await q('SELECT count(*)::int AS n FROM mm_sends WHERE campaign_id=$1', [campaignId])).rows[0].n;
   await q('UPDATE mm_campaigns SET total=$2 WHERE id=$1', [campaignId, tot]);
-  if (c.ab_enabled) {
-    // Randomly split the newly-pending sends: test portion (ab_pct%) into A/B halves, remainder held.
+  if (useAB && runSeq === 1 && c.ab_enabled) {
     const pct = Math.max(5, Math.min(100, c.ab_pct || 30));
     await q(`WITH ranked AS (
         SELECT id, row_number() OVER (ORDER BY random()) AS rn, count(*) OVER () AS n
-        FROM mm_sends WHERE campaign_id=$1 AND status='pending')
+        FROM mm_sends WHERE campaign_id=$1 AND run_seq=1 AND status='pending')
       UPDATE mm_sends d SET
         status = CASE WHEN r.rn > ceil(r.n * $2 / 100.0) THEN 'hold' ELSE 'pending' END,
         variant = CASE WHEN r.rn > ceil(r.n * $2 / 100.0) THEN 'H'
@@ -256,13 +264,41 @@ async function materialize(campaignId) {
   }
   return tot;
 }
+// Begin a fresh send run (re-queues the full active list). Used for the first send and every scheduled repeat.
+async function _beginRun(campaignId, useAB) {
+  const c = (await q('SELECT runs FROM mm_campaigns WHERE tenant=$1 AND id=$2', [TENANT, campaignId])).rows[0];
+  if (!c) throw new Error('Campaign not found.');
+  const runSeq = (c.runs || 0) + 1;
+  await materialize(campaignId, runSeq, useAB);
+  await q(`UPDATE mm_campaigns SET status='sending', runs=$3, started_at=COALESCE(started_at, now()), last_run_at=now(), finished_at=NULL WHERE tenant=$1 AND id=$2`, [TENANT, campaignId, runSeq]);
+  kickDrainer();
+}
 async function startCampaign(campaignId) {
   const c = (await q('SELECT status FROM mm_campaigns WHERE tenant=$1 AND id=$2', [TENANT, campaignId])).rows[0];
   if (!c) throw new Error('Campaign not found.');
   if (c.status === 'sending') return;
-  await materialize(campaignId);
-  await q(`UPDATE mm_campaigns SET status='sending', started_at=COALESCE(started_at, now()) WHERE tenant=$1 AND id=$2`, [TENANT, campaignId]);
-  kickDrainer();
+  if (c.status === 'paused') { await q(`UPDATE mm_campaigns SET status='sending' WHERE tenant=$1 AND id=$2`, [TENANT, campaignId]); kickDrainer(); return; }  // resume same run
+  await _beginRun(campaignId, true);
+}
+async function startRun(campaignId) { await _beginRun(campaignId, false); }  // scheduled repeat — plain full send, no A/B
+// Fire any due schedules. One run per due row; a campaign still sending a prior run waits for the next tick.
+async function checkSchedules() {
+  if (!DB_READY || !sesConfigured()) return false;
+  let fired = false;
+  let due;
+  try { due = (await q(`SELECT id, campaign_id FROM mm_schedules WHERE tenant=$1 AND status='pending' AND run_at <= now() ORDER BY run_at ASC LIMIT 10`, [TENANT])).rows; }
+  catch (e) { return false; }
+  for (const sc of due) {
+    const c = (await q(`SELECT status FROM mm_campaigns WHERE tenant=$1 AND id=$2`, [TENANT, sc.campaign_id])).rows[0];
+    if (!c) { await q(`UPDATE mm_schedules SET status='canceled', done_at=now() WHERE id=$1`, [sc.id]); continue; }
+    if (c.status === 'sending') continue;  // a prior run is still going; try next tick
+    try {
+      await q(`UPDATE mm_schedules SET status='done', done_at=now() WHERE id=$1`, [sc.id]);
+      await startRun(sc.campaign_id);
+      fired = true;
+    } catch (e) { await q(`UPDATE mm_schedules SET status='failed', note=$2, done_at=now() WHERE id=$1`, [sc.id, String((e && e.message) || e).slice(0, 200)]); }
+  }
+  return fired;
 }
 async function pauseCampaign(campaignId) { await q(`UPDATE mm_campaigns SET status='paused' WHERE tenant=$1 AND id=$2 AND status='sending'`, [TENANT, campaignId]); }
 
@@ -301,7 +337,9 @@ async function _loop() {
       FROM mm_sends d JOIN mm_subscribers s ON s.id=d.subscriber_id JOIN mm_campaigns c ON c.id=d.campaign_id
       WHERE d.status='pending' AND c.status='sending' ORDER BY d.id ASC LIMIT $1`, [RATE])).rows;
     if (!batch.length) {
-      await q(`UPDATE mm_campaigns SET status='sent', finished_at=now()
+      await q(`UPDATE mm_campaigns SET
+                 status = CASE WHEN EXISTS(SELECT 1 FROM mm_schedules x WHERE x.tenant=mm_campaigns.tenant AND x.campaign_id=mm_campaigns.id AND x.status='pending') THEN 'scheduled' ELSE 'sent' END,
+                 finished_at = CASE WHEN EXISTS(SELECT 1 FROM mm_schedules x WHERE x.tenant=mm_campaigns.tenant AND x.campaign_id=mm_campaigns.id AND x.status='pending') THEN finished_at ELSE now() END
                WHERE status='sending'
                  AND NOT EXISTS(SELECT 1 FROM mm_sends d WHERE d.campaign_id=mm_campaigns.id AND d.status='pending')
                  AND NOT EXISTS(SELECT 1 FROM mm_sends d WHERE d.campaign_id=mm_campaigns.id AND d.status='hold')`);
@@ -420,7 +458,7 @@ function mount(app, deps) {
     const p=[TENANT]; let wh='c.tenant=$1 AND COALESCE(c.archived,false)=$2'; p.push(arch);
     if(qq){ p.push('%'+qq+'%'); wh+=' AND (LOWER(c.name) LIKE $'+p.length+' OR LOWER(c.subject) LIKE $'+p.length+')'; }
     if(days>0){ p.push(days); wh+=' AND c.created_at >= now() - ($'+p.length+" * interval '1 day')"; }
-    const rows = (await q(`SELECT c.id,c.name,c.subject,c.status,c.total,c.sent,c.failed,c.opens,c.clicks,c.bounces,c.complaints,c.unsubs,c.created_at,c.started_at,c.finished_at,COALESCE(c.archived,false) AS archived,COALESCE(c.ab_enabled,false) AS ab_enabled,COALESCE(c.ab_winner,'') AS ab_winner,l.name AS list_name FROM mm_campaigns c LEFT JOIN mm_lists l ON l.id=c.list_id WHERE ${wh} ORDER BY c.id DESC LIMIT 500`, p)).rows;
+    const rows = (await q(`SELECT c.id,c.name,c.subject,c.status,c.total,c.sent,c.failed,c.opens,c.clicks,c.bounces,c.complaints,c.unsubs,c.created_at,c.started_at,c.finished_at,COALESCE(c.archived,false) AS archived,COALESCE(c.ab_enabled,false) AS ab_enabled,COALESCE(c.ab_winner,'') AS ab_winner,COALESCE(c.runs,0) AS runs,(SELECT min(run_at) FROM mm_schedules x WHERE x.tenant=c.tenant AND x.campaign_id=c.id AND x.status='pending') AS next_run,(SELECT count(*)::int FROM mm_schedules x WHERE x.tenant=c.tenant AND x.campaign_id=c.id AND x.status='pending') AS sched_pending,l.name AS list_name FROM mm_campaigns c LEFT JOIN mm_lists l ON l.id=c.list_id WHERE ${wh} ORDER BY c.id DESC LIMIT 500`, p)).rows;
     res.json({ ok: true, campaigns: rows });
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.get('/api/mail/campaigns/:id', requireAdmin, guard, async (req, res) => { try { const c = (await q('SELECT * FROM mm_campaigns WHERE tenant=$1 AND id=$2', [TENANT, req.params.id])).rows[0]; if (!c) return res.status(404).json({ ok: false, error: 'Not found.' }); res.json({ ok: true, campaign: c }); } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
@@ -429,6 +467,23 @@ function mount(app, deps) {
   app.post('/api/mail/campaigns/:id/send', requireAdmin, guard, express.json(), async (req, res) => { try { if (!sesConfigured()) return res.status(400).json({ ok: false, error: 'Sending (SES) is not configured.' }); await startCampaign(Number(req.params.id)); res.json({ ok: true }); } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.post('/api/mail/campaigns/:id/pause', requireAdmin, guard, async (req, res) => { try { await pauseCampaign(Number(req.params.id)); res.json({ ok: true }); } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.post('/api/mail/campaigns/:id/archive', requireAdmin, guard, express.json(), async (req, res) => { try { const a = (req.body||{}).archived !== false; await q('UPDATE mm_campaigns SET archived=$3 WHERE tenant=$1 AND id=$2', [TENANT, Number(req.params.id), a]); res.json({ ok: true, archived: a }); } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
+  app.get('/api/mail/campaigns/:id/schedule', requireAdmin, guard, async (req, res) => { try {
+    const rows = (await q(`SELECT id, run_at, status, done_at FROM mm_schedules WHERE tenant=$1 AND campaign_id=$2 ORDER BY run_at ASC`, [TENANT, Number(req.params.id)])).rows;
+    res.json({ ok: true, schedules: rows });
+  } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
+  app.post('/api/mail/campaigns/:id/schedule', requireAdmin, guard, express.json(), async (req, res) => { try {
+    const id = Number(req.params.id); const b = req.body || {};
+    const times = Array.isArray(b.times) ? b.times : (b.time ? [b.time] : []);
+    const now = Date.now(); let added = 0;
+    for (const t of times) { const d = new Date(t); if (!isNaN(d.getTime()) && d.getTime() > now - 60000) { await q(`INSERT INTO mm_schedules(tenant,campaign_id,run_at,status) VALUES($1,$2,$3,'pending')`, [TENANT, id, d.toISOString()]); added++; } }
+    if (added) await q(`UPDATE mm_campaigns SET status='scheduled' WHERE tenant=$1 AND id=$2 AND status IN('draft')`, [TENANT, id]);
+    const rows = (await q(`SELECT id, run_at, status FROM mm_schedules WHERE tenant=$1 AND campaign_id=$2 AND status='pending' ORDER BY run_at ASC`, [TENANT, id])).rows;
+    res.json({ ok: true, added: added, schedules: rows });
+  } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
+  app.post('/api/mail/schedules/:sid/cancel', requireAdmin, guard, async (req, res) => { try {
+    await q(`UPDATE mm_schedules SET status='canceled', done_at=now() WHERE tenant=$1 AND id=$2 AND status='pending'`, [TENANT, Number(req.params.sid)]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.get('/api/mail/campaigns/:id/export', requireAdmin, guard, async (req, res) => { try {
     const c = (await q('SELECT name FROM mm_campaigns WHERE tenant=$1 AND id=$2', [TENANT, Number(req.params.id)])).rows[0]; if(!c) return res.status(404).json({ ok:false, error:'Not found.' });
     const rows = (await q(`SELECT email,status,sent_at,opened_at,clicked_at FROM mm_sends WHERE tenant=$1 AND campaign_id=$2 ORDER BY id`, [TENANT, Number(req.params.id)])).rows;
@@ -450,6 +505,8 @@ function mount(app, deps) {
 
   if (DB_READY && sesConfigured()) { migrate().then(() => kickDrainer()).catch(() => {}); }
   if (DB_READY && !_abTimer) { _abTimer = setInterval(() => { maybeDecideAb().then(r => { if (r) kickDrainer(); }).catch(() => {}); }, 60000); }
+  if (DB_READY && !_schedTimer) { _schedTimer = setInterval(() => { checkSchedules().catch(() => {}); }, 30000); }
+  if (DB_READY) { migrate().then(() => checkSchedules()).catch(() => {}); }
 }
 
 module.exports = { mount, dbReady, sesConfigured, importSubscribers, parseCsv };

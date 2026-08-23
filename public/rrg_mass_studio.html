@@ -39,6 +39,7 @@ td{padding:9px 10px;border-bottom:1px solid #f1f3f8;}
 .pill{display:inline-block;font-size:10.5px;font-weight:700;border-radius:99px;padding:2px 9px;}
 .pill.active{background:#e7f5ee;color:#1f8a5b;} .pill.unsubscribed{background:#eef1f6;color:#6b7488;} .pill.bounced{background:#fdebe9;color:#a5352c;} .pill.complained{background:#fdebe9;color:#a5352c;}
 .pill.draft{background:#eef1f6;color:#6b7488;} .pill.sending{background:#fff5e6;color:#8a5a12;} .pill.sent{background:#e7f5ee;color:#1f8a5b;} .pill.paused{background:#fdf1df;color:#b5791f;}
+.pill.scheduled{background:#eef3fb;color:#2c5c8f;}
 .split{display:grid;grid-template-columns:1fr 1fr;gap:16px;} @media(max-width:820px){.split{grid-template-columns:1fr;}}
 iframe.prev{width:100%;height:420px;border:1px solid var(--line);border-radius:6px;background:#fff;}
 .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;}
@@ -65,8 +66,8 @@ var CFG={}, EDIT=null, POLL=null, CAMPVIEW=null, CAMPQ="", CAMPDAYS=0;
 var TAB='subs';
 
 function boot(){
-  var brand={ primary:'#16233f', accent:'#DA2B1F', logo:'' };
-  api('GET','/api/appname').then(function(a){ var pal=(a&&a.palette)||{}; if(pal.primary)brand.primary=pal.primary; if(pal.accent)brand.accent=pal.accent; if(a&&a.logoUrl){ brand.logo=(a.logoUrl.charAt(0)==='/')?(location.origin+a.logoUrl):a.logoUrl; } }).catch(function(){});
+  var brand={ primary:'#16233f', accent:'#DA2B1F', logo:'', style:'modern', orgName:'' };
+  api('GET','/api/appname').then(function(a){ var pal=(a&&a.palette)||{}; if(pal.primary)brand.primary=pal.primary; if(pal.accent)brand.accent=pal.accent; if(a&&a.logoUrl){ brand.logo=(a.logoUrl.charAt(0)==='/')?(location.origin+a.logoUrl):a.logoUrl; } if(a&&a.emailStyle)brand.style=a.emailStyle; brand.orgName=(a&&a.org&&a.org.name)||(a&&a.name)||''; }).catch(function(){});
   api('GET','/api/mail/config').then(function(cfg){
     CFG=cfg||{}; CFG.brand=brand;
     paintStatus(); buildSubs(); buildSupp(); wireTabs();
@@ -241,7 +242,7 @@ function loadCampaigns(){
     rows.forEach(function(c){
       var denom=c.total||c.sent||0;
       h+='<tr>'
-        +'<td style="max-width:250px;"><div style="font-weight:700;color:var(--navy);">'+esc(c.name||'(untitled)')+' <span class="pill '+esc(c.status)+'" style="margin-left:4px;vertical-align:middle;">'+esc(c.status)+'</span>'+(c.ab_enabled?' <span class="pill" style="background:#eef3fb;color:var(--blue);vertical-align:middle;">A/B'+(c.ab_winner?(' &middot; '+esc(c.ab_winner)+' won'):'')+'</span>':'')+'</div><div style="color:var(--muted);font-size:12px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(c.subject||'')+'</div></td>'
+        +'<td style="max-width:250px;"><div style="font-weight:700;color:var(--navy);">'+esc(c.name||'(untitled)')+' <span class="pill '+esc(c.status)+'" style="margin-left:4px;vertical-align:middle;">'+esc(c.status)+'</span>'+(c.ab_enabled?' <span class="pill" style="background:#eef3fb;color:var(--blue);vertical-align:middle;">A/B'+(c.ab_winner?(' &middot; '+esc(c.ab_winner)+' won'):'')+'</span>':'')+(c.next_run?' <span style="color:var(--blue);font-size:11px;">next '+esc(fmtDate(c.next_run))+(c.sched_pending>1?(' (+'+(c.sched_pending-1)+')'):'')+'</span>':'')+((c.runs||0)>1?' <span style="color:var(--muted);font-size:11px;">sent '+c.runs+'\u00d7</span>':'')+'</div><div style="color:var(--muted);font-size:12px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(c.subject||'')+'</div></td>'
         +'<td style="font-size:12.5px;">'+esc(c.list_name||'All active subscribers')+'</td>'
         +'<td style="font-size:12px;color:var(--muted);white-space:nowrap;">'+fmtDate(c.started_at)+'</td>'
         +'<td style="font-size:12px;color:var(--muted);white-space:nowrap;">'+fmtDate(c.finished_at)+'</td>'
@@ -284,7 +285,7 @@ function openCampaign(id){
 }
 function renderEditor(){
   var c=EDIT;
-  if(c.id && c.status && c.status!=='draft'){ renderMonitor(); return; }
+  if(c.id && c.status && c.status!=='draft' && c.status!=='scheduled'){ renderMonitor(); return; }
   var dis=CFG.sending?'':' disabled';
   var h=''+
    '<div class="card"><div class="toolbar" style="justify-content:space-between"><h2 style="margin:0">'+(c.id?'Edit campaign':'New campaign')+'</h2><button class="btn" id="backList">&larr; All campaigns</button></div>'+
@@ -315,6 +316,16 @@ function renderEditor(){
        '<div class="fld half"><label class="fl">Decide after (hours)</label><input id="abHours" type="number" min="1" max="72" value="'+(c.ab_hours||4)+'"></div>'+
      '</div>'+
    '</div></div>'+
+   '<div class="card"><h2>Schedule</h2>'+
+   '<div class="pgs" style="margin-bottom:10px">Send now with the button below, or schedule this campaign to go out on one or more dates. Each scheduled time re-sends to your full active list \u2014 so the same blast can repeat.</div>'+
+   '<div class="row">'+
+     '<div class="fld half"><label class="fl">Send time</label><input type="datetime-local" id="schWhen"></div>'+
+     '<div class="fld half" style="display:flex;align-items:flex-end;"><button class="btn" id="schAdd" type="button">+ Add this time</button></div>'+
+   '</div>'+
+   '<div class="fld"><label class="fl">Or make it repeat</label><div class="toolbar" style="gap:8px;flex-wrap:wrap;"><span class="pgs">every</span><input id="schEvery" type="number" min="1" value="1" style="max-width:64px;"><select id="schUnit" style="max-width:100px;"><option value="1">days</option><option value="7">weeks</option></select><span class="pgs">for</span><input id="schCount" type="number" min="1" max="52" value="4" style="max-width:64px;"><span class="pgs">sends from the time above</span><button class="btn" id="schGen" type="button">Generate</button></div></div>'+
+   '<div id="schList"></div>'+
+   '<div style="margin-top:10px"><button class="btn primary" id="schSave" type="button">Schedule these times</button><span class="msg" id="schMsg"></span></div>'+
+   '</div>'+
    '<div class="card"><div class="toolbar">'+
      '<button class="btn primary" id="cSave">Save draft</button>'+
      '<input id="cTest" placeholder="you@example.com" style="max-width:220px">'+
@@ -334,6 +345,7 @@ function renderEditor(){
   $('cSend').onclick=sendCampaign;
   if($('abOn')) $('abOn').onclick=function(){ $('abBody').style.display=$('abOn').checked?'':'none'; };
   initDesign();
+  initSchedule();
 }
 function initDesign(){
   var live=false;
@@ -394,6 +406,38 @@ function updatePreview(){
   var pre=$('cPre')?$('cPre').value:'';
   var demo=html.replace(/{{\s*first_name\s*}}/g,'Jane').replace(/{{\s*last_name\s*}}/g,'Doe').replace(/{{\s*email\s*}}/g,'jane@example.com').replace(/{{\s*unsubscribe_url\s*}}/g,'#');
   f.srcdoc='<!doctype html><html><head><meta charset="utf-8"><base target="_blank"></head><body style="margin:0">'+(pre?'<div style="display:none;max-height:0;overflow:hidden">'+esc(pre)+'</div>':'')+demo+'</body></html>';
+}
+var EDITSCHED={ pending:[], saved:[] };
+function toLocalInput(d){ var p=function(n){return (n<10?'0':'')+n;}; return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes()); }
+function fmtWhen(t){ try{ return new Date(t).toLocaleString([], {month:'short',day:'numeric',year:'2-digit',hour:'numeric',minute:'2-digit'}); }catch(e){ return String(t); } }
+function schMsg(t,err){ var m=$('schMsg'); if(!m) return; m.className='msg '+(err?'err':'ok'); m.textContent=t||''; }
+function initSchedule(){
+  EDITSCHED={ pending:[], saved:[] };
+  if($('schAdd')) $('schAdd').onclick=function(){ var v=$('schWhen').value; if(!v){ schMsg('Pick a date and time.',true); return; } EDITSCHED.pending.push(v); schMsg(''); renderSched(); };
+  if($('schGen')) $('schGen').onclick=function(){ var v=$('schWhen').value; if(!v){ schMsg('Pick a start time first.',true); return; } var step=Math.max(1,parseInt($('schEvery').value,10)||1)*(parseInt($('schUnit').value,10)||1); var count=Math.max(1,Math.min(52,parseInt($('schCount').value,10)||1)); var base=new Date(v); for(var i=0;i<count;i++){ EDITSCHED.pending.push(toLocalInput(new Date(base.getTime()+i*step*86400000))); } schMsg(''); renderSched(); };
+  if($('schSave')) $('schSave').onclick=saveSchedule;
+  loadSchedules();
+}
+function loadSchedules(){ if(!EDIT.id){ EDITSCHED.saved=[]; renderSched(); return; } api('GET','/api/mail/campaigns/'+EDIT.id+'/schedule').then(function(r){ EDITSCHED.saved=((r&&r.schedules)||[]).filter(function(x){return x.status==='pending';}); renderSched(); }); }
+function renderSched(){
+  var el=$('schList'); if(!el) return; var h='';
+  if(EDITSCHED.saved&&EDITSCHED.saved.length){ h+='<div class="pgs" style="margin:10px 0 4px;font-weight:700;color:var(--navy)">Scheduled ('+EDITSCHED.saved.length+')</div>'; EDITSCHED.saved.forEach(function(s){ h+='<div style="display:flex;align-items:center;gap:10px;margin:3px 0;"><span class="pill scheduled">'+esc(fmtWhen(s.run_at))+'</span><span data-cancel="'+s.id+'" style="color:var(--muted);cursor:pointer;font-size:12px;text-decoration:underline;">cancel</span></div>'; }); }
+  if(EDITSCHED.pending.length){ h+='<div class="pgs" style="margin:12px 0 4px;font-weight:700;color:var(--navy)">To be scheduled ('+EDITSCHED.pending.length+')</div>'; EDITSCHED.pending.forEach(function(t,i){ h+='<div style="display:flex;align-items:center;gap:10px;margin:3px 0;"><span class="pill draft">'+esc(fmtWhen(t))+'</span><span data-rm="'+i+'" style="color:var(--red);cursor:pointer;font-size:12px;text-decoration:underline;">remove</span></div>'; }); }
+  el.innerHTML=h;
+  var cs=el.querySelectorAll('[data-cancel]'); for(var i=0;i<cs.length;i++){ (function(b){ b.onclick=function(){ api('POST','/api/mail/schedules/'+b.getAttribute('data-cancel')+'/cancel',{}).then(loadSchedules); }; })(cs[i]); }
+  var rs=el.querySelectorAll('[data-rm]'); for(var j=0;j<rs.length;j++){ (function(b){ b.onclick=function(){ EDITSCHED.pending.splice(parseInt(b.getAttribute('data-rm'),10),1); renderSched(); }; })(rs[j]); }
+}
+function saveSchedule(){
+  if(!EDITSCHED.pending.length){ schMsg('Add at least one time first.',true); return; }
+  if(!CFG.sending){ schMsg('Amazon SES must be configured before scheduling can send.',true); return; }
+  schMsg('Saving\u2026');
+  saveCampaign(true).then(function(ok){ if(!ok){ schMsg('Fix the campaign fields first.',true); return; }
+    var times=EDITSCHED.pending.map(function(t){ return new Date(t).toISOString(); });
+    api('POST','/api/mail/campaigns/'+EDIT.id+'/schedule',{ times:times }).then(function(r){
+      if(!r||!r.ok){ schMsg((r&&r.error)||'Could not schedule.',true); return; }
+      EDITSCHED.pending=[]; schMsg('Scheduled '+(r.added||0)+' send'+((r.added===1)?'':'s')+'.'); loadSchedules();
+    });
+  });
 }
 function tileM(k,v){ return '<div class="tile"><div class="k">'+k+'</div><div class="v">'+Number(v||0).toLocaleString()+'</div></div>'; }
 function renderMonitor(){
