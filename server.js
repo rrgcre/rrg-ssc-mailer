@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const express = require('express');
 const cors = require('cors');
 const nodemailer = require('nodemailer');
+const massmail = require('./massmail.js');
 const { sendSsc } = require('./mailer.js');
 // Resilience: never let one unhandled async error crash the whole server.
 process.on('uncaughtException', function (e) { try { console.error('[uncaughtException]', (e && e.stack) || e); } catch (_) {} });
@@ -1243,10 +1244,10 @@ app.use((req, res, next) => {
 app.use(express.urlencoded({ extended: false }));
 
 /* ---------- auth gate ---------- */
-const OPEN = new Set(['/health', '/login', '/api/login', '/logout', '/favicon.ico', '/api/appname', '/rrg_brand.js', '/rrg_theme.css', '/api/gmail/callback']);
+const OPEN = new Set(['/health', '/login', '/api/login', '/logout', '/favicon.ico', '/api/appname', '/api/brand', '/api/brand/logo', '/rrg_brand.js', '/rrg_theme.css', '/api/gmail/callback']);
 app.use((req, res, next) => {
   // Buyer-facing data-room links are public (the unguessable token is the gate).
-  if (OPEN.has(req.path) || req.path.startsWith('/room/') || req.path.startsWith('/deal/') || req.path.startsWith('/roomfile/') || req.path.startsWith('/roomview/') || req.path.startsWith('/vendor/') || req.path.startsWith('/sign/') || req.path.startsWith('/api/sign/') || req.path.startsWith('/eo/') || req.path.startsWith('/ec/') || req.path.startsWith('/u/') || req.path.startsWith('/api/u/') || req.path.startsWith('/book/') || req.path.startsWith('/api/book/') || req.path.startsWith('/pay/') || req.path.startsWith('/api/pay/') || req.path === '/api/stripe/webhook' || req.path === '/market' || req.path === '/api/market/public' || req.path === '/api/market/request-access' || req.path.startsWith('/s/') || req.path === '/seller_intake.html' || req.path === '/seller_record.html') return next();
+  if (OPEN.has(req.path) || req.path.startsWith('/room/') || req.path.startsWith('/deal/') || req.path.startsWith('/roomfile/') || req.path.startsWith('/roomview/') || req.path.startsWith('/vendor/') || req.path.startsWith('/sign/') || req.path.startsWith('/api/sign/') || req.path.startsWith('/eo/') || req.path.startsWith('/ec/') || req.path.startsWith('/u/') || req.path.startsWith('/api/u/') || req.path.startsWith('/book/') || req.path.startsWith('/api/book/') || req.path.startsWith('/pay/') || req.path.startsWith('/api/pay/') || req.path === '/api/stripe/webhook' || req.path === '/api/mail/ses-webhook' || req.path.startsWith('/mail/') || req.path === '/market' || req.path === '/api/market/public' || req.path === '/api/market/request-access' || req.path.startsWith('/s/') || req.path === '/seller_intake.html' || req.path === '/seller_record.html') return next();
   const sess = auth.readSession(parseCookies(req)[COOKIE]);
   if (sess) {
     req.user = sess;
@@ -17107,6 +17108,7 @@ process.on('unhandledRejection', (reason) => { try { console.error('unhandledRej
 process.on('uncaughtException', (err) => { try { console.error('uncaughtException:', err && (err.stack || err.message || err)); } catch (e) {} });
 
 const PORT = process.env.PORT || 8787;
+try { massmail.mount(app, { requireAdmin: requireAdmin, appBaseUrl: appBaseUrl }); console.log('[MAIL] mass-email module mounted' + (massmail.dbReady() ? '' : ' (storage inert — no DATABASE_URL)') + (massmail.sesConfigured() ? '' : ' (sending inert — SES not configured)')); } catch (e) { console.error('[MAIL] mount failed: ' + (e && e.message)); }
 app.listen(PORT, () => console.log(`RRG toolkit server listening on :${PORT}`));
 // Reconcile binary assets with object storage on boot: migrate disk→bucket (first run)
 // and restore anything the disk is missing (after a disk loss). Async; never blocks startup.
