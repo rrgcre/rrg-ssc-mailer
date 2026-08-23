@@ -780,7 +780,7 @@ function roomActivityCard(){
   var head='<div class="ch"><b>Data Room Activity</b><span>'+(RA.buyerCount||0)+' buyer'+((RA.buyerCount===1)?'':'s')+' · '+events.length+' event'+((events.length===1)?'':'s')+'</span></div>';
   var open='<a class="slink ghost" style="margin-left:auto" href="./rrg_room.html?room='+encodeURIComponent(RA.id)+'">Open room →</a>';
   if(!people.length && !events.length){
-    return '<div class="card"><div class="ch"><b>Data Room Activity</b>'+open+'</div><div class="cb"><div class="noev" style="padding:16px 0">No one has accessed this room yet. Add buyers and share the link from the room to start tracking access.</div></div></div>';
+    return '<div class="card"><div class="ch" style="display:flex"><b>Data Room Activity</b><span style="margin-left:12px">0 buyers</span>'+open+'</div><div class="cb"><div class="noev" style="padding:16px 0">No one has accessed this room yet. Add buyers and share the link from the room to start tracking access.</div></div></div>';
   }
   var rows=people.map(function(p){
     var ev=events.filter(function(e){ return e.grantId===p.id; });
