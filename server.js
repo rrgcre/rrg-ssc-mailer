@@ -14500,9 +14500,14 @@ app.get('/api/book/:token/slots', (req, res) => {
 app.post('/api/book/:token', express.json(), async (req, res) => {
   const bk = bookingByToken(req.params.token); if (!bk) return res.status(404).json({ ok: false, error: 'This booking link is not active.' });
   const b = req.body || {};
-  const name = String(b.name || '').trim().slice(0, 120); const email = String(b.email || '').trim().slice(0, 160); const phone = String(b.phone || '').trim().slice(0, 40);
+  let _bf = String(b.firstName || '').trim().slice(0, 80);
+  let _bl = String(b.lastName || '').trim().slice(0, 80);
+  const name = (String(b.name || '').trim() || (_bf + ' ' + _bl).trim()).slice(0, 120);
+  // Back-compat: if only a combined name arrived, split it so we always store first + last.
+  if (!_bf && !_bl && name) { const _sp = splitName(name); _bf = (_sp.first || '').slice(0, 80); _bl = (_sp.last || '').slice(0, 80); }
+  const email = String(b.email || '').trim().slice(0, 160); const phone = String(b.phone || '').trim().slice(0, 40);
   const start = String(b.start || '').slice(0, 16);
-  if (!name || !email || !phone) return res.status(400).json({ ok: false, error: 'Please enter your name, email and phone.' });
+  if (!_bf || !_bl || !email || !phone) return res.status(400).json({ ok: false, error: 'Please enter your first name, last name, email and phone.' });
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(start)) return res.status(400).json({ ok: false, error: 'Please pick a time.' });
   const t = bookTypeById(bk, String(b.type || ''));
   const av = bookingAvailability(bk.username, 30, t.length);
@@ -14523,7 +14528,7 @@ app.post('/api/book/:token', express.json(), async (req, res) => {
     const _ppl = loadPeople(); const _elc = email.toLowerCase();
     let _per = _ppl.find(x => Array.isArray(x.emails) && x.emails.some(e => String(e).toLowerCase() === _elc));
     let _isNew = false;
-    if (!_per) { const _pt = name.split(' '); _per = { id: newPersonId(), name: name.slice(0,160), firstName:(_pt[0]||name).slice(0,80), lastName:_pt.slice(1).join(' ').slice(0,80), emails:[email], phones:(phone?[phone]:[]), type:'Other', leadSource:'Booking', createdAt: now, updatedAt: now, by:'Booking', byUser: bk.username }; _ppl.push(_per); _isNew = true; }
+    if (!_per) { _per = { id: newPersonId(), name: name.slice(0,160), firstName: _bf.slice(0,80), lastName: _bl.slice(0,80), emails:[email], phones:(phone?[phone]:[]), type:'Other', leadSource:'Booking', createdAt: now, updatedAt: now, by:'Booking', byUser: bk.username }; _ppl.push(_per); _isNew = true; }
     if (phone && (!Array.isArray(_per.phones) || !_per.phones.length)) { _per.phones = [phone]; }
     _personId = _per.id; _personName = _per.name;
     let _plan = null;

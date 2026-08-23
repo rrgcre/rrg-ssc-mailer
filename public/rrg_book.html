@@ -198,7 +198,7 @@ function goDetails(){
     return lab+'<input class="f q" data-qi="'+qi+'">';
   }).join('');
   setMain('<div class="steptitle">Enter Details</div>'
-    +'<label class="fl">Name <span class="req">*</span></label><input class="f" id="bk_name">'
+    +'<div style="display:flex;gap:10px"><div style="flex:1"><label class="fl">First name <span class="req">*</span></label><input class="f" id="bk_first" autocomplete="given-name"></div><div style="flex:1"><label class="fl">Last name <span class="req">*</span></label><input class="f" id="bk_last" autocomplete="family-name"></div></div>'
     +'<label class="fl">Email <span class="req">*</span></label><input class="f" id="bk_email" type="email">'
     +'<label class="fl">Phone <span class="req">*</span></label><input class="f" id="bk_phone" type="tel" placeholder="(210) 555-1234">'
     +qHtml
@@ -207,13 +207,15 @@ function goDetails(){
 }
 function book(){
   var msg=document.getElementById('bk_msg'), go=document.getElementById('bk_go');
-  var name=(document.getElementById('bk_name').value||'').trim(), email=(document.getElementById('bk_email').value||'').trim(), phone=(document.getElementById('bk_phone').value||'').trim();
-  if(!name||!email||!phone){ msg.className='msg err'; msg.textContent='Please enter your name, email and phone.'; return; }
+  var first=(document.getElementById('bk_first').value||'').trim(), last=(document.getElementById('bk_last').value||'').trim();
+  var name=(first+' '+last).trim();
+  var email=(document.getElementById('bk_email').value||'').trim(), phone=(document.getElementById('bk_phone').value||'').trim();
+  if(!first||!last||!email||!phone){ msg.className='msg err'; msg.textContent='Please enter your first name, last name, email and phone.'; return; }
   var qs=(TYPE&&Array.isArray(TYPE.questions))?TYPE.questions:[]; var answers=[], missing=null;
   Array.prototype.forEach.call(document.querySelectorAll('.q'),function(el){ var qi=+el.getAttribute('data-qi'); var q=qs[qi]||{}; var v=(el.value||'').trim(); if(q.required&&!v&&!missing) missing=q.q; answers.push({q:q.q,a:v}); });
   if(missing){ msg.className='msg err'; msg.textContent='Please answer: '+missing; return; }
   go.disabled=true; msg.className='msg'; msg.textContent='Scheduling…';
-  fetch('/api/book/'+encodeURIComponent(TOKEN),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,email:email,phone:phone,answers:answers,start:SELSLOT,type:(TYPE&&TYPE.id)||''})}).then(function(r){return r.json();}).then(function(j){
+  fetch('/api/book/'+encodeURIComponent(TOKEN),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,firstName:first,lastName:last,email:email,phone:phone,answers:answers,start:SELSLOT,type:(TYPE&&TYPE.id)||''})}).then(function(r){return r.json();}).then(function(j){
     if(j&&j.ok){ showDone(); }
     else { go.disabled=false; msg.className='msg err'; msg.textContent=(j&&j.error)||'Could not book.'; if(j&&/taken/i.test(j.error||'')){ SELSLOT=''; renderCalStep(); } }
   }).catch(function(){ go.disabled=false; msg.className='msg err'; msg.textContent='Could not reach the server.'; });
