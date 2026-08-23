@@ -184,6 +184,7 @@ tr:hover td{background:#fbfcfe;}
     <label class="mfld">Phones</label><div id="m_phones"></div>
     <div class="mrow"><div><label class="mfld">Title</label><input id="m_title" placeholder="e.g. Owner, GM, CFO"></div><div><label class="mfld">Nickname</label><input id="m_nick" placeholder="Optional"></div></div>
     <label class="mfld">Lead source</label><input id="m_lead" list="leadList" placeholder="Referral, CoStar, event…" autocomplete="off"><datalist id="leadList"></datalist>
+    <label class="mfld">Owner</label><select id="m_owner"></select>
     <div class="mrow" id="refbyRow" hidden><div style="grid-column:1 / -1"><label class="mfld">Referred by</label><input id="m_refby" list="refbyList" placeholder="Type a contact name…" autocomplete="off"><datalist id="refbyList"></datalist></div></div>
     <label class="mfld">Tags</label><input id="m_tags" placeholder="Comma-separated, e.g. hot, franchisee, DFW">
     <div id="m_msg" style="font-size:12.5px;color:#b23a2c;margin-top:8px"></div>
@@ -218,6 +219,7 @@ function esc(s){var d=document.createElement('div');d.textContent=s==null?'':Str
 function pInterests(p){ return (p&&Array.isArray(p.types)&&p.types.length)?p.types:(p&&p.type?[p.type]:[]); }
 // One-time: make sure the Main Interests column is visible for anyone whose saved layout had it hidden. Runs once; they can hide it again via the Columns menu afterward.
 (function(){ try{ if(localStorage.getItem('rrg_showinterests_v1')) return; var _k='rrglist_contacts'; var _s=JSON.parse(localStorage.getItem(_k)||'{}')||{}; if(_s&&_s.hidden&&_s.hidden['main-interests']){ delete _s.hidden['main-interests']; localStorage.setItem(_k, JSON.stringify(_s)); } localStorage.setItem('rrg_showinterests_v1','1'); }catch(e){} })();
+(function(){ try{ if(localStorage.getItem('rrg_showowner_v1')) return; var _k='rrglist_contacts'; var _s=JSON.parse(localStorage.getItem(_k)||'{}')||{}; if(_s&&_s.hidden&&_s.hidden['owner']){ delete _s.hidden['owner']; localStorage.setItem(_k, JSON.stringify(_s)); } localStorage.setItem('rrg_showowner_v1','1'); }catch(e){} })();
 // Toggleable colored "Main Interests" pills — used in the new-contact modal (and mirrored on the contact detail page).
 function interestPills(hostId, selected, onChange){
   var host=document.getElementById(hostId); if(!host) return {get:function(){return [];}};
@@ -351,7 +353,8 @@ function setupReferral(){
   var lead=document.getElementById('m_lead'); if(lead && !lead._refwired){ lead._refwired=1; lead.addEventListener('input',toggleRefby); lead.addEventListener('change',toggleRefby); }
   toggleRefby();
 }
-function openModal(){ window._mTypes=interestPills('m_types',[]); document.getElementById('m_emails').innerHTML=mfHtml('m_email','name@email.com'); document.getElementById('m_phones').innerHTML=mfHtml('m_phone','(555) 555-5555'); wireMulti(document.getElementById('modal')); document.getElementById('m_msg').textContent=''; document.getElementById('modal').removeAttribute('hidden'); document.getElementById('m_first').focus(); loadCompaniesList(); setupReferral(); document.getElementById('m_pipeline').value=''; if(PIPELINES.length) fillPipelineSelect(); else loadPipelinesList(); }
+function _ownerOpts(sel){ var cur=sel||''; return '<option value="">— Unassigned —</option>'+(USERS||[]).map(function(u){ return '<option value="'+esc(u.username)+'"'+(u.username===cur?' selected':'')+'>'+esc(u.name)+'</option>'; }).join(''); }
+function openModal(){ window._mTypes=interestPills('m_types',[]); (function(){ var _mo=document.getElementById('m_owner'); if(_mo) _mo.innerHTML=_ownerOpts((window.__rrgSession&&window.__rrgSession.username)||''); })(); document.getElementById('m_emails').innerHTML=mfHtml('m_email','name@email.com'); document.getElementById('m_phones').innerHTML=mfHtml('m_phone','(555) 555-5555'); wireMulti(document.getElementById('modal')); document.getElementById('m_msg').textContent=''; document.getElementById('modal').removeAttribute('hidden'); document.getElementById('m_first').focus(); loadCompaniesList(); setupReferral(); document.getElementById('m_pipeline').value=''; if(PIPELINES.length) fillPipelineSelect(); else loadPipelinesList(); }
 function closeModal(){ document.getElementById('modal').setAttribute('hidden',''); ['m_first','m_last','m_company','m_lead','m_title','m_nick','m_tags','m_refby'].forEach(function(id){var el=document.getElementById(id); if(el) el.value='';}); var rr=document.getElementById('refbyRow'); if(rr) rr.setAttribute('hidden',''); }
 function createContact(){
   var m=document.getElementById('m_msg');
@@ -359,7 +362,7 @@ function createContact(){
   if(!first||!last){ m.textContent='First and last name are required.'; return; }
   if(!types.length){ m.textContent='Pick at least one main interest.'; return; }
   var tags=(document.getElementById('m_tags').value||'').split(',').map(function(s){return s.trim();}).filter(Boolean);
-  var body={ firstName:first, lastName:last, types:types, companyName:document.getElementById('m_company').value.trim(), emails:collectMulti(document.getElementById('modal'),'m_email'), phones:collectMulti(document.getElementById('modal'),'m_phone'), leadSource:document.getElementById('m_lead').value.trim(), title:(document.getElementById('m_title')||{}).value.trim()||'', nickname:document.getElementById('m_nick').value.trim(), tags:tags, pipelineId:(document.getElementById('m_pipeline')||{}).value||'' };
+  var body={ firstName:first, lastName:last, types:types, companyName:document.getElementById('m_company').value.trim(), emails:collectMulti(document.getElementById('modal'),'m_email'), phones:collectMulti(document.getElementById('modal'),'m_phone'), leadSource:document.getElementById('m_lead').value.trim(), title:(document.getElementById('m_title')||{}).value.trim()||'', nickname:document.getElementById('m_nick').value.trim(), tags:tags, pipelineId:(document.getElementById('m_pipeline')||{}).value||'', ownerUser:(document.getElementById('m_owner')||{}).value||'' };
   if(isReferral()){ var rbv=(document.getElementById('m_refby').value||'').trim(); if(rbv){ body.referredBy=rbv; var rid=REFMAP[rbv.toLowerCase()]; if(rid) body.referredById=rid; } }
   var b=document.getElementById('m_create'); b.disabled=true; b.textContent='Creating…';
   fetch('/api/person',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})

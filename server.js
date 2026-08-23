@@ -9029,6 +9029,7 @@ app.post('/api/person', express.json(), (req, res) => {
   if (typeof b.title === 'string') p.title = b.title.slice(0, 120);
   if (typeof b.nickname === 'string') p.nickname = b.nickname.slice(0, 80);
   if (typeof b.leadSource === 'string') p.leadSource = b.leadSource.slice(0, 160);
+  if (typeof b.ownerUser === 'string' && b.ownerUser.trim()) { try { const _ou = auth.findUser(b.ownerUser.trim()); if (_ou) { p.byUser = _ou.username || b.ownerUser.trim(); const _pr = auth.profileOf(_ou); p.by = (_pr && _pr.name) || _ou.name || _ou.username; } } catch (e) {} }
   if (typeof b.market === 'string') p.market = b.market.slice(0, 60);
   if (typeof b.referredBy === 'string') p.referredBy = b.referredBy.slice(0, 160);
   if (typeof b.referredById === 'string') p.referredById = b.referredById.slice(0, 40);
@@ -11558,6 +11559,7 @@ app.post('/api/company', express.json(), (req, res) => {
   if (b.tags !== undefined) c.tags = (cleanStrList(b.tags, 30, 40) || []);
   if (typeof b.notes === 'string') c.notes = b.notes.slice(0, 6000);
   if (typeof b.leadSource === 'string') c.leadSource = b.leadSource.slice(0, 160);
+  if (typeof b.ownerUser === 'string' && b.ownerUser.trim()) { try { const _ou = auth.findUser(b.ownerUser.trim()); if (_ou) { c.byUser = _ou.username || b.ownerUser.trim(); const _pr = auth.profileOf(_ou); c.by = (_pr && _pr.name) || _ou.name || _ou.username; } } catch (e) {} }
   if (typeof b.referredBy === 'string') c.referredBy = b.referredBy.slice(0, 160);
   if (typeof b.referredById === 'string') c.referredById = b.referredById.slice(0, 40);
   if (typeof b.website === 'string') {
