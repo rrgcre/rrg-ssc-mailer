@@ -141,6 +141,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .bmbtn{border:none;border-radius:3px;padding:9px 16px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;background:var(--navy);color:#fff;}
 .bmbtn.ghost{background:#fff;color:var(--navy);border:1px solid var(--inp);}
 .pgtitle{font-size:17px;font-weight:700;color:var(--navy,#000E31);letter-spacing:-.01em;margin-right:8px;white-space:nowrap;align-self:center;}
+
+/* modal fits viewport: scrollable body, pinned header/footer */
+.modalcard{max-height:calc(100vh - 40px);display:flex;flex-direction:column;}
+.modalh{flex:0 0 auto;} .modalf{flex:0 0 auto;}
+.modalb{overflow:auto;flex:1 1 auto;min-height:0;}
 </style>
 <script src="/rrg_brand.js"></script>
 <script src="/rrg_list.js"></script>
@@ -512,6 +517,14 @@ document.getElementById('psel').addEventListener('change',function(){ PID=this.v
 load();
 </script>
 <script>/* board bfcache: re-fetch listings on back/forward restore so newly created or edited listings show without a hard refresh */
-window.addEventListener("pageshow",function(e){ if(e.persisted){ try{ if(typeof load==="function"){ load(); } else { location.reload(); } }catch(_e){ location.reload(); } } });</script>
+window.addEventListener("pageshow",function(e){ if(e.persisted){ try{ if(typeof load==="function"){ load(); } else { location.reload(); } }catch(_e){ location.reload(); } } });
+document.addEventListener('keydown', function(e){
+  if(e.key!=='Escape' && e.key!=='Esc') return;
+  var open=document.querySelectorAll('.modal:not([hidden])');
+  if(!open.length) return;
+  var m=open[open.length-1]; e.preventDefault();
+  if(m.id){ m.setAttribute('hidden',''); } else if(m.parentNode){ m.parentNode.removeChild(m); }
+});
+</script>
 </body>
 </html>

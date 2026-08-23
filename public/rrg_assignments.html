@@ -71,6 +71,11 @@ tr:hover td{background:#fbfcfe;}
 .modalf{display:flex;gap:9px;justify-content:flex-end;padding:14px 22px;border-top:1px solid var(--line);}
 .mbtn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:9px;padding:10px 17px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;} .mbtn.ghost{background:#fff;color:var(--muted);border-color:var(--line);}
 @media(max-width:720px){.tiles{grid-template-columns:repeat(3,1fr);} }
+
+/* modal fits viewport: scrollable body, pinned header/footer */
+.modalcard{max-height:calc(100vh - 40px);display:flex;flex-direction:column;}
+.modalh{flex:0 0 auto;} .modalf{flex:0 0 auto;}
+.modalb{overflow:auto;flex:1 1 auto;min-height:0;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -268,6 +273,14 @@ function showImpResults(j){ var box=document.getElementById('imp_preview_box'); 
 (function(){ var b=document.getElementById('importBtn'); if(b) b.addEventListener('click',openImport); var c=document.getElementById('imp_cancel'); if(c) c.addEventListener('click',closeImport); var p=document.getElementById('imp_preview'); if(p) p.addEventListener('click',previewPaste); var g=document.getElementById('imp_go'); if(g) g.addEventListener('click',doImport); var cs=document.getElementById('imp_csv'); if(cs) cs.addEventListener('change',onCsv); var gm=document.getElementById('imp_gmail'); if(gm) gm.addEventListener('click',pullGmail); var ps=document.getElementById('imp_pollsave'); if(ps) ps.addEventListener('click',savePoll); var mo=document.getElementById('importModal'); if(mo) mo.addEventListener('click',function(e){ /* backdrop click does not close — avoid losing a paste */ }); })();
 </script>
 <script>window.addEventListener("pageshow",function(e){if(e.persisted)location.reload();});</script>
-<script>/*rrgbfcache*/window.addEventListener("pageshow",function(e){if(e.persisted)location.reload();});</script>
+<script>/*rrgbfcache*/window.addEventListener("pageshow",function(e){if(e.persisted)location.reload();});
+document.addEventListener('keydown', function(e){
+  if(e.key!=='Escape' && e.key!=='Esc') return;
+  var open=document.querySelectorAll('.modal:not([hidden])');
+  if(!open.length) return;
+  var m=open[open.length-1]; e.preventDefault();
+  if(m.id){ m.setAttribute('hidden',''); } else if(m.parentNode){ m.parentNode.removeChild(m); }
+});
+</script>
 </body>
 </html>

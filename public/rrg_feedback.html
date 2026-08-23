@@ -44,6 +44,11 @@ h1{margin:0;font-size:27px;font-weight:700;} .sub{color:#aeb8cf;font-size:13px;m
 .fbappr{border:1px solid #bfe6d0;background:#eafaf0;color:#0e7a53;border-radius:8px;padding:5px 10px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;}
 .fbappr:hover{background:#dff3e8;}
 #send_body,#paste_body{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;}
+
+/* modal fits viewport: scrollable body, pinned header/footer */
+.modalcard{max-height:calc(100vh - 40px);display:flex;flex-direction:column;}
+.modalh{flex:0 0 auto;} .modalf{flex:0 0 auto;}
+.modalb{overflow:auto;flex:1 1 auto;min-height:0;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -201,6 +206,14 @@ function load(){
 }
 load();
 window.addEventListener('pageshow',function(e){ if(e.persisted) load(); });
+
+document.addEventListener('keydown', function(e){
+  if(e.key!=='Escape' && e.key!=='Esc') return;
+  var open=document.querySelectorAll('.modal:not([hidden])');
+  if(!open.length) return;
+  var m=open[open.length-1]; e.preventDefault();
+  if(m.id){ m.setAttribute('hidden',''); } else if(m.parentNode){ m.parentNode.removeChild(m); }
+});
 </script>
 </body>
 </html>
