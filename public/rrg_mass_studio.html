@@ -1,6 +1,6 @@
 <!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Email Studio — RRG</title>
+<title>Bulk Email — RRG</title>
 <script src="/rrg_brand.js"></script>
 <script src="/rrg_email_composer.js"></script>
 <script src="/rrg_list.js"></script>
@@ -51,11 +51,39 @@ iframe.prev{width:100%;height:420px;border:1px solid var(--line);border-radius:6
 .res .ri:last-child{border-bottom:none;}
 .res .ri:hover{background:#eef2f7;}
 .res .ri small{color:var(--muted);display:block;font-size:11.5px;}
+/* Page header row + Help/Features slideout drawers (matches the app convention) */
+.pghead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.pghead .hbtns{display:flex;gap:8px;flex:0 0 auto;}
+.help-ov{position:fixed;inset:0;background:rgba(20,30,55,.35);z-index:60;opacity:0;visibility:hidden;transition:.18s;}
+.help-ov.show{opacity:1;visibility:visible;}
+.help-pan{position:fixed;top:0;right:0;bottom:0;width:400px;max-width:92vw;background:#fff;z-index:61;box-shadow:-8px 0 30px rgba(10,20,50,.18);transform:translateX(100%);transition:transform .22s;overflow:auto;}
+.help-ov.show .help-pan{transform:none;}
+.help-pan h3{margin:0;padding:17px 22px;font-size:15px;color:var(--navy);border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:#fff;}
+.help-pan .x{cursor:pointer;color:var(--soft);font-size:22px;line-height:1;background:none;border:none;padding:0;}
+.help-b{padding:16px 22px 34px;}
+.help-b h4{color:var(--blue);font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;margin:18px 0 6px;}
+.help-b h4:first-child{margin-top:0;}
+.help-b p{margin:0 0 10px;font-size:13px;line-height:1.62;color:var(--ink);}
+.help-b b{color:var(--navy);}
+.featlist{list-style:none;margin:0;padding:0;}
+.featlist li{position:relative;padding:9px 0 9px 26px;font-size:13px;line-height:1.5;color:var(--ink);border-bottom:1px solid #f2f4f8;}
+.featlist li:last-child{border-bottom:none;}
+.featlist li:before{content:'✓';position:absolute;left:0;top:9px;color:var(--green);font-weight:800;font-size:13px;}
+.featlist li b{color:var(--navy);}
+@media print{.help-ov,.pghead .hbtns{display:none!important;}}
 </style></head>
 <body>
 <div class="wrap" id="app">
-  <div class="pgh">Email Studio</div>
-  <div class="pgs">Bulk email to your subscriber list — Amazon SES, suppression-aware, one-click unsubscribe. Subscribers here are separate from your CRM contacts.</div>
+  <div class="pghead">
+    <div>
+      <div class="pgh">Bulk Email</div>
+      <div class="pgs">Bulk email to your subscriber list — Amazon SES, suppression-aware, one-click unsubscribe. Subscribers here are separate from your CRM contacts.</div>
+    </div>
+    <div class="hbtns">
+      <button class="btn" type="button" id="featBtn">★ Features</button>
+      <button class="btn" type="button" id="helpBtn">Help</button>
+    </div>
+  </div>
   <div id="statusNote"></div>
   <div class="tiles" id="tiles"></div>
   <div class="tabs" id="tabs"><button data-tab="subs" class="on">Subscribers</button><button data-tab="camps">Campaigns</button><button data-tab="supp">Suppression</button></div>
@@ -579,6 +607,71 @@ function loadSupp(){
 }
 
 boot();
+})();
+</script>
+
+<!-- Help slideout -->
+<div class="help-ov" id="helpOv">
+  <div class="help-pan">
+    <h3>Bulk Email — Help <button class="x" type="button" data-close>&times;</button></h3>
+    <div class="help-b">
+      <h4>What this is</h4>
+      <p>A dedicated engine for sending <b>bulk email</b> to your subscriber list through Amazon SES. It is separate from your CRM contacts and from one-off emails you send from a contact record — this is for list-wide campaigns and newsletters.</p>
+      <h4>1 · Build your lists</h4>
+      <p>On the <b>Subscribers</b> tab, import addresses (paste or CSV) and file them into lists — for example <b>Restaurants</b> and <b>Brokers</b>. One database, multiple lists; you target the right list when you send. Every list shares one suppression list, so an unsubscribe covers all of them.</p>
+      <h4>2 · Compose the email</h4>
+      <p>Create a campaign, pick a template style, and edit in the visual block editor — header, hero, text, buttons, stats, signature, footer. <b>Pull from a listing</b> to auto-fill a campaign from one of your live listings. Always send yourself a <b>test</b> before a real blast.</p>
+      <h4>3 · Choose the audience</h4>
+      <p>Set the campaign to send to a whole list or a filtered segment, so the right subscribers get the right message. The recipient count updates as you narrow it.</p>
+      <h4>4 · Schedule the send</h4>
+      <p>Send now, or schedule one or more times. Repeats let the same blast go out on a cadence. <b>Auto-scheduling stays on business days</b> — never weekends or major holidays, and one send per morning / one per afternoon system-wide. For an intentional holiday send (a Christmas greeting), tick <b>Deliberate send</b> to lift the blackout for that time.</p>
+      <h4>5 · Track results</h4>
+      <p>The <b>Campaigns</b> tab lists every blast with opens, clicks, unsubscribes, and bounces. Scheduled sends also appear on your system calendar.</p>
+      <h4>Suppression</h4>
+      <p>Anyone on the <b>Suppression</b> tab is permanently excluded from every send, tenant-wide. Bounces, complaints, and one-click unsubscribes land here automatically; you can add addresses by hand when someone asks off another way.</p>
+      <h4>Deliverability</h4>
+      <p>Keep lists clean and only mail people who opted in. High bounce or complaint rates hurt your sending reputation — the suppression list and one-click unsubscribe protect it for you.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Features slideout -->
+<div class="help-ov" id="featOv">
+  <div class="help-pan">
+    <h3>Bulk Email — Features <button class="x" type="button" data-close>&times;</button></h3>
+    <div class="help-b">
+      <h4>What's inside</h4>
+      <ul class="featlist">
+        <li><b>Amazon SES sending</b> — throttled, high-deliverability bulk delivery.</li>
+        <li><b>Subscriber lists &amp; segments</b> — one database, many lists (Restaurants, Brokers, …); target by list or filter.</li>
+        <li><b>Import</b> — paste or CSV upload straight into a chosen list.</li>
+        <li><b>Visual template editor</b> — drag-free block editor: header, hero, text, stats, buttons, signature, footer.</li>
+        <li><b>Brokerage-branded styles</b> — templates pull your logo and colors from Admin; three selectable looks.</li>
+        <li><b>Pull from a listing</b> — auto-fill a campaign from one of your live listings.</li>
+        <li><b>Test sends</b> — fire a proof to yourself before any blast.</li>
+        <li><b>Robust scheduling</b> — send now, or one or many scheduled times.</li>
+        <li><b>Repeat blasts</b> — run the same campaign on a cadence.</li>
+        <li><b>Weekend &amp; holiday blackout</b> — auto-scheduling stays on business days; one AM + one PM per day.</li>
+        <li><b>Deliberate holiday send</b> — override the blackout for an intentional greeting.</li>
+        <li><b>Calendar integration</b> — scheduled blasts show on your system calendar.</li>
+        <li><b>A/B testing</b> — split subject lines and let the winner send to the rest.</li>
+        <li><b>Open / click / bounce tracking</b> — full per-campaign metrics.</li>
+        <li><b>Shared suppression list</b> — bounces, complaints, and one-click unsubscribes auto-excluded tenant-wide.</li>
+        <li><b>Up to 50 concurrent campaigns</b> — managed in one list view with search and archive.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  function open(el){ if(el) el.classList.add('show'); }
+  function closeAll(){ var a=document.getElementById('helpOv'), b=document.getElementById('featOv'); if(a)a.classList.remove('show'); if(b)b.classList.remove('show'); }
+  var hb=document.getElementById('helpBtn'); if(hb) hb.addEventListener('click',function(){ closeAll(); open(document.getElementById('helpOv')); });
+  var fb=document.getElementById('featBtn'); if(fb) fb.addEventListener('click',function(){ closeAll(); open(document.getElementById('featOv')); });
+  ['helpOv','featOv'].forEach(function(id){ var ov=document.getElementById(id); if(!ov) return; ov.addEventListener('click',function(e){ if(e.target===ov) closeAll(); }); });
+  document.querySelectorAll('.help-pan [data-close]').forEach(function(x){ x.addEventListener('click',closeAll); });
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeAll(); });
 })();
 </script>
 </body></html>
