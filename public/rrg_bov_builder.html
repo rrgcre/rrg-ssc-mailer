@@ -66,13 +66,13 @@ body.bov-locked #sheet .rrg-noprint button{display:none!important;}
 .sec h2{font-size:17px;color:var(--navy);margin:0;font-weight:700;letter-spacing:-.01em;}
 .sec .flex{flex:1;height:1px;background:var(--line);}
 .lead{font-size:12.5px;line-height:1.6;color:var(--ink);}
-.narr{width:100%;border:1px solid var(--inp);border-radius:9px;padding:11px 13px;font-family:inherit;font-size:12.5px;color:var(--ink);min-height:80px;resize:vertical;line-height:1.55;margin-top:8px;}
+.narr{width:100%;border:1px solid var(--inp);border-radius:9px;padding:12px 15px;font-family:inherit;font-size:13px;color:var(--ink);min-height:80px;resize:vertical;line-height:1.7;margin-top:8px;white-space:pre-wrap;}
 .narr:focus{outline:none;border-color:var(--red);} .narr.sm{min-height:56px;} .narr{overflow:hidden;}
 .sublabel{font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:14px 0 5px;}
 
 .callout{border-left:4px solid var(--red);background:var(--wash);border-radius:0 10px 10px 0;padding:13px 16px;margin-top:14px;}
 .callout .ct{font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--red);font-weight:700;margin-bottom:5px;}
-.callout textarea{width:100%;border:none;background:transparent;font-family:inherit;font-size:12px;color:var(--ink);line-height:1.55;resize:vertical;min-height:52px;}
+.callout textarea{width:100%;border:none;background:transparent;font-family:inherit;font-size:12.5px;color:var(--ink);line-height:1.7;resize:vertical;min-height:52px;white-space:pre-wrap;}
 .callout textarea:focus{outline:none;} .callout textarea{overflow:hidden;}
 
 table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px;}
@@ -109,6 +109,11 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
 
 .foot{margin-top:30px;border-top:1px solid var(--line);padding-top:12px;display:flex;justify-content:space-between;font-size:9.5px;color:var(--muted);flex-wrap:wrap;gap:6px;}
 body.asset-mode .gc-only{display:none!important;}
+body:not(.asset-mode) .asset-only{display:none!important;}
+.assetin{width:132px;border:1px solid var(--inp);border-radius:7px;padding:7px 10px;font:inherit;font-size:14px;font-weight:800;color:var(--navy);text-align:right;margin-top:3px;background:#fff;}
+.assetin:focus{outline:none;border-color:var(--red);}
+.assetflds{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;margin:8px 0 6px;}
+.assetflds label{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;}
 .foot b{color:var(--navy);}
 
 @media(max-width:720px){ .strip{grid-template-columns:1fr 1fr;} .inner{padding:6px 22px 28px;} .band{padding:26px 22px;} }
@@ -277,17 +282,29 @@ body.asset-mode .gc-only{display:none!important;}
     </div>
 
     <!-- 6 CONCLUSION -->
-    <div class="kl-block gc-only"><div class="kl">Conclusion</div>
-    <div class="sec"><h2>Valuation Matrix &amp; Concluded Range</h2><div class="flex"></div></div>
-    <table class="matrix">
-      <thead><tr><th><span class="basisLabel">Adjusted EBITDA</span> Scenario</th><th id="mcLo">4.0×</th><th id="mcBase">4.5×</th><th id="mcHi">5.0×</th></tr></thead>
-      <tbody>
-        <tr><td class="l">Conservative &nbsp; <input data-k="ebLow" inputmode="numeric" value="" placeholder="$" oninput="grpme(this);compute()" style="width:110px;display:inline-block"></td><td class="calc" id="m00">—</td><td class="calc" id="m01">—</td><td class="calc" id="m02">—</td></tr>
-        <tr class="baserow"><td class="l">Base (as normalized) &nbsp; <b id="ebBaseTxt">$0</b></td><td class="calc" id="m10">—</td><td class="calc" id="m11">—</td><td class="calc" id="m12">—</td></tr>
-        <tr><td class="l">Upside (confirmed) &nbsp; <input data-k="ebUp" inputmode="numeric" value="" placeholder="$" oninput="grpme(this);compute()" style="width:110px;display:inline-block"></td><td class="calc" id="m20">—</td><td class="calc" id="m21">—</td><td class="calc" id="m22">—</td></tr>
-      </tbody>
-    </table>
-    <div class="reconcile" id="reconcile"></div>
+    <div class="kl-block"><div class="kl">Conclusion</div>
+    <div class="sec"><h2 id="conclH2">Valuation Matrix &amp; Concluded Range</h2><div class="flex"></div></div>
+    <div class="gc-only">
+      <table class="matrix">
+        <thead><tr><th><span class="basisLabel">Adjusted EBITDA</span> Scenario</th><th id="mcLo">4.0×</th><th id="mcBase">4.5×</th><th id="mcHi">5.0×</th></tr></thead>
+        <tbody>
+          <tr><td class="l">Conservative &nbsp; <input data-k="ebLow" inputmode="numeric" value="" placeholder="$" oninput="grpme(this);compute()" style="width:110px;display:inline-block"></td><td class="calc" id="m00">—</td><td class="calc" id="m01">—</td><td class="calc" id="m02">—</td></tr>
+          <tr class="baserow"><td class="l">Base (as normalized) &nbsp; <b id="ebBaseTxt">$0</b></td><td class="calc" id="m10">—</td><td class="calc" id="m11">—</td><td class="calc" id="m12">—</td></tr>
+          <tr><td class="l">Upside (confirmed) &nbsp; <input data-k="ebUp" inputmode="numeric" value="" placeholder="$" oninput="grpme(this);compute()" style="width:110px;display:inline-block"></td><td class="calc" id="m20">—</td><td class="calc" id="m21">—</td><td class="calc" id="m22">—</td></tr>
+        </tbody>
+      </table>
+      <div class="reconcile" id="reconcile"></div>
+    </div>
+    <div class="asset-only">
+      <p class="lead" id="assetLead">Enter the tangible-asset value below to conclude the asset-sale value.</p>
+      <div class="sublabel" style="margin-top:2px">Concluded asset value — tangible assets (FF&amp;E, leasehold improvements, transferable lease &amp; licenses)</div>
+      <div class="assetflds">
+        <label>Low<br><input data-k="assetValueLow" class="assetin" inputmode="numeric" placeholder="$" oninput="grpme(this);compute()"></label>
+        <label>Base / Target<br><input data-k="assetValueBase" class="assetin" inputmode="numeric" placeholder="$" oninput="grpme(this);compute()"></label>
+        <label>High<br><input data-k="assetValueHigh" class="assetin" inputmode="numeric" placeholder="$" oninput="grpme(this);compute()"></label>
+      </div>
+      <div class="note" style="font-size:11px;color:var(--muted);line-height:1.5">Enter from an FF&amp;E appraisal or a documented asset estimate. A Texas TABC permit carries no separate transfer value outside San Marcos.</div>
+    </div>
     <div class="callout"><div class="ct">Concluded value — RRG opinion</div><textarea data-k="concNarr"></textarea></div>
     </div>
 
@@ -546,8 +563,18 @@ body.asset-mode .gc-only{display:none!important;}
     var _tc=document.getElementById('hTarget').closest('.c'); if(_tc) _tc.style.display=isAsset?'none':'';
     var _mc=document.getElementById('hMult').closest('.c'); if(_mc) _mc.style.display=isAsset?'none':'';
     var _rc=document.getElementById('hRange').closest('.c'); var _rk=_rc?_rc.querySelector('.k'):null;
-    if(isAsset){ if(_rk)_rk.textContent='Valuation'; setTxt('hRange','Asset Sale'); document.getElementById('hRange').classList.remove('red'); }
-    else { if(_rk)_rk.textContent='Concluded Value Range'; document.getElementById('hRange').classList.add('red'); }
+    if(isAsset){
+      var aLo=num(val('assetValueLow')), aBa=num(val('assetValueBase')), aHi=num(val('assetValueHigh'));
+      var atxt = (aLo>0&&aHi>0) ? (moneyM(aLo)+' – '+moneyM(aHi)) : (aBa>0 ? ('~'+moneyM(aBa)) : (aLo>0 ? ('~'+moneyM(aLo)) : 'Set asset value'));
+      if(_rk)_rk.textContent='Asset Value';
+      setTxt('hRange', atxt); document.getElementById('hRange').classList.remove('red');
+      var _ch2=document.getElementById('conclH2'); if(_ch2) _ch2.textContent='Concluded Asset Value';
+      var _al=document.getElementById('assetLead');
+      if(_al){ _al.innerHTML = (aLo>0||aBa>0||aHi>0)
+        ? ('It is RRG’s opinion that the asset-sale value is approximately <b>'+atxt+'</b>, attributable to tangible assets — FF&amp;E, leasehold improvements, and any transferable lease or licenses — not a multiple of earnings.')
+        : 'Enter the tangible-asset value below (FF&amp;E, leaseholds, transferable lease/licenses) to conclude the asset-sale value.'; }
+    }
+    else { if(_rk)_rk.textContent='Concluded Value Range'; document.getElementById('hRange').classList.add('red'); var _ch2b=document.getElementById('conclH2'); if(_ch2b) _ch2b.textContent='Valuation Matrix & Concluded Range'; }
     var basisWord = s.basis==='SDE'?'SDE':'adjusted EBITDA';
     document.getElementById('execLead').innerHTML = e>0
       ? ('It is RRG’s opinion that the fair market value falls within a range of approximately <b>'+moneyM(vLo)+' to '+moneyM(vHi)+'</b>, with a most-likely clearing value near <b>'+moneyM(vBa)+'</b>, derived from a market approach applied to '+basisWord+' of <b>'+money(e)+'</b> at <b>'+lo.toFixed(1)+'× to '+hi.toFixed(1)+'×</b> (base case '+ba.toFixed(1)+'×).')

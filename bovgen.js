@@ -145,7 +145,7 @@ Before returning the JSON, confirm:
 8. The JSON contains every required key, uses the required data types and contains no additional keys.
 
 OUTPUT
-Return only one valid JSON object—no prose and no Markdown fences—with exactly this structure. Narrative fields are strings; booleans, integers and numeric fields must not be quoted. Use null only where expressly permitted.
+Return only one valid JSON object—no prose and no Markdown fences—with exactly this structure. Narrative fields are strings; booleans, integers and numeric fields must not be quoted. Use null only where expressly permitted. FORMAT EVERY NARRATIVE FIELD AS 2–4 SHORT PARAGRAPHS separated by a blank line (\n\n), each paragraph 2–4 sentences — never one long unbroken block of text. execNarr, earnNarr, methodNarr, concNarr and gtmNarr must each read as several tight paragraphs, not a wall.
 {
   "periodBasis": "t12",
   "assetSale": false,
