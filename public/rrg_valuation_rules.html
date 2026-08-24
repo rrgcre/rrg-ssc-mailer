@@ -41,15 +41,15 @@ textarea.note{width:100%;min-height:118px;border:1px solid #cfd6e2;border-radius
   <span class="disc" onclick="location.href='./index.html'">RRG</span>
   <div class="kicker">Admin · Artificial Intelligence</div>
   <h1>Valuation Rules</h1>
-  <div class="sub">The thresholds and disclosure language the AI applies to every BOV. These decide whether a deal is concluded on SDE or Adjusted EBITDA, when it drops to an asset sale, and what the report says when trailing financials are missing.</div>
+  <div class="sub">The thresholds and disclosure language the AI applies to every BOV. Every BOV values on <b>both</b> SDE and Adjusted EBITDA — these settings decide which basis <b>headlines</b> the conclusion, when a deal drops to an asset sale, and what the report says when trailing financials are missing.</div>
 </div></div>
 <div class="navcrumb"><a href="./index.html">Command</a><span>›</span>Valuation Rules</div>
 <div id="root" class="wrap">
 
   <div class="card">
-    <h2>BOV Valuation Basis</h2>
-    <span class="cs">Deals with trailing sales <b>below</b> this value are concluded on SDE; at or above it, on Adjusted EBITDA. This is the single line that separates an owner-operator business from a managed one, so set it to where your buyer pool actually changes.</span>
-    <label class="lbl" for="sdeThreshold">SDE threshold (annual sales, $)</label>
+    <h2>BOV Headline Basis</h2>
+    <span class="cs"><b>Every BOV shows and values on both SDE and Adjusted EBITDA</b> — both earnings figures and both indicated value ranges appear on every report. This threshold only sets which one is the <b>headline</b> (the concluded number): deals with trailing sales <b>below</b> it headline on SDE; at or above it, on Adjusted EBITDA. That's the line that separates an owner-operator business from a managed one, so set it to where your buyer pool actually changes.</span>
+    <label class="lbl" for="sdeThreshold">Headline-basis threshold — SDE below / Adj. EBITDA at or above (annual sales, $)</label>
     <div class="inrow">
       <input id="sdeThreshold" class="num" inputmode="numeric" placeholder="1200000">
       <button class="btn primary" onclick="saveBovConfig()">Save threshold</button>
@@ -95,7 +95,7 @@ function setv(id,v){ var el=document.getElementById(id); if(el) el.value=(v==nul
 function getv(id){ var el=document.getElementById(id); return el?(el.value||''):''; }
 function setm(id,t){ var el=document.getElementById(id); if(el) el.textContent=t; }
 
-function saveBovConfig(){ var v=getv('sdeThreshold').replace(/[^0-9.]/g,''); setm('bcmsg','Saving…'); post('/api/admin/bov-config',{sdeThreshold:v}).then(function(j){ if(j&&j.ok){ setv('sdeThreshold',fmtNum(j.sdeThreshold)); setm('bcmsg','Saved — SDE basis below $'+fmtNum(j.sdeThreshold)+' in sales ✓'); } else setm('bcmsg',(j&&j.error)||'Failed'); }).catch(function(){ setm('bcmsg','Failed'); }); }
+function saveBovConfig(){ var v=getv('sdeThreshold').replace(/[^0-9.]/g,''); setm('bcmsg','Saving…'); post('/api/admin/bov-config',{sdeThreshold:v}).then(function(j){ if(j&&j.ok){ setv('sdeThreshold',fmtNum(j.sdeThreshold)); setm('bcmsg','Saved — SDE headlines below $'+fmtNum(j.sdeThreshold)+' in sales (both methods still shown) ✓'); } else setm('bcmsg',(j&&j.error)||'Failed'); }).catch(function(){ setm('bcmsg','Failed'); }); }
 
 function saveNoTtmMessage(){ setm('ntmsg','Saving…'); post('/api/admin/bov-config',{noTtmMessage:getv('noTtmMessage')}).then(function(j){ if(j&&j.ok){ setv('noTtmMessage',j.noTtmMessage||''); setm('ntmsg','Saved ✓'); } else setm('ntmsg',(j&&j.error)||'Failed'); }).catch(function(){ setm('ntmsg','Failed'); }); }
 function resetNoTtmMessage(){ if(!confirm('Reset the no-TTM notice to the RRG default?')) return; setm('ntmsg','Resetting…'); post('/api/admin/bov-config',{noTtmMessage:''}).then(function(j){ if(j&&j.ok){ setv('noTtmMessage',j.noTtmMessage||''); setm('ntmsg','Reset to default ✓'); } else setm('ntmsg',(j&&j.error)||'Failed'); }); }
