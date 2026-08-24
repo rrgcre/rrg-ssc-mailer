@@ -118,42 +118,52 @@ async function _findEmailForSite(website) {
   return { email: '', source: '' };
 }
 
-/* ---------------- Google Places ---------------- */
+/* ---------------- Google Places API (New) ----------------
+ * Uses places.googleapis.com/v1/places:searchText. The new Text Search returns the
+ * website and phone right in the response (via field mask), so no separate Details
+ * call is needed. Paginates up to 3 pages (20 each) to reach the requested max.        */
 async function _placesTextSearch(query, key, maxWanted) {
   const rows = [];
   let token = '';
+  const fieldMask = [
+    'places.id', 'places.displayName', 'places.formattedAddress',
+    'places.rating', 'places.userRatingCount', 'places.websiteUri',
+    'places.nationalPhoneNumber', 'nextPageToken'
+  ].join(',');
   for (let page = 0; page < 3 && rows.length < maxWanted; page++) {
-    let url = 'https://maps.googleapis.com/maps/api/place/textsearch/json?query=' + encodeURIComponent(query) + '&type=restaurant&key=' + encodeURIComponent(key);
-    if (token) { url += '&pagetoken=' + encodeURIComponent(token); await _sleep(2100); } // next_page_token needs a moment to activate
-    let j;
-    try { const r = await fetch(url); j = await r.json(); } catch (e) { break; }
-    if (j.status && j.status !== 'OK' && j.status !== 'ZERO_RESULTS') {
-      const err = new Error(j.error_message || ('Places error: ' + j.status)); err.gstatus = j.status; throw err;
+    const body = { textQuery: query, pageSize: 20 };
+    if (token) body.pageToken = token;
+    let j, ok, http;
+    try {
+      const r = await fetch('https://places.googleapis.com/v1/places:searchText', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': key, 'X-Goog-FieldMask': fieldMask },
+        body: JSON.stringify(body)
+      });
+      ok = r.ok; http = r.status; j = await r.json();
+    } catch (e) { break; }
+    if (!ok || (j && j.error)) {
+      const err = new Error((j && j.error && j.error.message) || ('Places error: HTTP ' + http));
+      err.gstatus = (j && j.error && j.error.status) || ('HTTP_' + http);
+      throw err;
     }
-    (j.results || []).forEach(p => {
+    (j.places || []).forEach(p => {
       rows.push({
-        placeId: p.place_id || '',
-        name: _clean(p.name, 200),
-        address: _clean(p.formatted_address, 300),
+        placeId: p.id || '',
+        name: _clean(p.displayName && p.displayName.text, 200),
+        address: _clean(p.formattedAddress, 300),
         rating: p.rating || 0,
-        userRatingsTotal: p.user_ratings_total || 0,
-        website: '', phone: '', email: '', emailSource: ''
+        userRatingsTotal: p.userRatingCount || 0,
+        website: _clean(p.websiteUri, 300),
+        phone: _clean(p.nationalPhoneNumber, 60),
+        email: '', emailSource: ''
       });
     });
-    token = j.next_page_token || '';
+    token = j.nextPageToken || '';
     if (!token) break;
+    await _sleep(600); // brief pause so the next page token is ready
   }
   return rows.slice(0, maxWanted);
-}
-
-async function _placeDetails(placeId, key) {
-  const fields = 'name,formatted_address,formatted_phone_number,international_phone_number,website';
-  const url = 'https://maps.googleapis.com/maps/api/place/details/json?place_id=' + encodeURIComponent(placeId) + '&fields=' + fields + '&key=' + encodeURIComponent(key);
-  try {
-    const r = await fetch(url); const j = await r.json();
-    const d = j.result || {};
-    return { website: _clean(d.website, 300), phone: _clean(d.formatted_phone_number || d.international_phone_number, 60) };
-  } catch (e) { return { website: '', phone: '' }; }
 }
 
 // small concurrency runner
@@ -193,7 +203,7 @@ function mount(app, deps) {
   app.post('/api/finder/search', requireAdmin, json, async (req, res) => {
     try {
       const key = loadKey();
-      if (!key) return res.status(400).json({ ok: false, error: 'No Google Maps API key is set. Add one in Admin, and enable the Places API on that Google Cloud project.' });
+      if (!key) return res.status(400).json({ ok: false, error: 'No Google Maps API key is set. Add one in Admin, and enable the Places API (New) on that Google Cloud project.' });
       const b = req.body || {};
       const city = _clean(b.city, 80), state = _clean(b.state, 40), type = _clean(b.type, 60);
       if (!city || !state) return res.status(400).json({ ok: false, error: 'City and state are required.' });
@@ -204,16 +214,12 @@ function mount(app, deps) {
       catch (e) {
         const gs = e && e.gstatus;
         let msg = (e && e.message) || 'Places search failed.';
-        if (gs === 'REQUEST_DENIED') msg = 'Google denied the request — the Places API is likely not enabled on this key, or the key is restricted. ' + msg;
-        else if (gs === 'OVER_QUERY_LIMIT') msg = 'Google quota/billing limit hit. ' + msg;
+        if (gs === 'PERMISSION_DENIED' || gs === 'REQUEST_DENIED' || gs === 'HTTP_403') msg = 'Google denied the request — enable the Places API (New) on this key’s Google Cloud project and make sure the key isn’t restricted away from it. ' + msg;
+        else if (gs === 'RESOURCE_EXHAUSTED' || gs === 'OVER_QUERY_LIMIT' || gs === 'HTTP_429') msg = 'Google quota/billing limit hit. Check billing is enabled on the project. ' + msg;
+        else if (gs === 'INVALID_ARGUMENT' || gs === 'HTTP_400') msg = 'Google rejected the search parameters. ' + msg;
         return res.status(502).json({ ok: false, error: msg });
       }
-      // Enrich with website + phone (Place Details), modest concurrency.
-      await _pool(rows, 6, async (r) => {
-        if (!r.placeId) return;
-        const d = await _placeDetails(r.placeId, key);
-        r.website = d.website; r.phone = d.phone;
-      });
+      // websiteUri + phone already came back from the New Text Search — no extra Details call.
       const withSite = rows.filter(r => r.website).length;
       res.json({ ok: true, query: q, count: rows.length, withWebsite: withSite, rows: rows });
     } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
