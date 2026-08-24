@@ -191,6 +191,22 @@ const FOOD_TYPES = new Set([
 ]);
 // Turn a type slug into a natural keyword for the text query (barbecue_restaurant -> "barbecue").
 function _typeKeyword(slug) { if (!slug || slug === 'restaurant') return ''; return slug.replace(/_restaurant$/, '').replace(/_/g, ' '); }
+// Pull the distinct ZIP/postal tokens out of a free-typed field. US 5-digit ZIPs are matched
+// individually (so "78701, 78702" -> two searches); anything else is treated as one token.
+function _zipsFrom(raw) {
+  raw = String(raw || '');
+  const us = raw.match(/\d{5}/g);
+  if (us && us.length) return Array.from(new Set(us)).slice(0, 5);
+  const t = raw.trim();
+  return t ? [t] : [];
+}
+// Does a formatted address contain this ZIP as a standalone token? (Text Search bleeds into
+// neighboring ZIPs, so we hard-filter results down to the ones actually in the requested ZIP.)
+function _addrHasZip(addr, zip) {
+  const z = String(zip || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  if (!z) return true;
+  return new RegExp('(^|[^\\d])' + z + '([^\\d]|$)').test(String(addr || ''));
+}
 
 /* ---------------- CSV ---------------- */
 function _csvCell(v) { const s = String(v == null ? '' : v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
@@ -222,32 +238,47 @@ function mount(app, deps) {
       const key = loadKey();
       if (!key) return res.status(400).json({ ok: false, error: 'No Google Maps API key is set. Add one in Admin, and enable the Places API (New) on that Google Cloud project.' });
       const b = req.body || {};
-      const city = _clean(b.city, 80), state = _clean(b.state, 40), zip = _clean(b.zip, 16);
-      // location: ZIP wins if given, else city + state
-      let loc = '';
-      if (zip) loc = zip + (/^\d{5}(-\d{4})?$/.test(zip) ? ', USA' : '');
-      else if (city && state) loc = city + ', ' + state;
-      else return res.status(400).json({ ok: false, error: 'Enter a city and state, or a ZIP / postal code.' });
+      const city = _clean(b.city, 80), state = _clean(b.state, 40), zipRaw = _clean(b.zip, 60);
+      const zips = zipRaw ? _zipsFrom(zipRaw) : [];
+      if (!zips.length && !(city && state)) return res.status(400).json({ ok: false, error: 'Enter a city and state, or a ZIP / postal code.' });
       // type: validate the slug against Google's food-type list; 'restaurant' (Any) stays unfiltered for widest recall
       let slug = _clean(b.includedType, 60);
       if (slug && !FOOD_TYPES.has(slug)) slug = '';
       const includedType = (slug && slug !== 'restaurant') ? slug : '';
       const kw = _typeKeyword(slug);
       const max = Math.max(1, Math.min(60, parseInt(b.max, 10) || 40));
-      const q = (kw ? (kw + ' ') : '') + 'restaurants in ' + loc;
-      let rows;
-      try { rows = await _placesTextSearch(q, key, max, includedType); }
-      catch (e) {
-        const gs = e && e.gstatus;
-        let msg = (e && e.message) || 'Places search failed.';
+
+      const mapErr = (e) => {
+        const gs = e && e.gstatus; let msg = (e && e.message) || 'Places search failed.';
         if (gs === 'PERMISSION_DENIED' || gs === 'REQUEST_DENIED' || gs === 'HTTP_403') msg = 'Google denied the request — enable the Places API (New) on this key’s Google Cloud project and make sure the key isn’t restricted away from it. ' + msg;
         else if (gs === 'RESOURCE_EXHAUSTED' || gs === 'OVER_QUERY_LIMIT' || gs === 'HTTP_429') msg = 'Google quota/billing limit hit. Check billing is enabled on the project. ' + msg;
         else if (gs === 'INVALID_ARGUMENT' || gs === 'HTTP_400') msg = 'Google rejected the search parameters. ' + msg;
-        return res.status(502).json({ ok: false, error: msg });
-      }
+        return msg;
+      };
+
+      let rows = [], q = '';
+      try {
+        if (zips.length) {
+          // One search per ZIP, then hard-filter to addresses actually in that ZIP, then merge & dedupe.
+          const seen = {}; const parts = [];
+          for (const z of zips) {
+            const zq = (kw ? (kw + ' ') : '') + 'restaurants in ' + z + (/^\d{5}$/.test(z) ? ', USA' : '');
+            parts.push(zq);
+            const found = await _placesTextSearch(zq, key, 60, includedType); // fetch wide, filtering trims it
+            found.filter(r => _addrHasZip(r.address, z))
+                 .slice(0, max)
+                 .forEach(r => { if (r.placeId && !seen[r.placeId]) { seen[r.placeId] = 1; rows.push(r); } });
+          }
+          q = parts.join(' | ');
+        } else {
+          q = (kw ? (kw + ' ') : '') + 'restaurants in ' + city + ', ' + state;
+          rows = await _placesTextSearch(q, key, max, includedType);
+        }
+      } catch (e) { return res.status(502).json({ ok: false, error: mapErr(e) }); }
+
       // websiteUri + phone already came back from the New Text Search — no extra Details call.
       const withSite = rows.filter(r => r.website).length;
-      res.json({ ok: true, query: q, count: rows.length, withWebsite: withSite, rows: rows });
+      res.json({ ok: true, query: q, count: rows.length, withWebsite: withSite, zips: zips, rows: rows });
     } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
   });
 

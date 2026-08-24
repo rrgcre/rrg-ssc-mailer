@@ -111,7 +111,7 @@ tbody tr:hover{background:#fafbfe;}
     <div class="frm">
       <div class="fld loc-place"><label>City</label><input id="city" placeholder="e.g. Austin" autocomplete="off"></div>
       <div class="fld w-state loc-place"><label>State</label><input id="state" list="stateList" placeholder="TX" autocomplete="off" maxlength="20"></div>
-      <div class="fld w-zip loc-zip" hidden><label>ZIP / Postal code</label><input id="zip" placeholder="e.g. 78701" autocomplete="off" maxlength="12"></div>
+      <div class="fld w-zip loc-zip" hidden><label>ZIP code(s)</label><input id="zip" placeholder="e.g. 78701 or 78701, 78702" autocomplete="off" maxlength="60"></div>
       <div class="fld"><label>Restaurant type</label>
         <select id="type">
           <option value="restaurant" selected>Any restaurant</option>
@@ -227,6 +227,8 @@ tbody tr:hover{background:#fafbfe;}
       <p>Google&rsquo;s data does <b>not</b> include emails &mdash; it gives us each restaurant&rsquo;s website. The finder then reads that public site (home, contact, and about pages) for a published address. Restaurants that only use a contact form won&rsquo;t return an email; that&rsquo;s normal &mdash; expect a partial hit rate.</p>
       <h4>1 · Find restaurants</h4>
       <p>Search by <b>City &amp; State</b> or by <b>ZIP code</b> &mdash; use the toggle. Pick a type from the list (it maps to Google&rsquo;s own categories, so the match is tight), choose how many results, and click <b>Find restaurants</b>. You&rsquo;ll get names, addresses, phones, websites, and ratings in a few seconds. Google returns up to 60 per search &mdash; narrow by type or neighborhood and stack lists to cover a whole metro.</p>
+      <h4>ZIP search is exact</h4>
+      <p>When you search by ZIP, results are <b>hard-filtered to that ZIP</b> &mdash; Google&rsquo;s search bleeds into neighboring ZIPs, so anything outside the one you asked for is dropped. Enter several at once (<b>78701, 78702</b>) to cover more ground; each ZIP is searched and filtered on its own, then merged.</p>
       <h4>2 · Find emails</h4>
       <p>Click <b>Find emails</b> to crawl the websites. A progress bar fills as it works; emails drop into the table as they&rsquo;re found. Tick <b>Only rows with an email</b> to hide the rest.</p>
       <h4>3 · Save &amp; export</h4>
