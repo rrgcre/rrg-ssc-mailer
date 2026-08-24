@@ -186,8 +186,8 @@
     { grp: 'Landlord Rep', color: '#c98a5e', items: [
       { ic: '⌂', label: 'Overview', href: 'rrg_landlord_rep.html' }
     ] },
-    { grp: 'Marketing', color: '#c77dc0', items: [
-      { ic: '✉', label: 'Email Studio', href: 'rrg_mass_studio.html', admin: true },
+    { grp: 'Marketing Machine', color: '#c77dc0', items: [
+      { ic: '✉', label: 'Bulk Email', href: 'rrg_mass_studio.html', admin: true },
       { ic: '☷', label: 'Subscribers', href: 'rrg_subscribers.html' },
       { ic: '✎', label: 'Email Templates', href: 'rrg_email_templates.html' },
       { ic: '▧', label: 'Marketing Packs', href: 'rrg_cim_queue.html' },
