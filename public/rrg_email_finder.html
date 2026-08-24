@@ -192,6 +192,7 @@ tbody tr:hover{background:#fafbfe;}
       <label class="chk"><input type="checkbox" id="onlyEmail"> Only rows with an email</label>
       <button class="btn mini" id="findEmailsBtn" type="button">✉ Find emails</button>
       <button class="btn mini" id="csvBtn" type="button">Export CSV</button>
+      <button class="btn mini" id="clearBtn" type="button">Clear list</button>
     </div>
     <div class="save-row" style="margin-bottom:14px;">
       <input id="listName" placeholder="Name this list (e.g. Austin BBQ)" autocomplete="off">
@@ -229,6 +230,8 @@ tbody tr:hover{background:#fafbfe;}
       <p>Search by <b>City &amp; State</b> or by <b>ZIP code</b> &mdash; use the toggle. Pick a type from the list (it maps to Google&rsquo;s own categories, so the match is tight), choose how many results, and click <b>Find restaurants</b>. You&rsquo;ll get names, addresses, phones, websites, and ratings in a few seconds. Google returns up to 60 per search &mdash; narrow by type or neighborhood and stack lists to cover a whole metro.</p>
       <h4>ZIP search is exact</h4>
       <p>When you search by ZIP, results are <b>hard-filtered to that ZIP</b> &mdash; Google&rsquo;s search bleeds into neighboring ZIPs, so anything outside the one you asked for is dropped. Enter several at once (<b>78701, 78702</b>) to cover more ground; each ZIP is searched and filtered on its own, then merged.</p>
+      <h4>Searches stack</h4>
+      <p>Each new search <b>adds to the list on screen</b> instead of replacing it, and restaurants already listed are skipped &mdash; so you can run several types or ZIPs, build one combined list, then save or export it. Use <b>Clear list</b> to start over.</p>
       <h4>2 · Find emails</h4>
       <p>Click <b>Find emails</b> to crawl the websites. A progress bar fills as it works; emails drop into the table as they&rsquo;re found. Tick <b>Only rows with an email</b> to hide the rest.</p>
       <h4>3 · Save &amp; export</h4>
@@ -301,12 +304,17 @@ tbody tr:hover{background:#fafbfe;}
     api('POST','/api/finder/search',{city:city,state:state,zip:zip,type:label,includedType:slug,max:max}).then(function(j){
       $('searchBtn').disabled=false;
       if(!j||!j.ok){ $('searchMsg').innerHTML='<span style="color:var(--red)">'+esc((j&&j.error)||'Search failed.')+'</span>'; return; }
-      ROWS=j.rows||[]; $('searchMsg').innerHTML='';
-      if(!ROWS.length){ $('resultsCard').hidden=false; $('sum').textContent='No restaurants found. Try a broader type or a nearby area.'; $('rows').innerHTML=''; return; }
-      $('listName').value=((label?label+' — ':'')+(zip||city)).trim();
-      $('resultsCard').hidden=false;
-      $('onlyEmail').checked=false;
-      renderRows(); updateSum(j.withWebsite);
+      var incoming=j.rows||[];
+      var firstBatch=(ROWS.length===0);
+      // Append new searches onto the working list, skipping restaurants already listed.
+      var have={}; ROWS.forEach(function(r){ if(r.placeId) have[r.placeId]=1; });
+      var added=0, dup=0;
+      incoming.forEach(function(r){ if(r.placeId && have[r.placeId]){ dup++; return; } if(r.placeId) have[r.placeId]=1; ROWS.push(r); added++; });
+      if(firstBatch){ META={city:city,state:state,zip:zip,type:label,googleType:slug}; $('onlyEmail').checked=false; if(!$('listName').value.trim()) $('listName').value=((label?label+' — ':'')+(zip||city)).trim(); }
+      $('resultsCard').hidden=(ROWS.length===0);
+      if(!incoming.length){ $('searchMsg').innerHTML='<span style="color:var(--muted)">No restaurants found for that search'+(ROWS.length?' — nothing added.':'.')+'</span>'; }
+      else { $('searchMsg').innerHTML='<span style="color:var(--green)">Added '+added+' '+(added===1?'restaurant':'restaurants')+(dup?(' · '+dup+' already listed'):'')+'. '+ROWS.length+' in the list.</span>'; }
+      renderRows(); updateSum();
     }).catch(function(){ $('searchBtn').disabled=false; $('searchMsg').innerHTML='<span style="color:var(--red)">Could not reach the server.</span>'; });
   }
 
@@ -374,6 +382,15 @@ tbody tr:hover{background:#fafbfe;}
     var a=document.createElement('a'); a.href=URL.createObjectURL(blob);
     a.download=((META.type?META.type+'_':'')+(META.zip||META.city||'restaurants')).replace(/[^a-z0-9]+/gi,'_').toLowerCase()+'.csv';
     document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },100);
+  });
+
+  /* ---- clear the working list ---- */
+  $('clearBtn').addEventListener('click', function(){
+    if(ROWS.length && !window.confirm('Clear the '+ROWS.length+' restaurant'+(ROWS.length===1?'':'s')+' in the current list? (Saved lists are not affected.)')) return;
+    ROWS=[]; META={city:'',state:'',zip:'',type:'',googleType:'restaurant'};
+    $('resultsCard').hidden=true; $('rows').innerHTML=''; $('onlyEmail').checked=false;
+    $('listName').value=''; $('saveMsg').textContent='';
+    $('searchMsg').innerHTML='<span style="color:var(--muted)">List cleared. Your next search starts fresh.</span>';
   });
 
   /* ---- save as list ---- */
