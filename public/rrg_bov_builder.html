@@ -30,28 +30,28 @@ body.bov-locked #sheet .rrg-noprint button{display:none!important;}
 .wrap{max-width:816px;margin:22px auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 8px 30px rgba(10,20,50,.08);}
 @media print{ .wrap{max-width:none;width:auto;} }
 
-.band{color:#fff;padding:15px 40px 14px;position:relative;background:#16233f;}
+.band{color:#fff;padding:11px 40px 12px;position:relative;background:#16233f;}
 .band > *{position:relative;z-index:2;}
 .band::after{display:none;}
-.confline{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.5);font-weight:700;margin-bottom:8px;}
+.confline{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.5);font-weight:700;margin-bottom:5px;}
 .rrg{display:inline-flex;align-items:center;}
 .rrg img.logo{height:36px;width:auto;display:block;border:0;}
 .rrg .disc{background:var(--red);color:#fff;border-radius:50%;width:32px;height:32px;font-family:'Arial Black',Arial,Helvetica,sans-serif;font-weight:900;font-size:11px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
 .rrg .bar{background:rgba(255,255,255,.28);width:2px;height:24px;margin:0 11px;} .rrg .wm{font-weight:700;font-size:11.5px;text-transform:uppercase;line-height:.95;color:#fff;}
-.kicker{margin:11px 0 3px;color:var(--red);font-weight:700;letter-spacing:.22em;font-size:10px;text-transform:uppercase;}
+.kicker{margin:8px 0 2px;color:var(--red);font-weight:700;letter-spacing:.22em;font-size:10px;text-transform:uppercase;}
 .band h1 input{font-size:19px;font-weight:700;letter-spacing:-.01em;margin:0;color:#fff;background:transparent;border:none;border-bottom:1px dashed rgba(255,255,255,.22);width:100%;font-family:inherit;padding:0 0 2px;}
 .band h1 input:focus{outline:none;border-bottom-color:var(--red);}
 .subin{background:transparent;border:none;border-bottom:1px dashed rgba(255,255,255,.16);color:#c7d0e2;font-size:12.5px;font-weight:600;font-family:inherit;padding:3px 0 1px;width:100%;margin-top:4px;}
 .subin.tag{color:#9fb0cc;font-size:11px;font-style:italic;}
 .subin:focus{outline:none;border-bottom-color:var(--red);color:#fff;}
-.accent{width:40px;height:3px;background:var(--red);border-radius:3px;margin:9px 0 9px;}
-.prep{display:flex;flex-direction:column;gap:5px;margin-top:4px;max-width:560px;}
-.pf{display:flex;flex-direction:column;gap:2px;} .pf label{font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;color:#8fa0c2;font-weight:700;}
-.pf input{background:transparent;border:none;border-bottom:1px dashed rgba(255,255,255,.18);color:#dce3f0;font-size:12px;font-weight:600;font-family:inherit;padding:1px 0;width:100%;}
+.accent{width:36px;height:3px;background:var(--red);border-radius:3px;margin:7px 0 8px;}
+.prep{display:grid;grid-template-columns:160px 1fr;gap:4px 34px;margin-top:4px;max-width:720px;}
+.pf{display:flex;flex-direction:column;gap:1px;min-width:0;} .pf label{font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;color:#8fa0c2;font-weight:700;}
+.pf input{background:transparent;border:none;border-bottom:1px dashed rgba(255,255,255,.18);color:#dce3f0;font-size:11.5px;font-weight:600;font-family:inherit;padding:1px 0;width:100%;}
 .pf input:focus{outline:none;border-bottom-color:var(--red);color:#fff;}
 
 /* headline stat strip */
-.strip{display:grid;grid-template-columns:repeat(5,1fr);margin-top:12px;border:1px solid rgba(255,255,255,.16);border-radius:10px;overflow:hidden;position:relative;z-index:2;}
+.strip{display:grid;grid-template-columns:repeat(5,1fr);margin-top:10px;border:1px solid rgba(255,255,255,.16);border-radius:10px;overflow:hidden;position:relative;z-index:2;}
 .strip.asset{grid-template-columns:repeat(3,1fr);}
 .strip .c{padding:9px 14px;border-right:1px solid rgba(255,255,255,.12);}
 .strip .c:last-child{border-right:none;}
@@ -188,9 +188,9 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
     <div class="accent"></div>
     <div class="prep">
       <div class="pf"><label>Prepared For</label><input data-k="preparedFor" placeholder="Ownership of ..."></div>
-      <div class="pf wide"><label>Prepared By</label><input data-k="preparedBy" value="Van Rinn, President & Founder · 210-362-0678 · van@rrgcre.com"></div>
-      <div class="pf wide"><label>&nbsp;</label><input data-k="preparedBy2" value="Avery Rinn, Associate · 210-204-2471 · avery@rrgcre.com"></div>
+      <div class="pf"><label>Prepared By</label><input data-k="preparedBy" value="Van Rinn, President & Founder · 210-362-0678 · van@rrgcre.com"></div>
       <div class="pf"><label>Date</label><input type="month" data-k="date"></div>
+      <div class="pf"><label>&nbsp;</label><input data-k="preparedBy2" value="Avery Rinn, Associate · 210-204-2471 · avery@rrgcre.com"></div>
     </div>
     <div class="strip">
       <div class="c"><div class="k">Concluded Value Range</div><div class="v red" id="hRange">—</div></div>
