@@ -30,32 +30,33 @@ body.bov-locked #sheet .rrg-noprint button{display:none!important;}
 .wrap{max-width:816px;margin:22px auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 8px 30px rgba(10,20,50,.08);}
 @media print{ .wrap{max-width:none;width:auto;} }
 
-.band{color:#fff;padding:24px 40px 22px;position:relative;background:#16233f;}
+.band{color:#fff;padding:15px 40px 14px;position:relative;background:#16233f;}
 .band > *{position:relative;z-index:2;}
 .band::after{display:none;}
-.confline{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.5);font-weight:700;margin-bottom:16px;}
+.confline{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.5);font-weight:700;margin-bottom:8px;}
 .rrg{display:inline-flex;align-items:center;}
 .rrg img.logo{height:36px;width:auto;display:block;border:0;}
-.rrg .disc{background:var(--red);color:#fff;border-radius:50%;width:40px;height:40px;font-family:'Arial Black',Arial,Helvetica,sans-serif;font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
-.rrg .bar{background:rgba(255,255,255,.28);width:2px;height:30px;margin:0 12px;} .rrg .wm{font-weight:700;font-size:13px;text-transform:uppercase;line-height:.95;color:#fff;}
-.kicker{margin:18px 0 6px;color:var(--red);font-weight:700;letter-spacing:.22em;font-size:10.5px;text-transform:uppercase;}
-.band h1 input{font-size:25px;font-weight:700;letter-spacing:-.01em;margin:0;color:#fff;background:transparent;border:none;border-bottom:1px dashed rgba(255,255,255,.22);width:100%;font-family:inherit;padding:0 0 3px;}
+.rrg .disc{background:var(--red);color:#fff;border-radius:50%;width:32px;height:32px;font-family:'Arial Black',Arial,Helvetica,sans-serif;font-weight:900;font-size:11px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.rrg .bar{background:rgba(255,255,255,.28);width:2px;height:24px;margin:0 11px;} .rrg .wm{font-weight:700;font-size:11.5px;text-transform:uppercase;line-height:.95;color:#fff;}
+.kicker{margin:11px 0 3px;color:var(--red);font-weight:700;letter-spacing:.22em;font-size:10px;text-transform:uppercase;}
+.band h1 input{font-size:19px;font-weight:700;letter-spacing:-.01em;margin:0;color:#fff;background:transparent;border:none;border-bottom:1px dashed rgba(255,255,255,.22);width:100%;font-family:inherit;padding:0 0 2px;}
 .band h1 input:focus{outline:none;border-bottom-color:var(--red);}
-.subin{background:transparent;border:none;border-bottom:1px dashed rgba(255,255,255,.16);color:#c7d0e2;font-size:13.5px;font-weight:600;font-family:inherit;padding:6px 0 2px;width:100%;margin-top:8px;}
-.subin.tag{color:#9fb0cc;font-size:12px;font-style:italic;}
+.subin{background:transparent;border:none;border-bottom:1px dashed rgba(255,255,255,.16);color:#c7d0e2;font-size:12.5px;font-weight:600;font-family:inherit;padding:3px 0 1px;width:100%;margin-top:4px;}
+.subin.tag{color:#9fb0cc;font-size:11px;font-style:italic;}
 .subin:focus{outline:none;border-bottom-color:var(--red);color:#fff;}
-.accent{width:44px;height:3px;background:var(--red);border-radius:3px;margin:14px 0 14px;}
-.prep{display:flex;flex-direction:column;gap:9px;margin-top:6px;max-width:560px;}
+.accent{width:40px;height:3px;background:var(--red);border-radius:3px;margin:9px 0 9px;}
+.prep{display:flex;flex-direction:column;gap:5px;margin-top:4px;max-width:560px;}
 .pf{display:flex;flex-direction:column;gap:2px;} .pf label{font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;color:#8fa0c2;font-weight:700;}
-.pf input{background:transparent;border:none;border-bottom:1px dashed rgba(255,255,255,.18);color:#dce3f0;font-size:12px;font-weight:600;font-family:inherit;padding:2px 0;width:100%;}
+.pf input{background:transparent;border:none;border-bottom:1px dashed rgba(255,255,255,.18);color:#dce3f0;font-size:12px;font-weight:600;font-family:inherit;padding:1px 0;width:100%;}
 .pf input:focus{outline:none;border-bottom-color:var(--red);color:#fff;}
 
 /* headline stat strip */
-.strip{display:grid;grid-template-columns:repeat(5,1fr);margin-top:20px;border:1px solid rgba(255,255,255,.16);border-radius:10px;overflow:hidden;position:relative;z-index:2;}
-.strip .c{padding:13px 16px;border-right:1px solid rgba(255,255,255,.12);}
+.strip{display:grid;grid-template-columns:repeat(5,1fr);margin-top:12px;border:1px solid rgba(255,255,255,.16);border-radius:10px;overflow:hidden;position:relative;z-index:2;}
+.strip.asset{grid-template-columns:repeat(3,1fr);}
+.strip .c{padding:9px 14px;border-right:1px solid rgba(255,255,255,.12);}
 .strip .c:last-child{border-right:none;}
 .strip .k{font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;color:#8fa0c2;font-weight:700;}
-.strip .v{font-family:inherit;font-weight:700;font-size:18px;color:#fff;margin-top:4px;line-height:1.05;}
+.strip .v{font-family:inherit;font-weight:700;font-size:16px;color:#fff;margin-top:3px;line-height:1.05;}
 .strip .v.red{color:#ff7a5c;}
 .strip .v.red{color:#ff7a5c;}
 
@@ -535,6 +536,14 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
     setTxt('hMult',(lo&&hi)?(lo.toFixed(1)+'–'+hi.toFixed(1)+'×'):'—');
     setTxt('hSde', s.sde>0?('~'+moneyM(s.sde)):'—');
     setTxt('hEbitda', s.adj>0?('~'+moneyM(s.adj)):'—');
+    // Asset sale: strip the KPIs that don't apply (Multiple, Recommended Target) and relabel the range.
+    var isAsset=(s.sde<=ASSET_FLOOR)||(s.adj<=0);
+    var _strip=document.querySelector('.strip'); if(_strip) _strip.classList.toggle('asset',isAsset);
+    var _tc=document.getElementById('hTarget').closest('.c'); if(_tc) _tc.style.display=isAsset?'none':'';
+    var _mc=document.getElementById('hMult').closest('.c'); if(_mc) _mc.style.display=isAsset?'none':'';
+    var _rc=document.getElementById('hRange').closest('.c'); var _rk=_rc?_rc.querySelector('.k'):null;
+    if(isAsset){ if(_rk)_rk.textContent='Valuation'; setTxt('hRange','Asset Sale'); document.getElementById('hRange').classList.remove('red'); }
+    else { if(_rk)_rk.textContent='Concluded Value Range'; document.getElementById('hRange').classList.add('red'); }
     var basisWord = s.basis==='SDE'?'SDE':'adjusted EBITDA';
     document.getElementById('execLead').innerHTML = e>0
       ? ('It is RRG’s opinion that the fair market value falls within a range of approximately <b>'+moneyM(vLo)+' to '+moneyM(vHi)+'</b>, with a most-likely clearing value near <b>'+moneyM(vBa)+'</b>, derived from a market approach applied to '+basisWord+' of <b>'+money(e)+'</b> at <b>'+lo.toFixed(1)+'× to '+hi.toFixed(1)+'×</b> (base case '+ba.toFixed(1)+'×).')
