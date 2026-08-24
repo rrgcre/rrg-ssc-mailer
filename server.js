@@ -6,6 +6,7 @@ const express = require('express');
 const cors = require('cors');
 const nodemailer = require('nodemailer');
 const massmail = require('./massmail.js');
+const emailfinder = require('./emailfinder.js');
 const { sendSsc } = require('./mailer.js');
 // Resilience: never let one unhandled async error crash the whole server.
 process.on('uncaughtException', function (e) { try { console.error('[uncaughtException]', (e && e.stack) || e); } catch (_) {} });
@@ -17161,6 +17162,7 @@ process.on('uncaughtException', (err) => { try { console.error('uncaughtExceptio
 
 const PORT = process.env.PORT || 8787;
 try { massmail.mount(app, { requireAdmin: requireAdmin, appBaseUrl: appBaseUrl }); console.log('[MAIL] mass-email module mounted' + (massmail.dbReady() ? '' : ' (storage inert — no DATABASE_URL)') + (massmail.sesConfigured() ? '' : ' (sending inert — SES not configured)')); } catch (e) { console.error('[MAIL] mount failed: ' + (e && e.message)); }
+try { emailfinder.mount(app, { requireAdmin: requireAdmin, loadGmapsKey: loadGmapsKey }); console.log('[FINDER] email-finder module mounted' + (loadGmapsKey() ? '' : ' (no Google Maps key — set one in Admin)')); } catch (e) { console.error('[FINDER] mount failed: ' + (e && e.message)); }
 app.listen(PORT, () => console.log(`RRG toolkit server listening on :${PORT}`));
 // Reconcile binary assets with object storage on boot: migrate disk→bucket (first run)
 // and restore anything the disk is missing (after a disk loss). Async; never blocks startup.

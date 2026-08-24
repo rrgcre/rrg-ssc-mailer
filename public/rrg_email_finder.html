@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Email Finder — RRG</title>
+<script src="/rrg_shell.js" defer></script>
+<style>
+:root{--navy:#20334f;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;--red:#DA2B1F;--blue:#2c5c8f;--amber:#b5791f;}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:#fbfcfe;}
+.wrap{max-width:1180px;margin:0 auto;padding:22px 26px 60px;}
+.pghead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.pgh{font-size:22px;font-weight:700;color:var(--navy);margin:0 0 2px;}
+.pgs{color:var(--muted);font-size:13px;margin:0 0 16px;max-width:680px;line-height:1.5;}
+.hbtns{display:flex;gap:8px;flex:0 0 auto;}
+.btn{background:#fff;border:1px solid #d7dde8;border-radius:6px;padding:9px 15px;font:inherit;font-size:13px;font-weight:600;color:var(--navy);cursor:pointer;}
+.btn:hover{background:#f6f8fc;}
+.btn.primary{background:var(--navy);color:#fff;border-color:var(--navy);}
+.btn.primary:hover{background:#2a4266;}
+.btn.red{background:var(--red);color:#fff;border-color:var(--red);}
+.btn:disabled{opacity:.5;cursor:default;}
+.card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px 18px 16px;margin-bottom:16px;box-shadow:0 1px 2px rgba(20,30,55,.03);}
+.card h2{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);margin:0 0 14px;font-weight:700;}
+.frm{display:grid;grid-template-columns:1.4fr .7fr 1.2fr .8fr auto;gap:12px;align-items:end;}
+@media(max-width:860px){.frm{grid-template-columns:1fr 1fr;}}
+.fld label{display:block;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;}
+.fld input,.fld select{width:100%;border:1px solid #d7dde8;border-radius:7px;padding:9px 11px;font:inherit;font-size:14px;color:var(--ink);background:#fff;}
+.fld input:focus,.fld select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(44,92,143,.12);}
+.note{border:1px solid var(--line);border-radius:8px;padding:11px 14px;font-size:12.5px;line-height:1.55;margin-bottom:16px;background:#fff;}
+.note.warn{background:#fff8e6;border-color:#f0dca0;color:#7a5b12;}
+.note.err{background:#fdeceb;border-color:#f2c3bf;color:#8f2018;}
+.note.ok{background:#eef7f1;border-color:#bfe1cc;color:#1c6b43;}
+.bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;}
+.bar .sum{font-size:13px;color:var(--navy);font-weight:600;}
+.bar .sum b{color:var(--green);}
+.spacer{flex:1 1 auto;}
+.chk{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);cursor:pointer;font-weight:600;}
+.chk input{width:auto;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+thead th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);font-weight:700;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap;}
+tbody td{padding:9px 10px;border-bottom:1px solid #f2f4f8;vertical-align:top;}
+tbody tr:hover{background:#fafbfe;}
+.rname{font-weight:700;color:var(--navy);}
+.rmeta{color:var(--soft);font-size:11.5px;margin-top:1px;}
+.email-cell a{color:var(--blue);text-decoration:none;font-weight:600;}
+.email-cell .none{color:var(--soft);}
+.email-cell .pending{color:var(--amber);font-size:11.5px;}
+.web a{color:var(--blue);text-decoration:none;} .web .none{color:var(--soft);}
+.stars{color:var(--amber);font-weight:700;white-space:nowrap;} .stars small{color:var(--soft);font-weight:500;}
+.prog{height:8px;background:#eef1f6;border-radius:6px;overflow:hidden;flex:1 1 160px;max-width:260px;display:none;}
+.prog.show{display:block;}
+.prog > i{display:block;height:100%;width:0;background:var(--blue);transition:width .2s;}
+.empty{text-align:center;color:var(--soft);padding:34px 10px;font-size:13.5px;}
+.saved{display:flex;flex-direction:column;gap:8px;}
+.slrow{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;}
+.slrow .sln{font-weight:700;color:var(--navy);font-size:13.5px;}
+.slrow .slm{color:var(--muted);font-size:11.5px;margin-top:1px;}
+.slrow .slcount{background:#eef4fb;color:var(--blue);border-radius:20px;padding:2px 9px;font-size:11px;font-weight:700;}
+.slrow a.slact{color:var(--blue);text-decoration:none;font-size:12px;font-weight:600;cursor:pointer;}
+.slrow a.slact.del{color:var(--red);}
+.mini{padding:6px 11px;font-size:12px;}
+.save-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.save-row input{border:1px solid #d7dde8;border-radius:7px;padding:8px 11px;font:inherit;font-size:13px;min-width:220px;}
+/* Help / Features slideouts */
+.help-ov{position:fixed;inset:0;background:rgba(20,30,55,.35);z-index:60;opacity:0;visibility:hidden;transition:.18s;}
+.help-ov.show{opacity:1;visibility:visible;}
+.help-pan{position:fixed;top:0;right:0;bottom:0;width:400px;max-width:92vw;background:#fff;z-index:61;box-shadow:-8px 0 30px rgba(10,20,50,.18);transform:translateX(100%);transition:transform .22s;overflow:auto;}
+.help-ov.show .help-pan{transform:none;}
+.help-pan h3{margin:0;padding:17px 22px;font-size:15px;color:var(--navy);border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:#fff;}
+.help-pan .x{cursor:pointer;color:var(--soft);font-size:22px;line-height:1;background:none;border:none;padding:0;}
+.help-b{padding:16px 22px 34px;}
+.help-b h4{color:var(--blue);font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;margin:18px 0 6px;}
+.help-b h4:first-child{margin-top:0;}
+.help-b p{margin:0 0 10px;font-size:13px;line-height:1.62;color:var(--ink);}
+.help-b b{color:var(--navy);}
+.featlist{list-style:none;margin:0;padding:0;}
+.featlist li{position:relative;padding:9px 0 9px 26px;font-size:13px;line-height:1.5;color:var(--ink);border-bottom:1px solid #f2f4f8;}
+.featlist li:last-child{border-bottom:none;}
+.featlist li:before{content:'✓';position:absolute;left:0;top:9px;color:var(--green);font-weight:800;}
+.featlist li b{color:var(--navy);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="pghead">
+    <div>
+      <div class="pgh">Email Finder</div>
+      <div class="pgs">Find restaurants by city, state, and type, then pull a public contact email for the ones that publish one. Results save to their own lists here — separate from your CRM contacts and Bulk Email subscribers.</div>
+    </div>
+    <div class="hbtns">
+      <button class="btn" type="button" id="featBtn">★ Features</button>
+      <button class="btn" type="button" id="helpBtn">Help</button>
+    </div>
+  </div>
+
+  <div id="keyNote"></div>
+
+  <div class="card">
+    <h2>Search</h2>
+    <div class="frm">
+      <div class="fld"><label>City</label><input id="city" placeholder="e.g. Austin" autocomplete="off"></div>
+      <div class="fld"><label>State</label><input id="state" list="stateList" placeholder="TX" autocomplete="off" maxlength="20"></div>
+      <div class="fld"><label>Restaurant type</label><input id="type" list="typeList" placeholder="e.g. BBQ, pizza, sushi…" autocomplete="off"></div>
+      <div class="fld"><label>Max results</label><select id="max"><option value="20">20</option><option value="40" selected>40</option><option value="60">60</option></select></div>
+      <div class="fld"><button class="btn primary" id="searchBtn" type="button" style="width:100%">Find restaurants</button></div>
+    </div>
+    <div id="searchMsg" style="margin-top:10px;font-size:12.5px;"></div>
+  </div>
+
+  <div class="card" id="resultsCard" hidden>
+    <div class="bar">
+      <div class="sum" id="sum"></div>
+      <div class="prog" id="prog"><i></i></div>
+      <div class="spacer"></div>
+      <label class="chk"><input type="checkbox" id="onlyEmail"> Only rows with an email</label>
+      <button class="btn mini" id="findEmailsBtn" type="button">✉ Find emails</button>
+      <button class="btn mini" id="csvBtn" type="button">Export CSV</button>
+    </div>
+    <div class="save-row" style="margin-bottom:14px;">
+      <input id="listName" placeholder="Name this list (e.g. Austin BBQ)" autocomplete="off">
+      <button class="btn primary mini" id="saveBtn" type="button">Save as list</button>
+      <span id="saveMsg" style="font-size:12.5px;"></span>
+    </div>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead><tr><th>Restaurant</th><th>Email</th><th>Phone</th><th>Website</th><th>Rating</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Saved lists</h2>
+    <div class="saved" id="saved"><div class="empty">No saved lists yet. Run a search and click <b>Save as list</b>.</div></div>
+  </div>
+</div>
+
+<datalist id="stateList">
+  <option value="AL"><option value="AK"><option value="AZ"><option value="AR"><option value="CA"><option value="CO"><option value="CT"><option value="DE"><option value="FL"><option value="GA"><option value="HI"><option value="ID"><option value="IL"><option value="IN"><option value="IA"><option value="KS"><option value="KY"><option value="LA"><option value="ME"><option value="MD"><option value="MA"><option value="MI"><option value="MN"><option value="MS"><option value="MO"><option value="MT"><option value="NE"><option value="NV"><option value="NH"><option value="NJ"><option value="NM"><option value="NY"><option value="NC"><option value="ND"><option value="OH"><option value="OK"><option value="OR"><option value="PA"><option value="RI"><option value="SC"><option value="SD"><option value="TN"><option value="TX"><option value="UT"><option value="VT"><option value="VA"><option value="WA"><option value="WV"><option value="WI"><option value="WY">
+</datalist>
+<datalist id="typeList">
+  <option value="BBQ"><option value="Pizza"><option value="Mexican"><option value="Italian"><option value="Sushi"><option value="Japanese"><option value="Chinese"><option value="Thai"><option value="Steakhouse"><option value="Seafood"><option value="Bar &amp; Grill"><option value="Sports Bar"><option value="Cafe"><option value="Coffee Shop"><option value="Bakery"><option value="Fast Casual"><option value="Fine Dining"><option value="Diner"><option value="Burgers"><option value="Vegan"><option value="Indian"><option value="Mediterranean"><option value="Breakfast"><option value="Brunch"><option value="Food Truck"><option value="Wine Bar"><option value="Brewery"><option value="Deli">
+</datalist>
+
+<!-- Help slideout -->
+<div class="help-ov" id="helpOv">
+  <div class="help-pan">
+    <h3>Email Finder — Help <button class="x" type="button" data-close>&times;</button></h3>
+    <div class="help-b">
+      <h4>What this is</h4>
+      <p>A prospecting tool. Give it a <b>city</b>, <b>state</b>, and <b>restaurant type</b> and it pulls matching restaurants from Google, then visits each one&rsquo;s website to find a public contact email. It builds a list you can export or hand to Bulk Email.</p>
+      <h4>How emails are found</h4>
+      <p>Google&rsquo;s data does <b>not</b> include emails &mdash; it gives us each restaurant&rsquo;s website. The finder then reads that public site (home, contact, and about pages) for a published address. Restaurants that only use a contact form won&rsquo;t return an email; that&rsquo;s normal &mdash; expect a partial hit rate.</p>
+      <h4>1 · Find restaurants</h4>
+      <p>Enter the city, state, and a type (BBQ, sushi, steakhouse&hellip;), pick how many results, and click <b>Find restaurants</b>. You&rsquo;ll get names, addresses, phones, websites, and ratings in a few seconds.</p>
+      <h4>2 · Find emails</h4>
+      <p>Click <b>Find emails</b> to crawl the websites. A progress bar fills as it works; emails drop into the table as they&rsquo;re found. Tick <b>Only rows with an email</b> to hide the rest.</p>
+      <h4>3 · Save &amp; export</h4>
+      <p>Name the list and <b>Save as list</b> &mdash; it&rsquo;s stored here on its own, not mixed into your contacts or subscribers. Export any list to <b>CSV</b> to import into Bulk Email or work it however you like.</p>
+      <h4>Setup</h4>
+      <p>Uses your existing Google Maps API key (Admin). The <b>Places API</b> must be enabled on that same Google Cloud project, with billing on. If a search is denied, that&rsquo;s almost always the cause.</p>
+      <h4>Play it straight</h4>
+      <p>These are published business addresses for B2B outreach. When you send, do it through Bulk Email so every message carries your identity and a one-click unsubscribe &mdash; that keeps you clean under CAN-SPAM and protects your sending reputation.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Features slideout -->
+<div class="help-ov" id="featOv">
+  <div class="help-pan">
+    <h3>Email Finder — Features <button class="x" type="button" data-close>&times;</button></h3>
+    <div class="help-b">
+      <h4>What's inside</h4>
+      <ul class="featlist">
+        <li><b>City / state / type search</b> — targeted restaurant discovery via Google Places.</li>
+        <li><b>Up to 60 results</b> per search, with ratings and review counts.</li>
+        <li><b>Website email crawl</b> — reads home, contact, and about pages for a public address.</li>
+        <li><b>Smart email picking</b> — prefers info@/reservations@ on the restaurant&rsquo;s own domain; filters out tracking and asset junk.</li>
+        <li><b>Live progress</b> — watch emails fill in as sites are crawled.</li>
+        <li><b>Emails-only filter</b> — one click to hide rows without an address.</li>
+        <li><b>Saved lists</b> — kept in their own store, separate from CRM and subscribers.</li>
+        <li><b>CSV export</b> — take any list into Bulk Email or a spreadsheet.</li>
+        <li><b>Reuses your Google key</b> — no new credentials to manage.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  function $(id){return document.getElementById(id);}
+  function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+  function api(m,u,b){return fetch(u,{method:m,headers:b?{'Content-Type':'application/json'}:undefined,credentials:'same-origin',body:b?JSON.stringify(b):undefined}).then(function(r){return r.json();});}
+  var ROWS=[];        // current working result set
+  var META={city:'',state:'',type:''};
+
+  /* ---- key status ---- */
+  api('GET','/api/finder/key-status').then(function(j){
+    if(j&&j.ok&&!j.hasKey){ $('keyNote').innerHTML='<div class="note warn">No Google Maps API key is set. Add one in <b>Admin</b>, and enable the <b>Places API</b> on that Google Cloud project (billing on). Searches will fail until then.</div>'; }
+  }).catch(function(){});
+
+  /* ---- search ---- */
+  $('searchBtn').addEventListener('click', doSearch);
+  ['city','state','type'].forEach(function(id){ $(id).addEventListener('keydown', function(e){ if(e.key==='Enter') doSearch(); }); });
+
+  function doSearch(){
+    var city=$('city').value.trim(), state=$('state').value.trim(), type=$('type').value.trim();
+    if(!city||!state){ $('searchMsg').innerHTML='<span style="color:var(--red)">Enter a city and state.</span>'; return; }
+    var max=parseInt($('max').value,10)||40;
+    META={city:city,state:state,type:type};
+    $('searchBtn').disabled=true; $('searchMsg').innerHTML='Searching Google for restaurants…';
+    api('POST','/api/finder/search',{city:city,state:state,type:type,max:max}).then(function(j){
+      $('searchBtn').disabled=false;
+      if(!j||!j.ok){ $('searchMsg').innerHTML='<span style="color:var(--red)">'+esc((j&&j.error)||'Search failed.')+'</span>'; return; }
+      ROWS=j.rows||[]; $('searchMsg').innerHTML='';
+      if(!ROWS.length){ $('resultsCard').hidden=false; $('sum').textContent='No restaurants found. Try a broader type or a nearby city.'; $('rows').innerHTML=''; return; }
+      $('listName').value=((type?type+' — ':'')+city).trim();
+      $('resultsCard').hidden=false;
+      $('onlyEmail').checked=false;
+      renderRows(); updateSum(j.withWebsite);
+    }).catch(function(){ $('searchBtn').disabled=false; $('searchMsg').innerHTML='<span style="color:var(--red)">Could not reach the server.</span>'; });
+  }
+
+  function withWebsiteCount(){ return ROWS.filter(function(r){return r.website;}).length; }
+  function withEmailCount(){ return ROWS.filter(function(r){return r.email;}).length; }
+  function updateSum(ws){
+    if(ws==null) ws=withWebsiteCount();
+    var em=withEmailCount();
+    $('sum').innerHTML=ROWS.length+' restaurant'+(ROWS.length===1?'':'s')+' · '+ws+' with a website'+(em?(' · <b>'+em+' email'+(em===1?'':'s')+' found</b>'):'');
+  }
+
+  function renderRows(){
+    var only=$('onlyEmail').checked;
+    var list=only?ROWS.filter(function(r){return r.email;}):ROWS;
+    if(!list.length){ $('rows').innerHTML='<tr><td colspan="5"><div class="empty">'+(only?'No emails found yet — click “Find emails,” or untick the filter.':'No rows.')+'</div></td></tr>'; return; }
+    $('rows').innerHTML=list.map(function(r){
+      var email = r.email
+        ? '<span class="email-cell"><a href="mailto:'+esc(r.email)+'">'+esc(r.email)+'</a></span>'
+        : (r._pending?'<span class="email-cell"><span class="pending">searching…</span></span>':'<span class="email-cell"><span class="none">—</span></span>');
+      var web = r.website
+        ? '<span class="web"><a href="'+esc(/^https?:/i.test(r.website)?r.website:('http://'+r.website))+'" target="_blank" rel="noopener">'+esc(hostOf(r.website))+'</a></span>'
+        : '<span class="web"><span class="none">—</span></span>';
+      var rating = r.rating?('<span class="stars">'+Number(r.rating).toFixed(1)+'★ <small>('+(r.userRatingsTotal||0)+')</small></span>'):'<span class="none">—</span>';
+      return '<tr><td><div class="rname">'+esc(r.name||'Restaurant')+'</div><div class="rmeta">'+esc(r.address||'')+'</div></td><td>'+email+'</td><td>'+esc(r.phone||'—')+'</td><td>'+web+'</td><td>'+rating+'</td></tr>';
+    }).join('');
+  }
+  function hostOf(u){ try{ return new URL(/^https?:/i.test(u)?u:('http://'+u)).hostname.replace(/^www\./,''); }catch(e){ return u; } }
+
+  $('onlyEmail').addEventListener('change', renderRows);
+
+  /* ---- find emails (chunked) ---- */
+  $('findEmailsBtn').addEventListener('click', function(){
+    var targets=ROWS.filter(function(r){return r.website && !r.email;});
+    if(!targets.length){ $('saveMsg').innerHTML='<span style="color:var(--muted)">No un-checked websites left to crawl.</span>'; return; }
+    var btn=$('findEmailsBtn'); btn.disabled=true; $('searchBtn').disabled=true;
+    var prog=$('prog'); prog.classList.add('show'); prog.querySelector('i').style.width='0%';
+    targets.forEach(function(r){ r._pending=true; }); renderRows();
+    var CH=8, done=0, total=targets.length;
+    function next(){
+      if(done>=total){ prog.querySelector('i').style.width='100%'; setTimeout(function(){prog.classList.remove('show');},500); btn.disabled=false; $('searchBtn').disabled=false; targets.forEach(function(r){delete r._pending;}); updateSum(); renderRows(); return; }
+      var batch=targets.slice(done, done+CH);
+      api('POST','/api/finder/enrich',{rows:batch.map(function(r){return {placeId:r.placeId,website:r.website};})}).then(function(j){
+        (j&&j.results||[]).forEach(function(res){
+          var r=ROWS.filter(function(x){return x.placeId===res.placeId;})[0];
+          if(r){ r.email=res.email||''; r.emailSource=res.emailSource||''; delete r._pending; }
+        });
+        batch.forEach(function(r){ delete r._pending; });
+        done+=batch.length;
+        prog.querySelector('i').style.width=Math.round(done/total*100)+'%';
+        updateSum(); renderRows();
+        next();
+      }).catch(function(){ done+=batch.length; next(); });
+    }
+    next();
+  });
+
+  /* ---- export current set (client CSV) ---- */
+  $('csvBtn').addEventListener('click', function(){
+    if(!ROWS.length) return;
+    var head=['Name','Email','Phone','Website','Address','Rating','Reviews'];
+    var lines=[head.join(',')];
+    ROWS.forEach(function(r){ lines.push([r.name,r.email,r.phone,r.website,r.address,r.rating||'',r.userRatingsTotal||''].map(cell).join(',')); });
+    function cell(v){ var s=String(v==null?'':v); return /[",\n]/.test(s)?('"'+s.replace(/"/g,'""')+'"'):s; }
+    var blob=new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8;'});
+    var a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+    a.download=((META.type?META.type+'_':'')+(META.city||'restaurants')).replace(/[^a-z0-9]+/gi,'_').toLowerCase()+'.csv';
+    document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },100);
+  });
+
+  /* ---- save as list ---- */
+  $('saveBtn').addEventListener('click', function(){
+    if(!ROWS.length){ return; }
+    var name=$('listName').value.trim();
+    var btn=$('saveBtn'); btn.disabled=true; $('saveMsg').textContent='Saving…';
+    api('POST','/api/finder/lists',{name:name,city:META.city,state:META.state,type:META.type,rows:ROWS.map(function(r){return {placeId:r.placeId,name:r.name,address:r.address,phone:r.phone,website:r.website,email:r.email,emailSource:r.emailSource,rating:r.rating,userRatingsTotal:r.userRatingsTotal};})}).then(function(j){
+      btn.disabled=false;
+      if(j&&j.ok){ $('saveMsg').innerHTML='<span style="color:var(--green)">Saved ✓ '+j.total+' restaurants, '+j.withEmail+' with email.</span>'; loadSaved(); }
+      else { $('saveMsg').innerHTML='<span style="color:var(--red)">'+esc((j&&j.error)||'Could not save.')+'</span>'; }
+    }).catch(function(){ btn.disabled=false; $('saveMsg').innerHTML='<span style="color:var(--red)">Could not reach the server.</span>'; });
+  });
+
+  /* ---- saved lists ---- */
+  function loadSaved(){
+    api('GET','/api/finder/lists').then(function(j){
+      var L=(j&&j.lists)||[];
+      if(!L.length){ $('saved').innerHTML='<div class="empty">No saved lists yet. Run a search and click <b>Save as list</b>.</div>'; return; }
+      $('saved').innerHTML=L.map(function(l){
+        var meta=[l.type,l.city,l.state].filter(Boolean).join(' · ');
+        return '<div class="slrow"><div style="flex:1 1 auto;min-width:0"><div class="sln">'+esc(l.name)+'</div><div class="slm">'+esc(meta)+(l.createdByName?(' · '+esc(l.createdByName)):'')+'</div></div>'
+          +'<span class="slcount">'+l.withEmail+' / '+l.total+' email'+(l.withEmail===1?'':'s')+'</span>'
+          +'<a class="slact" data-open="'+esc(l.id)+'">Open</a>'
+          +'<a class="slact" href="/api/finder/lists/'+encodeURIComponent(l.id)+'/export.csv">CSV</a>'
+          +'<a class="slact del" data-del="'+esc(l.id)+'">Delete</a></div>';
+      }).join('');
+      Array.prototype.forEach.call($('saved').querySelectorAll('[data-open]'),function(a){ a.addEventListener('click',function(){ openList(a.getAttribute('data-open')); }); });
+      Array.prototype.forEach.call($('saved').querySelectorAll('[data-del]'),function(a){ a.addEventListener('click',function(){ delList(a.getAttribute('data-del')); }); });
+    }).catch(function(){});
+  }
+  function openList(id){
+    api('GET','/api/finder/lists/'+encodeURIComponent(id)).then(function(j){
+      if(!j||!j.ok) return; var l=j.list;
+      ROWS=(l.rows||[]).map(function(r){return r;}); META={city:l.city,state:l.state,type:l.type};
+      $('city').value=l.city||''; $('state').value=l.state||''; $('type').value=l.type||''; $('listName').value=l.name||'';
+      $('resultsCard').hidden=false; $('onlyEmail').checked=false; renderRows(); updateSum();
+      $('saveMsg').innerHTML='<span style="color:var(--muted)">Loaded “'+esc(l.name)+'”. Saving again updates a new copy.</span>';
+      window.scrollTo({top:0,behavior:'smooth'});
+    });
+  }
+  function delList(id){
+    if(!window.confirm('Delete this saved list? This cannot be undone.')) return;
+    api('DELETE','/api/finder/lists/'+encodeURIComponent(id)).then(function(j){ if(j&&j.ok) loadSaved(); });
+  }
+  loadSaved();
+
+  /* ---- help / features drawers ---- */
+  function closeAll(){ $('helpOv').classList.remove('show'); $('featOv').classList.remove('show'); }
+  $('helpBtn').addEventListener('click',function(){ closeAll(); $('helpOv').classList.add('show'); });
+  $('featBtn').addEventListener('click',function(){ closeAll(); $('featOv').classList.add('show'); });
+  ['helpOv','featOv'].forEach(function(id){ $(id).addEventListener('click',function(e){ if(e.target===this) closeAll(); }); });
+  Array.prototype.forEach.call(document.querySelectorAll('.help-pan [data-close]'),function(x){ x.addEventListener('click',closeAll); });
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeAll(); });
+})();
+</script>
+</body>
+</html>
