@@ -22,8 +22,14 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Hel
 .btn:disabled{opacity:.5;cursor:default;}
 .card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px 18px 16px;margin-bottom:16px;box-shadow:0 1px 2px rgba(20,30,55,.03);}
 .card h2{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);margin:0 0 14px;font-weight:700;}
-.frm{display:grid;grid-template-columns:1.4fr .7fr 1.2fr .8fr auto;gap:12px;align-items:end;}
-@media(max-width:860px){.frm{grid-template-columns:1fr 1fr;}}
+.frm{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;}
+.fld{flex:1 1 190px;}
+.fld.w-state{flex:0 0 110px;} .fld.w-max{flex:0 0 118px;} .fld.w-zip{flex:0 0 190px;} .fld.w-btn{flex:0 0 auto;}
+.fld[hidden]{display:none;}
+.modetog{display:inline-flex;border:1px solid #d7dde8;border-radius:8px;overflow:hidden;margin-bottom:14px;}
+.modetog .mt{background:#fff;border:none;padding:8px 16px;font:inherit;font-size:12.5px;font-weight:700;color:var(--muted);cursor:pointer;}
+.modetog .mt + .mt{border-left:1px solid #d7dde8;}
+.modetog .mt.on{background:var(--navy);color:#fff;}
 .fld label{display:block;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;}
 .fld input,.fld select{width:100%;border:1px solid #d7dde8;border-radius:7px;padding:9px 11px;font:inherit;font-size:14px;color:var(--ink);background:#fff;}
 .fld input:focus,.fld select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(44,92,143,.12);}
@@ -86,7 +92,7 @@ tbody tr:hover{background:#fafbfe;}
   <div class="pghead">
     <div>
       <div class="pgh">Email Finder</div>
-      <div class="pgs">Find restaurants by city, state, and type, then pull a public contact email for the ones that publish one. Results save to their own lists here — separate from your CRM contacts and Bulk Email subscribers.</div>
+      <div class="pgs">Find restaurants by city &amp; state (or ZIP) and type, then pull a public contact email for the ones that publish one. Results save to their own lists here — separate from your CRM contacts and Bulk Email subscribers.</div>
     </div>
     <div class="hbtns">
       <button class="btn" type="button" id="featBtn">★ Features</button>
@@ -98,12 +104,82 @@ tbody tr:hover{background:#fafbfe;}
 
   <div class="card">
     <h2>Search</h2>
+    <div class="modetog" id="modeTog">
+      <button type="button" class="mt on" data-mode="place">City &amp; State</button>
+      <button type="button" class="mt" data-mode="zip">ZIP code</button>
+    </div>
     <div class="frm">
-      <div class="fld"><label>City</label><input id="city" placeholder="e.g. Austin" autocomplete="off"></div>
-      <div class="fld"><label>State</label><input id="state" list="stateList" placeholder="TX" autocomplete="off" maxlength="20"></div>
-      <div class="fld"><label>Restaurant type</label><input id="type" list="typeList" placeholder="e.g. BBQ, pizza, sushi…" autocomplete="off"></div>
-      <div class="fld"><label>Max results</label><select id="max"><option value="20">20</option><option value="40" selected>40</option><option value="60">60</option></select></div>
-      <div class="fld"><button class="btn primary" id="searchBtn" type="button" style="width:100%">Find restaurants</button></div>
+      <div class="fld loc-place"><label>City</label><input id="city" placeholder="e.g. Austin" autocomplete="off"></div>
+      <div class="fld w-state loc-place"><label>State</label><input id="state" list="stateList" placeholder="TX" autocomplete="off" maxlength="20"></div>
+      <div class="fld w-zip loc-zip" hidden><label>ZIP / Postal code</label><input id="zip" placeholder="e.g. 78701" autocomplete="off" maxlength="12"></div>
+      <div class="fld"><label>Restaurant type</label>
+        <select id="type">
+          <option value="restaurant" selected>Any restaurant</option>
+          <optgroup label="By cuisine">
+            <option value="american_restaurant">American</option>
+            <option value="afghani_restaurant">Afghan</option>
+            <option value="african_restaurant">African</option>
+            <option value="asian_restaurant">Asian</option>
+            <option value="brazilian_restaurant">Brazilian</option>
+            <option value="chinese_restaurant">Chinese</option>
+            <option value="french_restaurant">French</option>
+            <option value="greek_restaurant">Greek</option>
+            <option value="indian_restaurant">Indian</option>
+            <option value="indonesian_restaurant">Indonesian</option>
+            <option value="italian_restaurant">Italian</option>
+            <option value="japanese_restaurant">Japanese</option>
+            <option value="korean_restaurant">Korean</option>
+            <option value="lebanese_restaurant">Lebanese</option>
+            <option value="mediterranean_restaurant">Mediterranean</option>
+            <option value="mexican_restaurant">Mexican</option>
+            <option value="middle_eastern_restaurant">Middle Eastern</option>
+            <option value="ramen_restaurant">Ramen</option>
+            <option value="seafood_restaurant">Seafood</option>
+            <option value="spanish_restaurant">Spanish</option>
+            <option value="sushi_restaurant">Sushi</option>
+            <option value="thai_restaurant">Thai</option>
+            <option value="turkish_restaurant">Turkish</option>
+            <option value="vietnamese_restaurant">Vietnamese</option>
+            <option value="vegan_restaurant">Vegan</option>
+            <option value="vegetarian_restaurant">Vegetarian</option>
+          </optgroup>
+          <optgroup label="By style">
+            <option value="barbecue_restaurant">Barbecue</option>
+            <option value="bar_and_grill">Bar &amp; Grill</option>
+            <option value="breakfast_restaurant">Breakfast</option>
+            <option value="brunch_restaurant">Brunch</option>
+            <option value="buffet_restaurant">Buffet</option>
+            <option value="diner">Diner</option>
+            <option value="fast_food_restaurant">Fast food</option>
+            <option value="fine_dining_restaurant">Fine dining</option>
+            <option value="hamburger_restaurant">Hamburger / Burgers</option>
+            <option value="pizza_restaurant">Pizza</option>
+            <option value="sandwich_shop">Sandwich shop</option>
+            <option value="steak_house">Steakhouse</option>
+            <option value="dessert_restaurant">Dessert</option>
+            <option value="food_court">Food court</option>
+            <option value="meal_takeaway">Takeout</option>
+            <option value="meal_delivery">Delivery</option>
+          </optgroup>
+          <optgroup label="Bars &amp; cafés">
+            <option value="bar">Bar</option>
+            <option value="pub">Pub</option>
+            <option value="wine_bar">Wine bar</option>
+            <option value="cafe">Café</option>
+            <option value="coffee_shop">Coffee shop</option>
+            <option value="tea_house">Tea house</option>
+          </optgroup>
+          <optgroup label="Bakery &amp; sweets">
+            <option value="bakery">Bakery</option>
+            <option value="deli">Deli</option>
+            <option value="donut_shop">Donut shop</option>
+            <option value="ice_cream_shop">Ice cream</option>
+            <option value="juice_shop">Juice / smoothies</option>
+          </optgroup>
+        </select>
+      </div>
+      <div class="fld w-max"><label>Max results</label><select id="max"><option value="20">20</option><option value="40" selected>40</option><option value="60">60</option></select></div>
+      <div class="fld w-btn"><button class="btn primary" id="searchBtn" type="button">Find restaurants</button></div>
     </div>
     <div id="searchMsg" style="margin-top:10px;font-size:12.5px;"></div>
   </div>
@@ -139,9 +215,6 @@ tbody tr:hover{background:#fafbfe;}
 <datalist id="stateList">
   <option value="AL"><option value="AK"><option value="AZ"><option value="AR"><option value="CA"><option value="CO"><option value="CT"><option value="DE"><option value="FL"><option value="GA"><option value="HI"><option value="ID"><option value="IL"><option value="IN"><option value="IA"><option value="KS"><option value="KY"><option value="LA"><option value="ME"><option value="MD"><option value="MA"><option value="MI"><option value="MN"><option value="MS"><option value="MO"><option value="MT"><option value="NE"><option value="NV"><option value="NH"><option value="NJ"><option value="NM"><option value="NY"><option value="NC"><option value="ND"><option value="OH"><option value="OK"><option value="OR"><option value="PA"><option value="RI"><option value="SC"><option value="SD"><option value="TN"><option value="TX"><option value="UT"><option value="VT"><option value="VA"><option value="WA"><option value="WV"><option value="WI"><option value="WY">
 </datalist>
-<datalist id="typeList">
-  <option value="BBQ"><option value="Pizza"><option value="Mexican"><option value="Italian"><option value="Sushi"><option value="Japanese"><option value="Chinese"><option value="Thai"><option value="Steakhouse"><option value="Seafood"><option value="Bar &amp; Grill"><option value="Sports Bar"><option value="Cafe"><option value="Coffee Shop"><option value="Bakery"><option value="Fast Casual"><option value="Fine Dining"><option value="Diner"><option value="Burgers"><option value="Vegan"><option value="Indian"><option value="Mediterranean"><option value="Breakfast"><option value="Brunch"><option value="Food Truck"><option value="Wine Bar"><option value="Brewery"><option value="Deli">
-</datalist>
 
 <!-- Help slideout -->
 <div class="help-ov" id="helpOv">
@@ -153,7 +226,7 @@ tbody tr:hover{background:#fafbfe;}
       <h4>How emails are found</h4>
       <p>Google&rsquo;s data does <b>not</b> include emails &mdash; it gives us each restaurant&rsquo;s website. The finder then reads that public site (home, contact, and about pages) for a published address. Restaurants that only use a contact form won&rsquo;t return an email; that&rsquo;s normal &mdash; expect a partial hit rate.</p>
       <h4>1 · Find restaurants</h4>
-      <p>Enter the city, state, and a type (BBQ, sushi, steakhouse&hellip;), pick how many results, and click <b>Find restaurants</b>. You&rsquo;ll get names, addresses, phones, websites, and ratings in a few seconds.</p>
+      <p>Search by <b>City &amp; State</b> or by <b>ZIP code</b> &mdash; use the toggle. Pick a type from the list (it maps to Google&rsquo;s own categories, so the match is tight), choose how many results, and click <b>Find restaurants</b>. You&rsquo;ll get names, addresses, phones, websites, and ratings in a few seconds. Google returns up to 60 per search &mdash; narrow by type or neighborhood and stack lists to cover a whole metro.</p>
       <h4>2 · Find emails</h4>
       <p>Click <b>Find emails</b> to crawl the websites. A progress bar fills as it works; emails drop into the table as they&rsquo;re found. Tick <b>Only rows with an email</b> to hide the rest.</p>
       <h4>3 · Save &amp; export</h4>
@@ -193,7 +266,17 @@ tbody tr:hover{background:#fafbfe;}
   function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
   function api(m,u,b){return fetch(u,{method:m,headers:b?{'Content-Type':'application/json'}:undefined,credentials:'same-origin',body:b?JSON.stringify(b):undefined}).then(function(r){return r.json();});}
   var ROWS=[];        // current working result set
-  var META={city:'',state:'',type:''};
+  var META={city:'',state:'',zip:'',type:'',googleType:'restaurant'};
+
+  /* ---- location mode (City/State vs ZIP) ---- */
+  function setMode(m){
+    Array.prototype.forEach.call(document.querySelectorAll('#modeTog .mt'),function(b){ b.classList.toggle('on', b.getAttribute('data-mode')===m); });
+    var zipOn=(m==='zip');
+    Array.prototype.forEach.call(document.querySelectorAll('.loc-place'),function(el){ el.hidden=zipOn; });
+    Array.prototype.forEach.call(document.querySelectorAll('.loc-zip'),function(el){ el.hidden=!zipOn; });
+  }
+  function curMode(){ var b=document.querySelector('#modeTog .mt.on'); return b?b.getAttribute('data-mode'):'place'; }
+  Array.prototype.forEach.call(document.querySelectorAll('#modeTog .mt'),function(btn){ btn.addEventListener('click',function(){ setMode(btn.getAttribute('data-mode')); }); });
 
   /* ---- key status ---- */
   api('GET','/api/finder/key-status').then(function(j){
@@ -202,20 +285,23 @@ tbody tr:hover{background:#fafbfe;}
 
   /* ---- search ---- */
   $('searchBtn').addEventListener('click', doSearch);
-  ['city','state','type'].forEach(function(id){ $(id).addEventListener('keydown', function(e){ if(e.key==='Enter') doSearch(); }); });
+  ['city','state','zip'].forEach(function(id){ $(id).addEventListener('keydown', function(e){ if(e.key==='Enter') doSearch(); }); });
 
   function doSearch(){
-    var city=$('city').value.trim(), state=$('state').value.trim(), type=$('type').value.trim();
-    if(!city||!state){ $('searchMsg').innerHTML='<span style="color:var(--red)">Enter a city and state.</span>'; return; }
+    var mode=curMode();
+    var city='', state='', zip='';
+    if(mode==='zip'){ zip=$('zip').value.trim(); if(!zip){ $('searchMsg').innerHTML='<span style="color:var(--red)">Enter a ZIP / postal code.</span>'; return; } }
+    else { city=$('city').value.trim(); state=$('state').value.trim(); if(!city||!state){ $('searchMsg').innerHTML='<span style="color:var(--red)">Enter a city and state.</span>'; return; } }
+    var sel=$('type'); var slug=sel.value; var label=(slug==='restaurant')?'':sel.options[sel.selectedIndex].text;
     var max=parseInt($('max').value,10)||40;
-    META={city:city,state:state,type:type};
+    META={city:city,state:state,zip:zip,type:label,googleType:slug};
     $('searchBtn').disabled=true; $('searchMsg').innerHTML='Searching Google for restaurants…';
-    api('POST','/api/finder/search',{city:city,state:state,type:type,max:max}).then(function(j){
+    api('POST','/api/finder/search',{city:city,state:state,zip:zip,type:label,includedType:slug,max:max}).then(function(j){
       $('searchBtn').disabled=false;
       if(!j||!j.ok){ $('searchMsg').innerHTML='<span style="color:var(--red)">'+esc((j&&j.error)||'Search failed.')+'</span>'; return; }
       ROWS=j.rows||[]; $('searchMsg').innerHTML='';
-      if(!ROWS.length){ $('resultsCard').hidden=false; $('sum').textContent='No restaurants found. Try a broader type or a nearby city.'; $('rows').innerHTML=''; return; }
-      $('listName').value=((type?type+' — ':'')+city).trim();
+      if(!ROWS.length){ $('resultsCard').hidden=false; $('sum').textContent='No restaurants found. Try a broader type or a nearby area.'; $('rows').innerHTML=''; return; }
+      $('listName').value=((label?label+' — ':'')+(zip||city)).trim();
       $('resultsCard').hidden=false;
       $('onlyEmail').checked=false;
       renderRows(); updateSum(j.withWebsite);
@@ -284,7 +370,7 @@ tbody tr:hover{background:#fafbfe;}
     function cell(v){ var s=String(v==null?'':v); return /[",\n]/.test(s)?('"'+s.replace(/"/g,'""')+'"'):s; }
     var blob=new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8;'});
     var a=document.createElement('a'); a.href=URL.createObjectURL(blob);
-    a.download=((META.type?META.type+'_':'')+(META.city||'restaurants')).replace(/[^a-z0-9]+/gi,'_').toLowerCase()+'.csv';
+    a.download=((META.type?META.type+'_':'')+(META.zip||META.city||'restaurants')).replace(/[^a-z0-9]+/gi,'_').toLowerCase()+'.csv';
     document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },100);
   });
 
@@ -293,7 +379,7 @@ tbody tr:hover{background:#fafbfe;}
     if(!ROWS.length){ return; }
     var name=$('listName').value.trim();
     var btn=$('saveBtn'); btn.disabled=true; $('saveMsg').textContent='Saving…';
-    api('POST','/api/finder/lists',{name:name,city:META.city,state:META.state,type:META.type,rows:ROWS.map(function(r){return {placeId:r.placeId,name:r.name,address:r.address,phone:r.phone,website:r.website,email:r.email,emailSource:r.emailSource,rating:r.rating,userRatingsTotal:r.userRatingsTotal};})}).then(function(j){
+    api('POST','/api/finder/lists',{name:name,city:META.city,state:META.state,zip:META.zip,type:META.type,googleType:META.googleType,rows:ROWS.map(function(r){return {placeId:r.placeId,name:r.name,address:r.address,phone:r.phone,website:r.website,email:r.email,emailSource:r.emailSource,rating:r.rating,userRatingsTotal:r.userRatingsTotal};})}).then(function(j){
       btn.disabled=false;
       if(j&&j.ok){ $('saveMsg').innerHTML='<span style="color:var(--green)">Saved ✓ '+j.total+' restaurants, '+j.withEmail+' with email.</span>'; loadSaved(); }
       else { $('saveMsg').innerHTML='<span style="color:var(--red)">'+esc((j&&j.error)||'Could not save.')+'</span>'; }
@@ -306,7 +392,8 @@ tbody tr:hover{background:#fafbfe;}
       var L=(j&&j.lists)||[];
       if(!L.length){ $('saved').innerHTML='<div class="empty">No saved lists yet. Run a search and click <b>Save as list</b>.</div>'; return; }
       $('saved').innerHTML=L.map(function(l){
-        var meta=[l.type,l.city,l.state].filter(Boolean).join(' · ');
+        var loc=l.zip?l.zip:[l.city,l.state].filter(Boolean).join(', ');
+        var meta=[l.type,loc].filter(Boolean).join(' · ');
         return '<div class="slrow"><div style="flex:1 1 auto;min-width:0"><div class="sln">'+esc(l.name)+'</div><div class="slm">'+esc(meta)+(l.createdByName?(' · '+esc(l.createdByName)):'')+'</div></div>'
           +'<span class="slcount">'+l.withEmail+' / '+l.total+' email'+(l.withEmail===1?'':'s')+'</span>'
           +'<a class="slact" data-open="'+esc(l.id)+'">Open</a>'
@@ -320,8 +407,10 @@ tbody tr:hover{background:#fafbfe;}
   function openList(id){
     api('GET','/api/finder/lists/'+encodeURIComponent(id)).then(function(j){
       if(!j||!j.ok) return; var l=j.list;
-      ROWS=(l.rows||[]).map(function(r){return r;}); META={city:l.city,state:l.state,type:l.type};
-      $('city').value=l.city||''; $('state').value=l.state||''; $('type').value=l.type||''; $('listName').value=l.name||'';
+      ROWS=(l.rows||[]).map(function(r){return r;}); META={city:l.city,state:l.state,zip:l.zip||'',type:l.type,googleType:l.googleType||'restaurant'};
+      if(l.zip){ setMode('zip'); $('zip').value=l.zip; } else { setMode('place'); $('city').value=l.city||''; $('state').value=l.state||''; }
+      try{ $('type').value=l.googleType||'restaurant'; }catch(e){}
+      $('listName').value=l.name||'';
       $('resultsCard').hidden=false; $('onlyEmail').checked=false; renderRows(); updateSum();
       $('saveMsg').innerHTML='<span style="color:var(--muted)">Loaded “'+esc(l.name)+'”. Saving again updates a new copy.</span>';
       window.scrollTo({top:0,behavior:'smooth'});

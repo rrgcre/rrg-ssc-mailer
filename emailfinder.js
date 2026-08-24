@@ -122,7 +122,7 @@ async function _findEmailForSite(website) {
  * Uses places.googleapis.com/v1/places:searchText. The new Text Search returns the
  * website and phone right in the response (via field mask), so no separate Details
  * call is needed. Paginates up to 3 pages (20 each) to reach the requested max.        */
-async function _placesTextSearch(query, key, maxWanted) {
+async function _placesTextSearch(query, key, maxWanted, includedType) {
   const rows = [];
   let token = '';
   const fieldMask = [
@@ -132,6 +132,7 @@ async function _placesTextSearch(query, key, maxWanted) {
   ].join(',');
   for (let page = 0; page < 3 && rows.length < maxWanted; page++) {
     const body = { textQuery: query, pageSize: 20 };
+    if (includedType) body.includedType = includedType; // Google type filter (e.g. barbecue_restaurant)
     if (token) body.pageToken = token;
     let j, ok, http;
     try {
@@ -175,6 +176,22 @@ async function _pool(items, size, worker) {
   return out;
 }
 
+/* ---------------- Google place types (New API "Table A", food & drink) ---------------- */
+const FOOD_TYPES = new Set([
+  'restaurant','american_restaurant','afghani_restaurant','african_restaurant','asian_restaurant',
+  'brazilian_restaurant','chinese_restaurant','french_restaurant','greek_restaurant','indian_restaurant',
+  'indonesian_restaurant','italian_restaurant','japanese_restaurant','korean_restaurant','lebanese_restaurant',
+  'mediterranean_restaurant','mexican_restaurant','middle_eastern_restaurant','ramen_restaurant','seafood_restaurant',
+  'spanish_restaurant','sushi_restaurant','thai_restaurant','turkish_restaurant','vietnamese_restaurant',
+  'vegan_restaurant','vegetarian_restaurant','barbecue_restaurant','bar_and_grill','breakfast_restaurant',
+  'brunch_restaurant','buffet_restaurant','diner','fast_food_restaurant','fine_dining_restaurant',
+  'hamburger_restaurant','pizza_restaurant','sandwich_shop','steak_house','dessert_restaurant','food_court',
+  'meal_takeaway','meal_delivery','bar','pub','wine_bar','cafe','coffee_shop','tea_house','bakery','deli',
+  'donut_shop','ice_cream_shop','juice_shop'
+]);
+// Turn a type slug into a natural keyword for the text query (barbecue_restaurant -> "barbecue").
+function _typeKeyword(slug) { if (!slug || slug === 'restaurant') return ''; return slug.replace(/_restaurant$/, '').replace(/_/g, ' '); }
+
 /* ---------------- CSV ---------------- */
 function _csvCell(v) { const s = String(v == null ? '' : v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
 function _toCsv(list) {
@@ -205,12 +222,21 @@ function mount(app, deps) {
       const key = loadKey();
       if (!key) return res.status(400).json({ ok: false, error: 'No Google Maps API key is set. Add one in Admin, and enable the Places API (New) on that Google Cloud project.' });
       const b = req.body || {};
-      const city = _clean(b.city, 80), state = _clean(b.state, 40), type = _clean(b.type, 60);
-      if (!city || !state) return res.status(400).json({ ok: false, error: 'City and state are required.' });
+      const city = _clean(b.city, 80), state = _clean(b.state, 40), zip = _clean(b.zip, 16);
+      // location: ZIP wins if given, else city + state
+      let loc = '';
+      if (zip) loc = zip + (/^\d{5}(-\d{4})?$/.test(zip) ? ', USA' : '');
+      else if (city && state) loc = city + ', ' + state;
+      else return res.status(400).json({ ok: false, error: 'Enter a city and state, or a ZIP / postal code.' });
+      // type: validate the slug against Google's food-type list; 'restaurant' (Any) stays unfiltered for widest recall
+      let slug = _clean(b.includedType, 60);
+      if (slug && !FOOD_TYPES.has(slug)) slug = '';
+      const includedType = (slug && slug !== 'restaurant') ? slug : '';
+      const kw = _typeKeyword(slug);
       const max = Math.max(1, Math.min(60, parseInt(b.max, 10) || 40));
-      const q = (type ? (type + ' ') : '') + 'restaurants in ' + city + ', ' + state;
+      const q = (kw ? (kw + ' ') : '') + 'restaurants in ' + loc;
       let rows;
-      try { rows = await _placesTextSearch(q, key, max); }
+      try { rows = await _placesTextSearch(q, key, max, includedType); }
       catch (e) {
         const gs = e && e.gstatus;
         let msg = (e && e.message) || 'Places search failed.';
@@ -242,7 +268,7 @@ function mount(app, deps) {
   // ---- saved lists (own store) ----
   app.get('/api/finder/lists', requireAdmin, (req, res) => {
     const all = _read();
-    res.json({ ok: true, lists: all.map(l => ({ id: l.id, name: l.name, city: l.city, state: l.state, type: l.type, createdAt: l.createdAt, createdByName: l.createdByName || '', total: (l.rows || []).length, withEmail: (l.rows || []).filter(r => r.email).length })) });
+    res.json({ ok: true, lists: all.map(l => ({ id: l.id, name: l.name, city: l.city, state: l.state, zip: l.zip || '', type: l.type, createdAt: l.createdAt, createdByName: l.createdByName || '', total: (l.rows || []).length, withEmail: (l.rows || []).filter(r => r.email).length })) });
   });
 
   app.get('/api/finder/lists/:id', requireAdmin, (req, res) => {
@@ -265,8 +291,8 @@ function mount(app, deps) {
       l = { id: _id(), createdAt: now, createdByName: (req.user && req.user.name) || '' };
       all.push(l);
     }
-    l.name = _clean(b.name, 120) || (_clean(b.type, 40) + ' — ' + _clean(b.city, 40)).replace(/^ — /, '') || 'Restaurant list';
-    l.city = _clean(b.city, 80); l.state = _clean(b.state, 40); l.type = _clean(b.type, 60);
+    l.name = _clean(b.name, 120) || (_clean(b.type, 40) + ' — ' + _clean(b.zip || b.city, 40)).replace(/^ — /, '') || 'Restaurant list';
+    l.city = _clean(b.city, 80); l.state = _clean(b.state, 40); l.zip = _clean(b.zip, 16); l.type = _clean(b.type, 60); l.googleType = _clean(b.googleType, 60);
     l.updatedAt = now;
     l.rows = rows.map(r => ({
       placeId: _clean(r.placeId, 120), name: _clean(r.name, 200), address: _clean(r.address, 300),
