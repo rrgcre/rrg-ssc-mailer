@@ -348,12 +348,13 @@ function renderEditor(){
      '</div>'+
    '</div></div>'+
    '<div class="card"><h2>Schedule</h2>'+
-   '<div class="pgs" style="margin-bottom:10px">Send now with the button below, or schedule this campaign to go out on one or more dates. Each scheduled time re-sends to your full active list \u2014 so the same blast can repeat. <b>Weekdays only</b>, and one send per morning and one per afternoon (system-wide).</div>'+
+   '<div class="pgs" style="margin-bottom:10px">Send now with the button below, or schedule this campaign to go out on one or more dates. Each scheduled time re-sends to your full active list \u2014 so the same blast can repeat. Auto-scheduling stays on <b>weekdays only</b>, never on weekends or major holidays, and holds to one send per morning and one per afternoon (system-wide).</div>'+
    '<div class="row">'+
      '<div class="fld half"><label class="fl">Send time</label><input type="datetime-local" id="schWhen"></div>'+
      '<div class="fld half" style="display:flex;align-items:flex-end;"><button class="btn" id="schAdd" type="button">+ Add this time</button></div>'+
    '</div>'+
    '<div class="fld"><label class="fl">Or make it repeat</label><div class="toolbar" style="gap:8px;flex-wrap:wrap;"><span class="pgs">every</span><input id="schEvery" type="number" min="1" value="1" style="max-width:64px;"><select id="schUnit" style="max-width:100px;"><option value="1">days</option><option value="7">weeks</option></select><span class="pgs">for</span><input id="schCount" type="number" min="1" max="52" value="4" style="max-width:64px;"><span class="pgs">sends from the time above</span><button class="btn" id="schGen" type="button">Generate</button></div></div>'+
+   '<div class="fld" style="margin-top:2px"><label class="fl" style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;"><input type="checkbox" id="schManual" style="width:auto;margin:0;"> Deliberate send &mdash; allow a weekend or holiday</label><div class="pgs" style="margin-top:4px">Check this only for an intentional send like a holiday greeting. It lifts the weekend/holiday blackout for the times below. Leave unchecked for normal business-day blasts.</div></div>'+
    '<div id="schList"></div>'+
    '<div style="margin-top:10px"><button class="btn primary" id="schSave" type="button">Schedule these times</button><span class="msg" id="schMsg"></span></div>'+
    '</div>'+
@@ -477,10 +478,14 @@ var EDITSCHED={ pending:[], saved:[] };
 function toLocalInput(d){ var p=function(n){return (n<10?'0':'')+n;}; return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes()); }
 function fmtWhen(t){ try{ return new Date(t).toLocaleString([], {month:'short',day:'numeric',year:'2-digit',hour:'numeric',minute:'2-digit'}); }catch(e){ return String(t); } }
 function schMsg(t,err){ var m=$('schMsg'); if(!m) return; m.className='msg '+(err?'err':'ok'); m.textContent=t||''; }
+// Client mirror of the server's US major-holiday calendar (auto-schedule blackout).
+function _holSet(year){ function pad(n){return (n<10?'0':'')+n;} function nth(y,mo,wd,n){var first=new Date(Date.UTC(y,mo-1,1)).getUTCDay();return 1+((7+wd-first)%7)+(n-1)*7;} function last(y,mo,wd){var ld=new Date(Date.UTC(y,mo,0)).getUTCDate();var d=new Date(Date.UTC(y,mo-1,ld)).getUTCDay();return ld-((7+d-wd)%7);} var set={};function add(mo,d){if(d>=1)set[pad(mo)+'-'+pad(d)]=1;} add(1,1);add(1,nth(year,1,1,3));add(2,nth(year,2,1,3));add(5,last(year,5,1));add(6,19);add(7,4);add(9,nth(year,9,1,1));add(11,11);var thx=nth(year,11,4,4);add(11,thx);add(11,thx+1);add(12,24);add(12,25);add(12,31);[[1,1],[6,19],[7,4],[11,11],[12,25]].forEach(function(md){var dow=new Date(Date.UTC(year,md[0]-1,md[1])).getUTCDay();if(dow===6){var f=new Date(Date.UTC(year,md[0]-1,md[1]-1));add(f.getUTCMonth()+1,f.getUTCDate());}else if(dow===0){var m2=new Date(Date.UTC(year,md[0]-1,md[1]+1));add(m2.getUTCMonth()+1,m2.getUTCDate());}}); return set; }
+function _isHol(d){ try{ var p=function(n){return (n<10?'0':'')+n;}; return !!_holSet(d.getFullYear())[p(d.getMonth()+1)+'-'+p(d.getDate())]; }catch(e){ return false; } }
+function schManualOn(){ return !!($('schManual') && $('schManual').checked); }
 function initSchedule(){
   EDITSCHED={ pending:[], saved:[] };
-  if($('schAdd')) $('schAdd').onclick=function(){ var v=$('schWhen').value; if(!v){ schMsg('Pick a date and time.',true); return; } var d=new Date(v); if(d.getDay()===0||d.getDay()===6){ schMsg('Weekends are not allowed \u2014 pick a weekday.',true); return; } EDITSCHED.pending.push(v); schMsg(''); renderSched(); };
-  if($('schGen')) $('schGen').onclick=function(){ var v=$('schWhen').value; if(!v){ schMsg('Pick a start time first.',true); return; } var stepDays=Math.max(1,parseInt($('schEvery').value,10)||1)*(parseInt($('schUnit').value,10)||1); var count=Math.max(1,Math.min(52,parseInt($('schCount').value,10)||1)); var cur=new Date(v); var got=0, guard=0; while(got<count && guard<500){ guard++; if(cur.getDay()!==0 && cur.getDay()!==6){ EDITSCHED.pending.push(toLocalInput(cur)); got++; cur=new Date(cur.getTime()+stepDays*86400000); } else { cur=new Date(cur.getTime()+86400000); } } schMsg('Generated '+got+' weekday send'+(got===1?'':'s')+'.'); renderSched(); };
+  if($('schAdd')) $('schAdd').onclick=function(){ var v=$('schWhen').value; if(!v){ schMsg('Pick a date and time.',true); return; } var d=new Date(v); var man=schManualOn(); if(!man){ if(d.getDay()===0||d.getDay()===6){ schMsg('Weekends are blacked out. Pick a weekday, or check \u201cDeliberate send\u201d for an intentional weekend/holiday send.',true); return; } if(_isHol(d)){ schMsg('That date is a major holiday (auto-schedule blackout). Check \u201cDeliberate send\u201d if you mean to send a holiday greeting.',true); return; } } EDITSCHED.pending.push(v); schMsg(man?'Deliberate send added \u2014 weekend/holiday allowed.':''); renderSched(); };
+  if($('schGen')) $('schGen').onclick=function(){ var v=$('schWhen').value; if(!v){ schMsg('Pick a start time first.',true); return; } var man=schManualOn(); var stepDays=Math.max(1,parseInt($('schEvery').value,10)||1)*(parseInt($('schUnit').value,10)||1); var count=Math.max(1,Math.min(52,parseInt($('schCount').value,10)||1)); var cur=new Date(v); var got=0, guard=0; while(got<count && guard<800){ guard++; var ok = man || (cur.getDay()!==0 && cur.getDay()!==6 && !_isHol(cur)); if(ok){ EDITSCHED.pending.push(toLocalInput(cur)); got++; cur=new Date(cur.getTime()+stepDays*86400000); } else { cur=new Date(cur.getTime()+86400000); } } schMsg('Generated '+got+' '+(man?'send':'business-day send')+(got===1?'':'s')+(man?' (weekend/holiday allowed).':' — weekends & holidays skipped.')); renderSched(); };
   if($('schSave')) $('schSave').onclick=saveSchedule;
   loadSchedules();
 }
@@ -500,9 +505,10 @@ function saveSchedule(){
   schMsg('Saving\u2026');
   saveCampaign(true).then(function(ok){ if(!ok){ schMsg('Fix the campaign fields first.',true); return; }
     var times=EDITSCHED.pending.map(function(t){ return new Date(t).toISOString(); });
-    api('POST','/api/mail/campaigns/'+EDIT.id+'/schedule',{ times:times }).then(function(r){
+    var man=schManualOn();
+    api('POST','/api/mail/campaigns/'+EDIT.id+'/schedule',{ times:times, manual:man }).then(function(r){
       if(!r||!r.ok){ schMsg((r&&r.error)||'Could not schedule.',true); return; }
-      EDITSCHED.pending=[]; var msg='Scheduled '+(r.added||0)+' send'+((r.added===1)?'':'s')+'.'; var sk=[]; if(r.skippedWeekend) sk.push(r.skippedWeekend+' weekend'); if(r.skippedSlot) sk.push(r.skippedSlot+' slot taken'); if(r.skippedPast) sk.push(r.skippedPast+' past'); if(sk.length) msg+=' Skipped '+sk.join(', ')+'.'; schMsg(msg, (r.added?false:true)); loadSchedules();
+      EDITSCHED.pending=[]; var msg='Scheduled '+(r.added||0)+' send'+((r.added===1)?'':'s')+(r.manual?' (deliberate — weekend/holiday allowed).':'.'); var sk=[]; if(r.skippedWeekend) sk.push(r.skippedWeekend+' weekend'); if(r.skippedHoliday) sk.push(r.skippedHoliday+' holiday'); if(r.skippedSlot) sk.push(r.skippedSlot+' slot taken'); if(r.skippedPast) sk.push(r.skippedPast+' past'); if(sk.length) msg+=' Skipped '+sk.join(', ')+'.'; schMsg(msg, (r.added?false:true)); loadSchedules();
     });
   });
 }
