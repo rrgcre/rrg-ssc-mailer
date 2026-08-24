@@ -243,7 +243,14 @@ function startEdit(id){
 }
 function toggle(id){ fetch('/api/tasks/'+encodeURIComponent(id)+'/toggle',{method:'POST',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ var t=TASKS.filter(function(x){return x.id===id;})[0]; if(t){t.status=j.task.status;t.doneAt=j.task.doneAt;} if(j.spawned){ if(window.rrgToast) rrgToast('Repeated — next one added for '+fmtD(j.spawned.due)); load(); } else { render(); } } }); }
 async function del(id){ if(!await rrgConfirm('Delete this task?')) return; fetch('/api/tasks/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ TASKS=TASKS.filter(function(x){return x.id!==id;}); render(); } else alert((j&&j.error)||'Could not delete.'); }); }
-function bulkCompleteTasks(ids,done){ if(!ids||!ids.length){ if(done)done(); return; } var n=0, okc=0; ids.forEach(function(id){ fetch('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:id,status:'done'})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok) okc++; }).catch(function(){}).then(function(){ if(++n===ids.length){ if(done)done(); if(window.rrgToast) rrgToast('Marked '+okc+' task'+(okc===1?'':'s')+' complete'); load(); } }); }); }
+function bulkCompleteTasks(ids,done){ if(!ids||!ids.length){ if(done)done(); return; }
+  fetch('/api/tasks/bulk-complete',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({ids:ids,status:'done'})})
+    .then(function(r){return r.json();})
+    .then(function(j){ if(done)done();
+      if(j&&j.ok){ if(window.rrgToast) rrgToast('Marked '+(j.updated||0)+' task'+((j.updated===1)?'':'s')+' complete'+(j.skipped?(' · '+j.skipped+' skipped'):'')); }
+      else if(window.rrgToast){ rrgToast((j&&j.error)||'Could not mark complete.'); }
+      load();
+    }).catch(function(){ if(done)done(); if(window.rrgToast) rrgToast('Could not reach the server.'); }); }
 async function bulkDelTasks(ids,done){
   if(!ids||!ids.length) return;
   if(!await rrgConfirm('Delete '+ids.length+' task'+(ids.length>1?'s':'')+'? This cannot be undone.')) return;

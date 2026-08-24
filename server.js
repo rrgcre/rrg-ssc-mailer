@@ -14316,6 +14316,30 @@ app.delete('/api/tasks/:id', (req, res) => {
   if (!(req.user && isSuper(req.user)) && t.createdBy !== (req.user && req.user.username)) return res.status(403).json({ ok: false, error: 'Only the creator or an admin can delete this.' });
   saveTasks(all.filter(x => x.id !== t.id)); res.json({ ok: true });
 });
+// Atomic bulk complete/reopen for tasks — one pass. Marks the given tasks done (or open),
+// same visibility rule and recurrence-spawn behavior as the single toggle.
+app.post('/api/tasks/bulk-complete', express.json({ limit: '512kb' }), (req, res) => {
+  const b = req.body || {};
+  const ids = Array.isArray(b.ids) ? b.ids.map(String) : [];
+  if (!ids.length) return res.status(400).json({ ok: false, error: 'No tasks given.' });
+  const status = (b.status === 'open') ? 'open' : 'done';
+  const idset = {}; ids.forEach(id => { idset[id] = 1; });
+  const all = loadTasks();
+  const now = new Date().toISOString();
+  let updated = 0, skipped = 0, spawnedCount = 0;
+  all.forEach(t => {
+    if (!idset[t.id]) return;
+    if (!taskVisible(t, req)) { skipped++; return; }
+    if (t.status === status) return; // already in target state — no-op, no re-spawn
+    t.status = status;
+    t.doneAt = status === 'done' ? now : '';
+    t.updatedAt = now;
+    if (status === 'done' && !all.some(x => x.prevTaskId === t.id)) { try { if (_taskSpawnRecurrence(t, all, now)) spawnedCount++; } catch (e) {} }
+    updated++;
+  });
+  if (updated) saveTasks(all);
+  res.json({ ok: true, updated: updated, skipped: skipped, spawned: spawnedCount });
+});
 // Atomic bulk delete for tasks — one pass, only tasks the caller created (or admin).
 app.post('/api/tasks/bulk-delete', express.json({ limit: '512kb' }), (req, res) => {
   const ids = Array.isArray(req.body && req.body.ids) ? req.body.ids.map(String) : [];
