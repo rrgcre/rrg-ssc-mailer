@@ -348,7 +348,7 @@ function renderEditor(){
      '</div>'+
    '</div></div>'+
    '<div class="card"><h2>Schedule</h2>'+
-   '<div class="pgs" style="margin-bottom:10px">Send now with the button below, or schedule this campaign to go out on one or more dates. Each scheduled time re-sends to your full active list \u2014 so the same blast can repeat.</div>'+
+   '<div class="pgs" style="margin-bottom:10px">Send now with the button below, or schedule this campaign to go out on one or more dates. Each scheduled time re-sends to your full active list \u2014 so the same blast can repeat. <b>Weekdays only</b>, and one send per morning and one per afternoon (system-wide).</div>'+
    '<div class="row">'+
      '<div class="fld half"><label class="fl">Send time</label><input type="datetime-local" id="schWhen"></div>'+
      '<div class="fld half" style="display:flex;align-items:flex-end;"><button class="btn" id="schAdd" type="button">+ Add this time</button></div>'+
@@ -479,16 +479,17 @@ function fmtWhen(t){ try{ return new Date(t).toLocaleString([], {month:'short',d
 function schMsg(t,err){ var m=$('schMsg'); if(!m) return; m.className='msg '+(err?'err':'ok'); m.textContent=t||''; }
 function initSchedule(){
   EDITSCHED={ pending:[], saved:[] };
-  if($('schAdd')) $('schAdd').onclick=function(){ var v=$('schWhen').value; if(!v){ schMsg('Pick a date and time.',true); return; } EDITSCHED.pending.push(v); schMsg(''); renderSched(); };
-  if($('schGen')) $('schGen').onclick=function(){ var v=$('schWhen').value; if(!v){ schMsg('Pick a start time first.',true); return; } var step=Math.max(1,parseInt($('schEvery').value,10)||1)*(parseInt($('schUnit').value,10)||1); var count=Math.max(1,Math.min(52,parseInt($('schCount').value,10)||1)); var base=new Date(v); for(var i=0;i<count;i++){ EDITSCHED.pending.push(toLocalInput(new Date(base.getTime()+i*step*86400000))); } schMsg(''); renderSched(); };
+  if($('schAdd')) $('schAdd').onclick=function(){ var v=$('schWhen').value; if(!v){ schMsg('Pick a date and time.',true); return; } var d=new Date(v); if(d.getDay()===0||d.getDay()===6){ schMsg('Weekends are not allowed \u2014 pick a weekday.',true); return; } EDITSCHED.pending.push(v); schMsg(''); renderSched(); };
+  if($('schGen')) $('schGen').onclick=function(){ var v=$('schWhen').value; if(!v){ schMsg('Pick a start time first.',true); return; } var stepDays=Math.max(1,parseInt($('schEvery').value,10)||1)*(parseInt($('schUnit').value,10)||1); var count=Math.max(1,Math.min(52,parseInt($('schCount').value,10)||1)); var cur=new Date(v); var got=0, guard=0; while(got<count && guard<500){ guard++; if(cur.getDay()!==0 && cur.getDay()!==6){ EDITSCHED.pending.push(toLocalInput(cur)); got++; cur=new Date(cur.getTime()+stepDays*86400000); } else { cur=new Date(cur.getTime()+86400000); } } schMsg('Generated '+got+' weekday send'+(got===1?'':'s')+'.'); renderSched(); };
   if($('schSave')) $('schSave').onclick=saveSchedule;
   loadSchedules();
 }
 function loadSchedules(){ if(!EDIT.id){ EDITSCHED.saved=[]; renderSched(); return; } api('GET','/api/mail/campaigns/'+EDIT.id+'/schedule').then(function(r){ EDITSCHED.saved=((r&&r.schedules)||[]).filter(function(x){return x.status==='pending';}); renderSched(); }); }
+function slotOf(t){ try{ return new Date(t).getHours()<12?'AM':'PM'; }catch(e){ return ''; } }
 function renderSched(){
   var el=$('schList'); if(!el) return; var h='';
-  if(EDITSCHED.saved&&EDITSCHED.saved.length){ h+='<div class="pgs" style="margin:10px 0 4px;font-weight:700;color:var(--navy)">Scheduled ('+EDITSCHED.saved.length+')</div>'; EDITSCHED.saved.forEach(function(s){ h+='<div style="display:flex;align-items:center;gap:10px;margin:3px 0;"><span class="pill scheduled">'+esc(fmtWhen(s.run_at))+'</span><span data-cancel="'+s.id+'" style="color:var(--muted);cursor:pointer;font-size:12px;text-decoration:underline;">cancel</span></div>'; }); }
-  if(EDITSCHED.pending.length){ h+='<div class="pgs" style="margin:12px 0 4px;font-weight:700;color:var(--navy)">To be scheduled ('+EDITSCHED.pending.length+')</div>'; EDITSCHED.pending.forEach(function(t,i){ h+='<div style="display:flex;align-items:center;gap:10px;margin:3px 0;"><span class="pill draft">'+esc(fmtWhen(t))+'</span><span data-rm="'+i+'" style="color:var(--red);cursor:pointer;font-size:12px;text-decoration:underline;">remove</span></div>'; }); }
+  if(EDITSCHED.saved&&EDITSCHED.saved.length){ h+='<div class="pgs" style="margin:10px 0 4px;font-weight:700;color:var(--navy)">Scheduled ('+EDITSCHED.saved.length+')</div>'; EDITSCHED.saved.forEach(function(s){ h+='<div style="display:flex;align-items:center;gap:10px;margin:3px 0;"><span class="pill scheduled">'+esc(fmtWhen(s.run_at))+'</span><span style="color:var(--muted);font-size:11px;font-weight:700;">'+((s.slot||slotOf(s.run_at))+'').toUpperCase()+'</span><span data-cancel="'+s.id+'" style="color:var(--muted);cursor:pointer;font-size:12px;text-decoration:underline;">cancel</span></div>'; }); }
+  if(EDITSCHED.pending.length){ h+='<div class="pgs" style="margin:12px 0 4px;font-weight:700;color:var(--navy)">To be scheduled ('+EDITSCHED.pending.length+')</div>'; EDITSCHED.pending.forEach(function(t,i){ h+='<div style="display:flex;align-items:center;gap:10px;margin:3px 0;"><span class="pill draft">'+esc(fmtWhen(t))+'</span><span style="color:var(--muted);font-size:11px;font-weight:700;">'+slotOf(t)+'</span><span data-rm="'+i+'" style="color:var(--red);cursor:pointer;font-size:12px;text-decoration:underline;">remove</span></div>'; }); }
   el.innerHTML=h;
   var cs=el.querySelectorAll('[data-cancel]'); for(var i=0;i<cs.length;i++){ (function(b){ b.onclick=function(){ api('POST','/api/mail/schedules/'+b.getAttribute('data-cancel')+'/cancel',{}).then(loadSchedules); }; })(cs[i]); }
   var rs=el.querySelectorAll('[data-rm]'); for(var j=0;j<rs.length;j++){ (function(b){ b.onclick=function(){ EDITSCHED.pending.splice(parseInt(b.getAttribute('data-rm'),10),1); renderSched(); }; })(rs[j]); }
@@ -501,7 +502,7 @@ function saveSchedule(){
     var times=EDITSCHED.pending.map(function(t){ return new Date(t).toISOString(); });
     api('POST','/api/mail/campaigns/'+EDIT.id+'/schedule',{ times:times }).then(function(r){
       if(!r||!r.ok){ schMsg((r&&r.error)||'Could not schedule.',true); return; }
-      EDITSCHED.pending=[]; schMsg('Scheduled '+(r.added||0)+' send'+((r.added===1)?'':'s')+'.'); loadSchedules();
+      EDITSCHED.pending=[]; var msg='Scheduled '+(r.added||0)+' send'+((r.added===1)?'':'s')+'.'; var sk=[]; if(r.skippedWeekend) sk.push(r.skippedWeekend+' weekend'); if(r.skippedSlot) sk.push(r.skippedSlot+' slot taken'); if(r.skippedPast) sk.push(r.skippedPast+' past'); if(sk.length) msg+=' Skipped '+sk.join(', ')+'.'; schMsg(msg, (r.added?false:true)); loadSchedules();
     });
   });
 }

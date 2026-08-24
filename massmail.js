@@ -74,6 +74,8 @@ async function migrate() {
       run_at TIMESTAMPTZ NOT NULL, status TEXT NOT NULL DEFAULT 'pending', note TEXT DEFAULT '',
       created_at TIMESTAMPTZ DEFAULT now(), done_at TIMESTAMPTZ)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS mm_sched_due ON mm_schedules(run_at) WHERE status='pending'`);
+    await pool.query(`ALTER TABLE mm_schedules ADD COLUMN IF NOT EXISTS slot_date DATE`);
+    await pool.query(`ALTER TABLE mm_schedules ADD COLUMN IF NOT EXISTS slot TEXT`);
   })().catch(e => { console.error('[MAIL] migrate failed: ' + (e && e.message)); _migrated = null; throw e; });
   return _migrated;
 }
@@ -481,11 +483,27 @@ function mount(app, deps) {
   app.post('/api/mail/campaigns/:id/schedule', requireAdmin, guard, express.json(), async (req, res) => { try {
     const id = Number(req.params.id); const b = req.body || {};
     const times = Array.isArray(b.times) ? b.times : (b.time ? [b.time] : []);
-    const now = Date.now(); let added = 0;
-    for (const t of times) { const d = new Date(t); if (!isNaN(d.getTime()) && d.getTime() > now - 60000) { await q(`INSERT INTO mm_schedules(tenant,campaign_id,run_at,status) VALUES($1,$2,$3,'pending')`, [TENANT, id, d.toISOString()]); added++; } }
+    const tz = process.env.MAIL_TZ || 'America/Chicago';
+    const now = Date.now(); let added = 0, skipWeekend = 0, skipSlot = 0, skipPast = 0;
+    const usedBatch = {};
+    for (const t of times) {
+      const d = new Date(t);
+      if (isNaN(d.getTime()) || d.getTime() <= now - 60000) { skipPast++; continue; }
+      // classify in the brokerage's local timezone: weekday + AM/PM + local date
+      const info = (await q(`SELECT EXTRACT(DOW FROM ($1::timestamptz AT TIME ZONE $2))::int AS dow, EXTRACT(HOUR FROM ($1::timestamptz AT TIME ZONE $2))::int AS hr, ($1::timestamptz AT TIME ZONE $2)::date::text AS ld`, [d.toISOString(), tz])).rows[0];
+      if (info.dow === 0 || info.dow === 6) { skipWeekend++; continue; }              // no weekends
+      const slot = info.hr < 12 ? 'am' : 'pm';
+      const key = info.ld + '|' + slot;
+      if (usedBatch[key]) { skipSlot++; continue; }
+      const dup = (await q(`SELECT count(*)::int AS n FROM mm_schedules WHERE tenant=$1 AND slot_date=$2 AND slot=$3 AND status='pending'`, [TENANT, info.ld, slot])).rows[0].n;
+      if (dup > 0) { skipSlot++; continue; }                                          // one AM + one PM per day, tenant-wide
+      usedBatch[key] = true;
+      await q(`INSERT INTO mm_schedules(tenant,campaign_id,run_at,status,slot_date,slot) VALUES($1,$2,$3,'pending',$4,$5)`, [TENANT, id, d.toISOString(), info.ld, slot]);
+      added++;
+    }
     if (added) await q(`UPDATE mm_campaigns SET status='scheduled' WHERE tenant=$1 AND id=$2 AND status IN('draft')`, [TENANT, id]);
-    const rows = (await q(`SELECT id, run_at, status FROM mm_schedules WHERE tenant=$1 AND campaign_id=$2 AND status='pending' ORDER BY run_at ASC`, [TENANT, id])).rows;
-    res.json({ ok: true, added: added, schedules: rows });
+    const rows = (await q(`SELECT id, run_at, status, slot FROM mm_schedules WHERE tenant=$1 AND campaign_id=$2 AND status='pending' ORDER BY run_at ASC`, [TENANT, id])).rows;
+    res.json({ ok: true, added: added, skippedWeekend: skipWeekend, skippedSlot: skipSlot, skippedPast: skipPast, schedules: rows });
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.get('/api/mail/schedule-events', requireAdmin, guard, async (req, res) => { try {
     const rows = (await q(`SELECT s.id, s.campaign_id, s.run_at, c.name FROM mm_schedules s JOIN mm_campaigns c ON c.id=s.campaign_id WHERE s.tenant=$1 AND s.status='pending' ORDER BY s.run_at ASC LIMIT 500`, [TENANT])).rows;
