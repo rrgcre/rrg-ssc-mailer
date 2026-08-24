@@ -104,13 +104,27 @@ tbody tr:hover{background:#fafbfe;}
 
   <div class="card">
     <h2>Search</h2>
-    <div class="modetog" id="modeTog">
-      <button type="button" class="mt on" data-mode="place">City &amp; State</button>
-      <button type="button" class="mt" data-mode="zip">ZIP code</button>
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px;">
+      <div class="modetog" id="modeTog">
+        <button type="button" class="mt on" data-mode="place">City &amp; State</button>
+        <button type="button" class="mt" data-mode="zip">ZIP code</button>
+      </div>
+      <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;display:inline-flex;align-items:center;gap:8px;">Region preset
+        <select id="region" style="border:1px solid #d7dde8;border-radius:7px;padding:7px 10px;font:inherit;font-size:13px;text-transform:none;letter-spacing:0;color:var(--ink);font-weight:400;">
+          <option value="">— fill ZIPs for an area —</option>
+          <optgroup label="San Antonio">
+            <option value="78258, 78257, 78209, 78216, 78229, 78248, 78232, 78230">North San Antonio</option>
+            <option value="78258, 78259, 78260, 78261, 78247">Stone Oak / Far North</option>
+            <option value="78229, 78230, 78240, 78249, 78250">Medical Center / Northwest</option>
+            <option value="78209, 78212, 78215, 78210">Alamo Heights / Central</option>
+            <option value="78205, 78215, 78204, 78207, 78210">Downtown San Antonio</option>
+          </optgroup>
+        </select>
+      </label>
     </div>
     <div class="frm">
       <div class="fld loc-place"><label>City</label><input id="city" placeholder="e.g. Austin" autocomplete="off"></div>
-      <div class="fld w-state loc-place"><label>State</label><input id="state" list="stateList" placeholder="TX" autocomplete="off" maxlength="20"></div>
+      <div class="fld w-state loc-place"><label>State</label><input id="state" list="stateList" value="TX" placeholder="TX" autocomplete="off" maxlength="20"></div>
       <div class="fld w-zip loc-zip" hidden><label>ZIP code(s)</label><input id="zip" placeholder="e.g. 78701 or 78701, 78702" autocomplete="off" maxlength="60"></div>
       <div class="fld"><label>Restaurant type</label>
         <select id="type">
@@ -282,6 +296,13 @@ tbody tr:hover{background:#fafbfe;}
   }
   function curMode(){ var b=document.querySelector('#modeTog .mt.on'); return b?b.getAttribute('data-mode'):'place'; }
   Array.prototype.forEach.call(document.querySelectorAll('#modeTog .mt'),function(btn){ btn.addEventListener('click',function(){ setMode(btn.getAttribute('data-mode')); }); });
+  /* ---- region preset: fill ZIPs and switch to ZIP mode ---- */
+  if($('region')) $('region').addEventListener('change',function(){
+    var z=this.value; if(!z) return;
+    setMode('zip'); $('zip').value=z;
+    if(!$('listName').value.trim()) $('listName').value=this.options[this.selectedIndex].text;
+    $('searchMsg').innerHTML='<span style="color:var(--muted)">Loaded '+this.options[this.selectedIndex].text+' ZIPs — click <b>Find restaurants</b>.</span>';
+  });
 
   /* ---- key status ---- */
   api('GET','/api/finder/key-status').then(function(j){
@@ -312,8 +333,9 @@ tbody tr:hover{background:#fafbfe;}
       incoming.forEach(function(r){ if(r.placeId && have[r.placeId]){ dup++; return; } if(r.placeId) have[r.placeId]=1; ROWS.push(r); added++; });
       if(firstBatch){ META={city:city,state:state,zip:zip,type:label,googleType:slug}; $('onlyEmail').checked=false; if(!$('listName').value.trim()) $('listName').value=((label?label+' — ':'')+(zip||city)).trim(); }
       $('resultsCard').hidden=(ROWS.length===0);
-      if(!incoming.length){ $('searchMsg').innerHTML='<span style="color:var(--muted)">No restaurants found for that search'+(ROWS.length?' — nothing added.':'.')+'</span>'; }
-      else { $('searchMsg').innerHTML='<span style="color:var(--green)">Added '+added+' '+(added===1?'restaurant':'restaurants')+(dup?(' · '+dup+' already listed'):'')+'. '+ROWS.length+' in the list.</span>'; }
+      var extra=(j.skippedZips>0)?(' <span style="color:var(--red)">'+j.skippedZips+' ZIP'+(j.skippedZips===1?'':'s')+' over the 12-per-search limit were skipped — run them separately.</span>'):'';
+      if(!incoming.length){ $('searchMsg').innerHTML='<span style="color:var(--muted)">No restaurants found for that search'+(ROWS.length?' — nothing added.':'.')+'</span>'+extra; }
+      else { $('searchMsg').innerHTML='<span style="color:var(--green)">Added '+added+' '+(added===1?'restaurant':'restaurants')+(dup?(' · '+dup+' already listed'):'')+'. '+ROWS.length+' in the list.</span>'+extra; }
       renderRows(); updateSum();
     }).catch(function(){ $('searchBtn').disabled=false; $('searchMsg').innerHTML='<span style="color:var(--red)">Could not reach the server.</span>'; });
   }

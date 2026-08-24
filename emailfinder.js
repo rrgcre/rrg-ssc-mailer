@@ -196,7 +196,7 @@ function _typeKeyword(slug) { if (!slug || slug === 'restaurant') return ''; ret
 function _zipsFrom(raw) {
   raw = String(raw || '');
   const us = raw.match(/\d{5}/g);
-  if (us && us.length) return Array.from(new Set(us)).slice(0, 5);
+  if (us && us.length) return Array.from(new Set(us));
   const t = raw.trim();
   return t ? [t] : [];
 }
@@ -238,8 +238,11 @@ function mount(app, deps) {
       const key = loadKey();
       if (!key) return res.status(400).json({ ok: false, error: 'No Google Maps API key is set. Add one in Admin, and enable the Places API (New) on that Google Cloud project.' });
       const b = req.body || {};
-      const city = _clean(b.city, 80), state = _clean(b.state, 40), zipRaw = _clean(b.zip, 60);
-      const zips = zipRaw ? _zipsFrom(zipRaw) : [];
+      const city = _clean(b.city, 80), state = _clean(b.state, 40), zipRaw = _clean(b.zip, 160);
+      const ZIP_CAP = 12;
+      const allZips = zipRaw ? _zipsFrom(zipRaw) : [];
+      const zips = allZips.slice(0, ZIP_CAP);
+      const skippedZips = allZips.length - zips.length; // report if a preset exceeded the cap
       if (!zips.length && !(city && state)) return res.status(400).json({ ok: false, error: 'Enter a city and state, or a ZIP / postal code.' });
       // type: validate the slug against Google's food-type list; 'restaurant' (Any) stays unfiltered for widest recall
       let slug = _clean(b.includedType, 60);
@@ -278,7 +281,7 @@ function mount(app, deps) {
 
       // websiteUri + phone already came back from the New Text Search — no extra Details call.
       const withSite = rows.filter(r => r.website).length;
-      res.json({ ok: true, query: q, count: rows.length, withWebsite: withSite, zips: zips, rows: rows });
+      res.json({ ok: true, query: q, count: rows.length, withWebsite: withSite, zips: zips, zipsSearched: zips.length, skippedZips: skippedZips, rows: rows });
     } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
   });
 
