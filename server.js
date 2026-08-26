@@ -14425,7 +14425,8 @@ function apptIcs(a) {
   var org = mailFrom() || 'no-reply@rrgcre.com';
   var att = (a.attendees || []).filter(function (x) { return x.email; }).map(function (x) { return 'ATTENDEE;CN=' + e(x.name || x.email) + ':mailto:' + x.email; }).join('\r\n');
   var stamp = dt(new Date().toISOString());
-  var lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//RRG//FullServe//EN', 'CALSCALE:GREGORIAN', 'METHOD:REQUEST', 'BEGIN:VEVENT', 'UID:' + a.id + '@rrgcre', 'DTSTAMP:' + stamp + 'Z', 'DTSTART:' + start, 'DTEND:' + end, 'SUMMARY:' + e(a.title || 'Meeting'), (a.location ? 'LOCATION:' + e(a.location) : ''), (a.notes ? 'DESCRIPTION:' + e(a.notes) : ''), 'ORGANIZER:mailto:' + org, att, 'STATUS:CONFIRMED', 'END:VEVENT', 'END:VCALENDAR'].filter(Boolean);
+  var _desc = [a.meetUrl ? ('Join the Google Meet: ' + a.meetUrl) : '', a.notes || ''].filter(Boolean).join('\n\n');
+  var lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//RRG//FullServe//EN', 'CALSCALE:GREGORIAN', 'METHOD:REQUEST', 'BEGIN:VEVENT', 'UID:' + a.id + '@rrgcre', 'DTSTAMP:' + stamp + 'Z', 'DTSTART:' + start, 'DTEND:' + end, 'SUMMARY:' + e(a.title || 'Meeting'), (a.location ? 'LOCATION:' + e(a.location) : ''), (_desc ? 'DESCRIPTION:' + e(_desc) : ''), 'ORGANIZER:mailto:' + org, att, 'STATUS:CONFIRMED', 'END:VEVENT', 'END:VCALENDAR'].filter(Boolean);
   return lines.join('\r\n');
 }
 async function sendInviteMail(to, subject, text, ics, cc, bcc) {
@@ -14703,7 +14704,7 @@ function cleanBookQ(q) {
 function bookTypes(bk) {
   bk = bk || {};
   if (Array.isArray(bk.types) && bk.types.length) {
-    return bk.types.filter(t => t && t.name).slice(0, 8).map((t, i) => ({ id: String(t.id || ('t' + i)), name: String(t.name).slice(0, 80), length: BOOK_LENGTHS.indexOf(+t.length) >= 0 ? +t.length : 30, location: String(t.location || '').slice(0, 160), description: String(t.description || '').slice(0, 600), automationId: String(t.automationId || ''), questions: (Array.isArray(t.questions) ? t.questions.filter(q => q && q.q).slice(0, 5).map(cleanBookQ) : []) }));
+    return bk.types.filter(t => t && t.name).slice(0, 8).map((t, i) => ({ id: String(t.id || ('t' + i)), name: String(t.name).slice(0, 80), length: BOOK_LENGTHS.indexOf(+t.length) >= 0 ? +t.length : 30, mode: (['inperson', 'meet', 'phone'].indexOf(t.mode) >= 0 ? t.mode : 'inperson'), location: String(t.location || '').slice(0, 160), description: String(t.description || '').slice(0, 600), automationId: String(t.automationId || ''), questions: (Array.isArray(t.questions) ? t.questions.filter(q => q && q.q).slice(0, 5).map(cleanBookQ) : []) }));
   }
   const len = BOOK_LENGTHS.indexOf(+bk.length) >= 0 ? +bk.length : 30;
   return [{ id: 'default', name: bk.title || 'Meeting', length: len, location: '', description: String(bk.description || '').slice(0, 600), questions: (Array.isArray(bk.questions) ? bk.questions.slice(0, 5) : []) }];
@@ -14754,7 +14755,7 @@ app.post('/api/me/booking', express.json(), (req, res) => {
   if (b.title !== undefined) cur.title = String(b.title || '').slice(0, 120);
   // Meeting types — a named list, each with its own length. Empty list falls back to the single length.
   if (Array.isArray(b.types)) {
-    cur.types = b.types.filter(t => t && String(t.name || '').trim()).slice(0, 8).map((t, i) => ({ id: String(t.id || ('t' + Date.now().toString(36) + i)).slice(0, 24), name: String(t.name).trim().slice(0, 80), length: BOOK_LENGTHS.indexOf(+t.length) >= 0 ? +t.length : 30, location: String(t.location || '').slice(0, 160), description: sanitizeRich(t.description), automationId: String(t.automationId || '').slice(0, 40), questions: (Array.isArray(t.questions) ? t.questions.filter(q => q && String(q.q || '').trim()).slice(0, 5).map(cleanBookQ) : []) }));
+    cur.types = b.types.filter(t => t && String(t.name || '').trim()).slice(0, 8).map((t, i) => ({ id: String(t.id || ('t' + Date.now().toString(36) + i)).slice(0, 24), name: String(t.name).trim().slice(0, 80), length: BOOK_LENGTHS.indexOf(+t.length) >= 0 ? +t.length : 30, mode: (['inperson', 'meet', 'phone'].indexOf(t.mode) >= 0 ? t.mode : 'inperson'), location: String(t.location || '').slice(0, 160), description: sanitizeRich(t.description), automationId: String(t.automationId || '').slice(0, 40), questions: (Array.isArray(t.questions) ? t.questions.filter(q => q && String(q.q || '').trim()).slice(0, 5).map(cleanBookQ) : []) }));
   }
   // Invitee questions — up to 5 custom questions shown on the booking form.
   if (Array.isArray(b.questions)) {
@@ -14784,6 +14785,27 @@ app.get('/api/book/:token/slots', (req, res) => {
   const av = bookingAvailability(bk.username, _dw, t.length);
   res.json({ ok: true, length: av.length, days: av.days, owner: av.owner, ownerTz: GSYNC_TZ, type: t });
 });
+// Best-effort: create a real Google Meet link on the rep's calendar for an online booking.
+// Returns the link or '' — never throws, so it can't break the booking flow.
+async function _bookingMeetLink(u, a) {
+  try {
+    if (!calFeatOn('calMeet')) return '';
+    const st = gmail.statusFor(u);
+    if (!st || !st.connected || !st.hasCalendar) return '';
+    const reqId = 'rrgbook-' + a.id + '-' + Date.now().toString(36);
+    const body = {
+      summary: a.title || 'Meeting', description: a.notes || '',
+      start: { dateTime: _gDT(a.start), timeZone: GSYNC_TZ }, end: { dateTime: _gDT(a.end || a.start), timeZone: GSYNC_TZ },
+      attendees: (a.attendees || []).filter(x => x.email).map(x => ({ email: x.email })),
+      conferenceData: { createRequest: { requestId: reqId, conferenceSolutionKey: { type: 'hangoutsMeet' } } }
+    };
+    let j = await gmail.gapiJSON(u, 'https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (j && j.id) { a.googleEventId = j.id; a.googleCalId = 'primary'; }
+    let link = _meetLinkOf(j);
+    if (!link && a.googleEventId) { try { const g2 = await gmail.gapiJSON(u, 'https://www.googleapis.com/calendar/v3/calendars/primary/events/' + encodeURIComponent(a.googleEventId) + '?conferenceDataVersion=1', {}); link = _meetLinkOf(g2); } catch (e) {} }
+    return link || '';
+  } catch (e) { return ''; }
+}
 app.post('/api/book/:token', express.json(), async (req, res) => {
   const bk = bookingByToken(req.params.token); if (!bk) return res.status(404).json({ ok: false, error: 'This booking link is not active.' });
   const b = req.body || {};
@@ -14825,13 +14847,21 @@ app.post('/api/book/:token', express.json(), async (req, res) => {
   } catch (e) {}
   let _notes = String(b.notes || '').slice(0, 2000);
   if (_answered.length) { const _qa = _answered.map(x => x.q + ': ' + x.a).join('\n'); _notes = (_notes ? _notes + '\n\n' : '') + _qa; }
-  const a = { id: newApptId(), byUser: bk.username, byName: prof.name || bk.username, personId: _personId, personName: _personName, createdAt: now, status: 'scheduled', title: String(_tt).slice(0, 200), start, end: _bAddMin(start, t.length), type: 'Meeting', location: t.location || prof.workLocation || '', notes: _notes, bookingAnswers: _answered, contactName: name, attendees: [{ name, email, phone }], contactPhone: phone, source: 'booking', bookToken: bk.token || '', manageToken: _bookToken(), invitedAt: now };
+  // Location by meeting mode — an online booking is a Google Meet, not the rep's home office.
+  const _mode = (['inperson', 'meet', 'phone'].indexOf(t.mode) >= 0) ? t.mode : 'inperson';
+  let _loc;
+  if (_mode === 'meet') _loc = 'Google Meet';
+  else if (_mode === 'phone') _loc = 'Phone call' + (prof.phone ? (' — ' + String(prof.phone)) : '');
+  else _loc = t.location || prof.workLocation || '';
+  const a = { id: newApptId(), byUser: bk.username, byName: prof.name || bk.username, personId: _personId, personName: _personName, createdAt: now, status: 'scheduled', title: String(_tt).slice(0, 200), start, end: _bAddMin(start, t.length), type: 'Meeting', location: _loc, meetMode: _mode, notes: _notes, bookingAnswers: _answered, contactName: name, attendees: [{ name, email, phone }], contactPhone: phone, source: 'booking', bookToken: bk.token || '', manageToken: _bookToken(), invitedAt: now };
+  // For a Google Meet booking, best-effort generate the real Meet link on the rep's calendar.
+  if (_mode === 'meet') { try { const _mk = await _bookingMeetLink(bk.username, a); if (_mk) a.meetUrl = _mk; } catch (e) {} }
   all.push(a); saveAppts(all);
   try {
     if (isEmailConfigured()) {
       const when = start.replace('T', ' at ');
       const mUrl = (appBaseUrl() || (req.protocol + '://' + req.get('host'))) + '/book/manage/' + a.manageToken;
-      await sendInviteMail([email], 'Booked: ' + a.title, 'Your meeting is booked for ' + when + (a.location ? ('\nWhere: ' + a.location) : '') + '\n\n— ' + a.byName + '\n\nNeed to change it? Reschedule or cancel here:\n' + mUrl, apptIcs(a), [], []);
+      await sendInviteMail([email], 'Booked: ' + a.title, 'Your meeting is booked for ' + when + (a.location ? ('\nWhere: ' + a.location) : '') + (a.meetUrl ? ('\nJoin the Google Meet: ' + a.meetUrl) : '') + '\n\n— ' + a.byName + '\n\nNeed to change it? Reschedule or cancel here:\n' + mUrl, apptIcs(a), [], []);
       const ownerEmail = (prof.email || '').trim(); if (ownerEmail) sendNotifyMail(ownerEmail, 'New booking: ' + name, name + ' (' + email + ') booked ' + when + '.' + (_answered.length ? ('\n\n' + _answered.map(x => x.q + ': ' + x.a).join('\n')) : '')).catch(() => {});
     }
   } catch (e) {}
