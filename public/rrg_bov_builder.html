@@ -132,7 +132,12 @@ body:not(.asset-mode) .asset-only{display:none!important;}
   .strip .v{color:#fff!important;-webkit-text-fill-color:#fff!important;}
   .strip .v.red{color:#ff7a5c!important;-webkit-text-fill-color:#ff7a5c!important;}
   .narr,.callout textarea{min-height:0!important;overflow:visible!important;}
-  .kl-block,table,.callout,.strip,.sec{break-inside:avoid;}
+  /* Keep atomic units together, but let big section containers flow across pages so
+     a tall block doesn't jump whole to the next page and strand half a blank page. */
+  table,.callout,.strip,.sec,.dualtable tr,.reconcile{break-inside:avoid;}
+  .kl,.sec,.sublabel,.callout .ct{break-after:avoid;}
+  .kl-block{break-inside:auto;}
+  .pHide{display:none!important;}
 }
 </style>
 <script src="/rrg_brand.js"></script>
@@ -387,10 +392,25 @@ body:not(.asset-mode) .asset-only{display:none!important;}
   function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
   function q(k){ return document.querySelector('[data-k='+k+']'); }
   function val(k){ var e=q(k); return e?e.value:''; }
-  function grow(t){ if(!t||t.tagName!=='TEXTAREA') return; t.style.height='auto'; t.style.height=(t.scrollHeight+2)+'px'; }
+  function grow(t){ if(!t||t.tagName!=='TEXTAREA') return; t.style.height='auto'; t.style.height=(t.scrollHeight+6)+'px'; }
   function growAll(){ document.querySelectorAll('textarea').forEach(grow); }
   document.addEventListener('input', function(e){ if(e.target.tagName==='TEXTAREA') grow(e.target); });
   window.addEventListener('load', function(){ setTimeout(growAll,30); });
+  // Print/PDF prep: fit every filled field to its content, and drop empty fields (with their
+  // labels) so a delivered BOV never shows blank labeled boxes. Restored right after printing.
+  function _blank(el){ return !String(el&&el.value||'').trim(); }
+  function prepPrint(){
+    try{ growAll(); }catch(e){}
+    try{
+      document.querySelectorAll('.narr').forEach(function(t){
+        if(_blank(t)){ t.classList.add('pHide'); var pv=t.previousElementSibling; if(pv&&pv.classList&&pv.classList.contains('sublabel')) pv.classList.add('pHide'); }
+      });
+      document.querySelectorAll('.callout').forEach(function(c){ var ta=c.querySelector('textarea'); if(ta&&_blank(ta)) c.classList.add('pHide'); });
+    }catch(e){}
+  }
+  function unPrepPrint(){ try{ document.querySelectorAll('.pHide').forEach(function(e){ e.classList.remove('pHide'); }); }catch(e){} }
+  window.addEventListener('beforeprint', prepPrint);
+  window.addEventListener('afterprint', unPrepPrint);
 
   // The bridge — the same way, every time. Fixed line items; the rep fills amounts.
   var BRIDGE_SPEC=[
