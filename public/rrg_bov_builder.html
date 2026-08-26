@@ -284,6 +284,8 @@ body:not(.asset-mode) .asset-only{display:none!important;}
     <!-- 6 CONCLUSION -->
     <div class="kl-block"><div class="kl">Conclusion</div>
     <div class="sec"><h2 id="conclH2">Valuation Matrix &amp; Concluded Range</h2><div class="flex"></div></div>
+    <label class="rrg-noprint" id="assetToggleWrap" style="display:inline-flex;align-items:center;gap:9px;font-size:12.5px;font-weight:700;color:var(--navy);background:var(--wash);border:1px solid var(--line);border-radius:8px;padding:9px 13px;margin:0 0 12px;cursor:pointer"><input type="checkbox" id="assetToggle" onchange="toggleAssetSale(this)" style="width:auto;margin:0"> This is an asset sale — value on tangible assets, no earnings multiple</label>
+    <input type="hidden" data-k="assetForce" id="assetForceH">
     <div class="gc-only">
       <table class="matrix">
         <thead><tr><th><span class="basisLabel">Adjusted EBITDA</span> Scenario</th><th id="mcLo">4.0×</th><th id="mcBase">4.5×</th><th id="mcHi">5.0×</th></tr></thead>
@@ -304,6 +306,7 @@ body:not(.asset-mode) .asset-only{display:none!important;}
         <label>High<br><input data-k="assetValueHigh" class="assetin" inputmode="numeric" placeholder="$" oninput="grpme(this);compute()"></label>
       </div>
       <div class="note" style="font-size:11px;color:var(--muted);line-height:1.5">Enter from an FF&amp;E appraisal or a documented asset estimate. A Texas TABC permit carries no separate transfer value outside San Marcos.</div>
+      <div class="rrg-noprint" id="assetPHnote" style="display:none;margin-top:8px;padding:8px 11px;border:1px solid #f0c36d;background:#fdf6e3;border-radius:7px;font-size:11px;color:#8a6d1a;line-height:1.5"><b>Placeholder values.</b> These are starting figures so the BOV comes out complete — replace Low / Base / High above with the FF&amp;E appraisal or documented asset estimate before you send.</div>
     </div>
     <div class="callout"><div class="ct">Concluded value — RRG opinion</div><textarea data-k="concNarr"></textarea></div>
     </div>
@@ -427,6 +430,8 @@ body:not(.asset-mode) .asset-only{display:none!important;}
   }
   var SDE_THRESHOLD=1200000;  // admin-configurable; fetched from /api/bov-config on load
   var ASSET_FLOOR=25000, ASSET_MSG='';  // asset-sale floor + notice (admin-configurable)
+  var ASSET_FORCE='';  // broker override: '' auto · 'yes' force asset sale · 'no' force going concern
+  window.toggleAssetSale=function(el){ ASSET_FORCE=el.checked?'yes':'no'; var h=document.getElementById('assetForceH'); if(h) h.value=ASSET_FORCE; var cw=document.getElementById('bovConclWarn'); if(cw) cw.remove(); if(window.compute) compute(); };
   function bv(k){ return num(state.bridge && state.bridge[k]); }
   function itemsTotal(arr){ var t=0; (arr||[]).forEach(function(it){ t+=num(it&&it.amt); }); return t; }
   function addBackTotal(){ return itemsTotal(state.bridge && state.bridge.addBacks); }
@@ -557,13 +562,24 @@ body:not(.asset-mode) .asset-only{display:none!important;}
     setTxt('hSde', s.sde>0?('~'+moneyM(s.sde)):'—');
     setTxt('hEbitda', s.adj>0?('~'+moneyM(s.adj)):'—');
     // Asset sale: strip the KPIs that don't apply (Multiple, Recommended Target) and relabel the range.
-    var isAsset=(s.sde<=ASSET_FLOOR)||(s.adj<=0);
+    // Asset sale = broker's explicit toggle if set, else the AI's flag, else the earnings test.
+    var autoAsset=(state&&state.assetSale===true)||(s.sde<=ASSET_FLOOR)||(s.adj<=0);
+    var isAsset=(ASSET_FORCE==='yes')?true:(ASSET_FORCE==='no')?false:autoAsset;
+    var _atg=document.getElementById('assetToggle'); if(_atg) _atg.checked=isAsset;
+    if(isAsset){ var _cwb=document.getElementById('bovConclWarn'); if(_cwb) _cwb.remove(); } // asset sale is coherent — clear any stale conflict banner
     document.body.classList.toggle('asset-mode',isAsset); // hides the going-concern-only sections
     var _strip=document.querySelector('.strip'); if(_strip) _strip.classList.toggle('asset',isAsset);
     var _tc=document.getElementById('hTarget').closest('.c'); if(_tc) _tc.style.display=isAsset?'none':'';
     var _mc=document.getElementById('hMult').closest('.c'); if(_mc) _mc.style.display=isAsset?'none':'';
     var _rc=document.getElementById('hRange').closest('.c'); var _rk=_rc?_rc.querySelector('.k'):null;
     if(isAsset){
+      // Placeholder asset values so an asset-sale BOV comes out complete & editable. Written once;
+      // if the broker clears or edits them they stay as edited. They're clearly flagged below.
+      if(!window._assetPH && !num(val('assetValueLow')) && !num(val('assetValueBase')) && !num(val('assetValueHigh'))){
+        window._assetPH=true; var _sa=function(k,v){ var el=q(k); if(el) el.value=v; };
+        _sa('assetValueLow','75,000'); _sa('assetValueBase','125,000'); _sa('assetValueHigh','200,000');
+        var _ph=document.getElementById('assetPHnote'); if(_ph) _ph.style.display='';
+      }
       var aLo=num(val('assetValueLow')), aBa=num(val('assetValueBase')), aHi=num(val('assetValueHigh'));
       var atxt = (aLo>0&&aHi>0) ? (moneyM(aLo)+' – '+moneyM(aHi)) : (aBa>0 ? ('~'+moneyM(aBa)) : (aLo>0 ? ('~'+moneyM(aLo)) : 'Set asset value'));
       if(_rk)_rk.textContent='Asset Value';
@@ -713,12 +729,12 @@ body:not(.asset-mode) .asset-only{display:none!important;}
     var _cb=(new URLSearchParams(location.search)).get('bov')||''; if(_cb && s._bovId!==_cb) return false;
     state=s; state.bridge=migrateBridge(state.bridge);
     if(!state.bench) state.bench=BENCH.map(function(r){return r.slice();}); if(!state.buyers) state.buyers=BUYERS.map(function(r){return r.slice();});
-    sortBuyers(); apply(state.fields); renderAll(); return true; }catch(e){ return false; } }
+    sortBuyers(); apply(state.fields); ASSET_FORCE=(state.fields&&state.fields.assetForce)||''; renderAll(); return true; }catch(e){ return false; } }
   function initBlank(){ resetBlank(); }
   // Stateless BOV (not yet generated): show a blank scaffold with the CORRECT business name,
   // never another valuation's data. Only fills empty fields, so a real draft is left intact.
   function _prefillFromRecord(bov){ try{ if(!bov||!bov.business) return; var s=q('subject'); if(s && !String(s.value).trim()) s.value=bov.business; var pf=q('preparedFor'); if(pf && !String(pf.value).trim()) pf.value='Ownership of '+bov.business; renderAll(); }catch(e){} }
-  function applyState(s){ state=s; state.bridge=migrateBridge(state.bridge); if(!state.bench) state.bench=BENCH.map(function(r){return r.slice();}); if(!state.buyers) state.buyers=BUYERS.map(function(r){return r.slice();}); sortBuyers(); apply(state.fields||{}); seedDualFromLegacy(state.fields||{}); renderAll(); }
+  function applyState(s){ state=s; state.bridge=migrateBridge(state.bridge); if(!state.bench) state.bench=BENCH.map(function(r){return r.slice();}); if(!state.buyers) state.buyers=BUYERS.map(function(r){return r.slice();}); sortBuyers(); apply(state.fields||{}); ASSET_FORCE=(state.fields&&state.fields.assetForce)||''; seedDualFromLegacy(state.fields||{}); renderAll(); }
   // Back-compat: an older BOV saved before dual-basis carried only multLow/Base/High. Mirror
   // that single set into the correct headline row so the number the firm concluded on is
   // preserved, and leave the other method's row at its sensible default band.

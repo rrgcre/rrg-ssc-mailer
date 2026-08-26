@@ -458,6 +458,19 @@ async function generateBov({ business, files, preparedBy, questionnaire, links, 
   // worst regardless of the order the model happened to return. Handled here in
   // code (not the prompt) so it stays correct even if the prompt is edited.
   state.buyers = sortBuyersByMultiple(state.buyers);
+  // Reconcile an asset-sale conclusion so it can't self-contradict: if the deal is flagged
+  // as an asset sale, zero every going-concern multiple so no matrix/range is produced. Value
+  // comes from the tangible assets, not an earnings multiple. This prevents the "asset sale yet
+  // a multiple is present" conflict entirely rather than only warning about it.
+  try {
+    if (state.assetSale === true) {
+      const _f = state.fields || (state.fields = {});
+      _f.basis = 'Asset Sale';
+      _f.multLow = 0; _f.multBase = 0; _f.multHigh = 0;
+      _f.sdeMultLow = 0; _f.sdeMultBase = 0; _f.sdeMultHigh = 0;
+      _f.ebMultLow = 0; _f.ebMultBase = 0; _f.ebMultHigh = 0;
+    }
+  } catch (e) {}
   const summary = summarize(state, threshold);
   // HARD GUARD — the written conclusion must not contradict the computed matrix. A BOV that
   // states two different values (e.g. a healthy going-concern matrix with an asset-sale
