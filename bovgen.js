@@ -476,16 +476,25 @@ async function generateBov({ business, files, preparedBy, questionnaire, links, 
       // opening sentence included. Going-concern-only narratives are cleared outright. Factual
       // scoping fields (subject/excluded/basis) keep any AI content but fall back to clean text.
       const _biz = String(_f.subject || business || 'the subject business').trim() || 'the subject business';
-      _f.purpose = "At ownership's request, RRG has prepared this Broker's Opinion of Value for " + _biz + ", presented as an asset sale. The business does not generate sufficient normalized cash flow to support a going-concern value, so value is concluded on the tangible assets — furniture, fixtures & equipment (FF&E), leasehold improvements, and any transferable lease and licenses — not on a multiple of earnings.\n\nThe purpose is to establish a supportable asset-sale value and a pricing strategy for a confidential, guided sale process.";
-      _f.execNarr = "It is RRG's opinion that " + _biz + " has little or no going-concern value and is best marketed as an asset sale. Value is attributable to the tangible assets — FF&E, leasehold improvements, and any transferable lease and licenses — and should be concluded from an FF&E appraisal or a documented asset estimate.\n\nThe trailing earnings shown in the bridge below do not support a multiple-based value; they are presented only to demonstrate why an asset-sale basis applies.";
-      _f.earnNarr = "The trailing-twelve-month results normalize to little or no transferable discretionary earnings. Because there is no reliable cash flow for a buyer to capitalize, a going-concern earnings multiple does not apply.\n\nThe bridge below is presented as the evidentiary basis for the asset-sale conclusion, not as a value driver.";
-      _f.concNarr = "RRG concludes value on the tangible assets transferring in the sale — FF&E, leasehold improvements, and any transferable lease and licenses. The concluded asset value should be set from an FF&E appraisal or a documented asset estimate; no earnings multiple is applied.\n\nThis is an asset sale: the value does not derive from a multiple of SDE or EBITDA.";
+      _f.purpose = "At ownership's request, RRG has prepared this Broker's Opinion of Value for " + _biz + ", presented as an asset sale. The business does not generate sufficient normalized cash flow to support a going-concern value, so value is concluded on the tangible assets — furniture, fixtures & equipment (FF&E), leasehold improvements, and any transferable lease and licenses.\n\nThe purpose is to establish a supportable asset-sale value and a pricing strategy for a confidential, guided sale process.";
+      _f.execNarr = "It is RRG's opinion that " + _biz + " has little or no going-concern value and is best marketed as an asset sale. Value is attributable to the tangible assets — FF&E, leasehold improvements, and any transferable lease and licenses — and should be concluded from an FF&E appraisal or a documented asset estimate.\n\nThe operation does not produce transferable cash flow sufficient to support an earnings-based value; value rests on the assets that convey with the sale.";
+      _f.concNarr = "RRG concludes value on the tangible assets transferring in the sale — FF&E, leasehold improvements, and any transferable lease and licenses. The concluded asset value should be set from an FF&E appraisal or a documented asset estimate.\n\nThis is an asset sale: value is set on the assets that convey, not on the earnings of the business.";
       _f.gtmNarr = "Market the opportunity as an asset sale to owner-operators and nearby operators who can use the space, equipment and lease. Anchor the asking price to the concluded asset value, with a target and floor set once the FF&E figure is in hand.\n\nRun a confidential, invitation-based process — guided, not publicly posted — to protect staff, guests and vendor relationships through the transition.";
-      // Going-concern-only prose has no place on an asset sale.
-      _f.whyHolds = ''; _f.methodNarr = ''; _f.premium = ''; _f.tempers = '';
-      if (!String(_f.subjectOf || '').trim()) _f.subjectOf = "The operating assets of " + _biz + " — FF&E, leasehold improvements, and any transferable lease and licenses. This opinion values those tangible assets, not the business as an income-producing going concern.";
-      if (!String(_f.excluded || '').trim()) _f.excluded = "Cash, receivables, payables and other working-capital items; any owned real estate; and personal or non-transferable items are excluded unless specifically negotiated into the sale.";
-      if (!String(_f.basisOf || '').trim()) _f.basisOf = "Value is concluded on the net tangible assets transferring in a sale, established from an FF&E appraisal or a documented asset estimate. The earnings below are insufficient to support a going-concern value and are shown only to demonstrate why an asset-sale basis applies.";
+      // No earnings / going-concern prose on an asset sale — the whole earnings section is hidden.
+      _f.earnNarr = ''; _f.whyHolds = ''; _f.methodNarr = ''; _f.premium = ''; _f.tempers = '';
+      // Scoping fields written deterministically too (override any AI text) so no SDE/EBITDA wording survives.
+      _f.subjectOf = "The operating assets of " + _biz + " — FF&E, leasehold improvements, and any transferable lease and licenses. This opinion values those tangible assets, not the business as an income-producing going concern.";
+      _f.excluded = "Cash, receivables, payables and other working-capital items; any owned real estate; and personal or non-transferable items are excluded unless specifically negotiated into the sale.";
+      _f.basisOf = "Value is concluded on the net tangible assets transferring in a sale, established from an FF&E appraisal or a documented asset estimate. The business's earnings are insufficient to support a going-concern value, so an asset-sale basis applies.";
+      // HARD BACKSTOP — no acronym of the earnings basis (SDE / EBITDA / Adjusted EBITDA) may appear
+      // anywhere in an asset-sale BOV, whoever wrote the text. Scrub every narrative field.
+      const _noEb = function (s) { if (!s) return s; return String(s)
+        .replace(/\bAdjusted[\s-]?EBITDA\b/gi, 'earnings')
+        .replace(/\bEBITDA\b/gi, 'earnings')
+        .replace(/\bSDE\b/g, 'owner earnings')
+        .replace(/\bseller'?s?\s+discretionary\s+earnings\b/gi, 'owner earnings')
+        .replace(/[ \t]{2,}/g, ' ').replace(/ +([.,;:])/g, '$1'); };
+      ['purpose','subjectOf','excluded','basisOf','execNarr','concNarr','gtmNarr'].forEach(function (k) { if (_f[k]) _f[k] = _noEb(_f[k]); });
     }
   } catch (e) {}
   const summary = summarize(state, threshold);
