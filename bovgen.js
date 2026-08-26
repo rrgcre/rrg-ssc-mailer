@@ -98,6 +98,7 @@ Use this fixed rule:
 * Set assetSale to true when normalized SDE is $50,000 or less or Adjusted EBITDA is zero or negative.
 * Set assetSale to false only when SDE exceeds $50,000 and Adjusted EBITDA is positive.
 * An express broker instruction may override this mechanical test, but identify the override and reason in basisOf and concNarr.
+* This $50,000 SDE cutoff is INTERNAL. Never state, quote, or reference it — or any numeric decision threshold — in ANY narrative field. Explain an asset-sale conclusion qualitatively (e.g. "insufficient transferable cash flow to support a going-concern value"), never as a dollar cutoff a reader could see.
 
 When assetSale is true:
 
@@ -528,6 +529,25 @@ async function generateBov({ business, files, preparedBy, questionnaire, links, 
   diag.bridgeNetIncome = Number(_b.netIncome) || 0;
   diag.bridgeKeys = Object.keys(_b).length;
   diag.basisOf = String((state.fields && state.fields.basisOf) || '').slice(0, 400);
+  // SCRUB internal thresholds from client-facing prose. The $50,000 SDE cutoff is an INTERNAL
+  // decision rule — it must never appear in a delivered BOV. Runs on the generated text (prompt-
+  // independent), replacing any threshold reference with qualitative language and never touching
+  // legitimate dollar figures that aren't the cutoff.
+  try {
+    const _scrub = function (s) {
+      if (!s) return s;
+      let t = String(s);
+      t = t.replace(/\$?\s?50,?000\s+or\s+(?:less|below|under|lower)\b/gi, 'insufficient to support a going-concern value');
+      t = t.replace(/\b(?:below|under|less than|beneath|at or below|short of|does not (?:reach|exceed)|falls short of|fails to (?:reach|exceed))\s+\$?\s?50,?000\b/gi, 'insufficient to support a going-concern value');
+      t = t.replace(/\b(?:exceeds?|above|more than|greater than|over|at least)\s+\$?\s?50,?000\b/gi, 'sufficient to support a going-concern value');
+      t = t.replace(/\b(?:the|a|an|our|its|RRG'?s)?\s*\$?\s?50,?000[\s-]*(?:sde\s+)?(?:threshold|cutoff|floor|minimum|benchmark|hurdle|bar)\b/gi, 'the level required to support a going-concern value');
+      t = t.replace(/\bfifty[\s-]thousand[\s-]?(?:dollar[\s-]?)?(?:sde\s+)?(?:threshold|cutoff|floor|minimum|benchmark)?\b/gi, 'the level required to support a going-concern value');
+      t = t.replace(/[ \t]{2,}/g, ' ').replace(/ +([.,;:])/g, '$1');
+      return t;
+    };
+    const _f = state.fields || {};
+    ['purpose', 'subjectOf', 'excluded', 'basisOf', 'execNarr', 'whyHolds', 'earnNarr', 'methodNarr', 'premium', 'tempers', 'concNarr', 'gtmNarr'].forEach(function (k) { if (_f[k]) _f[k] = _scrub(_f[k]); });
+  } catch (e) {}
   return { state, summary, business: state.fields.subject || business || 'Untitled', date: state.fields.date || '', usage, diag };
 }
 
