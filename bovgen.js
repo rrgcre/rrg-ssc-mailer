@@ -155,7 +155,7 @@ Return only one valid JSON object—no prose and no Markdown fences—with exact
     "units": null,
     "tagline": "",
     "preparedFor": "",
-    "preparedBy": "Van Rinn, President & Founder · 210-362-0678 · van@rrgcre.com",
+    "preparedBy": "Van Rinn, President & Founder",
     "preparedBy2": "",
     "date": "YYYY-MM",
     "basis": "SDE",
@@ -428,7 +428,7 @@ async function generateBov({ business, files, preparedBy, questionnaire, links, 
   }
   content.push({ type: 'text', text:
     `Business / concept name: ${business || '(not given — infer from documents)'}.\n` +
-    `Prepared by: ${preparedBy || 'Van Rinn, President & Founder · 210-362-0678 · van@rrgcre.com'}.\n` +
+    `Prepared by: ${preparedBy || 'Van Rinn, President & Founder'}.\n` +
     `Apply the headline-basis, asset-sale, and multiple-selection rules exactly as stated in your instructions above. For reference only (your own rules govern): current RRG headline-basis revenue indicator $${threshold.toLocaleString('en-US')}; asset-sale attention level near $${floor.toLocaleString('en-US')} SDE.\n` +
     `Analyze the attached documents${questionnaire ? ' and the Valuation Questionnaire above' : ''} and output the BOV JSON object now.` });
 
@@ -450,7 +450,7 @@ async function generateBov({ business, files, preparedBy, questionnaire, links, 
   if (!state || !state.fields) throw new Error('Could not parse a BOV from the model response.');
   // enforce the prepared-by defaults and clean shape
   state.fields = state.fields || {};
-  if (!state.fields.preparedBy) state.fields.preparedBy = preparedBy || 'Van Rinn, President & Founder · 210-362-0678 · van@rrgcre.com';
+  if (!state.fields.preparedBy) state.fields.preparedBy = preparedBy || 'Van Rinn, President & Founder';
   if (!state.bridge || typeof state.bridge !== 'object') state.bridge = {};  // keep object OR legacy array; both are handled downstream
   if (!Array.isArray(state.bench)) state.bench = [];
   if (!Array.isArray(state.buyers)) state.buyers = [];

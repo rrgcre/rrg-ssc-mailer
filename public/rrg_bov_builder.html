@@ -199,9 +199,9 @@ body:not(.asset-mode) .asset-only{display:none!important;}
     <div class="accent"></div>
     <div class="prep">
       <div class="pf"><label>Prepared For</label><input data-k="preparedFor" placeholder="Ownership of ..."></div>
-      <div class="pf"><label>Prepared By</label><input data-k="preparedBy" value="Van Rinn, President & Founder · 210-362-0678 · van@rrgcre.com"></div>
+      <div class="pf"><label>Prepared By</label><input data-k="preparedBy" value="Van Rinn, President & Founder"></div>
       <div class="pf"><label>Date</label><input type="month" data-k="date"></div>
-      <div class="pf"><label>&nbsp;</label><input data-k="preparedBy2" value="Avery Rinn, Associate · 210-204-2471 · avery@rrgcre.com"></div>
+      <div class="pf"><label>&nbsp;</label><input data-k="preparedBy2" value="Avery Rinn, Associate"></div>
     </div>
     <div class="strip">
       <div class="c"><div class="k">Concluded Value Range</div><div class="v red" id="hRange">—</div></div>
@@ -711,7 +711,7 @@ body:not(.asset-mode) .asset-only{display:none!important;}
   // band, rep contact) — used by both Clear and a fresh (record-less) open.
   function resetBlank(){
     state={fields:{}, bridge:blankBridge(), bench:BENCH.map(function(r){return r.slice();}), buyers:BUYERS.map(function(r){return r.slice();})};
-    document.querySelectorAll('[data-k]').forEach(function(el){ if(el.getAttribute('data-k')==='assume') el.value=ASSUME; else if(['multLow','multBase','multHigh','sdeMultLow','sdeMultBase','sdeMultHigh','ebMultLow','ebMultBase','ebMultHigh'].indexOf(el.getAttribute('data-k'))>=0){} else if(el.getAttribute('data-k')==='revLo')el.value='0.50'; else if(el.getAttribute('data-k')==='revHi')el.value='0.60'; else if(el.getAttribute('data-k')==='preparedBy')el.value='Van Rinn, President & Founder · 210-362-0678 · van@rrgcre.com'; else if(el.getAttribute('data-k')==='preparedBy2')el.value='Avery Rinn, Associate · 210-204-2471 · avery@rrgcre.com'; else el.value=''; });
+    document.querySelectorAll('[data-k]').forEach(function(el){ if(el.getAttribute('data-k')==='assume') el.value=ASSUME; else if(['multLow','multBase','multHigh','sdeMultLow','sdeMultBase','sdeMultHigh','ebMultLow','ebMultBase','ebMultHigh'].indexOf(el.getAttribute('data-k'))>=0){} else if(el.getAttribute('data-k')==='revLo')el.value='0.50'; else if(el.getAttribute('data-k')==='revHi')el.value='0.60'; else if(el.getAttribute('data-k')==='preparedBy')el.value='Van Rinn, President & Founder'; else if(el.getAttribute('data-k')==='preparedBy2')el.value='Avery Rinn, Associate'; else el.value=''; });
     q('multLow').value='4.0'; q('multBase').value='4.5'; q('multHigh').value='5.0';
     q('sdeMultLow').value='2.0'; q('sdeMultBase').value='2.25'; q('sdeMultHigh').value='2.5';
     q('ebMultLow').value='4.0'; q('ebMultBase').value='4.5'; q('ebMultHigh').value='5.0';
