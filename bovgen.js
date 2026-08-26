@@ -469,6 +469,22 @@ async function generateBov({ business, files, preparedBy, questionnaire, links, 
       _f.multLow = 0; _f.multBase = 0; _f.multHigh = 0;
       _f.sdeMultLow = 0; _f.sdeMultBase = 0; _f.sdeMultHigh = 0;
       _f.ebMultLow = 0; _f.ebMultBase = 0; _f.ebMultHigh = 0;
+      // ASSET-SALE TEMPLATE: the model does not get to phrase an asset-sale conclusion. Every
+      // value-conclusion narrative is written deterministically here so no going-concern language
+      // (market-value, multiple, SDE/EBITDA-based value) can ever leak onto an asset sale — the
+      // opening sentence included. Going-concern-only narratives are cleared outright. Factual
+      // scoping fields (subject/excluded/basis) keep any AI content but fall back to clean text.
+      const _biz = String(_f.subject || business || 'the subject business').trim() || 'the subject business';
+      _f.purpose = "At ownership's request, RRG has prepared this Broker's Opinion of Value for " + _biz + ", presented as an asset sale. The business does not generate sufficient normalized cash flow to support a going-concern value, so value is concluded on the tangible assets — furniture, fixtures & equipment (FF&E), leasehold improvements, and any transferable lease and licenses — not on a multiple of earnings.\n\nThe purpose is to establish a supportable asset-sale value and a pricing strategy for a confidential, guided sale process.";
+      _f.execNarr = "It is RRG's opinion that " + _biz + " has little or no going-concern value and is best marketed as an asset sale. Value is attributable to the tangible assets — FF&E, leasehold improvements, and any transferable lease and licenses — and should be concluded from an FF&E appraisal or a documented asset estimate.\n\nThe trailing earnings shown in the bridge below do not support a multiple-based value; they are presented only to demonstrate why an asset-sale basis applies.";
+      _f.earnNarr = "The trailing-twelve-month results normalize to little or no transferable discretionary earnings. Because there is no reliable cash flow for a buyer to capitalize, a going-concern earnings multiple does not apply.\n\nThe bridge below is presented as the evidentiary basis for the asset-sale conclusion, not as a value driver.";
+      _f.concNarr = "RRG concludes value on the tangible assets transferring in the sale — FF&E, leasehold improvements, and any transferable lease and licenses. The concluded asset value should be set from an FF&E appraisal or a documented asset estimate; no earnings multiple is applied.\n\nThis is an asset sale: the value does not derive from a multiple of SDE or EBITDA.";
+      _f.gtmNarr = "Market the opportunity as an asset sale to owner-operators and nearby operators who can use the space, equipment and lease. Anchor the asking price to the concluded asset value, with a target and floor set once the FF&E figure is in hand.\n\nRun a confidential, invitation-based process — guided, not publicly posted — to protect staff, guests and vendor relationships through the transition.";
+      // Going-concern-only prose has no place on an asset sale.
+      _f.whyHolds = ''; _f.methodNarr = ''; _f.premium = ''; _f.tempers = '';
+      if (!String(_f.subjectOf || '').trim()) _f.subjectOf = "The operating assets of " + _biz + " — FF&E, leasehold improvements, and any transferable lease and licenses. This opinion values those tangible assets, not the business as an income-producing going concern.";
+      if (!String(_f.excluded || '').trim()) _f.excluded = "Cash, receivables, payables and other working-capital items; any owned real estate; and personal or non-transferable items are excluded unless specifically negotiated into the sale.";
+      if (!String(_f.basisOf || '').trim()) _f.basisOf = "Value is concluded on the net tangible assets transferring in a sale, established from an FF&E appraisal or a documented asset estimate. The earnings below are insufficient to support a going-concern value and are shown only to demonstrate why an asset-sale basis applies.";
     }
   } catch (e) {}
   const summary = summarize(state, threshold);
