@@ -577,7 +577,7 @@ body:not(.asset-mode) .asset-only{display:none!important;}
       // if the broker clears or edits them they stay as edited. They're clearly flagged below.
       if(!window._assetPH && !num(val('assetValueLow')) && !num(val('assetValueBase')) && !num(val('assetValueHigh'))){
         window._assetPH=true; var _sa=function(k,v){ var el=q(k); if(el) el.value=v; };
-        _sa('assetValueLow','75,000'); _sa('assetValueBase','125,000'); _sa('assetValueHigh','200,000');
+        _sa('assetValueLow','20,000'); _sa('assetValueBase','125,000'); _sa('assetValueHigh','200,000');
         var _ph=document.getElementById('assetPHnote'); if(_ph) _ph.style.display='';
       }
       var aLo=num(val('assetValueLow')), aBa=num(val('assetValueBase')), aHi=num(val('assetValueHigh'));
