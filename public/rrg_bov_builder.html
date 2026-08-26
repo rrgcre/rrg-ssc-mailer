@@ -52,7 +52,7 @@ body.bov-locked #sheet .rrg-noprint button{display:none!important;}
 
 /* headline stat strip */
 .strip{display:grid;grid-template-columns:repeat(5,1fr);margin-top:11px;border:none;border-radius:8px;overflow:hidden;position:relative;z-index:2;box-shadow:0 1px 2px rgba(16,24,40,.08);}
-.strip.asset{grid-template-columns:repeat(3,1fr);}
+.strip.asset{grid-template-columns:1fr;}
 .strip .c{padding:9px 14px;border-right:1px solid rgba(255,255,255,.14);background:var(--navy);}
 .strip .c:last-child{border-right:none;}
 .strip .k{font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;color:#9fb0cc;font-weight:700;}
@@ -571,6 +571,9 @@ body:not(.asset-mode) .asset-only{display:none!important;}
     var _strip=document.querySelector('.strip'); if(_strip) _strip.classList.toggle('asset',isAsset);
     var _tc=document.getElementById('hTarget').closest('.c'); if(_tc) _tc.style.display=isAsset?'none':'';
     var _mc=document.getElementById('hMult').closest('.c'); if(_mc) _mc.style.display=isAsset?'none':'';
+    // Asset sale: SDE / Adj. EBITDA don't drive the conclusion — drop them from the ribbon too.
+    var _sc=document.getElementById('hSde').closest('.c'); if(_sc) _sc.style.display=isAsset?'none':'';
+    var _ec=document.getElementById('hEbitda').closest('.c'); if(_ec) _ec.style.display=isAsset?'none':'';
     var _rc=document.getElementById('hRange').closest('.c'); var _rk=_rc?_rc.querySelector('.k'):null;
     if(isAsset){
       // Placeholder asset values so an asset-sale BOV comes out complete & editable. Written once;
