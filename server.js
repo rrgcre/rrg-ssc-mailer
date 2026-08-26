@@ -14861,8 +14861,10 @@ app.post('/api/book/:token', express.json(), async (req, res) => {
     if (isEmailConfigured()) {
       const when = start.replace('T', ' at ');
       const mUrl = (appBaseUrl() || (req.protocol + '://' + req.get('host'))) + '/book/manage/' + a.manageToken;
-      await sendInviteMail([email], 'Booked: ' + a.title, 'Your meeting is booked for ' + when + (a.location ? ('\nWhere: ' + a.location) : '') + (a.meetUrl ? ('\nJoin the Google Meet: ' + a.meetUrl) : '') + '\n\n— ' + a.byName + '\n\nNeed to change it? Reschedule or cancel here:\n' + mUrl, apptIcs(a), [], []);
-      const ownerEmail = (prof.email || '').trim(); if (ownerEmail) sendNotifyMail(ownerEmail, 'New booking: ' + name, name + ' (' + email + ') booked ' + when + '.' + (_answered.length ? ('\n\n' + _answered.map(x => x.q + ': ' + x.a).join('\n')) : '')).catch(() => {});
+      const _joinLine = a.meetUrl ? ('\nJoin the Google Meet: ' + a.meetUrl) : (a.meetMode === 'meet' ? '\nA Google Meet link will be sent to you shortly.' : '');
+      await sendInviteMail([email], 'Booked: ' + a.title, 'Your meeting is booked for ' + when + (a.location ? ('\nWhere: ' + a.location) : '') + _joinLine + '\n\n— ' + a.byName + '\n\nNeed to change it? Reschedule or cancel here:\n' + mUrl, apptIcs(a), [], []);
+      const _ownerMeetNote = (a.meetMode === 'meet' && !a.meetUrl) ? '\n\nHeads up: this is a Google Meet booking but a link was not created automatically (connect Google Calendar + Meet, or open the meeting and add a Meet link). The guest was told a link is coming shortly.' : (a.meetUrl ? ('\n\nGoogle Meet: ' + a.meetUrl) : '');
+      const ownerEmail = (prof.email || '').trim(); if (ownerEmail) sendNotifyMail(ownerEmail, 'New booking: ' + name, name + ' (' + email + ') booked ' + when + '.' + _ownerMeetNote + (_answered.length ? ('\n\n' + _answered.map(x => x.q + ': ' + x.a).join('\n')) : '')).catch(() => {});
     }
   } catch (e) {}
   res.json({ ok: true, when: start });
