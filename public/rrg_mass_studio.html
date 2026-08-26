@@ -101,7 +101,7 @@ var TAB='subs';
 
 function boot(){
   var brand={ primary:'#16233f', accent:'#DA2B1F', logo:'', style:'modern', orgName:'' };
-  api('GET','/api/appname').then(function(a){ var pal=(a&&a.palette)||{}; if(pal.primary)brand.primary=pal.primary; if(pal.accent)brand.accent=pal.accent; if(a&&a.logoUrl){ brand.logo=(a.logoUrl.charAt(0)==='/')?(location.origin+a.logoUrl):a.logoUrl; } if(a&&a.emailStyle)brand.style=a.emailStyle; brand.orgName=(a&&a.org&&a.org.name)||(a&&a.name)||''; }).catch(function(){});
+  api('GET','/api/appname').then(function(a){ var pal=(a&&a.palette)||{}; if(pal.primary)brand.primary=pal.primary; if(pal.accent)brand.accent=pal.accent; var _mlu=(a&&(a.logoLightUrl||a.logoUrl))||''; if(_mlu){ brand.logo=(_mlu.charAt(0)==='/')?(location.origin+_mlu):_mlu; } if(a&&a.emailStyle)brand.style=a.emailStyle; brand.orgName=(a&&a.org&&a.org.name)||(a&&a.name)||''; }).catch(function(){});
   api('GET','/api/mail/config').then(function(cfg){
     CFG=cfg||{}; CFG.brand=brand;
     paintStatus(); buildSubs(); buildSupp(); wireTabs();

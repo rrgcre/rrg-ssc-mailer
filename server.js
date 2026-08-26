@@ -111,6 +111,11 @@ const LOGO_MIME = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif
 function loadBrand() { try { return rj(BRAND_FILE); } catch (e) { return {}; } }
 function saveBrand(b) { return writeJsonGuarded(BRAND_FILE, b, 'saveBrand'); }
 function brandLogoObj() { try { const b = loadBrand(); if (!b.logoExt) return null; const buf = fs.readFileSync(path.join(BOV_DATA_DIR, 'brand_logo.' + b.logoExt)); return { dataB64: buf.toString('base64'), type: b.logoType || LOGO_MIME[b.logoExt] || 'image/png' }; } catch (e) { return null; } }
+// Light-surface logo (for white backgrounds: BOVs, LOIs, emails, login, microsites). Falls back
+// to the main (toolbar) logo when a light variant hasn't been uploaded, so nothing ever renders blank.
+function brandLogoLightObj() { try { const b = loadBrand(); if (b.logoLightExt) { const buf = fs.readFileSync(path.join(BOV_DATA_DIR, 'brand_logo_light.' + b.logoLightExt)); return { dataB64: buf.toString('base64'), type: b.logoLightType || LOGO_MIME[b.logoLightExt] || 'image/png' }; } } catch (e) {} return brandLogoObj(); }
+// URL for the light logo (cache-busted). Empty only when neither a light nor a main logo exists.
+function brandLogoLightUrl() { const b = loadBrand(); if (b.logoLightExt) return '/api/brand/logo/light?v=' + encodeURIComponent(b.logoLightUpdatedAt || b.updatedAt || ''); if (b.logoExt) return '/api/brand/logo?v=' + encodeURIComponent(b.updatedAt || ''); return ''; }
 // Brokerage / organization profile — legal name, address, contact — used for white-label documents.
 function effOrg() { const b = loadBrand(); const o = (b && b.org) || {}; return { name: o.name || '', legalName: o.legalName || '', address: o.address || '', city: o.city || '', state: o.state || '', zip: o.zip || '', phone: o.phone || '', email: o.email || '', website: o.website || '', license: o.license || '', ein: o.ein || '' }; }
 function orgOneLine() { const o = effOrg(); const loc = [o.city, o.state].filter(Boolean).join(', ') + (o.zip ? (' ' + o.zip) : ''); return [o.name || o.legalName, o.address, loc, o.phone].filter(Boolean).join(' · '); }
@@ -1245,7 +1250,7 @@ app.use((req, res, next) => {
 app.use(express.urlencoded({ extended: false }));
 
 /* ---------- auth gate ---------- */
-const OPEN = new Set(['/health', '/login', '/api/login', '/logout', '/favicon.ico', '/api/appname', '/api/brand', '/api/brand/logo', '/rrg_brand.js', '/rrg_theme.css', '/api/gmail/callback']);
+const OPEN = new Set(['/health', '/login', '/api/login', '/logout', '/favicon.ico', '/api/appname', '/api/brand', '/api/brand/logo', '/api/brand/logo/light', '/rrg_brand.js', '/rrg_theme.css', '/api/gmail/callback']);
 app.use((req, res, next) => {
   // Buyer-facing data-room links are public (the unguessable token is the gate).
   if (OPEN.has(req.path) || req.path.startsWith('/room/') || req.path.startsWith('/deal/') || req.path.startsWith('/roomfile/') || req.path.startsWith('/roomview/') || req.path.startsWith('/vendor/') || req.path.startsWith('/sign/') || req.path.startsWith('/api/sign/') || req.path.startsWith('/eo/') || req.path.startsWith('/ec/') || req.path.startsWith('/u/') || req.path.startsWith('/api/u/') || req.path.startsWith('/book/') || req.path.startsWith('/api/book/') || req.path.startsWith('/pay/') || req.path.startsWith('/api/pay/') || req.path === '/api/stripe/webhook' || req.path === '/api/mail/ses-webhook' || req.path.startsWith('/mail/') || req.path === '/market' || req.path === '/api/market/public' || req.path === '/api/market/request-access' || req.path.startsWith('/s/') || req.path === '/seller_intake.html' || req.path === '/seller_record.html') return next();
@@ -2585,7 +2590,7 @@ app.post('/api/generate-cim', express.json({ limit: '48mb' }), async (req, res) 
     });
     out.state = out.state || {};
     out.state.photos = photos;                 // {dataB64,type,caption} — rendered by the builder
-    out.state.logo = (b.logo && b.logo.dataB64) ? b.logo : brandLogoObj();   // default to the org logo set in Admin
+    out.state.logo = (b.logo && b.logo.dataB64) ? b.logo : brandLogoLightObj();   // white-surface doc → light logo (falls back to main)
     out.state.bov = { summary: inp.summary, bridge: (inp.bovState && inp.bovState.bridge) || null };  // figures for the financial tables
     cim.business = String(out.business || cim.business || 'Untitled').slice(0, 120);
     cim.state = out.state; cim.aiGenerated = true; cim.pending = false; cim.builtAt = new Date().toISOString();
@@ -3171,11 +3176,20 @@ app.delete('/api/admin/documents/:id', requireAdmin, (req, res) => {
 });
 
 // ---- Brand logo (org-wide, admin-managed) ----
-app.get('/api/brand', (req, res) => { const b = loadBrand(); res.json({ ok: true, hasLogo: !!b.logoExt, logoUrl: b.logoExt ? ('/api/brand/logo?v=' + encodeURIComponent(b.updatedAt || '')) : '', updatedAt: b.updatedAt || '' }); });
+app.get('/api/brand', (req, res) => { const b = loadBrand(); res.json({ ok: true, hasLogo: !!b.logoExt, logoUrl: b.logoExt ? ('/api/brand/logo?v=' + encodeURIComponent(b.updatedAt || '')) : '', hasLogoLight: !!b.logoLightExt, logoLightUrl: brandLogoLightUrl(), updatedAt: b.updatedAt || '' }); });
 app.get('/api/brand/logo', (req, res) => {
   const b = loadBrand(); if (!b.logoExt) return res.status(404).end();
   try { const buf = fs.readFileSync(path.join(BOV_DATA_DIR, 'brand_logo.' + b.logoExt)); res.set('Content-Type', b.logoType || LOGO_MIME[b.logoExt] || 'image/png'); res.set('Cache-Control', 'public, max-age=300'); res.send(buf); }
   catch (e) { res.status(404).end(); }
+});
+// Light-surface logo — serve the light variant if set, else fall back to the main logo.
+app.get('/api/brand/logo/light', (req, res) => {
+  const b = loadBrand();
+  try {
+    if (b.logoLightExt) { const buf = fs.readFileSync(path.join(BOV_DATA_DIR, 'brand_logo_light.' + b.logoLightExt)); res.set('Content-Type', b.logoLightType || LOGO_MIME[b.logoLightExt] || 'image/png'); res.set('Cache-Control', 'public, max-age=300'); return res.send(buf); }
+    if (b.logoExt) { const buf = fs.readFileSync(path.join(BOV_DATA_DIR, 'brand_logo.' + b.logoExt)); res.set('Content-Type', b.logoType || LOGO_MIME[b.logoExt] || 'image/png'); res.set('Cache-Control', 'public, max-age=300'); return res.send(buf); }
+  } catch (e) {}
+  res.status(404).end();
 });
 app.post('/api/admin/logo', requireAdmin, express.json({ limit: '8mb' }), (req, res) => {
   const b = req.body || {};
@@ -3201,6 +3215,31 @@ app.post('/api/admin/logo/clear', requireAdmin, (req, res) => {
   delete b.logoExt; delete b.logoType; b.updatedAt = new Date().toISOString(); saveBrand(b);
   res.json({ ok: true, hasLogo: false });
 });
+// ---- Light-surface logo (white backgrounds) — separate slot from the toolbar logo ----
+app.post('/api/admin/logo/light', requireAdmin, express.json({ limit: '8mb' }), (req, res) => {
+  const b = req.body || {};
+  const orig = String(b.filename || '').trim();
+  let m = orig.match(/\.([a-z0-9]+)$/i); let ext = m ? m[1].toLowerCase() : '';
+  if (ext === 'jpeg') ext = 'jpg';
+  if (!LOGO_EXT.test(ext)) return res.status(400).json({ ok: false, error: 'Use a PNG, JPG, SVG, GIF, or WEBP image.' });
+  const data = String(b.dataB64 || ''); if (!data) return res.status(400).json({ ok: false, error: 'No image data received.' });
+  let buf; try { buf = Buffer.from(data, 'base64'); } catch (e) { return res.status(400).json({ ok: false, error: 'Could not read the image.' }); }
+  if (!buf.length) return res.status(400).json({ ok: false, error: 'The image appears to be empty.' });
+  if (buf.length > 4 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'Image too large (max 4 MB).' });
+  try {
+    if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true });
+    const old = loadBrand(); if (old.logoLightExt && old.logoLightExt !== ext) { try { binDel(path.join(BOV_DATA_DIR, 'brand_logo_light.' + old.logoLightExt)); } catch (e) {} }
+    binWrite(path.join(BOV_DATA_DIR, 'brand_logo_light.' + ext), buf);
+  } catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the logo.' }); }
+  const now = new Date().toISOString();
+  const brand = loadBrand(); brand.logoLightExt = ext; brand.logoLightType = LOGO_MIME[ext] || 'image/png'; brand.logoLightUpdatedAt = now; brand.by = (req.user && req.user.name) || ''; saveBrand(brand);
+  res.json({ ok: true, hasLogoLight: true, logoLightUrl: '/api/brand/logo/light?v=' + encodeURIComponent(now) });
+});
+app.post('/api/admin/logo/light/clear', requireAdmin, (req, res) => {
+  const b = loadBrand(); if (b.logoLightExt) { try { binDel(path.join(BOV_DATA_DIR, 'brand_logo_light.' + b.logoLightExt)); } catch (e) {} }
+  delete b.logoLightExt; delete b.logoLightType; delete b.logoLightUpdatedAt; b.updatedAt = new Date().toISOString(); saveBrand(b);
+  res.json({ ok: true, hasLogoLight: false });
+});
 // ---- App name (admin-set) — drives the browser tab title on every page ----
 const DEFAULT_APP_NAME = 'FullServe';
 function loadAppName() { const b = loadBrand(); return (b.appName && String(b.appName).trim()) || DEFAULT_APP_NAME; }
@@ -3209,7 +3248,7 @@ function effAiConfirm() { const b = loadBrand(); return b.aiConfirm !== false; }
 const PALETTE_DEFAULT = { primary: '#000E31', accent: '#DA2B1F', sidebar: '#0b1a38', positive: '#1f8a5b' };
 function isHexColor(v) { return /^#[0-9a-fA-F]{6}$/.test(String(v || '')); }
 function effPalette() { const b = loadBrand(); const pl = (b.palette && typeof b.palette === 'object') ? b.palette : {}; return { primary: isHexColor(pl.primary) ? pl.primary : PALETTE_DEFAULT.primary, accent: isHexColor(pl.accent) ? pl.accent : PALETTE_DEFAULT.accent, sidebar: isHexColor(pl.sidebar) ? pl.sidebar : PALETTE_DEFAULT.sidebar, positive: isHexColor(pl.positive) ? pl.positive : PALETTE_DEFAULT.positive }; }
-app.get('/api/appname', (req, res) => res.json({ ok: true, name: loadAppName(), assistant: effAssistantName(), concept: effConceptLabel(), conceptPlural: effConceptLabelPlural(), palette: effPalette(), aiConfirm: effAiConfirm(), logoUrl: (function(){ const _b = loadBrand(); return _b.logoExt ? ('/api/brand/logo?v=' + encodeURIComponent(_b.updatedAt || '')) : ''; })(), org: effOrg(), emailStyle: (function(){ const _b = loadBrand(); return (['modern','bold','warm'].indexOf(_b.emailStyle) >= 0) ? _b.emailStyle : 'modern'; })() }));
+app.get('/api/appname', (req, res) => res.json({ ok: true, name: loadAppName(), assistant: effAssistantName(), concept: effConceptLabel(), conceptPlural: effConceptLabelPlural(), palette: effPalette(), aiConfirm: effAiConfirm(), logoUrl: (function(){ const _b = loadBrand(); return _b.logoExt ? ('/api/brand/logo?v=' + encodeURIComponent(_b.updatedAt || '')) : ''; })(), logoLightUrl: brandLogoLightUrl(), org: effOrg(), emailStyle: (function(){ const _b = loadBrand(); return (['modern','bold','warm'].indexOf(_b.emailStyle) >= 0) ? _b.emailStyle : 'modern'; })() }));
 // Data-room buyer engagement → feed rows. Each buyer's raw view/download hits are
 // collapsed into per-visit "sessions" (a >45-min gap starts a new one): what they
 // opened, how many they pulled, and whether they touched the money. That last part is
@@ -12944,7 +12983,7 @@ ${inner}
 }
 function loginPage(note) {
   // Brand from Admin → the uploaded logo (embedded, since the logo route needs auth) and app name.
-  let _logo = null; try { _logo = brandLogoObj(); } catch (e) {}
+  let _logo = null; try { _logo = brandLogoLightObj(); } catch (e) {}   // login card is white → light logo (falls back to main)
   let _appName = 'RRG'; try { _appName = loadAppName() || 'RRG'; } catch (e) {}
   let _org = _appName; try { _org = orgDisplayName() || _appName; } catch (e) {}
   const _appEsc = esc(_appName);
@@ -17009,7 +17048,7 @@ function loiRtfEsc(s) {
 }
 
 app.get('/api/loi', (req, res) => {
-  res.json({ ok: true, types: LOI_TYPES, venues: LOI_VENUES, config: loadLoiConfig(), isAdmin: !!(req.user && isSuper(req.user)), canManage: manageLoiOk(req), rep: (req.user && req.user.name) || '', logoUrl: (function(){ const _b = loadBrand(); return _b.logoExt ? ('/api/brand/logo?v=' + encodeURIComponent(_b.updatedAt || '')) : ''; })(), appName: loadAppName() });
+  res.json({ ok: true, types: LOI_TYPES, venues: LOI_VENUES, config: loadLoiConfig(), isAdmin: !!(req.user && isSuper(req.user)), canManage: manageLoiOk(req), rep: (req.user && req.user.name) || '', logoUrl: (function(){ const _b = loadBrand(); return _b.logoExt ? ('/api/brand/logo?v=' + encodeURIComponent(_b.updatedAt || '')) : ''; })(), logoLightUrl: brandLogoLightUrl(), appName: loadAppName() });
 });
 const LOIS_FILE = path.join(BOV_DATA_DIR, 'lois.json');
 function loadLois() { try { return rj(LOIS_FILE) || []; } catch (e) { return []; } }
