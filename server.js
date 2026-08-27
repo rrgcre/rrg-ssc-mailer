@@ -13386,6 +13386,19 @@ function _matchPersonType(v) {
   if (/staff|internal|employee|\bteam\b|colleague/.test(low)) return has('Working');
   return '';
 }
+// Resolve an imported "Owner" cell (a rep's name, username, or email) to an active user.
+function _resolveOwnerUser(s) {
+  s = String(s || '').trim(); if (!s) return null;
+  try {
+    const us = auth.loadUsers().filter(u => !u.disabled);
+    const lk = s.toLowerCase();
+    let u = us.find(x => String(x.username || '').toLowerCase() === lk)
+         || us.find(x => String(x.name || '').toLowerCase() === lk)
+         || us.find(x => String(x.email || '').toLowerCase() === lk);
+    if (u) return { username: u.username, name: u.name || u.username };
+  } catch (e) {}
+  return null;
+}
 app.post('/api/admin/import/companies', requireAdmin, express.json({ limit: '16mb' }), (req, res) => {
   try {
   const rows = Array.isArray((req.body || {}).rows) ? req.body.rows : [];
@@ -13406,6 +13419,8 @@ app.post('/api/admin/import/companies', requireAdmin, express.json({ limit: '16m
     fill('notes', _impStr(r.notes, 6000));
     fill('leadSource', _impStr(r.leadSource, 160));
     { const _ls = _impStr(r.leadSource, 160); if (_ls) { const _lk = _ls.toLowerCase(); if (!_lsExisting[_lk]) { _lsExisting[_lk] = _ls; _newLSmap[_lk] = _ls; } } }
+    // Owner (assigned rep) from the import — applied to new records; existing keep their owner.
+    if (r.owner) { const _ow = _resolveOwnerUser(r.owner); if (_ow && isNew) { c.byUser = _ow.username; c.by = _ow.name; } }
     if (r.tags) { const tg = _impTags(r.tags); if (tg.length && (isNew || !(c.tags && c.tags.length))) c.tags = tg; }
     if (batchTag) { c.tags = Array.isArray(c.tags) ? c.tags : []; if (c.tags.indexOf(batchTag) < 0 && c.tags.length < 30) c.tags.push(batchTag); }
     const office = c.office || {}; ['address', 'city', 'state', 'phone', 'website', 'email'].forEach(k => { if (r[k] != null && r[k] !== '' && (isNew || !office[k])) office[k] = _impStr(r[k], 200); }); c.office = office;
@@ -13465,6 +13480,8 @@ app.post('/api/admin/import/people', requireAdmin, express.json({ limit: '24mb' 
     p.importBatch = _batch; p.importBatchAt = now;
     if (r.title) p.title = _impStr(r.title, 120);
     if (r.leadSource) p.leadSource = _impStr(r.leadSource, 160);
+    // Owner (assigned rep) from the import — overrides the importer default when it resolves.
+    if (r.owner) { const _ow = _resolveOwnerUser(r.owner); if (_ow) { p.byUser = _ow.username; p.by = _ow.name; } }
     if (r.notes) p.notes = _impStr(r.notes, 4000);
     if (r.url) p.url = _impStr(r.url, 300);
     if (r.tags) { const tg = _impTags(r.tags); if (tg.length) p.tags = tg; }

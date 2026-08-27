@@ -292,10 +292,21 @@ function summarize(state, threshold) {
   };
 }
 
+// Read a PDF's page count and extractable text (best effort; pdf-parse is optional).
+async function pdfInfo(dataB64) {
+  try { const pdf = require('pdf-parse'); const buf = Buffer.from(dataB64, 'base64'); const r = await pdf(buf); return { pages: r.numpages || 0, text: (r.text || '') }; }
+  catch (e) { return { pages: 0, text: '' }; }
+}
+
 // Build the AI model content blocks from uploaded files (PDF -> document, image -> image, else text).
-function fileBlocks(files) {
+// Anthropic caps a single request at 100 PDF pages TOTAL across all document blocks. A P&L plus a
+// long lease easily exceeds that (the "max 100 PDF pages" 400). So we keep a running page budget:
+// each PDF is sent as a native document only while the budget lasts; once it's spent — or a single
+// PDF alone is too big — we fall back to server-extracted TEXT, which has no page cap.
+async function fileBlocks(files) {
   const blocks = [];
-  (files || []).forEach(f => {
+  let pageBudget = 95; // small margin under the 100-page hard cap
+  for (const f of (files || [])) {
     let mt = String(f.type || '').toLowerCase();
     const label = f.label || f.name || 'Document';
     // Infer the media type from the filename when it's missing (data-room files carry no type).
@@ -307,7 +318,20 @@ function fileBlocks(files) {
       else if (e === 'gif') mt = 'image/gif';
     }
     if (mt === 'application/pdf' && f.dataB64) {
-      blocks.push({ type: 'document', title: label, source: { type: 'base64', media_type: 'application/pdf', data: f.dataB64 } });
+      const info = await pdfInfo(f.dataB64);
+      if (info.pages === 0) {
+        // Couldn't determine the page count (rare / odd PDF) — best-effort native document. Large
+        // PDFs, the ones that hit the cap, do report a count, so an unknown count means a small file.
+        blocks.push({ type: 'document', title: label, source: { type: 'base64', media_type: 'application/pdf', data: f.dataB64 } });
+      } else if (info.pages <= pageBudget) {
+        blocks.push({ type: 'document', title: label, source: { type: 'base64', media_type: 'application/pdf', data: f.dataB64 } });
+        pageBudget -= info.pages;
+      } else if (info.text && info.text.trim()) {
+        // Doesn't fit as a native document — send the extracted text instead (no page limit).
+        blocks.push({ type: 'text', text: '=== ' + label + ' (' + info.pages + ' pages — text extracted to stay within the document page limit) ===\n' + String(info.text).slice(0, 200000) });
+      } else {
+        blocks.push({ type: 'text', text: '=== ' + label + ' — TOO LARGE TO ATTACH (' + info.pages + ' pages) ===\nThis PDF exceeded the document page limit and could not be text-extracted (likely a scanned image). Treat its contents as NOT PROVIDED — do not guess them — and state in basisOf that this document could not be read.' });
+      }
     } else if (mt.indexOf('image/') === 0 && f.dataB64) {
       blocks.push({ type: 'image', source: { type: 'base64', media_type: mt, data: f.dataB64 } });
     } else if (f.text) {
@@ -318,7 +342,7 @@ function fileBlocks(files) {
       // valuing on nothing and returning zeros with no explanation.
       blocks.push({ type: 'text', text: '=== ' + label + ' — COULD NOT BE READ ===\nThis file was provided but is in a format that could not be read here (likely a spreadsheet binary that was not converted to text). Treat its contents as NOT PROVIDED — do not guess them — and state in basisOf that this document could not be read.' });
     }
-  });
+  }
   return blocks;
 }
 
@@ -396,7 +420,7 @@ async function generateBov({ business, files, preparedBy, questionnaire, links, 
   // Admins can override the analyst instructions (Admin → BOV Analyst Prompt);
   // fall back to the built-in default when none is set.
   const sys = (systemPrompt && String(systemPrompt).trim()) ? String(systemPrompt) : SYSTEM;
-  const content = fileBlocks(files);
+  const content = await fileBlocks(files);
   // Diagnostic: what did each provided file turn into? (so a zeros result can be traced
   // to "the P&L never became a readable block" vs "the analyst read it and still zeroed").
   const diag = { fileCount: (files || []).length, blocks: [], unreadable: 0 };
