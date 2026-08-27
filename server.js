@@ -3472,6 +3472,9 @@ function newRoomId() { return 'room_' + Date.now().toString(36) + Math.random().
 function newRoomDocId() { return 'rd_' + Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6); }
 function newRoomToken() { try { return crypto.randomBytes(16).toString('hex'); } catch (e) { return (Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)).slice(0, 28); } }
 const ROOM_CATEGORIES = ['Financials', 'Tax Returns', 'Lease', 'Equipment & FF&E', 'Licenses & Permits', 'Legal & Corporate', 'Menus & Marketing', 'Photos', 'Other'];
+// Document types shown in the Documents upload picker — admin-editable (Admin → Settings → Lists).
+const DOC_TYPES = ['General', 'Agreement / Contract', 'Lease', 'Financials', 'Tax / W-9', 'Insurance / COI', 'Inspection', 'Exhibit / Addendum', 'Offer / LOI', 'Invoice / Receipt', 'Marketing', 'Legal / Entity', 'ID / License', 'Photo', 'Other'];
+function effDocTypes() { const s = loadSettings(); return (Array.isArray(s.docTypes) && s.docTypes.length) ? s.docTypes.slice() : DOC_TYPES.slice(); }
 // Room folder structure. Financials expands into the current year + the four preceding years
 // (captured per-room at creation so filed documents never orphan when the calendar year rolls over).
 function roomCategories(baseYear){
@@ -5293,7 +5296,7 @@ function assignmentView(d, overlay, _opts) {
   const pick = (f) => (deal && deal[f]) || (d.quest && d.quest[f]) || (d.bov && d.bov[f]) || (d.cim && d.cim[f]) || (d.map && d.map[f]) || (d.screen && d.screen[f]) || (d.lease && d.lease[f]) || (d.room && d.room[f]) || '';
   const business = o.businessOverride || pick('business') || 'Untitled';
   const market = o.marketOverride || pick('market') || '';
-  const contact = (d.screen && d.screen.contact) || (deal && deal.contact) || '';
+  const contact = o.contact || (d.screen && d.screen.contact) || (deal && deal.contact) || '';
   const anchor = deal || d.screen || d.quest || d.bov || d.cim || d.map || d.lease || d.room || {};
   const by = anchor.by || '', byUser = anchor.byUser || '';
   const bov = d.bov || null, cim = d.cim || null, map = d.map || null, room = d.room || null, lease = d.lease || null;
@@ -5313,7 +5316,7 @@ function assignmentView(d, overlay, _opts) {
   return {
     key: d.key, business, market, contact, by, byUser,
     dealId: deal ? deal.id : '', started: !!d.screen, canStart: !!(deal && !d.screen), provisional: !!(d.screen && d.screen.provisional),
-    clientPersonId: deal ? (deal.contactPersonId || '') : '',
+    clientPersonId: (o.clientPersonId || (deal ? (deal.contactPersonId || '') : '')),
     companyId: deal ? (deal.companyId || '') : '', company: (deal && deal.companyId && companyById(deal.companyId)) ? companyBrief(companyById(deal.companyId)) : null,
     roomId: (room && room.id) || (deal && deal.roomId) || '',
     status: o.status || 'New', notes: o.notes || '', shareTeam: !!o.shareTeam, owner: o.owner || by, businessOverride: o.businessOverride || '', codeName: o.codeName || '', listingNo: o.listingNo || 0, listingId: (o.listingNo ? ('RRG-' + o.listingNo) : ''),
@@ -6073,6 +6076,8 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   }
   if (typeof b.referredBy === 'string') cur.referredBy = b.referredBy.slice(0, 120);
   if (typeof b.referredById === 'string') cur.referredById = b.referredById.slice(0, 40);
+  if (typeof b.contact === 'string') cur.contact = b.contact.slice(0, 120);            // seller / client contact name
+  if (typeof b.clientPersonId === 'string') cur.clientPersonId = b.clientPersonId.slice(0, 40); // link to the contact record
   if (typeof b.listPrice === 'string') cur.listPrice = b.listPrice.slice(0, 40);
   if (typeof b.totalCommission === 'string') cur.totalCommission = b.totalCommission.slice(0, 40);
   if (typeof b.buyerPipelineId === 'string') cur.buyerPipelineId = b.buyerPipelineId.slice(0, 40);
@@ -10925,15 +10930,15 @@ app.get('/api/admin/types', requireAdmin, (req, res) => {
   const s = loadSettings();
   res.json({
     ok: true,
-    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), conceptTypes: effConceptTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), markets: effMarkets(), spaceScanSources: effSpaceScanSources(), mktBadges: effMktBadges(), marketStyle: effMarketStyle(), mapStyle: effMapStyle(), boardCardFields: effBoardCardFields(), boardCardFlags: effBoardCardFlags(), ...calFeatFlags(),
-    defaults: { personTypes: PERSON_TYPES, companyTypes: COMPANY_TYPES, ticketCategories: TICKET_CATEGORIES, leadSources: LEAD_SOURCES, activityTypes: ACTIVITY_TYPES, roomCloseReasons: ROOM_CLOSE_REASONS, cuisineTypes: CUISINE_TYPES, conceptTypes: CONCEPT_TYPES, agreementTypes: AGREEMENT_TYPES, markets: MARKETS },
-    isCustom: { personTypes: Array.isArray(s.personTypes), companyTypes: Array.isArray(s.companyTypes), ticketCategories: Array.isArray(s.ticketCategories), leadSources: Array.isArray(s.leadSources), activityTypes: Array.isArray(s.activityTypes), roomCloseReasons: Array.isArray(s.roomCloseReasons), cuisineTypes: Array.isArray(s.cuisineTypes), conceptTypes: Array.isArray(s.conceptTypes), agreementTypes: Array.isArray(s.agreementTypes), markets: Array.isArray(s.markets) },
+    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), conceptTypes: effConceptTypes(), agreementTypes: effAgreementTypes(), docTypes: effDocTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), markets: effMarkets(), spaceScanSources: effSpaceScanSources(), mktBadges: effMktBadges(), marketStyle: effMarketStyle(), mapStyle: effMapStyle(), boardCardFields: effBoardCardFields(), boardCardFlags: effBoardCardFlags(), ...calFeatFlags(),
+    defaults: { personTypes: PERSON_TYPES, companyTypes: COMPANY_TYPES, ticketCategories: TICKET_CATEGORIES, leadSources: LEAD_SOURCES, activityTypes: ACTIVITY_TYPES, roomCloseReasons: ROOM_CLOSE_REASONS, cuisineTypes: CUISINE_TYPES, conceptTypes: CONCEPT_TYPES, agreementTypes: AGREEMENT_TYPES, docTypes: DOC_TYPES, markets: MARKETS },
+    isCustom: { personTypes: Array.isArray(s.personTypes), companyTypes: Array.isArray(s.companyTypes), ticketCategories: Array.isArray(s.ticketCategories), leadSources: Array.isArray(s.leadSources), activityTypes: Array.isArray(s.activityTypes), roomCloseReasons: Array.isArray(s.roomCloseReasons), cuisineTypes: Array.isArray(s.cuisineTypes), conceptTypes: Array.isArray(s.conceptTypes), agreementTypes: Array.isArray(s.agreementTypes), docTypes: Array.isArray(s.docTypes), markets: Array.isArray(s.markets) },
     systemRequired: { leadSources: SYSTEM_LEAD_SOURCES, personTypes: SYSTEM_PERSON_TYPES, companyTypes: SYSTEM_COMPANY_TYPES, activityTypes: SYSTEM_ACTIVITY_TYPES, agreementTypes: AGREEMENT_TYPES.map(function(t){ return t.label; }), markets: SYSTEM_MARKETS },
   });
 });
 app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
   const b = req.body || {}; const s = loadSettings();
-  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; delete s.activityTypes; delete s.roomCloseReasons; delete s.cuisineTypes; delete s.conceptTypes; delete s.markets; delete s.agreementTypes; delete s.maxPullLocations; delete s.defaultState; delete s.assistantName; delete s.listRecencyDays; delete s.listRecencyEnabled; delete s.conceptLabel; delete s.conceptLabelPlural; delete s.showRequestRibbon; delete s.pipelineRequiredOnCompany; delete s.showQuickLinks; delete s.sentSyncEnabled; delete s.sentSyncIntervalMin; delete s.currency; delete s.mktBadges; delete s.marketStyle; delete s.mapStyle; delete s.boardCardFields; delete s.boardCardFlags; delete s.featCalSync; delete s.featCalTasks; delete s.featCalMeet; delete s.featWorkHours; delete s.featEventFiles; delete s.featBooking; delete s.featCalShare; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), conceptTypes: effConceptTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), spaceScanSources: effSpaceScanSources(), ...calFeatFlags() }); }
+  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; delete s.activityTypes; delete s.roomCloseReasons; delete s.cuisineTypes; delete s.conceptTypes; delete s.docTypes; delete s.markets; delete s.agreementTypes; delete s.maxPullLocations; delete s.defaultState; delete s.assistantName; delete s.listRecencyDays; delete s.listRecencyEnabled; delete s.conceptLabel; delete s.conceptLabelPlural; delete s.showRequestRibbon; delete s.pipelineRequiredOnCompany; delete s.showQuickLinks; delete s.sentSyncEnabled; delete s.sentSyncIntervalMin; delete s.currency; delete s.mktBadges; delete s.marketStyle; delete s.mapStyle; delete s.boardCardFields; delete s.boardCardFlags; delete s.featCalSync; delete s.featCalTasks; delete s.featCalMeet; delete s.featWorkHours; delete s.featEventFiles; delete s.featBooking; delete s.featCalShare; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), conceptTypes: effConceptTypes(), agreementTypes: effAgreementTypes(), docTypes: effDocTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), spaceScanSources: effSpaceScanSources(), ...calFeatFlags() }); }
   if (b.spaceScanSources !== undefined) s.spaceScanSources = _normSourcesList(b.spaceScanSources);
   if (b.mktBadges !== undefined) { const _mb = cleanMktBadges(b.mktBadges); if (_mb && _mb.length) s.mktBadges = _mb; else delete s.mktBadges; }
   if (typeof b.marketStyle === 'string' && MKT_STYLES[b.marketStyle]) s.marketStyle = b.marketStyle;
@@ -10959,6 +10964,7 @@ app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
     AGREEMENT_TYPES.forEach(function(rt){ if (!out.some(function(x){ return x.key === rt.key; })) out.push({ key: rt.key, label: rt.label }); });
     if (out.length) s.agreementTypes = out.slice(0, 40); else delete s.agreementTypes;
   }
+  if (b.docTypes !== undefined) s.docTypes = cleanStrList(b.docTypes, 40, 60) || [];
   if (b.cuisineTypes !== undefined) s.cuisineTypes = cleanStrList(b.cuisineTypes, 40, 60) || [];
   if (b.conceptTypes !== undefined) s.conceptTypes = cleanStrList(b.conceptTypes, 40, 60) || [];
   if (b.markets !== undefined) s.markets = _mergeRequired(cleanStrList(b.markets, 60, 60) || [], SYSTEM_MARKETS);
@@ -10983,7 +10989,7 @@ app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
   if (b.sentSyncIntervalMin !== undefined) { const n = parseInt(b.sentSyncIntervalMin, 10); s.sentSyncIntervalMin = (isFinite(n) && n >= 2) ? Math.min(720, n) : 10; }
   if (typeof b.currency === 'string') s.currency = b.currency.trim().slice(0,3).toUpperCase();
   saveSettings(s);
-  res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), conceptTypes: effConceptTypes(), markets: effMarkets(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), spaceScanSources: effSpaceScanSources(), ...calFeatFlags() });
+  res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), conceptTypes: effConceptTypes(), markets: effMarkets(), agreementTypes: effAgreementTypes(), docTypes: effDocTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), spaceScanSources: effSpaceScanSources(), ...calFeatFlags() });
 });
 
 // ---- Request-services notification recipients (multi-address) ----
@@ -15363,9 +15369,9 @@ app.get('/api/documents', (req, res) => {
       if (linked) return false;
       return (d.matchNames || []).some(x => { const v = _nm(x); return !!v && _names.indexOf(v) >= 0; });
     };
-    return res.json({ ok:true, isAdmin, scoped:true, documents: out.filter(_hit) });
+    return res.json({ ok:true, isAdmin, scoped:true, documents: out.filter(_hit), docTypes: effDocTypes() });
   }
-  res.json({ ok:true, isAdmin, documents: out });
+  res.json({ ok:true, isAdmin, documents: out, docTypes: effDocTypes() });
 });
 
 function intakeGrpVal(g){ if (g.kind === 'options') return (g.selected || []).join(', '); if (g.kind === 'field') return g.value || ''; return (g.value != null ? String(g.value) : ((g.selected||[]).join(', '))); }

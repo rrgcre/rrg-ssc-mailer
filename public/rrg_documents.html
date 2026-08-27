@@ -257,7 +257,7 @@ function applyFilter(){
 function load(){
   fetch('/api/documents',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok){ document.getElementById('body').innerHTML='<div class="empty">Could not load documents.</div>'; return; }
-    DOCS=j.documents||[]; IS_ADMIN=!!j.isAdmin; fillFilterBar(); applyFilter();
+    DOCS=j.documents||[]; IS_ADMIN=!!j.isAdmin; if(Array.isArray(j.docTypes)&&j.docTypes.length){ DOCTYPES=j.docTypes; var _ut=document.getElementById('upType'); if(_ut) _ut.innerHTML=''; } fillFilterBar(); applyFilter();
   }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not reach the server.</div>'; });
 }
 
