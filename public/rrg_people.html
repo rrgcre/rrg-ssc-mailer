@@ -219,6 +219,7 @@ var ALL=[], CTL=null, FILTER='', TYPES=[], IS_ADMIN=false, CAN_DELETE=false, VIP
 function loadPipelinesList(){ return fetch('/api/pipelines',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ PIPELINES=(j&&j.pipelines)||[]; fillPipelineSelect(); }).catch(function(){}); }
 function fillPipelineSelect(){ var ps=document.getElementById('m_pipeline'); if(!ps) return; var cur=ps.value; ps.innerHTML='<option value="">— None (don’t start a listing) —</option>'+(PIPELINES||[]).map(function(pp){return '<option value="'+esc(pp.id)+'">'+esc(pp.name)+'</option>';}).join(''); if(cur) ps.value=cur; }
 var FILTERS=emptyFilters(), SAVEDLIST=[];
+var NO_OWNER='(No owner)'; // sentinel chip in the Owner filter — matches contacts with no owner recorded
 var _FSVG={
  vip:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>',
  star:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
@@ -250,7 +251,7 @@ function applyFilter(){
   var q=(document.getElementById('search').value||'').toLowerCase().trim(); var F=FILTERS;
   var list=ALL.filter(function(p){
     if(F.types.length && !pInterests(p).some(function(t){ return F.types.indexOf(t)>=0; })) return false;
-    if(F.owners.length && F.owners.indexOf(p.owner)<0) return false;
+    if(F.owners.length && F.owners.indexOf(p.owner||NO_OWNER)<0) return false;
     if(F.leadSources.length && F.leadSources.indexOf(p.leadSource)<0) return false;
     if(F.vip && !p.vip) return false;
     if(F.caution && !p.caution) return false;
@@ -461,7 +462,7 @@ function filterActiveCount(){ var n=0; ['types','owners','leadSources','tags'].f
 function updateFilterBtn(){ var b=document.getElementById('filterBtn'); if(!b) return; var n=filterActiveCount(); b.innerHTML='\u2699 Filters'+(n?(' <span class="fbadge">'+n+'</span>'):''); b.classList.toggle('on',!!n); }
 var USERS=[];
 function _inactiveDays(v){ if(!v) return null; var t=Date.parse(v); if(isNaN(t)) t=Date.parse(String(v).slice(0,10)+'T00:00:00'); if(isNaN(t)) return null; return Math.max(0,Math.floor((Date.now()-t)/86400000)); }
-function ownerOpts(){ var m={}; (USERS||[]).forEach(function(u){ if(u&&u.name) m[u.name]=1; }); (ALL||[]).forEach(function(p){ if(p.owner) m[p.owner]=1; }); return Object.keys(m).sort(); }
+function ownerOpts(){ var m={}; (USERS||[]).forEach(function(u){ if(u&&u.name) m[u.name]=1; }); (ALL||[]).forEach(function(p){ if(p.owner) m[p.owner]=1; }); return [NO_OWNER].concat(Object.keys(m).sort()); }
 function leadOpts(){ var m={}; (LEADSRC||[]).forEach(function(x){ if(x) m[x]=1; }); (ALL||[]).forEach(function(p){ if(p.leadSource) m[p.leadSource]=1; }); return Object.keys(m).sort(); }
 function distinctOwners(){ var m={}; (ALL||[]).forEach(function(p){ if(p.owner) m[p.owner]=1; }); return Object.keys(m).sort(); }
 function inUseLeadSources(){ var m={}; (ALL||[]).forEach(function(p){ if(p.leadSource) m[p.leadSource]=1; }); return Object.keys(m).sort(); }

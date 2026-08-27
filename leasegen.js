@@ -33,14 +33,39 @@ Rules:
 - 'flags' should surface anything that helps or hurts a sale; keep each flag one crisp line. If nothing notable, return an empty array.
 - Output the JSON object only.`;
 
-function fileBlocks(files) {
+// Read a PDF's page count and extractable text (best effort; pdf-parse is optional).
+async function pdfInfo(dataB64) {
+  try { const pdf = require('pdf-parse'); const buf = Buffer.from(dataB64, 'base64'); const r = await pdf(buf); return { pages: r.numpages || 0, text: (r.text || '') }; }
+  catch (e) { return { pages: 0, text: '' }; }
+}
+// Anthropic caps a single request at 100 PDF pages TOTAL. A lease plus amendments and exhibits
+// easily exceeds that (the "max 100 PDF pages" 400). Keep a running page budget: send each PDF as a
+// native document while it lasts; once spent — or a single PDF is too big — fall back to extracted
+// text, which has no page cap.
+async function fileBlocks(files) {
   const out = [];
-  (files || []).forEach(f => {
-    if (!f) return;
-    if (f.dataB64 && f.type === 'application/pdf') out.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: f.dataB64 } });
-    else if (f.dataB64 && /^image\//.test(f.type || '')) out.push({ type: 'image', source: { type: 'base64', media_type: f.type, data: f.dataB64 } });
-    else if (f.text) out.push({ type: 'text', text: '=== ' + (f.name || 'document') + ' ===\n' + String(f.text).slice(0, 80000) });
-  });
+  let pageBudget = 95; // small margin under the 100-page hard cap
+  for (const f of (files || [])) {
+    if (!f) continue;
+    const isPdf = f.dataB64 && (f.type === 'application/pdf' || /\.pdf$/i.test(String(f.name || '')));
+    if (isPdf) {
+      const info = await pdfInfo(f.dataB64);
+      if (info.pages === 0) {
+        out.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: f.dataB64 } });
+      } else if (info.pages <= pageBudget) {
+        out.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: f.dataB64 } });
+        pageBudget -= info.pages;
+      } else if (info.text && info.text.trim()) {
+        out.push({ type: 'text', text: '=== ' + (f.name || 'document') + ' (' + info.pages + ' pages — text extracted to stay within the document page limit) ===\n' + String(info.text).slice(0, 200000) });
+      } else {
+        out.push({ type: 'text', text: '=== ' + (f.name || 'document') + ' — TOO LARGE TO ATTACH (' + info.pages + ' pages) ===\nThis PDF exceeded the document page limit and could not be text-extracted (likely a scanned image). Upload just the lease and its amendments (not the full exhibit set) and build again.' });
+      }
+    } else if (f.dataB64 && /^image\//.test(f.type || '')) {
+      out.push({ type: 'image', source: { type: 'base64', media_type: f.type, data: f.dataB64 } });
+    } else if (f.text) {
+      out.push({ type: 'text', text: '=== ' + (f.name || 'document') + ' ===\n' + String(f.text).slice(0, 80000) });
+    }
+  }
   return out;
 }
 function extractJson(text) {
@@ -55,7 +80,7 @@ async function generateLease({ business, files, questionnaire, asOf, systemPromp
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new Error('ANTHROPIC_API_KEY is not set on the server.');
   const sys = (systemPrompt && String(systemPrompt).trim()) ? String(systemPrompt) : SYSTEM;
-  const content = fileBlocks(files);
+  const content = await fileBlocks(files);
   if (!content.length) throw new Error('Upload the lease document (PDF) before building the abstract.');
   if (questionnaire && String(questionnaire).trim()) {
     content.push({ type: 'text', text: '=== Deal context from the RRG Valuation Questionnaire (use only to confirm the business/premises; the LEASE DOCUMENT governs all terms) ===\n' + String(questionnaire).slice(0, 30000) });
