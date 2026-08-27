@@ -310,8 +310,8 @@ body:not(.asset-mode) .asset-only{display:none!important;}
         <label>Base / Target<br><input data-k="assetValueBase" class="assetin" inputmode="numeric" placeholder="$" oninput="grpme(this);compute()"></label>
         <label>High<br><input data-k="assetValueHigh" class="assetin" inputmode="numeric" placeholder="$" oninput="grpme(this);compute()"></label>
       </div>
-      <div class="note" style="font-size:11px;color:var(--muted);line-height:1.5">Enter from an FF&amp;E appraisal or a documented asset estimate. A Texas TABC permit carries no separate transfer value outside San Marcos.</div>
-      <div class="rrg-noprint" id="assetPHnote" style="display:none;margin-top:8px;padding:8px 11px;border:1px solid #f0c36d;background:#fdf6e3;border-radius:7px;font-size:11px;color:#8a6d1a;line-height:1.5"><b>Placeholder values.</b> These are starting figures so the BOV comes out complete — replace Low / Base / High above with the FF&amp;E appraisal or documented asset estimate before you send.</div>
+      <div class="note" style="font-size:11px;color:var(--muted);line-height:1.5">Enter RRG’s concluded tangible-asset value. A Texas TABC permit carries no separate transfer value outside San Marcos.</div>
+      <div class="rrg-noprint" id="assetPHnote" style="display:none;margin-top:8px;padding:8px 11px;border:1px solid #f0c36d;background:#fdf6e3;border-radius:7px;font-size:11px;color:#8a6d1a;line-height:1.5"><b>Placeholder values.</b> These are starting figures so the BOV comes out complete — replace Low / Base / High above with your concluded asset figures before you send.</div>
     </div>
     <div class="callout"><div class="ct">Concluded value — RRG opinion</div><textarea data-k="concNarr"></textarea></div>
     </div>
@@ -617,9 +617,10 @@ body:not(.asset-mode) .asset-only{display:none!important;}
     var basisWord = s.basis==='SDE'?'SDE':'adjusted EBITDA';
     document.getElementById('execLead').innerHTML = e>0
       ? ('It is RRG’s opinion that the fair market value falls within a range of approximately <b>'+moneyM(vLo)+' to '+moneyM(vHi)+'</b>, with a most-likely clearing value near <b>'+moneyM(vBa)+'</b>, derived from a market approach applied to '+basisWord+' of <b>'+money(e)+'</b> at <b>'+lo.toFixed(1)+'× to '+hi.toFixed(1)+'×</b> (base case '+ba.toFixed(1)+'×).')
-      : (isAsset
-          ? 'It is RRG’s opinion that this business has little or no going-concern value and is best marketed as an <b>asset sale</b>. Value is attributable to tangible assets — FF&amp;E, leasehold improvements, and any transferable lease or licenses — not a multiple of earnings. The earnings basis below supports the asset-sale conclusion; see the pricing strategy and conclusion narrative.'
-          : 'Enter the earnings and multiple below to generate the conclusion.');
+      : 'Enter the earnings and multiple below to generate the conclusion.';
+    // On an asset sale the editable conclusion (execNarr) is the single statement — hide the
+    // auto lead so the section doesn't say the same thing twice.
+    var _elp=document.getElementById('execLead'); if(_elp) _elp.style.display=isAsset?'none':'';
     setTxt('mcLo',lo.toFixed(1)+'×'); setTxt('mcBase',ba.toFixed(1)+'×'); setTxt('mcHi',hi.toFixed(1)+'×');
     var ebLow=num(val('ebLow'))||e, ebUp=num(val('ebUp'))||e;
     setTxt('ebBaseTxt',money(e));
