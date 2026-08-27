@@ -490,6 +490,10 @@ body:not(.asset-mode) .asset-only{display:none!important;}
     ['PE / family office','4.0–4.5×','Clean EBITDA, lease confirmation, growth runway'],
     ['Experienced owner-operator','4.0–4.75×','Lifestyle + brand; tempered by financing']];
   var ASSUME="1.  This BOV is an opinion of value prepared by RRG for the ownership of the Company for internal planning and marketing purposes. It is not a certified appraisal, a USPAP-compliant report, a fairness opinion, or a guarantee of the price at which the business will sell.\n\n2.  The opinion relies on financial and operating information supplied by ownership and management, which RRG has not audited or independently verified. Adjusted-earnings figures reflect normalizing adjustments and remain subject to a buyer's quality-of-earnings review.\n\n3.  Value is expressed for the going-concern operating business, with real estate treated as noted and any leases assumed and assigned. A change in lease terms, rent, or their market-supportability would change the conclusion.\n\n4.  The opinion is stated as of the date shown and reflects market conditions, transaction multiples, capital availability, and industry sentiment as of that date; these change over time. Actual value realized depends on buyer perception of earnings durability, growth, deal structure, financing, and negotiation.\n\n5.  RRG represents the seller and is compensated on a completed sale. This opinion should not be relied upon by any buyer or third party as investment, legal, tax, or accounting advice.";
+  // Asset-sale Assumptions & Limiting Conditions — swaps in automatically in asset mode (see compute()).
+  // Fixes the going-concern basis line and adds lease-assignment, clear-title, FF&E-condition,
+  // brand-separate, and confidential/not-an-offer conditions.
+  var ASSUME_ASSET="1.  This BOV is an opinion of value prepared by RRG for the ownership of the Company for internal planning and marketing purposes. It is not a certified appraisal, a USPAP-compliant report, a fairness opinion, or a guarantee of the price at which the assets will sell.\n\n2.  The opinion relies on financial and operating information supplied by ownership and management, which RRG has not audited or independently verified.\n\n3.  This opinion values the tangible assets that convey with the sale — furniture, fixtures and equipment, leasehold improvements, and any transferable lease and licenses. It does not express a going-concern or earnings-based value.\n\n4.  Value assumes the premises lease can be assigned or assumed on its current terms with landlord consent. A rent reset, a new or personal guaranty, or withheld consent would change the conclusion.\n\n5.  The assets are assumed to convey free and clear of all liens, security interests, UCC filings, and tax liens. Any such encumbrance reduces the net proceeds to the seller.\n\n6.  Furniture, fixtures and equipment are assumed to convey in working condition; a buyer's inspection may adjust value.\n\n7.  The business name, recipes, trademarks, social-media accounts, and goodwill are not included in the concluded asset value and may be offered and negotiated separately.\n\n8.  The opinion is stated as of the date shown and reflects the market for comparable assets and asset sales as of that date; these conditions change over time. Actual proceeds depend on buyer demand, deal structure, financing, and negotiation.\n\n9.  RRG represents the seller and is compensated on a completed sale. This opinion should not be relied upon by any buyer or third party as investment, legal, tax, or accounting advice.\n\n10.  This opinion is confidential to the ownership and RRG and is not an offer to sell or a solicitation of an offer to buy.";
 
   // ---- bridge (fixed structure; subtotals computed inline) ----
   // Render one broker-defined add-back list (label + amount + basis note) under an
@@ -593,6 +597,13 @@ body:not(.asset-mode) .asset-only{display:none!important;}
     var _ek=document.getElementById('earnKl'); if(_ek) _ek.textContent=isAsset?'Supporting Analysis':'Earnings';
     var _eh=document.getElementById('earnH2'); if(_eh) _eh.textContent=isAsset?'Earnings Bridge — Why This Is an Asset Sale (TTM)':'Basis of Value — The Bridge (TTM)';
     var _bp=document.getElementById('basisFootPre'); if(_bp) _bp.textContent=isAsset?'Normalized total — ':'Valuation basis — ';
+    // Swap in the asset-sale Assumptions & Limiting Conditions in asset mode (and back for a going
+    // concern). Only replaces the untouched default — a broker's own edits are never clobbered.
+    var _asm=q('assume');
+    if(_asm){
+      if(isAsset){ if(!_asm.value.trim() || _asm.value===ASSUME) { _asm.value=ASSUME_ASSET; grow(_asm); } }
+      else { if(!_asm.value.trim() || _asm.value===ASSUME_ASSET) { _asm.value=ASSUME; grow(_asm); } }
+    }
     var _strip=document.querySelector('.strip'); if(_strip) _strip.classList.toggle('asset',isAsset);
     var _tc=document.getElementById('hTarget').closest('.c'); if(_tc) _tc.style.display=isAsset?'none':'';
     var _mc=document.getElementById('hMult').closest('.c'); if(_mc) _mc.style.display=isAsset?'none':'';
@@ -605,7 +616,7 @@ body:not(.asset-mode) .asset-only{display:none!important;}
       // if the broker clears or edits them they stay as edited. They're clearly flagged below.
       if(!window._assetPH && !num(val('assetValueLow')) && !num(val('assetValueBase')) && !num(val('assetValueHigh'))){
         window._assetPH=true; var _sa=function(k,v){ var el=q(k); if(el) el.value=v; };
-        _sa('assetValueLow','20,000'); _sa('assetValueBase','125,000'); _sa('assetValueHigh','200,000');
+        _sa('assetValueLow','20,000'); _sa('assetValueBase','70,000'); _sa('assetValueHigh','120,000');
         var _ph=document.getElementById('assetPHnote'); if(_ph) _ph.style.display='';
       }
       var aLo=num(val('assetValueLow')), aBa=num(val('assetValueBase')), aHi=num(val('assetValueHigh'));
