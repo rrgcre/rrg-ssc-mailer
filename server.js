@@ -9171,6 +9171,19 @@ app.delete('/api/person/:id', (req, res) => {
 });
 // Atomic bulk delete — one read-modify-write, so selecting-all then deleting can't race
 // (firing hundreds of single DELETEs made each clobber the others' writes; almost nothing stuck).
+// Bulk-reassign the Owner field on many contacts at once. ownerUser='' clears the owner.
+app.post('/api/people/bulk-owner', requireAdmin, express.json({ limit: '512kb' }), (req, res) => {
+  const b = req.body || {};
+  const ids = Array.isArray(b.ids) ? b.ids.map(String) : [];
+  if (!ids.length) return res.json({ ok: true, updated: 0 });
+  let owner = null; const ou = String(b.ownerUser || '').trim();
+  if (ou) { owner = _resolveOwnerUser(ou); if (!owner) return res.status(400).json({ ok: false, error: 'That owner is not a known active user.' }); }
+  const ppl = loadPeople(); const idset = {}; ids.forEach(i => idset[i] = 1); const now = new Date().toISOString(); let n = 0;
+  ppl.forEach(p => { if (idset[p.id]) { if (owner) { p.byUser = owner.username; p.by = owner.name; } else { p.byUser = ''; p.by = ''; } p.updatedAt = now; n++; } });
+  savePeople(ppl);
+  try { logSysEvent(req, 'Owner change', 'Reassigned ' + n + ' contact' + (n === 1 ? '' : 's') + (owner ? (' to ' + owner.name) : ' to Unassigned'), { tool: 'contacts', kind: 'bulk-owner', count: n }); } catch (e) {}
+  res.json({ ok: true, updated: n, owner: owner ? owner.name : '' });
+});
 app.post('/api/people/bulk-delete', express.json({ limit: '512kb' }), (req, res) => {
   if (!canDelete(req)) return res.status(403).json({ ok: false, error: 'You do not have permission to delete contacts.' });
   const ids = Array.isArray(req.body && req.body.ids) ? req.body.ids.map(String) : [];
@@ -11875,6 +11888,19 @@ app.delete('/api/company/:id', (req, res) => {
 });
 // Atomic bulk delete for companies — same cascade as the single delete, batched into one pass
 // so select-all → delete can't race and clobber writes.
+// Bulk-reassign the Owner field on many companies at once. ownerUser='' clears the owner.
+app.post('/api/companies/bulk-owner', requireAdmin, express.json({ limit: '512kb' }), (req, res) => {
+  const b = req.body || {};
+  const ids = Array.isArray(b.ids) ? b.ids.map(String) : [];
+  if (!ids.length) return res.json({ ok: true, updated: 0 });
+  let owner = null; const ou = String(b.ownerUser || '').trim();
+  if (ou) { owner = _resolveOwnerUser(ou); if (!owner) return res.status(400).json({ ok: false, error: 'That owner is not a known active user.' }); }
+  const arr = loadCompanies(); const idset = {}; ids.forEach(i => idset[i] = 1); const now = new Date().toISOString(); let n = 0;
+  arr.forEach(c => { if (idset[c.id]) { if (owner) { c.byUser = owner.username; c.by = owner.name; } else { c.byUser = ''; c.by = ''; } c.updatedAt = now; n++; } });
+  saveCompanies(arr);
+  try { logSysEvent(req, 'Owner change', 'Reassigned ' + n + ' compan' + (n === 1 ? 'y' : 'ies') + (owner ? (' to ' + owner.name) : ' to Unassigned'), { tool: 'companies', kind: 'bulk-owner', count: n }); } catch (e) {}
+  res.json({ ok: true, updated: n, owner: owner ? owner.name : '' });
+});
 app.post('/api/companies/bulk-delete', express.json({ limit: '512kb' }), (req, res) => {
   if (!canDelete(req)) return res.status(403).json({ ok: false, error: 'You do not have permission to delete companies.' });
   const ids = Array.isArray(req.body && req.body.ids) ? req.body.ids.map(String) : [];

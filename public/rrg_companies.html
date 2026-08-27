@@ -211,7 +211,7 @@ function renderList(list){
   var cfg={ mount:'#body', data:list, key:'companies_v2', countEl:'#cnt', filterButton:document.getElementById('filterBtn'), per:100, compact:true,
     empty:'<div class="empty"><b>No companies yet.</b>Companies are created automatically when you start a deal — the business name opens its company file.</div>',
     rowId:function(c){ return c.id; }, defaultSort:0, defaultDir:1,
-    bulk: (function(){ var _b=[]; if(IS_ADMIN) _b.push({ label:'Merge\u2026', min:2, fn:openCompanyMergePicker }); if(CAN_DELETE) _b.push({ label:'Delete', danger:true, min:1, fn:bulkDeleteCompanies }); return _b.length?_b:null; })(),
+    bulk: (function(){ var _b=[]; if(IS_ADMIN) _b.push({ label:'Change owner\u2026', min:1, fn:openCompanyOwnerPicker }); if(IS_ADMIN) _b.push({ label:'Merge\u2026', min:2, fn:openCompanyMergePicker }); if(CAN_DELETE) _b.push({ label:'Delete', danger:true, min:1, fn:bulkDeleteCompanies }); return _b.length?_b:null; })(),
     columns:[
       { label:'Company', width:250, sort:function(a,b){ return RRGList.cmp(a.name,b.name); }, edit:{ type:'text', get:function(c){return c.name||'';}, save:function(c,val){ val=(val||'').trim(); if(!val) return Promise.reject(new Error('Name is required.')); return fetch('/api/company',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:c.id,name:val})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ c.name=val; return true; } throw new Error((j&&j.error)||'Save failed'); }); } }, cell:function(c){ var mk=(c.markets||[]).join(' · '); var tags=(c.tags&&c.tags.length)?('<div class="meta">'+esc(c.tags.join(', '))+'</div>'):''; var lg=(c.logo||c.logoAuto||''); var lt=esc((c.name||'?').charAt(0).toUpperCase()); var av=lg?('<span class="colistlogo"><span>'+lt+'</span><img src="'+esc(lg)+'" onerror="this.remove()"></span>'):('<span class="colistlogo"><span>'+lt+'</span></span>'); return '<div class="cowho">'+av+'<div class="cowhotext"><div class="nm"><a class="nmlink" href="./rrg_company.html?id='+encodeURIComponent(c.id)+'">'+esc(c.name)+'</a></div>'+(mk?('<div class="meta">'+esc(mk)+'</div>'):'')+tags+'</div></div>'; } },
       { label:'Type', width:110, sort:function(a,b){ return RRGList.cmp(a.type,b.type); }, edit:{ type:'select', options:function(){return CTYPES;}, get:function(c){return c.type||'';}, save:function(c,val){ return fetch('/api/company',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:c.id,type:val})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ c.type=val; return true; } throw new Error((j&&j.error)||'Save failed'); }); } }, cell:function(c){ var t=c.type||'Seller', col=typeColor(t); return '<span style="display:inline-block;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;background:'+col[0]+';color:'+col[1]+'">'+esc(t)+'</span>'; } },
@@ -373,6 +373,29 @@ async function bulkDeleteCompanies(ids, done){
     .then(function(j){ if(done) done(); reloadCompanies().then(function(){ if(!j||!j.ok){ alert((j&&j.error)||'Could not delete.'); } else if(j.skipped){ alert(j.deleted+' deleted · '+j.skipped+' protected compan'+(j.skipped===1?'y':'ies')+' skipped.'); } }); })
     .catch(function(){ if(done) done(); reloadCompanies(); alert('Could not reach the server.'); });
 }
+function _ownerPickerHTML(ids, nounSingular, nounPlural){
+  var rows='<label style="display:flex;align-items:center;gap:9px;padding:9px 11px;border:1px solid #e6ebf3;border-radius:9px;margin-bottom:6px;cursor:pointer;font-size:13.5px;background:#f9fafc"><input type="radio" name="ownpick" value="__none__" style="width:auto"><b style="color:#1f2a3d">Unassigned</b><span style="color:#8a94a6;font-size:12px">— clear the owner</span></label>'
+    + (USERS||[]).map(function(u){ return '<label style="display:flex;align-items:center;gap:9px;padding:9px 11px;border:1px solid #e6ebf3;border-radius:9px;margin-bottom:6px;cursor:pointer;font-size:13.5px"><input type="radio" name="ownpick" value="'+esc(u.username)+'" style="width:auto"><span style="font-weight:700;color:#1f2a3d">'+esc(u.name||u.username)+'</span></label>'; }).join('');
+  var noun = ids.length===1?nounSingular:nounPlural;
+  return '<div class="modalcard" style="max-width:460px"><div class="modalh">Change owner — '+ids.length+' '+noun+'</div><div class="modalb"><div style="font-size:12.5px;color:#5b6472;line-height:1.5;margin-bottom:12px">Pick the rep to own the selected '+noun+', or set them to <b>Unassigned</b>. This applies to all '+ids.length+' selected.</div><div style="max-height:320px;overflow:auto">'+rows+'</div><div id="own_msg" style="color:var(--red,#DA2B1F);font-size:12.5px;margin-top:8px"></div></div><div class="modalf"><button class="mbtn ghost" id="own_cancel">Cancel</button><button class="mbtn" id="own_go">Apply</button></div>';
+}
+function _runOwnerPicker(ids, url, reloadFn, nounSingular, nounPlural, done){
+  var ov=document.createElement('div'); ov.className='modal'; ov.id='ownModal'; if(ov.removeAttribute) ov.removeAttribute('hidden');
+  ov.innerHTML=_ownerPickerHTML(ids, nounSingular, nounPlural);
+  document.body.appendChild(ov);
+  function close(){ ov.remove(); }
+  ov.querySelector('#own_cancel').onclick=close;
+  ov.addEventListener('click',function(e){ if(e.target===ov) close(); });
+  ov.querySelector('#own_go').onclick=function(){
+    var sel=ov.querySelector('input[name=ownpick]:checked'); if(!sel){ ov.querySelector('#own_msg').textContent='Pick an owner (or Unassigned).'; return; }
+    var val=sel.value==='__none__'?'':sel.value;
+    var gb=ov.querySelector('#own_go'); gb.disabled=true; gb.textContent='Applying…';
+    fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({ids:ids,ownerUser:val})})
+      .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ close(); if(done) done(); reloadFn(); } else { gb.disabled=false; gb.textContent='Apply'; ov.querySelector('#own_msg').textContent=(j&&j.error)||'Could not update the owner.'; } })
+      .catch(function(){ gb.disabled=false; gb.textContent='Apply'; ov.querySelector('#own_msg').textContent='Could not reach the server.'; });
+  };
+}
+function openCompanyOwnerPicker(ids, done){ _runOwnerPicker(ids, '/api/companies/bulk-owner', reloadCompanies, 'company', 'companies', done); }
 function openCompanyMergePicker(ids, done){
   var cos=ids.map(function(id){ return (ALL||[]).find(function(c){return c.id===id;}); }).filter(Boolean);
   if(cos.length<2){ alert('Select at least two companies to merge.'); return; }
