@@ -98,6 +98,7 @@ input.fld{width:100%;font:inherit;font-size:14px;padding:10px 12px;border:1px so
     <label class="chk"><input type="checkbox" id="redactTenant" checked> Redact tenant info</label>
   </div>
   <div style="text-align:center;margin-top:6px">
+    <button type="button" id="cancelBtn" onclick="leaveGen()" style="background:#fff;border:1px solid #c4ccda;color:#20334f;font-weight:700;font-size:14px;padding:12px 20px;border-radius:8px;cursor:pointer;margin-right:8px">Cancel</button>
     <button class="build" id="buildBtn" onclick="buildLease()" disabled>Build the abstract →</button>
     <div><a class="manual" id="manualLink" onclick="goManual()">or fill it in manually instead →</a></div>
   </div>
@@ -110,6 +111,7 @@ input.fld{width:100%;font:inherit;font-size:14px;padding:10px 12px;border:1px so
   <div class="mm" id="modalMsg">The analyst is pulling the term, rent, options, NNN, assignment, and guaranty from the document.</div>
   <div class="mtimer" id="modalTimer"></div>
   <div><span class="mmute" id="muteLink" onclick="toggleMute()">🔊 Sound on · tap to mute</span></div>
+  <div style="margin-top:12px"><span onclick="cancelBuild()" style="color:#fff;opacity:.85;cursor:pointer;text-decoration:underline;font-size:12.5px;font-weight:600">Cancel build</span></div>
 </div></div>
 
 <script>
@@ -182,15 +184,21 @@ function buildLease(){
   document.getElementById('status').className='status';
   overlay(true);
   var rl=document.getElementById('redactLandlord'), rt=document.getElementById('redactTenant');
+  window._leaseAbort = window.AbortController ? new AbortController() : null;
   fetch('/api/generate-lease',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',
+    signal: window._leaseAbort ? window._leaseAbort.signal : undefined,
     body:JSON.stringify({leaseId:LEASE_ID, files:FILES, redactLandlord:rl?rl.checked:true, redactTenant:rt?rt.checked:true})})
     .then(function(r){ return r.text().then(function(t){ var j=null; try{j=JSON.parse(t);}catch(e){} return {ok:r.ok,status:r.status,j:j}; }); })
     .then(function(res){
       if(res.j&&res.j.ok&&res.j.id){ stopAmbient(); playDone(); document.getElementById('modalTitle').textContent='Done — abstract ready ✓'; document.getElementById('modalMsg').textContent='Opening it now…'; setTimeout(function(){ location.href='./rrg_lease_abstract.html?lease='+encodeURIComponent(res.j.id); }, 1100); return; }
       overlay(false); btn.disabled=false;
       setStatus((res.j&&res.j.error)||('Build failed (server '+res.status+').'));
-    }).catch(function(){ overlay(false); btn.disabled=false; setStatus('Could not reach the server.'); });
+    }).catch(function(e){ if(e&&e.name==='AbortError') return; overlay(false); btn.disabled=false; setStatus('Could not reach the server.'); });
 }
+// Leave the build screen — go back where you came from, else to the Lease Abstracts log.
+function leaveGen(){ try{ if(window.history.length>1){ history.back(); return; } }catch(e){} location.href='./rrg_lease_queue.html'; }
+// Abort an in-progress build and return to the form.
+function cancelBuild(){ try{ if(window._leaseAbort) window._leaseAbort.abort(); }catch(e){} try{ stopAmbient(); }catch(e){} overlay(false); var b=document.getElementById('buildBtn'); if(b) b.disabled=(FILES.length===0); setStatus('Build cancelled.'); }
 </script>
 </body>
 </html>
