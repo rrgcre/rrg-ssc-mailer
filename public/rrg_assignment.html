@@ -49,6 +49,13 @@ a.hpstep,button.hpstep{cursor:pointer;}
 .hpdot.done{background:var(--green);border-color:var(--green);color:#fff;}
 .hpdot.pend{background:#fff;border-color:var(--amber);color:var(--amber);}
 .hpname{font-size:10px;font-weight:800;color:var(--navy);margin-top:6px;letter-spacing:.03em;text-transform:uppercase;line-height:1.2;}
+/* Buyer Pipeline board — a light shade of the admin accent so it reads distinct from the seller pipeline */
+.card.buyerpipe{border-color:color-mix(in srgb, var(--red) 22%, var(--line));}
+.card.buyerpipe > .ch{background:color-mix(in srgb, var(--red) 7%, #fff);border-bottom-color:color-mix(in srgb, var(--red) 14%, var(--line));}
+.card.buyerpipe .track{background:color-mix(in srgb, var(--red) 3.5%, #fff);}
+.card.buyerpipe .hpdot.done{background:var(--red);border-color:var(--red);color:#fff;}
+.card.buyerpipe .hpstep.done:not(:last-child):after{background:var(--red);}
+.card.buyerpipe a.hpstep:hover .hpname,.card.buyerpipe button.hpstep:hover .hpname{color:var(--red);}
 .hpstat{font-size:9.5px;color:var(--soft);margin-top:2px;}
 a.hpstep:hover .hpname,button.hpstep:hover .hpname{color:var(--red);}
 .step{display:flex;gap:14px;align-items:flex-start;padding:14px 0;border-bottom:1px solid var(--line);}
@@ -226,7 +233,7 @@ function buyerPipelineCard(){
     return '<div class="hpstep" title="'+esc(nm)+' — '+n+' buyer'+(n===1?'':'s')+'"><div class="hpdot '+cls+'">'+(n>0?n:'')+'</div><div class="hpname">'+esc(nm)+'</div><div class="hpstat">'+n+' buyer'+(n===1?'':'s')+'</div></div>';
   }).join('');
   var pill=bpName?('<span style="margin-left:8px;color:var(--navy);font-weight:700;font-size:11.5px;background:#eef2fb;border:1px solid #d3ddf3;border-radius:999px;padding:2px 10px">'+esc(bpName)+'</span>'):'';
-  return '<div class="card"><div class="ch"><b>Buyer Pipeline</b>'+pill+'<span>'+total+' buyer'+(total===1?'':'s')+' in pipeline</span></div><div class="track"><div class="hpipe">'+steps+'</div></div></div>';
+  return '<div class="card buyerpipe"><div class="ch"><b>Buyer Pipeline</b>'+pill+'<span>'+total+' buyer'+(total===1?'':'s')+' in pipeline</span></div><div class="track"><div class="hpipe">'+steps+'</div></div></div>';
 }
 var OFFER_TYPES=['IOI','LOI'], OFFER_STATUSES=['Received','Under review','Countered','Accepted','Rejected','Withdrawn'];
 var TXN=null, TXNSTAT=['LOI','Under Contract','Due Diligence','Financing','Closing','Closed','Dead'];
