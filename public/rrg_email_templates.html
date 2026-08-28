@@ -9,10 +9,20 @@
 <style>
 :root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;}
 *{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);}
-.wrap{max-width:1120px;margin:0 auto;padding:24px 28px 60px;}
-.pgh{font-size:26px;font-weight:800;color:var(--navy);margin:6px 0 2px;}
-.pgs{color:var(--muted);font-size:13.5px;margin-bottom:20px;max-width:780px;line-height:1.5;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+/* Dark hero — matches Companies / Contacts / Data Rooms */
+.top{color:#fff;padding:30px 0 30px;position:relative;overflow:hidden;background:radial-gradient(95% 130% at 28% 15%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
+.top-in{max-width:1320px;margin:0 auto;padding:0 24px;position:relative;z-index:2;}
+.brand{display:inline-flex;align-items:center;cursor:pointer;} .disc{background:var(--red);color:#fff;border-radius:50%;width:42px;height:42px;font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.bar{background:#fff;width:3px;height:30px;margin:0 12px;} .wm{font-weight:800;font-size:14px;text-transform:uppercase;line-height:.95;}
+.kicker{margin:20px 0 4px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:11px;text-transform:uppercase;}
+.top h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
+.sub{color:#aeb8cf;font-size:13px;margin-top:7px;max-width:760px;line-height:1.5;}
+.sub code{background:rgba(255,255,255,.12);border-radius:4px;padding:1px 5px;font-size:11.5px;color:#dfe6f4;}
+.sub b{color:#fff;font-weight:700;}
+.wrap{max-width:none;margin:20px 0;padding:0 28px 56px;}
+#editor{max-width:960px;}
+.foot{max-width:1320px;margin:0 auto;padding:0 28px 40px;color:var(--muted);font-size:11.5px;}
 .card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 24px rgba(10,20,50,.06);overflow:hidden;margin-bottom:20px;}
 .hd{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;}
 .hd b{color:var(--navy);font-size:15px;} .hd .sp{margin-left:auto;}
@@ -51,11 +61,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 <script src="/rrg_rte.js"></script>
 </head>
 <body>
+<!--rrgback--><a href="./index.html" class="rrg-back" aria-label="Back to toolbox" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28)"><span style="font-size:14px;line-height:1">←</span> Toolbox</a>
+<div class="top"><div class="top-in">
+  <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+  <div class="kicker">Marketing Machine</div>
+  <h1>Email Templates</h1>
+  <div class="sub">Write your go-to emails once and reuse them — in the send composer on a contact and in automation steps. Mark a template <b>Personal</b> (only you) or <b>Shared</b> (the whole team). Personalize with tokens like <code>{{first_name}}</code>. <b>Click a name, subject, or visibility right in the list to edit it in place</b> — open the full editor for the body.</div>
+</div></div>
 <div class="wrap">
-  <h1 class="pgh">Email Templates</h1>
-  <div class="pgs">Write your go-to emails once and reuse them — in the send composer on a contact and in automation steps. Mark a template <b>Personal</b> (only you) or <b>Shared</b> (the whole team). Personalize with tokens like <code>{{first_name}}</code>. <b>Click a name, subject, or visibility right in the list to edit it in place</b> — open the full editor for the body.</div>
   <div id="root"></div>
 </div>
+<div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
 <script>
 var TPLS=[], CTL=null, BUILT=false, EDIT=null, SCOPE='personal', DEL_ARM=false;
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
