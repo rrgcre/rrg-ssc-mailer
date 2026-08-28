@@ -7084,7 +7084,11 @@ function _tplExecAuto(templateId, p, user) {
     enrollPerson(p, plan, { byName: (user && user.name) || '', byUser: (user && user.username) || '' });
   } catch (e) {}
 }
-function emailTplBrief(t, user) { return { id: t.id, name: t.name || '', subject: t.subject || '', body: t.body || '', scope: (t.scope === 'shared' ? 'shared' : 'personal'), category: inferTplCategory(t), active: t.active !== false, useCount: t.useCount || 0, lastUsedAt: t.lastUsedAt || '', ownerName: t.ownerName || '', ownerUser: t.ownerUser || '', mine: !!(user && (t.ownerUser === user.username || isSuper(user))), canShare: !!(user && isSuper(user)), execAuto: t.execAuto || '', greeting: (['dear','hi','first','none'].indexOf(String(t.greeting)) >= 0 ? String(t.greeting) : 'none'), updatedAt: t.updatedAt || '' }; }
+// Email-template folders (flat, team-wide, custom — start empty). Stored on settings.
+function effEmailTplFolders() { const s = loadSettings(); return (Array.isArray(s.emailTplFolders) ? s.emailTplFolders : []).map(x => String(x || '').slice(0, 60)).filter(Boolean); }
+function saveEmailTplFolders(list) { const s = loadSettings(); s.emailTplFolders = (Array.isArray(list) ? list : []).map(x => String(x || '').slice(0, 60)).filter(Boolean); saveSettings(s); return s.emailTplFolders; }
+function registerEmailTplFolder(name) { name = String(name || '').slice(0, 60).trim(); if (!name) return; const cur = effEmailTplFolders(); if (!cur.some(x => x.toLowerCase() === name.toLowerCase())) { cur.push(name); saveEmailTplFolders(cur); } }
+function emailTplBrief(t, user) { return { id: t.id, name: t.name || '', subject: t.subject || '', body: t.body || '', scope: (t.scope === 'shared' ? 'shared' : 'personal'), category: inferTplCategory(t), folder: t.folder || '', active: t.active !== false, useCount: t.useCount || 0, lastUsedAt: t.lastUsedAt || '', ownerName: t.ownerName || '', ownerUser: t.ownerUser || '', mine: !!(user && (t.ownerUser === user.username || isSuper(user))), canShare: !!(user && isSuper(user)), execAuto: t.execAuto || '', greeting: (['dear','hi','first','none'].indexOf(String(t.greeting)) >= 0 ? String(t.greeting) : 'none'), updatedAt: t.updatedAt || '' }; }
 const DEFAULT_SALES_TEMPLATES = [
   { name: 'Buyer — first response (inquiry)', subject: 'Thanks for your interest, {{first_name}}', body: `Hi {{first_name}},
 
@@ -7209,7 +7213,28 @@ app.get('/api/email-templates', (req, res) => {
   const showAll = req.query.all === '1' || req.query.all === 'true';
   const vis = all.filter(t => (t.scope === 'shared' || t.ownerUser === u.username || isSuper(u)) && (showAll || t.active !== false));
   vis.sort((a, b) => String(a.name || '').toLowerCase().localeCompare(String(b.name || '').toLowerCase()));
-  res.json({ ok: true, templates: vis.map(t => emailTplBrief(t, u)), automations: loadAutomations().filter(a => a.active !== false && ((a.scope !== 'private') || a.ownerUser === u.username || isSuper(u))).map(a => ({ id: a.id, name: a.name || '' })) });
+  res.json({ ok: true, templates: vis.map(t => emailTplBrief(t, u)), folders: effEmailTplFolders(), automations: loadAutomations().filter(a => a.active !== false && ((a.scope !== 'private') || a.ownerUser === u.username || isSuper(u))).map(a => ({ id: a.id, name: a.name || '' })) });
+});
+// Flat, team-wide folder registry for email templates (create / rename / delete).
+app.post('/api/email-template-folders', express.json({ limit: '16kb' }), (req, res) => {
+  const b = req.body || {}; const op = String(b.op || 'add');
+  const name = String(b.name || '').slice(0, 60).trim();
+  let folders = effEmailTplFolders();
+  if (op === 'add') {
+    if (!name) return res.status(400).json({ ok: false, error: 'Name the folder.' });
+    if (folders.some(f => f.toLowerCase() === name.toLowerCase())) return res.status(400).json({ ok: false, error: 'That folder already exists.' });
+    folders.push(name); saveEmailTplFolders(folders);
+  } else if (op === 'rename') {
+    const to = String(b.to || '').slice(0, 60).trim();
+    if (!name || !to) return res.status(400).json({ ok: false, error: 'Need the folder and a new name.' });
+    if (folders.some(f => f.toLowerCase() === to.toLowerCase() && f.toLowerCase() !== name.toLowerCase())) return res.status(400).json({ ok: false, error: 'A folder with that name already exists.' });
+    folders = folders.map(f => (f.toLowerCase() === name.toLowerCase() ? to : f)); saveEmailTplFolders(folders);
+    const all = loadEmailTpls(); let ch = false; all.forEach(t => { if (String(t.folder || '').toLowerCase() === name.toLowerCase()) { t.folder = to; ch = true; } }); if (ch) saveEmailTpls(all);
+  } else if (op === 'delete') {
+    folders = folders.filter(f => f.toLowerCase() !== name.toLowerCase()); saveEmailTplFolders(folders);
+    const all = loadEmailTpls(); let ch = false; all.forEach(t => { if (String(t.folder || '').toLowerCase() === name.toLowerCase()) { t.folder = ''; ch = true; } }); if (ch) saveEmailTpls(all);
+  } else return res.status(400).json({ ok: false, error: 'Unknown op.' });
+  res.json({ ok: true, folders: effEmailTplFolders() });
 });
 app.post('/api/email-templates', express.json({ limit: '256kb' }), (req, res) => {
   const u = req.user || {}; const b = req.body || {}; const all = loadEmailTpls();
@@ -7223,6 +7248,7 @@ app.post('/api/email-templates', express.json({ limit: '256kb' }), (req, res) =>
   if (b.body !== undefined) t.body = String(b.body || '').slice(0, 20000);
   if (b.scope !== undefined) t.scope = (b.scope === 'shared' ? 'shared' : 'personal');
   if (b.category !== undefined) t.category = (TPL_CATEGORIES.indexOf(b.category) >= 0 ? b.category : 'General');
+  if (b.folder !== undefined) { t.folder = String(b.folder || '').slice(0, 60).trim(); if (t.folder) registerEmailTplFolder(t.folder); }
   if (b.active !== undefined) t.active = !!b.active;
   if (b.execAuto !== undefined) t.execAuto = String(b.execAuto || '');
   if (b.greeting !== undefined) t.greeting = (['dear','hi','first','none'].indexOf(String(b.greeting)) >= 0 ? String(b.greeting) : 'none');
