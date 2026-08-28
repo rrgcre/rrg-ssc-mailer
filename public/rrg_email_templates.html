@@ -10,24 +10,8 @@
 :root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;}
 *{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);}
-.wrap{max-width:none;margin:20px 0;padding:0 28px 56px;}
-.top{color:#fff;padding:26px 0 26px;position:relative;overflow:hidden;background:radial-gradient(95% 130% at 28% 15%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
-.top-in{max-width:none;margin:0;padding:0 28px;position:relative;z-index:2;}
-.brand{display:inline-flex;align-items:center;cursor:pointer;} .disc{background:var(--red);color:#fff;border-radius:50%;width:42px;height:42px;font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
-.bar{background:#fff;width:3px;height:30px;margin:0 12px;} .wm{font-weight:700;font-size:14px;text-transform:uppercase;line-height:.95;}
-.kicker{margin:20px 0 4px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:11px;text-transform:uppercase;}
-.top h1{font-size:30px;font-weight:700;margin:0;color:#fff;letter-spacing:-.01em;}
-.top .sub{color:#aeb8cf;font-size:13px;margin-top:7px;max-width:760px;line-height:1.5;}
-.feats{background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 4px 18px rgba(11,26,56,.05);margin:14px 0 18px;overflow:hidden;}
-.featshd{display:flex;align-items:center;gap:10px;padding:13px 20px;cursor:pointer;user-select:none;}
-.featshd b{font-size:14px;color:var(--navy);} .featshd .sh{font-size:11.5px;color:var(--muted);font-weight:600;} .featshd .chev{margin-left:auto;color:var(--muted);font-size:12px;transition:transform .15s;}
-.feats.collapsed .chev{transform:rotate(-90deg);} .feats.collapsed .featgrid{display:none;}
-.feats .featgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1px;background:var(--line);border-top:1px solid var(--line);max-height:min(52vh,460px);overflow:auto;}
-.feat{background:#fff;display:flex;gap:11px;padding:13px 18px;align-items:flex-start;}
-.feat .fic{font-size:17px;line-height:1.25;flex:none;width:24px;text-align:center;}
-.feat b{display:block;font-size:12.5px;color:var(--navy);font-weight:700;} .feat span{display:block;font-size:11.5px;color:var(--muted);line-height:1.45;margin-top:2px;}
-.newpill{display:inline-block;font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#0e7a53;background:#e7f7ee;border:1px solid #bfe6d0;border-radius:999px;padding:1px 6px;margin-left:6px;vertical-align:middle;}
-.pgh{font-size:26px;font-weight:700;color:var(--navy);margin:6px 0 2px;}
+.wrap{max-width:1120px;margin:0 auto;padding:24px 28px 60px;}
+.pgh{font-size:26px;font-weight:800;color:var(--navy);margin:6px 0 2px;}
 .pgs{color:var(--muted);font-size:13.5px;margin-bottom:20px;max-width:780px;line-height:1.5;}
 .card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 24px rgba(10,20,50,.06);overflow:hidden;margin-bottom:20px;}
 .hd{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;}
@@ -36,7 +20,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .lk{color:var(--navy);text-decoration:none;font-weight:600;} .lk:hover{text-decoration:underline;}
 .meta{color:var(--muted);font-size:12px;}
 .acts{display:flex;gap:6px;flex-wrap:nowrap;justify-content:flex-end;white-space:nowrap;}
-.badge{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.01em;border-radius:5px;padding:2px 8px;}
+.badge{display:inline-block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;border-radius:5px;padding:2px 8px;}
 .badge.sh{color:#1f6f4e;background:#e7f5ee;border:1px solid #bce3cd;}
 .badge.pe{color:#23496f;background:#eef2fb;border:1px solid #d6e0f5;}
 .btn{font:inherit;font-size:12.5px;font-weight:700;padding:8px 13px;border:1px solid #cdd6e6;border-radius:9px;background:#fff;color:var(--navy);cursor:pointer;white-space:nowrap;}
@@ -51,8 +35,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .fld{margin-bottom:14px;}
 .fld label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);font-weight:700;margin-bottom:6px;}
 .fld input[type=text],.fld textarea{font:inherit;font-size:14px;padding:9px 11px;border:1px solid var(--line);border-radius:9px;width:100%;color:var(--ink);background:#fff;}
-.fld>select{width:100%;font:inherit;font-size:14px;padding:9px 11px;border:1px solid var(--line);border-radius:9px;color:var(--ink);background:#fff;}
-.selrow .fld>select{width:auto;min-width:150px;}
 .fld textarea{min-height:230px;resize:vertical;line-height:1.55;}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;}
 .seg label{font-size:12.5px;font-weight:700;padding:8px 14px;cursor:pointer;color:var(--muted);background:#fff;}
@@ -60,162 +42,104 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .seg input{display:none;}
 .tokens{font-size:11.5px;color:var(--soft);margin-top:6px;}
 .tokens code{background:#f2f4f8;border-radius:4px;padding:1px 5px;font-size:11px;color:#5b6472;}
-.fldpalette{margin-top:8px;} .palgrp{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:6px;} .palgl{font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--soft);font-weight:700;margin-right:3px;min-width:82px;} .tokchip{background:#eef3fb;border:1px solid #d3e2f6;color:#2c5c8f;border-radius:100px;padding:3px 10px;font:inherit;font-size:11.5px;font-weight:700;cursor:pointer;} .tokchip:hover{background:#e2eefb;}
+.fldpalette{margin-top:8px;} .palgrp{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:6px;} .palgl{font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--soft);font-weight:800;margin-right:3px;min-width:82px;} .tokchip{background:#eef3fb;border:1px solid #d3e2f6;color:#2c5c8f;border-radius:100px;padding:3px 10px;font:inherit;font-size:11.5px;font-weight:700;cursor:pointer;} .tokchip:hover{background:#e2eefb;}
 .msg{font-size:12.5px;font-weight:700;} .msg.ok{color:var(--green);} .msg.err{color:var(--red);}
 .empty{padding:34px 20px;text-align:center;color:var(--soft);font-size:13.5px;}
 .ro{color:var(--muted);font-size:12.5px;background:#f7f9fc;border:1px solid var(--line);border-radius:9px;padding:9px 12px;margin-bottom:12px;}
 </style>
 <script src="/rrg_brand.js"></script>
 <script src="/rrg_rte.js"></script>
-<style>
-.catbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:10px 8px 2px;}
-.catbar .cf{font:inherit;font-size:12px;font-weight:700;padding:5px 12px;border:1px solid var(--line);border-radius:100px;background:#fff;color:var(--muted);cursor:pointer;}
-.catbar .cf.on{background:var(--navy);color:#fff;border-color:var(--navy);}
-.badge.cat{color:#4a4370;background:#efedf9;border:1px solid #dcd7f0;}
-.badge.arch{color:#8a5a1f;background:#fbf1e2;border:1px solid #ecd9b8;}
-.selrow{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;}
-.selrow .fld{flex:0 0 auto;margin-bottom:0;}
-.selrow select{font:inherit;font-size:14px;padding:9px 11px;border:1px solid var(--line);border-radius:9px;color:var(--ink);background:#fff;}
-.pvw{border:1px solid var(--line);border-radius:11px;background:var(--wash);padding:14px 16px;margin-top:10px;}
-.pvw .pvs{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);font-weight:700;margin-bottom:4px;}
-.pvw .pvsub{font-weight:700;color:var(--navy);margin-bottom:10px;font-size:14.5px;}
-.pvw .pvbody{font-size:14px;line-height:1.55;color:var(--ink);}
-.pvw .pvbody p{margin:0 0 10px;}
-.tokmiss{background:#fdecec;color:#c0392b;border-radius:4px;padding:0 3px;font-weight:700;}
-.chkline{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--ink);cursor:pointer;}
-.chkline input{width:16px;height:16px;}
-.tr-arch{opacity:.55;}
-</style>
 </head>
 <body>
-<div class="top"><div class="top-in">
-  <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
-  <div class="kicker">Marketing</div>
-  <h1>Email Templates</h1>
-  <div class="sub">Write your go-to emails once and reuse them — in the send composer on a contact and in automation steps. Mark a template Personal (only you) or Shared (the whole team). Personalize with tokens like {{first_name}}.</div>
-</div></div>
 <div class="wrap">
-  <div class="feats" id="etFeatStrip">
-    <div class="featshd" id="etFeatHd"><b>What Email Templates does</b><span class="sh">write your go-to emails once, reuse them everywhere</span><span class="chev">▾</span></div>
-    <div class="featgrid">
-      <div class="feat"><span class="fic">✍️</span><div><b>Write once, reuse everywhere</b><span>Your templates show up in the Send Email composer on any contact and as steps inside automations — no re-typing.</span></div></div>
-      <div class="feat"><span class="fic">🏷️</span><div><b>Sorted by category</b><span>Buyer, Seller, NDA, Follow-up, Closing and General — filter the library with the chips above the list.</span></div></div>
-      <div class="feat"><span class="fic">👤</span><div><b>Personal vs Shared</b><span>Keep a template private to you, or publish a Shared (firm) template the whole team can send.</span></div></div>
-      <div class="feat"><span class="fic">🔤</span><div><b>Merge tokens with live preview</b><span>Drop in {{first_name}}, {{code_name}}, {{asking_price}} and more — the preview fills them with sample data and flags anything unfilled.</span></div></div>
-      <div class="feat"><span class="fic">👋</span><div><b>Salutation <span class="newpill">New</span></b><span>Pick a greeting (Dear / Hi / first name) that inserts at the top of the email with the contact’s first name — no more hand-typing “Hi Dave,”.</span></div></div>
-      <div class="feat"><span class="fic">⚙️</span><div><b>Fire an automation on send <span class="newpill">New</span></b><span>Set a template to kick off an automation each time it’s sent from a contact — turn a one-off email into a timed cadence.</span></div></div>
-      <div class="feat"><span class="fic">🧰</span><div><b>Duplicate, archive &amp; track use</b><span>Copy a template as a starting point, archive one without deleting it, and see how many times each has been used.</span></div></div>
-      <div class="feat"><span class="fic">💵</span><div><b>Ready-made templates</b><span>Includes proven starters like the buyer proof-of-funds request — edit to taste and send.</span></div></div>
-    </div>
-  </div>
+  <h1 class="pgh">Email Templates</h1>
+  <div class="pgs">Write your go-to emails once and reuse them — in the send composer on a contact and in automation steps. Mark a template <b>Personal</b> (only you) or <b>Shared</b> (the whole team). Personalize with tokens like <code>{{first_name}}</code>. <b>Click a name, subject, or visibility right in the list to edit it in place</b> — open the full editor for the body.</div>
   <div id="root"></div>
 </div>
 <script>
-var TPLS=[], CTL=null, BUILT=false, EDIT=null, SCOPE='personal', CAT='General', ACTIVE=true, DEL_ARM=false, IS_ADMIN=false, CATFILTER='All', AUTOS=[], EXECAUTO='', GREET='none';
-var CATS=['Buyer','Seller','NDA','Follow-up','Closing','General'];
-var SAMPLE={'{{first_name}}':'Maria','{{last_name}}':'Lopez','{{name}}':'Maria Lopez','{{company}}':'Blue Agave Cantina','{{title}}':'Owner','{{email}}':'maria@blueagave.com','{{phone}}':'(713) 555-0142','{{my_name}}':'Van','{{my_title}}':'Broker','{{my_phone}}':'(713) 555-0100','{{my_email}}':'van@rrgcre.com','{{listing_name}}':'Blue Agave Cantina','{{listing_number}}':'RRG-1042','{{code_name}}':'Project Cedar','{{asking_price}}':'$785,000','{{data_room_link}}':'app.rrgcre.com/room/9f2c\u2026','{{booking_link}}':'app.rrgcre.com/book/van\u2026','{{today}}':'August 17, 2026'};
+var TPLS=[], CTL=null, BUILT=false, EDIT=null, SCOPE='personal', DEL_ARM=false;
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 function fmt(iso){ if(!iso) return ''; var x=String(iso).slice(0,10).split('-'); if(x.length!==3) return String(iso).slice(0,10); return x[1]+'/'+x[2]+'/'+x[0]; }
 function api(m,u,b){return fetch(u,{method:m,credentials:'same-origin',headers:b?{'Content-Type':'application/json'}:undefined,body:b?JSON.stringify(b):undefined}).then(function(r){return r.json();});}
-function mergePreview(str){ return String(str==null?'':str).replace(/\{\{\s*[\w.]+\s*\}\}/g,function(m){ var key=m.replace(/\s+/g,''); if(SAMPLE[key]!=null) return esc(SAMPLE[key]); return '<span class="tokmiss">'+esc(m)+'</span>'; }); }
-var LIST_SHELL='<div class="card"><div class="hd"><b>Email Templates</b><span class="meta" id="tcount"></span><span class="sp"></span><button class="btn sm pri" id="t_new">+ New template</button></div><div class="catbar" id="catbar"></div><div class="cb"><div id="tlist"><div class="empty">Loading…</div></div></div></div><div id="editor"></div>';
-function scopeBadge(t){ var b=t.scope==='shared'?'<span class="badge sh">Shared</span>':'<span class="badge pe">Personal</span>'; if(t.active===false) b+=' <span class="badge arch">Archived</span>'; return b; }
-function catBadge(t){ return '<span class="badge cat">'+esc(t.category||'General')+'</span>'; }
-function usedCell(t){ if(!t.useCount) return '<span class="meta">—</span>'; return '<span class="meta" style="color:var(--ink)">'+t.useCount+'×</span>'+(t.lastUsedAt?'<span class="meta"> · '+esc(fmt(t.lastUsedAt))+'</span>':''); }
-function actionsCell(t){ var s='<button class="btn ghost sm" data-edit="'+esc(t.id)+'">'+(t.mine?'Edit':'View')+'</button>'; s+='<button class="btn ghost sm" data-dup="'+esc(t.id)+'">Duplicate</button>'; if(t.mine){ s+='<button class="btn ghost sm" data-arch="'+esc(t.id)+'">'+(t.active===false?'Restore':'Archive')+'</button>'; s+='<button class="btn danger sm" data-del="'+esc(t.id)+'" title="Delete" aria-label="Delete"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>'; } return '<div class="acts">'+s+'</div>'; }
-function tplCat(t){ return (t&&CATS.indexOf(t.category)>=0)?t.category:'General'; }
-function filteredTpls(){ return TPLS.filter(function(t){ if(CATFILTER==='All') return true; if(CATFILTER==='Archived') return t.active===false; return (tplCat(t)===CATFILTER)&&(t.active!==false); }); }
-function listCfg(){ return { mount:'#tlist', data:filteredTpls(), key:'emailtpls',
-  empty:'<div class="empty">No templates here. Click <b>+ New template</b> to write one.</div>',
-  rowId:function(t){return t.id;}, rowClass:function(t){return t.active===false?'tr-arch':'';}, defaultSort:0, defaultDir:1,
+var LIST_SHELL='<div class="card"><div class="hd"><b>Email Templates</b><span class="meta" id="tcount"></span><span class="sp"></span><button class="btn sm pri" id="t_new">+ New template</button></div><div class="cb"><div id="tlist"><div class="empty">Loading…</div></div></div></div><div id="editor"></div>';
+function scopeBadge(t){ return t.scope==='shared'?'<span class="badge sh">Shared</span>':'<span class="badge pe">Personal</span>'; }
+function actionsCell(t){ var s='<button class="btn ghost sm" data-edit="'+esc(t.id)+'">'+(t.mine?'Edit':'View')+'</button>'; if(t.mine) s+='<button class="btn danger sm" data-del="'+esc(t.id)+'">Delete</button>'; return '<div class="acts">'+s+'</div>'; }
+function listCfg(){ return { mount:'#tlist', data:TPLS, key:'emailtpls',
+  empty:'<div class="empty">No templates yet. Click <b>+ New template</b> to write your first.</div>',
+  rowId:function(t){return t.id;}, defaultSort:0, defaultDir:1,
   columns:[
-    { label:'Template', sort:function(a,b){return RRGList.cmp(a.name,b.name);}, cell:function(t){ return '<a class="lk" href="#" data-edit="'+esc(t.id)+'">'+esc(t.name||'Untitled')+'</a>'; } },
-    { label:'Category', sort:function(a,b){return RRGList.cmp(a.category,b.category);}, cell:catBadge },
-    { label:'Visibility', sort:function(a,b){return RRGList.cmp(a.scope,b.scope);}, cell:scopeBadge },
-    { label:'Subject', sort:function(a,b){return RRGList.cmp(a.subject,b.subject);}, cell:function(t){ return t.subject?('<span class="meta" style="color:var(--ink)">'+esc(t.subject)+'</span>'):'<span class="meta">—</span>'; } },
+    { label:'Template', sort:function(a,b){return RRGList.cmp(a.name,b.name);}, edit:{ type:'text', editable:function(t){return !!t.mine;}, get:function(t){return t.name||'';}, save:function(t,val){ return saveField(t,{name:(val||'').trim()}); } }, cell:function(t){ return t.mine ? esc(t.name||'Untitled') : '<a class="lk" href="#" data-edit="'+esc(t.id)+'">'+esc(t.name||'Untitled')+'</a>'; } },
+    { label:'Visibility', sort:function(a,b){return RRGList.cmp(a.scope,b.scope);}, edit:{ type:'select', editable:function(t){return !!t.mine;}, options:[{value:'personal',label:'Personal'},{value:'shared',label:'Shared'}], get:function(t){return t.scope==='shared'?'shared':'personal';}, save:function(t,val){ return saveField(t,{scope:val}); } }, cell:scopeBadge },
+    { label:'Subject', sort:function(a,b){return RRGList.cmp(a.subject,b.subject);}, edit:{ type:'text', editable:function(t){return !!t.mine;}, get:function(t){return t.subject||'';}, save:function(t,val){ return saveField(t,{subject:val}); } }, cell:function(t){ return t.subject?('<span class="meta" style="color:var(--ink)">'+esc(t.subject)+'</span>'):'<span class="meta">—</span>'; } },
     { label:'Owner', sort:function(a,b){return RRGList.cmp(a.ownerName,b.ownerName);}, cell:function(t){ return t.ownerName?esc(t.ownerName):(t.mine?'You':'<span class="meta">—</span>'); } },
-    { label:'Used', sort:function(a,b){return (a.useCount||0)-(b.useCount||0);}, cell:usedCell },
     { label:'Updated', sort:function(a,b){return RRGList.cmp(a.updatedAt,b.updatedAt);}, cell:function(t){ return '<span class="meta">'+esc(fmt(t.updatedAt))+'</span>'; } },
     { label:'', sortable:false, cell:actionsCell }
   ] }; }
-function renderCatBar(){ var el=document.getElementById('catbar'); if(!el) return; var opts=['All'].concat(CATS).concat(['Archived']); el.innerHTML=opts.map(function(c){ var n=(c==='All')?TPLS.length:((c==='Archived')?TPLS.filter(function(t){return t.active===false;}).length:TPLS.filter(function(t){return tplCat(t)===c&&t.active!==false;}).length); return '<button class="cf'+(CATFILTER===c?' on':'')+'" data-cat="'+esc(c)+'">'+esc(c)+' <span style="opacity:.55;font-weight:700">'+n+'</span></button>'; }).join(''); Array.prototype.forEach.call(el.querySelectorAll('.cf'),function(b){ b.onclick=function(){ CATFILTER=b.getAttribute('data-cat'); renderCatBar(); refreshList(); }; }); }
-function refreshList(){ var d=filteredTpls(); if(CTL) CTL.refresh(d); else CTL=RRGList.create(listCfg()); var c=document.getElementById('tcount'); if(c) c.textContent=TPLS.length+' total'; }
+function refreshList(){ if(CTL) CTL.refresh(TPLS); else CTL=RRGList.create(listCfg()); var c=document.getElementById('tcount'); if(c) c.textContent=TPLS.length+' total'; }
 function curById(id){ return TPLS.filter(function(t){return t.id===id;})[0]||null; }
-function scopeControl(ro){
-  if(IS_ADMIN){ return '<div class="fld"><label>Visibility</label><div class="seg" id="scopeSeg"><label id="sc_p"'+((SCOPE==='personal')?' class="on"':'')+'><input type="radio" name="sc" value="personal"'+((SCOPE==='personal')?' checked':'')+(ro?' disabled':'')+'>Personal</label><label id="sc_s"'+((SCOPE==='shared')?' class="on"':'')+'><input type="radio" name="sc" value="shared"'+((SCOPE==='shared')?' checked':'')+(ro?' disabled':'')+'>Shared (firm)</label></div><div class="tokens">Personal = only you. Shared = the whole firm can use it. Only admins publish shared templates.</div></div>'; }
-  return '<div class="fld"><label>Visibility</label><div class="ro" style="margin:0">Personal — only you. Shared (firm) templates are published by an admin; ask an admin to promote this one firm-wide.</div></div>';
+// Inline-edit a single field from the list. The server only touches the fields we send
+// (name is always required), so body and everything else are preserved untouched.
+function saveField(t, patch){
+  var merged={ id:t.id, name:(patch.name!==undefined?patch.name:t.name) };
+  Object.keys(patch).forEach(function(k){ if(k!=='name') merged[k]=patch[k]; });
+  if(!String(merged.name||'').trim()) return Promise.reject(new Error('Template name can’t be empty.'));
+  return api('POST','/api/email-templates',merged).then(function(j){
+    if(!j||!j.ok) throw new Error((j&&j.error)||'Save failed.');
+    if(j.template){ Object.keys(j.template).forEach(function(k){ t[k]=j.template[k]; }); }
+    else { Object.keys(patch).forEach(function(k){ t[k]=patch[k]; }); }
+    return true;
+  });
 }
-function catControl(ro){ return '<div class="fld"><label>Category</label><select id="tCat"'+(ro?' disabled':'')+'>'+CATS.map(function(c){return '<option'+((CAT===c)?' selected':'')+'>'+esc(c)+'</option>';}).join('')+'</select></div>'; }
-function greetControl(ro){ var opts=[['none','No salutation'],['dear','Dear {first name},'],['hi','Hi {first name},'],['first','{first name},']]; return '<div class="fld" style="margin-top:14px"><label>Salutation <span style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--soft)">(added to the top of the email, with the contact’s first name)</span></label><select id="tGreet"'+(ro?' disabled':'')+'>'+opts.map(function(o){return '<option value="'+o[0]+'"'+((GREET===o[0])?' selected':'')+'>'+esc(o[1])+'</option>';}).join('')+'</select></div>'; }
-function autoControl(ro){ var lbl='<label>⟳ After this template is sent, run automation <span style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--soft)">(when sent from a contact\u2019s Send Email)</span></label>'; if(!AUTOS.length){ return '<div class="fld" style="margin-top:14px">'+lbl+'<select id="tAuto" disabled><option value="">\u2014 no active automations yet \u2014</option></select><div style="font-size:12px;color:var(--soft);margin-top:6px;line-height:1.5">Build one under <b>Automations</b> (Marketing), make sure it\u2019s active, then it\u2019ll appear here to fire automatically each time you send this template.</div></div>'; } return '<div class="fld" style="margin-top:14px">'+lbl+'<select id="tAuto"'+(ro?' disabled':'')+'><option value="">\u2014 none \u2014</option>'+AUTOS.map(function(a){return '<option value="'+esc(a.id)+'"'+((EXECAUTO===a.id)?' selected':'')+'>'+esc(a.name)+'</option>';}).join('')+'</select></div>'; }
+var PAL_FIELDS=[['Contact',[['{{first_name}}','First name'],['{{last_name}}','Last name'],['{{name}}','Full name'],['{{company}}','Company'],['{{title}}','Title'],['{{email}}','Email'],['{{phone}}','Phone']]],['You (sender)',[['{{my_name}}','My name'],['{{my_title}}','My title'],['{{my_phone}}','My phone'],['{{my_email}}','My email']]],['Listing',[['{{listing_name}}','Listing name'],['{{listing_number}}','Listing #']]],['Other',[['{{today}}','Today\u2019s date']]]];
+function palHtml(){ return PAL_FIELDS.map(function(g){ return '<div class="palgrp"><span class="palgl">'+esc(g[0])+'</span>'+g[1].map(function(f){ return '<button type="button" class="tokchip" data-tok="'+esc(f[0])+'" title="'+esc(f[0])+'">'+esc(f[1])+'</button>'; }).join('')+'</div>'; }).join(''); }
 function renderEditor(){
   var host=document.getElementById('editor'); if(!host) return;
   if(!EDIT){ host.innerHTML=''; return; }
   var t=EDIT; var ro=!t.mine;
-  SCOPE=(t.scope==='shared'?'shared':'personal'); CAT=(CATS.indexOf(t.category)>=0?t.category:'General'); ACTIVE=(t.active!==false); EXECAUTO=(t.execAuto||''); GREET=(t.greeting||'none');
-  host.innerHTML='<div class="card"><div class="ch"><b>'+(ro?'View template':(t.id?'Edit template':'New template'))+'</b><span class="sp"><span class="msg" id="msg"></span><button class="btn ghost sm" id="pvBtn">Preview</button>'+((t.id&&t.mine)?'<button class="btn danger sm" id="delBtn">Delete</button>':'')+'<button class="btn ghost sm" id="closeBtn">Close</button>'+(ro?'':'<button class="btn red" id="saveBtn">Save</button>')+'</span></div><div class="body">'
-    +(ro?'<div class="ro">Shared template'+(t.ownerName?(' by <b>'+esc(t.ownerName)+'</b>'):'')+' — view only. Use <b>Duplicate</b> to make your own editable copy.</div>':'')
+  SCOPE=(t.scope==='shared'?'shared':'personal');
+  host.innerHTML='<div class="card"><div class="ch"><b>'+(ro?'View template':(t.id?'Edit template':'New template'))+'</b><span class="sp"><span class="msg" id="msg"></span>'+((t.id&&t.mine)?'<button class="btn danger sm" id="delBtn">Delete</button>':'')+'<button class="btn ghost sm" id="closeBtn">Close</button>'+(ro?'':'<button class="btn red" id="saveBtn">Save</button>')+'</span></div><div class="body">'
+    +(ro?'<div class="ro">Shared template'+(t.ownerName?(' by <b>'+esc(t.ownerName)+'</b>'):'')+' — view only. Use + New template to make your own copy.</div>':'')
     +'<div class="fld"><label>Template name</label><input type="text" id="tName" value="'+esc(t.name||'')+'"'+(ro?' readonly':'')+' placeholder="e.g. New buyer intro"></div>'
-    +'<div class="selrow">'+catControl(ro)+scopeControl(ro)+'</div>'
-    +((t.id&&t.mine)?'<div class="fld" style="margin-top:14px"><label class="chkline"><input type="checkbox" id="tActive"'+(ACTIVE?' checked':'')+'> Active — show in the send composer and automations (uncheck to archive)</label></div>':'')
-    +'<div class="fld" style="margin-top:14px"><label>Subject</label><input type="text" id="tSubject" value="'+esc(t.subject||'')+'"'+(ro?' readonly':'')+' placeholder="e.g. Great connecting, {{first_name}}"></div>'
-    +greetControl(ro)+'<div class="fld"><label>Body</label>'+(ro?('<div class="rrgrt" style="border:1px solid #cfd6e2;border-radius:9px"><div class="rrgrt-ed" style="padding:10px 12px;min-height:120px">'+RRGRte.toHtml(t.body||'')+'</div></div>'):RRGRte.html('tBody',{value:t.body||'',placeholder:'Write your email… use the { } menu for merge fields.'}))+'</div>'
-    +'<div id="pvPanel"></div>'+autoControl(ro)
+    +'<div class="fld"><label>Visibility</label><div class="seg" id="scopeSeg"><label id="sc_p"'+((SCOPE==='personal')?' class="on"':'')+'><input type="radio" name="sc" value="personal"'+((SCOPE==='personal')?' checked':'')+(ro?' disabled':'')+'>Personal</label><label id="sc_s"'+((SCOPE==='shared')?' class="on"':'')+'><input type="radio" name="sc" value="shared"'+((SCOPE==='shared')?' checked':'')+(ro?' disabled':'')+'>Shared</label></div><div class="tokens">Personal = only you. Shared = the whole team can use it.</div></div>'
+    +'<div class="fld"><label>Subject</label><input type="text" id="tSubject" value="'+esc(t.subject||'')+'"'+(ro?' readonly':'')+' placeholder="e.g. Great connecting, {{first_name}}"></div>'
+    +'<div class="fld"><label>Body</label>'+(ro?('<div class="rrgrt" style="border:1px solid #cfd6e2;border-radius:9px"><div class="rrgrt-ed" style="padding:10px 12px;min-height:120px">'+RRGRte.toHtml(t.body||'')+'</div></div>'):RRGRte.html('tBody',{value:t.body||'',placeholder:'Write your email… use the { } menu for merge fields.'}))+'</div>'
     +'</div></div>';
   document.getElementById('closeBtn').onclick=function(){ EDIT=null; renderEditor(); };
-  document.getElementById('pvBtn').onclick=doPreview;
   if(!ro){
     if(window.RRGRte) RRGRte.wire('tBody',{});
     var seg=document.getElementById('scopeSeg');
-    if(seg){ Array.prototype.forEach.call(seg.querySelectorAll('input'),function(r){ r.onchange=function(){ SCOPE=r.value; document.getElementById('sc_p').classList.toggle('on',SCOPE==='personal'); document.getElementById('sc_s').classList.toggle('on',SCOPE==='shared'); }; }); }
-    var cs=document.getElementById('tCat'); if(cs) cs.onchange=function(){ CAT=cs.value; };
-    var ac=document.getElementById('tActive'); if(ac) ac.onchange=function(){ ACTIVE=ac.checked; };
+    Array.prototype.forEach.call(seg.querySelectorAll('input'),function(r){ r.onchange=function(){ SCOPE=r.value; document.getElementById('sc_p').classList.toggle('on',SCOPE==='personal'); document.getElementById('sc_s').classList.toggle('on',SCOPE==='shared'); }; });
     document.getElementById('saveBtn').onclick=save;
     var db=document.getElementById('delBtn'); if(db) db.onclick=onDelete;
+    var lastFld=document.getElementById('tBody');
+    ['tSubject','tBody'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener('focus',function(){ lastFld=el; }); });
+    var pal=document.getElementById('tokpal'); if(pal){ Array.prototype.forEach.call(pal.querySelectorAll('.tokchip'),function(c){ c.addEventListener('click',function(){ var tok=c.getAttribute('data-tok'); var el=lastFld||document.getElementById('tBody'); if(!el) return; var st=el.selectionStart||0, en=el.selectionEnd||0, v=el.value; el.value=v.slice(0,st)+tok+v.slice(en); var np=st+tok.length; el.focus(); try{el.setSelectionRange(np,np);}catch(e){} }); }); }
   }
-}
-function doPreview(){
-  var panel=document.getElementById('pvPanel'); if(!panel) return;
-  if(panel.innerHTML){ panel.innerHTML=''; var pb=document.getElementById('pvBtn'); if(pb) pb.textContent='Preview'; return; }
-  var subj = EDIT.mine ? ((document.getElementById('tSubject')||{}).value||'') : (EDIT.subject||'');
-  var body = EDIT.mine ? (window.RRGRte?RRGRte.get('tBody'):((document.getElementById('tBody')||{}).value||'')) : (EDIT.body||'');
-  var bodyHtml = window.RRGRte ? RRGRte.toHtml(body) : esc(body).replace(/\n/g,'<br>');
-  panel.innerHTML='<div class="pvw"><div class="pvs">Preview — sample data ('+esc(SAMPLE['{{name}}'])+')</div><div class="pvsub">'+mergePreview(subj)+'</div><div class="pvbody">'+mergePreview(bodyHtml)+'</div><div class="tokens" style="margin-top:10px">Anything <span class="tokmiss">highlighted</span> is a merge field that won’t fill from this contact — check the spelling.</div></div>';
-  var pb2=document.getElementById('pvBtn'); if(pb2) pb2.textContent='Hide preview';
-  try{ panel.scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){}
 }
 function render(){
   var root=document.getElementById('root');
   if(!BUILT){ root.innerHTML=LIST_SHELL; BUILT=true; document.getElementById('t_new').onclick=newTpl; }
-  renderCatBar(); refreshList(); renderEditor();
+  refreshList(); renderEditor();
 }
 function openEdit(id){ var t=curById(id); if(!t) return; EDIT=JSON.parse(JSON.stringify(t)); renderEditor(); var ed=document.getElementById('editor'); if(ed) ed.scrollIntoView({behavior:'smooth',block:'start'}); }
-function newTpl(){ EDIT={id:'',name:'',subject:'',body:'',scope:'personal',category:'General',active:true,mine:true}; SCOPE='personal'; CAT='General'; ACTIVE=true; renderEditor(); var ed=document.getElementById('editor'); if(ed) ed.scrollIntoView({behavior:'smooth',block:'start'}); }
-function msg(t,cls){ var m=document.getElementById('msg'); if(!m) return; m.textContent=t; m.className='msg '+(cls||''); if(t){ setTimeout(function(){ if(m.textContent===t){m.textContent='';m.className='msg';} },3500); } }
-function load(){ api('GET','/api/email-templates?all=1').then(function(j){ TPLS=j.templates||[]; AUTOS=j.automations||[]; IS_ADMIN=TPLS.some(function(t){return t.canShare;}); render(); }); }
+function newTpl(){ EDIT={id:'',name:'',subject:'',body:'',scope:'personal',mine:true}; SCOPE='personal'; renderEditor(); var ed=document.getElementById('editor'); if(ed) ed.scrollIntoView({behavior:'smooth',block:'start'}); }
+function msg(t,cls){ var m=document.getElementById('msg'); if(!m) return; m.textContent=t; m.className='msg '+(cls||''); if(t){ setTimeout(function(){ if(m.textContent===t){m.textContent='';m.className='msg';} },3000); } }
+function load(){ api('GET','/api/email-templates').then(function(j){ TPLS=j.templates||[]; render(); }); }
 function save(){
   var name=(document.getElementById('tName').value||'').trim(); if(!name){ msg('Name the template.','err'); return; }
-  var body={ name:name, scope:SCOPE, category:CAT, active:ACTIVE, execAuto:(function(){var a=document.getElementById('tAuto');return a?a.value:'';})(), greeting:(function(){var g=document.getElementById('tGreet');return g?g.value:'none';})(), subject:document.getElementById('tSubject').value, body:(window.RRGRte?RRGRte.get('tBody'):((document.getElementById('tBody')||{}).value||'')) };
+  var body={ name:name, scope:SCOPE, subject:document.getElementById('tSubject').value, body:(window.RRGRte?RRGRte.get('tBody'):((document.getElementById('tBody')||{}).value||'')) };
   if(EDIT&&EDIT.id) body.id=EDIT.id;
   var btn=document.getElementById('saveBtn'); btn.disabled=true;
   api('POST','/api/email-templates',body).then(function(j){ btn.disabled=false; if(!j.ok){ msg(j.error||'Save failed.','err'); return; } EDIT=j.template||EDIT; load(); msg('Saved','ok'); });
 }
-function duplicate(id){ var t=curById(id); if(!t) return; api('POST','/api/email-templates',{ name:('Copy of '+(t.name||'template')).slice(0,120), scope:'personal', category:(t.category||'General'), active:true, subject:t.subject||'', body:t.body||'' }).then(function(j){ if(!j.ok){ alert(j.error||'Could not duplicate.'); return; } load(); if(j.template){ EDIT=JSON.parse(JSON.stringify(j.template)); setTimeout(function(){ renderEditor(); var ed=document.getElementById('editor'); if(ed) ed.scrollIntoView({behavior:'smooth',block:'start'}); },60); } }); }
-function toggleArchive(id){ var t=curById(id); if(!t) return; api('POST','/api/email-templates',{ id:t.id, name:t.name, active:(t.active===false) }).then(function(j){ if(!j.ok){ alert(j.error||'Could not update.'); return; } load(); }); }
 function onDelete(){
   if(!EDIT||!EDIT.id) return;
   if(!DEL_ARM){ DEL_ARM=true; var b=document.getElementById('delBtn'); b.textContent='Really delete?'; b.classList.add('red'); setTimeout(function(){ if(DEL_ARM){ DEL_ARM=false; var x=document.getElementById('delBtn'); if(x){x.textContent='Delete';x.classList.remove('red');} } },3500); return; }
   DEL_ARM=false;
   api('DELETE','/api/email-templates/'+encodeURIComponent(EDIT.id)).then(function(j){ if(!j.ok){ msg(j.error||'Delete failed.','err'); return; } EDIT=null; load(); });
 }
-document.addEventListener('click',async function(e){ if(!e.target.closest) return;
-  var ed=e.target.closest('[data-edit]'); if(ed){ e.preventDefault(); openEdit(ed.getAttribute('data-edit')); return; }
-  var dp=e.target.closest('[data-dup]'); if(dp){ e.preventDefault(); duplicate(dp.getAttribute('data-dup')); return; }
-  var ar=e.target.closest('[data-arch]'); if(ar){ e.preventDefault(); toggleArchive(ar.getAttribute('data-arch')); return; }
-  var dl=e.target.closest('[data-del]'); if(dl){ e.preventDefault(); var _t=curById(dl.getAttribute('data-del')); if(_t && await rrgConfirm('Delete "'+(_t.name||'this template')+'"?')){ api('DELETE','/api/email-templates/'+encodeURIComponent(_t.id)).then(function(j){ if(j&&j.ok){ if(EDIT&&EDIT.id===_t.id) EDIT=null; load(); } else alert((j&&j.error)||'Delete failed.'); }); } return; }
-});
+document.addEventListener('click',async function(e){ if(!e.target.closest) return; var ed=e.target.closest('[data-edit]'); if(ed){ e.preventDefault(); openEdit(ed.getAttribute('data-edit')); return; } var dl=e.target.closest('[data-del]'); if(dl){ e.preventDefault(); var _t=curById(dl.getAttribute('data-del')); if(_t && await rrgConfirm('Delete "'+(_t.name||'this template')+'"?')){ api('DELETE','/api/email-templates/'+encodeURIComponent(_t.id)).then(function(j){ if(j&&j.ok){ if(EDIT&&EDIT.id===_t.id) EDIT=null; load(); } else alert((j&&j.error)||'Delete failed.'); }); } return; } });
 load();
-(function(){ var fs=document.getElementById('etFeatStrip'), hd=document.getElementById('etFeatHd'); if(!fs||!hd) return; try{ if(localStorage.getItem('rrg_etfeats')!=='1') fs.classList.add('collapsed'); }catch(e){ fs.classList.add('collapsed'); } hd.addEventListener('click',function(){ var col=fs.classList.toggle('collapsed'); try{ localStorage.setItem('rrg_etfeats', col?'0':'1'); }catch(e){} }); })();
 </script>
 </body>
 </html>

@@ -36,12 +36,12 @@
       +'.rl-colhint{font-size:11px;color:#98a1b5;padding:7px 9px 3px;border-top:1px solid #eef1f6;margin-top:5px}'
       +'.rl-bulk{display:flex;align-items:center;gap:10px;background:#fff5f4;border:1px solid #f0cfca;border-radius:4px;padding:7px 12px;margin:0 0 12px;font-size:12.5px}'
       +'.rl-bulk b{color:var(--navy,#000E31)}'
-      +'.rl-bulk button{font:inherit;font-size:12px;font-weight:700;padding:6px 12px;border-radius:3px;border:1px solid #cfd6e2;background:#fff;color:#0b1a3a;cursor:pointer}'
+      +'.rl-bulk button{font:inherit;font-size:12px;font-weight:800;padding:6px 12px;border-radius:3px;border:1px solid #cfd6e2;background:#fff;color:#0b1a3a;cursor:pointer}'
       +'.rl-bulk button.danger{background:var(--red,#DA2B1F);border-color:var(--red,#DA2B1F);color:#fff}'
       +'.rl-bulk a{color:#5b6472;cursor:pointer;text-decoration:underline;font-weight:600}'
       +'.rl-selallwrap{display:inline-flex;align-items:center;gap:7px;margin-left:2px}'
       +'.rl-selallnote{color:#5b6472;font-weight:600}'
-      +'.rl-bulk a.rl-selall{display:inline-block;background:var(--primary,#2c5c8f);color:#fff;font-weight:700;text-decoration:none;padding:5px 12px;border-radius:4px}'
+      +'.rl-bulk a.rl-selall{display:inline-block;background:var(--primary,#2c5c8f);color:#fff;font-weight:800;text-decoration:none;padding:5px 12px;border-radius:4px}'
       +'.rl-bulk a.rl-selall:hover{filter:brightness(1.08)}'
       +'.rl-morewrap{position:relative;display:inline-block}'
       +'.rl-moremenu{position:absolute;top:calc(100% + 6px);left:0;z-index:60;background:#fff;border:1px solid #e3e8f0;border-radius:6px;box-shadow:0 14px 40px rgba(12,22,54,.18);padding:6px;min-width:186px}'
@@ -79,7 +79,7 @@
       +'td.rl-ed:hover{box-shadow:inset 0 0 0 1px #c3d0e6}'
       +'.rl-edinput{width:100%;box-sizing:border-box;border:1px solid var(--primary,#2c5c8f);border-radius:5px;padding:4px 6px;font:inherit;font-size:13px;background:#fff;color:#1f2a3d}'
       +'.rl-btn.on{background:var(--navy,#000E31);color:#fff;border-color:var(--navy,#000E31)}'
-      +'.rl-btn .rlfcount{background:var(--red,#DA2B1F);color:#fff;border-radius:4px;font-size:10px;font-weight:700;padding:0 5px;margin-left:1px}'
+      +'.rl-btn .rlfcount{background:var(--red,#DA2B1F);color:#fff;border-radius:4px;font-size:10px;font-weight:800;padding:0 5px;margin-left:1px}'
       +'.rl-filterpanel{display:flex;flex-wrap:wrap;align-items:flex-end;gap:9px 11px;padding:11px 12px;margin:0 0 11px;background:#f7f9fc;border:1px solid #e6ebf3;border-radius:6px}'
       +'.rl-filterfield{display:flex;flex-direction:column;gap:3px}'
       +'.rl-filterfield label{font-size:10px;text-transform:uppercase;letter-spacing:.03em;color:#8a94a6;font-weight:700}'
@@ -198,7 +198,7 @@
       var densTog = '<label class="rl-dens" title="Compact rows"><input type="checkbox" class="rl-densCk"'+(state.compact?' checked':'')+'> Compact</label>';
       var fcount = activeFilterKeys().length;
       var filtBtn = '<button class="rl-btn rl-filtbtn'+(state._filterOpen?' on':'')+'" title="Filter rows"><span class="rlic">\u2261</span>Filter'+(fcount?('<span class="rlfcount">'+fcount+'</span>'):'')+'</button>';
-      var savedBtn = opts.savedButton ? '<div class="rl-colwrap" style="display:none"><button class="rl-btn rl-savedbtn"></button><div class="rl-savedmenu" hidden></div></div>' : '<div class="rl-colwrap"><button class="rl-btn rl-savedbtn" title="Saved searches"><span class="rlic">\u2606</span>Saved</button><div class="rl-savedmenu" hidden></div></div>';
+      var savedBtn = '<div class="rl-colwrap"><button class="rl-btn rl-savedbtn" title="Saved searches"><span class="rlic">\u2606</span>Saved</button><div class="rl-savedmenu" hidden></div></div>';
       var colsBtn = '<div class="rl-colwrap"><button class="rl-btn rl-colbtn" title="Choose columns"><span class="rlic">▦</span>Columns</button><div class="rl-colmenu" hidden></div></div>';
       var expBtn = '<button class="rl-btn rl-export" title="Export to CSV"><span class="rlic">⬇</span>Export</button>';
       var prnBtn = '<button class="rl-btn rl-print" title="Print this list"><span class="rlic">⎙</span>Print</button>';
@@ -250,7 +250,7 @@
       var body = slice.map(function(it,i){
         var id = visibleIds[i];
         var ck = '<td class="rl-ck"><input type="checkbox" class="rl-row" data-id="'+esc(id)+'"'+(state.sel[id]?' checked':'')+'></td>';
-        var tds = vis.map(function(m){ var c=m.c; var align=c.align?(' style="text-align:'+c.align+'"'):''; var cls=((c.cls||'')+(c.edit?' rl-ed':'')).trim(); var clsAttr=cls?(' class="'+cls+'"'):''; var edAttr=c.edit?(' data-edkey="'+esc(m.key)+'"'):''; return '<td'+clsAttr+edAttr+align+'>'+c.cell(it)+'</td>'; }).join('');
+        var tds = vis.map(function(m){ var c=m.c; var align=c.align?(' style="text-align:'+c.align+'"'):''; var canEd=!!(c.edit && (!c.edit.editable || c.edit.editable(it))); var cls=((c.cls||'')+(canEd?' rl-ed':'')).trim(); var clsAttr=cls?(' class="'+cls+'"'):''; var edAttr=canEd?(' data-edkey="'+esc(m.key)+'"'):''; return '<td'+clsAttr+edAttr+align+'>'+c.cell(it)+'</td>'; }).join('');
         return '<tr class="rl-tr'+(state.sel[id]?' rl-sel':'')+'" data-rowid="'+esc(id)+'">'+ck+tds+'</tr>';
       }).join('');
 
@@ -261,7 +261,6 @@
       // Group the page's own filter button into the toolbar, right before Saved,
       // so Filters + Saved sit together in the same spot on every list.
       if(opts.filterButton){ try{ var _bar=mount.querySelector('.rl-bar'), _sb=mount.querySelector('.rl-savedbtn'); var _anchor=_sb?(_sb.closest('.rl-colwrap')||_sb):null; if(_bar&&_anchor){ opts.filterButton.style.marginLeft='0'; _bar.insertBefore(opts.filterButton,_anchor); } }catch(e){} }
-      if(opts.savedButton){ try{ var _bar2=mount.querySelector('.rl-bar'), _sb2=mount.querySelector('.rl-savedbtn'); var _anc2=_sb2?(_sb2.closest('.rl-colwrap')||_sb2):null; if(_bar2&&_anc2){ opts.savedButton.style.marginLeft='0'; _bar2.insertBefore(opts.savedButton,_anc2); } }catch(e){} }
       mount.classList.toggle('rl-compact', !!state.compact);
       wire();
       if(keepMenu){ keepMenu=false; openColMenu(); }
