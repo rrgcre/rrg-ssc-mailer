@@ -203,6 +203,21 @@ function qs(k){ return new URLSearchParams(location.search).get(k)||''; }
 var KEY=qs('key'), A=null, STATUSES=['New','Active','Under Contract','Closed','On Hold','Lost'], DIRTY=false, RA=null, OFFERS=[], TOURS=[], NDAS=[], PEOPLE=[], AGR=[], ATYPES=[], PIPES=[], BUYERPIPES=[], EXP=null, INVX=null;
 // Stages the buyer leads move through — driven by the selected Buyer pipeline; falls back to the fixed funnel.
 function buyerStageNames(){ var st=(A&&A.buyerStages)||[]; var names=st.map(function(s){return (s&&s.name)||s;}).filter(Boolean); return names.length?names:INQ_STATUSES; }
+// Buyer pipeline board — the buyer-side mirror of the seller Pipeline card. Each stage shows how many buyer leads sit in it.
+function buyerPipelineCard(){
+  if(A && A.assignmentType==='tenant_rep') return '';
+  var names=buyerStageNames(); if(!names.length) return '';
+  var bp=BUYERPIPES.filter(function(p){return p.id===((A&&A.buyerPipelineId)||'');})[0] || BUYERPIPES[0];
+  var bpName=(bp&&bp.name)||'';
+  var counts={}, total=0;
+  (INQUIRIES||[]).forEach(function(q){ var s=q.status||names[0]; counts[s]=(counts[s]||0)+1; total++; });
+  var steps=names.map(function(nm){
+    var n=counts[nm]||0; var cls=n>0?'done':'absent';
+    return '<div class="hpstep" title="'+esc(nm)+' — '+n+' buyer'+(n===1?'':'s')+'"><div class="hpdot '+cls+'">'+(n>0?n:'')+'</div><div class="hpname">'+esc(nm)+'</div><div class="hpstat">'+n+' buyer'+(n===1?'':'s')+'</div></div>';
+  }).join('');
+  var pill=bpName?('<span style="margin-left:8px;color:var(--navy);font-weight:700;font-size:11.5px;background:#eef2fb;border:1px solid #d3ddf3;border-radius:999px;padding:2px 10px">'+esc(bpName)+'</span>'):'';
+  return '<div class="card"><div class="ch"><b>Buyer Pipeline</b>'+pill+'<span>'+total+' buyer'+(total===1?'':'s')+' in pipeline</span></div><div class="track"><div class="hpipe">'+steps+'</div></div></div>';
+}
 var OFFER_TYPES=['IOI','LOI'], OFFER_STATUSES=['Received','Under review','Countered','Accepted','Rejected','Withdrawn'];
 var TXN=null, TXNSTAT=['LOI','Under Contract','Due Diligence','Financing','Closing','Closed','Dead'];
 var TXNCOMM=['Unpaid','Invoiced','Partial','Paid'];
@@ -575,6 +590,7 @@ function render(){
     + '<div class="mid">'
     + '<div class="card"><div class="ch"><b>Listing facts</b><span>'+done+' of '+ST.length+' stages complete</span></div><div class="cb">'+facts+'</div></div>'
     + '<div class="card"><div class="ch"><b>Pipeline</b>'+(pipeName?('<span style="margin-left:8px;color:var(--navy);font-weight:700;font-size:11.5px;background:#eef2fb;border:1px solid #d3ddf3;border-radius:999px;padding:2px 10px">'+esc(pipeName)+'</span>'):'')+'<span>'+started+' of '+ST.length+' started</span></div><div class="track"><div class="hpipe">'+steps+'</div></div></div>'
+    + buyerPipelineCard()
     + mktCardShell()
     + '</div>'
     + '<div class="rail">'

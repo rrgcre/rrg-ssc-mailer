@@ -9,12 +9,12 @@
 *{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);}
 .wrap{max-width:none;margin:0 auto;padding:24px 28px 60px;}
-.pgh{font-size:26px;font-weight:700;color:var(--navy);margin:6px 0 2px;}
+.pgh{font-size:26px;font-weight:800;color:var(--navy);margin:6px 0 2px;}
 .pgs{color:var(--muted);font-size:13.5px;margin-bottom:20px;max-width:760px;line-height:1.5;}
 .cols{display:grid;grid-template-columns:262px 1fr;gap:20px;align-items:start;}
 @media(max-width:820px){.cols{grid-template-columns:1fr;}}
 .card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;}
-.side .sh{padding:13px 16px;border-bottom:1px solid var(--line);font-weight:700;color:var(--navy);font-size:13px;text-transform:uppercase;letter-spacing:.04em;}
+.side .sh{padding:13px 16px;border-bottom:1px solid var(--line);font-weight:800;color:var(--navy);font-size:13px;text-transform:uppercase;letter-spacing:.04em;}
 .pl{list-style:none;margin:0;padding:6px;}
 .pl li{padding:11px 12px;border-radius:9px;cursor:pointer;margin-bottom:2px;}
 .pl li:hover{background:var(--wash);}
@@ -30,7 +30,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .btn.dng:hover{background:#fdf2f1;}
 .btn.full{width:100%;justify-content:center;}
 .main .mh{padding:15px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
-.main .mh .t{font-weight:700;color:var(--navy);font-size:16px;}
+.main .mh .t{font-weight:800;color:var(--navy);font-size:16px;}
 .main .mh .sp{margin-left:auto;display:flex;gap:8px;}
 .body{padding:20px;}
 .fld{margin-bottom:16px;}
@@ -39,17 +39,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .frow{display:flex;gap:14px;flex-wrap:wrap;}
 .frow .fld{flex:1;min-width:200px;}
 .stgh{display:flex;align-items:center;margin:22px 0 8px;}
-.stgh b{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--navy);font-weight:700;}
+.stgh b{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--navy);font-weight:800;}
 .stgh .c{margin-left:8px;font-size:12px;color:var(--soft);font-weight:600;}
 table.stg{width:100%;border-collapse:collapse;}
 table.stg th{text-align:left;padding:6px 8px;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);font-weight:700;}
 table.stg td{padding:4px 8px;border-top:1px solid #f0f2f7;vertical-align:middle;}
-.stgscroll{overflow-x:auto;border:1px solid var(--line);border-radius:12px;margin-top:6px;-webkit-overflow-scrolling:touch;}
-table.stg{min-width:1080px;}
-table.stg thead th{background:var(--wash);border-bottom:1px solid var(--line);white-space:nowrap;}
-table.stg tbody tr:hover{background:#fafbfd;}
-table.stg td,table.stg th{padding:7px 10px;}
-table.stg td.num{width:34px;color:var(--soft);font-weight:700;font-variant-numeric:tabular-nums;text-align:center;}
+table.stg td.num{width:34px;color:var(--soft);font-weight:800;font-variant-numeric:tabular-nums;text-align:center;}
 table.stg input.nm{font:inherit;font-size:14px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;width:100%;}
 table.stg input.days{font:inherit;font-size:14px;padding:8px 8px;border:1px solid var(--line);border-radius:8px;width:80px;text-align:right;font-variant-numeric:tabular-nums;}
 table.stg td.days{width:96px;}
@@ -69,7 +64,7 @@ table.stg td.act{width:96px;white-space:nowrap;text-align:right;}
 <body>
 <div class="wrap">
   <h1 class="pgh">Pipelines</h1>
-  <div class="pgs">Build and manage the deal pipelines your reps work. Each pipeline is a named set of stages, in order, with a target number of days a deal should sit in each stage before it needs attention. Business Sales, Buyer (the buy-side funnel you assign to a listing), Tenant Rep, and Landlord Rep can each run their own.</div>
+  <div class="pgs">Build and manage the deal pipelines your reps work. Each pipeline is a named set of stages, in order, with a target number of days a deal should sit in each stage before it needs attention. Business Sales, Tenant Rep, and Landlord Rep can each run their own.</div>
   <div id="root"></div>
 </div>
 
@@ -78,7 +73,6 @@ var PIPES=[], CUR=null, IS_ADMIN=false, DEL_ARM=false, DRAFT=null, AUTOS=[], MAP
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 function api(m,u,b){return fetch(u,{method:m,credentials:'same-origin',headers:b?{'Content-Type':'application/json'}:undefined,body:b?JSON.stringify(b):undefined}).then(function(r){return r.json().then(function(j){j._status=r.status;return j;});});}
 
-var BCFIELDS=null, BCFLAGS=null;
 function load(){
   api('GET','/api/pipelines').then(function(j){
     IS_ADMIN=!!j.isAdmin; PIPES=(j.pipelines||[]); AUTOS=(j.automations||[]);
@@ -87,18 +81,18 @@ function load(){
       if(m&&m.ok){ MAP=m.map||{}; MAP_CATS=m.categories||[]; }
       if(CUR && !PIPES.some(function(p){return p.id===CUR;})) CUR=null;
       if(!CUR && PIPES.length) CUR=PIPES[0].id;
-      api('GET','/api/admin/types').then(function(t){ if(t&&t.ok){ BCFIELDS=t.boardCardFields||null; BCFLAGS=t.boardCardFlags||null; } render(); });
+      render();
     });
   });
 }
 
 function routingCardHtml(){
   if(!MAP_CATS.length) return '';
-  var opts=function(sel,key){ var list=(key==='buyer')?PIPES.filter(function(p){return String(p.area||'')==='Buyer';}):PIPES; return '<option value="">— not set —</option>'+list.map(function(p){return '<option value="'+esc(p.id)+'"'+(sel===p.id?' selected':'')+'>'+esc(p.name)+(p.area?(' ('+esc(p.area)+')'):'')+'</option>';}).join(''); };
-  var flds=MAP_CATS.map(function(c){ return '<div class="fld"><label>'+esc(c.label)+'</label><select id="map_'+esc(c.key)+'">'+opts(MAP[c.key]||'', c.key)+'</select></div>'; }).join('');
+  var opts=function(sel){ return '<option value="">— not set —</option>'+PIPES.map(function(p){return '<option value="'+esc(p.id)+'"'+(sel===p.id?' selected':'')+'>'+esc(p.name)+(p.area?(' ('+esc(p.area)+')'):'')+'</option>';}).join(''); };
+  var flds=MAP_CATS.map(function(c){ return '<div class="fld"><label>'+esc(c.label)+'</label><select id="map_'+esc(c.key)+'">'+opts(MAP[c.key]||'')+'</select></div>'; }).join('');
   return '<div class="card" style="margin-bottom:20px"><div class="mh"><span class="t">Deal-type routing</span>'
     +'<span class="sp"><span class="msg" id="mapMsg"></span><button class="btn pri" id="mapSave">Save routing</button></span></div>'
-    +'<div class="body"><div class="pgs" style="margin:0 0 14px">Choose which pipeline each kind of deal enters. When a rep <b>starts a seller screening call</b>, that call drops straight into the <b>Business Sales</b> pipeline you pick here. The rest are used as each deal type gets routed. The <b>Buyer (default)</b> pipeline is the buy-side funnel every listing uses unless you pick a different one on the listing itself.</div>'
+    +'<div class="body"><div class="pgs" style="margin:0 0 14px">Choose which pipeline each kind of deal enters. When a rep <b>starts a seller screening call</b>, that call drops straight into the <b>Business Sales</b> pipeline you pick here. The rest are used as each deal type gets routed.</div>'
     +'<div class="frow">'+flds+'</div></div></div>';
 }
 function mapMsg(t,cls){ var m=document.getElementById('mapMsg'); if(!m)return; m.textContent=t; m.className='msg '+(cls||''); if(t){ setTimeout(function(){ if(m.textContent===t){m.textContent='';m.className='msg';} },3000); } }
@@ -112,42 +106,15 @@ function saveMap(){
   });
 }
 
-function boardDisplayCardHtml(){
-  if(!BCFIELDS||!BCFLAGS) return '';
-  var F=[['contact','Contact'],['listPrice','Listing Price'],['value','Est. value (BOV)'],['commission','Full Commission'],['days','Days in stage'],['market','Market'],['status','Status'],['bbs','BBS #'],['activity','Last activity']];
-  var chks=F.map(function(f){ return '<label style="display:flex;align-items:center;gap:7px;font-size:13px;color:#26324a"><input type="checkbox" id="bd_'+f[0]+'"'+(BCFIELDS[f[0]]?' checked':'')+'> '+esc(f[1])+'</label>'; }).join('');
-  var hv=BCFLAGS.highValue||{on:true,amount:'200000'}, sl=BCFLAGS.slipping||{on:true,days:'30'};
-  var lbl='font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#8a94a6;font-weight:700';
-  var num='width:120px;border:1px solid #c4ccda;border-radius:6px;padding:6px 9px;font:inherit;font-size:13px';
-  var hint='color:#8a94a6;font-size:12px';
-  var flag='display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:13px';
-  return '<div class="card" style="margin-bottom:20px"><div class="mh"><span class="t">Board card display</span>'
-    +'<span class="sp"><span class="msg" id="bdMsg"></span><button class="btn pri" id="bdSave">Save board display</button></span></div>'
-    +'<div class="body"><div class="pgs" style="margin:0 0 12px">What every rep sees on the <b>Listings board</b> cards, and the automatic flag badges. Firm-wide.</div>'
-    +'<div style="'+lbl+';margin-bottom:8px">Fields shown on each card</div>'
-    +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px 14px">'+chks+'</div>'
-    +'<div style="'+lbl+';margin:16px 0 8px">Flag badges</div>'
-    +'<div style="'+flag+'"><label style="display:flex;align-items:center;gap:7px"><input type="checkbox" id="bd_hv_on"'+(hv.on?' checked':'')+'> <b>High Value</b></label><span style="'+hint+'">value &ge;</span><input style="'+num+'" id="bd_hv_amt" inputmode="numeric" value="'+esc(hv.amount||'')+'"></div>'
-    +'<div style="'+flag+'"><label style="display:flex;align-items:center;gap:7px"><input type="checkbox" id="bd_sl_on"'+(sl.on?' checked':'')+'> <b>Slipping</b></label><span style="'+hint+'">no activity for</span><input style="'+num+'" id="bd_sl_days" inputmode="numeric" value="'+esc(sl.days||'')+'"><span style="'+hint+'">days</span></div>'
-    +'</div></div>';
-}
-function saveBoardDisplay(){
-  var F=['contact','listPrice','value','commission','days','market','status','bbs','activity'];
-  var flds={}; F.forEach(function(k){ var el=document.getElementById('bd_'+k); flds[k]=!!(el&&el.checked); });
-  var flags={ highValue:{ on:!!(document.getElementById('bd_hv_on')||{}).checked, amount:((document.getElementById('bd_hv_amt')||{}).value||'').replace(/[^0-9]/g,'') }, slipping:{ on:!!(document.getElementById('bd_sl_on')||{}).checked, days:((document.getElementById('bd_sl_days')||{}).value||'').replace(/[^0-9]/g,'') } };
-  var b=document.getElementById('bdSave'); if(b) b.disabled=true;
-  api('POST','/api/admin/types',{boardCardFields:flds,boardCardFlags:flags}).then(function(j){ if(b) b.disabled=false; var m=document.getElementById('bdMsg'); if(!j||!j.ok){ if(m){m.textContent=(j&&j.error)||'Save failed.';m.className='msg err';} return; } BCFIELDS=j.boardCardFields||flds; BCFLAGS=j.boardCardFlags||flags; if(m){m.textContent='Saved';m.className='msg ok'; setTimeout(function(){ if(m.textContent==='Saved'){m.textContent='';m.className='msg';} },3000);} });
-}
 function render(){
   var root=document.getElementById('root');
-  root.innerHTML=routingCardHtml()+boardDisplayCardHtml()
+  root.innerHTML=routingCardHtml()
     +'<div class="cols">'
-    +'<div class="card side"><div class="sh">» Pipelines</div><ul class="pl" id="pl"></ul>'
+    +'<div class="card side"><div class="sh">Pipelines</div><ul class="pl" id="pl"></ul>'
       +'<div class="sf"><button class="btn full" id="newBtn">+ New pipeline</button></div></div>'
     +'<div class="card main" id="main"></div>'
   +'</div>';
   var _ms=document.getElementById('mapSave'); if(_ms) _ms.onclick=saveMap;
-  var _bd=document.getElementById('bdSave'); if(_bd) _bd.onclick=saveBoardDisplay;
   var pl=document.getElementById('pl');
   pl.innerHTML=PIPES.map(function(p){
     var n=(p.stages||[]).length;
@@ -167,18 +134,18 @@ function renderEditor(){
   var areas=['Business Sales','Buyer','Tenant Rep','Landlord Rep','General'];
   if(p.area && areas.indexOf(p.area)<0) areas.unshift(p.area);
   var stages=(p.stages||[]);
-  main.innerHTML='<div class="mh"><span class="t">'+(p.id?'» Edit pipeline':'» New pipeline')+'</span>'
+  main.innerHTML='<div class="mh"><span class="t">'+(p.id?'Edit pipeline':'New pipeline')+'</span>'
     +'<span class="sp"><span class="msg" id="msg"></span>'
     +(p.id?'<button class="btn dng" id="delBtn">Delete</button>':'')
     +'<button class="btn pri" id="saveBtn">Save</button></span></div>'
     +'<div class="body">'
       +'<div class="frow">'
-        +'<div class="fld"><label>» Pipeline name</label><input type="text" id="pName" value="'+esc(p.name||'')+'" placeholder="e.g. Business Sales"></div>'
+        +'<div class="fld"><label>Pipeline name</label><input type="text" id="pName" value="'+esc(p.name||'')+'" placeholder="e.g. Business Sales"></div>'
         +'<div class="fld"><label>Practice area</label><select id="pArea">'+areas.map(function(a){return '<option'+(a===(p.area||'General')?' selected':'')+'>'+esc(a)+'</option>';}).join('')+'</select></div>'
       +'</div>'
-      +'<div class="stgh"><b>Stages</b><span class="c" id="stgCount"></span><span id="stgDays" title="Sum of target days across every stage — the realistic end-to-end timeline for a deal in this pipeline" style="margin-left:auto;font-size:12px;font-weight:700;color:#1f4b8f;background:#eef4fb;border:1px solid #d3e0f5;border-radius:999px;padding:4px 12px"></span></div>'
-      +'<div class="stgscroll"><table class="stg"><thead><tr><th>#</th><th>Stage name</th><th title="Short label shown on the deal pipeline track">Abbr</th><th>Target days</th><th>Win %</th><th title="Milestone that auto-checks this stage on the deal">Auto-complete when</th><th title="First stage(s) before it becomes a real listing — a card here is a Lead and is not counted as an active listing">Pre-listing</th><th>⟳ On enter (automation)</th><th>⟳ On leave (automation)</th><th></th></tr></thead><tbody id="stgBody"></tbody></table></div>'
-      +'<div class="days-note">Target days = how long a deal should stay in that stage before FullServe flags it as stalled (0 = no target). Win % = the likelihood a deal closes once it reaches that stage — used for weighted pipeline forecasting.</div>'
+      +'<div class="stgh"><b>Stages</b><span class="c" id="stgCount"></span></div>'
+      +'<table class="stg"><thead><tr><th>#</th><th>Stage name</th><th>Target days</th><th>On enter (automation)</th><th>On leave (automation)</th><th></th></tr></thead><tbody id="stgBody"></tbody></table>'
+      +'<div class="days-note">Target days = how long a deal should stay in that stage before FullServe flags it as stalled. Set 0 for no target.</div>'
       +'<div style="margin-top:14px"><button class="btn" id="addStg">+ Add stage</button></div>'
     +'</div>';
   renderStages(stages);
@@ -187,18 +154,6 @@ function renderEditor(){
   var db=document.getElementById('delBtn'); if(db) db.onclick=onDelete;
 }
 
-var STAGE_TRIGGERS=[['','\u2014 Auto by name \u2014'],['manual','Manual (toggle by hand)'],['call','Qualification Call logged'],['questionnaire','Seller Interview completed'],['nda','NDA executed'],['bov','BOV built'],['room','Data Room populated'],['pack','Marketing Pack built'],['attack','Attack Plan built'],['lease','Lease Abstract done']];
-function autoAbbr(n){ n=String(n||''); if(!n) return ''; if(n.length<=11) return n; var w=n.split(/\s+/); if(w.length>1){ return w.map(function(x){return x[0];}).join('').toUpperCase().slice(0,5); } return n.slice(0,10); }
-function updateDaysTotal(){
-  var el=document.getElementById('stgDays'); if(!el) return;
-  var days=document.querySelectorAll('#stgBody input.days'); var total=0;
-  for(var i=0;i<days.length;i++){ total+=Math.max(0,parseInt(days[i].value,10)||0); }
-  if(!total){ el.textContent='Set target days to see the full timeline'; el.style.color='#8a93a8'; el.style.background='#f5f7fb'; el.style.borderColor='#e6e9f0'; return; }
-  el.style.color='#1f4b8f'; el.style.background='#eef4fb'; el.style.borderColor='#d3e0f5';
-  var wks=Math.round(total/7*10)/10, mos=Math.round(total/30.4*10)/10;
-  var ctx = total>=60 ? (' \u00b7 ~'+mos+' month'+(mos===1?'':'s')) : (' \u00b7 ~'+wks+' week'+(wks===1?'':'s'));
-  el.textContent='\u23f1 '+total+' days end-to-end'+ctx;
-}
 function renderStages(stages){
   var tb=document.getElementById('stgBody');
   document.getElementById('stgCount').textContent=stages.length+' stage'+(stages.length===1?'':'s');
@@ -206,11 +161,7 @@ function renderStages(stages){
     return '<tr>'
       +'<td class="num">'+(i+1)+'</td>'
       +'<td><input class="nm" data-i="'+i+'" value="'+esc(st.name||'')+'" placeholder="Stage name"></td>'
-      +'<td><input class="abbr" data-i="'+i+'" maxlength="10" style="max-width:92px" value="'+esc(st.abbr||'')+'" placeholder="'+esc(autoAbbr(st.name))+'" title="Short label shown on the pipeline track. Leave blank to auto-shorten the name."></td>'
       +'<td class="days"><input class="days" type="number" min="0" data-i="'+i+'" value="'+(st.targetDays==null?'':st.targetDays)+'"></td>'
-      +'<td class="days"><input class="winpct" type="number" min="0" max="100" data-i="'+i+'" value="'+(st.winPct==null?'':st.winPct)+'" title="% likelihood of a sale at this stage"></td>'
-      +'<td><select class="auto" data-i="'+i+'" style="font:inherit;font-size:12.5px;padding:5px 7px;border:1px solid var(--line,#cfd6e2);border-radius:7px;max-width:200px">'+STAGE_TRIGGERS.map(function(o){return '<option value="'+esc(o[0])+'"'+((st.autoComplete||'')===o[0]?' selected':'')+'>'+esc(o[1])+'</option>';}).join('')+'</select></td>'
-      +'<td style="text-align:center"><input type="checkbox" class="prelist" data-i="'+i+'"'+(st.preListing?' checked':'')+' title="Pre-listing / lead stage"></td>'
       +'<td><select class="saA" data-i="'+i+'" style="font:inherit;font-size:12.5px;padding:5px 7px;border:1px solid var(--line,#cfd6e2);border-radius:7px;max-width:180px"><option value="">\u2014 none \u2014</option>'+AUTOS.map(function(a){return '<option value="'+esc(a.id)+'"'+(st.onAssignAuto===a.id?' selected':'')+'>'+esc(a.name)+'</option>';}).join('')+'</select></td>'
       +'<td><select class="saU" data-i="'+i+'" style="font:inherit;font-size:12.5px;padding:5px 7px;border:1px solid var(--line,#cfd6e2);border-radius:7px;max-width:180px"><option value="">\u2014 none \u2014</option>'+AUTOS.map(function(a){return '<option value="'+esc(a.id)+'"'+(st.onUnassignAuto===a.id?' selected':'')+'>'+esc(a.name)+'</option>';}).join('')+'</select></td>'
       +'<td class="act">'
@@ -218,9 +169,7 @@ function renderStages(stages){
         +'<button class="ib dn" data-i="'+i+'"'+(i===stages.length-1?' disabled':'')+' title="Move down">↓</button>'
         +'<button class="ib x" data-i="'+i+'" title="Remove">✕</button>'
       +'</td></tr>';
-  }).join('') || '<tr><td colspan="10" class="empty" style="padding:24px">No stages yet — add your first stage below.</td></tr>';
-  updateDaysTotal();
-  Array.prototype.forEach.call(tb.querySelectorAll('#stgBody input.days'),function(inp){ inp.addEventListener('input',updateDaysTotal); });
+  }).join('') || '<tr><td colspan="6" class="empty" style="padding:24px">No stages yet — add your first stage below.</td></tr>';
   Array.prototype.forEach.call(tb.querySelectorAll('.ib.up'),function(b){b.onclick=function(){move(+b.getAttribute('data-i'),-1);};});
   Array.prototype.forEach.call(tb.querySelectorAll('.ib.dn'),function(b){b.onclick=function(){move(+b.getAttribute('data-i'),1);};});
   Array.prototype.forEach.call(tb.querySelectorAll('.ib.x'),function(b){b.onclick=function(){removeStage(+b.getAttribute('data-i'));};});
@@ -231,12 +180,8 @@ function gatherStages(){
   var days=document.querySelectorAll('#stgBody input.days');
   var saA=document.querySelectorAll('#stgBody select.saA');
   var saU=document.querySelectorAll('#stgBody select.saU');
-  var wp=document.querySelectorAll('#stgBody input.winpct');
-  var ab=document.querySelectorAll('#stgBody input.abbr');
-  var au=document.querySelectorAll('#stgBody select.auto');
-  var pl=document.querySelectorAll('#stgBody input.prelist');
   var out=[];
-  for(var i=0;i<names.length;i++){ out.push({name:names[i].value,abbr:(ab[i]?String(ab[i].value||'').trim().slice(0,10):''),autoComplete:(au[i]?au[i].value:''),preListing:(pl[i]?pl[i].checked:false),targetDays:(days[i].value===''?0:Math.max(0,parseInt(days[i].value,10)||0)),winPct:(wp[i]&&wp[i].value!==''?Math.max(0,Math.min(100,parseInt(wp[i].value,10)||0)):''),onAssignAuto:(saA[i]?saA[i].value:''),onUnassignAuto:(saU[i]?saU[i].value:'')}); }
+  for(var i=0;i<names.length;i++){ out.push({name:names[i].value,targetDays:(days[i].value===''?0:Math.max(0,parseInt(days[i].value,10)||0)),onAssignAuto:(saA[i]?saA[i].value:''),onUnassignAuto:(saU[i]?saU[i].value:'')}); }
   return out;
 }
 function move(i,d){ var s=gatherStages(); var j=i+d; if(j<0||j>=s.length)return; var t=s[i];s[i]=s[j];s[j]=t; curPipe().stages=s; renderStages(s); }
