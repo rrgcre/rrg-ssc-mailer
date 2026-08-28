@@ -8835,12 +8835,15 @@ app.post('/api/assignment/:key/inquiry', express.json(), (req, res) => {
   if (typeof b.email === 'string') rec.email = b.email.slice(0, 160);
   if (typeof b.phone === 'string') rec.phone = b.phone.slice(0, 60);
   if (typeof b.note === 'string') rec.note = b.note.slice(0, 2000);
-  if (typeof b.status === 'string' && INQ_STATUS.indexOf(b.status) >= 0) rec.status = b.status;
-  if (!rec.status) rec.status = 'Unqualified';
+  // Accept the fixed funnel OR the deal's configured Buyer-pipeline stages.
+  const _buyerStageNames = buyerStageNamesFor(cur) || [];
+  const _allowedStatuses = INQ_STATUS.concat(_buyerStageNames);
+  if (typeof b.status === 'string' && b.status.trim() && _allowedStatuses.indexOf(b.status) >= 0) rec.status = b.status;
+  if (!rec.status) rec.status = _buyerStageNames[0] || 'Unqualified';
   if ((rec.name || rec.email) && !rec.personId) { const p = findOrCreatePerson(req, { name: rec.name || '', email: rec.email || '', phones: rec.phone ? [rec.phone] : [], type: 'Buying' }); if (p) rec.personId = p.id; }
   rec.updatedAt = now;
   cur.inquiries = inqs; cur.updatedAt = now; overlay[d.key] = cur; saveAssignOverlay(overlay);
-  res.json({ ok: true, inquiries: inqs, statuses: INQ_STATUS });
+  res.json({ ok: true, inquiries: inqs, statuses: (_buyerStageNames.length ? _buyerStageNames : INQ_STATUS) });
 });
 app.post('/api/assignment/:key/inquiry/:id/remove', (req, res) => {
   const deals = assignmentsIndex(); const d = deals[req.params.key];
