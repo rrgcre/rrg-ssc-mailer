@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Listings — Help &amp; User Guide · RRG</title>
+<style>
+:root{ --navy:#000E31; --slate:#20334f; --primary:#2c5c8f; --primary-d:#23496f; --red:#b23a2c; --ink:#2b3648; --muted:#69748a; --soft:#96a1b2; --line:#dbe0e9; --wash:#f4f6f9; --inp:#c4ccda; --gold:#b5791f; --green:#2f7a55; }
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:#eef1f6;font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased;}
+a{color:var(--primary);text-decoration:none;} a:hover{text-decoration:underline;}
+.top{background:var(--navy);border-bottom:2px solid var(--primary);color:#fff;position:sticky;top:0;z-index:50;}
+.top-in{max-width:1180px;margin:0 auto;padding:12px 24px;display:flex;align-items:center;gap:13px;}
+.disc{width:34px;height:34px;border-radius:4px;background:var(--red);color:#fff;font:900 12px 'Arial Black',Arial;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;flex:none;}
+.wm{font-weight:700;font-size:12px;line-height:1.05;text-transform:uppercase;letter-spacing:.02em;color:#cdd6e4;}
+.bar{width:1px;height:24px;background:rgba(255,255,255,.28);margin:0 5px;}
+.ttl{font-weight:700;font-size:15px;color:#fff;}
+.ttl small{display:block;font-size:10.5px;font-weight:600;color:#9fb0cc;text-transform:uppercase;letter-spacing:.06em;margin-top:1px;}
+.backlink{margin-left:auto;color:#cdd6e4;font-size:12.5px;font-weight:600;} .backlink:hover{color:#fff;text-decoration:none;}
+.shell{max-width:1180px;margin:22px auto;padding:0 24px 70px;display:grid;grid-template-columns:250px minmax(0,1fr);gap:26px;align-items:start;}
+.toc{position:sticky;top:74px;background:#fff;border:1px solid var(--line);border-radius:6px;overflow:hidden;}
+.toc .th{background:var(--wash);border-bottom:1px solid var(--line);padding:11px 15px;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--soft);}
+.tsearch{padding:10px 12px;border-bottom:1px solid var(--line);}
+.tsearch input{width:100%;border:1px solid var(--inp);border-radius:4px;padding:7px 10px;font:inherit;font-size:12.5px;}
+.toc nav{max-height:calc(100vh - 200px);overflow:auto;padding:6px 0;}
+.toc a{display:block;padding:6px 15px;font-size:12.5px;font-weight:600;color:var(--slate);border-left:2px solid transparent;}
+.toc a:hover{background:var(--wash);text-decoration:none;}
+.toc a.on{border-left-color:var(--primary);background:#eef4fa;color:var(--primary-d);}
+.toc .miss{padding:10px 15px;color:var(--soft);font-size:12px;}
+.doc{min-width:0;}
+.hero{background:#fff;border:1px solid var(--line);border-radius:6px;padding:24px 26px;margin-bottom:20px;}
+.hero h1{font-size:22px;font-weight:700;color:var(--navy);letter-spacing:-.01em;}
+.hero p{color:var(--muted);font-size:14.5px;margin-top:9px;max-width:760px;}
+.hero .meta{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;}
+.tag{font-size:11px;font-weight:700;color:var(--slate);background:var(--wash);border:1px solid var(--line);border-radius:3px;padding:4px 10px;}
+section.card{background:#fff;border:1px solid var(--line);border-radius:6px;padding:22px 26px;margin-bottom:16px;scroll-margin-top:74px;}
+section.card>h2{font-size:16px;font-weight:700;color:var(--navy);letter-spacing:-.01em;padding-bottom:10px;border-bottom:1px solid var(--line);margin-bottom:14px;display:flex;align-items:center;gap:9px;}
+section.card>h2 .n{width:24px;height:24px;border-radius:4px;background:var(--navy);color:#fff;font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex:none;}
+h3{font-size:14.5px;font-weight:800;color:var(--slate);margin:18px 0 7px;}
+p{margin:9px 0;} .lead{color:var(--muted);font-size:14px;}
+ul,ol{margin:9px 0 9px 4px;padding-left:22px;} li{margin:5px 0;}
+.kbd{display:inline-block;background:var(--wash);border:1px solid var(--inp);border-bottom-width:2px;border-radius:3px;padding:1px 7px;font-size:12px;font-weight:700;color:var(--slate);}
+.callout{border:1px solid var(--line);border-left:3px solid var(--primary);background:#f7fafd;border-radius:0 4px 4px 0;padding:13px 16px;margin:14px 0;font-size:13.5px;}
+.callout.tip{border-left-color:var(--green);background:#f1f8f4;}
+.callout .lbl{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:3px;}
+.callout.tip .lbl{color:var(--green);}
+.fq{border-top:1px solid var(--line);padding:13px 0;} .fq:first-of-type{border-top:none;} .fq h3{margin:0 0 4px;font-size:14px;} .fq p{margin:0;color:var(--muted);font-size:13.5px;}
+.foot{max-width:1180px;margin:0 auto;padding:0 24px 50px;color:var(--soft);font-size:12px;text-align:center;}
+.totop{position:fixed;right:20px;bottom:20px;background:var(--navy);color:#fff;border:none;border-radius:4px;padding:9px 13px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .15s;z-index:60;}
+.totop.show{opacity:1;pointer-events:auto;}
+@media(max-width:900px){.shell{grid-template-columns:1fr;}.toc{position:static;}.toc nav{max-height:none;}}
+</style>
+</head>
+<body>
+<div class="top"><div class="top-in">
+  <span class="disc">RRG</span><span class="wm">Restaurant<br>Realty Group</span><span class="bar"></span>
+  <span class="ttl">Listings<small>Help &amp; User Guide</small></span>
+  <a class="backlink" href="rrg_assignments.html">&larr; Back to Listings</a>
+</div></div>
+
+<div class="shell">
+  <aside class="toc">
+    <div class="th">Contents</div>
+    <div class="tsearch"><input id="tocSearch" placeholder="Search this guide…" autocomplete="off"></div>
+    <nav id="tocNav">
+      <a href="#overview">1 · Overview</a>
+      <a href="#manage">2 · The Manage panel</a>
+      <a href="#pipeline">3 · Seller pipeline</a>
+      <a href="#buyerpipeline">4 · Buyer pipeline</a>
+      <a href="#publish">5 · Publish to Marketplace</a>
+      <a href="#buyers">6 · Buyer leads &amp; matching</a>
+      <a href="#activity">7 · NDAs, tours &amp; offers</a>
+      <a href="#deal">8 · Deal, expenses &amp; invoices</a>
+      <a href="#dataroom">9 · Data room activity</a>
+      <a href="#leads">10 · Lead routing &amp; marketing IDs</a>
+      <a href="#layout">11 · Make the layout yours</a>
+      <a href="#lease">12 · Lease &amp; tenant-rep listings</a>
+      <a href="#faq">13 · FAQ</a>
+    </nav>
+  </aside>
+
+  <main class="doc">
+    <div class="hero">
+      <h1>Listings — Help &amp; User Guide</h1>
+      <p>A listing file is one home for a single engagement — a business you're selling, or a space you're leasing. From this one screen you set the terms, move it through the pipeline, put a blind teaser on the marketplace, work the buyers, log NDAs, tours and offers, open the deal when it goes under contract, and bill the fee. This guide walks the screen top to bottom.</p>
+      <div class="meta"><span class="tag">Business Sales</span><span class="tag">One file per listing</span><span class="tag">Market → work → close</span></div>
+    </div>
+
+    <section class="card" id="overview">
+      <h2><span class="n">1</span> Overview</h2>
+      <p class="lead">The listing file is laid out in three columns, the same way the Contact and Company detail pages are.</p>
+      <ul>
+        <li><b>Left — Manage.</b> The controls for the listing: status, pipelines, owner, the seller/client contact, agreement dates, and marketing IDs. Everything here autosaves.</li>
+        <li><b>Middle — the listing at a glance.</b> Listing facts, the seller pipeline, the buyer pipeline, and Publish to Marketplace.</li>
+        <li><b>Right — the working rail.</b> Buyer leads, matching buyers, the deal, NDAs, tours, offers, agreements, expenses, invoices, and data-room activity — cards you can reorder and collapse to fit how you work.</li>
+      </ul>
+      <p>A listing starts life as a seller record or a qualification call and becomes a live listing once financials are verified, value is aligned, and the agreement is signed — use <span class="kbd">Promote to Live listing</span> in Manage when it's ready.</p>
+    </section>
+
+    <section class="card" id="manage">
+      <h2><span class="n">2</span> The Manage panel</h2>
+      <p class="lead">The fixed left column is the cockpit for the listing. It stays put while the rest of the page scrolls, and every field saves on its own.</p>
+      <ul>
+        <li><b>Status</b> — where the listing stands (New, Active, Under Contract, Closed, On Hold, Lost).</li>
+        <li><b>Pipeline</b> — which board the listing sits on and its stage (see <a href="#pipeline">Seller pipeline</a>).</li>
+        <li><b>Buyer pipeline</b> — the set of stages your buyer leads move through (see <a href="#buyerpipeline">Buyer pipeline</a>).</li>
+        <li><b>Owner</b> — the assigned rep.</li>
+        <li><b>Seller contact</b> — the client. Type a name to link it to the contact record; once linked, it becomes a one-click link on the listing.</li>
+        <li><b>Referred by / Referral %</b> — the source of the deal and any referral fee owed.</li>
+        <li><b>Business name &amp; Market</b> — how the listing is labeled and where it trades.</li>
+        <li><b>Listing agreement</b> — listed-on, expiration, live (on-market) date, days-on-market, and auto-renew. The panel warns you as the agreement nears expiry.</li>
+        <li><b>Listing IDs &amp; lead routing</b> — see <a href="#leads">Lead routing</a>.</li>
+        <li><b>Notes</b> — private notes on the listing: next steps, seller temperature, key dates.</li>
+      </ul>
+      <div class="callout tip"><div class="lbl">Autosaves</div>Fields commit when you leave them or after a short pause while typing — there's no separate save step for most edits.</div>
+    </section>
+
+    <section class="card" id="pipeline">
+      <h2><span class="n">3</span> Seller pipeline</h2>
+      <p class="lead">The seller pipeline tracks the listing's own progress from screening to close.</p>
+      <p>The board is set in <span class="kbd">Admin → Pipelines</span> and its stages show as a horizontal tracker in the middle column — done stages fill green, the current one is marked in progress. Pick which board a listing sits on from the <b>Pipeline</b> field in Manage. Some stages are automatic (they light up as the underlying work happens); others are manual — mark them done when you reach them.</p>
+    </section>
+
+    <section class="card" id="buyerpipeline">
+      <h2><span class="n">4</span> Buyer pipeline</h2>
+      <p class="lead">The buyer pipeline is the buyer-side mirror of the seller pipeline — it's how you track the buyers working <i>this</i> listing.</p>
+      <p>A buyer pipeline is any pipeline whose <b>Practice area</b> is set to <b>Buyer</b> in <span class="kbd">Admin → Pipelines</span>. Pick one from the <b>Buyer pipeline</b> field in Manage, and its stages become the funnel every buyer lead on this listing moves through. The <b>Buyer Pipeline</b> board in the middle column (tinted a light shade of your brand red so it reads distinct from the seller pipeline) shows each stage with a live count of how many buyers sit in it. You move an individual buyer through the stages from the stage dropdown on their lead in <a href="#buyers">Buyer Leads</a>.</p>
+      <div class="callout"><div class="lbl">Setting one up</div>If no buyer pipeline exists yet, Manage shows a link to create one. In Admin → Pipelines, add a pipeline, set its Practice area to <b>Buyer</b>, and add your stages (e.g. Contacted → Qualified → NDA Sent → Toured → Offer).</div>
+    </section>
+
+    <section class="card" id="publish">
+      <h2><span class="n">5</span> Publish to Marketplace</h2>
+      <p class="lead">Put the listing in front of buyers as a blind teaser without giving away who it is.</p>
+      <p>Flip <b>Public</b> on and the listing appears on your confidential buyer marketplace — but the business name, address, and seller stay hidden until a buyer signs an NDA. You control what buyers see: a <b>blind headline</b>, category/concept, market and location label, price guide, and the revenue / cash-flow bands. Mark it <b>Featured</b> to push it to the top. Characterizing the teaser (concept, market, or price) is also what powers <a href="#buyers">buyer matching</a>, so fill it in even before you go public.</p>
+    </section>
+
+    <section class="card" id="buyers">
+      <h2><span class="n">6</span> Buyer leads &amp; matching</h2>
+      <p class="lead">Two cards work together on the right rail: the buyers who've raised their hand, and the buyers in your book who <i>should</i>.</p>
+      <p><b>Buyer Leads</b> is every buyer inquiry on this listing — imported from BizBuySell (the ⬇ Import leads button on the Listings page) or added by hand. Each lead is tracked and carries a stage dropdown so you can move it through the <a href="#buyerpipeline">buyer pipeline</a>; the card summarizes how many buyers sit in each stage.</p>
+      <p><b>Matching buyers</b> surfaces the active buyers from your book whose buy-box fits this listing — with the reasons each matched, plus one-click Open and Email. Matches appear once the listing is characterized in <a href="#publish">Publish to Marketplace</a>, so the moment a deal is ready you know exactly who to call.</p>
+    </section>
+
+    <section class="card" id="activity">
+      <h2><span class="n">7</span> NDAs, tours &amp; offers</h2>
+      <p class="lead">The steps between "interested" and "under contract," each logged as it happens.</p>
+      <ul>
+        <li><b>NDAs</b> — record each signed NDA so you know exactly who is cleared to see the CIM and enter the data room.</li>
+        <li><b>Location Tours</b> — log each site visit: who came, when, who hosted, and their read — so you can see interest building across the marketing period.</li>
+        <li><b>Offers — IOIs &amp; LOIs</b> — capture each offer as it lands (amount, buyer, terms), rate it, and let the RRG analyst score it for you.</li>
+      </ul>
+    </section>
+
+    <section class="card" id="deal">
+      <h2><span class="n">8</span> Deal, expenses &amp; invoices</h2>
+      <p class="lead">Once a buyer's committed, the listing carries the transaction to close and bills the fee.</p>
+      <p>Open the <b>Deal</b> when a buyer goes under contract — buyer, price, and close date — to track it to closing. <b>Deal Expenses</b> records costs tied to the listing, and <b>Invoices</b> lets you bill your commission with the invoice filed against the listing. Signed <b>Agreements</b> generated for the listing collect on the rail here too.</p>
+    </section>
+
+    <section class="card" id="dataroom">
+      <h2><span class="n">9</span> Data room activity</h2>
+      <p class="lead">See which buyers are actually digging in.</p>
+      <p>The <b>Data Room Activity</b> card shows who accessed the room, who signed in with an access code, and what they downloaded — a running read on buyer engagement. Use <b>Open room →</b> to jump into the room itself to add buyers, share the link, or manage documents.</p>
+    </section>
+
+    <section class="card" id="leads">
+      <h2><span class="n">10</span> Lead routing &amp; marketing IDs</h2>
+      <p class="lead">Tie your outside listing IDs to this record so inbound buyer leads attach themselves automatically.</p>
+      <p>In Manage, set the <b>BizBuySell Ref ID</b> and <b>#</b>, <b>CoStar / LoopNet #</b>, and <b>Crexi #</b> for the listing. Imported buyer leads that carry those IDs then auto-attach to the right listing. You can also pick an <b>automation</b> to run on every lead that comes in for this listing — an instant follow-up, a task, a tag — so nothing sits.</p>
+    </section>
+
+    <section class="card" id="layout">
+      <h2><span class="n">11</span> Make the layout yours</h2>
+      <p class="lead">The right rail is yours to arrange — just like the Contact and Company detail pages.</p>
+      <p>Grab any card by its <b>⠿</b> handle and drag it up or down to reorder, and use the <b>▾</b> chevron to collapse the ones you don't need. Your order and which cards are collapsed are saved <b>on this device</b>, so the listing opens the way you left it. The Manage panel on the left and the overview cards in the middle stay put.</p>
+    </section>
+
+    <section class="card" id="lease">
+      <h2><span class="n">12</span> Lease &amp; tenant-rep listings</h2>
+      <p class="lead">The same file runs a tenant-rep or landlord engagement, with the fields that fit that work.</p>
+      <p>On a tenant-rep listing, the marketing-IDs box is replaced by the <b>site criteria</b> — markets, use type, budget, size range, term, timeline, parking, and required features — the same vocabulary the tenant-box uses to match spaces. The pipeline, agreement dates, expenses, invoices, and reorderable rail all work the same way.</p>
+    </section>
+
+    <section class="card" id="faq">
+      <h2><span class="n">13</span> FAQ</h2>
+      <div class="fq"><h3>I don't see a Buyer pipeline to pick.</h3><p>None exists yet. In Admin → Pipelines, create a pipeline and set its Practice area to <b>Buyer</b>, then add your stages. It'll show in the Buyer pipeline field on every listing.</p></div>
+      <div class="fq"><h3>Where do I add a buyer lead?</h3><p>On the Buyer Leads card in the right rail — the <b>+</b> button. Or import buyers in bulk from BizBuySell using the Import leads button on the Listings page; leads carrying this listing's marketing IDs attach automatically.</p></div>
+      <div class="fq"><h3>Why don't any matching buyers show?</h3><p>Matching needs the listing characterized — set its concept, market, or price in Publish to Marketplace. Only <b>active</b> buyers (buy-box toggled on) are matched.</p></div>
+      <div class="fq"><h3>My rail keeps resetting.</h3><p>Layout is saved per device in this browser. A different browser, a private window, or cleared site data starts from the default order. Drag it back and it'll stick again on that device.</p></div>
+      <div class="fq"><h3>How do I take a listing live?</h3><p>Use Promote to Live listing in Manage once financials are verified, value is aligned, and the agreement is signed.</p></div>
+    </section>
+
+  </main>
+</div>
+
+<div class="foot">Restaurant Realty Group — Listings Help &amp; User Guide · Confidential platform documentation.</div>
+<button class="totop" id="totop" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑ Top</button>
+
+<script>
+(function(){
+  var links=[].slice.call(document.querySelectorAll('#tocNav a'));
+  var secs=links.map(function(a){return document.getElementById(a.getAttribute('href').slice(1));}).filter(Boolean);
+  function spy(){ var y=window.scrollY+90, cur=secs[0]; for(var i=0;i<secs.length;i++){ if(secs[i].offsetTop<=y) cur=secs[i]; } links.forEach(function(a){ a.classList.toggle('on', a.getAttribute('href')==='#'+(cur&&cur.id)); }); var tt=document.getElementById('totop'); tt.classList.toggle('show', window.scrollY>400); }
+  window.addEventListener('scroll',spy,{passive:true}); spy();
+  var box=document.getElementById('tocSearch'), nav=document.getElementById('tocNav');
+  box.addEventListener('input',function(){ var q=box.value.trim().toLowerCase(); var any=false; links.forEach(function(a){ var sec=document.getElementById(a.getAttribute('href').slice(1)); var hit=!q || a.textContent.toLowerCase().indexOf(q)>=0 || (sec&&sec.textContent.toLowerCase().indexOf(q)>=0); a.style.display=hit?'':'none'; if(hit) any=true; }); var m=document.getElementById('tocMiss'); if(m) m.remove(); if(!any){ var d=document.createElement('div'); d.className='miss'; d.id='tocMiss'; d.textContent='No matches.'; nav.appendChild(d); } });
+})();
+</script>
+</body>
+</html>

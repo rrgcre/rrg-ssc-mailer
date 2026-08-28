@@ -200,6 +200,23 @@ textarea{min-height:120px;resize:vertical;line-height:1.5;}
 .jbeans{display:flex;flex-wrap:wrap;gap:8px;}
 .jbean{display:inline-flex;align-items:center;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:600;line-height:1;}
 .jbean b{font-weight:800;}
+/* "What this section does" strip — matches Contacts / Companies / Documents / Data Rooms. */
+.featwrap{max-width:none;margin:16px 0 0;padding:0 24px;}
+.feats{background:#fff;border:1px solid var(--line,#e6e9f0);border-radius:8px;box-shadow:0 4px 18px rgba(11,26,56,.05);overflow:hidden;}
+.featshd{display:flex;align-items:center;gap:10px;padding:13px 20px;cursor:pointer;user-select:none;}
+.featshd b{font-size:14px;color:var(--navy,#000E31);}
+.featshd .sh{font-size:11.5px;color:var(--muted,#6b7488);font-weight:600;}
+.featshd .hlink{margin-left:auto;font-size:11.5px;font-weight:700;color:var(--primary,#2c5c8f);text-decoration:none;white-space:nowrap;}
+.featshd .hlink:hover{text-decoration:underline;}
+.featshd .chev{color:var(--muted,#6b7488);font-size:12px;transition:transform .15s;}
+.feats.collapsed .chev{transform:rotate(-90deg);}
+.feats.collapsed .featgrid{display:none;}
+.featgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1px;background:var(--line,#e6e9f0);border-top:1px solid var(--line,#e6e9f0);}
+a.feat{background:#fff;display:flex;gap:11px;padding:13px 18px;align-items:flex-start;color:inherit;text-decoration:none;}
+a.feat:hover{background:#f7f9fc;}
+.feat .fic{font-size:17px;line-height:1.25;flex:none;width:24px;text-align:center;}
+.feat b{display:block;font-size:12.5px;color:var(--navy,#000E31);font-weight:800;}
+.feat span{display:block;font-size:11.5px;color:var(--muted,#6b7488);line-height:1.45;margin-top:2px;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -211,6 +228,22 @@ textarea{min-height:120px;resize:vertical;line-height:1.5;}
   <h1 id="h1">Listing</h1>
   <div class="subline" id="subline"></div>
 </div></div>
+<div class="featwrap">
+  <div class="feats" id="lstFeatStrip">
+    <div class="featshd" id="lstFeatHd"><b>What this section does</b><span class="sh">one file to run a single listing end to end — market it, work the buyers, close it</span><a class="hlink" href="rrg_listings_help.html" target="_blank" rel="noopener" onclick="event.stopPropagation()">Open the full guide ↗</a><span class="chev">▾</span></div>
+    <div class="featgrid">
+      <a class="feat" href="rrg_listings_help.html#manage" target="_blank" rel="noopener"><span class="fic">⚙️</span><div><b>Manage it on the left</b><span>Status, pipelines, owner, seller contact, agreement dates, and the marketing IDs that route leads — all autosave as you type.</span></div></a>
+      <a class="feat" href="rrg_listings_help.html#pipeline" target="_blank" rel="noopener"><span class="fic">🚦</span><div><b>Two pipelines, side by side</b><span>Track the listing’s own stages (seller) and, right beneath it, where every buyer lead sits (buyer).</span></div></a>
+      <a class="feat" href="rrg_listings_help.html#publish" target="_blank" rel="noopener"><span class="fic">📣</span><div><b>Publish a blind teaser</b><span>Flip it public to the confidential marketplace — business name, address and contact stay hidden until a buyer signs an NDA.</span></div></a>
+      <a class="feat" href="rrg_listings_help.html#buyers" target="_blank" rel="noopener"><span class="fic">🧲</span><div><b>Buyer leads &amp; matches</b><span>Log every buyer inquiry and move it through its stages — and see active buyers from your book whose buy-box fits this deal.</span></div></a>
+      <a class="feat" href="rrg_listings_help.html#activity" target="_blank" rel="noopener"><span class="fic">🤝</span><div><b>NDAs, tours &amp; offers</b><span>Record each signed NDA, every site visit, and each IOI/LOI as it comes in — with the analyst scoring offers for you.</span></div></a>
+      <a class="feat" href="rrg_listings_help.html#deal" target="_blank" rel="noopener"><span class="fic">💵</span><div><b>Deal, expenses &amp; invoices</b><span>Open the deal when a buyer’s under contract, track deal costs, and bill your fee — all tied to this listing.</span></div></a>
+      <a class="feat" href="rrg_listings_help.html#dataroom" target="_blank" rel="noopener"><span class="fic">🔐</span><div><b>Data room activity</b><span>See who opened the room, signed in, and downloaded what — so you know which buyers are actually digging in.</span></div></a>
+      <a class="feat" href="rrg_listings_help.html#layout" target="_blank" rel="noopener"><span class="fic">🧩</span><div><b>Make it yours</b><span>Drag any card in the right rail to reorder it and collapse the ones you don’t need — your layout is saved on this device.</span></div></a>
+    </div>
+  </div>
+  <script>(function(){ var fs=document.getElementById('lstFeatStrip'), hd=document.getElementById('lstFeatHd'); if(!fs||!hd) return; try{ if(localStorage.getItem('rrg_lstfeats')!=='1') fs.classList.add('collapsed'); }catch(e){ fs.classList.add('collapsed'); } hd.addEventListener('click',function(){ var col=fs.classList.toggle('collapsed'); try{ localStorage.setItem('rrg_lstfeats', col?'0':'1'); }catch(e){} }); })();</script>
+</div>
 <div id="root" class="loading">Loading the deal file…</div>
 <div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
 <script>
