@@ -19,10 +19,10 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .subline{color:#aeb8cf;font-size:13px;margin-top:7px;display:flex;gap:14px;flex-wrap:wrap;}
 .subline b{color:#fff;font-weight:700;}
 .hpill{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:4px 11px;border-radius:999px;border:1px solid rgba(255,255,255,.3);color:#fff;background:rgba(255,255,255,.08);margin-top:14px;}
-.wrap{max-width:1040px;margin:22px auto;padding:0 24px 70px;display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start;}
+.wrap{max-width:1180px;margin:22px auto;padding:0 24px 70px;display:grid;grid-template-columns:360px minmax(0,1fr);gap:20px;align-items:start;}
 .main,.side{min-width:0;}
 .main *{max-width:100%;} .main table{display:block;overflow-x:auto;}
-@media(max-width:840px){.wrap{grid-template-columns:1fr;}}
+@media(max-width:980px){.wrap{grid-template-columns:1fr;}}
 .card{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04),0 1px 3px rgba(16,24,40,.05);overflow:hidden;margin-bottom:20px;}
 .card .ch{display:flex;align-items:center;gap:10px;padding:15px 20px;border-bottom:1px solid var(--line);}
 .card .ch b{color:var(--navy);font-size:13.5px;} .card .ch span{color:var(--muted);font-size:11.5px;margin-left:auto;}
@@ -69,7 +69,19 @@ a.hpstep:hover .hpname,button.hpstep:hover .hpname{color:var(--red);}
 .stag.done{background:#eef7f0;color:var(--green);border:1px solid #bfe6d1;}
 .stag.pend{background:#fff4e6;color:#b9761a;border:1px solid #f0d7ad;}
 /* side panel */
-.side .card{position:sticky;top:16px;}
+.side .card{position:sticky;top:16px;max-height:calc(100vh - 32px);overflow:auto;}
+@media(max-width:980px){.side .card{position:static;max-height:none;overflow:visible;}}
+/* reorderable rail (drag grip + collapse persistence + one-time tip) — mirrors the contact/company detail pages */
+.main > .card > .ch{gap:6px;}
+.main > .card > .ch .rgrip{display:inline-flex;align-items:center;justify-content:center;color:#aab2c0;font-size:12px;line-height:1;cursor:grab;flex:none;padding:0 1px;letter-spacing:-2px;user-select:none;touch-action:none;}
+.main > .card > .ch:hover .rgrip{color:#2c5c8f;}
+.main > .card > .ch .rgrip:active{cursor:grabbing;}
+.main > .card.rdragging{opacity:.55;}
+.railtip{margin:0 0 20px;background:#f4f6f9;border:1px solid #dbe0e9;border-left:3px solid #2c5c8f;border-radius:3px;padding:9px 11px;display:flex;align-items:flex-start;gap:9px;font-size:11.5px;line-height:1.5;color:#3f4b63;}
+.railtip .rtx{flex:1;min-width:0;} .railtip b{color:#20334f;font-weight:700;}
+.railtip .rtgrip{color:#2c5c8f;font-weight:700;letter-spacing:-2px;}
+.railtip .rtclose{background:none;border:none;color:#8a94a6;font-size:16px;line-height:1;cursor:pointer;padding:0 2px;flex:none;}
+.railtip .rtclose:hover{color:#20334f;}
 label.fld{display:block;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);font-weight:700;margin:2px 0 6px;}
 select,input.owner,textarea{width:100%;border:1px solid #cfd6e2;border-radius:4px;padding:10px 12px;font:inherit;font-size:13.5px;color:var(--ink);background:#fff;}
 select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' stroke='%236b7488' stroke-width='1.6' fill='none' stroke-linecap='round'/></svg>");background-repeat:no-repeat;background-position:right 12px center;padding-right:30px;cursor:pointer;}
@@ -524,28 +536,12 @@ function render(){
   var mktOpts='<option value="">— none —</option>'+_mktList.map(function(m){ return '<option'+(_curMkt===m?' selected':'')+'>'+esc(m)+'</option>'; }).join('');
 
   document.getElementById('root').className='wrap';
-  document.getElementById('root').innerHTML=
-    '<div class="main">'
-    + '<div class="card"><div class="ch"><b>Listing facts</b><span>'+done+' of '+ST.length+' stages complete</span></div><div class="cb">'+facts+'</div></div>'
-    + '<div class="card"><div class="ch"><b>Pipeline</b>'+(pipeName?('<span style="margin-left:8px;color:var(--navy);font-weight:700;font-size:11.5px;background:#eef2fb;border:1px solid #d3ddf3;border-radius:999px;padding:2px 10px">'+esc(pipeName)+'</span>'):'')+'<span>'+started+' of '+ST.length+' started</span></div><div class="track"><div class="hpipe">'+steps+'</div></div></div>'
-    + mktCardShell()
-    + inquiriesCard()
-    + matchBuyersShell()
-    + dealCard()
-    + ndasCard()
-    + toursCard()
-    + offersCard()
-    + agreementsCardDeal()
-    + expensesCardDeal()
-    + invoicesCardDeal()
-    + roomActivityCard()
-    + '</div>'
-    + '<div class="side"><div class="card"><div class="ch"><b>Manage</b></div><div class="cb" style="padding-top:14px">'
+  var _sideHtml='<div class="side"><div class="card"><div class="ch"><b>Manage</b></div><div class="cb" style="padding-top:14px">'
       + (A.canStart?('<button class="startdeal" id="startDealBtn">Start the listing →</button><div class="startnote">Opens a Seller Qualification Call and drops this listing into the pipeline.</div>'):'')
       + (A.provisional?('<button class="startdeal" id="promoteBtn" style="background:#1f8a5b;border-color:#1f8a5b">Promote to Live listing →</button><div class="startnote">Marks this listing Live. Do this once financials are verified, value is aligned, and the agreement is signed.</div>'):'')
       + '<div class="fldrow"><label class="fld">Status</label><select id="f_status">'+opts+'</select></div>'
       + (PIPES.length?('<div class="fldrow"><label class="fld">Pipeline <span style="font-weight:400;color:#8a93a8;font-size:11px">— the listing’s stage on the board</span></label><select id="f_pipeline">'+pipeOpts+'</select></div>'):'')
-      + (BUYERPIPES.length?('<div class="fldrow"><label class="fld">Buyer pipeline <span style="font-weight:400;color:#8a93a8;font-size:11px">— the stages buyer leads move through</span></label><select id="f_buyerpipe">'+buyerPipeOpts+'</select></div>'):'')
+      + '<div class="fldrow"><label class="fld">Buyer pipeline <span style="font-weight:400;color:#8a93a8;font-size:11px">— the stages buyer leads move through</span></label>'+(BUYERPIPES.length?('<select id="f_buyerpipe">'+buyerPipeOpts+'</select>'):('<div style="font-size:12px;color:#8a93a8;line-height:1.5;border:1px solid var(--line);border-radius:6px;padding:9px 11px;background:#fbfcff">No buyer pipeline exists yet. <a href="./rrg_admin_pipelines.html" style="color:#2c5c8f;font-weight:700;text-decoration:none">Create one ↗</a> and set its area to <b>Buyer</b> — then you can track buyer leads through their stages right here.</div>'))+'</div>'
       + '<div class="fldrow"><label class="fld">Owner</label><input class="owner" id="f_owner" value="'+esc(A.owner||'')+'" placeholder="Assigned rep"></div>'
       + '<div class="fldrow"><label class="fld">Seller contact</label><input class="owner" id="f_contact" list="peopleList" value="'+esc(A.contact||'')+'" placeholder="Client / seller — type a contact name to link it"></div>'
       + '<div class="fldrow"><label class="fld">Referred by</label><input class="owner" id="f_refby" list="peopleList" value="'+esc(A.referredBy||'')+'" placeholder="Contact who referred this"></div>'
@@ -573,7 +569,24 @@ function render(){
       + '<button class="savebtn" id="savebtn" disabled>Save changes</button>'
       + '<div class="saved" id="saved">Saved ✓</div>'
       + (A.dealId?('<div class="dangerzone"><button class="deldeal" id="delDealBtn">Delete listing</button><div class="startnote">Removes the listing, its records, data room, and all files. Cannot be undone.</div></div>'):'')
-    + '</div></div></div>'
+    + '</div></div></div>';
+  document.getElementById('root').innerHTML=
+    _sideHtml
+    + '<div class="main">'
+    + '<div class="card"><div class="ch"><b>Listing facts</b><span>'+done+' of '+ST.length+' stages complete</span></div><div class="cb">'+facts+'</div></div>'
+    + '<div class="card"><div class="ch"><b>Pipeline</b>'+(pipeName?('<span style="margin-left:8px;color:var(--navy);font-weight:700;font-size:11.5px;background:#eef2fb;border:1px solid #d3ddf3;border-radius:999px;padding:2px 10px">'+esc(pipeName)+'</span>'):'')+'<span>'+started+' of '+ST.length+' started</span></div><div class="track"><div class="hpipe">'+steps+'</div></div></div>'
+    + mktCardShell()
+    + inquiriesCard()
+    + matchBuyersShell()
+    + dealCard()
+    + ndasCard()
+    + toursCard()
+    + offersCard()
+    + agreementsCardDeal()
+    + expensesCardDeal()
+    + invoicesCardDeal()
+    + roomActivityCard()
+    + '</div>'
     + peopleDatalistHTML();
 
   ['f_status','f_owner','f_contact','f_refby','f_refpct','f_biz','f_market','f_notes','f_lstart','f_lexp','f_llive','f_lauto','f_bbsref','f_bbsnum','f_costar','f_crexi','f_leadauto','cr_markets','cr_use','cr_budget','cr_sizemin','cr_sizemax','cr_term','cr_timeline','cr_parking','cr_features','cr_crnotes'].forEach(function(id){
@@ -620,11 +633,28 @@ function promoteListing(){ var b=document.getElementById('promoteBtn'); if(b){b.
 function startDeal(){ var b=document.getElementById('startDealBtn'); if(b){b.disabled=true;b.textContent='Starting…';} fetch('/api/deal/'+encodeURIComponent(A.dealId)+'/start',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_assignment.html?key='+encodeURIComponent(j.key); } else { if(b){b.disabled=false;b.textContent='Start the listing →';} alert((j&&j.error)||'Could not start the deal.'); } }).catch(function(){ if(b){b.disabled=false;b.textContent='Start the listing →';} alert('Could not reach the server.'); }); }
 async function deleteDeal(){ if(!await rrgConfirm('Delete this listing and everything in it — records, data room, and all uploaded files? This cannot be undone.')) return; var b=document.getElementById('delDealBtn'); if(b){b.disabled=true;b.textContent='Deleting…';} fetch('/api/deal/'+encodeURIComponent(A.dealId),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_assignments.html'; } else { if(b){b.disabled=false;b.textContent='Delete listing';} alert((j&&j.error)||'Could not delete the listing.'); } }).catch(function(){ if(b){b.disabled=false;b.textContent='Delete listing';} alert('Could not reach the server.'); }); }
 function fmtDT(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; var h=d.getHours(),m=d.getMinutes(),ap=h<12?'AM':'PM',hh=(h%12)||12; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2)+' '+hh+':'+String(m).padStart(2,'0')+' '+ap; }
-/* ---------- Accordion (collapsible sections on the deal file) ---------- */
+/* ---------- Accordion + reorderable rail (collapsible, draggable sections on the deal file) ---------- */
 var ACC_STATE={}, ACC_INIT=false;
+var ASG_ORDER_KEY='rrgAsgRailOrderV2', ASG_COLLAPSE_KEY='rrgAsgCollapsedV2', ASG_TIP_KEY='rrgAsgTipSeen';
 function accTitle(card){ var b=card.querySelector('.ch b'); return b?b.textContent.trim():''; }
+function _asgSaveCollapse(){ try{ localStorage.setItem(ASG_COLLAPSE_KEY,JSON.stringify(ACC_STATE)); }catch(e){} }
+// Apply the device-saved card order to the main column.
+function applyAsgOrder(){
+  var main=document.querySelector('.main'); if(!main) return;
+  Array.prototype.forEach.call(main.querySelectorAll(':scope > .card'),function(c){ var k=accTitle(c); if(k) c.setAttribute('data-rk',k); });
+  var order=[]; try{ order=JSON.parse(localStorage.getItem(ASG_ORDER_KEY)||'[]'); }catch(e){}
+  if(order&&order.length){ order.forEach(function(k){ if(!k) return; var c=main.querySelector(':scope > .card[data-rk="'+String(k).replace(/["\\]/g,'')+'"]'); if(c&&c.parentNode===main) main.appendChild(c); }); }
+}
+var _asgDrag=null, _asgMoved=false;
+function _asgCards(main){ return Array.prototype.filter.call(main.children,function(c){ return c.classList&&c.classList.contains('card'); }); }
+function _asgDown(e){ if(e.button!=null&&e.button!==0) return; var card=e.currentTarget.closest('.card'); if(!card) return; e.preventDefault(); e.stopPropagation(); _asgDrag=card; _asgMoved=false; card.classList.add('rdragging'); document.addEventListener('pointermove',_asgMove); document.addEventListener('pointerup',_asgUp,{once:true}); }
+function _asgMove(e){ if(!_asgDrag) return; _asgMoved=true; var main=_asgDrag.parentNode; if(!main) return; var after=null; _asgCards(main).forEach(function(c){ if(c===_asgDrag) return; var r=c.getBoundingClientRect(); if(e.clientY > r.top + r.height/2) after=c; }); if(after){ if(after.nextSibling!==_asgDrag) main.insertBefore(_asgDrag, after.nextSibling); } else if(main.firstChild!==_asgDrag){ main.insertBefore(_asgDrag, main.firstChild); } }
+function _asgUp(){ document.removeEventListener('pointermove',_asgMove); if(_asgDrag){ _asgDrag.classList.remove('rdragging'); var main=_asgDrag.parentNode; if(main){ var order=_asgCards(main).map(function(c){ return c.getAttribute('data-rk'); }).filter(Boolean); try{ localStorage.setItem(ASG_ORDER_KEY,JSON.stringify(order)); }catch(e){} } } if(_asgMoved){ document.addEventListener('click',function(ev){ ev.stopPropagation(); ev.preventDefault(); },{once:true,capture:true}); } _asgDrag=null; }
+function _asgTip(main){ if(!main) return; var seen=false; try{ seen=localStorage.getItem(ASG_TIP_KEY)==='1'; }catch(e){} if(seen||main.querySelector('.railtip')) return; var tip=document.createElement('div'); tip.className='railtip'; tip.innerHTML='<span class="rtx"><b>Make this yours.</b> Drag any section by its <span class="rtgrip">\u283f</span> handle to reorder it, and use \u25be to collapse the ones you don\u2019t need. Your layout is saved on this device.</span><button type="button" class="rtclose" aria-label="Dismiss">\u00d7</button>'; main.insertBefore(tip, main.firstChild); var x=tip.querySelector('.rtclose'); if(x) x.addEventListener('click',function(){ try{ localStorage.setItem(ASG_TIP_KEY,'1'); }catch(e){} tip.remove(); }); }
 function setupAccordion(){
-  if(!ACC_INIT){ ACC_STATE['Location Tours']=true; ACC_STATE['Data Room Activity']=true; ACC_INIT=true; }  // secondary sections start collapsed
+  if(!ACC_INIT){ var saved=null; try{ saved=JSON.parse(localStorage.getItem(ASG_COLLAPSE_KEY)||'null'); }catch(e){} if(saved&&typeof saved==='object'){ ACC_STATE=saved; } else { ACC_STATE['Location Tours']=true; ACC_STATE['Data Room Activity']=true; } ACC_INIT=true; }
+  var main=document.querySelector('.main');
+  applyAsgOrder();
   document.querySelectorAll('.main > .card').forEach(function(card){
     card.classList.add('acc');
     var ch=card.querySelector('.ch'); if(!ch) return;
@@ -632,15 +662,20 @@ function setupAccordion(){
     if(!ch.querySelector('.accchev')){
       var chev=document.createElement('span'); chev.className='accchev'; chev.textContent='▾';
       ch.insertBefore(chev, ch.firstChild);
+      var grip=document.createElement('span'); grip.className='rgrip'; grip.setAttribute('aria-hidden','true'); grip.title='Drag to reorder'; grip.textContent='\u283f';
+      ch.insertBefore(grip, chev);
+      grip.style.touchAction='none';
+      grip.addEventListener('pointerdown',_asgDown);
       ch.addEventListener('click', function(e){
-        if(e.target.closest('button, a, input, select, textarea')) return;
-        var collapsed=card.classList.toggle('collapsed'); ACC_STATE[accTitle(card)]=collapsed;
+        if(e.target.closest('button, a, input, select, textarea, .rgrip')) return;
+        var collapsed=card.classList.toggle('collapsed'); ACC_STATE[accTitle(card)]=collapsed; _asgSaveCollapse();
       });
     }
     if(ACC_STATE[title]) card.classList.add('collapsed'); else card.classList.remove('collapsed');
   });
+  _asgTip(main);
 }
-function expandSectionOf(el){ var card=el&&el.closest('.card'); if(card){ card.classList.remove('collapsed'); ACC_STATE[accTitle(card)]=false; } }
+function expandSectionOf(el){ var card=el&&el.closest('.card'); if(card){ card.classList.remove('collapsed'); ACC_STATE[accTitle(card)]=false; _asgSaveCollapse(); } }
 function evLabel(e){
   if(e.event==='download') return 'Downloaded '+(e.doc?('“'+e.doc+'”'):'a document');
   if(e.event==='signin')   return 'Signed in with an access code';
