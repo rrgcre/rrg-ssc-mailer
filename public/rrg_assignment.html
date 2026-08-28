@@ -19,10 +19,10 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .subline{color:#aeb8cf;font-size:13px;margin-top:7px;display:flex;gap:14px;flex-wrap:wrap;}
 .subline b{color:#fff;font-weight:700;}
 .hpill{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:4px 11px;border-radius:999px;border:1px solid rgba(255,255,255,.3);color:#fff;background:rgba(255,255,255,.08);margin-top:14px;}
-.wrap{max-width:1180px;margin:22px auto;padding:0 24px 70px;display:grid;grid-template-columns:360px minmax(0,1fr);gap:20px;align-items:start;}
-.main,.side{min-width:0;}
-.main *{max-width:100%;} .main table{display:block;overflow-x:auto;}
-@media(max-width:980px){.wrap{grid-template-columns:1fr;}}
+.wrap{max-width:none;margin:16px 0 0;padding:0 24px 70px;display:grid;grid-template-columns:340px minmax(0,1fr) 360px;gap:20px;align-items:start;}
+.side,.mid,.rail{min-width:0;}
+.mid *,.rail *{max-width:100%;} .mid table,.rail table{display:block;overflow-x:auto;}
+@media(max-width:1250px){.wrap{grid-template-columns:1fr;}}
 .card{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04),0 1px 3px rgba(16,24,40,.05);overflow:hidden;margin-bottom:20px;}
 .card .ch{display:flex;align-items:center;gap:10px;padding:15px 20px;border-bottom:1px solid var(--line);}
 .card .ch b{color:var(--navy);font-size:13.5px;} .card .ch span{color:var(--muted);font-size:11.5px;margin-left:auto;}
@@ -53,7 +53,7 @@ a.hpstep,button.hpstep{cursor:pointer;}
 a.hpstep:hover .hpname,button.hpstep:hover .hpname{color:var(--red);}
 .step{display:flex;gap:14px;align-items:flex-start;padding:14px 0;border-bottom:1px solid var(--line);}
 .step:last-child{border-bottom:none;}
-.rail{display:flex;flex-direction:column;align-items:center;position:relative;}
+.steprail{display:flex;flex-direction:column;align-items:center;position:relative;}
 .dot{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;flex:none;z-index:1;}
 .dot.done{background:var(--green);} .dot.pend{background:#fff;border:2px solid var(--amber);color:var(--amber);} .dot.absent{background:#eef1f6;border:2px solid #dbe1ea;color:#aab3c2;}
 .line{width:2px;flex:1;background:var(--line);margin:3px 0 -14px;min-height:14px;}
@@ -68,15 +68,15 @@ a.hpstep:hover .hpname,button.hpstep:hover .hpname{color:var(--red);}
 .stag{font-size:9.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:999px;}
 .stag.done{background:#eef7f0;color:var(--green);border:1px solid #bfe6d1;}
 .stag.pend{background:#fff4e6;color:#b9761a;border:1px solid #f0d7ad;}
-/* side panel */
+/* side panel — Manage lives in the fixed left column, pinned while the middle + rail scroll */
 .side .card{position:sticky;top:16px;max-height:calc(100vh - 32px);overflow:auto;}
-@media(max-width:980px){.side .card{position:static;max-height:none;overflow:visible;}}
+@media(max-width:1250px){.side .card{position:static;max-height:none;overflow:visible;}}
 /* reorderable rail (drag grip + collapse persistence + one-time tip) — mirrors the contact/company detail pages */
-.main > .card > .ch{gap:6px;}
-.main > .card > .ch .rgrip{display:inline-flex;align-items:center;justify-content:center;color:#aab2c0;font-size:12px;line-height:1;cursor:grab;flex:none;padding:0 1px;letter-spacing:-2px;user-select:none;touch-action:none;}
-.main > .card > .ch:hover .rgrip{color:#2c5c8f;}
-.main > .card > .ch .rgrip:active{cursor:grabbing;}
-.main > .card.rdragging{opacity:.55;}
+.rail > .card > .ch{gap:6px;}
+.rail > .card > .ch .rgrip{display:inline-flex;align-items:center;justify-content:center;color:#aab2c0;font-size:12px;line-height:1;cursor:grab;flex:none;padding:0 1px;letter-spacing:-2px;user-select:none;touch-action:none;}
+.rail > .card > .ch:hover .rgrip{color:#2c5c8f;}
+.rail > .card > .ch .rgrip:active{cursor:grabbing;}
+.rail > .card.rdragging{opacity:.55;}
 .railtip{margin:0 0 20px;background:#f4f6f9;border:1px solid #dbe0e9;border-left:3px solid #2c5c8f;border-radius:3px;padding:9px 11px;display:flex;align-items:flex-start;gap:9px;font-size:11.5px;line-height:1.5;color:#3f4b63;}
 .railtip .rtx{flex:1;min-width:0;} .railtip b{color:#20334f;font-weight:700;}
 .railtip .rtgrip{color:#2c5c8f;font-weight:700;letter-spacing:-2px;}
@@ -261,7 +261,7 @@ function domDays(){ if(!A||!A.listingLive) return ''; var d=new Date(A.listingLi
 function manualStepHtml(d){
   var mf=A.stageFlags||{}; var mdone=!!mf[d.k];
   var right='<span class="stag '+(mdone?'done':'pend')+'">'+(mdone?'Done':'Not yet')+'</span><button class="slink'+(mdone?'':' ghost')+'" data-mstage="'+d.k+'">'+(mdone?'Mark not done':'Mark done')+'</button>';
-  return '<div class="step"><div class="rail"><div class="dot '+(mdone?'done':'absent')+'">'+(mdone?'✓':'')+'</div><div class="line"></div></div>'
+  return '<div class="step"><div class="steprail"><div class="dot '+(mdone?'done':'absent')+'">'+(mdone?'✓':'')+'</div><div class="line"></div></div>'
     +'<div class="sinfo"><div class="sname">'+esc(d.name)+'<span class="lbl">'+esc(d.lbl)+'</span></div>'
     +'<div class="smeta">'+(mdone?'Marked complete.':'Manual stage — mark it when you reach it.')+'</div></div>'
     +'<div class="sact">'+right+'</div></div>';
@@ -572,10 +572,12 @@ function render(){
     + '</div></div></div>';
   document.getElementById('root').innerHTML=
     _sideHtml
-    + '<div class="main">'
+    + '<div class="mid">'
     + '<div class="card"><div class="ch"><b>Listing facts</b><span>'+done+' of '+ST.length+' stages complete</span></div><div class="cb">'+facts+'</div></div>'
     + '<div class="card"><div class="ch"><b>Pipeline</b>'+(pipeName?('<span style="margin-left:8px;color:var(--navy);font-weight:700;font-size:11.5px;background:#eef2fb;border:1px solid #d3ddf3;border-radius:999px;padding:2px 10px">'+esc(pipeName)+'</span>'):'')+'<span>'+started+' of '+ST.length+' started</span></div><div class="track"><div class="hpipe">'+steps+'</div></div></div>'
     + mktCardShell()
+    + '</div>'
+    + '<div class="rail">'
     + inquiriesCard()
     + matchBuyersShell()
     + dealCard()
@@ -640,7 +642,7 @@ function accTitle(card){ var b=card.querySelector('.ch b'); return b?b.textConte
 function _asgSaveCollapse(){ try{ localStorage.setItem(ASG_COLLAPSE_KEY,JSON.stringify(ACC_STATE)); }catch(e){} }
 // Apply the device-saved card order to the main column.
 function applyAsgOrder(){
-  var main=document.querySelector('.main'); if(!main) return;
+  var main=document.querySelector('.rail'); if(!main) return;
   Array.prototype.forEach.call(main.querySelectorAll(':scope > .card'),function(c){ var k=accTitle(c); if(k) c.setAttribute('data-rk',k); });
   var order=[]; try{ order=JSON.parse(localStorage.getItem(ASG_ORDER_KEY)||'[]'); }catch(e){}
   if(order&&order.length){ order.forEach(function(k){ if(!k) return; var c=main.querySelector(':scope > .card[data-rk="'+String(k).replace(/["\\]/g,'')+'"]'); if(c&&c.parentNode===main) main.appendChild(c); }); }
@@ -653,9 +655,9 @@ function _asgUp(){ document.removeEventListener('pointermove',_asgMove); if(_asg
 function _asgTip(main){ if(!main) return; var seen=false; try{ seen=localStorage.getItem(ASG_TIP_KEY)==='1'; }catch(e){} if(seen||main.querySelector('.railtip')) return; var tip=document.createElement('div'); tip.className='railtip'; tip.innerHTML='<span class="rtx"><b>Make this yours.</b> Drag any section by its <span class="rtgrip">\u283f</span> handle to reorder it, and use \u25be to collapse the ones you don\u2019t need. Your layout is saved on this device.</span><button type="button" class="rtclose" aria-label="Dismiss">\u00d7</button>'; main.insertBefore(tip, main.firstChild); var x=tip.querySelector('.rtclose'); if(x) x.addEventListener('click',function(){ try{ localStorage.setItem(ASG_TIP_KEY,'1'); }catch(e){} tip.remove(); }); }
 function setupAccordion(){
   if(!ACC_INIT){ var saved=null; try{ saved=JSON.parse(localStorage.getItem(ASG_COLLAPSE_KEY)||'null'); }catch(e){} if(saved&&typeof saved==='object'){ ACC_STATE=saved; } else { ACC_STATE['Location Tours']=true; ACC_STATE['Data Room Activity']=true; } ACC_INIT=true; }
-  var main=document.querySelector('.main');
+  var main=document.querySelector('.rail');
   applyAsgOrder();
-  document.querySelectorAll('.main > .card').forEach(function(card){
+  document.querySelectorAll('.rail > .card').forEach(function(card){
     card.classList.add('acc');
     var ch=card.querySelector('.ch'); if(!ch) return;
     var title=accTitle(card);
@@ -858,7 +860,7 @@ async function delOffer(id){
     .catch(function(){ alert('Could not reach the server.'); });
 }
 function rerenderOffers(){
-  var main=document.querySelector('.main'); if(!main) return;
+  var main=document.querySelector('.rail'); if(!main) return;
   // replace the offers card in place
   var cards=main.querySelectorAll('.card');
   // rebuild whole main region's offers card by re-rendering the card node
@@ -979,7 +981,7 @@ async function delTour(id){
     .catch(function(){ alert('Could not reach the server.'); });
 }
 function rerenderTours(){
-  var main=document.querySelector('.main'); if(!main) return;
+  var main=document.querySelector('.rail'); if(!main) return;
   var tmp=document.createElement('div'); tmp.innerHTML=toursCard();
   var existing=main.querySelector('.tours');
   if(existing){ existing.closest('.card').replaceWith(tmp.firstChild); }
@@ -1033,7 +1035,7 @@ function saveNda(id){ var body=collectNda(); if(id) body.id=id; var btn=document
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ NDAS=j.ndas||[]; if(A) A.ndas=NDAS; if(j.people) PEOPLE=j.people; rerenderNdas(); } else { if(btn){btn.disabled=false;btn.textContent='Log NDA';} alert((j&&j.error)||'Could not save the NDA.'); } })
     .catch(function(){ if(btn){btn.disabled=false;btn.textContent='Log NDA';} alert('Could not reach the server.'); }); }
 async function delNda(id){ if(!await rrgConfirm('Delete this NDA record?')) return; fetch('/api/assignment/'+encodeURIComponent(KEY)+'/nda/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ NDAS=j.ndas||[]; if(A) A.ndas=NDAS; rerenderNdas(); } else alert((j&&j.error)||'Could not delete.'); }).catch(function(){ alert('Could not reach the server.'); }); }
-function rerenderNdas(){ var main=document.querySelector('.main'); if(!main) return; var tmp=document.createElement('div'); tmp.innerHTML=ndasCard(); var ex=main.querySelector('.ndas'); if(ex){ ex.closest('.card').replaceWith(tmp.firstChild); } wireNdas(); setupAccordion(); }
+function rerenderNdas(){ var main=document.querySelector('.rail'); if(!main) return; var tmp=document.createElement('div'); tmp.innerHTML=ndasCard(); var ex=main.querySelector('.ndas'); if(ex){ ex.closest('.card').replaceWith(tmp.firstChild); } wireNdas(); setupAccordion(); }
 function ndaById(id){ return NDAS.filter(function(x){return x.id===id;})[0]; }
 function wireNdas(){ var add=document.getElementById('addNdaBtn'); if(add) add.addEventListener('click',function(){ openNdaForm(null); }); document.querySelectorAll('.nedit').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); var n=ndaById(b.getAttribute('data-nid')); if(n) openNdaForm(n); }); }); document.querySelectorAll('.ndel').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); delNda(b.getAttribute('data-nid')); }); }); }
 function setDirty(v){ DIRTY=v; var b=document.getElementById('savebtn'); if(b) b.disabled=!v; if(v){ var s=document.getElementById('saved'); if(s) s.classList.remove('show'); } }
@@ -1119,7 +1121,7 @@ function saveDeal(){
     .catch(function(){ if(b){b.disabled=false;b.textContent='Save deal';} alert('Could not reach the server.'); });
 }
 async function removeDeal(){ if(!await rrgConfirm('Remove the deal from this listing? The listing itself stays.')) return; fetch('/api/assignment/'+encodeURIComponent(KEY)+'/deal',{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ TXN=null; if(A) A.transaction=null; rerenderDeal(); } else alert((j&&j.error)||'Could not remove the deal.'); }).catch(function(){ alert('Could not reach the server.'); }); }
-function rerenderDeal(){ var main=document.querySelector('.main'); if(!main) return; var existing=null; main.querySelectorAll('.card .ch b').forEach(function(bb){ if(bb.textContent==='Deal') existing=bb.closest('.card'); }); if(!existing) return; var tmp=document.createElement('div'); tmp.innerHTML=dealCard(); existing.parentNode.replaceChild(tmp.firstChild,existing); wireDeal(); }
+function rerenderDeal(){ var main=document.querySelector('.rail'); if(!main) return; var existing=null; main.querySelectorAll('.card .ch b').forEach(function(bb){ if(bb.textContent==='Deal') existing=bb.closest('.card'); }); if(!existing) return; var tmp=document.createElement('div'); tmp.innerHTML=dealCard(); existing.parentNode.replaceChild(tmp.firstChild,existing); wireDeal(); }
 function wireDeal(){ var a=document.getElementById('dealAdd'); if(a) a.addEventListener('click',openDealForm); var e=document.getElementById('dealEdit'); if(e) e.addEventListener('click',openDealForm); var d=document.getElementById('dealDel'); if(d) d.addEventListener('click',removeDeal); }
 
 var AUTOS=[], MARKETS=[];
