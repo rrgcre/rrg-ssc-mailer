@@ -76,6 +76,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .msg{font-size:12.5px;font-weight:700;} .msg.ok{color:var(--green);} .msg.err{color:var(--red);}
 .empty{padding:34px 20px;text-align:center;color:var(--soft);font-size:13.5px;}
 .ro{color:var(--muted);font-size:12.5px;background:#f7f9fc;border:1px solid var(--line);border-radius:9px;padding:9px 12px;margin-bottom:12px;}
+/* "What this section does" strip — matches Contacts / Companies / Documents / Data Rooms. */
+.feats{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 24px rgba(10,20,50,.06);overflow:hidden;margin-bottom:18px;}
+.featshd{display:flex;align-items:center;gap:10px;padding:13px 20px;cursor:pointer;user-select:none;}
+.featshd b{font-size:14px;color:var(--navy);}
+.featshd .sh{font-size:11.5px;color:var(--muted);font-weight:600;}
+.featshd .hlink{margin-left:auto;font-size:11.5px;font-weight:700;color:#2c5c8f;text-decoration:none;white-space:nowrap;}
+.featshd .hlink:hover{text-decoration:underline;}
+.featshd .chev{color:var(--muted);font-size:12px;transition:transform .15s;}
+.feats.collapsed .chev{transform:rotate(-90deg);}
+.feats.collapsed .featgrid{display:none;}
+.featgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1px;background:var(--line);border-top:1px solid var(--line);}
+a.feat{background:#fff;display:flex;gap:11px;padding:13px 18px;align-items:flex-start;color:inherit;text-decoration:none;}
+a.feat:hover{background:#f7f9fc;}
+.feat .fic{font-size:17px;line-height:1.25;flex:none;width:24px;text-align:center;}
+.feat b{display:block;font-size:12.5px;color:var(--navy);font-weight:800;}
+.feat span{display:block;font-size:11.5px;color:var(--muted);line-height:1.45;margin-top:2px;}
 </style>
 <script src="/rrg_brand.js"></script>
 <script src="/rrg_rte.js"></script>
@@ -89,6 +105,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
   <div class="sub">Write your go-to emails once and reuse them — in the send composer on a contact and in automation steps. Mark a template <b>Personal</b> (only you) or <b>Shared</b> (the whole team). Personalize with tokens like <code>{{first_name}}</code>. <b>Click a name, subject, or visibility right in the list to edit it in place</b> — open the full editor for the body.</div>
 </div></div>
 <div class="wrap">
+  <div class="feats" id="tplFeatStrip">
+    <div class="featshd" id="tplFeatHd"><b>What this section does</b><span class="sh">write your go-to emails once, organize them, and reuse them everywhere</span><a class="hlink" href="rrg_email_templates_help.html" target="_blank" rel="noopener" onclick="event.stopPropagation()">Open the full guide ↗</a><span class="chev">▾</span></div>
+    <div class="featgrid">
+      <a class="feat" href="rrg_email_templates_help.html#reuse" target="_blank" rel="noopener"><span class="fic">✍️</span><div><b>Write once, reuse everywhere</b><span>Save your go-to emails once, then drop them into the send composer on any contact or into an automation step.</span></div></a>
+      <a class="feat" href="rrg_email_templates_help.html#tokens" target="_blank" rel="noopener"><span class="fic">🔑</span><div><b>Personalize with merge fields</b><span>Tokens like <code>{{first_name}}</code> and <code>{{company}}</code> fill in from the contact and listing automatically when you send.</span></div></a>
+      <a class="feat" href="rrg_email_templates_help.html#visibility" target="_blank" rel="noopener"><span class="fic">👥</span><div><b>Personal or Shared</b><span>Keep a template to yourself, or publish it firm-wide so the whole team sends the same polished message.</span></div></a>
+      <a class="feat" href="rrg_email_templates_help.html#folders" target="_blank" rel="noopener"><span class="fic">🗂️</span><div><b>Folders keep it tidy</b><span>Group a growing library into folders on the left — create, rename, and file templates as you go. Click a folder to filter.</span></div></a>
+      <a class="feat" href="rrg_email_templates_help.html#inline" target="_blank" rel="noopener"><span class="fic">✏️</span><div><b>Edit right in the list</b><span>Click a name, folder, subject, or visibility in the row to change it in place — open the full editor for the body.</span></div></a>
+      <a class="feat" href="rrg_email_templates_help.html#automations" target="_blank" rel="noopener"><span class="fic">⚙️</span><div><b>Powers your automations</b><span>Templates are the messages your automations send — build the email here once and every sequence can use it.</span></div></a>
+    </div>
+  </div>
   <div class="tplgrid">
     <aside id="folderRail" class="frail"></aside>
     <div id="root"></div>
@@ -207,6 +234,7 @@ function onDelete(){
   api('DELETE','/api/email-templates/'+encodeURIComponent(EDIT.id)).then(function(j){ if(!j.ok){ msg(j.error||'Delete failed.','err'); return; } EDIT=null; load(); });
 }
 document.addEventListener('click',async function(e){ if(!e.target.closest) return; var ed=e.target.closest('[data-edit]'); if(ed){ e.preventDefault(); openEdit(ed.getAttribute('data-edit')); return; } var dl=e.target.closest('[data-del]'); if(dl){ e.preventDefault(); var _t=curById(dl.getAttribute('data-del')); if(_t && await rrgConfirm('Delete "'+(_t.name||'this template')+'"?')){ api('DELETE','/api/email-templates/'+encodeURIComponent(_t.id)).then(function(j){ if(j&&j.ok){ if(EDIT&&EDIT.id===_t.id) EDIT=null; load(); } else alert((j&&j.error)||'Delete failed.'); }); } return; } });
+(function(){ var fs=document.getElementById('tplFeatStrip'), hd=document.getElementById('tplFeatHd'); if(fs&&hd){ try{ if(localStorage.getItem('rrg_tplfeats')!=='1') fs.classList.add('collapsed'); }catch(e){ fs.classList.add('collapsed'); } hd.addEventListener('click',function(){ var col=fs.classList.toggle('collapsed'); try{ localStorage.setItem('rrg_tplfeats', col?'0':'1'); }catch(e){} }); } })();
 load();
 </script>
 </body>

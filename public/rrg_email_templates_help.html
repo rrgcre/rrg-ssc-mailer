@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Email Templates — Help &amp; User Guide · RRG</title>
+<style>
+:root{ --navy:#000E31; --slate:#20334f; --primary:#2c5c8f; --primary-d:#23496f; --red:#b23a2c; --ink:#2b3648; --muted:#69748a; --soft:#96a1b2; --line:#dbe0e9; --wash:#f4f6f9; --inp:#c4ccda; --gold:#b5791f; --green:#2f7a55; }
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:#eef1f6;font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased;}
+a{color:var(--primary);text-decoration:none;} a:hover{text-decoration:underline;}
+.top{background:var(--navy);border-bottom:2px solid var(--primary);color:#fff;position:sticky;top:0;z-index:50;}
+.top-in{max-width:1180px;margin:0 auto;padding:12px 24px;display:flex;align-items:center;gap:13px;}
+.disc{width:34px;height:34px;border-radius:4px;background:var(--red);color:#fff;font:900 12px 'Arial Black',Arial;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;flex:none;}
+.wm{font-weight:700;font-size:12px;line-height:1.05;text-transform:uppercase;letter-spacing:.02em;color:#cdd6e4;}
+.bar{width:1px;height:24px;background:rgba(255,255,255,.28);margin:0 5px;}
+.ttl{font-weight:700;font-size:15px;color:#fff;}
+.ttl small{display:block;font-size:10.5px;font-weight:600;color:#9fb0cc;text-transform:uppercase;letter-spacing:.06em;margin-top:1px;}
+.backlink{margin-left:auto;color:#cdd6e4;font-size:12.5px;font-weight:600;} .backlink:hover{color:#fff;text-decoration:none;}
+.shell{max-width:1180px;margin:22px auto;padding:0 24px 70px;display:grid;grid-template-columns:250px minmax(0,1fr);gap:26px;align-items:start;}
+.toc{position:sticky;top:74px;background:#fff;border:1px solid var(--line);border-radius:6px;overflow:hidden;}
+.toc .th{background:var(--wash);border-bottom:1px solid var(--line);padding:11px 15px;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--soft);}
+.tsearch{padding:10px 12px;border-bottom:1px solid var(--line);}
+.tsearch input{width:100%;border:1px solid var(--inp);border-radius:4px;padding:7px 10px;font:inherit;font-size:12.5px;}
+.toc nav{max-height:calc(100vh - 200px);overflow:auto;padding:6px 0;}
+.toc a{display:block;padding:6px 15px;font-size:12.5px;font-weight:600;color:var(--slate);border-left:2px solid transparent;}
+.toc a:hover{background:var(--wash);text-decoration:none;}
+.toc a.on{border-left-color:var(--primary);background:#eef4fa;color:var(--primary-d);}
+.toc .miss{padding:10px 15px;color:var(--soft);font-size:12px;}
+.doc{min-width:0;}
+.hero{background:#fff;border:1px solid var(--line);border-radius:6px;padding:24px 26px;margin-bottom:20px;}
+.hero h1{font-size:22px;font-weight:700;color:var(--navy);letter-spacing:-.01em;}
+.hero p{color:var(--muted);font-size:14.5px;margin-top:9px;max-width:760px;}
+.hero .meta{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;}
+.tag{font-size:11px;font-weight:700;color:var(--slate);background:var(--wash);border:1px solid var(--line);border-radius:3px;padding:4px 10px;}
+section.card{background:#fff;border:1px solid var(--line);border-radius:6px;padding:22px 26px;margin-bottom:16px;scroll-margin-top:74px;}
+section.card>h2{font-size:16px;font-weight:700;color:var(--navy);letter-spacing:-.01em;padding-bottom:10px;border-bottom:1px solid var(--line);margin-bottom:14px;display:flex;align-items:center;gap:9px;}
+section.card>h2 .n{width:24px;height:24px;border-radius:4px;background:var(--navy);color:#fff;font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex:none;}
+h3{font-size:14.5px;font-weight:800;color:var(--slate);margin:18px 0 7px;}
+p{margin:9px 0;} .lead{color:var(--muted);font-size:14px;}
+ul,ol{margin:9px 0 9px 4px;padding-left:22px;} li{margin:5px 0;}
+code,.kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}
+.kbd{display:inline-block;background:var(--wash);border:1px solid var(--inp);border-bottom-width:2px;border-radius:3px;padding:1px 7px;font-size:12px;font-weight:700;color:var(--slate);}
+code{background:var(--wash);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12.5px;color:var(--primary-d);}
+.callout{border:1px solid var(--line);border-left:3px solid var(--primary);background:#f7fafd;border-radius:0 4px 4px 0;padding:13px 16px;margin:14px 0;font-size:13.5px;}
+.callout.tip{border-left-color:var(--green);background:#f1f8f4;}
+.callout .lbl{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:3px;}
+.callout.tip .lbl{color:var(--green);}
+.fq{border-top:1px solid var(--line);padding:13px 0;} .fq:first-of-type{border-top:none;} .fq h3{margin:0 0 4px;font-size:14px;} .fq p{margin:0;color:var(--muted);font-size:13.5px;}
+.foot{max-width:1180px;margin:0 auto;padding:0 24px 50px;color:var(--soft);font-size:12px;text-align:center;}
+.totop{position:fixed;right:20px;bottom:20px;background:var(--navy);color:#fff;border:none;border-radius:4px;padding:9px 13px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .15s;z-index:60;}
+.totop.show{opacity:1;pointer-events:auto;}
+@media(max-width:900px){.shell{grid-template-columns:1fr;}.toc{position:static;}.toc nav{max-height:none;}}
+</style>
+</head>
+<body>
+<div class="top"><div class="top-in">
+  <span class="disc">RRG</span><span class="wm">Restaurant<br>Realty Group</span><span class="bar"></span>
+  <span class="ttl">Email Templates<small>Help &amp; User Guide</small></span>
+  <a class="backlink" href="rrg_email_templates.html">&larr; Back to Email Templates</a>
+</div></div>
+
+<div class="shell">
+  <aside class="toc">
+    <div class="th">Contents</div>
+    <div class="tsearch"><input id="tocSearch" placeholder="Search this guide…" autocomplete="off"></div>
+    <nav id="tocNav">
+      <a href="#overview">1 · Overview</a>
+      <a href="#reuse">2 · Write once, reuse everywhere</a>
+      <a href="#tokens">3 · Merge fields (tokens)</a>
+      <a href="#visibility">4 · Personal vs Shared</a>
+      <a href="#folders">5 · Folders</a>
+      <a href="#inline">6 · Edit right in the list</a>
+      <a href="#editor">7 · The full editor</a>
+      <a href="#automations">8 · Templates &amp; automations</a>
+      <a href="#faq">9 · FAQ</a>
+    </nav>
+  </aside>
+
+  <main class="doc">
+    <div class="hero">
+      <h1>Email Templates — Help &amp; User Guide</h1>
+      <p>A template is an email you write once and reuse — a buyer intro, an NDA follow-up, a seller check-in. Templates show up in the send composer on any contact and as the message an automation sends, so your team sends the same polished, personalized email every time. This guide covers writing them, personalizing with merge fields, sharing them, and keeping a growing library organized with folders.</p>
+      <div class="meta"><span class="tag">Marketing Machine</span><span class="tag">Write once, reuse</span><span class="tag">Personalized &amp; on-brand</span></div>
+    </div>
+
+    <section class="card" id="overview">
+      <h2><span class="n">1</span> Overview</h2>
+      <p class="lead">Email Templates live under <span class="kbd">Marketing Machine → Email Templates</span>.</p>
+      <p>The page is a wide list of every template you can use — your own and any your firm has shared. A <b>folder rail</b> on the left keeps a growing library organized; the <b>list</b> on the right shows each template's name, folder, visibility, subject and owner. Click <span class="kbd">+ New template</span> to write one, or edit fields right in the row (see <a href="#inline">Edit in the list</a>).</p>
+    </section>
+
+    <section class="card" id="reuse">
+      <h2><span class="n">2</span> Write once, reuse everywhere</h2>
+      <p class="lead">The whole point of a template is that you never retype the same email.</p>
+      <p>Once saved, a template is available in two places: the <b>send composer</b> on a contact (pick the template, it fills in the subject and body personalized to that person), and as the message body of an <b>automation step</b> (see <a href="#automations">Templates &amp; automations</a>). Write the email carefully once — tone, structure, call to action — and every send after that is one click.</p>
+    </section>
+
+    <section class="card" id="tokens">
+      <h2><span class="n">3</span> Merge fields (tokens)</h2>
+      <p class="lead">Tokens make a canned email read like you wrote it just for that person.</p>
+      <p>Drop a token anywhere in the subject or body and it fills in when the email is sent. The common ones:</p>
+      <ul>
+        <li><b>Contact:</b> <code>{{first_name}}</code>, <code>{{last_name}}</code>, <code>{{name}}</code>, <code>{{company}}</code>, <code>{{title}}</code>, <code>{{email}}</code>, <code>{{phone}}</code></li>
+        <li><b>You (sender):</b> <code>{{my_name}}</code>, <code>{{my_title}}</code>, <code>{{my_phone}}</code>, <code>{{my_email}}</code></li>
+        <li><b>Listing:</b> <code>{{listing_name}}</code>, <code>{{listing_number}}</code></li>
+        <li><b>Other:</b> <code>{{today}}</code></li>
+      </ul>
+      <div class="callout tip"><div class="lbl">Tip</div>If a token has no value for a given contact (say a buyer with no company), it's left blank rather than printing the raw <code>{{token}}</code> — so a missing field never looks broken.</div>
+    </section>
+
+    <section class="card" id="visibility">
+      <h2><span class="n">4</span> Personal vs Shared</h2>
+      <p class="lead">Every template is either yours alone or the whole firm's.</p>
+      <p><b>Personal</b> templates are visible and editable only by you. <b>Shared</b> templates are firm-wide — everyone can use them, so the team sends a consistent, on-brand message. Only admins can publish a template as Shared; save yours as Personal, or ask an admin to publish it firm-wide. You can only edit or delete templates you own — a teammate's Shared template opens read-only, and you can spin your own copy off it with <span class="kbd">+ New template</span>.</p>
+    </section>
+
+    <section class="card" id="folders">
+      <h2><span class="n">5</span> Folders</h2>
+      <p class="lead">As the library grows, folders keep it findable.</p>
+      <p>The <b>folder rail</b> on the left lists your folders with a count on each, plus <b>All templates</b> and <b>Unfiled</b>. Click a folder to filter the list to just its templates. Use the <b>+</b> at the top of the rail to create a folder; hover a folder for <b>✎ rename</b> and <b>× delete</b>. Folders are <b>one level</b> (flat) and <b>team-wide</b> — everyone sees the same structure.</p>
+      <p>File a template into a folder two ways: click its <b>Folder</b> cell in the list and pick one, or set the <b>Folder</b> field in the full editor. Creating a new template while a folder is selected files it there automatically.</p>
+      <div class="callout"><div class="lbl">Deleting a folder</div>Deleting a folder never deletes templates — the templates in it simply become <b>Unfiled</b>. Rename a folder and every template in it follows.</div>
+    </section>
+
+    <section class="card" id="inline">
+      <h2><span class="n">6</span> Edit right in the list</h2>
+      <p class="lead">Quick changes don't need the full editor.</p>
+      <p>On your own templates, click the <b>name</b>, <b>folder</b>, <b>subject</b>, or <b>visibility</b> cell right in the row to edit it in place — type and press <span class="kbd">Enter</span> (or click away) to save; <span class="kbd">Esc</span> cancels. Folder and visibility are dropdowns. Only the field you touch is saved, so the email body is never affected. For the body itself, open the full editor with <b>Edit</b>.</p>
+    </section>
+
+    <section class="card" id="editor">
+      <h2><span class="n">7</span> The full editor</h2>
+      <p class="lead">Open a template with <b>Edit</b> (or <b>+ New template</b>) to write the body and set everything at once.</p>
+      <p>The editor holds the template <b>name</b>, <b>visibility</b>, <b>folder</b>, <b>subject</b>, and the <b>body</b> — a rich-text field with formatting and a merge-field menu. Save writes it back to the list; Delete removes it (owner only, with a confirm). Close returns to the list without changes.</p>
+    </section>
+
+    <section class="card" id="automations">
+      <h2><span class="n">8</span> Templates &amp; automations</h2>
+      <p class="lead">Templates are the messages your automations send.</p>
+      <p>When you build an automation that emails a contact — a new-lead follow-up, a drip sequence, a post-tour note — the email it sends is a template. Write and refine the message once here, and any automation step can use it, so a change to the template updates every sequence that references it. Build automations under <span class="kbd">Marketing Machine → Automations</span>.</p>
+    </section>
+
+    <section class="card" id="faq">
+      <h2><span class="n">9</span> FAQ</h2>
+      <div class="fq"><h3>Why can't I make a template Shared?</h3><p>Publishing firm-wide is admin-only, so a stray personal draft doesn't go out to the whole team. Save it Personal, or ask an admin to publish it Shared.</p></div>
+      <div class="fq"><h3>I edited a shared template and it wouldn't save.</h3><p>You can only edit templates you own. A teammate's Shared template is read-only for you — use + New template to make your own copy and edit that.</p></div>
+      <div class="fq"><h3>Do I lose the body when I edit a field in the list?</h3><p>No. An inline edit saves only the field you changed; the body and everything else are preserved untouched.</p></div>
+      <div class="fq"><h3>Can I nest folders inside folders?</h3><p>Not today — folders are one level. If your library outgrows a flat structure, a nested-folder view can be added on top of this.</p></div>
+      <div class="fq"><h3>A token printed as literal text in a sent email.</h3><p>Check the token spelling against the list in <a href="#tokens">Merge fields</a> — an unrecognized token (a typo, or one that doesn't exist) is left as written. Recognized tokens with no value are blanked, not printed.</p></div>
+    </section>
+
+  </main>
+</div>
+
+<div class="foot">Restaurant Realty Group — Email Templates Help &amp; User Guide · Confidential platform documentation.</div>
+<button class="totop" id="totop" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑ Top</button>
+
+<script>
+(function(){
+  var links=[].slice.call(document.querySelectorAll('#tocNav a'));
+  var secs=links.map(function(a){return document.getElementById(a.getAttribute('href').slice(1));}).filter(Boolean);
+  function spy(){ var y=window.scrollY+90, cur=secs[0]; for(var i=0;i<secs.length;i++){ if(secs[i].offsetTop<=y) cur=secs[i]; } links.forEach(function(a){ a.classList.toggle('on', a.getAttribute('href')==='#'+(cur&&cur.id)); }); var tt=document.getElementById('totop'); tt.classList.toggle('show', window.scrollY>400); }
+  window.addEventListener('scroll',spy,{passive:true}); spy();
+  var box=document.getElementById('tocSearch'), nav=document.getElementById('tocNav');
+  box.addEventListener('input',function(){ var q=box.value.trim().toLowerCase(); var any=false; links.forEach(function(a){ var sec=document.getElementById(a.getAttribute('href').slice(1)); var hit=!q || a.textContent.toLowerCase().indexOf(q)>=0 || (sec&&sec.textContent.toLowerCase().indexOf(q)>=0); a.style.display=hit?'':'none'; if(hit) any=true; }); var m=document.getElementById('tocMiss'); if(m) m.remove(); if(!any){ var d=document.createElement('div'); d.className='miss'; d.id='tocMiss'; d.textContent='No matches.'; nav.appendChild(d); } });
+})();
+</script>
+</body>
+</html>
