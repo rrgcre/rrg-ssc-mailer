@@ -217,6 +217,19 @@ a.feat:hover{background:#f7f9fc;}
 .feat .fic{font-size:17px;line-height:1.25;flex:none;width:24px;text-align:center;}
 .feat b{display:block;font-size:12.5px;color:var(--navy,#000E31);font-weight:800;}
 .feat span{display:block;font-size:11.5px;color:var(--muted,#6b7488);line-height:1.45;margin-top:2px;}
+/* Buyer lead rows — compact NetSuite-style cards that fit the narrow rail (name, meta, then stage + open) */
+.inqrow{padding:10px 16px;border-bottom:1px solid var(--line);}
+.inqrow:last-child{border-bottom:none;}
+.inqtop{display:flex;align-items:flex-start;gap:8px;}
+.inqname{flex:1;min-width:0;font-weight:700;color:var(--navy);font-size:13px;line-height:1.35;overflow-wrap:anywhere;}
+.inqname .stag{vertical-align:middle;}
+.inqdel{flex:none;width:22px;height:22px;padding:0;background:none;border:none;color:#b0b8c6;font-size:16px;line-height:1;cursor:pointer;border-radius:5px;}
+.inqdel:hover{color:var(--red);background:#fdeceb;}
+.inqmeta{color:#8a94a6;font-size:11.5px;margin-top:2px;overflow-wrap:anywhere;line-height:1.4;}
+.inqact{display:flex;align-items:center;gap:7px;margin-top:8px;flex-wrap:wrap;}
+.inqact .inqstat{flex:1 1 130px;min-width:120px;padding:6px 9px;border:1px solid #cfd6e2;border-radius:6px;font:inherit;font-size:12.5px;color:var(--ink);background:#fff;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' stroke='%236b7488' stroke-width='1.6' fill='none' stroke-linecap='round'/></svg>");background-repeat:no-repeat;background-position:right 9px center;padding-right:26px;}
+.inqact .inqopen{flex:none;background:#fff;color:var(--navy);border:1px solid #cdd6e6;border-radius:6px;padding:6px 11px;font-size:12px;font-weight:600;white-space:nowrap;text-decoration:none;}
+.inqact .inqopen:hover{background:#f4f7fb;border-color:#9fb0cc;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -863,8 +876,12 @@ function inquiryHTML(q){
   var who=q.name||q.email||'Buyer';
   var contact=[q.email,q.phone].filter(Boolean).map(esc).join(' \u00b7 ');
   var src=q.source?('<span class="stag pend" style="margin-left:6px">'+esc(q.source)+'</span>'):'';
-  var plink=q.personId?('<a class="slink ghost" href="./rrg_person.html?id='+encodeURIComponent(q.personId)+'">Open contact \u2192</a>'):'';
-  return '<div class="orow" style="display:flex;gap:12px;align-items:center;padding:12px 20px;border-bottom:1px solid var(--line)"><div style="flex:1;min-width:0"><div style="font-weight:800;color:var(--navy)">'+esc(who)+src+'</div><div class="meta" style="color:#8a94a6;font-size:12px">'+contact+(q.date?(' \u00b7 '+esc(q.date)):'')+'</div></div><select class="inqstat" data-inq="'+esc(q.id)+'" style="padding:6px 8px;border:1px solid #cfd6e2;border-radius:4px;font:inherit;font-size:12.5px">'+ssel+'</select>'+plink+'<button class="crm" data-inqdel="'+esc(q.id)+'" title="Remove lead">\u00d7</button></div>';
+  var plink=q.personId?('<a class="slink ghost inqopen" href="./rrg_person.html?id='+encodeURIComponent(q.personId)+'">Open contact \u2192</a>'):'';
+  return '<div class="inqrow">'
+    +'<div class="inqtop"><div class="inqname">'+esc(who)+src+'</div><button class="inqdel" data-inqdel="'+esc(q.id)+'" title="Remove lead" aria-label="Remove lead">\u00d7</button></div>'
+    +((contact||q.date)?('<div class="inqmeta">'+contact+(q.date?(' \u00b7 '+esc(q.date)):'')+'</div>'):'')
+    +'<div class="inqact"><select class="inqstat" data-inq="'+esc(q.id)+'">'+ssel+'</select>'+plink+'</div>'
+    +'</div>';
 }
 function saveInquiry(payload, cb){ fetch('/api/assignment/'+encodeURIComponent(KEY)+'/inquiry',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(payload)}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ INQUIRIES=j.inquiries||INQUIRIES; if(A) A.inquiries=INQUIRIES; if(cb)cb(j); else render(); } else alert((j&&j.error)||'Could not save the lead.'); }).catch(function(){ alert('Could not reach the server.'); }); }
 async function removeInquiry(id){ if(!await rrgConfirm('Remove this buyer lead from the listing? The contact stays in your registry.')) return; fetch('/api/assignment/'+encodeURIComponent(KEY)+'/inquiry/'+encodeURIComponent(id)+'/remove',{method:'POST',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ INQUIRIES=j.inquiries||[]; if(A) A.inquiries=INQUIRIES; render(); } }); }
