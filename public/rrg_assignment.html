@@ -248,6 +248,22 @@ a.feat:hover{background:#f7f9fc;}
 .ovv{font-size:13.5px;color:var(--ink);margin-top:3px;font-weight:600;overflow-wrap:anywhere;}
 .suggestbtn{margin-left:8px;font:inherit;font-size:10.5px;font-weight:700;color:#2c5c8f;background:#eef4fb;border:1px solid #d3e2f6;border-radius:6px;padding:2px 8px;cursor:pointer;text-transform:none;letter-spacing:0;}
 .suggestbtn:hover{background:#e2eefb;}
+/* Listing photos — cover banner on the Overview + a manageable gallery */
+.ovbanner{height:158px;border-radius:10px;background-size:cover;background-position:center;background-color:#0b1636;margin:2px 0 14px;box-shadow:inset 0 -40px 60px -30px rgba(0,0,0,.5);}
+.phupload{font:inherit;font-size:12px;font-weight:600;color:var(--navy);background:#fff;border:1px solid #cdd6e6;border-radius:8px;padding:6px 11px;cursor:pointer;margin-left:auto;white-space:nowrap;}
+.phupload:hover{background:#f4f7fb;border-color:#9fb0cc;}
+.phgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;}
+.phcell{position:relative;aspect-ratio:4/3;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#f2f4f8;}
+.phcell img{width:100%;height:100%;object-fit:cover;display:block;}
+.phcell.cover{outline:2px solid var(--navy);outline-offset:-2px;}
+.phacts{position:absolute;top:4px;right:4px;display:flex;gap:4px;opacity:0;transition:opacity .12s;}
+.phcell:hover .phacts{opacity:1;}
+.phbtn{width:24px;height:24px;border:none;border-radius:6px;background:rgba(11,22,54,.78);color:#fff;cursor:pointer;font-size:13px;line-height:1;display:inline-flex;align-items:center;justify-content:center;}
+.phbtn:hover{background:rgba(11,22,54,.96);} .phbtn.del:hover{background:var(--red);}
+.phcoverbadge{position:absolute;left:5px;bottom:5px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#fff;background:var(--navy);border-radius:4px;padding:2px 6px;}
+.phempty{color:var(--soft);font-size:12.5px;line-height:1.55;padding:10px 2px;}
+.phdrop{border:1.5px dashed #cbd5e6;border-radius:9px;padding:16px;text-align:center;color:var(--soft);font-size:12.5px;cursor:pointer;background:#fbfcff;margin-top:10px;}
+.phdrop:hover,.phdrop.drag{border-color:#2c5c8f;background:#eef4fb;color:#2c5c8f;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -612,7 +628,9 @@ function render(){
   var _mono=((_nm.replace(/[^A-Za-z0-9]/g,'').charAt(0))||'?').toUpperCase();
   var _hue=(function(s){var h=0;for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))%360;return h;})(_nm);
   var _tile=function(n,l){ return '<div class="tile"><div class="tn">'+n+'</div><div class="tl">'+esc(l)+'</div></div>'; };
-  var facts='<div class="ovhead"><div class="ovmono" style="background:hsl('+_hue+',42%,42%)">'+esc(_mono)+'</div>'
+  var _medP=(A.media&&A.media.photos)||[]; var _cover=(A.media&&A.media.coverPhotoId)?_medP.filter(function(p){return p.id===A.media.coverPhotoId;})[0]:(_medP[0]||null);
+  var facts=(_cover?('<div class="ovbanner" style="background-image:url(\''+esc(_cover.url)+'\')"></div>'):'')
+    +'<div class="ovhead"><div class="ovmono" style="background:hsl('+_hue+',42%,42%)">'+esc(_mono)+'</div>'
       +'<div class="ovid"><div class="ovname">'+esc(_nm)+'</div><div class="ovsub">'+(A.market?esc(A.market):'No market set')+'<span class="st">'+esc(A.status||'New')+'</span>'+(A.provisional?'<span class="st" style="color:#b5791f;background:#fdf1df;border-color:#f0d7ad">Provisional</span>':'')+(A.codeName?('<span class="st" title="Confidential project code name" style="color:#5a4b8a;background:#f2eefb;border-color:#ddd2f3">🔒 '+esc(A.codeName)+'</span>'):'')+'</div></div></div>'
     +'<div class="ktiles">'
       +_tile(esc(domDays()||'—'),'Days on mkt')
@@ -691,6 +709,7 @@ function render(){
     _sideHtml
     + '<div class="mid">'
     + '<div class="card"><div class="ch"><b>Overview</b><span>'+done+' of '+ST.length+' stages complete</span></div><div class="cb">'+facts+'</div></div>'
+    + photosCard()
     + '<div class="card"><div class="ch"><b>Seller Pipeline</b>'+(pipeName?('<span style="margin-left:8px;color:var(--navy);font-weight:700;font-size:11.5px;background:#eef2fb;border:1px solid #d3ddf3;border-radius:999px;padding:2px 10px">'+esc(pipeName)+'</span>'):'')+'<span>'+started+' of '+ST.length+' started</span></div><div class="track"><div class="hpipe">'+steps+'</div></div></div>'
     + buyerPipelineCard()
     + mktCardShell()
@@ -725,6 +744,7 @@ function render(){
   var pmb=document.getElementById('promoteBtn'); if(pmb) pmb.addEventListener('click',promoteListing);
   var ddb=document.getElementById('delDealBtn'); if(ddb) ddb.addEventListener('click',deleteDeal);
   wireRoomActivity();
+  wirePhotos();
   if(A && A.assignmentType!=='tenant_rep'){ if(MKT) fillMarketplaceCard(); else loadMarketplace(); }
   wireOffers();
   wireTours();
@@ -750,6 +770,47 @@ function loadMatchingBuyers(){ var host=document.getElementById('matchBuyers'), 
     }).join('');
   }).catch(function(){ host.innerHTML='<div style="color:#8a93a8;font-size:12.5px;padding:4px 0">—</div>'; });
 }
+// ---- Listing photos (internal, team-facing reference imagery; the cover also seeds the marketplace teaser) ----
+function photosCard(){
+  var m=(A&&A.media)||{photos:[],count:0};
+  var photos=m.photos||[];
+  var grid;
+  if(photos.length){
+    grid='<div class="phgrid">'+photos.map(function(p){
+      var isCover=(p.id===m.coverPhotoId);
+      return '<div class="phcell'+(isCover?' cover':'')+'" data-pid="'+esc(p.id)+'"><img src="'+esc(p.url)+'" alt="'+esc(p.caption||'listing photo')+'" loading="lazy">'
+        +'<div class="phacts"><button type="button" class="phbtn" data-setcover="'+esc(p.id)+'" title="'+(isCover?'Cover photo':'Make cover')+'">'+(isCover?'★':'☆')+'</button><button type="button" class="phbtn del" data-phdel="'+esc(p.id)+'" title="Delete photo">×</button></div>'
+        +(isCover?'<span class="phcoverbadge">Cover</span>':'')+'</div>';
+    }).join('')+'</div>';
+  } else {
+    grid='<div class="phempty">No photos yet. Add storefront, interior, kitchen and food shots so the whole team can recognize the place at a glance. The cover photo also seeds the marketplace teaser.</div>';
+  }
+  grid+='<div class="phdrop" id="phDrop">Drop images here, or click to choose — JPG, PNG, GIF or WebP, up to 15 MB each.</div><input type="file" id="phInput" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden>';
+  return '<div class="card" id="photosCard"><div class="ch"><b>Photos</b><span>'+(m.count||0)+'</span><button type="button" class="phupload" id="phAddBtn">＋ Add photos</button></div><div class="cb" style="padding:12px 16px">'+grid+'</div></div>';
+}
+function wirePhotos(){
+  var input=document.getElementById('phInput'), addb=document.getElementById('phAddBtn'), drop=document.getElementById('phDrop');
+  function pick(){ if(input) input.click(); }
+  if(addb) addb.addEventListener('click',pick);
+  if(drop){ drop.addEventListener('click',pick);
+    ['dragenter','dragover'].forEach(function(ev){ drop.addEventListener(ev,function(e){ e.preventDefault(); drop.classList.add('drag'); }); });
+    ['dragleave','drop'].forEach(function(ev){ drop.addEventListener(ev,function(e){ e.preventDefault(); drop.classList.remove('drag'); }); });
+    drop.addEventListener('drop',function(e){ var fs=(e.dataTransfer&&e.dataTransfer.files)?Array.prototype.slice.call(e.dataTransfer.files):[]; if(fs.length) uploadPhotos(fs); });
+  }
+  if(input) input.addEventListener('change',function(){ var fs=Array.prototype.slice.call(input.files||[]); if(fs.length) uploadPhotos(fs); input.value=''; });
+  document.querySelectorAll('[data-setcover]').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); setCover(b.getAttribute('data-setcover')); }); });
+  document.querySelectorAll('[data-phdel]').forEach(function(b){ b.addEventListener('click',async function(e){ e.stopPropagation(); if(await rrgConfirm('Delete this photo? This can’t be undone.')) delPhoto(b.getAttribute('data-phdel')); }); });
+}
+function uploadPhotos(files){
+  var arr=Array.prototype.slice.call(files).filter(function(f){return /^image\//.test(f.type);}).slice(0,24);
+  if(!arr.length){ alert('Please choose image files (JPG, PNG, GIF or WebP).'); return; }
+  var out=[], pending=arr.length;
+  var addb=document.getElementById('phAddBtn'); if(addb){ addb.disabled=true; addb.textContent='Uploading…'; }
+  arr.forEach(function(f){ var r=new FileReader(); r.onload=function(){ out.push({filename:f.name,dataB64:r.result}); if(--pending===0) sendPhotos(out); }; r.onerror=function(){ if(--pending===0) sendPhotos(out); }; r.readAsDataURL(f); });
+}
+function sendPhotos(files){ if(!files.length){ render(); return; } fetch('/api/assignment/'+encodeURIComponent(KEY)+'/photos',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({files:files})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ A.media=j.media; render(); } else { alert((j&&j.error)||'Upload failed.'); render(); } }).catch(function(){ alert('Could not reach the server.'); render(); }); }
+function setCover(pid){ fetch('/api/assignment/'+encodeURIComponent(KEY)+'/photos/order',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({coverPhotoId:pid})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ A.media=j.media; render(); } }).catch(function(){}); }
+function delPhoto(pid){ fetch('/api/assignment/'+encodeURIComponent(KEY)+'/photo/'+encodeURIComponent(pid),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ A.media=j.media; render(); } }).catch(function(){}); }
 function promoteListing(){ var b=document.getElementById('promoteBtn'); if(b){b.disabled=true;b.textContent='Promoting…';} fetch('/api/assignment/'+encodeURIComponent(KEY)+'/promote',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.reload(); } else { if(b){b.disabled=false;b.textContent='Promote to Live listing →';} alert((j&&j.error)||'Could not promote.'); } }).catch(function(){ if(b){b.disabled=false;b.textContent='Promote to Live listing →';} alert('Could not reach the server.'); }); }
 function startDeal(){ var b=document.getElementById('startDealBtn'); if(b){b.disabled=true;b.textContent='Starting…';} fetch('/api/deal/'+encodeURIComponent(A.dealId)+'/start',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_assignment.html?key='+encodeURIComponent(j.key); } else { if(b){b.disabled=false;b.textContent='Start the listing →';} alert((j&&j.error)||'Could not start the deal.'); } }).catch(function(){ if(b){b.disabled=false;b.textContent='Start the listing →';} alert('Could not reach the server.'); }); }
 async function deleteDeal(){ if(!await rrgConfirm('Delete this listing and everything in it — records, data room, and all uploaded files? This cannot be undone.')) return; var b=document.getElementById('delDealBtn'); if(b){b.disabled=true;b.textContent='Deleting…';} fetch('/api/deal/'+encodeURIComponent(A.dealId),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_assignments.html'; } else { if(b){b.disabled=false;b.textContent='Delete listing';} alert((j&&j.error)||'Could not delete the listing.'); } }).catch(function(){ if(b){b.disabled=false;b.textContent='Delete listing';} alert('Could not reach the server.'); }); }
