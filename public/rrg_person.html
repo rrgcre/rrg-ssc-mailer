@@ -1504,7 +1504,7 @@ function automationsCard(){
     ctrl+='<button class="autobtn" data-enrollact="remove" data-eid="'+esc(e.eid)+'" title="Remove from this automation">\u00d7</button>';
     return '<div class="rrow" style="align-items:flex-start"><div class="rrmain"><div class="rrnm">'+esc(e.automationName||'Automation')+' <span class="sigpill" style="background:'+c[0]+';color:'+c[1]+'">'+esc(label)+'</span></div><div class="rrmt">'+esc(meta)+'</div><div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">'+ctrl+'</div></div></div>';
   }).join('') : '<div class="rrempty">Not in any automation yet.</div>';
-  var opts=(AUTOMATIONS||[]).map(function(a){ return '<option value="'+esc(a.id)+'">'+esc(a.name)+(a.bbsDefault?' (BBS default)':'')+'</option>'; }).join('');
+  var opts=(AUTOMATIONS||[]).map(function(a){ return '<option value="'+esc(a.id)+'">'+esc(a.name)+'</option>'; }).join('');
   var enroller = (AUTOMATIONS&&AUTOMATIONS.length) ? ('<div style="display:flex;gap:6px;margin-top:10px"><select id="auto_sel" style="flex:1;min-width:0;border:1px solid #cfd6e2;border-radius:8px;padding:7px 9px;font:inherit;font-size:12.5px"><option value="">⟳ Add to an automation\u2026</option>'+opts+'</select><button type="button" class="mfadd" id="auto_go">Enroll</button></div>') : '<div class="rrempty" style="margin-top:8px">No automations built yet \u2014 an admin can create one under Admin \u2192 Automations.</div>';
   return '<div class="card"><div class="ch"><b>Automations</b><span>'+ens.length+'</span></div><div class="cb">'+body+enroller+'<div id="auto_msg" style="font-size:11.5px;color:#8a94a6;margin-top:6px"></div></div></div>';
 }

@@ -6400,7 +6400,6 @@ function importBbsLeads(req, leads) {
   const tasks = loadTasks();
   const _bbsCoId = noCompanyCompany().id;   // buyers have no company — source is stamped on the contact
   const _autos = loadAutomations();
-  const _bbsPlan = _autos.find(a => a.bbsDefault && a.active !== false) || null;
   let imported = 0, matched = 0, unmatched = 0, dupes = 0, createdListings = 0;
   const results = [];
   (leads || []).forEach(l => {
@@ -6413,7 +6412,8 @@ function importBbsLeads(req, leads) {
     const qualBits = []; if (l.funds) qualBits.push('Funds: ' + l.funds); if (l.timeframe) qualBits.push('Timeframe: ' + l.timeframe); if (l.zip) qualBits.push('Zip: ' + l.zip); const qualLine = qualBits.join(' \u00b7 ');
     const person = findOrCreatePerson(req, { name: l.name || '', firstName: l.firstName || '', lastName: l.lastName || '', email: email, phones: l.phone ? [l.phone] : [], type: 'Buying', companyId: _bbsCoId });
     if (person) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === person.id); if (pp) { if (!pp.leadSource) pp.leadSource = 'BizBuySell'; logActivity(pp, 'BizBuySell Lead', ('Inquired on ' + (l.listingName || 'a listing') + (l.refId ? (' \u00b7 Ref ' + l.refId) : (l.listingNumber ? (' \u00b7 #' + l.listingNumber) : '')) + (qualLine ? (' \u00b7 ' + qualLine) : '') + (l.message ? (' \u2014 \u201c' + String(l.message).slice(0,140) + '\u201d') : '')).slice(0, 300), { auto: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); savePeople(ppl); } } catch (e) {} }
-    const _lplan = (key && overlay[key] && overlay[key].leadAutomationId) ? (_autos.find(a => a.id === overlay[key].leadAutomationId && a.active !== false) || _bbsPlan) : _bbsPlan;
+    // Only run an automation on an imported lead if THIS listing has one set. No firm-wide fallback.
+    const _lplan = (key && overlay[key] && overlay[key].leadAutomationId) ? (_autos.find(a => a.id === overlay[key].leadAutomationId && a.active !== false) || null) : null;
     if (person && _lplan) { try { const ppl2 = loadPeople(); const pp2 = ppl2.find(x => x.id === person.id); if (pp2 && enrollPerson(pp2, _lplan, { byName: 'BizBuySell auto-import', byUser: 'system' })) savePeople(ppl2); } catch (e) {} }
     if (!key && (l.listingNumber || _nn)) {
       const stub = { id: newDealId(), business: (l.listingName || ('BizBuySell ' + (l.refId || l.listingNumber))).slice(0, 120), market: '', contact: '', screenId: '', roomId: '', contactPersonId: '', companyId: '', createdAt: now, fromBizBuySell: true, needsSetup: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' };
@@ -6837,7 +6837,7 @@ function unsubscribedEmailSet() { const now = Date.now(); if (_unsubCache && (no
 function isEmailUnsubscribed(email) { email = String(email || '').trim().toLowerCase(); return !!email && unsubscribedEmailSet().has(email); }
 function automationTallies() { const t = {}; try { loadPeople().forEach(p => { (p.enrollments || []).forEach(en => { if (!en || !en.automationId) return; const k = en.automationId; t[k] = t[k] || { enrolled: 0, active: 0, done: 0 }; t[k].enrolled++; if (en.status === 'active') t[k].active++; else if (en.status === 'done') t[k].done++; }); }); } catch (e) {} return t; }
 function personMatchesSeg(p, aud) { aud = aud || {}; const types = (aud.types || []).filter(Boolean).map(x => String(x).toLowerCase()); const tags = (aud.tags || []).filter(Boolean).map(x => String(x).toLowerCase()); const srcs = (aud.leadSources || []).filter(Boolean).map(x => String(x).toLowerCase()); if (types.length) { const pt = personTypesOf(p).map(x => String(x).toLowerCase()); if (!types.some(t => pt.indexOf(t) >= 0)) return false; } if (tags.length) { const pg = personTags(p).map(x => String(x).toLowerCase()); if (!tags.some(t => pg.indexOf(t) >= 0)) return false; } if (srcs.length) { if (srcs.indexOf(String(p.leadSource || '').toLowerCase()) < 0) return false; } return true; }
-function automationBrief(a, user) { return { id: a.id, name: a.name || '', bbsDefault: !!a.bbsDefault, execDefault: !!a.execDefault, active: a.active !== false, scope: (a.scope === 'private' ? 'private' : 'shared'), ownerUser: a.ownerUser || '', ownerName: a.ownerName || '', mine: !!(user && (a.ownerUser === user.username || isSuper(user))), steps: Array.isArray(a.steps) ? a.steps : [], stepCount: (a.steps || []).length, updatedAt: a.updatedAt || '' }; }
+function automationBrief(a, user) { return { id: a.id, name: a.name || '', execDefault: !!a.execDefault, active: a.active !== false, scope: (a.scope === 'private' ? 'private' : 'shared'), ownerUser: a.ownerUser || '', ownerName: a.ownerName || '', mine: !!(user && (a.ownerUser === user.username || isSuper(user))), steps: Array.isArray(a.steps) ? a.steps : [], stepCount: (a.steps || []).length, updatedAt: a.updatedAt || '' }; }
 function stepDelayMs(st) { if (!st) return 0; const d = Math.max(0, parseInt(st.delayDays, 10) || 0); const h = Math.max(0, parseInt(st.delayHours, 10) || 0); const m = Math.max(0, parseInt(st.delayMinutes, 10) || 0); return d * 86400000 + h * 3600000 + m * 60000; }
 function enrollPerson(p, plan, opts) {
   opts = opts || {};
@@ -8845,7 +8845,6 @@ app.post('/api/admin/automations', requireAdmin, express.json({ limit: '1mb' }),
   if (b.steps !== undefined) a.steps = cleanAutoSteps(b.steps);
   if (b.active !== undefined) a.active = !!b.active;
   if (b.scope !== undefined) a.scope = (b.scope === 'private' ? 'private' : 'shared');
-  if (b.bbsDefault !== undefined) { if (b.bbsDefault) { if (a.scope === 'private') a.scope = 'shared'; all.forEach(x => { x.bbsDefault = false; }); } a.bbsDefault = !!b.bbsDefault; }
   if (b.execDefault !== undefined) { if (b.execDefault) { if (a.scope === 'private') a.scope = 'shared'; all.forEach(x => { x.execDefault = false; }); } a.execDefault = !!b.execDefault; }
   a.updatedAt = new Date().toISOString(); saveAutomations(all);
   res.json({ ok: true, automation: automationBrief(a, u), automations: all.map(x => automationBrief(x, u)) });
