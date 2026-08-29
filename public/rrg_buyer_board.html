@@ -68,6 +68,25 @@ h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
 .state a{color:#2c5c8f;font-weight:700;text-decoration:none;}
 .foot{max-width:1320px;margin:0 auto;padding:0 28px 40px;color:var(--muted);font-size:11.5px;}
 .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:var(--navy);color:#fff;font-size:12.5px;font-weight:700;padding:10px 18px;border-radius:100px;box-shadow:0 8px 24px rgba(0,0,0,.3);opacity:0;transition:opacity .2s;pointer-events:none;z-index:99;} .toast.show{opacity:1;} .toast.err{background:var(--red);}
+/* Off-the-board drop bar (park a buyer without pushing it through the pipeline) */
+.offbar{margin:6px 0 4px;border:1.5px dashed #cfd6e2;border-radius:12px;background:#fbfcff;padding:10px 15px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;transition:background .12s,border-color .12s;}
+.offbar.dragover{border-color:#c0392b;background:#fdf0ee;}
+.offbar .obl{font-size:12.5px;font-weight:800;color:#5b6472;display:flex;align-items:center;gap:8px;}
+.offbar .obicon{font-size:15px;color:#98a1b5;} .offbar.dragover .obl,.offbar.dragover .obicon{color:#c0392b;}
+.offbar .obcount{background:#eef1f6;color:#5b6472;border-radius:999px;padding:1px 9px;font-size:11.5px;font-weight:800;}
+.offbar .obhint{font-size:12px;color:#98a1b5;}
+.offbar .obtoggle{margin-left:auto;font-size:12px;font-weight:700;color:#23496f;background:none;border:none;cursor:pointer;padding:2px 4px;} .offbar .obtoggle:hover{text-decoration:underline;}
+.offtray{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;width:100%;}
+.offchip{display:flex;align-items:center;gap:8px;border:1px solid #e3e8f0;border-radius:9px;background:#fff;padding:6px 10px;font-size:12.5px;}
+.offchip .ocn{font-weight:700;color:#20334f;}
+.offchip .ocs{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;border-radius:5px;padding:1px 6px;}
+.offchip .ocs.hold{background:#fdf1df;color:#b5791f;} .offchip .ocs.lost{background:#f8e6e3;color:#b23a2c;}
+.offchip .ocret{font-size:11px;font-weight:700;color:#23496f;background:#eef2fb;border:1px solid #d3ddf3;border-radius:6px;padding:3px 8px;cursor:pointer;} .offchip .ocret:hover{background:#e2ebfa;}
+.offmenu{position:fixed;z-index:200;background:#fff;border:1px solid #e3e8f0;border-radius:10px;box-shadow:0 14px 40px rgba(12,22,54,.2);padding:6px;min-width:186px;}
+.offmenu .omh{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#8a94a6;padding:5px 9px 6px;}
+.offmenu button{display:flex;width:100%;align-items:center;gap:9px;background:#fff;border:none;border-radius:7px;padding:8px 10px;font:inherit;font-size:13px;font-weight:600;color:#1a2236;cursor:pointer;text-align:left;} .offmenu button:hover{background:#f2f5fa;}
+.offmenu button .od{width:8px;height:8px;border-radius:50%;flex:none;} .offmenu .od.hold{background:#e0a83c;} .offmenu .od.lost{background:#c0392b;}
+.offmenu .omcancel{color:#8a94a6;font-weight:600;justify-content:center;font-size:12px;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -106,7 +125,7 @@ h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
 <div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
 <div class="toast" id="toast"></div>
 <script>
-var STAGES=[], BUYERS=[], LISTINGS=[], PIPENAME='', HASPIPE=true, FILTER='__all__', DRAG=null, PIPELINES=[], BUYERPID='';
+var STAGES=[], BUYERS=[], LISTINGS=[], PIPENAME='', HASPIPE=true, FILTER='__all__', DRAG=null, PIPELINES=[], BUYERPID='', SHOW_OFF=false;
 function qs(k){ try{ return new URLSearchParams(location.search).get(k)||''; }catch(e){ return ''; } }
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function api(m,u,b){return fetch(u,{method:m,credentials:'same-origin',headers:b?{'Content-Type':'application/json'}:undefined,body:b?JSON.stringify(b):undefined}).then(function(r){return r.json();});}
@@ -122,7 +141,9 @@ function cardHtml(b){
 function render(){
   var root=document.getElementById('root');
   if(!HASPIPE){ root.innerHTML='<div class="state"><b>No buyer pipeline yet.</b>Create one under <a href="./rrg_admin_pipelines.html">Admin → Pipelines</a> and set its Practice area to <b>Buyer</b>. Add your stages (e.g. Contacted → Qualified → NDA Sent → Toured → Offer) and this board fills in as buyer leads come in.</div>'; return; }
-  var vis=visibleBuyers();
+  var visAll=visibleBuyers();
+  var offAll=visAll.filter(isOffBuyer);                        // parked / lost — off the board
+  var vis=visAll.filter(function(b){return !isOffBuyer(b);});
   var byStage={}; STAGES.forEach(function(s){byStage[s]=[];});
   // Buyers whose stored stage doesn't match a pipeline column (e.g. a legacy status, or an
   // older buyer pipeline) fold into the first stage so they stay visible and draggable.
@@ -132,9 +153,56 @@ function render(){
     var cards=list.length?list.map(cardHtml).join(''):'<div class="colempty">Drop buyers here</div>';
     return '<div class="col" data-stage="'+esc(s)+'"><div class="colh"><b>'+esc(s)+'</b><span class="cc">'+list.length+'</span></div><div class="collist">'+cards+'</div></div>';
   }).join('');
-  root.innerHTML='<div class="board">'+cols+'</div>';
+  root.innerHTML='<div class="board">'+cols+'</div>'+offbarHtml(offAll);
   wireBoard();
-  var tot=document.getElementById('tot'); tot.textContent=vis.length+' buyer'+(vis.length===1?'':'s')+(FILTER==='__all__'?(' across '+LISTINGS.length+' listing'+(LISTINGS.length===1?'':'s')):' on this listing');
+  wireOffbar(offAll);
+  var tot=document.getElementById('tot'); tot.textContent=vis.length+' buyer'+(vis.length===1?'':'s')+(FILTER==='__all__'?(' across '+LISTINGS.length+' listing'+(LISTINGS.length===1?'':'s')):' on this listing')+(offAll.length?(' · '+offAll.length+' off board'):'');
+}
+function isOffBuyer(b){ return !!(b && (b.parked || b.lost)); }
+function offbarHtml(offAll){
+  var n=offAll.length;
+  var toggle=n?('<button type="button" class="obtoggle" id="offToggle">'+(SHOW_OFF?'Hide':('Show '+n))+'</button>'):'';
+  var tray='';
+  if(SHOW_OFF && n){
+    tray='<div class="offtray">'+offAll.map(function(b){ var lost=!!b.lost; return '<div class="offchip"><span class="ocn">'+esc(b.name||'Buyer')+'</span>'+(FILTER==='__all__'&&b.business?('<span style="color:#8a94a6;font-size:11px">'+esc(b.business)+'</span>'):'')+'<span class="ocs '+(lost?'lost':'hold')+'">'+(lost?'Lost':'On Hold')+'</span><button type="button" class="ocret" data-ret="'+esc(b.id)+'" data-retkey="'+esc(b.listingKey)+'">↩ Return</button></div>'; }).join('')+'</div>';
+  }
+  return '<div class="offbar" id="offbar"><span class="obicon">⇩</span><span class="obl">Off the board'+(n?(' <span class="obcount">'+n+'</span>'):'')+'</span><span class="obhint">Drag a buyer here to park it (On Hold or Lost) without pushing it through the pipeline.</span>'+toggle+tray+'</div>';
+}
+function wireOffbar(offAll){
+  var bar=document.getElementById('offbar'); if(!bar) return;
+  bar.addEventListener('dragover',function(e){ if(!DRAG) return; e.preventDefault(); e.dataTransfer.dropEffect='move'; bar.classList.add('dragover'); });
+  bar.addEventListener('dragleave',function(e){ if(!bar.contains(e.relatedTarget)) bar.classList.remove('dragover'); });
+  bar.addEventListener('drop',function(e){ e.preventDefault(); bar.classList.remove('dragover'); if(!DRAG) return; var id=DRAG.id, key=DRAG.key; offDropMenu(id,key,e.clientX,e.clientY); });
+  var tg=document.getElementById('offToggle'); if(tg) tg.addEventListener('click',function(){ SHOW_OFF=!SHOW_OFF; render(); });
+  bar.querySelectorAll('[data-ret]').forEach(function(b){ b.addEventListener('click',function(){ returnBuyer(b.getAttribute('data-ret'), b.getAttribute('data-retkey')); }); });
+}
+function closeOffMenu(){ var m=document.getElementById('offMenu'); if(m) m.remove(); document.removeEventListener('mousedown',_offMenuOutside,true); }
+function _offMenuOutside(e){ var m=document.getElementById('offMenu'); if(m && !m.contains(e.target)) closeOffMenu(); }
+function offDropMenu(id,key,x,y){
+  closeOffMenu();
+  var b=BUYERS.filter(function(z){return z.id===id&&z.listingKey===key;})[0];
+  var nm=b?(b.name||'this buyer'):'this buyer';
+  var m=document.createElement('div'); m.className='offmenu'; m.id='offMenu';
+  m.innerHTML='<div class="omh">Take “'+esc(nm)+'” off the board</div>'
+    +'<button type="button" data-mode="hold"><span class="od hold"></span>Park (On Hold)</button>'
+    +'<button type="button" data-mode="lost"><span class="od lost"></span>Mark Lost</button>'
+    +'<button type="button" class="omcancel" data-mode="">Cancel</button>';
+  document.body.appendChild(m);
+  var vw=window.innerWidth, vh=window.innerHeight, r=m.getBoundingClientRect();
+  m.style.left=Math.max(8,Math.min(x, vw-r.width-8))+'px'; m.style.top=Math.max(8,Math.min(y, vh-r.height-8))+'px';
+  m.querySelectorAll('[data-mode]').forEach(function(bt){ bt.addEventListener('click',function(){ var mode=bt.getAttribute('data-mode'); closeOffMenu(); if(mode) takeOffBuyer(id,key,mode); }); });
+  setTimeout(function(){ document.addEventListener('mousedown',_offMenuOutside,true); },0);
+}
+function takeOffBuyer(id,key,mode){
+  var b=BUYERS.filter(function(x){return x.id===id&&x.listingKey===key;})[0]; if(!b) return;
+  if(mode==='lost'){ b.lost=true; b.parked=false; } else { b.parked=true; b.lost=false; }
+  SHOW_OFF=false; render();
+  api('POST','/api/buyer-board/park',{key:key,id:id,mode:mode}).then(function(j){ if(!j||!j.ok){ toast((j&&j.error)||'Could not update.',true); load(); } else { toast(mode==='lost'?'Marked lost':'Parked (On Hold)'); } }).catch(function(){ toast('Could not reach the server.',true); load(); });
+}
+function returnBuyer(id,key){
+  var b=BUYERS.filter(function(x){return x.id===id&&x.listingKey===key;})[0]; if(!b) return;
+  b.parked=false; b.lost=false; render();
+  api('POST','/api/buyer-board/park',{key:key,id:id,mode:'active'}).then(function(j){ if(!j||!j.ok){ toast((j&&j.error)||'Could not return.',true); load(); } else { toast('Returned to the board'); } }).catch(function(){ toast('Could not reach the server.',true); load(); });
 }
 function wireBoard(){
   document.querySelectorAll('.bcard').forEach(function(c){

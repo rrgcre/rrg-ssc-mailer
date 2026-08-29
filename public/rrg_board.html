@@ -60,7 +60,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .savemenu .saverow{display:flex;gap:6px;padding:8px 6px 2px;border-top:1px solid #eef1f6;margin-top:4px;}
 .savemenu .saverow input{flex:1;border:1px solid var(--inp);border-radius:3px;padding:6px 8px;font:inherit;font-size:12.5px;}
 .savemenu .saverow button{font:inherit;font-size:12px;font-weight:600;background:var(--primary);color:#fff;border:none;border-radius:3px;padding:6px 11px;cursor:pointer;}
-.board{display:flex;gap:10px;padding:6px 24px 14px;overflow-x:auto;overflow-y:hidden;align-items:flex-start;height:100%;}
+.boardwrap{display:flex;flex-direction:column;height:100%;min-height:0;}
+.board{display:flex;gap:10px;padding:6px 24px 14px;overflow-x:auto;overflow-y:hidden;align-items:flex-start;flex:1 1 auto;min-height:0;}
 .col{flex:0 0 274px;background:#eef1f5;border:1px solid var(--line);border-radius:4px;display:flex;flex-direction:column;max-height:100%;}
 .col.dragover{background:#e7eefb;border-color:#9fb6e6;box-shadow:inset 0 0 0 2px #9fb6e6;}
 .colh{padding:10px 13px 7px;border-bottom:1px solid var(--line);position:sticky;top:0;background:#eef1f5;border-radius:4px 4px 0 0;z-index:2;}
@@ -131,6 +132,30 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .bmbtn{border:none;border-radius:3px;padding:9px 16px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;background:var(--navy);color:#fff;}
 .bmbtn.ghost{background:#fff;color:var(--navy);border:1px solid var(--inp);}
 .pgtitle{font-size:17px;font-weight:800;color:var(--navy,#000E31);letter-spacing:-.01em;margin-right:8px;white-space:nowrap;align-self:center;}
+/* Off-the-board drop bar (park a listing without pushing it to the end of the pipeline) */
+.offbar{margin:0 24px 14px;border:1.5px dashed #cfd6e2;border-radius:12px;background:#fbfcff;padding:10px 15px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;transition:background .12s,border-color .12s;}
+.offbar.dragover{border-color:#c0392b;background:#fdf0ee;}
+.offbar .obl{font-size:12.5px;font-weight:800;color:#5b6472;display:flex;align-items:center;gap:8px;}
+.offbar .obicon{font-size:15px;color:#98a1b5;}
+.offbar.dragover .obl,.offbar.dragover .obicon{color:#c0392b;}
+.offbar .obcount{background:#eef1f6;color:#5b6472;border-radius:999px;padding:1px 9px;font-size:11.5px;font-weight:800;}
+.offbar .obhint{font-size:12px;color:#98a1b5;}
+.offbar .obtoggle{margin-left:auto;font-size:12px;font-weight:700;color:#23496f;background:none;border:none;cursor:pointer;padding:2px 4px;}
+.offbar .obtoggle:hover{text-decoration:underline;}
+.offtray{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;width:100%;}
+.offchip{display:flex;align-items:center;gap:8px;border:1px solid #e3e8f0;border-radius:9px;background:#fff;padding:6px 10px;font-size:12.5px;}
+.offchip .ocn{font-weight:700;color:#20334f;}
+.offchip .ocs{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;border-radius:5px;padding:1px 6px;}
+.offchip .ocs.hold{background:#fdf1df;color:#b5791f;} .offchip .ocs.lost{background:#f8e6e3;color:#b23a2c;}
+.offchip .ocret{font-size:11px;font-weight:700;color:#23496f;background:#eef2fb;border:1px solid #d3ddf3;border-radius:6px;padding:3px 8px;cursor:pointer;}
+.offchip .ocret:hover{background:#e2ebfa;}
+.offmenu{position:fixed;z-index:200;background:#fff;border:1px solid #e3e8f0;border-radius:10px;box-shadow:0 14px 40px rgba(12,22,54,.2);padding:6px;min-width:186px;}
+.offmenu .omh{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#8a94a6;padding:5px 9px 6px;}
+.offmenu button{display:flex;width:100%;align-items:center;gap:9px;background:#fff;border:none;border-radius:7px;padding:8px 10px;font:inherit;font-size:13px;font-weight:600;color:#1a2236;cursor:pointer;text-align:left;}
+.offmenu button:hover{background:#f2f5fa;}
+.offmenu button .od{width:8px;height:8px;border-radius:50%;flex:none;}
+.offmenu .od.hold{background:#e0a83c;} .offmenu .od.lost{background:#c0392b;}
+.offmenu .omcancel{color:#8a94a6;font-weight:600;justify-content:center;font-size:12px;}
 </style>
 <script src="/rrg_brand.js"></script>
 <script src="/rrg_list.js"></script>
@@ -181,6 +206,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 
 <script>
 var DATA=null, PID='', DRAGKEY='';
+var OFF_STATUSES=['On Hold','Lost']; var SHOW_OFF=false;
 var VIEW=(function(){ try{ return localStorage.getItem('rrg_board_view')||'board'; }catch(e){ return 'board'; } })(), LTBL=null;
 var TB={ q:'', owner:'', market:'', status:'', min:'', max:'', sort:'act_desc', per:25 };
 var FILTER_OPEN=false, SAVE_OPEN=false, EXPANDED={};
@@ -340,11 +366,13 @@ async function bulkDelListings(ids,done){
 function render(){
   if(!DATA){ return; }
   var stages=DATA.stages||[]; var all=(DATA.cards||[]);
-  var filtered=sortCards(all.filter(passFilters));
+  var passed=all.filter(passFilters);
+  var offAll=passed.filter(isOffBoard);                       // parked (On Hold / Lost) — hidden from the columns
+  var filtered=sortCards(passed.filter(function(c){return !isOffBoard(c);}));
   var byStage={}; stages.forEach(function(s){ byStage[s]=[]; });
   filtered.forEach(function(c){ (byStage[c.stage]||(byStage[c.stage]=[])).push(c); });
   var totalVal=filtered.reduce(function(a,c){return a+money(c.value);},0);
-  document.getElementById('tot').textContent=filtered.length+' of '+all.length+' · '+fmtMoney(totalVal);
+  document.getElementById('tot').textContent=filtered.length+' active · '+fmtMoney(totalVal)+(offAll.length?(' · '+offAll.length+' off board'):'');
   if(VIEW==='list'){ renderList(filtered); return; }   // List toggle → full scrolling list (like Contacts/Companies)
   if(!stages.length){ document.getElementById('root').innerHTML='<div class="gate">This pipeline has no stages yet. Add stages in <b>Admin → Pipelines</b>.</div>'; return; }
   var per=TB.per;
@@ -356,9 +384,58 @@ function render(){
     var more=(list.length>cap)?('<button class="showmore" data-more="'+esc(st)+'">+ '+(list.length-cap)+' more</button>'):'';
     return '<div class="col" data-stage="'+esc(st)+'"><div class="colh"><div class="nm">'+esc(st)+' <span class="cnt">'+list.length+'</span></div>'+(sum?('<div class="sum">'+fmtMoney(sum)+'</div>'):'')+'</div><div class="colb" data-stage="'+esc(st)+'">'+cardsHtml+more+'</div></div>';
   }).join('');
-  document.getElementById('root').innerHTML='<div class="board">'+cols+'</div>';
+  document.getElementById('root').innerHTML='<div class="boardwrap"><div class="board">'+cols+'</div>'+offbarHtml(offAll)+'</div>';
   document.querySelectorAll('[data-more]').forEach(function(el){ el.addEventListener('click',function(ev){ ev.preventDefault(); EXPANDED[el.getAttribute('data-more')]=true; render(); }); });
   wireDnD();
+  wireOffbar(offAll);
+}
+function isOffBoard(c){ return c && OFF_STATUSES.indexOf(c.status)>=0; }
+function offbarHtml(offAll){
+  var n=offAll.length;
+  var toggle=n?('<button type="button" class="obtoggle" id="offToggle">'+(SHOW_OFF?'Hide':('Show '+n))+'</button>'):'';
+  var tray='';
+  if(SHOW_OFF && n){
+    tray='<div class="offtray">'+offAll.map(function(c){ var lost=(c.status==='Lost'); return '<div class="offchip"><span class="ocn">'+esc(c.business||c.key)+'</span><span class="ocs '+(lost?'lost':'hold')+'">'+esc(c.status)+'</span><button type="button" class="ocret" data-ret="'+esc(c.key)+'">↩ Return</button></div>'; }).join('')+'</div>';
+  }
+  return '<div class="offbar" id="offbar"><span class="obicon">⇩</span><span class="obl">Off the board'+(n?(' <span class="obcount">'+n+'</span>'):'')+'</span><span class="obhint">Drag a card here to park it (On Hold or Lost) without pushing it through the pipeline.</span>'+toggle+tray+'</div>';
+}
+function wireOffbar(offAll){
+  var bar=document.getElementById('offbar'); if(!bar) return;
+  bar.addEventListener('dragover',function(e){ if(!DRAGKEY) return; e.preventDefault(); e.dataTransfer.dropEffect='move'; bar.classList.add('dragover'); });
+  bar.addEventListener('dragleave',function(e){ if(!bar.contains(e.relatedTarget)) bar.classList.remove('dragover'); });
+  bar.addEventListener('drop',function(e){ e.preventDefault(); bar.classList.remove('dragover'); var key=DRAGKEY; DRAGKEY=''; if(key) offDropMenu(key, e.clientX, e.clientY); });
+  var tg=document.getElementById('offToggle'); if(tg) tg.addEventListener('click',function(){ SHOW_OFF=!SHOW_OFF; render(); });
+  bar.querySelectorAll('[data-ret]').forEach(function(b){ b.addEventListener('click',function(){ returnToBoard(b.getAttribute('data-ret')); }); });
+}
+function closeOffMenu(){ var m=document.getElementById('offMenu'); if(m) m.remove(); document.removeEventListener('mousedown',_offMenuOutside,true); }
+function _offMenuOutside(e){ var m=document.getElementById('offMenu'); if(m && !m.contains(e.target)){ closeOffMenu(); } }
+function offDropMenu(key,x,y){
+  closeOffMenu();
+  var card=(DATA.cards||[]).filter(function(c){return c.key===key;})[0];
+  var nm=card?(card.business||card.key):'this listing';
+  var m=document.createElement('div'); m.className='offmenu'; m.id='offMenu';
+  m.innerHTML='<div class="omh">Take “'+esc(nm)+'” off the board</div>'
+    +'<button type="button" data-off="On Hold"><span class="od hold"></span>Park (On Hold)</button>'
+    +'<button type="button" data-off="Lost"><span class="od lost"></span>Mark Lost</button>'
+    +'<button type="button" class="omcancel" data-off="">Cancel</button>';
+  document.body.appendChild(m);
+  var vw=window.innerWidth, vh=window.innerHeight, r=m.getBoundingClientRect();
+  var px=Math.min(x, vw-r.width-8), py=Math.min(y, vh-r.height-8);
+  m.style.left=Math.max(8,px)+'px'; m.style.top=Math.max(8,py)+'px';
+  m.querySelectorAll('[data-off]').forEach(function(b){ b.addEventListener('click',function(){ var st=b.getAttribute('data-off'); closeOffMenu(); if(st) takeOffBoard(key,st); }); });
+  setTimeout(function(){ document.addEventListener('mousedown',_offMenuOutside,true); },0);
+}
+function takeOffBoard(key,status){
+  var card=(DATA.cards||[]).filter(function(c){return c.key===key;})[0]; if(!card) return;
+  card.status=status; SHOW_OFF=false; render();
+  fetch('/api/assignment/'+encodeURIComponent(key)+'/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({status:status})})
+    .then(function(r){return r.json();}).then(function(j){ if(!j||!j.ok){ load(); } }).catch(function(){ load(); });
+}
+function returnToBoard(key){
+  var card=(DATA.cards||[]).filter(function(c){return c.key===key;})[0]; if(!card) return;
+  card.status='Active'; render();
+  fetch('/api/assignment/'+encodeURIComponent(key)+'/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({status:'Active'})})
+    .then(function(r){return r.json();}).then(function(j){ if(!j||!j.ok){ load(); } }).catch(function(){ load(); });
 }
 var CARDF_FIELDS=[['contact','Contact'],['value','Value'],['commission','Commission'],['days','Days in stage'],['market','Market'],['status','Status'],['bbs','BBS #'],['activity','Last activity']];
 function saveCARDF(){ try{ localStorage.setItem('rrg_board_cardf',JSON.stringify(CARDF)); }catch(e){} }
