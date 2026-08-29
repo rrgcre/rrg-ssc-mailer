@@ -264,6 +264,45 @@ a.feat:hover{background:#f7f9fc;}
 .phempty{color:var(--soft);font-size:12.5px;line-height:1.55;padding:10px 2px;}
 .phdrop{border:1.5px dashed #cbd5e6;border-radius:9px;padding:16px;text-align:center;color:var(--soft);font-size:12.5px;cursor:pointer;background:#fbfcff;margin-top:10px;}
 .phdrop:hover,.phdrop.drag{border-color:#2c5c8f;background:#eef4fb;color:#2c5c8f;}
+/* ---- Listing Documents card ---- */
+.docrow{display:flex;align-items:center;gap:10px;padding:9px 16px;border-bottom:1px solid var(--line);}
+.docrow:last-child{border-bottom:none;}
+.docico{flex:none;width:30px;height:30px;border-radius:7px;background:#eef2fb;border:1px solid #dbe3f3;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--navy);font-weight:800;}
+.docmain{min-width:0;flex:1;}
+.docname{font-size:13px;font-weight:700;color:#20334f;text-decoration:none;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.docname:hover{text-decoration:underline;}
+.docmeta{font-size:11px;color:var(--soft);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.docact{flex:none;display:flex;gap:6px;}
+.docbtn{font:inherit;font-size:11.5px;font-weight:600;color:var(--navy);background:#fff;border:1px solid #cdd6e6;border-radius:7px;padding:4px 9px;cursor:pointer;text-decoration:none;white-space:nowrap;}
+.docbtn:hover{background:#f4f7fb;border-color:#9fb0cc;}
+.docbtn.del{color:var(--red);border-color:#e7c9c9;}
+.docbtn.del:hover{background:#fdf0f0;border-color:var(--red);}
+.docempty{color:var(--soft);font-size:12.5px;line-height:1.55;padding:12px 16px;}
+.docfoot{padding:10px 16px;border-top:1px solid var(--line);font-size:12px;}
+.docfoot a{color:var(--navy);font-weight:700;text-decoration:none;}
+.docfoot a:hover{text-decoration:underline;}
+.phxlink{padding:9px 16px 2px;font-size:11.5px;color:var(--soft);line-height:1.5;}
+.phxlink a{color:var(--navy);font-weight:700;text-decoration:none;}
+.phxlink a:hover{text-decoration:underline;}
+/* mini upload modal on the listing page */
+.dmask{position:fixed;inset:0;background:rgba(9,17,40,.5);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px;}
+.dmask[hidden]{display:none;}
+.dcard{background:#fff;border-radius:14px;width:min(460px,100%);max-height:90vh;overflow:auto;box-shadow:0 30px 80px rgba(9,17,40,.4);}
+.dch{padding:16px 20px 4px;font-size:16px;font-weight:800;color:#16223c;}
+.dcsub{padding:0 20px;font-size:12px;color:var(--soft);margin-top:2px;}
+.dcb{padding:14px 20px;}
+.dcb label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#6b7488;margin:12px 0 5px;}
+.dcb input[type=text],.dcb select,.dcb textarea{width:100%;box-sizing:border-box;font:inherit;font-size:13px;padding:8px 10px;border:1px solid #d6dded;border-radius:9px;background:#fff;color:#16223c;}
+.dcb textarea{min-height:56px;resize:vertical;}
+.ddrop{border:1.5px dashed #cbd5e6;border-radius:10px;padding:18px;text-align:center;color:var(--soft);font-size:12.5px;cursor:pointer;background:#fbfcff;}
+.ddrop.has{border-style:solid;border-color:#2c5c8f;background:#eef4fb;color:#2c5c8f;font-weight:600;}
+.dchip{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:var(--navy);background:#eef2fb;border:1px solid #d3ddf3;border-radius:999px;padding:4px 11px;}
+.dcf{padding:12px 20px 18px;display:flex;align-items:center;gap:10px;}
+.dcf .dmsg{font-size:12px;color:var(--red);flex:1;}
+.dbtn{font:inherit;font-size:13px;font-weight:700;border-radius:9px;padding:9px 16px;cursor:pointer;border:1px solid transparent;}
+.dbtn.go{background:var(--navy);color:#fff;}
+.dbtn.go:disabled{opacity:.55;cursor:default;}
+.dbtn.ghost{background:#fff;color:#5b6577;border-color:#d6dded;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -293,6 +332,21 @@ a.feat:hover{background:#f7f9fc;}
 </div>
 <div id="root" class="loading">Loading the deal file…</div>
 <div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
+<div id="docUpMask" class="dmask" hidden><div class="dcard">
+  <div class="dch">Add a document</div>
+  <div class="dcsub">Linked to <span class="dchip">🔗 <span id="docUpRelName">this listing</span></span> — it will show here and in Documents.</div>
+  <div class="dcb">
+    <div class="ddrop" id="docDrop" onclick="document.getElementById('docUpFile').click()">Click to choose a file — PDF, Word, Excel, PowerPoint, image, TXT, CSV or ZIP (max 25 MB)</div>
+    <input type="file" id="docUpFile" style="display:none" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.gif,.webp,.txt,.csv,.zip" onchange="docOnPick()">
+    <label>Document name</label>
+    <input type="text" id="docUpName" placeholder="Defaults to the file name" maxlength="160">
+    <label>Document type</label>
+    <select id="docUpType"></select>
+    <label>Notes</label>
+    <textarea id="docUpNote" maxlength="400" placeholder="Anything worth remembering about this document…"></textarea>
+  </div>
+  <div class="dcf"><span class="dmsg" id="docUpMsg"></span><button class="dbtn ghost" onclick="closeDocUpload()">Cancel</button><button class="dbtn go" id="docUpGo" onclick="doDocUpload()">Upload</button></div>
+</div></div>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function fmt(iso){ if(!iso) return '—'; var d=new Date(iso); if(isNaN(d.getTime())) return '—'; return (d.getMonth()+1)+'/'+d.getDate()+'/'+d.getFullYear(); }
@@ -710,6 +764,7 @@ function render(){
     + '<div class="mid">'
     + '<div class="card"><div class="ch"><b>Overview</b><span>'+done+' of '+ST.length+' stages complete</span></div><div class="cb">'+facts+'</div></div>'
     + photosCard()
+    + docsCard()
     + '<div class="card"><div class="ch"><b>Seller Pipeline</b>'+(pipeName?('<span style="margin-left:8px;color:var(--navy);font-weight:700;font-size:11.5px;background:#eef2fb;border:1px solid #d3ddf3;border-radius:999px;padding:2px 10px">'+esc(pipeName)+'</span>'):'')+'<span>'+started+' of '+ST.length+' started</span></div><div class="track"><div class="hpipe">'+steps+'</div></div></div>'
     + buyerPipelineCard()
     + mktCardShell()
@@ -745,6 +800,7 @@ function render(){
   var ddb=document.getElementById('delDealBtn'); if(ddb) ddb.addEventListener('click',deleteDeal);
   wireRoomActivity();
   wirePhotos();
+  wireDocs(); loadListingDocs();
   if(A && A.assignmentType!=='tenant_rep'){ if(MKT) fillMarketplaceCard(); else loadMarketplace(); }
   wireOffers();
   wireTours();
@@ -786,6 +842,7 @@ function photosCard(){
     grid='<div class="phempty">No photos yet. Add storefront, interior, kitchen and food shots so the whole team can recognize the place at a glance. The cover photo also seeds the marketplace teaser.</div>';
   }
   grid+='<div class="phdrop" id="phDrop">Drop images here, or click to choose — JPG, PNG, GIF or WebP, up to 15 MB each.</div><input type="file" id="phInput" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden>';
+  grid+='<div class="phxlink">Quick-reference imagery. Paperwork — LOIs, leases, financials, agreements — belongs in <a href="#docsCard" onclick="var c=document.getElementById(\'docsCard\');if(c){c.classList.remove(\'collapsed\');c.scrollIntoView({behavior:\'smooth\',block:\'start\'});}return false;">Documents ↓</a></div>';
   return '<div class="card" id="photosCard"><div class="ch"><b>Photos</b><span>'+(m.count||0)+'</span><button type="button" class="phupload" id="phAddBtn">＋ Add photos</button></div><div class="cb" style="padding:12px 16px">'+grid+'</div></div>';
 }
 function wirePhotos(){
@@ -811,6 +868,79 @@ function uploadPhotos(files){
 function sendPhotos(files){ if(!files.length){ render(); return; } fetch('/api/assignment/'+encodeURIComponent(KEY)+'/photos',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({files:files})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ A.media=j.media; render(); } else { alert((j&&j.error)||'Upload failed.'); render(); } }).catch(function(){ alert('Could not reach the server.'); render(); }); }
 function setCover(pid){ fetch('/api/assignment/'+encodeURIComponent(KEY)+'/photos/order',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({coverPhotoId:pid})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ A.media=j.media; render(); } }).catch(function(){}); }
 function delPhoto(pid){ fetch('/api/assignment/'+encodeURIComponent(KEY)+'/photo/'+encodeURIComponent(pid),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ A.media=j.media; render(); } }).catch(function(){}); }
+/* ---- Listing Documents (uploaded files linked to this listing; the deal's paper — LOIs, leases, financials, signed agreements) ---- */
+var LDOCS=null;
+var DOC_TYPES_ASG=['General','Agreement / Contract','Lease','Financials','Tax / W-9','Insurance / COI','Inspection','Exhibit / Addendum','Offer / LOI','Invoice / Receipt','Marketing','Legal / Entity','ID / License','Photo','Other'];
+function docsCard(){
+  return '<div class="card" id="docsCard"><div class="ch"><b>Documents</b><span id="docCount" style="color:#8a93a8;font-weight:700;margin-left:2px"></span><button type="button" class="phupload" id="docAddBtn">＋ Add document</button></div><div class="cb" style="padding:0" id="docBody"><div class="docempty">Loading…</div></div></div>';
+}
+function docIcon(ext){ ext=(ext||'').toLowerCase(); if(/^(png|jpe?g|gif|webp)$/.test(ext)) return '🖼'; if(ext==='pdf') return 'PDF'; if(/^(docx?|txt|rtf)$/.test(ext)) return 'DOC'; if(/^(xlsx?|csv)$/.test(ext)) return 'XLS'; if(/^pptx?$/.test(ext)) return 'PPT'; if(ext==='zip') return 'ZIP'; return '📄'; }
+function fmtDate(iso){ if(!iso) return ''; try{ var d=new Date(iso); if(isNaN(d.getTime())) return ''; return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }catch(e){ return ''; } }
+function loadListingDocs(){
+  var body=document.getElementById('docBody'); if(!body||!KEY) return;
+  fetch('/api/documents',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+    var all=(j&&j.documents)||[];
+    LDOCS=all.filter(function(d){ return d.kind==='file' && d.dealKey===KEY; });
+    renderListingDocs();
+  }).catch(function(){ var b=document.getElementById('docBody'); if(b) b.innerHTML='<div class="docempty">Couldn’t load documents.</div>'; });
+}
+function renderListingDocs(){
+  var body=document.getElementById('docBody'), cnt=document.getElementById('docCount'); if(!body) return;
+  var q=encodeURIComponent((A&&A.business)||'');
+  var foot='<div class="docfoot"><a href="./rrg_documents.html?q='+q+'">Open all documents for this listing ↗</a></div>';
+  if(!LDOCS||!LDOCS.length){
+    if(cnt) cnt.textContent='';
+    body.innerHTML='<div class="docempty">No documents linked to this listing yet. Add the LOI, lease, financials, tax returns and signed agreements here so the whole deal’s paper lives in one place.</div>'+foot;
+    wireDocRows(); return;
+  }
+  if(cnt) cnt.textContent='· '+LDOCS.length;
+  var rows=LDOCS.map(function(d){
+    var meta=[]; if(d.docType) meta.push(esc(d.docType)); if(d.owner) meta.push(esc(d.owner)); var dt=fmtDate(d.createdAt); if(dt) meta.push(dt);
+    var open=d.openUrl?('<a class="docbtn" href="'+esc(d.openUrl)+'" target="_blank" rel="noopener">Open</a>'):'';
+    return '<div class="docrow" data-did="'+esc(d.id)+'"><div class="docico">'+docIcon(d.ext)+'</div><div class="docmain"><a class="docname" href="'+esc(d.openUrl||'#')+'" target="_blank" rel="noopener">'+esc(d.title||'Document')+'</a><div class="docmeta">'+meta.join(' · ')+'</div></div><div class="docact">'+open+'<button type="button" class="docbtn del" data-docdel="'+esc(d.id)+'">Remove</button></div></div>';
+  }).join('');
+  body.innerHTML=rows+foot;
+  wireDocRows();
+}
+function wireDocRows(){
+  document.querySelectorAll('[data-docdel]').forEach(function(b){ b.addEventListener('click',async function(){ if(await rrgConfirm('Remove this document? It will be deleted from Documents too.')) delListingDoc(b.getAttribute('data-docdel')); }); });
+}
+function delListingDoc(id){ fetch('/api/files/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ LDOCS=(LDOCS||[]).filter(function(d){return d.id!==id;}); renderListingDocs(); } else alert((j&&j.error)||'Could not remove.'); }).catch(function(){ alert('Could not reach the server.'); }); }
+/* Add-document flow: a compact uploader that pre-links the file to THIS listing so the "Relates to" step can never be forgotten. */
+var DOC_PICK=null;
+function openDocUpload(){
+  var sel=document.getElementById('docUpType'); if(sel && !sel.options.length){ sel.innerHTML=DOC_TYPES_ASG.map(function(t){return '<option>'+esc(t)+'</option>';}).join(''); }
+  DOC_PICK=null;
+  var dp=document.getElementById('docDrop'); if(dp){ dp.className='ddrop'; dp.textContent='Click to choose a file — PDF, Word, Excel, PowerPoint, image, TXT, CSV or ZIP (max 25 MB)'; }
+  var nm=document.getElementById('docUpName'); if(nm) nm.value='';
+  var nt=document.getElementById('docUpNote'); if(nt) nt.value='';
+  var msg=document.getElementById('docUpMsg'); if(msg) msg.textContent='';
+  var chip=document.getElementById('docUpRelName'); if(chip) chip.textContent=(A&&A.business)||'this listing';
+  var mask=document.getElementById('docUpMask'); if(mask) mask.hidden=false;
+  var fi=document.getElementById('docUpFile'); if(fi) fi.value='';
+}
+function closeDocUpload(){ var mask=document.getElementById('docUpMask'); if(mask) mask.hidden=true; }
+function docOnPick(){ var f=document.getElementById('docUpFile').files[0]; if(!f) return; DOC_PICK=f; var dp=document.getElementById('docDrop'); dp.className='ddrop has'; dp.textContent='✓ '+f.name+' ('+fmtSize(f.size)+')'; var nm=document.getElementById('docUpName'); if(nm && !nm.value) nm.value=f.name.replace(/\.[a-z0-9]+$/i,''); }
+function fmtSize(n){ if(n<1024) return n+' B'; if(n<1048576) return (n/1024).toFixed(0)+' KB'; return (n/1048576).toFixed(1)+' MB'; }
+function doDocUpload(){
+  var msg=document.getElementById('docUpMsg'); if(!DOC_PICK){ if(msg) msg.textContent='Choose a file first.'; return; }
+  if(DOC_PICK.size>25*1024*1024){ if(msg) msg.textContent='File too large (max 25 MB).'; return; }
+  var btn=document.getElementById('docUpGo'); if(btn){ btn.disabled=true; btn.textContent='Uploading…'; }
+  var rd=new FileReader();
+  rd.onload=function(){
+    var b64=String(rd.result).split(',')[1]||'';
+    var body={ filename:DOC_PICK.name, dataB64:b64, title:(document.getElementById('docUpName').value||'').trim(), docType:(document.getElementById('docUpType').value||''), note:(document.getElementById('docUpNote').value||'').trim(), relatesToType:'listing', relatesToId:KEY, relatesToName:(A&&A.business)||'' };
+    fetch('/api/files',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){
+      if(btn){ btn.disabled=false; btn.textContent='Upload'; }
+      if(j&&j.ok){ closeDocUpload(); loadListingDocs(); } else { if(msg) msg.textContent=(j&&j.error)||'Upload failed.'; }
+    }).catch(function(){ if(btn){ btn.disabled=false; btn.textContent='Upload'; } if(msg) msg.textContent='Could not reach the server.'; });
+  };
+  rd.onerror=function(){ if(btn){ btn.disabled=false; btn.textContent='Upload'; } if(msg) msg.textContent='Could not read the file.'; };
+  rd.readAsDataURL(DOC_PICK);
+}
+function wireDocs(){
+  var addb=document.getElementById('docAddBtn'); if(addb) addb.addEventListener('click',openDocUpload);
+}
 function promoteListing(){ var b=document.getElementById('promoteBtn'); if(b){b.disabled=true;b.textContent='Promoting…';} fetch('/api/assignment/'+encodeURIComponent(KEY)+'/promote',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.reload(); } else { if(b){b.disabled=false;b.textContent='Promote to Live listing →';} alert((j&&j.error)||'Could not promote.'); } }).catch(function(){ if(b){b.disabled=false;b.textContent='Promote to Live listing →';} alert('Could not reach the server.'); }); }
 function startDeal(){ var b=document.getElementById('startDealBtn'); if(b){b.disabled=true;b.textContent='Starting…';} fetch('/api/deal/'+encodeURIComponent(A.dealId)+'/start',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_assignment.html?key='+encodeURIComponent(j.key); } else { if(b){b.disabled=false;b.textContent='Start the listing →';} alert((j&&j.error)||'Could not start the deal.'); } }).catch(function(){ if(b){b.disabled=false;b.textContent='Start the listing →';} alert('Could not reach the server.'); }); }
 async function deleteDeal(){ if(!await rrgConfirm('Delete this listing and everything in it — records, data room, and all uploaded files? This cannot be undone.')) return; var b=document.getElementById('delDealBtn'); if(b){b.disabled=true;b.textContent='Deleting…';} fetch('/api/deal/'+encodeURIComponent(A.dealId),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_assignments.html'; } else { if(b){b.disabled=false;b.textContent='Delete listing';} alert((j&&j.error)||'Could not delete the listing.'); } }).catch(function(){ if(b){b.disabled=false;b.textContent='Delete listing';} alert('Could not reach the server.'); }); }
