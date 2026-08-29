@@ -101,9 +101,9 @@ function render(){
   if(!HASPIPE){ root.innerHTML='<div class="state"><b>No buyer pipeline yet.</b>Create one under <a href="./rrg_admin_pipelines.html">Admin → Pipelines</a> and set its Practice area to <b>Buyer</b>. Add your stages (e.g. Contacted → Qualified → NDA Sent → Toured → Offer) and this board fills in as buyer leads come in.</div>'; return; }
   var vis=visibleBuyers();
   var byStage={}; STAGES.forEach(function(s){byStage[s]=[];});
-  var extra=[];
-  vis.forEach(function(b){ if(byStage[b.stage]) byStage[b.stage].push(b); else extra.push(b); });
-  // any stray statuses not in the pipeline get folded into the first stage bucket visually
+  // Buyers whose stored stage doesn't match a pipeline column (e.g. a legacy status, or an
+  // older buyer pipeline) fold into the first stage so they stay visible and draggable.
+  vis.forEach(function(b){ if(byStage[b.stage]) byStage[b.stage].push(b); else if(STAGES.length) byStage[STAGES[0]].push(b); });
   var cols=STAGES.map(function(s){
     var list=byStage[s];
     var cards=list.length?list.map(cardHtml).join(''):'<div class="colempty">Drop buyers here</div>';
@@ -134,7 +134,7 @@ function moveBuyer(id,key,stage){
 }
 function buildFilter(){
   var sel=document.getElementById('listingFilter');
-  sel.innerHTML='<option value="__all__">All listings ('+BUYERS.length+')</option>'+LISTINGS.map(function(l){ var n=BUYERS.filter(function(b){return b.listingKey===l.key;}).length; return '<option value="'+esc(l.key)+'"'+(FILTER===l.key?' selected':'')+'>'+esc(l.business)+' ('+n+')</option>'; }).join('');
+  sel.innerHTML='<option value="__all__">All listings · '+BUYERS.length+' buyer'+(BUYERS.length===1?'':'s')+'</option>'+LISTINGS.map(function(l){ var n=BUYERS.filter(function(b){return b.listingKey===l.key;}).length; return '<option value="'+esc(l.key)+'"'+(FILTER===l.key?' selected':'')+'>'+esc(l.business)+' ('+n+')</option>'; }).join('');
   sel.onchange=function(){ FILTER=sel.value; render(); };
   var pp=document.getElementById('pipePill'); if(PIPENAME){ pp.textContent=PIPENAME; pp.hidden=false; }
 }
