@@ -249,7 +249,6 @@ a.feat:hover{background:#f7f9fc;}
 .suggestbtn{margin-left:8px;font:inherit;font-size:10.5px;font-weight:700;color:#2c5c8f;background:#eef4fb;border:1px solid #d3e2f6;border-radius:6px;padding:2px 8px;cursor:pointer;text-transform:none;letter-spacing:0;}
 .suggestbtn:hover{background:#e2eefb;}
 /* Listing photos — cover banner on the Overview + a manageable gallery */
-.ovbanner{height:158px;border-radius:10px;background-size:cover;background-position:center;background-color:#0b1636;margin:2px 0 14px;box-shadow:inset 0 -40px 60px -30px rgba(0,0,0,.5);}
 .phupload{font:inherit;font-size:12px;font-weight:600;color:var(--navy);background:#fff;border:1px solid #cdd6e6;border-radius:8px;padding:6px 11px;cursor:pointer;margin-left:auto;white-space:nowrap;}
 .phupload:hover{background:#f4f7fb;border-color:#9fb0cc;}
 .phgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;}
@@ -682,9 +681,7 @@ function render(){
   var _mono=((_nm.replace(/[^A-Za-z0-9]/g,'').charAt(0))||'?').toUpperCase();
   var _hue=(function(s){var h=0;for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))%360;return h;})(_nm);
   var _tile=function(n,l){ return '<div class="tile"><div class="tn">'+n+'</div><div class="tl">'+esc(l)+'</div></div>'; };
-  var _medP=(A.media&&A.media.photos)||[]; var _cover=(A.media&&A.media.coverPhotoId)?_medP.filter(function(p){return p.id===A.media.coverPhotoId;})[0]:(_medP[0]||null);
-  var facts=(_cover?('<div class="ovbanner" style="background-image:url(\''+esc(_cover.url)+'\')"></div>'):'')
-    +'<div class="ovhead"><div class="ovmono" style="background:hsl('+_hue+',42%,42%)">'+esc(_mono)+'</div>'
+  var facts='<div class="ovhead"><div class="ovmono" style="background:hsl('+_hue+',42%,42%)">'+esc(_mono)+'</div>'
       +'<div class="ovid"><div class="ovname">'+esc(_nm)+'</div><div class="ovsub">'+(A.market?esc(A.market):'No market set')+'<span class="st">'+esc(A.status||'New')+'</span>'+(A.provisional?'<span class="st" style="color:#b5791f;background:#fdf1df;border-color:#f0d7ad">Provisional</span>':'')+(A.codeName?('<span class="st" title="Confidential project code name" style="color:#5a4b8a;background:#f2eefb;border-color:#ddd2f3">🔒 '+esc(A.codeName)+'</span>'):'')+'</div></div></div>'
     +'<div class="ktiles">'
       +_tile(esc(domDays()||'—'),'Days on mkt')
