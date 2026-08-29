@@ -8880,6 +8880,43 @@ app.post('/api/assignment/:key/inquiry/:id/remove', (req, res) => {
   cur.updatedAt = new Date().toISOString(); overlay[d.key] = cur; saveAssignOverlay(overlay);
   res.json({ ok: true, inquiries: cur.inquiries });
 });
+// ===== Buyer Pipeline board — every buyer lead across all listings, grouped by stage, filterable by listing =====
+app.get('/api/buyer-board', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const deals = assignmentsIndex(), overlay = loadAssignOverlay();
+  const isAdmin = req.user && isSuper(req.user);
+  const visible = Object.values(deals).filter(d => isAdmin || canSeeAllDeals(req) || ownsAssignment(req, d));
+  const stages = buyerStageNamesFor({});
+  const bp = buyerPipelinesAll();
+  const pipelineName = (bp[0] && bp[0].name) || '';
+  const listings = [], buyers = [];
+  visible.map(d => assignmentView(d, overlay, { noBoard: true })).forEach(v => {
+    if (v.assignmentType === 'tenant_rep') return;
+    const inqs = Array.isArray(v.inquiries) ? v.inquiries : [];
+    if (inqs.length) listings.push({ key: v.key, business: v.business });
+    inqs.forEach(x => {
+      let company = '';
+      if (x.personId) { try { const p = personById(x.personId); if (p) company = (p.company || (p.companyId && companyById(p.companyId) ? companyById(p.companyId).name : '') || ''); } catch (e) {} }
+      buyers.push({ id: x.id, listingKey: v.key, business: v.business, personId: x.personId || '', name: x.name || x.email || 'Buyer', email: x.email || '', company: company, stage: x.status || (stages[0] || 'Unqualified'), source: x.source || '', createdAt: x.createdAt || '', updatedAt: x.updatedAt || '' });
+    });
+  });
+  listings.sort((a, b) => String(a.business).toLowerCase().localeCompare(String(b.business).toLowerCase()));
+  res.json({ ok: true, stages, pipelineName, listings, buyers, hasBuyerPipeline: bp.length > 0 });
+});
+app.post('/api/buyer-board/move', express.json(), (req, res) => {
+  const b = req.body || {}; const key = String(b.key || ''); const id = String(b.id || ''); const stage = String(b.stage || '');
+  const deals = assignmentsIndex(); const d = deals[key];
+  if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
+  if (!(canSeeAllDeals(req) || ownsAssignment(req, d))) return res.status(403).json({ ok: false, error: 'You can only move buyers on your own listings.' });
+  const overlay = loadAssignOverlay(); const cur = overlay[key] || {};
+  const inqs = Array.isArray(cur.inquiries) ? cur.inquiries : [];
+  const rec = inqs.find(x => x.id === id);
+  if (!rec) return res.status(404).json({ ok: false, error: 'Buyer lead not found.' });
+  const allowed = buyerStageNamesFor(cur).concat(['Unqualified', 'Contacted', 'Qualified', 'NDA Sent', 'Toured', 'Offer', 'Passed', 'Dead']);
+  if (!stage || allowed.indexOf(stage) < 0) return res.status(400).json({ ok: false, error: 'Unknown stage.' });
+  rec.status = stage; rec.updatedAt = new Date().toISOString(); cur.inquiries = inqs; cur.updatedAt = rec.updatedAt; overlay[key] = cur; saveAssignOverlay(overlay);
+  res.json({ ok: true });
+});
 // ---- Buyer pipeline: per-listing buy-side funnel (add/update/remove + firm-wide rollup) ----
 app.post('/api/assignment/:key/buyer', express.json(), (req, res) => {
   const deals = assignmentsIndex(); const d = deals[req.params.key];
