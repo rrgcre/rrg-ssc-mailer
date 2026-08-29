@@ -366,6 +366,11 @@ function suggestName(){
   if(guide) nm+=' — '+guide;
   return (nm||'New listing').trim().slice(0,80);
 }
+// Generate a neutral confidential project code name (SaaS-generic — no brand words).
+function suggestCodeName(){
+  var W=['Falcon','Harbor','Summit','Cedar','Atlas','Orion','Meridian','Cobalt','Vantage','Aspen','Sable','Beacon','Cypress','Marlin','Keystone','Laurel','Onyx','Compass','Anchor','Willow','Everest','Cascade','Juniper','Halcyon','Sterling','Magnolia','Redwood','Tahoe','Cardinal','Sequoia','Monarch','Solstice'];
+  return 'Project '+W[Math.floor(Math.random()*W.length)];
+}
 function manualStepHtml(d){
   var mf=A.stageFlags||{}; var mdone=!!mf[d.k];
   var right='<span class="stag '+(mdone?'done':'pend')+'">'+(mdone?'Done':'Not yet')+'</span><button class="slink'+(mdone?'':' ghost')+'" data-mstage="'+d.k+'">'+(mdone?'Mark not done':'Mark done')+'</button>';
@@ -620,7 +625,7 @@ function render(){
   var _hue=(function(s){var h=0;for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))%360;return h;})(_nm);
   var _tile=function(n,l){ return '<div class="tile"><div class="tn">'+n+'</div><div class="tl">'+esc(l)+'</div></div>'; };
   var facts='<div class="ovhead"><div class="ovmono" style="background:hsl('+_hue+',42%,42%)">'+esc(_mono)+'</div>'
-      +'<div class="ovid"><div class="ovname">'+esc(_nm)+'</div><div class="ovsub">'+(A.market?esc(A.market):'No market set')+'<span class="st">'+esc(A.status||'New')+'</span>'+(A.provisional?'<span class="st" style="color:#b5791f;background:#fdf1df;border-color:#f0d7ad">Provisional</span>':'')+'</div></div></div>'
+      +'<div class="ovid"><div class="ovname">'+esc(_nm)+'</div><div class="ovsub">'+(A.market?esc(A.market):'No market set')+'<span class="st">'+esc(A.status||'New')+'</span>'+(A.provisional?'<span class="st" style="color:#b5791f;background:#fdf1df;border-color:#f0d7ad">Provisional</span>':'')+(A.codeName?('<span class="st" title="Confidential project code name" style="color:#5a4b8a;background:#f2eefb;border-color:#ddd2f3">🔒 '+esc(A.codeName)+'</span>'):'')+'</div></div></div>'
     +'<div class="ktiles">'
       +_tile(esc(domDays()||'—'),'Days on mkt')
       +_tile(INQUIRIES.length,'Buyer leads')
@@ -670,6 +675,7 @@ function render(){
       + '<div class="fldrow"><label class="fld">Referred by</label><input class="owner" id="f_refby" list="peopleList" value="'+esc(A.referredBy||'')+'" placeholder="Contact who referred this"></div>'
       + '<div class="fldrow"><label class="fld">Referral %</label><input class="owner" id="f_refpct" value="'+esc(A.referralPct||'')+'" placeholder="e.g. 10" inputmode="decimal" style="max-width:130px"></div>'
       + '<div class="fldrow"><label class="fld">Business name <button type="button" id="suggestNameBtn" class="suggestbtn" title="Suggest a name from the market, concept and guide">✦ Suggest</button></label><input class="owner" id="f_biz" value="'+esc(A.businessOverride||A.business||'')+'" placeholder="Business / listing name"></div>'
+      + '<div class="fldrow"><label class="fld">Code name <span style="font-weight:400;color:#8a93a8;font-size:11px">— confidential project alias</span> <button type="button" id="suggestCodeBtn" class="suggestbtn" title="Generate a confidential project name">✦ Suggest</button></label><input class="owner" id="f_codename" value="'+esc(A.codeName||'')+'" placeholder="e.g. Project Falcon"></div>'
       + '<div class="fldrow"><label class="fld">Market</label><select class="owner" id="f_market">'+mktOpts+'</select></div>'
       + '<div class="listingbox">'
         + '<div class="listinghd">Listing agreement</div>'
@@ -715,16 +721,17 @@ function render(){
     + '</div>'
     + peopleDatalistHTML();
 
-  ['f_status','f_owner','f_contact','f_refby','f_refpct','f_biz','f_market','f_notes','f_lstart','f_lexp','f_llive','f_lauto','f_bbsref','f_bbsnum','f_costar','f_crexi','f_leadauto','cr_markets','cr_use','cr_budget','cr_sizemin','cr_sizemax','cr_term','cr_timeline','cr_parking','cr_features','cr_crnotes'].forEach(function(id){
+  ['f_status','f_owner','f_contact','f_refby','f_refpct','f_biz','f_codename','f_market','f_notes','f_lstart','f_lexp','f_llive','f_lauto','f_bbsref','f_bbsnum','f_costar','f_crexi','f_leadauto','cr_markets','cr_use','cr_budget','cr_sizemin','cr_sizemax','cr_term','cr_timeline','cr_parking','cr_features','cr_crnotes'].forEach(function(id){
     var el=document.getElementById(id); if(!el) return;
     var ev=(el.tagName==='SELECT'||el.type==='checkbox'||el.type==='date')?'change':'input';
     el.addEventListener(ev,function(){ setDirty(true); if(id==='f_lexp'||id==='f_lauto') updateExpNote(); });
   });
   // Autosave: save on leaving a field (change/blur) or after a ~1s pause while typing.
-  (function(){ var _aAS=null; function commit(){ if(_aAS){ clearTimeout(_aAS); _aAS=null; } if(DIRTY) save(); } function pause(){ if(_aAS) clearTimeout(_aAS); _aAS=setTimeout(commit,1000); } ['f_status','f_owner','f_contact','f_refby','f_refpct','f_biz','f_market','f_notes','f_lstart','f_lexp','f_llive','f_lauto','f_bbsref','f_bbsnum','f_costar','f_crexi','f_leadauto','cr_markets','cr_use','cr_budget','cr_sizemin','cr_sizemax','cr_term','cr_timeline','cr_parking','cr_features','cr_crnotes'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener('input',pause); el.addEventListener('change',commit); }); })();
+  (function(){ var _aAS=null; function commit(){ if(_aAS){ clearTimeout(_aAS); _aAS=null; } if(DIRTY) save(); } function pause(){ if(_aAS) clearTimeout(_aAS); _aAS=setTimeout(commit,1000); } ['f_status','f_owner','f_contact','f_refby','f_refpct','f_biz','f_codename','f_market','f_notes','f_lstart','f_lexp','f_llive','f_lauto','f_bbsref','f_bbsnum','f_costar','f_crexi','f_leadauto','cr_markets','cr_use','cr_budget','cr_sizemin','cr_sizemax','cr_term','cr_timeline','cr_parking','cr_features','cr_crnotes'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener('input',pause); el.addEventListener('change',commit); }); })();
   updateExpNote();
   document.getElementById('savebtn').addEventListener('click',function(){save();});
   var snb=document.getElementById('suggestNameBtn'); if(snb) snb.addEventListener('click',function(){ var s=suggestName(); var el=document.getElementById('f_biz'); if(!el) return; el.value=s; el.focus(); try{el.setSelectionRange(s.length,s.length);}catch(e){} setDirty(true); save(); });
+  var scb=document.getElementById('suggestCodeBtn'); if(scb) scb.addEventListener('click',function(){ var s=suggestCodeName(); var el=document.getElementById('f_codename'); if(!el) return; el.value=s; el.focus(); try{el.setSelectionRange(s.length,s.length);}catch(e){} setDirty(true); save(); });
   var pipeEl=document.getElementById('f_pipeline'); if(pipeEl) pipeEl.addEventListener('change',function(){ A.pipelineId=pipeEl.value; setDirty(true); save(true); });
   var bpipeEl=document.getElementById('f_buyerpipe'); if(bpipeEl) bpipeEl.addEventListener('change',function(){ A.buyerPipelineId=bpipeEl.value; var _bp=BUYERPIPES.filter(function(p){return p.id===bpipeEl.value;})[0]; A.buyerStages=((_bp&&_bp.stages)||[]).map(function(n){return {name:n};}); setDirty(true); save(true); });
   var sdb=document.getElementById('startDealBtn'); if(sdb) sdb.addEventListener('click',startDeal);
@@ -1201,13 +1208,13 @@ function updateExpNote(){
 }
 function save(rerender){
   var b=document.getElementById('savebtn'); b.disabled=true; b.textContent='Saving…';
-  var body={ status:document.getElementById('f_status').value, owner:document.getElementById('f_owner').value, notes:document.getElementById('f_notes').value, businessOverride:document.getElementById('f_biz').value, marketOverride:(document.getElementById('f_market')||{}).value||'',
+  var body={ status:document.getElementById('f_status').value, owner:document.getElementById('f_owner').value, notes:document.getElementById('f_notes').value, businessOverride:document.getElementById('f_biz').value, codeName:(document.getElementById('f_codename')||{}).value||'', marketOverride:(document.getElementById('f_market')||{}).value||'',
     contact:(document.getElementById('f_contact')||{}).value||'', clientPersonId:(function(){ var _cn=((document.getElementById('f_contact')||{}).value||'').trim(); if(!_cn) return ''; var _m=PEOPLE.filter(function(p){return String(p.name||'').trim().toLowerCase()===_cn.toLowerCase();})[0]; return _m?_m.id:''; })(),
     referredBy:document.getElementById('f_refby').value, referralPct:document.getElementById('f_refpct').value, listingLive:document.getElementById('f_llive').value, listingStart:document.getElementById('f_lstart').value, listingExpires:document.getElementById('f_lexp').value, autoRenew:document.getElementById('f_lauto').checked, bbsRef:(document.getElementById('f_bbsref')||{}).value||'', bbsNumber:(document.getElementById('f_bbsnum')||{}).value||'', costarNo:(document.getElementById('f_costar')||{}).value||'', crexiNo:(document.getElementById('f_crexi')||{}).value||'', leadAutomationId:(document.getElementById('f_leadauto')||{}).value||'', assignmentType:(A&&A.assignmentType)||'listing', criteria:((A&&A.assignmentType==='tenant_rep')?{markets:(document.getElementById('cr_markets')||{}).value||'',useType:(document.getElementById('cr_use')||{}).value||'',budget:(document.getElementById('cr_budget')||{}).value||'',sizeMin:(document.getElementById('cr_sizemin')||{}).value||'',sizeMax:(document.getElementById('cr_sizemax')||{}).value||'',termYears:(document.getElementById('cr_term')||{}).value||'',timeline:(document.getElementById('cr_timeline')||{}).value||'',parking:(document.getElementById('cr_parking')||{}).value||'',features:(document.getElementById('cr_features')||{}).value||'',notes:(document.getElementById('cr_crnotes')||{}).value||''}:undefined), pipelineId:(document.getElementById('f_pipeline')||{}).value||(A.pipelineId||''), buyerPipelineId:(document.getElementById('f_buyerpipe')||{}).value||(A&&A.buyerPipelineId)||'' };
   fetch('/api/assignment/'+encodeURIComponent(KEY)+'/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
     .then(function(r){return r.json();}).then(function(j){
       b.textContent='Save changes';
-      if(j&&j.ok){ DIRTY=false; A.status=body.status; A.owner=body.owner; A.notes=body.notes; A.businessOverride=body.businessOverride; A.referredBy=body.referredBy; A.referralPct=body.referralPct; A.listingLive=body.listingLive; A.listingStart=body.listingStart; A.listingExpires=body.listingExpires; A.autoRenew=body.autoRenew; A.bbsRef=body.bbsRef; A.bbsNumber=body.bbsNumber; A.costarNo=body.costarNo; A.crexiNo=body.crexiNo; A.leadAutomationId=body.leadAutomationId; A.pipelineId=body.pipelineId; if(rerender===true){ render(); return; }
+      if(j&&j.ok){ DIRTY=false; A.status=body.status; A.owner=body.owner; A.notes=body.notes; A.businessOverride=body.businessOverride; A.codeName=body.codeName; A.referredBy=body.referredBy; A.referralPct=body.referralPct; A.listingLive=body.listingLive; A.listingStart=body.listingStart; A.listingExpires=body.listingExpires; A.autoRenew=body.autoRenew; A.bbsRef=body.bbsRef; A.bbsNumber=body.bbsNumber; A.costarNo=body.costarNo; A.crexiNo=body.crexiNo; A.leadAutomationId=body.leadAutomationId; A.pipelineId=body.pipelineId; if(rerender===true){ render(); return; }
         document.getElementById('subline').querySelector('.hpill').textContent=body.status;
         if(body.businessOverride){ A.business=body.businessOverride; document.getElementById('h1').textContent=body.businessOverride; document.getElementById('crumb').textContent=body.businessOverride; }
         var s=document.getElementById('saved'); s.classList.add('show'); setTimeout(function(){ s.classList.remove('show'); },2200);
