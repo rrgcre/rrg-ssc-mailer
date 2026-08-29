@@ -198,7 +198,7 @@ function applyFilter(){
   var q=(document.getElementById('search').value||'').trim();
   var base=(typeof CF!=='undefined'&&CF)?CF.filter(ALL):ALL;
   var _qt=q.toLowerCase().split(/\s+/).filter(Boolean);
-  var list=base.filter(function(c){ if(!_qt.length) return true; var hay=((c.name||'')+' '+((c.markets||[]).join(' '))+' '+(c.type||'')+' '+((c.tags||[]).join(' '))+' '+(c.mainContact||'')).toLowerCase(); return _qt.every(function(t){return hay.indexOf(t)>=0;}); });
+  var list=base.filter(function(c){ if(!_qt.length) return true; var hay=((c.name||'')+' '+([].concat(c.markets||[]).join(' '))+' '+(c.type||'')+' '+([].concat(c.tags||[]).join(' '))+' '+(c.mainContact||'')).toLowerCase(); return _qt.every(function(t){return hay.indexOf(t)>=0;}); });
   var _sx=document.getElementById('searchx'); if(_sx) _sx.classList.toggle('show', !!(q&&q.trim()));
   var _noFilter=(!_qt.length && !(typeof CF!=='undefined'&&CF&&CF.activeCount&&CF.activeCount()>0));
   if(_noFilter && !RECENCY_SHOWALL && RECENCY_DAYS>0){ var _cut=recencyCutoff(RECENCY_DAYS); list=list.filter(function(c){ return String(c.lastActiveAt||'')>=_cut; }); }

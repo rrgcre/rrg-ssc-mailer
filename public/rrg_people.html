@@ -247,6 +247,10 @@ function recencyNote(noun, active, shown, total){
   if(RECENCY_SHOWALL){ note.innerHTML='Showing all '+total+' '+noun+'. <button type="button" style="'+bstyle+'" onclick="RECENCY_SHOWALL=false;applyFilter();">Show only recently active</button>'; }
   else { var hidden=total-shown; if(hidden<0) hidden=0; note.innerHTML='Showing '+shown+' '+noun+' active in the last '+RECENCY_DAYS+' days'+(hidden>0?(' \u00b7 '+hidden+' hidden'):'')+'. <button type="button" style="'+bstyle+'" onclick="RECENCY_SHOWALL=true;applyFilter();">Show all '+total+'</button>'; }
 }
+// Safely flatten any mix of arrays / strings / null into one search string. Guards the
+// search against a contact whose emails/phones/tags got stored as a bare string (common
+// with imported data) — one bad record must never crash the whole filter.
+function _svals(){ var out=[]; for(var i=0;i<arguments.length;i++){ var v=arguments[i]; if(v==null) continue; if(Array.isArray(v)){ for(var j=0;j<v.length;j++){ if(v[j]!=null) out.push(String(v[j])); } } else { out.push(String(v)); } } return out.join(' '); }
 function applyFilter(){
   var q=(document.getElementById('search').value||'').toLowerCase().trim(); var F=FILTERS;
   var list=ALL.filter(function(p){
@@ -260,7 +264,7 @@ function applyFilter(){
     if(F.tags.length){ var pt=(p.tags||[]).map(function(x){return String(x).toLowerCase();}); if(!F.tags.every(function(t){ return pt.indexOf(String(t).toLowerCase())>=0; })) return false; }
     var cr=(p.createdAt||'').slice(0,10); if(F.createdFrom && (!cr || cr<F.createdFrom)) return false; if(F.createdTo && cr && cr>F.createdTo) return false;
     var lc=(p.lastContacted||'').slice(0,10); if(F.contactedFrom && (!lc || lc<F.contactedFrom)) return false; if(F.contactedTo && lc && lc>F.contactedTo) return false;
-    if(q){ var hay=((p.name||'')+' '+(p.nickname||'')+' '+(p.companyName||p.company||'')+' '+((p.emails||[p.email||'']).join(' '))+' '+((p.phones||[]).join(' '))+' '+((p.tags||[]).join(' '))+' '+(p.leadSource||'')).toLowerCase(); var _qt=q.split(/\s+/).filter(Boolean); if(!_qt.every(function(t){ return hay.indexOf(t)>=0; })) return false; }
+    if(q){ var hay=((p.name||'')+' '+(p.nickname||'')+' '+(p.companyName||p.company||'')+' '+_svals(p.emails,p.email)+' '+_svals(p.phones,p.phone)+' '+_svals(p.tags)+' '+(p.leadSource||'')).toLowerCase(); var _qt=q.split(/\s+/).filter(Boolean); if(!_qt.every(function(t){ return hay.indexOf(t)>=0; })) return false; }
     return true;
   });
   var _sx=document.getElementById('searchx'); if(_sx) _sx.classList.toggle('show', !!q);
