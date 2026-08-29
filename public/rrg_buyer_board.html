@@ -46,6 +46,8 @@ h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
 .lfsep{height:1px;background:var(--line);margin:5px 4px;}
 .lfempty{padding:10px 12px;color:var(--soft);font-size:12.5px;}
 .pipepill{color:var(--navy);font-weight:700;font-size:12px;background:#eef2fb;border:1px solid #d3ddf3;border-radius:999px;padding:4px 12px;}
+.pipesel{font:inherit;font-size:13px;font-weight:700;color:var(--navy);padding:8px 12px;border:1px solid #cfd6e2;border-radius:9px;background:#fff;cursor:pointer;}
+.pipesel:focus{outline:none;border-color:#2c5c8f;}
 .tot{color:var(--muted);font-size:12.5px;font-weight:600;margin-left:auto;}
 /* board */
 .board{display:flex;gap:14px;overflow-x:auto;padding:2px 0 18px;align-items:flex-start;}
@@ -95,7 +97,8 @@ h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
       <button type="button" id="lfClear" class="lfclear" hidden aria-label="Show all listings">×</button>
       <div class="lfmenu" id="lfMenu" hidden></div>
     </div>
-    <span class="pipepill" id="pipePill" hidden></span>
+    <span class="lbl" style="margin-left:8px">Pipeline</span>
+    <select id="pipeSel" class="pipesel"></select>
     <span class="tot" id="tot"></span>
   </div>
   <div id="root"><div class="state">Loading the buyer pipeline…</div></div>
@@ -103,7 +106,8 @@ h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
 <div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
 <div class="toast" id="toast"></div>
 <script>
-var STAGES=[], BUYERS=[], LISTINGS=[], PIPENAME='', HASPIPE=true, FILTER='__all__', DRAG=null;
+var STAGES=[], BUYERS=[], LISTINGS=[], PIPENAME='', HASPIPE=true, FILTER='__all__', DRAG=null, PIPELINES=[], BUYERPID='';
+function qs(k){ try{ return new URLSearchParams(location.search).get(k)||''; }catch(e){ return ''; } }
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function api(m,u,b){return fetch(u,{method:m,credentials:'same-origin',headers:b?{'Content-Type':'application/json'}:undefined,body:b?JSON.stringify(b):undefined}).then(function(r){return r.json();});}
 function toast(t,err){var el=document.getElementById('toast');el.textContent=t;el.className='toast show'+(err?' err':'');setTimeout(function(){el.className='toast'+(err?' err':'');},1900);}
@@ -188,12 +192,24 @@ function buildFilter(){
   });
   if(clr) clr.addEventListener('click',function(){ lfPick('__all__'); });
   document.addEventListener('click',function(e){ if(!cbx.contains(e.target)){ menu.hidden=true; inp.value=lfLabelFor(FILTER); } });
-  var pp=document.getElementById('pipePill'); if(PIPENAME){ pp.textContent=PIPENAME; pp.hidden=false; }
+  buildPipeSel();
+}
+function buildPipeSel(){
+  var sel=document.getElementById('pipeSel'); if(!sel) return;
+  var buyerPipes=PIPELINES.filter(function(p){return p.area==='Buyer';});
+  var otherPipes=PIPELINES.filter(function(p){return p.area!=='Buyer';});
+  var opt=function(p){ return '<option value="'+esc(p.id)+'" data-area="'+esc(p.area||'')+'"'+(p.id===BUYERPID?' selected':'')+'>'+esc(p.name)+'</option>'; };
+  var html='';
+  if(buyerPipes.length){ html+='<optgroup label="Buyer">'+buyerPipes.map(opt).join('')+'</optgroup>'; }
+  if(otherPipes.length){ html+='<optgroup label="Other boards">'+otherPipes.map(opt).join('')+'</optgroup>'; }
+  sel.innerHTML=html||('<option>'+esc(PIPENAME||'Buyer Pipeline')+'</option>');
+  sel.onchange=function(){ var o=sel.options[sel.selectedIndex]; var area=o&&o.getAttribute('data-area'); var id=sel.value; if(area==='Buyer'){ location.href='./rrg_buyer_board.html?bp='+encodeURIComponent(id); } else { location.href='./rrg_board.html?pipelineId='+encodeURIComponent(id); } };
 }
 function load(){
-  api('GET','/api/buyer-board').then(function(j){
+  var bp=qs('bp');
+  api('GET','/api/buyer-board'+(bp?('?bp='+encodeURIComponent(bp)):'')).then(function(j){
     if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="state">Could not load the buyer pipeline.</div>'; return; }
-    STAGES=j.stages||[]; BUYERS=j.buyers||[]; LISTINGS=j.listings||[]; PIPENAME=j.pipelineName||''; HASPIPE=j.hasBuyerPipeline!==false;
+    STAGES=j.stages||[]; BUYERS=j.buyers||[]; LISTINGS=j.listings||[]; PIPENAME=j.pipelineName||''; HASPIPE=j.hasBuyerPipeline!==false; PIPELINES=j.pipelines||[]; BUYERPID=j.buyerPipelineId||'';
     buildFilter(); render();
   }).catch(function(){ document.getElementById('root').innerHTML='<div class="state">Could not reach the server.</div>'; });
 }

@@ -5756,7 +5756,7 @@ app.post('/api/market/request-access', express.json(), (req, res) => {
   const overlay = loadAssignOverlay(); const cur = overlay[key];
   if (!cur || !cur.market || !cur.market.published) return res.status(404).json({ ok: false, error: 'That opportunity is no longer available.' });
   const inqs = Array.isArray(cur.inquiries) ? cur.inquiries : [];
-  inqs.push({ id: newInquiryId(), source: 'Marketplace', name: name, email: email, phone: phone, status: 'Unqualified', note: note ? ('Marketplace access request — ' + note) : 'Marketplace access request', createdAt: new Date().toISOString() });
+  inqs.push({ id: newInquiryId(), source: 'Marketplace', name: name, email: email, phone: phone, status: (buyerStageNamesFor(cur)[0] || 'Unqualified'), note: note ? ('Marketplace access request — ' + note) : 'Marketplace access request', createdAt: new Date().toISOString() });
   cur.inquiries = inqs; cur.updatedAt = new Date().toISOString(); overlay[key] = cur; saveAssignOverlay(overlay);
   res.json({ ok: true });
 });
@@ -6399,7 +6399,7 @@ function importBbsLeads(req, leads) {
       const inqs = Array.isArray(cur.inquiries) ? cur.inquiries : [];
       const isDup = email && inqs.some(x => String(x.email || '').toLowerCase() === email.toLowerCase());
       if (isDup) { dupes++; }
-      else { inqs.push({ id: newInquiryId(), source: 'BizBuySell', name: l.name || '', email: email, phone: l.phone || '', personId: (person && person.id) || '', refId: l.refId || '', listingNumber: l.listingNumber || '', date: l.date || '', zip: l.zip || '', funds: l.funds || '', timeframe: l.timeframe || '', message: l.message || '', status: 'Unqualified', note: [qualLine, (l.message ? ('\u201c' + l.message + '\u201d') : '')].filter(Boolean).join(' \u2014 ').slice(0, 2000), createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); }
+      else { inqs.push({ id: newInquiryId(), source: 'BizBuySell', name: l.name || '', email: email, phone: l.phone || '', personId: (person && person.id) || '', refId: l.refId || '', listingNumber: l.listingNumber || '', date: l.date || '', zip: l.zip || '', funds: l.funds || '', timeframe: l.timeframe || '', message: l.message || '', status: (buyerStageNamesFor(cur)[0] || 'Unqualified'), note: [qualLine, (l.message ? ('\u201c' + l.message + '\u201d') : '')].filter(Boolean).join(' \u2014 ').slice(0, 2000), createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); }
       cur.inquiries = inqs; cur.updatedAt = now; overlay[key] = cur;
       try { const dv = idx[key] ? assignmentView(idx[key], overlay) : null; if (dv && dv.business) listingLabel = dv.business; } catch (e) {}
     } else { unmatched++; }
@@ -8886,9 +8886,15 @@ app.get('/api/buyer-board', (req, res) => {
   const deals = assignmentsIndex(), overlay = loadAssignOverlay();
   const isAdmin = req.user && isSuper(req.user);
   const visible = Object.values(deals).filter(d => isAdmin || canSeeAllDeals(req) || ownsAssignment(req, d));
-  const stages = buyerStageNamesFor({});
+  const allPipes = loadPipelines();
   const bp = buyerPipelinesAll();
-  const pipelineName = (bp[0] && bp[0].name) || '';
+  // Which buyer pipeline to show — the one requested (?bp=), else the firm default, else the first.
+  let selPipe = null; const reqBp = String(req.query.bp || '');
+  if (reqBp) selPipe = bp.find(p => p.id === reqBp) || null;
+  if (!selPipe) { const did = defaultBuyerPipelineId(); if (did) selPipe = allPipes.find(p => p.id === did) || null; }
+  if (!selPipe) selPipe = bp[0] || null;
+  const stages = selPipe ? (selPipe.stages || []).map(s => String((s && s.name) || '')).filter(Boolean) : buyerStageNamesFor({});
+  const pipelineName = selPipe ? (selPipe.name || '') : '';
   const listings = [], buyers = [];
   visible.map(d => assignmentView(d, overlay, { noBoard: true })).forEach(v => {
     if (v.assignmentType === 'tenant_rep') return;
@@ -8901,7 +8907,7 @@ app.get('/api/buyer-board', (req, res) => {
     });
   });
   listings.sort((a, b) => String(a.business).toLowerCase().localeCompare(String(b.business).toLowerCase()));
-  res.json({ ok: true, stages, pipelineName, listings, buyers, hasBuyerPipeline: bp.length > 0 });
+  res.json({ ok: true, stages, pipelineName, buyerPipelineId: (selPipe && selPipe.id) || '', listings, buyers, hasBuyerPipeline: bp.length > 0, pipelines: allPipes.map(p => ({ id: p.id, name: p.name || '', area: p.area || '' })) });
 });
 app.post('/api/buyer-board/move', express.json(), (req, res) => {
   const b = req.body || {}; const key = String(b.key || ''); const id = String(b.id || ''); const stage = String(b.stage || '');
@@ -9221,7 +9227,7 @@ app.post('/api/person/:id/link-listing', express.json(), (req, res) => {
   const key = String((req.body || {}).key || ''); const idx = assignmentsIndex(); if (!idx[key]) return res.status(404).json({ ok: false, error: 'Listing not found.' });
   const overlay = loadAssignOverlay(); const cur = overlay[key] || {}; const inqs = Array.isArray(cur.inquiries) ? cur.inquiries : [];
   if (!inqs.some(x => x.personId === p.id)) {
-    inqs.push({ id: newInquiryId(), source: 'Linked', name: p.name || '', email: p.email || '', phone: p.phone || '', personId: p.id, status: 'Unqualified', note: '', createdAt: new Date().toISOString(), by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' });
+    inqs.push({ id: newInquiryId(), source: 'Linked', name: p.name || '', email: p.email || '', phone: p.phone || '', personId: p.id, status: (buyerStageNamesFor(cur)[0] || 'Unqualified'), note: '', createdAt: new Date().toISOString(), by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' });
   }
   cur.inquiries = inqs; cur.updatedAt = new Date().toISOString(); overlay[key] = cur; saveAssignOverlay(overlay);
   res.json({ ok: true, interested: personInterested(p.id) });
