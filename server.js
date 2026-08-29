@@ -5280,7 +5280,7 @@ function dealMediaView(o){
   var med = (o.media && typeof o.media === 'object') ? o.media : {};
   var key = dealKeySafe(o._key || '');
   var photos = (Array.isArray(med.photos) ? med.photos : []).slice().sort(function(a,b){ return (a.ord||0)-(b.ord||0); }).map(function(p){
-    return { id: p.id, ext: p.ext, caption: p.caption || '', ord: p.ord || 0,
+    return { id: p.id, ext: p.ext, caption: p.caption || '', ord: p.ord || 0, inRoom: !!p.inRoom,
              url: '/api/dealphoto/' + key + '/' + p.id + '.' + p.ext + (p.at ? ('?v=' + encodeURIComponent(p.at)) : '') };
   });
   var cover = med.coverPhotoId && photos.some(function(p){ return p.id === med.coverPhotoId; }) ? med.coverPhotoId : (photos[0] ? photos[0].id : '');
@@ -6192,6 +6192,43 @@ app.delete('/api/assignment/:key/photo/:pid', (req, res) => {
   if (med.coverPhotoId === req.params.pid) med.coverPhotoId = photos[0] ? photos[0].id : '';
   cur.media = med; cur.updatedAt = new Date().toISOString(); overlay[d.key] = cur; saveAssignOverlay(overlay);
   res.json({ ok: true, media: _dealMediaOut(d.key) });
+});
+
+// Push a listing photo into the deal's data room (buyer-facing, post-NDA). Upload once on
+// the listing page, then choose which shots qualified buyers see — no re-uploading.
+app.post('/api/assignment/:key/photo/:pid/to-room', express.json(), (req, res) => {
+  const d = _assignForMedia(req, res); if (!d) return;
+  const overlay = loadAssignOverlay(); const cur = overlay[d.key] || {}; const med = (cur.media && typeof cur.media === 'object') ? cur.media : {};
+  const photos = Array.isArray(med.photos) ? med.photos : [];
+  const p = photos.find(x => x.id === req.params.pid);
+  if (!p) return res.status(404).json({ ok: false, error: 'Photo not found.' });
+  // Find or create the listing's data room (hang it off the screening call if started, else the deal).
+  let room = d.room || null;
+  if (!room) {
+    if (d.screen) room = ensureRoomForScreen(req, d.screen);
+    else if (d.deal) room = ensureRoomForDeal(req, d.deal);
+  }
+  if (!room) return res.status(400).json({ ok: false, error: 'No data room for this listing yet.' });
+  // Reload rooms so we mutate the persisted copy (ensureRoom* saved on its own array).
+  const roomsArr = loadRooms(); const target = roomsArr.find(r => r.id === room.id);
+  if (!target) return res.status(500).json({ ok: false, error: 'Data room unavailable.' });
+  let buf;
+  try { buf = fs.readFileSync(path.join(DEAL_PHOTO_DIR, dealKeySafe(d.key), p.id + '.' + p.ext)); }
+  catch (e) { return res.status(404).json({ ok: false, error: 'Photo file missing from storage.' }); }
+  const capt = (p.caption && p.caption.trim()) ? p.caption.trim() : 'Listing photo';
+  // The room's upload gate (ROOM_EXT) doesn't list webp, but rooms display it fine (ROOM_VIEWABLE).
+  // Follow the CIM marketing-photo pattern: label webp bytes as .png so they pass the gate.
+  const roomExt = (String(p.ext || '').toLowerCase() === 'webp') ? 'png' : p.ext;
+  const nm = capt.replace(/[^\w .\-]+/g, '').slice(0, 80) + '.' + roomExt;
+  const r = addFileToRoomEx(target, { name: nm, dataB64: buf.toString('base64') }, { category: 'Photos', title: capt, by: (req.user && req.user.name) || '', source: 'listingphoto:' + p.id });
+  if (r && r.error) {
+    // "Already filed from this source" / "Duplicate" mean the photo is already in the room — treat as success.
+    if (/already|duplicate/i.test(r.error)) { p.inRoom = true; cur.media = med; overlay[d.key] = cur; saveAssignOverlay(overlay); return res.json({ ok: true, already: true, roomId: target.id, media: _dealMediaOut(d.key) }); }
+    return res.status(400).json({ ok: false, error: r.error });
+  }
+  saveRooms(roomsArr);
+  p.inRoom = true; cur.media = med; cur.updatedAt = new Date().toISOString(); overlay[d.key] = cur; saveAssignOverlay(overlay);
+  res.json({ ok: true, roomId: target.id, doc: r.doc || null, media: _dealMediaOut(d.key) });
 });
 
 // Set the video and Matterport links

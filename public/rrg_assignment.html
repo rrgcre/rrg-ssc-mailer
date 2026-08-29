@@ -265,6 +265,8 @@ a.feat:hover{background:#f7f9fc;}
 .phbtn{width:24px;height:24px;border:none;border-radius:6px;background:rgba(11,22,54,.78);color:#fff;cursor:pointer;font-size:13px;line-height:1;display:inline-flex;align-items:center;justify-content:center;}
 .phbtn:hover{background:rgba(11,22,54,.96);} .phbtn.del:hover{background:var(--red);}
 .phcoverbadge{position:absolute;left:5px;bottom:5px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#fff;background:var(--navy);border-radius:4px;padding:2px 6px;}
+.phbtn.room.on{background:rgba(31,138,91,.94);}
+.phroombadge{position:absolute;right:5px;bottom:5px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;color:#fff;background:#1f8a5b;border-radius:4px;padding:2px 6px;display:inline-flex;align-items:center;gap:3px;}
 .phempty{color:var(--soft);font-size:12.5px;line-height:1.55;padding:10px 2px;}
 .phdrop{border:1.5px dashed #cbd5e6;border-radius:9px;padding:16px;text-align:center;color:var(--soft);font-size:12.5px;cursor:pointer;background:#fbfcff;margin-top:10px;}
 .phdrop:hover,.phdrop.drag{border-color:#2c5c8f;background:#eef4fb;color:#2c5c8f;}
@@ -727,7 +729,7 @@ function render(){
 
   document.getElementById('root').className='wrap';
   var _sideHtml='<div class="side"><div class="card"><div class="ch"><b>Manage</b></div><div class="cb" style="padding-top:14px">'
-      + (A.canStart?('<div class="startgate"><div class="ge"><span class="dot"></span>Prospect · not started yet</div><button class="startdeal" id="startDealBtn">Start the listing →</button><div class="startnote">Runs the Seller Qualification Call and turns this prospect into an active listing you can market and work. Which board it sits on is the pipeline setting below.</div></div>'):'')
+      + (A.canStart?('<div class="startgate"><div class="ge"><span class="dot"></span>Prospect · not started yet</div><button class="startdeal" id="startDealBtn">Start the listing →</button><div class="startnote">Runs the Seller Qualification Call and takes this on as a working listing. It’s not on the market yet — you’ll publish it live once financials, value and the agreement are set. Board is the pipeline setting below.</div></div>'):'')
       + (A.provisional?('<button class="startdeal" id="promoteBtn" style="background:#1f8a5b;border-color:#1f8a5b">Promote to Live listing →</button><div class="startnote">Marks this listing Live. Do this once financials are verified, value is aligned, and the agreement is signed.</div>'):'')
       + '<div class="fldrow"><label class="fld">Status</label><select id="f_status">'+opts+'</select></div>'
       + (PIPES.length?('<div class="fldrow"><label class="fld">Seller pipeline <span style="font-weight:400;color:#8a93a8;font-size:11px">— where this listing sits on the board</span></label><select id="f_pipeline">'+pipeOpts+'</select></div>'):'')
@@ -837,14 +839,14 @@ function photosCard(){
     grid='<div class="phgrid">'+photos.map(function(p){
       var isCover=(p.id===m.coverPhotoId);
       return '<div class="phcell'+(isCover?' cover':'')+'" data-pid="'+esc(p.id)+'"><img src="'+esc(p.url)+'" alt="'+esc(p.caption||'listing photo')+'" loading="lazy">'
-        +'<div class="phacts"><button type="button" class="phbtn" data-setcover="'+esc(p.id)+'" title="'+(isCover?'Cover photo':'Make cover')+'">'+(isCover?'★':'☆')+'</button><button type="button" class="phbtn del" data-phdel="'+esc(p.id)+'" title="Delete photo">×</button></div>'
-        +(isCover?'<span class="phcoverbadge">Cover</span>':'')+'</div>';
+        +'<div class="phacts"><button type="button" class="phbtn" data-setcover="'+esc(p.id)+'" title="'+(isCover?'Cover photo':'Make cover')+'">'+(isCover?'★':'☆')+'</button><button type="button" class="phbtn room'+(p.inRoom?' on':'')+'" data-toroom="'+esc(p.id)+'" title="'+(p.inRoom?'In the data room — buyers can see this':'Send to data room for NDA’d buyers')+'">'+(p.inRoom?'✓':'⤴')+'</button><button type="button" class="phbtn del" data-phdel="'+esc(p.id)+'" title="Delete photo">×</button></div>'
+        +(isCover?'<span class="phcoverbadge">Cover</span>':'')+(p.inRoom?'<span class="phroombadge" title="In the data room">🔒 Room</span>':'')+'</div>';
     }).join('')+'</div>';
   } else {
     grid='<div class="phempty">No photos yet. Add storefront, interior, kitchen and food shots so the whole team can recognize the place at a glance. The cover photo also seeds the marketplace teaser.</div>';
   }
   grid+='<div class="phdrop" id="phDrop">Drop images here, or click to choose — JPG, PNG, GIF or WebP, up to 15 MB each.</div><input type="file" id="phInput" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden>';
-  grid+='<div class="phxlink">Quick-reference imagery. Paperwork — LOIs, leases, financials, agreements — belongs in <a href="#docsCard" onclick="var c=document.getElementById(\'docsCard\');if(c){c.classList.remove(\'collapsed\');c.scrollIntoView({behavior:\'smooth\',block:\'start\'});}return false;">Documents ↓</a></div>';
+  grid+='<div class="phxlink">Internal reference shots — the cover also seeds the marketplace teaser. Hover a photo and hit <b>⤴</b> to send it to the data room for NDA’d buyers. Paperwork lives in <a href="#docsCard" onclick="var c=document.getElementById(\'docsCard\');if(c){c.classList.remove(\'collapsed\');c.scrollIntoView({behavior:\'smooth\',block:\'start\'});}return false;">Documents ↓</a>.</div>';
   return '<div class="card" id="photosCard"><div class="ch"><b>Photos</b><span>'+(m.count||0)+'</span><button type="button" class="phupload" id="phAddBtn">＋ Add photos</button></div><div class="cb" style="padding:12px 16px">'+grid+'</div></div>';
 }
 function wirePhotos(){
@@ -859,7 +861,9 @@ function wirePhotos(){
   if(input) input.addEventListener('change',function(){ var fs=Array.prototype.slice.call(input.files||[]); if(fs.length) uploadPhotos(fs); input.value=''; });
   document.querySelectorAll('[data-setcover]').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); setCover(b.getAttribute('data-setcover')); }); });
   document.querySelectorAll('[data-phdel]').forEach(function(b){ b.addEventListener('click',async function(e){ e.stopPropagation(); if(await rrgConfirm('Delete this photo? This can’t be undone.')) delPhoto(b.getAttribute('data-phdel')); }); });
+  document.querySelectorAll('[data-toroom]').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); sendPhotoToRoom(b.getAttribute('data-toroom'), b); }); });
 }
+function sendPhotoToRoom(pid,btn){ if(btn){ btn.disabled=true; btn.textContent='…'; } fetch('/api/assignment/'+encodeURIComponent(KEY)+'/photo/'+encodeURIComponent(pid)+'/to-room',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ if(j.media) A.media=j.media; render(); } else { alert((j&&j.error)||'Could not send to the data room.'); if(btn){ btn.disabled=false; btn.textContent='⤴'; } } }).catch(function(){ alert('Could not reach the server.'); if(btn){ btn.disabled=false; btn.textContent='⤴'; } }); }
 function uploadPhotos(files){
   var arr=Array.prototype.slice.call(files).filter(function(f){return /^image\//.test(f.type);}).slice(0,24);
   if(!arr.length){ alert('Please choose image files (JPG, PNG, GIF or WebP).'); return; }
