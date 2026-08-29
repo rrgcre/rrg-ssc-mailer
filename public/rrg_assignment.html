@@ -354,18 +354,6 @@ function pipeStages(p){
 // fall back to the built-in business-sale tool workflow.
 function activeStages(){ var p=activePipe(); return (p && (p.stages||[]).length) ? pipeStages(p) : STAGES; }
 function domDays(){ if(!A||!A.listingLive) return ''; var d=new Date(A.listingLive+'T00:00:00'); if(isNaN(d)) return ''; var n=Math.floor((Date.now()-d.getTime())/86400000); return n>=0?(n+' day'+(n===1?'':'s')):''; }
-// Suggest an internal listing name from the blind headline, or the concept · market · guide.
-function suggestName(){
-  function mkf(f){ var el=document.querySelector('[data-f="'+f+'"]'); return el?String(el.value||'').trim():''; }
-  var head=mkf('headline'); if(head) return head.slice(0,80);
-  var mkt=(A&&A.market)||mkf('loc')||'';
-  var cat=mkf('conceptType')||'';
-  var guide=mkf('guide')||(A&&A.value)||'';
-  var base=cat||'Restaurant';
-  var nm=[mkt,base].filter(Boolean).join(' ');
-  if(guide) nm+=' — '+guide;
-  return (nm||'New listing').trim().slice(0,80);
-}
 // Generate a neutral confidential project code name (SaaS-generic — no brand words).
 function suggestCodeName(){
   var W=['Falcon','Harbor','Summit','Cedar','Atlas','Orion','Meridian','Cobalt','Vantage','Aspen','Sable','Beacon','Cypress','Marlin','Keystone','Laurel','Onyx','Compass','Anchor','Willow','Everest','Cascade','Juniper','Halcyon','Sterling','Magnolia','Redwood','Tahoe','Cardinal','Sequoia','Monarch','Solstice'];
@@ -674,7 +662,7 @@ function render(){
       + '<div class="fldrow"><label class="fld">Seller contact</label><input class="owner" id="f_contact" list="peopleList" value="'+esc(A.contact||'')+'" placeholder="Client / seller — type a contact name to link it"></div>'
       + '<div class="fldrow"><label class="fld">Referred by</label><input class="owner" id="f_refby" list="peopleList" value="'+esc(A.referredBy||'')+'" placeholder="Contact who referred this"></div>'
       + '<div class="fldrow"><label class="fld">Referral %</label><input class="owner" id="f_refpct" value="'+esc(A.referralPct||'')+'" placeholder="e.g. 10" inputmode="decimal" style="max-width:130px"></div>'
-      + '<div class="fldrow"><label class="fld">Business name <button type="button" id="suggestNameBtn" class="suggestbtn" title="Suggest a name from the market, concept and guide">✦ Suggest</button></label><input class="owner" id="f_biz" value="'+esc(A.businessOverride||A.business||'')+'" placeholder="Business / listing name"></div>'
+      + '<div class="fldrow"><label class="fld">Business name</label><input class="owner" id="f_biz" value="'+esc(A.businessOverride||A.business||'')+'" placeholder="The actual business name"></div>'
       + '<div class="fldrow"><label class="fld">Code name <span style="font-weight:400;color:#8a93a8;font-size:11px">— confidential project alias</span> <button type="button" id="suggestCodeBtn" class="suggestbtn" title="Generate a confidential project name">✦ Suggest</button></label><input class="owner" id="f_codename" value="'+esc(A.codeName||'')+'" placeholder="e.g. Project Falcon"></div>'
       + '<div class="fldrow"><label class="fld">Market</label><select class="owner" id="f_market">'+mktOpts+'</select></div>'
       + '<div class="listingbox">'
@@ -730,7 +718,6 @@ function render(){
   (function(){ var _aAS=null; function commit(){ if(_aAS){ clearTimeout(_aAS); _aAS=null; } if(DIRTY) save(); } function pause(){ if(_aAS) clearTimeout(_aAS); _aAS=setTimeout(commit,1000); } ['f_status','f_owner','f_contact','f_refby','f_refpct','f_biz','f_codename','f_market','f_notes','f_lstart','f_lexp','f_llive','f_lauto','f_bbsref','f_bbsnum','f_costar','f_crexi','f_leadauto','cr_markets','cr_use','cr_budget','cr_sizemin','cr_sizemax','cr_term','cr_timeline','cr_parking','cr_features','cr_crnotes'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener('input',pause); el.addEventListener('change',commit); }); })();
   updateExpNote();
   document.getElementById('savebtn').addEventListener('click',function(){save();});
-  var snb=document.getElementById('suggestNameBtn'); if(snb) snb.addEventListener('click',function(){ var s=suggestName(); var el=document.getElementById('f_biz'); if(!el) return; el.value=s; el.focus(); try{el.setSelectionRange(s.length,s.length);}catch(e){} setDirty(true); save(); });
   var scb=document.getElementById('suggestCodeBtn'); if(scb) scb.addEventListener('click',function(){ var s=suggestCodeName(); var el=document.getElementById('f_codename'); if(!el) return; el.value=s; el.focus(); try{el.setSelectionRange(s.length,s.length);}catch(e){} setDirty(true); save(); });
   var pipeEl=document.getElementById('f_pipeline'); if(pipeEl) pipeEl.addEventListener('change',function(){ A.pipelineId=pipeEl.value; setDirty(true); save(true); });
   var bpipeEl=document.getElementById('f_buyerpipe'); if(bpipeEl) bpipeEl.addEventListener('change',function(){ A.buyerPipelineId=bpipeEl.value; var _bp=BUYERPIPES.filter(function(p){return p.id===bpipeEl.value;})[0]; A.buyerStages=((_bp&&_bp.stages)||[]).map(function(n){return {name:n};}); setDirty(true); save(true); });
