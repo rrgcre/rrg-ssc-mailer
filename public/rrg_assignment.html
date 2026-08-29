@@ -183,6 +183,11 @@ textarea{min-height:120px;resize:vertical;line-height:1.5;}
 .plink{color:#23496f;font-weight:600;}
 .startdeal{width:100%;background:#0e7a53;color:#fff;border:none;border-radius:9px;padding:12px;font:inherit;font-size:13.5px;font-weight:800;cursor:pointer;margin-bottom:6px;}
 .startnote{font-size:11px;color:var(--muted);line-height:1.45;margin-bottom:14px;}
+.startgate{border:1px solid #cfe6da;background:#f2faf6;border-radius:11px;padding:12px;margin-bottom:14px;}
+.startgate .ge{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#0e7a53;margin-bottom:9px;display:flex;align-items:center;gap:6px;}
+.startgate .ge .dot{width:7px;height:7px;border-radius:50%;background:#e0a83c;flex:none;}
+.startgate .startdeal{margin-bottom:8px;}
+.startgate .startnote{margin-bottom:0;}
 .dangerzone{margin-top:16px;padding-top:14px;border-top:1px solid var(--line);}
 .deldeal{width:100%;background:#fff;color:var(--red);border:1px solid #f0c9c6;border-radius:9px;padding:10px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:6px;}
 /* tours */
@@ -722,7 +727,7 @@ function render(){
 
   document.getElementById('root').className='wrap';
   var _sideHtml='<div class="side"><div class="card"><div class="ch"><b>Manage</b></div><div class="cb" style="padding-top:14px">'
-      + (A.canStart?('<button class="startdeal" id="startDealBtn">Start the listing →</button><div class="startnote">Opens a Seller Qualification Call and drops this listing into the pipeline.</div>'):'')
+      + (A.canStart?('<div class="startgate"><div class="ge"><span class="dot"></span>Prospect · not started yet</div><button class="startdeal" id="startDealBtn">Start the listing →</button><div class="startnote">Runs the Seller Qualification Call and turns this prospect into an active listing you can market and work. Which board it sits on is the pipeline setting below.</div></div>'):'')
       + (A.provisional?('<button class="startdeal" id="promoteBtn" style="background:#1f8a5b;border-color:#1f8a5b">Promote to Live listing →</button><div class="startnote">Marks this listing Live. Do this once financials are verified, value is aligned, and the agreement is signed.</div>'):'')
       + '<div class="fldrow"><label class="fld">Status</label><select id="f_status">'+opts+'</select></div>'
       + (PIPES.length?('<div class="fldrow"><label class="fld">Seller pipeline <span style="font-weight:400;color:#8a93a8;font-size:11px">— where this listing sits on the board</span></label><select id="f_pipeline">'+pipeOpts+'</select></div>'):'')
