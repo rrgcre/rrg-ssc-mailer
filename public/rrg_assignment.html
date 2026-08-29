@@ -76,8 +76,8 @@ a.hpstep:hover .hpname,button.hpstep:hover .hpname{color:var(--red);}
 .stag.done{background:#eef7f0;color:var(--green);border:1px solid #bfe6d1;}
 .stag.pend{background:#fff4e6;color:#b9761a;border:1px solid #f0d7ad;}
 /* side panel — Manage lives in the fixed left column, pinned while the middle + rail scroll */
-.side .card{position:sticky;top:16px;max-height:calc(100vh - 32px);overflow:auto;}
-@media(max-width:1250px){.side .card{position:static;max-height:none;overflow:visible;}}
+/* Manage panel sits at its natural full height in the left column (like the contact page's side card) — no viewport cap or inner scrollbar. */
+.side .card{position:static;}
 /* reorderable rail (drag grip + collapse persistence + one-time tip) — mirrors the contact/company detail pages */
 .rail > .card > .ch{gap:6px;}
 .rail > .card > .ch .rgrip{display:inline-flex;align-items:center;justify-content:center;color:#aab2c0;font-size:12px;line-height:1;cursor:grab;flex:none;margin-left:0;padding:0 1px;letter-spacing:-2px;user-select:none;touch-action:none;}
