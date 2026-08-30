@@ -18,6 +18,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01em;}
 .subline{color:#aeb8cf;font-size:13px;margin-top:7px;display:flex;gap:14px;flex-wrap:wrap;}
 .subline b{color:#fff;font-weight:700;}
+.kicker{margin:14px 0 3px;color:var(--red,#DA2B1F);font-weight:800;letter-spacing:.22em;font-size:10.5px;text-transform:uppercase;}
+.kicker .kx{color:#8fa0c4;font-weight:700;letter-spacing:.04em;text-transform:none;font-size:11.5px;margin-left:8px;}
 .hpill{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:4px 11px;border-radius:999px;border:1px solid rgba(255,255,255,.3);color:#fff;background:rgba(255,255,255,.08);margin-top:14px;}
 .wrap{max-width:none;margin:16px 0 0;padding:0 24px 70px;display:grid;grid-template-columns:340px minmax(0,1fr) 360px;gap:20px;align-items:start;}
 .side,.mid,.rail{min-width:0;}
@@ -317,6 +319,7 @@ a.feat:hover{background:#f7f9fc;}
 <div class="top"><div class="top-in">
   <span class="brand" onclick="location.href='./index.html'" title="Back to toolbox"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
   <div class="crumb"><a href="./rrg_board.html">Listings</a> &nbsp;›&nbsp; <span id="crumb">Listing file</span></div>
+  <div class="kicker" id="kicker">Listing record<span class="kx">— everything for this listing in one place</span></div>
   <h1 id="h1">Listing</h1>
   <div class="subline" id="subline"></div>
 </div></div>
@@ -669,6 +672,7 @@ function render(){
   var ST=activeStages();
   document.getElementById('crumb').textContent=A.business||'Deal file';
   document.getElementById('h1').textContent=A.business||'Deal';
+  (function(){ var _isTR=(A&&A.assignmentType==='tenant_rep'); var _k=document.getElementById('kicker'); if(_k) _k.innerHTML=(_isTR?'Tenant-rep assignment':'Listing record')+' <span class="kx">— everything for this '+(_isTR?'assignment':'listing')+' in one place</span>'; })();
   var sub=[];
   if(A.company&&A.company.id) sub.push('<span>Company: <a href="./rrg_company.html?id='+encodeURIComponent(A.company.id)+'" style="color:#fff;font-weight:700;text-decoration:underline;text-underline-offset:2px">'+esc(A.company.name)+'</a></span>');
   if(A.market) sub.push('<span>'+esc(A.market)+'</span>');
