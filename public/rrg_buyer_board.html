@@ -36,6 +36,10 @@ h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
 .lfcbx .lfic{position:absolute;left:11px;color:#9aa3b2;pointer-events:none;}
 .lfcbx input{font:inherit;font-size:13px;padding:8px 30px 8px 32px;border:1px solid #cfd6e2;border-radius:9px;background:#fff;color:var(--ink);width:288px;max-width:70vw;}
 .lfcbx input:focus{outline:none;border-color:#2c5c8f;box-shadow:0 0 0 3px rgba(44,92,143,.12);}
+/* When a listing is selected, the box reads as a chosen listing (folder + filled), not a search term */
+.lfcbx.sel input{background:#eef2fb;border-color:#c3d2ee;font-weight:800;color:var(--navy);}
+.lfcbx.sel .lfic{display:none;}
+.lfcbx.sel::before{content:"📁";position:absolute;left:10px;font-size:13px;z-index:1;pointer-events:none;}
 .lfclear{position:absolute;right:8px;background:none;border:none;color:#b0b8c6;font-size:18px;line-height:1;cursor:pointer;padding:0 4px;}
 .lfclear:hover{color:var(--red);}
 .lfmenu{position:absolute;top:calc(100% + 5px);left:0;z-index:70;background:#fff;border:1px solid #e3e8f0;border-radius:9px;box-shadow:0 14px 40px rgba(12,22,54,.18);padding:6px;min-width:288px;max-width:70vw;max-height:340px;overflow:auto;}
@@ -156,7 +160,7 @@ function render(){
   root.innerHTML='<div class="board">'+cols+'</div>'+offbarHtml(offAll);
   wireBoard();
   wireOffbar(offAll);
-  var tot=document.getElementById('tot'); tot.textContent=vis.length+' buyer'+(vis.length===1?'':'s')+(FILTER==='__all__'?(' across '+LISTINGS.length+' listing'+(LISTINGS.length===1?'':'s')):' on this listing')+(offAll.length?(' · '+offAll.length+' off board'):'');
+  var tot=document.getElementById('tot'); tot.textContent=vis.length+' buyer'+(vis.length===1?'':'s')+(FILTER==='__all__'?(' across '+LISTINGS.length+' listing'+(LISTINGS.length===1?'':'s')):(' on '+(lfLabelFor(FILTER)||'this listing')))+(offAll.length?(' · '+offAll.length+' off board'):'');
 }
 function isOffBuyer(b){ return !!(b && (b.parked || b.lost)); }
 function offbarHtml(offAll){
@@ -245,7 +249,7 @@ function lfRenderMenu(q){
 function lfOpts(){ return Array.prototype.slice.call(document.querySelectorAll('#lfMenu .lfopt')); }
 function lfSetAct(i){ var els=lfOpts(); if(!els.length) return; ACT=(i+els.length)%els.length; els.forEach(function(e,k){ e.classList.toggle('act',k===ACT); }); var el=els[ACT]; if(el&&el.scrollIntoView) el.scrollIntoView({block:'nearest'}); }
 function lfPick(key){ FILTER=key; var inp=document.getElementById('lfInput'); inp.value=lfLabelFor(key); document.getElementById('lfMenu').hidden=true; lfToggleClear(); render(); inp.blur(); }
-function lfToggleClear(){ var c=document.getElementById('lfClear'); if(c) c.hidden=(FILTER==='__all__'); }
+function lfToggleClear(){ var c=document.getElementById('lfClear'); if(c) c.hidden=(FILTER==='__all__'); var cbx=document.getElementById('listingCbx'); if(cbx) cbx.classList.toggle('sel', FILTER!=='__all__'); }
 function buildFilter(){
   var inp=document.getElementById('lfInput'), menu=document.getElementById('lfMenu'), clr=document.getElementById('lfClear'), cbx=document.getElementById('listingCbx');
   inp.value=lfLabelFor(FILTER); lfToggleClear();
