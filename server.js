@@ -6807,7 +6807,7 @@ function mergeTokens(t, p, user) {
   let today = ''; try { today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }); } catch (e) {}
   let _lst = null, _lstDone = false;
   function _listing() { if (!_lstDone) { _lstDone = true; try { _lst = (p && (p._listing || null)) || personPrimaryListing(p); } catch (e) { _lst = null; } } return _lst || { name: '', number: '' }; }
-  return String(t || '').replace(/\{\{\s*(first_name|firstname|last_name|lastname|name|company|title|email|phone|my_name|my_title|my_phone|my_email|brokerage|brokerage_legal|today|listing_name|listing_number|listing_no|listing|code_name|codename|asking_price|price|data_room_link|dataroom_link|room_link|booking_link|book_link)\s*\}\}/gi, function (_, k) {
+  return String(t || '').replace(/\{\{\s*(first_name|firstname|last_name|lastname|name|company|title|email|phone|my_name|my_title|my_phone|my_email|brokerage|brokerage_legal|today|listing_name|listing_number|listing_no|listing|code_name|codename|asking_price|price|data_room_link|dataroom_link|room_link|booking_link|book_link|business_sales_meeting_link|tenant_rep_meeting_link)\s*\}\}/gi, function (_, k) {
     k = k.toLowerCase();
     if (k === 'first_name' || k === 'firstname') return first;
     if (k === 'last_name' || k === 'lastname') return last;
@@ -6828,6 +6828,7 @@ function mergeTokens(t, p, user) {
     if (k === 'asking_price' || k === 'price') { const _v = _listing().value; if (_v == null || _v === '') return ''; const _n = Number(String(_v).replace(/[^0-9.]/g, '')); return (isFinite(_n) && _n > 0) ? ('$' + _n.toLocaleString('en-US')) : String(_v); }
     if (k === 'data_room_link' || k === 'dataroom_link' || k === 'room_link') { try { const _rid = _listing().roomId; if (!_rid) return ''; const _rm = loadRooms().find(r => r.id === _rid); if (!_rm || !_rm.token) return ''; return (appBaseUrl() || '') + '/room/' + _rm.token; } catch (e) { return ''; } }
     if (k === 'booking_link' || k === 'book_link') { try { if (!user || !user.username) return ''; const _bk = loadBookings()[user.username]; if (!_bk || !_bk.token || !_bk.enabled) return ''; return (appBaseUrl() || '') + '/book/' + _bk.token; } catch (e) { return ''; } }
+    if (k === 'business_sales_meeting_link' || k === 'tenant_rep_meeting_link') { try { if (!user || !user.username) return ''; const _bk = loadBookings()[user.username]; if (!_bk || !_bk.token || !_bk.enabled) return ''; const _base = (appBaseUrl() || '') + '/book/' + _bk.token; const _role = (k === 'business_sales_meeting_link') ? 'business_sales' : 'tenant_rep'; const _tid = (_bk.roleTypes || {})[_role] || ''; if (_tid) { try { if (bookTypes(_bk).some(t => t.id === _tid)) return _base + '?type=' + encodeURIComponent(_tid); } catch (e) {} } return _base; } catch (e) { return ''; } }
     return '';
   });
 }
@@ -14957,7 +14958,7 @@ function bookingAvailability(username, days, lenOverride) {
 }
 app.get('/api/me/booking', (req, res) => {
   const un = req.user && req.user.username; const bk = (loadBookings()[un]) || {}; const base = appBaseUrl();
-  res.json({ ok: true, enabled: !!bk.enabled, token: bk.token || '', length: bk.length || 30, buffer: bk.buffer || 0, minNotice: bk.minNotice || 0, title: bk.title || '', types: (Array.isArray(bk.types) ? bk.types : []), questions: (Array.isArray(bk.questions) ? bk.questions : []), lengths: BOOK_LENGTHS, ownerTz: GSYNC_TZ, link: (bk.token ? ((base || '') + '/book/' + bk.token) : '') });
+  res.json({ ok: true, enabled: !!bk.enabled, token: bk.token || '', length: bk.length || 30, buffer: bk.buffer || 0, minNotice: bk.minNotice || 0, title: bk.title || '', types: (Array.isArray(bk.types) ? bk.types : []), roleTypes: (bk.roleTypes && typeof bk.roleTypes === 'object') ? bk.roleTypes : {}, questions: (Array.isArray(bk.questions) ? bk.questions : []), lengths: BOOK_LENGTHS, ownerTz: GSYNC_TZ, link: (bk.token ? ((base || '') + '/book/' + bk.token) : '') });
 });
 app.post('/api/me/booking', express.json(), (req, res) => {
   const un = req.user && req.user.username; if (!un) return res.status(401).json({ ok: false });
@@ -14975,9 +14976,17 @@ app.post('/api/me/booking', express.json(), (req, res) => {
   if (Array.isArray(b.questions)) {
     cur.questions = b.questions.filter(q => q && String(q.q || '').trim()).slice(0, 5).map(cleanBookQ);
   }
+  // Purpose → meeting-type mapping: which meeting type serves Business Sales inquiries
+  // and which serves Tenant Rep interest calls. Validated against the user's own types.
+  if (b.roleTypes && typeof b.roleTypes === 'object') {
+    const _ids = bookTypes(cur).map(t => t.id);
+    const _rt = {};
+    ['business_sales', 'tenant_rep'].forEach(function (r) { const v = String(b.roleTypes[r] || ''); if (v && _ids.indexOf(v) >= 0) _rt[r] = v; });
+    cur.roleTypes = _rt;
+  }
   if (cur.enabled && !cur.token) cur.token = _bookToken();
   all[un] = cur; saveBookings(all); const base = appBaseUrl();
-  res.json({ ok: true, enabled: !!cur.enabled, token: cur.token || '', length: cur.length || 30, buffer: cur.buffer || 0, minNotice: cur.minNotice || 0, title: cur.title || '', types: (Array.isArray(cur.types) ? cur.types : []), questions: (Array.isArray(cur.questions) ? cur.questions : []), lengths: BOOK_LENGTHS, ownerTz: GSYNC_TZ, link: (cur.token ? ((base || '') + '/book/' + cur.token) : '') });
+  res.json({ ok: true, enabled: !!cur.enabled, token: cur.token || '', length: cur.length || 30, buffer: cur.buffer || 0, minNotice: cur.minNotice || 0, title: cur.title || '', types: (Array.isArray(cur.types) ? cur.types : []), roleTypes: (cur.roleTypes && typeof cur.roleTypes === 'object') ? cur.roleTypes : {}, questions: (Array.isArray(cur.questions) ? cur.questions : []), lengths: BOOK_LENGTHS, ownerTz: GSYNC_TZ, link: (cur.token ? ((base || '') + '/book/' + cur.token) : '') });
 });
 app.post('/api/me/bookings-seen', express.json(), (req, res) => {
   const un = req.user && req.user.username; if (!un) return res.status(401).json({ ok: false });

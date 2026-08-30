@@ -5,223 +5,149 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Book a meeting · RRG</title>
 <style>
-:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a94a6;--line:#e6e9f0;--wash:#f7f9fc;--blue:#2c5c8f;--green:#1f8a5b;}
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a94a6;--line:#e6e9f0;--wash:#f5f7fb;--blue:#2c5c8f;--green:#1f8a5b;}
 *{box-sizing:border-box;} html,body{margin:0;padding:0;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:#eef1f6;}
-.top{background:#fff;border-bottom:1px solid var(--line);padding:14px 0;}
-.top-in{max-width:1000px;margin:0 auto;padding:0 22px;display:flex;align-items:center;gap:11px;}
-.disc{background:var(--red);color:#fff;border-radius:50%;width:34px;height:34px;font:900 11px 'Arial Black',Arial;display:flex;align-items:center;justify-content:center;flex:none;}
-.biz{font-weight:700;font-size:14px;color:var(--navy);}
-.wrap{max-width:1000px;margin:24px auto;padding:0 22px 60px;}
-.card{background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;box-shadow:0 8px 30px rgba(11,26,56,.06);}
-.split{display:flex;align-items:stretch;}
-.side{width:320px;flex:none;padding:26px 26px 22px;border-right:1px solid var(--line);}
-.main{flex:1;min-width:0;padding:26px;}
-@media(max-width:780px){ .split{flex-direction:column;} .side{width:auto;border-right:none;border-bottom:1px solid var(--line);} }
-.back{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:#fff;color:var(--blue);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-bottom:16px;}
-.kick{font-size:13px;color:var(--muted);font-weight:600;}
-.evname{font-size:22px;font-weight:700;color:var(--navy);margin:5px 0 16px;line-height:1.25;}
-.irow{display:flex;gap:10px;align-items:flex-start;color:var(--ink);font-size:13.5px;font-weight:600;margin:9px 0;}
-.irow .ic{width:18px;text-align:center;flex:none;color:var(--muted);}
-.desc{margin-top:16px;color:var(--muted);font-size:13.5px;line-height:1.5;}
-.desc ul{margin:6px 0;padding-left:20px;}
-.desc li{margin:3px 0;}
-.steptitle{font-size:18px;font-weight:700;color:var(--navy);margin:0 0 16px;}
-.calrow{display:flex;gap:26px;flex-wrap:wrap;}
-.cal{flex:1;min-width:280px;}
-.calhd{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
-.calhd .mo{font-weight:700;color:var(--navy);font-size:15px;}
-.navb{border:1px solid var(--line);background:#fff;border-radius:7px;width:34px;height:34px;cursor:pointer;font-size:15px;color:var(--navy);}
-.navb:disabled{opacity:.3;cursor:default;}
-.dow{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px;}
-.dow span{text-align:center;font-size:10.5px;font-weight:700;color:var(--soft);text-transform:uppercase;}
-.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
-.cell{aspect-ratio:1/1;border:none;background:none;border-radius:50%;font:inherit;font-size:14px;color:#c3cad6;display:flex;align-items:center;justify-content:center;}
-.cell.avail{background:#eef2fb;color:var(--blue);font-weight:700;cursor:pointer;position:relative;}
-.cell.avail:hover{background:#dce7f8;}
-.cell.on{background:var(--navy);color:#fff;}
-.cell.blank{visibility:hidden;}
-.times{width:238px;flex:none;}
-.times .th{font-weight:700;color:var(--navy);font-size:14px;margin-bottom:12px;}
-.tcol{display:flex;flex-direction:column;gap:8px;max-height:380px;overflow:auto;padding-right:2px;}
-.slot{border:1px solid #c7d0e0;background:#fff;border-radius:7px;padding:12px 8px;font:inherit;font-size:14px;font-weight:700;color:var(--blue);cursor:pointer;text-align:center;}
-.slot:hover{border-color:var(--blue);}
+.top{background:radial-gradient(115% 130% at 50% 0%,#182a54 0%,#0d1b3d 55%,#04091d 100%);color:#fff;padding:20px 0;}
+.top-in{max-width:820px;margin:0 auto;padding:0 22px;display:flex;align-items:center;gap:11px;}
+.disc{background:var(--red);color:#fff;border-radius:50%;width:36px;height:36px;font:900 11px 'Arial Black',Arial;display:flex;align-items:center;justify-content:center;flex:none;}
+.biz{font-weight:800;font-size:14px;}
+.wrap{max-width:820px;margin:20px auto;padding:0 22px 50px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:6px;overflow:hidden;}
+.hd{padding:20px 24px;border-bottom:1px solid var(--line);}
+.hd h1{margin:0;font-size:20px;font-weight:800;color:var(--navy);}
+.hd .who{color:var(--muted);font-size:13.5px;margin-top:5px;}
+.hd .meta{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;}
+.tag{font-size:11px;font-weight:700;color:var(--navy);background:var(--wash);border:1px solid var(--line);border-radius:3px;padding:4px 10px;}
+.body{padding:18px 24px;}
+.lbl{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);margin:0 0 9px;}
+.dates{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;}
+.dbtn{flex:none;border:1px solid var(--line);background:#fff;border-radius:6px;padding:9px 13px;cursor:pointer;text-align:center;min-width:66px;font:inherit;}
+.dbtn .dw{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;}
+.dbtn .dd{font-size:17px;font-weight:800;color:var(--navy);margin-top:2px;}
+.dbtn.on{border-color:var(--navy);background:#eef2fb;}
+.slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;margin-top:16px;}
+.slot{border:1px solid #cfd6e2;background:#fff;border-radius:6px;padding:10px 8px;font:inherit;font-size:13px;font-weight:700;color:var(--navy);cursor:pointer;}
+.slot:hover{border-color:var(--navy);background:var(--wash);}
 .slot.on{background:var(--navy);color:#fff;border-color:var(--navy);}
-@media(max-width:780px){ .times{width:auto;} }
-.tzrow{font-size:12.5px;color:var(--muted);margin-top:18px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
-.tzrow select{border:1px solid var(--line);border-radius:6px;padding:6px 8px;font:inherit;font-size:12.5px;color:var(--navy);font-weight:600;width:auto;}
-label.fl{display:block;font-size:13px;font-weight:700;color:var(--navy);margin:16px 0 6px;}
-label.fl .req{color:var(--red);}
-input.f,textarea.f,select.f{width:100%;border:1px solid #c7d0e0;border-radius:8px;padding:11px 12px;font:inherit;font-size:14px;color:var(--ink);background:#fff;}
-textarea.f{min-height:74px;resize:vertical;}
-.confirm{margin-top:22px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
-.btn{background:var(--red);color:#fff;border:none;border-radius:24px;padding:12px 26px;font:inherit;font-size:14px;font-weight:700;cursor:pointer;}
+.empty{color:var(--muted);font-size:13.5px;padding:24px 0;text-align:center;}
+.form{margin-top:18px;border-top:1px solid var(--line);padding-top:16px;}
+label.fl{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);font-weight:800;margin:10px 0 5px;}
+input,textarea{width:100%;border:1px solid #cfd6e2;border-radius:6px;padding:10px 12px;font:inherit;font-size:14px;color:var(--ink);}
+textarea{min-height:66px;resize:vertical;}
+.confirm{margin-top:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.btn{background:var(--red);color:#fff;border:none;border-radius:6px;padding:12px 20px;font:inherit;font-size:14px;font-weight:800;cursor:pointer;}
 .btn:disabled{opacity:.6;cursor:default;}
-.msg{font-size:13px;font-weight:700;} .msg.err{color:var(--red);} .msg.ok{color:var(--green);}
-.typelist{display:flex;flex-direction:column;gap:10px;}
-.typebtn{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid var(--line);background:#fff;border-radius:9px;padding:16px 18px;cursor:pointer;font:inherit;text-align:left;width:100%;}
-.typebtn:hover{border-color:var(--navy);background:var(--wash);}
-.typebtn .tn{font-size:15px;font-weight:700;color:var(--navy);}
-.typebtn .td{font-size:12.5px;color:var(--muted);margin-top:3px;}
-.typebtn .tl{font-size:12.5px;color:var(--muted);font-weight:700;white-space:nowrap;}
-.empty{color:var(--muted);font-size:14px;padding:30px 0;text-align:center;}
-.done{text-align:center;padding:44px 24px;}
-.done .ico{width:60px;height:60px;border-radius:50%;background:#e8f5ee;color:var(--green);font-size:32px;display:flex;align-items:center;justify-content:center;margin:0 auto 18px;}
-.done h2{margin:0 0 8px;color:var(--navy);font-size:21px;}
+.pick{font-size:13.5px;color:var(--navy);font-weight:700;}
+.msg{font-size:13px;font-weight:700;}
+.msg.err{color:var(--red);} .msg.ok{color:var(--green);}
+.done{text-align:center;padding:40px 24px;}
+.done .ico{width:58px;height:58px;border-radius:50%;background:#e8f5ee;color:var(--green);font-size:30px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;}
+.done h2{margin:0 0 8px;color:var(--navy);font-size:20px;}
 .done p{color:var(--muted);font-size:14px;margin:4px 0;}
 .foot{text-align:center;color:var(--soft);font-size:12px;margin-top:22px;}
+.typelist{display:flex;flex-direction:column;gap:8px;}
+.typebtn{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid var(--line);background:#fff;border-radius:6px;padding:14px 16px;cursor:pointer;font:inherit;text-align:left;width:100%;}
+.typebtn:hover{border-color:var(--navy);background:var(--wash);}
+.typebtn .tn{font-size:15px;font-weight:800;color:var(--navy);}
+.typebtn .tl{font-size:12.5px;color:var(--muted);font-weight:700;white-space:nowrap;}
+.tag.lnk{cursor:pointer;}
+.tzrow{font-size:12.5px;color:var(--muted);margin-bottom:14px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.tzrow select{border:1px solid var(--line);border-radius:5px;padding:5px 8px;font:inherit;font-size:12.5px;color:var(--navy);font-weight:600;width:auto;}
+.tzabbr{font-weight:700;color:var(--navy);}
 </style>
 </head>
 <body>
 <div class="top"><div class="top-in"><span class="disc">RRG</span><span class="biz" id="biz">Restaurant Realty Group</span></div></div>
 <div class="wrap">
-  <div class="card" id="card"><div class="empty" style="padding:60px">Loading availability…</div></div>
-  <div class="foot" id="foot">Scheduling powered by Restaurant Realty Group</div>
+  <div class="card" id="card">
+    <div class="hd">
+      <h1 id="h1">Book a meeting</h1>
+      <div class="who" id="who">Loading availability…</div>
+      <div class="meta" id="meta"></div>
+    </div>
+    <div class="body" id="body"><div class="empty">Loading…</div></div>
+  </div>
+  <div class="foot">Scheduling powered by Restaurant Realty Group</div>
 </div>
 <script>
 var TOKEN=(location.pathname.match(/\/book\/([^\/?#]+)/)||[])[1]||'';
-var PTYPE=(function(){ try{ return (new URLSearchParams(location.search)).get('type')||''; }catch(e){ return ''; } })();
-var OWNER={}, OWNER_TZ='America/Chicago', BUSINESS='Restaurant Realty Group';
-var TYPES=[], TYPE=null, LOCKED=false;
-var DAYMAP={}, MINK='', MAXK='', viewY=0, viewM=0, SELDATE='', SELSLOT='', LEN=30;
+var LEN=30, DAYS=[], SEL=null, OWNER={}, OWNER_TZ='America/Chicago', TYPES=[], TYPE=null;
 var TZ=(function(){ try{ return Intl.DateTimeFormat().resolvedOptions().timeZone||'America/Chicago'; }catch(e){ return 'America/Chicago'; } })();
-var TZ_OPTS=[['America/New_York','Eastern Time'],['America/Chicago','Central Time'],['America/Denver','Mountain Time'],['America/Phoenix','Arizona'],['America/Los_Angeles','Pacific Time'],['America/Anchorage','Alaska'],['Pacific/Honolulu','Hawaii']];
-var WD=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], MO=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-var MOF=['January','February','March','April','May','June','July','August','September','October','November','December'];
+var TZ_OPTS=[['America/New_York','Eastern'],['America/Chicago','Central'],['America/Denver','Mountain'],['America/Phoenix','Arizona'],['America/Los_Angeles','Pacific'],['America/Anchorage','Alaska'],['Pacific/Honolulu','Hawaii']];
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+// The slot strings are wall-clock in the owner's timezone; turn one into an absolute instant.
 function ownerToInstant(naive){ try{ var u=new Date(naive+':00Z'); var l=new Date(u.toLocaleString('en-US',{timeZone:OWNER_TZ})); var g=new Date(u.toLocaleString('en-US',{timeZone:'UTC'})); return new Date(u.getTime()-(l.getTime()-g.getTime())); }catch(e){ return new Date(String(naive)+':00'); } }
 function fmtTime(naive){ try{ return new Intl.DateTimeFormat('en-US',{timeZone:TZ,hour:'numeric',minute:'2-digit'}).format(ownerToInstant(naive)).replace(/\s/g,'').toLowerCase(); }catch(e){ return String(naive).slice(11,16); } }
 function fmtLong(naive){ try{ return new Intl.DateTimeFormat('en-US',{timeZone:TZ,weekday:'long',month:'long',day:'numeric',hour:'numeric',minute:'2-digit'}).format(ownerToInstant(naive)); }catch(e){ return String(naive).replace('T',' at '); } }
 function tzShort(){ try{ var p=new Intl.DateTimeFormat('en-US',{timeZone:TZ,timeZoneName:'short'}).formatToParts(new Date()); var z=p.filter(function(x){return x.type==='timeZoneName';})[0]; return z?z.value:''; }catch(e){ return ''; } }
-function pad2(n){ return (n<10?'0':'')+n; }
-function ymd(y,m,d){ return y+'-'+pad2(m+1)+'-'+pad2(d); }
-function dowOf(dstr){ var p=dstr.split('-'); return new Date(Date.UTC(+p[0],+p[1]-1,+p[2])).getUTCDay(); }
-function longDate(dstr){ var p=dstr.split('-'); var dt=new Date(Date.UTC(+p[0],+p[1]-1,+p[2])); return ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][dt.getUTCDay()]+', '+MOF[dt.getUTCMonth()]+' '+dt.getUTCDate(); }
-
+var WD=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],MO=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function dObj(dstr){return new Date(dstr+'T12:00:00Z');}
 function init(){
   fetch('/api/book/'+encodeURIComponent(TOKEN)).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok){ fail((j&&j.error)||'This booking link is not active.'); return; }
-    OWNER=j.owner||{}; OWNER_TZ=j.ownerTz||OWNER_TZ; BUSINESS=j.business||BUSINESS;
-    TYPES=(j.types&&j.types.length)?j.types:[{id:'default',name:j.title||'Meeting',length:j.length||30,location:'',description:'',questions:(j.questions||[])}];
-    var b=document.getElementById('biz'); if(b) b.textContent=BUSINESS; var _ft=document.getElementById('foot'); if(_ft) _ft.textContent='Scheduling powered by '+BUSINESS;
-    var pt=PTYPE?TYPES.filter(function(t){return String(t.id)===String(PTYPE);})[0]:null;
-    if(pt){ TYPE=pt; LOCKED=true; loadType(); }
-    else if(TYPES.length>1){ renderChooser(); }
-    else { TYPE=TYPES[0]; loadType(); }
+    OWNER=j.owner||{}; OWNER_TZ=j.ownerTz||OWNER_TZ; TYPES=(j.types&&j.types.length)?j.types:[{id:'default',name:j.title||'Meeting',length:j.length||30}];
+    if(j.business) document.getElementById('biz').textContent=j.business;
+    document.getElementById('h1').textContent=j.title||('Book time with '+(OWNER.name||''));
+    document.getElementById('who').textContent='with '+(OWNER.name||'')+(OWNER.title?(' · '+OWNER.title):'');
+    var _pt=''; try{ _pt=new URLSearchParams(location.search).get('type')||''; }catch(e){}
+    var _pre=_pt?TYPES.filter(function(t){return String(t.id)===_pt;})[0]:null;
+    if(_pre){ TYPE=_pre; startSlots(); }            // deep-linked to a specific meeting type
+    else if(TYPES.length>1){ renderTypes(); }
+    else { TYPE=TYPES[0]; startSlots(); }
   }).catch(function(){ fail('Could not reach the server.'); });
 }
-function fail(msg){ document.getElementById('card').innerHTML='<div class="empty" style="padding:60px">'+esc(msg)+'</div>'; }
-
-function renderChooser(){
-  var rows=TYPES.map(function(t,i){ return '<button class="typebtn" data-ti="'+i+'"><span><span class="tn">'+esc(t.name)+'</span>'+(t.description?'<span class="td">'+esc(String(t.description).replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().slice(0,90))+'</span>':'')+'</span><span class="tl">'+(t.length||30)+' min ›</span></button>'; }).join('');
-  document.getElementById('card').innerHTML='<div class="split"><div class="side">'+sideHtml(false,false)+'</div><div class="main"><div class="steptitle">Select a meeting</div><div class="typelist">'+rows+'</div></div></div>';
-  Array.prototype.forEach.call(document.querySelectorAll('.typebtn'),function(b){ b.addEventListener('click',function(){ TYPE=TYPES[+b.getAttribute('data-ti')]; loadType(); }); });
+function fail(msg){ document.getElementById('who').textContent=''; document.getElementById('meta').innerHTML=''; document.getElementById('body').innerHTML='<div class="empty">'+esc(msg)+'</div>'; }
+function renderTypes(){
+  document.getElementById('meta').innerHTML='';
+  document.getElementById('body').innerHTML='<p class="lbl">Choose a meeting</p><div class="typelist">'+TYPES.map(function(t,i){ return '<button class="typebtn" data-ti="'+i+'"><span class="tn">'+esc(t.name)+'</span><span class="tl">'+t.length+' min</span></button>'; }).join('')+'</div>';
+  document.querySelectorAll('.typebtn').forEach(function(b){ b.addEventListener('click',function(){ TYPE=TYPES[+b.getAttribute('data-ti')]; startSlots(); }); });
 }
-
-function loadType(){
-  SELDATE=''; SELSLOT='';
-  document.getElementById('card').innerHTML='<div class="split"><div class="side" id="side">'+sideHtml(true,false)+'</div><div class="main" id="main"><div class="empty">Loading times…</div></div></div>';
-  wireBack();
-  fetch('/api/book/'+encodeURIComponent(TOKEN)+'/slots?type='+encodeURIComponent(TYPE.id)+'&days=62').then(function(r){return r.json();}).then(function(j){
-    if(!j||!j.ok){ setMain('<div class="empty">'+esc((j&&j.error)||'No availability.')+'</div>'); return; }
-    LEN=j.length||TYPE.length||30; DAYMAP={}; (j.days||[]).forEach(function(d){ DAYMAP[d.date]=(d.slots||[]).map(function(s){return s.start;}); });
-    var keys=Object.keys(DAYMAP).filter(function(k){return DAYMAP[k].length;}).sort();
-    if(!keys.length){ setMain('<div class="empty">No open times in the next several weeks. Please check back later.</div>'); return; }
-    MINK=keys[0].slice(0,7); MAXK=keys[keys.length-1].slice(0,7); viewY=+keys[0].slice(0,4); viewM=+keys[0].slice(5,7)-1;
-    renderCalStep();
-  }).catch(function(){ setMain('<div class="empty">Could not reach the server.</div>'); });
+function startSlots(){
+  document.getElementById('meta').innerHTML='<span class="tag">'+TYPE.length+' min</span>'+(OWNER.location?('<span class="tag">'+esc(OWNER.location)+'</span>'):'')+(TYPES.length>1?'<button class="tag lnk" id="changeType">↺ Change meeting</button>':'');
+  var ct=document.getElementById('changeType'); if(ct) ct.addEventListener('click',renderTypes);
+  document.getElementById('body').innerHTML='<div class="empty">Loading times…</div>'; loadSlots();
 }
-
-function sideHtml(showBack, showPick){
-  var backable = showBack && ((TYPES.length>1 && !LOCKED) || showPick);
-  var h='';
-  if(backable) h+='<button class="back" id="bkBack" title="Back">←</button>';
-  h+='<div class="kick">'+esc(BUSINESS)+'</div>';
-  h+='<div class="evname">'+esc((TYPE&&TYPE.name)||'Meeting')+'</div>';
-  h+='<div class="irow"><span class="ic">⏱</span><span>'+(LEN||(TYPE&&TYPE.length)||30)+' min</span></div>';
-  if(TYPE&&TYPE.location) h+='<div class="irow"><span class="ic">📍</span><span>'+esc(TYPE.location)+'</span></div>';
-  else h+='<div class="irow"><span class="ic">📹</span><span>Web conferencing details provided upon confirmation.</span></div>';
-  if(showPick&&SELSLOT) h+='<div class="irow"><span class="ic">📅</span><span>'+esc(fmtLong(SELSLOT))+'</span></div>';
-  h+='<div class="irow"><span class="ic">🌐</span><span>'+esc(tzLabel())+' ('+esc(tzShort())+')</span></div>';
-  if(TYPE&&TYPE.description) h+='<div class="desc">'+String(TYPE.description)+'</div>';
-  return h;
+function loadSlots(){
+  fetch('/api/book/'+encodeURIComponent(TOKEN)+'/slots?type='+encodeURIComponent(TYPE.id)).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ fail((j&&j.error)||'No availability.'); return; }
+    LEN=j.length||TYPE.length||30; DAYS=j.days||[]; if(!DAYS.length){ document.getElementById('body').innerHTML='<div class="empty">No open times in the next few weeks. Please check back later.</div>'; return; }
+    SEL=null; renderPicker();
+  }).catch(function(){ fail('Could not reach the server.'); });
 }
-function tzLabel(){ for(var i=0;i<TZ_OPTS.length;i++){ if(TZ_OPTS[i][0]===TZ) return TZ_OPTS[i][1]; } return TZ.split('/').pop().replace(/_/g,' '); }
-function refreshSide(showPick){ var s=document.getElementById('side'); if(s){ s.innerHTML=sideHtml(true,showPick); wireBack(); } }
-function wireBack(){ var b=document.getElementById('bkBack'); if(b) b.addEventListener('click',goBack); }
-function goBack(){ if(SELSLOT){ SELSLOT=''; renderCalStep(); } else if(TYPES.length>1 && !LOCKED){ renderChooser(); } }
-function setMain(html){ var m=document.getElementById('main'); if(m) m.innerHTML=html; }
-
-function renderCalStep(){
-  refreshSide(false);
-  setMain('<div class="steptitle">Select a Date &amp; Time</div><div class="calrow"><div class="cal" id="cal"></div><div class="times" id="times"></div></div><div class="tzrow">🌐 Time zone: '+tzSelHtml()+'</div>');
-  renderCal(); renderTimes();
-  var sel=document.getElementById('tzSel'); if(sel) sel.addEventListener('change',function(){ TZ=sel.value; renderCalStep(); });
-}
-function tzSelHtml(){
+function tzSelectorHtml(){
   var have=TZ_OPTS.some(function(o){return o[0]===TZ;});
-  var opts=(have?'':('<option value="'+esc(TZ)+'" selected>'+esc(tzLabel())+'</option>'))+TZ_OPTS.map(function(o){ return '<option value="'+o[0]+'"'+(TZ===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('');
-  return '<select id="tzSel">'+opts+'</select>';
+  var opts=(have?'':('<option value="'+esc(TZ)+'" selected>'+esc(TZ.split('/').pop().replace(/_/g,' '))+'</option>'))+TZ_OPTS.map(function(o){ return '<option value="'+o[0]+'"'+(TZ===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('');
+  return '<div class="tzrow">🕐 Times shown in <select id="tzSel">'+opts+'</select><span class="tzabbr">'+esc(tzShort())+'</span></div>';
 }
-function viewKey(){ return viewY+'-'+pad2(viewM+1); }
-function shiftMonth(delta){ var m=viewM+delta, y=viewY; if(m<0){m=11;y--;} if(m>11){m=0;y++;} viewM=m; viewY=y; renderCal(); renderTimes(); }
-function renderCal(){
-  var host=document.getElementById('cal'); if(!host) return;
-  var prevDis=(viewKey()<=MINK)?' disabled':''; var nextDis=(viewKey()>=MAXK)?' disabled':'';
-  var first=dowOf(ymd(viewY,viewM,1)); var dim=new Date(Date.UTC(viewY,viewM+1,0)).getUTCDate();
-  var cells='';
-  for(var b=0;b<first;b++) cells+='<div class="cell blank"></div>';
-  for(var d=1;d<=dim;d++){ var ds=ymd(viewY,viewM,d); var av=DAYMAP[ds]&&DAYMAP[ds].length; var cls='cell'+(av?' avail':'')+(ds===SELDATE?' on':''); cells+='<button class="'+cls+'" '+(av?('data-d="'+ds+'"'):'disabled')+'>'+d+'</button>'; }
-  host.innerHTML='<div class="calhd"><button class="navb" id="mPrev"'+prevDis+'>‹</button><span class="mo">'+MOF[viewM]+' '+viewY+'</span><button class="navb" id="mNext"'+nextDis+'>›</button></div>'
-    +'<div class="dow"><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div>'
-    +'<div class="grid">'+cells+'</div>';
-  var p=document.getElementById('mPrev'); if(p&&!prevDis) p.addEventListener('click',function(){ shiftMonth(-1); });
-  var n=document.getElementById('mNext'); if(n&&!nextDis) n.addEventListener('click',function(){ shiftMonth(1); });
-  Array.prototype.forEach.call(host.querySelectorAll('.cell.avail'),function(c){ c.addEventListener('click',function(){ SELDATE=c.getAttribute('data-d'); renderCal(); renderTimes(); }); });
-}
-function renderTimes(){
-  var host=document.getElementById('times'); if(!host) return;
-  if(!SELDATE){ host.innerHTML='<div class="th">Select a day</div><div style="color:#8a94a6;font-size:13px">Pick a highlighted day to see open times.</div>'; return; }
-  var slots=DAYMAP[SELDATE]||[];
-  host.innerHTML='<div class="th">'+esc(longDate(SELDATE))+'</div><div class="tcol">'+slots.map(function(s,i){ return '<button class="slot" data-s="'+esc(s)+'">'+fmtTime(s)+'</button>'; }).join('')+'</div>';
-  Array.prototype.forEach.call(host.querySelectorAll('.slot'),function(b){ b.addEventListener('click',function(){ SELSLOT=b.getAttribute('data-s'); goDetails(); }); });
-}
-
-function goDetails(){
-  refreshSide(true);
-  var qs=(TYPE&&Array.isArray(TYPE.questions))?TYPE.questions:[];
-  var qHtml=qs.map(function(q,qi){
-    var lab='<label class="fl">'+esc(q.q)+(q.required?' <span class="req">*</span>':'')+'</label>';
-    var t=q.type||'text';
-    if(t==='textarea') return lab+'<textarea class="f q" data-qi="'+qi+'"></textarea>';
-    if(t==='select'){ var opts='<option value="">Select…</option>'+(q.options||[]).map(function(o){return '<option>'+esc(o)+'</option>';}).join(''); return lab+'<select class="f q" data-qi="'+qi+'">'+opts+'</select>'; }
-    return lab+'<input class="f q" data-qi="'+qi+'">';
-  }).join('');
-  setMain('<div class="steptitle">Enter Details</div>'
-    +'<div style="display:flex;gap:10px"><div style="flex:1"><label class="fl">First name <span class="req">*</span></label><input class="f" id="bk_first" autocomplete="given-name"></div><div style="flex:1"><label class="fl">Last name <span class="req">*</span></label><input class="f" id="bk_last" autocomplete="family-name"></div></div>'
-    +'<label class="fl">Email <span class="req">*</span></label><input class="f" id="bk_email" type="email">'
-    +'<label class="fl">Phone <span class="req">*</span></label><input class="f" id="bk_phone" type="tel" placeholder="(210) 555-1234">'
-    +qHtml
-    +'<div class="confirm"><button class="btn" id="bk_go">Schedule Event</button><span class="msg" id="bk_msg"></span></div>');
+function renderPicker(){
+  var dates='<p class="lbl">Pick a day</p><div class="dates">'+DAYS.map(function(d,i){ var dt=dObj(d.date); return '<button class="dbtn'+(i===(SEL&&SEL.di)?' on':'')+'" data-di="'+i+'"><span class="dw">'+WD[dt.getUTCDay()]+'</span><span class="dd">'+dt.getUTCDate()+'</span><span class="dw">'+MO[dt.getUTCMonth()]+'</span></button>'; }).join('')+'</div>';
+  var slotsHtml='';
+  if(SEL){ var day=DAYS[SEL.di]; slotsHtml='<div class="slots">'+day.slots.map(function(s,si){ return '<button class="slot'+(SEL.si===si?' on':'')+'" data-si="'+si+'">'+fmtTime(s.start)+'</button>'; }).join('')+'</div>'; }
+  var formHtml='';
+  if(SEL&&SEL.si!=null){ var pick=DAYS[SEL.di].slots[SEL.si].start;
+    formHtml='<div class="form"><div class="pick">📅 '+esc(fmtLong(pick))+' · '+LEN+' min</div><label class="fl">Your name</label><input id="bk_name" placeholder="Full name"><label class="fl">Email</label><input id="bk_email" type="email" placeholder="you@example.com"><label class="fl">Anything to add? (optional)</label><textarea id="bk_notes" placeholder="What would you like to discuss?"></textarea><div class="confirm"><button class="btn" id="bk_go">Confirm booking</button><span class="msg" id="bk_msg"></span></div></div>';
+  }
+  document.getElementById('body').innerHTML=tzSelectorHtml()+dates+slotsHtml+formHtml;
+  var tzs=document.getElementById('tzSel'); if(tzs) tzs.addEventListener('change',function(){ TZ=tzs.value; renderPicker(); });
+  document.querySelectorAll('.dbtn').forEach(function(b){ b.addEventListener('click',function(){ SEL={di:+b.getAttribute('data-di'),si:null}; renderPicker(); }); });
+  document.querySelectorAll('.slot').forEach(function(b){ b.addEventListener('click',function(){ SEL.si=+b.getAttribute('data-si'); renderPicker(); }); });
   var go=document.getElementById('bk_go'); if(go) go.addEventListener('click',book);
 }
 function book(){
-  var msg=document.getElementById('bk_msg'), go=document.getElementById('bk_go');
-  var first=(document.getElementById('bk_first').value||'').trim(), last=(document.getElementById('bk_last').value||'').trim();
-  var name=(first+' '+last).trim();
-  var email=(document.getElementById('bk_email').value||'').trim(), phone=(document.getElementById('bk_phone').value||'').trim();
-  if(!first||!last||!email||!phone){ msg.className='msg err'; msg.textContent='Please enter your first name, last name, email and phone.'; return; }
-  var qs=(TYPE&&Array.isArray(TYPE.questions))?TYPE.questions:[]; var answers=[], missing=null;
-  Array.prototype.forEach.call(document.querySelectorAll('.q'),function(el){ var qi=+el.getAttribute('data-qi'); var q=qs[qi]||{}; var v=(el.value||'').trim(); if(q.required&&!v&&!missing) missing=q.q; answers.push({q:q.q,a:v}); });
-  if(missing){ msg.className='msg err'; msg.textContent='Please answer: '+missing; return; }
-  go.disabled=true; msg.className='msg'; msg.textContent='Scheduling…';
-  fetch('/api/book/'+encodeURIComponent(TOKEN),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,firstName:first,lastName:last,email:email,phone:phone,answers:answers,start:SELSLOT,type:(TYPE&&TYPE.id)||''})}).then(function(r){return r.json();}).then(function(j){
-    if(j&&j.ok){ showDone(); }
-    else { go.disabled=false; msg.className='msg err'; msg.textContent=(j&&j.error)||'Could not book.'; if(j&&/taken/i.test(j.error||'')){ SELSLOT=''; renderCalStep(); } }
+  var msg=document.getElementById('bk_msg'); var go=document.getElementById('bk_go');
+  var name=(document.getElementById('bk_name').value||'').trim(), email=(document.getElementById('bk_email').value||'').trim();
+  var notes=(document.getElementById('bk_notes').value||'').trim();
+  if(!name||!email){ msg.className='msg err'; msg.textContent='Please enter your name and email.'; return; }
+  var start=DAYS[SEL.di].slots[SEL.si].start;
+  go.disabled=true; msg.className='msg'; msg.textContent='Booking…';
+  fetch('/api/book/'+encodeURIComponent(TOKEN),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,email:email,notes:notes,start:start,type:(TYPE&&TYPE.id)||''})}).then(function(r){return r.json();}).then(function(j){
+    if(j&&j.ok){ showDone(start,name); }
+    else { go.disabled=false; msg.className='msg err'; msg.textContent=(j&&j.error)||'Could not book.'; if(j&&/taken/i.test(j.error||'')) loadSlots(); }
   }).catch(function(){ go.disabled=false; msg.className='msg err'; msg.textContent='Could not reach the server.'; });
 }
-function showDone(){
-  document.getElementById('card').innerHTML='<div class="done"><div class="ico">✓</div><h2>You’re booked!</h2><p><b>'+esc(fmtLong(SELSLOT))+'</b></p><p style="font-size:12.5px;color:#8a94a6">'+esc(tzShort())+'</p><p>with '+esc(OWNER.name||'')+' · '+LEN+' min</p><p style="margin-top:12px">A confirmation is on its way to your email.</p></div>';
+function showDone(start,name){
+  document.getElementById('card').innerHTML='<div class="done"><div class="ico">✓</div><h2>You’re booked!</h2><p><b>'+esc(fmtLong(start))+'</b></p><p style="font-size:12.5px;color:#8a94a6">'+esc(tzShort())+'</p><p>with '+esc(OWNER.name||'')+' · '+LEN+' min</p><p style="margin-top:12px">A confirmation is on its way to your email.</p></div>';
 }
 if(!TOKEN){ fail('This booking link is missing its code.'); } else { init(); }
 </script>

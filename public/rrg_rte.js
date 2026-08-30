@@ -3,7 +3,7 @@
    merge fields, AI rewrite, and (opt-in) attach + template picker.
    API: RRGRte.html(id, opts) -> markup ; RRGRte.wire(id, opts) ; RRGRte.get(id)/getText(id)/set(id,html) */
 (function(){
-  var MERGE=[['Contact',[['{{first_name}}','First name'],['{{last_name}}','Last name'],['{{name}}','Full name'],['{{company}}','Company'],['{{title}}','Title'],['{{email}}','Email'],['{{phone}}','Phone']]],['You (sender)',[['{{my_name}}','My name'],['{{my_title}}','My title'],['{{my_phone}}','My phone'],['{{my_email}}','My email']]],['Listing',[['{{listing_name}}','Listing name'],['{{listing_number}}','Listing #'],['{{code_name}}','Code name'],['{{asking_price}}','Asking price']]],['Deal links',[['{{data_room_link}}','Data room link'],['{{booking_link}}','My booking link']]],['Other',[['{{today}}','Today’s date']]]];
+  var MERGE=[['Contact',[['{{first_name}}','First name'],['{{last_name}}','Last name'],['{{name}}','Full name'],['{{company}}','Company'],['{{title}}','Title'],['{{email}}','Email'],['{{phone}}','Phone']]],['You (sender)',[['{{my_name}}','My name'],['{{my_title}}','My title'],['{{my_phone}}','My phone'],['{{my_email}}','My email']]],['Listing',[['{{listing_name}}','Listing name'],['{{listing_number}}','Listing #']]],['Scheduling',[['{{booking_link}}','My booking link'],['{{business_sales_meeting_link}}','Business Sales meeting link'],['{{tenant_rep_meeting_link}}','Tenant Rep interest call link']]],['Other',[['{{today}}','Today’s date']]]];
   function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
   function aiName(){ return window.__rrgAssistant||'AI'; }
   function toPlainHtml(v){ v=String(v==null?'':v); return v.indexOf('<')<0 ? esc(v).split('\n').join('<br>') : v; }
@@ -17,7 +17,7 @@
     +'.rrgrt-dd{position:relative;display:inline-block;}'
     +'.rrgrt-menu{position:absolute;top:30px;left:0;z-index:60;background:#fff;border:1px solid #e3e8f0;border-radius:10px;box-shadow:0 12px 34px rgba(12,22,54,.16);padding:8px;min-width:210px;max-height:300px;overflow:auto;}'
     +'.rrgrt-menu[hidden]{display:none;}'
-    +'.rrgrt-mgrp{margin-bottom:6px;} .rrgrt-ml{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#98a1b5;padding:2px 4px;}'
+    +'.rrgrt-mgrp{margin-bottom:6px;} .rrgrt-ml{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#98a1b5;padding:2px 4px;}'
     +'.rrgrt-mi{display:block;width:100%;text-align:left;background:none;border:none;border-radius:7px;padding:6px 8px;font:inherit;font-size:12.5px;color:#26324a;cursor:pointer;}'
     +'.rrgrt-mi:hover{background:#f2f6fc;}'
     +'.rrgrt-ed{min-height:120px;max-height:340px;overflow:auto;padding:10px 12px;font:inherit;font-size:13.5px;line-height:1.55;color:#1d2739;outline:none;}'
