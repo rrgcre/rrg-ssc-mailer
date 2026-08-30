@@ -6,7 +6,14 @@
 <title>FullServe — Email Templates</title>
 <style>.rl-filtbtn{display:none!important;}</style>
 <script src="/rrg_list.js"></script>
+<script src="/rrg_filters.js"></script>
 <style>
+.searchwrap{margin-left:auto;position:relative;display:flex;align-items:center;}
+.searchwrap .searchic{position:absolute;left:12px;color:#9aa3b2;pointer-events:none;}
+.searchwrap input{border:1px solid var(--line);border-radius:9px;padding:8px 32px 8px 36px;font:inherit;font-size:13px;min-width:240px;background:#fff;color:var(--ink);}
+.searchwrap input:focus{outline:none;border-color:#2c5c8f;box-shadow:0 0 0 3px rgba(44,92,143,.12);}
+.searchwrap .searchx{position:absolute;right:8px;background:none;border:none;color:#b0b8c6;font-size:18px;line-height:1;cursor:pointer;padding:0 4px;display:none;}
+.searchwrap .searchx.show{display:block;} .searchwrap .searchx:hover{color:#DA2B1F;}
 :root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;}
 *{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
@@ -128,11 +135,11 @@ function rrgAsk(q,def){ if(window.rrgPrompt) return rrgPrompt(q,def==null?'':def
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 function fmt(iso){ if(!iso) return ''; var x=String(iso).slice(0,10).split('-'); if(x.length!==3) return String(iso).slice(0,10); return x[1]+'/'+x[2]+'/'+x[0]; }
 function api(m,u,b){return fetch(u,{method:m,credentials:'same-origin',headers:b?{'Content-Type':'application/json'}:undefined,body:b?JSON.stringify(b):undefined}).then(function(r){return r.json();});}
-var LIST_SHELL='<div class="card"><div class="hd"><b>Email Templates</b><span class="meta" id="tcount"></span><span class="sp"></span><button class="btn sm pri" id="t_new">+ New template</button></div><div class="cb"><div id="tlist"><div class="empty">Loading…</div></div></div></div><div id="editor"></div>';
+var LIST_SHELL='<div class="card"><div class="hd"><b>Email Templates</b><span class="meta" id="tcount"></span><button class="btn sm pri" id="t_new" style="margin-left:12px">+ New template</button><button id="filterBtn" class="rlf-btn" style="margin-left:8px">⚙ Filters</button><div class="searchwrap"><svg class="searchic" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"></circle><line x1="12.8" y1="12.8" x2="17.5" y2="17.5"></line></svg><input id="search" placeholder="Search templates by name or subject…" oninput="applyFilter()" autocomplete="off"><button type="button" class="searchx" id="searchx" title="Clear search" onclick="var s=document.getElementById(&#39;search&#39;);s.value=&#39;&#39;;applyFilter();s.focus();">×</button></div></div><div class="cb"><div id="tlist"><div class="empty">Loading…</div></div></div></div>';
 function scopeBadge(t){ return t.scope==='shared'?'<span class="badge sh">Shared</span>':'<span class="badge pe">Personal</span>'; }
 function actionsCell(t){ var s='<button class="btn ghost sm" data-edit="'+esc(t.id)+'">'+(t.mine?'Edit':'View')+'</button>'; if(t.mine) s+='<button class="btn danger sm" data-del="'+esc(t.id)+'">Delete</button>'; return '<div class="acts">'+s+'</div>'; }
 function folderCell(t){ return t.folder?('<span class="badge fld">'+esc(t.folder)+'</span>'):'<span class="meta">—</span>'; }
-function listCfg(data){ return { mount:'#tlist', data:data||[], key:'emailtpls',
+function listCfg(data){ return { mount:'#tlist', data:data||[], key:'emailtpls', filterButton:document.getElementById('filterBtn'),
   empty:'<div class="empty">'+(CURFOLDER==='__all__'?'No templates yet. Click <b>+ New template</b> to write your first.':'No templates in this folder yet.')+'</div>',
   rowId:function(t){return t.id;}, defaultSort:0, defaultDir:1,
   columns:[
@@ -145,7 +152,24 @@ function listCfg(data){ return { mount:'#tlist', data:data||[], key:'emailtpls',
     { label:'', sortable:false, cell:actionsCell }
   ] }; }
 function visibleTemplates(){ if(CURFOLDER==='__all__') return TPLS.slice(); if(CURFOLDER==='__none__') return TPLS.filter(function(t){return !t.folder;}); return TPLS.filter(function(t){return String(t.folder||'')===CURFOLDER;}); }
-function refreshList(){ var vis=visibleTemplates(); if(CTL) CTL.refresh(vis); else CTL=RRGList.create(listCfg(vis)); var c=document.getElementById('tcount'); if(c) c.textContent=vis.length+' '+(vis.length===1?'template':'templates')+(CURFOLDER==='__all__'?'':' in this folder'); }
+var CF=null, IS_ADMIN=false;
+function tplOwners(){ var m={}; (TPLS||[]).forEach(function(t){ var o=t.ownerName||(t.mine?'You':''); if(o) m[o]=1; }); return Object.keys(m).sort(); }
+function ensureCF(){ if(CF||!window.RRGFilters) return; var b=document.getElementById('filterBtn'); if(!b) return; CF=RRGFilters.create({ list:'emailtpls', title:'templates', button:b, isAdmin:function(){return IS_ADMIN;}, fields:[
+  { key:'scope', label:'Visibility', type:'multi', options:function(){return ['personal','shared'];}, get:function(t){return t.scope==='shared'?'shared':'personal';} },
+  { key:'owners', label:'Owner', type:'multi', options:tplOwners, get:function(t){return t.ownerName||(t.mine?'You':'');} }
+], onChange:applyFilter }); }
+function applyFilter(){
+  var base=visibleTemplates();
+  if(CF) base=CF.filter(base);
+  var q=((document.getElementById('search')||{}).value||'').toLowerCase().trim();
+  var _qt=q.split(/\s+/).filter(Boolean);
+  var list=base.filter(function(t){ if(!_qt.length) return true; var hay=((t.name||'')+' '+(t.subject||'')+' '+(t.folder||'')+' '+(t.ownerName||'')).toLowerCase(); return _qt.every(function(x){return hay.indexOf(x)>=0;}); });
+  var _sx=document.getElementById('searchx'); if(_sx) _sx.classList.toggle('show', !!q);
+  if(CTL) CTL.refresh(list); else CTL=RRGList.create(listCfg(list));
+  if(CF) CF.updateBtn();
+  var c=document.getElementById('tcount'); if(c) c.textContent=list.length+' '+(list.length===1?'template':'templates');
+}
+function refreshList(){ ensureCF(); applyFilter(); }
 function folderCount(name){ return TPLS.filter(function(t){return String(t.folder||'')===name;}).length; }
 function renderFolders(){
   var host=document.getElementById('folderRail'); if(!host) return;
@@ -213,13 +237,13 @@ function renderEditor(){
 }
 function render(){
   var root=document.getElementById('root');
-  if(!BUILT){ root.innerHTML=LIST_SHELL; BUILT=true; document.getElementById('t_new').onclick=newTpl; }
-  renderFolders(); refreshList(); renderEditor();
+  if(!BUILT){ root.innerHTML=LIST_SHELL; BUILT=true; document.getElementById('t_new').onclick=newTpl; ensureCF(); }
+  renderFolders(); refreshList();
 }
-function openEdit(id){ var t=curById(id); if(!t) return; EDIT=JSON.parse(JSON.stringify(t)); renderEditor(); var ed=document.getElementById('editor'); if(ed) ed.scrollIntoView({behavior:'smooth',block:'start'}); }
-function newTpl(){ var pf=(CURFOLDER!=='__all__'&&CURFOLDER!=='__none__')?CURFOLDER:''; EDIT={id:'',name:'',subject:'',body:'',scope:'personal',folder:pf,mine:true}; SCOPE='personal'; renderEditor(); var ed=document.getElementById('editor'); if(ed) ed.scrollIntoView({behavior:'smooth',block:'start'}); }
+function openEdit(id){ location.href='./rrg_email_template.html?id='+encodeURIComponent(id); }
+function newTpl(){ var pf=(CURFOLDER!=='__all__'&&CURFOLDER!=='__none__')?CURFOLDER:''; location.href='./rrg_email_template.html?new=1'+(pf?('&folder='+encodeURIComponent(pf)):''); }
 function msg(t,cls){ var m=document.getElementById('msg'); if(!m) return; m.textContent=t; m.className='msg '+(cls||''); if(t){ setTimeout(function(){ if(m.textContent===t){m.textContent='';m.className='msg';} },3000); } }
-function load(){ api('GET','/api/email-templates').then(function(j){ TPLS=j.templates||[]; FOLDERS=j.folders||[]; render(); }); }
+function load(){ api('GET','/api/email-templates').then(function(j){ TPLS=j.templates||[]; FOLDERS=j.folders||[]; IS_ADMIN=!!(j&&j.isAdmin); render(); }); }
 function save(){
   var name=(document.getElementById('tName').value||'').trim(); if(!name){ msg('Name the template.','err'); return; }
   var body={ name:name, scope:SCOPE, subject:document.getElementById('tSubject').value, folder:(document.getElementById('tFolder')||{}).value||'', body:(window.RRGRte?RRGRte.get('tBody'):((document.getElementById('tBody')||{}).value||'')) };

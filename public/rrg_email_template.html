@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FullServe — Email Template</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.top{color:#fff;padding:26px 0 26px;position:relative;overflow:hidden;background:radial-gradient(95% 130% at 28% 15%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
+.top-in{max-width:1000px;margin:0 auto;padding:0 24px;position:relative;z-index:2;}
+.brand{display:inline-flex;align-items:center;cursor:pointer;} .disc{background:var(--red);color:#fff;border-radius:50%;width:42px;height:42px;font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.bar{background:#fff;width:3px;height:30px;margin:0 12px;} .wm{font-weight:800;font-size:14px;text-transform:uppercase;line-height:.95;}
+.crumb{font-size:12px;color:#8fa0c4;margin-top:16px;} .crumb a{color:#aeb8cf;text-decoration:none;} .crumb a:hover{color:#fff;}
+.kicker{margin:12px 0 3px;color:var(--red);font-weight:800;letter-spacing:.22em;font-size:10.5px;text-transform:uppercase;}
+.kicker .kx{color:#8fa0c4;font-weight:700;letter-spacing:.04em;text-transform:none;font-size:11.5px;margin-left:8px;}
+.top h1{font-size:29px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
+.sub{color:#aeb8cf;font-size:13px;margin-top:7px;max-width:760px;line-height:1.5;}
+.wrap{max-width:1000px;margin:20px auto;padding:0 24px 60px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 24px rgba(10,20,50,.06);overflow:hidden;margin-bottom:20px;}
+.ch{padding:15px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;} .ch b{color:var(--navy);font-size:16px;} .ch .sp{margin-left:auto;display:flex;gap:8px;align-items:center;}
+.body{padding:20px;}
+.fld{margin-bottom:16px;}
+.fld label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);font-weight:700;margin-bottom:6px;}
+.fld input[type=text],.fld select{font:inherit;font-size:14px;padding:9px 11px;border:1px solid var(--line);border-radius:9px;width:100%;color:var(--ink);background:#fff;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;} @media(max-width:640px){.grid2{grid-template-columns:1fr;}}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;}
+.seg label{font-size:12.5px;font-weight:700;padding:8px 14px;cursor:pointer;color:var(--muted);background:#fff;}
+.seg label.on{background:var(--navy);color:#fff;}
+.seg input{display:none;}
+.tokens{font-size:11.5px;color:var(--soft);margin-top:6px;}
+.btn{font:inherit;font-size:12.5px;font-weight:700;padding:8px 13px;border:1px solid #cdd6e6;border-radius:9px;background:#fff;color:var(--navy);cursor:pointer;white-space:nowrap;}
+.btn:hover{background:#f4f7fb;}
+.btn.sm{padding:6px 11px;font-size:12px;}
+.btn.red{background:var(--red);color:#fff;border-color:var(--red);}
+.btn.ghost{background:#fff;} .btn.danger{color:var(--red);border-color:#f0c9c6;} .btn.danger:hover{background:#fdeceb;}
+.btn:disabled{opacity:.5;cursor:default;}
+.msg{font-size:12.5px;font-weight:700;} .msg.ok{color:var(--green);} .msg.err{color:var(--red);}
+.ro{color:var(--muted);font-size:12.5px;background:#f7f9fc;border:1px solid var(--line);border-radius:9px;padding:9px 12px;margin-bottom:14px;}
+.gate{max-width:520px;margin:70px auto;text-align:center;color:var(--muted);}
+.foot{max-width:1000px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
+</style>
+<script src="/rrg_brand.js"></script>
+<script src="/rrg_rte.js"></script>
+</head>
+<body>
+<!--rrgback--><a href="./rrg_email_templates.html" class="rrg-back" aria-label="Back to templates" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28)"><span style="font-size:14px;line-height:1">←</span> Templates</a>
+<div class="top"><div class="top-in">
+  <span class="brand" onclick="location.href='./index.html'" title="Back to toolbox"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+  <div class="crumb"><a href="./rrg_email_templates.html">Email Templates</a> &nbsp;›&nbsp; <span id="crumb">Template</span></div>
+  <div class="kicker" id="kicker">Email Template <span class="kx">— write once, reuse everywhere</span></div>
+  <h1 id="h1">Template</h1>
+  <div class="sub" id="sub"></div>
+</div></div>
+<div class="wrap"><div id="root"><div class="gate">Loading…</div></div></div>
+<div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
+<script>
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function qs(k){ try{ return new URLSearchParams(location.search).get(k)||''; }catch(e){ return ''; } }
+function api(m,u,b){return fetch(u,{method:m,credentials:'same-origin',headers:b?{'Content-Type':'application/json'}:undefined,body:b?JSON.stringify(b):undefined}).then(function(r){return r.json();});}
+var EDIT=null, FOLDERS=[], SCOPE='personal', DEL_ARM=false;
+
+function setHead(){
+  var nm=(EDIT&&EDIT.name)?EDIT.name:(EDIT&&!EDIT.id?'New template':'Template');
+  document.getElementById('h1').textContent=nm;
+  document.getElementById('crumb').textContent=nm;
+  document.title='FullServe — '+nm;
+  var sub=document.getElementById('sub');
+  if(EDIT&&!EDIT.mine){ sub.innerHTML='Shared template'+(EDIT.ownerName?(' by <b style="color:#fff">'+esc(EDIT.ownerName)+'</b>'):'')+' — view only.'; }
+  else sub.textContent='Name it, set who can use it, file it in a folder, and write the email — merge fields with the { } menu.';
+}
+function render(){
+  var host=document.getElementById('root'); if(!EDIT){ host.innerHTML='<div class="gate">Template not found. <a href="./rrg_email_templates.html" style="color:var(--navy);font-weight:700">← Back to templates</a></div>'; return; }
+  setHead();
+  var t=EDIT, ro=!t.mine; SCOPE=(t.scope==='shared'?'shared':'personal');
+  host.innerHTML='<div class="card"><div class="ch"><b>'+(ro?'View template':(t.id?'Edit template':'New template'))+'</b><span class="sp"><span class="msg" id="msg"></span>'+((t.id&&t.mine)?'<button class="btn danger sm" id="delBtn">Delete</button>':'')+'<a class="btn ghost sm" href="./rrg_email_templates.html">Back to list</a>'+(ro?'':'<button class="btn red" id="saveBtn">Save</button>')+'</span></div><div class="body">'
+    +(ro?'<div class="ro">Shared template'+(t.ownerName?(' by <b>'+esc(t.ownerName)+'</b>'):'')+' — view only. Use <b>+ New template</b> on the list to make your own copy.</div>':'')
+    +'<div class="fld"><label>Template name</label><input type="text" id="tName" value="'+esc(t.name||'')+'"'+(ro?' readonly':'')+' placeholder="e.g. New buyer intro"></div>'
+    +'<div class="grid2">'
+      +'<div class="fld"><label>Visibility</label><div class="seg" id="scopeSeg"><label id="sc_p"'+((SCOPE==='personal')?' class="on"':'')+'><input type="radio" name="sc" value="personal"'+((SCOPE==='personal')?' checked':'')+(ro?' disabled':'')+'>Personal</label><label id="sc_s"'+((SCOPE==='shared')?' class="on"':'')+'><input type="radio" name="sc" value="shared"'+((SCOPE==='shared')?' checked':'')+(ro?' disabled':'')+'>Shared</label></div><div class="tokens">Personal = only you. Shared = the whole team.</div></div>'
+      +'<div class="fld"><label>Folder</label><select id="tFolder"'+(ro?' disabled':'')+'><option value="">— Unfiled —</option>'+FOLDERS.map(function(f){ return '<option'+((t.folder===f)?' selected':'')+'>'+esc(f)+'</option>'; }).join('')+((t.folder&&FOLDERS.indexOf(t.folder)<0)?('<option selected>'+esc(t.folder)+'</option>'):'')+'</select><div class="tokens">Manage folders on the Templates list.</div></div>'
+    +'</div>'
+    +'<div class="fld"><label>Subject</label><input type="text" id="tSubject" value="'+esc(t.subject||'')+'"'+(ro?' readonly':'')+' placeholder="e.g. Great connecting, {{first_name}}"></div>'
+    +'<div class="fld"><label>Body</label>'+(ro?('<div class="rrgrt" style="border:1px solid #cfd6e2;border-radius:9px"><div class="rrgrt-ed" style="padding:10px 12px;min-height:200px">'+RRGRte.toHtml(t.body||'')+'</div></div>'):RRGRte.html('tBody',{value:t.body||'',placeholder:'Write your email… use the { } menu for merge fields.'}))+'</div>'
+    +'</div></div>';
+  if(!ro){
+    if(window.RRGRte) RRGRte.wire('tBody',{});
+    var seg=document.getElementById('scopeSeg');
+    Array.prototype.forEach.call(seg.querySelectorAll('input'),function(r){ r.onchange=function(){ SCOPE=r.value; document.getElementById('sc_p').classList.toggle('on',SCOPE==='personal'); document.getElementById('sc_s').classList.toggle('on',SCOPE==='shared'); }; });
+    document.getElementById('saveBtn').onclick=save;
+    var db=document.getElementById('delBtn'); if(db) db.onclick=onDelete;
+  }
+}
+function msg(t,cls){ var m=document.getElementById('msg'); if(!m) return; m.textContent=t; m.className='msg '+(cls||''); if(t){ setTimeout(function(){ if(m.textContent===t){m.textContent='';m.className='msg';} },3000); } }
+function save(){
+  var name=(document.getElementById('tName').value||'').trim(); if(!name){ msg('Name the template.','err'); document.getElementById('tName').focus(); return; }
+  var body={ name:name, scope:SCOPE, subject:document.getElementById('tSubject').value, folder:(document.getElementById('tFolder')||{}).value||'', body:(window.RRGRte?RRGRte.get('tBody'):((document.getElementById('tBody')||{}).value||'')) };
+  if(EDIT&&EDIT.id) body.id=EDIT.id;
+  var btn=document.getElementById('saveBtn'); btn.disabled=true;
+  api('POST','/api/email-templates',body).then(function(j){ btn.disabled=false; if(!j.ok){ msg(j.error||'Save failed.','err'); return; }
+    var wasNew=!(EDIT&&EDIT.id); EDIT=j.template||Object.assign(EDIT||{},body); setHead(); msg('Saved ✓','ok');
+    if(wasNew && EDIT && EDIT.id){ try{ history.replaceState({},'', location.pathname+'?id='+encodeURIComponent(EDIT.id)); }catch(e){} }
+  }).catch(function(){ btn.disabled=false; msg('Could not reach the server.','err'); });
+}
+function onDelete(){
+  if(!EDIT||!EDIT.id) return;
+  if(!DEL_ARM){ DEL_ARM=true; var b=document.getElementById('delBtn'); b.textContent='Really delete?'; b.classList.remove('danger'); b.classList.add('red'); setTimeout(function(){ if(DEL_ARM){ DEL_ARM=false; var x=document.getElementById('delBtn'); if(x){x.textContent='Delete';x.classList.remove('red');x.classList.add('danger');} } },3500); return; }
+  DEL_ARM=false;
+  api('DELETE','/api/email-templates/'+encodeURIComponent(EDIT.id)).then(function(j){ if(!j.ok){ msg(j.error||'Delete failed.','err'); return; } location.href='./rrg_email_templates.html'; });
+}
+function boot(){
+  api('GET','/api/email-templates').then(function(j){
+    FOLDERS=(j&&j.folders)||[];
+    var id=qs('id'), isNew=qs('new')==='1';
+    if(isNew || !id){ EDIT={id:'',name:'',subject:'',body:'',scope:'personal',folder:qs('folder')||'',mine:true}; SCOPE='personal'; render(); return; }
+    var list=(j&&j.templates)||[]; EDIT=list.filter(function(t){return t.id===id;})[0]||null; render();
+  }).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not load the template. <a href="./rrg_email_templates.html" style="color:var(--navy);font-weight:700">← Back</a></div>'; });
+}
+boot();
+</script>
+</body>
+</html>
