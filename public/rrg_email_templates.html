@@ -130,7 +130,13 @@ a.feat:hover{background:#f7f9fc;}
 </div>
 <div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
 <script>
-var TPLS=[], FOLDERS=[], CURFOLDER='__all__', CTL=null, BUILT=false, EDIT=null, SCOPE='personal', DEL_ARM=false;
+var TPLS=[], FOLDERS=[], CURFOLDER='__all__', CTL=null, BUILT=false, EDIT=null, SCOPE='personal', DEL_ARM=false, PENDING_UI=null;
+// --- Instant return: cache the list data + UI state in the session so coming back
+// from the detail page paints immediately instead of re-fetching and redrawing. ---
+function readCache(){ try{ return JSON.parse(sessionStorage.getItem('etpl_data_cache')||'null'); }catch(e){ return null; } }
+function writeCache(d){ try{ sessionStorage.setItem('etpl_data_cache', JSON.stringify(d)); }catch(e){} }
+function readUI(){ try{ return JSON.parse(sessionStorage.getItem('etpl_ui_state')||'null'); }catch(e){ return null; } }
+function saveUI(){ try{ sessionStorage.setItem('etpl_ui_state', JSON.stringify({ q:(document.getElementById('search')||{}).value||'', folder:CURFOLDER, y:(window.scrollY||window.pageYOffset||0) })); }catch(e){} }
 function rrgAsk(q,def){ if(window.rrgPrompt) return rrgPrompt(q,def==null?'':def); return Promise.resolve(window.prompt(q,def==null?'':def)); }
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 function fmt(iso){ if(!iso) return ''; var x=String(iso).slice(0,10).split('-'); if(x.length!==3) return String(iso).slice(0,10); return x[1]+'/'+x[2]+'/'+x[0]; }
@@ -238,12 +244,29 @@ function renderEditor(){
 function render(){
   var root=document.getElementById('root');
   if(!BUILT){ root.innerHTML=LIST_SHELL; BUILT=true; document.getElementById('t_new').onclick=newTpl; ensureCF(); }
+  if(PENDING_UI){ // restore the search box + folder you left on, before we filter
+    try{
+      var pf=PENDING_UI.folder;
+      if(pf==='__all__'||pf==='__none__'||(pf&&FOLDERS.indexOf(pf)>=0)) CURFOLDER=pf;
+      var s=document.getElementById('search'); if(s && typeof PENDING_UI.q==='string') s.value=PENDING_UI.q;
+    }catch(e){}
+  }
   renderFolders(); refreshList();
+  if(PENDING_UI){ var y=PENDING_UI.y; PENDING_UI=null; if(typeof y==='number'&&y>0){ try{ window.scrollTo(0,y); }catch(e){} } }
 }
-function openEdit(id){ location.href='./rrg_email_template.html?id='+encodeURIComponent(id); }
-function newTpl(){ var pf=(CURFOLDER!=='__all__'&&CURFOLDER!=='__none__')?CURFOLDER:''; location.href='./rrg_email_template.html?new=1'+(pf?('&folder='+encodeURIComponent(pf)):''); }
+function openEdit(id){ saveUI(); try{sessionStorage.setItem('etpl_nav','list');}catch(e){} location.href='./rrg_email_template.html?id='+encodeURIComponent(id); }
+function newTpl(){ saveUI(); try{sessionStorage.setItem('etpl_nav','list');}catch(e){} var pf=(CURFOLDER!=='__all__'&&CURFOLDER!=='__none__')?CURFOLDER:''; location.href='./rrg_email_template.html?new=1'+(pf?('&folder='+encodeURIComponent(pf)):''); }
 function msg(t,cls){ var m=document.getElementById('msg'); if(!m) return; m.textContent=t; m.className='msg '+(cls||''); if(t){ setTimeout(function(){ if(m.textContent===t){m.textContent='';m.className='msg';} },3000); } }
-function load(){ api('GET','/api/email-templates').then(function(j){ TPLS=j.templates||[]; FOLDERS=j.folders||[]; IS_ADMIN=!!(j&&j.isAdmin); render(); }); }
+function load(){
+  var cached=readCache();
+  if(cached&&cached.templates){ TPLS=cached.templates; FOLDERS=cached.folders||[]; IS_ADMIN=!!cached.isAdmin; render(); } // instant paint from cache
+  api('GET','/api/email-templates').then(function(j){
+    var next={ templates:(j&&j.templates)||[], folders:(j&&j.folders)||[], isAdmin:!!(j&&j.isAdmin) };
+    var same=cached&&JSON.stringify(next)===JSON.stringify({templates:cached.templates,folders:cached.folders,isAdmin:!!cached.isAdmin});
+    TPLS=next.templates; FOLDERS=next.folders; IS_ADMIN=next.isAdmin; writeCache(next);
+    if(!same) render(); // only redraw when the data actually changed
+  }).catch(function(){});
+}
 function save(){
   var name=(document.getElementById('tName').value||'').trim(); if(!name){ msg('Name the template.','err'); return; }
   var body={ name:name, scope:SCOPE, subject:document.getElementById('tSubject').value, folder:(document.getElementById('tFolder')||{}).value||'', body:(window.RRGRte?RRGRte.get('tBody'):((document.getElementById('tBody')||{}).value||'')) };
@@ -259,7 +282,10 @@ function onDelete(){
 }
 document.addEventListener('click',async function(e){ if(!e.target.closest) return; var ed=e.target.closest('[data-edit]'); if(ed){ e.preventDefault(); openEdit(ed.getAttribute('data-edit')); return; } var dl=e.target.closest('[data-del]'); if(dl){ e.preventDefault(); var _t=curById(dl.getAttribute('data-del')); if(_t && await rrgConfirm('Delete "'+(_t.name||'this template')+'"?')){ api('DELETE','/api/email-templates/'+encodeURIComponent(_t.id)).then(function(j){ if(j&&j.ok){ if(EDIT&&EDIT.id===_t.id) EDIT=null; load(); } else alert((j&&j.error)||'Delete failed.'); }); } return; } });
 (function(){ var fs=document.getElementById('tplFeatStrip'), hd=document.getElementById('tplFeatHd'); if(fs&&hd){ try{ if(localStorage.getItem('rrg_tplfeats')!=='1') fs.classList.add('collapsed'); }catch(e){ fs.classList.add('collapsed'); } hd.addEventListener('click',function(){ var col=fs.classList.toggle('collapsed'); try{ localStorage.setItem('rrg_tplfeats', col?'0':'1'); }catch(e){} }); } })();
-load();
+PENDING_UI=readUI(); load();
+// Restored from the browser's back/forward cache = instant, no redraw at all.
+// Only re-fetch if the detail page told us something actually changed.
+window.addEventListener('pageshow',function(e){ if(!e.persisted) return; var dirty=false; try{ dirty=sessionStorage.getItem('etpl_dirty')==='1'; }catch(_){} if(dirty){ try{ sessionStorage.removeItem('etpl_dirty'); }catch(_){} PENDING_UI=readUI(); load(); } });
 </script>
 </body>
 </html>

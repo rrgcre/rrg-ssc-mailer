@@ -45,7 +45,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 <script src="/rrg_rte.js"></script>
 </head>
 <body>
-<!--rrgback--><a href="./rrg_email_templates.html" class="rrg-back" aria-label="Back to templates" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28)"><span style="font-size:14px;line-height:1">←</span> Templates</a>
+<!--rrgback--><a href="./rrg_email_templates.html" onclick="goBackToList();return false;" class="rrg-back" aria-label="Back to templates" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28)"><span style="font-size:14px;line-height:1">←</span> Templates</a>
 <div class="top"><div class="top-in">
   <span class="brand" onclick="location.href='./index.html'" title="Back to toolbox"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
   <div class="crumb"><a href="./rrg_email_templates.html">Email Templates</a> &nbsp;›&nbsp; <span id="crumb">Template</span></div>
@@ -58,6 +58,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 <script>
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 function qs(k){ try{ return new URLSearchParams(location.search).get(k)||''; }catch(e){ return ''; } }
+function goBackToList(){ var fromList=false, ref=''; try{ fromList=sessionStorage.getItem('etpl_nav')==='list'; }catch(e){} try{ ref=document.referrer||''; }catch(e){} if((fromList||ref.indexOf('rrg_email_templates.html')>=0)&&history.length>1){ history.back(); } else { location.href='./rrg_email_templates.html'; } }
+function markListDirty(){ try{ sessionStorage.setItem('etpl_dirty','1'); }catch(e){} }
 function api(m,u,b){return fetch(u,{method:m,credentials:'same-origin',headers:b?{'Content-Type':'application/json'}:undefined,body:b?JSON.stringify(b):undefined}).then(function(r){return r.json();});}
 var EDIT=null, FOLDERS=[], SCOPE='personal', DEL_ARM=false;
 
@@ -74,7 +76,7 @@ function render(){
   var host=document.getElementById('root'); if(!EDIT){ host.innerHTML='<div class="gate">Template not found. <a href="./rrg_email_templates.html" style="color:var(--navy);font-weight:700">← Back to templates</a></div>'; return; }
   setHead();
   var t=EDIT, ro=!t.mine; SCOPE=(t.scope==='shared'?'shared':'personal');
-  host.innerHTML='<div class="card"><div class="ch"><b>'+(ro?'View template':(t.id?'Edit template':'New template'))+'</b><span class="sp"><span class="msg" id="msg"></span>'+((t.id&&t.mine)?'<button class="btn danger sm" id="delBtn">Delete</button>':'')+'<a class="btn ghost sm" href="./rrg_email_templates.html">Back to list</a>'+(ro?'':'<button class="btn red" id="saveBtn">Save</button>')+'</span></div><div class="body">'
+  host.innerHTML='<div class="card"><div class="ch"><b>'+(ro?'View template':(t.id?'Edit template':'New template'))+'</b><span class="sp"><span class="msg" id="msg"></span>'+((t.id&&t.mine)?'<button class="btn danger sm" id="delBtn">Delete</button>':'')+'<a class="btn ghost sm" href="./rrg_email_templates.html" onclick="goBackToList();return false;">Back to list</a>'+(ro?'':'<button class="btn red" id="saveBtn">Save</button>')+'</span></div><div class="body">'
     +(ro?'<div class="ro">Shared template'+(t.ownerName?(' by <b>'+esc(t.ownerName)+'</b>'):'')+' — view only. Use <b>+ New template</b> on the list to make your own copy.</div>':'')
     +'<div class="fld"><label>Template name</label><input type="text" id="tName" value="'+esc(t.name||'')+'"'+(ro?' readonly':'')+' placeholder="e.g. New buyer intro"></div>'
     +'<div class="grid2">'
@@ -99,7 +101,7 @@ function save(){
   if(EDIT&&EDIT.id) body.id=EDIT.id;
   var btn=document.getElementById('saveBtn'); btn.disabled=true;
   api('POST','/api/email-templates',body).then(function(j){ btn.disabled=false; if(!j.ok){ msg(j.error||'Save failed.','err'); return; }
-    var wasNew=!(EDIT&&EDIT.id); EDIT=j.template||Object.assign(EDIT||{},body); setHead(); msg('Saved ✓','ok');
+    var wasNew=!(EDIT&&EDIT.id); EDIT=j.template||Object.assign(EDIT||{},body); setHead(); msg('Saved ✓','ok'); markListDirty();
     if(wasNew && EDIT && EDIT.id){ try{ history.replaceState({},'', location.pathname+'?id='+encodeURIComponent(EDIT.id)); }catch(e){} }
   }).catch(function(){ btn.disabled=false; msg('Could not reach the server.','err'); });
 }
@@ -107,7 +109,7 @@ function onDelete(){
   if(!EDIT||!EDIT.id) return;
   if(!DEL_ARM){ DEL_ARM=true; var b=document.getElementById('delBtn'); b.textContent='Really delete?'; b.classList.remove('danger'); b.classList.add('red'); setTimeout(function(){ if(DEL_ARM){ DEL_ARM=false; var x=document.getElementById('delBtn'); if(x){x.textContent='Delete';x.classList.remove('red');x.classList.add('danger');} } },3500); return; }
   DEL_ARM=false;
-  api('DELETE','/api/email-templates/'+encodeURIComponent(EDIT.id)).then(function(j){ if(!j.ok){ msg(j.error||'Delete failed.','err'); return; } location.href='./rrg_email_templates.html'; });
+  api('DELETE','/api/email-templates/'+encodeURIComponent(EDIT.id)).then(function(j){ if(!j.ok){ msg(j.error||'Delete failed.','err'); return; } markListDirty(); goBackToList(); });
 }
 function boot(){
   api('GET','/api/email-templates').then(function(j){
