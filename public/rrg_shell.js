@@ -189,7 +189,6 @@
     ] },
     { grp: 'Marketing Machine', color: '#c77dc0', items: [
       { ic: '✉', label: 'Bulk Email', href: 'rrg_mass_studio.html', admin: true },
-      { ic: '⌕', label: 'Email Finder', href: 'rrg_email_finder.html', admin: true },
       { ic: '☷', label: 'Subscribers', href: 'rrg_subscribers.html' },
       { ic: '✎', label: 'Email Templates', href: 'rrg_email_templates.html' },
       { ic: '▧', label: 'Marketing Packs', href: 'rrg_cim_queue.html' },
@@ -204,6 +203,7 @@
       { ic: '≣', label: 'General Ledger', href: 'rrg_gl.html' }
     ] },
     { grp: 'Tools', color: '#a99be0', items: [
+      { ic: '⌕', label: 'Email Finder', href: 'rrg_email_finder.html', admin: true },
       { ic: '▭', label: 'Lease Abstracts', href: 'rrg_lease_queue.html' },
       { ic: '◉', label: 'Tracked Emails', href: 'rrg_tracked_emails.html' },
       { ic: '∑', label: 'Calculators', href: 'rrg_calculators.html' }
