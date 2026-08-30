@@ -1650,7 +1650,7 @@ async function sendNotifyMail(to, subject, text) {
   } catch (e) { console.error('notify mail error:', e && e.message); return { ok: false, error: String((e && e.message) || e) }; }
 }
 function ticketOwnerEmail(t) { try { const u = auth.findUser(t.byUser); return (u && u.email) || ''; } catch (e) { return ''; } }
-function appBaseUrl() { return String(process.env.APP_URL || process.env.PUBLIC_URL || '').replace(/\/$/, ''); }
+function appBaseUrl() { return String(process.env.APP_URL || process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || (process.env.RENDER_EXTERNAL_HOSTNAME ? ('https://' + process.env.RENDER_EXTERNAL_HOSTNAME) : '')).replace(/\/$/, ''); }
 app.post('/api/send-ssc', async (req, res) => {
   const data = req.body || {};
   if (!data.repEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.repEmail)) {
