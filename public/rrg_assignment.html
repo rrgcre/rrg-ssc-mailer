@@ -183,7 +183,8 @@ textarea{min-height:120px;resize:vertical;line-height:1.5;}
 #offerForm,#tourForm,#ndaForm{padding:14px 20px 4px;border-bottom:1px solid var(--line);background:#fbfcff;}
 .ndas{padding:2px 0;}
 .plink{color:#23496f;font-weight:600;}
-.startdeal{width:100%;background:#0e7a53;color:#fff;border:none;border-radius:9px;padding:12px;font:inherit;font-size:13.5px;font-weight:800;cursor:pointer;margin-bottom:6px;}
+.startdeal{display:inline-block;background:#0e7a53;color:#fff;border:none;border-radius:8px;padding:8px 15px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;margin-bottom:6px;}
+.startdeal:hover{background:#0c6b49;}
 .startnote{font-size:11px;color:var(--muted);line-height:1.45;margin-bottom:14px;}
 .startgate{border:1px solid #cfe6da;background:#f2faf6;border-radius:11px;padding:12px;margin-bottom:14px;}
 .startgate .ge{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#0e7a53;margin-bottom:9px;display:flex;align-items:center;gap:6px;}
@@ -613,7 +614,7 @@ function _fin3y(){
   var f=(A&&Array.isArray(A.financials3y)&&A.financials3y.length)?A.financials3y:null;
   if(f) return f.slice(0,6).map(function(c){ return {label:String((c&&c.label)||''),revenue:String((c&&c.revenue)||''),sde:String((c&&c.sde)||''),ebitda:String((c&&c.ebitda)||''),rent:String((c&&c.rent)||'')}; });
   var y=(new Date()).getFullYear();
-  return [{label:String(y-3),revenue:'',sde:'',ebitda:'',rent:''},{label:String(y-2),revenue:'',sde:'',ebitda:'',rent:''},{label:String(y-1),revenue:'',sde:'',ebitda:'',rent:''}];
+  return [{label:String(y-3),revenue:'',sde:'',ebitda:'',rent:''},{label:String(y-2),revenue:'',sde:'',ebitda:'',rent:''},{label:String(y-1),revenue:'',sde:'',ebitda:'',rent:''},{label:'TTM',revenue:'',sde:'',ebitda:'',rent:''}];
 }
 function collectFin3y(){
   var host=document.getElementById('fin3yTable'); if(!host) return (A&&Array.isArray(A.financials3y))?A.financials3y:[];
@@ -651,8 +652,8 @@ function financialsCard(){
   var rowLbl=function(t,hint){ return '<td style="padding:6px 8px 6px 2px;font-weight:700;color:#33415c;white-space:nowrap">'+t+(hint?(' <span style="font-weight:400;color:#9aa3b2;font-size:11px">'+hint+'</span>'):'')+'</td>'; };
   var heads=''; for(var i=0;i<f3y.length;i++) heads+=lbl(i);
   var rrow=function(t,f,hint){ var c=''; for(var i=0;i<f3y.length;i++) c+=money(i,f); return '<tr>'+rowLbl(t,hint)+c+'</tr>'; };
-  var table='<div style="margin-top:16px"><div style="font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8;margin-bottom:7px">3-Year financials <span style="font-weight:400;color:#9aa3b2;text-transform:none;letter-spacing:0">— enter annual figures; rename a period header to TTM if needed</span></div>'
-    +'<div style="overflow-x:auto"><table id="fin3yTable" style="border-collapse:collapse;width:100%;min-width:440px"><thead><tr><th style="width:1%"></th>'+heads+'</tr></thead><tbody>'
+  var table='<div style="margin-top:16px"><div style="font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8;margin-bottom:7px">Financials <span style="font-weight:400;color:#9aa3b2;text-transform:none;letter-spacing:0">— 3 full years plus trailing twelve (TTM); edit a period header if your fiscal year differs</span></div>'
+    +'<div style="overflow-x:auto"><table id="fin3yTable" style="border-collapse:collapse;width:100%;min-width:560px"><thead><tr><th style="width:1%"></th>'+heads+'</tr></thead><tbody>'
     +rrow('Revenue','revenue','top line')+rrow('SDE','sde','owner benefit')+rrow('EBITDA','ebitda','')+rrow('Rent','rent','occupancy')
     +'</tbody></table></div></div>';
   var hist=(A&&Array.isArray(A.priceHistory))?A.priceHistory.slice():[];
@@ -792,9 +793,6 @@ function render(){
       +_tile(done+'<span style="font-size:13px;color:#8a93a8;font-weight:700">/'+ST.length+'</span>','Stages done')
     +'</div>'
     +'<div class="ovgrid">'
-      +((A.assignmentType!=='listing')?'':'<div class="ovf"><div class="ovk">Asking price</div><div class="ovv" id="ovAskVal">'+(A.listPrice?esc(A.listPrice):'—')+'</div></div>')
-      +'<div class="ovf"><div class="ovk">Guide / value</div><div class="ovv">'+(A.value?esc(A.value):'—')+'</div></div>'
-      +'<div class="ovf"><div class="ovk">Basis</div><div class="ovv">'+(A.basis?esc(A.basis):'—')+'</div></div>'
       +'<div class="ovf"><div class="ovk">Market</div><div class="ovv">'+(A.market?esc(A.market):'—')+'</div></div>'
       +'<div class="ovf"><div class="ovk">'+((A.assignmentType==='landlord_rep')?'Landlord contact':'Seller contact')+'</div><div class="ovv">'+_contactCell+'</div></div>'
       +'<div class="ovf"><div class="ovk">Originated</div><div class="ovv">'+esc(fmt(A.createdAt))+'</div></div>'

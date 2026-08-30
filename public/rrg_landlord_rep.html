@@ -44,6 +44,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .bmodalb input{width:100%;border:1px solid var(--inp);border-radius:8px;padding:10px 12px;font:inherit;font-size:14px;color:#000E31;}
 .bmodalnote{background:var(--wash);border:1px solid var(--line);border-radius:8px;padding:9px 12px;font-size:12px;color:#4a5570;margin-top:12px;line-height:1.5;}
 .bmodalbtns{display:flex;justify-content:flex-end;gap:10px;padding:6px 22px 18px;}
+/* "What this section does" strip */
+.featwrap{max-width:1180px;margin:16px auto 0;padding:0 26px;}
+.feats{background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 4px 18px rgba(11,26,56,.05);overflow:hidden;}
+.featshd{display:flex;align-items:center;gap:10px;padding:13px 20px;cursor:pointer;user-select:none;}
+.featshd b{font-size:14px;color:var(--navy);}
+.featshd .sh{font-size:11.5px;color:var(--muted);font-weight:600;}
+.featshd .hlink{margin-left:auto;font-size:11.5px;font-weight:700;color:var(--primary,#2c5c8f);text-decoration:none;white-space:nowrap;}
+.featshd .hlink:hover{text-decoration:underline;}
+.featshd .chev{color:var(--muted);font-size:12px;transition:transform .15s;}
+.feats.collapsed .chev{transform:rotate(-90deg);}
+.feats.collapsed .featgrid{display:none;}
+.featgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1px;background:var(--line);border-top:1px solid var(--line);}
+.feat{background:#fff;display:flex;gap:11px;padding:13px 18px;align-items:flex-start;}
+.feat .fic{font-size:17px;line-height:1.25;flex:none;width:24px;text-align:center;}
+.feat b{display:block;font-size:12.5px;color:var(--navy);font-weight:800;}
+.feat span{display:block;font-size:11.5px;color:var(--muted);line-height:1.45;margin-top:2px;}
 </style>
 <script src="/rrg_brand.js"></script>
 <script src="/rrg_list.js"></script>
@@ -55,6 +71,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
   <h1>Space Listings</h1>
   <div class="sub">Every restaurant &amp; bar space you're marketing for lease on behalf of a landlord — the available space, the landlord contact, and the tenant prospects working toward a signed lease. Open a listing to run it end to end.</div>
 </div></div>
+<div class="featwrap"><div class="feats" id="llFeats">
+  <div class="featshd" id="llFeatHd"><b>What this section does</b><span class="sh">represent a landlord — list a space for lease, market it, work tenants to a signed lease</span><a class="hlink" href="rrg_landlordrep_help.html" target="_blank" rel="noopener" onclick="event.stopPropagation()">Open the full guide ↗</a><span class="chev">▾</span></div>
+  <div class="featgrid">
+    <a class="feat" href="rrg_landlordrep_help.html#overview" target="_blank" rel="noopener" style="text-decoration:none"><span class="fic">🏢</span><div><b>One list of your spaces</b><span>Every restaurant/bar space you're marketing for lease, with landlord, market, size, asking rent and status at a glance.</span></div></a>
+    <a class="feat" href="rrg_landlordrep_help.html#new" target="_blank" rel="noopener" style="text-decoration:none"><span class="fic">➕</span><div><b>Start a space listing</b><span>Name the space, its market, and the landlord contact — it builds the file, links the landlord, and opens the listing.</span></div></a>
+    <a class="feat" href="rrg_landlordrep_help.html#space" target="_blank" rel="noopener" style="text-decoration:none"><span class="fic">📐</span><div><b>Space details</b><span>Size, asking rent, lease term, condition, suitable use, available date and key features live on the listing HQ.</span></div></a>
+    <a class="feat" href="rrg_landlordrep_help.html#tenants" target="_blank" rel="noopener" style="text-decoration:none"><span class="fic">🧲</span><div><b>Work the tenant prospects</b><span>Log inquiries, tours and LOIs, and move each toward a signed lease — the same deal machinery as a sale.</span></div></a>
+    <a class="feat" href="rrg_landlordrep_help.html#pipeline" target="_blank" rel="noopener" style="text-decoration:none"><span class="fic">🚦</span><div><b>Landlord pipeline</b><span>Move each space from Listing Setup → Marketing → Tours → LOI Received → Lease Negotiation → Executed.</span></div></a>
+    <a class="feat" href="rrg_landlordrep_help.html#search" target="_blank" rel="noopener" style="text-decoration:none"><span class="fic">🔎</span><div><b>Search &amp; open</b><span>Find any space by name, landlord, market, size or rent, then click through to run it.</span></div></a>
+  </div>
+</div></div>
+<script>(function(){ var fs=document.getElementById('llFeats'), hd=document.getElementById('llFeatHd'); if(!fs||!hd) return; try{ if(localStorage.getItem('rrg_llfeats')!=='1') fs.classList.add('collapsed'); }catch(e){ fs.classList.add('collapsed'); } hd.addEventListener('click',function(){ var col=fs.classList.toggle('collapsed'); try{ localStorage.setItem('rrg_llfeats', col?'0':'1'); }catch(e){} }); })();</script>
 <div class="wrap">
   <div class="card">
     <div class="hd">

@@ -47,13 +47,40 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .empty{padding:30px 20px;text-align:center;color:var(--soft);font-size:13.5px;}
 .hint{font-size:12px;color:var(--soft);margin-top:4px;}
 .tabs{display:flex;gap:6px;} .tab{font:inherit;font-size:12.5px;font-weight:700;padding:7px 13px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--muted);cursor:pointer;} .tab.on{background:var(--navy);color:#fff;border-color:var(--navy);}
+/* "What this section does" strip */
+.feats{background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 4px 18px rgba(10,20,50,.05);overflow:hidden;margin-bottom:18px;}
+.featshd{display:flex;align-items:center;gap:10px;padding:13px 18px;cursor:pointer;user-select:none;}
+.featshd b{font-size:14px;color:var(--navy);}
+.featshd .sh{font-size:11.5px;color:var(--muted);font-weight:600;}
+.featshd .hlink{margin-left:auto;font-size:11.5px;font-weight:700;color:#2c5c8f;text-decoration:none;white-space:nowrap;}
+.featshd .hlink:hover{text-decoration:underline;}
+.featshd .chev{color:var(--muted);font-size:12px;transition:transform .15s;}
+.feats.collapsed .chev{transform:rotate(-90deg);}
+.feats.collapsed .featgrid{display:none;}
+.featgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1px;background:var(--line);border-top:1px solid var(--line);}
+.feat{background:#fff;display:flex;gap:11px;padding:13px 18px;align-items:flex-start;}
+.feat .fic{font-size:17px;line-height:1.25;flex:none;width:24px;text-align:center;}
+.feat b{display:block;font-size:12.5px;color:var(--navy);font-weight:800;}
+.feat span{display:block;font-size:11.5px;color:var(--muted);line-height:1.45;margin-top:2px;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
 <body>
 <div class="wrap">
   <h1 class="pgh">Subscribers</h1>
-  <div class="pgs">Your marketing audience — the people who get mass emails — kept in its own list, separate from your CRM contacts. Add subscribers by hand, paste a list, or pull them in from your contacts. Each subscriber controls their own preferences (all emails, only certain markets, or unsubscribed), and every mass email honors it.</div>
+  <div class="pgs">Your marketing audience — the people who get mass emails — kept in its own list, separate from your CRM contacts. Add subscribers by hand, paste a list, or pull them in from your contacts. Each subscriber controls their own preferences (all emails, only certain areas, or unsubscribed), and every mass email honors it.</div>
+  <div class="feats" id="subFeats">
+    <div class="featshd" id="subFeatHd"><b>What this section does</b><span class="sh">build and segment your marketing audience — then target the right campaign to the right people</span><a class="hlink" href="rrg_subscribers_help.html" target="_blank" rel="noopener" onclick="event.stopPropagation()">Open the full guide ↗</a><span class="chev">▾</span></div>
+    <div class="featgrid">
+      <a class="feat" href="rrg_subscribers_help.html#segment" target="_blank" rel="noopener" style="text-decoration:none"><span class="fic">🎯</span><div><b>Segment the database</b><span>Filter by type (Broker / Restaurant / Buyer), area of interest, and status — narrow to any slice you'd send a campaign to.</span></div></a>
+      <a class="feat" href="rrg_subscribers_help.html#fields" target="_blank" rel="noopener" style="text-decoration:none"><span class="fic">🗂️</span><div><b>The fields you track</b><span>Name, email, company, type, areas of interest, status and date added — at a glance in the list, in full on the detail page.</span></div></a>
+      <a class="feat" href="rrg_subscribers_help.html#detail" target="_blank" rel="noopener" style="text-decoration:none"><span class="fic">✏️</span><div><b>A detail page per subscriber</b><span>Click a name to open a dedicated page and manage everything — type, areas, status, tags.</span></div></a>
+      <a class="feat" href="rrg_subscribers_help.html#add" target="_blank" rel="noopener" style="text-decoration:none"><span class="fic">➕</span><div><b>Add &amp; import</b><span>Add one by hand, paste a list, or pull people straight from your CRM contacts by type or tag.</span></div></a>
+      <a class="feat" href="rrg_subscribers_help.html#prefs" target="_blank" rel="noopener" style="text-decoration:none"><span class="fic">📮</span><div><b>Preferences are honored</b><span>Each subscriber gets all emails or only their chosen areas — every mass email respects it, and unsubscribes are never emailed.</span></div></a>
+      <a class="feat" href="rrg_subscribers_help.html#mass" target="_blank" rel="noopener" style="text-decoration:none"><span class="fic">✉️</span><div><b>Feeds Bulk Email</b><span>The segment you build here is exactly who a campaign goes to over in Bulk Email.</span></div></a>
+    </div>
+  </div>
+  <script>(function(){ var fs=document.getElementById('subFeats'), hd=document.getElementById('subFeatHd'); if(!fs||!hd) return; try{ if(localStorage.getItem('rrg_subfeats')!=='1') fs.classList.add('collapsed'); }catch(e){ fs.classList.add('collapsed'); } hd.addEventListener('click',function(){ var col=fs.classList.toggle('collapsed'); try{ localStorage.setItem('rrg_subfeats', col?'0':'1'); }catch(e){} }); })();</script>
   <div id="tiles" class="tiles"></div>
   <div id="root"></div>
 </div>

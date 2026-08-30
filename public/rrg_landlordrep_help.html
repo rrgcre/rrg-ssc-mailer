@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Landlord Rep — Help &amp; User Guide · RRG</title>
+<style>
+:root{ --navy:#000E31; --slate:#20334f; --primary:#2c5c8f; --primary-d:#23496f; --red:#b23a2c; --ink:#2b3648; --muted:#69748a; --soft:#96a1b2; --line:#dbe0e9; --wash:#f4f6f9; --inp:#c4ccda; --gold:#b5791f; --green:#2f7a55; }
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:#eef1f6;font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased;}
+a{color:var(--primary);text-decoration:none;} a:hover{text-decoration:underline;}
+.top{background:var(--navy);border-bottom:2px solid var(--primary);color:#fff;position:sticky;top:0;z-index:50;}
+.top-in{max-width:1180px;margin:0 auto;padding:12px 24px;display:flex;align-items:center;gap:13px;}
+.disc{width:34px;height:34px;border-radius:4px;background:var(--red);color:#fff;font:900 12px 'Arial Black',Arial;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;flex:none;}
+.wm{font-weight:700;font-size:12px;line-height:1.05;text-transform:uppercase;letter-spacing:.02em;color:#cdd6e4;}
+.bar{width:1px;height:24px;background:rgba(255,255,255,.28);margin:0 5px;}
+.ttl{font-weight:700;font-size:15px;color:#fff;}
+.ttl small{display:block;font-size:10.5px;font-weight:600;color:#9fb0cc;text-transform:uppercase;letter-spacing:.06em;margin-top:1px;}
+.backlink{margin-left:auto;color:#cdd6e4;font-size:12.5px;font-weight:600;} .backlink:hover{color:#fff;text-decoration:none;}
+.shell{max-width:1180px;margin:22px auto;padding:0 24px 70px;display:grid;grid-template-columns:250px minmax(0,1fr);gap:26px;align-items:start;}
+.toc{position:sticky;top:74px;background:#fff;border:1px solid var(--line);border-radius:6px;overflow:hidden;}
+.toc .th{background:var(--wash);border-bottom:1px solid var(--line);padding:11px 15px;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--soft);}
+.toc nav{max-height:calc(100vh - 160px);overflow:auto;padding:6px 0;}
+.toc a{display:block;padding:6px 15px;font-size:12.5px;font-weight:600;color:var(--slate);border-left:2px solid transparent;}
+.toc a:hover{background:var(--wash);text-decoration:none;}
+.doc{min-width:0;}
+.hero{background:#fff;border:1px solid var(--line);border-radius:6px;padding:24px 26px;margin-bottom:20px;}
+.hero h1{font-size:22px;font-weight:700;color:var(--navy);letter-spacing:-.01em;}
+.hero p{color:var(--muted);font-size:14.5px;margin-top:9px;max-width:760px;}
+.hero .meta{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;}
+.tag{font-size:11px;font-weight:700;color:var(--slate);background:var(--wash);border:1px solid var(--line);border-radius:3px;padding:4px 10px;}
+section.card{background:#fff;border:1px solid var(--line);border-radius:6px;padding:22px 26px;margin-bottom:16px;scroll-margin-top:74px;}
+section.card>h2{font-size:16px;font-weight:700;color:var(--navy);letter-spacing:-.01em;padding-bottom:10px;border-bottom:1px solid var(--line);margin-bottom:14px;display:flex;align-items:center;gap:9px;}
+section.card>h2 .n{width:24px;height:24px;border-radius:4px;background:var(--navy);color:#fff;font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex:none;}
+p{margin:9px 0;} .lead{color:var(--muted);font-size:14px;}
+ul,ol{margin:9px 0 9px 4px;padding-left:22px;} li{margin:5px 0;}
+.callout{border:1px solid var(--line);border-left:3px solid var(--primary);background:#f7fafd;border-radius:0 4px 4px 0;padding:13px 16px;margin:14px 0;font-size:13.5px;}
+.callout.tip{border-left-color:var(--green);background:#f1f8f4;}
+.callout .lbl{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:3px;}
+.callout.tip .lbl{color:var(--green);}
+.fq{border-top:1px solid var(--line);padding:13px 0;} .fq:first-of-type{border-top:none;} .fq h3{margin:0 0 4px;font-size:14px;} .fq p{margin:0;color:var(--muted);font-size:13.5px;}
+@media(max-width:900px){.shell{grid-template-columns:1fr;}.toc{position:static;}}
+</style>
+</head>
+<body>
+<div class="top"><div class="top-in">
+  <span class="disc">RRG</span><span class="wm">Restaurant<br>Realty Group</span><span class="bar"></span>
+  <span class="ttl">Landlord Rep<small>Help &amp; User Guide</small></span>
+  <a class="backlink" href="rrg_landlord_rep.html">&larr; Back to Space Listings</a>
+</div></div>
+
+<div class="shell">
+  <aside class="toc">
+    <div class="th">Contents</div>
+    <nav>
+      <a href="#overview">1 · Overview</a>
+      <a href="#new">2 · Start a space listing</a>
+      <a href="#space">3 · Space details</a>
+      <a href="#pipeline">4 · The landlord pipeline</a>
+      <a href="#tenants">5 · Tenant prospects</a>
+      <a href="#docs">6 · Documents &amp; data room</a>
+      <a href="#faq">7 · FAQ</a>
+    </nav>
+  </aside>
+
+  <main class="doc">
+    <div class="hero">
+      <h1>Landlord Rep — Help &amp; User Guide</h1>
+      <p>Landlord Rep is where you represent a property owner leasing restaurant or bar space. You list the available space, market it, field tenant inquiries, run tours and LOIs, and negotiate to a signed lease — one file per space, from listing to executed.</p>
+      <div class="meta"><span class="tag">Commercial Real Estate</span><span class="tag">Space for lease</span><span class="tag">List → market → lease</span></div>
+    </div>
+
+    <section class="card" id="overview">
+      <h2><span class="n">1</span> Overview</h2>
+      <p class="lead">Space Listings is the home for every landlord engagement you're running.</p>
+      <p>The list shows each space you're marketing with its <b>landlord</b>, <b>market</b>, <b>size</b>, <b>asking rent</b>, and <b>status</b>. Search across the top to find one fast, then click a space name to open its listing file — the same one-page HQ your business-sale listings use, adapted for a lease.</p>
+      <div class="callout tip"><div class="lbl">One engine, two sides</div>A landlord space listing shares the pipeline, tours, LOIs, documents and data room with the rest of the platform — so you're not learning a second system, just working the other side of the deal.</div>
+    </section>
+
+    <section class="card" id="new">
+      <h2><span class="n">2</span> Start a space listing</h2>
+      <p class="lead">Three fields to open a new engagement.</p>
+      <p>Click <b>+ New space listing</b> and give it a <b>space / listing name</b> (e.g. "Former Cantina — 1200 S Congress"), the <b>market</b> (from your admin market list), and the <b>landlord contact</b>. Creating it links the landlord to your registry, builds the listing's data room, drops it on the <a href="#pipeline">Landlord pipeline</a>, and opens the listing so you can fill in the space details.</p>
+    </section>
+
+    <section class="card" id="space">
+      <h2><span class="n">3</span> Space details</h2>
+      <p class="lead">The space you're marketing, captured on the listing HQ.</p>
+      <p>On the listing's Manage panel, the <b>Space for lease</b> box holds everything a prospective tenant asks first:</p>
+      <ul>
+        <li><b>Size (SF)</b> and <b>asking rent</b> — e.g. "$32/SF NNN" or "$6,500/mo."</li>
+        <li><b>Lease term available</b> and <b>available date</b>.</li>
+        <li><b>Condition</b> — 2nd-generation restaurant, vanilla shell, gray/cold shell, as-is, or other.</li>
+        <li><b>Suitable use</b> and <b>key features</b> — hood &amp; grease trap, patio, liquor-eligible, parking, drive-thru.</li>
+        <li><b>Space notes</b> — landlord terms, TI allowance, co-tenants, restrictions.</li>
+      </ul>
+      <p>The listing's contact is the <b>landlord</b>, and the business-sale financials, asking-price and marketplace cards don't apply — this is real estate for lease, not a business for sale.</p>
+    </section>
+
+    <section class="card" id="pipeline">
+      <h2><span class="n">4</span> The landlord pipeline</h2>
+      <p class="lead">Move each space from listed to leased.</p>
+      <p>Every space sits on the <b>Landlord Rep</b> pipeline and moves through its stages: <b>Listing Setup → Marketing → Tours → LOI Received → Lease Negotiation → Executed</b>. Work the board the same way as your sale listings — the stage is the deal's status at a glance.</p>
+    </section>
+
+    <section class="card" id="tenants">
+      <h2><span class="n">5</span> Tenant prospects</h2>
+      <p class="lead">The same deal machinery, pointed at tenants instead of buyers.</p>
+      <p>On the listing HQ you log every <b>inquiry</b> from a prospective tenant, record each <b>tour</b> of the space, and capture each <b>LOI</b> as it comes in — building the record of interest across the marketing period. Use the <a href="rrg_loi_builder.html">LOI Builder</a> to draft a letter of intent with the landlord and tenant terms filled in.</p>
+    </section>
+
+    <section class="card" id="docs">
+      <h2><span class="n">6</span> Documents &amp; data room</h2>
+      <p class="lead">Every space's paper in one place.</p>
+      <p>The listing carries its own <b>documents</b> and a confidential <b>data room</b> — put the site plan, floor plan, current lease or LOI, and any exhibits here so the whole file lives together and can be shared with a prospective tenant when the time is right.</p>
+    </section>
+
+    <section class="card" id="faq">
+      <h2><span class="n">7</span> FAQ</h2>
+      <div class="fq"><h3>How is this different from Tenant Rep?</h3><p>Tenant Rep represents the <b>tenant</b> hunting for space (site criteria, space search). Landlord Rep represents the <b>landlord</b> marketing a space for lease (the space listing, tenant prospects). Same platform, opposite sides.</p></div>
+      <div class="fq"><h3>Where do I set the markets I can pick?</h3><p>Markets come from your admin market list (Admin → Settings → Markets), the same list every other section uses.</p></div>
+      <div class="fq"><h3>Can I still use tours and LOIs?</h3><p>Yes — they're shared across the platform. Tours and LOIs on a landlord listing work exactly like they do on a business-sale listing.</p></div>
+    </section>
+  </main>
+</div>
+</body>
+</html>

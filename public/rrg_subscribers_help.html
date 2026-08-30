@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Subscribers — Help &amp; User Guide · RRG</title>
+<style>
+:root{ --navy:#000E31; --slate:#20334f; --primary:#2c5c8f; --primary-d:#23496f; --red:#b23a2c; --ink:#2b3648; --muted:#69748a; --soft:#96a1b2; --line:#dbe0e9; --wash:#f4f6f9; --inp:#c4ccda; --gold:#b5791f; --green:#2f7a55; }
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:#eef1f6;font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased;}
+a{color:var(--primary);text-decoration:none;} a:hover{text-decoration:underline;}
+.top{background:var(--navy);border-bottom:2px solid var(--primary);color:#fff;position:sticky;top:0;z-index:50;}
+.top-in{max-width:1180px;margin:0 auto;padding:12px 24px;display:flex;align-items:center;gap:13px;}
+.disc{width:34px;height:34px;border-radius:4px;background:var(--red);color:#fff;font:900 12px 'Arial Black',Arial;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;flex:none;}
+.wm{font-weight:700;font-size:12px;line-height:1.05;text-transform:uppercase;letter-spacing:.02em;color:#cdd6e4;}
+.bar{width:1px;height:24px;background:rgba(255,255,255,.28);margin:0 5px;}
+.ttl{font-weight:700;font-size:15px;color:#fff;}
+.ttl small{display:block;font-size:10.5px;font-weight:600;color:#9fb0cc;text-transform:uppercase;letter-spacing:.06em;margin-top:1px;}
+.backlink{margin-left:auto;color:#cdd6e4;font-size:12.5px;font-weight:600;} .backlink:hover{color:#fff;text-decoration:none;}
+.shell{max-width:1180px;margin:22px auto;padding:0 24px 70px;display:grid;grid-template-columns:250px minmax(0,1fr);gap:26px;align-items:start;}
+.toc{position:sticky;top:74px;background:#fff;border:1px solid var(--line);border-radius:6px;overflow:hidden;}
+.toc .th{background:var(--wash);border-bottom:1px solid var(--line);padding:11px 15px;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--soft);}
+.toc nav{max-height:calc(100vh - 160px);overflow:auto;padding:6px 0;}
+.toc a{display:block;padding:6px 15px;font-size:12.5px;font-weight:600;color:var(--slate);border-left:2px solid transparent;}
+.toc a:hover{background:var(--wash);text-decoration:none;}
+.doc{min-width:0;}
+.hero{background:#fff;border:1px solid var(--line);border-radius:6px;padding:24px 26px;margin-bottom:20px;}
+.hero h1{font-size:22px;font-weight:700;color:var(--navy);letter-spacing:-.01em;}
+.hero p{color:var(--muted);font-size:14.5px;margin-top:9px;max-width:760px;}
+.hero .meta{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;}
+.tag{font-size:11px;font-weight:700;color:var(--slate);background:var(--wash);border:1px solid var(--line);border-radius:3px;padding:4px 10px;}
+section.card{background:#fff;border:1px solid var(--line);border-radius:6px;padding:22px 26px;margin-bottom:16px;scroll-margin-top:74px;}
+section.card>h2{font-size:16px;font-weight:700;color:var(--navy);letter-spacing:-.01em;padding-bottom:10px;border-bottom:1px solid var(--line);margin-bottom:14px;display:flex;align-items:center;gap:9px;}
+section.card>h2 .n{width:24px;height:24px;border-radius:4px;background:var(--navy);color:#fff;font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex:none;}
+p{margin:9px 0;} .lead{color:var(--muted);font-size:14px;}
+ul,ol{margin:9px 0 9px 4px;padding-left:22px;} li{margin:5px 0;}
+.callout{border:1px solid var(--line);border-left:3px solid var(--primary);background:#f7fafd;border-radius:0 4px 4px 0;padding:13px 16px;margin:14px 0;font-size:13.5px;}
+.callout.tip{border-left-color:var(--green);background:#f1f8f4;}
+.callout .lbl{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:3px;}
+.callout.tip .lbl{color:var(--green);}
+.fq{border-top:1px solid var(--line);padding:13px 0;} .fq:first-of-type{border-top:none;} .fq h3{margin:0 0 4px;font-size:14px;} .fq p{margin:0;color:var(--muted);font-size:13.5px;}
+@media(max-width:900px){.shell{grid-template-columns:1fr;}.toc{position:static;}}
+</style>
+</head>
+<body>
+<div class="top"><div class="top-in">
+  <span class="disc">RRG</span><span class="wm">Restaurant<br>Realty Group</span><span class="bar"></span>
+  <span class="ttl">Subscribers<small>Help &amp; User Guide</small></span>
+  <a class="backlink" href="rrg_subscribers.html">&larr; Back to Subscribers</a>
+</div></div>
+
+<div class="shell">
+  <aside class="toc">
+    <div class="th">Contents</div>
+    <nav>
+      <a href="#overview">1 · Overview</a>
+      <a href="#segment">2 · Segment the database</a>
+      <a href="#fields">3 · The fields you track</a>
+      <a href="#detail">4 · The subscriber detail page</a>
+      <a href="#add">5 · Add &amp; import</a>
+      <a href="#prefs">6 · Email preferences</a>
+      <a href="#mass">7 · Feeds Bulk Email</a>
+      <a href="#faq">8 · FAQ</a>
+    </nav>
+  </aside>
+
+  <main class="doc">
+    <div class="hero">
+      <h1>Subscribers — Help &amp; User Guide</h1>
+      <p>Subscribers is your marketing audience — the people who receive mass emails — kept in its own list, separate from your CRM contacts. Everyone carries a type, areas of interest, status and preferences, so you can slice the database into segments and send the right campaign to the right people.</p>
+      <div class="meta"><span class="tag">Marketing</span><span class="tag">Audience &amp; segments</span><span class="tag">Feeds Bulk Email</span></div>
+    </div>
+
+    <section class="card" id="overview">
+      <h2><span class="n">1</span> Overview</h2>
+      <p class="lead">One list, built to be sliced.</p>
+      <p>The four tiles up top show the size of your audience — total, subscribed, area-only, and unsubscribed. Below them is the list itself, with each subscriber's name, email, company, type, areas, status and the date they were added. The filters across the top of the list are how you segment; click any name to open that person's <a href="#detail">detail page</a>.</p>
+    </section>
+
+    <section class="card" id="segment">
+      <h2><span class="n">2</span> Segment the database</h2>
+      <p class="lead">Narrow the list to exactly who you'd send a campaign to.</p>
+      <p>Three filters sit across the top of the list, and they stack:</p>
+      <ul>
+        <li><b>Type</b> — Broker, Restaurant, or Buyer.</li>
+        <li><b>Area</b> — any of your markets (San Antonio, Austin, Dallas, Houston…), drawn from your admin market list.</li>
+        <li><b>Status</b> — Subscribed or Unsubscribed.</li>
+      </ul>
+      <p>Add the search box and you can find anyone by name, email or company. Whatever the list shows after filtering is a <b>segment</b> — e.g. "Buyers interested in Austin who are subscribed."</p>
+      <div class="callout tip"><div class="lbl">Why it matters</div>A restaurant-for-sale blast should go to Buyers, not Brokers; an Austin listing should go to people who care about Austin. Segmenting first means every send is relevant — better opens, fewer unsubscribes.</div>
+    </section>
+
+    <section class="card" id="fields">
+      <h2><span class="n">3</span> The fields you track</h2>
+      <p class="lead">Enough to know who someone is and what to send them.</p>
+      <ul>
+        <li><b>First name / Last name</b> and <b>Email</b> — who they are.</li>
+        <li><b>Company</b> — where they're from.</li>
+        <li><b>Type</b> — <b>Broker</b>, <b>Restaurant</b>, or <b>Buyer</b> — the primary way you segment.</li>
+        <li><b>Areas of interest</b> — all areas, or specific markets they care about.</li>
+        <li><b>Status</b> — Subscribed or Unsubscribed.</li>
+        <li><b>Date added</b> — when they entered the list.</li>
+        <li><b>Tags</b> — free-form labels for any other slicing you want.</li>
+      </ul>
+    </section>
+
+    <section class="card" id="detail">
+      <h2><span class="n">4</span> The subscriber detail page</h2>
+      <p class="lead">A dedicated page to manage one person's marketing profile.</p>
+      <p>Click a subscriber's name to open their detail page. There you set the first/last name, email, company, <b>type</b>, <b>status</b>, <b>areas of interest</b> (all areas, or pick specific ones), and tags. Save keeps the changes and Delete removes them from the audience. Use <b>Back to list</b> to return to the segment you were working.</p>
+    </section>
+
+    <section class="card" id="add">
+      <h2><span class="n">5</span> Add &amp; import</h2>
+      <p class="lead">Three ways to grow the list.</p>
+      <ul>
+        <li><b>+ Add subscriber</b> — open a blank detail page and enter one by hand.</li>
+        <li><b>Import → Paste a list</b> — paste emails one per line (optionally <code>email, name, company</code>) and apply tags to the batch.</li>
+        <li><b>Import → From contacts</b> — pull people straight from your CRM contacts, filtered by contact type or tag, so your book and your audience stay in sync.</li>
+      </ul>
+    </section>
+
+    <section class="card" id="prefs">
+      <h2><span class="n">6</span> Email preferences</h2>
+      <p class="lead">Each subscriber controls what they get — and the system honors it.</p>
+      <p>On the detail page, <b>Areas of interest</b> is either <b>All areas</b> (they get every campaign) or <b>Specific areas</b> (they only get a campaign that overlaps the areas you picked). Anyone marked <b>Unsubscribed</b> is never emailed. Every mass email respects these settings automatically, so you never have to hand-clean a list before a send.</p>
+    </section>
+
+    <section class="card" id="mass">
+      <h2><span class="n">7</span> Feeds Bulk Email</h2>
+      <p class="lead">The segment you build here is who a campaign reaches.</p>
+      <p>Subscribers is the audience layer under <a href="rrg_mass_studio.html">Bulk Email</a>. When you build and send a campaign, it targets subscribers by the same type / area / status you segment on here — and honors each person's preferences and unsubscribe. Keep this list clean and well-typed, and your campaigns land where they should.</p>
+    </section>
+
+    <section class="card" id="faq">
+      <h2><span class="n">8</span> FAQ</h2>
+      <div class="fq"><h3>How is this different from Contacts?</h3><p>Contacts is your CRM — everyone you work with. Subscribers is your <b>marketing audience</b> — the subset who get mass emails, with their own preferences and unsubscribe. Import pulls contacts in; the two stay separate lists.</p></div>
+      <div class="fq"><h3>Where do the areas come from?</h3><p>From your admin market list (Admin → Settings → Markets), the same list every section uses.</p></div>
+      <div class="fq"><h3>Do unsubscribed people ever get emailed?</h3><p>No. Unsubscribed is a hard stop — they're excluded from every send automatically.</p></div>
+    </section>
+  </main>
+</div>
+</body>
+</html>
