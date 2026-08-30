@@ -165,8 +165,8 @@
       { ic: '◫', label: 'Calendar', href: 'rrg_calendar.html' }
     ] },
     { grp: 'Business Sales', color: '#6bbf95', items: [
-      { ic: '⊞', label: 'Listings', href: 'rrg_board.html' },
-      { ic: '◎', label: 'Buyers', href: 'rrg_buyer_board.html' },
+      { ic: '⊞', label: 'Listing Board', href: 'rrg_board.html' },
+      { ic: '◎', label: 'Buyer Board', href: 'rrg_buyer_board.html' },
       { ic: '▥', label: 'Data Rooms', href: 'rrg_rooms_queue.html' },
       { ic: '◈', label: 'Deals', href: 'rrg_deals.html' }
     ] },
