@@ -7334,7 +7334,8 @@ function newUnsubToken() { return 'un_' + crypto.randomBytes(12).toString('base6
 function subKey(e) { return String(e || '').trim().toLowerCase(); }
 function massValidEmail(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(e || '')); }
 function subDisplayName(s) { return s.name || ((s.firstName || '') + ' ' + (s.lastName || '')).trim() || s.email || ''; }
-function subscriberBrief(s) { return { id: s.id, email: s.email || '', firstName: s.firstName || '', lastName: s.lastName || '', name: subDisplayName(s), company: s.company || '', tags: Array.isArray(s.tags) ? s.tags : [], metros: Array.isArray(s.metros) ? s.metros : [], mode: (s.mode === 'metros' ? 'metros' : 'all'), status: (s.status === 'unsubscribed' ? 'unsubscribed' : 'subscribed'), source: s.source || '', personId: s.personId || '', lastEmailedAt: s.lastEmailedAt || '', createdAt: s.createdAt || '', updatedAt: s.updatedAt || '' }; }
+function subscriberBrief(s) { return { id: s.id, email: s.email || '', firstName: s.firstName || '', lastName: s.lastName || '', name: subDisplayName(s), company: s.company || '', type: s.type || '', tags: Array.isArray(s.tags) ? s.tags : [], metros: Array.isArray(s.metros) ? s.metros : [], mode: (s.mode === 'metros' ? 'metros' : 'all'), status: (s.status === 'unsubscribed' ? 'unsubscribed' : 'subscribed'), source: s.source || '', personId: s.personId || '', lastEmailedAt: s.lastEmailedAt || '', createdAt: s.createdAt || '', updatedAt: s.updatedAt || '' }; }
+const SUBSCRIBER_TYPES = ['Broker', 'Restaurant', 'Buyer'];
 function subStats() { const a = loadSubscribers(); let sub = 0, un = 0, metros = 0; a.forEach(s => { if (s.status === 'unsubscribed') un++; else { sub++; if ((s.mode || 'all') === 'metros') metros++; } }); return { total: a.length, subscribed: sub, unsubscribed: un, metrosOnly: metros }; }
 function subTags() { return Array.from(loadSubscribers().reduce((m, s) => { (s.tags || []).forEach(t => t && m.add(t)); return m; }, new Set())).sort(); }
 app.get('/api/subscribers', (req, res) => {
@@ -7342,17 +7343,19 @@ app.get('/api/subscribers', (req, res) => {
   const status = String(req.query.status || '').trim();
   const tag = String(req.query.tag || '').trim().toLowerCase();
   const metro = String(req.query.metro || '').trim().toLowerCase();
+  const type = String(req.query.type || '').trim().toLowerCase();
   let list = loadSubscribers();
   if (status === 'subscribed') list = list.filter(s => s.status !== 'unsubscribed');
   else if (status === 'unsubscribed') list = list.filter(s => s.status === 'unsubscribed');
+  if (type) list = list.filter(s => String(s.type || '').toLowerCase() === type);
   if (tag) list = list.filter(s => (s.tags || []).some(t => String(t).toLowerCase() === tag));
   if (metro) list = list.filter(s => (s.metros || []).some(m => String(m).toLowerCase() === metro));
   if (q) list = list.filter(s => ((subDisplayName(s)) + ' ' + (s.email || '') + ' ' + (s.company || '')).toLowerCase().indexOf(q) >= 0);
   const total = list.length;
   list.sort((a, b) => String(subDisplayName(a)).toLowerCase().localeCompare(String(subDisplayName(b)).toLowerCase()));
-  res.json({ ok: true, subscribers: list.slice(0, 2000).map(subscriberBrief), total, stats: subStats(), allTags: subTags(), metros: effMarkets() });
+  res.json({ ok: true, subscribers: list.slice(0, 2000).map(subscriberBrief), total, stats: subStats(), allTags: subTags(), metros: effMarkets(), types: SUBSCRIBER_TYPES });
 });
-app.get('/api/subscribers/meta', (req, res) => { res.json({ ok: true, stats: subStats(), allTags: subTags(), metros: effMarkets(), contactTypes: effPersonTypes(), contactTags: allTagsList() }); });
+app.get('/api/subscribers/meta', (req, res) => { res.json({ ok: true, stats: subStats(), allTags: subTags(), metros: effMarkets(), types: SUBSCRIBER_TYPES, contactTypes: effPersonTypes(), contactTags: allTagsList() }); });
 app.post('/api/subscribers', express.json(), (req, res) => {
   const b = req.body || {}; const email = subKey(b.email); if (!massValidEmail(email)) return res.status(400).json({ ok: false, error: 'A valid email is required.' });
   const all = loadSubscribers(); let s;
@@ -7364,6 +7367,7 @@ app.post('/api/subscribers', express.json(), (req, res) => {
   if (b.name !== undefined) s.name = String(b.name || '').slice(0, 160);
   if (!s.name) s.name = ((s.firstName || '') + ' ' + (s.lastName || '')).trim();
   if (b.company !== undefined) s.company = String(b.company || '').slice(0, 160);
+  if (b.type !== undefined) s.type = String(b.type || '').slice(0, 40);           // Broker / Restaurant / Buyer
   if (Array.isArray(b.tags)) s.tags = b.tags.filter(Boolean).map(x => String(x).slice(0, 60)).slice(0, 40);
   if (Array.isArray(b.metros)) s.metros = b.metros.filter(Boolean).map(x => String(x).slice(0, 80)).slice(0, 60);
   if (b.mode !== undefined) s.mode = (b.mode === 'metros' ? 'metros' : 'all');
@@ -7419,6 +7423,8 @@ app.post('/api/subscribers/import', express.json({ limit: '3mb' }), (req, res) =
   saveSubscribers(all); res.json({ ok: true, added, updated, skipped, stats: subStats() });
 });
 app.get('/api/subscribers/contact-count', (req, res) => { try { res.json({ ok: true, count: massAudiencePeople(req.query && req.query.audience ? JSON.parse(req.query.audience) : {}).length }); } catch (e) { res.json({ ok: true, count: 0 }); } });
+// Single subscriber for the detail page. Defined after the named GETs above so 'meta'/'contact-count' aren't captured as an :id.
+app.get('/api/subscribers/:id', (req, res) => { const s = loadSubscribers().find(x => x.id === req.params.id); if (!s) return res.status(404).json({ ok: false, error: 'Subscriber not found.' }); res.json({ ok: true, subscriber: subscriberBrief(s), metros: effMarkets(), types: SUBSCRIBER_TYPES, allTags: subTags() }); });
 
 // ===== Mass Email Campaigns (send to the subscriber list) =====
 const CAMPAIGNS_FILE = path.join(BOV_DATA_DIR, 'campaigns.json');

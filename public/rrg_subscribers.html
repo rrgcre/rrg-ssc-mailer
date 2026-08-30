@@ -59,32 +59,37 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 </div>
 <script>
 var SUBS=[], META={allTags:[],metros:[],contactTypes:[],contactTags:[],stats:{}}, CTL=null, BUILT=false, EDIT=null, ESTATE={mode:'all',metros:[],status:'subscribed'}, DEL_ARM=false;
-var FILT={status:'',tag:'',metro:'',q:''};
+var FILT={status:'',type:'',tag:'',metro:'',q:''};
+var SUB_TYPES=['Broker','Restaurant','Buyer'];
 var IMP={mode:'metros',metros:[],ctypes:[],ctags:[]};
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 function api(m,u,b){return fetch(u,{method:m,credentials:'same-origin',headers:b?{'Content-Type':'application/json'}:undefined,body:b?JSON.stringify(b):undefined}).then(function(r){return r.json();});}
-function qstr(){ var p=[]; if(FILT.status)p.push('status='+encodeURIComponent(FILT.status)); if(FILT.tag)p.push('tag='+encodeURIComponent(FILT.tag)); if(FILT.metro)p.push('metro='+encodeURIComponent(FILT.metro)); if(FILT.q)p.push('q='+encodeURIComponent(FILT.q)); return p.length?('?'+p.join('&')):''; }
+function qstr(){ var p=[]; if(FILT.status)p.push('status='+encodeURIComponent(FILT.status)); if(FILT.type)p.push('type='+encodeURIComponent(FILT.type)); if(FILT.tag)p.push('tag='+encodeURIComponent(FILT.tag)); if(FILT.metro)p.push('metro='+encodeURIComponent(FILT.metro)); if(FILT.q)p.push('q='+encodeURIComponent(FILT.q)); return p.length?('?'+p.join('&')):''; }
+function fmtDate(d){ if(!d) return '—'; try{ return new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }catch(e){ return String(d); } }
 
 function drawTiles(){ var s=META.stats||{}; var el=document.getElementById('tiles'); if(!el) return; el.innerHTML=[['Total',s.total||0],['Subscribed',s.subscribed||0],['Market-only',s.metrosOnly||0],['Unsubscribed',s.unsubscribed||0]].map(function(t){ return '<div class="tile"><div class="n">'+t[1]+'</div><div class="l">'+t[0]+'</div></div>'; }).join(''); }
 
 var LIST_SHELL='<div class="card"><div class="hd"><b>Subscribers</b><span class="meta" id="scount" style="color:var(--muted);font-size:12.5px"></span><span class="sp"><button class="btn sm" id="b_import">Import</button><button class="btn sm pri" id="b_new">+ Add subscriber</button></span></div>'
-  +'<div class="filt"><input type="text" id="f_q" placeholder="Search name, email, company…"><select id="f_status"><option value="">All statuses</option><option value="subscribed">Subscribed</option><option value="unsubscribed">Unsubscribed</option></select><select id="f_tag"><option value="">All tags</option></select><select id="f_metro"><option value="">All markets</option></select></div>'
+  +'<div class="filt"><input type="text" id="f_q" placeholder="Search name, email, company…"><select id="f_type"><option value="">All types</option></select><select id="f_metro"><option value="">All areas</option></select><select id="f_status"><option value="">All statuses</option><option value="subscribed">Subscribed</option><option value="unsubscribed">Unsubscribed</option></select><select id="f_tag"><option value="">All tags</option></select></div>'
   +'<div class="cb"><div id="slist"><div class="empty">Loading…</div></div></div></div><div id="panel"></div>';
 
 function statusBadge(s){ return s.status==='unsubscribed'?'<span class="badge un">Unsub</span>':'<span class="badge sub">Subscribed</span>'; }
-function prefCell(s){ if(s.status==='unsubscribed') return '<span class="meta" style="color:var(--soft)">—</span>'; if(s.mode==='metros'){ var m=(s.metros||[]); return m.length?m.slice(0,3).map(function(x){return '<span class="badge met">'+esc(x)+'</span>';}).join('')+(m.length>3?(' +'+(m.length-3)):''):'<span class="meta" style="color:var(--soft)">any market</span>'; } return '<span class="meta">All emails</span>'; }
+function prefCell(s){ if(s.status==='unsubscribed') return '<span class="meta" style="color:var(--soft)">—</span>'; if(s.mode==='metros'){ var m=(s.metros||[]); return m.length?m.slice(0,3).map(function(x){return '<span class="badge met">'+esc(x)+'</span>';}).join('')+(m.length>3?(' +'+(m.length-3)):''):'<span class="meta" style="color:var(--soft)">any area</span>'; } return '<span class="badge met">All areas</span>'; }
 function tagCell(s){ var t=(s.tags||[]); return t.length?t.slice(0,3).map(function(x){return '<span class="badge tag">'+esc(x)+'</span>';}).join('')+(t.length>3?(' +'+(t.length-3)):''):'<span class="meta" style="color:var(--soft)">—</span>'; }
-function actionsCell(s){ return '<div class="acts"><button class="btn ghost sm" data-edit="'+esc(s.id)+'">Edit</button><button class="btn danger sm" data-del="'+esc(s.id)+'">Delete</button></div>'; }
+function actionsCell(s){ return '<div class="acts"><button class="btn ghost sm" data-edit="'+esc(s.id)+'">Open</button><button class="btn danger sm" data-del="'+esc(s.id)+'">Delete</button></div>'; }
+var TYPE_COLOR={Broker:['#eef2fb','#23496f','#d3ddf3'],Restaurant:['#fdf1df','#b5791f','#f0d7ad'],Buyer:['#e7f5ee','#1f8a5b','#bce3cd']};
+function typeCell(s){ if(!s.type) return '<span class="meta" style="color:var(--soft)">—</span>'; var c=TYPE_COLOR[s.type]||['#eef1f6','#5b6472','#e0e4ec']; return '<span class="badge" style="color:'+c[1]+';background:'+c[0]+';border:1px solid '+c[2]+'">'+esc(s.type)+'</span>'; }
 function listCfg(){ return { mount:'#slist', data:SUBS, key:'subscribers',
   empty:'<div class="empty">No subscribers here yet. Use <b>+ Add subscriber</b> or <b>Import</b>.</div>',
   rowId:function(s){return s.id;}, defaultSort:0, defaultDir:1,
   columns:[
-    { label:'Name', sort:function(a,b){return RRGList.cmp(a.name,b.name);}, cell:function(s){ return '<a href="#" class="lk" data-edit="'+esc(s.id)+'" style="color:var(--navy);font-weight:600;text-decoration:none">'+esc(s.name||s.email)+'</a>'; } },
+    { label:'Name', sort:function(a,b){return RRGList.cmp(a.name,b.name);}, cell:function(s){ return '<a class="lk" href="./rrg_subscriber.html?id='+encodeURIComponent(s.id)+'" style="color:var(--navy);font-weight:600;text-decoration:none">'+esc(s.name||s.email)+'</a>'; } },
     { label:'Email', sort:function(a,b){return RRGList.cmp(a.email,b.email);}, cell:function(s){ return '<span class="meta" style="color:var(--ink)">'+esc(s.email)+'</span>'; } },
     { label:'Company', sort:function(a,b){return RRGList.cmp(a.company,b.company);}, cell:function(s){ return s.company?esc(s.company):'<span class="meta" style="color:var(--soft)">—</span>'; } },
-    { label:'Tags', sortable:false, cell:tagCell },
-    { label:'Preference', sortable:false, cell:prefCell },
+    { label:'Type', sort:function(a,b){return RRGList.cmp(a.type,b.type);}, cell:typeCell },
+    { label:'Areas', sortable:false, cell:prefCell },
     { label:'Status', sort:function(a,b){return RRGList.cmp(a.status,b.status);}, cell:statusBadge },
+    { label:'Added', sort:function(a,b){return RRGList.cmp(a.createdAt,b.createdAt);}, cell:function(s){ return '<span class="meta" style="color:var(--soft)">'+esc(fmtDate(s.createdAt))+'</span>'; } },
     { label:'', sortable:false, cell:actionsCell }
   ] }; }
 function refreshList(){ if(CTL) CTL.refresh(SUBS); else CTL=RRGList.create(listCfg()); var c=document.getElementById('scount'); if(c) c.textContent=SUBS.length+(SUBS.length===2000?'+':'')+' shown'; }
@@ -146,17 +151,18 @@ function refreshContactCount(){ var c=document.getElementById('i_count'); api('G
 
 function load(){ return api('GET','/api/subscribers'+qstr()).then(function(j){ if(!j||!j.ok) return; SUBS=j.subscribers||[]; META.stats=j.stats||META.stats; META.allTags=j.allTags||[]; META.metros=j.metros||[]; render(); }); }
 function render(){ var root=document.getElementById('root'); if(!BUILT){ root.innerHTML=LIST_SHELL; BUILT=true; wireShell(); } drawTiles(); refreshList(); syncFilterOptions(); }
-function syncFilterOptions(){ var ft=document.getElementById('f_tag'); if(ft){ var cur=FILT.tag; ft.innerHTML='<option value="">All tags</option>'+(META.allTags||[]).map(function(t){return '<option value="'+esc(t)+'"'+(cur===t?' selected':'')+'>'+esc(t)+'</option>';}).join(''); } var fm=document.getElementById('f_metro'); if(fm){ var cm=FILT.metro; fm.innerHTML='<option value="">All markets</option>'+(META.metros||[]).map(function(t){return '<option value="'+esc(t)+'"'+(cm===t?' selected':'')+'>'+esc(t)+'</option>';}).join(''); } }
+function syncFilterOptions(){ var ft=document.getElementById('f_tag'); if(ft){ var cur=FILT.tag; ft.innerHTML='<option value="">All tags</option>'+(META.allTags||[]).map(function(t){return '<option value="'+esc(t)+'"'+(cur===t?' selected':'')+'>'+esc(t)+'</option>';}).join(''); } var fm=document.getElementById('f_metro'); if(fm){ var cm=FILT.metro; fm.innerHTML='<option value="">All areas</option>'+(META.metros||[]).map(function(t){return '<option value="'+esc(t)+'"'+(cm===t?' selected':'')+'>'+esc(t)+'</option>';}).join(''); } var fy=document.getElementById('f_type'); if(fy){ var cy=FILT.type; fy.innerHTML='<option value="">All types</option>'+((META.types&&META.types.length?META.types:SUB_TYPES)).map(function(t){return '<option value="'+esc(t)+'"'+(cy===t?' selected':'')+'>'+esc(t)+'</option>';}).join(''); } }
 function wireShell(){
-  document.getElementById('b_new').onclick=function(){ EDIT={id:'',email:'',tags:[],metros:[],mode:'all',status:'subscribed'}; editor(); };
+  document.getElementById('b_new').onclick=function(){ location.href='./rrg_subscriber.html?new=1'; };
   document.getElementById('b_import').onclick=importPanel;
   var fq=document.getElementById('f_q'); var t=null; fq.oninput=function(){ if(t)clearTimeout(t); t=setTimeout(function(){ FILT.q=fq.value.trim(); load(); },300); };
+  document.getElementById('f_type').onchange=function(){ FILT.type=this.value; load(); };
   document.getElementById('f_status').onchange=function(){ FILT.status=this.value; load(); };
   document.getElementById('f_tag').onchange=function(){ FILT.tag=this.value; load(); };
   document.getElementById('f_metro').onchange=function(){ FILT.metro=this.value; load(); };
 }
 document.addEventListener('click',async function(e){ if(!e.target.closest) return;
-  var ed=e.target.closest('[data-edit]'); if(ed){ e.preventDefault(); var s=curById(ed.getAttribute('data-edit')); if(s){ EDIT=JSON.parse(JSON.stringify(s)); editor(); } return; }
+  var ed=e.target.closest('[data-edit]'); if(ed){ e.preventDefault(); location.href='./rrg_subscriber.html?id='+encodeURIComponent(ed.getAttribute('data-edit')); return; }
   var dl=e.target.closest('[data-del]'); if(dl){ e.preventDefault(); var s2=curById(dl.getAttribute('data-del')); if(s2 && await rrgConfirm('Delete '+(s2.name||s2.email)+' from subscribers?')){ api('DELETE','/api/subscribers/'+encodeURIComponent(s2.id)).then(function(j){ if(j&&j.ok) load(); else alert((j&&j.error)||'Delete failed.'); }); } return; }
   var mc=e.target.closest('[data-metrochip]'); if(mc){ var v=mc.getAttribute('data-metrochip'); var i=ESTATE.metros.indexOf(v); if(i>=0)ESTATE.metros.splice(i,1); else ESTATE.metros.push(v); mc.classList.toggle('on'); return; }
   var it=e.target.closest('[data-ictype]'); if(it){ var v2=it.getAttribute('data-ictype'); var i2=IMP.ctypes.indexOf(v2); if(i2>=0)IMP.ctypes.splice(i2,1); else IMP.ctypes.push(v2); it.classList.toggle('on'); refreshContactCount(); return; }

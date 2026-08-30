@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FullServe — Subscriber</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;--inp:#cfd6e2;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);}
+.top{color:#fff;padding:22px 0 22px;background:radial-gradient(95% 130% at 28% 15%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
+.top-in{max-width:900px;margin:0 auto;padding:0 26px;}
+.brand{display:inline-flex;align-items:center;cursor:pointer;} .disc{background:var(--red);color:#fff;border-radius:50%;width:38px;height:38px;font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.bar{background:#fff;width:3px;height:26px;margin:0 11px;} .wm{font-weight:800;font-size:13px;text-transform:uppercase;line-height:.95;color:#fff;}
+.crumb{margin-top:16px;font-size:12.5px;color:#aeb8cf;} .crumb a{color:#cdd7ea;text-decoration:none;font-weight:700;} .crumb a:hover{text-decoration:underline;}
+.kicker{margin:14px 0 3px;color:var(--red);font-weight:700;letter-spacing:.28em;font-size:10.5px;text-transform:uppercase;}
+.top h1{font-size:25px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
+.sub{color:#aeb8cf;font-size:12.5px;margin-top:6px;}
+.wrap{max-width:900px;margin:20px auto;padding:0 26px 70px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 30px rgba(11,26,56,.06);overflow:hidden;}
+.ch{display:flex;align-items:center;gap:10px;padding:15px 20px;border-bottom:1px solid var(--line);} .ch b{color:var(--navy);font-size:15px;} .ch .sp{margin-left:auto;display:flex;gap:8px;align-items:center;}
+.body{padding:18px 20px 22px;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;} @media(max-width:620px){.row2{grid-template-columns:1fr;}}
+.fld{margin-bottom:14px;} .fld label{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);font-weight:800;margin-bottom:6px;}
+.fld input[type=text]{font:inherit;font-size:14px;padding:10px 12px;border:1px solid var(--inp);border-radius:9px;width:100%;color:var(--ink);background:#fff;}
+.seg{display:inline-flex;border:1px solid var(--inp);border-radius:9px;overflow:hidden;flex-wrap:wrap;}
+.seg label{font-size:12.5px;font-weight:700;padding:9px 15px;cursor:pointer;color:var(--muted);background:#fff;border-right:1px solid var(--inp);} .seg label:last-child{border-right:none;} .seg label.on{background:var(--navy);color:#fff;} .seg input{display:none;}
+.chips{display:flex;flex-wrap:wrap;gap:8px;}
+.chip{font:inherit;font-size:12.5px;font-weight:600;padding:6px 13px;border:1px solid var(--inp);border-radius:100px;background:#fff;color:var(--muted);cursor:pointer;}
+.chip.on{background:#0f5c3a;color:#fff;border-color:#0f5c3a;}
+.btn{font:inherit;font-size:13px;font-weight:700;padding:8px 15px;border:1px solid var(--inp);border-radius:9px;background:#fff;color:var(--navy);cursor:pointer;}
+.btn:hover{background:#f4f7fb;} .btn.sm{padding:7px 12px;font-size:12.5px;}
+.btn.pri{background:var(--navy);color:#fff;border-color:var(--navy);} .btn.pri:hover{filter:brightness(1.15);}
+.btn.red{background:var(--red);color:#fff;border-color:var(--red);}
+.btn.danger{color:var(--red);border-color:#f0c9c6;} .btn.danger:hover{background:#fdeceb;}
+.btn.ghost{background:#fff;}
+.hint{font-size:12px;color:var(--soft);margin-top:6px;line-height:1.5;}
+.msg{font-size:12.5px;font-weight:700;} .msg.ok{color:var(--green);} .msg.err{color:var(--red);}
+.gate{padding:40px 24px;text-align:center;color:var(--muted);font-size:14px;}
+.rrg-back{position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28);}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<a href="./rrg_subscribers.html" onclick="goBack();return false;" class="rrg-back" aria-label="Back to subscribers"><span style="font-size:14px;line-height:1">←</span> Subscribers</a>
+<div class="top"><div class="top-in">
+  <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+  <div class="crumb"><a href="./rrg_subscribers.html">Subscribers</a> &nbsp;›&nbsp; <span id="crumb">Subscriber</span></div>
+  <div class="kicker">Subscriber</div>
+  <h1 id="h1">Subscriber</h1>
+  <div class="sub" id="subline">Manage this person's marketing profile — type, areas of interest, and email preference.</div>
+</div></div>
+<div class="wrap"><div id="root"><div class="gate">Loading…</div></div></div>
+<script>
+function qs(k){ try{ return new URLSearchParams(location.search).get(k)||''; }catch(e){ return ''; } }
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function api(m,u,b){return fetch(u,{method:m,credentials:'same-origin',headers:b?{'Content-Type':'application/json'}:undefined,body:b?JSON.stringify(b):undefined}).then(function(r){return r.json();});}
+function goBack(){ if(document.referrer.indexOf('rrg_subscribers.html')>=0 && history.length>1){ history.back(); } else { location.href='./rrg_subscribers.html'; } }
+var EDIT=null, METROS=[], TYPES=['Broker','Restaurant','Buyer'], DEL_ARM=false;
+var ST={ type:'', status:'subscribed', mode:'all', metros:[] };
+
+function setHead(){ var nm=((EDIT.firstName||'')+' '+(EDIT.lastName||'')).trim()||EDIT.email||(EDIT.id?'Subscriber':'New subscriber'); document.getElementById('h1').textContent=nm; document.getElementById('crumb').textContent=nm; document.title='FullServe — '+nm; }
+
+function typeSeg(){ var opts=[['','None']].concat(TYPES.map(function(t){return [t,t];})); return '<div class="seg" id="typeSeg">'+opts.map(function(o){ return '<label data-type="'+esc(o[0])+'"'+(ST.type===o[0]?' class="on"':'')+'>'+esc(o[1])+'</label>'; }).join('')+'</div>'; }
+function metroChips(){ return (METROS||[]).map(function(m){ var on=ST.metros.indexOf(m)>=0; return '<button type="button" class="chip'+(on?' on':'')+'" data-metro="'+esc(m)+'">'+esc(m)+'</button>'; }).join(''); }
+
+function render(){
+  var host=document.getElementById('root');
+  if(!EDIT){ host.innerHTML='<div class="gate">Subscriber not found. <a href="./rrg_subscribers.html" style="color:var(--navy);font-weight:700">← Back to subscribers</a></div>'; return; }
+  setHead();
+  ST.type=EDIT.type||''; ST.status=(EDIT.status==='unsubscribed'?'unsubscribed':'subscribed'); ST.mode=(EDIT.mode==='metros'?'metros':'all'); ST.metros=(EDIT.metros||[]).slice();
+  host.innerHTML='<div class="card"><div class="ch"><b>'+(EDIT.id?'Edit subscriber':'New subscriber')+'</b><span class="sp"><span class="msg" id="msg"></span>'+(EDIT.id?'<button class="btn danger sm" id="delBtn">Delete</button>':'')+'<a class="btn ghost sm" href="./rrg_subscribers.html" onclick="goBack();return false;">Back to list</a><button class="btn red" id="saveBtn">Save</button></span></div><div class="body">'
+    +'<div class="row2"><div class="fld"><label>First name</label><input type="text" id="s_first" value="'+esc(EDIT.firstName||'')+'" placeholder="Maria"></div><div class="fld"><label>Last name</label><input type="text" id="s_last" value="'+esc(EDIT.lastName||'')+'" placeholder="Lopez"></div></div>'
+    +'<div class="row2"><div class="fld"><label>Email</label><input type="text" id="s_email" value="'+esc(EDIT.email||'')+'" placeholder="name@email.com"></div><div class="fld"><label>Company</label><input type="text" id="s_company" value="'+esc(EDIT.company||'')+'" placeholder="Blue Agave Cantina"></div></div>'
+    +'<div class="fld"><label>Type</label>'+typeSeg()+'<div class="hint">What kind of contact this is — drives who you segment for a campaign.</div></div>'
+    +'<div class="fld"><label>Status</label><div class="seg" id="statusSeg"><label data-status="subscribed"'+(ST.status==='subscribed'?' class="on"':'')+'>Subscribed</label><label data-status="unsubscribed"'+(ST.status==='unsubscribed'?' class="on"':'')+'>Unsubscribed</label></div></div>'
+    +'<div class="fld"><label>Areas of interest</label><div class="seg" id="modeSeg"><label data-mode="all"'+(ST.mode==='all'?' class="on"':'')+'>All areas</label><label data-mode="metros"'+(ST.mode==='metros'?' class="on"':'')+'>Specific areas</label></div><div class="hint">“All areas” = gets every campaign. “Specific areas” = only campaigns that overlap the areas below.</div></div>'
+    +'<div class="fld" id="metroWrap" style="'+(ST.mode==='metros'?'':'display:none')+'"><label>Areas</label><div class="chips" id="metroChips">'+metroChips()+'</div></div>'
+    +'<div class="fld"><label>Tags (comma-separated)</label><input type="text" id="s_tags" value="'+esc((EDIT.tags||[]).join(', '))+'" placeholder="e.g. buyer-list, austin-buyers"></div>'
+    +(EDIT.createdAt?('<div class="hint">Added '+esc((function(){try{return new Date(EDIT.createdAt).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});}catch(e){return EDIT.createdAt;}})())+(EDIT.source?(' · via '+esc(EDIT.source)):'')+'</div>'):'')
+    +'</div></div>';
+  document.getElementById('saveBtn').onclick=save;
+  var db=document.getElementById('delBtn'); if(db) db.onclick=onDelete;
+}
+
+function msg(t,cls){ var m=document.getElementById('msg'); if(!m) return; m.textContent=t; m.className='msg '+(cls||''); if(t){ setTimeout(function(){ if(m.textContent===t){m.textContent='';m.className='msg';} },3000); } }
+
+function save(){
+  var email=(document.getElementById('s_email').value||'').trim();
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ msg('Enter a valid email.','err'); document.getElementById('s_email').focus(); return; }
+  var body={ email:email, firstName:(document.getElementById('s_first').value||'').trim(), lastName:(document.getElementById('s_last').value||'').trim(), company:(document.getElementById('s_company').value||'').trim(), type:ST.type, status:ST.status, mode:ST.mode, metros:ST.metros, tags:(document.getElementById('s_tags').value||'').split(',').map(function(x){return x.trim();}).filter(Boolean) };
+  if(EDIT&&EDIT.id) body.id=EDIT.id;
+  var btn=document.getElementById('saveBtn'); btn.disabled=true;
+  api('POST','/api/subscribers',body).then(function(j){ btn.disabled=false; if(!j.ok){ msg(j.error||'Save failed.','err'); return; }
+    var wasNew=!(EDIT&&EDIT.id); EDIT=j.subscriber||Object.assign(EDIT||{},body); setHead(); msg('Saved ✓','ok');
+    if(wasNew && EDIT && EDIT.id){ try{ history.replaceState({},'', location.pathname+'?id='+encodeURIComponent(EDIT.id)); }catch(e){} render(); }
+  }).catch(function(){ btn.disabled=false; msg('Could not reach the server.','err'); });
+}
+function onDelete(){
+  if(!EDIT||!EDIT.id) return;
+  if(!DEL_ARM){ DEL_ARM=true; var b=document.getElementById('delBtn'); b.textContent='Really delete?'; b.classList.add('red'); b.classList.remove('danger'); setTimeout(function(){ if(DEL_ARM){ DEL_ARM=false; var x=document.getElementById('delBtn'); if(x){x.textContent='Delete';x.classList.add('danger');x.classList.remove('red');} } },3500); return; }
+  DEL_ARM=false;
+  api('DELETE','/api/subscribers/'+encodeURIComponent(EDIT.id)).then(function(j){ if(!j.ok){ msg(j.error||'Delete failed.','err'); return; } goBack(); });
+}
+
+document.addEventListener('click',function(e){ if(!e.target||!e.target.closest) return;
+  var ty=e.target.closest('#typeSeg [data-type]'); if(ty){ ST.type=ty.getAttribute('data-type'); Array.prototype.forEach.call(document.querySelectorAll('#typeSeg label'),function(l){ l.classList.toggle('on', l===ty); }); return; }
+  var st=e.target.closest('#statusSeg [data-status]'); if(st){ ST.status=st.getAttribute('data-status'); Array.prototype.forEach.call(document.querySelectorAll('#statusSeg label'),function(l){ l.classList.toggle('on', l===st); }); return; }
+  var md=e.target.closest('#modeSeg [data-mode]'); if(md){ ST.mode=md.getAttribute('data-mode'); Array.prototype.forEach.call(document.querySelectorAll('#modeSeg label'),function(l){ l.classList.toggle('on', l===md); }); var mw=document.getElementById('metroWrap'); if(mw) mw.style.display=(ST.mode==='metros')?'':'none'; return; }
+  var mc=e.target.closest('[data-metro]'); if(mc){ var v=mc.getAttribute('data-metro'); var i=ST.metros.indexOf(v); if(i>=0) ST.metros.splice(i,1); else ST.metros.push(v); mc.classList.toggle('on'); return; }
+});
+
+function boot(){
+  var id=qs('id'), isNew=qs('new')==='1';
+  if(isNew || !id){
+    api('GET','/api/subscribers/meta').then(function(j){ if(j&&j.ok){ METROS=j.metros||METROS; TYPES=(j.types&&j.types.length)?j.types:TYPES; } EDIT={id:'',email:'',firstName:'',lastName:'',company:'',type:'',tags:[],metros:[],mode:'all',status:'subscribed'}; render(); }).catch(function(){ EDIT={id:'',email:'',type:'',tags:[],metros:[],mode:'all',status:'subscribed'}; render(); });
+    return;
+  }
+  api('GET','/api/subscribers/'+encodeURIComponent(id)).then(function(j){
+    if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">Subscriber not found. <a href="./rrg_subscribers.html" style="color:var(--navy);font-weight:700">← Back to subscribers</a></div>'; return; }
+    EDIT=j.subscriber; METROS=j.metros||[]; TYPES=(j.types&&j.types.length)?j.types:TYPES; render();
+  }).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not load the subscriber. <a href="./rrg_subscribers.html" style="color:var(--navy);font-weight:700">← Back</a></div>'; });
+}
+boot();
+</script>
+</body>
+</html>
