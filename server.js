@@ -5334,7 +5334,7 @@ function assignmentView(d, overlay, _opts) {
     bbsRef: o.bbsRef || '', bbsNumber: o.bbsNumber || '', costarNo: o.costarNo || '', crexiNo: o.crexiNo || '', leadAutomationId: o.leadAutomationId || '',
     assignmentType: (['tenant_rep','landlord_rep'].indexOf(o.assignmentType) >= 0 ? o.assignmentType : 'listing'), criteria: (o.criteria && typeof o.criteria === 'object') ? o.criteria : {}, space: (o.space && typeof o.space === 'object') ? o.space : {},
     transaction: (o.transaction && typeof o.transaction === 'object') ? o.transaction : null,
-    value: (bov && (bov.targetText || bov.rangeText)) || '', basis: (bov && bov.basis) || '',
+    value: (bov && (bov.targetText || bov.rangeText)) || o.valueOverride || '', basis: (bov && bov.basis) || o.basisOverride || '', valueBov: !!(bov && (bov.targetText || bov.rangeText)), basisBov: !!(bov && bov.basis),
     // Financials auto-populated from the valuation (BOV) — no re-keying; always in sync with
     // the latest generated valuation, which itself now reflects the Seller Interview.
     financials: bov ? { valueTarget: bov.targetText || '', valueRange: bov.rangeText || '', revenue: bov.revText || bovRevenueText(bov) || '', sde: bov.sdeText || '', multiple: bov.multText || '', ebitda: bov.ebitdaText || '', basis: bov.basis || '', units: bovUnits(bov), bovId: bov.id, state: bov.finalizedAt ? 'final' : (bov.aiGenerated ? 'built' : 'requested') } : null,
@@ -6042,7 +6042,7 @@ app.get('/api/assignment/:key', (req, res) => {
   const origin = req.protocol + '://' + req.get('host');
   try { const _o = overlay[d.key] || {}; if (!_o.listingNo) { _o.listingNo = nextListingNo(); overlay[d.key] = _o; saveAssignOverlay(overlay); } } catch (e) {}
   const dealAgreements = loadAgreements().filter(a => a.dealKey === d.key).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999')));
-  res.json({ ok: true, statuses: ASSIGN_STATUSES, txnStatuses: TXN_STATUSES, commStatuses: TXN_COMM_STATUS, markets: effMarkets(), assignment: assignmentView(d, overlay), buyerPipelines: buyerPipelinesAll().map(function(p){return {id:p.id,name:p.name,stages:(p.stages||[]).map(function(x){return x.name;})};}), buyerPof: BUYER_POF, agreements: dealAgreements, agreementTypes: effAgreementTypes(), pipelines: loadPipelines(), automations: loadAutomations().filter(a => a.active !== false).map(a => ({ id: a.id, name: a.name || '' })), expenses: dealExpenseRollup(d.key, req.user), invoices: dealInvoiceRollup(d.key, req.user), roomActivity: roomActivityFor(d, origin) });
+  res.json({ ok: true, statuses: ASSIGN_STATUSES, txnStatuses: TXN_STATUSES, commStatuses: TXN_COMM_STATUS, markets: effMarkets(), assignment: assignmentView(d, overlay), buyerPipelines: buyerPipelinesAll().map(function(p){return {id:p.id,name:p.name,stages:(p.stages||[]).map(function(x){return x.name;})};}), buyerPof: BUYER_POF, agreements: dealAgreements, agreementTypes: effAgreementTypes(), pipelines: loadPipelines(), automations: loadAutomations().filter(a => a.active !== false).map(a => ({ id: a.id, name: a.name || '' })), expenses: dealExpenseRollup(d.key, req.user), invoices: dealInvoiceRollup(d.key, req.user), roomActivity: roomActivityFor(d, origin), canChangePrice: userCan(req.user, 'change_price') });
 });
 app.post('/api/assignment/:key/promote', express.json(), (req, res) => {
   const key = req.params.key;
@@ -6080,7 +6080,7 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   if (typeof b.referredById === 'string') cur.referredById = b.referredById.slice(0, 40);
   if (typeof b.contact === 'string') cur.contact = b.contact.slice(0, 120);            // seller / client contact name
   if (typeof b.clientPersonId === 'string') cur.clientPersonId = b.clientPersonId.slice(0, 40); // link to the contact record
-  if (typeof b.listPrice === 'string') {
+  if (typeof b.listPrice === 'string' && userCan(req.user, 'change_price')) {   // pricing is permission-gated (marketing's job when enforcement is on)
     const _newLP = b.listPrice.slice(0, 40), _oldLP = cur.listPrice || '';
     if (_newLP !== _oldLP) {                       // record every asking-price change as a dated history entry
       if (!Array.isArray(cur.priceHistory)) cur.priceHistory = [];
@@ -6112,6 +6112,8 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   if (typeof b.assignmentType === 'string') cur.assignmentType = (['tenant_rep','landlord_rep'].indexOf(b.assignmentType) >= 0) ? b.assignmentType : 'listing';
   if (b.criteria && typeof b.criteria === 'object') cur.criteria = _cleanCriteria(b.criteria);
   if (b.space && typeof b.space === 'object') cur.space = _cleanSpace(b.space);
+  if (typeof b.valueOverride === 'string') cur.valueOverride = b.valueOverride.slice(0, 60);   // manual opinion-of-value when no BOV
+  if (typeof b.basisOverride === 'string') cur.basisOverride = b.basisOverride.slice(0, 60);
   if (typeof b.pipelineId === 'string') cur.pipelineId = b.pipelineId.slice(0, 40);
   cur.updatedAt = new Date().toISOString();
   overlay[d.key] = cur; saveAssignOverlay(overlay);
@@ -16591,6 +16593,7 @@ const PERM_CORE = [
   { key: 'edit_all', cat: 'Records', label: "Edit others' records" },
   { key: 'delete', cat: 'Records', label: 'Delete records', note: 'Companies, contacts & other records' },
   { key: 'reassign', cat: 'Records', label: 'Reassign ownership' },
+  { key: 'change_price', cat: 'Records', label: 'Change asking / list price', note: 'Off = the asking price is read-only for them (marketing controls pricing)' },
   { key: 'export_data', cat: 'Records', label: 'Export & print lists', note: 'Off = cannot download CSV or print lists' },
   { key: 'view_calendars', cat: 'Calendar', label: "See other users' calendars", note: 'Off = only their own meetings' },
   { key: 'manage_loi', cat: 'LOI', label: 'Manage LOI clause library' },

@@ -72,11 +72,12 @@ ul,ol{margin:9px 0 9px 4px;padding-left:22px;} li{margin:5px 0;}
       <a href="#buyers">6 · Buyer leads &amp; matching</a>
       <a href="#activity">7 · NDAs, tours &amp; offers</a>
       <a href="#deal">8 · Deal, expenses &amp; invoices</a>
-      <a href="#dataroom">9 · Data room activity</a>
-      <a href="#leads">10 · Lead routing &amp; marketing IDs</a>
-      <a href="#layout">11 · Make the layout yours</a>
-      <a href="#lease">12 · Lease &amp; tenant-rep listings</a>
-      <a href="#faq">13 · FAQ</a>
+      <a href="#financials">9 · Financials, value &amp; pricing</a>
+      <a href="#dataroom">10 · Data room activity</a>
+      <a href="#leads">11 · Lead routing &amp; marketing IDs</a>
+      <a href="#layout">12 · Make the layout yours</a>
+      <a href="#lease">13 · Lease &amp; tenant-rep listings</a>
+      <a href="#faq">14 · FAQ</a>
     </nav>
   </aside>
 
@@ -158,32 +159,45 @@ ul,ol{margin:9px 0 9px 4px;padding-left:22px;} li{margin:5px 0;}
       <p>Open the <b>Deal</b> when a buyer goes under contract — buyer, price, and close date — to track it to closing. <b>Deal Expenses</b> records costs tied to the listing, and <b>Invoices</b> lets you bill your commission with the invoice filed against the listing. Signed <b>Agreements</b> generated for the listing collect on the rail here too.</p>
     </section>
 
+    <section class="card" id="financials">
+      <h2><span class="n">9</span> Financials, value &amp; pricing</h2>
+      <p class="lead">Top and bottom line in one place — and controlled, tracked pricing.</p>
+      <ul>
+        <li><b>Snapshot</b> — asking price, opinion of value, and the price multiple (asking ÷ the latest year's earnings) across the top of the Financials card.</li>
+        <li><b>3-year financials</b> — enter revenue, SDE, EBITDA and rent per year; rename a period header to <b>TTM</b> for a trailing-twelve column. These are the numbers a buyer asks for first.</li>
+        <li><b>From the BOV, or by hand</b> — when a valuation (BOV) exists, opinion of value and basis flow from it automatically. With no BOV, type them right here so the listing is never blank.</li>
+        <li><b>Changing the asking price is a controlled action</b> — it's not free-typed. Whoever holds the <b>Change asking price</b> permission (your marketing team) uses the <b>Change</b> button to set a new price and an optional reason; everyone else sees the price read-only.</li>
+        <li><b>Every change is tracked</b> — each price change is logged with its date, the previous price, and the reason, building a price history right on the listing.</li>
+      </ul>
+      <p style="font-size:13px;color:#6b7488">The pricing permission only takes effect once an admin turns on <b>Enforce permissions</b> and grants the <b>Change asking price</b> right to the marketing role. Until then, anyone who can edit the listing can change the price.</p>
+    </section>
+
     <section class="card" id="dataroom">
-      <h2><span class="n">9</span> Data room activity</h2>
+      <h2><span class="n">10</span> Data room activity</h2>
       <p class="lead">See which buyers are actually digging in.</p>
       <p>The <b>Data Room Activity</b> card shows who accessed the room, who signed in with an access code, and what they downloaded — a running read on buyer engagement. Use <b>Open room →</b> to jump into the room itself to add buyers, share the link, or manage documents.</p>
     </section>
 
     <section class="card" id="leads">
-      <h2><span class="n">10</span> Lead routing &amp; marketing IDs</h2>
+      <h2><span class="n">11</span> Lead routing &amp; marketing IDs</h2>
       <p class="lead">Tie your outside listing IDs to this record so inbound buyer leads attach themselves automatically.</p>
       <p>In Manage, set the <b>BizBuySell Ref ID</b> and <b>#</b>, <b>CoStar / LoopNet #</b>, and <b>Crexi #</b> for the listing. Imported buyer leads that carry those IDs then auto-attach to the right listing. You can also pick an <b>automation</b> to run on every lead that comes in for this listing — an instant follow-up, a task, a tag — so nothing sits.</p>
     </section>
 
     <section class="card" id="layout">
-      <h2><span class="n">11</span> Make the layout yours</h2>
+      <h2><span class="n">12</span> Make the layout yours</h2>
       <p class="lead">The right rail is yours to arrange — just like the Contact and Company detail pages.</p>
       <p>Grab any card by its <b>⠿</b> handle and drag it up or down to reorder, and use the <b>▾</b> chevron to collapse the ones you don't need. Your order and which cards are collapsed are saved <b>on this device</b>, so the listing opens the way you left it. The Manage panel on the left and the overview cards in the middle stay put.</p>
     </section>
 
     <section class="card" id="lease">
-      <h2><span class="n">12</span> Lease &amp; tenant-rep listings</h2>
+      <h2><span class="n">13</span> Lease &amp; tenant-rep listings</h2>
       <p class="lead">The same file runs a tenant-rep or landlord engagement, with the fields that fit that work.</p>
       <p>On a tenant-rep listing, the marketing-IDs box is replaced by the <b>site criteria</b> — markets, use type, budget, size range, term, timeline, parking, and required features — the same vocabulary the tenant-box uses to match spaces. The pipeline, agreement dates, expenses, invoices, and reorderable rail all work the same way.</p>
     </section>
 
     <section class="card" id="faq">
-      <h2><span class="n">13</span> FAQ</h2>
+      <h2><span class="n">14</span> FAQ</h2>
       <div class="fq"><h3>I don't see a Buyer pipeline to pick.</h3><p>None exists yet. In Admin → Pipelines, create a pipeline and set its Practice area to <b>Buyer</b>, then add your stages. It'll show in the Buyer pipeline field on every listing.</p></div>
       <div class="fq"><h3>Where do I add a buyer lead?</h3><p>On the Buyer Leads card in the right rail — the <b>+</b> button. Or import buyers in bulk from BizBuySell using the Import leads button on the Listings page; leads carrying this listing's marketing IDs attach automatically.</p></div>
       <div class="fq"><h3>Why don't any matching buyers show?</h3><p>Matching needs the listing characterized — set its concept, market, or price in Publish to Marketplace. Only <b>active</b> buyers (buy-box toggled on) are matched.</p></div>
