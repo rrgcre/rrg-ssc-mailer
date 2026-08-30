@@ -330,7 +330,7 @@ select.nlselect{appearance:none;-webkit-appearance:none;-moz-appearance:none;bac
   </div>
 </div>
 <script>
-function _nlFillMarkets(sel){ var s=document.getElementById('nl_market'); if(!s) return; var mk=(typeof BB_METROS!=='undefined'&&Array.isArray(BB_METROS)&&BB_METROS.length)?BB_METROS.slice():['Austin','Dallas','Fort Worth','Houston','San Antonio','Rio Grande Valley','Central Texas','Other']; if(sel&&mk.map(function(x){return String(x).toLowerCase();}).indexOf(String(sel).toLowerCase())<0) mk.push(sel); var seen={},opts='<option value="">\u2014 Select market \u2014</option>'; mk.forEach(function(m){ m=String(m||'').trim(); if(!m||seen[m.toLowerCase()])return; seen[m.toLowerCase()]=1; opts+='<option value="'+esc(m)+'"'+((sel&&String(sel).toLowerCase()===m.toLowerCase())?' selected':'')+'>'+esc(m)+'</option>'; }); s.innerHTML=opts; }
+function _nlFillMarkets(sel){ var s=document.getElementById('nl_market'); if(!s) return; var mk=(typeof BB_METROS!=='undefined'&&Array.isArray(BB_METROS))?BB_METROS.slice():[]; if(sel&&mk.map(function(x){return String(x).toLowerCase();}).indexOf(String(sel).toLowerCase())<0) mk.push(sel); var seen={},opts='<option value="">\u2014 Select market \u2014</option>'; mk.forEach(function(m){ m=String(m||'').trim(); if(!m||seen[m.toLowerCase()])return; seen[m.toLowerCase()]=1; opts+='<option value="'+esc(m)+'"'+((sel&&String(sel).toLowerCase()===m.toLowerCase())?' selected':'')+'>'+esc(m)+'</option>'; }); s.innerHTML=opts; }
 function openNewListing(){ if(typeof P==='undefined'||!P) return; document.getElementById('nl_client').textContent=P.name||'this contact'; var _bz=document.getElementById('nl_biz'); _bz.value=(typeof CO!=='undefined'&&CO&&CO.name)||''; _nlFillMarkets((typeof CO!=='undefined'&&CO&&CO.market)||''); document.getElementById('nl_msg').textContent=''; document.getElementById('nlModal').style.display='flex'; setTimeout(function(){ _bz.focus(); _bz.select(); },30); }
 var _nlT=null;
 function _nlHideMenu(){ var m=document.getElementById('nl_matches'); if(m){ m.hidden=true; m.innerHTML=''; } }
@@ -350,7 +350,7 @@ document.addEventListener('click',function(e){ var t=e.target.closest&&e.target.
 </script>
 <div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
 <script>
-var MARKETS=['Austin','Houston','Dallas','San Antonio'];
+var MARKETS=[]; // hydrated from the admin Markets list (effMarkets) on load
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 // Gmail returns snippets/subjects/bodies HTML-escaped (&#39; &amp; …). Decode them once so
 // esc() below doesn't double-escape and show the raw entities.
@@ -1675,7 +1675,7 @@ function render(){
 }
 // ===== Buyer Buy-Box (vocabulary MUST match server MKT_ constants) =====
 var BB_CONCEPTS=['Breakfast / Brunch','Bar / Nightlife','Fast Casual','Full Service','Café / Bakery','Pizza','Steakhouse','Other'];
-var BB_METROS=['San Antonio','Austin','Houston','Dallas','Fort Worth','Other'];
+var BB_METROS=[]; // hydrated from the admin Markets list (effMarkets) on load
 var BB_PRICE=[['','Any'],['u1m','Under $1M'],['1-3m','$1M–$3M'],['3-5m','$3M–$5M'],['5m+','$5M+']];
 var BB_CASH=[['','Any'],['250k','$250K+ SDE'],['500k','$500K+ SDE'],['1m','$1M+ SDE']];
 function buyBoxCard(){
@@ -1888,7 +1888,7 @@ window.addEventListener('beforeunload',function(e){ if(DIRTY){ e.preventDefault(
 function load(){
   if(!ID){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px">No contact selected. <a href="./rrg_people.html">Back to contacts →</a></div>'; return; }
   fetch('/api/person/'+encodeURIComponent(ID),{credentials:'same-origin'}).then(function(r){ if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); }); return r.json(); })
-    .then(function(j){ P=j.person; if(P){ P.appointments=j.appointments||[]; P.apptTypes=j.apptTypes||[]; } CO=j.company; DEALS=j.deals||[]; OFFERS=j.offers||[]; TOURS=j.tours||[]; NDAS=j.ndas||[]; INTERESTED=j.interested||[]; AUTOMATIONS=j.automations||[]; AGREEMENTS=j.agreements||[]; ATYPES=j.agreementTypes||[]; PTYPES=j.personTypes||PTYPES; LEADSOURCES=j.leadSources||[]; if(Array.isArray(j.markets)&&j.markets.length) BB_METROS=j.markets; TB_CONCEPTS=j.companyConcepts||[]; ALLTAGS=j.allTags||[]; EMAILREADY=!!j.emailReady; ACTIVITIES=j.activities||[]; ACTTYPES=j.activityTypes||[]; USERS=j.users||[]; IS_ADMIN=!!j.isAdmin; CAN_DELETE=!!j.canDelete; CANROOMS=!!j.canRooms; render(); setCoCrumb(); _pReady=true; maybeAutoSend(); loadGmail(); loadEmailTpls2(); loadDocs(); loadTasksCo(); })
+    .then(function(j){ P=j.person; if(P){ P.appointments=j.appointments||[]; P.apptTypes=j.apptTypes||[]; } CO=j.company; DEALS=j.deals||[]; OFFERS=j.offers||[]; TOURS=j.tours||[]; NDAS=j.ndas||[]; INTERESTED=j.interested||[]; AUTOMATIONS=j.automations||[]; AGREEMENTS=j.agreements||[]; ATYPES=j.agreementTypes||[]; PTYPES=j.personTypes||PTYPES; LEADSOURCES=j.leadSources||[]; if(Array.isArray(j.markets)&&j.markets.length){ BB_METROS=j.markets; MARKETS=j.markets; } TB_CONCEPTS=j.companyConcepts||[]; ALLTAGS=j.allTags||[]; EMAILREADY=!!j.emailReady; ACTIVITIES=j.activities||[]; ACTTYPES=j.activityTypes||[]; USERS=j.users||[]; IS_ADMIN=!!j.isAdmin; CAN_DELETE=!!j.canDelete; CANROOMS=!!j.canRooms; render(); setCoCrumb(); _pReady=true; maybeAutoSend(); loadGmail(); loadEmailTpls2(); loadDocs(); loadTasksCo(); })
     .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this contact.')+'<br><br><a href="./rrg_people.html" style="color:#000E31;font-weight:700">← Back to contacts</a></div>'; });
 }
 fetch('/api/companies',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ COMPANIESLIST=(j&&j.companies)||[]; }).catch(function(){});
