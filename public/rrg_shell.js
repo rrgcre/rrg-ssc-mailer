@@ -160,20 +160,20 @@
   var NAV = [
     { color: '#8fa2c4', items: [
       { ic: '☀︎', label: 'Daily Brief', href: 'rrg_brief.html', ai: true },
-      { ic: '◱', label: 'Feed', href: 'rrg_feed.html' },
       { ic: '✔', label: 'Tasks', href: 'rrg_tasks.html' },
-      { ic: '◫', label: 'Calendar', href: 'rrg_calendar.html' }
+      { ic: '◫', label: 'Calendar', href: 'rrg_calendar.html' },
+      { ic: '◱', label: 'Feed', href: 'rrg_feed.html' }
+    ] },
+    { grp: 'Book of Business', color: '#7ea6d8', items: [
+      { ic: '▦', label: 'Companies', href: 'rrg_companies.html' },
+      { ic: '◑', label: 'Contacts', href: 'rrg_people.html' },
+      { ic: '❐', label: 'Documents', href: 'rrg_documents.html' },
     ] },
     { grp: 'Business Sales', color: '#6bbf95', items: [
       { ic: '⊞', label: 'Listings', href: 'rrg_board.html' },
       { ic: '◎', label: 'Buyers', href: 'rrg_buyer_board.html' },
       { ic: '▥', label: 'Data Rooms', href: 'rrg_rooms_queue.html' },
       { ic: '◈', label: 'Deals', href: 'rrg_deals.html' }
-    ] },
-    { grp: 'Book of Business', color: '#7ea6d8', items: [
-      { ic: '▦', label: 'Companies', href: 'rrg_companies.html' },
-      { ic: '◑', label: 'Contacts', href: 'rrg_people.html' },
-      { ic: '❐', label: 'Documents', href: 'rrg_documents.html' },
     ] },
     { grp: 'Tenant Rep', color: '#dfa937', items: [
       { ic: '◆', label: 'Assignments', href: 'rrg_assignments.html?type=tenant_rep' },
