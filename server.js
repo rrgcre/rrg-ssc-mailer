@@ -5258,6 +5258,8 @@ function assignmentsIndex() {
   return deals;
 }
 function _cleanCriteria(c){ c=c||{}; var S=function(v,n){return String(v==null?'':v).slice(0,n);}; return { markets:S(c.markets,400), useType:S(c.useType,120), sizeMin:S(c.sizeMin,20), sizeMax:S(c.sizeMax,20), budget:S(c.budget,80), termYears:S(c.termYears,20), timeline:S(c.timeline,120), parking:S(c.parking,80), features:S(c.features,1000), notes:S(c.notes,4000) }; }
+// Landlord-rep listing: the available space we're marketing for lease.
+function _cleanSpace(s){ s=s||{}; var S=function(v,n){return String(v==null?'':v).slice(0,n);}; return { sizeSqft:S(s.sizeSqft,40), askingRent:S(s.askingRent,60), term:S(s.term,60), condition:S(s.condition,60), useType:S(s.useType,120), availableDate:S(s.availableDate,20), features:S(s.features,1000), notes:S(s.notes,4000) }; }
 // ---- Listing media: photos (disk) + video/Matterport embed URLs, stored on the listing overlay ----
 function dealKeySafe(k){ return String(k||'').replace(/[^A-Za-z0-9_]/g,'_').slice(0,80); }
 function newPhotoId(){ return 'ph_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
@@ -5330,7 +5332,7 @@ function assignmentView(d, overlay, _opts) {
     buyerStages: buyerStagesFor(o),
     buyerSummary: buyerSummary(o.buyers, buyerStageNamesFor(o)),
     bbsRef: o.bbsRef || '', bbsNumber: o.bbsNumber || '', costarNo: o.costarNo || '', crexiNo: o.crexiNo || '', leadAutomationId: o.leadAutomationId || '',
-    assignmentType: (o.assignmentType === 'tenant_rep') ? 'tenant_rep' : 'listing', criteria: (o.criteria && typeof o.criteria === 'object') ? o.criteria : {},
+    assignmentType: (['tenant_rep','landlord_rep'].indexOf(o.assignmentType) >= 0 ? o.assignmentType : 'listing'), criteria: (o.criteria && typeof o.criteria === 'object') ? o.criteria : {}, space: (o.space && typeof o.space === 'object') ? o.space : {},
     transaction: (o.transaction && typeof o.transaction === 'object') ? o.transaction : null,
     value: (bov && (bov.targetText || bov.rangeText)) || '', basis: (bov && bov.basis) || '',
     // Financials auto-populated from the valuation (BOV) — no re-keying; always in sync with
@@ -6107,8 +6109,9 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   if (typeof b.costarNo === 'string') cur.costarNo = b.costarNo.replace(/[^0-9A-Za-z-]/g, '').slice(0, 40);
   if (typeof b.crexiNo === 'string') cur.crexiNo = b.crexiNo.replace(/[^0-9A-Za-z-]/g, '').slice(0, 40);
   if (typeof b.leadAutomationId === 'string') cur.leadAutomationId = b.leadAutomationId.slice(0, 40);
-  if (typeof b.assignmentType === 'string') cur.assignmentType = (b.assignmentType === 'tenant_rep') ? 'tenant_rep' : 'listing';
+  if (typeof b.assignmentType === 'string') cur.assignmentType = (['tenant_rep','landlord_rep'].indexOf(b.assignmentType) >= 0) ? b.assignmentType : 'listing';
   if (b.criteria && typeof b.criteria === 'object') cur.criteria = _cleanCriteria(b.criteria);
+  if (b.space && typeof b.space === 'object') cur.space = _cleanSpace(b.space);
   if (typeof b.pipelineId === 'string') cur.pipelineId = b.pipelineId.slice(0, 40);
   cur.updatedAt = new Date().toISOString();
   overlay[d.key] = cur; saveAssignOverlay(overlay);
@@ -12082,7 +12085,8 @@ app.post('/api/deal/new', express.json(), (req, res) => {
   };
   // Onboarding: open the company file for the subject business...
   const _isTR = String(b.type || '') === 'tenant_rep';
-  const company = findOrCreateCompany(req, { name: rec.business, market: rec.market, type: _isTR ? 'Buyer' : 'Seller' });
+  const _isLL = String(b.type || '') === 'landlord_rep';
+  const company = findOrCreateCompany(req, { name: rec.business, market: rec.market, type: _isTR ? 'Buyer' : (_isLL ? 'Landlord' : 'Seller') });
   if (company) rec.companyId = company.id;
   // ...and locate the existing client, or onboard them, associated with that company.
   if (rec.contact || b.contactEmail) { const p = findOrCreatePerson(req, { name: rec.contact, email: b.contactEmail, type: 'Client', companyId: rec.companyId }); if (p) { rec.contactPersonId = p.id; if (!rec.contact) rec.contact = p.name; } }
@@ -12090,7 +12094,8 @@ app.post('/api/deal/new', express.json(), (req, res) => {
   const room = ensureRoomForDeal(req, rec);   // auto-build its structured data room
   if (room) rec.roomId = room.id;
   saveDeals(arr);
-  if (_isTR) { try { const _ov = loadAssignOverlay(); const _k = 'd_' + rec.id; _ov[_k] = Object.assign(_ov[_k] || {}, { assignmentType: 'tenant_rep' }); saveAssignOverlay(_ov); } catch (e) {} }
+  const _atype = _isTR ? 'tenant_rep' : (_isLL ? 'landlord_rep' : '');
+  if (_atype) { try { const _ov = loadAssignOverlay(); const _k = 'd_' + rec.id; _ov[_k] = Object.assign(_ov[_k] || {}, { assignmentType: _atype }); saveAssignOverlay(_ov); } catch (e) {} }
   // Manually-entered listings begin life as Unqualified (front of the pipeline) until the rep
   // qualifies them — mirrors how a new contact-linked lead enters the board.
   try {
@@ -12100,7 +12105,7 @@ app.post('/api/deal/new', express.json(), (req, res) => {
     if (!_ov[_k].status) _ov[_k].status = 'Unqualified';
     if (!_ov[_k].stageSince) _ov[_k].stageSince = _nowIso;
     let _pipe = null;
-    try { const _cat = _isTR ? 'tenantRep' : 'businessSale'; const _pid = (typeof pipelineForCategory === 'function' && pipelineForCategory(_cat)) || (_isTR ? 'p_tenantrep' : 'p_bizsales'); const _pls = loadPipelines(); _pipe = _pls.find(pl => pl.id === _pid) || _pls.find(pl => pl.id === 'p_bizsales'); } catch (e) {}
+    try { const _cat = _isTR ? 'tenantRep' : (_isLL ? 'landlordLease' : 'businessSale'); const _pid = (typeof pipelineForCategory === 'function' && pipelineForCategory(_cat)) || (_isTR ? 'p_tenantrep' : (_isLL ? 'p_llrep' : 'p_bizsales')); const _pls = loadPipelines(); _pipe = _pls.find(pl => pl.id === _pid) || _pls.find(pl => pl.id === 'p_bizsales'); } catch (e) {}
     if (_pipe && !_ov[_k].pipelineStage) { _ov[_k].pipelineId = _pipe.id; _ov[_k].pipelineStage = (_pipe.stages && _pipe.stages[0] && _pipe.stages[0].name) || 'Unqualified'; }
     saveAssignOverlay(_ov);
   } catch (e) {}

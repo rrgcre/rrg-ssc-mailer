@@ -5,28 +5,140 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>FullServe — Landlord Rep</title>
 <style>
-:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--line:#e6e9f0;--tan:#c98a5e;}
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;--inp:#cfd6e2;}
 *{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);}
-.wrap{max-width:1000px;margin:0 auto;padding:26px 28px 60px;}
-.pgh{font-size:26px;font-weight:700;color:var(--navy);margin:6px 0 2px;}
-.pgs{color:var(--muted);font-size:13.5px;margin-bottom:22px;max-width:720px;line-height:1.5;}
-.soon{background:#fff;border:1px solid var(--line);border-radius:16px;padding:46px 30px;text-align:center;box-shadow:0 6px 24px rgba(10,20,50,.05);}
-.soon .badge{display:inline-block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--tan);background:#f6ece2;border:1px solid #e6ccb3;border-radius:100px;padding:5px 14px;margin-bottom:16px;}
-.soon h2{font-size:20px;font-weight:700;color:var(--navy);margin:0 0 8px;}
-.soon p{color:var(--muted);font-size:14px;line-height:1.6;max-width:540px;margin:0 auto;}
+.top{color:#fff;padding:26px 0 24px;position:relative;overflow:hidden;background:radial-gradient(95% 130% at 28% 15%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
+.top-in{max-width:1180px;margin:0 auto;padding:0 26px;position:relative;z-index:2;}
+.brand{display:inline-flex;align-items:center;cursor:pointer;} .disc{background:var(--red);color:#fff;border-radius:50%;width:42px;height:42px;font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.bar{background:#fff;width:3px;height:30px;margin:0 12px;} .wm{font-weight:800;font-size:14px;text-transform:uppercase;line-height:.95;color:#fff;}
+.kicker{margin:18px 0 4px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:11px;text-transform:uppercase;}
+.top h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
+.sub{color:#aeb8cf;font-size:13px;margin-top:7px;max-width:720px;line-height:1.5;}
+.wrap{max-width:1180px;margin:20px auto;padding:0 26px 70px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:0 8px 30px rgba(11,26,56,.06);}
+.hd{display:flex;align-items:center;gap:10px;padding:15px 18px;border-bottom:1px solid var(--line);flex-wrap:wrap;}
+.hd b{font-size:15px;color:var(--navy);}
+.meta{font-size:12px;color:var(--soft);font-weight:600;}
+.btn{border:1px solid var(--inp);background:#fff;color:var(--navy);border-radius:8px;padding:7px 13px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+.btn.pri{background:var(--navy);color:#fff;border-color:var(--navy);}
+.btn.pri:hover{filter:brightness(1.12);}
+.searchwrap{position:relative;display:flex;align-items:center;margin-left:auto;}
+.searchic{position:absolute;left:10px;color:var(--soft);pointer-events:none;}
+.searchwrap input{border:1px solid var(--inp);border-radius:8px;padding:8px 30px 8px 32px;font:inherit;font-size:13px;width:280px;max-width:44vw;}
+.searchx{position:absolute;right:6px;border:none;background:none;color:var(--soft);font-size:16px;cursor:pointer;display:none;line-height:1;padding:2px 6px;}
+.searchx.show{display:block;}
+.cb{padding:4px 6px 8px;}
+.badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;}
+.badge.st{background:#eef2fb;color:#23496f;border:1px solid #d3ddf3;}
+.lk{color:var(--navy);font-weight:700;text-decoration:none;}
+.lk:hover{text-decoration:underline;}
+.empty{color:var(--muted);font-size:14px;padding:34px 8px;text-align:center;}
+/* modal */
+.bmodal{position:fixed;inset:0;background:rgba(6,14,36,.5);display:flex;align-items:center;justify-content:center;z-index:80;padding:20px;}
+.bmodal[hidden]{display:none;}
+.bmodalcard{background:#fff;border-radius:14px;width:520px;max-width:100%;box-shadow:0 24px 70px rgba(6,14,36,.4);overflow:hidden;}
+.bmodalh{font-size:17px;font-weight:800;color:var(--navy);padding:18px 22px 4px;}
+.bmodalb{padding:8px 22px 18px;}
+.bmfld{display:block;font-size:12px;font-weight:700;color:#66738f;margin:11px 0 5px;}
+.bmodalb input{width:100%;border:1px solid var(--inp);border-radius:8px;padding:10px 12px;font:inherit;font-size:14px;color:#000E31;}
+.bmodalnote{background:var(--wash);border:1px solid var(--line);border-radius:8px;padding:9px 12px;font-size:12px;color:#4a5570;margin-top:12px;line-height:1.5;}
+.bmodalbtns{display:flex;justify-content:flex-end;gap:10px;padding:6px 22px 18px;}
 </style>
 <script src="/rrg_brand.js"></script>
+<script src="/rrg_list.js"></script>
 </head>
 <body>
+<div class="top"><div class="top-in">
+  <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+  <div class="kicker">Landlord Rep</div>
+  <h1>Space Listings</h1>
+  <div class="sub">Every restaurant &amp; bar space you're marketing for lease on behalf of a landlord — the available space, the landlord contact, and the tenant prospects working toward a signed lease. Open a listing to run it end to end.</div>
+</div></div>
 <div class="wrap">
-  <h1 class="pgh">Landlord Rep</h1>
-  <div class="pgs">Representing landlords leasing restaurant and bar space — listing available spaces, marketing them to operators, screening tenants, and running lease negotiations to signed lease.</div>
-  <div class="soon">
-    <div class="badge">Coming soon</div>
-    <h2>The Landlord Rep workflow is on the way</h2>
-    <p>This is the placeholder for the landlord-side practice area — space listings, tenant screening, tour tracking, and lease negotiation tools. It's being built out; nothing here is live yet.</p>
+  <div class="card">
+    <div class="hd">
+      <b>Space Listings</b><span class="meta" id="count"></span>
+      <button class="btn pri" id="newBtn" style="margin-left:12px">+ New space listing</button>
+      <div class="searchwrap">
+        <svg class="searchic" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"></circle><line x1="12.8" y1="12.8" x2="17.5" y2="17.5"></line></svg>
+        <input id="search" placeholder="Search space, landlord, market…" oninput="applyFilter()" autocomplete="off">
+        <button type="button" class="searchx" id="searchx" title="Clear" onclick="var s=document.getElementById('search');s.value='';applyFilter();s.focus();">×</button>
+      </div>
+    </div>
+    <div class="cb"><div id="list"><div class="empty">Loading…</div></div></div>
   </div>
 </div>
+
+<div id="newModal" class="bmodal" hidden><div class="bmodalcard">
+  <div class="bmodalh">New space listing</div>
+  <div class="bmodalb">
+    <label class="bmfld">Space / listing name</label><input id="n_name" placeholder="e.g. Former Cantina — 1200 S Congress" autocomplete="off">
+    <label class="bmfld">Market</label><input id="n_market" list="marketList" placeholder="Start typing a market…" autocomplete="off"><datalist id="marketList"></datalist>
+    <label class="bmfld">Landlord contact</label><input id="n_contact" list="peopleList" placeholder="Landlord / property owner — type a contact name…" autocomplete="off" oninput="updateHint()">
+    <datalist id="peopleList"></datalist>
+    <div class="bmodalnote" id="hint">Creates the listing on your Landlord Rep board, links the landlord to your registry, and builds its data room — then opens the listing so you can add the space details.</div>
+  </div>
+  <div class="bmodalbtns">
+    <button class="btn" id="n_cancel">Cancel</button>
+    <button class="btn pri" id="n_create">Create listing</button>
+  </div>
+</div></div>
+
+<div id="root"></div>
+<script>
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function fmt(d){ if(!d) return '—'; try{ return new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }catch(e){ return String(d); } }
+function api(m,u,b){return fetch(u,{method:m,credentials:'same-origin',headers:b?{'Content-Type':'application/json'}:undefined,body:b?JSON.stringify(b):undefined}).then(function(r){return r.json();});}
+var ALL=[], PEOPLE=[], CTL=null;
+
+function listCfg(data){ return { mount:'#list', data:data||[], key:'llrep', rowId:function(a){return a.key;}, defaultSort:5, defaultDir:-1,
+  empty:'<div class="empty">No space listings yet. Click <b>+ New space listing</b> to add a landlord’s space you’re marketing for lease.</div>',
+  columns:[
+    { label:'Space / listing', sort:function(a,b){return RRGList.cmp(a.business,b.business);}, cell:function(a){ return '<a class="lk" href="./rrg_assignment.html?key='+encodeURIComponent(a.key)+'">'+esc(a.business||'Untitled')+'</a>'+(a.codeName?(' <span style="color:#8a93a8;font-size:11.5px">🔒 '+esc(a.codeName)+'</span>'):''); } },
+    { label:'Landlord', sort:function(a,b){return RRGList.cmp(a.contact,b.contact);}, cell:function(a){ return a.contact?esc(a.contact):'<span style="color:#b0b8c6">—</span>'; } },
+    { label:'Market', sort:function(a,b){return RRGList.cmp(a.market,b.market);}, cell:function(a){ return a.market?esc(a.market):'<span style="color:#b0b8c6">—</span>'; } },
+    { label:'Size', sort:function(a,b){return RRGList.cmp((a.space||{}).sizeSqft,(b.space||{}).sizeSqft);}, cell:function(a){ var v=(a.space||{}).sizeSqft; return v?(esc(v)+' SF'):'<span style="color:#b0b8c6">—</span>'; } },
+    { label:'Asking rent', sort:function(a,b){return RRGList.cmp((a.space||{}).askingRent,(b.space||{}).askingRent);}, cell:function(a){ var v=(a.space||{}).askingRent; return v?esc(v):'<span style="color:#b0b8c6">—</span>'; } },
+    { label:'Status', sort:function(a,b){return RRGList.cmp(a.status,b.status);}, cell:function(a){ return '<span class="badge st">'+esc(a.status||'New')+'</span>'; } },
+    { label:'Updated', sort:function(a,b){return RRGList.cmp(a.lastActivity,b.lastActivity);}, cell:function(a){ return '<span class="meta">'+esc(fmt(a.lastActivity))+'</span>'; } }
+  ] }; }
+
+function applyFilter(){
+  var q=(document.getElementById('search').value||'').toLowerCase().trim();
+  var qt=q.split(/\s+/).filter(Boolean);
+  var list=ALL.filter(function(a){ if(!qt.length) return true; var sp=a.space||{}; var hay=((a.business||'')+' '+(a.contact||'')+' '+(a.market||'')+' '+(a.status||'')+' '+(sp.sizeSqft||'')+' '+(sp.askingRent||'')+' '+(sp.useType||'')+' '+(a.codeName||'')).toLowerCase(); return qt.every(function(x){return hay.indexOf(x)>=0;}); });
+  var sx=document.getElementById('searchx'); if(sx) sx.classList.toggle('show', !!q);
+  if(CTL) CTL.refresh(list); else CTL=RRGList.create(listCfg(list));
+  var c=document.getElementById('count'); if(c) c.textContent=list.length+' '+(list.length===1?'listing':'listings');
+}
+
+function load(){
+  api('GET','/api/assignments').then(function(j){
+    ALL=((j&&j.assignments)||[]).filter(function(a){ return (a.assignmentType||'listing')==='landlord_rep'; });
+    if(j&&Array.isArray(j.metros)){ var dl=document.getElementById('marketList'); if(dl) dl.innerHTML=j.metros.map(function(m){return '<option value="'+esc(m)+'"></option>';}).join(''); }
+    applyFilter();
+  }).catch(function(){ var l=document.getElementById('list'); if(l) l.innerHTML='<div class="empty">Could not load listings.</div>'; });
+}
+function loadPeople(){ api('GET','/api/people').then(function(j){ PEOPLE=(j&&j.people)||[]; var dl=document.getElementById('peopleList'); if(dl) dl.innerHTML=PEOPLE.map(function(p){return '<option value="'+esc(p.name)+'">'+esc(p.company||p.email||p.type||'')+'</option>';}).join(''); }).catch(function(){}); }
+
+function openModal(){ document.getElementById('newModal').removeAttribute('hidden'); var b=document.getElementById('n_name'); if(b) b.focus(); }
+function closeModal(){ document.getElementById('newModal').setAttribute('hidden',''); ['n_name','n_market','n_contact'].forEach(function(id){var e=document.getElementById(id); if(e) e.value='';}); updateHint(); }
+function updateHint(){ var h=document.getElementById('hint'); if(!h) return; var v=(document.getElementById('n_contact').value||'').trim(); var m=PEOPLE.filter(function(p){return String(p.name||'').trim().toLowerCase()===v.toLowerCase();})[0]; if(m){ h.innerHTML='✓ Linking to existing contact <b>'+esc(m.name)+'</b>'+(m.company?(' · '+esc(m.company)):'')+'. This listing joins their record.'; } else if(v){ h.innerHTML='New contact — <b>'+esc(v)+'</b> will be onboarded as the landlord for this listing.'; } else { h.innerHTML='Creates the listing on your Landlord Rep board, links the landlord to your registry, and builds its data room — then opens the listing so you can add the space details.'; } }
+function createListing(){
+  var name=(document.getElementById('n_name').value||'').trim(); if(!name){ document.getElementById('n_name').focus(); return; }
+  var contact=(document.getElementById('n_contact').value||'').trim(); if(!contact){ document.getElementById('n_contact').focus(); var h=document.getElementById('hint'); if(h) h.innerHTML='<b style="color:#DA2B1F">A landlord contact is required — every listing links to a contact.</b>'; return; }
+  var btn=document.getElementById('n_create'); btn.disabled=true; btn.textContent='Creating…';
+  api('POST','/api/deal/new',{business:name,market:(document.getElementById('n_market').value||'').trim(),contact:contact,type:'landlord_rep'}).then(function(j){
+    if(j&&j.ok){ location.href='./rrg_assignment.html?key='+encodeURIComponent(j.key); }
+    else { btn.disabled=false; btn.textContent='Create listing'; alert((j&&j.error)||'Could not create the listing.'); }
+  }).catch(function(){ btn.disabled=false; btn.textContent='Create listing'; alert('Could not reach the server.'); });
+}
+document.getElementById('newBtn').addEventListener('click',openModal);
+document.getElementById('n_cancel').addEventListener('click',closeModal);
+document.getElementById('n_create').addEventListener('click',createListing);
+document.getElementById('newModal').addEventListener('click',function(e){ if(e.target&&e.target.id==='newModal') closeModal(); });
+load(); loadPeople();
+</script>
 </body>
 </html>
