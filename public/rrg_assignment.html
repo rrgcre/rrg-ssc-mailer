@@ -584,6 +584,33 @@ function crBox(){
 }
 // ---------- Publish to Marketplace (blind teaser lives on the listing) ----------
 var MKT=null; var MKT_FLAG_LBL={'':'None','new':'New','price':'New price'};
+// ---------- Financials snapshot + price history (the deal's top & bottom line) ----------
+function _lpNum(s){ s=String(s==null?'':s).trim(); if(/[–—]|\d\s*[-]\s*\d/.test(s)) return 0; /* a range/band — don't compute a misleading multiple */ var suf=(s.match(/([kmb])\s*$/i)||[])[1]; var mult=suf?({k:1e3,m:1e6,b:1e9})[suf.toLowerCase()]:1; var n=parseFloat(s.replace(/[^0-9.]/g,'')); return isFinite(n)?n*mult:0; }
+function _histRow(h,isOrig){
+  var when=fmt(h.at); var tag=isOrig?'<span style="color:#6b7488">original ask</span>':'';
+  if(!isOrig && h.prev){ var a=_lpNum(h.price), b=_lpNum(h.prev); if(a&&b){ tag=(a<b)?('<span style="color:#1f8a5b;font-weight:700">↓ reduced</span> <span style="color:#8a93a8">from '+esc(h.prev)+'</span>'):('<span style="color:#b5791f;font-weight:700">↑ raised</span> <span style="color:#8a93a8">from '+esc(h.prev)+'</span>'); } else if(!b){ tag='<span style="color:#6b7488">set</span>'; } }
+  return '<div style="display:flex;align-items:baseline;gap:10px;padding:6px 0;border-top:1px solid #eef1f6"><span style="font-size:12px;color:#8a93a8;min-width:76px;flex:none">'+esc(when)+'</span><span style="font-weight:700;color:#000E31;min-width:100px;flex:none">'+esc(h.price||'—')+'</span><span style="font-size:12px">'+tag+(h.note?(' · '+esc(h.note)):'')+'</span></div>';
+}
+function financialsCard(){
+  if(A && A.assignmentType==='tenant_rep') return '';           // business-sales concept only
+  var fin=(A&&A.financials)||{};
+  var ask=A.listPrice||'';
+  var basis=(/ebitda/i.test(fin.basis||'')?'EBITDA':'SDE');
+  var earn=((basis==='EBITDA')?(fin.ebitda||fin.sde):(fin.sde||fin.ebitda))||'';
+  var rev=fin.revenue||'';
+  var val=A.value||fin.valueTarget||fin.valueRange||'';
+  var mult=''; var aN=_lpNum(ask), eN=_lpNum(earn);
+  if(aN>0&&eN>0) mult=(aN/eN).toFixed(1)+'× '+basis; else if(fin.multiple) mult=fin.multiple;
+  var cell=function(k,v){ return '<div class="ovf"><div class="ovk">'+k+'</div><div class="ovv">'+(v?esc(v):'—')+'</div></div>'; };
+  var snap='<div class="ovgrid">'+cell('Asking price',ask)+cell('Opinion of value',val)+cell('Revenue',rev)+cell(basis,earn)+cell('Multiple',mult)+'</div>';
+  var hist=(A&&Array.isArray(A.priceHistory))?A.priceHistory.slice():[];
+  var histHtml='';
+  if(hist.length){ var rows=hist.map(function(h,i){ return _histRow(h, i===0 && !h.prev); }).reverse().join(''); histHtml='<div style="margin-top:14px"><div style="font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8;margin-bottom:2px">Price history</div>'+rows+'</div>'; }
+  var bovLink=(fin.bovId)?('<a href="./rrg_bov_builder.html?bov='+encodeURIComponent(fin.bovId)+'" style="margin-left:auto;font-size:12px;font-weight:700;color:#23496f;text-decoration:none">Open BOV ↗</a>'):'';
+  var note=(!rev&&!earn&&!val)?('<div style="font-size:12px;color:#8a93a8;padding:4px 0 0;line-height:1.5">Financials populate from the valuation. <a href="./rrg_bov_builder.html'+(fin.bovId?('?bov='+encodeURIComponent(fin.bovId)):'')+'" style="color:#2c5c8f;font-weight:700;text-decoration:none">Open the BOV ↗</a> to add revenue, earnings and value.</div>'):'';
+  return '<div class="card" id="finCardHost"><div class="ch"><b>Financials</b><span style="margin-left:8px">top &amp; bottom line</span>'+bovLink+'</div><div class="cb" style="padding-top:14px">'+snap+note+histHtml+'</div></div>';
+}
+function refreshFinancials(){ var host=document.getElementById('finCardHost'); if(host){ var tmp=document.createElement('div'); tmp.innerHTML=financialsCard(); var fresh=tmp.firstChild; if(fresh&&host.parentNode) host.parentNode.replaceChild(fresh,host); } var av=document.getElementById('ovAskVal'); if(av) av.textContent=(A.listPrice||'—'); }
 function mktCardShell(){ if(A && A.assignmentType==='tenant_rep') return ''; return '<div class="card" id="mktCard"><div class="ch"><b>Publish to Marketplace</b><span id="mktStatus" style="margin-left:10px;font-size:12px;color:#8a93a3">Loading…</span><a href="/market" target="_blank" rel="noopener" style="margin-left:auto;font-size:12px;font-weight:700;color:#23496f;text-decoration:none">Open public page ↗</a></div><div class="cb" id="mktBody" style="padding-top:14px"></div></div>'; }
 function loadMarketplace(){ if(!KEY) return; fetch('/api/marketplace/'+encodeURIComponent(KEY),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ MKT=j; fillMarketplaceCard(); } else { var s=document.getElementById('mktStatus'); if(s) s.textContent=''; var b=document.getElementById('mktBody'); if(b) b.innerHTML='<div style="color:#8a93a3;font-size:13px">Marketplace publishing isn’t available for this listing.</div>'; } }).catch(function(){}); }
 function _mkOpts(arr,sel,blank){ var o=blank?('<option value="">'+esc(blank)+'</option>'):''; return o+(arr||[]).map(function(x){return '<option value="'+esc(x)+'"'+(x===sel?' selected':'')+'>'+esc(x)+'</option>';}).join(''); }
@@ -703,6 +730,7 @@ function render(){
       +_tile(done+'<span style="font-size:13px;color:#8a93a8;font-weight:700">/'+ST.length+'</span>','Stages done')
     +'</div>'
     +'<div class="ovgrid">'
+      +((A.assignmentType==='tenant_rep')?'':'<div class="ovf"><div class="ovk">Asking price</div><div class="ovv" id="ovAskVal">'+(A.listPrice?esc(A.listPrice):'—')+'</div></div>')
       +'<div class="ovf"><div class="ovk">Guide / value</div><div class="ovv">'+(A.value?esc(A.value):'—')+'</div></div>'
       +'<div class="ovf"><div class="ovk">Basis</div><div class="ovv">'+(A.basis?esc(A.basis):'—')+'</div></div>'
       +'<div class="ovf"><div class="ovk">Market</div><div class="ovv">'+(A.market?esc(A.market):'—')+'</div></div>'
@@ -745,6 +773,7 @@ function render(){
       + '<div class="fldrow"><label class="fld">Business name</label><input class="owner" id="f_biz" value="'+esc(A.businessOverride||A.business||'')+'" placeholder="The actual business name"></div>'
       + '<div class="fldrow"><label class="fld">Code name <span style="font-weight:400;color:#8a93a8;font-size:11px">— confidential project alias</span> <button type="button" id="suggestCodeBtn" class="suggestbtn" title="Generate a confidential project name">✦ Suggest</button></label><input class="owner" id="f_codename" value="'+esc(A.codeName||'')+'" placeholder="e.g. Project Falcon"></div>'
       + '<div class="fldrow"><label class="fld">Market</label><input class="owner" id="f_market" list="marketList" value="'+esc(_curMkt)+'" placeholder="Type a market…" autocomplete="off"><datalist id="marketList">'+mktDl+'</datalist></div>'
+      + (A.assignmentType==='tenant_rep' ? '' : '<div class="fldrow"><label class="fld">Asking price <span style="font-weight:400;color:#8a93a8;font-size:11px">— what you’re marketing at; changes are tracked</span></label><input class="owner" id="f_listprice" value="'+esc(A.listPrice||'')+'" placeholder="e.g. $1,250,000" autocomplete="off"></div>')
       + '<div class="listingbox">'
         + '<div class="listinghd">Listing agreement</div>'
         + '<div class="fldrow2"><div><label class="fld">Listed on</label><input type="date" class="owner" id="f_lstart" value="'+esc(A.listingStart||'')+'"></div>'
@@ -771,6 +800,7 @@ function render(){
     _sideHtml
     + '<div class="mid">'
     + '<div class="card"><div class="ch"><b>Overview</b><span>'+done+' of '+ST.length+' stages complete</span></div><div class="cb">'+facts+'</div></div>'
+    + financialsCard()
     + photosCard()
     + docsCard()
     + '<div class="card"><div class="ch"><b>Seller Pipeline</b>'+(pipeName?('<span style="margin-left:8px;color:var(--navy);font-weight:700;font-size:11.5px;background:#eef2fb;border:1px solid #d3ddf3;border-radius:999px;padding:2px 10px">'+esc(pipeName)+'</span>'):'')+'<span>'+started+' of '+ST.length+' started</span></div><div class="track"><div class="hpipe">'+steps+'</div></div></div>'
@@ -791,13 +821,13 @@ function render(){
     + '</div>'
     + peopleDatalistHTML();
 
-  ['f_status','f_owner','f_contact','f_refby','f_refpct','f_biz','f_codename','f_market','f_notes','f_lstart','f_lexp','f_llive','f_lauto','f_bbsref','f_bbsnum','f_costar','f_crexi','f_leadauto','cr_markets','cr_use','cr_budget','cr_sizemin','cr_sizemax','cr_term','cr_timeline','cr_parking','cr_features','cr_crnotes'].forEach(function(id){
+  ['f_status','f_owner','f_contact','f_refby','f_refpct','f_biz','f_codename','f_market','f_listprice','f_notes','f_lstart','f_lexp','f_llive','f_lauto','f_bbsref','f_bbsnum','f_costar','f_crexi','f_leadauto','cr_markets','cr_use','cr_budget','cr_sizemin','cr_sizemax','cr_term','cr_timeline','cr_parking','cr_features','cr_crnotes'].forEach(function(id){
     var el=document.getElementById(id); if(!el) return;
     var ev=(el.tagName==='SELECT'||el.type==='checkbox'||el.type==='date')?'change':'input';
     el.addEventListener(ev,function(){ setDirty(true); if(id==='f_lexp'||id==='f_lauto') updateExpNote(); });
   });
   // Autosave: save on leaving a field (change/blur) or after a ~1s pause while typing.
-  (function(){ var _aAS=null; function commit(){ if(_aAS){ clearTimeout(_aAS); _aAS=null; } if(DIRTY) save(); } function pause(){ if(_aAS) clearTimeout(_aAS); _aAS=setTimeout(commit,1000); } ['f_status','f_owner','f_contact','f_refby','f_refpct','f_biz','f_codename','f_market','f_notes','f_lstart','f_lexp','f_llive','f_lauto','f_bbsref','f_bbsnum','f_costar','f_crexi','f_leadauto','cr_markets','cr_use','cr_budget','cr_sizemin','cr_sizemax','cr_term','cr_timeline','cr_parking','cr_features','cr_crnotes'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener('input',pause); el.addEventListener('change',commit); }); })();
+  (function(){ var _aAS=null; function commit(){ if(_aAS){ clearTimeout(_aAS); _aAS=null; } if(DIRTY) save(); } function pause(){ if(_aAS) clearTimeout(_aAS); _aAS=setTimeout(commit,1000); } ['f_status','f_owner','f_contact','f_refby','f_refpct','f_biz','f_codename','f_market','f_listprice','f_notes','f_lstart','f_lexp','f_llive','f_lauto','f_bbsref','f_bbsnum','f_costar','f_crexi','f_leadauto','cr_markets','cr_use','cr_budget','cr_sizemin','cr_sizemax','cr_term','cr_timeline','cr_parking','cr_features','cr_crnotes'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener('input',pause); el.addEventListener('change',commit); }); })();
   updateExpNote();
   document.getElementById('savebtn').addEventListener('click',function(){save();});
   var scb=document.getElementById('suggestCodeBtn'); if(scb) scb.addEventListener('click',function(){ var s=suggestCodeName(); var el=document.getElementById('f_codename'); if(!el) return; el.value=s; el.focus(); try{el.setSelectionRange(s.length,s.length);}catch(e){} setDirty(true); save(); });
@@ -1396,13 +1426,15 @@ function updateExpNote(){
 }
 function save(rerender){
   var b=document.getElementById('savebtn'); b.disabled=true; b.textContent='Saving…';
-  var body={ status:document.getElementById('f_status').value, owner:document.getElementById('f_owner').value, notes:document.getElementById('f_notes').value, businessOverride:document.getElementById('f_biz').value, codeName:(document.getElementById('f_codename')||{}).value||'', marketOverride:(document.getElementById('f_market')||{}).value||'',
+  var body={ status:document.getElementById('f_status').value, owner:document.getElementById('f_owner').value, notes:document.getElementById('f_notes').value, businessOverride:document.getElementById('f_biz').value, codeName:(document.getElementById('f_codename')||{}).value||'', marketOverride:(document.getElementById('f_market')||{}).value||'', listPrice:(document.getElementById('f_listprice')||{}).value||'',
     contact:(document.getElementById('f_contact')||{}).value||'', clientPersonId:(function(){ var _cn=((document.getElementById('f_contact')||{}).value||'').trim(); if(!_cn) return ''; var _m=PEOPLE.filter(function(p){return String(p.name||'').trim().toLowerCase()===_cn.toLowerCase();})[0]; return _m?_m.id:''; })(),
     referredBy:document.getElementById('f_refby').value, referralPct:document.getElementById('f_refpct').value, listingLive:document.getElementById('f_llive').value, listingStart:document.getElementById('f_lstart').value, listingExpires:document.getElementById('f_lexp').value, autoRenew:document.getElementById('f_lauto').checked, bbsRef:(document.getElementById('f_bbsref')||{}).value||'', bbsNumber:(document.getElementById('f_bbsnum')||{}).value||'', costarNo:(document.getElementById('f_costar')||{}).value||'', crexiNo:(document.getElementById('f_crexi')||{}).value||'', leadAutomationId:(document.getElementById('f_leadauto')||{}).value||'', assignmentType:(A&&A.assignmentType)||'listing', criteria:((A&&A.assignmentType==='tenant_rep')?{markets:(document.getElementById('cr_markets')||{}).value||'',useType:(document.getElementById('cr_use')||{}).value||'',budget:(document.getElementById('cr_budget')||{}).value||'',sizeMin:(document.getElementById('cr_sizemin')||{}).value||'',sizeMax:(document.getElementById('cr_sizemax')||{}).value||'',termYears:(document.getElementById('cr_term')||{}).value||'',timeline:(document.getElementById('cr_timeline')||{}).value||'',parking:(document.getElementById('cr_parking')||{}).value||'',features:(document.getElementById('cr_features')||{}).value||'',notes:(document.getElementById('cr_crnotes')||{}).value||''}:undefined), pipelineId:(document.getElementById('f_pipeline')||{}).value||(A.pipelineId||''), buyerPipelineId:(document.getElementById('f_buyerpipe')||{}).value||(A&&A.buyerPipelineId)||'' };
   fetch('/api/assignment/'+encodeURIComponent(KEY)+'/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
     .then(function(r){return r.json();}).then(function(j){
       b.textContent='Save changes';
-      if(j&&j.ok){ DIRTY=false; A.status=body.status; A.owner=body.owner; A.notes=body.notes; A.businessOverride=body.businessOverride; A.codeName=body.codeName; A.referredBy=body.referredBy; A.referralPct=body.referralPct; A.listingLive=body.listingLive; A.listingStart=body.listingStart; A.listingExpires=body.listingExpires; A.autoRenew=body.autoRenew; A.bbsRef=body.bbsRef; A.bbsNumber=body.bbsNumber; A.costarNo=body.costarNo; A.crexiNo=body.crexiNo; A.leadAutomationId=body.leadAutomationId; A.pipelineId=body.pipelineId; if(rerender===true){ render(); return; }
+      if(j&&j.ok){ DIRTY=false; A.status=body.status; A.owner=body.owner; A.notes=body.notes; A.businessOverride=body.businessOverride; A.codeName=body.codeName; A.referredBy=body.referredBy; A.referralPct=body.referralPct; A.listingLive=body.listingLive; A.listingStart=body.listingStart; A.listingExpires=body.listingExpires; A.autoRenew=body.autoRenew; A.bbsRef=body.bbsRef; A.bbsNumber=body.bbsNumber; A.costarNo=body.costarNo; A.crexiNo=body.crexiNo; A.leadAutomationId=body.leadAutomationId; A.pipelineId=body.pipelineId;
+        (function(){ var _new=(body.listPrice||''), _old=(A.listPrice||''); if(_new!==_old){ A.listPrice=_new; if(!Array.isArray(A.priceHistory)) A.priceHistory=[]; A.priceHistory.push({price:_new,prev:_old,at:new Date().toISOString(),by:'',note:''}); if(typeof refreshFinancials==='function') refreshFinancials(); } })();
+        if(rerender===true){ render(); return; }
         document.getElementById('subline').querySelector('.hpill').textContent=body.status;
         if(body.businessOverride){ A.business=body.businessOverride; document.getElementById('h1').textContent=body.businessOverride; document.getElementById('crumb').textContent=body.businessOverride; }
         var s=document.getElementById('saved'); s.classList.add('show'); setTimeout(function(){ s.classList.remove('show'); },2200);

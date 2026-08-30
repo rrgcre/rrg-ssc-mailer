@@ -5320,7 +5320,7 @@ function assignmentView(d, overlay, _opts) {
     companyId: deal ? (deal.companyId || '') : '', company: (deal && deal.companyId && companyById(deal.companyId)) ? companyBrief(companyById(deal.companyId)) : null,
     roomId: (room && room.id) || (deal && deal.roomId) || '',
     status: o.status || 'New', notes: o.notes || '', shareTeam: !!o.shareTeam, owner: o.owner || by, businessOverride: o.businessOverride || '', codeName: o.codeName || '', listingNo: o.listingNo || 0, listingId: (o.listingNo ? ('RRG-' + o.listingNo) : ''),
-    stageFlags: o.stageFlags || {}, pipelineId: o.pipelineId || '', needsSetup: !!o.needsSetup, fromBbs: !!o.fromBbs, referredBy: o.referredBy || '', referredById: o.referredById || '', referralPct: o.referralPct || '', listPrice: o.listPrice || '', totalCommission: o.totalCommission || '', listingLive: o.listingLive || '', listingStart: o.listingStart || '', listingExpires: o.listingExpires || '', autoRenew: !!o.autoRenew, renewable: !!o.renewable,
+    stageFlags: o.stageFlags || {}, pipelineId: o.pipelineId || '', needsSetup: !!o.needsSetup, fromBbs: !!o.fromBbs, referredBy: o.referredBy || '', referredById: o.referredById || '', referralPct: o.referralPct || '', listPrice: o.listPrice || '', priceHistory: Array.isArray(o.priceHistory) ? o.priceHistory : [], totalCommission: o.totalCommission || '', listingLive: o.listingLive || '', listingStart: o.listingStart || '', listingExpires: o.listingExpires || '', autoRenew: !!o.autoRenew, renewable: !!o.renewable,
     offers: Array.isArray(o.offers) ? o.offers : [],
     tours: Array.isArray(o.tours) ? o.tours : [],
     ndas: Array.isArray(o.ndas) ? o.ndas : [],
@@ -6078,7 +6078,15 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   if (typeof b.referredById === 'string') cur.referredById = b.referredById.slice(0, 40);
   if (typeof b.contact === 'string') cur.contact = b.contact.slice(0, 120);            // seller / client contact name
   if (typeof b.clientPersonId === 'string') cur.clientPersonId = b.clientPersonId.slice(0, 40); // link to the contact record
-  if (typeof b.listPrice === 'string') cur.listPrice = b.listPrice.slice(0, 40);
+  if (typeof b.listPrice === 'string') {
+    const _newLP = b.listPrice.slice(0, 40), _oldLP = cur.listPrice || '';
+    if (_newLP !== _oldLP) {                       // record every asking-price change as a dated history entry
+      if (!Array.isArray(cur.priceHistory)) cur.priceHistory = [];
+      cur.priceHistory.push({ price: _newLP, prev: _oldLP, at: new Date().toISOString(), by: (req.user && req.user.username) || '', note: (typeof b.priceNote === 'string' ? b.priceNote.slice(0, 200) : '') });
+      if (cur.priceHistory.length > 60) cur.priceHistory = cur.priceHistory.slice(-60);
+    }
+    cur.listPrice = _newLP;
+  }
   if (typeof b.totalCommission === 'string') cur.totalCommission = b.totalCommission.slice(0, 40);
   if (typeof b.buyerPipelineId === 'string') cur.buyerPipelineId = b.buyerPipelineId.slice(0, 40);
   if (typeof b.shareTeam === 'boolean') cur.shareTeam = b.shareTeam;
