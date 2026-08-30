@@ -5320,7 +5320,7 @@ function assignmentView(d, overlay, _opts) {
     companyId: deal ? (deal.companyId || '') : '', company: (deal && deal.companyId && companyById(deal.companyId)) ? companyBrief(companyById(deal.companyId)) : null,
     roomId: (room && room.id) || (deal && deal.roomId) || '',
     status: o.status || 'New', notes: o.notes || '', shareTeam: !!o.shareTeam, owner: o.owner || by, businessOverride: o.businessOverride || '', codeName: o.codeName || '', listingNo: o.listingNo || 0, listingId: (o.listingNo ? ('RRG-' + o.listingNo) : ''),
-    stageFlags: o.stageFlags || {}, pipelineId: o.pipelineId || '', needsSetup: !!o.needsSetup, fromBbs: !!o.fromBbs, referredBy: o.referredBy || '', referredById: o.referredById || '', referralPct: o.referralPct || '', listPrice: o.listPrice || '', priceHistory: Array.isArray(o.priceHistory) ? o.priceHistory : [], totalCommission: o.totalCommission || '', listingLive: o.listingLive || '', listingStart: o.listingStart || '', listingExpires: o.listingExpires || '', autoRenew: !!o.autoRenew, renewable: !!o.renewable,
+    stageFlags: o.stageFlags || {}, pipelineId: o.pipelineId || '', needsSetup: !!o.needsSetup, fromBbs: !!o.fromBbs, referredBy: o.referredBy || '', referredById: o.referredById || '', referralPct: o.referralPct || '', listPrice: o.listPrice || '', priceHistory: Array.isArray(o.priceHistory) ? o.priceHistory : [], financials3y: Array.isArray(o.financials3y) ? o.financials3y : [], totalCommission: o.totalCommission || '', listingLive: o.listingLive || '', listingStart: o.listingStart || '', listingExpires: o.listingExpires || '', autoRenew: !!o.autoRenew, renewable: !!o.renewable,
     offers: Array.isArray(o.offers) ? o.offers : [],
     tours: Array.isArray(o.tours) ? o.tours : [],
     ndas: Array.isArray(o.ndas) ? o.ndas : [],
@@ -6086,6 +6086,12 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
       if (cur.priceHistory.length > 60) cur.priceHistory = cur.priceHistory.slice(-60);
     }
     cur.listPrice = _newLP;
+  }
+  if (Array.isArray(b.financials3y)) {                 // editable 3-year P&L (Revenue / SDE / EBITDA / Rent per period)
+    cur.financials3y = b.financials3y.slice(0, 6).map(c => ({
+      label: String((c && c.label) || '').slice(0, 24), revenue: String((c && c.revenue) || '').slice(0, 40),
+      sde: String((c && c.sde) || '').slice(0, 40), ebitda: String((c && c.ebitda) || '').slice(0, 40), rent: String((c && c.rent) || '').slice(0, 40)
+    })).filter(c => c.label || c.revenue || c.sde || c.ebitda || c.rent);
   }
   if (typeof b.totalCommission === 'string') cur.totalCommission = b.totalCommission.slice(0, 40);
   if (typeof b.buyerPipelineId === 'string') cur.buyerPipelineId = b.buyerPipelineId.slice(0, 40);
