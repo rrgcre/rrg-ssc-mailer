@@ -176,7 +176,7 @@ var BOV_ID='';
   var items=[], active=-1, tmr=null;
   function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
   function close(){ drop.style.display='none'; drop.innerHTML=''; items=[]; active=-1; inp.setAttribute('aria-expanded','false'); }
-  function pick(i){ var it=items[i]; if(!it) return; inp.value=it.title; close(); }
+  function pick(i){ var it=items[i]; if(!it) return; inp.value=it.title; window._prepForPid=(it.type==='contact')?it.id:''; window._prepForCid=(it.type==='company')?it.id:''; close(); }
   function paint(){ drop.querySelectorAll('.pf-row').forEach(function(r,i){ r.style.background=(i===active)?'#eef4fb':''; }); }
   function render(){
     if(!items.length){ close(); return; }
@@ -195,7 +195,7 @@ var BOV_ID='';
       active=-1; render();
     }).catch(function(){ close(); });
   }
-  inp.addEventListener('input',function(){ var q=inp.value.trim(); if(tmr) clearTimeout(tmr); if(q.length<2){ close(); return; } tmr=setTimeout(function(){ search(q); },170); });
+  inp.addEventListener('input',function(){ window._prepForPid=''; window._prepForCid=''; var q=inp.value.trim(); if(tmr) clearTimeout(tmr); if(q.length<2){ close(); return; } tmr=setTimeout(function(){ search(q); },170); });
   inp.addEventListener('keydown',function(e){
     if(drop.style.display==='none') return;
     if(e.key==='ArrowDown'){ e.preventDefault(); active=Math.min(items.length-1,active+1); paint(); }
@@ -404,7 +404,7 @@ function doGenerate(biz){
     if(mb>28){ workHide(); setStatus('err','Those files are too large together (~'+mb.toFixed(0)+'MB). Trim to the essential pages and try again.'); return; }
     workMsg(aiName()+' is reviewing the financials, adjustments, and key value drivers to produce a thorough, defensible opinion of value — this can take a few minutes.');
     ABORT=new AbortController();
-    fetch('/api/generate-bov',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({business:biz,files:files,bovId:BOV_ID,links:LINKS,preparedFor:(document.getElementById('prepFor').value||'').trim(),address:((document.getElementById('bovAddr')||{}).value||'').trim(),notes:((document.getElementById('bovNotes')||{}).value||'').trim()}),signal:ABORT.signal})
+    fetch('/api/generate-bov',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({business:biz,files:files,bovId:BOV_ID,links:LINKS,personId:(window._prepForPid||''),companyId:(window._prepForCid||''),preparedFor:(document.getElementById('prepFor').value||'').trim(),address:((document.getElementById('bovAddr')||{}).value||'').trim(),notes:((document.getElementById('bovNotes')||{}).value||'').trim()}),signal:ABORT.signal})
       .then(function(r){ return r.text().then(function(t){ var j=null; try{ j=JSON.parse(t); }catch(e){} return {ok:r.ok,status:r.status,j:j}; }); })
       .then(function(res){
         if(res.j&&res.j.ok&&res.j.id){
