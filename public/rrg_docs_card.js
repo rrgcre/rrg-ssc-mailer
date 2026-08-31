@@ -85,8 +85,8 @@
         READY=true; ONCHANGE();
       }).catch(function(){ READY=true; ONCHANGE(); });
   }
-  function count(){ return DOCS.filter(function(d){ return d.kind!=='file' && d.kind!=='lease'; }).length; }
-  function filesCount(){ return DOCS.filter(function(d){ return d.kind==='file' || d.kind==='lease'; }).length; }
+  function count(){ return DOCS.filter(function(d){ return d.kind!=='file'; }).length; }
+  function filesCount(){ return DOCS.filter(function(d){ return d.kind==='file'; }).length; }
   function ready(){ return READY; }
 
   function rowHtml(d){
@@ -115,8 +115,8 @@
       +roombadge+toroom+del
       +'</div>';
   }
-  function rowsHtml(){ return DOCS.filter(function(d){ return d.kind!=='file' && d.kind!=='lease'; }).map(rowHtml).join(''); }
-  function filesRowsHtml(){ return DOCS.filter(function(d){ return d.kind==='file' || d.kind==='lease'; }).map(rowHtml).join(''); }
+  function rowsHtml(){ return DOCS.filter(function(d){ return d.kind!=='file'; }).map(rowHtml).join(''); }
+  function filesRowsHtml(){ return DOCS.filter(function(d){ return d.kind==='file'; }).map(rowHtml).join(''); }
 
   function open(url){ if(!url) return; if(/^https?:|^\/api\//.test(url)) window.open(url,'_blank','noopener'); else location.href='./'+url; }
 
