@@ -7065,6 +7065,25 @@ const CIM_FU_TPL_BODY =
   '<p>\u2022 [Your strongest number \u2014 e.g., trailing-twelve SDE on a below-market lease with solid term]<br>\u2022 [A second hook \u2014 e.g., liquor license conveys, seller financing available, or turnkey with no build-out]</p>' +
   '<p>Happy to walk you through the numbers or anything the memorandum didn\u2019t cover. Are you open to a short call this week?</p>' +
   '<p>Best,<br>{{my_name}}</p>';
+const EMAIL_TPL_ASSETBOV_DELETED = path.join(BOV_DATA_DIR, 'email_templates_assetbov_deleted.json');
+const ASSETBOV_TPL_ID = 'etpl_send_bov_asset';
+const ASSETBOV_TPL_SUBJECT = 'Your business valuation — Broker Opinion of Value';
+const ASSETBOV_TPL_BODY =
+  '<p>Hi {{first_name}},</p>' +
+  '<p>Thank you for the time and the information — I’ve completed the Broker Opinion of Value (BOV) for your business, attached here.</p>' +
+  '<p>Let me be straight with you about how it comes together. Restaurant businesses are valued on their historical financial performance, and where a concept isn’t generating meaningful transferable profit, there is little earnings-based value to sell. In those cases the right move is an asset sale — value set on the leasehold improvements, the equipment, and the transferable lease and licenses, rather than on the earnings of the operation.</p>' +
+  '<p>Here is the part that matters most for you: the real value in a deal like this is usually getting out of the lease. Assigning it to a qualified operator moves the remaining rent — and often a personal guaranty — off your shoulders, and hands a buyer a built-out, licensed space they can open in a fraction of the time and cost of building new. That exit is frequently worth far more than the price of the assets themselves, and capturing it is exactly what a well-run, confidential process is built to do.</p>' +
+  '<p>The report lays all of this out. I’d like to set up a short call to walk you through it, talk through your goals and timing, and map out the cleanest path to an exit. What does your week look like?</p>' +
+  '<p>Best,<br>{{my_name}}</p>';
+function _seedAssetBov(a) {
+  // Respect an explicit delete; otherwise ensure this shared template exists.
+  try { if (fs.existsSync(EMAIL_TPL_ASSETBOV_DELETED)) return a; } catch (e) { return a; }
+  if (!a.some(t => t.id === ASSETBOV_TPL_ID)) {
+    a.push({ id: ASSETBOV_TPL_ID, name: 'BOV — send valuation to seller (asset sale)', category: 'Seller', scope: 'shared', ownerUser: '', ownerName: 'RRG', greeting: 'none', subject: ASSETBOV_TPL_SUBJECT, body: ASSETBOV_TPL_BODY, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), seeded: true });
+    try { writeJsonGuarded(EMAIL_TPL_FILE, a, 'seedAssetBov'); } catch (e) {}
+  }
+  return a;
+}
 function _seedProofOfFunds(a) {
   // If the user explicitly deleted this shared template, respect that and never re-add it.
   try { if (fs.existsSync(EMAIL_TPL_POF_DELETED)) return a; } catch (e) { return a; }
@@ -7145,7 +7164,7 @@ function _seedCimFollowup(a) {
   try { writeJsonGuarded(EMAIL_TPL_FILE, a, 'seedCimFollowup'); fs.writeFileSync(EMAIL_TPL_CIMFU_FLAG, JSON.stringify({ seededAt: new Date().toISOString() })); } catch (e) {}
   return a;
 }
-function loadEmailTpls() { try { return _seedCimFollowup(_seedProofOfFunds(_seedBrokerTemplates(_seedEmailTpls(rj(EMAIL_TPL_FILE) || [])))); } catch (e) { return []; } }
+function loadEmailTpls() { try { return _seedCimFollowup(_seedProofOfFunds(_seedAssetBov(_seedBrokerTemplates(_seedEmailTpls(rj(EMAIL_TPL_FILE) || []))))); } catch (e) { return []; } }
 function saveEmailTpls(a) { return writeJsonGuarded(EMAIL_TPL_FILE, a, 'saveEmailTpls'); }
 function newEmailTplId() { return 'etpl_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 const TPL_CATEGORIES = ['Buyer', 'Seller', 'NDA', 'Follow-up', 'Closing', 'General'];
@@ -7346,6 +7365,7 @@ app.delete('/api/email-templates/:id', (req, res) => {
   if (!(t.ownerUser === u.username || isSuper(u))) return res.status(403).json({ ok: false, error: 'You can only delete your own templates.' });
   all = all.filter(x => x.id !== req.params.id); saveEmailTpls(all);
   if (req.params.id === POF_TPL_ID) { try { fs.writeFileSync(EMAIL_TPL_POF_DELETED, JSON.stringify({ deletedAt: new Date().toISOString(), by: u.username || '' })); } catch (e) {} }
+  if (req.params.id === ASSETBOV_TPL_ID) { try { fs.writeFileSync(EMAIL_TPL_ASSETBOV_DELETED, JSON.stringify({ deletedAt: new Date().toISOString(), by: u.username || '' })); } catch (e) {} }
   res.json({ ok: true });
 });
 app.post('/api/email-templates/:id/used', (req, res) => {

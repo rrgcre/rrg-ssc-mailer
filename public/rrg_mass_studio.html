@@ -168,7 +168,8 @@ function buildSubs(){
     '<div id="listChips" style="margin-bottom:12px"></div>'+
     '<div class="toolbar"><input id="newListName" placeholder="New list name (e.g. Brokers)" style="max-width:260px"><button class="btn" id="newListBtn">+ Create list</button><span class="msg" id="listMsg"></span></div></div>'+
     '<div class="card"><h2>Import subscribers</h2>'+
-    '<div class="pgs" style="margin-bottom:10px">Paste a CSV with a header row (<code>email,first_name,last_name</code>) or one email per line. Duplicates and already-suppressed addresses are skipped. Separate from your CRM contacts.</div>'+
+    '<div class="pgs" style="margin-bottom:10px">Upload a CSV file, or paste one below \u2014 a header row (<code>email,first_name,last_name</code>) or one email per line. Duplicates and already-suppressed addresses are skipped. Separate from your CRM contacts.</div>'+
+    '<div class="toolbar" style="margin-bottom:10px;gap:9px"><label class="btn" style="cursor:pointer;margin:0">\u2b06 Choose CSV file<input type="file" id="impFile" accept=".csv,text/csv,text/plain" style="display:none"></label><span class="pgs" id="impFileName" style="font-size:12px;color:var(--muted)">No file chosen \u2014 or paste below</span></div>'+
     '<div class="fld"><textarea id="impText" class="code" placeholder="email,first_name,last_name&#10;jane@example.com,Jane,Doe&#10;&#10;--- or ---&#10;&#10;jane@example.com&#10;john@example.com"></textarea></div>'+
     '<div class="row"><div class="fld half"><label class="fl">Source label</label><input id="impSrc" placeholder="e.g. 2026 master list"></div>'+
     '<div class="fld half"><label class="fl">Add to list</label><select id="impList"></select></div></div>'+
@@ -177,6 +178,7 @@ function buildSubs(){
     '<div class="toolbar"><input id="subQ" placeholder="Search email..." style="max-width:230px"><select id="subStatus" style="max-width:160px"><option value="">All statuses</option><option value="active">Active</option><option value="unsubscribed">Unsubscribed</option><option value="bounced">Bounced</option><option value="complained">Complained</option></select><select id="subList" style="max-width:180px"></select><button class="btn" id="subGo">Search</button></div>'+
     '<div id="subTable"><div class="pgs">Loading...</div></div></div>';
   $('impBtn').onclick=doImport;
+  var _impF=$('impFile'); if(_impF) _impF.addEventListener('change',function(){ var f=this.files&&this.files[0]; var nm=$('impFileName'); if(!f){ if(nm) nm.textContent='No file chosen \u2014 or paste below'; return; } var rd=new FileReader(); rd.onload=function(){ var t=String(rd.result||''); if($('impText')) $('impText').value=t; if($('impSrc')&&!$('impSrc').value){ $('impSrc').value=String(f.name||'').replace(/\.[^.]+$/,''); } var n=t.split(/\r?\n/).filter(function(x){return x.trim();}).length; if(nm){ nm.style.color='#1f8a5b'; nm.textContent=(f.name||'file')+' \u2014 '+n+' line'+(n===1?'':'s')+' loaded. Click Import.'; } }; rd.onerror=function(){ if(nm){ nm.style.color='#C0261B'; nm.textContent='Could not read the file.'; } }; rd.readAsText(f); });
   $('subGo').onclick=loadSubs;
   $('subQ').addEventListener('keydown',function(e){ if(e.key==='Enter') loadSubs(); });
   $('newListBtn').onclick=createList;
