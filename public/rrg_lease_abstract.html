@@ -15,7 +15,8 @@ body{font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,Roboto,Helvetica,Ar
 .actions{margin-left:auto;display:flex;gap:7px;align-items:center;}
 .btn{font:inherit;font-size:12.5px;font-weight:600;padding:7px 13px;border-radius:6px;border:1px solid #d7dde8;background:#fff;color:var(--navy);cursor:pointer;text-decoration:none;}
 .btn:hover{background:#f4f6f9;} .btn.on{background:var(--blue);color:#fff;border-color:var(--blue);} .btn.print{background:var(--navy);color:#fff;border-color:var(--navy);}
-.savechip{font-size:11.5px;color:var(--blue);opacity:0;transition:opacity .2s;} .savechip.show{opacity:1;}
+.savechip{font-size:11.5px;font-weight:600;color:#1f8a5b;transition:color .2s;} .savechip.dirty{color:#b5791f;} .savechip.saving{color:#8a93a8;} .savechip.saved{color:#1f8a5b;} .savechip.err{color:#DA2B1F;}
+.btn.save{background:var(--navy);color:#fff;border-color:var(--navy);} .btn.save:hover{background:#0b1b3a;}
 .tgl{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--navy);cursor:pointer;user-select:none;padding:4px 4px;}
 .sw{position:relative;width:34px;height:19px;border-radius:100px;background:#c9d0dc;transition:background .15s;flex:none;}
 .sw:after{content:'';position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 2px rgba(0,0,0,.2);}
@@ -83,16 +84,17 @@ table.sch th{background:var(--tint);color:var(--blue);font-size:9.5px;font-weigh
 <script src="/rrg_brand.js"></script>
 </head>
 <body class="editing">
-<!--rrgback--><a href="./rrg_lease_queue.html" class="rrg-back" aria-label="Back to Lease Abstracts" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22)"><span>←</span> Lease Abstracts</a>
+<!--rrgback--><a href="#" onclick="goBack();return false;" class="rrg-back" id="backPill" aria-label="Back" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22)"><span>←</span> Back</a>
 <div class="toolbar"><div class="tb-inner">
   <div class="tt">RRG Lease Abstract <span>Edit in place · Print</span></div>
   <div class="actions">
     <a class="btn" id="toBovBtn" style="display:none;background:#127a3e;border-color:#127a3e;color:#fff" href="#">Value the business now →</a>
+    <button class="btn save" id="saveBtn" type="button" onclick="saveNow()">Save</button>
     <span class="savechip" id="savechip">Saved ✓</span>
     <label class="tgl" onclick="toggleEdit()" title="Click any field to edit when on"><span>Editing</span><span class="sw" id="editSw"></span></label>
     <label class="tgl" onclick="toggleRedactLL()" title="Withhold the landlord name (available under NDA)"><span>Redact Landlord</span><span class="sw" id="redactLLSw"></span></label>
     <label class="tgl" onclick="toggleRedactTenant()" title="Withhold the tenant name (available under NDA)"><span>Redact Tenant</span><span class="sw" id="redactTenSw"></span></label>
-    <a class="btn" id="queueBtn" href="./rrg_lease_queue.html">Lease Abstracts</a>
+    <button class="btn" id="backBtn" type="button" onclick="goBack()">← Back</button>
     <button class="btn" onclick="toggleHelp()">Help</button>
     <button class="btn print" onclick="window.print()">Print</button>
   </div>
@@ -106,7 +108,7 @@ table.sch th{background:var(--tint);color:var(--blue);font-size:9.5px;font-weigh
       <h4>Occupancy &amp; economics</h4>
       <p>The <b>Occupancy &amp; Economics</b> section turns the lease into the numbers a buyer&rsquo;s lender and your BOV care about. Enter annual base rent, NNN/CAM&nbsp;+&nbsp;taxes&nbsp;+&nbsp;insurance, and total occupancy cost, plus the business&rsquo;s <b>annual sales</b> (from the P&amp;L or BOV), and it computes <b>occupancy cost as a % of sales</b> live &mdash; green under 10%, amber 10&ndash;15%, red above &mdash; the single best read on whether the rent is healthy for a restaurant. Capture <b>key money / lease value</b> and a <b>financeability</b> note (does the remaining term, with options, support SBA financing?) so the lease-exit value is front and center. These figures also flow into the CIM&rsquo;s Occupancy &amp; Lease Summary.</p>
       <h4>Edit in place</h4>
-      <p>With <b>Editing: On</b>, click any value and type. Changes <b>save automatically</b> &mdash; watch for the &ldquo;Saved &check;&rdquo; chip. Turn editing off for a clean, read-only view.</p>
+      <p>With <b>Editing: On</b>, click any value and type. Changes <b>save automatically</b> a moment after you stop typing &mdash; the status reads &ldquo;Unsaved changes&hellip;&rdquo; then &ldquo;Saved &check;&rdquo; with the time. You can also click <b>Save</b> any time to write immediately. Turn editing off for a clean, read-only view.</p>
       <h4>Add rows</h4>
       <p>In edit mode, use <b>+ Add</b> under Watch Items, Base Rent, and Critical Dates to add lines.</p>
       <h4>Redaction</h4>
@@ -233,10 +235,34 @@ function render(s){
 
 var _t=null;
 function wireEdits(){ document.querySelectorAll('#doc [data-k]').forEach(function(el){ el.addEventListener('input',function(){ var k=el.getAttribute('data-k'); setPath(A.state, k, el.innerText); if(k.indexOf('economics.')===0) recalcOccupancy(); queueSave(); }); }); }
-function queueSave(){ var chip=document.getElementById('savechip'); if(_t) clearTimeout(_t); _t=setTimeout(function(){
+function _setChip(state,txt){ var c=document.getElementById('savechip'); if(!c) return; c.classList.remove('dirty','saving','saved','err'); if(state) c.classList.add(state); c.textContent=txt; }
+function _fmtSaveTime(){ try{ return new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}); }catch(e){ return ''; } }
+// Persist the abstract now. Shows an honest state: Saving… → Saved ✓ h:mm (or a retry prompt).
+function doSave(cb){
+  var btn=document.getElementById('saveBtn'); if(btn) btn.disabled=true; _setChip('saving','Saving…');
   fetch('/api/lease-save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:LID,state:A.state})})
-    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ chip.classList.add('show'); setTimeout(function(){chip.classList.remove('show');},1300); } }).catch(function(){});
-}, 700); }
+    .then(function(r){return r.json();}).then(function(j){ if(btn) btn.disabled=false; if(j&&j.ok){ _setChip('saved','Saved ✓ '+_fmtSaveTime()); } else { _setChip('err','Not saved — click Save to retry'); } if(cb) cb(!!(j&&j.ok)); })
+    .catch(function(){ if(btn) btn.disabled=false; _setChip('err','Not saved — click Save to retry'); if(cb) cb(false); });
+}
+// An edit happened: flag it and autosave shortly after (kept — the Save button is for reassurance/force).
+function queueSave(){ _setChip('dirty','Unsaved changes…'); if(_t) clearTimeout(_t); _t=setTimeout(function(){ _t=null; doSave(); }, 700); }
+// Explicit Save: flush any pending autosave and write immediately.
+function saveNow(){ if(_t){ clearTimeout(_t); _t=null; } doSave(); }
+// Where "Back" goes: to the BOV if this abstract came from one; otherwise back to wherever the rep
+// came from; then the linked contact/company; dashboard as a last resort.
+function _navBack(){
+  if(A && A.srcBovId){ location.href='./rrg_bov_generate.html?bov='+encodeURIComponent(A.srcBovId); return; }
+  try{ if(window.history.length>1){ history.back(); return; } }catch(e){}
+  if(A && A.personId){ location.href='./rrg_person.html?id='+encodeURIComponent(A.personId); return; }
+  if(A && A.companyId){ location.href='./rrg_company.html?id='+encodeURIComponent(A.companyId); return; }
+  location.href='./index.html';
+}
+// Close/Back — never lose a just-typed edit: flush a pending autosave, then leave (with a safety timeout).
+function goBack(){
+  var went=false; function go(){ if(went) return; went=true; _navBack(); }
+  if(_t){ clearTimeout(_t); _t=null; doSave(function(){ go(); }); setTimeout(go, 1200); return; }
+  go();
+}
 function toggleEdit(){ var on=document.body.classList.toggle('editing'); var sw=document.getElementById('editSw'); if(sw) sw.classList.toggle('on',on); document.querySelectorAll('#doc [contenteditable]').forEach(function(el){ el.setAttribute('contenteditable', on?'true':'false'); }); }
 function toggleRedactLL(){ A.state.redactLandlord=!A.state.redactLandlord; render(A.state); queueSave(); }
 function toggleRedactTenant(){ A.state.redactTenant=!A.state.redactTenant; render(A.state); queueSave(); }
@@ -256,13 +282,13 @@ if(LID){
       if(A.srcBovId){
         var _bovUrl='./rrg_bov_generate.html?bov='+encodeURIComponent(A.srcBovId);
         var tb=document.getElementById('toBovBtn'); if(tb){ tb.href=_bovUrl; tb.style.display=''; }
-        var qb=document.getElementById('queueBtn'); if(qb){ qb.href=_bovUrl; qb.textContent='← Back to the BOV'; }
-        var bp=document.querySelector('a.rrg-back'); if(bp){ bp.href=_bovUrl; bp.setAttribute('aria-label','Back to the BOV'); var sp=bp.querySelectorAll('span'); if(sp&&sp.length){ bp.innerHTML='<span>←</span> Back to the BOV'; } }
+        var qb=document.getElementById('backBtn'); if(qb){ qb.textContent='← Back to the BOV'; }
+        var bp=document.getElementById('backPill'); if(bp){ bp.setAttribute('aria-label','Back to the BOV'); bp.innerHTML='<span>←</span> Back to the BOV'; }
       }
       if((new URLSearchParams(location.search)).get('print')==='1'){ document.body.classList.remove('editing'); setTimeout(function(){ window.print(); }, 400); } }
     else { document.getElementById('doc').innerHTML='<div class="loading">Could not load this abstract.</div>'; }
   }).catch(function(){ document.getElementById('doc').innerHTML='<div class="loading">Could not reach the server.</div>'; });
-} else { document.getElementById('doc').innerHTML='<div class="loading">No abstract selected. Open one from Lease Abstracts.</div>'; }
+} else { document.getElementById('doc').innerHTML='<div class="loading">No abstract selected. Open one from the contact’s Documents or a BOV.</div>'; }
 </script>
 </body>
 </html>

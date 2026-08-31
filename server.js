@@ -2368,32 +2368,57 @@ app.get('/api/bov/:id', (req, res) => {
   res.json({ ok: true, bov: b });
 });
 // AI-generate a BOV from uploaded documents, then save it to the queue.
-// Pull a contact's data-room Financials & Lease docs as {name,dataB64,label} so a BOV
-// can be built from what was gathered in the room (no re-upload at generate time).
-// The data room merged onto this BOV's listing — the same link the assignment page uses — regardless
-// of whether the BOV carries a person/company. Robust for standalone (bov_) listings.
-function roomForBovListing(bov, rooms) {
+// Does a room doc read as Financials / a Lease? Lenient on purpose: the category is the strong
+// signal, but a just-dropped or bulk-filed doc may only have a telltale filename. Used everywhere
+// we ask "is the lease / are the financials already in the room?" so detection is consistent.
+function _isFinDoc(d) {
+  if (!d) return false;
+  const c = String(d.category || '');
+  if (c.indexOf('Financials') === 0) return true;
+  const nm = String(d.title || d.originalName || '');
+  return /p\s*&?\s*l\b|profit\s*(?:&|and)?\s*loss|income statement|\bfinanc|balance sheet|tax return|ebitda|cash flow|\bp\s*and\s*l\b|year[- ]?end|\bytd\b|\bt12\b/i.test(nm);
+}
+function _isLeaseDoc(d) {
+  if (!d) return false;
+  if (String(d.category || '') === 'Lease') return true;
+  return /lease|sublease|estoppel|amendment/i.test(String(d.title || d.originalName || ''));
+}
+// Resolve the one data room tied to a valuation record (BOV / lease abstract / CIM), trying every
+// link the app can carry — because a standalone record (built via +BOV then "Prepared For", with no
+// quest/deal behind it) won't merge onto the room through assignmentsIndex alone. Order: explicit
+// linked-listing key → a room built straight from this record → an assignment entry that holds both
+// this record and a room → the contact/company on the record → the record's deal.
+function resolveRoomFor(rec) {
+  if (!rec) return null;
   try {
-    if (!bov) return null; rooms = rooms || loadRooms();
-    const ix = assignmentsIndex();
-    for (const k in ix) { if (ix[k].bov && ix[k].bov.id === bov.id && ix[k].room) return rooms.find(r => r.id === ix[k].room.id) || ix[k].room; }
+    const rooms = loadRooms();
+    let ix = null; const IX = () => (ix || (ix = assignmentsIndex()));
+    // 1) explicit linked-listing key
+    if (rec.dealKey) { try { const e = IX()[rec.dealKey]; if (e && e.room) { const r = rooms.find(x => x.id === e.room.id); if (r) return r; } } catch (e) {} }
+    // 2) a room stood up directly from this record (or its source BOV)
+    if (rec.id)       { const r = rooms.find(x => (x.srcBovId && x.srcBovId === rec.id) || (x.srcCimId && x.srcCimId === rec.id)); if (r) return r; }
+    if (rec.srcBovId) { const r = rooms.find(x => x.srcBovId && x.srcBovId === rec.srcBovId); if (r) return r; }
+    if (rec.srcCimId) { const r = rooms.find(x => x.srcCimId && x.srcCimId === rec.srcCimId); if (r) return r; }
+    // 3) any assignment entry that holds both this record and a room
+    try { const _ix = IX(); for (const k in _ix) { const e = _ix[k]; if (!e.room) continue; if ((e.bov && e.bov.id === rec.id) || (e.cim && e.cim.id === rec.id) || (e.lease && e.lease.id === rec.id)) { const r = rooms.find(x => x.id === e.room.id); if (r) return r; } } } catch (e) {}
+    // 4) the contact / company on the record
+    const pid = String(rec.personId || rec.contactPersonId || ''), cid = String(rec.companyId || '');
+    if (pid || cid) { const r = rooms.find(o => (pid && (o.personId === pid || o.contactPersonId === pid)) || (cid && o.companyId === cid)); if (r) return r; }
+    // 5) the record's deal, if it points at one
+    if (pid || cid) { try { const deals = loadDeals().filter(d => (pid && (d.personId === pid || d.contactPersonId === pid)) || (cid && d.companyId === cid)); for (const d of deals) { const rm = rooms.find(r => r.id === d.roomId || r.srcDealId === d.id); if (rm) return rm; } } catch (e) {} }
   } catch (e) {}
   return null;
 }
+// Back-compat shim — the room tied to a BOV's listing.
+function roomForBovListing(bov, rooms) { return resolveRoomFor(bov); }
 function roomFilesForBov(bov) {
   const out = [];
   try {
     if (!bov) return out;
-    const pid = String(bov.personId || ''), cid = String(bov.companyId || '');
-    const hit = o => !!o && ((pid && (o.personId === pid || o.contactPersonId === pid)) || (cid && o.companyId === cid));
-    const rooms = loadRooms();
-    let room = roomForBovListing(bov, rooms);                 // authoritative: the room on this BOV's listing
-    if (!room) room = rooms.find(hit) || null;
-    if (!room) { try { const deals = loadDeals().filter(hit); for (const d of deals) { const rm = rooms.find(r => r.id === d.roomId || r.srcDealId === d.id); if (rm) { room = rm; break; } } } catch (e) {} }
+    const room = resolveRoomFor(bov);
     if (!room) return out;
     (room.docs || []).forEach(d => {
-      const c = (d && d.category) || ''; let label = '';
-      if (c.indexOf('Financials') === 0) label = 'Financials'; else if (c === 'Lease') label = 'Lease'; else return;
+      let label = ''; if (_isFinDoc(d)) label = 'Financials'; else if (_isLeaseDoc(d)) label = 'Lease'; else return;
       try {
         const ext = String(d.ext || '').toLowerCase();
         const fp = path.join(ROOMS_DIR, d.id + '.' + ext);
@@ -2415,13 +2440,13 @@ function roomFilesForBov(bov) {
 app.get('/api/valuation-room-ready', (req, res) => {
   try {
     const bov = loadBovs().find(x => x.id === String((req.query && req.query.bov) || ''));
-    const files = bov ? roomFilesForBov(bov) : [];
     const _lz = bov ? leaseForBov(req, bov) : null;
-    // Lease-doc present? Prefer the labeled room files; fall back to a lenient scan of the listing's
-    // room (category "Lease" or a filename that looks like a lease) so a just-uploaded lease counts.
-    let leaseDoc = files.some(f => f.label === 'Lease');
-    if (!leaseDoc && bov) { try { const rm = roomForBovListing(bov); if (rm) leaseDoc = (rm.docs || []).some(d => d && (d.category === 'Lease' || /lease|sublease|estoppel|amendment/i.test(String(d.title || d.originalName || '')))); } catch (e) {} }
-    res.json({ ok: true, financials: files.some(f => f.label === 'Financials'), lease: leaseDoc, abstract: !!(_lz && !_lz.pending), abstractPending: !!(_lz && _lz.pending), abstractId: (_lz && _lz.id) || '', hasQuestionnaire: !!(bov && bov.srcQuestId), interviewSkipped: !!(bov && bov.interviewSkipped) });
+    // Read the room directly with the lenient detectors so a just-uploaded or bulk-filed doc counts,
+    // even if its category isn't a clean "Financials …" / "Lease".
+    const room = bov ? resolveRoomFor(bov) : null;
+    let financials = false, leaseDoc = false;
+    if (room) { (room.docs || []).forEach(d => { if (_isFinDoc(d)) financials = true; if (_isLeaseDoc(d)) leaseDoc = true; }); }
+    res.json({ ok: true, financials: financials, lease: leaseDoc, abstract: !!(_lz && !_lz.pending), abstractPending: !!(_lz && _lz.pending), abstractId: (_lz && _lz.id) || '', hasQuestionnaire: !!(bov && bov.srcQuestId), interviewSkipped: !!(bov && bov.interviewSkipped) });
   } catch (e) { res.json({ ok: true, financials: false, lease: false, abstract: false, abstractPending: false, abstractId: '', hasQuestionnaire: false, interviewSkipped: false }); }
 });
 
@@ -2434,18 +2459,10 @@ function roomLeaseFilesForLease(req, l) {
   const out = [];
   try {
     if (!l) return out;
-    const rooms = loadRooms();
-    let room = null;
-    if (l.dealKey) { try { const ix = assignmentsIndex(); if (ix[l.dealKey] && ix[l.dealKey].room) room = rooms.find(r => r.id === ix[l.dealKey].room.id) || ix[l.dealKey].room; } catch (e) {} }
-    if (!room) {
-      const pid = String(l.personId || ''), cid = String(l.companyId || '');
-      const hit = o => !!o && ((pid && (o.personId === pid || o.contactPersonId === pid)) || (cid && o.companyId === cid));
-      room = rooms.find(hit) || null;
-    }
+    const room = resolveRoomFor(l);
     if (!room) return out;
-    const isLease = d => d && (d.category === 'Lease' || /lease|sublease|estoppel|amendment/i.test(String(d.title || d.originalName || '')));
     (room.docs || []).forEach(d => {
-      if (!isLease(d)) return;
+      if (!_isLeaseDoc(d)) return;
       try {
         const ext = String(d.ext || '').toLowerCase();
         const fp = path.join(ROOMS_DIR, d.id + '.' + ext);
