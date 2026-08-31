@@ -835,7 +835,7 @@ function render(){
       + ((A.canStart||A.provisional||(A.assignmentType==='listing')||A.dealId) ? ('<div class="hqbar">'
           + (A.canStart ? '<button class="hqbtn go" id="startDealBtn">Start listing →</button>' : (A.provisional ? '<button class="hqbtn go" id="promoteBtn">Go Live →</button>' : ''))
           + ((A.assignmentType==='listing') ? '<button class="hqbtn mkt" id="hqMktBtn">📣 Marketplace</button>' : '')
-          + (A.canDelete ? '<button class="hqbtn del" id="delDealBtn" title="Removes the listing, its records, data room and all files. Cannot be undone.">Delete</button>' : '')
+          + (A.canDelete !== false ? '<button class="hqbtn del" id="delDealBtn" title="Removes the listing, its records, data room and all files. Cannot be undone.">Delete</button>' : '')
           + '</div>'
           + (A.canStart ? '<div class="hqnote">Start runs the Seller Qualification Call and takes this on as a working listing — not on the market yet.</div>' : '')
           + (A.provisional ? '<div class="hqnote">Go Live marks this listing Live — do it once financials are verified, value is aligned, and the agreement is signed.</div>' : '')
