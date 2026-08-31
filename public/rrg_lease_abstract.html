@@ -10,17 +10,21 @@
 html,body{margin:0;padding:0;background:#e9edf3;}
 body{font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
 .toolbar{position:sticky;top:0;z-index:40;background:#fff;border-bottom:1px solid var(--line);}
-.tb-inner{max-width:840px;margin:0 auto;padding:9px 20px;display:flex;align-items:center;gap:12px;}
-.tt{font-weight:700;font-size:13px;color:var(--navy);} .tt span{font-weight:500;color:var(--soft);font-size:11.5px;margin-left:6px;}
-.actions{margin-left:auto;display:flex;gap:7px;align-items:center;}
-.btn{font:inherit;font-size:12.5px;font-weight:600;padding:7px 13px;border-radius:6px;border:1px solid #d7dde8;background:#fff;color:var(--navy);cursor:pointer;text-decoration:none;}
-.btn:hover{background:#f4f6f9;} .btn.on{background:var(--blue);color:#fff;border-color:var(--blue);} .btn.print{background:var(--navy);color:#fff;border-color:var(--navy);}
-.savechip{font-size:11.5px;font-weight:600;color:#1f8a5b;transition:color .2s;} .savechip.dirty{color:#b5791f;} .savechip.saving{color:#8a93a8;} .savechip.saved{color:#1f8a5b;} .savechip.err{color:#DA2B1F;}
-.btn.save{background:var(--navy);color:#fff;border-color:var(--navy);} .btn.save:hover{background:#0b1b3a;}
-.tgl{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--navy);cursor:pointer;user-select:none;padding:4px 4px;}
-.sw{position:relative;width:34px;height:19px;border-radius:100px;background:#c9d0dc;transition:background .15s;flex:none;}
-.sw:after{content:'';position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 2px rgba(0,0,0,.2);}
-.sw.on{background:var(--blue);} .sw.on:after{left:17px;}
+.tb-inner{margin:0;padding:0 22px;min-height:56px;display:flex;align-items:center;gap:14px;overflow-x:auto;}
+.tt{font-weight:700;font-size:13px;color:var(--navy);white-space:nowrap;flex:none;} .tt span{font-weight:500;color:var(--soft);font-size:11.5px;margin-left:6px;}
+.actions{margin-left:auto;display:flex;gap:8px;align-items:center;flex:none;}
+.tbsep{width:1px;height:24px;background:var(--line);flex:none;}
+.btn{font:inherit;font-size:12.5px;font-weight:600;height:34px;padding:0 14px;border-radius:7px;border:1px solid #d7dde8;background:#fff;color:var(--navy);cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;transition:background .12s,border-color .12s;}
+.btn:hover{background:#f4f6f9;border-color:#c4ccda;} .btn.on{background:var(--blue);color:#fff;border-color:var(--blue);}
+.btn.save{background:var(--navy);color:#fff;border-color:var(--navy);} .btn.save:hover{background:#0b1b3a;border-color:#0b1b3a;}
+.btn.primary{background:#127a3e;border-color:#127a3e;color:#fff;} .btn.primary:hover{background:#0f6835;border-color:#0f6835;}
+.savechip{font-size:11.5px;font-weight:600;color:#1f8a5b;white-space:nowrap;flex:none;transition:color .2s;} .savechip.dirty{color:#b5791f;} .savechip.saving{color:#8a93a8;} .savechip.saved{color:#1f8a5b;} .savechip.err{color:#DA2B1F;}
+.tglgroup{display:inline-flex;align-items:center;gap:2px;background:#f4f6fa;border:1px solid var(--line);border-radius:8px;padding:3px;height:34px;flex:none;}
+.tgl{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--navy);cursor:pointer;user-select:none;height:28px;padding:0 9px;border-radius:6px;white-space:nowrap;}
+.tgl:hover{background:#fff;}
+.sw{position:relative;width:32px;height:18px;border-radius:100px;background:#c9d0dc;transition:background .15s;flex:none;}
+.sw:after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 2px rgba(0,0,0,.2);}
+.sw.on{background:var(--blue);} .sw.on:after{left:16px;}
 .addrow{display:none;margin:9px 0 2px;background:#fff;border:1px dashed #c4ccda;border-radius:5px;padding:6px 11px;font:inherit;font-size:12px;font-weight:600;color:var(--blue);cursor:pointer;}
 body.editing .addrow{display:inline-block;}
 .help-ov{position:fixed;inset:0;background:rgba(20,30,55,.35);z-index:60;opacity:0;visibility:hidden;transition:.18s;}
@@ -86,14 +90,18 @@ table.sch th{background:var(--tint);color:var(--blue);font-size:9.5px;font-weigh
 <body class="editing">
 <!--rrgback--><a href="#" onclick="goBack();return false;" class="rrg-back" id="backPill" aria-label="Back" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22)"><span>←</span> Back</a>
 <div class="toolbar"><div class="tb-inner">
-  <div class="tt">RRG Lease Abstract <span>Edit in place · Print</span></div>
+  <div class="tt">RRG Lease Abstract</div>
   <div class="actions">
-    <a class="btn" id="toBovBtn" style="display:none;background:#127a3e;border-color:#127a3e;color:#fff" href="#">Value the business now →</a>
+    <span class="tglgroup">
+      <label class="tgl" onclick="toggleEdit()" title="Click any field to edit when on"><span>Editing</span><span class="sw" id="editSw"></span></label>
+      <label class="tgl" onclick="toggleRedactLL()" title="Withhold the landlord name (available under NDA)"><span>Redact&nbsp;Landlord</span><span class="sw" id="redactLLSw"></span></label>
+      <label class="tgl" onclick="toggleRedactTenant()" title="Withhold the tenant name (available under NDA)"><span>Redact&nbsp;Tenant</span><span class="sw" id="redactTenSw"></span></label>
+    </span>
+    <span class="tbsep"></span>
     <button class="btn save" id="saveBtn" type="button" onclick="saveNow()">Save</button>
     <span class="savechip" id="savechip">Saved ✓</span>
-    <label class="tgl" onclick="toggleEdit()" title="Click any field to edit when on"><span>Editing</span><span class="sw" id="editSw"></span></label>
-    <label class="tgl" onclick="toggleRedactLL()" title="Withhold the landlord name (available under NDA)"><span>Redact Landlord</span><span class="sw" id="redactLLSw"></span></label>
-    <label class="tgl" onclick="toggleRedactTenant()" title="Withhold the tenant name (available under NDA)"><span>Redact Tenant</span><span class="sw" id="redactTenSw"></span></label>
+    <span class="tbsep"></span>
+    <a class="btn primary" id="toBovBtn" style="display:none" href="#">Value the business now →</a>
     <button class="btn" id="backBtn" type="button" onclick="goBack()">← Back</button>
     <button class="btn" onclick="toggleHelp()">Help</button>
     <button class="btn print" onclick="window.print()">Print</button>
@@ -282,7 +290,8 @@ if(LID){
       if(A.srcBovId){
         var _bovUrl='./rrg_bov_generate.html?bov='+encodeURIComponent(A.srcBovId);
         var tb=document.getElementById('toBovBtn'); if(tb){ tb.href=_bovUrl; tb.style.display=''; }
-        var qb=document.getElementById('backBtn'); if(qb){ qb.textContent='← Back to the BOV'; }
+        // The green CTA is itself the way back to the BOV — hide the redundant plain Back button.
+        var qb=document.getElementById('backBtn'); if(qb){ qb.style.display='none'; }
         var bp=document.getElementById('backPill'); if(bp){ bp.setAttribute('aria-label','Back to the BOV'); bp.innerHTML='<span>←</span> Back to the BOV'; }
       }
       if((new URLSearchParams(location.search)).get('print')==='1'){ document.body.classList.remove('editing'); setTimeout(function(){ window.print(); }, 400); } }
