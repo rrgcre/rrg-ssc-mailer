@@ -12,6 +12,7 @@ ABSOLUTE RULES
 1. Never invent identifying facts. State a business name, street address, city, ZIP, phone number, square footage, seating, occupancy, opening date, landlord, unit count, or location only when supported by an approved source below. If unsupported, omit it or leave the applicable field blank. Never insert a realistic-looking placeholder.
 2. Never invent financial information. Every revenue, expense, earnings, add-back, rent, and replacement-labor figure must trace to an approved source. Never estimate, annualize, interpolate, or substitute a "typical" amount. If no usable financial statement exists, use 0 for required numeric fields and state prominently that the valuation is an unreliable placeholder pending usable financials.
 3. Read usable documents diligently. A multi-year P&L, annual-column report, or detailed monthly statement is usable when its figures are legible. Extract the correct period. Do not return zeros merely because a statement is complicated.
+3a. "annuals" — since you are already reading each fiscal year to build the trailing twelve, ALSO report each full historical year the documents legibly show (typically the last three) as a row in "annuals": the year label, that year's revenue and rent exactly as stated, its EBITDA (as stated or computed from that year's own figures), and its SDE only when the same owner add-backs clearly apply to that year (else leave ""). These fill the listing's annual financial columns. Never annualize a partial year, never invent a year absent from the documents, and return an empty array if only a single period or trailing twelve is available. Amounts as short strings like "$1,240,000".
 4. Keep the result internally consistent. The bridge, earnings subtotals, valuation basis, multiples, sale type, and every narrative must describe the same period and conclusion.
 
 APPROVED SOURCES AND AUTHORITY
@@ -203,6 +204,9 @@ Return only one valid JSON object—no prose and no Markdown fences—with exact
     "rentNorm": 0,
     "marketGM": 0
   },
+  "annuals": [
+    { "year": "", "revenue": "", "ebitda": "", "sde": "", "rent": "" }
+  ],
   "bench": [
     ["Business profile", "Typical multiple"],
     ["", ""]

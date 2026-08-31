@@ -2497,6 +2497,12 @@ app.post('/api/generate-bov', express.json({ limit: '48mb' }), async (req, res) 
     rec.basis = out.summary.basis; rec.sdeText = out.summary.sdeText; rec.adjText = out.summary.adjText;
     rec.conclusionWarning = out.summary.conclusionWarning || '';
     rec.state = out.state; rec.aiGenerated = true; rec.pending = false; rec.builtAt = new Date().toISOString(); rec.version = rec.version || 1;
+    // Per-year P&L columns the analyst reported — stored on the record (not the editable state, so a
+    // builder edit can't strip them) and pushed onto the listing's financial grid on finalize.
+    try {
+      const _an = (out.state && Array.isArray(out.state.annuals)) ? out.state.annuals : [];
+      rec.annuals = _an.map(a => ({ year: String((a && a.year) || '').slice(0, 12), revenue: String((a && a.revenue) || '').slice(0, 40), ebitda: String((a && a.ebitda) || '').slice(0, 40), sde: String((a && a.sde) || '').slice(0, 40), rent: String((a && a.rent) || '').slice(0, 40) })).filter(a => a.year && (a.revenue || a.ebitda || a.sde || a.rent)).slice(0, 6);
+    } catch (e) { rec.annuals = rec.annuals || []; }
     try { const _u = out.state && out.state.fields && out.state.fields.units; if (_u != null && String(_u).replace(/[^0-9]/g, '')) rec.units = String(_u).replace(/[^0-9]/g, ''); } catch (e) {}
     // No TTM statement (analyst fell back to the fiscal year) AND we're past Q1 →
     // flag the record so the builder can warn the rep the base may be stale.
@@ -3086,15 +3092,30 @@ function syncBovFinancialsToListing(b) {
     const rev = clean(b.revText || (typeof bovRevenueText === 'function' ? bovRevenueText(b) : ''));
     const sde = clean(b.sdeText);
     const eb = clean(b.ebitdaText);
-    if (!(rev || sde || eb)) return '';
+    const annuals = Array.isArray(b.annuals) ? b.annuals : [];
+    if (!(rev || sde || eb) && !annuals.length) return '';
     const ov = loadAssignOverlay();
     const cur = ov[lk] || (ov[lk] = {});
     let f3 = Array.isArray(cur.financials3y) ? cur.financials3y.map(c => ({ label: (c && c.label) || '', revenue: (c && c.revenue) || '', sde: (c && c.sde) || '', ebitda: (c && c.ebitda) || '', rent: (c && c.rent) || '' })) : [];
     if (!f3.length) {
-      const y = new Date().getFullYear();
-      f3 = [String(y - 3), String(y - 2), String(y - 1)].map(L => ({ label: L, revenue: '', sde: '', ebitda: '', rent: '' }));
+      // Prefer the fiscal years the analyst actually reported; otherwise the last three calendar years.
+      const yrs = annuals.map(a => String((a && a.year) || '').trim()).filter(Boolean);
+      const labels = yrs.length ? yrs.slice(0, 5) : (function () { const y = new Date().getFullYear(); return [String(y - 3), String(y - 2), String(y - 1)]; })();
+      f3 = labels.map(L => ({ label: L, revenue: '', sde: '', ebitda: '', rent: '' }));
       f3.push({ label: 'TTM', revenue: '', sde: '', ebitda: '', rent: '' });
     }
+    // Fill each reported annual column (revenue / EBITDA / SDE / rent) by matching its year label.
+    annuals.forEach(function (a) {
+      const yr = String((a && a.year) || '').trim(); if (!yr) return;
+      let col = f3.find(c => String(c.label || '').trim() === yr);
+      if (!col) { col = { label: yr, revenue: '', sde: '', ebitda: '', rent: '' }; f3.push(col); }
+      const cr = clean(a.revenue), cs = clean(a.sde), ce = clean(a.ebitda), crt = clean(a.rent);
+      if (cr) col.revenue = cr.slice(0, 40);
+      if (cs) col.sde = cs.slice(0, 40);
+      if (ce) col.ebitda = ce.slice(0, 40);
+      if (crt) col.rent = crt.slice(0, 40);
+    });
+    // TTM headline column from the valuation's trailing-twelve figures.
     let ttm = f3.find(c => /ttm/i.test(String(c.label || '')));
     if (!ttm) { ttm = { label: 'TTM', revenue: '', sde: '', ebitda: '', rent: '' }; f3.push(ttm); }
     if (rev) ttm.revenue = rev.slice(0, 40);
