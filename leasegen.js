@@ -40,32 +40,34 @@ async function pdfInfo(dataB64) {
   try { const pdf = require('pdf-parse'); const buf = Buffer.from(dataB64, 'base64'); const r = await pdf(buf); return { pages: r.numpages || 0, text: (r.text || '') }; }
   catch (e) { return { pages: 0, text: '' }; }
 }
-// Anthropic caps a single request at 100 PDF pages TOTAL. A lease plus amendments and exhibits
-// easily exceeds that (the "max 100 PDF pages" 400). Keep a running page budget: send each PDF as a
-// native document while it lasts; once spent — or a single PDF is too big — fall back to extracted
-// text, which has no page cap.
+// Prefer EXTRACTED TEXT over native PDF pages. Vision-reading a big lease page-by-page is what made
+// builds take minutes (and trip the 5-minute no-headers timeout); the extracted text of a normal
+// digital lease reads in seconds and is just as accurate for the terms we abstract. Native PDF is
+// kept only as a fallback for scanned pages that have no extractable text, under a page cap well
+// below Anthropic's 100-page limit.
 async function fileBlocks(files) {
   const out = [];
-  let pageBudget = 95; // small margin under the 100-page hard cap
+  let nativeBudget = 50; // pages of scanned/native PDF we'll send as a fallback across the whole request
   for (const f of (files || [])) {
     if (!f) continue;
     const isPdf = f.dataB64 && (f.type === 'application/pdf' || /\.pdf$/i.test(String(f.name || '')));
     if (isPdf) {
       const info = await pdfInfo(f.dataB64);
-      if (info.pages === 0) {
+      const txt = String(info.text || '').trim();
+      if (txt.length > 300) {
+        // Digital PDF — send its text. Fast path; handles leases of any length.
+        out.push({ type: 'text', text: '=== ' + (f.name || 'lease') + (info.pages ? (' (' + info.pages + ' pages)') : '') + ' ===\n' + txt.slice(0, 300000) });
+      } else if (info.pages === 0 || info.pages <= nativeBudget) {
+        // Scanned / no extractable text — let the model read the pages as images.
         out.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: f.dataB64 } });
-      } else if (info.pages <= pageBudget) {
-        out.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: f.dataB64 } });
-        pageBudget -= info.pages;
-      } else if (info.text && info.text.trim()) {
-        out.push({ type: 'text', text: '=== ' + (f.name || 'document') + ' (' + info.pages + ' pages — text extracted to stay within the document page limit) ===\n' + String(info.text).slice(0, 200000) });
+        if (info.pages > 0) nativeBudget -= info.pages;
       } else {
-        out.push({ type: 'text', text: '=== ' + (f.name || 'document') + ' — TOO LARGE TO ATTACH (' + info.pages + ' pages) ===\nThis PDF exceeded the document page limit and could not be text-extracted (likely a scanned image). Upload just the lease and its amendments (not the full exhibit set) and build again.' });
+        out.push({ type: 'text', text: '=== ' + (f.name || 'document') + ' — could not read (' + info.pages + ' pages, scanned, over the limit) ===\nThis PDF has no extractable text and is too long to read as images. Upload just the lease and its amendments as a text-based PDF and build again.' });
       }
     } else if (f.dataB64 && /^image\//.test(f.type || '')) {
       out.push({ type: 'image', source: { type: 'base64', media_type: f.type, data: f.dataB64 } });
     } else if (f.text) {
-      out.push({ type: 'text', text: '=== ' + (f.name || 'document') + ' ===\n' + String(f.text).slice(0, 80000) });
+      out.push({ type: 'text', text: '=== ' + (f.name || 'document') + ' ===\n' + String(f.text).slice(0, 120000) });
     }
   }
   return out;
@@ -95,7 +97,9 @@ async function generateLease({ business, files, questionnaire, asOf, systemPromp
   const resp = await fetch(API_URL, {
     method: 'POST',
     headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({ model: MODEL, max_tokens: 16000, temperature: 0, system: [{ type: 'text', text: sys, cache_control: { type: 'ephemeral' } }], messages: [{ role: 'user', content }] }),
+    // Stream the response: headers come back immediately, so a long read can never trip the fetch
+    // client's 5-minute no-headers timeout (which showed up as "fetch failed").
+    body: JSON.stringify({ model: MODEL, max_tokens: 16000, temperature: 0, stream: true, system: [{ type: 'text', text: sys, cache_control: { type: 'ephemeral' } }], messages: [{ role: 'user', content }] }),
   });
   if (!resp.ok) {
     const t = await resp.text().catch(() => '');
@@ -104,17 +108,41 @@ async function generateLease({ business, files, questionnaire, asOf, systemPromp
     }
     throw new Error('AI service error ' + resp.status + ': ' + t.slice(0, 400));
   }
-  const data = await resp.json();
-  const text = (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n');
+  // Collect the streamed text deltas back into the full response.
+  let text = '', stopReason = '', usage = null;
+  try {
+    const reader = resp.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let nl;
+      while ((nl = buf.indexOf('\n')) >= 0) {
+        const line = buf.slice(0, nl).trim();
+        buf = buf.slice(nl + 1);
+        if (line.indexOf('data:') !== 0) continue;
+        const p = line.slice(5).trim();
+        if (!p || p === '[DONE]') continue;
+        let ev; try { ev = JSON.parse(p); } catch (e) { continue; }
+        if (ev.type === 'content_block_delta' && ev.delta && ev.delta.type === 'text_delta') text += ev.delta.text;
+        else if (ev.type === 'message_delta') { if (ev.delta && ev.delta.stop_reason) stopReason = ev.delta.stop_reason; if (ev.usage) usage = ev.usage; }
+        else if (ev.type === 'error') throw new Error((ev.error && ev.error.message) || 'AI stream error');
+      }
+    }
+  } catch (e) {
+    throw new Error('The lease read was interrupted before it finished (' + String((e && e.message) || e) + '). Try again — if it keeps happening, upload just the lease and its amendments.');
+  }
   const state = extractJson(text);
   if (!state || !state.parties) {
-    if (data.stop_reason === 'max_tokens') {
+    if (stopReason === 'max_tokens') {
       throw new Error('The lease is long enough that the abstract got cut off before it finished. Upload just the lease and its amendments (skip the full exhibit set) and build again, or split a very large lease into fewer files.');
     }
     throw new Error('Could not parse a lease abstract from the model response. Confirm the upload is the actual lease (not a scan or a cover sheet) and build again.');
   }
   const biz = (state.header && state.header.business) || business || 'Lease Abstract';
-  return { state, business: biz, usage: data.usage || null };
+  return { state, business: biz, usage: usage };
 }
 
 function setModel(m){ if (m) MODEL = String(m); }
