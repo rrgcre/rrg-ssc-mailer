@@ -126,6 +126,10 @@ body:not(.asset-mode) .asset-only{display:none!important;}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
   .band{border-radius:0;}
   input,textarea{border:none!important;background:none!important;resize:none;}
+  /* A finalized (locked) BOV tints its fields #f6f8fb on screen; that selector out-specifies the
+     reset above, so without this the light blue-grey prints behind every narrative. Match its
+     specificity and drop the fill for print only — colors are left exactly as they print today. */
+  body.bov-locked #sheet input,body.bov-locked #sheet textarea{background:none!important;}
   .band h1 input,.subin,.pf input{border-bottom:none!important;}
   .band input,.band h1 input,.subin,.pf input{color:var(--ink)!important;-webkit-text-fill-color:var(--ink)!important;}
   .band h1 input{color:var(--navy)!important;-webkit-text-fill-color:var(--navy)!important;}

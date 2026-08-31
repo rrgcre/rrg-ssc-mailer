@@ -244,6 +244,7 @@ function sectionCard(cat,idx){
     +'<div style="display:flex;gap:6px"><button type="button" class="mini" onclick="moveSec(this,-1)">↑</button><button type="button" class="mini" onclick="moveSec(this,1)">↓</button><button type="button" class="mini danger" onclick="delSec(this)">Delete section</button></div>'
     +'</div>'
     +'<label class="decwrap"><input type="checkbox" class="sec-decision"'+(cat.decision?' checked':'')+'> This is the go / no-go decision section</label>'
+    +(cat.decision?'<div style="font-size:11.5px;color:#6b7688;margin:0 0 8px;line-height:1.45">Keeps a <b>Deal Call</b> question here (Business Sale · Asset Sale · Nurture · Decline) so your post-call automations fire. Added for you — leave it named “Deal Call”.</div>':'')
     +'<div class="qlist">'+qhtml+'</div>'
     +'<div class="addbtns"><button type="button" class="btn add" onclick="addQ(this)">+ Add question</button><button type="button" class="btn add" onclick="addSub(this)">+ Add subheading</button></div>'
     +'</div>';
@@ -421,6 +422,7 @@ function wireConds(){
   document.addEventListener('change', function(e){ var t=e.target; if(!t||!t.classList) return;
     if(t.classList.contains('cond-on')){ var wrap=t.closest('.condwrap'); var body=wrap&&wrap.querySelector('.condbody'); if(body) body.style.display=t.checked?'':'none'; if(t.checked) refreshCondSelects(); }
     else if(t.classList.contains('cond-q')){ refreshCondVals(t.closest('.qrow')); }
+    else if(t.classList.contains('sec-decision')){ onDecisionToggle(t); }
   });
   document.addEventListener('focusin', function(e){ if(e.target&&e.target.classList&&e.target.classList.contains('cond-q')) refreshCondSelects(); });
 }
@@ -435,6 +437,30 @@ function addSection(){ syncFromDom(); STATE.form.categories.push({title:'',quest
 async function delSec(btn){ if(!await rrgConfirm('Delete this whole section and its questions?')) return; syncFromDom(); var cards=qsa('.card[data-section="1"]'); var i=cards.indexOf(btn.closest('.card')); if(i>=0){ STATE.form.categories.splice(i,1); render(); } }
 function moveSec(btn,dir){ syncFromDom(); var cards=qsa('.card[data-section="1"]'); var i=cards.indexOf(btn.closest('.card')); var j=i+dir; if(j<0||j>=STATE.form.categories.length) return; var a=STATE.form.categories; var t=a[i]; a[i]=a[j]; a[j]=t; render(); }
 
+/* ---- Deal Call scaffold ----
+   The server reads the call outcome from an OPTIONS question whose label matches
+   /deal call|lead status/i (leadStatusOf) and maps it to businessSale/assetSale/
+   nurture/decline (_dealCallKey). A decision section without it silently never
+   fires post-call automations, so the builder guarantees one is present. */
+function _isDealCallQ(q){ return !!(q && q.type==='options' && /deal call|lead status/i.test(String(q.label||''))); }
+function _catHasDealCall(c){ return !!(c && (c.questions||[]).some(_isDealCallQ)); }
+function _dealCallQ(){ return { type:'options', full:true, cols:2, required:true, label:'Deal Call',
+  options:['Business Sale','Asset Sale','Nurture','Decline'],
+  prompt:"Your call — business sale, asset sale, nurture, or decline?",
+  hint:"Business Sale = going concern with transferable earnings. Asset Sale = the value is in the buildout, FF&E or license, not the earnings. Nurture = real but not ready. Decline = we can't deliver it or it's not worth our time. The AI pre-fills its read; you own the final call." }; }
+// When a section is marked the decision section: enforce a single one, and make sure it carries the Deal Call question.
+function onDecisionToggle(cb){
+  syncFromDom();
+  var cards=qsa('.card[data-section="1"]'); var idx=cards.indexOf(cb.closest('.card'));
+  var cats=STATE.form.categories||[]; if(idx<0||!cats[idx]) return;
+  if(cb.checked){
+    cats.forEach(function(c,i){ if(i!==idx) c.decision=false; });   // one decision section only
+    cats[idx].decision=true;
+    if(!_catHasDealCall(cats[idx])){ cats[idx].questions=cats[idx].questions||[]; cats[idx].questions.push(_dealCallQ()); }
+  } else { cats[idx].decision=false; }
+  render();
+}
+
 function goBack(){ try{ (window.top||window).location.href='rrg_settings.html?tab=callforms'; }catch(e){ location.href='rrg_settings.html?tab=callforms'; } }
 
 function save(){
@@ -443,6 +469,14 @@ function save(){
   if(!f.name){ msg.className='msg err'; msg.textContent='Give the questionnaire a name first.'; qs('#formName').focus(); return; }
   var totalQ=(f.header||[]).length + (f.categories||[]).reduce(function(n,c){return n+(c.questions||[]).filter(function(q){return q.type;}).length;},0);
   if(!totalQ){ msg.className='msg err'; msg.textContent='Add at least one question before saving.'; return; }
+  // A decision section must carry the Deal Call question or post-call automations can't fire. Add it, show it, and let them save again.
+  var _needsDeal=(f.categories||[]).filter(function(c){ return c.decision && !_catHasDealCall(c); });
+  if(_needsDeal.length){
+    _needsDeal.forEach(function(c){ c.questions=c.questions||[]; c.questions.push(_dealCallQ()); });
+    render();
+    var m2=qs('#msg'); if(m2){ m2.className='msg err'; m2.textContent='Your decision section needs a “Deal Call” question for post-call automations to fire — I added it. Review it, then Save again.'; }
+    return;
+  }
   var payload={ name:f.name, callType:f.callType, header:f.header, categories:f.categories, automations:f.automations||{}, knownSellerGuard:!!f.knownSellerGuard };
   if(f.id && !STATE.dup) payload.id=f.id; // editing an existing custom form; dup/new omit id
   btn.disabled=true; btn.textContent='Saving…'; msg.className='msg'; msg.textContent='';
