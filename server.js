@@ -13926,7 +13926,16 @@ app.get('/api/board', (req, res) => {
   Object.values(idx).forEach(d => {
     if (!(isAdmin || canSeeAllDeals(req) || ownsAssignment(req, d))) return;
     const o = overlay[d.key] || {};
-    const lp = o.pipelineId || 'p_bizsales';
+    // Which board a listing belongs to: its explicit pipeline, else the default for its rep type —
+    // so tenant-rep / landlord-rep assignments land on their own board even if no pipeline was set,
+    // instead of defaulting onto Business Sales.
+    let lp = o.pipelineId;
+    if (!lp) {
+      const _at = o.assignmentType;
+      lp = (_at === 'tenant_rep') ? ((typeof pipelineForCategory === 'function' && pipelineForCategory('tenantRep')) || 'p_tenantrep')
+         : (_at === 'landlord_rep') ? ((typeof pipelineForCategory === 'function' && pipelineForCategory('landlordLease')) || 'p_llrep')
+         : 'p_bizsales';
+    }
     if (lp !== pid) return;
     let v; try { v = assignmentView(d, overlay); } catch (e) { return; }
     let stage = listingBoardStage(d, overlay);

@@ -163,9 +163,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 <body>
 <div class="top"><div class="top-in">
   <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
-  <div class="kicker">Business Sales</div>
-  <h1>Pipeline Board</h1>
-  <div class="sub">Every active listing on the board, moving stage by stage — drag a card to advance it, or switch to the list view.</div>
+  <div class="kicker" id="bdKicker">Business Sales</div>
+  <h1 id="bdTitle">Pipeline Board</h1>
+  <div class="sub" id="bdSub">Every active listing on the board, moving stage by stage — drag a card to advance it, or switch to the list view.</div>
 </div></div>
 <div class="feats" id="bdFeatStrip">
   <div class="featshd" id="bdFeatHd"><b>What the pipeline board does</b><span class="sh">every listing, stage by stage — from first call to close</span><span class="chev">▾</span></div>
@@ -204,7 +204,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 </div></div>
 
 <script>
-var DATA=null, PID='', DRAGKEY='';
+var DATA=null, PID=(new URLSearchParams(location.search).get('pipelineId')||''), DRAGKEY='';
+// This board doubles as the Tenants board when the Tenant Rep pipeline is showing — relabel the
+// "listing" language and create tenant-rep assignments instead of business-sale listings.
+function isTenantBoard(){ return /tenant/i.test((DATA&&DATA.pipelineName)||''); }
+function entPlural(){ return isTenantBoard()?'Tenants':'Listings'; }
+function entSingular(){ return isTenantBoard()?'Tenant':'Listing'; }
+function dealType(){ return isTenantBoard()?'tenant_rep':'listing'; }
 var OFF_STATUSES=['On Hold','Lost']; var SHOW_OFF=false;
 var VIEW=(function(){ try{ return localStorage.getItem('rrg_board_view')||'board'; }catch(e){ return 'board'; } })(), LTBL=null;
 var TB={ q:'', owner:'', market:'', status:'', min:'', max:'', sort:'act_desc', per:25 };
@@ -257,6 +263,16 @@ function load(){
   fetch('/api/board'+(PID?('?pipelineId='+encodeURIComponent(PID)):''),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">Could not load the board.</div>'; return; }
     DATA=j; PID=j.pipelineId; loadTB(); EXPANDED={};
+    // Reflect which pipeline is showing in the header (Tenant Rep reads as "Tenants").
+    try{
+      var _isTR=/tenant/i.test(j.pipelineName||'');
+      var _k=document.getElementById('bdKicker'); if(_k) _k.textContent=(j.pipelineName||'Business Sales');
+      var _t=document.getElementById('bdTitle'); if(_t) _t.textContent=_isTR?'Tenants':'Pipeline Board';
+      var _s=document.getElementById('bdSub'); if(_s) _s.textContent=_isTR
+        ? 'Every tenant-rep client moving through the pipeline — drag a card to advance it, or switch to the list view.'
+        : 'Every active listing on the board, moving stage by stage — drag a card to advance it, or switch to the list view.';
+      try{ document.title = 'RRG — ' + (_isTR?'Tenants':'Pipeline Board'); }catch(e){}
+    }catch(e){}
     var sel=document.getElementById('psel');
     sel.innerHTML=(j.pipelines||[]).map(function(p){ return '<option value="'+esc(p.id)+'"'+(p.id===PID?' selected':'')+'>'+esc(p.name)+'</option>'; }).join('')+'<option disabled>──────────</option><option value="__buyers__">Business Sales (Buyers) →</option>';
     renderToolbar(); render();
@@ -266,13 +282,21 @@ var PEOPLE=[];
 function loadPeople(){ fetch('/api/people',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ PEOPLE=(j&&j.people)||[]; var dl=document.getElementById('clientList'); if(dl) dl.innerHTML=PEOPLE.map(function(p){ return '<option value="'+esc(p.name)+'">'+esc(p.company||p.email||p.type||'')+'</option>'; }).join(''); }).catch(function(){}); }
 function clientMatch(){ var v=(document.getElementById('nd_contact').value||'').trim().toLowerCase(); if(!v) return null; return PEOPLE.filter(function(p){ return (p.name||'').toLowerCase()===v; })[0]||null; }
 function updateClientHint(){ var h=document.getElementById('clientHint'); if(!h) return; var m=clientMatch(); if(m){ h.innerHTML='✓ Linking to existing client <b>'+esc(m.name)+'</b>'+(m.company?(' · '+esc(m.company)):'')+'. This listing joins their record.'; } else if((document.getElementById('nd_contact').value||'').trim()){ h.innerHTML='New client — <b>'+esc(document.getElementById('nd_contact').value.trim())+'</b> will be onboarded into your registry.'; } else { h.innerHTML='Creating a listing builds its data room automatically and links the client to your registry — a matching client is reused, a new one is onboarded.'; } }
-function openDealModal(){ var m=document.getElementById('dealModal'); if(!m) return; m.removeAttribute('hidden'); var b=document.getElementById('nd_business'); if(b) b.focus(); loadPeople(); var dl=document.getElementById('marketList'); if(dl){ var mk=(DATA&&Array.isArray(DATA.markets)&&DATA.markets.length)?DATA.markets:distinct('market'); dl.innerHTML=mk.map(function(v){return '<option value="'+esc(v)+'"></option>';}).join(''); } }
+function openDealModal(){ var m=document.getElementById('dealModal'); if(!m) return; m.removeAttribute('hidden');
+  // Relabel the modal for the current board (Tenant vs Listing).
+  try{ var isT=isTenantBoard();
+    var _h=m.querySelector('.bmodalh'); if(_h) _h.textContent='New '+(isT?'tenant':'listing');
+    var _lb=m.querySelectorAll('.bmfld'); if(_lb[0]) _lb[0].textContent=isT?'Tenant / concept name':'Business / listing name'; if(_lb[2]) _lb[2].textContent=isT?'Client contact':'Seller / client contact';
+    var _bt=document.getElementById('nd_create'); if(_bt) _bt.textContent='Create '+(isT?'tenant':'listing');
+    var _bp=document.getElementById('nd_business'); if(_bp) _bp.placeholder=isT?'e.g. Blue Agave Cantina (concept seeking space)':'e.g. Blue Agave Cantina';
+  }catch(e){}
+  var b=document.getElementById('nd_business'); if(b) b.focus(); loadPeople(); var dl=document.getElementById('marketList'); if(dl){ var mk=(DATA&&Array.isArray(DATA.markets)&&DATA.markets.length)?DATA.markets:distinct('market'); dl.innerHTML=mk.map(function(v){return '<option value="'+esc(v)+'"></option>';}).join(''); } }
 function closeDealModal(){ var m=document.getElementById('dealModal'); if(!m) return; m.setAttribute('hidden',''); ['nd_business','nd_market','nd_contact'].forEach(function(id){var _e=document.getElementById(id); if(_e) _e.value='';}); updateClientHint(); }
-function createDeal(){ var business=(document.getElementById('nd_business').value||'').trim(); if(!business){ document.getElementById('nd_business').focus(); return; } var contact=(document.getElementById('nd_contact').value||'').trim(); if(!contact){ document.getElementById('nd_contact').focus(); var _h=document.getElementById('clientHint'); if(_h) _h.innerHTML='<b style="color:#DA2B1F">A client contact is required — every listing must be linked to a contact.</b>'; return; } var btn=document.getElementById('nd_create'); btn.disabled=true; btn.textContent='Creating…'; fetch('/api/deal/new',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({business:business,market:(document.getElementById('nd_market').value||'').trim(),contact:contact,type:'listing'})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_assignment.html?key='+encodeURIComponent(j.key); } else { btn.disabled=false; btn.textContent='Create listing'; alert((j&&j.error)||'Could not create the listing.'); } }).catch(function(){ btn.disabled=false; btn.textContent='Create listing'; alert('Could not reach the server.'); }); }
+function createDeal(){ var business=(document.getElementById('nd_business').value||'').trim(); if(!business){ document.getElementById('nd_business').focus(); return; } var contact=(document.getElementById('nd_contact').value||'').trim(); if(!contact){ document.getElementById('nd_contact').focus(); var _h=document.getElementById('clientHint'); if(_h) _h.innerHTML='<b style="color:#DA2B1F">A client contact is required — every listing must be linked to a contact.</b>'; return; } var btn=document.getElementById('nd_create'); btn.disabled=true; btn.textContent='Creating…'; fetch('/api/deal/new',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({business:business,market:(document.getElementById('nd_market').value||'').trim(),contact:contact,type:dealType()})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_assignment.html?key='+encodeURIComponent(j.key); } else { btn.disabled=false; btn.textContent='Create '+entSingular().toLowerCase(); alert((j&&j.error)||'Could not create the '+entSingular().toLowerCase()+'.'); } }).catch(function(){ btn.disabled=false; btn.textContent='Create '+entSingular().toLowerCase(); alert('Could not reach the server.'); }); }
 function renderToolbar(){
   var vc=activeFilterCount();
   var perLabel=function(p){ return p===0?'All':String(p); };
-  var html='<div class="tb">'+'<span class="pgtitle">Listings</span>'+'<button class="tbtn" id="tb_newlisting" style="background:#000E31;color:#fff;border-color:#000E31;font-weight:800">+ New Listing</button>'
+  var html='<div class="tb">'+'<span class="pgtitle">'+entPlural()+'</span>'+'<button class="tbtn" id="tb_newlisting" style="background:#000E31;color:#fff;border-color:#000E31;font-weight:800">+ New '+entSingular()+'</button>'
     +'<div class="vtog"><button class="vbtn'+(VIEW==='board'?' on':'')+'" data-view="board">\u25a4 Board</button><button class="vbtn'+(VIEW==='list'?' on':'')+'" data-view="list">\u2630 List</button></div>'
     +'<div class="search"><span class="mag">⌕</span><input id="tb_q" placeholder="Search listings…" value="'+esc(TB.q)+'"></div>'
     +'<button class="tbtn'+(FILTER_OPEN?' on':'')+'" id="tb_filter">☰ Filters'+(vc?(' <span class="pip">'+vc+'</span>'):'')+'</button>'
@@ -379,7 +403,7 @@ function render(){
     var list=byStage[st]||[]; var sum=list.reduce(function(a,c){return a+money(c.value);},0);
     var cap=(per>0 && !EXPANDED[st])?per:list.length;
     var shown=list.slice(0,cap);
-    var cardsHtml=list.length?shown.map(cardHtml).join(''):'<div class="colempty">Drop deals here</div>';
+    var cardsHtml=list.length?shown.map(cardHtml).join(''):'<div class="colempty">Drop '+entPlural().toLowerCase()+' here</div>';
     var more=(list.length>cap)?('<button class="showmore" data-more="'+esc(st)+'">+ '+(list.length-cap)+' more</button>'):'';
     return '<div class="col" data-stage="'+esc(st)+'"><div class="colh"><div class="nm">'+esc(st)+' <span class="cnt">'+list.length+'</span></div>'+(sum?('<div class="sum">'+fmtMoney(sum)+'</div>'):'')+'</div><div class="colb" data-stage="'+esc(st)+'">'+cardsHtml+more+'</div></div>';
   }).join('');
