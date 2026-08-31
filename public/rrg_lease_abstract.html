@@ -87,11 +87,12 @@ table.sch th{background:var(--tint);color:var(--blue);font-size:9.5px;font-weigh
 <div class="toolbar"><div class="tb-inner">
   <div class="tt">RRG Lease Abstract <span>Edit in place · Print</span></div>
   <div class="actions">
+    <a class="btn" id="toBovBtn" style="display:none;background:#127a3e;border-color:#127a3e;color:#fff" href="#">Value the business now →</a>
     <span class="savechip" id="savechip">Saved ✓</span>
     <label class="tgl" onclick="toggleEdit()" title="Click any field to edit when on"><span>Editing</span><span class="sw" id="editSw"></span></label>
     <label class="tgl" onclick="toggleRedactLL()" title="Withhold the landlord name (available under NDA)"><span>Redact Landlord</span><span class="sw" id="redactLLSw"></span></label>
     <label class="tgl" onclick="toggleRedactTenant()" title="Withhold the tenant name (available under NDA)"><span>Redact Tenant</span><span class="sw" id="redactTenSw"></span></label>
-    <a class="btn" href="./rrg_lease_queue.html">Lease Abstracts</a>
+    <a class="btn" id="queueBtn" href="./rrg_lease_queue.html">Lease Abstracts</a>
     <button class="btn" onclick="toggleHelp()">Help</button>
     <button class="btn print" onclick="window.print()">Print</button>
   </div>
@@ -250,6 +251,14 @@ function normalizeRedact(s){ if(!s) return; // migrate legacy single "redact" fl
 if(LID){
   fetch('/api/lease/'+encodeURIComponent(LID),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     if(j&&j.ok&&j.lease){ A=j.lease; if(!A.state){ A.state=blankState(); if(A.business) A.state.header.business=A.business; } normalizeRedact(A.state); render(A.state); if(ISNEW){ /* fresh manual abstract: save the blank so it shows as built */ queueSave(); }
+      // Built as a prerequisite for a BOV? Send every exit back to that BOV — not the standalone
+      // Lease Abstracts queue — so the rep lands where they can finish the valuation.
+      if(A.srcBovId){
+        var _bovUrl='./rrg_bov_generate.html?bov='+encodeURIComponent(A.srcBovId);
+        var tb=document.getElementById('toBovBtn'); if(tb){ tb.href=_bovUrl; tb.style.display=''; }
+        var qb=document.getElementById('queueBtn'); if(qb){ qb.href=_bovUrl; qb.textContent='← Back to the BOV'; }
+        var bp=document.querySelector('a.rrg-back'); if(bp){ bp.href=_bovUrl; bp.setAttribute('aria-label','Back to the BOV'); var sp=bp.querySelectorAll('span'); if(sp&&sp.length){ bp.innerHTML='<span>←</span> Back to the BOV'; } }
+      }
       if((new URLSearchParams(location.search)).get('print')==='1'){ document.body.classList.remove('editing'); setTimeout(function(){ window.print(); }, 400); } }
     else { document.getElementById('doc').innerHTML='<div class="loading">Could not load this abstract.</div>'; }
   }).catch(function(){ document.getElementById('doc').innerHTML='<div class="loading">Could not reach the server.</div>'; });

@@ -2424,6 +2424,53 @@ app.get('/api/valuation-room-ready', (req, res) => {
     res.json({ ok: true, financials: files.some(f => f.label === 'Financials'), lease: leaseDoc, abstract: !!(_lz && !_lz.pending), abstractPending: !!(_lz && _lz.pending), abstractId: (_lz && _lz.id) || '', hasQuestionnaire: !!(bov && bov.srcQuestId), interviewSkipped: !!(bov && bov.interviewSkipped) });
   } catch (e) { res.json({ ok: true, financials: false, lease: false, abstract: false, abstractPending: false, abstractId: '', hasQuestionnaire: false, interviewSkipped: false }); }
 });
+
+// Pull the lease document(s) already sitting in the linked listing's data room, as file blocks
+// {name,type,dataB64|text} — so a lease abstract can be built from the room without re-uploading.
+// Resolve the room the same way the assignment page does (listing key first), then fall back to the
+// contact/company on the abstract. Scan is lenient: category "Lease" OR a filename that reads like a
+// lease/amendment/sublease/estoppel, so a just-dropped lease counts.
+function roomLeaseFilesForLease(req, l) {
+  const out = [];
+  try {
+    if (!l) return out;
+    const rooms = loadRooms();
+    let room = null;
+    if (l.dealKey) { try { const ix = assignmentsIndex(); if (ix[l.dealKey] && ix[l.dealKey].room) room = rooms.find(r => r.id === ix[l.dealKey].room.id) || ix[l.dealKey].room; } catch (e) {} }
+    if (!room) {
+      const pid = String(l.personId || ''), cid = String(l.companyId || '');
+      const hit = o => !!o && ((pid && (o.personId === pid || o.contactPersonId === pid)) || (cid && o.companyId === cid));
+      room = rooms.find(hit) || null;
+    }
+    if (!room) return out;
+    const isLease = d => d && (d.category === 'Lease' || /lease|sublease|estoppel|amendment/i.test(String(d.title || d.originalName || '')));
+    (room.docs || []).forEach(d => {
+      if (!isLease(d)) return;
+      try {
+        const ext = String(d.ext || '').toLowerCase();
+        const fp = path.join(ROOMS_DIR, d.id + '.' + ext);
+        if (!(fp.startsWith(ROOMS_DIR) && fs.existsSync(fp))) return;
+        const name = (d.title || d.originalName || ('lease.' + ext));
+        if (ext === 'csv' || ext === 'txt') {
+          out.push({ name: name, type: 'text/plain', text: fs.readFileSync(fp, 'utf8').slice(0, 200000) });
+        } else {
+          const mt = ext === 'pdf' ? 'application/pdf' : (ext === 'png' ? 'image/png' : ((ext === 'jpg' || ext === 'jpeg') ? 'image/jpeg' : (ext === 'gif' ? 'image/gif' : '')));
+          out.push({ name: name, type: mt, dataB64: fs.readFileSync(fp).toString('base64') });
+        }
+      } catch (e) {}
+    });
+  } catch (e) {}
+  return out;
+}
+// Is there already a lease in the linked listing's data room? (drives the build screen — no re-upload)
+app.get('/api/lease-room-ready', (req, res) => {
+  try {
+    const l = loadLeases().find(x => x.id === String((req.query && req.query.lease) || ''));
+    if (!l || !ownsLease(req, l)) return res.json({ ok: true, hasLease: false, count: 0, names: [] });
+    const files = roomLeaseFilesForLease(req, l);
+    res.json({ ok: true, hasLease: files.length > 0, count: files.length, names: files.map(f => f.name).slice(0, 6) });
+  } catch (e) { res.json({ ok: true, hasLease: false, count: 0, names: [] }); }
+});
 app.post('/api/generate-bov', express.json({ limit: '48mb' }), async (req, res) => {
   try {
     const { business, files, bovId, links, preparedFor, notes, address } = req.body || {};
@@ -2873,7 +2920,9 @@ app.post('/api/generate-lease', express.json({ limit: '48mb' }), async (req, res
     const l = arr.find(x => x.id === b.leaseId);
     if (!l) return res.status(404).json({ ok: false, error: 'Lease abstract not found.' });
     if (!ownsLease(req, l)) return res.status(403).json({ ok: false, error: 'Not yours.' });
-    const files = Array.isArray(b.files) ? b.files.slice(0, 12) : [];
+    let files = Array.isArray(b.files) ? b.files.slice(0, 12) : [];
+    // No file uploaded but the rep asked to use what's already in the data room — pull the lease from there.
+    if (!files.length && b.useRoom) { files = roomLeaseFilesForLease(req, l).slice(0, 12); }
     if (!files.length) return res.status(400).json({ ok: false, error: 'Upload the lease document before building.' });
     const asOf = new Date().toLocaleDateString('en-US');
     const out = await leasegen.generateLease({
