@@ -7069,18 +7069,71 @@ const EMAIL_TPL_ASSETBOV_DELETED = path.join(BOV_DATA_DIR, 'email_templates_asse
 const ASSETBOV_TPL_ID = 'etpl_send_bov_asset';
 const ASSETBOV_TPL_SUBJECT = 'Your business valuation — Broker Opinion of Value';
 const ASSETBOV_TPL_BODY =
+  '<p>{{first_name}},</p>' +
+  '<p>Thank you for the time and the information. I’ve completed the Broker Opinion of Value (BOV) for your business, attached here.</p>' +
+  '<p>Restaurant businesses are valued on their historical financial performance, and where a concept isn’t generating meaningful transferable profit, there is little earnings-based value to sell. In those cases the right move is an asset sale where value is set on the leasehold improvements, the equipment, and the transferable lease and licenses, rather than on the earnings of the operation.</p>' +
+  '<p>Here is the part that matters most for you: the real value in a deal like this is not the small financial gain you get from the sale. Usually, the big benefit is getting out of the lease. Assigning it to a qualified operator could move the remaining rent — and often a personal guaranty — off your shoulders, and hands a buyer a built-out, licensed space they can open in a fraction of the time and cost of building new. That exit is often worth far more than the assets themselves, and capturing it is exactly what a well-run, confidential process is built to do.</p>' +
+  '<p>The report lays all of this out. I’d like to set up a short call to walk you through it, answer any questions you may have, and map out the cleanest path to an exit. What does your week look like?</p>' +
+  '<p>Best,<br>{{my_name}}</p>';
+// Prior canonical bodies — an untouched seed still carrying one of these is safe to upgrade in place.
+const ASSETBOV_TPL_BODY_PRIOR = [
   '<p>Hi {{first_name}},</p>' +
   '<p>Thank you for the time and the information — I’ve completed the Broker Opinion of Value (BOV) for your business, attached here.</p>' +
   '<p>Let me be straight with you about how it comes together. Restaurant businesses are valued on their historical financial performance, and where a concept isn’t generating meaningful transferable profit, there is little earnings-based value to sell. In those cases the right move is an asset sale — value set on the leasehold improvements, the equipment, and the transferable lease and licenses, rather than on the earnings of the operation.</p>' +
   '<p>Here is the part that matters most for you: the real value in a deal like this is usually getting out of the lease. Assigning it to a qualified operator moves the remaining rent — and often a personal guaranty — off your shoulders, and hands a buyer a built-out, licensed space they can open in a fraction of the time and cost of building new. That exit is frequently worth far more than the price of the assets themselves, and capturing it is exactly what a well-run, confidential process is built to do.</p>' +
   '<p>The report lays all of this out. I’d like to set up a short call to walk you through it, talk through your goals and timing, and map out the cleanest path to an exit. What does your week look like?</p>' +
-  '<p>Best,<br>{{my_name}}</p>';
+  '<p>Best,<br>{{my_name}}</p>'
+];
 function _seedAssetBov(a) {
-  // Respect an explicit delete; otherwise ensure this shared template exists.
+  // Respect an explicit delete; otherwise ensure this shared template exists and stays current.
   try { if (fs.existsSync(EMAIL_TPL_ASSETBOV_DELETED)) return a; } catch (e) { return a; }
-  if (!a.some(t => t.id === ASSETBOV_TPL_ID)) {
-    a.push({ id: ASSETBOV_TPL_ID, name: 'BOV — send valuation to seller (asset sale)', category: 'Seller', scope: 'shared', ownerUser: '', ownerName: 'RRG', greeting: 'none', subject: ASSETBOV_TPL_SUBJECT, body: ASSETBOV_TPL_BODY, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), seeded: true });
+  const t = a.find(x => x.id === ASSETBOV_TPL_ID);
+  if (!t) {
+    const now = new Date().toISOString();
+    a.push({ id: ASSETBOV_TPL_ID, name: 'BOV — send valuation to seller (asset sale)', category: 'Seller', scope: 'shared', ownerUser: '', ownerName: 'RRG', greeting: 'none', subject: ASSETBOV_TPL_SUBJECT, body: ASSETBOV_TPL_BODY, createdAt: now, updatedAt: now, seeded: true });
     try { writeJsonGuarded(EMAIL_TPL_FILE, a, 'seedAssetBov'); } catch (e) {}
+    return a;
+  }
+  // Upgrade an untouched earlier seed to the current wording; never clobber a hand-edited copy.
+  if (t.seeded === true && t.body !== ASSETBOV_TPL_BODY && ASSETBOV_TPL_BODY_PRIOR.indexOf(t.body) >= 0) {
+    t.name = 'BOV — send valuation to seller (asset sale)'; t.subject = ASSETBOV_TPL_SUBJECT; t.body = ASSETBOV_TPL_BODY; t.category = 'Seller';
+    try { writeJsonGuarded(EMAIL_TPL_FILE, a, 'seedAssetBov:upgrade'); } catch (e) {}
+  }
+  return a;
+}
+const EMAIL_TPL_GCBOV_DELETED = path.join(BOV_DATA_DIR, 'email_templates_gcbov_deleted.json');
+const GCBOV_TPL_ID = 'etpl_send_bov_gc';
+const GCBOV_TPL_SUBJECT = 'Your business valuation — Broker Opinion of Value';
+const GCBOV_TPL_BODY =
+  '<p>{{first_name}},</p>' +
+  '<p>Thank you for the time and the information. I’ve completed the Broker Opinion of Value (BOV) for your business, attached here.</p>' +
+  '<p>Restaurant businesses are valued on their historical financial performance, and yours generates real, transferable cash flow. That means it is valued as a going concern — a multiple of its earnings (SDE and EBITDA) — not simply the hard assets. A profitable, well-run operation is worth materially more than its furniture and equipment, and the report shows exactly where that value sits.</p>' +
+  '<p>Here is the part that matters most for you: the value in a business like this is the cash flow and the goodwill you have built — the brand, the reputation, the repeat customers, and a proven P&amp;L a buyer can step into and run from day one. That is what commands a premium over the assets, and capturing the full going-concern value is exactly what a competitive, confidential process is built to do. The right buyer pays for the earnings, not the equipment.</p>' +
+  '<p>The report lays all of this out — the multiples buyers are actually paying for comparable restaurants and bars, and the specific strengths and risks that move your number. I’d like to set up a short call to walk you through it, answer any questions you may have, and map out the cleanest path to a strong exit. What does your week look like?</p>' +
+  '<p>Best,<br>{{my_name}}</p>';
+// Prior canonical bodies — an untouched seed still carrying one of these is safe to upgrade in place.
+const GCBOV_TPL_BODY_PRIOR = [
+  '<p>Hi {{first_name}},</p>' +
+  '<p>Thank you for the time and the information — I’ve completed the Broker Opinion of Value (BOV) for your business, attached here.</p>' +
+  '<p>Let me be straight with you about how it comes together. Restaurant businesses are valued on their historical financial performance, and yours generates real, transferable cash flow. That means it is valued as a going concern — a multiple of its earnings (SDE and EBITDA) — not simply the hard assets. A profitable, well-run operation is worth materially more than its furniture and equipment, and the report shows exactly where that value sits.</p>' +
+  '<p>Here is the part that matters most for you: the value in a business like this is the cash flow and the goodwill you have built — the brand, the reputation, the repeat customers, and a proven P&amp;L a buyer can step into and run from day one. That is what commands a premium over the assets, and capturing the full going-concern value is exactly what a competitive, confidential process is built to do. The right buyer pays for the earnings, not the equipment.</p>' +
+  '<p>The report lays all of this out — the multiples buyers are actually paying for comparable restaurants and bars, and the specific strengths and risks that move your number. I’d like to set up a short call to walk you through it, talk through your goals and timing, and map out the cleanest path to a strong exit. What does your week look like?</p>' +
+  '<p>Best,<br>{{my_name}}</p>'
+];
+function _seedGcBov(a) {
+  // Respect an explicit delete; otherwise ensure this shared template exists and stays current.
+  try { if (fs.existsSync(EMAIL_TPL_GCBOV_DELETED)) return a; } catch (e) { return a; }
+  const t = a.find(x => x.id === GCBOV_TPL_ID);
+  if (!t) {
+    const now = new Date().toISOString();
+    a.push({ id: GCBOV_TPL_ID, name: 'BOV — send valuation to seller (going concern)', category: 'Seller', scope: 'shared', ownerUser: '', ownerName: 'RRG', greeting: 'none', subject: GCBOV_TPL_SUBJECT, body: GCBOV_TPL_BODY, createdAt: now, updatedAt: now, seeded: true });
+    try { writeJsonGuarded(EMAIL_TPL_FILE, a, 'seedGcBov'); } catch (e) {}
+    return a;
+  }
+  // Upgrade an untouched earlier seed to the current wording; never clobber a hand-edited copy.
+  if (t.seeded === true && t.body !== GCBOV_TPL_BODY && GCBOV_TPL_BODY_PRIOR.indexOf(t.body) >= 0) {
+    t.name = 'BOV — send valuation to seller (going concern)'; t.subject = GCBOV_TPL_SUBJECT; t.body = GCBOV_TPL_BODY; t.category = 'Seller';
+    try { writeJsonGuarded(EMAIL_TPL_FILE, a, 'seedGcBov:upgrade'); } catch (e) {}
   }
   return a;
 }
@@ -7164,7 +7217,7 @@ function _seedCimFollowup(a) {
   try { writeJsonGuarded(EMAIL_TPL_FILE, a, 'seedCimFollowup'); fs.writeFileSync(EMAIL_TPL_CIMFU_FLAG, JSON.stringify({ seededAt: new Date().toISOString() })); } catch (e) {}
   return a;
 }
-function loadEmailTpls() { try { return _seedCimFollowup(_seedProofOfFunds(_seedAssetBov(_seedBrokerTemplates(_seedEmailTpls(rj(EMAIL_TPL_FILE) || []))))); } catch (e) { return []; } }
+function loadEmailTpls() { try { return _seedCimFollowup(_seedProofOfFunds(_seedGcBov(_seedAssetBov(_seedBrokerTemplates(_seedEmailTpls(rj(EMAIL_TPL_FILE) || [])))))); } catch (e) { return []; } }
 function saveEmailTpls(a) { return writeJsonGuarded(EMAIL_TPL_FILE, a, 'saveEmailTpls'); }
 function newEmailTplId() { return 'etpl_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 const TPL_CATEGORIES = ['Buyer', 'Seller', 'NDA', 'Follow-up', 'Closing', 'General'];
@@ -7366,6 +7419,7 @@ app.delete('/api/email-templates/:id', (req, res) => {
   all = all.filter(x => x.id !== req.params.id); saveEmailTpls(all);
   if (req.params.id === POF_TPL_ID) { try { fs.writeFileSync(EMAIL_TPL_POF_DELETED, JSON.stringify({ deletedAt: new Date().toISOString(), by: u.username || '' })); } catch (e) {} }
   if (req.params.id === ASSETBOV_TPL_ID) { try { fs.writeFileSync(EMAIL_TPL_ASSETBOV_DELETED, JSON.stringify({ deletedAt: new Date().toISOString(), by: u.username || '' })); } catch (e) {} }
+  if (req.params.id === GCBOV_TPL_ID) { try { fs.writeFileSync(EMAIL_TPL_GCBOV_DELETED, JSON.stringify({ deletedAt: new Date().toISOString(), by: u.username || '' })); } catch (e) {} }
   res.json({ ok: true });
 });
 app.post('/api/email-templates/:id/used', (req, res) => {
