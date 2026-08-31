@@ -835,7 +835,7 @@ function render(){
       + ((A.canStart||A.provisional||(A.assignmentType==='listing')||A.dealId) ? ('<div class="hqbar">'
           + (A.canStart ? '<button class="hqbtn go" id="startDealBtn">Start listing →</button>' : (A.provisional ? '<button class="hqbtn go" id="promoteBtn">Go Live →</button>' : ''))
           + ((A.assignmentType==='listing') ? '<button class="hqbtn mkt" id="hqMktBtn">📣 Marketplace</button>' : '')
-          + (A.dealId ? '<button class="hqbtn del" id="delDealBtn" title="Removes the listing, its records, data room and all files. Cannot be undone.">Delete</button>' : '')
+          + (A.canDelete ? '<button class="hqbtn del" id="delDealBtn" title="Removes the listing, its records, data room and all files. Cannot be undone.">Delete</button>' : '')
           + '</div>'
           + (A.canStart ? '<div class="hqnote">Start runs the Seller Qualification Call and takes this on as a working listing — not on the market yet.</div>' : '')
           + (A.provisional ? '<div class="hqnote">Go Live marks this listing Live — do it once financials are verified, value is aligned, and the agreement is signed.</div>' : '')
@@ -933,12 +933,14 @@ function sellerReportShell(){ if(A && A.assignmentType==='tenant_rep') return ''
 function loadSellerReport(){ var body=document.getElementById('srBody'), st=document.getElementById('srStatus'); if(!body||!KEY) return;
   fetch('/api/assignment/'+encodeURIComponent(KEY)+'/seller-report',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok){ if(st)st.textContent=''; body.innerHTML='<div style="color:#8a93a8;font-size:12.5px">—</div>'; return; }
+    window._srSellerEmail=j.sellerEmail||''; window._srSellerName=j.sellerName||''; window._srInterval=j.intervalDays||14; window._srCadence=j.cadence||'';
     var p=j.preview||{}; var on=j.firmEnabled && !j.off;
-    if(st) st.innerHTML = on ? '<span style="color:#1f8a5b;font-weight:700">● On · every '+j.intervalDays+' days</span>' : (j.firmEnabled ? '<span style="color:#b5791f;font-weight:700">Off for this listing</span>' : '<span style="color:#8a93a3">Firm cadence off</span>');
+    var perPhrase=(j.cadence==='month1')?'Past month':('Last '+(j.intervalDays||14)+' days');
+    if(st) st.innerHTML = on ? '<span style="color:#1f8a5b;font-weight:700">● On · '+esc(j.cadenceLabel||('every '+(j.intervalDays||14)+' days'))+'</span>' : (j.firmEnabled ? '<span style="color:#b5791f;font-weight:700">Off for this listing</span>' : '<span style="color:#8a93a3">Firm cadence off</span>');
     var stats='<div style="display:flex;gap:16px;flex-wrap:wrap;margin:2px 0 10px">'+[['Inquiries',p.inquiries],['NDAs',p.ndas],['Tours',p.tours],['Offers',p.offers],['Room views',p.views]].map(function(x){return '<div><div style="font-size:17px;font-weight:800;color:#0b1a38">'+(x[1]||0)+'</div><div style="font-size:11px;color:#8a93a8">'+x[0]+'</div></div>';}).join('')+'</div>';
     var lastTxt=j.lastSentAt?('Last sent '+new Date(j.lastSentAt).toLocaleDateString()):'Not sent yet';
     var toTxt=j.sellerEmail?('to '+esc(j.sellerEmail)):'<span style="color:#C0261B">no seller email on file</span>';
-    body.innerHTML='<div style="font-size:12.5px;color:#5a6478;margin-bottom:8px">Last '+(j.intervalDays||14)+' days '+toTxt+' · '+esc(lastTxt)+'</div>'+stats
+    body.innerHTML='<div style="font-size:12.5px;color:#5a6478;margin-bottom:8px">'+esc(perPhrase)+' '+toTxt+' · '+esc(lastTxt)+'</div>'+stats
       +'<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'
       +'<button id="srSendNow" style="border:1px solid var(--navy,#20334f);background:#fff;color:var(--navy,#20334f);font-weight:700;font-size:12.5px;padding:7px 13px;border-radius:6px;cursor:pointer">Send now</button>'
       +(j.firmEnabled?('<label style="font-size:12.5px;display:inline-flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="srOff" '+(j.off?'checked':'')+'> Skip this listing</label>'):'<span style="font-size:12px;color:#8a93a8">Turn the firm cadence on in Admin → Email to schedule these automatically.</span>')
@@ -947,7 +949,18 @@ function loadSellerReport(){ var body=document.getElementById('srBody'), st=docu
     var off=document.getElementById('srOff'); if(off) off.onchange=function(){ srToggleOff(off.checked); };
   }).catch(function(){ if(st)st.textContent=''; });
 }
-function srSend(){ var b=document.getElementById('srSendNow'), m=document.getElementById('srMsg'); if(!b) return; b.disabled=true; var was=b.textContent; b.textContent='Sending…'; if(m)m.textContent='';
+function srSend(){
+  var m=document.getElementById('srMsg'); var to=window._srSellerEmail||'';
+  if(!to){ if(m){m.style.color='#C0261B'; m.textContent='No seller email on file — set the seller contact first.'; } return; }
+  var who=(window._srSellerName?(window._srSellerName+' ('+to+')'):to);
+  var span=(window._srCadence==='month1')?'past month':('last '+(window._srInterval||14)+' days');
+  var msg='Send the marketing activity report to the SELLER right now?\n\n'
+    +'This emails '+who+' a real summary of the '+span+' of activity on this listing. It goes straight to the client — this is not a test.\n\n'
+    +'Make sure the numbers above look right first. Continue?';
+  var ask=window.rrgConfirm?window.rrgConfirm(msg):Promise.resolve(window.confirm(msg));
+  Promise.resolve(ask).then(function(go){ if(go) _srDoSend(); });
+}
+function _srDoSend(){ var b=document.getElementById('srSendNow'), m=document.getElementById('srMsg'); if(!b) return; b.disabled=true; var was=b.textContent; b.textContent='Sending…'; if(m)m.textContent='';
   fetch('/api/assignment/'+encodeURIComponent(KEY)+'/seller-report/send',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'}).then(function(r){return r.json();}).then(function(j){ b.disabled=false; b.textContent=was; if(j&&j.ok){ if(m){m.style.color='#1f8a5b'; m.textContent='Sent ✓ to '+esc(j.to);} loadSellerReport(); } else { if(m){m.style.color='#C0261B'; m.textContent=(j&&j.error)||'Could not send.';} } }).catch(function(){ b.disabled=false; b.textContent=was; if(m){m.style.color='#C0261B'; m.textContent='Could not reach the server.';} }); }
 function srToggleOff(off){ fetch('/api/assignment/'+encodeURIComponent(KEY)+'/seller-report',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({off:!!off})}).then(function(r){return r.json();}).then(function(){ loadSellerReport(); }).catch(function(){}); }
 function loadMatchingBuyers(){ var host=document.getElementById('matchBuyers'), cnt=document.getElementById('mbCount'); if(!host||!KEY) return;
@@ -1083,7 +1096,7 @@ function wireDocs(){
 }
 function promoteListing(){ var b=document.getElementById('promoteBtn'); if(b){b.disabled=true;b.textContent='Promoting…';} fetch('/api/assignment/'+encodeURIComponent(KEY)+'/promote',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.reload(); } else { if(b){b.disabled=false;b.textContent='Go Live →';} alert((j&&j.error)||'Could not promote.'); } }).catch(function(){ if(b){b.disabled=false;b.textContent='Go Live →';} alert('Could not reach the server.'); }); }
 function startDeal(){ var b=document.getElementById('startDealBtn'); if(b){b.disabled=true;b.textContent='Starting…';} fetch('/api/deal/'+encodeURIComponent(A.dealId)+'/start',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_assignment.html?key='+encodeURIComponent(j.key); } else { if(b){b.disabled=false;b.textContent='Start listing →';} alert((j&&j.error)||'Could not start the deal.'); } }).catch(function(){ if(b){b.disabled=false;b.textContent='Start listing →';} alert('Could not reach the server.'); }); }
-async function deleteDeal(){ if(!await rrgConfirm('Delete this listing and everything in it — records, data room, and all uploaded files? This cannot be undone.')) return; var b=document.getElementById('delDealBtn'); if(b){b.disabled=true;b.textContent='Deleting…';} fetch('/api/deal/'+encodeURIComponent(A.dealId),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_board.html'; } else { if(b){b.disabled=false;b.textContent='Delete';} alert((j&&j.error)||'Could not delete the listing.'); } }).catch(function(){ if(b){b.disabled=false;b.textContent='Delete';} alert('Could not reach the server.'); }); }
+async function deleteDeal(){ if(!await rrgConfirm('Delete this listing and everything in it — records, data room, and all uploaded files? This cannot be undone.')) return; var b=document.getElementById('delDealBtn'); if(b){b.disabled=true;b.textContent='Deleting…';} fetch('/api/assignment/'+encodeURIComponent(KEY),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_board.html'; } else { if(b){b.disabled=false;b.textContent='Delete';} alert((j&&j.error)||'Could not delete the listing.'); } }).catch(function(){ if(b){b.disabled=false;b.textContent='Delete';} alert('Could not reach the server.'); }); }
 function fmtDT(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; var h=d.getHours(),m=d.getMinutes(),ap=h<12?'AM':'PM',hh=(h%12)||12; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2)+' '+hh+':'+String(m).padStart(2,'0')+' '+ap; }
 /* ---------- Accordion + reorderable rail (collapsible, draggable sections on the deal file) ---------- */
 var ACC_STATE={}, ACC_INIT=false;

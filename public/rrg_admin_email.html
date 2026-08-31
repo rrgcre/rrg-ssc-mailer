@@ -93,9 +93,9 @@ function render(){
     +'<div class="card">'
       +'<h2>Weekly seller activity report</h2><div class="ch-sub">Automatically email each seller a summary of the marketing on their listing — inquiries, NDAs, tours, offers and confidential data-room views. Keeps owners informed and listings renewing. Sends only for listings that are live on the marketplace and have a seller email on file; a rep can turn it off for any single listing.</div>'
       +'<label class="check" style="margin-top:6px"><input type="checkbox" id="srEnabled"> Send the seller activity report automatically</label>'
-      +'<div class="grid" style="margin-top:12px"><div class="fld"><label class="lbl">How often</label><select id="srInterval"><option value="7">Every 7 days</option><option value="14">Every 14 days</option><option value="30">Every 30 days</option></select></div></div>'
+      +'<div class="grid" style="margin-top:12px"><div class="fld"><label class="lbl">How often</label><select id="srInterval"><option value="month1">Monthly — 1st business day</option><option value="7">Every 7 days</option><option value="14">Every 14 days</option><option value="30">Every 30 days</option></select></div></div>'
       +'<div class="savebar"><button class="savebtn" id="srSave">Save cadence</button><span class="msg" id="srMsg"></span></div>'
-      +'<div class="note">14 days is a good default — often enough to show momentum without over-emailing. The report never reveals the business name, address, or buyer identities.</div>'
+      +'<div class="note"><b>Monthly on the 1st business day</b> is the usual choice — one clean owner update a month, sent automatically on the first weekday. The interval options send every N days from when each listing starts. Either way, the report never reveals the business name, address, or buyer identities.</div>'
     +'</div>';
   PRESETS.forEach(function(p,i){});
   document.querySelectorAll('[data-p]').forEach(function(b){ b.addEventListener('click',function(){ var p=PRESETS[+b.getAttribute('data-p')]; document.getElementById('host').value=p.host; document.getElementById('port').value=p.port; document.getElementById('secure').checked=!!p.secure; if(p.user&&!val('user')) document.getElementById('user').value=p.user; detectHint(); }); });
@@ -109,13 +109,13 @@ function loadSellerReport(){
   fetch('/api/admin/seller-report',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok) return;
     var e=document.getElementById('srEnabled'); if(e) e.checked=!!j.enabled;
-    var s=document.getElementById('srInterval'); if(s) s.value=String(j.intervalDays||14);
+    var s=document.getElementById('srInterval'); if(s) s.value=(j.cadence||String(j.intervalDays||14));
     var b=document.getElementById('srSave'); if(b) b.onclick=saveSellerReport;
   }).catch(function(){});
 }
 function saveSellerReport(){
   var b=document.getElementById('srSave'), m=document.getElementById('srMsg'); b.disabled=true; var was=b.textContent; b.textContent='Saving…'; m.textContent='';
-  fetch('/api/admin/seller-report',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({ enabled:chk('srEnabled'), intervalDays:Number(val('srInterval'))||14 })})
+  fetch('/api/admin/seller-report',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({ enabled:chk('srEnabled'), cadence:val('srInterval') })})
     .then(function(r){return r.json();}).then(function(j){ b.disabled=false; b.textContent=was;
       if(j&&j.ok){ m.style.color='#1f8a5b'; m.textContent='Saved ✓'; } else { m.style.color='#C0261B'; m.textContent=(j&&j.error)||'Could not save.'; } })
     .catch(function(){ b.disabled=false; b.textContent=was; m.style.color='#C0261B'; m.textContent='Could not reach the server.'; });

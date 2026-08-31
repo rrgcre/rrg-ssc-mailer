@@ -2370,6 +2370,16 @@ app.get('/api/bov/:id', (req, res) => {
 // AI-generate a BOV from uploaded documents, then save it to the queue.
 // Pull a contact's data-room Financials & Lease docs as {name,dataB64,label} so a BOV
 // can be built from what was gathered in the room (no re-upload at generate time).
+// The data room merged onto this BOV's listing — the same link the assignment page uses — regardless
+// of whether the BOV carries a person/company. Robust for standalone (bov_) listings.
+function roomForBovListing(bov, rooms) {
+  try {
+    if (!bov) return null; rooms = rooms || loadRooms();
+    const ix = assignmentsIndex();
+    for (const k in ix) { if (ix[k].bov && ix[k].bov.id === bov.id && ix[k].room) return rooms.find(r => r.id === ix[k].room.id) || ix[k].room; }
+  } catch (e) {}
+  return null;
+}
 function roomFilesForBov(bov) {
   const out = [];
   try {
@@ -2377,7 +2387,8 @@ function roomFilesForBov(bov) {
     const pid = String(bov.personId || ''), cid = String(bov.companyId || '');
     const hit = o => !!o && ((pid && (o.personId === pid || o.contactPersonId === pid)) || (cid && o.companyId === cid));
     const rooms = loadRooms();
-    let room = rooms.find(hit) || null;
+    let room = roomForBovListing(bov, rooms);                 // authoritative: the room on this BOV's listing
+    if (!room) room = rooms.find(hit) || null;
     if (!room) { try { const deals = loadDeals().filter(hit); for (const d of deals) { const rm = rooms.find(r => r.id === d.roomId || r.srcDealId === d.id); if (rm) { room = rm; break; } } } catch (e) {} }
     if (!room) return out;
     (room.docs || []).forEach(d => {
@@ -2406,7 +2417,11 @@ app.get('/api/valuation-room-ready', (req, res) => {
     const bov = loadBovs().find(x => x.id === String((req.query && req.query.bov) || ''));
     const files = bov ? roomFilesForBov(bov) : [];
     const _lz = bov ? leaseForBov(req, bov) : null;
-    res.json({ ok: true, financials: files.some(f => f.label === 'Financials'), lease: files.some(f => f.label === 'Lease'), abstract: !!(_lz && !_lz.pending), abstractPending: !!(_lz && _lz.pending), abstractId: (_lz && _lz.id) || '', hasQuestionnaire: !!(bov && bov.srcQuestId), interviewSkipped: !!(bov && bov.interviewSkipped) });
+    // Lease-doc present? Prefer the labeled room files; fall back to a lenient scan of the listing's
+    // room (category "Lease" or a filename that looks like a lease) so a just-uploaded lease counts.
+    let leaseDoc = files.some(f => f.label === 'Lease');
+    if (!leaseDoc && bov) { try { const rm = roomForBovListing(bov); if (rm) leaseDoc = (rm.docs || []).some(d => d && (d.category === 'Lease' || /lease|sublease|estoppel|amendment/i.test(String(d.title || d.originalName || '')))); } catch (e) {} }
+    res.json({ ok: true, financials: files.some(f => f.label === 'Financials'), lease: leaseDoc, abstract: !!(_lz && !_lz.pending), abstractPending: !!(_lz && _lz.pending), abstractId: (_lz && _lz.id) || '', hasQuestionnaire: !!(bov && bov.srcQuestId), interviewSkipped: !!(bov && bov.interviewSkipped) });
   } catch (e) { res.json({ ok: true, financials: false, lease: false, abstract: false, abstractPending: false, abstractId: '', hasQuestionnaire: false, interviewSkipped: false }); }
 });
 app.post('/api/generate-bov', express.json({ limit: '48mb' }), async (req, res) => {
@@ -2733,6 +2748,8 @@ function leaseForBov(req, bov) {
   if (!bov) return null;
   const arr = loadLeases();
   const pid = String(bov.personId || ''), cid = String(bov.companyId || ''), qid = String(bov.srcQuestId || ''), bid = String(bov.id || '');
+  // Authoritative: the lease abstract merged onto this BOV's listing (works for standalone bov_ listings).
+  try { const ix = assignmentsIndex(); for (const k in ix) { if (ix[k].bov && ix[k].bov.id === bid && ix[k].lease) { const l = arr.find(x => x.id === ix[k].lease.id); if (l && ownsLease(req, l)) return l; } } } catch (e) {}
   return (bid && arr.find(x => x.srcBovId && x.srcBovId === bid && ownsLease(req, x)))
       || (qid && arr.find(x => x.srcQuestId === qid && ownsLease(req, x)))
       || (pid && arr.find(x => x.personId === pid && ownsLease(req, x)))
@@ -5860,11 +5877,23 @@ function runBuyerMatchPush(key, req) {
 }
 // ===== Weekly seller activity report (firm cadence set in Admin → Email) =====
 const SELLER_REPORT_INTERVALS = [7, 14, 30];
-function effSellerReport() { const s = loadSettings().sellerReport || {}; const iv = SELLER_REPORT_INTERVALS.indexOf(+s.intervalDays) >= 0 ? +s.intervalDays : 14; return { enabled: !!s.enabled, intervalDays: iv }; }
+const SELLER_REPORT_CADENCES = ['7', '14', '30', 'month1'];   // month1 = first business day of each month
+function _srCadenceLabel(cad) { return cad === 'month1' ? 'Monthly — 1st business day' : ('Every ' + cad + ' days'); }
+function effSellerReport() {
+  const s = loadSettings().sellerReport || {};
+  let cad = s.cadence || (s.intervalDays ? String(s.intervalDays) : '') || '14';
+  if (SELLER_REPORT_CADENCES.indexOf(cad) < 0) cad = '14';
+  const intervalDays = cad === 'month1' ? 31 : (parseInt(cad, 10) || 14);
+  return { enabled: !!s.enabled, cadence: cad, intervalDays: intervalDays, label: _srCadenceLabel(cad) };
+}
+// First weekday (Mon–Fri) of the month, and whether that day is today (server local time).
+function _srFirstBizDay(d) { d = d || new Date(); const day = new Date(d.getFullYear(), d.getMonth(), 1); while (day.getDay() === 0 || day.getDay() === 6) day.setDate(day.getDate() + 1); return day; }
+function _srIsFirstBizDayToday(now) { now = now || new Date(); const f = _srFirstBizDay(now); return now.getFullYear() === f.getFullYear() && now.getMonth() === f.getMonth() && now.getDate() === f.getDate(); }
+function _srSentThisMonth(iso, now) { if (!iso) return false; const a = new Date(iso); now = now || new Date(); return a.getFullYear() === now.getFullYear() && a.getMonth() === now.getMonth(); }
 function _srListingCfg(o) { const r = (o && o.sellerReport && typeof o.sellerReport === 'object') ? o.sellerReport : {}; return { off: !!r.off, lastSentAt: r.lastSentAt || '' }; }
 function _srSince(arr, cutoffMs) { if (!Array.isArray(arr)) return 0; return arr.filter(function (x) { const t = Date.parse((x && (x.createdAt || x.date || x.at)) || ''); return isFinite(t) && t >= cutoffMs; }).length; }
 // Aggregate the marketing activity on a listing over the trailing `days`.
-function sellerActivitySummary(key, days) {
+function sellerActivitySummary(key, days, label) {
   const deals = assignmentsIndex(); const d = deals[key]; if (!d) return null;
   const overlay = loadAssignOverlay(); const o = overlay[key] || {};
   let view; try { view = assignmentView(d, overlay); } catch (e) { view = {}; }
@@ -5881,27 +5910,40 @@ function sellerActivitySummary(key, days) {
     }
   } catch (e) {}
   const activeBuyers = Array.isArray(o.buyers) ? o.buyers.filter(b => b && !b.lost).length : 0;
-  return { key, days, from: new Date(cutoff).toISOString().slice(0, 10), business: view.business || 'your listing', ndas, tours, offers, inquiries, views, downloads, visitors, activeBuyers, total: ndas + tours + offers + inquiries + views + downloads };
+  const periodLabel = label || (days === 7 ? 'past week' : ('last ' + days + ' days'));
+  return { key, days, periodLabel, from: new Date(cutoff).toISOString().slice(0, 10), business: view.business || 'your listing', ndas, tours, offers, inquiries, views, downloads, visitors, activeBuyers, total: ndas + tours + offers + inquiries + views + downloads };
 }
 function sellerActivityEmailHtml(sum, opts) {
   opts = opts || {}; const org = orgDisplayName();
   const rows = [['Buyer inquiries', sum.inquiries], ['NDAs signed', sum.ndas], ['Property tours', sum.tours], ['Offers received', sum.offers], ['Confidential data-room views', sum.views], ['Documents downloaded', sum.downloads]].filter(r => r[1] > 0);
-  const period = sum.days === 7 ? 'week' : (sum.days + ' days');
-  let b = '';
-  b += '<p>Hi ' + esc(opts.firstName || 'there') + ',</p>';
-  b += '<p>Here’s the marketing activity on <b>' + esc(sum.business) + '</b> over the last ' + esc(String(sum.days)) + ' days.</p>';
+  const periodPhrase = sum.periodLabel || (sum.days === 7 ? 'past week' : ('last ' + sum.days + ' days'));
+  const P = 'margin:0 0 14px;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.55;color:#25303f';
+  let inner = '';
+  inner += '<p style="' + P + '">Hi ' + esc(opts.firstName || 'there') + ',</p>';
+  inner += '<p style="' + P + '">Here’s the marketing activity on <b>' + esc(sum.business) + '</b> over the ' + esc(periodPhrase) + '.</p>';
   if (rows.length) {
-    b += '<table cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:10px 0 6px">';
-    rows.forEach(r => { b += '<tr><td style="padding:6px 20px 6px 0;font-size:14px;color:#20334f">' + esc(r[0]) + '</td><td style="padding:6px 0;font-size:16px;font-weight:800;color:#0b1a38">' + esc(String(r[1])) + '</td></tr>'; });
-    b += '</table>';
-    if (sum.activeBuyers > 0) b += '<p style="font-size:13px;color:#5a6478">' + esc(String(sum.activeBuyers)) + ' active buyer' + (sum.activeBuyers === 1 ? '' : 's') + ' in the pipeline right now.</p>';
+    inner += '<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;margin:4px 0 12px">';
+    rows.forEach(function (r, i) {
+      const bb = i < rows.length - 1 ? 'border-bottom:1px solid #edf0f5;' : '';
+      inner += '<tr><td style="padding:11px 0;' + bb + 'font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#3a4557">' + esc(r[0]) + '</td>'
+        + '<td align="right" style="padding:11px 0;' + bb + 'font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;font-size:19px;font-weight:800;color:#0b1a38">' + esc(String(r[1])) + '</td></tr>';
+    });
+    inner += '</table>';
+    if (sum.activeBuyers > 0) inner += '<p style="' + P + 'font-size:13.5px;color:#5a6478">There ' + (sum.activeBuyers === 1 ? 'is' : 'are') + ' <b>' + esc(String(sum.activeBuyers)) + '</b> active buyer' + (sum.activeBuyers === 1 ? '' : 's') + ' in the pipeline on your listing right now.</p>';
   } else {
-    b += '<p>It was a quieter ' + esc(period) + ' — no new buyer activity to report. That happens in stretches; I’m continuing to market the business confidentially and work my buyer network.</p>';
+    inner += '<div style="margin:4px 0 14px;padding:14px 16px;background:#f5f7fb;border:1px solid #e6ebf3;border-radius:9px;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.55;color:#465265">It was a quieter stretch — no new buyer activity to report over the ' + esc(periodPhrase) + '. That happens; I’m continuing to market your business confidentially and work my buyer network.</div>';
   }
-  b += '<p>Happy to talk through any of this — just reply or give me a call.</p>';
-  b += '<p>Best,<br>' + esc(opts.repName || org) + '</p>';
-  b += '<hr style="border:none;border-top:1px solid #e6e9f0;margin:16px 0"><p style="font-size:11px;color:#98a2b6">Confidential marketing activity summary prepared by ' + esc(org) + ' for the owner of ' + esc(sum.business) + '. Business name, address and buyer identities are never disclosed.</p>';
-  return b;
+  inner += '<p style="' + P + '">Happy to talk through any of this — just reply or give me a call.</p>';
+  inner += '<p style="' + P + 'margin-bottom:2px">Best,<br><b>' + esc(opts.repName || org) + '</b></p>';
+  // Email-client-safe shell: table layout, inline fonts, centered card. sendMailWL swaps in the brokerage name.
+  let h = '<div style="margin:0;padding:24px 12px;background:#eef1f6;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif">';
+  h += '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr><td align="center">';
+  h += '<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="width:560px;max-width:560px;background:#ffffff;border:1px solid #e3e7ee;border-radius:12px;overflow:hidden">';
+  h += '<tr><td style="background:#000E31;padding:16px 28px"><span style="color:#ffffff;font-weight:800;font-size:15px;letter-spacing:.02em">' + esc(org) + '</span><span style="color:#9fb0cc;font-size:12px;margin-left:10px">Marketing activity update</span></td></tr>';
+  h += '<tr><td style="padding:24px 28px 6px">' + inner + '</td></tr>';
+  h += '<tr><td style="padding:2px 28px 22px"><div style="border-top:1px solid #eef1f6;padding-top:13px;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;font-size:11px;line-height:1.5;color:#9aa4b5">Your business is marketed <b>confidentially</b> — its name, address, and the identities of interested buyers are never disclosed to the market. Prepared for the owner of ' + esc(sum.business) + ' by ' + esc(org) + '.</div></td></tr>';
+  h += '</table></td></tr></table></div>';
+  return h;
 }
 // Send one seller report. force bypasses the enabled/off gates (the "Send now" button).
 function sendSellerActivityReport(key, opts) {
@@ -5915,7 +5957,8 @@ function sendSellerActivityReport(key, opts) {
   if (!to) return { ok: false, reason: 'no-seller-email' };
   if (isEmailUnsubscribed(to)) return { ok: false, reason: 'unsubscribed' };
   if (!isEmailConfigured()) return { ok: false, reason: 'email-not-configured' };
-  const sum = sellerActivitySummary(key, firm.intervalDays); if (!sum) return { ok: false, reason: 'no-data' };
+  const _win = firm.intervalDays; const _label = firm.cadence === 'month1' ? 'past month' : ('last ' + _win + ' days');
+  const sum = sellerActivitySummary(key, _win, _label); if (!sum) return { ok: false, reason: 'no-data' };
   const firstName = String((seller.name || '').split(/\s+/)[0] || 'there');
   const repName = opts.repName || view.owner || orgDisplayName();
   const html = sellerActivityEmailHtml(sum, { firstName, repName });
@@ -5929,27 +5972,42 @@ function sendSellerActivityReport(key, opts) {
 function sellerActivityTick() {
   try {
     const firm = effSellerReport(); if (!firm.enabled) return;
-    const overlay = loadAssignOverlay(); const now = Date.now(); const dueMs = firm.intervalDays * 86400000;
-    Object.keys(overlay).forEach(function (key) {
-      const o = overlay[key]; if (!o) return;
-      if (!(o.market && o.market.published)) return;         // only listings actively on the marketplace
+    const monthly = firm.cadence === 'month1';
+    const nowD = new Date(); const now = nowD.getTime(); const dueMs = firm.intervalDays * 86400000;
+    if (monthly && !_srIsFirstBizDayToday(nowD)) return;     // monthly cadence only runs on the first business day
+    const snap = loadAssignOverlay(); const keys = Object.keys(snap);
+    // Interval mode: start the clock for brand-new published listings so the first report lands one
+    // interval later, not immediately. Persist that as its own write (never a stale blanket save).
+    if (!monthly) {
+      let dirty = false; const ov = loadAssignOverlay();
+      keys.forEach(function (key) { const o = ov[key]; if (!o || !(o.market && o.market.published)) return; const lc = _srListingCfg(o); if (lc.off || lc.lastSentAt) return; o.sellerReport = { off: lc.off, lastSentAt: new Date(now).toISOString() }; dirty = true; });
+      if (dirty) saveAssignOverlay(ov);
+    }
+    // Sends — each send persists its own lastSentAt, so we never blanket-save the overlay here.
+    keys.forEach(function (key) {
+      const o = snap[key]; if (!o || !(o.market && o.market.published)) return;
       const lc = _srListingCfg(o); if (lc.off) return;
-      const last = lc.lastSentAt ? Date.parse(lc.lastSentAt) : 0;
-      if (last && (now - last) < dueMs) return;              // not due yet
-      if (!last) { o.sellerReport = { off: lc.off, lastSentAt: new Date(now).toISOString() }; return; } // start the clock on first sight; first send one interval later
-      try { sendSellerActivityReport(key, {}); } catch (e) {}
+      if (monthly) {
+        if (_srSentThisMonth(lc.lastSentAt, nowD)) return;    // already sent this month
+        try { sendSellerActivityReport(key, {}); } catch (e) {}
+      } else {
+        const last = lc.lastSentAt ? Date.parse(lc.lastSentAt) : 0;
+        if (!last) return;                                   // just started above; first send next interval
+        if ((now - last) < dueMs) return;                    // not due yet
+        try { sendSellerActivityReport(key, {}); } catch (e) {}
+      }
     });
-    saveAssignOverlay(overlay);
   } catch (e) { console.error('sellerActivityTick:', e && e.message); }
 }
 setInterval(sellerActivityTick, 60 * 60 * 1000);
 // Firm-wide seller-report cadence (Admin → Email).
-app.get('/api/admin/seller-report', (req, res) => { const c = effSellerReport(); res.json({ ok: true, enabled: c.enabled, intervalDays: c.intervalDays, intervals: SELLER_REPORT_INTERVALS, isAdmin: !!(req.user && isSuper(req.user)) }); });
+app.get('/api/admin/seller-report', (req, res) => { const c = effSellerReport(); res.json({ ok: true, enabled: c.enabled, cadence: c.cadence, intervalDays: c.intervalDays, label: c.label, cadences: SELLER_REPORT_CADENCES, isAdmin: !!(req.user && isSuper(req.user)) }); });
 app.post('/api/admin/seller-report', requireAdmin, express.json(), (req, res) => {
   const b = req.body || {}; const s = loadSettings(); const cur = effSellerReport();
-  const iv = (SELLER_REPORT_INTERVALS.indexOf(+b.intervalDays) >= 0) ? +b.intervalDays : cur.intervalDays;
-  s.sellerReport = { enabled: (typeof b.enabled === 'boolean') ? b.enabled : cur.enabled, intervalDays: iv };
-  saveSettings(s); res.json({ ok: true, enabled: s.sellerReport.enabled, intervalDays: s.sellerReport.intervalDays });
+  let cad = (SELLER_REPORT_CADENCES.indexOf(String(b.cadence)) >= 0) ? String(b.cadence)
+          : ((SELLER_REPORT_INTERVALS.indexOf(+b.intervalDays) >= 0) ? String(+b.intervalDays) : cur.cadence);
+  s.sellerReport = { enabled: (typeof b.enabled === 'boolean') ? b.enabled : cur.enabled, cadence: cad };
+  saveSettings(s); const e = effSellerReport(); res.json({ ok: true, enabled: e.enabled, cadence: e.cadence, intervalDays: e.intervalDays, label: e.label });
 });
 // Per-listing seller-report status + a live preview of the current window; opt-out + send-now.
 app.get('/api/assignment/:key/seller-report', (req, res) => {
@@ -5959,7 +6017,8 @@ app.get('/api/assignment/:key/seller-report', (req, res) => {
   const overlay = loadAssignOverlay(); const o = overlay[req.params.key] || {}; const firm = effSellerReport(); const lc = _srListingCfg(o);
   let view; try { view = assignmentView(d, overlay); } catch (e) { view = {}; }
   const seller = personById(view.clientPersonId);
-  res.json({ ok: true, firmEnabled: firm.enabled, intervalDays: firm.intervalDays, off: lc.off, lastSentAt: lc.lastSentAt, published: !!(o.market && o.market.published), sellerName: (seller && seller.name) || '', sellerEmail: (seller ? preferredEmailOf(seller) : ''), emailConfigured: isEmailConfigured(), preview: sellerActivitySummary(req.params.key, firm.intervalDays) });
+  const _plabel = firm.cadence === 'month1' ? 'past month' : ('last ' + firm.intervalDays + ' days');
+  res.json({ ok: true, firmEnabled: firm.enabled, cadence: firm.cadence, cadenceLabel: firm.label, intervalDays: firm.intervalDays, off: lc.off, lastSentAt: lc.lastSentAt, published: !!(o.market && o.market.published), sellerName: (seller && seller.name) || '', sellerEmail: (seller ? preferredEmailOf(seller) : ''), emailConfigured: isEmailConfigured(), preview: sellerActivitySummary(req.params.key, firm.intervalDays, _plabel) });
 });
 app.post('/api/assignment/:key/seller-report', express.json(), (req, res) => {
   const deals = assignmentsIndex(); const d = deals[req.params.key];
@@ -6291,7 +6350,7 @@ app.get('/api/assignment/:key', (req, res) => {
   const origin = req.protocol + '://' + req.get('host');
   try { const _o = overlay[d.key] || {}; if (!_o.listingNo) { _o.listingNo = nextListingNo(); overlay[d.key] = _o; saveAssignOverlay(overlay); } } catch (e) {}
   const dealAgreements = loadAgreements().filter(a => a.dealKey === d.key).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999')));
-  res.json({ ok: true, statuses: ASSIGN_STATUSES, txnStatuses: TXN_STATUSES, commStatuses: TXN_COMM_STATUS, markets: effMarkets(), assignment: assignmentView(d, overlay), buyerPipelines: buyerPipelinesAll().map(function(p){return {id:p.id,name:p.name,stages:(p.stages||[]).map(function(x){return x.name;})};}), buyerPof: BUYER_POF, agreements: dealAgreements, agreementTypes: effAgreementTypes(), pipelines: loadPipelines(), automations: loadAutomations().filter(a => a.active !== false).map(a => ({ id: a.id, name: a.name || '' })), expenses: dealExpenseRollup(d.key, req.user), invoices: dealInvoiceRollup(d.key, req.user), roomActivity: roomActivityFor(d, origin), canChangePrice: userCan(req.user, 'change_price') });
+  res.json({ ok: true, statuses: ASSIGN_STATUSES, txnStatuses: TXN_STATUSES, commStatuses: TXN_COMM_STATUS, markets: effMarkets(), assignment: assignmentView(d, overlay), buyerPipelines: buyerPipelinesAll().map(function(p){return {id:p.id,name:p.name,stages:(p.stages||[]).map(function(x){return x.name;})};}), buyerPof: BUYER_POF, agreements: dealAgreements, agreementTypes: effAgreementTypes(), pipelines: loadPipelines(), automations: loadAutomations().filter(a => a.active !== false).map(a => ({ id: a.id, name: a.name || '' })), expenses: dealExpenseRollup(d.key, req.user), invoices: dealInvoiceRollup(d.key, req.user), roomActivity: roomActivityFor(d, origin), canChangePrice: userCan(req.user, 'change_price'), canDelete: canDelete(req) });
 });
 app.post('/api/assignment/:key/promote', express.json(), (req, res) => {
   const key = req.params.key;
