@@ -430,6 +430,17 @@ function _stageTool(name){
   else if(h('lease abstract')) k='lease';
   return k ? (STAGES.filter(function(x){return x.k===k;})[0]||null) : null;
 }
+// Tenant-rep pipeline stages map to the tenant-rep tools (which open standalone, not per-artifact).
+// Returns {href, open} or null. Kept separate from _stageTool so it only affects tenant pipelines.
+function _tenantTool(name){
+  var n=String(name||'').toLowerCase();
+  function h(){ for(var i=0;i<arguments.length;i++){ if(n.indexOf(arguments[i])>=0) return true; } return false; }
+  if(h('needs analysis','needs','site criteria','criteria')) return { href:'./ssc_form.html', open:'Open Site Criteria' };
+  if(h('site search','site & concept','site and concept','concept fit','sourcing','shortlist')) return { href:'./rrg_site_fit.html', open:'Open Site & Concept Fit' };
+  if(h('tour')) return { href:'./rrg_tour_tracker.html', open:'Open Tour Tracker' };
+  if(h('loi','letter of intent','negotiat')) return { href:'./rrg_loi_builder.html', open:'Open LOI Builder' };
+  return null;
+}
 // Build the pipeline track from a pipeline's own saved stages (names, order, count all match Admin),
 // tool-linking the ones that correspond to a tool and leaving the rest as manual toggles.
 function pipeStages(p){
@@ -437,6 +448,8 @@ function pipeStages(p){
   return (p.stages||[]).map(function(st,i){
     var c=_stageTool(st.name);
     if(c && !used[c.k]){ used[c.k]=1; return { k:c.k, name:st.name, lbl:shortLbl(st.name), href:c.href, open:c.open }; }
+    var t=_tenantTool(st.name);
+    if(t){ return { k:'g'+i, name:st.name, lbl:shortLbl(st.name), manual:true, targetDays:st.targetDays, toolHref:t.href, toolOpen:t.open }; }
     return { k:'g'+i, name:st.name, lbl:shortLbl(st.name), manual:true, targetDays:st.targetDays };
   });
 }
@@ -818,6 +831,7 @@ function render(){
     var statTxt = st ? (st.done?'Done':'In progress') : (mflag?'Done':(d.manual?'Not yet':'\u2014'));
     var inner='<div class="hpdot '+cls+'">'+mark+'</div><div class="hpname">'+esc(d.lbl||d.name)+'</div><div class="hpstat">'+statTxt+'</div>';
     if(st){ return '<a class="hpstep'+(st.done?' done':'')+'" href="'+d.href(st)+'" title="'+esc(d.name)+' \u2014 open the tool">'+inner+'</a>'; }
+    if(d.toolHref){ return '<a class="hpstep'+(done?' done':'')+'" href="'+d.toolHref+'" title="'+esc(d.name)+' \u2014 '+esc(d.toolOpen||'open the tool')+'">'+inner+'</a>'; }
     return '<button type="button" class="hpstep hpman'+(done?' on done':'')+'" data-mstage="'+d.k+'" title="'+esc(d.name)+' \u2014 click to mark '+(done?'not done':'done')+'">'+inner+'</button>';
   }).join('');
 
