@@ -451,12 +451,12 @@
       var VS=[
         {k:'companies', ic:'▦', label:'Companies', all:'rrg_companies.html', bi:[]},
         {k:'contacts',  ic:'◑', label:'Contacts',  all:'rrg_people.html', bi:[]},
-        {k:null,        ic:'❐', label:'Documents', all:'rrg_documents.html', bi:[]},
-        {k:null,        ic:'▥', label:'Data Rooms', all:'rrg_rooms_queue.html', bi:[]},
+        {k:'documents', ic:'❐', label:'Documents', all:'rrg_documents.html', bi:[]},
+        {k:'datarooms', ic:'▥', label:'Data Rooms', all:'rrg_rooms_queue.html', bi:[]},
         {k:'listings',  ic:'⊞', label:'Listings',  all:'rrg_assignments.html', bi:[{l:'Board view', h:'rrg_board.html'}]},
         {k:null,        ic:'◎', label:'Buyers',    all:'rrg_buyer_board.html', bi:[]},
         {k:'deals',     ic:'◈', label:'Deals',     all:'rrg_deals.html', bi:[]},
-        {k:null,        ic:'☷', label:'Subscribers', all:'rrg_subscribers.html', bi:[]},
+        {k:'subscribers', ic:'☷', label:'Subscribers', all:'rrg_subscribers.html', bi:[]},
         {k:'emailtpls', ic:'✎', label:'Email Templates', all:'rrg_email_templates.html', bi:[]},
         {k:'__tasks',   ic:'✔', label:'Tasks', all:'rrg_tasks.html', bi:[{l:'My open tasks', h:'rrg_tasks.html?scope=mine&show=open'},{l:'All my tasks', h:'rrg_tasks.html?scope=mine'},{l:"Everyone's tasks", h:'rrg_tasks.html?scope=all'},{l:'Completed', h:'rrg_tasks.html?show=done'}]}
       ];

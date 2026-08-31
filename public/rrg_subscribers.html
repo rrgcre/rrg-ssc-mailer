@@ -64,6 +64,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .feat span{display:block;font-size:11.5px;color:var(--muted);line-height:1.45;margin-top:2px;}
 </style>
 <script src="/rrg_brand.js"></script>
+<script src="/rrg_savedviews.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -99,7 +100,7 @@ function fmtDate(d){ if(!d) return '—'; try{ return new Date(d).toLocaleDateSt
 function drawTiles(){ var s=META.stats||{}; var el=document.getElementById('tiles'); if(!el) return; el.innerHTML=[['Total',s.total||0],['Subscribed',s.subscribed||0],['Market-only',s.metrosOnly||0],['Unsubscribed',s.unsubscribed||0]].map(function(t){ return '<div class="tile"><div class="n">'+t[1]+'</div><div class="l">'+t[0]+'</div></div>'; }).join(''); }
 
 var LIST_SHELL='<div class="card"><div class="hd"><b>Subscribers</b><span class="meta" id="scount" style="color:var(--muted);font-size:12.5px"></span><span class="sp"><button class="btn sm" id="b_import">Import</button><button class="btn sm pri" id="b_new">+ Add subscriber</button></span></div>'
-  +'<div class="filt"><input type="text" id="f_q" placeholder="Search name, email, company…"><select id="f_type"><option value="">All types</option></select><select id="f_metro"><option value="">All areas</option></select><select id="f_status"><option value="">All statuses</option><option value="subscribed">Subscribed</option><option value="unsubscribed">Unsubscribed</option></select><select id="f_tag"><option value="">All tags</option></select></div>'
+  +'<div class="filt"><input type="text" id="f_q" placeholder="Search name, email, company…"><select id="f_type"><option value="">All types</option></select><select id="f_metro"><option value="">All areas</option></select><select id="f_status"><option value="">All statuses</option><option value="subscribed">Subscribed</option><option value="unsubscribed">Unsubscribed</option></select><select id="f_tag"><option value="">All tags</option></select><button type="button" id="subSavedBtn" class="btn sm" style="margin-left:6px">★ Saved</button></div>'
   +'<div class="cb"><div id="slist"><div class="empty">Loading…</div></div></div></div><div id="panel"></div>';
 
 function statusBadge(s){ return s.status==='unsubscribed'?'<span class="badge un">Unsub</span>':'<span class="badge sub">Subscribed</span>'; }
@@ -189,6 +190,10 @@ function wireShell(){
   document.getElementById('f_status').onchange=function(){ FILT.status=this.value; load(); };
   document.getElementById('f_tag').onchange=function(){ FILT.tag=this.value; load(); };
   document.getElementById('f_metro').onchange=function(){ FILT.metro=this.value; load(); };
+  try{ if(window.RRGViews){ RRGViews.attach({ list:'subscribers', button:document.getElementById('subSavedBtn'),
+    hasFilters:function(){ return !!(FILT.status||FILT.type||FILT.tag||FILT.metro||FILT.q); },
+    getState:function(){ return {status:FILT.status,type:FILT.type,tag:FILT.tag,metro:FILT.metro,q:FILT.q}; },
+    applyState:function(pl){ pl=pl||{}; FILT={status:pl.status||'',type:pl.type||'',tag:pl.tag||'',metro:pl.metro||'',q:pl.q||''}; var fq=document.getElementById('f_q'); if(fq) fq.value=FILT.q; var fs=document.getElementById('f_status'); if(fs) fs.value=FILT.status; syncFilterOptions(); load(); } }); } }catch(e){}
 }
 document.addEventListener('click',async function(e){ if(!e.target.closest) return;
   var ed=e.target.closest('[data-edit]'); if(ed){ e.preventDefault(); location.href='./rrg_subscriber.html?id='+encodeURIComponent(ed.getAttribute('data-edit')); return; }
