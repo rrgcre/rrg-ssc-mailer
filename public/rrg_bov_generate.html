@@ -111,7 +111,10 @@ label.fl{display:block;font-size:9px;letter-spacing:.12em;text-transform:upperca
     <input class="name" id="biz" placeholder="The exact business name — e.g. Buffalo Blue" autocomplete="off">
 
     <label class="fl" for="prepFor">Prepared For</label>
-    <input class="name" id="prepFor" placeholder="e.g. Ownership of Buffalo Blue" autocomplete="off">
+    <div style="position:relative">
+      <input class="name" id="prepFor" placeholder="Search a contact or company — or type a name" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false">
+      <div id="prepForDrop" style="display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:60;background:#fff;border:1px solid #c4ccda;border-radius:8px;box-shadow:0 14px 40px rgba(11,26,56,.18);max-height:280px;overflow:auto;"></div>
+    </div>
 
     <label class="fl" for="bovAddr">Business address <span style="text-transform:none;letter-spacing:0;color:var(--soft);font-weight:600">— so the analyst never has to guess it</span></label>
     <input class="name" id="bovAddr" placeholder="e.g. 123 E Commerce St, San Antonio, TX 78205 — leave blank if not disclosing one" autocomplete="off">
@@ -166,6 +169,43 @@ label.fl{display:block;font-size:9px;letter-spacing:.12em;text-transform:upperca
 <script>
 var SLOTS={docs:[]};
 var BOV_ID='';
+// Prepared-For fuzzy typeahead over contacts + companies (still free to type any name).
+(function(){
+  var inp=document.getElementById('prepFor'), drop=document.getElementById('prepForDrop');
+  if(!inp||!drop) return;
+  var items=[], active=-1, tmr=null;
+  function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+  function close(){ drop.style.display='none'; drop.innerHTML=''; items=[]; active=-1; inp.setAttribute('aria-expanded','false'); }
+  function pick(i){ var it=items[i]; if(!it) return; inp.value=it.title; close(); }
+  function paint(){ drop.querySelectorAll('.pf-row').forEach(function(r,i){ r.style.background=(i===active)?'#eef4fb':''; }); }
+  function render(){
+    if(!items.length){ close(); return; }
+    drop.innerHTML=items.map(function(it,i){
+      return '<div class="pf-row" data-i="'+i+'" style="padding:9px 12px;cursor:pointer;border-bottom:1px solid #eef1f6;'+(i===active?'background:#eef4fb;':'')+'">'
+        +'<div style="font-size:13.5px;font-weight:600;color:#20334f">'+esc(it.title)+'<span style="font-size:11px;font-weight:700;color:#98a2b6;margin-left:8px;text-transform:uppercase;letter-spacing:.04em">'+(it.type==='company'?'Company':'Contact')+'</span></div>'
+        +(it.sub?('<div style="font-size:12px;color:#8a93a8;margin-top:1px">'+esc(it.sub)+'</div>'):'')+'</div>';
+    }).join('');
+    drop.style.display='block'; inp.setAttribute('aria-expanded','true');
+    drop.querySelectorAll('.pf-row').forEach(function(r){ r.addEventListener('mousedown',function(e){ e.preventDefault(); pick(+r.getAttribute('data-i')); }); r.addEventListener('mouseenter',function(){ active=+r.getAttribute('data-i'); paint(); }); });
+  }
+  function search(q){
+    fetch('/api/search?q='+encodeURIComponent(q),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+      if(!j||!j.ok || inp.value.trim()!==q) return;
+      items=(j.results||[]).filter(function(x){return x.type==='contact'||x.type==='company';}).slice(0,8);
+      active=-1; render();
+    }).catch(function(){ close(); });
+  }
+  inp.addEventListener('input',function(){ var q=inp.value.trim(); if(tmr) clearTimeout(tmr); if(q.length<2){ close(); return; } tmr=setTimeout(function(){ search(q); },170); });
+  inp.addEventListener('keydown',function(e){
+    if(drop.style.display==='none') return;
+    if(e.key==='ArrowDown'){ e.preventDefault(); active=Math.min(items.length-1,active+1); paint(); }
+    else if(e.key==='ArrowUp'){ e.preventDefault(); active=Math.max(0,active-1); paint(); }
+    else if(e.key==='Enter'){ if(active>=0){ e.preventDefault(); pick(active); } }
+    else if(e.key==='Escape'){ close(); }
+  });
+  inp.addEventListener('blur',function(){ setTimeout(close,120); });
+  document.addEventListener('click',function(e){ if(e.target!==inp && !drop.contains(e.target)) close(); });
+})();
 // Opened for a specific Requested valuation record: prefill the business name and
 // remember the record id so building fulfills it (rather than creating a new one).
 (function initRecord(){

@@ -230,6 +230,7 @@
     + ':root{--navbg:var(--navbg,#0b1a38);}'
     + 'body.rrg-shelled{padding-left:238px !important;padding-top:56px !important;}'
     + 'body.rrg-shelled .top,body.rrg-shelled .rrg-back{display:none !important;}'
+    + '@media print{body.rrg-shelled{padding-left:0 !important;padding-top:0 !important;}#rrgnav,#rrgtop,#rrgRecentBar,.rrgcrumb,#rrgviews{display:none !important;}}'
     + 'body.rrg-shelled .rrgcrumb{display:block;padding:16px 24px 0;font-size:12.5px;font-weight:600;color:#5f6a7d;line-height:1.4;}'
     + '.rrgcrumb a{color:#2c5c8f;text-decoration:none;} .rrgcrumb a:hover{text-decoration:underline;} .rrgcrumb .sep{color:#96a1b2;margin:0 7px;} .rrgcrumb .rrgcrumb-cur{color:#20334f;font-weight:700;}'
     + '#rrgnav{position:fixed;top:0;left:0;bottom:0;width:238px;background:var(--navbg,#0b1a38);color:#c7d0e4;display:flex;flex-direction:column;z-index:60;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}'
