@@ -709,17 +709,21 @@ body:not(.asset-mode) .asset-only{display:none!important;}
     return payload;
   }
 
-  // Save in place (updating the existing record when we opened one) then return
-  // to the Business Valuations log.
+  // Where "close/done" returns: to this BOV's listing (its home in the CRM), not the old
+  // valuations queue. Standalone BOVs use the bov_<id> assignment key.
+  function bovHome(){ var key=_dealKey||(_bid?('bov_'+_bid):''); return key?('./rrg_assignment.html?key='+encodeURIComponent(key)):'./index.html'; }
+  // After a delete the listing is gone — fall back to the linked contact/company, then dashboard.
+  function bovHomeGone(){ if(_personId) return './rrg_person.html?id='+encodeURIComponent(_personId); if(_companyId) return './rrg_company.html?id='+encodeURIComponent(_companyId); return './index.html'; }
+  // Save in place (updating the existing record when we opened one) then return to the listing.
   window.closeBov=function(){
-    if(_locked){ location.href='./rrg_bov_queue.html'; return; }
+    if(_locked){ location.href=bovHome(); return; }
     var payload=bovPayload();
     if(!payload.business){ alert('Enter the business name on the cover first.'); return; }
     fetch('/api/bov',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
       .then(function(r){return r.json();}).then(function(j){
-        if(j&&j.ok){ location.href='./rrg_bov_queue.html'; }
+        if(j&&j.ok){ location.href=bovHome(); }
         else { alert((j&&j.error)||'Could not save.'); }
-      }).catch(function(){ location.href='./rrg_bov_queue.html'; });
+      }).catch(function(){ location.href=bovHome(); });
   };
 
   window.goDashboard=function(){ location.href='./index.html'; };
@@ -854,13 +858,13 @@ body:not(.asset-mode) .asset-only{display:none!important;}
     else alert((fj&&fj.error)||'Could not finalize.');
   };
   window.deleteBov=async function(){
-    if(!_bid){ location.href='./rrg_bov_queue.html'; return; }
+    if(!_bid){ location.href='./index.html'; return; }
     var warn=_locked ? 'Delete this FINALIZED valuation? The delivered number and its full version history are permanently removed. This cannot be undone.'
                      : 'Delete this valuation? It is permanently removed from your Valuations list, along with the financials/lease it filed. This cannot be undone.';
     if(!await rrgConfirm(warn,{title:'Delete valuation?',okText:'Delete'})) return;
     var bd=document.getElementById('btnDelete'); if(bd){ bd.disabled=true; bd.textContent='Deleting…'; }
     try{ var j=await (await fetch('/api/bov/'+encodeURIComponent(_bid),{method:'DELETE',credentials:'same-origin'})).json();
-      if(j&&j.ok){ try{localStorage.removeItem(KEY);}catch(e){} location.href='./rrg_bov_queue.html'; }
+      if(j&&j.ok){ try{localStorage.removeItem(KEY);}catch(e){} location.href=bovHomeGone(); }
       else { if(bd){ bd.disabled=false; bd.textContent='Delete'; } alert((j&&j.error)||'Could not delete the valuation.'); }
     }catch(e){ if(bd){ bd.disabled=false; bd.textContent='Delete'; } alert('Could not reach the server.'); }
   };
@@ -872,9 +876,10 @@ body:not(.asset-mode) .asset-only{display:none!important;}
   };
   var _bid=(new URLSearchParams(location.search)).get('bov');
   var _srcQuestId='';
+  var _personId='', _companyId='', _dealKey='';
   if(_bid){
     fetch('/api/bov/'+encodeURIComponent(_bid)).then(function(r){return r.json();}).then(function(j){
-      if(j&&j.ok&&j.bov){ _srcQuestId=j.bov.srcQuestId||''; if(j.bov.state){ applyState(j.bov.state); } else { if(!restore()) initBlank(); _prefillFromRecord(j.bov); } if(j.bov.noTtmNotice) showNoTtmNotice(); if(j.bov.conclusionWarning) showConclusionWarning(j.bov.conclusionWarning); setBovCrumb(j.bov); renderBovStatus(j.bov); }
+      if(j&&j.ok&&j.bov){ _srcQuestId=j.bov.srcQuestId||''; _personId=j.bov.personId||''; _companyId=j.bov.companyId||''; _dealKey=j.bov.dealKey||''; if(j.bov.state){ applyState(j.bov.state); } else { if(!restore()) initBlank(); _prefillFromRecord(j.bov); } if(j.bov.noTtmNotice) showNoTtmNotice(); if(j.bov.conclusionWarning) showConclusionWarning(j.bov.conclusionWarning); setBovCrumb(j.bov); renderBovStatus(j.bov); }
       else if(!restore()){ initBlank(); }
     }).catch(function(){ if(!restore()) initBlank(); });
   } else if(!restore()){ initBlank(); }

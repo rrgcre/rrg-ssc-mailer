@@ -79,7 +79,7 @@ function setStatus(msg){ var s=document.getElementById('status'); s.className='s
 if(MAP_ID){ fetch('/api/map/'+encodeURIComponent(MAP_ID),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.map&&j.map.business){ document.getElementById('hdr').textContent='Build Market Attack Plan · '+j.map.business; } }).catch(function(){}); }
 
 // ---- build overlay + ambience + timer ----
-var AUDIO=null, AMB=null, AMB_VOL=0.22, AMB_SELECTED='analyst', T0=0, TIMER=null;
+var AUDIO=null, AMB=null, AMB_VOL=0.6, AMB_SELECTED='core', T0=0, TIMER=null;
 function playDone(){ try{ if(ambientMuted()) return; if(!AUDIO || !window.RRG_AMBIENCE || !RRG_AMBIENCE.finish) return; var m=AUDIO.createGain(); m.gain.value=0.9; m.connect(AUDIO.destination); RRG_AMBIENCE.finish(AUDIO, m); }catch(e){} }
 try{ fetch('/api/bov-config',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.ambienceId) AMB_SELECTED=j.ambienceId; }).catch(function(){}); }catch(e){}
 function ambientMuted(){ try{ return localStorage.getItem('rrg_build_sound_muted')==='1'; }catch(e){ return false; } }

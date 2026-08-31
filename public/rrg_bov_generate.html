@@ -342,8 +342,8 @@ function unlockAudio(){ try{ if(!AUDIO){ var C=window.AudioContext||window.webki
 var AMB=null;
 function ambientMuted(){ try{ return localStorage.getItem('rrg_build_sound_muted')==='1'; }catch(e){ return false; } }
 function setAmbientMuted(m){ try{ localStorage.setItem('rrg_build_sound_muted', m?'1':'0'); }catch(e){} }
-var AMB_VOL=0.22;
-var AMB_SELECTED='analyst';   // which sound plays (admin-chosen; fetched on load)
+var AMB_VOL=0.6;
+var AMB_SELECTED='core';   // which sound plays (admin-chosen; fetched on load)
 // Plays the admin-selected sound from the shared RRG_AMBIENCE library while the
 // build overlay is up.
 function startAmbient(){

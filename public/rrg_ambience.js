@@ -93,6 +93,18 @@
   ];
 
   var SOUNDS=[
+    { id:'core', name:'AI Core', desc:'A clear, steady processing pulse over a warm synth bed — the most audible option, so you always know it is working.',
+      build:function(ctx,out){ var h=mkHandle();
+        var bed=humBed(ctx,out,h,[[110,0.12],[165,0.06],[220,0.03]],1100,0.16,0.08,0.12);
+        // A clearly-audible arpeggio — the "thinking" heartbeat.
+        var seq=[440,523.25,659.25,587.33,523.25,659.25,783.99,659.25], i=0;
+        h.iv(setInterval(function(){ try{ blip(ctx,out,seq[i++%seq.length],ctx.currentTime,0.20,0.42); }catch(e){} }, 560));
+        // A softer shimmer an octave up on the off-beat.
+        h.iv(setInterval(function(){ try{ blip(ctx,out,seq[(i+2)%seq.length]*2,ctx.currentTime,0.09,0.30); }catch(e){} }, 1120));
+        // A periodic rising sweep for a sense of momentum.
+        h.iv(setInterval(function(){ try{ rise(ctx,bed.lp,392,784,ctx.currentTime,0.11,1.6); }catch(e){} }, 8000));
+        return h; } },
+
     { id:'analyst', name:'Soft Analytical Pulse', desc:'A warm hum with quiet ticks, subtle desk texture, and a gentle rise as it works.',
       build:function(ctx,out){ var h=mkHandle(), buf=noiseBuf(ctx);
         var bed=humBed(ctx,out,h,[[98,0.10],[147,0.05],[220,0.02]],900,0.08,0.08,0.14);
