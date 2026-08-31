@@ -546,6 +546,33 @@ function mount(app, deps) {
     const rows = (await q(`SELECT s.id, s.campaign_id, s.run_at, c.name FROM mm_schedules s JOIN mm_campaigns c ON c.id=s.campaign_id WHERE s.tenant=$1 AND s.status='pending' ORDER BY s.run_at ASC LIMIT 500`, [TENANT])).rows;
     res.json({ ok: true, events: rows });
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
+
+  // Per-recipient engagement (matched by email) — powers the Subscriber detail page's activity list, last-sent and last-opened.
+  app.get('/api/mail/recipient', requireAdmin, guard, async (req, res) => { try {
+    const email = String(req.query.email || '').trim().toLowerCase();
+    if (!email) return res.json({ ok: true, email: '', sends: [], lastSent: null, lastOpened: null, suppression: null, totals: { sent: 0, opened: 0, clicked: 0 } });
+    const rows = (await q(`SELECT d.campaign_id, c.name, c.subject, d.status, d.sent_at, d.opened_at, d.clicked_at
+      FROM mm_sends d JOIN mm_campaigns c ON c.id=d.campaign_id
+      WHERE d.tenant=$1 AND lower(d.email)=$2 ORDER BY COALESCE(d.sent_at, d.created_at) DESC LIMIT 500`, [TENANT, email])).rows;
+    const sup = (await q(`SELECT reason, detail, created_at FROM mm_suppressions WHERE tenant=$1 AND lower(email)=$2 LIMIT 1`, [TENANT, email])).rows[0] || null;
+    let lastSent = null, lastOpened = null, sent = 0, opened = 0, clicked = 0;
+    rows.forEach(r => {
+      if (r.sent_at) { sent++; if (!lastSent || r.sent_at > lastSent) lastSent = r.sent_at; }
+      if (r.opened_at) { opened++; if (!lastOpened || r.opened_at > lastOpened) lastOpened = r.opened_at; }
+      if (r.clicked_at) clicked++;
+    });
+    res.json({ ok: true, email, sends: rows.map(r => ({ campaignId: r.campaign_id, campaign: r.name || '', subject: r.subject || '', status: r.status || '', sentAt: r.sent_at, openedAt: r.opened_at, clickedAt: r.clicked_at })), lastSent, lastOpened, suppression: sup, totals: { sent, opened, clicked } });
+  } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
+
+  // All email as calendar events — scheduled sends (future) + finished campaigns (past). Rendered on rrg_calendar.
+  app.get('/api/mail/calendar-events', requireAdmin, guard, async (req, res) => { try {
+    const sched = (await q(`SELECT s.id, s.campaign_id, s.run_at, c.name FROM mm_schedules s JOIN mm_campaigns c ON c.id=s.campaign_id WHERE s.tenant=$1 AND s.status='pending' ORDER BY s.run_at ASC LIMIT 500`, [TENANT])).rows;
+    const sent = (await q(`SELECT c.id, c.name, c.subject, c.finished_at, c.started_at, c.sent, c.opens, c.clicks FROM mm_campaigns c WHERE c.tenant=$1 AND c.finished_at IS NOT NULL ORDER BY c.finished_at DESC LIMIT 500`, [TENANT])).rows;
+    const events = [];
+    sched.forEach(r => events.push({ kind: 'scheduled', id: 's' + r.id, campaignId: r.campaign_id, title: r.name || 'Campaign', at: r.run_at }));
+    sent.forEach(r => events.push({ kind: 'sent', id: 'c' + r.id, campaignId: r.id, title: r.name || 'Campaign', subject: r.subject || '', at: r.finished_at || r.started_at, sent: r.sent || 0, opens: r.opens || 0, clicks: r.clicks || 0 }));
+    res.json({ ok: true, events });
+  } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.post('/api/mail/schedules/:sid/cancel', requireAdmin, guard, async (req, res) => { try {
     await q(`UPDATE mm_schedules SET status='canceled', done_at=now() WHERE tenant=$1 AND id=$2 AND status='pending'`, [TENANT, Number(req.params.sid)]);
     res.json({ ok: true });

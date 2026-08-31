@@ -58,10 +58,12 @@ ul,ol{margin:9px 0 9px 4px;padding-left:22px;} li{margin:5px 0;}
       <a href="#segment">2 · Segment the database</a>
       <a href="#fields">3 · The fields you track</a>
       <a href="#detail">4 · The subscriber detail page</a>
-      <a href="#add">5 · Add &amp; import</a>
-      <a href="#prefs">6 · Email preferences</a>
-      <a href="#mass">7 · Feeds Bulk Email</a>
-      <a href="#faq">8 · FAQ</a>
+      <a href="#status">5 · Statuses &amp; bounces</a>
+      <a href="#engagement">6 · Engagement history</a>
+      <a href="#add">7 · Add &amp; import</a>
+      <a href="#prefs">8 · Email preferences</a>
+      <a href="#mass">9 · Feeds Bulk Email</a>
+      <a href="#faq">10 · FAQ</a>
     </nav>
   </aside>
 
@@ -85,7 +87,7 @@ ul,ol{margin:9px 0 9px 4px;padding-left:22px;} li{margin:5px 0;}
       <ul>
         <li><b>Type</b> — Broker, Restaurant, or Buyer.</li>
         <li><b>Area</b> — any of your markets (San Antonio, Austin, Dallas, Houston…), drawn from your admin market list.</li>
-        <li><b>Status</b> — Subscribed or Unsubscribed.</li>
+        <li><b>Status</b> — Subscribed, Unsubscribed, or Bounced.</li>
       </ul>
       <p>Add the search box and you can find anyone by name, email or company. Whatever the list shows after filtering is a <b>segment</b> — e.g. "Buyers interested in Austin who are subscribed."</p>
       <div class="callout tip"><div class="lbl">Why it matters</div>A restaurant-for-sale blast should go to Buyers, not Brokers; an Austin listing should go to people who care about Austin. Segmenting first means every send is relevant — better opens, fewer unsubscribes.</div>
@@ -99,8 +101,9 @@ ul,ol{margin:9px 0 9px 4px;padding-left:22px;} li{margin:5px 0;}
         <li><b>Company</b> — where they're from.</li>
         <li><b>Type</b> — <b>Broker</b>, <b>Restaurant</b>, or <b>Buyer</b> — the primary way you segment.</li>
         <li><b>Areas of interest</b> — all areas, or specific markets they care about.</li>
-        <li><b>Status</b> — Subscribed or Unsubscribed.</li>
+        <li><b>Status</b> — Subscribed, Unsubscribed, or Bounced.</li>
         <li><b>Date added</b> — when they entered the list.</li>
+        <li><b>Last sent / Last opened</b> — pulled live from Bulk Email on the detail page (see <a href="#engagement">Engagement history</a>).</li>
         <li><b>Tags</b> — free-form labels for any other slicing you want.</li>
       </ul>
     </section>
@@ -111,8 +114,33 @@ ul,ol{margin:9px 0 9px 4px;padding-left:22px;} li{margin:5px 0;}
       <p>Click a subscriber's name to open their detail page. There you set the first/last name, email, company, <b>type</b>, <b>status</b>, <b>areas of interest</b> (all areas, or pick specific ones), and tags. Save keeps the changes and Delete removes them from the audience. Use <b>Back to list</b> to return to the segment you were working.</p>
     </section>
 
+    <section class="card" id="status">
+      <h2><span class="n">5</span> Subscribed, Unsubscribed &amp; Bounced</h2>
+      <p class="lead">Three states decide whether an address can be mailed.</p>
+      <ul>
+        <li><b>Subscribed</b> — active and reachable. Gets every campaign that matches their type and areas.</li>
+        <li><b>Unsubscribed</b> — opted out. Held out of every send, automatically, unless they opt back in.</li>
+        <li><b>Bounced</b> — mail to this address hard-failed (mailbox gone, domain rejected it). Also held out of every send, so you stop burning sends on a dead address and protect your sender reputation.</li>
+      </ul>
+      <p>You set the status on the <a href="#detail">detail page</a>. When Bulk Email records a hard bounce or spam complaint for an address, the engagement panel on that page flags it — and one click marks the subscriber <b>Bounced</b> so they drop out of future sends.</p>
+      <div class="callout tip"><div class="lbl">Why it matters</div>Sending to dead addresses tanks deliverability — mailbox providers read repeated bounces as a spam signal. Keeping bounced addresses out is basic list hygiene that protects inbox placement for everyone else on the list.</div>
+    </section>
+
+    <section class="card" id="engagement">
+      <h2><span class="n">6</span> Engagement history</h2>
+      <p class="lead">Every campaign a subscriber received, with opens and clicks — laid out NetSuite-style.</p>
+      <p>Open any subscriber's <a href="#detail">detail page</a> and you'll find an <b>Email engagement</b> panel matched to their address:</p>
+      <ul>
+        <li><b>Last sent</b> and <b>Last opened</b> — the two dates you check first.</li>
+        <li><b>Campaigns / Opened / Clicked</b> totals across everything they've been sent.</li>
+        <li>A dense grid of every campaign — name, sent date, opened date, clicked date, and a result pill that reads Delivered → Opened → Clicked.</li>
+      </ul>
+      <p>The data comes straight from <a href="rrg_mass_studio.html">Bulk Email</a>, matched by email address — the real send record, opens caught by the tracking pixel and clicks by the link tracker. If Bulk Email isn't connected yet, the panel says so rather than showing blanks.</p>
+      <div class="callout tip"><div class="lbl">Use it to work the list</div>A buyer who opens every blast but never clicks is warm — call them. An address that hasn't opened in a year is dead weight. The history tells you who to work and who to prune.</div>
+    </section>
+
     <section class="card" id="add">
-      <h2><span class="n">5</span> Add &amp; import</h2>
+      <h2><span class="n">7</span> Add &amp; import</h2>
       <p class="lead">Three ways to grow the list.</p>
       <ul>
         <li><b>+ Add subscriber</b> — open a blank detail page and enter one by hand.</li>
@@ -122,22 +150,23 @@ ul,ol{margin:9px 0 9px 4px;padding-left:22px;} li{margin:5px 0;}
     </section>
 
     <section class="card" id="prefs">
-      <h2><span class="n">6</span> Email preferences</h2>
+      <h2><span class="n">8</span> Email preferences</h2>
       <p class="lead">Each subscriber controls what they get — and the system honors it.</p>
-      <p>On the detail page, <b>Areas of interest</b> is either <b>All areas</b> (they get every campaign) or <b>Specific areas</b> (they only get a campaign that overlaps the areas you picked). Anyone marked <b>Unsubscribed</b> is never emailed. Every mass email respects these settings automatically, so you never have to hand-clean a list before a send.</p>
+      <p>On the detail page, <b>Areas of interest</b> is either <b>All areas</b> (they get every campaign) or <b>Specific areas</b> (they only get a campaign that overlaps the areas you picked). Anyone marked <b>Unsubscribed</b> or <b>Bounced</b> is never emailed. Every mass email respects these settings automatically, so you never have to hand-clean a list before a send.</p>
     </section>
 
     <section class="card" id="mass">
-      <h2><span class="n">7</span> Feeds Bulk Email</h2>
+      <h2><span class="n">9</span> Feeds Bulk Email</h2>
       <p class="lead">The segment you build here is who a campaign reaches.</p>
       <p>Subscribers is the audience layer under <a href="rrg_mass_studio.html">Bulk Email</a>. When you build and send a campaign, it targets subscribers by the same type / area / status you segment on here — and honors each person's preferences and unsubscribe. Keep this list clean and well-typed, and your campaigns land where they should.</p>
     </section>
 
     <section class="card" id="faq">
-      <h2><span class="n">8</span> FAQ</h2>
+      <h2><span class="n">10</span> FAQ</h2>
       <div class="fq"><h3>How is this different from Contacts?</h3><p>Contacts is your CRM — everyone you work with. Subscribers is your <b>marketing audience</b> — the subset who get mass emails, with their own preferences and unsubscribe. Import pulls contacts in; the two stay separate lists.</p></div>
       <div class="fq"><h3>Where do the areas come from?</h3><p>From your admin market list (Admin → Settings → Markets), the same list every section uses.</p></div>
       <div class="fq"><h3>Do unsubscribed people ever get emailed?</h3><p>No. Unsubscribed is a hard stop — they're excluded from every send automatically.</p></div>
+      <div class="fq"><h3>What about bounced addresses?</h3><p>Same — Bounced is a hard stop too. Mark an address Bounced (or let a Bulk Email hard-bounce flag it) and it's held out of every send, protecting your deliverability.</p></div>
     </section>
   </main>
 </div>

@@ -7336,9 +7336,9 @@ function newUnsubToken() { return 'un_' + crypto.randomBytes(12).toString('base6
 function subKey(e) { return String(e || '').trim().toLowerCase(); }
 function massValidEmail(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(e || '')); }
 function subDisplayName(s) { return s.name || ((s.firstName || '') + ' ' + (s.lastName || '')).trim() || s.email || ''; }
-function subscriberBrief(s) { return { id: s.id, email: s.email || '', firstName: s.firstName || '', lastName: s.lastName || '', name: subDisplayName(s), company: s.company || '', type: s.type || '', tags: Array.isArray(s.tags) ? s.tags : [], metros: Array.isArray(s.metros) ? s.metros : [], mode: (s.mode === 'metros' ? 'metros' : 'all'), status: (s.status === 'unsubscribed' ? 'unsubscribed' : 'subscribed'), source: s.source || '', personId: s.personId || '', lastEmailedAt: s.lastEmailedAt || '', createdAt: s.createdAt || '', updatedAt: s.updatedAt || '' }; }
+function subscriberBrief(s) { return { id: s.id, email: s.email || '', firstName: s.firstName || '', lastName: s.lastName || '', name: subDisplayName(s), company: s.company || '', type: s.type || '', tags: Array.isArray(s.tags) ? s.tags : [], metros: Array.isArray(s.metros) ? s.metros : [], mode: (s.mode === 'metros' ? 'metros' : 'all'), status: (['unsubscribed','bounced'].indexOf(s.status) >= 0 ? s.status : 'subscribed'), source: s.source || '', personId: s.personId || '', lastEmailedAt: s.lastEmailedAt || '', createdAt: s.createdAt || '', updatedAt: s.updatedAt || '' }; }
 const SUBSCRIBER_TYPES = ['Broker', 'Restaurant', 'Buyer'];
-function subStats() { const a = loadSubscribers(); let sub = 0, un = 0, metros = 0; a.forEach(s => { if (s.status === 'unsubscribed') un++; else { sub++; if ((s.mode || 'all') === 'metros') metros++; } }); return { total: a.length, subscribed: sub, unsubscribed: un, metrosOnly: metros }; }
+function subStats() { const a = loadSubscribers(); let sub = 0, un = 0, metros = 0, bounced = 0; a.forEach(s => { if (s.status === 'unsubscribed') un++; else if (s.status === 'bounced') bounced++; else { sub++; if ((s.mode || 'all') === 'metros') metros++; } }); return { total: a.length, subscribed: sub, unsubscribed: un, metrosOnly: metros, bounced: bounced }; }
 function subTags() { return Array.from(loadSubscribers().reduce((m, s) => { (s.tags || []).forEach(t => t && m.add(t)); return m; }, new Set())).sort(); }
 app.get('/api/subscribers', (req, res) => {
   const q = String(req.query.q || '').trim().toLowerCase();
@@ -7347,8 +7347,9 @@ app.get('/api/subscribers', (req, res) => {
   const metro = String(req.query.metro || '').trim().toLowerCase();
   const type = String(req.query.type || '').trim().toLowerCase();
   let list = loadSubscribers();
-  if (status === 'subscribed') list = list.filter(s => s.status !== 'unsubscribed');
+  if (status === 'subscribed') list = list.filter(s => s.status !== 'unsubscribed' && s.status !== 'bounced');
   else if (status === 'unsubscribed') list = list.filter(s => s.status === 'unsubscribed');
+  else if (status === 'bounced') list = list.filter(s => s.status === 'bounced');
   if (type) list = list.filter(s => String(s.type || '').toLowerCase() === type);
   if (tag) list = list.filter(s => (s.tags || []).some(t => String(t).toLowerCase() === tag));
   if (metro) list = list.filter(s => (s.metros || []).some(m => String(m).toLowerCase() === metro));
@@ -7373,7 +7374,7 @@ app.post('/api/subscribers', express.json(), (req, res) => {
   if (Array.isArray(b.tags)) s.tags = b.tags.filter(Boolean).map(x => String(x).slice(0, 60)).slice(0, 40);
   if (Array.isArray(b.metros)) s.metros = b.metros.filter(Boolean).map(x => String(x).slice(0, 80)).slice(0, 60);
   if (b.mode !== undefined) s.mode = (b.mode === 'metros' ? 'metros' : 'all');
-  if (b.status !== undefined) s.status = (b.status === 'unsubscribed' ? 'unsubscribed' : 'subscribed');
+  if (b.status !== undefined) s.status = (['unsubscribed','bounced'].indexOf(b.status) >= 0 ? b.status : 'subscribed');
   if (b.source !== undefined) s.source = String(b.source || '').slice(0, 80);
   if (b.personId !== undefined) s.personId = String(b.personId || '');
   if (!s.unsubToken) s.unsubToken = newUnsubToken();
@@ -7441,7 +7442,7 @@ function massAudience(aud, campaignMetros) {
   const cutoff = days > 0 ? (Date.now() - days * 86400000) : 0;
   const cm = (campaignMetros || []).filter(Boolean).map(x => String(x).toLowerCase());
   return loadSubscribers().filter(s => {
-    if (s.status === 'unsubscribed') return false;
+    if (s.status === 'unsubscribed' || s.status === 'bounced') return false;
     if (!massValidEmail(s.email)) return false;
     if (tags.length) { const sg = (s.tags || []).map(x => String(x).toLowerCase()); if (!tags.some(t => sg.indexOf(t) >= 0)) return false; }
     if (cutoff) { const le = Date.parse(s.lastEmailedAt || 0) || 0; if (le && le > cutoff) return false; }
