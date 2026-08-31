@@ -3004,47 +3004,56 @@ app.post('/api/bov/:id/refine', express.json({ limit: '1mb' }), async (req, res)
     res.json({ ok: true, reply: out.reply, changes: out.changes || null });
   } catch (e) { res.status(502).json({ ok: false, error: String((e && e.message) || e) }); }
 });
+// Sync a BOV's trailing-twelve-month figures (Revenue / SDE / EBITDA) onto its listing's financials
+// grid (the TTM column). Resolves the listing the SAME way the assignment page does — via
+// assignmentsIndex, matching on the BOV id — so it works for deal-linked AND standalone (bov_<id>)
+// listings; falls back to b.dealKey. Value / basis / multiple already flow live from the BOV.
+// Idempotent: safe to call on every finalize (including a repeat), only fills the TTM column.
+function syncBovFinancialsToListing(b) {
+  try {
+    if (!b) return '';
+    let lk = '';
+    try { const ix = assignmentsIndex(); for (const k in ix) { if (ix[k].bov && ix[k].bov.id === b.id) { lk = k; break; } } } catch (e) {}
+    if (!lk && b.dealKey) lk = b.dealKey;
+    if (!lk) return '';
+    const clean = v => String(v == null ? '' : v).replace(/^~\s*/, '').trim();
+    const rev = clean(b.revText || (typeof bovRevenueText === 'function' ? bovRevenueText(b) : ''));
+    const sde = clean(b.sdeText);
+    const eb = clean(b.ebitdaText);
+    if (!(rev || sde || eb)) return '';
+    const ov = loadAssignOverlay();
+    const cur = ov[lk] || (ov[lk] = {});
+    let f3 = Array.isArray(cur.financials3y) ? cur.financials3y.map(c => ({ label: (c && c.label) || '', revenue: (c && c.revenue) || '', sde: (c && c.sde) || '', ebitda: (c && c.ebitda) || '', rent: (c && c.rent) || '' })) : [];
+    if (!f3.length) {
+      const y = new Date().getFullYear();
+      f3 = [String(y - 3), String(y - 2), String(y - 1)].map(L => ({ label: L, revenue: '', sde: '', ebitda: '', rent: '' }));
+      f3.push({ label: 'TTM', revenue: '', sde: '', ebitda: '', rent: '' });
+    }
+    let ttm = f3.find(c => /ttm/i.test(String(c.label || '')));
+    if (!ttm) { ttm = { label: 'TTM', revenue: '', sde: '', ebitda: '', rent: '' }; f3.push(ttm); }
+    if (rev) ttm.revenue = rev.slice(0, 40);
+    if (sde) ttm.sde = sde.slice(0, 40);
+    if (eb) ttm.ebitda = eb.slice(0, 40);
+    cur.financials3y = f3.slice(0, 6);
+    cur.updatedAt = new Date().toISOString();
+    saveAssignOverlay(ov);
+    return lk;
+  } catch (e) { console.error('BOV finalize sync:', e && e.message); return ''; }
+}
 app.post('/api/bov/:id/finalize', (req, res) => {
   const bovs = loadBovs();
   const b = bovs.find(x => x.id === req.params.id);
   if (!b) return res.status(404).json({ ok: false, error: 'Not found.' });
   if (!ownsBov(req, b)) return res.status(403).json({ ok: false, error: 'Not yours.' });
   if (b.pending) return res.status(409).json({ ok: false, error: 'Build the valuation before finalizing it.' });
-  if (b.finalizedAt) return res.json({ ok: true, alreadyFinal: true, version: b.version || 1, finalizedAt: b.finalizedAt });
+  if (b.finalizedAt) { const _lk = syncBovFinancialsToListing(b); return res.json({ ok: true, alreadyFinal: true, version: b.version || 1, finalizedAt: b.finalizedAt, syncedListing: _lk }); }
   b.version = b.version || 1;
   b.finalizedAt = new Date().toISOString();
   b.finalizedBy = (req.user && req.user.name) || '';
   b.finalizedByUser = (req.user && req.user.username) || '';
   saveBovs(bovs);
-  // On finalize, sync the valuation's TTM figures onto the linked listing's financials grid
-  // (Revenue / SDE / EBITDA in the TTM column). Value / basis / multiple already flow live from the BOV.
-  try {
-    if (b.dealKey) {
-      const _ov = loadAssignOverlay();
-      const _cur = _ov[b.dealKey] || (_ov[b.dealKey] = {});
-      const _clean = v => String(v == null ? '' : v).replace(/^~\s*/, '').trim();
-      const _rev = _clean(b.revText || (typeof bovRevenueText === 'function' ? bovRevenueText(b) : ''));
-      const _sde = _clean(b.sdeText);
-      const _eb = _clean(b.ebitdaText);
-      if (_rev || _sde || _eb) {
-        let _f3 = Array.isArray(_cur.financials3y) ? _cur.financials3y.map(c => ({ label: (c && c.label) || '', revenue: (c && c.revenue) || '', sde: (c && c.sde) || '', ebitda: (c && c.ebitda) || '', rent: (c && c.rent) || '' })) : [];
-        if (!_f3.length) {
-          const _y = new Date().getFullYear();
-          _f3 = [String(_y - 3), String(_y - 2), String(_y - 1)].map(L => ({ label: L, revenue: '', sde: '', ebitda: '', rent: '' }));
-          _f3.push({ label: 'TTM', revenue: '', sde: '', ebitda: '', rent: '' });
-        }
-        let _ttm = _f3.find(c => /ttm/i.test(String(c.label || '')));
-        if (!_ttm) { _ttm = { label: 'TTM', revenue: '', sde: '', ebitda: '', rent: '' }; _f3.push(_ttm); }
-        if (_rev) _ttm.revenue = _rev.slice(0, 40);
-        if (_sde) _ttm.sde = _sde.slice(0, 40);
-        if (_eb) _ttm.ebitda = _eb.slice(0, 40);
-        _cur.financials3y = _f3.slice(0, 6);
-        _cur.updatedAt = new Date().toISOString();
-        saveAssignOverlay(_ov);
-      }
-    }
-  } catch (e) { console.error('BOV finalize sync:', e && e.message); }
-  res.json({ ok: true, version: b.version, finalizedAt: b.finalizedAt, finalizedBy: b.finalizedBy });
+  const _lk = syncBovFinancialsToListing(b);
+  res.json({ ok: true, version: b.version, finalizedAt: b.finalizedAt, finalizedBy: b.finalizedBy, syncedListing: _lk });
 });
 // Revise a finalized valuation — archives the finalized copy into the version history
 // (audit trail) and re-opens the record as a fresh draft at the next version number.
