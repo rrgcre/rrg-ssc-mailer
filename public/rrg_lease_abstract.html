@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Opt into the shell breadcrumb (Command › … › Lease Abstract). setAbsCrumb() overrides this with the real trail once the record loads. -->
+<meta name="rrg-back" content="rrg_people.html|Contacts">
 <title>RRG — Lease Abstract</title>
 <style>
 :root{--navy:#20334f;--blue:#2c5c8f;--red:#c0392b;--ink:#2a2f3a;--muted:#6b7488;--soft:#9aa3b2;--line:#e3e7ef;--tint:#f6f8fb;}
@@ -265,6 +267,18 @@ function _navBack(){
   if(A && A.companyId){ location.href='./rrg_company.html?id='+encodeURIComponent(A.companyId); return; }
   location.href='./index.html';
 }
+// Populate the shell breadcrumb with the real trail for this abstract, so there's always a visible
+// path and a one-click way out of the process (Command › parent › Lease Abstract — business).
+function setAbsCrumb(){
+  if(!window.rrgSetCrumb){ return setTimeout(setAbsCrumb,120); }
+  var leaf='Lease Abstract'+((A&&A.business&&A.business!=='Lease Abstract')?(' — '+A.business):'');
+  function apply(mid){ var t=[]; if(mid&&mid.href) t.push(mid); t.push({label:leaf}); try{ window.rrgSetCrumb(t); }catch(e){} }
+  if(A&&A.srcBovId){ apply({label:'Valuation (BOV)', href:'./rrg_bov_generate.html?bov='+encodeURIComponent(A.srcBovId)}); return; }
+  if(A&&A.personId){ fetch('/api/person/'+encodeURIComponent(A.personId),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ var nm=(j&&j.ok&&j.person&&j.person.name)||'Contact'; apply({label:nm, href:'./rrg_person.html?id='+encodeURIComponent(A.personId)}); }).catch(function(){ apply({label:'Contact', href:'./rrg_person.html?id='+encodeURIComponent(A.personId)}); }); return; }
+  if(A&&A.companyId){ apply({label:'Company', href:'./rrg_company.html?id='+encodeURIComponent(A.companyId)}); return; }
+  if(A&&A.dealKey){ apply({label:'Listing', href:'./rrg_assignment.html?key='+encodeURIComponent(A.dealKey)}); return; }
+  apply(null);
+}
 // Close/Back — never lose a just-typed edit: flush a pending autosave, then leave (with a safety timeout).
 function goBack(){
   var went=false; function go(){ if(went) return; went=true; _navBack(); }
@@ -284,12 +298,14 @@ function normalizeRedact(s){ if(!s) return; // migrate legacy single "redact" fl
 
 if(LID){
   fetch('/api/lease/'+encodeURIComponent(LID),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
-    if(j&&j.ok&&j.lease){ A=j.lease; if(!A.state){ A.state=blankState(); if(A.business) A.state.header.business=A.business; } normalizeRedact(A.state); render(A.state); if(ISNEW){ /* fresh manual abstract: save the blank so it shows as built */ queueSave(); }
+    if(j&&j.ok&&j.lease){ A=j.lease; if(!A.state){ A.state=blankState(); if(A.business) A.state.header.business=A.business; } normalizeRedact(A.state); render(A.state); setAbsCrumb(); if(ISNEW){ /* fresh manual abstract: save the blank so it shows as built */ queueSave(); }
       // Built as a prerequisite for a BOV? Send every exit back to that BOV — not the standalone
       // Lease Abstracts queue — so the rep lands where they can finish the valuation.
       if(A.srcBovId){
         var _bovUrl='./rrg_bov_generate.html?bov='+encodeURIComponent(A.srcBovId);
-        var tb=document.getElementById('toBovBtn'); if(tb){ tb.href=_bovUrl; tb.style.display=''; }
+        // Green CTA jumps straight into valuing: auto=1 auto-starts the build on arrival IF the room
+        // already has the financials (otherwise the BOV screen just opens so the rep can add them).
+        var tb=document.getElementById('toBovBtn'); if(tb){ tb.href=_bovUrl+'&auto=1'; tb.style.display=''; }
         // The green CTA is itself the way back to the BOV — hide the redundant plain Back button.
         var qb=document.getElementById('backBtn'); if(qb){ qb.style.display='none'; }
         var bp=document.getElementById('backPill'); if(bp){ bp.setAttribute('aria-label','Back to the BOV'); bp.innerHTML='<span>←</span> Back to the BOV'; }

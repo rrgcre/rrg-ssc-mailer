@@ -213,8 +213,20 @@ var BOV_ID='';
     var id=new URLSearchParams(location.search).get('bov');
     if(!id){ var vn=document.getElementById('vqnote'); if(vn) vn.style.display='none'; return; }
     BOV_ID=id;
+    // Arriving with ?auto=1 (e.g. from the lease abstract's "Value the business now →") means the rep
+    // already asked to value it — if the room has the financials, kick off the build straight away
+    // instead of parking them on this setup screen. If financials aren't ready, we stay put so they
+    // can add them.
+    var AUTO = new URLSearchParams(location.search).get('auto')==='1';
+    var _roomReady=false, _bovLoaded=false, _autoFired=false;
+    function maybeAutoStart(){
+      if(!AUTO || _autoFired || !_roomReady || !_bovLoaded) return;
+      if(!window.ROOM_HAS_FIN) return;   // nothing to value yet — leave the screen for the rep
+      _autoFired=true;
+      try{ generate(); }catch(e){}
+    }
     try{ fetch('/api/valuation-room-ready?bov='+encodeURIComponent(id),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
-      if(!j||!j.ok) return;
+      if(!j||!j.ok){ _roomReady=true; return; }
       window.ROOM_HAS_FIN=!!j.financials; var g=document.getElementById('go'); if(g&&j.financials) g.disabled=false;
       window.LEASE_ABSTRACT=!!j.abstract; window.LEASE_ABSTRACT_PENDING=!!j.abstractPending; window.LEASE_ABSTRACT_ID=j.abstractId||''; window.LEASE_DOC=!!j.lease;
       var vn=document.getElementById('vqnote'); if(!vn) return;
@@ -227,14 +239,16 @@ var BOV_ID='';
         vn.textContent = roomPhrase ? ('✓ The questionnaire is in the system, and '+roomPhrase) : '✓ The questionnaire is in the system.';
       }
       vn.style.display='';
-    }).catch(function(){ var vn=document.getElementById('vqnote'); if(vn) vn.style.display='none'; }); }catch(e){}
+      _roomReady=true; maybeAutoStart();
+    }).catch(function(){ var vn=document.getElementById('vqnote'); if(vn) vn.style.display='none'; _roomReady=true; maybeAutoStart(); }); }catch(e){ _roomReady=true; }
     fetch('/api/bov/'+encodeURIComponent(id),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
       var b=(j&&j.bov)||null;
       if(b){
         var el=document.getElementById('biz'); if(el && !el.value.trim() && b.business){ el.value=b.business; }
         var pf=document.getElementById('prepFor'); if(pf && !pf.value.trim() && b.business){ pf.value='Ownership of '+b.business; }
       }
-    }).catch(function(){});
+      _bovLoaded=true; maybeAutoStart();
+    }).catch(function(){ _bovLoaded=true; maybeAutoStart(); });
   }catch(e){}
 })();
 function pick(s){ document.getElementById(s+'_in').click(); }
