@@ -781,8 +781,8 @@ function render(){
   document.getElementById('subline').innerHTML=sub.join('');
 
   var mf=A.stageFlags||{};
-  var done=ST.filter(function(d){return d.manual?mf[d.k]:(s[d.k]&&s[d.k].done);}).length;
-  var started=ST.filter(function(d){return d.manual?mf[d.k]:s[d.k];}).length;
+  var done=ST.filter(function(d){return s[d.k]?s[d.k].done:mf[d.k];}).length;
+  var started=ST.filter(function(d){return s[d.k]?true:mf[d.k];}).length;
 
   var _contactCell=(A.clientPersonId?('<a href="./rrg_person.html?id='+encodeURIComponent(A.clientPersonId)+'" style="color:#2c5c8f;font-weight:700;text-decoration:none" title="Open the linked contact">'+esc(A.contact||'Open contact')+' ↗</a>'):(A.contact?esc(A.contact):'—'));
   var _nm=(A.business||'Untitled listing');
@@ -807,14 +807,16 @@ function render(){
     +'</div>';
 
   var steps=ST.map(function(d){
-    var manual=d.manual, st, cls, mark;
-    if(manual){ var on=!!mf[d.k]; cls=on?'done':'absent'; mark=on?'\u2713':''; st=on; }
-    else { st=s[d.k]; cls=!st?'absent':(st.done?'done':'pend'); mark=!st?'':(st.done?'\u2713':'\u2026'); }
-    var statTxt=manual?(st?'Done':'Not yet'):(!st?'\u2014':(st.done?'Done':'In progress'));
+    var st=d.manual?null:s[d.k];
+    var mflag=!!mf[d.k];
+    var done = st ? !!st.done : mflag;
+    var pend = !!st && !st.done;
+    var cls = done?'done':(pend?'pend':'absent');
+    var mark = done?'\u2713':(pend?'\u2026':'');
+    var statTxt = st ? (st.done?'Done':'In progress') : (mflag?'Done':(d.manual?'Not yet':'\u2014'));
     var inner='<div class="hpdot '+cls+'">'+mark+'</div><div class="hpname">'+esc(d.lbl||d.name)+'</div><div class="hpstat">'+statTxt+'</div>';
-    if(manual){ return '<button type="button" class="hpstep hpman'+((mf[d.k])?' on done':'')+'" data-mstage="'+d.k+'" title="'+esc(d.name)+' \u2014 click to toggle">'+inner+'</button>'; }
-    if(st){ return '<a class="hpstep'+(st.done?' done':'')+'" href="'+d.href(st)+'" title="'+esc(d.name)+' \u2014 open">'+inner+'</a>'; }
-    return '<div class="hpstep" title="'+esc(d.name)+' \u2014 not started">'+inner+'</div>';
+    if(st){ return '<a class="hpstep'+(st.done?' done':'')+'" href="'+d.href(st)+'" title="'+esc(d.name)+' \u2014 open the tool">'+inner+'</a>'; }
+    return '<button type="button" class="hpstep hpman'+(done?' on done':'')+'" data-mstage="'+d.k+'" title="'+esc(d.name)+' \u2014 click to mark '+(done?'not done':'done')+'">'+inner+'</button>';
   }).join('');
 
   var opts=STATUSES.map(function(x){ return '<option'+(A.status===x?' selected':'')+'>'+esc(x)+'</option>'; }).join('');
