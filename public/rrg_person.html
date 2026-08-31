@@ -63,7 +63,10 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 .cautionchip{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;letter-spacing:.03em;padding:3px 10px;border-radius:999px;border:1px solid #d6dbe6;color:#8a93a8;background:#fff;cursor:pointer;user-select:none;}
 .cautionchip.on{border-color:#DA2B1F;color:#a5352c;background:#fdeceb;box-shadow:0 0 0 2px rgba(218,43,31,.14);}
 .flagrow{display:inline-flex;gap:6px;vertical-align:middle;}
-.flagbtn{display:inline-flex;align-items:center;justify-content:center;width:27px;height:27px;border-radius:7px;border:1px solid #d6dbe6;background:#fff;color:#9aa3b4;cursor:pointer;padding:0;transition:all .12s;}
+.flagbtn{display:inline-flex;align-items:center;justify-content:center;width:27px;height:27px;border-radius:7px;border:1px solid #d6dbe6;background:#fff;color:#9aa3b4;cursor:pointer;padding:0;transition:background-color .12s,border-color .12s,color .12s;}
+/* While the page is still settling its async loads right after open, the header re-renders a few
+   times; never let the flag badges animate during that window so they don't flash or jiggle. */
+body.booting .flagbtn{transition:none!important;}
 .flagbtn svg{width:15px;height:15px;}
 .flagbtn:hover{border-color:#b9c2d2;color:#5b6472;}
 .flagbtn.vip.on{border-color:#20334f;color:#fff;background:#20334f;}
@@ -1578,7 +1581,11 @@ function setCoCrumb(){ try{ if(!window.rrgSetCrumb){ return setTimeout(setCoCrum
 // root.innerHTML, so calling it 5x in a row makes the header — and the colored flag
 // badges especially — flash repeatedly. Batch those into one render on the next frame.
 var _renderQ=null;
-function scheduleRender(){ if(!P) return; if(_renderQ) return; _renderQ=(window.requestAnimationFrame||function(f){return setTimeout(f,16);})(function(){ _renderQ=null; if(P) render(); }); }
+// Trailing debounce: the open cascade (Gmail, templates, docs, tasks) resolves over a few hundred
+// ms and each would otherwise trigger its own full re-render. Collapse a burst into ONE render a
+// beat after the last one lands, so the header — and the flag badges — settle once instead of
+// flashing several times.
+function scheduleRender(){ if(!P) return; if(_renderQ) clearTimeout(_renderQ); _renderQ=setTimeout(function(){ _renderQ=null; if(P) render(); }, 90); }
 function render(){
   // Preserve an open Send-agreement modal across re-renders (late gmail/template
   // loads rebuild the DOM and would otherwise flash it closed).
@@ -1887,6 +1894,8 @@ function clearPhoto(){
 window.addEventListener('beforeunload',function(e){ if(DIRTY){ e.preventDefault(); e.returnValue=''; } });
 function load(){
   if(!ID){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px">No contact selected. <a href="./rrg_people.html">Back to contacts →</a></div>'; return; }
+  // Mark the open window so flag badges don't animate through the initial re-renders (see CSS).
+  try{ document.body.classList.add('booting'); setTimeout(function(){ document.body.classList.remove('booting'); }, 900); }catch(e){}
   fetch('/api/person/'+encodeURIComponent(ID),{credentials:'same-origin'}).then(function(r){ if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); }); return r.json(); })
     .then(function(j){ P=j.person; if(P){ P.appointments=j.appointments||[]; P.apptTypes=j.apptTypes||[]; } CO=j.company; DEALS=j.deals||[]; OFFERS=j.offers||[]; TOURS=j.tours||[]; NDAS=j.ndas||[]; INTERESTED=j.interested||[]; AUTOMATIONS=j.automations||[]; AGREEMENTS=j.agreements||[]; ATYPES=j.agreementTypes||[]; PTYPES=j.personTypes||PTYPES; LEADSOURCES=j.leadSources||[]; if(Array.isArray(j.markets)&&j.markets.length){ BB_METROS=j.markets; MARKETS=j.markets; } TB_CONCEPTS=j.companyConcepts||[]; ALLTAGS=j.allTags||[]; EMAILREADY=!!j.emailReady; ACTIVITIES=j.activities||[]; ACTTYPES=j.activityTypes||[]; USERS=j.users||[]; IS_ADMIN=!!j.isAdmin; CAN_DELETE=!!j.canDelete; CANROOMS=!!j.canRooms; render(); setCoCrumb(); _pReady=true; maybeAutoSend(); loadGmail(); loadEmailTpls2(); loadDocs(); loadTasksCo(); })
     .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this contact.')+'<br><br><a href="./rrg_people.html" style="color:#000E31;font-weight:700">← Back to contacts</a></div>'; });
