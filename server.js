@@ -2405,8 +2405,9 @@ app.get('/api/valuation-room-ready', (req, res) => {
   try {
     const bov = loadBovs().find(x => x.id === String((req.query && req.query.bov) || ''));
     const files = bov ? roomFilesForBov(bov) : [];
-    res.json({ ok: true, financials: files.some(f => f.label === 'Financials'), lease: files.some(f => f.label === 'Lease'), hasQuestionnaire: !!(bov && bov.srcQuestId), interviewSkipped: !!(bov && bov.interviewSkipped) });
-  } catch (e) { res.json({ ok: true, financials: false, lease: false, hasQuestionnaire: false, interviewSkipped: false }); }
+    const _lz = bov ? leaseForBov(req, bov) : null;
+    res.json({ ok: true, financials: files.some(f => f.label === 'Financials'), lease: files.some(f => f.label === 'Lease'), abstract: !!(_lz && !_lz.pending), abstractPending: !!(_lz && _lz.pending), abstractId: (_lz && _lz.id) || '', hasQuestionnaire: !!(bov && bov.srcQuestId), interviewSkipped: !!(bov && bov.interviewSkipped) });
+  } catch (e) { res.json({ ok: true, financials: false, lease: false, abstract: false, abstractPending: false, abstractId: '', hasQuestionnaire: false, interviewSkipped: false }); }
 });
 app.post('/api/generate-bov', express.json({ limit: '48mb' }), async (req, res) => {
   try {
@@ -2459,6 +2460,13 @@ app.post('/api/generate-bov', express.json({ limit: '48mb' }), async (req, res) 
       return res.status(409).json({ ok: false, finalized: true, error: 'This valuation is Final (v' + (target.version || 1) + '). Its earnings bridge is locked. Open it in Business Valuations and click \u201cRevise (new version)\u201d to start a new draft, then re-generate.' });
     }
 
+    // Fold in the linked LEASE ABSTRACT so the valuation is built on the read lease — the single
+    // biggest swing on a restaurant/bar deal (remaining term, options, occupancy %, assignability).
+    try {
+      const _ctxBov = target || Object.assign({ id: '' }, partyLink(req.body || {}));
+      const _lctx = leaseAbstractContext(leaseForBov(req, _ctxBov));
+      if (_lctx) questionnaireText = _lctx + (questionnaireText ? ('\n\n' + questionnaireText) : '');
+    } catch (e) {}
     const out = await bovgen.generateBov({ business, files: _files, preparedBy, questionnaire: questionnaireText, links, systemPrompt: loadBovPromptCustom() || undefined, sdeThreshold: loadSdeThreshold(), assetSaleFloor: loadAssetSaleFloor() });
     // Rep-entered "Prepared For" overrides whatever the analyst inferred.
     if (preparedFor && String(preparedFor).trim()) { out.state = out.state || {}; out.state.fields = out.state.fields || {}; out.state.fields.preparedFor = String(preparedFor).slice(0, 200); }
@@ -2705,6 +2713,10 @@ app.post('/api/lease/new', express.json(), (req, res) => {
     createdAt: new Date().toISOString(), state: null,
   };
   inheritLink(rec, partyLink(b));
+  // Pre-link a new abstract to a BOV (used by the "add a lease first" gate on the valuation screen):
+  // carry over the BOV's party + questionnaire linkage and name so it's found next time the BOV builds.
+  if (b.fromBov) { try { const _bv = loadBovs().find(x => x.id === String(b.fromBov)); if (_bv) { rec.srcBovId = _bv.id; if (_bv.srcQuestId) rec.srcQuestId = _bv.srcQuestId; if (_bv.personId && !rec.personId) rec.personId = _bv.personId; if (_bv.companyId && !rec.companyId) rec.companyId = _bv.companyId; if (_bv.dealKey && !rec.dealKey) rec.dealKey = _bv.dealKey; if ((rec.business === 'Lease Abstract') && _bv.business) rec.business = String(_bv.business).slice(0, 120); } } catch (e) {} }
+  else { if (b.srcBovId) rec.srcBovId = String(b.srcBovId).slice(0, 60); if (b.srcQuestId) rec.srcQuestId = String(b.srcQuestId).slice(0, 60); }
   const arr = loadLeases(); arr.push(rec); saveLeases(arr);
   res.json({ ok: true, id: rec.id });
 });
@@ -2716,6 +2728,36 @@ function leaseForDeal(req, cim) {
   if (!l && cim.srcQuestId) l = arr.find(x => x.srcQuestId && x.srcQuestId === cim.srcQuestId && ownsLease(req, x));
   return l || null;
 }
+// Resolve the lease abstract linked to a BOV context (by source BOV, then questionnaire, then party).
+function leaseForBov(req, bov) {
+  if (!bov) return null;
+  const arr = loadLeases();
+  const pid = String(bov.personId || ''), cid = String(bov.companyId || ''), qid = String(bov.srcQuestId || ''), bid = String(bov.id || '');
+  return (bid && arr.find(x => x.srcBovId && x.srcBovId === bid && ownsLease(req, x)))
+      || (qid && arr.find(x => x.srcQuestId === qid && ownsLease(req, x)))
+      || (pid && arr.find(x => x.personId === pid && ownsLease(req, x)))
+      || (cid && arr.find(x => x.companyId === cid && ownsLease(req, x)))
+      || null;
+}
+// Compact, analyst-facing summary of a lease abstract for the BOV. Leads with the two questions
+// EVERY buyer asks — time remaining and option periods — then the economics that move value.
+function leaseAbstractContext(l) {
+  try {
+    if (!l || l.pending || !l.state) return '';
+    const st = l.state; const tm = st.term || {}, op = st.options || {}, rt = st.rent || {}, ch = st.charges || {}, asg = st.assignment || {}, gu = st.guaranty || {}, ec = st.economics || {};
+    const V = v => String(v == null ? '' : v).trim();
+    const L = []; const push = (k, v) => { v = V(v); if (v && !/^none$/i.test(v) && !/^not specified/i.test(v)) L.push(k + ': ' + v); };
+    push('Remaining term', tm.remainingTerm); push('Expiration', tm.expiration);
+    push('Renewal options', op.renewalOptions); push('Option notice', op.renewalNotice); push('Option rent basis', op.renewalRent);
+    push('Current base rent', rt.current); push('Escalation', rt.escalation); push('Percentage rent', rt.percentageRent); push('Charge structure', ch.structure);
+    push('Total occupancy cost (annual)', ec.totalOccupancyAnnual); push('Occupancy cost % of sales', ec.occupancyPct);
+    push('Assignment / subletting', asg.assignmentSublet); push('Consent standard', asg.consentStandard); push('Change of control', asg.changeOfControl);
+    push('Guaranty', gu.type); push('Personal guaranty', gu.personalGuaranty);
+    push('Key money / lease value', ec.keyMoney); push('Financeability', ec.financeable);
+    if (!L.length) return '';
+    return 'LEASE ABSTRACT — authoritative lease terms from RRG’s abstract of the executed lease. For a restaurant or bar the lease drives value: weigh the remaining term, option periods, occupancy cost (especially as a % of sales), assignability, and guaranty in the valuation and its narrative. Every buyer asks first how much term remains and whether there are option periods.\n' + L.join('\n');
+  } catch (e) { return ''; }
+}
 // Buyer-safe Occupancy & Lease Summary for the CIM, sourced from the deal's lease abstract.
 function cimOccupancy(req, cim) {
   const l = leaseForDeal(req, cim);
@@ -2726,16 +2768,23 @@ function cimOccupancy(req, cim) {
   const rows = [];
   const V = v => String(v == null ? '' : v).trim();
   const add = (label, val) => { const v = V(val); if (v && !/^none$/i.test(v)) rows.push({ label, value: v }); };
+  // Lead with the two questions every buyer asks first: time remaining and option periods.
+  add('Remaining term', tm.remainingTerm); add('Lease expiration', tm.expiration);
+  add('Renewal options', op.renewalOptions); add('Option notice', op.renewalNotice); add('Option rent basis', op.renewalRent);
   add('Premises', pr.description); add('Rentable SF', pr.squareFeet); add('Suite / Unit', pr.suite);
   if (!redL) add('Landlord', pa.landlord);
   if (!redT) add('Tenant', pa.tenant);
   add('Lease structure', ch.structure);
-  add('Commencement', tm.commencement); add('Expiration', tm.expiration); add('Original term', tm.originalTerm); add('Remaining term', tm.remainingTerm);
+  add('Commencement', tm.commencement); add('Original term', tm.originalTerm);
   add('Current base rent', rt.current); add('Rent per SF', rt.perSF); add('Escalations', rt.escalation); add('Percentage rent', rt.percentageRent);
   add('NNN / CAM', ch.cam); add('Real estate taxes', ch.taxes); add('Insurance', ch.insurance);
-  add('Renewal options', op.renewalOptions); add('Renewal notice', op.renewalNotice); add('Option rent', op.renewalRent);
   add('Assignment & subletting', asg.assignmentSublet); add('Consent standard', asg.consentStandard); add('Change of control', asg.changeOfControl);
   add('Guaranty', gu.type);
+  const eco = st.economics || {};
+  add('Total occupancy cost (annual)', eco.totalOccupancyAnnual);
+  add('Occupancy cost % of sales', eco.occupancyPct);
+  add('Key money / lease value', eco.keyMoney);
+  add('Financeability', eco.financeable);
   const schedule = Array.isArray(rt.schedule) ? rt.schedule.filter(x => x && (x.period || x.monthlyRent || x.annualRent)).slice(0, 12).map(x => ({ period: V(x.period), monthly: V(x.monthlyRent), annual: V(x.annualRent) })) : [];
   if (!rows.length && !schedule.length) return null;
   return { leaseId: l.id, address: l.propertyAddress || (st.header && st.header.propertyAddress) || '', rows, schedule, redactLandlord: redL, redactTenant: redT };
@@ -5560,8 +5609,8 @@ function buyBoxMatch(bb, L) {
     if (ok) { positive++; if (label) reasons.push(label); return true; }
     return false;
   }
-  if (!crit(!!(bb.concepts && bb.concepts.length), !!L.conceptKey, !!(L.conceptKey && bb.concepts.indexOf(L.conceptKey) >= 0), 'concept')) return { match: false, reasons: [] };
-  if (!crit(!!(bb.markets && bb.markets.length), !!L.marketKey, !!(L.marketKey && bb.markets.indexOf(L.marketKey) >= 0), 'market')) return { match: false, reasons: [] };
+  if (!crit(!!(bb.concepts && bb.concepts.length), !!L.conceptKey, !!(L.conceptKey && (bb.concepts || []).indexOf(L.conceptKey) >= 0), 'concept')) return { match: false, reasons: [] };
+  if (!crit(!!(bb.markets && bb.markets.length), !!L.marketKey, !!(L.marketKey && (bb.markets || []).indexOf(L.marketKey) >= 0), 'market')) return { match: false, reasons: [] };
   if (!crit(!!bb.priceMax, _priceIdx(L.priceBand) >= 0, _priceIdx(L.priceBand) >= 0 && _priceIdx(L.priceBand) <= _priceIdx(bb.priceMax), 'price')) return { match: false, reasons: [] };
   if (!crit(!!bb.sdeMin, _cashIdx(L.cashBand) >= 0, _cashIdx(L.cashBand) >= 0 && _cashIdx(L.cashBand) >= _cashIdx(bb.sdeMin), 'SDE')) return { match: false, reasons: [] };
   if (!crit(bb.unitsMin !== '' && bb.unitsMin != null, L.units > 0, L.units >= Number(bb.unitsMin), 'units')) return { match: false, reasons: [] };
@@ -5767,6 +5816,48 @@ function relationshipRollupCompany(companyId) {
   return roll;
 }
 
+// When a listing is live on the marketplace, push its NEW buy-box matches: log the match on each
+// newly-matched active buyer's timeline and drop ONE task for the rep to act on (send the teaser
+// under NDA). Deduped per listing+buyer via overlay[key].matchAlerts so nobody is pinged twice —
+// so it's safe to call on every publish; only buyers not yet alerted for this listing get one.
+function runBuyerMatchPush(key, req) {
+  try {
+    const deals = assignmentsIndex(); const d = deals[key]; if (!d) return 0;
+    const overlay = loadAssignOverlay(); const cur = overlay[key] || (overlay[key] = {});
+    if (cur.assignmentType === 'tenant_rep') return 0;              // space/tenant matching handles those
+    if (!cur.market || !cur.market.published) return 0;
+    let view; try { view = assignmentView(d, overlay); } catch (e) { return 0; }
+    const L = _listingMatchFields(d, cur, view); if (!L.hasTeaser) return 0;
+    const seen = (cur.matchAlerts && typeof cur.matchAlerts === 'object') ? cur.matchAlerts : (cur.matchAlerts = {});
+    const ppl = loadPeople(); let peopleDirty = false; const fresh = [];
+    ppl.forEach(p => {
+      if (!p.buyBox || !p.buyBox.active) return;
+      let r; try { r = buyBoxMatch(p.buyBox, L); } catch (e) { return; }   // one bad buy-box can't abort the batch
+      if (!r || !r.match) return;
+      if (seen[p.id]) return;                                        // already alerted for this listing
+      seen[p.id] = { at: new Date().toISOString(), reasons: r.reasons };
+      logActivity(p, 'Match', 'New listing matches this buyer’s buy-box: ' + (view.business || 'a listing') + (r.reasons.length ? (' — ' + r.reasons.join(', ')) : ''), { auto: true, byUser: (req && req.user && req.user.username) || '', by: (req && req.user && req.user.name) || '' });
+      peopleDirty = true;
+      fresh.push({ id: p.id, name: p.name || 'A buyer', reasons: r.reasons });
+    });
+    cur.updatedAt = new Date().toISOString();
+    saveAssignOverlay(overlay);
+    if (!fresh.length) return 0;
+    if (peopleDirty) savePeople(ppl);
+    try {
+      const owner = (req && req.user && req.user.username) || cur.ownerUser || '';
+      const ownerName = (req && req.user && req.user.name) || '';
+      const tasks = loadTasks();
+      const expKey = 'buymatch:' + key + ':' + new Date().toISOString().slice(0, 10);
+      if (!tasks.some(t => t.status === 'open' && t.expKey === expKey)) {
+        const names = fresh.slice(0, 4).map(f => f.name).join(', ') + (fresh.length > 4 ? (' +' + (fresh.length - 4) + ' more') : '');
+        tasks.push({ id: newTaskId(), createdBy: owner, createdByName: ownerName, assignee: owner, assigneeName: ownerName, createdAt: new Date().toISOString(), status: 'open', doneAt: '', title: fresh.length + ' buyer' + (fresh.length === 1 ? '' : 's') + ' match ' + (view.business || 'this listing'), notes: 'New buy-box matches: ' + names + '. Open the listing to review matched buyers and send the teaser under NDA.', due: '', priority: 'Normal', type: '', linkType: 'deal', linkId: key, linkLabel: view.business || 'Listing', expKey: expKey, remChannels: ['popup'] });
+        saveTasks(tasks);
+      }
+    } catch (e) {}
+    return fresh.length;
+  } catch (e) { console.error('buyer match push:', e && e.message); return 0; }
+}
 app.post('/api/marketplace/:key', express.json(), (req, res) => {
   const key = req.params.key; const deals = assignmentsIndex(); const d = deals[key];
   if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
@@ -5779,7 +5870,8 @@ app.post('/api/marketplace/:key', express.json(), (req, res) => {
   const prevFlag = (cur.market && cur.market.flag) || '';
   if (m.flag && m.flag !== prevFlag) m.flagAt = now; else if (!m.flag) delete m.flagAt;
   cur.market = m; overlay[key] = cur; saveAssignOverlay(overlay);
-  res.json({ ok: true, teaser: m });
+  let _matched = 0; if (m.published) { try { _matched = runBuyerMatchPush(key, req); } catch (e) {} }
+  res.json({ ok: true, teaser: m, matched: _matched });
 });
 // PUBLIC feed for the buyer page.
 app.get('/api/market/public', (req, res) => { res.json({ ok: true, listings: mktPublicList(), org: orgDisplayName() }); });

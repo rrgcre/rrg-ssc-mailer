@@ -102,6 +102,8 @@ table.sch th{background:var(--tint);color:var(--blue);font-size:9.5px;font-weigh
     <div class="help-b">
       <h4>What this is</h4>
       <p>A concise summary of a lease&rsquo;s key business terms &mdash; parties, premises, term, rent, options, charges, and risk items &mdash; for fast review and buyer packages. It never replaces the executed lease.</p>
+      <h4>Occupancy &amp; economics</h4>
+      <p>The <b>Occupancy &amp; Economics</b> section turns the lease into the numbers a buyer&rsquo;s lender and your BOV care about. Enter annual base rent, NNN/CAM&nbsp;+&nbsp;taxes&nbsp;+&nbsp;insurance, and total occupancy cost, plus the business&rsquo;s <b>annual sales</b> (from the P&amp;L or BOV), and it computes <b>occupancy cost as a % of sales</b> live &mdash; green under 10%, amber 10&ndash;15%, red above &mdash; the single best read on whether the rent is healthy for a restaurant. Capture <b>key money / lease value</b> and a <b>financeability</b> note (does the remaining term, with options, support SBA financing?) so the lease-exit value is front and center. These figures also flow into the CIM&rsquo;s Occupancy &amp; Lease Summary.</p>
       <h4>Edit in place</h4>
       <p>With <b>Editing: On</b>, click any value and type. Changes <b>save automatically</b> &mdash; watch for the &ldquo;Saved &check;&rdquo; chip. Turn editing off for a clean, read-only view.</p>
       <h4>Add rows</h4>
@@ -127,8 +129,22 @@ var A=null;   // the abstract record
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function getPath(o,p){ return p.split('.').reduce(function(a,k){ return (a==null)?a:a[k]; }, o); }
 function setPath(o,p,v){ var ks=p.split('.'); var a=o; for(var i=0;i<ks.length-1;i++){ if(a[ks[i]]==null) a[ks[i]]={}; a=a[ks[i]]; } a[ks[ks.length-1]]=v; }
-function blankState(){ return { header:{business:'',propertyAddress:'',leaseDate:'',documentList:''}, parties:{landlord:'',tenant:'',guarantor:''}, premises:{description:'',squareFeet:'',suite:'',commonAreas:''}, term:{commencement:'',expiration:'',originalTerm:'',remainingTerm:'',rentCommencement:''}, rent:{current:'',perSF:'',escalation:'',percentageRent:'',schedule:[]}, options:{renewalOptions:'',renewalNotice:'',renewalRent:''}, charges:{structure:'',cam:'',taxes:'',insurance:'',otherCharges:''}, deposit:{securityDeposit:'',other:''}, use:{permittedUse:'',exclusive:'',hours:'',coTenancy:''}, assignment:{assignmentSublet:'',consentStandard:'',transferFee:'',changeOfControl:''}, guaranty:{type:'',personalGuaranty:'',burnoff:''}, keyProvisions:{maintenance:'',improvements:'',signage:'',parking:'',insurance:'',holdover:'',default:'',estoppelSNDA:''}, criticalDates:[], summary:'', flags:[], redactLandlord:true, redactTenant:true }; }
+function blankState(){ return { header:{business:'',propertyAddress:'',leaseDate:'',documentList:''}, parties:{landlord:'',tenant:'',guarantor:''}, premises:{description:'',squareFeet:'',suite:'',commonAreas:''}, term:{commencement:'',expiration:'',originalTerm:'',remainingTerm:'',rentCommencement:''}, rent:{current:'',perSF:'',escalation:'',percentageRent:'',schedule:[]}, economics:{baseRentAnnual:'',nnnAnnual:'',totalOccupancyAnnual:'',annualSales:'',occupancyPct:'',keyMoney:'',financeable:''}, options:{renewalOptions:'',renewalNotice:'',renewalRent:''}, charges:{structure:'',cam:'',taxes:'',insurance:'',otherCharges:''}, deposit:{securityDeposit:'',other:''}, use:{permittedUse:'',exclusive:'',hours:'',coTenancy:''}, assignment:{assignmentSublet:'',consentStandard:'',transferFee:'',changeOfControl:''}, guaranty:{type:'',personalGuaranty:'',burnoff:''}, keyProvisions:{maintenance:'',improvements:'',signage:'',parking:'',insurance:'',holdover:'',default:'',estoppelSNDA:''}, criticalDates:[], summary:'', flags:[], redactLandlord:true, redactTenant:true }; }
 
+function _leaseNum(v){ return parseFloat(String(v==null?'':v).replace(/[^0-9.]/g,''))||0; }
+// Live occupancy-cost-as-%-of-sales — the single most important lease-health metric for a restaurant.
+function recalcOccupancy(){
+  var el=document.getElementById('occPct'); if(!el||!A||!A.state) return;
+  var e=A.state.economics||(A.state.economics={});
+  var total=_leaseNum(e.totalOccupancyAnnual) || (_leaseNum(e.baseRentAnnual)+_leaseNum(e.nnnAnnual));
+  var sales=_leaseNum(e.annualSales);
+  if(total>0 && sales>0){
+    var pct=total/sales*100; var ps=pct.toFixed(1)+'%'; e.occupancyPct=ps;
+    var color = pct<=10 ? '#1f8a5b' : (pct<=15 ? '#b5791f' : '#C0261B');
+    var note  = pct<=10 ? 'healthy' : (pct<=15 ? 'watch — tight for the buyer' : 'high — pressures the deal');
+    el.innerHTML='<b style="color:'+color+'">'+esc(ps)+'</b> <span style="color:#8a93a8;font-size:11.5px">'+note+'</span>';
+  } else { e.occupancyPct=''; el.innerHTML='<span style="color:#8a93a8;font-size:12px">Enter total occupancy cost + annual sales</span>'; }
+}
 function ed(path,text,cls){ return '<span class="ed val'+(cls?(' '+cls):'')+'" contenteditable data-k="'+esc(path)+'">'+esc(text||'')+'</span>'; }
 function row(label,path,val){ return '<div class="lbl">'+esc(label)+'</div><div class="val">'+ed(path,val)+'</div>'; }
 function partyRow(label,path,val){
@@ -176,6 +192,15 @@ function render(s){
   if(sch.length){ out+='<table class="sch"><thead><tr><th>Period</th><th>Monthly</th><th>Annual</th></tr></thead><tbody>'
     +sch.map(function(x,i){ return '<tr><td>'+ed('rent.schedule.'+i+'.period',x.period)+'</td><td>'+ed('rent.schedule.'+i+'.monthlyRent',x.monthlyRent)+'</td><td>'+ed('rent.schedule.'+i+'.annualRent',x.annualRent)+'</td></tr>'; }).join('')+'</tbody></table>'; }
   out+='<button class="addrow" onclick="addRentRow()">+ Add rent period</button>';
+  var ec=s.economics||{};
+  out+=block('Occupancy &amp; Economics',
+     row('Total base rent (annual)','economics.baseRentAnnual',ec.baseRentAnnual)
+    +row('NNN / CAM + taxes + insurance (annual)','economics.nnnAnnual',ec.nnnAnnual)
+    +row('Total occupancy cost (annual)','economics.totalOccupancyAnnual',ec.totalOccupancyAnnual)
+    +row('Annual sales (from P&amp;L / BOV)','economics.annualSales',ec.annualSales)
+    +'<div class="lbl">Occupancy cost % of sales</div><div class="val"><span id="occPct"></span></div>'
+    +row('Key money / lease value','economics.keyMoney',ec.keyMoney)
+    +row('Financeability (remaining term)','economics.financeable',ec.financeable));
   var o=s.options||{};
   out+=block('Renewal Options', row('Options','options.renewalOptions',o.renewalOptions)+row('Notice to exercise','options.renewalNotice',o.renewalNotice)+row('Option rent basis','options.renewalRent',o.renewalRent));
   var c=s.charges||{};
@@ -199,13 +224,14 @@ function render(s){
   out+='</div>';
   document.getElementById('doc').innerHTML=out;
   wireEdits();
+  recalcOccupancy();
   var esw=document.getElementById('editSw'); if(esw) esw.classList.toggle('on', document.body.classList.contains('editing'));
   var lsw=document.getElementById('redactLLSw'); if(lsw) lsw.classList.toggle('on', !!s.redactLandlord);
   var tsw=document.getElementById('redactTenSw'); if(tsw) tsw.classList.toggle('on', !!s.redactTenant);
 }
 
 var _t=null;
-function wireEdits(){ document.querySelectorAll('#doc [data-k]').forEach(function(el){ el.addEventListener('input',function(){ setPath(A.state, el.getAttribute('data-k'), el.innerText); queueSave(); }); }); }
+function wireEdits(){ document.querySelectorAll('#doc [data-k]').forEach(function(el){ el.addEventListener('input',function(){ var k=el.getAttribute('data-k'); setPath(A.state, k, el.innerText); if(k.indexOf('economics.')===0) recalcOccupancy(); queueSave(); }); }); }
 function queueSave(){ var chip=document.getElementById('savechip'); if(_t) clearTimeout(_t); _t=setTimeout(function(){
   fetch('/api/lease-save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:LID,state:A.state})})
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ chip.classList.add('show'); setTimeout(function(){chip.classList.remove('show');},1300); } }).catch(function(){});

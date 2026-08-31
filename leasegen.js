@@ -15,6 +15,7 @@ Return the abstract as a single JSON object — no prose, no markdown fences —
  "premises": { "description": "", "squareFeet": "rentable SF as stated", "suite": "unit / suite", "commonAreas": "" },
  "term": { "commencement": "", "expiration": "", "originalTerm": "e.g. '10 years'", "remainingTerm": "compute from expiration if a current date is knowable, else state expiration", "rentCommencement": "" },
  "rent": { "current": "current base rent (monthly) as stated", "perSF": "rent per SF if stated or derivable from stated figures", "escalation": "how base rent increases (fixed %, CPI, steps)", "percentageRent": "percentage rent terms or 'None'", "schedule": [ {"period":"e.g. Years 1-5", "monthlyRent":"", "annualRent":""} ] },
+ "economics": { "baseRentAnnual": "current annual base rent (monthly base x 12) as a dollar figure if derivable, else ''", "nnnAnnual": "estimated annual NNN / CAM + taxes + insurance if the lease states these figures, else 'Not specified in the provided documents'", "totalOccupancyAnnual": "total annual occupancy cost (base + NNN) if derivable from stated figures, else ''", "keyMoney": "any key money, lease buyout, or assignment consideration stated in the lease, else 'None stated'", "financeable": "remaining term INCLUDING options, and whether it supports buyer financing/SBA (which generally wants roughly 10 years of remaining term) — e.g. '3 yrs remaining + two 5-yr options = financeable' or 'Only 2 yrs, no options — a financing risk'" },
  "options": { "renewalOptions": "e.g. 'Two 5-year options'", "renewalNotice": "notice window to exercise", "renewalRent": "how option rent is set (fixed, FMV, CPI)" },
  "charges": { "structure": "NNN / Gross / Modified Gross", "cam": "", "taxes": "", "insurance": "", "otherCharges": "" },
  "deposit": { "securityDeposit": "", "other": "" },
@@ -30,6 +31,7 @@ Return the abstract as a single JSON object — no prose, no markdown fences —
 Rules:
 - Extract faithfully. Exact figures and dates. Never fabricate. Missing terms → "Not specified in the provided documents".
 - Prioritize accuracy on: remaining term, renewal options, assignment/consent, guaranty, base rent + escalations, and NNN structure — these drive a restaurant sale.
+- For 'economics', derive base/total annual occupancy from stated figures only. Do NOT compute occupancy cost as a percentage of sales — you do not have the sales figures; that is left to the broker. Never invent NNN amounts that are not stated.
 - 'flags' should surface anything that helps or hurts a sale; keep each flag one crisp line. If nothing notable, return an empty array.
 - Output the JSON object only.`;
 

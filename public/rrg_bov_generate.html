@@ -147,7 +147,7 @@ label.fl{display:block;font-size:9px;letter-spacing:.12em;text-transform:upperca
 
     <button class="go" id="go" onclick="generate()" disabled>Build the BOV</button>
     <div class="status" id="status"></div>
-    <div class="note"><span style="color:var(--red);font-weight:700">*</span> at least one financials document is required — the button activates once it's attached. Add the lease if the business leases its space; skip it if it owns the real estate. Runs privately and can take a few minutes. You'll land on the finished BOV — fully editable — saved to your Valuations list.</div>
+    <div class="note"><span style="color:var(--red);font-weight:700">*</span> at least one financials document is required — the button activates once it's attached. Add the lease if the business leases its space; skip it if it owns the real estate. On a leased restaurant or bar the lease drives value — remaining term, options, occupancy cost, assignability — so if no lease abstract is on file we’ll offer to build one first, and any abstract on the deal feeds the valuation. Runs privately and can take a few minutes. You'll land on the finished BOV — fully editable — saved to your Valuations list.</div>
   </div>
 </div>
 <div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
@@ -176,6 +176,7 @@ var BOV_ID='';
     try{ fetch('/api/valuation-room-ready?bov='+encodeURIComponent(id),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
       if(!j||!j.ok) return;
       window.ROOM_HAS_FIN=!!j.financials; var g=document.getElementById('go'); if(g&&j.financials) g.disabled=false;
+      window.LEASE_ABSTRACT=!!j.abstract; window.LEASE_ABSTRACT_PENDING=!!j.abstractPending; window.LEASE_ABSTRACT_ID=j.abstractId||''; window.LEASE_DOC=!!j.lease;
       var vn=document.getElementById('vqnote'); if(!vn) return;
       var bits=[j.financials?'financials':'', j.lease?'lease':''].filter(Boolean); var both=bits.length>1, roomList=bits.join(' & ');
       var roomPhrase = roomList ? ('the '+roomList+' '+(both?'are':'is')+' already in the data room — the analyst will pull '+(both?'them':'it')+'. Attach anything extra below, or just build.') : '';
@@ -334,6 +335,26 @@ function generate(){
   try{ var _li=document.getElementById('linkInput'); if(_li && _li.value.trim()) addLink(); }catch(e){}
   var biz=document.getElementById('biz').value.trim();
   if(!(SLOTS.docs&&SLOTS.docs.length) && !window.ROOM_HAS_FIN){ setStatus('err','Add at least the financials — drop them above, or have them in the data room. (Include the lease too if the business leases its space.)'); return; }
+  leaseGate(biz);
+}
+// The lease drives value on a restaurant/bar deal, so before valuing: if a lease abstract is on
+// file, build straight away (its terms feed the valuation server-side); if a lease is on file but
+// not abstracted, offer to abstract it first; if there's no lease at all, ask whether to proceed
+// without one or add one. In every case the rep can still choose to proceed.
+function leaseGate(biz){
+  if(window.LEASE_ABSTRACT){ doGenerate(biz); return; }
+  var hasLease = window.LEASE_DOC || window.LEASE_ABSTRACT_PENDING;
+  var msg = hasLease
+    ? 'A lease is on file for this deal but it hasn’t been abstracted yet. On a restaurant or bar the lease can move the value — remaining term, option periods, rent as a % of sales, and whether it can be assigned. Build the lease abstract first?\n\nOK — build the abstract now\nCancel — value it without the abstract'
+    : 'No lease or lease abstract is on file. For a restaurant or bar the lease often drives the value — buyers ask first how much term is left and whether there are option periods. Add a lease first?\n\nOK — add a lease now\nCancel — proceed without one';
+  var ask = window.rrgConfirm ? window.rrgConfirm(msg) : Promise.resolve(window.confirm(msg));
+  Promise.resolve(ask).then(function(go){
+    if(!go){ doGenerate(biz); return; }
+    if(window.LEASE_ABSTRACT_PENDING && window.LEASE_ABSTRACT_ID){ location.href='rrg_lease_generate.html?lease='+encodeURIComponent(window.LEASE_ABSTRACT_ID); return; }
+    fetch('/api/lease/new',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({fromBov:BOV_ID})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.id){ location.href='rrg_lease_generate.html?lease='+encodeURIComponent(j.id); } else { doGenerate(biz); } }).catch(function(){ doGenerate(biz); });
+  });
+}
+function doGenerate(biz){
   var all=[]; (SLOTS.docs||[]).forEach(function(f){ all.push({file:f,label:f.name}); });
   setStatus('',''); document.getElementById('status').className='status';
   workShow('Securely delivering the deal documents to '+aiName()+'…');
