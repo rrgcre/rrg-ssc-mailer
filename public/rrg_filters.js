@@ -49,7 +49,21 @@
     +'.rlf-tfmenu{position:absolute;left:0;right:0;top:100%;margin-top:4px;background:#fff;border:1px solid #dbe0e9;border-radius:5px;box-shadow:0 12px 30px rgba(11,26,56,.16);z-index:60;max-height:240px;overflow:auto;}'
     +'.rlf-tfmenu[hidden]{display:none;}'
     +'.rlf-tfmenu div{padding:8px 11px;font-size:13px;color:#2b3648;cursor:pointer;}'
-    +'.rlf-tfmenu div.sel{background:#eef4fa;}';
+    +'.rlf-tfmenu div.sel{background:#eef4fa;}'
+    +'.rlf-fly{position:fixed;z-index:410;background:#fff;border:1px solid #dbe0e9;border-radius:6px;box-shadow:0 14px 40px rgba(11,26,56,.20);width:292px;max-height:62vh;overflow:auto;padding:5px 0 0;}'
+    +'.rlf-fly[hidden]{display:none;}'
+    +'.rlf-flyhd{padding:10px 14px 7px;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#8a93a3;}'
+    +'.rlf-flyrow{display:flex;align-items:center;gap:7px;padding:8px 12px 8px 14px;cursor:pointer;}'
+    +'.rlf-flyrow:hover{background:#f4f7fb;}'
+    +'.rlf-flyrow.act{background:#eef4fa;}'
+    +'.rlf-flychk{color:#2f7a55;font-weight:800;font-size:13px;flex:none;width:11px;text-align:center;}'
+    +'.rlf-flynm{flex:1;font-size:13px;color:#20334f;font-weight:600;line-height:1.25;min-width:0;}'
+    +'.rlf-flynm small{display:block;font-size:11px;font-weight:600;color:#8a93a3;margin-top:1px;}'
+    +'.rlf-flyx{border:none;background:none;color:#c7cedb;cursor:pointer;font-size:14px;flex:none;padding:2px 5px;line-height:1;} .rlf-flyx:hover{color:#b23a2c;}'
+    +'.rlf-flyempty{padding:11px 15px 14px;font-size:12.5px;color:#8a93a3;line-height:1.5;}'
+    +'.rlf-flyft{border-top:1px solid #eef1f6;margin-top:5px;padding:9px 10px 11px;background:#fbfcfe;}'
+    +'.rlf-flysave{width:100%;background:#20334f;color:#fff;border:1px solid #20334f;border-radius:4px;padding:8px 10px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;} .rlf-flysave:hover{background:#17263c;}'
+    +'.rlf-flysave.ghost{background:#fff;color:#5f6a7d;border-color:#c4ccda;margin-top:6px;} .rlf-flysave.ghost:hover{background:#f4f6f9;color:#20334f;}';
     document.head.appendChild(st); }
   function _tfFuzzy(hay,q){ hay=String(hay).toLowerCase(); q=String(q).toLowerCase(); if(!q) return true; var i=0; for(var j=0;j<hay.length&&i<q.length;j++){ if(hay.charAt(j)===q.charAt(i)) i++; } return i===q.length; }
   function _tfScore(hay,q){ hay=String(hay).toLowerCase(); q=String(q).toLowerCase(); if(!q) return 0; var idx=hay.indexOf(q); if(idx===0) return 0; if(idx>0) return 1; return 2; }
@@ -134,8 +148,47 @@
         w.querySelectorAll('.rlf-sx[data-del]').forEach(function(b){ b.addEventListener('click',async function(){ if(!await rrgConfirm('Delete this saved search?')) return; fetch('/api/saved-searches/'+encodeURIComponent(b.getAttribute('data-del')),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(){ renderSaved(ov); }); }); });
       }).catch(function(){ w.innerHTML='<div class="rlf-lbl">Saved searches</div><div class="rlf-muted">Could not load.</div>'; });
     }
+    // ===== Quick-access "Saved" flyout — surfaces the saved searches as one-click segments, no modal =====
+    var FLY=null, FLYSAVED=[], FLYBTN=null;
+    function norm(p){ try{ return JSON.stringify(Object.assign(empty(), p||{})); }catch(e){ return ''; } }
+    async function persistCurrent(after){
+      var name=await rrgPrompt('Name this saved segment:'); if(name===null) return; name=String(name).trim(); if(!name) return;
+      var shared=await rrgConfirm('Share this segment with the whole team?\n\nOK = shared with team · Cancel = just me');
+      try{ var r=await fetch('/api/saved-searches',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({list:cfg.list,name:name,shared:!!shared,payload:FILTERS})}); var j=await r.json(); if(j&&j.ok){ if(after) after(); } else alert((j&&j.error)||'Could not save.'); }catch(e){ alert('Could not save.'); }
+    }
+    function posFly(){ if(!FLYBTN||!FLY) return; var r=FLYBTN.getBoundingClientRect(); var w=292; var left=Math.min(r.left, window.innerWidth-w-12); if(left<8) left=8; FLY.style.left=left+'px'; FLY.style.top=(r.bottom+6)+'px'; }
+    function closeFly(){ if(FLY) FLY.hidden=true; if(FLYBTN) FLYBTN.classList.remove('on'); }
+    function ensureFly(){ if(FLY) return FLY; FLY=document.createElement('div'); FLY.className='rlf-fly'; FLY.hidden=true; document.body.appendChild(FLY);
+      document.addEventListener('click',function(e){ if(FLY.hidden) return; if(FLY.contains(e.target)||(FLYBTN&&FLYBTN.contains(e.target))) return; closeFly(); });
+      document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeFly(); });
+      window.addEventListener('resize',function(){ if(!FLY.hidden) posFly(); });
+      window.addEventListener('scroll',function(){ if(!FLY.hidden) closeFly(); },true);
+      return FLY; }
+    function renderFly(){ ensureFly(); var head='<div class="rlf-flyhd">Saved segments</div>';
+      FLY.innerHTML=head+'<div class="rlf-flyempty">Loading…</div>'; posFly();
+      fetch('/api/saved-searches?list='+encodeURIComponent(cfg.list),{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+        FLYSAVED=(j&&j.searches)||[]; var admin=cfg.isAdmin?cfg.isAdmin():false; var cur=norm(FILTERS); var rows;
+        if(!FLYSAVED.length){ rows='<div class="rlf-flyempty">No saved segments yet. Set filters in ⚙ Filters, then save the current view here.</div>'; }
+        else { rows=FLYSAVED.map(function(sc,i){ var active=norm(sc.payload)===cur; var tag=sc.shared?('Shared'+(sc.mine?'':(' · '+esc(sc.ownerName||'team')))):'Just me'; return '<div class="rlf-flyrow'+(active?' act':'')+'" data-load="'+i+'"><span class="rlf-flychk">'+(active?'✓':'')+'</span><span class="rlf-flynm">'+esc(sc.name)+'<small>'+tag+'</small></span>'+((sc.mine||admin)?'<button class="rlf-flyx" data-del="'+esc(sc.id)+'" title="Delete">✕</button>':'')+'</div>'; }).join(''); }
+        var canSave=activeCount()>0;
+        var ft='<div class="rlf-flyft"><button class="rlf-flysave"'+(canSave?'':' disabled style="opacity:.45;cursor:default"')+' data-save="1">＋ Save current filters…</button><button class="rlf-flysave ghost" data-edit="1">Edit filters…</button></div>';
+        FLY.innerHTML=head+rows+ft;
+        FLY.querySelectorAll('[data-load]').forEach(function(el){ el.addEventListener('click',function(e){ if(e.target.closest('[data-del]')) return; var sc=FLYSAVED[+el.getAttribute('data-load')]; if(!sc) return; FILTERS=Object.assign(empty(), sc.payload||{}); closeFly(); if(cfg.onChange) cfg.onChange(); }); });
+        FLY.querySelectorAll('[data-del]').forEach(function(b){ b.addEventListener('click',async function(e){ e.stopPropagation(); if(!await rrgConfirm('Delete this saved segment?')) return; try{ await fetch('/api/saved-searches/'+encodeURIComponent(b.getAttribute('data-del')),{method:'DELETE',credentials:'same-origin'}); }catch(_){} renderFly(); }); });
+        var sv=FLY.querySelector('[data-save]'); if(sv&&canSave) sv.addEventListener('click',function(){ persistCurrent(function(){ renderFly(); }); });
+        var ed=FLY.querySelector('[data-edit]'); if(ed) ed.addEventListener('click',function(){ closeFly(); open(); });
+        posFly();
+      }).catch(function(){ FLY.innerHTML=head+'<div class="rlf-flyempty">Could not load saved segments.</div>'; posFly(); });
+    }
+    function openFly(btn){ if(btn) FLYBTN=btn; ensureFly(); FLY.hidden=false; if(FLYBTN) FLYBTN.classList.add('on'); renderFly(); }
+    function toggleFly(btn){ ensureFly(); if(FLY.hidden) openFly(btn); else closeFly(); }
+    function mkSavedBtn(){ var b=cfg.savedButton||null;
+      if(!b && cfg.button && cfg.saved!==false){ b=document.createElement('button'); b.type='button'; b.className=(cfg.button.className||'rlf-btn'); b.id=(cfg.button.id||'flt')+'_saved'; b.style.marginLeft='8px'; b.innerHTML='★ Saved'; cfg.button.insertAdjacentElement('afterend', b); }
+      if(b){ b.addEventListener('click',function(e){ e.preventDefault(); e.stopPropagation(); toggleFly(b); }); FLYBTN=b; }
+      return b; }
     if(cfg.button){ cfg.button.addEventListener('click',open); }
-    return { filter:filter, open:open, updateBtn:updateBtn, activeCount:activeCount, getFilters:function(){return FILTERS;}, clear:function(){ FILTERS=empty(); } };
+    mkSavedBtn();
+    return { filter:filter, open:open, updateBtn:updateBtn, activeCount:activeCount, getFilters:function(){return FILTERS;}, clear:function(){ FILTERS=empty(); }, openSaved:function(){ openFly(FLYBTN); }, applySaved:function(p){ FILTERS=Object.assign(empty(), p||{}); if(cfg.onChange) cfg.onChange(); } };
   }
   window.RRGFilters={ create:create, chip:chip, injectCss:injectCss };
 })();

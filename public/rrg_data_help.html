@@ -105,9 +105,10 @@ table.mx td b{color:var(--slate);}
       <a href="#concepts">9 · Step 7 · Concept Intelligence</a>
       <a href="#loop">10 · The loop &amp; upkeep</a>
       <a href="#counts">11 · Record counts</a>
-      <a href="#export">12 · Export &amp; backup</a>
-      <a href="#faq">13 · FAQ &amp; troubleshooting</a>
-      <a href="#glossary">14 · Glossary</a>
+      <a href="#segments">12 · Saved segments</a>
+      <a href="#export">13 · Export &amp; backup</a>
+      <a href="#faq">14 · FAQ &amp; troubleshooting</a>
+      <a href="#glossary">15 · Glossary</a>
     </nav>
   </aside>
 
@@ -275,8 +276,16 @@ table.mx td b{color:var(--slate);}
       <p>Use it as a health check before and after a big import or enrichment run — the numbers should move the way you expect. There's a <span class="kbd">Refresh</span> to re-tally on demand.</p>
     </section>
 
+    <section class="card" id="segments">
+      <h2><span class="n">12</span> Saved segments</h2>
+      <p class="lead">Save the filtered views you work most, and jump back to any of them in one click.</p>
+      <p>Any list with a <span class="kbd">⚙ Filters</span> button — Companies, Listings, Deals, Email Templates — now sits beside a <b>★ Saved</b> button. Set your filters (market, type, tags, VIP, dates…), open <b>★ Saved</b>, and choose <b>Save current filters</b> to name that view. From then on it is one click in the flyout to snap the list back to that exact segment — no reopening the filter window.</p>
+      <p>Each saved segment is <b>yours by default</b> — private to your login, and it follows you to any device you sign in on. When you save, you can instead <b>share it with the team</b>, so a view like “Active Austin buyers” is one everyone can pull up. Shared segments show whose they are, and a ✓ marks the segment that matches your current filters.</p>
+      <div class="callout tip"><div class="lbl">Why it matters</div>A broker lives in a handful of segments — your market, your active listings, your buyer pool. Pin them once and stop rebuilding the same filter every morning.</div>
+    </section>
+
     <section class="card" id="export">
-      <h2><span class="n">12</span> Export &amp; backup</h2>
+      <h2><span class="n">13</span> Export &amp; backup</h2>
       <h3>Export your data</h3>
       <p><span class="kbd">Settings → Data → Export Data</span> pulls your companies and contacts back out to a spreadsheet whenever you need a copy outside the system.</p>
       <h3>Data backup</h3>
@@ -285,7 +294,7 @@ table.mx td b{color:var(--slate);}
     </section>
 
     <section class="card" id="faq">
-      <h2><span class="n">13</span> FAQ &amp; troubleshooting</h2>
+      <h2><span class="n">14</span> FAQ &amp; troubleshooting</h2>
       <div class="fq"><h3>Where do I start as a brand-new user?</h3><p>Import Data first, then run Cleanup &amp; Standardize. Those two make the system usable. Duplicates, email linking, Google enrichment, logos, and Concept Intelligence build on top — do them in that order when you're ready.</p></div>
       <div class="fq"><h3>Will these tools overwrite what I've already entered?</h3><p>Enrichment, duplicates, email-linking, logos, and Concept Intelligence are review-and-approve — they propose changes and nothing is written until you apply, and the AI steps only fill blank fields. Cleanup &amp; Standardize is the exception: it runs and applies automatically, but it only standardizes formatting (casing, codes, phone/email formats) and sets a main contact where there's a single obvious one — it never discards information.</p></div>
       <div class="fq"><h3>I imported the wrong file.</h3><p>Open Import Data, find that numbered batch under past imports, and click Revert Import. It removes exactly the records that batch added.</p></div>
@@ -296,7 +305,7 @@ table.mx td b{color:var(--slate);}
     </section>
 
     <section class="card" id="glossary">
-      <h2><span class="n">14</span> Glossary</h2>
+      <h2><span class="n">15</span> Glossary</h2>
       <table class="mx">
         <tbody>
           <tr><td><b>Company</b></td><td>An operator or business entity — the parent record that holds locations, concepts, and contacts.</td></tr>
