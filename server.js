@@ -7084,21 +7084,59 @@ const ASSETBOV_TPL_BODY_PRIOR = [
   '<p>The report lays all of this out. I’d like to set up a short call to walk you through it, talk through your goals and timing, and map out the cleanest path to an exit. What does your week look like?</p>' +
   '<p>Best,<br>{{my_name}}</p>'
 ];
-function _seedAssetBov(a) {
-  // Respect an explicit delete; otherwise ensure this shared template exists and stays current.
-  try { if (fs.existsSync(EMAIL_TPL_ASSETBOV_DELETED)) return a; } catch (e) { return a; }
-  const t = a.find(x => x.id === ASSETBOV_TPL_ID);
+// ---- Single BOV cover email (business sale) ----------------------------------
+// We no longer split the BOV cover email into asset-sale vs going-concern variants.
+// One shared template — id etpl_send_bov ("BOV — send valuation to seller") — carries
+// the current copy; the two scenario variants added earlier are retired below.
+const SENDBOV_TPL_ID = 'etpl_send_bov';
+const SENDBOV_TPL_SUBJECT = 'Your business valuation — Broker Opinion of Value';
+const SENDBOV_TPL_BODY =
+  '<p>{{first_name}},</p>' +
+  '<p>Thank you for the time and the information. I’ve completed the Broker Opinion of Value (BOV) for your business, attached here.</p>' +
+  '<p>Restaurant businesses are valued on their historical financial performance, and yours generates real, transferable cash flow. That means it is valued as a going concern, a multiple of its earnings (SDE and EBITDA), not simply the hard assets. A profitable, well-run operation is worth materially more than its furniture and equipment, and the report shows exactly where that value sits.</p>' +
+  '<p>Here is the part that matters most for you: the value in a business like this is the cash flow and the goodwill you have built — the brand, the reputation, the repeat customers, and a proven P&amp;L a buyer can step into and run from day one. That is what commands a premium over the assets, and capturing the full going-concern value is exactly what a competitive, confidential process is built to do. The right buyer pays for the earnings, not the equipment.</p>' +
+  '<p>The report lays all of this out — the multiples buyers are actually paying for comparable restaurants and bars, and the specific strengths and risks that move your number. I’d like to set up a short call to walk you through it, answer any questions you may have, and map out the cleanest path to a strong exit. What does your week look like?</p>' +
+  '<p>Best,<br>{{my_name}}</p>';
+// Prior canonical bodies of etpl_send_bov — an untouched seed carrying one of these upgrades in place.
+const SENDBOV_TPL_BODY_PRIOR = [
+  '<p>Hi {{first_name}},</p>' +
+  '<p>Thank you for the time and the information — I’ve completed the Broker Opinion of Value (BOV) for your business, attached here.</p>' +
+  '<p>The report walks through how I arrived at the value: your financial performance (revenue and cash flow / SDE), the multiples buyers are actually paying for comparable restaurants and bars, and the specific strengths and risks of your operation. My goal is a realistic, defensible range you can make decisions on — not an inflated number to win a listing.</p>' +
+  '<p>I’d like to set up a short call to walk you through it, answer your questions, and talk through your goals and timing. What does your week look like?</p>' +
+  '<p>Best,<br>{{my_name}}</p>'
+];
+function _seedSendBov(a) {
+  const t = a.find(x => x.id === SENDBOV_TPL_ID);
   if (!t) {
     const now = new Date().toISOString();
-    a.push({ id: ASSETBOV_TPL_ID, name: 'BOV — send valuation to seller (asset sale)', category: 'Seller', scope: 'shared', ownerUser: '', ownerName: 'RRG', greeting: 'none', subject: ASSETBOV_TPL_SUBJECT, body: ASSETBOV_TPL_BODY, createdAt: now, updatedAt: now, seeded: true });
-    try { writeJsonGuarded(EMAIL_TPL_FILE, a, 'seedAssetBov'); } catch (e) {}
+    a.push({ id: SENDBOV_TPL_ID, name: 'BOV — send valuation to seller', category: 'Seller', scope: 'shared', ownerUser: '', ownerName: 'RRG', greeting: 'none', subject: SENDBOV_TPL_SUBJECT, body: SENDBOV_TPL_BODY, createdAt: now, updatedAt: now, seeded: true });
+    try { writeJsonGuarded(EMAIL_TPL_FILE, a, 'seedSendBov'); } catch (e) {}
     return a;
   }
-  // Upgrade an untouched earlier seed to the current wording; never clobber a hand-edited copy.
-  if (t.seeded === true && t.body !== ASSETBOV_TPL_BODY && ASSETBOV_TPL_BODY_PRIOR.indexOf(t.body) >= 0) {
-    t.name = 'BOV — send valuation to seller (asset sale)'; t.subject = ASSETBOV_TPL_SUBJECT; t.body = ASSETBOV_TPL_BODY; t.category = 'Seller';
-    try { writeJsonGuarded(EMAIL_TPL_FILE, a, 'seedAssetBov:upgrade'); } catch (e) {}
+  // Upgrade an untouched original seed to the current copy; never clobber a hand-edited copy.
+  if (t.seeded === true && t.body !== SENDBOV_TPL_BODY && SENDBOV_TPL_BODY_PRIOR.indexOf(t.body) >= 0) {
+    t.name = 'BOV — send valuation to seller'; t.subject = SENDBOV_TPL_SUBJECT; t.body = SENDBOV_TPL_BODY; t.category = 'Seller';
+    try { writeJsonGuarded(EMAIL_TPL_FILE, a, 'seedSendBov:upgrade'); } catch (e) {}
   }
+  return a;
+}
+// Retire the asset-sale / going-concern BOV variants: remove any still-untouched seeded copy
+// from the store and set its deleted flag so it never re-seeds. A hand-edited copy is left alone.
+function _retireBovVariants(a) {
+  const variants = [
+    { id: ASSETBOV_TPL_ID, del: EMAIL_TPL_ASSETBOV_DELETED, bodies: [ASSETBOV_TPL_BODY].concat(ASSETBOV_TPL_BODY_PRIOR) },
+    { id: GCBOV_TPL_ID,    del: EMAIL_TPL_GCBOV_DELETED,    bodies: [GCBOV_TPL_BODY].concat(GCBOV_TPL_BODY_PRIOR) }
+  ];
+  let changed = false;
+  variants.forEach(function (v) {
+    const i = a.findIndex(x => x.id === v.id);
+    if (i < 0) return;
+    if (a[i].seeded === true && v.bodies.indexOf(a[i].body) >= 0) {
+      a.splice(i, 1); changed = true;
+      try { fs.writeFileSync(v.del, JSON.stringify({ retiredAt: new Date().toISOString() })); } catch (e) {}
+    }
+  });
+  if (changed) { try { writeJsonGuarded(EMAIL_TPL_FILE, a, 'retireBovVariants'); } catch (e) {} }
   return a;
 }
 const EMAIL_TPL_GCBOV_DELETED = path.join(BOV_DATA_DIR, 'email_templates_gcbov_deleted.json');
@@ -7120,23 +7158,6 @@ const GCBOV_TPL_BODY_PRIOR = [
   '<p>The report lays all of this out — the multiples buyers are actually paying for comparable restaurants and bars, and the specific strengths and risks that move your number. I’d like to set up a short call to walk you through it, talk through your goals and timing, and map out the cleanest path to a strong exit. What does your week look like?</p>' +
   '<p>Best,<br>{{my_name}}</p>'
 ];
-function _seedGcBov(a) {
-  // Respect an explicit delete; otherwise ensure this shared template exists and stays current.
-  try { if (fs.existsSync(EMAIL_TPL_GCBOV_DELETED)) return a; } catch (e) { return a; }
-  const t = a.find(x => x.id === GCBOV_TPL_ID);
-  if (!t) {
-    const now = new Date().toISOString();
-    a.push({ id: GCBOV_TPL_ID, name: 'BOV — send valuation to seller (going concern)', category: 'Seller', scope: 'shared', ownerUser: '', ownerName: 'RRG', greeting: 'none', subject: GCBOV_TPL_SUBJECT, body: GCBOV_TPL_BODY, createdAt: now, updatedAt: now, seeded: true });
-    try { writeJsonGuarded(EMAIL_TPL_FILE, a, 'seedGcBov'); } catch (e) {}
-    return a;
-  }
-  // Upgrade an untouched earlier seed to the current wording; never clobber a hand-edited copy.
-  if (t.seeded === true && t.body !== GCBOV_TPL_BODY && GCBOV_TPL_BODY_PRIOR.indexOf(t.body) >= 0) {
-    t.name = 'BOV — send valuation to seller (going concern)'; t.subject = GCBOV_TPL_SUBJECT; t.body = GCBOV_TPL_BODY; t.category = 'Seller';
-    try { writeJsonGuarded(EMAIL_TPL_FILE, a, 'seedGcBov:upgrade'); } catch (e) {}
-  }
-  return a;
-}
 function _seedProofOfFunds(a) {
   // If the user explicitly deleted this shared template, respect that and never re-add it.
   try { if (fs.existsSync(EMAIL_TPL_POF_DELETED)) return a; } catch (e) { return a; }
@@ -7217,7 +7238,7 @@ function _seedCimFollowup(a) {
   try { writeJsonGuarded(EMAIL_TPL_FILE, a, 'seedCimFollowup'); fs.writeFileSync(EMAIL_TPL_CIMFU_FLAG, JSON.stringify({ seededAt: new Date().toISOString() })); } catch (e) {}
   return a;
 }
-function loadEmailTpls() { try { return _seedCimFollowup(_seedProofOfFunds(_seedGcBov(_seedAssetBov(_seedBrokerTemplates(_seedEmailTpls(rj(EMAIL_TPL_FILE) || [])))))); } catch (e) { return []; } }
+function loadEmailTpls() { try { return _seedCimFollowup(_seedProofOfFunds(_seedSendBov(_retireBovVariants(_seedBrokerTemplates(_seedEmailTpls(rj(EMAIL_TPL_FILE) || [])))))); } catch (e) { return []; } }
 function saveEmailTpls(a) { return writeJsonGuarded(EMAIL_TPL_FILE, a, 'saveEmailTpls'); }
 function newEmailTplId() { return 'etpl_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 const TPL_CATEGORIES = ['Buyer', 'Seller', 'NDA', 'Follow-up', 'Closing', 'General'];
