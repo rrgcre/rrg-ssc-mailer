@@ -138,6 +138,10 @@ function load(){
     if(!j||!j.ok) return;
     TASKS=j.tasks||[]; CONTACTS=j.contacts||[]; DEALS=j.deals||[]; USERS=j.users||[]; TITLESUG=j.titleSuggestions||[]; PRIORITIES=j.priorities||['Low','Normal','High']; ACTTYPES=j.activityTypes||[]; EMAILREADY=!!j.emailReady; SMSREADY=!!j.smsReady; ME=j.me||''; ISADMIN=!!j.isAdmin;
     if(ISADMIN) document.getElementById('scAll').style.display='';
+    (function(){ try{ var q=new URLSearchParams(location.search); var sc=q.get('scope'), sh=q.get('show');
+      if(sc==='mine'||sc==='all'){ SCOPE=sc; document.querySelectorAll('.filters [data-scope]').forEach(function(x){ x.classList.toggle('on', x.getAttribute('data-scope')===sc); }); }
+      if(sh==='open'||sh==='done'||sh==='all'){ SHOW=sh; document.querySelectorAll('.filters [data-s]').forEach(function(x){ x.classList.toggle('on', x.getAttribute('data-s')===sh); }); }
+    }catch(e){} })();
     fillSelects(); render();
     try{ if(new URLSearchParams(location.search).get('new')==='1'){ openTaskModal(); history.replaceState({},'',location.pathname); } }catch(e){}
   });

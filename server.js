@@ -13520,10 +13520,25 @@ function loadSavedSearches() { try { return rj(SAVED_SEARCH_FILE) || []; } catch
 function saveSavedSearches(a) { return writeJsonGuarded(SAVED_SEARCH_FILE, a, 'saveSavedSearches'); }
 function newSearchId() { return 'ss_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 app.get('/api/saved-searches', (req, res) => {
-  const list = String(req.query.list || '').slice(0, 40);
   const meU = (req.user && req.user.username) || '';
-  const rows = loadSavedSearches().filter(x => (!list || x.list === list) && (x.shared || x.owner === meU));
-  res.json({ ok: true, searches: rows.map(x => ({ id: x.id, list: x.list, name: x.name, shared: !!x.shared, mine: x.owner === meU, ownerName: x.ownerName || '', payload: x.payload || {} })) });
+  const brief = x => ({ id: x.id, list: x.list, name: x.name, shared: !!x.shared, mine: x.owner === meU, ownerName: x.ownerName || '', payload: x.payload || {} });
+  const visible = loadSavedSearches().filter(x => x.shared || x.owner === meU);
+  if (req.query.all) {
+    const byList = {};
+    visible.forEach(x => { (byList[x.list] = byList[x.list] || []).push(brief(x)); });
+    Object.keys(byList).forEach(k => byList[k].sort((a, b) => String(a.name).toLowerCase().localeCompare(String(b.name).toLowerCase())));
+    return res.json({ ok: true, byList });
+  }
+  const list = String(req.query.list || '').slice(0, 40);
+  const rows = visible.filter(x => !list || x.list === list);
+  res.json({ ok: true, searches: rows.map(brief) });
+});
+app.get('/api/saved-searches/:id', (req, res) => {
+  const meU = (req.user && req.user.username) || '';
+  const x = loadSavedSearches().find(s => s.id === req.params.id);
+  if (!x) return res.status(404).json({ ok: false, error: 'Not found.' });
+  if (!(x.shared || x.owner === meU)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  res.json({ ok: true, search: { id: x.id, list: x.list, name: x.name, shared: !!x.shared, mine: x.owner === meU, ownerName: x.ownerName || '', payload: x.payload || {} } });
 });
 app.post('/api/saved-searches', express.json(), (req, res) => {
   const b = req.body || {}; const meU = (req.user && req.user.username) || '', meN = (req.user && req.user.name) || '';
