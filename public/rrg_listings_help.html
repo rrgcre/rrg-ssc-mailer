@@ -74,10 +74,11 @@ ul,ol{margin:9px 0 9px 4px;padding-left:22px;} li{margin:5px 0;}
       <a href="#deal">8 · Deal, expenses &amp; invoices</a>
       <a href="#financials">9 · Financials, value &amp; pricing</a>
       <a href="#dataroom">10 · Data room activity</a>
-      <a href="#leads">11 · Lead routing &amp; marketing IDs</a>
-      <a href="#layout">12 · Make the layout yours</a>
-      <a href="#lease">13 · Lease &amp; tenant-rep listings</a>
-      <a href="#faq">14 · FAQ</a>
+      <a href="#sellerreport">11 · Seller activity report</a>
+      <a href="#leads">12 · Lead routing &amp; marketing IDs</a>
+      <a href="#layout">13 · Make the layout yours</a>
+      <a href="#lease">14 · Lease &amp; tenant-rep listings</a>
+      <a href="#faq">15 · FAQ</a>
     </nav>
   </aside>
 
@@ -134,6 +135,7 @@ ul,ol{margin:9px 0 9px 4px;padding-left:22px;} li{margin:5px 0;}
       <h2><span class="n">5</span> Publish to Marketplace</h2>
       <p class="lead">Put the listing in front of buyers as a blind teaser without giving away who it is.</p>
       <p>Flip <b>Public</b> on and the listing appears on your confidential buyer marketplace — but the business name, address, and seller stay hidden until a buyer signs an NDA. You control what buyers see: a <b>blind headline</b>, category/concept, market and location label, price guide, and the revenue / cash-flow bands. Mark it <b>Featured</b> to push it to the top. Characterizing the teaser (concept, market, or price) is also what powers <a href="#buyers">buyer matching</a>, so fill it in even before you go public.</p>
+      <p><b>Publishing pushes the deal to matching buyers automatically.</b> The moment you go public, the system checks every active buyer in your book against the teaser and, for each match, logs it on that buyer's timeline and drops a task in your list — "N buyers match this listing — send the teaser under NDA." Publish again later and only <i>new</i> matches are flagged, so no buyer is ever pinged twice. The Save button also tells you how many matched on the spot.</p>
     </section>
 
     <section class="card" id="buyers">
@@ -141,6 +143,7 @@ ul,ol{margin:9px 0 9px 4px;padding-left:22px;} li{margin:5px 0;}
       <p class="lead">Two cards work together on the right rail: the buyers who've raised their hand, and the buyers in your book who <i>should</i>.</p>
       <p><b>Buyer Leads</b> is every buyer inquiry on this listing — imported from BizBuySell (the ⬇ Import leads button on the Listings page) or added by hand. Each lead is tracked and carries a stage dropdown so you can move it through the <a href="#buyerpipeline">buyer pipeline</a>; the card summarizes how many buyers sit in each stage.</p>
       <p><b>Matching buyers</b> surfaces the active buyers from your book whose buy-box fits this listing — with the reasons each matched, plus one-click Open and Email. Matches appear once the listing is characterized in <a href="#publish">Publish to Marketplace</a>, so the moment a deal is ready you know exactly who to call.</p>
+      <p>You don't have to check this card to catch a match, though: <a href="#publish">publishing the teaser</a> proactively flags every matching buyer on their timeline and drops a task in your list, so new inventory reaches the right buyers without anyone remembering to look.</p>
     </section>
 
     <section class="card" id="activity">
@@ -165,7 +168,8 @@ ul,ol{margin:9px 0 9px 4px;padding-left:22px;} li{margin:5px 0;}
       <ul>
         <li><b>Snapshot</b> — asking price, opinion of value, and the price multiple (asking ÷ the latest year's earnings) across the top of the Financials card.</li>
         <li><b>Financials</b> — revenue, SDE, EBITDA and rent for the last three years <b>plus a TTM</b> (trailing-twelve) column. Edit a period header if your fiscal year differs. These are the numbers a buyer asks for first.</li>
-        <li><b>From the BOV, or by hand</b> — when a valuation (BOV) exists, opinion of value and basis flow from it automatically. With no BOV, type them right here so the listing is never blank.</li>
+        <li><b>From the BOV, or by hand</b> — when a valuation (BOV) exists, opinion of value and basis flow from it automatically. With no BOV, type them right here so the listing is never blank. Finalizing a BOV also writes its TTM revenue / SDE / EBITDA back onto this grid.</li>
+        <li><b>The lease drives the value — so the BOV asks for it first.</b> On a leased restaurant or bar, before building a valuation the system looks for a <b>lease abstract</b>: if one's on file it builds straight through and folds the lease terms (remaining term, options, occupancy cost as a % of sales, assignability, guaranty) into the analysis; if a lease is on file but not abstracted it offers to abstract it first; if there's no lease at all it asks whether to proceed without one. The abstract's <b>Occupancy &amp; Economics</b> section computes occupancy cost as a % of sales live — the single best read on whether the rent is healthy.</li>
         <li><b>Changing the asking price is a controlled action</b> — it's not free-typed. Whoever holds the <b>Change asking price</b> permission (your marketing team) uses the <b>Change</b> button to set a new price and an optional reason; everyone else sees the price read-only.</li>
         <li><b>Every change is tracked</b> — each price change is logged with its date, the previous price, and the reason, building a price history right on the listing.</li>
       </ul>
@@ -178,32 +182,42 @@ ul,ol{margin:9px 0 9px 4px;padding-left:22px;} li{margin:5px 0;}
       <p>The <b>Data Room Activity</b> card shows who accessed the room, who signed in with an access code, and what they downloaded — a running read on buyer engagement. Use <b>Open room →</b> to jump into the room itself to add buyers, share the link, or manage documents.</p>
     </section>
 
+    <section class="card" id="sellerreport">
+      <h2><span class="n">11</span> Seller activity report</h2>
+      <p class="lead">An automatic activity summary that keeps the owner informed — the cheapest way to hold a listing and win the renewal.</p>
+      <p>The <b>Seller activity report</b> emails each seller a running summary of the marketing on their listing — buyer inquiries, NDAs signed, tours, offers, and confidential data-room views over the period — so they always know you're working. Sellers go quiet and cancel when they feel like nothing's happening; this is what prevents that.</p>
+      <p><b>The cadence is a firm setting</b> in <b>Admin → Email → Weekly seller activity report</b>: turn it on and choose the interval — <b>every 7, 14, or 30 days</b> (14 is the default; 7 can be too frequent). Once it's on, the report goes out automatically for every listing that's live on the marketplace and has a seller email on file.</p>
+      <p><b>Per listing, you're in control</b> from the <b>Seller activity report</b> card on the right rail: it shows the current period's numbers, who it sends to, and when it last went out. <b>Send now</b> fires one immediately, and <b>Skip this listing</b> opts a single deal out of the firm cadence. The email is strictly confidential — it never reveals the business name, address, or any buyer's identity — and it has a graceful "quieter stretch" version for weeks with no new activity.</p>
+    </section>
+
     <section class="card" id="leads">
-      <h2><span class="n">11</span> Lead routing &amp; marketing IDs</h2>
+      <h2><span class="n">12</span> Lead routing &amp; marketing IDs</h2>
       <p class="lead">Tie your outside listing IDs to this record so inbound buyer leads attach themselves automatically.</p>
       <p>In Manage, set the <b>BizBuySell Ref ID</b> and <b>#</b>, <b>CoStar / LoopNet #</b>, and <b>Crexi #</b> for the listing. Imported buyer leads that carry those IDs then auto-attach to the right listing. You can also pick an <b>automation</b> to run on every lead that comes in for this listing — an instant follow-up, a task, a tag — so nothing sits.</p>
     </section>
 
     <section class="card" id="layout">
-      <h2><span class="n">12</span> Make the layout yours</h2>
+      <h2><span class="n">13</span> Make the layout yours</h2>
       <p class="lead">The right rail is yours to arrange — just like the Contact and Company detail pages.</p>
       <p>Grab any card by its <b>⠿</b> handle and drag it up or down to reorder, and use the <b>▾</b> chevron to collapse the ones you don't need. Your order and which cards are collapsed are saved <b>on this device</b>, so the listing opens the way you left it. The Manage panel on the left and the overview cards in the middle stay put.</p>
     </section>
 
     <section class="card" id="lease">
-      <h2><span class="n">13</span> Lease &amp; tenant-rep listings</h2>
+      <h2><span class="n">14</span> Lease &amp; tenant-rep listings</h2>
       <p class="lead">The same file runs a tenant-rep or landlord engagement, with the fields that fit that work.</p>
       <p>On a <b>tenant-rep</b> listing, the marketing-IDs box is replaced by the <b>site criteria</b> — markets, use type, budget, size range, term, timeline, parking, and required features — the same vocabulary the tenant-box uses to match spaces.</p>
       <p>On a <b>landlord-rep</b> listing (started from <a href="rrg_landlord_rep.html">Landlord Rep → Space Listings</a>), that box becomes <b>Space for lease</b> — size, asking rent, lease term, condition (2nd-gen restaurant, vanilla shell, …), suitable use, available date, and key features — the space you're marketing on the landlord's behalf. The contact is the <b>landlord</b>, the asking-price and business-financials cards don't apply, and you work <b>tenant prospects</b> (inquiries, tours, LOIs) instead of buyers. The pipeline, agreement dates, expenses, invoices, and reorderable rail all work the same way.</p>
     </section>
 
     <section class="card" id="faq">
-      <h2><span class="n">14</span> FAQ</h2>
+      <h2><span class="n">15</span> FAQ</h2>
       <div class="fq"><h3>I don't see a Buyer pipeline to pick.</h3><p>None exists yet. In Admin → Pipelines, create a pipeline and set its Practice area to <b>Buyer</b>, then add your stages. It'll show in the Buyer pipeline field on every listing.</p></div>
       <div class="fq"><h3>Where do I add a buyer lead?</h3><p>On the Buyer Leads card in the right rail — the <b>+</b> button. Or import buyers in bulk from BizBuySell using the Import leads button on the Listings page; leads carrying this listing's marketing IDs attach automatically.</p></div>
       <div class="fq"><h3>Why don't any matching buyers show?</h3><p>Matching needs the listing characterized — set its concept, market, or price in Publish to Marketplace. Only <b>active</b> buyers (buy-box toggled on) are matched.</p></div>
       <div class="fq"><h3>My rail keeps resetting.</h3><p>Layout is saved per device in this browser. A different browser, a private window, or cleared site data starts from the default order. Drag it back and it'll stick again on that device.</p></div>
       <div class="fq"><h3>How do I take a listing live?</h3><p>Use Promote to Live listing in Manage once financials are verified, value is aligned, and the agreement is signed.</p></div>
+      <div class="fq"><h3>The seller isn't getting the activity report.</h3><p>Three things have to be true: the firm cadence is on in <b>Admin → Email → Weekly seller activity report</b>, the listing is <b>live on the marketplace</b>, and the listing has a <b>seller email</b> on file (set the seller contact in Manage). Also confirm outbound email itself is configured on that same Admin → Email page. You can always use <b>Send now</b> on the listing's Seller activity report card to test it, and <b>Skip this listing</b> to opt one deal out.</p></div>
+      <div class="fq"><h3>The BOV asked me to add a lease before valuing — why?</h3><p>On a leased restaurant or bar the lease drives the value (remaining term, options, occupancy cost as a % of sales, assignability), so the valuation looks for a <b>lease abstract</b> first. If one's on file it just builds and folds those terms in; if not, it offers to abstract the lease first, or lets you proceed without one. You're never blocked — but the number is far more defensible with the lease read.</p></div>
     </section>
 
   </main>

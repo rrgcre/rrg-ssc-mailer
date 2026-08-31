@@ -5858,6 +5858,126 @@ function runBuyerMatchPush(key, req) {
     return fresh.length;
   } catch (e) { console.error('buyer match push:', e && e.message); return 0; }
 }
+// ===== Weekly seller activity report (firm cadence set in Admin → Email) =====
+const SELLER_REPORT_INTERVALS = [7, 14, 30];
+function effSellerReport() { const s = loadSettings().sellerReport || {}; const iv = SELLER_REPORT_INTERVALS.indexOf(+s.intervalDays) >= 0 ? +s.intervalDays : 14; return { enabled: !!s.enabled, intervalDays: iv }; }
+function _srListingCfg(o) { const r = (o && o.sellerReport && typeof o.sellerReport === 'object') ? o.sellerReport : {}; return { off: !!r.off, lastSentAt: r.lastSentAt || '' }; }
+function _srSince(arr, cutoffMs) { if (!Array.isArray(arr)) return 0; return arr.filter(function (x) { const t = Date.parse((x && (x.createdAt || x.date || x.at)) || ''); return isFinite(t) && t >= cutoffMs; }).length; }
+// Aggregate the marketing activity on a listing over the trailing `days`.
+function sellerActivitySummary(key, days) {
+  const deals = assignmentsIndex(); const d = deals[key]; if (!d) return null;
+  const overlay = loadAssignOverlay(); const o = overlay[key] || {};
+  let view; try { view = assignmentView(d, overlay); } catch (e) { view = {}; }
+  const cutoff = Date.now() - (days * 86400000);
+  const ndas = _srSince(o.ndas, cutoff), tours = _srSince(o.tours, cutoff), offers = _srSince(o.offers, cutoff), inquiries = _srSince(o.inquiries, cutoff);
+  let views = 0, downloads = 0, visitors = 0;
+  try {
+    const rooms = loadRooms();
+    const room = (view.roomId && rooms.find(r => r.id === view.roomId)) || roomForDeal(d.deal) || null;
+    if (room && Array.isArray(room.access)) {
+      const seen = {};
+      room.access.forEach(function (ev) { if (!ev) return; const t = Date.parse(ev.at || ''); if (!(isFinite(t) && t >= cutoff)) return; if (ev.event === 'view') { views++; if (ev.grantId) seen[ev.grantId] = 1; } else if (ev.event === 'download') { downloads++; if (ev.grantId) seen[ev.grantId] = 1; } });
+      visitors = Object.keys(seen).length;
+    }
+  } catch (e) {}
+  const activeBuyers = Array.isArray(o.buyers) ? o.buyers.filter(b => b && !b.lost).length : 0;
+  return { key, days, from: new Date(cutoff).toISOString().slice(0, 10), business: view.business || 'your listing', ndas, tours, offers, inquiries, views, downloads, visitors, activeBuyers, total: ndas + tours + offers + inquiries + views + downloads };
+}
+function sellerActivityEmailHtml(sum, opts) {
+  opts = opts || {}; const org = orgDisplayName();
+  const rows = [['Buyer inquiries', sum.inquiries], ['NDAs signed', sum.ndas], ['Property tours', sum.tours], ['Offers received', sum.offers], ['Confidential data-room views', sum.views], ['Documents downloaded', sum.downloads]].filter(r => r[1] > 0);
+  const period = sum.days === 7 ? 'week' : (sum.days + ' days');
+  let b = '';
+  b += '<p>Hi ' + esc(opts.firstName || 'there') + ',</p>';
+  b += '<p>Here’s the marketing activity on <b>' + esc(sum.business) + '</b> over the last ' + esc(String(sum.days)) + ' days.</p>';
+  if (rows.length) {
+    b += '<table cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:10px 0 6px">';
+    rows.forEach(r => { b += '<tr><td style="padding:6px 20px 6px 0;font-size:14px;color:#20334f">' + esc(r[0]) + '</td><td style="padding:6px 0;font-size:16px;font-weight:800;color:#0b1a38">' + esc(String(r[1])) + '</td></tr>'; });
+    b += '</table>';
+    if (sum.activeBuyers > 0) b += '<p style="font-size:13px;color:#5a6478">' + esc(String(sum.activeBuyers)) + ' active buyer' + (sum.activeBuyers === 1 ? '' : 's') + ' in the pipeline right now.</p>';
+  } else {
+    b += '<p>It was a quieter ' + esc(period) + ' — no new buyer activity to report. That happens in stretches; I’m continuing to market the business confidentially and work my buyer network.</p>';
+  }
+  b += '<p>Happy to talk through any of this — just reply or give me a call.</p>';
+  b += '<p>Best,<br>' + esc(opts.repName || org) + '</p>';
+  b += '<hr style="border:none;border-top:1px solid #e6e9f0;margin:16px 0"><p style="font-size:11px;color:#98a2b6">Confidential marketing activity summary prepared by ' + esc(org) + ' for the owner of ' + esc(sum.business) + '. Business name, address and buyer identities are never disclosed.</p>';
+  return b;
+}
+// Send one seller report. force bypasses the enabled/off gates (the "Send now" button).
+function sendSellerActivityReport(key, opts) {
+  opts = opts || {};
+  const deals = assignmentsIndex(); const d = deals[key]; if (!d) return { ok: false, reason: 'not-found' };
+  const overlay = loadAssignOverlay(); const o = overlay[key] || (overlay[key] = {});
+  const firm = effSellerReport(); const lc = _srListingCfg(o);
+  if (!opts.force && (!firm.enabled || lc.off)) return { ok: false, reason: 'disabled' };
+  let view; try { view = assignmentView(d, overlay); } catch (e) { view = {}; }
+  const seller = personById(view.clientPersonId); const to = seller ? preferredEmailOf(seller) : '';
+  if (!to) return { ok: false, reason: 'no-seller-email' };
+  if (isEmailUnsubscribed(to)) return { ok: false, reason: 'unsubscribed' };
+  if (!isEmailConfigured()) return { ok: false, reason: 'email-not-configured' };
+  const sum = sellerActivitySummary(key, firm.intervalDays); if (!sum) return { ok: false, reason: 'no-data' };
+  const firstName = String((seller.name || '').split(/\s+/)[0] || 'there');
+  const repName = opts.repName || view.owner || orgDisplayName();
+  const html = sellerActivityEmailHtml(sum, { firstName, repName });
+  try { sendMailWL({ from: mailFrom(), to: to, subject: 'Marketing activity update — ' + (sum.business || 'your listing'), html: html, text: html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() }); }
+  catch (e) { return { ok: false, reason: 'send-failed', error: String((e && e.message) || e) }; }
+  o.sellerReport = { off: lc.off, lastSentAt: new Date().toISOString() }; overlay[key] = o; saveAssignOverlay(overlay);
+  try { const ppl = loadPeople(); const p = ppl.find(x => x.id === view.clientPersonId); if (p) { logActivity(p, 'Note', 'Marketing activity report sent (' + sum.days + '-day: ' + sum.inquiries + ' inquiries, ' + sum.ndas + ' NDAs, ' + sum.tours + ' tours, ' + sum.offers + ' offers, ' + sum.views + ' room views)', { auto: true, byUser: (opts.byUser || '') }); savePeople(ppl); } } catch (e) {}
+  return { ok: true, sent: true, to: to, stats: sum };
+}
+// Hourly worker: on the firm cadence, email each actively-marketed (published) listing's seller.
+function sellerActivityTick() {
+  try {
+    const firm = effSellerReport(); if (!firm.enabled) return;
+    const overlay = loadAssignOverlay(); const now = Date.now(); const dueMs = firm.intervalDays * 86400000;
+    Object.keys(overlay).forEach(function (key) {
+      const o = overlay[key]; if (!o) return;
+      if (!(o.market && o.market.published)) return;         // only listings actively on the marketplace
+      const lc = _srListingCfg(o); if (lc.off) return;
+      const last = lc.lastSentAt ? Date.parse(lc.lastSentAt) : 0;
+      if (last && (now - last) < dueMs) return;              // not due yet
+      if (!last) { o.sellerReport = { off: lc.off, lastSentAt: new Date(now).toISOString() }; return; } // start the clock on first sight; first send one interval later
+      try { sendSellerActivityReport(key, {}); } catch (e) {}
+    });
+    saveAssignOverlay(overlay);
+  } catch (e) { console.error('sellerActivityTick:', e && e.message); }
+}
+setInterval(sellerActivityTick, 60 * 60 * 1000);
+// Firm-wide seller-report cadence (Admin → Email).
+app.get('/api/admin/seller-report', (req, res) => { const c = effSellerReport(); res.json({ ok: true, enabled: c.enabled, intervalDays: c.intervalDays, intervals: SELLER_REPORT_INTERVALS, isAdmin: !!(req.user && isSuper(req.user)) }); });
+app.post('/api/admin/seller-report', requireAdmin, express.json(), (req, res) => {
+  const b = req.body || {}; const s = loadSettings(); const cur = effSellerReport();
+  const iv = (SELLER_REPORT_INTERVALS.indexOf(+b.intervalDays) >= 0) ? +b.intervalDays : cur.intervalDays;
+  s.sellerReport = { enabled: (typeof b.enabled === 'boolean') ? b.enabled : cur.enabled, intervalDays: iv };
+  saveSettings(s); res.json({ ok: true, enabled: s.sellerReport.enabled, intervalDays: s.sellerReport.intervalDays });
+});
+// Per-listing seller-report status + a live preview of the current window; opt-out + send-now.
+app.get('/api/assignment/:key/seller-report', (req, res) => {
+  const deals = assignmentsIndex(); const d = deals[req.params.key];
+  if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
+  if (!(canSeeAllDeals(req) || ownsAssignment(req, d) || (req.user && isSuper(req.user)))) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const overlay = loadAssignOverlay(); const o = overlay[req.params.key] || {}; const firm = effSellerReport(); const lc = _srListingCfg(o);
+  let view; try { view = assignmentView(d, overlay); } catch (e) { view = {}; }
+  const seller = personById(view.clientPersonId);
+  res.json({ ok: true, firmEnabled: firm.enabled, intervalDays: firm.intervalDays, off: lc.off, lastSentAt: lc.lastSentAt, published: !!(o.market && o.market.published), sellerName: (seller && seller.name) || '', sellerEmail: (seller ? preferredEmailOf(seller) : ''), emailConfigured: isEmailConfigured(), preview: sellerActivitySummary(req.params.key, firm.intervalDays) });
+});
+app.post('/api/assignment/:key/seller-report', express.json(), (req, res) => {
+  const deals = assignmentsIndex(); const d = deals[req.params.key];
+  if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
+  if (!(canSeeAllDeals(req) || ownsAssignment(req, d) || (req.user && isSuper(req.user)))) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const b = req.body || {}; const overlay = loadAssignOverlay(); const o = overlay[req.params.key] || (overlay[req.params.key] = {}); const lc = _srListingCfg(o);
+  o.sellerReport = { off: (typeof b.off === 'boolean') ? b.off : lc.off, lastSentAt: lc.lastSentAt }; overlay[req.params.key] = o; saveAssignOverlay(overlay);
+  res.json({ ok: true, off: o.sellerReport.off });
+});
+app.post('/api/assignment/:key/seller-report/send', express.json(), (req, res) => {
+  const deals = assignmentsIndex(); const d = deals[req.params.key];
+  if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
+  if (!(canSeeAllDeals(req) || ownsAssignment(req, d) || (req.user && isSuper(req.user)))) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const r = sendSellerActivityReport(req.params.key, { force: true, repName: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' });
+  if (r && r.ok) return res.json({ ok: true, to: r.to, stats: r.stats });
+  const msgs = { 'no-seller-email': 'No seller email on file — set the listing’s seller contact first.', 'unsubscribed': 'The seller’s email is unsubscribed.', 'email-not-configured': 'Email isn’t configured yet — set it up in Admin → Email.', 'not-found': 'Listing not found.', 'no-data': 'No listing data.', 'send-failed': 'The email could not be sent.' };
+  res.json({ ok: false, error: (msgs[r && r.reason]) || 'Could not send the report.' });
+});
 app.post('/api/marketplace/:key', express.json(), (req, res) => {
   const key = req.params.key; const deals = assignmentsIndex(); const d = deals[key];
   if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });

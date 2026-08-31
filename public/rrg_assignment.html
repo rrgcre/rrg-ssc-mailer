@@ -344,6 +344,7 @@ a.feat:hover{background:#f7f9fc;}
       <a class="feat" href="rrg_listings_help.html#activity" target="_blank" rel="noopener"><span class="fic">🤝</span><div><b>NDAs, tours &amp; offers</b><span>Record each signed NDA, every site visit, and each IOI/LOI as it comes in — with the analyst scoring offers for you.</span></div></a>
       <a class="feat" href="rrg_listings_help.html#deal" target="_blank" rel="noopener"><span class="fic">💵</span><div><b>Deal, expenses &amp; invoices</b><span>Open the deal when a buyer’s under contract, track deal costs, and bill your fee — all tied to this listing.</span></div></a>
       <a class="feat" href="rrg_listings_help.html#dataroom" target="_blank" rel="noopener"><span class="fic">🔐</span><div><b>Data room activity</b><span>See who opened the room, signed in, and downloaded what — so you know which buyers are actually digging in.</span></div></a>
+      <a class="feat" href="rrg_listings_help.html#sellerreport" target="_blank" rel="noopener"><span class="fic">📧</span><div><b>Seller activity report</b><span>An automatic activity summary — inquiries, NDAs, tours, offers, room views — emails the seller on the firm’s cadence (set in Admin → Email), keeping owners informed and listings renewing. Send one now, or skip a listing, right here.</span></div></a>
       <a class="feat" href="rrg_listings_help.html#layout" target="_blank" rel="noopener"><span class="fic">🧩</span><div><b>Make it yours</b><span>Drag any card in the right rail to reorder it and collapse the ones you don’t need — your layout is saved on this device.</span></div></a>
     </div>
   </div>
@@ -894,6 +895,7 @@ function render(){
     + expensesCardDeal()
     + invoicesCardDeal()
     + roomActivityCard()
+    + sellerReportShell()
     + '</div>'
     + peopleDatalistHTML();
 
@@ -927,6 +929,27 @@ function render(){
 }
 function loadPeople(){ fetch('/api/people',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ PEOPLE=(j&&j.people)||[]; var dl=document.getElementById('peopleList'); if(dl) dl.innerHTML=PEOPLE.map(function(p){return '<option value="'+esc(p.name)+'">'+esc(p.company||p.email||'')+'</option>';}).join(''); }).catch(function(){}); }
 function matchBuyersShell(){ return '<div class="card" id="matchBuyersCard"><div class="ch"><b>Matching buyers</b><span id="mbCount" style="color:#8a93a8;font-weight:700;margin-left:6px"></span></div><div class="cb" style="padding:12px 16px"><div id="matchBuyers"><div style="color:#8a93a8;font-size:12.5px;padding:4px 0">Checking your buyer book…</div></div></div></div>'; }
+function sellerReportShell(){ if(A && A.assignmentType==='tenant_rep') return ''; return '<div class="card" id="sellerRepCard"><div class="ch"><b>Seller activity report</b><span id="srStatus" style="margin-left:10px;font-size:12px;color:#8a93a3">Loading…</span></div><div class="cb" id="srBody" style="padding:12px 16px"><div style="color:#8a93a8;font-size:12.5px">Checking…</div></div></div>'; }
+function loadSellerReport(){ var body=document.getElementById('srBody'), st=document.getElementById('srStatus'); if(!body||!KEY) return;
+  fetch('/api/assignment/'+encodeURIComponent(KEY)+'/seller-report',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ if(st)st.textContent=''; body.innerHTML='<div style="color:#8a93a8;font-size:12.5px">—</div>'; return; }
+    var p=j.preview||{}; var on=j.firmEnabled && !j.off;
+    if(st) st.innerHTML = on ? '<span style="color:#1f8a5b;font-weight:700">● On · every '+j.intervalDays+' days</span>' : (j.firmEnabled ? '<span style="color:#b5791f;font-weight:700">Off for this listing</span>' : '<span style="color:#8a93a3">Firm cadence off</span>');
+    var stats='<div style="display:flex;gap:16px;flex-wrap:wrap;margin:2px 0 10px">'+[['Inquiries',p.inquiries],['NDAs',p.ndas],['Tours',p.tours],['Offers',p.offers],['Room views',p.views]].map(function(x){return '<div><div style="font-size:17px;font-weight:800;color:#0b1a38">'+(x[1]||0)+'</div><div style="font-size:11px;color:#8a93a8">'+x[0]+'</div></div>';}).join('')+'</div>';
+    var lastTxt=j.lastSentAt?('Last sent '+new Date(j.lastSentAt).toLocaleDateString()):'Not sent yet';
+    var toTxt=j.sellerEmail?('to '+esc(j.sellerEmail)):'<span style="color:#C0261B">no seller email on file</span>';
+    body.innerHTML='<div style="font-size:12.5px;color:#5a6478;margin-bottom:8px">Last '+(j.intervalDays||14)+' days '+toTxt+' · '+esc(lastTxt)+'</div>'+stats
+      +'<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'
+      +'<button id="srSendNow" style="border:1px solid var(--navy,#20334f);background:#fff;color:var(--navy,#20334f);font-weight:700;font-size:12.5px;padding:7px 13px;border-radius:6px;cursor:pointer">Send now</button>'
+      +(j.firmEnabled?('<label style="font-size:12.5px;display:inline-flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="srOff" '+(j.off?'checked':'')+'> Skip this listing</label>'):'<span style="font-size:12px;color:#8a93a8">Turn the firm cadence on in Admin → Email to schedule these automatically.</span>')
+      +'<span class="msg" id="srMsg" style="font-size:12.5px"></span></div>';
+    var sb=document.getElementById('srSendNow'); if(sb) sb.onclick=function(){ srSend(); };
+    var off=document.getElementById('srOff'); if(off) off.onchange=function(){ srToggleOff(off.checked); };
+  }).catch(function(){ if(st)st.textContent=''; });
+}
+function srSend(){ var b=document.getElementById('srSendNow'), m=document.getElementById('srMsg'); if(!b) return; b.disabled=true; var was=b.textContent; b.textContent='Sending…'; if(m)m.textContent='';
+  fetch('/api/assignment/'+encodeURIComponent(KEY)+'/seller-report/send',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'}).then(function(r){return r.json();}).then(function(j){ b.disabled=false; b.textContent=was; if(j&&j.ok){ if(m){m.style.color='#1f8a5b'; m.textContent='Sent ✓ to '+esc(j.to);} loadSellerReport(); } else { if(m){m.style.color='#C0261B'; m.textContent=(j&&j.error)||'Could not send.';} } }).catch(function(){ b.disabled=false; b.textContent=was; if(m){m.style.color='#C0261B'; m.textContent='Could not reach the server.';} }); }
+function srToggleOff(off){ fetch('/api/assignment/'+encodeURIComponent(KEY)+'/seller-report',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({off:!!off})}).then(function(r){return r.json();}).then(function(){ loadSellerReport(); }).catch(function(){}); }
 function loadMatchingBuyers(){ var host=document.getElementById('matchBuyers'), cnt=document.getElementById('mbCount'); if(!host||!KEY) return;
   fetch('/api/assignment/'+encodeURIComponent(KEY)+'/buyer-matches',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok){ host.innerHTML='<div style="color:#8a93a8;font-size:12.5px;padding:4px 0">—</div>'; return; }
@@ -1580,7 +1603,7 @@ function load(){
   fetch('/api/assignment/'+encodeURIComponent(KEY),{credentials:'same-origin'}).then(function(r){
     if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); });
     return r.json();
-  }).then(function(j){ A=j.assignment; if(j.statuses) STATUSES=j.statuses; TXN=(A&&A.transaction)||null; if(j.txnStatuses) TXNSTAT=j.txnStatuses; if(j.commStatuses) TXNCOMM=j.commStatuses; RA=j.roomActivity||null; OFFERS=(A&&A.offers)||[]; TOURS=(A&&A.tours)||[]; NDAS=(A&&A.ndas)||[]; INQUIRIES=(A&&A.inquiries)||[]; AGR=j.agreements||[]; ATYPES=j.agreementTypes||[]; PIPES=j.pipelines||[]; BUYERPIPES=j.buyerPipelines||[]; AUTOS=j.automations||[]; if(Array.isArray(j.markets)&&j.markets.length) MARKETS=j.markets; EXP=j.expenses||null; INVX=j.invoices||null; render(); loadPeople(); loadMatchingBuyers(); })
+  }).then(function(j){ A=j.assignment; if(j.statuses) STATUSES=j.statuses; TXN=(A&&A.transaction)||null; if(j.txnStatuses) TXNSTAT=j.txnStatuses; if(j.commStatuses) TXNCOMM=j.commStatuses; RA=j.roomActivity||null; OFFERS=(A&&A.offers)||[]; TOURS=(A&&A.tours)||[]; NDAS=(A&&A.ndas)||[]; INQUIRIES=(A&&A.inquiries)||[]; AGR=j.agreements||[]; ATYPES=j.agreementTypes||[]; PIPES=j.pipelines||[]; BUYERPIPES=j.buyerPipelines||[]; AUTOS=j.automations||[]; if(Array.isArray(j.markets)&&j.markets.length) MARKETS=j.markets; EXP=j.expenses||null; INVX=j.invoices||null; render(); loadPeople(); loadMatchingBuyers(); loadSellerReport(); })
   .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this deal.')+'<br><br><a href="./rrg_board.html" style="color:#000E31;font-weight:700">← Back to deals</a></div>'; });
 }
 load();
