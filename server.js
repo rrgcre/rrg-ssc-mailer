@@ -3016,6 +3016,34 @@ app.post('/api/bov/:id/finalize', (req, res) => {
   b.finalizedBy = (req.user && req.user.name) || '';
   b.finalizedByUser = (req.user && req.user.username) || '';
   saveBovs(bovs);
+  // On finalize, sync the valuation's TTM figures onto the linked listing's financials grid
+  // (Revenue / SDE / EBITDA in the TTM column). Value / basis / multiple already flow live from the BOV.
+  try {
+    if (b.dealKey) {
+      const _ov = loadAssignOverlay();
+      const _cur = _ov[b.dealKey] || (_ov[b.dealKey] = {});
+      const _clean = v => String(v == null ? '' : v).replace(/^~\s*/, '').trim();
+      const _rev = _clean(b.revText || (typeof bovRevenueText === 'function' ? bovRevenueText(b) : ''));
+      const _sde = _clean(b.sdeText);
+      const _eb = _clean(b.ebitdaText);
+      if (_rev || _sde || _eb) {
+        let _f3 = Array.isArray(_cur.financials3y) ? _cur.financials3y.map(c => ({ label: (c && c.label) || '', revenue: (c && c.revenue) || '', sde: (c && c.sde) || '', ebitda: (c && c.ebitda) || '', rent: (c && c.rent) || '' })) : [];
+        if (!_f3.length) {
+          const _y = new Date().getFullYear();
+          _f3 = [String(_y - 3), String(_y - 2), String(_y - 1)].map(L => ({ label: L, revenue: '', sde: '', ebitda: '', rent: '' }));
+          _f3.push({ label: 'TTM', revenue: '', sde: '', ebitda: '', rent: '' });
+        }
+        let _ttm = _f3.find(c => /ttm/i.test(String(c.label || '')));
+        if (!_ttm) { _ttm = { label: 'TTM', revenue: '', sde: '', ebitda: '', rent: '' }; _f3.push(_ttm); }
+        if (_rev) _ttm.revenue = _rev.slice(0, 40);
+        if (_sde) _ttm.sde = _sde.slice(0, 40);
+        if (_eb) _ttm.ebitda = _eb.slice(0, 40);
+        _cur.financials3y = _f3.slice(0, 6);
+        _cur.updatedAt = new Date().toISOString();
+        saveAssignOverlay(_ov);
+      }
+    }
+  } catch (e) { console.error('BOV finalize sync:', e && e.message); }
   res.json({ ok: true, version: b.version, finalizedAt: b.finalizedAt, finalizedBy: b.finalizedBy });
 });
 // Revise a finalized valuation — archives the finalized copy into the version history

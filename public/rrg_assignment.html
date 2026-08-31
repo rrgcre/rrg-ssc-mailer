@@ -56,6 +56,7 @@ a.hpstep,button.hpstep{cursor:pointer;}
 .card.buyerpipe > .ch{background:#fff;}
 .card.buyerpipe .track{background:#fff;}
 .card.buyerpipe .hpdot{background:color-mix(in srgb, var(--red) 12%, #fff);border-color:color-mix(in srgb, var(--red) 34%, #fff);color:var(--red);}
+.card.buyerpipe .hpstep:not(:last-child):after{background:color-mix(in srgb, var(--red) 34%, #fff);}
 .card.buyerpipe .hpdot.done{background:var(--red);border-color:var(--red);color:#fff;}
 .card.buyerpipe .hpstep.done:not(:last-child):after{background:var(--red);}
 .card.buyerpipe a.hpstep:hover .hpname,.card.buyerpipe button.hpstep:hover .hpname{color:var(--red);}
@@ -661,7 +662,7 @@ function financialsCard(){
   var rrow=function(t,f,hint){ var c=''; for(var i=0;i<f3y.length;i++) c+=money(i,f); return '<tr>'+rowLbl(t,hint)+c+'</tr>'; };
   var table='<div style="margin-top:16px"><div style="font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8;margin-bottom:7px">Financials <span style="font-weight:400;color:#9aa3b2;text-transform:none;letter-spacing:0">— 3 full years plus trailing twelve (TTM); edit a period header if your fiscal year differs</span></div>'
     +'<div style="overflow-x:auto"><table id="fin3yTable" style="border-collapse:collapse;width:100%;min-width:560px"><thead><tr><th style="width:1%"></th>'+heads+'</tr></thead><tbody>'
-    +rrow('Revenue','revenue','top line')+rrow('SDE','sde','owner benefit')+rrow('EBITDA','ebitda','')+rrow('Rent','rent','occupancy')
+    +rrow('Revenue','revenue','top line')+rrow('EBITDA','ebitda','')+rrow('SDE','sde','owner benefit')+rrow('Rent','rent','occupancy')
     +'</tbody></table></div></div>';
   var hist=(A&&Array.isArray(A.priceHistory))?A.priceHistory.slice():[];
   var histHtml=''; if(hist.length){ var rows=hist.map(function(h,i){ return _histRow(h, i===0 && !h.prev); }).reverse().join(''); histHtml='<div style="margin-top:16px"><div style="font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8;margin-bottom:2px">Price history</div>'+rows+'</div>'; }
