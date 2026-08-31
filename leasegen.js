@@ -95,7 +95,7 @@ async function generateLease({ business, files, questionnaire, asOf, systemPromp
   const resp = await fetch(API_URL, {
     method: 'POST',
     headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({ model: MODEL, max_tokens: 6000, temperature: 0, system: [{ type: 'text', text: sys, cache_control: { type: 'ephemeral' } }], messages: [{ role: 'user', content }] }),
+    body: JSON.stringify({ model: MODEL, max_tokens: 16000, temperature: 0, system: [{ type: 'text', text: sys, cache_control: { type: 'ephemeral' } }], messages: [{ role: 'user', content }] }),
   });
   if (!resp.ok) {
     const t = await resp.text().catch(() => '');
@@ -107,7 +107,12 @@ async function generateLease({ business, files, questionnaire, asOf, systemPromp
   const data = await resp.json();
   const text = (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n');
   const state = extractJson(text);
-  if (!state || !state.parties) throw new Error('Could not parse a lease abstract from the model response.');
+  if (!state || !state.parties) {
+    if (data.stop_reason === 'max_tokens') {
+      throw new Error('The lease is long enough that the abstract got cut off before it finished. Upload just the lease and its amendments (skip the full exhibit set) and build again, or split a very large lease into fewer files.');
+    }
+    throw new Error('Could not parse a lease abstract from the model response. Confirm the upload is the actual lease (not a scan or a cover sheet) and build again.');
+  }
   const biz = (state.header && state.header.business) || business || 'Lease Abstract';
   return { state, business: biz, usage: data.usage || null };
 }

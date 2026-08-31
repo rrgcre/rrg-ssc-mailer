@@ -175,8 +175,8 @@
     function n(freq,at,dur,peak){ var o=O(ctx,'sine',freq), o2=O(ctx,'triangle',freq*2), g=G(ctx,0.0001); o.connect(g); o2.connect(g); g.connect(out);
       g.gain.setValueAtTime(0.0001,t+at); g.gain.exponentialRampToValueAtTime(peak,t+at+0.015); g.gain.exponentialRampToValueAtTime(0.0001,t+at+dur);
       o.start(t+at); o.stop(t+at+dur+0.05); o2.start(t+at); o2.stop(t+at+dur+0.05); }
-    n(659.25, 0.00, 1.3, 0.16);   // E5
-    n(987.77, 0.17, 1.7, 0.13);   // B5 — a clean rising two-note
+    n(659.25, 0.00, 1.3, 0.30);   // E5
+    n(987.77, 0.17, 1.7, 0.24);   // B5 — a clean rising two-note
   }catch(e){} }
 
   window.RRG_AMBIENCE = {
