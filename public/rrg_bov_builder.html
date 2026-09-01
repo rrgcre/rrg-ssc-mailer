@@ -118,11 +118,13 @@ body:not(.asset-mode) .asset-only{display:none!important;}
 
 @media(max-width:720px){ .strip{grid-template-columns:1fr 1fr;} .inner{padding:6px 22px 28px;} .band{padding:26px 22px;} }
 @media print{
-  @page{size:Letter;margin:0.55in 0.6in;} @page cover{margin:0;}
+  @page{size:Letter;margin:0.55in 0.6in;}
   body{background:#fff;}
   .toolbar,.rrg-noprint{display:none!important;}
   input[type=month]::-webkit-calendar-picker-indicator{display:none!important;}
-  .wrap{max-width:none;margin:0;box-shadow:none;border-radius:0;}
+  /* Bake a top margin into the sheet itself so the cover never touches the paper edge — this holds
+     even when the browser's print dialog is set to "Margins: None" (which ignores @page margins). */
+  .wrap{max-width:none;margin:0;box-shadow:none;border-radius:0;padding-top:0.35in;}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
   .band{border-radius:0;}
   input,textarea{border:none!important;background:none!important;resize:none;}
