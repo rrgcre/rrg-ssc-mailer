@@ -118,11 +118,13 @@ body:not(.asset-mode) .asset-only{display:none!important;}
 
 @media(max-width:720px){ .strip{grid-template-columns:1fr 1fr;} .inner{padding:6px 22px 28px;} .band{padding:26px 22px;} }
 @media print{
-  @page{size:Letter;margin:0.75in 0.6in;}
+  @page{size:Letter;margin:0.6in 0.6in;}
   body{background:#fff;}
   .toolbar,.rrg-noprint{display:none!important;}
   input[type=month]::-webkit-calendar-picker-indicator{display:none!important;}
-  .wrap{max-width:none;margin:0;box-shadow:none;border-radius:0;}
+  /* Bake a top margin into the cover itself so it never touches the paper edge — this holds even when
+     the browser print dialog is set to "Margins: None" (which ignores @page margins entirely). */
+  .wrap{max-width:none;margin:0;box-shadow:none;border-radius:0;padding-top:0.4in;}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
   .band{border-radius:0;}
   input,textarea{border:none!important;background:none!important;resize:none;}
