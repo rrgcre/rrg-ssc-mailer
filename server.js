@@ -6437,7 +6437,23 @@ app.get('/api/assignment/:key', (req, res) => {
   const origin = req.protocol + '://' + req.get('host');
   try { const _o = overlay[d.key] || {}; if (!_o.listingNo) { _o.listingNo = nextListingNo(); overlay[d.key] = _o; saveAssignOverlay(overlay); } } catch (e) {}
   const dealAgreements = loadAgreements().filter(a => a.dealKey === d.key).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999')));
-  res.json({ ok: true, statuses: ASSIGN_STATUSES, txnStatuses: TXN_STATUSES, commStatuses: TXN_COMM_STATUS, markets: effMarkets(), assignment: assignmentView(d, overlay), buyerPipelines: buyerPipelinesAll().map(function(p){return {id:p.id,name:p.name,stages:(p.stages||[]).map(function(x){return x.name;})};}), buyerPof: BUYER_POF, agreements: dealAgreements, agreementTypes: effAgreementTypes(), pipelines: loadPipelines(), automations: loadAutomations().filter(a => a.active !== false).map(a => ({ id: a.id, name: a.name || '' })), expenses: dealExpenseRollup(d.key, req.user), invoices: dealInvoiceRollup(d.key, req.user), roomActivity: roomActivityFor(d, origin), canChangePrice: userCan(req.user, 'change_price'), canDelete: canDelete(req) });
+  // Lease summary for the listing — the key terms a broker/buyer wants at a glance (expiration,
+  // time remaining, renewal options), pulled from the lease abstract merged onto this listing.
+  const leaseSummary = (function () {
+    try {
+      const l = d.lease; if (!l) return null;
+      const st = l.state || {}, t = st.term || {}, o = st.options || {};
+      const has = t.expiration || t.remainingTerm || o.renewalOptions || t.originalTerm;
+      return {
+        id: l.id, pending: !!l.pending, business: l.business || '',
+        expiration: t.expiration || '', remainingTerm: t.remainingTerm || '',
+        commencement: t.commencement || '', originalTerm: t.originalTerm || '',
+        renewalOptions: o.renewalOptions || '', renewalNotice: o.renewalNotice || '',
+        hasTerms: !!has
+      };
+    } catch (e) { return null; }
+  })();
+  res.json({ ok: true, statuses: ASSIGN_STATUSES, txnStatuses: TXN_STATUSES, commStatuses: TXN_COMM_STATUS, markets: effMarkets(), assignment: assignmentView(d, overlay), lease: leaseSummary, buyerPipelines: buyerPipelinesAll().map(function(p){return {id:p.id,name:p.name,stages:(p.stages||[]).map(function(x){return x.name;})};}), buyerPof: BUYER_POF, agreements: dealAgreements, agreementTypes: effAgreementTypes(), pipelines: loadPipelines(), automations: loadAutomations().filter(a => a.active !== false).map(a => ({ id: a.id, name: a.name || '' })), expenses: dealExpenseRollup(d.key, req.user), invoices: dealInvoiceRollup(d.key, req.user), roomActivity: roomActivityFor(d, origin), canChangePrice: userCan(req.user, 'change_price'), canDelete: canDelete(req) });
 });
 app.post('/api/assignment/:key/promote', express.json(), (req, res) => {
   const key = req.params.key;

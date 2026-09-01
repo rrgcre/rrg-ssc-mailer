@@ -260,6 +260,14 @@ a.feat:hover{background:#f7f9fc;}
 .ovgrid{display:grid;grid-template-columns:1fr 1fr;gap:0 22px;}
 .ovf{padding:9px 0;border-bottom:1px solid var(--line);}
 .ovf:last-child,.ovgrid .ovf:nth-last-child(2):nth-child(odd){border-bottom:none;}
+.ovlease{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;margin-top:14px;padding:11px 14px;border:1px solid #cfe0ee;background:#f3f8fc;border-radius:8px;font-size:13px;}
+.ovlease .ltitle{font-weight:800;color:#20334f;letter-spacing:.02em;display:inline-flex;align-items:center;gap:6px;}
+.ovlease .lcell{display:inline-flex;flex-direction:column;line-height:1.3;}
+.ovlease .lcell .lk{font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--soft);font-weight:700;}
+.ovlease .lcell .lv{font-size:13px;color:#20334f;font-weight:700;}
+.ovlease .lopen{margin-left:auto;color:#2c5c8f;font-weight:700;text-decoration:none;font-size:12px;white-space:nowrap;}
+.ovlease.pend{background:#fbfaf3;border-color:#eadfbf;}
+.ovlease.pend .ltitle,.ovlease.pend .lv{color:#8a6d1a;}
 .ovk{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--soft);font-weight:700;}
 .ovv{font-size:13.5px;color:var(--ink);margin-top:3px;font-weight:600;overflow-wrap:anywhere;}
 .suggestbtn{margin-left:8px;font:inherit;font-size:10.5px;font-weight:700;color:#2c5c8f;background:#eef4fb;border:1px solid #d3e2f6;border-radius:6px;padding:2px 8px;cursor:pointer;text-transform:none;letter-spacing:0;}
@@ -371,7 +379,7 @@ a.feat:hover{background:#f7f9fc;}
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function fmt(iso){ if(!iso) return '—'; var d=new Date(iso); if(isNaN(d.getTime())) return '—'; return (d.getMonth()+1)+'/'+d.getDate()+'/'+d.getFullYear(); }
 function qs(k){ return new URLSearchParams(location.search).get(k)||''; }
-var KEY=qs('key'), A=null, STATUSES=['New','Active','Under Contract','Closed','On Hold','Lost'], DIRTY=false, RA=null, OFFERS=[], TOURS=[], NDAS=[], PEOPLE=[], AGR=[], ATYPES=[], PIPES=[], BUYERPIPES=[], EXP=null, INVX=null;
+var KEY=qs('key'), A=null, LEASE=null, STATUSES=['New','Active','Under Contract','Closed','On Hold','Lost'], DIRTY=false, RA=null, OFFERS=[], TOURS=[], NDAS=[], PEOPLE=[], AGR=[], ATYPES=[], PIPES=[], BUYERPIPES=[], EXP=null, INVX=null;
 // Stages the buyer leads move through — driven by the selected Buyer pipeline; falls back to the fixed funnel.
 function buyerStageNames(){ var st=(A&&A.buyerStages)||[]; var names=st.map(function(s){return (s&&s.name)||s;}).filter(Boolean); return names.length?names:INQ_STATUSES; }
 // Buyer pipeline board — the buyer-side mirror of the seller Pipeline card. Each stage shows how many buyer leads sit in it.
@@ -452,6 +460,20 @@ function pipeStages(p){
     if(t){ return { k:'g'+i, name:st.name, lbl:shortLbl(st.name), manual:true, targetDays:st.targetDays, toolHref:t.href, toolOpen:t.open }; }
     return { k:'g'+i, name:st.name, lbl:shortLbl(st.name), manual:true, targetDays:st.targetDays };
   });
+}
+// Lease strip for the Overview — the terms buyers ask about first: when it expires and how much
+// runway is left (plus options), pulled from the lease abstract on this listing.
+function leaseStripHtml(){
+  if(!LEASE) return '';
+  var open='./rrg_lease_abstract.html?lease='+encodeURIComponent(LEASE.id||'');
+  if(LEASE.pending || !LEASE.hasTerms){
+    return '<div class="ovlease pend"><span class="ltitle">🔑 Lease abstract</span><span class="lcell"><span class="lv" style="font-weight:600">Building — the expiration and time remaining will show here once it’s done.</span></span><a class="lopen" href="'+open+'">open ↗</a></div>';
+  }
+  var cells='';
+  cells+='<span class="lcell"><span class="lk">Lease expires</span><span class="lv">'+esc(LEASE.expiration||'—')+'</span></span>';
+  cells+='<span class="lcell"><span class="lk">Time remaining</span><span class="lv">'+esc(LEASE.remainingTerm||'—')+'</span></span>';
+  if(LEASE.renewalOptions) cells+='<span class="lcell"><span class="lk">Options</span><span class="lv">'+esc(LEASE.renewalOptions)+'</span></span>';
+  return '<div class="ovlease"><span class="ltitle">🔑 Lease</span>'+cells+'<a class="lopen" href="'+open+'">open ↗</a></div>';
 }
 // A listing shows its assigned pipeline's actual stages. With no pipeline (or a stageless one),
 // fall back to the built-in business-sale tool workflow.
@@ -819,7 +841,8 @@ function render(){
       +'<div class="ovf"><div class="ovk">'+((A.assignmentType==='landlord_rep')?'Landlord contact':'Seller contact')+'</div><div class="ovv">'+_contactCell+'</div></div>'
       +'<div class="ovf"><div class="ovk">Originated</div><div class="ovv">'+esc(fmt(A.createdAt))+'</div></div>'
       +'<div class="ovf"><div class="ovk">Last activity</div><div class="ovv">'+esc(fmt(A.lastActivity))+'</div></div>'
-    +'</div>';
+    +'</div>'
+    + leaseStripHtml();
 
   var steps=ST.map(function(d){
     var st=d.manual?null:s[d.k];
@@ -857,13 +880,13 @@ function render(){
       + '<div class="fldrow"><label class="fld">Status</label><select id="f_status">'+opts+'</select></div>'
       + (PIPES.length?('<div class="fldrow"><label class="fld">Seller pipeline <span style="font-weight:400;color:#8a93a8;font-size:11px">— where this listing sits on the board</span></label><select id="f_pipeline">'+pipeOpts+'</select></div>'):'')
       + '<div class="fldrow"><label class="fld">Buyer pipeline <span style="font-weight:400;color:#8a93a8;font-size:11px">— the stages buyer leads move through</span></label>'+(BUYERPIPES.length?('<select id="f_buyerpipe">'+buyerPipeOpts+'</select>'+(BUYERPIPES.length===1?'<div style="font-size:11px;color:#8a93a8;margin-top:5px;line-height:1.45">This is your only buyer pipeline, so there’s nothing to switch to. <a href="./rrg_admin_pipelines.html" style="color:#2c5c8f;font-weight:700;text-decoration:none">Add another ↗</a> (set its area to <b>Buyer</b>) to choose between them here.</div>':'')):('<div style="font-size:12px;color:#8a93a8;line-height:1.5;border:1px solid var(--line);border-radius:6px;padding:9px 11px;background:#fbfcff">No buyer pipeline exists yet. <a href="./rrg_admin_pipelines.html" style="color:#2c5c8f;font-weight:700;text-decoration:none">Create one ↗</a> and set its area to <b>Buyer</b> — then you can track buyer leads through their stages right here.</div>'))+'</div>'
-      + '<div class="fldrow"><label class="fld">Owner</label><input class="owner" id="f_owner" value="'+esc(A.owner||'')+'" placeholder="Assigned rep"></div>'
       + '<div class="fldrow"><label class="fld">'+((A.assignmentType==='landlord_rep')?'Landlord contact':'Seller contact')+(A.clientPersonId?(' <a href="./rrg_person.html?id='+encodeURIComponent(A.clientPersonId)+'" title="Open the linked contact" style="text-transform:none;letter-spacing:0;font-weight:700;color:#2c5c8f;text-decoration:none;margin-left:6px">open ↗</a>'):'')+'</label><input class="owner" id="f_contact" list="peopleList" value="'+esc(A.contact||'')+'" placeholder="'+((A.assignmentType==='landlord_rep')?'Landlord / property owner — type a contact name to link it':'Client / seller — type a contact name to link it')+'"></div>'
       + '<div class="fldrow"><label class="fld">Referred by</label><input class="owner" id="f_refby" list="peopleList" value="'+esc(A.referredBy||'')+'" placeholder="Contact who referred this"></div>'
       + '<div class="fldrow"><label class="fld">Referral %</label><input class="owner" id="f_refpct" value="'+esc(A.referralPct||'')+'" placeholder="e.g. 10" inputmode="decimal" style="max-width:130px"></div>'
       + '<div class="fldrow"><label class="fld">Business name</label><input class="owner" id="f_biz" value="'+esc(A.businessOverride||A.business||'')+'" placeholder="The actual business name"></div>'
       + '<div class="fldrow"><label class="fld">Code name <span style="font-weight:400;color:#8a93a8;font-size:11px">— confidential project alias</span> <button type="button" id="suggestCodeBtn" class="suggestbtn" title="Generate a confidential project name">✦ Suggest</button></label><input class="owner" id="f_codename" value="'+esc(A.codeName||'')+'" placeholder="e.g. Project Falcon"></div>'
       + '<div class="fldrow"><label class="fld">Market</label><input class="owner" id="f_market" list="marketList" value="'+esc(_curMkt)+'" placeholder="Type a market…" autocomplete="off"><datalist id="marketList">'+mktDl+'</datalist></div>'
+      + '<div class="fldrow"><label class="fld">Owner</label><input class="owner" id="f_owner" value="'+esc(A.owner||'')+'" placeholder="Assigned rep"></div>'
       + ''
       + '<div class="listingbox">'
         + '<div class="listinghd">Listing agreement</div>'
@@ -1630,7 +1653,7 @@ function load(){
   fetch('/api/assignment/'+encodeURIComponent(KEY),{credentials:'same-origin'}).then(function(r){
     if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); });
     return r.json();
-  }).then(function(j){ A=j.assignment; if(j.statuses) STATUSES=j.statuses; TXN=(A&&A.transaction)||null; if(j.txnStatuses) TXNSTAT=j.txnStatuses; if(j.commStatuses) TXNCOMM=j.commStatuses; RA=j.roomActivity||null; OFFERS=(A&&A.offers)||[]; TOURS=(A&&A.tours)||[]; NDAS=(A&&A.ndas)||[]; INQUIRIES=(A&&A.inquiries)||[]; AGR=j.agreements||[]; ATYPES=j.agreementTypes||[]; PIPES=j.pipelines||[]; BUYERPIPES=j.buyerPipelines||[]; AUTOS=j.automations||[]; if(Array.isArray(j.markets)&&j.markets.length) MARKETS=j.markets; EXP=j.expenses||null; INVX=j.invoices||null; render(); loadPeople(); loadMatchingBuyers(); loadSellerReport(); })
+  }).then(function(j){ A=j.assignment; LEASE=j.lease||null; if(j.statuses) STATUSES=j.statuses; TXN=(A&&A.transaction)||null; if(j.txnStatuses) TXNSTAT=j.txnStatuses; if(j.commStatuses) TXNCOMM=j.commStatuses; RA=j.roomActivity||null; OFFERS=(A&&A.offers)||[]; TOURS=(A&&A.tours)||[]; NDAS=(A&&A.ndas)||[]; INQUIRIES=(A&&A.inquiries)||[]; AGR=j.agreements||[]; ATYPES=j.agreementTypes||[]; PIPES=j.pipelines||[]; BUYERPIPES=j.buyerPipelines||[]; AUTOS=j.automations||[]; if(Array.isArray(j.markets)&&j.markets.length) MARKETS=j.markets; EXP=j.expenses||null; INVX=j.invoices||null; render(); loadPeople(); loadMatchingBuyers(); loadSellerReport(); })
   .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this deal.')+'<br><br><a href="./rrg_board.html" style="color:#000E31;font-weight:700">← Back to deals</a></div>'; });
 }
 load();
