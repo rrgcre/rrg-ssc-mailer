@@ -15,9 +15,10 @@
    marketingpack:_ksvg('<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>'),
    ssc:_ksvg('<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>'),
    seller:_ksvg('<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>'),
+   lease:_ksvg('<circle cx="8" cy="15" r="4"/><line x1="10.85" y1="12.15" x2="19.5" y2="3.5"/><line x1="18" y1="5" x2="20.5" y2="7.5"/><line x1="15" y1="8" x2="17.5" y2="10.5"/>'),
    file:_ksvg('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="15" y1="13" x2="9" y2="13"/><line x1="15" y1="17" x2="9" y2="17"/>')
   };
-  var KCOL={agreement:'#2647b0',valuation:'#1f8a5b',marketingpack:'#b9761a',file:'#5a3d9e',ssc:'#0b7285',loi:'#b5364f',seller:'#4b6b2f'};
+  var KCOL={agreement:'#2647b0',valuation:'#1f8a5b',marketingpack:'#b9761a',lease:'#3f7cac',file:'#5a3d9e',ssc:'#0b7285',loi:'#b5364f',seller:'#4b6b2f'};
   // Per-file-type glyphs for uploaded files — muted, professional differentiation (PDF, Word, Excel, PowerPoint, image, archive, text).
   var EXTICON={
    pdf:_ksvg('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15h6"/>'),
@@ -39,7 +40,7 @@
     if(document.getElementById('rrgDocsCss')) return;
     var st=document.createElement('style'); st.id='rrgDocsCss';
     st.textContent='.docrow{cursor:pointer;}'
-      +'.dico{width:26px;height:26px;flex:none;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;line-height:1;box-shadow:0 1px 2px rgba(16,24,40,.15), inset 0 1px 0 rgba(255,255,255,.18);}'+'.dico svg{width:14px;height:14px;display:block;}'+'.dico.k-agreement{background:linear-gradient(160deg,#3a5cc8,#1f3ea0);}.dico.k-valuation{background:linear-gradient(160deg,#25a06b,#167a4c);}.dico.k-marketingpack{background:linear-gradient(160deg,#d08a2a,#a5661a);}.dico.k-file{background:linear-gradient(160deg,#7d5bd6,#553aa0);}.dico.k-ssc{background:linear-gradient(160deg,#12a6bd,#0b7285);}.dico.k-loi{background:linear-gradient(160deg,#d24a63,#a5334a);}.dico.k-seller{background:linear-gradient(160deg,#6d954a,#4b6b2f);}'
+      +'.dico{width:26px;height:26px;flex:none;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;line-height:1;box-shadow:0 1px 2px rgba(16,24,40,.15), inset 0 1px 0 rgba(255,255,255,.18);}'+'.dico svg{width:14px;height:14px;display:block;}'+'.dico.k-agreement{background:linear-gradient(160deg,#3a5cc8,#1f3ea0);}.dico.k-valuation{background:linear-gradient(160deg,#25a06b,#167a4c);}.dico.k-marketingpack{background:linear-gradient(160deg,#d08a2a,#a5661a);}.dico.k-lease{background:linear-gradient(160deg,#4a86b6,#356594);}.dico.k-file{background:linear-gradient(160deg,#7d5bd6,#553aa0);}.dico.k-ssc{background:linear-gradient(160deg,#12a6bd,#0b7285);}.dico.k-loi{background:linear-gradient(160deg,#d24a63,#a5334a);}.dico.k-seller{background:linear-gradient(160deg,#6d954a,#4b6b2f);}'
       +'.dico.x-pdf{background:linear-gradient(160deg,#c15a51,#9a4038);}.dico.x-doc{background:linear-gradient(160deg,#4a6aa8,#33507e);}.dico.x-sheet{background:linear-gradient(160deg,#3f9068,#2c6647);}.dico.x-slide{background:linear-gradient(160deg,#c07f3c,#95602a);}.dico.x-img{background:linear-gradient(160deg,#5d8593,#456a78);}.dico.x-zip{background:linear-gradient(160deg,#8c8069,#6a6050);}.dico.x-txt{background:linear-gradient(160deg,#727b8e,#565e70);}'
       +'.docttl{font-size:13px;font-weight:400;color:#1d2739;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}'
       +'.docmeta{font-size:11px;color:#8a93a8;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}'

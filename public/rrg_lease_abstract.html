@@ -258,13 +258,14 @@ function doSave(cb){
 function queueSave(){ _setChip('dirty','Unsaved changes…'); if(_t) clearTimeout(_t); _t=setTimeout(function(){ _t=null; doSave(); }, 700); }
 // Explicit Save: flush any pending autosave and write immediately.
 function saveNow(){ if(_t){ clearTimeout(_t); _t=null; } doSave(); }
-// Where "Back" goes: to the BOV if this abstract came from one; otherwise back to wherever the rep
-// came from; then the linked contact/company; dashboard as a last resort.
+// Where "Back" goes — deterministic (not the browser history, which could land anywhere): the
+// abstract belongs to its contact, so return there first, then the company, then the listing, then
+// the source BOV, then the dashboard. (The green "Value the business now" button handles the BOV.)
 function _navBack(){
-  if(A && A.srcBovId){ location.href='./rrg_bov_generate.html?bov='+encodeURIComponent(A.srcBovId); return; }
-  try{ if(window.history.length>1){ history.back(); return; } }catch(e){}
   if(A && A.personId){ location.href='./rrg_person.html?id='+encodeURIComponent(A.personId); return; }
   if(A && A.companyId){ location.href='./rrg_company.html?id='+encodeURIComponent(A.companyId); return; }
+  if(A && A.dealKey){ location.href='./rrg_assignment.html?key='+encodeURIComponent(A.dealKey); return; }
+  if(A && A.srcBovId){ location.href='./rrg_bov_generate.html?bov='+encodeURIComponent(A.srcBovId); return; }
   location.href='./index.html';
 }
 // Populate the shell breadcrumb with the real trail for this abstract, so there's always a visible
@@ -273,10 +274,11 @@ function setAbsCrumb(){
   if(!window.rrgSetCrumb){ return setTimeout(setAbsCrumb,120); }
   var leaf='Lease Abstract'+((A&&A.business&&A.business!=='Lease Abstract')?(' — '+A.business):'');
   function apply(mid){ var t=[]; if(mid&&mid.href) t.push(mid); t.push({label:leaf}); try{ window.rrgSetCrumb(t); }catch(e){} }
-  if(A&&A.srcBovId){ apply({label:'Valuation (BOV)', href:'./rrg_bov_generate.html?bov='+encodeURIComponent(A.srcBovId)}); return; }
+  // Parent crumb mirrors where Back goes: the contact first, then company, listing, then the BOV.
   if(A&&A.personId){ fetch('/api/person/'+encodeURIComponent(A.personId),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ var nm=(j&&j.ok&&j.person&&j.person.name)||'Contact'; apply({label:nm, href:'./rrg_person.html?id='+encodeURIComponent(A.personId)}); }).catch(function(){ apply({label:'Contact', href:'./rrg_person.html?id='+encodeURIComponent(A.personId)}); }); return; }
   if(A&&A.companyId){ apply({label:'Company', href:'./rrg_company.html?id='+encodeURIComponent(A.companyId)}); return; }
   if(A&&A.dealKey){ apply({label:'Listing', href:'./rrg_assignment.html?key='+encodeURIComponent(A.dealKey)}); return; }
+  if(A&&A.srcBovId){ apply({label:'Valuation (BOV)', href:'./rrg_bov_generate.html?bov='+encodeURIComponent(A.srcBovId)}); return; }
   apply(null);
 }
 // Close/Back — never lose a just-typed edit: flush a pending autosave, then leave (with a safety timeout).
@@ -305,10 +307,9 @@ if(LID){
         var _bovUrl='./rrg_bov_generate.html?bov='+encodeURIComponent(A.srcBovId);
         // Green CTA jumps straight into valuing: auto=1 auto-starts the build on arrival IF the room
         // already has the financials (otherwise the BOV screen just opens so the rep can add them).
+        // Green CTA jumps forward into valuing (auto-starts when the room has financials). The plain
+        // Back / pill stay pointed at the contact (see _navBack) so closing returns to the record.
         var tb=document.getElementById('toBovBtn'); if(tb){ tb.href=_bovUrl+'&auto=1'; tb.style.display=''; }
-        // The green CTA is itself the way back to the BOV — hide the redundant plain Back button.
-        var qb=document.getElementById('backBtn'); if(qb){ qb.style.display='none'; }
-        var bp=document.getElementById('backPill'); if(bp){ bp.setAttribute('aria-label','Back to the BOV'); bp.innerHTML='<span>←</span> Back to the BOV'; }
       }
       if((new URLSearchParams(location.search)).get('print')==='1'){ document.body.classList.remove('editing'); setTimeout(function(){ window.print(); }, 400); } }
     else { document.getElementById('doc').innerHTML='<div class="loading">Could not load this abstract.</div>'; }
