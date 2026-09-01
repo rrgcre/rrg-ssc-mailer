@@ -118,13 +118,11 @@ body:not(.asset-mode) .asset-only{display:none!important;}
 
 @media(max-width:720px){ .strip{grid-template-columns:1fr 1fr;} .inner{padding:6px 22px 28px;} .band{padding:26px 22px;} }
 @media print{
-  @page{size:Letter;margin:0.55in 0.6in;}
+  @page{size:Letter;margin:0.75in 0.6in;}
   body{background:#fff;}
   .toolbar,.rrg-noprint{display:none!important;}
   input[type=month]::-webkit-calendar-picker-indicator{display:none!important;}
-  /* Bake a top margin into the sheet itself so the cover never touches the paper edge — this holds
-     even when the browser's print dialog is set to "Margins: None" (which ignores @page margins). */
-  .wrap{max-width:none;margin:0;box-shadow:none;border-radius:0;padding-top:0.35in;}
+  .wrap{max-width:none;margin:0;box-shadow:none;border-radius:0;}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
   .band{border-radius:0;}
   input,textarea{border:none!important;background:none!important;resize:none;}
@@ -138,11 +136,19 @@ body:not(.asset-mode) .asset-only{display:none!important;}
   .strip .v{color:#fff!important;-webkit-text-fill-color:#fff!important;}
   .strip .v.red{color:#ff7a5c!important;-webkit-text-fill-color:#ff7a5c!important;}
   .narr,.callout textarea{min-height:0!important;overflow:visible!important;}
-  /* Keep atomic units together, but let big section containers flow across pages so
-     a tall block doesn't jump whole to the next page and strand half a blank page. */
+  /* --- Nice page breaks --------------------------------------------------------------------- */
+  /* Atomic blocks never split across a page. */
   table,.callout,.strip,.sec,.dualtable tr,.reconcile{break-inside:avoid;}
+  /* A heading (eyebrow + title) and a sub-label always stay with what follows — never last on a page. */
   .kl,.sec,.sublabel,.callout .ct{break-after:avoid;}
+  .sublabel{break-inside:avoid;}
+  /* Glue the first block after a heading (or after a sub-label) to it, so a heading is never stranded
+     alone at the bottom of a page with its content pushed to the next. */
+  .sec + .sublabel,.sec + .strip,.sec + table,.sec + .callout,.sec + .dualtable,.sec + .reconcile,.sec + .narr,.sec + p,
+  .sublabel + .narr,.sublabel + textarea,.sublabel + table,.sublabel + .strip,.sublabel + .callout{break-before:avoid;}
+  /* Big sections may flow across pages; short ones stay whole. Avoid stranded single lines. */
   .kl-block{break-inside:auto;}
+  .narr,.callout .ct,p{orphans:3;widows:3;}
   .pHide{display:none!important;}
 }
 </style>
