@@ -1333,6 +1333,9 @@ app.get('/api/session', (req, res) => res.json({
   preparedBy: req.user.preparedBy || '',
   adminOnlyTools: auth.loadToolAccess(),
   toolLabels: effToolLabels(),
+  // Custom tool names keyed by their DEFAULT label (e.g. {"Listings":"Engagements"}) so the sidebar
+  // nav can apply a rename wherever that concept appears — one edit in Admin permeates the platform.
+  navLabels: (function () { try { const eff = effToolLabels(); const out = {}; TOOL_DEFS.forEach(t => { if (eff[t.file] && eff[t.file] !== t.name) out[t.name] = eff[t.file]; }); return out; } catch (e) { return {}; } })(),
   logoUrl: (function () { const b = loadBrand(); return b.logoExt ? ('/api/brand/logo?v=' + encodeURIComponent(b.updatedAt || '')) : ''; })(),
   photoUrl: (function () { try { const prof = auth.profileOf(auth.findUser(req.user.username)); if (prof && prof.photoExt) return '/api/userphoto/' + String(req.user.username).replace(/[^a-z0-9_.-]/gi, '_') + '.' + prof.photoExt + '?v=' + encodeURIComponent(prof.photoAt || 0); } catch (e) {} return ''; })(),
   headerMsg: (function () { const b = loadBrand(); return (b.headerMsg && b.headerMsgOn !== false) ? String(b.headerMsg) : ''; })(),

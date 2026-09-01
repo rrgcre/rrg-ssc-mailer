@@ -342,6 +342,10 @@
   var _cachedName = (function(){ try { return localStorage.getItem('rrg_appname') || ''; } catch(e){ return ''; } })();
   var _cachedLogo = (function(){ try { return localStorage.getItem('rrg_logo') || ''; } catch(e){ return ''; } })();
   var _brandInner = _cachedLogo ? ('<img src="'+esc(_cachedLogo)+'" alt="" class="rrgbrandimg">') : esc(_cachedName);
+  // Custom tool names (Admin → Tool Labels) applied to the nav by default label, e.g. Listings→Engagements.
+  // Cached so the rename shows on first paint; refreshed from /api/session below.
+  var _NAVL = (function(){ try { return JSON.parse(localStorage.getItem('rrg_nav_labels_v1')||'{}') || {}; } catch(e){ return {}; } })();
+  function _navLbl(def){ return (_NAVL && _NAVL[def]) || def; }
   var navHtml = '';
   navHtml += '<div class="nt"><a class="ws" href="index.html"><span class="rrgbrand" id="rrgbrand">'+_brandInner+'</span></a><button class="rrgcol" id="rrgcollapse" title="Collapse sidebar" aria-label="Collapse sidebar">\u00ab</button></div>';
   navHtml += '<div class="scroll">';
@@ -353,7 +357,7 @@
     g.items.forEach(function (it) {
       var _na = it.need ? (' data-need="' + esc(it.need) + '" style="display:none"') : (it.admin ? ' data-adminit="1" style="display:none"' : '');
       var _ai = it.ai ? ' data-ai=""' : '';
-      navHtml += '<a class="it' + (isActive(it) ? ' on' : '') + '"' + _na + _ai + (it.views ? ' data-views="1"' : '') + ' title="' + esc(it.label) + '" href="' + esc(it.href) + '"><span class="i"' + (it.color ? (' style="color:' + it.color + '"') : '') + '>' + it.ic + '</span><span class="itlbl">' + esc(it.label) + '</span></a>';
+      navHtml += '<a class="it' + (isActive(it) ? ' on' : '') + '"' + _na + _ai + (it.views ? ' data-views="1"' : '') + ' data-lbl="' + esc(it.label) + '" title="' + esc(_navLbl(it.label)) + '" href="' + esc(it.href) + '"><span class="i"' + (it.color ? (' style="color:' + it.color + '"') : '') + '>' + it.ic + '</span><span class="itlbl">' + esc(_navLbl(it.label)) + '</span></a>';
     });
     navHtml += '</div>';
   });
@@ -597,6 +601,8 @@
       }).catch(function(){});
       fetch('/api/session',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(s){
         try{ window.__rrgSession=s; window.__rrgAssistant=(s&&s.assistant)||'the assistant'; document.dispatchEvent(new CustomEvent('rrg:session',{detail:s})); }catch(e){} try{ if(s&&s.assistant){ var _cl=nav.querySelector('a.it[href="rrg_consult.html"] .itlbl'); if(_cl) _cl.textContent='Consult '+s.assistant; } }catch(e){}
+        // Apply custom tool names (Admin → Tool Labels) to the nav — a rename permeates the sidebar.
+        try{ var _nl=(s&&s.navLabels)||{}; try{ localStorage.setItem('rrg_nav_labels_v1', JSON.stringify(_nl)); }catch(e){} nav.querySelectorAll('a.it[data-lbl]').forEach(function(el){ var d=el.getAttribute('data-lbl'); var lb=_nl[d]||d; var sp=el.querySelector('.itlbl'); if(sp && sp.textContent!==lb) sp.textContent=lb; el.setAttribute('title', lb); }); }catch(e){}
         if(s&&(s.role==='admin'||s.role==='creator')){ nav.querySelectorAll('[data-admingrp]').forEach(function(g){ g.style.display=''; }); nav.querySelectorAll('[data-adminit]').forEach(function(el){ el.style.display=''; }); }
         if(s&&s.canManageLoi){ nav.querySelectorAll('a.it[data-need="loi"]').forEach(function(el){ el.style.display=''; }); }
         (function(){ var _role=(s&&s.role)||''; var _owner=(_role==='admin'||_role==='creator'); var _nv=(s&&s.navVis)||{}; if(!_owner){ nav.querySelectorAll('.lbl[data-grp]').forEach(function(l){ var gg=l.getAttribute('data-grp'); var allow=_nv[gg]; if(allow&&allow.length&&allow.indexOf(_role)<0){ var grp=l.closest('.grp'); if(grp) grp.style.display='none'; } }); } })();
