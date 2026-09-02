@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="rrg-back" content="rrg_board.html|Listings">
-<title>RRG — Listing</title>
+<title>RRG — Landlord Rep Listing</title>
 <style>
 :root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;--amber:#e0a41a;}
 *{box-sizing:border-box;}
@@ -336,8 +336,8 @@ a.feat:hover{background:#f7f9fc;}
 <div class="top"><div class="top-in">
   <span class="brand" onclick="location.href='./index.html'" title="Back to toolbox"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
   <div class="crumb"><a href="./rrg_board.html">Listings</a> &nbsp;›&nbsp; <span id="crumb">Listing file</span></div>
-  <div class="kicker" id="kicker">Listing record<span class="kx">— everything for this listing in one place</span></div>
-  <h1 id="h1">Listing</h1>
+  <div class="kicker" id="kicker">Landlord-rep listing<span class="kx">— everything for this space in one place</span></div>
+  <h1 id="h1">Landlord Rep Listing</h1>
   <div class="subline" id="subline"></div>
 </div></div>
 <div class="featwrap">
@@ -870,10 +870,8 @@ function render(){
       +'<div class="ovid"><div class="ovname">'+esc(_nm)+'</div><div class="ovsub">'+(A.market?esc(A.market):'No market set')+'<span class="st">'+esc(A.status||'New')+'</span>'+(A.provisional?'<span class="st" style="color:#b5791f;background:#fdf1df;border-color:#f0d7ad">Provisional</span>':'')+(A.codeName?('<span class="st" title="Confidential project code name" style="color:#5a4b8a;background:#f2eefb;border-color:#ddd2f3">🔒 '+esc(A.codeName)+'</span>'):'')+'</div></div></div>'
     +'<div class="ktiles">'
       +_tile(esc(domDays()||'—'),'Days on mkt')
-      +_tile(INQUIRIES.length,'Buyer leads')
-      +_tile(NDAS.length,'NDAs')
-      +_tile(TOURS.length,'Tours')
-      +_tile(OFFERS.length,'Offers')
+      +_tile(TOURS.length,'Showings')
+      +_tile(OFFERS.length,'LOIs')
       +_tile(done+'<span style="font-size:13px;color:#8a93a8;font-weight:700">/'+ST.length+'</span>','Stages done')
     +'</div>'
     +'<div class="ovgrid">'
@@ -918,8 +916,8 @@ function render(){
           + (A.provisional ? '<div class="hqnote">Go Live marks this listing Live — do it once financials are verified, value is aligned, and the agreement is signed.</div>' : '')
         ) : '')
       + '<div class="fldrow"><label class="fld">Status</label><select id="f_status">'+opts+'</select></div>'
-      + (PIPES.length?('<div class="fldrow"><label class="fld">Seller pipeline <span style="font-weight:400;color:#8a93a8;font-size:11px">— where this listing sits on the board</span></label><select id="f_pipeline">'+pipeOpts+'</select></div>'):'')
-      + '<div class="fldrow"><label class="fld">Buyer pipeline <span style="font-weight:400;color:#8a93a8;font-size:11px">— the stages buyer leads move through</span></label>'+(BUYERPIPES.length?('<select id="f_buyerpipe">'+buyerPipeOpts+'</select>'+(BUYERPIPES.length===1?'<div style="font-size:11px;color:#8a93a8;margin-top:5px;line-height:1.45">This is your only buyer pipeline, so there’s nothing to switch to. <a href="./rrg_admin_pipelines.html" style="color:#2c5c8f;font-weight:700;text-decoration:none">Add another ↗</a> (set its area to <b>Buyer</b>) to choose between them here.</div>':'')):('<div style="font-size:12px;color:#8a93a8;line-height:1.5;border:1px solid var(--line);border-radius:6px;padding:9px 11px;background:#fbfcff">No buyer pipeline exists yet. <a href="./rrg_admin_pipelines.html" style="color:#2c5c8f;font-weight:700;text-decoration:none">Create one ↗</a> and set its area to <b>Buyer</b> — then you can track buyer leads through their stages right here.</div>'))+'</div>'
+      + (PIPES.length?('<div class="fldrow"><label class="fld">Pipeline <span style="font-weight:400;color:#8a93a8;font-size:11px">— where this listing sits on the board</span></label><select id="f_pipeline">'+pipeOpts+'</select></div>'):'')
+      + ''
       + '<div class="fldrow"><label class="fld">'+((A.assignmentType==='landlord_rep')?'Landlord contact':'Seller contact')+(A.clientPersonId?(' <a href="./rrg_person.html?id='+encodeURIComponent(A.clientPersonId)+'" title="Open the linked contact" style="text-transform:none;letter-spacing:0;font-weight:700;color:#2c5c8f;text-decoration:none;margin-left:6px">open ↗</a>'):'')+'</label><input class="owner" id="f_contact" list="peopleList" value="'+esc(A.contact||'')+'" placeholder="'+((A.assignmentType==='landlord_rep')?'Landlord / property owner — type a contact name to link it':'Client / seller — type a contact name to link it')+'"></div>'
       + '<div class="fldrow"><label class="fld">Referred by</label><input class="owner" id="f_refby" list="peopleList" value="'+esc(A.referredBy||'')+'" placeholder="Contact who referred this"></div>'
       + '<div class="fldrow"><label class="fld">Referral %</label><input class="owner" id="f_refpct" value="'+esc(A.referralPct||'')+'" placeholder="e.g. 10" inputmode="decimal" style="max-width:130px"></div>'
@@ -954,25 +952,19 @@ function render(){
     _sideHtml
     + '<div class="mid">'
     + '<div class="card"><div class="ch"><b>Overview</b><span>'+done+' of '+ST.length+' stages complete</span></div><div class="cb">'+facts+'</div></div>'
-    + financialsCard()
     + photosCard()
     + docsCard()
-    + '<div class="card"><div class="ch"><b>Seller Pipeline</b>'+(pipeName?('<span style="margin-left:8px;color:var(--navy);font-weight:700;font-size:11.5px;background:#eef2fb;border:1px solid #d3ddf3;border-radius:999px;padding:2px 10px">'+esc(pipeName)+'</span>'):'')+'<span>'+started+' of '+ST.length+' started</span></div><div class="track"><div class="hpipe">'+steps+'</div></div></div>'
-    + buyerPipelineCard()
-    + mktCardShell()
+    + '<div class="card"><div class="ch"><b>Leasing Pipeline</b>'+(pipeName?('<span style="margin-left:8px;color:var(--navy);font-weight:700;font-size:11.5px;background:#eef2fb;border:1px solid #d3ddf3;border-radius:999px;padding:2px 10px">'+esc(pipeName)+'</span>'):'')+'<span>'+started+' of '+ST.length+' started</span></div><div class="track"><div class="hpipe">'+steps+'</div></div></div>'
     + '</div>'
     + '<div class="rail">'
-    + inquiriesCard()
-    + matchBuyersShell()
-    + dealCard()
-    + ndasCard()
+    + prospectTenantsCard()
     + toursCard()
     + offersCard()
     + agreementsCardDeal()
+    + dealCard()
     + expensesCardDeal()
     + invoicesCardDeal()
     + roomActivityCard()
-    + sellerReportShell()
     + '</div>'
     + peopleDatalistHTML();
 
@@ -1365,6 +1357,21 @@ async function removeInquiry(id){ if(!await rrgConfirm('Remove this buyer lead f
 function openInqForm(){ var f=document.getElementById('inqForm'); if(!f) return; if(!f.hidden){ f.hidden=true; f.innerHTML=''; return; } f.innerHTML='<div class="ofgrid"><div class="off"><label class="fld">Name</label><input id="iq_name" list="peopleList" placeholder="Buyer name"></div><div class="off"><label class="fld">Email</label><input id="iq_email" placeholder="buyer@email.com"></div><div class="off"><label class="fld">Phone</label><input id="iq_phone" placeholder="(555) 555-5555"></div><div class="off wide"><label class="fld">Note</label><input id="iq_note" placeholder="Where they came from, interest, listing they asked about\u2026"></div></div><div class="ofbtns"><button class="savebtn2" id="iq_save">Add lead</button><button class="cancelbtn" id="iq_cancel">Cancel</button></div>'; f.hidden=false; var sv=document.getElementById('iq_save'); if(sv) sv.addEventListener('click',function(){ var nm=document.getElementById('iq_name').value.trim(), em=document.getElementById('iq_email').value.trim(); if(!nm&&!em){ alert('Enter a name or email.'); return; } saveInquiry({name:nm,email:em,phone:document.getElementById('iq_phone').value.trim(),note:document.getElementById('iq_note').value.trim(),source:'Manual'}); }); var cn=document.getElementById('iq_cancel'); if(cn) cn.addEventListener('click',function(){ f.hidden=true; f.innerHTML=''; }); }
 document.addEventListener('click',function(e){ if(!e.target.closest) return; if(e.target.closest('#addInqBtn')){ openInqForm(); return; } var d=e.target.closest('[data-inqdel]'); if(d){ removeInquiry(d.getAttribute('data-inqdel')); return; } });
 document.addEventListener('change',function(e){ if(!e.target.closest) return; var st=e.target.closest('.inqstat'); if(st){ saveInquiry({id:st.getAttribute('data-inq'),status:st.value}, function(){}); } });
+function prospectTenantsCard(){
+  var s=(A&&A.space)||{};
+  var bits=[];
+  if(s.useType) bits.push('Use: '+esc(s.useType));
+  if(s.sizeSqft) bits.push(esc(s.sizeSqft)+' SF');
+  if(s.askingRent) bits.push('Rent: '+esc(s.askingRent));
+  if(s.availableDate) bits.push('Avail: '+esc(s.availableDate));
+  var summary=bits.length
+    ? '<div style="font-size:12px;color:#6b7488;line-height:1.6;margin-bottom:10px">'+bits.join(' · ')+'</div>'
+    : '<div style="font-size:12px;color:#8a93a8;margin-bottom:10px">Fill in the space details on the left to line up the right tenants.</div>';
+  return '<div class="card" id="prospectTenantsCard"><div class="ch"><b>Prospect tenants</b><span style="margin-left:auto"><a href="./rrg_board.html?pipelineId=p_tenantrep" style="font-size:12px;font-weight:700;color:#23496f;text-decoration:none">Open Tenants ↗</a></span></div>'
+    + '<div class="cb" style="padding:12px 16px">'+summary
+    + '<div style="font-size:12.5px;color:#55607a;line-height:1.55">Match this space to <b>active tenant-rep searches</b> whose criteria fit, plus any direct inbound prospects. Show it under <b>Location Tours</b> below, then log LOIs received under <b>Offers — IOIs &amp; LOIs</b> as deals firm up.</div>'
+    + '</div></div>';
+}
 function offersCard(){
   var body;
   if(!OFFERS.length){
@@ -1693,7 +1700,7 @@ function load(){
   fetch('/api/assignment/'+encodeURIComponent(KEY),{credentials:'same-origin'}).then(function(r){
     if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); });
     return r.json();
-  }).then(function(j){ A=j.assignment; if(A && A.assignmentType==='tenant_rep'){ location.replace('./rrg_tenant_engagement.html?key='+encodeURIComponent(KEY)); return; } if(A && A.assignmentType==='landlord_rep'){ location.replace('./rrg_landlord_engagement.html?key='+encodeURIComponent(KEY)); return; } LEASE=j.lease||null; if(j.statuses) STATUSES=j.statuses; TXN=(A&&A.transaction)||null; if(j.txnStatuses) TXNSTAT=j.txnStatuses; if(j.commStatuses) TXNCOMM=j.commStatuses; RA=j.roomActivity||null; OFFERS=(A&&A.offers)||[]; TOURS=(A&&A.tours)||[]; NDAS=(A&&A.ndas)||[]; INQUIRIES=(A&&A.inquiries)||[]; AGR=j.agreements||[]; ATYPES=j.agreementTypes||[]; PIPES=j.pipelines||[]; BUYERPIPES=j.buyerPipelines||[]; AUTOS=j.automations||[]; if(Array.isArray(j.markets)&&j.markets.length) MARKETS=j.markets; EXP=j.expenses||null; INVX=j.invoices||null; render(); loadPeople(); loadMatchingBuyers(); loadSellerReport(); })
+  }).then(function(j){ A=j.assignment; if(A && A.assignmentType!=='landlord_rep'){ location.replace('./rrg_assignment.html?key='+encodeURIComponent(KEY)); return; } LEASE=j.lease||null; if(j.statuses) STATUSES=j.statuses; TXN=(A&&A.transaction)||null; if(j.txnStatuses) TXNSTAT=j.txnStatuses; if(j.commStatuses) TXNCOMM=j.commStatuses; RA=j.roomActivity||null; OFFERS=(A&&A.offers)||[]; TOURS=(A&&A.tours)||[]; NDAS=(A&&A.ndas)||[]; INQUIRIES=(A&&A.inquiries)||[]; AGR=j.agreements||[]; ATYPES=j.agreementTypes||[]; PIPES=j.pipelines||[]; BUYERPIPES=j.buyerPipelines||[]; AUTOS=j.automations||[]; if(Array.isArray(j.markets)&&j.markets.length) MARKETS=j.markets; EXP=j.expenses||null; INVX=j.invoices||null; render(); loadPeople(); })
   .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this deal.')+'<br><br><a href="./rrg_board.html" style="color:#000E31;font-weight:700">← Back to deals</a></div>'; });
 }
 load();
