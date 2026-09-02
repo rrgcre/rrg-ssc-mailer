@@ -268,10 +268,19 @@ async function searchLeadBodies(username, q, max) {
 // RFC 2047 encode a header value when it contains non-ASCII (em-dashes, accents, smart quotes),
 // so Subject lines don't arrive as mojibake. ASCII passes through untouched.
 function _mimeWord(v){ v = String(v == null ? '' : v); if (/^[\x00-\x7F]*$/.test(v)) return v; return '=?UTF-8?B?' + Buffer.from(v, 'utf8').toString('base64') + '?='; }
+// Build a From header with the sender's display name so recipients see "Van Rinn <van@…>",
+// not the bare address. ASCII names are quoted; non-ASCII names use a MIME encoded-word.
+function _fromAddr(name, email){
+  name = String(name == null ? '' : name).trim();
+  email = String(email || '').trim();
+  if (!name) return email;
+  if (/^[\x20-\x7E]*$/.test(name)) return '"' + name.replace(/(["\\])/g, '\\$1') + '" <' + email + '>';
+  return _mimeWord(name) + ' <' + email + '>';
+}
 async function sendMessage(username, opts) {
   const tok = loadToken(username);
   if (!tok || !tok.email) throw new Error('Gmail not connected.');
-  const from = tok.email;
+  const from = _fromAddr(opts.fromName || tok.name, tok.email);
   const to = String(opts.to || '').trim();
   if (!to) throw new Error('A recipient is required.');
   const subject = String(opts.subject || '(no subject)');

@@ -11146,7 +11146,7 @@ app.post('/api/gmail/send', express.json({ limit: '40mb' }), async (req, res) =>
     const _sigHtml = userSignatureHtml(u); const _sigTxt = userSignatureText(u);
     const _bodyText = (_bodyLooksHtml(body) ? htmlToText(body) : body) + (_sigTxt ? ('\n\n' + _sigTxt) : '');
     const _atts = parseEmailAttachments(req.body && req.body.attachments);
-    const sent = await gmail.sendMessage(u, { to, cc, bcc, subject, body: _bodyText, threadId: b.threadId || '', inReplyTo: b.inReplyTo || '', html: trackedEmailHtml(body, _origin, _tok, _sigHtml), attachments: _atts });
+    const sent = await gmail.sendMessage(u, { to, cc, bcc, subject, body: _bodyText, threadId: b.threadId || '', inReplyTo: b.inReplyTo || '', html: trackedEmailHtml(body, _origin, _tok, _sigHtml), attachments: _atts, fromName: (req.user && req.user.name) || '' });
     let emailLog = null, lastContacted = null;
     if (p) {
       const now = new Date().toISOString();
