@@ -1466,6 +1466,32 @@ var _FLAG_SVG={
 };
 function _mainBadge(){ if(!(typeof CO!=='undefined'&&CO&&CO.id)) return ''; var on=(CO.mainContactId===P.id); return '<button type="button" id="flag_main" class="flagbtn main'+(on?' on':'')+'" onclick="toggleMainContact()" title="'+(on?('Main contact for '+esc(CO.name)):('Set as the main contact for '+esc(CO.name)))+'" aria-pressed="'+(on?'true':'false')+'">'+_FLAG_SVG.main+'</button>'; }
 function _flagBtn(kind,on,tip){ return '<button type="button" id="flag_'+kind+'" class="flagbtn '+kind+(on?' on':'')+'" onclick="toggleFlag(\''+kind+'\')" title="'+tip+'" aria-pressed="'+(on?'true':'false')+'">'+_FLAG_SVG[kind]+'</button>'; }
+// The flag badges are built ONCE into a persistent node and re-mounted into each render's
+// header, instead of being rebuilt in the innerHTML string. Re-rendering the page (the open
+// cascade fires render several times as gmail/tasks/docs resolve) therefore never destroys and
+// recreates the colored badges, so they don't flash. Their on/off state is painted in place.
+var _FLAGHOST=null;
+function _ensureFlagHost(){
+  if(_FLAGHOST) return _FLAGHOST;
+  var h=document.createElement('span'); h.className='flagrow';
+  h.innerHTML=
+     '<button type="button" id="flag_main" class="flagbtn main" onclick="toggleMainContact()">'+_FLAG_SVG.main+'</button>'
+    +'<button type="button" id="flag_vip" class="flagbtn vip" onclick="toggleFlag(\'vip\')" title="VIP">'+_FLAG_SVG.vip+'</button>'
+    +'<button type="button" id="flag_star" class="flagbtn star" onclick="toggleFlag(\'star\')" title="Star / watchlist">'+_FLAG_SVG.star+'</button>'
+    +'<button type="button" id="flag_bad" class="flagbtn bad" onclick="toggleFlag(\'bad\')" title="Bad news / caution">'+_FLAG_SVG.bad+'</button>'
+    +'<button type="button" id="flag_etr" class="flagbtn etr" onclick="toggleFlag(\'etr\')" title="Exclusive tenant rep — we represent this client">'+_FLAG_SVG.etr+'</button>';
+  _FLAGHOST=h; return h;
+}
+function _paintFlags(){
+  if(!_FLAGHOST||typeof P==='undefined'||!P) return;
+  var hasCo=!!(typeof CO!=='undefined'&&CO&&CO.id);
+  var mainOn=hasCo&&(CO.mainContactId===P.id);
+  var mb=_FLAGHOST.querySelector('#flag_main');
+  if(mb){ mb.style.display=hasCo?'':'none'; mb.classList.toggle('on',!!mainOn); mb.title=mainOn?('Main contact for '+((CO&&CO.name)||'')):('Set as the main contact for '+((CO&&CO.name)||'')); mb.setAttribute('aria-pressed',mainOn?'true':'false'); }
+  function _set(id,on){ var b=_FLAGHOST.querySelector('#'+id); if(b){ b.classList.toggle('on',!!on); b.setAttribute('aria-pressed',on?'true':'false'); } }
+  _set('flag_vip',P.vip); _set('flag_star',P.star); _set('flag_bad',P.caution); _set('flag_etr',P.tenantRep);
+}
+function _mountFlags(){ try{ var m=document.getElementById('flagMount'); if(m){ m.appendChild(_ensureFlagHost()); _paintFlags(); } }catch(e){} }
 function toggleMainContact(){ if(!(CO&&CO.id&&P&&P.id)) return; var makeMain=!(CO.mainContactId===P.id); var nv=makeMain?P.id:''; var btn=document.getElementById('flag_main'); if(btn) btn.disabled=true; fetch('/api/company',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:CO.id,mainContactId:nv})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ CO.mainContactId=nv; render(); if(window.rrgToast) rrgToast(makeMain?'Set as main contact ✓':'Removed as main contact'); } else { if(btn) btn.disabled=false; alert((j&&j.error)||'Could not update the main contact.'); } }).catch(function(){ if(btn) btn.disabled=false; alert('Could not reach the server.'); }); }
 function toggleFlag(kind){ if(!ID) return; var field=(kind==='bad')?'caution':(kind==='pref'?'preferred':(kind==='etr'?'tenantRep':kind)); var nv=!(P&&P[field]); var el=document.getElementById('flag_'+kind);
   // Optimistic: flip instantly, revert + warn on failure.
@@ -1625,7 +1651,7 @@ function render(){
   if(P.leadSource&&LEADSOURCES.indexOf(P.leadSource)<0) leadOpts+='<option selected>'+esc(P.leadSource)+'</option>';
   var tagDatalist='<datalist id="alltagslist">'+ALLTAGS.map(function(t){return '<option value="'+esc(t)+'">';}).join('')+'</datalist>';
   document.getElementById('root').innerHTML=
-    '<div class="side"><div class="card"><div class="ch"><b>Contact</b><span class="autonote">Autosaves</span><span class="flagrow" style="margin-left:auto">'+_mainBadge()+_flagBtn('vip',P.vip,'VIP')+_flagBtn('star',P.star,'Star / watchlist')+_flagBtn('bad',P.caution,'Bad news / caution')+_flagBtn('etr',P.tenantRep,'Exclusive tenant rep — we represent this client')+'</span></div><div class="cb">'
+    '<div class="side"><div class="card"><div class="ch"><b>Contact</b><span class="autonote">Autosaves</span><span class="flagrow" id="flagMount" style="margin-left:auto"></span></div><div class="cb">'
       + '<div class="rsec" data-rsec><div class="rsechd">Identity <span class="cv">▾</span></div><div class="rsecbody">'
       + '<div class="photorow"><div class="photoprev" id="p_photoprev" title="Click to upload a photo">'+photoInner+'</div><input type="file" id="p_photofile" accept="image/*" hidden></div>'
       + '<div class="fldrow2"><div><label class="fld">First name *</label><input id="p_first" value="'+esc(P.firstName||'')+'" style="font-weight:700"></div><div><label class="fld">Last name *</label><input id="p_last" value="'+esc(P.lastName||'')+'" style="font-weight:700"></div></div>'
@@ -1653,6 +1679,7 @@ function render(){
     + '<div class="mid">'+statTiles()+activityCard()+'</div>'
     + '<div class="rail">'+relatedRail()+tasksCard()+appointmentsCard()+interestedCard()+buyBoxCard()+tenantBoxCard()+automationsCard()+agreementsCard()+filesCard()+'</div>';
   var root=document.getElementById('root');
+  _mountFlags();
   var pd=document.getElementById('p_delete'); if(pd) pd.addEventListener('click',deletePerson);
   ['p_first','p_last','p_nick','p_title','p_company','p_lead','p_owner','p_url','p_lastcontact','p_notes'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener(el.tagName==='SELECT'?'change':'input',queueSave); });
   _refbySeed();
