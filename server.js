@@ -9772,6 +9772,7 @@ app.post('/api/person', express.json(), (req, res) => {
   if (typeof b.url === 'string') p.url = b.url.slice(0, 300);
   if (b.vip !== undefined) p.vip = !!b.vip;
   if (b.caution !== undefined) p.caution = !!b.caution;
+  if (b.tenantRep !== undefined) p.tenantRep = !!b.tenantRep;
   if (b.star !== undefined) { p.star = !!b.star; if (p.companyId) { try { const _cos = loadCompanies(); const _co = _cos.find(x => x.id === p.companyId); if (_co) { const _anyStar = arr.some(x => x.companyId === p.companyId && x.star); if (_anyStar && !_co.star) { _co.star = true; _co.updatedAt = now; saveCompanies(_cos); } else if (!_anyStar && _co.star) { _co.star = false; _co.updatedAt = now; saveCompanies(_cos); } } } catch (e) {} } }
   if (b.preferred !== undefined) p.preferred = !!b.preferred;
   if (b.tags !== undefined) p.tags = (cleanStrList(b.tags, 30, 40) || []);
