@@ -801,12 +801,52 @@ function fillMarketplaceCard(){
 function mkCollect(){ var o={}; var body=document.getElementById('mktBody'); if(!body) return o; body.querySelectorAll('.mki').forEach(function(el){ var f=el.getAttribute('data-f'); o[f]=(el.type==='checkbox')?el.checked:el.value; }); var ps=body.querySelector('.pubsw'), fs=body.querySelector('.featsw'); o.published=!!(ps&&ps.classList.contains('on')); o.featured=!!(fs&&fs.classList.contains('on')); return o; }
 function mkPreview(){ var pc=document.getElementById('mkPrev'); if(!pc) return; var o=mkCollect(); var units=(o.units&&+o.units>1)?(' · '+o.units+' units'):''; var badge=((o.conceptType||o.conceptKey||'Restaurant')+(o.reAvailable?' · RE available':units)).trim(); var flag=o.flag==='new'?'<span class="mkfl new">New</span>':(o.flag==='price'?'<span class="mkfl price">New price</span>':(o.featured?'<span class="mkfl feat">Featured</span>':'')); var cells=[]; if(o.revenue)cells.push(['Revenue',o.revenue]); if(o.sde)cells.push([o.earnBasis||'SDE',o.sde]); if(o.guide)cells.push(['Guide',o.guide]); var met=cells.length?('<div class="mkmet">'+cells.map(function(c){return '<div><div class="mv">'+esc(c[1])+'</div><div class="mk">'+esc(c[0])+'</div></div>';}).join('')+'</div>'):'<div class="mkmet"><div><div class="mv">Under NDA</div><div class="mk">On request</div></div></div>'; pc.className='mkpc'+(o.featured?' feat':''); pc.innerHTML='<div class="mkth">'+flag+'<span class="mkbadge">'+esc(badge)+'</span></div><div class="mkpb"><div class="mkploc">'+esc(o.loc||'Texas')+'</div><h4>'+esc(o.headline||'Confidential restaurant opportunity')+'</h4>'+met+'<div class="mkplock">🔒 Blind until NDA · Request access →</div></div>'; }
 function mkSave(){ var btn=document.getElementById('mkSave'), msg=document.getElementById('mkMsg'); if(!btn) return; var o=mkCollect(); btn.disabled=true; var was=btn.textContent; btn.textContent='Saving…'; msg.textContent=''; fetch('/api/marketplace/'+encodeURIComponent(KEY),{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(o)}).then(function(r){return r.json();}).then(function(j){ btn.disabled=false; btn.textContent=was; if(j&&j.ok){ if(MKT&&MKT.listing) MKT.listing.teaser=j.teaser; msg.style.color='#1f8a5b'; var _mn=+j.matched||0; msg.textContent=_mn>0?('Saved ✓ · '+_mn+' buyer'+(_mn===1?'':'s')+' matched — added to your tasks'):'Saved ✓'; var status=document.getElementById('mktStatus'); if(status) status.innerHTML=(j.teaser&&j.teaser.published)?'<span style="color:#1f8a5b;font-weight:700">● Public</span>':'<span style="color:#8a93a3">Not published</span>'; try{ if(typeof loadMatchingBuyers==='function') loadMatchingBuyers(); }catch(e){} setTimeout(function(){msg.textContent='';},_mn>0?3600:1600); } else { msg.style.color='#C0261B'; msg.textContent=(j&&j.error)||'Could not save.'; } }).catch(function(){ btn.disabled=false; btn.textContent=was; msg.style.color='#C0261B'; msg.textContent='Could not reach the server.'; }); }
+// The "What this section does" strip defaults to sell-side (business-sale) copy in the static
+// markup. When this file is a tenant-rep search or a landlord/leasing listing, rewrite the
+// one-line summary, the guide link, and the feature grid to match — so the help reads true to
+// the deal you're actually running. Rewritten once per type.
+function _featCard(ic,title,body){ return '<div class="feat"><span class="fic">'+ic+'</span><div><b>'+title+'</b><span>'+body+'</span></div></div>'; }
+function applyFeatStrip(){
+  var t=(A&&A.assignmentType)||'listing';
+  var fs=document.getElementById('lstFeatStrip'); if(!fs) return;
+  if(fs.getAttribute('data-ftype')===t) return; fs.setAttribute('data-ftype',t);
+  var sh=fs.querySelector('#lstFeatHd .sh'), gl=fs.querySelector('#lstFeatHd .hlink'), grid=fs.querySelector('.featgrid');
+  if(t==='tenant_rep'){
+    if(sh) sh.textContent='one file to run a single tenant-rep search end to end — define the need, hunt the space, tour it, close the lease';
+    if(gl) gl.setAttribute('href','rrg_help.html');
+    if(grid) grid.innerHTML=[
+      _featCard('⚙️','Manage it on the left','Status, pipeline, owner, the tenant / client contact, and the representation agreement dates — all autosave as you type.'),
+      _featCard('🎯','Site selection criteria','Capture the tenant’s target — use, size, budget, target trade areas and timeline. This brief is what the whole search runs against.'),
+      _featCard('🚦','Tenant-rep pipeline','Move the engagement through its stages: Needs Analysis → Site Search → Tours → LOI Out → Lease Negotiation → Build-out → Open.'),
+      _featCard('🧲','Space matches','See available spaces from Space Tracker that fit the criteria, so the right options reach your client fast.'),
+      _featCard('🤝','Tours &amp; LOIs','Log every site visit and each letter of intent as the search moves toward a signed lease.'),
+      _featCard('🔑','Lease abstract &amp; commission','Abstract the executed lease and forecast your fee — all tied to this engagement.'),
+      _featCard('🔐','Data room activity','Keep the tenant’s documents and site materials in one confidential room, and see who’s reviewing them.'),
+      _featCard('🧩','Make it yours','Drag any card in the right rail to reorder it and collapse the ones you don’t need — saved on this device.')
+    ].join('');
+  } else if(t==='landlord_rep'){
+    if(sh) sh.textContent='one file to run a single landlord / leasing assignment end to end — market the space, work the prospects, sign the lease';
+    if(gl) gl.setAttribute('href','rrg_landlordrep_help.html');
+    if(grid) grid.innerHTML=[
+      _featCard('⚙️','Manage it on the left','Status, pipeline, the landlord / owner contact, and the listing agreement dates — all autosave as you type.'),
+      _featCard('🏬','The space','Size, asking rate, availability, permitted use and site details for the space you’re leasing.'),
+      _featCard('🚦','Landlord-rep pipeline','Move the listing through its leasing stages, from available to signed.'),
+      _featCard('🧲','Prospect leads &amp; matches','Log every prospective tenant, and see active tenant-rep searches from your book whose criteria fit this space.'),
+      _featCard('🤝','Tours &amp; LOIs','Record each showing and every letter of intent as prospects move toward a lease.'),
+      _featCard('🔑','Lease &amp; commission','Track the deal to a signed lease and bill your fee — all tied to this listing.'),
+      _featCard('🔐','Data room activity','See who opened the room, signed in, and what they reviewed.'),
+      _featCard('🧩','Make it yours','Drag any card in the right rail to reorder it and collapse the ones you don’t need — saved on this device.')
+    ].join('');
+  }
+  // 'listing' (business sale) keeps the original static sell-side markup.
+}
 function render(){
   var s=A.stages||{};
   var ST=activeStages();
   document.getElementById('crumb').textContent=A.business||'Deal file';
   document.getElementById('h1').textContent=A.business||'Deal';
   (function(){ var _t=(A&&A.assignmentType)||'listing'; var _lbl=(_t==='tenant_rep')?'Tenant-rep assignment':((_t==='landlord_rep')?'Landlord-rep listing':'Listing record'); var _wd=(_t==='tenant_rep')?'assignment':'listing'; var _k=document.getElementById('kicker'); if(_k) _k.innerHTML=_lbl+' <span class="kx">— everything for this '+_wd+' in one place</span>'; })();
+  try{ applyFeatStrip(); }catch(e){}
   var sub=[];
   if(A.company&&A.company.id) sub.push('<span>Company: <a href="./rrg_company.html?id='+encodeURIComponent(A.company.id)+'" style="color:#fff;font-weight:700;text-decoration:underline;text-underline-offset:2px">'+esc(A.company.name)+'</a></span>');
   if(A.market) sub.push('<span>'+esc(A.market)+'</span>');
