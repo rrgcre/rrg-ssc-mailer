@@ -1244,7 +1244,7 @@ app.use(cors({ origin: process.env.ALLOW_ORIGIN || '*' }));
 // The document-upload endpoints declare their own larger JSON limits below.
 // Exempt them here so this 1 MB global cap doesn't 413 real uploads first.
 app.use((req, res, next) => {
-  if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/generate-lease' || req.path === '/api/generate-map' || req.path === '/api/valuation-factors' || req.path === '/api/admin/backup/restore' || req.path === '/api/admin/upload-doc' || req.path === '/api/admin/logo' || req.path === '/api/admin/favicon' || req.path === '/api/files' || req.path === '/api/form/build' || req.path === '/api/room-upload' || /^\/api\/room\/[^/]+\/bulk-upload$/.test(req.path) || /^\/api\/company\/[^/]+\/location\/[^/]+\/photo$/.test(req.path) || /^\/api\/company\/[^/]+\/concept\/[^/]+\/logo$/.test(req.path) || /^\/api\/company\/[^/]+\/logo$/.test(req.path) || /^\/api\/agreements\/[^/]+\/doc$/.test(req.path) || /^\/api\/admin\/agreement-templates\/[^/]+\/file$/.test(req.path) || /^\/api\/sign\/[^/]+$/.test(req.path) || req.path.indexOf('/api/admin/import/') === 0 || req.path === '/api/admin/enrich-apply' || req.path === '/api/admin/concepts-apply' || req.path === '/api/admin/cleanup-apply' || req.path === '/api/admin/apply-logos' || req.path === '/api/admin/emaildomain-apply' || req.path === '/api/gmail/send' || /^\/api\/person\/[^/]+\/email$/.test(req.path) || /^\/api\/ticket\/[^/]+\/file$/.test(req.path)) return next();
+  if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/generate-lease' || req.path === '/api/generate-map' || req.path === '/api/valuation-factors' || req.path === '/api/admin/backup/restore' || req.path === '/api/admin/upload-doc' || req.path === '/api/admin/logo' || req.path === '/api/admin/favicon' || req.path === '/api/files' || req.path === '/api/form/build' || req.path === '/api/room-upload' || /^\/api\/room\/[^/]+\/bulk-upload$/.test(req.path) || /^\/api\/company\/[^/]+\/location\/[^/]+\/photo$/.test(req.path) || /^\/api\/company\/[^/]+\/concept\/[^/]+\/logo$/.test(req.path) || /^\/api\/company\/[^/]+\/logo$/.test(req.path) || /^\/api\/agreements\/[^/]+\/doc$/.test(req.path) || /^\/api\/admin\/agreement-templates\/[^/]+\/file$/.test(req.path) || /^\/api\/sign\/[^/]+$/.test(req.path) || req.path.indexOf('/api/admin/import/') === 0 || req.path === '/api/admin/enrich-apply' || req.path === '/api/admin/concepts-apply' || req.path === '/api/admin/cleanup-apply' || req.path === '/api/admin/apply-logos' || req.path === '/api/admin/emaildomain-apply' || req.path === '/api/gmail/send' || /^\/api\/person\/[^/]+\/email$/.test(req.path) || /^\/api\/ticket\/[^/]+\/file$/.test(req.path) || req.path === '/api/subscribers/import') return next();
   express.json({ limit: '1mb' })(req, res, next);
 });
 app.use(express.urlencoded({ extended: false }));
@@ -7973,12 +7973,12 @@ function massAudiencePeople(aud) {
     return true;
   });
 }
-app.post('/api/subscribers/import', express.json({ limit: '3mb' }), (req, res) => {
+app.post('/api/subscribers/import', express.json({ limit: '32mb' }), (req, res) => {
   const b = req.body || {}; const all = loadSubscribers(); const byEmail = {}; all.forEach(s => { byEmail[subKey(s.email)] = s; });
   let added = 0, updated = 0, skipped = 0; const now = new Date().toISOString();
   const tags = Array.isArray(b.tags) ? b.tags.filter(Boolean).map(x => String(x).slice(0, 60)).slice(0, 40) : [];
   const metros = Array.isArray(b.metros) ? b.metros.filter(Boolean).slice(0, 60) : [];
-  function upsert(email, first, last, name, company, source, personId) {
+  function upsert(email, first, last, name, company, source, personId, statusVal) {
     email = subKey(email); if (!massValidEmail(email)) { skipped++; return; }
     let s = byEmail[email];
     if (!s) { s = { id: newSubscriberId(), unsubToken: newUnsubToken(), email: email, createdAt: now, status: 'subscribed' }; all.push(s); byEmail[email] = s; added++; }
@@ -7993,11 +7993,76 @@ app.post('/api/subscribers/import', express.json({ limit: '3mb' }), (req, res) =
     if (b.mode === 'metros') s.mode = 'metros';
     if (source && !s.source) s.source = String(source).slice(0, 80);
     if (personId && !s.personId) s.personId = String(personId);
+    // Explicit status from the import (Active/Unsubscribed/Bounced) wins so an
+    // unsubscribe/bounce recorded elsewhere is honored on re-import.
+    if (statusVal === 'unsubscribed' || statusVal === 'bounced') s.status = statusVal;
+    else if (statusVal === 'subscribed' && s.status !== 'unsubscribed' && s.status !== 'bounced') s.status = 'subscribed';
     if (!s.status) s.status = 'subscribed';
     if (!s.unsubToken) s.unsubToken = newUnsubToken();
     s.updatedAt = now;
   }
-  if (b.text) { String(b.text).split(/[\n\r]+/).forEach(function (line) { const parts = line.split(/[,;\t]/).map(x => x.trim()); const em = parts.find(x => massValidEmail(x)); if (!em) return; const nm = parts.filter(x => x && !massValidEmail(x))[0] || ''; upsert(em, '', '', nm, parts.filter(x => x && !massValidEmail(x))[1] || '', 'import', ''); }); }
+  if (b.text) {
+    // Quote-aware CSV line splitter (handles "Dak & Bop", embedded commas, "" escapes).
+    const csvSplit = function (line) {
+      const out = []; let cur = '', q = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (q) { if (ch === '"') { if (line[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += ch; }
+        else if (ch === '"') q = true;
+        else if (ch === ',' || ch === ';' || ch === '\t') { out.push(cur); cur = ''; }
+        else cur += ch;
+      }
+      out.push(cur); return out.map(x => x.trim());
+    };
+    const statusMap = function (v) {
+      const t = String(v || '').trim().toLowerCase();
+      if (t === 'unsubscribed' || t === 'unsub' || t === 'opted out' || t === 'opt-out' || t === 'opted-out') return 'unsubscribed';
+      if (t === 'bounced' || t === 'bounce' || t === 'hard bounce' || t === 'hard bounced' || t === 'invalid' || t === 'undeliverable') return 'bounced';
+      if (t === 'active' || t === 'subscribed' || t === 'sub' || t === 'ok') return 'subscribed';
+      return '';
+    };
+    const rawLines = String(b.text).split(/\r\n|\r|\n/);
+    // Detect a header row: first non-empty line that names an email column and holds no actual email.
+    let cols = null, startIdx = 0;
+    for (let i = 0; i < rawLines.length; i++) {
+      if (!rawLines[i].trim()) continue;
+      const first = csvSplit(rawLines[i]).map(x => x.toLowerCase());
+      if (first.some(x => x === 'email' || x === 'email address' || x === 'e-mail' || x === 'emailaddress') && !first.some(x => massValidEmail(x))) { cols = first; startIdx = i + 1; }
+      break;
+    }
+    const colIdx = function (names) { if (!cols) return -1; for (const n of names) { const k = cols.indexOf(n); if (k >= 0) return k; } return -1; };
+    const iEmail = colIdx(['email', 'email address', 'e-mail', 'emailaddress']);
+    const iStatus = colIdx(['status', 'state', 'subscription', 'subscription status', 'subscriber status']);
+    const iFirst = colIdx(['first', 'first name', 'firstname', 'fname', 'given name']);
+    const iLast = colIdx(['last', 'last name', 'lastname', 'lname', 'surname']);
+    const iName = colIdx(['name', 'full name', 'fullname', 'contact', 'contact name']);
+    const iCompany = colIdx(['company', 'business', 'organization', 'organisation', 'org', 'account', 'company name']);
+    const isDate = function (x) { return /^\d{1,4}[\/\-]\d{1,2}[\/\-]\d{1,4}$/.test(x) || /^\d{4}-\d{2}-\d{2}/.test(x); };
+    for (let i = startIdx; i < rawLines.length; i++) {
+      const line = rawLines[i]; if (!line.trim()) continue;
+      const parts = csvSplit(line);
+      let em = '', st = '', fn = '', ln = '', nm = '', co = '';
+      if (cols) {
+        em = iEmail >= 0 ? (parts[iEmail] || '') : (parts.find(x => massValidEmail(x)) || '');
+        st = iStatus >= 0 ? statusMap(parts[iStatus]) : '';
+        fn = iFirst >= 0 ? (parts[iFirst] || '') : '';
+        ln = iLast >= 0 ? (parts[iLast] || '') : '';
+        nm = iName >= 0 ? (parts[iName] || '') : '';
+        co = iCompany >= 0 ? (parts[iCompany] || '') : '';
+      } else {
+        // No header: email is the valid-email token; an Active/Unsubscribed/Bounced token is status;
+        // drop date/number tokens; whatever name tokens remain fill first/last.
+        em = parts.find(x => massValidEmail(x)) || '';
+        const rest = parts.filter(x => x && !massValidEmail(x));
+        const stTok = rest.find(x => statusMap(x));
+        if (stTok) st = statusMap(stTok);
+        const nameToks = rest.filter(x => x !== stTok && !isDate(x) && !/^\d+$/.test(x));
+        fn = nameToks[0] || ''; ln = nameToks[1] || '';
+      }
+      if (!em || !massValidEmail(subKey(em))) continue;
+      upsert(em, fn, ln, nm, co, 'import', '', st);
+    }
+  }
   if (b.fromContacts) { massAudiencePeople(b.audience).forEach(function (p) { upsert(preferredEmailOf(p), personFirst(p), personLast(p), p.name || '', p.company || '', 'contacts', p.id); }); }
   if (Array.isArray(b.list)) { b.list.forEach(function (r) { upsert(r.email, r.firstName || '', r.lastName || '', r.name || '', r.company || '', r.source || 'import', r.personId || ''); }); }
   saveSubscribers(all); res.json({ ok: true, added, updated, skipped, stats: subStats() });
