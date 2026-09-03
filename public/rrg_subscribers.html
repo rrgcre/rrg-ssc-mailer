@@ -3,209 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>FullServe — Subscribers</title>
-<script src="/rrg_list.js"></script>
+<title>FullServe — Subscribers moved</title>
+<meta http-equiv="refresh" content="0; url=./rrg_mass_studio.html">
 <style>
-:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;}
-*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);}
-.wrap{max-width:1160px;margin:0 auto;padding:24px 28px 70px;}
-.pgh{font-size:26px;font-weight:700;color:var(--navy);margin:6px 0 2px;}
-.pgs{color:var(--muted);font-size:13.5px;margin-bottom:18px;max-width:840px;line-height:1.5;}
-.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;}
-@media(max-width:720px){.tiles{grid-template-columns:repeat(2,1fr);}}
-.tile{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;box-shadow:0 6px 24px rgba(10,20,50,.05);}
-.tile .n{font-size:26px;font-weight:700;color:var(--navy);line-height:1;}
-.tile .l{font-size:12px;color:var(--muted);margin-top:4px;}
-.card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 24px rgba(10,20,50,.06);overflow:hidden;margin-bottom:18px;}
-.hd{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;flex-wrap:wrap;} .hd b{color:var(--navy);font-size:15px;} .hd .sp{margin-left:auto;display:flex;gap:8px;align-items:center;}
-.cb{padding:6px 8px 10px;}
-.filt{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:12px 12px 4px;}
-.filt input[type=text],.filt select{font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--ink);}
-.filt input[type=text]{min-width:220px;}
-.badge{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;border-radius:5px;padding:2px 8px;}
-.badge.sub{color:#1f6f4e;background:#e7f5ee;border:1px solid #bce3cd;}
-.badge.un{color:#8a5a1f;background:#fbf1e2;border:1px solid #ecd9b8;}
-.badge.tag{color:#4a4370;background:#efedf9;border:1px solid #dcd7f0;margin-right:3px;}
-.badge.met{color:#0f5c3a;background:#e6f4ec;border:1px solid #c2e4d1;margin-right:3px;}
-.btn{font:inherit;font-size:12.5px;font-weight:700;padding:8px 13px;border:1px solid #cdd6e6;border-radius:9px;background:#fff;color:var(--navy);cursor:pointer;white-space:nowrap;}
-.btn:hover{background:#f4f7fb;} .btn.sm{padding:6px 11px;font-size:12px;}
-.btn.pri{background:var(--navy);color:#fff;border-color:var(--navy);} .btn.pri:hover{background:#0a1a44;}
-.btn.ghost{background:#fff;} .btn.danger{color:var(--red);border-color:#f0c9c6;} .btn.danger:hover{background:#fdeceb;}
-.btn:disabled{opacity:.5;cursor:default;}
-.acts{display:flex;gap:6px;justify-content:flex-end;}
-.fld{margin-bottom:12px;} .fld label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);font-weight:700;margin-bottom:6px;}
-.fld input[type=text],.fld textarea,.fld select{font:inherit;font-size:14px;padding:9px 11px;border:1px solid var(--line);border-radius:9px;width:100%;color:var(--ink);background:#fff;}
-.fld textarea{min-height:120px;resize:vertical;line-height:1.5;}
-.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;} @media(max-width:640px){.row2{grid-template-columns:1fr;}}
-.chips{display:flex;flex-wrap:wrap;gap:7px;}
-.chip{font:inherit;font-size:12px;font-weight:600;padding:5px 11px;border:1px solid var(--line);border-radius:100px;background:#fff;color:var(--muted);cursor:pointer;}
-.chip.on{background:#0f5c3a;color:#fff;border-color:#0f5c3a;}
-.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;}
-.seg label{font-size:12.5px;font-weight:700;padding:8px 14px;cursor:pointer;color:var(--muted);background:#fff;} .seg label.on{background:var(--navy);color:#fff;} .seg input{display:none;}
-.msg{font-size:12.5px;font-weight:700;} .msg.ok{color:var(--green);} .msg.err{color:var(--red);}
-.empty{padding:30px 20px;text-align:center;color:var(--soft);font-size:13.5px;}
-.hint{font-size:12px;color:var(--soft);margin-top:4px;}
-.tabs{display:flex;gap:6px;} .tab{font:inherit;font-size:12.5px;font-weight:700;padding:7px 13px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--muted);cursor:pointer;} .tab.on{background:var(--navy);color:#fff;border-color:var(--navy);}
-/* "What this section does" strip */
-.feats{background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 4px 18px rgba(10,20,50,.05);overflow:hidden;margin-bottom:18px;}
-.featshd{display:flex;align-items:center;gap:10px;padding:13px 18px;cursor:pointer;user-select:none;}
-.featshd b{font-size:14px;color:var(--navy);}
-.featshd .sh{font-size:11.5px;color:var(--muted);font-weight:600;}
-.featshd .hlink{margin-left:auto;font-size:11.5px;font-weight:700;color:#2c5c8f;text-decoration:none;white-space:nowrap;}
-.featshd .hlink:hover{text-decoration:underline;}
-.featshd .chev{color:var(--muted);font-size:12px;transition:transform .15s;}
-.feats.collapsed .chev{transform:rotate(-90deg);}
-.feats.collapsed .featgrid{display:none;}
-.featgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1px;background:var(--line);border-top:1px solid var(--line);}
-.feat{background:#fff;display:flex;gap:11px;padding:13px 18px;align-items:flex-start;}
-.feat .fic{font-size:17px;line-height:1.25;flex:none;width:24px;text-align:center;}
-.feat b{display:block;font-size:12.5px;color:var(--navy);font-weight:800;}
-.feat span{display:block;font-size:11.5px;color:var(--muted);line-height:1.45;margin-top:2px;}
+body{margin:0;background:#eef1f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;color:#1a2236;}
+.card{max-width:520px;margin:80px auto;background:#fff;border:1px solid #e6e9f0;border-radius:14px;padding:34px 32px;box-shadow:0 8px 30px rgba(11,26,56,.06);}
+h1{color:#000E31;font-size:20px;margin:0 0 8px;}
+p{color:#6b7488;font-size:14px;line-height:1.6;margin:0 0 18px;}
+a{display:inline-block;background:#000E31;color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:11px 20px;border-radius:9px;}
 </style>
-<script src="/rrg_brand.js"></script>
-<script src="/rrg_savedviews.js"></script>
 </head>
 <body>
-<div class="wrap">
-  <div style="margin:0 0 16px;padding:12px 15px;background:#fff5e6;border:1px solid #f0d9a8;border-left:4px solid #d9932b;border-radius:9px;font-size:13px;line-height:1.5;color:#6b5220">
-    <b>This list is being retired.</b> Bulk email now runs from <a href="rrg_mass_studio.html" style="color:#8a5a12;font-weight:700">Email Studio</a>, which sends through Amazon SES with proper unsubscribe, bounce and complaint handling. In Email Studio → Subscribers, use <b>Import from legacy list</b> to bring this list across (it carries over unsubscribes and bounces). This page stays available for reference during the switch.
-  </div>
-  <h1 class="pgh">Subscribers</h1>
-  <div class="pgs">Your marketing audience — the people who get mass emails — kept in its own list, separate from your CRM contacts. Add subscribers by hand, paste a list, or pull them in from your contacts. Each subscriber controls their own preferences (all emails, only certain areas, or unsubscribed), and every mass email honors it.</div>
-  <div class="feats" id="subFeats">
-    <div class="featshd" id="subFeatHd"><b>What this section does</b><span class="sh">build and segment your marketing audience — then target the right campaign to the right people</span><a class="hlink" href="rrg_subscribers_help.html" target="_blank" rel="noopener" onclick="event.stopPropagation()">Open the full guide ↗</a><span class="chev">▾</span></div>
-    <div class="featgrid">
-      <a class="feat" href="rrg_subscribers_help.html#segment" target="_blank" rel="noopener" style="text-decoration:none"><span class="fic">🎯</span><div><b>Segment the database</b><span>Filter by type (Broker / Restaurant / Buyer), area of interest, and status — narrow to any slice you'd send a campaign to.</span></div></a>
-      <a class="feat" href="rrg_subscribers_help.html#fields" target="_blank" rel="noopener" style="text-decoration:none"><span class="fic">🗂️</span><div><b>The fields you track</b><span>Name, email, company, type, areas of interest, status and date added — at a glance in the list, in full on the detail page.</span></div></a>
-      <a class="feat" href="rrg_subscribers_help.html#detail" target="_blank" rel="noopener" style="text-decoration:none"><span class="fic">✏️</span><div><b>A detail page per subscriber</b><span>Click a name to open a dedicated page and manage everything — type, areas, status, tags.</span></div></a>
-      <a class="feat" href="rrg_subscribers_help.html#add" target="_blank" rel="noopener" style="text-decoration:none"><span class="fic">➕</span><div><b>Add &amp; import</b><span>Add one by hand, paste a list, or pull people straight from your CRM contacts by type or tag.</span></div></a>
-      <a class="feat" href="rrg_subscribers_help.html#prefs" target="_blank" rel="noopener" style="text-decoration:none"><span class="fic">📮</span><div><b>Preferences are honored</b><span>Each subscriber gets all emails or only their chosen areas — every mass email respects it, and unsubscribes are never emailed.</span></div></a>
-      <a class="feat" href="rrg_subscribers_help.html#mass" target="_blank" rel="noopener" style="text-decoration:none"><span class="fic">✉️</span><div><b>Feeds Bulk Email</b><span>The segment you build here is exactly who a campaign goes to over in Bulk Email.</span></div></a>
-      <a class="feat" href="rrg_subscribers_help.html#engagement" target="_blank" rel="noopener" style="text-decoration:none"><span class="fic">📊</span><div><b>See every campaign they got</b><span>Each subscriber's detail page shows a NetSuite-style history — every campaign sent, with opens, clicks, last sent and last opened.</span></div></a>
-      <a class="feat" href="rrg_subscribers_help.html#status" target="_blank" rel="noopener" style="text-decoration:none"><span class="fic">⚠️</span><div><b>Active, Unsubscribed or Bounced</b><span>Mark a hard-failing address Bounced — bounced and unsubscribed are both held out of every send automatically.</span></div></a>
-    </div>
-  </div>
-  <script>(function(){ var fs=document.getElementById('subFeats'), hd=document.getElementById('subFeatHd'); if(!fs||!hd) return; try{ if(localStorage.getItem('rrg_subfeats')!=='1') fs.classList.add('collapsed'); }catch(e){ fs.classList.add('collapsed'); } hd.addEventListener('click',function(){ var col=fs.classList.toggle('collapsed'); try{ localStorage.setItem('rrg_subfeats', col?'0':'1'); }catch(e){} }); })();</script>
-  <div id="tiles" class="tiles"></div>
-  <div id="root"></div>
+<div class="card">
+  <h1>Subscribers has moved</h1>
+  <p>The subscriber list now lives in <b>Email Studio</b>, which sends through Amazon SES with proper unsubscribe, bounce and complaint handling. Redirecting you there now…</p>
+  <a href="./rrg_mass_studio.html">Open Email Studio →</a>
 </div>
-<script>
-var SUBS=[], META={allTags:[],metros:[],contactTypes:[],contactTags:[],stats:{}}, CTL=null, BUILT=false, EDIT=null, ESTATE={mode:'all',metros:[],status:'subscribed'}, DEL_ARM=false;
-var FILT={status:'',type:'',tag:'',metro:'',q:''};
-var SUB_TYPES=['Broker','Restaurant','Buyer'];
-var IMP={mode:'metros',metros:[],ctypes:[],ctags:[]};
-function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
-function api(m,u,b){return fetch(u,{method:m,credentials:'same-origin',headers:b?{'Content-Type':'application/json'}:undefined,body:b?JSON.stringify(b):undefined}).then(function(r){return r.json();});}
-function qstr(){ var p=[]; if(FILT.status)p.push('status='+encodeURIComponent(FILT.status)); if(FILT.type)p.push('type='+encodeURIComponent(FILT.type)); if(FILT.tag)p.push('tag='+encodeURIComponent(FILT.tag)); if(FILT.metro)p.push('metro='+encodeURIComponent(FILT.metro)); if(FILT.q)p.push('q='+encodeURIComponent(FILT.q)); return p.length?('?'+p.join('&')):''; }
-function fmtDate(d){ if(!d) return '—'; try{ return new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }catch(e){ return String(d); } }
-
-function drawTiles(){ var s=META.stats||{}; var el=document.getElementById('tiles'); if(!el) return; el.innerHTML=[['Total',s.total||0],['Active',s.subscribed||0],['Market-only',s.metrosOnly||0],['Unsubscribed',s.unsubscribed||0]].map(function(t){ return '<div class="tile"><div class="n">'+t[1]+'</div><div class="l">'+t[0]+'</div></div>'; }).join(''); }
-
-var LIST_SHELL='<div class="card"><div class="hd"><b>Subscribers</b><span class="meta" id="scount" style="color:var(--muted);font-size:12.5px"></span><span class="sp"><button class="btn sm" id="b_import">Import</button><button class="btn sm pri" id="b_new">+ Add subscriber</button></span></div>'
-  +'<div class="filt"><input type="text" id="f_q" placeholder="Search name, email, company…"><select id="f_type"><option value="">All types</option></select><select id="f_metro"><option value="">All areas</option></select><select id="f_status"><option value="">All statuses</option><option value="subscribed">Active</option><option value="unsubscribed">Unsubscribed</option><option value="bounced">Bounced</option></select><select id="f_tag"><option value="">All tags</option></select><button type="button" id="subSavedBtn" class="btn sm" style="margin-left:6px">★ Saved</button></div>'
-  +'<div class="cb"><div id="slist"><div class="empty">Loading…</div></div></div></div><div id="panel"></div>';
-
-function statusBadge(s){ return s.status==='unsubscribed'?'<span class="badge un">Unsub</span>':(s.status==='bounced'?'<span class="badge un">Bounced</span>':'<span class="badge sub">Active</span>'); }
-function prefCell(s){ if(s.status==='unsubscribed') return '<span class="meta" style="color:var(--soft)">—</span>'; if(s.mode==='metros'){ var m=(s.metros||[]); return m.length?m.slice(0,3).map(function(x){return '<span class="badge met">'+esc(x)+'</span>';}).join('')+(m.length>3?(' +'+(m.length-3)):''):'<span class="meta" style="color:var(--soft)">any area</span>'; } return '<span class="badge met">All areas</span>'; }
-function tagCell(s){ var t=(s.tags||[]); return t.length?t.slice(0,3).map(function(x){return '<span class="badge tag">'+esc(x)+'</span>';}).join('')+(t.length>3?(' +'+(t.length-3)):''):'<span class="meta" style="color:var(--soft)">—</span>'; }
-function actionsCell(s){ return '<div class="acts"><button class="btn ghost sm" data-edit="'+esc(s.id)+'">Open</button><button class="btn danger sm" data-del="'+esc(s.id)+'">Delete</button></div>'; }
-var TYPE_COLOR={Broker:['#eef2fb','#23496f','#d3ddf3'],Restaurant:['#fdf1df','#b5791f','#f0d7ad'],Buyer:['#e7f5ee','#1f8a5b','#bce3cd']};
-function typeCell(s){ if(!s.type) return '<span class="meta" style="color:var(--soft)">—</span>'; var c=TYPE_COLOR[s.type]||['#eef1f6','#5b6472','#e0e4ec']; return '<span class="badge" style="color:'+c[1]+';background:'+c[0]+';border:1px solid '+c[2]+'">'+esc(s.type)+'</span>'; }
-function listCfg(){ return { mount:'#slist', data:SUBS, key:'subscribers',
-  empty:'<div class="empty">No subscribers here yet. Use <b>+ Add subscriber</b> or <b>Import</b>.</div>',
-  rowId:function(s){return s.id;}, defaultSort:0, defaultDir:1,
-  columns:[
-    { label:'Name', sort:function(a,b){return RRGList.cmp(a.name,b.name);}, cell:function(s){ return '<a class="lk" href="./rrg_subscriber.html?id='+encodeURIComponent(s.id)+'" style="color:var(--navy);font-weight:600;text-decoration:none">'+esc(s.name||s.email)+'</a>'; } },
-    { label:'Email', sort:function(a,b){return RRGList.cmp(a.email,b.email);}, cell:function(s){ return '<span class="meta" style="color:var(--ink)">'+esc(s.email)+'</span>'; } },
-    { label:'Company', sort:function(a,b){return RRGList.cmp(a.company,b.company);}, cell:function(s){ return s.company?esc(s.company):'<span class="meta" style="color:var(--soft)">—</span>'; } },
-    { label:'Type', sort:function(a,b){return RRGList.cmp(a.type,b.type);}, cell:typeCell },
-    { label:'Areas', sortable:false, cell:prefCell },
-    { label:'Status', sort:function(a,b){return RRGList.cmp(a.status,b.status);}, cell:statusBadge },
-    { label:'Added', sort:function(a,b){return RRGList.cmp(a.createdAt,b.createdAt);}, cell:function(s){ return '<span class="meta" style="color:var(--soft)">'+esc(fmtDate(s.createdAt))+'</span>'; } },
-    { label:'', sortable:false, cell:actionsCell }
-  ] }; }
-function refreshList(){ if(CTL) CTL.refresh(SUBS); else CTL=RRGList.create(listCfg()); var c=document.getElementById('scount'); if(c) c.textContent=SUBS.length+(SUBS.length===2000?'+':'')+' shown'; }
-function curById(id){ return SUBS.filter(function(s){return s.id===id;})[0]||null; }
-
-function metroChips(sel){ return (META.metros||[]).map(function(m){ var on=(sel||[]).indexOf(m)>=0; return '<button type="button" class="chip'+(on?' on':'')+'" data-metrochip="'+esc(m)+'">'+esc(m)+'</button>'; }).join(''); }
-
-function editor(){
-  var host=document.getElementById('panel'); if(!host) return;
-  if(!EDIT){ host.innerHTML=''; return; }
-  var s=EDIT;
-  ESTATE.mode=(s.mode==='metros'?'metros':'all'); ESTATE.metros=(s.metros||[]).slice(); ESTATE.status=(s.status==='unsubscribed'?'unsubscribed':'subscribed');
-  host.innerHTML='<div class="card"><div class="hd"><b>'+(s.id?'Edit subscriber':'Add subscriber')+'</b><span class="sp"><span class="msg" id="emsg"></span>'+(s.id?'<button class="btn danger sm" id="e_del">Delete</button>':'')+'<button class="btn ghost sm" id="e_close">Close</button><button class="btn pri" id="e_save">Save</button></span></div><div class="cb" style="padding:16px 18px">'
-    +'<div class="row2"><div class="fld"><label>Email</label><input type="text" id="e_email" value="'+esc(s.email||'')+'" placeholder="name@email.com"></div><div class="fld"><label>Company</label><input type="text" id="e_company" value="'+esc(s.company||'')+'"></div></div>'
-    +'<div class="row2"><div class="fld"><label>First name</label><input type="text" id="e_first" value="'+esc(s.firstName||'')+'"></div><div class="fld"><label>Last name</label><input type="text" id="e_last" value="'+esc(s.lastName||'')+'"></div></div>'
-    +'<div class="fld"><label>Tags (comma-separated)</label><input type="text" id="e_tags" value="'+esc((s.tags||[]).join(', '))+'" placeholder="e.g. buyer-list, houston-buyers"></div>'
-    +'<div class="fld"><label>Status</label><div class="seg" id="e_statusseg"><label id="es_sub"'+(ESTATE.status==='subscribed'?' class="on"':'')+'><input type="radio" name="est" value="subscribed"'+(ESTATE.status==='subscribed'?' checked':'')+'>Active</label><label id="es_un"'+(ESTATE.status==='unsubscribed'?' class="on"':'')+'><input type="radio" name="est" value="unsubscribed"'+(ESTATE.status==='unsubscribed'?' checked':'')+'>Unsubscribed</label></div></div>'
-    +'<div class="fld"><label>Email preference</label><div class="seg" id="e_modeseg"><label id="em_all"'+(ESTATE.mode==='all'?' class="on"':'')+'><input type="radio" name="emd" value="all"'+(ESTATE.mode==='all'?' checked':'')+'>All emails</label><label id="em_met"'+(ESTATE.mode==='metros'?' class="on"':'')+'><input type="radio" name="emd" value="metros"'+(ESTATE.mode==='metros'?' checked':'')+'>Only specific markets</label></div><div class="hint">If “only specific markets”, pick which ones below — this subscriber gets a campaign only if it overlaps.</div></div>'
-    +'<div class="fld" id="e_metrowrap" style="'+(ESTATE.mode==='metros'?'':'display:none')+'"><label>Markets</label><div class="chips" id="e_metros">'+metroChips(ESTATE.metros)+'</div></div>'
-    +'</div></div>';
-  document.getElementById('e_close').onclick=function(){ EDIT=null; editor(); };
-  document.getElementById('e_save').onclick=saveSub;
-  var ed=document.getElementById('e_del'); if(ed) ed.onclick=delSub;
-  var ss=document.getElementById('e_statusseg'); Array.prototype.forEach.call(ss.querySelectorAll('input'),function(r){ r.onchange=function(){ ESTATE.status=r.value; document.getElementById('es_sub').classList.toggle('on',r.value==='subscribed'); document.getElementById('es_un').classList.toggle('on',r.value==='unsubscribed'); }; });
-  var ms=document.getElementById('e_modeseg'); Array.prototype.forEach.call(ms.querySelectorAll('input'),function(r){ r.onchange=function(){ ESTATE.mode=r.value; document.getElementById('em_all').classList.toggle('on',r.value==='all'); document.getElementById('em_met').classList.toggle('on',r.value==='metros'); document.getElementById('e_metrowrap').style.display=(r.value==='metros')?'':'none'; }; });
-  host.scrollIntoView({behavior:'smooth',block:'start'});
-}
-function emsg(t,cls){ var m=document.getElementById('emsg'); if(m){ m.textContent=t; m.className='msg '+(cls||''); if(t) setTimeout(function(){ if(m.textContent===t){m.textContent='';m.className='msg';} },3000); } }
-function saveSub(){
-  var email=(document.getElementById('e_email').value||'').trim(); if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ emsg('Enter a valid email.','err'); return; }
-  var body={ email:email, company:(document.getElementById('e_company').value||'').trim(), firstName:(document.getElementById('e_first').value||'').trim(), lastName:(document.getElementById('e_last').value||'').trim(), tags:(document.getElementById('e_tags').value||'').split(',').map(function(x){return x.trim();}).filter(Boolean), status:ESTATE.status, mode:ESTATE.mode, metros:ESTATE.metros };
-  if(EDIT&&EDIT.id) body.id=EDIT.id;
-  var b=document.getElementById('e_save'); b.disabled=true;
-  api('POST','/api/subscribers',body).then(function(j){ b.disabled=false; if(!j.ok){ emsg(j.error||'Save failed.','err'); return; } EDIT=null; load(); }); }
-function delSub(){ if(!EDIT||!EDIT.id) return; if(!DEL_ARM){ DEL_ARM=true; var b=document.getElementById('e_del'); b.textContent='Really delete?'; setTimeout(function(){ DEL_ARM=false; var x=document.getElementById('e_del'); if(x)x.textContent='Delete'; },3000); return; } DEL_ARM=false; api('DELETE','/api/subscribers/'+encodeURIComponent(EDIT.id)).then(function(j){ if(j&&j.ok){ EDIT=null; load(); } else emsg((j&&j.error)||'Delete failed.','err'); }); }
-
-function importPanel(){
-  var host=document.getElementById('panel'); if(!host) return;
-  host.innerHTML='<div class="card"><div class="hd"><b>Import subscribers</b><span class="sp"><span class="msg" id="imsg"></span><button class="btn ghost sm" id="i_close">Close</button></span></div><div class="cb" style="padding:16px 18px">'
-    +'<div class="tabs" style="margin-bottom:14px"><button class="tab on" id="tab_paste">Paste a list</button><button class="tab" id="tab_contacts">From contacts</button></div>'
-    +'<div id="imp_paste"><div class="fld"><label>Paste emails — one per line (optionally: email, name, company)</label><textarea id="i_text" placeholder="maria@blueagave.com, Maria Lopez, Blue Agave Cantina&#10;chef@brasserie.com"></textarea></div>'
-      +'<div class="fld"><label>Apply tags to these (comma-separated, optional)</label><input type="text" id="i_tags" placeholder="e.g. imported, buyer-list"></div>'
-      +'<button class="btn pri" id="i_go_paste">Import list</button></div>'
-    +'<div id="imp_contacts" style="display:none"><div class="hint" style="margin-bottom:10px">Pull people from your CRM contacts into the subscriber list. Filter by type or tag, or leave blank for everyone with an email.</div>'
-      +'<div class="row2"><div class="fld"><label>Contact types</label><div class="chips" id="i_ctypes"></div></div><div class="fld"><label>Contact tags</label><div class="chips" id="i_ctags"></div></div></div>'
-      +'<div class="fld"><label>Tag the imported subscribers (optional)</label><input type="text" id="i_ctagapply" placeholder="e.g. from-contacts"></div>'
-      +'<div style="display:flex;gap:10px;align-items:center"><button class="btn pri" id="i_go_contacts">Import <span id="i_count"></span> from contacts</button><span class="hint" id="i_counthint"></span></div></div>'
-    +'</div></div>';
-  document.getElementById('i_close').onclick=function(){ EDIT=null; editor(); };
-  document.getElementById('tab_paste').onclick=function(){ this.classList.add('on'); document.getElementById('tab_contacts').classList.remove('on'); document.getElementById('imp_paste').style.display=''; document.getElementById('imp_contacts').style.display='none'; };
-  document.getElementById('tab_contacts').onclick=function(){ this.classList.add('on'); document.getElementById('tab_paste').classList.remove('on'); document.getElementById('imp_paste').style.display='none'; document.getElementById('imp_contacts').style.display=''; drawImpChips(); refreshContactCount(); };
-  document.getElementById('i_go_paste').onclick=function(){ var text=document.getElementById('i_text').value||''; if(!text.trim()){ imsg('Paste at least one email.','err'); return; } var tags=(document.getElementById('i_tags').value||'').split(',').map(function(x){return x.trim();}).filter(Boolean); var b=this; b.disabled=true; imsg('Importing…'); api('POST','/api/subscribers/import',{text:text,tags:tags}).then(function(j){ b.disabled=false; if(j&&j.ok){ imsg('Added '+j.added+', updated '+j.updated+(j.skipped?(', skipped '+j.skipped):'')+' ✓','ok'); load(); } else imsg((j&&j.error)||'Import failed.','err'); }); };
-  document.getElementById('i_go_contacts').onclick=function(){ var tags=(document.getElementById('i_ctagapply').value||'').split(',').map(function(x){return x.trim();}).filter(Boolean); var b=this; b.disabled=true; imsg('Importing from contacts…'); api('POST','/api/subscribers/import',{fromContacts:true,audience:{types:IMP.ctypes,tags:IMP.ctags},tags:tags}).then(function(j){ b.disabled=false; if(j&&j.ok){ imsg('Added '+j.added+', updated '+j.updated+' ✓','ok'); load(); } else imsg((j&&j.error)||'Import failed.','err'); }); };
-  host.scrollIntoView({behavior:'smooth',block:'start'});
-}
-function imsg(t,cls){ var m=document.getElementById('imsg'); if(m){ m.textContent=t; m.className='msg '+(cls||''); if(t&&cls==='ok') setTimeout(function(){ if(m.textContent===t){m.textContent='';m.className='msg';} },3500); } }
-function drawImpChips(){ var ct=document.getElementById('i_ctypes'), cg=document.getElementById('i_ctags'); if(ct) ct.innerHTML=(META.contactTypes||[]).map(function(t){var on=IMP.ctypes.indexOf(t)>=0;return '<button type="button" class="chip'+(on?' on':'')+'" data-ictype="'+esc(t)+'">'+esc(t)+'</button>';}).join('')||'<span class="hint">None</span>'; if(cg) cg.innerHTML=(META.contactTags||[]).slice(0,40).map(function(t){var on=IMP.ctags.indexOf(t)>=0;return '<button type="button" class="chip'+(on?' on':'')+'" data-ictag="'+esc(t)+'">'+esc(t)+'</button>';}).join('')||'<span class="hint">None</span>'; }
-function refreshContactCount(){ var c=document.getElementById('i_count'); api('GET','/api/subscribers/contact-count?audience='+encodeURIComponent(JSON.stringify({types:IMP.ctypes,tags:IMP.ctags}))).then(function(j){ if(c) c.textContent=(j&&j.ok)?('('+j.count+')'):''; }); }
-
-function load(){ return api('GET','/api/subscribers'+qstr()).then(function(j){ if(!j||!j.ok) return; SUBS=j.subscribers||[]; META.stats=j.stats||META.stats; META.allTags=j.allTags||[]; META.metros=j.metros||[]; render(); }); }
-function render(){ var root=document.getElementById('root'); if(!BUILT){ root.innerHTML=LIST_SHELL; BUILT=true; wireShell(); } drawTiles(); refreshList(); syncFilterOptions(); }
-function syncFilterOptions(){ var ft=document.getElementById('f_tag'); if(ft){ var cur=FILT.tag; ft.innerHTML='<option value="">All tags</option>'+(META.allTags||[]).map(function(t){return '<option value="'+esc(t)+'"'+(cur===t?' selected':'')+'>'+esc(t)+'</option>';}).join(''); } var fm=document.getElementById('f_metro'); if(fm){ var cm=FILT.metro; fm.innerHTML='<option value="">All areas</option>'+(META.metros||[]).map(function(t){return '<option value="'+esc(t)+'"'+(cm===t?' selected':'')+'>'+esc(t)+'</option>';}).join(''); } var fy=document.getElementById('f_type'); if(fy){ var cy=FILT.type; fy.innerHTML='<option value="">All types</option>'+((META.types&&META.types.length?META.types:SUB_TYPES)).map(function(t){return '<option value="'+esc(t)+'"'+(cy===t?' selected':'')+'>'+esc(t)+'</option>';}).join(''); } }
-function wireShell(){
-  document.getElementById('b_new').onclick=function(){ location.href='./rrg_subscriber.html?new=1'; };
-  document.getElementById('b_import').onclick=importPanel;
-  var fq=document.getElementById('f_q'); var t=null; fq.oninput=function(){ if(t)clearTimeout(t); t=setTimeout(function(){ FILT.q=fq.value.trim(); load(); },300); };
-  document.getElementById('f_type').onchange=function(){ FILT.type=this.value; load(); };
-  document.getElementById('f_status').onchange=function(){ FILT.status=this.value; load(); };
-  document.getElementById('f_tag').onchange=function(){ FILT.tag=this.value; load(); };
-  document.getElementById('f_metro').onchange=function(){ FILT.metro=this.value; load(); };
-  try{ if(window.RRGViews){ RRGViews.attach({ list:'subscribers', button:document.getElementById('subSavedBtn'),
-    hasFilters:function(){ return !!(FILT.status||FILT.type||FILT.tag||FILT.metro||FILT.q); },
-    getState:function(){ return {status:FILT.status,type:FILT.type,tag:FILT.tag,metro:FILT.metro,q:FILT.q}; },
-    applyState:function(pl){ pl=pl||{}; FILT={status:pl.status||'',type:pl.type||'',tag:pl.tag||'',metro:pl.metro||'',q:pl.q||''}; var fq=document.getElementById('f_q'); if(fq) fq.value=FILT.q; var fs=document.getElementById('f_status'); if(fs) fs.value=FILT.status; syncFilterOptions(); load(); } }); } }catch(e){}
-}
-document.addEventListener('click',async function(e){ if(!e.target.closest) return;
-  var ed=e.target.closest('[data-edit]'); if(ed){ e.preventDefault(); location.href='./rrg_subscriber.html?id='+encodeURIComponent(ed.getAttribute('data-edit')); return; }
-  var dl=e.target.closest('[data-del]'); if(dl){ e.preventDefault(); var s2=curById(dl.getAttribute('data-del')); if(s2 && await rrgConfirm('Delete '+(s2.name||s2.email)+' from subscribers?')){ api('DELETE','/api/subscribers/'+encodeURIComponent(s2.id)).then(function(j){ if(j&&j.ok) load(); else alert((j&&j.error)||'Delete failed.'); }); } return; }
-  var mc=e.target.closest('[data-metrochip]'); if(mc){ var v=mc.getAttribute('data-metrochip'); var i=ESTATE.metros.indexOf(v); if(i>=0)ESTATE.metros.splice(i,1); else ESTATE.metros.push(v); mc.classList.toggle('on'); return; }
-  var it=e.target.closest('[data-ictype]'); if(it){ var v2=it.getAttribute('data-ictype'); var i2=IMP.ctypes.indexOf(v2); if(i2>=0)IMP.ctypes.splice(i2,1); else IMP.ctypes.push(v2); it.classList.toggle('on'); refreshContactCount(); return; }
-  var ig=e.target.closest('[data-ictag]'); if(ig){ var v3=ig.getAttribute('data-ictag'); var i3=IMP.ctags.indexOf(v3); if(i3>=0)IMP.ctags.splice(i3,1); else IMP.ctags.push(v3); ig.classList.toggle('on'); refreshContactCount(); return; }
-});
-api('GET','/api/subscribers/meta').then(function(j){ if(j&&j.ok) META=Object.assign(META,j); }).then(load);
-</script>
+<script>try{ location.replace('./rrg_mass_studio.html'); }catch(e){ location.href='./rrg_mass_studio.html'; }</script>
 </body>
 </html>

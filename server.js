@@ -11539,7 +11539,7 @@ app.get('/api/person/:id', (req, res) => {
   const deals = [], offers = [], tours = [], ndas = [], interested = [];
   (Array.isArray(p.tours) ? p.tours : []).forEach(x => tours.push({ id: x.id, key: '', business: '', date: x.date, interest: x.interest, notes: x.notes, personLevel: true }));
   let _roomIds = null; const _hasRoom = (id) => { if (!id) return false; if (!_roomIds) { try { _roomIds = new Set(loadRooms().map(r => r.id)); } catch (e) { _roomIds = new Set(); } } return _roomIds.has(id); };
-  loadDeals().filter(d => d.contactPersonId === p.id).forEach(d => { const key = d.screenId ? ('s_' + d.screenId) : ('d_' + d.id); const _st = idx[key] ? listingStageSummary(idx[key], overlay) : null; deals.push({ key: key, business: d.business, market: d.market || '', role: 'Client', saleLane: d.saleLane || 'business', roomId: (function(){ var cand = (idx[key] && idx[key].room && idx[key].room.id) || d.roomId || ''; return _hasRoom(cand) ? cand : ''; })(), stage: _st ? _st.label : '', stageDone: _st ? _st.done : 0, stageTotal: _st ? _st.total : 0 }); });
+  loadDeals().filter(d => d.contactPersonId === p.id).forEach(d => { const key = d.screenId ? ('s_' + d.screenId) : ('d_' + d.id); const _st = idx[key] ? listingStageSummary(idx[key], overlay) : null; deals.push({ key: key, business: d.business, market: d.market || '', role: 'Client', saleLane: d.saleLane || 'business', assetCoreDone: (d.saleLane === 'asset') ? ASSET_SPEC_CORE.every(k => d.assetSpec && String(d.assetSpec[k] || '').trim()) : false, roomId: (function(){ var cand = (idx[key] && idx[key].room && idx[key].room.id) || d.roomId || ''; return _hasRoom(cand) ? cand : ''; })(), stage: _st ? _st.label : '', stageDone: _st ? _st.done : 0, stageTotal: _st ? _st.total : 0 }); });
   for (const key in overlay) {
     const o = overlay[key], biz = bizByKey[key] || '(deal)';
     const _keyStage = idx[key] ? listingStageSummary(idx[key], overlay) : null;
@@ -12905,6 +12905,110 @@ app.post('/api/asset-spec', express.json({ limit: '256kb' }), (req, res) => {
     d.updatedAt = new Date().toISOString();
     saveDeals(arr);
     res.json({ ok: true, spec: d.assetSpec, missing: ASSET_SPEC_CORE.filter(k => !d.assetSpec[k]) });
+  } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+// Grouped labels for the buyer-facing spec sheet (Marketing assets are internal — omitted).
+const ASSET_SHEET_GROUPS = [
+  ['The Opportunity', [['askingPrice', 'Asking price'], ['conveys', 'What conveys'], ['reason', 'Reason for availability'], ['availableDate', 'Available']]],
+  ['Lease', [['leaseRent', 'Base rent'], ['leasePerSF', 'Rent / SF'], ['leaseRemaining', 'Remaining term'], ['leaseExpiration', 'Expiration'], ['leaseOptions', 'Renewal options'], ['leaseAssignment', 'Assignment & consent'], ['leaseNNN', 'NNN / CAM · taxes · insurance'], ['leaseDeposit', 'Deposit / key money'], ['leaseUse', 'Permitted use']]],
+  ['The Space', [['sqft', 'Square footage'], ['seating', 'Seating'], ['patio', 'Patio / outdoor'], ['deliveryCondition', 'Delivery condition'], ['operatingNow', 'Status']]],
+  ['Buildout & Leaseholds', [['hood', 'Hood, venting & grease'], ['walkin', 'Walk-in cooler / freezer'], ['ansul', 'Fire suppression'], ['restrooms', 'Restrooms'], ['buildoutAge', 'Buildout age'], ['replacementCost', 'Est. replacement cost']]],
+  ['FF&E', [['ffeSchedule', 'Equipment included'], ['ffeExcluded', 'Excluded items'], ['smallwares', 'Smallwares / POS / furniture']]],
+  ['Licenses & Entitlements', [['liquorType', 'Liquor / TABC license'], ['liquorTransfer', 'Transferability / key money'], ['coOccupancy', 'Certificate of occupancy'], ['healthPermit', 'Health / venting permits']]],
+  ['Utilities & Infrastructure', [['electrical', 'Electrical'], ['gas', 'Gas'], ['hvac', 'HVAC'], ['waterSewer', 'Water / sewer / grease']]]
+];
+function _assetPriceBand(askingPrice) {
+  const n = parseInt(String(askingPrice || '').replace(/[^0-9]/g, ''), 10) || 0;
+  if (!n) return ''; if (n < 1000000) return 'u1m'; if (n < 3000000) return '1-3m'; if (n < 5000000) return '3-5m'; return '5m+';
+}
+function assetSheetHtml(business, market, spec) {
+  spec = spec || {};
+  const nl = s => String(s == null ? '' : s).replace(/\n/g, '<br>');
+  let secs = '';
+  ASSET_SHEET_GROUPS.forEach(g => {
+    const rows = g[1].filter(f => String(spec[f[0]] || '').trim()).map(f => '<tr><th>' + esc(f[1]) + '</th><td>' + nl(esc(spec[f[0]])) + '</td></tr>').join('');
+    if (rows) secs += '<h2>' + esc(g[0]) + '</h2><table>' + rows + '</table>';
+  });
+  if (!secs) secs = '<p class="empty">No details captured yet.</p>';
+  const org = esc(orgDisplayName());
+  return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + esc(business || 'Space & Assets') + ' — Listing Sheet</title>'
+    + '<style>*{box-sizing:border-box}body{margin:0;background:#fff;color:#1a2236;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;font-size:13px;line-height:1.5}'
+    + '.wrap{max-width:760px;margin:0 auto;padding:34px 40px 60px}'
+    + '.hd{border-bottom:3px solid #DA2B1F;padding-bottom:16px;margin-bottom:8px}'
+    + '.kick{color:#DA2B1F;font-weight:800;letter-spacing:.22em;font-size:10px;text-transform:uppercase}'
+    + 'h1{font-size:23px;margin:6px 0 3px;color:#000E31}'
+    + '.mkt{color:#6b7488;font-size:13px;font-weight:600}'
+    + 'h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#000E31;margin:22px 0 7px;padding-bottom:5px;border-bottom:1px solid #e6e9f0}'
+    + 'table{width:100%;border-collapse:collapse;margin:0}'
+    + 'th{text-align:left;width:210px;vertical-align:top;color:#6b7488;font-weight:700;font-size:11.5px;padding:5px 12px 5px 0}'
+    + 'td{vertical-align:top;padding:5px 0;color:#1a2236}'
+    + 'tr+tr th,tr+tr td{border-top:1px solid #f2f4f8}'
+    + '.empty{color:#8a93a8}.foot{margin-top:34px;padding-top:14px;border-top:1px solid #e6e9f0;color:#8a93a8;font-size:11px}'
+    + '@media print{.wrap{padding:0}}</style></head><body><div class="wrap">'
+    + '<div class="hd"><div class="kick">Space &amp; Assets — Listing Sheet</div><h1>' + esc(business || 'Restaurant Space') + '</h1><div class="mkt">' + esc(market || '') + '</div></div>'
+    + secs
+    + '<div class="foot">Prepared by ' + org + '. Confidential — shared under NDA. Information believed reliable but not guaranteed; buyer to verify.</div>'
+    + '</div></body></html>';
+}
+// Broker-facing printable spec sheet.
+app.get('/api/asset-spec/sheet', (req, res) => {
+  try {
+    const { d } = _dealByAnyKey(req.query && req.query.key);
+    if (!d) return res.status(404).send('Listing not found.');
+    if (!ownsDeal(req, d)) return res.status(403).send('Not yours.');
+    res.set('Content-Type', 'text/html; charset=utf-8').send(assetSheetHtml(d.business || '', d.market || '', d.assetSpec || {}));
+  } catch (e) { res.status(500).send('Could not render the sheet.'); }
+});
+// Drop a PDF of the spec sheet into the deal's data room (best-effort) so NDA'd buyers can pull it.
+async function depositAssetSheetToRoom(d, key) {
+  try {
+    const room = resolveRoomFor({ dealKey: key, id: d.id, personId: d.contactPersonId, companyId: d.companyId });
+    if (!room) return;
+    const pdf = await _htmlToPdf(assetSheetHtml(d.business || '', d.market || '', d.assetSpec || {}));
+    if (!pdf || !pdf.length) return;
+    const rooms = loadRooms(); const live = rooms.find(x => x.id === room.id); if (!live) return;
+    live.docs = live.docs || [];
+    const hash = crypto.createHash('sha256').update(pdf).digest('hex');
+    const cats = roomServeCats(live);
+    const category = cats.indexOf('Menus & Marketing') >= 0 ? 'Menus & Marketing' : (cats.indexOf('Lease') >= 0 ? 'Lease' : 'Other');
+    const title = ((d.business ? (d.business + ' — ') : '') + 'Space & Assets Sheet').slice(0, 140);
+    const orig = ('Space & Assets Sheet' + (d.business ? (' - ' + d.business) : '')).replace(/\s+/g, ' ').slice(0, 116) + '.pdf';
+    try { if (!fs.existsSync(ROOMS_DIR)) fs.mkdirSync(ROOMS_DIR, { recursive: true }); } catch (e) { return; }
+    let doc = live.docs.find(x => x && x.auto === 'asset-sheet' && x.srcKey === key);
+    if (doc) { if (doc.hash === hash) return; try { binWrite(path.join(ROOMS_DIR, doc.id + '.pdf'), pdf); } catch (e) { return; } doc.title = title; doc.category = category; doc.ext = 'pdf'; doc.originalName = orig; doc.size = pdf.length; doc.hash = hash; doc.uploadedAt = new Date().toISOString(); }
+    else { const id = newRoomDocId(); try { binWrite(path.join(ROOMS_DIR, id + '.pdf'), pdf); } catch (e) { return; } live.docs.push({ id, title, category, ext: 'pdf', originalName: orig, size: pdf.length, hash, uploadedAt: new Date().toISOString(), by: 'System', auto: 'asset-sheet', srcKey: key }); if (!live.builtAt) live.builtAt = new Date().toISOString(); }
+    saveRooms(rooms);
+  } catch (e) { console.error('asset sheet -> room:', e && e.message); }
+}
+// Publish a Space & Assets listing: requires the core intake, then flips on the blind
+// marketplace teaser, advances the board to On Market, and files the spec sheet in the room.
+app.post('/api/asset-spec/go-to-market', express.json(), (req, res) => {
+  try {
+    const b = req.body || {};
+    const { d } = _dealByAnyKey(b.key);
+    if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
+    if (!ownsDeal(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+    if ((d.saleLane || 'business') !== 'asset') return res.status(400).json({ ok: false, error: 'This is not a Space & Assets listing.' });
+    const spec = d.assetSpec || {};
+    const missing = ASSET_SPEC_CORE.filter(k => !String(spec[k] || '').trim());
+    if (missing.length) return res.status(400).json({ ok: false, error: 'Finish the space & assets intake first — still needed: ' + missing.length + ' core field' + (missing.length === 1 ? '' : 's') + '.', missing });
+    const key = b.key;
+    const overlay = loadAssignOverlay(); const cur = overlay[key] || {};
+    const mkKey = effMarkets().filter(m => String(d.market || '').toLowerCase().indexOf(String(m).toLowerCase()) >= 0)[0] || 'Other';
+    const teaser = mktClean({
+      published: true, conceptType: 'Turnkey space', headline: 'Turnkey restaurant space' + (spec.sqft ? (' · ' + spec.sqft) : ''),
+      loc: d.market || '', marketKey: mkKey, priceBand: _assetPriceBand(spec.askingPrice), guide: spec.askingPrice || '', flag: 'new'
+    }, cur.market || {});
+    const now = new Date().toISOString();
+    teaser.updatedAt = now; if (!(cur.market && cur.market.published)) teaser.publishedAt = now;
+    cur.market = teaser;
+    // Advance the Space & Assets board to On Market.
+    if ((cur.pipelineId || '') === 'p_assetsale') cur.pipelineStage = 'On Market';
+    if (!cur.status || cur.status === 'Unqualified' || cur.status === 'New') cur.status = 'Active';
+    cur.updatedAt = now; overlay[key] = cur; saveAssignOverlay(overlay);
+    let matched = 0; try { matched = runBuyerMatchPush(key, req); } catch (e) {}
+    try { depositAssetSheetToRoom(d, key); } catch (e) {}   // best-effort, async
+    res.json({ ok: true, published: true, matched: matched, sheetUrl: '/api/asset-spec/sheet?key=' + encodeURIComponent(key), marketUrl: (req.protocol + '://' + req.get('host') + '/market') });
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 app.post('/api/deal/:id', express.json(), (req, res) => {

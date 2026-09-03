@@ -2034,7 +2034,7 @@ load();
     {hdr:'Space & Assets', hid:'spacegrp'},
     {id:'assetSpace', t:'Capture the space & assets', sub:'Lease, space, buildout, FF&E & license', f:function(){ var k=_actKey(); if(k){ location.href='./rrg_asset_space.html?key='+encodeURIComponent(k); } else { alert('No listing on file for this seller yet.'); } }},
     {hdr:'Go to Market', hid:'gtm'},
-    {id:'goMarket', t:'Take the listing to market', sub:'Build the marketing pack & market attack plan, then publish to the marketplace', lock:'valuation', f:function(){ var k=_actKey(); if(k){ location.href='./rrg_assignment.html?key='+encodeURIComponent(k); } else { alert('No listing on file for this seller yet.'); } }},
+    {id:'goMarket', t:'Take the listing to market', sub:'Build the marketing pack & market attack plan, then publish to the marketplace', lock:'valuation', f:function(){ var k=_actKey(); if(!k){ alert('No listing on file for this seller yet.'); return; } if(_activeLane()==='asset'){ assetGoToMarket(k); return; } location.href='./rrg_assignment.html?key='+encodeURIComponent(k); }},
     {id:'matchBuyers', t:'Match to buyers in your book', sub:'See which active buyers fit this listing — from their saved buy-boxes', f:function(){ var k=_actKey(); if(k){ location.href='./rrg_assignment.html?key='+encodeURIComponent(k)+'#matchBuyersCard'; } else { alert('No listing on file for this seller yet.'); } }},
     {hdr:'Offers & Closing', hid:'close'},
     {id:'manageDeal', t:'Manage buyers, offers & closing', sub:'Track NDAs, tours and offers, and drive the deal to close', f:function(){ var k=_actKey(); if(k){ location.href='./rrg_assignment.html?key='+encodeURIComponent(k); } else { alert('No listing on file for this seller yet.'); } }}
@@ -2061,6 +2061,18 @@ load();
     fetch("/api/valuation-ensure",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({personId:x.pid,companyId:x.cid,listingKey:x.lk})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.bovId){ _openCim(j.bovId, ""); } else { alert((j&&j.error)||"Could not start the Marketing Pack."); } }).catch(function(){ alert("Could not reach the server."); }); }
   // Which lane the active listing runs: 'business' (going concern) or 'asset' (space & assets).
   function _activeLane(){ try{ var k=_actKey(); var L=_bizList(); for(var i=0;i<L.length;i++){ if(L[i].key===k) return (L[i].saleLane==='asset')?'asset':'business'; } }catch(e){} return 'business'; }
+  function _activeAssetCoreDone(){ try{ var k=_actKey(); var L=_bizList(); for(var i=0;i<L.length;i++){ if(L[i].key===k) return !!L[i].assetCoreDone; } }catch(e){} return false; }
+  // Asset lane: publish the space to the marketplace (blind card + spec sheet). Only reachable
+  // once the core intake is complete — applyLane dims this step until then.
+  function assetGoToMarket(k){
+    if(window.rrgToast) rrgToast('Publishing the space to the marketplace…');
+    fetch('/api/asset-spec/go-to-market',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({key:k})}).then(function(r){return r.json();}).then(function(j){
+      if(!j||!j.ok){ var m=(j&&j.error)||'Could not publish.'; if(window.rrgToast) rrgToast(m); else alert(m); return; }
+      var msg='Space published to the marketplace ✓'+(j.matched?(' · '+j.matched+' buyer match'+(j.matched===1?'':'es')):'');
+      if(window.rrgToast) rrgToast(msg); else alert(msg);
+      if(typeof refreshValuation==='function') refreshValuation();
+    }).catch(function(){ if(window.rrgToast) rrgToast('Could not reach the server.'); else alert('Could not reach the server.'); });
+  }
   // Retitle a menu item in place (leading text node + sub-note), preserving any ✓/undo chips.
   function _rrgRelabel(id,title,sub){ var el=_rrgActById(id); if(!el) return; try{ if(typeof title==='string'){ var tn=null,i; for(i=0;i<el.childNodes.length;i++){ if(el.childNodes[i].nodeType===3 && el.childNodes[i].nodeValue.replace(/\s/g,'')){ tn=el.childNodes[i]; break; } } if(tn) tn.nodeValue=title; } var sb=el.querySelector('.rrgactsub'); if(sb&&typeof sub==='string'){ var undo=sb.querySelector('.rrgundo'); sb.textContent=sub; if(undo) sb.appendChild(undo); } }catch(e){} }
   // Reshape the seller-actions menu for the active listing's lane. The Space & Assets lane
@@ -2080,7 +2092,8 @@ load();
       // None of the going-concern gates apply on the space lane — clear them so the steps work.
       _rrgSetGate(_rrgActById('dUpload'),false,'Lease, equipment list, floor plan, photos & license');
       _rrgSetGate(_rrgActById('sendLA'),false,'Space & Assets listing representation');
-      _rrgSetGate(_rrgActById('goMarket'),false,'Build the spec sheet & publish the space to the marketplace');
+      var _acd=_activeAssetCoreDone();
+      _rrgSetGate(_rrgActById('goMarket'), !_acd, _acd?'Publish the blind card & spec sheet to the marketplace':'Complete the space & assets intake first');
       _rrgRelabel('sendLA','Send representation agreement','Space & Assets listing representation');
       _rrgRelabel('goMarket','Take the space to market','Build the spec sheet & publish the space to the marketplace');
       _rrgRelabel('matchBuyers','Match to operators','Operators & concepts searching for space — from their buy-boxes');
