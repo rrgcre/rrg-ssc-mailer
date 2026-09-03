@@ -174,10 +174,23 @@ function buildSubs(){
     '<div class="row"><div class="fld half"><label class="fl">Source label</label><input id="impSrc" placeholder="e.g. 2026 master list"></div>'+
     '<div class="fld half"><label class="fl">Add to list</label><select id="impList"></select></div></div>'+
     '<div><button class="btn primary" id="impBtn">Import</button><span class="msg" id="impMsg"></span></div></div>'+
+    '<div class="card"><h2>Bring in the legacy Subscribers list</h2>'+
+    '<div class="pgs" style="margin-bottom:10px">Copies everyone from the old <b>Subscribers</b> page into Email Studio in one pass. Duplicates are merged, and anyone marked <b>Unsubscribed</b> or <b>Bounced</b> there is carried in as suppressed so they are never emailed. Safe to run more than once — it only adds what is new.</div>'+
+    '<div><button class="btn" id="migLegacyBtn">Import from legacy list</button><span class="msg" id="migLegacyMsg"></span></div></div>'+
     '<div class="card"><h2>Subscribers</h2>'+
-    '<div class="toolbar"><input id="subQ" placeholder="Search email..." style="max-width:230px"><select id="subStatus" style="max-width:160px"><option value="">All statuses</option><option value="active">Active</option><option value="unsubscribed">Unsubscribed</option><option value="bounced">Bounced</option><option value="complained">Complained</option></select><select id="subList" style="max-width:180px"></select><button class="btn" id="subGo">Search</button></div>'+
+    '<div class="toolbar" style="flex-wrap:wrap;gap:8px"><input id="subQ" placeholder="Search email..." style="max-width:230px"><select id="subStatus" style="max-width:170px"><option value="">All statuses</option><option value="active">Active</option><option value="unsubscribed">Unsubscribed</option><option value="bounced">Bounced</option><option value="complained">Complained</option></select><select id="subList" style="max-width:180px"></select><button class="btn" id="subGo">Search</button></div>'+
+    '<div id="subBulk" style="display:none;align-items:center;gap:9px;margin-top:9px;padding:8px 11px;background:#f4f7fb;border:1px solid #e6e9f0;border-radius:9px">'+
+      '<span id="subSelCount" class="pgs" style="font-weight:700;color:var(--navy)"></span>'+
+      '<button class="btn red" id="subBulkSupp">Suppress selected</button>'+
+      '<button class="btn" id="subBulkRestore">Restore selected</button>'+
+      '<button class="btn" id="subSelClear" style="margin-left:auto">Clear selection</button>'+
+    '</div>'+
     '<div id="subTable"><div class="pgs">Loading...</div></div></div>';
   $('impBtn').onclick=doImport;
+  $('migLegacyBtn').onclick=doMigrateLegacy;
+  $('subBulkSupp').onclick=function(){ bulkSuppress(); };
+  $('subBulkRestore').onclick=function(){ bulkRestore(); };
+  $('subSelClear').onclick=function(){ SUBSEL={}; loadSubs(); };
   var _impF=$('impFile'); if(_impF) _impF.addEventListener('change',function(){ var f=this.files&&this.files[0]; var nm=$('impFileName'); if(!f){ if(nm) nm.textContent='No file chosen \u2014 or paste below'; return; } var rd=new FileReader(); rd.onload=function(){ var t=String(rd.result||''); if($('impText')) $('impText').value=t; if($('impSrc')&&!$('impSrc').value){ $('impSrc').value=String(f.name||'').replace(/\.[^.]+$/,''); } var n=t.split(/\r?\n/).filter(function(x){return x.trim();}).length; if(nm){ nm.style.color='#1f8a5b'; nm.textContent=(f.name||'file')+' \u2014 '+n+' line'+(n===1?'':'s')+' loaded. Click Import.'; } }; rd.onerror=function(){ if(nm){ nm.style.color='#C0261B'; nm.textContent='Could not read the file.'; } }; rd.readAsText(f); });
   $('subGo').onclick=loadSubs;
   $('subQ').addEventListener('keydown',function(e){ if(e.key==='Enter') loadSubs(); });
@@ -208,31 +221,72 @@ function doImport(){
     loadStats(); loadLists(); loadSubs();
   }).catch(function(){ btn.disabled=false; m.className='msg err'; m.textContent='Import failed.'; });
 }
+var SUBSEL={};
+function subSelKeys(){ return Object.keys(SUBSEL).filter(function(k){ return SUBSEL[k]; }); }
+function refreshBulkBar(){
+  var bar=$('subBulk'); if(!bar) return; var n=subSelKeys().length;
+  if(!n){ bar.style.display='none'; return; }
+  bar.style.display='flex'; var c=$('subSelCount'); if(c) c.textContent=n+' selected';
+}
 function loadSubs(){
-  if(!CFG.storage){ $('subTable') && ($('subTable').innerHTML='<div class="note warn">Connect Postgres to browse subscribers.</div>'); return; }
+  if(!CFG.storage){ $('subTable') && ($('subTable').innerHTML='<div class="note warn">Connect Postgres to browse subscribers.</div>'); refreshBulkBar(); return; }
   if(!$('subTable')) return;
   var qv=encodeURIComponent(($('subQ')?$('subQ').value:'').trim());
   var st=$('subStatus')?$('subStatus').value:''; var lf=$('subList')?$('subList').value:'';
   api('GET','/api/mail/subscribers?limit=200&q='+qv+'&status='+encodeURIComponent(st)+'&list='+encodeURIComponent(lf)).then(function(r){
     if(!r||!r.ok){ $('subTable').innerHTML='<div class="note warn">Could not load subscribers.</div>'; return; }
     var rows=r.subscribers||[];
-    if(!rows.length){ $('subTable').innerHTML='<div class="pgs">No subscribers match.</div>'; return; }
-    var h='<table><thead><tr><th>Email</th><th>Name</th><th>Status</th><th>Source</th><th></th></tr></thead><tbody>';
+    if(!rows.length){ $('subTable').innerHTML='<div class="pgs">No subscribers match.</div>'; refreshBulkBar(); return; }
+    var h='<table><thead><tr><th style="width:30px"><input type="checkbox" id="subSelAll"></th><th>Email</th><th>Name</th><th>Status</th><th>Source</th><th></th></tr></thead><tbody>';
     rows.forEach(function(s){
       var nm=[s.first_name,s.last_name].filter(Boolean).join(' ');
-      h+='<tr><td>'+esc(s.email)+'</td><td>'+esc(nm)+'</td><td><span class="pill '+esc(s.status)+'">'+esc(s.status)+'</span></td><td>'+esc(s.source||'')+'</td>'+
-         '<td style="text-align:right">'+(s.status==='active'?'<button class="btn" data-supp="'+esc(s.email)+'">Suppress</button>':'')+'</td></tr>';
+      var ck=SUBSEL[s.email]?' checked':'';
+      var act=(s.status==='active')
+        ? '<button class="btn" data-supp="'+esc(s.email)+'">Suppress</button>'
+        : '<button class="btn" data-restore="'+esc(s.email)+'">Restore</button>';
+      h+='<tr><td><input type="checkbox" class="subck" data-email="'+esc(s.email)+'"'+ck+'></td><td>'+esc(s.email)+'</td><td>'+esc(nm)+'</td><td><span class="pill '+esc(s.status)+'">'+esc(s.status)+'</span></td><td>'+esc(s.source||'')+'</td>'+
+         '<td style="text-align:right">'+act+'</td></tr>';
     });
     h+='</tbody></table>';
-    if(rows.length>=200) h+='<div class="pgs" style="margin-top:10px">Showing first 200. Refine your search to narrow.</div>';
+    if(rows.length>=200) h+='<div class="pgs" style="margin-top:10px">Showing first 200. Refine your search to narrow, then Suppress selected.</div>';
     $('subTable').innerHTML=h;
     var bs=$('subTable').querySelectorAll('[data-supp]');
     for(var i=0;i<bs.length;i++){ bs[i].onclick=function(){ suppressOne(this.getAttribute('data-supp')); }; }
+    var rs=$('subTable').querySelectorAll('[data-restore]');
+    for(var j=0;j<rs.length;j++){ rs[j].onclick=function(){ restoreOne(this.getAttribute('data-restore')); }; }
+    var cks=$('subTable').querySelectorAll('.subck');
+    for(var k=0;k<cks.length;k++){ cks[k].onchange=function(){ var em=this.getAttribute('data-email'); if(this.checked) SUBSEL[em]=true; else delete SUBSEL[em]; refreshBulkBar(); }; }
+    var all=$('subSelAll'); if(all){ all.onchange=function(){ var on=this.checked; var c2=$('subTable').querySelectorAll('.subck'); for(var m=0;m<c2.length;m++){ c2[m].checked=on; var e2=c2[m].getAttribute('data-email'); if(on) SUBSEL[e2]=true; else delete SUBSEL[e2]; } refreshBulkBar(); }; }
+    refreshBulkBar();
   }).catch(function(){ $('subTable').innerHTML='<div class="note warn">Could not load subscribers.</div>'; });
 }
 function suppressOne(email){
   if(!email) return;
   api('POST','/api/mail/suppress',{ email:email }).then(function(){ loadStats(); loadSubs(); loadSupp(); });
+}
+function restoreOne(email){
+  if(!email) return;
+  api('POST','/api/mail/unsuppress',{ email:email }).then(function(){ loadStats(); loadSubs(); loadSupp(); });
+}
+function bulkSuppress(){
+  var em=subSelKeys(); if(!em.length) return;
+  var b=$('subBulkSupp'); if(b) b.disabled=true;
+  api('POST','/api/mail/suppress-bulk',{ emails:em }).then(function(r){ if(b) b.disabled=false; SUBSEL={}; loadStats(); loadSubs(); loadSupp(); }).catch(function(){ if(b) b.disabled=false; });
+}
+function bulkRestore(){
+  var em=subSelKeys(); if(!em.length) return;
+  var b=$('subBulkRestore'); if(b) b.disabled=true;
+  api('POST','/api/mail/unsuppress',{ emails:em }).then(function(r){ if(b) b.disabled=false; SUBSEL={}; loadStats(); loadSubs(); loadSupp(); }).catch(function(){ if(b) b.disabled=false; });
+}
+function doMigrateLegacy(){
+  var m=$('migLegacyMsg'); var b=$('migLegacyBtn');
+  if(b) b.disabled=true; if(m){ m.className='msg'; m.textContent='Importing from the legacy list...'; }
+  api('POST','/api/subscribers/migrate-to-studio',{}).then(function(r){
+    if(b) b.disabled=false;
+    if(!r||!r.ok){ if(m){ m.className='msg err'; m.textContent=(r&&r.error)||'Import failed.'; } return; }
+    if(m){ m.className='msg ok'; m.textContent='Done. '+(r.total||0)+' from legacy — added '+(r.added||0)+', updated '+(r.updated||0)+', suppressed (opted-out) '+(r.suppressed||0)+', skipped '+(r.skipped||0)+'.'; }
+    loadStats(); loadSubs(); loadSupp();
+  }).catch(function(){ if(b) b.disabled=false; if(m){ m.className='msg err'; m.textContent='Import failed.'; } });
 }
 
 /* ---------- CAMPAIGNS ---------- */

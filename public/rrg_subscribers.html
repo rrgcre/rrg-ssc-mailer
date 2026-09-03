@@ -68,6 +68,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 </head>
 <body>
 <div class="wrap">
+  <div style="margin:0 0 16px;padding:12px 15px;background:#fff5e6;border:1px solid #f0d9a8;border-left:4px solid #d9932b;border-radius:9px;font-size:13px;line-height:1.5;color:#6b5220">
+    <b>This list is being retired.</b> Bulk email now runs from <a href="rrg_mass_studio.html" style="color:#8a5a12;font-weight:700">Email Studio</a>, which sends through Amazon SES with proper unsubscribe, bounce and complaint handling. In Email Studio → Subscribers, use <b>Import from legacy list</b> to bring this list across (it carries over unsubscribes and bounces). This page stays available for reference during the switch.
+  </div>
   <h1 class="pgh">Subscribers</h1>
   <div class="pgs">Your marketing audience — the people who get mass emails — kept in its own list, separate from your CRM contacts. Add subscribers by hand, paste a list, or pull them in from your contacts. Each subscriber controls their own preferences (all emails, only certain areas, or unsubscribed), and every mass email honors it.</div>
   <div class="feats" id="subFeats">
@@ -100,10 +103,10 @@ function fmtDate(d){ if(!d) return '—'; try{ return new Date(d).toLocaleDateSt
 function drawTiles(){ var s=META.stats||{}; var el=document.getElementById('tiles'); if(!el) return; el.innerHTML=[['Total',s.total||0],['Active',s.subscribed||0],['Market-only',s.metrosOnly||0],['Unsubscribed',s.unsubscribed||0]].map(function(t){ return '<div class="tile"><div class="n">'+t[1]+'</div><div class="l">'+t[0]+'</div></div>'; }).join(''); }
 
 var LIST_SHELL='<div class="card"><div class="hd"><b>Subscribers</b><span class="meta" id="scount" style="color:var(--muted);font-size:12.5px"></span><span class="sp"><button class="btn sm" id="b_import">Import</button><button class="btn sm pri" id="b_new">+ Add subscriber</button></span></div>'
-  +'<div class="filt"><input type="text" id="f_q" placeholder="Search name, email, company…"><select id="f_type"><option value="">All types</option></select><select id="f_metro"><option value="">All areas</option></select><select id="f_status"><option value="">All statuses</option><option value="subscribed">Active</option><option value="unsubscribed">Unsubscribed</option></select><select id="f_tag"><option value="">All tags</option></select><button type="button" id="subSavedBtn" class="btn sm" style="margin-left:6px">★ Saved</button></div>'
+  +'<div class="filt"><input type="text" id="f_q" placeholder="Search name, email, company…"><select id="f_type"><option value="">All types</option></select><select id="f_metro"><option value="">All areas</option></select><select id="f_status"><option value="">All statuses</option><option value="subscribed">Active</option><option value="unsubscribed">Unsubscribed</option><option value="bounced">Bounced</option></select><select id="f_tag"><option value="">All tags</option></select><button type="button" id="subSavedBtn" class="btn sm" style="margin-left:6px">★ Saved</button></div>'
   +'<div class="cb"><div id="slist"><div class="empty">Loading…</div></div></div></div><div id="panel"></div>';
 
-function statusBadge(s){ return s.status==='unsubscribed'?'<span class="badge un">Unsub</span>':'<span class="badge sub">Active</span>'; }
+function statusBadge(s){ return s.status==='unsubscribed'?'<span class="badge un">Unsub</span>':(s.status==='bounced'?'<span class="badge un">Bounced</span>':'<span class="badge sub">Active</span>'); }
 function prefCell(s){ if(s.status==='unsubscribed') return '<span class="meta" style="color:var(--soft)">—</span>'; if(s.mode==='metros'){ var m=(s.metros||[]); return m.length?m.slice(0,3).map(function(x){return '<span class="badge met">'+esc(x)+'</span>';}).join('')+(m.length>3?(' +'+(m.length-3)):''):'<span class="meta" style="color:var(--soft)">any area</span>'; } return '<span class="badge met">All areas</span>'; }
 function tagCell(s){ var t=(s.tags||[]); return t.length?t.slice(0,3).map(function(x){return '<span class="badge tag">'+esc(x)+'</span>';}).join('')+(t.length>3?(' +'+(t.length-3)):''):'<span class="meta" style="color:var(--soft)">—</span>'; }
 function actionsCell(s){ return '<div class="acts"><button class="btn ghost sm" data-edit="'+esc(s.id)+'">Open</button><button class="btn danger sm" data-del="'+esc(s.id)+'">Delete</button></div>'; }

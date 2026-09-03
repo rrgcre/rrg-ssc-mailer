@@ -8068,6 +8068,24 @@ app.post('/api/subscribers/import', express.json({ limit: '32mb' }), (req, res) 
   saveSubscribers(all); res.json({ ok: true, added, updated, skipped, stats: subStats() });
 });
 app.get('/api/subscribers/contact-count', (req, res) => { try { res.json({ ok: true, count: massAudiencePeople(req.query && req.query.audience ? JSON.parse(req.query.audience) : {}).length }); } catch (e) { res.json({ ok: true, count: 0 }); } });
+// One-time cutover: push the legacy JSON subscriber list into the SES/Postgres
+// mail engine (Email Studio). Idempotent — re-running only adds new addresses and
+// carries over Unsubscribed/Bounced as suppressions so opted-out people stay opted out.
+app.post('/api/subscribers/migrate-to-studio', requireAdmin, async (req, res) => {
+  try {
+    if (!massmail.dbReady()) return res.status(400).json({ ok: false, error: 'Email Studio storage (Postgres) is not configured yet. Set DATABASE_URL on the server, then run this again.' });
+    const legacy = loadSubscribers();
+    const rows = legacy.map(s => ({
+      email: s.email,
+      first_name: s.firstName || '',
+      last_name: s.lastName || '',
+      status: s.status || 'subscribed',
+      source: s.source ? ('legacy:' + String(s.source).slice(0, 40)) : 'legacy'
+    }));
+    const r = await massmail.importSubscribers(rows, 'legacy');
+    res.json({ ok: true, total: rows.length, added: r.added, updated: r.updated, skipped: r.skipped, suppressed: r.suppressed });
+  } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
 // Single subscriber for the detail page. Defined after the named GETs above so 'meta'/'contact-count' aren't captured as an :id.
 app.get('/api/subscribers/:id', (req, res) => { const s = loadSubscribers().find(x => x.id === req.params.id); if (!s) return res.status(404).json({ ok: false, error: 'Subscriber not found.' }); res.json({ ok: true, subscriber: subscriberBrief(s), metros: effMarkets(), types: SUBSCRIBER_TYPES, allTags: subTags() }); });
 

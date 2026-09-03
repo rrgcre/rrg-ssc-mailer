@@ -139,8 +139,10 @@ async function addSuppression(email, reason, detail) {
   email = _norm(email); if (!email) return;
   await q(`INSERT INTO mm_suppressions(tenant,email,reason,detail) VALUES($1,$2,$3,$4)
            ON CONFLICT(tenant,email) DO UPDATE SET reason=EXCLUDED.reason, detail=EXCLUDED.detail`, [TENANT, email, reason || 'manual', String(detail || '').slice(0, 300)]);
-  const st = reason === 'complaint' ? 'complained' : (reason === 'bounce' ? 'bounced' : (reason === 'unsubscribe' ? 'unsubscribed' : 'active'));
-  if (st !== 'active') await q('UPDATE mm_subscribers SET status=$3, updated_at=now() WHERE tenant=$1 AND email=$2', [TENANT, email, st]);
+  // Any suppression holds the address out of sends, so reflect it in the
+  // subscriber's status too (a manual suppress reads as unsubscribed).
+  const st = reason === 'complaint' ? 'complained' : (reason === 'bounce' ? 'bounced' : 'unsubscribed');
+  await q('UPDATE mm_subscribers SET status=$3, updated_at=now() WHERE tenant=$1 AND email=$2', [TENANT, email, st]);
 }
 
 /* ---------------- Merge + footer ---------------- */
@@ -169,12 +171,24 @@ function htmlToText(html) { return String(html || '').replace(/<style[\s\S]*?<\/
 
 /* ---------------- Subscriber import ---------------- */
 // rows: [{email, first_name?, last_name?, source?}]. Dedupe by email; suppressed stay suppressed.
+// Map an incoming status token (subscribed/active/unsubscribed/bounced/complained)
+// to a suppression reason. '' means an active/reachable subscriber.
+function _optOutReason(raw) {
+  const t = String(raw || '').trim().toLowerCase();
+  if (t === 'unsubscribed' || t === 'unsub' || t === 'opted out' || t === 'opt-out') return 'unsubscribe';
+  if (t === 'bounced' || t === 'bounce' || t === 'hard bounce' || t === 'undeliverable') return 'bounce';
+  if (t === 'complained' || t === 'complaint' || t === 'spam') return 'complaint';
+  return '';
+}
 async function importSubscribers(rows, source) {
   let added = 0, updated = 0, skipped = 0, suppressed = 0;
   for (const r of (rows || [])) {
     const email = _norm(r && (r.email || r.Email || r.EMAIL));
     if (!_validEmail(email)) { skipped++; continue; }
-    if (await isSuppressed(email)) { suppressed++; continue; }
+    const optOut = _optOutReason(r && (r.status || r.Status || r.STATUS));
+    const alreadySup = await isSuppressed(email);
+    // An active import never resurrects an address that already opted out.
+    if (!optOut && alreadySup) { suppressed++; continue; }
     const fn = String((r.first_name || r.firstName || r.first || r.First || '')).slice(0, 120);
     const ln = String((r.last_name || r.lastName || r.last || r.Last || '')).slice(0, 120);
     const res = await q(`INSERT INTO mm_subscribers(tenant,email,first_name,last_name,source)
@@ -185,6 +199,9 @@ async function importSubscribers(rows, source) {
         updated_at=now()
       RETURNING (xmax=0) AS inserted`, [TENANT, email, fn, ln, String(source || r.source || 'import').slice(0, 60)]);
     if (res.rows[0] && res.rows[0].inserted) added++; else updated++;
+    // Carry an opt-out across: add to suppression (which also flips subscriber
+    // status to unsubscribed/bounced/complained) so they are never emailed.
+    if (optOut) { await addSuppression(email, optOut, 'legacy import: ' + String((r.status || r.Status || '')).trim().toLowerCase()); suppressed++; }
   }
   return { added, updated, skipped, suppressed };
 }
@@ -487,6 +504,8 @@ function mount(app, deps) {
     res.json({ ok: true, subscribers: rows });
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.post('/api/mail/suppress', requireAdmin, guard, express.json(), async (req, res) => { try { await addSuppression((req.body || {}).email, 'manual', (req.body || {}).detail || ''); res.json({ ok: true }); } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
+  app.post('/api/mail/suppress-bulk', requireAdmin, guard, express.json({ limit: '4mb' }), async (req, res) => { try { const list = Array.isArray((req.body || {}).emails) ? req.body.emails : []; let n = 0; for (const e of list) { const em = _norm(e); if (_validEmail(em)) { await addSuppression(em, 'manual', (req.body || {}).detail || 'bulk'); n++; } } res.json({ ok: true, suppressed: n }); } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
+  app.post('/api/mail/unsuppress', requireAdmin, guard, express.json({ limit: '4mb' }), async (req, res) => { try { const b = req.body || {}; const list = Array.isArray(b.emails) ? b.emails : (b.email ? [b.email] : []); let n = 0; for (const e of list) { const em = _norm(e); if (!_validEmail(em)) continue; await q('DELETE FROM mm_suppressions WHERE tenant=$1 AND email=$2', [TENANT, em]); await q("UPDATE mm_subscribers SET status='active', updated_at=now() WHERE tenant=$1 AND email=$2", [TENANT, em]); n++; } res.json({ ok: true, restored: n }); } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.get('/api/mail/suppressions', requireAdmin, guard, async (req, res) => { try {
     const qq = String(req.query.q || '').trim().toLowerCase();
     const p = [TENANT]; let wh = 'tenant=$1'; if (qq) { p.push('%' + qq + '%'); wh += ' AND email ILIKE $' + p.length; }
