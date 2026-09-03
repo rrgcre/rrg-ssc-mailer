@@ -164,6 +164,18 @@ function linkChip(t){
   if(t.linkType==='deal'&&t.linkId) return '<a class="linkchip deal" href="./rrg_assignment.html?key='+encodeURIComponent(t.linkId)+'">📁 '+esc(t.linkLabel||'Listing')+'</a>';
   return '';
 }
+// The person behind a task: the linked contact directly, or the client on the linked listing.
+function taskContact(t){
+  if(t.linkType==='contact'&&t.linkId) return { name:(t.linkLabel||''), id:t.linkId };
+  if(t.linkType==='deal'&&t.linkId){ var d=(DEALS||[]).filter(function(x){return x.key===t.linkId;})[0]; if(d&&d.contact) return { name:d.contact, id:(d.contactId||'') }; }
+  return { name:'', id:'' };
+}
+// The company behind a task: the linked contact's company, or the listing's company.
+function taskCompany(t){
+  if(t.linkType==='contact'&&t.linkId){ var c=(CONTACTS||[]).filter(function(x){return x.id===t.linkId;})[0]; return (c&&c.company)||''; }
+  if(t.linkType==='deal'&&t.linkId){ var d=(DEALS||[]).filter(function(x){return x.key===t.linkId;})[0]; return (d&&d.company)||''; }
+  return '';
+}
 var TSEARCH='';
 function visibleTasks(){
   var q=TSEARCH.trim().toLowerCase(); var toks=q?q.split(/\s+/):[];
@@ -171,7 +183,7 @@ function visibleTasks(){
     if(SHOW==='open'&&t.status!=='open') return false;
     if(SHOW==='done'&&t.status!=='done') return false;
     if(SCOPE==='mine'&&!(t.assignee===ME||t.createdBy===ME)) return false;
-    if(toks.length){ var hay=((t.title||'')+' '+(t.notes||'')+' '+(t.priority||'')+' '+(t.type||'')+' '+(t.linkLabel||'')+' '+(t.assigneeName||'')).toLowerCase(); if(!toks.every(function(x){return hay.indexOf(x)>=0;})) return false; }
+    if(toks.length){ var hay=((t.title||'')+' '+(t.notes||'')+' '+(t.priority||'')+' '+(t.type||'')+' '+(t.linkLabel||'')+' '+(taskContact(t).name||'')+' '+(taskCompany(t)||'')+' '+(t.assigneeName||'')).toLowerCase(); if(!toks.every(function(x){return hay.indexOf(x)>=0;})) return false; }
     return true;
   });
 }
@@ -187,6 +199,8 @@ function render(){
       { label:'Priority', sort:function(a,b){return RRGList.cmp(a.priority,b.priority);}, edit:{ type:'select', options:function(){return PRIORITIES;}, get:function(t){return t.priority||'Normal';}, save:function(t,v){ return taskSave(t,{priority:v}); } }, cell:function(t){ return '<span class="pill '+esc(t.priority||'Normal')+'">'+esc(t.priority||'Normal')+'</span>'; } },
       { label:'Type', defaultHidden:true, sort:function(a,b){return RRGList.cmp(a.type,b.type);}, cell:function(t){ return t.type?esc(t.type):'<span class="meta">—</span>'; } },
       { label:'Link', sortable:false, cell:function(t){ var c=linkChip(t); return c||'<span class="meta">—</span>'; } },
+      { label:'Contact', sort:function(a,b){return RRGList.cmp(taskContact(a).name,taskContact(b).name);}, filterVal:function(t){return taskContact(t).name;}, cell:function(t){ var c=taskContact(t); if(!c.name) return '<span class="meta">—</span>'; return c.id?('<a href="./rrg_person.html?id='+encodeURIComponent(c.id)+'" style="color:var(--navy);text-decoration:none;font-weight:500">'+esc(c.name)+'</a>'):esc(c.name); } },
+      { label:'Company', sort:function(a,b){return RRGList.cmp(taskCompany(a),taskCompany(b));}, filterVal:function(t){return taskCompany(t);}, cell:function(t){ var co=taskCompany(t); return co?esc(co):'<span class="meta">—</span>'; } },
       { label:'Due', sort:function(a,b){return RRGList.cmp(a.due||'9999',b.due||'9999');}, edit:{ type:'date', get:function(t){return (t.due||'').slice(0,10);}, save:function(t,v){ return taskSave(t,{due:v}); } }, cell:function(t){ var over=(t.status==='open'&&t.due&&t.due<today); return t.due?('<span class="due-lbl'+(over?' over':'')+'">'+(over?'Overdue ':'')+esc(fmt(t.due))+'</span>'):'<span class="meta">—</span>'; } },
       { label:'Created', sort:function(a,b){return RRGList.cmp(a.createdAt||'',b.createdAt||'');}, cell:function(t){ return t.createdAt?esc(fmtD(t.createdAt)):'<span class="meta">—</span>'; } },
       { label:'Owner', sort:function(a,b){return RRGList.cmp(a.createdByName||'',b.createdByName||'');}, cell:function(t){ return t.createdByName?esc(t.createdByName):'<span class="meta">—</span>'; } },

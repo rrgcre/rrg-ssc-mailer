@@ -15400,9 +15400,10 @@ app.delete('/api/feedback/:id', (req, res) => {
 app.get('/api/tasks', (req, res) => {
   const all = loadTasks();
   const mine = all.filter(t => taskVisible(t, req));
-  const contacts = loadPeople().map(p => ({ id: p.id, name: p.name })).sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+  const _coName = {}; try { loadCompanies().forEach(c => { _coName[c.id] = c.name; }); } catch (e) {}
+  const contacts = loadPeople().map(p => ({ id: p.id, name: p.name, company: (p.companyId && _coName[p.companyId]) || p.company || '' })).sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
   const deals = [];
-  try { const ov = loadAssignOverlay(), idx = assignmentsIndex(); for (const k in idx) { try { const _v = assignmentView(idx[k], ov); deals.push({ key: k, business: _v.business, market: _v.market || '', listingId: _v.listingId || '' }); } catch (e) {} } } catch (e) {}
+  try { const ov = loadAssignOverlay(), idx = assignmentsIndex(); for (const k in idx) { try { const _v = assignmentView(idx[k], ov); deals.push({ key: k, business: _v.business, market: _v.market || '', listingId: _v.listingId || '', contact: _v.contact || '', contactId: _v.clientPersonId || _v.contactPersonId || '', company: _coName[_v.companyId] || _v.company || _v.business || '' }); } catch (e) {} } } catch (e) {}
   deals.sort((a, b) => String(a.business || '').localeCompare(String(b.business || '')) || String(a.market || '').localeCompare(String(b.market || '')));
   const users = auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => String(a.name).localeCompare(String(b.name)));
   const _tcnt = {}; all.forEach(t => { const x = String(t.title || '').trim(); if (x) _tcnt[x] = (_tcnt[x] || 0) + 1; });
