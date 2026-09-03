@@ -58,6 +58,14 @@ table.stg td.act{width:96px;white-space:nowrap;text-align:right;}
 .empty{color:var(--soft);font-size:13.5px;padding:40px 20px;text-align:center;}
 .days-note{font-size:11.5px;color:var(--soft);margin-top:2px;}
 .notadmin{background:#fff;border:1px solid var(--line);border-radius:14px;padding:30px;text-align:center;color:var(--muted);font-size:14px;}
+/* Deal-type routing — NetSuite-style header + clear save actions */
+.routecard{margin-bottom:20px;}
+.routecard .rh{display:flex;align-items:center;gap:12px;padding:11px 18px;background:linear-gradient(#f0f3f8,#e4e9f1);border-bottom:1px solid #cbd3e0;}
+.routecard .rt{font-weight:800;color:#33405a;font-size:12px;text-transform:uppercase;letter-spacing:.05em;}
+.routecard .rsp{margin-left:auto;display:flex;align-items:center;gap:10px;}
+.routecard .rfoot{display:flex;align-items:center;gap:12px;margin-top:18px;padding-top:15px;border-top:1px solid var(--line);}
+.routecard .rfoot .note{color:var(--soft);font-size:12px;}
+.routecard .rfoot .btn{margin-left:auto;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -90,20 +98,23 @@ function routingCardHtml(){
   if(!MAP_CATS.length) return '';
   var opts=function(sel){ return '<option value="">— not set —</option>'+PIPES.map(function(p){return '<option value="'+esc(p.id)+'"'+(sel===p.id?' selected':'')+'>'+esc(p.name)+(p.area?(' ('+esc(p.area)+')'):'')+'</option>';}).join(''); };
   var flds=MAP_CATS.map(function(c){ return '<div class="fld"><label>'+esc(c.label)+'</label><select id="map_'+esc(c.key)+'">'+opts(MAP[c.key]||'')+'</select></div>'; }).join('');
-  return '<div class="card" style="margin-bottom:20px"><div class="mh"><span class="t">Deal-type routing</span>'
-    +'<span class="sp"><span class="msg" id="mapMsg"></span><button class="btn pri" id="mapSave">Save routing</button></span></div>'
+  return '<div class="card routecard"><div class="rh"><span class="rt">Deal-type routing</span>'
+    +'<span class="rsp"><span class="msg" id="mapMsg"></span><button class="btn pri" id="mapSave">Save routing</button></span></div>'
     +'<div class="body"><div class="pgs" style="margin:0 0 14px">Choose which pipeline each kind of deal enters. When a rep <b>starts a seller screening call</b>, that call drops straight into the <b>Business Sales</b> pipeline you pick here. The rest are used as each deal type gets routed.</div>'
-    +'<div class="frow">'+flds+'</div></div></div>';
+    +'<div class="frow">'+flds+'</div>'
+    +'<div class="rfoot"><span class="note">Changes apply to new deals as they’re routed — existing deals stay on their current pipeline.</span><button class="btn pri" id="mapSave2">Save routing</button></div>'
+    +'</div></div>';
 }
 function mapMsg(t,cls){ var m=document.getElementById('mapMsg'); if(!m)return; m.textContent=t; m.className='msg '+(cls||''); if(t){ setTimeout(function(){ if(m.textContent===t){m.textContent='';m.className='msg';} },3000); } }
 function saveMap(){
   var body={map:{}}; MAP_CATS.forEach(function(c){ var el=document.getElementById('map_'+c.key); body.map[c.key]=el?el.value:''; });
-  var b=document.getElementById('mapSave'); if(b) b.disabled=true;
+  var bs=[document.getElementById('mapSave'),document.getElementById('mapSave2')].filter(Boolean); bs.forEach(function(b){ b.disabled=true; });
+  mapMsg('Saving…','');
   api('POST','/api/admin/pipeline-map',body).then(function(j){
-    if(b) b.disabled=false;
-    if(!j.ok){ mapMsg(j.error||'Save failed.','err'); return; }
-    MAP=j.map||MAP; mapMsg('Saved','ok');
-  });
+    bs.forEach(function(b){ b.disabled=false; });
+    if(!j||!j.ok){ mapMsg((j&&j.error)||'Save failed.','err'); return; }
+    MAP=j.map||MAP; mapMsg('Routing saved ✓','ok');
+  }).catch(function(){ bs.forEach(function(b){ b.disabled=false; }); mapMsg('Could not reach the server.','err'); });
 }
 
 function render(){
@@ -115,6 +126,7 @@ function render(){
     +'<div class="card main" id="main"></div>'
   +'</div>';
   var _ms=document.getElementById('mapSave'); if(_ms) _ms.onclick=saveMap;
+  var _ms2=document.getElementById('mapSave2'); if(_ms2) _ms2.onclick=saveMap;
   var pl=document.getElementById('pl');
   pl.innerHTML=PIPES.map(function(p){
     var n=(p.stages||[]).length;
