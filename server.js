@@ -8147,6 +8147,9 @@ app.post('/api/subscribers/migrate-to-studio', requireAdmin, async (req, res) =>
       first_name: s.firstName || '',
       last_name: s.lastName || '',
       status: s.status || 'subscribed',
+      type: s.type || '',
+      metros: Array.isArray(s.metros) ? s.metros : [],
+      mode: s.mode || '',
       source: s.source ? ('legacy:' + String(s.source).slice(0, 40)) : 'legacy'
     }));
     const r = await massmail.importSubscribers(rows, 'legacy');

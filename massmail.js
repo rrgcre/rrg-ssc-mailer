@@ -191,13 +191,20 @@ async function importSubscribers(rows, source) {
     if (!optOut && alreadySup) { suppressed++; continue; }
     const fn = String((r.first_name || r.firstName || r.first || r.First || '')).slice(0, 120);
     const ln = String((r.last_name || r.lastName || r.last || r.Last || '')).slice(0, 120);
-    const res = await q(`INSERT INTO mm_subscribers(tenant,email,first_name,last_name,source)
-      VALUES($1,$2,$3,$4,$5)
+    // Segmentation attributes live in meta: type (Broker/Restaurant/Buyer…), metros of
+    // interest, and mode (all|metros). Only set keys we were given so merges don't wipe.
+    const meta = {};
+    const _type = String((r.type || r.Type || '')).trim().slice(0, 60); if (_type) meta.type = _type;
+    const _metros = Array.isArray(r.metros) ? r.metros.filter(Boolean).map(x => String(x).slice(0, 60)).slice(0, 60) : null; if (_metros && _metros.length) meta.metros = _metros;
+    const _mode = String((r.mode || '')).trim(); if (_mode === 'metros' || _mode === 'all') meta.mode = _mode;
+    const res = await q(`INSERT INTO mm_subscribers(tenant,email,first_name,last_name,source,meta)
+      VALUES($1,$2,$3,$4,$5,$6::jsonb)
       ON CONFLICT(tenant,email) DO UPDATE SET
         first_name=CASE WHEN mm_subscribers.first_name='' THEN EXCLUDED.first_name ELSE mm_subscribers.first_name END,
         last_name=CASE WHEN mm_subscribers.last_name='' THEN EXCLUDED.last_name ELSE mm_subscribers.last_name END,
+        meta=mm_subscribers.meta || EXCLUDED.meta,
         updated_at=now()
-      RETURNING (xmax=0) AS inserted`, [TENANT, email, fn, ln, String(source || r.source || 'import').slice(0, 60)]);
+      RETURNING (xmax=0) AS inserted`, [TENANT, email, fn, ln, String(source || r.source || 'import').slice(0, 60), JSON.stringify(meta)]);
     if (res.rows[0] && res.rows[0].inserted) added++; else updated++;
     // Carry an opt-out across: add to suppression (which also flips subscriber
     // status to unsubscribed/bounced/complained) so they are never emailed.
@@ -502,6 +509,17 @@ function mount(app, deps) {
     p.push(lim); p.push(off);
     const rows = (await q(`SELECT id,email,first_name,last_name,status,source,created_at FROM mm_subscribers WHERE ${wh.join(' AND ')} ORDER BY id DESC LIMIT $${p.length - 1} OFFSET $${p.length}`, p)).rows;
     res.json({ ok: true, subscribers: rows });
+  } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
+  // Full list for the standalone Subscribers window (RRGList filters/sorts/pages client-side).
+  app.get('/api/mail/subscribers-all', requireAdmin, guard, async (req, res) => { try {
+    const rows = (await q(`SELECT s.id, s.email, s.first_name, s.last_name, s.status, s.source, s.created_at,
+        s.meta->>'type' AS type, s.meta->'metros' AS metros, s.meta->>'mode' AS mode,
+        COALESCE((SELECT string_agg(l.name, ', ' ORDER BY l.name) FROM mm_list_members m JOIN mm_lists l ON l.id = m.list_id WHERE m.subscriber_id = s.id), '') AS lists
+      FROM mm_subscribers s WHERE s.tenant=$1 ORDER BY s.id DESC LIMIT 100000`, [TENANT])).rows;
+    const lists = (await q('SELECT id, name FROM mm_lists WHERE tenant=$1 ORDER BY name', [TENANT])).rows;
+    const st = (await q(`SELECT status, count(*)::int n FROM mm_subscribers WHERE tenant=$1 GROUP BY status`, [TENANT])).rows;
+    const by = {}; st.forEach(r => { by[r.status] = r.n; });
+    res.json({ ok: true, subscribers: rows, lists: lists, counts: by });
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.post('/api/mail/suppress', requireAdmin, guard, express.json(), async (req, res) => { try { await addSuppression((req.body || {}).email, 'manual', (req.body || {}).detail || ''); res.json({ ok: true }); } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.post('/api/mail/suppress-bulk', requireAdmin, guard, express.json({ limit: '4mb' }), async (req, res) => { try { const list = Array.isArray((req.body || {}).emails) ? req.body.emails : []; let n = 0; for (const e of list) { const em = _norm(e); if (_validEmail(em)) { await addSuppression(em, 'manual', (req.body || {}).detail || 'bulk'); n++; } } res.json({ ok: true, suppressed: n }); } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });

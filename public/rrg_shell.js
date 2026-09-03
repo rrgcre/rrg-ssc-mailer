@@ -190,6 +190,7 @@
     ] },
     { grp: 'Marketing', color: '#c77dc0', items: [
       { ic: '✉', label: 'Bulk Email', href: 'rrg_mass_studio.html', admin: true },
+      { ic: '☷', label: 'Subscribers', href: 'rrg_mail_subscribers.html', admin: true },
       { ic: '✎', label: 'Email Templates', href: 'rrg_email_templates.html' },
       { ic: '▧', label: 'Marketing Packs', href: 'rrg_cim_queue.html' },
       { ic: '➤', label: 'Market Attack Plans', href: 'rrg_attack_queue.html' },
@@ -460,6 +461,7 @@
         {k:'listings',  ic:'⊞', label:'Listings',  all:'rrg_assignments.html', bi:[{l:'Board view', h:'rrg_board.html'}]},
         {k:null,        ic:'◎', label:'Buyers',    all:'rrg_buyer_board.html', bi:[]},
         {k:'deals',     ic:'◈', label:'Deals',     all:'rrg_deals.html', bi:[]},
+        {k:'subscribers', ic:'☷', label:'Subscribers', all:'rrg_mail_subscribers.html', bi:[]},
         {k:'emailtpls', ic:'✎', label:'Email Templates', all:'rrg_email_templates.html', bi:[]},
         {k:'__tasks',   ic:'✔', label:'Tasks', all:'rrg_tasks.html', bi:[{l:'My open tasks', h:'rrg_tasks.html?scope=mine&show=open'},{l:'All my tasks', h:'rrg_tasks.html?scope=mine'},{l:"Everyone's tasks", h:'rrg_tasks.html?scope=all'},{l:'Completed', h:'rrg_tasks.html?show=done'}]}
       ];

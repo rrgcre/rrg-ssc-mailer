@@ -177,7 +177,8 @@ function buildSubs(){
     '<div class="card"><h2>Bring in the legacy Subscribers list</h2>'+
     '<div class="pgs" style="margin-bottom:10px">Copies everyone from the old <b>Subscribers</b> page into Email Studio in one pass. Duplicates are merged, and anyone marked <b>Unsubscribed</b> or <b>Bounced</b> there is carried in as suppressed so they are never emailed. Safe to run more than once — it only adds what is new.</div>'+
     '<div><button class="btn" id="migLegacyBtn">Import from legacy list</button><span class="msg" id="migLegacyMsg"></span></div></div>'+
-    '<div class="card"><h2>Subscribers</h2>'+
+    '<div class="card"><div class="toolbar" style="justify-content:space-between;align-items:center"><h2 style="margin:0">Subscribers</h2><a class="btn" href="./rrg_mail_subscribers.html">Open full list &amp; filters ↗</a></div>'+
+    '<div class="pgs" style="margin:2px 0 10px">Quick browse below, or open the full window for column sorting and filtering by status, type, area of interest and date — just like your contacts and companies.</div>'+
     '<div class="toolbar" style="flex-wrap:wrap;gap:8px"><input id="subQ" placeholder="Search email..." style="max-width:230px"><select id="subStatus" style="max-width:170px"><option value="">All statuses</option><option value="active">Active</option><option value="unsubscribed">Unsubscribed</option><option value="bounced">Bounced</option><option value="complained">Complained</option></select><select id="subList" style="max-width:180px"></select><button class="btn" id="subGo">Search</button></div>'+
     '<div id="subBulk" style="display:none;align-items:center;gap:9px;margin-top:9px;padding:8px 11px;background:#f4f7fb;border:1px solid #e6e9f0;border-radius:9px">'+
       '<span id="subSelCount" class="pgs" style="font-weight:700;color:var(--navy)"></span>'+

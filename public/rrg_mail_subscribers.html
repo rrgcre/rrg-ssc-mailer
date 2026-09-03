@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Subscribers</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.top{color:#fff;padding:28px 0;background:radial-gradient(95% 130% at 28% 15%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
+.top-in{max-width:1320px;margin:0 auto;padding:0 24px;}
+.brand{display:inline-flex;align-items:center;cursor:pointer;} .disc{background:var(--red);color:#fff;border-radius:50%;width:38px;height:38px;font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.bar{background:#fff;width:3px;height:26px;margin:0 11px;} .wm{font-weight:800;font-size:13px;text-transform:uppercase;line-height:.95;color:#fff;}
+.kicker{margin:14px 0 3px;color:var(--red);font-weight:700;letter-spacing:.28em;font-size:10.5px;text-transform:uppercase;}
+.top h1{font-size:25px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
+.sub{color:#aeb8cf;font-size:12.5px;margin-top:6px;max-width:680px;}
+.tabs{margin-top:16px;display:flex;gap:6px;}
+.tabs a{color:#cdd7ea;text-decoration:none;font-weight:700;font-size:12.5px;padding:7px 13px;border-radius:8px;background:rgba(255,255,255,.06);}
+.tabs a.on{background:#fff;color:var(--navy);}
+.wrap{max-width:1320px;margin:20px auto;padding:0 24px 70px;}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;} @media(max-width:720px){.tiles{grid-template-columns:repeat(2,1fr);}}
+.tile{background:#fff;border:1px solid var(--line);border-radius:12px;padding:13px 16px;} .tile .n{font-size:22px;font-weight:800;color:var(--navy);} .tile .l{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);font-weight:700;margin-top:2px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 8px 30px rgba(11,26,56,.06);}
+.hd{display:flex;align-items:center;padding:15px 20px;border-bottom:1px solid var(--line);gap:12px;flex-wrap:wrap;}
+.hd b{color:var(--navy);font-size:14px;} .hd .cnt{color:var(--muted);font-size:12.5px;}
+.rlf-btn{background:#fff;border:1px solid var(--line);border-radius:9px;padding:8px 12px;font:inherit;font-size:12.5px;font-weight:700;color:var(--navy);cursor:pointer;}
+.rlf-btn:hover{background:#f4f7fb;}
+.searchwrap{margin-left:auto;position:relative;display:flex;align-items:center;}
+.searchwrap .searchic{position:absolute;left:12px;color:#9aa3b2;pointer-events:none;}
+.searchwrap input{padding:8px 32px 8px 36px;min-width:240px;border:1px solid var(--line);border-radius:9px;font:inherit;font-size:13px;color:var(--ink);}
+.searchwrap .searchx{position:absolute;right:8px;background:none;border:none;color:#b0b8c6;font-size:18px;line-height:1;cursor:pointer;padding:0 4px;display:none;} .searchwrap .searchx.show{display:block;} .searchwrap .searchx:hover{color:var(--red);}
+.meta{color:var(--soft);font-size:12px;}
+.pill{display:inline-block;font-size:10.5px;font-weight:800;border-radius:99px;padding:2px 9px;letter-spacing:.02em;}
+.pill.active{background:#e7f5ee;color:#1f8a5b;} .pill.unsubscribed{background:#eef1f6;color:#6b7488;} .pill.bounced{background:#fdebe9;color:#a5352c;} .pill.complained{background:#fdebe9;color:#a5352c;}
+.tag{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px;background:#eef2f7;color:#3a4560;margin:1px 3px 1px 0;}
+.empty{padding:48px 20px;text-align:center;color:var(--muted);font-size:14px;}
+.listloading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:72px 20px;color:#6b7488;font-size:14px;font-weight:600;gap:15px}.listspin{width:38px;height:38px;border-radius:50%;border:3px solid #e6e9f0;border-top-color:#DA2B1F;animation:listspin .8s linear infinite}@keyframes listspin{to{transform:rotate(360deg)}}
+.rrg-back{position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28);}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<a href="./rrg_mass_studio.html" class="rrg-back" aria-label="Back to Email Studio"><span style="font-size:14px;line-height:1">←</span> Email Studio</a>
+<div class="top"><div class="top-in">
+  <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+  <div class="kicker">Marketing</div>
+  <h1>Subscribers</h1>
+  <div class="sub">Your full marketing audience — everyone in the bulk-email engine, with the areas they care about, their type, and their status. Filter, sort and segment exactly like your book of business.</div>
+  <div class="tabs"><a href="./rrg_mail_subscribers.html" class="on">Subscribers</a><a href="./rrg_mass_studio.html">Campaigns &amp; Import</a></div>
+</div></div>
+<div class="wrap">
+  <div class="tiles" id="tiles"></div>
+  <div class="card">
+    <div class="hd"><b>Subscribers</b><span class="cnt" id="cnt"></span><button id="filterBtn" class="rlf-btn" style="margin-left:8px">⚙ Filters</button><div class="searchwrap"><svg class="searchic" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"></circle><line x1="12.8" y1="12.8" x2="17.5" y2="17.5"></line></svg><input id="search" placeholder="Search by email, name, company or area…" autocomplete="off"><button type="button" class="searchx" id="searchx" title="Clear search">×</button></div></div>
+    <div id="body"><div class="listloading"><div class="listspin"></div>Loading subscribers…</div></div>
+  </div>
+</div>
+<script src="/rrg_list.js"></script>
+<script src="/rrg_filters.js"></script>
+<script>
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function api(m,u,b){return fetch(u,{method:m,credentials:'same-origin',headers:b?{'Content-Type':'application/json'}:undefined,body:b?JSON.stringify(b):undefined}).then(function(r){return r.json();});}
+var ALL=[], CTL=null, CF=null, LISTS=[], COUNTS={};
+var STATUS_LABEL={active:'Active',unsubscribed:'Unsubscribed',bounced:'Bounced',complained:'Complained'};
+function distinct(getter){ var seen={}, out=[]; ALL.forEach(function(s){ var v=getter(s); (Array.isArray(v)?v:[v]).forEach(function(x){ x=String(x==null?'':x).trim(); if(x&&!seen[x.toLowerCase()]){ seen[x.toLowerCase()]=1; out.push(x); } }); }); return out.sort(function(a,b){return a.toLowerCase().localeCompare(b.toLowerCase());}); }
+function ensureCF(){
+  if(CF||!window.RRGFilters||!document.getElementById('filterBtn')) return;
+  CF=RRGFilters.create({ list:'mail_subscribers', title:'subscribers', button:document.getElementById('filterBtn'), isAdmin:function(){return true;}, fields:[
+    { key:'status', label:'Status', type:'multi', options:function(){return ['Active','Unsubscribed','Bounced','Complained'];}, get:function(s){return STATUS_LABEL[s.status]||s.status||'';} },
+    { key:'types', label:'Type', type:'multi', options:function(){return distinct(function(s){return s.type||'';});}, get:function(s){return s.type||'';} },
+    { key:'metros', label:'Area of interest', type:'multiany', options:function(){return distinct(function(s){return metrosOf(s);});}, get:function(s){return metrosOf(s);} },
+    { key:'lists', label:'List', type:'multiany', options:function(){return LISTS.map(function(l){return l.name;});}, get:function(s){return s.lists?String(s.lists).split(', '):[];} },
+    { key:'sources', label:'Source', type:'multi', options:function(){return distinct(function(s){return s.source||'';});}, get:function(s){return s.source||'';} },
+    { key:'added', label:'Date added', type:'daterange', get:function(s){return s.created_at||'';} }
+  ], onChange:applyFilter });
+}
+function metrosOf(s){ var m=s.metros; if(Array.isArray(m)) return m; if(typeof m==='string' && m){ try{ var p=JSON.parse(m); if(Array.isArray(p)) return p; }catch(e){} return [m]; } return []; }
+function nameOf(s){ return ((s.first_name||'')+' '+(s.last_name||'')).trim(); }
+function fmtDate(d){ if(!d) return ''; var p=String(d).slice(0,10).split('-'); return (p.length===3)?(p[1]+'-'+p[2]+'-'+p[0]):String(d).slice(0,10); }
+
+function drawTiles(){
+  var el=document.getElementById('tiles'); if(!el) return;
+  var total=ALL.length, active=COUNTS.active||0, unsub=COUNTS.unsubscribed||0, bounced=(COUNTS.bounced||0)+(COUNTS.complained||0);
+  el.innerHTML=[['Total',total],['Active',active],['Unsubscribed',unsub],['Bounced / complained',bounced]]
+    .map(function(t){ return '<div class="tile"><div class="n">'+t[1].toLocaleString()+'</div><div class="l">'+t[0]+'</div></div>'; }).join('');
+}
+
+function applyFilter(){
+  var q=(document.getElementById('search').value||'').trim().toLowerCase();
+  var _qt=q.split(/\s+/).filter(Boolean);
+  var base=(CF?CF.filter(ALL):ALL);
+  var list=base.filter(function(s){ if(!_qt.length) return true; var hay=((s.email||'')+' '+nameOf(s)+' '+(s.type||'')+' '+(s.source||'')+' '+(s.lists||'')+' '+metrosOf(s).join(' ')).toLowerCase(); return _qt.every(function(t){return hay.indexOf(t)>=0;}); });
+  var _sx=document.getElementById('searchx'); if(_sx) _sx.classList.toggle('show', !!q);
+  renderList(list);
+  if(CF) CF.updateBtn();
+}
+
+function suppressBulk(ids, done){ api('POST','/api/mail/suppress-bulk',{emails:ids}).then(function(){ reload().then(function(){ if(done) done(); }); }); }
+function restoreBulk(ids, done){ api('POST','/api/mail/unsuppress',{emails:ids}).then(function(){ reload().then(function(){ if(done) done(); }); }); }
+
+function renderList(list){
+  var cfg={ mount:'#body', data:list, key:'mail_subscribers_v1', countEl:'#cnt', filterButton:document.getElementById('filterBtn'), per:100, compact:true,
+    empty:'<div class="empty"><b>No subscribers yet.</b><br>Import your list from Email Studio → Import subscribers.</div>',
+    rowId:function(s){ return s.email; }, defaultSort:6, defaultDir:-1,
+    bulk:[ {label:'Suppress', danger:true, min:1, fn:suppressBulk}, {label:'Restore', min:1, fn:restoreBulk} ],
+    columns:[
+      { label:'Email', width:250, sort:function(a,b){return RRGList.cmp(a.email,b.email);}, cell:function(s){ var nm=nameOf(s); return '<div><div style="font-weight:600;color:var(--navy)">'+esc(s.email)+'</div>'+(nm?('<div class="meta">'+esc(nm)+'</div>'):'')+'</div>'; } },
+      { label:'Name', width:150, sort:function(a,b){return RRGList.cmp(nameOf(a),nameOf(b));}, filterVal:function(s){return nameOf(s);}, cell:function(s){ var nm=nameOf(s); return nm?esc(nm):'<span class="meta">—</span>'; } },
+      { label:'Type', width:120, sort:function(a,b){return RRGList.cmp(a.type,b.type);}, filterVal:function(s){return s.type||'';}, cell:function(s){ return s.type?('<span class="tag">'+esc(s.type)+'</span>'):'<span class="meta">—</span>'; } },
+      { label:'Status', width:120, sort:function(a,b){return RRGList.cmp(a.status,b.status);}, filterVal:function(s){return STATUS_LABEL[s.status]||s.status||'';}, cell:function(s){ var k=s.status||'active'; var lbl=STATUS_LABEL[k]||k; return '<span class="pill '+esc(k)+'">'+esc(lbl)+'</span>'; } },
+      { label:'Areas of interest', width:220, sortable:false, filterVal:function(s){ var m=metrosOf(s); return m.length?m.join(' '):(s.mode==='metros'?'':'all areas'); }, cell:function(s){ var m=metrosOf(s); if(m.length) return m.slice(0,4).map(function(x){return '<span class="tag">'+esc(x)+'</span>';}).join('')+(m.length>4?(' <span class="meta">+'+(m.length-4)+'</span>'):''); return '<span class="meta">All areas</span>'; } },
+      { label:'Source', width:130, sort:function(a,b){return RRGList.cmp(a.source,b.source);}, filterVal:function(s){return s.source||'';}, cell:function(s){ return s.source?esc(s.source):'<span class="meta">—</span>'; } },
+      { label:'Lists', width:150, sortable:false, filterVal:function(s){return s.lists||'';}, cell:function(s){ return s.lists?esc(s.lists):'<span class="meta">—</span>'; } },
+      { label:'Date added', width:120, filterType:'date', sort:function(a,b){return RRGList.cmp(a.created_at,b.created_at);}, filterVal:function(s){return s.created_at||'';}, cell:function(s){ return s.created_at?('<span class="meta">'+esc(fmtDate(s.created_at))+'</span>'):'<span class="meta">—</span>'; } }
+    ]
+  };
+  if(CTL) CTL.refresh(list); else CTL=RRGList.create(cfg);
+}
+
+function reload(){
+  return api('GET','/api/mail/subscribers-all').then(function(j){
+    if(!j||!j.ok){ document.getElementById('body').innerHTML='<div class="empty">'+esc((j&&j.error)||'Could not load subscribers. If the mail engine storage isn’t configured yet, set DATABASE_URL.')+'</div>'; return; }
+    ALL=(j.subscribers||[]); LISTS=(j.lists||[]); COUNTS=(j.counts||{}); ensureCF(); drawTiles(); applyFilter();
+  }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not reach the server.</div>'; });
+}
+
+document.getElementById('search').addEventListener('input', applyFilter);
+document.getElementById('searchx').addEventListener('click', function(){ var s=document.getElementById('search'); s.value=''; applyFilter(); s.focus(); });
+(function(){ try{ var qp=new URLSearchParams(location.search).get('q'); if(qp){ document.getElementById('search').value=qp; } }catch(e){} })();
+reload();
+</script>
+</body>
+</html>
