@@ -2848,6 +2848,61 @@ function leaseAbstractContext(l) {
     return 'LEASE ABSTRACT — authoritative lease terms from RRG’s abstract of the executed lease. For a restaurant or bar the lease drives value: weigh the remaining term, option periods, occupancy cost (especially as a % of sales), assignability, and guaranty in the valuation and its narrative. Every buyer asks first how much term remains and whether there are option periods.\n' + L.join('\n');
   } catch (e) { return ''; }
 }
+// ---- Lease abstract PDF snapshot ------------------------------------------------------------
+// When an abstract is finalized (and refreshed on later saves) we render a clean, self-contained
+// PDF of the terms and file it under the linked contact/company so it lives in their Documents.
+function leaseAbstractPrintHtml(l) {
+  const st = (l && l.state) || {};
+  const E = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  const hd = st.header || {}, pa = st.parties || {}, pr = st.premises || {}, tm = st.term || {}, op = st.options || {}, rt = st.rent || {}, ch = st.charges || {}, asg = st.assignment || {}, gu = st.guaranty || {}, ec = st.economics || {}, use = st.use || {};
+  const redL = st.redactLandlord !== false, redT = st.redactTenant !== false;
+  const row = (k, v) => { v = String(v == null ? '' : v).trim(); if (!v || /^none$/i.test(v) || /^not specified/i.test(v)) return ''; return '<tr><th>' + E(k) + '</th><td>' + E(v) + '</td></tr>'; };
+  const section = (title, rows) => { rows = rows.filter(Boolean).join(''); return rows ? ('<h2>' + E(title) + '</h2><table>' + rows + '</table>') : ''; };
+  let body = '';
+  body += section('Parties & Premises', [ (redL ? '' : row('Landlord', pa.landlord)), (redT ? '' : row('Tenant', pa.tenant)), row('Guarantor', pa.guarantor), row('Premises', pr.description), row('Suite / Unit', pr.suite), row('Rentable SF', pr.squareFeet), row('Permitted use', use.permittedUse || use.description) ]);
+  body += section('Term & Options', [ row('Commencement', tm.commencement), row('Original term', tm.originalTerm), row('Lease expiration', tm.expiration), row('Remaining term', tm.remainingTerm), row('Renewal options', op.renewalOptions), row('Option notice', op.renewalNotice), row('Option rent basis', op.renewalRent) ]);
+  body += section('Rent & Charges', [ row('Current base rent', rt.current), row('Rent per SF', rt.perSF), row('Escalations', rt.escalation), row('Percentage rent', rt.percentageRent), row('Charge structure', ch.structure), row('NNN / CAM', ch.cam), row('Real estate taxes', ch.taxes), row('Insurance', ch.insurance) ]);
+  body += section('Assignment & Guaranty', [ row('Assignment / subletting', asg.assignmentSublet), row('Consent standard', asg.consentStandard), row('Change of control', asg.changeOfControl), row('Guaranty type', gu.type), row('Personal guaranty', gu.personalGuaranty) ]);
+  body += section('Economics', [ row('Total occupancy cost (annual)', ec.totalOccupancyAnnual), row('Occupancy cost % of sales', ec.occupancyPct), row('Key money / lease value', ec.keyMoney), row('Financeability', ec.financeable) ]);
+  if (!body) body = '<p class="empty">No abstracted terms recorded yet.</p>';
+  const biz = E(hd.business || l.business || 'Lease Abstract');
+  const addr = E(hd.propertyAddress || l.propertyAddress || '');
+  const when = new Date(l.builtAt || l.updatedAt || Date.now()).toLocaleDateString('en-US');
+  return '<!doctype html><html><head><meta charset="utf-8"><style>'
+    + '@page{size:Letter;margin:0.7in}*{box-sizing:border-box}body{font:13px/1.5 -apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#1a2236;margin:0}'
+    + '.hd{border-bottom:3px solid #000E31;padding-bottom:12px;margin-bottom:16px}.hd .k{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#8a93a8;font-weight:700}.hd h1{font-size:20px;margin:4px 0 2px;color:#000E31}.hd .sub{color:#5a6478;font-size:12px}'
+    + 'h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#2c5c8f;margin:18px 0 6px;border-bottom:1px solid #e6e9f0;padding-bottom:3px}'
+    + 'table{width:100%;border-collapse:collapse;margin-bottom:4px}th{text-align:left;width:230px;color:#6b7488;font-weight:600;vertical-align:top;padding:4px 10px 4px 0;font-size:12px}td{padding:4px 0;vertical-align:top}tr+tr th,tr+tr td{border-top:1px solid #f0f2f7}'
+    + '.empty{color:#8a93a8}.ft{margin-top:22px;border-top:1px solid #e6e9f0;padding-top:8px;font-size:10px;color:#98a1b5}'
+    + '</style></head><body><div class="hd"><div class="k">Lease Abstract</div><h1>' + biz + '</h1>' + (addr ? ('<div class="sub">' + addr + '</div>') : '') + '<div class="sub">Abstracted ' + E(when) + ' · Restaurant Realty Group</div></div>' + body
+    + '<div class="ft">Confidential — RRG abstract of the executed lease. Terms are summarized for analysis; the executed lease governs.</div></body></html>';
+}
+async function _htmlToPdf(html) {
+  const puppeteer = require('puppeteer');
+  const browser = await puppeteer.launch({ headless: 'new', executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+  try { const page = await browser.newPage(); await page.setContent(html, { waitUntil: 'networkidle0' }); return await page.pdf({ printBackground: true, preferCSSPageSize: true, format: 'Letter' }); }
+  finally { try { await browser.close(); } catch (e) {} }
+}
+function leasePdfDir() { const d = path.join(BOV_DATA_DIR, 'leasepdf'); try { if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true }); } catch (e) {} return d; }
+function leasePdfPath(id) { return path.join(leasePdfDir(), String(id) + '.pdf'); }
+async function syncLeaseAbstractPdf(leaseId) {
+  try {
+    const arr = loadLeases(); const l = arr.find(x => x.id === leaseId);
+    if (!l || l.pending || !l.state) return null;
+    const pdf = await _htmlToPdf(leaseAbstractPrintHtml(l));
+    if (!pdf || !pdf.length) return null;
+    binWrite(leasePdfPath(l.id), pdf);
+    const arr2 = loadLeases(); const l2 = arr2.find(x => x.id === leaseId); if (l2) { l2.pdfAt = new Date().toISOString(); l2.pdfSize = pdf.length; saveLeases(arr2); }
+    return pdf;
+  } catch (e) { console.error('lease pdf sync:', e && e.message); return null; }
+}
+const _leasePdfLast = {};
+function queueLeasePdf(leaseId) {
+  if (!leaseId) return; const now = Date.now();
+  if (_leasePdfLast[leaseId] && (now - _leasePdfLast[leaseId]) < 12000) return; // at most once / 12s per lease
+  _leasePdfLast[leaseId] = now;
+  setTimeout(() => { syncLeaseAbstractPdf(leaseId); }, 50); // fire-and-forget; doesn't block the response
+}
 // Buyer-safe Occupancy & Lease Summary for the CIM, sourced from the deal's lease abstract.
 function cimOccupancy(req, cim) {
   const l = leaseForDeal(req, cim);
@@ -2929,8 +2984,20 @@ app.post('/api/lease-save', express.json({ limit: '4mb' }), (req, res) => {
   if ('personId' in b)  { l.personId  = String(b.personId  || '').slice(0, 48); dirty = true; }
   if ('companyId' in b) { l.companyId = String(b.companyId || '').slice(0, 48); dirty = true; }
   if ('dealKey' in b)   { l.dealKey   = String(b.dealKey   || '').slice(0, 80); dirty = true; }
-  if (dirty) { l.updatedAt = new Date().toISOString(); saveLeases(arr); }
+  if (dirty) { l.updatedAt = new Date().toISOString(); saveLeases(arr); if (!l.pending) queueLeasePdf(l.id); }
   res.json({ ok: true });
+});
+// Serve the filed PDF snapshot of a lease abstract (lazily generating it once if it's missing).
+app.get('/api/lease/:id/pdf', (req, res) => {
+  const l = loadLeases().find(x => x.id === req.params.id);
+  if (!l) return res.status(404).json({ ok: false, error: 'Not found.' });
+  if (!ownsLease(req, l)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const send = buf => { res.set('Content-Type', 'application/pdf'); res.set('Content-Disposition', 'inline; filename="Lease-Abstract.pdf"'); res.send(buf); };
+  try { return send(fs.readFileSync(leasePdfPath(l.id))); }
+  catch (e) {
+    if (l.pending || !l.state) return res.status(404).json({ ok: false, error: 'The abstract is not finalized yet.' });
+    return syncLeaseAbstractPdf(l.id).then(pdf => { if (pdf && pdf.length) return send(pdf); res.status(404).json({ ok: false, error: 'PDF not available.' }); }).catch(() => res.status(500).json({ ok: false, error: 'Could not render the PDF.' }));
+  }
 });
 // Generate the abstract from the uploaded lease document(s).
 app.post('/api/generate-lease', express.json({ limit: '48mb' }), async (req, res) => {
@@ -2960,6 +3027,7 @@ app.post('/api/generate-lease', express.json({ limit: '48mb' }), async (req, res
     if (out.state.header) l.propertyAddress = String(out.state.header.propertyAddress || '').slice(0, 200);
     l.state = out.state; l.aiGenerated = true; l.pending = false; l.builtAt = new Date().toISOString();
     saveLeases(arr);
+    queueLeasePdf(l.id);   // snapshot the finished abstract to a PDF filed under the contact
     res.json({ ok: true, id: l.id });
   } catch (e) {
     console.error('generate-lease error:', e);
@@ -15945,7 +16013,9 @@ app.get('/api/documents', (req, res) => {
   let cm = loadCims().filter(c => isAdmin || ownsCim(req, c));
   cm.forEach(c => { out.push({ id:c.id, kind:'marketingpack', title: c.business || 'Marketing Pack', typeLabel:'Marketing Pack', matchNames:[c.business||''], personId:c.personId||'', companyId:c.companyId||'', companyName: coNameById[c.companyId] || c.market||'', market: c.market || coMktById[c.companyId] || '', personName: nameById[c.personId]||'', dealName:'', status: c.pending ? 'Draft' : 'Built', statusKey: c.pending ? 'pending' : 'built', owner: c.by || c.byUser || '', createdAt: c.createdAt || '', deleteUrl: '/api/document/marketingpack/'+c.id, openUrl: (c.pending ? 'rrg_cim_generate.html?cim=' : 'rrg_cim_builder.html?cim=') + encodeURIComponent(c.id), downloadUrl:'' }); });
   let lz = loadLeases().filter(l => isAdmin || ownsLease(req, l));
-  lz.forEach(l => { out.push({ id:l.id, kind:'lease', title: l.business || 'Lease Abstract', typeLabel:'Lease Abstract', matchNames:[l.business||''], personId:l.personId||'', companyId:l.companyId||'', dealKey:l.dealKey||'', companyName: coNameById[l.companyId]||'', market: l.market || coMktById[l.companyId] || '', personName: nameById[l.personId]||'', dealName: bizByKey[l.dealKey]||'', status: l.pending ? 'Started' : 'Abstracted', statusKey: l.pending ? 'pending' : 'built', owner: l.by || l.byUser || '', createdAt: l.createdAt || '', openUrl: (l.pending ? 'rrg_lease_generate.html?lease=' : 'rrg_lease_abstract.html?lease=') + encodeURIComponent(l.id), downloadUrl:'', deleteUrl: '/api/lease/'+l.id }); });
+  lz.forEach(l => { const _mkt = l.market || coMktById[l.companyId] || ''; out.push({ id:l.id, kind:'lease', title: l.business || 'Lease Abstract', typeLabel:'Lease Abstract', matchNames:[l.business||''], personId:l.personId||'', companyId:l.companyId||'', dealKey:l.dealKey||'', companyName: coNameById[l.companyId]||'', market: _mkt, personName: nameById[l.personId]||'', dealName: bizByKey[l.dealKey]||'', status: l.pending ? 'Started' : 'Abstracted', statusKey: l.pending ? 'pending' : 'built', owner: l.by || l.byUser || '', createdAt: l.createdAt || '', openUrl: (l.pending ? 'rrg_lease_generate.html?lease=' : 'rrg_lease_abstract.html?lease=') + encodeURIComponent(l.id), downloadUrl:'', deleteUrl: '/api/lease/'+l.id });
+    // Filed PDF snapshot of the finished abstract — a downloadable copy alongside the live editable one.
+    if (l.pdfAt) { out.push({ id:l.id+'__pdf', kind:'lease', variant:'pdf', title: l.business || 'Lease Abstract', typeLabel:'Lease Abstract (PDF)', matchNames:[l.business||''], personId:l.personId||'', companyId:l.companyId||'', dealKey:l.dealKey||'', companyName: coNameById[l.companyId]||'', market: _mkt, personName: nameById[l.personId]||'', dealName: bizByKey[l.dealKey]||'', status:'PDF', statusKey:'built', owner: l.by || l.byUser || '', createdAt: l.pdfAt, openUrl:'/api/lease/'+l.id+'/pdf', downloadUrl:'/api/lease/'+l.id+'/pdf', deleteUrl:'' }); } });
   let uf = loadUserFiles();
   if (restrictToOwn(req)) uf = uf.filter(fr => permOwnerMatch(req, fr.createdBy));
   uf.forEach(fr => { out.push({ id:fr.id, kind:'file', title: fr.name || fr.originalName || 'File', docType: fr.docType||'', typeLabel: fr.docType || (fr.ext||'file').toUpperCase(), personId:fr.personId||'', dealKey:fr.dealKey||'', companyId:fr.companyId||'', companyName: coNameById[fr.companyId]||'', personName: nameById[fr.personId]||'', dealName: bizByKey[fr.dealKey]||'', relatesToName: fr.relatesToName||'', status: fr.note || '', statusKey:'file', owner: fr.by || fr.byUser || '', createdAt: fr.uploadedAt || '', openUrl: '/api/files/'+fr.id+'/download', downloadUrl: '/api/files/'+fr.id+'/download', deleteUrl: '/api/files/'+fr.id, ext: fr.ext, size: fr.size, rooms: (Array.isArray(fr.rooms)?fr.rooms:[]) }); });
