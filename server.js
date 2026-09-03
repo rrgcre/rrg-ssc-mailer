@@ -2885,6 +2885,70 @@ async function _htmlToPdf(html) {
 }
 function leasePdfDir() { const d = path.join(BOV_DATA_DIR, 'leasepdf'); try { if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true }); } catch (e) {} return d; }
 function leasePdfPath(id) { return path.join(leasePdfDir(), String(id) + '.pdf'); }
+// Upsert the auto lease-abstract PDF into a given (in-memory) room object: writes the
+// bytes to disk and mutates room.docs. One auto doc per lease — re-runs replace it in
+// place. Returns true only if it changed the room (so callers know whether to persist).
+function _upsertLeaseAbstractDoc(room, l, pdf) {
+  if (!room || !l || !pdf || !pdf.length) return false;
+  room.docs = room.docs || [];
+  const hash = crypto.createHash('sha256').update(pdf).digest('hex');
+  const cats = roomServeCats(room);
+  const category = cats.indexOf('Lease') >= 0 ? 'Lease' : (cats.indexOf('Legal & Corporate') >= 0 ? 'Legal & Corporate' : 'Lease');
+  const title = ((l.business ? (l.business + ' — ') : '') + 'Lease Abstract').slice(0, 140);
+  const orig = ('Lease Abstract' + (l.business ? (' - ' + l.business) : '')).replace(/\s+/g, ' ').slice(0, 116) + '.pdf';
+  try { if (!fs.existsSync(ROOMS_DIR)) fs.mkdirSync(ROOMS_DIR, { recursive: true }); } catch (e) { return false; }
+  const doc = room.docs.find(d => d && d.auto === 'lease-abstract' && d.srcLeaseId === l.id);
+  if (doc) {
+    if (doc.hash === hash) return false; // unchanged — nothing to rewrite
+    try { binWrite(path.join(ROOMS_DIR, doc.id + '.pdf'), pdf); } catch (e) { return false; }
+    doc.title = title; doc.category = category; doc.ext = 'pdf'; doc.originalName = orig; doc.size = pdf.length; doc.hash = hash; doc.uploadedAt = new Date().toISOString();
+    return true;
+  }
+  const id = newRoomDocId();
+  try { binWrite(path.join(ROOMS_DIR, id + '.pdf'), pdf); } catch (e) { return false; }
+  room.docs.push({ id, title, category, ext: 'pdf', originalName: orig, size: pdf.length, hash, uploadedAt: new Date().toISOString(), by: 'System', auto: 'lease-abstract', srcLeaseId: l.id });
+  if (!room.builtAt) room.builtAt = new Date().toISOString();
+  return true;
+}
+// Drop a copy of the finished Lease Abstract PDF into the deal's data room (if one
+// exists), filed under Lease. Only deposits when a room is already linked; never
+// stands up a new room. Loads/saves on its own — used from the PDF sync path.
+function depositLeaseAbstractToRoom(l, pdf) {
+  try {
+    if (!l || !pdf || !pdf.length) return;
+    const rooms = loadRooms();
+    const room = resolveRoomFor(l);
+    if (!room) return;
+    const live = rooms.find(x => x.id === room.id); if (!live) return;
+    if (_upsertLeaseAbstractDoc(live, l, pdf)) saveRooms(rooms);
+  } catch (e) { console.error('lease abstract -> room:', e && e.message); }
+}
+// On room open, backfill any finalized lease abstract that resolves to THIS room but
+// isn't in it yet — covers abstracts finalized before the room existed, whichever way
+// the room was created. Mutates r; returns true if it changed r (caller persists).
+// Cheap no-op once the abstract is present (skips before any file read / resolve).
+function ensureLeaseAbstractsInRoom(r) {
+  try {
+    if (!r) return false;
+    const pid = String(r.personId || ''), cid = String(r.companyId || ''), sbov = String(r.srcBovId || '');
+    if (!pid && !cid && !sbov && !r.srcDealId) return false;
+    const cands = loadLeases().filter(l => l && !l.pending && l.state && (
+      (sbov && String(l.srcBovId || '') === sbov) ||
+      (pid && String(l.personId || '') === pid) ||
+      (cid && String(l.companyId || '') === cid) ||
+      (l.dealKey && r.srcDealId)
+    ));
+    let changed = false;
+    for (const l of cands) {
+      if ((r.docs || []).some(d => d && d.auto === 'lease-abstract' && d.srcLeaseId === l.id)) continue; // already there
+      const rr = resolveRoomFor(l); if (!rr || rr.id !== r.id) continue; // confirm it truly belongs here
+      let pdf = null; try { const p = leasePdfPath(l.id); if (fs.existsSync(p)) pdf = fs.readFileSync(p); } catch (e) {}
+      if (pdf && pdf.length) { if (_upsertLeaseAbstractDoc(r, l, pdf)) changed = true; }
+      else { queueLeasePdf(l.id); } // PDF not built yet — generate async; it deposits on completion
+    }
+    return changed;
+  } catch (e) { console.error('ensure abstracts in room:', e && e.message); return false; }
+}
 async function syncLeaseAbstractPdf(leaseId) {
   try {
     const arr = loadLeases(); const l = arr.find(x => x.id === leaseId);
@@ -2893,6 +2957,7 @@ async function syncLeaseAbstractPdf(leaseId) {
     if (!pdf || !pdf.length) return null;
     binWrite(leasePdfPath(l.id), pdf);
     const arr2 = loadLeases(); const l2 = arr2.find(x => x.id === leaseId); if (l2) { l2.pdfAt = new Date().toISOString(); l2.pdfSize = pdf.length; saveLeases(arr2); }
+    depositLeaseAbstractToRoom(l, pdf);   // duplicate into the data room, filed under Lease
     return pdf;
   } catch (e) { console.error('lease pdf sync:', e && e.message); return null; }
 }
@@ -3906,6 +3971,7 @@ app.get('/api/room/:id', (req, res) => {
   if (!r) return res.status(404).json({ ok: false, error: 'Data room not found.' });
   if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
   try { if (backfillRoomLinks(r)) saveRooms(_rooms); } catch (e) {}
+  try { if (ensureLeaseAbstractsInRoom(r)) saveRooms(_rooms); } catch (e) {}
   const origin = req.protocol + '://' + req.get('host');
   const ivs = loadInterviews()
     .filter(iv => (iv.roomId && iv.roomId === r.id) || (r.personId && iv.personId === r.personId) || (r.companyId && iv.companyId === r.companyId))
@@ -7217,6 +7283,7 @@ try { seedEmailTemplates(); } catch (e) { console.error('seed email tpl:', e && 
 try { seedBizSalesStages(); } catch (e) { console.error('seed biz sales:', e && e.message); }
 try { seedUnqualifiedStage(); } catch (e) { console.error('seed unqualified:', e && e.message); }
 try { seedBuyerPipeline(); } catch (e) { console.error('seed buyer pipeline:', e && e.message); }
+try { seedAssetSalesPipeline(); } catch (e) { console.error('seed asset sales pipeline:', e && e.message); }
 try { maskPayrollSsns(); } catch (e) { console.error('mask payroll ssn:', e && e.message); }
 try { const _sss = loadSettings(); if (_sss.spaceScanSources === undefined) { _sss.spaceScanSources = ['cbre.com','jll.com','cushmanwakefield.com','colliers.com','marcusmillichap.com','nmrk.com','kidder.com','srsre.com','streetsense.com','loopnet.com','crexi.com','costar.com']; saveSettings(_sss); console.log('Seeded default Space Tracker flyer sources.'); } } catch (e) { console.error('seed space sources:', e && e.message); }
 // A company is starred iff at least one of its contacts is starred. One-time backfill to bring
@@ -11472,7 +11539,7 @@ app.get('/api/person/:id', (req, res) => {
   const deals = [], offers = [], tours = [], ndas = [], interested = [];
   (Array.isArray(p.tours) ? p.tours : []).forEach(x => tours.push({ id: x.id, key: '', business: '', date: x.date, interest: x.interest, notes: x.notes, personLevel: true }));
   let _roomIds = null; const _hasRoom = (id) => { if (!id) return false; if (!_roomIds) { try { _roomIds = new Set(loadRooms().map(r => r.id)); } catch (e) { _roomIds = new Set(); } } return _roomIds.has(id); };
-  loadDeals().filter(d => d.contactPersonId === p.id).forEach(d => { const key = d.screenId ? ('s_' + d.screenId) : ('d_' + d.id); const _st = idx[key] ? listingStageSummary(idx[key], overlay) : null; deals.push({ key: key, business: d.business, market: d.market || '', role: 'Client', roomId: (function(){ var cand = (idx[key] && idx[key].room && idx[key].room.id) || d.roomId || ''; return _hasRoom(cand) ? cand : ''; })(), stage: _st ? _st.label : '', stageDone: _st ? _st.done : 0, stageTotal: _st ? _st.total : 0 }); });
+  loadDeals().filter(d => d.contactPersonId === p.id).forEach(d => { const key = d.screenId ? ('s_' + d.screenId) : ('d_' + d.id); const _st = idx[key] ? listingStageSummary(idx[key], overlay) : null; deals.push({ key: key, business: d.business, market: d.market || '', role: 'Client', saleLane: d.saleLane || 'business', roomId: (function(){ var cand = (idx[key] && idx[key].room && idx[key].room.id) || d.roomId || ''; return _hasRoom(cand) ? cand : ''; })(), stage: _st ? _st.label : '', stageDone: _st ? _st.done : 0, stageTotal: _st ? _st.total : 0 }); });
   for (const key in overlay) {
     const o = overlay[key], biz = bizByKey[key] || '(deal)';
     const _keyStage = idx[key] ? listingStageSummary(idx[key], overlay) : null;
@@ -12748,14 +12815,18 @@ app.post('/api/deal/new', express.json(), (req, res) => {
   const business = String(b.business || '').trim();
   if (!business) return res.status(400).json({ ok: false, error: 'A business / deal name is required.' });
   if (!String(b.contact || '').trim() && !String(b.contactEmail || '').trim()) return res.status(400).json({ ok: false, error: 'A client contact is required — every listing must be linked to a contact.' });
+  const _isTR = String(b.type || '') === 'tenant_rep';
+  const _isLL = String(b.type || '') === 'landlord_rep';
+  // Seller listings run one of two lanes: 'business' (going concern) or 'asset' (space & assets).
+  // Tenant/landlord reps aren't sale lanes, so they carry no saleLane.
+  const _saleLane = (_isTR || _isLL) ? '' : (String(b.saleLane || '') === 'asset' ? 'asset' : 'business');
   const rec = {
     id: newDealId(), business: business.slice(0, 120), market: String(b.market || '').slice(0, 80), contact: String(b.contact || '').slice(0, 120),
     screenId: '', roomId: '', contactPersonId: '', companyId: '', source: String(b.source || '').slice(0, 60), createdAt: new Date().toISOString(),
+    saleLane: _saleLane,
     by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
   };
   // Onboarding: open the company file for the subject business...
-  const _isTR = String(b.type || '') === 'tenant_rep';
-  const _isLL = String(b.type || '') === 'landlord_rep';
   const company = findOrCreateCompany(req, { name: rec.business, market: rec.market, type: _isTR ? 'Buyer' : (_isLL ? 'Landlord' : 'Seller') });
   if (company) rec.companyId = company.id;
   // ...and locate the existing client, or onboard them, associated with that company.
@@ -12775,11 +12846,66 @@ app.post('/api/deal/new', express.json(), (req, res) => {
     if (!_ov[_k].status) _ov[_k].status = 'Unqualified';
     if (!_ov[_k].stageSince) _ov[_k].stageSince = _nowIso;
     let _pipe = null;
-    try { const _cat = _isTR ? 'tenantRep' : (_isLL ? 'landlordLease' : 'businessSale'); const _pid = (typeof pipelineForCategory === 'function' && pipelineForCategory(_cat)) || (_isTR ? 'p_tenantrep' : (_isLL ? 'p_llrep' : 'p_bizsales')); const _pls = loadPipelines(); _pipe = _pls.find(pl => pl.id === _pid) || _pls.find(pl => pl.id === 'p_bizsales'); } catch (e) {}
+    try { const _cat = _isTR ? 'tenantRep' : (_isLL ? 'landlordLease' : (_saleLane === 'asset' ? 'assetSale' : 'businessSale')); const _fb = _isTR ? 'p_tenantrep' : (_isLL ? 'p_llrep' : (_saleLane === 'asset' ? 'p_assetsale' : 'p_bizsales')); const _pid = (typeof pipelineForCategory === 'function' && pipelineForCategory(_cat)) || _fb; const _pls = loadPipelines(); _pipe = _pls.find(pl => pl.id === _pid) || _pls.find(pl => pl.id === _fb) || _pls.find(pl => pl.id === 'p_bizsales'); } catch (e) {}
     if (_pipe && !_ov[_k].pipelineStage) { _ov[_k].pipelineId = _pipe.id; _ov[_k].pipelineStage = (_pipe.stages && _pipe.stages[0] && _pipe.stages[0].name) || 'Unqualified'; }
     saveAssignOverlay(_ov);
   } catch (e) {}
   res.json({ ok: true, id: rec.id, key: 'd_' + rec.id, roomId: rec.roomId, contactPersonId: rec.contactPersonId, people: loadPeople().map(personBrief) });
+});
+// ===== Space & Assets intake (the 'asset' sale lane) =====
+// Field -> max length. Kept flat so the intake page and the server agree by key.
+const ASSET_SPEC_FIELDS = {
+  // Headline
+  askingPrice: 60, conveys: 2000, reason: 300, availableDate: 60,
+  // Lease (core)
+  leaseRent: 80, leasePerSF: 40, leaseRemaining: 80, leaseExpiration: 60, leaseOptions: 300, leaseAssignment: 600, leaseNNN: 300, leaseDeposit: 160, leaseUse: 300,
+  // Space (core)
+  sqft: 40, seating: 60, patio: 160, deliveryCondition: 160, operatingNow: 60,
+  // Buildout / leaseholds
+  hood: 400, walkin: 240, ansul: 160, restrooms: 160, buildoutAge: 160, replacementCost: 160,
+  // FF&E (core = ffeSchedule)
+  ffeSchedule: 4000, ffeExcluded: 1200, smallwares: 300,
+  // Licenses (core = liquorTransfer)
+  liquorType: 160, liquorTransfer: 400, coOccupancy: 200, healthPermit: 240,
+  // Utilities
+  electrical: 200, gas: 200, hvac: 200, waterSewer: 240,
+  // Marketing
+  photosNote: 300, floorplanNote: 300, videoNote: 300
+};
+// The five blocks that answer what a space buyer asks first — required for a complete intake.
+const ASSET_SPEC_CORE = ['leaseRent', 'leaseRemaining', 'leaseAssignment', 'sqft', 'deliveryCondition', 'hood', 'ffeSchedule', 'liquorTransfer'];
+function _assetSpecClean(raw) {
+  raw = (raw && typeof raw === 'object') ? raw : {};
+  const out = {};
+  for (const k in ASSET_SPEC_FIELDS) { if (typeof raw[k] === 'string') { const v = raw[k].trim(); if (v) out[k] = v.slice(0, ASSET_SPEC_FIELDS[k]); } }
+  return out;
+}
+function _dealByAnyKey(key) {
+  key = String(key || ''); const arr = loadDeals();
+  if (key.indexOf('d_') === 0) return { arr, d: arr.find(x => x.id === key.slice(2)) };
+  if (key.indexOf('s_') === 0) return { arr, d: arr.find(x => x.screenId === key.slice(2)) };
+  return { arr, d: null };
+}
+app.get('/api/asset-spec', (req, res) => {
+  try {
+    const { d } = _dealByAnyKey(req.query && req.query.key);
+    if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
+    if (!ownsDeal(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+    const spec = d.assetSpec || {};
+    res.json({ ok: true, key: req.query.key, business: d.business || '', market: d.market || '', saleLane: d.saleLane || 'business', spec: spec, core: ASSET_SPEC_CORE, missing: ASSET_SPEC_CORE.filter(k => !spec[k]) });
+  } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+app.post('/api/asset-spec', express.json({ limit: '256kb' }), (req, res) => {
+  try {
+    const b = req.body || {};
+    const { arr, d } = _dealByAnyKey(b.key);
+    if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
+    if (!ownsDeal(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+    d.assetSpec = _assetSpecClean(b.spec);
+    d.updatedAt = new Date().toISOString();
+    saveDeals(arr);
+    res.json({ ok: true, spec: d.assetSpec, missing: ASSET_SPEC_CORE.filter(k => !d.assetSpec[k]) });
+  } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 app.post('/api/deal/:id', express.json(), (req, res) => {
   const arr = loadDeals(); const rec = arr.find(x => x.id === req.params.id);
@@ -13967,6 +14093,7 @@ function _seedPipeline(id, name, area, names, days) { return { id: id, name: nam
 function defaultPipelines() {
   return [
     _seedPipeline('p_bizsales', 'Business Sales', 'Business Sales', ['Data Room','Outreach','Seller Qualification Call','Seller Interview','BOV','Agreed','Marketing Pack','Market Attack Plan','Lease Abstract','Offers','Due Diligence','Closing'], 7),
+    _seedPipeline('p_assetsale', 'Space & Assets', 'Space & Assets', ['Unqualified','Signed','On Market','Touring','LOI / Offer','Lease Assignment','Closed'], 10),
     _seedPipeline('p_tenantrep', 'Tenant Rep', 'Tenant Rep', ['Needs Analysis','Site Search','Tours','LOI Out','Lease Negotiation','Build-out','Open'], 14),
     _seedPipeline('p_llrep', 'Landlord Rep', 'Landlord Rep', ['Listing Setup','Marketing','Tours','LOI Received','Lease Negotiation','Executed'], 14)
   ];
@@ -14029,15 +14156,28 @@ function seedBuyerPipeline() {
     console.log('Seeded default Buyer pipeline (8 stages).');
   } catch (e) { console.error('seedBuyerPipeline:', e && e.message); }
 }
+function seedAssetSalesPipeline() {
+  // Self-healing: the Space & Assets lane needs its own board. Existing installs already have a
+  // pipelines file (so defaultPipelines() won't add it) — push it in once if it's missing.
+  try {
+    const all = loadPipelines();
+    if (all.some(function(p){ return p.id === 'p_assetsale'; })) return;
+    const names = ['Unqualified','Signed','On Market','Touring','LOI / Offer','Lease Assignment','Closed'];
+    const steps = names.map(function(n,i){ return { name:n, number:i+1, targetDays:10 }; });
+    all.push({ id:'p_assetsale', name:'Space & Assets', area:'Space & Assets', stages:steps });
+    savePipelines(all);
+    console.log('Seeded Space & Assets (asset sales) pipeline (7 stages).');
+  } catch (e) { console.error('seedAssetSalesPipeline:', e && e.message); }
+}
 function cleanStages(arr) { return (Array.isArray(arr) ? arr : []).slice(0, 40).map(function(st, i){ return { name: String((st && st.name) || '').slice(0, 80) || ('Stage ' + (i + 1)), number: i + 1, abbr: String((st && st.abbr) || '').trim().slice(0, 10), autoComplete: String((st && st.autoComplete) || '').slice(0, 24), preListing: !!(st && st.preListing), targetDays: Math.max(0, Math.min(3650, parseInt((st && st.targetDays), 10) || 0)), winPct: (st && st.winPct !== '' && st.winPct != null) ? Math.max(0, Math.min(100, parseInt(st.winPct, 10) || 0)) : '', onAssignAuto: String((st && st.onAssignAuto) || '').slice(0, 40), onUnassignAuto: String((st && st.onUnassignAuto) || '').slice(0, 40) }; }).filter(function(st){ return st.name; }); }
-app.get('/api/pipelines', (req, res) => { try { seedBuyerPipeline(); } catch(e){} res.json({ ok: true, pipelines: loadPipelines(), automations: loadAutomations().filter(a => a.active !== false).map(a => ({ id: a.id, name: a.name || '' })), pipelineRequired: effPipelineRequired(), isAdmin: !!(req.user && isSuper(req.user)) }); });
+app.get('/api/pipelines', (req, res) => { try { seedBuyerPipeline(); } catch(e){} try { seedAssetSalesPipeline(); } catch(e){} res.json({ ok: true, pipelines: loadPipelines(), automations: loadAutomations().filter(a => a.active !== false).map(a => ({ id: a.id, name: a.name || '' })), pipelineRequired: effPipelineRequired(), isAdmin: !!(req.user && isSuper(req.user)) }); });
 
 // ---- Deal-type → pipeline routing --------------------------------------
 // Which pipeline each kind of deal enters. A started seller screening call
 // drops into the Business Sales pipeline (see assignScreenPipeline).
 const PIPELINE_CATEGORIES = [
   { key: 'businessSale',  label: 'Business Sales',  fallback: 'p_bizsales' },
-  { key: 'assetSale',     label: 'Asset Sales',     fallback: 'p_bizsales' },
+  { key: 'assetSale',     label: 'Space & Assets',  fallback: 'p_assetsale' },
   { key: 'tenantRep',     label: 'Tenant Rep',      fallback: 'p_tenantrep' },
   { key: 'landlordSale',  label: 'Landlord Sale',   fallback: 'p_llrep' },
   { key: 'landlordLease', label: 'Landlord Lease',  fallback: 'p_llrep' },

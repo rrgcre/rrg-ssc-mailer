@@ -327,6 +327,13 @@ select.nlselect{appearance:none;-webkit-appearance:none;-moz-appearance:none;bac
     <div class="nlmodal-hd"><span id="nl_head">New Listing</span><button type="button" id="nl_x" class="nlmodal-x" title="Close">&times;</button></div>
     <div class="nlmodal-bd">
       <div class="nlmodal-client">Client: <b id="nl_client"></b> <span id="nl_clientnote">&mdash; this listing links to them as the seller / client.</span></div>
+      <div id="nl_lanewrap" style="margin:2px 0 13px">
+        <label class="nlfld" style="display:block;margin-bottom:6px">What are we selling? <span class="req">*</span></label>
+        <div id="nl_lane" style="display:flex;gap:8px">
+          <button type="button" class="nllanebtn on" data-lane="business" style="flex:1;text-align:left;border:1.5px solid #2c5c8f;background:#f2f7fc;border-radius:9px;padding:9px 11px;cursor:pointer;font:inherit;color:#1a2236"><b style="font-size:13px;display:block">Business Sale</b><span style="font-size:11px;color:#6b7488;line-height:1.3;display:block;margin-top:2px">Going concern — full financials &amp; a valuation</span></button>
+          <button type="button" class="nllanebtn" data-lane="asset" style="flex:1;text-align:left;border:1.5px solid #d7dde8;background:#fff;border-radius:9px;padding:9px 11px;cursor:pointer;font:inherit;color:#1a2236"><b style="font-size:13px;display:block">Space &amp; Assets</b><span style="font-size:11px;color:#6b7488;line-height:1.3;display:block;margin-top:2px">Turnkey space, buildout, equipment &amp; lease</span></button>
+        </div>
+      </div>
       <label class="nlfld" id="nl_biglbl">Listing name <span class="req">*</span></label>
       <input id="nl_biz" autocomplete="off" placeholder="e.g. Blue Agave Cantina" class="nlinput">
       <label class="nlfld" style="margin-top:13px">Market</label>
@@ -339,14 +346,17 @@ select.nlselect{appearance:none;-webkit-appearance:none;-moz-appearance:none;bac
 <script>
 function _nlFillMarkets(sel){ var s=document.getElementById('nl_market'); if(!s) return; var mk=(typeof BB_METROS!=='undefined'&&Array.isArray(BB_METROS))?BB_METROS.slice():[]; if(sel&&mk.map(function(x){return String(x).toLowerCase();}).indexOf(String(sel).toLowerCase())<0) mk.push(sel); var seen={},opts='<option value="">\u2014 Select market \u2014</option>'; mk.forEach(function(m){ m=String(m||'').trim(); if(!m||seen[m.toLowerCase()])return; seen[m.toLowerCase()]=1; opts+='<option value="'+esc(m)+'"'+((sel&&String(sel).toLowerCase()===m.toLowerCase())?' selected':'')+'>'+esc(m)+'</option>'; }); s.innerHTML=opts; }
 var _nlMode='';
-function openNewListing(mode){ if(typeof P==='undefined'||!P) return; _nlMode=(mode==='tenant_rep')?'tenant_rep':''; var _tr=(_nlMode==='tenant_rep'); document.getElementById('nl_client').textContent=P.name||'this contact'; var _bz=document.getElementById('nl_biz'); var _co=(typeof CO!=='undefined'&&CO&&CO.name)||''; _bz.value=_tr?(((_co||P.name||'').trim())+' — Tenant Rep'):_co; try{ _bz.setAttribute('placeholder', _tr?'e.g. Blue Agave — 2nd location search':'e.g. Blue Agave Cantina'); }catch(e){} var _hd=document.getElementById('nl_head'); if(_hd) _hd.textContent=_tr?'New Tenant Rep Engagement':'New Listing'; var _cn=document.getElementById('nl_clientnote'); if(_cn) _cn.innerHTML=_tr?'— this engagement links to them as the tenant / client.':'— this listing links to them as the seller / client.'; var _bl=document.getElementById('nl_biglbl'); if(_bl) _bl.innerHTML=(_tr?'Engagement name':'Listing name')+' <span class="req">*</span>'; var _sv=document.getElementById('nl_save'); if(_sv) _sv.textContent=_tr?'Create engagement':'Create listing'; _nlFillMarkets((typeof CO!=='undefined'&&CO&&CO.market)||''); document.getElementById('nl_msg').textContent=''; document.getElementById('nlModal').style.display='flex'; setTimeout(function(){ _bz.focus(); _bz.select(); },30); }
+var _nlLane='business';
+function _nlSetLane(v){ _nlLane=(v==='asset')?'asset':'business'; try{ Array.prototype.forEach.call(document.querySelectorAll('#nl_lane .nllanebtn'),function(btn){ var on=(btn.getAttribute('data-lane')===_nlLane); btn.classList.toggle('on',on); btn.style.border='1.5px solid '+(on?'#2c5c8f':'#d7dde8'); btn.style.background=on?'#f2f7fc':'#fff'; }); }catch(e){} }
+document.addEventListener('click',function(e){ var lb=e.target.closest&&e.target.closest('#nl_lane .nllanebtn'); if(lb){ e.preventDefault(); _nlSetLane(lb.getAttribute('data-lane')); } });
+function openNewListing(mode){ if(typeof P==='undefined'||!P) return; _nlMode=(mode==='tenant_rep')?'tenant_rep':''; var _tr=(_nlMode==='tenant_rep'); document.getElementById('nl_client').textContent=P.name||'this contact'; var _bz=document.getElementById('nl_biz'); var _co=(typeof CO!=='undefined'&&CO&&CO.name)||''; _bz.value=_tr?(((_co||P.name||'').trim())+' — Tenant Rep'):_co; try{ _bz.setAttribute('placeholder', _tr?'e.g. Blue Agave — 2nd location search':'e.g. Blue Agave Cantina'); }catch(e){} var _hd=document.getElementById('nl_head'); if(_hd) _hd.textContent=_tr?'New Tenant Rep Engagement':'New Listing'; var _cn=document.getElementById('nl_clientnote'); if(_cn) _cn.innerHTML=_tr?'— this engagement links to them as the tenant / client.':'— this listing links to them as the seller / client.'; var _bl=document.getElementById('nl_biglbl'); if(_bl) _bl.innerHTML=(_tr?'Engagement name':'Listing name')+' <span class="req">*</span>'; var _sv=document.getElementById('nl_save'); if(_sv) _sv.textContent=_tr?'Create engagement':'Create listing'; var _lw=document.getElementById('nl_lanewrap'); if(_lw) _lw.style.display=_tr?'none':''; _nlSetLane('business'); _nlFillMarkets((typeof CO!=='undefined'&&CO&&CO.market)||''); document.getElementById('nl_msg').textContent=''; document.getElementById('nlModal').style.display='flex'; setTimeout(function(){ _bz.focus(); _bz.select(); },30); }
 var _nlT=null;
 function _nlHideMenu(){ var m=document.getElementById('nl_matches'); if(m){ m.hidden=true; m.innerHTML=''; } }
 function _nlDebounced(){ if(_nlT) clearTimeout(_nlT); _nlT=setTimeout(_nlSearch,180); }
 function _nlSearch(){ var bz=document.getElementById('nl_biz'); if(!bz) return; var q=bz.value.trim(); var note=document.getElementById('nl_matchnote'); if(q.length<2){ _nlHideMenu(); if(note) note.hidden=true; return; } fetch('/api/search?q='+encodeURIComponent(q),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(document.getElementById('nl_biz').value.trim()!==q) return; var res=((j&&j.results)||[]).filter(function(x){ return x.type==='listing'||x.type==='company'; }).slice(0,6); _nlRenderMenu(res,q); }).catch(function(){}); }
 function _nlRenderMenu(res,q){ var m=document.getElementById('nl_matches'), note=document.getElementById('nl_matchnote'); if(!res.length){ _nlHideMenu(); if(note) note.hidden=true; return; } m.innerHTML=res.map(function(x){ var lab=(x.type==='listing'?'Listing':'Company'); var ic=(x.type==='listing'?'L':'C'); return '<a class="nlac-item" href="'+esc(x.url)+'"><span class="nlac-ic '+x.type+'">'+ic+'</span><span class="nlac-tx"><b>'+esc(x.title)+'</b><span>'+esc(lab)+(x.sub?(' &middot; '+esc(x.sub)):'')+'</span></span><span class="nlac-open">Open &rarr;</span></a>'; }).join(''); m.hidden=false; var ql=q.toLowerCase(); var dup=res.filter(function(x){ return String(x.title||'').trim().toLowerCase()===ql; }); if(dup.length&&note){ var t=dup[0]; note.innerHTML='&ldquo;'+esc(q)+'&rdquo; already exists as a '+(t.type==='listing'?'listing':'company')+' &mdash; <a href="'+esc(t.url)+'" style="color:#9a6b12;font-weight:700;text-decoration:underline">open it</a> instead of creating a duplicate?'; note.hidden=false; } else if(note){ note.hidden=true; } }
 function closeNewListing(){ document.getElementById('nlModal').style.display='none'; }
-function createNewListing(){ var biz=document.getElementById('nl_biz').value.trim(); var msg=document.getElementById('nl_msg'); var _tr=(_nlMode==='tenant_rep'); if(!biz){ msg.textContent=_tr?'Enter a name for this engagement.':'Enter a name for this listing.'; return; } var b=document.getElementById('nl_save'); var _done=_tr?'Create engagement':'Create listing'; b.disabled=true; b.textContent='Creating…'; var _body={business:biz,market:document.getElementById('nl_market').value.trim(),contact:(P&&P.name)||'',contactEmail:(P&&P.email)||''}; if(_tr) _body.type='tenant_rep'; fetch('/api/deal/new',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(_body)}).then(function(r){return r.json();}).then(function(j){ b.disabled=false; b.textContent=_done; if(j&&j.ok){ location.href=(_tr?'./rrg_tenant_engagement.html?key=':'./rrg_assignment.html?key=')+encodeURIComponent(j.key); } else msg.textContent=(j&&j.error)||('Could not create the '+(_tr?'engagement':'listing')+'.'); }).catch(function(){ b.disabled=false; b.textContent=_done; msg.textContent='Could not reach the server.'; }); }
+function createNewListing(){ var biz=document.getElementById('nl_biz').value.trim(); var msg=document.getElementById('nl_msg'); var _tr=(_nlMode==='tenant_rep'); if(!biz){ msg.textContent=_tr?'Enter a name for this engagement.':'Enter a name for this listing.'; return; } var b=document.getElementById('nl_save'); var _done=_tr?'Create engagement':'Create listing'; b.disabled=true; b.textContent='Creating…'; var _body={business:biz,market:document.getElementById('nl_market').value.trim(),contact:(P&&P.name)||'',contactEmail:(P&&P.email)||''}; if(_tr) _body.type='tenant_rep'; else _body.saleLane=_nlLane; fetch('/api/deal/new',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(_body)}).then(function(r){return r.json();}).then(function(j){ b.disabled=false; b.textContent=_done; if(j&&j.ok){ location.href=(_tr?'./rrg_tenant_engagement.html?key=':'./rrg_assignment.html?key=')+encodeURIComponent(j.key); } else msg.textContent=(j&&j.error)||('Could not create the '+(_tr?'engagement':'listing')+'.'); }).catch(function(){ b.disabled=false; b.textContent=_done; msg.textContent='Could not reach the server.'; }); }
 document.addEventListener('click',function(e){ if(e.target.closest && e.target.closest('#newListingBtn')){ e.preventDefault(); openNewListing(); } });
 document.addEventListener('click',function(e){ if(!e.target||!e.target.closest) return; var b=e.target.closest('[data-mkroom]'); if(!b) return; e.preventDefault(); if(b._busy) return; b._busy=1; var _t=b.textContent; b.textContent='▥ Setting up…'; fetch('/api/valuation-room',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({listingKey:b.getAttribute('data-mkroom'),personId:(typeof ID!=='undefined'?ID:''),companyId:((typeof CO!=='undefined'&&CO&&CO.id)||'')})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.id){ location.href='./rrg_room.html?room='+encodeURIComponent(j.id); } else { b._busy=0; b.textContent=_t; alert((j&&j.error)||'Could not set up the data room.'); } }).catch(function(){ b._busy=0; b.textContent=_t; alert('Could not reach the server.'); }); });
 document.addEventListener('click',function(e){ var t=e.target.closest&&e.target.closest('#actSQC,#actAgr,#actList'); if(!t) return; e.preventDefault();
@@ -2021,6 +2031,8 @@ load();
     {id:'genVal', t:'Generate valuation (BOV)', sub:'Broker opinion of value from the inputs', f:function(){ var v=window.__valReady||{}; if(!v.ready){ var _miss=(v.missing&&v.missing.slice())||[]; if(_miss.length===1&&_miss[0]==='Lease'){ if(window.confirm('Only the lease is missing. If this business has no lease, open the data room and tick "No lease" in the Lease folder. Open it now?')){ var _pid=(typeof P!=='undefined'&&P&&P.id)||(typeof ID!=='undefined'&&ID)||''; var _cid=(typeof CO!=='undefined'&&CO&&CO.id)||''; fetch('/api/valuation-room',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({personId:_pid,companyId:_cid,listingKey:_actKey()})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.id) location.href='./rrg_room.html?room='+encodeURIComponent(j.id); }); } return; } var _m='Not ready yet — needs: '+(_miss.join(', ')||'financials, lease'); if(window.rrgToast) rrgToast(_m); else alert(_m); return; } var pid=(typeof P!=='undefined'&&P&&P.id)||(typeof ID!=='undefined'&&ID)||''; var cid2=(typeof CO!=='undefined'&&CO&&CO.id)||''; if(v.bovId){ location.href='./rrg_bov_generate.html?bov='+encodeURIComponent(v.bovId); } else { fetch('/api/valuation-ensure',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({personId:pid,companyId:cid2,listingKey:_actKey()})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.bovId){ location.href='./rrg_bov_generate.html?bov='+encodeURIComponent(j.bovId); } else { alert((j&&j.error)||'Could not open the valuation.'); } }).catch(function(){ alert('Could not reach the server.'); }); } } },
     {hdr:'Align & Agree', hid:'align'},
     {id:'sendLA', t:'Send listing agreement', sub:'Exclusive Business Sales Representation', lock:'valuation', f:function(){ if(typeof openListingAgreement==='function'){ openListingAgreement(); } else { alert('Agreements are still loading — try again in a moment.'); } }},
+    {hdr:'Space & Assets', hid:'spacegrp'},
+    {id:'assetSpace', t:'Capture the space & assets', sub:'Lease, space, buildout, FF&E & license', f:function(){ var k=_actKey(); if(k){ location.href='./rrg_asset_space.html?key='+encodeURIComponent(k); } else { alert('No listing on file for this seller yet.'); } }},
     {hdr:'Go to Market', hid:'gtm'},
     {id:'goMarket', t:'Take the listing to market', sub:'Build the marketing pack & market attack plan, then publish to the marketplace', lock:'valuation', f:function(){ var k=_actKey(); if(k){ location.href='./rrg_assignment.html?key='+encodeURIComponent(k); } else { alert('No listing on file for this seller yet.'); } }},
     {id:'matchBuyers', t:'Match to buyers in your book', sub:'See which active buyers fit this listing — from their saved buy-boxes', f:function(){ var k=_actKey(); if(k){ location.href='./rrg_assignment.html?key='+encodeURIComponent(k)+'#matchBuyersCard'; } else { alert('No listing on file for this seller yet.'); } }},
@@ -2047,11 +2059,44 @@ load();
     function _openCim(bovId,state){ if(state==="built"||state==="final"){ fetch("/api/bov/"+encodeURIComponent(bovId)+"/advance-cim",{method:"POST",credentials:"same-origin"}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.cimId){ location.href="./rrg_cim_builder.html?cim="+encodeURIComponent(j.cimId); } else { alert((j&&j.error)||"Could not create the Marketing Pack."); } }).catch(function(){ alert("Could not reach the server."); }); } else { if(window.rrgToast) rrgToast("Finish the valuation first \u2014 the CIM builds from its numbers."); location.href="./rrg_bov_generate.html?bov="+encodeURIComponent(bovId); } }
     if(v.bovId){ _openCim(v.bovId, v.state); return; }
     fetch("/api/valuation-ensure",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({personId:x.pid,companyId:x.cid,listingKey:x.lk})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.bovId){ _openCim(j.bovId, ""); } else { alert((j&&j.error)||"Could not start the Marketing Pack."); } }).catch(function(){ alert("Could not reach the server."); }); }
+  // Which lane the active listing runs: 'business' (going concern) or 'asset' (space & assets).
+  function _activeLane(){ try{ var k=_actKey(); var L=_bizList(); for(var i=0;i<L.length;i++){ if(L[i].key===k) return (L[i].saleLane==='asset')?'asset':'business'; } }catch(e){} return 'business'; }
+  // Retitle a menu item in place (leading text node + sub-note), preserving any ✓/undo chips.
+  function _rrgRelabel(id,title,sub){ var el=_rrgActById(id); if(!el) return; try{ if(typeof title==='string'){ var tn=null,i; for(i=0;i<el.childNodes.length;i++){ if(el.childNodes[i].nodeType===3 && el.childNodes[i].nodeValue.replace(/\s/g,'')){ tn=el.childNodes[i]; break; } } if(tn) tn.nodeValue=title; } var sb=el.querySelector('.rrgactsub'); if(sb&&typeof sub==='string'){ var undo=sb.querySelector('.rrgundo'); sb.textContent=sub; if(undo) sb.appendChild(undo); } }catch(e){} }
+  // Reshape the seller-actions menu for the active listing's lane. The Space & Assets lane
+  // drops the going-concern machinery (screening / interview / valuation) and re-labels the
+  // agreement + go-to-market for a turnkey space. Business lane is left as-is.
+  function applyLane(){
+    var asset=(_activeLane()==='asset');
+    // Screening + interview steps: force-hidden on the asset lane. On the business lane their
+    // visibility is owned by refreshValuation (settled steps hide themselves) — don't fight it.
+    ['scSend','scStart','scSkip','ivSend','ivStart','ivSkip','ivView'].forEach(function(id){ var el=_rrgActById(id); if(el && asset) el.style.display='none'; });
+    // Valuation step + the top +BOV/+CIM buttons are going-concern-only — applyLane owns these.
+    var gv=_rrgActById('genVal'); if(gv) gv.style.display=asset?'none':'';
+    // The space-intake step is the reverse — asset lane only.
+    var as=_rrgActById('assetSpace'); if(as) as.style.display=asset?'':'none';
+    var bb=document.getElementById('rrgTopBov'), cb=document.getElementById('rrgTopCim'); if(bb) bb.style.display=asset?'none':'inline-flex'; if(cb) cb.style.display=asset?'none':'inline-flex';
+    if(asset){
+      // None of the going-concern gates apply on the space lane — clear them so the steps work.
+      _rrgSetGate(_rrgActById('dUpload'),false,'Lease, equipment list, floor plan, photos & license');
+      _rrgSetGate(_rrgActById('sendLA'),false,'Space & Assets listing representation');
+      _rrgSetGate(_rrgActById('goMarket'),false,'Build the spec sheet & publish the space to the marketplace');
+      _rrgRelabel('sendLA','Send representation agreement','Space & Assets listing representation');
+      _rrgRelabel('goMarket','Take the space to market','Build the spec sheet & publish the space to the marketplace');
+      _rrgRelabel('matchBuyers','Match to operators','Operators & concepts searching for space — from their buy-boxes');
+    } else {
+      // Title-only restore — refreshValuation owns the sendLA/goMarket sub-notes (gate messages).
+      _rrgRelabel('sendLA','Send listing agreement');
+      _rrgRelabel('goMarket','Take the listing to market');
+      _rrgRelabel('matchBuyers','Match to buyers in your book','See which active buyers fit this listing — from their saved buy-boxes');
+    }
+    _rrgTidyHeads();
+  }
   function refreshValuation(){
     var elV=_rrgActById('genVal'), elU=_rrgActById('dUpload'), elSend=_rrgActById('ivSend'), elView=_rrgActById('ivView'), elIvStart=_rrgActById('ivStart');
     // Don't reset visibility on open — keep the last resolved state until the fresh check returns,
     // so items don't flash hidden then reappear.
-    function openAll(){ _rrgSetGate(elU,false,''); _rrgSetGate(elSend,false,''); _rrgSetGate(elV,false,''); _rrgSetGate(elView,true,'No interview received yet'); _rrgTidyHeads(); window.__rrgVal=Object.assign({},window.__rrgVal||{},{ready:true,missing:[],_failopen:true}); try{updateTopBtns();}catch(_){} }   // fail open — never lock the broker out on an error
+    function openAll(){ _rrgSetGate(elU,false,''); _rrgSetGate(elSend,false,''); _rrgSetGate(elV,false,''); _rrgSetGate(elView,true,'No interview received yet'); _rrgTidyHeads(); window.__rrgVal=Object.assign({},window.__rrgVal||{},{ready:true,missing:[],_failopen:true}); try{updateTopBtns();}catch(_){} try{ applyLane(); }catch(_){} }   // fail open — never lock the broker out on an error
     var pid=(typeof P!=='undefined'&&P&&P.id)||(typeof ID!=='undefined'&&ID)||''; var cid=(typeof CO!=='undefined'&&CO&&CO.id)||'';
     if(!pid&&!cid){ openAll(); return; }
     fetch('/api/valuation-readiness?personId='+encodeURIComponent(pid)+'&companyId='+encodeURIComponent(cid)+_actKeyQ(),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
@@ -2096,6 +2141,11 @@ load();
       _rrgSetGate(elLA, !j.bovId, j.bovId ? 'Exclusive Business Sales Representation' : 'Create the valuation (BOV) first');
       var _laDone=(typeof AGREEMENTS!=='undefined') && (AGREEMENTS||[]).some(function(a){ return a && a.type==='Listing'; });
       _rrgSetDone(elLA, _laDone, 'On file');
+      // Gate "Take the listing to market" on a finished valuation so a click before then
+      // explains itself (the menu's lock handler toasts the sub-note) instead of silently
+      // opening an empty workspace. The asset lane clears this in applyLane().
+      var elGM=_rrgActById('goMarket');
+      _rrgSetGate(elGM, !j.bovId, j.bovId ? 'Build the marketing pack & market attack plan, then publish to the marketplace' : 'Create the valuation (BOV) first');
       // Green ✓ on a section header once every step in that section is satisfied.
       _rrgSetHeadDone('screening', _done);
       _rrgSetHeadDone('data', !!j.financials);
@@ -2103,6 +2153,7 @@ load();
       _rrgSetHeadDone('valuation', !!j.bovId);
       _rrgSetHeadDone('align', _laDone);
       _rrgTidyHeads();
+      try{ applyLane(); }catch(_){}
     }).catch(function(){ openAll(); });
   }
   function install(create){
@@ -2139,7 +2190,7 @@ load();
     trmenu.addEventListener("click",function(e){ var b2=e.target.closest(".rrgactitem"); if(!b2) return; var i2=+b2.getAttribute("data-tri"); var a2=TRA[i2]; trclose(); if(a2&&a2.f) try{ a2.f(); }catch(err){} });
     wrap.appendChild(trbtn); wrap.appendChild(trmenu);
     create.parentNode.replaceChild(wrap, create);
-    try{refreshValuation();}catch(_){} try{updateTopBtns();}catch(_){}
+    try{ applyLane(); }catch(_){} try{refreshValuation();}catch(_){} try{updateTopBtns();}catch(_){}
     function close(){ menu.style.display="none"; }
     btn.addEventListener("click",function(e){ e.stopPropagation(); try{trclose();}catch(_){} var _sw=(menu.style.display==="none"); menu.style.display=(_sw?"block":"none"); if(_sw){ try{refreshValuation();}catch(_){} } });
     menu.addEventListener("click",function(e){ var b=e.target.closest(".rrgactitem"); if(!b) return; var i=+b.getAttribute("data-i"); var a=ACTIONS[i]; if(a&&a.lock&&b.classList.contains('rrgactdim')){ var _sb=b.querySelector('.rrgactsub'); var _m=((_sb&&_sb.textContent||'').trim())||'Not available yet'; if(window.rrgToast) rrgToast(_m+' — then this unlocks.'); else alert(_m+' — then this unlocks.'); return; } close(); if(a&&a.f) try{ a.f(); }catch(err){} });

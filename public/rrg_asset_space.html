@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FullServe — Space & Assets</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;--inp:#cfd6e2;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);}
+.top{color:#fff;padding:22px 0 22px;background:radial-gradient(95% 130% at 28% 15%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
+.top-in{max-width:940px;margin:0 auto;padding:0 26px;}
+.brand{display:inline-flex;align-items:center;cursor:pointer;} .disc{background:var(--red);color:#fff;border-radius:50%;width:38px;height:38px;font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.bar{background:#fff;width:3px;height:26px;margin:0 11px;} .wm{font-weight:800;font-size:13px;text-transform:uppercase;line-height:.95;color:#fff;}
+.crumb{margin-top:16px;font-size:12.5px;color:#aeb8cf;} .crumb a{color:#cdd7ea;text-decoration:none;font-weight:700;} .crumb a:hover{text-decoration:underline;}
+.kicker{margin:14px 0 3px;color:var(--red);font-weight:700;letter-spacing:.28em;font-size:10.5px;text-transform:uppercase;}
+.top h1{font-size:25px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
+.sub{color:#aeb8cf;font-size:12.5px;margin-top:6px;max-width:640px;}
+.wrap{max-width:940px;margin:20px auto;padding:0 26px 90px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 30px rgba(11,26,56,.06);overflow:hidden;margin-bottom:16px;}
+.ch{display:flex;align-items:center;gap:10px;padding:14px 20px;border-bottom:1px solid var(--line);background:#fbfcfe;} .ch b{color:var(--navy);font-size:14px;} .ch .core{font-size:9.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#b23a2c;background:#fdeceb;border:1px solid #f4c9c4;border-radius:100px;padding:2px 8px;} .ch .gh{margin-left:auto;font-size:11.5px;color:var(--soft);font-weight:600;}
+.body{padding:16px 20px 20px;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;} @media(max-width:640px){.row2{grid-template-columns:1fr;}}
+.fld{margin-bottom:14px;} .fld:last-child{margin-bottom:0;} .fld label{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);font-weight:800;margin-bottom:6px;} .fld label .dot{color:var(--red);margin-left:3px;}
+.fld input[type=text], .fld textarea{font:inherit;font-size:14px;padding:10px 12px;border:1px solid var(--inp);border-radius:9px;width:100%;color:var(--ink);background:#fff;}
+.fld textarea{min-height:74px;resize:vertical;line-height:1.5;}
+.fld.need input, .fld.need textarea{border-color:#e6b4ae;background:#fffafa;}
+.hint{font-size:11.5px;color:var(--soft);margin-top:5px;line-height:1.45;}
+.btn{font:inherit;font-size:13px;font-weight:700;padding:9px 16px;border:1px solid var(--inp);border-radius:9px;background:#fff;color:var(--navy);cursor:pointer;}
+.btn:hover{background:#f4f7fb;} .btn.sm{padding:7px 12px;font-size:12.5px;}
+.btn.red{background:var(--red);color:#fff;border-color:var(--red);} .btn.red:hover{filter:brightness(1.08);}
+.btn.ghost{background:#fff;}
+.msg{font-size:12.5px;font-weight:700;} .msg.ok{color:var(--green);} .msg.err{color:var(--red);}
+.gate{padding:50px 24px;text-align:center;color:var(--muted);font-size:14px;}
+.banner{border-radius:12px;padding:12px 16px;font-size:13px;font-weight:600;margin-bottom:16px;line-height:1.5;}
+.banner.done{background:#eaf7f0;border:1px solid #bfe6d0;color:#1a6e46;}
+.banner.need{background:#fff5e6;border:1px solid #f0d9a8;color:#7a5713;}
+.actbar{position:sticky;bottom:0;background:linear-gradient(#fff9,#fff);backdrop-filter:blur(4px);border-top:1px solid var(--line);padding:12px 0;margin-top:8px;display:flex;align-items:center;gap:12px;}
+.rrg-back{position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28);}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<a href="#" onclick="goBack();return false;" class="rrg-back" aria-label="Back"><span style="font-size:14px;line-height:1">←</span> Back</a>
+<div class="top"><div class="top-in">
+  <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+  <div class="crumb"><a href="#" onclick="goBack();return false;">Listing</a> &nbsp;›&nbsp; <span id="crumb">Space &amp; Assets</span></div>
+  <div class="kicker">Space &amp; Assets</div>
+  <h1 id="h1">Space &amp; Assets</h1>
+  <div class="sub">The turnkey listing sheet — lease, space, buildout, equipment and license. The five starred blocks are what a space buyer asks first; fill those and you're market-ready. Everything else is optional.</div>
+</div></div>
+<div class="wrap"><div id="root"><div class="gate">Loading…</div></div></div>
+<script>
+function qs(k){ try{ return new URLSearchParams(location.search).get(k)||''; }catch(e){ return ''; } }
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function api(m,u,b){return fetch(u,{method:m,credentials:'same-origin',headers:b?{'Content-Type':'application/json'}:undefined,body:b?JSON.stringify(b):undefined}).then(function(r){return r.json();});}
+var KEY=qs('key');
+function goBack(){ if(history.length>1){ history.back(); } else if(KEY){ location.href='./rrg_assignment.html?key='+encodeURIComponent(KEY); } else { location.href='./index.html'; } }
+
+// Field definition — mirrors the server's ASSET_SPEC_FIELDS. a=textarea, core=required block.
+var GROUPS=[
+  {title:'The headline', fields:[
+    {k:'askingPrice', l:'Asking price', ph:'$185,000'},
+    {k:'conveys', l:'What conveys — assets & rights included', a:1, ph:'FF&E, hood system, walk-ins, liquor license, lease assignment…'},
+    {k:'reason', l:'Reason for availability', ph:'Relocating / closing the concept / lease expiring'},
+    {k:'availableDate', l:'Target availability / delivery date', ph:'Sept 15 · or 60 days'}
+  ]},
+  {title:'The lease', core:1, hint:'The heart of a space deal — how much time is left and how the landlord handles an assignment.', fields:[
+    {k:'leaseRent', l:'Current base rent', core:1, ph:'$6,200 / mo'},
+    {k:'leasePerSF', l:'Rent per SF', ph:'$38 / SF'},
+    {k:'leaseRemaining', l:'Remaining term', core:1, ph:'4 yrs 3 mos'},
+    {k:'leaseExpiration', l:'Lease expiration', ph:'Mar 2030'},
+    {k:'leaseOptions', l:'Renewal options', ph:'Two 5-yr options · 6-mo notice'},
+    {k:'leaseAssignment', l:'Assignment & landlord consent', core:1, a:1, ph:"Landlord's posture, the consent process, transfer fees, any personal guaranty…"},
+    {k:'leaseNNN', l:'NNN / CAM · taxes · insurance', ph:'$9 / SF NNN'},
+    {k:'leaseDeposit', l:'Security deposit / key money to landlord', ph:'$6,200 deposit · $25k key money'},
+    {k:'leaseUse', l:'Permitted use / exclusives', ph:'Full-service restaurant; no exclusives'}
+  ]},
+  {title:'The space', core:1, fields:[
+    {k:'sqft', l:'Interior square footage', core:1, ph:'2,800 SF'},
+    {k:'seating', l:'Seating capacity', ph:'90 interior'},
+    {k:'patio', l:'Patio / outdoor', ph:'20-seat patio'},
+    {k:'deliveryCondition', l:'Delivery condition', core:1, ph:'As-is, fully equipped'},
+    {k:'operatingNow', l:'Operating or dark now', ph:'Operating · or Dark since June'}
+  ]},
+  {title:'Buildout & leaseholds', fields:[
+    {k:'hood', l:'Hood, venting & grease', core:1, a:1, ph:'2 hoods · ~4,000 CFM with make-up air · 1,500-gal grease interceptor'},
+    {k:'walkin', l:'Walk-in cooler / freezer', ph:'8×10 cooler + 6×6 freezer'},
+    {k:'ansul', l:'Ansul / fire suppression', ph:'Ansul, last certified 2025'},
+    {k:'restrooms', l:'Restrooms', ph:'2 · ADA compliant'},
+    {k:'buildoutAge', l:'Buildout age', ph:'Built out 2019'},
+    {k:'replacementCost', l:'Est. replacement cost', ph:'~$450k to replicate'}
+  ]},
+  {title:'FF&E', core:1, hint:'The equipment schedule is what a buyer weighs against buying it all new.', fields:[
+    {k:'ffeSchedule', l:'Equipment schedule — what conveys', core:1, a:1, ph:'List the major equipment that conveys — ranges, fryers, ovens, walk-ins, POS, furniture…'},
+    {k:'ffeExcluded', l:'Excluded items', a:1, ph:"Anything the seller is keeping"},
+    {k:'smallwares', l:'Smallwares / POS / furniture', ph:'Included · or excluded'}
+  ]},
+  {title:'Licenses & entitlements', core:1, fields:[
+    {k:'liquorType', l:'Liquor / TABC license type', ph:'Mixed beverage (MB)'},
+    {k:'liquorTransfer', l:'License transferability / key money', core:1, a:1, ph:'Transferable with TABC approval · seller asking $30k · or not included'},
+    {k:'coOccupancy', l:'Certificate of occupancy / load', ph:'CO on file · occupancy 110'},
+    {k:'healthPermit', l:'Health / venting permits', ph:'Current health permit'}
+  ]},
+  {title:'Utilities & infrastructure', fields:[
+    {k:'electrical', l:'Electrical service', ph:'400A · 3-phase'},
+    {k:'gas', l:'Gas service', ph:'Natural gas · 2" line'},
+    {k:'hvac', l:'HVAC', ph:'15 tons · 2 units'},
+    {k:'waterSewer', l:'Water / sewer / grease', ph:'2" water · 1,500-gal interceptor'}
+  ]},
+  {title:'Marketing assets', fields:[
+    {k:'photosNote', l:'Photos', ph:'Link or note — where the photos live'},
+    {k:'floorplanNote', l:'Floor plan', ph:'Link or note'},
+    {k:'videoNote', l:'Walkthrough video', ph:'Link (optional)'}
+  ]}
+];
+var CORE=['leaseRent','leaseRemaining','leaseAssignment','sqft','deliveryCondition','hood','ffeSchedule','liquorTransfer'];
+var CORE_LABEL={};
+GROUPS.forEach(function(g){ g.fields.forEach(function(f){ if(f.core) CORE_LABEL[f.k]=f.l; }); });
+var SPEC={}, BIZ='', DIRTY=false;
+
+function fieldHtml(f){
+  var v=SPEC[f.k]||'';
+  var lab='<label>'+esc(f.l)+(f.core?'<span class="dot">★</span>':'')+'</label>';
+  var need=(f.core && !String(v).trim())?' need':'';
+  var ctrl=f.a
+    ? '<textarea data-k="'+f.k+'" placeholder="'+esc(f.ph||'')+'">'+esc(v)+'</textarea>'
+    : '<input type="text" data-k="'+f.k+'" value="'+esc(v)+'" placeholder="'+esc(f.ph||'')+'">';
+  return '<div class="fld'+need+'" data-fk="'+f.k+'">'+lab+ctrl+'</div>';
+}
+function groupHtml(g){
+  var wide=g.fields.filter(function(f){return f.a;});
+  // Two-column for the short inputs, full width for textareas — grouped in visual order.
+  var rows='', buf=[];
+  function flush(){ if(!buf.length) return; rows+='<div class="row2">'+buf.join('')+'</div>'; buf=[]; }
+  g.fields.forEach(function(f){ if(f.a){ flush(); rows+=fieldHtml(f); } else { buf.push(fieldHtml(f)); if(buf.length===2) flush(); } });
+  flush();
+  return '<div class="card"><div class="ch"><b>'+esc(g.title)+'</b>'+(g.core?'<span class="core">Core</span>':'')+(g.hint?'<span class="gh">'+esc(g.hint)+'</span>':'')+'</div><div class="body">'+rows+'</div></div>';
+}
+function bannerHtml(){
+  var miss=CORE.filter(function(k){ return !String(SPEC[k]||'').trim(); });
+  if(!miss.length) return '<div class="banner done">✓ Core details complete — this space is market-ready.</div>';
+  return '<div class="banner need">Still needed for a complete listing: '+miss.map(function(k){return esc(CORE_LABEL[k]);}).join(' · ')+'</div>';
+}
+function render(){
+  var host=document.getElementById('root');
+  host.innerHTML='<div id="bannerHost">'+bannerHtml()+'</div>'
+    +GROUPS.map(groupHtml).join('')
+    +'<div class="actbar"><button class="btn red" id="saveBtn">Save listing sheet</button><span class="msg" id="msg"></span><a class="btn ghost sm" href="#" onclick="goBack();return false;" style="margin-left:auto">Back</a></div>';
+  host.querySelectorAll('[data-k]').forEach(function(el){
+    el.addEventListener('input', function(){ SPEC[el.getAttribute('data-k')]=el.value; DIRTY=true; var fld=el.closest('.fld'); if(fld){ var k=fld.getAttribute('data-fk'); if(CORE.indexOf(k)>=0) fld.classList.toggle('need', !el.value.trim()); } refreshBanner(); });
+  });
+  document.getElementById('saveBtn').addEventListener('click', save);
+}
+function refreshBanner(){ var b=document.getElementById('bannerHost'); if(b) b.innerHTML=bannerHtml(); }
+function gather(){ var out={}; document.querySelectorAll('[data-k]').forEach(function(el){ var v=el.value.trim(); if(v) out[el.getAttribute('data-k')]=v; }); return out; }
+function save(){
+  var btn=document.getElementById('saveBtn'), msg=document.getElementById('msg');
+  btn.disabled=true; msg.className='msg'; msg.textContent='Saving…';
+  api('POST','/api/asset-spec',{ key:KEY, spec:gather() }).then(function(j){
+    btn.disabled=false;
+    if(!j||!j.ok){ msg.className='msg err'; msg.textContent=(j&&j.error)||'Could not save.'; return; }
+    SPEC=j.spec||{}; DIRTY=false;
+    var n=(j.missing||[]).length;
+    msg.className='msg ok'; msg.textContent=n?('Saved ✓ · '+n+' core field'+(n===1?'':'s')+' still open'):'Saved ✓ · market-ready';
+    refreshBanner();
+  }).catch(function(){ btn.disabled=false; msg.className='msg err'; msg.textContent='Could not reach the server.'; });
+}
+function setHead(){ var t=BIZ?(BIZ+' — Space & Assets'):'Space & Assets'; document.getElementById('h1').textContent=BIZ||'Space & Assets'; document.getElementById('crumb').textContent=BIZ||'Space & Assets'; document.title='FullServe — '+t; }
+
+(function boot(){
+  if(!KEY){ document.getElementById('root').innerHTML='<div class="gate">No listing specified.</div>'; return; }
+  api('GET','/api/asset-spec?key='+encodeURIComponent(KEY)).then(function(j){
+    if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">'+esc((j&&j.error)||'Listing not found.')+'</div>'; return; }
+    SPEC=j.spec||{}; BIZ=j.business||''; setHead();
+    if(j.saleLane && j.saleLane!=='asset'){ document.getElementById('root').innerHTML='<div class="gate">This listing is a Business Sale, not a Space &amp; Assets listing. <a href="./rrg_assignment.html?key='+encodeURIComponent(KEY)+'" style="color:var(--navy);font-weight:700">Open its workspace →</a></div>'; return; }
+    render();
+  }).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not load this listing.</div>'; });
+})();
+window.addEventListener('beforeunload', function(e){ if(DIRTY){ e.preventDefault(); e.returnValue=''; } });
+</script>
+</body>
+</html>
