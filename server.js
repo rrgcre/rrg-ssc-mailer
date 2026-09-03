@@ -15004,8 +15004,8 @@ app.get('/api/tasks', (req, res) => {
   const mine = all.filter(t => taskVisible(t, req));
   const contacts = loadPeople().map(p => ({ id: p.id, name: p.name })).sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
   const deals = [];
-  try { const ov = loadAssignOverlay(), idx = assignmentsIndex(); for (const k in idx) { try { deals.push({ key: k, business: assignmentView(idx[k], ov).business }); } catch (e) {} } } catch (e) {}
-  deals.sort((a, b) => String(a.business || '').localeCompare(String(b.business || '')));
+  try { const ov = loadAssignOverlay(), idx = assignmentsIndex(); for (const k in idx) { try { const _v = assignmentView(idx[k], ov); deals.push({ key: k, business: _v.business, market: _v.market || '', listingId: _v.listingId || '' }); } catch (e) {} } } catch (e) {}
+  deals.sort((a, b) => String(a.business || '').localeCompare(String(b.business || '')) || String(a.market || '').localeCompare(String(b.market || '')));
   const users = auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => String(a.name).localeCompare(String(b.name)));
   const _tcnt = {}; all.forEach(t => { const x = String(t.title || '').trim(); if (x) _tcnt[x] = (_tcnt[x] || 0) + 1; });
   const _seedTitles = ['Call', 'Email', 'Follow up with', 'Send listing agreement to', 'Send NDA to', 'Send CIM to', 'Schedule tour with', 'Confirm tour with', 'Prepare BOV for', 'Send BOV to', 'Check in with', 'Send offer to', 'Review offer from', 'Draft LOI for', 'Collect financials from', 'Request P&L from', 'Update seller on', 'Circle back with'];
