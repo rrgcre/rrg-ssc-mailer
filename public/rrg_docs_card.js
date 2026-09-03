@@ -97,8 +97,9 @@
     if(d.kind==='seller'){ top=d.typeLabel||'Seller Screening'; var _cpt=d.concept||(d.title && d.title!==top?d.title:''); var _loc=d.location||d.market||''; sub=[_cpt,_loc].filter(Boolean).join(' \u00b7 '); }
     // Valuation (BOV): lead with the document type \u2014 in a contact's doc list what it IS matters more
     // than the business name (which is the same across all their docs). Business drops to the subtitle.
-    if(d.kind==='valuation'){ top=(d.typeLabel && /opinion/i.test(d.typeLabel)) ? d.typeLabel : 'Opinion of Value'; sub=(d.title||d.companyName||''); }
-    if(d.kind==='lease'){ top='Lease Abstract'; sub=[(d.title||''),(d.status||'')].filter(Boolean).join(' \u00b7 '); }
+    if(d.kind==='valuation'){ top=(d.typeLabel && /opinion/i.test(d.typeLabel)) ? d.typeLabel : 'Opinion of Value'; sub=[(d.title||d.companyName||''),(d.market||'')].filter(Boolean).join(' \u00b7 '); }
+    if(d.kind==='lease'){ top='Lease Abstract'; sub=[(d.title||''),(d.market||''),(d.status||'')].filter(Boolean).join(' \u00b7 '); }
+    if(d.kind==='marketingpack'){ sub=[(d.title||d.companyName||''),(d.market||'')].filter(Boolean).join(' \u00b7 '); }
     // Uploaded files: lead the meta line with the file type (PDF, DOCX, …), then the filed-under document type.
     if(d.kind==='file'){ var _ext=String(d.ext||'').toUpperCase(); var _dt=String(d.docType||''); sub=[_ext, (_dt && _dt.toUpperCase()!==_ext ? _dt : '')].filter(Boolean).join(' · '); }
     if(d.kind==='file' && d.size) sub+=(sub?' · ':'')+fmtSize(d.size);
