@@ -254,6 +254,7 @@ select.nlselect{appearance:none;-webkit-appearance:none;-moz-appearance:none;bac
 .railbody{max-height:266px;overflow-y:auto;}
 .agrlist{max-height:280px;overflow-y:auto;margin:-4px 0;}
 .agrrow{cursor:pointer;}
+.agrvoidrow{flex:none;display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;padding:0;background:none;border:none;border-radius:6px;color:#b0788f;cursor:pointer;margin:0 0 0 2px;} .agrvoidrow:hover{background:#fdeceb;color:#DA2B1F;}
 .agrx{flex:none;border:none;background:none;color:#c7cedb;cursor:pointer;font-size:16px;line-height:1;padding:0 4px;}
 .agrx:hover{color:var(--red);}
 .rrempty{font-size:12.5px;color:var(--soft);padding:8px 18px;}
@@ -445,7 +446,8 @@ function agrRow(a){
   var _dtline=_dt.length?('<div class="docmeta" style="color:#8a94a6;margin-top:1px">'+_dt.join(' · ')+'</div>'):'';
   var _rs=(a&&Array.isArray(a.recSigners))?a.recSigners.filter(Boolean):[];
   var _rsline=_rs.length?('<div class="docmeta" style="color:#8a94a6;margin-top:1px">Signed by '+esc(_rs.join(' & '))+'</div>'):'';
-  return '<div class="rrow agrrow'+(signed?' agrexec':'')+'" data-agr="'+esc(a.id)+'" title="Open the document"><span class="dico k-agreement"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8.5 14.5l1.6 1.6 3.4-3.6"/></svg></span><div class="rrmain" style="min-width:0"><div class="docttl">'+esc(title)+'</div><div class="docmeta">'+meta+'</div>'+_dtline+_rsline+'</div>'+expChip(a)+agrEntryIcon(a)+'</div>';
+  var _voidBtn=(a.signStatus==='sent'||a.signStatus==='partial')?'<button type="button" class="agrvoidrow" data-agrvoid="'+esc(a.id)+'" title="Void agreement — stops signing, keeps the record on file"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><line x1="5.6" y1="5.6" x2="18.4" y2="18.4"></line></svg></button>':'';
+  return '<div class="rrow agrrow'+(signed?' agrexec':'')+'" data-agr="'+esc(a.id)+'" title="Open the document"><span class="dico k-agreement"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8.5 14.5l1.6 1.6 3.4-3.6"/></svg></span><div class="rrmain" style="min-width:0"><div class="docttl">'+esc(title)+'</div><div class="docmeta">'+meta+'</div>'+_dtline+_rsline+'</div>'+expChip(a)+agrEntryIcon(a)+_voidBtn+'</div>';
 }
 function apptFmtDT(sv){ if(!sv) return ''; var d=String(sv).slice(0,10).split('-'); var t=String(sv).slice(11,16); var out=d.length===3?(d[1]+'/'+d[2]+'/'+d[0]):String(sv); if(t){ var hh=parseInt(t.slice(0,2),10)||0,mm=t.slice(3,5); out+=' '+((hh%12)||12)+(mm==='00'?'':(':'+mm))+(hh>=12?'p':'a'); } return out; }
 // ---- Tasks (linked to this contact) --------------------------------------------------
@@ -1347,6 +1349,7 @@ function wireAgreements(){
 function wireAgrRows(){
   document.querySelectorAll('.agrrow[data-agr]').forEach(function(b){ if(b._wired) return; b._wired=true; b.addEventListener('click',function(e){ if(e.target.closest('button')) return; var a=AGREEMENTS.filter(function(x){return x.id===b.getAttribute('data-agr');})[0]; if(a) agrOpenDoc(a); }); });
   document.querySelectorAll('[data-agrdel]').forEach(function(b){ if(b._wired) return; b._wired=true; b.addEventListener('click',function(e){ e.stopPropagation(); delAgreement(b.getAttribute('data-agrdel')); }); });
+  document.querySelectorAll('[data-agrvoid]').forEach(function(b){ if(b._wired) return; b._wired=true; b.addEventListener('click',async function(e){ e.stopPropagation(); e.preventDefault(); if(!await rrgConfirm('Void this agreement? It can no longer be signed, but the record stays on file marked Voided.')) return; fetch('/api/agreements/'+encodeURIComponent(b.getAttribute('data-agrvoid'))+'/cancel',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ if(window.rrgToast) rrgToast('Agreement voided ✓'); load(); } else alert((j&&j.error)||'Could not void the agreement.'); }).catch(function(){ alert('Could not reach the server.'); }); }); });
 }
 function fmtPhoneVal(v){ var d=String(v==null?'':v).replace(/\D/g,'').slice(0,10); if(d.length>6) return '('+d.slice(0,3)+') '+d.slice(3,6)+'-'+d.slice(6); if(d.length>3) return '('+d.slice(0,3)+') '+d.slice(3); if(d.length>0) return '('+d; return ''; }
 document.addEventListener('input',function(e){ var t=e.target; if(t&&t.classList&&t.classList.contains('p_phone')) t.value=fmtPhoneVal(t.value); });
