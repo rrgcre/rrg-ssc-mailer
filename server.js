@@ -15709,7 +15709,7 @@ function agreementStatus(a){
   var today = new Date().toISOString().slice(0,10);
   var ss = String(a.signStatus || '');
   if (ss === 'declined') return { key:'declined', label:'Declined' };
-  if (ss === 'canceled' || ss === 'cancelled') return { key:'canceled', label:'Canceled' };
+  if (ss === 'canceled' || ss === 'cancelled') return { key:'canceled', label:'Voided' };
   var executed = (ss === 'executed' || ss === 'signed');
   if (!executed) {
     if (a.status === 'terminated') return { key:'terminated', label:'Terminated' };
@@ -16407,7 +16407,7 @@ app.post('/api/agreements/:id/cancel', express.json(), (req, res) => {
   if (['signed','awaiting_countersign','executed'].indexOf(a.signStatus) >= 0) return res.status(400).json({ ok: false, error: 'A fully executed agreement cannot be canceled \u2014 terminate it instead.' });
   const now = new Date().toISOString();
   a.signStatus = 'canceled'; a.canceledAt = now; a.updatedAt = now; saveAgreements(all);
-  if (a.personId) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.personId); if (pp) { logActivity(pp, 'Agreement Canceled', agreementTypeLabel(a.type) + ' signing was canceled', { auto: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); savePeople(ppl); } } catch (e) {} }
+  if (a.personId) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.personId); if (pp) { logActivity(pp, 'Agreement Voided', agreementTypeLabel(a.type) + ' was voided before signing', { auto: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); savePeople(ppl); } } catch (e) {} }
   res.json({ ok: true, agreement: agreementBrief(a) });
 });
 app.post('/api/sign/:token/decline', express.json(), (req, res) => {

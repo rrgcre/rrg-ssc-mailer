@@ -201,6 +201,12 @@ textarea{min-height:120px;resize:vertical;line-height:1.5;}
 .hqbtn.mkt{background:#fff;color:#23496f;border-color:#c4ccda;flex:1 1 auto;justify-content:center;} .hqbtn.mkt:hover{background:#eef2f7;border-color:#23496f;}
 .hqbtn.del{background:#fff;color:var(--red);border-color:#f0c9c6;flex:1 1 auto;justify-content:center;} .hqbtn.del:hover{background:#fdeceb;border-color:var(--red);}
 .hqnote{font-size:11.5px;color:var(--muted);line-height:1.5;margin:-4px 0 13px;}
+.mkfield{display:flex;flex-wrap:wrap;gap:6px;align-items:center;border:1px solid #c4ccda;border-radius:6px;padding:6px 7px;background:#fff;min-height:38px;cursor:text;}
+.mkfield:focus-within{border-color:#2c5c8f;box-shadow:0 0 0 2px rgba(44,92,143,.12);}
+.mchip{display:inline-flex;align-items:center;gap:5px;background:#eef2f8;color:#23496f;border:1px solid #d3ddf3;border-radius:4px;padding:3px 5px 3px 9px;font-size:12px;font-weight:700;line-height:1.3;}
+.mchip .mchipx{background:none;border:none;color:#7a869c;cursor:pointer;font-size:14px;line-height:1;padding:0 2px;}
+.mchip .mchipx:hover{color:var(--red);}
+.mkfield #mktAdd{flex:1;min-width:120px;border:none;outline:none;font:inherit;font-size:13px;padding:3px 2px;background:transparent;color:#2b3648;}
 /* tours */
 .tlist{padding:2px 0;}
 .tcard{padding:14px 20px;border-bottom:1px solid var(--line);}
@@ -380,6 +386,32 @@ function esc(s){var d=document.createElement('div');d.textContent=s==null?'':Str
 function fmt(iso){ if(!iso) return '—'; var d=new Date(iso); if(isNaN(d.getTime())) return '—'; return (d.getMonth()+1)+'/'+d.getDate()+'/'+d.getFullYear(); }
 function qs(k){ return new URLSearchParams(location.search).get(k)||''; }
 var KEY=qs('key'), A=null, LEASE=null, STATUSES=['New','Active','Under Contract','Closed','On Hold','Lost'], DIRTY=false, RA=null, OFFERS=[], TOURS=[], NDAS=[], PEOPLE=[], AGR=[], ATYPES=[], PIPES=[], BUYERPIPES=[], EXP=null, INVX=null;
+var REP_TYPES=['Exclusive','Non-exclusive','Other'];
+var MKTS=[];
+function mktFieldHtml(){
+  var chips=MKTS.map(function(m,i){ return '<span class="mchip">'+esc(m)+'<button type="button" class="mchipx" data-mi="'+i+'" title="Remove">×</button></span>'; }).join('');
+  var dl=(MARKETS||[]).filter(function(m){ return MKTS.map(function(x){return String(x).toLowerCase();}).indexOf(String(m).toLowerCase())<0; }).map(function(m){ return '<option value="'+esc(m)+'"></option>'; }).join('');
+  return '<div class="mkfield" id="mktField">'+chips+'<input id="mktAdd" list="mktDL" placeholder="'+(MKTS.length?'Add another market…':'Type a market…')+'" autocomplete="off"><datalist id="mktDL">'+dl+'</datalist></div>';
+}
+function repaintMkt(){ var f=document.getElementById('mktField'); if(!f) return; var tmp=document.createElement('div'); tmp.innerHTML=mktFieldHtml(); var fresh=tmp.querySelector('#mktField'); f.parentNode.replaceChild(fresh,f); mktWire(); var ni=document.getElementById('mktAdd'); if(ni){ try{ni.focus();}catch(e){} } }
+function mktWire(){
+  var f=document.getElementById('mktField'); if(!f) return;
+  f.querySelectorAll('.mchipx').forEach(function(b){ b.addEventListener('click',function(){ var i=+b.getAttribute('data-mi'); if(i>=0){ MKTS.splice(i,1); repaintMkt(); setDirty(true); save(); } }); });
+  var inp=document.getElementById('mktAdd');
+  if(inp){ var addv=function(){ var v=(inp.value||'').trim().replace(/[,;]+$/,'').trim(); inp.value=''; if(!v) return; if(MKTS.map(function(x){return x.toLowerCase();}).indexOf(v.toLowerCase())<0){ MKTS.push(v); repaintMkt(); setDirty(true); save(); } };
+    inp.addEventListener('keydown',function(e){ if(e.key==='Enter'||e.key===','){ e.preventDefault(); addv(); } });
+    inp.addEventListener('change',function(){ if(inp.value.trim()) addv(); });
+    inp.addEventListener('blur',function(){ if(inp.value.trim()) addv(); });
+    f.addEventListener('click',function(e){ if(e.target===f){ try{inp.focus();}catch(_){} } });
+  }
+}
+function spacePipelineCard(){
+  var sp=(A&&A.buyerPipelineId)?((PIPES||[]).filter(function(p){return p.id===A.buyerPipelineId;})[0]||null):null;
+  if(!sp){ return '<div class="card"><div class="ch"><b>Space Pipeline</b></div><div class="cb" style="padding:12px 16px;color:#8a93a8;font-size:12.5px;line-height:1.55">Pick a <b>Space pipeline</b> on the left to track viable spaces through their stages (identified → toured → LOI → negotiating → signed). <a href="./rrg_admin_pipelines.html" style="color:#2c5c8f;font-weight:700;text-decoration:none">Create one ↗</a> if you don’t have a spaces pipeline yet.</div></div>'; }
+  var stages=(sp.stages||[]).map(function(s){return (s&&s.name)||s;}).filter(Boolean);
+  var steps=stages.map(function(n){ return '<div class="hpstep" style="cursor:default">'+esc(n)+'</div>'; }).join('');
+  return '<div class="card"><div class="ch"><b>Space Pipeline</b><span style="margin-left:8px;color:var(--navy);font-weight:700;font-size:11.5px;background:#eef2fb;border:1px solid #d3ddf3;border-radius:999px;padding:2px 10px">'+esc(sp.name)+'</span><span style="margin-left:auto;font-size:11px;color:#8a93a8">Track each space on the shortlist below</span></div><div class="track"><div class="hpipe">'+steps+'</div></div></div>';
+}
 // Stages the buyer leads move through — driven by the selected Buyer pipeline; falls back to the fixed funnel.
 function buyerStageNames(){ var st=(A&&A.buyerStages)||[]; var names=st.map(function(s){return (s&&s.name)||s;}).filter(Boolean); return names.length?names:INQ_STATUSES; }
 // Buyer pipeline board — the buyer-side mirror of the seller Pipeline card. Each stage shows how many buyer leads sit in it.
@@ -843,9 +875,10 @@ function applyFeatStrip(){
 function render(){
   var s=A.stages||{};
   var ST=activeStages();
+  MKTS=String(A.market||'').split(/[,;]/).map(function(x){return x.trim();}).filter(Boolean);
   document.getElementById('crumb').textContent=A.business||'Deal file';
   document.getElementById('h1').textContent=A.business||'Deal';
-  (function(){ var _t=(A&&A.assignmentType)||'listing'; var _lbl=(_t==='tenant_rep')?'Tenant-rep assignment':((_t==='landlord_rep')?'Landlord-rep listing':'Listing record'); var _wd=(_t==='tenant_rep')?'assignment':'listing'; var _k=document.getElementById('kicker'); if(_k) _k.innerHTML=_lbl+' <span class="kx">— everything for this '+_wd+' in one place</span>'; })();
+  (function(){ var _k=document.getElementById('kicker'); if(_k) _k.innerHTML='Tenant-rep engagement <span class="kx">— everything for this space search in one place</span>'; })();
   try{ applyFeatStrip(); }catch(e){}
   var sub=[];
   if(A.company&&A.company.id) sub.push('<span>Company: <a href="./rrg_company.html?id='+encodeURIComponent(A.company.id)+'" style="color:#fff;font-weight:700;text-decoration:underline;text-underline-offset:2px">'+esc(A.company.name)+'</a></span>');
@@ -896,42 +929,36 @@ function render(){
     return '<button type="button" class="hpstep hpman'+(done?' on done':'')+'" data-mstage="'+d.k+'" title="'+esc(d.name)+' \u2014 click to mark '+(done?'not done':'done')+'">'+inner+'</button>';
   }).join('');
 
-  var opts=STATUSES.map(function(x){ return '<option'+(A.status===x?' selected':'')+'>'+esc(x)+'</option>'; }).join('');
+  var _repSel=(REP_TYPES.indexOf(A.status)>=0)?A.status:'';
+  var opts='<option value=""'+(_repSel?'':' selected')+'>— Select —</option>'+REP_TYPES.map(function(x){ return '<option'+(_repSel===x?' selected':'')+'>'+esc(x)+'</option>'; }).join('');
   var curPid=(A.pipelineId&&PIPES.some(function(p){return p.id===A.pipelineId;}))?A.pipelineId:TOOLPIPE;
   var pipeOpts=PIPES.map(function(p){ return '<option value="'+esc(p.id)+'"'+(p.id===curPid?' selected':'')+'>'+esc(p.name)+'</option>'; }).join('');
-  var curBpid=(A.buyerPipelineId&&BUYERPIPES.some(function(p){return p.id===A.buyerPipelineId;}))?A.buyerPipelineId:((BUYERPIPES[0]&&BUYERPIPES[0].id)||'');
-  var buyerPipeOpts=BUYERPIPES.map(function(p){ return '<option value="'+esc(p.id)+'"'+(p.id===curBpid?' selected':'')+'>'+esc(p.name)+'</option>'; }).join('');
+  var curSpid=(A.buyerPipelineId&&PIPES.some(function(p){return p.id===A.buyerPipelineId;}))?A.buyerPipelineId:'';
+  var spacePipeOpts='<option value="">— Select a pipeline —</option>'+PIPES.map(function(p){ return '<option value="'+esc(p.id)+'"'+(p.id===curSpid?' selected':'')+'>'+esc(p.name)+'</option>'; }).join('');
   var _apipe=activePipe(); var pipeName=(_apipe&&(_apipe.stages||[]).length)?(_apipe.name||''):'';
   var _curMkt=(A.market||''); var _mktList=(MARKETS||[]).slice(); if(_curMkt&&_mktList.indexOf(_curMkt)<0) _mktList.unshift(_curMkt);
   var mktDl=_mktList.map(function(m){ return '<option value="'+esc(m)+'"></option>'; }).join('');
 
   document.getElementById('root').className='wrap';
   var _sideHtml='<div class="side"><div class="card"><div class="ch"><b>Manage</b></div><div class="cb" style="padding-top:14px">'
-      + ((A.canStart||A.provisional||(A.assignmentType==='listing')||A.dealId) ? ('<div class="hqbar">'
-          + (A.canStart ? '<button class="hqbtn go" id="startDealBtn">Start listing →</button>' : (A.provisional ? '<button class="hqbtn go" id="promoteBtn">Go Live →</button>' : ''))
-          + ((A.assignmentType==='listing') ? '<button class="hqbtn mkt" id="hqMktBtn">📣 Marketplace</button>' : '')
-          + (A.canDelete !== false ? '<button class="hqbtn del" id="delDealBtn" title="Removes the listing, its records, data room and all files. Cannot be undone.">Delete</button>' : '')
-          + '</div>'
-          + (A.canStart ? '<div class="hqnote">Start runs the Seller Qualification Call and takes this on as a working listing — not on the market yet.</div>' : '')
-          + (A.provisional ? '<div class="hqnote">Go Live marks this listing Live — do it once financials are verified, value is aligned, and the agreement is signed.</div>' : '')
-        ) : '')
-      + '<div class="fldrow"><label class="fld">Status</label><select id="f_status">'+opts+'</select></div>'
-      + (PIPES.length?('<div class="fldrow"><label class="fld">Pipeline <span style="font-weight:400;color:#8a93a8;font-size:11px">— where this engagement sits on the board</span></label><select id="f_pipeline">'+pipeOpts+'</select></div>'):'')
-      + ''
+      + ((A.canDelete !== false) ? ('<div class="hqbar">'
+          + '<button class="hqbtn del" id="delDealBtn" title="Removes this engagement and its records. Cannot be undone.">Delete</button>'
+          + '</div>') : '')
+      + '<div class="fldrow"><label class="fld">Representation</label><select id="f_status">'+opts+'</select></div>'
+      + (PIPES.length?('<div class="fldrow"><label class="fld">Tenant pipeline <span style="font-weight:400;color:#8a93a8;font-size:11px">— move the tenant through the search</span></label><select id="f_pipeline">'+pipeOpts+'</select></div>'):'')
+      + (PIPES.length?('<div class="fldrow"><label class="fld">Space pipeline <span style="font-weight:400;color:#8a93a8;font-size:11px">— move viable spaces through their stages</span></label><select id="f_buyerpipe">'+spacePipeOpts+'</select></div>'):'')
       + '<div class="fldrow"><label class="fld">'+((A.assignmentType==='tenant_rep')?'Tenant / client contact':((A.assignmentType==='landlord_rep')?'Landlord contact':'Seller contact'))+(A.clientPersonId?(' <a href="./rrg_person.html?id='+encodeURIComponent(A.clientPersonId)+'" title="Open the linked contact" style="text-transform:none;letter-spacing:0;font-weight:700;color:#2c5c8f;text-decoration:none;margin-left:6px">open ↗</a>'):'')+'</label><input class="owner" id="f_contact" list="peopleList" value="'+esc(A.contact||'')+'" placeholder="'+((A.assignmentType==='tenant_rep')?'Tenant / client — type a contact name to link it':((A.assignmentType==='landlord_rep')?'Landlord / property owner — type a contact name to link it':'Client / seller — type a contact name to link it'))+'"></div>'
       + '<div class="fldrow"><label class="fld">Referred by</label><input class="owner" id="f_refby" list="peopleList" value="'+esc(A.referredBy||'')+'" placeholder="Contact who referred this"></div>'
       + '<div class="fldrow"><label class="fld">Referral %</label><input class="owner" id="f_refpct" value="'+esc(A.referralPct||'')+'" placeholder="e.g. 10" inputmode="decimal" style="max-width:130px"></div>'
-      + '<div class="fldrow"><label class="fld">Business name</label><input class="owner" id="f_biz" value="'+esc(A.businessOverride||A.business||'')+'" placeholder="The actual business name"></div>'
-      + '<div class="fldrow"><label class="fld">Code name <span style="font-weight:400;color:#8a93a8;font-size:11px">— confidential project alias</span> <button type="button" id="suggestCodeBtn" class="suggestbtn" title="Generate a confidential project name">✦ Suggest</button></label><input class="owner" id="f_codename" value="'+esc(A.codeName||'')+'" placeholder="e.g. Project Falcon"></div>'
-      + '<div class="fldrow"><label class="fld">Market</label><input class="owner" id="f_market" list="marketList" value="'+esc(_curMkt)+'" placeholder="Type a market…" autocomplete="off"><datalist id="marketList">'+mktDl+'</datalist></div>'
+      + '<div class="fldrow"><label class="fld">Business name <span style="font-weight:400;color:#8a93a8;font-size:11px">— the tenant / client business</span></label><input class="owner" id="f_biz" list="bizList" value="'+esc(A.businessOverride||A.business||'')+'" placeholder="Start typing to find a business" autocomplete="off"><datalist id="bizList"></datalist></div>'
+      + '<div class="fldrow"><label class="fld">Markets <span style="font-weight:400;color:#8a93a8;font-size:11px">— add one or more</span></label>'+mktFieldHtml()+'</div>'
       + '<div class="fldrow"><label class="fld">Owner</label><input class="owner" id="f_owner" value="'+esc(A.owner||'')+'" placeholder="Assigned rep"></div>'
       + ''
       + '<div class="listingbox">'
         + '<div class="listinghd">Representation agreement</div>'
         + '<div class="fldrow2"><div><label class="fld">Listed on</label><input type="date" class="owner" id="f_lstart" value="'+esc(A.listingStart||'')+'"></div>'
         + '<div><label class="fld">Expires</label><input type="date" class="owner" id="f_lexp" value="'+esc(A.listingExpires||'')+'"></div></div>'
-        + '<div class="fldrow2"><div><label class="fld">Live date (on market)</label><input type="date" class="owner" id="f_llive" value="'+esc(A.listingLive||'')+'"></div>'
-        + '<div><label class="fld">Days on market</label><input class="owner" id="f_dom" value="'+esc(domDays())+'" readonly style="background:#f5f7fb;font-weight:700"></div></div>'
+        + '<div class="fldrow"><label class="fld">Days active</label><input class="owner" id="f_dom" value="'+esc(domDays())+'" readonly style="background:#f5f7fb;font-weight:700;max-width:160px"></div>'
         + '<label class="autorow"><input type="checkbox" id="f_lauto"'+(A.autoRenew?' checked':'')+'> Auto-renews</label>'
         + '<div class="expnote" id="expNote"></div>'
       + '</div>'
@@ -952,8 +979,8 @@ function render(){
     _sideHtml
     + '<div class="mid">'
     + '<div class="card"><div class="ch"><b>Overview</b><span>'+done+' of '+ST.length+' stages complete</span></div><div class="cb">'+facts+'</div></div>'
-    + docsCard()
     + '<div class="card"><div class="ch"><b>Tenant Pipeline</b>'+(pipeName?('<span style="margin-left:8px;color:var(--navy);font-weight:700;font-size:11.5px;background:#eef2fb;border:1px solid #d3ddf3;border-radius:999px;padding:2px 10px">'+esc(pipeName)+'</span>'):'')+'<span>'+started+' of '+ST.length+' started</span></div><div class="track"><div class="hpipe">'+steps+'</div></div></div>'
+    + spacePipelineCard()
     + '</div>'
     + '<div class="rail">'
     + spaceShortlistCard()
@@ -963,7 +990,6 @@ function render(){
     + dealCard()
     + expensesCardDeal()
     + invoicesCardDeal()
-    + roomActivityCard()
     + '</div>'
     + peopleDatalistHTML();
 
@@ -993,9 +1019,11 @@ function render(){
   wireDeal();
   wireManualStages();
   wireExpenses();
+  mktWire();
+  var _bl=document.getElementById('bizList'); if(_bl && PEOPLE && PEOPLE.length){ var _seen={},_bo=''; PEOPLE.forEach(function(p){ var c=String((p&&p.company)||'').trim(); if(c&&!_seen[c.toLowerCase()]){ _seen[c.toLowerCase()]=1; _bo+='<option value="'+esc(c)+'"></option>'; } }); _bl.innerHTML=_bo; }
   setupAccordion();
 }
-function loadPeople(){ fetch('/api/people',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ PEOPLE=(j&&j.people)||[]; var dl=document.getElementById('peopleList'); if(dl) dl.innerHTML=PEOPLE.map(function(p){return '<option value="'+esc(p.name)+'">'+esc(p.company||p.email||'')+'</option>';}).join(''); }).catch(function(){}); }
+function loadPeople(){ fetch('/api/people',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ PEOPLE=(j&&j.people)||[]; var dl=document.getElementById('peopleList'); if(dl) dl.innerHTML=PEOPLE.map(function(p){return '<option value="'+esc(p.name)+'">'+esc(p.company||p.email||'')+'</option>';}).join(''); var bl=document.getElementById('bizList'); if(bl){ var seen={},bo=''; PEOPLE.forEach(function(p){ var c=String((p&&p.company)||'').trim(); if(c&&!seen[c.toLowerCase()]){ seen[c.toLowerCase()]=1; bo+='<option value="'+esc(c)+'"></option>'; } }); bl.innerHTML=bo; } }).catch(function(){}); }
 function matchBuyersShell(){ return '<div class="card" id="matchBuyersCard"><div class="ch"><b>Matching buyers</b><span id="mbCount" style="color:#8a93a8;font-weight:700;margin-left:6px"></span></div><div class="cb" style="padding:12px 16px"><div id="matchBuyers"><div style="color:#8a93a8;font-size:12.5px;padding:4px 0">Checking your buyer book…</div></div></div></div>'; }
 function sellerReportShell(){ if(A && A.assignmentType==='tenant_rep') return ''; return '<div class="card" id="sellerRepCard"><div class="ch"><b>Seller activity report</b><span id="srStatus" style="margin-left:10px;font-size:12px;color:#8a93a3">Loading…</span></div><div class="cb" id="srBody" style="padding:12px 16px"><div style="color:#8a93a8;font-size:12.5px">Checking…</div></div></div>'; }
 function loadSellerReport(){ var body=document.getElementById('srBody'), st=document.getElementById('srStatus'); if(!body||!KEY) return;
@@ -1624,13 +1652,13 @@ function updateExpNote(){
 }
 function save(rerender){
   var b=document.getElementById('savebtn'); b.disabled=true; b.textContent='Saving…';
-  var body={ status:document.getElementById('f_status').value, owner:document.getElementById('f_owner').value, notes:document.getElementById('f_notes').value, businessOverride:document.getElementById('f_biz').value, codeName:(document.getElementById('f_codename')||{}).value||'', marketOverride:(document.getElementById('f_market')||{}).value||'', financials3y:collectFin3y(),
+  var body={ status:document.getElementById('f_status').value, owner:document.getElementById('f_owner').value, notes:document.getElementById('f_notes').value, businessOverride:document.getElementById('f_biz').value, codeName:(document.getElementById('f_codename')||{}).value||'', marketOverride:MKTS.join(', '), financials3y:collectFin3y(),
     contact:(document.getElementById('f_contact')||{}).value||'', clientPersonId:(function(){ var _cn=((document.getElementById('f_contact')||{}).value||'').trim(); if(!_cn) return ''; var _m=PEOPLE.filter(function(p){return String(p.name||'').trim().toLowerCase()===_cn.toLowerCase();})[0]; return _m?_m.id:''; })(),
-    referredBy:document.getElementById('f_refby').value, referralPct:document.getElementById('f_refpct').value, listingLive:document.getElementById('f_llive').value, listingStart:document.getElementById('f_lstart').value, listingExpires:document.getElementById('f_lexp').value, autoRenew:document.getElementById('f_lauto').checked, bbsRef:(document.getElementById('f_bbsref')||{}).value||'', bbsNumber:(document.getElementById('f_bbsnum')||{}).value||'', costarNo:(document.getElementById('f_costar')||{}).value||'', crexiNo:(document.getElementById('f_crexi')||{}).value||'', leadAutomationId:(document.getElementById('f_leadauto')||{}).value||'', assignmentType:(A&&A.assignmentType)||'listing', criteria:((A&&A.assignmentType==='tenant_rep')?{markets:(document.getElementById('cr_markets')||{}).value||'',useType:(document.getElementById('cr_use')||{}).value||'',budget:(document.getElementById('cr_budget')||{}).value||'',sizeMin:(document.getElementById('cr_sizemin')||{}).value||'',sizeMax:(document.getElementById('cr_sizemax')||{}).value||'',termYears:(document.getElementById('cr_term')||{}).value||'',timeline:(document.getElementById('cr_timeline')||{}).value||'',parking:(document.getElementById('cr_parking')||{}).value||'',features:(document.getElementById('cr_features')||{}).value||'',notes:(document.getElementById('cr_crnotes')||{}).value||''}:undefined), space:((A&&A.assignmentType==='landlord_rep')?{sizeSqft:(document.getElementById('sp_size')||{}).value||'',askingRent:(document.getElementById('sp_rent')||{}).value||'',term:(document.getElementById('sp_term')||{}).value||'',condition:(document.getElementById('sp_cond')||{}).value||'',useType:(document.getElementById('sp_use')||{}).value||'',availableDate:(document.getElementById('sp_avail')||{}).value||'',features:(document.getElementById('sp_feat')||{}).value||'',notes:(document.getElementById('sp_notes')||{}).value||''}:undefined), pipelineId:(document.getElementById('f_pipeline')||{}).value||(A.pipelineId||''), buyerPipelineId:(document.getElementById('f_buyerpipe')||{}).value||(A&&A.buyerPipelineId)||'' };
+    referredBy:document.getElementById('f_refby').value, referralPct:document.getElementById('f_refpct').value, listingLive:(document.getElementById('f_llive')||{}).value||'', listingStart:document.getElementById('f_lstart').value, listingExpires:document.getElementById('f_lexp').value, autoRenew:document.getElementById('f_lauto').checked, bbsRef:(document.getElementById('f_bbsref')||{}).value||'', bbsNumber:(document.getElementById('f_bbsnum')||{}).value||'', costarNo:(document.getElementById('f_costar')||{}).value||'', crexiNo:(document.getElementById('f_crexi')||{}).value||'', leadAutomationId:(document.getElementById('f_leadauto')||{}).value||'', assignmentType:(A&&A.assignmentType)||'listing', criteria:((A&&A.assignmentType==='tenant_rep')?{markets:(document.getElementById('cr_markets')||{}).value||'',useType:(document.getElementById('cr_use')||{}).value||'',budget:(document.getElementById('cr_budget')||{}).value||'',sizeMin:(document.getElementById('cr_sizemin')||{}).value||'',sizeMax:(document.getElementById('cr_sizemax')||{}).value||'',termYears:(document.getElementById('cr_term')||{}).value||'',timeline:(document.getElementById('cr_timeline')||{}).value||'',parking:(document.getElementById('cr_parking')||{}).value||'',features:(document.getElementById('cr_features')||{}).value||'',notes:(document.getElementById('cr_crnotes')||{}).value||''}:undefined), space:((A&&A.assignmentType==='landlord_rep')?{sizeSqft:(document.getElementById('sp_size')||{}).value||'',askingRent:(document.getElementById('sp_rent')||{}).value||'',term:(document.getElementById('sp_term')||{}).value||'',condition:(document.getElementById('sp_cond')||{}).value||'',useType:(document.getElementById('sp_use')||{}).value||'',availableDate:(document.getElementById('sp_avail')||{}).value||'',features:(document.getElementById('sp_feat')||{}).value||'',notes:(document.getElementById('sp_notes')||{}).value||''}:undefined), pipelineId:(document.getElementById('f_pipeline')||{}).value||(A.pipelineId||''), buyerPipelineId:(document.getElementById('f_buyerpipe')||{}).value||(A&&A.buyerPipelineId)||'' };
   fetch('/api/assignment/'+encodeURIComponent(KEY)+'/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
     .then(function(r){return r.json();}).then(function(j){
       b.textContent='Save changes';
-      if(j&&j.ok){ DIRTY=false; A.status=body.status; A.owner=body.owner; A.notes=body.notes; A.businessOverride=body.businessOverride; A.codeName=body.codeName; A.referredBy=body.referredBy; A.referralPct=body.referralPct; A.listingLive=body.listingLive; A.listingStart=body.listingStart; A.listingExpires=body.listingExpires; A.autoRenew=body.autoRenew; A.bbsRef=body.bbsRef; A.bbsNumber=body.bbsNumber; A.costarNo=body.costarNo; A.crexiNo=body.crexiNo; A.leadAutomationId=body.leadAutomationId; A.pipelineId=body.pipelineId;
+      if(j&&j.ok){ DIRTY=false; A.status=body.status; A.owner=body.owner; A.notes=body.notes; A.businessOverride=body.businessOverride; A.codeName=body.codeName; A.referredBy=body.referredBy; A.referralPct=body.referralPct; A.listingLive=body.listingLive; A.listingStart=body.listingStart; A.listingExpires=body.listingExpires; A.autoRenew=body.autoRenew; A.bbsRef=body.bbsRef; A.bbsNumber=body.bbsNumber; A.costarNo=body.costarNo; A.crexiNo=body.crexiNo; A.leadAutomationId=body.leadAutomationId; A.pipelineId=body.pipelineId; A.buyerPipelineId=body.buyerPipelineId; A.market=body.marketOverride;
         if(rerender===true){ render(); return; }
         document.getElementById('subline').querySelector('.hpill').textContent=body.status;
         if(body.businessOverride){ A.business=body.businessOverride; document.getElementById('h1').textContent=body.businessOverride; document.getElementById('crumb').textContent=body.businessOverride; }
