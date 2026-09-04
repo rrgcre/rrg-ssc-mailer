@@ -2414,6 +2414,15 @@ function resolveRoomFor(rec) {
 }
 // Back-compat shim — the room tied to a BOV's listing.
 function roomForBovListing(bov, rooms) { return resolveRoomFor(bov); }
+// Extract spreadsheet text so Excel financials actually reach the BOV analyst. Reuses the
+// SheetJS build already vendored for the in-browser viewer — no extra dependency.
+let _XLSX_LIB;
+function _xlsxLib() { if (_XLSX_LIB !== undefined) return _XLSX_LIB; try { _XLSX_LIB = require(path.join(__dirname, 'public', 'vendor', 'xlsx.full.min.js')); } catch (e) { _XLSX_LIB = null; } return _XLSX_LIB; }
+function _sheetToText(fp) {
+  try { const X = _xlsxLib(); if (!X) return ''; const wb = X.read(fs.readFileSync(fp), { type: 'buffer' });
+    return (wb.SheetNames || []).map(nm => '### Sheet: ' + nm + '\n' + X.utils.sheet_to_csv(wb.Sheets[nm])).join('\n\n').slice(0, 200000);
+  } catch (e) { console.error('xlsx->text:', e && e.message); return ''; }
+}
 function roomFilesForBov(bov) {
   const out = [];
   try {
@@ -2430,9 +2439,12 @@ function roomFilesForBov(bov) {
         // Set the media type from the extension — without it the analyst silently drops the file.
         if (ext === 'csv' || ext === 'txt') {
           out.push({ name: name, label: label, type: 'text/plain', text: fs.readFileSync(fp, 'utf8').slice(0, 200000) });
+        } else if (ext === 'xlsx' || ext === 'xls' || ext === 'xlsm' || ext === 'xlsb') {
+          // Excel P&Ls: convert every sheet to CSV text so the analyst can read them.
+          const _t = _sheetToText(fp); if (_t) out.push({ name: name + '.csv', label: label, type: 'text/plain', text: _t });
         } else {
           const mt = ext === 'pdf' ? 'application/pdf' : (ext === 'png' ? 'image/png' : ((ext === 'jpg' || ext === 'jpeg') ? 'image/jpeg' : (ext === 'gif' ? 'image/gif' : '')));
-          out.push({ name: name, label: label, type: mt, dataB64: fs.readFileSync(fp).toString('base64') });
+          if (mt) out.push({ name: name, label: label, type: mt, dataB64: fs.readFileSync(fp).toString('base64') });
         }
       } catch (e) {}
     });
@@ -16084,7 +16096,7 @@ function loadAgreements() { try { return rj(AGREEMENTS_FILE) || []; } catch (e) 
 function saveAgreements(a) { return writeJsonGuarded(AGREEMENTS_FILE, a, 'saveAgreements'); }
 function newAgreementId() { return 'agr_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 const AGREEMENT_TYPES = [
-  { key: 'NDA', label: 'Non-Disclosure Agreement', renewable: false },
+  { key: 'NDA', label: 'Non-Disclosure Agreement', renewable: false, termYears: 1 },
   { key: 'CA', label: 'Confidentiality Agreement', renewable: false },
   { key: 'ETRA', label: 'Exclusive Tenant Representation Agreement', renewable: true },
   { key: 'Referral', label: 'Referral Agreement', renewable: false },
@@ -16191,9 +16203,29 @@ function agrProjectedGci(a){
   if(m==='lehman'){ var gross=Math.round(commissionForTiers(val, effCommissionTiers())); return Math.round(Math.max(gross, floor)); }
   return 0;
 }
+// The date an agreement took effect. Explicit effective wins; otherwise, once it's
+// signed/executed, fall back to the execution/signed date so executed agreements
+// (e.g. an NDA with no stated term) always show an effective date.
+function agrEffective(a) {
+  if (a && a.effective) return String(a.effective).slice(0, 10);
+  if (a && (a.signStatus === 'executed' || a.signStatus === 'signed' || a.executedAt || a.signedAt || a.signedDate)) return String(a.executedAt || a.signedAt || a.signedDate || '').slice(0, 10);
+  return '';
+}
+// Default term (years) built into an agreement type — e.g. an NDA runs 1 year.
+function agrTypeTermYears(type) { const t = AGREEMENT_TYPES.find(x => x.key === type); return (t && t.termYears) || 0; }
+function agrTermYears(a) { return (a && a.termYears) || agrTypeTermYears(a && a.type) || 0; }
+// Add whole years to a YYYY-MM-DD date.
+function _addYears(ymd, years) { if (!ymd || !years) return ''; const d = new Date(String(ymd).slice(0, 10) + 'T00:00:00'); if (isNaN(d.getTime())) return ''; d.setFullYear(d.getFullYear() + years); return d.toISOString().slice(0, 10); }
+// The expiration: an explicit stored value wins; otherwise derive it from the effective
+// date plus the term (agreement's own term, or the type's default) once it's in effect.
+function agrExpires(a) {
+  if (a && a.expires) return String(a.expires).slice(0, 10);
+  const eff = agrEffective(a); const yrs = agrTermYears(a);
+  return (eff && yrs) ? _addYears(eff, yrs) : '';
+}
 function agreementBrief(a) {
   var _as = agreementStatus(a);
-  return { id: a.id, type: a.type, name: a.name || '', personId: a.personId || '', personName: a.personName || '', companyId: a.companyId || '', dealKey: a.dealKey || '', effective: a.effective || '', expires: a.expires || '', startOnExec: !!a.startOnExec, termYears: a.termYears || 0, execAuto: a.execAuto || '', emailSubject: a.emailSubject || '', sendAuto: a.sendAuto || '', status: a.status || 'active', notes: a.notes || '', createdByName: a.createdByName || '', createdAt: a.createdAt || '', updatedAt: a.updatedAt || '', canceledAt: a.canceledAt || '', declinedAt: a.declinedAt || '', docExt: a.docExt || '', docName: a.docName || '', signStatus: a.signStatus || '', sentAt: a.sentAt || '', sentTo: a.sentTo || '', signedDate: a.signedDate || '', signToken: a.signToken || '', signedName: a.signedName || '', signedAt: a.signedAt || '', hasSignature: !!a.hasSignature, repSignedName: a.repSignedName || '', repSignedAt: a.repSignedAt || '', executedAt: a.executedAt || '', hasCountersign: !!a.hasCountersign, signedResponses: a.signedResponses || null, templateId: a.templateId || '', templateName: a.templateName || '', entryMethod: (a.entryMethod || (/^sign & return/i.test(a.name || '') ? 'signreturn' : ((a.signToken || a.templateId || a.sentAt || (Array.isArray(a.pdfFields) && a.pdfFields.length)) ? 'sent' : 'recorded'))), signers: Array.isArray(a.signers) ? a.signers.map(s => ({ order: s.order, role: s.role, label: s.label, name: s.name || '', email: s.email || '', status: s.status || 'pending', signedAt: s.signedAt || '' })) : [], recSigners: Array.isArray(a.recSigners) ? a.recSigners.slice(0,2) : [], signerCount: _clampSigners(a.signerCount), hasFinal: !!a.hasFinal, pdfFieldCount: Array.isArray(a.pdfFields) ? a.pdfFields.length : 0, statusKey: _as.key, statusLabel: _as.label, renewedById: a.renewedById || '', renewalOf: a.renewalOf || '', commBasis: a.commBasis || '', commRate: (a.commRate!=null?a.commRate:''), commFlat: (a.commFlat!=null?a.commFlat:''), commValue: (a.commValue!=null?a.commValue:''), commLocations: (a.commLocations!=null?a.commLocations:''), projectedGci: agrProjectedGci(a) };
+  return { id: a.id, type: a.type, name: a.name || '', personId: a.personId || '', personName: a.personName || '', companyId: a.companyId || '', dealKey: a.dealKey || '', effective: agrEffective(a), expires: agrExpires(a), startOnExec: !!a.startOnExec, termYears: a.termYears || 0, execAuto: a.execAuto || '', emailSubject: a.emailSubject || '', sendAuto: a.sendAuto || '', status: a.status || 'active', notes: a.notes || '', createdByName: a.createdByName || '', createdAt: a.createdAt || '', updatedAt: a.updatedAt || '', canceledAt: a.canceledAt || '', declinedAt: a.declinedAt || '', docExt: a.docExt || '', docName: a.docName || '', signStatus: a.signStatus || '', sentAt: a.sentAt || '', sentTo: a.sentTo || '', signedDate: a.signedDate || '', signToken: a.signToken || '', signedName: a.signedName || '', signedAt: a.signedAt || '', hasSignature: !!a.hasSignature, repSignedName: a.repSignedName || '', repSignedAt: a.repSignedAt || '', executedAt: a.executedAt || '', hasCountersign: !!a.hasCountersign, signedResponses: a.signedResponses || null, templateId: a.templateId || '', templateName: a.templateName || '', entryMethod: (a.entryMethod || (/^sign & return/i.test(a.name || '') ? 'signreturn' : ((a.signToken || a.templateId || a.sentAt || (Array.isArray(a.pdfFields) && a.pdfFields.length)) ? 'sent' : 'recorded'))), signers: Array.isArray(a.signers) ? a.signers.map(s => ({ order: s.order, role: s.role, label: s.label, name: s.name || '', email: s.email || '', status: s.status || 'pending', signedAt: s.signedAt || '' })) : [], recSigners: Array.isArray(a.recSigners) ? a.recSigners.slice(0,2) : [], signerCount: _clampSigners(a.signerCount), hasFinal: !!a.hasFinal, pdfFieldCount: Array.isArray(a.pdfFields) ? a.pdfFields.length : 0, statusKey: _as.key, statusLabel: _as.label, renewedById: a.renewedById || '', renewalOf: a.renewalOf || '', commBasis: a.commBasis || '', commRate: (a.commRate!=null?a.commRate:''), commFlat: (a.commFlat!=null?a.commFlat:''), commValue: (a.commValue!=null?a.commValue:''), commLocations: (a.commLocations!=null?a.commLocations:''), projectedGci: agrProjectedGci(a) };
 }
 // ---------------- Uploaded documents (general file storage) ----------------
 const USERDOCS_DIR = path.join(BOV_DATA_DIR, 'userdocs');
@@ -16338,7 +16370,7 @@ app.get('/api/documents', (req, res) => {
   const out = [];
   let ag = loadAgreements();
   if (restrictToOwn(req)) ag = ag.filter(a => permOwnerMatch(req, a.createdBy));
-  ag.forEach(a => { const br = agreementBrief(a); out.push({ id:a.id, kind:'agreement', title:(a.name || agreementTypeLabel(a.type) || 'Agreement'), typeLabel:'Agreement', agrType: agreementTypeLabel(a.type), effective: a.effective||'', expires: a.expires||'', signStatus:a.signStatus||'', docExt:a.docExt||'', hasFinal:!!a.hasFinal, entryMethod:a.entryMethod||'', personId:a.personId||'', dealKey:a.dealKey||'', companyId:a.companyId||'', companyName: coNameById[a.companyId]||'', personName: a.personName || nameById[a.personId] || '', dealName: bizByKey[a.dealKey]||'', status: br.statusLabel||'', statusKey: br.statusKey||'', owner: a.createdByName || a.createdBy || '', createdAt: a.createdAt||'', deleteUrl: '/api/document/agreement/'+a.id, openUrl: a.hasFinal ? ('/api/agreements/'+a.id+'/final') : (a.docExt ? ('/api/agreements/'+a.id+'/doc') : 'rrg_agreements.html'), downloadUrl: a.hasFinal ? ('/api/agreements/'+a.id+'/final') : (a.docExt ? ('/api/agreements/'+a.id+'/doc') : '') }); });
+  ag.forEach(a => { const br = agreementBrief(a); out.push({ id:a.id, kind:'agreement', title:(a.name || agreementTypeLabel(a.type) || 'Agreement'), typeLabel:'Agreement', agrType: agreementTypeLabel(a.type), effective: agrEffective(a), expires: agrExpires(a), signStatus:a.signStatus||'', docExt:a.docExt||'', hasFinal:!!a.hasFinal, entryMethod:a.entryMethod||'', personId:a.personId||'', dealKey:a.dealKey||'', companyId:a.companyId||'', companyName: coNameById[a.companyId]||'', personName: a.personName || nameById[a.personId] || '', dealName: bizByKey[a.dealKey]||'', status: br.statusLabel||'', statusKey: br.statusKey||'', owner: a.createdByName || a.createdBy || '', createdAt: a.createdAt||'', deleteUrl: '/api/document/agreement/'+a.id, openUrl: a.hasFinal ? ('/api/agreements/'+a.id+'/final') : (a.docExt ? ('/api/agreements/'+a.id+'/doc') : 'rrg_agreements.html'), downloadUrl: a.hasFinal ? ('/api/agreements/'+a.id+'/final') : (a.docExt ? ('/api/agreements/'+a.id+'/doc') : '') }); });
   let bv = loadBovs().filter(b => isAdmin || ownsBov(req, b));
   bv.forEach(b => { out.push({ id:b.id, kind:'valuation', title: b.business || 'Valuation', typeLabel:'Valuation', matchNames:[b.business||''], valueText: (b.targetText||b.rangeText||b.sdeText||''), basis: b.basis||'', personId:b.personId||'', companyId:b.companyId||'', companyName: coNameById[b.companyId]||'', market: b.market || coMktById[b.companyId] || '', personName: nameById[b.personId]||'', dealName:'', status: b.finalizedAt ? ('Final' + ((b.version||1) > 1 ? (' v'+(b.version||1)) : '')) : (b.pending ? 'Requested' : 'Built'), statusKey: b.finalizedAt ? 'final' : (b.pending ? 'pending' : 'built'), owner: b.by || b.byUser || '', createdAt: b.createdAt || '', deleteUrl: '/api/document/valuation/'+b.id, openUrl: (b.pending ? 'rrg_bov_generate.html?bov=' : 'rrg_bov_builder.html?bov=') + encodeURIComponent(b.id), downloadUrl:'' }); });
   let cm = loadCims().filter(c => isAdmin || ownsCim(req, c));
@@ -17293,7 +17325,7 @@ function runPostExecution(a, req) {
   try {
     if (!a) return;
     const now = new Date().toISOString();
-    try { if (a.startOnExec || a.termYears) { const ags = loadAgreements(); const aa = ags.find(x => x.id === a.id); if (aa) { if (aa.startOnExec) aa.effective = now.slice(0, 10); if (aa.termYears) { const _b = (aa.effective || now.slice(0, 10)); const _d = new Date(_b + 'T00:00:00'); if (!isNaN(_d.getTime())) { _d.setFullYear(_d.getFullYear() + aa.termYears); aa.expires = _d.toISOString().slice(0, 10); } } aa.updatedAt = now; a.effective = aa.effective; a.expires = aa.expires; saveAgreements(ags); } } } catch (e) {}
+    try { const ags = loadAgreements(); const aa = ags.find(x => x.id === a.id); if (aa) { let _dty = false; if (aa.startOnExec || !aa.effective) { aa.effective = now.slice(0, 10); _dty = true; } const _yrs = agrTermYears(aa); if (_yrs && !aa.expires) { const _e = _addYears(aa.effective || now.slice(0, 10), _yrs); if (_e) { aa.expires = _e; _dty = true; } } if (_dty) { aa.updatedAt = now; a.effective = aa.effective; a.expires = aa.expires; saveAgreements(ags); } } } catch (e) {}
     try { if (a.execAuto && a.personId) { const _pp = loadPeople(); const _p = _pp.find(x => x.id === a.personId); if (_p) { const _plan = loadAutomations().find(x => x.id === a.execAuto && x.active !== false); if (_plan) { enrollPerson(_p, _plan, { byName: (req && req.user && req.user.name) || '', byUser: (req && req.user && req.user.username) || '', dealKey: a.dealKey || '' }); savePeople(_pp); } } } } catch (e) {}
     // Structured commission: project GCI, seed the linked deal, and open a tracking task.
     try {
