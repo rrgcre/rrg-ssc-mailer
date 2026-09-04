@@ -1677,7 +1677,7 @@ function render(){
   document.getElementById('root').innerHTML=
     '<div class="side"><div class="card"><div class="ch"><b>Contact</b><span class="autonote">Autosaves</span></div><div class="cb">'
       + '<div class="rsec" data-rsec><div class="rsechd">Identity <span class="cv">▾</span></div><div class="rsecbody">'
-      + '<div class="photorow"><div class="photoprev" id="p_photoprev" title="Click to upload a photo">'+photoInner+'</div><span class="flagrow" id="flagMount" style="flex:1 1 auto;flex-wrap:wrap"></span><input type="file" id="p_photofile" accept="image/*" hidden></div>'
+      + '<div class="photorow"><div class="photoprev" id="p_photoprev" title="Click to upload a photo">'+photoInner+'</div><span class="flagrow" id="flagMount" style="flex:1 1 auto;flex-wrap:wrap;justify-content:flex-end"></span><input type="file" id="p_photofile" accept="image/*" hidden></div>'
       + '<div class="fldrow2"><div><label class="fld">First name *</label><input id="p_first" value="'+esc(P.firstName||'')+'" style="font-weight:700"></div><div><label class="fld">Last name *</label><input id="p_last" value="'+esc(P.lastName||'')+'" style="font-weight:700"></div></div>'
       + '<div class="fldrow2"><div><label class="fld">Nickname</label><input id="p_nick" value="'+esc(P.nickname||'')+'" placeholder="Optional"></div><div><label class="fld">Title</label><input id="p_title" value="'+esc(P.title||'')+'" placeholder="e.g. Owner, GM, CFO"></div></div>'
       + '<div class="fldrow"><label class="fld">Main Interests * <span style="font-weight:500;color:#8a93a8;font-size:11px">(pick one or more)</span></label><div id="p_types"></div></div>'
