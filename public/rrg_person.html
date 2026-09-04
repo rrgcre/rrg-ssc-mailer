@@ -465,10 +465,15 @@ function agrRow(a){
   var _dtline=_dt.length?('<div class="docmeta" style="color:#8a94a6;margin-top:1px">'+_dt.join(' · ')+'</div>'):'';
   var _rs=(a&&Array.isArray(a.recSigners))?a.recSigners.filter(Boolean):[];
   var _rsline=_rs.length?('<div class="docmeta" style="color:#8a94a6;margin-top:1px">Signed by '+esc(_rs.join(' & '))+'</div>'):'';
+  var _refline='';
+  if(a.type==='Referral' && (a.referredName||a.referredConcept)){
+    var _rp=[a.referredName,a.referredConcept].filter(Boolean).join(' · ');
+    _refline='<div class="docmeta" style="color:#41506b;margin-top:1px;font-weight:600">→ Referred: '+esc(_rp)+'</div>';
+  }
   var _voided=(a.signStatus==='canceled'||a.signStatus==='cancelled');
   var _voidBtn=(a.signStatus==='sent'||a.signStatus==='partial')?'<button type="button" class="agrvoidrow" data-agrvoid="'+esc(a.id)+'" title="Void agreement — stops signing, keeps the record on file"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><line x1="5.6" y1="5.6" x2="18.4" y2="18.4"></line></svg></button>':'';
   var _voidedChip=_voided?'<span class="agrvoidedchip" title="Voided — no longer valid, cannot be signed">Voided</span>':'';
-  return '<div class="rrow agrrow'+(signed?' agrexec':'')+(_voided?' agrvoided':'')+'" data-agr="'+esc(a.id)+'" title="Open the document"><span class="dico k-agreement"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8.5 14.5l1.6 1.6 3.4-3.6"/></svg></span><div class="rrmain" style="min-width:0"><div class="docttl">'+esc(title)+'</div><div class="docmeta">'+meta+'</div>'+_dtline+_rsline+'</div>'+_voidedChip+expChip(a)+agrEntryIcon(a)+_voidBtn+'</div>';
+  return '<div class="rrow agrrow'+(signed?' agrexec':'')+(_voided?' agrvoided':'')+'" data-agr="'+esc(a.id)+'" title="Open the document"><span class="dico k-agreement"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8.5 14.5l1.6 1.6 3.4-3.6"/></svg></span><div class="rrmain" style="min-width:0"><div class="docttl">'+esc(title)+'</div><div class="docmeta">'+meta+'</div>'+_refline+_dtline+_rsline+'</div>'+_voidedChip+expChip(a)+agrEntryIcon(a)+_voidBtn+'</div>';
 }
 function apptFmtDT(sv){ if(!sv) return ''; var d=String(sv).slice(0,10).split('-'); var t=String(sv).slice(11,16); var out=d.length===3?(d[1]+'/'+d[2]+'/'+d[0]):String(sv); if(t){ var hh=parseInt(t.slice(0,2),10)||0,mm=t.slice(3,5); out+=' '+((hh%12)||12)+(mm==='00'?'':(':'+mm))+(hh>=12?'p':'a'); } return out; }
 // ---- Tasks (linked to this contact) --------------------------------------------------

@@ -16225,9 +16225,34 @@ function agrExpires(a) {
   const eff = agrEffective(a); const yrs = agrTermYears(a);
   return (eff && yrs) ? _addYears(eff, yrs) : '';
 }
+// Who was referred — pull the lead's name / concept / contact off a Referral Agreement's
+// placed fields (rep-filled at send). Labels on the Referral Fee template: "Lead name",
+// "Lead Concept name", "Lead contact email", "Lead Contact ph". Returns {} if none.
+function _agrReferred(a) {
+  try {
+    if (!a || a.type !== 'Referral') return null;
+    var fields = Array.isArray(a.pdfFields) ? a.pdfFields : [];
+    var vals = (a.fieldValues && typeof a.fieldValues === 'object' && !Array.isArray(a.fieldValues)) ? a.fieldValues : {};
+    var get = function (re) {
+      for (var i = 0; i < fields.length; i++) {
+        var f = fields[i]; if (!f || !re.test(String(f.label || ''))) continue;
+        var v = (f.id != null && vals[f.id] != null) ? vals[f.id] : '';
+        v = String(v).trim(); if (v) return v;
+      }
+      return '';
+    };
+    var name = get(/^\s*lead\s*(?:contact\s*)?name\b/i);
+    var concept = get(/lead\s*concept|concept\s*name/i);
+    var email = get(/lead\s*(?:contact\s*)?e-?mail/i);
+    var phone = get(/lead\s*(?:contact\s*)?(?:ph\b|phone)/i);
+    if (!name && !concept && !email && !phone) return null;
+    return { name: name, concept: concept, email: email, phone: phone };
+  } catch (e) { return null; }
+}
 function agreementBrief(a) {
   var _as = agreementStatus(a);
-  return { id: a.id, type: a.type, name: a.name || '', personId: a.personId || '', personName: a.personName || '', companyId: a.companyId || '', dealKey: a.dealKey || '', effective: agrEffective(a), expires: agrExpires(a), startOnExec: !!a.startOnExec, termYears: a.termYears || 0, execAuto: a.execAuto || '', emailSubject: a.emailSubject || '', sendAuto: a.sendAuto || '', status: a.status || 'active', notes: a.notes || '', createdByName: a.createdByName || '', createdAt: a.createdAt || '', updatedAt: a.updatedAt || '', canceledAt: a.canceledAt || '', declinedAt: a.declinedAt || '', docExt: a.docExt || '', docName: a.docName || '', signStatus: a.signStatus || '', sentAt: a.sentAt || '', sentTo: a.sentTo || '', signedDate: a.signedDate || '', signToken: a.signToken || '', signedName: a.signedName || '', signedAt: a.signedAt || '', hasSignature: !!a.hasSignature, repSignedName: a.repSignedName || '', repSignedAt: a.repSignedAt || '', executedAt: a.executedAt || '', hasCountersign: !!a.hasCountersign, signedResponses: a.signedResponses || null, templateId: a.templateId || '', templateName: a.templateName || '', entryMethod: (a.entryMethod || (/^sign & return/i.test(a.name || '') ? 'signreturn' : ((a.signToken || a.templateId || a.sentAt || (Array.isArray(a.pdfFields) && a.pdfFields.length)) ? 'sent' : 'recorded'))), signers: Array.isArray(a.signers) ? a.signers.map(s => ({ order: s.order, role: s.role, label: s.label, name: s.name || '', email: s.email || '', status: s.status || 'pending', signedAt: s.signedAt || '' })) : [], recSigners: Array.isArray(a.recSigners) ? a.recSigners.slice(0,2) : [], signerCount: _clampSigners(a.signerCount), hasFinal: !!a.hasFinal, pdfFieldCount: Array.isArray(a.pdfFields) ? a.pdfFields.length : 0, statusKey: _as.key, statusLabel: _as.label, renewedById: a.renewedById || '', renewalOf: a.renewalOf || '', commBasis: a.commBasis || '', commRate: (a.commRate!=null?a.commRate:''), commFlat: (a.commFlat!=null?a.commFlat:''), commValue: (a.commValue!=null?a.commValue:''), commLocations: (a.commLocations!=null?a.commLocations:''), projectedGci: agrProjectedGci(a) };
+  var _rf = _agrReferred(a);
+  return { id: a.id, type: a.type, name: a.name || '', personId: a.personId || '', personName: a.personName || '', companyId: a.companyId || '', dealKey: a.dealKey || '', effective: agrEffective(a), expires: agrExpires(a), startOnExec: !!a.startOnExec, termYears: a.termYears || 0, execAuto: a.execAuto || '', emailSubject: a.emailSubject || '', sendAuto: a.sendAuto || '', status: a.status || 'active', notes: a.notes || '', createdByName: a.createdByName || '', createdAt: a.createdAt || '', updatedAt: a.updatedAt || '', canceledAt: a.canceledAt || '', declinedAt: a.declinedAt || '', docExt: a.docExt || '', docName: a.docName || '', signStatus: a.signStatus || '', sentAt: a.sentAt || '', sentTo: a.sentTo || '', signedDate: a.signedDate || '', signToken: a.signToken || '', signedName: a.signedName || '', signedAt: a.signedAt || '', hasSignature: !!a.hasSignature, repSignedName: a.repSignedName || '', repSignedAt: a.repSignedAt || '', executedAt: a.executedAt || '', hasCountersign: !!a.hasCountersign, signedResponses: a.signedResponses || null, templateId: a.templateId || '', templateName: a.templateName || '', entryMethod: (a.entryMethod || (/^sign & return/i.test(a.name || '') ? 'signreturn' : ((a.signToken || a.templateId || a.sentAt || (Array.isArray(a.pdfFields) && a.pdfFields.length)) ? 'sent' : 'recorded'))), signers: Array.isArray(a.signers) ? a.signers.map(s => ({ order: s.order, role: s.role, label: s.label, name: s.name || '', email: s.email || '', status: s.status || 'pending', signedAt: s.signedAt || '' })) : [], recSigners: Array.isArray(a.recSigners) ? a.recSigners.slice(0,2) : [], signerCount: _clampSigners(a.signerCount), hasFinal: !!a.hasFinal, pdfFieldCount: Array.isArray(a.pdfFields) ? a.pdfFields.length : 0, statusKey: _as.key, statusLabel: _as.label, renewedById: a.renewedById || '', renewalOf: a.renewalOf || '', commBasis: a.commBasis || '', commRate: (a.commRate!=null?a.commRate:''), commFlat: (a.commFlat!=null?a.commFlat:''), commValue: (a.commValue!=null?a.commValue:''), commLocations: (a.commLocations!=null?a.commLocations:''), projectedGci: agrProjectedGci(a), referredName: (_rf&&_rf.name)||'', referredConcept: (_rf&&_rf.concept)||'', referredEmail: (_rf&&_rf.email)||'', referredPhone: (_rf&&_rf.phone)||'' };
 }
 // ---------------- Uploaded documents (general file storage) ----------------
 const USERDOCS_DIR = path.join(BOV_DATA_DIR, 'userdocs');
