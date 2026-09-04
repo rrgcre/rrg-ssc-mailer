@@ -2009,8 +2009,8 @@ app.post('/api/valuation-ensure', express.json(), (req, res) => {
 // ---- Screening queue ----
 app.get('/api/forms', (req, res) => {
   res.set('Cache-Control','no-store');
-  const forms = loadForms(); const assign = (loadSettings().callForms) || {};
-  res.json({ ok:true, isAdmin: !!(req.user && isSuper(req.user)), forms: forms.map(function(f){ return { id:f.id, name:f.name||'(untitled)', callType:f.callType||'', builtIn:!!f.builtIn, questions:_formQCount(f), updatedAt:f.updatedAt||f.createdAt||'' }; }), assign: assign });
+  const forms = loadForms(); const _st = loadSettings(); const assign = _st.callForms || {}; const assignOnline = _st.callFormsOnline || {};
+  res.json({ ok:true, isAdmin: !!(req.user && isSuper(req.user)), forms: forms.map(function(f){ return { id:f.id, name:f.name||'(untitled)', callType:f.callType||'', builtIn:!!f.builtIn, questions:_formQCount(f), updatedAt:f.updatedAt||f.createdAt||'' }; }), assign: assign, assignOnline: assignOnline });
 });
 app.get('/api/form/:id', (req, res) => {
   res.set('Cache-Control','no-store');
@@ -2030,9 +2030,18 @@ app.post('/api/form', requireAdmin, express.json({ limit:'3mb' }), (req, res) =>
   res.json({ ok:true, form:f });
 });
 app.post('/api/call-forms', requireAdmin, express.json(), (req, res) => {
-  const b = req.body || {}; const s = loadSettings(); s.callForms = Object.assign({}, s.callForms, (b.assign||{})); saveSettings(s);
+  const b = req.body || {}; const s = loadSettings();
+  if (b.assign && typeof b.assign === 'object') s.callForms = Object.assign({}, s.callForms, b.assign);
+  // Online self-serve override per call type ('' = use the verbal/live-call form). Blanks are
+  // stored so an admin can clear an override back to "same as verbal".
+  if (b.assignOnline && typeof b.assignOnline === 'object') {
+    const cur = Object.assign({}, s.callFormsOnline);
+    Object.keys(b.assignOnline).forEach(function(k){ const v = String(b.assignOnline[k] || ''); if (v) cur[k] = v; else delete cur[k]; });
+    s.callFormsOnline = cur;
+  }
+  saveSettings(s);
   try { logSysEvent(req,'Forms','Updated call-form assignments',{ tool:'forms', kind:'assign' }); } catch(e){}
-  res.json({ ok:true, assign:s.callForms });
+  res.json({ ok:true, assign:s.callForms, assignOnline: s.callFormsOnline || {} });
 });
 // Extract plain text from a pasted string or an uploaded questionnaire (PDF / Word / text).
 async function extractQuestionnaireText(filename, dataB64) {
@@ -2091,8 +2100,10 @@ app.post('/api/form/:id/delete', requireAdmin, (req, res) => {
   if(!f) return res.status(404).json({ ok:false, error:'Form not found.' });
   if(f.builtIn) return res.status(400).json({ ok:false, error:'The built-in questionnaire cannot be deleted.' });
   saveForms(arr.filter(function(x){ return x.id!==req.params.id; }));
-  const st = loadSettings();
-  if(st.callForms){ let ch=false; Object.keys(st.callForms).forEach(function(k){ if(st.callForms[k]===req.params.id){ delete st.callForms[k]; ch=true; } }); if(ch) saveSettings(st); }
+  const st = loadSettings(); let ch=false;
+  if(st.callForms){ Object.keys(st.callForms).forEach(function(k){ if(st.callForms[k]===req.params.id){ delete st.callForms[k]; ch=true; } }); }
+  if(st.callFormsOnline){ Object.keys(st.callFormsOnline).forEach(function(k){ if(st.callFormsOnline[k]===req.params.id){ delete st.callFormsOnline[k]; ch=true; } }); }
+  if(ch) saveSettings(st);
   try { logSysEvent(req,'Forms','Deleted questionnaire \u201c'+f.name+'\u201d',{ tool:'forms', kind:'delete', id:f.id }); } catch(e){}
   res.json({ ok:true });
 });
@@ -9228,9 +9239,13 @@ function linkKindMeta(k) { return SELLER_LINK_KINDS[linkKind(k)]; }
 // (Settings → Call Questionnaires). Falls back to the generic list if nothing is assigned.
 function sellerInterviewForm(kind) {
   try {
-    const asg = (loadSettings().callForms) || {};
+    const st = loadSettings();
+    const asg = st.callForms || {};
+    const on = st.callFormsOnline || {};
     const meta = linkKindMeta(kind);
-    const id = asg[meta.slot] || (linkKind(kind) === 'valuation' ? asg.seller : '') || '';
+    // The self-serve (online) form prefers its own per-call-type assignment; when none is set
+    // it falls back to the verbal/live-call form, then the valuation→seller shared fallback.
+    const id = on[meta.slot] || asg[meta.slot] || (linkKind(kind) === 'valuation' ? (on.seller || asg.seller) : '') || '';
     if (!id) return null;
     return loadForms().find(f => f.id === id) || null;
   } catch (e) { return null; }

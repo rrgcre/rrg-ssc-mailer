@@ -92,10 +92,16 @@ var CALLTYPES=[
   {key:'site',   label:'Site Selection Criteria Call', tag:'', desc:'Runs when capturing an operator’s site requirements — trade area, size, budget, and deal-breakers.'}
 ];
 
-var STATE={ forms:[], assign:{}, isAdmin:false, dirty:{} };
+var STATE={ forms:[], assign:{}, assignOnline:{}, isAdmin:false, dirty:{}, flSort:{key:'name',dir:1} };
 
 function formsFor(key){
   return STATE.forms.filter(function(f){ return !f.builtIn && (!f.callType || f.callType===key); });
+}
+// Online override for a call type: a form id, or '' meaning "use the verbal/live-call form".
+function currentOnline(key){
+  var a=STATE.assignOnline[key];
+  if(a){ var af=STATE.forms.find(function(f){return f.id===a;}); if(af && !af.builtIn) return af.id; }
+  return '';
 }
 function currentAssigned(key){
   var a=STATE.assign[key];
@@ -107,6 +113,7 @@ function currentAssigned(key){
 function renderCard(ct){
   var list=formsFor(ct.key);
   var sel=currentAssigned(ct.key);
+  var onSel=currentOnline(ct.key);
   var opts;
   if(!list.length){
     opts='<option value="">No form built yet</option>';
@@ -125,15 +132,18 @@ function renderCard(ct){
   var disabled = STATE.isAdmin && list.length ? '' : ' disabled';
   return '<div class="card sec" data-sec="ct_'+ct.key+'"><div class="cardhead" onclick="toggleSec(this)"><h2>'+esc(ct.label)+(ct.tag?(' <span class="tag">'+esc(ct.tag)+'</span>'):'')+'</h2><span class="chev">▾</span></div><div class="cardbody"><div class="ct">'
     +'<div class="info"><p>'+esc(ct.desc)+'</p></div>'
-    +'<div class="pick"><label class="lbl" for="sel_'+ct.key+'">Questionnaire used</label>'
+    +'<div class="pick"><label class="lbl" for="sel_'+ct.key+'">Live call — verbal <span style="font-weight:400;color:var(--dim)">— the questions a rep reads on the call</span></label>'
     +'<select id="sel_'+ct.key+'" data-ct="'+ct.key+'"'+disabled+'>'+opts+'</select>'
-    +'<div class="meta" id="meta_'+ct.key+'">'+meta+'</div><div class="pvinline" id="pvinline_'+ct.key+'" style="display:none"></div></div>'
+    +'<div class="meta" id="meta_'+ct.key+'">'+meta+'</div><div class="pvinline" id="pvinline_'+ct.key+'" style="display:none"></div>'
+    +(list.length?('<label class="lbl" for="selon_'+ct.key+'" style="margin-top:12px">Online self-serve form <span style="font-weight:400;color:var(--dim)">— the seller fills it themselves; leave blank to use the live-call form</span></label>'
+      +'<select id="selon_'+ct.key+'" data-cton="'+ct.key+'"'+disabled+'><option value="">— Same as the live-call form —</option>'+list.map(function(f){ return '<option value="'+esc(f.id)+'"'+(f.id===onSel?' selected':'')+'>'+esc(f.name)+' ('+f.questions+' questions)</option>'; }).join('')+'</select>'):'')
+    +'</div>'
     +'</div></div></div>';
 }
 
 function render(){
   var h='';
-  h+='<div class="hint">Every rep runs the <b>same</b> questionnaire on the same call type. Change the form here and it takes effect on the next call — no rebuild, nothing to redeploy. The <b>built-in RRG default</b> is always available as a fallback.'
+  h+='<div class="hint">Each call type uses one questionnaire for the <b>live call (verbal)</b> and, optionally, a different one for the <b>online self-serve form</b> the seller fills in themselves — leave the online one blank to use the same set. Changes take effect on the next call or send — no rebuild, nothing to redeploy.'
     + (STATE.isAdmin?'':' <b>You are viewing only</b> — an administrator can change these assignments.')+'</div>';
   if(STATE.isAdmin){ h+='<div style="margin:2px 0 14px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn ghost" onclick="newForm()">\uFF0B Build a new questionnaire</button><button class="btn ghost" onclick="openUploadQn()">\u2B06 Upload questionnaire</button></div>'; }
   h+=CALLTYPES.map(renderCard).join('');
@@ -143,6 +153,12 @@ function render(){
   }
   var root=document.getElementById('root'); root.innerHTML=h;
 
+  root.querySelectorAll('select[data-cton]').forEach(function(s){
+    s.addEventListener('change',function(){
+      var ct=s.getAttribute('data-cton'); STATE.assignOnline[ct]=s.value; STATE.dirty['on_'+ct]=true;
+      var msg=document.getElementById('msg'); if(msg){ msg.className='msg'; msg.textContent='Unsaved changes.'; }
+    });
+  });
   root.querySelectorAll('select[data-ct]').forEach(function(s){
     s.addEventListener('change',function(){
       var ct=s.getAttribute('data-ct'); STATE.assign[ct]=s.value; STATE.dirty[ct]=true;
@@ -217,9 +233,24 @@ function openUploadQn(){
 
 function editForm(id, builtIn){ nav('rrg_form_builder.html?form='+encodeURIComponent(id)+(builtIn?'&dup=1':'')); }
 var CTLABEL={seller:'Seller Screening',buyer:'Buyer Qualification',site:'Site-Criteria',valuation:'Seller Interview',other:'General'};
+function sortForms(key){
+  if(STATE.flSort.key===key) STATE.flSort.dir=-STATE.flSort.dir; else { STATE.flSort.key=key; STATE.flSort.dir=(key==='questions'?-1:1); }
+  var host=document.getElementById('formsListHost');
+  if(host){ var tmp=document.createElement('div'); tmp.innerHTML=renderFormsList(); if(tmp.firstElementChild) host.replaceWith(tmp.firstElementChild); }
+}
+function _flHdr(key,label){ var on=STATE.flSort.key===key; var ar=on?(STATE.flSort.dir>0?' ▲':' ▼'):' ▴▾'; return '<th style="cursor:pointer;user-select:none;white-space:nowrap" onclick="sortForms(\''+key+'\')" title="Sort by '+esc(label)+'">'+esc(label)+'<span style="opacity:'+(on?'.85':'.3')+';font-size:10px">'+ar+'</span></th>'; }
 function renderFormsList(){
   var _fl=STATE.forms.filter(function(f){ return !f.builtIn; });
   if(!_fl.length) return '';
+  var sk=STATE.flSort.key, sd=STATE.flSort.dir;
+  _fl=_fl.slice().sort(function(a,b){
+    if(sk==='questions'){ return ((+a.questions||0)-(+b.questions||0))*sd; }
+    var av,bv;
+    if(sk==='callType'){ av=(CTLABEL[a.callType]||a.callType||'').toLowerCase(); bv=(CTLABEL[b.callType]||b.callType||'').toLowerCase(); }
+    else { av=(a.name||'').toLowerCase(); bv=(b.name||'').toLowerCase(); }
+    if(av<bv) return -1*sd; if(av>bv) return 1*sd;
+    return (a.name||'').toLowerCase().localeCompare((b.name||'').toLowerCase());
+  });
   var rows=_fl.map(function(f){
     var act='';
     if(STATE.isAdmin){
@@ -229,9 +260,9 @@ function renderFormsList(){
     }
     return '<tr><td><b>'+esc(f.name)+'</b>'+(f.builtIn?' <span class="tag">built-in</span>':'')+'</td><td>'+esc(CTLABEL[f.callType]||f.callType||'\u2014')+'</td><td>'+f.questions+'</td><td class="ta-r">'+act+'</td></tr>';
   }).join('');
-  return '<div class="card sec" data-sec="formslist"><div class="cardhead" onclick="toggleSec(this)"><h2 style="margin:0;font-size:16px;font-weight:700">Your questionnaires</h2><span class="chev">▾</span></div><div class="cardbody">'
-    +'<p style="margin:0 0 12px;font-size:12.5px;color:var(--dim)">Every questionnaire you’ve built. Edit them here, or use “Build a new questionnaire” above.</p>'
-    +'<table class="ftbl"><thead><tr><th>Name</th><th>Call type</th><th>Questions</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+  return '<div class="card sec" id="formsListHost" data-sec="formslist"><div class="cardhead" onclick="toggleSec(this)"><h2 style="margin:0;font-size:16px;font-weight:700">Your questionnaires</h2><span class="chev">▾</span></div><div class="cardbody">'
+    +'<p style="margin:0 0 12px;font-size:12.5px;color:var(--dim)">Every questionnaire you’ve built. Click a column heading to sort. Edit them here, or use “Build a new questionnaire” above.</p>'
+    +'<table class="ftbl"><thead><tr>'+_flHdr('name','Name')+_flHdr('callType','Call type')+_flHdr('questions','Questions')+'<th></th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
 }
 async function delForm(id,name){
   if(!await rrgConfirm('Delete the questionnaire \u201c'+name+'\u201d?\n\nThis removes it and unassigns it from any call type. This cannot be undone.')) return;
@@ -265,18 +296,18 @@ function togglePreview(ct, id, link){
 
 function saveAll(){
   var btn=document.getElementById('saveBtn'); var msg=document.getElementById('msg');
-  var assign={}; CALLTYPES.forEach(function(ct){ var s=document.getElementById('sel_'+ct.key); if(s&&s.value) assign[ct.key]=s.value; });
+  var assign={}, assignOnline={}; CALLTYPES.forEach(function(ct){ var s=document.getElementById('sel_'+ct.key); if(s&&s.value) assign[ct.key]=s.value; var so=document.getElementById('selon_'+ct.key); assignOnline[ct.key]=(so&&so.value)||''; });
   btn.disabled=true; btn.textContent='Saving…'; msg.className='msg'; msg.textContent='';
-  post('/api/call-forms',{assign:assign}).then(function(j){
+  post('/api/call-forms',{assign:assign, assignOnline:assignOnline}).then(function(j){
     btn.disabled=false; btn.textContent='Save assignments';
-    if(j&&j.ok){ STATE.assign=j.assign||assign; STATE.dirty={}; msg.className='msg ok'; msg.textContent='✓ Saved. Reps will use these on their next call.'; setTimeout(function(){ if(msg.textContent.indexOf('Saved')>=0) msg.textContent=''; },5000); }
+    if(j&&j.ok){ STATE.assign=j.assign||assign; STATE.assignOnline=j.assignOnline||assignOnline; STATE.dirty={}; msg.className='msg ok'; msg.textContent='✓ Saved. Reps will use these on their next call.'; setTimeout(function(){ if(msg.textContent.indexOf('Saved')>=0) msg.textContent=''; },5000); }
     else { msg.className='msg err'; msg.textContent=(j&&j.error)||'Could not save.'; }
   }).catch(function(){ btn.disabled=false; btn.textContent='Save assignments'; msg.className='msg err'; msg.textContent='Network error — not saved.'; });
 }
 
 fetch('/api/forms',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
   if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate"><h2>Could not load</h2>Try reloading this page.</div>'; return; }
-  STATE.forms=j.forms||[]; STATE.assign=j.assign||{}; STATE.isAdmin=!!j.isAdmin;
+  STATE.forms=j.forms||[]; STATE.assign=j.assign||{}; STATE.assignOnline=j.assignOnline||{}; STATE.isAdmin=!!j.isAdmin;
   render();
 }).catch(function(){ document.getElementById('root').innerHTML='<div class="gate"><h2>Could not load</h2>Check your connection and reload.</div>'; });
 </script>
