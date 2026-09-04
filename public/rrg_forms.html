@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>FullServe — Call Questionnaires</title>
+<title>FullServe — Questionnaires & Interviews</title>
 <style>
 :root{--bg:#eef1f7;--card:#fff;--line:#e3e8f1;--ink:#14213d;--dim:#66738f;--faint:#93a0ba;--navy:#16346e;--blue:#2c5c8f;--teal:#12a594;--green:#1f8a5b;--amber:#B7791F;--red:#DA2B1F;}
 *{box-sizing:border-box;} html,body{margin:0;padding:0;background:var(--bg);}
@@ -66,17 +66,18 @@ select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(47,
 .pvlink{cursor:pointer;}
 </style>
 <script src="/rrg_brand.js"></script>
+<script src="/rrg_aiwork.js"></script>
 </head>
 <body>
 <a href="./index.html" class="rrg-back"><span style="font-size:14px;line-height:1">←</span> Toolbox</a>
 <div class="top"><div class="top-in">
-  <div class="crumb"><a href="./index.html">Command</a><span>›</span><a href="./rrg_settings.html">Settings</a><span>›</span>Call Questionnaires</div>
+  <div class="crumb"><a href="./index.html">Command</a><span>›</span><a href="./rrg_settings.html">Settings</a><span>›</span>Questionnaires & Interviews</div>
   <span class="disc" onclick="location.href='./index.html'">RRG</span>
-  <div class="kicker">Call Questionnaires</div>
+  <div class="kicker">Questionnaires & Interviews</div>
   <h1>The questions your team runs on every call.</h1>
   <div class="sub">Build a call questionnaire once, then assign it to a call type below. Every rep runs the same questions in the same order, every time — and changes take effect on the very next call, with nothing to rebuild.</div>
 </div></div>
-<div class="navcrumb"><a href="./index.html">Command</a><span>›</span><a href="./rrg_settings.html">Settings</a><span>›</span>Call Questionnaires</div>
+<div class="navcrumb"><a href="./index.html">Command</a><span>›</span><a href="./rrg_settings.html">Settings</a><span>›</span>Questionnaires & Interviews</div>
 <div id="root" class="wrap"><div class="gate">Loading…</div></div>
 
 
@@ -265,7 +266,9 @@ function renderFormsList(){
     +'<table class="ftbl"><thead><tr>'+_flHdr('name','Name')+_flHdr('callType','Call type')+_flHdr('questions','Questions')+'<th></th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
 }
 async function delForm(id,name){
-  if(!await rrgConfirm('Delete the questionnaire \u201c'+name+'\u201d?\n\nThis removes it and unassigns it from any call type. This cannot be undone.')) return;
+  var _msg='Delete the questionnaire \u201c'+name+'\u201d?\n\nThis removes it and unassigns it from any call type. This cannot be undone.';
+  var _ok; try{ _ok=(typeof rrgConfirm==='function') ? await rrgConfirm(_msg) : window.confirm(_msg); }catch(e){ _ok=window.confirm(_msg); }
+  if(!_ok) return;
   fetch('/api/form/'+encodeURIComponent(id)+'/delete',{method:'POST',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     if(j&&j.ok){ location.reload(); } else { alert((j&&j.error)||'Could not delete.'); }
   }).catch(function(){ alert('Network error \u2014 not deleted.'); });
