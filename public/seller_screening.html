@@ -1144,6 +1144,19 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
     if(repSel && j && j.users){ j.users.forEach(function(u){ var o=document.createElement('option'); o.value=u.name; o.textContent=u.name; repSel.appendChild(o); }); }
   }).catch(function(){});
 
+  // Build the Metro dropdown from the firm's configured Markets (Settings), not a hardcoded list.
+  // Preserve any current selection; keep "Other" as the catch-all. Runs for preview and live calls.
+  var metrosReady=fetch(API+'/api/forms',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+    var ms=document.getElementById('metroSelect');
+    if(!ms || !j || !Array.isArray(j.markets) || !j.markets.length) return;
+    var _e=function(s){ return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); };
+    var cur=ms.value;
+    ms.innerHTML='<option value="">Select…</option>'+j.markets.map(function(m){return '<option>'+_e(m)+'</option>';}).join('')+'<option>Other</option>';
+    if(cur){ ensureOption(ms,cur); ms.value=cur; }
+    // Re-apply a market passed on the URL now that the real options exist (corrects a premature "Other").
+    try{ var pm=(new URLSearchParams(location.search).get('market')||''); if(pm){ var opt=[].slice.call(ms.options).filter(function(o){return String(o.value).toLowerCase()===pm.toLowerCase();})[0]; if(opt){ ms.value=opt.value; ms.dispatchEvent(new Event('change',{bubbles:true})); } else if(!cur || cur==='Other'){ ms.value='Other'; } } }catch(e){}
+  }).catch(function(){});
+
   if(!isEdit){
     var cd=document.getElementById('callDate');
     if(cd && !cd.value){ var d=new Date(); function p(n){return (n<10?'0':'')+n;} cd.value=d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate()); cd.dispatchEvent(new Event('input',{bubbles:true})); }

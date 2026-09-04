@@ -2010,7 +2010,7 @@ app.post('/api/valuation-ensure', express.json(), (req, res) => {
 app.get('/api/forms', (req, res) => {
   res.set('Cache-Control','no-store');
   const forms = loadForms(); const _st = loadSettings(); const assign = _st.callForms || {}; const assignOnline = _st.callFormsOnline || {};
-  res.json({ ok:true, isAdmin: !!(req.user && isSuper(req.user)), forms: forms.map(function(f){ return { id:f.id, name:f.name||'(untitled)', callType:f.callType||'', builtIn:!!f.builtIn, questions:_formQCount(f), updatedAt:f.updatedAt||f.createdAt||'' }; }), assign: assign, assignOnline: assignOnline });
+  res.json({ ok:true, isAdmin: !!(req.user && isSuper(req.user)), forms: forms.map(function(f){ return { id:f.id, name:f.name||'(untitled)', callType:f.callType||'', builtIn:!!f.builtIn, questions:_formQCount(f), updatedAt:f.updatedAt||f.createdAt||'' }; }), assign: assign, assignOnline: assignOnline, markets: effMarkets() });
 });
 app.get('/api/form/:id', (req, res) => {
   res.set('Cache-Control','no-store');
@@ -9310,11 +9310,30 @@ app.post('/api/seller-link/email', express.json(), async (req, res) => {
     const me = (req.user && req.user.name) || org;
     let firstName = '';
     try { if (rec.personId) { const _p = loadPeople().find(x => x.id === rec.personId); if (_p) firstName = String(_p.firstName || (_p.name ? String(_p.name).trim().split(/\s+/)[0] : '') || '').trim(); } } catch (e) {}
-    const vars = { org: org, business: biz, formUrl: formUrl, videoUrl: videoUrl, repName: me, firstName: firstName };
+    // Rep's self-booking link, so the seller can also schedule a one-on-one call from the email.
+    let bookingUrl = '';
+    try {
+      if (req.user && req.user.username) {
+        const _bk = loadBookings()[req.user.username];
+        if (_bk && _bk.token && _bk.enabled) {
+          let _base = origin + '/book/' + _bk.token;
+          const _tid = (_bk.roleTypes || {})['business_sales'] || '';
+          if (_tid) { try { if (bookTypes(_bk).some(t => t.id === _tid)) _base += '?type=' + encodeURIComponent(_tid); } catch (e) {} }
+          bookingUrl = _base;
+        }
+      }
+    } catch (e) {}
+    const vars = { org: org, business: biz, formUrl: formUrl, videoUrl: videoUrl, repName: me, firstName: firstName, bookingUrl: bookingUrl, booking_link: bookingUrl };
     const tpl = effSellerIntakeEmail(rec.kind);
     const subject = fillTemplate(tpl.subject, vars) || (org + ' — ' + linkKindMeta(rec.kind).label + ' for ' + biz);
     const _rendered = sellerEmailRender(tpl.body, vars);
-    await sendMailWL({ from: mailFrom(), to, subject, text: _rendered.text, html: _rendered.html });
+    let _html = _rendered.html, _text = _rendered.text;
+    // Add a "schedule a one-on-one call" option unless the template already links to booking.
+    if (bookingUrl && String(_html).indexOf('/book/') < 0) {
+      _html += '<p style="margin:18px 0 0;font-size:14px;line-height:1.55">Prefer to talk it through first? <a href="' + bookingUrl + '" style="color:#2f7a55;font-weight:700">Schedule a one-on-one call</a> at a time that works for you.</p>';
+      _text += '\n\nPrefer to talk it through first? Schedule a one-on-one call: ' + bookingUrl;
+    }
+    await sendMailWL({ from: mailFrom(), to, subject, text: _text, html: _html });
     const all = loadSellerLinks(); const i = all.findIndex(x => x.token === rec.token); if (i >= 0) { all[i].emailedAt = new Date().toISOString(); all[i].emailedTo = to; saveSellerLinks(all); }
     res.json({ ok: true });
   } catch (e) { console.error('seller-link email:', e && e.message); res.status(502).json({ ok: false, error: 'Could not send the email. Check the mailbox connection in Account → Gmail.' }); }

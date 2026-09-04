@@ -1091,8 +1091,8 @@ function _siRecordings(j){
 function _siRender(j, email){
   var b=document.getElementById('siBody'); if(!b) return;
   var roomVis=(j.roomVisible!==false);
-  b.innerHTML=_siRow('Short form','#000E31', j.formUrl)
-    +_siRow('Video walkthrough','#DA2B1F', j.videoUrl)
+  b.innerHTML=_siRow('Short online form','#000E31', j.formUrl)
+    +_siRow('Audio/Video form','#DA2B1F', j.videoUrl)
     +'<div style="border-top:1px solid #eef1f6;margin-top:6px;padding-top:14px">'
     +'<div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#8a93a8;margin-bottom:6px">Email both links to the seller</div>'
     +'<div style="display:flex;gap:8px;align-items:center"><input id="siEmail" value="'+_siEsc(email||'')+'" placeholder="seller@email.com" style="flex:1;min-width:0;border:1px solid #c4ccda;border-radius:4px;padding:9px 11px;font:inherit;font-size:13px"><button id="siSend" style="background:#2f7a55;color:#fff;border:none;border-radius:3px;padding:9px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">Email</button></div>'
@@ -1120,6 +1120,7 @@ var _SI_BLURB={
 function openSellerIntake(kind){
   kind=(kind==='seller')?'seller':'valuation';
   var lbl=_SI_LBL[kind]||'Seller Interview';
+  var titleTxt=(kind==='seller')?'Seller Onboarding':('Send '+lbl);
   var pid=(typeof P!=='undefined'&&P&&P.id)||(typeof ID!=='undefined'&&ID)||'';
   var cid=(typeof CO!=='undefined'&&CO&&CO.id)||'';
   var biz=(typeof CO!=='undefined'&&CO&&CO.name)||(typeof P!=='undefined'&&P&&P.company)||(typeof P!=='undefined'&&P&&P.name)||'';
@@ -1129,7 +1130,7 @@ function openSellerIntake(kind){
   var blurb=(_SI_BLURB[kind]||_SI_BLURB.valuation).replace('{b}',_siEsc(biz));
   var ov=document.createElement('div'); ov.id='siOv'; ov.style.cssText='position:fixed;inset:0;background:rgba(8,14,32,.5);display:flex;align-items:center;justify-content:center;z-index:3000;padding:20px;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif';
   ov.innerHTML='<div style="background:#fff;border:1px solid #dbe0e9;border-radius:6px;max-width:540px;width:100%;box-shadow:0 18px 44px rgba(6,12,30,.24);overflow:hidden">'
-    +'<div style="padding:14px 22px;border-bottom:1px solid #dbe0e9;background:#f4f6f9;display:flex;align-items:center;gap:10px"><div style="font-weight:700;color:#000E31;font-size:15px;flex:1">Send '+_siEsc(lbl)+'</div><button id="siX" style="background:none;border:none;font-size:20px;color:#8a93a8;cursor:pointer;line-height:1">×</button></div>'
+    +'<div style="padding:14px 22px;border-bottom:1px solid #dbe0e9;background:#f4f6f9;display:flex;align-items:center;gap:10px"><div style="font-weight:700;color:#000E31;font-size:15px;flex:1">'+_siEsc(titleTxt)+'</div><button id="siX" style="background:none;border:none;font-size:20px;color:#8a93a8;cursor:pointer;line-height:1">×</button></div>'
     +'<div style="padding:18px 24px">'
     +'<div style="color:#5a6478;font-size:13px;line-height:1.55;margin-bottom:16px">'+blurb+'</div>'
     +'<div id="siBody" style="color:#6b7488;font-size:13px">Preparing links…</div>'
