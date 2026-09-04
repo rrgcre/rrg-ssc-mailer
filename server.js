@@ -16099,7 +16099,7 @@ const AGREEMENT_TYPES = [
   { key: 'NDA', label: 'Non-Disclosure Agreement', renewable: false, termYears: 1 },
   { key: 'CA', label: 'Confidentiality Agreement', renewable: false },
   { key: 'ETRA', label: 'Exclusive Tenant Representation Agreement', renewable: true },
-  { key: 'Referral', label: 'Referral Agreement', renewable: false },
+  { key: 'Referral', label: 'Referral Agreement', renewable: false, termYears: 1 },
   { key: 'Listing', label: 'Exclusive Business Listing', renewable: true },
   { key: 'TenantRep', label: 'Tenant Rep Agreement', renewable: true },
   { key: 'BizSeller', label: 'Business Seller Agreement', renewable: true },
@@ -16215,7 +16215,9 @@ function agrEffective(a) {
 function agrTypeTermYears(type) { const t = AGREEMENT_TYPES.find(x => x.key === type); return (t && t.termYears) || 0; }
 function agrTermYears(a) { return (a && a.termYears) || agrTypeTermYears(a && a.type) || 0; }
 // Add whole years to a YYYY-MM-DD date.
-function _addYears(ymd, years) { if (!ymd || !years) return ''; const d = new Date(String(ymd).slice(0, 10) + 'T00:00:00'); if (isNaN(d.getTime())) return ''; d.setFullYear(d.getFullYear() + years); return d.toISOString().slice(0, 10); }
+// Term-end date: add whole years, then step back one day so a "1 year" term runs
+// THROUGH the day before the anniversary (signed Aug 5 → expires Aug 4 next year = 365 days).
+function _addYears(ymd, years) { if (!ymd || !years) return ''; const d = new Date(String(ymd).slice(0, 10) + 'T00:00:00'); if (isNaN(d.getTime())) return ''; d.setFullYear(d.getFullYear() + years); d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10); }
 // The expiration: an explicit stored value wins; otherwise derive it from the effective
 // date plus the term (agreement's own term, or the type's default) once it's in effect.
 function agrExpires(a) {
