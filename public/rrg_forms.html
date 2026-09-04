@@ -120,7 +120,7 @@ function renderCard(ct){
     ? '<span class="badge"><span class="dot"></span>'+chosen.questions+' questions</span>'
       +(chosen.builtIn?'<span>Built-in RRG default</span>':'<span>Custom form</span>')
       +'<a href="#" class="pvlink" data-pv="'+esc(chosen.id)+'" data-ct="'+ct.key+'">Preview questions</a>'
-      +(STATE.isAdmin?('<a href="#" class="edlink" onclick="editForm(\''+esc(chosen.id)+'\','+(chosen.builtIn?1:0)+');return false;">'+(chosen.builtIn?'Duplicate &amp; edit':'Edit')+'</a>'):'')
+      +(STATE.isAdmin?('<a href="#" class="edlink" onclick="editForm(\''+esc(chosen.id)+'\','+(chosen.builtIn?1:0)+');return false;">'+(chosen.builtIn?'Duplicate &amp; edit':'Edit')+'</a>'+(chosen.builtIn?'':'<a href="#" class="edlink" onclick="editForm(\''+esc(chosen.id)+'\',1);return false;">Duplicate</a>')):'')
     : '<span>Assign a form once one is built for this call type.</span>';
   var disabled = STATE.isAdmin && list.length ? '' : ' disabled';
   return '<div class="card sec" data-sec="ct_'+ct.key+'"><div class="cardhead" onclick="toggleSec(this)"><h2>'+esc(ct.label)+(ct.tag?(' <span class="tag">'+esc(ct.tag)+'</span>'):'')+'</h2><span class="chev">▾</span></div><div class="cardbody"><div class="ct">'
@@ -151,7 +151,7 @@ function render(){
       if(m&&chosen){ m.innerHTML='<span class="badge"><span class="dot"></span>'+chosen.questions+' questions</span>'
         +(chosen.builtIn?'<span>Built-in RRG default</span>':'<span>Custom form</span>')
         +'<a href="#" class="pvlink" data-pv="'+esc(chosen.id)+'" data-ct="'+ct+'">Preview questions</a>'
-        +(STATE.isAdmin?('<a href="#" class="edlink" onclick="editForm(\''+esc(chosen.id)+'\','+(chosen.builtIn?1:0)+');return false;">'+(chosen.builtIn?'Duplicate &amp; edit':'Edit')+'</a>'):'');
+        +(STATE.isAdmin?('<a href="#" class="edlink" onclick="editForm(\''+esc(chosen.id)+'\','+(chosen.builtIn?1:0)+');return false;">'+(chosen.builtIn?'Duplicate &amp; edit':'Edit')+'</a>'+(chosen.builtIn?'':'<a href="#" class="edlink" onclick="editForm(\''+esc(chosen.id)+'\',1);return false;">Duplicate</a>')):'');
         m.querySelector('[data-pv]').addEventListener('click',pvHandler);
       }
       var pil=document.getElementById('pvinline_'+ct); if(pil){ pil.style.display='none'; pil.innerHTML=''; pil.removeAttribute('data-for'); }
@@ -225,7 +225,7 @@ function renderFormsList(){
     if(STATE.isAdmin){
       act = f.builtIn
         ? '<a href="#" onclick="editForm(\''+esc(f.id)+'\',1);return false;">Duplicate &amp; edit</a>'
-        : '<a href="#" onclick="editForm(\''+esc(f.id)+'\',0);return false;">Edit</a> &nbsp;\u00b7&nbsp; <button type="button" href="#" class="delx" onclick="delForm(\''+esc(f.id)+'\',\''+esc((f.name||'').replace(/'/g,"\\'"))+'\');return false;" title="Delete" aria-label="Delete">✕</button>';
+        : '<a href="#" onclick="editForm(\''+esc(f.id)+'\',0);return false;">Edit</a> &nbsp;\u00b7&nbsp; <a href="#" onclick="editForm(\''+esc(f.id)+'\',1);return false;">Duplicate</a> &nbsp;\u00b7&nbsp; <button type="button" href="#" class="delx" onclick="delForm(\''+esc(f.id)+'\',\''+esc((f.name||'').replace(/'/g,"\\'"))+'\');return false;" title="Delete" aria-label="Delete">✕</button>';
     }
     return '<tr><td><b>'+esc(f.name)+'</b>'+(f.builtIn?' <span class="tag">built-in</span>':'')+'</td><td>'+esc(CTLABEL[f.callType]||f.callType||'\u2014')+'</td><td>'+f.questions+'</td><td class="ta-r">'+act+'</td></tr>';
   }).join('');

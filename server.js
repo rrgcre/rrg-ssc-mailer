@@ -7387,13 +7387,14 @@ function mergeTokens(t, p, user) {
   let today = ''; try { today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }); } catch (e) {}
   let _lst = null, _lstDone = false;
   function _listing() { if (!_lstDone) { _lstDone = true; try { _lst = (p && (p._listing || null)) || personPrimaryListing(p); } catch (e) { _lst = null; } } return _lst || { name: '', number: '' }; }
-  return String(t || '').replace(/\{\{\s*(first_name|firstname|last_name|lastname|name|company|title|email|phone|my_name|my_title|my_phone|my_email|brokerage|brokerage_legal|today|listing_name|listing_number|listing_no|listing|code_name|codename|asking_price|price|data_room_link|dataroom_link|room_link|booking_link|book_link|business_sales_meeting_link|tenant_rep_meeting_link)\s*\}\}/gi, function (_, k) {
+  return String(t || '').replace(/\{\{\s*(first_name|firstname|last_name|lastname|name|company|title|referred_by|referrer|email|phone|my_name|my_title|my_phone|my_email|brokerage|brokerage_legal|today|listing_name|listing_number|listing_no|listing|code_name|codename|asking_price|price|data_room_link|dataroom_link|room_link|booking_link|book_link|business_sales_meeting_link|tenant_rep_meeting_link)\s*\}\}/gi, function (_, k) {
     k = k.toLowerCase();
     if (k === 'first_name' || k === 'firstname') return first;
     if (k === 'last_name' || k === 'lastname') return last;
     if (k === 'name') return name;
     if (k === 'company') return co;
     if (k === 'title') return title;
+    if (k === 'referred_by' || k === 'referrer') return (p && p.referredBy) || '';
     if (k === 'email') return email;
     if (k === 'phone') return phone;
     if (k === 'my_name') return user.name || '';
@@ -7771,7 +7772,27 @@ function _seedCimFollowup(a) {
   try { writeJsonGuarded(EMAIL_TPL_FILE, a, 'seedCimFollowup'); fs.writeFileSync(EMAIL_TPL_CIMFU_FLAG, JSON.stringify({ seededAt: new Date().toISOString() })); } catch (e) {}
   return a;
 }
-function loadEmailTpls() { try { return _seedCimFollowup(_seedProofOfFunds(_seedSendBov(_retireBovVariants(_seedBrokerTemplates(_seedEmailTpls(rj(EMAIL_TPL_FILE) || [])))))); } catch (e) { return []; } }
+// ---- Referral intro (new lead sent to us by a referral source) ---------------
+const EMAIL_TPL_REFINTRO_FLAG = path.join(BOV_DATA_DIR, 'email_templates_refintro_seeded.flag');
+const REFINTRO_TPL_ID = 'etpl_referral_intro';
+const REFINTRO_TPL_SUBJECT = '{{first_name}}, a quick introduction';
+const REFINTRO_TPL_BODY =
+  '<p>Hi {{first_name}},</p>' +
+  '<p>I’m {{my_name}} with {{brokerage}}. {{referred_by}} suggested I reach out and introduce myself — I appreciate the connection.</p>' +
+  '<p>We work exclusively with restaurant and bar operators, on both sides of the table: selling and buying businesses — going concerns as well as asset and lease deals — and the real estate behind them, from site selection and lease negotiation to renewals and assignments. Whether you’re weighing an exit, eyeing a new location, or just want a straight read on what your business or your lease is worth in today’s market, that’s the lane we live in every day.</p>' +
+  '<p>There’s no pitch here and nothing to prepare. I’d just like about fifteen minutes to learn what you’re working on and see where we can be genuinely useful — now or down the road.</p>' +
+  '<p>The easiest next step is a short call. Reply with a couple of windows that work for you and I’ll lock one in, or grab a time straight from my calendar here: {{business_sales_meeting_link}}</p>' +
+  '<p>Looking forward to connecting.</p>' +
+  '<p>Best,<br>{{my_name}}<br>{{brokerage}}<br>{{my_phone}}</p>';
+function _seedRefIntro(a) {
+  try { if (fs.existsSync(EMAIL_TPL_REFINTRO_FLAG)) return a; } catch (e) { return a; }
+  if (!a.some(function (t) { return t.id === REFINTRO_TPL_ID; })) {
+    a.push({ id: REFINTRO_TPL_ID, name: 'Referral — intro & schedule a call', category: 'Referral', scope: 'shared', ownerUser: '', ownerName: 'RRG', greeting: 'none', subject: REFINTRO_TPL_SUBJECT, body: REFINTRO_TPL_BODY, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), seeded: true });
+  }
+  try { writeJsonGuarded(EMAIL_TPL_FILE, a, 'seedRefIntro'); fs.writeFileSync(EMAIL_TPL_REFINTRO_FLAG, JSON.stringify({ seededAt: new Date().toISOString() })); } catch (e) {}
+  return a;
+}
+function loadEmailTpls() { try { return _seedRefIntro(_seedCimFollowup(_seedProofOfFunds(_seedSendBov(_retireBovVariants(_seedBrokerTemplates(_seedEmailTpls(rj(EMAIL_TPL_FILE) || []))))))); } catch (e) { return []; } }
 function saveEmailTpls(a) { return writeJsonGuarded(EMAIL_TPL_FILE, a, 'saveEmailTpls'); }
 function newEmailTplId() { return 'etpl_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 const TPL_CATEGORIES = ['Buyer', 'Seller', 'NDA', 'Follow-up', 'Closing', 'General'];

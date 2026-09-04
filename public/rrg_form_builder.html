@@ -260,7 +260,7 @@ function automationsCard(f){ if(f.callType==='valuation') return '';
 function render(){
   var f=STATE.form;
   var h='';
-  if(STATE.dup) h+='<div class="banner">You’re editing a <b>copy</b> of a built-in questionnaire. Saving creates a new one you can customize — the original stays untouched.</div>';
+  if(STATE.dup) h+='<div class="banner">You’re editing a <b>copy</b>. Saving creates a new questionnaire you can customize — the original stays untouched. Rename it (e.g. “… — Online” or “… — Verbal”), then assign it to a call type above.</div>';
   else if(f.builtIn) h+='<div class="banner">This is the built-in questionnaire and is read-only. Use <b>Duplicate</b> on the Call Questionnaires page to make an editable copy.</div>';
   // meta
   h+='<div class="card"><div class="row2"><div><span class="lbl">Questionnaire name</span><input type="text" id="formName" value="'+esc(f.name||'')+'" placeholder="e.g. Seller Screening — Bars"></div>'
@@ -508,7 +508,7 @@ function save(){
     if(!j||!j.ok||!j.form){ qs('#root').innerHTML='<div class="gate"><h2>Could not load</h2>That questionnaire wasn’t found.</div>'; return; }
     var f=j.form;
     STATE.form={ id:f.id, name:f.name||'', callType:f.callType||'seller', builtIn:!!f.builtIn, kicker:f.kicker||'', header:f.header||[], categories:f.categories||[], automations:f.automations||{}, knownSellerGuard:!!f.knownSellerGuard };
-    if(f.builtIn && wantDup){ STATE.dup=true; STATE.form.id=''; STATE.form.builtIn=false; STATE.form.name=(f.name||'Questionnaire')+' (copy)'; }
+    if(wantDup){ STATE.dup=true; STATE.form.id=''; STATE.form.builtIn=false; STATE.form.name=(f.name||'Questionnaire').replace(/\s*\(copy(?:\s*\d+)?\)\s*$/i,'')+' (copy)'; }
     start();
   }).catch(function(){ qs('#root').innerHTML='<div class="gate"><h2>Could not load</h2>Check your connection and reload.</div>'; });
 })();
