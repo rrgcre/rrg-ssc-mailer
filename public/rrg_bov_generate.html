@@ -391,6 +391,26 @@ function generate(){
   if(!(SLOTS.docs&&SLOTS.docs.length) && !window.ROOM_HAS_FIN){ setStatus('err','Add at least the financials — drop them above, or have them in the data room. (Include the lease too if the business leases its space.)'); return; }
   leaseGate(biz);
 }
+// Carry the lease-type documents the rep dropped here over to the lease builder, so a lease
+// dropped at the BOV screen actually lands on the abstract instead of leaving an empty record.
+// Only PDFs/images (lease candidates) are carried — financials/CSV are skipped — and a size cap
+// keeps it under the localStorage quota; if anything fails we just redirect (rep re-uploads).
+function _stashLeaseHandoff(){
+  return new Promise(function(resolve){
+    try{
+      var docs=(SLOTS.docs||[]); if(!docs.length){ resolve(); return; }
+      Promise.all(docs.map(function(f){ return readFile(f, f.name); })).then(function(items){
+        var keep=(items||[]).filter(function(o){ return o && o.dataB64 && /pdf|image/i.test(o.type||''); })
+                            .map(function(o){ return {name:o.name, type:o.type, dataB64:o.dataB64}; });
+        if(!keep.length){ resolve(); return; }
+        var total=keep.reduce(function(n,o){ return n+(o.dataB64?o.dataB64.length:0); },0);
+        if(total>4500000){ resolve(); return; }   // too big for localStorage — fall back to manual upload
+        try{ localStorage.setItem('rrg_lease_handoff', JSON.stringify({ts:Date.now(), files:keep})); }catch(e){}
+        resolve();
+      }).catch(function(){ resolve(); });
+    }catch(e){ resolve(); }
+  });
+}
 // The lease drives value on a restaurant/bar deal, so before valuing: if a lease abstract is on
 // file, build straight away (its terms feed the valuation server-side); if a lease is on file but
 // not abstracted, offer to abstract it first; if there's no lease at all, ask whether to proceed
@@ -404,8 +424,8 @@ function leaseGate(biz){
   var ask = window.rrgConfirm ? window.rrgConfirm(msg) : Promise.resolve(window.confirm(msg));
   Promise.resolve(ask).then(function(go){
     if(!go){ doGenerate(biz); return; }
-    if(window.LEASE_ABSTRACT_PENDING && window.LEASE_ABSTRACT_ID){ location.href='rrg_lease_generate.html?lease='+encodeURIComponent(window.LEASE_ABSTRACT_ID); return; }
-    fetch('/api/lease/new',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({fromBov:BOV_ID})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.id){ location.href='rrg_lease_generate.html?lease='+encodeURIComponent(j.id); } else { doGenerate(biz); } }).catch(function(){ doGenerate(biz); });
+    if(window.LEASE_ABSTRACT_PENDING && window.LEASE_ABSTRACT_ID){ var _pid=window.LEASE_ABSTRACT_ID; _stashLeaseHandoff().then(function(){ location.href='rrg_lease_generate.html?lease='+encodeURIComponent(_pid); }); return; }
+    fetch('/api/lease/new',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({fromBov:BOV_ID})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.id){ var _id=j.id; _stashLeaseHandoff().then(function(){ location.href='rrg_lease_generate.html?lease='+encodeURIComponent(_id); }); } else { doGenerate(biz); } }).catch(function(){ doGenerate(biz); });
   });
 }
 function doGenerate(biz){

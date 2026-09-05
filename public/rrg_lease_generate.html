@@ -145,6 +145,18 @@ function checkRoomLease(){
     }).catch(function(){});
 }
 function renderFiles(){ document.getElementById('fileList').innerHTML=FILES.map(function(f,i){ return '<div class="filerow"><span class="nm">'+esc(f.name)+'</span><button class="x" onclick="FILES.splice('+i+',1);renderFiles()">×</button></div>'; }).join(''); renderRoomLease(); syncBuildBtn(); }
+// Files carried over from the valuation (BOV) screen, so a lease dropped there lands here instead
+// of an empty record. Fresh (<10 min) handoffs only; then it's cleared so it can't reappear.
+(function(){
+  try{
+    var _hs=localStorage.getItem('rrg_lease_handoff'); if(!_hs) return;
+    localStorage.removeItem('rrg_lease_handoff');
+    var _o=JSON.parse(_hs)||{};
+    if(!(_o.files && _o.files.length) || (Date.now()-(_o.ts||0) > 600000)) return;
+    _o.files.forEach(function(f){ if(f && f.dataB64) FILES.push({dataB64:f.dataB64, type:f.type||'application/pdf', name:f.name||'lease'}); });
+    if(FILES.length){ renderFiles(); var st=document.getElementById('status'); if(st){ st.className='status'; st.style.color='#1f8a5b'; st.textContent=FILES.length+' file'+(FILES.length===1?'':'s')+' carried over from the valuation screen — remove anything that isn’t the lease, then Build the abstract.'; } }
+  }catch(e){}
+})();
 function setStatus(msg){ var s=document.getElementById('status'); s.className='status err'; s.textContent=msg; }
 function goManual(){ location.href='./rrg_lease_abstract.html?lease='+encodeURIComponent(LEASE_ID)+'&new=1'; }
 var SEL={ personId:'', companyId:'', dealKey:'' };
