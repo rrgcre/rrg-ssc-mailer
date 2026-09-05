@@ -5088,7 +5088,7 @@ function roomPublicPage(r, grant, opts) {
       const viewable = roomViewerCanRender(d.ext || '');
       let acts = '';
       if (viewable) acts += `<a class="dl ghost" href="/roomview/${esc(r.token)}/${esc(d.id)}" target="_blank" rel="noopener">View →</a>`;
-      if (canDl) acts += `<a class="dl" href="/roomfile/${esc(r.token)}/${esc(d.id)}?dl=1" target="_blank" rel="noopener">Download →</a>`;
+      if (canDl) acts += `<a class="dl" href="/roomfile/${esc(r.token)}/${esc(d.id)}?dl=1" download>Download →</a>`;
       if (!viewable && !canDl) acts += `<a class="dl" href="/roomview/${esc(r.token)}/${esc(d.id)}" target="_blank" rel="noopener">Open →</a>`;
       return `<div class="docrow"><span class="ext">${roomFileIcon(d.ext)}</span><div style="flex:1"><div class="dt">${esc(d.title || d.originalName)}</div><div class="dm">${esc(fmtBytes(d.size))}</div></div><span class="acts">${acts}</span></div>`;
     }).join('');
