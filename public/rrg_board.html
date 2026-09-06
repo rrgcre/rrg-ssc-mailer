@@ -548,26 +548,25 @@ function cardFieldsHtml(c){
   if(CARDF.bbs && c.bbsNumber) h+='<div class="r"><span class="ic">#</span>'+esc(c.bbsNumber)+'</div>';
   return h;
 }
-function saleLaneBadge(c){ if(!c.saleLane) return ''; var a=(c.saleLane==='asset'); return '<span style="display:inline-block;font-size:9px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;padding:2px 7px;border-radius:999px;border:1px solid;'+(a?'color:#23496f;background:#e8f0fb;border-color:#c4d8f2':'color:#1c7a45;background:#eaf6ee;border-color:#bfe6cf')+'" title="'+(a?'Asset sale — space, fixtures &amp; equipment':'Going concern — operating business')+'">'+(a?'Asset Sale':'Going Concern')+'</span>'; }
+function saleLaneBadge(c){ if(!c.saleLane) return ''; var a=(c.saleLane==='asset'); return '<span title="'+(a?'Asset Sale — space, fixtures &amp; equipment':'Going Concern — operating business (business sale)')+'" style="flex:none;display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;border-radius:50%;font-size:10px;font-weight:800;color:#fff;'+(a?'background:#3f7cac':'background:#1c7a45')+'">'+(a?'A':'B')+'</span>'; }
 function cardHtml(c){
   var open='./rrg_assignment.html?key='+encodeURIComponent(c.key);
   var flags=flagBadges(c);
-  var slb=saleLaneBadge(c); var slbRow=slb?('<div style="margin:-1px 0 7px">'+slb+'</div>'):'';
+  var slb=saleLaneBadge(c);
   var rolled=!!ROLLED[c.key];
   var chev='<button class="rollup" data-roll="'+esc(c.key)+'" title="Roll up / expand">▾</button>';
   if(DENSITY==='compact'){
     var exp=!!EXPCARD[c.key];
     return '<div class="cardx compact'+(exp?' expanded':'')+'" draggable="true" data-key="'+esc(c.key)+'">'
-      +'<div class="chd"><span class="t">'+esc(c.business||'Listing')+(c.provisional?' <span class="pvbadge">Provisional</span>':'')+'</span>'+flags+cardOwner(c)+'</div>'
-      +'<div class="cbody">'+slbRow+(cardFieldsHtml(c)||'<div class="r" style="color:#98a1b5">No extra details</div>')
+      +'<div class="chd"><span class="t">'+esc(c.business||'Listing')+(c.provisional?' <span class="pvbadge">Provisional</span>':'')+'</span>'+slb+flags+cardOwner(c)+'</div>'
+      +'<div class="cbody">'+(cardFieldsHtml(c)||'<div class="r" style="color:#98a1b5">No extra details</div>')
         +'<div class="ft"><span class="dt">'+(CARDF.activity&&c.lastActivity?esc(fmtDate(c.lastActivity)):'')+'</span><a class="opendeal" href="'+open+'">Open deal →</a></div>'
       +'</div></div>';
   }
   return '<div class="cardx'+(rolled?' rolled':'')+'" draggable="true" data-key="'+esc(c.key)+'">'
-    +'<div class="chd"><a class="t" href="'+open+'">'+esc(c.business||'Listing')+'</a>'+flags+chev+'</div>'
+    +'<div class="chd"><a class="t" href="'+open+'">'+esc(c.business||'Listing')+'</a>'+slb+flags+chev+'</div>'
     +'<div class="cbody">'
       +(c.provisional?'<div style="margin:-2px 0 6px"><span class="pvbadge">Provisional</span></div>':'')
-      +slbRow
       +cardFieldsHtml(c)
       +'<div class="ft"><span class="dt">'+(CARDF.activity&&c.lastActivity?esc(fmtDate(c.lastActivity)):'')+'</span>'+cardOwner(c)+'</div>'
     +'</div></div>';
