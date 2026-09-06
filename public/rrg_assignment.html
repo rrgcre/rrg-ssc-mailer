@@ -683,13 +683,13 @@ function financialsCard(){
   var cell=function(k,v,id){ return '<div class="ovf"><div class="ovk">'+k+'</div><div class="ovv"'+(id?(' id="'+id+'"'):'')+'>'+(v?esc(v):'—')+'</div></div>'; };
   var _bovLite='<span style="font-weight:400;color:#9aa3b2;font-size:10px;text-transform:none;letter-spacing:0"> · from BOV</span>';
   var canPrice=!!(A&&A.canChangePrice);
-  var askCell='<div class="ovf"><div class="ovk">Asking price</div><div class="ovv"><span id="finAskVal">'+(ask?esc(_money(ask)):'—')+'</span>'+(canPrice?' <button type="button" onclick="togglePriceForm()" style="margin-left:8px;padding:3px 10px;font-size:11px;font-weight:700;border:1px solid #cdd6e6;border-radius:7px;background:#fff;color:#23496f;cursor:pointer">Change</button>':'')+'</div></div>';
+  var askCell='<div class="ovf"><div class="ovk">Asking price</div><div class="ovv"><span id="finAskVal"'+(canPrice?' onclick="askInlineEdit()" title="Click to amend the asking price" style="cursor:pointer;border-bottom:1px dashed #b9c2d2"':'')+'>'+(ask?esc(_money(ask)):(canPrice?'— set':'—'))+'</span>'+(canPrice?' <button type="button" onclick="togglePriceForm()" title="Change with a reason (logs to price history)" style="margin-left:8px;padding:3px 10px;font-size:11px;font-weight:700;border:1px solid #cdd6e6;border-radius:7px;background:#fff;color:#23496f;cursor:pointer">Change…</button>':'')+'</div></div>';
   var valCell=(A&&A.valueBov)
     ? '<div class="ovf"><div class="ovk">Opinion of value'+_bovLite+'</div><div class="ovv">'+(val?esc(val):'—')+'</div></div>'
     : '<div class="ovf"><div class="ovk">Opinion of value</div><input id="f_valover" value="'+esc(_money(A.value||''))+'" placeholder="—" inputmode="numeric" oninput="finMetaInput()" onfocus="this.value=_moneyDigits(this.value)" onblur="this.value=_money(this.value)" style="width:100%;border:1px solid #e6e9f0;border-radius:6px;padding:6px 8px;font:inherit;font-weight:700;color:#000E31"></div>';
   var basisCell=(A&&A.basisBov)
     ? '<div class="ovf"><div class="ovk">Basis'+_bovLite+'</div><div class="ovv">'+(A.basis?esc(A.basis):'—')+'</div></div>'
-    : '<div class="ovf"><div class="ovk">Basis</div><input id="f_basisover" value="'+esc(A.basis||'')+'" placeholder="e.g. SDE / market comps" oninput="finMetaInput()" style="width:100%;border:1px solid #e6e9f0;border-radius:6px;padding:6px 8px;font:inherit;color:#000E31"></div>';
+    : (function(){ var _cb=String(A.basis||''); var _bo=['SDE','EBITDA',"Owner's Take",'Other']; var _extra=(_cb && _bo.indexOf(_cb)<0)?('<option selected>'+esc(_cb)+'</option>'):''; return '<div class="ovf"><div class="ovk">Basis</div><select id="f_basisover" onchange="finMetaInput()" style="width:100%;border:1px solid #e6e9f0;border-radius:6px;padding:6px 8px;font:inherit;color:#000E31;background:#fff"><option value="">— select —</option>'+_bo.map(function(o){ return '<option'+(o===_cb?' selected':'')+'>'+o+'</option>'; }).join('')+_extra+'</select></div>'; })();
   var multCell='<div class="ovf"><div class="ovk">Multiple (latest)</div><div class="ovv" id="finMultVal">'+(_finMultiple()||'—')+'</div></div>';
   var _commEst=(A&&A.commissionEst)||0; var _commEstTxt=_commEst?('$'+Number(_commEst).toLocaleString('en-US')):'';
   var commCell='<div class="ovf"><div class="ovk">Commission Amt'+(_commEstTxt?('<span style="font-weight:400;color:#9aa3b2;font-size:10px;text-transform:none;letter-spacing:0"> · est '+esc(_commEstTxt)+' from asking price</span>'):'')+'</div><input id="f_comm" value="'+esc(_money((A&&A.totalCommission)||''))+'" placeholder="'+(_commEstTxt?esc(_commEstTxt):'—')+'" inputmode="numeric" oninput="finMetaInput()" onfocus="this.value=_moneyDigits(this.value)" onblur="this.value=_money(this.value)" style="width:100%;border:1px solid #e6e9f0;border-radius:6px;padding:6px 8px;font:inherit;font-weight:700;color:#000E31"></div>';
@@ -712,6 +712,19 @@ function financialsCard(){
 }
 function refreshFinancials(){ var host=document.getElementById('finCardHost'); if(host){ var tmp=document.createElement('div'); tmp.innerHTML=financialsCard(); var fresh=tmp.firstChild; if(fresh&&host.parentNode) host.parentNode.replaceChild(fresh,host); } var av=document.getElementById('ovAskVal'); if(av) av.textContent=(_money(A.listPrice)||'—'); }
 function togglePriceForm(show){ var f=document.getElementById('priceForm'); if(!f) return; var on=(show===undefined)?(f.style.display==='none'):show; f.style.display=on?'':'none'; if(on){ var p=document.getElementById('pf_price'); if(p){ p.value=A.listPrice||''; p.focus(); p.select&&p.select(); } var n=document.getElementById('pf_note'); if(n) n.value=''; var m=document.getElementById('pf_msg'); if(m) m.textContent=''; } }
+function askInlineEdit(){
+  if(!(A&&A.canChangePrice)) return;
+  var span=document.getElementById('finAskVal'); if(!span || document.getElementById('askInlineInp')) return;
+  var raw=_moneyDigits(A.listPrice||'');
+  span.innerHTML='<input id="askInlineInp" value="'+esc(raw)+'" inputmode="numeric" placeholder="e.g. 1150000" style="width:130px;border:1px solid #cfd6e2;border-radius:6px;padding:4px 7px;font:inherit;font-weight:700;color:#000E31">';
+  var inp=document.getElementById('askInlineInp'); if(!inp) return; inp.focus(); if(inp.select) inp.select();
+  var done=false;
+  function commit(){ if(done) return; done=true; var d=_moneyDigits(inp.value); if(d===_moneyDigits(A.listPrice||'')){ refreshFinancials(); return; }
+    fetch('/api/assignment/'+encodeURIComponent(KEY)+'/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({listPrice:d})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ var _old=A.listPrice||''; A.listPrice=d; if(d!==_old){ if(!Array.isArray(A.priceHistory)) A.priceHistory=[]; A.priceHistory.push({price:d,prev:_old,at:new Date().toISOString(),by:'',note:''}); } refreshFinancials(); } else { alert((j&&j.error)||'Could not change the price — you may not have permission.'); refreshFinancials(); } }).catch(function(){ alert('Could not reach the server.'); refreshFinancials(); });
+  }
+  inp.addEventListener('blur',commit);
+  inp.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); inp.blur(); } else if(e.key==='Escape'){ done=true; refreshFinancials(); } });
+}
 function savePrice(){
   var pv=_moneyDigits(((document.getElementById('pf_price')||{}).value||'').trim()); var nt=((document.getElementById('pf_note')||{}).value||'').trim();
   var msg=document.getElementById('pf_msg'), btn=null; try{ btn=document.querySelector('#priceForm button'); }catch(e){}
