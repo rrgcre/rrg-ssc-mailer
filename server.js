@@ -3604,6 +3604,8 @@ app.get('/api/appname', (req, res) => res.json({ ok: true, name: loadAppName(), 
 // the tell — a buyer in the P&L and the lease is a buyer to call today.
 function roomEngagementEvents(rooms) {
   const out = []; const GAP = 45 * 60 * 1000;
+  // Name resolution for buyers whose grant recorded no name/email directly.
+  const _pn = {}; try { loadPeople().forEach(function (p) { _pn[p.id] = p.name || ''; }); } catch (e) {}
   (rooms || []).forEach(function (r) {
     const access = Array.isArray(r.access) ? r.access : []; if (!access.length) return;
     const gmap = {}; (Array.isArray(r.grants) ? r.grants : []).forEach(function (g) { gmap[g.id] = g; });
@@ -3615,7 +3617,7 @@ function roomEngagementEvents(rooms) {
     });
     Object.keys(byGrant).forEach(function (gid) {
       const g = gmap[gid] || {};
-      const who = g.name || g.email || (byGrant[gid][0] && byGrant[gid][0].who) || 'A buyer';
+      const who = g.name || g.email || (g.personId && _pn[g.personId]) || g.company || (byGrant[gid][0] && byGrant[gid][0].who) || 'A buyer';
       const evs = byGrant[gid].slice().sort(function (a, b) { return String(a.at).localeCompare(String(b.at)); });
       let sess = null; const sessions = [];
       evs.forEach(function (ev) {
@@ -3932,6 +3934,13 @@ function roomGrantFor(req, r) {
 // A room is gated once it has ever been locked (a buyer was added). Revoking every
 // buyer then locks everyone OUT rather than falling back open.
 function roomIsGated(r) { return !!r.locked || (r.grants || []).some(g => g.active); }
+// A room holds confidential documents for buyers (redacted broker-only originals don't count).
+function roomHasBuyerDocs(r) { return (r.docs || []).some(function (d) { return d && !d.brokerOnly; }); }
+// Identification required before serving any document or the room's contents: a room is
+// either already gated (locked / has authorized buyers) OR it holds buyer documents. This
+// closes the gap where a room shared before any buyer was authorized let a visitor pull
+// documents anonymously — every document access is now tied to a named, authorized grant.
+function roomNeedsGrant(r) { return roomIsGated(r) || roomHasBuyerDocs(r); }
 function ownsRoom(req, r) {
   if (req.user && isSuper(req.user)) return true;
   if (r.byUser) return r.byUser === (req.user && req.user.username);
@@ -4668,7 +4677,7 @@ app.get('/room/:token', (req, res) => {
   const r = arr.find(x => x.token === req.params.token);
   if (!r) return res.status(404).set('Content-Type', 'text/html').send(roomNotFoundPage());
   if (r.closed) return res.status(410).set('Content-Type', 'text/html; charset=utf-8').send(roomClosedPage(r));
-  if (roomIsGated(r)) {
+  if (roomNeedsGrant(r)) {
     const grant = roomGrantFor(req, r);
     if (!grant) {
       // Owner preview: an authenticated owner/admin can look past the gate and see the
@@ -4838,7 +4847,7 @@ app.get('/roomfile/:token/:docid', async (req, res) => {
   if (!r) return res.status(404).end();
   if (r.closed) return res.status(410).end();
   let grant = null;
-  if (roomIsGated(r)) { grant = roomGrantFor(req, r); if (!grant) return res.redirect('/room/' + r.token); }
+  if (roomNeedsGrant(r)) { grant = roomGrantFor(req, r); if (!grant) return res.redirect('/room/' + r.token); }
   const d = (r.docs || []).find(x => x.id === String(req.params.docid));
   if (!d) return res.status(404).end();
   if (d.brokerOnly) return res.status(404).end();   // redacted originals are never served to buyers
@@ -4939,7 +4948,7 @@ app.get('/roomview/:token/:docid', (req, res) => {
   if (!r) return res.status(404).set('Content-Type', 'text/html').send(roomNotFoundPage());
   if (r.closed) return res.status(410).set('Content-Type', 'text/html; charset=utf-8').send(roomClosedPage(r));
   let grant = null;
-  if (roomIsGated(r)) { grant = roomGrantFor(req, r); if (!grant) return res.redirect('/room/' + r.token); }
+  if (roomNeedsGrant(r)) { grant = roomGrantFor(req, r); if (!grant) return res.redirect('/room/' + r.token); }
   const d = (r.docs || []).find(x => x.id === String(req.params.docid));
   if (!d) return res.status(404).end();
   if (d.brokerOnly) return res.status(404).end();   // redacted originals are never shown to buyers
@@ -12914,7 +12923,7 @@ app.post('/api/deal/new', express.json(), (req, res) => {
   const b = req.body || {};
   const business = String(b.business || '').trim();
   if (!business) return res.status(400).json({ ok: false, error: 'A business / deal name is required.' });
-  if (!String(b.contact || '').trim() && !String(b.contactEmail || '').trim()) return res.status(400).json({ ok: false, error: 'A client contact is required — every listing must be linked to a contact.' });
+  if (!String(b.contact || '').trim() && !String(b.contactEmail || '').trim() && !String(b.personId || '').trim()) return res.status(400).json({ ok: false, error: 'A client contact is required — every listing must be linked to a contact.' });
   const _isTR = String(b.type || '') === 'tenant_rep';
   const _isLL = String(b.type || '') === 'landlord_rep';
   // Seller listings run one of two lanes: 'business' (going concern) or 'asset' (space & assets).
@@ -12926,11 +12935,18 @@ app.post('/api/deal/new', express.json(), (req, res) => {
     saleLane: _saleLane,
     by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
   };
-  // Onboarding: open the company file for the subject business...
-  const company = findOrCreateCompany(req, { name: rec.business, market: rec.market, type: _isTR ? 'Buyer' : (_isLL ? 'Landlord' : 'Seller') });
+  // Precise links (used by "New listing for this client"): reuse the exact company/contact
+  // by id so a second listing for the same seller never spawns a duplicate record.
+  let _linkedPerson = null;
+  try { const _pid = String(b.personId || ''); if (_pid) _linkedPerson = loadPeople().find(x => x.id === _pid && !x.system) || null; } catch (e) {}
+  // Onboarding: reuse the given company, else open the company file for the subject business...
+  let company = null;
+  try { const _cid = String(b.companyId || ''); if (_cid) company = loadCompanies().find(c => c.id === _cid) || null; } catch (e) {}
+  if (!company) company = findOrCreateCompany(req, { name: rec.business, market: rec.market, type: _isTR ? 'Buyer' : (_isLL ? 'Landlord' : 'Seller') });
   if (company) rec.companyId = company.id;
-  // ...and locate the existing client, or onboard them, associated with that company.
-  if (rec.contact || b.contactEmail) { const p = findOrCreatePerson(req, { name: rec.contact, email: b.contactEmail, type: 'Client', companyId: rec.companyId }); if (p) { rec.contactPersonId = p.id; if (!rec.contact) rec.contact = p.name; } }
+  // ...and reuse the linked client, or locate/onboard one by name, associated with that company.
+  if (_linkedPerson) { rec.contactPersonId = _linkedPerson.id; if (!String(rec.contact || '').trim()) rec.contact = _linkedPerson.name; }
+  else if (rec.contact || b.contactEmail) { const p = findOrCreatePerson(req, { name: rec.contact, email: b.contactEmail, type: 'Client', companyId: rec.companyId }); if (p) { rec.contactPersonId = p.id; if (!rec.contact) rec.contact = p.name; } }
   const arr = loadDeals(); arr.push(rec);
   const room = ensureRoomForDeal(req, rec);   // auto-build its structured data room
   if (room) rec.roomId = room.id;

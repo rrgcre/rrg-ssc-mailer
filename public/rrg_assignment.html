@@ -931,6 +931,7 @@ function render(){
       + ((A.canStart||A.provisional||(A.assignmentType==='listing')||A.dealId) ? ('<div class="hqbar">'
           + (A.canStart ? '<button class="hqbtn go" id="startDealBtn">Start listing →</button>' : (A.provisional ? '<button class="hqbtn go" id="promoteBtn">Go Live →</button>' : ''))
           + ((A.assignmentType==='listing') ? '<button class="hqbtn mkt" id="hqMktBtn">📣 Marketplace</button>' : '')
+          + ((A.assignmentType==='listing' && A.clientPersonId) ? '<button class="hqbtn mkt" id="hqNewForClient" title="Create another listing tied to this same client (a second concept or location) — the seller and company are pre-linked.">+ New listing for this client</button>' : '')
           + (A.canDelete !== false ? '<button class="hqbtn del" id="delDealBtn" title="Removes the listing, its records, data room and all files. Cannot be undone.">Delete</button>' : '')
           + '</div>'
           + (A.canStart ? '<div class="hqnote">Start runs the Seller Qualification Call and takes this on as a working listing — not on the market yet.</div>' : '')
@@ -1011,6 +1012,7 @@ function render(){
   var sdb=document.getElementById('startDealBtn'); if(sdb) sdb.addEventListener('click',startDeal);
   var pmb=document.getElementById('promoteBtn'); if(pmb) pmb.addEventListener('click',promoteListing);
   var ddb=document.getElementById('delDealBtn'); if(ddb) ddb.addEventListener('click',deleteDeal);
+  var nfc=document.getElementById('hqNewForClient'); if(nfc) nfc.addEventListener('click',newListingForClient);
   var hqm=document.getElementById('hqMktBtn'); if(hqm) hqm.addEventListener('click',function(){ var c=document.getElementById('mktCard'); if(c){ c.classList.remove('collapsed'); c.scrollIntoView({behavior:'smooth',block:'start'}); } });
   wireRoomActivity();
   wirePhotos();
@@ -1192,6 +1194,14 @@ function wireDocs(){
   var addb=document.getElementById('docAddBtn'); if(addb) addb.addEventListener('click',openDocUpload);
 }
 function promoteListing(){ var b=document.getElementById('promoteBtn'); if(b){b.disabled=true;b.textContent='Promoting…';} fetch('/api/assignment/'+encodeURIComponent(KEY)+'/promote',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.reload(); } else { if(b){b.disabled=false;b.textContent='Go Live →';} alert((j&&j.error)||'Could not promote.'); } }).catch(function(){ if(b){b.disabled=false;b.textContent='Go Live →';} alert('Could not reach the server.'); }); }
+async function newListingForClient(){
+  var b=document.getElementById('hqNewForClient');
+  var who=(A&&A.contact)||'this client';
+  var nm=(window.rrgPrompt ? await rrgPrompt('New listing for '+who+' — name the concept / business:') : window.prompt('New listing for '+who+' — name the concept / business:'));
+  if(nm===null||nm===undefined) return; nm=String(nm).trim(); if(!nm) return;
+  if(b){ b.disabled=true; b.textContent='Creating…'; }
+  fetch('/api/deal/new',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({ business:nm, market:(A.market||''), personId:(A.clientPersonId||''), companyId:((A.company&&A.company.id)||''), owner:(A.owner||''), saleLane:(A.saleLane||'business'), type:'' })}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_assignment.html?key='+encodeURIComponent(j.key); } else { if(b){b.disabled=false;b.textContent='+ New listing for this client';} alert((j&&j.error)||'Could not create the listing.'); } }).catch(function(){ if(b){b.disabled=false;b.textContent='+ New listing for this client';} alert('Could not reach the server.'); });
+}
 function startDeal(){ var b=document.getElementById('startDealBtn'); if(b){b.disabled=true;b.textContent='Starting…';} fetch('/api/deal/'+encodeURIComponent(A.dealId)+'/start',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_assignment.html?key='+encodeURIComponent(j.key); } else { if(b){b.disabled=false;b.textContent='Start listing →';} alert((j&&j.error)||'Could not start the deal.'); } }).catch(function(){ if(b){b.disabled=false;b.textContent='Start listing →';} alert('Could not reach the server.'); }); }
 async function deleteDeal(){ if(!await rrgConfirm('Delete this listing and everything in it — records, data room, and all uploaded files? This cannot be undone.')) return; var b=document.getElementById('delDealBtn'); if(b){b.disabled=true;b.textContent='Deleting…';} fetch('/api/assignment/'+encodeURIComponent(KEY),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_board.html'; } else { if(b){b.disabled=false;b.textContent='Delete';} alert((j&&j.error)||'Could not delete the listing.'); } }).catch(function(){ if(b){b.disabled=false;b.textContent='Delete';} alert('Could not reach the server.'); }); }
 function fmtDT(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; var h=d.getHours(),m=d.getMinutes(),ap=h<12?'AM':'PM',hh=(h%12)||12; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2)+' '+hh+':'+String(m).padStart(2,'0')+' '+ap; }
