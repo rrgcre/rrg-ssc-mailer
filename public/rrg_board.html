@@ -224,7 +224,7 @@ var VIEW=(function(){ try{ return localStorage.getItem('rrg_board_view')||'board
 var TB={ q:'', owner:'', market:'', status:'', min:'', max:'', sort:'act_desc', per:25 };
 var FILTER_OPEN=false, SAVE_OPEN=false, EXPANDED={};
 var DENSITY=(function(){try{return localStorage.getItem('rrg_board_density')||'full';}catch(e){return 'full';}})();
-var CARDF=(function(){var d={contact:true,value:true,commission:true,days:true,market:true,status:false,bbs:false,activity:true};try{var o=JSON.parse(localStorage.getItem('rrg_board_cardf')||'null');if(o&&typeof o==='object')return Object.assign(d,o);}catch(e){}return d;})();
+var CARDF=(function(){var d={contact:true,value:true,commission:true,days:true,market:true,status:false,bbs:false,activity:true,prefSf:true,crUse:true,crBudget:true,crMkts:true};try{var o=JSON.parse(localStorage.getItem('rrg_board_cardf')||'null');if(o&&typeof o==='object')return Object.assign(d,o);}catch(e){}return d;})();
 var CARDF_OPEN=false, EXPCARD={};
 var ROLLED=(function(){try{return JSON.parse(localStorage.getItem('rrg_board_rolled')||'{}')||{};}catch(e){return {};}})();
 function saveROLLED(){ try{ localStorage.setItem('rrg_board_rolled',JSON.stringify(ROLLED)); }catch(e){} }
@@ -493,12 +493,15 @@ function returnToBoard(key){
     .then(function(r){return r.json();}).then(function(j){ if(!j||!j.ok){ load(); } }).catch(function(){ load(); });
 }
 var CARDF_FIELDS=[['contact','Contact'],['value','Value'],['commission','Commission'],['days','Days in stage'],['market','Market'],['status','Status'],['bbs','BBS #'],['activity','Last activity']];
+var CARDF_TENANT_FIELDS=[['prefSf','Preferred SF (min–max)'],['crUse','Use / concept'],['crBudget','Budget (rent)'],['crMkts','Target markets']];
 function saveCARDF(){ try{ localStorage.setItem('rrg_board_cardf',JSON.stringify(CARDF)); }catch(e){} }
 function renderCardfMenu(){
   var host=document.getElementById('cardfmenu'); if(!host) return;
   if(!CARDF_OPEN){ host.innerHTML=''; host.className=''; return; }
   host.className='savemenu';
-  host.innerHTML='<div class="shd">Show on cards</div>'+CARDF_FIELDS.map(function(f){ return '<label class="cfrow"><input type="checkbox" data-cf="'+f[0]+'"'+(CARDF[f[0]]?' checked':'')+'> '+esc(f[1])+'</label>'; }).join('');
+  var _fields=CARDF_FIELDS.slice();
+  if(typeof isTenantBoard==='function' && isTenantBoard()){ _fields.push(['__hd','Tenant criteria']); _fields=_fields.concat(CARDF_TENANT_FIELDS); }
+  host.innerHTML='<div class="shd">Show on cards</div>'+_fields.map(function(f){ if(f[0]==='__hd') return '<div class="shd" style="margin-top:6px">'+esc(f[1])+'</div>'; return '<label class="cfrow"><input type="checkbox" data-cf="'+f[0]+'"'+(CARDF[f[0]]?' checked':'')+'> '+esc(f[1])+'</label>'; }).join('');
   host.querySelectorAll('input[data-cf]').forEach(function(cb){ cb.addEventListener('change',function(){ CARDF[cb.getAttribute('data-cf')]=cb.checked; saveCARDF(); render(); }); });
 }
 function renderFlagMenu(){
@@ -527,10 +530,10 @@ function cardFieldsHtml(c){
   var h='';
   if(CARDF.contact && c.contact){ var nm=esc(c.contact); h+='<div class="r"><span class="ic">○</span>'+(c.contactPersonId?('<a class="contactlink" href="./rrg_person.html?id='+encodeURIComponent(c.contactPersonId)+'">'+nm+'</a>'):nm)+'</div>'; }
   if(c.isTenant){
-    if(c.crSf) h+='<div class="r" title="Preferred size"><span class="ic">▭</span><span class="val">'+esc(c.crSf)+'</span></div>';
-    if(c.crUse) h+='<div class="r" title="Use / concept"><span class="ic">◍</span>'+esc(c.crUse)+'</div>';
-    if(c.crBudget) h+='<div class="r" title="Budget (rent)"><span class="ic">$</span><span class="val">'+esc(c.crBudget)+'</span></div>';
-    if(c.crMarkets) h+='<div class="r" title="Target markets"><span class="ic">◎</span>'+esc(c.crMarkets)+'</div>';
+    if(CARDF.prefSf!==false && c.crSf) h+='<div class="r" title="Preferred size (min–max SF)"><span class="ic">▭</span><span class="val">'+esc(c.crSf)+'</span></div>';
+    if(CARDF.crUse!==false && c.crUse) h+='<div class="r" title="Use / concept"><span class="ic">◍</span>'+esc(c.crUse)+'</div>';
+    if(CARDF.crBudget!==false && c.crBudget) h+='<div class="r" title="Budget (rent)"><span class="ic">$</span><span class="val">'+esc(c.crBudget)+'</span></div>';
+    if(CARDF.crMkts!==false && c.crMarkets) h+='<div class="r" title="Target markets"><span class="ic">◎</span>'+esc(c.crMarkets)+'</div>';
   }
   if(CARDF.listPrice && c.listPrice) h+='<div class="r" title="Asking price"><span class="ic">$</span><span class="val">'+fmtMoneyMaybe(c.listPrice)+'</span> <span style="color:#9aa3b2;font-size:10px">ask</span></div>';
   if(CARDF.value && c.value) h+='<div class="r" title="Opinion of value"><span class="ic">$</span><span class="val">'+esc(c.value)+'</span> <span style="color:#9aa3b2;font-size:10px">value</span></div>';
