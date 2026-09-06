@@ -27,6 +27,12 @@ const path = require('path');
 const { Pool } = require('pg');
 
 let pool = null, DATA_DIR = '', READY = false, pending = 0;
+// Boot gate: while true, mirror() is suppressed so the boot-time seed/backfill
+// routines (which run against a possibly-wiped disk) can NEVER overwrite a
+// populated Postgres store before the disk has been restored from it. Opened by
+// bootRestore() once the disk cache has been rebuilt, with a failsafe timer so
+// mirroring always resumes even if bootRestore is never signalled.
+let bootGate = true;
 let _init = Promise.resolve();
 const chain = { p: Promise.resolve() };
 
@@ -46,6 +52,10 @@ function init(dataDir) {
     _init = pool.query('CREATE TABLE IF NOT EXISTS stores (name TEXT PRIMARY KEY, json TEXT NOT NULL, updated_at TIMESTAMPTZ DEFAULT now())')
       .catch(e => console.error('[PG] ensure table failed: ' + (e && e.message)));
     READY = true;
+    bootGate = true;
+    // Failsafe: if bootRestore never signals (e.g. it is never called), resume
+    // mirroring after 30s so the Postgres backup can never be left silently stale.
+    try { var _g = setTimeout(function () { if (bootGate) { bootGate = false; console.warn('[PG] mirror gate auto-opened — boot restore was not signalled within 30s'); } }, 30000); if (_g && _g.unref) _g.unref(); } catch (e) {}
     return true;
   } catch (e) { console.error('[PG] init failed: ' + (e && e.message)); READY = false; return false; }
 }
@@ -53,8 +63,10 @@ function ready() { return READY; }
 function pendingCount() { return pending; }
 
 // Queue an async UPSERT of one store. Serialized; best-effort (never throws).
+// Suppressed while the boot gate is closed (see bootRestore) so a wiped-disk
+// boot can't push empty/default seed data over a good Postgres backup.
 function mirror(name, data) {
-  if (!READY) return;
+  if (!READY || bootGate) return;
   const json = JSON.stringify(data);
   pending++;
   chain.p = chain.p.then(() => _init).then(() => pool.query(
@@ -94,7 +106,41 @@ async function reconcile() {
   return { pushed, restored };
 }
 
+// Manually resume mirroring (used if bootRestore is skipped or errors, so the
+// backup never stays silently frozen).
+function openGate() { bootGate = false; }
+
+// Boot restore — Postgres is the system of record.
+// Runs ONCE at startup, before the server serves requests. It rebuilds the disk
+// cache from Postgres (Postgres wins for every populated store), then opens the
+// mirror gate and seeds Postgres from any disk store it doesn't yet hold (first
+// boot / newly-added stores). This makes a wiped ephemeral disk self-heal from
+// Postgres before any seed/backfill/request can run, closing the boot-window
+// race where a partial disk write could overwrite the good backup.
+async function bootRestore() {
+  if (!READY) { bootGate = false; return { skipped: true }; }
+  await _init;
+  const pgRows = new Map();
+  try { const r = await pool.query('SELECT name, json FROM stores'); r.rows.forEach(x => pgRows.set(x.name, x.json)); }
+  catch (e) { console.error('[PG] bootRestore list failed: ' + (e && e.message)); bootGate = false; return { restored: 0, pushed: 0, error: (e && e.message) }; }
+  let restored = 0, pushed = 0;
+  // Postgres authoritative: overwrite the disk cache with every populated PG store.
+  for (const [name, pgJson] of pgRows) {
+    if (pgJson != null && _count(pgJson) >= 1) { try { fs.writeFileSync(path.join(DATA_DIR, name), pgJson); restored++; } catch (e) {} }
+  }
+  // Disk is now in sync with Postgres — live writes may mirror again.
+  bootGate = false;
+  // First boot / newly-added stores: seed Postgres from any disk store it lacks
+  // (or holds empty) while the disk has real records.
+  for (const name of _diskStores()) {
+    const pgJson = pgRows.has(name) ? pgRows.get(name) : null;
+    if (pgJson != null && _count(pgJson) >= 1) continue;
+    try { const dj = fs.readFileSync(path.join(DATA_DIR, name), 'utf8'); if (_count(dj) >= 1) { await pool.query('INSERT INTO stores(name, json, updated_at) VALUES($1, $2, now()) ON CONFLICT(name) DO UPDATE SET json = EXCLUDED.json, updated_at = now()', [name, dj]); pushed++; } } catch (e) {}
+  }
+  return { restored, pushed };
+}
+
 async function flush() { await chain.p; while (pending > 0) { await chain.p; } }
 async function close() { try { await flush(); } catch (e) {} try { if (pool) await pool.end(); } catch (e) {} }
 
-module.exports = { init, ready, mirror, reconcile, flush, close, pendingCount };
+module.exports = { init, ready, mirror, reconcile, bootRestore, openGate, flush, close, pendingCount };

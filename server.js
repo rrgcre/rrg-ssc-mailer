@@ -12915,6 +12915,8 @@ app.post('/api/deal/new', express.json(), (req, res) => {
     if (!_ov[_k].listingNo) _ov[_k].listingNo = nextListingNo();
     if (!_ov[_k].status) _ov[_k].status = 'Unqualified';
     if (!_ov[_k].stageSince) _ov[_k].stageSince = _nowIso;
+    // Owner / assigned user chosen in the New Listing modal (a display name); defaults to the creator.
+    { const _own = String((b && b.owner) || '').trim().slice(0, 120); if (_own) _ov[_k].owner = _own; }
     let _pipe = null;
     try { const _cat = _isTR ? 'tenantRep' : (_isLL ? 'landlordLease' : (_saleLane === 'asset' ? 'assetSale' : 'businessSale')); const _fb = _isTR ? 'p_tenantrep' : (_isLL ? 'p_llrep' : (_saleLane === 'asset' ? 'p_assetsale' : 'p_bizsales')); const _pid = (typeof pipelineForCategory === 'function' && pipelineForCategory(_cat)) || _fb; const _pls = loadPipelines(); _pipe = _pls.find(pl => pl.id === _pid) || _pls.find(pl => pl.id === _fb) || _pls.find(pl => pl.id === 'p_bizsales'); } catch (e) {}
     if (_pipe && !_ov[_k].pipelineStage) { _ov[_k].pipelineId = _pipe.id; _ov[_k].pipelineStage = (_pipe.stages && _pipe.stages[0] && _pipe.stages[0].name) || 'Unqualified'; }
@@ -14432,7 +14434,7 @@ app.get('/api/board', (req, res) => {
       crSf: (function(){ var c=v.criteria||{}; var a=String(c.sizeMin||'').trim(), b=String(c.sizeMax||'').trim(); if(a&&b) return a+'–'+b+' SF'; if(a) return a+'+ SF'; if(b) return 'up to '+b+' SF'; return ''; })(),
       crUse: (v.criteria && v.criteria.useType) || '', crBudget: (v.criteria && v.criteria.budget) || '', crMarkets: (v.criteria && v.criteria.markets) || '', crTimeline: (v.criteria && v.criteria.timeline) || '' });
   });
-  res.json({ ok: true, pipelines: pipelines.filter(p => String(p.area||'') !== 'Buyer').map(p => ({ id: p.id, name: p.name })), pipelineId: pid, pipelineName: pipe.name || '', stages: stageNames, preStages: stageNames.filter(function(n){ return _preSet[n]; }), cards: cards, markets: effMarkets(), cardFields: effBoardCardFields(), cardFlags: effBoardCardFlags(), isAdmin: !!isAdmin });
+  res.json({ ok: true, pipelines: pipelines.filter(p => String(p.area||'') !== 'Buyer').map(p => ({ id: p.id, name: p.name })), pipelineId: pid, pipelineName: pipe.name || '', stages: stageNames, preStages: stageNames.filter(function(n){ return _preSet[n]; }), cards: cards, markets: effMarkets(), cardFields: effBoardCardFields(), cardFlags: effBoardCardFlags(), isAdmin: !!isAdmin, users: auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => String(a.name).localeCompare(String(b.name))), me: (req.user && (req.user.name || req.user.username)) || '' });
 });
 function _fireStageAutos(pipe, d, oldStage, newStage, req) {
   try {
@@ -18504,10 +18506,27 @@ process.on('uncaughtException', (err) => { try { console.error('uncaughtExceptio
 const PORT = process.env.PORT || 8787;
 try { massmail.mount(app, { requireAdmin: requireAdmin, appBaseUrl: appBaseUrl }); console.log('[MAIL] mass-email module mounted' + (massmail.dbReady() ? '' : ' (storage inert — no DATABASE_URL)') + (massmail.sesConfigured() ? '' : ' (sending inert — SES not configured)')); } catch (e) { console.error('[MAIL] mount failed: ' + (e && e.message)); }
 try { emailfinder.mount(app, { requireAdmin: requireAdmin, loadGmapsKey: loadGmapsKey }); console.log('[FINDER] email-finder module mounted' + (loadGmapsKey() ? '' : ' (no Google Maps key — set one in Admin)')); } catch (e) { console.error('[FINDER] mount failed: ' + (e && e.message)); }
-app.listen(PORT, () => console.log(`RRG toolkit server listening on :${PORT}`));
-// Reconcile binary assets with object storage on boot: migrate disk→bucket (first run)
-// and restore anything the disk is missing (after a disk loss). Async; never blocks startup.
-setTimeout(() => { try { if (blobstore.ready()) { blobstore.reconcile().then(r => { if (r && !r.skipped) console.log('[BLOB] boot reconcile — uploaded ' + r.uploaded + ', restored ' + r.restored); }).catch(e => console.error('[BLOB] reconcile failed: ' + (e && e.message))); } } catch (e) {} }, 8000);
-// Reconcile records with the Postgres backup replica on boot: push the live disk up
-// so the backup matches it, and restore the disk from Postgres if it was ever lost.
-setTimeout(() => { try { if (PG_OK) { _pg.reconcile().then(r => { if (r && !r.skipped) console.log('[PG] boot reconcile — pushed ' + r.pushed + ', restored ' + r.restored); }).catch(e => console.error('[PG] reconcile failed: ' + (e && e.message))); } } catch (e) {} }, 6000);
+// Postgres is the system of record: BEFORE the server accepts a single request,
+// rebuild the disk cache from Postgres so a wiped ephemeral disk self-heals from
+// the durable backup. This is awaited (with a hard timeout so a slow/broken DB can
+// never take the app offline — availability first) and it opens the mirror gate,
+// which was held closed at boot so the seed/backfill routines couldn't overwrite a
+// good backup with default data. Only then do we listen.
+(async function boot() {
+  if (PG_OK) {
+    try {
+      const r = await Promise.race([
+        _pg.bootRestore(),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('bootRestore timed out')), 25000))
+      ]);
+      if (r && !r.skipped) console.log('[PG] boot restore — restored ' + r.restored + ', pushed ' + r.pushed + ' (Postgres is source of truth)');
+    } catch (e) {
+      console.error('[PG] boot restore failed, serving disk as-is: ' + (e && e.message));
+      try { _pg.openGate(); } catch (_e) {}   // never leave mirroring frozen
+    }
+  }
+  app.listen(PORT, () => console.log(`RRG toolkit server listening on :${PORT}`));
+  // Reconcile binary assets with object storage on boot: migrate disk→bucket (first run)
+  // and restore anything the disk is missing (after a disk loss). Async; never blocks startup.
+  setTimeout(() => { try { if (blobstore.ready()) { blobstore.reconcile().then(r => { if (r && !r.skipped) console.log('[BLOB] boot reconcile — uploaded ' + r.uploaded + ', restored ' + r.restored); }).catch(e => console.error('[BLOB] reconcile failed: ' + (e && e.message))); } } catch (e) {} }, 8000);
+})();
