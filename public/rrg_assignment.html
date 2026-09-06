@@ -1042,6 +1042,15 @@ function render(){
   wireManualStages();
   wireExpenses();
   setupAccordion();
+  maybeOpenDealFromHash();
+}
+function maybeOpenDealFromHash(){
+  if(window._dealHashDone) return;
+  if(location.hash!=='#deal') return;
+  window._dealHashDone=true;
+  var card=null; document.querySelectorAll('.rail .card .ch b').forEach(function(bb){ if(bb.textContent==='Deal') card=bb.closest('.card'); });
+  if(card) card.scrollIntoView({behavior:'smooth',block:'center'});
+  if(!TXN && typeof openDealForm==='function') setTimeout(openDealForm,120);
 }
 function loadPeople(){ fetch('/api/people',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ PEOPLE=(j&&j.people)||[]; if(j&&Array.isArray(j.users)) USERS=j.users; var dl=document.getElementById('peopleList'); if(dl) dl.innerHTML=PEOPLE.map(function(p){return '<option value="'+esc(p.name)+'">'+esc(p.company||p.email||'')+'</option>';}).join(''); fillOwnerSelect(); }).catch(function(){}); }
 function matchBuyersShell(){ return '<div class="card" id="matchBuyersCard"><div class="ch"><b>Matching buyers</b><span id="mbCount" style="color:#8a93a8;font-weight:700;margin-left:6px"></span></div><div class="cb" style="padding:12px 16px"><div id="matchBuyers"><div style="color:#8a93a8;font-size:12.5px;padding:4px 0">Checking your buyer book…</div></div></div></div>'; }
@@ -1698,8 +1707,10 @@ function dealCard(){
     if(TXN.commissionStatus) rows.push(['Commission', esc(TXN.commissionStatus)]);
     if(TXN.notes) rows.push(['Notes', esc(TXN.notes)]);
     var meta=rows.map(function(r){ return '<div class="dealkv"><span class="dkk">'+r[0]+'</span><span class="dkv">'+r[1]+'</span></div>'; }).join('');
+    var _commRaw=String(TXN.commissionDue||(A&&A.totalCommission)||'').replace(/[^0-9.]/g,''); if(!_commRaw && A && A.commissionEst) _commRaw=String(A.commissionEst);
+    var _invHref='./rrg_invoices.html?deal='+encodeURIComponent(KEY)+((A&&A.contact)?('&billto='+encodeURIComponent(A.contact)):'')+(_commRaw?('&amount='+encodeURIComponent(_commRaw)):'');
     body='<div class="dealview"><span class="dealpill" style="background:'+c[0]+';color:'+c[1]+'">'+esc(TXN.status||'LOI')+'</span>'+meta
-       + '<div class="dealacts"><button class="mbtn ghost" id="dealEdit">Edit</button><button class="mbtn" id="dealDel" style="background:#fff;color:var(--red,#DA2B1F);border:1px solid #f0c9c6">Remove</button></div></div>';
+       + '<div class="dealacts"><a class="mbtn" href="'+_invHref+'" title="Bill the commission — opens a new invoice pre-filled from this deal" style="background:#0b7a43;color:#fff;border:1px solid #0b7a43;text-decoration:none;display:inline-flex;align-items:center">Create invoice</a><button class="mbtn ghost" id="dealEdit">Edit</button><button class="mbtn" id="dealDel" style="background:#fff;color:var(--red,#DA2B1F);border:1px solid #f0c9c6">Remove</button></div></div>';
     addbtn='';
   } else {
     body='<div class="noev" style="padding:16px 18px">No deal yet. When a buyer goes under contract on this listing, open the deal — buyer, price, and close date — to track it to closing.</div>';

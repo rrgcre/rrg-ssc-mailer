@@ -8529,6 +8529,17 @@ app.post('/api/invoices', express.json({ limit: '512kb' }), (req, res) => {
   }
   ensurePayToken(x);
   if (_invTaxRate(x) > 0) ensureTaxPayableAccount();
+  // When a NEW invoice is billed against a listing's deal, advance that deal's commission lifecycle to "Invoiced".
+  try {
+    if (!b.id && x.listingKey) {
+      const ov = loadAssignOverlay(); const cur = ov[x.listingKey];
+      if (cur && cur.transaction && (!cur.transaction.commissionStatus || cur.transaction.commissionStatus === 'Unpaid')) {
+        cur.transaction.commissionStatus = 'Invoiced';
+        cur.transaction.updatedAt = new Date().toISOString(); cur.updatedAt = new Date().toISOString();
+        ov[x.listingKey] = cur; saveAssignOverlay(ov);
+      }
+    }
+  } catch (e) {}
   x.updatedAt = new Date().toISOString(); saveInvoices(all);
   res.json({ ok: true, invoice: invoiceBrief(x, u, { full: true }) });
 });

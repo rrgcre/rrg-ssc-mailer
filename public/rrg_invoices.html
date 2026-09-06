@@ -248,7 +248,15 @@ function loadKeepEditor(){ api('GET','/api/invoices').then(function(j){ applyLis
 function qsParam(k){ try{ return new URLSearchParams(location.search).get(k)||""; }catch(e){ return ""; } }
 function qsOpen(){ return qsParam("open"); }
 loadListings().then(function(){ api("GET","/api/invoices").then(function(j){ applyList(j); render(); var o=qsOpen(); if(o){ openEdit(o); return; }
-  var dk=qsParam("deal"); if(dk){ newInv(); var sel=document.getElementById("f_listing"); if(sel){ sel.value=dk; } EDIT.listingKey=dk; var m=LISTINGS.filter(function(l){return l.key===dk;})[0]; EDIT.listingLabel=m?(m.business||""):""; var bt=qsParam("billto"); if(bt){ var bel=document.getElementById("f_billto"); if(bel) bel.value=bt; EDIT.billTo=bt; } }
+  var dk=qsParam("deal"); if(dk){ newInv();
+    EDIT.listingKey=dk;
+    var m=LISTINGS.filter(function(l){return l.key===dk;})[0]; EDIT.listingLabel=m?(m.business||""):"";
+    var bt=qsParam("billto"); if(bt) EDIT.billTo=bt;
+    var amt=qsParam("amount"), dsc=qsParam("desc");
+    if(amt||dsc){ var n=Number(String(amt).replace(/[^0-9.]/g,"")); EDIT.lineItems=[{desc:(dsc||("Brokerage commission"+(EDIT.listingLabel?(" — "+EDIT.listingLabel):""))), amount:(isFinite(n)&&n>0)?n:"", account:""}]; }
+    renderEditor();
+    var ed=document.getElementById("editor"); if(ed) ed.scrollIntoView({behavior:"smooth",block:"start"});
+  }
 }); });
 </script>
 </body>
