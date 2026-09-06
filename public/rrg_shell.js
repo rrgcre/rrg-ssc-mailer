@@ -223,7 +223,15 @@
   var curHash=(location.hash||'').toLowerCase();
   function hrefHash(href){ var i=(href||'').indexOf('#'); return i>=0?(href.slice(i).toLowerCase()):''; }
   var _hashMatch=false; NAV.forEach(function(g){ (g.items||[]).forEach(function(it){ if(sameFile(it.href)){ var h=hrefHash(it.href); if(h && h===curHash) _hashMatch=true; } }); });
-  function isActive(it){ if(!sameFile(it.href)) return false; var h=hrefHash(it.href); return h ? (h===curHash) : (!_hashMatch); }
+  // The board file (rrg_board.html) is shared by two nav items — Listings (Business Sales) and
+  // Tenants (Tenant Rep, pipelineId=p_tenantrep). Disambiguate by pipeline so only one lights up.
+  function _qpid(s){ var m=String(s||'').match(/[?&]pipelineId=([^&#]+)/i); return m?decodeURIComponent(m[1]).toLowerCase():''; }
+  var curPid=_qpid(location.search);
+  function boardPidOf(href){ var f=(href||'').split('/').pop().split('#')[0].split('?')[0].toLowerCase(); if(f!=='rrg_board.html') return null; return _qpid(href); }
+  function isActive(it){ if(!sameFile(it.href)) return false;
+    var bp=boardPidOf(it.href);
+    if(bp!==null && file==='rrg_board.html'){ return (bp==='p_tenantrep') ? (curPid==='p_tenantrep') : (curPid!=='p_tenantrep'); }
+    var h=hrefHash(it.href); return h ? (h===curHash) : (!_hashMatch); }
 
   // ---------- styles ----------
   var css = ''
