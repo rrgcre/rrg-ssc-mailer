@@ -511,7 +511,7 @@ function renderFlagMenu(){
   var sym=(window.RRG_CCYSYM||String.fromCharCode(36));
   host.innerHTML='<div class="shd">Pipeline card flags</div>'
     +'<div class="flagrow"><label class="cfrow"><input type="checkbox" data-flag="highValue"'+(FLAGS.highValue.on?' checked':'')+'> <b>High Value</b></label><div class="flaghint">Flag cards that have a value greater than or equal to a set amount.</div><div class="flaginp"><span>'+esc(sym)+'</span><input type="text" inputmode="numeric" data-flagamt="highValue" value="'+esc(FLAGS.highValue.amount)+'"></div></div>'
-    +'<div class="flagrow"><label class="cfrow"><input type="checkbox" data-flag="slipping"'+(FLAGS.slipping.on?' checked':'')+'> <b>Slipping</b></label><div class="flaghint">Flag cards that have had no activity after a set number of days.</div><div class="flaginp"><input type="text" inputmode="numeric" data-flagdays="slipping" value="'+esc(FLAGS.slipping.days)+'"><span>days</span></div></div>';
+    +'<div class="flagrow"><label class="cfrow"><input type="checkbox" data-flag="slipping"'+(FLAGS.slipping.on?' checked':'')+'> <b>Stalled in stage</b></label><div class="flaghint">Flag a card once it has sat in a stage past that stage’s <b>Target days</b> (set per stage in Settings → Pipelines). The number below is the fallback limit for any stage with no target set.</div><div class="flaginp"><input type="text" inputmode="numeric" data-flagdays="slipping" value="'+esc(FLAGS.slipping.days)+'"><span>days</span></div></div>';
   host.querySelectorAll('input[data-flag]').forEach(function(cb){ cb.addEventListener('change',function(){ FLAGS[cb.getAttribute('data-flag')].on=cb.checked; saveFLAGS(); render(); }); });
   host.querySelectorAll('input[data-flagamt]').forEach(function(inp){ inp.addEventListener('input',function(){ FLAGS[inp.getAttribute('data-flagamt')].amount=inp.value.replace(/[^0-9]/g,''); saveFLAGS(); render(); }); });
   host.querySelectorAll('input[data-flagdays]').forEach(function(inp){ inp.addEventListener('input',function(){ FLAGS[inp.getAttribute('data-flagdays')].days=inp.value.replace(/[^0-9]/g,''); saveFLAGS(); render(); }); });
@@ -521,7 +521,7 @@ function daysInStage(c){ return daysSince(c.stageSince||c.createdAt||''); }
 function flagBadges(c){
   var h='';
   if(FLAGS.highValue.on && FLAGS.highValue.amount && money(c.value)>=Number(FLAGS.highValue.amount)) h+='<span class="fbadge hv" title="High value (\u2265 '+esc(fmtMoney(Number(FLAGS.highValue.amount)))+')">$</span>';
-  if(FLAGS.slipping.on && FLAGS.slipping.days){ var ds=daysSince(c.lastActivity); if(ds!=null && ds>=Number(FLAGS.slipping.days)) h+='<span class="fbadge slip" title="Slipping \u2014 '+ds+'d with no activity">\u2193</span>'; }
+  if(FLAGS.slipping.on){ var _lim=(c.stageTargetDays&&Number(c.stageTargetDays)>0)?Number(c.stageTargetDays):(FLAGS.slipping.days?Number(FLAGS.slipping.days):0); if(_lim>0){ var dis=daysInStage(c); if(dis!=null && dis>=_lim) h+='<span class="fbadge slip" title="Stalled \u2014 '+dis+'d in '+esc(c.stage||'stage')+' (limit '+_lim+'d)">\u2193</span>'; } }
   return h?('<span class="flags">'+h+'</span>'):'';
 }
 function cardOwner(c){ if(!c.owner) return ''; var t=esc(c.owner); var ini=esc(initials(c.owner)); if(c.ownerPhoto){ return '<span class="av" title="'+t+'"><img src="'+esc(c.ownerPhoto)+'" alt="'+t+'" onerror="this.remove();this.parentNode.textContent=\''+ini.replace(/'/g,"\\'")+'\'"></span>'; } return '<span class="av" title="'+t+'">'+ini+'</span>'; }

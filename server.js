@@ -14402,6 +14402,7 @@ app.get('/api/board', (req, res) => {
   const overlay = loadAssignOverlay(), idx = assignmentsIndex();
   const _preSet = {}; (pipe.stages || []).forEach(function(st){ if (st && st.preListing) _preSet[st.name] = 1; });
   const _winByStage = {}; (pipe.stages || []).forEach(function(st){ if (st && st.winPct !== '' && st.winPct != null) _winByStage[st.name] = st.winPct; });
+  const _dueByStage = {}; (pipe.stages || []).forEach(function(st){ if (st && st.targetDays) _dueByStage[st.name] = st.targetDays; });
   const isAdmin = req.user && isSuper(req.user);
   const cards = [];
   const coNameById = {}; try { loadCompanies().forEach(c => { coNameById[c.id] = c.name; }); } catch (e) {}
@@ -14427,7 +14428,7 @@ app.get('/api/board', (req, res) => {
     if (stageNames.indexOf(stage) < 0) stage = stageNames[0] || '';
     const _prov = !!(d.screen && d.screen.provisional);
     cards.push({ key: d.key, business: v.business, listingNo: o.listingNo || 0, listingId: (o.listingNo ? ('RRG-' + o.listingNo) : ''), codeName: o.codeName || '', company: coNameById[v.companyId] || (d.screen && d.screen.data && d.screen.data.company) || '', companyId: v.companyId || '', contactPersonId: v.clientPersonId || '', concept: v.business, contact: v.contact || '', value: v.value || '', market: v.market || '', owner: v.owner || '', lastActivity: v.lastActivity || '', createdAt: v.createdAt || '', status: _prov ? 'Pending Approval' : (o.status || 'New'), provisional: _prov, bbsNumber: v.bbsNumber || '', stage: stage, isLead: !!_preSet[stage], winPct: (_winByStage[stage] != null ? _winByStage[stage] : ''), stageSince: o.stageSince || v.createdAt || '', published: !!(o.market && o.market.published), listPrice: o.listPrice || v.value || '', commission: (o.totalCommission || estCommissionFromPrice(o.listPrice || v.value || '') || (v.transaction && v.transaction.commissionDue) || ''), commissionEst: estCommissionFromPrice(o.listPrice || v.value || ''), totalCommission: o.totalCommission || (v.transaction && v.transaction.commissionDue) || '', ownerPhoto: ownerPhotoBy[String(v.owner || '').toLowerCase()] || '',
-      isTenant: (o.assignmentType === 'tenant_rep'),
+      isTenant: (o.assignmentType === 'tenant_rep'), stageTargetDays: (_dueByStage[stage] != null ? _dueByStage[stage] : 0),
       crSf: (function(){ var c=v.criteria||{}; var a=String(c.sizeMin||'').trim(), b=String(c.sizeMax||'').trim(); if(a&&b) return a+'–'+b+' SF'; if(a) return a+'+ SF'; if(b) return 'up to '+b+' SF'; return ''; })(),
       crUse: (v.criteria && v.criteria.useType) || '', crBudget: (v.criteria && v.criteria.budget) || '', crMarkets: (v.criteria && v.criteria.markets) || '', crTimeline: (v.criteria && v.criteria.timeline) || '' });
   });
