@@ -279,7 +279,7 @@ function renderList(list){
   var cfg={ mount:'#body', data:list, key:'contacts', countEl:'#cnt', filterButton:document.getElementById('filterBtn'),
     empty:'<div class="empty"><b>No contacts yet.</b>Add one with + New contact, or bring buyers in with Import BizBuySell.</div>',
     rowId:function(p){ return p.id; }, defaultSort:0, defaultDir:1,
-    bulk: (function(){ var _b=[]; _b.push({ label:'New listing\u2026', min:1, fn:bulkNewListing }); if(IS_ADMIN) _b.push({ label:'Change owner\u2026', min:1, fn:openPeopleOwnerPicker }); if(IS_ADMIN) _b.push({ label:'Merge\u2026', min:2, fn:openMergePicker }); if(CAN_DELETE) _b.push({ label:'Delete', danger:true, min:1, fn:bulkDeletePeople }); return _b.length?_b:null; })(),
+    bulk: (function(){ var _b=[]; _b.push({ label:'New listing\u2026', min:1, fn:bulkNewListing }); _b.push({ label:'Set flags\u2026', min:1, fn:openBulkFlags }); if(IS_ADMIN) _b.push({ label:'Change owner\u2026', min:1, fn:openPeopleOwnerPicker }); if(IS_ADMIN) _b.push({ label:'Merge\u2026', min:2, fn:openMergePicker }); if(CAN_DELETE) _b.push({ label:'Delete', danger:true, min:1, fn:bulkDeletePeople }); return _b.length?_b:null; })(),
     columns:[
       { label:'Name', sort:function(a,b){ return RRGList.cmp(a.name,b.name); }, cell:function(p){ var nm='<a class="nmlink" href="./rrg_person.html?id='+encodeURIComponent(p.id)+'">'+esc(p.name||'Contact')+'</a>'+(p.nickname?(' <span class="meta">“'+esc(p.nickname)+'”</span>'):''); var avInner=p.photoUrl?('<img class="avimg" src="'+esc(p.photoUrl)+'" alt="" loading="lazy" onerror="this.parentNode.textContent=\''+esc(initials(p.name))+'\'">'):esc(initials(p.name)); return '<div class="who"><div class="av">'+avInner+'</div><div><div class="nm">'+nm+'</div><div class="meta">'+esc(p.email||'')+'</div></div></div>'; } },
       { label:'Company', sort:function(a,b){ return RRGList.cmp(a.companyName||a.company,b.companyName||b.company); }, cell:function(p){ var cn=p.companyName||p.company||''; if(!cn) return '<span class="meta">—</span>'; return p.companyId?('<a class="colink" href="./rrg_company.html?id='+encodeURIComponent(p.companyId)+'">'+esc(cn)+'</a>'):esc(cn); } },
@@ -365,6 +365,39 @@ function _ownerPickerHTML(ids, nounSingular, nounPlural){
     + (USERS||[]).map(function(u){ return '<label style="display:flex;align-items:center;gap:9px;padding:9px 11px;border:1px solid #e6ebf3;border-radius:9px;margin-bottom:6px;cursor:pointer;font-size:13.5px"><input type="radio" name="ownpick" value="'+esc(u.username)+'" style="width:auto"><span style="font-weight:700;color:#1f2a3d">'+esc(u.name||u.username)+'</span></label>'; }).join('');
   var noun = ids.length===1?nounSingular:nounPlural;
   return '<div class="modalcard" style="max-width:460px"><div class="modalh">Change owner — '+ids.length+' '+noun+'</div><div class="modalb"><div style="font-size:12.5px;color:#5b6472;line-height:1.5;margin-bottom:12px">Pick the rep to own the selected '+noun+', or set them to <b>Unassigned</b>. This applies to all '+ids.length+' selected.</div><div style="max-height:320px;overflow:auto">'+rows+'</div><div id="own_msg" style="color:var(--red,#DA2B1F);font-size:12.5px;margin-top:8px"></div></div><div class="modalf"><button class="mbtn ghost" id="own_cancel">Cancel</button><button class="mbtn" id="own_go">Apply</button></div>';
+}
+function openBulkFlags(ids, done){
+  if(!ids||!ids.length) return;
+  var noun=ids.length===1?'contact':'contacts';
+  var flags=[['vip','VIP'],['star','Star'],['caution','Bad news'],['main','Main contact of company']];
+  var rowsHtml=flags.map(function(f){
+    return '<div style="display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid #f0f2f6">'
+      +'<div style="flex:1;font-size:13.5px;font-weight:700;color:#1f2a3d">'+esc(f[1])+'</div>'
+      +'<label style="font-size:12.5px;color:#5b6472;display:inline-flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="bf_'+f[0]+'" value="" checked style="width:auto"> No change</label>'
+      +'<label style="font-size:12.5px;color:#1c7a45;display:inline-flex;align-items:center;gap:4px;cursor:pointer;font-weight:700"><input type="radio" name="bf_'+f[0]+'" value="on" style="width:auto"> Set</label>'
+      +'<label style="font-size:12.5px;color:#b23a2c;display:inline-flex;align-items:center;gap:4px;cursor:pointer;font-weight:700"><input type="radio" name="bf_'+f[0]+'" value="off" style="width:auto"> Clear</label>'
+      +'</div>';
+  }).join('');
+  var ov=document.createElement('div'); ov.className='modal'; ov.id='bfModal'; if(ov.removeAttribute) ov.removeAttribute('hidden');
+  ov.innerHTML='<div class="modalcard" style="max-width:500px"><div class="modalh">Set flags — '+ids.length+' '+noun+'</div><div class="modalb">'
+    +'<div style="font-size:12.5px;color:#5b6472;line-height:1.5;margin-bottom:10px">Choose what to change for all '+ids.length+' selected '+noun+'. Anything left on <b>No change</b> is untouched.</div>'
+    +rowsHtml
+    +'<div style="font-size:11.5px;color:#8a94a6;margin-top:10px">Main contact is set on each contact’s company — one per company, so the last selected contact wins if several share a company.</div>'
+    +'<div id="bf_msg" style="color:var(--red,#DA2B1F);font-size:12.5px;margin-top:8px"></div></div>'
+    +'<div class="modalf"><button class="mbtn ghost" id="bf_cancel">Cancel</button><button class="mbtn" id="bf_go">Apply</button></div></div>';
+  document.body.appendChild(ov);
+  function close(){ ov.remove(); }
+  ov.querySelector('#bf_cancel').onclick=close;
+  ov.addEventListener('click',function(e){ if(e.target===ov) close(); });
+  ov.querySelector('#bf_go').onclick=function(){
+    var body={ids:ids}; var any=false;
+    flags.forEach(function(f){ var sel=ov.querySelector('input[name=bf_'+f[0]+']:checked'); var v=sel?sel.value:''; if(v==='on'){ body[f[0]]=true; any=true; } else if(v==='off'){ body[f[0]]=false; any=true; } });
+    if(!any){ ov.querySelector('#bf_msg').textContent='Pick at least one flag to Set or Clear.'; return; }
+    var gb=ov.querySelector('#bf_go'); gb.disabled=true; gb.textContent='Applying…';
+    fetch('/api/people/bulk-flags',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
+      .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ close(); if(done) done(); reloadPeople(); } else { gb.disabled=false; gb.textContent='Apply'; ov.querySelector('#bf_msg').textContent=(j&&j.error)||'Could not update the flags.'; } })
+      .catch(function(){ gb.disabled=false; gb.textContent='Apply'; ov.querySelector('#bf_msg').textContent='Could not reach the server.'; });
+  };
 }
 function openPeopleOwnerPicker(ids, done){
   var ov=document.createElement('div'); ov.className='modal'; ov.id='ownModal'; if(ov.removeAttribute) ov.removeAttribute('hidden');
@@ -482,7 +515,7 @@ function openFilters(){
    +'<div class="fgrp"><div class="flbl">Main interests</div><div class="ctfhost" data-ctf="types"></div></div>'
    +'<div class="fgrp"><div class="flbl">Owner</div><div class="ctfhost" data-ctf="owners"></div></div>'
    +'<div class="fgrp"><div class="flbl">Lead source</div><div class="ctfhost" data-ctf="leadSources"></div></div>'
-   +'<div class="fgrp"><div class="flbl">Tags (comma-separated, matches all)</div><input id="f_tags" list="f_taglist" value="'+esc(FILTERS.tags.join(', '))+'" placeholder="e.g. hot, franchisee"><datalist id="f_taglist">'+allTagsInUse().map(function(t){return '<option value="'+esc(t)+'">';}).join('')+'</datalist></div>'
+   +'<div class="fgrp"><div class="flbl">Tags (matches all)</div><div class="ctfhost" data-ctf="tags"></div></div>'
    +'<div class="fgrp"><div class="flbl">Flags</div><div class="fwrap"><label class="fchk"><input type="checkbox" id="f_vip"'+(FILTERS.vip?' checked':'')+'> VIP</label><label class="fchk"><input type="checkbox" id="f_star"'+(FILTERS.star?' checked':'')+'> Star</label><label class="fchk"><input type="checkbox" id="f_caution"'+(FILTERS.caution?' checked':'')+'> Bad news</label><label class="fchk"><input type="checkbox" id="f_primary"'+(FILTERS.primary?' checked':'')+'> Primary contact</label></div></div>'
    +'<div class="fgrp2"><div><div class="flbl">Created from</div><input type="date" id="f_cfrom" value="'+esc(FILTERS.createdFrom)+'"></div><div><div class="flbl">Created to</div><input type="date" id="f_cto" value="'+esc(FILTERS.createdTo)+'"></div></div>'
    +'<div class="fgrp2"><div><div class="flbl">Last contacted from</div><input type="date" id="f_lfrom" value="'+esc(FILTERS.contactedFrom)+'"></div><div><div class="flbl">Last contacted to</div><input type="date" id="f_lto" value="'+esc(FILTERS.contactedTo)+'"></div></div>'
@@ -492,11 +525,11 @@ function openFilters(){
   document.body.appendChild(ov);
   var CHIP={};
   if(window.RRGFilters&&RRGFilters.chip){ if(RRGFilters.injectCss){ try{ RRGFilters.injectCss(); }catch(e){} }
-    [['types',(TYPES.length?TYPES:['Buying','Selling']),'main interests'],['owners',ownerOpts(),'owner'],['leadSources',leadOpts(),'lead source']].forEach(function(t){ var host=ov.querySelector('.ctfhost[data-ctf="'+t[0]+'"]'); if(!host) return; var seen={},disp=[]; (t[1]||[]).forEach(function(x){ if(x==null||x==='') return; var k=String(x).toLowerCase(); if(!seen[k]){ seen[k]=1; disp.push(x); } }); disp.sort(function(a,b){ return String(a).toLowerCase().localeCompare(String(b).toLowerCase()); }); CHIP[t[0]]=RRGFilters.chip(host,(FILTERS[t[0]]||[]).slice(),disp,null,'Type to search '+t[2]+'…'); }); }
+    [['types',(TYPES.length?TYPES:['Buying','Selling']),'main interests'],['owners',ownerOpts(),'owner'],['leadSources',leadOpts(),'lead source'],['tags',allTagsInUse(),'tags']].forEach(function(t){ var host=ov.querySelector('.ctfhost[data-ctf="'+t[0]+'"]'); if(!host) return; var seen={},disp=[]; (t[1]||[]).forEach(function(x){ if(x==null||x==='') return; var k=String(x).toLowerCase(); if(!seen[k]){ seen[k]=1; disp.push(x); } }); disp.sort(function(a,b){ return String(a).toLowerCase().localeCompare(String(b).toLowerCase()); }); CHIP[t[0]]=RRGFilters.chip(host,(FILTERS[t[0]]||[]).slice(),disp,null,'Type to search '+t[2]+'…'); }); }
   function close(){ ov.remove(); }
   ov.addEventListener('click',function(e){ if(e.target===ov){ /* stay open */ } });
   ov.querySelector('#f_cancel').addEventListener('click',close);
-  function collect(){ ['types','owners','leadSources'].forEach(function(g){ FILTERS[g]=(CHIP&&CHIP[g])?CHIP[g].get():(FILTERS[g]||[]); }); FILTERS.tags=(ov.querySelector('#f_tags').value||'').split(',').map(function(x){return x.trim();}).filter(Boolean); FILTERS.vip=ov.querySelector('#f_vip').checked; FILTERS.star=ov.querySelector('#f_star').checked; FILTERS.caution=ov.querySelector('#f_caution').checked; FILTERS.primary=ov.querySelector('#f_primary').checked; FILTERS.createdFrom=ov.querySelector('#f_cfrom').value; FILTERS.createdTo=ov.querySelector('#f_cto').value; FILTERS.contactedFrom=ov.querySelector('#f_lfrom').value; FILTERS.contactedTo=ov.querySelector('#f_lto').value; }
+  function collect(){ ['types','owners','leadSources','tags'].forEach(function(g){ FILTERS[g]=(CHIP&&CHIP[g])?CHIP[g].get():(FILTERS[g]||[]); }); FILTERS.vip=ov.querySelector('#f_vip').checked; FILTERS.star=ov.querySelector('#f_star').checked; FILTERS.caution=ov.querySelector('#f_caution').checked; FILTERS.primary=ov.querySelector('#f_primary').checked; FILTERS.createdFrom=ov.querySelector('#f_cfrom').value; FILTERS.createdTo=ov.querySelector('#f_cto').value; FILTERS.contactedFrom=ov.querySelector('#f_lfrom').value; FILTERS.contactedTo=ov.querySelector('#f_lto').value; }
   ov.querySelector('#f_clear').addEventListener('click',function(){ FILTERS=emptyFilters(); close(); applyFilter(); });
   ov.querySelector('#f_apply').addEventListener('click',function(){ collect(); close(); applyFilter(); });
   ov.querySelector('#f_savebtn').addEventListener('click',async function(){ collect(); var name=await rrgPrompt('Name this saved search:'); if(name===null) return; name=name.trim(); if(!name) return; var shared=await rrgConfirm('Share this saved search with the whole team?\n\nOK = shared with team \u00b7 Cancel = just me'); fetch('/api/saved-searches',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({list:'contacts',name:name,shared:shared,payload:FILTERS})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ renderSaved(ov); } else alert((j&&j.error)||'Could not save.'); }); });

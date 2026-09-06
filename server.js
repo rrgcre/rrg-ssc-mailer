@@ -5672,6 +5672,7 @@ function assignmentView(d, overlay, _opts) {
     companyId: deal ? (deal.companyId || '') : '', company: (deal && deal.companyId && companyById(deal.companyId)) ? companyBrief(companyById(deal.companyId)) : null,
     roomId: (room && room.id) || (deal && deal.roomId) || '',
     status: o.status || 'New', notes: o.notes || '', shareTeam: !!o.shareTeam, owner: o.owner || by, businessOverride: o.businessOverride || '', codeName: o.codeName || '', listingNo: o.listingNo || 0, listingId: (o.listingNo ? ('RRG-' + o.listingNo) : ''),
+    saleLane: (deal && deal.saleLane) || o.saleLane || 'business',
     stageFlags: o.stageFlags || {}, pipelineId: o.pipelineId || '', needsSetup: !!o.needsSetup, fromBbs: !!o.fromBbs, referredBy: o.referredBy || '', referredById: o.referredById || '', referralPct: o.referralPct || '', listPrice: o.listPrice || '', priceHistory: Array.isArray(o.priceHistory) ? o.priceHistory : [], financials3y: Array.isArray(o.financials3y) ? o.financials3y : [], totalCommission: o.totalCommission || '', commissionEst: estCommissionFromPrice(o.listPrice || ''), listingLive: o.listingLive || '', listingStart: o.listingStart || '', listingExpires: o.listingExpires || '', autoRenew: !!o.autoRenew, renewable: !!o.renewable,
     offers: Array.isArray(o.offers) ? o.offers : [],
     tours: Array.isArray(o.tours) ? o.tours : [],
@@ -10152,6 +10153,35 @@ app.post('/api/people/bulk-delete', express.json({ limit: '512kb' }), (req, res)
   const deleted = all.length - kept.length;
   savePeople(kept);
   res.json({ ok: true, deleted: deleted, skipped: skipped, people: kept.map(personBrief) });
+});
+// Set flags on many contacts at once — VIP, Star, Bad news (caution) and Main contact.
+// Each flag is applied only when present in the body (a boolean); omitted flags are left as-is.
+// Main contact is per-company: main:true makes each selected contact the main contact of its
+// company; main:false clears a company's main contact where a selected contact currently holds it.
+app.post('/api/people/bulk-flags', express.json({ limit: '512kb' }), (req, res) => {
+  const b = req.body || {};
+  const ids = Array.isArray(b.ids) ? b.ids.map(String) : [];
+  if (!ids.length) return res.status(400).json({ ok: false, error: 'No contacts given.' });
+  const idset = {}; ids.forEach(i => { idset[i] = 1; });
+  const ppl = loadPeople(); const now = new Date().toISOString();
+  const hasVip = (typeof b.vip === 'boolean'), hasStar = (typeof b.star === 'boolean'), hasCaution = (typeof b.caution === 'boolean'), hasMain = (typeof b.main === 'boolean');
+  if (!hasVip && !hasStar && !hasCaution && !hasMain) return res.status(400).json({ ok: false, error: 'No flags to set.' });
+  let n = 0; const touchedCoIds = {};
+  ppl.forEach(p => { if (!idset[p.id]) return; if (hasVip) p.vip = !!b.vip; if (hasStar) p.star = !!b.star; if (hasCaution) p.caution = !!b.caution; p.updatedAt = now; n++; if (p.companyId) touchedCoIds[p.companyId] = 1; });
+  savePeople(ppl);
+  // Star mirrors up to the company (a company is starred when any of its people are).
+  if (hasStar) { try { const cos = loadCompanies(); let ch = false; Object.keys(touchedCoIds).forEach(cid => { const co = cos.find(c => c.id === cid); if (!co) return; const anyStar = ppl.some(x => x.companyId === cid && x.star); if (!!co.star !== anyStar) { co.star = anyStar; co.updatedAt = now; ch = true; } }); if (ch) saveCompanies(cos); } catch (e) {}
+  }
+  // Main contact is a property of the company, not the person.
+  if (hasMain) { try { const cos = loadCompanies(); let ch = false;
+    ppl.forEach(p => { if (!idset[p.id] || !p.companyId) return; const co = cos.find(c => c.id === p.companyId); if (!co) return;
+      if (b.main) { if (co.mainContactId !== p.id) { co.mainContactId = p.id; co.updatedAt = now; ch = true; } }
+      else { if (co.mainContactId === p.id) { co.mainContactId = ''; co.updatedAt = now; ch = true; } }
+    });
+    if (ch) saveCompanies(cos); } catch (e) {}
+  }
+  try { const parts = []; if (hasVip) parts.push('VIP ' + (b.vip ? 'on' : 'off')); if (hasStar) parts.push('Star ' + (b.star ? 'on' : 'off')); if (hasCaution) parts.push('Bad news ' + (b.caution ? 'on' : 'off')); if (hasMain) parts.push('Main contact ' + (b.main ? 'set' : 'cleared')); logSysEvent(req, 'Bulk flags', 'Updated ' + n + ' contact' + (n === 1 ? '' : 's') + ': ' + parts.join(', '), { tool: 'contacts', kind: 'bulk-flags', count: n }); } catch (e) {}
+  res.json({ ok: true, updated: n });
 });
 // ---------- Space Tracker: available-space inventory ----------
 app.get('/api/spaces', (req, res) => {

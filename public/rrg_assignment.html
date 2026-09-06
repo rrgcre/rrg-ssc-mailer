@@ -379,7 +379,7 @@ a.feat:hover{background:#f7f9fc;}
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function fmt(iso){ if(!iso) return '—'; var d=new Date(iso); if(isNaN(d.getTime())) return '—'; return (d.getMonth()+1)+'/'+d.getDate()+'/'+d.getFullYear(); }
 function qs(k){ return new URLSearchParams(location.search).get(k)||''; }
-var KEY=qs('key'), A=null, LEASE=null, STATUSES=['New','Active','Under Contract','Closed','On Hold','Lost'], DIRTY=false, RA=null, OFFERS=[], TOURS=[], NDAS=[], PEOPLE=[], AGR=[], ATYPES=[], PIPES=[], BUYERPIPES=[], EXP=null, INVX=null;
+var KEY=qs('key'), A=null, LEASE=null, STATUSES=['New','Active','Under Contract','Closed','On Hold','Lost'], DIRTY=false, RA=null, OFFERS=[], TOURS=[], NDAS=[], PEOPLE=[], USERS=[], AGR=[], ATYPES=[], PIPES=[], BUYERPIPES=[], EXP=null, INVX=null;
 // Stages the buyer leads move through — driven by the selected Buyer pipeline; falls back to the fixed funnel.
 function buyerStageNames(){ var st=(A&&A.buyerStages)||[]; var names=st.map(function(s){return (s&&s.name)||s;}).filter(Boolean); return names.length?names:INQ_STATUSES; }
 // Buyer pipeline board — the buyer-side mirror of the seller Pipeline card. Each stage shows how many buyer leads sit in it.
@@ -403,6 +403,8 @@ var TXNCOMM=['Unpaid','Invoiced','Partial','Paid'];
 var TOUR_INTEREST=['Hot','Warm','Cool','Passed'];
 var NDA_METHODS=['DocuSign','Email','Paper','Other'], NDA_STATUSES=['Sent','Received','Countersigned','Expired'];
 function peopleDatalistHTML(){ return '<datalist id="peopleList">'+PEOPLE.map(function(p){ return '<option value="'+esc(p.name)+'">'+esc(p.company||p.email||'')+'</option>'; }).join('')+'</datalist>'; }
+function ownerOptions(cur){ cur=String(cur||''); var opts='<option value="">— Unassigned —</option>'; var have=false; (USERS||[]).forEach(function(u){ var n=u.name||u.username||''; if(!n) return; if(n===cur) have=true; opts+='<option value="'+esc(n)+'"'+(n===cur?' selected':'')+'>'+esc(n)+'</option>'; }); if(cur && !have){ opts+='<option value="'+esc(cur)+'" selected>'+esc(cur)+'</option>'; } return opts; }
+function fillOwnerSelect(){ var s=document.getElementById('f_owner'); if(!s) return; var cur=(A&&A.owner)||s.value||''; s.innerHTML=ownerOptions(cur); }
 function personLine(personId){ if(!personId) return ''; var p=PEOPLE.filter(function(x){return x.id===personId;})[0]; if(!p) return ''; var bits=[p.company,p.email].filter(Boolean).map(esc).join(' · '); return bits?('<span class="plink" title="Linked buyer record">'+bits+'</span>'):''; }
 // stage definitions: key, label, description, link builder
 var STAGES=[
@@ -868,6 +870,7 @@ function render(){
   if(A.value) sub.push('<span>Value: <b>'+esc(A.value)+'</b></span>');
   if(domDays()) sub.push('<span>On market: <b>'+esc(domDays())+'</b></span>');
   if(A.provisional) sub.push('<span class="hpill" style="margin:0;background:#fdf1df;color:#b5791f">Provisional</span>');
+  if(A.assignmentType!=='tenant_rep' && A.assignmentType!=='landlord_rep'){ var _asset=(A.saleLane==='asset'); sub.push('<span class="hpill" title="'+(_asset?'Asset sale — selling the space, fixtures &amp; equipment':'Going concern — selling the operating business')+'" style="margin:0;background:'+(_asset?'#e8f0fb':'#eaf6ee')+';color:'+(_asset?'#23496f':'#1c7a45')+';border-color:'+(_asset?'#c4d8f2':'#bfe6cf')+'">'+(_asset?'Asset Sale':'Going Concern')+'</span>'); }
   sub.push('<span class="hpill" style="margin:0">'+esc(A.status||'New')+'</span>');
   document.getElementById('subline').innerHTML=sub.join('');
 
@@ -881,7 +884,7 @@ function render(){
   var _hue=(function(s){var h=0;for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))%360;return h;})(_nm);
   var _tile=function(n,l){ return '<div class="tile"><div class="tn">'+n+'</div><div class="tl">'+esc(l)+'</div></div>'; };
   var facts='<div class="ovhead"><div class="ovmono" style="background:hsl('+_hue+',42%,42%)">'+esc(_mono)+'</div>'
-      +'<div class="ovid"><div class="ovname">'+esc(_nm)+'</div><div class="ovsub">'+(A.market?esc(A.market):'No market set')+'<span class="st">'+esc(A.status||'New')+'</span>'+(A.provisional?'<span class="st" style="color:#b5791f;background:#fdf1df;border-color:#f0d7ad">Provisional</span>':'')+(A.codeName?('<span class="st" title="Confidential project code name" style="color:#5a4b8a;background:#f2eefb;border-color:#ddd2f3">🔒 '+esc(A.codeName)+'</span>'):'')+'</div></div></div>'
+      +'<div class="ovid"><div class="ovname">'+esc(_nm)+'</div><div class="ovsub">'+(A.market?esc(A.market):'No market set')+'<span class="st">'+esc(A.status||'New')+'</span>'+((A.assignmentType!=='tenant_rep'&&A.assignmentType!=='landlord_rep')?('<span class="st" title="'+((A.saleLane==='asset')?'Asset sale — selling the space, fixtures &amp; equipment':'Going concern — selling the operating business')+'" style="'+((A.saleLane==='asset')?'color:#23496f;background:#e8f0fb;border-color:#c4d8f2':'color:#1c7a45;background:#eaf6ee;border-color:#bfe6cf')+'">'+((A.saleLane==='asset')?'Asset Sale':'Going Concern')+'</span>'):'')+(A.provisional?'<span class="st" style="color:#b5791f;background:#fdf1df;border-color:#f0d7ad">Provisional</span>':'')+(A.codeName?('<span class="st" title="Confidential project code name" style="color:#5a4b8a;background:#f2eefb;border-color:#ddd2f3">🔒 '+esc(A.codeName)+'</span>'):'')+'</div></div></div>'
     +'<div class="ktiles">'
       +_tile(esc(domDays()||'—'),'Days on mkt')
       +_tile(INQUIRIES.length,'Buyer leads')
@@ -940,7 +943,7 @@ function render(){
       + '<div class="fldrow"><label class="fld">Business name</label><input class="owner" id="f_biz" value="'+esc(A.businessOverride||A.business||'')+'" placeholder="The actual business name"></div>'
       + '<div class="fldrow"><label class="fld">Code name <span style="font-weight:400;color:#8a93a8;font-size:11px">— confidential project alias</span> <button type="button" id="suggestCodeBtn" class="suggestbtn" title="Generate a confidential project name">✦ Suggest</button></label><input class="owner" id="f_codename" value="'+esc(A.codeName||'')+'" placeholder="e.g. Project Falcon"></div>'
       + '<div class="fldrow"><label class="fld">Market</label><input class="owner" id="f_market" list="marketList" value="'+esc(_curMkt)+'" placeholder="Type a market…" autocomplete="off"><datalist id="marketList">'+mktDl+'</datalist></div>'
-      + '<div class="fldrow"><label class="fld">Owner</label><input class="owner" id="f_owner" value="'+esc(A.owner||'')+'" placeholder="Assigned rep"></div>'
+      + '<div class="fldrow"><label class="fld">Owner</label><select class="owner" id="f_owner">'+ownerOptions(A.owner||'')+'</select></div>'
       + ''
       + '<div class="listingbox">'
         + '<div class="listinghd">Listing agreement</div>'
@@ -1019,7 +1022,7 @@ function render(){
   wireExpenses();
   setupAccordion();
 }
-function loadPeople(){ fetch('/api/people',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ PEOPLE=(j&&j.people)||[]; var dl=document.getElementById('peopleList'); if(dl) dl.innerHTML=PEOPLE.map(function(p){return '<option value="'+esc(p.name)+'">'+esc(p.company||p.email||'')+'</option>';}).join(''); }).catch(function(){}); }
+function loadPeople(){ fetch('/api/people',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ PEOPLE=(j&&j.people)||[]; if(j&&Array.isArray(j.users)) USERS=j.users; var dl=document.getElementById('peopleList'); if(dl) dl.innerHTML=PEOPLE.map(function(p){return '<option value="'+esc(p.name)+'">'+esc(p.company||p.email||'')+'</option>';}).join(''); fillOwnerSelect(); }).catch(function(){}); }
 function matchBuyersShell(){ return '<div class="card" id="matchBuyersCard"><div class="ch"><b>Matching buyers</b><span id="mbCount" style="color:#8a93a8;font-weight:700;margin-left:6px"></span></div><div class="cb" style="padding:12px 16px"><div id="matchBuyers"><div style="color:#8a93a8;font-size:12.5px;padding:4px 0">Checking your buyer book…</div></div></div></div>'; }
 function sellerReportShell(){ if(A && A.assignmentType==='tenant_rep') return ''; return '<div class="card" id="sellerRepCard"><div class="ch"><b>Seller activity report</b><span id="srStatus" style="margin-left:10px;font-size:12px;color:#8a93a3">Loading…</span></div><div class="cb" id="srBody" style="padding:12px 16px"><div style="color:#8a93a8;font-size:12.5px">Checking…</div></div></div>'; }
 function loadSellerReport(){ var body=document.getElementById('srBody'), st=document.getElementById('srStatus'); if(!body||!KEY) return;
