@@ -177,8 +177,8 @@
       { ic: '◈', label: 'Deals', href: 'rrg_deals.html' }
     ] },
     { grp: 'Tenant Rep', color: '#dfa937', items: [
-      { ic: '⊡', label: 'Spaces', href: 'rrg_space_tracker.html' },
       { ic: '◧', label: 'Tenants', href: 'rrg_board.html?pipelineId=p_tenantrep' },
+      { ic: '⊡', label: 'Spaces', href: 'rrg_space_tracker.html' },
       { ic: '◎', label: 'Site Criteria', href: 'ssc_form.html' },
       { ic: '✚', label: 'Site & Concept Fit', href: 'rrg_site_fit.html' },
       { ic: '▤', label: 'Shopping Centers', href: 'rrg_centers.html' },

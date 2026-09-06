@@ -195,7 +195,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
   <div class="bmodalh">New listing</div>
   <div class="bmodalb">
     <label class="bmfld">Business / listing name</label><input id="nd_business" placeholder="e.g. Blue Agave Cantina">
-    <label class="bmfld">Market</label><input id="nd_market" list="marketList" placeholder="Start typing to find a market…" autocomplete="off"><datalist id="marketList"></datalist>
+    <label class="bmfld" id="nd_marketLbl">Market</label>
+    <div id="nd_marketWrap" style="display:flex;flex-wrap:wrap;gap:5px;align-items:center;border:1px solid #d7dce4;border-radius:8px;padding:5px 7px;background:#fff;cursor:text" onclick="document.getElementById('nd_market').focus()">
+      <span id="nd_marketChips" style="display:contents"></span>
+      <input id="nd_market" list="marketList" placeholder="Start typing to find a market…" autocomplete="off" style="border:none;outline:none;flex:1;min-width:120px;padding:3px 2px;font:inherit;background:transparent" onkeydown="ndMarketKey(event)" onchange="ndMarketAdd(this.value)">
+    </div><datalist id="marketList"></datalist>
+    <div class="bmodalnote" id="nd_marketHint" style="margin-top:3px;display:none">Add more than one — pick or type a market and press Enter.</div>
     <label class="bmfld">Seller / client contact</label><input id="nd_contact" list="clientList" placeholder="Start typing to find an existing client…" autocomplete="off" oninput="updateClientHint()">
     <datalist id="clientList"></datalist>
     <div class="bmodalnote" id="clientHint">Creating a listing builds its data room automatically and links the client to your registry — a matching client is reused, a new one is onboarded.</div>
@@ -289,10 +294,20 @@ function openDealModal(){ var m=document.getElementById('dealModal'); if(!m) ret
     var _lb=m.querySelectorAll('.bmfld'); if(_lb[0]) _lb[0].textContent=isT?'Tenant / concept name':'Business / listing name'; if(_lb[2]) _lb[2].textContent=isT?'Client contact':'Seller / client contact';
     var _bt=document.getElementById('nd_create'); if(_bt) _bt.textContent='Create '+(isT?'tenant':'listing');
     var _bp=document.getElementById('nd_business'); if(_bp) _bp.placeholder=isT?'e.g. Blue Agave Cantina (concept seeking space)':'e.g. Blue Agave Cantina';
+    var _ml=document.getElementById('nd_marketLbl'); if(_ml) _ml.textContent=isT?'Target markets / trade areas':'Market';
+    var _mh=document.getElementById('nd_marketHint'); if(_mh) _mh.style.display=isT?'block':'none';
+    var _mi=document.getElementById('nd_market'); if(_mi) _mi.placeholder=isT?'Add each market — type or pick, then Enter…':'Start typing to find a market…';
   }catch(e){}
+  SELMARKETS=[]; ndMarketRender();
   var b=document.getElementById('nd_business'); if(b) b.focus(); loadPeople(); var dl=document.getElementById('marketList'); if(dl){ var mk=(DATA&&Array.isArray(DATA.markets)&&DATA.markets.length)?DATA.markets:distinct('market'); dl.innerHTML=mk.map(function(v){return '<option value="'+esc(v)+'"></option>';}).join(''); } }
-function closeDealModal(){ var m=document.getElementById('dealModal'); if(!m) return; m.setAttribute('hidden',''); ['nd_business','nd_market','nd_contact'].forEach(function(id){var _e=document.getElementById(id); if(_e) _e.value='';}); updateClientHint(); }
-function createDeal(){ var business=(document.getElementById('nd_business').value||'').trim(); if(!business){ document.getElementById('nd_business').focus(); return; } var contact=(document.getElementById('nd_contact').value||'').trim(); if(!contact){ document.getElementById('nd_contact').focus(); var _h=document.getElementById('clientHint'); if(_h) _h.innerHTML='<b style="color:#DA2B1F">A client contact is required — every listing must be linked to a contact.</b>'; return; } var btn=document.getElementById('nd_create'); btn.disabled=true; btn.textContent='Creating…'; fetch('/api/deal/new',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({business:business,market:(document.getElementById('nd_market').value||'').trim(),contact:contact,type:dealType()})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_assignment.html?key='+encodeURIComponent(j.key); } else { btn.disabled=false; btn.textContent='Create '+entSingular().toLowerCase(); alert((j&&j.error)||'Could not create the '+entSingular().toLowerCase()+'.'); } }).catch(function(){ btn.disabled=false; btn.textContent='Create '+entSingular().toLowerCase(); alert('Could not reach the server.'); }); }
+var SELMARKETS=[];
+function ndMarketRender(){ var host=document.getElementById('nd_marketChips'); if(!host) return; host.innerHTML=SELMARKETS.map(function(m,i){ return '<span style="display:inline-flex;align-items:center;gap:4px;background:#eef1f6;border:1px solid #dfe3ea;border-radius:6px;padding:2px 6px;font-size:12px;font-weight:600;color:#334">'+esc(m)+'<b style="cursor:pointer;color:#8a93a3;font-weight:700" onclick="ndMarketDel('+i+')" title="Remove">×</b></span>'; }).join(''); }
+function ndMarketAdd(v){ v=String(v||'').trim(); var inp=document.getElementById('nd_market'); if(!v){ if(inp) inp.value=''; return; } if(SELMARKETS.map(function(x){return x.toLowerCase();}).indexOf(v.toLowerCase())<0) SELMARKETS.push(v); if(inp) inp.value=''; ndMarketRender(); }
+function ndMarketDel(i){ SELMARKETS.splice(i,1); ndMarketRender(); }
+function ndMarketKey(e){ var inp=e.target; if(e.key==='Enter'||e.key===','){ e.preventDefault(); ndMarketAdd(inp.value); } else if(e.key==='Backspace' && !inp.value && SELMARKETS.length){ SELMARKETS.pop(); ndMarketRender(); } }
+function ndMarketValue(){ var inp=document.getElementById('nd_market'); var pend=(inp&&inp.value||'').trim(); var all=SELMARKETS.slice(); if(pend && all.map(function(x){return x.toLowerCase();}).indexOf(pend.toLowerCase())<0) all.push(pend); return all.join('; '); }
+function closeDealModal(){ var m=document.getElementById('dealModal'); if(!m) return; m.setAttribute('hidden',''); ['nd_business','nd_market','nd_contact'].forEach(function(id){var _e=document.getElementById(id); if(_e) _e.value='';}); SELMARKETS=[]; ndMarketRender(); updateClientHint(); }
+function createDeal(){ var business=(document.getElementById('nd_business').value||'').trim(); if(!business){ document.getElementById('nd_business').focus(); return; } var contact=(document.getElementById('nd_contact').value||'').trim(); if(!contact){ document.getElementById('nd_contact').focus(); var _h=document.getElementById('clientHint'); if(_h) _h.innerHTML='<b style="color:#DA2B1F">A client contact is required — every listing must be linked to a contact.</b>'; return; } var btn=document.getElementById('nd_create'); btn.disabled=true; btn.textContent='Creating…'; fetch('/api/deal/new',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({business:business,market:ndMarketValue(),contact:contact,type:dealType()})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_assignment.html?key='+encodeURIComponent(j.key); } else { btn.disabled=false; btn.textContent='Create '+entSingular().toLowerCase(); alert((j&&j.error)||'Could not create the '+entSingular().toLowerCase()+'.'); } }).catch(function(){ btn.disabled=false; btn.textContent='Create '+entSingular().toLowerCase(); alert('Could not reach the server.'); }); }
 function renderToolbar(){
   var vc=activeFilterCount();
   var perLabel=function(p){ return p===0?'All':String(p); };
@@ -494,10 +509,17 @@ function fmtMoneyMaybe(v){ var str=String(v==null?'':v); if(/^[\s$,.\d]+$/.test(
 function cardFieldsHtml(c){
   var h='';
   if(CARDF.contact && c.contact){ var nm=esc(c.contact); h+='<div class="r"><span class="ic">○</span>'+(c.contactPersonId?('<a class="contactlink" href="./rrg_person.html?id='+encodeURIComponent(c.contactPersonId)+'">'+nm+'</a>'):nm)+'</div>'; }
-  if(CARDF.value && c.value) h+='<div class="r"><span class="ic">$</span><span class="val">'+esc(c.value)+'</span></div>';
-  if(CARDF.commission && c.commission) h+='<div class="r" title="Commission"><span class="ic">%</span><span class="val">'+fmtMoneyMaybe(c.commission)+'</span></div>';
+  if(c.isTenant){
+    if(c.crSf) h+='<div class="r" title="Preferred size"><span class="ic">▭</span><span class="val">'+esc(c.crSf)+'</span></div>';
+    if(c.crUse) h+='<div class="r" title="Use / concept"><span class="ic">◍</span>'+esc(c.crUse)+'</div>';
+    if(c.crBudget) h+='<div class="r" title="Budget (rent)"><span class="ic">$</span><span class="val">'+esc(c.crBudget)+'</span></div>';
+    if(c.crMarkets) h+='<div class="r" title="Target markets"><span class="ic">◎</span>'+esc(c.crMarkets)+'</div>';
+  }
+  if(CARDF.listPrice && c.listPrice) h+='<div class="r" title="Asking price"><span class="ic">$</span><span class="val">'+fmtMoneyMaybe(c.listPrice)+'</span> <span style="color:#9aa3b2;font-size:10px">ask</span></div>';
+  if(CARDF.value && c.value) h+='<div class="r" title="Opinion of value"><span class="ic">$</span><span class="val">'+esc(c.value)+'</span> <span style="color:#9aa3b2;font-size:10px">value</span></div>';
+  if(CARDF.commission && c.commission) h+='<div class="r" title="Estimated commission"><span class="ic">%</span><span class="val">'+fmtMoneyMaybe(c.commission)+'</span> <span style="color:#9aa3b2;font-size:10px">comm</span></div>';
   if(CARDF.days){ var dd=daysInStage(c); if(dd!=null) h+='<div class="r" title="'+dd+' day'+(dd===1?'':'s')+' in '+esc(c.stage||'this stage')+'"><span class="ic">◷</span>'+dd+'d in stage</div>'; }
-  if(CARDF.market && c.market) h+='<div class="r"><span class="ic">◎</span>'+esc(c.market)+'</div>';
+  if(CARDF.market && c.market && !c.isTenant) h+='<div class="r"><span class="ic">◎</span>'+esc(c.market)+'</div>';
   if(CARDF.status && c.status) h+='<div class="r"><span class="ic">◈</span>'+esc(c.status)+'</div>';
   if(CARDF.bbs && c.bbsNumber) h+='<div class="r"><span class="ic">#</span>'+esc(c.bbsNumber)+'</div>';
   return h;

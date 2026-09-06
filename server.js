@@ -5672,7 +5672,7 @@ function assignmentView(d, overlay, _opts) {
     companyId: deal ? (deal.companyId || '') : '', company: (deal && deal.companyId && companyById(deal.companyId)) ? companyBrief(companyById(deal.companyId)) : null,
     roomId: (room && room.id) || (deal && deal.roomId) || '',
     status: o.status || 'New', notes: o.notes || '', shareTeam: !!o.shareTeam, owner: o.owner || by, businessOverride: o.businessOverride || '', codeName: o.codeName || '', listingNo: o.listingNo || 0, listingId: (o.listingNo ? ('RRG-' + o.listingNo) : ''),
-    stageFlags: o.stageFlags || {}, pipelineId: o.pipelineId || '', needsSetup: !!o.needsSetup, fromBbs: !!o.fromBbs, referredBy: o.referredBy || '', referredById: o.referredById || '', referralPct: o.referralPct || '', listPrice: o.listPrice || '', priceHistory: Array.isArray(o.priceHistory) ? o.priceHistory : [], financials3y: Array.isArray(o.financials3y) ? o.financials3y : [], totalCommission: o.totalCommission || '', listingLive: o.listingLive || '', listingStart: o.listingStart || '', listingExpires: o.listingExpires || '', autoRenew: !!o.autoRenew, renewable: !!o.renewable,
+    stageFlags: o.stageFlags || {}, pipelineId: o.pipelineId || '', needsSetup: !!o.needsSetup, fromBbs: !!o.fromBbs, referredBy: o.referredBy || '', referredById: o.referredById || '', referralPct: o.referralPct || '', listPrice: o.listPrice || '', priceHistory: Array.isArray(o.priceHistory) ? o.priceHistory : [], financials3y: Array.isArray(o.financials3y) ? o.financials3y : [], totalCommission: o.totalCommission || '', commissionEst: estCommissionFromPrice(o.listPrice || ''), listingLive: o.listingLive || '', listingStart: o.listingStart || '', listingExpires: o.listingExpires || '', autoRenew: !!o.autoRenew, renewable: !!o.renewable,
     offers: Array.isArray(o.offers) ? o.offers : [],
     tours: Array.isArray(o.tours) ? o.tours : [],
     ndas: Array.isArray(o.ndas) ? o.ndas : [],
@@ -12906,7 +12906,7 @@ app.post('/api/deal/new', express.json(), (req, res) => {
   if (room) rec.roomId = room.id;
   saveDeals(arr);
   const _atype = _isTR ? 'tenant_rep' : (_isLL ? 'landlord_rep' : '');
-  if (_atype) { try { const _ov = loadAssignOverlay(); const _k = 'd_' + rec.id; _ov[_k] = Object.assign(_ov[_k] || {}, { assignmentType: _atype }); saveAssignOverlay(_ov); } catch (e) {} }
+  if (_atype) { try { const _ov = loadAssignOverlay(); const _k = 'd_' + rec.id; _ov[_k] = Object.assign(_ov[_k] || {}, { assignmentType: _atype }); if (_isTR && rec.market) { const _cr = (_ov[_k].criteria && typeof _ov[_k].criteria === 'object') ? _ov[_k].criteria : {}; if (!_cr.markets) _cr.markets = rec.market; _ov[_k].criteria = _cr; } saveAssignOverlay(_ov); } catch (e) {} }
   // Manually-entered listings begin life as Unqualified (front of the pipeline) until the rep
   // qualifies them — mirrors how a new contact-linked lead enters the board.
   try {
@@ -14426,7 +14426,10 @@ app.get('/api/board', (req, res) => {
     let stage = listingBoardStage(d, overlay);
     if (stageNames.indexOf(stage) < 0) stage = stageNames[0] || '';
     const _prov = !!(d.screen && d.screen.provisional);
-    cards.push({ key: d.key, business: v.business, listingNo: o.listingNo || 0, listingId: (o.listingNo ? ('RRG-' + o.listingNo) : ''), codeName: o.codeName || '', company: coNameById[v.companyId] || (d.screen && d.screen.data && d.screen.data.company) || '', companyId: v.companyId || '', contactPersonId: v.clientPersonId || '', concept: v.business, contact: v.contact || '', value: v.value || '', market: v.market || '', owner: v.owner || '', lastActivity: v.lastActivity || '', createdAt: v.createdAt || '', status: _prov ? 'Pending Approval' : (o.status || 'New'), provisional: _prov, bbsNumber: v.bbsNumber || '', stage: stage, isLead: !!_preSet[stage], winPct: (_winByStage[stage] != null ? _winByStage[stage] : ''), stageSince: o.stageSince || v.createdAt || '', published: !!(o.market && o.market.published), listPrice: o.listPrice || v.value || '', commission: (v.transaction && v.transaction.commissionDue) || '', totalCommission: o.totalCommission || (v.transaction && v.transaction.commissionDue) || '', ownerPhoto: ownerPhotoBy[String(v.owner || '').toLowerCase()] || '' });
+    cards.push({ key: d.key, business: v.business, listingNo: o.listingNo || 0, listingId: (o.listingNo ? ('RRG-' + o.listingNo) : ''), codeName: o.codeName || '', company: coNameById[v.companyId] || (d.screen && d.screen.data && d.screen.data.company) || '', companyId: v.companyId || '', contactPersonId: v.clientPersonId || '', concept: v.business, contact: v.contact || '', value: v.value || '', market: v.market || '', owner: v.owner || '', lastActivity: v.lastActivity || '', createdAt: v.createdAt || '', status: _prov ? 'Pending Approval' : (o.status || 'New'), provisional: _prov, bbsNumber: v.bbsNumber || '', stage: stage, isLead: !!_preSet[stage], winPct: (_winByStage[stage] != null ? _winByStage[stage] : ''), stageSince: o.stageSince || v.createdAt || '', published: !!(o.market && o.market.published), listPrice: o.listPrice || v.value || '', commission: (o.totalCommission || estCommissionFromPrice(o.listPrice || v.value || '') || (v.transaction && v.transaction.commissionDue) || ''), commissionEst: estCommissionFromPrice(o.listPrice || v.value || ''), totalCommission: o.totalCommission || (v.transaction && v.transaction.commissionDue) || '', ownerPhoto: ownerPhotoBy[String(v.owner || '').toLowerCase()] || '',
+      isTenant: (o.assignmentType === 'tenant_rep'),
+      crSf: (function(){ var c=v.criteria||{}; var a=String(c.sizeMin||'').trim(), b=String(c.sizeMax||'').trim(); if(a&&b) return a+'–'+b+' SF'; if(a) return a+'+ SF'; if(b) return 'up to '+b+' SF'; return ''; })(),
+      crUse: (v.criteria && v.criteria.useType) || '', crBudget: (v.criteria && v.criteria.budget) || '', crMarkets: (v.criteria && v.criteria.markets) || '', crTimeline: (v.criteria && v.criteria.timeline) || '' });
   });
   res.json({ ok: true, pipelines: pipelines.filter(p => String(p.area||'') !== 'Buyer').map(p => ({ id: p.id, name: p.name })), pipelineId: pid, pipelineName: pipe.name || '', stages: stageNames, preStages: stageNames.filter(function(n){ return _preSet[n]; }), cards: cards, markets: effMarkets(), cardFields: effBoardCardFields(), cardFlags: effBoardCardFlags(), isAdmin: !!isAdmin });
 });
@@ -16240,6 +16243,10 @@ function commissionForTiers(price, tiers) {
   return total;
 }
 function effCommissionFlatRate() { const s = loadSettings(); let r = Number(s.commissionFlatRate); if (!isFinite(r) || r < 0) r = 6; if (r > 1 && r <= 100) { /* percent */ } else if (r <= 1) { r = r * 100; } return Math.min(100, r); }
+// Estimated gross commission from a listing/asking price, using the firm's Modified-Lehman
+// tiers with the per-deal minimum-fee floor. Powers the projected commission shown on an
+// active listing (the listing file + the pipeline card) before a closing figure exists.
+function estCommissionFromPrice(p) { const n = Number(String(p == null ? '' : p).replace(/[^0-9.]/g, '')) || 0; if (n <= 0) return 0; const g = Math.round(commissionForTiers(n, effCommissionTiers())); return Math.max(g, effCommissionMinFee()); }
 function agrNum(v){ var n=Number(String(v==null?'':v).replace(/[^0-9.\-]/g,'')); return isFinite(n)?n:0; }
 function agrDealValue(a){
   if(agrNum(a.commValue)>0) return agrNum(a.commValue);

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="rrg-back" content="rrg_board.html|Listings">
+<meta name="rrg-back" content="rrg_board.html?pipelineId=p_tenantrep|Tenants">
 <title>RRG — Tenant Rep Engagement</title>
 <style>
 :root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;--amber:#e0a41a;}
@@ -341,7 +341,7 @@ a.feat:hover{background:#f7f9fc;}
 <!--rrgback--><a href="./rrg_board.html" class="rrg-back" aria-label="Back to deals" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28)"><span style="font-size:14px;line-height:1">←</span> Deals</a>
 <div class="top"><div class="top-in">
   <span class="brand" onclick="location.href='./index.html'" title="Back to toolbox"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
-  <div class="crumb"><a href="./rrg_board.html">Listings</a> &nbsp;›&nbsp; <span id="crumb">Listing file</span></div>
+  <div class="crumb"><a href="./rrg_board.html?pipelineId=p_tenantrep">Tenants</a> &nbsp;›&nbsp; <span id="crumb">Tenant engagement</span></div>
   <div class="kicker" id="kicker">Tenant-rep engagement<span class="kx">— everything for this space search in one place</span></div>
   <h1 id="h1">Tenant Rep Engagement</h1>
   <div class="subline" id="subline"></div>
@@ -646,7 +646,7 @@ function invoicesCardDeal(){
 
 function crBox(){
   var c=(A&&A.criteria)||{};
-  return '<div class="listingbox"><div class="listinghd">Site Selection Criteria</div>'
+  return ''
     +'<div class="fldrow"><label class="fld">Target markets / trade areas</label><input class="owner" id="cr_markets" value="'+esc(c.markets||'')+'" placeholder="e.g. Dallas — Uptown, Deep Ellum, Bishop Arts"></div>'
     +'<div class="fldrow2"><div><label class="fld">Use / concept</label><input class="owner" id="cr_use" value="'+esc(c.useType||'')+'" placeholder="e.g. Full-service restaurant w/ bar"></div>'
     +'<div><label class="fld">Budget (rent)</label><input class="owner" id="cr_budget" value="'+esc(c.budget||'')+'" placeholder="e.g. $35–45/SF NNN"></div></div>'
@@ -657,8 +657,7 @@ function crBox(){
     +'<div class="fldrow"><label class="fld">Parking / access / build needs</label><input class="owner" id="cr_parking" value="'+esc(c.parking||'')+'" placeholder="e.g. 40+ spaces, patio, hood & grease"></div>'
     +'<div class="fldrow"><label class="fld">Must-haves / dealbreakers</label><textarea class="owner" id="cr_features" style="min-height:60px" placeholder="Venting, existing kitchen, co-tenancy, demographics, drive-thru…">'+esc(c.features||'')+'</textarea></div>'
     +'<div class="fldrow"><label class="fld">Criteria notes</label><textarea class="owner" id="cr_crnotes" style="min-height:56px" placeholder="Anything else the space search should honor…">'+esc(c.notes||'')+'</textarea></div>'
-    +'<div class="expnote">The tenant\'s Site Selection Criteria — what we are hunting for. Saves with the assignment.</div>'
-  +'</div>';
+    +'<div class="expnote">The tenant\'s Site Selection Criteria — what we are hunting for. Saves with the assignment.</div>';
 }
 function spaceBox(){
   var s=(A&&A.space)||{};
@@ -962,7 +961,7 @@ function render(){
         + '<label class="autorow"><input type="checkbox" id="f_lauto"'+(A.autoRenew?' checked':'')+'> Auto-renews</label>'
         + '<div class="expnote" id="expNote"></div>'
       + '</div>'
-      + ((A.assignmentType==='tenant_rep') ? crBox() : ((A.assignmentType==='landlord_rep') ? spaceBox() : ('<div class="listingbox"><div class="listinghd">Listing IDs & lead routing</div>'
+      + ((A.assignmentType==='tenant_rep') ? '' : ((A.assignmentType==='landlord_rep') ? spaceBox() : ('<div class="listingbox"><div class="listinghd">Listing IDs & lead routing</div>'
         + '<div class="fldrow2"><div><label class="fld">BizBuySell Ref ID</label><input class="owner" id="f_bbsref" value="'+esc(A.bbsRef||'')+'" placeholder="e.g. ItsItalian"></div>'
         + '<div><label class="fld">BizBuySell #</label><input class="owner" id="f_bbsnum" value="'+esc(A.bbsNumber||'')+'" placeholder="e.g. 2502434"></div></div>'
         + '<div class="fldrow2"><div><label class="fld">CoStar / LoopNet #</label><input class="owner" id="f_costar" value="'+esc(A.costarNo||'')+'" placeholder="e.g. 12345678"></div>'
@@ -979,6 +978,7 @@ function render(){
     _sideHtml
     + '<div class="mid">'
     + '<div class="card"><div class="ch"><b>Overview</b><span>'+done+' of '+ST.length+' stages complete</span></div><div class="cb">'+facts+'</div></div>'
+    + '<div class="card"><div class="ch"><b>Site Selection Criteria</b><span style="color:#8a93a3;font-weight:600;font-size:11.5px">what we’re hunting for</span></div><div class="cb" style="padding:14px 20px 18px">'+crBox()+'</div></div>'
     + '<div class="card"><div class="ch"><b>Tenant Pipeline</b>'+(pipeName?('<span style="margin-left:8px;color:var(--navy);font-weight:700;font-size:11.5px;background:#eef2fb;border:1px solid #d3ddf3;border-radius:999px;padding:2px 10px">'+esc(pipeName)+'</span>'):'')+'<span>'+started+' of '+ST.length+' started</span></div><div class="track"><div class="hpipe">'+steps+'</div></div></div>'
     + spacePipelineCard()
     + '</div>'

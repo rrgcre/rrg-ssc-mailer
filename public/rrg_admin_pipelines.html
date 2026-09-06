@@ -156,13 +156,14 @@ function renderEditor(){
         +'<div class="fld"><label>Practice area</label><select id="pArea">'+areas.map(function(a){return '<option'+(a===(p.area||'General')?' selected':'')+'>'+esc(a)+'</option>';}).join('')+'</select></div>'
       +'</div>'
       +'<div class="stgh"><b>Stages</b><span class="c" id="stgCount"></span></div>'
-      +'<table class="stg"><thead><tr><th>#</th><th>Stage name</th><th>Target days</th><th>On enter (automation)</th><th>On leave (automation)</th><th></th></tr></thead><tbody id="stgBody"></tbody></table>'
-      +'<div class="days-note">Target days = how long a deal should stay in that stage before FullServe flags it as stalled. Set 0 for no target.</div>'
-      +'<div style="margin-top:14px"><button class="btn" id="addStg">+ Add stage</button></div>'
+      +'<table class="stg"><thead><tr><th>#</th><th>Stage name</th><th>Target days</th><th>Likelihood %</th><th>On enter (automation)</th><th>On leave (automation)</th><th></th></tr></thead><tbody id="stgBody"></tbody></table>'
+      +'<div class="days-note">Target days = how long a deal should stay in that stage before FullServe flags it as stalled (0 = no target). Likelihood % = the chance a deal in that stage closes — set it higher the further down the funnel it sits. It drives weighted pipeline value and shows on the board.</div>'
+      +'<div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="addStg">+ Add stage</button><button class="btn" id="rampWin" type="button" title="Fill in an increasing likelihood across the stages — you can tweak each after">↗ Auto-fill likelihood</button></div>'
     +'</div>';
   renderStages(stages);
   document.getElementById('saveBtn').onclick=save;
   document.getElementById('addStg').onclick=function(){ var s=gatherStages(); s.push({name:'',targetDays:(curPipe().stages&&curPipe().stages[0]?curPipe().stages[0].targetDays:7)}); curPipe().stages=s; renderStages(s); setTimeout(function(){var rows=document.querySelectorAll('#stgBody input.nm');if(rows.length)rows[rows.length-1].focus();},0); };
+  var _rw=document.getElementById('rampWin'); if(_rw) _rw.onclick=rampWinPct;
   var db=document.getElementById('delBtn'); if(db) db.onclick=onDelete;
 }
 
@@ -174,6 +175,7 @@ function renderStages(stages){
       +'<td class="num">'+(i+1)+'</td>'
       +'<td><input class="nm" data-i="'+i+'" value="'+esc(st.name||'')+'" placeholder="Stage name"></td>'
       +'<td class="days"><input class="days" type="number" min="0" data-i="'+i+'" value="'+(st.targetDays==null?'':st.targetDays)+'"></td>'
+      +'<td class="days"><input class="win" type="number" min="0" max="100" data-i="'+i+'" value="'+((st.winPct===''||st.winPct==null)?'':st.winPct)+'" placeholder="%" title="Likelihood a deal in this stage closes"></td>'
       +'<td><select class="saA" data-i="'+i+'" style="font:inherit;font-size:12.5px;padding:5px 7px;border:1px solid var(--line,#cfd6e2);border-radius:7px;max-width:180px"><option value="">\u2014 none \u2014</option>'+AUTOS.map(function(a){return '<option value="'+esc(a.id)+'"'+(st.onAssignAuto===a.id?' selected':'')+'>'+esc(a.name)+'</option>';}).join('')+'</select></td>'
       +'<td><select class="saU" data-i="'+i+'" style="font:inherit;font-size:12.5px;padding:5px 7px;border:1px solid var(--line,#cfd6e2);border-radius:7px;max-width:180px"><option value="">\u2014 none \u2014</option>'+AUTOS.map(function(a){return '<option value="'+esc(a.id)+'"'+(st.onUnassignAuto===a.id?' selected':'')+'>'+esc(a.name)+'</option>';}).join('')+'</select></td>'
       +'<td class="act">'
@@ -181,7 +183,7 @@ function renderStages(stages){
         +'<button class="ib dn" data-i="'+i+'"'+(i===stages.length-1?' disabled':'')+' title="Move down">↓</button>'
         +'<button class="ib x" data-i="'+i+'" title="Remove">✕</button>'
       +'</td></tr>';
-  }).join('') || '<tr><td colspan="6" class="empty" style="padding:24px">No stages yet — add your first stage below.</td></tr>';
+  }).join('') || '<tr><td colspan="7" class="empty" style="padding:24px">No stages yet — add your first stage below.</td></tr>';
   Array.prototype.forEach.call(tb.querySelectorAll('.ib.up'),function(b){b.onclick=function(){move(+b.getAttribute('data-i'),-1);};});
   Array.prototype.forEach.call(tb.querySelectorAll('.ib.dn'),function(b){b.onclick=function(){move(+b.getAttribute('data-i'),1);};});
   Array.prototype.forEach.call(tb.querySelectorAll('.ib.x'),function(b){b.onclick=function(){removeStage(+b.getAttribute('data-i'));};});
@@ -190,11 +192,19 @@ function renderStages(stages){
 function gatherStages(){
   var names=document.querySelectorAll('#stgBody input.nm');
   var days=document.querySelectorAll('#stgBody input.days');
+  var win=document.querySelectorAll('#stgBody input.win');
   var saA=document.querySelectorAll('#stgBody select.saA');
   var saU=document.querySelectorAll('#stgBody select.saU');
   var out=[];
-  for(var i=0;i<names.length;i++){ out.push({name:names[i].value,targetDays:(days[i].value===''?0:Math.max(0,parseInt(days[i].value,10)||0)),onAssignAuto:(saA[i]?saA[i].value:''),onUnassignAuto:(saU[i]?saU[i].value:'')}); }
+  for(var i=0;i<names.length;i++){ var wv=(win[i]&&win[i].value!=='')?Math.max(0,Math.min(100,parseInt(win[i].value,10)||0)):''; out.push({name:names[i].value,targetDays:(days[i].value===''?0:Math.max(0,parseInt(days[i].value,10)||0)),winPct:wv,onAssignAuto:(saA[i]?saA[i].value:''),onUnassignAuto:(saU[i]?saU[i].value:'')}); }
   return out;
+}
+// Fill an increasing likelihood across the stages (earliest low, latest near-certain),
+// so the further down the funnel a deal sits, the higher its chance of closing.
+function rampWinPct(){
+  var s=gatherStages(); var n=s.length; if(!n) return;
+  s.forEach(function(st,i){ st.winPct = (n===1)?50 : Math.round(5 + (i/(n-1))*90); });
+  curPipe().stages=s; renderStages(s);
 }
 function move(i,d){ var s=gatherStages(); var j=i+d; if(j<0||j>=s.length)return; var t=s[i];s[i]=s[j];s[j]=t; curPipe().stages=s; renderStages(s); }
 function removeStage(i){ var s=gatherStages(); s.splice(i,1); curPipe().stages=s; renderStages(s); }
