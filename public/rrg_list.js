@@ -197,8 +197,8 @@
         + '<button class="rl-next"'+(state.page>=pc-1?' disabled':'')+'>›</button></span>';
       var densTog = '<label class="rl-dens" title="Compact rows"><input type="checkbox" class="rl-densCk"'+(state.compact?' checked':'')+'> Compact</label>';
       var fcount = activeFilterKeys().length;
-      var filtBtn = '<button class="rl-btn rl-filtbtn'+(state._filterOpen?' on':'')+'" title="Filter rows"><span class="rlic">\u2261</span>Filter'+(fcount?('<span class="rlfcount">'+fcount+'</span>'):'')+'</button>';
-      var savedBtn = '<div class="rl-colwrap"><button class="rl-btn rl-savedbtn" title="Saved searches"><span class="rlic">\u2606</span>Saved</button><div class="rl-savedmenu" hidden></div></div>';
+      var filtBtn = opts.noFilter ? '' : ('<button class="rl-btn rl-filtbtn'+(state._filterOpen?' on':'')+'" title="Filter rows"><span class="rlic">\u2261</span>Filter'+(fcount?('<span class="rlfcount">'+fcount+'</span>'):'')+'</button>');
+      var savedBtn = opts.noSaved ? '' : '<div class="rl-colwrap"><button class="rl-btn rl-savedbtn" title="Saved searches"><span class="rlic">\u2606</span>Saved</button><div class="rl-savedmenu" hidden></div></div>';
       var colsBtn = '<div class="rl-colwrap"><button class="rl-btn rl-colbtn" title="Choose columns"><span class="rlic">▦</span>Columns</button><div class="rl-colmenu" hidden></div></div>';
       var expBtn = '<button class="rl-btn rl-export" title="Export to CSV"><span class="rlic">⬇</span>Export</button>';
       var prnBtn = '<button class="rl-btn rl-print" title="Print this list"><span class="rlic">⎙</span>Print</button>';
