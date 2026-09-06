@@ -310,15 +310,17 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 })();</script>
 <div class="top"><div class="top-in">
   <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
-  <div class="crumb"><a href="./rrg_companies.html">&#8592; Companies</a> &nbsp;›&nbsp; <span id="crumb">Company</span></div>
+  <div class="crumb" style="display:flex;align-items:center"><a href="./rrg_companies.html">&#8592; Companies</a> &nbsp;›&nbsp; <span id="crumb">Company</span><span id="recnavHost" style="margin-left:auto"></span></div>
 </div></div>
+<script src="/rrg_recordnav.js"></script>
 <div id="root" class="loading">Loading the company file…</div>
 <div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function qs(k){ return new URLSearchParams(location.search).get(k)||''; }
 function initials(n){ n=String(n||'').trim(); if(!n) return '?'; var p=n.split(/\s+/); return ((p[0]||'')[0]||'')+((p[1]||'')[0]||''); }
-var ID=qs('id'), C=null, CONTACTS=[], DEALS=[], LOCATIONS=[], CONCEPTS=[], CTYPES=['Restaurant Group'], PTYPES=['Buying'], LSTATUSES=['Planned','Under Construction','Operating','Dark','Closed'], SITETYPES=['Freestanding','End Cap','Inline','Food Hall','Ghost Kitchen','Other'], CONCEPT_TYPES=['Full-Service','Fast-Casual','QSR','Bar / Nightlife','Dancehall','Cafe / Bakery','Food Truck','Ghost Kitchen','Other'], PRICE_POINTS=['$','$$','$$$','$$$$'], CUISINE_TYPES=[], MARKETS=[], IS_ADMIN=false, CAN_DELETE=false, CANROOMS=false, HASMAPS=false, AGREEMENTS=[], ATYPES=[], AUTOMATIONS=[], LOGOAUTO='', TITLES=[], LEADSOURCES=[], CO_AGR_FILE=null, ACTIVITY=[], ACTTYPES=[], USERS=[], CO_ACTFILTER='', DIRTY=false, ALLTAGS=[], CT_TAGF=null, C_TAGF=null, REL=null;
+var ID=qs('id'); try{ if(window.RRGRecordNav) RRGRecordNav.mount({ key:'companies_v2', currentId:ID, urlFor:function(id){ return './rrg_company.html?id='+encodeURIComponent(id); }, into:'#recnavHost' }); }catch(e){}
+var C=null, CONTACTS=[], DEALS=[], LOCATIONS=[], CONCEPTS=[], CTYPES=['Restaurant Group'], PTYPES=['Buying'], LSTATUSES=['Planned','Under Construction','Operating','Dark','Closed'], SITETYPES=['Freestanding','End Cap','Inline','Food Hall','Ghost Kitchen','Other'], CONCEPT_TYPES=['Full-Service','Fast-Casual','QSR','Bar / Nightlife','Dancehall','Cafe / Bakery','Food Truck','Ghost Kitchen','Other'], PRICE_POINTS=['$','$$','$$$','$$$$'], CUISINE_TYPES=[], MARKETS=[], IS_ADMIN=false, CAN_DELETE=false, CANROOMS=false, HASMAPS=false, AGREEMENTS=[], ATYPES=[], AUTOMATIONS=[], LOGOAUTO='', TITLES=[], LEADSOURCES=[], CO_AGR_FILE=null, ACTIVITY=[], ACTTYPES=[], USERS=[], CO_ACTFILTER='', DIRTY=false, ALLTAGS=[], CT_TAGF=null, C_TAGF=null, REL=null;
 var EXPANDED={};
 var CT_PHOTO=null;
 // After a bulk find/build/import, open the first concept so its locations show right away.
