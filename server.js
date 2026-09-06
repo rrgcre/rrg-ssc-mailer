@@ -5681,7 +5681,7 @@ function assignmentView(d, overlay, _opts) {
     companyId: deal ? (deal.companyId || '') : '', company: (deal && deal.companyId && companyById(deal.companyId)) ? companyBrief(companyById(deal.companyId)) : null,
     roomId: (room && room.id) || (deal && deal.roomId) || '',
     status: o.status || 'New', notes: o.notes || '', shareTeam: !!o.shareTeam, owner: o.owner || by, businessOverride: o.businessOverride || '', codeName: o.codeName || '', listingNo: o.listingNo || 0, listingId: (o.listingNo ? ('RRG-' + o.listingNo) : ''),
-    saleLane: (deal && deal.saleLane) || o.saleLane || 'business',
+    saleLane: (['business', 'asset', 'other'].indexOf(o.saleLane) >= 0 ? o.saleLane : ((deal && deal.saleLane) || 'business')),
     stageFlags: o.stageFlags || {}, pipelineId: o.pipelineId || '', needsSetup: !!o.needsSetup, fromBbs: !!o.fromBbs, referredBy: o.referredBy || '', referredById: o.referredById || '', referralPct: o.referralPct || '', listPrice: o.listPrice || '', priceHistory: Array.isArray(o.priceHistory) ? o.priceHistory : [], financials3y: Array.isArray(o.financials3y) ? o.financials3y : [], totalCommission: o.totalCommission || '', commissionEst: estCommissionFromPrice(o.listPrice || ''), listingLive: o.listingLive || '', listingStart: o.listingStart || '', listingExpires: o.listingExpires || '', autoRenew: !!o.autoRenew, renewable: !!o.renewable,
     offers: Array.isArray(o.offers) ? o.offers : [],
     tours: Array.isArray(o.tours) ? o.tours : [],
@@ -6651,6 +6651,7 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   if (typeof b.businessOverride === 'string') cur.businessOverride = b.businessOverride.slice(0, 120);
   if (typeof b.codeName === 'string') cur.codeName = b.codeName.slice(0, 80);
   if (typeof b.marketOverride === 'string') cur.marketOverride = b.marketOverride.slice(0, 80);
+  if (typeof b.saleLane === 'string' && ['business', 'asset', 'other'].indexOf(b.saleLane) >= 0) cur.saleLane = b.saleLane;   // type of listing: going concern / asset sale / other
   if (b.stageFlags && typeof b.stageFlags === 'object') {
     const allowedStages = ['outreach','agreed','offers','dd','closing'];
     const sf = {};
@@ -6661,7 +6662,7 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   if (typeof b.referredById === 'string') cur.referredById = b.referredById.slice(0, 40);
   if (typeof b.contact === 'string') cur.contact = b.contact.slice(0, 120);            // seller / client contact name
   if (typeof b.clientPersonId === 'string') cur.clientPersonId = b.clientPersonId.slice(0, 40); // link to the contact record
-  if (typeof b.listPrice === 'string' && userCan(req.user, 'change_price')) {   // pricing is permission-gated (marketing's job when enforcement is on)
+  if (typeof b.listPrice === 'string' && (userCan(req.user, 'change_price') || !String(cur.listPrice || '').trim())) {   // setting the first price is plain data entry; changing a set price is permission-gated (marketing controls repricing)
     const _newLP = b.listPrice.slice(0, 40), _oldLP = cur.listPrice || '';
     if (_newLP !== _oldLP) {                       // record every asking-price change as a dated history entry
       if (!Array.isArray(cur.priceHistory)) cur.priceHistory = [];

@@ -425,9 +425,28 @@ function renderList(cards){
       { label:'Owner', sort:function(a,b){return RRGList.cmp(a.owner,b.owner);}, edit:{ type:'select', allowBlank:true, options:_ownerOpts, get:function(c){return c.owner||'';}, save:function(c,val){ return _saveAssign(c,{owner:val},function(){ c.owner=val; }); } }, cell:function(c){ return c.owner?esc(c.owner):'<span style="color:#b0b8c6">—</span>'; } },
       { label:'Last activity', sort:function(a,b){return RRGList.cmp(a.lastActivity||'',b.lastActivity||'');}, cell:function(c){ return c.lastActivity?esc(fmtDate(c.lastActivity)):'<span style="color:#b0b8c6">—</span>'; } }
     ],
-    bulk:[ { label:'Delete selected', danger:true, fn:function(ids,done){ bulkDelListings(ids,done); } } ]
+    bulk:[ { label:'Set status…', fn:function(ids,done){ bulkSetStatus(ids,done); } }, { label:'Delete selected', danger:true, fn:function(ids,done){ bulkDelListings(ids,done); } } ]
   };
   if(LTBL) LTBL.refresh(cards); else LTBL=RRGList.create(cfg);
+}
+function bulkSetStatus(ids,done){
+  if(!ids||!ids.length) return;
+  var STATS=['Unqualified','New','Active','Under Contract','Closed','On Hold','Lost'];
+  var ov=document.createElement('div'); ov.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(10,20,45,.42);display:flex;align-items:center;justify-content:center';
+  ov.innerHTML='<div style="background:#fff;border-radius:12px;box-shadow:0 20px 60px rgba(10,20,50,.3);width:340px;max-width:92vw;overflow:hidden"><div style="padding:14px 18px;font-weight:800;font-size:14px;color:#000E31;border-bottom:1px solid #eef1f6">Set status — '+ids.length+' listing'+(ids.length>1?'s':'')+'</div><div style="padding:8px">'+STATS.map(function(s){ return '<button type="button" data-st="'+esc(s)+'" style="display:block;width:100%;text-align:left;padding:9px 12px;border:none;background:#fff;border-radius:8px;font:inherit;font-size:13px;font-weight:600;color:#233;cursor:pointer">'+esc(s)+'</button>'; }).join('')+'</div><div style="padding:6px 14px 14px;text-align:right"><button type="button" id="bss_cancel" style="background:#fff;border:1px solid #cdd6e6;border-radius:8px;padding:8px 14px;font:inherit;font-weight:700;color:#33415c;cursor:pointer">Cancel</button></div></div>';
+  document.body.appendChild(ov);
+  function close(){ ov.remove(); }
+  ov.addEventListener('click',function(e){ if(e.target===ov) close(); });
+  ov.querySelector('#bss_cancel').onclick=close;
+  ov.querySelectorAll('button[data-st]').forEach(function(b){ b.addEventListener('mouseenter',function(){b.style.background='#f2f6fc';}); b.addEventListener('mouseleave',function(){b.style.background='#fff';}); b.addEventListener('click',function(){ var st=b.getAttribute('data-st'); close(); _applyBulkStatus(ids,st,done); }); });
+}
+function _applyBulkStatus(ids,st,done){
+  var n=0, okc=0;
+  ids.forEach(function(key){
+    fetch('/api/assignment/'+encodeURIComponent(key)+'/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({status:st})}).then(function(r){return r.json();})
+      .then(function(j){ if(j&&j.ok) okc++; }).catch(function(){})
+      .then(function(){ if(++n===ids.length){ if(done)done(); if(window.rrgToast) rrgToast('Set '+okc+' listing'+(okc===1?'':'s')+' to '+st); load(); } });
+  });
 }
 async function bulkDelListings(ids,done){
   if(!ids||!ids.length) return;
@@ -568,7 +587,7 @@ function cardFieldsHtml(c){
   if(CARDF.bbs && c.bbsNumber) h+='<div class="r"><span class="ic">#</span>'+esc(c.bbsNumber)+'</div>';
   return h;
 }
-function saleLaneBadge(c){ if(!c.saleLane) return ''; var a=(c.saleLane==='asset'); return '<span title="'+(a?'Asset Sale — space, fixtures &amp; equipment':'Going Concern — operating business (business sale)')+'" style="flex:none;display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;border-radius:50%;font-size:10px;font-weight:800;color:#fff;'+(a?'background:#3f7cac':'background:#1c7a45')+'">'+(a?'A':'B')+'</span>'; }
+function saleLaneBadge(c){ if(!c.saleLane) return ''; var lane=c.saleLane; var m=(lane==='asset')?{t:'Asset Sale — space, fixtures &amp; equipment',bg:'#3f7cac',ltr:'A'}:((lane==='other')?{t:'Other listing type',bg:'#8a93a3',ltr:'O'}:{t:'Going Concern — operating business (business sale)',bg:'#1c7a45',ltr:'B'}); return '<span title="'+m.t+'" style="flex:none;display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;border-radius:50%;font-size:10px;font-weight:800;color:#fff;background:'+m.bg+'">'+m.ltr+'</span>'; }
 function cardHtml(c){
   var open='./rrg_assignment.html?key='+encodeURIComponent(c.key);
   var flags=flagBadges(c);
