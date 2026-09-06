@@ -201,8 +201,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
       <input id="nd_market" list="marketList" placeholder="Start typing to find a market…" autocomplete="off" style="border:none;outline:none;flex:1;min-width:120px;padding:3px 2px;font:inherit;background:transparent" onkeydown="ndMarketKey(event)" onchange="ndMarketAdd(this.value)">
     </div><datalist id="marketList"></datalist>
     <div class="bmodalnote" id="nd_marketHint" style="margin-top:3px;display:none">Add more than one — pick or type a market and press Enter.</div>
-    <label class="bmfld">Seller / client contact</label><input id="nd_contact" list="clientList" placeholder="Start typing to find an existing client…" autocomplete="off" oninput="updateClientHint()">
-    <datalist id="clientList"></datalist>
+    <label class="bmfld">Seller / client contact</label>
+    <div style="position:relative">
+      <input id="nd_contact" placeholder="Start typing to find an existing client…" autocomplete="off" oninput="ndContactInput()" onfocus="ndContactInput()" onkeydown="ndContactKey(event)" onblur="ndContactBlur()">
+      <div id="nd_contactPop" style="position:absolute;left:0;right:0;top:100%;z-index:60;background:#fff;border:1px solid #d7dce4;border-top:none;border-radius:0 0 8px 8px;box-shadow:0 10px 24px rgba(20,30,55,.14);max-height:236px;overflow:auto;display:none"></div>
+    </div>
     <div class="bmodalnote" id="clientHint">Creating a listing builds its data room automatically and links the client to your registry — a matching client is reused, a new one is onboarded.</div>
   </div>
   <div class="bmodalf"><button class="bmbtn ghost" onclick="closeDealModal()">Cancel</button><button id="nd_create" class="bmbtn" onclick="createDeal()">Create listing</button></div>
@@ -284,7 +287,21 @@ function load(){
   }).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not reach the server.</div>'; });
 }
 var PEOPLE=[];
-function loadPeople(){ fetch('/api/people',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ PEOPLE=(j&&j.people)||[]; var dl=document.getElementById('clientList'); if(dl) dl.innerHTML=PEOPLE.map(function(p){ return '<option value="'+esc(p.name)+'">'+esc(p.company||p.email||p.type||'')+'</option>'; }).join(''); }).catch(function(){}); }
+function loadPeople(){ fetch('/api/people',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ PEOPLE=(j&&j.people)||[]; }).catch(function(){}); }
+var _ndCsel=-1, _ndCmatches=[];
+function ndContactInput(){
+  var inp=document.getElementById('nd_contact'), pop=document.getElementById('nd_contactPop'); if(!inp||!pop) return;
+  var v=(inp.value||'').trim().toLowerCase();
+  var list = v ? PEOPLE.filter(function(p){ var n=(p.name||'').toLowerCase(), c=(p.company||'').toLowerCase(), e=(p.email||'').toLowerCase(); return n.indexOf(v)>=0||c.indexOf(v)>=0||e.indexOf(v)>=0; }) : PEOPLE.slice(0,8);
+  _ndCmatches=list.slice(0,8); _ndCsel=-1;
+  if(!_ndCmatches.length){ pop.style.display='none'; updateClientHint(); return; }
+  pop.innerHTML=_ndCmatches.map(function(p,i){ var sub=p.company||p.email||p.type||''; return '<div class="ndcrow" data-i="'+i+'" style="padding:8px 11px;cursor:pointer;border-bottom:1px solid #f0f2f6;font-size:13px" onmousedown="ndContactPick('+i+')"><b style="color:#233">'+esc(p.name||'')+'</b>'+(sub?('<span style="color:#8a93a3;margin-left:7px">'+esc(sub)+'</span>'):'')+'</div>'; }).join('');
+  pop.style.display='block'; updateClientHint();
+}
+function ndContactPick(i){ var p=_ndCmatches[i]; if(!p) return; var inp=document.getElementById('nd_contact'); if(inp) inp.value=p.name||''; var pop=document.getElementById('nd_contactPop'); if(pop) pop.style.display='none'; updateClientHint(); }
+function ndContactHi(){ var pop=document.getElementById('nd_contactPop'); if(!pop) return; Array.prototype.forEach.call(pop.querySelectorAll('.ndcrow'),function(el,i){ el.style.background=(i===_ndCsel)?'#eef2fb':'#fff'; if(i===_ndCsel) el.scrollIntoView({block:'nearest'}); }); }
+function ndContactKey(e){ var pop=document.getElementById('nd_contactPop'); if(!pop||pop.style.display==='none') return; if(e.key==='ArrowDown'){ e.preventDefault(); _ndCsel=Math.min(_ndCsel+1,_ndCmatches.length-1); ndContactHi(); } else if(e.key==='ArrowUp'){ e.preventDefault(); _ndCsel=Math.max(_ndCsel-1,0); ndContactHi(); } else if(e.key==='Enter'){ if(_ndCsel>=0){ e.preventDefault(); ndContactPick(_ndCsel); } } else if(e.key==='Escape'){ pop.style.display='none'; } }
+function ndContactBlur(){ setTimeout(function(){ var pop=document.getElementById('nd_contactPop'); if(pop) pop.style.display='none'; },160); }
 function clientMatch(){ var v=(document.getElementById('nd_contact').value||'').trim().toLowerCase(); if(!v) return null; return PEOPLE.filter(function(p){ return (p.name||'').toLowerCase()===v; })[0]||null; }
 function updateClientHint(){ var h=document.getElementById('clientHint'); if(!h) return; var m=clientMatch(); if(m){ h.innerHTML='✓ Linking to existing client <b>'+esc(m.name)+'</b>'+(m.company?(' · '+esc(m.company)):'')+'. This listing joins their record.'; } else if((document.getElementById('nd_contact').value||'').trim()){ h.innerHTML='New client — <b>'+esc(document.getElementById('nd_contact').value.trim())+'</b> will be onboarded into your registry.'; } else { h.innerHTML='Creating a listing builds its data room automatically and links the client to your registry — a matching client is reused, a new one is onboarded.'; } }
 function openDealModal(){ var m=document.getElementById('dealModal'); if(!m) return; m.removeAttribute('hidden');
@@ -306,7 +323,7 @@ function ndMarketAdd(v){ v=String(v||'').trim(); var inp=document.getElementById
 function ndMarketDel(i){ SELMARKETS.splice(i,1); ndMarketRender(); }
 function ndMarketKey(e){ var inp=e.target; if(e.key==='Enter'||e.key===','){ e.preventDefault(); ndMarketAdd(inp.value); } else if(e.key==='Backspace' && !inp.value && SELMARKETS.length){ SELMARKETS.pop(); ndMarketRender(); } }
 function ndMarketValue(){ var inp=document.getElementById('nd_market'); var pend=(inp&&inp.value||'').trim(); var all=SELMARKETS.slice(); if(pend && all.map(function(x){return x.toLowerCase();}).indexOf(pend.toLowerCase())<0) all.push(pend); return all.join('; '); }
-function closeDealModal(){ var m=document.getElementById('dealModal'); if(!m) return; m.setAttribute('hidden',''); ['nd_business','nd_market','nd_contact'].forEach(function(id){var _e=document.getElementById(id); if(_e) _e.value='';}); SELMARKETS=[]; ndMarketRender(); updateClientHint(); }
+function closeDealModal(){ var m=document.getElementById('dealModal'); if(!m) return; m.setAttribute('hidden',''); ['nd_business','nd_market','nd_contact'].forEach(function(id){var _e=document.getElementById(id); if(_e) _e.value='';}); SELMARKETS=[]; ndMarketRender(); var _cp=document.getElementById('nd_contactPop'); if(_cp) _cp.style.display='none'; _ndCmatches=[]; _ndCsel=-1; updateClientHint(); }
 function createDeal(){ var business=(document.getElementById('nd_business').value||'').trim(); if(!business){ document.getElementById('nd_business').focus(); return; } var contact=(document.getElementById('nd_contact').value||'').trim(); if(!contact){ document.getElementById('nd_contact').focus(); var _h=document.getElementById('clientHint'); if(_h) _h.innerHTML='<b style="color:#DA2B1F">A client contact is required — every listing must be linked to a contact.</b>'; return; } var btn=document.getElementById('nd_create'); btn.disabled=true; btn.textContent='Creating…'; fetch('/api/deal/new',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({business:business,market:ndMarketValue(),contact:contact,type:dealType()})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_assignment.html?key='+encodeURIComponent(j.key); } else { btn.disabled=false; btn.textContent='Create '+entSingular().toLowerCase(); alert((j&&j.error)||'Could not create the '+entSingular().toLowerCase()+'.'); } }).catch(function(){ btn.disabled=false; btn.textContent='Create '+entSingular().toLowerCase(); alert('Could not reach the server.'); }); }
 function renderToolbar(){
   var vc=activeFilterCount();
