@@ -652,8 +652,8 @@ var MKT=null; var MKT_FLAG_LBL={'':'None','new':'New','price':'New price'};
 function _lpNum(s){ s=String(s==null?'':s).trim(); if(/[–—]|\d\s*[-]\s*\d/.test(s)) return 0; /* a range/band — don't compute a misleading multiple */ var suf=(s.match(/([kmb])\s*$/i)||[])[1]; var mult=suf?({k:1e3,m:1e6,b:1e9})[suf.toLowerCase()]:1; var n=parseFloat(s.replace(/[^0-9.]/g,'')); return isFinite(n)?n*mult:0; }
 function _histRow(h,isOrig){
   var when=fmt(h.at); var tag=isOrig?'<span style="color:#6b7488">original ask</span>':'';
-  if(!isOrig && h.prev){ var a=_lpNum(h.price), b=_lpNum(h.prev); if(a&&b){ tag=(a<b)?('<span style="color:#1f8a5b;font-weight:700">↓ reduced</span> <span style="color:#8a93a8">from '+esc(h.prev)+'</span>'):('<span style="color:#b5791f;font-weight:700">↑ raised</span> <span style="color:#8a93a8">from '+esc(h.prev)+'</span>'); } else if(!b){ tag='<span style="color:#6b7488">set</span>'; } }
-  return '<div style="display:flex;align-items:baseline;gap:10px;padding:6px 0;border-top:1px solid #eef1f6"><span style="font-size:12px;color:#8a93a8;min-width:76px;flex:none">'+esc(when)+'</span><span style="font-weight:700;color:#000E31;min-width:100px;flex:none">'+esc(h.price||'—')+'</span><span style="font-size:12px">'+tag+(h.note?(' · '+esc(h.note)):'')+'</span></div>';
+  if(!isOrig && h.prev){ var a=_lpNum(h.price), b=_lpNum(h.prev); if(a&&b){ tag=(a<b)?('<span style="color:#1f8a5b;font-weight:700">↓ reduced</span> <span style="color:#8a93a8">from '+esc(_money(h.prev))+'</span>'):('<span style="color:#b5791f;font-weight:700">↑ raised</span> <span style="color:#8a93a8">from '+esc(_money(h.prev))+'</span>'); } else if(!b){ tag='<span style="color:#6b7488">set</span>'; } }
+  return '<div style="display:flex;align-items:baseline;gap:10px;padding:6px 0;border-top:1px solid #eef1f6"><span style="font-size:12px;color:#8a93a8;min-width:76px;flex:none">'+esc(when)+'</span><span style="font-weight:700;color:#000E31;min-width:100px;flex:none">'+esc(h.price?_money(h.price):'—')+'</span><span style="font-size:12px">'+tag+(h.note?(' · '+esc(h.note)):'')+'</span></div>';
 }
 function _fin3y(){
   var f=(A&&Array.isArray(A.financials3y)&&A.financials3y.length)?A.financials3y:null;
@@ -679,6 +679,7 @@ function _bizPriceN(){ var askN=_lpNum(A.listPrice||''); if(_reOn()){ var b=askN
 function _finMultiple(){ var basis=_valBasisLabel(); var e=_latestEarnForBasis(basis); var bN=_bizPriceN(), eN=_lpNum(e.val); if(bN>0&&eN>0) return (bN/eN).toFixed(1)+'× '+basis; return ((A&&A.financials)||{}).multiple||''; }
 function updateFinMultiple(){ var el=document.getElementById('finMultVal'); if(el){ var m=_finMultiple(); el.textContent=m||'—'; } }
 function updateReBiz(){ var el=document.getElementById('reBizVal'); if(el){ var b=_bizPriceN(); el.textContent=(b>0)?_money(String(b)):'—'; } }
+function updateCommWarn(){ var el=document.getElementById('commWarn'); if(!el) return; var ci=document.getElementById('f_comm'); var comm=ci?_lpNum(_moneyDigits(ci.value)):_lpNum((A&&A.totalCommission)||''); var ask=_lpNum((A&&A.listPrice)||''); if(ask>0 && comm>0 && (comm/ask)>0.20){ el.style.display=''; el.innerHTML='⚠ Commission is <b>'+Math.round(comm/ask*100)+'%</b> of the asking price — that looks high. Double-check the amount.'; } else { el.style.display='none'; } }
 function _valBridgeInner(){
   var basis=_valBasisLabel(); var e=_latestEarnForBasis(basis);
   var earnN=_lpNum(e.val), askN=_lpNum(A.listPrice||''), valN=_lpNum(A.value||'');
@@ -724,7 +725,7 @@ function financialsCard(){
     : (function(){ var _cb=String(A.basis||''); var _bo=['SDE','EBITDA',"Owner's Take",'Other']; var _extra=(_cb && _bo.indexOf(_cb)<0)?('<option selected>'+esc(_cb)+'</option>'):''; return '<div class="ovf"><div class="ovk">Basis</div><select id="f_basisover" onchange="finMetaInput()" style="width:100%;border:1px solid #e6e9f0;border-radius:6px;padding:6px 8px;font:inherit;color:#000E31;background:#fff"><option value="">— select —</option>'+_bo.map(function(o){ return '<option'+(o===_cb?' selected':'')+'>'+o+'</option>'; }).join('')+_extra+'</select></div>'; })();
   var multCell='<div class="ovf"><div class="ovk">Multiple (latest)</div><div class="ovv" id="finMultVal">'+(_finMultiple()||'—')+'</div></div>';
   var _commEst=(A&&A.commissionEst)||0; var _commEstTxt=_commEst?('$'+Number(_commEst).toLocaleString('en-US')):'';
-  var commCell='<div class="ovf"><div class="ovk">Commission Amt'+(_commEstTxt?('<span style="font-weight:400;color:#9aa3b2;font-size:10px;text-transform:none;letter-spacing:0"> · est '+esc(_commEstTxt)+' from asking price</span>'):'')+'</div><input id="f_comm" value="'+esc(_money((A&&A.totalCommission)||''))+'" placeholder="'+(_commEstTxt?esc(_commEstTxt):'—')+'" inputmode="numeric" oninput="finMetaInput()" onfocus="this.value=_moneyDigits(this.value)" onblur="this.value=_money(this.value)" style="width:100%;border:1px solid #e6e9f0;border-radius:6px;padding:6px 8px;font:inherit;font-weight:700;color:#000E31"></div>';
+  var commCell='<div class="ovf"><div class="ovk">Commission Amt'+(_commEstTxt?('<span style="font-weight:400;color:#9aa3b2;font-size:10px;text-transform:none;letter-spacing:0"> · est '+esc(_commEstTxt)+' from asking price</span>'):'')+'</div><input id="f_comm" value="'+esc(_money((A&&A.totalCommission)||''))+'" placeholder="'+(_commEstTxt?esc(_commEstTxt):'—')+'" inputmode="numeric" oninput="finMetaInput();updateCommWarn()" onfocus="this.value=_moneyDigits(this.value)" onblur="this.value=_money(this.value)" style="width:100%;border:1px solid #e6e9f0;border-radius:6px;padding:6px 8px;font:inherit;font-weight:700;color:#000E31"><div id="commWarn" style="display:none;margin-top:5px;font-size:11.5px;font-weight:600;color:#b23a2c;line-height:1.4"></div></div>';
   var snap='<div class="ovgrid">'+basisCell+valCell+multCell+askCell+commCell+'</div>';
   var _reOnV=!!(A&&A.reIncluded);
   var reBlock='<div style="margin-top:14px;padding:12px 14px;border:1px solid #e6e9f0;border-radius:10px;background:#fbfcfe">'
@@ -752,7 +753,7 @@ function financialsCard(){
   var valCard='<div class="card"><div class="ch"><b>Valuation &amp; Pricing</b><span style="margin-left:8px">how the price is derived</span>'+bovLink+'</div><div class="cb" style="padding-top:14px"><div id="valBridge" style="margin:0 0 16px;padding:13px 15px;border:1px solid #e2e8f2;border-radius:10px;background:#f7faff">'+_valBridgeInner()+'</div>'+snap+reBlock+priceForm+histHtml+'</div></div>';
   return '<div id="finCardHost">'+finCard+valCard+'</div>';
 }
-function refreshFinancials(){ var host=document.getElementById('finCardHost'); if(host){ var tmp=document.createElement('div'); tmp.innerHTML=financialsCard(); var fresh=tmp.firstChild; if(fresh&&host.parentNode) host.parentNode.replaceChild(fresh,host); } var av=document.getElementById('ovAskVal'); if(av) av.textContent=(_money(A.listPrice)||'—'); }
+function refreshFinancials(){ var host=document.getElementById('finCardHost'); if(host){ var tmp=document.createElement('div'); tmp.innerHTML=financialsCard(); var fresh=tmp.firstChild; if(fresh&&host.parentNode) host.parentNode.replaceChild(fresh,host); } var av=document.getElementById('ovAskVal'); if(av) av.textContent=(_money(A.listPrice)||'—'); updateCommWarn(); }
 function togglePriceForm(show){ var f=document.getElementById('priceForm'); if(!f) return; var on=(show===undefined)?(f.style.display==='none'):show; f.style.display=on?'':'none'; if(on){ var p=document.getElementById('pf_price'); if(p){ p.value=A.listPrice||''; p.focus(); p.select&&p.select(); } var n=document.getElementById('pf_note'); if(n) n.value=''; var m=document.getElementById('pf_msg'); if(m) m.textContent=''; } }
 function askInlineEdit(){
   if(!(A && (A.canChangePrice || !String(A.listPrice||'').trim()))) return;
@@ -1082,6 +1083,7 @@ function render(){
   wireExpenses();
   setupAccordion();
   maybeOpenDealFromHash();
+  updateCommWarn();
 }
 function maybeOpenDealFromHash(){
   if(window._dealHashDone) return;
