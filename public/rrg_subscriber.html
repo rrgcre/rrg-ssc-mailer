@@ -107,7 +107,7 @@ function render(){
 }
 
 function engageSkeleton(){
-  return '<div class="card" style="margin-top:18px"><div class="ch"><b>Email engagement</b><span class="sp"><span class="ns-src">Bulk Email · matched by email</span></span></div>'
+  return '<div class="card" style="margin-top:18px"><div class="ch"><b>Email engagement</b><span class="sp"><span class="ns-src">Campaigns · matched by email</span></span></div>'
     +'<div class="ns-stats" id="engStats"><div class="ns-load">Loading engagement…</div></div><div id="engTableWrap"></div></div>';
 }
 function _dt(s,withTime){ if(!s) return '—'; try{ var d=new Date(s); var day=d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); return withTime?(day+' · '+d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})):day; }catch(e){ return String(s); } }
@@ -116,10 +116,10 @@ function _pill(st,opened,clicked){ var t=clicked?'Clicked':(opened?'Opened':(st=
 function loadEngage(){
   api('GET','/api/mail/recipient?email='+encodeURIComponent(EDIT.email)).then(function(j){
     var stats=document.getElementById('engStats'), tw=document.getElementById('engTableWrap'); if(!stats) return;
-    if(!j||!j.ok){ stats.innerHTML='<div class="ns-note">Email engagement shows here once Bulk Email is connected — every send, open and click to this address, matched by email.</div>'; if(tw) tw.innerHTML=''; return; }
+    if(!j||!j.ok){ stats.innerHTML='<div class="ns-note">Email engagement shows here once Campaigns is connected — every send, open and click to this address, matched by email.</div>'; if(tw) tw.innerHTML=''; return; }
     var sends=j.sends||[], t=j.totals||{}, sup=j.suppression;
     stats.innerHTML=[ _tile('Last sent', _dt(j.lastSent,true)), _tile('Last opened', _dt(j.lastOpened,true)), _tile('Campaigns', String(t.sent||0)), _tile('Opened', String(t.opened||0)), _tile('Clicked', String(t.clicked||0)) ].join('')
-      +(sup?('<div class="ns-supp">⚠ Suppressed in Bulk Email — '+esc(sup.reason||'bounce')+(sup.detail?(' · '+esc(sup.detail)):'')+'. This address is held out of sends.'+(ST.status!=='bounced'?' <button class="btn sm danger" id="markBounced">Mark Bounced</button>':'')+'</div>'):'');
+      +(sup?('<div class="ns-supp">⚠ Suppressed in Campaigns — '+esc(sup.reason||'bounce')+(sup.detail?(' · '+esc(sup.detail)):'')+'. This address is held out of sends.'+(ST.status!=='bounced'?' <button class="btn sm danger" id="markBounced">Mark Bounced</button>':'')+'</div>'):'');
     var mb=document.getElementById('markBounced'); if(mb) mb.onclick=function(){ ST.status='bounced'; Array.prototype.forEach.call(document.querySelectorAll('#statusSeg label'),function(l){ l.classList.toggle('on', l.getAttribute('data-status')==='bounced'); }); save(); };
     if(!sends.length){ if(tw) tw.innerHTML='<div class="ns-empty">No campaigns have been sent to this address yet.</div>'; return; }
     var rows=sends.map(function(s){ return '<tr><td class="ns-nm">'+esc(s.campaign||'—')+(s.subject?('<small>'+esc(s.subject)+'</small>'):'')+'</td>'
