@@ -674,28 +674,34 @@ function _latestEarn(f3y,basis){ for(var i=f3y.length-1;i>=0;i--){ var v=(basis=
 function _valBasisLabel(){ var b=String((A&&A.basis)||'').trim(); if(b) return b; return (/ebitda/i.test(((A&&A.financials)||{}).basis||'')?'EBITDA':'SDE'); }
 function _basisField(basis){ basis=String(basis||'').toLowerCase(); if(basis.indexOf('ebitda')>=0) return 'ebitda'; if(basis.indexOf('sde')>=0||basis.indexOf('owner')>=0) return 'sde'; return ''; }
 function _latestEarnForBasis(basis){ var f3y=_fin3y(); var fld=_basisField(basis); if(fld){ for(var i=f3y.length-1;i>=0;i--){ var v=f3y[i][fld]; if(v&&String(v).trim()) return {label:String(f3y[i].label||''), val:String(v).trim()}; } } var fin=(A&&A.financials)||{}; var fb=(fld==='ebitda')?(fin.ebitda||fin.sde):(fin.sde||fin.ebitda); return {label:'', val:fb?String(fb):''}; }
-function _finMultiple(){ var basis=_valBasisLabel(); var e=_latestEarnForBasis(basis); var ask=A.listPrice||''; var aN=_lpNum(ask), eN=_lpNum(e.val); if(aN>0&&eN>0) return (aN/eN).toFixed(1)+'× '+basis; return ((A&&A.financials)||{}).multiple||''; }
+function _reOn(){ return !!(A&&A.reIncluded); }
+function _bizPriceN(){ var askN=_lpNum(A.listPrice||''); if(_reOn()){ var b=askN-_lpNum(A.reValue||''); return b>0?b:0; } return askN; }
+function _finMultiple(){ var basis=_valBasisLabel(); var e=_latestEarnForBasis(basis); var bN=_bizPriceN(), eN=_lpNum(e.val); if(bN>0&&eN>0) return (bN/eN).toFixed(1)+'× '+basis; return ((A&&A.financials)||{}).multiple||''; }
 function updateFinMultiple(){ var el=document.getElementById('finMultVal'); if(el){ var m=_finMultiple(); el.textContent=m||'—'; } }
+function updateReBiz(){ var el=document.getElementById('reBizVal'); if(el){ var b=_bizPriceN(); el.textContent=(b>0)?_money(String(b)):'—'; } }
 function _valBridgeInner(){
   var basis=_valBasisLabel(); var e=_latestEarnForBasis(basis);
   var earnN=_lpNum(e.val), askN=_lpNum(A.listPrice||''), valN=_lpNum(A.value||'');
+  var reOn=_reOn(), reN=reOn?_lpNum(A.reValue||''):0, bizN=_bizPriceN();
   if(!(earnN>0)){ return '<div style="font-size:12.5px;color:#8a93a8;line-height:1.5">Pick a <b>Basis</b> and fill the year financials below — this strip then shows exactly how the price was reached: latest-year earnings × multiple = value.</div>'; }
-  var mult=(askN>0)?(askN/earnN):0;
+  var mult=(bizN>0)?(bizN/earnN):0;
   var lab='font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#8a93a8';
   var big='font-weight:800;color:#000E31;font-size:15px;font-variant-numeric:tabular-nums';
   var step=function(l,v,sub){ return '<div style="text-align:center"><div style="'+lab+'">'+l+'</div><div style="'+big+'">'+v+'</div>'+(sub?('<div style="font-size:10px;color:#9aa3b2">'+sub+'</div>'):'')+'</div>'; };
   var op=function(s){ return '<div style="font-size:17px;color:#b6c0d0;font-weight:700;align-self:center">'+s+'</div>'; };
-  var row='<div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">'
-    +step((e.label?esc(e.label)+' ':'')+esc(basis), _money(e.val), 'latest-year earnings')
-    +op('×')
-    +step('Multiple', (mult>0?mult.toFixed(1)+'×':'—'), 'implied')
-    +op('=')
-    +step('Asking price', (askN>0?_money(A.listPrice):'—'), 'what we list at')
-    +'</div>';
-  var note=(valN>0 && Math.abs(valN-askN)>1)?('<div style="font-size:11.5px;color:#6b7488;margin-top:9px;padding-top:9px;border-top:1px dashed #dfe4ec">Opinion of value <b>'+_money(A.value)+'</b>'+((earnN>0)?(' ('+(valN/earnN).toFixed(1)+'× '+esc(basis)+')'):'')+' — asking is set '+(askN>valN?'<b>above</b>':(askN<valN?'<b>below</b>':'at'))+' the opinion.</div>'):'';
+  var parts=[ step((e.label?esc(e.label)+' ':'')+esc(basis), _money(e.val), 'latest-year earnings'), op('×'), step('Multiple', (mult>0?mult.toFixed(1)+'×':'—'), 'implied') ];
+  if(reOn){ parts.push(op('=')); parts.push(step('Business value', (bizN>0?_money(String(bizN)):'—'), 'earnings × multiple')); parts.push(op('+')); parts.push(step('Real estate', (reN>0?_money(A.reValue):'—'), 'allocated')); parts.push(op('=')); parts.push(step('Asking · all-in', (askN>0?_money(A.listPrice):'—'), 'business + RE')); }
+  else { parts.push(op('=')); parts.push(step('Asking price', (askN>0?_money(A.listPrice):'—'), 'what we list at')); }
+  var row='<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">'+parts.join('')+'</div>';
+  var vAskN=reOn?bizN:askN; var vBase=reOn?'business':'asking';
+  var note=(valN>0 && vAskN>0 && Math.abs(valN-vAskN)>1)?('<div style="font-size:11.5px;color:#6b7488;margin-top:9px;padding-top:9px;border-top:1px dashed #dfe4ec">Opinion of value <b>'+_money(A.value)+'</b>'+((earnN>0)?(' ('+(valN/earnN).toFixed(1)+'× '+esc(basis)+')'):'')+' — '+vBase+' price is set '+(vAskN>valN?'<b>above</b>':(vAskN<valN?'<b>below</b>':'at'))+' the opinion.</div>'):'';
   return row+note;
 }
-function updateValBridge(){ var el=document.getElementById('valBridge'); if(el) el.innerHTML=_valBridgeInner(); }
+function updateValBridge(){ var el=document.getElementById('valBridge'); if(el) el.innerHTML=_valBridgeInner(); updateReBiz(); }
+var _reT=null;
+function _saveRe(){ fetch('/api/assignment/'+encodeURIComponent(KEY)+'/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({ reIncluded:_reOn(), reValue:String((A&&A.reValue)||'') })}); }
+function reToggle(){ var cb=document.getElementById('f_reincl'); if(!cb) return; A.reIncluded=cb.checked; var f=document.getElementById('reFields'); if(f) f.hidden=!cb.checked; _saveRe(); updateFinMultiple(); updateValBridge(); }
+function reInput(){ if(_reT) clearTimeout(_reT); _reT=setTimeout(function(){ var el=document.getElementById('f_reval'); A.reValue=el?_moneyDigits(el.value):''; _saveRe(); updateFinMultiple(); updateValBridge(); },600); }
 function saleTypeMeta(){ var l=A&&A.saleLane; if(l==='asset') return {lab:'Asset Sale',tip:'Asset sale — selling the space, fixtures & equipment',fg:'#23496f',bg:'#e8f0fb',bd:'#c4d8f2'}; if(l==='other') return {lab:'Other',tip:'Other listing type',fg:'#5b6472',bg:'#eef1f6',bd:'#d7dce4'}; return {lab:'Going Concern',tip:'Going concern — selling the operating business',fg:'#1c7a45',bg:'#eaf6ee',bd:'#bfe6cf'}; }
 function _money(v){ v=String(v==null?'':v); if(!v.trim()) return ''; if(/[a-z]/i.test(v)) return v; var d=v.replace(/[^0-9.]/g,''); if(!d) return v; var n=Math.round(parseFloat(d)); if(!isFinite(n)) return v; return '$'+n.toLocaleString('en-US'); }
 function _moneyDigits(v){ v=String(v==null?'':v); if(/[a-z]/i.test(v)) return v; return v.replace(/[^0-9.]/g,''); }
@@ -720,6 +726,14 @@ function financialsCard(){
   var _commEst=(A&&A.commissionEst)||0; var _commEstTxt=_commEst?('$'+Number(_commEst).toLocaleString('en-US')):'';
   var commCell='<div class="ovf"><div class="ovk">Commission Amt'+(_commEstTxt?('<span style="font-weight:400;color:#9aa3b2;font-size:10px;text-transform:none;letter-spacing:0"> · est '+esc(_commEstTxt)+' from asking price</span>'):'')+'</div><input id="f_comm" value="'+esc(_money((A&&A.totalCommission)||''))+'" placeholder="'+(_commEstTxt?esc(_commEstTxt):'—')+'" inputmode="numeric" oninput="finMetaInput()" onfocus="this.value=_moneyDigits(this.value)" onblur="this.value=_money(this.value)" style="width:100%;border:1px solid #e6e9f0;border-radius:6px;padding:6px 8px;font:inherit;font-weight:700;color:#000E31"></div>';
   var snap='<div class="ovgrid">'+basisCell+valCell+multCell+askCell+commCell+'</div>';
+  var _reOnV=!!(A&&A.reIncluded);
+  var reBlock='<div style="margin-top:14px;padding:12px 14px;border:1px solid #e6e9f0;border-radius:10px;background:#fbfcfe">'
+    +'<label style="display:flex;align-items:center;gap:9px;font-size:12.5px;font-weight:700;color:#000E31;cursor:pointer;margin:0"><input type="checkbox" id="f_reincl"'+(_reOnV?' checked':'')+' onchange="reToggle()" style="width:auto"> Real estate is included in this sale — allocate part of the price to the property</label>'
+    +'<div id="reFields"'+(_reOnV?'':' hidden')+' style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-end;margin-top:11px">'
+      +'<div><label style="display:block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#8a93a8;margin-bottom:5px">Real estate allocation</label><input id="f_reval" value="'+esc(_money((A&&A.reValue)||''))+'" placeholder="—" inputmode="numeric" oninput="reInput()" onfocus="this.value=_moneyDigits(this.value)" onblur="this.value=_money(this.value)" style="width:150px;border:1px solid #e6e9f0;border-radius:6px;padding:6px 8px;font:inherit;font-weight:700;color:#000E31"></div>'
+      +'<div><label style="display:block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#8a93a8;margin-bottom:5px">Business value</label><div id="reBizVal" style="font-weight:800;color:#000E31;font-size:15px;padding:6px 0;font-variant-numeric:tabular-nums">'+(_bizPriceN()>0?_money(String(_bizPriceN())):'—')+'</div></div>'
+      +'<div style="flex:1;min-width:190px;color:#8a93a8;font-size:11.5px;align-self:center;line-height:1.45">Asking price minus real estate = the business value the earnings multiple is measured against.</div>'
+    +'</div></div>';
   var priceForm=canPrice?('<div id="priceForm" style="display:none;margin-top:12px;padding:12px 14px;border:1px solid #e6e9f0;border-radius:10px;background:#f7f9fc"><div style="font-weight:800;color:#000E31;font-size:12.5px;margin-bottom:9px">Change asking price</div><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end"><div><label style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#8a93a8;display:block;margin-bottom:4px">New price</label><input id="pf_price" placeholder="e.g. $1,150,000" style="border:1px solid #cfd6e2;border-radius:8px;padding:8px 10px;font:inherit"></div><div style="flex:1;min-width:170px"><label style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#8a93a8;display:block;margin-bottom:4px">Reason (optional)</label><input id="pf_note" placeholder="e.g. Price reduction per seller" style="width:100%;border:1px solid #cfd6e2;border-radius:8px;padding:8px 10px;font:inherit"></div><button type="button" onclick="savePrice()" style="background:#DA2B1F;color:#fff;border:none;border-radius:8px;padding:9px 16px;font:inherit;font-weight:700;cursor:pointer">Save price</button><button type="button" onclick="togglePriceForm(false)" style="background:#fff;border:1px solid #cdd6e6;border-radius:8px;padding:9px 14px;font:inherit;font-weight:700;color:#33415c;cursor:pointer">Cancel</button></div><div id="pf_msg" style="font-size:12px;color:#DA2B1F;margin-top:7px"></div></div>'):'';
   var f3y=_fin3y();
   var lbl=function(i){ return '<th style="padding:4px 5px"><input data-f3y="label" data-i="'+i+'" value="'+esc(f3y[i].label)+'" oninput="fin3yInput()" placeholder="Year" style="width:82px;text-align:center;font-weight:800;color:#000E31;border:1px solid #dfe4ec;border-radius:6px;padding:4px 6px;font:inherit;font-size:12px;background:#f5f7fb"></th>'; };
@@ -735,7 +749,7 @@ function financialsCard(){
   var histHtml=''; if(hist.length){ var rows=hist.map(function(h,i){ return _histRow(h, i===0 && !h.prev); }).reverse().join(''); histHtml='<div style="margin-top:16px"><div style="font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8;margin-bottom:2px">Price history</div>'+rows+'</div>'; }
   var bovLink=(fin.bovId)?('<a href="./rrg_bov_builder.html?bov='+encodeURIComponent(fin.bovId)+'" style="margin-left:auto;font-size:12px;font-weight:700;color:#23496f;text-decoration:none">Open BOV ↗</a>'):'';
   var finCard='<div class="card"><div class="ch"><b>Financials</b><span style="margin-left:8px">operating performance</span></div><div class="cb" style="padding-top:14px">'+table+'</div></div>';
-  var valCard='<div class="card"><div class="ch"><b>Valuation &amp; Pricing</b><span style="margin-left:8px">how the price is derived</span>'+bovLink+'</div><div class="cb" style="padding-top:14px"><div id="valBridge" style="margin:0 0 16px;padding:13px 15px;border:1px solid #e2e8f2;border-radius:10px;background:#f7faff">'+_valBridgeInner()+'</div>'+snap+priceForm+histHtml+'</div></div>';
+  var valCard='<div class="card"><div class="ch"><b>Valuation &amp; Pricing</b><span style="margin-left:8px">how the price is derived</span>'+bovLink+'</div><div class="cb" style="padding-top:14px"><div id="valBridge" style="margin:0 0 16px;padding:13px 15px;border:1px solid #e2e8f2;border-radius:10px;background:#f7faff">'+_valBridgeInner()+'</div>'+snap+reBlock+priceForm+histHtml+'</div></div>';
   return '<div id="finCardHost">'+finCard+valCard+'</div>';
 }
 function refreshFinancials(){ var host=document.getElementById('finCardHost'); if(host){ var tmp=document.createElement('div'); tmp.innerHTML=financialsCard(); var fresh=tmp.firstChild; if(fresh&&host.parentNode) host.parentNode.replaceChild(fresh,host); } var av=document.getElementById('ovAskVal'); if(av) av.textContent=(_money(A.listPrice)||'—'); }

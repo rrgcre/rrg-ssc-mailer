@@ -5695,6 +5695,7 @@ function assignmentView(d, overlay, _opts) {
     assignmentType: (['tenant_rep','landlord_rep'].indexOf(o.assignmentType) >= 0 ? o.assignmentType : 'listing'), criteria: (o.criteria && typeof o.criteria === 'object') ? o.criteria : {}, space: (o.space && typeof o.space === 'object') ? o.space : {},
     transaction: (o.transaction && typeof o.transaction === 'object') ? o.transaction : null,
     value: (bov && (bov.targetText || bov.rangeText)) || o.valueOverride || '', basis: (bov && bov.basis) || o.basisOverride || '', valueBov: !!(bov && (bov.targetText || bov.rangeText)), basisBov: !!(bov && bov.basis),
+    reIncluded: !!o.reIncluded, reValue: o.reValue || '',   // real estate sold with the business: allocate a portion of the price to the property
     // Financials auto-populated from the valuation (BOV) — no re-keying; always in sync with
     // the latest generated valuation, which itself now reflects the Seller Interview.
     financials: bov ? { valueTarget: bov.targetText || '', valueRange: bov.rangeText || '', revenue: bov.revText || bovRevenueText(bov) || '', sde: bov.sdeText || '', multiple: bov.multText || '', ebitda: bov.ebitdaText || '', basis: bov.basis || '', units: bovUnits(bov), bovId: bov.id, state: bov.finalizedAt ? 'final' : (bov.aiGenerated ? 'built' : 'requested') } : null,
@@ -6696,6 +6697,8 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   if (b.space && typeof b.space === 'object') cur.space = _cleanSpace(b.space);
   if (typeof b.valueOverride === 'string') cur.valueOverride = b.valueOverride.slice(0, 60);   // manual opinion-of-value when no BOV
   if (typeof b.basisOverride === 'string') cur.basisOverride = b.basisOverride.slice(0, 60);
+  if (typeof b.reIncluded === 'boolean') cur.reIncluded = b.reIncluded;                          // real estate part of the sale?
+  if (typeof b.reValue === 'string') cur.reValue = b.reValue.replace(/[^0-9.]/g, '').slice(0, 40); // allocated real-estate value
   if (typeof b.pipelineId === 'string') cur.pipelineId = b.pipelineId.slice(0, 40);
   cur.updatedAt = new Date().toISOString();
   overlay[d.key] = cur; saveAssignOverlay(overlay);
