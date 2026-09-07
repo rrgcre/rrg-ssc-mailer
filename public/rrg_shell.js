@@ -188,9 +188,11 @@
     { grp: 'Landlord Rep', color: '#c98a5e', items: [
       { ic: '⊞', label: 'Space Listings', href: 'rrg_landlord_rep.html' }
     ] },
+    { grp: 'Mass Email', admin: true, color: '#d072b0', items: [
+      { ic: '✉', label: 'Campaigns', href: 'rrg_mass_studio.html', admin: true },
+      { ic: '☷', label: 'Subscribers', href: 'rrg_mail_subscribers.html', admin: true }
+    ] },
     { grp: 'Marketing', color: '#c77dc0', items: [
-      { ic: '✉', label: 'Bulk Email', href: 'rrg_mass_studio.html', admin: true },
-      { ic: '☷', label: 'Subscribers', href: 'rrg_mail_subscribers.html', admin: true },
       { ic: '✎', label: 'Email Templates', href: 'rrg_email_templates.html' },
       { ic: '▧', label: 'Marketing Packs', href: 'rrg_cim_queue.html' },
       { ic: '➤', label: 'Market Attack Plans', href: 'rrg_attack_queue.html' },
