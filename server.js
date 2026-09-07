@@ -8404,6 +8404,21 @@ function loadInvoices() { try { return rj(INVOICES_FILE) || []; } catch (e) { re
 function saveInvoices(a) { return writeJsonGuarded(INVOICES_FILE, a, 'saveInvoices'); }
 function newInvoiceId() { return 'inv_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function newPaymentId() { return 'pay_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function newItemId() { return 'itm_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+// Firm-wide catalog of billable items & services (reusable invoice line templates).
+function cleanInvoiceItems(arr) {
+  if (!Array.isArray(arr)) return [];
+  const seen = {}; const out = [];
+  arr.forEach(it => {
+    const name = String((it && it.name) || '').trim().slice(0, 120);
+    if (!name) return;
+    let id = String((it && it.id) || '').trim().slice(0, 40); if (!id || seen[id]) id = newItemId(); seen[id] = 1;
+    const hasRate = it && it.rate !== '' && it.rate != null;
+    out.push({ id: id, name: name, desc: String((it && it.desc) || '').slice(0, 300), rate: hasRate ? _glR2(_expNum(it.rate)) : '', account: String((it && it.account) || '').slice(0, 20) });
+  });
+  return out.slice(0, 300);
+}
+function invoiceItems() { return cleanInvoiceItems(loadSettings().invoiceItems); }
 function nextInvoiceNumber(all) { let mx = 1000; all.forEach(x => { const n = parseInt(String(x.number || '').replace(/\D/g, ''), 10); if (isFinite(n) && n > mx) mx = n; }); return 'INV-' + (mx + 1); }
 function cleanLineItems(arr) {
   if (!Array.isArray(arr)) return [];
@@ -8494,13 +8509,13 @@ app.get('/api/invoices', (req, res) => {
   const filt = req.query.listingKey ? all.filter(x => x.listingKey === req.query.listingKey) : all;
   const vis = filt.filter(x => admin || x.ownerUser === u.username);
   const rows = vis.map(x => invoiceBrief(x, u)).sort((a, b) => String(b.issueDate || '').localeCompare(String(a.issueDate || '')) || String(b.number).localeCompare(String(a.number)));
-  res.json({ ok: true, isAdmin: !!admin, statuses: INVOICE_STATUSES, methods: paymentMethods(), terms: invoiceTerms(), stripeEnabled: stripeReady(), taxDefault: { rate: Number(loadSettings().taxRate || 0) || 0, label: loadSettings().taxLabel || 'Sales Tax' }, lineDetail: !!loadSettings().invoiceLineDetail, incomeAccounts: loadGlAccounts().filter(a => a.type === 'Income').map(a => ({ code: a.code, name: a.name })), invoices: rows });
+  res.json({ ok: true, isAdmin: !!admin, statuses: INVOICE_STATUSES, methods: paymentMethods(), terms: invoiceTerms(), stripeEnabled: stripeReady(), taxDefault: { rate: Number(loadSettings().taxRate || 0) || 0, label: loadSettings().taxLabel || 'Sales Tax' }, lineDetail: !!loadSettings().invoiceLineDetail, incomeAccounts: loadGlAccounts().filter(a => a.type === 'Income').map(a => ({ code: a.code, name: a.name })), items: invoiceItems(), invoices: rows });
 });
 app.get('/api/invoices/:id', (req, res) => {
   const u = req.user || {}; const x = loadInvoices().find(e => e.id === req.params.id);
   if (!x) return res.status(404).json({ ok: false, error: 'Invoice not found.' });
   if (!(isSuper(u) || x.ownerUser === u.username)) return res.status(403).json({ ok: false, error: 'Not yours.' });
-  res.json({ ok: true, statuses: INVOICE_STATUSES, methods: paymentMethods(), terms: invoiceTerms(), stripeEnabled: stripeReady(), taxDefault: { rate: Number(loadSettings().taxRate || 0) || 0, label: loadSettings().taxLabel || 'Sales Tax' }, lineDetail: !!loadSettings().invoiceLineDetail, incomeAccounts: loadGlAccounts().filter(a => a.type === 'Income').map(a => ({ code: a.code, name: a.name })), invoice: invoiceBrief(x, u, { full: true }) });
+  res.json({ ok: true, statuses: INVOICE_STATUSES, methods: paymentMethods(), terms: invoiceTerms(), stripeEnabled: stripeReady(), taxDefault: { rate: Number(loadSettings().taxRate || 0) || 0, label: loadSettings().taxLabel || 'Sales Tax' }, lineDetail: !!loadSettings().invoiceLineDetail, incomeAccounts: loadGlAccounts().filter(a => a.type === 'Income').map(a => ({ code: a.code, name: a.name })), items: invoiceItems(), invoice: invoiceBrief(x, u, { full: true }) });
 });
 app.post('/api/invoices', express.json({ limit: '512kb' }), (req, res) => {
   const u = req.user || {}; const b = req.body || {}; const all = loadInvoices();
@@ -8570,7 +8585,7 @@ app.delete('/api/invoices/:id/payment/:pid', (req, res) => {
 });
 // Accounting basis — accrual (revenue when invoiced) vs cash (revenue when collected).
 function effAccountingBasis() { return loadSettings().accountingBasis === 'cash' ? 'cash' : 'accrual'; }
-app.get('/api/admin/accounting', (req, res) => { res.json({ ok: true, basis: effAccountingBasis(), invoiceTerms: invoiceTerms(), paymentMethods: paymentMethods(), taxRate: Number(loadSettings().taxRate || 0) || 0, taxLabel: loadSettings().taxLabel || 'Sales Tax', lineDetail: !!loadSettings().invoiceLineDetail, isAdmin: !!(req.user && isSuper(req.user)) }); });
+app.get('/api/admin/accounting', (req, res) => { res.json({ ok: true, basis: effAccountingBasis(), invoiceTerms: invoiceTerms(), paymentMethods: paymentMethods(), taxRate: Number(loadSettings().taxRate || 0) || 0, taxLabel: loadSettings().taxLabel || 'Sales Tax', lineDetail: !!loadSettings().invoiceLineDetail, invoiceItems: invoiceItems(), incomeAccounts: loadGlAccounts().filter(a => a.type === 'Income').map(a => ({ code: a.code, name: a.name })), isAdmin: !!(req.user && isSuper(req.user)) }); });
 // Admin-editable default sales tax applied to new invoices.
 app.post('/api/admin/invoice-tax', express.json(), (req, res) => {
   if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Admins only.' });
@@ -8609,6 +8624,15 @@ app.post('/api/admin/payment-methods', express.json(), (req, res) => {
 
   saveSettings(s);
   res.json({ ok: true, paymentMethods: paymentMethods() });
+});
+// Admin-editable Items & Services catalog — reusable invoice line templates (name, description, rate, income account).
+app.post('/api/admin/invoice-items', express.json({ limit: '256kb' }), (req, res) => {
+  if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Admins only.' });
+  const clean = cleanInvoiceItems(Array.isArray((req.body || {}).items) ? req.body.items : []);
+  const s = loadSettings();
+  if (clean.length) s.invoiceItems = clean; else delete s.invoiceItems;
+  saveSettings(s);
+  res.json({ ok: true, invoiceItems: invoiceItems() });
 });
 /* ===================== Online payments (Stripe) ===================== */
 function stripeCfg() { const c = loadSettings().stripe; return (c && typeof c === 'object') ? c : {}; }
