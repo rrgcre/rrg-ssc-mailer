@@ -1501,6 +1501,10 @@ function loadEmailConfig() {
 function saveEmailConfig(c) { return writeJsonGuarded(EMAIL_CFG_FILE, c, 'saveEmailConfig'); }
 function isEmailConfigured() { const c = loadEmailConfig(); return !!(c.enabled && c.host); }
 function mailFrom() { return loadEmailConfig().from; }
+// Bare sending address (SPF/DKIM domain) pulled out of the configured From, whatever form it's in.
+function _fromAddr() { const f = mailFrom(); const m = String(f || '').match(/<([^>]+)>/); return m ? m[1].trim() : String(f || '').trim(); }
+// From header that DISPLAYS a person's name while still sending from the authenticated mailbox — e.g. recipient sees "Van Duong" not "van@rrgcre.com".
+function mailFromAs(name) { const addr = _fromAddr(); if (!addr) return mailFrom(); const nm = String(name || '').trim(); return nm ? { name: nm, address: addr } : addr; }
 function newOpenToken() { return 'eo_' + crypto.randomBytes(16).toString('base64url'); }
 function _escHtmlBody(x) { return String(x == null ? '' : x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 function htmlToText(h){ return String(h||'').replace(/<\s*br\s*\/?>/gi,'\n').replace(/<\/(p|div|li|h[1-6])>/gi,'\n').replace(/<li[^>]*>/gi,'\u2022 ').replace(/<[^>]+>/g,'').replace(/&nbsp;/gi,' ').replace(/&amp;/gi,'&').replace(/&lt;/gi,'<').replace(/&gt;/gi,'>').replace(/&quot;/gi,'"').replace(/&#39;/gi,"'").replace(/\n{3,}/g,'\n\n').trim(); }
@@ -7878,7 +7882,26 @@ function _seedDataRoom(a) {
   try { writeJsonGuarded(EMAIL_TPL_FILE, a, 'seedDataRoom'); fs.writeFileSync(EMAIL_TPL_DATAROOM_FLAG, JSON.stringify({ seededAt: new Date().toISOString() })); } catch (e) {}
   return a;
 }
-function loadEmailTpls() { try { return _seedDataRoom(_seedRefIntro(_seedCimFollowup(_seedProofOfFunds(_seedSendBov(_retireBovVariants(_seedBrokerTemplates(_seedEmailTpls(rj(EMAIL_TPL_FILE) || [])))))))); } catch (e) { return []; } }
+const EMAIL_TPL_MEETINV_FLAG = path.join(BOV_DATA_DIR, 'email_templates_meetinginvite_seeded_v1.flag');
+const MEETINV_TPL_ID = 'etpl_meeting_invite';
+const MEETINV_TPL_NAME = 'Meeting invitation (calendar)';
+const MEETINV_TPL_SUBJECT = 'Invitation: {{meeting_title}}';
+const MEETINV_TPL_BODY =
+  '<p>Hi {{first_name}},</p>' +
+  '<p>I’d like to confirm our meeting. The details are below — a calendar invite is attached, so you can add it to your calendar with one click.</p>' +
+  '<p>{{meeting_details}}</p>' +
+  '<p>{{meeting_notes}}</p>' +
+  '<p>If this time doesn’t work or anything changes on your end, just let me know and we’ll find a better slot. Looking forward to it.</p>' +
+  '<p>Best,<br>{{my_name}}</p>';
+function _seedMeetingInvite(a) {
+  try { if (fs.existsSync(EMAIL_TPL_MEETINV_FLAG)) return a; } catch (e) { return a; }
+  var idx = a.findIndex(function (t) { return t.id === MEETINV_TPL_ID; });
+  if (idx >= 0) { a[idx].name = MEETINV_TPL_NAME; a[idx].subject = MEETINV_TPL_SUBJECT; a[idx].body = MEETINV_TPL_BODY; a[idx].category = 'General'; a[idx].greeting = 'none'; a[idx].updatedAt = new Date().toISOString(); }
+  else { a.push({ id: MEETINV_TPL_ID, name: MEETINV_TPL_NAME, category: 'General', scope: 'shared', ownerUser: '', ownerName: 'RRG', greeting: 'none', subject: MEETINV_TPL_SUBJECT, body: MEETINV_TPL_BODY, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), seeded: true }); }
+  try { writeJsonGuarded(EMAIL_TPL_FILE, a, 'seedMeetingInvite'); fs.writeFileSync(EMAIL_TPL_MEETINV_FLAG, JSON.stringify({ seededAt: new Date().toISOString() })); } catch (e) {}
+  return a;
+}
+function loadEmailTpls() { try { return _seedMeetingInvite(_seedDataRoom(_seedRefIntro(_seedCimFollowup(_seedProofOfFunds(_seedSendBov(_retireBovVariants(_seedBrokerTemplates(_seedEmailTpls(rj(EMAIL_TPL_FILE) || []))))))))); } catch (e) { return []; } }
 function saveEmailTpls(a) { return writeJsonGuarded(EMAIL_TPL_FILE, a, 'saveEmailTpls'); }
 function newEmailTplId() { return 'etpl_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 const TPL_CATEGORIES = ['Buyer', 'Seller', 'NDA', 'Follow-up', 'Closing', 'General'];
@@ -15818,26 +15841,27 @@ function _apptReminderIso(start, mins) { try { const d = new Date(start); if (is
 function _apptStep(iso, repeat, n) { try { const d = new Date(iso); if (isNaN(d.getTime())) return iso; if (repeat === 'weekly') d.setDate(d.getDate() + 7 * n); else if (repeat === 'biweekly') d.setDate(d.getDate() + 14 * n); else if (repeat === 'monthly') d.setMonth(d.getMonth() + n); return _apptFmt(d); } catch (e) { return iso; } }
 const APPT_TYPES = ['Meeting', 'Call', 'Tour', 'Listing Presentation', 'Closing', 'Follow-up', 'Other'];
 function _cleanAttendees(arr) { return (Array.isArray(arr) ? arr : []).slice(0, 20).map(function (x) { return { name: String((x && x.name) || '').slice(0, 120), email: String((x && x.email) || '').slice(0, 160).trim() }; }).filter(function (x) { return x.name || x.email; }); }
-function apptBrief(a) { return { id: a.id, title: a.title || '', contactPersonId: a.contactPersonId || '', contactName: a.contactName || '', companyId: a.companyId || '', start: a.start || '', end: a.end || '', allDay: !!a.allDay, location: a.location || '', type: a.type || '', notes: a.notes || '', attendees: Array.isArray(a.attendees) ? a.attendees : [], cc: Array.isArray(a.cc) ? a.cc : [], bcc: Array.isArray(a.bcc) ? a.bcc : [], byUser: a.byUser || '', byName: a.byName || '', status: a.status || 'scheduled', source: a.source || '', invitedAt: a.invitedAt || '', meetUrl: a.meetUrl || '', googleEventId: a.googleEventId || '', files: Array.isArray(a.files) ? a.files : [], remMinutes: (a.remMinutes == null ? '' : a.remMinutes), remChannels: Array.isArray(a.remChannels) ? a.remChannels : [], reminder: a.reminder || '', seriesId: a.seriesId || '', repeat: a.repeat || '', autoId: a.autoId || '', notetakerId: a.notetakerId || '', notetakerIds: Array.isArray(a.notetakerIds) ? a.notetakerIds : [], createdAt: a.createdAt || '', updatedAt: a.updatedAt || '' }; }
+function apptBrief(a) { return { id: a.id, title: a.title || '', contactPersonId: a.contactPersonId || '', contactName: a.contactName || '', companyId: a.companyId || '', start: a.start || '', end: a.end || '', allDay: !!a.allDay, location: a.location || '', type: a.type || '', notes: a.notes || '', attendees: Array.isArray(a.attendees) ? a.attendees : [], cc: Array.isArray(a.cc) ? a.cc : [], bcc: Array.isArray(a.bcc) ? a.bcc : [], byUser: a.byUser || '', byName: a.byName || '', status: a.status || 'scheduled', source: a.source || '', invitedAt: a.invitedAt || '', meetUrl: a.meetUrl || '', googleEventId: a.googleEventId || '', files: Array.isArray(a.files) ? a.files : [], remMinutes: (a.remMinutes == null ? '' : a.remMinutes), remChannels: Array.isArray(a.remChannels) ? a.remChannels : [], reminders: Array.isArray(a.reminders) ? a.reminders : [], reminder: a.reminder || '', seriesId: a.seriesId || '', repeat: a.repeat || '', autoId: a.autoId || '', notetakerId: a.notetakerId || '', notetakerIds: Array.isArray(a.notetakerIds) ? a.notetakerIds : [], createdAt: a.createdAt || '', updatedAt: a.updatedAt || '' }; }
 function apptIcs(a) {
   function e(s) { return String(s || '').replace(/([,;\\])/g, '\\$1').replace(/\r?\n/g, '\\n'); }
   function dt(s) { var m = String(s || '').match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/); return m ? (m[1] + m[2] + m[3] + 'T' + m[4] + m[5] + '00') : ''; }
   var start = dt(a.start), end = dt(a.end) || start;
-  var org = mailFrom() || 'no-reply@rrgcre.com';
+  var org = _fromAddr() || 'no-reply@rrgcre.com';
+  var orgCn = e(a.byName || '');
   var att = (a.attendees || []).filter(function (x) { return x.email; }).map(function (x) { return 'ATTENDEE;CN=' + e(x.name || x.email) + ':mailto:' + x.email; }).join('\r\n');
   var stamp = dt(new Date().toISOString());
   var _desc = [a.meetUrl ? ('Join the Google Meet: ' + a.meetUrl) : '', a.notes || ''].filter(Boolean).join('\n\n');
-  var lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//RRG//FullServe//EN', 'CALSCALE:GREGORIAN', 'METHOD:REQUEST', 'BEGIN:VEVENT', 'UID:' + a.id + '@rrgcre', 'DTSTAMP:' + stamp + 'Z', 'DTSTART:' + start, 'DTEND:' + end, 'SUMMARY:' + e(a.title || 'Meeting'), (a.location ? 'LOCATION:' + e(a.location) : ''), (_desc ? 'DESCRIPTION:' + e(_desc) : ''), 'ORGANIZER:mailto:' + org, att, 'STATUS:CONFIRMED', 'END:VEVENT', 'END:VCALENDAR'].filter(Boolean);
+  var lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//RRG//FullServe//EN', 'CALSCALE:GREGORIAN', 'METHOD:REQUEST', 'BEGIN:VEVENT', 'UID:' + a.id + '@rrgcre', 'DTSTAMP:' + stamp + 'Z', 'DTSTART:' + start, 'DTEND:' + end, 'SUMMARY:' + e(a.title || 'Meeting'), (a.location ? 'LOCATION:' + e(a.location) : ''), (_desc ? 'DESCRIPTION:' + e(_desc) : ''), (orgCn ? ('ORGANIZER;CN=' + orgCn + ':mailto:' + org) : ('ORGANIZER:mailto:' + org)), att, 'STATUS:CONFIRMED', 'END:VEVENT', 'END:VCALENDAR'].filter(Boolean);
   return lines.join('\r\n');
 }
-async function sendInviteMail(to, subject, text, ics, cc, bcc) {
+async function sendInviteMail(to, subject, text, ics, cc, bcc, fromName, replyTo, html) {
   try {
     if (!isEmailConfigured()) return { ok: false, skipped: true };
     const list = (Array.isArray(to) ? to : [to]).filter(Boolean).join(', ');
     if (!list) return { ok: false, skipped: true };
     const ccList = (Array.isArray(cc) ? cc : (cc ? [cc] : [])).filter(Boolean).join(', ');
     const bccList = (Array.isArray(bcc) ? bcc : (bcc ? [bcc] : [])).filter(Boolean).join(', ');
-    const info = await sendMailWL({ from: mailFrom(), to: list, cc: ccList || undefined, bcc: bccList || undefined, subject: String(subject || '').slice(0, 200), text: String(text || ''), icalEvent: ics ? { method: 'REQUEST', content: ics } : undefined, attachments: ics ? [{ filename: 'invite.ics', content: ics, contentType: 'text/calendar; method=REQUEST' }] : undefined });
+    const info = await sendMailWL({ from: mailFromAs(fromName), replyTo: (replyTo && String(replyTo).indexOf('@') > 0) ? replyTo : undefined, to: list, cc: ccList || undefined, bcc: bccList || undefined, subject: String(subject || '').slice(0, 200), text: String(text || ''), html: html || undefined, icalEvent: ics ? { method: 'REQUEST', content: ics } : undefined, attachments: ics ? [{ filename: 'invite.ics', content: ics, contentType: 'text/calendar; method=REQUEST' }] : undefined });
     return { ok: true, id: info.messageId };
   } catch (e) { console.error('invite mail error:', e && e.message); return { ok: false, error: String((e && e.message) || e) }; }
 }
@@ -15921,11 +15945,27 @@ app.post('/api/appointments', express.json(), (req, res) => {
   if (b.bcc !== undefined) a.bcc = cleanList(Array.isArray(b.bcc) ? b.bcc : String(b.bcc || '').split(/[,;\s]+/), 20, 160);
   if (typeof b.status === 'string' && ['scheduled', 'cancelled'].indexOf(b.status) >= 0) a.status = b.status;
   // Per-meeting reminder — fires from the reminder sender (same engine as tasks).
-  if (b.remMinutes !== undefined) {
-    const rm = (b.remMinutes === '' || b.remMinutes == null) ? '' : Math.max(0, Math.min(43200, parseInt(b.remMinutes, 10) || 0));
-    a.remMinutes = rm;
+  if (b.reminders !== undefined || b.remMinutes !== undefined) {
+    let rems = [];
+    if (Array.isArray(b.reminders)) {
+      const seen = {};
+      b.reminders.forEach(r => {
+        const raw = (r && typeof r === 'object') ? r.minutes : r;
+        if (raw === '' || raw == null) return;
+        const mm = Math.max(0, Math.min(43200, parseInt(raw, 10)));
+        if (!isFinite(mm) || seen[mm]) return; seen[mm] = 1;
+        rems.push({ minutes: mm, sent: false });
+      });
+      rems = rems.sort((x, y) => y.minutes - x.minutes).slice(0, 8);   // earliest (largest offset) first
+    } else if (b.remMinutes !== '' && b.remMinutes != null) {
+      rems = [{ minutes: Math.max(0, Math.min(43200, parseInt(b.remMinutes, 10) || 0)), sent: false }];
+    }
+    a.reminders = rems;
     a.remChannels = Array.isArray(b.remChannels) ? b.remChannels.filter(c => ['popup', 'email', 'sms'].indexOf(c) >= 0) : (a.remChannels || ['popup', 'email']);
-    a.reminder = (rm === '') ? '' : _apptReminderIso(a.start, rm);
+    // Keep the legacy single-reminder fields in sync (earliest reminder) for older consumers / Google sync.
+    const _earliest = rems.length ? rems[0].minutes : '';
+    a.remMinutes = _earliest;
+    a.reminder = (_earliest === '') ? '' : _apptReminderIso(a.start, _earliest);
     a.remSent = false;
   }
   a.updatedAt = now;
@@ -15960,7 +16000,7 @@ app.post('/api/appointments', express.json(), (req, res) => {
     const cnt = Math.max(1, Math.min(60, parseInt(b.repeatCount, 10) || 12));
     for (let i = 1; i < cnt; i++) {
       const st2 = _apptStep(a.start, _rep, i), en2 = a.end ? _apptStep(a.end, _rep, i) : '';
-      all.push(Object.assign({}, a, { id: newApptId(), start: st2, end: en2, reminder: (a.remMinutes === '' || a.remMinutes == null) ? '' : _apptReminderIso(st2, a.remMinutes), remSent: false, seriesId: a.id, googleEventId: '', meetUrl: '', invitedAt: '', createdAt: now, updatedAt: now }));
+      all.push(Object.assign({}, a, { id: newApptId(), start: st2, end: en2, reminders: (Array.isArray(a.reminders) ? a.reminders.map(r => ({ minutes: r.minutes, sent: false })) : []), reminder: (a.remMinutes === '' || a.remMinutes == null) ? '' : _apptReminderIso(st2, a.remMinutes), remSent: false, seriesId: a.id, googleEventId: '', meetUrl: '', invitedAt: '', createdAt: now, updatedAt: now }));
     }
   }
   saveAppts(all);
@@ -15973,8 +16013,33 @@ app.post('/api/appointments/:id/invite', express.json(), async (req, res) => {
   const to = (a.attendees || []).map(x => x.email).filter(Boolean);
   if (!to.length) return res.status(400).json({ ok: false, error: 'Add at least one attendee email first.' });
   const when = String(a.start || '').replace('T', ' at ') + (a.end ? (' – ' + String(a.end).replace(/^.*T/, '')) : '');
-  const text = 'You are invited: ' + (a.title || 'Meeting') + '\n\nWhen: ' + when + (a.location ? ('\nWhere: ' + a.location) : '') + (a.notes ? ('\n\n' + a.notes) : '') + '\n\n— ' + (a.byName || 'Restaurant Realty Group');
-  const r = await sendInviteMail(to, 'Invitation: ' + (a.title || 'Meeting'), text, apptIcs(a), a.cc || [], a.bcc || []);
+  let _repEmail = (req.user && req.user.email) || ''; if (!_repEmail && a.byUser) { try { const _ru = auth.loadUsers().find(x => x.username === a.byUser); if (_ru && _ru.email) _repEmail = _ru.email; } catch (e) {} }
+  // Default (fallback) invite — used if the editable template is missing or blank.
+  let subject = 'Invitation: ' + (a.title || 'Meeting');
+  let text = 'You are invited: ' + (a.title || 'Meeting') + '\n\nWhen: ' + when + (a.location ? ('\nWhere: ' + a.location) : '') + (a.notes ? ('\n\n' + a.notes) : '') + '\n\n— ' + (a.byName || 'Restaurant Realty Group');
+  let html = '';
+  try {
+    const _tpl = loadEmailTpls().find(t => t && t.id === MEETINV_TPL_ID);
+    if (_tpl && String(_tpl.body || '').trim()) {
+      // Whom to greet: the linked contact, else the first attendee.
+      let _person = null; try { if (a.contactPersonId) _person = loadPeople().find(x => x.id === a.contactPersonId) || null; } catch (e) {}
+      if (!_person) _person = { name: a.contactName || ((a.attendees || [])[0] || {}).name || '', email: to[0] || '' };
+      // Meeting-specific tokens (HTML-escaped for the body; the details block only shows lines that have a value).
+      const _rows = ['<b>' + _escHtmlBody(a.title || 'Meeting') + '</b>', 'When: ' + _escHtmlBody(when)];
+      if (a.location) _rows.push('Where: ' + _escHtmlBody(a.location));
+      if (a.meetUrl) _rows.push('Join: <a href="' + _escHtmlBody(a.meetUrl) + '">' + _escHtmlBody(a.meetUrl) + '</a>');
+      const _mtHtml = { meeting_title: _escHtmlBody(a.title || 'Meeting'), meeting_when: _escHtmlBody(when), meeting_where: _escHtmlBody(a.location || ''), meeting_notes: _escHtmlBody(a.notes || ''), meeting_join_link: _escHtmlBody(a.meetUrl || ''), join_link: _escHtmlBody(a.meetUrl || ''), meeting_details: _rows.join('<br>') };
+      const _mtText = { meeting_title: (a.title || 'Meeting'), meeting_when: when, meeting_where: (a.location || ''), meeting_notes: (a.notes || ''), meeting_join_link: (a.meetUrl || ''), join_link: (a.meetUrl || ''), meeting_details: [(a.title || 'Meeting'), 'When: ' + when, (a.location ? ('Where: ' + a.location) : ''), (a.meetUrl ? ('Join: ' + a.meetUrl) : '')].filter(Boolean).join('\n') };
+      const _fillMeet = (s, mt) => String(s || '').replace(/\{\{\s*(meeting_title|meeting_when|meeting_where|meeting_notes|meeting_join_link|join_link|meeting_details)\s*\}\}/gi, (_, k) => mt[k.toLowerCase()] || '');
+      subject = (mergeTokens(_fillMeet(_tpl.subject || subject, _mtText), _person, req.user || {}) || subject).replace(/\s+/g, ' ').trim();
+      const _bodyRendered = mergeTokens(_fillMeet(_tpl.body, _mtHtml), _person, req.user || {});
+      const _sigHtml = userSignatureHtml((req.user && req.user.username), req.user);
+      const _sigTxt = userSignatureText((req.user && req.user.username), req.user);
+      html = trackedEmailHtml(_bodyRendered, '', '', _sigHtml);
+      text = htmlToText(mergeTokens(_fillMeet(_tpl.body, _mtText), _person, req.user || {})) + (_sigTxt ? ('\n\n' + _sigTxt) : '');
+    }
+  } catch (e) { console.error('meeting invite template render:', e && e.message); }
+  const r = await sendInviteMail(to, subject, text, apptIcs(a), a.cc || [], a.bcc || [], a.byName, _repEmail, html || undefined);
   if (!r.ok) return res.status(500).json({ ok: false, error: r.error || 'Could not send the invite.' });
   a.invitedAt = new Date().toISOString(); saveAppts(all);
   res.json({ ok: true, sentTo: to });
@@ -16271,7 +16336,7 @@ app.post('/api/book/:token', express.json(), async (req, res) => {
       const when = start.replace('T', ' at ');
       const mUrl = (appBaseUrl() || (req.protocol + '://' + req.get('host'))) + '/book/manage/' + a.manageToken;
       const _joinLine = a.meetUrl ? ('\nJoin the Google Meet: ' + a.meetUrl) : (a.meetMode === 'meet' ? '\nA Google Meet link will be sent to you shortly.' : '');
-      await sendInviteMail([email], 'Booked: ' + a.title, 'Your meeting is booked for ' + when + (a.location ? ('\nWhere: ' + a.location) : '') + _joinLine + '\n\n— ' + a.byName + '\n\nNeed to change it? Reschedule or cancel here:\n' + mUrl, apptIcs(a), [], []);
+      await sendInviteMail([email], 'Booked: ' + a.title, 'Your meeting is booked for ' + when + (a.location ? ('\nWhere: ' + a.location) : '') + _joinLine + '\n\n— ' + a.byName + '\n\nNeed to change it? Reschedule or cancel here:\n' + mUrl, apptIcs(a), [], [], a.byName, (prof.email || ''));
       const _ownerMeetNote = (a.meetMode === 'meet' && !a.meetUrl) ? '\n\nHeads up: this is a Google Meet booking but a link was not created automatically (connect Google Calendar + Meet, or open the meeting and add a Meet link). The guest was told a link is coming shortly.' : (a.meetUrl ? ('\n\nGoogle Meet: ' + a.meetUrl) : '');
       const ownerEmail = (prof.email || '').trim(); if (ownerEmail) sendNotifyMail(ownerEmail, 'New booking: ' + name, name + ' (' + email + ') booked ' + when + '.' + _ownerMeetNote + (_answered.length ? ('\n\n' + _answered.map(x => x.q + ': ' + x.a).join('\n')) : '')).catch(() => {});
     }
@@ -18173,8 +18238,9 @@ function runReminderSender() {
     // Meeting reminders — same engine, over appointments.
     const appts = loadAppts(); let apChanged = false;
     appts.forEach(a => {
-      if (a.status !== 'cancelled' && a.reminder && !a.remSent && String(a.reminder).slice(0, 16) <= nowIso) {
-        const ch = (Array.isArray(a.remChannels) && a.remChannels.length) ? a.remChannels : ['popup', 'email'];
+      if (a.status === 'cancelled') return;
+      const ch = (Array.isArray(a.remChannels) && a.remChannels.length) ? a.remChannels : ['popup', 'email'];
+      const _sendApptReminder = () => {
         const u = users.find(x => x.username === a.byUser);
         const to = u && u.email;
         const whenTxt = String(a.start || '').replace('T', ' ');
@@ -18185,10 +18251,22 @@ function runReminderSender() {
         if (ch.indexOf('sms') >= 0 && isSmsConfigured() && u && u.phone) { sendSms(u.phone, 'Reminder: ' + a.title + ' — ' + whenTxt + (a.location ? (' @ ' + a.location) : '')).catch(() => {}); }
         // Remind invited guests too — only when an invite was actually sent for this meeting.
         if (a.invitedAt && Array.isArray(a.attendees)) {
-          a.attendees.forEach(g => { if (g && g.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g.email)) sendMailWL({ from: mailFrom(), to: g.email, subject: 'Reminder: ' + a.title, text: 'A reminder of your upcoming meeting' + (a.byName ? (' with ' + a.byName) : '') + ':\n\n' + a.title + '\nWhen: ' + whenTxt + (a.location ? ('\nWhere: ' + a.location) : '') + (a.meetUrl ? ('\nVideo: ' + a.meetUrl) : '') }).catch(() => {}); });
+          const _gReplyTo = (u && u.email && String(u.email).indexOf('@') > 0) ? u.email : undefined;
+          a.attendees.forEach(g => { if (g && g.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g.email)) sendMailWL({ from: mailFromAs(a.byName), replyTo: _gReplyTo, to: g.email, subject: 'Reminder: ' + a.title, text: 'A reminder of your upcoming meeting' + (a.byName ? (' with ' + a.byName) : '') + ':\n\n' + a.title + '\nWhen: ' + whenTxt + (a.location ? ('\nWhere: ' + a.location) : '') + (a.meetUrl ? ('\nVideo: ' + a.meetUrl) : '') }).catch(() => {}); });
         }
-        a.remSent = true; apChanged = true;
+      };
+      let firedThis = false;
+      if (Array.isArray(a.reminders) && a.reminders.length) {
+        a.reminders.forEach(r => {
+          if (!r || r.sent) return;
+          const fireIso = _apptReminderIso(a.start, r.minutes);
+          if (!fireIso || String(fireIso).slice(0, 16) > nowIso) return;
+          _sendApptReminder(); r.sent = true; firedThis = true;
+        });
+      } else if (a.reminder && !a.remSent && String(a.reminder).slice(0, 16) <= nowIso) {
+        _sendApptReminder(); a.remSent = true; firedThis = true;
       }
+      if (firedThis) apChanged = true;
     });
     if (apChanged) saveAppts(appts);
   } catch (e) { console.error('reminder sender:', e && e.message); }

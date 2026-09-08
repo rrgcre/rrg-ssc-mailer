@@ -74,6 +74,11 @@ textarea{min-height:64px;resize:vertical;}
 .attrow input{font-size:13px;padding:7px 9px;}
 .axr{background:#fff;border:1px solid #f0c9c6;color:var(--red);border-radius:7px;width:32px;height:32px;font-size:15px;cursor:pointer;}
 .chk{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;margin-top:10px;}
+.remrow{display:flex;align-items:center;gap:7px;margin-bottom:6px;}
+.remrow .remoff{flex:1;min-width:0;}
+.remx{flex:none;width:30px;height:34px;border:1px solid var(--line,#cfd6e2);border-radius:8px;background:#fff;color:#b23a2c;font-size:18px;line-height:1;cursor:pointer;}
+.remx:hover{background:#fdeceb;}
+.remaddbtn{background:none;border:none;color:#2c5c8f;font-weight:700;font-size:12.5px;cursor:pointer;padding:2px 0;}
 .remchrow{display:flex;align-items:center;gap:12px;margin:8px 0 2px;flex-wrap:wrap;}
 .remchlbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);font-weight:700;}
 .chkmini{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;color:#3f4b63;cursor:pointer;}
@@ -219,7 +224,7 @@ a.feat:hover{background:#f4f7fb;} a.feat:hover b{color:var(--blue);}
       <div style="grid-column:span 2"><label class="fld">Location</label><input id="f_loc" placeholder="Address, video link, or phone"></div>
     </div>
     <div class="row2">
-      <div><label class="fld">Reminder</label><select id="f_remind" onchange="_remChToggle()"><option value="">No reminder</option><option value="0">At start time</option><option value="10">10 min before</option><option value="30">30 min before</option><option value="60">1 hour before</option><option value="120">2 hours before</option><option value="1440">1 day before</option></select></div>
+      <div><label class="fld">Reminders</label><div id="f_remList"></div><button type="button" class="remaddbtn" id="f_remAdd" onclick="_remAdd()">+ Add a reminder</button></div>
       <div id="f_repeatWrap"><label class="fld">Repeat</label><select id="f_repeat" onchange="_repToggle()"><option value="">Does not repeat</option><option value="weekly">Weekly</option><option value="biweekly">Every 2 weeks</option><option value="monthly">Monthly</option></select></div>
       <div id="f_repCntWrap" style="display:none"><label class="fld">Occurrences</label><input type="number" id="f_repeatCount" min="1" max="60" value="12"></div>
     </div>
@@ -408,7 +413,8 @@ function openForm(a,presetDate){
   renderNoteRow(a);
   renderAtt();
   // Reminder + repeat
-  var rem=document.getElementById('f_remind'); if(rem) rem.value=(a&&a.remMinutes!=null&&a.remMinutes!=='')?String(a.remMinutes):'';
+  var _rl=(a&&Array.isArray(a.reminders)&&a.reminders.length)?a.reminders.map(function(r){return (r&&typeof r==='object')?r.minutes:r;}):((a&&a.remMinutes!=null&&a.remMinutes!=='')?[a.remMinutes]:[]);
+  _remRender(_rl);
   var rc=(a&&Array.isArray(a.remChannels)&&a.remChannels.length)?a.remChannels:['popup','email']; document.querySelectorAll('.remch').forEach(function(cb){ cb.checked=rc.indexOf(cb.value)>=0; });
   var rep=document.getElementById('f_repeat'); if(rep){ rep.value=''; }
   var rpw=document.getElementById('f_repeatWrap'); if(rpw) rpw.style.display=a?'none':'';   // repeat only when creating
@@ -418,7 +424,12 @@ function openForm(a,presetDate){
   document.getElementById('modal').removeAttribute('hidden');
   setTimeout(function(){try{document.getElementById('f_title').focus();}catch(e){}},30);
 }
-function _remChToggle(){ var r=document.getElementById('f_remind'), w=document.getElementById('f_remChwrap'); if(w) w.style.display=(r&&r.value!=='')?'flex':'none'; }
+var _REM_OPTS=[['0','At start time'],['5','5 min before'],['10','10 min before'],['15','15 min before'],['30','30 min before'],['60','1 hour before'],['120','2 hours before'],['180','3 hours before'],['1440','1 day before'],['2880','2 days before'],['10080','1 week before']];
+function _remOptsHtml(sel){ sel=String(sel); return _REM_OPTS.map(function(o){ return '<option value="'+o[0]+'"'+(sel===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join(''); }
+function _remAdd(val){ var host=document.getElementById('f_remList'); if(!host) return; var v=(val==null||val==='')?'10':val; var d=document.createElement('div'); d.className='remrow'; d.innerHTML='<select class="remoff" onchange="_remChToggle()">'+_remOptsHtml(v)+'</select><button type="button" class="remx" title="Remove this reminder" onclick="this.closest(\'.remrow\').remove();_remChToggle();">×</button>'; host.appendChild(d); _remChToggle(); }
+function _remRender(list){ var host=document.getElementById('f_remList'); if(!host) return; host.innerHTML=''; (list||[]).forEach(function(v){ _remAdd(String(v)); }); _remChToggle(); }
+function _remCollect(){ var seen={}, out=[]; [].slice.call(document.querySelectorAll('#f_remList .remoff')).forEach(function(s){ var v=s.value; if(v===''||v==null||seen[v]) return; seen[v]=1; out.push({minutes:Number(v)}); }); return out; }
+function _remChToggle(){ var host=document.getElementById('f_remList'), w=document.getElementById('f_remChwrap'); var has=!!(host&&host.querySelectorAll('.remoff').length); if(w) w.style.display=has?'flex':'none'; }
 function _repToggle(){ var r=document.getElementById('f_repeat'), w=document.getElementById('f_repCntWrap'); if(w) w.style.display=(r&&r.value!=='')?'':'none'; }
 function renderNoteRow(a){
   var w=document.getElementById('noteRow'); if(!w) return;
@@ -435,7 +446,7 @@ function bodyFromForm(){
   var date=document.getElementById('f_date').value; var st=document.getElementById('f_start').value||'09:00'; var en=document.getElementById('f_end').value||st;
   var rep=document.getElementById('f_repeat'); var repVal=(rep&&document.getElementById('f_repeatWrap')&&document.getElementById('f_repeatWrap').style.display!=='none')?rep.value:'';
   return { id:EDIT?EDIT.id:undefined, title:document.getElementById('f_title').value.trim(), contactPersonId:document.getElementById('f_contact').value||'', contactName:document.getElementById('f_contactq').value.trim(), type:document.getElementById('f_type').value, start:date?(date+'T'+st):'', end:date?(date+'T'+en):'', location:document.getElementById('f_loc').value.trim(), notes:document.getElementById('f_notes').value.trim(), attendees:collectAtts(),
-    remMinutes:(document.getElementById('f_remind')||{}).value||'', remChannels:[].slice.call(document.querySelectorAll('.remch:checked')).map(function(x){return x.value;}), repeat:repVal, repeatCount:(document.getElementById('f_repeatCount')||{}).value||'', autoId:(document.getElementById('f_auto')||{}).value||'' };
+    reminders:_remCollect(), remChannels:[].slice.call(document.querySelectorAll('.remch:checked')).map(function(x){return x.value;}), repeat:repVal, repeatCount:(document.getElementById('f_repeatCount')||{}).value||'', autoId:(document.getElementById('f_auto')||{}).value||'' };
 }
 function save(){
   var body=bodyFromForm(); var m=document.getElementById('mmsg');
