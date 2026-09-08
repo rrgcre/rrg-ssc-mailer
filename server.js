@@ -1511,14 +1511,35 @@ function trackedEmailHtml(body, origin, token, sigHtml) {
   return '<div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;font-size:14px;line-height:1.5;color:#1a2236">' + htmlBody + (sigHtml || '') + '</div>' + pixel;
 }
 // Per-user email signature (HTML with optional embedded logo) appended to messages the user sends.
-function userSignatureHtml(username) {
-  try { const s = auth.getSignature(username); if (!s || !String(s).trim()) return '';
-    return '<div style="margin-top:22px;padding-top:14px;border-top:1px solid #e6e9f0;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;font-size:13px;line-height:1.5;color:#1a2236">' + s + '</div>';
+function _sigProfile(username, user) {
+  var u = user || {};
+  if (!(u.name || u.title || u.phone || u.email)) { try { u = (auth.findUser && auth.findUser(username)) || (auth.profileOf && auth.profileOf(username)) || {}; } catch (e) { u = {}; } }
+  var org = ''; try { org = orgDisplayName() || ''; } catch (e) {}
+  return { name: (u.name || ''), title: (u.title || ''), phone: (u.phone || ''), email: (u.email || ''), org: org };
+}
+const _SIG_WRAP_OPEN = '<div style="margin-top:22px;padding-top:14px;border-top:1px solid #e6e9f0;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;font-size:13px;line-height:1.55;color:#1a2236">';
+// The rep's email signature: their custom one if set, otherwise auto-built from their profile so every message is signed.
+function userSignatureHtml(username, user) {
+  try {
+    const s = auth.getSignature(username);
+    if (s && String(s).trim()) return _SIG_WRAP_OPEN + s + '</div>';
+    const p = _sigProfile(username, user);
+    if (!p.name && !p.email && !p.phone) return '';
+    const line1 = p.name ? ('<b>' + esc(p.name) + '</b>' + (p.title ? ('&nbsp;&middot;&nbsp;' + esc(p.title)) : '')) : (p.title ? esc(p.title) : '');
+    const cd = []; if (p.phone) cd.push(esc(p.phone)); if (p.email) cd.push('<a href="mailto:' + esc(p.email) + '" style="color:#23496f;text-decoration:none">' + esc(p.email) + '</a>');
+    const rows = [line1, (p.org ? esc(p.org) : ''), (cd.length ? cd.join('&nbsp;&middot;&nbsp;') : '')].filter(Boolean).join('<br>');
+    return rows ? (_SIG_WRAP_OPEN + rows + '</div>') : '';
   } catch (e) { return ''; }
 }
-function userSignatureText(username) {
-  try { const s = auth.getSignature(username); if (!s) return '';
-    return String(s).replace(/<br\s*\/?>/gi, '\n').replace(/<\/(p|div|tr)>/gi, '\n').replace(/<img[^>]*>/gi, '').replace(/<[^>]+>/g, '').replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').replace(/&lt;/gi, '<').replace(/&gt;/gi, '>').replace(/\n{3,}/g, '\n\n').trim();
+function userSignatureText(username, user) {
+  try {
+    const s = auth.getSignature(username);
+    if (s && String(s).trim()) return String(s).replace(/<br\s*\/?>/gi, '\n').replace(/<\/(p|div|tr)>/gi, '\n').replace(/<img[^>]*>/gi, '').replace(/<[^>]+>/g, '').replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').replace(/&lt;/gi, '<').replace(/&gt;/gi, '>').replace(/\n{3,}/g, '\n\n').trim();
+    const p = _sigProfile(username, user);
+    if (!p.name && !p.email && !p.phone) return '';
+    const rows = []; if (p.name || p.title) rows.push([p.name, p.title].filter(Boolean).join(' · ')); if (p.org) rows.push(p.org);
+    const cd = []; if (p.phone) cd.push(p.phone); if (p.email) cd.push(p.email); if (cd.length) rows.push(cd.join(' · '));
+    return rows.join('\n');
   } catch (e) { return ''; }
 }
 const _OPEN_GIF = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
@@ -7798,7 +7819,7 @@ function _seedCimFollowup(a) {
   return a;
 }
 // ---- Referral intro (new lead sent to us by a referral source) ---------------
-const EMAIL_TPL_REFINTRO_FLAG = path.join(BOV_DATA_DIR, 'email_templates_refintro_seeded.flag');
+const EMAIL_TPL_REFINTRO_FLAG = path.join(BOV_DATA_DIR, 'email_templates_refintro_seeded_v2.flag');
 const REFINTRO_TPL_ID = 'etpl_referral_intro';
 const REFINTRO_TPL_SUBJECT = '{{first_name}}, a quick introduction';
 const REFINTRO_TPL_BODY =
@@ -7808,16 +7829,16 @@ const REFINTRO_TPL_BODY =
   '<p>There’s no pitch here and nothing to prepare. I’d just like about fifteen minutes to learn what you’re working on and see where we can be genuinely useful — now or down the road.</p>' +
   '<p>The easiest next step is a short call. Reply with a couple of windows that work for you and I’ll lock one in, or grab a time straight from my calendar here: {{business_sales_meeting_link}}</p>' +
   '<p>Looking forward to connecting.</p>' +
-  '<p>Best,<br>{{my_name}}<br>{{brokerage}}<br>{{my_phone}}</p>';
+  '<p>Best,<br>{{my_name}}</p>';
 function _seedRefIntro(a) {
   try { if (fs.existsSync(EMAIL_TPL_REFINTRO_FLAG)) return a; } catch (e) { return a; }
-  if (!a.some(function (t) { return t.id === REFINTRO_TPL_ID; })) {
-    a.push({ id: REFINTRO_TPL_ID, name: 'Referral — intro & schedule a call', category: 'Referral', scope: 'shared', ownerUser: '', ownerName: 'RRG', greeting: 'none', subject: REFINTRO_TPL_SUBJECT, body: REFINTRO_TPL_BODY, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), seeded: true });
-  }
+  var _ri = a.findIndex(function (t) { return t.id === REFINTRO_TPL_ID; });
+  if (_ri >= 0) { a[_ri].subject = REFINTRO_TPL_SUBJECT; a[_ri].body = REFINTRO_TPL_BODY; a[_ri].updatedAt = new Date().toISOString(); }
+  else { a.push({ id: REFINTRO_TPL_ID, name: 'Referral — intro & schedule a call', category: 'Referral', scope: 'shared', ownerUser: '', ownerName: 'RRG', greeting: 'none', subject: REFINTRO_TPL_SUBJECT, body: REFINTRO_TPL_BODY, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), seeded: true }); }
   try { writeJsonGuarded(EMAIL_TPL_FILE, a, 'seedRefIntro'); fs.writeFileSync(EMAIL_TPL_REFINTRO_FLAG, JSON.stringify({ seededAt: new Date().toISOString() })); } catch (e) {}
   return a;
 }
-const EMAIL_TPL_DATAROOM_FLAG = path.join(BOV_DATA_DIR, 'email_templates_dataroom_seeded_v2.flag');
+const EMAIL_TPL_DATAROOM_FLAG = path.join(BOV_DATA_DIR, 'email_templates_dataroom_seeded_v3.flag');
 const DATAROOM_TPL_ID = 'etpl_dataroom_access';
 const DATAROOM_TPL_NAME = 'Buyer — data room access & what’s inside';
 const DATAROOM_TPL_SUBJECT = 'The {{listing_name}} data room is open for your review';
@@ -7829,7 +7850,7 @@ const DATAROOM_TPL_BODY =
   '<p>Please take your time reviewing the information and let me know if any questions come up. Once you’ve had an opportunity to go through the data room, I’d welcome the chance to schedule a call to discuss the business, answer your questions, and talk through next steps — you can grab a time that works here: {{business_sales_meeting_link}}</p>' +
   '<p>The materials are confidential and provided under our NDA; please keep them to you and your advisors.</p>' +
   '<p>Thank you again for your interest. I look forward to your feedback.</p>' +
-  '<p>Best,<br>{{my_name}}<br>{{brokerage}}<br>{{my_phone}}</p>';
+  '<p>Best,<br>{{my_name}}</p>';
 function _seedDataRoom(a) {
   try { if (fs.existsSync(EMAIL_TPL_DATAROOM_FLAG)) return a; } catch (e) { return a; }
   var idx = a.findIndex(function (t) { return t.id === DATAROOM_TPL_ID; });
@@ -8297,7 +8318,7 @@ app.post('/api/mass/send', requireAdmin, express.json({ limit: '1mb' }), async (
   const subject = String(b.subject || '').trim().slice(0, 300);
   const bodyRaw = String(b.body || '');
   if (!subject && !bodyRaw.trim()) return res.status(400).json({ ok: false, error: 'Add a subject and a message.' });
-  const user = req.user || {}; const origin = reqOrigin(req); const sigHtml = userSignatureHtml(user.username); const sigTxt = userSignatureText(user.username);
+  const user = req.user || {}; const origin = reqOrigin(req); const sigHtml = userSignatureHtml(user.username, user); const sigTxt = userSignatureText(user.username, user);
   if (b.test) {
     const sample = { name: 'Sample Subscriber', firstName: 'Sample', lastName: 'Subscriber', company: 'Blue Agave Cantina', title: 'Owner', email: user.email || '' };
     const to = user.email; if (!massValidEmail(to)) return res.status(400).json({ ok: false, error: 'Your account has no email address for a test send. Set one in Account.' });
@@ -11047,7 +11068,7 @@ app.post('/api/person/:id/email', express.json({ limit: '40mb' }), async (req, r
   if (!subject.trim() && !body.trim()) return res.status(400).json({ ok: false, error: 'Add a subject or a message.' });
   try {
     const _origin = reqOrigin(req); const _tok = newOpenToken();
-    const _sigHtml = userSignatureHtml(req.user && req.user.username); const _sigTxt = userSignatureText(req.user && req.user.username);
+    const _sigHtml = userSignatureHtml(req.user && req.user.username, req.user); const _sigTxt = userSignatureText(req.user && req.user.username, req.user);
     const _bodyText = _bodyLooksHtml(body) ? htmlToText(body) : body;
     const _atts = parseEmailAttachments(req.body && req.body.attachments);
     const _textOut = _bodyText + (_sigTxt ? ('\n\n' + _sigTxt) : '');
@@ -11530,7 +11551,7 @@ app.post('/api/gmail/send', express.json({ limit: '40mb' }), async (req, res) =>
   if (!subject.trim() && !body.trim()) return res.status(400).json({ ok: false, error: 'Add a subject or a message.' });
   try {
     const _tok = p ? newOpenToken() : ''; const _origin = reqOrigin(req);
-    const _sigHtml = userSignatureHtml(u); const _sigTxt = userSignatureText(u);
+    const _sigHtml = userSignatureHtml(u, req.user); const _sigTxt = userSignatureText(u, req.user);
     const _bodyText = (_bodyLooksHtml(body) ? htmlToText(body) : body) + (_sigTxt ? ('\n\n' + _sigTxt) : '');
     const _atts = parseEmailAttachments(req.body && req.body.attachments);
     const sent = await gmail.sendMessage(u, { to, cc, bcc, subject, body: _bodyText, threadId: b.threadId || '', inReplyTo: b.inReplyTo || '', html: trackedEmailHtml(body, _origin, _tok, _sigHtml), attachments: _atts, fromName: (req.user && req.user.name) || '' });
