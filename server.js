@@ -4006,7 +4006,12 @@ function backfillRoomLinks(r) {
 }
 function roomPublic(r, origin) {
   const base = (origin || '') + '/room/' + r.token;
-  const _acc = Array.isArray(r.access) ? r.access : [];
+  const _acc0 = Array.isArray(r.access) ? r.access : [];
+  // Only surface activity from buyers who still have access. A grant-based event whose buyer
+  // has been removed is dropped from the roll-up (public "open link" events, which carry no
+  // grantId, still count). This keeps "Accessed by" and the download tally honest after a delete.
+  const _gids = {}; (r.grants || []).forEach(function(g){ if (g && g.id) _gids[g.id] = 1; });
+  const _acc = _acc0.filter(function(x){ return !x.grantId || _gids[x.grantId]; });
   const _dls = _acc.reduce(function(n,x){ return n + (x.event === 'download' ? 1 : 0); }, 0);
   let _last = null; for (const x of _acc) { if (!_last || String(x.at) > String(_last.at)) _last = x; }
   return { id: r.id, business: r.business, token: r.token, link: base, docCount: (r.docs || []).length, gated: roomIsGated(r), buyerCount: (r.grants || []).filter(g => g.active).length, srcCimId: r.srcCimId || '', createdAt: r.createdAt, builtAt: r.builtAt || '', by: r.by, downloads: _dls, lastAccessAt: _last ? _last.at : '', lastAccessBy: _last ? (_last.who || 'Buyer') : '', closed: !!r.closed, closedAt: r.closedAt || '', closeReason: r.closeReason || '' };
@@ -11962,7 +11967,12 @@ app.get('/api/admin/activity', requireAdmin, (req, res) => {
   const byTool = {}, byUser = {};
   usageAll.forEach(u => { byTool[u.tool] = (byTool[u.tool]||0)+1; byUser[u.username] = (byUser[u.username]||0)+1; });
   const byToolOut = Object.entries(byTool).sort((a,b)=>b[1]-a[1]).map(x=>({ tool:x[0]||'', count:x[1] }));
-  const byUserOut = Object.entries(byUser).sort((a,b)=>b[1]-a[1]).map(x=>({ user:x[0]||'', count:x[1] }));
+  const _uMap = {}; try { auth.loadUsers().forEach(u => { _uMap[u.username] = u; }); } catch (e) {}
+  const byUserOut = Object.entries(byUser).sort((a,b)=>b[1]-a[1]).map(x=>{
+    const un = x[0]||''; const uu = _uMap[un] || {};
+    const photoUrl = uu.photoExt ? ('/api/userphoto/' + String(un).replace(/[^a-z0-9_.-]/gi,'_') + '.' + uu.photoExt + '?v=' + encodeURIComponent(uu.photoAt || 0)) : '';
+    return { user: un, name: uu.name || un, count: x[1], photoUrl: photoUrl };
+  });
   const usage = usageAll.slice(-500).reverse().map(u => ({ when: fmtWhen(u.timestamp), ts: u.timestamp||'', user: u.username||'', tool: u.tool||'', ip: u.ip||'' }));
   const loginsOut = logins.map(l => ({ when: fmtWhen(l.timestamp), ts: l.timestamp||'', user: l.username||'', result: l.result||'', ip: l.ip||'' }));
   res.json({ ok:true, byTool: byToolOut, byUser: byUserOut, usage, logins: loginsOut });

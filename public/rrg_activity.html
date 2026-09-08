@@ -78,6 +78,7 @@ a.tile:hover{border-color:var(--primary);background:#fafcff;}
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function get(u){return fetch(u,{credentials:'same-origin',cache:'no-store'}).then(function(r){ if(r.status===403||r.status===401) throw 0; return r.json(); });}
 function initials(n){ n=String(n||'').trim(); if(!n) return '?'; var p=n.split(/\s+/); return ((p[0]||'')[0]||'')+((p[1]||'')[0]||''); }
+function avFail(img,ini){ try{ var s=document.createElement('span'); s.className='uav'; s.textContent=ini||'?'; img.replaceWith(s); }catch(e){} }
 var SESSION_GAP=30*60*1000; // 30 min of inactivity ends a session
 var DATA=null, LASTACTIVE={}, LOADED={}, COUNTS=null;
 
@@ -100,9 +101,13 @@ function render(j){
   var users=(j.byUser||[]).filter(function(u){return u.user;});
   var userRows=users.length? users.map(function(u){
     var la=LASTACTIVE[u.user]?('Last active '+esc(LASTACTIVE[u.user])):'';
+    var nm=u.name||u.user; var ini=esc(initials(nm).toUpperCase());
+    var av=u.photoUrl
+      ? '<img class="uav" src="'+esc(u.photoUrl)+'" alt="'+ini+'" style="object-fit:cover" onerror="avFail(this,\''+ini+'\')">'
+      : '<span class="uav" data-av="'+esc(u.user)+'">'+ini+'</span>';
     return '<div class="urow" data-user="'+esc(u.user)+'">'
-      +'<div class="uhd"><span class="uav" data-av="'+esc(u.user)+'">'+esc(initials(u.user).toUpperCase())+'</span>'
-        +'<div><div class="uname">'+esc(u.user)+'</div><div class="umeta">'+la+'</div></div>'
+      +'<div class="uhd">'+av
+        +'<div><div class="uname">'+esc(nm)+'</div><div class="umeta">'+la+'</div></div>'
         +'<span class="uspacer"></span>'
         +'<div class="ustat"><b>'+u.count+'</b> tool opens</div>'
         +'<span class="chev">▶</span></div>'
