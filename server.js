@@ -4121,7 +4121,9 @@ app.post('/api/room/:id/grant/:gid/email', express.json(), async (req, res) => {
     const tpl = effRoomInviteEmail();
     const subject = fillTemplate(tpl.subject, vars) || (org + ' — Access to the ' + biz + ' data room');
     const _r = sellerEmailRender(tpl.body, vars);
-    await sendMailWL({ from: mailFrom(), to, subject, text: _r.text, html: _r.html });
+    const _sigHtml = userSignatureHtml((req.user && req.user.username), req.user);
+    const _sigTxt = userSignatureText((req.user && req.user.username), req.user);
+    await sendMailWL({ from: mailFrom(), to, subject, text: _r.text + (_sigTxt ? ('\n\n' + _sigTxt) : ''), html: _r.html + (_sigHtml || '') });
     g.invitedAt = new Date().toISOString(); g.invitedTo = to; saveRooms(arr);
     res.json({ ok: true, grants: r.grants, sentTo: to });
   } catch (e) { console.error('room grant email:', e && e.message); res.status(502).json({ ok: false, error: 'Could not send the email. Check the mailbox connection in Settings → Email / SMTP.' }); }
