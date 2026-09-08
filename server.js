@@ -7472,8 +7472,16 @@ function mergeTokens(t, p, user) {
   let today = ''; try { today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }); } catch (e) {}
   let _lst = null, _lstDone = false;
   function _listing() { if (!_lstDone) { _lstDone = true; try { _lst = (p && (p._listing || null)) || personPrimaryListing(p); } catch (e) { _lst = null; } } return _lst || { name: '', number: '' }; }
-  return String(t || '').replace(/\{\{\s*(first_name|firstname|last_name|lastname|name|company|title|referred_by|referrer|email|phone|my_name|my_title|my_phone|my_email|brokerage|brokerage_legal|today|listing_name|listing_number|listing_no|listing|code_name|codename|asking_price|price|data_room_link|dataroom_link|room_link|booking_link|book_link|business_sales_meeting_link|tenant_rep_meeting_link)\s*\}\}/gi, function (_, k) {
+  // Calendar-meeting context, present only when a real meeting is being rendered (the "Send invite" button). Everywhere else these tokens resolve to '' instead of showing raw braces.
+  const _mtg = (p && p._meeting) || null;
+  return String(t || '').replace(/\{\{\s*(first_name|firstname|last_name|lastname|name|company|title|referred_by|referrer|email|phone|my_name|my_title|my_phone|my_email|brokerage|brokerage_legal|today|listing_name|listing_number|listing_no|listing|code_name|codename|asking_price|price|data_room_link|dataroom_link|room_link|booking_link|book_link|business_sales_meeting_link|tenant_rep_meeting_link|meeting_title|meeting_when|meeting_where|meeting_notes|meeting_join_link|join_link|meeting_details)\s*\}\}/gi, function (_, k) {
     k = k.toLowerCase();
+    if (k === 'meeting_title') return _mtg ? (_mtg.title || '') : '';
+    if (k === 'meeting_when') return _mtg ? (_mtg.when || '') : '';
+    if (k === 'meeting_where') return _mtg ? (_mtg.where || '') : '';
+    if (k === 'meeting_notes') return _mtg ? (_mtg.notes || '') : '';
+    if (k === 'meeting_join_link' || k === 'join_link') return _mtg ? (_mtg.join || '') : '';
+    if (k === 'meeting_details') return _mtg ? (_mtg.details || '') : '';
     if (k === 'first_name' || k === 'firstname') return first;
     if (k === 'last_name' || k === 'lastname') return last;
     if (k === 'name') return name;
@@ -16051,19 +16059,21 @@ app.post('/api/appointments/:id/invite', express.json(), async (req, res) => {
       // Whom to greet: the linked contact, else the first attendee.
       let _person = null; try { if (a.contactPersonId) _person = loadPeople().find(x => x.id === a.contactPersonId) || null; } catch (e) {}
       if (!_person) _person = { name: a.contactName || ((a.attendees || [])[0] || {}).name || '', email: to[0] || '' };
-      // Meeting-specific tokens (HTML-escaped for the body; the details block only shows lines that have a value).
+      // Meeting context for the token engine. The details block only shows lines that have a value.
       const _rows = ['<b>' + _escHtmlBody(a.title || 'Meeting') + '</b>', 'When: ' + _escHtmlBody(when)];
       if (a.location) _rows.push('Where: ' + _escHtmlBody(a.location));
       if (a.meetUrl) _rows.push('Join: <a href="' + _escHtmlBody(a.meetUrl) + '">' + _escHtmlBody(a.meetUrl) + '</a>');
-      const _mtHtml = { meeting_title: _escHtmlBody(a.title || 'Meeting'), meeting_when: _escHtmlBody(when), meeting_where: _escHtmlBody(a.location || ''), meeting_notes: _escHtmlBody(a.notes || ''), meeting_join_link: _escHtmlBody(a.meetUrl || ''), join_link: _escHtmlBody(a.meetUrl || ''), meeting_details: _rows.join('<br>') };
-      const _mtText = { meeting_title: (a.title || 'Meeting'), meeting_when: when, meeting_where: (a.location || ''), meeting_notes: (a.notes || ''), meeting_join_link: (a.meetUrl || ''), join_link: (a.meetUrl || ''), meeting_details: [(a.title || 'Meeting'), 'When: ' + when, (a.location ? ('Where: ' + a.location) : ''), (a.meetUrl ? ('Join: ' + a.meetUrl) : '')].filter(Boolean).join('\n') };
-      const _fillMeet = (s, mt) => String(s || '').replace(/\{\{\s*(meeting_title|meeting_when|meeting_where|meeting_notes|meeting_join_link|join_link|meeting_details)\s*\}\}/gi, (_, k) => mt[k.toLowerCase()] || '');
-      subject = (mergeTokens(_fillMeet(_tpl.subject || subject, _mtText), _person, req.user || {}) || subject).replace(/\s+/g, ' ').trim();
-      const _bodyRendered = mergeTokens(_fillMeet(_tpl.body, _mtHtml), _person, req.user || {});
+      const _mtgHtml = { title: _escHtmlBody(a.title || 'Meeting'), when: _escHtmlBody(when), where: _escHtmlBody(a.location || ''), notes: _escHtmlBody(a.notes || ''), join: _escHtmlBody(a.meetUrl || ''), details: _rows.join('<br>') };
+      const _mtgText = { title: (a.title || 'Meeting'), when: when, where: (a.location || ''), notes: (a.notes || ''), join: (a.meetUrl || ''), details: [(a.title || 'Meeting'), 'When: ' + when, (a.location ? ('Where: ' + a.location) : ''), (a.meetUrl ? ('Join: ' + a.meetUrl) : '')].filter(Boolean).join('\n') };
       const _sigHtml = userSignatureHtml((req.user && req.user.username), req.user);
       const _sigTxt = userSignatureText((req.user && req.user.username), req.user);
-      html = trackedEmailHtml(_bodyRendered, '', '', _sigHtml);
-      text = htmlToText(mergeTokens(_fillMeet(_tpl.body, _mtText), _person, req.user || {})) + (_sigTxt ? ('\n\n' + _sigTxt) : '');
+      // Subject is plain text → use the unescaped meeting values.
+      _person._meeting = _mtgText;
+      subject = (mergeTokens(_tpl.subject || subject, _person, req.user || {}) || subject).replace(/\s+/g, ' ').trim();
+      text = htmlToText(mergeTokens(_tpl.body, _person, req.user || {})) + (_sigTxt ? ('\n\n' + _sigTxt) : '');
+      // Body is HTML → use the escaped meeting values.
+      _person._meeting = _mtgHtml;
+      html = trackedEmailHtml(mergeTokens(_tpl.body, _person, req.user || {}), '', '', _sigHtml);
     }
   } catch (e) { console.error('meeting invite template render:', e && e.message); }
   const r = await sendInviteMail(to, subject, text, apptIcs(a), a.cc || [], a.bcc || [], a.byName, _repEmail, html || undefined);

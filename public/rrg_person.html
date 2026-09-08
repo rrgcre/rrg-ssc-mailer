@@ -24,7 +24,7 @@ h1{font-size:21px;font-weight:700;margin:3px 0 0;color:#fff;letter-spacing:-.01e
 .wrap{max-width:1040px;margin:22px auto;padding:0 24px 70px;display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start;}
 @media(max-width:840px){.wrap{grid-template-columns:1fr;}}
 .card{background:#fff;border:1px solid #e9edf3;border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04),0 1px 3px rgba(16,24,40,.05);overflow:hidden;margin-bottom:12px;}
-/*rrg-accordion-css*/.card > .ch{cursor:pointer;} .card > .ch .rrgchev{margin-left:8px;color:#3f4b63;font-size:12px;font-weight:700;transition:transform .15s;flex:none;} .card.collapsed > .ch .rrgchev{transform:rotate(-90deg);} .card.collapsed > .cb{display:none;}
+/*rrg-accordion-css*/.card > .ch{cursor:pointer;} .card > .ch .rrgchev{margin-left:8px;color:#3f4b63;font-size:16px;font-weight:700;transition:transform .15s;flex:none;} .card.collapsed > .ch .rrgchev{transform:rotate(-90deg);} .card.collapsed > .cb{display:none;}
 .rail .rrgchev{display:none!important;}
 .ch{display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid #eef1f6;} .ch b{color:var(--ink);font-size:15px;font-weight:600;} .ch span{color:var(--soft);font-size:12.5px;font-weight:500;} .rail .card .ch b{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--soft);} .rail .card .ch span{font-size:10.5px;font-weight:700;color:#6b7488;background:#eef2f6;border-radius:999px;padding:1px 8px;line-height:1.7;font-variant-numeric:tabular-nums;}
 .row{display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--line);text-decoration:none;color:inherit;} .row:last-child{border-bottom:none;} .row:hover{background:#fbfcfe;}
@@ -158,12 +158,12 @@ body.booting .flagbtn{transition:none!important;}
 .rsec{border-top:1px solid #eef1f6;}
 .rsec:first-of-type{border-top:none;}
 .rsechd{display:flex;align-items:center;padding:13px 0 9px;cursor:pointer;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--soft);font-weight:700;user-select:none;}
-.rsechd .cv{margin-left:auto;font-size:11px;color:var(--soft);transition:transform .15s;}
+.rsechd .cv{margin-left:auto;font-size:14px;color:var(--soft);transition:transform .15s;}
 .rsec.collapsed .cv{transform:rotate(-90deg);}
 .rsec.collapsed .rsecbody{display:none;}
 .raillink{display:flex;align-items:center;gap:11px;text-decoration:none;color:inherit;padding:2px 0;}
 .railsec .railbody{padding:4px 0 8px;}
-.rail .card .ch .rchev{background:none;border:none;color:#3f4b63;font-size:12px;font-weight:700;line-height:1;cursor:pointer;padding:2px 4px;margin-right:2px;transition:transform .15s;flex:none;}
+.rail .card .ch .rchev{background:none;border:none;color:#3f4b63;font-size:16px;font-weight:700;line-height:1;cursor:pointer;padding:2px 4px;margin-right:2px;transition:transform .15s;flex:none;}
 .rail .card .ch .rchev:hover{color:var(--navy);}
 .rail .card.railcollapsed .ch .rchev{transform:rotate(-90deg);} .rail .card .ch{gap:4px;} .rail .card .ch .rchev{margin-right:0;padding-left:2px;padding-right:3px;}
 /* NetSuite-style drag handle + one-time layout tip */
@@ -187,7 +187,7 @@ body.booting .flagbtn{transition:none!important;}
 #buyBoxCard select,#buyBoxCard textarea,#tenantBoxCard select,#tenantBoxCard textarea,.bbin{width:100%;box-sizing:border-box;border:1px solid #cfd6e2;border-radius:6px;padding:7px 9px;font:inherit;font-size:12.5px;background:#fff;}
 #buyBoxCard select:focus,#buyBoxCard textarea:focus,#tenantBoxCard select:focus,#tenantBoxCard textarea:focus,.bbin:focus{outline:none;border-color:#2c5c8f;}
 #tenantBoxCard .tbtabs{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:11px;border-bottom:1px solid #e6e9f0;padding-bottom:9px}#tenantBoxCard .tbtab{background:#f2f5f9;border:1px solid #e0e6ef;border-radius:100px;padding:5px 12px;font:inherit;font-size:11.5px;font-weight:700;color:#5b6472;cursor:pointer;display:inline-flex;align-items:center;gap:6px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#tenantBoxCard .tbtab:hover{background:#e8eef6;color:#2c5c8f}#tenantBoxCard .tbtab.on{background:#2c5c8f;border-color:#2c5c8f;color:#fff}#tenantBoxCard .tbtabdot{width:7px;height:7px;border-radius:50%;background:#1f8a5b;flex:none}#tenantBoxCard .tbtab.on .tbtabdot{background:#8fe0b8}
-#tenantBoxCard .tbsec{margin:0 0 2px}#tenantBoxCard .tbsechd{cursor:pointer;display:flex;align-items:center;gap:8px;justify-content:space-between;user-select:none;margin-top:9px}#tenantBoxCard .tbsechd .tbchev{font-size:10px;color:#9aa4b6;transition:transform .15s;flex:none}#tenantBoxCard .tbsec.collapsed .tbchev{transform:rotate(-90deg)}#tenantBoxCard .tbsec.collapsed .tbsecbody{display:none}
+#tenantBoxCard .tbsec{margin:0 0 2px}#tenantBoxCard .tbsechd{cursor:pointer;display:flex;align-items:center;gap:8px;justify-content:space-between;user-select:none;margin-top:9px}#tenantBoxCard .tbsechd .tbchev{font-size:13px;color:#9aa4b6;transition:transform .15s;flex:none}#tenantBoxCard .tbsec.collapsed .tbchev{transform:rotate(-90deg)}#tenantBoxCard .tbsec.collapsed .tbsecbody{display:none}
 .bbactive{margin-left:auto;display:inline-flex;align-items:center;gap:5px;font-size:11px!important;font-weight:700!important;color:#2c5c8f!important;text-transform:none!important;letter-spacing:0!important;cursor:pointer;}
 .bbactive input{display:inline-block!important;width:auto!important;}
 .bbbtns{display:flex;align-items:center;gap:9px;margin-top:12px;}
