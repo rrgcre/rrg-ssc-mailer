@@ -54,8 +54,31 @@ function render(){
     +'<h1>Calendar</h1>'
     +'<div class="sub">Turn calendar capabilities on or off for the whole team. Changes save the moment you flip a switch.</div>'
     +'<div class="card"><div class="cardh">Calendar features<span class="m" id="calMsg"></span></div><div class="cardb">'+rows+'</div></div>'
+    +'<div class="card"><div class="cardh">Meeting invitation email<span class="m" id="itMsg"></span></div><div class="cardb">'
+      +'<div class="row"><div class="tx"><b>Template used for calendar invites</b><p>When you send an invitation to a calendar event, this is the email that goes out. Choose which template to use — edit its wording anytime in <b>Settings &rarr; Email Templates</b>.</p></div>'
+      +'<select id="itSel" style="flex:none;min-width:240px;max-width:320px;margin-top:2px;padding:8px 10px;border:1px solid var(--inp);border-radius:6px;font-size:13px;color:var(--ink);background:#fff;"><option>Loading…</option></select></div>'
+    +'</div></div>'
     +'<div class="note">Turning a feature off hides it for everyone and removes its controls from the Calendar and contact pages. Existing data (synced events, booking links) is kept and reappears if you turn the feature back on.</div>';
   [].slice.call(document.querySelectorAll('input[data-k]')).forEach(function(inp){ inp.addEventListener('change',function(){ saveToggle(inp.getAttribute('data-k'), inp.checked, inp); }); });
+  loadInviteTpl();
+}
+function loadInviteTpl(){
+  var sel=document.getElementById('itSel'); if(!sel) return;
+  fetch('/api/admin/calendar-invite-template',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ sel.innerHTML='<option>Unavailable</option>'; return; }
+    var cur=j.tplId||''; var def=j.defaultId||'';
+    sel.innerHTML=(j.templates||[]).map(function(t){ var label=esc(t.name)+(t.id===def?' (default)':''); return '<option value="'+esc(t.id)+'"'+(t.id===cur?' selected':'')+'>'+label+'</option>'; }).join('')||'<option value="">No templates found</option>';
+    sel.addEventListener('change',function(){ saveInviteTpl(sel.value); });
+  }).catch(function(){ sel.innerHTML='<option>Unavailable</option>'; });
+}
+function saveInviteTpl(id){
+  var m=document.getElementById('itMsg'); if(m){ m.style.color='var(--dim)'; m.textContent='Saving…'; }
+  fetch('/api/admin/calendar-invite-template',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({tplId:id})})
+    .then(function(r){return r.json();}).then(function(j){
+      if(j&&j.ok){ if(m){ m.style.color='var(--green)'; m.textContent='Saved ✓'; setTimeout(function(){ if(m.textContent==='Saved ✓') m.textContent=''; },1600); } }
+      else { if(m){ m.style.color='var(--red)'; m.textContent=(j&&j.error)||'Could not save.'; } }
+    })
+    .catch(function(){ if(m){ m.style.color='var(--red)'; m.textContent='Could not reach the server.'; } });
 }
 function saveToggle(key,val,inp){
   var m=document.getElementById('calMsg'); if(m){ m.style.color='var(--dim)'; m.textContent='Saving…'; }

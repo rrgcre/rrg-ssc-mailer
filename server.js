@@ -1621,6 +1621,22 @@ app.post('/api/admin/dataroom', requireAdmin, express.json(), (req, res) => {
   res.json({ ok: true, mfa: s.roomMfa !== false, alerts: s.roomAlerts !== false, watermark: s.roomWatermark !== false });
 });
 
+// ---- Which email template the calendar "Send invite" button uses ----
+app.get('/api/admin/calendar-invite-template', requireAdmin, (req, res) => {
+  try {
+    const templates = loadEmailTpls().map(t => ({ id: t.id, name: t.name || '(untitled)' }));
+    res.json({ ok: true, tplId: effMeetingInviteTplId(), defaultId: MEETINV_TPL_ID, templates });
+  } catch (e) { res.json({ ok: true, tplId: '', defaultId: MEETINV_TPL_ID, templates: [] }); }
+});
+app.post('/api/admin/calendar-invite-template', requireAdmin, express.json(), (req, res) => {
+  const b = req.body || {}; const s = loadSettings();
+  const want = String(b.tplId || '').trim();
+  if (!want) { s.meetingInviteTplId = ''; }             // blank = use the default template
+  else { if (!loadEmailTpls().some(t => t && t.id === want)) return res.status(400).json({ ok: false, error: 'That template no longer exists.' }); s.meetingInviteTplId = want; }
+  saveSettings(s);
+  res.json({ ok: true, tplId: effMeetingInviteTplId() });
+});
+
 // ---- Firm commission structure (both methods configured; picked per deal) ----
 app.get('/api/commission-structure', (req, res) => {
   if (!req.user) return res.status(401).json({ ok: false, error: 'Sign in required.' });
@@ -7902,6 +7918,16 @@ function _seedMeetingInvite(a) {
   return a;
 }
 function loadEmailTpls() { try { return _seedMeetingInvite(_seedDataRoom(_seedRefIntro(_seedCimFollowup(_seedProofOfFunds(_seedSendBov(_retireBovVariants(_seedBrokerTemplates(_seedEmailTpls(rj(EMAIL_TPL_FILE) || []))))))))); } catch (e) { return []; } }
+// Which email template the "Send invite" button on a calendar event uses. Admin-chosen; defaults to the seeded meeting-invite template; '' means fall back to the built-in plain-text invite.
+function effMeetingInviteTplId() {
+  try {
+    const tpls = loadEmailTpls();
+    const want = String(loadSettings().meetingInviteTplId || '').trim();
+    if (want && tpls.some(t => t && t.id === want)) return want;
+    if (tpls.some(t => t && t.id === MEETINV_TPL_ID)) return MEETINV_TPL_ID;
+  } catch (e) {}
+  return '';
+}
 function saveEmailTpls(a) { return writeJsonGuarded(EMAIL_TPL_FILE, a, 'saveEmailTpls'); }
 function newEmailTplId() { return 'etpl_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 const TPL_CATEGORIES = ['Buyer', 'Seller', 'NDA', 'Follow-up', 'Closing', 'General'];
@@ -16019,7 +16045,8 @@ app.post('/api/appointments/:id/invite', express.json(), async (req, res) => {
   let text = 'You are invited: ' + (a.title || 'Meeting') + '\n\nWhen: ' + when + (a.location ? ('\nWhere: ' + a.location) : '') + (a.notes ? ('\n\n' + a.notes) : '') + '\n\n— ' + (a.byName || 'Restaurant Realty Group');
   let html = '';
   try {
-    const _tpl = loadEmailTpls().find(t => t && t.id === MEETINV_TPL_ID);
+    const _wantTplId = effMeetingInviteTplId();
+    const _tpl = _wantTplId ? loadEmailTpls().find(t => t && t.id === _wantTplId) : null;
     if (_tpl && String(_tpl.body || '').trim()) {
       // Whom to greet: the linked contact, else the first attendee.
       let _person = null; try { if (a.contactPersonId) _person = loadPeople().find(x => x.id === a.contactPersonId) || null; } catch (e) {}
