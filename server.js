@@ -7817,7 +7817,28 @@ function _seedRefIntro(a) {
   try { writeJsonGuarded(EMAIL_TPL_FILE, a, 'seedRefIntro'); fs.writeFileSync(EMAIL_TPL_REFINTRO_FLAG, JSON.stringify({ seededAt: new Date().toISOString() })); } catch (e) {}
   return a;
 }
-function loadEmailTpls() { try { return _seedRefIntro(_seedCimFollowup(_seedProofOfFunds(_seedSendBov(_retireBovVariants(_seedBrokerTemplates(_seedEmailTpls(rj(EMAIL_TPL_FILE) || []))))))); } catch (e) { return []; } }
+const EMAIL_TPL_DATAROOM_FLAG = path.join(BOV_DATA_DIR, 'email_templates_dataroom_seeded_v2.flag');
+const DATAROOM_TPL_ID = 'etpl_dataroom_access';
+const DATAROOM_TPL_NAME = 'Buyer — data room access & what’s inside';
+const DATAROOM_TPL_SUBJECT = 'The {{listing_name}} data room is open for your review';
+const DATAROOM_TPL_BODY =
+  '<p>Hi {{first_name}},</p>' +
+  '<p>We’ve now opened the data room for {{listing_name}}. You can access the full diligence package using the link below:</p>' +
+  '<p><a href="{{data_room_link}}">Open the {{listing_name}} data room →</a></p>' +
+  '<p>The data room contains the key materials needed for your review, including financial statements, organizational information, and other supporting diligence documents. Additional items are added as the process moves forward, so it’s the single place to keep for everything on this opportunity.</p>' +
+  '<p>Please take your time reviewing the information and let me know if any questions come up. Once you’ve had an opportunity to go through the data room, I’d welcome the chance to schedule a call to discuss the business, answer your questions, and talk through next steps — you can grab a time that works here: {{business_sales_meeting_link}}</p>' +
+  '<p>The materials are confidential and provided under our NDA; please keep them to you and your advisors.</p>' +
+  '<p>Thank you again for your interest. I look forward to your feedback.</p>' +
+  '<p>Best,<br>{{my_name}}<br>{{brokerage}}<br>{{my_phone}}</p>';
+function _seedDataRoom(a) {
+  try { if (fs.existsSync(EMAIL_TPL_DATAROOM_FLAG)) return a; } catch (e) { return a; }
+  var idx = a.findIndex(function (t) { return t.id === DATAROOM_TPL_ID; });
+  if (idx >= 0) { a[idx].name = DATAROOM_TPL_NAME; a[idx].subject = DATAROOM_TPL_SUBJECT; a[idx].body = DATAROOM_TPL_BODY; a[idx].category = 'Buyer'; a[idx].greeting = 'none'; a[idx].updatedAt = new Date().toISOString(); }
+  else { a.push({ id: DATAROOM_TPL_ID, name: DATAROOM_TPL_NAME, category: 'Buyer', scope: 'shared', ownerUser: '', ownerName: 'RRG', greeting: 'none', subject: DATAROOM_TPL_SUBJECT, body: DATAROOM_TPL_BODY, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), seeded: true }); }
+  try { writeJsonGuarded(EMAIL_TPL_FILE, a, 'seedDataRoom'); fs.writeFileSync(EMAIL_TPL_DATAROOM_FLAG, JSON.stringify({ seededAt: new Date().toISOString() })); } catch (e) {}
+  return a;
+}
+function loadEmailTpls() { try { return _seedDataRoom(_seedRefIntro(_seedCimFollowup(_seedProofOfFunds(_seedSendBov(_retireBovVariants(_seedBrokerTemplates(_seedEmailTpls(rj(EMAIL_TPL_FILE) || [])))))))); } catch (e) { return []; } }
 function saveEmailTpls(a) { return writeJsonGuarded(EMAIL_TPL_FILE, a, 'saveEmailTpls'); }
 function newEmailTplId() { return 'etpl_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 const TPL_CATEGORIES = ['Buyer', 'Seller', 'NDA', 'Follow-up', 'Closing', 'General'];

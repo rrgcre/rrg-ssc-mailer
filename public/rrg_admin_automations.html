@@ -69,7 +69,7 @@ textarea{resize:vertical;min-height:80px;line-height:1.5;}
 </div>
 <script>
 var PLANS=[], CTL=null, BUILT=false, IS_ADMIN=false, EDIT=null, STEPS=[], DEL_ARM=false, ETPLS=[], PIPES=[], SMSNOTIFY=false, SMSREADY=false, ME='';
-var TOKENS=[['{{first_name}}','First name'],['{{last_name}}','Last name'],['{{name}}','Full name'],['{{company}}','Company'],['{{title}}','Title'],['{{email}}','Email'],['{{phone}}','Phone'],['{{listing_name}}','Listing name'],['{{listing_number}}','Listing #'],['{{my_name}}','My name'],['{{my_email}}','My email'],['{{my_phone}}','My phone'],['{{today}}','Today']];
+var TOKENS=[['{{first_name}}','First name'],['{{last_name}}','Last name'],['{{name}}','Full name'],['{{company}}','Company'],['{{title}}','Title'],['{{email}}','Email'],['{{phone}}','Phone'],['{{listing_name}}','Listing name'],['{{listing_number}}','Listing #'],['{{data_room_link}}','Data room link'],['{{my_name}}','My name'],['{{my_email}}','My email'],['{{my_phone}}','My phone'],['{{today}}','Today']];
 var LASTFLD=null;
 function tokBar(){ return '<div class="tokbar">'+TOKENS.map(function(t){return '<button type="button" class="tokchip" data-tok="'+t[0]+'">'+esc(t[1])+'</button>';}).join('')+'</div>'; }
 function insTok(tok){ var el=LASTFLD; if(!el){ return; } var st=el.selectionStart||0,en=el.selectionEnd||0,v=el.value; el.value=v.slice(0,st)+tok+v.slice(en); var np=st+tok.length; el.focus(); try{el.setSelectionRange(np,np);}catch(e){} collectSteps(); }
