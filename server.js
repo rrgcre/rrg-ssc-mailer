@@ -4152,6 +4152,18 @@ app.post('/api/room/:id/grant-toggle', express.json(), (req, res) => {
   g.active = !g.active; saveRooms(arr);
   res.json({ ok: true, grants: r.grants });
 });
+// Remove a buyer from the room entirely — drops them off the roster and kills their access code.
+app.post('/api/room/:id/grant-delete', express.json(), (req, res) => {
+  const arr = loadRooms(); const r = arr.find(x => x.id === req.params.id);
+  if (!r) return res.status(404).json({ ok: false, error: 'Data room not found.' });
+  if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const gid = String((req.body || {}).grantId || '');
+  const before = (r.grants || []).length;
+  r.grants = (r.grants || []).filter(x => x.id !== gid);   // per-buyer folder/doc perms live on the grant, so they go with it
+  if (r.grants.length === before) return res.status(404).json({ ok: false, error: 'Buyer not found.' });
+  saveRooms(arr);
+  res.json({ ok: true, grants: r.grants });
+});
 // Change a buyer's access level (view / download / edit).
 app.post('/api/room/:id/grant-level', express.json(), (req, res) => {
   const arr = loadRooms(); const r = arr.find(x => x.id === req.params.id);
