@@ -117,27 +117,44 @@ function openGate() { bootGate = false; }
 // boot / newly-added stores). This makes a wiped ephemeral disk self-heal from
 // Postgres before any seed/backfill/request can run, closing the boot-window
 // race where a partial disk write could overwrite the good backup.
+// Disk is treated as newer than the backup only when its file is this much newer than
+// the backup's updated_at — large enough to swamp any app↔Postgres clock skew, so a
+// normal deploy always lets Postgres win, and only a clearly-newer disk (a live write
+// the backup never caught, e.g. a mirror that failed while Postgres was briefly down)
+// is preserved instead of being reverted.
+const _DISK_NEWER_MS = 300000; // 5 minutes
 async function bootRestore() {
   if (!READY) { bootGate = false; return { skipped: true }; }
   await _init;
   const pgRows = new Map();
-  try { const r = await pool.query('SELECT name, json FROM stores'); r.rows.forEach(x => pgRows.set(x.name, x.json)); }
+  try { const r = await pool.query('SELECT name, json, updated_at FROM stores'); r.rows.forEach(x => pgRows.set(x.name, { json: x.json, at: x.updated_at ? new Date(x.updated_at).getTime() : 0 })); }
   catch (e) { console.error('[PG] bootRestore list failed: ' + (e && e.message)); bootGate = false; return { restored: 0, pushed: 0, error: (e && e.message) }; }
-  let restored = 0, pushed = 0;
-  // Postgres authoritative: overwrite the disk cache with every populated PG store.
-  for (const [name, pgJson] of pgRows) {
-    if (pgJson != null && _count(pgJson) >= 1) { try { fs.writeFileSync(path.join(DATA_DIR, name), pgJson); restored++; } catch (e) {} }
+  let restored = 0, pushed = 0, kept = 0;
+  // Postgres authoritative for a wiped or older disk — but NEVER revert a disk that is clearly
+  // newer than the backup. Before overwriting a differing, populated disk store, keep a one-slot
+  // rescue copy so nothing is ever truly lost even if this heuristic is wrong.
+  for (const [name, row] of pgRows) {
+    const pgJson = row.json;
+    if (!(pgJson != null && _count(pgJson) >= 1)) continue;
+    const fp = path.join(DATA_DIR, name);
+    let diskJson = null, diskAt = 0;
+    try { const st = fs.statSync(fp); diskAt = st.mtimeMs || 0; diskJson = fs.readFileSync(fp, 'utf8'); } catch (e) { diskJson = null; }
+    if (diskJson != null && _count(diskJson) >= 1 && row.at > 0 && diskAt > row.at + _DISK_NEWER_MS) { kept++; continue; } // disk is clearly newer — keep it (pushed up below)
+    if (diskJson != null && diskJson !== pgJson && _count(diskJson) >= 1) { try { fs.writeFileSync(fp + '.rescue-boot', diskJson); } catch (e) {} }
+    try { fs.writeFileSync(fp, pgJson); restored++; } catch (e) {}
   }
   // Disk is now in sync with Postgres — live writes may mirror again.
   bootGate = false;
-  // First boot / newly-added stores: seed Postgres from any disk store it lacks
-  // (or holds empty) while the disk has real records.
+  // Seed/refresh Postgres from any disk store it lacks, holds empty, or that the disk now holds newer.
   for (const name of _diskStores()) {
-    const pgJson = pgRows.has(name) ? pgRows.get(name) : null;
-    if (pgJson != null && _count(pgJson) >= 1) continue;
+    const row = pgRows.has(name) ? pgRows.get(name) : null;
+    const pgJson = row ? row.json : null;
+    let mustPush = !(pgJson != null && _count(pgJson) >= 1);
+    if (!mustPush && row) { try { const st = fs.statSync(path.join(DATA_DIR, name)); if (row.at > 0 && (st.mtimeMs || 0) > row.at + _DISK_NEWER_MS) mustPush = true; } catch (e) {} }
+    if (!mustPush) continue;
     try { const dj = fs.readFileSync(path.join(DATA_DIR, name), 'utf8'); if (_count(dj) >= 1) { await pool.query('INSERT INTO stores(name, json, updated_at) VALUES($1, $2, now()) ON CONFLICT(name) DO UPDATE SET json = EXCLUDED.json, updated_at = now()', [name, dj]); pushed++; } } catch (e) {}
   }
-  return { restored, pushed };
+  return { restored, pushed, kept };
 }
 
 async function flush() { await chain.p; while (pending > 0) { await chain.p; } }

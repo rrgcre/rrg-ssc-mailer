@@ -19025,6 +19025,23 @@ try { emailfinder.mount(app, { requireAdmin: requireAdmin, loadGmapsKey: loadGma
     }
   }
   app.listen(PORT, () => console.log(`RRG toolkit server listening on :${PORT}`));
+  // Graceful shutdown — on a deploy/restart, Render sends SIGTERM before killing the process.
+  // The Postgres and object-storage backups are written ASYNCHRONOUSLY, so any change made in the
+  // seconds before a deploy could still be queued. Since the next boot restores the disk FROM those
+  // backups, an unflushed write would be silently reverted. Flush the queues before exiting so a
+  // just-saved record (e.g. locations added right before a push) is never lost on the next deploy.
+  let _shuttingDown = false;
+  async function _gracefulShutdown(sig) {
+    if (_shuttingDown) return; _shuttingDown = true;
+    try { console.log('[SHUTDOWN] ' + sig + ' — flushing backups before exit…'); } catch (e) {}
+    const _cap = (p, ms) => Promise.race([Promise.resolve().then(() => p), new Promise(r => setTimeout(r, ms))]);
+    try { if (PG_OK && _pg && _pg.flush) await _cap(_pg.flush(), 15000); } catch (e) {}
+    try { if (blobstore && blobstore.ready && blobstore.ready() && blobstore.flush) await _cap(blobstore.flush(), 10000); } catch (e) {}
+    try { console.log('[SHUTDOWN] backups flushed — exiting.'); } catch (e) {}
+    process.exit(0);
+  }
+  process.on('SIGTERM', () => { _gracefulShutdown('SIGTERM'); });
+  process.on('SIGINT', () => { _gracefulShutdown('SIGINT'); });
   // Reconcile binary assets with object storage on boot: migrate disk→bucket (first run)
   // and restore anything the disk is missing (after a disk loss). Async; never blocks startup.
   setTimeout(() => { try { if (blobstore.ready()) { blobstore.reconcile().then(r => { if (r && !r.skipped) console.log('[BLOB] boot reconcile — uploaded ' + r.uploaded + ', restored ' + r.restored); }).catch(e => console.error('[BLOB] reconcile failed: ' + (e && e.message))); } } catch (e) {} }, 8000);
