@@ -286,7 +286,7 @@ function _enrichCenterFrom(c, linkedSpaces, opts) {
   // Center-level fields the flyer stated (present on newer imports).
   for (const s of sps) { if (String(s.anchor || '').trim()) { set('anchor', s.anchor); break; } }
   for (const s of sps) { if (String(s.coTenants || '').trim()) { set('coTenants', s.coTenants); break; } }
-  for (const s of sps) { if (s.centerType && CENTER_TYPES.indexOf(s.centerType) >= 0) { set('centerType', s.centerType); break; } }
+  for (const s of sps) { if (s.centerType && CENTER_TYPES.indexOf(s.centerType) >= 0) { set('centerType', s.centerType); if (c.centerType === s.centerType) c.centerTypeAuto = false; break; } }
   // Metro → the market field. Always reassign when the current market is not already one of our metros (or on overwrite).
   const metro = _metroForCity(city || c.city);
   if (metro && (ow || metros.indexOf(String(c.market || '')) < 0)) { if (c.market !== metro) { c.market = metro; changed = true; } }
@@ -10474,7 +10474,7 @@ app.delete('/api/space/:id', (req, res) => {
 app.get('/api/centers', (req, res) => {
   const spaces = loadSpaces();
   const centers = loadCenters().map(c => centerBrief(c, spaces));
-  res.json({ ok: true, centers, types: CENTER_TYPES, canDelete: !!(req.user && isSuper(req.user)) });
+  res.json({ ok: true, centers, types: CENTER_TYPES, canDelete: !!(req.user && isSuper(req.user)), hasMaps: !!loadGmapsKey() });
 });
 app.post('/api/center', express.json(), (req, res) => {
   const b = req.body || {};
@@ -10488,7 +10488,7 @@ app.post('/api/center', express.json(), (req, res) => {
   if (typeof b.address === 'string') c.address = b.address.slice(0, 200);
   if (typeof b.city === 'string') c.city = b.city.slice(0, 120);
   if (typeof b.market === 'string') c.market = b.market.slice(0, 120);
-  if (typeof b.centerType === 'string') c.centerType = CENTER_TYPES.indexOf(b.centerType) >= 0 ? b.centerType : (c.centerType || '');
+  if (typeof b.centerType === 'string') { c.centerType = CENTER_TYPES.indexOf(b.centerType) >= 0 ? b.centerType : (c.centerType || ''); c.centerTypeAuto = false; }
   if (typeof b.anchor === 'string') c.anchor = b.anchor.slice(0, 300);
   if (typeof b.coTenants === 'string') c.coTenants = b.coTenants.slice(0, 600);
   if (b.gla !== undefined) c.gla = num(b.gla);
@@ -10501,24 +10501,66 @@ app.post('/api/center', express.json(), (req, res) => {
   if (b.id) { const sp = loadSpaces(); let ch = false; sp.forEach(x => { if (x.centerId === c.id && x.center !== c.name) { x.center = c.name; ch = true; } }); if (ch) saveSpaces(sp); }
   res.json({ ok: true, center: centerBrief(c) });
 });
-// Run the enrichment across every center: address/city/metro/photo from the linked listings (grounded),
-// then a conservative AI pass for center type / anchor. Fill-blanks by default; ?overwrite to replace.
+// Google Places/Street View enrichment for one center: verified street address, city, metro, geo + a real photo.
+// Uses the firm's saved Google Maps key. Fill-blanks by default; opts.overwrite replaces. Never throws.
+function _saveCenterPhoto(c, img) {
+  if (!img || !img.buf) return false;
+  try { if (!fs.existsSync(CENTER_PHOTO_DIR)) fs.mkdirSync(CENTER_PHOTO_DIR, { recursive: true }); const ext = (img.ext || 'jpg'); if (c.photoExt && c.photoExt !== ext) { try { binDel(path.join(CENTER_PHOTO_DIR, c.id + '.' + c.photoExt)); } catch (e) {} } binWrite(path.join(CENTER_PHOTO_DIR, c.id + '.' + ext), img.buf); c.photoExt = ext; return true; } catch (e) { return false; }
+}
+async function _centerWebEnrich(key, c, opts) {
+  opts = opts || {}; const ow = !!opts.overwrite; let changed = false, gotPhoto = false;
+  if (!key || !c) return { changed, gotPhoto };
+  const q = [c.name, c.address, c.city, c.market].filter(Boolean).join(' ').trim();
+  if (!q) return { changed, gotPhoto };
+  let en = null; try { en = await placesSearchNew(key, q); } catch (e) { en = null; }
+  if (!en || !en.data) return { changed, gotPhoto };
+  const d = en.data;
+  c.google = Object.assign({}, c.google || {}, { placeId: d.placeId || '', lat: d.lat, lng: d.lng, address: d.address || '', mapsUrl: d.mapsUrl || '', at: d.at || new Date().toISOString() });
+  const parts = String(d.address || '').split(',').map(s => s.trim()).filter(Boolean);
+  const street = parts[0] || '', city = parts.length >= 3 ? parts[1] : (parts[1] || '');
+  const setF = (k, v) => { v = String(v || '').trim(); if (!v) return; if (ow || !String(c[k] || '').trim()) { if (c[k] !== v) { c[k] = v; changed = true; } } };
+  setF('address', street.slice(0, 200));
+  setF('city', city.slice(0, 120));
+  const metros = effMarkets(); const metro = _metroForCity(city || c.city);
+  if (metro && (ow || metros.indexOf(String(c.market || '')) < 0)) { if (c.market !== metro) { c.market = metro; changed = true; } }
+  // Photo: a real Google Places building photo first, then Street View at the verified address.
+  if (!c.photoExt || ow) {
+    try {
+      if (en.photos && en.photos.length) { const p = await placesPhotoNew(key, en.photos[0]); if (p && p.img && _saveCenterPhoto(c, p.img)) { gotPhoto = true; changed = true; } }
+      if (!gotPhoto) { const addr = [c.address, c.city].filter(Boolean).join(', ') || d.address; const svp = await streetViewPhoto(key, addr); if (svp && svp.img && _saveCenterPhoto(c, svp.img)) { gotPhoto = true; changed = true; } }
+    } catch (e) {}
+  }
+  if (changed) c.updatedAt = new Date().toISOString();
+  return { changed, gotPhoto };
+}
+// Run the enrichment across every center: verified address/city/metro/photo from Google (if a Maps key is set),
+// then the grounded fill from linked listings, then a conservative AI pass for center type / anchor. Fill-blanks by default.
 app.post('/api/centers/enrich-all', express.json(), async (req, res) => {
   if (!req.user) return res.status(401).json({ ok: false, error: 'Sign in required.' });
   const overwrite = !!(req.body && req.body.overwrite);
+  const gkey = loadGmapsKey();
   const centers = loadCenters(); const spaces = loadSpaces();
   const byCenter = {}; spaces.forEach(s => { if (s.centerId) (byCenter[s.centerId] = byCenter[s.centerId] || []).push(s); });
-  let filled = 0, photos = 0, aiFilled = 0;
-  // Phase 1 — deterministic fill + photo from the flyers we already have. Save first so this always persists.
-  for (const c of centers) {
-    const linked = byCenter[c.id] || [];
-    if (_enrichCenterFrom(c, linked, { overwrite })) filled++;
-    try { if (await _centerPhotoFromSpaces(c, linked)) photos++; } catch (e) {}
-  }
+  let filled = 0, photos = 0, aiFilled = 0, webVerified = 0;
+  // Phase 1 — grounded fill (address/city/metro/type/anchor) from the listings we already have. No photo yet.
+  for (const c of centers) { if (_enrichCenterFrom(c, byCenter[c.id] || [], { overwrite })) filled++; }
   saveCenters(centers);
-  // Phase 2 — conservative AI inference of center type / anchor / co-tenants (grounded in name + notes).
+  // Phase 2 — Google verification: real address/city/metro + a Street View / Places photo (primary). Best-effort per center.
+  if (gkey) {
+    for (const c of centers) {
+      try { const r = await _centerWebEnrich(gkey, c, { overwrite }); if (r.changed) webVerified++; if (r.gotPhoto) photos++; } catch (e) {}
+    }
+    saveCenters(centers);
+  }
+  // Phase 3 — flyer photo fallback for any center still without a picture.
+  for (const c of centers) { if (!c.photoExt) { try { if (await _centerPhotoFromSpaces(c, byCenter[c.id] || [])) photos++; } catch (e) {} } }
+  saveCenters(centers);
+  // Phase 4 — conservative AI inference of center type / anchor / co-tenants (grounded in name + notes).
+  // Type is only assigned with real evidence; a previously auto-guessed type is re-evaluated and cleared if unfounded.
+  // A center type the rep set by hand (centerTypeAuto === false) is never touched.
   try {
-    const need = centers.filter(c => overwrite || !String(c.centerType || '').trim() || !String(c.anchor || '').trim());
+    const typeEligible = c => (overwrite || !String(c.centerType || '').trim() || c.centerTypeAuto !== false);
+    const need = centers.filter(c => typeEligible(c) || overwrite || !String(c.anchor || '').trim());
     for (let i = 0; i < need.length; i += 25) {
       const grp = need.slice(i, i + 25);
       const items = grp.map((c, idx) => ({ i: idx, name: c.name || '', city: c.city || c.market || '', notes: ((byCenter[c.id] || []).map(s => s.notes || '').filter(Boolean).join(' | ')).slice(0, 500) }));
@@ -10526,7 +10568,7 @@ app.post('/api/centers/enrich-all', express.json(), async (req, res) => {
       try { out = await aiassist.enrichCenters(items, CENTER_TYPES); } catch (e) { out = []; }
       (out || []).forEach(r => {
         const c = grp[r.i]; if (!c) return; let ch = false;
-        if ((overwrite || !String(c.centerType || '').trim()) && CENTER_TYPES.indexOf(r.centerType) >= 0) { c.centerType = r.centerType; ch = true; }
+        if (typeEligible(c)) { const nt = (CENTER_TYPES.indexOf(r.centerType) >= 0) ? r.centerType : ''; if (String(c.centerType || '') !== nt) { c.centerType = nt; ch = true; } c.centerTypeAuto = true; }
         if ((overwrite || !String(c.anchor || '').trim()) && String(r.anchor || '').trim()) { c.anchor = String(r.anchor).slice(0, 300); ch = true; }
         if ((overwrite || !String(c.coTenants || '').trim()) && String(r.coTenants || '').trim()) { c.coTenants = String(r.coTenants).slice(0, 600); ch = true; }
         if (ch) { c.updatedAt = new Date().toISOString(); aiFilled++; }
@@ -10534,7 +10576,7 @@ app.post('/api/centers/enrich-all', express.json(), async (req, res) => {
     }
     saveCenters(centers);
   } catch (e) { console.error('center enrich AI:', e && e.message); }
-  res.json({ ok: true, total: centers.length, filled, photos, aiFilled });
+  res.json({ ok: true, total: centers.length, filled, photos, aiFilled, webVerified, hadKey: !!gkey });
 });
 app.delete('/api/center/:id', (req, res) => {
   if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Admin only.' });
@@ -10684,6 +10726,7 @@ async function _scanSpacesForUser(username, byName, days, skipIds, onProgress) {
   const cands = await gmail.listListingCandidates(username, 50, days, _srcList);
   const arr = loadSpaces();
   const centers = loadCenters(); let centersDirty = false; let centersMade = 0;
+  const _gkeyScan = loadGmapsKey();
   const review = loadSpaceReview(); let reviewDirty = false; let reviewMade = 0;
   const seen = new Set(arr.map(s => String(s.address || '').toLowerCase().trim()).filter(Boolean));
   const results = []; let created = 0; const processedIds = [];
@@ -10718,11 +10761,15 @@ async function _scanSpacesForUser(username, byName, days, skipIds, onProgress) {
       if (fd.center && String(fd.center).trim()) {
         const _cn = String(fd.center).trim().toLowerCase();
         let ctr = centers.find(x => String(x.name || '').trim().toLowerCase() === _cn);
-        if (!ctr) { ctr = { id: newCenterId(), name: String(fd.center).slice(0, 160), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), by: byName || '', byUser: username, source: 'email-scan' }; centers.push(ctr); centersDirty = true; centersMade++; }
+        let _ctrNew = false;
+        if (!ctr) { ctr = { id: newCenterId(), name: String(fd.center).slice(0, 160), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), by: byName || '', byUser: username, source: 'email-scan' }; centers.push(ctr); centersDirty = true; centersMade++; _ctrNew = true; }
         sp.centerId = ctr.id; sp.center = ctr.name;
-        // Populate the center's address, city, metro and (flyer-stated) type/anchor from this listing, and borrow the flyer as its photo.
+        // Populate the center's address, city, metro and (flyer-stated) type/anchor from this listing.
         if (_enrichCenterFrom(ctr, [sp], {})) centersDirty = true;
-        try { if (await _centerPhotoFromSpaces(ctr, [sp])) centersDirty = true; } catch (e) {}
+        // On a brand-new center, verify address/city/metro against Google and pull a real Street View / Places photo.
+        if (_gkeyScan && _ctrNew) { try { const _wr = await _centerWebEnrich(_gkeyScan, ctr, {}); if (_wr.changed) centersDirty = true; } catch (e) {} }
+        // Flyer photo as a fallback if Google gave no picture (or no key configured).
+        try { if (!ctr.photoExt && await _centerPhotoFromSpaces(ctr, [sp])) centersDirty = true; } catch (e) {}
       }
       arr.push(sp); created++; if (key) seen.add(key);
       results.push({ ok: true, subject: c.subject || '', address: sp.address || sp.name || '', center: sp.center || '', file: fileName });

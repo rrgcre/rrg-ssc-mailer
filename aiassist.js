@@ -71,11 +71,18 @@ async function parseSpaceListing({ text, types, features, centerTypes }) {
 // 1b) Enrich a batch of shopping centers — infer type / anchor / co-tenants ONLY from the name + notes. Grounded; blank when unknown.
 async function enrichCenters(items, centerTypes) {
   if (!Array.isArray(items) || !items.length) return [];
-  const sys = 'You are a restaurant/bar commercial real estate broker organizing a list of shopping centers. For EACH center, infer ONLY what is clearly supported by its NAME and the NOTES provided. Return ONLY JSON {"results":[{"i":<index>,"centerType":"","anchor":"","coTenants":""}]} with every index exactly once.\n'
-    + '- centerType: MUST be one of ' + JSON.stringify(centerTypes || []) + ' or "". Infer from clear name cues: "Outparcel"/"Pad"/"Outlot" → "Freestanding pad"; a named grocery (H-E-B, Kroger, Randalls, Tom Thumb, Albertsons) → "Grocery-anchored"; "Mall" → "Mall / food court"; "Town Center"/"Lifestyle"/"mixed-use" → "Lifestyle / mixed-use"; a big-box name (Walmart, Target, Lowe\'s, Home Depot, Costco) → "Power / big-box"; "Marketplace"/"Village"/"Shops"/"Plaza"/"Crossing"/"Square"/"Corner"/"Station" with no other cue → "Strip / unanchored". If genuinely unclear, "".\n'
+  const sys = 'You are a restaurant/bar commercial real estate broker organizing a list of shopping centers. For EACH center, infer ONLY what is clearly supported by its NAME and the NOTES provided. When in doubt, return "". Return ONLY JSON {"results":[{"i":<index>,"centerType":"","anchor":"","coTenants":""}]} with every index exactly once.\n'
+    + '- centerType: MUST be one of ' + JSON.stringify(centerTypes || []) + ' or "". The type depends on the ANCHOR, so assign a type ONLY when the name or notes give real evidence of it:\n'
+    + '   • a named grocery (H-E-B, Kroger, Randalls, Tom Thumb, Albertsons, Sprouts, Whole Foods) → "Grocery-anchored"\n'
+    + '   • a named big-box (Walmart, Target, Lowe\'s, Home Depot, Costco, Sam\'s, Best Buy) → "Power / big-box"\n'
+    + '   • the word "Mall" → "Mall / food court"\n'
+    + '   • "Outparcel"/"Pad"/"Outlot", or clearly a single freestanding building → "Freestanding pad"\n'
+    + '   • "Town Center"/"Lifestyle"/"mixed-use" → "Lifestyle / mixed-use"\n'
+    + '   • "Downtown"/"Main Street"/street-retail language → "Downtown / street retail"\n'
+    + '   CRITICAL: do NOT output "Strip / unanchored" — or any other type — just because the name is generic ("Village", "Shops", "Plaza", "Crossing", "Square", "Marketplace", "Center", "Station", "Corner"). Those names tell you NOTHING about the anchor. If there is no real evidence of the anchor, centerType MUST be "".\n'
     + '- anchor: the center\'s anchor tenant ONLY if the name or notes clearly name a real retailer that anchors it. A restaurant/pad user named in the title is NOT the anchor. Otherwise "".\n'
     + '- coTenants: notable EXISTING tenants ONLY if explicitly present in the notes. Otherwise "".\n'
-    + 'NEVER invent a tenant, brand, or type not supported by the name or notes. Empty string is the correct answer when unknown.';
+    + 'NEVER invent a tenant, brand, or type not supported by the name or notes. Empty string is the correct and expected answer for most centers.';
   const user = 'CENTERS (JSON):\n' + JSON.stringify(items).slice(0, 16000) + '\n\nReturn the JSON now.';
   const out = await callClaude(sys, user, 2000);
   const j = extractJson(out);

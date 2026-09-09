@@ -122,7 +122,7 @@ tr:hover td{background:#fbfcfe;}
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function fmtN(n){ return (n==null||n==='')?'':Number(n).toLocaleString('en-US'); }
-var CENTERS=[], SPACES=[], TYPES=[], CANDEL=false, EDIT=null, PENDING_PHOTO=null;
+var CENTERS=[], SPACES=[], TYPES=[], CANDEL=false, HASMAPS=false, EDIT=null, PENDING_PHOTO=null;
 var CTL=null;
 var TRASH_SVG='<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>';
 function load(){
@@ -131,7 +131,7 @@ function load(){
     fetch('/api/spaces',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).catch(function(){return {spaces:[]};})
   ]).then(function(res){
     var j=res[0]||{}; if(!j.ok){ document.getElementById('list').innerHTML='<div class="empty">Could not load centers.</div>'; return; }
-    CENTERS=j.centers||[]; TYPES=j.types||[]; CANDEL=!!j.canDelete; SPACES=(res[1]&&res[1].spaces)||[];
+    CENTERS=j.centers||[]; TYPES=j.types||[]; CANDEL=!!j.canDelete; HASMAPS=!!j.hasMaps; SPACES=(res[1]&&res[1].spaces)||[];
     var sel=document.getElementById('c_type'); sel.innerHTML='<option value="">— type —</option>'+TYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join('');
     draw();
   }).catch(function(){ document.getElementById('list').innerHTML='<div class="empty">Could not load centers.</div>'; });
@@ -139,13 +139,15 @@ function load(){
 function enrichAll(){
   var btn=document.getElementById('enrichBtn'), msg=document.getElementById('count');
   if(!CENTERS.length){ if(msg) msg.textContent='No centers to enrich yet.'; return; }
-  if(!confirm('Fill in address, city, metro, type/anchor and a photo for all '+CENTERS.length+' centers, using your own listings?\n\nThis only fills blanks — it won’t overwrite anything you’ve already entered. It can take up to a minute.')) return;
+  var src=HASMAPS?'Google (verified address + Street View photo) and your own listings':'your own listings';
+  var note=HASMAPS?'' : '\n\n(No Google Maps key set — this uses your listings only. Add a key in Admin → Integrations for verified addresses + Street View photos.)';
+  if(!confirm('Fill in address, city, metro, type/anchor and a photo for all '+CENTERS.length+' centers, using '+src+'?\n\nThis only fills blanks — it won’t overwrite anything you’ve already entered. With Google on, it can take a couple of minutes.'+note)) return;
   btn.disabled=true; var old=btn.textContent; btn.textContent='Enriching…';
-  if(msg){ msg.style.color=''; msg.textContent='Enriching '+CENTERS.length+' centers from your listings — this can take up to a minute…'; }
+  if(msg){ msg.style.color=''; msg.textContent='Enriching '+CENTERS.length+' centers'+(HASMAPS?' with Google verification':'')+' — this can take a couple of minutes…'; }
   fetch('/api/centers/enrich-all',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({})})
     .then(function(r){return r.json();}).then(function(j){
       btn.disabled=false; btn.textContent=old;
-      if(j&&j.ok){ if(msg){ msg.textContent='Done — filled '+j.filled+' center'+(j.filled===1?'':'s')+', added '+j.photos+' photo'+(j.photos===1?'':'s')+', '+j.aiFilled+' type/anchor.'; } load(); }
+      if(j&&j.ok){ if(msg){ msg.textContent='Done — filled '+j.filled+' center'+(j.filled===1?'':'s')+(j.hadKey?(', '+j.webVerified+' Google-verified'):'')+', added '+j.photos+' photo'+(j.photos===1?'':'s')+', '+j.aiFilled+' type/anchor.'; } load(); }
       else { if(msg){ msg.textContent=(j&&j.error)||'Could not enrich the centers.'; } }
     })
     .catch(function(){ btn.disabled=false; btn.textContent=old; if(msg){ msg.textContent='Could not reach the server (the run may still be finishing — refresh in a moment).'; } });
