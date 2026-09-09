@@ -5828,6 +5828,7 @@ function assignmentView(d, overlay, _opts) {
     tours: Array.isArray(o.tours) ? o.tours : [],
     ndas: Array.isArray(o.ndas) ? o.ndas : [],
     inquiries: Array.isArray(o.inquiries) ? o.inquiries : [],
+    marketStats: { impressions: Math.max(0, parseInt((o.stats || {}).impressions, 10) || 0), detailViews: Math.max(0, parseInt((o.stats || {}).detailViews, 10) || 0), favorites: Math.max(0, parseInt((o.stats || {}).favorites, 10) || 0) },
     buyers: Array.isArray(o.buyers) ? o.buyers : [],
     buyerPipelineId: o.buyerPipelineId || defaultBuyerPipelineId(),
     buyerStages: buyerStagesFor(o),
@@ -6469,6 +6470,30 @@ app.post('/api/market/request-access', express.json(), (req, res) => {
   cur.inquiries = inqs; cur.updatedAt = new Date().toISOString(); overlay[key] = cur; saveAssignOverlay(overlay);
   res.json({ ok: true });
 });
+// PUBLIC — lightweight marketplace engagement tracking (impressions, detail opens, favorites) for the listing KPIs.
+// Best-effort and never errors; only counts against a live/published listing. Impressions arrive batched + de-duped per visitor.
+app.post('/api/market/track', express.json(), (req, res) => {
+  try {
+    const b = req.body || {};
+    const ev = String(b.event || '').slice(0, 20);
+    const field = { impression: 'impressions', detail: 'detailViews', favorite: 'favorites', unfavorite: 'favorites' }[ev];
+    if (!field) return res.json({ ok: true, skipped: true });
+    let keys = Array.isArray(b.keys) ? b.keys : (b.key ? [b.key] : []);
+    keys = keys.map(k => String(k).slice(0, 60)).filter(Boolean).slice(0, 80);
+    if (!keys.length) return res.json({ ok: true, skipped: true });
+    const overlay = loadAssignOverlay(); let changed = false;
+    keys.forEach(function (key) {
+      const cur = overlay[key];
+      if (!cur || !cur.market || !cur.market.published) return;   // only live, published listings accrue stats
+      cur.stats = (cur.stats && typeof cur.stats === 'object') ? cur.stats : {};
+      let n = parseInt(cur.stats[field], 10) || 0;
+      n = (ev === 'unfavorite') ? Math.max(0, n - 1) : (n + 1);
+      cur.stats[field] = n; overlay[key] = cur; changed = true;
+    });
+    if (changed) saveAssignOverlay(overlay);
+    res.json({ ok: true });
+  } catch (e) { res.json({ ok: false }); }
+});
 app.get('/market', (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8').send(marketplacePublicPage(req)); });
 function marketplacePublicPage(req) {
   const org = esc(orgDisplayName());
@@ -6534,6 +6559,9 @@ header{background:var(--navy);border-bottom:2px solid var(--primary);position:st
 .lock svg{width:12px;height:12px;stroke:var(--soft);fill:none;stroke-width:2;}
 .req{background:var(--primary);color:#fff;border:none;border-radius:3px;padding:8px 13px;font:inherit;font-weight:600;font-size:12px;cursor:pointer;white-space:nowrap;}
 .req:hover{background:var(--primary-d);}
+.fav{background:none;border:none;padding:4px;margin:0;cursor:pointer;color:#b9c2d2;display:inline-flex;align-items:center;justify-content:center;flex:none;transition:color .12s,transform .1s;}
+.fav svg{width:18px;height:18px;}
+.fav:hover{color:var(--red);} .fav.on{color:var(--red);} .fav:active{transform:scale(.9);}
 .list{display:flex;flex-direction:column;gap:8px;padding-bottom:24px;}
 .lrow{background:#fff;border:1px solid var(--line);border-radius:4px;padding:13px 16px;display:grid;grid-template-columns:1fr auto 160px;gap:18px;align-items:center;}
 .lrow:hover{border-color:#c4ccda;}
@@ -6652,7 +6680,7 @@ function listRow(l){
   var metHtml=mets.length?('<div class="lmet">'+mets.map(function(c){return '<div><div class="v">'+esc(c[1])+'</div><div class="k">'+esc(c[0])+'</div></div>';}).join('')+'</div>'):'<div class="lmet"><div><div class="v">Under NDA</div><div class="k">Financials on request</div></div></div>';
   return '<div class="lrow"><div class="linfo"><div class="lloc">'+esc(l.loc||'Texas')+'</div><h3>'+esc(l.headline)+'</h3><div class="lbadge"><span class="ltag">'+esc(l.badge||'Restaurant')+'</span>'+flagTag(l)+'</div></div>'
     +metHtml
-    +'<div class="lact"><button class="req" data-k="'+esc(l.id)+'">Request access →</button><span class="llock">Blind until NDA</span></div></div>'; }
+    +'<div class="lact">'+favBtn(l.id)+'<button class="req" data-k="'+esc(l.id)+'">Request access →</button><span class="llock">Blind until NDA</span></div></div>'; }
 function metricsHtml(l){ var cells=[]; if(l.revenue) cells.push(['Revenue',l.revenue]); if(l.sde) cells.push([l.earnBasis||'SDE',l.sde]); if(l.guide) cells.push(['Guide',l.guide]);
   if(!cells.length) return '<div class="metrics"><div class="m"><div class="v">Under NDA</div><div class="k">Financials on request</div></div></div>';
   return '<div class="metrics">'+cells.map(function(c){return '<div class="m"><div class="v">'+esc(c[1])+'</div><div class="k">'+esc(c[0])+'</div></div>';}).join('')+'</div>'; }
@@ -6660,7 +6688,7 @@ function card(l){ var flag=l.flagLabel?('<span class="flag" style="background:'+
   return '<div class="card'+(l.featured?' feat':'')+'"><div class="thumb">'+flag+'<span class="badge">'+esc(l.badge||'Restaurant')+'</span></div>'
     +'<div class="cbody"><div class="loc">'+esc(l.loc||'Texas')+'</div><h3>'+esc(l.headline)+'</h3>'+metricsHtml(l)
     +'<div class="cfoot"><span class="lock"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Blind until NDA</span>'
-    +'<button class="req" data-k="'+esc(l.id)+'">Request access →</button></div></div></div>'; }
+    +'<span style="display:inline-flex;align-items:center;gap:6px">'+favBtn(l.id)+'<button class="req" data-k="'+esc(l.id)+'">Request access →</button></span></div></div></div>'; }
 function priceRank(l){ var m={u1m:1,'1-3m':2,'3-5m':3,'5m+':4}; return m[l.priceBand]||0; }
 function conceptIcon(l){
   var t=((l.conceptKey||'')+' '+(l.badge||'')).toLowerCase(); var p;
@@ -6686,7 +6714,7 @@ function ledgerHtml(rows){
       +'<td class="num hs"><span class="s">'+(l.revenue?esc(l.revenue):'—')+'</span></td>'
       +'<td class="num hs"><span class="s">'+(l.sde?esc(l.sde):'—')+'</span></td>'
       +'<td>'+flagTag(l)+'</td>'
-      +'<td><button class="lgreq req" data-k="'+esc(l.id)+'">Request →</button></td></tr>';
+      +'<td><span style="display:inline-flex;align-items:center;gap:6px;justify-content:flex-end">'+favBtn(l.id)+'<button class="lgreq req" data-k="'+esc(l.id)+'">Request →</button></span></td></tr>';
   }).join('');
   return '<table class="lg"><thead><tr><th>Opportunity</th><th class="hs">Market</th><th class="num">Guide</th><th class="num hs">Revenue</th><th class="num hs">SDE</th><th>Status</th><th></th></tr></thead><tbody>'+body+'</tbody></table>';
 }
@@ -6694,11 +6722,21 @@ function registerHtml(rows){
   if(!rows.length) return '<div class="empty">No opportunities match those filters right now. Adjust the filters, or register as a buyer to be notified as new listings come to market.</div>';
   var groups={}, order=[]; rows.forEach(function(l){ var k=l.marketKey||l.loc||'Other'; if(!groups[k]){groups[k]=[];order.push(k);} groups[k].push(l); }); order.sort();
   return order.map(function(k){ var items=groups[k].map(function(l){ var g=guideOf(l); var sub=l.sde?((l.earnBasis||'SDE')+' '+l.sde):'';
-      return '<div class="reg" data-k="'+esc(l.id)+'"><span class="cicow sm">'+conceptIcon(l)+'</span><div class="rt"><div class="ey">'+esc(l.badge||'Restaurant')+'</div><div class="rh">'+esc(l.headline)+'</div></div><div class="leader"></div><div class="fig"><div class="g">'+(g?esc(g):'Under NDA')+'</div>'+(sub?'<div class="s">'+esc(sub)+'</div>':'')+'<div class="rreq req" data-k="'+esc(l.id)+'">Request access →</div></div></div>';
+      return '<div class="reg" data-k="'+esc(l.id)+'"><span class="cicow sm">'+conceptIcon(l)+'</span><div class="rt"><div class="ey">'+esc(l.badge||'Restaurant')+'</div><div class="rh">'+esc(l.headline)+'</div></div><div class="leader"></div><div class="fig"><div class="g">'+(g?esc(g):'Under NDA')+'</div>'+(sub?'<div class="s">'+esc(sub)+'</div>':'')+'<div style="display:flex;align-items:center;gap:6px;justify-content:flex-end">'+favBtn(l.id)+'<div class="rreq req" data-k="'+esc(l.id)+'">Request access →</div></div></div></div>';
     }).join('');
     return '<div class="reggrp"><div class="reghd"><h2>'+esc(k)+'</h2><span class="ln"></span><span class="n">'+groups[k].length+' deal'+(groups[k].length>1?'s':'')+'</span></div>'+items+'</div>';
   }).join('');
 }
+// ---- Engagement tracking (impressions / detail opens / favorites) — powers the rep's listing KPIs ----
+function track(ev,keys){ try{ if(!keys||!keys.length) return; var body=JSON.stringify({event:ev,keys:keys}); if(navigator.sendBeacon){ navigator.sendBeacon('/api/market/track', new Blob([body],{type:'application/json'})); } else { fetch('/api/market/track',{method:'POST',headers:{'Content-Type':'application/json'},body:body,keepalive:true}); } }catch(e){} }
+var _imp={}, _det={};
+function trackImpressions(rows){ var fresh=[]; (rows||[]).forEach(function(l){ if(l&&l.id&&!_imp[l.id]){ _imp[l.id]=1; fresh.push(l.id); } }); if(fresh.length) track('impression',fresh); }
+function trackDetail(k){ if(!k||_det[k]) return; _det[k]=1; track('detail',[k]); }
+function _favSet(){ try{ return JSON.parse(localStorage.getItem('mktFav')||'{}'); }catch(e){ return {}; } }
+function _isFav(k){ return !!_favSet()[k]; }
+function heartSvg(on){ return '<svg viewBox="0 0 24 24" fill="'+(on?'currentColor':'none')+'" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 21s-7-4.35-9.5-8.5C1 9 3 5.5 6.5 5.5c2 0 3.6 1.1 5.5 3 1.9-1.9 3.5-3 5.5-3C21 5.5 23 9 21.5 12.5 19 16.65 12 21 12 21z"/></svg>'; }
+function favBtn(k){ var on=_isFav(k); return '<button type="button" class="fav'+(on?' on':'')+'" data-fav="'+esc(k)+'" title="'+(on?'Saved to your favorites':'Save to favorites')+'" aria-label="Favorite">'+heartSvg(on)+'</button>'; }
+function toggleFav(k,btn){ try{ var s=_favSet(); var on=!s[k]; if(on) s[k]=1; else delete s[k]; localStorage.setItem('mktFav',JSON.stringify(s)); if(btn){ btn.classList.toggle('on',on); btn.innerHTML=heartSvg(on); btn.title=on?'Saved to your favorites':'Save to favorites'; } track(on?'favorite':'unfavorite',[k]); }catch(e){} }
 function updateHeaderStats(){ var c=document.getElementById('stCount'); if(c) c.textContent=ALL.length; var mk={}; ALL.forEach(function(l){ if(l.marketKey) mk[l.marketKey]=1; }); var me=document.getElementById('stMkt'); if(me) me.textContent=Object.keys(mk).length; }
 function render(){
   var q=(document.getElementById('fSearch').value||'').toLowerCase().trim();
@@ -6719,10 +6757,12 @@ function render(){
   else { g.className=(VIEW==='list'?'list':'grid'); g.innerHTML=rows.length?rows.map(VIEW==='list'?listRow:card).join(''):'<div class="empty">No opportunities match those filters right now. Adjust the filters, or register as a buyer to be notified as new listings come to market.</div>'; }
   document.getElementById('cnt').innerHTML='Showing <b>'+rows.length+'</b> of <b>'+ALL.length+'</b> confidential opportunities'; updateHeaderStats();
   g.querySelectorAll('.req').forEach(function(b){ b.addEventListener('click',function(){ openReq(b.getAttribute('data-k')); }); });
+  g.querySelectorAll('.fav').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); toggleFav(b.getAttribute('data-fav'), b); }); });
+  trackImpressions(rows);
 }
 document.querySelectorAll('.vtog button[data-view]').forEach(function(b){ b.addEventListener('click',function(){ VIEW=b.getAttribute('data-view'); document.querySelectorAll('.vtog button').forEach(function(x){ x.classList.toggle('on',x===b); }); render(); }); });
 ['fSearch','fMarket','fConcept','fPrice','fCash','fSort'].forEach(function(id){ var el=document.getElementById(id); el.addEventListener('input',render); el.addEventListener('change',render); });
-function openReq(k){ CUR=k; document.getElementById('rMsg').textContent=''; ['rName','rEmail','rPhone','rNote'].forEach(function(i){document.getElementById(i).value='';}); document.getElementById('ov').classList.add('on'); document.getElementById('rName').focus(); }
+function openReq(k){ CUR=k; trackDetail(k); document.getElementById('rMsg').textContent=''; ['rName','rEmail','rPhone','rNote'].forEach(function(i){document.getElementById(i).value='';}); document.getElementById('ov').classList.add('on'); document.getElementById('rName').focus(); }
 function closeReq(){ document.getElementById('ov').classList.remove('on'); }
 document.getElementById('rCancel').addEventListener('click',closeReq);
 document.getElementById('ov').addEventListener('click',function(e){ if(e.target===this) closeReq(); });
