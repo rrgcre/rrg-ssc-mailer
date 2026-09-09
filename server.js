@@ -10523,6 +10523,21 @@ async function _centerWebEnrich(key, c, opts) {
   setF('city', city.slice(0, 120));
   const metros = effMarkets(); const metro = _metroForCity(city || c.city);
   if (metro && (ow || metros.indexOf(String(c.market || '')) < 0)) { if (c.market !== metro) { c.market = metro; changed = true; } }
+  // Real anchor / co-tenants / type from the businesses actually standing at this location.
+  if (typeof d.lat === 'number' && typeof d.lng === 'number') {
+    try {
+      const nb = await placesNearby(key, d.lat, d.lng, 140);
+      if (nb.places && nb.places.length) {
+        const t = _readTenantsFromNearby(c.name, nb.places);
+        if (t.anchor) setF('anchor', t.anchor.slice(0, 300));
+        if (t.coTenants) setF('coTenants', t.coTenants.slice(0, 600));
+        if (t.centerType && CENTER_TYPES.indexOf(t.centerType) >= 0 && (ow || !String(c.centerType || '').trim() || c.centerTypeAuto !== false)) {
+          if (c.centerType !== t.centerType) { c.centerType = t.centerType; changed = true; }
+          c.centerTypeAuto = false;   // grounded in real tenants — protect it from the name-based AI pass
+        }
+      }
+    } catch (e) {}
+  }
   // Photo: a real Google Places building photo first, then Street View at the verified address.
   if (!c.photoExt || ow) {
     try {
@@ -12095,6 +12110,52 @@ async function streetViewPhoto(key, addr) {
   } catch (e) { return { img: null, reason: 'street view: request failed' }; }
   const img = await fetchImageBuffer('https://maps.googleapis.com/maps/api/streetview?size=640x640&location=' + enc + '&fov=80&key=' + key);
   return { img, reason: img ? '' : 'street view: image download failed' };
+}
+// Google Places Nearby: the businesses physically standing at a lat/lng — used to read a center's real anchor + co-tenants.
+const _ANCHOR_TYPES = { supermarket: 'grocery', grocery_store: 'grocery', department_store: 'bigbox', home_improvement_store: 'bigbox', warehouse_store: 'bigbox', wholesale_store: 'bigbox', discount_store: 'bigbox', shopping_mall: 'mall' };
+// Google-place types that are not retail tenants of a center (skip as co-tenants).
+const _SKIP_NEARBY_TYPES = { locality: 1, political: 1, postal_code: 1, route: 1, street_address: 1, premise: 1, neighborhood: 1, sublocality: 1, plus_code: 1, geocode: 1, parking: 1, atm: 1 };
+async function placesNearby(key, lat, lng, radius) {
+  if (!key || typeof lat !== 'number' || typeof lng !== 'number') return { places: [], reason: 'no geo' };
+  try {
+    const r = await fetch('https://places.googleapis.com/v1/places:searchNearby', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': key, 'X-Goog-FieldMask': 'places.displayName,places.primaryType,places.types,places.businessStatus' },
+      body: JSON.stringify({ maxResultCount: 20, rankPreference: 'DISTANCE', locationRestriction: { circle: { center: { latitude: lat, longitude: lng }, radius: Math.max(20, Math.min(300, radius || 140)) } } })
+    });
+    const j = await r.json();
+    if (!r.ok) return { places: [], reason: 'nearby: ' + ((j && j.error && j.error.message) || ('HTTP ' + r.status)) };
+    const places = (j && j.places || []).map(function (p) { return { name: (p.displayName && p.displayName.text) || '', primaryType: p.primaryType || '', types: Array.isArray(p.types) ? p.types : [], status: p.businessStatus || '' }; }).filter(function (p) { return p.name; });
+    return { places, reason: '' };
+  } catch (e) { return { places: [], reason: 'nearby: request failed' }; }
+}
+// From nearby businesses, pick the anchor + notable co-tenants and derive the center type. Grounded in what's actually there.
+function _readTenantsFromNearby(centerName, places) {
+  const cn = String(centerName || '').toLowerCase();
+  const isCenterItself = n => { const x = String(n || '').toLowerCase(); return x && (x === cn || (cn && (cn.indexOf(x) >= 0 || x.indexOf(cn) >= 0) && x.length > 4)); };
+  let anchor = '', anchorKind = '';
+  const seen = {}; const coT = [];
+  const rank = { grocery: 3, bigbox: 3, mall: 2 };
+  let bestAnchorRank = 0;
+  for (const p of places) {
+    if (p.status && p.status !== 'OPERATIONAL') continue;
+    const allTypes = [p.primaryType].concat(p.types).filter(Boolean);
+    if (allTypes.some(t => _SKIP_NEARBY_TYPES[t])) continue;
+    // Anchor candidate?
+    let kind = ''; for (const t of allTypes) { if (_ANCHOR_TYPES[t]) { kind = _ANCHOR_TYPES[t]; break; } }
+    if (kind && (rank[kind] || 1) > bestAnchorRank && !isCenterItself(p.name)) { anchor = p.name; anchorKind = kind; bestAnchorRank = rank[kind] || 1; continue; }
+    // Otherwise a possible co-tenant (named retail/food/service), skipping the center itself.
+    if (isCenterItself(p.name)) continue;
+    const kn = p.name.toLowerCase(); if (seen[kn]) continue; seen[kn] = 1;
+    if (coT.length < 8) coT.push(p.name);
+  }
+  // Derive the type from the anchor we actually found.
+  let type = '';
+  if (anchorKind === 'grocery') type = 'Grocery-anchored';
+  else if (anchorKind === 'bigbox') type = 'Power / big-box';
+  else if (anchorKind === 'mall') type = 'Mall / food court';
+  else if (places.length >= 3 && (coT.length + (anchor ? 1 : 0)) >= 3) type = 'Strip / unanchored';   // looked, found several shops, no anchor
+  return { anchor, coTenants: coT.join(', '), centerType: type, found: places.length };
 }
 async function placesPhotoNew(key, photoName) {
   if (!key || !photoName) return { img: null, reason: '' };
