@@ -705,17 +705,24 @@ function _valBridgeInner(){
   var earnN=_lpNum(e.val), askN=_lpNum(A.listPrice||''), valN=_lpNum(A.value||'');
   var reOn=_reOn(), reN=reOn?_lpNum(A.reValue||''):0, bizN=_bizPriceN();
   if(!(earnN>0)){ return '<div style="font-size:12.5px;color:#8a93a8;line-height:1.5">Pick a <b>Basis</b> and fill the year financials below — this strip then shows exactly how the price was reached: latest-year earnings × multiple = value.</div>'; }
-  var mult=(bizN>0)?(bizN/earnN):0;
+  // Core valuation equation — the SAME multiple the rep enters: latest earnings × multiple = opinion of value.
+  var mult=(valN>0)?(valN/earnN):0;
   var lab='font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#8a93a8';
   var big='font-weight:800;color:#000E31;font-size:15px;font-variant-numeric:tabular-nums';
   var step=function(l,v,sub){ return '<div style="text-align:center"><div style="'+lab+'">'+l+'</div><div style="'+big+'">'+v+'</div>'+(sub?('<div style="font-size:10px;color:#9aa3b2">'+sub+'</div>'):'')+'</div>'; };
   var op=function(s){ return '<div style="font-size:17px;color:#b6c0d0;font-weight:700;align-self:center">'+s+'</div>'; };
-  var parts=[ step((e.label?esc(e.label)+' ':'')+esc(basis), _money(e.val), 'latest-year earnings'), op('×'), step('Multiple', (mult>0?mult.toFixed(1)+'×':'—'), 'implied') ];
-  if(reOn){ parts.push(op('=')); parts.push(step('Business value', (bizN>0?_money(String(bizN)):'—'), 'earnings × multiple')); parts.push(op('+')); parts.push(step('Real estate', (reN>0?_money(A.reValue):'—'), 'allocated')); parts.push(op('=')); parts.push(step('Asking · all-in', (askN>0?_money(A.listPrice):'—'), 'business + RE')); }
-  else { parts.push(op('=')); parts.push(step('Asking price', (askN>0?_money(A.listPrice):'—'), 'what we list at')); }
+  var parts=[ step((e.label?esc(e.label)+' ':'')+esc(basis), _money(e.val), 'latest-year earnings'), op('×'), step('Multiple', (mult>0?mult.toFixed(1)+'×':'—'), esc(basis)+' multiple'), op('='), step('Opinion of value', (valN>0?_money(A.value):'—'), 'earnings × multiple') ];
   var row='<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">'+parts.join('')+'</div>';
-  var vAskN=reOn?bizN:askN; var vBase=reOn?'business':'asking';
-  var note=(valN>0 && vAskN>0 && Math.abs(valN-vAskN)>1)?('<div style="font-size:11.5px;color:#6b7488;margin-top:9px;padding-top:9px;border-top:1px dashed #dfe4ec">Opinion of value <b>'+_money(A.value)+'</b>'+((earnN>0)?(' ('+(valN/earnN).toFixed(1)+'× '+esc(basis)+')'):'')+' — '+vBase+' price is set '+(vAskN>valN?'<b>above</b>':(vAskN<valN?'<b>below</b>':'at'))+' the opinion.</div>'):'';
+  // Asking price is the separate list price (may be above/below the opinion). Shown as context, not part of the valuation equation.
+  var note='';
+  if(askN>0){
+    var rel=(valN>0)?(askN>valN?'<b>above</b>':(askN<valN?'<b>below</b>':'at')):'';
+    var bizMultTxt=(reOn&&bizN>0&&earnN>0)?(' ('+(bizN/earnN).toFixed(1)+'× '+esc(basis)+' on the business)'):((!reOn&&askN>0&&earnN>0)?(' ('+(askN/earnN).toFixed(1)+'× '+esc(basis)+')'):'');
+    var comp=reOn
+      ? ('Asking price (all-in) <b>'+_money(A.listPrice)+'</b> = business <b>'+(bizN>0?_money(String(bizN)):'—')+'</b>'+(reN>0?(' + real estate <b>'+_money(A.reValue)+'</b>'):'')+bizMultTxt)
+      : ('Asking price <b>'+_money(A.listPrice)+'</b>'+bizMultTxt);
+    note='<div style="font-size:11.5px;color:#6b7488;margin-top:9px;padding-top:9px;border-top:1px dashed #dfe4ec">'+comp+(rel?(' — set '+rel+' the opinion of value'):'')+'.</div>';
+  }
   return row+note;
 }
 function updateValBridge(){ var el=document.getElementById('valBridge'); if(el) el.innerHTML=_valBridgeInner(); updateReBiz(); }
@@ -749,10 +756,11 @@ function financialsCard(){
   var _multNum=(_multEarnN>0&&_multValN>0)?(_multValN/_multEarnN).toFixed(1):'';
   var multCell=(A&&A.valueBov)
     ? '<div class="ovf"><div class="ovk">Multiple (latest)</div><div class="ovv" id="finMultVal">'+(_multNum?(_multNum+'× '+esc(_multBasis)):'—')+'</div></div>'
-    : '<div class="ovf"><div class="ovk">Multiple (latest)</div><div style="display:flex;align-items:center;gap:6px"><input id="f_multover" value="'+esc(_multNum)+'" placeholder="—" inputmode="decimal" oninput="finMultInput()" onblur="updateFinMultiple()" title="Type a multiple — the opinion of value = latest-year earnings × this multiple" style="width:74px;border:1px solid #e6e9f0;border-radius:6px;padding:6px 8px;font:inherit;font-weight:700;color:#000E31;text-align:right"><span id="f_multx" style="font-weight:700;color:#6b7488;font-size:12.5px">× '+esc(_multBasis||'')+'</span></div><div style="font-size:10px;color:#9aa3b2;margin-top:4px">× latest earnings → opinion of value</div></div>';
+    : '<div class="ovf"><div class="ovk">Multiple (latest)</div><div style="display:flex;align-items:center;gap:7px"><input id="f_multover" value="'+esc(_multNum)+'" placeholder="—" inputmode="decimal" oninput="finMultInput()" onblur="updateFinMultiple()" title="Type a multiple — the opinion of value = latest-year earnings × this multiple" style="flex:1;min-width:0;border:1px solid #e6e9f0;border-radius:6px;padding:6px 8px;font:inherit;font-weight:700;color:#000E31"><span id="f_multx" style="font-weight:700;color:#6b7488;font-size:12.5px;white-space:nowrap">× '+esc(_multBasis||'')+'</span></div><div style="font-size:10px;color:#9aa3b2;margin-top:4px">× latest earnings → opinion of value</div></div>';
   var _commEst=(A&&A.commissionEst)||0; var _commEstTxt=_commEst?('$'+Number(_commEst).toLocaleString('en-US')):'';
   var commCell='<div class="ovf"><div class="ovk">Commission Amt'+(_commEstTxt?('<span style="font-weight:400;color:#9aa3b2;font-size:10px;text-transform:none;letter-spacing:0"> · est '+esc(_commEstTxt)+' from asking price</span>'):'')+'</div><input id="f_comm" value="'+esc(_money((A&&A.totalCommission)||''))+'" placeholder="'+(_commEstTxt?esc(_commEstTxt):'—')+'" inputmode="numeric" oninput="finMetaInput();updateCommWarn()" onfocus="this.value=_moneyDigits(this.value)" onblur="this.value=_money(this.value)" style="width:100%;border:1px solid #e6e9f0;border-radius:6px;padding:6px 8px;font:inherit;font-weight:700;color:#000E31"><div id="commWarn" style="display:none;margin-top:5px;font-size:11.5px;font-weight:600;color:#b23a2c;line-height:1.4"></div></div>';
-  var snap='<div class="ovgrid">'+basisCell+valCell+multCell+askCell+commCell+'</div>';
+  // Order follows the valuation flow: pick a basis, enter the multiple → get the opinion of value, then the asking price and commission.
+  var snap='<div class="ovgrid">'+basisCell+multCell+valCell+askCell+commCell+'</div>';
   var _reOnV=!!(A&&A.reIncluded);
   var reBlock='<div style="margin-top:14px;padding:12px 14px;border:1px solid #e6e9f0;border-radius:10px;background:#fbfcfe">'
     +'<label style="display:flex;align-items:center;gap:9px;font-size:12.5px;font-weight:700;color:#000E31;cursor:pointer;margin:0"><input type="checkbox" id="f_reincl"'+(_reOnV?' checked':'')+' onchange="reToggle()" style="width:auto"> Real estate is included in this sale — allocate part of the price to the property</label>'
