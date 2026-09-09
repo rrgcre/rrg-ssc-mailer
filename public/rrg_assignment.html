@@ -677,7 +677,27 @@ function _latestEarnForBasis(basis){ var f3y=_fin3y(); var fld=_basisField(basis
 function _reOn(){ return !!(A&&A.reIncluded); }
 function _bizPriceN(){ var askN=_lpNum(A.listPrice||''); if(_reOn()){ var b=askN-_lpNum(A.reValue||''); return b>0?b:0; } return askN; }
 function _finMultiple(){ var basis=_valBasisLabel(); var e=_latestEarnForBasis(basis); var bN=_bizPriceN(), eN=_lpNum(e.val); if(bN>0&&eN>0) return (bN/eN).toFixed(1)+'× '+basis; return ((A&&A.financials)||{}).multiple||''; }
-function updateFinMultiple(){ var el=document.getElementById('finMultVal'); if(el){ var m=_finMultiple(); el.textContent=m||'—'; } }
+function updateFinMultiple(){
+  var basis=_valBasisLabel(); var e=_lpNum(_latestEarnForBasis(basis).val), v=_lpNum((A&&A.value)||'');
+  var m=(e>0&&v>0)?(v/e).toFixed(1):'';
+  var inp=document.getElementById('f_multover');
+  if(inp){ var xs=document.getElementById('f_multx'); if(xs) xs.textContent='× '+basis; if(document.activeElement!==inp) inp.value=m; return; }
+  var el=document.getElementById('finMultVal'); if(el) el.textContent=(m?(m+'× '+basis):'—');
+}
+// Type a multiple → back-solve the opinion of value (latest-year earnings × multiple). The reverse (value → multiple) is handled by updateFinMultiple.
+var _finMultT=null;
+function finMultInput(){
+  var me=document.getElementById('f_multover'); if(!me) return;
+  var m=parseFloat(String(me.value).replace(/[^0-9.]/g,''));
+  var basis=_valBasisLabel(); var e=_lpNum(_latestEarnForBasis(basis).val);
+  if(!(isFinite(m)&&m>0)||!(e>0)) return;   // need a positive multiple AND latest earnings to derive a value
+  var v=Math.round(e*m);
+  A.value=String(v);
+  var ve=document.getElementById('f_valover'); if(ve && document.activeElement!==ve) ve.value=_money(String(v));
+  updateValBridge();
+  if(_finMultT) clearTimeout(_finMultT);
+  _finMultT=setTimeout(function(){ fetch('/api/assignment/'+encodeURIComponent(KEY)+'/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({valueOverride:String(v)})}); },600);
+}
 function updateReBiz(){ var el=document.getElementById('reBizVal'); if(el){ var b=_bizPriceN(); el.textContent=(b>0)?_money(String(b)):'—'; } }
 function updateCommWarn(){ var el=document.getElementById('commWarn'); if(!el) return; var ci=document.getElementById('f_comm'); var comm=ci?_lpNum(_moneyDigits(ci.value)):_lpNum((A&&A.totalCommission)||''); var ask=_lpNum((A&&A.listPrice)||''); if(ask>0 && comm>0 && (comm/ask)>0.20){ el.style.display=''; el.innerHTML='⚠ Commission is <b>'+Math.round(comm/ask*100)+'%</b> of the asking price — that looks high. Double-check the amount.'; } else { el.style.display='none'; } }
 function _valBridgeInner(){
@@ -723,7 +743,13 @@ function financialsCard(){
   var basisCell=(A&&A.basisBov)
     ? '<div class="ovf"><div class="ovk">Basis'+_bovLite+'</div><div class="ovv">'+(A.basis?esc(A.basis):'—')+'</div></div>'
     : (function(){ var _cb=String(A.basis||''); var _bo=['SDE','EBITDA',"Owner's Take",'Other']; var _extra=(_cb && _bo.indexOf(_cb)<0)?('<option selected>'+esc(_cb)+'</option>'):''; return '<div class="ovf"><div class="ovk">Basis</div><select id="f_basisover" onchange="finMetaInput()" style="width:100%;border:1px solid #e6e9f0;border-radius:6px;padding:6px 8px;font:inherit;color:#000E31;background:#fff"><option value="">— select —</option>'+_bo.map(function(o){ return '<option'+(o===_cb?' selected':'')+'>'+o+'</option>'; }).join('')+_extra+'</select></div>'; })();
-  var multCell='<div class="ovf"><div class="ovk">Multiple (latest)</div><div class="ovv" id="finMultVal">'+(_finMultiple()||'—')+'</div></div>';
+  var _multBasis=_valBasisLabel();
+  var _multEarnN=_lpNum(_latestEarnForBasis(_multBasis).val);
+  var _multValN=_lpNum(A.value||'');
+  var _multNum=(_multEarnN>0&&_multValN>0)?(_multValN/_multEarnN).toFixed(1):'';
+  var multCell=(A&&A.valueBov)
+    ? '<div class="ovf"><div class="ovk">Multiple (latest)</div><div class="ovv" id="finMultVal">'+(_multNum?(_multNum+'× '+esc(_multBasis)):'—')+'</div></div>'
+    : '<div class="ovf"><div class="ovk">Multiple (latest)</div><div style="display:flex;align-items:center;gap:6px"><input id="f_multover" value="'+esc(_multNum)+'" placeholder="—" inputmode="decimal" oninput="finMultInput()" onblur="updateFinMultiple()" title="Type a multiple — the opinion of value = latest-year earnings × this multiple" style="width:74px;border:1px solid #e6e9f0;border-radius:6px;padding:6px 8px;font:inherit;font-weight:700;color:#000E31;text-align:right"><span id="f_multx" style="font-weight:700;color:#6b7488;font-size:12.5px">× '+esc(_multBasis||'')+'</span></div><div style="font-size:10px;color:#9aa3b2;margin-top:4px">× latest earnings → opinion of value</div></div>';
   var _commEst=(A&&A.commissionEst)||0; var _commEstTxt=_commEst?('$'+Number(_commEst).toLocaleString('en-US')):'';
   var commCell='<div class="ovf"><div class="ovk">Commission Amt'+(_commEstTxt?('<span style="font-weight:400;color:#9aa3b2;font-size:10px;text-transform:none;letter-spacing:0"> · est '+esc(_commEstTxt)+' from asking price</span>'):'')+'</div><input id="f_comm" value="'+esc(_money((A&&A.totalCommission)||''))+'" placeholder="'+(_commEstTxt?esc(_commEstTxt):'—')+'" inputmode="numeric" oninput="finMetaInput();updateCommWarn()" onfocus="this.value=_moneyDigits(this.value)" onblur="this.value=_money(this.value)" style="width:100%;border:1px solid #e6e9f0;border-radius:6px;padding:6px 8px;font:inherit;font-weight:700;color:#000E31"><div id="commWarn" style="display:none;margin-top:5px;font-size:11.5px;font-weight:600;color:#b23a2c;line-height:1.4"></div></div>';
   var snap='<div class="ovgrid">'+basisCell+valCell+multCell+askCell+commCell+'</div>';
