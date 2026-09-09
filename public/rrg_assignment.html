@@ -339,6 +339,7 @@ a.feat:hover{background:#f7f9fc;}
   <div class="kicker" id="kicker">Listing record<span class="kx">— everything for this listing in one place</span></div>
   <h1 id="h1">Listing</h1>
   <div class="subline" id="subline"></div>
+  <button type="button" id="rollupAll" onclick="toggleAllCards()" title="Collapse or expand every section on this page" style="position:absolute;top:2px;right:24px;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.26);color:#fff;border-radius:8px;padding:7px 13px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:7px;line-height:1">▾ Roll up all</button>
 </div></div>
 <div class="featwrap">
   <div class="feats" id="lstFeatStrip">
@@ -788,7 +789,7 @@ function financialsCard(){
   var valCard='<div class="card"><div class="ch"><b>Valuation &amp; Pricing</b><span style="margin-left:8px">how the price is derived</span>'+bovLink+'</div><div class="cb" style="padding-top:14px"><div id="valBridge" style="margin:0 0 16px;padding:13px 15px;border:1px solid #e2e8f2;border-radius:10px;background:#f7faff">'+_valBridgeInner()+'</div>'+snap+reBlock+priceGrid+histHtml+'</div></div>';
   return '<div id="finCardHost">'+finCard+valCard+'</div>';
 }
-function refreshFinancials(){ var host=document.getElementById('finCardHost'); if(host){ var tmp=document.createElement('div'); tmp.innerHTML=financialsCard(); var fresh=tmp.firstChild; if(fresh&&host.parentNode) host.parentNode.replaceChild(fresh,host); } var av=document.getElementById('ovAskVal'); if(av) av.textContent=(_money(A.listPrice)||'—'); updateCommWarn(); }
+function refreshFinancials(){ var host=document.getElementById('finCardHost'); if(host){ var tmp=document.createElement('div'); tmp.innerHTML=financialsCard(); var fresh=tmp.firstChild; if(fresh&&host.parentNode) host.parentNode.replaceChild(fresh,host); } var av=document.getElementById('ovAskVal'); if(av) av.textContent=(_money(A.listPrice)||'—'); updateCommWarn(); try{ _wireFinAcc(); _syncRollupBtn(); }catch(e){} }
 function togglePriceForm(show){ var f=document.getElementById('priceForm'); if(!f) return; var on=(show===undefined)?(f.style.display==='none'):show; f.style.display=on?'':'none'; if(on){ var p=document.getElementById('pf_price'); if(p){ p.value=A.listPrice||''; p.focus(); p.select&&p.select(); } var n=document.getElementById('pf_note'); if(n) n.value=''; var m=document.getElementById('pf_msg'); if(m) m.textContent=''; } }
 function askInlineEdit(){
   if(!(A && (A.canChangePrice || !String(A.listPrice||'').trim()))) return;
@@ -1357,7 +1358,7 @@ function setupAccordion(){
       grip.addEventListener('pointerdown',_asgDown);
       ch.addEventListener('click', function(e){
         if(e.target.closest('button, a, input, select, textarea, .rgrip')) return;
-        var collapsed=card.classList.toggle('collapsed'); ACC_STATE[accTitle(card)]=collapsed; _asgSaveCollapse();
+        var collapsed=card.classList.toggle('collapsed'); ACC_STATE[accTitle(card)]=collapsed; _asgSaveCollapse(); _syncRollupBtn();
       });
     }
     if(ACC_STATE[title]) card.classList.add('collapsed'); else card.classList.remove('collapsed');
@@ -1373,7 +1374,7 @@ function setupAccordion(){
       ch.style.cursor='pointer';
       ch.addEventListener('click', function(e){
         if(e.target.closest('button, a, input, select, textarea')) return;
-        var collapsed=card.classList.toggle('collapsed'); ACC_STATE[accTitle(card)]=collapsed; _asgSaveCollapse();
+        var collapsed=card.classList.toggle('collapsed'); ACC_STATE[accTitle(card)]=collapsed; _asgSaveCollapse(); _syncRollupBtn();
       });
     }
     if(ACC_STATE[title]) card.classList.add('collapsed'); else card.classList.remove('collapsed');
@@ -1381,8 +1382,34 @@ function setupAccordion(){
   // Hide a "0" count pill so empty rail cards read clean (matches the contact detail page).
   document.querySelectorAll('.rail > .card > .ch > span:not([id])').forEach(function(s){ s.hidden = ((s.textContent||'').trim()==='0'); });
   _asgTip(main);
+  _wireFinAcc();
+  _syncRollupBtn();
 }
-function expandSectionOf(el){ var card=el&&el.closest('.card'); if(card){ card.classList.remove('collapsed'); ACC_STATE[accTitle(card)]=false; _asgSaveCollapse(); } }
+function expandSectionOf(el){ var card=el&&el.closest('.card'); if(card){ card.classList.remove('collapsed'); ACC_STATE[accTitle(card)]=false; _asgSaveCollapse(); _syncRollupBtn(); } }
+// Every collapsible card on the page — rail, mid, and the Financials/Valuation cards nested in #finCardHost.
+function _allAccCards(){ return [].slice.call(document.querySelectorAll('.rail > .card, .mid > .card, #finCardHost > .card')).filter(function(c){ return c.querySelector('.ch'); }); }
+// Make the Financials + Valuation cards collapsible too (they live inside #finCardHost, so the main accordion pass skips them). Re-runnable after refreshFinancials rebuilds them.
+function _wireFinAcc(){
+  document.querySelectorAll('#finCardHost > .card').forEach(function(card){
+    card.classList.add('acc');
+    var ch=card.querySelector('.ch'); if(!ch) return;
+    var title=accTitle(card);
+    if(!ch.querySelector('.accchev')){
+      var chev=document.createElement('span'); chev.className='accchev'; chev.textContent='▾'; ch.insertBefore(chev, ch.firstChild); ch.style.cursor='pointer';
+      ch.addEventListener('click', function(e){ if(e.target.closest('button, a, input, select, textarea')) return; var collapsed=card.classList.toggle('collapsed'); ACC_STATE[accTitle(card)]=collapsed; _asgSaveCollapse(); _syncRollupBtn(); });
+    }
+    if(ACC_STATE[title]) card.classList.add('collapsed'); else card.classList.remove('collapsed');
+  });
+}
+// Master control: collapse every section if any is open, otherwise expand them all. Persists per section.
+function toggleAllCards(){
+  var cards=_allAccCards(); if(!cards.length) return;
+  var anyOpen=cards.some(function(c){ return !c.classList.contains('collapsed'); });
+  var collapse=anyOpen;
+  cards.forEach(function(c){ c.classList.add('acc'); if(collapse) c.classList.add('collapsed'); else c.classList.remove('collapsed'); var t=accTitle(c); if(t) ACC_STATE[t]=collapse; });
+  _asgSaveCollapse(); _syncRollupBtn();
+}
+function _syncRollupBtn(){ var b=document.getElementById('rollupAll'); if(!b) return; var cards=_allAccCards(); if(!cards.length){ b.style.display='none'; return; } b.style.display=''; var anyOpen=cards.some(function(c){ return !c.classList.contains('collapsed'); }); b.innerHTML=anyOpen?'▾ Roll up all':'▸ Expand all'; }
 function evLabel(e){
   if(e.event==='download') return 'Downloaded '+(e.doc?('“'+e.doc+'”'):'a document');
   if(e.event==='signin')   return 'Signed in with an access code';
