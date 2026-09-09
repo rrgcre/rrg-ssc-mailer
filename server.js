@@ -212,6 +212,87 @@ function saveCenters(a) { return writeJsonGuarded(CENTERS_FILE, a, 'saveCenters'
 function newCenterId() { return 'ctr_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 const CENTER_TYPES = ['Grocery-anchored', 'Power / big-box', 'Lifestyle / mixed-use', 'Strip / unanchored', 'Freestanding pad', 'Downtown / street retail', 'Mall / food court', 'Entertainment / hospitality node', 'Other'];
 function centerBrief(c, spaces) { const linked = (spaces || loadSpaces()).filter(x => x.centerId === c.id); return Object.assign({}, c, { hasPhoto: !!c.photoExt, spaceCount: linked.length }); }
+// ---- Shopping-center enrichment: derive metro, address, city and a photo from the listings we already have ----
+const _METRO_CITIES = {
+  'Austin': ['austin', 'round rock', 'cedar park', 'georgetown', 'leander', 'pflugerville', 'kyle', 'buda', 'bee cave', 'lakeway', 'jarrell', 'creedmoor', 'manor', 'hutto', 'dripping springs', 'bastrop', 'san marcos', 'wells branch', 'del valle', 'elgin', 'taylor', 'liberty hill', 'volente', 'lago vista'],
+  'San Antonio': ['san antonio', 'schertz', 'boerne', 'converse', 'new braunfels', 'live oak', 'universal city', 'cibolo', 'selma', 'seguin', 'helotes', 'castle hills', 'leon valley', 'alamo heights', 'kirby', 'windcrest', 'fair oaks ranch', 'stone oak'],
+  'Dallas': ['dallas', 'richardson', 'garland', 'plano', 'frisco', 'addison', 'carrollton', 'grand prairie', 'mesquite', 'lewisville', 'irving', 'rockwall', 'mckinney', 'allen', 'melissa', 'lancaster', 'desoto', 'duncanville', 'farmers branch', 'the colony', 'wylie', 'sachse', 'coppell', 'flower mound', 'little elm', 'prosper', 'cedar hill', 'rowlett'],
+  'Fort Worth': ['fort worth', 'arlington', 'burleson', 'hudson oaks', 'weatherford', 'keller', 'roanoke', 'southlake', 'grapevine', 'mansfield', 'crowley', 'benbrook', 'haltom city', 'north richland hills', 'hurst', 'euless', 'bedford', 'saginaw', 'azle', 'aledo'],
+  'Houston': ['houston', 'sugar land', 'katy', 'richmond', 'hockley', 'panorama village', 'conroe', 'the woodlands', 'pearland', 'cypress', 'spring', 'humble', 'pasadena', 'rosenberg', 'missouri city', 'stafford', 'tomball', 'friendswood', 'league city', 'baytown', 'deer park', 'kingwood', 'atascocita', 'aliana'],
+  'Rio Grande Valley': ['mcallen', 'brownsville', 'harlingen', 'edinburg', 'pharr', 'mission', 'weslaco', 'san juan', 'donna', 'mercedes', 'los fresnos'],
+  'Central Texas': ['temple', 'waco', 'killeen', 'copperas cove', 'belton', 'marble falls', 'bryan', 'college station', 'salado', 'harker heights', 'hewitt', 'woodway', 'gatesville', 'lampasas']
+};
+const _METRO_BY_CITY = (function () { const m = {}; Object.keys(_METRO_CITIES).forEach(function (metro) { _METRO_CITIES[metro].forEach(function (c) { m[c] = metro; }); }); return m; })();
+// Resolve a city to one of the firm's configured metros. Unknown/out-of-area → 'Other'.
+function _metroForCity(city) {
+  const key = String(city || '').trim().toLowerCase(); if (!key) return '';
+  const metros = effMarkets();
+  const direct = metros.find(x => String(x).toLowerCase() === key); if (direct) return direct;
+  const m = _METRO_BY_CITY[key]; if (m && metros.indexOf(m) >= 0) return m;
+  return metros.indexOf('Other') >= 0 ? 'Other' : '';
+}
+// Drop a trailing suite/unit token so a space address collapses to the center's street address.
+function _stripSuite(addr) { return String(addr || '').replace(/[,;]?\s*(ste\.?|suite|unit|#|bldg\.?|building|space|spc\.?)\s*[a-z0-9\-]+\s*$/i, '').replace(/\s{2,}/g, ' ').replace(/[ ,;]+$/, '').trim(); }
+// Best-effort: turn a linked listing's flyer into a center photo (image files copied; PDF first page rasterized via mupdf). Never throws.
+async function _pdfFirstPagePng(buf) {
+  try {
+    const mupdf = await import('mupdf');
+    const doc = mupdf.PDFDocument.openDocument(new Uint8Array(buf), 'application/pdf');
+    if (doc.countPages() < 1) return null;
+    const page = doc.loadPage(0);
+    const pix = page.toPixmap(mupdf.Matrix.scale(1.6, 1.6), mupdf.ColorSpace.DeviceRGB, false);
+    const png = pix.asPNG();
+    return png ? Buffer.from(png) : null;
+  } catch (e) { return null; }
+}
+async function _centerPhotoFromSpaces(c, linkedSpaces) {
+  try {
+    if (c.photoExt) return false;
+    for (const s of (linkedSpaces || [])) {
+      const files = Array.isArray(s.files) ? s.files : [];
+      const img = files.find(f => /^(png|jpg|jpeg|gif|webp)$/i.test(f.ext));
+      if (img) {
+        const fp = path.join(SPACEFILES_DIR, s.id + '_' + img.id + '.' + img.ext);
+        if (fs.existsSync(fp)) { const ext = (img.ext.toLowerCase() === 'jpeg') ? 'jpg' : img.ext.toLowerCase(); if (!fs.existsSync(CENTER_PHOTO_DIR)) fs.mkdirSync(CENTER_PHOTO_DIR, { recursive: true }); binWrite(path.join(CENTER_PHOTO_DIR, c.id + '.' + ext), fs.readFileSync(fp)); c.photoExt = ext; return true; }
+      }
+      const pdf = files.find(f => /^pdf$/i.test(f.ext));
+      if (pdf) {
+        const fp = path.join(SPACEFILES_DIR, s.id + '_' + pdf.id + '.pdf');
+        if (fs.existsSync(fp)) { const png = await _pdfFirstPagePng(fs.readFileSync(fp)); if (png && png.length) { if (!fs.existsSync(CENTER_PHOTO_DIR)) fs.mkdirSync(CENTER_PHOTO_DIR, { recursive: true }); binWrite(path.join(CENTER_PHOTO_DIR, c.id + '.png'), png); c.photoExt = 'png'; return true; } }
+      }
+    }
+  } catch (e) {}
+  return false;
+}
+// Fill a center's address / city / metro (and center-level fields the flyer captured) from its linked listings.
+// Deterministic and grounded — no fabrication. fill-blanks by default; overwrite when opts.overwrite.
+function _enrichCenterFrom(c, linkedSpaces, opts) {
+  opts = opts || {}; const ow = !!opts.overwrite; let changed = false;
+  const metros = effMarkets();
+  const set = (k, v) => { v = (v == null ? '' : String(v)).trim(); if (!v) return; if (ow || !String(c[k] || '').trim()) { if (c[k] !== v) { c[k] = v; changed = true; } } };
+  const sps = (linkedSpaces || []).slice();
+  // City: an explicit center city on a listing, else the listing's market (which holds the city), else a legacy city sitting in c.market, else c.city.
+  let city = '';
+  for (const s of sps) { if (String(s.centerCity || '').trim()) { city = s.centerCity; break; } }
+  if (!city) for (const s of sps) { if (String(s.market || '').trim()) { city = s.market; break; } }
+  if (!city && String(c.market || '').trim() && metros.indexOf(c.market) < 0) city = c.market;
+  if (!city && String(c.city || '').trim()) city = c.city;
+  if (city) set('city', city);
+  // Address: a parsed center address on a listing, else the listing's space address with the suite stripped.
+  let addr = '';
+  for (const s of sps) { if (String(s.centerAddress || '').trim()) { addr = s.centerAddress; break; } }
+  if (!addr) { const wa = sps.find(s => String(s.address || '').trim()); if (wa) addr = _stripSuite(wa.address); }
+  if (addr) set('address', addr);
+  // Center-level fields the flyer stated (present on newer imports).
+  for (const s of sps) { if (String(s.anchor || '').trim()) { set('anchor', s.anchor); break; } }
+  for (const s of sps) { if (String(s.coTenants || '').trim()) { set('coTenants', s.coTenants); break; } }
+  for (const s of sps) { if (s.centerType && CENTER_TYPES.indexOf(s.centerType) >= 0) { set('centerType', s.centerType); break; } }
+  // Metro → the market field. Always reassign when the current market is not already one of our metros (or on overwrite).
+  const metro = _metroForCity(city || c.city);
+  if (metro && (ow || metros.indexOf(String(c.market || '')) < 0)) { if (c.market !== metro) { c.market = metro; changed = true; } }
+  if (changed) c.updatedAt = new Date().toISOString();
+  return changed;
+}
 const SPACE_TYPES = ['End cap', 'Inline', 'Pad / Outparcel', 'Freestanding'];
 const SPACE_STATUS = ['Available', 'Toured', 'LOI Out', 'Leased', 'Passed'];
 const SPACE_FEATURES = ['Drive-thru', 'Hood / exhaust', 'Grease trap', 'Gas service', 'Walk-in cooler', 'Bar built-out', 'Patio', 'Fire suppression', '3-phase power', 'Restrooms (ADA)', '2nd-gen restaurant'];
@@ -10420,6 +10501,41 @@ app.post('/api/center', express.json(), (req, res) => {
   if (b.id) { const sp = loadSpaces(); let ch = false; sp.forEach(x => { if (x.centerId === c.id && x.center !== c.name) { x.center = c.name; ch = true; } }); if (ch) saveSpaces(sp); }
   res.json({ ok: true, center: centerBrief(c) });
 });
+// Run the enrichment across every center: address/city/metro/photo from the linked listings (grounded),
+// then a conservative AI pass for center type / anchor. Fill-blanks by default; ?overwrite to replace.
+app.post('/api/centers/enrich-all', express.json(), async (req, res) => {
+  if (!req.user) return res.status(401).json({ ok: false, error: 'Sign in required.' });
+  const overwrite = !!(req.body && req.body.overwrite);
+  const centers = loadCenters(); const spaces = loadSpaces();
+  const byCenter = {}; spaces.forEach(s => { if (s.centerId) (byCenter[s.centerId] = byCenter[s.centerId] || []).push(s); });
+  let filled = 0, photos = 0, aiFilled = 0;
+  // Phase 1 — deterministic fill + photo from the flyers we already have. Save first so this always persists.
+  for (const c of centers) {
+    const linked = byCenter[c.id] || [];
+    if (_enrichCenterFrom(c, linked, { overwrite })) filled++;
+    try { if (await _centerPhotoFromSpaces(c, linked)) photos++; } catch (e) {}
+  }
+  saveCenters(centers);
+  // Phase 2 — conservative AI inference of center type / anchor / co-tenants (grounded in name + notes).
+  try {
+    const need = centers.filter(c => overwrite || !String(c.centerType || '').trim() || !String(c.anchor || '').trim());
+    for (let i = 0; i < need.length; i += 25) {
+      const grp = need.slice(i, i + 25);
+      const items = grp.map((c, idx) => ({ i: idx, name: c.name || '', city: c.city || c.market || '', notes: ((byCenter[c.id] || []).map(s => s.notes || '').filter(Boolean).join(' | ')).slice(0, 500) }));
+      let out = [];
+      try { out = await aiassist.enrichCenters(items, CENTER_TYPES); } catch (e) { out = []; }
+      (out || []).forEach(r => {
+        const c = grp[r.i]; if (!c) return; let ch = false;
+        if ((overwrite || !String(c.centerType || '').trim()) && CENTER_TYPES.indexOf(r.centerType) >= 0) { c.centerType = r.centerType; ch = true; }
+        if ((overwrite || !String(c.anchor || '').trim()) && String(r.anchor || '').trim()) { c.anchor = String(r.anchor).slice(0, 300); ch = true; }
+        if ((overwrite || !String(c.coTenants || '').trim()) && String(r.coTenants || '').trim()) { c.coTenants = String(r.coTenants).slice(0, 600); ch = true; }
+        if (ch) { c.updatedAt = new Date().toISOString(); aiFilled++; }
+      });
+    }
+    saveCenters(centers);
+  } catch (e) { console.error('center enrich AI:', e && e.message); }
+  res.json({ ok: true, total: centers.length, filled, photos, aiFilled });
+});
 app.delete('/api/center/:id', (req, res) => {
   if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Admin only.' });
   const id = req.params.id;
@@ -10498,7 +10614,7 @@ app.post('/api/space/ai-intake', express.json({ limit: '25mb' }), async (req, re
     let text = String(b.text || '');
     if (!text.trim() && b.dataB64) { try { text = String(await extractQuestionnaireText(b.filename || 'listing.pdf', b.dataB64) || ''); } catch (e) { text = ''; } }
     if (!text.trim()) return res.status(400).json({ ok: false, error: 'Paste a listing or upload a readable PDF.' });
-    const fields = await aiassist.parseSpaceListing({ text: text.slice(0, 60000), types: SPACE_TYPES, features: SPACE_FEATURES }); res.json({ ok: true, fields: fields || {} });
+    const fields = await aiassist.parseSpaceListing({ text: text.slice(0, 60000), types: SPACE_TYPES, features: SPACE_FEATURES, centerTypes: CENTER_TYPES }); res.json({ ok: true, fields: fields || {} });
   } catch (e) { res.status(502).json({ ok: false, error: String(e.message || e) }); }
 });
 // Batch: a PDF per listing — extract, parse with AI, and auto-create each space.
@@ -10514,7 +10630,7 @@ app.post('/api/spaces/ai-batch', express.json({ limit: '80mb' }), async (req, re
     try {
       const text = String(await extractQuestionnaireText(f.filename || ('listing ' + (i + 1)), f.dataB64) || '');
       if (!text.trim()) { results.push({ ok: false, name: f.filename || '', error: 'No readable text in this file.' }); continue; }
-      const fd = (await aiassist.parseSpaceListing({ text: text.slice(0, 60000), types: SPACE_TYPES, features: SPACE_FEATURES })) || {};
+      const fd = (await aiassist.parseSpaceListing({ text: text.slice(0, 60000), types: SPACE_TYPES, features: SPACE_FEATURES, centerTypes: CENTER_TYPES })) || {};
       const sp = { id: newSpaceId(), createdAt: now, updatedAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', status: 'Available',
         name: String(fd.name || '').slice(0, 160), address: String(fd.address || '').slice(0, 200), center: String(fd.center || '').slice(0, 160), market: String(fd.market || '').slice(0, 120),
         spaceType: SPACE_TYPES.indexOf(fd.spaceType) >= 0 ? fd.spaceType : '', size: num(fd.size), rent: num(fd.rent), nnn: num(fd.nnn),
@@ -10534,7 +10650,8 @@ function _spaceFromFields(fd, req, extra) {
     name: String(fd.name || '').slice(0, 160), address: String(fd.address || '').slice(0, 200), center: String(fd.center || '').slice(0, 160), market: String(fd.market || '').slice(0, 120),
     spaceType: SPACE_TYPES.indexOf(fd.spaceType) >= 0 ? fd.spaceType : '', size: num(fd.size), rent: num(fd.rent), nnn: num(fd.nnn),
     features: Array.isArray(fd.features) ? fd.features.map(x => String(x).slice(0, 40)).filter(Boolean).slice(0, 40) : [],
-    notes: String(fd.notes || '').slice(0, 4000) }, extra || {});
+    notes: String(fd.notes || '').slice(0, 4000),
+    centerAddress: String(fd.centerAddress || '').slice(0, 200), centerCity: String(fd.centerCity || '').slice(0, 120), anchor: String(fd.anchor || '').slice(0, 160), coTenants: String(fd.coTenants || '').slice(0, 400), centerType: (CENTER_TYPES.indexOf(fd.centerType) >= 0 ? fd.centerType : '') }, extra || {});
 }
 // Store a brochure/flyer file onto a space (used by the email scanner). Mirrors POST /api/space/:id/file.
 function _storeSpaceBrochure(sp, filename, buf, byName) {
@@ -10589,21 +10706,24 @@ async function _scanSpacesForUser(username, byName, days, skipIds, onProgress) {
     let fd = null;
     const _broPdf = pdfBufs.filter(x => /\.pdf$/i.test(x.filename))[0];
     if (_broPdf && _broPdf.buf && _broPdf.buf.length < 10 * 1024 * 1024) {
-      try { fd = await aiassist.parseSpaceListingDoc({ pdfB64: _broPdf.buf.toString('base64'), text: text.slice(0, 8000), types: SPACE_TYPES, features: SPACE_FEATURES }); } catch (e) { fd = null; }
+      try { fd = await aiassist.parseSpaceListingDoc({ pdfB64: _broPdf.buf.toString('base64'), text: text.slice(0, 8000), types: SPACE_TYPES, features: SPACE_FEATURES, centerTypes: CENTER_TYPES }); } catch (e) { fd = null; }
     }
-    if ((!fd || (!fd.address && fd.size == null)) && text.trim()) { try { fd = await aiassist.parseSpaceListing({ text: text.slice(0, 60000), types: SPACE_TYPES, features: SPACE_FEATURES }); } catch (e) { /* keep fd */ } }
+    if ((!fd || (!fd.address && fd.size == null)) && text.trim()) { try { fd = await aiassist.parseSpaceListing({ text: text.slice(0, 60000), types: SPACE_TYPES, features: SPACE_FEATURES, centerTypes: CENTER_TYPES }); } catch (e) { /* keep fd */ } }
     const key = fd ? String(fd.address || '').toLowerCase().trim() : '';
     if (key && seen.has(key)) { results.push({ ok: false, subject: c.subject || '', reason: 'already in system' }); if (typeof onProgress === 'function') onProgress({ phase: 'item', total: cands.length, done: _done, created }); continue; }
     if (fd && fd.address) {
       const sp = _spaceFromFields(fd, actor, { source: 'email:' + c.id });
+      let fileName = '';
+      if (bro) { const fid = _storeSpaceBrochure(sp, bro.filename, bro.buf, byName); if (fid) fileName = bro.filename; }
       if (fd.center && String(fd.center).trim()) {
         const _cn = String(fd.center).trim().toLowerCase();
         let ctr = centers.find(x => String(x.name || '').trim().toLowerCase() === _cn);
-        if (!ctr) { ctr = { id: newCenterId(), name: String(fd.center).slice(0, 160), market: String(fd.market || '').slice(0, 120), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), by: byName || '', byUser: username, source: 'email-scan' }; centers.push(ctr); centersDirty = true; centersMade++; }
+        if (!ctr) { ctr = { id: newCenterId(), name: String(fd.center).slice(0, 160), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), by: byName || '', byUser: username, source: 'email-scan' }; centers.push(ctr); centersDirty = true; centersMade++; }
         sp.centerId = ctr.id; sp.center = ctr.name;
+        // Populate the center's address, city, metro and (flyer-stated) type/anchor from this listing, and borrow the flyer as its photo.
+        if (_enrichCenterFrom(ctr, [sp], {})) centersDirty = true;
+        try { if (await _centerPhotoFromSpaces(ctr, [sp])) centersDirty = true; } catch (e) {}
       }
-      let fileName = '';
-      if (bro) { const fid = _storeSpaceBrochure(sp, bro.filename, bro.buf, byName); if (fid) fileName = bro.filename; }
       arr.push(sp); created++; if (key) seen.add(key);
       results.push({ ok: true, subject: c.subject || '', address: sp.address || sp.name || '', center: sp.center || '', file: fileName });
     } else if (hasAttach && !review.some(x => x.messageId === c.id) && ((fd && (fd.center || fd.size != null || fd.spaceType || (fd.features && fd.features.length))) || /(for lease|for sublease|available|sq ?ft|square feet|\bNNN\b|triple net|2nd gen|second generation|end cap|retail space|restaurant space|lease rate|offering memorandum)/i.test(text))) {
@@ -10649,19 +10769,23 @@ app.get('/api/spaces/review/:id/file', (req, res) => {
   res.setHeader('Content-Disposition', 'inline; filename="' + String(it.file.name || ('brochure.' + it.file.ext)).replace(/[^\w.\-]+/g, '_') + '"');
   fs.createReadStream(fp).pipe(res);
 });
-app.post('/api/spaces/review/:id/accept', express.json(), (req, res) => {
+app.post('/api/spaces/review/:id/accept', express.json(), async (req, res) => {
   const all = loadSpaceReview(); const i = all.findIndex(x => x.id === req.params.id);
   if (i < 0) return res.status(404).json({ ok: false, error: 'Review item not found.' });
   const it = all[i]; const b = req.body || {}; const fd = Object.assign({}, it.fields || {}, (b.fields && typeof b.fields === 'object') ? b.fields : {});
   if (!String(fd.address || '').trim() && !String(fd.name || '').trim()) return res.status(400).json({ ok: false, error: 'Add at least an address or a name before accepting.' });
   const arr = loadSpaces(); const sp = _spaceFromFields(fd, req, { source: 'email-review:' + (it.messageId || '') });
+  // Store the flyer on the space first so the center can borrow it as a photo.
+  if (it.file) { try { const fp = path.join(SPACEFILES_DIR, it.id + '.' + it.file.ext); if (fs.existsSync(fp)) { const buf = fs.readFileSync(fp); _storeSpaceBrochure(sp, it.file.name || ('brochure.' + it.file.ext), buf, (req.user && req.user.name) || ''); try { fs.unlinkSync(fp); } catch (e) {} } } catch (e) {} }
   if (fd.center && String(fd.center).trim()) {
     const centers = loadCenters(); const _cn = String(fd.center).trim().toLowerCase();
     let ctr = centers.find(x => String(x.name || '').trim().toLowerCase() === _cn);
-    if (!ctr) { ctr = { id: newCenterId(), name: String(fd.center).slice(0, 160), market: String(fd.market || '').slice(0, 120), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', source: 'email-review' }; centers.push(ctr); saveCenters(centers); }
+    if (!ctr) { ctr = { id: newCenterId(), name: String(fd.center).slice(0, 160), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', source: 'email-review' }; centers.push(ctr); }
     sp.centerId = ctr.id; sp.center = ctr.name;
+    _enrichCenterFrom(ctr, [sp], {});
+    try { await _centerPhotoFromSpaces(ctr, [sp]); } catch (e) {}
+    saveCenters(centers);
   }
-  if (it.file) { try { const fp = path.join(SPACEFILES_DIR, it.id + '.' + it.file.ext); if (fs.existsSync(fp)) { const buf = fs.readFileSync(fp); _storeSpaceBrochure(sp, it.file.name || ('brochure.' + it.file.ext), buf, (req.user && req.user.name) || ''); try { fs.unlinkSync(fp); } catch (e) {} } } catch (e) {} }
   arr.push(sp); saveSpaces(arr); all.splice(i, 1); saveSpaceReview(all);
   res.json({ ok: true, spaceId: sp.id });
 });

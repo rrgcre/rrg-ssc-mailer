@@ -39,47 +39,47 @@ async function callClaudeDoc(system, userText, blocks, maxTokens) { return _call
 
 function extractJson(t) { if (!t) return null; const a = t.indexOf('{'), b = t.lastIndexOf('}'); if (a >= 0 && b > a) { try { return JSON.parse(t.slice(a, b + 1)); } catch (e) {} } return null; }
 
-function _spaceListingSys(types, features) {
+function _spaceListingSys(types, features, centerTypes) {
   return "You are a restaurant/bar commercial real estate broker's assistant. Extract ONE available-space listing from the material (email text and/or an attached flyer PDF whose address/size/rent may live inside images or graphics — READ THE IMAGES TOO) into STRICT JSON. Return ONLY this object, no prose:\n" +
-    '{"address":"","center":"","market":"","spaceType":"","size":null,"rent":null,"nnn":null,"features":[],"notes":""}\n' +
+    '{"address":"","center":"","market":"","spaceType":"","size":null,"rent":null,"nnn":null,"features":[],"notes":"","centerAddress":"","centerCity":"","anchor":"","coTenants":"","centerType":""}\n' +
     '- address: street address of the space. center: shopping center / building name. market: city.\n' +
     '- spaceType MUST be one of ' + JSON.stringify(types) + ' or "".\n' +
     '- size: square feet as digits only, else null. rent: base $/SF/YR number else null. nnn: NNN $/SF/YR number else null (if only monthly/lump given and size known, convert; else null + raw in notes).\n' +
     '- features: subset of ' + JSON.stringify(features) + ' EXPLICITLY shown as already built/present. Do NOT infer.\n' +
     '- notes: other key terms (available SF, term, TI/allowance, delivery, second-gen, timing, listing broker).\n' +
-    'Use ONLY facts present. Never fabricate. Numbers digits only. Output JSON only.';
+    '- centerAddress: the shopping CENTER\'s street address (the property address, without a suite number). centerCity: the city the center is in.\n' +
+    '- anchor: the center\'s anchor tenant if named (e.g. Kroger, H-E-B, Target, Lowe\'s). coTenants: other notable EXISTING tenants at the center, comma-separated, if named.\n' +
+    '- centerType MUST be one of ' + JSON.stringify(centerTypes || []) + ' or "" if unclear.\n' +
+    'Use ONLY facts present. Never fabricate an anchor, co-tenant, or address that is not stated. Numbers digits only. Output JSON only.';
 }
-function _shapeSpace(j, types, features) { j = j || {}; return { address: String(j.address || ''), center: String(j.center || ''), market: String(j.market || ''), spaceType: (types.indexOf(j.spaceType) >= 0 ? j.spaceType : ''), size: (j.size == null ? null : Number(j.size)), rent: (j.rent == null ? null : Number(j.rent)), nnn: (j.nnn == null ? null : Number(j.nnn)), features: Array.isArray(j.features) ? j.features.filter(f => features.indexOf(f) >= 0) : [], notes: String(j.notes || '') }; }
+function _shapeSpace(j, types, features, centerTypes) { j = j || {}; centerTypes = centerTypes || []; return { address: String(j.address || ''), center: String(j.center || ''), market: String(j.market || ''), spaceType: (types.indexOf(j.spaceType) >= 0 ? j.spaceType : ''), size: (j.size == null ? null : Number(j.size)), rent: (j.rent == null ? null : Number(j.rent)), nnn: (j.nnn == null ? null : Number(j.nnn)), features: Array.isArray(j.features) ? j.features.filter(f => features.indexOf(f) >= 0) : [], notes: String(j.notes || ''), centerAddress: String(j.centerAddress || ''), centerCity: String(j.centerCity || ''), anchor: String(j.anchor || ''), coTenants: String(j.coTenants || ''), centerType: (centerTypes.indexOf(j.centerType) >= 0 ? j.centerType : '') }; }
 // Vision parse: send the flyer PDF as a document block so image-based flyers are actually read.
-async function parseSpaceListingDoc({ pdfB64, text, types, features }) {
-  const sys = _spaceListingSys(types, features);
+async function parseSpaceListingDoc({ pdfB64, text, types, features, centerTypes }) {
+  const sys = _spaceListingSys(types, features, centerTypes);
   const blocks = pdfB64 ? [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfB64 } }] : [];
   const user = 'Read the attached flyer PDF (above) AND this email text, then extract the listing.\n\nEMAIL TEXT:\n' + String(text || '').slice(0, 8000);
-  const out = await callClaudeDoc(sys, user, blocks, 1200);
-  return _shapeSpace(extractJson(out), types, features);
+  const out = await callClaudeDoc(sys, user, blocks, 1400);
+  return _shapeSpace(extractJson(out), types, features, centerTypes);
 }
 // 1) Parse a pasted listing (CoStar/LoopNet/Crexi/broker email/flyer) into space fields.
-async function parseSpaceListing({ text, types, features }) {
-  const sys =
-    "You are a restaurant/bar commercial real estate broker's assistant. Extract ONE available-space listing from the pasted text into STRICT JSON. Return ONLY this object, no prose:\n" +
-    '{"address":"","center":"","market":"","spaceType":"","size":null,"rent":null,"nnn":null,"features":[],"notes":""}\n' +
-    'Field rules:\n' +
-    '- address: street address of the space. center: shopping center / building name. market: city.\n' +
-    '- spaceType: MUST be one of ' + JSON.stringify(types) + ' or "" if unclear.\n' +
-    '- size: square feet as digits only (no commas/units), else null.\n' +
-    '- rent: BASE rent in $/SF/YR as a number, else null. nnn: NNN/CAM in $/SF/YR as a number, else null. If a rent is only given as a monthly or lump figure and size is known, convert to $/SF/yr; otherwise leave rent null and put the raw figure in notes.\n' +
-    '- features: the subset of ' + JSON.stringify(features) + ' the text EXPLICITLY says is already built/present. Do NOT infer or guess — only what is stated (e.g. "grease trap", "hood", "drive-thru", "existing bar", "walk-in cooler").\n' +
-    '- notes: any other key terms (available SF, term, TI/allowance, delivery condition, second-gen restaurant, timing).\n' +
-    'Use ONLY facts in the text. Never fabricate. Numbers are digits only. Output JSON only.';
-  const out = await callClaude(sys, 'LISTING TEXT:\n' + String(text || '').slice(0, 12000), 1200);
-  const j = extractJson(out) || {};
-  return {
-    address: String(j.address || ''), center: String(j.center || ''), market: String(j.market || ''),
-    spaceType: (types.indexOf(j.spaceType) >= 0 ? j.spaceType : ''),
-    size: (j.size == null ? null : Number(j.size)), rent: (j.rent == null ? null : Number(j.rent)), nnn: (j.nnn == null ? null : Number(j.nnn)),
-    features: Array.isArray(j.features) ? j.features.filter(f => features.indexOf(f) >= 0) : [],
-    notes: String(j.notes || ''),
-  };
+async function parseSpaceListing({ text, types, features, centerTypes }) {
+  const sys = _spaceListingSys(types, features, centerTypes);
+  const out = await callClaude(sys, 'LISTING TEXT:\n' + String(text || '').slice(0, 12000), 1400);
+  return _shapeSpace(extractJson(out), types, features, centerTypes);
+}
+
+// 1b) Enrich a batch of shopping centers — infer type / anchor / co-tenants ONLY from the name + notes. Grounded; blank when unknown.
+async function enrichCenters(items, centerTypes) {
+  if (!Array.isArray(items) || !items.length) return [];
+  const sys = 'You are a restaurant/bar commercial real estate broker organizing a list of shopping centers. For EACH center, infer ONLY what is clearly supported by its NAME and the NOTES provided. Return ONLY JSON {"results":[{"i":<index>,"centerType":"","anchor":"","coTenants":""}]} with every index exactly once.\n'
+    + '- centerType: MUST be one of ' + JSON.stringify(centerTypes || []) + ' or "". Infer from clear name cues: "Outparcel"/"Pad"/"Outlot" → "Freestanding pad"; a named grocery (H-E-B, Kroger, Randalls, Tom Thumb, Albertsons) → "Grocery-anchored"; "Mall" → "Mall / food court"; "Town Center"/"Lifestyle"/"mixed-use" → "Lifestyle / mixed-use"; a big-box name (Walmart, Target, Lowe\'s, Home Depot, Costco) → "Power / big-box"; "Marketplace"/"Village"/"Shops"/"Plaza"/"Crossing"/"Square"/"Corner"/"Station" with no other cue → "Strip / unanchored". If genuinely unclear, "".\n'
+    + '- anchor: the center\'s anchor tenant ONLY if the name or notes clearly name a real retailer that anchors it. A restaurant/pad user named in the title is NOT the anchor. Otherwise "".\n'
+    + '- coTenants: notable EXISTING tenants ONLY if explicitly present in the notes. Otherwise "".\n'
+    + 'NEVER invent a tenant, brand, or type not supported by the name or notes. Empty string is the correct answer when unknown.';
+  const user = 'CENTERS (JSON):\n' + JSON.stringify(items).slice(0, 16000) + '\n\nReturn the JSON now.';
+  const out = await callClaude(sys, user, 2000);
+  const j = extractJson(out);
+  return (j && Array.isArray(j.results)) ? j.results : [];
 }
 
 // 2) Parse a pasted (received) LOI into the builder's key-term values.
@@ -404,4 +404,4 @@ async function rewriteEmail({ text }) {
   const out = await callClaude(sys, "DRAFT EMAIL (may contain HTML):\n" + String(text || "").slice(0, 12000), 1400);
   return _emailHtmlOut(out);
 }
-module.exports = { rewriteEmail, parseSpaceListing, parseSpaceListingDoc, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, parseEmailContact, parseConceptList, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary, buildQuestionnaire, classifyRoomDocs, polishPrompts, refineBov };
+module.exports = { rewriteEmail, parseSpaceListing, parseSpaceListingDoc, enrichCenters, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, parseEmailContact, parseConceptList, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary, buildQuestionnaire, classifyRoomDocs, polishPrompts, refineBov };
