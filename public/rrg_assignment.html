@@ -1023,14 +1023,6 @@ function render(){
     +'</div><div style="font-size:10.5px;color:#9aa3b2;margin:8px 2px 0">Impressions in search &amp; marketplace, detail opens, buyer leads, and saves — updates as buyers browse your live listing.</div></div>';
   var facts='<div class="ovhead"><div class="ovmono" style="background:hsl('+_hue+',42%,42%)">'+esc(_mono)+'</div>'
       +'<div class="ovid"><div class="ovname">'+esc(_nm)+'</div><div class="ovsub">'+(A.market?esc(A.market):'No market set')+'<span class="st">'+esc(A.status||'New')+'</span>'+((A.assignmentType!=='tenant_rep'&&A.assignmentType!=='landlord_rep')?(function(){ var _sm=saleTypeMeta(); return '<span class="st" title="'+esc(_sm.tip)+'" style="color:'+_sm.fg+';background:'+_sm.bg+';border-color:'+_sm.bd+'">'+esc(_sm.lab)+'</span>'; })():'')+(A.provisional?'<span class="st" style="color:#b5791f;background:#fdf1df;border-color:#f0d7ad">Provisional</span>':'')+(A.codeName?('<span class="st" title="Confidential project code name" style="color:#5a4b8a;background:#f2eefb;border-color:#ddd2f3">🔒 '+esc(A.codeName)+'</span>'):'')+'</div></div></div>'
-    +'<div class="ktiles">'
-      +_tile(esc(domDays()||'—'),'Days on mkt')
-      +_tile(INQUIRIES.length,'Buyer leads')
-      +_tile(NDAS.length,'NDAs')
-      +_tile(TOURS.length,'Tours')
-      +_tile(OFFERS.length,'Offers')
-      +_tile(done+'<span style="font-size:13px;color:#8a93a8;font-weight:700">/'+ST.length+'</span>','Stages done')
-    +'</div>'
     +mktKpis
     +'<div class="ovgrid">'
       +'<div class="ovf"><div class="ovk">Market</div><div class="ovv">'+(A.market?esc(A.market):'—')+'</div></div>'
@@ -1066,12 +1058,9 @@ function render(){
   document.getElementById('root').className='wrap';
   var _sideHtml='<div class="side"><div class="card"><div class="ch"><b>Manage</b></div><div class="cb" style="padding-top:14px">'
       + ((A.canStart||A.provisional||(A.assignmentType==='listing')||A.dealId) ? ('<div class="hqbar">'
-          + (A.canStart ? '<button class="hqbtn go" id="startDealBtn">Start listing →</button>' : (A.provisional ? '<button class="hqbtn go" id="promoteBtn">Go Live →</button>' : ''))
-          + ((A.assignmentType==='listing') ? '<button class="hqbtn mkt" id="hqMktBtn">📣 Marketplace</button>' : '')
-          + ((A.assignmentType==='listing' && A.clientPersonId) ? '<button class="hqbtn mkt" id="hqNewForClient" title="Create another listing tied to this same client (a second concept or location) — the seller and company are pre-linked.">+ New listing for this client</button>' : '')
+          + (A.provisional ? '<button class="hqbtn go" id="promoteBtn">Go Live →</button>' : '')
           + (A.canDelete !== false ? '<button class="hqbtn del" id="delDealBtn" title="Removes the listing, its records, data room and all files. Cannot be undone.">Delete</button>' : '')
           + '</div>'
-          + (A.canStart ? '<div class="hqnote">Start runs the Seller Qualification Call and takes this on as a working listing — not on the market yet.</div>' : '')
           + (A.provisional ? '<div class="hqnote">Go Live marks this listing Live — do it once financials are verified, value is aligned, and the agreement is signed.</div>' : '')
         ) : '')
       + '<div class="fldrow"><label class="fld">Status</label><select id="f_status">'+opts+'</select></div>'
@@ -1372,7 +1361,7 @@ function _asgMove(e){ if(!_asgDrag) return; _asgMoved=true; var main=_asgDrag.pa
 function _asgUp(){ document.removeEventListener('pointermove',_asgMove); if(_asgDrag){ _asgDrag.classList.remove('rdragging'); var main=_asgDrag.parentNode; if(main){ var order=_asgCards(main).map(function(c){ return c.getAttribute('data-rk'); }).filter(Boolean); try{ localStorage.setItem(ASG_ORDER_KEY,JSON.stringify(order)); }catch(e){} } } if(_asgMoved){ document.addEventListener('click',function(ev){ ev.stopPropagation(); ev.preventDefault(); },{once:true,capture:true}); } _asgDrag=null; }
 function _asgTip(main){ if(!main) return; var seen=false; try{ seen=localStorage.getItem(ASG_TIP_KEY)==='1'; }catch(e){} if(seen||main.querySelector('.railtip')) return; var tip=document.createElement('div'); tip.className='railtip'; tip.innerHTML='<span class="rtx"><b>Make this yours.</b> Drag any section by its <span class="rtgrip">\u283f</span> handle to reorder it, and use \u25be to collapse the ones you don\u2019t need. Your layout is saved on this device.</span><button type="button" class="rtclose" aria-label="Dismiss">\u00d7</button>'; main.insertBefore(tip, main.firstChild); var x=tip.querySelector('.rtclose'); if(x) x.addEventListener('click',function(){ try{ localStorage.setItem(ASG_TIP_KEY,'1'); }catch(e){} tip.remove(); }); }
 function setupAccordion(){
-  if(!ACC_INIT){ var saved=null; try{ saved=JSON.parse(localStorage.getItem(ASG_COLLAPSE_KEY)||'null'); }catch(e){} if(saved&&typeof saved==='object'){ ACC_STATE=saved; } else { ACC_STATE['Location Tours']=true; ACC_STATE['Data Room Activity']=true; } ACC_INIT=true; }
+  if(!ACC_INIT){ var saved=null; try{ saved=JSON.parse(localStorage.getItem(ASG_COLLAPSE_KEY)||'null'); }catch(e){} if(saved&&typeof saved==='object'){ ACC_STATE=saved; } else { ACC_STATE['Location Tours']=true; ACC_STATE['Data Room']=true; } ACC_INIT=true; }
   var main=document.querySelector('.rail');
   applyAsgOrder();
   document.querySelectorAll('.rail > .card').forEach(function(card){
@@ -1457,10 +1446,10 @@ function roomActivityCard(){
   if(!RA) return '';
   var people=RA.people||[], events=RA.events||[];
   var unattributed=events.filter(function(e){ return !e.grantId; });
-  var head='<div class="ch"><b>Data Room Activity</b><span>'+(RA.buyerCount||0)+' buyer'+((RA.buyerCount===1)?'':'s')+' · '+events.length+' event'+((events.length===1)?'':'s')+'</span></div>';
+  var head='<div class="ch"><b>Data Room</b></div>';
   var open='<a class="railadd" href="./rrg_room.html?room='+encodeURIComponent(RA.id)+'">Open room →</a>';
   if(!people.length && !events.length){
-    return '<div class="card"><div class="ch"><b>Data Room Activity</b>'+open+'</div><div class="cb"><div class="noev" style="padding:16px 0">No one has accessed this room yet. Add buyers and share the link from the room to start tracking access.</div></div></div>';
+    return '<div class="card"><div class="ch"><b>Data Room</b>'+open+'</div><div class="cb"><div class="noev" style="padding:16px 0">No one has accessed this room yet. Add buyers and share the link from the room to start tracking access.</div></div></div>';
   }
   var rows=people.map(function(p){
     var ev=events.filter(function(e){ return e.grantId===p.id; });
@@ -1477,7 +1466,7 @@ function roomActivityCard(){
       +'<div class="pcount">'+unattributed.length+' visit'+((unattributed.length===1)?'':'s')+'<span class="chev">▸</span></div></div>'
       +'<div class="pevents" data-gid="__none" hidden>'+timelineHTML(unattributed)+'</div>';
   }
-  return '<div class="card"><div class="ch"><b>Data Room Activity</b><span id="draCount">'+(RA.buyerCount||0)+' buyer'+((RA.buyerCount===1)?'':'s')+' · '+events.length+' event'+((events.length===1)?'':'s')+'</span>'+open+'</div><div class="roomact">'+rows+extra+'</div></div>';
+  return '<div class="card"><div class="ch"><b>Data Room</b>'+open+'</div><div class="roomact">'+rows+extra+'</div></div>';
 }
 function wireRoomActivity(){
   document.querySelectorAll('.prow').forEach(function(row){
