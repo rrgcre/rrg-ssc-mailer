@@ -1057,12 +1057,8 @@ function render(){
 
   document.getElementById('root').className='wrap';
   var _sideHtml='<div class="side"><div class="card"><div class="ch"><b>Manage</b></div><div class="cb" style="padding-top:14px">'
-      + ((A.canStart||A.provisional||(A.assignmentType==='listing')||A.dealId) ? ('<div class="hqbar">'
-          + (A.provisional ? '<button class="hqbtn go" id="promoteBtn">Go Live →</button>' : '')
-          + (A.canDelete !== false ? '<button class="hqbtn del" id="delDealBtn" title="Removes the listing, its records, data room and all files. Cannot be undone.">Delete</button>' : '')
-          + '</div>'
-          + (A.provisional ? '<div class="hqnote">Go Live marks this listing Live — do it once financials are verified, value is aligned, and the agreement is signed.</div>' : '')
-        ) : '')
+      + (A.provisional ? ('<div class="hqbar"><button class="hqbtn go" id="promoteBtn">Go Live →</button></div>'
+          + '<div class="hqnote">Go Live marks this listing Live — do it once financials are verified, value is aligned, and the agreement is signed.</div>') : '')
       + '<div class="fldrow"><label class="fld">Status</label><select id="f_status">'+opts+'</select></div>'
       + ((A.assignmentType==='listing') ? ('<div class="fldrow"><label class="fld">Type of listing</label><select id="f_saletype" onchange="setDirty(true);save(true)"><option value="business"'+((A.saleLane!=='asset'&&A.saleLane!=='other')?' selected':'')+'>Going Concern</option><option value="asset"'+(A.saleLane==='asset'?' selected':'')+'>Asset Sale</option><option value="other"'+(A.saleLane==='other'?' selected':'')+'>Other</option></select></div>') : '')
       + (PIPES.length?('<div class="fldrow"><label class="fld">Seller pipeline <span style="font-weight:400;color:#8a93a8;font-size:11px">— where this listing sits on the board</span></label><select id="f_pipeline">'+pipeOpts+'</select></div>'):'')
@@ -1093,6 +1089,7 @@ function render(){
         + '<div class="expnote">Set the IDs so imported BizBuySell / CoStar buyer leads auto-attach to this listing — and pick an automation to run on every lead that comes in for it.</div>'
       + '</div>')))
       + '<div class="fldrow"><label class="fld">Notes</label><textarea id="f_notes" placeholder="Private notes on this listing — next steps, seller temperature, key dates…">'+esc(A.notes||'')+'</textarea></div>'
+      + (A.canDelete !== false ? '<button class="hqbtn del" id="delDealBtn" title="Removes the listing, its records, data room and all files. Cannot be undone." style="width:100%;margin-bottom:9px">Delete</button>' : '')
       + '<button class="savebtn" id="savebtn" disabled>Save changes</button>'
       + '<div class="saved" id="saved">Saved ✓</div>'
       + ''

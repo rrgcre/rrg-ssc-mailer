@@ -112,7 +112,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .cardx .flags{display:inline-flex;gap:4px;flex:none;align-items:center;}
 .fbadge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 2px;border-radius:50%;font-size:11px;font-weight:800;line-height:1;}
 .fbadge.hv{background:#d1f4e0;color:#0e7a53;}
-.fbadge.slip{background:#fde7cf;color:#b5651d;}
+.fbadge.slip{background:#fdeceb;color:#DA2B1F;font-weight:900;}
 .flagmenu{min-width:288px;}
 .flagmenu .flagrow{padding:8px 9px;border-radius:8px;}
 .flagmenu .flagrow+.flagrow{border-top:1px solid #eef1f6;margin-top:2px;}
@@ -564,7 +564,7 @@ function daysInStage(c){ return daysSince(c.stageSince||c.createdAt||''); }
 function flagBadges(c){
   var h='';
   if(FLAGS.highValue.on && FLAGS.highValue.amount && money(c.value)>=Number(FLAGS.highValue.amount)) h+='<span class="fbadge hv" title="High value (\u2265 '+esc(fmtMoney(Number(FLAGS.highValue.amount)))+')">$</span>';
-  if(FLAGS.slipping.on){ var _lim=(c.stageTargetDays&&Number(c.stageTargetDays)>0)?Number(c.stageTargetDays):(FLAGS.slipping.days?Number(FLAGS.slipping.days):0); if(_lim>0){ var dis=daysInStage(c); if(dis!=null && dis>=_lim) h+='<span class="fbadge slip" title="Stalled \u2014 '+dis+'d in '+esc(c.stage||'stage')+' (limit '+_lim+'d)">\u2193</span>'; } }
+  if(FLAGS.slipping.on){ var _lim=(c.stageTargetDays&&Number(c.stageTargetDays)>0)?Number(c.stageTargetDays):(FLAGS.slipping.days?Number(FLAGS.slipping.days):0); if(_lim>0){ var dis=daysInStage(c); if(dis!=null && dis>=_lim) h+='<span class="fbadge slip" title="Stalled \u2014 '+dis+'d in '+esc(c.stage||'stage')+' (limit '+_lim+'d)">!</span>'; } }
   return h?('<span class="flags">'+h+'</span>'):'';
 }
 function cardOwner(c){ if(!c.owner) return ''; var t=esc(c.owner); var ini=esc(initials(c.owner)); if(c.ownerPhoto){ return '<span class="av" title="'+t+'"><img src="'+esc(c.ownerPhoto)+'" alt="'+t+'" onerror="this.remove();this.parentNode.textContent=\''+ini.replace(/'/g,"\\'")+'\'"></span>'; } return '<span class="av" title="'+t+'">'+ini+'</span>'; }
