@@ -335,6 +335,7 @@ function renderToolbar(){
   var vc=activeFilterCount();
   var perLabel=function(p){ return p===0?'All':String(p); };
   var html='<div class="tb">'+'<span class="pgtitle">'+entPlural()+'</span>'+'<button class="tbtn" id="tb_newlisting" style="background:#000E31;color:#fff;border-color:#000E31;font-weight:800">+ New '+entSingular()+'</button>'
+    +(!isTenantBoard()?'<a class="tbtn" href="/market" target="_blank" rel="noopener" title="Open the public confidential marketplace in a new tab" style="text-decoration:none">\ud83d\udce3 Marketplace \u2197</a>':'')
     +'<div class="vtog"><button class="vbtn'+(VIEW==='board'?' on':'')+'" data-view="board">\u25a4 Board</button><button class="vbtn'+(VIEW==='list'?' on':'')+'" data-view="list">\u2630 List</button></div>'
     +'<div class="search"><span class="mag">⌕</span><input id="tb_q" placeholder="Search listings…" value="'+esc(TB.q)+'"></div>'
     +'<button class="tbtn'+(FILTER_OPEN?' on':'')+'" id="tb_filter">☰ Filters'+(vc?(' <span class="pip">'+vc+'</span>'):'')+'</button>'
