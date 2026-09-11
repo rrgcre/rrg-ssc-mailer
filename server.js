@@ -6893,6 +6893,8 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   overlay[d.key] = cur; saveAssignOverlay(overlay);
   res.json({ ok: true });
 });
+// Resolve a city to one of the firm's configured metros (Settings → Markets), for Market auto-fill on the listing page.
+app.get('/api/metro-for-city', (req, res) => { res.json({ ok: true, metro: _metroForCity(req.query.city || ''), markets: effMarkets() }); });
 // ===== Listing media: photos, video, Matterport =====
 function _assignForMedia(req, res){
   const deals = assignmentsIndex();
