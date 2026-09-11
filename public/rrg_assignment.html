@@ -88,6 +88,11 @@ a.hpstep:hover .hpname,button.hpstep:hover .hpname{color:var(--red);}
 .rail > .card > .ch:hover .rgrip{color:#2c5c8f;}
 .rail > .card > .ch .rgrip:active{cursor:grabbing;}
 .rail > .card.rdragging{opacity:.55;}
+/* Center column: same drag grips as the rail, incl. the Financials/Valuation block. */
+.mid > .card > .ch .rgrip, #finCardHost > .card > .ch .rgrip{display:inline-flex;align-items:center;justify-content:center;color:#aab2c0;font-size:12px;line-height:1;cursor:grab;flex:none;margin-left:0;padding:0 1px;letter-spacing:-2px;user-select:none;touch-action:none;}
+.mid > .card > .ch:hover .rgrip, #finCardHost > .card > .ch:hover .rgrip{color:#2c5c8f;}
+.mid > .card > .ch .rgrip:active, #finCardHost > .card > .ch .rgrip:active{cursor:grabbing;}
+.mid > .card.rdragging, #finCardHost.rdragging{opacity:.55;}
 /* NetSuite rail-card chrome — matches the contact detail page: small uppercase labels, pill counts, compact right-aligned add button */
 .rail > .card{margin-bottom:12px;}
 .rail > .card > .ch{gap:6px;padding:11px 14px;}
@@ -877,7 +882,7 @@ function savePrice(){
 }
 var _finMetaT=null;
 function finMetaInput(){ if(_finMetaT) clearTimeout(_finMetaT); _finMetaT=setTimeout(function(){ var body={}; var ve=document.getElementById('f_valover'), be=document.getElementById('f_basisover'), ce=document.getElementById('f_comm'); if(ve){ body.valueOverride=_moneyDigits(ve.value); A.value=body.valueOverride; } if(be){ body.basisOverride=be.value; A.basis=be.value; } if(ce){ body.totalCommission=_moneyDigits(ce.value); A.totalCommission=body.totalCommission; } if(!('valueOverride' in body)&&!('basisOverride' in body)&&!('totalCommission' in body)) return; fetch('/api/assignment/'+encodeURIComponent(KEY)+'/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}); updateFinMultiple(); updateValBridge(); },700); }
-function mktCardShell(){ if(A && (A.assignmentType==='tenant_rep'||A.assignmentType==='landlord_rep')) return ''; return '<div class="card" id="mktCard"><div class="ch"><b>Publish to Marketplace</b><span id="mktStatus" style="margin-left:10px;font-size:12px;color:#8a93a3">Loading…</span><a href="/market" target="_blank" rel="noopener" style="margin-left:auto;font-size:12px;font-weight:700;color:#23496f;text-decoration:none">Open public page ↗</a></div><div class="cb" id="mktBody" style="padding-top:14px"></div></div>'; }
+function mktCardShell(){ if(A && (A.assignmentType==='tenant_rep'||A.assignmentType==='landlord_rep')) return ''; return '<div class="card" id="mktCard"><div class="ch"><b>Marketplace</b><span id="mktStatus" style="margin-left:10px;font-size:12px;color:#8a93a3">Loading…</span><a href="/market" target="_blank" rel="noopener" style="margin-left:auto;font-size:12px;font-weight:700;color:#23496f;text-decoration:none">Open public page ↗</a></div><div class="cb" id="mktBody" style="padding-top:14px"></div></div>'; }
 function loadMarketplace(){ if(!KEY) return; fetch('/api/marketplace/'+encodeURIComponent(KEY),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ MKT=j; fillMarketplaceCard(); } else { var s=document.getElementById('mktStatus'); if(s) s.textContent=''; var b=document.getElementById('mktBody'); if(b) b.innerHTML='<div style="color:#8a93a3;font-size:13px">Marketplace publishing isn’t available for this listing.</div>'; } }).catch(function(){}); }
 function _mkOpts(arr,sel,blank){ var o=blank?('<option value="">'+esc(blank)+'</option>'):''; return o+(arr||[]).map(function(x){return '<option value="'+esc(x)+'"'+(x===sel?' selected':'')+'>'+esc(x)+'</option>';}).join(''); }
 function _mkOptsObj(obj,sel){ obj=obj||{}; return Object.keys(obj).map(function(k){return '<option value="'+esc(k)+'"'+(k===sel?' selected':'')+'>'+esc(obj[k])+'</option>';}).join(''); }
@@ -1272,7 +1277,7 @@ function srToggleOff(off){ fetch('/api/assignment/'+encodeURIComponent(KEY)+'/se
 function loadMatchingBuyers(){ var host=document.getElementById('matchBuyers'), cnt=document.getElementById('mbCount'); if(!host||!KEY) return;
   fetch('/api/assignment/'+encodeURIComponent(KEY)+'/buyer-matches',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok){ host.innerHTML='<div style="color:#8a93a8;font-size:12.5px;padding:4px 0">—</div>'; return; }
-    if(!j.characterized){ if(cnt)cnt.textContent=''; host.innerHTML='<div style="color:#8a93a8;font-size:12.5px;padding:4px 0;line-height:1.5">Set this listing’s concept, market, or price in <b>Publish to Marketplace</b> above, and matching buyers from your book will appear here.</div>'; return; }
+    if(!j.characterized){ if(cnt)cnt.textContent=''; host.innerHTML='<div style="color:#8a93a8;font-size:12.5px;padding:4px 0;line-height:1.5">Set this listing’s concept, market, or price in <b>Marketplace</b> above, and matching buyers from your book will appear here.</div>'; return; }
     var B=j.buyers||[]; if(cnt) cnt.textContent='· '+B.length;
     if(!B.length){ host.innerHTML='<div style="color:#8a93a8;font-size:12.5px;padding:4px 0">No active buyers in your book match this listing yet.</div>'; return; }
     host.innerHTML=B.map(function(b){
@@ -1414,21 +1419,25 @@ async function deleteDeal(){ if(!await rrgConfirm('Delete this listing and every
 function fmtDT(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; var h=d.getHours(),m=d.getMinutes(),ap=h<12?'AM':'PM',hh=(h%12)||12; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2)+' '+hh+':'+String(m).padStart(2,'0')+' '+ap; }
 /* ---------- Accordion + reorderable rail (collapsible, draggable sections on the deal file) ---------- */
 var ACC_STATE={}, ACC_INIT=false;
-var ASG_ORDER_KEY='rrgAsgRailOrderV2', ASG_COLLAPSE_KEY='rrgAsgCollapsedV2', ASG_TIP_KEY='rrgAsgTipSeen';
+var ASG_ORDER_KEY='rrgAsgRailOrderV2', ASG_MID_ORDER_KEY='rrgAsgMidOrderV1', ASG_COLLAPSE_KEY='rrgAsgCollapsedV2', ASG_TIP_KEY='rrgAsgTipSeen';
 function accTitle(card){ var b=card.querySelector('.ch b'); return b?b.textContent.trim():''; }
 function _asgSaveCollapse(){ try{ localStorage.setItem(ASG_COLLAPSE_KEY,JSON.stringify(ACC_STATE)); }catch(e){} }
-// Apply the device-saved card order to the main column.
-function applyAsgOrder(){
-  var main=document.querySelector('.rail'); if(!main) return;
-  Array.prototype.forEach.call(main.querySelectorAll(':scope > .card'),function(c){ var k=accTitle(c); if(k) c.setAttribute('data-rk',k); });
-  var order=[]; try{ order=JSON.parse(localStorage.getItem(ASG_ORDER_KEY)||'[]'); }catch(e){}
-  if(order&&order.length){ order.forEach(function(k){ if(!k) return; var c=main.querySelector(':scope > .card[data-rk="'+String(k).replace(/["\\]/g,'')+'"]'); if(c&&c.parentNode===main) main.appendChild(c); }); }
+// A movable "unit" in a column: a direct-child card, or the Financials/Valuation wrapper (#finCardHost) moved as one block.
+function _asgUnits(container){ return Array.prototype.filter.call(container.children,function(c){ return c.nodeType===1 && (c.id==='finCardHost' || (c.classList&&c.classList.contains('card'))); }); }
+function _asgUnitKey(u){ return (u.id==='finCardHost') ? 'Financials' : accTitle(u); }
+function _asgOrderKeyFor(container){ return (container&&container.classList&&container.classList.contains('mid')) ? ASG_MID_ORDER_KEY : ASG_ORDER_KEY; }
+// Apply the device-saved order to one column.
+function applyAsgOrderFor(container, key){
+  if(!container) return;
+  _asgUnits(container).forEach(function(c){ var k=_asgUnitKey(c); if(k) c.setAttribute('data-rk',k); });
+  var order=[]; try{ order=JSON.parse(localStorage.getItem(key)||'[]'); }catch(e){}
+  if(order&&order.length){ order.forEach(function(k){ if(!k) return; var c=_asgUnits(container).filter(function(x){return x.getAttribute('data-rk')===String(k);})[0]; if(c&&c.parentNode===container) container.appendChild(c); }); }
 }
+function applyAsgOrder(){ applyAsgOrderFor(document.querySelector('.rail'), ASG_ORDER_KEY); applyAsgOrderFor(document.querySelector('.mid'), ASG_MID_ORDER_KEY); }
 var _asgDrag=null, _asgMoved=false;
-function _asgCards(main){ return Array.prototype.filter.call(main.children,function(c){ return c.classList&&c.classList.contains('card'); }); }
-function _asgDown(e){ if(e.button!=null&&e.button!==0) return; var card=e.currentTarget.closest('.card'); if(!card) return; e.preventDefault(); e.stopPropagation(); _asgDrag=card; _asgMoved=false; card.classList.add('rdragging'); document.addEventListener('pointermove',_asgMove); document.addEventListener('pointerup',_asgUp,{once:true}); }
-function _asgMove(e){ if(!_asgDrag) return; _asgMoved=true; var main=_asgDrag.parentNode; if(!main) return; var after=null; _asgCards(main).forEach(function(c){ if(c===_asgDrag) return; var r=c.getBoundingClientRect(); if(e.clientY > r.top + r.height/2) after=c; }); if(after){ if(after.nextSibling!==_asgDrag) main.insertBefore(_asgDrag, after.nextSibling); } else if(main.firstChild!==_asgDrag){ main.insertBefore(_asgDrag, main.firstChild); } }
-function _asgUp(){ document.removeEventListener('pointermove',_asgMove); if(_asgDrag){ _asgDrag.classList.remove('rdragging'); var main=_asgDrag.parentNode; if(main){ var order=_asgCards(main).map(function(c){ return c.getAttribute('data-rk'); }).filter(Boolean); try{ localStorage.setItem(ASG_ORDER_KEY,JSON.stringify(order)); }catch(e){} } } if(_asgMoved){ document.addEventListener('click',function(ev){ ev.stopPropagation(); ev.preventDefault(); },{once:true,capture:true}); } _asgDrag=null; }
+function _asgDown(e){ if(e.button!=null&&e.button!==0) return; var container=e.currentTarget.closest('.rail, .mid'); if(!container) return; var unit=e.currentTarget; while(unit&&unit.parentNode!==container){ unit=unit.parentNode; } if(!unit) return; e.preventDefault(); e.stopPropagation(); _asgDrag=unit; _asgMoved=false; unit.classList.add('rdragging'); document.addEventListener('pointermove',_asgMove); document.addEventListener('pointerup',_asgUp,{once:true}); }
+function _asgMove(e){ if(!_asgDrag) return; _asgMoved=true; var main=_asgDrag.parentNode; if(!main) return; var after=null; _asgUnits(main).forEach(function(c){ if(c===_asgDrag) return; var r=c.getBoundingClientRect(); if(e.clientY > r.top + r.height/2) after=c; }); if(after){ if(after.nextSibling!==_asgDrag) main.insertBefore(_asgDrag, after.nextSibling); } else if(main.firstChild!==_asgDrag){ main.insertBefore(_asgDrag, main.firstChild); } }
+function _asgUp(){ document.removeEventListener('pointermove',_asgMove); if(_asgDrag){ _asgDrag.classList.remove('rdragging'); var main=_asgDrag.parentNode; if(main){ var order=_asgUnits(main).map(function(c){ return c.getAttribute('data-rk'); }).filter(Boolean); try{ localStorage.setItem(_asgOrderKeyFor(main),JSON.stringify(order)); }catch(e){} } } if(_asgMoved){ document.addEventListener('click',function(ev){ ev.stopPropagation(); ev.preventDefault(); },{once:true,capture:true}); } _asgDrag=null; }
 function _asgTip(main){ if(!main) return; var seen=false; try{ seen=localStorage.getItem(ASG_TIP_KEY)==='1'; }catch(e){} if(seen||main.querySelector('.railtip')) return; var tip=document.createElement('div'); tip.className='railtip'; tip.innerHTML='<span class="rtx"><b>Make this yours.</b> Drag any section by its <span class="rtgrip">\u283f</span> handle to reorder it, and use \u25be to collapse the ones you don\u2019t need. Your layout is saved on this device.</span><button type="button" class="rtclose" aria-label="Dismiss">\u00d7</button>'; main.insertBefore(tip, main.firstChild); var x=tip.querySelector('.rtclose'); if(x) x.addEventListener('click',function(){ try{ localStorage.setItem(ASG_TIP_KEY,'1'); }catch(e){} tip.remove(); }); }
 function setupAccordion(){
   if(!ACC_INIT){ var saved=null; try{ saved=JSON.parse(localStorage.getItem(ASG_COLLAPSE_KEY)||'null'); }catch(e){} if(saved&&typeof saved==='object'){ ACC_STATE=saved; } else { ACC_STATE['Location Tours']=true; ACC_STATE['Data Room']=true; } ACC_INIT=true; }
@@ -1452,7 +1461,7 @@ function setupAccordion(){
     }
     if(ACC_STATE[title]) card.classList.add('collapsed'); else card.classList.remove('collapsed');
   });
-  // Center (mid) sections roll up too — collapse only (no drag/reorder).
+  // Center (mid) sections roll up AND drag-reorder, just like the rail.
   document.querySelectorAll('.mid > .card').forEach(function(card){
     card.classList.add('acc');
     var ch=card.querySelector('.ch'); if(!ch) return;
@@ -1460,9 +1469,13 @@ function setupAccordion(){
     if(!ch.querySelector('.accchev')){
       var chev=document.createElement('span'); chev.className='accchev'; chev.textContent='▾';
       ch.insertBefore(chev, ch.firstChild);
+      var grip=document.createElement('span'); grip.className='rgrip'; grip.setAttribute('aria-hidden','true'); grip.title='Drag to reorder'; grip.textContent='⠿';
+      ch.insertBefore(grip, chev);
+      grip.style.touchAction='none';
+      grip.addEventListener('pointerdown',_asgDown);
       ch.style.cursor='pointer';
       ch.addEventListener('click', function(e){
-        if(e.target.closest('button, a, input, select, textarea')) return;
+        if(e.target.closest('button, a, input, select, textarea, .rgrip')) return;
         var collapsed=card.classList.toggle('collapsed'); ACC_STATE[accTitle(card)]=collapsed; _asgSaveCollapse(); _syncRollupBtn();
       });
     }
@@ -1479,13 +1492,16 @@ function expandSectionOf(el){ var card=el&&el.closest('.card'); if(card){ card.c
 function _allAccCards(){ return [].slice.call(document.querySelectorAll('.rail > .card, .mid > .card, #finCardHost > .card')).filter(function(c){ return c.querySelector('.ch'); }); }
 // Make the Financials + Valuation cards collapsible too (they live inside #finCardHost, so the main accordion pass skips them). Re-runnable after refreshFinancials rebuilds them.
 function _wireFinAcc(){
-  document.querySelectorAll('#finCardHost > .card').forEach(function(card){
+  // The wrapper is the single movable unit; tag it so its saved position sticks after refreshFinancials rebuilds it.
+  var host=document.getElementById('finCardHost'); if(host) host.setAttribute('data-rk','Financials');
+  document.querySelectorAll('#finCardHost > .card').forEach(function(card, idx){
     card.classList.add('acc');
     var ch=card.querySelector('.ch'); if(!ch) return;
     var title=accTitle(card);
     if(!ch.querySelector('.accchev')){
       var chev=document.createElement('span'); chev.className='accchev'; chev.textContent='▾'; ch.insertBefore(chev, ch.firstChild); ch.style.cursor='pointer';
-      ch.addEventListener('click', function(e){ if(e.target.closest('button, a, input, select, textarea')) return; var collapsed=card.classList.toggle('collapsed'); ACC_STATE[accTitle(card)]=collapsed; _asgSaveCollapse(); _syncRollupBtn(); });
+      if(idx===0){ var grip=document.createElement('span'); grip.className='rgrip'; grip.setAttribute('aria-hidden','true'); grip.title='Drag to reorder'; grip.textContent='⠿'; ch.insertBefore(grip, chev); grip.style.touchAction='none'; grip.addEventListener('pointerdown',_asgDown); }
+      ch.addEventListener('click', function(e){ if(e.target.closest('button, a, input, select, textarea, .rgrip')) return; var collapsed=card.classList.toggle('collapsed'); ACC_STATE[accTitle(card)]=collapsed; _asgSaveCollapse(); _syncRollupBtn(); });
     }
     if(ACC_STATE[title]) card.classList.add('collapsed'); else card.classList.remove('collapsed');
   });
