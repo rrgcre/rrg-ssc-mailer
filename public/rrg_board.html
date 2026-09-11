@@ -340,7 +340,6 @@ function renderToolbar(){
     +'<div class="search"><span class="mag">⌕</span><input id="tb_q" placeholder="Search listings…" value="'+esc(TB.q)+'"></div>'
     +'<button class="tbtn'+(FILTER_OPEN?' on':'')+'" id="tb_filter">☰ Filters'+(vc?(' <span class="pip">'+vc+'</span>'):'')+'</button>'
     +'<div style="position:relative;display:inline-block"><button class="tbtn" id="tb_saved">★ Saved views ▾</button><div id="savemenu"></div></div>'
-    +'<span class="tblabel">Sort</span><select class="tbsel" id="tb_sort">'+SORTS.map(function(o){return '<option value="'+o[0]+'"'+(TB.sort===o[0]?' selected':'')+'>'+esc(o[1])+'</option>';}).join('')+'</select>'
     +'<span class="tblabel">Per column</span><select class="tbsel" id="tb_per">'+PER_OPTS.map(function(p){return '<option value="'+p+'"'+(TB.per===p?' selected':'')+'>'+perLabel(p)+'</option>';}).join('')+'</select>'
     +'<span class="tblabel">Cards</span><div class="vtog"><button class="dbtn'+(DENSITY==='full'?' on':'')+'" data-density="full">Full</button><button class="dbtn'+(DENSITY==='compact'?' on':'')+'" data-density="compact">Compact</button></div>'
     +'<div style="position:relative;display:inline-block"><button class="tbtn" id="tb_cardf">\u2699 Card fields \u25be</button><div id="cardfmenu"></div></div>'
@@ -351,7 +350,7 @@ function renderToolbar(){
   // wire
   var q=document.getElementById('tb_q'); q.addEventListener('input',function(){ TB.q=q.value; saveTB(); debouncedRender(); });
   document.getElementById('tb_filter').addEventListener('click',function(){ FILTER_OPEN=!FILTER_OPEN; renderToolbar(); });
-  document.getElementById('tb_sort').addEventListener('change',function(){ TB.sort=this.value; saveTB(); render(); });
+  var _ts=document.getElementById('tb_sort'); if(_ts) _ts.addEventListener('change',function(){ TB.sort=this.value; saveTB(); render(); });
   document.getElementById('tb_per').addEventListener('change',function(){ TB.per=Number(this.value); saveTB(); EXPANDED={}; render(); });
   document.getElementById('tb_saved').addEventListener('click',function(e){ e.stopPropagation(); SAVE_OPEN=!SAVE_OPEN; renderSaveMenu(); });
   document.querySelectorAll('.vbtn[data-view]').forEach(function(b){ b.addEventListener('click',function(){ VIEW=b.getAttribute('data-view'); try{localStorage.setItem('rrg_board_view',VIEW);}catch(e){} renderToolbar(); render(); }); });
