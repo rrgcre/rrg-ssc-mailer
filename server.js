@@ -5845,6 +5845,7 @@ function assignmentView(d, overlay, _opts) {
     units: bovUnits(bov) || (deal && deal.units) || '',
     boardStage: (_opts && _opts.noBoard) ? '' : (function(){ try { return listingBoardStage(d, overlay); } catch(e){ return ''; } })(),
     media: dealMediaView(Object.assign({}, o, { _key: d.key })),
+    avatar: (o.avatar && o.avatar.ext) ? { ext: o.avatar.ext, fit: (o.avatar.fit === 'cover' ? 'cover' : 'contain'), url: '/api/dealavatar/' + encodeURIComponent(d.key) + '/a.' + o.avatar.ext + (o.avatar.at ? ('?v=' + encodeURIComponent(o.avatar.at)) : '') } : null,
     stages, lastActivity, createdAt: created,
   };
 }
@@ -6955,6 +6956,44 @@ app.get('/api/dealphoto/:key/:file', (req, res) => {
   catch (e) { res.status(404).end(); }
 });
 
+// ===== Listing avatar / logo (single image shown in the header tile & board cards) =====
+app.post('/api/assignment/:key/avatar', express.json({ limit: '20mb' }), (req, res) => {
+  const d = _assignForMedia(req, res); if (!d) return;
+  const b = req.body || {};
+  const overlay = loadAssignOverlay(); const cur = overlay[d.key] || {};
+  const safe = dealKeySafe(d.key); const dir = path.join(DEAL_PHOTO_DIR, safe);
+  const now = new Date().toISOString();
+  const _delOld = () => { if (cur.avatar && cur.avatar.ext) { try { binDel(path.join(dir, 'avatar.' + cur.avatar.ext)); } catch (e) {} } };
+  if (b.remove) { _delOld(); delete cur.avatar; cur.updatedAt = now; overlay[d.key] = cur; saveAssignOverlay(overlay); return res.json({ ok: true, avatar: null }); }
+  // Fit-only update (no new image) — flip contain/cover on the existing avatar.
+  if (!b.dataB64 && (b.fit === 'contain' || b.fit === 'cover')) {
+    if (!cur.avatar || !cur.avatar.ext) return res.status(400).json({ ok: false, error: 'No image to adjust.' });
+    cur.avatar.fit = b.fit; cur.avatar.at = now; cur.updatedAt = now; overlay[d.key] = cur; saveAssignOverlay(overlay);
+    return res.json({ ok: true, avatar: { ext: cur.avatar.ext, fit: cur.avatar.fit, url: '/api/dealavatar/' + encodeURIComponent(d.key) + '/a.' + cur.avatar.ext + '?v=' + encodeURIComponent(now) } });
+  }
+  const data = String(b.dataB64 || '').replace(/^data:[^,]*,/, '');
+  if (!data) return res.status(400).json({ ok: false, error: 'No image data.' });
+  const ext = ((String(b.filename || '').match(/\.(png|jpe?g|gif|webp)$/i) || [])[1] || 'png').toLowerCase().replace('jpeg', 'jpg');
+  const buf = Buffer.from(data, 'base64');
+  if (!buf.length || buf.length > 15 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'Image must be under 15 MB.' });
+  try { if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }); } catch (e) { return res.status(500).json({ ok: false, error: 'Could not prepare storage.' }); }
+  if (cur.avatar && cur.avatar.ext && cur.avatar.ext !== ext) _delOld();
+  try { binWrite(path.join(dir, 'avatar.' + ext), buf); } catch (e) { return res.status(500).json({ ok: false, error: 'Could not save image.' }); }
+  const fit = (b.fit === 'cover') ? 'cover' : 'contain';
+  cur.avatar = { ext: ext, fit: fit, at: now }; cur.updatedAt = now; overlay[d.key] = cur; saveAssignOverlay(overlay);
+  res.json({ ok: true, avatar: { ext: ext, fit: fit, url: '/api/dealavatar/' + encodeURIComponent(d.key) + '/a.' + ext + '?v=' + encodeURIComponent(now) } });
+});
+// Serve the listing avatar (auth-gated, same-origin cookie)
+app.get('/api/dealavatar/:key/:file', (req, res) => {
+  const deals = assignmentsIndex(); const d = deals[req.params.key];
+  if (!d) return res.status(404).end();
+  if (!(canSeeAllDeals(req) || ownsAssignment(req, d))) return res.status(403).end();
+  const overlay = loadAssignOverlay(); const o = overlay[req.params.key] || {};
+  if (!o.avatar || !o.avatar.ext) return res.status(404).end();
+  const safe = dealKeySafe(req.params.key);
+  try { const buf = fs.readFileSync(path.join(DEAL_PHOTO_DIR, safe, 'avatar.' + o.avatar.ext)); res.set('Content-Type', spaceFileMime(o.avatar.ext)); res.set('Cache-Control', 'private, max-age=300'); res.send(buf); }
+  catch (e) { res.status(404).end(); }
+});
 // Reorder photos and/or set the cover
 app.post('/api/assignment/:key/photos/order', express.json(), (req, res) => {
   const d = _assignForMedia(req, res); if (!d) return;
@@ -14923,7 +14962,7 @@ app.get('/api/board', (req, res) => {
     let stage = listingBoardStage(d, overlay);
     if (stageNames.indexOf(stage) < 0) stage = stageNames[0] || '';
     const _prov = !!(d.screen && d.screen.provisional);
-    cards.push({ key: d.key, business: v.business, listingNo: o.listingNo || 0, listingId: (o.listingNo ? ('RRG-' + o.listingNo) : ''), codeName: o.codeName || '', company: coNameById[v.companyId] || (d.screen && d.screen.data && d.screen.data.company) || '', companyId: v.companyId || '', contactPersonId: v.clientPersonId || '', concept: v.business, contact: v.contact || '', value: v.value || '', valueBov: !!v.valueBov, market: v.market || '', owner: v.owner || '', lastActivity: v.lastActivity || '', createdAt: v.createdAt || '', status: _prov ? 'Pending Approval' : (o.status || 'New'), provisional: _prov, bbsNumber: v.bbsNumber || '', stage: stage, isLead: !!_preSet[stage], winPct: (_winByStage[stage] != null ? _winByStage[stage] : ''), stageSince: o.stageSince || v.createdAt || '', published: !!(o.market && o.market.published), listPrice: o.listPrice || v.value || '', commission: (o.totalCommission || estCommissionFromPrice(o.listPrice || v.value || '') || (v.transaction && v.transaction.commissionDue) || ''), commissionEst: estCommissionFromPrice(o.listPrice || v.value || ''), totalCommission: o.totalCommission || (v.transaction && v.transaction.commissionDue) || '', ownerPhoto: ownerPhotoBy[String(v.owner || '').toLowerCase()] || '',
+    cards.push({ key: d.key, business: v.business, listingNo: o.listingNo || 0, listingId: (o.listingNo ? ('RRG-' + o.listingNo) : ''), codeName: o.codeName || '', company: coNameById[v.companyId] || (d.screen && d.screen.data && d.screen.data.company) || '', companyId: v.companyId || '', contactPersonId: v.clientPersonId || '', concept: v.business, contact: v.contact || '', value: v.value || '', valueBov: !!v.valueBov, market: v.market || '', owner: v.owner || '', lastActivity: v.lastActivity || '', createdAt: v.createdAt || '', status: _prov ? 'Pending Approval' : (o.status || 'New'), provisional: _prov, bbsNumber: v.bbsNumber || '', stage: stage, isLead: !!_preSet[stage], winPct: (_winByStage[stage] != null ? _winByStage[stage] : ''), stageSince: o.stageSince || v.createdAt || '', published: !!(o.market && o.market.published), listPrice: o.listPrice || v.value || '', commission: (o.totalCommission || estCommissionFromPrice(o.listPrice || v.value || '') || (v.transaction && v.transaction.commissionDue) || ''), commissionEst: estCommissionFromPrice(o.listPrice || v.value || ''), totalCommission: o.totalCommission || (v.transaction && v.transaction.commissionDue) || '', ownerPhoto: ownerPhotoBy[String(v.owner || '').toLowerCase()] || '', avatarUrl: (v.avatar && v.avatar.url) || '', avatarFit: (v.avatar && v.avatar.fit) || 'contain',
       isTenant: (o.assignmentType === 'tenant_rep'), stageTargetDays: (_dueByStage[stage] != null ? _dueByStage[stage] : 0),
       saleLane: (o.assignmentType === 'tenant_rep' || o.assignmentType === 'landlord_rep') ? '' : (v.saleLane || 'business'),
       crSf: (function(){ var c=v.criteria||{}; var a=String(c.sizeMin||'').trim(), b=String(c.sizeMax||'').trim(); if(a&&b) return a+'–'+b+' SF'; if(a) return a+'+ SF'; if(b) return 'up to '+b+' SF'; return ''; })(),

@@ -257,7 +257,14 @@ a.feat:hover{background:#f7f9fc;}
 .inqact .inqopen:hover{background:#f4f7fb;border-color:#9fb0cc;}
 /* Listing overview — name/monogram header, KPI tiles, compact facts */
 .ovhead{display:flex;align-items:center;gap:13px;padding:2px 0 14px;border-bottom:1px solid var(--line);margin-bottom:14px;}
-.ovmono{width:46px;height:46px;border-radius:10px;flex:none;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:20px;letter-spacing:-.01em;}
+.ovmono{width:46px;height:46px;border-radius:10px;flex:none;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:20px;letter-spacing:-.01em;position:relative;cursor:pointer;overflow:hidden;}
+.ovmono img{position:absolute;inset:0;width:100%;height:100%;background:#fff;}
+.ovmono .avcam{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(8,14,32,.45);color:#fff;font-size:16px;}
+.ovmono:hover .avcam{display:flex;}
+.avctl{display:none;gap:6px;align-items:center;flex:none;}
+.ovhead:hover .avctl{display:inline-flex;}
+.avctl button{font:inherit;font-size:10.5px;font-weight:700;border:1px solid var(--line);background:#fff;color:#5a6478;border-radius:6px;padding:4px 8px;cursor:pointer;white-space:nowrap;}
+.avctl button:hover{background:#f4f7fb;}
 .ovid{min-width:0;flex:1;}
 .ovname{font-size:18px;font-weight:800;color:var(--navy);letter-spacing:-.01em;line-height:1.2;overflow-wrap:anywhere;}
 .ovsub{font-size:12.5px;color:var(--muted);margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
@@ -491,10 +498,29 @@ function leaseStripHtml(){
 // fall back to the built-in business-sale tool workflow.
 function activeStages(){ var p=activePipe(); return (p && (p.stages||[]).length) ? pipeStages(p) : STAGES; }
 function domDays(){ if(!A||!A.listingLive) return ''; var d=new Date(A.listingLive+'T00:00:00'); if(isNaN(d)) return ''; var n=Math.floor((Date.now()-d.getTime())/86400000); return n>=0?(n+' day'+(n===1?'':'s')):''; }
-// Prev / Next across the listing order you came from (the board's current filtered + sorted list, stashed on the board).
-function initListNav(){ var el=document.getElementById('listNav'); if(!el||!KEY) return; var nav=null; try{ nav=JSON.parse(sessionStorage.getItem('rrg_nav_listings')||'null'); }catch(e){} if(!nav||!Array.isArray(nav.keys)){ el.hidden=true; return; } var i=nav.keys.indexOf(KEY); if(i<0){ el.hidden=true; return; } var n=nav.keys.length, prev=(i>0)?nav.keys[i-1]:null, next=(i<n-1)?nav.keys[i+1]:null;
+// Listing image (logo/photo) in the header tile — upload, fit/fill, remove.
+function _avPick(){ var f=document.getElementById('avFile'); if(f) f.click(); }
+function _avUpload(file){ if(!file) return; if(!/^image\//.test(file.type||'')){ alert('Please choose an image (PNG, JPG, WebP or GIF).'); return; } if(file.size>15*1024*1024){ alert('Image must be under 15 MB.'); return; } var rd=new FileReader(); rd.onload=function(){ _avPost({dataB64:String(rd.result), filename:(file.name||'logo.png')}); }; rd.readAsDataURL(file); }
+function _avPost(body){ fetch('/api/assignment/'+encodeURIComponent(KEY)+'/avatar',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ A.avatar=j.avatar||null; render(); } else { alert((j&&j.error)||'Could not save the image.'); } }).catch(function(){ alert('Could not reach the server.'); }); }
+function _avFit(){ if(!A||!A.avatar) return; _avPost({fit:(A.avatar.fit==='cover'?'contain':'cover')}); }
+function _avRemove(){ if(!A||!A.avatar) return; var ask=window.rrgConfirm?rrgConfirm('Remove this listing image?'):Promise.resolve(window.confirm('Remove this listing image?')); Promise.resolve(ask).then(function(go){ if(go) _avPost({remove:true}); }); }
+// Prev / Next across your listings — right on the listing page. Prefers the exact order you came
+// from the board with (its current filters + sort, stashed on the board) when this listing is in it;
+// otherwise falls back to all your listings in the same board, newest activity first, so the arrows
+// always work even when you open a listing directly.
+function _renderListNav(el, keys){ var i=keys.indexOf(KEY); if(i<0){ el.hidden=true; return; } var n=keys.length, prev=(i>0)?keys[i-1]:null, next=(i<n-1)?keys[i+1]:null;
   var mk=function(k,lbl){ if(!k) return '<span style="color:#5a6b8a;cursor:default">'+lbl+'</span>'; return '<a href="./rrg_assignment.html?key='+encodeURIComponent(k)+'" style="color:#cdd8ea;text-decoration:none;font-weight:700">'+lbl+'</a>'; };
   el.innerHTML=mk(prev,'‹ Prev')+'<span style="color:#8093b5;margin:0 9px">'+(i+1)+' of '+n+'</span>'+mk(next,'Next ›'); el.hidden=false;
+}
+function initListNav(){ var el=document.getElementById('listNav'); if(!el||!KEY) return;
+  var nav=null; try{ nav=JSON.parse(sessionStorage.getItem('rrg_nav_listings')||'null'); }catch(e){}
+  if(nav && Array.isArray(nav.keys) && nav.keys.indexOf(KEY)>=0){ _renderListNav(el, nav.keys); return; }
+  el.hidden=true;
+  fetch('/api/board?pipelineId='+encodeURIComponent((A&&A.pipelineId)||''),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    var cards=(j&&j.cards)||[]; cards.sort(function(a,b){ return String(b.lastActivity||'').localeCompare(String(a.lastActivity||'')); });
+    var keys=cards.map(function(c){ return c.key; }).filter(Boolean);
+    if(keys.indexOf(KEY)>=0) _renderListNav(el, keys);
+  }).catch(function(){});
 }
 // Auto-derive the listing agreement Expires date from Listed on + a standard 12-month term — only when Expires is still blank (never overwrites a date you set).
 function _autoExpiry(){ var s=document.getElementById('f_lstart'), e=document.getElementById('f_lexp'); if(!s||!e||!s.value||e.value) return; var d=new Date(s.value+'T00:00:00'); if(isNaN(d)) return; d.setMonth(d.getMonth()+12); var iso=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); e.value=iso; setDirty(true); updateExpNote(); }
@@ -1098,8 +1124,12 @@ function render(){
     +_kpi(_icLead,(INQUIRIES.length||0).toLocaleString('en-US'),'Leads','#1f8a5b')
     +_kpi(_icFav,(_ms.favorites||0).toLocaleString('en-US'),'Favorites','#b23a2c')
     +'</div><div style="font-size:10.5px;color:#9aa3b2;margin:8px 2px 0">Impressions in search &amp; marketplace, detail opens, buyer leads, and saves — updates as buyers browse your live listing.</div></div>';
-  var facts='<div class="ovhead"><div class="ovmono" style="background:hsl('+_hue+',42%,42%)">'+esc(_mono)+'</div>'
-      +'<div class="ovid"><div class="ovname">'+esc(_nm)+'</div><div class="ovsub">'+(A.market?esc(A.market):'No market set')+'<span class="st">'+esc(A.status||'New')+'</span>'+((A.assignmentType!=='tenant_rep'&&A.assignmentType!=='landlord_rep')?(function(){ var _sm=saleTypeMeta(); return '<span class="st" title="'+esc(_sm.tip)+'" style="color:'+_sm.fg+';background:'+_sm.bg+';border-color:'+_sm.bd+'">'+esc(_sm.lab)+'</span>'; })():'')+(A.provisional?'<span class="st" style="color:#b5791f;background:#fdf1df;border-color:#f0d7ad">Provisional</span>':'')+(A.codeName?('<span class="st" title="Confidential project code name" style="color:#5a4b8a;background:#f2eefb;border-color:#ddd2f3">🔒 '+esc(A.codeName)+'</span>'):'')+'</div></div></div>'
+  var _av=(A&&A.avatar)||null;
+  var _tileInner=_av?('<img src="'+esc(_av.url)+'" alt="" style="object-fit:'+(_av.fit==='cover'?'cover':'contain')+'">'):esc(_mono);
+  var _avCtl=_av?('<span class="avctl"><button type="button" onclick="_avFit()" title="Switch between fitting the whole image and filling the tile">'+(_av.fit==='cover'?'Fit':'Fill')+'</button><button type="button" onclick="_avRemove()">Remove</button></span>'):'';
+  var facts='<div class="ovhead"><div class="ovmono" id="ovAvatar" title="'+(_av?'Change the listing image':'Add a logo or photo')+'" style="'+(_av?'':'background:hsl('+_hue+',42%,42%)')+'" onclick="_avPick()">'+_tileInner+'<span class="avcam">'+(_av?'✎':'＋')+'</span></div>'
+      +'<input type="file" id="avFile" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none" onchange="_avUpload(this.files[0]); this.value=\'\';">'
+      +'<div class="ovid"><div class="ovname">'+esc(_nm)+'</div><div class="ovsub">'+(A.market?esc(A.market):'No market set')+'<span class="st">'+esc(A.status||'New')+'</span>'+((A.assignmentType!=='tenant_rep'&&A.assignmentType!=='landlord_rep')?(function(){ var _sm=saleTypeMeta(); return '<span class="st" title="'+esc(_sm.tip)+'" style="color:'+_sm.fg+';background:'+_sm.bg+';border-color:'+_sm.bd+'">'+esc(_sm.lab)+'</span>'; })():'')+(A.provisional?'<span class="st" style="color:#b5791f;background:#fdf1df;border-color:#f0d7ad">Provisional</span>':'')+(A.codeName?('<span class="st" title="Confidential project code name" style="color:#5a4b8a;background:#f2eefb;border-color:#ddd2f3">🔒 '+esc(A.codeName)+'</span>'):'')+'</div></div>'+_avCtl+'</div>'
     +mktKpis
     +'<div style="font-size:11px;color:#9aa3b2;font-weight:600;margin:12px 2px 2px">Originated '+esc(fmt(A.createdAt))+' &nbsp;·&nbsp; Last activity '+esc(fmt(A.lastActivity))+'</div>'
     + leaseStripHtml();
