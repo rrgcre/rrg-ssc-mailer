@@ -6836,9 +6836,13 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   if (typeof b.marketOverride === 'string') cur.marketOverride = b.marketOverride.slice(0, 80);
   if (typeof b.saleLane === 'string' && ['business', 'asset', 'other'].indexOf(b.saleLane) >= 0) cur.saleLane = b.saleLane;   // type of listing: going concern / asset sale / other
   if (b.stageFlags && typeof b.stageFlags === 'object') {
-    const allowedStages = ['outreach','agreed','offers','dd','closing'];
+    // Accept any real pipeline-stage key: generated manual keys (g0, g1…) AND the tool-derived
+    // keys a stage can carry when it's manually toggled with no tool state yet (call, bov, pack,
+    // room, questionnaire, attack, lease, outreach, offers, dd, closing…). Bounded lowercase
+    // alphanumerics keep it safe; the old allowlist silently dropped the tool-keyed toggles so
+    // Screening/Valuation/Marketing/etc. showed a check but never saved.
     const sf = {};
-    Object.keys(b.stageFlags).forEach(k => { if (b.stageFlags[k] && (allowedStages.indexOf(k) >= 0 || /^g\d+$/.test(k))) sf[k] = true; });
+    Object.keys(b.stageFlags).forEach(k => { if (b.stageFlags[k] && /^[a-z][a-z0-9_]{0,24}$/.test(k)) sf[k] = true; });
     cur.stageFlags = sf;
   }
   if (typeof b.referredBy === 'string') cur.referredBy = b.referredBy.slice(0, 120);

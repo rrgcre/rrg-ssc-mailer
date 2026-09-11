@@ -114,7 +114,11 @@ select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns=
 textarea{min-height:120px;resize:vertical;line-height:1.5;}
 .fldrow{margin-bottom:15px;}
 .listingbox{margin-bottom:15px;padding:12px 13px;border:1px solid var(--line);border-radius:11px;background:#fbfcff;}
-.listinghd{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);font-weight:800;margin-bottom:10px;}
+.listinghd{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);font-weight:800;margin-bottom:10px;display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none;}
+.listinghd .lbxchev{margin-left:auto;color:#8a94a6;font-size:12px;line-height:1;transition:transform .15s;}
+.listingbox.lbxcol .listinghd{margin-bottom:0;}
+.listingbox.lbxcol .listinghd .lbxchev{transform:rotate(-90deg);}
+.listingbox.lbxcol > *:not(.listinghd){display:none;}
 .fldrow2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
 .fldrow2 input{padding:8px 10px;font-size:13px;}
 .autorow{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink);font-weight:600;cursor:pointer;}
@@ -1483,6 +1487,17 @@ function setupAccordion(){
   document.querySelectorAll('.rail > .card > .ch > span:not([id])').forEach(function(s){ s.hidden = ((s.textContent||'').trim()==='0'); });
   _asgTip(main);
   _wireFinAcc();
+  // Collapsible grouped boxes in the left Manage panel (Listing agreement, Listing IDs, Space).
+  var _lbxState={}; try{ _lbxState=JSON.parse(localStorage.getItem('rrgAsgBoxCollapsedV1')||'{}')||{}; }catch(e){}
+  document.querySelectorAll('.side .listingbox').forEach(function(box){
+    var hd=box.querySelector('.listinghd'); if(!hd) return;
+    var title=(hd.textContent||'').replace('▾','').trim();
+    if(!hd.querySelector('.lbxchev')){
+      var chev=document.createElement('span'); chev.className='lbxchev'; chev.textContent='▾'; hd.appendChild(chev);
+      hd.addEventListener('click',function(){ var col=box.classList.toggle('lbxcol'); _lbxState[title]=col; try{ localStorage.setItem('rrgAsgBoxCollapsedV1',JSON.stringify(_lbxState)); }catch(e){} });
+    }
+    if(_lbxState[title]) box.classList.add('lbxcol'); else box.classList.remove('lbxcol');
+  });
   _syncRollupBtn();
 }
 function expandSectionOf(el){ var card=el&&el.closest('.card'); if(card){ card.classList.remove('collapsed'); ACC_STATE[accTitle(card)]=false; _asgSaveCollapse(); _syncRollupBtn(); } }
