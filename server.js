@@ -6884,7 +6884,7 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   if (typeof b.pipelineId === 'string') cur.pipelineId = b.pipelineId.slice(0, 40);
   // Listing profile: location, physical premises, business history, online links, staffing
   if (b.location && typeof b.location === 'object') { const L = b.location; cur.location = { address: String(L.address || '').slice(0, 200), area: String(L.area || '').slice(0, 120), city: String(L.city || '').slice(0, 120), county: String(L.county || '').slice(0, 120) }; }
-  if (b.premises && typeof b.premises === 'object') { const P = b.premises; cur.premises = { sqft: String(P.sqft || '').replace(/[^0-9,]/g, '').slice(0, 20), leaseEnd: String(P.leaseEnd || '').slice(0, 10), options: String(P.options || '').slice(0, 600) }; }
+  if (b.premises && typeof b.premises === 'object') { const P = b.premises; cur.premises = { sqft: String(P.sqft || '').replace(/[^0-9,]/g, '').slice(0, 20), leaseEnd: String(P.leaseEnd || '').slice(0, 10), optionCount: String(P.optionCount || '').replace(/[^0-9]/g, '').slice(0, 3), optionYears: String(P.optionYears || '').replace(/[^0-9.]/g, '').slice(0, 5) }; }
   if (typeof b.openedDate === 'string') cur.openedDate = b.openedDate.slice(0, 10);
   if (typeof b.priorSales === 'string') cur.priorSales = b.priorSales.slice(0, 4000);
   if (b.links && typeof b.links === 'object') { const K = b.links, clip = s => String(s || '').slice(0, 300); cur.links = { website: clip(K.website), facebook: clip(K.facebook), instagram: clip(K.instagram), tiktok: clip(K.tiktok), yelp: clip(K.yelp) }; }
