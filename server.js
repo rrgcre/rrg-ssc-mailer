@@ -5824,6 +5824,7 @@ function assignmentView(d, overlay, _opts) {
     status: o.status || 'New', notes: o.notes || '', shareTeam: !!o.shareTeam, owner: o.owner || by, businessOverride: o.businessOverride || '', codeName: o.codeName || '', listingNo: o.listingNo || 0, listingId: (o.listingNo ? ('RRG-' + o.listingNo) : ''),
     saleLane: (['business', 'asset', 'other'].indexOf(o.saleLane) >= 0 ? o.saleLane : ((deal && deal.saleLane) || 'business')),
     stageFlags: o.stageFlags || {}, pipelineId: o.pipelineId || '', needsSetup: !!o.needsSetup, fromBbs: !!o.fromBbs, referredBy: o.referredBy || '', referredById: o.referredById || '', referralPct: o.referralPct || '', listPrice: o.listPrice || '', priceHistory: Array.isArray(o.priceHistory) ? o.priceHistory : [], financials3y: Array.isArray(o.financials3y) ? o.financials3y : [], totalCommission: o.totalCommission || '', commissionEst: estCommissionFromPrice(o.listPrice || ''), listingLive: o.listingLive || '', listingStart: o.listingStart || '', listingExpires: o.listingExpires || '', autoRenew: !!o.autoRenew, renewable: !!o.renewable,
+    location: (o.location && typeof o.location === 'object') ? o.location : {}, premises: (o.premises && typeof o.premises === 'object') ? o.premises : {}, openedDate: o.openedDate || '', priorSales: o.priorSales || '', links: (o.links && typeof o.links === 'object') ? o.links : {}, staffing: (o.staffing && typeof o.staffing === 'object') ? o.staffing : {},
     offers: Array.isArray(o.offers) ? o.offers : [],
     tours: Array.isArray(o.tours) ? o.tours : [],
     ndas: Array.isArray(o.ndas) ? o.ndas : [],
@@ -6881,6 +6882,13 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   if (typeof b.reIncluded === 'boolean') cur.reIncluded = b.reIncluded;                          // real estate part of the sale?
   if (typeof b.reValue === 'string') cur.reValue = b.reValue.replace(/[^0-9.]/g, '').slice(0, 40); // allocated real-estate value
   if (typeof b.pipelineId === 'string') cur.pipelineId = b.pipelineId.slice(0, 40);
+  // Listing profile: location, physical premises, business history, online links, staffing
+  if (b.location && typeof b.location === 'object') { const L = b.location; cur.location = { address: String(L.address || '').slice(0, 200), area: String(L.area || '').slice(0, 120), city: String(L.city || '').slice(0, 120), county: String(L.county || '').slice(0, 120) }; }
+  if (b.premises && typeof b.premises === 'object') { const P = b.premises; cur.premises = { sqft: String(P.sqft || '').replace(/[^0-9,]/g, '').slice(0, 20), leaseEnd: String(P.leaseEnd || '').slice(0, 10), options: String(P.options || '').slice(0, 600) }; }
+  if (typeof b.openedDate === 'string') cur.openedDate = b.openedDate.slice(0, 10);
+  if (typeof b.priorSales === 'string') cur.priorSales = b.priorSales.slice(0, 4000);
+  if (b.links && typeof b.links === 'object') { const K = b.links, clip = s => String(s || '').slice(0, 300); cur.links = { website: clip(K.website), facebook: clip(K.facebook), instagram: clip(K.instagram), tiktok: clip(K.tiktok), yelp: clip(K.yelp) }; }
+  if (b.staffing && typeof b.staffing === 'object') { const S = b.staffing; cur.staffing = { ftCount: String(S.ftCount || '').replace(/[^0-9]/g, '').slice(0, 6), ptCount: String(S.ptCount || '').replace(/[^0-9]/g, '').slice(0, 6), gmTenure: String(S.gmTenure || '').slice(0, 80), kmTenure: String(S.kmTenure || '').slice(0, 80) }; }
   cur.updatedAt = new Date().toISOString();
   overlay[d.key] = cur; saveAssignOverlay(overlay);
   res.json({ ok: true });

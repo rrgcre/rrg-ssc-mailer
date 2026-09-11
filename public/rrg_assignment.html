@@ -795,6 +795,44 @@ function financialsCard(){
   var valCard='<div class="card"><div class="ch"><b>Valuation &amp; Pricing</b><span style="margin-left:8px">how the price is derived</span>'+bovLink+'</div><div class="cb" style="padding-top:14px"><div id="valBridge" style="margin:0 0 16px;padding:13px 15px;border:1px solid #e2e8f2;border-radius:10px;background:#f7faff">'+_valBridgeInner()+'</div>'+snap+reBlock+priceGrid+histHtml+'</div></div>';
   return '<div id="finCardHost">'+finCard+valCard+'</div>';
 }
+// Business-sale listings only (tenant-rep uses Criteria, landlord-rep uses Space).
+function _isBizListing(){ return !!(A && A.assignmentType!=='tenant_rep' && A.assignmentType!=='landlord_rep'); }
+// Location, map & the physical space.
+function locationCard(){ if(!_isBizListing()) return '';
+  var L=(A&&A.location)||{}, P=(A&&A.premises)||{};
+  return '<div class="card"><div class="ch"><b>Location &amp; Premises</b><span style="color:#8a93a3;font-weight:600;font-size:11.5px;margin-left:8px">address, map &amp; the physical space</span></div><div class="cb" style="padding-top:14px">'
+    +'<div class="fldrow2"><div><label class="fld">Address</label><input class="owner" id="f_addr" value="'+esc(L.address||'')+'" placeholder="e.g. 123 Main St, Ste 100"></div><div><label class="fld">Area / neighborhood</label><input class="owner" id="f_area" value="'+esc(L.area||'')+'" placeholder="e.g. Domain, Southtown"></div></div>'
+    +'<div class="fldrow2"><div><label class="fld">City</label><input class="owner" id="f_city" value="'+esc(L.city||'')+'" placeholder="e.g. Austin"></div><div><label class="fld">County</label><input class="owner" id="f_county" value="'+esc(L.county||'')+'" placeholder="e.g. Travis"></div></div>'
+    +'<div id="mapWrap" style="margin:8px 0 2px"></div>'
+    +'<div style="height:1px;background:var(--line);margin:14px 0"></div>'
+    +'<div style="font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8;margin-bottom:9px">Physical space</div>'
+    +'<div class="fldrow2"><div><label class="fld">Square feet</label><input class="owner" id="f_sqft" value="'+esc(P.sqft||'')+'" placeholder="e.g. 3,200" inputmode="numeric"></div><div><label class="fld">Lease end date</label><input type="date" class="owner" id="f_leaseend" value="'+esc(P.leaseEnd||'')+'"></div></div>'
+    +'<div class="fldrow"><label class="fld">Option / renewal periods</label><textarea id="f_options" placeholder="e.g. Two 5-year options; 3%/yr base-rent escalation">'+esc(P.options||'')+'</textarea></div>'
+    +'</div></div>';
+}
+function _listingAddrStr(){ var g=function(id,k){ var el=document.getElementById(id); if(el) return el.value; var L=(A&&A.location)||{}; return L[k]||''; }; var p=[g('f_addr','address'),g('f_city','city'),g('f_county','county')].filter(function(x){return x&&String(x).trim();}); return p.join(', '); }
+function renderListingMap(){ var w=document.getElementById('mapWrap'); if(!w) return; var q=_listingAddrStr(); if(!q){ w.innerHTML='<div style="font-size:12px;color:#8a93a8;padding:8px 0">Add an address to see it on the map.</div>'; return; }
+  if(w.getAttribute('data-q')===q) return; w.setAttribute('data-q',q);
+  w.innerHTML='<div style="font-size:12px;color:#8a93a8;padding:8px 0">Locating…</div>';
+  fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&q='+encodeURIComponent(q),{headers:{'Accept':'application/json'}}).then(function(r){return r.json();}).then(function(a){ if(w.getAttribute('data-q')!==q) return; if(!a||!a.length){ w.innerHTML='<div style="font-size:12px;color:#8a93a8;padding:8px 0">Couldn’t place that address on a map — check the address.</div>'; return; } var lat=parseFloat(a[0].lat), lon=parseFloat(a[0].lon); var bb=(lon-0.012)+','+(lat-0.007)+','+(lon+0.012)+','+(lat+0.007); w.innerHTML='<iframe title="Listing location map" width="100%" height="230" style="border:1px solid var(--line);border-radius:10px;display:block" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://www.openstreetmap.org/export/embed.html?bbox='+encodeURIComponent(bb)+'&layer=mapnik&marker='+lat+','+lon+'"></iframe><div style="margin-top:6px"><a href="https://www.openstreetmap.org/?mlat='+lat+'&mlon='+lon+'#map=17/'+lat+'/'+lon+'" target="_blank" rel="noopener" style="font-size:11.5px;color:#23496f;font-weight:700;text-decoration:none">Open larger map ↗</a></div>'; }).catch(function(){ if(w.getAttribute('data-q')===q) w.innerHTML='<div style="font-size:12px;color:#8a93a8;padding:8px 0">Map unavailable right now.</div>'; });
+}
+// Business snapshot — history, online presence & team.
+function businessSnapshotCard(){ if(!_isBizListing()) return '';
+  var H=A||{}, K=(A&&A.links)||{}, S=(A&&A.staffing)||{};
+  return '<div class="card"><div class="ch"><b>Business snapshot</b><span style="color:#8a93a3;font-weight:600;font-size:11.5px;margin-left:8px">history, links &amp; team</span></div><div class="cb" style="padding-top:14px">'
+    +'<div class="fldrow2"><div><label class="fld">Date opened</label><input type="date" class="owner" id="f_opened" value="'+esc(H.openedDate||'')+'"></div><div></div></div>'
+    +'<div class="fldrow"><label class="fld">Previous sales / ownership history</label><textarea id="f_priorsales" placeholder="e.g. Opened 2004; sold 2018 for $1.2M to current owner…">'+esc(H.priorSales||'')+'</textarea></div>'
+    +'<div style="height:1px;background:var(--line);margin:14px 0"></div>'
+    +'<div style="font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8;margin-bottom:9px">Online presence</div>'
+    +'<div class="fldrow2"><div><label class="fld">Website</label><input class="owner" id="f_lk_web" value="'+esc(K.website||'')+'" placeholder="https://…"></div><div><label class="fld">Instagram</label><input class="owner" id="f_lk_ig" value="'+esc(K.instagram||'')+'" placeholder="@handle or URL"></div></div>'
+    +'<div class="fldrow2"><div><label class="fld">Facebook</label><input class="owner" id="f_lk_fb" value="'+esc(K.facebook||'')+'" placeholder="URL"></div><div><label class="fld">TikTok</label><input class="owner" id="f_lk_tt" value="'+esc(K.tiktok||'')+'" placeholder="@handle or URL"></div></div>'
+    +'<div class="fldrow2"><div><label class="fld">Yelp</label><input class="owner" id="f_lk_yelp" value="'+esc(K.yelp||'')+'" placeholder="URL"></div><div></div></div>'
+    +'<div style="height:1px;background:var(--line);margin:14px 0"></div>'
+    +'<div style="font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8;margin-bottom:9px">Team</div>'
+    +'<div class="fldrow2"><div><label class="fld">Full-time employees</label><input class="owner" id="f_ft" value="'+esc(S.ftCount||'')+'" placeholder="e.g. 12" inputmode="numeric"></div><div><label class="fld">Part-time employees</label><input class="owner" id="f_pt" value="'+esc(S.ptCount||'')+'" placeholder="e.g. 8" inputmode="numeric"></div></div>'
+    +'<div class="fldrow2"><div><label class="fld">GM tenure</label><input class="owner" id="f_gmten" value="'+esc(S.gmTenure||'')+'" placeholder="e.g. 4 years"></div><div><label class="fld">KM / chef tenure</label><input class="owner" id="f_kmten" value="'+esc(S.kmTenure||'')+'" placeholder="e.g. 6 years"></div></div>'
+    +'</div></div>';
+}
 function refreshFinancials(){ var host=document.getElementById('finCardHost'); if(host){ var tmp=document.createElement('div'); tmp.innerHTML=financialsCard(); var fresh=tmp.firstChild; if(fresh&&host.parentNode) host.parentNode.replaceChild(fresh,host); } var av=document.getElementById('ovAskVal'); if(av) av.textContent=(_money(A.listPrice)||'—'); updateCommWarn(); try{ _wireFinAcc(); _syncRollupBtn(); }catch(e){} }
 function togglePriceForm(show){ var f=document.getElementById('priceForm'); if(!f) return; var on=(show===undefined)?(f.style.display==='none'):show; f.style.display=on?'':'none'; if(on){ var p=document.getElementById('pf_price'); if(p){ p.value=A.listPrice||''; p.focus(); p.select&&p.select(); } var n=document.getElementById('pf_note'); if(n) n.value=''; var m=document.getElementById('pf_msg'); if(m) m.textContent=''; } }
 function askInlineEdit(){
@@ -1108,12 +1146,14 @@ function render(){
     + '<div class="mid">'
     + '<div class="card"><div class="ch"><b>Overview</b><span>'+done+' of '+ST.length+' stages complete</span></div><div class="cb">'+facts+'</div></div>'
     + ((A.assignmentType==='tenant_rep') ? ('<div class="card"><div class="ch"><b>Site Selection Criteria</b><span style="color:#8a93a3;font-weight:600;font-size:11.5px">what we’re hunting for</span></div><div class="cb" style="padding:14px 20px 18px">'+crBox()+'</div></div>') : '')
+    + locationCard()
+    + businessSnapshotCard()
     + financialsCard()
+    + mktCardShell()
     + photosCard()
     + docsCard()
     + '<div class="card"><div class="ch"><b>Seller Pipeline</b>'+(pipeName?('<span style="margin-left:8px;color:var(--navy);font-weight:700;font-size:11.5px;background:#eef2fb;border:1px solid #d3ddf3;border-radius:999px;padding:2px 10px">'+esc(pipeName)+'</span>'):'')+'<span>'+started+' of '+ST.length+' started</span></div><div class="track"><div class="hpipe">'+steps+'</div></div></div>'
     + buyerPipelineCard()
-    + mktCardShell()
     + '</div>'
     + '<div class="rail">'
     + inquiriesCard()
@@ -1130,13 +1170,14 @@ function render(){
     + '</div>'
     + peopleDatalistHTML();
 
-  ['f_status','f_owner','f_contact','f_refby','f_refpct','f_biz','f_codename','f_market','f_notes','f_lstart','f_lexp','f_llive','f_lauto','f_bbsref','f_bbsnum','f_costar','f_crexi','f_leadauto','cr_markets','cr_use','cr_budget','cr_sizemin','cr_sizemax','cr_term','cr_timeline','cr_parking','cr_features','cr_crnotes','sp_size','sp_rent','sp_term','sp_cond','sp_use','sp_avail','sp_feat','sp_notes'].forEach(function(id){
+  ['f_status','f_owner','f_contact','f_refby','f_refpct','f_biz','f_codename','f_market','f_notes','f_lstart','f_lexp','f_llive','f_lauto','f_bbsref','f_bbsnum','f_costar','f_crexi','f_leadauto','cr_markets','cr_use','cr_budget','cr_sizemin','cr_sizemax','cr_term','cr_timeline','cr_parking','cr_features','cr_crnotes','sp_size','sp_rent','sp_term','sp_cond','sp_use','sp_avail','sp_feat','sp_notes','f_addr','f_area','f_city','f_county','f_sqft','f_leaseend','f_options','f_opened','f_priorsales','f_lk_web','f_lk_ig','f_lk_fb','f_lk_tt','f_lk_yelp','f_ft','f_pt','f_gmten','f_kmten'].forEach(function(id){
     var el=document.getElementById(id); if(!el) return;
     var ev=(el.tagName==='SELECT'||el.type==='checkbox'||el.type==='date')?'change':'input';
     el.addEventListener(ev,function(){ setDirty(true); if(id==='f_lexp'||id==='f_lauto') updateExpNote(); });
   });
   // Autosave: save on leaving a field (change/blur) or after a ~1s pause while typing.
-  (function(){ var _aAS=null; function commit(){ if(_aAS){ clearTimeout(_aAS); _aAS=null; } if(DIRTY) save(); } function pause(){ if(_aAS) clearTimeout(_aAS); _aAS=setTimeout(commit,1000); } ['f_status','f_owner','f_contact','f_refby','f_refpct','f_biz','f_codename','f_market','f_notes','f_lstart','f_lexp','f_llive','f_lauto','f_bbsref','f_bbsnum','f_costar','f_crexi','f_leadauto','cr_markets','cr_use','cr_budget','cr_sizemin','cr_sizemax','cr_term','cr_timeline','cr_parking','cr_features','cr_crnotes','sp_size','sp_rent','sp_term','sp_cond','sp_use','sp_avail','sp_feat','sp_notes'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener('input',pause); el.addEventListener('change',commit); }); })();
+  (function(){ var _aAS=null; function commit(){ if(_aAS){ clearTimeout(_aAS); _aAS=null; } if(DIRTY) save(); } function pause(){ if(_aAS) clearTimeout(_aAS); _aAS=setTimeout(commit,1000); } ['f_status','f_owner','f_contact','f_refby','f_refpct','f_biz','f_codename','f_market','f_notes','f_lstart','f_lexp','f_llive','f_lauto','f_bbsref','f_bbsnum','f_costar','f_crexi','f_leadauto','cr_markets','cr_use','cr_budget','cr_sizemin','cr_sizemax','cr_term','cr_timeline','cr_parking','cr_features','cr_crnotes','sp_size','sp_rent','sp_term','sp_cond','sp_use','sp_avail','sp_feat','sp_notes','f_addr','f_area','f_city','f_county','f_sqft','f_leaseend','f_options','f_opened','f_priorsales','f_lk_web','f_lk_ig','f_lk_fb','f_lk_tt','f_lk_yelp','f_ft','f_pt','f_gmten','f_kmten'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener('input',pause); el.addEventListener('change',commit); }); })();
+  if(document.getElementById('mapWrap')){ renderListingMap(); (function(){ var _mt=null; ['f_addr','f_city','f_county'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener('input',function(){ if(_mt)clearTimeout(_mt); _mt=setTimeout(renderListingMap,900); }); }); })(); }
   updateExpNote();
   document.getElementById('savebtn').addEventListener('click',function(){save();});
   var scb=document.getElementById('suggestCodeBtn'); if(scb) scb.addEventListener('click',function(){ var s=suggestCodeName(); var el=document.getElementById('f_codename'); if(!el) return; el.value=s; el.focus(); try{el.setSelectionRange(s.length,s.length);}catch(e){} setDirty(true); save(); });
@@ -1821,10 +1862,17 @@ function save(rerender){
   var body={ status:document.getElementById('f_status').value, owner:document.getElementById('f_owner').value, notes:document.getElementById('f_notes').value, businessOverride:document.getElementById('f_biz').value, codeName:(document.getElementById('f_codename')||{}).value||'', marketOverride:(document.getElementById('f_market')||{}).value||'', saleLane:(document.getElementById('f_saletype')?document.getElementById('f_saletype').value:undefined), financials3y:collectFin3y(),
     contact:(document.getElementById('f_contact')||{}).value||'', clientPersonId:(function(){ var _cn=((document.getElementById('f_contact')||{}).value||'').trim(); if(!_cn) return ''; var _m=PEOPLE.filter(function(p){return String(p.name||'').trim().toLowerCase()===_cn.toLowerCase();})[0]; return _m?_m.id:''; })(),
     referredBy:document.getElementById('f_refby').value, referralPct:document.getElementById('f_refpct').value, listingLive:document.getElementById('f_llive').value, listingStart:document.getElementById('f_lstart').value, listingExpires:document.getElementById('f_lexp').value, autoRenew:document.getElementById('f_lauto').checked, bbsRef:(document.getElementById('f_bbsref')||{}).value||'', bbsNumber:(document.getElementById('f_bbsnum')||{}).value||'', costarNo:(document.getElementById('f_costar')||{}).value||'', crexiNo:(document.getElementById('f_crexi')||{}).value||'', leadAutomationId:(document.getElementById('f_leadauto')||{}).value||'', assignmentType:(A&&A.assignmentType)||'listing', criteria:((A&&A.assignmentType==='tenant_rep')?{markets:(document.getElementById('cr_markets')||{}).value||'',useType:(document.getElementById('cr_use')||{}).value||'',budget:(document.getElementById('cr_budget')||{}).value||'',sizeMin:(document.getElementById('cr_sizemin')||{}).value||'',sizeMax:(document.getElementById('cr_sizemax')||{}).value||'',termYears:(document.getElementById('cr_term')||{}).value||'',timeline:(document.getElementById('cr_timeline')||{}).value||'',parking:(document.getElementById('cr_parking')||{}).value||'',features:(document.getElementById('cr_features')||{}).value||'',notes:(document.getElementById('cr_crnotes')||{}).value||''}:undefined), space:((A&&A.assignmentType==='landlord_rep')?{sizeSqft:(document.getElementById('sp_size')||{}).value||'',askingRent:(document.getElementById('sp_rent')||{}).value||'',term:(document.getElementById('sp_term')||{}).value||'',condition:(document.getElementById('sp_cond')||{}).value||'',useType:(document.getElementById('sp_use')||{}).value||'',availableDate:(document.getElementById('sp_avail')||{}).value||'',features:(document.getElementById('sp_feat')||{}).value||'',notes:(document.getElementById('sp_notes')||{}).value||''}:undefined), pipelineId:(document.getElementById('f_pipeline')||{}).value||(A.pipelineId||''), buyerPipelineId:(document.getElementById('f_buyerpipe')||{}).value||(A&&A.buyerPipelineId)||'' };
+  if(_isBizListing()){ var _v=function(id){ return (document.getElementById(id)||{}).value||''; };
+    body.location={ address:_v('f_addr'), area:_v('f_area'), city:_v('f_city'), county:_v('f_county') };
+    body.premises={ sqft:_v('f_sqft'), leaseEnd:_v('f_leaseend'), options:_v('f_options') };
+    body.openedDate=_v('f_opened'); body.priorSales=_v('f_priorsales');
+    body.links={ website:_v('f_lk_web'), facebook:_v('f_lk_fb'), instagram:_v('f_lk_ig'), tiktok:_v('f_lk_tt'), yelp:_v('f_lk_yelp') };
+    body.staffing={ ftCount:_v('f_ft'), ptCount:_v('f_pt'), gmTenure:_v('f_gmten'), kmTenure:_v('f_kmten') };
+  }
   fetch('/api/assignment/'+encodeURIComponent(KEY)+'/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
     .then(function(r){return r.json();}).then(function(j){
       b.textContent='Save changes';
-      if(j&&j.ok){ DIRTY=false; A.status=body.status; A.owner=body.owner; A.notes=body.notes; A.businessOverride=body.businessOverride; A.codeName=body.codeName; A.referredBy=body.referredBy; A.referralPct=body.referralPct; A.listingLive=body.listingLive; A.listingStart=body.listingStart; A.listingExpires=body.listingExpires; A.autoRenew=body.autoRenew; A.bbsRef=body.bbsRef; A.bbsNumber=body.bbsNumber; A.costarNo=body.costarNo; A.crexiNo=body.crexiNo; A.leadAutomationId=body.leadAutomationId; A.pipelineId=body.pipelineId; if(body.saleLane) A.saleLane=body.saleLane;
+      if(j&&j.ok){ DIRTY=false; A.status=body.status; A.owner=body.owner; A.notes=body.notes; A.businessOverride=body.businessOverride; A.codeName=body.codeName; A.referredBy=body.referredBy; A.referralPct=body.referralPct; A.listingLive=body.listingLive; A.listingStart=body.listingStart; A.listingExpires=body.listingExpires; A.autoRenew=body.autoRenew; A.bbsRef=body.bbsRef; A.bbsNumber=body.bbsNumber; A.costarNo=body.costarNo; A.crexiNo=body.crexiNo; A.leadAutomationId=body.leadAutomationId; A.pipelineId=body.pipelineId; if(body.saleLane) A.saleLane=body.saleLane; if(body.location) A.location=body.location; if(body.premises) A.premises=body.premises; if('openedDate' in body) A.openedDate=body.openedDate; if('priorSales' in body) A.priorSales=body.priorSales; if(body.links) A.links=body.links; if(body.staffing) A.staffing=body.staffing;
         if(rerender===true){ render(); return; }
         document.getElementById('subline').querySelector('.hpill').textContent=body.status;
         if(body.businessOverride){ A.business=body.businessOverride; document.getElementById('h1').textContent=body.businessOverride; document.getElementById('crumb').textContent=body.businessOverride; }
