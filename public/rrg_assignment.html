@@ -807,9 +807,11 @@ function _isBizListing(){ return !!(A && A.assignmentType!=='tenant_rep' && A.as
 // Location, map & the physical space.
 function locationCard(){ if(!_isBizListing()) return '';
   var L=(A&&A.location)||{}, P=(A&&A.premises)||{};
+  var _lm=(A&&A.market)||'', _lml=((typeof MARKETS!=='undefined'&&MARKETS)||[]).slice(); if(_lm&&_lml.indexOf(_lm)<0) _lml.unshift(_lm); var _lmDl=_lml.map(function(m){return '<option value="'+esc(m)+'"></option>';}).join('');
   return '<div class="card"><div class="ch"><b>Location &amp; Premises</b><span style="color:#8a93a3;font-weight:600;font-size:11.5px;margin-left:8px">address, map &amp; the physical space</span></div><div class="cb" style="padding-top:14px">'
     +'<div class="fldrow2"><div><label class="fld">Address</label><input class="owner" id="f_addr" value="'+esc(L.address||'')+'" placeholder="e.g. 123 Main St, Ste 100"></div><div><label class="fld">Area / neighborhood</label><input class="owner" id="f_area" value="'+esc(L.area||'')+'" placeholder="e.g. Domain, Southtown"></div></div>'
     +'<div class="fldrow2"><div><label class="fld">City</label><input class="owner" id="f_city" value="'+esc(L.city||'')+'" placeholder="e.g. Austin"></div><div><label class="fld">County</label><input class="owner" id="f_county" value="'+esc(L.county||'')+'" placeholder="e.g. Travis"></div></div>'
+    +'<div class="fldrow2"><div><label class="fld">Market <span style="font-weight:400;color:#8a93a8;font-size:11px">— metro</span></label><input class="owner" id="f_market" list="marketListLoc" value="'+esc(_lm)+'" placeholder="Type a market…" autocomplete="off"><datalist id="marketListLoc">'+_lmDl+'</datalist></div><div></div></div>'
     +'<div id="mapWrap" style="margin:8px 0 2px"></div>'
     +'<div style="height:1px;background:var(--line);margin:14px 0"></div>'
     +'<div style="font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8;margin-bottom:9px">Physical space</div>'
@@ -832,9 +834,13 @@ function businessSnapshotCard(){ if(!_isBizListing()) return '';
     +'<div style="height:1px;background:var(--line);margin:14px 0"></div>'
     +'<div style="font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8;margin-bottom:9px">Team</div>'
     +'<div class="fldrow2"><div><label class="fld">Full-time employees</label><input class="owner" id="f_ft" value="'+esc(S.ftCount||'')+'" placeholder="e.g. 12" inputmode="numeric"></div><div><label class="fld">Part-time employees</label><input class="owner" id="f_pt" value="'+esc(S.ptCount||'')+'" placeholder="e.g. 8" inputmode="numeric"></div></div>'
-    +'<div class="fldrow2"><div><label class="fld">GM tenure</label><input class="owner" id="f_gmten" value="'+esc(S.gmTenure||'')+'" placeholder="e.g. 4 years"></div><div><label class="fld">KM / chef tenure</label><input class="owner" id="f_kmten" value="'+esc(S.kmTenure||'')+'" placeholder="e.g. 6 years"></div></div>'
-    +'<div style="height:1px;background:var(--line);margin:14px 0"></div>'
-    +'<div style="font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8;margin-bottom:9px">Online presence</div>'
+    +'<div class="fldrow2"><div><label class="fld">GM tenure <span style="font-weight:400;color:#8a93a8;font-size:11px">(years)</span></label><input class="owner" id="f_gmten" value="'+esc(S.gmTenure||'')+'" placeholder="e.g. 4" inputmode="decimal"></div><div><label class="fld">KM / chef tenure <span style="font-weight:400;color:#8a93a8;font-size:11px">(years)</span></label><input class="owner" id="f_kmten" value="'+esc(S.kmTenure||'')+'" placeholder="e.g. 6" inputmode="decimal"></div></div>'
+    +'</div></div>';
+}
+// Online presence — its own card.
+function onlinePresenceCard(){ if(!_isBizListing()) return '';
+  var K=(A&&A.links)||{};
+  return '<div class="card"><div class="ch"><b>Online presence</b><span style="color:#8a93a3;font-weight:600;font-size:11.5px;margin-left:8px">website &amp; social</span></div><div class="cb" style="padding-top:14px">'
     +'<div class="fldrow2"><div><label class="fld">Website</label><input class="owner" id="f_lk_web" value="'+esc(K.website||'')+'" placeholder="https://…"></div><div><label class="fld">Instagram</label><input class="owner" id="f_lk_ig" value="'+esc(K.instagram||'')+'" placeholder="@handle or URL"></div></div>'
     +'<div class="fldrow2"><div><label class="fld">Facebook</label><input class="owner" id="f_lk_fb" value="'+esc(K.facebook||'')+'" placeholder="URL"></div><div><label class="fld">TikTok</label><input class="owner" id="f_lk_tt" value="'+esc(K.tiktok||'')+'" placeholder="@handle or URL"></div></div>'
     +'<div class="fldrow2"><div><label class="fld">Yelp</label><input class="owner" id="f_lk_yelp" value="'+esc(K.yelp||'')+'" placeholder="URL"></div><div></div></div>'
@@ -1122,7 +1128,7 @@ function render(){
       + '<div class="fldrow"><label class="fld">Referral %</label><input class="owner" id="f_refpct" value="'+esc(A.referralPct||'')+'" placeholder="e.g. 10" inputmode="decimal" style="max-width:130px"></div>'
       + '<div class="fldrow"><label class="fld">Business name</label><input class="owner" id="f_biz" value="'+esc(A.businessOverride||A.business||'')+'" placeholder="The actual business name"></div>'
       + '<div class="fldrow"><label class="fld">Code name <span style="font-weight:400;color:#8a93a8;font-size:11px">— confidential project alias</span> <button type="button" id="suggestCodeBtn" class="suggestbtn" title="Generate a confidential project name">✦ Suggest</button></label><input class="owner" id="f_codename" value="'+esc(A.codeName||'')+'" placeholder="e.g. Project Falcon"></div>'
-      + '<div class="fldrow"><label class="fld">Market</label><input class="owner" id="f_market" list="marketList" value="'+esc(_curMkt)+'" placeholder="Type a market…" autocomplete="off"><datalist id="marketList">'+mktDl+'</datalist></div>'
+      + (!_isBizListing() ? ('<div class="fldrow"><label class="fld">Market</label><input class="owner" id="f_market" list="marketList" value="'+esc(_curMkt)+'" placeholder="Type a market…" autocomplete="off"><datalist id="marketList">'+mktDl+'</datalist></div>') : '')
       + '<div class="fldrow"><label class="fld">Associate</label><select class="owner" id="f_owner">'+ownerOptions(A.owner||'')+'</select></div>'
       + ''
       + '<div class="listingbox">'
@@ -1155,6 +1161,7 @@ function render(){
     + ((A.assignmentType==='tenant_rep') ? ('<div class="card"><div class="ch"><b>Site Selection Criteria</b><span style="color:#8a93a3;font-weight:600;font-size:11.5px">what we’re hunting for</span></div><div class="cb" style="padding:14px 20px 18px">'+crBox()+'</div></div>') : '')
     + locationCard()
     + businessSnapshotCard()
+    + onlinePresenceCard()
     + financialsCard()
     + mktCardShell()
     + photosCard()
