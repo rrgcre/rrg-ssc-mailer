@@ -467,6 +467,8 @@ function render(){
   var passed=all.filter(passFilters);
   var offAll=passed.filter(isOffBoard);                       // parked (On Hold / Lost) — hidden from the columns
   var filtered=sortCards(passed.filter(function(c){return !isOffBoard(c);}));
+  // Hand the current filtered+sorted order to the listing detail page so it can offer Prev / Next.
+  try{ sessionStorage.setItem('rrg_nav_listings', JSON.stringify({ keys:filtered.map(function(c){return c.key;}), ent:entSingular(), at:Date.now() })); }catch(e){}
   var byStage={}; stages.forEach(function(s){ byStage[s]=[]; });
   filtered.forEach(function(c){ (byStage[c.stage]||(byStage[c.stage]=[])).push(c); });
   var totalVal=filtered.reduce(function(a,c){return a+money(c.value);},0);

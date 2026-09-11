@@ -335,7 +335,7 @@ a.feat:hover{background:#f7f9fc;}
 <!--rrgback--><a href="./rrg_board.html" class="rrg-back" aria-label="Back to deals" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28)"><span style="font-size:14px;line-height:1">←</span> Deals</a>
 <div class="top"><div class="top-in">
   <span class="brand" onclick="location.href='./index.html'" title="Back to toolbox"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
-  <div class="crumb"><a href="./rrg_board.html">Listings</a> &nbsp;›&nbsp; <span id="crumb">Listing file</span></div>
+  <div class="crumb"><a href="./rrg_board.html">Listings</a> &nbsp;›&nbsp; <span id="crumb">Listing file</span><span id="listNav" hidden style="margin-left:14px;font-size:12px;white-space:nowrap"></span></div>
   <div class="kicker" id="kicker">Listing record<span class="kx">— everything for this listing in one place</span></div>
   <h1 id="h1">Listing</h1>
   <div class="subline" id="subline"></div>
@@ -482,6 +482,13 @@ function leaseStripHtml(){
 // fall back to the built-in business-sale tool workflow.
 function activeStages(){ var p=activePipe(); return (p && (p.stages||[]).length) ? pipeStages(p) : STAGES; }
 function domDays(){ if(!A||!A.listingLive) return ''; var d=new Date(A.listingLive+'T00:00:00'); if(isNaN(d)) return ''; var n=Math.floor((Date.now()-d.getTime())/86400000); return n>=0?(n+' day'+(n===1?'':'s')):''; }
+// Prev / Next across the listing order you came from (the board's current filtered + sorted list, stashed on the board).
+function initListNav(){ var el=document.getElementById('listNav'); if(!el||!KEY) return; var nav=null; try{ nav=JSON.parse(sessionStorage.getItem('rrg_nav_listings')||'null'); }catch(e){} if(!nav||!Array.isArray(nav.keys)){ el.hidden=true; return; } var i=nav.keys.indexOf(KEY); if(i<0){ el.hidden=true; return; } var n=nav.keys.length, prev=(i>0)?nav.keys[i-1]:null, next=(i<n-1)?nav.keys[i+1]:null;
+  var mk=function(k,lbl){ if(!k) return '<span style="color:#5a6b8a;cursor:default">'+lbl+'</span>'; return '<a href="./rrg_assignment.html?key='+encodeURIComponent(k)+'" style="color:#cdd8ea;text-decoration:none;font-weight:700">'+lbl+'</a>'; };
+  el.innerHTML=mk(prev,'‹ Prev')+'<span style="color:#8093b5;margin:0 9px">'+(i+1)+' of '+n+'</span>'+mk(next,'Next ›'); el.hidden=false;
+}
+// Auto-derive the listing agreement Expires date from Listed on + a standard 12-month term — only when Expires is still blank (never overwrites a date you set).
+function _autoExpiry(){ var s=document.getElementById('f_lstart'), e=document.getElementById('f_lexp'); if(!s||!e||!s.value||e.value) return; var d=new Date(s.value+'T00:00:00'); if(isNaN(d)) return; d.setMonth(d.getMonth()+12); var iso=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); e.value=iso; setDirty(true); updateExpNote(); }
 // Generate a neutral confidential project code name (SaaS-generic — no brand words).
 function suggestCodeName(){
   var W=['Falcon','Harbor','Summit','Cedar','Atlas','Orion','Meridian','Cobalt','Vantage','Aspen','Sable','Beacon','Cypress','Marlin','Keystone','Laurel','Onyx','Compass','Anchor','Willow','Everest','Cascade','Juniper','Halcyon','Sterling','Magnolia','Redwood','Tahoe','Cardinal','Sequoia','Monarch','Solstice'];
@@ -1173,7 +1180,7 @@ function render(){
   ['f_status','f_owner','f_contact','f_refby','f_refpct','f_biz','f_codename','f_market','f_notes','f_lstart','f_lexp','f_llive','f_lauto','f_bbsref','f_bbsnum','f_costar','f_crexi','f_leadauto','cr_markets','cr_use','cr_budget','cr_sizemin','cr_sizemax','cr_term','cr_timeline','cr_parking','cr_features','cr_crnotes','sp_size','sp_rent','sp_term','sp_cond','sp_use','sp_avail','sp_feat','sp_notes','f_addr','f_area','f_city','f_county','f_sqft','f_leaseend','f_options','f_opened','f_priorsales','f_lk_web','f_lk_ig','f_lk_fb','f_lk_tt','f_lk_yelp','f_ft','f_pt','f_gmten','f_kmten'].forEach(function(id){
     var el=document.getElementById(id); if(!el) return;
     var ev=(el.tagName==='SELECT'||el.type==='checkbox'||el.type==='date')?'change':'input';
-    el.addEventListener(ev,function(){ setDirty(true); if(id==='f_lexp'||id==='f_lauto') updateExpNote(); });
+    el.addEventListener(ev,function(){ setDirty(true); if(id==='f_lexp'||id==='f_lauto') updateExpNote(); if(id==='f_lstart') _autoExpiry(); });
   });
   // Autosave: save on leaving a field (change/blur) or after a ~1s pause while typing.
   (function(){ var _aAS=null; function commit(){ if(_aAS){ clearTimeout(_aAS); _aAS=null; } if(DIRTY) save(); } function pause(){ if(_aAS) clearTimeout(_aAS); _aAS=setTimeout(commit,1000); } ['f_status','f_owner','f_contact','f_refby','f_refpct','f_biz','f_codename','f_market','f_notes','f_lstart','f_lexp','f_llive','f_lauto','f_bbsref','f_bbsnum','f_costar','f_crexi','f_leadauto','cr_markets','cr_use','cr_budget','cr_sizemin','cr_sizemax','cr_term','cr_timeline','cr_parking','cr_features','cr_crnotes','sp_size','sp_rent','sp_term','sp_cond','sp_use','sp_avail','sp_feat','sp_notes','f_addr','f_area','f_city','f_county','f_sqft','f_leaseend','f_options','f_opened','f_priorsales','f_lk_web','f_lk_ig','f_lk_fb','f_lk_tt','f_lk_yelp','f_ft','f_pt','f_gmten','f_kmten'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener('input',pause); el.addEventListener('change',commit); }); })();
@@ -1945,7 +1952,7 @@ function load(){
   fetch('/api/assignment/'+encodeURIComponent(KEY),{credentials:'same-origin'}).then(function(r){
     if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); });
     return r.json();
-  }).then(function(j){ A=j.assignment; if(A && A.assignmentType==='tenant_rep'){ location.replace('./rrg_tenant_engagement.html?key='+encodeURIComponent(KEY)); return; } if(A && A.assignmentType==='landlord_rep'){ location.replace('./rrg_landlord_engagement.html?key='+encodeURIComponent(KEY)); return; } LEASE=j.lease||null; if(j.statuses) STATUSES=j.statuses; TXN=(A&&A.transaction)||null; if(j.txnStatuses) TXNSTAT=j.txnStatuses; if(j.commStatuses) TXNCOMM=j.commStatuses; RA=j.roomActivity||null; OFFERS=(A&&A.offers)||[]; TOURS=(A&&A.tours)||[]; NDAS=(A&&A.ndas)||[]; INQUIRIES=(A&&A.inquiries)||[]; AGR=j.agreements||[]; ATYPES=j.agreementTypes||[]; PIPES=j.pipelines||[]; BUYERPIPES=j.buyerPipelines||[]; AUTOS=j.automations||[]; if(Array.isArray(j.markets)&&j.markets.length) MARKETS=j.markets; EXP=j.expenses||null; INVX=j.invoices||null; render(); loadPeople(); loadMatchingBuyers(); loadSellerReport(); })
+  }).then(function(j){ A=j.assignment; if(A && A.assignmentType==='tenant_rep'){ location.replace('./rrg_tenant_engagement.html?key='+encodeURIComponent(KEY)); return; } if(A && A.assignmentType==='landlord_rep'){ location.replace('./rrg_landlord_engagement.html?key='+encodeURIComponent(KEY)); return; } LEASE=j.lease||null; if(j.statuses) STATUSES=j.statuses; TXN=(A&&A.transaction)||null; if(j.txnStatuses) TXNSTAT=j.txnStatuses; if(j.commStatuses) TXNCOMM=j.commStatuses; RA=j.roomActivity||null; OFFERS=(A&&A.offers)||[]; TOURS=(A&&A.tours)||[]; NDAS=(A&&A.ndas)||[]; INQUIRIES=(A&&A.inquiries)||[]; AGR=j.agreements||[]; ATYPES=j.agreementTypes||[]; PIPES=j.pipelines||[]; BUYERPIPES=j.buyerPipelines||[]; AUTOS=j.automations||[]; if(Array.isArray(j.markets)&&j.markets.length) MARKETS=j.markets; EXP=j.expenses||null; INVX=j.invoices||null; render(); loadPeople(); loadMatchingBuyers(); loadSellerReport(); initListNav(); })
   .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this deal.')+'<br><br><a href="./rrg_board.html" style="color:#000E31;font-weight:700">← Back to deals</a></div>'; });
 }
 load();
