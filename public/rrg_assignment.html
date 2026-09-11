@@ -786,7 +786,7 @@ function financialsCard(){
   var rrow=function(t,f,hint){ var c=''; for(var i=0;i<f3y.length;i++) c+=money(i,f); return '<tr>'+rowLbl(t,hint)+c+'</tr>'; };
   var table='<div style="font-size:10.5px;font-weight:400;color:#9aa3b2;margin-bottom:9px">3 full years plus trailing twelve (TTM) — edit a period header if your fiscal year differs.</div>'
     +'<div style="overflow-x:auto"><table id="fin3yTable" style="border-collapse:collapse;width:100%;min-width:560px"><thead><tr><th style="width:1%"></th>'+heads+'</tr></thead><tbody>'
-    +rrow('Revenue','revenue','top line')+rrow('EBITDA','ebitda','')+rrow('SDE','sde','owner benefit')+rrow('Rent','rent','occupancy')
+    +rrow('Revenue','revenue','top line')+rrow('EBITDA','ebitda','')+rrow('SDE','sde','owner benefit')
     +'</tbody></table></div>';
   var hist=(A&&Array.isArray(A.priceHistory))?A.priceHistory.slice():[];
   var histHtml=''; if(hist.length){ var rows=hist.map(function(h,i){ return _histRow(h, i===0 && !h.prev); }).reverse().join(''); histHtml='<div style="margin-top:16px"><div style="font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8;margin-bottom:2px">Price history</div>'+rows+'</div>'; }
@@ -899,7 +899,7 @@ function fillMarketplaceCard(){
   var cat=body.querySelector('[data-f="conceptKey"]'), badge=body.querySelector('[data-f="conceptType"]');
   if(cat&&badge){ cat.addEventListener('change',function(){ if(!badge.value.trim()){ badge.value=cat.value||''; mkPreview(); } }); }
   body.querySelectorAll('.mki').forEach(function(el){ el.addEventListener('input',mkPreview); el.addEventListener('change',mkPreview); });
-  body.querySelectorAll('.mksw').forEach(function(sw){ sw.addEventListener('click',function(){ sw.classList.toggle('on'); mkPreview(); }); });
+  body.querySelectorAll('.mksw').forEach(function(sw){ sw.addEventListener('click',function(){ sw.classList.toggle('on'); if(sw.classList.contains('on')) _mkMaybeSetLiveDate(); mkPreview(); }); });
   document.getElementById('mkSave').addEventListener('click',mkSave);
   mkPreview();
 }
@@ -933,7 +933,10 @@ function _mkPrevLedger(pc,o,badge){ var g=_mkGuideOf(o); pc.className='mkpv-ledg
 function _mkPrevRegister(pc,o,badge){ var g=_mkGuideOf(o); var sub=o.sde?((o.earnBasis||'SDE')+' '+o.sde):''; var mk=o.marketKey||o.loc||'Texas'; pc.className='mkpv-reg'; pc.innerHTML='<div class="reghd"><h2>'+esc(mk)+'</h2><span class="ln"></span><span class="n">1 deal</span></div>'
   +'<div class="row"><span class="cic">'+_mkConceptIcon(o)+'</span><div><div class="ey">'+esc(badge)+'</div><div class="rh">'+esc(o.headline||'Confidential restaurant opportunity')+'</div></div><div class="leader"></div><div class="fig"><div class="g">'+(g?esc(g):'Under NDA')+'</div>'+(sub?'<div class="s">'+esc(sub)+'</div>':'')+'<div class="req">Request access →</div></div></div>'; }
 function mkPreview(){ var pc=document.getElementById('mkPrev'); if(!pc) return; var o=mkCollect(); var units=(o.units&&+o.units>1)?(' · '+o.units+' units'):''; var badge=((o.conceptType||o.conceptKey||'Restaurant')+(o.reAvailable?' · RE available':units)).trim(); var style=_effMkStyle(); if(style==='ledger') _mkPrevLedger(pc,o,badge); else if(style==='register') _mkPrevRegister(pc,o,badge); else _mkPrevCard(pc,o,badge); }
-function mkSave(){ var btn=document.getElementById('mkSave'), msg=document.getElementById('mkMsg'); if(!btn) return; var o=mkCollect(); btn.disabled=true; var was=btn.textContent; btn.textContent='Saving…'; msg.textContent=''; fetch('/api/marketplace/'+encodeURIComponent(KEY),{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(o)}).then(function(r){return r.json();}).then(function(j){ btn.disabled=false; btn.textContent=was; if(j&&j.ok){ if(MKT&&MKT.listing) MKT.listing.teaser=j.teaser; msg.style.color='#1f8a5b'; var _mn=+j.matched||0; msg.textContent=_mn>0?('Saved ✓ · '+_mn+' buyer'+(_mn===1?'':'s')+' matched — added to your tasks'):'Saved ✓'; var status=document.getElementById('mktStatus'); if(status) status.innerHTML=(j.teaser&&j.teaser.published)?'<span style="color:#1f8a5b;font-weight:700">● Public</span>':'<span style="color:#8a93a3">Not published</span>'; try{ if(typeof loadMatchingBuyers==='function') loadMatchingBuyers(); }catch(e){} setTimeout(function(){msg.textContent='';},_mn>0?3600:1600); } else { msg.style.color='#C0261B'; msg.textContent=(j&&j.error)||'Could not save.'; } }).catch(function(){ btn.disabled=false; btn.textContent=was; msg.style.color='#C0261B'; msg.textContent='Could not reach the server.'; }); }
+// When the listing is made Public or Featured, stamp the Listing Agreement's Live date (on market)
+// with today — but only if it's still blank, so an existing live date is never overwritten.
+function _mkMaybeSetLiveDate(){ var f=document.getElementById('f_llive'); if(!f||f.value) return; var d=new Date(); var iso=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); f.value=iso; if(window.A) A.listingLive=iso; var dom=document.getElementById('f_dom'); if(dom) dom.value=domDays(); try{ setDirty(true); save(true); }catch(e){} }
+function mkSave(){ var btn=document.getElementById('mkSave'), msg=document.getElementById('mkMsg'); if(!btn) return; var o=mkCollect(); if(o.published||o.featured) _mkMaybeSetLiveDate(); btn.disabled=true; var was=btn.textContent; btn.textContent='Saving…'; msg.textContent=''; fetch('/api/marketplace/'+encodeURIComponent(KEY),{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(o)}).then(function(r){return r.json();}).then(function(j){ btn.disabled=false; btn.textContent=was; if(j&&j.ok){ if(MKT&&MKT.listing) MKT.listing.teaser=j.teaser; msg.style.color='#1f8a5b'; var _mn=+j.matched||0; msg.textContent=_mn>0?('Saved ✓ · '+_mn+' buyer'+(_mn===1?'':'s')+' matched — added to your tasks'):'Saved ✓'; var status=document.getElementById('mktStatus'); if(status) status.innerHTML=(j.teaser&&j.teaser.published)?'<span style="color:#1f8a5b;font-weight:700">● Public</span>':'<span style="color:#8a93a3">Not published</span>'; try{ if(typeof loadMatchingBuyers==='function') loadMatchingBuyers(); }catch(e){} setTimeout(function(){msg.textContent='';},_mn>0?3600:1600); } else { msg.style.color='#C0261B'; msg.textContent=(j&&j.error)||'Could not save.'; } }).catch(function(){ btn.disabled=false; btn.textContent=was; msg.style.color='#C0261B'; msg.textContent='Could not reach the server.'; }); }
 // The "What this section does" strip defaults to sell-side (business-sale) copy in the static
 // markup. When this file is a tenant-rep search or a landlord/leasing listing, rewrite the
 // one-line summary, the guide link, and the feature grid to match — so the help reads true to
@@ -1075,7 +1078,7 @@ function render(){
       + '<div class="fldrow"><label class="fld">Business name</label><input class="owner" id="f_biz" value="'+esc(A.businessOverride||A.business||'')+'" placeholder="The actual business name"></div>'
       + '<div class="fldrow"><label class="fld">Code name <span style="font-weight:400;color:#8a93a8;font-size:11px">— confidential project alias</span> <button type="button" id="suggestCodeBtn" class="suggestbtn" title="Generate a confidential project name">✦ Suggest</button></label><input class="owner" id="f_codename" value="'+esc(A.codeName||'')+'" placeholder="e.g. Project Falcon"></div>'
       + '<div class="fldrow"><label class="fld">Market</label><input class="owner" id="f_market" list="marketList" value="'+esc(_curMkt)+'" placeholder="Type a market…" autocomplete="off"><datalist id="marketList">'+mktDl+'</datalist></div>'
-      + '<div class="fldrow"><label class="fld">Owner</label><select class="owner" id="f_owner">'+ownerOptions(A.owner||'')+'</select></div>'
+      + '<div class="fldrow"><label class="fld">Associate</label><select class="owner" id="f_owner">'+ownerOptions(A.owner||'')+'</select></div>'
       + ''
       + '<div class="listingbox">'
         + '<div class="listinghd">Listing agreement</div>'
@@ -1170,7 +1173,10 @@ function loadPeople(){ fetch('/api/people',{credentials:'same-origin'}).then(fun
 function matchBuyersShell(){ return '<div class="card" id="matchBuyersCard"><div class="ch"><b>Matching buyers</b><span id="mbCount" style="color:#8a93a8;font-weight:700;margin-left:6px"></span></div><div class="cb" style="padding:12px 16px"><div id="matchBuyers"><div style="color:#8a93a8;font-size:12.5px;padding:4px 0">Checking your buyer book…</div></div></div></div>'; }
 function sellerReportShell(){ if(A && A.assignmentType==='tenant_rep') return ''; return '<div class="card" id="sellerRepCard"><div class="ch"><b>Seller activity report</b><span id="srStatus" style="margin-left:10px;font-size:12px;color:#8a93a3">Loading…</span></div><div class="cb" id="srBody" style="padding:12px 16px"><div style="color:#8a93a8;font-size:12.5px">Checking…</div></div></div>'; }
 function loadSellerReport(){ var body=document.getElementById('srBody'), st=document.getElementById('srStatus'); if(!body||!KEY) return;
-  fetch('/api/assignment/'+encodeURIComponent(KEY)+'/seller-report',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+  if(st) st.innerHTML='<span style="color:#8a93a3">Loading…</span>'; body.innerHTML='<div style="color:#8a93a8;font-size:12.5px">Checking…</div>';
+  var _ctl=(typeof AbortController!=='undefined')?new AbortController():null;
+  var _to=setTimeout(function(){ try{ if(_ctl) _ctl.abort(); }catch(e){} },12000);
+  fetch('/api/assignment/'+encodeURIComponent(KEY)+'/seller-report',{credentials:'same-origin',signal:_ctl?_ctl.signal:undefined}).then(function(r){return r.json();}).then(function(j){ clearTimeout(_to);
     if(!j||!j.ok){ if(st)st.textContent=''; body.innerHTML='<div style="color:#8a93a8;font-size:12.5px">—</div>'; return; }
     window._srSellerEmail=j.sellerEmail||''; window._srSellerName=j.sellerName||''; window._srInterval=j.intervalDays||14; window._srCadence=j.cadence||'';
     var p=j.preview||{}; var on=j.firmEnabled && !j.off;
@@ -1186,7 +1192,7 @@ function loadSellerReport(){ var body=document.getElementById('srBody'), st=docu
       +'<span class="msg" id="srMsg" style="font-size:12.5px"></span></div>';
     var sb=document.getElementById('srSendNow'); if(sb) sb.onclick=function(){ srSend(); };
     var off=document.getElementById('srOff'); if(off) off.onchange=function(){ srToggleOff(off.checked); };
-  }).catch(function(){ if(st)st.textContent=''; });
+  }).catch(function(){ clearTimeout(_to); if(st) st.innerHTML='<span style="color:#C0261B;font-weight:700">Couldn’t load</span>'; body.innerHTML='<div style="color:#8a93a8;font-size:12.5px">Couldn’t load the activity report. <a href="#" id="srRetry" style="color:#23496f;font-weight:700;text-decoration:none">Retry</a></div>'; var rb=document.getElementById('srRetry'); if(rb) rb.onclick=function(e){ e.preventDefault(); loadSellerReport(); }; });
 }
 function srSend(){
   var m=document.getElementById('srMsg'); var to=window._srSellerEmail||'';
