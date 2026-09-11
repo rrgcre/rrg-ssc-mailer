@@ -830,14 +830,14 @@ function businessSnapshotCard(){ if(!_isBizListing()) return '';
     +'<div class="fldrow2"><div><label class="fld">Date opened</label><input type="date" class="owner" id="f_opened" value="'+esc(H.openedDate||'')+'"></div><div></div></div>'
     +'<div class="fldrow"><label class="fld">Previous sales / ownership history</label><textarea id="f_priorsales" placeholder="e.g. Opened 2004; sold 2018 for $1.2M to current owner…">'+esc(H.priorSales||'')+'</textarea></div>'
     +'<div style="height:1px;background:var(--line);margin:14px 0"></div>'
+    +'<div style="font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8;margin-bottom:9px">Team</div>'
+    +'<div class="fldrow2"><div><label class="fld">Full-time employees</label><input class="owner" id="f_ft" value="'+esc(S.ftCount||'')+'" placeholder="e.g. 12" inputmode="numeric"></div><div><label class="fld">Part-time employees</label><input class="owner" id="f_pt" value="'+esc(S.ptCount||'')+'" placeholder="e.g. 8" inputmode="numeric"></div></div>'
+    +'<div class="fldrow2"><div><label class="fld">GM tenure</label><input class="owner" id="f_gmten" value="'+esc(S.gmTenure||'')+'" placeholder="e.g. 4 years"></div><div><label class="fld">KM / chef tenure</label><input class="owner" id="f_kmten" value="'+esc(S.kmTenure||'')+'" placeholder="e.g. 6 years"></div></div>'
+    +'<div style="height:1px;background:var(--line);margin:14px 0"></div>'
     +'<div style="font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8;margin-bottom:9px">Online presence</div>'
     +'<div class="fldrow2"><div><label class="fld">Website</label><input class="owner" id="f_lk_web" value="'+esc(K.website||'')+'" placeholder="https://…"></div><div><label class="fld">Instagram</label><input class="owner" id="f_lk_ig" value="'+esc(K.instagram||'')+'" placeholder="@handle or URL"></div></div>'
     +'<div class="fldrow2"><div><label class="fld">Facebook</label><input class="owner" id="f_lk_fb" value="'+esc(K.facebook||'')+'" placeholder="URL"></div><div><label class="fld">TikTok</label><input class="owner" id="f_lk_tt" value="'+esc(K.tiktok||'')+'" placeholder="@handle or URL"></div></div>'
     +'<div class="fldrow2"><div><label class="fld">Yelp</label><input class="owner" id="f_lk_yelp" value="'+esc(K.yelp||'')+'" placeholder="URL"></div><div></div></div>'
-    +'<div style="height:1px;background:var(--line);margin:14px 0"></div>'
-    +'<div style="font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8;margin-bottom:9px">Team</div>'
-    +'<div class="fldrow2"><div><label class="fld">Full-time employees</label><input class="owner" id="f_ft" value="'+esc(S.ftCount||'')+'" placeholder="e.g. 12" inputmode="numeric"></div><div><label class="fld">Part-time employees</label><input class="owner" id="f_pt" value="'+esc(S.ptCount||'')+'" placeholder="e.g. 8" inputmode="numeric"></div></div>'
-    +'<div class="fldrow2"><div><label class="fld">GM tenure</label><input class="owner" id="f_gmten" value="'+esc(S.gmTenure||'')+'" placeholder="e.g. 4 years"></div><div><label class="fld">KM / chef tenure</label><input class="owner" id="f_kmten" value="'+esc(S.kmTenure||'')+'" placeholder="e.g. 6 years"></div></div>'
     +'</div></div>';
 }
 function refreshFinancials(){ var host=document.getElementById('finCardHost'); if(host){ var tmp=document.createElement('div'); tmp.innerHTML=financialsCard(); var fresh=tmp.firstChild; if(fresh&&host.parentNode) host.parentNode.replaceChild(fresh,host); } var av=document.getElementById('ovAskVal'); if(av) av.textContent=(_money(A.listPrice)||'—'); updateCommWarn(); try{ _wireFinAcc(); _syncRollupBtn(); }catch(e){} }
