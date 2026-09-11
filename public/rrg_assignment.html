@@ -88,11 +88,11 @@ a.hpstep:hover .hpname,button.hpstep:hover .hpname{color:var(--red);}
 .rail > .card > .ch:hover .rgrip{color:#2c5c8f;}
 .rail > .card > .ch .rgrip:active{cursor:grabbing;}
 .rail > .card.rdragging{opacity:.55;}
-/* Center column: same drag grips as the rail, incl. the Financials/Valuation block. */
-.mid > .card > .ch .rgrip, #finCardHost > .card > .ch .rgrip{display:inline-flex;align-items:center;justify-content:center;color:#aab2c0;font-size:12px;line-height:1;cursor:grab;flex:none;margin-left:0;padding:0 1px;letter-spacing:-2px;user-select:none;touch-action:none;}
-.mid > .card > .ch:hover .rgrip, #finCardHost > .card > .ch:hover .rgrip{color:#2c5c8f;}
-.mid > .card > .ch .rgrip:active, #finCardHost > .card > .ch .rgrip:active{cursor:grabbing;}
-.mid > .card.rdragging, #finCardHost.rdragging{opacity:.55;}
+/* Center column: same drag grips as the rail. */
+.mid > .card > .ch .rgrip{display:inline-flex;align-items:center;justify-content:center;color:#aab2c0;font-size:12px;line-height:1;cursor:grab;flex:none;margin-left:0;padding:0 1px;letter-spacing:-2px;user-select:none;touch-action:none;}
+.mid > .card > .ch:hover .rgrip{color:#2c5c8f;}
+.mid > .card > .ch .rgrip:active{cursor:grabbing;}
+.mid > .card.rdragging{opacity:.55;}
 /* NetSuite rail-card chrome — matches the contact detail page: small uppercase labels, pill counts, compact right-aligned add button */
 .rail > .card{margin-bottom:12px;}
 .rail > .card > .ch{gap:6px;padding:11px 14px;}
@@ -803,9 +803,9 @@ function financialsCard(){
   var hist=(A&&Array.isArray(A.priceHistory))?A.priceHistory.slice():[];
   var histHtml=''; if(hist.length){ var rows=hist.map(function(h,i){ return _histRow(h, i===0 && !h.prev); }).reverse().join(''); histHtml='<div style="margin-top:16px"><div style="font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8;margin-bottom:2px">Price history</div>'+rows+'</div>'; }
   var bovLink=(fin.bovId)?('<a href="./rrg_bov_builder.html?bov='+encodeURIComponent(fin.bovId)+'" style="margin-left:auto;font-size:12px;font-weight:700;color:#23496f;text-decoration:none">Open BOV ↗</a>'):'';
-  var finCard='<div class="card"><div class="ch"><b>Financials</b><span style="margin-left:8px">operating performance</span></div><div class="cb" style="padding-top:14px">'+table+'</div></div>';
-  var valCard='<div class="card"><div class="ch"><b>Valuation &amp; Pricing</b><span style="margin-left:8px">how the price is derived</span>'+bovLink+'</div><div class="cb" style="padding-top:14px"><div id="valBridge" style="margin:0 0 16px;padding:13px 15px;border:1px solid #e2e8f2;border-radius:10px;background:#f7faff">'+_valBridgeInner()+'</div>'+snap+reBlock+priceGrid+histHtml+'</div></div>';
-  return '<div id="finCardHost">'+finCard+valCard+'</div>';
+  var finCard='<div class="card" id="finCard"><div class="ch"><b>Financials</b><span style="margin-left:8px">operating performance</span></div><div class="cb" style="padding-top:14px">'+table+'</div></div>';
+  var valCard='<div class="card" id="valCard"><div class="ch"><b>Valuation &amp; Pricing</b><span style="margin-left:8px">how the price is derived</span>'+bovLink+'</div><div class="cb" style="padding-top:14px"><div id="valBridge" style="margin:0 0 16px;padding:13px 15px;border:1px solid #e2e8f2;border-radius:10px;background:#f7faff">'+_valBridgeInner()+'</div>'+snap+reBlock+priceGrid+histHtml+'</div></div>';
+  return finCard+valCard;
 }
 // Business-sale listings only (tenant-rep uses Criteria, landlord-rep uses Space).
 function _isBizListing(){ return !!(A && A.assignmentType!=='tenant_rep' && A.assignmentType!=='landlord_rep'); }
@@ -856,7 +856,7 @@ function onlinePresenceCard(){ if(!_isBizListing()) return '';
     +'<div class="fldrow2"><div><label class="fld">Yelp</label><input class="owner" id="f_lk_yelp" value="'+esc(K.yelp||'')+'" placeholder="URL"></div><div></div></div>'
     +'</div></div>';
 }
-function refreshFinancials(){ var host=document.getElementById('finCardHost'); if(host){ var tmp=document.createElement('div'); tmp.innerHTML=financialsCard(); var fresh=tmp.firstChild; if(fresh&&host.parentNode) host.parentNode.replaceChild(fresh,host); } var av=document.getElementById('ovAskVal'); if(av) av.textContent=(_money(A.listPrice)||'—'); updateCommWarn(); try{ _wireFinAcc(); _syncRollupBtn(); }catch(e){} }
+function refreshFinancials(){ var tmp=document.createElement('div'); tmp.innerHTML=financialsCard(); var nf=tmp.querySelector('#finCard'), nv=tmp.querySelector('#valCard'); var of=document.getElementById('finCard'), ov=document.getElementById('valCard'); if(nf&&of&&of.parentNode) of.parentNode.replaceChild(nf,of); if(nv&&ov&&ov.parentNode) ov.parentNode.replaceChild(nv,ov); var av=document.getElementById('ovAskVal'); if(av) av.textContent=(_money(A.listPrice)||'—'); updateCommWarn(); try{ _wireFinAcc(); _syncRollupBtn(); }catch(e){} }
 function togglePriceForm(show){ var f=document.getElementById('priceForm'); if(!f) return; var on=(show===undefined)?(f.style.display==='none'):show; f.style.display=on?'':'none'; if(on){ var p=document.getElementById('pf_price'); if(p){ p.value=A.listPrice||''; p.focus(); p.select&&p.select(); } var n=document.getElementById('pf_note'); if(n) n.value=''; var m=document.getElementById('pf_msg'); if(m) m.textContent=''; } }
 function askInlineEdit(){
   if(!(A && (A.canChangePrice || !String(A.listPrice||'').trim()))) return;
@@ -1422,9 +1422,9 @@ var ACC_STATE={}, ACC_INIT=false;
 var ASG_ORDER_KEY='rrgAsgRailOrderV2', ASG_MID_ORDER_KEY='rrgAsgMidOrderV1', ASG_COLLAPSE_KEY='rrgAsgCollapsedV2', ASG_TIP_KEY='rrgAsgTipSeen';
 function accTitle(card){ var b=card.querySelector('.ch b'); return b?b.textContent.trim():''; }
 function _asgSaveCollapse(){ try{ localStorage.setItem(ASG_COLLAPSE_KEY,JSON.stringify(ACC_STATE)); }catch(e){} }
-// A movable "unit" in a column: a direct-child card, or the Financials/Valuation wrapper (#finCardHost) moved as one block.
-function _asgUnits(container){ return Array.prototype.filter.call(container.children,function(c){ return c.nodeType===1 && (c.id==='finCardHost' || (c.classList&&c.classList.contains('card'))); }); }
-function _asgUnitKey(u){ return (u.id==='finCardHost') ? 'Financials' : accTitle(u); }
+// A movable "unit" in a column is a direct-child card (Financials and Valuation are independent cards).
+function _asgUnits(container){ return Array.prototype.filter.call(container.children,function(c){ return c.nodeType===1 && c.classList && c.classList.contains('card'); }); }
+function _asgUnitKey(u){ return accTitle(u); }
 function _asgOrderKeyFor(container){ return (container&&container.classList&&container.classList.contains('mid')) ? ASG_MID_ORDER_KEY : ASG_ORDER_KEY; }
 // Apply the device-saved order to one column.
 function applyAsgOrderFor(container, key){
@@ -1488,19 +1488,17 @@ function setupAccordion(){
   _syncRollupBtn();
 }
 function expandSectionOf(el){ var card=el&&el.closest('.card'); if(card){ card.classList.remove('collapsed'); ACC_STATE[accTitle(card)]=false; _asgSaveCollapse(); _syncRollupBtn(); } }
-// Every collapsible card on the page — rail, mid, and the Financials/Valuation cards nested in #finCardHost.
-function _allAccCards(){ return [].slice.call(document.querySelectorAll('.rail > .card, .mid > .card, #finCardHost > .card')).filter(function(c){ return c.querySelector('.ch'); }); }
-// Make the Financials + Valuation cards collapsible too (they live inside #finCardHost, so the main accordion pass skips them). Re-runnable after refreshFinancials rebuilds them.
+// Every collapsible card on the page — rail and mid (Financials/Valuation are ordinary mid cards now).
+function _allAccCards(){ return [].slice.call(document.querySelectorAll('.rail > .card, .mid > .card')).filter(function(c){ return c.querySelector('.ch'); }); }
+// Re-wire the Financials + Valuation cards after refreshFinancials rebuilds them (grip + chevron + collapse).
 function _wireFinAcc(){
-  // The wrapper is the single movable unit; tag it so its saved position sticks after refreshFinancials rebuilds it.
-  var host=document.getElementById('finCardHost'); if(host) host.setAttribute('data-rk','Financials');
-  document.querySelectorAll('#finCardHost > .card').forEach(function(card, idx){
-    card.classList.add('acc');
+  ['finCard','valCard'].forEach(function(id){ var card=document.getElementById(id); if(!card) return;
+    card.classList.add('acc'); card.setAttribute('data-rk', accTitle(card));
     var ch=card.querySelector('.ch'); if(!ch) return;
     var title=accTitle(card);
     if(!ch.querySelector('.accchev')){
       var chev=document.createElement('span'); chev.className='accchev'; chev.textContent='▾'; ch.insertBefore(chev, ch.firstChild); ch.style.cursor='pointer';
-      if(idx===0){ var grip=document.createElement('span'); grip.className='rgrip'; grip.setAttribute('aria-hidden','true'); grip.title='Drag to reorder'; grip.textContent='⠿'; ch.insertBefore(grip, chev); grip.style.touchAction='none'; grip.addEventListener('pointerdown',_asgDown); }
+      var grip=document.createElement('span'); grip.className='rgrip'; grip.setAttribute('aria-hidden','true'); grip.title='Drag to reorder'; grip.textContent='⠿'; ch.insertBefore(grip, chev); grip.style.touchAction='none'; grip.addEventListener('pointerdown',_asgDown);
       ch.addEventListener('click', function(e){ if(e.target.closest('button, a, input, select, textarea, .rgrip')) return; var collapsed=card.classList.toggle('collapsed'); ACC_STATE[accTitle(card)]=collapsed; _asgSaveCollapse(); _syncRollupBtn(); });
     }
     if(ACC_STATE[title]) card.classList.add('collapsed'); else card.classList.remove('collapsed');
