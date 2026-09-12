@@ -1017,7 +1017,7 @@ function fillMarketplaceCard(){
   var cat=body.querySelector('[data-f="conceptKey"]'), badge=body.querySelector('[data-f="conceptType"]');
   if(cat&&badge){ cat.addEventListener('change',function(){ if(!badge.value.trim()){ badge.value=cat.value||''; mkPreview(); } }); }
   body.querySelectorAll('.mki').forEach(function(el){ el.addEventListener('input',mkPreview); el.addEventListener('change',mkPreview); });
-  body.querySelectorAll('.mksw').forEach(function(sw){ sw.addEventListener('click',function(){ sw.classList.toggle('on'); if(sw.classList.contains('on')) _mkMaybeSetLiveDate(); mkPreview(); }); });
+  body.querySelectorAll('.mksw').forEach(function(sw){ sw.addEventListener('click',function(){ sw.classList.toggle('on'); if(sw.classList.contains('on')) _mkMaybeSetLiveDate(); mkPreview(); mkSave(); }); });
   body.querySelectorAll('.mkico').forEach(function(b){ b.addEventListener('click',function(){ var hid=body.querySelector('[data-f="icon"]'); if(hid) hid.value=b.getAttribute('data-ico')||''; body.querySelectorAll('.mkico').forEach(function(x){ x.classList.remove('on'); }); b.classList.add('on'); mkPreview(); }); });
   document.getElementById('mkSave').addEventListener('click',mkSave);
   var _kSel=document.getElementById('mkKind'); if(_kSel) _kSel.addEventListener('change',function(){ _mkApplyKind(); mkPreview(); });
