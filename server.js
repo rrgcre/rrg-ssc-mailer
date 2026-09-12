@@ -5977,6 +5977,8 @@ function mktClean(b, prev) {
   if (b.sf !== undefined) out.sf = s(b.sf, 40);                        // building / space size
   if (b.ffe !== undefined) out.ffe = s(b.ffe, 40);                     // FF&E value for asset sales
   if (b.price !== undefined) out.price = s(b.price, 40);              // exact asking price for RE (openly marketed)
+  if (b.lat !== undefined) { const n = parseFloat(b.lat); out.lat = (isFinite(n) && n >= -90 && n <= 90) ? n : ''; }   // precise pin (geocoded from addr)
+  if (b.lng !== undefined) { const n = parseFloat(b.lng); out.lng = (isFinite(n) && n >= -180 && n <= 180) ? n : ''; }
   return out;
 }
 // The four public listing kinds. '' on the teaser = derive from the listing's saleLane.
@@ -6009,6 +6011,8 @@ function mktTeaser(key, view, m) {
     }
   } catch (e) {}
   const cen = _metroCentroid(m.marketKey || '') || _metroCentroid(_metroForCity(view.market || '')) || null;
+  const plat = (typeof m.lat === 'number' && isFinite(m.lat)) ? m.lat : (cen ? cen.lat : null);   // precise geocoded pin wins; metro centroid is the fallback
+  const plng = (typeof m.lng === 'number' && isFinite(m.lng)) ? m.lng : (cen ? cen.lng : null);
   return {
     id: key, kind: kind, headline: m.headline || (view.codeName || 'Confidential restaurant opportunity'),
     loc: m.loc || view.market || '', badge: badge,
@@ -6017,7 +6021,7 @@ function mktTeaser(key, view, m) {
     revenue: m.revenue || '', sde: m.sde || '', earnBasis: m.earnBasis || 'SDE', guide: m.guide || '',
     // real-estate attributes (present when the rep fills them in)
     propType: m.propType || '', addr: isRE ? (m.addr || '') : '', rate: m.rate || '', term: m.term || '', cap: m.cap || '', lot: m.lot || '', sf: m.sf || '', ffe: m.ffe || '', price: isRE ? (m.price || '') : '',
-    photo: photo, lat: cen ? cen.lat : null, lng: cen ? cen.lng : null,
+    photo: photo, lat: plat, lng: plng,
     flag: ab ? ab.id : '', flagLabel: ab ? ab.label : '', flagColor: ab ? ab.color : '', featured: !!m.featured, publishedAt: m.publishedAt || '', icon: m.icon || ''
   };
 }
