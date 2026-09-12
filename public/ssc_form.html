@@ -317,6 +317,15 @@
       <div class="field"><label class="k">Date Completed<span class="req-star">*</span></label><input type="text" class="req" placeholder="MM / DD / YYYY"></div>
     </div>
 
+    <!-- YOUR CONTACT — so we can confirm and get you on the schedule -->
+    <div class="sec"><div class="num">✓</div><h2>Your Contact Information</h2><div class="flex"></div></div>
+    <p style="margin:2px 0 12px;color:#6b7488;font-size:13px">We’ll email you a confirmation and a link to book your call, so we can review your criteria and get you on our schedule.</p>
+    <div class="grid rowgap">
+      <div class="field"><label class="k">Your Name<span class="req-star">*</span></label><input type="text" class="req" id="prospectName" placeholder="First and last name"></div>
+      <div class="field"><label class="k">Your Email<span class="req-star">*</span></label><input type="text" class="req email" id="prospectEmail" placeholder="you@email.com"></div>
+      <div class="field"><label class="k">Phone</label><input type="text" id="prospectPhone" placeholder="(optional)"></div>
+    </div>
+
     <!-- SECTION 1 -->
     <div class="sec"><div class="num">1</div><h2>Operator &amp; Concept Profile</h2><div class="flex"></div></div>
     <div class="grid">
@@ -804,6 +813,9 @@
       preparedBy: header['rrg advisor / tenant rep']||'',
       date: header['date completed']||'',
       repEmail: (document.getElementById('clientEmail').value||'').trim(),
+      prospectName: ((document.getElementById('prospectName')||{}).value||'').trim(),
+      prospectEmail: ((document.getElementById('prospectEmail')||{}).value||'').trim(),
+      prospectPhone: ((document.getElementById('prospectPhone')||{}).value||'').trim(),
       sections: sections
     };
   }
@@ -826,7 +838,7 @@
     var h=document.getElementById('sm-h'), msg=document.getElementById('sm-msg'), act=document.getElementById('sm-actions');
     act.innerHTML='';
     if(state==='sending'){ h.textContent='Sending\u2026'; msg.textContent='Rendering the branded PDF and emailing it to the tenant rep (CC van@rrgcre.com)\u2026'; }
-    else if(state==='sent'){ h.textContent='Sent \u2713'; msg.textContent='The branded SSC PDF was emailed to '+extra+', with van@rrgcre.com copied.';
+    else if(state==='sent'){ h.textContent='Sent \u2713'; var _m='The branded SSC PDF was emailed to '+(extra&&extra.rep||extra)+', with van@rrgcre.com copied.'; if(extra&&extra.prospect){ _m += (extra.prospectEmail?(' A confirmation'+(extra.booking?' with a link to book a call':'')+' was sent to '+extra.prospectEmail+'.'):''); } msg.textContent=_m;
       act.innerHTML='<button type="button" class="mbtn p" onclick="smClose()">Done</button>'; }
     else { h.textContent='Couldn\u2019t send automatically'; msg.textContent=(extra||'The mailer service didn\u2019t respond.')+' You can send it manually instead.';
       act.innerHTML='<button type="button" class="mbtn p" onclick="smClose();_openCopyPanel();">Copy email text</button><button type="button" class="mbtn g" onclick="smClose()">Close</button>'; }
@@ -839,7 +851,7 @@
     var data=_collectData(); _sm('sending');
     fetch(String(window.RRG_API).replace(/\/$/,'')+'/api/send-ssc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
       .then(function(r){ return r.json().then(function(j){ return {ok:r.ok,j:j}; }); })
-      .then(function(res){ if(res.ok && res.j && res.j.ok){ _sm('sent', data.repEmail); } else { _sm('error', (res.j&&res.j.error)||('Server error ('+ (res.j?'':'no JSON') +').')); } })
+      .then(function(res){ if(res.ok && res.j && res.j.ok){ _sm('sent', {rep:data.repEmail, prospect:!!res.j.prospectEmailed, booking:!!res.j.bookingIncluded, prospectEmail:data.prospectEmail||''}); } else { _sm('error', (res.j&&res.j.error)||('Server error ('+ (res.j?'':'no JSON') +').')); } })
       .catch(function(e){ _sm('error', String(e.message||e)); });
     return true;
   }
@@ -962,6 +974,9 @@
     // Section 7
     _set('Tenant Rep','Van Rinn — (210) 362-0678'); _set('Operator Contact','Todd De La Garza');
     var _ce=document.getElementById('clientEmail'); if(_ce){_ce.value='van@rrgcre.com'; _ce.dispatchEvent(new Event('input',{bubbles:true}));}
+    var _pn=document.getElementById('prospectName'); if(_pn){_pn.value='Todd De La Garza'; _pn.dispatchEvent(new Event('input',{bubbles:true}));}
+    var _pe=document.getElementById('prospectEmail'); if(_pe){_pe.value='todd@whiskeyriver.com'; _pe.dispatchEvent(new Event('input',{bubbles:true}));}
+    var _pp=document.getElementById('prospectPhone'); if(_pp){_pp.value='(210) 555-0142'; _pp.dispatchEvent(new Event('input',{bubbles:true}));}
     // clear any validation state, jump to top
     form.querySelectorAll('.missing').forEach(function(e){e.classList.remove('missing');});
     var vb=document.getElementById('vbanner'); if(vb) vb.style.display='none';

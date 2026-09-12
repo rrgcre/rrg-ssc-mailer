@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Site Criteria Confirmation Email</title>
+<style>
+:root{--navy:#0b1636;--navy2:#16346e;--red:#C0261B;--ink:#141a29;--dim:#5f6a7d;--soft:#8a93a3;--line:#e5e9f1;--wash:#f5f7fb;--green:#1f8a5b;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#fff;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.wrap{max-width:1040px;margin:0 auto;padding:26px 26px 60px;}
+h1{font-size:20px;font-weight:700;color:var(--navy);margin:0;}
+.sub{font-size:13px;color:var(--dim);margin-top:6px;line-height:1.5;max-width:640px;}
+label.fl{display:block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--soft);margin:18px 0 6px;}
+input.tin,textarea.tin,select.tin{width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:11px 13px;font:inherit;font-size:14px;background:#fff;color:var(--ink);}
+textarea.tin{min-height:230px;resize:vertical;line-height:1.55;}
+input.tin:focus,textarea.tin:focus,select.tin:focus{outline:none;border-color:#5b9be8;box-shadow:0 0 0 3px rgba(91,155,232,.15);}
+.chips{margin:9px 0 2px;display:flex;flex-wrap:wrap;gap:7px;}
+.chip{font-size:11.5px;font-weight:700;color:var(--navy2);background:#eef2fb;border:1px solid #d7e0f2;border-radius:100px;padding:4px 10px;cursor:pointer;}
+.chip:hover{background:#e2e9fa;}
+.savebar{display:flex;align-items:center;gap:12px;margin-top:20px;}
+.savebtn{background:var(--navy);color:#fff;border:none;border-radius:9px;padding:10px 20px;font:inherit;font-size:13.5px;font-weight:700;cursor:pointer;}
+.savebtn:disabled{opacity:.5;cursor:default;}
+.resetbtn{background:#eef1f6;color:#33415c;border:1px solid #dce2ec;border-radius:9px;padding:10px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+.msg{font-size:12.5px;font-weight:600;}
+.note{font-size:12px;color:var(--soft);margin-top:16px;line-height:1.6;}
+.gate{color:var(--dim);font-size:13.5px;padding:30px 0;}
+.tog{display:flex;align-items:center;gap:10px;margin:18px 0 2px;font-size:13.5px;color:var(--ink);}
+.tog input{width:17px;height:17px;}
+.warn{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:9px;padding:10px 13px;font-size:12.5px;margin-top:14px;line-height:1.55;}
+.modes{display:flex;flex-wrap:wrap;gap:10px;margin:8px 0 2px;}
+.mode{flex:1 1 300px;border:1.5px solid #dce2ec;border-radius:11px;padding:13px 15px;cursor:pointer;background:#fff;}
+.mode.on{border-color:var(--navy);background:#f6f8fd;box-shadow:0 0 0 3px rgba(11,22,54,.07);}
+.mode b{display:block;font-size:13.5px;color:var(--navy);}
+.mode span{display:block;font-size:12px;color:var(--dim);margin-top:3px;line-height:1.5;}
+.mode input{margin-right:8px;}
+</style>
+<script src="/rrg_rte.js"></script>
+</head>
+<body>
+<div class="wrap" id="root"><div class="gate">Loading…</div></div>
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+var ADMIN=false, ENABLED=true, CURMODE='button', BOOKUSER='', REPS=[];
+var MODES={button:{subject:'',body:''}, manual:{subject:'',body:''}};
+// Pull whatever is on screen into MODES[CURMODE] so a mode switch doesn't lose unsaved edits.
+function captureCurrent(){
+  var sj=document.getElementById('subj'); if(sj) MODES[CURMODE].subject=sj.value;
+  var bd=(window.RRGRte?RRGRte.get('body'):((document.getElementById('body')||{}).value||'')); MODES[CURMODE].body=bd;
+}
+function render(){
+  if(!ADMIN){ document.getElementById('root').innerHTML='<h1>Site Criteria confirmation email</h1><div class="sub">This is the email sent to a website visitor after they complete the Site Criteria Session. Only an administrator can edit it.</div>'; return; }
+  var isBtn = (CURMODE==='button');
+  var slot = MODES[CURMODE]||{subject:'',body:''};
+  var repOpts='<option value="">Auto — the rep on the form, else the first live calendar</option>'+REPS.map(function(r){ return '<option value="'+esc(r.username)+'"'+(r.username===BOOKUSER?' selected':'')+'>'+esc(r.name)+(r.email?(' — '+esc(r.email)):'')+'</option>'; }).join('');
+  var noReps = !REPS.length;
+  document.getElementById('root').innerHTML=''
+    +'<h1>Site Criteria confirmation email</h1>'
+    +'<div class="sub">Sent automatically to a website visitor the moment they complete the <b>Site Criteria Session — Confidential</b> form. The internal SSC PDF still goes to the tenant rep as before.</div>'
+    +'<div class="tog"><input type="checkbox" id="enabled"'+(ENABLED?' checked':'')+'><label for="enabled">Send this confirmation email to visitors</label></div>'
+    +'<label class="fl">How the visitor gets on your schedule</label>'
+    +'<div class="modes">'
+      +'<label class="mode'+(isBtn?' on':'')+'"><b><input type="radio" name="bmode" value="button"'+(isBtn?' checked':'')+'>Self-serve booking link</b><span>The email includes a "Book your call" button. The visitor picks a time and it lands on your calendar automatically.</span></label>'
+      +'<label class="mode'+(!isBtn?' on':'')+'"><b><input type="radio" name="bmode" value="manual"'+(!isBtn?' checked':'')+'>Personal outreach (no link)</b><span>No public calendar is shown. The email says you’ll reach out personally to set the time — you make the first move.</span></label>'
+    +'</div>'
+    +(isBtn?('<label class="fl">Which calendar the "Book your call" button uses</label><select class="tin" id="bookuser" style="max-width:460px">'+repOpts+'</select>'+(noReps?'<div class="warn">No rep has a live booking page yet, so the email will send <b>without</b> a booking button. Turn on your booking page under <b>Account → Scheduling</b> (Booking) to add the button.</div>':'')):'')
+    +'<label class="fl">Subject</label><input class="tin" id="subj" value="'+esc(slot.subject)+'">'
+    +'<label class="fl">Body</label>'+(window.RRGRte?RRGRte.html('body',{value:slot.body,placeholder:'Write the message…'}):('<textarea class="tin" id="body">'+esc(slot.body)+'</textarea>'))
+    +'<div class="chips" id="chips"></div>'
+    +'<div class="savebar"><button class="savebtn" id="save">Save</button><button class="resetbtn" id="reset">Reset to default</button><span class="msg" id="msg"></span></div>'
+    +'<div class="note">Placeholders: <b>{{first_name}}</b> the visitor’s first name · <b>{{concept}}</b> their restaurant/concept name · <b>{{rep_name}}</b> the rep’s name · <b>{{org}}</b> your company'+(isBtn?' · <b>{{booking_link}}</b> the "Book your call" button (keep it on its own line — it becomes the button)':'')+'. Click a chip to insert it. Each mode keeps its own copy, and changes apply firm-wide.</div>';
+  if(window.RRGRte) RRGRte.wire('body');
+  var chips=['{{first_name}}','{{concept}}','{{rep_name}}','{{org}}'].concat(isBtn?['{{booking_link}}']:[]);
+  document.getElementById('chips').innerHTML=chips.map(function(c){ return '<span class="chip" data-c="'+c+'">'+c+'</span>'; }).join('');
+  var _bodyRange=null;
+  (function(){ var ed=document.getElementById('body'); if(!ed||!ed.isContentEditable) return; function keep(){ var s=window.getSelection&&window.getSelection(); if(s&&s.rangeCount&&ed.contains(s.anchorNode)) _bodyRange=s.getRangeAt(0).cloneRange(); } ed.addEventListener('keyup',keep); ed.addEventListener('mouseup',keep); ed.addEventListener('blur',keep); })();
+  function insertChip(c){
+    var ed=document.getElementById('body'); if(!ed) return;
+    if(ed.isContentEditable){
+      ed.focus();
+      var sel=window.getSelection();
+      if(_bodyRange){ try{ sel.removeAllRanges(); sel.addRange(_bodyRange); }catch(e){} }
+      var range=(sel&&sel.rangeCount)?sel.getRangeAt(0):null;
+      if(!range||!ed.contains(range.commonAncestorContainer)){ range=document.createRange(); range.selectNodeContents(ed); range.collapse(false); sel.removeAllRanges(); sel.addRange(range); }
+      var node=document.createTextNode(c);
+      range.deleteContents(); range.insertNode(node);
+      range.setStartAfter(node); range.setEndAfter(node); sel.removeAllRanges(); sel.addRange(range);
+      _bodyRange=range.cloneRange();
+      try{ ed.dispatchEvent(new Event('input',{bubbles:true})); }catch(e){}
+    } else {
+      var s=ed.selectionStart||ed.value.length, e=ed.selectionEnd||ed.value.length; ed.value=ed.value.slice(0,s)+c+ed.value.slice(e); ed.selectionStart=ed.selectionEnd=s+c.length;
+    }
+  }
+  document.querySelectorAll('.chip').forEach(function(ch){ ch.addEventListener('mousedown',function(e){ e.preventDefault(); }); ch.addEventListener('click',function(){ insertChip(ch.getAttribute('data-c')); }); });
+  document.querySelectorAll('input[name=bmode]').forEach(function(r){ r.addEventListener('change',function(){ captureCurrent(); var bu=document.getElementById('bookuser'); if(bu) BOOKUSER=bu.value; CURMODE=r.value; render(); }); });
+  document.getElementById('save').addEventListener('click',save);
+  document.getElementById('reset').addEventListener('click',function(){ doSave({reset:true, bookingMode:CURMODE}); });
+}
+function absorb(j){ ENABLED=(j.enabled!==false); CURMODE=(j.bookingMode==='manual')?'manual':'button'; BOOKUSER=j.bookingUser||''; if(Array.isArray(j.reps)) REPS=j.reps; if(j.modes){ MODES={ button:{subject:(j.modes.button&&j.modes.button.subject)||'', body:(j.modes.button&&j.modes.button.body)||''}, manual:{subject:(j.modes.manual&&j.modes.manual.subject)||'', body:(j.modes.manual&&j.modes.manual.body)||''} }; } }
+function save(){
+  captureCurrent();
+  var bu=document.getElementById('bookuser');
+  doSave({ enabled:document.getElementById('enabled').checked, bookingMode:CURMODE, bookingUser:(bu?bu.value:BOOKUSER), subject:MODES[CURMODE].subject, body:MODES[CURMODE].body });
+}
+function doSave(payload){
+  payload=payload||{};
+  var b=document.getElementById('save'), m=document.getElementById('msg'); if(b){ b.disabled=true; } if(m) m.textContent='';
+  fetch('/api/admin/ssc-confirm-email',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(payload)})
+    .then(function(r){return r.json();}).then(function(j){
+      if(j&&j.ok){ absorb(j); render(); var mm=document.getElementById('msg'); if(mm){ mm.style.color='#1f8a5b'; mm.textContent=payload.reset?'Reset to default ✓':'Saved ✓'; setTimeout(function(){var x=document.getElementById('msg'); if(x)x.textContent='';},1900); } }
+      else { var mm2=document.getElementById('msg'); if(b){b.disabled=false;} if(mm2){ mm2.style.color='#C0261B'; mm2.textContent=(j&&j.error)||'Could not save.'; } } })
+    .catch(function(){ if(b){ b.disabled=false; } var mm3=document.getElementById('msg'); if(mm3){ mm3.style.color='#C0261B'; mm3.textContent='Could not reach the server.'; } });
+}
+fetch('/api/admin/ssc-confirm-email',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+  if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">Could not load the email settings.</div>'; return; }
+  absorb(j); ADMIN=!!j.isAdmin; render();
+}).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not reach the server.</div>'; });
+</script>
+</body>
+</html>

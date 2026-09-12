@@ -1797,7 +1797,25 @@ app.post('/api/send-ssc', async (req, res) => {
   try { store.appendSubmission('ssc', data, { ip: req.ip, emailed, by: req.user && req.user.username }); }
   catch (le) { console.error('log error:', le); }
   if (err) { console.error('send-ssc error:', err); return res.status(500).json({ ok: false, error: String((err && err.message) || err) }); }
-  res.json({ ok: true, messageId: out.info.messageId, filename: out.filename, bytes: out.size });
+  // Best-effort: send the website visitor a branded confirmation with a booking link so they can
+  // get on our schedule. Never blocks or fails the primary (PDF-to-rep) response.
+  let prospect = false, booked = false;
+  try {
+    const cEmail = String(data.prospectEmail || '').trim();
+    const cfg = effSscConfirmEmail();
+    if (cfg.enabled && isEmailConfigured() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cEmail)) {
+      const org = orgDisplayName();
+      const concept = String(data.concept || '').trim() || 'your concept';
+      const first = String(data.prospectName || '').trim().split(/\s+/)[0] || 'there';
+      // Self-serve mode adds a booking link; personal-outreach mode never exposes a calendar.
+      const bl = (cfg.bookingMode === 'manual') ? { link: '', repName: '' } : _sscBookingLink(data.repEmail);
+      const repName = bl.repName || _sscRepName(data.repEmail) || org;
+      const rendered = _sscConfirmRender(cfg, { first_name: first, concept: concept, org: org, rep_name: repName, booking_link: bl.link });
+      await sendMailWL({ from: mailFromAs(org), to: cEmail, subject: rendered.subject, text: rendered.text, html: rendered.html });
+      prospect = true; booked = rendered.hasBooking;
+    }
+  } catch (ce) { console.error('ssc confirm email error:', ce && ce.message); }
+  res.json({ ok: true, messageId: out.info.messageId, filename: out.filename, bytes: out.size, prospectEmailed: prospect, bookingIncluded: booked });
 });
 app.post('/api/log', (req, res) => {
   const data = req.body || {};
@@ -9328,6 +9346,107 @@ function effRoomAlertEmail() {
     body: (typeof k.body === 'string' && k.body.trim()) ? k.body : ROOM_ALERT_EMAIL_DEFAULT.body,
   };
 }
+// Admin-editable confirmation email sent to a website visitor who completes the
+// Site Criteria Session – Confidential form. Two modes, each with its own editable copy:
+//   'button' — self-serve: drops in a "Book your call" button from the in-platform scheduler.
+//   'manual' — personal outreach: no public calendar; the rep reaches out to set the time.
+// Placeholders: {{first_name}} {{concept}} {{org}} {{rep_name}} {{booking_link}} (button mode).
+const SSC_CONFIRM_EMAIL_DEFAULTS = {
+  button: {
+    subject: 'Thanks — let’s get {{concept}} on our calendar',
+    body: 'Hi {{first_name}},\n\nThank you for completing your Site Criteria Session with {{org}}. We have your requirements for {{concept}} in hand, and the next step is a short call so we can walk through the markets, spaces, and timing that fit what you’re after.\n\nGrab whatever time works best for you right here — it goes straight onto our schedule:\n\n{{booking_link}}\n\nLooking forward to it.\n\n— {{rep_name}}, {{org}}',
+  },
+  manual: {
+    subject: 'Got it — we have your Site Criteria for {{concept}}',
+    body: 'Hi {{first_name}},\n\nThank you for completing your Site Criteria Session with {{org}}. We have your requirements for {{concept}} in hand.\n\n{{rep_name}} will reach out personally, shortly, to set up a time to walk through the markets, spaces, and timing that fit what you’re after.\n\nTalk soon.\n\n— {{rep_name}}, {{org}}',
+  },
+};
+// The saved (or default) subject/body for one mode. Migrates the legacy flat store into 'button'.
+function sscConfirmSlot(k, mode) {
+  k = k || {};
+  let slot = (k[mode] && typeof k[mode] === 'object') ? k[mode] : {};
+  if (mode === 'button' && !k.button && typeof k.subject === 'string') slot = { subject: k.subject, body: k.body }; // legacy flat
+  const def = SSC_CONFIRM_EMAIL_DEFAULTS[mode];
+  return {
+    subject: (typeof slot.subject === 'string' && slot.subject.trim()) ? slot.subject : def.subject,
+    body: (typeof slot.body === 'string' && slot.body.trim()) ? slot.body : def.body,
+  };
+}
+function effSscConfirmEmail() {
+  const st = loadSettings(); const k = (st.sscConfirmEmail && typeof st.sscConfirmEmail === 'object') ? st.sscConfirmEmail : {};
+  const mode = (k.bookingMode === 'manual') ? 'manual' : 'button';
+  const slot = sscConfirmSlot(k, mode);
+  return {
+    enabled: (k.enabled === false) ? false : true,
+    bookingMode: mode,
+    subject: slot.subject,
+    body: slot.body,
+    bookingUser: (typeof k.bookingUser === 'string') ? k.bookingUser : '',
+  };
+}
+// Rep display name for the confirmation, independent of whether a booking page is live:
+// configured rep → rep matching the form's tenant-rep email → ''. Caller falls back to org.
+function _sscRepName(repEmail) {
+  try {
+    const cfg = (function () { const st = loadSettings(); const k = st.sscConfirmEmail || {}; return (typeof k.bookingUser === 'string') ? k.bookingUser : ''; })();
+    const users = auth.loadUsers() || [];
+    if (cfg) { const u = users.find(x => x.username === cfg); if (u && u.name) return u.name; }
+    if (repEmail) { const u = users.find(x => String(x.email || '').toLowerCase() === String(repEmail).toLowerCase()); if (u && u.name) return u.name; }
+  } catch (e) {}
+  return '';
+}
+// List the reps who have a live (enabled + tokenized) booking page — used to pick which
+// calendar the Site Criteria confirmation books into.
+function bookingEnabledReps() {
+  const out = []; try {
+    const all = loadBookings(); let users = []; try { users = auth.loadUsers() || []; } catch (e) {}
+    for (const un in all) { const bk = all[un]; if (bk && bk.enabled && bk.token) { const u = users.find(x => x.username === un) || null; out.push({ username: un, name: (u && u.name) || un, email: (u && u.email) || '' }); } }
+  } catch (e) {}
+  return out;
+}
+// Resolve the booking link for the Site Criteria confirmation. Order of preference:
+// 1) the admin-configured rep (settings.sscConfirmEmail.bookingUser), if their page is live;
+// 2) the tenant-rep email on the form, if it maps to a user with a live page;
+// 3) the first rep with a live booking page. Prefers the rep's Tenant-Rep meeting type.
+// Returns { link, repName }; link is '' when no booking page is live (email omits the button).
+function _sscBookingLink(repEmail) {
+  try {
+    const base = appBaseUrl(); const all = loadBookings();
+    const live = (un) => { const bk = all[un]; return (bk && bk.enabled && bk.token) ? bk : null; };
+    let un = '', bk = null;
+    const cfg = effSscConfirmEmail().bookingUser;
+    if (cfg && live(cfg)) { un = cfg; bk = all[cfg]; }
+    if (!bk && repEmail) {
+      try { const u = (auth.loadUsers() || []).find(x => String(x.email || '').toLowerCase() === String(repEmail).toLowerCase()); if (u && live(u.username)) { un = u.username; bk = all[u.username]; } } catch (e) {}
+    }
+    if (!bk) { const reps = bookingEnabledReps(); if (reps.length) { un = reps[0].username; bk = all[un]; } }
+    if (!bk || !bk.token) return { link: '', repName: '' };
+    let link = (base || '') + '/book/' + bk.token;
+    const tid = (bk.roleTypes || {})['tenant_rep'] || '';
+    if (tid) { try { if (bookTypes(bk).some(t => t.id === tid)) link += '?type=' + encodeURIComponent(tid); } catch (e) {} }
+    let repName = ''; try { const u = (auth.loadUsers() || []).find(x => x.username === un); repName = (u && u.name) || ''; } catch (e) {}
+    return { link: link, repName: repName };
+  } catch (e) { return { link: '', repName: '' }; }
+}
+// Render the SSC confirmation email. Fills merge fields, turns a bare {{booking_link}} into a
+// branded button, and returns { subject, html, text }.
+function _sscConfirmRender(tpl, vars) {
+  const link = String(vars.booking_link || '').trim();
+  const subject = fillTemplate(tpl.subject, vars);
+  // Body: fill everything EXCEPT booking_link first, so we can style that line specially.
+  const v2 = Object.assign({}, vars); delete v2.booking_link;
+  let rawBody = String(tpl.body || '');
+  const hasBtn = /\{\{\s*booking_link\s*\}\}/.test(rawBody);
+  const btnHtml = link ? ('<table role="presentation" cellpadding="0" cellspacing="0" style="margin:22px 0"><tr><td style="border-radius:9px;background:#12303a"><a href="' + link + '" style="display:inline-block;padding:13px 26px;color:#fff;font-weight:700;font-size:15px;text-decoration:none;font-family:-apple-system,Segoe UI,Arial,sans-serif">Book your call →</a></td></tr></table>') : '';
+  // HTML: replace the booking_link token line with the button (or drop the line if no link).
+  let bodyForHtml = rawBody.replace(/^[^\n]*\{\{\s*booking_link\s*\}\}[^\n]*$/m, link ? ' BTN ' : '');
+  bodyForHtml = fillTemplate(bodyForHtml, v2);
+  bodyForHtml = esc(bodyForHtml).replace(/\n/g, '<br>').split(' BTN ').join(btnHtml);
+  const html = '<div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;color:#1a2236;font-size:15px;line-height:1.65;max-width:560px">' + bodyForHtml + '</div>';
+  // Text: fill all tokens, including booking_link as a bare URL.
+  const text = fillTemplate(rawBody, Object.assign({}, vars, { booking_link: link }));
+  return { subject: subject, html: html, text: text, hasBooking: !!link };
+}
 // Legacy single-store maps to the interview (valuation) email so nothing existing breaks.
 function effSellerIntakeEmail(kind) {
   kind = linkKind(kind);
@@ -9386,6 +9505,34 @@ app.post('/api/admin/room-invite-email', express.json({ limit: '64kb' }), (req, 
   s.roomInviteEmail = { subject: String(b.subject || '').slice(0, 300), body: String(b.body || '').slice(0, 20000) };
   saveSettings(s);
   const t = effRoomInviteEmail(); res.json({ ok: true, subject: t.subject, body: t.body });
+});
+// Site Criteria confirmation email (sent to the website visitor to book a call) — admin editable.
+function _sscConfirmPayload(req) {
+  const st = loadSettings(); const k = (st.sscConfirmEmail && typeof st.sscConfirmEmail === 'object') ? st.sscConfirmEmail : {};
+  const eff = effSscConfirmEmail();
+  return {
+    ok: true, enabled: eff.enabled, bookingMode: eff.bookingMode, bookingUser: eff.bookingUser,
+    modes: { button: sscConfirmSlot(k, 'button'), manual: sscConfirmSlot(k, 'manual') },
+    defaults: SSC_CONFIRM_EMAIL_DEFAULTS, reps: bookingEnabledReps(),
+    isAdmin: !!(req.user && isSuper(req.user)),
+  };
+}
+app.get('/api/admin/ssc-confirm-email', (req, res) => { res.json(_sscConfirmPayload(req)); });
+app.post('/api/admin/ssc-confirm-email', express.json({ limit: '64kb' }), (req, res) => {
+  if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Admins only.' });
+  const b = req.body || {}; const s = loadSettings();
+  let cur = (s.sscConfirmEmail && typeof s.sscConfirmEmail === 'object') ? s.sscConfirmEmail : {};
+  // Migrate any legacy flat store into the button slot, then drop the flat keys.
+  if (!cur.button && typeof cur.subject === 'string') cur.button = { subject: cur.subject, body: cur.body };
+  delete cur.subject; delete cur.body;
+  const mode = (b.bookingMode === 'manual') ? 'manual' : 'button';
+  if (b.reset) { delete cur[mode]; }
+  else { cur[mode] = { subject: String(b.subject || '').slice(0, 300), body: String(b.body || '').slice(0, 20000) }; }
+  cur.enabled = (b.enabled === false) ? false : true;
+  cur.bookingMode = mode;
+  if (typeof b.bookingUser === 'string') cur.bookingUser = b.bookingUser.slice(0, 80);
+  s.sscConfirmEmail = cur; saveSettings(s);
+  res.json(_sscConfirmPayload(req));
 });
 // Real-time buyer-alert email — admin editable.
 app.get('/api/admin/room-alert-email', (req, res) => { const t = effRoomAlertEmail(); res.json({ ok: true, subject: t.subject, body: t.body, defaults: ROOM_ALERT_EMAIL_DEFAULT, isAdmin: !!(req.user && isSuper(req.user)) }); });
