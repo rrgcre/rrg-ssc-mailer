@@ -223,6 +223,13 @@ const _METRO_CITIES = {
   'Central Texas': ['temple', 'waco', 'killeen', 'copperas cove', 'belton', 'marble falls', 'bryan', 'college station', 'salado', 'harker heights', 'hewitt', 'woodway', 'gatesville', 'lampasas']
 };
 const _METRO_BY_CITY = (function () { const m = {}; Object.keys(_METRO_CITIES).forEach(function (metro) { _METRO_CITIES[metro].forEach(function (c) { m[c] = metro; }); }); return m; })();
+// Approximate metro centroids (lat,lng) so real-estate listings drop a pin on the public map without a precise geocode.
+const _METRO_CENTROID = {
+  'Austin': [30.2672, -97.7431], 'San Antonio': [29.4241, -98.4936], 'Dallas': [32.7767, -96.7970],
+  'Fort Worth': [32.7555, -97.3308], 'Houston': [29.7604, -95.3698], 'Rio Grande Valley': [26.2034, -98.2300],
+  'Central Texas': [31.1171, -97.7278]
+};
+function _metroCentroid(metro) { const c = _METRO_CENTROID[String(metro || '').trim()]; return c ? { lat: c[0], lng: c[1] } : null; }
 // Resolve a city to one of the firm's configured metros. Unknown/out-of-area → 'Other'.
 function _metroForCity(city) {
   const key = String(city || '').trim().toLowerCase(); if (!key) return '';
@@ -5959,7 +5966,24 @@ function mktClean(b, prev) {
   if (b.reAvailable !== undefined) out.reAvailable = !!b.reAvailable;
   if (b.flag !== undefined) out.flag = mktBadgeById(b.flag) ? b.flag : '';
   if (b.icon !== undefined) out.icon = MKT_ICON_BY[b.icon] ? b.icon : '';
+  // Listing kind + real-estate attributes. kind '' means auto-derive from the listing's saleLane at teaser time.
+  if (b.kind !== undefined) out.kind = (MKT_KINDS.indexOf(b.kind) >= 0) ? b.kind : '';
+  if (b.propType !== undefined) out.propType = s(b.propType, 60);      // e.g. Freestanding / Restaurant, Retail endcap, Pad site
+  if (b.addr !== undefined) out.addr = s(b.addr, 120);                 // public area line for RE (openly marketed)
+  if (b.rate !== undefined) out.rate = s(b.rate, 40);                  // lease rate, e.g. $38.00/SF NNN
+  if (b.term !== undefined) out.term = s(b.term, 40);                  // lease term
+  if (b.cap !== undefined) out.cap = s(b.cap, 20);                     // cap rate for property sale
+  if (b.lot !== undefined) out.lot = s(b.lot, 40);                     // lot / land size
+  if (b.sf !== undefined) out.sf = s(b.sf, 40);                        // building / space size
+  if (b.ffe !== undefined) out.ffe = s(b.ffe, 40);                     // FF&E value for asset sales
+  if (b.price !== undefined) out.price = s(b.price, 40);              // exact asking price for RE (openly marketed)
   return out;
+}
+// The four public listing kinds. '' on the teaser = derive from the listing's saleLane.
+const MKT_KINDS = ['business', 'asset', 'lease', 'sale'];
+function _teaserKind(m, view) {
+  if (m && MKT_KINDS.indexOf(m.kind) >= 0) return m.kind;
+  return (view && view.saleLane === 'asset') ? 'asset' : 'business';
 }
 function mktSuggest(view) {
   const mk = view.market || '';
@@ -5967,16 +5991,33 @@ function mktSuggest(view) {
   return { loc: mk ? (/(metro|area)/i.test(mk) ? mk : (mk + ' metro')) : '', marketKey: metro, guide: view.value || '' };
 }
 function mktTeaser(key, view, m) {
-  // PUBLIC-safe — deliberately omits business name, address, and contact.
+  // PUBLIC-safe — deliberately omits business name, address, and contact for BLIND (business/asset) listings.
+  // Real-estate listings (lease/sale) are openly marketed, so they may carry a public area line and photo.
   const units = (m.units && m.units > 1) ? (' · ' + m.units + ' units') : '';
   const badge = ((m.conceptType || m.conceptKey || 'Restaurant') + (m.reAvailable ? ' · RE available' : units)).trim();
   const ab = mktActiveBadge(m);
+  const kind = _teaserKind(m, view);
+  const isRE = (kind !== 'business');   // asset / lease / sale are openly marketed on the property side (photos + area)
+  // Public cover photo — only for openly-marketed real estate; blind business/asset listings never expose imagery.
+  let photo = '';
+  try {
+    if (isRE) {
+      const med = (view.media && typeof view.media === 'object') ? view.media : null;
+      const cid = med && med.coverPhotoId;
+      const cov = cid && med.photos && med.photos.filter(function (p) { return p.id === cid; })[0];
+      if (cov) photo = '/api/market/photo/' + encodeURIComponent(key) + '/' + cov.id + '.' + cov.ext;
+    }
+  } catch (e) {}
+  const cen = _metroCentroid(m.marketKey || '') || _metroCentroid(_metroForCity(view.market || '')) || null;
   return {
-    id: key, headline: m.headline || (view.codeName || 'Confidential restaurant opportunity'),
+    id: key, kind: kind, headline: m.headline || (view.codeName || 'Confidential restaurant opportunity'),
     loc: m.loc || view.market || '', badge: badge,
     conceptKey: m.conceptKey || '', marketKey: m.marketKey || 'Other',
     priceBand: m.priceBand || '', cashBand: m.cashBand || '',
     revenue: m.revenue || '', sde: m.sde || '', earnBasis: m.earnBasis || 'SDE', guide: m.guide || '',
+    // real-estate attributes (present when the rep fills them in)
+    propType: m.propType || '', addr: isRE ? (m.addr || '') : '', rate: m.rate || '', term: m.term || '', cap: m.cap || '', lot: m.lot || '', sf: m.sf || '', ffe: m.ffe || '', price: isRE ? (m.price || '') : '',
+    photo: photo, lat: cen ? cen.lat : null, lng: cen ? cen.lng : null,
     flag: ab ? ab.id : '', flagLabel: ab ? ab.label : '', flagColor: ab ? ab.color : '', featured: !!m.featured, publishedAt: m.publishedAt || '', icon: m.icon || ''
   };
 }
@@ -6528,320 +6569,350 @@ app.post('/api/market/track', express.json(), (req, res) => {
     res.json({ ok: true });
   } catch (e) { res.json({ ok: false }); }
 });
+// PUBLIC photo serve for the marketplace — unauthenticated, but ONLY for a published real-estate/asset listing's photos.
+// Blind business listings are never real estate, so their imagery is never reachable here.
+app.get('/api/market/photo/:key/:file', (req, res) => {
+  const key = req.params.key;
+  const overlay = loadAssignOverlay(); const o = overlay[key];
+  if (!o || !o.market || !o.market.published) return res.status(404).end();
+  const kind = (MKT_KINDS.indexOf(o.market.kind) >= 0) ? o.market.kind : ((o.saleLane === 'asset') ? 'asset' : 'business');
+  if (kind === 'business') return res.status(404).end();   // blind business listings never expose imagery; RE/asset do
+  const file = String(req.params.file || '').replace(/[^A-Za-z0-9_.]/g, '');
+  const m = file.match(/^(ph_[A-Za-z0-9]+)\.(png|jpg|gif|webp)$/i);
+  if (!m) return res.status(404).end();
+  const photos = (o.media && Array.isArray(o.media.photos)) ? o.media.photos : [];
+  if (!photos.some(function (p) { return p.id === m[1]; })) return res.status(404).end();
+  const safe = dealKeySafe(key);
+  try { const buf = fs.readFileSync(path.join(DEAL_PHOTO_DIR, safe, file)); res.set('Content-Type', spaceFileMime(m[2])); res.set('Cache-Control', 'public, max-age=600'); res.send(buf); }
+  catch (e) { res.status(404).end(); }
+});
 app.get('/market', (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8').send(marketplacePublicPage(req)); });
 function marketplacePublicPage(req) {
   const org = esc(orgDisplayName());
-  const style = effMarketStyle();
-  const opts = (o) => Object.keys(o).map(k => '<option value="' + esc(k) + '">' + esc(o[k]) + '</option>').join('');
-  const mkOpts = ['<option value="">All markets</option>'].concat(effMarkets().map(m => '<option value="' + esc(m) + '">' + esc(m) + '</option>')).join('');
-  const cOpts = ['<option value="">All concepts</option>'].concat(MKT_CONCEPTS.map(c => '<option value="' + esc(c) + '">' + esc(c) + '</option>')).join('');
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${org} — Confidential Marketplace</title>
+<title>${org} — Marketplace</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin>
 <style>
-:root{--navy:#000E31;--slate:#20334f;--primary:#2c5c8f;--primary-d:#23496f;--red:#b23a2c;--ink:#2b3648;--muted:#69748a;--soft:#96a1b2;--line:#dbe0e9;--wash:#f4f6f9;--inp:#c4ccda;--gold:#b5791f;--green:#2f7a55;--card:#fff;}
+:root{--navy:#000E31;--navy2:#0a1a42;--slate:#1d2f4a;--primary:#2c5c8f;--primary-d:#21486e;--red:#b5311f;--ink:#222c3c;--muted:#667489;--soft:#8a96a8;--line:#dde2ea;--line2:#eef1f6;--wash:#f5f7fa;--inp:#c4ccda;--gold:#9a6b15;--goldbg:#fbf1dc;--green:#1f6b46;--greenbg:#e6f2ea;--redbg:#fae9e6;--bluebg:#e8f0f8;--amber:#a5691a;--amberbg:#f7edda;--teal:#0f6b6b;--tealbg:#e0f1f0;--indigo:#5b4b9a;--indigobg:#ece9f7;}
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:#e9ebf0;font-size:12.5px;-webkit-font-smoothing:antialiased;line-height:1.5;}
-.wrap{max-width:1160px;margin:0 auto;padding:0 24px;}
-header{background:var(--navy);border-bottom:2px solid var(--primary);position:sticky;top:0;z-index:30;}
-.hrow{display:flex;align-items:center;justify-content:space-between;padding:11px 0;}
-.brand{display:inline-flex;align-items:center;gap:11px;}
-.disc{background:var(--red);color:#fff;border-radius:3px;width:32px;height:32px;font:900 12px 'Arial Black',Arial,sans-serif;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
-.bwm{font-weight:700;font-size:11px;text-transform:uppercase;line-height:1.05;color:#cdd6e4;letter-spacing:.02em;}
-.bwm i{font-style:normal;color:#8fa2be;font-weight:600;}
-.hauth a{font-size:12px;font-weight:800;text-decoration:none;color:#fff;background:var(--red);padding:9px 16px;border-radius:100px;box-shadow:0 2px 8px rgba(178,58,44,.35);transition:filter .12s;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:#e7eaf0;font-size:13px;-webkit-font-smoothing:antialiased;line-height:1.5;}
+.num{font-variant-numeric:tabular-nums;}
+.wrap{max-width:1280px;margin:0 auto;padding:0 24px;}
+header{background:linear-gradient(180deg,var(--navy2),var(--navy));border-bottom:2px solid var(--primary);position:sticky;top:0;z-index:40;}
+.hrow{display:flex;align-items:center;gap:13px;padding:12px 0;flex-wrap:wrap;}
+.disc{width:34px;height:34px;border-radius:4px;background:var(--red);color:#fff;font:900 13px/1 'Arial Black',Arial;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;flex:none;}
+.bwm{font-weight:800;font-size:12px;text-transform:uppercase;line-height:1.05;color:#dbe3f0;letter-spacing:.03em;}
+.bwm i{font-style:normal;color:#8fa0be;font-weight:600;font-size:10px;letter-spacing:.09em;display:block;margin-top:2px;}
+.vb{width:1px;height:26px;background:rgba(255,255,255,.22);margin:0 5px;}
+.mkt{font-weight:700;font-size:15px;color:#fff;}
+.hauth{margin-left:auto;}
+.hauth a{font-size:12px;font-weight:800;text-decoration:none;color:#fff;background:var(--red);padding:9px 16px;border-radius:100px;box-shadow:0 2px 8px rgba(181,49,31,.32);}
 .hauth a:hover{filter:brightness(1.08);}
-.hero{background:radial-gradient(120% 160% at 8% -30%, #2f5091 0%, #17284f 44%, #00081f 100%);color:#fff;position:relative;overflow:hidden;border-bottom:2px solid var(--primary);}
-.hero:after{content:"";position:absolute;right:-80px;top:-120px;width:360px;height:360px;border-radius:50%;background:radial-gradient(circle,rgba(84,132,214,.30),transparent 62%);pointer-events:none;}
-.hero:before{content:"";position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.05) 1px,transparent 1px);background-size:22px 22px;opacity:.5;pointer-events:none;}
-.heroin{padding:36px 0 32px;position:relative;z-index:2;display:flex;align-items:flex-end;justify-content:space-between;gap:22px;flex-wrap:wrap;}
-.herot{display:flex;flex-direction:column;align-items:flex-start;gap:9px;max-width:720px;}
-.hstats{display:flex;gap:10px;flex-wrap:wrap;}
-.hstat{display:inline-flex;align-items:center;gap:9px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);border-radius:100px;padding:9px 17px;backdrop-filter:blur(3px);}
-.hstat .d{width:7px;height:7px;border-radius:50%;background:#f0a24b;box-shadow:0 0 0 3px rgba(240,162,75,.22);}
-.hstat b{font-size:16px;font-weight:800;color:#fff;font-variant-numeric:tabular-nums;letter-spacing:-.01em;}
-.hstat span{font-size:11px;color:#aebbd6;font-weight:600;}
-.kick{display:inline-flex;align-items:center;gap:8px;color:#bcccec;font-weight:800;letter-spacing:.16em;font-size:10px;text-transform:uppercase;margin:0;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:100px;padding:5px 12px;}
-.hero h1{font-size:29px;font-weight:800;letter-spacing:-.02em;max-width:720px;line-height:1.1;}
-.hero .subt{color:#c3d0e8;font-size:14px;margin-top:3px;max-width:640px;line-height:1.55;}
-.hero p{color:#c6d0e6;font-size:14px;margin-top:12px;max-width:600px;}
-@media(max-width:760px){.hero h1{font-size:23px;}.heroin{padding:26px 0 24px;}}
-.filters{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 6px 22px rgba(16,26,48,.06);padding:11px;display:flex;gap:8px;flex-wrap:wrap;margin-top:-22px;position:relative;z-index:3;}
-.filters select,.filters input{border:1px solid var(--inp);border-radius:7px;padding:10px 12px;font:inherit;font-size:12.5px;background:#fff;color:var(--ink);}
-.filters .search{flex:1;min-width:190px;}
-.barrow{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin:20px 0 14px;}
-.barrow .cnt{font-size:12.5px;color:var(--muted);} .barrow .cnt b{color:var(--ink);}
-.barrow .right{display:flex;align-items:center;gap:14px;}
-.barrow .sort{font-size:12px;color:var(--muted);}
-.barrow select{border:1px solid var(--inp);border-radius:3px;padding:7px 9px;font:inherit;font-size:12px;background:#fff;margin-left:6px;}
-.vtog{display:inline-flex;border:1px solid var(--inp);border-radius:3px;overflow:hidden;}
-.vtog button{border:none;background:#fff;padding:7px 12px;font:inherit;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;}
-.vtog button.on{background:var(--navy);color:#fff;}
-.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;padding-bottom:24px;}
-.card{background:var(--card);border:1px solid var(--line);border-radius:4px;overflow:hidden;transition:border-color .12s;display:flex;flex-direction:column;}
-.card:hover{border-color:var(--primary);}
-.card.feat{border-color:#d8c9a6;}
-.thumb{height:120px;position:relative;display:flex;align-items:flex-end;padding:12px;background:linear-gradient(135deg,#12224a,#000E31);}
-.card.feat .thumb{background:linear-gradient(135deg,#274067,#16294a);}
-.thumb:after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(135deg,rgba(255,255,255,.03) 0 12px,transparent 12px 24px);}
-.thumb .badge{position:relative;z-index:2;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:#cdd8ea;font-size:9.5px;font-weight:700;border-radius:3px;padding:3px 8px;letter-spacing:.03em;text-transform:uppercase;}
-.thumb .flag{position:absolute;top:11px;right:11px;z-index:2;font-size:9.5px;font-weight:700;border-radius:3px;padding:3px 8px;letter-spacing:.04em;text-transform:uppercase;}
-.flag.new{background:#e8f3ec;color:var(--green);} .flag.price{background:#fbecea;color:var(--red);} .flag.feat{background:#fdf1df;color:var(--gold);}
-.cbody{padding:13px 14px 14px;flex:1;display:flex;flex-direction:column;}
-.cbody .loc{font-size:10px;color:var(--soft);font-weight:700;text-transform:uppercase;letter-spacing:.05em;}
-.cbody h3{font-size:14.5px;color:var(--slate);margin:5px 0 11px;line-height:1.25;font-weight:700;}
-.metrics{display:flex;gap:16px;padding:11px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
-.metrics .m .v{font-size:14px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums;}
-.metrics .m .k{font-size:9.5px;color:var(--soft);text-transform:uppercase;letter-spacing:.04em;font-weight:700;margin-top:2px;}
-.cfoot{display:flex;align-items:center;justify-content:space-between;margin-top:auto;padding-top:13px;gap:10px;}
-.lock{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--soft);font-weight:600;}
-.lock svg{width:12px;height:12px;stroke:var(--soft);fill:none;stroke-width:2;}
-.req{background:var(--primary);color:#fff;border:none;border-radius:3px;padding:8px 13px;font:inherit;font-weight:600;font-size:12px;cursor:pointer;white-space:nowrap;}
-.req:hover{background:var(--primary-d);}
-.fav{background:none;border:none;padding:4px;margin:0;cursor:pointer;color:#b9c2d2;display:inline-flex;align-items:center;justify-content:center;flex:none;transition:color .12s,transform .1s;}
-.fav svg{width:18px;height:18px;}
-.fav:hover{color:var(--red);} .fav.on{color:var(--red);} .fav:active{transform:scale(.9);}
-.list{display:flex;flex-direction:column;gap:8px;padding-bottom:24px;}
-.lrow{background:#fff;border:1px solid var(--line);border-radius:4px;padding:13px 16px;display:grid;grid-template-columns:1fr auto 160px;gap:18px;align-items:center;}
-.lrow:hover{border-color:#c4ccda;}
-.lrow .lloc{font-size:10px;color:var(--soft);font-weight:700;text-transform:uppercase;letter-spacing:.05em;}
-.lrow h3{font-size:15px;color:var(--slate);font-weight:700;line-height:1.25;margin:3px 0 5px;}
-.lrow .lbadge{display:inline-flex;align-items:center;gap:8px;font-size:11.5px;color:var(--muted);flex-wrap:wrap;}
-.lrow .ltag{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;background:#eef2f8;color:var(--primary-d);border:1px solid #d6e0ee;border-radius:3px;padding:2px 7px;}
-.lrow .lmet{display:flex;gap:22px;border-left:1px solid var(--line);padding-left:18px;}
-.lrow .lmet .v{font-size:14px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums;}
-.lrow .lmet .k{font-size:9.5px;color:var(--soft);text-transform:uppercase;letter-spacing:.04em;font-weight:700;margin-top:2px;}
-.lrow .lact{display:flex;flex-direction:column;gap:6px;align-items:stretch;}
-.lrow .llock{font-size:10.5px;color:var(--soft);text-align:center;}
-.empty{grid-column:1/-1;text-align:center;color:var(--muted);padding:56px 20px;font-size:13px;}
-footer{background:var(--navy);color:#95a1ba;font-size:11.5px;line-height:1.7;padding:28px 0;margin-top:14px;}
+.hd{padding:20px 0 0;}
+.hd h1{font-size:21px;font-weight:800;color:var(--navy);letter-spacing:-.01em;}
+.hd .lede{font-size:13px;color:var(--muted);margin-top:4px;max-width:760px;}
+.modes{margin-top:16px;}
+.modeseg{display:inline-flex;border:1px solid var(--inp);border-radius:6px;overflow:hidden;background:#fff;}
+.modeseg button{border:none;background:#fff;padding:10px 18px;font:inherit;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;gap:8px;}
+.modeseg button+button{border-left:1px solid var(--inp);}
+.modeseg button.on{background:var(--navy);color:#fff;}
+.modeseg .c{font-size:11px;font-weight:700;opacity:.6;}
+.tools{margin-top:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.search{position:relative;flex:1;min-width:220px;max-width:380px;}
+.search input{width:100%;border:1px solid var(--inp);background:#fff;border-radius:4px;padding:9px 12px 9px 32px;font:inherit;font-size:13px;}
+.search .mag{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--soft);font-size:14px;}
+.sel{border:1px solid var(--inp);border-radius:4px;padding:9px 11px;font:inherit;font-size:12.5px;font-weight:600;color:var(--slate);background:#fff;cursor:pointer;}
+.spacer{flex:1;}
+.seg{display:inline-flex;border:1px solid var(--inp);border-radius:4px;overflow:hidden;}
+.seg button{border:none;background:#fff;padding:8px 14px;font:inherit;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;}
+.seg button+button{border-left:1px solid var(--inp);}
+.seg button.on{background:var(--primary);color:#fff;}
+.maptog{border:1px solid var(--inp);background:#fff;border-radius:4px;padding:8px 13px;font:inherit;font-size:12px;font-weight:700;color:var(--slate);cursor:pointer;}
+.panelwrap{margin:14px 0;}
+.panel{background:#fff;border:1px solid var(--line);border-radius:6px;overflow:hidden;box-shadow:0 1px 2px rgba(10,20,50,.04);}
+table{width:100%;border-collapse:separate;border-spacing:0;}
+thead th{background:var(--wash);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);text-align:left;padding:11px 14px;border-bottom:1.5px solid var(--line);white-space:nowrap;cursor:pointer;user-select:none;}
+thead th.r{text-align:right;}
+thead th:hover{color:var(--navy);background:#eef2f7;}
+thead th .ar{opacity:0;font-size:9px;margin-left:4px;} thead th.sort .ar{opacity:1;color:var(--primary);}
+tbody td{padding:13px 14px;border-bottom:1px solid var(--line2);vertical-align:middle;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover td{background:#f8fafc;}
+tbody tr.feat td{background:#f4f8fc;}
+td.r{text-align:right;}
+.lcell{display:flex;gap:11px;align-items:center;}
+.thumb{width:64px;height:48px;border-radius:4px;overflow:hidden;flex:none;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;background:repeating-linear-gradient(135deg,#eef1f6 0 6px,#e6eaf1 6px 12px);color:var(--soft);}
+.thumb svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;}
+.biz{font-weight:700;color:var(--navy);font-size:13.5px;line-height:1.25;display:flex;align-items:center;gap:7px;}
+.biz .lk{color:var(--soft);flex:none;} .biz .lk svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;display:block;}
+.bmeta{font-size:11.5px;color:var(--muted);margin-top:3px;}
+.cdot{display:inline-flex;align-items:center;gap:7px;font-weight:600;color:var(--slate);white-space:nowrap;}
+.cdot i{width:9px;height:9px;border-radius:2px;flex:none;}
+.mk2{color:var(--slate);font-weight:600;white-space:nowrap;}
+.pill{display:inline-block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;border-radius:3px;padding:4px 8px;white-space:nowrap;}
+.lnum{font-weight:700;color:var(--slate);} .lask{font-weight:800;color:var(--navy);font-size:14px;} .dash{color:var(--soft);font-weight:600;}
+.actlink{border:none;background:none;color:var(--primary);font:inherit;font-size:12px;font-weight:700;cursor:pointer;padding:4px 0;white-space:nowrap;}
+.actlink:hover{text-decoration:underline;color:var(--primary-d);}
+.act{border:1px solid var(--primary);background:var(--primary);color:#fff;border-radius:4px;padding:8px 13px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.act:hover{background:var(--primary-d);}
+.empty{padding:52px 20px;text-align:center;color:var(--muted);font-size:13px;}
+/* RE split */
+.resplit{display:grid;grid-template-columns:1fr 500px;gap:16px;align-items:start;margin:14px 0;}
+.resplit.nomap{grid-template-columns:1fr;}
+.relist{display:flex;flex-direction:column;gap:14px;}
+.recard{display:flex;background:#fff;border:1px solid var(--line);border-radius:6px;overflow:hidden;transition:border-color .12s,box-shadow .12s;cursor:pointer;}
+.recard:hover,.recard.hot{border-color:var(--primary);box-shadow:0 6px 18px rgba(10,20,50,.10);}
+.recard .rph{width:210px;flex:none;position:relative;overflow:hidden;background:linear-gradient(135deg,#1a2f52,#0a1730);display:flex;align-items:center;justify-content:center;}
+.recard .rph img{width:100%;height:100%;object-fit:cover;display:block;}
+.recard .rph .ico{width:52px;height:52px;color:rgba(255,255,255,.5);}
+.recard .txn{position:absolute;left:10px;top:10px;z-index:2;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;border-radius:3px;padding:4px 9px;color:#fff;}
+.recard .txn.lease{background:var(--teal);} .recard .txn.sale{background:var(--indigo);} .recard .txn.asset{background:var(--amber);}
+.recard .feat2{position:absolute;right:10px;top:10px;z-index:2;background:rgba(0,14,49,.82);color:#fff;font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;border-radius:3px;padding:4px 8px;}
+.recard .rd{padding:14px 16px;flex:1;display:flex;flex-direction:column;min-width:0;}
+.recard .rtype{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--primary);}
+.recard h3{font-size:15.5px;font-weight:800;color:var(--navy);line-height:1.2;margin:4px 0 3px;}
+.recard .addr{font-size:12px;color:var(--muted);}
+.recard .rstats{display:flex;gap:24px;margin:12px 0;padding:11px 0;border-top:1px solid var(--line2);border-bottom:1px solid var(--line2);flex-wrap:wrap;}
+.recard .rstats .k{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);}
+.recard .rstats .v{font-size:15px;font-weight:800;color:var(--navy);margin-top:3px;} .recard .rstats .v.sub{font-size:13px;font-weight:700;color:var(--slate);}
+.recard .rfoot{display:flex;align-items:center;justify-content:space-between;margin-top:auto;gap:10px;}
+.recard .adv{font-size:11px;color:var(--muted);}
+.remap{position:sticky;top:74px;height:calc(100vh - 120px);min-height:520px;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:#dce7f0;}
+.remap #map{position:absolute;inset:0;}
+.mpin{font:800 12px -apple-system,sans-serif;color:#fff;background:var(--teal);border:1.5px solid #fff;border-radius:6px;padding:4px 8px;white-space:nowrap;box-shadow:0 3px 8px rgba(0,0,0,.28);transform:translate(-50%,-120%);}
+.mpin.sale{background:var(--indigo);} .mpin.asset{background:var(--amber);}
+footer{background:var(--navy);color:#95a1ba;font-size:11.5px;line-height:1.7;padding:26px 0;margin-top:14px;}
 footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} footer b{color:#fff;}
 .ov{position:fixed;inset:0;background:rgba(8,14,32,.55);display:none;align-items:center;justify-content:center;z-index:200;padding:20px;}
 .ov.on{display:flex;}
 .mbox{background:#fff;border-radius:6px;max-width:460px;width:100%;padding:22px 24px;box-shadow:0 24px 70px rgba(0,0,0,.42);}
 .mbox h2{font-size:17px;color:var(--slate);font-weight:800;}
-.mbox p{font-size:12.5px;color:var(--muted);margin-top:7px;line-height:1.55;}
+.mbox p{font-size:12.5px;color:var(--muted);margin-top:7px;}
 .mbox label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);margin:12px 0 5px;}
 .mbox input,.mbox textarea{width:100%;border:1px solid var(--inp);border-radius:3px;padding:9px 11px;font:inherit;font-size:13px;}
 .mbox .mf{display:flex;gap:10px;justify-content:flex-end;margin-top:18px;}
 .mbtn{border:none;border-radius:3px;padding:9px 16px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;}
 .mbtn.ghost{background:#fff;border:1px solid var(--inp);color:var(--slate);} .mbtn.go{background:var(--primary);color:#fff;}
 .mmsg{font-size:12px;margin-top:10px;min-height:15px;}
-@media(max-width:900px){.grid{grid-template-columns:1fr 1fr;}.lrow{grid-template-columns:1fr;gap:10px;}.lrow .lmet{border-left:none;padding-left:0;}}
-@media(max-width:620px){.grid{grid-template-columns:1fr;}.hero h1{font-size:23px;}}
-.cicow{width:44px;height:44px;flex:none;border-radius:12px;background:var(--wash);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--primary);box-shadow:0 1px 2px rgba(16,26,48,.05);}
-.cicow.sm{width:36px;height:36px;border-radius:10px;} .cico{width:23px;height:23px;} .cicow.sm .cico{width:19px;height:19px;}
-.ledgerwrap{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:26px;box-shadow:0 6px 22px rgba(16,26,48,.06);}
-table.lg{width:100%;border-collapse:collapse;}
-.lg thead th{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);font-weight:800;text-align:left;padding:13px 18px;background:linear-gradient(#fbfcfe,#f4f6f9);border-bottom:1px solid var(--line);white-space:nowrap;}
-.lg thead th.num{text-align:right;}
-.lg tbody td{padding:18px 18px;border-bottom:1px solid #eef1f6;vertical-align:middle;}
-.lg tbody tr:last-child td{border-bottom:none;}
-.lg tbody tr{transition:background .12s;}
-.lg tbody tr:hover{background:#f6f9ff;cursor:pointer;}
-.lg tbody tr.featrow td:first-child{box-shadow:inset 3px 0 0 var(--gold);}
-.opw{display:flex;gap:14px;align-items:center;}
-.opw .ey{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--primary);font-weight:800;}
-.opw h3{font-size:16px;font-weight:800;color:var(--slate);line-height:1.25;margin:3px 0 6px;letter-spacing:-.01em;}
-.opw .lk{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;color:var(--soft);font-weight:700;background:var(--wash);border:1px solid var(--line);border-radius:100px;padding:3px 9px;}
-.opw .lk svg{width:11px;height:11px;stroke:var(--soft);fill:none;stroke-width:2;}
-.opw .featpill{margin-left:7px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--gold);background:#fdf1df;border:1px solid #eddab0;border-radius:100px;padding:2px 8px;vertical-align:middle;}
-.lg td.mkc{font-size:12.5px;color:var(--ink);font-weight:700;white-space:nowrap;}
-.lg td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
-.lg .g{font-size:18px;font-weight:800;color:var(--navy);letter-spacing:-.02em;} .lg .s{font-size:13px;color:var(--ink);font-weight:700;}
-.lgreq{font-size:11.5px;font-weight:800;color:#fff;white-space:nowrap;background:var(--primary);border:1px solid var(--primary);cursor:pointer;padding:8px 14px;border-radius:100px;transition:background .12s;box-shadow:0 1px 3px rgba(44,92,143,.25);}
-.lgreq:hover{background:var(--primary-d);}
-@media(max-width:860px){.lg .hs{display:none;}}
-.regwrap{padding-bottom:26px;}
-.reghd{display:flex;align-items:baseline;gap:14px;padding:22px 0 2px;}
-.reghd h2{font-size:13px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--slate);}
-.reghd .ln{flex:1;height:1px;background:var(--line);}
-.reghd .n{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);font-weight:700;}
-.reg{display:flex;align-items:center;gap:13px;padding:14px 4px;border-bottom:1px solid var(--line);cursor:pointer;}
-.reg:hover .rh{color:var(--primary);} .reg:hover .rreq{opacity:1;}
-.reg .rt{min-width:0;}
-.reg .ey{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--primary);font-weight:700;}
-.reg .rh{font-size:15.5px;font-weight:700;color:var(--slate);line-height:1.22;margin-top:2px;}
-.reg .leader{flex:1;border-bottom:1px dotted var(--soft);transform:translateY(-3px);min-width:20px;opacity:.5;}
-.reg .fig{text-align:right;white-space:nowrap;}
-.reg .fig .g{font-size:15px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums;}
-.reg .fig .s{font-size:11.5px;color:var(--muted);font-weight:600;margin-top:2px;}
-.reg .rreq{opacity:0;transition:opacity .12s;font-size:11px;font-weight:700;color:var(--primary);margin-top:5px;}
-@media(hover:none){.reg .rreq{opacity:1;}}
-@media(max-width:600px){.reg .leader{display:none;}}
+@media(max-width:980px){thead th.hide,tbody td.hide{display:none;}.panel{overflow-x:auto;}.resplit{grid-template-columns:1fr;}.remap{position:relative;height:340px;top:0;}.recard{flex-direction:column;}.recard .rph{width:100%;height:170px;}}
 </style></head>
 <body>
 <header><div class="wrap hrow">
-  <span class="brand"><span class="disc">RRG</span><span class="bwm">${org}<br><i>Confidential Marketplace</i></span></span>
+  <span class="disc">RRG</span>
+  <span class="bwm">${org}<i>Confidential Marketplace</i></span>
+  <span class="vb"></span><span class="mkt">Marketplace</span>
   <span class="hauth"><a href="mailto:?subject=Buyer%20registration">Register as a buyer</a></span>
 </div></header>
-<div class="hero"><div class="wrap heroin">
-  <div class="herot">
-    <span class="kick">🔒 Confidential · NDA-gated · Texas</span>
-    <h1>Own a proven restaurant or bar.</h1>
-    <div class="subt">A curated, confidential portfolio of restaurant &amp; bar businesses for sale across Texas. Every listing is presented blind — names, addresses and financials stay private until you sign an NDA. Browse below, then request access on the ones that fit.</div>
-  </div>
-  <div class="hstats">
-    <span class="hstat"><span class="d"></span><b id="stCount">—</b> <span>opportunities</span></span>
-    <span class="hstat"><b id="stMkt">—</b> <span>markets</span></span>
-    <span class="hstat"><b>NDA</b> <span>protected</span></span>
-  </div>
-</div></div>
 <div class="wrap">
-  <div class="filters">
-    <input class="search" id="fSearch" placeholder="Search concept, keyword…">
-    <select id="fMarket">${mkOpts}</select>
-    <select id="fConcept">${cOpts}</select>
-    <select id="fPrice">${opts(MKT_PRICE)}</select>
-    <select id="fCash">${opts(MKT_CASH)}</select>
+  <div class="hd">
+    <h1>The ${org} Marketplace</h1>
+    <div class="lede">Confidential restaurant &amp; bar businesses for acquisition, plus restaurant real estate and turnkey asset sales &mdash; for sale or lease. Operating businesses are marketed blind until NDA; real estate and asset sales are openly listed with photos and location.</div>
+    <div class="modes"><div class="modeseg">
+      <button class="on" data-m="biz">Businesses <span class="c" id="cBiz"></span></button>
+      <button data-m="re">Real Estate &amp; Assets <span class="c" id="cRe"></span></button>
+    </div></div>
   </div>
-  <div class="barrow">
-    <div class="cnt" id="cnt">Loading confidential opportunities…</div>
-    <div class="right">
-      ${style==='grid' ? '<span class="vtog"><button data-view="grid" class="on">\u25a6 Grid</button><button data-view="list">\u2630 List</button></span>' : ''}
-      <div class="sort">Sort<select id="fSort"><option value="new">Newest</option><option value="price">Guide: high → low</option></select></div>
+
+  <section id="mBiz">
+    <div class="tools">
+      <span class="search"><span class="mag">&#9906;</span><input id="fSearch" placeholder="Search concept, keyword&hellip;"></span>
+      <select class="sel" id="fMarket"><option value="">All metros</option></select>
+      <select class="sel" id="fConcept"><option value="">All concepts</option></select>
+      <span class="spacer"></span>
+      <select class="sel" id="fSort"><option value="new">Sort: Newest</option><option value="price">Guide: high &rarr; low</option></select>
     </div>
-  </div>
-  <div id="results" class="grid"></div>
+    <div class="panelwrap"><div class="panel">
+      <table><thead><tr>
+        <th data-s="headline">Listing</th>
+        <th data-s="marketKey">Metro <span class="ar">&#9662;</span></th>
+        <th data-s="conceptKey" class="hide">Concept <span class="ar">&#9662;</span></th>
+        <th data-s="sde" class="r hide">Cash flow <span class="ar">&#9662;</span></th>
+        <th data-s="ask" class="r sort">Asking <span class="ar">&#9662;</span></th>
+        <th data-s="status">Status <span class="ar">&#9662;</span></th>
+        <th></th>
+      </tr></thead><tbody id="bizRows"></tbody></table>
+    </div></div>
+  </section>
+
+  <section id="mRe" style="display:none">
+    <div class="tools">
+      <span class="seg" id="txnSeg"><button class="on" data-t="all">All</button><button data-t="lease">For Lease</button><button data-t="sale">For Sale</button><button data-t="asset">Asset Sale</button></span>
+      <span class="spacer"></span>
+      <button class="maptog" id="maptog">Hide map</button>
+    </div>
+    <div class="resplit" id="resplit">
+      <div class="relist" id="reList"></div>
+      <div class="remap" id="reMap"><div id="map"></div></div>
+    </div>
+  </section>
 </div>
+
 <footer><div class="wrap ft">
-  <div style="max-width:640px"><b>Confidential.</b> Every listing is presented blind. Business names, addresses, and identifying details are released only to qualified buyers under an executed non-disclosure agreement. All inquiries route exclusively through ${org}.</div>
-  <div style="text-align:right"><b>${org}</b><br>Austin · Dallas · Fort Worth · Houston · San Antonio</div>
+  <div style="max-width:660px"><b>Confidential.</b> Business names, addresses, and financials for operating businesses are released only to qualified buyers under an executed NDA. Real estate and asset listings are openly marketed. All inquiries route exclusively through ${org}.</div>
+  <div style="text-align:right"><b>${org}</b><br>Austin &middot; Dallas &middot; Fort Worth &middot; Houston &middot; San Antonio</div>
 </div></footer>
+
 <div class="ov" id="ov"><div class="mbox">
-  <h2>Request access</h2>
-  <p>Tell us who you are. We'll follow up with an NDA and, once it's signed, open the full offering and data room for this opportunity.</p>
+  <h2 id="mvTitle">Request access</h2>
+  <p id="mvSub">Tell us who you are and we'll follow up. For blind business listings we'll send an NDA and, once signed, open the full offering and data room.</p>
   <label>Full name *</label><input id="rName" autocomplete="name">
   <label>Email *</label><input id="rEmail" type="email" autocomplete="email">
   <label>Phone</label><input id="rPhone" autocomplete="tel">
-  <label>Anything we should know? (optional)</label><textarea id="rNote" rows="3" placeholder="Acquisition criteria, timeline, proof of funds…"></textarea>
+  <label>Anything we should know? (optional)</label><textarea id="rNote" rows="3" placeholder="Acquisition criteria, timeline, proof of funds&hellip;"></textarea>
   <div class="mmsg" id="rMsg"></div>
   <div class="mf"><button class="mbtn ghost" id="rCancel">Cancel</button><button class="mbtn go" id="rGo">Request access</button></div>
 </div></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin></script>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
-var ALL=[], CUR='', VIEW='grid';
-var STYLE=${JSON.stringify(style)};
-var PB=${JSON.stringify(MKT_PRICE)}, CB=${JSON.stringify(MKT_CASH)};
-var MKT_ICON_BY=${JSON.stringify(MKT_ICON_BY)};
-function flagTag(l){ if(l.flagLabel){ var c=l.flagColor||'#2f7a55'; return '<span class="ltag" style="background:'+c+'18;color:'+c+';border-color:'+c+'55">'+esc(l.flagLabel)+'</span>'; } return l.featured?'<span class="ltag" style="background:#fdf1df;color:#b5791f;border-color:#eddab0">Featured</span>':''; }
-function listRow(l){
-  var mets=[]; if(l.guide) mets.push(['Guide',l.guide]); else if(l.priceBand&&PB[l.priceBand]) mets.push(['Guide',PB[l.priceBand]]);
-  if(l.sde) mets.push([l.earnBasis||'SDE',l.sde]); if(l.revenue) mets.push(['Revenue',l.revenue]);
-  var metHtml=mets.length?('<div class="lmet">'+mets.map(function(c){return '<div><div class="v">'+esc(c[1])+'</div><div class="k">'+esc(c[0])+'</div></div>';}).join('')+'</div>'):'<div class="lmet"><div><div class="v">Under NDA</div><div class="k">Financials on request</div></div></div>';
-  return '<div class="lrow"><div class="linfo"><div class="lloc">'+esc(l.loc||'Texas')+'</div><h3>'+esc(l.headline)+'</h3><div class="lbadge"><span class="ltag">'+esc(l.badge||'Restaurant')+'</span>'+flagTag(l)+'</div></div>'
-    +metHtml
-    +'<div class="lact">'+favBtn(l.id)+'<button class="req" data-k="'+esc(l.id)+'">Request access →</button><span class="llock">Blind until NDA</span></div></div>'; }
-function metricsHtml(l){ var cells=[]; if(l.revenue) cells.push(['Revenue',l.revenue]); if(l.sde) cells.push([l.earnBasis||'SDE',l.sde]); if(l.guide) cells.push(['Guide',l.guide]);
-  if(!cells.length) return '<div class="metrics"><div class="m"><div class="v">Under NDA</div><div class="k">Financials on request</div></div></div>';
-  return '<div class="metrics">'+cells.map(function(c){return '<div class="m"><div class="v">'+esc(c[1])+'</div><div class="k">'+esc(c[0])+'</div></div>';}).join('')+'</div>'; }
-function card(l){ var flag=l.flagLabel?('<span class="flag" style="background:'+(l.flagColor||'#2f7a55')+'22;color:'+(l.flagColor||'#2f7a55')+'">'+esc(l.flagLabel)+'</span>'):(l.featured?'<span class="flag feat">Featured</span>':'');
-  return '<div class="card'+(l.featured?' feat':'')+'"><div class="thumb">'+flag+'<span class="badge">'+esc(l.badge||'Restaurant')+'</span></div>'
-    +'<div class="cbody"><div class="loc">'+esc(l.loc||'Texas')+'</div><h3>'+esc(l.headline)+'</h3>'+metricsHtml(l)
-    +'<div class="cfoot"><span class="lock"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Blind until NDA</span>'
-    +'<span style="display:inline-flex;align-items:center;gap:6px">'+favBtn(l.id)+'<button class="req" data-k="'+esc(l.id)+'">Request access →</button></span></div></div></div>'; }
-function priceRank(l){ var m={u1m:1,'1-3m':2,'3-5m':3,'5m+':4}; return m[l.priceBand]||0; }
-function conceptIcon(l){
-  var p=null;
-  if(l && l.icon && MKT_ICON_BY[l.icon]) p=MKT_ICON_BY[l.icon];   // rep's chosen icon wins
-  if(!p){ var t=((l.conceptKey||'')+' '+(l.badge||'')).toLowerCase();
-  if(/bar|cocktail|night|lounge|tavern|pub|wine|brew|speakeasy/.test(t)) p='<path d="M4 4h16l-8 9v6"/><path d="M8 20h8"/>';
-  else if(/coffee|caf|bakery|bake|espresso|donut|pastry/.test(t)) p='<path d="M4 8h13v4a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V8z"/><path d="M17 9h2a2 2 0 0 1 0 4h-2"/><path d="M7 3v2M11 3v2"/>';
-  else if(/pizza|pizzeria/.test(t)) p='<path d="M12 3l9 16H3z"/><circle cx="10" cy="13" r=".7"/><circle cx="14" cy="15" r=".7"/>';
-  else if(/seafood|oyster|fish|sushi|water/.test(t)) p='<path d="M3 12c4-6 12-6 16 0-4 6-12 6-16 0z"/><path d="M19 12l3-3v6z"/><circle cx="8" cy="11" r=".8"/>';
-  else if(/taco|mexic|burrito|cantina|tex/.test(t)) p='<path d="M3 16a9 9 0 0 1 18 0z"/><path d="M3 16h18"/>';
-  else if(/brunch|breakfast|diner|pancake|egg/.test(t)) p='<circle cx="12" cy="14" r="4"/><path d="M12 3v3M4.5 8l2 2M19.5 8l-2 2M3 19h18"/>';
-  else if(/fast|bowl|casual|salad|poke|noodle/.test(t)) p='<path d="M3 11h18a9 9 0 0 1-18 0z"/><path d="M8 11a4 4 0 0 1 8 0"/>';
-  else p='<path d="M6 3v8M9 3v8M7.5 11v10"/><path d="M6 3v4M9 3v4"/><path d="M16 3c-1.5 1.5-1.5 6 0 7v11"/>';
-  }
-  return '<svg class="cico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">'+p+'</svg>';
+var ALL=[], BIZ=[], RE=[], MODE='biz', reTxn='all', mapObj=null, markers={};
+var PB=${JSON.stringify(MKT_PRICE)}, CB=${JSON.stringify(MKT_CASH)}, ICON=${JSON.stringify(MKT_ICON_BY)};
+var ORG=${JSON.stringify(orgDisplayName())};
+var CC={'Fast Casual':'#2f7a55','Full Service':'#2c6a8f','Café / Bakery':'#b5791f','Pizza':'#c0392b','Steakhouse':'#a5432f','Bar / Nightlife':'#a23c84','Breakfast / Brunch':'#d9a441'};
+var KIND={business:'Going concern',asset:'Asset sale',lease:'For lease',sale:'For sale'};
+var TXNLBL={lease:'For Lease',sale:'For Sale',asset:'Asset Sale'};
+function cc(c){return CC[c]||'#2c6a8f';}
+function svgIcon(l,cls){ var p=(l.icon&&ICON[l.icon])?ICON[l.icon]:'<path d="M6 3v8M9 3v8M7.5 11v10"/><path d="M16 3c-1.5 1.5-1.5 6 0 7v11"/>'; return '<svg class="'+(cls||'')+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">'+p+'</svg>'; }
+var LOCK='<span class="lk"><svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>';
+function askLabel(l){ return l.price||l.guide||(l.priceBand&&PB[l.priceBand])||''; }
+function cashLabel(l){ return l.sde||(l.cashBand&&CB[l.cashBand])||''; }
+
+// ---------- businesses (blind) ----------
+function statusPill(l){ if(l.flagLabel){var c=l.flagColor||'#1f6b46';return '<span class="pill" style="background:'+c+'18;color:'+c+';border:1px solid '+c+'55">'+esc(l.flagLabel)+'</span>';} return l.featured?'<span class="pill" style="background:var(--goldbg);color:var(--gold)">Featured</span>':'<span class="dash">&mdash;</span>'; }
+function bizRow(l){
+  var cash=cashLabel(l), ask=askLabel(l);
+  return '<tr class="'+(l.featured?'feat':'')+'">'
+    +'<td><div class="lcell"><span class="thumb"><svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>'
+      +'<div><div class="biz">'+LOCK+esc(l.headline)+'</div><div class="bmeta">'+esc(l.badge||'Restaurant')+'</div></div></div></td>'
+    +'<td class="mk2">'+esc(l.marketKey||l.loc||'Texas')+'</td>'
+    +'<td class="hide"><span class="cdot"><i style="background:'+cc(l.conceptKey)+'"></i>'+esc(l.conceptKey||l.badge||'Restaurant')+'</span></td>'
+    +'<td class="r hide">'+(cash?'<span class="lnum num">'+esc(cash)+'</span>':'<span class="dash">&mdash;</span>')+'</td>'
+    +'<td class="r">'+(ask?'<span class="lask num">'+esc(ask)+'</span>':'<span class="dash">Under NDA</span>')+'</td>'
+    +'<td>'+statusPill(l)+'</td>'
+    +'<td class="r"><button class="actlink" data-k="'+esc(l.id)+'">Request access &rarr;</button></td></tr>';
 }
-function conceptColor(l){ var t=((l.icon||'')+' '+(l.conceptKey||'')+' '+(l.badge||'')).toLowerCase();
-  if(/bar|cocktail|beer|wine|night|lounge|tavern|pub|brew|speakeasy/.test(t)) return '#7c5cbf';
-  if(/coffee|caf|bakery|bake|pastry|tea|espresso/.test(t)) return '#b5791f';
-  if(/pizza|italian/.test(t)) return '#c0392b';
-  if(/sushi|seafood|oyster|fish|water/.test(t)) return '#0d8c8c';
-  if(/taco|mexic|burrito|cantina|tex/.test(t)) return '#e07b39';
-  if(/brunch|breakfast|diner|pancake|egg/.test(t)) return '#d9a441';
-  if(/steak|bbq|grill|burger|chicken|hotdog|smoke/.test(t)) return '#a5432f';
-  if(/salad|bowl|noodle|ramen|poke|fast|casual|juice|smoothie|healthy/.test(t)) return '#2f7a55';
-  if(/dessert|ice cream|donut|cupcake|sweet/.test(t)) return '#d1568a';
-  return '#2c5c8f';
-}
-function guideOf(l){ return l.guide || (l.priceBand&&PB[l.priceBand]) || ''; }
-var LOCKSVG='<svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
-function ledgerHtml(rows){
-  if(!rows.length) return '<div class="empty" style="background:#fff;border:1px solid var(--line);border-radius:4px">No opportunities match those filters right now. Adjust the filters, or register as a buyer to be notified as new listings come to market.</div>';
-  var body=rows.map(function(l){ var g=guideOf(l); var cc=conceptColor(l);
-    return '<tr class="'+(l.featured?'featrow':'')+'" data-k="'+esc(l.id)+'">'
-      +'<td><div class="opw"><span class="cicow" style="color:'+cc+';background:'+cc+'14;border-color:'+cc+'33">'+conceptIcon(l)+'</span><div class="opt"><div class="ey">'+esc(l.badge||'Restaurant')+(l.featured?'<span class="featpill">Featured</span>':'')+'</div><h3>'+esc(l.headline)+'</h3><span class="lk">'+LOCKSVG+'Blind until NDA</span></div></div></td>'
-      +'<td class="mkc hs">'+esc(l.loc||l.marketKey||'Texas')+'</td>'
-      +'<td class="num"><span class="g">'+(g?esc(g):'—')+'</span></td>'
-      +'<td class="num hs"><span class="s">'+(l.revenue?esc(l.revenue):'—')+'</span></td>'
-      +'<td class="num hs"><span class="s">'+(l.sde?esc(l.sde):'—')+'</span></td>'
-      +'<td>'+flagTag(l)+'</td>'
-      +'<td><span style="display:inline-flex;align-items:center;gap:6px;justify-content:flex-end">'+favBtn(l.id)+'<button class="lgreq req" data-k="'+esc(l.id)+'">Request →</button></span></td></tr>';
-  }).join('');
-  return '<table class="lg"><thead><tr><th>Opportunity</th><th class="hs">Market</th><th class="num">Guide</th><th class="num hs">Revenue</th><th class="num hs">SDE</th><th>Status</th><th></th></tr></thead><tbody>'+body+'</tbody></table>';
-}
-function registerHtml(rows){
-  if(!rows.length) return '<div class="empty">No opportunities match those filters right now. Adjust the filters, or register as a buyer to be notified as new listings come to market.</div>';
-  var groups={}, order=[]; rows.forEach(function(l){ var k=l.marketKey||l.loc||'Other'; if(!groups[k]){groups[k]=[];order.push(k);} groups[k].push(l); }); order.sort();
-  return order.map(function(k){ var items=groups[k].map(function(l){ var g=guideOf(l); var sub=l.sde?((l.earnBasis||'SDE')+' '+l.sde):'';
-      return '<div class="reg" data-k="'+esc(l.id)+'"><span class="cicow sm" style="color:'+conceptColor(l)+';background:'+conceptColor(l)+'14;border-color:'+conceptColor(l)+'33">'+conceptIcon(l)+'</span><div class="rt"><div class="ey">'+esc(l.badge||'Restaurant')+'</div><div class="rh">'+esc(l.headline)+'</div></div><div class="leader"></div><div class="fig"><div class="g">'+(g?esc(g):'Under NDA')+'</div>'+(sub?'<div class="s">'+esc(sub)+'</div>':'')+'<div style="display:flex;align-items:center;gap:6px;justify-content:flex-end">'+favBtn(l.id)+'<div class="rreq req" data-k="'+esc(l.id)+'">Request access →</div></div></div></div>';
-    }).join('');
-    return '<div class="reggrp"><div class="reghd"><h2>'+esc(k)+'</h2><span class="ln"></span><span class="n">'+groups[k].length+' deal'+(groups[k].length>1?'s':'')+'</span></div>'+items+'</div>';
-  }).join('');
-}
-// ---- Engagement tracking (impressions / detail opens / favorites) — powers the rep's listing KPIs ----
-function track(ev,keys){ try{ if(!keys||!keys.length) return; var body=JSON.stringify({event:ev,keys:keys}); if(navigator.sendBeacon){ navigator.sendBeacon('/api/market/track', new Blob([body],{type:'application/json'})); } else { fetch('/api/market/track',{method:'POST',headers:{'Content-Type':'application/json'},body:body,keepalive:true}); } }catch(e){} }
-var _imp={}, _det={};
-function trackImpressions(rows){ var fresh=[]; (rows||[]).forEach(function(l){ if(l&&l.id&&!_imp[l.id]){ _imp[l.id]=1; fresh.push(l.id); } }); if(fresh.length) track('impression',fresh); }
-function trackDetail(k){ if(!k||_det[k]) return; _det[k]=1; track('detail',[k]); }
-function _favSet(){ try{ return JSON.parse(localStorage.getItem('mktFav')||'{}'); }catch(e){ return {}; } }
-function _isFav(k){ return !!_favSet()[k]; }
-function heartSvg(on){ return '<svg viewBox="0 0 24 24" fill="'+(on?'currentColor':'none')+'" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 21s-7-4.35-9.5-8.5C1 9 3 5.5 6.5 5.5c2 0 3.6 1.1 5.5 3 1.9-1.9 3.5-3 5.5-3C21 5.5 23 9 21.5 12.5 19 16.65 12 21 12 21z"/></svg>'; }
-function favBtn(k){ var on=_isFav(k); return '<button type="button" class="fav'+(on?' on':'')+'" data-fav="'+esc(k)+'" title="'+(on?'Saved to your favorites':'Save to favorites')+'" aria-label="Favorite">'+heartSvg(on)+'</button>'; }
-function toggleFav(k,btn){ try{ var s=_favSet(); var on=!s[k]; if(on) s[k]=1; else delete s[k]; localStorage.setItem('mktFav',JSON.stringify(s)); if(btn){ btn.classList.toggle('on',on); btn.innerHTML=heartSvg(on); btn.title=on?'Saved to your favorites':'Save to favorites'; } track(on?'favorite':'unfavorite',[k]); }catch(e){} }
-function updateHeaderStats(){ var c=document.getElementById('stCount'); if(c) c.textContent=ALL.length; var mk={}; ALL.forEach(function(l){ if(l.marketKey) mk[l.marketKey]=1; }); var me=document.getElementById('stMkt'); if(me) me.textContent=Object.keys(mk).length; }
-function render(){
-  var q=(document.getElementById('fSearch').value||'').toLowerCase().trim();
-  var mk=document.getElementById('fMarket').value, cc=document.getElementById('fConcept').value;
-  var pr=document.getElementById('fPrice').value, ca=document.getElementById('fCash').value, sort=document.getElementById('fSort').value;
-  var rows=ALL.filter(function(l){
-    if(mk && l.marketKey!==mk) return false;
-    if(cc && l.conceptKey!==cc) return false;
-    if(pr && l.priceBand!==pr) return false;
-    if(ca && l.cashBand!==ca) return false;
-    if(q){ var hay=(l.headline+' '+l.badge+' '+l.loc).toLowerCase(); if(hay.indexOf(q)<0) return false; }
+var bizSort='ask', bizDir=-1;
+function renderBiz(){
+  var q=(document.getElementById('fSearch').value||'').toLowerCase();
+  var mk=document.getElementById('fMarket').value, ck=document.getElementById('fConcept').value;
+  var list=BIZ.filter(function(l){
+    if(mk&&(l.marketKey||'')!==mk) return false;
+    if(ck&&(l.conceptKey||'')!==ck) return false;
+    if(q){ var hay=((l.headline||'')+' '+(l.badge||'')+' '+(l.conceptKey||'')+' '+(l.loc||'')).toLowerCase(); if(hay.indexOf(q)<0) return false; }
     return true;
   });
-  if(sort==='price') rows.sort(function(a,b){ return priceRank(b)-priceRank(a); });
-  var g=document.getElementById('results');
-  if(STYLE==='ledger'){ g.className='ledgerwrap'; g.innerHTML=ledgerHtml(rows); }
-  else if(STYLE==='register'){ g.className='regwrap'; g.innerHTML=registerHtml(rows); }
-  else { g.className=(VIEW==='list'?'list':'grid'); g.innerHTML=rows.length?rows.map(VIEW==='list'?listRow:card).join(''):'<div class="empty">No opportunities match those filters right now. Adjust the filters, or register as a buyer to be notified as new listings come to market.</div>'; }
-  document.getElementById('cnt').innerHTML='Showing <b>'+rows.length+'</b> of <b>'+ALL.length+'</b> confidential opportunities'; updateHeaderStats();
-  g.querySelectorAll('.req').forEach(function(b){ b.addEventListener('click',function(){ openReq(b.getAttribute('data-k')); }); });
-  g.querySelectorAll('.fav').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); toggleFav(b.getAttribute('data-fav'), b); }); });
-  trackImpressions(rows);
+  var sv=document.getElementById('fSort').value;
+  function askRank(l){ var m={u1m:1,'1-3m':2,'3-5m':3,'5m+':4}; return m[l.priceBand]||0; }
+  list.sort(function(a,b){ if(sv==='price'){ return (askRank(b)-askRank(a))||String(b.publishedAt).localeCompare(String(a.publishedAt)); } return ((b.featured?1:0)-(a.featured?1:0))||String(b.publishedAt).localeCompare(String(a.publishedAt)); });
+  var tb=document.getElementById('bizRows');
+  tb.innerHTML=list.length?list.map(bizRow).join(''):'<tr><td colspan="7"><div class="empty">No matching opportunities. Adjust your filters, or register as a buyer to be notified of new listings.</div></td></tr>';
 }
-document.querySelectorAll('.vtog button[data-view]').forEach(function(b){ b.addEventListener('click',function(){ VIEW=b.getAttribute('data-view'); document.querySelectorAll('.vtog button').forEach(function(x){ x.classList.toggle('on',x===b); }); render(); }); });
-['fSearch','fMarket','fConcept','fPrice','fCash','fSort'].forEach(function(id){ var el=document.getElementById(id); el.addEventListener('input',render); el.addEventListener('change',render); });
-function openReq(k){ CUR=k; trackDetail(k); document.getElementById('rMsg').textContent=''; ['rName','rEmail','rPhone','rNote'].forEach(function(i){document.getElementById(i).value='';}); document.getElementById('ov').classList.add('on'); document.getElementById('rName').focus(); }
+
+// ---------- real estate & assets ----------
+function reMetrics(l){
+  var cells;
+  if(l.kind==='lease') cells=[['Rate', l.rate||askLabel(l)||'Contact'],['Size', l.sf],['Term', l.term]];
+  else if(l.kind==='sale') cells=[['Price', askLabel(l)||'Contact'],['Size', l.sf],['Cap', l.cap]];
+  else cells=[['Asking', askLabel(l)||'Contact'],['FF&E', l.ffe],['Size', l.sf]];
+  var first=true;
+  return cells.filter(function(c){return c[1];}).map(function(c){ var big=first; first=false; return '<div><div class="k">'+esc(c[0])+'</div><div class="v'+(big?'':' sub')+' num">'+esc(c[1])+'</div></div>'; }).join('') || '<div><div class="k">Details</div><div class="v sub">On request</div></div>';
+}
+function reCard(l){
+  var img=l.photo?('<img src="'+esc(l.photo)+'" alt="">'):svgIcon(l,'ico');
+  return '<div class="recard" data-id="'+esc(l.id)+'">'
+    +'<div class="rph"><span class="txn '+esc(l.kind)+'">'+esc(TXNLBL[l.kind]||'Listing')+'</span>'+(l.featured?'<span class="feat2">Featured</span>':'')+img+'</div>'
+    +'<div class="rd"><div class="rtype">'+esc(l.propType||l.badge||'Restaurant real estate')+'</div><h3>'+esc(l.headline)+'</h3>'
+      +'<div class="addr">'+esc(l.addr||l.loc||l.marketKey||'Texas')+'</div>'
+      +'<div class="rstats">'+reMetrics(l)+'</div>'
+      +'<div class="rfoot"><span class="adv"><b>'+esc(ORG)+'</b> Advisory</span><button class="act" data-k="'+esc(l.id)+'" data-re="1">Request info &rarr;</button></div>'
+    +'</div></div>';
+}
+function renderRE(){
+  var list=RE.filter(function(l){ return reTxn==='all'||l.kind===reTxn; });
+  var wrap=document.getElementById('reList');
+  wrap.innerHTML=list.length?list.map(reCard).join(''):'<div class="empty">No real-estate or asset listings in this view yet. Check back soon, or register as a buyer to be notified.</div>';
+  wireHot(list);
+  drawMap(list);
+}
+function wireHot(list){
+  document.querySelectorAll('.recard').forEach(function(rc){
+    var id=rc.getAttribute('data-id');
+    rc.addEventListener('mouseenter',function(){ var mk=markers[id]; if(mk&&mapObj){ mk._icon&&mk._icon.classList.add('hot'); } });
+    rc.addEventListener('mouseleave',function(){ var mk=markers[id]; if(mk&&mk._icon) mk._icon.classList.remove('hot'); });
+  });
+}
+function drawMap(list){
+  var el=document.getElementById('map'); if(!el) return;
+  if(typeof L==='undefined'){ document.getElementById('reMap').innerHTML='<div class="empty">Map unavailable.</div>'; return; }
+  if(!mapObj){ mapObj=L.map('map',{scrollWheelZoom:false}).setView([31.2,-97.5],6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'&copy; OpenStreetMap'}).addTo(mapObj); }
+  Object.keys(markers).forEach(function(k){ mapObj.removeLayer(markers[k]); }); markers={};
+  var seen={}, pts=[];
+  list.forEach(function(l){ if(l.lat==null||l.lng==null) return;
+    var kk=l.lat+','+l.lng, n=seen[kk]||0; seen[kk]=n+1;
+    var lat=l.lat+(n?0.05*Math.cos(n*1.7):0), lng=l.lng+(n?0.06*Math.sin(n*1.7):0);
+    var lab=l.price||l.rate||l.guide||(l.priceBand&&PB[l.priceBand])||'View';
+    var ic=L.divIcon({className:'',html:'<div class="mpin '+esc(l.kind)+'">'+esc(lab)+'</div>',iconSize:null});
+    var mk=L.marker([lat,lng],{icon:ic}).addTo(mapObj);
+    mk.on('click',function(){ var c=document.querySelector('.recard[data-id="'+CSSescape(l.id)+'"]'); if(c){ c.classList.add('hot'); c.scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(function(){c.classList.remove('hot');},1400); } });
+    markers[l.id]=mk; pts.push([lat,lng]);
+  });
+  if(pts.length){ try{ mapObj.fitBounds(pts,{padding:[40,40],maxZoom:11}); }catch(e){} }
+}
+function CSSescape(s){ return String(s).replace(/"/g,'\\\\"'); }
+
+// ---------- shared ----------
+function setMode(m){ MODE=m;
+  document.querySelectorAll('.modeseg button').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-m')===m);});
+  document.getElementById('mBiz').style.display=(m==='biz')?'':'none';
+  document.getElementById('mRe').style.display=(m==='re')?'':'none';
+  if(m==='re'&&mapObj){ setTimeout(function(){mapObj.invalidateSize();},60); }
+}
+function fillFilters(){
+  var mks={}, cks={};
+  BIZ.forEach(function(l){ if(l.marketKey) mks[l.marketKey]=1; if(l.conceptKey) cks[l.conceptKey]=1; });
+  var fm=document.getElementById('fMarket'); Object.keys(mks).sort().forEach(function(m){ var o=document.createElement('option'); o.value=m;o.textContent=m; fm.appendChild(o); });
+  var fc=document.getElementById('fConcept'); Object.keys(cks).sort().forEach(function(c){ var o=document.createElement('option'); o.value=c;o.textContent=c; fc.appendChild(o); });
+}
+function render(){
+  BIZ=ALL.filter(function(l){return l.kind==='business';});
+  RE=ALL.filter(function(l){return l.kind==='asset'||l.kind==='lease'||l.kind==='sale';});
+  document.getElementById('cBiz').textContent=BIZ.length;
+  document.getElementById('cRe').textContent=RE.length;
+  fillFilters(); renderBiz(); renderRE();
+  track('impression', ALL.map(function(l){return l.id;}));
+}
+// request-access modal
+var curKey='';
+function openReq(k,isRE){ curKey=k; var l=ALL.filter(function(x){return x.id===k;})[0]||{};
+  document.getElementById('mvTitle').textContent=isRE?'Request information':'Request access';
+  document.getElementById('mvSub').textContent=isRE?'Tell us who you are and we\\'ll send the full property package and set up a tour.':'Tell us who you are. We\\'ll follow up with an NDA and, once it\\'s signed, open the full offering and data room for this opportunity.';
+  document.getElementById('rMsg').textContent=''; document.getElementById('ov').classList.add('on'); track('detail',[k]);
+}
 function closeReq(){ document.getElementById('ov').classList.remove('on'); }
+function track(ev,keys){ try{ if(!keys||!keys.length) return; navigator.sendBeacon? navigator.sendBeacon('/api/market/track', new Blob([JSON.stringify({event:ev,keys:keys})],{type:'application/json'})) : fetch('/api/market/track',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({event:ev,keys:keys})}); }catch(e){} }
+
+document.addEventListener('click',function(e){
+  var b=e.target.closest('[data-k]'); if(b){ openReq(b.getAttribute('data-k'), b.getAttribute('data-re')==='1'); return; }
+});
+document.querySelectorAll('.modeseg button').forEach(function(b){ b.addEventListener('click',function(){ setMode(b.getAttribute('data-m')); }); });
+document.querySelectorAll('#txnSeg button').forEach(function(b){ b.addEventListener('click',function(){ document.querySelectorAll('#txnSeg button').forEach(function(x){x.classList.toggle('on',x===b);}); reTxn=b.getAttribute('data-t'); renderRE(); }); });
+document.getElementById('maptog').addEventListener('click',function(){ var sp=document.getElementById('resplit'),mp=document.getElementById('reMap'); var hide=!sp.classList.contains('nomap'); sp.classList.toggle('nomap',hide); mp.style.display=hide?'none':''; this.textContent=hide?'Show map':'Hide map'; if(!hide&&mapObj)setTimeout(function(){mapObj.invalidateSize();},60); });
+['fSearch','fMarket','fConcept','fSort'].forEach(function(id){ document.getElementById(id).addEventListener('input',renderBiz); document.getElementById(id).addEventListener('change',renderBiz); });
 document.getElementById('rCancel').addEventListener('click',closeReq);
 document.getElementById('ov').addEventListener('click',function(e){ if(e.target===this) closeReq(); });
 document.getElementById('rGo').addEventListener('click',function(){
-  var m=document.getElementById('rMsg'); var nm=document.getElementById('rName').value.trim(), em=document.getElementById('rEmail').value.trim();
-  if(!nm||!em){ m.style.color='#C0261B'; m.textContent='Name and email are required.'; return; }
-  var b=document.getElementById('rGo'); b.disabled=true; b.textContent='Sending…';
-  fetch('/api/market/request-access',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({listingKey:CUR,name:nm,email:em,phone:document.getElementById('rPhone').value.trim(),note:document.getElementById('rNote').value.trim()})})
-   .then(function(r){return r.json();}).then(function(j){ b.disabled=false; b.textContent='Request access';
-     if(j&&j.ok){ document.querySelector('.mbox').innerHTML='<h2>Request received</h2><p>Thank you. A broker will reach out shortly with an NDA and next steps for this opportunity. All communication routes through our office.</p><div class="mf"><button class="mbtn go" onclick="document.getElementById(\\'ov\\').classList.remove(\\'on\\')">Done</button></div>'; }
-     else { m.style.color='#C0261B'; m.textContent=(j&&j.error)||'Could not send your request.'; } })
-   .catch(function(){ b.disabled=false; b.textContent='Request access'; m.style.color='#C0261B'; m.textContent='Could not reach the server.'; });
+  var name=document.getElementById('rName').value.trim(), email=document.getElementById('rEmail').value.trim();
+  var msg=document.getElementById('rMsg'); if(!name||!email){ msg.style.color='#b5311f'; msg.textContent='Name and email are required.'; return; }
+  var btn=this; btn.disabled=true; btn.textContent='Sending…';
+  fetch('/api/market/request-access',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({listingKey:curKey,name:name,email:email,phone:document.getElementById('rPhone').value.trim(),note:document.getElementById('rNote').value.trim()})})
+    .then(function(r){return r.json();}).then(function(j){ btn.disabled=false; btn.textContent='Request access';
+      if(j&&j.ok){ msg.style.color='#1f6b46'; msg.textContent='Sent — we\\'ll be in touch shortly.'; setTimeout(closeReq,1400); ['rName','rEmail','rPhone','rNote'].forEach(function(id){document.getElementById(id).value='';}); }
+      else { msg.style.color='#b5311f'; msg.textContent=(j&&j.error)||'Could not send.'; } })
+    .catch(function(){ btn.disabled=false; btn.textContent='Request access'; msg.style.color='#b5311f'; msg.textContent='Could not reach the server.'; });
 });
-fetch('/api/market/public',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.listings)||[]; render(); }).catch(function(){ document.getElementById('cnt').textContent='Could not load opportunities.'; });
+fetch('/api/market/public',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.listings)||[]; render(); }).catch(function(){ document.getElementById('bizRows').innerHTML='<tr><td colspan="7"><div class="empty">Could not load opportunities.</div></td></tr>'; });
 </script>
 </body></html>`;
 }
