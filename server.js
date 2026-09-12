@@ -5888,6 +5888,37 @@ app.get('/api/assignments', (req, res) => {
 // it never carries the business name, address, or contact; those release only under NDA.
 // Marketplace/matching markets now come from effMarkets() (admin-editable, unified with CRM markets).
 const MKT_CONCEPTS = ['Breakfast / Brunch', 'Bar / Nightlife', 'Fast Casual', 'Full Service', 'Café / Bakery', 'Pizza', 'Steakhouse', 'Other'];
+// Pickable concept-icon library for the marketplace teaser (line icons, 24x24, stroke=currentColor).
+// The rep chooses one per listing; if none is chosen, conceptIcon() auto-guesses from the concept text.
+const MKT_ICONS = [
+  { k: 'dining', label: 'Fine dining', p: '<path d="M6 3v8M9 3v8M7.5 11v10"/><path d="M6 3v4M9 3v4"/><path d="M16 3c-1.5 1.5-1.5 6 0 7v11"/>' },
+  { k: 'cocktail', label: 'Bar / cocktails', p: '<path d="M4 4h16l-8 9v6"/><path d="M8 20h8"/>' },
+  { k: 'beer', label: 'Brewery / beer', p: '<path d="M5 8h9v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V8z"/><path d="M14 10h3a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-3"/><path d="M7 5c0-1.5 3-1.5 3 0M10 5c0-1.5 3-1.5 3 0"/>' },
+  { k: 'wine', label: 'Wine bar', p: '<path d="M8 3h8s0 7-4 8c-4-1-4-8-4-8z"/><path d="M12 11v7M9 21h6"/>' },
+  { k: 'coffee', label: 'Coffee / café', p: '<path d="M4 8h13v4a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V8z"/><path d="M17 9h2a2 2 0 0 1 0 4h-2"/><path d="M7 3v2M11 3v2"/>' },
+  { k: 'tea', label: 'Tea house', p: '<path d="M5 10h10v3a5 5 0 0 1-5 5H10a5 5 0 0 1-5-5v-3z"/><path d="M15 11h2a2 2 0 0 1 0 4h-2"/><path d="M4 20h12"/><path d="M9 7c1-1 1-2 0-3"/>' },
+  { k: 'bakery', label: 'Bakery / bread', p: '<path d="M6 9h12a4 4 0 0 1 0 8H6a4 4 0 0 1 0-8z"/><path d="M10 9c0-2 4-2 4 0"/>' },
+  { k: 'pastry', label: 'Pastry / croissant', p: '<path d="M3 17c3-9 15-9 18 0-6-3-12-3-18 0z"/><path d="M8 15l1-3M12 14v-3M16 15l-1-3"/>' },
+  { k: 'pizza', label: 'Pizza', p: '<path d="M12 3l9 16H3z"/><circle cx="10" cy="13" r=".8"/><circle cx="14" cy="15" r=".8"/><circle cx="12" cy="9" r=".8"/>' },
+  { k: 'burger', label: 'Burgers', p: '<path d="M4 10a8 8 0 0 1 16 0z"/><path d="M4 14h16"/><path d="M5 17h14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z"/>' },
+  { k: 'taco', label: 'Tacos / Mexican', p: '<path d="M3 16a9 9 0 0 1 18 0z"/><path d="M3 16h18"/>' },
+  { k: 'sushi', label: 'Sushi', p: '<circle cx="12" cy="12" r="6"/><path d="M12 6v12"/><rect x="9" y="9" width="6" height="6" rx="1"/>' },
+  { k: 'seafood', label: 'Seafood', p: '<path d="M3 12c4-6 12-6 16 0-4 6-12 6-16 0z"/><path d="M19 12l3-3v6z"/><circle cx="8" cy="11" r=".8"/>' },
+  { k: 'ramen', label: 'Noodles / ramen', p: '<path d="M3 11h18a9 9 0 0 1-18 0z"/><path d="M14 3l4 6M17 3l2 6"/>' },
+  { k: 'bowl', label: 'Fast-casual bowl', p: '<path d="M3 11h18a9 9 0 0 1-18 0z"/><path d="M8 11a4 4 0 0 1 8 0"/>' },
+  { k: 'salad', label: 'Salad / healthy', p: '<path d="M4 12h16a8 8 0 0 1-16 0z"/><path d="M9 12c-1-3 2-4 3-2 1-2 4-1 3 2"/>' },
+  { k: 'bbq', label: 'BBQ / grill', p: '<circle cx="12" cy="9" r="6"/><path d="M9 8h.01M12 7h.01M15 9h.01M10 11h.01"/><path d="M9 15l-2 5M15 15l2 5M12 15v5"/>' },
+  { k: 'steak', label: 'Steakhouse', p: '<path d="M5 10a6 5 0 0 1 12 0c2.5 0 2.5 4 0 4-1 2.5-11 2.5-12 0-2.5 0-2.5-4 0-4z"/><circle cx="8" cy="11.5" r="1.3"/>' },
+  { k: 'chicken', label: 'Chicken / wings', p: '<path d="M14 4a5 5 0 0 1 3 8l-2 2a3 3 0 1 1-4 4"/><path d="M9 13l-5 5M4 15v3h3"/>' },
+  { k: 'hotdog', label: 'Hot dog', p: '<path d="M4 15c-2-2-1-6 2-8s9 0 12 3 1 6-2 8-9 1-12-3z"/><path d="M8 12c3-1 6 3 9 2"/>' },
+  { k: 'sandwich', label: 'Deli / sandwich', p: '<path d="M3 9l9-4 9 4-9 3z"/><path d="M4 12l8 4 8-4M4 15l8 4 8-4"/>' },
+  { k: 'dessert', label: 'Ice cream / dessert', p: '<path d="M8 9a4 4 0 0 1 8 0z"/><path d="M8 9l4 11 4-11"/>' },
+  { k: 'donut', label: 'Donut', p: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/>' },
+  { k: 'brunch', label: 'Breakfast / brunch', p: '<circle cx="12" cy="13" r="4"/><path d="M12 3v3M4.5 8l2 2M19.5 8l-2 2M3 20h18"/>' },
+  { k: 'foodtruck', label: 'Food truck', p: '<path d="M3 7h11v8H3z"/><path d="M14 10h4l3 3v2h-7z"/><circle cx="7" cy="17" r="1.6"/><circle cx="17" cy="17" r="1.6"/>' },
+  { k: 'juice', label: 'Juice / smoothie', p: '<path d="M6 8h11l-1 12H7z"/><path d="M12 4l3 4M12 4v4"/>' }
+];
+const MKT_ICON_BY = {}; MKT_ICONS.forEach(function (x) { MKT_ICON_BY[x.k] = x.p; });
 const MKT_PRICE = { '': 'Any price', u1m: 'Under $1M', '1-3m': '$1M – $3M', '3-5m': '$3M – $5M', '5m+': '$5M+' };
 const MKT_CASH = { '': 'Any cash flow', '250k': '$250K+ SDE', '500k': '$500K+ SDE', '1m': '$1M+ SDE' };
 const MKT_FLAGS = ['', 'new', 'price'];
@@ -5927,6 +5958,7 @@ function mktClean(b, prev) {
   if (b.cashBand !== undefined) out.cashBand = (b.cashBand in MKT_CASH) ? b.cashBand : '';
   if (b.reAvailable !== undefined) out.reAvailable = !!b.reAvailable;
   if (b.flag !== undefined) out.flag = mktBadgeById(b.flag) ? b.flag : '';
+  if (b.icon !== undefined) out.icon = MKT_ICON_BY[b.icon] ? b.icon : '';
   return out;
 }
 function mktSuggest(view) {
@@ -5945,7 +5977,7 @@ function mktTeaser(key, view, m) {
     conceptKey: m.conceptKey || '', marketKey: m.marketKey || 'Other',
     priceBand: m.priceBand || '', cashBand: m.cashBand || '',
     revenue: m.revenue || '', sde: m.sde || '', earnBasis: m.earnBasis || 'SDE', guide: m.guide || '',
-    flag: ab ? ab.id : '', flagLabel: ab ? ab.label : '', flagColor: ab ? ab.color : '', featured: !!m.featured, publishedAt: m.publishedAt || ''
+    flag: ab ? ab.id : '', flagLabel: ab ? ab.label : '', flagColor: ab ? ab.color : '', featured: !!m.featured, publishedAt: m.publishedAt || '', icon: m.icon || ''
   };
 }
 function mktPublicList() {
@@ -5983,7 +6015,7 @@ app.get('/api/marketplace/:key', (req, res) => {
   if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
   if (!(canSeeAllDeals(req) || ownsAssignment(req, d))) return res.status(403).json({ ok: false, error: 'Not yours.' });
   const overlay = loadAssignOverlay(); const view = assignmentView(d, overlay); const o = overlay[key] || {};
-  res.json({ ok: true, metros: effMarkets(), concepts: MKT_CONCEPTS, priceBands: MKT_PRICE, cashBands: MKT_CASH, flags: MKT_FLAGS, badges: effMktBadges(), marketStyle: effMarketStyle(), publicUrl: (req.protocol + '://' + req.get('host') + '/market'),
+  res.json({ ok: true, metros: effMarkets(), concepts: MKT_CONCEPTS, priceBands: MKT_PRICE, cashBands: MKT_CASH, flags: MKT_FLAGS, badges: effMktBadges(), marketStyle: effMarketStyle(), icons: MKT_ICONS, publicUrl: (req.protocol + '://' + req.get('host') + '/market'),
     listing: { key: key, business: view.business, market: view.market, value: view.value, roomId: view.roomId, status: view.status, teaser: o.market || null, suggest: mktSuggest(view) } });
 });
 // ===== Buyer buy-box + matching =====
@@ -6675,6 +6707,7 @@ function esc(s){var d=document.createElement('div');d.textContent=s==null?'':Str
 var ALL=[], CUR='', VIEW='grid';
 var STYLE=${JSON.stringify(style)};
 var PB=${JSON.stringify(MKT_PRICE)}, CB=${JSON.stringify(MKT_CASH)};
+var MKT_ICON_BY=${JSON.stringify(MKT_ICON_BY)};
 function flagTag(l){ if(l.flagLabel){ var c=l.flagColor||'#2f7a55'; return '<span class="ltag" style="background:'+c+'18;color:'+c+';border-color:'+c+'55">'+esc(l.flagLabel)+'</span>'; } return l.featured?'<span class="ltag" style="background:#fdf1df;color:#b5791f;border-color:#eddab0">Featured</span>':''; }
 function listRow(l){
   var mets=[]; if(l.guide) mets.push(['Guide',l.guide]); else if(l.priceBand&&PB[l.priceBand]) mets.push(['Guide',PB[l.priceBand]]);
@@ -6693,7 +6726,9 @@ function card(l){ var flag=l.flagLabel?('<span class="flag" style="background:'+
     +'<span style="display:inline-flex;align-items:center;gap:6px">'+favBtn(l.id)+'<button class="req" data-k="'+esc(l.id)+'">Request access →</button></span></div></div></div>'; }
 function priceRank(l){ var m={u1m:1,'1-3m':2,'3-5m':3,'5m+':4}; return m[l.priceBand]||0; }
 function conceptIcon(l){
-  var t=((l.conceptKey||'')+' '+(l.badge||'')).toLowerCase(); var p;
+  var p=null;
+  if(l && l.icon && MKT_ICON_BY[l.icon]) p=MKT_ICON_BY[l.icon];   // rep's chosen icon wins
+  if(!p){ var t=((l.conceptKey||'')+' '+(l.badge||'')).toLowerCase();
   if(/bar|cocktail|night|lounge|tavern|pub|wine|brew|speakeasy/.test(t)) p='<path d="M4 4h16l-8 9v6"/><path d="M8 20h8"/>';
   else if(/coffee|caf|bakery|bake|espresso|donut|pastry/.test(t)) p='<path d="M4 8h13v4a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V8z"/><path d="M17 9h2a2 2 0 0 1 0 4h-2"/><path d="M7 3v2M11 3v2"/>';
   else if(/pizza|pizzeria/.test(t)) p='<path d="M12 3l9 16H3z"/><circle cx="10" cy="13" r=".7"/><circle cx="14" cy="15" r=".7"/>';
@@ -6702,6 +6737,7 @@ function conceptIcon(l){
   else if(/brunch|breakfast|diner|pancake|egg/.test(t)) p='<circle cx="12" cy="14" r="4"/><path d="M12 3v3M4.5 8l2 2M19.5 8l-2 2M3 19h18"/>';
   else if(/fast|bowl|casual|salad|poke|noodle/.test(t)) p='<path d="M3 11h18a9 9 0 0 1-18 0z"/><path d="M8 11a4 4 0 0 1 8 0"/>';
   else p='<path d="M6 3v8M9 3v8M7.5 11v10"/><path d="M6 3v4M9 3v4"/><path d="M16 3c-1.5 1.5-1.5 6 0 7v11"/>';
+  }
   return '<svg class="cico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">'+p+'</svg>';
 }
 function guideOf(l){ return l.guide || (l.priceBand&&PB[l.priceBand]) || ''; }
