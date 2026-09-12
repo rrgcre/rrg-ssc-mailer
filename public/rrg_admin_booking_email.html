@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Booking Emails</title>
+<style>
+:root{--navy:#0b1636;--navy2:#16346e;--red:#C0261B;--ink:#141a29;--dim:#5f6a7d;--soft:#8a93a3;--line:#e5e9f1;--wash:#f5f7fb;--green:#1f8a5b;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#fff;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.wrap{max-width:1040px;margin:0 auto;padding:26px 26px 60px;}
+h1{font-size:20px;font-weight:700;color:var(--navy);margin:0;}
+.sub{font-size:13px;color:var(--dim);margin-top:6px;line-height:1.5;max-width:640px;}
+label.fl{display:block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--soft);margin:18px 0 6px;}
+input.tin,textarea.tin,select.tin{width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:11px 13px;font:inherit;font-size:14px;background:#fff;color:var(--ink);}
+textarea.tin{min-height:230px;resize:vertical;line-height:1.55;}
+input.tin:focus,textarea.tin:focus,select.tin:focus{outline:none;border-color:#5b9be8;box-shadow:0 0 0 3px rgba(91,155,232,.15);}
+.chips{margin:9px 0 2px;display:flex;flex-wrap:wrap;gap:7px;}
+.chip{font-size:11.5px;font-weight:700;color:var(--navy2);background:#eef2fb;border:1px solid #d7e0f2;border-radius:100px;padding:4px 10px;cursor:pointer;}
+.chip:hover{background:#e2e9fa;}
+.savebar{display:flex;align-items:center;gap:12px;margin-top:20px;}
+.savebtn{background:var(--navy);color:#fff;border:none;border-radius:9px;padding:10px 20px;font:inherit;font-size:13.5px;font-weight:700;cursor:pointer;}
+.savebtn:disabled{opacity:.5;cursor:default;}
+.resetbtn{background:#eef1f6;color:#33415c;border:1px solid #dce2ec;border-radius:9px;padding:10px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+.msg{font-size:12.5px;font-weight:600;}
+.note{font-size:12px;color:var(--soft);margin-top:16px;line-height:1.6;}
+.gate{color:var(--dim);font-size:13.5px;padding:30px 0;}
+</style>
+<script src="/rrg_rte.js"></script>
+</head>
+<body>
+<div class="wrap" id="root"><div class="gate">Loading…</div></div>
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+var ADMIN=false, SUBJ='', BODY='', WHICH='guest', KINDS=[];
+var CHIPS={
+  guest:['{{guest_first}}','{{guest_name}}','{{meeting_title}}','{{when}}','{{location}}','{{rep_name}}','{{org}}','{{manage_link}}','{{join_link}}'],
+  owner:['{{guest_name}}','{{guest_email}}','{{guest_phone}}','{{meeting_title}}','{{when}}','{{location}}','{{answers}}','{{join_link}}','{{org}}']
+};
+var NOTE={
+  guest:'Placeholders: <b>{{guest_first}}</b> · <b>{{guest_name}}</b> · <b>{{meeting_title}}</b> · <b>{{when}}</b> the date/time · <b>{{location}}</b> (e.g. “Phone call — (210)…”) · <b>{{rep_name}}</b> the broker · <b>{{org}}</b> your company · <b>{{manage_link}}</b> the reschedule/cancel link · <b>{{join_link}}</b> the video-call link (blank for phone calls). A calendar (.ics) invite is always attached automatically.',
+  owner:'Placeholders: <b>{{guest_name}}</b> · <b>{{guest_email}}</b> · <b>{{guest_phone}}</b> · <b>{{meeting_title}}</b> · <b>{{when}}</b> the date/time · <b>{{location}}</b> · <b>{{answers}}</b> any intake questions they answered · <b>{{join_link}}</b> · <b>{{org}}</b> your company.'
+};
+function kindLabel(k){ for(var i=0;i<KINDS.length;i++){ if(KINDS[i].kind===k) return KINDS[i].label; } return (k==='owner'?'Alert to the broker':'Confirmation to the person who booked'); }
+function render(){
+  if(!ADMIN){ document.getElementById('root').innerHTML='<h1>Booking emails</h1><div class="sub">These are the emails sent when someone schedules a time on your booking page. Only an administrator can edit them.</div>'; return; }
+  var sel='<label class="fl">Which email</label><select class="tin" id="kindsel" style="max-width:420px">'+KINDS.map(function(k){ return '<option value="'+esc(k.kind)+'"'+(k.kind===WHICH?' selected':'')+'>'+esc(k.label)+'</option>'; }).join('')+'</select>';
+  document.getElementById('root').innerHTML=''
+    +'<h1>Booking emails</h1>'
+    +'<div class="sub">The two emails that fire the moment someone schedules a time on your booking page (<b>/book/…</b>): the confirmation to the person who booked, and the alert to the broker. Edit either one below. The internal calendar invite is always attached to the guest email.</div>'
+    +sel
+    +'<label class="fl">Subject</label><input class="tin" id="subj" value="'+esc(SUBJ)+'">'
+    +'<label class="fl">Body</label>'+(window.RRGRte?RRGRte.html('body',{value:BODY,placeholder:'Write the message…'}):('<textarea class="tin" id="body">'+esc(BODY)+'</textarea>'))
+    +'<div class="chips" id="chips"></div>'
+    +'<div class="savebar"><button class="savebtn" id="save">Save</button><button class="resetbtn" id="reset">Reset to default</button><span class="msg" id="msg"></span></div>'
+    +'<div class="note">'+(NOTE[WHICH]||'')+' Click a chip to insert it. Changes apply firm-wide.</div>';
+  if(window.RRGRte) RRGRte.wire('body');
+  document.getElementById('chips').innerHTML=(CHIPS[WHICH]||[]).map(function(c){ return '<span class="chip" data-c="'+c+'">'+c+'</span>'; }).join('');
+  var _bodyRange=null;
+  (function(){ var ed=document.getElementById('body'); if(!ed||!ed.isContentEditable) return; function keep(){ var s=window.getSelection&&window.getSelection(); if(s&&s.rangeCount&&ed.contains(s.anchorNode)) _bodyRange=s.getRangeAt(0).cloneRange(); } ed.addEventListener('keyup',keep); ed.addEventListener('mouseup',keep); ed.addEventListener('blur',keep); })();
+  function insertChip(c){
+    var ed=document.getElementById('body'); if(!ed) return;
+    if(ed.isContentEditable){
+      ed.focus();
+      var sel=window.getSelection();
+      if(_bodyRange){ try{ sel.removeAllRanges(); sel.addRange(_bodyRange); }catch(e){} }
+      var range=(sel&&sel.rangeCount)?sel.getRangeAt(0):null;
+      if(!range||!ed.contains(range.commonAncestorContainer)){ range=document.createRange(); range.selectNodeContents(ed); range.collapse(false); sel.removeAllRanges(); sel.addRange(range); }
+      var node=document.createTextNode(c);
+      range.deleteContents(); range.insertNode(node);
+      range.setStartAfter(node); range.setEndAfter(node); sel.removeAllRanges(); sel.addRange(range);
+      _bodyRange=range.cloneRange();
+      try{ ed.dispatchEvent(new Event('input',{bubbles:true})); }catch(e){}
+    } else {
+      var s=ed.selectionStart||ed.value.length, e=ed.selectionEnd||ed.value.length; ed.value=ed.value.slice(0,s)+c+ed.value.slice(e); ed.selectionStart=ed.selectionEnd=s+c.length;
+    }
+  }
+  document.querySelectorAll('.chip').forEach(function(ch){ ch.addEventListener('mousedown',function(e){ e.preventDefault(); }); ch.addEventListener('click',function(){ insertChip(ch.getAttribute('data-c')); }); });
+  document.getElementById('save').addEventListener('click',save);
+  document.getElementById('reset').addEventListener('click',function(){ doSave({reset:true}); });
+  var ks=document.getElementById('kindsel'); if(ks) ks.addEventListener('change',function(){ loadWhich(ks.value); });
+}
+function loadWhich(which){
+  WHICH=which;
+  fetch('/api/admin/booking-emails?which='+encodeURIComponent(which),{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+    if(j&&j.ok){ SUBJ=j.subject||''; BODY=j.body||''; if(Array.isArray(j.kinds)&&j.kinds.length) KINDS=j.kinds; render(); }
+  }).catch(function(){});
+}
+function save(){ var bodyVal=(window.RRGRte?RRGRte.get('body'):((document.getElementById('body')||{}).value||'')); doSave({ subject:document.getElementById('subj').value, body:bodyVal }); }
+function doSave(payload){
+  payload=payload||{}; payload.which=WHICH;
+  var b=document.getElementById('save'), m=document.getElementById('msg'); if(b){ b.disabled=true; } if(m) m.textContent='';
+  fetch('/api/admin/booking-emails',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(payload)})
+    .then(function(r){return r.json();}).then(function(j){ if(b){ b.disabled=false; }
+      if(j&&j.ok){ SUBJ=j.subject; BODY=j.body; if(payload.reset){ render(); } else { var el=document.getElementById('subj'); if(el) el.value=SUBJ; if(!window.RRGRte){ var bd=document.getElementById('body'); if(bd) bd.value=BODY; } } var mm=document.getElementById('msg'); if(mm){ mm.style.color='#1f8a5b'; mm.textContent=payload.reset?'Reset to default ✓':'Saved ✓'; setTimeout(function(){var x=document.getElementById('msg'); if(x)x.textContent='';},1900); } }
+      else { var mm2=document.getElementById('msg'); if(mm2){ mm2.style.color='#C0261B'; mm2.textContent=(j&&j.error)||'Could not save.'; } } })
+    .catch(function(){ if(b){ b.disabled=false; } var mm3=document.getElementById('msg'); if(mm3){ mm3.style.color='#C0261B'; mm3.textContent='Could not reach the server.'; } });
+}
+fetch('/api/admin/booking-emails?which=guest',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+  if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">Could not load the email settings.</div>'; return; }
+  SUBJ=j.subject||''; BODY=j.body||''; ADMIN=!!j.isAdmin; WHICH=j.which||'guest'; KINDS=Array.isArray(j.kinds)?j.kinds:[]; render();
+}).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not reach the server.</div>'; });
+</script>
+</body>
+</html>
