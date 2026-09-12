@@ -363,6 +363,8 @@
     + '#rrgtop .uavitem.danger:hover{background:#fff5f4;}'
     + '#rrgtop .uavsep{height:1px;background:#eef1f6;margin:5px 4px;}'
     + '#rrgtop .uavic{width:16px;text-align:center;opacity:.85;flex:none;}'
+    // Standardized collapse chevron on the "What this section does" help banners across every page.
+    + '.chev{font-size:16px !important;line-height:1 !important;}'
     + '@media(max-width:900px){body.rrg-shelled{padding-left:0 !important;}#rrgnav{transform:translateX(-100%);transition:transform .2s;}#rrgnav.open{transform:none;}#rrgtop{left:0;}}';
   var st = document.createElement('style'); st.id='rrgshellcss'; st.textContent=css; document.head.appendChild(st);
 
