@@ -6641,7 +6641,8 @@ thead th:hover{color:var(--navy);background:#eef2f7;}
 thead th .ar{opacity:0;font-size:9px;margin-left:4px;} thead th.sort .ar{opacity:1;color:var(--primary);}
 tbody td{padding:13px 14px;border-bottom:1px solid var(--line2);vertical-align:middle;}
 tbody tr:last-child td{border-bottom:none;}
-tbody tr:hover td{background:#f8fafc;}
+tbody tr:nth-child(even) td{background:#f6f9fd;}
+tbody tr:hover td{background:#ecf3fb;}
 tbody tr.feat td{background:#f4f8fc;}
 td.r{text-align:right;}
 .lcell{display:flex;gap:11px;align-items:center;}
