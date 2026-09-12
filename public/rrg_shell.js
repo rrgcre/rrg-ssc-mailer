@@ -312,8 +312,10 @@
     + '#rrgtop .rrgback{display:inline-flex;align-items:center;gap:6px;color:#1d2739;text-decoration:none;font-size:13.5px;font-weight:500;padding:7px 13px;border:1px solid #e9edf3;border-radius:9px;background:#fff;white-space:nowrap;transition:background .12s;}'
     + '#rrgtop .rrgback:hover{background:#f2f4f8;}'
     + '#rrgtop .srch{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:46%;max-width:560px;}'
-    + '#rrgtop .srch input{width:100%;border:1px solid #e9edf3;background:#f7f9fc;border-radius:10px;padding:9px 12px 9px 36px;font:inherit;font-size:13.5px;color:#1d2739;}'
+    + '#rrgtop .srch input{width:100%;border:1px solid #e9edf3;background:#f7f9fc;border-radius:10px;padding:9px 46px 9px 36px;font:inherit;font-size:13.5px;color:#1d2739;}'
     + '#rrgtop .srch .si{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#98a1b5;}'
+    + '#rrgtop .srch .askbtn{position:absolute;right:5px;top:50%;transform:translateY(-50%);width:30px;height:30px;border:none;border-radius:8px;background:#C0261B;color:#fff;font-size:14px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}'
+    + '#rrgtop .srch .askbtn:hover{filter:brightness(1.08);}'
     + '.rrgsr{position:absolute;top:calc(100% + 6px);left:0;right:0;background:#fff;border:1px solid #e1e6ef;border-radius:11px;box-shadow:0 14px 44px rgba(10,20,50,.18);z-index:120;max-height:70vh;overflow:auto;padding:5px;}'
     + '.rrgsr[hidden]{display:none;}'
     + '.rrgsr .grp{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#9aa4b6;padding:9px 11px 4px;}'
@@ -323,6 +325,21 @@
     + '.rrgsr a .rs{font-size:12px;color:#6b7488;font-weight:500;margin-left:4px;}'
     + '.rrgsr .ric{width:26px;height:26px;border-radius:7px;background:#f1f4f9;display:flex;align-items:center;justify-content:center;font-size:13px;color:#6b7488;flex:none;}'
     + '.rrgsr .rnone{padding:15px 12px;color:#8a93a8;font-size:13px;}'
+    + '.rrgsr a.askrow .ric{background:#fbecea;color:#C0261B;}'
+    + '.rrgsr .rask{padding:12px 13px;}'
+    + '.rrgsr .rask .raq{font-size:11.5px;font-weight:700;color:#8a93a8;text-transform:uppercase;letter-spacing:.04em;margin-bottom:7px;display:flex;gap:6px;align-items:center;}'
+    + '.rrgsr .rask .raq .sp{color:#C0261B;}'
+    + '.rrgsr .rask .raa{font-size:13.5px;color:#1d2739;line-height:1.55;white-space:pre-wrap;}'
+    + '.rrgsr .rask ul.rab{margin:9px 0 0;padding-left:18px;font-size:13px;color:#33415c;line-height:1.5;}'
+    + '.rrgsr .rask ul.rab li{margin:2px 0;}'
+    + '.rrgsr .rask .rafoot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:11px;padding-top:10px;border-top:1px solid #eef1f6;}'
+    + '.rrgsr .rask .raopen{font-size:12.5px;font-weight:700;color:#2c5c8f;text-decoration:none;white-space:nowrap;}'
+    + '.rrgsr .rask .raopen:hover{text-decoration:underline;}'
+    + '.rrgsr .rask .rasrc{font-size:11px;color:#9aa4b6;}'
+    + '.rrgsr .rask .raerr{font-size:13px;color:#b5311f;}'
+    + '.rrgsr .rathinking{padding:15px 13px;color:#6b7488;font-size:13px;display:flex;gap:8px;align-items:center;}'
+    + '.rrgsr .rathinking .sp{color:#C0261B;animation:rrgpulse 1s ease-in-out infinite;}'
+    + '@keyframes rrgpulse{0%,100%{opacity:.35}50%{opacity:1}}'
     + '#rrgtop .acts{display:flex;align-items:center;gap:10px;margin-left:auto;}'
     + '#rrgRecentBar{display:flex;align-items:center;gap:2px;padding:10px 24px 0;margin:0;overflow-x:auto;scrollbar-width:thin;-ms-overflow-style:none;}'
     + '#rrgRecentBar::-webkit-scrollbar{height:0;}'
@@ -384,7 +401,7 @@
   var top = document.createElement('div'); top.id='rrgtop';
   top.innerHTML = ''
     + '<div class="ic" id="rrgburger" style="display:none">≡</div>'
-    + '<div class="srch"><span class="si">⌕</span><input placeholder="Search contacts, companies, listings…" id="rrgsearch" autocomplete="off"><div class="rrgsr" id="rrgsr" hidden></div></div>'
+    + '<div class="srch"><span class="si">⌕</span><input placeholder="Search or ask a question…" id="rrgsearch" autocomplete="off"><button class="askbtn" id="rrgask" type="button" data-ai title="Ask">✦</button><div class="rrgsr" id="rrgsr" hidden></div></div>'
     + '<div class="acts"><div class="createwrap">'
       + '<button class="create" id="rrgCreateBtn" type="button" aria-haspopup="true" aria-expanded="false"><span class="cplus">+</span> Create New</button>'
       + '<div class="createmenu" id="rrgCreateMenu" hidden>'
@@ -573,36 +590,62 @@
     // search → companies search (simple v1)
     var si=document.getElementById('rrgsearch');
     var sr=document.getElementById('rrgsr');
-    var _sqt=null, _ssel=-1, _sres=[];
+    var _sqt=null, _ssel=-1, _sres=[]; var AI_OK=true;
+    function _isQuestion(q){ q=String(q||'').trim().toLowerCase(); if(!q) return false; if(/\?\s*$/.test(q)) return true; return /^(who|what|whats|what's|how|why|when|where|which|list|show|find\b|give|top |how many|total|count|average|avg|sum|compare|summar|tell me|any )/.test(q); }
+    function _askRow(gi){ var A=(window.__rrgAssistant||'the assistant'); return '<div class="grp">Ask</div><a href="#" class="askrow" data-i="'+gi+'" data-ask="1"><span class="ric">✦</span><span><span class="rt">Ask '+_sesc(A)+'</span><span class="rs">answer from your data</span></span></a>'; }
     function _sesc(x){ return String(x==null?'':x).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
     function _srHide(){ if(sr){ sr.hidden=true; } _ssel=-1; }
     function _srSel(i){ _ssel=i; Array.prototype.forEach.call(sr.querySelectorAll('a'),function(a){ a.classList.toggle('sel', parseInt(a.getAttribute('data-i'),10)===i); }); }
     function _srRender(res,q){
       var raw=res||[];
-      if(!raw.length){ _sres=[]; sr.innerHTML='<div class="rnone">No matches for “'+_sesc(q)+'”.</div>'; sr.hidden=false; _ssel=-1; return; }
+      var ql=String(q||'').trim().toLowerCase();
+      var canAsk=AI_OK && ql.length>=2;
+      if(!raw.length && !canAsk){ _sres=[]; sr.innerHTML='<div class="rnone">No matches for “'+_sesc(q)+'”.</div>'; sr.hidden=false; _ssel=-1; return; }
       var ic={contact:'◑',company:'▦',listing:'⌂'}, lbl={contact:'Contacts',company:'Companies',listing:'Listings'}, order=['contact','company','listing'];
       // Prioritise the record type that matches the window you searched from (e.g. Companies first on the companies page).
       var _f=(location.pathname||'').toLowerCase().split('/').pop();
       var _ctx=/compan/.test(_f)?'company':((/person|people|contact/.test(_f))?'contact':((/listing|assignment/.test(_f))?'listing':''));
       if(_ctx && order.indexOf(_ctx)>=0){ order=[_ctx].concat(order.filter(function(t){return t!==_ctx;})); }
-      var ql=String(q||'').trim().toLowerCase();
       function _exact(r){ return String(r.title||'').trim().toLowerCase()===ql; }
       var html='', flat=[];
+      if(!raw.length && canAsk){ html+='<div class="rnone" style="padding:11px 12px 3px">No records match “'+_sesc(q)+'”.</div>'; }
       order.forEach(function(ty){ var g=raw.filter(function(r){return r.type===ty;}); if(!g.length) return; g.sort(function(a,b){ return (_exact(b)?1:0)-(_exact(a)?1:0); }); html+='<div class="grp">'+lbl[ty]+'</div>'; g.forEach(function(r){ var gi=flat.length; flat.push(r); html+='<a href="'+r.url+'" data-i="'+gi+'"><span class="ric">'+(ic[ty]||'•')+'</span><span><span class="rt">'+_sesc(r.title)+'</span>'+(r.sub?('<span class="rs">'+_sesc(r.sub)+'</span>'):'')+'</span></a>'; }); });
+      var askIdx=-1;
+      if(canAsk){ askIdx=flat.length; flat.push({ask:true}); html+=_askRow(askIdx); }
       _sres=flat;
       sr.innerHTML=html; sr.hidden=false;
       Array.prototype.forEach.call(sr.querySelectorAll('a'),function(a){ a.addEventListener('mousemove',function(){ _srSel(parseInt(a.getAttribute('data-i'),10)); }); });
-      _srSel(0);
+      var _ar=sr.querySelector('a[data-ask]'); if(_ar){ _ar.addEventListener('click',function(e){ e.preventDefault(); _srAsk(si.value); }); }
+      // Default the highlight to the Ask row when the query reads like a question; otherwise the first record.
+      _srSel((askIdx>=0 && (raw.length===0 || _isQuestion(q))) ? askIdx : 0);
+    }
+    function _srAsk(q){
+      q=String(q||'').trim(); if(q.length<1) return;
+      var A=(window.__rrgAssistant||'the assistant');
+      if(!AI_OK){ sr.innerHTML='<div class="rask"><div class="raerr">The assistant isn’t enabled for your account.</div></div>'; sr.hidden=false; return; }
+      sr.innerHTML='<div class="rathinking"><span class="sp">✦</span> Asking '+_sesc(A)+'…</div>'; sr.hidden=false; _sres=[]; _ssel=-1;
+      fetch('/api/consult',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({question:q.slice(0,500)})})
+        .then(function(r){ return r.json().then(function(j){ return {st:r.status,j:j}; }); })
+        .then(function(o){ var j=o.j;
+          if(j&&j.ok&&j.result){ var R=j.result; var h='<div class="rask"><div class="raq"><span class="sp">✦</span>'+_sesc(q)+'</div>';
+            if(R.answer) h+='<div class="raa">'+_sesc(R.answer)+'</div>';
+            if(R.bullets&&R.bullets.length){ h+='<ul class="rab">'+R.bullets.slice(0,5).map(function(x){return '<li>'+_sesc(x)+'</li>';}).join('')+'</ul>'; }
+            h+='<div class="rafoot"><span class="rasrc">Answered from your data</span><a class="raopen" href="rrg_consult.html?q='+encodeURIComponent(q)+'">Open full conversation ↗</a></div></div>';
+            sr.innerHTML=h; sr.hidden=false;
+          } else { var msg=(j&&j.error)||(o.st===403?'The assistant isn’t enabled for your account.':(o.st===400?'The assistant isn’t configured yet.':'Couldn’t get an answer right now.'));
+            sr.innerHTML='<div class="rask"><div class="raerr">'+_sesc(msg)+'</div><div class="rafoot"><span class="rasrc"></span><a class="raopen" href="rrg_consult.html?q='+encodeURIComponent(q)+'">Open the assistant ↗</a></div></div>'; sr.hidden=false; }
+        }).catch(function(){ sr.innerHTML='<div class="rask"><div class="raerr">Couldn’t reach the assistant.</div></div>'; sr.hidden=false; });
     }
     function _srSearch(q){ q=String(q||'').trim(); if(q.length<2){ _srHide(); _sres=[]; return; } if(sr){ sr.innerHTML='<div class="rnone">Searching\u2026</div>'; sr.hidden=false; } fetch('/api/search?q='+encodeURIComponent(q),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(String(si.value||'').trim().length<2){ _srHide(); return; } _srRender((j&&j.results)||[], q); }).catch(function(){ if(String(si.value||'').trim().length>=2 && sr){ sr.innerHTML='<div class="rnone">Search is waking up \u2014 give it a second and type again.</div>'; sr.hidden=false; } else { _srHide(); } }); }
     si && si.addEventListener('input', function(){ var v=si.value; try{ if(typeof window.rrgLiveSearch==='function') window.rrgLiveSearch(v); }catch(e){} if(_sqt) clearTimeout(_sqt); _sqt=setTimeout(function(){ _srSearch(v); },180); });
     si && si.addEventListener('keydown', function(e){
       if(e.key==='ArrowDown'){ if(_sres.length){ e.preventDefault(); _srSel(Math.min(_sres.length-1,_ssel+1)); var el=sr.querySelector('a.sel'); if(el) el.scrollIntoView({block:'nearest'}); } return; }
       if(e.key==='ArrowUp'){ if(_sres.length){ e.preventDefault(); _srSel(Math.max(0,_ssel-1)); var el2=sr.querySelector('a.sel'); if(el2) el2.scrollIntoView({block:'nearest'}); } return; }
-      if(e.key==='Enter'){ e.preventDefault(); if(_sres.length && _ssel>=0){ location.href=_sres[_ssel].url; } else { _srSearch(si.value); } return; }
+      if(e.key==='Enter'){ e.preventDefault(); var it=(_sres.length && _ssel>=0)?_sres[_ssel]:null; if(it&&it.ask){ _srAsk(si.value); } else if(it&&it.url){ location.href=it.url; } else if(AI_OK && String(si.value||'').trim().length>=2){ _srAsk(si.value); } else { _srSearch(si.value); } return; }
       if(e.key==='Escape'){ _srHide(); si.blur(); return; }
     });
     si && si.addEventListener('focus', function(){ if(String(si.value||'').trim().length>=2 && _sres.length){ sr.hidden=false; } });
+    var askb=document.getElementById('rrgask'); askb && askb.addEventListener('click', function(){ var v=(si&&si.value)||''; if(String(v).trim().length){ _srAsk(v); } if(si) si.focus(); });
     document.addEventListener('click', function(e){ if(sr && !sr.hidden && e.target && e.target.closest && !e.target.closest('.srch')){ _srHide(); } });
     // hydrate app name, role, user
     try {
@@ -617,6 +660,7 @@
         if(s&&(s.role==='admin'||s.role==='creator')){ nav.querySelectorAll('[data-admingrp]').forEach(function(g){ g.style.display=''; }); nav.querySelectorAll('[data-adminit]').forEach(function(el){ el.style.display=''; }); }
         if(s&&s.canManageLoi){ nav.querySelectorAll('a.it[data-need="loi"]').forEach(function(el){ el.style.display=''; }); }
         (function(){ var _role=(s&&s.role)||''; var _owner=(_role==='admin'||_role==='creator'); var _nv=(s&&s.navVis)||{}; if(!_owner){ nav.querySelectorAll('.lbl[data-grp]').forEach(function(l){ var gg=l.getAttribute('data-grp'); var allow=_nv[gg]; if(allow&&allow.length&&allow.indexOf(_role)<0){ var grp=l.closest('.grp'); if(grp) grp.style.display='none'; } }); } })();
+        try{ AI_OK = !!(s && s.canUseAi); }catch(e){}
         if(s&&!s.canUseAi){ var aist=document.createElement('style'); aist.textContent='[data-ai]{display:none !important;}'; document.head.appendChild(aist); }
         var nm=(s&&(s.name||s.username))||''; var uav=document.getElementById('rrguav'); if(uav&&nm){ var parts=nm.trim().split(/\s+/); var _ini=((parts[0]||'')[0]||'')+((parts[1]||'')[0]||'')||nm[0].toUpperCase(); var _ph=(s&&s.photoUrl)||''; uav.textContent=_ini; uav.style.backgroundImage=''; uav.classList.remove('haspic'); if(_ph){ var _im=new Image(); _im.onload=function(){ uav.textContent=''; uav.style.backgroundImage='url("'+_ph+'")'; uav.style.backgroundSize='cover'; uav.style.backgroundPosition='center'; uav.classList.add('haspic'); }; _im.onerror=function(){}; _im.src=_ph; } uav.title=nm+' — account menu'; } var uavn=document.getElementById('rrguavName'); if(uavn&&nm){ uavn.textContent='Signed in as '+nm; } var _rec=document.getElementById('rrguavRec'); if(_rec&&s&&s.username){ _rec.href='rrg_user.html?u='+encodeURIComponent(s.username); }
         var ac=document.getElementById('rrgacct'); if(ac&&nm) ac.textContent=nm.split(/\s+/)[0];

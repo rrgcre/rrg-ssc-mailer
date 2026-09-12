@@ -167,6 +167,8 @@ document.getElementById('q').addEventListener('keydown',function(e){ if(e.key===
 document.getElementById('vtog').addEventListener('click',function(){ VOICE=!VOICE; this.classList.toggle('on',VOICE); this.innerHTML=VOICE?'🔊 Voice':'🔇 Muted'; if(!VOICE){ try{window.speechSynthesis&&window.speechSynthesis.cancel();}catch(e){} } });
 (function(){ fetch('/api/session',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(sn){ var nm=(sn&&sn.assistant)||''; if(!nm) return; var hb=document.querySelector('.htxt b'); if(hb) hb.textContent=nm; var h1=document.querySelector('.hero h1'); if(h1) h1.textContent='Ask '+nm+' anything about your business.'; var hp=document.querySelector('.hero p'); if(hp) hp.textContent=nm+' answers from your business data only \u2014 companies, contacts, listings and deals \u2014 never the open web. Ask by voice or type; every answer is read back aloud, hands-free.'; var q=document.getElementById('q'); if(q) q.placeholder='Ask '+nm+' about your business\u2026'; try{document.title=nm+' \u2014 RRG';}catch(e){} }).catch(function(){}); })();
 renderChips(); renderActions(); setupMic();
+// Deep-link: /rrg_consult.html?q=… (from the global omnibox) prefills and auto-asks the question.
+(function(){ try{ var _q=new URLSearchParams(location.search).get('q'); if(_q){ _q=String(_q).slice(0,500); var qi=document.getElementById('q'); if(qi) qi.value=_q; setTimeout(function(){ if(typeof ask==='function') ask(_q); },250); } }catch(e){} })();
 </script>
 </body>
 </html>

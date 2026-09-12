@@ -5902,11 +5902,13 @@ const MKT_ICONS = [
   { k: 'cocktail', label: 'Bar / cocktails', p: '<path d="M4 4h16l-8 9v6"/><path d="M8 20h8"/>' },
   { k: 'beer', label: 'Brewery / beer', p: '<path d="M5 8h9v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V8z"/><path d="M14 10h3a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-3"/><path d="M7 5c0-1.5 3-1.5 3 0M10 5c0-1.5 3-1.5 3 0"/>' },
   { k: 'wine', label: 'Wine bar', p: '<path d="M8 3h8s0 7-4 8c-4-1-4-8-4-8z"/><path d="M12 11v7M9 21h6"/>' },
+  { k: 'beerbar', label: 'Beer bar', p: '<path d="M7 4h10l-1.5 15a1.2 1.2 0 0 1-1.2 1.1H9.7A1.2 1.2 0 0 1 8.5 19z"/><path d="M7.4 8h9.2"/><circle cx="11" cy="12" r=".8"/><circle cx="13.2" cy="15" r=".8"/>' },
   { k: 'coffee', label: 'Coffee / café', p: '<path d="M4 8h13v4a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V8z"/><path d="M17 9h2a2 2 0 0 1 0 4h-2"/><path d="M7 3v2M11 3v2"/>' },
   { k: 'tea', label: 'Tea house', p: '<path d="M5 10h10v3a5 5 0 0 1-5 5H10a5 5 0 0 1-5-5v-3z"/><path d="M15 11h2a2 2 0 0 1 0 4h-2"/><path d="M4 20h12"/><path d="M9 7c1-1 1-2 0-3"/>' },
   { k: 'bakery', label: 'Bakery / bread', p: '<path d="M6 9h12a4 4 0 0 1 0 8H6a4 4 0 0 1 0-8z"/><path d="M10 9c0-2 4-2 4 0"/>' },
   { k: 'pastry', label: 'Pastry / croissant', p: '<path d="M3 17c3-9 15-9 18 0-6-3-12-3-18 0z"/><path d="M8 15l1-3M12 14v-3M16 15l-1-3"/>' },
   { k: 'pizza', label: 'Pizza', p: '<path d="M12 3l9 16H3z"/><circle cx="10" cy="13" r=".8"/><circle cx="14" cy="15" r=".8"/><circle cx="12" cy="9" r=".8"/>' },
+  { k: 'italian', label: 'Italian / pasta', p: '<path d="M3 13h18a9 9 0 0 1-18 0z"/><path d="M6 12.4c1.6-2.6 4.2-2.6 5.8 0M12.2 12.4c1.6-2.6 4.2-2.6 5.8 0"/><path d="M12 3c-1.4 1.4-1.4 4.6 0 6"/>' },
   { k: 'burger', label: 'Burgers', p: '<path d="M4 10a8 8 0 0 1 16 0z"/><path d="M4 14h16"/><path d="M5 17h14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z"/>' },
   { k: 'taco', label: 'Tacos / Mexican', p: '<path d="M3 16a9 9 0 0 1 18 0z"/><path d="M3 16h18"/>' },
   { k: 'sushi', label: 'Sushi', p: '<circle cx="12" cy="12" r="6"/><path d="M12 6v12"/><rect x="9" y="9" width="6" height="6" rx="1"/>' },
@@ -5915,7 +5917,7 @@ const MKT_ICONS = [
   { k: 'bowl', label: 'Fast-casual bowl', p: '<path d="M3 11h18a9 9 0 0 1-18 0z"/><path d="M8 11a4 4 0 0 1 8 0"/>' },
   { k: 'salad', label: 'Salad / healthy', p: '<path d="M4 12h16a8 8 0 0 1-16 0z"/><path d="M9 12c-1-3 2-4 3-2 1-2 4-1 3 2"/>' },
   { k: 'bbq', label: 'BBQ / grill', p: '<circle cx="12" cy="9" r="6"/><path d="M9 8h.01M12 7h.01M15 9h.01M10 11h.01"/><path d="M9 15l-2 5M15 15l2 5M12 15v5"/>' },
-  { k: 'steak', label: 'Steakhouse', p: '<path d="M5 10a6 5 0 0 1 12 0c2.5 0 2.5 4 0 4-1 2.5-11 2.5-12 0-2.5 0-2.5-4 0-4z"/><circle cx="8" cy="11.5" r="1.3"/>' },
+  { k: 'steak', label: 'Steakhouse', p: '<path d="M6.5 6.2c3.6-1.6 8.4-1 10 2.3s-.6 7.6-5 8.4-8.6-1.4-8.6-5.2c0-1.9 1.4-3.6 3.6-5.5z"/><circle cx="8" cy="9.4" r="1"/><path d="M9 13l2 2M12 11.5l2 2"/>' },
   { k: 'chicken', label: 'Chicken / wings', p: '<path d="M14 4a5 5 0 0 1 3 8l-2 2a3 3 0 1 1-4 4"/><path d="M9 13l-5 5M4 15v3h3"/>' },
   { k: 'hotdog', label: 'Hot dog', p: '<path d="M4 15c-2-2-1-6 2-8s9 0 12 3 1 6-2 8-9 1-12-3z"/><path d="M8 12c3-1 6 3 9 2"/>' },
   { k: 'sandwich', label: 'Deli / sandwich', p: '<path d="M3 9l9-4 9 4-9 3z"/><path d="M4 12l8 4 8-4M4 15l8 4 8-4"/>' },
@@ -5945,6 +5947,13 @@ function mktActiveBadge(m) { if (!m || !m.flag) return null; const b = mktBadgeB
 // Marketplace presentation style — admin-selectable so each firm's public /market can differ.
 const MKT_STYLES = { grid: 'Card grid', ledger: 'Ledger (table)', register: 'Register (index)' };
 function effMarketStyle() { const s = loadSettings(); const v = String(s.marketStyle || ''); return MKT_STYLES[v] ? v : 'ledger'; }
+// ---- Public marketplace color theme (admin-editable, per-tenant). Default = the "NetSuite" scheme. ----
+const MARKET_THEME_DEFAULT = { dark: '#12303a', strip: '#33302a', accent: '#9a7746', link: '#2b8391', mark: '#b23a2c' };
+const MARKET_THEME_KEYS = ['dark', 'strip', 'accent', 'link', 'mark'];
+function _hexOr(v, d) { v = String(v == null ? '' : v).trim(); return /^#[0-9a-fA-F]{6}$/.test(v) ? v.toLowerCase() : d; }
+function _shadeHex(hex, f) { try { const n = parseInt(String(hex).replace('#', ''), 16); let r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255; r = Math.max(0, Math.min(255, Math.round(r * f))); g = Math.max(0, Math.min(255, Math.round(g * f))); b = Math.max(0, Math.min(255, Math.round(b * f))); return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1); } catch (e) { return hex; } }
+function cleanMarketTheme(b, prev) { b = b || {}; const out = Object.assign({}, (prev && typeof prev === 'object') ? prev : {}); MARKET_THEME_KEYS.forEach(function (k) { if (b[k] !== undefined) out[k] = _hexOr(b[k], MARKET_THEME_DEFAULT[k]); }); return out; }
+function effMarketTheme() { const s = loadSettings(); const t = (s.marketTheme && typeof s.marketTheme === 'object') ? s.marketTheme : {}; const T = {}; MARKET_THEME_KEYS.forEach(function (k) { T[k] = _hexOr(t[k], MARKET_THEME_DEFAULT[k]); }); T.dark2 = _shadeHex(T.dark, 1.45); T.accentD = _shadeHex(T.accent, 0.82); T.linkD = _shadeHex(T.link, 0.78); return T; }
 function mktClean(b, prev) {
   prev = prev || {};
   const s = (v, n) => String(v == null ? '' : v).slice(0, n);
@@ -6593,13 +6602,16 @@ app.get('/api/market/photo/:key/:file', (req, res) => {
 app.get('/market', (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8').send(marketplacePublicPage(req)); });
 function marketplacePublicPage(req) {
   const org = esc(orgDisplayName());
+  const T = effMarketTheme();
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${org} — Marketplace</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin>
 <style>
-:root{--navy:#000E31;--navy2:#0a1a42;--slate:#1d2f4a;--primary:#2c5c8f;--primary-d:#21486e;--red:#b5311f;--ink:#222c3c;--muted:#667489;--soft:#8a96a8;--line:#dde2ea;--line2:#eef1f6;--wash:#f5f7fa;--inp:#c4ccda;--gold:#9a6b15;--goldbg:#fbf1dc;--green:#1f6b46;--greenbg:#e6f2ea;--redbg:#fae9e6;--bluebg:#e8f0f8;--amber:#a5691a;--amberbg:#f7edda;--teal:#0f6b6b;--tealbg:#e0f1f0;--indigo:#5b4b9a;--indigobg:#ece9f7;}
+:root{--navy:${T.dark};--navy2:${T.dark2};--slate:${T.dark2};--accent:${T.accent};--accent-d:${T.accentD};--strip:${T.strip};--primary:${T.link};--primary-d:${T.linkD};--red:${T.mark};--ink:#22333a;--muted:#5f7178;--soft:#8a9aa0;--line:#d8dfde;--line2:#edf1f0;--wash:#f2f5f4;--inp:#c4ccda;--gold:${T.accent};--goldbg:#f2ecdf;--green:#3f7d6f;--greenbg:#e7f0ec;--redbg:#f6e6e9;--bluebg:#e6f0f0;--amber:#9c6416;--amberbg:#f5ecd9;--teal:#2b8391;--tealbg:#e6f0f0;--indigo:#5b4b9a;--indigobg:#ece9f7;}
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:#e7eaf0;font-size:13px;-webkit-font-smoothing:antialiased;line-height:1.5;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:#eef1f0;font-size:13px;-webkit-font-smoothing:antialiased;line-height:1.5;}
+.tstrip{background:var(--strip);}
+.tstrip .tin{max-width:1280px;margin:0 auto;padding:7px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;font-size:11px;font-weight:600;letter-spacing:.02em;color:#c9bda6;flex-wrap:wrap;}
 .num{font-variant-numeric:tabular-nums;}
 .wrap{max-width:1280px;margin:0 auto;padding:0 24px;}
 header{background:linear-gradient(180deg,var(--navy2),var(--navy));border-bottom:2px solid var(--primary);position:sticky;top:0;z-index:40;}
@@ -6610,7 +6622,7 @@ header{background:linear-gradient(180deg,var(--navy2),var(--navy));border-bottom
 .vb{width:1px;height:26px;background:rgba(255,255,255,.22);margin:0 5px;}
 .mkt{font-weight:700;font-size:15px;color:#fff;}
 .hauth{margin-left:auto;}
-.hauth a{font-size:12px;font-weight:800;text-decoration:none;color:#fff;background:var(--red);padding:9px 16px;border-radius:100px;box-shadow:0 2px 8px rgba(181,49,31,.32);}
+.hauth a{font-size:12px;font-weight:800;text-decoration:none;color:#fbf6ec;background:var(--accent);padding:9px 16px;border-radius:5px;box-shadow:0 2px 8px rgba(120,92,52,.28);}
 .hauth a:hover{filter:brightness(1.08);}
 .hd{padding:20px 0 0;}
 .hd h1{font-size:21px;font-weight:800;color:var(--navy);letter-spacing:-.01em;}
@@ -6660,8 +6672,8 @@ td.r{text-align:right;}
 .lnum{font-weight:700;color:var(--slate);} .lask{font-weight:800;color:var(--navy);font-size:14px;} .dash{color:var(--soft);font-weight:600;}
 .actlink{border:none;background:none;color:var(--primary);font:inherit;font-size:12px;font-weight:700;cursor:pointer;padding:4px 0;white-space:nowrap;}
 .actlink:hover{text-decoration:underline;color:var(--primary-d);}
-.act{border:1px solid var(--primary);background:var(--primary);color:#fff;border-radius:4px;padding:8px 13px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;}
-.act:hover{background:var(--primary-d);}
+.act{border:1px solid var(--inp);background:#fff;color:var(--primary);border-radius:4px;padding:7px 13px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.act:hover{border-color:var(--primary);background:var(--bluebg);}
 .empty{padding:52px 20px;text-align:center;color:var(--muted);font-size:13px;}
 /* featured business band */
 .fhdr{display:flex;align-items:baseline;gap:12px;margin:18px 0 12px;}
@@ -6669,23 +6681,23 @@ td.r{text-align:right;}
 .fhdr .ln{flex:1;height:1px;background:var(--line);}
 .fhdr .n{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);}
 .fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(430px,1fr));gap:16px;}
-.fcard{background:#fff;border:1px solid var(--line);border-top:3px solid var(--navy);border-radius:8px;box-shadow:0 8px 24px rgba(16,26,48,.10);padding:20px 22px;display:flex;flex-direction:column;position:relative;overflow:hidden;transition:box-shadow .14s,transform .14s;}
+.fcard{background:#fff;border:1px solid var(--line);border-top:3px solid var(--accent);border-radius:8px;box-shadow:0 6px 18px rgba(16,26,48,.09);padding:12px 16px;display:flex;flex-direction:column;position:relative;overflow:hidden;transition:box-shadow .14s,transform .14s;}
 .fcard:hover{box-shadow:0 14px 34px rgba(16,26,48,.16);transform:translateY(-2px);}
 .fcard:after{content:"";position:absolute;right:-70px;top:-90px;width:240px;height:240px;border-radius:50%;background:radial-gradient(circle,rgba(44,92,143,.12),transparent 62%);pointer-events:none;}
 .fcard .ftop{display:flex;align-items:center;gap:13px;position:relative;z-index:1;}
-.fcard .med{width:54px;height:54px;flex:none;border-radius:13px;background:var(--bluebg);border:1px solid #cfe0f2;display:flex;align-items:center;justify-content:center;color:var(--primary);}
-.fcard .med svg{width:29px;height:29px;}
+.fcard .med{width:40px;height:40px;flex:none;border-radius:10px;background:var(--goldbg);border:1px solid #e6d7ba;display:flex;align-items:center;justify-content:center;color:var(--accent-d);}
+.fcard .med svg{width:22px;height:22px;}
 .fcard .floc{font-size:10.5px;color:var(--soft);font-weight:700;text-transform:uppercase;letter-spacing:.05em;}
-.fcard .fribbon{margin-left:auto;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#fff;background:var(--navy);border:1px solid var(--navy);border-radius:100px;padding:5px 12px;}
-.fcard h3{font-size:20px;font-weight:800;color:var(--navy);line-height:1.18;margin:12px 0 4px;letter-spacing:-.015em;}
-.fcard .fbadge{font-size:12.5px;color:var(--muted);font-weight:600;}
-.fcard .fmet{display:flex;gap:30px;margin:17px 0;padding:15px 0;border-top:1px solid var(--line2);border-bottom:1px solid var(--line2);flex-wrap:wrap;}
-.fcard .fmet .v{font-size:20px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums;letter-spacing:-.01em;}
-.fcard .fmet .k{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);margin-top:4px;}
+.fcard .fribbon{margin-left:auto;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#fbf6ec;background:var(--accent);border:1px solid var(--accent);border-radius:100px;padding:5px 12px;}
+.fcard h3{font-size:16px;font-weight:800;color:var(--navy);line-height:1.2;margin:7px 0 2px;letter-spacing:-.01em;}
+.fcard .fbadge{font-size:11.5px;color:var(--muted);font-weight:600;}
+.fcard .fmet{display:flex;gap:22px;margin:10px 0;padding:10px 0;border-top:1px solid var(--line2);border-bottom:1px solid var(--line2);flex-wrap:wrap;}
+.fcard .fmet .v{font-size:16px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums;letter-spacing:-.01em;}
+.fcard .fmet .k{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);margin-top:3px;}
 .fcard .ffoot{display:flex;align-items:center;justify-content:space-between;margin-top:auto;gap:12px;}
 .fcard .flock{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--soft);font-weight:600;}
 .fcard .flock svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;}
-.fcard .act{padding:10px 18px;font-size:12.5px;}
+.fcard .act{padding:8px 16px;font-size:12.5px;}
 @media(max-width:520px){.fgrid{grid-template-columns:1fr;}}
 /* RE split */
 .resplit{display:grid;grid-template-columns:1fr 500px;gap:16px;align-items:start;margin:14px 0;}
@@ -6714,21 +6726,21 @@ td.r{text-align:right;}
 .mpin.sale{background:var(--indigo);} .mpin.asset{background:var(--amber);}
 /* featured real-estate band */
 .refeat{display:grid;grid-template-columns:repeat(auto-fill,minmax(440px,1fr));gap:16px;}
-.refcard{background:#fff;border:1px solid var(--line);border-top:3px solid var(--navy);border-radius:8px;overflow:hidden;box-shadow:0 8px 24px rgba(16,26,48,.10);display:flex;flex-direction:column;cursor:pointer;transition:box-shadow .14s,transform .14s;}
+.refcard{background:#fff;border:1px solid var(--line);border-top:3px solid var(--accent);border-radius:8px;overflow:hidden;box-shadow:0 8px 24px rgba(16,26,48,.10);display:flex;flex-direction:column;cursor:pointer;transition:box-shadow .14s,transform .14s;}
 .refcard:hover,.refcard.hot{box-shadow:0 14px 34px rgba(16,26,48,.16);transform:translateY(-2px);border-color:var(--primary);}
-.refcard .rfph{height:220px;position:relative;overflow:hidden;background:linear-gradient(135deg,#1a2f52,#0a1730);display:flex;align-items:center;justify-content:center;}
+.refcard .rfph{height:146px;position:relative;overflow:hidden;background:linear-gradient(135deg,#1a2f52,#0a1730);display:flex;align-items:center;justify-content:center;}
 .refcard .rfph img{width:100%;height:100%;object-fit:cover;display:block;}
 .refcard .rfph .ico{width:74px;height:74px;color:rgba(255,255,255,.5);}
 .refcard .txn{position:absolute;left:12px;top:12px;z-index:2;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;border-radius:3px;padding:5px 11px;color:#fff;}
 .refcard .txn.lease{background:var(--teal);} .refcard .txn.sale{background:var(--indigo);} .refcard .txn.asset{background:var(--amber);}
-.refcard .fribbon{position:absolute;right:12px;top:12px;z-index:2;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#fff;background:var(--navy);border:1px solid var(--navy);border-radius:100px;padding:5px 12px;}
-.refcard .rfbody{padding:18px 20px 20px;flex:1;display:flex;flex-direction:column;}
+.refcard .fribbon{position:absolute;right:12px;top:12px;z-index:2;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#fbf6ec;background:var(--accent);border:1px solid var(--accent);border-radius:100px;padding:5px 12px;}
+.refcard .rfbody{padding:13px 16px 15px;flex:1;display:flex;flex-direction:column;}
 .refcard .rtype{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--primary);}
-.refcard h3{font-size:20px;font-weight:800;color:var(--navy);line-height:1.18;margin:5px 0 4px;letter-spacing:-.015em;}
-.refcard .addr{font-size:12.5px;color:var(--muted);}
-.refcard .rstats{display:flex;gap:30px;margin:15px 0;padding:14px 0;border-top:1px solid var(--line2);border-bottom:1px solid var(--line2);flex-wrap:wrap;}
+.refcard h3{font-size:16px;font-weight:800;color:var(--navy);line-height:1.2;margin:4px 0 2px;letter-spacing:-.01em;}
+.refcard .addr{font-size:12px;color:var(--muted);}
+.refcard .rstats{display:flex;gap:22px;margin:10px 0;padding:9px 0;border-top:1px solid var(--line2);border-bottom:1px solid var(--line2);flex-wrap:wrap;}
 .refcard .rstats .k{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);}
-.refcard .rstats .v{font-size:19px;font-weight:800;color:var(--navy);margin-top:3px;} .refcard .rstats .v.sub{font-size:15px;font-weight:700;color:var(--slate);}
+.refcard .rstats .v{font-size:15px;font-weight:800;color:var(--navy);margin-top:2px;} .refcard .rstats .v.sub{font-size:13.5px;font-weight:700;color:var(--slate);}
 .refcard .rfoot{display:flex;align-items:center;justify-content:space-between;margin-top:auto;gap:12px;}
 .refcard .adv{font-size:11.5px;color:var(--muted);} .refcard .adv b{color:var(--slate);font-weight:700;}
 @media(max-width:520px){.refeat{grid-template-columns:1fr;}}
@@ -6748,10 +6760,10 @@ footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} 
 @media(max-width:980px){thead th.hide,tbody td.hide{display:none;}.panel{overflow-x:auto;}.resplit{grid-template-columns:1fr;}.remap{position:relative;height:340px;top:0;}.recard{flex-direction:column;}.recard .rph{width:100%;height:170px;}}
 </style></head>
 <body>
+<div class="tstrip"><div class="tin"><span>Confidential brokerage &mdash; restaurants, bars &amp; hospitality real estate</span><span>Texas &middot; Austin &middot; Dallas &middot; Fort Worth &middot; Houston &middot; San Antonio</span></div></div>
 <header><div class="wrap hrow">
   <span class="disc">RRG</span>
-  <span class="bwm">${org}<i>Confidential Marketplace</i></span>
-  <span class="vb"></span><span class="mkt">Marketplace</span>
+  <span class="bwm">${org}</span>
   <span class="hauth"><a href="mailto:?subject=Buyer%20registration">Register as a buyer</a></span>
 </div></header>
 <div class="wrap">
@@ -6839,7 +6851,7 @@ function bizRow(l){
     +'<td><div class="lcell"><span class="thumb ico" title="'+esc(l.conceptKey||l.badge||'Restaurant')+'">'+svgIcon(l,'')+'</span>'
       +'<div><div class="biz">'+LOCK+esc(l.headline)+'</div><div class="bmeta">'+esc(l.badge||'Restaurant')+'</div></div></div></td>'
     +'<td class="mk2">'+esc(l.marketKey||l.loc||'Texas')+'</td>'
-    +'<td class="hide"><span class="cdot"><i style="background:'+cc(l.conceptKey)+'"></i>'+esc(l.conceptKey||l.badge||'Restaurant')+'</span></td>'
+    +'<td class="hide"><span class="mk2">'+esc(l.conceptKey||l.badge||'Restaurant')+'</span></td>'
     +'<td class="r hide">'+(cash?'<span class="lnum num">'+esc(cash)+'</span>':'<span class="dash">&mdash;</span>')+'</td>'
     +'<td class="r">'+(ask?'<span class="lask num">'+esc(ask)+'</span>':'<span class="dash">Under NDA</span>')+'</td>'
     +'<td>'+statusPill(l)+'</td>'
@@ -12627,7 +12639,7 @@ app.get('/api/admin/types', requireAdmin, (req, res) => {
   const s = loadSettings();
   res.json({
     ok: true,
-    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), conceptTypes: effConceptTypes(), agreementTypes: effAgreementTypes(), docTypes: effDocTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), markets: effMarkets(), spaceScanSources: effSpaceScanSources(), mktBadges: effMktBadges(), marketStyle: effMarketStyle(), mapStyle: effMapStyle(), boardCardFields: effBoardCardFields(), boardCardFlags: effBoardCardFlags(), ...calFeatFlags(),
+    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), conceptTypes: effConceptTypes(), agreementTypes: effAgreementTypes(), docTypes: effDocTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), markets: effMarkets(), spaceScanSources: effSpaceScanSources(), mktBadges: effMktBadges(), marketStyle: effMarketStyle(), marketTheme: effMarketTheme(), marketThemeDefault: MARKET_THEME_DEFAULT, mapStyle: effMapStyle(), boardCardFields: effBoardCardFields(), boardCardFlags: effBoardCardFlags(), ...calFeatFlags(),
     defaults: { personTypes: PERSON_TYPES, companyTypes: COMPANY_TYPES, ticketCategories: TICKET_CATEGORIES, leadSources: LEAD_SOURCES, activityTypes: ACTIVITY_TYPES, roomCloseReasons: ROOM_CLOSE_REASONS, cuisineTypes: CUISINE_TYPES, conceptTypes: CONCEPT_TYPES, agreementTypes: AGREEMENT_TYPES, docTypes: DOC_TYPES, markets: MARKETS },
     isCustom: { personTypes: Array.isArray(s.personTypes), companyTypes: Array.isArray(s.companyTypes), ticketCategories: Array.isArray(s.ticketCategories), leadSources: Array.isArray(s.leadSources), activityTypes: Array.isArray(s.activityTypes), roomCloseReasons: Array.isArray(s.roomCloseReasons), cuisineTypes: Array.isArray(s.cuisineTypes), conceptTypes: Array.isArray(s.conceptTypes), agreementTypes: Array.isArray(s.agreementTypes), docTypes: Array.isArray(s.docTypes), markets: Array.isArray(s.markets) },
     systemRequired: { leadSources: SYSTEM_LEAD_SOURCES, personTypes: SYSTEM_PERSON_TYPES, companyTypes: SYSTEM_COMPANY_TYPES, activityTypes: SYSTEM_ACTIVITY_TYPES, agreementTypes: AGREEMENT_TYPES.map(function(t){ return t.label; }), markets: SYSTEM_MARKETS },
@@ -12635,10 +12647,11 @@ app.get('/api/admin/types', requireAdmin, (req, res) => {
 });
 app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
   const b = req.body || {}; const s = loadSettings();
-  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; delete s.activityTypes; delete s.roomCloseReasons; delete s.cuisineTypes; delete s.conceptTypes; delete s.docTypes; delete s.markets; delete s.agreementTypes; delete s.maxPullLocations; delete s.defaultState; delete s.assistantName; delete s.listRecencyDays; delete s.listRecencyEnabled; delete s.conceptLabel; delete s.conceptLabelPlural; delete s.showRequestRibbon; delete s.pipelineRequiredOnCompany; delete s.showQuickLinks; delete s.sentSyncEnabled; delete s.sentSyncIntervalMin; delete s.currency; delete s.mktBadges; delete s.marketStyle; delete s.mapStyle; delete s.boardCardFields; delete s.boardCardFlags; delete s.featCalSync; delete s.featCalTasks; delete s.featCalMeet; delete s.featWorkHours; delete s.featEventFiles; delete s.featBooking; delete s.featCalShare; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), conceptTypes: effConceptTypes(), agreementTypes: effAgreementTypes(), docTypes: effDocTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), spaceScanSources: effSpaceScanSources(), ...calFeatFlags() }); }
+  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; delete s.activityTypes; delete s.roomCloseReasons; delete s.cuisineTypes; delete s.conceptTypes; delete s.docTypes; delete s.markets; delete s.agreementTypes; delete s.maxPullLocations; delete s.defaultState; delete s.assistantName; delete s.listRecencyDays; delete s.listRecencyEnabled; delete s.conceptLabel; delete s.conceptLabelPlural; delete s.showRequestRibbon; delete s.pipelineRequiredOnCompany; delete s.showQuickLinks; delete s.sentSyncEnabled; delete s.sentSyncIntervalMin; delete s.currency; delete s.mktBadges; delete s.marketStyle; delete s.marketTheme; delete s.mapStyle; delete s.boardCardFields; delete s.boardCardFlags; delete s.featCalSync; delete s.featCalTasks; delete s.featCalMeet; delete s.featWorkHours; delete s.featEventFiles; delete s.featBooking; delete s.featCalShare; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), conceptTypes: effConceptTypes(), agreementTypes: effAgreementTypes(), docTypes: effDocTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), spaceScanSources: effSpaceScanSources(), ...calFeatFlags() }); }
   if (b.spaceScanSources !== undefined) s.spaceScanSources = _normSourcesList(b.spaceScanSources);
   if (b.mktBadges !== undefined) { const _mb = cleanMktBadges(b.mktBadges); if (_mb && _mb.length) s.mktBadges = _mb; else delete s.mktBadges; }
   if (typeof b.marketStyle === 'string' && MKT_STYLES[b.marketStyle]) s.marketStyle = b.marketStyle;
+  if (b.marketTheme !== undefined) { if (b.marketTheme === null) delete s.marketTheme; else s.marketTheme = cleanMarketTheme(b.marketTheme, s.marketTheme); }
   if (typeof b.mapStyle === 'string' && ['light','voyager','dark'].indexOf(b.mapStyle) >= 0) s.mapStyle = b.mapStyle;
   if (b.boardCardFields && typeof b.boardCardFields === 'object') { const cur = {}; BOARD_CARD_KEYS.forEach(function(k){ cur[k] = !!b.boardCardFields[k]; }); s.boardCardFields = cur; }
   if (b.boardCardFlags && typeof b.boardCardFlags === 'object') { const g=b.boardCardFlags; const hv=(g.highValue&&typeof g.highValue==='object')?g.highValue:{}; const sl=(g.slipping&&typeof g.slipping==='object')?g.slipping:{}; s.boardCardFlags = { highValue:{ on:!!hv.on, amount:String(hv.amount==null?'':hv.amount).replace(/[^0-9]/g,'') }, slipping:{ on:!!sl.on, days:String(sl.days==null?'':sl.days).replace(/[^0-9]/g,'') } }; }
