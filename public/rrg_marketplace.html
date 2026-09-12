@@ -57,6 +57,25 @@ tr:hover td{background:#fbfcfe;}
     <button class="tbtn" id="copyBtn">Copy public link</button>
     <a class="tbtn pri" id="openBtn" href="/market" target="_blank" rel="noopener">Open public marketplace ↗</a>
   </div>
+  <style>
+  .embedcard{margin-bottom:14px;padding:16px 18px;}
+  .embedcard .ecih{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin-bottom:12px;}
+  .embedcard .ecih b{font-size:14px;color:#000E31;}
+  .embedcard .ecih span{font-size:12px;color:#6b7488;}
+  .embedcard .ecrow{margin:10px 0;}
+  .embedcard .ecrow>label{display:block;font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:#8a93a8;margin-bottom:5px;}
+  .embedcard .ecrow>label .dim{font-weight:400;text-transform:none;letter-spacing:0;color:#a3abb8;}
+  .embedcard .eclink{display:flex;gap:8px;align-items:stretch;}
+  .embedcard .eclink input,.embedcard .eclink textarea{flex:1;min-width:0;border:1px solid #cfd6e2;border-radius:7px;padding:9px 11px;font:inherit;font-size:12.5px;color:#22333a;background:#f8fafc;resize:vertical;}
+  .embedcard .eclink textarea{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;line-height:1.5;white-space:pre;}
+  .embedcard .ecnote{font-size:12px;color:#8a93a8;line-height:1.6;margin-top:12px;}
+  </style>
+  <div class="card embedcard">
+    <div class="ecih"><b>Add to your website</b><span>Put your marketplace on your own site — link to it from any page.</span></div>
+    <div class="ecrow"><label>Your public link</label><div class="eclink"><input type="text" id="ecUrl" readonly value=""><button class="tbtn" id="ecCopyUrl">Copy link</button></div></div>
+    <div class="ecrow"><label>Button code <span class="dim">— paste into a raw-HTML page for a styled button</span></label><div class="eclink"><textarea id="ecBtn" readonly rows="3"></textarea><button class="tbtn" id="ecCopyBtn">Copy code</button></div></div>
+    <div class="ecnote">Most site builders (Squarespace, Wix, WordPress, GoDaddy) only need the <b>link</b> — add a normal button or menu item and paste it as the destination. The button code is just for pages you edit in HTML. Want it on your own address like <b>listings.yourdomain.com</b> instead? Ask us to set up a custom domain.</div>
+  </div>
   <div class="card"><div id="body"></div></div>
 </div>
 <div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
@@ -89,10 +108,14 @@ function render(){
   body.innerHTML='<table><thead><tr><th>Listing</th><th>Market</th><th>Category</th><th>Guide</th><th>Status</th><th></th></tr></thead><tbody>'+rows.map(rowHtml).join('')+'</tbody></table>';
 }
 document.getElementById('seg').addEventListener('click',function(e){ var b=e.target.closest('button'); if(!b) return; FILTER=b.getAttribute('data-f'); this.querySelectorAll('button').forEach(function(x){ x.classList.toggle('on',x===b); }); render(); });
-document.getElementById('copyBtn').addEventListener('click',function(){ var u=PUBLIC_URL; if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(u).then(function(){toast('Public link copied ✓');}).catch(function(){rrgPrompt('Copy the public link:',u);}); } else { rrgPrompt('Copy the public link:',u); } });
+function copyText(txt,msg,label){ if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(function(){toast(msg);}).catch(function(){rrgPrompt(label||'Copy:',txt);}); } else { rrgPrompt(label||'Copy:',txt); } }
+document.getElementById('copyBtn').addEventListener('click',function(){ copyText(PUBLIC_URL,'Public link copied ✓','Copy the public link:'); });
+function _btnSnippet(u){ return '<a href="'+u+'" style="display:inline-block;background:#12303a;color:#fff;font-weight:700;font-family:Arial,Helvetica,sans-serif;font-size:15px;padding:13px 24px;border-radius:8px;text-decoration:none;border-top:2px solid #9a7746">Browse Businesses for Sale &rarr;</a>'; }
+function _fillEmbed(){ var u=PUBLIC_URL; var iu=document.getElementById('ecUrl'); if(iu) iu.value=u; var ib=document.getElementById('ecBtn'); if(ib) ib.value=_btnSnippet(u); }
+(function(){ var a=document.getElementById('ecCopyUrl'); if(a) a.addEventListener('click',function(){ copyText(PUBLIC_URL,'Link copied ✓','Copy the public link:'); }); var b=document.getElementById('ecCopyBtn'); if(b) b.addEventListener('click',function(){ copyText(_btnSnippet(PUBLIC_URL),'Button code copied ✓','Copy the button code:'); }); })();
 fetch('/api/marketplace',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
   if(!j||!j.ok){ document.getElementById('body').innerHTML='<div class="empty">Could not load listings.</div>'; return; }
-  PUBLIC_URL=j.publicUrl||'/market'; document.getElementById('openBtn').href=PUBLIC_URL;
+  PUBLIC_URL=j.publicUrl||'/market'; document.getElementById('openBtn').href=PUBLIC_URL; _fillEmbed();
   ALL=j.listings||[]; render();
 }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not reach the server.</div>'; });
 </script>

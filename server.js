@@ -5954,6 +5954,11 @@ function _hexOr(v, d) { v = String(v == null ? '' : v).trim(); return /^#[0-9a-f
 function _shadeHex(hex, f) { try { const n = parseInt(String(hex).replace('#', ''), 16); let r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255; r = Math.max(0, Math.min(255, Math.round(r * f))); g = Math.max(0, Math.min(255, Math.round(g * f))); b = Math.max(0, Math.min(255, Math.round(b * f))); return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1); } catch (e) { return hex; } }
 function cleanMarketTheme(b, prev) { b = b || {}; const out = Object.assign({}, (prev && typeof prev === 'object') ? prev : {}); MARKET_THEME_KEYS.forEach(function (k) { if (b[k] !== undefined) out[k] = _hexOr(b[k], MARKET_THEME_DEFAULT[k]); }); return out; }
 function effMarketTheme() { const s = loadSettings(); const t = (s.marketTheme && typeof s.marketTheme === 'object') ? s.marketTheme : {}; const T = {}; MARKET_THEME_KEYS.forEach(function (k) { T[k] = _hexOr(t[k], MARKET_THEME_DEFAULT[k]); }); T.dark2 = _shadeHex(T.dark, 1.45); T.accentD = _shadeHex(T.accent, 0.82); T.linkD = _shadeHex(T.link, 0.78); return T; }
+// Admin-editable top-strip lines on the public marketplace: line 1 is the brokerage tagline,
+// line 2 the service-area list. Plain text; rendered escaped.
+const MARKET_HEADER_DEFAULT = { tagline: 'Confidential brokerage — restaurants, bars & hospitality real estate', areas: 'Texas · Austin · Dallas · Fort Worth · Houston · San Antonio' };
+function effMarketHeader() { const s = loadSettings(); const h = (s.marketHeader && typeof s.marketHeader === 'object') ? s.marketHeader : {}; return { tagline: (typeof h.tagline === 'string' && h.tagline.trim()) ? h.tagline : MARKET_HEADER_DEFAULT.tagline, areas: (typeof h.areas === 'string' && h.areas.trim()) ? h.areas : MARKET_HEADER_DEFAULT.areas }; }
+function cleanMarketHeader(b) { b = b || {}; return { tagline: String(b.tagline || '').slice(0, 200), areas: String(b.areas || '').slice(0, 200) }; }
 function mktClean(b, prev) {
   prev = prev || {};
   const s = (v, n) => String(v == null ? '' : v).slice(0, n);
@@ -6603,6 +6608,9 @@ app.get('/market', (req, res) => { res.set('Content-Type', 'text/html; charset=u
 function marketplacePublicPage(req) {
   const org = esc(orgDisplayName());
   const T = effMarketTheme();
+  const H = effMarketHeader();
+  const _brand = loadBrand();
+  const mLogo = brandLogoLightUrl() || (_brand.logoExt ? ('/api/brand/logo?v=' + encodeURIComponent(_brand.updatedAt || '')) : '');
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${org} — Marketplace</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin>
@@ -6617,6 +6625,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 header{background:linear-gradient(180deg,var(--navy2),var(--navy));border-bottom:2px solid var(--primary);position:sticky;top:0;z-index:40;}
 .hrow{display:flex;align-items:center;gap:13px;padding:12px 0;flex-wrap:wrap;}
 .disc{width:34px;height:34px;border-radius:4px;background:var(--red);color:#fff;font:900 13px/1 'Arial Black',Arial;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;flex:none;}
+.mlogo{height:36px;width:auto;max-width:190px;object-fit:contain;display:block;flex:none;background:#fff;border-radius:5px;padding:4px 8px;}
 .bwm{font-weight:800;font-size:12px;text-transform:uppercase;line-height:1.05;color:#dbe3f0;letter-spacing:.03em;}
 .bwm i{font-style:normal;color:#8fa0be;font-weight:600;font-size:10px;letter-spacing:.09em;display:block;margin-top:2px;}
 .vb{width:1px;height:26px;background:rgba(255,255,255,.22);margin:0 5px;}
@@ -6645,6 +6654,14 @@ header{background:linear-gradient(180deg,var(--navy2),var(--navy));border-bottom
 .seg button.on{background:var(--primary);color:#fff;}
 .maptog{border:1px solid var(--inp);background:#fff;border-radius:4px;padding:8px 13px;font:inherit;font-size:12px;font-weight:700;color:var(--slate);cursor:pointer;}
 .panelwrap{margin:14px 0;}
+.pager{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:16px 2px 46px;}
+.pager .pgcount{font-size:12px;color:var(--muted);font-weight:600;}
+.pager .pgnav{display:flex;align-items:center;gap:4px;}
+.pager .pgbtn{min-width:30px;height:30px;padding:0 9px;border:1px solid var(--line);background:#fff;border-radius:5px;font:inherit;font-size:12.5px;font-weight:700;color:var(--slate);cursor:pointer;}
+.pager .pgbtn:hover:not(:disabled){border-color:var(--primary);color:var(--primary);}
+.pager .pgbtn.on{background:var(--navy);color:#fff;border-color:var(--navy);cursor:default;}
+.pager .pgbtn:disabled{opacity:.4;cursor:default;}
+.pager .pgdots{padding:0 3px;color:var(--soft);font-size:12.5px;}
 .panel{background:#fff;border:1px solid var(--line);border-radius:6px;overflow:hidden;box-shadow:0 1px 2px rgba(10,20,50,.04);}
 table{width:100%;border-collapse:separate;border-spacing:0;}
 thead th{background:var(--wash);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);text-align:left;padding:11px 14px;border-bottom:1.5px solid var(--line);white-space:nowrap;cursor:pointer;user-select:none;}
@@ -6760,9 +6777,9 @@ footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} 
 @media(max-width:980px){thead th.hide,tbody td.hide{display:none;}.panel{overflow-x:auto;}.resplit{grid-template-columns:1fr;}.remap{position:relative;height:340px;top:0;}.recard{flex-direction:column;}.recard .rph{width:100%;height:170px;}}
 </style></head>
 <body>
-<div class="tstrip"><div class="tin"><span>Confidential brokerage &mdash; restaurants, bars &amp; hospitality real estate</span><span>Texas &middot; Austin &middot; Dallas &middot; Fort Worth &middot; Houston &middot; San Antonio</span></div></div>
+<div class="tstrip"><div class="tin"><span>${esc(H.tagline)}</span><span>${esc(H.areas)}</span></div></div>
 <header><div class="wrap hrow">
-  <span class="disc">RRG</span>
+  ${mLogo ? `<img class="mlogo" src="${mLogo}" alt="${org}">` : `<span class="disc">RRG</span>`}
   <span class="bwm">${org}</span>
   <span class="hauth"><a href="mailto:?subject=Buyer%20registration">Register as a buyer</a></span>
 </div></header>
@@ -6781,6 +6798,8 @@ footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} 
       <span class="search"><span class="mag">&#9906;</span><input id="fSearch" placeholder="Search concept, keyword&hellip;"></span>
       <select class="sel" id="fMarket"><option value="">All metros</option></select>
       <select class="sel" id="fConcept"><option value="">All concepts</option></select>
+      <select class="sel" id="fCash"><option value="">Any cash flow</option>${Object.keys(MKT_CASH).filter(function(k){return k;}).map(function(k){return '<option value="'+k+'">'+MKT_CASH[k]+'</option>';}).join('')}</select>
+      <select class="sel" id="fAsk"><option value="">Any asking</option>${Object.keys(MKT_PRICE).filter(function(k){return k;}).map(function(k){return '<option value="'+k+'">'+MKT_PRICE[k]+'</option>';}).join('')}</select>
       <span class="spacer"></span>
       <select class="sel" id="fSort"><option value="new">Sort: Newest</option><option value="price">Guide: high &rarr; low</option></select>
     </div>
@@ -6796,6 +6815,7 @@ footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} 
         <th></th>
       </tr></thead><tbody id="bizRows"></tbody></table>
     </div></div>
+    <div class="pager" id="bizPager" style="display:none"></div>
   </section>
 
   <section id="mRe" style="display:none">
@@ -6832,6 +6852,7 @@ footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} 
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 var ALL=[], BIZ=[], RE=[], MODE='biz', reTxn='all', mapObj=null, markers={};
+var BIZ_PGSZ=20, bizPage=1;
 var PB=${JSON.stringify(MKT_PRICE)}, CB=${JSON.stringify(MKT_CASH)}, ICON=${JSON.stringify(MKT_ICON_BY)};
 var ORG=${JSON.stringify(orgDisplayName())};
 var CC={'Fast Casual':'#2f7a55','Full Service':'#2c6a8f','Café / Bakery':'#b5791f','Pizza':'#c0392b','Steakhouse':'#a5432f','Bar / Nightlife':'#a23c84','Breakfast / Brunch':'#d9a441'};
@@ -6842,6 +6863,12 @@ function svgIcon(l,cls){ var p=(l.icon&&ICON[l.icon])?ICON[l.icon]:'<path d="M6 
 var LOCK='<span class="lk"><svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>';
 function askLabel(l){ return l.price||l.guide||(l.priceBand&&PB[l.priceBand])||''; }
 function cashLabel(l){ return l.sde||(l.cashBand&&CB[l.cashBand])||''; }
+// Parse a dollar figure out of a label like "$446K", "$3.4M", or a range "$2.75M - $3M" (low end). NaN if none.
+function _mkNum(s){ s=String(s==null?'':s); var m=s.match(/([0-9][0-9.,]*)\s*([kKmM])?/); if(!m) return NaN; var n=parseFloat(m[1].replace(/,/g,'')); if(isNaN(n)) return NaN; var u=(m[2]||'').toLowerCase(); if(!u){ var m2=s.match(/[kKmM]/); if(m2) u=m2[0].toLowerCase(); } if(u==='k') n*=1e3; else if(u==='m') n*=1e6; return n; }
+// Cash-flow filter: min-style bands ($250K+/$500K+/$1M+). Falls back to a set cashBand when no figure is shown.
+function cashPass(l,band){ if(!band) return true; var n=_mkNum(cashLabel(l)); if(isNaN(n)) return l.cashBand===band; if(band==='250k') return n>=250000; if(band==='500k') return n>=500000; if(band==='1m') return n>=1000000; return true; }
+// Asking filter: range bands (Under $1M / $1–3M / $3–5M / $5M+). Falls back to a set priceBand when no figure is shown.
+function askPass(l,band){ if(!band) return true; var n=_mkNum(askLabel(l)); if(isNaN(n)) return l.priceBand===band; if(band==='u1m') return n<1000000; if(band==='1-3m') return n>=1000000&&n<3000000; if(band==='3-5m') return n>=3000000&&n<5000000; if(band==='5m+') return n>=5000000; return true; }
 
 // ---------- businesses (blind) ----------
 function statusPill(l){ if(l.flagLabel){var c=l.flagColor||'#1f6b46';return '<span class="pill" style="background:'+c+'18;color:'+c+';border:1px solid '+c+'55">'+esc(l.flagLabel)+'</span>';} return l.featured?'<span class="pill" style="background:var(--bluebg);color:var(--navy);border:1px solid #cfe0f2">Featured</span>':'<span class="dash">&mdash;</span>'; }
@@ -6871,9 +6898,12 @@ function featCard(l){
 function renderBiz(){
   var q=(document.getElementById('fSearch').value||'').toLowerCase();
   var mk=document.getElementById('fMarket').value, ck=document.getElementById('fConcept').value;
+  var cf=document.getElementById('fCash').value, ak=document.getElementById('fAsk').value;
   var list=BIZ.filter(function(l){
     if(mk&&(l.marketKey||'')!==mk) return false;
     if(ck&&(l.conceptKey||'')!==ck) return false;
+    if(!cashPass(l,cf)) return false;
+    if(!askPass(l,ak)) return false;
     if(q){ var hay=((l.headline||'')+' '+(l.badge||'')+' '+(l.conceptKey||'')+' '+(l.loc||'')).toLowerCase(); if(hay.indexOf(q)<0) return false; }
     return true;
   });
@@ -6887,9 +6917,29 @@ function renderBiz(){
   else { fb.style.display='none'; fb.innerHTML=''; }
   var pw=document.getElementById('bizPanelWrap');
   var tb=document.getElementById('bizRows');
-  if(rest.length){ pw.style.display=''; tb.innerHTML=rest.map(bizRow).join(''); }
-  else if(feats.length){ pw.style.display='none'; tb.innerHTML=''; }
-  else { pw.style.display=''; tb.innerHTML='<tr><td colspan="7"><div class="empty">No matching opportunities. Adjust your filters, or register as a buyer to be notified of new listings.</div></td></tr>'; }
+  if(rest.length){
+    var pages=Math.max(1,Math.ceil(rest.length/BIZ_PGSZ));
+    if(bizPage>pages) bizPage=pages; if(bizPage<1) bizPage=1;
+    var startI=(bizPage-1)*BIZ_PGSZ;
+    var pageRows=rest.slice(startI,startI+BIZ_PGSZ);
+    pw.style.display=''; tb.innerHTML=pageRows.map(bizRow).join('');
+    renderBizPager(rest.length,pages,startI,pageRows.length);
+  }
+  else if(feats.length){ pw.style.display='none'; tb.innerHTML=''; renderBizPager(0,1,0,0); }
+  else { pw.style.display=''; tb.innerHTML='<tr><td colspan="7"><div class="empty">No matching opportunities. Adjust your filters, or register as a buyer to be notified of new listings.</div></td></tr>'; renderBizPager(0,1,0,0); }
+}
+function gotoBizPage(n){ bizPage=n; renderBiz(); var s=document.getElementById('mBiz'); if(s&&s.scrollIntoView) s.scrollIntoView({behavior:'smooth',block:'start'}); }
+function renderBizPager(total,pages,startI,shown){
+  var pg=document.getElementById('bizPager'); if(!pg) return;
+  if(!total){ pg.style.display='none'; pg.innerHTML=''; return; }
+  var from=startI+1, to=startI+shown;
+  var nums=[]; // windowed page numbers with ellipses
+  if(pages<=7){ for(var i=1;i<=pages;i++) nums.push(i); }
+  else { nums.push(1); var lo=Math.max(2,bizPage-1), hi=Math.min(pages-1,bizPage+1); if(lo>2) nums.push('...'); for(var j=lo;j<=hi;j++) nums.push(j); if(hi<pages-1) nums.push('...'); nums.push(pages); }
+  var btns=nums.map(function(n){ if(n==='...') return '<span class="pgdots">&hellip;</span>'; return '<button class="pgbtn'+(n===bizPage?' on':'')+'" '+(n===bizPage?'disabled':'onclick="gotoBizPage('+n+')"')+'>'+n+'</button>'; }).join('');
+  var prev='<button class="pgbtn" '+(bizPage<=1?'disabled':'onclick="gotoBizPage('+(bizPage-1)+')"')+' aria-label="Previous">&lsaquo;</button>';
+  var next='<button class="pgbtn" '+(bizPage>=pages?'disabled':'onclick="gotoBizPage('+(bizPage+1)+')"')+' aria-label="Next">&rsaquo;</button>';
+  pg.style.display=''; pg.innerHTML='<div class="pgcount">Showing '+from+'&ndash;'+to+' of '+total+'</div><div class="pgnav">'+prev+btns+next+'</div>';
 }
 
 // ---------- real estate & assets ----------
@@ -6997,7 +7047,7 @@ document.addEventListener('click',function(e){
 document.querySelectorAll('.modeseg button').forEach(function(b){ b.addEventListener('click',function(){ setMode(b.getAttribute('data-m')); }); });
 document.querySelectorAll('#txnSeg button').forEach(function(b){ b.addEventListener('click',function(){ document.querySelectorAll('#txnSeg button').forEach(function(x){x.classList.toggle('on',x===b);}); reTxn=b.getAttribute('data-t'); renderRE(); }); });
 document.getElementById('maptog').addEventListener('click',function(){ var sp=document.getElementById('resplit'),mp=document.getElementById('reMap'); var hide=!sp.classList.contains('nomap'); sp.classList.toggle('nomap',hide); mp.style.display=hide?'none':''; this.textContent=hide?'Show map':'Hide map'; if(!hide&&mapObj)setTimeout(function(){mapObj.invalidateSize();},60); });
-['fSearch','fMarket','fConcept','fSort'].forEach(function(id){ document.getElementById(id).addEventListener('input',renderBiz); document.getElementById(id).addEventListener('change',renderBiz); });
+['fSearch','fMarket','fConcept','fCash','fAsk','fSort'].forEach(function(id){ var h=function(){ bizPage=1; renderBiz(); }; document.getElementById(id).addEventListener('input',h); document.getElementById(id).addEventListener('change',h); });
 document.getElementById('rCancel').addEventListener('click',closeReq);
 document.getElementById('ov').addEventListener('click',function(e){ if(e.target===this) closeReq(); });
 document.getElementById('rGo').addEventListener('click',function(){
@@ -12690,7 +12740,7 @@ app.get('/api/admin/types', requireAdmin, (req, res) => {
   const s = loadSettings();
   res.json({
     ok: true,
-    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), conceptTypes: effConceptTypes(), agreementTypes: effAgreementTypes(), docTypes: effDocTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), markets: effMarkets(), spaceScanSources: effSpaceScanSources(), mktBadges: effMktBadges(), marketStyle: effMarketStyle(), marketTheme: effMarketTheme(), marketThemeDefault: MARKET_THEME_DEFAULT, mapStyle: effMapStyle(), boardCardFields: effBoardCardFields(), boardCardFlags: effBoardCardFlags(), ...calFeatFlags(),
+    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), conceptTypes: effConceptTypes(), agreementTypes: effAgreementTypes(), docTypes: effDocTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), markets: effMarkets(), spaceScanSources: effSpaceScanSources(), mktBadges: effMktBadges(), marketStyle: effMarketStyle(), marketTheme: effMarketTheme(), marketThemeDefault: MARKET_THEME_DEFAULT, marketHeader: effMarketHeader(), marketHeaderDefault: MARKET_HEADER_DEFAULT, mapStyle: effMapStyle(), boardCardFields: effBoardCardFields(), boardCardFlags: effBoardCardFlags(), ...calFeatFlags(),
     defaults: { personTypes: PERSON_TYPES, companyTypes: COMPANY_TYPES, ticketCategories: TICKET_CATEGORIES, leadSources: LEAD_SOURCES, activityTypes: ACTIVITY_TYPES, roomCloseReasons: ROOM_CLOSE_REASONS, cuisineTypes: CUISINE_TYPES, conceptTypes: CONCEPT_TYPES, agreementTypes: AGREEMENT_TYPES, docTypes: DOC_TYPES, markets: MARKETS },
     isCustom: { personTypes: Array.isArray(s.personTypes), companyTypes: Array.isArray(s.companyTypes), ticketCategories: Array.isArray(s.ticketCategories), leadSources: Array.isArray(s.leadSources), activityTypes: Array.isArray(s.activityTypes), roomCloseReasons: Array.isArray(s.roomCloseReasons), cuisineTypes: Array.isArray(s.cuisineTypes), conceptTypes: Array.isArray(s.conceptTypes), agreementTypes: Array.isArray(s.agreementTypes), docTypes: Array.isArray(s.docTypes), markets: Array.isArray(s.markets) },
     systemRequired: { leadSources: SYSTEM_LEAD_SOURCES, personTypes: SYSTEM_PERSON_TYPES, companyTypes: SYSTEM_COMPANY_TYPES, activityTypes: SYSTEM_ACTIVITY_TYPES, agreementTypes: AGREEMENT_TYPES.map(function(t){ return t.label; }), markets: SYSTEM_MARKETS },
@@ -12698,11 +12748,12 @@ app.get('/api/admin/types', requireAdmin, (req, res) => {
 });
 app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
   const b = req.body || {}; const s = loadSettings();
-  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; delete s.activityTypes; delete s.roomCloseReasons; delete s.cuisineTypes; delete s.conceptTypes; delete s.docTypes; delete s.markets; delete s.agreementTypes; delete s.maxPullLocations; delete s.defaultState; delete s.assistantName; delete s.listRecencyDays; delete s.listRecencyEnabled; delete s.conceptLabel; delete s.conceptLabelPlural; delete s.showRequestRibbon; delete s.pipelineRequiredOnCompany; delete s.showQuickLinks; delete s.sentSyncEnabled; delete s.sentSyncIntervalMin; delete s.currency; delete s.mktBadges; delete s.marketStyle; delete s.marketTheme; delete s.mapStyle; delete s.boardCardFields; delete s.boardCardFlags; delete s.featCalSync; delete s.featCalTasks; delete s.featCalMeet; delete s.featWorkHours; delete s.featEventFiles; delete s.featBooking; delete s.featCalShare; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), conceptTypes: effConceptTypes(), agreementTypes: effAgreementTypes(), docTypes: effDocTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), spaceScanSources: effSpaceScanSources(), ...calFeatFlags() }); }
+  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; delete s.activityTypes; delete s.roomCloseReasons; delete s.cuisineTypes; delete s.conceptTypes; delete s.docTypes; delete s.markets; delete s.agreementTypes; delete s.maxPullLocations; delete s.defaultState; delete s.assistantName; delete s.listRecencyDays; delete s.listRecencyEnabled; delete s.conceptLabel; delete s.conceptLabelPlural; delete s.showRequestRibbon; delete s.pipelineRequiredOnCompany; delete s.showQuickLinks; delete s.sentSyncEnabled; delete s.sentSyncIntervalMin; delete s.currency; delete s.mktBadges; delete s.marketStyle; delete s.marketTheme; delete s.marketHeader; delete s.mapStyle; delete s.boardCardFields; delete s.boardCardFlags; delete s.featCalSync; delete s.featCalTasks; delete s.featCalMeet; delete s.featWorkHours; delete s.featEventFiles; delete s.featBooking; delete s.featCalShare; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), conceptTypes: effConceptTypes(), agreementTypes: effAgreementTypes(), docTypes: effDocTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), spaceScanSources: effSpaceScanSources(), ...calFeatFlags() }); }
   if (b.spaceScanSources !== undefined) s.spaceScanSources = _normSourcesList(b.spaceScanSources);
   if (b.mktBadges !== undefined) { const _mb = cleanMktBadges(b.mktBadges); if (_mb && _mb.length) s.mktBadges = _mb; else delete s.mktBadges; }
   if (typeof b.marketStyle === 'string' && MKT_STYLES[b.marketStyle]) s.marketStyle = b.marketStyle;
   if (b.marketTheme !== undefined) { if (b.marketTheme === null) delete s.marketTheme; else s.marketTheme = cleanMarketTheme(b.marketTheme, s.marketTheme); }
+  if (b.marketHeader !== undefined) { if (b.marketHeader === null) delete s.marketHeader; else s.marketHeader = cleanMarketHeader(b.marketHeader); }
   if (typeof b.mapStyle === 'string' && ['light','voyager','dark'].indexOf(b.mapStyle) >= 0) s.mapStyle = b.mapStyle;
   if (b.boardCardFields && typeof b.boardCardFields === 'object') { const cur = {}; BOARD_CARD_KEYS.forEach(function(k){ cur[k] = !!b.boardCardFields[k]; }); s.boardCardFields = cur; }
   if (b.boardCardFlags && typeof b.boardCardFlags === 'object') { const g=b.boardCardFlags; const hv=(g.highValue&&typeof g.highValue==='object')?g.highValue:{}; const sl=(g.slipping&&typeof g.slipping==='object')?g.slipping:{}; s.boardCardFlags = { highValue:{ on:!!hv.on, amount:String(hv.amount==null?'':hv.amount).replace(/[^0-9]/g,'') }, slipping:{ on:!!sl.on, days:String(sl.days==null?'':sl.days).replace(/[^0-9]/g,'') } }; }
