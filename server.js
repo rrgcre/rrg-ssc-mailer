@@ -6548,21 +6548,25 @@ header{background:var(--navy);border-bottom:2px solid var(--primary);position:st
 .disc{background:var(--red);color:#fff;border-radius:3px;width:32px;height:32px;font:900 12px 'Arial Black',Arial,sans-serif;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
 .bwm{font-weight:700;font-size:11px;text-transform:uppercase;line-height:1.05;color:#cdd6e4;letter-spacing:.02em;}
 .bwm i{font-style:normal;color:#8fa2be;font-weight:600;}
-.hauth a{font-size:12px;font-weight:700;text-decoration:none;color:var(--navy);background:#fff;padding:8px 14px;border-radius:3px;}
-.hero{background:radial-gradient(130% 200% at 10% -40%, #294a86 0%, #14264f 46%, #000B26 100%);color:#fff;position:relative;overflow:hidden;border-bottom:2px solid var(--primary);}
-.hero:after{content:"";position:absolute;right:-60px;top:-90px;width:280px;height:280px;border-radius:50%;background:radial-gradient(circle,rgba(72,120,200,.28),transparent 62%);pointer-events:none;}
-.heroin{padding:15px 0 15px;position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
-.herot{display:flex;align-items:baseline;gap:13px;flex-wrap:wrap;}
-.hstats{display:flex;gap:9px;flex-wrap:wrap;}
-.hstat{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);border-radius:100px;padding:6px 14px;}
-.hstat .d{width:6px;height:6px;border-radius:50%;background:#f0a24b;box-shadow:0 0 0 3px rgba(240,162,75,.22);}
-.hstat b{font-size:13px;font-weight:800;color:#fff;font-variant-numeric:tabular-nums;}
+.hauth a{font-size:12px;font-weight:800;text-decoration:none;color:#fff;background:var(--red);padding:9px 16px;border-radius:100px;box-shadow:0 2px 8px rgba(178,58,44,.35);transition:filter .12s;}
+.hauth a:hover{filter:brightness(1.08);}
+.hero{background:radial-gradient(120% 160% at 8% -30%, #2f5091 0%, #17284f 44%, #00081f 100%);color:#fff;position:relative;overflow:hidden;border-bottom:2px solid var(--primary);}
+.hero:after{content:"";position:absolute;right:-80px;top:-120px;width:360px;height:360px;border-radius:50%;background:radial-gradient(circle,rgba(84,132,214,.30),transparent 62%);pointer-events:none;}
+.hero:before{content:"";position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.05) 1px,transparent 1px);background-size:22px 22px;opacity:.5;pointer-events:none;}
+.heroin{padding:36px 0 32px;position:relative;z-index:2;display:flex;align-items:flex-end;justify-content:space-between;gap:22px;flex-wrap:wrap;}
+.herot{display:flex;flex-direction:column;align-items:flex-start;gap:9px;max-width:720px;}
+.hstats{display:flex;gap:10px;flex-wrap:wrap;}
+.hstat{display:inline-flex;align-items:center;gap:9px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);border-radius:100px;padding:9px 17px;backdrop-filter:blur(3px);}
+.hstat .d{width:7px;height:7px;border-radius:50%;background:#f0a24b;box-shadow:0 0 0 3px rgba(240,162,75,.22);}
+.hstat b{font-size:16px;font-weight:800;color:#fff;font-variant-numeric:tabular-nums;letter-spacing:-.01em;}
 .hstat span{font-size:11px;color:#aebbd6;font-weight:600;}
-.kick{color:#a9bbdd;font-weight:700;letter-spacing:.14em;font-size:10px;text-transform:uppercase;margin:0;white-space:nowrap;}
-.hero h1{font-size:18.5px;font-weight:800;letter-spacing:-.01em;max-width:760px;line-height:1.2;}
+.kick{display:inline-flex;align-items:center;gap:8px;color:#bcccec;font-weight:800;letter-spacing:.16em;font-size:10px;text-transform:uppercase;margin:0;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:100px;padding:5px 12px;}
+.hero h1{font-size:29px;font-weight:800;letter-spacing:-.02em;max-width:720px;line-height:1.1;}
+.hero .subt{color:#c3d0e8;font-size:14px;margin-top:3px;max-width:640px;line-height:1.55;}
 .hero p{color:#c6d0e6;font-size:14px;margin-top:12px;max-width:600px;}
-.filters{background:#fff;border:1px solid var(--line);border-radius:4px;box-shadow:none;padding:9px;display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;}
-.filters select,.filters input{border:1px solid var(--inp);border-radius:3px;padding:9px 11px;font:inherit;font-size:12.5px;background:#fff;color:var(--ink);}
+@media(max-width:760px){.hero h1{font-size:23px;}.heroin{padding:26px 0 24px;}}
+.filters{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 6px 22px rgba(16,26,48,.06);padding:11px;display:flex;gap:8px;flex-wrap:wrap;margin-top:-22px;position:relative;z-index:3;}
+.filters select,.filters input{border:1px solid var(--inp);border-radius:7px;padding:10px 12px;font:inherit;font-size:12.5px;background:#fff;color:var(--ink);}
 .filters .search{flex:1;min-width:190px;}
 .barrow{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin:20px 0 14px;}
 .barrow .cnt{font-size:12.5px;color:var(--muted);} .barrow .cnt b{color:var(--ink);}
@@ -6624,25 +6628,28 @@ footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} 
 .mmsg{font-size:12px;margin-top:10px;min-height:15px;}
 @media(max-width:900px){.grid{grid-template-columns:1fr 1fr;}.lrow{grid-template-columns:1fr;gap:10px;}.lrow .lmet{border-left:none;padding-left:0;}}
 @media(max-width:620px){.grid{grid-template-columns:1fr;}.hero h1{font-size:23px;}}
-.cicow{width:36px;height:36px;flex:none;border-radius:4px;background:var(--wash);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--primary);}
-.cicow.sm{width:30px;height:30px;} .cico{width:19px;height:19px;} .cicow.sm .cico{width:16px;height:16px;}
-.ledgerwrap{background:var(--card);border:1px solid var(--line);border-radius:4px;overflow:hidden;margin-bottom:26px;}
+.cicow{width:44px;height:44px;flex:none;border-radius:12px;background:var(--wash);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--primary);box-shadow:0 1px 2px rgba(16,26,48,.05);}
+.cicow.sm{width:36px;height:36px;border-radius:10px;} .cico{width:23px;height:23px;} .cicow.sm .cico{width:19px;height:19px;}
+.ledgerwrap{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:26px;box-shadow:0 6px 22px rgba(16,26,48,.06);}
 table.lg{width:100%;border-collapse:collapse;}
-.lg thead th{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);font-weight:700;text-align:left;padding:12px 16px;background:var(--wash);border-bottom:1px solid var(--line);white-space:nowrap;}
+.lg thead th{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);font-weight:800;text-align:left;padding:13px 18px;background:linear-gradient(#fbfcfe,#f4f6f9);border-bottom:1px solid var(--line);white-space:nowrap;}
 .lg thead th.num{text-align:right;}
-.lg tbody td{padding:15px 16px;border-bottom:1px solid #e9edf3;vertical-align:middle;}
+.lg tbody td{padding:18px 18px;border-bottom:1px solid #eef1f6;vertical-align:middle;}
 .lg tbody tr:last-child td{border-bottom:none;}
-.lg tbody tr:hover{background:#f8fafc;cursor:pointer;} .lg tbody tr:hover .lgreq{opacity:1;}
-.opw{display:flex;gap:13px;align-items:flex-start;}
-.opw .ey{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--primary);font-weight:700;}
-.opw h3{font-size:15px;font-weight:700;color:var(--slate);line-height:1.28;margin:3px 0 5px;}
-.opw .lk{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--soft);font-weight:600;}
+.lg tbody tr{transition:background .12s;}
+.lg tbody tr:hover{background:#f6f9ff;cursor:pointer;}
+.lg tbody tr.featrow td:first-child{box-shadow:inset 3px 0 0 var(--gold);}
+.opw{display:flex;gap:14px;align-items:center;}
+.opw .ey{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--primary);font-weight:800;}
+.opw h3{font-size:16px;font-weight:800;color:var(--slate);line-height:1.25;margin:3px 0 6px;letter-spacing:-.01em;}
+.opw .lk{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;color:var(--soft);font-weight:700;background:var(--wash);border:1px solid var(--line);border-radius:100px;padding:3px 9px;}
 .opw .lk svg{width:11px;height:11px;stroke:var(--soft);fill:none;stroke-width:2;}
-.lg td.mkc{font-size:12px;color:var(--ink);font-weight:600;white-space:nowrap;}
+.opw .featpill{margin-left:7px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--gold);background:#fdf1df;border:1px solid #eddab0;border-radius:100px;padding:2px 8px;vertical-align:middle;}
+.lg td.mkc{font-size:12.5px;color:var(--ink);font-weight:700;white-space:nowrap;}
 .lg td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
-.lg .g{font-size:15px;font-weight:800;color:var(--navy);} .lg .s{font-size:12.5px;color:var(--ink);font-weight:600;}
-.lgreq{opacity:0;transition:opacity .12s;font-size:12px;font-weight:700;color:var(--primary);white-space:nowrap;background:none;border:none;cursor:pointer;padding:0;}
-@media(hover:none){.lgreq{opacity:1;}}
+.lg .g{font-size:18px;font-weight:800;color:var(--navy);letter-spacing:-.02em;} .lg .s{font-size:13px;color:var(--ink);font-weight:700;}
+.lgreq{font-size:11.5px;font-weight:800;color:#fff;white-space:nowrap;background:var(--primary);border:1px solid var(--primary);cursor:pointer;padding:8px 14px;border-radius:100px;transition:background .12s;box-shadow:0 1px 3px rgba(44,92,143,.25);}
+.lgreq:hover{background:var(--primary-d);}
 @media(max-width:860px){.lg .hs{display:none;}}
 .regwrap{padding-bottom:26px;}
 .reghd{display:flex;align-items:baseline;gap:14px;padding:22px 0 2px;}
@@ -6668,8 +6675,16 @@ table.lg{width:100%;border-collapse:collapse;}
   <span class="hauth"><a href="mailto:?subject=Buyer%20registration">Register as a buyer</a></span>
 </div></header>
 <div class="hero"><div class="wrap heroin">
-  <div class="herot"><span class="kick">Confidential · NDA-gated · Texas</span><h1>Confidential restaurant &amp; bar opportunities</h1></div>
-  <div class="hstats"><span class="hstat"><span class="d"></span><b id="stCount">—</b> <span>opportunities</span></span><span class="hstat"><b id="stMkt">—</b> <span>markets</span></span></div>
+  <div class="herot">
+    <span class="kick">🔒 Confidential · NDA-gated · Texas</span>
+    <h1>Own a proven restaurant or bar.</h1>
+    <div class="subt">A curated, confidential portfolio of restaurant &amp; bar businesses for sale across Texas. Every listing is presented blind — names, addresses and financials stay private until you sign an NDA. Browse below, then request access on the ones that fit.</div>
+  </div>
+  <div class="hstats">
+    <span class="hstat"><span class="d"></span><b id="stCount">—</b> <span>opportunities</span></span>
+    <span class="hstat"><b id="stMkt">—</b> <span>markets</span></span>
+    <span class="hstat"><b>NDA</b> <span>protected</span></span>
+  </div>
 </div></div>
 <div class="wrap">
   <div class="filters">
@@ -6740,13 +6755,25 @@ function conceptIcon(l){
   }
   return '<svg class="cico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">'+p+'</svg>';
 }
+function conceptColor(l){ var t=((l.icon||'')+' '+(l.conceptKey||'')+' '+(l.badge||'')).toLowerCase();
+  if(/bar|cocktail|beer|wine|night|lounge|tavern|pub|brew|speakeasy/.test(t)) return '#7c5cbf';
+  if(/coffee|caf|bakery|bake|pastry|tea|espresso/.test(t)) return '#b5791f';
+  if(/pizza|italian/.test(t)) return '#c0392b';
+  if(/sushi|seafood|oyster|fish|water/.test(t)) return '#0d8c8c';
+  if(/taco|mexic|burrito|cantina|tex/.test(t)) return '#e07b39';
+  if(/brunch|breakfast|diner|pancake|egg/.test(t)) return '#d9a441';
+  if(/steak|bbq|grill|burger|chicken|hotdog|smoke/.test(t)) return '#a5432f';
+  if(/salad|bowl|noodle|ramen|poke|fast|casual|juice|smoothie|healthy/.test(t)) return '#2f7a55';
+  if(/dessert|ice cream|donut|cupcake|sweet/.test(t)) return '#d1568a';
+  return '#2c5c8f';
+}
 function guideOf(l){ return l.guide || (l.priceBand&&PB[l.priceBand]) || ''; }
 var LOCKSVG='<svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
 function ledgerHtml(rows){
   if(!rows.length) return '<div class="empty" style="background:#fff;border:1px solid var(--line);border-radius:4px">No opportunities match those filters right now. Adjust the filters, or register as a buyer to be notified as new listings come to market.</div>';
-  var body=rows.map(function(l){ var g=guideOf(l);
-    return '<tr data-k="'+esc(l.id)+'">'
-      +'<td><div class="opw"><span class="cicow">'+conceptIcon(l)+'</span><div class="opt"><div class="ey">'+esc(l.badge||'Restaurant')+'</div><h3>'+esc(l.headline)+'</h3><span class="lk">'+LOCKSVG+'Blind until NDA</span></div></div></td>'
+  var body=rows.map(function(l){ var g=guideOf(l); var cc=conceptColor(l);
+    return '<tr class="'+(l.featured?'featrow':'')+'" data-k="'+esc(l.id)+'">'
+      +'<td><div class="opw"><span class="cicow" style="color:'+cc+';background:'+cc+'14;border-color:'+cc+'33">'+conceptIcon(l)+'</span><div class="opt"><div class="ey">'+esc(l.badge||'Restaurant')+(l.featured?'<span class="featpill">Featured</span>':'')+'</div><h3>'+esc(l.headline)+'</h3><span class="lk">'+LOCKSVG+'Blind until NDA</span></div></div></td>'
       +'<td class="mkc hs">'+esc(l.loc||l.marketKey||'Texas')+'</td>'
       +'<td class="num"><span class="g">'+(g?esc(g):'—')+'</span></td>'
       +'<td class="num hs"><span class="s">'+(l.revenue?esc(l.revenue):'—')+'</span></td>'
@@ -6760,7 +6787,7 @@ function registerHtml(rows){
   if(!rows.length) return '<div class="empty">No opportunities match those filters right now. Adjust the filters, or register as a buyer to be notified as new listings come to market.</div>';
   var groups={}, order=[]; rows.forEach(function(l){ var k=l.marketKey||l.loc||'Other'; if(!groups[k]){groups[k]=[];order.push(k);} groups[k].push(l); }); order.sort();
   return order.map(function(k){ var items=groups[k].map(function(l){ var g=guideOf(l); var sub=l.sde?((l.earnBasis||'SDE')+' '+l.sde):'';
-      return '<div class="reg" data-k="'+esc(l.id)+'"><span class="cicow sm">'+conceptIcon(l)+'</span><div class="rt"><div class="ey">'+esc(l.badge||'Restaurant')+'</div><div class="rh">'+esc(l.headline)+'</div></div><div class="leader"></div><div class="fig"><div class="g">'+(g?esc(g):'Under NDA')+'</div>'+(sub?'<div class="s">'+esc(sub)+'</div>':'')+'<div style="display:flex;align-items:center;gap:6px;justify-content:flex-end">'+favBtn(l.id)+'<div class="rreq req" data-k="'+esc(l.id)+'">Request access →</div></div></div></div>';
+      return '<div class="reg" data-k="'+esc(l.id)+'"><span class="cicow sm" style="color:'+conceptColor(l)+';background:'+conceptColor(l)+'14;border-color:'+conceptColor(l)+'33">'+conceptIcon(l)+'</span><div class="rt"><div class="ey">'+esc(l.badge||'Restaurant')+'</div><div class="rh">'+esc(l.headline)+'</div></div><div class="leader"></div><div class="fig"><div class="g">'+(g?esc(g):'Under NDA')+'</div>'+(sub?'<div class="s">'+esc(sub)+'</div>':'')+'<div style="display:flex;align-items:center;gap:6px;justify-content:flex-end">'+favBtn(l.id)+'<div class="rreq req" data-k="'+esc(l.id)+'">Request access →</div></div></div></div>';
     }).join('');
     return '<div class="reggrp"><div class="reghd"><h2>'+esc(k)+'</h2><span class="ln"></span><span class="n">'+groups[k].length+' deal'+(groups[k].length>1?'s':'')+'</span></div>'+items+'</div>';
   }).join('');
