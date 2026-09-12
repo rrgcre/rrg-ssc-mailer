@@ -6647,6 +6647,8 @@ td.r{text-align:right;}
 .lcell{display:flex;gap:11px;align-items:center;}
 .thumb{width:64px;height:48px;border-radius:4px;overflow:hidden;flex:none;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;background:repeating-linear-gradient(135deg,#eef1f6 0 6px,#e6eaf1 6px 12px);color:var(--soft);}
 .thumb svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;}
+.thumb.ico{background:var(--bluebg);color:var(--primary);border-color:#cfe0f2;}
+.thumb.ico svg{width:22px;height:22px;stroke-width:1.7;}
 .biz{font-weight:700;color:var(--navy);font-size:13.5px;line-height:1.25;display:flex;align-items:center;gap:7px;}
 .biz .lk{color:var(--soft);flex:none;} .biz .lk svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;display:block;}
 .bmeta{font-size:11.5px;color:var(--muted);margin-top:3px;}
@@ -6660,6 +6662,30 @@ td.r{text-align:right;}
 .act{border:1px solid var(--primary);background:var(--primary);color:#fff;border-radius:4px;padding:8px 13px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;}
 .act:hover{background:var(--primary-d);}
 .empty{padding:52px 20px;text-align:center;color:var(--muted);font-size:13px;}
+/* featured business band */
+.fhdr{display:flex;align-items:baseline;gap:12px;margin:18px 0 12px;}
+.fhdr h2{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--slate);}
+.fhdr .ln{flex:1;height:1px;background:var(--line);}
+.fhdr .n{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(430px,1fr));gap:16px;}
+.fcard{background:#fff;border:1px solid var(--line);border-top:3px solid var(--gold);border-radius:8px;box-shadow:0 8px 24px rgba(16,26,48,.10);padding:20px 22px;display:flex;flex-direction:column;position:relative;overflow:hidden;transition:box-shadow .14s,transform .14s;}
+.fcard:hover{box-shadow:0 14px 34px rgba(16,26,48,.16);transform:translateY(-2px);}
+.fcard:after{content:"";position:absolute;right:-70px;top:-90px;width:240px;height:240px;border-radius:50%;background:radial-gradient(circle,rgba(154,107,21,.10),transparent 62%);pointer-events:none;}
+.fcard .ftop{display:flex;align-items:center;gap:13px;position:relative;z-index:1;}
+.fcard .med{width:54px;height:54px;flex:none;border-radius:13px;background:var(--goldbg);border:1px solid #ecd9a8;display:flex;align-items:center;justify-content:center;color:var(--gold);}
+.fcard .med svg{width:29px;height:29px;}
+.fcard .floc{font-size:10.5px;color:var(--soft);font-weight:700;text-transform:uppercase;letter-spacing:.05em;}
+.fcard .fribbon{margin-left:auto;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#7a5a12;background:var(--goldbg);border:1px solid #ecd9a8;border-radius:100px;padding:5px 12px;}
+.fcard h3{font-size:20px;font-weight:800;color:var(--navy);line-height:1.18;margin:12px 0 4px;letter-spacing:-.015em;}
+.fcard .fbadge{font-size:12.5px;color:var(--muted);font-weight:600;}
+.fcard .fmet{display:flex;gap:30px;margin:17px 0;padding:15px 0;border-top:1px solid var(--line2);border-bottom:1px solid var(--line2);flex-wrap:wrap;}
+.fcard .fmet .v{font-size:20px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums;letter-spacing:-.01em;}
+.fcard .fmet .k{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);margin-top:4px;}
+.fcard .ffoot{display:flex;align-items:center;justify-content:space-between;margin-top:auto;gap:12px;}
+.fcard .flock{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--soft);font-weight:600;}
+.fcard .flock svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;}
+.fcard .act{padding:10px 18px;font-size:12.5px;}
+@media(max-width:520px){.fgrid{grid-template-columns:1fr;}}
 /* RE split */
 .resplit{display:grid;grid-template-columns:1fr 500px;gap:16px;align-items:start;margin:14px 0;}
 .resplit.nomap{grid-template-columns:1fr;}
@@ -6685,6 +6711,26 @@ td.r{text-align:right;}
 .remap #map{position:absolute;inset:0;}
 .mpin{font:800 12px -apple-system,sans-serif;color:#fff;background:var(--teal);border:1.5px solid #fff;border-radius:6px;padding:4px 8px;white-space:nowrap;box-shadow:0 3px 8px rgba(0,0,0,.28);transform:translate(-50%,-120%);}
 .mpin.sale{background:var(--indigo);} .mpin.asset{background:var(--amber);}
+/* featured real-estate band */
+.refeat{display:grid;grid-template-columns:repeat(auto-fill,minmax(440px,1fr));gap:16px;}
+.refcard{background:#fff;border:1px solid var(--line);border-top:3px solid var(--gold);border-radius:8px;overflow:hidden;box-shadow:0 8px 24px rgba(16,26,48,.10);display:flex;flex-direction:column;cursor:pointer;transition:box-shadow .14s,transform .14s;}
+.refcard:hover,.refcard.hot{box-shadow:0 14px 34px rgba(16,26,48,.16);transform:translateY(-2px);border-color:var(--primary);}
+.refcard .rfph{height:220px;position:relative;overflow:hidden;background:linear-gradient(135deg,#1a2f52,#0a1730);display:flex;align-items:center;justify-content:center;}
+.refcard .rfph img{width:100%;height:100%;object-fit:cover;display:block;}
+.refcard .rfph .ico{width:74px;height:74px;color:rgba(255,255,255,.5);}
+.refcard .txn{position:absolute;left:12px;top:12px;z-index:2;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;border-radius:3px;padding:5px 11px;color:#fff;}
+.refcard .txn.lease{background:var(--teal);} .refcard .txn.sale{background:var(--indigo);} .refcard .txn.asset{background:var(--amber);}
+.refcard .fribbon{position:absolute;right:12px;top:12px;z-index:2;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#7a5a12;background:var(--goldbg);border:1px solid #ecd9a8;border-radius:100px;padding:5px 12px;}
+.refcard .rfbody{padding:18px 20px 20px;flex:1;display:flex;flex-direction:column;}
+.refcard .rtype{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--primary);}
+.refcard h3{font-size:20px;font-weight:800;color:var(--navy);line-height:1.18;margin:5px 0 4px;letter-spacing:-.015em;}
+.refcard .addr{font-size:12.5px;color:var(--muted);}
+.refcard .rstats{display:flex;gap:30px;margin:15px 0;padding:14px 0;border-top:1px solid var(--line2);border-bottom:1px solid var(--line2);flex-wrap:wrap;}
+.refcard .rstats .k{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);}
+.refcard .rstats .v{font-size:19px;font-weight:800;color:var(--navy);margin-top:3px;} .refcard .rstats .v.sub{font-size:15px;font-weight:700;color:var(--slate);}
+.refcard .rfoot{display:flex;align-items:center;justify-content:space-between;margin-top:auto;gap:12px;}
+.refcard .adv{font-size:11.5px;color:var(--muted);} .refcard .adv b{color:var(--slate);font-weight:700;}
+@media(max-width:520px){.refeat{grid-template-columns:1fr;}}
 footer{background:var(--navy);color:#95a1ba;font-size:11.5px;line-height:1.7;padding:26px 0;margin-top:14px;}
 footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} footer b{color:#fff;}
 .ov{position:fixed;inset:0;background:rgba(8,14,32,.55);display:none;align-items:center;justify-content:center;z-index:200;padding:20px;}
@@ -6725,7 +6771,8 @@ footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} 
       <span class="spacer"></span>
       <select class="sel" id="fSort"><option value="new">Sort: Newest</option><option value="price">Guide: high &rarr; low</option></select>
     </div>
-    <div class="panelwrap"><div class="panel">
+    <div id="bizFeat" style="display:none"></div>
+    <div class="panelwrap" id="bizPanelWrap"><div class="panel">
       <table><thead><tr>
         <th data-s="headline">Listing</th>
         <th data-s="marketKey">Metro <span class="ar">&#9662;</span></th>
@@ -6744,6 +6791,7 @@ footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} 
       <span class="spacer"></span>
       <button class="maptog" id="maptog">Hide map</button>
     </div>
+    <div id="reFeat" style="display:none"></div>
     <div class="resplit" id="resplit">
       <div class="relist" id="reList"></div>
       <div class="remap" id="reMap"><div id="map"></div></div>
@@ -6787,7 +6835,7 @@ function statusPill(l){ if(l.flagLabel){var c=l.flagColor||'#1f6b46';return '<sp
 function bizRow(l){
   var cash=cashLabel(l), ask=askLabel(l);
   return '<tr class="'+(l.featured?'feat':'')+'">'
-    +'<td><div class="lcell"><span class="thumb"><svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>'
+    +'<td><div class="lcell"><span class="thumb ico" title="'+esc(l.conceptKey||l.badge||'Restaurant')+'">'+svgIcon(l,'')+'</span>'
       +'<div><div class="biz">'+LOCK+esc(l.headline)+'</div><div class="bmeta">'+esc(l.badge||'Restaurant')+'</div></div></div></td>'
     +'<td class="mk2">'+esc(l.marketKey||l.loc||'Texas')+'</td>'
     +'<td class="hide"><span class="cdot"><i style="background:'+cc(l.conceptKey)+'"></i>'+esc(l.conceptKey||l.badge||'Restaurant')+'</span></td>'
@@ -6796,7 +6844,17 @@ function bizRow(l){
     +'<td>'+statusPill(l)+'</td>'
     +'<td class="r"><button class="actlink" data-k="'+esc(l.id)+'">Request access &rarr;</button></td></tr>';
 }
-var bizSort='ask', bizDir=-1;
+function featCard(l){
+  var cash=cashLabel(l), ask=askLabel(l), mets=[];
+  if(ask) mets.push(['Guide',ask]); if(cash) mets.push([l.earnBasis||'SDE',cash]); if(l.revenue) mets.push(['Revenue',l.revenue]);
+  var metHtml=mets.length?mets.map(function(c){return '<div><div class="v num">'+esc(c[1])+'</div><div class="k">'+esc(c[0])+'</div></div>';}).join(''):'<div><div class="v">Under NDA</div><div class="k">Financials on request</div></div>';
+  return '<div class="fcard">'
+    +'<div class="ftop"><span class="med">'+svgIcon(l,'')+'</span><div class="floc">'+esc(l.marketKey||l.loc||'Texas')+'</div><span class="fribbon">&#9733; Featured</span></div>'
+    +'<h3>'+esc(l.headline)+'</h3><div class="fbadge">'+esc(l.badge||'Restaurant')+'</div>'
+    +'<div class="fmet">'+metHtml+'</div>'
+    +'<div class="ffoot"><span class="flock"><svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Blind until NDA</span><button class="act" data-k="'+esc(l.id)+'">Request access &rarr;</button></div>'
+  +'</div>';
+}
 function renderBiz(){
   var q=(document.getElementById('fSearch').value||'').toLowerCase();
   var mk=document.getElementById('fMarket').value, ck=document.getElementById('fConcept').value;
@@ -6809,8 +6867,16 @@ function renderBiz(){
   var sv=document.getElementById('fSort').value;
   function askRank(l){ var m={u1m:1,'1-3m':2,'3-5m':3,'5m+':4}; return m[l.priceBand]||0; }
   list.sort(function(a,b){ if(sv==='price'){ return (askRank(b)-askRank(a))||String(b.publishedAt).localeCompare(String(a.publishedAt)); } return ((b.featured?1:0)-(a.featured?1:0))||String(b.publishedAt).localeCompare(String(a.publishedAt)); });
+  var feats=list.filter(function(l){return l.featured;});
+  var rest=list.filter(function(l){return !l.featured;});
+  var fb=document.getElementById('bizFeat');
+  if(feats.length){ fb.style.display=''; fb.innerHTML='<div class="fhdr"><h2>Featured Opportunities</h2><span class="ln"></span><span class="n">'+feats.length+' highlighted</span></div><div class="fgrid">'+feats.map(featCard).join('')+'</div>'; }
+  else { fb.style.display='none'; fb.innerHTML=''; }
+  var pw=document.getElementById('bizPanelWrap');
   var tb=document.getElementById('bizRows');
-  tb.innerHTML=list.length?list.map(bizRow).join(''):'<tr><td colspan="7"><div class="empty">No matching opportunities. Adjust your filters, or register as a buyer to be notified of new listings.</div></td></tr>';
+  if(rest.length){ pw.style.display=''; tb.innerHTML=rest.map(bizRow).join(''); }
+  else if(feats.length){ pw.style.display='none'; tb.innerHTML=''; }
+  else { pw.style.display=''; tb.innerHTML='<tr><td colspan="7"><div class="empty">No matching opportunities. Adjust your filters, or register as a buyer to be notified of new listings.</div></td></tr>'; }
 }
 
 // ---------- real estate & assets ----------
@@ -6832,15 +6898,30 @@ function reCard(l){
       +'<div class="rfoot"><span class="adv"><b>'+esc(ORG)+'</b> Advisory</span><button class="act" data-k="'+esc(l.id)+'" data-re="1">Request info &rarr;</button></div>'
     +'</div></div>';
 }
+function featCardRE(l){
+  var img=l.photo?('<img src="'+esc(l.photo)+'" alt="">'):svgIcon(l,'ico');
+  return '<div class="refcard" data-id="'+esc(l.id)+'">'
+    +'<div class="rfph"><span class="txn '+esc(l.kind)+'">'+esc(TXNLBL[l.kind]||'Listing')+'</span><span class="fribbon">&#9733; Featured</span>'+img+'</div>'
+    +'<div class="rfbody"><div class="rtype">'+esc(l.propType||l.badge||'Restaurant real estate')+'</div><h3>'+esc(l.headline)+'</h3>'
+      +'<div class="addr">'+esc(l.addr||l.loc||l.marketKey||'Texas')+'</div>'
+      +'<div class="rstats">'+reMetrics(l)+'</div>'
+      +'<div class="rfoot"><span class="adv"><b>'+esc(ORG)+'</b> Advisory</span><button class="act" data-k="'+esc(l.id)+'" data-re="1">Request info &rarr;</button></div>'
+    +'</div></div>';
+}
 function renderRE(){
   var list=RE.filter(function(l){ return reTxn==='all'||l.kind===reTxn; });
+  var feats=list.filter(function(l){return l.featured;});
+  var rest=list.filter(function(l){return !l.featured;});
+  var fb=document.getElementById('reFeat');
+  if(feats.length){ fb.style.display=''; fb.innerHTML='<div class="fhdr"><h2>Featured Listings</h2><span class="ln"></span><span class="n">'+feats.length+' highlighted</span></div><div class="refeat">'+feats.map(featCardRE).join('')+'</div>'; }
+  else { fb.style.display='none'; fb.innerHTML=''; }
   var wrap=document.getElementById('reList');
-  wrap.innerHTML=list.length?list.map(reCard).join(''):'<div class="empty">No real-estate or asset listings in this view yet. Check back soon, or register as a buyer to be notified.</div>';
-  wireHot(list);
+  wrap.innerHTML=rest.length?rest.map(reCard).join(''):(feats.length?'<div class="empty" style="padding:26px">All current listings are featured above.</div>':'<div class="empty">No real-estate or asset listings in this view yet. Check back soon, or register as a buyer to be notified.</div>');
+  wireHot();
   drawMap(list);
 }
-function wireHot(list){
-  document.querySelectorAll('.recard').forEach(function(rc){
+function wireHot(){
+  document.querySelectorAll('.recard,.refcard').forEach(function(rc){
     var id=rc.getAttribute('data-id');
     rc.addEventListener('mouseenter',function(){ var mk=markers[id]; if(mk&&mapObj){ mk._icon&&mk._icon.classList.add('hot'); } });
     rc.addEventListener('mouseleave',function(){ var mk=markers[id]; if(mk&&mk._icon) mk._icon.classList.remove('hot'); });
@@ -6859,7 +6940,7 @@ function drawMap(list){
     var lab=l.price||l.rate||l.guide||(l.priceBand&&PB[l.priceBand])||'View';
     var ic=L.divIcon({className:'',html:'<div class="mpin '+esc(l.kind)+'">'+esc(lab)+'</div>',iconSize:null});
     var mk=L.marker([lat,lng],{icon:ic}).addTo(mapObj);
-    mk.on('click',function(){ var c=document.querySelector('.recard[data-id="'+CSSescape(l.id)+'"]'); if(c){ c.classList.add('hot'); c.scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(function(){c.classList.remove('hot');},1400); } });
+    mk.on('click',function(){ var c=document.querySelector('[data-id="'+CSSescape(l.id)+'"]'); if(c){ c.classList.add('hot'); c.scrollIntoView({behavior:'smooth',block:'center'}); setTimeout(function(){c.classList.remove('hot');},1400); } });
     markers[l.id]=mk; pts.push([lat,lng]);
   });
   if(pts.length){ try{ mapObj.fitBounds(pts,{padding:[40,40],maxZoom:11}); }catch(e){} }
