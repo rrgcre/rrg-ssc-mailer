@@ -1772,15 +1772,15 @@ app.post('/api/admin/agreement-reminders', requireAdmin, express.json(), (req, r
   res.json({ ok: true, first: rd.first, second: rd.second, msg1: rd.msg1, msg2: rd.msg2 });
 });
 // Best-effort notification email. Silently no-ops if SMTP isn't configured, and never throws.
-async function sendNotifyMail(to, subject, text) {
+async function sendNotifyMail(to, subject, text, html) {
   try {
     if (!isEmailConfigured()) return { ok: false, skipped: true };
     const list = (Array.isArray(to) ? to : [to]).filter(Boolean).join(', ');
     if (!list) return { ok: false, skipped: true };
-    const info = await sendMailWL({
+    const info = await sendMailWL(Object.assign({
       from: mailFrom(),
       to: list, subject: String(subject || '').slice(0, 200), text: String(text || ''),
-    });
+    }, html ? { html: String(html) } : {}));
     return { ok: true, id: info.messageId };
   } catch (e) { console.error('notify mail error:', e && e.message); return { ok: false, error: String((e && e.message) || e) }; }
 }
@@ -17106,15 +17106,16 @@ app.post('/api/book/:token', express.json(), async (req, res) => {
       const oTpl = effBookingEmail('owner');
       const oVars = Object.assign({}, gVars, { answers: answersBlock });
       const oSubject = fillTemplate(oTpl.subject, oVars) || ('New booking: ' + name);
-      let oText = sellerEmailRender(oTpl.body, oVars).text;
+      const oR = sellerEmailRender(oTpl.body, oVars);
+      let oText = oR.text, oHtml = oR.html;
       // Guarantee the broker alert always carries the Google Meet link AND the meeting-type
       // custom-field answers, even if the saved template omits the {{join_link}}/{{answers}} tokens.
       if (a.meetMode === 'meet') {
-        if (a.meetUrl) { if (String(oText).indexOf(a.meetUrl) < 0) oText += '\n\nVideo call (Google Meet): ' + a.meetUrl; }
-        else { oText += '\n\nHeads up: this is a video-call booking but a Meet link was not created automatically (connect Google Calendar + Meet, or open the meeting and add a link). The guest was told a link is coming shortly.'; }
+        if (a.meetUrl) { if (String(oText).indexOf(a.meetUrl) < 0) { oText += '\n\nVideo call (Google Meet): ' + a.meetUrl; oHtml += '<p style="margin:14px 0 0">Video call (Google Meet): <a href="' + a.meetUrl + '">' + a.meetUrl + '</a></p>'; } }
+        else { const _mn = 'Heads up: this is a video-call booking but a Meet link was not created automatically (connect Google Calendar + Meet, or open the meeting and add a link). The guest was told a link is coming shortly.'; oText += '\n\n' + _mn; oHtml += '<p style="margin:14px 0 0">' + esc(_mn) + '</p>'; }
       }
-      if (answersBlock && String(oText).indexOf(answersBlock) < 0) { oText += '\n\nWhat they told us:\n' + answersBlock; }
-      const ownerEmail = (prof.email || '').trim(); if (ownerEmail) sendNotifyMail(ownerEmail, oSubject, oText).catch(() => {});
+      if (answersBlock && String(oText).indexOf(answersBlock) < 0) { oText += '\n\nWhat they told us:\n' + answersBlock; oHtml += '<p style="margin:14px 0 0"><b>What they told us</b><br>' + esc(answersBlock).replace(/\n/g, '<br>') + '</p>'; }
+      const ownerEmail = (prof.email || '').trim(); if (ownerEmail) sendNotifyMail(ownerEmail, oSubject, oText, oHtml).catch(() => {});
     }
   } catch (e) {}
   res.json({ ok: true, when: start });
