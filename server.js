@@ -5947,13 +5947,24 @@ function mktActiveBadge(m) { if (!m || !m.flag) return null; const b = mktBadgeB
 // Marketplace presentation style — admin-selectable so each firm's public /market can differ.
 const MKT_STYLES = { grid: 'Card grid', ledger: 'Ledger (table)', register: 'Register (index)' };
 function effMarketStyle() { const s = loadSettings(); const v = String(s.marketStyle || ''); return MKT_STYLES[v] ? v : 'ledger'; }
-// ---- Public marketplace color theme (admin-editable, per-tenant). Default = the "NetSuite" scheme. ----
+// ---- Public marketplace color theme (admin-editable, per-tenant). Default = the platform brand palette. ----
 const MARKET_THEME_DEFAULT = { dark: '#12303a', strip: '#33302a', accent: '#9a7746', link: '#2b8391', mark: '#b23a2c' };
 const MARKET_THEME_KEYS = ['dark', 'strip', 'accent', 'link', 'mark'];
+// The marketplace default follows the platform brand colors (Branding & Appearance) so the two match out of the box.
+function marketThemeDefaults() {
+  const p = effPalette();
+  return {
+    dark: isHexColor(p.primary) ? p.primary : MARKET_THEME_DEFAULT.dark,
+    strip: isHexColor(p.sidebar) ? p.sidebar : MARKET_THEME_DEFAULT.strip,
+    accent: isHexColor(p.accent) ? p.accent : MARKET_THEME_DEFAULT.accent,
+    link: '#2c5c8f',
+    mark: isHexColor(p.accent) ? p.accent : MARKET_THEME_DEFAULT.mark,
+  };
+}
 function _hexOr(v, d) { v = String(v == null ? '' : v).trim(); return /^#[0-9a-fA-F]{6}$/.test(v) ? v.toLowerCase() : d; }
 function _shadeHex(hex, f) { try { const n = parseInt(String(hex).replace('#', ''), 16); let r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255; r = Math.max(0, Math.min(255, Math.round(r * f))); g = Math.max(0, Math.min(255, Math.round(g * f))); b = Math.max(0, Math.min(255, Math.round(b * f))); return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1); } catch (e) { return hex; } }
 function cleanMarketTheme(b, prev) { b = b || {}; const out = Object.assign({}, (prev && typeof prev === 'object') ? prev : {}); MARKET_THEME_KEYS.forEach(function (k) { if (b[k] !== undefined) out[k] = _hexOr(b[k], MARKET_THEME_DEFAULT[k]); }); return out; }
-function effMarketTheme() { const s = loadSettings(); const t = (s.marketTheme && typeof s.marketTheme === 'object') ? s.marketTheme : {}; const T = {}; MARKET_THEME_KEYS.forEach(function (k) { T[k] = _hexOr(t[k], MARKET_THEME_DEFAULT[k]); }); T.dark2 = _shadeHex(T.dark, 1.45); T.accentD = _shadeHex(T.accent, 0.82); T.linkD = _shadeHex(T.link, 0.78); return T; }
+function effMarketTheme() { const s = loadSettings(); const t = (s.marketTheme && typeof s.marketTheme === 'object') ? s.marketTheme : {}; const _def = marketThemeDefaults(); const T = {}; MARKET_THEME_KEYS.forEach(function (k) { T[k] = _hexOr(t[k], _def[k]); }); T.dark2 = _shadeHex(T.dark, 1.45); T.accentD = _shadeHex(T.accent, 0.82); T.linkD = _shadeHex(T.link, 0.78); return T; }
 // Admin-editable top-strip lines on the public marketplace: line 1 is the brokerage tagline,
 // line 2 the service-area list. Plain text; rendered escaped.
 const MARKET_HEADER_DEFAULT = { tagline: 'Confidential brokerage — restaurants, bars & hospitality real estate', areas: 'Texas · Austin · Dallas · Fort Worth · Houston · San Antonio', heading: '', lede: 'Confidential restaurant & bar businesses for acquisition, plus restaurant real estate and turnkey asset sales — for sale or lease. Operating businesses are marketed blind until NDA; real estate and asset sales are openly listed with photos and location.' };
@@ -6675,9 +6686,9 @@ thead th:hover{color:var(--navy);background:#eef2f7;}
 thead th .ar{opacity:0;font-size:9px;margin-left:4px;} thead th.sort .ar{opacity:1;color:var(--primary);}
 tbody td{padding:13px 14px;border-bottom:1px solid var(--line2);vertical-align:middle;}
 tbody tr:last-child td{border-bottom:none;}
-tbody tr:nth-child(even) td{background:#f6f2ea;background:color-mix(in srgb, var(--accent) 8%, #ffffff);}
-tbody tr:hover td{background:#efe6d6;background:color-mix(in srgb, var(--accent) 16%, #ffffff);}
-tbody tr.feat td{background:#eef4f4;background:color-mix(in srgb, var(--primary) 9%, #ffffff);}
+tbody tr:nth-child(even) td{background:#f5f4f2;}
+tbody tr:hover td{background:#eeece8;}
+tbody tr.feat td{background:#f1f0ec;}
 td.r{text-align:right;}
 .lcell{display:flex;gap:11px;align-items:center;}
 .thumb{width:64px;height:48px;border-radius:4px;overflow:hidden;flex:none;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;background:repeating-linear-gradient(135deg,#eef1f6 0 6px,#e6eaf1 6px 12px);color:var(--soft);}
@@ -12776,7 +12787,7 @@ app.get('/api/admin/types', requireAdmin, (req, res) => {
   const s = loadSettings();
   res.json({
     ok: true,
-    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), conceptTypes: effConceptTypes(), agreementTypes: effAgreementTypes(), docTypes: effDocTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), markets: effMarkets(), spaceScanSources: effSpaceScanSources(), mktBadges: effMktBadges(), marketStyle: effMarketStyle(), marketTheme: effMarketTheme(), marketThemeDefault: MARKET_THEME_DEFAULT, marketHeader: effMarketHeader(), marketHeaderDefault: marketHeaderDefaults(), mapStyle: effMapStyle(), boardCardFields: effBoardCardFields(), boardCardFlags: effBoardCardFlags(), ...calFeatFlags(),
+    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), conceptTypes: effConceptTypes(), agreementTypes: effAgreementTypes(), docTypes: effDocTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), markets: effMarkets(), spaceScanSources: effSpaceScanSources(), mktBadges: effMktBadges(), marketStyle: effMarketStyle(), marketTheme: effMarketTheme(), marketThemeDefault: marketThemeDefaults(), marketHeader: effMarketHeader(), marketHeaderDefault: marketHeaderDefaults(), mapStyle: effMapStyle(), boardCardFields: effBoardCardFields(), boardCardFlags: effBoardCardFlags(), ...calFeatFlags(),
     defaults: { personTypes: PERSON_TYPES, companyTypes: COMPANY_TYPES, ticketCategories: TICKET_CATEGORIES, leadSources: LEAD_SOURCES, activityTypes: ACTIVITY_TYPES, roomCloseReasons: ROOM_CLOSE_REASONS, cuisineTypes: CUISINE_TYPES, conceptTypes: CONCEPT_TYPES, agreementTypes: AGREEMENT_TYPES, docTypes: DOC_TYPES, markets: MARKETS },
     isCustom: { personTypes: Array.isArray(s.personTypes), companyTypes: Array.isArray(s.companyTypes), ticketCategories: Array.isArray(s.ticketCategories), leadSources: Array.isArray(s.leadSources), activityTypes: Array.isArray(s.activityTypes), roomCloseReasons: Array.isArray(s.roomCloseReasons), cuisineTypes: Array.isArray(s.cuisineTypes), conceptTypes: Array.isArray(s.conceptTypes), agreementTypes: Array.isArray(s.agreementTypes), docTypes: Array.isArray(s.docTypes), markets: Array.isArray(s.markets) },
     systemRequired: { leadSources: SYSTEM_LEAD_SOURCES, personTypes: SYSTEM_PERSON_TYPES, companyTypes: SYSTEM_COMPANY_TYPES, activityTypes: SYSTEM_ACTIVITY_TYPES, agreementTypes: AGREEMENT_TYPES.map(function(t){ return t.label; }), markets: SYSTEM_MARKETS },
