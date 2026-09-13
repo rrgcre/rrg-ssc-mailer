@@ -16920,10 +16920,10 @@ function cleanBookQ(q) {
 function bookTypes(bk) {
   bk = bk || {};
   if (Array.isArray(bk.types) && bk.types.length) {
-    return bk.types.filter(t => t && t.name).slice(0, 8).map((t, i) => ({ id: String(t.id || ('t' + i)), name: String(t.name).slice(0, 80), length: BOOK_LENGTHS.indexOf(+t.length) >= 0 ? +t.length : 30, mode: (['inperson', 'meet', 'phone'].indexOf(t.mode) >= 0 ? t.mode : 'inperson'), location: String(t.location || '').slice(0, 160), description: String(t.description || '').slice(0, 600), automationId: String(t.automationId || ''), questions: (Array.isArray(t.questions) ? t.questions.filter(q => q && q.q).slice(0, 5).map(cleanBookQ) : []) }));
+    return bk.types.filter(t => t && t.name).slice(0, 8).map((t, i) => ({ id: String(t.id || ('t' + i)), name: String(t.name).slice(0, 80), length: BOOK_LENGTHS.indexOf(+t.length) >= 0 ? +t.length : 30, mode: (['inperson', 'meet', 'phone'].indexOf(t.mode) >= 0 ? t.mode : 'meet'), location: String(t.location || '').slice(0, 160), description: String(t.description || '').slice(0, 600), automationId: String(t.automationId || ''), questions: (Array.isArray(t.questions) ? t.questions.filter(q => q && q.q).slice(0, 5).map(cleanBookQ) : []) }));
   }
   const len = BOOK_LENGTHS.indexOf(+bk.length) >= 0 ? +bk.length : 30;
-  return [{ id: 'default', name: bk.title || 'Meeting', length: len, location: '', description: String(bk.description || '').slice(0, 600), questions: (Array.isArray(bk.questions) ? bk.questions.slice(0, 5) : []) }];
+  return [{ id: 'default', name: bk.title || 'Meeting', length: len, mode: 'meet', location: '', description: String(bk.description || '').slice(0, 600), questions: (Array.isArray(bk.questions) ? bk.questions.slice(0, 5) : []) }];
 }
 function bookTypeById(bk, id) { const ts = bookTypes(bk); return ts.find(t => t.id === id) || ts[0]; }
 function bookingAvailability(username, days, lenOverride) {
@@ -16971,7 +16971,7 @@ app.post('/api/me/booking', express.json(), (req, res) => {
   if (b.title !== undefined) cur.title = String(b.title || '').slice(0, 120);
   // Meeting types — a named list, each with its own length. Empty list falls back to the single length.
   if (Array.isArray(b.types)) {
-    cur.types = b.types.filter(t => t && String(t.name || '').trim()).slice(0, 8).map((t, i) => ({ id: String(t.id || ('t' + Date.now().toString(36) + i)).slice(0, 24), name: String(t.name).trim().slice(0, 80), length: BOOK_LENGTHS.indexOf(+t.length) >= 0 ? +t.length : 30, mode: (['inperson', 'meet', 'phone'].indexOf(t.mode) >= 0 ? t.mode : 'inperson'), location: String(t.location || '').slice(0, 160), description: sanitizeRich(t.description), automationId: String(t.automationId || '').slice(0, 40), questions: (Array.isArray(t.questions) ? t.questions.filter(q => q && String(q.q || '').trim()).slice(0, 5).map(cleanBookQ) : []) }));
+    cur.types = b.types.filter(t => t && String(t.name || '').trim()).slice(0, 8).map((t, i) => ({ id: String(t.id || ('t' + Date.now().toString(36) + i)).slice(0, 24), name: String(t.name).trim().slice(0, 80), length: BOOK_LENGTHS.indexOf(+t.length) >= 0 ? +t.length : 30, mode: (['inperson', 'meet', 'phone'].indexOf(t.mode) >= 0 ? t.mode : 'meet'), location: String(t.location || '').slice(0, 160), description: sanitizeRich(t.description), automationId: String(t.automationId || '').slice(0, 40), questions: (Array.isArray(t.questions) ? t.questions.filter(q => q && String(q.q || '').trim()).slice(0, 5).map(cleanBookQ) : []) }));
   }
   // Invitee questions — up to 5 custom questions shown on the booking form.
   if (Array.isArray(b.questions)) {
@@ -17072,7 +17072,7 @@ app.post('/api/book/:token', express.json(), async (req, res) => {
   let _notes = String(b.notes || '').slice(0, 2000);
   if (_answered.length) { const _qa = _answered.map(x => x.q + ': ' + x.a).join('\n'); _notes = (_notes ? _notes + '\n\n' : '') + _qa; }
   // Location by meeting mode — an online booking is a Google Meet, not the rep's home office.
-  const _mode = (['inperson', 'meet', 'phone'].indexOf(t.mode) >= 0) ? t.mode : 'inperson';
+  const _mode = (['inperson', 'meet', 'phone'].indexOf(t.mode) >= 0) ? t.mode : 'meet';
   let _loc;
   if (_mode === 'meet') _loc = 'Google Meet';
   else if (_mode === 'phone') _loc = 'Phone call' + (prof.phone ? (' — ' + String(prof.phone)) : '');
