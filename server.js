@@ -5948,8 +5948,8 @@ function mktActiveBadge(m) { if (!m || !m.flag) return null; const b = mktBadgeB
 const MKT_STYLES = { grid: 'Card grid', ledger: 'Ledger (table)', register: 'Register (index)' };
 function effMarketStyle() { const s = loadSettings(); const v = String(s.marketStyle || ''); return MKT_STYLES[v] ? v : 'ledger'; }
 // ---- Public marketplace color theme (admin-editable, per-tenant). Default = the platform brand palette. ----
-const MARKET_THEME_DEFAULT = { dark: '#12303a', strip: '#33302a', accent: '#9a7746', link: '#2b8391', mark: '#b23a2c' };
-const MARKET_THEME_KEYS = ['dark', 'strip', 'accent', 'link', 'mark'];
+const MARKET_THEME_DEFAULT = { dark: '#12303a', strip: '#33302a', accent: '#9a7746', link: '#2b8391', mark: '#b23a2c', zebra: '#f6f9fd' };
+const MARKET_THEME_KEYS = ['dark', 'strip', 'accent', 'link', 'mark', 'zebra'];
 // The marketplace default follows the platform brand colors (Branding & Appearance) so the two match out of the box.
 function marketThemeDefaults() {
   const p = effPalette();
@@ -5959,12 +5959,13 @@ function marketThemeDefaults() {
     accent: isHexColor(p.accent) ? p.accent : MARKET_THEME_DEFAULT.accent,
     link: '#2c5c8f',
     mark: isHexColor(p.accent) ? p.accent : MARKET_THEME_DEFAULT.mark,
+    zebra: MARKET_THEME_DEFAULT.zebra,
   };
 }
 function _hexOr(v, d) { v = String(v == null ? '' : v).trim(); return /^#[0-9a-fA-F]{6}$/.test(v) ? v.toLowerCase() : d; }
 function _shadeHex(hex, f) { try { const n = parseInt(String(hex).replace('#', ''), 16); let r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255; r = Math.max(0, Math.min(255, Math.round(r * f))); g = Math.max(0, Math.min(255, Math.round(g * f))); b = Math.max(0, Math.min(255, Math.round(b * f))); return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1); } catch (e) { return hex; } }
 function cleanMarketTheme(b, prev) { b = b || {}; const out = Object.assign({}, (prev && typeof prev === 'object') ? prev : {}); MARKET_THEME_KEYS.forEach(function (k) { if (b[k] !== undefined) out[k] = _hexOr(b[k], MARKET_THEME_DEFAULT[k]); }); return out; }
-function effMarketTheme() { const s = loadSettings(); const t = (s.marketTheme && typeof s.marketTheme === 'object') ? s.marketTheme : {}; const _def = marketThemeDefaults(); const T = {}; MARKET_THEME_KEYS.forEach(function (k) { T[k] = _hexOr(t[k], _def[k]); }); T.dark2 = _shadeHex(T.dark, 1.45); T.accentD = _shadeHex(T.accent, 0.82); T.linkD = _shadeHex(T.link, 0.78); return T; }
+function effMarketTheme() { const s = loadSettings(); const t = (s.marketTheme && typeof s.marketTheme === 'object') ? s.marketTheme : {}; const _def = marketThemeDefaults(); const T = {}; MARKET_THEME_KEYS.forEach(function (k) { T[k] = _hexOr(t[k], _def[k]); }); T.dark2 = _shadeHex(T.dark, 1.45); T.accentD = _shadeHex(T.accent, 0.82); T.linkD = _shadeHex(T.link, 0.78); T.zebraH = _shadeHex(T.zebra, 0.95); T.zebraF = _shadeHex(T.zebra, 0.975); return T; }
 // Admin-editable top-strip lines on the public marketplace: line 1 is the brokerage tagline,
 // line 2 the service-area list. Plain text; rendered escaped.
 const MARKET_HEADER_DEFAULT = { tagline: 'Confidential brokerage — restaurants, bars & hospitality real estate', areas: 'Texas · Austin · Dallas · Fort Worth · Houston · San Antonio', heading: '', lede: 'Confidential restaurant & bar businesses for acquisition, plus restaurant real estate and turnkey asset sales — for sale or lease. Operating businesses are marketed blind until NDA; real estate and asset sales are openly listed with photos and location.' };
@@ -6631,7 +6632,7 @@ function marketplacePublicPage(req) {
 <title>${org} — Marketplace</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin>
 <style>
-:root{--navy:${T.dark};--navy2:${T.dark2};--slate:${T.dark2};--accent:${T.accent};--accent-d:${T.accentD};--strip:${T.strip};--primary:${T.link};--primary-d:${T.linkD};--red:${T.mark};--ink:#22333a;--muted:#5f7178;--soft:#8a9aa0;--line:#d8dfde;--line2:#edf1f0;--wash:#f2f5f4;--inp:#c4ccda;--gold:${T.accent};--goldbg:#f2ecdf;--green:#3f7d6f;--greenbg:#e7f0ec;--redbg:#f6e6e9;--bluebg:#e6f0f0;--amber:#9c6416;--amberbg:#f5ecd9;--teal:#2b8391;--tealbg:#e6f0f0;--indigo:#5b4b9a;--indigobg:#ece9f7;}
+:root{--navy:${T.dark};--navy2:${T.dark2};--slate:${T.dark2};--accent:${T.accent};--accent-d:${T.accentD};--strip:${T.strip};--primary:${T.link};--primary-d:${T.linkD};--red:${T.mark};--zebra:${T.zebra};--zebra-h:${T.zebraH};--zebra-f:${T.zebraF};--ink:#22333a;--muted:#5f7178;--soft:#8a9aa0;--line:#d8dfde;--line2:#edf1f0;--wash:#f2f5f4;--inp:#c4ccda;--gold:${T.accent};--goldbg:#f2ecdf;--green:#3f7d6f;--greenbg:#e7f0ec;--redbg:#f6e6e9;--bluebg:#e6f0f0;--amber:#9c6416;--amberbg:#f5ecd9;--teal:#2b8391;--tealbg:#e6f0f0;--indigo:#5b4b9a;--indigobg:#ece9f7;}
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:#eef1f0;font-size:13px;-webkit-font-smoothing:antialiased;line-height:1.5;}
 .tstrip{background:var(--strip);}
@@ -6686,9 +6687,9 @@ thead th:hover{color:var(--navy);background:#eef2f7;}
 thead th .ar{opacity:0;font-size:9px;margin-left:4px;} thead th.sort .ar{opacity:1;color:var(--primary);}
 tbody td{padding:13px 14px;border-bottom:1px solid var(--line2);vertical-align:middle;}
 tbody tr:last-child td{border-bottom:none;}
-tbody tr:nth-child(even) td{background:#f5f4f2;}
-tbody tr:hover td{background:#eeece8;}
-tbody tr.feat td{background:#f1f0ec;}
+tbody tr:nth-child(even) td{background:var(--zebra);}
+tbody tr:hover td{background:var(--zebra-h);}
+tbody tr.feat td{background:var(--zebra-f);}
 td.r{text-align:right;}
 .lcell{display:flex;gap:11px;align-items:center;}
 .thumb{width:64px;height:48px;border-radius:4px;overflow:hidden;flex:none;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;background:repeating-linear-gradient(135deg,#eef1f6 0 6px,#e6eaf1 6px 12px);color:var(--soft);}
@@ -6714,7 +6715,7 @@ td.r{text-align:right;}
 .fhdr .ln{flex:1;height:1px;background:var(--line);}
 .fhdr .n{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);}
 .fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(430px,1fr));gap:16px;}
-.fcard{background:#fff;border:1px solid var(--line);border-top:3px solid var(--accent);border-radius:8px;box-shadow:0 6px 18px rgba(16,26,48,.09);padding:12px 16px;display:flex;flex-direction:column;position:relative;overflow:hidden;transition:box-shadow .14s,transform .14s;}
+.fcard{background:#fff;border:1px solid var(--line);border-top:3px solid var(--navy);border-radius:8px;box-shadow:0 6px 18px rgba(16,26,48,.09);padding:12px 16px;display:flex;flex-direction:column;position:relative;overflow:hidden;transition:box-shadow .14s,transform .14s;}
 .fcard:hover{box-shadow:0 14px 34px rgba(16,26,48,.16);transform:translateY(-2px);}
 .fcard:after{content:"";position:absolute;right:-70px;top:-90px;width:240px;height:240px;border-radius:50%;background:radial-gradient(circle,rgba(44,92,143,.12),transparent 62%);pointer-events:none;}
 .fcard .ftop{display:flex;align-items:center;gap:13px;position:relative;z-index:1;}
@@ -6759,7 +6760,7 @@ td.r{text-align:right;}
 .mpin.sale{background:var(--indigo);} .mpin.asset{background:var(--amber);}
 /* featured real-estate band */
 .refeat{display:grid;grid-template-columns:repeat(auto-fill,minmax(440px,1fr));gap:16px;}
-.refcard{background:#fff;border:1px solid var(--line);border-top:3px solid var(--accent);border-radius:8px;overflow:hidden;box-shadow:0 8px 24px rgba(16,26,48,.10);display:flex;flex-direction:column;cursor:pointer;transition:box-shadow .14s,transform .14s;}
+.refcard{background:#fff;border:1px solid var(--line);border-top:3px solid var(--navy);border-radius:8px;overflow:hidden;box-shadow:0 8px 24px rgba(16,26,48,.10);display:flex;flex-direction:column;cursor:pointer;transition:box-shadow .14s,transform .14s;}
 .refcard:hover,.refcard.hot{box-shadow:0 14px 34px rgba(16,26,48,.16);transform:translateY(-2px);border-color:var(--primary);}
 .refcard .rfph{height:146px;position:relative;overflow:hidden;background:linear-gradient(135deg,#1a2f52,#0a1730);display:flex;align-items:center;justify-content:center;}
 .refcard .rfph img{width:100%;height:100%;object-fit:cover;display:block;}

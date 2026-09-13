@@ -43,8 +43,8 @@ h1{font-size:20px;font-weight:700;color:var(--navy);margin:0 0 4px}
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function api(m,b){ return fetch('/api/admin/types',{method:m,headers:b?{'Content-Type':'application/json'}:undefined,credentials:'same-origin',body:b?JSON.stringify(b):undefined}).then(function(r){return r.json();}); }
 var PUB=(location.origin||'')+'/market';
-var THEME_FIELDS=[['dark','mtDark','#12303a','Header / dark'],['strip','mtStrip','#33302a','Top strip'],['accent','mtAccent','#9a7746','Accent<br>(buttons, featured)'],['link','mtLink','#2b8391','Links / actions'],['mark','mtMark','#b23a2c','Logo mark']];
-var THEME_DEF={dark:'#12303a',strip:'#33302a',accent:'#9a7746',link:'#2b8391',mark:'#b23a2c'};
+var THEME_FIELDS=[['dark','mtDark','#12303a','Header / dark'],['strip','mtStrip','#33302a','Top strip'],['accent','mtAccent','#9a7746','Accent<br>(buttons, featured)'],['link','mtLink','#2b8391','Links / actions'],['mark','mtMark','#b23a2c','Logo mark'],['zebra','mtZebra','#f6f9fd','Row stripe']];
+var THEME_DEF={dark:'#12303a',strip:'#33302a',accent:'#9a7746',link:'#2b8391',mark:'#b23a2c',zebra:'#f6f9fd'};
 var HEADER_DEF={tagline:'',areas:'',heading:'',lede:''};
 function btnSnippet(u){ return '<a href="'+u+'" style="display:inline-block;background:#12303a;color:#fff;font-weight:700;font-family:Arial,Helvetica,sans-serif;font-size:15px;padding:13px 24px;border-radius:8px;text-decoration:none;border-top:2px solid #9a7746">Browse Businesses for Sale &rarr;</a>'; }
 function copyText(txt,btn,ok){ function flash(){ if(!btn) return; var o=btn.textContent; btn.textContent=ok||'Copied ✓'; setTimeout(function(){btn.textContent=o;},1500); }
