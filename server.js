@@ -6675,9 +6675,9 @@ thead th:hover{color:var(--navy);background:#eef2f7;}
 thead th .ar{opacity:0;font-size:9px;margin-left:4px;} thead th.sort .ar{opacity:1;color:var(--primary);}
 tbody td{padding:13px 14px;border-bottom:1px solid var(--line2);vertical-align:middle;}
 tbody tr:last-child td{border-bottom:none;}
-tbody tr:nth-child(even) td{background:#f6f9fd;}
-tbody tr:hover td{background:#ecf3fb;}
-tbody tr.feat td{background:#f4f8fc;}
+tbody tr:nth-child(even) td{background:#f6f2ea;background:color-mix(in srgb, var(--accent) 8%, #ffffff);}
+tbody tr:hover td{background:#efe6d6;background:color-mix(in srgb, var(--accent) 16%, #ffffff);}
+tbody tr.feat td{background:#eef4f4;background:color-mix(in srgb, var(--primary) 9%, #ffffff);}
 td.r{text-align:right;}
 .lcell{display:flex;gap:11px;align-items:center;}
 .thumb{width:64px;height:48px;border-radius:4px;overflow:hidden;flex:none;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;background:repeating-linear-gradient(135deg,#eef1f6 0 6px,#e6eaf1 6px 12px);color:var(--soft);}
@@ -6882,7 +6882,7 @@ function bizRow(l){
   var cash=cashLabel(l), ask=askLabel(l);
   return '<tr class="'+(l.featured?'feat':'')+'">'
     +'<td><div class="lcell"><span class="thumb ico" title="'+esc(l.conceptKey||l.badge||'Restaurant')+'">'+svgIcon(l,'')+'</span>'
-      +'<div><div class="biz">'+LOCK+esc(l.headline)+'</div><div class="bmeta">'+esc(l.badge||'Restaurant')+'</div></div></div></td>'
+      +'<div><div class="biz">'+esc(l.headline)+'</div><div class="bmeta">'+esc(l.badge||'Restaurant')+'</div></div></div></td>'
     +'<td class="mk2">'+esc(l.marketKey||l.loc||'Texas')+'</td>'
     +'<td class="hide"><span class="mk2">'+esc(l.conceptKey||l.badge||'Restaurant')+'</span></td>'
     +'<td class="r hide">'+(cash?'<span class="lnum num">'+esc(cash)+'</span>':'<span class="dash">&mdash;</span>')+'</td>'
