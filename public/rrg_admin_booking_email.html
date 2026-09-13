@@ -35,11 +35,15 @@ function esc(s){var d=document.createElement('div');d.textContent=s==null?'':Str
 var ADMIN=false, SUBJ='', BODY='', WHICH='guest', KINDS=[];
 var CHIPS={
   guest:['{{guest_first}}','{{guest_name}}','{{meeting_title}}','{{when}}','{{location}}','{{rep_name}}','{{org}}','{{manage_link}}','{{join_link}}'],
-  owner:['{{guest_name}}','{{guest_email}}','{{guest_phone}}','{{meeting_title}}','{{when}}','{{location}}','{{answers}}','{{join_link}}','{{org}}']
+  owner:['{{guest_name}}','{{guest_email}}','{{guest_phone}}','{{meeting_title}}','{{when}}','{{location}}','{{answers}}','{{join_link}}','{{org}}'],
+  guestCancel:['{{guest_first}}','{{guest_name}}','{{meeting_title}}','{{when}}','{{rep_name}}','{{org}}'],
+  ownerCancel:['{{guest_name}}','{{guest_email}}','{{meeting_title}}','{{when}}','{{org}}']
 };
 var NOTE={
   guest:'Placeholders: <b>{{guest_first}}</b> · <b>{{guest_name}}</b> · <b>{{meeting_title}}</b> · <b>{{when}}</b> the date/time · <b>{{location}}</b> (e.g. “Phone call — (210)…”) · <b>{{rep_name}}</b> the broker · <b>{{org}}</b> your company · <b>{{manage_link}}</b> the reschedule/cancel link · <b>{{join_link}}</b> the video-call link (blank for phone calls). A calendar (.ics) invite is always attached automatically.',
-  owner:'Placeholders: <b>{{guest_name}}</b> · <b>{{guest_email}}</b> · <b>{{guest_phone}}</b> · <b>{{meeting_title}}</b> · <b>{{when}}</b> the date/time · <b>{{location}}</b> · <b>{{answers}}</b> any intake questions they answered · <b>{{join_link}}</b> · <b>{{org}}</b> your company.'
+  owner:'Placeholders: <b>{{guest_name}}</b> · <b>{{guest_email}}</b> · <b>{{guest_phone}}</b> · <b>{{meeting_title}}</b> · <b>{{when}}</b> the date/time · <b>{{location}}</b> · <b>{{answers}}</b> any intake questions they answered · <b>{{join_link}}</b> · <b>{{org}}</b> your company.',
+  guestCancel:'Sent to the guest when they cancel through the manage link. Placeholders: <b>{{guest_first}}</b> · <b>{{guest_name}}</b> · <b>{{meeting_title}}</b> · <b>{{when}}</b> the date/time · <b>{{rep_name}}</b> the broker · <b>{{org}}</b> your company.',
+  ownerCancel:'Sent to the broker when a guest cancels. Placeholders: <b>{{guest_name}}</b> · <b>{{guest_email}}</b> · <b>{{meeting_title}}</b> · <b>{{when}}</b> the date/time · <b>{{org}}</b> your company.'
 };
 function kindLabel(k){ for(var i=0;i<KINDS.length;i++){ if(KINDS[i].kind===k) return KINDS[i].label; } return (k==='owner'?'Alert to the broker':'Confirmation to the person who booked'); }
 function render(){

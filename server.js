@@ -6011,7 +6011,10 @@ function mktSuggest(view) {
 function mktTeaser(key, view, m) {
   // PUBLIC-safe — deliberately omits business name, address, and contact for BLIND (business/asset) listings.
   // Real-estate listings (lease/sale) are openly marketed, so they may carry a public area line and photo.
-  const units = (m.units && m.units > 1) ? (' · ' + m.units + ' units') : '';
+  // Unit count: derive from the listing's Locations/Units block when the rep has filled it in, else the manual count.
+  const _siteN = (Array.isArray(view.sites) ? view.sites.filter(function (s) { return s && (s.label || s.address || s.city || s.county || s.zip || s.status || s.price || s.revenue || s.sqft || s.rent || s.leaseEnd || s.sellSeparately); }).length : 0);
+  const _unitN = _siteN > 0 ? _siteN : (parseInt(m.units, 10) || 0);
+  const units = (_unitN > 1) ? (' · ' + _unitN + ' units') : '';
   const badge = ((m.conceptType || m.conceptKey || 'Restaurant') + (m.reAvailable ? ' · RE available' : units)).trim();
   const ab = mktActiveBadge(m);
   const kind = _teaserKind(m, view);
@@ -6831,6 +6834,7 @@ footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} 
       <div class="relist" id="reList"></div>
       <div class="remap" id="reMap"><div id="map"></div></div>
     </div>
+    <div class="pager" id="rePager" style="display:none"></div>
   </section>
 </div>
 
@@ -6854,7 +6858,7 @@ footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} 
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 var ALL=[], BIZ=[], RE=[], MODE='biz', reTxn='all', mapObj=null, markers={};
-var BIZ_PGSZ=20, bizPage=1;
+var BIZ_PGSZ=20, bizPage=1, RE_PGSZ=20, rePage=1;
 var PB=${JSON.stringify(MKT_PRICE)}, CB=${JSON.stringify(MKT_CASH)}, ICON=${JSON.stringify(MKT_ICON_BY)};
 var ORG=${JSON.stringify(orgDisplayName())};
 var CC={'Fast Casual':'#2f7a55','Full Service':'#2c6a8f','Café / Bakery':'#b5791f','Pizza':'#c0392b','Steakhouse':'#a5432f','Bar / Nightlife':'#a23c84','Breakfast / Brunch':'#d9a441'};
@@ -6981,9 +6985,31 @@ function renderRE(){
   if(feats.length){ fb.style.display=''; fb.innerHTML='<div class="fhdr"><h2>Featured Listings</h2><span class="ln"></span><span class="n">'+feats.length+' highlighted</span></div><div class="refeat">'+feats.map(featCardRE).join('')+'</div>'; }
   else { fb.style.display='none'; fb.innerHTML=''; }
   var wrap=document.getElementById('reList');
-  wrap.innerHTML=rest.length?rest.map(reCard).join(''):(feats.length?'<div class="empty" style="padding:26px">All current listings are featured above.</div>':'<div class="empty">No real-estate or asset listings in this view yet. Check back soon, or register as a buyer to be notified.</div>');
+  if(rest.length){
+    var rpages=Math.max(1,Math.ceil(rest.length/RE_PGSZ));
+    if(rePage>rpages) rePage=rpages; if(rePage<1) rePage=1;
+    var rStart=(rePage-1)*RE_PGSZ;
+    var rPageRows=rest.slice(rStart,rStart+RE_PGSZ);
+    wrap.innerHTML=rPageRows.map(reCard).join('');
+    renderREPager(rest.length,rpages,rStart,rPageRows.length);
+  } else {
+    wrap.innerHTML=(feats.length?'<div class="empty" style="padding:26px">All current listings are featured above.</div>':'<div class="empty">No real-estate or asset listings in this view yet. Check back soon, or register as a buyer to be notified.</div>');
+    renderREPager(0,1,0,0);
+  }
   wireHot();
   drawMap(list);
+}
+function gotoREPage(n){ rePage=n; renderRE(); var s=document.getElementById('mRe'); if(s&&s.scrollIntoView) s.scrollIntoView({behavior:'smooth',block:'start'}); }
+function renderREPager(total,pages,startI,shown){
+  var pg=document.getElementById('rePager'); if(!pg) return;
+  if(!total){ pg.style.display='none'; pg.innerHTML=''; return; }
+  var from=startI+1, to=startI+shown, nums=[];
+  if(pages<=7){ for(var i=1;i<=pages;i++) nums.push(i); }
+  else { nums.push(1); var lo=Math.max(2,rePage-1), hi=Math.min(pages-1,rePage+1); if(lo>2) nums.push('...'); for(var j=lo;j<=hi;j++) nums.push(j); if(hi<pages-1) nums.push('...'); nums.push(pages); }
+  var btns=nums.map(function(n){ if(n==='...') return '<span class="pgdots">&hellip;</span>'; return '<button class="pgbtn'+(n===rePage?' on':'')+'" '+(n===rePage?'disabled':'onclick="gotoREPage('+n+')"')+'>'+n+'</button>'; }).join('');
+  var prev='<button class="pgbtn" '+(rePage<=1?'disabled':'onclick="gotoREPage('+(rePage-1)+')"')+' aria-label="Previous">&lsaquo;</button>';
+  var next='<button class="pgbtn" '+(rePage>=pages?'disabled':'onclick="gotoREPage('+(rePage+1)+')"')+' aria-label="Next">&rsaquo;</button>';
+  pg.style.display=''; pg.innerHTML='<div class="pgcount">Showing '+from+'&ndash;'+to+' of '+total+'</div><div class="pgnav">'+prev+btns+next+'</div>';
 }
 function wireHot(){
   document.querySelectorAll('.recard,.refcard').forEach(function(rc){
@@ -7047,7 +7073,7 @@ document.addEventListener('click',function(e){
   var b=e.target.closest('[data-k]'); if(b){ openReq(b.getAttribute('data-k'), b.getAttribute('data-re')==='1'); return; }
 });
 document.querySelectorAll('.modeseg button').forEach(function(b){ b.addEventListener('click',function(){ setMode(b.getAttribute('data-m')); }); });
-document.querySelectorAll('#txnSeg button').forEach(function(b){ b.addEventListener('click',function(){ document.querySelectorAll('#txnSeg button').forEach(function(x){x.classList.toggle('on',x===b);}); reTxn=b.getAttribute('data-t'); renderRE(); }); });
+document.querySelectorAll('#txnSeg button').forEach(function(b){ b.addEventListener('click',function(){ document.querySelectorAll('#txnSeg button').forEach(function(x){x.classList.toggle('on',x===b);}); reTxn=b.getAttribute('data-t'); rePage=1; renderRE(); }); });
 document.getElementById('maptog').addEventListener('click',function(){ var sp=document.getElementById('resplit'),mp=document.getElementById('reMap'); var hide=!sp.classList.contains('nomap'); sp.classList.toggle('nomap',hide); mp.style.display=hide?'none':''; this.textContent=hide?'Show map':'Hide map'; if(!hide&&mapObj)setTimeout(function(){mapObj.invalidateSize();},60); });
 ['fSearch','fMarket','fConcept','fCash','fAsk','fSort'].forEach(function(id){ var h=function(){ bizPage=1; renderBiz(); }; document.getElementById(id).addEventListener('input',h); document.getElementById(id).addEventListener('change',h); });
 document.getElementById('rCancel').addEventListener('click',closeReq);
@@ -9404,10 +9430,18 @@ const BOOKING_EMAIL_DEFAULTS = {
     subject: 'New booking: {{guest_name}}',
     body: '{{guest_name}} ({{guest_email}}) booked {{meeting_title}} for {{when}}.\n\nWhere: {{location}}\nPhone: {{guest_phone}}\n\n{{answers}}',
   },
+  guestCancel: {
+    subject: 'Cancelled: {{meeting_title}}',
+    body: 'Hi {{guest_first}},\n\nYour meeting on {{when}} has been cancelled. If that wasn’t intended, or you’d like to find another time, just book again — happy to make it work.\n\n— {{rep_name}}, {{org}}',
+  },
+  ownerCancel: {
+    subject: 'Booking cancelled: {{guest_name}}',
+    body: '{{guest_name}} ({{guest_email}}) cancelled the meeting scheduled for {{when}}.',
+  },
 };
-const BOOKING_EMAIL_KINDS = [{ kind: 'guest', label: 'Confirmation to the person who booked' }, { kind: 'owner', label: 'Alert to the broker' }];
+const BOOKING_EMAIL_KINDS = [{ kind: 'guest', label: 'Confirmation to the person who booked' }, { kind: 'owner', label: 'Alert to the broker' }, { kind: 'guestCancel', label: 'Cancellation — to the person who booked' }, { kind: 'ownerCancel', label: 'Cancellation — alert to the broker' }];
 function effBookingEmail(which) {
-  which = (which === 'owner') ? 'owner' : 'guest';
+  if (!BOOKING_EMAIL_DEFAULTS[which]) which = 'guest';
   const st = loadSettings();
   const keyed = (st.bookingEmails && st.bookingEmails[which]) || {};
   const def = BOOKING_EMAIL_DEFAULTS[which];
@@ -9477,13 +9511,13 @@ app.post('/api/admin/room-invite-email', express.json({ limit: '64kb' }), (req, 
 });
 // Booking-page emails (guest confirmation + broker alert) — admin editable.
 app.get('/api/admin/booking-emails', (req, res) => {
-  const which = (req.query.which === 'owner') ? 'owner' : 'guest';
+  const which = BOOKING_EMAIL_DEFAULTS[req.query.which] ? req.query.which : 'guest';
   const t = effBookingEmail(which);
   res.json({ ok: true, which: which, kinds: BOOKING_EMAIL_KINDS, subject: t.subject, body: t.body, defaults: BOOKING_EMAIL_DEFAULTS[which], isAdmin: !!(req.user && isSuper(req.user)) });
 });
 app.post('/api/admin/booking-emails', express.json({ limit: '64kb' }), (req, res) => {
   if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Admins only.' });
-  const b = req.body || {}; const which = (b.which === 'owner') ? 'owner' : 'guest'; const s = loadSettings();
+  const b = req.body || {}; const which = BOOKING_EMAIL_DEFAULTS[b.which] ? b.which : 'guest'; const s = loadSettings();
   if (!s.bookingEmails || typeof s.bookingEmails !== 'object') s.bookingEmails = {};
   if (b.reset) { delete s.bookingEmails[which]; saveSettings(s); const t = effBookingEmail(which); return res.json({ ok: true, which: which, subject: t.subject, body: t.body }); }
   s.bookingEmails[which] = { subject: String(b.subject || '').slice(0, 300), body: String(b.body || '').slice(0, 20000) };
@@ -17077,8 +17111,11 @@ app.post('/api/book/manage/:token/cancel', express.json(), (req, res) => {
       const prof = auth.profileOf(auth.findUser(a.byUser)) || {};
       const when = String(a.start || '').replace('T', ' at ');
       const guest = (a.attendees && a.attendees[0]) || {};
-      const oEmail = (prof.email || '').trim(); if (oEmail) sendNotifyMail(oEmail, 'Booking cancelled: ' + (guest.name || 'guest'), (guest.name || 'A guest') + (guest.email ? (' (' + guest.email + ')') : '') + ' cancelled the meeting scheduled for ' + when + '.').catch(() => {});
-      if (guest.email) sendNotifyMail(guest.email, 'Cancelled: ' + a.title, 'Your meeting on ' + when + ' has been cancelled.').catch(() => {});
+      const org = orgDisplayName();
+      const cVars = { guest_first: (String(guest.name || '').trim().split(/\s+/)[0] || 'there'), guest_name: guest.name || '', guest_email: guest.email || '', meeting_title: a.title || 'Meeting', when: when, rep_name: a.byName || prof.name || org, org: org };
+      const oc = effBookingEmail('ownerCancel'), gc = effBookingEmail('guestCancel');
+      const oEmail = (prof.email || '').trim(); if (oEmail) sendNotifyMail(oEmail, fillTemplate(oc.subject, cVars) || ('Booking cancelled: ' + (guest.name || 'guest')), sellerEmailRender(oc.body, cVars).text).catch(() => {});
+      if (guest.email) sendNotifyMail(guest.email, fillTemplate(gc.subject, cVars) || ('Cancelled: ' + a.title), sellerEmailRender(gc.body, cVars).text).catch(() => {});
     }
   } catch (e) {}
   res.json({ ok: true });
