@@ -7218,10 +7218,12 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   // Multi-location business: each unit's own address/lease/size/status/price/revenue. INTERNAL ONLY —
   // never surfaced on the public marketplace teaser (business listings stay blind).
   if (Array.isArray(b.sites)) { cur.sites = b.sites.slice(0, 60).map(function (s) { s = s || {}; return {
-    label: String(s.label || '').slice(0, 80), address: String(s.address || '').slice(0, 200),
+    label: String(s.label || '').slice(0, 80), concept: String(s.concept || '').slice(0, 80), address: String(s.address || '').slice(0, 200),
+    area: String(s.area || '').slice(0, 120), market: String(s.market || '').slice(0, 80),
     city: String(s.city || '').slice(0, 120), county: String(s.county || '').slice(0, 120), zip: String(s.zip || '').slice(0, 20),
     sqft: String(s.sqft || '').replace(/[^0-9,]/g, '').slice(0, 20), rent: String(s.rent || '').replace(/[^0-9,]/g, '').slice(0, 20),
     leaseEnd: String(s.leaseEnd || '').slice(0, 10), status: String(s.status || '').slice(0, 40),
+    optionCount: String(s.optionCount || '').replace(/[^0-9]/g, '').slice(0, 6), optionYears: String(s.optionYears || '').replace(/[^0-9.]/g, '').slice(0, 6),
     revenue: String(s.revenue || '').replace(/[^0-9,]/g, '').slice(0, 20), price: String(s.price || '').replace(/[^0-9,]/g, '').slice(0, 20),
     sellSeparately: !!s.sellSeparately
   }; }); }
