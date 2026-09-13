@@ -17103,8 +17103,13 @@ app.post('/api/book/:token', express.json(), async (req, res) => {
       const oVars = Object.assign({}, gVars, { answers: answersBlock });
       const oSubject = fillTemplate(oTpl.subject, oVars) || ('New booking: ' + name);
       let oText = sellerEmailRender(oTpl.body, oVars).text;
-      const _ownerMeetNote = (a.meetMode === 'meet' && !a.meetUrl) ? '\n\nHeads up: this is a video-call booking but a link was not created automatically (connect Google Calendar + Meet, or open the meeting and add a link). The guest was told a link is coming shortly.' : (a.meetUrl ? ('\n\nVideo call: ' + a.meetUrl) : '');
-      if (_ownerMeetNote) oText += _ownerMeetNote;
+      // Guarantee the broker alert always carries the Google Meet link AND the meeting-type
+      // custom-field answers, even if the saved template omits the {{join_link}}/{{answers}} tokens.
+      if (a.meetMode === 'meet') {
+        if (a.meetUrl) { if (String(oText).indexOf(a.meetUrl) < 0) oText += '\n\nVideo call (Google Meet): ' + a.meetUrl; }
+        else { oText += '\n\nHeads up: this is a video-call booking but a Meet link was not created automatically (connect Google Calendar + Meet, or open the meeting and add a link). The guest was told a link is coming shortly.'; }
+      }
+      if (answersBlock && String(oText).indexOf(answersBlock) < 0) { oText += '\n\nWhat they told us:\n' + answersBlock; }
       const ownerEmail = (prof.email || '').trim(); if (ownerEmail) sendNotifyMail(ownerEmail, oSubject, oText).catch(() => {});
     }
   } catch (e) {}
