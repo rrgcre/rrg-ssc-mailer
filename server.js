@@ -9443,8 +9443,8 @@ const BOOKING_EMAIL_DEFAULTS = {
     body: 'Hi {{guest_first}},\n\nYou’re booked for {{meeting_title}} on {{when}}.\n\nWhere: {{location}}\n\nNeed to change it? Reschedule or cancel here:\n{{manage_link}}\n\nLooking forward to speaking with you.\n\n— {{rep_name}}, {{org}}',
   },
   owner: {
-    subject: 'New booking: {{guest_name}}',
-    body: '{{guest_name}} ({{guest_email}}) booked {{meeting_title}} for {{when}}.\n\nWhere: {{location}}\nPhone: {{guest_phone}}\n\n{{answers}}',
+    subject: 'New booking: {{guest_name}} — {{meeting_title}}',
+    body: 'New booking on your calendar.\n\n{{meeting_title}}\nWhen: {{when}}\nWhere: {{location}}\nJoin the video call (Google Meet): {{join_link}}\n\n— Contact —\nName: {{guest_name}}\nEmail: {{guest_email}}\nPhone: {{guest_phone}}\n\n— What they told us —\n{{answers}}',
   },
   guestCancel: {
     subject: 'Cancelled: {{meeting_title}}',
