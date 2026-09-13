@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Marketplace Settings</title>
+<style>
+:root{--navy:#0b1636;--navy2:#16346e;--ink:#141a29;--dim:#5f6a7d;--soft:#8a93a3;--line:#e5e9f1;--green:#1f8a5b;--red:#C0261B;}
+*{box-sizing:border-box}html,body{margin:0;background:#fff}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}
+.wrap{max-width:920px;margin:0 auto;padding:22px 24px 64px}
+h1{font-size:20px;font-weight:700;color:var(--navy);margin:0 0 4px}
+.sub{font-size:13px;color:var(--dim);margin-bottom:16px;line-height:1.5;max-width:660px}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+.tbtn{display:inline-flex;align-items:center;gap:6px;border:1px solid #cbd2dc;background:#fff;color:#26324a;border-radius:8px;padding:9px 15px;font:inherit;font-size:13px;font-weight:700;text-decoration:none;cursor:pointer}
+.tbtn.pri{background:var(--navy);color:#fff;border-color:var(--navy)}
+.tbtn:hover{border-color:var(--navy2)}
+.card{border:1px solid var(--line);border-radius:12px;margin-bottom:16px;overflow:hidden}
+.ch{padding:12px 16px;border-bottom:1px solid var(--line);background:#f7f9fc}
+.ch b{font-size:14px;color:var(--navy)} .ch span{font-size:12px;color:var(--dim);margin-left:6px}
+.cb{padding:16px}
+.fld{margin:10px 0} .fld>label{display:block;font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--soft);margin-bottom:5px}
+.fld>label .lc{font-weight:400;letter-spacing:0;text-transform:none;color:#8a93a8}
+.fld input[type=text],.fld textarea{width:100%;border:1px solid #cfd6e2;border-radius:7px;padding:9px 11px;font:inherit;font-size:13.5px;color:var(--ink);background:#fff;resize:vertical;line-height:1.5}
+.eclink{display:flex;gap:8px;align-items:stretch}
+.eclink input,.eclink textarea{flex:1;min-width:0;border:1px solid #cfd6e2;border-radius:7px;padding:9px 11px;font:inherit;font-size:12.5px;color:var(--ink);background:#f8fafc;resize:vertical}
+.eclink textarea{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;line-height:1.5;white-space:pre}
+.mtc{width:52px;height:34px;padding:0;border:1px solid #cbd2dc;border-radius:6px;cursor:pointer;background:#fff}
+.mtl{font-size:11px;color:#5a6472;margin-top:5px;line-height:1.2}
+.colors{display:flex;gap:22px;flex-wrap:wrap;margin:2px 0 4px}
+.colors>div{text-align:center}
+.btnrow{display:flex;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap}
+.btn{background:var(--navy);color:#fff;border:none;border-radius:8px;padding:10px 18px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.btn.ghost{background:#eef1f6;color:#33415c;border:1px solid #dce2ec}
+.msg{font-size:12.5px;font-weight:600}.msg.ok{color:var(--green)}.msg.err{color:var(--red)}
+.note{font-size:12px;color:var(--soft);margin-top:12px;line-height:1.6}
+.gate{color:var(--dim);font-size:13.5px;padding:30px 0}
+</style>
+</head>
+<body>
+<div class="wrap" id="root"><div class="gate">Loading…</div></div>
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function api(m,b){ return fetch('/api/admin/types',{method:m,headers:b?{'Content-Type':'application/json'}:undefined,credentials:'same-origin',body:b?JSON.stringify(b):undefined}).then(function(r){return r.json();}); }
+var PUB=(location.origin||'')+'/market';
+var THEME_FIELDS=[['dark','mtDark','#12303a','Header / dark'],['strip','mtStrip','#33302a','Top strip'],['accent','mtAccent','#9a7746','Accent<br>(buttons, featured)'],['link','mtLink','#2b8391','Links / actions'],['mark','mtMark','#b23a2c','Logo mark']];
+var THEME_DEF={dark:'#12303a',strip:'#33302a',accent:'#9a7746',link:'#2b8391',mark:'#b23a2c'};
+var HEADER_DEF={tagline:'',areas:'',heading:'',lede:''};
+function btnSnippet(u){ return '<a href="'+u+'" style="display:inline-block;background:#12303a;color:#fff;font-weight:700;font-family:Arial,Helvetica,sans-serif;font-size:15px;padding:13px 24px;border-radius:8px;text-decoration:none;border-top:2px solid #9a7746">Browse Businesses for Sale &rarr;</a>'; }
+function copyText(txt,btn,ok){ function flash(){ if(!btn) return; var o=btn.textContent; btn.textContent=ok||'Copied ✓'; setTimeout(function(){btn.textContent=o;},1500); }
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(flash).catch(function(){ window.prompt&&window.prompt('Copy:',txt); }); } else { window.prompt&&window.prompt('Copy:',txt); } }
+function render(){
+  var root=document.getElementById('root');
+  root.innerHTML=''
+    +'<h1>Marketplace</h1>'
+    +'<div class="sub">Everything for your public marketplace at <b>/market</b> — how to put it on your website, its colors, and its header text. Manage which listings appear from the <b>Listings</b> page (flip <b>Public</b> on any listing).</div>'
+    +'<div class="toolbar"><a class="tbtn pri" href="/market" target="_blank" rel="noopener">View public marketplace ↗</a><a class="tbtn" href="./rrg_board.html" target="_blank" rel="noopener">Manage listings ↗</a></div>'
+    // Add to your website
+    +'<div class="card"><div class="ch"><b>Add to your website</b><span>— link to your marketplace from any page on your site.</span></div><div class="cb">'
+      +'<div class="fld"><label>Your public link</label><div class="eclink"><input type="text" id="ecUrl" readonly value="'+esc(PUB)+'"><button class="tbtn" id="ecCopyUrl">Copy link</button></div></div>'
+      +'<div class="fld"><label>Button code <span class="lc">— paste into a raw-HTML page for a styled button</span></label><div class="eclink"><textarea id="ecBtn" readonly rows="3">'+esc(btnSnippet(PUB))+'</textarea><button class="tbtn" id="ecCopyBtn">Copy code</button></div></div>'
+      +'<div class="note">Most site builders (Squarespace, Wix, WordPress, GoDaddy) only need the <b>link</b> — add a normal button or menu item and paste it as the destination. The button code is just for pages you edit in HTML. Want it on your own address like <b>listings.yourdomain.com</b> instead? Ask us to set up a custom domain.</div>'
+    +'</div></div>'
+    // Colors
+    +'<div class="card"><div class="ch"><b>Marketplace colors</b><span>— the theme buyers see at /market. This does not change the admin app.</span></div><div class="cb">'
+      +'<div class="colors">'+THEME_FIELDS.map(function(f){ return '<div><input type="color" class="mtc" id="'+f[1]+'" value="'+f[2]+'"><div class="mtl">'+f[3]+'</div></div>'; }).join('')+'</div>'
+      +'<div class="btnrow"><button class="btn" id="mtSave">Save colors</button><button class="btn ghost" id="mtReset">Reset to default</button><span class="msg" id="mtMsg"></span></div>'
+      +'<div class="note">Each SaaS tenant can set their own marketplace palette. Changes go live on the public marketplace as soon as you save. Your logo comes from <b>Settings → Branding &amp; Appearance</b> — upload a light version so it reads on the dark header.</div>'
+    +'</div></div>'
+    // Header text
+    +'<div class="card"><div class="ch"><b>Marketplace header</b><span>— the headline, intro, and the top-strip lines on your public marketplace.</span></div><div class="cb">'
+      +'<div class="fld"><label>Top strip — tagline <span class="lc">(first line)</span></label><input type="text" id="mhTagline" maxlength="200" placeholder="Confidential brokerage — restaurants, bars &amp; hospitality real estate"></div>'
+      +'<div class="fld"><label>Top strip — service areas <span class="lc">(second line)</span></label><input type="text" id="mhAreas" maxlength="200" placeholder="Texas · Austin · Dallas · Fort Worth · Houston · San Antonio"></div>'
+      +'<div class="fld"><label>Headline <span class="lc">(the big title)</span></label><input type="text" id="mhHeading" maxlength="200" placeholder="The Restaurant Realty Group Marketplace"></div>'
+      +'<div class="fld"><label>Intro paragraph <span class="lc">(under the headline)</span></label><textarea id="mhLede" maxlength="800" rows="3"></textarea></div>'
+      +'<div class="btnrow"><button class="btn" id="mhSave">Save header</button><button class="btn ghost" id="mhReset">Reset to default</button><span class="msg" id="mhMsg"></span></div>'
+      +'<div class="note">Plain text. Leave the headline blank to use “The {your brokerage} Marketplace” automatically.</div>'
+    +'</div></div>';
+  // wire add-to-website
+  document.getElementById('ecCopyUrl').addEventListener('click',function(){ copyText(PUB,this,'Copied ✓'); });
+  document.getElementById('ecCopyBtn').addEventListener('click',function(){ copyText(btnSnippet(PUB),this,'Copied ✓'); });
+  // wire colors
+  document.getElementById('mtSave').addEventListener('click',saveTheme);
+  document.getElementById('mtReset').addEventListener('click',resetTheme);
+  document.getElementById('mhSave').addEventListener('click',saveHeader);
+  document.getElementById('mhReset').addEventListener('click',resetHeader);
+}
+function _themeSet(t){ t=t||{}; THEME_FIELDS.forEach(function(f){ var el=document.getElementById(f[1]); if(el&&t[f[0]]) el.value=t[f[0]]; }); }
+function _themeCollect(){ var o={}; THEME_FIELDS.forEach(function(f){ var el=document.getElementById(f[1]); if(el) o[f[0]]=el.value; }); return o; }
+function _headerSet(h){ h=h||{}; var g=function(id,v){ var el=document.getElementById(id); if(el) el.value=(v!=null?v:''); }; g('mhTagline',h.tagline); g('mhAreas',h.areas); g('mhHeading',h.heading); g('mhLede',h.lede); }
+function _headerCollect(){ var v=function(id){ return ((document.getElementById(id)||{}).value||'').trim(); }; return { tagline:v('mhTagline'), areas:v('mhAreas'), heading:v('mhHeading'), lede:v('mhLede') }; }
+function _msg(id,txt,cls){ var m=document.getElementById(id); if(m){ m.textContent=txt; m.className='msg'+(cls?' '+cls:''); } }
+function saveTheme(){ _msg('mtMsg','Saving…'); api('POST',{marketTheme:_themeCollect()}).then(function(j){ _msg('mtMsg', (j&&j.ok)?'Saved ✓ — live on /market':((j&&j.error)||'Could not save.'), (j&&j.ok)?'ok':'err'); }).catch(function(){ _msg('mtMsg','Could not reach the server.','err'); }); }
+function resetTheme(){ _themeSet(THEME_DEF); _msg('mtMsg','Saving…'); api('POST',{marketTheme:null}).then(function(j){ _msg('mtMsg',(j&&j.ok)?'Reset to default ✓':((j&&j.error)||'Could not reset.'),(j&&j.ok)?'ok':'err'); }).catch(function(){ _msg('mtMsg','Could not reach the server.','err'); }); }
+function saveHeader(){ _msg('mhMsg','Saving…'); api('POST',{marketHeader:_headerCollect()}).then(function(j){ _msg('mhMsg',(j&&j.ok)?'Saved ✓ — live on /market':((j&&j.error)||'Could not save.'),(j&&j.ok)?'ok':'err'); }).catch(function(){ _msg('mhMsg','Could not reach the server.','err'); }); }
+function resetHeader(){ _headerSet(HEADER_DEF); _msg('mhMsg','Saving…'); api('POST',{marketHeader:null}).then(function(j){ if(j&&j.ok){ _headerSet(j.marketHeader||HEADER_DEF); } _msg('mhMsg',(j&&j.ok)?'Reset to default ✓':((j&&j.error)||'Could not reset.'),(j&&j.ok)?'ok':'err'); }).catch(function(){ _msg('mhMsg','Could not reach the server.','err'); }); }
+api('GET').then(function(j){
+  if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">Marketplace settings are available to administrators.</div>'; return; }
+  if(j.marketThemeDefault) THEME_DEF=j.marketThemeDefault;
+  if(j.marketHeaderDefault) HEADER_DEF=j.marketHeaderDefault;
+  render();
+  _themeSet(j.marketTheme||THEME_DEF);
+  _headerSet(j.marketHeader||HEADER_DEF);
+}).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not reach the server.</div>'; });
+</script>
+</body>
+</html>

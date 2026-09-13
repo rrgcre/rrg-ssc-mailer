@@ -173,7 +173,6 @@
     { grp: 'Business Sales', color: '#6bbf95', items: [
       { ic: '⊞', label: 'Listings', href: 'rrg_board.html' },
       { ic: '◎', label: 'Buyers', href: 'rrg_buyer_board.html' },
-      { ic: '◱', label: 'Marketplace', href: 'rrg_marketplace.html' },
       { ic: '▥', label: 'Data Rooms', href: 'rrg_rooms_queue.html' },
       { ic: '◈', label: 'Deals', href: 'rrg_deals.html' }
     ] },
