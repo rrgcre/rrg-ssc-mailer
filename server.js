@@ -16759,7 +16759,7 @@ app.post('/api/appointments/:id/invite', express.json(), async (req, res) => {
   if (!isEmailConfigured()) return res.status(400).json({ ok: false, error: 'Email is not set up (Admin → Email).' });
   const to = (a.attendees || []).map(x => x.email).filter(Boolean);
   if (!to.length) return res.status(400).json({ ok: false, error: 'Add at least one attendee email first.' });
-  const when = String(a.start || '').replace('T', ' at ') + (a.end ? (' – ' + String(a.end).replace(/^.*T/, '')) : '');
+  const when = _fmtWhen(a.start) + (a.end ? (' – ' + _fmtClock(String(a.end).replace(/^.*T/, ''))) : '');
   let _repEmail = (req.user && req.user.email) || ''; if (!_repEmail && a.byUser) { try { const _ru = auth.loadUsers().find(x => x.username === a.byUser); if (_ru && _ru.email) _repEmail = _ru.email; } catch (e) {} }
   // Default (fallback) invite — used if the editable template is missing or blank.
   let subject = 'Invitation: ' + (a.title || 'Meeting');
@@ -16897,6 +16897,10 @@ function _bmToMin(hm) { const p = String(hm || '').split(':'); return (+p[0] || 
 function _bAddMin(naive, min) { const d = new Date(naive + ':00Z'); d.setUTCMinutes(d.getUTCMinutes() + min); return d.toISOString().slice(0, 16); }
 function _bAddDays(dstr, n) { const d = new Date(dstr + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
 function _bDow(dstr) { return new Date(dstr + 'T12:00:00Z').getUTCDay(); }
+// Friendly 12-hour clock ("14:30" -> "2:30 PM") for emails/invites.
+function _fmtClock(hhmm) { const p = String(hhmm || '').split(':'); let h = parseInt(p[0], 10) || 0; const mi = (p[1] || '00').slice(0, 2); const ap = h >= 12 ? 'PM' : 'AM'; let h12 = h % 12; if (h12 === 0) h12 = 12; return h12 + ':' + mi + ' ' + ap; }
+// Friendly date + 12-hour time ("2026-09-15T14:30" -> "Tuesday, September 15, 2026 at 2:30 PM").
+function _fmtWhen(naive) { const m = String(naive || '').match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/); if (!m) return String(naive || '').replace('T', ' at '); const y = +m[1], mo = +m[2], d = +m[3]; const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']; const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']; const wd = days[new Date(Date.UTC(y, mo - 1, d)).getUTCDay()]; return wd + ', ' + months[mo - 1] + ' ' + d + ', ' + y + ' at ' + _fmtClock(m[4] + ':' + m[5]); }
 function _bNow() { try { const p = new Intl.DateTimeFormat('en-CA', { timeZone: GSYNC_TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date()); const o = {}; p.forEach(x => o[x.type] = x.value); const hh = (o.hour === '24' ? '00' : o.hour); return o.year + '-' + o.month + '-' + o.day + 'T' + hh + ':' + o.minute; } catch (e) { return new Date().toISOString().slice(0, 16); } }
 // Meeting types on a booking page. Back-compat: a page with only a single `length` becomes one type.
 function sanitizeRich(html) {
@@ -17083,7 +17087,7 @@ app.post('/api/book/:token', express.json(), async (req, res) => {
   all.push(a); saveAppts(all);
   try {
     if (isEmailConfigured()) {
-      const when = start.replace('T', ' at ');
+      const when = _fmtWhen(start);
       const mUrl = (appBaseUrl() || (req.protocol + '://' + req.get('host'))) + '/book/manage/' + a.manageToken;
       const org = orgDisplayName();
       const joinUrl = a.meetUrl || '';
@@ -17131,7 +17135,7 @@ app.post('/api/book/manage/:token/cancel', express.json(), (req, res) => {
   try {
     if (isEmailConfigured()) {
       const prof = auth.profileOf(auth.findUser(a.byUser)) || {};
-      const when = String(a.start || '').replace('T', ' at ');
+      const when = _fmtWhen(a.start);
       const guest = (a.attendees && a.attendees[0]) || {};
       const org = orgDisplayName();
       const cVars = { guest_first: (String(guest.name || '').trim().split(/\s+/)[0] || 'there'), guest_name: guest.name || '', guest_email: guest.email || '', meeting_title: a.title || 'Meeting', when: when, rep_name: a.byName || prof.name || org, org: org };
@@ -19018,7 +19022,7 @@ function runReminderSender() {
       const _sendApptReminder = () => {
         const u = users.find(x => x.username === a.byUser);
         const to = u && u.email;
-        const whenTxt = String(a.start || '').replace('T', ' ');
+        const whenTxt = _fmtWhen(a.start);
         if (ch.indexOf('email') >= 0 && to && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
           const link = (process.env.APP_URL || '') + '/rrg_calendar.html';
           sendMailWL({ from: mailFrom(), to, subject: 'Reminder: ' + a.title, text: 'Upcoming meeting:\n\n' + a.title + '\nWhen: ' + whenTxt + (a.location ? ('\nWhere: ' + a.location) : '') + (a.contactName ? ('\nWith: ' + a.contactName) : '') + '\n\nYour calendar: ' + link }).catch(() => {});
