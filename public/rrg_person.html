@@ -1402,7 +1402,11 @@ function activityCard(){
   var to=P.email||((P.emails&&P.emails[0])||'');
   var items=[];
   (ACTIVITIES||[]).forEach(function(a){ items.push({k:'a',t:a.at||a.date||'',d:a}); });
-  (P.emailLog||[]).forEach(function(e){ items.push({k:'e',t:e.sentAt||'',d:e}); });
+  // Dedupe: the Gmail sent-sync copies a message into emailLog (shown as "Email"), and the live Gmail
+  // thread below returns the SAME message (shown as "Gmail"). When a synced entry matches a live Gmail
+  // message by id, drop the synced copy so each Gmail message appears once (the live entry is richer).
+  var _gmIds={}; (GMAIL||[]).forEach(function(g){ if(g&&g.id) _gmIds[String(g.id)]=1; });
+  (P.emailLog||[]).forEach(function(e){ if(e && e.messageId && _gmIds[String(e.messageId)]) return; items.push({k:'e',t:e.sentAt||'',d:e}); });
   (GMAIL||[]).forEach(function(g){ items.push({k:'g',t:(g.ts?new Date(g.ts).toISOString():(g.date||'')),d:g}); });
   items.sort(function(x,y){ return String(y.t).localeCompare(String(x.t)); });
   var feed = items.length ? items.map(function(it){
