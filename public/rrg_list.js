@@ -27,6 +27,7 @@
       +'.rl-pager button{font:inherit;font-size:12.5px;font-weight:700;min-width:30px;padding:6px 9px;border:1px solid #dbe1ea;border-radius:3px;background:#fff;color:#26324a;cursor:pointer}'
       +'.rl-pager button.on{background:var(--navy,#000E31);color:#fff;border-color:var(--navy,#000E31)}'
       +'.rl-pager button:disabled{opacity:.4;cursor:default}'
+      +'.rl-botbar{display:flex;justify-content:flex-end;align-items:center;padding:12px 2px 2px}'
       +'.rl-colwrap{position:relative;display:inline-block}'
       +'.rl-colmenu{position:absolute;top:calc(100% + 6px);right:0;z-index:60;background:#fff;border:1px solid #e3e8f0;border-radius:6px;box-shadow:0 14px 40px rgba(12,22,54,.18);padding:7px;min-width:210px;max-height:340px;overflow:auto}'
       +'.rl-colmenu .rl-colhd{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#98a1b5;padding:6px 9px 4px}'
@@ -203,7 +204,9 @@
       var expBtn = '<button class="rl-btn rl-export" title="Export to CSV"><span class="rlic">⬇</span>Export</button>';
       var prnBtn = '<button class="rl-btn rl-print" title="Print this list"><span class="rlic">⎙</span>Print</button>';
       if(!canExport()){ expBtn=expBtn.replace('<button ','<button hidden '); prnBtn=prnBtn.replace('<button ','<button hidden '); }
-      var bar = '<div class="rl-bar"><span class="rl-sp"></span>'+count+densTog+perSel+filtBtn+savedBtn+colsBtn+expBtn+prnBtn+pager+'</div>';
+      var bar = '<div class="rl-bar"><span class="rl-sp"></span>'+count+densTog+perSel+filtBtn+savedBtn+colsBtn+expBtn+prnBtn+'</div>';
+      // Page numbers live BELOW the table (standard convention), and only when there's more than one page.
+      var botPager = (pc>1) ? '<div class="rl-botbar">'+pager+'</div>' : '';
       var filterPanel='';
       if(state._filterOpen){ var ffs=orderedMeta().filter(function(m){ return m.c.label && m.c.filterable!==false && _ftype(m)!=='none'; }).map(function(m){
           var type=_ftype(m), f=state.filters[m.key], ctl;
@@ -257,7 +260,7 @@
       var _fixed = vis.length && vis.every(function(m){ return state.widths[m.key]!=null; });
       var table = total ? ('<div class="rl-wrap"><table'+(_fixed?' style="table-layout:fixed"':'')+'><thead><tr>'+head+'</tr></thead><tbody>'+body+'</tbody></table></div>')
                         : (opts.empty || '<div class="empty">Nothing here yet.</div>');
-      mount.innerHTML = bar + filterPanel + bulk + table;
+      mount.innerHTML = bar + filterPanel + bulk + table + botPager;
       // Group the page's own filter button into the toolbar, right before Saved,
       // so Filters + Saved sit together in the same spot on every list.
       if(opts.filterButton){ try{ var _bar=mount.querySelector('.rl-bar'), _sb=mount.querySelector('.rl-savedbtn'); var _anchor=_sb?(_sb.closest('.rl-colwrap')||_sb):null; if(_bar&&_anchor){ opts.filterButton.style.marginLeft='0'; _bar.insertBefore(opts.filterButton,_anchor); } }catch(e){} }
