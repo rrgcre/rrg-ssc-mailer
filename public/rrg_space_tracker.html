@@ -216,7 +216,7 @@ function draw(){
     ]
   };
   if(CTL) CTL.refresh(rows); else CTL=RRGList.create(cfg);
-  if(MAP_VIEW) mapRefresh();
+  if(MAP_VIEW) mapRefresh(true);
 }
 
 // event delegation for row actions
@@ -499,6 +499,9 @@ document.getElementById('ov').addEventListener('click',function(e){ if(e.target=
 var MAP=null, MAP_LAYER=null, MAP_VIEW=false, GEO_Q=[], GEO_QUEUED={}, GEO_BUSY=false;
 var GEO_CACHE=(function(){ try{ return JSON.parse(localStorage.getItem('rrg_space_geo')||'{}')||{}; }catch(e){ return {}; } })();
 function _geoSave(){ try{ localStorage.setItem('rrg_space_geo',JSON.stringify(GEO_CACHE)); }catch(e){} }
+// City / metro centroids so every space shows a pin INSTANTLY; the exact address is pinpointed in the background.
+var _MKT_CENTROID={'austin':[30.2672,-97.7431],'round rock':[30.5083,-97.6789],'georgetown':[30.6333,-97.6779],'san marcos':[29.8833,-97.9414],'new braunfels':[29.7030,-98.1245],'cedar park':[30.5052,-97.8203],'pflugerville':[30.4394,-97.6200],'dallas':[32.7767,-96.7970],'fort worth':[32.7555,-97.3308],'plano':[33.0198,-96.6989],'frisco':[33.1507,-96.8236],'mckinney':[33.1972,-96.6398],'arlington':[32.7357,-97.1081],'irving':[32.8140,-96.9489],'denton':[33.2148,-97.1331],'garland':[32.9126,-96.6389],'richardson':[32.9483,-96.7299],'allen':[33.1032,-96.6706],'houston':[29.7604,-95.3698],'sugar land':[29.6197,-95.6349],'the woodlands':[30.1658,-95.4613],'katy':[29.7858,-95.8245],'pearland':[29.5636,-95.2860],'pasadena':[29.6911,-95.2091],'conroe':[30.3119,-95.4560],'san antonio':[29.4241,-98.4936],'new braunfels tx':[29.7030,-98.1245],'schertz':[29.5522,-98.2697],'el paso':[31.7619,-106.4850],'corpus christi':[27.8006,-97.3964],'lubbock':[33.5779,-101.8552],'amarillo':[35.2220,-101.8313],'waco':[31.5493,-97.1467],'temple':[31.0982,-97.3428],'killeen':[31.1171,-97.7278],'college station':[30.6280,-96.3344],'bryan':[30.6744,-96.3700],'tyler':[32.3513,-95.3011],'longview':[32.5007,-94.7405],'beaumont':[30.0802,-94.1266],'midland':[31.9973,-102.0779],'odessa':[31.8457,-102.3676],'abilene':[32.4487,-99.7331],'wichita falls':[33.9137,-98.4934],'laredo':[27.5306,-99.4803],'mcallen':[26.2034,-98.2300],'brownsville':[25.9017,-97.4975],'harlingen':[26.1906,-97.6961],'galveston':[29.3013,-94.7977],'san angelo':[31.4638,-100.4370],'texarkana':[33.4251,-94.0477]};
+function _centroidFor(sp){ var cands=[sp.market,sp.center,sp.address]; for(var i=0;i<cands.length;i++){ var s=String(cands[i]||'').toLowerCase().trim(); if(!s) continue; if(_MKT_CENTROID[s]) return _MKT_CENTROID[s]; for(var k in _MKT_CENTROID){ if(s.indexOf(k)>=0) return _MKT_CENTROID[k]; } } return null; }
 function _spAddrKey(sp){ return [sp.address,sp.center,sp.market].filter(Boolean).join(', ').trim().toLowerCase(); }
 function _spAddrQuery(sp){ return ([sp.address,sp.market].filter(Boolean).join(', ')) || ([sp.center,sp.market].filter(Boolean).join(', ')); }
 function setSpaceView(map){
@@ -507,7 +510,7 @@ function setSpaceView(map){
   if(vt) vt.classList.toggle('on',!map); if(vm) vm.classList.toggle('on',!!map);
   document.getElementById('mapWrap').hidden=!map;
   document.getElementById('list').style.display=map?'none':'';
-  if(map){ ensureMap(); mapRefresh(); }
+  if(map){ ensureMap(); mapRefresh(true); }
 }
 function ensureMap(){
   if(MAP){ setTimeout(function(){ MAP.invalidateSize(); },60); return; }
@@ -521,39 +524,41 @@ function _mapFilteredSpaces(){
   var q=SEARCH.trim().toLowerCase();
   return SPACES.filter(function(sp){ if(FILTER && sp.status!==FILTER) return false; if(q && _spHay(sp).indexOf(q)<0) return false; return true; });
 }
-function mapRefresh(){
+function mapRefresh(fit){
   if(!MAP||!MAP_LAYER) return;
-  var lg=document.getElementById('mapLegend'); if(lg && !lg.innerHTML) lg.innerHTML=(STATUS||[]).map(function(s){ var c=stColor(s); return '<span class="lg"><span class="dot" style="background:'+c[1]+'"></span>'+esc(s)+'</span>'; }).join('');
+  var lg=document.getElementById('mapLegend'); if(lg && !lg.innerHTML) lg.innerHTML=(STATUS||[]).map(function(s){ var c=stColor(s); return '<span class="lg"><span class="dot" style="background:'+c[1]+'"></span>'+esc(s)+'</span>'; }).join('')+'<span class="lg"><span class="dot" style="background:#9aa4b6"></span>approx. (pinpointing…)</span>';
   MAP_LAYER.clearLayers();
   var rows=_mapFilteredSpaces();
-  var pts=[], mapped=0, need=0;
+  var pts=[], exact=0, approx=0, none=0;
   rows.forEach(function(sp){
     var lat=sp.lat, lng=sp.lng;
     if(!(isFinite(lat)&&isFinite(lng))){ var cc=GEO_CACHE[_spAddrKey(sp)]; if(cc){ lat=cc[0]; lng=cc[1]; sp.lat=lat; sp.lng=lng; } }
-    if(isFinite(lat)&&isFinite(lng)){ _addMarker(sp,lat,lng); pts.push([lat,lng]); mapped++; }
-    else if(_spAddrQuery(sp) && !GEO_QUEUED[sp.id]){ GEO_QUEUED[sp.id]=1; GEO_Q.push(sp); need++; }
+    if(isFinite(lat)&&isFinite(lng)){ _addMarker(sp,lat,lng,false); pts.push([lat,lng]); exact++; }
+    else { var cen=_centroidFor(sp); if(cen){ _addMarker(sp,cen[0],cen[1],true); pts.push(cen); approx++; } else none++;
+      if(_spAddrQuery(sp) && !GEO_QUEUED[sp.id]){ GEO_QUEUED[sp.id]=1; GEO_Q.push(sp); } }
   });
-  if(pts.length){ try{ MAP.fitBounds(pts,{padding:[38,38],maxZoom:15}); }catch(e){} }
-  _mapNote(mapped,rows.length);
+  if(fit && pts.length){ try{ MAP.fitBounds(pts,{padding:[38,38],maxZoom:14}); }catch(e){} }
+  _mapNote(exact,approx,none,rows.length);
   _geoDrain();
 }
-function _mapNote(mapped,total){ var n=document.getElementById('mapNote'); if(!n) return; var pend=GEO_Q.length+(GEO_BUSY?1:0); var p=[mapped+' of '+total+' placed on the map']; if(pend) p.push('locating '+pend+' more…'); if(total-mapped-pend>0) p.push((total-mapped-pend)+' without a locatable address'); n.textContent=p.join(' · '); }
-function _addMarker(sp,lat,lng){
+function _mapNote(exact,approx,none,total){ var n=document.getElementById('mapNote'); if(!n) return; var loc=GEO_Q.length+(GEO_BUSY?1:0); var p=[(exact+approx)+' of '+total+' on the map']; if(approx||loc) p.push('pinpointing exact addresses…'); if(none) p.push(none+' without a locatable address'); n.textContent=p.join(' · '); }
+function _addMarker(sp,lat,lng,approx){
   var c=stColor(sp.status);
-  var mk=L.circleMarker([lat,lng],{radius:8,color:'#fff',weight:2,fillColor:c[1],fillOpacity:1});
+  var mk=L.circleMarker([lat,lng],{radius:approx?6:8,color:'#fff',weight:2,fillColor:c[1],fillOpacity:approx?0.5:1});
   var tot=totalRent(sp); var sub=[sp.spaceType, (sp.size!=null?sf(sp.size):''), (tot!=null?(money(tot)+'/SF'):'')].filter(Boolean).map(esc).join(' · ');
-  var html='<div class="mapop"><b>'+esc(sp.name||sp.address||'Space')+'</b>'+((sp.name&&sp.address)?('<div class="med">'+esc(sp.address)+'</div>'):'')+((sp.center||sp.market)?('<div class="med">'+esc([sp.center,sp.market].filter(Boolean).join(' · '))+'</div>'):'')+(sub?('<div class="med">'+sub+'</div>'):'')+'<div class="st">'+stPill(sp.status)+'</div><a class="ed" data-mapedit="'+esc(sp.id)+'">Edit space →</a></div>';
+  var html='<div class="mapop"><b>'+esc(sp.name||sp.address||'Space')+'</b>'+((sp.name&&sp.address)?('<div class="med">'+esc(sp.address)+'</div>'):'')+((sp.center||sp.market)?('<div class="med">'+esc([sp.center,sp.market].filter(Boolean).join(' · '))+'</div>'):'')+(sub?('<div class="med">'+sub+'</div>'):'')+(approx?'<div class="med" style="color:#b5791f">○ Approximate — pinpointing exact address…</div>':'')+'<div class="st">'+stPill(sp.status)+'</div><a class="ed" data-mapedit="'+esc(sp.id)+'">Edit space →</a></div>';
   mk.bindPopup(html);
   MAP_LAYER.addLayer(mk);
 }
+var _mrTimer=null; function _mapRefreshSoon(){ if(_mrTimer) return; _mrTimer=setTimeout(function(){ _mrTimer=null; if(MAP_VIEW) mapRefresh(false); },500); }
 function _geoDrain(){
   if(GEO_BUSY || !GEO_Q.length) return; GEO_BUSY=true;
   var sp=GEO_Q.shift(); var q=_spAddrQuery(sp);
   if(!q){ GEO_BUSY=false; return _geoDrain(); }
   fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&q='+encodeURIComponent(q),{headers:{'Accept':'application/json'}})
     .then(function(r){return r.json();}).then(function(a){
-      if(a&&a.length){ var lat=parseFloat(a[0].lat), lng=parseFloat(a[0].lon); if(isFinite(lat)&&isFinite(lng)){ sp.lat=lat; sp.lng=lng; GEO_CACHE[_spAddrKey(sp)]=[lat,lng]; _geoSave(); if(MAP_VIEW&&MAP_LAYER){ _addMarker(sp,lat,lng); } fetch('/api/space/'+encodeURIComponent(sp.id)+'/geo',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({lat:lat,lng:lng,geoAddr:sp.address||''})}).catch(function(){}); } }
-    }).catch(function(){}).then(function(){ setTimeout(function(){ GEO_BUSY=false; if(MAP_VIEW){ var r=_mapFilteredSpaces(); var m=r.filter(function(s){return isFinite(s.lat)&&isFinite(s.lng);}).length; _mapNote(m,r.length); } _geoDrain(); },1200); });
+      if(a&&a.length){ var lat=parseFloat(a[0].lat), lng=parseFloat(a[0].lon); if(isFinite(lat)&&isFinite(lng)){ sp.lat=lat; sp.lng=lng; GEO_CACHE[_spAddrKey(sp)]=[lat,lng]; _geoSave(); if(MAP_VIEW) _mapRefreshSoon(); fetch('/api/space/'+encodeURIComponent(sp.id)+'/geo',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({lat:lat,lng:lng,geoAddr:sp.address||''})}).catch(function(){}); } }
+    }).catch(function(){}).then(function(){ setTimeout(function(){ GEO_BUSY=false; _geoDrain(); },1000); });
 }
 document.addEventListener('click',function(e){ var ed=e.target&&e.target.closest&&e.target.closest('[data-mapedit]'); if(ed){ var sp=SPACES.filter(function(s){return s.id===ed.getAttribute('data-mapedit');})[0]; if(sp) openForm(sp); } });
 (function(){ var vt=document.getElementById('vTable'), vm=document.getElementById('vMap'); if(vt) vt.addEventListener('click',function(){ setSpaceView(false); }); if(vm) vm.addEventListener('click',function(){ setSpaceView(true); }); })();

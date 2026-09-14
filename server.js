@@ -9521,8 +9521,11 @@ function linkifySellerBare(html) {
 // Render the (rich-text OR legacy plain-text) email body with merge fields filled.
 function sellerEmailRender(rawBody, vars) {
   const hasTags = /<[a-z][\s\S]*>/i.test(String(rawBody || ''));
-  let bodyHtml = hasTags ? String(rawBody || '') : esc(String(rawBody || '')).replace(/\n/g, '<br>');
+  let bodyHtml = hasTags ? String(rawBody || '') : esc(String(rawBody || ''));
   bodyHtml = linkifySellerBare(fillTemplate(bodyHtml, vars));
+  // Convert newlines to <br> AFTER the merge fields are filled, so multi-line merged values
+  // (e.g. the booking "What they told us" answers) keep a line break per line instead of collapsing.
+  if (!hasTags) bodyHtml = bodyHtml.replace(/\n/g, '<br>');
   const html = '<div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;color:#1a2236;font-size:14px;line-height:1.65">' + bodyHtml + '</div>';
   const text = fillTemplate(hasTags ? htmlToText(String(rawBody || '')) : String(rawBody || ''), vars);
   return { html: html, text: text };
