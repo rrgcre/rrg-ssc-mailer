@@ -5172,7 +5172,7 @@ h1{font-size:19px;font-weight:700;margin:0;color:#fff;letter-spacing:.01em;}
 .chd{padding:9px 15px;border-bottom:1px solid var(--line);font-weight:700;color:var(--navy);font-size:11.5px;display:flex;align-items:center;gap:8px;text-transform:uppercase;letter-spacing:.03em;}
 .chd .n{margin-left:auto;color:var(--muted);font-weight:600;font-size:11px;letter-spacing:0;}
 .folderhd{cursor:pointer;user-select:none;}
-.cav{display:inline-block;transition:transform .15s;color:var(--muted);font-size:11px;}
+.cav{display:inline-block;transition:transform .15s;color:var(--muted);font-size:16px;line-height:1;}
 .card.open>.chd>.cav,.subcard.open>.chd>.cav{transform:rotate(90deg);}
 .card:not(.open)>.folderbody,.subcard:not(.open)>.folderbody{display:none;}
 .subcard{border-top:1px solid #eef1f5;}
