@@ -35,6 +35,16 @@ h1{font-size:20px;font-weight:700;color:var(--navy);margin:0 0 4px}
 .msg{font-size:12.5px;font-weight:600}.msg.ok{color:var(--green)}.msg.err{color:var(--red)}
 .note{font-size:12px;color:var(--soft);margin-top:12px;line-height:1.6}
 .gate{color:var(--dim);font-size:13.5px;padding:30px 0}
+.forow{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:8px;padding:9px 11px;margin-bottom:7px;background:#fff}
+.forow.drag{opacity:.45}
+.forow.over{border-color:var(--navy2);box-shadow:0 0 0 2px rgba(22,52,110,.12)}
+.fograb{cursor:grab;color:#9aa4b6;font-size:15px;user-select:none;flex:none;line-height:1}
+.fonum{font-weight:700;color:#8a93a8;font-size:12px;min-width:20px;flex:none}
+.fomain{flex:1;min-width:0}
+.fobiz{font-weight:700;font-size:13.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fometa{font-size:11.5px;color:var(--soft)}
+.fokind{font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#5a6472;background:#eef2f8;border:1px solid #dbe3ef;border-radius:99px;padding:2px 8px;flex:none}
+.foempty{color:var(--dim);font-size:13px;padding:8px 2px;line-height:1.5}
 </style>
 </head>
 <body>
@@ -55,6 +65,12 @@ function render(){
     +'<h1>Marketplace</h1>'
     +'<div class="sub">Everything for your public marketplace at <b>/market</b> — how to put it on your website, its colors, and its header text. Manage which listings appear from the <b>Listings</b> page (flip <b>Public</b> on any listing).</div>'
     +'<div class="toolbar"><a class="tbtn pri" href="/market" target="_blank" rel="noopener">View public marketplace ↗</a><a class="tbtn" href="./rrg_board.html" target="_blank" rel="noopener">Manage listings ↗</a></div>'
+    // Featured order
+    +'<div class="card"><div class="ch"><b>Featured order</b><span>— drag to set the order your featured listings appear on /market.</span></div><div class="cb">'
+      +'<div id="foList"><div class="foempty">Loading…</div></div>'
+      +'<div class="btnrow"><button class="btn" id="foSave" disabled>Save order</button><span class="msg" id="foMsg"></span></div>'
+      +'<div class="note">These are the listings you\'ve marked <b>Featured</b> (flip Featured on a listing\'s <b>Publish to Marketplace</b> panel to add one). Drag the handle to reorder — the order applies to both the Businesses and Real&nbsp;Estate featured bands. A newly featured listing lands at the end until you place it.</div>'
+    +'</div></div>'
     // Add to your website
     +'<div class="card"><div class="ch"><b>Add to your website</b><span>— link to your marketplace from any page on your site.</span></div><div class="cb">'
       +'<div class="fld"><label>Your public link</label><div class="eclink"><input type="text" id="ecUrl" readonly value="'+esc(PUB)+'"><button class="tbtn" id="ecCopyUrl">Copy link</button></div></div>'
@@ -84,7 +100,30 @@ function render(){
   document.getElementById('mtReset').addEventListener('click',resetTheme);
   document.getElementById('mhSave').addEventListener('click',saveHeader);
   document.getElementById('mhReset').addEventListener('click',resetHeader);
+  var _fs=document.getElementById('foSave'); if(_fs) _fs.addEventListener('click',saveFeaturedOrder);
+  fetchFeatured();
 }
+var FEAT=[]; var _foDragIdx=-1;
+function foKindLabel(k){ return k==='business'?'Business':(k==='asset'?'Asset':(k==='lease'?'Lease':(k==='sale'?'Real estate':'Listing'))); }
+function renderFeatured(){
+  var host=document.getElementById('foList'); if(!host) return;
+  var sb=document.getElementById('foSave');
+  if(!FEAT.length){ host.innerHTML='<div class="foempty">No featured listings yet. On a listing\'s <b>Publish to Marketplace</b> panel, turn on <b>Featured</b> — it will show up here to order.</div>'; if(sb) sb.disabled=true; return; }
+  host.innerHTML=FEAT.map(function(it,i){ return '<div class="forow" draggable="true" data-i="'+i+'"><span class="fograb" title="Drag to reorder">⠿</span><span class="fonum">'+(i+1)+'</span><div class="fomain"><div class="fobiz">'+esc(it.business||'Listing')+'</div><div class="fometa">'+esc(it.market||'')+'</div></div><span class="fokind">'+esc(foKindLabel(it.kind))+'</span></div>'; }).join('');
+  _wireFoDrag();
+}
+function _wireFoDrag(){
+  var rows=document.querySelectorAll('#foList .forow');
+  Array.prototype.forEach.call(rows,function(row){
+    row.addEventListener('dragstart',function(e){ _foDragIdx=+row.getAttribute('data-i'); row.classList.add('drag'); try{ e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain',String(_foDragIdx)); }catch(_){} });
+    row.addEventListener('dragend',function(){ row.classList.remove('drag'); Array.prototype.forEach.call(document.querySelectorAll('#foList .forow'),function(r){ r.classList.remove('over'); }); });
+    row.addEventListener('dragover',function(e){ e.preventDefault(); try{ e.dataTransfer.dropEffect='move'; }catch(_){} row.classList.add('over'); });
+    row.addEventListener('dragleave',function(){ row.classList.remove('over'); });
+    row.addEventListener('drop',function(e){ e.preventDefault(); var to=+row.getAttribute('data-i'); var from=_foDragIdx; row.classList.remove('over'); if(from<0||from===to||isNaN(to)) return; var moved=FEAT.splice(from,1)[0]; FEAT.splice(to,0,moved); renderFeatured(); var sb=document.getElementById('foSave'); if(sb) sb.disabled=false; _msg('foMsg','',''); });
+  });
+}
+function fetchFeatured(){ fetch('/api/admin/featured-order',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ FEAT=j.items||[]; renderFeatured(); } }).catch(function(){}); }
+function saveFeaturedOrder(){ var sb=document.getElementById('foSave'); if(sb) sb.disabled=true; _msg('foMsg','Saving…'); fetch('/api/admin/featured-order',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({order:FEAT.map(function(x){return x.key;})})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ FEAT=j.items||FEAT; renderFeatured(); _msg('foMsg','Saved ✓ — live on /market','ok'); } else { if(sb) sb.disabled=false; _msg('foMsg',(j&&j.error)||'Could not save.','err'); } }).catch(function(){ if(sb) sb.disabled=false; _msg('foMsg','Could not reach the server.','err'); }); }
 function _themeSet(t){ t=t||{}; THEME_FIELDS.forEach(function(f){ var el=document.getElementById(f[1]); if(el&&t[f[0]]) el.value=t[f[0]]; }); }
 function _themeCollect(){ var o={}; THEME_FIELDS.forEach(function(f){ var el=document.getElementById(f[1]); if(el) o[f[0]]=el.value; }); return o; }
 function _headerSet(h){ h=h||{}; var g=function(id,v){ var el=document.getElementById(id); if(el) el.value=(v!=null?v:''); }; g('mhTagline',h.tagline); g('mhAreas',h.areas); g('mhHeading',h.heading); g('mhLede',h.lede); }

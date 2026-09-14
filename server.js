@@ -6067,7 +6067,10 @@ function mktPublicList() {
     if (!m || !m.published) return;
     try { out.push(mktTeaser(d.key, assignmentView(d, overlay), m)); } catch (e) {}
   });
-  out.sort((a, b) => ((b.featured ? 1 : 0) - (a.featured ? 1 : 0)) || String(b.publishedAt).localeCompare(String(a.publishedAt)));
+  // Admin-curated featured order (Settings → Marketplace, drag to reorder). Keys not listed fall to the end.
+  const _fo = (loadSettings().featuredOrder || []); const _rank = {}; _fo.forEach((k, i) => { _rank[String(k)] = i; });
+  out.forEach(t => { t.featOrder = (String(t.id) in _rank) ? _rank[String(t.id)] : 9999; });
+  out.sort((a, b) => ((b.featured ? 1 : 0) - (a.featured ? 1 : 0)) || ((a.featOrder == null ? 9999 : a.featOrder) - (b.featOrder == null ? 9999 : b.featOrder)) || String(b.publishedAt).localeCompare(String(a.publishedAt)));
   return out;
 }
 // Internal — every listing the rep can see, with its marketplace teaser (business shown to staff only).
@@ -6096,6 +6099,27 @@ app.get('/api/marketplace/:key', (req, res) => {
   const overlay = loadAssignOverlay(); const view = assignmentView(d, overlay); const o = overlay[key] || {};
   res.json({ ok: true, metros: effMarkets(), concepts: MKT_CONCEPTS, priceBands: MKT_PRICE, cashBands: MKT_CASH, flags: MKT_FLAGS, badges: effMktBadges(), marketStyle: effMarketStyle(), icons: MKT_ICONS, publicUrl: (req.protocol + '://' + req.get('host') + '/market'),
     listing: { key: key, business: view.business, market: view.market, value: view.value, roomId: view.roomId, status: view.status, teaser: o.market || null, suggest: mktSuggest(view) } });
+});
+// Featured-listing curation — the currently-featured listings in their admin-set order (Settings → Marketplace).
+function _featuredItems() {
+  const deals = assignmentsIndex(), overlay = loadAssignOverlay();
+  const items = [];
+  Object.values(deals).forEach(d => {
+    const o = overlay[d.key] || {}; const m = o.market;
+    if (!m || !m.published || !m.featured) return;
+    const view = assignmentView(d, overlay);
+    const kind = (m.kind && MKT_KINDS.indexOf(m.kind) >= 0) ? m.kind : ((view.saleLane === 'asset') ? 'asset' : 'business');
+    items.push({ key: d.key, business: view.business || m.headline || 'Listing', headline: m.headline || '', kind: kind, market: view.market || m.marketKey || '', publishedAt: m.publishedAt || '' });
+  });
+  const fo = (loadSettings().featuredOrder || []); const rank = {}; fo.forEach((k, i) => { rank[String(k)] = i; });
+  items.sort((a, b) => ((String(a.key) in rank ? rank[String(a.key)] : 9999) - (String(b.key) in rank ? rank[String(b.key)] : 9999)) || String(b.publishedAt).localeCompare(String(a.publishedAt)));
+  return items;
+}
+app.get('/api/admin/featured-order', requireAdmin, (req, res) => { res.json({ ok: true, items: _featuredItems() }); });
+app.post('/api/admin/featured-order', requireAdmin, express.json(), (req, res) => {
+  const order = Array.isArray(req.body && req.body.order) ? req.body.order.map(x => String(x)).slice(0, 500) : [];
+  const s = loadSettings(); s.featuredOrder = order; saveSettings(s);
+  res.json({ ok: true, items: _featuredItems() });
 });
 // ===== Buyer buy-box + matching =====
 // A buyer's acquisition criteria, stored on the contact, in the SAME vocabulary as marketplace
@@ -6930,7 +6954,7 @@ function renderBiz(){
   });
   var sv=document.getElementById('fSort').value;
   function askRank(l){ var m={u1m:1,'1-3m':2,'3-5m':3,'5m+':4}; return m[l.priceBand]||0; }
-  list.sort(function(a,b){ if(sv==='price'){ return (askRank(b)-askRank(a))||String(b.publishedAt).localeCompare(String(a.publishedAt)); } return ((b.featured?1:0)-(a.featured?1:0))||String(b.publishedAt).localeCompare(String(a.publishedAt)); });
+  list.sort(function(a,b){ if(sv==='price'){ return (askRank(b)-askRank(a))||String(b.publishedAt).localeCompare(String(a.publishedAt)); } return ((b.featured?1:0)-(a.featured?1:0))||(((a.featOrder==null?9999:a.featOrder))-((b.featOrder==null?9999:b.featOrder)))||String(b.publishedAt).localeCompare(String(a.publishedAt)); });
   var feats=list.filter(function(l){return l.featured;});
   var rest=list.filter(function(l){return !l.featured;});
   var fb=document.getElementById('bizFeat');
