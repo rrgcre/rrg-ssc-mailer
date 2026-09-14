@@ -95,12 +95,17 @@ function render(j){
   DATA=j;
   // last-active per user from the recent global usage stream
   LASTACTIVE={}; (j.usage||[]).forEach(function(u){ if(u.user && !LASTACTIVE[u.user]) LASTACTIVE[u.user]=u.when; });
+  // Live presence — the SAME source the dashboard uses (active in the last 15 min), so the two agree.
+  var ONLINE={}; (j.online||[]).forEach(function(o){ if(o&&o.username) ONLINE[o.username]=o; });
   var maxTool=(j.byTool&&j.byTool[0]&&j.byTool[0].count)||1;
   var toolRows=(j.byTool||[]).length? (j.byTool||[]).map(function(t){ var pct=Math.max(4,Math.round((t.count/maxTool)*100)); return '<div class="srow"><span class="nm">'+esc(t.tool||'—')+'</span><span class="bar"><i style="width:'+pct+'%"></i></span><span class="ct">'+t.count+'</span></div>'; }).join('') : '<div class="empty">No tool activity yet.</div>';
 
   var users=(j.byUser||[]).filter(function(u){return u.user;});
   var userRows=users.length? users.map(function(u){
-    var la=LASTACTIVE[u.user]?('Last active '+esc(LASTACTIVE[u.user])):'';
+    var _on=ONLINE[u.user];
+    var la=_on
+      ? '<span style="display:inline-flex;align-items:center;gap:5px;color:#1f8a5b;font-weight:700"><span style="width:8px;height:8px;border-radius:50%;background:#1f8a5b;display:inline-block;box-shadow:0 0 0 2px #d7f0e2"></span>'+(_on.minsAgo>0?('Active '+_on.minsAgo+'m ago'):'Online now')+'</span>'
+      : (LASTACTIVE[u.user]?('Last active '+esc(LASTACTIVE[u.user])):'');
     var nm=u.name||u.user; var ini=esc(initials(nm).toUpperCase());
     var av=u.photoUrl
       ? '<img class="uav" src="'+esc(u.photoUrl)+'" alt="'+ini+'" style="object-fit:cover" onerror="avFail(this,\''+ini+'\')">'

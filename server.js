@@ -12745,7 +12745,7 @@ app.get('/api/admin/activity', requireAdmin, (req, res) => {
   });
   const usage = usageAll.slice(-500).reverse().map(u => ({ when: fmtWhen(u.timestamp), ts: u.timestamp||'', user: u.username||'', tool: u.tool||'', ip: u.ip||'' }));
   const loginsOut = logins.map(l => ({ when: fmtWhen(l.timestamp), ts: l.timestamp||'', user: l.username||'', result: l.result||'', ip: l.ip||'' }));
-  res.json({ ok:true, byTool: byToolOut, byUser: byUserOut, usage, logins: loginsOut });
+  res.json({ ok:true, byTool: byToolOut, byUser: byUserOut, usage, logins: loginsOut, online: onlineUsers() });
 });
 // Quick record counts of the main data stores — the overview strip on the Activity page.
 app.get('/api/admin/record-counts', requireAdmin, (req, res) => {
