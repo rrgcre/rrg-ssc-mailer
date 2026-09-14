@@ -10946,8 +10946,11 @@ app.post('/api/space', express.json(), (req, res) => {
   const num = (v) => { if (v === '' || v == null) return null; const n = parseFloat(String(v).replace(/[^0-9.\-]/g, '')); return isFinite(n) ? n : null; };
   let sp = b.id ? arr.find(x => x.id === b.id) : null;
   if (!sp) { sp = { id: newSpaceId(), createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }; arr.push(sp); }
+  const _oldAddr = sp.address || '';
   if (typeof b.name === 'string') sp.name = b.name.slice(0, 160);
   if (typeof b.address === 'string') sp.address = b.address.slice(0, 200);
+  // Address changed → drop the cached map coordinates so the space re-geocodes to its new spot.
+  if (typeof b.address === 'string' && sp.address !== _oldAddr) { sp.lat = null; sp.lng = null; sp.geoAddr = ''; }
   if (typeof b.center === 'string') sp.center = b.center.slice(0, 160);
   if (typeof b.centerId === 'string') { sp.centerId = b.centerId.slice(0, 40); if (sp.centerId) { const _ctr = loadCenters().find(x => x.id === sp.centerId); if (_ctr) sp.center = _ctr.name || sp.center; } }
   if (typeof b.market === 'string') sp.market = b.market.slice(0, 120);
@@ -10967,6 +10970,17 @@ app.post('/api/space', express.json(), (req, res) => {
   sp.updatedAt = now;
   saveSpaces(arr);
   res.json({ ok: true, space: sp, spaces: arr });
+});
+// Cache a space's geocoded map coordinates (set by the client after it geocodes the address once).
+app.post('/api/space/:id/geo', express.json(), (req, res) => {
+  const arr = loadSpaces(); const sp = arr.find(x => x.id === req.params.id);
+  if (!sp) return res.status(404).json({ ok: false, error: 'Space not found.' });
+  const b = req.body || {};
+  const lat = parseFloat(b.lat), lng = parseFloat(b.lng);
+  if (!isFinite(lat) || !isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) return res.status(400).json({ ok: false, error: 'Bad coordinates.' });
+  sp.lat = lat; sp.lng = lng; sp.geoAddr = String(b.geoAddr || sp.address || '').slice(0, 200);
+  saveSpaces(arr);  // deliberately does NOT bump updatedAt — geocoding shouldn't reorder the list
+  res.json({ ok: true });
 });
 app.delete('/api/space/:id', (req, res) => {
   if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Admin only.' });
