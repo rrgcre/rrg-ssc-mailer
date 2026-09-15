@@ -234,12 +234,12 @@ tr:hover td{background:#fbfcfe;}
       </details>
 
       <details class="sec" id="secSynd">
-        <summary><span class="scv">›</span>Syndicate to CoStar / LoopNet<span class="stag">Have your rep post it</span></summary>
+        <summary><span class="scv">›</span>CoStar / LoopNet entry sheet<span class="stag">Copy each field in</span></summary>
         <div class="secbd">
-          <div style="font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:10px">Build a ready-to-send request that gives your CoStar/LoopNet rep every physical detail on this property — so they post it and you skip the data entry. Physical info only; nothing about a business.</div>
+          <div style="font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:10px">Build a clean field-by-field sheet of this property's physical details, labeled to match CoStar/LoopNet — copy each value straight into your listing. Physical info only; nothing about a business.</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
             <button class="btn" type="button" id="enrichBtn" onclick="enrichProperty()">✨ Enrich from documents</button>
-            <button class="btn pri" type="button" id="syndBtn" onclick="buildSyndication()">✉️ Build CoStar / LoopNet submission</button>
+            <button class="btn pri" type="button" id="syndBtn" onclick="buildSyndication()">📋 Build entry sheet</button>
           </div>
           <div style="font-size:11.5px;color:var(--muted);margin-top:7px">Enrich reads this property's attached OM/brochure and verifies the address to fill the physical fields — it only fills blanks, never overwrites what you typed. Attach the flyer under Documents first.</div>
           <div class="msg" id="syndMsg" style="margin-top:6px"></div>
@@ -261,17 +261,20 @@ tr:hover td{background:#fbfcfe;}
 </div>
 <div class="ov" id="syndOv" hidden>
   <div class="mod" style="max-width:640px">
-    <div class="mhd"><span>CoStar / LoopNet submission</span><button class="btn" onclick="closeSynd()">✕</button></div>
+    <div class="mhd"><span>CoStar / LoopNet entry sheet</span><button class="btn" onclick="closeSynd()">✕</button></div>
     <div class="mb">
-      <div class="fg" style="margin-bottom:12px">
-        <div class="f"><label>Rep name</label><input id="s_repName" placeholder="Your CoStar/LoopNet rep"></div>
-        <div class="f"><label>Rep email</label><input id="s_repEmail" type="email" placeholder="rep@costar.com"></div>
-      </div>
-      <div class="f full"><label>Subject</label><input id="s_subject"></div>
-      <div class="f full" style="margin-top:10px"><label>Message — physical details only</label><textarea id="s_body" style="min-height:320px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.5"></textarea></div>
+      <div class="f full"><label>Fields to enter — copy into your CoStar / LoopNet listing</label><textarea id="s_body" style="min-height:360px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.5"></textarea></div>
       <div class="msg" id="s_msg" style="margin-top:8px"></div>
+      <details style="margin-top:12px"><summary style="cursor:pointer;font-size:12px;color:var(--muted)">Or email it to a co-broker / rep</summary>
+        <div class="fg" style="margin-top:10px">
+          <div class="f"><label>Name</label><input id="s_repName" placeholder="Co-broker / rep"></div>
+          <div class="f"><label>Email</label><input id="s_repEmail" type="email" placeholder="name@firm.com"></div>
+          <div class="f full"><label>Subject</label><input id="s_subject"></div>
+        </div>
+        <button class="btn" type="button" id="s_email" onclick="emailSynd()" style="margin-top:8px">Open email draft →</button>
+      </details>
     </div>
-    <div class="mf"><span class="msg" style="margin-right:auto">Rep details are remembered on this device.</span><button class="btn" type="button" id="s_copy" onclick="copySynd()">Copy</button><button class="btn pri" type="button" id="s_email" onclick="emailSynd()">Open email draft →</button></div>
+    <div class="mf"><span class="msg" style="margin-right:auto">Physical details only — nothing about the business.</span><button class="btn pri" type="button" id="s_copy" onclick="copySynd()">Copy sheet</button></div>
   </div>
 </div>
 <datalist id="marketList"></datalist>
@@ -450,66 +453,70 @@ document.getElementById('secDocs').addEventListener('toggle',function(){ if(this
 // ---- CoStar / LoopNet syndication ----
 function _sv(k){ var el=document.getElementById('p_'+k); return el?String(el.value||'').trim():''; }
 function _moneyStr(v){ v=String(v||'').replace(/[^0-9.]/g,''); return v?('$'+Number(v).toLocaleString('en-US')):''; }
+// Field-by-field entry sheet, labeled and grouped to match CoStar/LoopNet's tabs (Listing · Sale · Property · Highlights).
 function buildSyndBody(){
-  var L=[], push=function(s){ L.push(s); };
-  push('— PROPERTY —');
-  push('Listing name: '+(_sv('name')||'(unnamed)'));
-  if(_sv('listingFor')) push('Offered: '+_sv('listingFor')+(_sv('status')?('   ·   Status: '+_sv('status')):''));
-  if(_sv('propertyType')) push('Property type: '+_sv('propertyType'));
-  if(_sv('secondaryType')) push('Secondary type: '+_sv('secondaryType'));
-  if(_sv('alsoMarketAs')) push('Also market as: '+_sv('alsoMarketAs'));
+  var out=[];
+  function sec(title, pairs){ var lines=pairs.filter(function(p){ return p[1]!=null && String(p[1]).trim()!==''; }).map(function(p){ return p[0]+': '+p[1]; }); if(lines.length){ if(out.length) out.push(''); out.push('▸ '+title); lines.forEach(function(l){ out.push(l); }); } }
+  var lf=_sv('listingFor');
+  out.push('CoStar / LoopNet — listing entry sheet'); out.push(_sv('name')||'(unnamed listing)');
+  sec('LISTING', [['Status', _sv('status')], ['Offered', lf]]);
+  sec('SALE', [
+    ['Sale Type', _sv('saleType')],
+    ['Price', _sv('price')?_moneyStr(_sv('price')):''],
+    ['Price/SF', _sv('pricePerSF')?_moneyStr(_sv('pricePerSF')):''],
+    ['Cap Rate', _sv('capRate')?(_sv('capRate')+'%'):''],
+    ['NOI', _sv('noi')?_moneyStr(_sv('noi')):''],
+    ['Occupancy', _sv('occupancy')?(_sv('occupancy')+'%'):''],
+    ['Area Owner Can Occupy', _sv('areaOwnerOccupy')?(_sv('areaOwnerOccupy')+' SF'):''],
+    ['Sale Conditions', _sv('saleConditions')],
+    ['Annual Taxes', _sv('taxes')?_moneyStr(_sv('taxes')):''],
+    ['Sale Notes', _sv('description')]
+  ]);
+  if(lf!=='For Sale'){ sec('LEASE', [
+    ['Asking Rent ($/SF/yr)', _sv('askingRentSF')?_moneyStr(_sv('askingRentSF')):''],
+    ['NNN / CAM ($/SF)', _sv('nnnSF')?_moneyStr(_sv('nnnSF')):''],
+    ['Available SF', _sv('availableSF')],
+    ['Lease Term (yrs)', _sv('termYears')],
+    ['TI Allowance ($/SF)', _sv('tiAllowance')?_moneyStr(_sv('tiAllowance')):''],
+    ['Lease Type', _sv('leaseType')]
+  ]); }
   var cityline=_sv('city')+(_sv('state')?(', '+_sv('state')):'')+(_sv('zip')?(' '+_sv('zip')):'');
-  var addr=[_sv('address'),cityline].filter(function(x){return x&&x.trim();}).join(', '); if(addr.trim()) push('Address: '+addr);
-  if(_sv('county')) push('County: '+_sv('county'));
-  if(_sv('apn')) push('APN / Parcel ID: '+_sv('apn'));
-  if(_sv('market')) push('Market: '+_sv('market'));
-  if(_sv('tenancy')) push('Tenancy: '+_sv('tenancy'));
-  if(_sv('interest')) push('Interest conveyed: '+_sv('interest'));
-  var sale=[];
-  if(_sv('saleType')) sale.push('Sale type: '+_sv('saleType'));
-  if(_sv('price')) sale.push('Asking price: '+_moneyStr(_sv('price')));
-  if(_sv('pricePerSF')) sale.push('Price/SF: '+_moneyStr(_sv('pricePerSF')));
-  if(_sv('capRate')) sale.push('Cap rate: '+_sv('capRate')+'%');
-  if(_sv('noi')) sale.push('NOI: '+_moneyStr(_sv('noi'))+'/yr');
-  if(_sv('occupancy')) sale.push('Occupancy: '+_sv('occupancy')+'%');
-  if(_sv('taxes')) sale.push('Annual taxes: '+_moneyStr(_sv('taxes')));
-  if(_sv('areaOwnerOccupy')) sale.push('Area owner can occupy: '+_sv('areaOwnerOccupy')+' SF');
-  if(_sv('saleConditions')) sale.push('Sale conditions: '+_sv('saleConditions'));
-  if(sale.length){ push(''); push('— SALE —'); sale.forEach(push); }
-  var lease=[];
-  if(_sv('askingRentSF')) lease.push('Asking rent: '+_moneyStr(_sv('askingRentSF'))+'/SF/yr');
-  if(_sv('nnnSF')) lease.push('NNN / CAM: '+_moneyStr(_sv('nnnSF'))+'/SF');
-  if(_sv('availableSF')) lease.push('Available: '+_sv('availableSF')+' SF');
-  if(_sv('termYears')) lease.push('Term: '+_sv('termYears')+' yrs');
-  if(_sv('tiAllowance')) lease.push('TI allowance: '+_moneyStr(_sv('tiAllowance'))+'/SF');
-  if(_sv('leaseType')) lease.push('Lease type: '+_sv('leaseType'));
-  if(lease.length){ push(''); push('— LEASE —'); lease.forEach(push); }
-  var bl=[];
-  if(_sv('buildingSF')) bl.push('Building: '+_sv('buildingSF')+' SF');
-  var lot=[]; if(_sv('lotAcres')) lot.push(_sv('lotAcres')+' ac'); if(_sv('lotSF')) lot.push(_sv('lotSF')+' SF'); if(lot.length) bl.push('Lot size: '+lot.join(' / '));
-  if(_sv('yearBuilt')) bl.push('Year built: '+_sv('yearBuilt'));
-  if(_sv('renovatedYear')) bl.push('Renovated: '+_sv('renovatedYear'));
-  if(_sv('buildingStatus')) bl.push('Building status: '+_sv('buildingStatus'));
-  if(_sv('construction')) bl.push('Construction: '+_sv('construction'));
-  if(_sv('sprinklers')) bl.push('Sprinklers: '+_sv('sprinklers'));
-  if(_sv('ceilingHeight')) bl.push('Ceiling height: '+_sv('ceilingHeight'));
-  if(_sv('stories')) bl.push('Floors: '+_sv('stories'));
-  if(_sv('unitsCount')) bl.push('Units / suites: '+_sv('unitsCount'));
-  if(_sv('trafficVPD')) bl.push('Traffic (VPD): '+_sv('trafficVPD'));
-  if(_sv('zoning')) bl.push('Zoning: '+_sv('zoning'));
-  if(_sv('parking')) bl.push('Parking: '+_sv('parking'));
-  if(_sv('frontage')) bl.push('Frontage: '+_sv('frontage'));
-  if(_sv('condition')) bl.push('Condition: '+_sv('condition'));
-  if(bl.length){ push(''); push('— BUILDING & LAND —'); bl.forEach(push); }
-  var fit=[];
-  [['driveThru','Drive-thru'],['endCap','End-cap'],['padSite','Pad / out-parcel'],['greaseHood','Grease / hood / vent'],['patio','Patio'],['secondGen','2nd-gen restaurant']].forEach(function(p){ if(_sv(p[0])) fit.push(p[1]+': '+_sv(p[0])); });
-  if(_sv('existingUse')) fit.push('Existing / former use: '+_sv('existingUse'));
-  if(_sv('tabc')) fit.push('Liquor / TABC: '+_sv('tabc'));
-  if(fit.length){ push(''); push('— RESTAURANT INFRASTRUCTURE (physical) —'); fit.forEach(push); }
-  var feats=getPropFeatures(); if(feats.length){ push(''); push('— AMENITIES / FEATURES —'); push(feats.join(', ')); }
-  var hls=(_sv('highlights')||'').split('\n').map(function(x){return x.trim();}).filter(Boolean); if(hls.length){ push(''); push('— HIGHLIGHTS —'); hls.forEach(function(h){ push('• '+h); }); }
-  if(_sv('description')){ push(''); push('— DESCRIPTION —'); push(_sv('description')); }
-  return L.join('\n');
+  var lot=[]; if(_sv('lotAcres')) lot.push(_sv('lotAcres')+' AC'); if(_sv('lotSF')) lot.push(_sv('lotSF')+' SF');
+  var infra=[]; [['driveThru','Drive-Thru'],['endCap','End-Cap'],['padSite','Pad / Out-Parcel'],['greaseHood','Grease / Hood / Vent'],['patio','Patio'],['secondGen','2nd-Gen']].forEach(function(p){ if(_sv(p[0])) infra.push(p[1]+' '+_sv(p[0])); });
+  sec('PROPERTY', [
+    ['Property Type', _sv('propertyType')],
+    ['Secondary Type', _sv('secondaryType')],
+    ['Also Market As', _sv('alsoMarketAs')],
+    ['Building Status', _sv('buildingStatus')],
+    ['GLA (Building SF)', _sv('buildingSF')?(_sv('buildingSF')+' SF'):''],
+    ['Floors', _sv('stories')],
+    ['Units / Suites', _sv('unitsCount')],
+    ['Year Built', _sv('yearBuilt')],
+    ['Renovated', _sv('renovatedYear')],
+    ['Tenancy', _sv('tenancy')],
+    ['Interest', _sv('interest')],
+    ['Construction', _sv('construction')],
+    ['Sprinklers', _sv('sprinklers')],
+    ['Ceiling Height', _sv('ceilingHeight')],
+    ['Parking', _sv('parking')],
+    ['Land Area', lot.join(' / ')],
+    ['Zoning', _sv('zoning')],
+    ['APN / Parcel ID', _sv('apn')],
+    ['Frontage', _sv('frontage')],
+    ['Traffic (VPD)', _sv('trafficVPD')],
+    ['Condition', _sv('condition')],
+    ['Restaurant Infrastructure', infra.join(', ')],
+    ['Existing / Former Use', _sv('existingUse')],
+    ['Liquor / TABC', _sv('tabc')],
+    ['Features / Amenities', getPropFeatures().join(', ')],
+    ['Address', _sv('address')],
+    ['City / State / ZIP', cityline],
+    ['County', _sv('county')],
+    ['Market / Metro', _sv('market')]
+  ]);
+  var hls=(_sv('highlights')||'').split('\n').map(function(x){return x.trim();}).filter(Boolean);
+  if(hls.length){ out.push(''); out.push('▸ HIGHLIGHTS'); hls.forEach(function(h){ out.push('• '+h); }); }
+  return out.join('\n');
 }
 function enrichProperty(){
   var m=document.getElementById('syndMsg'), btn=document.getElementById('enrichBtn');
@@ -533,24 +540,22 @@ function enrichProperty(){
 }
 function buildSyndication(){
   var m=document.getElementById('syndMsg');
-  if(!EDIT){ if(m) m.textContent='Save the property first, then build the submission.'; return; }
+  if(!EDIT){ if(m) m.textContent='Save the property first, then build the sheet.'; return; }
   var name=_sv('name')||'New listing';
   var loc=[_sv('city'),_sv('state')].filter(Boolean).join(', ');
-  document.getElementById('s_subject').value='New CoStar / LoopNet listing — '+name+(loc?(' ('+loc+')'):'');
+  document.getElementById('s_subject').value='CoStar / LoopNet listing — '+name+(loc?(' ('+loc+')'):'');
   var rn='',re=''; try{ rn=localStorage.getItem('rrg_costar_repName')||''; re=localStorage.getItem('rrg_costar_repEmail')||''; }catch(e){}
   document.getElementById('s_repName').value=rn; document.getElementById('s_repEmail').value=re;
-  var greet=rn?('Hi '+rn.split(/\s+/)[0]+','):'Hi there,';
-  var signer=(EDIT&&EDIT.by)||'Restaurant Realty Group';
-  document.getElementById('s_body').value=greet+'\n\nPlease add the following listing to CoStar and LoopNet under Restaurant Realty Group. All physical details are below — photos and the offering package are available on request. Let me know if you need anything else to post it.\n\n'+buildSyndBody()+'\n\nThanks,\n'+signer;
+  document.getElementById('s_body').value=buildSyndBody();
   document.getElementById('s_msg').textContent=''; if(m) m.textContent='';
   document.getElementById('syndOv').hidden=false;
 }
 function closeSynd(){ document.getElementById('syndOv').hidden=true; }
 function _syndRemember(){ try{ localStorage.setItem('rrg_costar_repName',document.getElementById('s_repName').value||''); localStorage.setItem('rrg_costar_repEmail',document.getElementById('s_repEmail').value||''); }catch(e){} }
-function copySynd(){ _syndRemember(); var ta=document.getElementById('s_body'), t=ta.value||''; var m=document.getElementById('s_msg'); var done=function(){ if(m){ m.style.color='#1f8a5b'; m.textContent='Copied — paste it into your email to the rep.'; } };
+function copySynd(){ var ta=document.getElementById('s_body'), t=ta.value||''; var m=document.getElementById('s_msg'); var done=function(){ if(m){ m.style.color='#1f8a5b'; m.textContent='Copied — paste each field into your CoStar / LoopNet listing.'; } };
   if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(done).catch(function(){ try{ ta.focus(); ta.select(); document.execCommand('copy'); done(); }catch(e){} }); }
   else { try{ ta.focus(); ta.select(); document.execCommand('copy'); done(); }catch(e){} } }
-function emailSynd(){ _syndRemember(); var to=(document.getElementById('s_repEmail').value||'').trim(); var subj=document.getElementById('s_subject').value||''; var body=document.getElementById('s_body').value||''; window.location.href='mailto:'+encodeURIComponent(to)+'?subject='+encodeURIComponent(subj)+'&body='+encodeURIComponent(body); }
+function emailSynd(){ _syndRemember(); var to=(document.getElementById('s_repEmail').value||'').trim(); var subj=document.getElementById('s_subject').value||''; var sheet=document.getElementById('s_body').value||''; var body='Please post the following listing to CoStar / LoopNet under Restaurant Realty Group — physical details below; photos and the offering package on request.\n\n'+sheet+'\n\nThanks,\n'+((EDIT&&EDIT.by)||'Restaurant Realty Group'); window.location.href='mailto:'+encodeURIComponent(to)+'?subject='+encodeURIComponent(subj)+'&body='+encodeURIComponent(body); }
 load();
 </script>
 </body>
