@@ -11236,6 +11236,94 @@ app.get('/api/center-file/:id/:fid', (req, res) => {
   res.setHeader('Cache-Control', 'private, max-age=3600');
   fs.createReadStream(fp).pipe(res);
 });
+// ---- shopping-center brochure storage + AI detail enrichment (auto-import + manual "Auto-fill from brochures") ----
+function _centerEnrichCfg(rec) {
+  const d = { fit: true, demo: false, contacts: true, docs: true };
+  const e = (rec && rec.enrich && typeof rec.enrich === 'object') ? rec.enrich : null;
+  if (!e) return d;
+  return { fit: e.fit !== undefined ? !!e.fit : d.fit, demo: e.demo !== undefined ? !!e.demo : d.demo, contacts: e.contacts !== undefined ? !!e.contacts : d.contacts, docs: e.docs !== undefined ? !!e.docs : d.docs };
+}
+function _storeCenterBrochure(ctr, filename, buf, byName) {
+  try {
+    if (!buf || !buf.length || buf.length > 25 * 1024 * 1024) return null;
+    const m = String(filename || '').toLowerCase().match(/\.(pdf|png|jpg|jpeg|gif|webp|doc|docx|xls|xlsx|csv)$/); if (!m) return null;
+    const ext = m[1] === 'jpeg' ? 'jpg' : m[1];
+    ctr.files = Array.isArray(ctr.files) ? ctr.files : [];
+    const nm = String(filename || '').trim().toLowerCase();
+    if (nm && ctr.files.some(f => String(f.name || '').trim().toLowerCase() === nm)) return null; // de-dupe by filename
+    if (!fs.existsSync(CENTERFILES_DIR)) fs.mkdirSync(CENTERFILES_DIR, { recursive: true });
+    const fid = 'ctf_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    binWrite(path.join(CENTERFILES_DIR, ctr.id + '_' + fid + '.' + ext), buf);
+    ctr.files.push({ id: fid, name: String(filename || ('brochure.' + ext)).slice(0, 200), ext, kind: spaceFileKind(ext), size: buf.length, uploadedAt: new Date().toISOString(), by: byName || '', source: 'brochure' });
+    return fid;
+  } catch (e) { return null; }
+}
+function _numCell(v) { if (v === '' || v == null) return null; const n = parseFloat(String(v).replace(/[^0-9.\-]/g, '')); return isFinite(n) ? n : null; }
+// Fill only BLANK center fields from AI-extracted brochure detail (never overwrites unless opts.overwrite).
+function _applyCenterDetail(ctr, det, want, opts) {
+  opts = opts || {}; let changed = false;
+  const setStr = (k, v, max) => { v = String(v == null ? '' : v).trim(); if (!v) return; if (!opts.overwrite && String(ctr[k] || '').trim()) return; ctr[k] = v.slice(0, max); changed = true; };
+  const setNum = (k, v) => { const n = _numCell(v); if (n == null) return; if (!opts.overwrite && ctr[k] != null && ctr[k] !== '') return; ctr[k] = n; changed = true; };
+  const setEnum = (k, v, allowed) => { v = String(v == null ? '' : v).trim(); if (!v || allowed.indexOf(v) < 0) return; if (!opts.overwrite && String(ctr[k] || '').trim()) return; ctr[k] = v; changed = true; };
+  if (want.indexOf('fit') >= 0 && det.fit) {
+    const f = det.fit;
+    setEnum('driveThru', f.driveThru, ['Yes', 'Possible', 'No']);
+    setEnum('endCap', f.endCap, ['Yes', 'No']);
+    setEnum('padSite', f.padSite, ['Yes', 'Possible', 'No']);
+    setEnum('greaseHood', f.greaseHood, ['In place', 'Some', 'None']);
+    setEnum('patio', f.patio, ['Yes', 'Possible', 'No']);
+    setEnum('secondGen', f.secondGen, ['Available', 'No']);
+    setStr('existingRestaurants', f.existingRestaurants, 800);
+    setStr('tabc', f.tabc, 400);
+  }
+  if (want.indexOf('demo') >= 0 && det.demo) { ['pop1', 'pop3', 'pop5', 'daytimePop', 'hhIncome'].forEach(k => setNum(k, det.demo[k])); }
+  if (want.indexOf('contacts') >= 0 && det.contacts) {
+    const c = det.contacts;
+    ['llContact', 'llPhone', 'llEmail', 'pmName', 'pmPhone', 'pmEmail', 'lbName', 'lbPhone', 'lbEmail'].forEach(k => setStr(k, c[k], 160));
+    ['rentMin', 'rentMax', 'nnn', 'occupancy', 'availSuites'].forEach(k => setNum(k, c[k]));
+  }
+  return changed;
+}
+async function _enrichCenterDetail(ctr, text, want, opts) {
+  want = (want || []).filter(x => ['fit', 'demo', 'contacts'].indexOf(x) >= 0);
+  if (!want.length || !String(text || '').trim()) return false;
+  let det = null;
+  try { det = await aiassist.enrichCenterDetail({ text: text, center: ctr, want: want }); } catch (e) { det = null; }
+  if (!det) return false;
+  return _applyCenterDetail(ctr, det, want, opts || {});
+}
+// Manual "Auto-fill from brochures" — reads the center's linked spaces' flyers, files them on the center, and AI-fills selected areas (blank fields only).
+app.post('/api/center/:id/enrich-detail', express.json(), async (req, res) => {
+  const arr = loadCenters(); const c = arr.find(x => x.id === req.params.id);
+  if (!c) return res.status(404).json({ ok: false, error: 'Center not found.' });
+  const b = req.body || {};
+  let procs = Array.isArray(b.procs) ? b.procs.filter(x => ['fit', 'demo', 'contacts', 'docs'].indexOf(x) >= 0) : null;
+  if (!procs || !procs.length) { const rec = (loadSpacePoll()[(req.user && req.user.username) || '']) || {}; const cf = _centerEnrichCfg(rec); procs = Object.keys(cf).filter(k => cf[k]); }
+  const aiWant = procs.filter(x => x !== 'docs');
+  if (aiWant.length && !aiAllowed(req)) return res.status(403).json({ ok: false, error: 'AI is not enabled for your account.' });
+  const byName = (req.user && req.user.name) || '';
+  const spaces = loadSpaces().filter(s => s.centerId === c.id);
+  let text = ''; const broBufs = [];
+  for (const s of spaces) {
+    for (const f of (Array.isArray(s.files) ? s.files : [])) {
+      if (!/^(pdf|docx?)$/i.test(f.ext)) continue;
+      const fp = path.join(SPACEFILES_DIR, s.id + '_' + f.id + '.' + f.ext);
+      if (!fp.startsWith(SPACEFILES_DIR) || !fs.existsSync(fp)) continue;
+      try {
+        const buf = fs.readFileSync(fp);
+        broBufs.push({ name: f.name, buf });
+        if (aiWant.length && text.length < 30000) { const t = String(await extractQuestionnaireText(f.name, buf.toString('base64')) || ''); if (t) text += '\n\n' + t.slice(0, 16000); }
+      } catch (e) {}
+      if (broBufs.length >= 4) break;
+    }
+    if (broBufs.length >= 4) break;
+  }
+  let changed = false, docsCopied = 0, filled = false;
+  if (procs.indexOf('docs') >= 0) { for (const x of broBufs) { if (_storeCenterBrochure(c, x.name, x.buf, byName)) { docsCopied++; changed = true; } } }
+  if (aiWant.length && text.trim()) { filled = await _enrichCenterDetail(c, text, aiWant, { overwrite: !!b.overwrite }); if (filled) changed = true; }
+  if (changed) { c.updatedAt = new Date().toISOString(); saveCenters(arr); }
+  res.json({ ok: true, center: centerBrief(c), filled: filled, docsCopied: docsCopied, ran: procs, hadBrochures: broBufs.length, noText: !!(aiWant.length && !text.trim()) });
+});
 app.post('/api/space/ai-intake', express.json({ limit: '25mb' }), async (req, res) => {
   try {
     const b = req.body || {};
@@ -11312,6 +11400,9 @@ async function _scanSpacesForUser(username, byName, days, skipIds, onProgress) {
   const cands = await gmail.listListingCandidates(username, 50, days, _srcList);
   const arr = loadSpaces();
   const centers = loadCenters(); let centersDirty = false; let centersMade = 0;
+  let _enrichCfg = { fit: false, demo: false, contacts: false, docs: false };
+  try { _enrichCfg = _centerEnrichCfg((loadSpacePoll()[username]) || {}); } catch (e) {}
+  const _enrichWant = ['fit', 'demo', 'contacts'].filter(k => _enrichCfg[k]);
   const _gkeyScan = loadGmapsKey();
   const review = loadSpaceReview(); let reviewDirty = false; let reviewMade = 0;
   const seen = new Set(arr.map(s => String(s.address || '').toLowerCase().trim()).filter(Boolean));
@@ -11356,6 +11447,11 @@ async function _scanSpacesForUser(username, byName, days, skipIds, onProgress) {
         if (_gkeyScan && _ctrNew) { try { const _wr = await _centerWebEnrich(_gkeyScan, ctr, {}); if (_wr.changed) centersDirty = true; } catch (e) {} }
         // Flyer photo as a fallback if Google gave no picture (or no key configured).
         try { if (!ctr.photoExt && await _centerPhotoFromSpaces(ctr, [sp])) centersDirty = true; } catch (e) {}
+        // Auto-enrich the center's detail areas from this flyer, per the rep's config (files the brochure + fills blanks only).
+        try {
+          if (_enrichCfg.docs && bro && bro.buf) { if (_storeCenterBrochure(ctr, bro.filename, bro.buf, byName)) centersDirty = true; }
+          if (_enrichWant.length && text && text.trim()) { if (await _enrichCenterDetail(ctr, text, _enrichWant, {})) centersDirty = true; }
+        } catch (e) {}
       }
       arr.push(sp); created++; if (key) seen.add(key);
       results.push({ ok: true, subject: c.subject || '', address: sp.address || sp.name || '', center: sp.center || '', file: fileName });
@@ -11449,7 +11545,7 @@ function loadSpacePoll() { try { return rj(SPACEPOLL_FILE) || {}; } catch (e) { 
 function saveSpacePoll(o) { return writeJsonGuarded(SPACEPOLL_FILE, o, 'saveSpacePoll'); }
 app.get('/api/spaces/scan-poll', (req, res) => {
   const u = (req.user && req.user.username) || ''; const rec = (loadSpacePoll()[u]) || {};
-  res.json({ ok: true, enabled: !!rec.enabled, intervalMin: rec.intervalMin || 30, days: rec.days || 30, sources: Array.isArray(rec.sources) ? rec.sources : [], connected: gmail.statusFor(u).connected, configured: gmail.isConfigured(), lastRun: rec.lastRun || '', lastCount: rec.lastCount || 0 });
+  res.json({ ok: true, enabled: !!rec.enabled, intervalMin: rec.intervalMin || 30, days: rec.days || 30, sources: Array.isArray(rec.sources) ? rec.sources : [], enrich: _centerEnrichCfg(rec), connected: gmail.statusFor(u).connected, configured: gmail.isConfigured(), lastRun: rec.lastRun || '', lastCount: rec.lastCount || 0 });
 });
 app.post('/api/spaces/scan-poll', express.json(), (req, res) => {
   const u = (req.user && req.user.username) || ''; if (!u) return res.status(401).json({ ok: false, error: 'Sign in required.' });
@@ -11458,8 +11554,9 @@ app.post('/api/spaces/scan-poll', express.json(), (req, res) => {
   if (b.intervalMin != null) { const m = parseInt(b.intervalMin, 10); rec.intervalMin = (isFinite(m) && m >= 5) ? Math.min(m, 720) : 30; }
   if (b.days != null) { const d = parseInt(b.days, 10); if (isFinite(d)) rec.days = Math.max(1, Math.min(365, d)); }
   if (b.sources !== undefined) { const raw = Array.isArray(b.sources) ? b.sources : String(b.sources || '').split(/[\s,;\n]+/); rec.sources = raw.map(x => String(x).trim().toLowerCase().replace(/^from:/, '').replace(/[<>]/g, '')).filter(x => x && x.indexOf('.') > 0 && x.length < 120).slice(0, 40); }
+  if (b.enrich && typeof b.enrich === 'object') { rec.enrich = { fit: !!b.enrich.fit, demo: !!b.enrich.demo, contacts: !!b.enrich.contacts, docs: !!b.enrich.docs }; }
   store[u] = rec; saveSpacePoll(store);
-  res.json({ ok: true, enabled: !!rec.enabled, intervalMin: rec.intervalMin || 30, days: rec.days || 30 });
+  res.json({ ok: true, enabled: !!rec.enabled, intervalMin: rec.intervalMin || 30, days: rec.days || 30, enrich: _centerEnrichCfg(rec) });
 });
 let _spacePolling = false;
 async function spacePollTick() {

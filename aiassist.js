@@ -209,6 +209,28 @@ async function calcSummary({ kind, inputs, outputs }) {
   return extractJson(await callClaude(sys, user, 900)) || {};
 }
 
+// 12b) Enrich a shopping-center record from brochure/flyer text — for the auto-import + manual "Auto-fill from brochures".
+// want: subset of ['fit','demo','contacts']. Returns ONLY the requested groups. Grounds strictly in the text; never fabricates.
+async function enrichCenterDetail({ text, center, want }) {
+  const w = Array.isArray(want) && want.length ? want : ['fit', 'demo', 'contacts'];
+  const parts = [];
+  if (w.indexOf('fit') >= 0) parts.push(
+    '"fit": {"driveThru":"Yes|Possible|No|","endCap":"Yes|No|","padSite":"Yes|Possible|No|","greaseHood":"In place|Some|None|","patio":"Yes|Possible|No|","secondGen":"Available|No|","existingRestaurants":"","tabc":""} ' +
+    '— restaurant fit & infrastructure. driveThru/endCap/padSite/patio: whether the center/space offers it. greaseHood: is restaurant grease/hood/ventilation infrastructure present. secondGen: is a 2nd-generation (former) restaurant space available. existingRestaurants: restaurants/bars already operating in the center (names). tabc: any liquor-license / wet-dry / TABC notes. Use "" (or the empty enum choice) for anything not stated.');
+  if (w.indexOf('demo') >= 0) parts.push(
+    '"demo": {"pop1":"","pop3":"","pop5":"","daytimePop":"","hhIncome":""} ' +
+    '— trade-area demographics AS STATED in the flyer only. pop1/pop3/pop5: population within 1/3/5 miles. daytimePop: daytime population. hhIncome: median household income (number only). Return "" for any figure not explicitly in the text — do NOT estimate or invent.');
+  if (w.indexOf('contacts') >= 0) parts.push(
+    '"contacts": {"llContact":"","llPhone":"","llEmail":"","pmName":"","pmPhone":"","pmEmail":"","lbName":"","lbPhone":"","lbEmail":"","rentMin":"","rentMax":"","nnn":"","occupancy":"","availSuites":""} ' +
+    '— ll = landlord/owner contact; pm = property manager; lb = the leasing broker/agent listed on the flyer (name, phone, email). rentMin/rentMax: asking base rent $/SF range. nnn: NNN/CAM $/SF. occupancy: % occupied. availSuites: number of available suites. Numbers only for the numeric fields. Use "" for anything not stated.');
+  const sys = 'You are a restaurant/bar CRE broker\'s analyst. Read the leasing brochure / flyer text for a shopping center and extract ONLY the fields below into STRICT JSON. ' +
+    'Return ONLY this JSON object: {' + parts.join(', ') + '}. ' +
+    'Use ONLY what the text actually says. Never fabricate a figure, name, phone or email. Leave "" for anything not present. Output JSON only.';
+  const ctx = center ? ('CENTER (context — do not invent beyond the flyer): ' + JSON.stringify({ name: center.name, address: center.address, city: center.city, market: center.market, anchor: center.anchor }).slice(0, 800) + '\n\n') : '';
+  const out = extractJson(await callClaude(sys, ctx + 'BROCHURE / FLYER TEXT:\n' + String(text || '').slice(0, 16000), 1500)) || {};
+  return out;
+}
+
 // 13) Placer.ai report -> structured trade-area / foot-traffic fields (paste-and-parse).
 async function parsePlacer({ text }) {
   const sys = 'You extract the key figures from a pasted Placer.ai report (foot-traffic / trade-area analytics for a retail or restaurant location) into STRICT JSON for a restaurant/bar broker. ' +
@@ -411,4 +433,4 @@ async function rewriteEmail({ text }) {
   const out = await callClaude(sys, "DRAFT EMAIL (may contain HTML):\n" + String(text || "").slice(0, 12000), 1400);
   return _emailHtmlOut(out);
 }
-module.exports = { rewriteEmail, parseSpaceListing, parseSpaceListingDoc, enrichCenters, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, parseEmailContact, parseConceptList, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary, buildQuestionnaire, classifyRoomDocs, polishPrompts, refineBov };
+module.exports = { rewriteEmail, parseSpaceListing, parseSpaceListingDoc, enrichCenters, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, parseEmailContact, parseConceptList, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, enrichCenterDetail, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary, buildQuestionnaire, classifyRoomDocs, polishPrompts, refineBov };

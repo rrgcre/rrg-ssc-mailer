@@ -124,6 +124,10 @@ tr:hover td{background:#fbfcfe;}
         <div class="thumb" id="phThumb">▤</div>
         <div><input type="file" id="phFile" accept=".png,.jpg,.jpeg,.gif,.webp" style="display:none"><button class="btn" type="button" onclick="document.getElementById('phFile').click()">Upload photo</button><div class="msg" id="phMsg" style="margin-top:5px"></div></div>
       </div>
+      <div id="enrichBar" style="display:none;align-items:center;gap:10px;background:var(--wash);border:1px solid var(--line);border-radius:10px;padding:9px 12px;margin-bottom:14px">
+        <button class="btn pri" type="button" id="btnEnrichDetail" onclick="enrichDetail()">✨ Auto-fill from brochures</button>
+        <div style="flex:1;min-width:0"><div style="font-size:12px;color:var(--ink);font-weight:600">Pull fit, contacts &amp; economics from this center's linked flyers.</div><div class="msg" id="enrichMsg" style="font-size:11.5px"></div></div>
+      </div>
       <div class="fg">
         <div class="f full"><label>Center name *</label><input id="c_name" placeholder="Bulverde Marketplace"></div>
         <div class="f full"><label>Address</label><input id="c_address" placeholder="1604 &amp; Bulverde Rd"></div>
@@ -288,6 +292,7 @@ function openEdit(id){
   setv('c_gla',EDIT&&EDIT.gla); setv('c_anchor',EDIT&&EDIT.anchor); setv('c_cot',EDIT&&EDIT.coTenants); setv('c_landlord',EDIT&&EDIT.landlord); setv('c_vpd',EDIT&&EDIT.vpd); setv('c_notes',EDIT&&EDIT.notes);
   CFIELDS.forEach(function(k){ setv('c_'+k, EDIT&&EDIT[k]); });
   document.getElementById('c_placerPaste').value=''; document.getElementById('placerMsg').textContent='';
+  var eb=document.getElementById('enrichBar'); if(eb) eb.style.display=EDIT?'flex':'none'; var em=document.getElementById('enrichMsg'); if(em) em.textContent='';
   // reset section open state each open
   ['secFit','secDemo','secLease','secDocs'].forEach(function(id){ var d=document.getElementById(id); if(d) d.open=false; });
   var th=document.getElementById('phThumb');
@@ -358,6 +363,25 @@ function parsePlacerNow(){
       document.getElementById('c_placer').value=(cur?(cur+'\n\n'):'')+L.join('\n');
       document.getElementById('c_placerPaste').value='';
       msg.textContent='Pulled the key figures in.';
+    }).catch(function(){ btn.disabled=false; btn.textContent=old; msg.textContent='Network error.'; });
+}
+// ---- auto-fill from brochures ----
+function enrichDetail(){
+  if(!EDIT) return;
+  var btn=document.getElementById('btnEnrichDetail'), msg=document.getElementById('enrichMsg');
+  btn.disabled=true; var old=btn.textContent; btn.textContent='Reading brochures…'; msg.style.color=''; msg.textContent='';
+  fetch('/api/center/'+EDIT.id+'/enrich-detail',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({})})
+    .then(function(r){return r.json();}).then(function(j){
+      btn.disabled=false; btn.textContent=old;
+      if(!j||!j.ok){ msg.textContent=(j&&j.error)||'Could not run.'; return; }
+      if(!j.hadBrochures){ msg.textContent='No brochures on this center’s linked spaces yet — attach a flyer or import one from email first.'; return; }
+      EDIT=j.center; var i=CENTERS.findIndex(function(c){return c.id===EDIT.id;}); if(i>=0) CENTERS[i]=EDIT;
+      // repopulate the enrichable fields + docs from the returned center
+      CFIELDS.forEach(function(k){ setv('c_'+k, EDIT[k]); });
+      renderDocs();
+      var bits=[]; if(j.filled) bits.push('filled blank fields'); if(j.docsCopied) bits.push('filed '+j.docsCopied+' brochure'+(j.docsCopied===1?'':'s')); if(j.noText) bits.push('couldn’t read text from the flyer');
+      msg.textContent=bits.length?('Done — '+bits.join(', ')+'.'):'Done — nothing new to add (fields already filled).';
+      if(window.rrgToast) rrgToast('Auto-fill complete'); draw();
     }).catch(function(){ btn.disabled=false; btn.textContent=old; msg.textContent='Network error.'; });
 }
 // ---- map ----
