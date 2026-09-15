@@ -421,7 +421,7 @@ function renderList(cards){
       { label:'BOV', key:'bov', sort:function(a,b){return money(a.value)-money(b.value);}, edit:{ editable:function(c){ return !c.valueBov; }, type:'text', get:function(c){return c.value||'';}, save:function(c,val){ var d=String(val||'').replace(/[^0-9.]/g,''); return _saveAssign(c,{valueOverride:d},function(){ c.value=d; }); } }, cell:function(c){ return c.value?fmtMoneyMaybe(c.value):'<span style="color:#b0b8c6">—</span>'; } },
       { label:'Listing Price', key:'listprice', sort:function(a,b){return money(a.listPrice)-money(b.listPrice);}, edit:{ type:'text', get:function(c){return c.listPrice||'';}, save:function(c,val){ var d=String(val||'').replace(/[^0-9.]/g,''); return _saveAssign(c,{listPrice:d},function(){ c.listPrice=d; }); } }, cell:function(c){ return c.listPrice?fmtMoneyMaybe(c.listPrice):'<span style="color:#b0b8c6">—</span>'; } },
       { label:'Commission', key:'commission', sort:function(a,b){return money(a.commission)-money(b.commission);}, edit:{ type:'text', get:function(c){return c.totalCommission||c.commission||'';}, save:function(c,val){ var d=String(val||'').replace(/[^0-9.]/g,''); return _saveAssign(c,{totalCommission:d},function(){ c.totalCommission=d; c.commission=d; }); } }, cell:function(c){ return c.commission?fmtMoneyMaybe(c.commission):'<span style="color:#b0b8c6">—</span>'; } },
-      { label:'Status', sort:function(a,b){return RRGList.cmp(a.status,b.status);}, edit:{ type:'select', options:function(){ return _optsPlus(['Unqualified','New','Active','Under Contract','Closed','On Hold','Lost'], 'status'); }, get:function(c){return c.status||'';}, save:function(c,val){ return _saveAssign(c,{status:val},function(){ c.status=val; }); } }, cell:function(c){ return c.status?('<span class="lstage" style="background:#eef1f6;color:#5b6472">'+esc(c.status)+'</span>'):'<span style="color:#b0b8c6">—</span>'; } },
+      { label:'Status', sort:function(a,b){return RRGList.cmp(a.status,b.status);}, edit:{ type:'select', options:function(){ return _optsPlus(['Unqualified','New','Live','Under Contract','Closed','On Hold','Lost'], 'status'); }, get:function(c){return c.status||'';}, save:function(c,val){ return _saveAssign(c,{status:val},function(){ c.status=val; }); } }, cell:function(c){ return c.status?('<span class="lstage" style="background:#eef1f6;color:#5b6472">'+esc(c.status)+'</span>'):'<span style="color:#b0b8c6">—</span>'; } },
       { label:'BBS #', defaultHidden:true, sort:function(a,b){return RRGList.cmp(a.bbsNumber,b.bbsNumber);}, cell:function(c){ return c.bbsNumber?esc(c.bbsNumber):'<span style="color:#b0b8c6">—</span>'; } },
       { label:'Owner', sort:function(a,b){return RRGList.cmp(a.owner,b.owner);}, edit:{ type:'select', allowBlank:true, options:_ownerOpts, get:function(c){return c.owner||'';}, save:function(c,val){ return _saveAssign(c,{owner:val},function(){ c.owner=val; }); } }, cell:function(c){ return c.owner?esc(c.owner):'<span style="color:#b0b8c6">—</span>'; } },
       { label:'Last activity', sort:function(a,b){return RRGList.cmp(a.lastActivity||'',b.lastActivity||'');}, cell:function(c){ return c.lastActivity?esc(fmtDate(c.lastActivity)):'<span style="color:#b0b8c6">—</span>'; } }
@@ -432,7 +432,7 @@ function renderList(cards){
 }
 function bulkSetStatus(ids,done){
   if(!ids||!ids.length) return;
-  var STATS=['Unqualified','New','Active','Under Contract','Closed','On Hold','Lost'];
+  var STATS=['Unqualified','New','Live','Under Contract','Closed','On Hold','Lost'];
   var ov=document.createElement('div'); ov.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(10,20,45,.42);display:flex;align-items:center;justify-content:center';
   ov.innerHTML='<div style="background:#fff;border-radius:12px;box-shadow:0 20px 60px rgba(10,20,50,.3);width:340px;max-width:92vw;overflow:hidden"><div style="padding:14px 18px;font-weight:800;font-size:14px;color:#000E31;border-bottom:1px solid #eef1f6">Set status — '+ids.length+' listing'+(ids.length>1?'s':'')+'</div><div style="padding:8px">'+STATS.map(function(s){ return '<button type="button" data-st="'+esc(s)+'" style="display:block;width:100%;text-align:left;padding:9px 12px;border:none;background:#fff;border-radius:8px;font:inherit;font-size:13px;font-weight:600;color:#233;cursor:pointer">'+esc(s)+'</button>'; }).join('')+'</div><div style="padding:6px 14px 14px;text-align:right"><button type="button" id="bss_cancel" style="background:#fff;border:1px solid #cdd6e6;border-radius:8px;padding:8px 14px;font:inherit;font-weight:700;color:#33415c;cursor:pointer">Cancel</button></div></div>';
   document.body.appendChild(ov);
@@ -534,8 +534,8 @@ function takeOffBoard(key,status){
 }
 function returnToBoard(key){
   var card=(DATA.cards||[]).filter(function(c){return c.key===key;})[0]; if(!card) return;
-  card.status='Active'; render();
-  fetch('/api/assignment/'+encodeURIComponent(key)+'/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({status:'Active'})})
+  card.status='Live'; render();
+  fetch('/api/assignment/'+encodeURIComponent(key)+'/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({status:'Live'})})
     .then(function(r){return r.json();}).then(function(j){ if(!j||!j.ok){ load(); } }).catch(function(){ load(); });
 }
 var CARDF_FIELDS=[['contact','Contact'],['value','Value'],['commission','Commission'],['days','Days in stage'],['market','Market'],['status','Status'],['bbs','BBS #'],['activity','Last activity']];

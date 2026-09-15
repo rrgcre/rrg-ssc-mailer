@@ -164,8 +164,8 @@ function renderPipeline(){
   var staleRows=P.stale.map(function(x){ return '<tr><td>'+dealLink(x.key,x.business)+'<div class="mt">'+esc(x.owner)+' · '+esc(x.status)+'</div></td><td style="text-align:right"><span class="pill p-warn">'+x.ageDays+'d idle</span></td></tr>'; }).join('');
   var niRows=P.noInterest.map(function(x){ return '<tr><td>'+dealLink(x.key,x.business)+'<div class="mt">'+esc(x.owner)+'</div></td><td style="text-align:right"><span class="pill p-soon">no offers/tours</span></td></tr>'; }).join('');
   var ownRows=P.byOwner.map(function(o){ return '<tr><td class="nm">'+esc(o.owner)+'</td><td>'+o.active+'</td><td>'+money(o.value)+'</td><td>'+(o.expiring||0)+'</td><td>'+o.total+'</td></tr>'; }).join('')||'<tr><td colspan="5" class="empty">No deals yet.</td></tr>';
-  var stOrder=['New','Active','Under Contract','On Hold','Closed','Lost'];
-  var stColors={New:'#23496f','Active':'#1f8a5b','Under Contract':'#b9761a','On Hold':'#8a93a8','Closed':'#0e7a53','Lost':'#DA2B1F'};
+  var stOrder=['New','Live','Under Contract','On Hold','Closed','Lost'];
+  var stColors={New:'#23496f','Live':'#1f8a5b','Under Contract':'#b9761a','On Hold':'#8a93a8','Closed':'#0e7a53','Lost':'#DA2B1F'};
   var stSegs=stOrder.map(function(k){ return {label:k,value:P.statusBreak[k]||0,color:stColors[k]}; });
   document.getElementById('view').innerHTML=
     '<div class="cards">'+kh+'</div>'

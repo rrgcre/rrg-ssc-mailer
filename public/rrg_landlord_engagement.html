@@ -385,7 +385,7 @@ a.feat:hover{background:#f7f9fc;}
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function fmt(iso){ if(!iso) return '—'; var d=new Date(iso); if(isNaN(d.getTime())) return '—'; return (d.getMonth()+1)+'/'+d.getDate()+'/'+d.getFullYear(); }
 function qs(k){ return new URLSearchParams(location.search).get(k)||''; }
-var KEY=qs('key'), A=null, LEASE=null, STATUSES=['New','Active','Under Contract','Closed','On Hold','Lost'], DIRTY=false, RA=null, OFFERS=[], TOURS=[], NDAS=[], PEOPLE=[], AGR=[], ATYPES=[], PIPES=[], BUYERPIPES=[], EXP=null, INVX=null;
+var KEY=qs('key'), A=null, LEASE=null, STATUSES=['New','Live','Under Contract','Closed','On Hold','Lost'], DIRTY=false, RA=null, OFFERS=[], TOURS=[], NDAS=[], PEOPLE=[], AGR=[], ATYPES=[], PIPES=[], BUYERPIPES=[], EXP=null, INVX=null;
 var REP_TYPES=['Exclusive','Non-exclusive','Other'];
 var MKTS=[];
 function mktFieldHtml(){

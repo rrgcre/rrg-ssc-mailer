@@ -162,9 +162,9 @@ function stageCount(a){ return STAGES.filter(function(s){ return a.stages[s[0]];
 function currentStageKey(a){ var last=''; STAGES.forEach(function(s){ if(a.stages && a.stages[s[0]]) last=s[0]; }); return last; }
 function setStageFilter(v){ STAGEFILTER=v||''; applyFilters(); }
 function renderTiles(){
-  var by={New:0,Active:0,'Under Contract':0,Closed:0,other:0};
+  var by={New:0,Live:0,'Under Contract':0,Closed:0,other:0};
   ALL.forEach(function(a){ if(by[a.status]!=null) by[a.status]++; else by.other++; });
-  var tiles=[['',ALL.length,'All deals'],['Active',by.Active,'Active'],['Under Contract',by['Under Contract'],'Under contract'],['New',by.New,'New'],['Closed',by.Closed,'Closed']];
+  var tiles=[['',ALL.length,'All deals'],['Live',by.Live,'Live'],['Under Contract',by['Under Contract'],'Under contract'],['New',by.New,'New'],['Closed',by.Closed,'Closed']];
   document.getElementById('tiles').innerHTML=tiles.map(function(t){ return '<div class="tile'+(FILTER===t[0]?' on':'')+'" onclick="setStatusFilter(\''+t[0]+'\')"><b>'+t[1]+'</b><span>'+esc(t[2])+'</span></div>'; }).join('');
 }
 function setStatusFilter(s){ FILTER=(FILTER===s?'':s); renderTiles(); applyFilters(); }

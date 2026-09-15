@@ -117,23 +117,31 @@ tr:hover td{background:#fbfcfe;}
         <div class="f"><label>Listing for</label><select id="p_listingFor"></select></div>
         <div class="f"><label>Status</label><select id="p_status"></select></div>
         <div class="f"><label>Property type</label><select id="p_propertyType"></select></div>
+        <div class="f"><label>Secondary type</label><select id="p_secondaryType"></select></div>
+        <div class="f full"><label>Also market as (comma-separated, up to 3)</label><input id="p_alsoMarketAs" placeholder="Retail - Storefront, Flex - Light Distribution"></div>
         <div class="f"><label>Tenancy</label><select id="p_tenancy"><option value="">—</option><option>Single-tenant</option><option>Multi-tenant</option><option>Vacant / owner-user</option><option>Land</option></select></div>
         <div class="f full"><label>Address</label><input id="p_address" placeholder="12345 Bulverde Rd"></div>
         <div class="f"><label>City</label><input id="p_city" placeholder="San Antonio"></div>
         <div class="f"><label>State</label><input id="p_state" placeholder="TX"></div>
+        <div class="f"><label>ZIP</label><input id="p_zip" inputmode="numeric" placeholder="78259"></div>
+        <div class="f"><label>County</label><input id="p_county" placeholder="Bexar"></div>
         <div class="f"><label>Market</label><input id="p_market" list="marketList" placeholder="San Antonio"></div>
+        <div class="f"><label>APN / Parcel ID</label><input id="p_apn" placeholder="17867-000-0200"></div>
         <div class="f"><label>Interest conveyed</label><select id="p_interest"><option value="">—</option><option>Fee simple</option><option>Leased fee</option><option>Leasehold</option><option>Ground lease</option></select></div>
       </div>
 
       <details class="sec" id="secSale" open>
         <summary><span class="scv">›</span>Sale economics<span class="stag">For a purchase</span></summary>
         <div class="secbd"><div class="fg">
+          <div class="f"><label>Sale type</label><select id="p_saleType"><option value="">—</option><option>Investment</option><option>Owner-User</option><option>Investment or Owner-User</option></select></div>
           <div class="f"><label>Asking price ($)</label><input id="p_price" inputmode="numeric" placeholder="2,450,000"></div>
           <div class="f"><label>Price / SF ($)</label><input id="p_pricePerSF" inputmode="numeric" placeholder="385"></div>
           <div class="f"><label>Cap rate (%)</label><input id="p_capRate" inputmode="numeric" placeholder="6.5"></div>
           <div class="f"><label>NOI ($/yr)</label><input id="p_noi" inputmode="numeric" placeholder="159,250"></div>
           <div class="f"><label>Occupancy (%)</label><input id="p_occupancy" inputmode="numeric" placeholder="100"></div>
           <div class="f"><label>Annual taxes ($)</label><input id="p_taxes" inputmode="numeric" placeholder="38,000"></div>
+          <div class="f"><label>Area owner can occupy (SF)</label><input id="p_areaOwnerOccupy" inputmode="numeric" placeholder="6,700"></div>
+          <div class="f full"><label>Sale conditions (comma-separated)</label><input id="p_saleConditions" placeholder="1031 Exchange, Owner financing"></div>
         </div></div>
       </details>
 
@@ -156,6 +164,11 @@ tr:hover td{background:#fbfcfe;}
           <div class="f"><label>Lot size (acres)</label><input id="p_lotAcres" inputmode="numeric" placeholder="1.35"></div>
           <div class="f"><label>Lot size (SF)</label><input id="p_lotSF" inputmode="numeric" placeholder="58,800"></div>
           <div class="f"><label>Year built</label><input id="p_yearBuilt" inputmode="numeric" placeholder="2008"></div>
+          <div class="f"><label>Renovated (year)</label><input id="p_renovatedYear" inputmode="numeric" placeholder="2021"></div>
+          <div class="f"><label>Building status</label><select id="p_buildingStatus"><option value="">—</option><option>Existing</option><option>Under Construction</option><option>Proposed</option></select></div>
+          <div class="f"><label>Construction</label><input id="p_construction" placeholder="Masonry / Metal / Wood frame"></div>
+          <div class="f"><label>Sprinklers</label><select id="p_sprinklers"><option value="">—</option><option>Yes — Wet</option><option>Yes — Dry</option><option>No</option></select></div>
+          <div class="f"><label>Ceiling height</label><input id="p_ceilingHeight" placeholder="14'"></div>
           <div class="f"><label>Stories</label><input id="p_stories" inputmode="numeric" placeholder="1"></div>
           <div class="f"><label>Units / suites</label><input id="p_unitsCount" inputmode="numeric" placeholder="1"></div>
           <div class="f"><label>Traffic (VPD)</label><input id="p_trafficVPD" inputmode="numeric" placeholder="41,000"></div>
@@ -180,6 +193,11 @@ tr:hover td{background:#fbfcfe;}
         </div></div>
       </details>
 
+      <details class="sec" id="secFeat">
+        <summary><span class="scv">›</span>Amenities &amp; features<span class="stag" id="featTag"></span></summary>
+        <div class="secbd"><div id="featGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:6px 14px"></div></div>
+      </details>
+
       <details class="sec" id="secContacts">
         <summary><span class="scv">›</span>Seller &amp; co-broker<span class="stag">Who's on the other side</span></summary>
         <div class="secbd">
@@ -201,6 +219,7 @@ tr:hover td{background:#fbfcfe;}
       <details class="sec" id="secMkt">
         <summary><span class="scv">›</span>Marketing &amp; marketplace<span class="stag" id="mktTag"></span></summary>
         <div class="secbd">
+          <div class="f full"><label>Highlights (one per line — CoStar bullet points)</label><textarea id="p_highlights" placeholder="Hard-corner visibility on Loop 1604&#10;120 parking spaces + large patio&#10;Second-gen restaurant infrastructure" style="min-height:70px"></textarea></div>
           <div class="f full"><label>Public description</label><textarea id="p_description" placeholder="The pitch buyers see — location, income, upside, restaurant infrastructure." style="min-height:80px"></textarea></div>
           <div class="fg" style="margin-top:12px">
             <div class="f"><label>Listing start</label><input id="p_listingStart" type="date"></div>
@@ -210,6 +229,19 @@ tr:hover td{background:#fbfcfe;}
             <label class="pubrow"><input type="checkbox" id="p_public"> <span><b>Show on the public marketplace</b> — open listing (address, price and photos visible)</span></label>
             <label class="pubrow"><input type="checkbox" id="p_featured"> <span>Feature it near the top of the marketplace</span></label>
           </div>
+        </div>
+      </details>
+
+      <details class="sec" id="secSynd">
+        <summary><span class="scv">›</span>Syndicate to CoStar / LoopNet<span class="stag">Have your rep post it</span></summary>
+        <div class="secbd">
+          <div style="font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:10px">Build a ready-to-send request that gives your CoStar/LoopNet rep every physical detail on this property — so they post it and you skip the data entry. Physical info only; nothing about a business.</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <button class="btn" type="button" id="enrichBtn" onclick="enrichProperty()">✨ Enrich from documents</button>
+            <button class="btn pri" type="button" id="syndBtn" onclick="buildSyndication()">✉️ Build CoStar / LoopNet submission</button>
+          </div>
+          <div style="font-size:11.5px;color:var(--muted);margin-top:7px">Enrich reads this property's attached OM/brochure and verifies the address to fill the physical fields — it only fills blanks, never overwrites what you typed. Attach the flyer under Documents first.</div>
+          <div class="msg" id="syndMsg" style="margin-top:6px"></div>
         </div>
       </details>
 
@@ -226,6 +258,21 @@ tr:hover td{background:#fbfcfe;}
     <div class="mf"><span class="msg" id="modMsg"></span><button class="btn" onclick="closeEdit()">Cancel</button><button class="btn pri" id="modSave" onclick="saveProperty()">Save property</button></div>
   </div>
 </div>
+<div class="ov" id="syndOv" hidden>
+  <div class="mod" style="max-width:640px">
+    <div class="mhd"><span>CoStar / LoopNet submission</span><button class="btn" onclick="closeSynd()">✕</button></div>
+    <div class="mb">
+      <div class="fg" style="margin-bottom:12px">
+        <div class="f"><label>Rep name</label><input id="s_repName" placeholder="Your CoStar/LoopNet rep"></div>
+        <div class="f"><label>Rep email</label><input id="s_repEmail" type="email" placeholder="rep@costar.com"></div>
+      </div>
+      <div class="f full"><label>Subject</label><input id="s_subject"></div>
+      <div class="f full" style="margin-top:10px"><label>Message — physical details only</label><textarea id="s_body" style="min-height:320px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.5"></textarea></div>
+      <div class="msg" id="s_msg" style="margin-top:8px"></div>
+    </div>
+    <div class="mf"><span class="msg" style="margin-right:auto">Rep details are remembered on this device.</span><button class="btn" type="button" id="s_copy" onclick="copySynd()">Copy</button><button class="btn pri" type="button" id="s_email" onclick="emailSynd()">Open email draft →</button></div>
+  </div>
+</div>
 <datalist id="marketList"></datalist>
 
 <script src="/rrg_list.js"></script>
@@ -233,12 +280,13 @@ tr:hover td{background:#fbfcfe;}
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function fmtN(n){ return (n==null||n==='')?'':Number(n).toLocaleString('en-US'); }
 function money(n){ return (n==null||n==='')?'':('$'+Number(n).toLocaleString('en-US')); }
-var PROPS=[], TYPES=[], LISTING_FOR=[], STATUSES=[], MARKETS=[], CANDEL=false, EDIT=null, PENDING_PHOTO=null, CTL=null, PMAP=null, PMARK=null, PGEOKEY='';
+var PROPS=[], TYPES=[], LISTING_FOR=[], STATUSES=[], MARKETS=[], FEATURES=[], CANDEL=false, EDIT=null, PENDING_PHOTO=null, CTL=null, PMAP=null, PMARK=null, PGEOKEY='';
 // every editable field: modal id 'p_'+key -> property key
-var PFIELDS=['name','listingFor','status','propertyType','tenancy','address','city','state','market','interest',
-  'price','pricePerSF','capRate','noi','occupancy','taxes',
+var PFIELDS=['name','listingFor','status','propertyType','secondaryType','alsoMarketAs','tenancy','address','city','state','zip','county','market','apn','interest',
+  'saleType','price','pricePerSF','capRate','noi','occupancy','taxes','areaOwnerOccupy','saleConditions',
+  'highlights',
   'askingRentSF','nnnSF','availableSF','termYears','tiAllowance','leaseType',
-  'buildingSF','lotAcres','lotSF','yearBuilt','stories','unitsCount','trafficVPD','zoning','parking','frontage','condition',
+  'buildingSF','lotAcres','lotSF','yearBuilt','renovatedYear','buildingStatus','construction','sprinklers','ceilingHeight','stories','unitsCount','trafficVPD','zoning','parking','frontage','condition',
   'driveThru','endCap','padSite','greaseHood','patio','secondGen','existingUse','tabc',
   'sellerName','sellerPhone','sellerEmail','cobrokerName','cobrokerPhone','cobrokerEmail',
   'description','listingStart','listingExpires','notes'];
@@ -249,10 +297,12 @@ function forChip(v){ var cls=v==='For Sale'?'forsale':(v==='For Lease'?'forlease
 function load(){
   fetch('/api/properties',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok){ document.getElementById('list').innerHTML='<div class="empty">Could not load property listings.</div>'; return; }
-    PROPS=j.properties||[]; TYPES=j.types||[]; LISTING_FOR=j.listingFor||[]; STATUSES=j.statuses||[]; MARKETS=j.markets||[]; CANDEL=!!j.canDelete;
+    PROPS=j.properties||[]; TYPES=j.types||[]; LISTING_FOR=j.listingFor||[]; STATUSES=j.statuses||[]; MARKETS=j.markets||[]; FEATURES=j.features||[]; CANDEL=!!j.canDelete;
     document.getElementById('p_listingFor').innerHTML=LISTING_FOR.map(function(t){return '<option>'+esc(t)+'</option>';}).join('');
     document.getElementById('p_status').innerHTML=STATUSES.map(function(t){return '<option>'+esc(t)+'</option>';}).join('');
     document.getElementById('p_propertyType').innerHTML='<option value="">— type —</option>'+TYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join('');
+    document.getElementById('p_secondaryType').innerHTML='<option value="">— none —</option>'+TYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join('');
+    document.getElementById('featGrid').innerHTML=FEATURES.map(function(f){return '<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" class="p_feat" value="'+esc(f)+'" style="width:15px;height:15px"> <span>'+esc(f)+'</span></label>';}).join('');
     document.getElementById('marketList').innerHTML=MARKETS.map(function(m){return '<option value="'+esc(m)+'"></option>';}).join('');
     draw();
   }).catch(function(){ document.getElementById('list').innerHTML='<div class="empty">Could not load property listings.</div>'; });
@@ -278,6 +328,8 @@ function draw(){
 }
 document.addEventListener('click',function(e){ var ed=e.target.closest&&e.target.closest('.p-edit'); if(ed){ openEdit(ed.getAttribute('data-id')); return; } var dl=e.target.closest&&e.target.closest('.p-del'); if(dl){ delProperty(dl.getAttribute('data-id')); return; } });
 function setv(id,v){ var el=document.getElementById(id); if(el) el.value=(v==null?'':v); }
+function getPropFeatures(){ var out=[]; document.querySelectorAll('#featGrid .p_feat').forEach(function(cb){ if(cb.checked) out.push(cb.value); }); return out; }
+function setPropFeatures(list){ var set={}; (list||[]).forEach(function(x){ set[String(x)]=1; }); document.querySelectorAll('#featGrid .p_feat').forEach(function(cb){ cb.checked=!!set[cb.value]; }); var t=document.getElementById('featTag'); if(t) t.textContent=(list&&list.length)?(list.length+' selected'):''; }
 function openEdit(id){
   EDIT=id?PROPS.find(function(p){return p.id===id;}):null; PENDING_PHOTO=null;
   document.getElementById('modTitle').textContent=EDIT?'Edit property':'Add property';
@@ -287,7 +339,8 @@ function openEdit(id){
   document.getElementById('p_tenancy').value=(EDIT&&EDIT.tenancy)||''; document.getElementById('p_interest').value=(EDIT&&EDIT.interest)||'';
   document.getElementById('p_public').checked=!!(EDIT&&EDIT.public);
   document.getElementById('p_featured').checked=!!(EDIT&&EDIT.featured);
-  ['secSale','secLease','secBldg','secFit','secContacts','secMkt','secDocs'].forEach(function(sid,i){ var d=document.getElementById(sid); if(d) d.open=(sid==='secSale'); });
+  setPropFeatures((EDIT&&EDIT.features)||[]);
+  ['secSale','secLease','secBldg','secFit','secFeat','secContacts','secMkt','secDocs'].forEach(function(sid,i){ var d=document.getElementById(sid); if(d) d.open=(sid==='secSale'); });
   document.getElementById('mktTag').textContent=(EDIT&&EDIT.public)?'On marketplace':'';
   renderBoardBar();
   var th=document.getElementById('phThumb');
@@ -327,6 +380,7 @@ function saveProperty(){
   PFIELDS.forEach(function(k){ var el=document.getElementById('p_'+k); if(el) body[k]=el.value; });
   body.public=document.getElementById('p_public').checked;
   body.featured=document.getElementById('p_featured').checked;
+  body.features=getPropFeatures();
   var btn=document.getElementById('modSave'); btn.disabled=true; document.getElementById('modMsg').textContent='Saving…';
   fetch('/api/property',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok){ btn.disabled=false; document.getElementById('modMsg').textContent=(j&&j.error)||'Could not save.'; return null; }
@@ -392,6 +446,110 @@ function initPropMap(){
     }).catch(function(){});
 }
 document.getElementById('secDocs').addEventListener('toggle',function(){ if(this.open) initPropMap(); });
+// ---- CoStar / LoopNet syndication ----
+function _sv(k){ var el=document.getElementById('p_'+k); return el?String(el.value||'').trim():''; }
+function _moneyStr(v){ v=String(v||'').replace(/[^0-9.]/g,''); return v?('$'+Number(v).toLocaleString('en-US')):''; }
+function buildSyndBody(){
+  var L=[], push=function(s){ L.push(s); };
+  push('— PROPERTY —');
+  push('Listing name: '+(_sv('name')||'(unnamed)'));
+  if(_sv('listingFor')) push('Offered: '+_sv('listingFor')+(_sv('status')?('   ·   Status: '+_sv('status')):''));
+  if(_sv('propertyType')) push('Property type: '+_sv('propertyType'));
+  if(_sv('secondaryType')) push('Secondary type: '+_sv('secondaryType'));
+  if(_sv('alsoMarketAs')) push('Also market as: '+_sv('alsoMarketAs'));
+  var cityline=_sv('city')+(_sv('state')?(', '+_sv('state')):'')+(_sv('zip')?(' '+_sv('zip')):'');
+  var addr=[_sv('address'),cityline].filter(function(x){return x&&x.trim();}).join(', '); if(addr.trim()) push('Address: '+addr);
+  if(_sv('county')) push('County: '+_sv('county'));
+  if(_sv('apn')) push('APN / Parcel ID: '+_sv('apn'));
+  if(_sv('market')) push('Market: '+_sv('market'));
+  if(_sv('tenancy')) push('Tenancy: '+_sv('tenancy'));
+  if(_sv('interest')) push('Interest conveyed: '+_sv('interest'));
+  var sale=[];
+  if(_sv('saleType')) sale.push('Sale type: '+_sv('saleType'));
+  if(_sv('price')) sale.push('Asking price: '+_moneyStr(_sv('price')));
+  if(_sv('pricePerSF')) sale.push('Price/SF: '+_moneyStr(_sv('pricePerSF')));
+  if(_sv('capRate')) sale.push('Cap rate: '+_sv('capRate')+'%');
+  if(_sv('noi')) sale.push('NOI: '+_moneyStr(_sv('noi'))+'/yr');
+  if(_sv('occupancy')) sale.push('Occupancy: '+_sv('occupancy')+'%');
+  if(_sv('taxes')) sale.push('Annual taxes: '+_moneyStr(_sv('taxes')));
+  if(_sv('areaOwnerOccupy')) sale.push('Area owner can occupy: '+_sv('areaOwnerOccupy')+' SF');
+  if(_sv('saleConditions')) sale.push('Sale conditions: '+_sv('saleConditions'));
+  if(sale.length){ push(''); push('— SALE —'); sale.forEach(push); }
+  var lease=[];
+  if(_sv('askingRentSF')) lease.push('Asking rent: '+_moneyStr(_sv('askingRentSF'))+'/SF/yr');
+  if(_sv('nnnSF')) lease.push('NNN / CAM: '+_moneyStr(_sv('nnnSF'))+'/SF');
+  if(_sv('availableSF')) lease.push('Available: '+_sv('availableSF')+' SF');
+  if(_sv('termYears')) lease.push('Term: '+_sv('termYears')+' yrs');
+  if(_sv('tiAllowance')) lease.push('TI allowance: '+_moneyStr(_sv('tiAllowance'))+'/SF');
+  if(_sv('leaseType')) lease.push('Lease type: '+_sv('leaseType'));
+  if(lease.length){ push(''); push('— LEASE —'); lease.forEach(push); }
+  var bl=[];
+  if(_sv('buildingSF')) bl.push('Building: '+_sv('buildingSF')+' SF');
+  var lot=[]; if(_sv('lotAcres')) lot.push(_sv('lotAcres')+' ac'); if(_sv('lotSF')) lot.push(_sv('lotSF')+' SF'); if(lot.length) bl.push('Lot size: '+lot.join(' / '));
+  if(_sv('yearBuilt')) bl.push('Year built: '+_sv('yearBuilt'));
+  if(_sv('renovatedYear')) bl.push('Renovated: '+_sv('renovatedYear'));
+  if(_sv('buildingStatus')) bl.push('Building status: '+_sv('buildingStatus'));
+  if(_sv('construction')) bl.push('Construction: '+_sv('construction'));
+  if(_sv('sprinklers')) bl.push('Sprinklers: '+_sv('sprinklers'));
+  if(_sv('ceilingHeight')) bl.push('Ceiling height: '+_sv('ceilingHeight'));
+  if(_sv('stories')) bl.push('Floors: '+_sv('stories'));
+  if(_sv('unitsCount')) bl.push('Units / suites: '+_sv('unitsCount'));
+  if(_sv('trafficVPD')) bl.push('Traffic (VPD): '+_sv('trafficVPD'));
+  if(_sv('zoning')) bl.push('Zoning: '+_sv('zoning'));
+  if(_sv('parking')) bl.push('Parking: '+_sv('parking'));
+  if(_sv('frontage')) bl.push('Frontage: '+_sv('frontage'));
+  if(_sv('condition')) bl.push('Condition: '+_sv('condition'));
+  if(bl.length){ push(''); push('— BUILDING & LAND —'); bl.forEach(push); }
+  var fit=[];
+  [['driveThru','Drive-thru'],['endCap','End-cap'],['padSite','Pad / out-parcel'],['greaseHood','Grease / hood / vent'],['patio','Patio'],['secondGen','2nd-gen restaurant']].forEach(function(p){ if(_sv(p[0])) fit.push(p[1]+': '+_sv(p[0])); });
+  if(_sv('existingUse')) fit.push('Existing / former use: '+_sv('existingUse'));
+  if(_sv('tabc')) fit.push('Liquor / TABC: '+_sv('tabc'));
+  if(fit.length){ push(''); push('— RESTAURANT INFRASTRUCTURE (physical) —'); fit.forEach(push); }
+  var feats=getPropFeatures(); if(feats.length){ push(''); push('— AMENITIES / FEATURES —'); push(feats.join(', ')); }
+  var hls=(_sv('highlights')||'').split('\n').map(function(x){return x.trim();}).filter(Boolean); if(hls.length){ push(''); push('— HIGHLIGHTS —'); hls.forEach(function(h){ push('• '+h); }); }
+  if(_sv('description')){ push(''); push('— DESCRIPTION —'); push(_sv('description')); }
+  return L.join('\n');
+}
+function enrichProperty(){
+  var m=document.getElementById('syndMsg'), btn=document.getElementById('enrichBtn');
+  if(!EDIT){ if(m) m.textContent='Save the property first, then enrich it.'; return; }
+  btn.disabled=true; var old=btn.textContent; btn.textContent='Reading documents…'; if(m){ m.style.color=''; m.textContent=''; }
+  fetch('/api/property/'+EDIT.id+'/enrich',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({})})
+    .then(function(r){return r.json();}).then(function(j){
+      btn.disabled=false; btn.textContent=old;
+      if(!j||!j.ok){ if(m){ m.style.color='#C0261B'; m.textContent=(j&&j.error)||'Could not enrich.'; } return; }
+      EDIT=j.property; var i=PROPS.findIndex(function(x){return x.id===EDIT.id;}); if(i>=0) PROPS[i]=EDIT;
+      PFIELDS.forEach(function(k){ setv('p_'+k, EDIT[k]); });
+      setPropFeatures(EDIT.features||[]);
+      document.getElementById('p_public').checked=!!EDIT.public; document.getElementById('p_featured').checked=!!EDIT.featured;
+      var bits=[]; if(j.filled) bits.push(j.filled+' field'+(j.filled===1?'':'s')+' from the OM/brochure'); if(j.webFilled) bits.push('address verified');
+      if(m){ m.style.color='#1f8a5b';
+        if(bits.length) m.textContent='Filled '+bits.join(' · ')+'. Review, then build the submission.';
+        else if(!j.hadDocs) m.textContent='No OM/brochure attached yet — add one under Documents, then enrich.';
+        else m.textContent='Nothing new to fill — the physical fields are already set.'; }
+      if(window.rrgToast) rrgToast('Enrichment complete'); draw();
+    }).catch(function(){ btn.disabled=false; btn.textContent=old; if(m){ m.style.color='#C0261B'; m.textContent='Network error.'; } });
+}
+function buildSyndication(){
+  var m=document.getElementById('syndMsg');
+  if(!EDIT){ if(m) m.textContent='Save the property first, then build the submission.'; return; }
+  var name=_sv('name')||'New listing';
+  var loc=[_sv('city'),_sv('state')].filter(Boolean).join(', ');
+  document.getElementById('s_subject').value='New CoStar / LoopNet listing — '+name+(loc?(' ('+loc+')'):'');
+  var rn='',re=''; try{ rn=localStorage.getItem('rrg_costar_repName')||''; re=localStorage.getItem('rrg_costar_repEmail')||''; }catch(e){}
+  document.getElementById('s_repName').value=rn; document.getElementById('s_repEmail').value=re;
+  var greet=rn?('Hi '+rn.split(/\s+/)[0]+','):'Hi there,';
+  var signer=(EDIT&&EDIT.by)||'Restaurant Realty Group';
+  document.getElementById('s_body').value=greet+'\n\nPlease add the following listing to CoStar and LoopNet under Restaurant Realty Group. All physical details are below — photos and the offering package are available on request. Let me know if you need anything else to post it.\n\n'+buildSyndBody()+'\n\nThanks,\n'+signer;
+  document.getElementById('s_msg').textContent=''; if(m) m.textContent='';
+  document.getElementById('syndOv').hidden=false;
+}
+function closeSynd(){ document.getElementById('syndOv').hidden=true; }
+function _syndRemember(){ try{ localStorage.setItem('rrg_costar_repName',document.getElementById('s_repName').value||''); localStorage.setItem('rrg_costar_repEmail',document.getElementById('s_repEmail').value||''); }catch(e){} }
+function copySynd(){ _syndRemember(); var ta=document.getElementById('s_body'), t=ta.value||''; var m=document.getElementById('s_msg'); var done=function(){ if(m){ m.style.color='#1f8a5b'; m.textContent='Copied — paste it into your email to the rep.'; } };
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(done).catch(function(){ try{ ta.focus(); ta.select(); document.execCommand('copy'); done(); }catch(e){} }); }
+  else { try{ ta.focus(); ta.select(); document.execCommand('copy'); done(); }catch(e){} } }
+function emailSynd(){ _syndRemember(); var to=(document.getElementById('s_repEmail').value||'').trim(); var subj=document.getElementById('s_subject').value||''; var body=document.getElementById('s_body').value||''; window.location.href='mailto:'+encodeURIComponent(to)+'?subject='+encodeURIComponent(subj)+'&body='+encodeURIComponent(body); }
 load();
 </script>
 </body>

@@ -396,7 +396,7 @@ a.feat:hover{background:#f7f9fc;}
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function fmt(iso){ if(!iso) return '—'; var d=new Date(iso); if(isNaN(d.getTime())) return '—'; return (d.getMonth()+1)+'/'+d.getDate()+'/'+d.getFullYear(); }
 function qs(k){ return new URLSearchParams(location.search).get(k)||''; }
-var KEY=qs('key'), A=null, LEASE=null, STATUSES=['New','Active','Under Contract','Closed','On Hold','Lost'], DIRTY=false, RA=null, OFFERS=[], TOURS=[], NDAS=[], PEOPLE=[], USERS=[], AGR=[], ATYPES=[], PIPES=[], BUYERPIPES=[], EXP=null, INVX=null;
+var KEY=qs('key'), A=null, LEASE=null, STATUSES=['New','Live','Under Contract','Closed','On Hold','Lost'], DIRTY=false, RA=null, OFFERS=[], TOURS=[], NDAS=[], PEOPLE=[], USERS=[], AGR=[], ATYPES=[], PIPES=[], BUYERPIPES=[], EXP=null, INVX=null;
 // Stages the buyer leads move through — driven by the selected Buyer pipeline; falls back to the fixed funnel.
 function buyerStageNames(){ var st=(A&&A.buyerStages)||[]; var names=st.map(function(s){return (s&&s.name)||s;}).filter(Boolean); return names.length?names:INQ_STATUSES; }
 // Buyer pipeline board — the buyer-side mirror of the seller Pipeline card. Each stage shows how many buyer leads sit in it.
@@ -1075,7 +1075,7 @@ function fillMarketplaceCard(){
     +'</div>'
     +'</div>'
     +'<div class="mkrow"><div class="mkf wide"><label>Icon — buyers see this on the marketplace</label><input type="hidden" class="mki" data-f="icon" value="'+esc(v('icon',''))+'"><div class="mkicos"><button type="button" class="mkico'+(!v('icon','')?' on':'')+'" data-ico="" title="Auto — pick by concept">Auto</button>'+((MKT.icons||[]).map(function(ic){ return '<button type="button" class="mkico'+(v('icon','')===ic.k?' on':'')+'" data-ico="'+esc(ic.k)+'" title="'+esc(ic.label)+'">'+_mkIconWrap(ic.p)+'</button>'; }).join(''))+'</div></div></div>'
-    +'<div class="mkprev"><div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#8a93a3;margin-bottom:8px">Buyer preview'+(_MKSTYLE_LBL[_effMkStyle()]?'<span class="mkstyle">'+esc(_MKSTYLE_LBL[_effMkStyle()])+' layout</span>':'')+'</div><div class="mkpc" id="mkPrev"></div></div>'
+    +'<div class="mkprev"><div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#8a93a3;margin-bottom:8px">Buyer preview<span class="mkstyle">as it appears on the marketplace</span></div><div class="mkpc" id="mkPrev"></div></div>'
     +'<div style="display:flex;align-items:center;margin-top:14px"><button type="button" class="mksave" id="mkSave">Save teaser</button><span class="mkmsg" id="mkMsg"></span></div>';
   var status=document.getElementById('mktStatus'); if(status) status.innerHTML=pub?'<span style="color:#1f8a5b;font-weight:700">● Public</span>':'<span style="color:#8a93a3">Not published</span>';
   var cat=body.querySelector('[data-f="conceptKey"]'), badge=body.querySelector('[data-f="conceptType"]');
@@ -1136,18 +1136,24 @@ function _mkConceptIcon(o){
   return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">'+p+'</svg>';
 }
 // Card-grid teaser (also used inside the grid layout's list toggle).
-function _mkPrevCard(pc,o,badge){ var flag=o.flag==='new'?'<span class="mkfl new">New</span>':(o.flag==='price'?'<span class="mkfl price">New price</span>':(o.featured?'<span class="mkfl feat">Featured</span>':'')); var cells=[]; if(o.revenue)cells.push(['Revenue',o.revenue]); if(o.sde)cells.push([o.earnBasis||'SDE',o.sde]); if(o.guide)cells.push(['Guide',o.guide]); var met=cells.length?('<div class="mkmet">'+cells.map(function(c){return '<div><div class="mv">'+esc(c[1])+'</div><div class="mk">'+esc(c[0])+'</div></div>';}).join('')+'</div>'):'<div class="mkmet"><div><div class="mv">Under NDA</div><div class="mk">On request</div></div></div>'; pc.className='mkpc'+(o.featured?' feat':''); pc.innerHTML='<div class="mkth">'+flag+'<span class="mkbadge">'+esc(badge)+'</span></div><div class="mkpb"><div class="mkploc">'+esc(o.loc||'Texas')+'</div><h4>'+esc(o.headline||'Confidential restaurant opportunity')+'</h4>'+met+'<div class="mkplock">🔒 Blind until NDA · Request access →</div></div>'; }
-// Ledger (table) row — mirrors the public /market ledger layout.
-function _mkPrevLedger(pc,o,badge){ var g=_mkGuideOf(o); pc.className='mkpv-ledger'; pc.innerHTML='<table><thead><tr><th>Opportunity</th><th class="num">Guide</th><th class="num">Revenue</th><th class="num">'+esc(o.earnBasis||'SDE')+'</th></tr></thead><tbody><tr>'
-  +'<td><div class="opw"><span class="cic">'+_mkConceptIcon(o)+'</span><div><div class="ey">'+esc(badge)+'</div><h4>'+esc(o.headline||'Confidential restaurant opportunity')+'</h4><span class="lk">🔒 Blind until NDA · Request →</span></div></div></td>'
-  +'<td class="num"><span class="g">'+(g?esc(g):'—')+'</span></td>'
-  +'<td class="num"><span class="s">'+(o.revenue?esc(o.revenue):'—')+'</span></td>'
-  +'<td class="num"><span class="s">'+(o.sde?esc(o.sde):'—')+'</span></td>'
+function _mkPrevCard(pc,o,badge){ var flag=o.flag==='new'?'<span class="mkfl new">New</span>':(o.flag==='price'?'<span class="mkfl price">New price</span>':(o.featured?'<span class="mkfl feat">Featured</span>':'')); var cells=[]; if(o.guide)cells.push(['Guide',o.guide]); if(o.sde)cells.push([o.earnBasis||'SDE',o.sde]); if(o.revenue)cells.push(['Revenue',o.revenue]); var met=cells.length?('<div class="mkmet">'+cells.map(function(c){return '<div><div class="mv">'+esc(c[1])+'</div><div class="mk">'+esc(c[0])+'</div></div>';}).join('')+'</div>'):'<div class="mkmet"><div><div class="mv">Under NDA</div><div class="mk">On request</div></div></div>'; pc.className='mkpc'+(o.featured?' feat':''); pc.innerHTML='<div class="mkth">'+flag+'<span class="mkbadge">'+esc(badge)+'</span></div><div class="mkpb"><div class="mkploc">'+esc(o.loc||'Texas')+'</div><h4>'+esc(o.headline||'Confidential restaurant opportunity')+'</h4>'+met+'<div class="mkplock">🔒 Blind until NDA · Request access →</div></div>'; }
+// Table row — mirrors the live public /market business table exactly (Listing · Metro · Cash flow · Asking · Status · Request).
+function _mkPrevLedger(pc,o,badge){
+  var ask=_mkGuideOf(o);
+  var cb=(MKT&&MKT.cashBands)||{}; var cash=o.sde||(o.cashBand&&cb[o.cashBand])||'';
+  var status=o.featured?'<span class="req">Featured</span>':(o.flag==='new'?'<span class="req">New</span>':(o.flag==='price'?'<span class="req">New price</span>':'<span class="lk">—</span>'));
+  pc.className='mkpv-ledger'; pc.innerHTML='<table><thead><tr><th>Listing</th><th>Metro</th><th class="num">Cash flow</th><th class="num">Asking</th><th>Status</th><th></th></tr></thead><tbody><tr>'
+  +'<td><div class="opw"><span class="cic">'+_mkConceptIcon(o)+'</span><div><div class="ey">'+esc(badge)+'</div><h4>'+esc(o.headline||'Confidential restaurant opportunity')+'</h4></div></div></td>'
+  +'<td class="s">'+esc(o.marketKey||o.loc||'Texas')+'</td>'
+  +'<td class="num">'+(cash?'<span class="g">'+esc(cash)+'</span>':'<span class="lk">&mdash;</span>')+'</td>'
+  +'<td class="num">'+(ask?'<span class="g">'+esc(ask)+'</span>':'<span class="lk">Under NDA</span>')+'</td>'
+  +'<td>'+status+'</td>'
+  +'<td class="num"><span class="req">Request access &rarr;</span></td>'
   +'</tr></tbody></table>'; }
 // Register (index) row — mirrors the public /market register layout, grouped by market.
 function _mkPrevRegister(pc,o,badge){ var g=_mkGuideOf(o); var sub=o.sde?((o.earnBasis||'SDE')+' '+o.sde):''; var mk=o.marketKey||o.loc||'Texas'; pc.className='mkpv-reg'; pc.innerHTML='<div class="reghd"><h2>'+esc(mk)+'</h2><span class="ln"></span><span class="n">1 deal</span></div>'
   +'<div class="row"><span class="cic">'+_mkConceptIcon(o)+'</span><div><div class="ey">'+esc(badge)+'</div><div class="rh">'+esc(o.headline||'Confidential restaurant opportunity')+'</div></div><div class="leader"></div><div class="fig"><div class="g">'+(g?esc(g):'Under NDA')+'</div>'+(sub?'<div class="s">'+esc(sub)+'</div>':'')+'<div class="req">Request access →</div></div></div>'; }
-function mkPreview(){ var pc=document.getElementById('mkPrev'); if(!pc) return; var o=mkCollect(); var units=(o.units&&+o.units>1)?(' · '+o.units+' units'):''; var badge=((o.conceptType||o.conceptKey||'Restaurant')+(o.reAvailable?' · RE available':units)).trim(); var style=_effMkStyle(); if(style==='ledger') _mkPrevLedger(pc,o,badge); else if(style==='register') _mkPrevRegister(pc,o,badge); else _mkPrevCard(pc,o,badge); }
+function mkPreview(){ var pc=document.getElementById('mkPrev'); if(!pc) return; var o=mkCollect(); var units=(o.units&&+o.units>1)?(' · '+o.units+' units'):''; var badge=((o.conceptType||o.conceptKey||'Restaurant')+(o.reAvailable?' · RE available':units)).trim(); /* live marketplace: featured listings show as a card up top, the rest as the table row */ if(o.featured) _mkPrevCard(pc,o,badge); else _mkPrevLedger(pc,o,badge); }
 // When the listing is made Public or Featured, stamp the Listing Agreement's Live date (on market)
 // with today — but only if it's still blank, so an existing live date is never overwritten.
 function _mkMaybeSetLiveDate(){ var f=document.getElementById('f_llive'); if(!f||f.value) return; var d=new Date(); var iso=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); f.value=iso; if(window.A) A.listingLive=iso; var dom=document.getElementById('f_dom'); if(dom) dom.value=domDays(); try{ setDirty(true); save(true); }catch(e){} }

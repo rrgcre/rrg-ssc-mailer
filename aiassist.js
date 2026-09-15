@@ -231,6 +231,23 @@ async function enrichCenterDetail({ text, center, want }) {
   return out;
 }
 
+// 12c) Enrich a real-estate PROPERTY listing from its OM / brochure / flyer text — physical CoStar/LoopNet fields only.
+// Grounds strictly in the document; never fabricates. "" or "" for anything not stated. Nothing about a business's operations.
+async function enrichPropertyDetail({ text, property }) {
+  const sys = 'You extract the PHYSICAL real-estate facts from a commercial listing document (offering memorandum, brochure or flyer) for a restaurant/retail property, to pre-fill a CoStar/LoopNet listing. ' +
+    'Return ONLY this STRICT JSON object: {' +
+    '"propertyType":"","saleType":"Investment|Owner-User|Investment or Owner-User|","tenancy":"Single-tenant|Multi-tenant|Vacant / owner-user|Land|","interest":"Fee simple|Leased fee|Leasehold|Ground lease|",' +
+    '"buildingSF":"","lotAcres":"","lotSF":"","yearBuilt":"","renovatedYear":"","stories":"","unitsCount":"","buildingStatus":"Existing|Under Construction|Proposed|","construction":"","sprinklers":"Yes — Wet|Yes — Dry|No|","ceilingHeight":"","zoning":"","parking":"","frontage":"","trafficVPD":"","apn":"",' +
+    '"price":"","pricePerSF":"","capRate":"","noi":"","occupancy":"","taxes":"","askingRentSF":"","nnnSF":"","availableSF":"","termYears":"","tiAllowance":"","leaseType":"",' +
+    '"condition":"","driveThru":"Yes|Possible|No|","endCap":"Yes|No|","padSite":"Yes|Possible|No|","greaseHood":"In place|Some|None|","patio":"Yes|Possible|No|","secondGen":"Available|No|","existingUse":"","tabc":"",' +
+    '"city":"","state":"","zip":"","county":"","description":"","highlights":[""]}. ' +
+    'highlights = 3-6 short bulleted selling points about the PHYSICAL property (location, visibility, parking, land, second-gen infrastructure, signage) — each a brief phrase, [] if none stated. ' +
+    'buildingSF = gross building / leasable area (GLA). Numbers plain (no $ or commas) for buildingSF, lotSF, yearBuilt, renovatedYear, stories, unitsCount, trafficVPD, pricePerSF, capRate, noi, occupancy, taxes, askingRentSF, nnnSF, availableSF, termYears, tiAllowance; lotAcres a number. apn = assessor parcel number if printed. description = a 1-2 sentence physical summary of the property (location, size, land, improvements) — NOT the business/operations. ' +
+    'Use ONLY what the document states. Never invent a figure, parcel number, address part or year. Leave "" for anything not present. Output JSON only.';
+  const ctx = property ? ('PROPERTY (context — do not invent beyond the document): ' + JSON.stringify({ name: property.name, address: property.address, city: property.city, state: property.state, market: property.market }).slice(0, 800) + '\n\n') : '';
+  return extractJson(await callClaude(sys, ctx + 'LISTING DOCUMENT TEXT:\n' + String(text || '').slice(0, 18000), 1800)) || {};
+}
+
 // 13) Placer.ai report -> structured trade-area / foot-traffic fields (paste-and-parse).
 async function parsePlacer({ text }) {
   const sys = 'You extract the key figures from a pasted Placer.ai report (foot-traffic / trade-area analytics for a retail or restaurant location) into STRICT JSON for a restaurant/bar broker. ' +
@@ -433,4 +450,4 @@ async function rewriteEmail({ text }) {
   const out = await callClaude(sys, "DRAFT EMAIL (may contain HTML):\n" + String(text || "").slice(0, 12000), 1400);
   return _emailHtmlOut(out);
 }
-module.exports = { rewriteEmail, parseSpaceListing, parseSpaceListingDoc, enrichCenters, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, parseEmailContact, parseConceptList, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, enrichCenterDetail, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary, buildQuestionnaire, classifyRoomDocs, polishPrompts, refineBov };
+module.exports = { rewriteEmail, parseSpaceListing, parseSpaceListingDoc, enrichCenters, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, parseEmailContact, parseConceptList, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, enrichCenterDetail, enrichPropertyDetail, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary, buildQuestionnaire, classifyRoomDocs, polishPrompts, refineBov };

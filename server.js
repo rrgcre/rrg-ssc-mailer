@@ -222,6 +222,7 @@ function newPropertyId() { return 'prop_' + Date.now().toString(36) + Math.rando
 const PROPERTY_TYPES = ['Freestanding restaurant', 'Freestanding retail', 'Retail strip / center', 'Bar / nightclub', 'Mixed-use', 'Land / pad site', 'Office', 'Industrial', 'Hospitality', 'Special purpose', 'Other'];
 const PROPERTY_LISTING_FOR = ['For Sale', 'For Lease', 'For Sale or Lease'];
 const PROPERTY_STATUSES = ['Available', 'Under Contract', 'Sold', 'Leased', 'Off-market'];
+const PROPERTY_FEATURES = ['24-Hour Access', 'Air Conditioning', 'Corner Lot', 'Drive-Thru', 'Fenced Lot', 'Freeway Visibility', 'Grease Trap', 'Hood / Ventilation', 'Monument Signage', 'Outdoor Patio', 'Pylon Signage', 'Restaurant', 'Roof Terrace', 'Security System', 'Signalized Corner', 'Walk-In Cooler'];
 function propertyBrief(p) { return Object.assign({}, p, { hasPhoto: !!p.photoExt, fileCount: Array.isArray(p.files) ? p.files.length : 0 }); }
 // ---- Shopping-center enrichment: derive metro, address, city and a photo from the listings we already have ----
 const _METRO_CITIES = {
@@ -2036,7 +2037,7 @@ app.post('/api/seller/skip-screening', express.json(), (req, res) => {
       stageName = (_stg[_tgt] && _stg[_tgt].name) || cur.pipelineStage || '';
       cur.pipelineStage = stageName;
     }
-    cur.pipelineId = _plid; cur.status = 'Active'; cur.screeningSkipped = true;
+    cur.pipelineId = _plid; cur.status = 'Live'; cur.screeningSkipped = true;
     cur.updatedAt = now; cur.stageSince = now;
     ov[key] = cur; saveAssignOverlay(ov);
     // Audit trail on the seller's Activity Log.
@@ -5387,7 +5388,9 @@ function roomClosedPage(r) {
 const ASSIGN_FILE = path.join(BOV_DATA_DIR, 'assignments.json');
 function loadAssignOverlay() { try { return rj(ASSIGN_FILE) || {}; } catch (e) { return {}; } }
 function saveAssignOverlay(o) { return writeJsonGuarded(ASSIGN_FILE, o, 'saveAssignOverlay'); }
-const ASSIGN_STATUSES = ['Unqualified', 'New', 'Active', 'Under Contract', 'Closed', 'On Hold', 'Lost'];
+const ASSIGN_STATUSES = ['Unqualified', 'New', 'Live', 'Under Contract', 'Closed', 'On Hold', 'Lost'];
+// Legacy listings stored status 'Active'; it's now 'Live'. Normalize any inbound/legacy value.
+function normAssignStatus(s) { return s === 'Active' ? 'Live' : s; }
 // ===== Buyer pipeline (buy-side funnel, per listing) =====
 const BUYER_STAGES = [
   { k:'inquiry',  name:'Inquiry' },
@@ -6094,7 +6097,7 @@ app.get('/api/marketplace', (req, res) => {
     .map(d => {
       const view = assignmentView(d, overlay);
       const o = overlay[d.key] || {};
-      const live = !!(d.screen && d.screen.listingStatus === 'Live Listing') || !!view.listingLive || o.status === 'Active' || o.status === 'Under Contract';
+      const live = !!(d.screen && d.screen.listingStatus === 'Live Listing') || !!view.listingLive || o.status === 'Live' || o.status === 'Active' || o.status === 'Under Contract';
       return { key: d.key, business: view.business, market: view.market, roomId: view.roomId, value: view.value,
         hasCim: !!(view.stages && view.stages.pack), live: !!live, status: view.status,
         teaser: o.market || null, suggest: mktSuggest(view) };
@@ -7193,7 +7196,7 @@ app.post('/api/assignment/:key/promote', express.json(), (req, res) => {
   if (!rec || !rec.becameListing) return res.status(404).json({ ok: false, error: 'Provisional listing not found.' });
   const now = new Date().toISOString();
   rec.provisional = false; rec.listingStatus = 'Live Listing'; rec.listingLiveAt = now; saveScreens(scr);
-  try { const ov = loadAssignOverlay(); const cur = ov[key] || {}; if (!cur.status || ['New', 'On Hold'].indexOf(cur.status) >= 0) cur.status = 'Active'; if (!cur.listingStart) cur.listingStart = now.slice(0, 10); cur.updatedAt = now; ov[key] = cur; saveAssignOverlay(ov); } catch (e) {}
+  try { const ov = loadAssignOverlay(); const cur = ov[key] || {}; if (!cur.status || ['New', 'On Hold'].indexOf(cur.status) >= 0) cur.status = 'Live'; if (!cur.listingStart) cur.listingStart = now.slice(0, 10); cur.updatedAt = now; ov[key] = cur; saveAssignOverlay(ov); } catch (e) {}
   res.json({ ok: true });
 });
 app.post('/api/assignment/:key/save', express.json(), (req, res) => {
@@ -7203,7 +7206,7 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   if (!ownsAssignment(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
   const overlay = loadAssignOverlay();
   const b = req.body || {}, cur = overlay[d.key] || {};
-  if (typeof b.status === 'string' && ASSIGN_STATUSES.indexOf(b.status) >= 0) cur.status = b.status;
+  if (typeof b.status === 'string' && ASSIGN_STATUSES.indexOf(normAssignStatus(b.status)) >= 0) cur.status = normAssignStatus(b.status);
   if (typeof b.notes === 'string') cur.notes = b.notes.slice(0, 8000);
   if (typeof b.owner === 'string') cur.owner = b.owner.slice(0, 120);
   if (typeof b.businessOverride === 'string') cur.businessOverride = b.businessOverride.slice(0, 120);
@@ -7942,6 +7945,7 @@ try { seedEmailTemplates(); } catch (e) { console.error('seed email tpl:', e && 
 try { seedBizSalesStages(); } catch (e) { console.error('seed biz sales:', e && e.message); }
 try { seedUnqualifiedStage(); } catch (e) { console.error('seed unqualified:', e && e.message); }
 try { seedPropertyPipeline(); } catch (e) { console.error('seed property pipeline:', e && e.message); }
+try { seedAssignStatusLive(); } catch (e) { console.error('seed assign status live:', e && e.message); }
 try { seedBuyerPipeline(); } catch (e) { console.error('seed buyer pipeline:', e && e.message); }
 try { seedAssetSalesPipeline(); } catch (e) { console.error('seed asset sales pipeline:', e && e.message); }
 try { maskPayrollSsns(); } catch (e) { console.error('mask payroll ssn:', e && e.message); }
@@ -8090,7 +8094,7 @@ function enrollPerson(p, plan, opts) {
 async function runAutomationStep(p, en, step) {
   if (step.type === 'dialog') { try { queueFlashDialog(en.enrolledByUser || en.enrolledBy || '', mergeTokens(step.dialogTitle || '', p), mergeTokens(step.dialogBody || '', p), p, en); return 'dialog queued for ' + (en.enrolledByUser || 'rep'); } catch (e) { return 'dialog error: ' + (e && e.message); } }
   if (step.type === 'logactivity') { try { logActivity(p, (step.actType || 'Note'), mergeTokens(step.actNote || '', p) || 'Logged by automation', { auto: true, by: 'Automation' }); return 'activity logged'; } catch (e) { return 'activity error: ' + (e && e.message); } }
-  if (step.type === 'assignment') { if (!en.dealKey) return 'skipped: no linked assignment'; try { const ov = loadAssignOverlay(); const cur = ov[en.dealKey] || {}; if (step.setStatus && ASSIGN_STATUSES.indexOf(step.setStatus) >= 0) cur.status = step.setStatus; if (step.advanceStage && ['outreach','agreed','offers','dd','closing'].indexOf(step.advanceStage) >= 0) { cur.stageFlags = cur.stageFlags || {}; cur.stageFlags[step.advanceStage] = true; } if (step.markLive && !cur.listingStart) cur.listingStart = new Date().toISOString().slice(0, 10); cur.updatedAt = new Date().toISOString(); ov[en.dealKey] = cur; saveAssignOverlay(ov); logActivity(p, 'Note', 'Automation updated the linked assignment', { auto: true, by: 'Automation' }); return 'assignment updated'; } catch (e) { return 'assignment error: ' + (e && e.message); } }
+  if (step.type === 'assignment') { if (!en.dealKey) return 'skipped: no linked assignment'; try { const ov = loadAssignOverlay(); const cur = ov[en.dealKey] || {}; if (step.setStatus && ASSIGN_STATUSES.indexOf(normAssignStatus(step.setStatus)) >= 0) cur.status = normAssignStatus(step.setStatus); if (step.advanceStage && ['outreach','agreed','offers','dd','closing'].indexOf(step.advanceStage) >= 0) { cur.stageFlags = cur.stageFlags || {}; cur.stageFlags[step.advanceStage] = true; } if (step.markLive && !cur.listingStart) cur.listingStart = new Date().toISOString().slice(0, 10); cur.updatedAt = new Date().toISOString(); ov[en.dealKey] = cur; saveAssignOverlay(ov); logActivity(p, 'Note', 'Automation updated the linked assignment', { auto: true, by: 'Automation' }); return 'assignment updated'; } catch (e) { return 'assignment error: ' + (e && e.message); } }
   if (step.type === 'pipeline') {
     if (!en.dealKey) return 'skipped: no linked listing';
     if (!step.pipelineId) return 'skipped: no pipeline set';
@@ -11182,7 +11186,7 @@ app.get('/api/center-photo/:id', (req, res) => {
 
 // ---- Property Listings (real estate for sale or lease) ----
 app.get('/api/properties', (req, res) => {
-  res.json({ ok: true, properties: loadProperties().map(propertyBrief), types: PROPERTY_TYPES, listingFor: PROPERTY_LISTING_FOR, statuses: PROPERTY_STATUSES, markets: effMarkets(), canDelete: !!(req.user && isSuper(req.user)) });
+  res.json({ ok: true, properties: loadProperties().map(propertyBrief), types: PROPERTY_TYPES, listingFor: PROPERTY_LISTING_FOR, statuses: PROPERTY_STATUSES, features: PROPERTY_FEATURES, markets: effMarkets(), canDelete: !!(req.user && isSuper(req.user)) });
 });
 app.post('/api/property', express.json(), (req, res) => {
   const b = req.body || {};
@@ -11195,7 +11199,14 @@ app.post('/api/property', express.json(), (req, res) => {
   if (typeof b.name === 'string' && b.name.trim()) p.name = b.name.slice(0, 160);
   // Identity & location
   const S = (k, max) => { if (typeof b[k] === 'string') p[k] = b[k].slice(0, max); };
-  S('address', 200); S('city', 120); S('state', 20); S('market', 120); S('zoning', 80); S('parking', 80); S('frontage', 100); S('condition', 60); S('leaseType', 60);
+  S('address', 200); S('city', 120); S('state', 20); S('zip', 12); S('county', 80); S('market', 120); S('zoning', 80); S('parking', 80); S('frontage', 100); S('condition', 60); S('leaseType', 60);
+  // CoStar / LoopNet physical fields
+  S('apn', 60); S('saleType', 60); S('buildingStatus', 40); S('construction', 60); S('sprinklers', 40); S('ceilingHeight', 40);
+  // CoStar extras: highlights, features, secondary/also-market-as type, sale conditions
+  S('alsoMarketAs', 200); S('saleConditions', 200); S('highlights', 3000);
+  if (typeof b.secondaryType === 'string') p.secondaryType = PROPERTY_TYPES.indexOf(b.secondaryType) >= 0 ? b.secondaryType : (b.secondaryType === '' ? '' : (p.secondaryType || ''));
+  if (b.features !== undefined) p.features = cleanStrList(b.features, 30, 60) || [];
+  if (b.areaOwnerOccupy !== undefined) p.areaOwnerOccupy = num(b.areaOwnerOccupy);
   if (typeof b.propertyType === 'string') p.propertyType = PROPERTY_TYPES.indexOf(b.propertyType) >= 0 ? b.propertyType : (p.propertyType || '');
   if (typeof b.listingFor === 'string') p.listingFor = PROPERTY_LISTING_FOR.indexOf(b.listingFor) >= 0 ? b.listingFor : (p.listingFor || 'For Sale');
   if (typeof b.status === 'string') p.status = PROPERTY_STATUSES.indexOf(b.status) >= 0 ? b.status : (p.status || 'Available');
@@ -11208,7 +11219,7 @@ app.post('/api/property', express.json(), (req, res) => {
   // Lease economics
   ['askingRentSF', 'nnnSF', 'availableSF', 'termYears', 'tiAllowance'].forEach(k => { if (b[k] !== undefined) p[k] = num(b[k]); });
   // Building & land
-  ['buildingSF', 'lotAcres', 'lotSF', 'yearBuilt', 'stories', 'unitsCount', 'trafficVPD'].forEach(k => { if (b[k] !== undefined) p[k] = num(b[k]); });
+  ['buildingSF', 'lotAcres', 'lotSF', 'yearBuilt', 'renovatedYear', 'stories', 'unitsCount', 'trafficVPD'].forEach(k => { if (b[k] !== undefined) p[k] = num(b[k]); });
   // Restaurant fit & infrastructure
   ['driveThru', 'endCap', 'padSite', 'greaseHood', 'patio', 'secondGen'].forEach(k => { if (typeof b[k] === 'string') p[k] = b[k].slice(0, 40); });
   if (typeof b.existingUse === 'string') p.existingUse = b.existingUse.slice(0, 400);
@@ -11358,6 +11369,50 @@ app.post('/api/property/:id/promote', express.json(), (req, res) => {
   ov[key] = cur; saveAssignOverlay(ov);
   p.dealKey = key; p.updatedAt = now; saveProperties(arr);
   res.json({ ok: true, key: key, pipeline: pipe ? pipe.name : '' });
+});
+// Fill a property's physical CoStar/LoopNet fields from its attached OM/brochure (AI, grounded) + Google address. Blanks only.
+function _applyPropertyDetail(p, det, opts) {
+  opts = opts || {}; let changed = 0;
+  const numCell = (v) => { if (v === '' || v == null) return null; const n = parseFloat(String(v).replace(/[^0-9.\-]/g, '')); return isFinite(n) ? n : null; };
+  const setStr = (k, v, max) => { v = String(v == null ? '' : v).trim(); if (!v) return; if (!opts.overwrite && String(p[k] || '').trim()) return; p[k] = v.slice(0, max); changed++; };
+  const setNum = (k, v) => { const n = numCell(v); if (n == null) return; if (!opts.overwrite && p[k] != null && p[k] !== '') return; p[k] = n; changed++; };
+  if (det.propertyType && PROPERTY_TYPES.indexOf(det.propertyType) >= 0) setStr('propertyType', det.propertyType, 60);
+  ['saleType', 'tenancy', 'interest', 'buildingStatus', 'construction', 'sprinklers', 'ceilingHeight', 'zoning', 'parking', 'frontage', 'apn', 'city', 'state', 'zip', 'county', 'condition', 'leaseType', 'driveThru', 'endCap', 'padSite', 'greaseHood', 'patio', 'secondGen'].forEach(k => setStr(k, det[k], 160));
+  setStr('existingUse', det.existingUse, 400); setStr('tabc', det.tabc, 400); setStr('description', det.description, 6000);
+  if (Array.isArray(det.highlights) && det.highlights.length && (opts.overwrite || !String(p.highlights || '').trim())) { const hl = det.highlights.map(x => String(x || '').trim()).filter(Boolean).slice(0, 8).join('\n'); if (hl) { p.highlights = hl.slice(0, 3000); changed++; } }
+  ['buildingSF', 'lotAcres', 'lotSF', 'yearBuilt', 'renovatedYear', 'stories', 'unitsCount', 'trafficVPD', 'price', 'pricePerSF', 'capRate', 'noi', 'occupancy', 'taxes', 'askingRentSF', 'nnnSF', 'availableSF', 'termYears', 'tiAllowance'].forEach(k => setNum(k, det[k]));
+  return changed;
+}
+app.post('/api/property/:id/enrich', express.json(), async (req, res) => {
+  const arr = loadProperties(); const p = arr.find(x => x.id === req.params.id);
+  if (!p) return res.status(404).json({ ok: false, error: 'Property not found.' });
+  if (!aiAllowed(req)) return res.status(403).json({ ok: false, error: 'AI is not enabled for your account.' });
+  const b = req.body || {}; const overwrite = !!b.overwrite;
+  // 1) Pull physical facts from the attached OM / brochure / flyer (grounded AI extraction).
+  let text = '', docCount = 0;
+  for (const f of (Array.isArray(p.files) ? p.files : [])) {
+    if (!/^(pdf|docx?)$/i.test(f.ext)) continue;
+    const fp = path.join(PROPERTYFILES_DIR, p.id + '_' + f.id + '.' + f.ext);
+    if (!fp.startsWith(PROPERTYFILES_DIR) || !fs.existsSync(fp)) continue;
+    try { const buf = fs.readFileSync(fp); const t = String(await extractQuestionnaireText(f.name, buf.toString('base64')) || ''); if (t) { text += '\n\n' + t.slice(0, 18000); docCount++; } } catch (e) {}
+    if (text.length > 30000 || docCount >= 3) break;
+  }
+  let filled = 0;
+  if (text.trim()) { try { const det = await aiassist.enrichPropertyDetail({ text: text, property: p }); if (det) filled += _applyPropertyDetail(p, det, { overwrite: overwrite }); } catch (e) {} }
+  // 2) Verify address / fill city, state, ZIP + geo from Google (when a Maps key is configured).
+  let webFilled = 0; const key = loadGmapsKey();
+  if (key && (p.address || p.name)) {
+    try {
+      const en = await placesSearchNew(key, [p.name, p.address, p.city, p.state, p.market].filter(Boolean).join(' '));
+      if (en && en.data) {
+        p.google = Object.assign({}, p.google || {}, { placeId: en.data.placeId || '', lat: en.data.lat, lng: en.data.lng, address: en.data.address || '', at: new Date().toISOString() });
+        const m = String(en.data.address || '').match(/,\s*([^,]+),\s*([A-Za-z]{2})\s+(\d{5})(?:-\d{4})?/);
+        if (m) { const setF = (k, v, max) => { v = String(v || '').trim(); if (!v) return; if (!overwrite && String(p[k] || '').trim()) return; p[k] = v.slice(0, max); webFilled++; }; setF('city', m[1], 120); setF('state', m[2].toUpperCase(), 20); setF('zip', m[3], 12); }
+      }
+    } catch (e) {}
+  }
+  if (filled || webFilled) { p.updatedAt = new Date().toISOString(); saveProperties(arr); }
+  res.json({ ok: true, property: propertyBrief(p), filled: filled, webFilled: webFilled, hadDocs: docCount, hadKey: !!key });
 });
 
 // ---- Space attachments (brochures / photos) ----
@@ -14393,7 +14448,7 @@ app.post('/api/asset-spec/go-to-market', express.json(), (req, res) => {
     cur.market = teaser;
     // Advance the Space & Assets board to On Market.
     if ((cur.pipelineId || '') === 'p_assetsale') cur.pipelineStage = 'On Market';
-    if (!cur.status || cur.status === 'Unqualified' || cur.status === 'New') cur.status = 'Active';
+    if (!cur.status || cur.status === 'Unqualified' || cur.status === 'New') cur.status = 'Live';
     cur.updatedAt = now; overlay[key] = cur; saveAssignOverlay(overlay);
     let matched = 0; try { matched = runBuyerMatchPush(key, req); } catch (e) {}
     try { depositAssetSheetToRoom(d, key); } catch (e) {}   // best-effort, async
@@ -15622,6 +15677,17 @@ function seedUnqualifiedStage() {
     fs.writeFileSync(marker, new Date().toISOString());
   } catch (e) { console.error('seedUnqualifiedStage:', e && e.message); }
 }
+function seedAssignStatusLive() {
+  try {
+    if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true });
+    const marker = path.join(BOV_DATA_DIR, 'assign_status_live_seeded.flag');
+    if (fs.existsSync(marker)) return;
+    const ov = loadAssignOverlay(); let changed = 0;
+    Object.keys(ov).forEach(function (k) { if (ov[k] && ov[k].status === 'Active') { ov[k].status = 'Live'; changed++; } });
+    if (changed) { saveAssignOverlay(ov); console.log('Migrated ' + changed + ' listing(s) from status Active to Live.'); }
+    fs.writeFileSync(marker, new Date().toISOString());
+  } catch (e) { console.error('seedAssignStatusLive:', e && e.message); }
+}
 function seedPropertyPipeline() {
   try {
     if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true });
@@ -16635,14 +16701,14 @@ function dashboardData(req) {
   const people = loadPeople(), companies = loadCompanies();
   const ov = loadAssignOverlay(), idx = assignmentsIndex();
   const listings = []; for (const k in idx) { try { listings.push(assignmentView(idx[k], ov)); } catch (e) {} }
-  const activeListings = listings.filter(l => ['Active', 'New', 'Under Contract', 'On Hold'].indexOf(l.status) >= 0).length;
+  const activeListings = listings.filter(l => ['Live', 'Active', 'New', 'Under Contract', 'On Hold'].indexOf(l.status) >= 0).length;
   const pipelineValue = listings.reduce((s2, l) => s2 + _dmoney(l.value), 0);
   const agreementsOut = loadAgreements().filter(a => ['sent', 'awaiting_countersign', 'partial'].indexOf(a.signStatus) >= 0).length;
   const underContract = listings.filter(l => l.status === 'Under Contract').length;
   const closed = listings.filter(l => l.status === 'Closed').length;
   const buyers = people.filter(p => p.type === 'Buyer').length;
   const sellers = people.filter(p => p.type === 'Seller').length;
-  const statusOrder = ['New', 'Active', 'Under Contract', 'On Hold', 'Closed', 'Lost'];
+  const statusOrder = ['New', 'Live', 'Under Contract', 'On Hold', 'Closed', 'Lost'];
   const dstat = {}; listings.forEach(l => { const st = l.status || 'New'; dstat[st] = (dstat[st] || 0) + 1; });
   const dealStatus = statusOrder.filter(st => dstat[st]).map(st => ({ label: st, value: dstat[st] }));
   const ptype = {}; people.forEach(p => { const t = p.type || 'Other'; ptype[t] = (ptype[t] || 0) + 1; });
@@ -18819,7 +18885,7 @@ function maybeGoLive(key, req) {
     if (!mktDone) return;
     const now = new Date().toISOString();
     rec.provisional = false; rec.listingStatus = 'Live Listing'; rec.listingLiveAt = now; saveScreens(scr);
-    try { const ov = loadAssignOverlay(); const cur = ov[key] || {}; if (!cur.status || ['New', 'On Hold'].indexOf(cur.status) >= 0) cur.status = 'Active'; if (!cur.listingStart) cur.listingStart = now.slice(0, 10); cur.updatedAt = now; ov[key] = cur; saveAssignOverlay(ov); } catch (e) {}
+    try { const ov = loadAssignOverlay(); const cur = ov[key] || {}; if (!cur.status || ['New', 'On Hold'].indexOf(cur.status) >= 0) cur.status = 'Live'; if (!cur.listingStart) cur.listingStart = now.slice(0, 10); cur.updatedAt = now; ov[key] = cur; saveAssignOverlay(ov); } catch (e) {}
   } catch (e) { console.error('maybeGoLive:', e && e.message); }
 }
 function runPostExecution(a, req) {
@@ -18852,7 +18918,7 @@ function runPostExecution(a, req) {
       }
     } catch (e) {}
     if (!a.dealKey) return;
-    try { const ov = loadAssignOverlay(); const cur = ov[a.dealKey] || {}; if (!cur.status || ['New', 'On Hold'].indexOf(cur.status) >= 0) cur.status = 'Active'; cur.stageFlags = cur.stageFlags || {}; cur.stageFlags.agreed = true; if (!cur.listingStart) cur.listingStart = now.slice(0, 10); cur.updatedAt = now; ov[a.dealKey] = cur; saveAssignOverlay(ov); } catch (e) {}
+    try { const ov = loadAssignOverlay(); const cur = ov[a.dealKey] || {}; if (!cur.status || ['New', 'On Hold'].indexOf(cur.status) >= 0) cur.status = 'Live'; cur.stageFlags = cur.stageFlags || {}; cur.stageFlags.agreed = true; if (!cur.listingStart) cur.listingStart = now.slice(0, 10); cur.updatedAt = now; ov[a.dealKey] = cur; saveAssignOverlay(ov); } catch (e) {}
     // A signed agreement is one of two gates for going Live (marketing being out is the other).
     try { maybeGoLive(a.dealKey, req); } catch (e) {}
     if (a.personId) {
