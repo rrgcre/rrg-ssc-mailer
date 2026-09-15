@@ -11017,6 +11017,16 @@ app.post('/api/center', express.json(), (req, res) => {
   if (typeof b.landlord === 'string') c.landlord = b.landlord.slice(0, 200);
   if (b.vpd !== undefined) c.vpd = num(b.vpd);
   if (typeof b.notes === 'string') c.notes = b.notes.slice(0, 4000);
+  // Restaurant fit & infrastructure
+  ['driveThru', 'endCap', 'padSite', 'greaseHood', 'patio', 'secondGen'].forEach(function (k) { if (typeof b[k] === 'string') c[k] = b[k].slice(0, 40); });
+  if (typeof b.existingRestaurants === 'string') c.existingRestaurants = b.existingRestaurants.slice(0, 800);
+  if (typeof b.tabc === 'string') c.tabc = b.tabc.slice(0, 400);
+  // Demographics & foot traffic
+  ['pop1', 'pop3', 'pop5', 'daytimePop', 'hhIncome'].forEach(function (k) { if (b[k] !== undefined) c[k] = num(b[k]); });
+  if (typeof b.placer === 'string') c.placer = b.placer.slice(0, 4000);
+  // Contacts & leasing economics
+  ['llContact', 'llPhone', 'llEmail', 'pmName', 'pmPhone', 'pmEmail', 'lbName', 'lbPhone', 'lbEmail'].forEach(function (k) { if (typeof b[k] === 'string') c[k] = b[k].slice(0, 160); });
+  ['rentMin', 'rentMax', 'nnn', 'occupancy', 'availSuites'].forEach(function (k) { if (b[k] !== undefined) c[k] = num(b[k]); });
   c.updatedAt = now;
   saveCenters(arr);
   // keep the denormalized center name on linked spaces in sync when a center is renamed
@@ -11182,6 +11192,45 @@ app.get('/api/space-file/:id/:fid', (req, res) => {
   if (!f) return res.status(404).end();
   const fp = path.join(SPACEFILES_DIR, sp.id + '_' + f.id + '.' + f.ext);
   if (!fp.startsWith(SPACEFILES_DIR) || !fs.existsSync(fp)) return res.status(404).end();
+  res.setHeader('Content-Type', spaceFileMime(f.ext));
+  res.setHeader('Content-Disposition', ((f.kind === 'photo' || f.ext === 'pdf') ? 'inline' : 'attachment') + '; filename="' + encodeURIComponent(f.name) + '"');
+  res.setHeader('Cache-Control', 'private, max-age=3600');
+  fs.createReadStream(fp).pipe(res);
+});
+// ---- Center attachments (site plans, aerials, rent rolls, brochures) ----
+const CENTERFILES_DIR = path.join(BOV_DATA_DIR, 'centerfiles');
+app.post('/api/center/:id/file', express.json({ limit: '30mb' }), (req, res) => {
+  const arr = loadCenters(); const c = arr.find(x => x.id === req.params.id);
+  if (!c) return res.status(404).json({ ok: false, error: 'Center not found.' });
+  const b = req.body || {};
+  const m = String(b.filename || '').toLowerCase().match(/\.(pdf|png|jpg|jpeg|gif|webp|doc|docx|xls|xlsx|csv)$/);
+  if (!m) return res.status(400).json({ ok: false, error: 'Use a PDF, image, Word, or Excel file.' });
+  const ext = m[1] === 'jpeg' ? 'jpg' : m[1];
+  let buf; try { buf = Buffer.from(String(b.dataB64 || '').replace(/^data:[^,]*,/, ''), 'base64'); } catch (e) { buf = null; }
+  if (!buf || !buf.length) return res.status(400).json({ ok: false, error: 'Could not read the file.' });
+  if (buf.length > 25 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'File is over 25 MB.' });
+  try { if (!fs.existsSync(CENTERFILES_DIR)) fs.mkdirSync(CENTERFILES_DIR, { recursive: true }); } catch (e) {}
+  const fid = 'ctf_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  try { binWrite(path.join(CENTERFILES_DIR, c.id + '_' + fid + '.' + ext), buf); } catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the file.' }); }
+  c.files = Array.isArray(c.files) ? c.files : [];
+  c.files.push({ id: fid, name: String(b.filename || ('file.' + ext)).slice(0, 200), ext, kind: spaceFileKind(ext), size: buf.length, uploadedAt: new Date().toISOString(), by: (req.user && req.user.name) || '' });
+  c.updatedAt = new Date().toISOString(); saveCenters(arr);
+  res.json({ ok: true, center: centerBrief(c) });
+});
+app.delete('/api/center/:id/file/:fid', (req, res) => {
+  const arr = loadCenters(); const c = arr.find(x => x.id === req.params.id);
+  if (!c) return res.status(404).json({ ok: false, error: 'Center not found.' });
+  const f = (c.files || []).find(x => x.id === req.params.fid);
+  if (f) { try { binDel(path.join(CENTERFILES_DIR, c.id + '_' + f.id + '.' + f.ext)); } catch (e) {} }
+  c.files = (c.files || []).filter(x => x.id !== req.params.fid);
+  c.updatedAt = new Date().toISOString(); saveCenters(arr);
+  res.json({ ok: true, center: centerBrief(c) });
+});
+app.get('/api/center-file/:id/:fid', (req, res) => {
+  const c = loadCenters().find(x => x.id === req.params.id); if (!c) return res.status(404).end();
+  const f = (c.files || []).find(x => x.id === req.params.fid); if (!f) return res.status(404).end();
+  const fp = path.join(CENTERFILES_DIR, c.id + '_' + f.id + '.' + f.ext);
+  if (!fp.startsWith(CENTERFILES_DIR) || !fs.existsSync(fp)) return res.status(404).end();
   res.setHeader('Content-Type', spaceFileMime(f.ext));
   res.setHeader('Content-Disposition', ((f.kind === 'photo' || f.ext === 'pdf') ? 'inline' : 'attachment') + '; filename="' + encodeURIComponent(f.name) + '"');
   res.setHeader('Cache-Control', 'private, max-age=3600');

@@ -196,22 +196,22 @@ function draw(){
   var q=SEARCH.trim().toLowerCase();
   var rows=SPACES.filter(function(sp){ if(FILTER && sp.status!==FILTER) return false; if(q && _spHay(sp).indexOf(q)<0) return false; return true; });
   document.getElementById('cnt').textContent=rows.length?(rows.length+' space'+(rows.length===1?'':'s')):'';
-  var cfg={ mount:'#list', data:rows, key:'spaces', countEl:null,
+  var cfg={ mount:'#list', data:rows, key:'spaces', countEl:null, filterOpen:true,
     empty:'<div class="empty"><b>No spaces yet.</b> Click <b>+ Add space</b> to log an available space and its bones.</div>',
     rowId:function(sp){return sp.id;}, defaultSort:10, defaultDir:-1,
     columns:[
-      { label:'Space', sort:function(a,b){ return RRGList.cmp(a.name||a.address,b.name||b.address); }, cell:function(sp){ var t=esc(sp.name||sp.address||'Untitled space'); var sub=[ (sp.name?sp.address:'') ].filter(Boolean).map(esc).join(' · '); var head=sp.url?('<a class="spname" href="'+esc(sp.url)+'" target="_blank" rel="noopener">'+t+'</a>'):('<span class="spname">'+t+'</span>'); return '<div>'+head+'</div>'+(sub?('<div class="meta">'+sub+'</div>'):''); } },
-      { label:'Shopping center', sort:function(a,b){ return RRGList.cmp(a.center,b.center); }, cell:function(sp){ return sp.center?esc(sp.center):'<span class="meta">—</span>'; } },
-      { label:'Market', sort:function(a,b){ return RRGList.cmp(a.market,b.market); }, cell:function(sp){ return sp.market?esc(sp.market):'<span class="meta">—</span>'; } },
-      { label:'Type', sort:function(a,b){ return RRGList.cmp(a.spaceType,b.spaceType); }, cell:function(sp){ return sp.spaceType?esc(sp.spaceType):'<span class="meta">—</span>'; } },
-      { label:'Size', align:'right', sort:function(a,b){ return (a.size||0)-(b.size||0); }, cell:function(sp){ return sp.size!=null?esc(sf(sp.size)):'<span class="meta">—</span>'; } },
-      { label:'Base $/SF', align:'right', sort:function(a,b){ return (a.rent||0)-(b.rent||0); }, cell:function(sp){ return sp.rent!=null?esc(money(sp.rent)):'<span class="meta">—</span>'; } },
-      { label:'NNN', align:'right', sort:function(a,b){ return (a.nnn||0)-(b.nnn||0); }, cell:function(sp){ return sp.nnn!=null?esc(money(sp.nnn)):'<span class="meta">—</span>'; } },
-      { label:'Total $/SF', align:'right', sort:function(a,b){ return (totalRent(a)||0)-(totalRent(b)||0); }, cell:function(sp){ var t=totalRent(sp); return t!=null?('<b style="color:var(--navy)">'+esc(money(t))+'</b>'):'<span class="meta">—</span>'; } },
-      { label:'Bones', sortable:false, cell:function(sp){ var fs=sp.features||[]; if(!fs.length) return '<span class="meta">—</span>'; return fs.map(function(x){ return '<span class="bone">'+esc(x)+'</span>'; }).join(''); } },
-      { label:'Status', sort:function(a,b){ return RRGList.cmp(a.status,b.status); }, cell:function(sp){ return stPill(sp.status); } },
-      { label:'Notes', defaultHidden:true, sortable:false, cell:function(sp){ return sp.notes?esc(sp.notes):'<span class="meta">—</span>'; } },
-      { label:'Updated', sort:function(a,b){ return RRGList.cmp(a.updatedAt,b.updatedAt); }, cell:function(sp){ return '<span class="meta">'+esc(fmtDate(sp.updatedAt||sp.createdAt))+'</span>'; } },
+      { label:'Space', filterable:false, sort:function(a,b){ return RRGList.cmp(a.name||a.address,b.name||b.address); }, cell:function(sp){ var t=esc(sp.name||sp.address||'Untitled space'); var sub=[ (sp.name?sp.address:'') ].filter(Boolean).map(esc).join(' · '); var head=sp.url?('<a class="spname" href="'+esc(sp.url)+'" target="_blank" rel="noopener">'+t+'</a>'):('<span class="spname">'+t+'</span>'); return '<div>'+head+'</div>'+(sub?('<div class="meta">'+sub+'</div>'):''); } },
+      { label:'Shopping center', filterVal:function(sp){ return sp.center||''; }, sort:function(a,b){ return RRGList.cmp(a.center,b.center); }, cell:function(sp){ return sp.center?esc(sp.center):'<span class="meta">—</span>'; } },
+      { label:'Market', filterVal:function(sp){ return sp.market||''; }, sort:function(a,b){ return RRGList.cmp(a.market,b.market); }, cell:function(sp){ return sp.market?esc(sp.market):'<span class="meta">—</span>'; } },
+      { label:'Type', filterVal:function(sp){ return sp.spaceType||''; }, sort:function(a,b){ return RRGList.cmp(a.spaceType,b.spaceType); }, cell:function(sp){ return sp.spaceType?esc(sp.spaceType):'<span class="meta">—</span>'; } },
+      { label:'Size', align:'right', filterType:'number', filterVal:function(sp){ return sp.size==null?'':sp.size; }, sort:function(a,b){ return (a.size||0)-(b.size||0); }, cell:function(sp){ return sp.size!=null?esc(sf(sp.size)):'<span class="meta">—</span>'; } },
+      { label:'Base $/SF', align:'right', filterType:'number', filterVal:function(sp){ return sp.rent==null?'':sp.rent; }, sort:function(a,b){ return (a.rent||0)-(b.rent||0); }, cell:function(sp){ return sp.rent!=null?esc(money(sp.rent)):'<span class="meta">—</span>'; } },
+      { label:'NNN', align:'right', filterType:'number', filterVal:function(sp){ return sp.nnn==null?'':sp.nnn; }, sort:function(a,b){ return (a.nnn||0)-(b.nnn||0); }, cell:function(sp){ return sp.nnn!=null?esc(money(sp.nnn)):'<span class="meta">—</span>'; } },
+      { label:'Total $/SF', align:'right', filterType:'number', filterVal:function(sp){ var t=totalRent(sp); return t==null?'':t; }, sort:function(a,b){ return (totalRent(a)||0)-(totalRent(b)||0); }, cell:function(sp){ var t=totalRent(sp); return t!=null?('<b style="color:var(--navy)">'+esc(money(t))+'</b>'):'<span class="meta">—</span>'; } },
+      { label:'Bones', sortable:false, filterable:false, cell:function(sp){ var fs=sp.features||[]; if(!fs.length) return '<span class="meta">—</span>'; return fs.map(function(x){ return '<span class="bone">'+esc(x)+'</span>'; }).join(''); } },
+      { label:'Status', filterVal:function(sp){ return sp.status||''; }, sort:function(a,b){ return RRGList.cmp(a.status,b.status); }, cell:function(sp){ return stPill(sp.status); } },
+      { label:'Notes', defaultHidden:true, sortable:false, filterable:false, cell:function(sp){ return sp.notes?esc(sp.notes):'<span class="meta">—</span>'; } },
+      { label:'Updated', filterType:'date', filterVal:function(sp){ return sp.updatedAt||sp.createdAt||''; }, sort:function(a,b){ return RRGList.cmp(a.updatedAt,b.updatedAt); }, cell:function(sp){ return '<span class="meta">'+esc(fmtDate(sp.updatedAt||sp.createdAt))+'</span>'; } },
       { label:'', align:'right', sortable:false, cell:function(sp){ return '<span class="acell"><button class="btn sm sp-edit" data-id="'+esc(sp.id)+'">Edit</button>'+(IS_ADMIN?('<button class="spdel sp-del" title="Delete space" aria-label="Delete space" data-id="'+esc(sp.id)+'">'+TRASH_SVG+'</button>'):'')+'</span>'; } }
     ]
   };

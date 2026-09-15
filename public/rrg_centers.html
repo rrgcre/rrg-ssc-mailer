@@ -74,7 +74,31 @@ tr:hover td{background:#fbfcfe;}
 .searchwrap{margin-left:auto;position:relative;display:flex;align-items:center;}
 .searchwrap .searchic{position:absolute;left:11px;color:#9aa3b2;pointer-events:none;}
 .searchwrap input{border:1px solid var(--line);border-radius:9px;padding:8px 12px 8px 34px;font:inherit;font-size:13px;min-width:230px;}
+/* --- modal enhancement sections --- */
+.sec{border:1px solid var(--line);border-radius:11px;margin-top:12px;overflow:hidden;background:#fff;}
+.sec>summary{list-style:none;cursor:pointer;padding:11px 14px;display:flex;align-items:center;gap:9px;font-weight:700;font-size:13px;color:var(--navy);background:var(--wash);user-select:none;}
+.sec>summary::-webkit-details-marker{display:none;}
+.sec>summary .scv{font-size:16px;line-height:1;color:var(--muted);transition:transform .15s;flex:0 0 auto;}
+.sec[open]>summary .scv{transform:rotate(90deg);}
+.sec>summary .stag{margin-left:auto;font-size:10.5px;font-weight:700;color:var(--muted);}
+.sec .secbd{padding:14px;}
+.sec .subh{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:2px 0 8px;}
+.sec .subh:not(:first-child){margin-top:16px;border-top:1px dashed var(--line);padding-top:14px;}
+.placerbox{border:1px dashed var(--inp);border-radius:9px;padding:10px;background:var(--wash);}
+.placerbox textarea{width:100%;border:1px solid var(--inp);border-radius:8px;padding:8px 10px;font:inherit;font-size:12.5px;min-height:56px;resize:vertical;background:#fff;}
+.placerbox .pact{display:flex;align-items:center;gap:8px;margin-top:8px;}
+.filelist{display:flex;flex-direction:column;gap:6px;margin-top:4px;}
+.filerow{display:flex;align-items:center;gap:9px;border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:12.5px;}
+.filerow .fic{width:24px;height:24px;border-radius:6px;background:var(--wash);display:flex;align-items:center;justify-content:center;font-size:12px;flex:0 0 auto;}
+.filerow a{color:#2647b0;text-decoration:none;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.filerow .fmeta{color:var(--muted);font-size:11px;flex:0 0 auto;}
+.filerow .fdel{background:#fff;color:var(--red);border:1px solid #f0c9c6;border-radius:6px;width:24px;height:24px;padding:0;cursor:pointer;flex:0 0 auto;display:flex;align-items:center;justify-content:center;}
+.filerow .fdel:hover{background:var(--red);color:#fff;}
+#cmap{height:200px;border-radius:9px;border:1px solid var(--line);margin-top:10px;background:var(--wash);}
+.savefirst{font-size:12px;color:var(--muted);background:var(--wash);border:1px dashed var(--inp);border-radius:9px;padding:12px;text-align:center;}
 </style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <script src="/rrg_brand.js"></script>
 </head>
 <body>
@@ -113,6 +137,82 @@ tr:hover td{background:#fbfcfe;}
         <div class="f"><label>Traffic (VPD)</label><input id="c_vpd" inputmode="numeric" placeholder="41000"></div>
         <div class="f full"><label>Notes</label><textarea id="c_notes" placeholder="Co-tenancy, parking, demand drivers, availability…"></textarea></div>
       </div>
+
+      <details class="sec" id="secFit">
+        <summary><span class="scv">›</span>Restaurant fit &amp; infrastructure<span class="stag">Can a restaurant open here?</span></summary>
+        <div class="secbd">
+          <div class="fg">
+            <div class="f"><label>Drive-thru</label><select id="c_driveThru"><option value="">—</option><option>Yes</option><option>Possible</option><option>No</option></select></div>
+            <div class="f"><label>End-cap available</label><select id="c_endCap"><option value="">—</option><option>Yes</option><option>No</option></select></div>
+            <div class="f"><label>Pad / out-parcel</label><select id="c_padSite"><option value="">—</option><option>Yes</option><option>Possible</option><option>No</option></select></div>
+            <div class="f"><label>Grease / hood / vent</label><select id="c_greaseHood"><option value="">—</option><option>In place</option><option>Some</option><option>None</option></select></div>
+            <div class="f"><label>Patio potential</label><select id="c_patio"><option value="">—</option><option>Yes</option><option>Possible</option><option>No</option></select></div>
+            <div class="f"><label>2nd-gen restaurant</label><select id="c_secondGen"><option value="">—</option><option>Available</option><option>No</option></select></div>
+            <div class="f full"><label>Existing restaurants / bars in center</label><textarea id="c_existingRestaurants" placeholder="Who's already operating here — full-service, QSR, bars. Helps read the co-tenancy and food draw."></textarea></div>
+            <div class="f full"><label>TABC / liquor license notes</label><textarea id="c_tabc" placeholder="Wet/dry status, distance rules to schools/churches, any known permitting issues."></textarea></div>
+          </div>
+        </div>
+      </details>
+
+      <details class="sec" id="secDemo">
+        <summary><span class="scv">›</span>Demographics &amp; foot traffic<span class="stag">Is there enough demand?</span></summary>
+        <div class="secbd">
+          <div class="subh">Trade area</div>
+          <div class="fg">
+            <div class="f"><label>Population — 1 mi</label><input id="c_pop1" inputmode="numeric" placeholder="8,500"></div>
+            <div class="f"><label>Population — 3 mi</label><input id="c_pop3" inputmode="numeric" placeholder="62,000"></div>
+            <div class="f"><label>Population — 5 mi</label><input id="c_pop5" inputmode="numeric" placeholder="145,000"></div>
+            <div class="f"><label>Daytime population</label><input id="c_daytimePop" inputmode="numeric" placeholder="48,000"></div>
+            <div class="f"><label>Median HH income ($)</label><input id="c_hhIncome" inputmode="numeric" placeholder="86,000"></div>
+          </div>
+          <div class="subh">Placer.ai foot traffic</div>
+          <div class="placerbox">
+            <textarea id="c_placerPaste" placeholder="Paste a Placer.ai report here — visits, trade area, dwell time, top origins, visitor profile — and I'll pull the key figures into a clean summary."></textarea>
+            <div class="pact"><button class="btn" type="button" id="placerBtn" onclick="parsePlacerNow()">✨ Pull key figures</button><span class="msg" id="placerMsg"></span></div>
+            <div class="f full" style="margin-top:10px"><label>Foot-traffic summary</label><textarea id="c_placer" placeholder="Visits, trend, trade area, dwell time, visitor profile…" style="min-height:80px"></textarea></div>
+          </div>
+        </div>
+      </details>
+
+      <details class="sec" id="secLease">
+        <summary><span class="scv">›</span>Contacts &amp; leasing economics<span class="stag">Who &amp; how much?</span></summary>
+        <div class="secbd">
+          <div class="subh">Leasing economics</div>
+          <div class="fg">
+            <div class="f"><label>Asking rent — low ($/SF)</label><input id="c_rentMin" inputmode="numeric" placeholder="28"></div>
+            <div class="f"><label>Asking rent — high ($/SF)</label><input id="c_rentMax" inputmode="numeric" placeholder="42"></div>
+            <div class="f"><label>NNN / CAM ($/SF)</label><input id="c_nnn" inputmode="numeric" placeholder="9.50"></div>
+            <div class="f"><label>Occupancy (%)</label><input id="c_occupancy" inputmode="numeric" placeholder="94"></div>
+            <div class="f"><label>Available suites</label><input id="c_availSuites" inputmode="numeric" placeholder="3"></div>
+          </div>
+          <div class="subh">Landlord</div>
+          <div class="fg">
+            <div class="f"><label>Contact</label><input id="c_llContact" placeholder="Name"></div>
+            <div class="f"><label>Phone</label><input id="c_llPhone" placeholder="(210) 555-0100"></div>
+            <div class="f full"><label>Email</label><input id="c_llEmail" placeholder="name@owner.com"></div>
+          </div>
+          <div class="subh">Property manager</div>
+          <div class="fg">
+            <div class="f"><label>Name</label><input id="c_pmName" placeholder="Name"></div>
+            <div class="f"><label>Phone</label><input id="c_pmPhone" placeholder="(210) 555-0120"></div>
+            <div class="f full"><label>Email</label><input id="c_pmEmail" placeholder="pm@company.com"></div>
+          </div>
+          <div class="subh">Leasing broker</div>
+          <div class="fg">
+            <div class="f"><label>Name</label><input id="c_lbName" placeholder="Name"></div>
+            <div class="f"><label>Phone</label><input id="c_lbPhone" placeholder="(210) 555-0140"></div>
+            <div class="f full"><label>Email</label><input id="c_lbEmail" placeholder="broker@firm.com"></div>
+          </div>
+        </div>
+      </details>
+
+      <details class="sec" id="secDocs">
+        <summary><span class="scv">›</span>Documents &amp; map<span class="stag" id="docsTag"></span></summary>
+        <div class="secbd">
+          <div id="docsBody"></div>
+          <div id="cmapWrap"><div class="subh" style="border:0;padding-top:6px">Location</div><div id="cmap"></div></div>
+        </div>
+      </details>
     </div>
     <div class="mf"><span class="msg" id="modMsg"></span><button class="btn" onclick="closeEdit()">Cancel</button><button class="btn pri" id="modSave" onclick="saveCenter()">Save center</button></div>
   </div>
@@ -123,7 +223,12 @@ tr:hover td{background:#fbfcfe;}
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function fmtN(n){ return (n==null||n==='')?'':Number(n).toLocaleString('en-US'); }
 var CENTERS=[], SPACES=[], TYPES=[], CANDEL=false, HASMAPS=false, EDIT=null, PENDING_PHOTO=null;
-var CTL=null;
+var CTL=null, CMAP=null, CMARK=null, CGEOKEY='';
+// new enhancement fields: modal id is 'c_'+key, center object key is key
+var CFIELDS=['driveThru','endCap','padSite','greaseHood','patio','secondGen','existingRestaurants','tabc',
+  'pop1','pop3','pop5','daytimePop','hhIncome','placer',
+  'llContact','llPhone','llEmail','pmName','pmPhone','pmEmail','lbName','lbPhone','lbEmail',
+  'rentMin','rentMax','nnn','occupancy','availSuites'];
 var TRASH_SVG='<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>';
 function load(){
   Promise.all([
@@ -158,15 +263,15 @@ function draw(){
   var q=(document.getElementById('q').value||'').toLowerCase().trim();
   var list=CENTERS.filter(function(c){ if(!q) return true; return [c.name,c.market,c.city,c.anchor,c.coTenants,c.address,c.landlord].filter(Boolean).join(' ').toLowerCase().indexOf(q)>=0; });
   document.getElementById('count').textContent=CENTERS.length?(list.length+' of '+CENTERS.length+' center'+(CENTERS.length===1?'':'s')):'';
-  var cfg={ mount:'#list', data:list, key:'centers', empty:'<div class="empty">'+(CENTERS.length?'No centers match your search.':'No shopping centers yet — add your first one.')+'</div>', rowId:function(c){return c.id;}, defaultSort:0, defaultDir:1,
+  var cfg={ mount:'#list', data:list, key:'centers', filterOpen:true, empty:'<div class="empty">'+(CENTERS.length?'No centers match your search.':'No shopping centers yet — add your first one.')+'</div>', rowId:function(c){return c.id;}, defaultSort:0, defaultDir:1,
     columns:[
-      { label:'Center', sort:function(a,b){return RRGList.cmp(a.name,b.name);}, cell:function(c){ var ph=c.hasPhoto?('<div class="cthumb" style="background-image:url(/api/center-photo/'+esc(c.id)+'?t='+encodeURIComponent(c.updatedAt||'')+')"></div>'):'<div class="cthumb">▤</div>'; var sub=[c.address,c.market||c.city].filter(Boolean).map(esc).join(' · '); return '<div class="cwho">'+ph+'<div><div class="cnm">'+esc(c.name||'Untitled')+'</div>'+(sub?('<div class="cmeta">'+sub+'</div>'):'')+'</div></div>'; } },
-      { label:'Type', sort:function(a,b){return RRGList.cmp(a.centerType,b.centerType);}, cell:function(c){ return c.centerType?('<span class="chip">'+esc(c.centerType)+'</span>'):'<span class="cmeta">—</span>'; } },
-      { label:'Anchor / co-tenants', sortable:false, cell:function(c){ if(!c.anchor&&!c.coTenants) return '<span class="cmeta">—</span>'; return (c.anchor?('<b style="color:var(--navy)">'+esc(c.anchor)+'</b>'):'')+(c.coTenants?('<div class="cmeta">'+esc(c.coTenants)+'</div>'):''); } },
-      { label:'GLA', align:'right', sort:function(a,b){return (a.gla||0)-(b.gla||0);}, cell:function(c){ return c.gla?(esc(fmtN(c.gla))+' SF'):'<span class="cmeta">—</span>'; } },
-      { label:'VPD', align:'right', sort:function(a,b){return (a.vpd||0)-(b.vpd||0);}, cell:function(c){ return c.vpd?esc(fmtN(c.vpd)):'<span class="cmeta">—</span>'; } },
-      { label:'Spaces', sort:function(a,b){return spacesFor(a.id).length-spacesFor(b.id).length;}, cell:function(c){ var ls=spacesFor(c.id); if(!ls.length) return '<span class="cmeta">—</span>'; var head='<span class="spb">'+ls.length+' space'+(ls.length===1?'':'s')+'</span>'; var lines=ls.slice(0,4).map(function(sx){ return '<div class="spline">'+esc(sx.name||sx.address||'Space')+(sx.status?(' · '+esc(sx.status)):'')+'</div>'; }).join(''); var more=ls.length>4?('<div class="spmore">+'+(ls.length-4)+' more</div>'):''; return '<div class="splist">'+head+lines+more+'</div>'; } },
-      { label:'Landlord', defaultHidden:true, sort:function(a,b){return RRGList.cmp(a.landlord,b.landlord);}, cell:function(c){ return c.landlord?esc(c.landlord):'<span class="cmeta">—</span>'; } },
+      { label:'Center', filterable:false, sort:function(a,b){return RRGList.cmp(a.name,b.name);}, cell:function(c){ var ph=c.hasPhoto?('<div class="cthumb" style="background-image:url(/api/center-photo/'+esc(c.id)+'?t='+encodeURIComponent(c.updatedAt||'')+')"></div>'):'<div class="cthumb">▤</div>'; var sub=[c.address,c.market||c.city].filter(Boolean).map(esc).join(' · '); return '<div class="cwho">'+ph+'<div><div class="cnm">'+esc(c.name||'Untitled')+'</div>'+(sub?('<div class="cmeta">'+sub+'</div>'):'')+'</div></div>'; } },
+      { label:'Type', filterVal:function(c){ return c.centerType||''; }, sort:function(a,b){return RRGList.cmp(a.centerType,b.centerType);}, cell:function(c){ return c.centerType?('<span class="chip">'+esc(c.centerType)+'</span>'):'<span class="cmeta">—</span>'; } },
+      { label:'Anchor / co-tenants', sortable:false, filterable:false, cell:function(c){ if(!c.anchor&&!c.coTenants) return '<span class="cmeta">—</span>'; return (c.anchor?('<b style="color:var(--navy)">'+esc(c.anchor)+'</b>'):'')+(c.coTenants?('<div class="cmeta">'+esc(c.coTenants)+'</div>'):''); } },
+      { label:'GLA', align:'right', filterType:'number', filterVal:function(c){ return (c.gla==null||c.gla==='')?'':c.gla; }, sort:function(a,b){return (a.gla||0)-(b.gla||0);}, cell:function(c){ return c.gla?(esc(fmtN(c.gla))+' SF'):'<span class="cmeta">—</span>'; } },
+      { label:'VPD', align:'right', filterType:'number', filterVal:function(c){ return (c.vpd==null||c.vpd==='')?'':c.vpd; }, sort:function(a,b){return (a.vpd||0)-(b.vpd||0);}, cell:function(c){ return c.vpd?esc(fmtN(c.vpd)):'<span class="cmeta">—</span>'; } },
+      { label:'Spaces', filterType:'number', filterVal:function(c){ return spacesFor(c.id).length; }, sort:function(a,b){return spacesFor(a.id).length-spacesFor(b.id).length;}, cell:function(c){ var ls=spacesFor(c.id); if(!ls.length) return '<span class="cmeta">—</span>'; var head='<span class="spb">'+ls.length+' space'+(ls.length===1?'':'s')+'</span>'; var lines=ls.slice(0,4).map(function(sx){ return '<div class="spline">'+esc(sx.name||sx.address||'Space')+(sx.status?(' · '+esc(sx.status)):'')+'</div>'; }).join(''); var more=ls.length>4?('<div class="spmore">+'+(ls.length-4)+' more</div>'):''; return '<div class="splist">'+head+lines+more+'</div>'; } },
+      { label:'Landlord', defaultHidden:true, filterable:false, sort:function(a,b){return RRGList.cmp(a.landlord,b.landlord);}, cell:function(c){ return c.landlord?esc(c.landlord):'<span class="cmeta">—</span>'; } },
       { label:'', align:'right', sortable:false, cell:function(c){ return '<span style="white-space:nowrap"><button class="btn c-edit" data-id="'+esc(c.id)+'" style="padding:5px 11px;font-size:12px">Edit</button>'+(CANDEL?('<button class="ctrash c-del" data-id="'+esc(c.id)+'" title="Delete center" style="margin-left:6px">'+TRASH_SVG+'</button>'):'')+'</span>'; } }
     ]
   };
@@ -181,17 +286,106 @@ function openEdit(id){
   setv('c_name',EDIT&&EDIT.name); setv('c_address',EDIT&&EDIT.address); setv('c_city',EDIT&&EDIT.city); setv('c_market',EDIT&&EDIT.market);
   document.getElementById('c_type').value=(EDIT&&EDIT.centerType)||'';
   setv('c_gla',EDIT&&EDIT.gla); setv('c_anchor',EDIT&&EDIT.anchor); setv('c_cot',EDIT&&EDIT.coTenants); setv('c_landlord',EDIT&&EDIT.landlord); setv('c_vpd',EDIT&&EDIT.vpd); setv('c_notes',EDIT&&EDIT.notes);
+  CFIELDS.forEach(function(k){ setv('c_'+k, EDIT&&EDIT[k]); });
+  document.getElementById('c_placerPaste').value=''; document.getElementById('placerMsg').textContent='';
+  // reset section open state each open
+  ['secFit','secDemo','secLease','secDocs'].forEach(function(id){ var d=document.getElementById(id); if(d) d.open=false; });
   var th=document.getElementById('phThumb');
   if(EDIT&&EDIT.hasPhoto){ th.style.backgroundImage='url(/api/center-photo/'+EDIT.id+'?t='+encodeURIComponent(EDIT.updatedAt||'')+')'; th.textContent=''; } else { th.style.backgroundImage=''; th.textContent='▤'; }
   document.getElementById('phFile').value='';
+  renderDocs(); CGEOKEY='';
   document.getElementById('ov').hidden=false;
 }
 function closeEdit(){ document.getElementById('ov').hidden=true; }
+// ---- documents ----
+var FILE_SVG={pdf:'📄',photo:'🖼️',doc:'📝'};
+function renderDocs(){
+  var tag=document.getElementById('docsTag'), body=document.getElementById('docsBody');
+  if(!EDIT){ tag.textContent=''; body.innerHTML='<div class="savefirst">Save the center first, then re-open it to attach site plans, rent rolls, aerials and other documents.</div>'; return; }
+  var files=(EDIT.files||[]);
+  tag.textContent=files.length?(files.length+' file'+(files.length===1?'':'s')):'';
+  var rows=files.map(function(f){
+    var ic=FILE_SVG[f.kind]||'📎'; var kb=f.size?(f.size>1048576?((f.size/1048576).toFixed(1)+' MB'):(Math.max(1,Math.round(f.size/1024))+' KB')):'';
+    return '<div class="filerow"><span class="fic">'+ic+'</span><a href="/api/center-file/'+esc(EDIT.id)+'/'+esc(f.id)+'" target="_blank" rel="noopener">'+esc(f.name)+'</a>'+(kb?('<span class="fmeta">'+kb+'</span>'):'')+'<button class="fdel" title="Remove" onclick="delDoc(\''+esc(f.id)+'\')">✕</button></div>';
+  }).join('');
+  body.innerHTML='<div class="filelist">'+rows+'</div>'+
+    '<div style="margin-top:10px"><input type="file" id="docFile" accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.doc,.docx,.xls,.xlsx,.csv" style="display:none"><button class="btn" type="button" onclick="document.getElementById(\'docFile\').click()">＋ Add document</button><span class="msg" id="docMsg" style="margin-left:8px"></span></div>';
+  var fi=document.getElementById('docFile');
+  if(fi) fi.addEventListener('change',function(){ var f=this.files&&this.files[0]; if(!f) return; uploadDoc(f); this.value=''; });
+}
+function uploadDoc(f){
+  var msg=document.getElementById('docMsg'); if(msg) msg.textContent='Uploading '+f.name+'…';
+  if(f.size>25*1024*1024){ if(msg) msg.textContent='File is over 25 MB.'; return; }
+  var rd=new FileReader();
+  rd.onload=function(){
+    fetch('/api/center/'+EDIT.id+'/file',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({filename:f.name,dataB64:String(rd.result||'').replace(/^data:[^,]*,/,'')})})
+      .then(function(r){return r.json();}).then(function(j){
+        if(j&&j.ok){ EDIT=j.center; var i=CENTERS.findIndex(function(c){return c.id===EDIT.id;}); if(i>=0) CENTERS[i]=EDIT; renderDocs(); if(window.rrgToast) rrgToast('Document added'); draw(); }
+        else if(msg) msg.textContent=(j&&j.error)||'Could not upload.';
+      }).catch(function(){ if(msg) msg.textContent='Network error.'; });
+  };
+  rd.readAsDataURL(f);
+}
+function delDoc(fid){
+  if(!EDIT) return;
+  (window.rrgConfirm?rrgConfirm('Remove this document?',{danger:true}):Promise.resolve(confirm('Remove this document?'))).then(function(ok){ if(!ok) return;
+    fetch('/api/center/'+EDIT.id+'/file/'+fid,{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+      if(j&&j.ok){ EDIT=j.center; var i=CENTERS.findIndex(function(c){return c.id===EDIT.id;}); if(i>=0) CENTERS[i]=EDIT; renderDocs(); draw(); }
+    });
+  });
+}
+// ---- Placer.ai ----
+function parsePlacerNow(){
+  var txt=(document.getElementById('c_placerPaste').value||'').trim();
+  var msg=document.getElementById('placerMsg'), btn=document.getElementById('placerBtn');
+  if(!txt){ msg.textContent='Paste a Placer.ai report above first.'; return; }
+  btn.disabled=true; var old=btn.textContent; btn.textContent='Reading…'; msg.textContent='';
+  fetch('/api/ai/placer',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({text:txt})})
+    .then(function(r){return r.json();}).then(function(j){
+      btn.disabled=false; btn.textContent=old;
+      if(!j||!j.ok){ msg.textContent=(j&&j.error)||'Could not read that report.'; return; }
+      var p=j.result||{}, L=[];
+      if(p.visits) L.push('Visits: '+p.visits+(p.visitsPeriod?(' ('+p.visitsPeriod+')'):''));
+      if(p.visitTrend) L.push('Trend: '+p.visitTrend);
+      if(p.tradeArea) L.push('Trade area: '+p.tradeArea);
+      if(p.dwellMinutes) L.push('Avg dwell: '+p.dwellMinutes);
+      if(Array.isArray(p.peakDayparts)&&p.peakDayparts.length) L.push('Peak: '+p.peakDayparts.join(', '));
+      if(Array.isArray(p.topOrigins)&&p.topOrigins.length) L.push('Top origins: '+p.topOrigins.join(', '));
+      if(p.demographics) L.push('Visitor profile: '+p.demographics);
+      if(Array.isArray(p.highlights)&&p.highlights.length) L.push('', 'Highlights:'); (p.highlights||[]).forEach(function(h){ if(h) L.push('• '+h); });
+      if(!L.length){ msg.textContent='No figures found — check the pasted text.'; return; }
+      var cur=(document.getElementById('c_placer').value||'').trim();
+      document.getElementById('c_placer').value=(cur?(cur+'\n\n'):'')+L.join('\n');
+      document.getElementById('c_placerPaste').value='';
+      msg.textContent='Pulled the key figures in.';
+    }).catch(function(){ btn.disabled=false; btn.textContent=old; msg.textContent='Network error.'; });
+}
+// ---- map ----
+function centerAddrStr(){ var a=[document.getElementById('c_address').value,document.getElementById('c_city').value,document.getElementById('c_market').value].map(function(x){return (x||'').trim();}).filter(Boolean); return a.join(', '); }
+function initCenterMap(){
+  if(!window.L) return;
+  var el=document.getElementById('cmap'); if(!el) return;
+  if(!CMAP){
+    CMAP=L.map(el,{scrollWheelZoom:false,attributionControl:false}).setView([31.0,-99.0],5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(CMAP);
+  }
+  setTimeout(function(){ try{CMAP.invalidateSize();}catch(e){} },60);
+  var addr=centerAddrStr(); if(!addr||addr===CGEOKEY) return; CGEOKEY=addr;
+  fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&q='+encodeURIComponent(addr),{headers:{'Accept':'application/json'}})
+    .then(function(r){return r.json();}).then(function(a){
+      if(!a||!a.length) return; var lat=parseFloat(a[0].lat), lon=parseFloat(a[0].lon);
+      if(!isFinite(lat)||!isFinite(lon)) return;
+      if(CMARK) CMARK.setLatLng([lat,lon]); else CMARK=L.circleMarker([lat,lon],{radius:9,color:'#fff',weight:2,fillColor:'#DA2B1F',fillOpacity:1}).addTo(CMAP);
+      CMAP.setView([lat,lon],15); setTimeout(function(){ try{CMAP.invalidateSize();}catch(e){} },60);
+    }).catch(function(){});
+}
+document.getElementById('secDocs').addEventListener('toggle',function(){ if(this.open) initCenterMap(); });
 document.getElementById('phFile').addEventListener('change',function(){ var f=this.files&&this.files[0]; if(!f) return; if(f.size>10*1024*1024){ document.getElementById('phMsg').textContent='Image over 10 MB.'; this.value=''; return; } var rd=new FileReader(); rd.onload=function(){ PENDING_PHOTO={filename:f.name,dataB64:String(rd.result||'').replace(/^data:[^,]*,/,'')}; var th=document.getElementById('phThumb'); th.style.backgroundImage='url('+rd.result+')'; th.textContent=''; document.getElementById('phMsg').textContent='Will upload on save.'; }; rd.readAsDataURL(f); });
 function saveCenter(){
   var name=(document.getElementById('c_name').value||'').trim();
   if(!name){ document.getElementById('modMsg').textContent='Center name is required.'; return; }
   var body={ id:EDIT?EDIT.id:'', name:name, address:document.getElementById('c_address').value, city:document.getElementById('c_city').value, market:document.getElementById('c_market').value, centerType:document.getElementById('c_type').value, gla:document.getElementById('c_gla').value, anchor:document.getElementById('c_anchor').value, coTenants:document.getElementById('c_cot').value, landlord:document.getElementById('c_landlord').value, vpd:document.getElementById('c_vpd').value, notes:document.getElementById('c_notes').value };
+  CFIELDS.forEach(function(k){ var el=document.getElementById('c_'+k); if(el) body[k]=el.value; });
   var btn=document.getElementById('modSave'); btn.disabled=true; document.getElementById('modMsg').textContent='Saving…';
   fetch('/api/center',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok){ btn.disabled=false; document.getElementById('modMsg').textContent=(j&&j.error)||'Could not save.'; return null; }
