@@ -6749,7 +6749,7 @@ td.r{text-align:right;}
 .lcell{display:flex;gap:11px;align-items:center;}
 .thumb{width:64px;height:48px;border-radius:4px;overflow:hidden;flex:none;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;background:repeating-linear-gradient(135deg,#eef1f6 0 6px,#e6eaf1 6px 12px);color:var(--soft);}
 .thumb svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;}
-.thumb.ico{background:var(--bluebg);color:var(--primary);border-color:#cfe0f2;}
+.thumb.ico{background:#eef1f7;color:#2a3a57;border-color:#dde4ee;}
 .thumb.ico svg{width:22px;height:22px;stroke-width:1.7;}
 .biz{font-weight:700;color:var(--navy);font-size:13.5px;line-height:1.25;display:flex;align-items:center;gap:7px;}
 .biz .lk{color:var(--soft);flex:none;} .biz .lk svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;display:block;}
@@ -6774,7 +6774,7 @@ td.r{text-align:right;}
 .fcard:hover{box-shadow:0 14px 34px rgba(16,26,48,.16);transform:translateY(-2px);}
 .fcard:after{content:"";position:absolute;right:-70px;top:-90px;width:240px;height:240px;border-radius:50%;background:radial-gradient(circle,rgba(44,92,143,.12),transparent 62%);pointer-events:none;}
 .fcard .ftop{display:flex;align-items:center;gap:13px;position:relative;z-index:1;}
-.fcard .med{width:40px;height:40px;flex:none;border-radius:10px;background:var(--goldbg);border:1px solid #e6d7ba;display:flex;align-items:center;justify-content:center;color:var(--accent-d);}
+.fcard .med{width:40px;height:40px;flex:none;border-radius:10px;background:#eef1f7;border:1px solid #dde4ee;display:flex;align-items:center;justify-content:center;color:#2a3a57;}
 .fcard .med svg{width:22px;height:22px;}
 .fcard .floc{font-size:10.5px;color:var(--soft);font-weight:700;text-transform:uppercase;letter-spacing:.05em;}
 .fcard .fribbon{margin-left:auto;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#fbf6ec;background:var(--accent);border:1px solid var(--accent);border-radius:100px;padding:5px 12px;}
