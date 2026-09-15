@@ -7184,7 +7184,7 @@ app.get('/api/assignment/:key', (req, res) => {
       };
     } catch (e) { return null; }
   })();
-  res.json({ ok: true, statuses: ASSIGN_STATUSES, txnStatuses: TXN_STATUSES, commStatuses: TXN_COMM_STATUS, markets: effMarkets(), saleReasons: effSaleReasons(), assignment: assignmentView(d, overlay), lease: leaseSummary, buyerPipelines: buyerPipelinesAll().map(function(p){return {id:p.id,name:p.name,stages:(p.stages||[]).map(function(x){return x.name;})};}), buyerPof: BUYER_POF, agreements: dealAgreements, agreementTypes: effAgreementTypes(), pipelines: loadPipelines(), automations: loadAutomations().filter(a => a.active !== false).map(a => ({ id: a.id, name: a.name || '' })), expenses: dealExpenseRollup(d.key, req.user), invoices: dealInvoiceRollup(d.key, req.user), roomActivity: roomActivityFor(d, origin), canChangePrice: userCan(req.user, 'change_price'), canDelete: canDelete(req) });
+  res.json({ ok: true, statuses: ASSIGN_STATUSES, txnStatuses: TXN_STATUSES, commStatuses: TXN_COMM_STATUS, markets: effMarkets(), saleReasons: effSaleReasons(), cuisineTypes: effCuisineTypes(), conceptTypes: effConceptTypes(), assignment: assignmentView(d, overlay), lease: leaseSummary, buyerPipelines: buyerPipelinesAll().map(function(p){return {id:p.id,name:p.name,stages:(p.stages||[]).map(function(x){return x.name;})};}), buyerPof: BUYER_POF, agreements: dealAgreements, agreementTypes: effAgreementTypes(), pipelines: loadPipelines(), automations: loadAutomations().filter(a => a.active !== false).map(a => ({ id: a.id, name: a.name || '' })), expenses: dealExpenseRollup(d.key, req.user), invoices: dealInvoiceRollup(d.key, req.user), roomActivity: roomActivityFor(d, origin), canChangePrice: userCan(req.user, 'change_price'), canDelete: canDelete(req) });
 });
 app.post('/api/assignment/:key/promote', express.json(), (req, res) => {
   const key = req.params.key;
@@ -11225,7 +11225,7 @@ app.post('/api/property', express.json(), (req, res) => {
   if (typeof b.existingUse === 'string') p.existingUse = b.existingUse.slice(0, 400);
   if (typeof b.tabc === 'string') p.tabc = b.tabc.slice(0, 400);
   // Contacts (seller / co-broker)
-  ['sellerName', 'sellerPhone', 'sellerEmail', 'cobrokerName', 'cobrokerPhone', 'cobrokerEmail'].forEach(k => S(k, 160));
+  ['sellerName', 'sellerPhone', 'sellerEmail', 'cobrokerName', 'cobrokerPhone', 'cobrokerEmail', 'ownerOfRecord'].forEach(k => S(k, 160));
   // Links
   if (typeof b.centerId === 'string') p.centerId = b.centerId.slice(0, 40);
   if (typeof b.sellerContactId === 'string') p.sellerContactId = b.sellerContactId.slice(0, 40);
@@ -11411,8 +11411,23 @@ app.post('/api/property/:id/enrich', express.json(), async (req, res) => {
       }
     } catch (e) {}
   }
-  if (filled || webFilled) { p.updatedAt = new Date().toISOString(); saveProperties(arr); }
-  res.json({ ok: true, property: propertyBrief(p), filled: filled, webFilled: webFilled, hadDocs: docCount, hadKey: !!key });
+  // 3) County parcel records (Regrid) — APN, lot size, year built, zoning, county, owner of record.
+  let countyFilled = 0; const rgtok = loadRegridToken();
+  if (rgtok && (p.address || (p.google && p.google.lat != null))) {
+    try {
+      const q = [p.address, p.city, p.state, p.zip].filter(Boolean).join(', ');
+      const rg = await regridLookup(rgtok, { query: q, lat: (p.google && p.google.lat), lng: (p.google && p.google.lng) });
+      if (rg && rg.fields) {
+        const F = rg.fields;
+        const setF = (k, v, max) => { v = String(v == null ? '' : v).trim(); if (!v) return; if (!overwrite && String(p[k] || '').trim()) return; p[k] = v.slice(0, max); countyFilled++; };
+        const setN = (k, v) => { if (v == null) return; if (!overwrite && p[k] != null && p[k] !== '') return; p[k] = v; countyFilled++; };
+        setF('apn', F.apn, 60); setN('lotAcres', F.lotAcres); setN('lotSF', F.lotSF); setN('yearBuilt', F.yearBuilt); setF('zoning', F.zoning, 80); setF('county', F.county, 80); setF('ownerOfRecord', F.owner, 160);
+        p.regrid = { at: new Date().toISOString(), owner: F.owner || '', landuse: F.landuse || '' };
+      }
+    } catch (e) {}
+  }
+  if (filled || webFilled || countyFilled) { p.updatedAt = new Date().toISOString(); saveProperties(arr); }
+  res.json({ ok: true, property: propertyBrief(p), filled: filled, webFilled: webFilled, countyFilled: countyFilled, hadDocs: docCount, hadKey: !!key, hadCounty: !!rgtok });
 });
 
 // ---- Space attachments (brochures / photos) ----
@@ -13018,6 +13033,40 @@ function photoExtFromName(n) { const m = String(n || '').toLowerCase().match(/\.
 const GMAPS_KEY_FILE = path.join(BOV_DATA_DIR, 'google_maps.key');
 function loadGmapsKey() { try { const t = fs.readFileSync(GMAPS_KEY_FILE, 'utf8').trim(); return t || process.env.GOOGLE_MAPS_API_KEY || ''; } catch (e) { return process.env.GOOGLE_MAPS_API_KEY || ''; } }
 function saveGmapsKey(k) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(GMAPS_KEY_FILE, String(k || '').trim()); } catch (e) {} }
+// ---- Regrid parcel-data (county appraisal records) — token stays server-side ----
+const REGRID_TOKEN_FILE = path.join(BOV_DATA_DIR, 'regrid.token');
+function loadRegridToken() { try { const t = fs.readFileSync(REGRID_TOKEN_FILE, 'utf8').trim(); return t || process.env.REGRID_API_TOKEN || ''; } catch (e) { return process.env.REGRID_API_TOKEN || ''; } }
+function saveRegridToken(k) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(REGRID_TOKEN_FILE, String(k || '').trim()); } catch (e) {} }
+// Look up a parcel by point (preferred) or address. Returns { fields:{...} } or { error }. Never throws.
+async function regridLookup(token, opts) {
+  opts = opts || {};
+  if (!token) return { error: 'no token' };
+  let url = '';
+  if (opts.lat != null && opts.lng != null && isFinite(opts.lat) && isFinite(opts.lng)) {
+    url = 'https://app.regrid.com/api/v2/parcels/point?lat=' + encodeURIComponent(opts.lat) + '&lon=' + encodeURIComponent(opts.lng) + '&token=' + encodeURIComponent(token);
+  } else if (opts.query) {
+    url = 'https://app.regrid.com/api/v2/parcels/address?query=' + encodeURIComponent(opts.query) + '&token=' + encodeURIComponent(token);
+  } else return { error: 'no query' };
+  try {
+    const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    if (!r.ok) return { error: 'regrid HTTP ' + r.status };
+    const j = await r.json();
+    const feat = (j && j.parcels && Array.isArray(j.parcels.features) && j.parcels.features[0]) || (j && Array.isArray(j.features) && j.features[0]) || (j && Array.isArray(j.results) && j.results[0]) || null;
+    const f = feat && feat.properties ? (feat.properties.fields || feat.properties) : (feat && feat.fields) || null;
+    if (!f) return { fields: null };
+    const numOf = (v) => { if (v == null || v === '') return null; const n = parseFloat(String(v).replace(/[^0-9.\-]/g, '')); return isFinite(n) ? n : null; };
+    return { fields: {
+      apn: String(f.parcelnumb || f.parcelnumb_no_formatting || f.alt_parcelnumb1 || '').trim(),
+      lotAcres: numOf(f.ll_gisacre != null ? f.ll_gisacre : (f.gisacre != null ? f.gisacre : f.acreage)),
+      lotSF: numOf(f.ll_gissqft != null ? f.ll_gissqft : (f.gissqft != null ? f.gissqft : f.sqft)),
+      yearBuilt: numOf(f.yearbuilt),
+      zoning: String(f.zoning || '').trim(),
+      county: String(f.county || f.scounty || '').trim(),
+      owner: String(f.owner || f.owner1 || f.mailadd_owner || '').trim(),
+      landuse: String(f.usedesc || f.lbcs_activity_desc || f.zoning_description || '').trim()
+    } };
+  } catch (e) { return { error: 'regrid request failed' }; }
+}
 async function fetchImageBuffer(url, minBytes) {
   try {
     const r = await fetch(url); if (!r.ok) return null;
@@ -13145,6 +13194,14 @@ async function pullPhotosForLocation(key, l) {
   return { added, reasons, enriched: !!(l.google && l.google.placeId) };
 }
 app.get('/api/admin/gmaps-key', requireAdmin, (req, res) => res.json({ ok: true, set: !!loadGmapsKey(), fromEnv: !fs.existsSync(GMAPS_KEY_FILE) && !!process.env.GOOGLE_MAPS_API_KEY }));
+app.get('/api/admin/regrid-token', requireAdmin, (req, res) => res.json({ ok: true, set: !!loadRegridToken(), fromEnv: !fs.existsSync(REGRID_TOKEN_FILE) && !!process.env.REGRID_API_TOKEN }));
+app.post('/api/admin/regrid-token', requireAdmin, express.json(), (req, res) => {
+  const b = req.body || {};
+  if (b.clear) { saveRegridToken(''); return res.json({ ok: true, set: !!loadRegridToken() }); }
+  const k = String(b.token || b.key || '').trim();
+  if (!k) return res.status(400).json({ ok: false, error: 'Paste a Regrid API token.' });
+  saveRegridToken(k); res.json({ ok: true, set: true });
+});
 // Live connection status for the Integrations gallery tiles.
 app.get('/api/admin/integrations-status', requireAdmin, (req, res) => {
   const st = {};

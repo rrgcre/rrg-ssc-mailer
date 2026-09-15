@@ -65,6 +65,19 @@ input.key{flex:1;min-width:260px;border:1px solid #cfd6e2;border-radius:9px;padd
   </div>
 
   <div class="card">
+    <h2>Regrid parcel data (county records)</h2>
+    <span class="cs">Pulls county appraisal-district facts — APN/parcel, lot size, year built, zoning, county, and owner of record — into a property listing when you Enrich it. Get an API token at <b>regrid.com</b> (Parcel API), then paste it here.</span>
+    <div class="state" id="rgstate">Loading…</div>
+    <div class="inrow">
+      <input type="password" id="regridToken" class="key" placeholder="Paste Regrid API token" autocomplete="off">
+      <button class="btn primary" onclick="saveRegridToken()">Save token</button>
+      <button class="btn ghost" onclick="clearRegridToken()">Remove</button>
+      <span id="rgmsg" class="msg"></span>
+    </div>
+    <div class="hint">Used by the <b>Enrich from documents</b> button on Property Listings — parcel records fill the physical fields your OM doesn’t cover.</div>
+  </div>
+
+  <div class="card">
     <h2>Email (SMTP)</h2>
     <span class="cs">Outbound email for the app: contact emails, document sends, and alert digests. Enter your mail provider’s SMTP details (Gmail, SendGrid, etc.). Use the test button to confirm it works before relying on it.</span>
     <div class="state" id="emState">Loading…</div>
@@ -144,6 +157,11 @@ function saveGmapsKey(){ var v=document.getElementById('gmapsKey').value.trim(),
 function testGmaps(){ var m=document.getElementById('gmmsg'); m.textContent='Testing…'; post('/api/admin/gmaps-key/test',{}).then(function(j){ if(j&&j.ok){ m.textContent='Key works ✓'; } else { m.textContent='Test failed: '+((j&&j.error)||'unknown'); } }); }
 function clearGmapsKey(){ if(!confirm('Remove the Google Maps API key? Automatic location photos will turn off.')) return; post('/api/admin/gmaps-key',{clear:true}).then(function(j){ if(j&&j.ok){ document.getElementById('gmmsg').textContent='Removed.'; _gmState(j); } }); }
 
+function _rgState(j){ var s=document.getElementById('rgstate'); if(s) s.textContent = j.set ? (j.fromEnv?'A token is set from the server environment.':'A token is saved. County parcel enrichment is enabled.') : 'No token set — county parcel enrichment is off.'; }
+function saveRegridToken(){ var v=document.getElementById('regridToken').value.trim(), m=document.getElementById('rgmsg'); if(!v){ m.textContent='Paste a token first.'; return; } m.textContent='Saving…'; post('/api/admin/regrid-token',{token:v}).then(function(j){ if(j&&j.ok){ m.textContent='Saved ✓'; document.getElementById('regridToken').value=''; _rgState(j); } else { m.textContent=(j&&j.error)||'Failed'; } }); }
+function clearRegridToken(){ if(!confirm('Remove the Regrid API token? County parcel enrichment will turn off.')) return; post('/api/admin/regrid-token',{clear:true}).then(function(j){ if(j&&j.ok){ document.getElementById('rgmsg').textContent='Removed.'; _rgState(j); } }); }
+function loadRegrid(){ fetch('/api/admin/regrid-token',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok) _rgState(j); }).catch(function(){}); }
+
 function _emState(j){ var s=document.getElementById('emState'); if(!s) return; if(j&&j.configured){ s.innerHTML='<b style="color:#0e7a53">Email is on</b> — sending as '+(j.from||'')+' via '+(j.host||''); } else { s.textContent=(j&&j.host)?'Configured but disabled — turn on Email enabled and save.':'Not configured yet. Enter your SMTP details below.'; } }
 function loadEmail(){ fetch('/api/admin/email',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('em_host').value=j.host||''; document.getElementById('em_port').value=j.port||587; document.getElementById('em_secure').value=j.secure?'true':'false'; document.getElementById('em_user').value=j.user||''; document.getElementById('em_from').value=j.from||''; document.getElementById('em_enabled').checked=(j.enabled!==false); document.getElementById('em_pass').placeholder=j.hasPass?'leave blank to keep current':'app password'; _emState(j); } }).catch(function(){ var s=document.getElementById('emState'); if(s) s.textContent='Could not load email settings.'; }); }
 function saveEmail(){ var m=document.getElementById('emMsg'); m.textContent='Saving…'; var body={ host:document.getElementById('em_host').value.trim(), port:document.getElementById('em_port').value.trim(), secure:document.getElementById('em_secure').value==='true', user:document.getElementById('em_user').value.trim(), from:document.getElementById('em_from').value.trim(), enabled:document.getElementById('em_enabled').checked }; var pw=document.getElementById('em_pass').value; if(pw) body.pass=pw; post('/api/admin/email',body).then(function(j){ if(j&&j.ok){ m.textContent='Saved ✓'; document.getElementById('em_pass').value=''; loadEmail(); } else { m.textContent=(j&&j.error)||'Failed'; } }); }
@@ -160,7 +178,7 @@ function saveBbsWindow(){ var m=document.getElementById('bbsMsg'); var d=parseIn
 function loadGmailSync(){ fetch('/api/admin/types',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ var en=(j.sentSyncEnabled!==false); var iv=(j.sentSyncIntervalMin!=null?j.sentSyncIntervalMin:10); var _e=document.getElementById('ssEnabled'); if(_e) _e.checked=en; var _i=document.getElementById('ssInterval'); if(_i) _i.value=iv; _ssState(en,iv); } }).catch(function(){}); fetch('/api/bizbuysell/poll',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ var _b=document.getElementById('bbsBack'); if(_b&&j.lookbackDays) _b.value=j.lookbackDays; var _o=document.getElementById('bbsBackOn'); if(_o&&j.lookbackDaysOngoing) _o.value=j.lookbackDaysOngoing; } }).catch(function(){}); }
 fetch('/api/admin/gmaps-key',{credentials:'same-origin'}).then(function(r){ if(r.status===403) throw 0; return r.json(); }).then(function(j){
   if(!j||!j.ok){ gate(); return; }
-  _gmState(j); loadEmail(); loadSms(); loadGmailSync();
+  _gmState(j); loadEmail(); loadSms(); loadGmailSync(); loadRegrid();
 }).catch(function(){ gate(); });
 </script>
 </body>

@@ -426,7 +426,7 @@ function renderList(cards){
       { label:'Owner', sort:function(a,b){return RRGList.cmp(a.owner,b.owner);}, edit:{ type:'select', allowBlank:true, options:_ownerOpts, get:function(c){return c.owner||'';}, save:function(c,val){ return _saveAssign(c,{owner:val},function(){ c.owner=val; }); } }, cell:function(c){ return c.owner?esc(c.owner):'<span style="color:#b0b8c6">—</span>'; } },
       { label:'Last activity', sort:function(a,b){return RRGList.cmp(a.lastActivity||'',b.lastActivity||'');}, cell:function(c){ return c.lastActivity?esc(fmtDate(c.lastActivity)):'<span style="color:#b0b8c6">—</span>'; } }
     ],
-    bulk:[ { label:'Set status…', fn:function(ids,done){ bulkSetStatus(ids,done); } }, { label:'Delete selected', danger:true, fn:function(ids,done){ bulkDelListings(ids,done); } } ]
+    bulk:[ { label:'Set status…', fn:function(ids,done){ bulkSetStatus(ids,done); } }, { label:'Set stage…', fn:function(ids,done){ bulkSetStage(ids,done); } }, { label:'Set owner…', fn:function(ids,done){ bulkSetOwner(ids,done); } }, { label:'Set market…', fn:function(ids,done){ bulkSetMarket(ids,done); } }, { label:'Delete selected', danger:true, fn:function(ids,done){ bulkDelListings(ids,done); } } ]
   };
   if(LTBL) LTBL.refresh(cards); else LTBL=RRGList.create(cfg);
 }
@@ -449,6 +449,28 @@ function _applyBulkStatus(ids,st,done){
       .then(function(){ if(++n===ids.length){ if(done)done(); if(window.rrgToast) rrgToast('Set '+okc+' listing'+(okc===1?'':'s')+' to '+st); load(); } });
   });
 }
+// Generic bulk-field picker: shows an option list, applies the chosen value to every selected listing.
+function _bulkPick(ids, done, title, options, applyFn, verb){
+  if(!ids||!ids.length) return;
+  var ov=document.createElement('div'); ov.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(10,20,45,.42);display:flex;align-items:center;justify-content:center';
+  var btns=options.map(function(s){ var lbl=(s===''?'— Clear —':s); return '<button type="button" data-v="'+esc(s)+'" style="display:block;width:100%;text-align:left;padding:9px 12px;border:none;background:#fff;border-radius:8px;font:inherit;font-size:13px;font-weight:600;color:#233;cursor:pointer">'+esc(lbl)+'</button>'; }).join('') || '<div style="padding:10px 12px;font-size:12.5px;color:#8a93a3">No options available.</div>';
+  ov.innerHTML='<div style="background:#fff;border-radius:12px;box-shadow:0 20px 60px rgba(10,20,50,.3);width:340px;max-width:92vw;overflow:hidden"><div style="padding:14px 18px;font-weight:800;font-size:14px;color:#000E31;border-bottom:1px solid #eef1f6">'+esc(title)+' — '+ids.length+' listing'+(ids.length>1?'s':'')+'</div><div style="padding:8px;max-height:52vh;overflow:auto">'+btns+'</div><div style="padding:6px 14px 14px;text-align:right"><button type="button" id="bp_cancel" style="background:#fff;border:1px solid #cdd6e6;border-radius:8px;padding:8px 14px;font:inherit;font-weight:700;color:#33415c;cursor:pointer">Cancel</button></div></div>';
+  document.body.appendChild(ov);
+  function close(){ ov.remove(); }
+  ov.addEventListener('click',function(e){ if(e.target===ov) close(); });
+  ov.querySelector('#bp_cancel').onclick=close;
+  ov.querySelectorAll('button[data-v]').forEach(function(b){ b.addEventListener('mouseenter',function(){b.style.background='#f2f6fc';}); b.addEventListener('mouseleave',function(){b.style.background='#fff';}); b.addEventListener('click',function(){ var v=b.getAttribute('data-v'); close(); _bulkRun(ids, applyFn, v, verb, done); }); });
+}
+function _bulkRun(ids, applyFn, val, verb, done){
+  var n=0, okc=0;
+  ids.forEach(function(key){
+    Promise.resolve(applyFn(key,val)).then(function(ok){ if(ok) okc++; }).catch(function(){}).then(function(){ if(++n===ids.length){ if(done)done(); if(window.rrgToast) rrgToast(verb+' '+okc+' listing'+(okc===1?'':'s')+(val?(' → '+val):'')); load(); } });
+  });
+}
+function _bulkSaveField(key, body){ return fetch('/api/assignment/'+encodeURIComponent(key)+'/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){return !!(j&&j.ok);}); }
+function bulkSetOwner(ids,done){ _bulkPick(ids,done,'Set owner',[''].concat(_ownerOpts()),function(key,v){return _bulkSaveField(key,{owner:v});},'Set owner on'); }
+function bulkSetMarket(ids,done){ _bulkPick(ids,done,'Set market',[''].concat(_marketOpts()),function(key,v){return _bulkSaveField(key,{marketOverride:v});},'Set market on'); }
+function bulkSetStage(ids,done){ var st=(DATA&&DATA.stages)||[]; if(!st.length){ if(window.rrgToast) rrgToast('This pipeline has no stages.'); return; } _bulkPick(ids,done,'Set stage',st,function(key,v){return fetch('/api/assignment/'+encodeURIComponent(key)+'/stage',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({stage:v})}).then(function(r){return r.json();}).then(function(j){return !!(j&&j.ok);});},'Moved'); }
 async function bulkDelListings(ids,done){
   if(!ids||!ids.length) return;
   var _msg='Delete '+ids.length+' listing'+(ids.length>1?'s':'')+'? This removes the listing and its records — this cannot be undone.';

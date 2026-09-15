@@ -649,7 +649,7 @@ function crBox(){
   var c=(A&&A.criteria)||{};
   return '<div class="listingbox"><div class="listinghd">Site Selection Criteria</div>'
     +'<div class="fldrow"><label class="fld">Target markets / trade areas</label><input class="owner" id="cr_markets" value="'+esc(c.markets||'')+'" placeholder="e.g. Dallas — Uptown, Deep Ellum, Bishop Arts"></div>'
-    +'<div class="fldrow2"><div><label class="fld">Use / concept</label><input class="owner" id="cr_use" value="'+esc(c.useType||'')+'" placeholder="e.g. Full-service restaurant w/ bar"></div>'
+    +'<div class="fldrow2"><div><label class="fld">Use / concept</label><input class="owner" id="cr_use" list="_cuisineDL" value="'+esc(c.useType||'')+'" placeholder="Pick or type — e.g. Full-service restaurant w/ bar"></div>'
     +'<div><label class="fld">Budget (rent)</label><input class="owner" id="cr_budget" value="'+esc(c.budget||'')+'" placeholder="e.g. $35–45/SF NNN"></div></div>'
     +'<div class="fldrow2"><div><label class="fld">Size min (SF)</label><input class="owner" id="cr_sizemin" value="'+esc(c.sizeMin||'')+'" placeholder="2,500"></div>'
     +'<div><label class="fld">Size max (SF)</label><input class="owner" id="cr_sizemax" value="'+esc(c.sizeMax||'')+'" placeholder="4,500"></div></div>'
@@ -1719,13 +1719,14 @@ async function removeDeal(){ if(!await rrgConfirm('Remove the deal from this lis
 function rerenderDeal(){ var main=document.querySelector('.rail'); if(!main) return; var existing=null; main.querySelectorAll('.card .ch b').forEach(function(bb){ if(bb.textContent==='Deal') existing=bb.closest('.card'); }); if(!existing) return; var tmp=document.createElement('div'); tmp.innerHTML=dealCard(); existing.parentNode.replaceChild(tmp.firstChild,existing); wireDeal(); }
 function wireDeal(){ var a=document.getElementById('dealAdd'); if(a) a.addEventListener('click',openDealForm); var e=document.getElementById('dealEdit'); if(e) e.addEventListener('click',openDealForm); var d=document.getElementById('dealDel'); if(d) d.addEventListener('click',removeDeal); }
 
-var AUTOS=[], MARKETS=[];
+var AUTOS=[], MARKETS=[], CUISINES=[], CONCEPTS=[];
+function _ensureCuisineDL(){ var dl=document.getElementById('_cuisineDL'); if(!dl){ dl=document.createElement('datalist'); dl.id='_cuisineDL'; document.body.appendChild(dl); } var seen={}, opts=[]; (CONCEPTS||[]).concat(CUISINES||[]).forEach(function(x){ x=String(x||'').trim(); if(x&&!seen[x.toLowerCase()]){ seen[x.toLowerCase()]=1; opts.push('<option value="'+esc(x)+'">'); } }); dl.innerHTML=opts.join(''); }
 function load(){
   if(!KEY){ document.getElementById('root').innerHTML='<div class="empty" style="text-align:center;color:#6b7488;padding:40px">No deal selected. <a href="./rrg_board.html">Back to deals →</a></div>'; return; }
   fetch('/api/assignment/'+encodeURIComponent(KEY),{credentials:'same-origin'}).then(function(r){
     if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); });
     return r.json();
-  }).then(function(j){ A=j.assignment; if(A && A.assignmentType!=='landlord_rep'){ location.replace('./rrg_assignment.html?key='+encodeURIComponent(KEY)); return; } LEASE=j.lease||null; if(j.statuses) STATUSES=j.statuses; TXN=(A&&A.transaction)||null; if(j.txnStatuses) TXNSTAT=j.txnStatuses; if(j.commStatuses) TXNCOMM=j.commStatuses; RA=j.roomActivity||null; OFFERS=(A&&A.offers)||[]; TOURS=(A&&A.tours)||[]; NDAS=(A&&A.ndas)||[]; INQUIRIES=(A&&A.inquiries)||[]; AGR=j.agreements||[]; ATYPES=j.agreementTypes||[]; PIPES=j.pipelines||[]; BUYERPIPES=j.buyerPipelines||[]; AUTOS=j.automations||[]; if(Array.isArray(j.markets)&&j.markets.length) MARKETS=j.markets; EXP=j.expenses||null; INVX=j.invoices||null; render(); loadPeople(); })
+  }).then(function(j){ A=j.assignment; if(A && A.assignmentType!=='landlord_rep'){ location.replace('./rrg_assignment.html?key='+encodeURIComponent(KEY)); return; } LEASE=j.lease||null; if(j.statuses) STATUSES=j.statuses; TXN=(A&&A.transaction)||null; if(j.txnStatuses) TXNSTAT=j.txnStatuses; if(j.commStatuses) TXNCOMM=j.commStatuses; RA=j.roomActivity||null; OFFERS=(A&&A.offers)||[]; TOURS=(A&&A.tours)||[]; NDAS=(A&&A.ndas)||[]; INQUIRIES=(A&&A.inquiries)||[]; AGR=j.agreements||[]; ATYPES=j.agreementTypes||[]; PIPES=j.pipelines||[]; BUYERPIPES=j.buyerPipelines||[]; AUTOS=j.automations||[]; if(Array.isArray(j.markets)&&j.markets.length) MARKETS=j.markets; if(Array.isArray(j.cuisineTypes)) CUISINES=j.cuisineTypes; if(Array.isArray(j.conceptTypes)) CONCEPTS=j.conceptTypes; _ensureCuisineDL(); EXP=j.expenses||null; INVX=j.invoices||null; render(); loadPeople(); })
   .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this deal.')+'<br><br><a href="./rrg_board.html" style="color:#000E31;font-weight:700">← Back to deals</a></div>'; });
 }
 load();

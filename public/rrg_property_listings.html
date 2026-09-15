@@ -206,6 +206,7 @@ tr:hover td{background:#fbfcfe;}
             <div class="f"><label>Name</label><input id="p_sellerName" placeholder="Name"></div>
             <div class="f"><label>Phone</label><input id="p_sellerPhone" placeholder="(210) 555-0100"></div>
             <div class="f full"><label>Email</label><input id="p_sellerEmail" placeholder="owner@email.com"></div>
+            <div class="f full"><label>Owner of record (county)</label><input id="p_ownerOfRecord" placeholder="Auto-filled from county parcel records"></div>
           </div>
           <div class="subh">Co-broker (if any)</div>
           <div class="fg">
@@ -288,7 +289,7 @@ var PFIELDS=['name','listingFor','status','propertyType','secondaryType','alsoMa
   'askingRentSF','nnnSF','availableSF','termYears','tiAllowance','leaseType',
   'buildingSF','lotAcres','lotSF','yearBuilt','renovatedYear','buildingStatus','construction','sprinklers','ceilingHeight','stories','unitsCount','trafficVPD','zoning','parking','frontage','condition',
   'driveThru','endCap','padSite','greaseHood','patio','secondGen','existingUse','tabc',
-  'sellerName','sellerPhone','sellerEmail','cobrokerName','cobrokerPhone','cobrokerEmail',
+  'sellerName','sellerPhone','sellerEmail','ownerOfRecord','cobrokerName','cobrokerPhone','cobrokerEmail',
   'description','listingStart','listingExpires','notes'];
 var TRASH_SVG='<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>';
 var STCOL={'Available':['#e7f5ee','#1f8a5b'],'Under Contract':['#fdf1df','#b5791f'],'Sold':['#eceff5','#3a4c74'],'Leased':['#e8f0fd','#2f6fd0'],'Off-market':['#f3f4f7','#98a1b5']};
@@ -522,7 +523,7 @@ function enrichProperty(){
       PFIELDS.forEach(function(k){ setv('p_'+k, EDIT[k]); });
       setPropFeatures(EDIT.features||[]);
       document.getElementById('p_public').checked=!!EDIT.public; document.getElementById('p_featured').checked=!!EDIT.featured;
-      var bits=[]; if(j.filled) bits.push(j.filled+' field'+(j.filled===1?'':'s')+' from the OM/brochure'); if(j.webFilled) bits.push('address verified');
+      var bits=[]; if(j.filled) bits.push(j.filled+' field'+(j.filled===1?'':'s')+' from the OM/brochure'); if(j.webFilled) bits.push('address verified'); if(j.countyFilled) bits.push(j.countyFilled+' from county records');
       if(m){ m.style.color='#1f8a5b';
         if(bits.length) m.textContent='Filled '+bits.join(' · ')+'. Review, then build the submission.';
         else if(!j.hadDocs) m.textContent='No OM/brochure attached yet — add one under Documents, then enrich.';
