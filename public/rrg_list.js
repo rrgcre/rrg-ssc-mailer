@@ -467,7 +467,8 @@
     render();
     return { refresh:function(newData){ state.data=newData||[]; state.sel={}; render(); }, getSelected:selectedIds, clearSelection:function(){ state.sel={}; render(); },
       openFilter:function(){ state._filterOpen=true; render(); }, toggleFilter:function(){ state._filterOpen=!state._filterOpen; render(); }, closeFilter:function(){ state._filterOpen=false; render(); },
-      filterOpen:function(){ return !!state._filterOpen; }, activeFilterCount:function(){ return activeFilterKeys().length; } };
+      filterOpen:function(){ return !!state._filterOpen; }, activeFilterCount:function(){ return activeFilterKeys().length; },
+      filtered:function(){ return filteredData(); }, sorted:function(){ return sortedData(); } };
   }
 
   window.RRGList = { create:create, cmp:cmpVal };

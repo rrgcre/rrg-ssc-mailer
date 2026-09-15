@@ -212,6 +212,17 @@ function saveCenters(a) { return writeJsonGuarded(CENTERS_FILE, a, 'saveCenters'
 function newCenterId() { return 'ctr_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 const CENTER_TYPES = ['Grocery-anchored', 'Power / big-box', 'Lifestyle / mixed-use', 'Strip / unanchored', 'Freestanding pad', 'Downtown / street retail', 'Mall / food court', 'Entertainment / hospitality node', 'Other'];
 function centerBrief(c, spaces) { const linked = (spaces || loadSpaces()).filter(x => x.centerId === c.id); return Object.assign({}, c, { hasPhoto: !!c.photoExt, spaceCount: linked.length }); }
+// ---- Property Listings (real estate for sale or lease — distinct from a going-concern business sale) ----
+const PROPERTIES_FILE = path.join(BOV_DATA_DIR, 'properties.json');
+const PROPERTY_PHOTO_DIR = path.join(BOV_DATA_DIR, 'propertyphotos');
+const PROPERTYFILES_DIR = path.join(BOV_DATA_DIR, 'propertyfiles');
+function loadProperties() { try { return rj(PROPERTIES_FILE); } catch (e) { return []; } }
+function saveProperties(a) { return writeJsonGuarded(PROPERTIES_FILE, a, 'saveProperties'); }
+function newPropertyId() { return 'prop_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+const PROPERTY_TYPES = ['Freestanding restaurant', 'Freestanding retail', 'Retail strip / center', 'Bar / nightclub', 'Mixed-use', 'Land / pad site', 'Office', 'Industrial', 'Hospitality', 'Special purpose', 'Other'];
+const PROPERTY_LISTING_FOR = ['For Sale', 'For Lease', 'For Sale or Lease'];
+const PROPERTY_STATUSES = ['Available', 'Under Contract', 'Sold', 'Leased', 'Off-market'];
+function propertyBrief(p) { return Object.assign({}, p, { hasPhoto: !!p.photoExt, fileCount: Array.isArray(p.files) ? p.files.length : 0 }); }
 // ---- Shopping-center enrichment: derive metro, address, city and a photo from the listings we already have ----
 const _METRO_CITIES = {
   'Austin': ['austin', 'round rock', 'cedar park', 'georgetown', 'leander', 'pflugerville', 'kyle', 'buda', 'bee cave', 'lakeway', 'jarrell', 'creedmoor', 'manor', 'hutto', 'dripping springs', 'bastrop', 'san marcos', 'wells branch', 'del valle', 'elgin', 'taylor', 'liberty hill', 'volente', 'lago vista'],
@@ -1344,7 +1355,7 @@ app.use(express.urlencoded({ extended: false }));
 const OPEN = new Set(['/health', '/login', '/api/login', '/logout', '/favicon.ico', '/api/appname', '/api/brand', '/api/brand/logo', '/api/brand/logo/light', '/rrg_brand.js', '/rrg_theme.css', '/api/gmail/callback']);
 app.use((req, res, next) => {
   // Buyer-facing data-room links are public (the unguessable token is the gate).
-  if (OPEN.has(req.path) || req.path.startsWith('/room/') || req.path.startsWith('/deal/') || req.path.startsWith('/roomfile/') || req.path.startsWith('/roomview/') || req.path.startsWith('/vendor/') || req.path.startsWith('/sign/') || req.path.startsWith('/api/sign/') || req.path.startsWith('/eo/') || req.path.startsWith('/ec/') || req.path.startsWith('/u/') || req.path.startsWith('/api/u/') || req.path.startsWith('/book/') || req.path.startsWith('/api/book/') || req.path.startsWith('/pay/') || req.path.startsWith('/api/pay/') || req.path === '/api/stripe/webhook' || req.path === '/api/mail/ses-webhook' || req.path.startsWith('/mail/') || req.path === '/market' || req.path === '/api/market/public' || req.path === '/api/market/request-access' || req.path.startsWith('/s/') || req.path === '/seller_intake.html' || req.path === '/seller_record.html') return next();
+  if (OPEN.has(req.path) || req.path.startsWith('/room/') || req.path.startsWith('/deal/') || req.path.startsWith('/roomfile/') || req.path.startsWith('/roomview/') || req.path.startsWith('/vendor/') || req.path.startsWith('/sign/') || req.path.startsWith('/api/sign/') || req.path.startsWith('/eo/') || req.path.startsWith('/ec/') || req.path.startsWith('/u/') || req.path.startsWith('/api/u/') || req.path.startsWith('/book/') || req.path.startsWith('/api/book/') || req.path.startsWith('/pay/') || req.path.startsWith('/api/pay/') || req.path === '/api/stripe/webhook' || req.path === '/api/mail/ses-webhook' || req.path.startsWith('/mail/') || req.path === '/market' || req.path === '/api/market/public' || req.path === '/api/market/request-access' || req.path.startsWith('/api/property-public-photo/') || req.path.startsWith('/s/') || req.path === '/seller_intake.html' || req.path === '/seller_record.html') return next();
   const sess = auth.readSession(parseCookies(req)[COOKIE]);
   if (sess) {
     req.user = sess;
@@ -6590,7 +6601,12 @@ app.post('/api/marketplace/:key', express.json(), (req, res) => {
   res.json({ ok: true, teaser: m, matched: _matched });
 });
 // PUBLIC feed for the buyer page.
-app.get('/api/market/public', (req, res) => { res.json({ ok: true, listings: mktPublicList(), org: orgDisplayName() }); });
+app.get('/api/market/public', (req, res) => {
+  let props = []; try { props = publicPropertyTeasers(); } catch (e) { props = []; }
+  const listings = mktPublicList().concat(props);
+  listings.sort((a, b) => ((b.featured ? 1 : 0) - (a.featured ? 1 : 0)) || String(b.publishedAt || '').localeCompare(String(a.publishedAt || '')));
+  res.json({ ok: true, listings: listings, org: orgDisplayName() });
+});
 // PUBLIC — a buyer requests access to a blind listing; logged as an inquiry for the rep to qualify under NDA.
 app.post('/api/market/request-access', express.json(), (req, res) => {
   const b = req.body || {};
@@ -6600,6 +6616,15 @@ app.post('/api/market/request-access', express.json(), (req, res) => {
   const phone = String(b.phone || '').trim().slice(0, 60);
   const note = String(b.note || '').trim().slice(0, 1000);
   if (!name || !email) return res.status(400).json({ ok: false, error: 'Name and email are required.' });
+  // Property listings (real estate) — record the inquiry on the property record.
+  if (key.indexOf('prop_') === 0) {
+    const arr = loadProperties(); const pr = arr.find(x => x.id === key);
+    if (!pr || !pr.public) return res.status(404).json({ ok: false, error: 'That property is no longer available.' });
+    pr.inquiries = Array.isArray(pr.inquiries) ? pr.inquiries : [];
+    pr.inquiries.push({ id: newInquiryId(), source: 'Marketplace', name: name, email: email, phone: phone, note: note ? ('Property info request — ' + note) : 'Property info request', createdAt: new Date().toISOString() });
+    pr.updatedAt = new Date().toISOString(); saveProperties(arr);
+    return res.json({ ok: true });
+  }
   const overlay = loadAssignOverlay(); const cur = overlay[key];
   if (!cur || !cur.market || !cur.market.published) return res.status(404).json({ ok: false, error: 'That opportunity is no longer available.' });
   const inqs = Array.isArray(cur.inquiries) ? cur.inquiries : [];
@@ -7916,6 +7941,7 @@ try { noCompanyCompany(); noContactPerson(); backlinkBbsLeads(); cleanupPeopleAd
 try { seedEmailTemplates(); } catch (e) { console.error('seed email tpl:', e && e.message); }
 try { seedBizSalesStages(); } catch (e) { console.error('seed biz sales:', e && e.message); }
 try { seedUnqualifiedStage(); } catch (e) { console.error('seed unqualified:', e && e.message); }
+try { seedPropertyPipeline(); } catch (e) { console.error('seed property pipeline:', e && e.message); }
 try { seedBuyerPipeline(); } catch (e) { console.error('seed buyer pipeline:', e && e.message); }
 try { seedAssetSalesPipeline(); } catch (e) { console.error('seed asset sales pipeline:', e && e.message); }
 try { maskPayrollSsns(); } catch (e) { console.error('mask payroll ssn:', e && e.message); }
@@ -11152,6 +11178,186 @@ app.get('/api/center-photo/:id', (req, res) => {
   if (!c || !c.photoExt) return res.status(404).end();
   try { const buf = fs.readFileSync(path.join(CENTER_PHOTO_DIR, c.id + '.' + c.photoExt)); res.set('Content-Type', spaceFileMime(c.photoExt)); res.set('Cache-Control', 'private, max-age=300'); res.send(buf); }
   catch (e) { res.status(404).end(); }
+});
+
+// ---- Property Listings (real estate for sale or lease) ----
+app.get('/api/properties', (req, res) => {
+  res.json({ ok: true, properties: loadProperties().map(propertyBrief), types: PROPERTY_TYPES, listingFor: PROPERTY_LISTING_FOR, statuses: PROPERTY_STATUSES, markets: effMarkets(), canDelete: !!(req.user && isSuper(req.user)) });
+});
+app.post('/api/property', express.json(), (req, res) => {
+  const b = req.body || {};
+  if (!b.id && !(typeof b.name === 'string' && b.name.trim())) return res.status(400).json({ ok: false, error: 'A property name is required.' });
+  const arr = loadProperties();
+  const now = new Date().toISOString();
+  const num = (v) => { if (v === '' || v == null) return null; const n = parseFloat(String(v).replace(/[^0-9.\-]/g, '')); return isFinite(n) ? n : null; };
+  let p = b.id ? arr.find(x => x.id === b.id) : null;
+  if (!p) { p = { id: newPropertyId(), createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }; arr.push(p); }
+  if (typeof b.name === 'string' && b.name.trim()) p.name = b.name.slice(0, 160);
+  // Identity & location
+  const S = (k, max) => { if (typeof b[k] === 'string') p[k] = b[k].slice(0, max); };
+  S('address', 200); S('city', 120); S('state', 20); S('market', 120); S('zoning', 80); S('parking', 80); S('frontage', 100); S('condition', 60); S('leaseType', 60);
+  if (typeof b.propertyType === 'string') p.propertyType = PROPERTY_TYPES.indexOf(b.propertyType) >= 0 ? b.propertyType : (p.propertyType || '');
+  if (typeof b.listingFor === 'string') p.listingFor = PROPERTY_LISTING_FOR.indexOf(b.listingFor) >= 0 ? b.listingFor : (p.listingFor || 'For Sale');
+  if (typeof b.status === 'string') p.status = PROPERTY_STATUSES.indexOf(b.status) >= 0 ? b.status : (p.status || 'Available');
+  if (typeof b.tenancy === 'string') p.tenancy = b.tenancy.slice(0, 40);
+  if (typeof b.interest === 'string') p.interest = b.interest.slice(0, 40);
+  if (typeof b.description === 'string') p.description = b.description.slice(0, 6000);
+  if (typeof b.notes === 'string') p.notes = b.notes.slice(0, 4000);
+  // Sale economics
+  ['price', 'pricePerSF', 'capRate', 'noi', 'occupancy', 'taxes'].forEach(k => { if (b[k] !== undefined) p[k] = num(b[k]); });
+  // Lease economics
+  ['askingRentSF', 'nnnSF', 'availableSF', 'termYears', 'tiAllowance'].forEach(k => { if (b[k] !== undefined) p[k] = num(b[k]); });
+  // Building & land
+  ['buildingSF', 'lotAcres', 'lotSF', 'yearBuilt', 'stories', 'unitsCount', 'trafficVPD'].forEach(k => { if (b[k] !== undefined) p[k] = num(b[k]); });
+  // Restaurant fit & infrastructure
+  ['driveThru', 'endCap', 'padSite', 'greaseHood', 'patio', 'secondGen'].forEach(k => { if (typeof b[k] === 'string') p[k] = b[k].slice(0, 40); });
+  if (typeof b.existingUse === 'string') p.existingUse = b.existingUse.slice(0, 400);
+  if (typeof b.tabc === 'string') p.tabc = b.tabc.slice(0, 400);
+  // Contacts (seller / co-broker)
+  ['sellerName', 'sellerPhone', 'sellerEmail', 'cobrokerName', 'cobrokerPhone', 'cobrokerEmail'].forEach(k => S(k, 160));
+  // Links
+  if (typeof b.centerId === 'string') p.centerId = b.centerId.slice(0, 40);
+  if (typeof b.sellerContactId === 'string') p.sellerContactId = b.sellerContactId.slice(0, 40);
+  // Listing dates
+  S('listingStart', 20); S('listingExpires', 20);
+  // Marketplace flags
+  if (b.public !== undefined) p.public = !!b.public;
+  if (b.featured !== undefined) p.featured = !!b.featured;
+  p.updatedAt = now;
+  saveProperties(arr);
+  res.json({ ok: true, property: propertyBrief(p) });
+});
+app.delete('/api/property/:id', (req, res) => {
+  if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Admin only.' });
+  const id = req.params.id;
+  const p = loadProperties().find(x => x.id === id);
+  if (p && p.photoExt) { try { binDel(path.join(PROPERTY_PHOTO_DIR, p.id + '.' + p.photoExt)); } catch (e) {} }
+  if (p && Array.isArray(p.files)) { p.files.forEach(f => { try { binDel(path.join(PROPERTYFILES_DIR, p.id + '_' + f.id + '.' + f.ext)); } catch (e) {} }); }
+  saveProperties(loadProperties().filter(x => x.id !== id));
+  res.json({ ok: true });
+});
+app.post('/api/property/:id/photo', express.json({ limit: '12mb' }), (req, res) => {
+  const arr = loadProperties(); const p = arr.find(x => x.id === req.params.id);
+  if (!p) return res.status(404).json({ ok: false, error: 'Property not found.' });
+  const b = req.body || {}; const dataB64 = String(b.dataB64 || '').replace(/^data:[^,]*,/, '');
+  if (!dataB64) return res.status(400).json({ ok: false, error: 'No image data.' });
+  const ext = ((String(b.filename || '').match(/\.(png|jpe?g|gif|webp)$/i) || [])[1] || 'jpg').toLowerCase().replace('jpeg', 'jpg');
+  const buf = Buffer.from(dataB64, 'base64');
+  if (buf.length > 10 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'Image too large (max 10 MB).' });
+  try { if (!fs.existsSync(PROPERTY_PHOTO_DIR)) fs.mkdirSync(PROPERTY_PHOTO_DIR, { recursive: true }); if (p.photoExt && p.photoExt !== ext) { try { binDel(path.join(PROPERTY_PHOTO_DIR, p.id + '.' + p.photoExt)); } catch (e) {} } binWrite(path.join(PROPERTY_PHOTO_DIR, p.id + '.' + ext), buf); }
+  catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the image.' }); }
+  p.photoExt = ext; p.updatedAt = new Date().toISOString(); saveProperties(arr);
+  res.json({ ok: true, property: propertyBrief(p) });
+});
+app.get('/api/property-photo/:id', (req, res) => {
+  const p = loadProperties().find(x => x.id === req.params.id);
+  if (!p || !p.photoExt) return res.status(404).end();
+  try { const buf = fs.readFileSync(path.join(PROPERTY_PHOTO_DIR, p.id + '.' + p.photoExt)); res.set('Content-Type', spaceFileMime(p.photoExt)); res.set('Cache-Control', 'private, max-age=300'); res.send(buf); }
+  catch (e) { res.status(404).end(); }
+});
+app.post('/api/property/:id/file', express.json({ limit: '30mb' }), (req, res) => {
+  const arr = loadProperties(); const p = arr.find(x => x.id === req.params.id);
+  if (!p) return res.status(404).json({ ok: false, error: 'Property not found.' });
+  const b = req.body || {};
+  const m = String(b.filename || '').toLowerCase().match(/\.(pdf|png|jpg|jpeg|gif|webp|doc|docx|xls|xlsx|csv)$/);
+  if (!m) return res.status(400).json({ ok: false, error: 'Use a PDF, image, Word, or Excel file.' });
+  const ext = m[1] === 'jpeg' ? 'jpg' : m[1];
+  let buf; try { buf = Buffer.from(String(b.dataB64 || '').replace(/^data:[^,]*,/, ''), 'base64'); } catch (e) { buf = null; }
+  if (!buf || !buf.length) return res.status(400).json({ ok: false, error: 'Could not read the file.' });
+  if (buf.length > 25 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'File is over 25 MB.' });
+  try { if (!fs.existsSync(PROPERTYFILES_DIR)) fs.mkdirSync(PROPERTYFILES_DIR, { recursive: true }); } catch (e) {}
+  const fid = 'ptf_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  try { binWrite(path.join(PROPERTYFILES_DIR, p.id + '_' + fid + '.' + ext), buf); } catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the file.' }); }
+  p.files = Array.isArray(p.files) ? p.files : [];
+  p.files.push({ id: fid, name: String(b.filename || ('file.' + ext)).slice(0, 200), ext, kind: spaceFileKind(ext), size: buf.length, uploadedAt: new Date().toISOString(), by: (req.user && req.user.name) || '' });
+  p.updatedAt = new Date().toISOString(); saveProperties(arr);
+  res.json({ ok: true, property: propertyBrief(p) });
+});
+app.delete('/api/property/:id/file/:fid', (req, res) => {
+  const arr = loadProperties(); const p = arr.find(x => x.id === req.params.id);
+  if (!p) return res.status(404).json({ ok: false, error: 'Property not found.' });
+  const f = (p.files || []).find(x => x.id === req.params.fid);
+  if (f) { try { binDel(path.join(PROPERTYFILES_DIR, p.id + '_' + f.id + '.' + f.ext)); } catch (e) {} }
+  p.files = (p.files || []).filter(x => x.id !== req.params.fid);
+  p.updatedAt = new Date().toISOString(); saveProperties(arr);
+  res.json({ ok: true, property: propertyBrief(p) });
+});
+app.get('/api/property-file/:id/:fid', (req, res) => {
+  const p = loadProperties().find(x => x.id === req.params.id); if (!p) return res.status(404).end();
+  const f = (p.files || []).find(x => x.id === req.params.fid); if (!f) return res.status(404).end();
+  const fp = path.join(PROPERTYFILES_DIR, p.id + '_' + f.id + '.' + f.ext);
+  if (!fp.startsWith(PROPERTYFILES_DIR) || !fs.existsSync(fp)) return res.status(404).end();
+  res.setHeader('Content-Type', spaceFileMime(f.ext));
+  res.setHeader('Content-Disposition', ((f.kind === 'photo' || f.ext === 'pdf') ? 'inline' : 'attachment') + '; filename="' + encodeURIComponent(f.name) + '"');
+  res.setHeader('Cache-Control', 'private, max-age=3600');
+  fs.createReadStream(fp).pipe(res);
+});
+// PUBLIC photo serve for a property on the marketplace — unauthenticated, but ONLY for a listing the rep flagged public.
+app.get('/api/property-public-photo/:id', (req, res) => {
+  const id = String(req.params.id || '').replace(/\.[a-z0-9]+$/i, '');
+  const p = loadProperties().find(x => x.id === id);
+  if (!p || !p.public || !p.photoExt) return res.status(404).end();
+  try { const buf = fs.readFileSync(path.join(PROPERTY_PHOTO_DIR, p.id + '.' + p.photoExt)); res.set('Content-Type', spaceFileMime(p.photoExt)); res.set('Cache-Control', 'public, max-age=600'); res.send(buf); }
+  catch (e) { res.status(404).end(); }
+});
+// Build a public marketplace teaser from a property listing (openly marketed real estate — photos + address shown).
+function propertyMktTeaser(p) {
+  const kind = (p.listingFor === 'For Lease') ? 'lease' : 'sale';
+  const fmt = (n) => (n == null || n === '') ? '' : Number(n).toLocaleString('en-US');
+  let cen = null; try { cen = _metroCentroid(p.market || '') || _metroCentroid(_metroForCity(p.market || p.city || '')) || null; } catch (e) {}
+  const badgeBits = [p.propertyType || 'Property']; if (p.listingFor) badgeBits.push(p.listingFor);
+  return {
+    id: p.id, kind: kind, headline: p.name || 'Property for sale',
+    loc: [p.city, p.state].filter(Boolean).join(', ') || p.market || '',
+    badge: badgeBits.join(' · '), conceptKey: '', marketKey: p.market || 'Other',
+    priceBand: '', cashBand: '', revenue: '', sde: '', earnBasis: '', guide: '',
+    propType: p.propertyType || '', addr: [p.address, p.city, p.state].filter(Boolean).join(', '),
+    rate: p.askingRentSF ? ('$' + fmt(p.askingRentSF) + '/SF') : '', term: p.termYears ? (p.termYears + ' yr') : '',
+    cap: p.capRate ? (p.capRate + '%') : '', lot: p.lotAcres ? (p.lotAcres + ' ac') : (p.lotSF ? (fmt(p.lotSF) + ' SF') : ''),
+    sf: p.buildingSF ? (fmt(p.buildingSF) + ' SF') : '', ffe: '',
+    price: p.price ? ('$' + fmt(p.price)) : '',
+    photo: p.photoExt ? ('/api/property-public-photo/' + p.id) : '',
+    lat: cen ? cen.lat : null, lng: cen ? cen.lng : null,
+    flag: '', flagLabel: '', flagColor: '', featured: !!p.featured, publishedAt: p.updatedAt || '', icon: ''
+  };
+}
+function publicPropertyTeasers() {
+  return loadProperties().filter(p => p.public && ['Sold', 'Off-market'].indexOf(p.status) < 0).map(propertyMktTeaser);
+}
+// Promote a property listing onto the pipeline board — spawns a linked deal on the Property Sales pipeline.
+app.post('/api/property/:id/promote', express.json(), (req, res) => {
+  const arr = loadProperties(); const p = arr.find(x => x.id === req.params.id);
+  if (!p) return res.status(404).json({ ok: false, error: 'Property not found.' });
+  // Idempotent — if it's already on the board and the deal still exists, just return it.
+  if (p.dealKey) {
+    const dealId = p.dealKey.replace(/^d_/, '');
+    if (loadDeals().some(d => d.id === dealId)) return res.json({ ok: true, key: p.dealKey, already: true });
+  }
+  const sellerName = String(p.sellerName || '').trim();
+  const sellerEmail = String(p.sellerEmail || '').trim();
+  if (!sellerName && !sellerEmail) return res.status(400).json({ ok: false, error: 'Add a seller name or email to the property first — every pipeline listing links to a contact.' });
+  const now = new Date().toISOString();
+  const rec = { id: newDealId(), business: (p.name || 'Property').slice(0, 120), market: String(p.market || '').slice(0, 80), contact: sellerName.slice(0, 120), screenId: '', roomId: '', contactPersonId: '', companyId: '', source: 'property', createdAt: now, saleLane: 'asset', by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' };
+  let company = null; try { company = findOrCreateCompany(req, { name: rec.business, market: rec.market, type: 'Seller' }); } catch (e) {}
+  if (company) rec.companyId = company.id;
+  let person = null; try { person = findOrCreatePerson(req, { name: sellerName || sellerEmail, email: sellerEmail, type: 'Client', companyId: rec.companyId }); } catch (e) {}
+  if (person) { rec.contactPersonId = person.id; if (!rec.contact) rec.contact = person.name; }
+  const deals = loadDeals(); deals.push(rec);
+  try { const room = ensureRoomForDeal(req, rec); if (room) rec.roomId = room.id; } catch (e) {}
+  saveDeals(deals);
+  const key = 'd_' + rec.id;
+  const ov = loadAssignOverlay(); const cur = ov[key] || {};
+  cur.assignmentType = 'listing'; cur.propertyId = p.id;
+  if (!cur.listingNo) cur.listingNo = nextListingNo();
+  if (!cur.status) cur.status = 'Unqualified';
+  if (!cur.stageSince) cur.stageSince = now;
+  if (p.price) cur.listPrice = String(p.price);
+  let pipe = null; try { const pid = pipelineForCategory('realEstate') || 'p_reprop'; const pls = loadPipelines(); pipe = pls.find(x => x.id === pid) || pls.find(x => x.id === 'p_reprop') || pls.find(x => x.id === 'p_bizsales'); } catch (e) {}
+  if (pipe) { cur.pipelineId = pipe.id; if (!cur.pipelineStage) cur.pipelineStage = (pipe.stages && pipe.stages[0] && pipe.stages[0].name) || 'Listing Prep'; }
+  const _own = String((req.body && req.body.owner) || '').trim().slice(0, 120); if (_own) cur.owner = _own;
+  ov[key] = cur; saveAssignOverlay(ov);
+  p.dealKey = key; p.updatedAt = now; saveProperties(arr);
+  res.json({ ok: true, key: key, pipeline: pipe ? pipe.name : '' });
 });
 
 // ---- Space attachments (brochures / photos) ----
@@ -15382,7 +15588,8 @@ function defaultPipelines() {
     _seedPipeline('p_bizsales', 'Business Sales', 'Business Sales', ['Data Room','Outreach','Seller Qualification Call','Seller Interview','BOV','Agreed','Marketing Pack','Market Attack Plan','Lease Abstract','Offers','Due Diligence','Closing'], 7),
     _seedPipeline('p_assetsale', 'Space & Assets', 'Space & Assets', ['Unqualified','Signed','On Market','Touring','LOI / Offer','Lease Assignment','Closed'], 10),
     _seedPipeline('p_tenantrep', 'Tenant Rep', 'Tenant Rep', ['Needs Analysis','Site Search','Tours','LOI Out','Lease Negotiation','Build-out','Open'], 14),
-    _seedPipeline('p_llrep', 'Landlord Rep', 'Landlord Rep', ['Listing Setup','Marketing','Tours','LOI Received','Lease Negotiation','Executed'], 14)
+    _seedPipeline('p_llrep', 'Landlord Rep', 'Landlord Rep', ['Listing Setup','Marketing','Tours','LOI Received','Lease Negotiation','Executed'], 14),
+    _seedPipeline('p_reprop', 'Property Sales', 'Property Sales', ['Listing Prep','On Market','Tours / Showings','LOI / Offer','Under Contract','Due Diligence','Closing'], 14)
   ];
 }
 let _pipeCache = null, _pipeCacheAt = 0;
@@ -15414,6 +15621,20 @@ function seedUnqualifiedStage() {
     }
     fs.writeFileSync(marker, new Date().toISOString());
   } catch (e) { console.error('seedUnqualifiedStage:', e && e.message); }
+}
+function seedPropertyPipeline() {
+  try {
+    if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true });
+    const marker = path.join(BOV_DATA_DIR, 'property_pipeline_seeded.flag');
+    if (fs.existsSync(marker)) return;
+    const all = loadPipelines();
+    if (!all.some(p => p.id === 'p_reprop')) {
+      all.push(_seedPipeline('p_reprop', 'Property Sales', 'Property Sales', ['Listing Prep', 'On Market', 'Tours / Showings', 'LOI / Offer', 'Under Contract', 'Due Diligence', 'Closing'], 14));
+      savePipelines(all);
+      console.log('Seeded Property Sales pipeline.');
+    }
+    fs.writeFileSync(marker, new Date().toISOString());
+  } catch (e) { console.error('seedPropertyPipeline:', e && e.message); }
 }
 function seedBizSalesStages() {
   try {
@@ -15468,6 +15689,7 @@ const PIPELINE_CATEGORIES = [
   { key: 'tenantRep',     label: 'Tenant Rep',      fallback: 'p_tenantrep' },
   { key: 'landlordSale',  label: 'Landlord Sale',   fallback: 'p_llrep' },
   { key: 'landlordLease', label: 'Landlord Lease',  fallback: 'p_llrep' },
+  { key: 'realEstate',    label: 'Property Sales',  fallback: 'p_reprop' },
   { key: 'buyer',         label: 'Buyer (default)', fallback: 'p_buyer' },
 ];
 function loadPipelineMap() {

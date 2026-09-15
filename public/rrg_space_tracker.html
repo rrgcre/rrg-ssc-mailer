@@ -207,6 +207,7 @@ function draw(){
   var rows=SPACES.filter(function(sp){ if(FILTER && sp.status!==FILTER) return false; if(q && _spHay(sp).indexOf(q)<0) return false; return true; });
   document.getElementById('cnt').textContent=rows.length?(rows.length+' space'+(rows.length===1?'':'s')):'';
   var cfg={ mount:'#list', data:rows, key:'spaces', countEl:null, filterOpen:true,
+    onFilterChange:function(cnt){ if(!MAP_VIEW) return; var refit=(cnt!==_lastMapFilterCount); _lastMapFilterCount=cnt; mapRefresh(refit); },
     empty:'<div class="empty"><b>No spaces yet.</b> Click <b>+ Add space</b> to log an available space and its bones.</div>',
     rowId:function(sp){return sp.id;}, defaultSort:10, defaultDir:-1,
     columns:[
@@ -506,7 +507,7 @@ document.getElementById('ov').addEventListener('click',function(e){ if(e.target=
   var bones=document.getElementById('bones'); if(bones) bones.addEventListener('click',function(e){ if(e.target&&e.target.closest&&e.target.closest('.chip')) commit(); });
 })();
 // ---------- Interactive map (Leaflet) ----------
-var MAP=null, MAP_LAYER=null, MAP_VIEW=false, GEO_Q=[], GEO_QUEUED={}, GEO_BUSY=false;
+var MAP=null, MAP_LAYER=null, MAP_VIEW=false, GEO_Q=[], GEO_QUEUED={}, GEO_BUSY=false, _lastMapFilterCount=-1;
 var GEO_CACHE=(function(){ try{ return JSON.parse(localStorage.getItem('rrg_space_geo')||'{}')||{}; }catch(e){ return {}; } })();
 function _geoSave(){ try{ localStorage.setItem('rrg_space_geo',JSON.stringify(GEO_CACHE)); }catch(e){} }
 // City / metro centroids so every space shows a pin INSTANTLY; the exact address is pinpointed in the background.
@@ -538,7 +539,7 @@ function mapRefresh(fit){
   if(!MAP||!MAP_LAYER) return;
   var lg=document.getElementById('mapLegend'); if(lg && !lg.innerHTML) lg.innerHTML=(STATUS||[]).map(function(s){ var c=stColor(s); return '<span class="lg"><span class="dot" style="background:'+c[1]+'"></span>'+esc(s)+'</span>'; }).join('')+'<span class="lg"><span class="dot" style="background:#9aa4b6"></span>approx. (pinpointing…)</span>';
   MAP_LAYER.clearLayers();
-  var rows=_mapFilteredSpaces();
+  var rows=(CTL&&CTL.filtered)?CTL.filtered():_mapFilteredSpaces();
   var pts=[], exact=0, approx=0, none=0;
   rows.forEach(function(sp){
     var lat=sp.lat, lng=sp.lng;

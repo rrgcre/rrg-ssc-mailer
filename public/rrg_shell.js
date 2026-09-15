@@ -186,7 +186,8 @@
       { ic: '§', label: 'LOI Builder', href: 'rrg_loi_builder.html' },
     ] },
     { grp: 'Landlord Rep', color: '#c98a5e', items: [
-      { ic: '⊞', label: 'Space Listings', href: 'rrg_landlord_rep.html' }
+      { ic: '⊞', label: 'Space Listings', href: 'rrg_landlord_rep.html' },
+      { ic: '⌂', label: 'Property Listings', href: 'rrg_property_listings.html' }
     ] },
     { grp: 'Mass Email', admin: true, color: '#d072b0', items: [
       { ic: '✉', label: 'Campaigns', href: 'rrg_mass_studio.html', admin: true },

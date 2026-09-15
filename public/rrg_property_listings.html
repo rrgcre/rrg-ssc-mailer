@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FullServe — Property Listings</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#14213d;--muted:#6b7488;--line:#e6e9f0;--wash:#f5f7fb;--inp:#cfd6e2;--green:#1f8a5b;--amber:#b5791f;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f7;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.top{background:radial-gradient(90% 130% at 25% 10%,#22346a,#152752 42%,#0b1636 72%,#060f26 100%);color:#fff;padding:24px 0 22px;}
+.top-in{max-width:none;margin:0 auto;padding:0 28px;display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+.kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8fa2c4;font-weight:700;margin-bottom:4px;}
+h1{margin:0;font-size:25px;font-weight:700;} .sub{color:#aeb8cf;font-size:13px;margin-top:6px;max-width:640px;line-height:1.5;}
+.btn{border:1px solid var(--inp);background:#fff;color:var(--navy);font-weight:700;font-size:13px;padding:9px 14px;border-radius:9px;cursor:pointer;}
+.btn:hover{border-color:#9fb0cc;} .btn.pri{background:var(--red);color:#fff;border-color:var(--red);}
+.wrap{max-width:none;margin:20px 0;padding:0 28px 90px;}
+.msg{font-size:12px;color:var(--muted);}
+.ov{position:fixed;inset:0;background:rgba(8,14,32,.5);display:flex;align-items:flex-start;justify-content:center;padding:34px 16px;z-index:200;overflow:auto;}
+.ov[hidden]{display:none;}
+.mod{background:#fff;border-radius:15px;max-width:660px;width:100%;box-shadow:0 30px 80px rgba(0,0,0,.4);}
+.mhd{display:flex;align-items:center;justify-content:space-between;padding:15px 20px;border-bottom:1px solid var(--line);font-weight:700;color:var(--navy);font-size:16px;}
+.mb{padding:16px 20px;}
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;}
+.f{display:flex;flex-direction:column;gap:4px;} .f.full{grid-column:1/-1;} .f.third{grid-column:span 1;}
+.f label{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;}
+.f input,.f select,.f textarea{border:1px solid var(--inp);border-radius:8px;padding:8px 10px;font:inherit;font-size:13px;background:#fff;}
+.f input:focus,.f select:focus,.f textarea:focus{outline:none;border-color:var(--red);}
+.f textarea{min-height:60px;resize:vertical;}
+.mf{display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:14px 20px;border-top:1px solid var(--line);}
+.mf .msg{margin-right:auto;}
+.empty{text-align:center;color:var(--muted);padding:50px 20px;font-size:13.5px;}
+.phrow{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
+.phrow .thumb{width:112px;height:74px;border-radius:8px;background:var(--wash) center/cover no-repeat;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:#b7c0d4;font-size:22px;flex:0 0 auto;}
+.rrg-back{position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);}
+body.rrg-shelled .rrg-back{display:none;}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 6px 24px rgba(10,20,50,.06);}
+.hd{display:flex;align-items:center;padding:13px 18px;border-bottom:1px solid var(--line);gap:10px;flex-wrap:wrap;}
+.hd b{color:var(--navy);font-size:14px;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th,td{text-align:left;padding:11px 16px;border-bottom:1px solid var(--line);vertical-align:middle;}
+th{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;background:var(--wash);white-space:nowrap;}
+tr:hover td{background:#fbfcfe;}
+.cwho{display:flex;align-items:center;gap:10px;}
+.cthumb{width:44px;height:34px;border-radius:6px;background:var(--wash) center/cover no-repeat;border:1px solid var(--line);flex:0 0 auto;display:flex;align-items:center;justify-content:center;color:#b7c0d4;font-size:14px;}
+.cnm{font-weight:600;color:var(--navy);font-size:13.5px;}
+.cmeta{color:var(--muted);font-size:11.5px;margin-top:2px;}
+.chip{display:inline-block;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:999px;background:#eef2fa;color:#3a4b74;white-space:nowrap;}
+.forsale{background:#e7f5ee;color:#1f8a5b;} .forlease{background:#e8f0fd;color:#2f6fd0;} .forboth{background:#fdf1df;color:#b5791f;}
+.stpill{display:inline-block;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap;}
+.ctrash{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;background:#fff;color:var(--red);border:1px solid #f0c9c6;border-radius:8px;cursor:pointer;vertical-align:middle;}
+.ctrash:hover{background:var(--red);color:#fff;border-color:var(--red);}
+.brand{display:inline-flex;align-items:center;cursor:pointer;}
+.disc{background:var(--red);color:#fff;border-radius:50%;width:42px;height:42px;font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.bar{background:#fff;width:3px;height:30px;margin:0 12px;}
+.wm{font-weight:700;font-size:14px;text-transform:uppercase;line-height:.95;}
+.searchwrap{margin-left:auto;position:relative;display:flex;align-items:center;}
+.searchwrap .searchic{position:absolute;left:11px;color:#9aa3b2;pointer-events:none;}
+.searchwrap input{border:1px solid var(--line);border-radius:9px;padding:8px 12px 8px 34px;font:inherit;font-size:13px;min-width:230px;}
+/* sections */
+.sec{border:1px solid var(--line);border-radius:11px;margin-top:12px;overflow:hidden;background:#fff;}
+.sec>summary{list-style:none;cursor:pointer;padding:11px 14px;display:flex;align-items:center;gap:9px;font-weight:700;font-size:13px;color:var(--navy);background:var(--wash);user-select:none;}
+.sec>summary::-webkit-details-marker{display:none;}
+.sec>summary .scv{font-size:16px;line-height:1;color:var(--muted);transition:transform .15s;flex:0 0 auto;}
+.sec[open]>summary .scv{transform:rotate(90deg);}
+.sec>summary .stag{margin-left:auto;font-size:10.5px;font-weight:700;color:var(--muted);}
+.sec .secbd{padding:14px;}
+.sec .subh{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:2px 0 8px;}
+.sec .subh:not(:first-child){margin-top:16px;border-top:1px dashed var(--line);padding-top:14px;}
+.filelist{display:flex;flex-direction:column;gap:6px;margin-top:4px;}
+.filerow{display:flex;align-items:center;gap:9px;border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:12.5px;}
+.filerow .fic{width:24px;height:24px;border-radius:6px;background:var(--wash);display:flex;align-items:center;justify-content:center;font-size:12px;flex:0 0 auto;}
+.filerow a{color:#2647b0;text-decoration:none;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.filerow .fmeta{color:var(--muted);font-size:11px;flex:0 0 auto;}
+.filerow .fdel{background:#fff;color:var(--red);border:1px solid #f0c9c6;border-radius:6px;width:24px;height:24px;padding:0;cursor:pointer;flex:0 0 auto;display:flex;align-items:center;justify-content:center;}
+.filerow .fdel:hover{background:var(--red);color:#fff;}
+#pmap{height:200px;border-radius:9px;border:1px solid var(--line);margin-top:10px;background:var(--wash);}
+.savefirst{font-size:12px;color:var(--muted);background:var(--wash);border:1px dashed var(--inp);border-radius:9px;padding:12px;text-align:center;}
+.pubrow{display:flex;align-items:center;gap:9px;font-size:13px;cursor:pointer;padding:4px 0;}
+.pubrow input{width:15px;height:15px;}
+</style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<a href="./index.html" class="rrg-back"><span style="font-size:14px;line-height:1">←</span> Toolbox</a>
+<div class="top"><div class="top-in">
+  <div style="display:flex;align-items:center;gap:16px">
+    <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+    <div><div class="kicker">Investment &amp; Owner-User</div><h1>Property Listings</h1><div class="sub">Real estate for sale or lease — the dirt and the building, not the business. Price, cap rate, NOI, land and improvements live here.</div></div>
+  </div>
+</div></div>
+<div class="wrap">
+  <div class="card">
+    <div class="hd"><b>Property Listings</b><span class="msg" id="count"></span><div class="searchwrap"><svg class="searchic" viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"></circle><line x1="12.8" y1="12.8" x2="17.5" y2="17.5"></line></svg><input id="q" placeholder="Search name, address, market, type…" oninput="draw()" autocomplete="off"></div><button class="btn pri" onclick="openEdit()" style="margin-left:10px">＋ Add property</button></div>
+    <div id="list"><div class="empty">Loading…</div></div>
+  </div>
+</div>
+
+<div class="ov" id="ov" hidden>
+  <div class="mod">
+    <div class="mhd"><span id="modTitle">Add property</span><button class="btn" onclick="closeEdit()">✕</button></div>
+    <div class="mb">
+      <div class="phrow">
+        <div class="thumb" id="phThumb">🏢</div>
+        <div><input type="file" id="phFile" accept=".png,.jpg,.jpeg,.gif,.webp" style="display:none"><button class="btn" type="button" onclick="document.getElementById('phFile').click()">Upload photo</button><div class="msg" id="phMsg" style="margin-top:5px"></div></div>
+      </div>
+      <div id="boardBar" style="display:none;align-items:center;gap:10px;background:var(--wash);border:1px solid var(--line);border-radius:10px;padding:9px 12px;margin-bottom:14px">
+        <span id="boardIco" style="font-size:18px">📋</span>
+        <div style="flex:1;min-width:0" id="boardTxt"></div>
+        <button class="btn pri" type="button" id="boardBtn" onclick="promoteProperty()">Work on the board</button>
+        <a class="btn" id="boardOpen" href="#" style="display:none;text-decoration:none">Open on board →</a>
+      </div>
+      <div class="fg">
+        <div class="f full"><label>Property name / title *</label><input id="p_name" placeholder="Former Chili's — 1604 &amp; Bulverde"></div>
+        <div class="f"><label>Listing for</label><select id="p_listingFor"></select></div>
+        <div class="f"><label>Status</label><select id="p_status"></select></div>
+        <div class="f"><label>Property type</label><select id="p_propertyType"></select></div>
+        <div class="f"><label>Tenancy</label><select id="p_tenancy"><option value="">—</option><option>Single-tenant</option><option>Multi-tenant</option><option>Vacant / owner-user</option><option>Land</option></select></div>
+        <div class="f full"><label>Address</label><input id="p_address" placeholder="12345 Bulverde Rd"></div>
+        <div class="f"><label>City</label><input id="p_city" placeholder="San Antonio"></div>
+        <div class="f"><label>State</label><input id="p_state" placeholder="TX"></div>
+        <div class="f"><label>Market</label><input id="p_market" list="marketList" placeholder="San Antonio"></div>
+        <div class="f"><label>Interest conveyed</label><select id="p_interest"><option value="">—</option><option>Fee simple</option><option>Leased fee</option><option>Leasehold</option><option>Ground lease</option></select></div>
+      </div>
+
+      <details class="sec" id="secSale" open>
+        <summary><span class="scv">›</span>Sale economics<span class="stag">For a purchase</span></summary>
+        <div class="secbd"><div class="fg">
+          <div class="f"><label>Asking price ($)</label><input id="p_price" inputmode="numeric" placeholder="2,450,000"></div>
+          <div class="f"><label>Price / SF ($)</label><input id="p_pricePerSF" inputmode="numeric" placeholder="385"></div>
+          <div class="f"><label>Cap rate (%)</label><input id="p_capRate" inputmode="numeric" placeholder="6.5"></div>
+          <div class="f"><label>NOI ($/yr)</label><input id="p_noi" inputmode="numeric" placeholder="159,250"></div>
+          <div class="f"><label>Occupancy (%)</label><input id="p_occupancy" inputmode="numeric" placeholder="100"></div>
+          <div class="f"><label>Annual taxes ($)</label><input id="p_taxes" inputmode="numeric" placeholder="38,000"></div>
+        </div></div>
+      </details>
+
+      <details class="sec" id="secLease">
+        <summary><span class="scv">›</span>Lease economics<span class="stag">If offered for lease</span></summary>
+        <div class="secbd"><div class="fg">
+          <div class="f"><label>Asking rent ($/SF/yr)</label><input id="p_askingRentSF" inputmode="numeric" placeholder="32"></div>
+          <div class="f"><label>NNN / CAM ($/SF)</label><input id="p_nnnSF" inputmode="numeric" placeholder="9.50"></div>
+          <div class="f"><label>Available SF</label><input id="p_availableSF" inputmode="numeric" placeholder="5,200"></div>
+          <div class="f"><label>Term (years)</label><input id="p_termYears" inputmode="numeric" placeholder="10"></div>
+          <div class="f"><label>TI allowance ($/SF)</label><input id="p_tiAllowance" inputmode="numeric" placeholder="25"></div>
+          <div class="f"><label>Lease type</label><input id="p_leaseType" placeholder="NNN / Absolute net / Gross"></div>
+        </div></div>
+      </details>
+
+      <details class="sec" id="secBldg">
+        <summary><span class="scv">›</span>Building &amp; land<span class="stag">The physical asset</span></summary>
+        <div class="secbd"><div class="fg">
+          <div class="f"><label>Building SF</label><input id="p_buildingSF" inputmode="numeric" placeholder="6,400"></div>
+          <div class="f"><label>Lot size (acres)</label><input id="p_lotAcres" inputmode="numeric" placeholder="1.35"></div>
+          <div class="f"><label>Lot size (SF)</label><input id="p_lotSF" inputmode="numeric" placeholder="58,800"></div>
+          <div class="f"><label>Year built</label><input id="p_yearBuilt" inputmode="numeric" placeholder="2008"></div>
+          <div class="f"><label>Stories</label><input id="p_stories" inputmode="numeric" placeholder="1"></div>
+          <div class="f"><label>Units / suites</label><input id="p_unitsCount" inputmode="numeric" placeholder="1"></div>
+          <div class="f"><label>Traffic (VPD)</label><input id="p_trafficVPD" inputmode="numeric" placeholder="41,000"></div>
+          <div class="f"><label>Zoning</label><input id="p_zoning" placeholder="C-3 / commercial"></div>
+          <div class="f"><label>Parking</label><input id="p_parking" placeholder="65 spaces / 10 per 1,000"></div>
+          <div class="f"><label>Frontage</label><input id="p_frontage" placeholder="180' on Bulverde Rd"></div>
+          <div class="f full"><label>Condition</label><input id="p_condition" placeholder="2nd-gen restaurant, excellent"></div>
+        </div></div>
+      </details>
+
+      <details class="sec" id="secFit">
+        <summary><span class="scv">›</span>Restaurant fit &amp; infrastructure<span class="stag">Can a restaurant run here?</span></summary>
+        <div class="secbd"><div class="fg">
+          <div class="f"><label>Drive-thru</label><select id="p_driveThru"><option value="">—</option><option>Yes</option><option>Possible</option><option>No</option></select></div>
+          <div class="f"><label>End-cap</label><select id="p_endCap"><option value="">—</option><option>Yes</option><option>No</option></select></div>
+          <div class="f"><label>Pad / out-parcel</label><select id="p_padSite"><option value="">—</option><option>Yes</option><option>Possible</option><option>No</option></select></div>
+          <div class="f"><label>Grease / hood / vent</label><select id="p_greaseHood"><option value="">—</option><option>In place</option><option>Some</option><option>None</option></select></div>
+          <div class="f"><label>Patio potential</label><select id="p_patio"><option value="">—</option><option>Yes</option><option>Possible</option><option>No</option></select></div>
+          <div class="f"><label>2nd-gen restaurant</label><select id="p_secondGen"><option value="">—</option><option>Available</option><option>No</option></select></div>
+          <div class="f full"><label>Existing / former use</label><textarea id="p_existingUse" placeholder="What operated here and what's left — hood, walk-ins, bar, FF&amp;E."></textarea></div>
+          <div class="f full"><label>TABC / liquor license notes</label><textarea id="p_tabc" placeholder="Wet/dry, distance rules, permits in place."></textarea></div>
+        </div></div>
+      </details>
+
+      <details class="sec" id="secContacts">
+        <summary><span class="scv">›</span>Seller &amp; co-broker<span class="stag">Who's on the other side</span></summary>
+        <div class="secbd">
+          <div class="subh">Seller / owner</div>
+          <div class="fg">
+            <div class="f"><label>Name</label><input id="p_sellerName" placeholder="Name"></div>
+            <div class="f"><label>Phone</label><input id="p_sellerPhone" placeholder="(210) 555-0100"></div>
+            <div class="f full"><label>Email</label><input id="p_sellerEmail" placeholder="owner@email.com"></div>
+          </div>
+          <div class="subh">Co-broker (if any)</div>
+          <div class="fg">
+            <div class="f"><label>Name</label><input id="p_cobrokerName" placeholder="Name"></div>
+            <div class="f"><label>Phone</label><input id="p_cobrokerPhone" placeholder="(210) 555-0120"></div>
+            <div class="f full"><label>Email</label><input id="p_cobrokerEmail" placeholder="broker@firm.com"></div>
+          </div>
+        </div>
+      </details>
+
+      <details class="sec" id="secMkt">
+        <summary><span class="scv">›</span>Marketing &amp; marketplace<span class="stag" id="mktTag"></span></summary>
+        <div class="secbd">
+          <div class="f full"><label>Public description</label><textarea id="p_description" placeholder="The pitch buyers see — location, income, upside, restaurant infrastructure." style="min-height:80px"></textarea></div>
+          <div class="fg" style="margin-top:12px">
+            <div class="f"><label>Listing start</label><input id="p_listingStart" type="date"></div>
+            <div class="f"><label>Listing expires</label><input id="p_listingExpires" type="date"></div>
+          </div>
+          <div style="margin-top:12px">
+            <label class="pubrow"><input type="checkbox" id="p_public"> <span><b>Show on the public marketplace</b> — open listing (address, price and photos visible)</span></label>
+            <label class="pubrow"><input type="checkbox" id="p_featured"> <span>Feature it near the top of the marketplace</span></label>
+          </div>
+        </div>
+      </details>
+
+      <details class="sec" id="secDocs">
+        <summary><span class="scv">›</span>Documents &amp; map<span class="stag" id="docsTag"></span></summary>
+        <div class="secbd">
+          <div id="docsBody"></div>
+          <div id="pmapWrap"><div class="subh" style="border:0;padding-top:6px">Location</div><div id="pmap"></div></div>
+        </div>
+      </details>
+
+      <div class="f full" style="margin-top:12px"><label>Internal notes</label><textarea id="p_notes" placeholder="Deal notes, seller motivation, who's circling…"></textarea></div>
+    </div>
+    <div class="mf"><span class="msg" id="modMsg"></span><button class="btn" onclick="closeEdit()">Cancel</button><button class="btn pri" id="modSave" onclick="saveProperty()">Save property</button></div>
+  </div>
+</div>
+<datalist id="marketList"></datalist>
+
+<script src="/rrg_list.js"></script>
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function fmtN(n){ return (n==null||n==='')?'':Number(n).toLocaleString('en-US'); }
+function money(n){ return (n==null||n==='')?'':('$'+Number(n).toLocaleString('en-US')); }
+var PROPS=[], TYPES=[], LISTING_FOR=[], STATUSES=[], MARKETS=[], CANDEL=false, EDIT=null, PENDING_PHOTO=null, CTL=null, PMAP=null, PMARK=null, PGEOKEY='';
+// every editable field: modal id 'p_'+key -> property key
+var PFIELDS=['name','listingFor','status','propertyType','tenancy','address','city','state','market','interest',
+  'price','pricePerSF','capRate','noi','occupancy','taxes',
+  'askingRentSF','nnnSF','availableSF','termYears','tiAllowance','leaseType',
+  'buildingSF','lotAcres','lotSF','yearBuilt','stories','unitsCount','trafficVPD','zoning','parking','frontage','condition',
+  'driveThru','endCap','padSite','greaseHood','patio','secondGen','existingUse','tabc',
+  'sellerName','sellerPhone','sellerEmail','cobrokerName','cobrokerPhone','cobrokerEmail',
+  'description','listingStart','listingExpires','notes'];
+var TRASH_SVG='<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>';
+var STCOL={'Available':['#e7f5ee','#1f8a5b'],'Under Contract':['#fdf1df','#b5791f'],'Sold':['#eceff5','#3a4c74'],'Leased':['#e8f0fd','#2f6fd0'],'Off-market':['#f3f4f7','#98a1b5']};
+function stPill(s){ var c=STCOL[s]||['#eceff5','#3a4c74']; return '<span class="stpill" style="background:'+c[0]+';color:'+c[1]+'">'+esc(s||'—')+'</span>'; }
+function forChip(v){ var cls=v==='For Sale'?'forsale':(v==='For Lease'?'forlease':'forboth'); return v?('<span class="chip '+cls+'">'+esc(v)+'</span>'):''; }
+function load(){
+  fetch('/api/properties',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ document.getElementById('list').innerHTML='<div class="empty">Could not load property listings.</div>'; return; }
+    PROPS=j.properties||[]; TYPES=j.types||[]; LISTING_FOR=j.listingFor||[]; STATUSES=j.statuses||[]; MARKETS=j.markets||[]; CANDEL=!!j.canDelete;
+    document.getElementById('p_listingFor').innerHTML=LISTING_FOR.map(function(t){return '<option>'+esc(t)+'</option>';}).join('');
+    document.getElementById('p_status').innerHTML=STATUSES.map(function(t){return '<option>'+esc(t)+'</option>';}).join('');
+    document.getElementById('p_propertyType').innerHTML='<option value="">— type —</option>'+TYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join('');
+    document.getElementById('marketList').innerHTML=MARKETS.map(function(m){return '<option value="'+esc(m)+'"></option>';}).join('');
+    draw();
+  }).catch(function(){ document.getElementById('list').innerHTML='<div class="empty">Could not load property listings.</div>'; });
+}
+function draw(){
+  if(!window.RRGList){ setTimeout(draw,80); return; }
+  var q=(document.getElementById('q').value||'').toLowerCase().trim();
+  var list=PROPS.filter(function(p){ if(!q) return true; return [p.name,p.address,p.city,p.market,p.propertyType,p.listingFor,p.status,p.sellerName].filter(Boolean).join(' ').toLowerCase().indexOf(q)>=0; });
+  document.getElementById('count').textContent=PROPS.length?(list.length+' of '+PROPS.length+' propert'+(PROPS.length===1?'y':'ies')):'';
+  var cfg={ mount:'#list', data:list, key:'properties', filterOpen:true, empty:'<div class="empty">'+(PROPS.length?'No properties match your search.':'No property listings yet — add your first real-estate listing.')+'</div>', rowId:function(p){return p.id;}, defaultSort:0, defaultDir:1,
+    columns:[
+      { label:'Property', filterable:false, sort:function(a,b){return RRGList.cmp(a.name,b.name);}, cell:function(p){ var ph=p.hasPhoto?('<div class="cthumb" style="background-image:url(/api/property-photo/'+esc(p.id)+'?t='+encodeURIComponent(p.updatedAt||'')+')"></div>'):'<div class="cthumb">🏢</div>'; var sub=[p.address,p.market||p.city].filter(Boolean).map(esc).join(' · '); return '<div class="cwho">'+ph+'<div><div class="cnm">'+esc(p.name||'Untitled')+'</div>'+(sub?('<div class="cmeta">'+sub+'</div>'):'')+'</div></div>'; } },
+      { label:'For', filterVal:function(p){ return p.listingFor||''; }, sort:function(a,b){return RRGList.cmp(a.listingFor,b.listingFor);}, cell:function(p){ return forChip(p.listingFor)||'<span class="cmeta">—</span>'; } },
+      { label:'Type', filterVal:function(p){ return p.propertyType||''; }, sort:function(a,b){return RRGList.cmp(a.propertyType,b.propertyType);}, cell:function(p){ return p.propertyType?('<span class="chip">'+esc(p.propertyType)+'</span>'):'<span class="cmeta">—</span>'; } },
+      { label:'Price / Rent', align:'right', filterType:'number', filterVal:function(p){ return (p.price==null||p.price==='')?(p.askingRentSF||''):p.price; }, sort:function(a,b){return (a.price||a.askingRentSF||0)-(b.price||b.askingRentSF||0);}, cell:function(p){ if(p.price) return '<b style="color:var(--navy)">'+esc(money(p.price))+'</b>'; if(p.askingRentSF) return '<b style="color:var(--navy)">'+esc('$'+p.askingRentSF)+'</b><span class="cmeta">/SF</span>'; return '<span class="cmeta">—</span>'; } },
+      { label:'Cap', align:'right', filterType:'number', filterVal:function(p){ return (p.capRate==null||p.capRate==='')?'':p.capRate; }, sort:function(a,b){return (a.capRate||0)-(b.capRate||0);}, cell:function(p){ return p.capRate?(esc(p.capRate)+'%'):'<span class="cmeta">—</span>'; } },
+      { label:'Building', align:'right', filterType:'number', filterVal:function(p){ return (p.buildingSF==null||p.buildingSF==='')?'':p.buildingSF; }, sort:function(a,b){return (a.buildingSF||0)-(b.buildingSF||0);}, cell:function(p){ return p.buildingSF?(esc(fmtN(p.buildingSF))+' SF'):'<span class="cmeta">—</span>'; } },
+      { label:'Status', filterVal:function(p){ return p.status||''; }, sort:function(a,b){return RRGList.cmp(a.status,b.status);}, cell:function(p){ return stPill(p.status)+(p.public?' <span title="On public marketplace" style="color:#1f8a5b">◍</span>':'')+(p.dealKey?' <span title="On the pipeline board" style="color:#2f6fd0">📋</span>':''); } },
+      { label:'', align:'right', sortable:false, cell:function(p){ return '<span style="white-space:nowrap"><button class="btn p-edit" data-id="'+esc(p.id)+'" style="padding:5px 11px;font-size:12px">Edit</button>'+(CANDEL?('<button class="ctrash p-del" data-id="'+esc(p.id)+'" title="Delete property" style="margin-left:6px">'+TRASH_SVG+'</button>'):'')+'</span>'; } }
+    ]
+  };
+  if(CTL) CTL.refresh(list); else CTL=RRGList.create(cfg);
+}
+document.addEventListener('click',function(e){ var ed=e.target.closest&&e.target.closest('.p-edit'); if(ed){ openEdit(ed.getAttribute('data-id')); return; } var dl=e.target.closest&&e.target.closest('.p-del'); if(dl){ delProperty(dl.getAttribute('data-id')); return; } });
+function setv(id,v){ var el=document.getElementById(id); if(el) el.value=(v==null?'':v); }
+function openEdit(id){
+  EDIT=id?PROPS.find(function(p){return p.id===id;}):null; PENDING_PHOTO=null;
+  document.getElementById('modTitle').textContent=EDIT?'Edit property':'Add property';
+  document.getElementById('modMsg').textContent=''; document.getElementById('phMsg').textContent='';
+  PFIELDS.forEach(function(k){ setv('p_'+k, EDIT&&EDIT[k]); });
+  if(!EDIT){ document.getElementById('p_listingFor').value=(LISTING_FOR[0]||'For Sale'); document.getElementById('p_status').value=(STATUSES[0]||'Available'); }
+  document.getElementById('p_tenancy').value=(EDIT&&EDIT.tenancy)||''; document.getElementById('p_interest').value=(EDIT&&EDIT.interest)||'';
+  document.getElementById('p_public').checked=!!(EDIT&&EDIT.public);
+  document.getElementById('p_featured').checked=!!(EDIT&&EDIT.featured);
+  ['secSale','secLease','secBldg','secFit','secContacts','secMkt','secDocs'].forEach(function(sid,i){ var d=document.getElementById(sid); if(d) d.open=(sid==='secSale'); });
+  document.getElementById('mktTag').textContent=(EDIT&&EDIT.public)?'On marketplace':'';
+  renderBoardBar();
+  var th=document.getElementById('phThumb');
+  if(EDIT&&EDIT.hasPhoto){ th.style.backgroundImage='url(/api/property-photo/'+EDIT.id+'?t='+encodeURIComponent(EDIT.updatedAt||'')+')'; th.textContent=''; } else { th.style.backgroundImage=''; th.textContent='🏢'; }
+  document.getElementById('phFile').value='';
+  renderDocs(); PGEOKEY='';
+  document.getElementById('ov').hidden=false;
+}
+function closeEdit(){ document.getElementById('ov').hidden=true; }
+// ---- pipeline board ----
+function renderBoardBar(){
+  var bar=document.getElementById('boardBar'), txt=document.getElementById('boardTxt'), btn=document.getElementById('boardBtn'), open=document.getElementById('boardOpen');
+  if(!EDIT){ bar.style.display='none'; return; }
+  bar.style.display='flex';
+  if(EDIT.dealKey){
+    txt.innerHTML='<div style="font-size:12px;font-weight:700;color:var(--navy)">On the Property Sales board</div><div class="msg" style="font-size:11.5px">Running through pipeline stages like a listing.</div>';
+    btn.style.display='none'; open.style.display=''; open.href='rrg_assignment.html?key='+encodeURIComponent(EDIT.dealKey);
+  } else {
+    txt.innerHTML='<div style="font-size:12px;font-weight:700;color:var(--navy)">Not on the board yet</div><div class="msg" style="font-size:11.5px">Put this listing on the Property Sales pipeline to track stages, tasks and offers.</div>';
+    btn.style.display=''; btn.disabled=false; btn.textContent='Work on the board'; open.style.display='none';
+  }
+}
+function promoteProperty(){
+  if(!EDIT) return;
+  var btn=document.getElementById('boardBtn'); btn.disabled=true; btn.textContent='Adding…';
+  fetch('/api/property/'+EDIT.id+'/promote',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({})})
+    .then(function(r){return r.json();}).then(function(j){
+      if(!j||!j.ok){ btn.disabled=false; btn.textContent='Work on the board'; if(window.rrgToast) rrgToast((j&&j.error)||'Could not add to the board',{danger:true}); else alert((j&&j.error)||'Could not add to the board.'); return; }
+      location.href='rrg_assignment.html?key='+encodeURIComponent(j.key);
+    }).catch(function(){ btn.disabled=false; btn.textContent='Work on the board'; if(window.rrgToast) rrgToast('Network error',{danger:true}); });
+}
+document.getElementById('phFile').addEventListener('change',function(){ var f=this.files&&this.files[0]; if(!f) return; if(f.size>10*1024*1024){ document.getElementById('phMsg').textContent='Image over 10 MB.'; this.value=''; return; } var rd=new FileReader(); rd.onload=function(){ PENDING_PHOTO={filename:f.name,dataB64:String(rd.result||'').replace(/^data:[^,]*,/,'')}; var th=document.getElementById('phThumb'); th.style.backgroundImage='url('+rd.result+')'; th.textContent=''; document.getElementById('phMsg').textContent='Will upload on save.'; }; rd.readAsDataURL(f); });
+function saveProperty(){
+  var name=(document.getElementById('p_name').value||'').trim();
+  if(!name){ document.getElementById('modMsg').textContent='Property name is required.'; return; }
+  var body={ id:EDIT?EDIT.id:'' };
+  PFIELDS.forEach(function(k){ var el=document.getElementById('p_'+k); if(el) body[k]=el.value; });
+  body.public=document.getElementById('p_public').checked;
+  body.featured=document.getElementById('p_featured').checked;
+  var btn=document.getElementById('modSave'); btn.disabled=true; document.getElementById('modMsg').textContent='Saving…';
+  fetch('/api/property',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ btn.disabled=false; document.getElementById('modMsg').textContent=(j&&j.error)||'Could not save.'; return null; }
+    if(PENDING_PHOTO){ return fetch('/api/property/'+j.property.id+'/photo',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(PENDING_PHOTO)}).then(function(r){return r.json();}); }
+    return j;
+  }).then(function(j){ if(j===null) return; btn.disabled=false; closeEdit(); if(window.rrgToast) rrgToast('Property saved'); load(); }).catch(function(){ btn.disabled=false; document.getElementById('modMsg').textContent='Network error.'; });
+}
+function delProperty(id){
+  var p=PROPS.find(function(x){return x.id===id;}); if(!p) return;
+  var msg='Delete '+(p.name||'this property')+'? This cannot be undone.';
+  (window.rrgConfirm?rrgConfirm(msg,{danger:true}):Promise.resolve(confirm(msg))).then(function(ok){ if(!ok) return; fetch('/api/property/'+id,{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ if(window.rrgToast) rrgToast('Property deleted'); load(); } else if(window.rrgToast) rrgToast((j&&j.error)||'Could not delete',{danger:true}); }); });
+}
+// ---- documents ----
+var FILE_SVG={pdf:'📄',photo:'🖼️',doc:'📝'};
+function renderDocs(){
+  var tag=document.getElementById('docsTag'), body=document.getElementById('docsBody');
+  if(!EDIT){ tag.textContent=''; body.innerHTML='<div class="savefirst">Save the property first, then re-open it to attach the OM, rent roll, survey, environmental and other documents.</div>'; return; }
+  var files=(EDIT.files||[]);
+  tag.textContent=files.length?(files.length+' file'+(files.length===1?'':'s')):'';
+  var rows=files.map(function(f){
+    var ic=FILE_SVG[f.kind]||'📎'; var kb=f.size?(f.size>1048576?((f.size/1048576).toFixed(1)+' MB'):(Math.max(1,Math.round(f.size/1024))+' KB')):'';
+    return '<div class="filerow"><span class="fic">'+ic+'</span><a href="/api/property-file/'+esc(EDIT.id)+'/'+esc(f.id)+'" target="_blank" rel="noopener">'+esc(f.name)+'</a>'+(kb?('<span class="fmeta">'+kb+'</span>'):'')+'<button class="fdel" title="Remove" onclick="delDoc(\''+esc(f.id)+'\')">✕</button></div>';
+  }).join('');
+  body.innerHTML='<div class="filelist">'+rows+'</div>'+
+    '<div style="margin-top:10px"><input type="file" id="docFile" accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.doc,.docx,.xls,.xlsx,.csv" style="display:none"><button class="btn" type="button" onclick="document.getElementById(\'docFile\').click()">＋ Add document</button><span class="msg" id="docMsg" style="margin-left:8px"></span></div>';
+  var fi=document.getElementById('docFile');
+  if(fi) fi.addEventListener('change',function(){ var f=this.files&&this.files[0]; if(!f) return; uploadDoc(f); this.value=''; });
+}
+function uploadDoc(f){
+  var msg=document.getElementById('docMsg'); if(msg) msg.textContent='Uploading '+f.name+'…';
+  if(f.size>25*1024*1024){ if(msg) msg.textContent='File is over 25 MB.'; return; }
+  var rd=new FileReader();
+  rd.onload=function(){
+    fetch('/api/property/'+EDIT.id+'/file',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({filename:f.name,dataB64:String(rd.result||'').replace(/^data:[^,]*,/,'')})})
+      .then(function(r){return r.json();}).then(function(j){
+        if(j&&j.ok){ EDIT=j.property; var i=PROPS.findIndex(function(x){return x.id===EDIT.id;}); if(i>=0) PROPS[i]=EDIT; renderDocs(); if(window.rrgToast) rrgToast('Document added'); }
+        else if(msg) msg.textContent=(j&&j.error)||'Could not upload.';
+      }).catch(function(){ if(msg) msg.textContent='Network error.'; });
+  };
+  rd.readAsDataURL(f);
+}
+function delDoc(fid){
+  if(!EDIT) return;
+  (window.rrgConfirm?rrgConfirm('Remove this document?',{danger:true}):Promise.resolve(confirm('Remove this document?'))).then(function(ok){ if(!ok) return;
+    fetch('/api/property/'+EDIT.id+'/file/'+fid,{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+      if(j&&j.ok){ EDIT=j.property; var i=PROPS.findIndex(function(x){return x.id===EDIT.id;}); if(i>=0) PROPS[i]=EDIT; renderDocs(); }
+    });
+  });
+}
+// ---- map ----
+function propAddrStr(){ var a=[document.getElementById('p_address').value,document.getElementById('p_city').value,document.getElementById('p_state').value,document.getElementById('p_market').value].map(function(x){return (x||'').trim();}).filter(Boolean); return a.join(', '); }
+function initPropMap(){
+  if(!window.L) return;
+  var el=document.getElementById('pmap'); if(!el) return;
+  if(!PMAP){ PMAP=L.map(el,{scrollWheelZoom:false,attributionControl:false}).setView([31.0,-99.0],5); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(PMAP); }
+  setTimeout(function(){ try{PMAP.invalidateSize();}catch(e){} },60);
+  var addr=propAddrStr(); if(!addr||addr===PGEOKEY) return; PGEOKEY=addr;
+  fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&q='+encodeURIComponent(addr),{headers:{'Accept':'application/json'}})
+    .then(function(r){return r.json();}).then(function(a){
+      if(!a||!a.length) return; var lat=parseFloat(a[0].lat), lon=parseFloat(a[0].lon); if(!isFinite(lat)||!isFinite(lon)) return;
+      if(PMARK) PMARK.setLatLng([lat,lon]); else PMARK=L.circleMarker([lat,lon],{radius:9,color:'#fff',weight:2,fillColor:'#DA2B1F',fillOpacity:1}).addTo(PMAP);
+      PMAP.setView([lat,lon],15); setTimeout(function(){ try{PMAP.invalidateSize();}catch(e){} },60);
+    }).catch(function(){});
+}
+document.getElementById('secDocs').addEventListener('toggle',function(){ if(this.open) initPropMap(); });
+load();
+</script>
+</body>
+</html>
