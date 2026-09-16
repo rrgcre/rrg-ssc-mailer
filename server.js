@@ -1469,7 +1469,7 @@ app.get('/api/me', (req, res) => { const prof = auth.profileOf(auth.findUser(req
 app.post('/api/me/profile', express.json(), (req, res) => {
   try {
     const b = req.body || {};
-    const p = auth.updateProfile(req.user.username, { name: b.name, title: b.title, phone: b.phone, email: b.email, workLocation: b.workLocation, workStart: b.workStart, workEnd: b.workEnd, workDays: b.workDays });
+    const p = auth.updateProfile(req.user.username, { name: b.name, title: b.title, phone: b.phone, email: b.email, workLocation: b.workLocation, workStart: b.workStart, workEnd: b.workEnd, workDays: b.workDays, workHours: b.workHours });
     res.json({ ok: true, profile: p });
   } catch (e) { res.status(400).json({ ok: false, error: String((e && e.message) || e) }); }
 });
@@ -17211,10 +17211,10 @@ app.get('/api/appointments', (req, res) => {
   if (to) list = list.filter(a => String(a.start || '') <= to);
   list.sort((a, b) => String(a.start || '').localeCompare(String(b.start || '')));
   const contacts = loadPeople().map(p => ({ id: p.id, name: p.name, email: (typeof preferredEmailOf === 'function' ? (preferredEmailOf(p) || '') : (p.email || '')) })).sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
-  let users = auth.loadUsers().filter(x => !x.disabled).map(x => ({ username: x.username, name: x.name || x.username, workLocation: x.workLocation || '', workStart: x.workStart || '', workEnd: x.workEnd || '', workDays: Array.isArray(x.workDays) ? x.workDays : [] }));
+  let users = auth.loadUsers().filter(x => !x.disabled).map(x => ({ username: x.username, name: x.name || x.username, workLocation: x.workLocation || '', workStart: x.workStart || '', workEnd: x.workEnd || '', workDays: Array.isArray(x.workDays) ? x.workDays : [], workHours: (x.workHours && typeof x.workHours === 'object') ? x.workHours : {} }));
   if (!canAll) { const keep = {}; keep[u.username] = 1; sharedToMe.forEach(o => { keep[o] = 1; }); users = users.filter(x => keep[x.username]); }
   const meProf = (function(){ try { return auth.profileOf(auth.findUser(u.username)) || {}; } catch (e) { return {}; } })();
-  const meWork = { workLocation: meProf.workLocation || '', workStart: meProf.workStart || '', workEnd: meProf.workEnd || '', workDays: Array.isArray(meProf.workDays) ? meProf.workDays : [] };
+  const meWork = { workLocation: meProf.workLocation || '', workStart: meProf.workStart || '', workEnd: meProf.workEnd || '', workDays: Array.isArray(meProf.workDays) ? meProf.workDays : [], workHours: (meProf.workHours && typeof meProf.workHours === 'object') ? meProf.workHours : {} };
   // Dated tasks in the same window, so they can render on the calendar grid alongside meetings.
   let tasksOut = [];
   try {
@@ -17519,15 +17519,22 @@ function bookingAvailability(username, days, lenOverride) {
   const wd = (Array.isArray(prof.workDays) && prof.workDays.length) ? prof.workDays : [1, 2, 3, 4, 5];
   const ws = /^\d{2}:\d{2}$/.test(prof.workStart || '') ? prof.workStart : '09:00';
   const we = /^\d{2}:\d{2}$/.test(prof.workEnd || '') ? prof.workEnd : '17:00';
+  // Per-day hours, when set, are the source of truth: a day with an entry is a working
+  // day with those hours; a day with no entry is off. Falls back to the global days/hours.
+  const wh = (prof.workHours && typeof prof.workHours === 'object') ? prof.workHours : {};
+  const hasWH = Object.keys(wh).length > 0;
   const appts = loadAppts().filter(a => a.byUser === username && a.status !== 'cancelled' && a.status !== 'deleted' && a.start);
   const nowN = _bNow(); const today = nowN.slice(0, 10);
   const minStart = minNoticeH > 0 ? _bAddMin(nowN, minNoticeH * 60) : nowN;   // earliest bookable time
   const out = [];
   for (let i = 0; i < (days || 14); i++) {
     const dstr = _bAddDays(today, i);
-    if (wd.indexOf(_bDow(dstr)) < 0) continue;
+    const dow = _bDow(dstr);
+    let dws = ws, dwe = we;
+    if (hasWH) { const e = wh[dow] || wh[String(dow)]; if (!e) continue; dws = e.start; dwe = e.end; }
+    else if (wd.indexOf(dow) < 0) continue;
     const slots = [];
-    for (let m = _bmToMin(ws); m + len <= _bmToMin(we); m += len) {
+    for (let m = _bmToMin(dws); m + len <= _bmToMin(dwe); m += len) {
       const hh = String(Math.floor(m / 60)).padStart(2, '0'), mm = String(m % 60).padStart(2, '0');
       const s = dstr + 'T' + hh + ':' + mm;
       if (s < minStart) continue;

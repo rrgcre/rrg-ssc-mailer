@@ -139,21 +139,11 @@ input.f:disabled{background:var(--wash);color:var(--soft);}
   <div class="card" id="workCard" data-atab="booking">
     <h2>Working hours &amp; location</h2>
     <p class="desc">Let teammates see when you’re available and where you’re working from — it shows on the Calendar so the team can schedule around you.</p>
-    <label class="fl">Working days</label>
-    <div id="workDays" style="display:flex;flex-wrap:wrap;gap:12px;margin:4px 0 12px">
-      <label style="display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;cursor:pointer"><input type="checkbox" value="1" style="width:auto">Mon</label>
-      <label style="display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;cursor:pointer"><input type="checkbox" value="2" style="width:auto">Tue</label>
-      <label style="display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;cursor:pointer"><input type="checkbox" value="3" style="width:auto">Wed</label>
-      <label style="display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;cursor:pointer"><input type="checkbox" value="4" style="width:auto">Thu</label>
-      <label style="display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;cursor:pointer"><input type="checkbox" value="5" style="width:auto">Fri</label>
-      <label style="display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;cursor:pointer"><input type="checkbox" value="6" style="width:auto">Sat</label>
-      <label style="display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;cursor:pointer"><input type="checkbox" value="0" style="width:auto">Sun</label>
-    </div>
-    <div class="row2">
-      <div><label class="fl">Start</label><input class="f" type="time" step="900" id="workStart"></div>
-      <div><label class="fl">End</label><input class="f" type="time" step="900" id="workEnd"></div>
-    </div>
-    <label class="fl">Working location</label>
+    <label class="fl">Working days &amp; hours</label>
+    <p class="desc" style="margin:2px 0 8px">Check the days you work and set the hours for each — they can differ from day to day.</p>
+    <div id="workGrid" style="margin:2px 0 8px"></div>
+    <a href="#" id="workCopyAll" onclick="copyFirstDayHours();return false;" style="font-size:12px;font-weight:700;color:#33415c;text-decoration:none">↧ Apply the first working day’s hours to every working day</a>
+    <label class="fl" style="margin-top:14px">Working location</label>
     <input class="f" id="workLocation" placeholder="e.g. San Antonio office · Home · On the road">
     <div style="margin-top:12px"><button class="save" id="saveWork" onclick="saveWork()">Save working hours</button><span class="msg" id="wmsg"></span></div>
   </div>
@@ -292,8 +282,8 @@ function load(){
     var p=(j&&j.profile)||{};
     $('name').value=p.name||''; $('title').value=p.title||''; $('phone').value=p.phone||''; $('email').value=p.email||'';
     setHeadshot(p.photoUrl||'');
-    $('workStart').value=p.workStart||''; $('workEnd').value=p.workEnd||''; $('workLocation').value=p.workLocation||'';
-    var wd=(p.workDays&&p.workDays.length)?p.workDays:[1,2,3,4,5]; document.querySelectorAll('#workDays input').forEach(function(c){ c.checked=wd.indexOf(+c.value)>=0; });
+    $('workLocation').value=p.workLocation||'';
+    renderWorkGrid(p.workHours, p.workDays, p.workStart, p.workEnd);
     var first=((p.name||'').trim().split(/\s+/)[0])||'Account';
     $('hName').textContent=first==='Account'?'Account':(first+"'s Account");
     preview();
@@ -372,12 +362,13 @@ function previewTypeEditor(){ var t=BK_TYPES[EDIT_IDX]; if(!t) return; var m=doc
 function bkCopyType(btn,i){ var t=BK_TYPES[i]; if(!t||!BK_LINK||!t.id) return; var tl=BK_LINK+'?type='+encodeURIComponent(t.id); try{ navigator.clipboard.writeText(tl); btn.textContent='Copied'; setTimeout(function(){btn.textContent='Copy';},1200); }catch(e){} }
 function addEditorQ(){ var t=BK_TYPES[EDIT_IDX]; if(!t) return; if(!Array.isArray(t.questions)) t.questions=[]; if(t.questions.length>=5) return; t.questions.push({q:'',required:false,type:'text',options:[]}); renderEditorQs(); }
 function rmEditorQ(qi){ var t=BK_TYPES[EDIT_IDX]; if(t&&t.questions){ t.questions.splice(qi,1); renderEditorQs(); } }
+function moveEditorQ(qi,dir){ var t=BK_TYPES[EDIT_IDX]; if(!t||!Array.isArray(t.questions)) return; var j=qi+dir; if(j<0||j>=t.questions.length) return; var a=t.questions; var tmp=a[qi]; a[qi]=a[j]; a[j]=tmp; renderEditorQs(); }
 function renderBkQs(){ var host=$('bkQs'); if(!host) return; host.innerHTML=BK_QS.map(function(q,i){ return '<div style="display:grid;grid-template-columns:1fr auto 34px;gap:8px;margin-bottom:7px;align-items:center"><input class="f bkq" data-i="'+i+'" value="'+String(q.q||'').replace(/"/g,'&quot;')+'" placeholder="e.g. What are you looking to accomplish?"><label class="fl" style="display:flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-weight:600;font-size:12px;white-space:nowrap;margin:0"><input type="checkbox" class="bkqr" data-i="'+i+'"'+(q.required?' checked':'')+' style="width:auto"> Required</label><button class="save" type="button" onclick="rmBkQ('+i+')" style="background:#fbeceb;color:#b23a2c;padding:8px 0;width:34px" title="Remove">×</button></div>'; }).join(''); host.querySelectorAll('.bkq').forEach(function(el){ el.addEventListener('input',function(){ BK_QS[+el.getAttribute('data-i')].q=el.value; }); }); host.querySelectorAll('.bkqr').forEach(function(el){ el.addEventListener('change',function(){ BK_QS[+el.getAttribute('data-i')].required=el.checked; }); }); var addb=$('bkAddQ'); if(addb) addb.style.display=(BK_QS.length>=5?'none':''); }
 function addBkQ(){ if(BK_QS.length>=5) return; BK_QS.push({q:'',required:false}); renderBkQs(); }
 function rmBkQ(i){ BK_QS.splice(i,1); renderBkQs(); }
 function addBkType(){ BK_TYPES.push({name:'',length:30,mode:'meet',location:'',questions:[]}); openTypeEditor(BK_TYPES.length-1, true); }
 var EDIT_IDX=-1, EDIT_NEW=false, EDIT_BACKUP='';
-function renderEditorQs(){ var host=document.getElementById('teQs'); if(!host) return; var t=BK_TYPES[EDIT_IDX]||{}; var qs=(t.questions||[]); host.innerHTML=qs.map(function(q,qi){ var typ=q.type||'text'; var topts=[['text','Short text'],['textarea','Paragraph'],['select','Dropdown']].map(function(o){return '<option value="'+o[0]+'"'+(typ===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join(''); return '<div style="border:1px solid #e6e9f0;border-radius:8px;padding:9px;margin-bottom:8px">'+'<div style="font-size:10.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#8a93a8;margin-bottom:5px">Question '+(qi+1)+'</div>'+'<input class="f teq" data-qi="'+qi+'" value="'+String(q.q||'').replace(/"/g,'&quot;')+'" placeholder="Question — e.g. What stage are you in?" style="font-size:13px;padding:8px 9px">'+'<div style="display:grid;grid-template-columns:1fr auto 30px;gap:8px;align-items:center;margin-top:6px">'+'<select class="f teqt" data-qi="'+qi+'" style="font-size:12.5px;padding:7px 9px">'+topts+'</select>'+'<label class="fl" style="display:flex;align-items:center;gap:5px;text-transform:none;letter-spacing:0;font-weight:600;font-size:11.5px;white-space:nowrap;margin:0"><input type="checkbox" class="teqr" data-qi="'+qi+'"'+(q.required?' checked':'')+' style="width:auto"> Required</label>'+'<button class="save" type="button" onclick="rmEditorQ('+qi+')" style="background:#fbeceb;color:#b23a2c;padding:6px 0;width:30px;font-size:13px" title="Remove">×</button>'+'</div>'+'<input class="f teqo" data-qi="'+qi+'" value="'+String((q.options||[]).join(', ')).replace(/"/g,'&quot;')+'" placeholder="Dropdown options, comma-separated — e.g. 1, 2-5, 6+" style="font-size:12.5px;padding:7px 9px;margin-top:6px;display:'+(typ==='select'?'block':'none')+'">'+'</div>'; }).join(''); host.querySelectorAll('.teq').forEach(function(el){ el.addEventListener('input',function(){ BK_TYPES[EDIT_IDX].questions[+el.getAttribute('data-qi')].q=el.value; }); }); host.querySelectorAll('.teqt').forEach(function(el){ el.addEventListener('change',function(){ var qi=+el.getAttribute('data-qi'); var q=BK_TYPES[EDIT_IDX].questions[qi]; q.type=el.value; if(q.type==='select'&&!Array.isArray(q.options)) q.options=[]; var oi=host.querySelector('.teqo[data-qi="'+qi+'"]'); if(oi) oi.style.display=(q.type==='select'?'block':'none'); }); }); host.querySelectorAll('.teqr').forEach(function(el){ el.addEventListener('change',function(){ BK_TYPES[EDIT_IDX].questions[+el.getAttribute('data-qi')].required=el.checked; }); }); host.querySelectorAll('.teqo').forEach(function(el){ el.addEventListener('input',function(){ BK_TYPES[EDIT_IDX].questions[+el.getAttribute('data-qi')].options=el.value.split(',').map(function(x){return x.trim();}).filter(Boolean); }); }); var ab=document.getElementById('teAddQ'); if(ab) ab.style.display=(qs.length>=5?'none':''); }
+function renderEditorQs(){ var host=document.getElementById('teQs'); if(!host) return; var t=BK_TYPES[EDIT_IDX]||{}; var qs=(t.questions||[]); host.innerHTML=qs.map(function(q,qi){ var typ=q.type||'text'; var topts=[['text','Short text'],['textarea','Paragraph'],['select','Dropdown']].map(function(o){return '<option value="'+o[0]+'"'+(typ===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join(''); return '<div style="border:1px solid #e6e9f0;border-radius:8px;padding:9px;margin-bottom:8px">'+'<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px"><div style="font-size:10.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#8a93a8">Question '+(qi+1)+'</div><div style="margin-left:auto;display:flex;gap:4px"><button class="save" type="button" onclick="moveEditorQ('+qi+',-1)"'+(qi===0?' disabled':'')+' style="background:#eef1f6;color:#33415c;padding:3px 0;width:26px;font-size:12px;line-height:1'+(qi===0?';opacity:.4;cursor:default':'')+'" title="Move up">↑</button><button class="save" type="button" onclick="moveEditorQ('+qi+',1)"'+(qi===qs.length-1?' disabled':'')+' style="background:#eef1f6;color:#33415c;padding:3px 0;width:26px;font-size:12px;line-height:1'+(qi===qs.length-1?';opacity:.4;cursor:default':'')+'" title="Move down">↓</button></div></div>'+'<input class="f teq" data-qi="'+qi+'" value="'+String(q.q||'').replace(/"/g,'&quot;')+'" placeholder="Question — e.g. What stage are you in?" style="font-size:13px;padding:8px 9px">'+'<div style="display:grid;grid-template-columns:1fr auto 30px;gap:8px;align-items:center;margin-top:6px">'+'<select class="f teqt" data-qi="'+qi+'" style="font-size:12.5px;padding:7px 9px">'+topts+'</select>'+'<label class="fl" style="display:flex;align-items:center;gap:5px;text-transform:none;letter-spacing:0;font-weight:600;font-size:11.5px;white-space:nowrap;margin:0"><input type="checkbox" class="teqr" data-qi="'+qi+'"'+(q.required?' checked':'')+' style="width:auto"> Required</label>'+'<button class="save" type="button" onclick="rmEditorQ('+qi+')" style="background:#fbeceb;color:#b23a2c;padding:6px 0;width:30px;font-size:13px" title="Remove">×</button>'+'</div>'+'<input class="f teqo" data-qi="'+qi+'" value="'+String((q.options||[]).join(', ')).replace(/"/g,'&quot;')+'" placeholder="Dropdown options, comma-separated — e.g. 1, 2-5, 6+" style="font-size:12.5px;padding:7px 9px;margin-top:6px;display:'+(typ==='select'?'block':'none')+'">'+'</div>'; }).join(''); host.querySelectorAll('.teq').forEach(function(el){ el.addEventListener('input',function(){ BK_TYPES[EDIT_IDX].questions[+el.getAttribute('data-qi')].q=el.value; }); }); host.querySelectorAll('.teqt').forEach(function(el){ el.addEventListener('change',function(){ var qi=+el.getAttribute('data-qi'); var q=BK_TYPES[EDIT_IDX].questions[qi]; q.type=el.value; if(q.type==='select'&&!Array.isArray(q.options)) q.options=[]; var oi=host.querySelector('.teqo[data-qi="'+qi+'"]'); if(oi) oi.style.display=(q.type==='select'?'block':'none'); }); }); host.querySelectorAll('.teqr').forEach(function(el){ el.addEventListener('change',function(){ BK_TYPES[EDIT_IDX].questions[+el.getAttribute('data-qi')].required=el.checked; }); }); host.querySelectorAll('.teqo').forEach(function(el){ el.addEventListener('input',function(){ BK_TYPES[EDIT_IDX].questions[+el.getAttribute('data-qi')].options=el.value.split(',').map(function(x){return x.trim();}).filter(Boolean); }); }); var ab=document.getElementById('teAddQ'); if(ab) ab.style.display=(qs.length>=5?'none':''); }
 function closeTypeEditor(){ var ov=document.getElementById('bkOv'); if(ov) ov.remove(); EDIT_IDX=-1; }
 function cancelTypeEditor(){ if(EDIT_NEW){ BK_TYPES.splice(EDIT_IDX,1); } else if(EDIT_BACKUP){ try{ BK_TYPES[EDIT_IDX]=JSON.parse(EDIT_BACKUP); }catch(e){} } closeTypeEditor(); renderBkTypes(); }
 function openTypeEditor(i, isNew){ EDIT_IDX=i; EDIT_NEW=!!isNew; var t=BK_TYPES[i]; if(!t) return; if(!Array.isArray(t.questions)) t.questions=[]; EDIT_BACKUP=JSON.stringify(t);
@@ -408,7 +399,59 @@ function loadBooking(){ fetch(API+'/api/me/booking',{credentials:'same-origin'})
 function renderBkLink(j){ var row=$('bkLinkRow'); if(!row) return; var link=j.link||''; if(link&&link.charAt(0)==='/') link=location.origin+link; BK_LINK=link; renderBkTypes(); if(j.enabled&&link){ row.style.display=''; $('bkLink').value=link; var op=$('bkOpen'); if(op) op.href=link; } else row.style.display='none'; }
 function bkCopyLink(){ var i=$('bkLink'); try{ navigator.clipboard.writeText(i.value); var b=$('bkCopy'); b.textContent='Copied'; setTimeout(function(){b.textContent='Copy';},1200);}catch(e){} }
 function saveBooking(cb){ var b=$('saveBooking'); b.disabled=true; setMsg('bkMsg','','Saving…'); fetch(API+'/api/me/booking',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({enabled:$('bkEnabled').checked,length:+$('bkLength').value,title:$('bkTitle').value,buffer:+($('bkBuffer')||{}).value||0,minNotice:+($('bkMinNotice')||{}).value||0,types:BK_TYPES.filter(function(t){return (t.name||'').trim();}).map(function(t){return {id:t.id,name:t.name,length:t.length,mode:t.mode||'meet',location:t.location||'',description:t.description||'',automationId:t.automationId||'',questions:(t.questions||[]).filter(function(q){return (q.q||'').trim();}).map(function(q){return {q:q.q,required:!!q.required,type:q.type||'text',options:(q.type==='select')?(q.options||[]):[]};})};}),questions:BK_QS.filter(function(q){return (q.q||'').trim();}),roleTypes:{business_sales:(BK_ROLES.business_sales||''),tenant_rep:(BK_ROLES.tenant_rep||'')}})}).then(function(r){return r.json();}).then(function(j){ b.disabled=false; if(j&&j.ok){ setMsg('bkMsg','ok','Saved ✓'); BK_TYPES=(j.types||[]).map(function(t){return {id:t.id,name:t.name||'',length:+t.length||30,mode:t.mode||'meet',location:t.location||'',description:t.description||'',automationId:t.automationId||'',questions:(t.questions||[]).map(function(q){return {q:q.q||'',required:!!q.required,type:q.type||'text',options:(q.options||[]).slice()};})};}); BK_ROLES=(j.roleTypes&&typeof j.roleTypes==='object')?{business_sales:j.roleTypes.business_sales||'',tenant_rep:j.roleTypes.tenant_rep||''}:{}; renderBkRoles(); renderBkLink(j); if(typeof cb==='function') cb(true); } else { setMsg('bkMsg','err',(j&&j.error)||'Could not save.'); if(typeof cb==='function') cb(false); } }).catch(function(){ b.disabled=false; setMsg('bkMsg','err','Could not reach the server.'); if(typeof cb==='function') cb(false); }); }
-function saveWork(){ var b=$('saveWork'); b.disabled=true; setMsg('wmsg','','Saving…'); var days=[]; document.querySelectorAll('#workDays input:checked').forEach(function(c){ days.push(+c.value); }); fetch(API+'/api/me/profile',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({workStart:$('workStart').value,workEnd:$('workEnd').value,workLocation:$('workLocation').value,workDays:days})}).then(function(r){return r.json();}).then(function(j){ b.disabled=false; if(j&&j.ok){ setMsg('wmsg','ok','Saved ✓'); } else setMsg('wmsg','err',(j&&j.error)||'Could not save.'); }).catch(function(){ b.disabled=false; setMsg('wmsg','err','Could not reach the server.'); }); }
+/* ---- Working hours: per-day grid ---- */
+var WHDAYS=[[1,'Mon'],[2,'Tue'],[3,'Wed'],[4,'Thu'],[5,'Fri'],[6,'Sat'],[0,'Sun']];
+function renderWorkGrid(workHours, workDays, gStart, gEnd){
+  var host=$('workGrid'); if(!host) return;
+  workHours=(workHours&&typeof workHours==='object')?workHours:{};
+  var haveWH=Object.keys(workHours).length>0;
+  var wd=(workDays&&workDays.length)?workDays:[1,2,3,4,5];
+  var gs=/^\d{2}:\d{2}$/.test(gStart||'')?gStart:'09:00';
+  var ge=/^\d{2}:\d{2}$/.test(gEnd||'')?gEnd:'17:00';
+  host.innerHTML=WHDAYS.map(function(d){
+    var dow=d[0], e=workHours[dow]||workHours[String(dow)];
+    var on=haveWH?!!e:(wd.indexOf(dow)>=0);
+    var s=(e&&e.start)||gs, en=(e&&e.end)||ge;
+    return '<div class="whrow" data-dow="'+dow+'" style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #eef1f6">'
+      +'<label style="display:inline-flex;align-items:center;gap:7px;width:70px;flex:0 0 70px;font-size:13px;font-weight:600;cursor:pointer"><input type="checkbox" class="whon" '+(on?'checked':'')+' style="width:auto"> '+d[1]+'</label>'
+      +'<input class="f whs" type="time" step="900" value="'+s+'" style="max-width:150px'+(on?'':';opacity:.45;background:#f4f6f9')+'" '+(on?'':'disabled')+'>'
+      +'<span style="color:#8a93a8;font-size:12.5px">to</span>'
+      +'<input class="f whe" type="time" step="900" value="'+en+'" style="max-width:150px'+(on?'':';opacity:.45;background:#f4f6f9')+'" '+(on?'':'disabled')+'>'
+      +'<span class="whoff" style="font-size:12px;color:#8a93a8;'+(on?'display:none':'')+'">Off</span>'
+      +'</div>';
+  }).join('');
+  host.querySelectorAll('.whrow').forEach(function(row){
+    var cb=row.querySelector('.whon');
+    cb.addEventListener('change',function(){ _whSyncRow(row); });
+  });
+}
+function _whSyncRow(row){
+  var on=row.querySelector('.whon').checked;
+  var s=row.querySelector('.whs'), e=row.querySelector('.whe'), off=row.querySelector('.whoff');
+  [s,e].forEach(function(inp){ inp.disabled=!on; inp.style.opacity=on?'':'.45'; inp.style.background=on?'':'#f4f6f9'; });
+  if(off) off.style.display=on?'none':'';
+}
+function copyFirstDayHours(){
+  var rows=$('workGrid').querySelectorAll('.whrow'), first=null;
+  rows.forEach(function(r){ if(!first&&r.querySelector('.whon').checked) first=r; });
+  if(!first){ setMsg('wmsg','err','Check at least one working day first.'); return; }
+  var s=first.querySelector('.whs').value, e=first.querySelector('.whe').value;
+  rows.forEach(function(r){ if(r.querySelector('.whon').checked){ r.querySelector('.whs').value=s; r.querySelector('.whe').value=e; } });
+  setMsg('wmsg','ok','Copied — don’t forget to save.');
+}
+function saveWork(){
+  var b=$('saveWork'); b.disabled=true; setMsg('wmsg','','Saving…');
+  var workHours={}, days=[], bad=false;
+  $('workGrid').querySelectorAll('.whrow').forEach(function(r){
+    if(!r.querySelector('.whon').checked) return;
+    var dow=+r.getAttribute('data-dow'), s=r.querySelector('.whs').value, e=r.querySelector('.whe').value;
+    if(!/^\d{2}:\d{2}$/.test(s)||!/^\d{2}:\d{2}$/.test(e)||s>=e){ bad=true; return; }
+    workHours[dow]={start:s,end:e}; days.push(dow);
+  });
+  if(bad){ b.disabled=false; setMsg('wmsg','err','Each working day needs a start time earlier than its end time.'); return; }
+  var keys=days.slice().sort(function(a,c){return a-c;});
+  var body={workLocation:$('workLocation').value,workHours:workHours,workDays:days,workStart:keys.length?workHours[keys[0]].start:'',workEnd:keys.length?workHours[keys[0]].end:''};
+  fetch(API+'/api/me/profile',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){ b.disabled=false; if(j&&j.ok){ setMsg('wmsg','ok','Saved ✓'); } else setMsg('wmsg','err',(j&&j.error)||'Could not save.'); }).catch(function(){ b.disabled=false; setMsg('wmsg','err','Could not reach the server.'); }); }
 function saveProfile(){
   var b=$('saveProfile'); b.disabled=true; setMsg('pmsg','','Saving…');
   fetch(API+'/api/me/profile',{method:'POST',headers:{'Content-Type':'application/json'},

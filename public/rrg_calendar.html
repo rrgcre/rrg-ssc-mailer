@@ -350,9 +350,20 @@ function renderWork(){
   if(!w || (!w.workStart && !w.workEnd && !w.workLocation && !(w.workDays&&w.workDays.length))){ host.innerHTML=mine?'<div class="workcard"><div class="wkh">Working hours</div><div class="wkrow" style="color:var(--muted)">Not set yet.</div><a class="wkedit" href="rrg_account.html">Set your hours</a></div>':''; return; }
   var hrs=(w.workStart&&w.workEnd)?(fmtTime(w.workStart)+' – '+fmtTime(w.workEnd)):(w.workStart?('from '+fmtTime(w.workStart)):'');
   var dl=fmtWorkDays(w.workDays);
+  // Per-day hours: when they vary day to day, list each day; when uniform, keep the compact Days/Hours rows.
+  var wh=(w.workHours&&typeof w.workHours==='object')?w.workHours:{}, perDay='';
+  var ordered=[1,2,3,4,5,6,0].filter(function(d){return wh[d]||wh[String(d)];});
+  if(ordered.length){
+    var lbl=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    var f=wh[ordered[0]]||wh[String(ordered[0])], uni=true;
+    ordered.forEach(function(d){ var e=wh[d]||wh[String(d)]; if(e.start!==f.start||e.end!==f.end) uni=false; });
+    if(uni){ dl=fmtWorkDays(ordered); hrs=fmtTime(f.start)+' – '+fmtTime(f.end); }
+    else { perDay=ordered.map(function(d){ var e=wh[d]||wh[String(d)]; return '<div class="wkrow"><span>'+lbl[d]+'</span><b>'+esc(fmtTime(e.start)+' – '+fmtTime(e.end))+'</b></div>'; }).join(''); }
+  }
   host.innerHTML='<div class="workcard"><div class="wkh">'+who+' working hours</div>'+
-    (dl?('<div class="wkrow"><span>Days</span><b>'+dl+'</b></div>'):'')+
-    (hrs?('<div class="wkrow"><span>Hours</span><b>'+esc(hrs)+'</b></div>'):'')+
+    (perDay?perDay:(
+      (dl?('<div class="wkrow"><span>Days</span><b>'+dl+'</b></div>'):'')+
+      (hrs?('<div class="wkrow"><span>Hours</span><b>'+esc(hrs)+'</b></div>'):'')))+
     (w.workLocation?('<div class="wkrow"><span>Location</span><b>'+esc(w.workLocation)+'</b></div>'):'')+
     (mine?'<a class="wkedit" href="rrg_account.html">Edit</a>':'')+'</div>';
 }
