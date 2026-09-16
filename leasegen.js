@@ -85,7 +85,7 @@ async function generateLease({ business, files, questionnaire, asOf, systemPromp
   if (!key) throw new Error('ANTHROPIC_API_KEY is not set on the server.');
   const sys = (systemPrompt && String(systemPrompt).trim()) ? String(systemPrompt) : SYSTEM;
   const content = await fileBlocks(files);
-  if (!content.length) throw new Error('Upload the lease document (PDF) before building the abstract.');
+  if (!content.length) throw new Error((files && files.length) ? 'The lease file came through with no readable data — it may not have finished uploading, or it’s a cloud file (OneDrive/iCloud/Drive) that wasn’t downloaded to your computer. Re-add the PDF and build again.' : 'Upload the lease document (PDF) before building the abstract.');
   if (questionnaire && String(questionnaire).trim()) {
     content.push({ type: 'text', text: '=== Deal context from the RRG Valuation Questionnaire (use only to confirm the business/premises; the LEASE DOCUMENT governs all terms) ===\n' + String(questionnaire).slice(0, 30000) });
   }

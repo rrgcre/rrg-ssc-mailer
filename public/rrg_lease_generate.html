@@ -120,8 +120,24 @@ var LEASE_ID=(new URLSearchParams(location.search)).get('lease')||'';
 var FILES=[];
 var ROOM_LEASE=null;   // {count, names[]} — a lease already sitting in the linked listing's data room
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
-function readFile(file,cb){ var r=new FileReader(); r.onload=function(){ var s=String(r.result||''); var i=s.indexOf(','); cb({dataB64:i>=0?s.slice(i+1):s, type:file.type||'application/pdf', name:file.name||'lease'}); }; r.readAsDataURL(file); }
-function addFiles(files){ Array.prototype.slice.call(files||[]).forEach(function(f){ readFile(f,function(o){ FILES.push(o); renderFiles(); }); }); document.getElementById('fileIn').value=''; }
+// Read a file to base64. Guards the empty-result case: on Windows a cloud-only file
+// (OneDrive/iCloud placeholder that isn't downloaded locally) can fire onload with an
+// empty result, which used to add a named row with no data — the server then rejected
+// the "uploaded" lease. We now call back with null so the caller can flag it.
+function readFile(file,cb){
+  var r=new FileReader();
+  r.onerror=function(){ cb(null); };
+  r.onload=function(){ var s=String(r.result||''); var i=s.indexOf(','); var b64=i>=0?s.slice(i+1):s; cb(b64?{dataB64:b64, type:file.type||'application/pdf', name:file.name||'lease'}:null); };
+  try{ r.readAsDataURL(file); }catch(e){ cb(null); }
+}
+function addFiles(files){
+  var arr=Array.prototype.slice.call(files||[]); var pending=arr.length, failed=[];
+  arr.forEach(function(f){ readFile(f,function(o){
+    if(o&&o.dataB64) FILES.push(o); else failed.push((f&&f.name)||'that file');
+    if(--pending<=0){ renderFiles(); if(failed.length) setStatus('Couldn’t read '+failed.join(', ')+'. If it’s stored in OneDrive, iCloud or Google Drive, open it once so it downloads to this computer — then add it again. A freshly exported PDF also works.'); }
+  }); });
+  document.getElementById('fileIn').value='';
+}
 function syncBuildBtn(){ var b=document.getElementById('buildBtn'); if(b) b.disabled = (FILES.length===0 && !ROOM_LEASE); }
 // Show/refresh the "already in the data room" notice. When the rep uploads their own file, that takes
 // precedence and we dim the room notice so it's clear which lease will be read.
@@ -216,7 +232,14 @@ function overlay(on){ document.getElementById('overlay').classList[on?'add':'rem
 
 function buildLease(){
   if(!LEASE_ID){ setStatus('No abstract selected. Open this from the Lease Abstracts log.'); return; }
+  // Defensive: never send a file with no data (e.g. a cloud placeholder that read empty).
+  var _had=FILES.length; FILES=FILES.filter(function(f){ return f && f.dataB64; });
+  if(FILES.length<_had){ renderFiles(); if(!FILES.length && !ROOM_LEASE){ setStatus('That file had no readable data — it may be a OneDrive/iCloud file that isn’t downloaded to this computer. Open it once so it downloads, then add it again.'); return; } }
   if(!FILES.length && !ROOM_LEASE){ setStatus('Add the lease document first — or use “fill it in manually” below.'); return; }
+  // Size guard: the upload rides in the request body (~48 MB cap). base64 length ≈ 4/3 of bytes,
+  // so warn clearly before an oversized exhibit-heavy PDF trips a raw server error.
+  var _bytes=FILES.reduce(function(n,f){ return n+Math.floor((String(f.dataB64||'').length*3)/4); },0);
+  if(_bytes>44*1024*1024){ setStatus('That PDF is '+(Math.round(_bytes/1048576))+' MB — too large to send in one piece. Upload just the lease and its amendments (not the full exhibit set), or a compressed/flattened PDF, and build again.'); return; }
   var useRoom = (FILES.length===0 && !!ROOM_LEASE);
   unlockAudio();
   var btn=document.getElementById('buildBtn'); btn.disabled=true;
