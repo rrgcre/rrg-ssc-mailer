@@ -99,7 +99,10 @@ async function generateLease({ business, files, questionnaire, asOf, systemPromp
     headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
     // Stream the response: headers come back immediately, so a long read can never trip the fetch
     // client's 5-minute no-headers timeout (which showed up as "fetch failed").
-    body: JSON.stringify({ model: MODEL, max_tokens: 16000, temperature: 0, stream: true, system: [{ type: 'text', text: sys, cache_control: { type: 'ephemeral' } }], messages: [{ role: 'user', content }] }),
+    // 32k output ceiling: a long lease's abstract (full rent schedules + every provision) can
+    // run past a 16k cap and get cut off mid-JSON. The model stops when the abstract is done,
+    // so raising the ceiling costs nothing on normal leases and only helps the long ones.
+    body: JSON.stringify({ model: MODEL, max_tokens: 32000, temperature: 0, stream: true, system: [{ type: 'text', text: sys, cache_control: { type: 'ephemeral' } }], messages: [{ role: 'user', content }] }),
   });
   if (!resp.ok) {
     const t = await resp.text().catch(() => '');
