@@ -221,7 +221,7 @@ a.feat:hover{background:#f4f7fb;} a.feat:hover b{color:var(--blue);}
     </div>
     <div class="row2">
       <div><label class="fld">End</label><input type="time" step="900" id="f_end"></div>
-      <div style="grid-column:span 2"><label class="fld">Location</label><input id="f_loc" placeholder="Address, video link, or phone"></div>
+      <div style="grid-column:span 2;position:relative"><label class="fld">Location</label><input id="f_loc" placeholder="Search a place, address, video link, or phone" autocomplete="off"><div id="f_locsug" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:30;background:#fff;border:1px solid #cfd6e2;border-top:none;border-radius:0 0 5px 5px;box-shadow:0 10px 24px rgba(6,14,32,.16);max-height:230px;overflow:auto"></div></div>
     </div>
     <div class="row2">
       <div><label class="fld">Reminders</label><div id="f_remList"></div><button type="button" class="remaddbtn" id="f_remAdd" onclick="_remAdd()">+ Add a reminder</button></div>
@@ -510,6 +510,47 @@ gcalStatus();
 function fillAutos(){ var sel=document.getElementById("f_auto"); if(!sel) return; var cur=sel.value; sel.innerHTML='<option value="">\u2014 none \u2014</option>'+AUTOS.map(function(x){return '<option value="'+esc(x.id)+'">'+esc(x.name)+'</option>';}).join(""); sel.value=cur; }
 fetch("/api/automations",{credentials:"same-origin"}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ AUTOS=(j.automations||[]).map(function(x){return {id:x.id,name:x.name||"Automation"};}); fillAutos(); } }).catch(function(){});
 try{ fetch('/api/me/bookings-seen',{method:'POST',credentials:'same-origin'}); }catch(e){}
+// Location search-as-you-type on the meeting form (same source as the contact-record modal).
+(function(){
+  var inp=document.getElementById('f_loc'), box=document.getElementById('f_locsug');
+  if(!inp||!box) return;
+  var sel=-1, items=[], seq=0, hideT=null, lastQ='';
+  function hide(){ box.style.display='none'; box.innerHTML=''; items=[]; sel=-1; }
+  function pick(i){ if(i<0||i>=items.length) return; inp.value=items[i].label; hide(); inp.focus(); }
+  function render(){
+    if(!items.length){ hide(); return; }
+    box.innerHTML=items.map(function(s,i){
+      return '<div class="_locsg" data-i="'+i+'" style="padding:8px 11px;cursor:pointer;border-top:1px solid #eef1f6;'+(i===sel?'background:#f0f4fb':'')+'">'
+        +'<div style="font-size:13.5px;color:#111a2e;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(s.main||s.label)+'</div>'
+        +(s.secondary?'<div style="font-size:11.5px;color:#8a93a8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(s.secondary)+'</div>':'')
+        +'</div>';
+    }).join('');
+    box.style.display='block';
+    Array.prototype.forEach.call(box.querySelectorAll('._locsg'),function(el){
+      el.addEventListener('mousedown',function(e){ e.preventDefault(); pick(parseInt(el.getAttribute('data-i'),10)); });
+      el.addEventListener('mouseenter',function(){ sel=parseInt(el.getAttribute('data-i'),10); render(); });
+    });
+  }
+  function search(){
+    var q=inp.value.trim();
+    if(q.length<3){ hide(); return; }
+    if(q===lastQ) return; lastQ=q;
+    var my=++seq;
+    fetch('/api/places-suggest?q='+encodeURIComponent(q),{credentials:'same-origin'})
+      .then(function(r){return r.json();})
+      .then(function(j){ if(my!==seq) return; items=(j&&j.suggestions)||[]; sel=-1; render(); })
+      .catch(function(){ if(my===seq) hide(); });
+  }
+  inp.addEventListener('input',function(){ clearTimeout(hideT); hideT=setTimeout(search,260); });
+  inp.addEventListener('keydown',function(e){
+    if(box.style.display==='none') return;
+    if(e.key==='ArrowDown'){ e.preventDefault(); sel=Math.min(sel+1,items.length-1); render(); }
+    else if(e.key==='ArrowUp'){ e.preventDefault(); sel=Math.max(sel-1,0); render(); }
+    else if(e.key==='Enter'){ if(sel>=0){ e.preventDefault(); pick(sel); } }
+    else if(e.key==='Escape'){ hide(); }
+  });
+  inp.addEventListener('blur',function(){ setTimeout(hide,150); });
+})();
 load();
 </script>
 </body></html>

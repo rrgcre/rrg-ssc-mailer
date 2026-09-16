@@ -12459,6 +12459,51 @@ app.post('/api/gmail/contacts/import', express.json({ limit: '3mb' }), (req, res
 // Existing tags across contacts + companies — feeds the "tag this import" autocomplete.
 app.get('/api/tags', (req, res) => { try { res.json({ ok: true, tags: allTagsList() }); } catch (e) { res.json({ ok: true, tags: [] }); } });
 
+// Location search-as-you-type — feeds the meeting scheduler's Location field. Uses
+// Google Places Autocomplete (New) when a key is set (best for restaurant/bar names),
+// and falls back to OSM/Nominatim addresses so the field still works without a key.
+// The key never leaves the server; the client only ever sees text suggestions.
+app.get('/api/places-suggest', async (req, res) => {
+  const q = String(req.query.q || '').trim();
+  if (q.length < 3) return res.json({ ok: true, suggestions: [], source: '' });
+  const key = (typeof loadGmapsKey === 'function') ? loadGmapsKey() : '';
+  // --- Google Places Autocomplete (New) ---
+  if (key) {
+    try {
+      const r = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': key,
+          'X-Goog-FieldMask': 'suggestions.placePrediction.text,suggestions.placePrediction.placeId,suggestions.placePrediction.structuredFormat' },
+        body: JSON.stringify({ input: q, regionCode: 'US' })
+      });
+      const j = await r.json();
+      if (r.ok) {
+        const out = ((j && j.suggestions) || []).map(function (s) {
+          const p = s.placePrediction || {}; const sf = p.structuredFormat || {};
+          const main = (sf.mainText && sf.mainText.text) || '';
+          const sec = (sf.secondaryText && sf.secondaryText.text) || '';
+          const label = (p.text && p.text.text) || [main, sec].filter(Boolean).join(', ');
+          return { label: label, main: main || label, secondary: sec, placeId: p.placeId || '' };
+        }).filter(function (x) { return x.label; }).slice(0, 6);
+        return res.json({ ok: true, suggestions: out, source: 'google' });
+      }
+    } catch (e) {}
+    // fall through to Nominatim on any Google failure
+  }
+  // --- OSM / Nominatim fallback (address-oriented, no key required) ---
+  try {
+    const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=0&limit=6&countrycodes=us&q=' + encodeURIComponent(q);
+    const r = await fetch(url, { headers: { 'User-Agent': 'RRG-CRM/1.0 (restaurant-realty)', 'Accept': 'application/json' } });
+    const arr = await r.json();
+    const out = (Array.isArray(arr) ? arr : []).map(function (h) {
+      const label = String(h.display_name || '').trim();
+      const main = label.split(',')[0] || label;
+      return { label: label, main: main, secondary: label.slice(main.length).replace(/^,\s*/, ''), placeId: '' };
+    }).filter(function (x) { return x.label; }).slice(0, 6);
+    return res.json({ ok: true, suggestions: out, source: 'osm' });
+  } catch (e) { return res.json({ ok: true, suggestions: [], source: '' }); }
+});
+
 // ===== Google two-way sync — Contacts (People API) + Calendar (Calendar API) =====
 const GSYNC_TZ = 'America/Chicago';
 function _gErr(e) { const m = (e && e.message) || 'Sync failed.'; if (/api has not been used|accessNotConfigured|is disabled|enable it by visiting|SERVICE_DISABLED|has not been enabled/i.test(m)) return 'The server\u2019s Google project needs the People API (Contacts) and Calendar API enabled. An admin must enable both in Google Cloud Console for this OAuth app, then reconnect.'; if (e && (e.status === 403 || e.status === 401 || /insufficient|scope|permission|forbidden|invalid_grant|unauthorized/i.test(m))) return 'Google hasn\u2019t granted Contacts/Calendar access. Click Reconnect on the Gmail card (Account → Gmail) and approve the Contacts and Calendar permissions on Google\u2019s screen. If it still fails, the server\u2019s Google project needs the People API and Calendar API enabled in Google Cloud Console.'; return m; }
