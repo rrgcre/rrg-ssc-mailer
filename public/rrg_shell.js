@@ -159,11 +159,11 @@
 
   var NAV = [
     { color: '#8fa2c4', items: [
-      { ic: '▤', label: 'Views', href: '#', views: true },
       { ic: '☀︎', label: 'Daily Brief', href: 'rrg_brief.html', ai: true },
       { ic: '✔', label: 'Tasks', href: 'rrg_tasks.html' },
       { ic: '◫', label: 'Calendar', href: 'rrg_calendar.html' },
-      { ic: '◱', label: 'Feed', href: 'rrg_feed.html' }
+      { ic: '◱', label: 'Feed', href: 'rrg_feed.html' },
+      { ic: '▤', label: 'Views', href: '#', views: true }
     ] },
     { grp: 'Book of Business', color: '#7ea6d8', items: [
       { ic: '▦', label: 'Companies', href: 'rrg_companies.html' },
