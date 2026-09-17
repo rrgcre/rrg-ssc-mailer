@@ -168,7 +168,7 @@
     { grp: 'Book of Business', color: '#7ea6d8', items: [
       { ic: '▦', label: 'Companies', href: 'rrg_companies.html' },
       { ic: '◑', label: 'Contacts', href: 'rrg_people.html' },
-      { ic: '❐', label: 'Documents', href: 'rrg_documents.html' },
+      { ic: '❐', label: 'Doc Vault', href: 'rrg_documents.html' },
     ] },
     { grp: 'Business Sales', color: '#6bbf95', items: [
       { ic: '⊞', label: 'Listings', href: 'rrg_board.html' },
@@ -178,16 +178,13 @@
     ] },
     { grp: 'Tenant Rep', color: '#dfa937', items: [
       { ic: '◧', label: 'Tenants', href: 'rrg_board.html?pipelineId=p_tenantrep' },
-      { ic: '◎', label: 'Site Criteria', href: 'ssc_form.html' },
       { ic: '⊡', label: 'Spaces', href: 'rrg_space_tracker.html' },
-      { ic: '▤', label: 'Centers', href: 'rrg_centers.html' },
-      { ic: '✚', label: 'Site & Concept Fit', href: 'rrg_site_fit.html' },
       { ic: '⊚', label: 'Tour Tracker', href: 'rrg_tour_tracker.html' },
-      { ic: '§', label: 'LOI Builder', href: 'rrg_loi_builder.html' },
     ] },
     { grp: 'Landlord Rep', color: '#c98a5e', items: [
       { ic: '⊞', label: 'Space Listings', href: 'rrg_landlord_rep.html' },
-      { ic: '⌂', label: 'Property Listings', href: 'rrg_property_listings.html' }
+      { ic: '⌂', label: 'Property Listings', href: 'rrg_property_listings.html' },
+      { ic: '▤', label: 'Centers', href: 'rrg_centers.html' }
     ] },
     { grp: 'Mass Email', admin: true, color: '#d072b0', items: [
       { ic: '✉', label: 'Campaigns', href: 'rrg_mass_studio.html', admin: true },
@@ -208,8 +205,11 @@
     ] },
     { grp: 'Tools', color: '#a99be0', items: [
       { ic: '⌕', label: 'Email Finder', href: 'rrg_email_finder.html', admin: true },
+      { ic: '◎', label: 'Site Criteria', href: 'ssc_form.html' },
       { ic: '▭', label: 'Lease Abstracts', href: 'rrg_lease_queue.html' },
+      { ic: '§', label: 'LOI Builder', href: 'rrg_loi_builder.html' },
       { ic: '◉', label: 'Tracked Emails', href: 'rrg_tracked_emails.html' },
+      { ic: '✚', label: 'Site & Concept Fit', href: 'rrg_site_fit.html' },
       { ic: '∑', label: 'Calculators', href: 'rrg_calculators.html' }
     ] },
     { grp: 'Admin', admin: true, color: '#dd8a82', items: [
@@ -487,7 +487,7 @@
       var VS=[
         {k:'companies', ic:'▦', label:'Companies', all:'rrg_companies.html', bi:[]},
         {k:'contacts',  ic:'◑', label:'Contacts',  all:'rrg_people.html', bi:[]},
-        {k:'documents', ic:'❐', label:'Documents', all:'rrg_documents.html', bi:[]},
+        {k:'documents', ic:'❐', label:'Doc Vault', all:'rrg_documents.html', bi:[]},
         {k:'datarooms', ic:'▥', label:'Data Rooms', all:'rrg_rooms_queue.html', bi:[]},
         {k:'listings',  ic:'⊞', label:'Listings',  all:'rrg_assignments.html', bi:[{l:'Board view', h:'rrg_board.html'}]},
         {k:null,        ic:'◎', label:'Buyers',    all:'rrg_buyer_board.html', bi:[]},
