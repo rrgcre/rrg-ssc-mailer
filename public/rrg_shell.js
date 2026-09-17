@@ -204,13 +204,13 @@
       { ic: '≣', label: 'General Ledger', href: 'rrg_gl.html' }
     ] },
     { grp: 'Tools', color: '#a99be0', items: [
-      { ic: '⌕', label: 'Email Finder', href: 'rrg_email_finder.html', admin: true },
       { ic: '◎', label: 'Site Criteria', href: 'ssc_form.html' },
       { ic: '▭', label: 'Lease Abstracts', href: 'rrg_lease_queue.html' },
       { ic: '§', label: 'LOI Builder', href: 'rrg_loi_builder.html' },
-      { ic: '◉', label: 'Tracked Emails', href: 'rrg_tracked_emails.html' },
       { ic: '✚', label: 'Site & Concept Fit', href: 'rrg_site_fit.html' },
-      { ic: '∑', label: 'Calculators', href: 'rrg_calculators.html' }
+      { ic: '∑', label: 'Calculators', href: 'rrg_calculators.html' },
+      { ic: '⌕', label: 'Email Finder', href: 'rrg_email_finder.html', admin: true },
+      { ic: '◉', label: 'Tracked Emails', href: 'rrg_tracked_emails.html' }
     ] },
     { grp: 'Admin', admin: true, color: '#dd8a82', items: [
       { ic: '⚑', label: 'Wish List', href: 'rrg_feedback.html' },
