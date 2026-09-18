@@ -85,14 +85,47 @@ function render(){
     +'</div>'
     +'<div class="fld"><label>Subject</label><input type="text" id="tSubject" value="'+esc(t.subject||'')+'"'+(ro?' readonly':'')+' placeholder="e.g. Great connecting, {{first_name}}"></div>'
     +'<div class="fld"><label>Body</label>'+(ro?('<div class="rrgrt" style="border:1px solid #cfd6e2;border-radius:9px"><div class="rrgrt-ed" style="padding:10px 12px;min-height:200px">'+RRGRte.toHtml(t.body||'')+'</div></div>'):RRGRte.html('tBody',{value:t.body||'',placeholder:'Write your email… use the { } menu for merge fields.'}))+'</div>'
+    +'<div class="fld"><label>Attachments</label><div id="attList"></div>'+(ro?'':'<input type="file" id="attFile" multiple style="display:none"><button type="button" class="btn ghost sm" id="attAdd" style="margin-top:6px">+ Add file</button><div class="tokens">These files send automatically every time this template is used — PDF, Word, images, up to 15 MB each (10 max).</div>')+'</div>'
     +'</div></div>';
+  renderAtts();
   if(!ro){
     if(window.RRGRte) RRGRte.wire('tBody',{});
     var seg=document.getElementById('scopeSeg');
     Array.prototype.forEach.call(seg.querySelectorAll('input'),function(r){ r.onchange=function(){ SCOPE=r.value; document.getElementById('sc_p').classList.toggle('on',SCOPE==='personal'); document.getElementById('sc_s').classList.toggle('on',SCOPE==='shared'); }; });
     document.getElementById('saveBtn').onclick=save;
     var db=document.getElementById('delBtn'); if(db) db.onclick=onDelete;
+    var af=document.getElementById('attFile'), aa=document.getElementById('attAdd');
+    if(aa&&af){ aa.onclick=function(){ if(!(EDIT&&EDIT.id)){ msg('Save the template first, then add attachments.','err'); return; } af.click(); }; af.onchange=function(){ addAttFiles(af.files); af.value=''; }; }
   }
+}
+function fmtBytes(n){ n=+n||0; if(n<1024) return n+' B'; if(n<1048576) return (n/1024).toFixed(0)+' KB'; return (n/1048576).toFixed(1)+' MB'; }
+function renderAtts(){
+  var host=document.getElementById('attList'); if(!host) return;
+  var ro=!(EDIT&&EDIT.mine);
+  if(!(EDIT&&EDIT.id)){ host.innerHTML='<div class="tokens" style="margin:0">Save the template first — then you can attach files that send with it.</div>'; var ab0=document.getElementById('attAdd'); if(ab0) ab0.style.display='none'; return; }
+  var ab=document.getElementById('attAdd'); if(ab) ab.style.display=ro?'none':'';
+  var list=(EDIT.attachments||[]);
+  if(!list.length){ host.innerHTML='<div class="tokens" style="margin:0">No attachments yet.</div>'; return; }
+  host.innerHTML=list.map(function(a){ return '<div style="display:flex;align-items:center;gap:8px;padding:6px 9px;border:1px solid #e6e9f0;border-radius:8px;margin-bottom:5px;background:#fbfcfe"><span style="flex:none">📎</span><a href="/api/email-templates/'+encodeURIComponent(EDIT.id)+'/attachment/'+encodeURIComponent(a.id)+'" target="_blank" rel="noopener" style="color:var(--navy,#000E31);font-weight:600;text-decoration:none;font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(a.name)+'</a><span style="color:#8a94a6;font-size:11.5px;flex:none">'+fmtBytes(a.size)+'</span>'+(ro?'':'<button type="button" class="attdel" data-aid="'+esc(a.id)+'" title="Remove" style="flex:none;background:#fbeceb;color:#b23a2c;border:none;border-radius:6px;width:24px;height:24px;cursor:pointer;font-size:14px;line-height:1">×</button>')+'</div>'; }).join('');
+  Array.prototype.forEach.call(host.querySelectorAll('.attdel'),function(b){ b.onclick=function(){ removeAtt(b.getAttribute('data-aid')); }; });
+}
+function _readB64(file,cb){ var r=new FileReader(); r.onerror=function(){ cb(null); }; r.onload=function(){ var s=String(r.result||''); var i=s.indexOf(','); cb(i>=0?s.slice(i+1):s); }; try{ r.readAsDataURL(file); }catch(e){ cb(null); } }
+function addAttFiles(files){
+  if(!(EDIT&&EDIT.id)){ msg('Save the template first, then add attachments.','err'); return; }
+  var arr=Array.prototype.slice.call(files||[]); if(!arr.length) return; var i=0;
+  (function next(){
+    if(i>=arr.length){ msg('Attached ✓','ok'); markListDirty(); return; }
+    var f=arr[i++];
+    if(f.size>15*1024*1024){ msg('“'+(f.name||'file')+'” is over 15 MB — skipped.','err'); next(); return; }
+    _readB64(f,function(b64){ if(!b64){ msg('Could not read '+(f.name||'a file')+'.','err'); next(); return; }
+      msg('Uploading '+(f.name||'file')+'…');
+      api('POST','/api/email-templates/'+encodeURIComponent(EDIT.id)+'/attachment',{name:f.name||'attachment',type:f.type||'',dataB64:b64}).then(function(j){ if(j&&j.ok){ EDIT=j.template||EDIT; renderAtts(); } else { msg((j&&j.error)||'Upload failed.','err'); } next(); }).catch(function(){ msg('Could not reach the server.','err'); next(); });
+    });
+  })();
+}
+function removeAtt(aid){
+  if(!(EDIT&&EDIT.id)) return;
+  api('DELETE','/api/email-templates/'+encodeURIComponent(EDIT.id)+'/attachment/'+encodeURIComponent(aid)).then(function(j){ if(j&&j.ok){ EDIT=j.template||EDIT; renderAtts(); markListDirty(); } else msg((j&&j.error)||'Could not remove.','err'); });
 }
 function msg(t,cls){ var m=document.getElementById('msg'); if(!m) return; m.textContent=t; m.className='msg '+(cls||''); if(t){ setTimeout(function(){ if(m.textContent===t){m.textContent='';m.className='msg';} },3000); } }
 function save(){

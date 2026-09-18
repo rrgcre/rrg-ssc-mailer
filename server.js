@@ -1347,7 +1347,7 @@ app.use(cors({ origin: process.env.ALLOW_ORIGIN || '*' }));
 // The document-upload endpoints declare their own larger JSON limits below.
 // Exempt them here so this 1 MB global cap doesn't 413 real uploads first.
 app.use((req, res, next) => {
-  if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/generate-lease' || req.path === '/api/generate-map' || req.path === '/api/valuation-factors' || req.path === '/api/admin/backup/restore' || req.path === '/api/admin/upload-doc' || req.path === '/api/admin/logo' || req.path === '/api/admin/favicon' || req.path === '/api/files' || req.path === '/api/form/build' || req.path === '/api/room-upload' || /^\/api\/room\/[^/]+\/bulk-upload$/.test(req.path) || /^\/api\/company\/[^/]+\/location\/[^/]+\/photo$/.test(req.path) || /^\/api\/company\/[^/]+\/concept\/[^/]+\/logo$/.test(req.path) || /^\/api\/company\/[^/]+\/logo$/.test(req.path) || /^\/api\/agreements\/[^/]+\/doc$/.test(req.path) || /^\/api\/admin\/agreement-templates\/[^/]+\/file$/.test(req.path) || /^\/api\/sign\/[^/]+$/.test(req.path) || req.path.indexOf('/api/admin/import/') === 0 || req.path === '/api/admin/enrich-apply' || req.path === '/api/admin/concepts-apply' || req.path === '/api/admin/cleanup-apply' || req.path === '/api/admin/apply-logos' || req.path === '/api/admin/emaildomain-apply' || req.path === '/api/gmail/send' || /^\/api\/person\/[^/]+\/email$/.test(req.path) || /^\/api\/ticket\/[^/]+\/file$/.test(req.path) || req.path === '/api/subscribers/import') return next();
+  if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/generate-lease' || req.path === '/api/generate-map' || req.path === '/api/valuation-factors' || req.path === '/api/admin/backup/restore' || req.path === '/api/admin/upload-doc' || req.path === '/api/admin/logo' || req.path === '/api/admin/favicon' || req.path === '/api/files' || req.path === '/api/form/build' || req.path === '/api/room-upload' || /^\/api\/room\/[^/]+\/bulk-upload$/.test(req.path) || /^\/api\/company\/[^/]+\/location\/[^/]+\/photo$/.test(req.path) || /^\/api\/company\/[^/]+\/concept\/[^/]+\/logo$/.test(req.path) || /^\/api\/company\/[^/]+\/logo$/.test(req.path) || /^\/api\/email-templates\/[^/]+\/attachment$/.test(req.path) || /^\/api\/agreements\/[^/]+\/doc$/.test(req.path) || /^\/api\/admin\/agreement-templates\/[^/]+\/file$/.test(req.path) || /^\/api\/sign\/[^/]+$/.test(req.path) || req.path.indexOf('/api/admin/import/') === 0 || req.path === '/api/admin/enrich-apply' || req.path === '/api/admin/concepts-apply' || req.path === '/api/admin/cleanup-apply' || req.path === '/api/admin/apply-logos' || req.path === '/api/admin/emaildomain-apply' || req.path === '/api/gmail/send' || /^\/api\/person\/[^/]+\/email$/.test(req.path) || /^\/api\/ticket\/[^/]+\/file$/.test(req.path) || req.path === '/api/subscribers/import') return next();
   express.json({ limit: '1mb' })(req, res, next);
 });
 app.use(express.urlencoded({ extended: false }));
@@ -8530,6 +8530,31 @@ function effMeetingInviteTplId() {
 }
 function saveEmailTpls(a) { return writeJsonGuarded(EMAIL_TPL_FILE, a, 'saveEmailTpls'); }
 function newEmailTplId() { return 'etpl_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+// ---- Template attachments: files stored on a template that ride along on every send ----
+const TPL_ATT_DIR = path.join(BOV_DATA_DIR, 'tpl_attachments');
+function _tplAttDir(tid) { const d = path.join(TPL_ATT_DIR, String(tid).replace(/[^a-z0-9_]/gi, '_')); try { if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true }); } catch (e) {} return d; }
+function _tplAttPath(tid, aid, ext) { return path.join(_tplAttDir(tid), String(aid).replace(/[^a-z0-9_]/gi, '_') + (ext ? ('.' + String(ext).replace(/[^a-z0-9]/gi, '').slice(0, 8)) : '')); }
+function newTplAttId() { return 'att_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+// Read a template's stored attachments as mail attachments ({filename, content, contentType}).
+function tplSendAttachments(tid) {
+  const out = []; if (!tid) return out;
+  try {
+    const t = (loadEmailTpls() || []).find(x => x.id === tid);
+    if (!t || !Array.isArray(t.attachments)) return out;
+    for (const a of t.attachments) {
+      try { const p = _tplAttPath(t.id, a.id, a.ext); if (fs.existsSync(p)) { const buf = fs.readFileSync(p); if (buf.length) out.push({ filename: String(a.name || 'attachment').slice(0, 200), content: buf, contentType: a.type || undefined }); } } catch (e) {}
+    }
+  } catch (e) {}
+  return out;
+}
+// Fold a template's stored attachments into a send's manual attachments (shared 15-file / 22 MB cap).
+function withTplAttachments(atts, templateId) {
+  const extra = tplSendAttachments(templateId);
+  if (!extra.length) return atts;
+  const out = (atts || []).slice(); let total = out.reduce((n, a) => n + ((a.content && a.content.length) || 0), 0);
+  for (const e of extra) { if (out.length >= 15) break; total += (e.content && e.content.length) || 0; if (total > 22 * 1024 * 1024) break; out.push(e); }
+  return out;
+}
 const TPL_CATEGORIES = ['Buyer', 'Seller', 'NDA', 'Follow-up', 'Closing', 'General'];
 function inferTplCategory(t) {
   if (t.category && TPL_CATEGORIES.indexOf(t.category) >= 0) return t.category;
@@ -8555,7 +8580,7 @@ function _tplExecAuto(templateId, p, user) {
 function effEmailTplFolders() { const s = loadSettings(); return (Array.isArray(s.emailTplFolders) ? s.emailTplFolders : []).map(x => String(x || '').slice(0, 60)).filter(Boolean); }
 function saveEmailTplFolders(list) { const s = loadSettings(); s.emailTplFolders = (Array.isArray(list) ? list : []).map(x => String(x || '').slice(0, 60)).filter(Boolean); saveSettings(s); return s.emailTplFolders; }
 function registerEmailTplFolder(name) { name = String(name || '').slice(0, 60).trim(); if (!name) return; const cur = effEmailTplFolders(); if (!cur.some(x => x.toLowerCase() === name.toLowerCase())) { cur.push(name); saveEmailTplFolders(cur); } }
-function emailTplBrief(t, user) { return { id: t.id, name: t.name || '', subject: t.subject || '', body: t.body || '', scope: (t.scope === 'shared' ? 'shared' : 'personal'), category: inferTplCategory(t), folder: t.folder || '', active: t.active !== false, useCount: t.useCount || 0, lastUsedAt: t.lastUsedAt || '', ownerName: t.ownerName || '', ownerUser: t.ownerUser || '', mine: !!(user && (t.ownerUser === user.username || isSuper(user))), canShare: !!(user && isSuper(user)), execAuto: t.execAuto || '', greeting: (['dear','hi','first','none'].indexOf(String(t.greeting)) >= 0 ? String(t.greeting) : 'none'), updatedAt: t.updatedAt || '' }; }
+function emailTplBrief(t, user) { return { id: t.id, name: t.name || '', subject: t.subject || '', body: t.body || '', scope: (t.scope === 'shared' ? 'shared' : 'personal'), category: inferTplCategory(t), folder: t.folder || '', active: t.active !== false, useCount: t.useCount || 0, lastUsedAt: t.lastUsedAt || '', ownerName: t.ownerName || '', ownerUser: t.ownerUser || '', mine: !!(user && (t.ownerUser === user.username || isSuper(user))), canShare: !!(user && isSuper(user)), execAuto: t.execAuto || '', greeting: (['dear','hi','first','none'].indexOf(String(t.greeting)) >= 0 ? String(t.greeting) : 'none'), updatedAt: t.updatedAt || '', attachments: (Array.isArray(t.attachments) ? t.attachments : []).map(a => ({ id: a.id, name: a.name || 'attachment', size: a.size || 0, type: a.type || '' })) }; }
 const DEFAULT_SALES_TEMPLATES = [
   { name: 'Buyer — first response (inquiry)', subject: 'Thanks for your interest, {{first_name}}', body: `Hi {{first_name}},
 
@@ -8736,6 +8761,49 @@ app.post('/api/email-templates/:id/used', (req, res) => {
   const all = loadEmailTpls(); const t = all.find(x => x.id === req.params.id);
   if (t) { t.useCount = (t.useCount || 0) + 1; t.lastUsedAt = new Date().toISOString(); saveEmailTpls(all); }
   res.json({ ok: true });
+});
+// ---- Template attachments: upload / remove / serve ----
+// Uploaded once on the template; every send that uses the template carries them (server-side).
+app.post('/api/email-templates/:id/attachment', express.json({ limit: '25mb' }), (req, res) => {
+  const u = req.user || {}; const b = req.body || {}; const all = loadEmailTpls();
+  const t = all.find(x => x.id === req.params.id);
+  if (!t) return res.status(404).json({ ok: false, error: 'Template not found.' });
+  if (!(t.ownerUser === u.username || isSuper(u))) return res.status(403).json({ ok: false, error: t.scope === 'shared' ? 'Only admins can change firm (Shared) templates.' : 'You can only edit your own templates.' });
+  const name = String(b.name || '').trim().slice(0, 200) || 'attachment';
+  const buf = Buffer.from(String(b.dataB64 || '').replace(/^data:[^,]*,/, ''), 'base64');
+  if (!buf.length) return res.status(400).json({ ok: false, error: 'That file appears to be empty — try adding it again.' });
+  if (buf.length > 15 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'Each attachment must be 15 MB or smaller.' });
+  t.attachments = Array.isArray(t.attachments) ? t.attachments : [];
+  if (t.attachments.length >= 10) return res.status(400).json({ ok: false, error: 'A template can hold up to 10 attachments.' });
+  const ext = (name.match(/\.([a-z0-9]{1,8})$/i) || [, ''])[1];
+  const aid = newTplAttId();
+  try { fs.writeFileSync(_tplAttPath(t.id, aid, ext), buf); } catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the file.' }); }
+  t.attachments.push({ id: aid, name: name, size: buf.length, type: String(b.type || '').slice(0, 120), ext: ext, addedAt: new Date().toISOString() });
+  t.updatedAt = new Date().toISOString(); saveEmailTpls(all);
+  res.json({ ok: true, template: emailTplBrief(t, u) });
+});
+app.delete('/api/email-templates/:id/attachment/:aid', (req, res) => {
+  const u = req.user || {}; const all = loadEmailTpls(); const t = all.find(x => x.id === req.params.id);
+  if (!t) return res.status(404).json({ ok: false, error: 'Template not found.' });
+  if (!(t.ownerUser === u.username || isSuper(u))) return res.status(403).json({ ok: false, error: t.scope === 'shared' ? 'Only admins can change firm (Shared) templates.' : 'You can only edit your own templates.' });
+  const a = (t.attachments || []).find(x => x.id === req.params.aid);
+  if (a) { try { const p = _tplAttPath(t.id, a.id, a.ext); if (fs.existsSync(p)) fs.unlinkSync(p); } catch (e) {} }
+  t.attachments = (t.attachments || []).filter(x => x.id !== req.params.aid);
+  t.updatedAt = new Date().toISOString(); saveEmailTpls(all);
+  res.json({ ok: true, template: emailTplBrief(t, u) });
+});
+app.get('/api/email-templates/:id/attachment/:aid', (req, res) => {
+  const t = (loadEmailTpls() || []).find(x => x.id === req.params.id);
+  if (!t) return res.status(404).send('Not found');
+  const a = (t.attachments || []).find(x => x.id === req.params.aid);
+  if (!a) return res.status(404).send('Not found');
+  try {
+    const p = _tplAttPath(t.id, a.id, a.ext);
+    if (!(p.startsWith(TPL_ATT_DIR) && fs.existsSync(p))) return res.status(404).send('Not found');
+    if (a.type) res.setHeader('Content-Type', a.type);
+    res.setHeader('Content-Disposition', 'inline; filename="' + String(a.name || 'attachment').replace(/[^a-z0-9._ -]/gi, '_') + '"');
+    return res.send(fs.readFileSync(p));
+  } catch (e) { return res.status(500).send('Error'); }
 });
 
 
@@ -12301,7 +12369,7 @@ app.post('/api/person/:id/email', express.json({ limit: '40mb' }), async (req, r
     const _origin = reqOrigin(req); const _tok = newOpenToken();
     const _sigHtml = userSignatureHtml(req.user && req.user.username, req.user); const _sigTxt = userSignatureText(req.user && req.user.username, req.user);
     const _bodyText = _bodyLooksHtml(body) ? htmlToText(body) : body;
-    const _atts = parseEmailAttachments(req.body && req.body.attachments);
+    const _atts = withTplAttachments(parseEmailAttachments(req.body && req.body.attachments), (req.body && req.body.templateId) || '');
     const _textOut = _bodyText + (_sigTxt ? ('\n\n' + _sigTxt) : '');
     const info = await sendMailWL({ from: mailFrom(), to, cc: cc || undefined, bcc: bcc || undefined, subject: subject || '(no subject)', text: _textOut, html: trackedEmailHtml(body, _origin, _tok, _sigHtml), attachments: (_atts.length ? _atts : undefined) });
     const now = new Date().toISOString();
@@ -12829,7 +12897,7 @@ app.post('/api/gmail/send', express.json({ limit: '40mb' }), async (req, res) =>
     const _tok = p ? newOpenToken() : ''; const _origin = reqOrigin(req);
     const _sigHtml = userSignatureHtml(u, req.user); const _sigTxt = userSignatureText(u, req.user);
     const _bodyText = (_bodyLooksHtml(body) ? htmlToText(body) : body) + (_sigTxt ? ('\n\n' + _sigTxt) : '');
-    const _atts = parseEmailAttachments(req.body && req.body.attachments);
+    const _atts = withTplAttachments(parseEmailAttachments(req.body && req.body.attachments), (req.body && req.body.templateId) || '');
     const sent = await gmail.sendMessage(u, { to, cc, bcc, subject, body: _bodyText, threadId: b.threadId || '', inReplyTo: b.inReplyTo || '', html: trackedEmailHtml(body, _origin, _tok, _sigHtml), attachments: _atts, fromName: (req.user && req.user.name) || '' });
     let emailLog = null, lastContacted = null;
     if (p) {
