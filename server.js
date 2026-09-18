@@ -8492,7 +8492,32 @@ function _seedMeetingInvite(a) {
   try { writeJsonGuarded(EMAIL_TPL_FILE, a, 'seedMeetingInvite'); fs.writeFileSync(EMAIL_TPL_MEETINV_FLAG, JSON.stringify({ seededAt: new Date().toISOString() })); } catch (e) {}
   return a;
 }
-function loadEmailTpls() { try { return _seedMeetingInvite(_seedDataRoom(_seedRefIntro(_seedCimFollowup(_seedProofOfFunds(_seedSendBov(_retireBovVariants(_seedBrokerTemplates(_seedEmailTpls(rj(EMAIL_TPL_FILE) || []))))))))); } catch (e) { return []; } }
+// ---- Tenant: confirm the formalized Site Selection Criteria + send the agreement ----
+// Sent after the online SSC call, once the broker has formalized the tenant's requirements
+// into the Site Selection Criteria (SSC) summary PDF. The rep attaches that PDF and the
+// tenant-rep representation agreement; the tenant reviews the SSC for accuracy and signs
+// the agreement when ready to start the search.
+const EMAIL_TPL_SSCCONFIRM_FLAG = path.join(BOV_DATA_DIR, 'email_templates_tenant_sscconfirm_seeded_v1.flag');
+const SSCCONFIRM_TPL_ID = 'etpl_tenant_ssc_confirm';
+const SSCCONFIRM_TPL_NAME = 'Tenant — confirm SSC & send agreement';
+const SSCCONFIRM_TPL_SUBJECT = 'Your Site Selection Criteria to review — and next steps';
+const SSCCONFIRM_TPL_BODY =
+  '<p>Hi {{first_name}},</p>' +
+  '<p>Thank you again for the time on our call. I’ve taken everything we went through — your concept, your space and site requirements, your target markets, your timing, and your budget — and organized it into a single Site Selection Criteria (SSC) summary. It’s attached here as a PDF.</p>' +
+  '<p><b>Please give it a careful read.</b> I want to be sure I’ve captured exactly what you’re looking for before we start the search, so look it over and tell me if anything is off, missing, or worth adding. This SSC is the blueprint I use to evaluate every space and to represent your requirements to landlords, so the more precise it is, the faster we zero in on the right locations.</p>' +
+  '<p><b>I’ve also attached our representation agreement.</b> This is the document that formalizes our engagement and lets me get to work for you — putting your criteria in front of landlords, surfacing on- and off-market spaces, and negotiating the lease on your behalf. There’s no rush — review it at your pace, and when you’re comfortable and ready to begin, sign and return it (or sign electronically if I’ve sent it that way). The moment it’s in place, I start the search.</p>' +
+  '<p>If you’d like to walk through the SSC or have any questions on the agreement, just reply here or grab a time on my calendar: {{tenant_rep_meeting_link}}</p>' +
+  '<p>Looking forward to getting this moving with you.</p>' +
+  '<p>Best,<br>{{my_name}}</p>';
+function _seedSscConfirm(a) {
+  try { if (fs.existsSync(EMAIL_TPL_SSCCONFIRM_FLAG)) return a; } catch (e) { return a; }
+  var idx = a.findIndex(function (t) { return t.id === SSCCONFIRM_TPL_ID; });
+  if (idx >= 0) { a[idx].name = SSCCONFIRM_TPL_NAME; a[idx].subject = SSCCONFIRM_TPL_SUBJECT; a[idx].body = SSCCONFIRM_TPL_BODY; a[idx].category = 'Tenant'; a[idx].greeting = 'none'; a[idx].updatedAt = new Date().toISOString(); }
+  else { a.push({ id: SSCCONFIRM_TPL_ID, name: SSCCONFIRM_TPL_NAME, category: 'Tenant', scope: 'shared', ownerUser: '', ownerName: 'RRG', greeting: 'none', subject: SSCCONFIRM_TPL_SUBJECT, body: SSCCONFIRM_TPL_BODY, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), seeded: true }); }
+  try { writeJsonGuarded(EMAIL_TPL_FILE, a, 'seedSscConfirm'); fs.writeFileSync(EMAIL_TPL_SSCCONFIRM_FLAG, JSON.stringify({ seededAt: new Date().toISOString() })); } catch (e) {}
+  return a;
+}
+function loadEmailTpls() { try { return _seedSscConfirm(_seedMeetingInvite(_seedDataRoom(_seedRefIntro(_seedCimFollowup(_seedProofOfFunds(_seedSendBov(_retireBovVariants(_seedBrokerTemplates(_seedEmailTpls(rj(EMAIL_TPL_FILE) || [])))))))))); } catch (e) { return []; } }
 // Which email template the "Send invite" button on a calendar event uses. Admin-chosen; defaults to the seeded meeting-invite template; '' means fall back to the built-in plain-text invite.
 function effMeetingInviteTplId() {
   try {
