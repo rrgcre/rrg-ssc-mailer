@@ -179,7 +179,6 @@
     { grp: 'Tenant Rep', color: '#dfa937', items: [
       { ic: '◧', label: 'Tenants', href: 'rrg_board.html?pipelineId=p_tenantrep' },
       { ic: '⊡', label: 'Spaces', href: 'rrg_space_tracker.html' },
-      { ic: '⊚', label: 'Tour Tracker', href: 'rrg_tour_tracker.html' },
     ] },
     { grp: 'Landlord Rep', color: '#c98a5e', items: [
       { ic: '⊞', label: 'Space Listings', href: 'rrg_landlord_rep.html' },
@@ -208,6 +207,7 @@
       { ic: '▭', label: 'Lease Abstracts', href: 'rrg_lease_queue.html' },
       { ic: '§', label: 'LOI Builder', href: 'rrg_loi_builder.html' },
       { ic: '✚', label: 'Site & Concept Fit', href: 'rrg_site_fit.html' },
+      { ic: '⊚', label: 'Tour Tracker', href: 'rrg_tour_tracker.html' },
       { ic: '∑', label: 'Calculators', href: 'rrg_calculators.html' },
       { ic: '⌕', label: 'Email Finder', href: 'rrg_email_finder.html', admin: true },
       { ic: '◉', label: 'Tracked Emails', href: 'rrg_tracked_emails.html' }
