@@ -172,11 +172,10 @@ function buildSubs(){
     '<div class="toolbar" style="margin-bottom:10px;gap:9px"><label class="btn" style="cursor:pointer;margin:0">\u2b06 Choose CSV file<input type="file" id="impFile" accept=".csv,text/csv,text/plain" style="display:none"></label><span class="pgs" id="impFileName" style="font-size:12px;color:var(--muted)">No file chosen \u2014 or paste below</span></div>'+
     '<div class="fld"><textarea id="impText" class="code" placeholder="email,first_name,last_name&#10;jane@example.com,Jane,Doe&#10;&#10;--- or ---&#10;&#10;jane@example.com&#10;john@example.com"></textarea></div>'+
     '<div class="row"><div class="fld half"><label class="fl">Source label</label><input id="impSrc" placeholder="e.g. 2026 master list"></div>'+
-    '<div class="fld half"><label class="fl">Add to list</label><select id="impList"></select></div></div>'+
+    '<div class="fld half"><label class="fl">List type</label><select id="impType"><option value="">— No type —</option><option value="Broker">Brokers</option><option value="Restaurant">Restaurants</option></select></div></div>'+
+    '<div class="row"><div class="fld half"><label class="fl">Add to list</label><select id="impList"></select></div>'+
+    '<div class="fld half" style="display:flex;align-items:flex-end"><span class="pgs" style="font-size:11.5px;color:var(--muted);padding-bottom:9px">Imported contacts are set to receive email in <b>all areas</b> by default.</span></div></div>'+
     '<div><button class="btn primary" id="impBtn">Import</button><span class="msg" id="impMsg"></span></div></div>'+
-    '<div class="card"><h2>Bring in the legacy Subscribers list</h2>'+
-    '<div class="pgs" style="margin-bottom:10px">Copies everyone from the old <b>Subscribers</b> page into Email Studio in one pass. Duplicates are merged, and anyone marked <b>Unsubscribed</b> or <b>Bounced</b> there is carried in as suppressed so they are never emailed. Safe to run more than once — it only adds what is new.</div>'+
-    '<div><button class="btn" id="migLegacyBtn">Import from legacy list</button><span class="msg" id="migLegacyMsg"></span></div></div>'+
     '<div class="card"><div class="toolbar" style="justify-content:space-between;align-items:center"><h2 style="margin:0">Subscribers</h2><a class="btn" href="./rrg_mail_subscribers.html">Open full list &amp; filters ↗</a></div>'+
     '<div class="pgs" style="margin:2px 0 10px">Quick browse below, or open the full window for column sorting and filtering by status, type, area of interest and date — just like your contacts and companies.</div>'+
     '<div class="toolbar" style="flex-wrap:wrap;gap:8px"><input id="subQ" placeholder="Search email..." style="max-width:230px"><select id="subStatus" style="max-width:170px"><option value="">All statuses</option><option value="active">Active</option><option value="unsubscribed">Unsubscribed</option><option value="bounced">Bounced</option><option value="complained">Complained</option></select><select id="subList" style="max-width:180px"></select><button class="btn" id="subGo">Search</button></div>'+
@@ -188,7 +187,6 @@ function buildSubs(){
     '</div>'+
     '<div id="subTable"><div class="pgs">Loading...</div></div></div>';
   $('impBtn').onclick=doImport;
-  $('migLegacyBtn').onclick=doMigrateLegacy;
   $('subBulkSupp').onclick=function(){ bulkSuppress(); };
   $('subBulkRestore').onclick=function(){ bulkRestore(); };
   $('subSelClear').onclick=function(){ SUBSEL={}; loadSubs(); };
@@ -212,7 +210,7 @@ function doImport(){
   var m=$('impMsg');
   if(!txt){ m.className='msg err'; m.textContent='Paste some addresses first.'; return; }
   var btn=$('impBtn'); btn.disabled=true; m.className='msg'; m.textContent='Importing...';
-  var imp=$('impList'); var body={ csv:txt, source:($('impSrc').value||'import') };
+  var imp=$('impList'); var body={ csv:txt, source:($('impSrc').value||'import'), type:(($('impType')&&$('impType').value)||'') };
   if(imp){ if(imp.value==='__new' && imp.getAttribute('data-newname')){ body.listName=imp.getAttribute('data-newname'); } else if(imp.value && imp.value!=='__new'){ body.listId=imp.value; } }
   api('POST','/api/mail/import',body).then(function(r){
     btn.disabled=false;
@@ -278,16 +276,6 @@ function bulkRestore(){
   var em=subSelKeys(); if(!em.length) return;
   var b=$('subBulkRestore'); if(b) b.disabled=true;
   api('POST','/api/mail/unsuppress',{ emails:em }).then(function(r){ if(b) b.disabled=false; SUBSEL={}; loadStats(); loadSubs(); loadSupp(); }).catch(function(){ if(b) b.disabled=false; });
-}
-function doMigrateLegacy(){
-  var m=$('migLegacyMsg'); var b=$('migLegacyBtn');
-  if(b) b.disabled=true; if(m){ m.className='msg'; m.textContent='Importing from the legacy list...'; }
-  api('POST','/api/subscribers/migrate-to-studio',{}).then(function(r){
-    if(b) b.disabled=false;
-    if(!r||!r.ok){ if(m){ m.className='msg err'; m.textContent=(r&&r.error)||'Import failed.'; } return; }
-    if(m){ m.className='msg ok'; m.textContent='Done. '+(r.total||0)+' from legacy — added '+(r.added||0)+', updated '+(r.updated||0)+', suppressed (opted-out) '+(r.suppressed||0)+', skipped '+(r.skipped||0)+'.'; }
-    loadStats(); loadSubs(); loadSupp();
-  }).catch(function(){ if(b) b.disabled=false; if(m){ m.className='msg err'; m.textContent='Import failed.'; } });
 }
 
 /* ---------- CAMPAIGNS ---------- */

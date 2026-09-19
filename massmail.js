@@ -180,7 +180,9 @@ function _optOutReason(raw) {
   if (t === 'complained' || t === 'complaint' || t === 'spam') return 'complaint';
   return '';
 }
-async function importSubscribers(rows, source) {
+async function importSubscribers(rows, source, opts) {
+  opts = opts || {};
+  const batchType = String(opts.type || '').trim().slice(0, 60);   // whole-list type (e.g. Broker / Restaurant)
   let added = 0, updated = 0, skipped = 0, suppressed = 0;
   for (const r of (rows || [])) {
     const email = _norm(r && (r.email || r.Email || r.EMAIL));
@@ -194,9 +196,10 @@ async function importSubscribers(rows, source) {
     // Segmentation attributes live in meta: type (Broker/Restaurant/Buyer…), metros of
     // interest, and mode (all|metros). Only set keys we were given so merges don't wipe.
     const meta = {};
-    const _type = String((r.type || r.Type || '')).trim().slice(0, 60); if (_type) meta.type = _type;
+    const _type = String((r.type || r.Type || '')).trim().slice(0, 60) || batchType; if (_type) meta.type = _type;
     const _metros = Array.isArray(r.metros) ? r.metros.filter(Boolean).map(x => String(x).slice(0, 60)).slice(0, 60) : null; if (_metros && _metros.length) meta.metros = _metros;
-    const _mode = String((r.mode || '')).trim(); if (_mode === 'metros' || _mode === 'all') meta.mode = _mode;
+    // Default imported subscribers to ALL areas (mode 'all') unless the row/import says otherwise.
+    const _mode = String((r.mode || '')).trim(); meta.mode = (_mode === 'metros' || _mode === 'all') ? _mode : (opts.mode === 'metros' ? 'metros' : 'all');
     const res = await q(`INSERT INTO mm_subscribers(tenant,email,first_name,last_name,source,meta)
       VALUES($1,$2,$3,$4,$5,$6::jsonb)
       ON CONFLICT(tenant,email) DO UPDATE SET
@@ -493,7 +496,7 @@ function mount(app, deps) {
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.post('/api/mail/import', requireAdmin, guard, express.json({ limit: '60mb' }), async (req, res) => { try {
     const b = req.body || {}; const rows = Array.isArray(b.rows) ? b.rows : (b.csv ? parseCsv(b.csv) : []);
-    const r = await importSubscribers(rows, b.source || 'import');
+    const r = await importSubscribers(rows, b.source || 'import', { type: b.type, mode: b.mode });
     let listId = b.listId ? Number(b.listId) : 0; const listName = String(b.listName || '').trim().slice(0, 160); let listed = 0;
     if (!listId && listName) { listId = (await q('INSERT INTO mm_lists(tenant,name) VALUES($1,$2) RETURNING id', [TENANT, listName])).rows[0].id; }
     if (listId) {
