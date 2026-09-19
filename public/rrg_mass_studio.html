@@ -209,16 +209,34 @@ function doImport(){
   var txt=$('impText').value.trim();
   var m=$('impMsg');
   if(!txt){ m.className='msg err'; m.textContent='Paste some addresses first.'; return; }
-  var btn=$('impBtn'); btn.disabled=true; m.className='msg'; m.textContent='Importing...';
-  var imp=$('impList'); var body={ csv:txt, source:($('impSrc').value||'import'), type:(($('impType')&&$('impType').value)||'') };
-  if(imp){ if(imp.value==='__new' && imp.getAttribute('data-newname')){ body.listName=imp.getAttribute('data-newname'); } else if(imp.value && imp.value!=='__new'){ body.listId=imp.value; } }
-  api('POST','/api/mail/import',body).then(function(r){
-    btn.disabled=false;
-    if(!r||!r.ok){ m.className='msg err'; m.textContent=(r&&r.error)||'Import failed.'; return; }
-    m.className='msg ok'; m.textContent='Added '+(r.added||0)+', updated '+(r.updated||0)+', skipped '+(r.skipped||0)+', suppressed '+(r.suppressed||0)+(r.listed?(' \u00b7 '+r.listed+' added to list'):'')+'.';
-    $('impText').value='';
-    loadStats(); loadLists(); loadSubs();
-  }).catch(function(){ btn.disabled=false; m.className='msg err'; m.textContent='Import failed.'; });
+  var lines=txt.split(/\r?\n/).filter(function(s){ return s.trim(); });
+  if(!lines.length){ m.className='msg err'; m.textContent='Paste some addresses first.'; return; }
+  // Detect a header row (names an email column, no @) so we can re-attach it to every chunk.
+  var header='', dataLines=lines;
+  if(/(^|,)\s*e-?mail\s*(,|$)/i.test(lines[0]) && lines[0].indexOf('@')<0){ header=lines[0]; dataLines=lines.slice(1); }
+  // Big lists are sent in chunks so no single request times out (was the cause of "Import failed").
+  var CH=500, chunks=[]; for(var i=0;i<dataLines.length;i+=CH){ chunks.push(dataLines.slice(i,i+CH)); }
+  if(!chunks.length){ m.className='msg err'; m.textContent='No addresses to import.'; return; }
+  var tot=dataLines.length, btn=$('impBtn'); btn.disabled=true; m.className='msg';
+  var src=($('impSrc').value||'import'), typ=(($('impType')&&$('impType').value)||'');
+  var imp=$('impList'), listName='', listId='';
+  if(imp){ if(imp.value==='__new' && imp.getAttribute('data-newname')){ listName=imp.getAttribute('data-newname'); } else if(imp.value && imp.value!=='__new'){ listId=imp.value; } }
+  var acc={added:0,updated:0,skipped:0,suppressed:0,listed:0}, ci=0;
+  function fin(err){ btn.disabled=false; if(err){ m.className='msg err'; m.textContent=err; return; } m.className='msg ok'; m.textContent='Added '+acc.added.toLocaleString()+', updated '+acc.updated.toLocaleString()+', skipped '+acc.skipped.toLocaleString()+', suppressed '+acc.suppressed.toLocaleString()+(acc.listed?(' \u00b7 '+acc.listed.toLocaleString()+' added to list'):'')+'.'; $('impText').value=''; loadStats(); loadLists(); loadSubs(); }
+  function next(){
+    if(ci>=chunks.length){ fin(); return; }
+    var chunk=chunks[ci];
+    var body={ csv:(header?(header+'\n'):'')+chunk.join('\n'), source:src, type:typ };
+    if(listId){ body.listId=listId; } else if(listName && ci===0){ body.listName=listName; }
+    m.textContent='Importing '+Math.min(ci*CH+chunk.length,tot).toLocaleString()+' of '+tot.toLocaleString()+'\u2026';
+    api('POST','/api/mail/import',body).then(function(r){
+      if(!r||!r.ok){ fin((r&&r.error)||('Import failed on batch '+(ci+1)+'.')); return; }
+      acc.added+=r.added||0; acc.updated+=r.updated||0; acc.skipped+=r.skipped||0; acc.suppressed+=r.suppressed||0; acc.listed+=r.listed||0;
+      if(!listId && r.listId){ listId=String(r.listId); }   // reuse the list the first chunk created
+      ci++; next();
+    }).catch(function(){ fin('Import stopped at batch '+(ci+1)+' (network/timeout). Earlier batches did import \u2014 click Import again to continue with the rest.'); });
+  }
+  next();
 }
 var SUBSEL={};
 function subSelKeys(){ return Object.keys(SUBSEL).filter(function(k){ return SUBSEL[k]; }); }

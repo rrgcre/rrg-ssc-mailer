@@ -184,13 +184,17 @@ async function importSubscribers(rows, source, opts) {
   opts = opts || {};
   const batchType = String(opts.type || '').trim().slice(0, 60);   // whole-list type (e.g. Broker / Restaurant)
   let added = 0, updated = 0, skipped = 0, suppressed = 0;
-  for (const r of (rows || [])) {
+  rows = rows || [];
+  // One suppression lookup for the whole batch — was one query per row, which made large imports time out.
+  const _emails = []; for (const r of rows) { const e = _norm(r && (r.email || r.Email || r.EMAIL)); if (_validEmail(e)) _emails.push(e); }
+  const suppSet = new Set();
+  if (_emails.length) { try { const sr = await q('SELECT email FROM mm_suppressions WHERE tenant=$1 AND email = ANY($2::text[])', [TENANT, _emails]); (sr.rows || []).forEach(x => suppSet.add(String(x.email))); } catch (e) {} }
+  for (const r of rows) {
     const email = _norm(r && (r.email || r.Email || r.EMAIL));
     if (!_validEmail(email)) { skipped++; continue; }
     const optOut = _optOutReason(r && (r.status || r.Status || r.STATUS));
-    const alreadySup = await isSuppressed(email);
     // An active import never resurrects an address that already opted out.
-    if (!optOut && alreadySup) { suppressed++; continue; }
+    if (!optOut && suppSet.has(email)) { suppressed++; continue; }
     const fn = String((r.first_name || r.firstName || r.first || r.First || '')).slice(0, 120);
     const ln = String((r.last_name || r.lastName || r.last || r.Last || '')).slice(0, 120);
     // Segmentation attributes live in meta: type (Broker/Restaurant/Buyer…), metros of
@@ -219,8 +223,16 @@ async function importSubscribers(rows, source, opts) {
 function parseCsv(text) {
   const out = []; const rows = _csvRows(String(text || ''));
   if (!rows.length) return out;
-  const head = rows[0].map(h => String(h || '').trim().toLowerCase());
-  for (let i = 1; i < rows.length; i++) { const r = rows[i]; if (!r.length || (r.length === 1 && !r[0])) continue; const o = {}; head.forEach((h, j) => { o[h] = r[j]; }); out.push(o); }
+  const first = rows[0].map(h => String(h || '').trim());
+  // A header row names an email column (email / e-mail) and holds no actual @ address.
+  const looksHeader = first.some(c => /^e-?mail$/i.test(c)) && !first.some(c => c.indexOf('@') >= 0);
+  if (looksHeader) {
+    const head = first.map(h => h.toLowerCase());
+    for (let i = 1; i < rows.length; i++) { const r = rows[i]; if (!r.length || (r.length === 1 && !r[0])) continue; const o = {}; head.forEach((h, j) => { o[h] = r[j]; }); out.push(o); }
+  } else {
+    // No header — every non-empty row is a bare email address in the first cell.
+    for (let i = 0; i < rows.length; i++) { const r = rows[i]; const v = String((r && r[0]) || '').trim(); if (v) out.push({ email: v }); }
+  }
   return out;
 }
 function _csvRows(s) {
