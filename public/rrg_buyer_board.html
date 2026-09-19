@@ -67,6 +67,11 @@ h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
 .bcard .bmeta{font-size:11.5px;color:var(--muted);margin-top:2px;}
 .bcard .lchip{display:inline-flex;align-items:center;gap:5px;margin-top:8px;font-size:10.5px;font-weight:700;color:#23496f;background:#eef2fb;border:1px solid #d6e0f5;border-radius:6px;padding:2px 8px;text-decoration:none;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;} .bcard .lchip:hover{background:#e2eafa;}
 .bcard .src{display:inline-block;margin-top:8px;margin-left:6px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:#7a5c17;background:#f4ecd8;border:1px solid #e6d5a8;border-radius:5px;padding:2px 6px;}
+.bcard .bhd{display:flex;align-items:flex-start;gap:6px;} .bcard .bhd .bn{flex:1;min-width:0;}
+.bcard .rollup{flex:none;border:none;background:none;cursor:pointer;color:#9aa4b6;font-size:15px;line-height:1;padding:1px 3px;margin-top:1px;transition:transform .15s;border-radius:5px;}
+.bcard .rollup:hover{color:#5b6472;background:#f1f3f8;}
+.bcard.rolled .rollup{transform:rotate(-90deg);}
+.bcard.rolled .bbody{display:none;}
 .colempty{color:#aab2c0;font-size:12px;text-align:center;padding:16px 8px;font-style:italic;}
 .state{max-width:640px;margin:40px auto;text-align:center;color:var(--muted);font-size:14px;line-height:1.6;} .state b{color:var(--navy);display:block;font-size:16px;margin-bottom:6px;}
 .state a{color:#2c5c8f;font-weight:700;text-decoration:none;}
@@ -135,12 +140,19 @@ function esc(s){var d=document.createElement('div');d.textContent=s==null?'':Str
 function api(m,u,b){return fetch(u,{method:m,credentials:'same-origin',headers:b?{'Content-Type':'application/json'}:undefined,body:b?JSON.stringify(b):undefined}).then(function(r){return r.json();});}
 function toast(t,err){var el=document.getElementById('toast');el.textContent=t;el.className='toast show'+(err?' err':'');setTimeout(function(){el.className='toast'+(err?' err':'');},1900);}
 function visibleBuyers(){ return FILTER==='__all__'?BUYERS:BUYERS.filter(function(b){return b.listingKey===FILTER;}); }
+var ROLLED=(function(){try{return JSON.parse(localStorage.getItem('rrg_buyerboard_rolled')||'{}')||{};}catch(e){return {};}})();
+function saveROLLED(){ try{ localStorage.setItem('rrg_buyerboard_rolled',JSON.stringify(ROLLED)); }catch(e){} }
 function cardHtml(b){
   var who=b.personId?('<a class="bn" href="./rrg_person.html?id='+encodeURIComponent(b.personId)+'">'+esc(b.name)+'</a>'):('<span class="bn">'+esc(b.name)+'</span>');
   var meta=[b.company,b.email].filter(Boolean).map(esc).join(' · ');
   var src=(b.source&&b.source!=='Manual')?('<span class="src">'+esc(b.source)+'</span>'):'';
   var chip=FILTER==='__all__'?('<a class="lchip" href="./rrg_assignment.html?key='+encodeURIComponent(b.listingKey)+'" title="'+esc(b.business)+'">📁 '+esc(b.business)+'</a>'):'';
-  return '<div class="bcard" draggable="true" data-id="'+esc(b.id)+'" data-key="'+esc(b.listingKey)+'">'+who+(meta?('<div class="bmeta">'+meta+'</div>'):'')+chip+src+'</div>';
+  var rk=b.listingKey+'|'+b.id, rolled=!!ROLLED[rk];
+  var chev='<button class="rollup" data-roll="'+esc(rk)+'" title="Roll up / expand">▾</button>';
+  return '<div class="bcard'+(rolled?' rolled':'')+'" draggable="true" data-id="'+esc(b.id)+'" data-key="'+esc(b.listingKey)+'">'
+    +'<div class="bhd">'+who+chev+'</div>'
+    +'<div class="bbody">'+(meta?('<div class="bmeta">'+meta+'</div>'):'')+chip+src+'</div>'
+  +'</div>';
 }
 function render(){
   var root=document.getElementById('root');
@@ -212,6 +224,11 @@ function wireBoard(){
   document.querySelectorAll('.bcard').forEach(function(c){
     c.addEventListener('dragstart',function(e){ DRAG={id:c.getAttribute('data-id'),key:c.getAttribute('data-key'),from:c.closest('.col').getAttribute('data-stage')}; c.classList.add('drag'); try{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',DRAG.id);}catch(_){} });
     c.addEventListener('dragend',function(){ c.classList.remove('drag'); DRAG=null; document.querySelectorAll('.col.drop').forEach(function(x){x.classList.remove('drop');}); });
+  });
+  document.querySelectorAll('.bcard .rollup').forEach(function(el){
+    el.addEventListener('mousedown',function(e){ e.stopPropagation(); });
+    el.addEventListener('dragstart',function(e){ e.preventDefault(); e.stopPropagation(); });
+    el.addEventListener('click',function(e){ e.preventDefault(); e.stopPropagation(); var k=el.getAttribute('data-roll'); ROLLED[k]=!ROLLED[k]; saveROLLED(); var card=el.closest('.bcard'); if(card) card.classList.toggle('rolled',!!ROLLED[k]); });
   });
   document.querySelectorAll('.col').forEach(function(col){
     col.addEventListener('dragover',function(e){ if(!DRAG) return; e.preventDefault(); e.dataTransfer.dropEffect='move'; col.classList.add('drop'); });

@@ -616,6 +616,55 @@ function mount(app, deps) {
     res.json({ ok: true, email, sends: rows.map(r => ({ campaignId: r.campaign_id, campaign: r.name || '', subject: r.subject || '', status: r.status || '', sentAt: r.sent_at, openedAt: r.opened_at, clickedAt: r.clicked_at })), lastSent, lastOpened, suppression: sup, totals: { sent, opened, clicked } });
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
 
+  // ---- Single subscriber: full record + list membership + engagement history + suppression ----
+  app.get('/api/mail/subscriber', requireAdmin, guard, async (req, res) => { try {
+    const email = _norm(req.query.email); if (!_validEmail(email)) return res.status(400).json({ ok: false, error: 'Bad email.' });
+    const s = (await q(`SELECT id,email,first_name,last_name,status,source,created_at,updated_at,
+        meta->>'type' AS type, meta->'metros' AS metros, meta->>'mode' AS mode
+      FROM mm_subscribers WHERE tenant=$1 AND lower(email)=$2`, [TENANT, email])).rows[0];
+    if (!s) return res.status(404).json({ ok: false, error: 'Subscriber not found.' });
+    const allLists = (await q('SELECT id,name FROM mm_lists WHERE tenant=$1 ORDER BY name', [TENANT])).rows;
+    const memRows = (await q('SELECT list_id FROM mm_list_members WHERE subscriber_id=$1', [s.id])).rows;
+    const memSet = {}; memRows.forEach(r => { memSet[r.list_id] = 1; });
+    const lists = allLists.map(l => ({ id: l.id, name: l.name, member: !!memSet[l.id] }));
+    const sends = (await q(`SELECT d.campaign_id, c.name, c.subject, d.status, d.sent_at, d.opened_at, d.clicked_at
+      FROM mm_sends d JOIN mm_campaigns c ON c.id=d.campaign_id
+      WHERE d.tenant=$1 AND lower(d.email)=$2 ORDER BY COALESCE(d.sent_at, d.created_at) DESC LIMIT 500`, [TENANT, email])).rows;
+    const sup = (await q(`SELECT reason, detail, created_at FROM mm_suppressions WHERE tenant=$1 AND lower(email)=$2 LIMIT 1`, [TENANT, email])).rows[0] || null;
+    let sent = 0, opened = 0, clicked = 0, lastSent = null, lastOpened = null;
+    sends.forEach(r => { if (r.sent_at) { sent++; if (!lastSent || r.sent_at > lastSent) lastSent = r.sent_at; } if (r.opened_at) { opened++; if (!lastOpened || r.opened_at > lastOpened) lastOpened = r.opened_at; } if (r.clicked_at) clicked++; });
+    let metros = []; try { metros = Array.isArray(s.metros) ? s.metros : (s.metros ? JSON.parse(s.metros) : []); } catch (e) { metros = []; }
+    res.json({ ok: true,
+      subscriber: { id: s.id, email: s.email, firstName: s.first_name || '', lastName: s.last_name || '', status: s.status || 'active', source: s.source || '', type: s.type || '', metros: metros, mode: s.mode || 'all', createdAt: s.created_at, updatedAt: s.updated_at },
+      lists: lists,
+      sends: sends.map(r => ({ campaignId: r.campaign_id, campaign: r.name || '', subject: r.subject || '', status: r.status || '', sentAt: r.sent_at, openedAt: r.opened_at, clickedAt: r.clicked_at })),
+      totals: { sent, opened, clicked }, lastSent, lastOpened, suppression: sup });
+  } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
+  // ---- Save one subscriber's editable fields (name, type, areas, status, list membership) ----
+  app.post('/api/mail/subscriber', requireAdmin, guard, express.json(), async (req, res) => { try {
+    const b = req.body || {}; const email = _norm(b.email); if (!_validEmail(email)) return res.status(400).json({ ok: false, error: 'Bad email.' });
+    const s = (await q('SELECT id,meta FROM mm_subscribers WHERE tenant=$1 AND lower(email)=$2', [TENANT, email])).rows[0];
+    if (!s) return res.status(404).json({ ok: false, error: 'Subscriber not found.' });
+    let meta = {}; try { meta = (s.meta && typeof s.meta === 'object') ? s.meta : (s.meta ? JSON.parse(s.meta) : {}); } catch (e) { meta = {}; }
+    if (b.type !== undefined) { const t = String(b.type || '').trim().slice(0, 60); if (t) meta.type = t; else delete meta.type; }
+    if (b.mode !== undefined) meta.mode = (b.mode === 'metros' ? 'metros' : 'all');
+    if (Array.isArray(b.metros)) meta.metros = b.metros.filter(Boolean).map(x => String(x).slice(0, 60)).slice(0, 100);
+    const sets = ['meta=$3::jsonb', 'updated_at=now()']; const params = [TENANT, s.id, JSON.stringify(meta)];
+    if (b.firstName !== undefined) { params.push(String(b.firstName || '').slice(0, 120)); sets.push('first_name=$' + params.length); }
+    if (b.lastName !== undefined) { params.push(String(b.lastName || '').slice(0, 120)); sets.push('last_name=$' + params.length); }
+    await q(`UPDATE mm_subscribers SET ${sets.join(', ')} WHERE tenant=$1 AND id=$2`, params);
+    // Status: active vs unsubscribed drives the suppression list.
+    if (b.status === 'unsubscribed') { await addSuppression(email, 'manual', 'manual unsubscribe'); }
+    else if (b.status === 'active') { await q('DELETE FROM mm_suppressions WHERE tenant=$1 AND lower(email)=$2', [TENANT, email]); await q("UPDATE mm_subscribers SET status='active', updated_at=now() WHERE tenant=$1 AND id=$2", [TENANT, s.id]); }
+    // List membership — full replace from the provided set.
+    if (Array.isArray(b.listIds)) {
+      const want = b.listIds.map(Number).filter(Boolean);
+      await q('DELETE FROM mm_list_members WHERE subscriber_id=$1', [s.id]);
+      for (const lid of want) { await q('INSERT INTO mm_list_members(list_id,subscriber_id) VALUES($1,$2) ON CONFLICT DO NOTHING', [lid, s.id]); }
+    }
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
+
   // All email as calendar events — scheduled sends (future) + finished campaigns (past). Rendered on rrg_calendar.
   app.get('/api/mail/calendar-events', requireAdmin, guard, async (req, res) => { try {
     const sched = (await q(`SELECT s.id, s.campaign_id, s.run_at, c.name FROM mm_schedules s JOIN mm_campaigns c ON c.id=s.campaign_id WHERE s.tenant=$1 AND s.status='pending' ORDER BY s.run_at ASC LIMIT 500`, [TENANT])).rows;

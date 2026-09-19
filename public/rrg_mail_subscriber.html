@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Subscriber</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.top{color:#fff;padding:24px 0;background:radial-gradient(95% 130% at 28% 15%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
+.top-in{max-width:1080px;margin:0 auto;padding:0 24px;}
+.brand{display:inline-flex;align-items:center;cursor:pointer;} .disc{background:var(--red);color:#fff;border-radius:50%;width:36px;height:36px;font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:12px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.bar{background:#fff;width:3px;height:24px;margin:0 11px;} .wm{font-weight:800;font-size:12px;text-transform:uppercase;line-height:.95;color:#fff;}
+.crumb{margin:14px 0 3px;color:#aeb8cf;font-size:12px;} .crumb a{color:#cdd7ea;text-decoration:none;font-weight:700;} .crumb a:hover{text-decoration:underline;}
+.top h1{font-size:23px;font-weight:800;margin:2px 0 0;color:#fff;letter-spacing:-.01em;word-break:break-all;}
+.sub{color:#aeb8cf;font-size:12.5px;margin-top:6px;}
+.wrap{max-width:1080px;margin:20px auto;padding:0 24px 96px;display:grid;grid-template-columns:1.1fr .9fr;gap:18px;align-items:start;}
+@media(max-width:860px){.wrap{grid-template-columns:1fr;}}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 30px rgba(11,26,56,.06);overflow:hidden;margin-bottom:18px;}
+.ch{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line);} .ch b{color:var(--navy);font-size:14px;}
+.cb{padding:16px 18px;}
+label.fl{display:block;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);margin:0 0 5px;}
+input.f,select.f{width:100%;font:inherit;font-size:13.5px;padding:9px 11px;border:1px solid #cfd6e2;border-radius:8px;background:#fff;color:var(--ink);}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;} .fld{margin-bottom:13px;}
+.seg{display:inline-flex;border:1px solid #cfd6e2;border-radius:8px;overflow:hidden;}
+.seg label{padding:8px 14px;font-size:12.5px;font-weight:700;color:var(--muted);cursor:pointer;background:#fff;border-right:1px solid #cfd6e2;} .seg label:last-child{border-right:none;} .seg label.on{background:var(--navy);color:#fff;}
+.seg input{display:none;}
+.areas{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px;}
+.ar-lab{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:#33415c;border:1px solid var(--line);border-radius:100px;padding:5px 12px;cursor:pointer;background:#fff;}
+.ar-lab.on{background:#eef2fb;border-color:#c3d0ea;color:#23496f;} .ar-lab input{width:auto;margin:0;}
+.lists label{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#33415c;padding:6px 2px;cursor:pointer;} .lists input{width:auto;}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;} .tile{background:var(--wash);border:1px solid var(--line);border-radius:10px;padding:11px 13px;text-align:center;} .tile .n{font-size:20px;font-weight:800;color:var(--navy);} .tile .l{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);font-weight:700;margin-top:2px;}
+table{width:100%;border-collapse:collapse;} th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--soft);font-weight:800;padding:7px 10px;border-bottom:1px solid var(--line);} td{padding:8px 10px;border-bottom:1px solid #f0f3f8;font-size:12.5px;vertical-align:top;}
+.meta{color:var(--soft);font-size:12px;}
+.savebar{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);box-shadow:0 -6px 20px rgba(11,26,56,.08);padding:12px 24px;z-index:50;}
+.savebar .in{max-width:1080px;margin:0 auto;width:100%;display:flex;align-items:center;gap:12px;}
+.btn{background:#fff;border:1px solid #cfd6e2;border-radius:9px;padding:10px 18px;font:inherit;font-size:13.5px;font-weight:700;color:var(--navy);cursor:pointer;}
+.btn.primary{background:var(--navy);color:#fff;border-color:var(--navy);}
+.msg{font-size:12.5px;font-weight:700;} .msg.ok{color:var(--green);} .msg.err{color:#b23a2c;}
+.rrg-back{position:fixed;left:16px;bottom:74px;z-index:60;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28);}
+.gate{max-width:600px;margin:60px auto;background:#fff;border:1px solid var(--line);border-radius:14px;padding:34px;text-align:center;color:var(--muted);}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<a href="./rrg_mail_subscribers.html" class="rrg-back"><span style="font-size:14px;line-height:1">←</span> Subscribers</a>
+<div class="top"><div class="top-in">
+  <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+  <div class="crumb"><a href="./rrg_mail_subscribers.html">Subscribers</a> › <span id="crumb">Subscriber</span></div>
+  <h1 id="h1">Subscriber</h1>
+  <div class="sub" id="subline"></div>
+</div></div>
+<div id="root"><div class="gate">Loading…</div></div>
+<script>
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function api(m,u,b){return fetch(u,{method:m,credentials:'same-origin',headers:b?{'Content-Type':'application/json'}:undefined,body:b?JSON.stringify(b):undefined}).then(function(r){return r.json();});}
+function qs(k){return new URLSearchParams(location.search).get(k)||'';}
+function fmtDT(d){ if(!d) return '—'; try{ var x=new Date(d); if(isNaN(x.getTime())) return String(d).slice(0,10); return (x.getMonth()+1)+'/'+x.getDate()+'/'+String(x.getFullYear()).slice(2)+' '+x.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}); }catch(e){ return String(d).slice(0,10); } }
+function fmtD(d){ if(!d) return '—'; var p=String(d).slice(0,10).split('-'); return (p.length===3)?(p[1]+'/'+p[2]+'/'+p[0].slice(2)):String(d).slice(0,10); }
+var EMAIL=qs('email'), SUB=null, LISTS=[], MARKETS=[], SENDS=[], TOTALS={}, SUPP=null, MODE='all';
+
+function boot(){
+  if(!EMAIL){ document.getElementById('root').innerHTML='<div class="gate">No subscriber specified. <a href="./rrg_mail_subscribers.html">← Back to Subscribers</a></div>'; return; }
+  Promise.all([
+    api('GET','/api/mail/subscriber?email='+encodeURIComponent(EMAIL)),
+    api('GET','/api/admin/types').catch(function(){return {};})
+  ]).then(function(res){
+    var j=res[0]||{};
+    if(!j.ok){ document.getElementById('root').innerHTML='<div class="gate">'+esc(j.error||'Subscriber not found.')+'<br><br><a href="./rrg_mail_subscribers.html">← Back to Subscribers</a></div>'; return; }
+    SUB=j.subscriber; LISTS=j.lists||[]; SENDS=j.sends||[]; TOTALS=j.totals||{}; SUPP=j.suppression||null; MODE=(SUB.mode==='metros'?'metros':'all');
+    MARKETS=(res[1]&&res[1].markets)||[];
+    setHead(); render();
+  }).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not reach the server.</div>'; });
+}
+function setHead(){ document.getElementById('h1').textContent=SUB.email; document.getElementById('crumb').textContent=SUB.email; document.title='RRG — '+SUB.email; var nm=((SUB.firstName||'')+' '+(SUB.lastName||'')).trim(); document.getElementById('subline').textContent=(nm?nm+' · ':'')+'Source: '+(SUB.source||'—')+' · Added '+fmtD(SUB.createdAt); }
+
+function typeOptions(cur){
+  var base=['','Broker','Restaurant','Buyer','Investor']; if(cur && base.indexOf(cur)<0) base.push(cur);
+  return base.map(function(t){ return '<option value="'+esc(t)+'"'+(t===cur?' selected':'')+'>'+(t?esc(t):'— No type —')+'</option>'; }).join('');
+}
+function areasHtml(){
+  var sel={}; (SUB.metros||[]).forEach(function(m){ sel[m]=1; });
+  var chips=(MARKETS||[]).map(function(m){ return '<label class="ar-lab'+(sel[m]?' on':'')+'"><input type="checkbox" class="ar-cb" value="'+esc(m)+'"'+(sel[m]?' checked':'')+'> '+esc(m)+'</label>'; }).join('');
+  return chips||'<span class="meta">No markets configured yet — set them in Admin → Settings → Markets.</span>';
+}
+function render(){
+  var st=SUB.status||'active';
+  var left=''+
+    '<div class="card"><div class="ch"><b>Subscriber details</b></div><div class="cb">'+
+      '<div class="row2">'+
+        '<div class="fld"><label class="fl">First name</label><input class="f" id="fFirst" value="'+esc(SUB.firstName||'')+'"></div>'+
+        '<div class="fld"><label class="fl">Last name</label><input class="f" id="fLast" value="'+esc(SUB.lastName||'')+'"></div>'+
+      '</div>'+
+      '<div class="row2">'+
+        '<div class="fld"><label class="fl">Type</label><select class="f" id="fType">'+typeOptions(SUB.type||'')+'</select></div>'+
+        '<div class="fld"><label class="fl">Status</label><select class="f" id="fStatus"><option value="active"'+(st==='active'?' selected':'')+'>Active</option><option value="unsubscribed"'+(st!=='active'?' selected':'')+'>Unsubscribed / suppressed</option></select></div>'+
+      '</div>'+
+      '<div class="fld"><label class="fl">Areas of interest</label>'+
+        '<div class="seg" id="modeSeg"><label data-mode="all"'+(MODE==='all'?' class="on"':'')+'>All areas</label><label data-mode="metros"'+(MODE==='metros'?' class="on"':'')+'>Specific areas</label></div>'+
+        '<div class="areas" id="areaWrap" style="'+(MODE==='metros'?'':'display:none')+'">'+areasHtml()+'</div>'+
+      '</div>'+
+    '</div></div>'+
+    '<div class="card"><div class="ch"><b>Lists</b></div><div class="cb lists" id="listWrap">'+
+      (LISTS.length?LISTS.map(function(l){ return '<label><input type="checkbox" class="lst-cb" value="'+l.id+'"'+(l.member?' checked':'')+'> '+esc(l.name)+'</label>'; }).join(''):'<span class="meta">No lists yet — create one on the Subscribers page.</span>')+
+    '</div></div>';
+
+  var supHtml = SUPP ? ('<div class="card"><div class="ch"><b>Suppression</b></div><div class="cb"><div style="font-size:13px;color:#a5352c;font-weight:700">This address is suppressed — it will not be emailed.</div><div class="meta" style="margin-top:5px">Reason: '+esc(SUPP.reason||'—')+(SUPP.detail?(' · '+esc(SUPP.detail)):'')+' · '+fmtDT(SUPP.created_at)+'</div><div class="meta" style="margin-top:4px">Set Status to <b>Active</b> and Save to restore.</div></div></div>') : '';
+
+  var rows = SENDS.length ? SENDS.map(function(x){
+    var opened=x.openedAt?('<span style="color:#1f8a5b;font-weight:700">✓ '+fmtDT(x.openedAt)+'</span>'):'<span class="meta">—</span>';
+    var clicked=x.clickedAt?('<span style="color:#1f8a5b;font-weight:700">✓</span>'):'<span class="meta">—</span>';
+    return '<tr><td><b>'+esc(x.campaign||'—')+'</b><div class="meta">'+esc(x.subject||'')+'</div></td><td>'+esc(x.status||'—')+'</td><td>'+fmtDT(x.sentAt)+'</td><td>'+opened+'</td><td style="text-align:center">'+clicked+'</td></tr>';
+  }).join('') : '<tr><td colspan="5" class="meta" style="padding:16px;text-align:center">No campaign sends yet.</td></tr>';
+
+  var right=''+
+    '<div class="card"><div class="ch"><b>Engagement</b></div><div class="cb">'+
+      '<div class="tiles"><div class="tile"><div class="n">'+(TOTALS.sent||0)+'</div><div class="l">Sent</div></div><div class="tile"><div class="n">'+(TOTALS.opened||0)+'</div><div class="l">Opened</div></div><div class="tile"><div class="n">'+(TOTALS.clicked||0)+'</div><div class="l">Clicked</div></div></div>'+
+    '</div></div>'+
+    supHtml+
+    '<div class="card"><div class="ch"><b>Campaign history</b></div><div class="cb" style="padding:0;overflow-x:auto"><table><thead><tr><th>Campaign</th><th>Status</th><th>Sent</th><th>Opened</th><th>Clicked</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+
+  document.getElementById('root').innerHTML='<div class="wrap"><div>'+left+'</div><div>'+right+'</div></div>'+
+    '<div class="savebar"><div class="in"><button class="btn primary" id="saveBtn">Save changes</button><span class="msg" id="msg"></span><span style="margin-left:auto;font-size:12px;color:var(--soft)">Last updated '+fmtDT(SUB.updatedAt)+'</span></div></div>';
+  wire();
+}
+function wire(){
+  var seg=document.getElementById('modeSeg');
+  seg.querySelectorAll('label').forEach(function(l){ l.addEventListener('click',function(){ MODE=l.getAttribute('data-mode'); seg.querySelectorAll('label').forEach(function(x){ x.classList.toggle('on',x===l); }); document.getElementById('areaWrap').style.display=(MODE==='metros'?'':'none'); }); });
+  document.getElementById('areaWrap').addEventListener('change',function(e){ var cb=e.target.closest('.ar-cb'); if(!cb) return; var lab=cb.closest('.ar-lab'); if(lab) lab.classList.toggle('on', cb.checked); });
+  document.getElementById('saveBtn').addEventListener('click',save);
+}
+function save(){
+  var btn=document.getElementById('saveBtn'), m=document.getElementById('msg'); btn.disabled=true; m.className='msg'; m.textContent='Saving…';
+  var metros=[]; document.querySelectorAll('.ar-cb:checked').forEach(function(c){ metros.push(c.value); });
+  var listIds=[]; document.querySelectorAll('.lst-cb:checked').forEach(function(c){ listIds.push(c.value); });
+  var body={ email:SUB.email, firstName:document.getElementById('fFirst').value, lastName:document.getElementById('fLast').value, type:document.getElementById('fType').value, status:document.getElementById('fStatus').value, mode:MODE, metros:(MODE==='metros'?metros:[]), listIds:listIds };
+  api('POST','/api/mail/subscriber',body).then(function(j){ btn.disabled=false; if(!j||!j.ok){ m.className='msg err'; m.textContent=(j&&j.error)||'Could not save.'; return; } m.className='msg ok'; m.textContent='Saved ✓'; setTimeout(boot,450); }).catch(function(){ btn.disabled=false; m.className='msg err'; m.textContent='Could not reach the server.'; });
+}
+boot();
+</script>
+</body>
+</html>

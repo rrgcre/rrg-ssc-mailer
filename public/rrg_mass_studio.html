@@ -167,15 +167,6 @@ function buildSubs(){
     '<div class="pgs" style="margin-bottom:10px">Keep audiences separate \u2014 e.g. Restaurants and Brokers. Everyone lives in one database with one shared suppression list; you pick a list when you send, and a global unsubscribe applies across all lists.</div>'+
     '<div id="listChips" style="margin-bottom:12px"></div>'+
     '<div class="toolbar"><input id="newListName" placeholder="New list name (e.g. Brokers)" style="max-width:260px"><button class="btn" id="newListBtn">+ Create list</button><span class="msg" id="listMsg"></span></div></div>'+
-    '<div class="card"><h2>Import subscribers</h2>'+
-    '<div class="pgs" style="margin-bottom:10px">Upload a CSV file, or paste one below \u2014 a header row (<code>email,first_name,last_name</code>) or one email per line. Duplicates and already-suppressed addresses are skipped. Separate from your CRM contacts.</div>'+
-    '<div class="toolbar" style="margin-bottom:10px;gap:9px"><label class="btn" style="cursor:pointer;margin:0">\u2b06 Choose CSV file<input type="file" id="impFile" accept=".csv,text/csv,text/plain" style="display:none"></label><span class="pgs" id="impFileName" style="font-size:12px;color:var(--muted)">No file chosen \u2014 or paste below</span></div>'+
-    '<div class="fld"><textarea id="impText" class="code" placeholder="email,first_name,last_name&#10;jane@example.com,Jane,Doe&#10;&#10;--- or ---&#10;&#10;jane@example.com&#10;john@example.com"></textarea></div>'+
-    '<div class="row"><div class="fld half"><label class="fl">Source label</label><input id="impSrc" placeholder="e.g. 2026 master list"></div>'+
-    '<div class="fld half"><label class="fl">List type</label><select id="impType"><option value="">— No type —</option><option value="Broker">Brokers</option><option value="Restaurant">Restaurants</option></select></div></div>'+
-    '<div class="row"><div class="fld half"><label class="fl">Add to list</label><select id="impList"></select></div>'+
-    '<div class="fld half" style="display:flex;align-items:flex-end"><span class="pgs" style="font-size:11.5px;color:var(--muted);padding-bottom:9px">Imported contacts are set to receive email in <b>all areas</b> by default.</span></div></div>'+
-    '<div><button class="btn primary" id="impBtn">Import</button><span class="msg" id="impMsg"></span></div></div>'+
     '<div class="card"><div class="toolbar" style="justify-content:space-between;align-items:center"><h2 style="margin:0">Subscribers</h2><a class="btn" href="./rrg_mail_subscribers.html">Open full list &amp; filters ↗</a></div>'+
     '<div class="pgs" style="margin:2px 0 10px">Quick browse below, or open the full window for column sorting and filtering by status, type, area of interest and date — just like your contacts and companies.</div>'+
     '<div class="toolbar" style="flex-wrap:wrap;gap:8px"><input id="subQ" placeholder="Search email..." style="max-width:230px"><select id="subStatus" style="max-width:170px"><option value="">All statuses</option><option value="active">Active</option><option value="unsubscribed">Unsubscribed</option><option value="bounced">Bounced</option><option value="complained">Complained</option></select><select id="subList" style="max-width:180px"></select><button class="btn" id="subGo">Search</button></div>'+
@@ -186,7 +177,6 @@ function buildSubs(){
       '<button class="btn" id="subSelClear" style="margin-left:auto">Clear selection</button>'+
     '</div>'+
     '<div id="subTable"><div class="pgs">Loading...</div></div></div>';
-  $('impBtn').onclick=doImport;
   $('subBulkSupp').onclick=function(){ bulkSuppress(); };
   $('subBulkRestore').onclick=function(){ bulkRestore(); };
   $('subSelClear').onclick=function(){ SUBSEL={}; loadSubs(); };
@@ -204,40 +194,6 @@ function renderLists(){
   var sf=$('subList'); if(sf){ var cur=sf.value; sf.innerHTML='<option value="">All lists</option>'+LISTS.map(function(l){ return '<option value="'+l.id+'">'+esc(l.name)+' ('+num(l.members)+')</option>'; }).join(''); if(cur) sf.value=cur; }
 }
 function createList(){ var n=($('newListName').value||'').trim(); var m=$('listMsg'); if(!n){ m.className='msg err'; m.textContent='Name the list.'; return; } api('POST','/api/mail/lists',{ name:n }).then(function(r){ if(!r||!r.ok){ m.className='msg err'; m.textContent=(r&&r.error)||'Failed.'; return; } m.className='msg ok'; m.textContent='Created.'; $('newListName').value=''; loadLists(); }); }
-function doImport(){
-  if(!CFG.storage){ return; }
-  var txt=$('impText').value.trim();
-  var m=$('impMsg');
-  if(!txt){ m.className='msg err'; m.textContent='Paste some addresses first.'; return; }
-  var lines=txt.split(/\r?\n/).filter(function(s){ return s.trim(); });
-  if(!lines.length){ m.className='msg err'; m.textContent='Paste some addresses first.'; return; }
-  // Detect a header row (names an email column, no @) so we can re-attach it to every chunk.
-  var header='', dataLines=lines;
-  if(/(^|,)\s*e-?mail\s*(,|$)/i.test(lines[0]) && lines[0].indexOf('@')<0){ header=lines[0]; dataLines=lines.slice(1); }
-  // Big lists are sent in chunks so no single request times out (was the cause of "Import failed").
-  var CH=500, chunks=[]; for(var i=0;i<dataLines.length;i+=CH){ chunks.push(dataLines.slice(i,i+CH)); }
-  if(!chunks.length){ m.className='msg err'; m.textContent='No addresses to import.'; return; }
-  var tot=dataLines.length, btn=$('impBtn'); btn.disabled=true; m.className='msg';
-  var src=($('impSrc').value||'import'), typ=(($('impType')&&$('impType').value)||'');
-  var imp=$('impList'), listName='', listId='';
-  if(imp){ if(imp.value==='__new' && imp.getAttribute('data-newname')){ listName=imp.getAttribute('data-newname'); } else if(imp.value && imp.value!=='__new'){ listId=imp.value; } }
-  var acc={added:0,updated:0,skipped:0,suppressed:0,listed:0}, ci=0;
-  function fin(err){ btn.disabled=false; if(err){ m.className='msg err'; m.textContent=err; return; } m.className='msg ok'; m.textContent='Added '+acc.added.toLocaleString()+', updated '+acc.updated.toLocaleString()+', skipped '+acc.skipped.toLocaleString()+', suppressed '+acc.suppressed.toLocaleString()+(acc.listed?(' \u00b7 '+acc.listed.toLocaleString()+' added to list'):'')+'.'; $('impText').value=''; loadStats(); loadLists(); loadSubs(); }
-  function next(){
-    if(ci>=chunks.length){ fin(); return; }
-    var chunk=chunks[ci];
-    var body={ csv:(header?(header+'\n'):'')+chunk.join('\n'), source:src, type:typ };
-    if(listId){ body.listId=listId; } else if(listName && ci===0){ body.listName=listName; }
-    m.textContent='Importing '+Math.min(ci*CH+chunk.length,tot).toLocaleString()+' of '+tot.toLocaleString()+'\u2026';
-    api('POST','/api/mail/import',body).then(function(r){
-      if(!r||!r.ok){ fin((r&&r.error)||('Import failed on batch '+(ci+1)+'.')); return; }
-      acc.added+=r.added||0; acc.updated+=r.updated||0; acc.skipped+=r.skipped||0; acc.suppressed+=r.suppressed||0; acc.listed+=r.listed||0;
-      if(!listId && r.listId){ listId=String(r.listId); }   // reuse the list the first chunk created
-      ci++; next();
-    }).catch(function(){ fin('Import stopped at batch '+(ci+1)+' (network/timeout). Earlier batches did import \u2014 click Import again to continue with the rest.'); });
-  }
-  next();
-}
 var SUBSEL={};
 function subSelKeys(){ return Object.keys(SUBSEL).filter(function(k){ return SUBSEL[k]; }); }
 function refreshBulkBar(){
