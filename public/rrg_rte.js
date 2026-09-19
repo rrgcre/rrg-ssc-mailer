@@ -43,7 +43,7 @@
     b+='<button type="button" data-act="rewrite" class="rrgrt-ai" title="Rewrite with '+esc(aiName())+'">✨ Rewrite</button>';
     return '<div class="rrgrt" data-rte="'+esc(id)+'"><div class="rrgrt-bar">'+b+'</div>'
       +'<div class="rrgrt-ed" id="'+esc(id)+'" contenteditable="true" data-ph="'+esc(opts.placeholder||'')+'">'+toPlainHtml(opts.value||'')+'</div>'
-      +'<input type="file" class="rrgrt-attach" hidden><input type="file" class="rrgrt-img" accept="image/*" hidden></div>';
+      +'<input type="file" class="rrgrt-attach" multiple hidden><input type="file" class="rrgrt-img" accept="image/*" hidden></div>';
   }
   function closeMenus(rt){ rt.querySelectorAll('.rrgrt-menu').forEach(function(m){ m.hidden=true; }); }
   function insertHtml(ed,h){ ed.focus(); try{ document.execCommand('insertHTML',false,h); }catch(e){ ed.innerHTML+=h; } }
