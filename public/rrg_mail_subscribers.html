@@ -98,11 +98,15 @@ function drawTiles(){
 
 function renderChips(){
   var bar=document.getElementById('qbar'); if(!bar) return;
-  var types=distinct(function(s){return s.type||'';});
+  // Always offer the common types (Broker/Restaurant) plus any others already in the data,
+  // so the Type filter shows even before a type has been set on any subscriber.
+  var BASE_TYPES=['Broker','Restaurant'];
+  var seen={}, types=[]; BASE_TYPES.concat(distinct(function(s){return s.type||'';})).forEach(function(t){ t=String(t||'').trim(); if(t&&!seen[t.toLowerCase()]){ seen[t.toLowerCase()]=1; types.push(t); } });
   var stat=[['','All'],['active','Active','act'],['unsubscribed','Unsubscribed',''],['bounced','Bounced / compl.','warn']];
   var h='<span class="qlbl">Status</span>';
   stat.forEach(function(o){ var on=(QUICK.status===o[0]); var cls='qchip'+(on?(' on'+(o[2]?(' '+o[2]):'')):''); var cnt=''; if(o[0]){ var n=(o[0]==='bounced')?((COUNTS.bounced||0)+(COUNTS.complained||0)):(COUNTS[o[0]]||0); cnt='<span class="qn">'+n+'</span>'; } h+='<button class="'+cls+'" data-q="status" data-v="'+esc(o[0])+'">'+esc(o[1])+cnt+'</button>'; });
-  if(types.length){ h+='<span class="qsep"></span><span class="qlbl">Type</span><button class="qchip'+(QUICK.type===''?' on':'')+'" data-q="type" data-v="">All</button>'; types.forEach(function(t){ h+='<button class="qchip'+(QUICK.type===t?' on':'')+'" data-q="type" data-v="'+esc(t)+'">'+esc(t)+'</button>'; }); }
+  h+='<span class="qsep"></span><span class="qlbl">Type</span><button class="qchip'+(QUICK.type===''?' on':'')+'" data-q="type" data-v="">All</button>';
+  types.forEach(function(t){ h+='<button class="qchip'+(QUICK.type===t?' on':'')+'" data-q="type" data-v="'+esc(t)+'">'+esc(t)+'</button>'; });
   bar.innerHTML=h;
 }
 function applyFilter(){
