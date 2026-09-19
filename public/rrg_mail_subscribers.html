@@ -180,7 +180,10 @@ function openImport(){
           +_iField('Source label','<input id="impSrc" placeholder="e.g. 2026 master list" style="'+sel+'">')
           +_iField('List type','<select id="impType" style="'+sel+'"><option value="">— No type —</option><option value="Broker">Brokers</option><option value="Restaurant">Restaurants</option></select>')
         +'</div>'
-        +'<div style="margin-top:12px">'+_iField('Add to list','<select id="impList" style="'+sel+'"><option value="">— No list —</option>'+LISTS.map(function(l){return '<option value="'+l.id+'">'+esc(l.name)+'</option>';}).join('')+'</select>')+'</div>'
+        +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">'
+          +_iField('Default status','<select id="impStatus" style="'+sel+'"><option value="">Active</option><option value="unsubscribed">Unsubscribed</option><option value="bounced">Bounced</option></select>')
+          +_iField('Add to list','<select id="impList" style="'+sel+'"><option value="">— No list —</option>'+LISTS.map(function(l){return '<option value="'+l.id+'">'+esc(l.name)+'</option>';}).join('')+'</select>')
+        +'</div>'
       +'</div>'
       +'<div style="display:flex;gap:12px;align-items:center;padding:14px 20px;border-top:1px solid var(--line);background:#f7f9fc"><button class="rlf-btn" id="impGo" style="background:var(--navy);color:#fff;border-color:var(--navy)">Import</button><span id="impMsg" style="font-size:12.5px;font-weight:700"></span></div>'
       +'</div>'
@@ -216,7 +219,7 @@ function doImport(){
   var CH=500, chunks=[]; for(var i=0;i<dataLines.length;i+=CH){ chunks.push(dataLines.slice(i,i+CH)); }
   if(!chunks.length){ m.style.color='#b23a2c'; m.textContent='No addresses to import.'; return; }
   var tot=dataLines.length;
-  var src=(g('impSrc').value||'import'), typ=(g('impType').value||''), listId=(g('impList').value||'');
+  var src=(g('impSrc').value||'import'), typ=(g('impType').value||''), listId=(g('impList').value||''), stat=((g('impStatus')&&g('impStatus').value)||'');
   var acc={added:0,updated:0,skipped:0,suppressed:0,listed:0}, ci=0;
   // Switch to the working view so the user sees clear progress on big lists.
   IMPORTING=true; g('impForm').style.display='none'; g('impWork').style.display='block';
@@ -234,7 +237,7 @@ function doImport(){
   function next(){
     if(ci>=chunks.length){ finish(); return; }
     var chunk=chunks[ci];
-    var body={ csv:(header?(header+'\n'):'')+chunk.join('\n'), source:src, type:typ };
+    var body={ csv:(header?(header+'\n'):'')+chunk.join('\n'), source:src, type:typ, status:stat };
     if(listId){ body.listId=listId; }
     progress(Math.min(ci*CH, tot));
     api('POST','/api/mail/import',body).then(function(r){

@@ -183,6 +183,7 @@ function _optOutReason(raw) {
 async function importSubscribers(rows, source, opts) {
   opts = opts || {};
   const batchType = String(opts.type || '').trim().slice(0, 60);   // whole-list type (e.g. Broker / Restaurant)
+  const batchOptOut = _optOutReason(opts.status);                  // whole-list default status (active = '' ; unsubscribed/bounced/complained = suppress)
   let added = 0, updated = 0, skipped = 0, suppressed = 0;
   rows = rows || [];
   // One suppression lookup for the whole batch — was one query per row, which made large imports time out.
@@ -192,7 +193,9 @@ async function importSubscribers(rows, source, opts) {
   for (const r of rows) {
     const email = _norm(r && (r.email || r.Email || r.EMAIL));
     if (!_validEmail(email)) { skipped++; continue; }
-    const optOut = _optOutReason(r && (r.status || r.Status || r.STATUS));
+    const rowStatus = r && (r.status || r.Status || r.STATUS);
+    // Per-row status wins; otherwise fall back to the whole-list default status.
+    const optOut = _optOutReason(rowStatus) || batchOptOut;
     // An active import never resurrects an address that already opted out.
     if (!optOut && suppSet.has(email)) { suppressed++; continue; }
     const fn = String((r.first_name || r.firstName || r.first || r.First || '')).slice(0, 120);
@@ -215,7 +218,7 @@ async function importSubscribers(rows, source, opts) {
     if (res.rows[0] && res.rows[0].inserted) added++; else updated++;
     // Carry an opt-out across: add to suppression (which also flips subscriber
     // status to unsubscribed/bounced/complained) so they are never emailed.
-    if (optOut) { await addSuppression(email, optOut, 'legacy import: ' + String((r.status || r.Status || '')).trim().toLowerCase()); suppressed++; }
+    if (optOut) { const _why = String(rowStatus || opts.status || '').trim().toLowerCase(); await addSuppression(email, optOut, 'import' + (_why ? (': ' + _why) : '')); suppressed++; }
   }
   return { added, updated, skipped, suppressed };
 }
@@ -508,7 +511,7 @@ function mount(app, deps) {
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.post('/api/mail/import', requireAdmin, guard, express.json({ limit: '60mb' }), async (req, res) => { try {
     const b = req.body || {}; const rows = Array.isArray(b.rows) ? b.rows : (b.csv ? parseCsv(b.csv) : []);
-    const r = await importSubscribers(rows, b.source || 'import', { type: b.type, mode: b.mode });
+    const r = await importSubscribers(rows, b.source || 'import', { type: b.type, mode: b.mode, status: b.status });
     let listId = b.listId ? Number(b.listId) : 0; const listName = String(b.listName || '').trim().slice(0, 160); let listed = 0;
     if (!listId && listName) { listId = (await q('INSERT INTO mm_lists(tenant,name) VALUES($1,$2) RETURNING id', [TENANT, listName])).rows[0].id; }
     if (listId) {
