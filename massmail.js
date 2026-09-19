@@ -222,19 +222,58 @@ async function importSubscribers(rows, source, opts) {
   }
   return { added, updated, skipped, suppressed };
 }
-// Parse a CSV string into row objects using the header row.
+// Map a header cell to a canonical field, wherever the column sits and whatever it's called.
+function _canonField(h) {
+  const t = String(h || '').trim().toLowerCase();
+  if (!t) return null;
+  if (/e-?mail/.test(t)) return 'email';                                   // email, e-mail, email address, primary/work email
+  if (/^(first|f)[\s_]*(name|nm)?$|first[\s_]*name|given/.test(t)) return 'first_name';
+  if (/^(last|l)[\s_]*(name|nm)?$|last[\s_]*name|surname|family/.test(t)) return 'last_name';
+  if (/^(full[\s_]*)?name$|contact[\s_]*name/.test(t)) return 'name';       // a single full-name column
+  if (/company|organi[sz]ation|business|firm|brokerage|employer/.test(t)) return 'company';
+  if (/phone|mobile|cell|\btel\b/.test(t)) return 'phone';
+  if (/status|subscrib|opt.?out/.test(t)) return 'status';
+  if (/^type$|list[\s_]*type|segment|category|role/.test(t)) return 'type';
+  if (/source|origin|list[\s_]*name/.test(t)) return 'source';
+  return null;
+}
+// Find the column that actually holds email addresses (the one with the most @'s), from row `start` on.
+function _guessEmailCol(rows, start) {
+  let width = 0; for (let i = start; i < rows.length; i++) { if (rows[i] && rows[i].length > width) width = rows[i].length; }
+  const score = new Array(width).fill(0); let seen = 0;
+  for (let i = start; i < rows.length && seen < 200; i++) { const r = rows[i]; if (!r) continue; seen++; for (let j = 0; j < r.length; j++) { if (String(r[j] || '').indexOf('@') >= 0) score[j]++; } }
+  let best = -1, bestv = 0; for (let j = 0; j < score.length; j++) { if (score[j] > bestv) { bestv = score[j]; best = j; } }
+  return bestv > 0 ? best : -1;
+}
+// Parse a CSV string into row objects. Header optional; email column found by name or by content.
 function parseCsv(text) {
-  const out = []; const rows = _csvRows(String(text || ''));
+  const out = [];
+  const rows = _csvRows(String(text || '')).filter(r => r && (r.length > 1 || String((r[0] || '')).trim() !== ''));
   if (!rows.length) return out;
   const first = rows[0].map(h => String(h || '').trim());
-  // A header row names an email column (email / e-mail) and holds no actual @ address.
-  const looksHeader = first.some(c => /^e-?mail$/i.test(c)) && !first.some(c => c.indexOf('@') >= 0);
-  if (looksHeader) {
-    const head = first.map(h => h.toLowerCase());
-    for (let i = 1; i < rows.length; i++) { const r = rows[i]; if (!r.length || (r.length === 1 && !r[0])) continue; const o = {}; head.forEach((h, j) => { o[h] = r[j]; }); out.push(o); }
+  // A header row carries field names, not data — so no cell in it contains an @ address.
+  const hasHeader = !first.some(c => c.indexOf('@') >= 0);
+  if (hasHeader) {
+    const map = first.map(_canonField);
+    let emailIdx = map.indexOf('email');
+    if (emailIdx < 0) emailIdx = _guessEmailCol(rows, 1);            // header didn't name it — find it by content
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows[i]; if (!r || !r.length) continue;
+      const o = {};
+      for (let j = 0; j < map.length; j++) { const k = map[j]; if (k && k !== 'name' && o[k] == null) o[k] = (r[j] != null ? String(r[j]).trim() : ''); }
+      if ((o.email == null || o.email === '') && emailIdx >= 0) o.email = String(r[emailIdx] || '').trim();
+      if (!o.first_name && !o.last_name) { const ni = map.indexOf('name'); if (ni >= 0 && r[ni]) { const p = String(r[ni]).trim().split(/\s+/); o.first_name = p.shift() || ''; o.last_name = p.join(' '); } }
+      if (o.email) out.push(o);
+    }
   } else {
-    // No header — every non-empty row is a bare email address in the first cell.
-    for (let i = 0; i < rows.length; i++) { const r = rows[i]; const v = String((r && r[0]) || '').trim(); if (v) out.push({ email: v }); }
+    // No header — locate the email column by content (falls back to any cell holding an @).
+    const emailIdx = _guessEmailCol(rows, 0);
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i]; if (!r) continue;
+      let em = emailIdx >= 0 ? String(r[emailIdx] || '').trim() : '';
+      if (!em) { for (let j = 0; j < r.length; j++) { if (String(r[j] || '').indexOf('@') >= 0) { em = String(r[j]).trim(); break; } } }
+      if (em) out.push({ email: em });
+    }
   }
   return out;
 }

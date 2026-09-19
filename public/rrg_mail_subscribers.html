@@ -19,10 +19,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .tabs a{color:#cdd7ea;text-decoration:none;font-weight:700;font-size:12.5px;padding:7px 13px;border-radius:8px;background:rgba(255,255,255,.06);}
 .tabs a.on{background:#fff;color:var(--navy);}
 .wrap{max-width:none;margin:20px 0;padding:0 28px 70px;}
-.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;} @media(max-width:720px){.tiles{grid-template-columns:repeat(2,1fr);}}
-.tile{background:#fff;border:1px solid var(--line);border-radius:12px;padding:13px 16px;} .tile .n{font-size:22px;font-weight:800;color:var(--navy);} .tile .l{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);font-weight:700;margin-top:2px;}
-.tiles2{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;} @media(max-width:720px){.tiles2{grid-template-columns:repeat(3,1fr);}}
-.tile .ksub{font-size:11px;color:#1f8a5b;font-weight:700;margin-top:3px;}
+.tiles{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;}
+.tile{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 15px;flex:1 1 120px;min-width:120px;max-width:200px;} .tile .n{font-size:21px;font-weight:800;color:var(--navy);line-height:1.1;} .tile .l{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);font-weight:700;margin-top:2px;}
+.tile .ksub{font-size:11px;color:#1f8a5b;font-weight:700;margin-top:2px;}
 .ktile{cursor:pointer;transition:border-color .12s,box-shadow .12s;} .ktile:hover{border-color:#c3ccdb;} .ktile.on{border-color:var(--navy);box-shadow:0 0 0 2px rgba(11,22,54,.12);}
 .qbar{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin-bottom:14px;}
 .qbar .qlbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--soft);font-weight:800;margin-right:2px;}
@@ -63,7 +62,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 </div></div>
 <div class="wrap">
   <div class="tiles" id="tiles"></div>
-  <div class="tiles2" id="tiles2"></div>
   <div class="qbar" id="qbar"></div>
   <div class="card">
     <div class="hd"><b>Subscribers</b><span class="cnt" id="cnt"></span><button id="filterBtn" class="rlf-btn" style="margin-left:8px">⚙ Filters</button><button id="importBtn" class="rlf-btn" style="margin-left:8px">⬆ Import</button><div class="searchwrap"><svg class="searchic" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"></circle><line x1="12.8" y1="12.8" x2="17.5" y2="17.5"></line></svg><input id="search" placeholder="Search by email, name, company or area…" autocomplete="off"><button type="button" class="searchx" id="searchx" title="Clear search">×</button></div></div>
@@ -94,24 +92,17 @@ function nameOf(s){ return ((s.first_name||'')+' '+(s.last_name||'')).trim(); }
 function fmtDate(d){ if(!d) return ''; var p=String(d).slice(0,10).split('-'); return (p.length===3)?(p[1]+'-'+p[2]+'-'+p[0]):String(d).slice(0,10); }
 
 function drawTiles(){
-  var el=document.getElementById('tiles');
-  if(el){
-    var total=ALL.length, active=COUNTS.active||0, unsub=COUNTS.unsubscribed||0, bounced=(COUNTS.bounced||0)+(COUNTS.complained||0);
-    el.innerHTML=[['Total',total],['Active',active],['Unsubscribed',unsub],['Bounced',bounced]]
-      .map(function(t){ return '<div class="tile"><div class="n">'+t[1].toLocaleString()+'</div><div class="l">'+t[0]+'</div></div>'; }).join('');
-  }
-  // KPIs by type — count + how many of each are still emailable (active). Click to filter.
-  var el2=document.getElementById('tiles2');
-  if(el2){
-    function tc(pred){ var n=0,a=0; ALL.forEach(function(s){ if(pred(s)){ n++; if((s.status||'active')==='active') a++; } }); return {n:n,a:a}; }
-    var defs=[
-      ['Broker','Brokers',tc(function(s){return (s.type||'')==='Broker';})],
-      ['Restaurant','Restaurants',tc(function(s){return (s.type||'')==='Restaurant';})],
-      ['__untyped__','Untyped',tc(function(s){return !(s.type||'');})]
-    ];
-    el2.innerHTML=defs.map(function(d){ var on=(QUICK.type===d[0]); return '<div class="tile ktile'+(on?' on':'')+'" data-type="'+esc(d[0])+'" title="Click to filter"><div class="n">'+d[2].n.toLocaleString()+'</div><div class="l">'+d[1]+'</div><div class="ksub">'+d[2].a.toLocaleString()+' active</div></div>'; }).join('');
-    el2.querySelectorAll('.ktile').forEach(function(t){ t.addEventListener('click',function(){ var v=t.getAttribute('data-type'); QUICK.type=(QUICK.type===v?'':v); renderChips(); drawTiles(); applyFilter(); }); });
-  }
+  var el=document.getElementById('tiles'); if(!el) return;
+  var total=ALL.length, active=COUNTS.active||0, unsub=COUNTS.unsubscribed||0, bounced=(COUNTS.bounced||0)+(COUNTS.complained||0);
+  function tc(pred){ var n=0,a=0; ALL.forEach(function(s){ if(pred(s)){ n++; if((s.status||'active')==='active') a++; } }); return {n:n,a:a}; }
+  var br=tc(function(s){return (s.type||'')==='Broker';}), rs=tc(function(s){return (s.type||'')==='Restaurant';}), un=tc(function(s){return !(s.type||'');});
+  var html='';
+  // Status KPIs
+  [['Total',total],['Active',active],['Unsubscribed',unsub],['Bounced',bounced]].forEach(function(t){ html+='<div class="tile"><div class="n">'+t[1].toLocaleString()+'</div><div class="l">'+t[0]+'</div></div>'; });
+  // Type KPIs — count + how many are still emailable (active). Click to filter.
+  [['Broker','Brokers',br],['Restaurant','Restaurants',rs],['__untyped__','Untyped',un]].forEach(function(d){ var on=(QUICK.type===d[0]); html+='<div class="tile ktile'+(on?' on':'')+'" data-type="'+esc(d[0])+'" title="Click to filter"><div class="n">'+d[2].n.toLocaleString()+'</div><div class="l">'+d[1]+'</div><div class="ksub">'+d[2].a.toLocaleString()+' active</div></div>'; });
+  el.innerHTML=html;
+  el.querySelectorAll('.ktile').forEach(function(t){ t.addEventListener('click',function(){ var v=t.getAttribute('data-type'); QUICK.type=(QUICK.type===v?'':v); renderChips(); drawTiles(); applyFilter(); }); });
 }
 
 function renderChips(){
