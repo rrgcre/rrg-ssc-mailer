@@ -759,7 +759,8 @@ function mount(app, deps) {
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
 
   // All email as calendar events — scheduled sends (future) + finished campaigns (past). Rendered on rrg_calendar.
-  app.get('/api/mail/calendar-events', requireAdmin, guard, async (req, res) => { try {
+  // Any signed-in teammate can see scheduled & sent blasts on the shared calendar (read-only; global auth still applies).
+  app.get('/api/mail/calendar-events', guard, async (req, res) => { try {
     const sched = (await q(`SELECT s.id, s.campaign_id, s.run_at, c.name FROM mm_schedules s JOIN mm_campaigns c ON c.id=s.campaign_id WHERE s.tenant=$1 AND s.status='pending' ORDER BY s.run_at ASC LIMIT 500`, [TENANT])).rows;
     const sent = (await q(`SELECT c.id, c.name, c.subject, c.finished_at, c.started_at, c.sent, c.opens, c.clicks FROM mm_campaigns c WHERE c.tenant=$1 AND c.finished_at IS NOT NULL ORDER BY c.finished_at DESC LIMIT 500`, [TENANT])).rows;
     const events = [];
