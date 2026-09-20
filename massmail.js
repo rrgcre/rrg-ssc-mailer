@@ -387,20 +387,22 @@ async function materialize(campaignId, runSeq, useAB) {
   return tot;
 }
 // Begin a fresh send run (re-queues the full active list). Used for the first send and every scheduled repeat.
-async function _beginRun(campaignId, useAB) {
+async function _beginRun(campaignId, useAB, actor) {
   const c = (await q('SELECT runs FROM mm_campaigns WHERE tenant=$1 AND id=$2', [TENANT, campaignId])).rows[0];
   if (!c) throw new Error('Campaign not found.');
   const runSeq = (c.runs || 0) + 1;
   await materialize(campaignId, runSeq, useAB);
   await q(`UPDATE mm_campaigns SET status='sending', runs=$3, started_at=COALESCE(started_at, now()), last_run_at=now(), finished_at=NULL WHERE tenant=$1 AND id=$2`, [TENANT, campaignId, runSeq]);
   kickDrainer();
+  // Post the send to the CRM activity feed (scheduled runs have no user → mark as Scheduler).
+  try { const info = (await q('SELECT name,total FROM mm_campaigns WHERE tenant=$1 AND id=$2', [TENANT, campaignId])).rows[0]; if (info) { const meta = { tool: 'campaigns', kind: 'send', id: campaignId }; if (!actor) { meta.by = 'Scheduler'; meta.byUser = 'scheduler'; } _logSys(actor || null, 'Campaigns', 'Sent “' + (info.name || 'Campaign') + '” to ' + Number(info.total || 0).toLocaleString() + ' recipient' + (Number(info.total || 0) === 1 ? '' : 's') + (runSeq > 1 ? (' (send #' + runSeq + ')') : ''), meta); } } catch (e) {}
 }
-async function startCampaign(campaignId) {
+async function startCampaign(campaignId, actor) {
   const c = (await q('SELECT status FROM mm_campaigns WHERE tenant=$1 AND id=$2', [TENANT, campaignId])).rows[0];
   if (!c) throw new Error('Campaign not found.');
   if (c.status === 'sending') return;
   if (c.status === 'paused') { await q(`UPDATE mm_campaigns SET status='sending' WHERE tenant=$1 AND id=$2`, [TENANT, campaignId]); kickDrainer(); return; }  // resume same run
-  await _beginRun(campaignId, true);
+  await _beginRun(campaignId, true, actor);
 }
 async function startRun(campaignId) { await _beginRun(campaignId, false); }  // scheduled repeat — plain full send, no A/B
 // Fire any due schedules. One run per due row; a campaign still sending a prior run waits for the next tick.
@@ -433,6 +435,7 @@ async function pauseCampaign(campaignId) { await q(`UPDATE mm_campaigns SET stat
 
 /* ---------------- Send worker (throttled) ---------------- */
 let BASE = '';
+let _logSys = function () {};  // set from deps.logSysEvent at mount — posts to the CRM activity feed
 let _draining = false;
 const RATE = Math.max(1, Number(process.env.SES_MAX_RATE || 10)); // messages per second
 function _sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
@@ -551,6 +554,7 @@ function mount(app, deps) {
   const requireAdmin = deps.requireAdmin || function (req, res, next) { next(); };
   const subscriberAreas = deps.subscriberAreas || function () { return []; };  // firm's subset of areas offered to subscribers
   const mailCadence = deps.mailCadence || function () { return {}; };  // admin defaults for the Standard cadence scheduler
+  _logSys = deps.logSysEvent || function () {};  // feed logger for imports & sends
   BASE = (deps.appBaseUrl && deps.appBaseUrl()) || '';
   const express = require('express');
   initDb();
@@ -650,7 +654,18 @@ function mount(app, deps) {
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.post('/api/mail/campaigns', requireAdmin, guard, express.json({ limit: '25mb' }), async (req, res) => { try { const b = req.body || {}; if (b.id) { await updateCampaign(Number(b.id), b); res.json({ ok: true, id: Number(b.id) }); } else { const id = await createCampaign(b, req.user); res.json({ ok: true, id }); } } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.post('/api/mail/campaigns/:id/test', requireAdmin, guard, express.json(), async (req, res) => { try { if (!sesConfigured()) return res.status(400).json({ ok: false, error: 'Sending (SES) is not configured.' }); const to = String((req.body || {}).email || '').trim(); if (!_validEmail(to)) return res.status(400).json({ ok: false, error: 'Enter a valid test email.' }); const id = await sendTest(Number(req.params.id), to); res.json({ ok: true, messageId: id || '' }); } catch (e) { res.status(502).json({ ok: false, error: String(e.message || e) }); } });
-  app.post('/api/mail/campaigns/:id/send', requireAdmin, guard, express.json(), async (req, res) => { try { if (!sesConfigured()) return res.status(400).json({ ok: false, error: 'Sending (SES) is not configured.' }); await startCampaign(Number(req.params.id)); res.json({ ok: true }); } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
+  app.post('/api/mail/campaigns/:id/send', requireAdmin, guard, express.json(), async (req, res) => { try { if (!sesConfigured()) return res.status(400).json({ ok: false, error: 'Sending (SES) is not configured.' }); await startCampaign(Number(req.params.id), req); res.json({ ok: true }); } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
+  // One activity-feed entry per import (the client posts this once after all chunks finish).
+  app.post('/api/mail/import-log', requireAdmin, guard, express.json(), async (req, res) => { try {
+    const b = req.body || {};
+    const added = Math.max(0, parseInt(b.added, 10) || 0), updated = Math.max(0, parseInt(b.updated, 10) || 0), skipped = Math.max(0, parseInt(b.skipped, 10) || 0);
+    const total = Math.max(0, parseInt(b.total, 10) || (added + updated + skipped));
+    const src = String(b.source || '').slice(0, 80), listName = String(b.listName || '').slice(0, 120), type = String(b.type || '').slice(0, 40);
+    const bits = []; if (added) bits.push('added ' + added.toLocaleString()); if (updated) bits.push('updated ' + updated.toLocaleString()); if (skipped) bits.push('skipped ' + skipped.toLocaleString());
+    const note = 'Imported ' + total.toLocaleString() + ' subscriber' + (total === 1 ? '' : 's') + (type ? (' (' + type + ')') : '') + (listName ? (' → ' + listName) : '') + (bits.length ? (' — ' + bits.join(', ')) : '') + (src ? (' · ' + src) : '');
+    _logSys(req, 'Subscribers', note, { tool: 'subscribers', kind: 'import' });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.post('/api/mail/campaigns/:id/pause', requireAdmin, guard, async (req, res) => { try { await pauseCampaign(Number(req.params.id)); res.json({ ok: true }); } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.post('/api/mail/campaigns/:id/archive', requireAdmin, guard, express.json(), async (req, res) => { try { const a = (req.body||{}).archived !== false; await q('UPDATE mm_campaigns SET archived=$3 WHERE tenant=$1 AND id=$2', [TENANT, Number(req.params.id), a]); res.json({ ok: true, archived: a }); } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   // Permanently delete a campaign and everything tied to it. Blocked while it is actively sending.

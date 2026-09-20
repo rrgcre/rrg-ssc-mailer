@@ -335,7 +335,8 @@ function doImport(){
   function finish(err){
     IMPORTING=false; g('impSpin').style.display='none'; g('impDone').style.display='block';
     if(err){ g('impWorkTitle').textContent='Import stopped'; g('impWorkTitle').style.color='#b23a2c'; g('impWorkSub').style.color='#b23a2c'; g('impWorkSub').textContent=err; }
-    else { g('impBar').style.width='100%'; g('impWorkTitle').textContent='Import complete'; g('impWorkTitle').style.color='#1f8a5b'; g('impWorkSub').style.color='var(--muted)'; g('impWorkSub').textContent='Added '+acc.added.toLocaleString()+' · updated '+acc.updated.toLocaleString()+' · skipped '+acc.skipped.toLocaleString()+' · already unsubscribed '+acc.suppressed.toLocaleString()+'.'; }
+    else { g('impBar').style.width='100%'; g('impWorkTitle').textContent='Import complete'; g('impWorkTitle').style.color='#1f8a5b'; g('impWorkSub').style.color='var(--muted)'; g('impWorkSub').textContent='Added '+acc.added.toLocaleString()+' · updated '+acc.updated.toLocaleString()+' · skipped '+acc.skipped.toLocaleString()+' · already unsubscribed '+acc.suppressed.toLocaleString()+'.';
+      try{ var _ln=(listSel==='__new')?listNew:((LISTS||[]).filter(function(x){return String(x.id)===String(listId);})[0]||{}).name||''; api('POST','/api/mail/import-log',{ added:acc.added, updated:acc.updated, skipped:acc.skipped, total:tot, source:src, type:typ, listName:_ln }); }catch(e){} }
     reload();
   }
   function next(){

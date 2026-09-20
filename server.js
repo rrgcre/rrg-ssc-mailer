@@ -20216,7 +20216,7 @@ process.on('unhandledRejection', (reason) => { try { console.error('unhandledRej
 process.on('uncaughtException', (err) => { try { console.error('uncaughtException:', err && (err.stack || err.message || err)); } catch (e) {} });
 
 const PORT = process.env.PORT || 8787;
-try { massmail.mount(app, { requireAdmin: requireAdmin, appBaseUrl: appBaseUrl, subscriberAreas: effSubscriberMarkets, mailCadence: effMailCadence }); console.log('[MAIL] mass-email module mounted' + (massmail.dbReady() ? '' : ' (storage inert — no DATABASE_URL)') + (massmail.sesConfigured() ? '' : ' (sending inert — SES not configured)')); } catch (e) { console.error('[MAIL] mount failed: ' + (e && e.message)); }
+try { massmail.mount(app, { requireAdmin: requireAdmin, appBaseUrl: appBaseUrl, subscriberAreas: effSubscriberMarkets, mailCadence: effMailCadence, logSysEvent: logSysEvent }); console.log('[MAIL] mass-email module mounted' + (massmail.dbReady() ? '' : ' (storage inert — no DATABASE_URL)') + (massmail.sesConfigured() ? '' : ' (sending inert — SES not configured)')); } catch (e) { console.error('[MAIL] mount failed: ' + (e && e.message)); }
 try { emailfinder.mount(app, { requireAdmin: requireAdmin, loadGmapsKey: loadGmapsKey }); console.log('[FINDER] email-finder module mounted' + (loadGmapsKey() ? '' : ' (no Google Maps key — set one in Admin)')); } catch (e) { console.error('[FINDER] mount failed: ' + (e && e.message)); }
 // Postgres is the system of record: BEFORE the server accepts a single request,
 // rebuild the disk cache from Postgres so a wiped ephemeral disk self-heals from
