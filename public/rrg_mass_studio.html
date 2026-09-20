@@ -380,8 +380,9 @@ function loadCampaigns(){
     RRGList.create(cfg);
     var body=$('campBody');
     if(body){ body.addEventListener('click',function(e){
-      var t=e.target.closest?e.target.closest('[data-open],[data-prev],[data-exp],[data-arch],[data-sched],[data-hist]'):null; if(!t) return;
+      var t=e.target.closest?e.target.closest('[data-open],[data-prev],[data-exp],[data-arch],[data-sched],[data-hist],[data-del]'):null; if(!t) return;
       if(t.hasAttribute('data-open')) openCampaign(t.getAttribute('data-open'));
+      else if(t.hasAttribute('data-del')) deleteCampaign(t);
       else if(t.hasAttribute('data-sched')) openScheduleModal(t.getAttribute('data-sched'));
       else if(t.hasAttribute('data-hist')) openRunHistory(t.getAttribute('data-hist'));
       else if(t.hasAttribute('data-prev')) previewCampaign(t.getAttribute('data-prev'));
@@ -403,7 +404,16 @@ function campActionsCell(c){
     +' <span data-prev="'+c.id+'" style="color:var(--blue);cursor:pointer;">Preview</span>'
     +' <span data-exp="'+c.id+'" style="color:var(--blue);cursor:pointer;">Export</span>'
     +((c.runs||0)>=1||Number(c.sent||0)>0?' <span data-hist="'+c.id+'" style="color:var(--blue);cursor:pointer;">History</span>':'')
-    +' <span data-arch="'+c.id+'" data-a="'+(c.archived?'0':'1')+'" style="color:var(--muted);cursor:pointer;">'+(c.archived?'Restore':'Archive')+'</span>';
+    +' <span data-arch="'+c.id+'" data-a="'+(c.archived?'0':'1')+'" style="color:var(--muted);cursor:pointer;">'+(c.archived?'Restore':'Archive')+'</span>'
+    +' <span data-del="'+c.id+'" data-sent="'+((timesSent(c)>0||Number(c.sent||0)>0)?1:0)+'" data-st="'+esc(c.status||'')+'" data-nm="'+esc(c.name||'(untitled)')+'" style="color:#b23a2c;cursor:pointer;">Delete</span>';
+}
+function _cmToast(msg,err){ if(window.rrgToast){ try{ rrgToast(msg, err?{danger:true}:undefined); return; }catch(e){} } if(err) alert(msg); }
+function deleteCampaign(el){
+  var id=el.getAttribute('data-del'), sent=el.getAttribute('data-sent')==='1', st=(el.getAttribute('data-st')||''), nm=(el.getAttribute('data-nm')||'(untitled)');
+  if(st==='sending'||st==='queued'){ _cmToast('Pause this campaign before deleting it.',true); return; }
+  if(sent){ var typed=window.prompt('"'+nm+'" has been sent — deleting permanently removes it and all its reporting (opens, clicks, send history). This cannot be undone.\n\nType DELETE to confirm:'); if(typed===null) return; if(String(typed).trim().toUpperCase()!=='DELETE'){ _cmToast('Delete canceled.'); return; } }
+  else { if(!window.confirm('Delete the campaign "'+nm+'"? This cannot be undone.')) return; }
+  api('DELETE','/api/mail/campaigns/'+id).then(function(r){ if(!r||!r.ok){ _cmToast((r&&r.error)||'Could not delete the campaign.',true); return; } _cmToast('Campaign deleted.'); loadStats(); loadCampaigns(); }).catch(function(){ _cmToast('Could not reach the server.',true); });
 }
 function rate(c,k){ var d=c.total||c.sent||0; return d? (c[k]||0)/d : 0; }
 // How many times a campaign has gone out (recurring campaigns track runs; a one-off that sent counts as 1).

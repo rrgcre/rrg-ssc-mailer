@@ -641,6 +641,19 @@ function mount(app, deps) {
   app.post('/api/mail/campaigns/:id/send', requireAdmin, guard, express.json(), async (req, res) => { try { if (!sesConfigured()) return res.status(400).json({ ok: false, error: 'Sending (SES) is not configured.' }); await startCampaign(Number(req.params.id)); res.json({ ok: true }); } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.post('/api/mail/campaigns/:id/pause', requireAdmin, guard, async (req, res) => { try { await pauseCampaign(Number(req.params.id)); res.json({ ok: true }); } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.post('/api/mail/campaigns/:id/archive', requireAdmin, guard, express.json(), async (req, res) => { try { const a = (req.body||{}).archived !== false; await q('UPDATE mm_campaigns SET archived=$3 WHERE tenant=$1 AND id=$2', [TENANT, Number(req.params.id), a]); res.json({ ok: true, archived: a }); } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
+  // Permanently delete a campaign and everything tied to it. Blocked while it is actively sending.
+  app.delete('/api/mail/campaigns/:id', requireAdmin, guard, async (req, res) => { try {
+    const id = Number(req.params.id);
+    const c = (await q('SELECT status FROM mm_campaigns WHERE tenant=$1 AND id=$2', [TENANT, id])).rows[0];
+    if (!c) return res.status(404).json({ ok: false, error: 'Campaign not found.' });
+    if (c.status === 'sending' || c.status === 'queued') return res.status(409).json({ ok: false, error: 'This campaign is sending — pause it before deleting.' });
+    await q(`UPDATE mm_schedules SET status='canceled', done_at=now() WHERE tenant=$1 AND campaign_id=$2 AND status='pending'`, [TENANT, id]);
+    await q('DELETE FROM mm_schedules WHERE tenant=$1 AND campaign_id=$2', [TENANT, id]);
+    await q('DELETE FROM mm_sends WHERE tenant=$1 AND campaign_id=$2', [TENANT, id]);
+    await q('DELETE FROM mm_events WHERE tenant=$1 AND campaign_id=$2', [TENANT, id]);
+    await q('DELETE FROM mm_campaigns WHERE tenant=$1 AND id=$2', [TENANT, id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.get('/api/mail/campaigns/:id/schedule', requireAdmin, guard, async (req, res) => { try {
     const rows = (await q(`SELECT id, run_at, status, done_at FROM mm_schedules WHERE tenant=$1 AND campaign_id=$2 ORDER BY run_at ASC`, [TENANT, Number(req.params.id)])).rows;
     res.json({ ok: true, schedules: rows });
