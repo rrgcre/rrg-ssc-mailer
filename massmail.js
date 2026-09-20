@@ -767,6 +767,20 @@ function mount(app, deps) {
 
   app.get('/api/mail/lists', requireAdmin, guard, async (req, res) => { try { const rows = (await q('SELECT l.id,l.name,(SELECT count(*)::int FROM mm_list_members m WHERE m.list_id=l.id) AS members FROM mm_lists l WHERE l.tenant=$1 ORDER BY l.id DESC', [TENANT])).rows; res.json({ ok: true, lists: rows }); } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.post('/api/mail/lists', requireAdmin, guard, express.json(), async (req, res) => { try { const nm = String((req.body || {}).name || '').trim().slice(0, 160); if (!nm) return res.status(400).json({ ok: false, error: 'Name required.' }); const id = (await q('INSERT INTO mm_lists(tenant,name) VALUES($1,$2) RETURNING id', [TENANT, nm])).rows[0].id; res.json({ ok: true, id }); } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
+  app.post('/api/mail/lists/:id', requireAdmin, guard, express.json(), async (req, res) => { try { const id = Number(req.params.id); const nm = String((req.body || {}).name || '').trim().slice(0, 160); if (!nm) return res.status(400).json({ ok: false, error: 'Name required.' }); await q('UPDATE mm_lists SET name=$3 WHERE tenant=$1 AND id=$2', [TENANT, id, nm]); res.json({ ok: true }); } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
+  app.delete('/api/mail/lists/:id', requireAdmin, guard, async (req, res) => { try { const id = Number(req.params.id); await q('UPDATE mm_campaigns SET list_id=NULL WHERE tenant=$1 AND list_id=$2', [TENANT, id]); await q('DELETE FROM mm_list_members WHERE list_id=$1', [id]); await q('DELETE FROM mm_lists WHERE tenant=$1 AND id=$2', [TENANT, id]); res.json({ ok: true }); } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
+  // Add a set of subscribers (by email) to a list — existing (listId) or a new one (listName). Used by the Subscribers bulk action.
+  app.post('/api/mail/list-add', requireAdmin, guard, express.json({ limit: '4mb' }), async (req, res) => { try {
+    const b = req.body || {};
+    let listId = b.listId ? Number(b.listId) : 0;
+    const listName = String(b.listName || '').trim().slice(0, 160);
+    if (!listId && listName) { listId = (await q('INSERT INTO mm_lists(tenant,name) VALUES($1,$2) RETURNING id', [TENANT, listName])).rows[0].id; }
+    if (!listId) return res.status(400).json({ ok: false, error: 'Pick a list or name a new one.' });
+    const emails = (Array.isArray(b.emails) ? b.emails : []).map(e => _norm(e)).filter(_validEmail);
+    if (!emails.length) return res.json({ ok: true, listId: listId, added: 0, requested: 0 });
+    const ins = await q(`INSERT INTO mm_list_members(list_id, subscriber_id) SELECT $1, s.id FROM mm_subscribers s WHERE s.tenant=$2 AND s.email = ANY($3::text[]) ON CONFLICT (list_id, subscriber_id) DO NOTHING`, [listId, TENANT, emails]);
+    res.json({ ok: true, listId: listId, added: ins.rowCount || 0, requested: emails.length });
+  } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
 
   /* public */
   app.post('/api/mail/ses-webhook', express.text({ type: '*/*', limit: '2mb' }), async (req, res) => { try { await handleSns(req.body); } catch (e) { console.error('[MAIL] sns: ' + (e && e.message)); } res.json({ ok: true }); });

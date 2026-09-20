@@ -64,7 +64,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
   <div class="tiles" id="tiles"></div>
   <div class="qbar" id="qbar"></div>
   <div class="card">
-    <div class="hd"><b>Subscribers</b><span class="cnt" id="cnt"></span><button id="filterBtn" class="rlf-btn" style="margin-left:8px">⚙ Filters</button><button id="importBtn" class="rlf-btn" style="margin-left:8px">⬆ Import</button><div class="searchwrap"><svg class="searchic" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"></circle><line x1="12.8" y1="12.8" x2="17.5" y2="17.5"></line></svg><input id="search" placeholder="Search by email, name, company or area…" autocomplete="off"><button type="button" class="searchx" id="searchx" title="Clear search">×</button></div></div>
+    <div class="hd"><b>Subscribers</b><span class="cnt" id="cnt"></span><button id="filterBtn" class="rlf-btn" style="margin-left:8px">⚙ Filters</button><button id="listsBtn" class="rlf-btn" style="margin-left:8px">☰ Lists</button><button id="importBtn" class="rlf-btn" style="margin-left:8px">⬆ Import</button><div class="searchwrap"><svg class="searchic" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"></circle><line x1="12.8" y1="12.8" x2="17.5" y2="17.5"></line></svg><input id="search" placeholder="Search by email, name, company or area…" autocomplete="off"><button type="button" class="searchx" id="searchx" title="Clear search">×</button></div></div>
     <div id="body"><div class="listloading"><div class="listspin"></div>Loading subscribers…</div></div>
   </div>
 </div>
@@ -137,6 +137,35 @@ function applyFilter(){
 
 function suppressBulk(ids, done){ api('POST','/api/mail/suppress-bulk',{emails:ids}).then(function(){ reload().then(function(){ if(done) done(); }); }); }
 function restoreBulk(ids, done){ api('POST','/api/mail/unsuppress',{emails:ids}).then(function(){ reload().then(function(){ if(done) done(); }); }); }
+function addToListBulk(ids, done){ openAddToList(ids, done); }
+function openAddToList(emails, done){
+  var ov=document.getElementById('al_ov');
+  if(!ov){ ov=document.createElement('div'); ov.id='al_ov'; ov.style.cssText='position:fixed;inset:0;background:rgba(6,14,32,.5);z-index:600;display:flex;align-items:center;justify-content:center;padding:18px'; document.body.appendChild(ov); }
+  var sel='width:100%;font:inherit;font-size:13px;padding:9px 11px;border:1px solid #cfd6e2;border-radius:8px;background:#fff;box-sizing:border-box';
+  var opts='<option value="">— Choose a list —</option>'+LISTS.map(function(l){return '<option value="'+l.id+'">'+esc(l.name)+'</option>';}).join('')+'<option value="__new">+ New list…</option>';
+  ov.innerHTML='<div style="background:#fff;border-radius:14px;width:100%;max-width:460px;box-shadow:0 24px 70px rgba(0,0,0,.3)">'
+    +'<div style="display:flex;align-items:center;padding:15px 20px;border-bottom:1px solid var(--line)"><b style="color:var(--navy);font-size:15px">Add to list</b><button id="al_x" type="button" style="margin-left:auto;background:none;border:none;font-size:22px;color:#8a93a8;cursor:pointer;line-height:1">×</button></div>'
+    +'<div style="padding:18px 20px">'
+      +'<div style="font-size:12.5px;color:var(--muted);margin-bottom:12px">Add the <b>'+emails.length.toLocaleString()+'</b> selected subscriber'+(emails.length===1?'':'s')+' to a list you can send a campaign to. Already-listed members are skipped.</div>'
+      +'<select id="al_sel" style="'+sel+'">'+opts+'</select>'
+      +'<input id="al_new" placeholder="New list name (e.g. Houston Brokers)" style="'+sel+';margin-top:10px;display:none">'
+    +'</div>'
+    +'<div style="display:flex;gap:12px;align-items:center;padding:14px 20px;border-top:1px solid var(--line);background:#f7f9fc"><button class="rlf-btn" id="al_go" style="background:var(--navy);color:#fff;border-color:var(--navy)">Add to list</button><span id="al_msg" style="font-size:12.5px;font-weight:700"></span></div>'
+    +'</div>';
+  ov.style.display='flex';
+  var g=function(id){return ov.querySelector('#'+id);};
+  g('al_x').onclick=function(){ ov.style.display='none'; };
+  ov.onclick=function(e){ if(e.target===ov) ov.style.display='none'; };
+  g('al_sel').onchange=function(){ g('al_new').style.display=(this.value==='__new')?'block':'none'; if(this.value==='__new') g('al_new').focus(); };
+  g('al_go').onclick=function(){
+    var m=g('al_msg'); var v=g('al_sel').value; var body={ emails:emails };
+    if(v==='__new'){ var nm=(g('al_new').value||'').trim(); if(!nm){ m.style.color='#b23a2c'; m.textContent='Name the new list.'; return; } body.listName=nm; }
+    else if(v){ body.listId=v; }
+    else { m.style.color='#b23a2c'; m.textContent='Choose a list.'; return; }
+    var btn=g('al_go'); btn.disabled=true; m.style.color='#6b7488'; m.textContent='Adding…';
+    api('POST','/api/mail/list-add',body).then(function(r){ btn.disabled=false; if(!r||!r.ok){ m.style.color='#b23a2c'; m.textContent=(r&&r.error)||'Could not add.'; return; } m.style.color='#1f8a5b'; m.textContent='Added '+(r.added||0).toLocaleString()+(r.requested&&r.added<r.requested?(' of '+r.requested.toLocaleString()+' (rest already on it)'):'')+'.'; setTimeout(function(){ ov.style.display='none'; reload().then(function(){ if(done) done(); }); }, 900); }).catch(function(){ btn.disabled=false; m.style.color='#b23a2c'; m.textContent='Could not reach the server.'; });
+  };
+}
 
 function emptyMsg(promptMode){
   if(!ALL.length) return '<div class="empty"><b>No subscribers yet.</b><br>Click <b>⬆ Import</b> above to add your list.</div>';
@@ -148,7 +177,7 @@ function renderList(list, promptMode){
   var cfg={ mount:'#body', data:list, key:'mail_subscribers_v1', countEl:'#cnt', filterButton:document.getElementById('filterBtn'), per:100, compact:true,
     empty:em,
     rowId:function(s){ return s.email; }, rowHref:function(id){ return './rrg_mail_subscriber.html?email='+encodeURIComponent(id); }, defaultSort:6, defaultDir:-1,
-    bulk:[ {label:'Unsubscribe', danger:true, min:1, fn:suppressBulk}, {label:'Restore', min:1, fn:restoreBulk} ],
+    bulk:[ {label:'Add to list', min:1, fn:addToListBulk}, {label:'Unsubscribe', danger:true, min:1, fn:suppressBulk}, {label:'Restore', min:1, fn:restoreBulk} ],
     columns:[
       { label:'Email', width:250, sort:function(a,b){return RRGList.cmp(a.email,b.email);}, cell:function(s){ var nm=nameOf(s); return '<div><a href="./rrg_mail_subscriber.html?email='+encodeURIComponent(s.email)+'" style="font-weight:600;color:var(--navy);text-decoration:none">'+esc(s.email)+'</a>'+(nm?('<div class="meta">'+esc(nm)+'</div>'):'')+'</div>'; } },
       { label:'Name', width:150, sort:function(a,b){return RRGList.cmp(nameOf(a),nameOf(b));}, filterVal:function(s){return nameOf(s);}, cell:function(s){ var nm=nameOf(s); return nm?esc(nm):'<span class="meta">—</span>'; } },
@@ -174,6 +203,38 @@ document.getElementById('qbar').addEventListener('click', function(e){ var b=e.t
 document.getElementById('search').addEventListener('input', applyFilter);
 document.getElementById('searchx').addEventListener('click', function(){ var s=document.getElementById('search'); s.value=''; applyFilter(); s.focus(); });
 document.getElementById('importBtn').addEventListener('click', openImport);
+document.getElementById('listsBtn').addEventListener('click', openLists);
+
+/* ---- Lists manager (view · create · rename · delete) ---- */
+function openLists(){
+  var ov=document.getElementById('lm_ov');
+  if(!ov){ ov=document.createElement('div'); ov.id='lm_ov'; ov.style.cssText='position:fixed;inset:0;background:rgba(6,14,32,.5);z-index:600;display:flex;align-items:center;justify-content:center;padding:18px'; document.body.appendChild(ov); ov.addEventListener('click',function(e){ if(e.target===ov) ov.style.display='none'; }); }
+  ov.style.display='flex'; ov.innerHTML='<div style="background:#fff;border-radius:14px;width:100%;max-width:520px;max-height:calc(100vh - 40px);overflow:auto;box-shadow:0 24px 70px rgba(0,0,0,.3)"><div style="display:flex;align-items:center;padding:15px 20px;border-bottom:1px solid var(--line)"><b style="color:var(--navy);font-size:15px">Lists</b><button id="lm_x" type="button" style="margin-left:auto;background:none;border:none;font-size:22px;color:#8a93a8;cursor:pointer;line-height:1">×</button></div><div id="lm_body" style="padding:16px 20px"><div class="meta">Loading…</div></div></div>';
+  ov.querySelector('#lm_x').onclick=function(){ ov.style.display='none'; };
+  loadListsMgr();
+}
+function loadListsMgr(){
+  api('GET','/api/mail/lists').then(function(r){
+    var body=document.getElementById('lm_body'); if(!body) return;
+    var lists=(r&&r.lists)||[];
+    LISTS=lists.map(function(l){return {id:l.id,name:l.name,members:l.members};}); // keep global in sync
+    var rows=lists.length? lists.map(function(l){
+      return '<div class="lm-row" data-id="'+l.id+'" style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)">'
+        +'<div style="flex:1;min-width:0"><div class="lm-nm" style="font-weight:600;color:var(--navy)">'+esc(l.name)+'</div><div class="meta">'+Number(l.members||0).toLocaleString()+' subscriber'+(l.members===1?'':'s')+'</div></div>'
+        +'<button class="rlf-btn lm-ren" data-id="'+l.id+'" data-nm="'+esc(l.name)+'">Rename</button>'
+        +'<button class="rlf-btn lm-del" data-id="'+l.id+'" data-nm="'+esc(l.name)+'" style="color:#b23a2c">Delete</button>'
+      +'</div>';
+    }).join('') : '<div class="meta" style="padding:6px 0 14px">No lists yet. Create one below, or select subscribers in the list and use <b>Add to list</b>.</div>';
+    var sel='font:inherit;font-size:13px;padding:9px 11px;border:1px solid #cfd6e2;border-radius:8px;background:#fff';
+    body.innerHTML=rows
+      +'<div style="display:flex;gap:8px;margin-top:14px"><input id="lm_new" placeholder="New empty list name" style="'+sel+';flex:1"><button class="rlf-btn" id="lm_add" style="background:var(--navy);color:#fff;border-color:var(--navy)">+ Create</button></div>'
+      +'<div id="lm_msg" style="font-size:12.5px;font-weight:700;margin-top:8px"></div>';
+    body.querySelectorAll('.lm-ren').forEach(function(b){ b.onclick=function(){ var id=b.getAttribute('data-id'); var nm=window.prompt('Rename list:', b.getAttribute('data-nm')); if(nm===null) return; nm=nm.trim(); if(!nm) return; api('POST','/api/mail/lists/'+id,{name:nm}).then(function(){ loadListsMgr(); reload(); }); }; });
+    body.querySelectorAll('.lm-del').forEach(function(b){ b.onclick=function(){ var id=b.getAttribute('data-id'); if(!window.confirm('Delete the list "'+b.getAttribute('data-nm')+'"? Members stay as subscribers; any campaign set to this list will send to all active subscribers instead.')) return; api('DELETE','/api/mail/lists/'+id).then(function(){ loadListsMgr(); reload(); }); }; });
+    var addBtn=document.getElementById('lm_add'); if(addBtn) addBtn.onclick=function(){ var inp=document.getElementById('lm_new'), m=document.getElementById('lm_msg'); var nm=(inp.value||'').trim(); if(!nm){ m.style.color='#b23a2c'; m.textContent='Name the list.'; return; } api('POST','/api/mail/lists',{name:nm}).then(function(r){ if(!r||!r.ok){ m.style.color='#b23a2c'; m.textContent=(r&&r.error)||'Could not create.'; return; } inp.value=''; m.style.color='#1f8a5b'; m.textContent='Created ✓'; loadListsMgr(); reload(); }); };
+    var nw=document.getElementById('lm_new'); if(nw) nw.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); document.getElementById('lm_add').click(); } });
+  }).catch(function(){ var body=document.getElementById('lm_body'); if(body) body.innerHTML='<div class="meta">Could not load lists.</div>'; });
+}
 
 /* ---- Import subscribers (modal; chunked so big lists don't time out) ---- */
 function _iField(lbl,inner){ return '<div><label style="display:block;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);margin-bottom:5px">'+lbl+'</label>'+inner+'</div>'; }
@@ -195,7 +256,7 @@ function openImport(){
         +'</div>'
         +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">'
           +_iField('Default status','<select id="impStatus" style="'+sel+'"><option value="">Active</option><option value="unsubscribed">Unsubscribed</option><option value="bounced">Bounced</option></select>')
-          +_iField('Add to list','<select id="impList" style="'+sel+'"><option value="">— No list —</option>'+LISTS.map(function(l){return '<option value="'+l.id+'">'+esc(l.name)+'</option>';}).join('')+'</select>')
+          +_iField('Add to list','<select id="impList" style="'+sel+'"><option value="">— No list —</option>'+LISTS.map(function(l){return '<option value="'+l.id+'">'+esc(l.name)+'</option>';}).join('')+'<option value="__new">+ New list…</option></select><input id="impListNew" placeholder="New list name" style="'+sel+';margin-top:8px;display:none">')
         +'</div>'
       +'</div>'
       +'<div style="display:flex;gap:12px;align-items:center;padding:14px 20px;border-top:1px solid var(--line);background:#f7f9fc"><button class="rlf-btn" id="impGo" style="background:var(--navy);color:#fff;border-color:var(--navy)">Import</button><span id="impMsg" style="font-size:12.5px;font-weight:700"></span></div>'
@@ -214,6 +275,7 @@ function openImport(){
     ov.querySelector('#impX').onclick=function(){ if(IMPORTING) return; ov.style.display='none'; };
     ov.addEventListener('click',function(e){ if(e.target===ov && !IMPORTING) ov.style.display='none'; });
     ov.querySelector('#impGo').onclick=doImport;
+    ov.querySelector('#impList').addEventListener('change',function(){ var nw=ov.querySelector('#impListNew'); if(nw){ nw.style.display=(this.value==='__new')?'block':'none'; if(this.value==='__new') nw.focus(); } });
     ov.querySelector('#impCloseBtn').onclick=function(){ ov.style.display='none'; impResetForm(); };
     ov.querySelector('#impMoreBtn').onclick=function(){ impResetForm(); };
     ov.querySelector('#impFile').addEventListener('change',function(){ var f=this.files&&this.files[0]; var nm=ov.querySelector('#impFileName'); if(!f){ nm.textContent='or paste below'; return; } var rd=new FileReader(); rd.onload=function(){ var t=String(rd.result||''); ov.querySelector('#impText').value=t; var sr=ov.querySelector('#impSrc'); if(sr&&!sr.value){ sr.value=String(f.name||'').replace(/\.[^.]+$/,''); } var n=t.split(/\r?\n/).filter(function(x){return x.trim();}).length; nm.style.color='#1f8a5b'; nm.textContent=(f.name||'file')+' — '+n.toLocaleString()+' line'+(n===1?'':'s')+' loaded.'; }; rd.onerror=function(){ nm.style.color='#b23a2c'; nm.textContent='Could not read the file.'; }; rd.readAsText(f); });
@@ -231,8 +293,11 @@ function doImport(){
   if(/(^|,)\s*e-?mail\s*(,|$)/i.test(lines[0]) && lines[0].indexOf('@')<0){ header=lines[0]; dataLines=lines.slice(1); }
   var CH=500, chunks=[]; for(var i=0;i<dataLines.length;i+=CH){ chunks.push(dataLines.slice(i,i+CH)); }
   if(!chunks.length){ m.style.color='#b23a2c'; m.textContent='No addresses to import.'; return; }
+  var listSel=(g('impList').value||''), listNew=((g('impListNew')&&g('impListNew').value)||'').trim();
+  if(listSel==='__new' && !listNew){ m.style.color='#b23a2c'; m.textContent='Name the new list.'; return; }
   var tot=dataLines.length;
-  var src=(g('impSrc').value||'import'), typ=(g('impType').value||''), listId=(g('impList').value||''), stat=((g('impStatus')&&g('impStatus').value)||'');
+  var src=(g('impSrc').value||'import'), typ=(g('impType').value||''), stat=((g('impStatus')&&g('impStatus').value)||'');
+  var listId=(listSel && listSel!=='__new') ? listSel : '';
   var acc={added:0,updated:0,skipped:0,suppressed:0,listed:0}, ci=0;
   // Switch to the working view so the user sees clear progress on big lists.
   IMPORTING=true; g('impForm').style.display='none'; g('impWork').style.display='block';
@@ -259,7 +324,9 @@ function doImport(){
       ci++; progress(Math.min(ci*CH, tot)); next();
     }).catch(function(){ finish('Import stopped at batch '+(ci+1)+' (network/timeout). Earlier batches did import — close and click Import again to continue.'); });
   }
-  next();
+  // Create the new list once (so chunks don't each spawn one), then run the import.
+  if(listSel==='__new'){ api('POST','/api/mail/lists',{name:listNew}).then(function(r){ if(r&&r.ok){ listId=String(r.id); next(); } else { finish((r&&r.error)||'Could not create the new list.'); } }).catch(function(){ finish('Could not create the new list.'); }); }
+  else { next(); }
 }
 (function(){ try{ var qp=new URLSearchParams(location.search).get('q'); var ls=null; try{ ls=localStorage.getItem('mmsub_q'); }catch(e){} var v=qp||ls||''; if(v){ document.getElementById('search').value=v; } }catch(e){} })();
 reload();
