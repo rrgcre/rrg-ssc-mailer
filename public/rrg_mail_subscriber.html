@@ -69,7 +69,7 @@ function boot(){
     var j=res[0]||{};
     if(!j.ok){ document.getElementById('root').innerHTML='<div class="gate">'+esc(j.error||'Subscriber not found.')+'<br><br><a href="./rrg_mail_subscribers.html">← Back to Subscribers</a></div>'; return; }
     SUB=j.subscriber; LISTS=j.lists||[]; SENDS=j.sends||[]; TOTALS=j.totals||{}; SUPP=j.suppression||null; MODE=(SUB.mode==='metros'?'metros':'all');
-    MARKETS=(res[1]&&res[1].markets)||[];
+    MARKETS=(res[1]&&(res[1].subscriberAreas||res[1].markets))||[];
     setHead(); render();
   }).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not reach the server.</div>'; });
 }
