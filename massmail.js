@@ -611,6 +611,28 @@ function mount(app, deps) {
     res.json({ ok: true, campaigns: rows });
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.get('/api/mail/campaigns/:id', requireAdmin, guard, async (req, res) => { try { const c = (await q('SELECT * FROM mm_campaigns WHERE tenant=$1 AND id=$2', [TENANT, req.params.id])).rows[0]; if (!c) return res.status(404).json({ ok: false, error: 'Not found.' }); res.json({ ok: true, campaign: c }); } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
+  // Per-send (per-run) breakdown for a campaign that has gone out more than once, plus the total.
+  app.get('/api/mail/campaigns/:id/runs', requireAdmin, guard, async (req, res) => { try {
+    const id = Number(req.params.id);
+    const c = (await q('SELECT id,name,subject,COALESCE(runs,0) AS runs FROM mm_campaigns WHERE tenant=$1 AND id=$2', [TENANT, id])).rows[0];
+    if (!c) return res.status(404).json({ ok: false, error: 'Not found.' });
+    const runs = (await q(`SELECT run_seq,
+        count(*)::int AS recipients,
+        count(sent_at)::int AS sent,
+        count(opened_at)::int AS opens,
+        count(clicked_at)::int AS clicks,
+        count(*) FILTER (WHERE status='bounced')::int AS bounces,
+        count(*) FILTER (WHERE status='complained')::int AS complaints,
+        min(sent_at) AS sent_at, max(sent_at) AS last_at
+      FROM mm_sends WHERE tenant=$1 AND campaign_id=$2 GROUP BY run_seq ORDER BY run_seq`, [TENANT, id])).rows;
+    runs.forEach(r => { r.unsubs = 0; });
+    // Unsubscribe events carry no run number, so attribute each to the most recent run sent before it.
+    const uns = (await q(`SELECT at FROM mm_events WHERE tenant=$1 AND campaign_id=$2 AND type='unsubscribe' ORDER BY at`, [TENANT, id])).rows;
+    const timed = runs.filter(r => r.sent_at).map(r => ({ r: r, t: new Date(r.sent_at).getTime() }));
+    uns.forEach(e => { const et = new Date(e.at).getTime(); let pick = null; timed.forEach(x => { if (x.t <= et && (!pick || x.t > pick.t)) pick = x; }); if (pick) pick.r.unsubs++; else if (runs.length) runs[0].unsubs++; });
+    const total = runs.reduce((a, r) => ({ recipients: a.recipients + r.recipients, sent: a.sent + r.sent, opens: a.opens + r.opens, clicks: a.clicks + r.clicks, bounces: a.bounces + r.bounces, complaints: a.complaints + r.complaints, unsubs: a.unsubs + r.unsubs }), { recipients: 0, sent: 0, opens: 0, clicks: 0, bounces: 0, complaints: 0, unsubs: 0 });
+    res.json({ ok: true, campaign: { id: c.id, name: c.name, subject: c.subject, runs: c.runs }, runs: runs, total: total });
+  } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.post('/api/mail/campaigns', requireAdmin, guard, express.json({ limit: '25mb' }), async (req, res) => { try { const b = req.body || {}; if (b.id) { await updateCampaign(Number(b.id), b); res.json({ ok: true, id: Number(b.id) }); } else { const id = await createCampaign(b, req.user); res.json({ ok: true, id }); } } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.post('/api/mail/campaigns/:id/test', requireAdmin, guard, express.json(), async (req, res) => { try { if (!sesConfigured()) return res.status(400).json({ ok: false, error: 'Sending (SES) is not configured.' }); const to = String((req.body || {}).email || '').trim(); if (!_validEmail(to)) return res.status(400).json({ ok: false, error: 'Enter a valid test email.' }); const id = await sendTest(Number(req.params.id), to); res.json({ ok: true, messageId: id || '' }); } catch (e) { res.status(502).json({ ok: false, error: String(e.message || e) }); } });
   app.post('/api/mail/campaigns/:id/send', requireAdmin, guard, express.json(), async (req, res) => { try { if (!sesConfigured()) return res.status(400).json({ ok: false, error: 'Sending (SES) is not configured.' }); await startCampaign(Number(req.params.id)); res.json({ ok: true }); } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });

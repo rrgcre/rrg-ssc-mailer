@@ -380,9 +380,10 @@ function loadCampaigns(){
     RRGList.create(cfg);
     var body=$('campBody');
     if(body){ body.addEventListener('click',function(e){
-      var t=e.target.closest?e.target.closest('[data-open],[data-prev],[data-exp],[data-arch],[data-sched]'):null; if(!t) return;
+      var t=e.target.closest?e.target.closest('[data-open],[data-prev],[data-exp],[data-arch],[data-sched],[data-hist]'):null; if(!t) return;
       if(t.hasAttribute('data-open')) openCampaign(t.getAttribute('data-open'));
       else if(t.hasAttribute('data-sched')) openScheduleModal(t.getAttribute('data-sched'));
+      else if(t.hasAttribute('data-hist')) openRunHistory(t.getAttribute('data-hist'));
       else if(t.hasAttribute('data-prev')) previewCampaign(t.getAttribute('data-prev'));
       else if(t.hasAttribute('data-exp')) window.open('/api/mail/campaigns/'+t.getAttribute('data-exp')+'/export','_blank');
       else if(t.hasAttribute('data-arch')) api('POST','/api/mail/campaigns/'+t.getAttribute('data-arch')+'/archive',{ archived:t.getAttribute('data-a')==='1' }).then(function(){ loadCampaigns(); });
@@ -401,6 +402,7 @@ function campActionsCell(c){
     +' <span data-sched="'+c.id+'" style="color:var(--blue);cursor:pointer;">Schedule</span>'
     +' <span data-prev="'+c.id+'" style="color:var(--blue);cursor:pointer;">Preview</span>'
     +' <span data-exp="'+c.id+'" style="color:var(--blue);cursor:pointer;">Export</span>'
+    +((c.runs||0)>=1||Number(c.sent||0)>0?' <span data-hist="'+c.id+'" style="color:var(--blue);cursor:pointer;">History</span>':'')
     +' <span data-arch="'+c.id+'" data-a="'+(c.archived?'0':'1')+'" style="color:var(--muted);cursor:pointer;">'+(c.archived?'Restore':'Archive')+'</span>';
 }
 function rate(c,k){ var d=c.total||c.sent||0; return d? (c[k]||0)/d : 0; }
@@ -612,6 +614,48 @@ function schedmCount(){ return SCHEDM.saved.length+SCHEDM.pending.length; }
 function schedmManualOn(){ var c=document.getElementById('schedmManual'); return !!(c&&c.checked); }
 function schedmMsg(t,err){ var m=document.getElementById('schedmMsg'); if(m){ m.textContent=t||''; m.style.color=err?'#C0261B':'#1f8a5b'; } }
 function closeScheduleModal(){ var ov=document.getElementById('schedmOv'); if(ov) ov.style.display='none'; }
+/* ===== Send history — each send (run) of a campaign, plus the total ===== */
+function openRunHistory(id){
+  var ov=document.getElementById('histOv');
+  if(!ov){ ov=document.createElement('div'); ov.id='histOv'; ov.className='schedm-ov'; document.body.appendChild(ov); ov.addEventListener('click',function(e){ if(e.target===ov) ov.style.display='none'; }); document.addEventListener('keydown',function(e){ if(e.key==='Escape'){ var h=document.getElementById('histOv'); if(h) h.style.display='none'; } }); }
+  ov.style.display='flex'; ov.innerHTML='<div class="schedm-card" style="max-width:880px"><div class="schedm-body schedm-note">Loading…</div></div>';
+  api('GET','/api/mail/campaigns/'+id+'/runs').then(function(r){ if(!r||!r.ok){ ov.innerHTML='<div class="schedm-card"><div class="schedm-body schedm-note">'+esc((r&&r.error)||'Could not load send history.')+'</div></div>'; return; } histRender(r); }).catch(function(){ ov.innerHTML='<div class="schedm-card"><div class="schedm-body schedm-note">Could not reach the server.</div></div>'; });
+}
+function histCell(v,denom){ v=Number(v||0); var p=denom?Math.round(v/denom*1000)/10:0; return num(v)+' <span style="color:var(--muted);font-size:11px;">'+p+'%</span>'; }
+function histRender(r){
+  var ov=document.getElementById('histOv'); if(!ov) return;
+  if(!document.getElementById('histt-css')){ var st=document.createElement('style'); st.id='histt-css'; st.textContent='.histt{width:100%;border-collapse:collapse;font-size:13px}.histt th{padding:7px 10px;border-bottom:1px solid var(--line);font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--soft);font-weight:700;white-space:nowrap}.histt td{padding:7px 10px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}'; document.head.appendChild(st); }
+  var runs=r.runs||[], tot=r.total||{}, c=r.campaign||{};
+  var head='<tr><th style="text-align:left">Send</th><th style="text-align:left">Date sent</th><th style="text-align:right">Recipients</th><th style="text-align:right">Sent</th><th style="text-align:right">Opens</th><th style="text-align:right">Clicks</th><th style="text-align:right">Unsubs</th><th style="text-align:right">Complaints</th><th style="text-align:right">Bounces</th></tr>';
+  var rows=runs.map(function(x){ var d=x.sent_at||x.last_at; return '<tr>'
+    +'<td style="font-weight:700;color:var(--navy)">#'+x.run_seq+'</td>'
+    +'<td style="white-space:nowrap;color:var(--muted);font-size:12.5px">'+(d?fmtDate(d):'—')+'</td>'
+    +'<td style="text-align:right">'+num(x.recipients)+'</td>'
+    +'<td style="text-align:right">'+num(x.sent)+'</td>'
+    +'<td style="text-align:right">'+histCell(x.opens,x.sent)+'</td>'
+    +'<td style="text-align:right">'+histCell(x.clicks,x.sent)+'</td>'
+    +'<td style="text-align:right">'+num(x.unsubs)+'</td>'
+    +'<td style="text-align:right">'+num(x.complaints)+'</td>'
+    +'<td style="text-align:right">'+num(x.bounces)+'</td>'
+  +'</tr>'; }).join('');
+  var totalRow='<tr style="font-weight:800;background:#f7f9fc">'
+    +'<td style="color:var(--navy)">Total</td><td></td>'
+    +'<td style="text-align:right">'+num(tot.recipients)+'</td>'
+    +'<td style="text-align:right">'+num(tot.sent)+'</td>'
+    +'<td style="text-align:right">'+histCell(tot.opens,tot.sent)+'</td>'
+    +'<td style="text-align:right">'+histCell(tot.clicks,tot.sent)+'</td>'
+    +'<td style="text-align:right">'+num(tot.unsubs)+'</td>'
+    +'<td style="text-align:right">'+num(tot.complaints)+'</td>'
+    +'<td style="text-align:right">'+num(tot.bounces)+'</td>'
+  +'</tr>';
+  ov.innerHTML='<div class="schedm-card" style="max-width:880px">'
+    +'<div class="schedm-hd"><div><b>Send history</b><div class="schedm-sub">'+esc(c.name||'Campaign')+' · '+num(runs.length)+' send'+(runs.length===1?'':'s')+'</div></div><button class="schedm-close" type="button" onclick="var h=document.getElementById(\'histOv\');if(h)h.style.display=\'none\'">×</button></div>'
+    +'<div class="schedm-body" style="overflow:auto">'
+    +(runs.length? ('<table class="histt"><thead>'+head+'</thead><tbody>'+rows+totalRow+'</tbody></table>'
+        +'<div class="pgs" style="margin-top:10px">Opens and clicks are a share of that send’s delivered emails. Every send re-checks suppression, so unsubscribed and bounced addresses drop out of later sends.</div>')
+      : '<div class="schedm-note">This campaign hasn’t been sent yet.</div>')
+    +'</div></div>';
+}
 function openScheduleModal(id){
   SCHEDM={ id:id, name:'', status:'', saved:[], pending:[] };
   var ov=document.getElementById('schedmOv');
