@@ -546,7 +546,20 @@ function mount(app, deps) {
     const s = (await q(`SELECT status, count(*)::int n FROM mm_subscribers WHERE tenant=$1 GROUP BY status`, [TENANT])).rows;
     const supp = (await q('SELECT count(*)::int n FROM mm_suppressions WHERE tenant=$1', [TENANT])).rows[0].n;
     const by = { active: 0, unsubscribed: 0, bounced: 0, complained: 0, cleaned: 0 }; s.forEach(r => { by[r.status] = r.n; });
-    res.json({ ok: true, subscribers: by, total: Object.keys(by).reduce((a, k) => a + by[k], 0), suppressions: supp });
+    // Campaign KPIs — totals + last-30-day activity, drawn from mm_campaigns.
+    let camp = { total: 0, sent_30d: 0, sent_total: 0, opens: 0, clicks: 0, sending: 0, last_30d_count: 0 };
+    try {
+      camp = (await q(`SELECT
+          count(*)::int AS total,
+          COALESCE(SUM(CASE WHEN COALESCE(finished_at, started_at) >= now() - interval '30 days' THEN sent ELSE 0 END),0)::int AS sent_30d,
+          COALESCE(SUM(sent),0)::int AS sent_total,
+          COALESCE(SUM(opens),0)::int AS opens,
+          COALESCE(SUM(clicks),0)::int AS clicks,
+          count(*) FILTER (WHERE status IN ('sending','queued'))::int AS sending,
+          count(*) FILTER (WHERE COALESCE(finished_at, started_at) >= now() - interval '30 days')::int AS last_30d_count
+        FROM mm_campaigns WHERE tenant=$1 AND COALESCE(archived,false)=false`, [TENANT])).rows[0] || camp;
+    } catch (e) {}
+    res.json({ ok: true, subscribers: by, total: Object.keys(by).reduce((a, k) => a + by[k], 0), suppressions: supp, campaigns: camp });
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.post('/api/mail/import', requireAdmin, guard, express.json({ limit: '60mb' }), async (req, res) => { try {
     const b = req.body || {}; const rows = Array.isArray(b.rows) ? b.rows : (b.csv ? parseCsv(b.csv) : []);

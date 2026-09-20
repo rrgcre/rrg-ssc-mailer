@@ -19,6 +19,7 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Hel
 .tile .k{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);}
 .tile .v{font-size:22px;font-weight:700;color:var(--navy);margin-top:3px;font-variant-numeric:tabular-nums;}
 .tile.red .v{color:var(--red);} .tile.green .v{color:var(--green);}
+.tile .tsub{font-size:11px;color:var(--muted);font-weight:600;margin-top:3px;}
 .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:16px;}
 .tabs button{background:none;border:none;border-bottom:2px solid transparent;padding:9px 15px;font:inherit;font-size:13.5px;font-weight:700;color:var(--muted);cursor:pointer;}
 .tabs button.on{color:var(--navy);border-bottom-color:var(--navy);}
@@ -95,19 +96,17 @@ iframe.prev{width:100%;height:420px;border:1px solid var(--line);border-radius:6
   <div class="pghead">
     <div>
       <div class="pgh">Campaigns</div>
-      <div class="pgs">Send email campaigns to your subscriber list — Amazon SES, suppression-aware, one-click unsubscribe. Subscribers here are separate from your CRM contacts.</div>
+      <div class="pgs">Send email campaigns to your subscriber list — Amazon SES, suppression-aware, one-click unsubscribe. Manage subscribers on the <a href="./rrg_mail_subscribers.html" style="color:var(--navy);font-weight:600">Subscribers</a> page.</div>
     </div>
     <div class="hbtns">
+      <button class="btn" type="button" id="unsubBtn">✖ Mark unsubscribed</button>
       <button class="btn" type="button" id="featBtn">★ Features</button>
       <button class="btn" type="button" id="helpBtn">Help</button>
     </div>
   </div>
   <div id="statusNote"></div>
   <div class="tiles" id="tiles"></div>
-  <div class="tabs" id="tabs"><button data-tab="subs" class="on">Subscribers</button><button data-tab="camps">Campaigns</button><button data-tab="supp">Suppression</button></div>
-  <div id="tabSubs"></div>
-  <div id="tabCamps" hidden></div>
-  <div id="tabSupp" hidden></div>
+  <div id="tabCamps"></div>
 </div>
 <script>
 (function(){
@@ -122,8 +121,8 @@ function boot(){
   api('GET','/api/appname').then(function(a){ var pal=(a&&a.palette)||{}; if(pal.primary)brand.primary=pal.primary; if(pal.accent)brand.accent=pal.accent; var _mlu=(a&&(a.logoLightUrl||a.logoUrl))||''; if(_mlu){ brand.logo=(_mlu.charAt(0)==='/')?(location.origin+_mlu):_mlu; } if(a&&a.emailStyle)brand.style=a.emailStyle; brand.orgName=(a&&a.org&&a.org.name)||(a&&a.name)||''; }).catch(function(){});
   api('GET','/api/mail/config').then(function(cfg){
     CFG=cfg||{}; CFG.brand=brand;
-    paintStatus(); buildSubs(); buildSupp(); wireTabs();
-    loadStats(); loadSubs();
+    paintStatus(); wireUnsub();
+    loadLists(); loadStats(); loadCampaigns();
   }).catch(function(){ $('statusNote').innerHTML='<div class="note warn">Could not reach the mail engine.</div>'; });
 }
 function wireTabs(){
@@ -154,13 +153,52 @@ function loadStats(){
   if(!CFG.storage){ $('tiles').innerHTML=''; return; }
   api('GET','/api/mail/stats').then(function(s){
     if(!s||!s.ok){ $('tiles').innerHTML=''; return; }
-    var b=s.subscribers||{};
-    function tile(k,v,cls){ return '<div class="tile '+(cls||'')+'"><div class="k">'+k+'</div><div class="v">'+Number(v||0).toLocaleString()+'</div></div>'; }
-    $('tiles').innerHTML=tile('Active',b.active,'green')+tile('Unsubscribed',b.unsubscribed)+tile('Bounced',b.bounced,'red')+tile('Complained',b.complained,'red')+tile('Suppressed',s.suppressions,'red')+tile('Total',s.total);
+    var c=s.campaigns||{}, subs=s.subscribers||{};
+    var sentTot=Number(c.sent_total||0), opens=Number(c.opens||0), clicks=Number(c.clicks||0);
+    var orate=sentTot?Math.round(opens/sentTot*1000)/10:0, crate=sentTot?Math.round(clicks/sentTot*1000)/10:0;
+    function tile(k,v,cls,sub){ return '<div class="tile '+(cls||'')+'"><div class="k">'+k+'</div><div class="v">'+(typeof v==='number'?Number(v||0).toLocaleString():v)+'</div>'+(sub?('<div class="tsub">'+sub+'</div>'):'')+'</div>'; }
+    $('tiles').innerHTML=
+       tile('Campaigns',Number(c.total||0),'', (Number(c.sending||0)?(Number(c.sending)+' sending now'):''))
+      +tile('Sent · 30 days',Number(c.sent_30d||0),'green', (Number(c.last_30d_count||0)+' campaign'+(Number(c.last_30d_count||0)===1?'':'s')))
+      +tile('Total sent',sentTot)
+      +tile('Opens',opens,'', orate+'% open rate')
+      +tile('Clicks',clicks,'', crate+'% click rate')
+      +tile('Active subscribers',Number(subs.active||0),'green', Number(s.total||0).toLocaleString()+' total');
   }).catch(function(){});
 }
 
-/* ---------- SUBSCRIBERS ---------- */
+/* ---------- MARK UNSUBSCRIBED (quick suppression) ---------- */
+function wireUnsub(){ var b=$('unsubBtn'); if(b) b.onclick=openUnsub; }
+function openUnsub(){
+  var ov=$('unsubOv');
+  if(!ov){
+    ov=document.createElement('div'); ov.id='unsubOv';
+    ov.style.cssText='position:fixed;inset:0;background:rgba(6,14,32,.5);z-index:600;display:flex;align-items:center;justify-content:center;padding:18px';
+    ov.innerHTML='<div style="background:#fff;border-radius:14px;width:100%;max-width:520px;box-shadow:0 24px 70px rgba(0,0,0,.3)">'
+      +'<div style="display:flex;align-items:center;padding:15px 20px;border-bottom:1px solid var(--line)"><b style="color:var(--navy);font-size:15px">Mark addresses unsubscribed</b><button id="unsubX" type="button" style="margin-left:auto;background:none;border:none;font-size:22px;color:#8a93a8;cursor:pointer;line-height:1">×</button></div>'
+      +'<div style="padding:18px 20px">'
+        +'<div class="pgs" style="margin-bottom:10px">Paste one email per line. They’re added to the suppression list and never emailed again — across every list. To unsubscribe a whole file at once, use <b>Import</b> on the Subscribers page with status set to <b>Unsubscribed</b>.</div>'
+        +'<textarea id="unsubText" style="width:100%;min-height:150px;font-family:ui-monospace,Menlo,monospace;font-size:12.5px;border:1px solid #cfd6e2;border-radius:8px;padding:10px;box-sizing:border-box" placeholder="jane@example.com&#10;john@example.com"></textarea>'
+      +'</div>'
+      +'<div style="display:flex;gap:12px;align-items:center;padding:14px 20px;border-top:1px solid var(--line);background:#f7f9fc"><button class="btn red" id="unsubGo">Mark unsubscribed</button><span class="msg" id="unsubMsg"></span></div>'
+      +'</div>';
+    document.body.appendChild(ov);
+    ov.querySelector('#unsubX').onclick=function(){ ov.style.display='none'; };
+    ov.addEventListener('click',function(e){ if(e.target===ov) ov.style.display='none'; });
+    ov.querySelector('#unsubGo').onclick=doUnsub;
+  }
+  ov.style.display='flex'; var t=$('unsubText'); if(t){ t.value=''; t.focus(); } var m=$('unsubMsg'); if(m){ m.textContent=''; m.className='msg'; }
+}
+function doUnsub(){
+  var m=$('unsubMsg'), t=$('unsubText'); var raw=(t&&t.value||'').trim();
+  if(!raw){ m.className='msg err'; m.textContent='Paste at least one email.'; return; }
+  var ems=raw.split(/[\s,;]+/).map(function(x){return x.trim();}).filter(function(x){return x.indexOf('@')>0;});
+  if(!ems.length){ m.className='msg err'; m.textContent='No valid emails found.'; return; }
+  var btn=$('unsubGo'); btn.disabled=true; m.className='msg'; m.textContent='Working…';
+  api('POST','/api/mail/suppress-bulk',{ emails:ems }).then(function(r){ btn.disabled=false; if(!r||!r.ok){ m.className='msg err'; m.textContent=(r&&r.error)||'Could not suppress those addresses.'; return; } m.className='msg ok'; m.textContent='Unsubscribed '+ems.length.toLocaleString()+' address'+(ems.length===1?'':'es')+'.'; if(t) t.value=''; loadStats(); }).catch(function(){ btn.disabled=false; m.className='msg err'; m.textContent='Could not reach the server.'; });
+}
+
+/* ---------- SUBSCRIBERS (legacy quick-browse; superseded by the Subscribers page) ---------- */
 function buildSubs(){
   $('tabSubs').innerHTML=
     '<div class="card"><h2>Lists</h2>'+
@@ -321,17 +359,21 @@ function loadCampaigns(){
     var cfg={
       mount:'#campBody', data:rows, key:'mm_campaigns', countEl:'#campCnt',
       empty:'<div class="pgs" style="padding:24px 12px;">'+(CAMPVIEW==='archived'?'No archived campaigns.':'No campaigns yet. Click <b>+ New campaign</b> to start.')+'</div>',
-      rowId:function(c){ return String(c.id); }, defaultSort:8, defaultDir:1,
+      rowId:function(c){ return String(c.id); }, defaultSort:12, defaultDir:-1,
       columns:[
         { label:'Campaign / Subject', sort:function(a,b){ return RRGList.cmp((a.name||'').toLowerCase(),(b.name||'').toLowerCase()); }, cell:campNameCell },
         { label:'Audience', sort:function(a,b){ return RRGList.cmp(a.list_name||'',b.list_name||''); }, cell:function(c){ return '<span style="font-size:12.5px;">'+esc(c.list_name||'All active subscribers')+'</span>'; } },
         { label:'Status', sort:function(a,b){ return RRGList.cmp(a.status,b.status); }, cell:function(c){ return '<span class="pill '+esc(c.status)+'">'+esc(c.status)+'</span>'; } },
+        { label:'Times sent', align:'right', sort:function(a,b){ return timesSent(a)-timesSent(b); }, cell:function(c){ var n=timesSent(c); return n?('<span style="font-variant-numeric:tabular-nums;font-weight:600;">'+num(n)+'</span>'):'<span style="color:var(--muted);">—</span>'; } },
         { label:'Recipients', align:'right', sort:function(a,b){ return (a.total||a.sent||0)-(b.total||b.sent||0); }, cell:function(c){ return '<span style="font-variant-numeric:tabular-nums;">'+num(c.total||c.sent||0)+'</span>'; } },
         { label:'Opens', align:'right', sort:function(a,b){ return rate(a,'opens')-rate(b,'opens'); }, cell:function(c){ return metricInline(c.opens,c.total||c.sent||0); } },
         { label:'Clicks', align:'right', sort:function(a,b){ return rate(a,'clicks')-rate(b,'clicks'); }, cell:function(c){ return metricInline(c.clicks,c.total||c.sent||0); } },
         { label:'Unsubs', align:'right', sort:function(a,b){ return (a.unsubs||0)-(b.unsubs||0); }, cell:function(c){ return metricInline(c.unsubs,c.total||c.sent||0); } },
+        { label:'Complaints', align:'right', sort:function(a,b){ return (a.complaints||0)-(b.complaints||0); }, cell:function(c){ return metricInline(c.complaints,c.total||c.sent||0); } },
         { label:'Bounces', align:'right', sort:function(a,b){ return (a.bounces||0)-(b.bounces||0); }, cell:function(c){ return metricInline(c.bounces,c.total||c.sent||0); } },
-        { label:'Date', sort:function(a,b){ return RRGList.cmp(a.started_at||a.created_at||'',b.started_at||b.created_at||''); }, cell:function(c){ return '<span style="font-size:12px;color:var(--muted);white-space:nowrap;">'+fmtDate(c.started_at||c.created_at)+'</span>'; } },
+        { label:'Created', sort:function(a,b){ return RRGList.cmp(a.created_at||'',b.created_at||''); }, cell:function(c){ return '<span style="font-size:12px;color:var(--muted);white-space:nowrap;">'+fmtDate(c.created_at)+'</span>'; } },
+        { label:'Date sent', sort:function(a,b){ return RRGList.cmp(dateSent(a)||'',dateSent(b)||''); }, cell:function(c){ var d=dateSent(c); return d?('<span style="font-size:12px;color:var(--muted);white-space:nowrap;">'+fmtDate(d)+'</span>'):'<span style="color:var(--muted);">—</span>'; } },
+        { label:'Last sent', sort:function(a,b){ return RRGList.cmp(lastSent(a)||'',lastSent(b)||''); }, cell:function(c){ var d=lastSent(c); return d?('<span style="font-size:12px;color:var(--navy);white-space:nowrap;font-weight:600;">'+fmtDate(d)+'</span>'):'<span style="color:var(--muted);">—</span>'; } },
         { label:'Actions', align:'right', sortable:false, cell:campActionsCell }
       ]
     };
@@ -362,6 +404,12 @@ function campActionsCell(c){
     +' <span data-arch="'+c.id+'" data-a="'+(c.archived?'0':'1')+'" style="color:var(--muted);cursor:pointer;">'+(c.archived?'Restore':'Archive')+'</span>';
 }
 function rate(c,k){ var d=c.total||c.sent||0; return d? (c[k]||0)/d : 0; }
+// How many times a campaign has gone out (recurring campaigns track runs; a one-off that sent counts as 1).
+function timesSent(c){ var n=Number(c.runs||0); if(!n && (Number(c.sent||0)>0 || c.finished_at || c.status==='sent' || c.status==='sending')) n=1; return n; }
+// The most recent send time (finish of the last run; falls back to start while a send is in flight).
+function lastSent(c){ if(c.finished_at) return c.finished_at; if(Number(c.sent||0)>0 || c.status==='sending' || c.status==='sent') return c.started_at||c.created_at||''; return ''; }
+// The originating send date (when it first went out). Same as Last sent for a one-off; earlier for a recurring series.
+function dateSent(c){ if(c.started_at) return c.started_at; if(Number(c.sent||0)>0 || c.status==='sent') return c.finished_at||''; return ''; }
 function metricInline(v,denom){ v=Number(v||0); var p=denom? (Math.round((v/denom)*1000)/10):0; return '<span style="font-variant-numeric:tabular-nums;"><b style="font-weight:600;">'+num(v)+'</b> <span style="color:var(--muted);font-size:11px;">'+p+'%</span></span>'; }
 function wireCampHead(){
   bindAll('[data-cv]', function(el){ CAMPVIEW=el.getAttribute('data-cv'); loadCampaigns(); });
