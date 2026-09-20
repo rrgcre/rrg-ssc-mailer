@@ -77,6 +77,7 @@ async function migrate() {
     await pool.query(`ALTER TABLE mm_schedules ADD COLUMN IF NOT EXISTS slot_date DATE`);
     await pool.query(`ALTER TABLE mm_schedules ADD COLUMN IF NOT EXISTS slot TEXT`);
     await pool.query(`ALTER TABLE mm_schedules ADD COLUMN IF NOT EXISTS manual BOOLEAN DEFAULT false`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS mm_config(tenant TEXT NOT NULL, key TEXT NOT NULL, val TEXT, PRIMARY KEY(tenant,key))`);
   })().catch(e => { console.error('[MAIL] migrate failed: ' + (e && e.message)); _migrated = null; throw e; });
   return _migrated;
 }
@@ -169,6 +170,17 @@ function ensureFooter(html, unsubUrl) {
 function openPixel(html, url) { const px = '<img src="' + url + '" width="1" height="1" alt="" style="display:block;border:0" />'; if (/<\/body>/i.test(html)) return html.replace(/<\/body>/i, px + '</body>'); return html + px; }
 function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 function htmlToText(html) { return String(html || '').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim(); }
+// ---- iCalendar (ICS) helpers for the subscribe-able "Email Blasts" calendar ----
+function _icsEsc(s) { return String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n'); }
+function _icsDate(d) { try { const x = new Date(d); const p = n => (n < 10 ? '0' : '') + n; return x.getUTCFullYear() + p(x.getUTCMonth() + 1) + p(x.getUTCDate()) + 'T' + p(x.getUTCHours()) + p(x.getUTCMinutes()) + p(x.getUTCSeconds()) + 'Z'; } catch (e) { return ''; } }
+async function _icsToken(create) {
+  const r = (await q('SELECT val FROM mm_config WHERE tenant=$1 AND key=$2', [TENANT, 'ics_token'])).rows[0];
+  if (r && r.val) return r.val;
+  if (!create) return '';
+  const tok = newToken() + newToken();
+  await q('INSERT INTO mm_config(tenant,key,val) VALUES($1,$2,$3) ON CONFLICT(tenant,key) DO UPDATE SET val=EXCLUDED.val', [TENANT, 'ics_token', tok]);
+  return tok;
+}
 
 /* ---------------- Subscriber import ---------------- */
 // rows: [{email, first_name?, last_name?, source?}]. Dedupe by email; suppressed stay suppressed.
@@ -768,8 +780,45 @@ function mount(app, deps) {
     sent.forEach(r => events.push({ kind: 'sent', id: 'c' + r.id, campaignId: r.id, title: r.name || 'Campaign', subject: r.subject || '', at: r.finished_at || r.started_at, sent: r.sent || 0, opens: r.opens || 0, clicks: r.clicks || 0 }));
     res.json({ ok: true, events });
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
+  // Standalone subscribe-able "Email Blasts" calendar (ICS). Public but token-gated (calendar apps can't sign in).
+  app.get('/mail/calendar.ics', async (req, res) => { try {
+    if (!DB_READY) return res.status(404).send('Not found');
+    const tok = String(req.query.token || ''); const good = await _icsToken(false);
+    if (!good || tok !== good) return res.status(403).type('text/plain').send('Invalid or missing calendar token.');
+    const sched = (await q(`SELECT s.id, s.run_at, c.name FROM mm_schedules s JOIN mm_campaigns c ON c.id=s.campaign_id WHERE s.tenant=$1 AND s.status='pending' ORDER BY s.run_at ASC LIMIT 1000`, [TENANT])).rows;
+    const sent = (await q(`SELECT c.id, c.name, c.finished_at, c.sent, c.opens, c.clicks FROM mm_campaigns c WHERE c.tenant=$1 AND c.finished_at IS NOT NULL AND c.finished_at >= now() - interval '180 days' ORDER BY c.finished_at DESC LIMIT 1000`, [TENANT])).rows;
+    const now = _icsDate(new Date());
+    function ev(uid, dt, summary, desc) { if (!dt) return ''; return 'BEGIN:VEVENT\r\nUID:' + uid + '\r\nDTSTAMP:' + now + '\r\nDTSTART:' + dt + '\r\nDURATION:PT30M\r\nSUMMARY:' + _icsEsc(summary) + '\r\nDESCRIPTION:' + _icsEsc(desc || '') + '\r\nEND:VEVENT\r\n'; }
+    let out = 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//RRG//Email Blasts//EN\r\nCALSCALE:GREGORIAN\r\nMETHOD:PUBLISH\r\nX-WR-CALNAME:RRG Email Blasts\r\nX-WR-TIMEZONE:UTC\r\nREFRESH-INTERVAL;VALUE=DURATION:PT1H\r\nX-PUBLISHED-TTL:PT1H\r\n';
+    sched.forEach(r => { out += ev('blast-sched-' + r.id + '@rrg', _icsDate(r.run_at), '📧 Email blast: ' + (r.name || 'Campaign'), 'Scheduled email campaign send.'); });
+    sent.forEach(r => { out += ev('blast-sent-' + r.id + '@rrg', _icsDate(r.finished_at), '✓ Email sent: ' + (r.name || 'Campaign'), (r.sent || 0) + ' sent · ' + (r.opens || 0) + ' opens · ' + (r.clicks || 0) + ' clicks.'); });
+    out += 'END:VCALENDAR\r\n';
+    res.set('Content-Type', 'text/calendar; charset=utf-8').set('Cache-Control', 'no-cache').send(out);
+  } catch (e) { res.status(500).type('text/plain').send('Error'); } });
+  // The subscribe URL (any signed-in teammate can copy it to share/subscribe).
+  app.get('/api/mail/ics-url', guard, async (req, res) => { try {
+    const tok = await _icsToken(true); const base = BASE || (req.protocol + '://' + req.get('host'));
+    res.json({ ok: true, url: base + '/mail/calendar.ics?token=' + tok });
+  } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
+  // Rotate the token (admin) — invalidates the old link; everyone re-subscribes.
+  app.post('/api/mail/ics-rotate', requireAdmin, guard, async (req, res) => { try {
+    const tok = newToken() + newToken();
+    await q('INSERT INTO mm_config(tenant,key,val) VALUES($1,$2,$3) ON CONFLICT(tenant,key) DO UPDATE SET val=EXCLUDED.val', [TENANT, 'ics_token', tok]);
+    const base = BASE || (req.protocol + '://' + req.get('host'));
+    res.json({ ok: true, url: base + '/mail/calendar.ics?token=' + tok });
+  } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.post('/api/mail/schedules/:sid/cancel', requireAdmin, guard, async (req, res) => { try {
     await q(`UPDATE mm_schedules SET status='canceled', done_at=now() WHERE tenant=$1 AND id=$2 AND status='pending'`, [TENANT, Number(req.params.sid)]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
+  // Move a pending scheduled send to a new time (keeps its slot classification in the brokerage timezone).
+  app.post('/api/mail/schedules/:sid/reschedule', requireAdmin, guard, express.json(), async (req, res) => { try {
+    const sid = Number(req.params.sid); const d = new Date((req.body || {}).run_at);
+    if (isNaN(d.getTime())) return res.status(400).json({ ok: false, error: 'Invalid date/time.' });
+    if (d.getTime() <= Date.now() - 60000) return res.status(400).json({ ok: false, error: 'Pick a future time.' });
+    const tz = process.env.MAIL_TZ || 'America/Chicago';
+    const r = await q(`UPDATE mm_schedules SET run_at=$3, slot_date=($3::timestamptz AT TIME ZONE $4)::date, slot=CASE WHEN EXTRACT(HOUR FROM ($3::timestamptz AT TIME ZONE $4))<12 THEN 'am' ELSE 'pm' END WHERE tenant=$1 AND id=$2 AND status='pending'`, [TENANT, sid, d.toISOString(), tz]);
+    if (!r.rowCount) return res.status(404).json({ ok: false, error: 'That scheduled send was not found (it may have already sent or been canceled).' });
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.get('/api/mail/campaigns/:id/export', requireAdmin, guard, async (req, res) => { try {

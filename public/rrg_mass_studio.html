@@ -99,6 +99,7 @@ iframe.prev{width:100%;height:420px;border:1px solid var(--line);border-radius:6
       <div class="pgs">Send email campaigns to your subscriber list — Amazon SES, suppression-aware, one-click unsubscribe. Manage subscribers on the <a href="./rrg_mail_subscribers.html" style="color:var(--navy);font-weight:600">Subscribers</a> page.</div>
     </div>
     <div class="hbtns">
+      <button class="btn" type="button" id="icsBtn">📅 Blast calendar</button>
       <button class="btn" type="button" id="unsubBtn">✖ Mark unsubscribed</button>
       <button class="btn" type="button" id="featBtn">★ Features</button>
       <button class="btn" type="button" id="helpBtn">Help</button>
@@ -168,7 +169,25 @@ function loadStats(){
 }
 
 /* ---------- MARK UNSUBSCRIBED (quick suppression) ---------- */
-function wireUnsub(){ var b=$('unsubBtn'); if(b) b.onclick=openUnsub; }
+function wireUnsub(){ var b=$('unsubBtn'); if(b) b.onclick=openUnsub; var i=$('icsBtn'); if(i) i.onclick=openIcsFeed; }
+/* ---------- Subscribe-able "Email Blasts" calendar (ICS feed) ---------- */
+function openIcsFeed(){
+  var ov=$('ics_ov');
+  if(!ov){ ov=document.createElement('div'); ov.id='ics_ov'; ov.style.cssText='position:fixed;inset:0;background:rgba(6,14,32,.5);z-index:600;display:flex;align-items:center;justify-content:center;padding:18px'; document.body.appendChild(ov); ov.addEventListener('click',function(e){ if(e.target===ov) ov.style.display='none'; }); }
+  ov.style.display='flex'; ov.innerHTML='<div style="background:#fff;border-radius:14px;width:100%;max-width:580px;box-shadow:0 24px 70px rgba(0,0,0,.3)"><div style="display:flex;align-items:center;padding:15px 20px;border-bottom:1px solid var(--line)"><b style="color:var(--navy);font-size:15px">Subscribe to the Email Blasts calendar</b><button id="ics_x" type="button" style="margin-left:auto;background:none;border:none;font-size:22px;color:#8a93a8;cursor:pointer;line-height:1">×</button></div><div id="ics_body" style="padding:18px 20px"><div class="pgs">Loading…</div></div></div>';
+  ov.querySelector('#ics_x').onclick=function(){ ov.style.display='none'; };
+  api('GET','/api/mail/ics-url').then(function(r){ renderIcs(r&&r.ok?r.url:''); }).catch(function(){ renderIcs(''); });
+}
+function renderIcs(url){
+  var b=$('ics_body'); if(!b) return;
+  if(!url){ b.innerHTML='<div class="pgs">Could not load the calendar link. Make sure the mail database is connected.</div>'; return; }
+  b.innerHTML='<div class="pgs" style="margin-bottom:10px">Share this link with your team. It adds a separate <b>Email Blasts</b> calendar to their phone or computer (Apple, Google, Outlook) showing every scheduled and recent blast — and it updates itself automatically.</div>'
+    +'<div style="display:flex;gap:8px;align-items:center"><input id="ics_url" readonly value="'+esc(url)+'" style="flex:1;font:inherit;font-size:12.5px;padding:9px 11px;border:1px solid #cfd6e2;border-radius:8px;background:#f7f9fc"><button class="btn" id="ics_copy">Copy</button></div>'
+    +'<div class="pgs" style="margin-top:12px;font-size:12px;color:var(--muted);line-height:1.7"><b>To subscribe:</b><br>• <b>Google Calendar</b> (web) → Other calendars <b>+</b> → From URL → paste.<br>• <b>iPhone</b> → Settings → Calendar → Accounts → Add Account → Other → Add Subscribed Calendar → paste.<br>• <b>Outlook</b> → Add calendar → Subscribe from web → paste.</div>'
+    +'<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)"><button class="btn" id="ics_rot" style="color:#b23a2c">Reset link</button> <span class="pgs" style="font-size:12px">Use if the link leaks — the old one stops working and everyone re-subscribes.</span></div>';
+  $('ics_copy').onclick=function(){ var i=$('ics_url'); try{ i.select(); }catch(e){} var done=function(){ var t=$('ics_copy'); t.textContent='Copied ✓'; setTimeout(function(){ t.textContent='Copy'; },1500); }; if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(i.value).then(done).catch(function(){ try{document.execCommand('copy');done();}catch(e){} }); } else { try{document.execCommand('copy');done();}catch(e){} } };
+  $('ics_rot').onclick=function(){ if(!window.confirm('Reset the calendar link? The current link stops working and everyone must re-subscribe with the new one.')) return; api('POST','/api/mail/ics-rotate',{}).then(function(r){ if(r&&r.ok) renderIcs(r.url); else alert((r&&r.error)||'Could not reset the link.'); }); };
+}
 function openUnsub(){
   var ov=$('unsubOv');
   if(!ov){
@@ -758,13 +777,26 @@ function schedmSave(){
     api('GET','/api/mail/campaigns/'+SCHEDM.id+'/schedule').then(function(rr){ SCHEDM.saved=((rr&&rr.schedules)||[]).filter(function(x){return x.status==='pending';}); schedmRender(); schedmMsg(msg,false); loadCampaigns(); });
   }).catch(function(){ schedmMsg('Could not reach the server.',true); if(btn){btn.disabled=false;btn.textContent='Schedule';} });
 }
+var RESCHED=null;
+function _localDT(t){ try{ if(typeof t==='string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(t)) return t.slice(0,16); return toLocalInput(new Date(t)); }catch(e){ return ''; } }
 function renderSched(){
   var el=$('schList'); if(!el) return; var h='';
-  if(EDITSCHED.saved&&EDITSCHED.saved.length){ h+='<div class="pgs" style="margin:10px 0 4px;font-weight:700;color:var(--navy)">Scheduled ('+EDITSCHED.saved.length+')</div>'; EDITSCHED.saved.forEach(function(s){ h+='<div style="display:flex;align-items:center;gap:10px;margin:3px 0;"><span class="pill scheduled">'+esc(fmtWhen(s.run_at))+'</span><span style="color:var(--muted);font-size:11px;font-weight:700;">'+((s.slot||slotOf(s.run_at))+'').toUpperCase()+'</span><span data-cancel="'+s.id+'" style="color:var(--muted);cursor:pointer;font-size:12px;text-decoration:underline;">cancel</span></div>'; }); }
-  if(EDITSCHED.pending.length){ h+='<div class="pgs" style="margin:12px 0 4px;font-weight:700;color:var(--navy)">To be scheduled ('+EDITSCHED.pending.length+')</div>'; EDITSCHED.pending.forEach(function(t,i){ h+='<div style="display:flex;align-items:center;gap:10px;margin:3px 0;"><span class="pill draft">'+esc(fmtWhen(t))+'</span><span style="color:var(--muted);font-size:11px;font-weight:700;">'+slotOf(t)+'</span><span data-rm="'+i+'" style="color:var(--red);cursor:pointer;font-size:12px;text-decoration:underline;">remove</span></div>'; }); }
+  function editorRow(cur){ return '<input type="datetime-local" id="reschedInput" value="'+esc(cur)+'" style="font:inherit;font-size:12.5px;padding:6px 8px;border:1px solid #cfd6e2;border-radius:7px"> <span id="reschedSave" style="color:#1f8a5b;cursor:pointer;font-size:12px;font-weight:700;text-decoration:underline">save</span> <span id="reschedCancel" style="color:var(--muted);cursor:pointer;font-size:12px;text-decoration:underline">cancel edit</span> <span id="reschedMsg" style="color:var(--red);font-size:11.5px"></span>'; }
+  if(EDITSCHED.saved&&EDITSCHED.saved.length){ h+='<div class="pgs" style="margin:10px 0 4px;font-weight:700;color:var(--navy)">Scheduled ('+EDITSCHED.saved.length+')</div>'; EDITSCHED.saved.forEach(function(s){ var ed=RESCHED&&RESCHED.kind==='saved'&&String(RESCHED.key)===String(s.id); h+='<div style="display:flex;align-items:center;gap:10px;margin:3px 0;flex-wrap:wrap"><span class="pill scheduled">'+esc(fmtWhen(s.run_at))+'</span><span style="color:var(--muted);font-size:11px;font-weight:700;">'+((s.slot||slotOf(s.run_at))+'').toUpperCase()+'</span>'+(ed?editorRow(_localDT(s.run_at)):'<span data-resched="'+s.id+'" style="color:var(--blue);cursor:pointer;font-size:12px;text-decoration:underline;">reschedule</span><span data-cancel="'+s.id+'" style="color:var(--muted);cursor:pointer;font-size:12px;text-decoration:underline;">cancel</span>')+'</div>'; }); }
+  if(EDITSCHED.pending.length){ h+='<div class="pgs" style="margin:12px 0 4px;font-weight:700;color:var(--navy)">To be scheduled ('+EDITSCHED.pending.length+')</div>'; EDITSCHED.pending.forEach(function(t,i){ var ed=RESCHED&&RESCHED.kind==='pending'&&String(RESCHED.key)===String(i); h+='<div style="display:flex;align-items:center;gap:10px;margin:3px 0;flex-wrap:wrap"><span class="pill draft">'+esc(fmtWhen(t))+'</span><span style="color:var(--muted);font-size:11px;font-weight:700;">'+slotOf(t)+'</span>'+(ed?editorRow(_localDT(t)):'<span data-repend="'+i+'" style="color:var(--blue);cursor:pointer;font-size:12px;text-decoration:underline;">reschedule</span><span data-rm="'+i+'" style="color:var(--red);cursor:pointer;font-size:12px;text-decoration:underline;">remove</span>')+'</div>'; }); }
   el.innerHTML=h;
-  var cs=el.querySelectorAll('[data-cancel]'); for(var i=0;i<cs.length;i++){ (function(b){ b.onclick=function(){ api('POST','/api/mail/schedules/'+b.getAttribute('data-cancel')+'/cancel',{}).then(loadSchedules); }; })(cs[i]); }
-  var rs=el.querySelectorAll('[data-rm]'); for(var j=0;j<rs.length;j++){ (function(b){ b.onclick=function(){ EDITSCHED.pending.splice(parseInt(b.getAttribute('data-rm'),10),1); renderSched(); }; })(rs[j]); }
+  el.querySelectorAll('[data-cancel]').forEach(function(b){ b.onclick=function(){ api('POST','/api/mail/schedules/'+b.getAttribute('data-cancel')+'/cancel',{}).then(loadSchedules); }; });
+  el.querySelectorAll('[data-rm]').forEach(function(b){ b.onclick=function(){ EDITSCHED.pending.splice(parseInt(b.getAttribute('data-rm'),10),1); RESCHED=null; renderSched(); }; });
+  el.querySelectorAll('[data-resched]').forEach(function(b){ b.onclick=function(){ RESCHED={kind:'saved',key:b.getAttribute('data-resched')}; renderSched(); }; });
+  el.querySelectorAll('[data-repend]').forEach(function(b){ b.onclick=function(){ RESCHED={kind:'pending',key:b.getAttribute('data-repend')}; renderSched(); }; });
+  var cn=$('reschedCancel'); if(cn) cn.onclick=function(){ RESCHED=null; renderSched(); };
+  var sv=$('reschedSave'); if(sv) sv.onclick=function(){
+    var inp=$('reschedInput'), msg=$('reschedMsg'); var v=inp?inp.value:''; if(!v){ if(msg) msg.textContent='Pick a date & time.'; return; }
+    var d=new Date(v), man=schManualOn();
+    if(!man){ if(d.getDay()===0||d.getDay()===6){ if(msg) msg.textContent='Weekend — tick Deliberate send to allow.'; return; } if(_isHol(d)){ if(msg) msg.textContent='Holiday — tick Deliberate send to allow.'; return; } }
+    if(RESCHED.kind==='pending'){ EDITSCHED.pending[parseInt(RESCHED.key,10)]=v; RESCHED=null; renderSched(); }
+    else { if(sv) sv.textContent='saving…'; api('POST','/api/mail/schedules/'+RESCHED.key+'/reschedule',{run_at:d.toISOString()}).then(function(r){ if(!r||!r.ok){ if(msg) msg.textContent=(r&&r.error)||'Could not reschedule.'; if(sv) sv.textContent='save'; return; } RESCHED=null; loadSchedules(); }).catch(function(){ if(msg) msg.textContent='Server error.'; if(sv) sv.textContent='save'; }); }
+  };
 }
 function saveSchedule(){
   if(!EDITSCHED.pending.length){ schMsg('Add at least one time first.',true); return; }
