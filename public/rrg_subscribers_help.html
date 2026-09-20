@@ -90,6 +90,7 @@ ul,ol{margin:9px 0 9px 4px;padding-left:22px;} li{margin:5px 0;}
         <li><b>Status</b> — Subscribed, Unsubscribed, or Bounced.</li>
       </ul>
       <p>Add the search box and you can find anyone by name, email or company. Whatever the list shows after filtering is a <b>segment</b> — e.g. "Buyers interested in Austin who are subscribed."</p>
+      <p>The tiles across the top are live KPIs: <b>Total, Active, Unsubscribed, Bounced</b>, and by type <b>Brokers, Restaurants, Untyped</b> (each with an "active" count). Click a type tile to filter the list to it — <b>Untyped</b> is your worklist of subscribers still needing a Broker/Restaurant tag. The window opens to a blank prompt or your last-used view rather than dumping the whole list, and every filter combination can be exported (if you have the export permission) or saved with <b>★ Saved</b>.</p>
       <div class="callout tip"><div class="lbl">Why it matters</div>A restaurant-for-sale blast should go to Buyers, not Brokers; an Austin listing should go to people who care about Austin. Segmenting first means every send is relevant — better opens, fewer unsubscribes.</div>
     </section>
 
@@ -140,19 +141,19 @@ ul,ol{margin:9px 0 9px 4px;padding-left:22px;} li{margin:5px 0;}
     </section>
 
     <section class="card" id="add">
-      <h2><span class="n">7</span> Add &amp; import</h2>
-      <p class="lead">Three ways to grow the list.</p>
-      <ul>
-        <li><b>+ Add subscriber</b> — open a blank detail page and enter one by hand.</li>
-        <li><b>Import → Paste a list</b> — paste emails one per line (optionally <code>email, name, company</code>) and apply tags to the batch.</li>
-        <li><b>Import → From contacts</b> — pull people straight from your CRM contacts, filtered by contact type or tag, so your book and your audience stay in sync.</li>
-      </ul>
+      <h2><span class="n">7</span> Import, lists &amp; audiences</h2>
+      <p class="lead">Grow the list, then carve reusable audiences out of it.</p>
+      <p><b>⬆ Import</b> (top of the list) opens a working dialog. Paste addresses or upload a CSV — the parser finds the email column wherever it sits and whatever the header is called (Email, E-mail, Email Address…), and reads First/Last/Name/Company/Phone/Status/Type columns too. Set a <b>List type</b> (Brokers or Restaurants), a <b>Default status</b> (Active, Unsubscribed or Bounced), and optionally drop the batch straight into a list. Big files import in chunks with a live progress bar; duplicates and already-suppressed addresses are skipped.</p>
+      <p><b>☰ Lists</b> is your audience manager — create an empty list, rename one, or delete one (deleting never touches the subscribers themselves; a campaign pointed at a deleted list simply reverts to "all active"). </p>
+      <p><b>Add to list</b> turns any segment into a reusable audience: filter the list (e.g. Brokers in Houston), tick the ones you want, and the <b>Add to list</b> bulk action drops them into a new or existing list. That list then appears in the campaign's <b>Send to</b> picker.</p>
+      <div class="callout tip"><div class="lbl">The audience loop</div>Filter → Add to list here, then pick that list under <b>Send to</b> when you build a campaign. No spreadsheets, and the list re-checks suppression on every send.</div>
     </section>
 
     <section class="card" id="prefs">
       <h2><span class="n">8</span> Email preferences</h2>
       <p class="lead">Each subscriber controls what they get — and the system honors it.</p>
-      <p>On the detail page, <b>Areas of interest</b> is either <b>All areas</b> (they get every campaign) or <b>Specific areas</b> (they only get a campaign that overlaps the areas you picked). Anyone marked <b>Unsubscribed</b> or <b>Bounced</b> is never emailed. Every mass email respects these settings automatically, so you never have to hand-clean a list before a send.</p>
+      <p>On the detail page, <b>Areas of interest</b> is either <b>All areas</b> (they get every campaign) or <b>Specific areas</b> (they only get a campaign that overlaps the areas you picked). The area choices come from your firm's <b>subscriber-areas subset</b> — set it in <b>Admin → Settings → Subscriber areas</b> so subscribers only ever see the handful of metros that matter for email, not every CRM market. Anyone marked <b>Unsubscribed</b> or <b>Bounced</b> is never emailed. Every mass email respects these settings automatically, so you never hand-clean a list before a send.</p>
+      <p><b>Self-service, too:</b> every campaign footer carries an <b>Update preferences</b> link. It opens a private page (no login) where the subscriber edits their own name, areas of interest and lists, and can unsubscribe from everything or re-subscribe — all writing straight back to the record you see here. There's a matching <b>Unsubscribe</b> link, and unsubscribing anywhere suppresses them across every list.</p>
     </section>
 
     <section class="card" id="mass">

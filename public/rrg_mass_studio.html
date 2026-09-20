@@ -89,7 +89,18 @@ iframe.prev{width:100%;height:420px;border:1px solid var(--line);border-radius:6
 .featlist li:last-child{border-bottom:none;}
 .featlist li:before{content:'✓';position:absolute;left:0;top:9px;color:var(--green);font-weight:800;font-size:13px;}
 .featlist li b{color:var(--navy);}
-@media print{.help-ov,.pghead .hbtns{display:none!important;}}
+.wtw{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 4px 18px rgba(11,26,56,.05);margin-bottom:18px;overflow:hidden;}
+.wtwhd{display:flex;align-items:center;gap:10px;padding:13px 18px;cursor:pointer;user-select:none;}
+.wtwhd b{font-size:14px;color:var(--navy);} .wtwhd .sh{font-size:11.5px;color:var(--soft);font-weight:600;}
+.wtwhd .chev{margin-left:auto;color:var(--soft);font-size:12px;transition:transform .15s;}
+.wtw.collapsed .chev{transform:rotate(-90deg);} .wtw.collapsed .wtwgrid{display:none;}
+.wtwgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1px;background:var(--line);border-top:1px solid var(--line);}
+.wtwf{background:#fff;display:flex;gap:11px;padding:13px 16px;align-items:flex-start;text-decoration:none;color:inherit;cursor:pointer;transition:background .12s;}
+.wtwf:hover{background:#f4f7fb;} .wtwf:hover b{color:var(--navy);}
+.wtwf .fic{font-size:17px;line-height:1.25;flex:none;width:24px;text-align:center;}
+.wtwf b{display:block;font-size:12.5px;color:var(--navy);font-weight:800;}
+.wtwf span{display:block;font-size:11.5px;color:var(--soft);line-height:1.45;margin-top:2px;}
+@media print{.help-ov,.pghead .hbtns,.wtw{display:none!important;}}
 </style></head>
 <body>
 <div class="wrap" id="app">
@@ -106,6 +117,21 @@ iframe.prev{width:100%;height:420px;border:1px solid var(--line);border-radius:6
     </div>
   </div>
   <div id="statusNote"></div>
+  <div class="wtw" id="campWtw">
+    <div class="wtwhd" id="campWtwHd"><b>What the Campaigns window does</b><span class="sh">plan, send, schedule &amp; track email blasts · tap a tile for the full feature list</span><span class="chev">▾</span></div>
+    <div class="wtwgrid">
+      <div class="wtwf" data-openfeat><span class="fic">✉️</span><div><b>Compose &amp; brand</b><span>Block editor with your logo and colors, pull-from-listing, and a test send before any blast.</span></div></div>
+      <div class="wtwf" data-openfeat><span class="fic">🎯</span><div><b>Pick the audience</b><span>Send to a whole list or a segment. Build lists and add subscribers on the Subscribers page.</span></div></div>
+      <div class="wtwf" data-openfeat><span class="fic">🗓️</span><div><b>Standard cadence</b><span>One click fills 12 weekday sends at 9 AM — first 6 ~26 days apart, last 6 ~30, holidays skipped. Defaults are admin-set.</span></div></div>
+      <div class="wtwf" data-openfeat><span class="fic">🔀</span><div><b>A/B subject test</b><span>Split two subject lines to a slice of the list; the winner auto-sends to everyone else.</span></div></div>
+      <div class="wtwf" data-openfeat><span class="fic">⏰</span><div><b>Schedule &amp; reschedule</b><span>Schedule one or many sends; reschedule or cancel any pending send inline. Weekdays only, no holidays.</span></div></div>
+      <div class="wtwf" data-openfeat><span class="fic">📜</span><div><b>Send history</b><span>Per-send breakdown — recipients, opens, clicks, unsubs, complaints, bounces — with a running total.</span></div></div>
+      <div class="wtwf" data-openfeat><span class="fic">📅</span><div><b>Team blast calendar</b><span>A subscribe-able Email Blasts calendar the whole team can add to their phone and desktop.</span></div></div>
+      <div class="wtwf" data-openfeat><span class="fic">📈</span><div><b>KPIs &amp; reporting</b><span>Campaigns, emails sent (30-day &amp; all-time), open and click rates, times &amp; dates sent.</span></div></div>
+      <div class="wtwf" data-openfeat><span class="fic">🗂️</span><div><b>Manage</b><span>Mark addresses unsubscribed, archive a campaign, or permanently delete one.</span></div></div>
+    </div>
+  </div>
+  <script>(function(){ var fs=document.getElementById('campWtw'), hd=document.getElementById('campWtwHd'); if(!fs||!hd) return; try{ if(localStorage.getItem('rrg_campwtw')!=='1') fs.classList.add('collapsed'); }catch(e){ fs.classList.add('collapsed'); } hd.addEventListener('click',function(){ var col=fs.classList.toggle('collapsed'); try{ localStorage.setItem('rrg_campwtw', col?'0':'1'); }catch(e){} }); document.querySelectorAll('.wtwf[data-openfeat]').forEach(function(t){ t.addEventListener('click',function(){ var ov=document.getElementById('featOv'); if(ov){ var h=document.getElementById('helpOv'); if(h)h.classList.remove('show'); ov.classList.add('show'); } }); }); })();</script>
   <div class="tiles" id="tiles"></div>
   <div id="tabCamps"></div>
 </div>
@@ -889,17 +915,19 @@ boot();
       <h4>What this is</h4>
       <p>A dedicated engine for sending <b>email campaigns</b> to your subscriber list through Amazon SES. It is separate from your CRM contacts and from one-off emails you send from a contact record — this is for list-wide campaigns and newsletters.</p>
       <h4>1 · Build your lists</h4>
-      <p>On the <b>Subscribers</b> tab, import addresses (paste or CSV) and file them into lists — for example <b>Restaurants</b> and <b>Brokers</b>. One database, multiple lists; you target the right list when you send. Every list shares one suppression list, so an unsubscribe covers all of them.</p>
+      <p>Subscribers live on the <b>Subscribers</b> page (in the left nav). Import addresses (paste or CSV), filter to a segment, and use <b>Add to list</b> to build audiences — for example <b>Restaurants</b> and <b>Brokers</b>. One database, multiple lists; you target the right one here when you send. Every list shares one suppression list, so an unsubscribe covers all of them.</p>
       <h4>2 · Compose the email</h4>
       <p>Create a campaign, pick a template style, and edit in the visual block editor — header, hero, text, buttons, stats, signature, footer. <b>Pull from a listing</b> to auto-fill a campaign from one of your live listings. Always send yourself a <b>test</b> before a real blast.</p>
       <h4>3 · Choose the audience</h4>
       <p>Set the campaign to send to a whole list or a filtered segment, so the right subscribers get the right message. The recipient count updates as you narrow it.</p>
       <h4>4 · Schedule the send</h4>
-      <p>Send now, or schedule one or more times. Repeats let the same blast go out on a cadence. <b>Auto-scheduling stays on business days</b> — never weekends or major holidays, and one send per morning / one per afternoon system-wide. For an intentional holiday send (a Christmas greeting), tick <b>Deliberate send</b> to lift the blackout for that time.</p>
+      <p>Send now, or schedule one or more times. The <b>Standard cadence</b> button fills your firm's default series in one click (by default 12 sends: the first 6 about 26 days apart, the last 6 about 30), on weekdays at 9&nbsp;AM. <b>Auto-scheduling stays on business days</b> — never weekends or major holidays, and one send per morning / one per afternoon system-wide. Tick <b>Deliberate send</b> to lift the blackout for an intentional holiday greeting. You can <b>reschedule</b> or <b>cancel</b> any scheduled send inline. The defaults live in <b>Admin → Settings → Campaign send cadence</b>.</p>
       <h4>5 · Track results</h4>
-      <p>The <b>Campaigns</b> tab lists every blast with opens, clicks, unsubscribes, and bounces. Scheduled sends also appear on your system calendar.</p>
+      <p>The list below shows every blast with opens, clicks, unsubscribes, complaints and bounces, plus how many times it was sent and when. For a campaign sent more than once, open <b>History</b> for a per-send breakdown and the total. Scheduled and sent blasts also appear on the team calendar — and there's a subscribe-able <b>Email Blasts</b> calendar (📅 Blast calendar) you can add to everyone's phone.</p>
       <h4>Suppression</h4>
-      <p>Anyone on the <b>Suppression</b> tab is permanently excluded from every send, tenant-wide. Bounces, complaints, and one-click unsubscribes land here automatically; you can add addresses by hand when someone asks off another way.</p>
+      <p>Anyone suppressed is permanently excluded from every send, tenant-wide. Bounces, complaints, and one-click unsubscribes land there automatically; use <b>✖ Mark unsubscribed</b> to paste addresses by hand, or manage individual subscribers on the <b>Subscribers</b> page.</p>
+      <h4>A/B subject testing</h4>
+      <p>In the editor, enable <b>A/B split test</b>, enter a Subject B, a test-audience %, the winning metric (opens or clicks) and a decision window. A slice gets the split; after the window the winning subject sends to everyone else automatically.</p>
       <h4>Deliverability</h4>
       <p>Keep lists clean and only mail people who opted in. High bounce or complaint rates hurt your sending reputation — the suppression list and one-click unsubscribe protect it for you.</p>
     </div>
@@ -914,21 +942,21 @@ boot();
       <h4>What's inside</h4>
       <ul class="featlist">
         <li><b>Amazon SES sending</b> — throttled, high-deliverability bulk delivery.</li>
-        <li><b>Subscriber lists &amp; segments</b> — one database, many lists (Restaurants, Brokers, …); target by list or filter.</li>
-        <li><b>Import</b> — paste or CSV upload straight into a chosen list.</li>
-        <li><b>Visual template editor</b> — drag-free block editor: header, hero, text, stats, buttons, signature, footer.</li>
+        <li><b>Audiences from Subscribers</b> — build lists on the Subscribers page (import, filter, Add&nbsp;to&nbsp;list), then target one here with <b>Send to</b>, or send to all active.</li>
+        <li><b>Visual template editor</b> — block editor: header, hero, text, stats, buttons, signature, footer.</li>
         <li><b>Brokerage-branded styles</b> — templates pull your logo and colors from Admin; three selectable looks.</li>
         <li><b>Pull from a listing</b> — auto-fill a campaign from one of your live listings.</li>
         <li><b>Test sends</b> — fire a proof to yourself before any blast.</li>
-        <li><b>Robust scheduling</b> — send now, or one or many scheduled times.</li>
-        <li><b>Repeat blasts</b> — run the same campaign on a cadence.</li>
-        <li><b>Weekend &amp; holiday blackout</b> — auto-scheduling stays on business days; one AM + one PM per day.</li>
-        <li><b>Deliberate holiday send</b> — override the blackout for an intentional greeting.</li>
-        <li><b>Calendar integration</b> — scheduled blasts show on your system calendar.</li>
-        <li><b>A/B testing</b> — split subject lines and let the winner send to the rest.</li>
-        <li><b>Open / click / bounce tracking</b> — full per-campaign metrics.</li>
-        <li><b>Shared suppression list</b> — bounces, complaints, and one-click unsubscribes auto-excluded tenant-wide.</li>
-        <li><b>Up to 50 concurrent campaigns</b> — managed in one list view with search and archive.</li>
+        <li><b>Standard cadence (1-click)</b> — fills your firm's default series (12 sends: first 6 ~26 days apart, last 6 ~30) on weekdays at 9&nbsp;AM. Defaults are set in Admin&nbsp;→&nbsp;Settings.</li>
+        <li><b>Flexible scheduling</b> — send now, add times one by one, or generate a repeat series; <b>reschedule</b> or <b>cancel</b> any pending send inline.</li>
+        <li><b>Weekend &amp; holiday blackout</b> — auto-scheduling stays on business days; one AM + one PM per day. <b>Deliberate send</b> overrides it for an intentional greeting.</li>
+        <li><b>A/B subject test</b> — split two subject lines to a slice; the winner auto-sends to the rest.</li>
+        <li><b>Send history</b> — per-send breakdown (recipients, opens, clicks, unsubs, complaints, bounces) plus the total, for campaigns sent more than once.</li>
+        <li><b>KPIs</b> — campaigns, emails sent (30-day &amp; all-time), open/click rates; list columns show times sent, dates, and every engagement metric.</li>
+        <li><b>Team blast calendar</b> — a subscribe-able <b>Email Blasts</b> calendar (private ICS URL) the whole team adds to phone or desktop; scheduled &amp; sent blasts also show on the in-app calendar.</li>
+        <li><b>Mark unsubscribed</b> — paste addresses to suppress them across every list; bounces, complaints and one-click unsubscribes auto-suppress too.</li>
+        <li><b>Archive &amp; delete</b> — tuck a campaign away, restore it, or permanently delete (type-to-confirm once it has sent).</li>
+        <li><b>Up to 50 concurrent campaigns</b> — managed in one full-width list with search, sort, and archive.</li>
       </ul>
     </div>
   </div>
