@@ -155,10 +155,11 @@ function mergeFields(str, sub) {
 function ensureFooter(html, unsubUrl) {
   const postal = process.env.MAIL_POSTAL_ADDRESS || '';
   const from = process.env.MAIL_FROM_NAME || process.env.SES_FROM || '';
+  const prefsUrl = String(unsubUrl || '').replace('/mail/u/', '/mail/prefs/');
   const foot = '<div style="margin-top:28px;padding-top:16px;border-top:1px solid #e6e9f0;font-family:Arial,sans-serif;font-size:11px;color:#8a93a8;line-height:1.6;text-align:center">'
     + (from ? (escapeHtml(from) + '<br>') : '')
     + (postal ? (escapeHtml(postal) + '<br>') : '')
-    + 'You are receiving this because you subscribed. <a href="' + unsubUrl + '" style="color:#8a93a8;text-decoration:underline">Unsubscribe</a>.'
+    + 'You are receiving this because you subscribed. <a href="' + prefsUrl + '" style="color:#8a93a8;text-decoration:underline">Update preferences</a> &middot; <a href="' + unsubUrl + '" style="color:#8a93a8;text-decoration:underline">Unsubscribe</a>.'
     + '</div>';
   if (/\{\{\s*unsubscribe_url\s*\}\}/i.test(html)) return html.replace(/\{\{\s*unsubscribe_url\s*\}\}/gi, unsubUrl);
   // append footer before </body> if present, else at end
@@ -536,6 +537,7 @@ async function sendTest(campaignId, toEmail) {
 function mount(app, deps) {
   deps = deps || {};
   const requireAdmin = deps.requireAdmin || function (req, res, next) { next(); };
+  const subscriberAreas = deps.subscriberAreas || function () { return []; };  // firm's subset of areas offered to subscribers
   BASE = (deps.appBaseUrl && deps.appBaseUrl()) || '';
   const express = require('express');
   initDb();
@@ -771,8 +773,96 @@ function mount(app, deps) {
   const GIF = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
   app.get('/mail/o/:token', async (req, res) => { try { if (DB_READY) await handleOpen(String(req.params.token).replace(/\.gif$/i, '')); } catch (e) {} res.set('Content-Type', 'image/gif').set('Cache-Control', 'no-store, no-cache, must-revalidate').send(GIF); });
   function _unsubPage(email) { return '<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Unsubscribed</title><body style="font-family:-apple-system,Segoe UI,Arial,sans-serif;background:#eef1f6;margin:0"><div style="max-width:480px;margin:70px auto;background:#fff;border:1px solid #e6e9f0;border-radius:12px;padding:34px;text-align:center"><h2 style="color:#000E31;margin:0 0 8px">You\'re unsubscribed</h2><p style="color:#6b7488">' + (email ? ('<b>' + escapeHtml(email) + '</b> has been removed and won\'t receive further emails.') : 'You will not receive further emails.') + '</p></div></body>'; }
+  function _prefsPage(token) {
+    const T = String(token || '').replace(/[^a-zA-Z0-9._-]/g, '');
+    return '<!doctype html><html><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Email preferences</title>'
+      + '<style>'
+      + ':root{--navy:#000E31;--red:#DA2B1F;--line:#e6e9f0;--muted:#6b7488;--ink:#1d2739;}'
+      + '*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:#eef1f6;color:var(--ink);line-height:1.5}'
+      + '.card{max-width:560px;margin:40px auto;background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 8px 30px rgba(12,22,54,.08)}'
+      + '.hd{background:linear-gradient(120deg,#132449,#0b1636);color:#fff;padding:22px 26px}'
+      + '.hd h1{margin:0;font-size:19px;letter-spacing:.2px}.hd p{margin:5px 0 0;color:#aeb8cf;font-size:13px}'
+      + '.bd{padding:22px 26px}.fld{margin-bottom:18px}.fl{display:block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:7px}'
+      + 'input[type=text]{width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:14px}'
+      + '.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media(max-width:460px){.row2{grid-template-columns:1fr}}'
+      + '.seg{display:inline-flex;border:1px solid #cfd6e2;border-radius:10px;overflow:hidden}.seg label{padding:9px 16px;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer}.seg label.on{background:var(--navy);color:#fff}'
+      + '.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}.chip{display:inline-flex;align-items:center;gap:7px;border:1px solid #cfd6e2;border-radius:9px;padding:8px 12px;font-size:13.5px;cursor:pointer;background:#fff;user-select:none}.chip.on{border-color:var(--navy);background:#eef2fb;color:var(--navy);font-weight:600}.chip input{width:auto;margin:0}'
+      + '.save{background:var(--navy);color:#fff;border:0;border-radius:10px;padding:12px 22px;font:inherit;font-size:14px;font-weight:700;cursor:pointer}.save:disabled{opacity:.6;cursor:default}'
+      + '.msg{margin-left:12px;font-size:13px;font-weight:700}.msg.ok{color:#1f8a5b}.msg.err{color:var(--red)}'
+      + '.unsub{margin-top:16px;padding-top:14px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}.unsub a{color:var(--red);cursor:pointer;font-weight:600;text-decoration:underline}'
+      + '.note{color:var(--muted);font-size:12.5px}.em{font-weight:700;color:var(--navy)}'
+      + '</style></head><body><div class="card"><div class="hd"><h1>Email preferences</h1><p id="hdEmail">Loading…</p></div>'
+      + '<div class="bd" id="bd"><div class="note">Loading your preferences…</div></div></div>'
+      + '<script>(function(){'
+      + 'var TOKEN=' + JSON.stringify(T) + ';var D=null;'
+      + 'function esc(s){var d=document.createElement("div");d.textContent=s==null?"":String(s);return d.innerHTML;}'
+      + 'function $(id){return document.getElementById(id);}'
+      + 'function api(m,u,b){return fetch(u,{method:m,headers:b?{"Content-Type":"application/json"}:undefined,body:b?JSON.stringify(b):undefined}).then(function(r){return r.json();});}'
+      + 'function boot(){api("GET","/api/mail/prefs/"+TOKEN).then(function(j){ if(!j||!j.ok){ $("bd").innerHTML="<div class=note>"+esc((j&&j.error)||"This link is no longer valid.")+"</div>"; $("hdEmail").textContent=""; return; } D=j; render(); }).catch(function(){ $("bd").innerHTML="<div class=note>Could not reach the server. Please try again.</div>"; }); }'
+      + 'function render(){ $("hdEmail").innerHTML="Managing preferences for <b>"+esc(D.email)+"</b>";'
+      + 'var areas=D.areas||[],metros=D.metros||[],sel={};metros.forEach(function(m){sel[m]=1;});'
+      + 'var mode=D.mode==="metros"?"metros":"all";'
+      + 'var h="";'
+      + 'h+=\'<div class="row2"><div class="fld"><label class="fl">First name</label><input type="text" id="fn" value="\'+esc(D.first_name)+\'"></div><div class="fld"><label class="fl">Last name</label><input type="text" id="ln" value="\'+esc(D.last_name)+\'"></div></div>\';'
+      + 'h+=\'<div class="fld"><label class="fl">Areas of interest</label><div class="seg" id="modeSeg"><label data-mode="all"\'+(mode==="all"?\' class="on"\':"")+\'>All areas</label><label data-mode="metros"\'+(mode==="metros"?\' class="on"\':"")+\'>Specific areas</label></div>\';'
+      + 'h+=\'<div id="areaWrap" style="margin-top:10px;\'+(mode==="metros"?"":"display:none")+\'">\';'
+      + 'if(areas.length){ h+=\'<div class="chips">\'+areas.map(function(a){return \'<label class="chip\'+(sel[a]?" on":"")+\'"><input type="checkbox" class="areacb" value="\'+esc(a)+\'"\'+(sel[a]?" checked":"")+\'> \'+esc(a)+\'</label>\';}).join("")+\'</div>\'; } else { h+=\'<div class="note">No specific areas are available — you will receive all emails.</div>\'; }'
+      + 'h+="</div></div>";'
+      + 'if((D.lists||[]).length){ h+=\'<div class="fld"><label class="fl">Lists</label><div class="chips">\'+D.lists.map(function(l){return \'<label class="chip\'+(l.member?" on":"")+\'"><input type="checkbox" class="listcb" value="\'+l.id+\'"\'+(l.member?" checked":"")+\'> \'+esc(l.name)+\'</label>\';}).join("")+\'</div></div>\'; }'
+      + 'h+=\'<div style="margin-top:6px"><button class="save" id="saveBtn">Save preferences</button><span class="msg" id="msg"></span></div>\';'
+      + 'h+=\'<div class="unsub" id="unsubRow"></div>\';'
+      + '$("bd").innerHTML=h; wire(); renderUnsub();'
+      + '}'
+      + 'function renderUnsub(){ var r=$("unsubRow"); if(!r)return; if(D.subscribed){ r.innerHTML="Prefer to stop all emails? <a id=unsubLink>Unsubscribe from everything</a>."; var a=$("unsubLink"); if(a) a.onclick=function(){ D.subscribed=false; save(true); }; } else { r.innerHTML="You are currently <b>unsubscribed</b> — you will not receive emails. <a id=resubLink>Re-subscribe</a>."; var b=$("resubLink"); if(b) b.onclick=function(){ D.subscribed=true; save(true); }; } }'
+      + 'function wire(){ var seg=$("modeSeg"); if(seg){ seg.querySelectorAll("label").forEach(function(l){ l.onclick=function(){ seg.querySelectorAll("label").forEach(function(x){x.classList.remove("on");}); l.classList.add("on"); var m=l.getAttribute("data-mode"); $("areaWrap").style.display=(m==="metros")?"":"none"; }; }); }'
+      + 'document.querySelectorAll(".areacb,.listcb").forEach(function(cb){ cb.onchange=function(){ var lab=cb.closest(".chip"); if(lab) lab.classList.toggle("on",cb.checked); }; });'
+      + 'var sb=$("saveBtn"); if(sb) sb.onclick=function(){ save(false); }; }'
+      + 'function collect(){ var mode=(document.querySelector("#modeSeg label.on")||{}).getAttribute?document.querySelector("#modeSeg label.on").getAttribute("data-mode"):"all"; var metros=[]; document.querySelectorAll(".areacb:checked").forEach(function(cb){metros.push(cb.value);}); var listIds=[]; document.querySelectorAll(".listcb:checked").forEach(function(cb){listIds.push(cb.value);}); return { first_name:($("fn")?$("fn").value:""), last_name:($("ln")?$("ln").value:""), mode:mode, metros:metros, listIds:listIds, subscribed:D.subscribed }; }'
+      + 'function save(silentReload){ var m=$("msg"); var body=collect(); var sb=$("saveBtn"); if(sb) sb.disabled=true; if(m){m.className="msg";m.textContent="Saving…";} api("POST","/api/mail/prefs/"+TOKEN,body).then(function(j){ if(sb) sb.disabled=false; if(!j||!j.ok){ if(m){m.className="msg err";m.textContent=(j&&j.error)||"Could not save.";} return; } if(j.subscribed!=null) D.subscribed=j.subscribed; if(m){m.className="msg ok";m.textContent="Saved ✓";} renderUnsub(); if(silentReload){ boot(); } }).catch(function(){ if(sb) sb.disabled=false; if(m){m.className="msg err";m.textContent="Could not reach the server.";} }); }'
+      + 'boot();})();</script></body></html>';
+  }
   app.get('/mail/u/:token', async (req, res) => { let email = null; try { if (DB_READY) email = await handleUnsub(String(req.params.token)); } catch (e) {} res.set('Content-Type', 'text/html; charset=utf-8').send(_unsubPage(email)); });
   app.post('/mail/u/:token', express.urlencoded({ extended: false }), async (req, res) => { try { if (DB_READY) await handleUnsub(String(req.params.token)); } catch (e) {} res.json({ ok: true }); });
+
+  // ---- Self-service preferences (subscriber reaches this from a per-send token in the email footer) ----
+  async function _subByToken(token) {
+    const snd = (await q('SELECT email FROM mm_sends WHERE token=$1 LIMIT 1', [token])).rows[0];
+    return snd ? _norm(snd.email) : null;
+  }
+  app.get('/api/mail/prefs/:token', async (req, res) => { try {
+    if (!DB_READY) return res.status(503).json({ ok: false, error: 'Preferences are unavailable right now.' });
+    const email = await _subByToken(String(req.params.token));
+    if (!email) return res.status(404).json({ ok: false, error: 'This preferences link is no longer valid.' });
+    const sub = (await q('SELECT first_name,last_name,status,meta FROM mm_subscribers WHERE tenant=$1 AND email=$2', [TENANT, email])).rows[0] || {};
+    const meta = sub.meta || {};
+    const suppressed = await isSuppressed(email);
+    const lists = (await q(`SELECT l.id, l.name, EXISTS(SELECT 1 FROM mm_list_members m JOIN mm_subscribers s ON s.id=m.subscriber_id WHERE m.list_id=l.id AND s.tenant=$1 AND s.email=$2) AS member FROM mm_lists l WHERE l.tenant=$1 ORDER BY l.name`, [TENANT, email])).rows;
+    res.json({ ok: true, email: email, first_name: sub.first_name || '', last_name: sub.last_name || '',
+      subscribed: !suppressed && (sub.status ? sub.status === 'active' : true),
+      mode: (meta.mode === 'metros' ? 'metros' : 'all'), metros: Array.isArray(meta.metros) ? meta.metros : [],
+      areas: subscriberAreas(), lists: lists });
+  } catch (e) { res.status(500).json({ ok: false, error: 'Could not load your preferences.' }); } });
+  app.post('/api/mail/prefs/:token', express.json({ limit: '256kb' }), async (req, res) => { try {
+    if (!DB_READY) return res.status(503).json({ ok: false, error: 'Preferences are unavailable right now.' });
+    const email = await _subByToken(String(req.params.token));
+    if (!email) return res.status(404).json({ ok: false, error: 'This preferences link is no longer valid.' });
+    const b = req.body || {};
+    const fn = String(b.first_name || '').slice(0, 120), ln = String(b.last_name || '').slice(0, 120);
+    const mode = (b.mode === 'metros') ? 'metros' : 'all';
+    const allowed = {}; (subscriberAreas() || []).forEach(a => { allowed[String(a).toLowerCase()] = a; });
+    const metros = (Array.isArray(b.metros) ? b.metros : []).map(x => allowed[String(x).toLowerCase()]).filter(Boolean).slice(0, 60);
+    await q(`INSERT INTO mm_subscribers(tenant,email,first_name,last_name,meta) VALUES($1,$2,$3,$4,$5::jsonb)
+       ON CONFLICT(tenant,email) DO UPDATE SET first_name=EXCLUDED.first_name, last_name=EXCLUDED.last_name, meta = mm_subscribers.meta || EXCLUDED.meta, updated_at=now()`,
+      [TENANT, email, fn, ln, JSON.stringify({ mode: mode, metros: metros })]);
+    if (b.subscribed === false) { await addSuppression(email, 'unsubscribe', 'preferences page'); }
+    else if (b.subscribed === true) { await q('DELETE FROM mm_suppressions WHERE tenant=$1 AND email=$2', [TENANT, email]); await q(`UPDATE mm_subscribers SET status='active', updated_at=now() WHERE tenant=$1 AND email=$2`, [TENANT, email]); }
+    if (Array.isArray(b.listIds)) {
+      const s = (await q('SELECT id FROM mm_subscribers WHERE tenant=$1 AND email=$2', [TENANT, email])).rows[0];
+      if (s) { await q('DELETE FROM mm_list_members WHERE subscriber_id=$1', [s.id]); for (const lid of b.listIds) { const L = Number(lid); if (L) await q('INSERT INTO mm_list_members(list_id,subscriber_id) VALUES($1,$2) ON CONFLICT DO NOTHING', [L, s.id]); } }
+    }
+    res.json({ ok: true, subscribed: b.subscribed !== false });
+  } catch (e) { res.status(500).json({ ok: false, error: 'Could not save your preferences.' }); } });
+  app.get('/mail/prefs/:token', (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8').send(_prefsPage(String(req.params.token))); });
 
   if (DB_READY && sesConfigured()) { migrate().then(() => kickDrainer()).catch(() => {}); }
   if (DB_READY && !_abTimer) { _abTimer = setInterval(() => { maybeDecideAb().then(r => { if (r) kickDrainer(); }).catch(() => {}); }, 60000); }
