@@ -538,12 +538,13 @@ function mount(app, deps) {
   deps = deps || {};
   const requireAdmin = deps.requireAdmin || function (req, res, next) { next(); };
   const subscriberAreas = deps.subscriberAreas || function () { return []; };  // firm's subset of areas offered to subscribers
+  const mailCadence = deps.mailCadence || function () { return {}; };  // admin defaults for the Standard cadence scheduler
   BASE = (deps.appBaseUrl && deps.appBaseUrl()) || '';
   const express = require('express');
   initDb();
   function guard(req, res, next) { if (!DB_READY) return res.status(503).json({ ok: false, error: 'Mass email is not configured — set DATABASE_URL.' }); next(); }
 
-  app.get('/api/mail/config', requireAdmin, (req, res) => { res.json({ ok: true, storage: DB_READY, sending: sesConfigured(), from: process.env.SES_FROM || process.env.MAIL_FROM || '', fromName: process.env.MAIL_FROM_NAME || '', postal: process.env.MAIL_POSTAL_ADDRESS || '', rate: RATE }); });
+  app.get('/api/mail/config', requireAdmin, (req, res) => { res.json({ ok: true, storage: DB_READY, sending: sesConfigured(), from: process.env.SES_FROM || process.env.MAIL_FROM || '', fromName: process.env.MAIL_FROM_NAME || '', postal: process.env.MAIL_POSTAL_ADDRESS || '', rate: RATE, cadence: mailCadence() }); });
   app.get('/api/mail/stats', requireAdmin, guard, async (req, res) => { try {
     const s = (await q(`SELECT status, count(*)::int n FROM mm_subscribers WHERE tenant=$1 GROUP BY status`, [TENANT])).rows;
     const supp = (await q('SELECT count(*)::int n FROM mm_suppressions WHERE tenant=$1', [TENANT])).rows[0].n;
