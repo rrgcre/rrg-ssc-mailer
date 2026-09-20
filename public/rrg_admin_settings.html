@@ -71,7 +71,7 @@ function get(url){ return fetch(url,{credentials:'same-origin'}).then(function(r
 
 var TYPES={ personTypes:[], companyTypes:[], ticketCategories:[], leadSources:[], activityTypes:[], roomCloseReasons:[], cuisineTypes:[], saleReasons:[], markets:[], agreementTypes:[], docTypes:[] };
 var SUBMARKETS=[];  // subset of markets offered to subscribers (empty = all)
-function CADDEF(){ return {sends:6,amTime:'09:00',pmTime:'14:00',nearGap:26,nearMonths:3,farGap:30}; }
+function CADDEF(){ return {sends:12,amTime:'09:00',pmTime:'14:00',nearGap:26,nearCount:6,farGap:30}; }
 var CAD=CADDEF();  // campaign send-cadence defaults
 function cadSectionHtml(){
   var sl='width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:9px 11px;font:inherit;font-size:13.5px';
@@ -82,11 +82,11 @@ function cadSectionHtml(){
     +f('cad_am','Morning send time','time',CAD.amTime)
     +f('cad_pm','Afternoon send time','time',CAD.pmTime)
     +f('cad_near','Early spacing (days)','number',CAD.nearGap,1,120)
-    +f('cad_nm','Early window (months)','number',CAD.nearMonths,0,24)
+    +f('cad_nc','Early sends (at early spacing)','number',CAD.nearCount,0,12)
     +f('cad_far','Later spacing (days)','number',CAD.farGap,1,180)
-    +'</div><div class="note" style="margin-top:6px">Defaults for the <b>Standard cadence</b> button when scheduling a campaign. Sends land on weekdays only, skip major US holidays, and use the two times above (max two per day, system-wide). Early spacing applies for the first few months, then later spacing takes over.</div>';
+    +'</div><div class="note" style="margin-top:6px">Defaults for the <b>Standard cadence</b> button when scheduling a campaign. Sends land on weekdays only, skip major US holidays, and use the two times above (max two per day, system-wide). The first <b>Early sends</b> use the early spacing; every send after that uses the later spacing. (E.g. 12 sends with early sends = 6 gives the first 6 at the early gap and the last 6 at the later gap.)</div>';
 }
-function cadFromInputs(){ var g=function(id){var e=document.getElementById(id);return e?e.value:'';}; return { sends:g('cad_sends'), amTime:g('cad_am'), pmTime:g('cad_pm'), nearGap:g('cad_near'), nearMonths:g('cad_nm'), farGap:g('cad_far') }; }
+function cadFromInputs(){ var g=function(id){var e=document.getElementById(id);return e?e.value:'';}; return { sends:g('cad_sends'), amTime:g('cad_am'), pmTime:g('cad_pm'), nearGap:g('cad_near'), nearCount:g('cad_nc'), farGap:g('cad_far') }; }
 function subMktHtml(){
   var all=TYPES.markets||[]; var chosen={}; (SUBMARKETS||[]).forEach(function(m){ chosen[String(m).toLowerCase()]=1; });
   if(!all.length) return '<span class="note" style="margin:4px">Add some markets above first.</span>';

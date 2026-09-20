@@ -630,10 +630,10 @@ function _holSet(year){ function pad(n){return (n<10?'0':'')+n;} function nth(y,
 function _isHol(d){ try{ var p=function(n){return (n<10?'0':'')+n;}; return !!_holSet(d.getFullYear())[p(d.getMonth()+1)+'-'+p(d.getDate())]; }catch(e){ return false; } }
 function schManualOn(){ return !!($('schManual') && $('schManual').checked); }
 // Admin-configurable cadence defaults (from /api/mail/config), with safe fallbacks.
-function cad(){ var c=(CFG&&CFG.cadence)||{}; return { sends:Number(c.sends)||6, amTime:c.amTime||'09:00', pmTime:c.pmTime||'14:00', nearGap:Number(c.nearGap)||26, nearMonths:(c.nearMonths!=null?Number(c.nearMonths):3), farGap:Number(c.farGap)||30 }; }
+function cad(){ var c=(CFG&&CFG.cadence)||{}; return { sends:Number(c.sends)||12, amTime:c.amTime||'09:00', pmTime:c.pmTime||'14:00', nearGap:Number(c.nearGap)||26, nearCount:(c.nearCount!=null?Number(c.nearCount):6), farGap:Number(c.farGap)||30 }; }
 function _hm(t){ var p=String(t||'09:00').split(':'); return { h:parseInt(p[0],10)||0, m:parseInt(p[1],10)||0 }; }
 function _t12(t){ var x=_hm(t); var ap=x.h<12?'AM':'PM'; var h=x.h%12; if(h===0)h=12; return h+(x.m?(':'+(x.m<10?'0':'')+x.m):'')+' '+ap; }
-function cadNote(){ var c=cad(); return 'Weekdays at '+_t12(c.amTime)+', ~'+c.nearGap+' days apart for the first '+c.nearMonths+' month'+(c.nearMonths===1?'':'s')+' then ~'+c.farGap+', holidays skipped. Uses the Send time date above as the start, or tomorrow. Adjust any date/time or flip to '+_t12(c.pmTime)+' below before saving.'; }
+function cadNote(){ var c=cad(); return 'Weekdays at '+_t12(c.amTime)+' — the first '+c.nearCount+' sends ~'+c.nearGap+' days apart, the rest ~'+c.farGap+', holidays skipped. Uses the Send time date above as the start, or tomorrow. Adjust any date/time or flip to '+_t12(c.pmTime)+' below before saving.'; }
 function schStdGen(){
   var c=cad(), man=schManualOn(), am=_hm(c.amTime);
   var v=$('schWhen')?$('schWhen').value:''; var start; if(v){ start=new Date(v); } else { start=new Date(); start.setDate(start.getDate()+1); }
@@ -642,9 +642,9 @@ function schStdGen(){
   if(remain<=0){ schMsg('Up to 12 scheduled sends per campaign — cancel one first.',true); return; }
   var count=Math.min(c.sends, remain);
   function rollValid(d){ var g=0; d=new Date(d); while(g<500){ g++; if(man || (d.getDay()!==0 && d.getDay()!==6 && !_isHol(d))) return d; d=new Date(d.getTime()+86400000); d.setHours(am.h,am.m,0,0); } return d; }
-  var cur=rollValid(start), firstMs=cur.getTime(), got=0, winMs=(c.nearMonths*30)*86400000;
-  while(got<count){ cur=rollValid(cur); cur.setHours(am.h,am.m,0,0); EDITSCHED.pending.push(toLocalInput(cur)); got++; var gap=((cur.getTime()-firstMs)<winMs)?c.nearGap:c.farGap; cur=new Date(cur.getTime()+gap*86400000); cur.setHours(am.h,am.m,0,0); }
-  schMsg('Filled '+got+' send'+(got===1?'':'s')+' — weekdays at '+_t12(c.amTime)+', ~'+c.nearGap+' days apart for the first '+c.nearMonths+' month'+(c.nearMonths===1?'':'s')+' then ~'+c.farGap+'. Adjust or flip to '+_t12(c.pmTime)+', then Schedule these times.');
+  var cur=rollValid(start), got=0;
+  while(got<count){ cur=rollValid(cur); cur.setHours(am.h,am.m,0,0); EDITSCHED.pending.push(toLocalInput(cur)); got++; var gap=(got<c.nearCount)?c.nearGap:c.farGap; cur=new Date(cur.getTime()+gap*86400000); cur.setHours(am.h,am.m,0,0); }
+  schMsg('Filled '+got+' send'+(got===1?'':'s')+' — weekdays at '+_t12(c.amTime)+', first '+c.nearCount+' ~'+c.nearGap+' days apart then ~'+c.farGap+'. Adjust or flip to '+_t12(c.pmTime)+', then Schedule these times.');
   renderSched();
 }
 function initSchedule(){

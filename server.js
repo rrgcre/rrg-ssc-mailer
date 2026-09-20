@@ -561,12 +561,12 @@ const SALE_REASONS = ['Retirement', 'Relocation', 'New venture / other interests
 function effSaleReasons() { const s = loadSettings(); return (Array.isArray(s.saleReasons) && s.saleReasons.length) ? s.saleReasons : SALE_REASONS; }
 function effMarkets() { const s = loadSettings(); const base = (Array.isArray(s.markets) && s.markets.length) ? s.markets : MARKETS; return _mergeRequired(base, SYSTEM_MARKETS); }
 // Admin-configurable defaults for the "Standard cadence" campaign scheduler.
-const MAIL_CADENCE_DEFAULT = { sends: 6, amTime: '09:00', pmTime: '14:00', nearGap: 26, nearMonths: 3, farGap: 30 };
+const MAIL_CADENCE_DEFAULT = { sends: 12, amTime: '09:00', pmTime: '14:00', nearGap: 26, nearCount: 6, farGap: 30 };
 function effMailCadence() {
   const s = loadSettings(); const c = (s.mailCadence && typeof s.mailCadence === 'object') ? s.mailCadence : {}; const d = MAIL_CADENCE_DEFAULT;
   const iv = (v, def, min, max) => { const n = parseInt(v, 10); return (isFinite(n) && n >= min && n <= max) ? n : def; };
   const tv = (v, def) => (/^\d{1,2}:\d{2}$/.test(String(v || '')) ? String(v) : def);
-  return { sends: iv(c.sends, d.sends, 1, 12), amTime: tv(c.amTime, d.amTime), pmTime: tv(c.pmTime, d.pmTime), nearGap: iv(c.nearGap, d.nearGap, 1, 120), nearMonths: iv(c.nearMonths, d.nearMonths, 0, 24), farGap: iv(c.farGap, d.farGap, 1, 180) };
+  return { sends: iv(c.sends, d.sends, 1, 12), amTime: tv(c.amTime, d.amTime), pmTime: tv(c.pmTime, d.pmTime), nearGap: iv(c.nearGap, d.nearGap, 1, 120), nearCount: iv(c.nearCount, d.nearCount, 0, 12), farGap: iv(c.farGap, d.farGap, 1, 180) };
 }
 // The subset of markets offered on subscriber records / email area targeting.
 // Admins pick a subset in Settings; empty = use every market (default behavior). Kept in master order.
@@ -13499,7 +13499,7 @@ app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
   if (b.subscriberMarkets !== undefined) { const sm = cleanStrList(b.subscriberMarkets, 60, 60) || []; if (sm.length) s.subscriberMarkets = sm; else delete s.subscriberMarkets; }
   if (b.mailCadence !== undefined && b.mailCadence && typeof b.mailCadence === 'object') {
     const mc = b.mailCadence; const iv = (v, def, min, max) => { const n = parseInt(v, 10); return (isFinite(n) && n >= min && n <= max) ? n : def; }; const tv = (v, def) => (/^\d{1,2}:\d{2}$/.test(String(v || '')) ? String(v) : def); const D = MAIL_CADENCE_DEFAULT;
-    s.mailCadence = { sends: iv(mc.sends, D.sends, 1, 12), amTime: tv(mc.amTime, D.amTime), pmTime: tv(mc.pmTime, D.pmTime), nearGap: iv(mc.nearGap, D.nearGap, 1, 120), nearMonths: iv(mc.nearMonths, D.nearMonths, 0, 24), farGap: iv(mc.farGap, D.farGap, 1, 180) };
+    s.mailCadence = { sends: iv(mc.sends, D.sends, 1, 12), amTime: tv(mc.amTime, D.amTime), pmTime: tv(mc.pmTime, D.pmTime), nearGap: iv(mc.nearGap, D.nearGap, 1, 120), nearCount: iv(mc.nearCount, D.nearCount, 0, 12), farGap: iv(mc.farGap, D.farGap, 1, 180) };
   }
   if (b.maxPullLocations !== undefined) { const n = parseInt(b.maxPullLocations, 10); s.maxPullLocations = (isFinite(n) && n > 0) ? Math.min(500, n) : 20; }
   if (typeof b.defaultState === 'string') s.defaultState = b.defaultState.trim().slice(0, 20);
