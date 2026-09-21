@@ -1844,7 +1844,9 @@ function offersCard(){
     body='<div class="olist">'+sorted.map(offerCardHTML).join('')+'</div>';
   }
   var addbtn='<button class="railadd" id="addOfferBtn" title="Record an offer">+</button>';
-  return '<div class="card"><div class="ch"><b>Offers — IOIs &amp; LOIs</b><span>'+OFFERS.length+'</span>'+addbtn+'</div>'
+  var isSale=(A&&A.assignmentType!=='tenant_rep'&&A.assignmentType!=='landlord_rep');
+  var loiBtn=isSale?('<a class="offloi" href="./rrg_loi_builder.html?listing='+encodeURIComponent(KEY)+'" title="Draft a buyer LOI pre-loaded with the terms the seller prefers" style="margin-left:auto;font-size:12px;font-weight:700;color:#b9761a;text-decoration:none;white-space:nowrap">✍ Draft buyer LOI →</a>'):'';
+  return '<div class="card"><div class="ch"><b>Offers — IOIs &amp; LOIs</b><span>'+OFFERS.length+'</span>'+loiBtn+addbtn+'</div>'
     + '<div class="cb offers"><div id="offerForm" hidden></div>'+body+'</div></div>';
 }
 function offerFormHTML(o){

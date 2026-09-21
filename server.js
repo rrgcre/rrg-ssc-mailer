@@ -20044,6 +20044,60 @@ app.get('/api/loi/parties', (req, res) => {
   try { loadCompanies().forEach(c => out.push({ id: c.id, kind: 'company', name: c.name || '', sub: c.type || '' })); } catch (e) {}
   res.json({ ok: true, parties: out });
 });
+// --- Per-listing buyer-LOI "offer template" --------------------------------
+// A business-sale LOI the BUYER uses to purchase one of our listed businesses,
+// pre-loaded with the terms the seller prefers. The preferred terms are saved
+// per listing (a fresh offer per listing), while the business name, seller and
+// asking price are always pulled LIVE from the listing so nothing goes stale.
+function loiListingPrefill(key) {
+  const idx = assignmentsIndex(); const d = idx[key]; if (!d) return null;
+  const overlay = loadAssignOverlay(); const view = assignmentView(d, overlay);
+  const cfg = loadLoiConfig(); const bs = cfg.business_sale || {}; const defaults = (bs.defaults && typeof bs.defaults === 'object') ? bs.defaults : {};
+  const tpl = (overlay[key] && overlay[key].loiTemplate && typeof overlay[key].loiTemplate === 'object') ? overlay[key].loiTemplate : null;
+  const facts = {};
+  if (view.business && view.business !== 'Untitled') facts.business = view.business;
+  const seller = personById(view.clientPersonId);
+  if (seller) { facts.seller = seller.name || ''; facts.seller_id = seller.id; facts.seller_kind = 'contact'; }
+  else if (view.company && view.company.name) { facts.seller = view.company.name; facts.seller_id = view.company.id || ''; facts.seller_kind = 'company'; }
+  else if (view.contact) { facts.seller = view.contact; }
+  const priceRaw = view.listPrice || view.value || '';
+  if (priceRaw) { const n = Number(String(priceRaw).replace(/[^0-9.]/g, '')); if (isFinite(n) && n > 0) facts.purchase_price = '$' + n.toLocaleString('en-US'); }
+  if (view.saleLane === 'asset' && !(tpl && tpl.values && tpl.values.structure)) facts.structure = 'Asset Purchase';
+  // defaults <- saved template <- live listing facts (facts win so they stay current)
+  const values = Object.assign({}, defaults, (tpl && tpl.values && typeof tpl.values === 'object') ? tpl.values : {}, facts);
+  const clauses = (tpl && Array.isArray(tpl.clauses)) ? tpl.clauses.filter(x => typeof x === 'string') : [];
+  return { d, view, tpl, prefill: { type: 'business_sale', values: values, clauses: clauses } };
+}
+app.get('/api/loi/listing/:key', (req, res) => {
+  const key = String(req.params.key || '');
+  const p = loiListingPrefill(key);
+  if (!p) return res.status(404).json({ ok: false, error: 'Listing not found.' });
+  res.json({ ok: true, prefill: p.prefill, hasTemplate: !!p.tpl,
+    templateUpdatedAt: p.tpl ? (p.tpl.updatedAt || '') : '', templateUpdatedBy: p.tpl ? (p.tpl.updatedBy || '') : '',
+    canManage: !!(isSuper(req.user) || manageLoiOk(req) || ownsAssignment(req, p.d)),
+    listing: { key: key, business: p.view.business || '', listingId: p.view.listingId || '', saleLane: p.view.saleLane || '' } });
+});
+app.post('/api/loi/listing/:key', express.json(), (req, res) => {
+  const key = String(req.params.key || '');
+  const idx = assignmentsIndex(); const d = idx[key];
+  if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
+  if (!(isSuper(req.user) || manageLoiOk(req) || ownsAssignment(req, d))) return res.status(403).json({ ok: false, error: "You do not have permission to set this listing's offer template." });
+  const b = req.body || {};
+  const ov = loadAssignOverlay(); const cur = ov[key] || {};
+  cur.loiTemplate = { values: (b.values && typeof b.values === 'object') ? b.values : {}, clauses: Array.isArray(b.clauses) ? b.clauses.filter(x => typeof x === 'string') : [], updatedAt: new Date().toISOString(), updatedBy: (req.user && req.user.name) || '' };
+  ov[key] = cur; saveAssignOverlay(ov);
+  let biz = key; try { biz = assignmentView(d, ov).business || key; } catch (e) {}
+  try { logSysEvent(req, 'LOI', 'Saved buyer-LOI offer template for "' + biz + '"', { tool: 'loi', kind: 'offer_template', key: key }); } catch (e) {}
+  res.json({ ok: true, updatedAt: cur.loiTemplate.updatedAt, updatedBy: cur.loiTemplate.updatedBy });
+});
+app.delete('/api/loi/listing/:key', (req, res) => {
+  const key = String(req.params.key || '');
+  const idx = assignmentsIndex(); const d = idx[key];
+  if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
+  if (!(isSuper(req.user) || manageLoiOk(req) || ownsAssignment(req, d))) return res.status(403).json({ ok: false, error: 'Not allowed.' });
+  const ov = loadAssignOverlay(); if (ov[key] && ov[key].loiTemplate) { delete ov[key].loiTemplate; saveAssignOverlay(ov); }
+  res.json({ ok: true });
+});
 app.post('/api/loi/save', express.json(), (req, res) => {
   const b = req.body || {}; const now = new Date().toISOString();
   const lois = loadLois();

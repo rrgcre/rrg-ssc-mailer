@@ -112,6 +112,8 @@ var CFG=null, TYPES=[], IS_ADMIN=false, REP='', TYPE='tenant_rep', VALUES={}, SE
 var CLQ='', CLVENUE='', CLSORT='order', VENUES=[];
 var LOGOURL='', APPNAME='';
 var PARTIES=[]; var CANMANAGE=false; var REPS=[];
+function qsParam(k){ try{ return new URLSearchParams(location.search).get(k)||''; }catch(e){ return ''; } }
+var LKEY=qsParam('listing'), LMETA=null, LCANMANAGE=false, LHASTPL=false;
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function todayStr(){ try{ return new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}); }catch(e){ return ''; } }
 
@@ -166,8 +168,16 @@ function render(){
   var terms=(t.terms||[]).map(fieldHtml).join('');
   var selN=Object.keys(SEL).filter(function(k){return SEL[k];}).length;
   var adminLink=CANMANAGE?'<a class="adminlink" href="./rrg_admin_loi.html">Manage clause library →</a>':'';
+  var lbanner='';
+  if(LKEY&&LMETA){
+    var lid=LMETA.listingId?(' · '+esc(LMETA.listingId)):'';
+    var tplNote=LHASTPL?'Pre-loaded from this listing’s saved offer template — the terms the seller prefers.':'Pre-loaded from this listing’s details and your standard business-sale terms.';
+    var saveBtn=LCANMANAGE?'<button class="btn" id="saveTplBtn" type="button" style="margin-left:auto;white-space:nowrap">💾 Save as this listing’s offer template</button>':'';
+    lbanner='<div class="card" style="border-left:4px solid var(--navy)"><div class="cb" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><div style="min-width:0"><div style="font-weight:800;color:var(--navy);font-size:14px">Buyer LOI — '+esc(LMETA.business||'this listing')+lid+'</div><div style="color:var(--muted);font-size:12.5px;margin-top:2px">'+tplNote+' Fill in the buyer, then build. <span id="saveTplMsg" style="font-weight:700"></span></div></div>'+saveBtn+'</div></div>';
+  }
   document.getElementById('wrap').innerHTML=
     '<div style="margin-bottom:12px"><a href="#" id="toList" style="color:var(--navy);font-weight:700;font-size:13px;text-decoration:none">← All LOIs</a></div>'
+    +lbanner
     +'<div class="card"><div class="ch"><b>LOI Builder</b><button class="btn" id="aiLoiBtn" type="button" data-ai="" style="margin-left:auto;margin-right:8px">✨ Fill from a received LOI</button>'+adminLink+'</div><div class="cb"><div class="typerow">'+typebtns+'</div></div></div>'
     +'<div class="card"><div class="ch"><b>Key info</b></div><div class="cb"><div class="grid">'+info+'</div></div></div>'
     +'<div class="card"><div class="ch"><b>Key terms</b><span class="hint">Blanks become fill-in lines in the draft</span></div><div class="cb"><div class="grid">'+terms+'</div></div></div>'
@@ -194,6 +204,7 @@ function wire(){
   var ab=document.getElementById('aiLoiBtn'); if(ab) ab.addEventListener('click',openAiLoi);
   var sb=document.getElementById('sugBtn'); if(sb) sb.addEventListener('click',loiSuggest);
   var rb=document.getElementById('revBtn'); if(rb) rb.addEventListener('click',loiReview);
+  var stb=document.getElementById('saveTplBtn'); if(stb) stb.addEventListener('click',saveListingTemplate);
   document.querySelectorAll('#wrap [data-party]').forEach(function(inp){
     var key=inp.getAttribute('data-party'); var wrap=inp.parentNode; var sug=wrap.querySelector('.partysug');
     function close(){ sug.hidden=true; sug.innerHTML=''; }
@@ -268,9 +279,32 @@ function generate(){
 fetch('/api/loi',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
   CFG=(j&&j.config)||{}; TYPES=(j&&j.types)||[]; IS_ADMIN=!!(j&&j.isAdmin); CANMANAGE=!!(j&&j.canManage); REP=(j&&j.rep)||''; LOGOURL=(j&&(j.logoLightUrl||j.logoUrl))||''; APPNAME=(j&&j.appName)||''; VENUES=(j&&j.venues)||[];
   if(TYPES.length && !CFG[TYPE]) TYPE=TYPES[0].key;
-  VALUES.date=todayStr(); if(REP) VALUES.rep=REP; applyDefaults();
+  VALUES.date=todayStr(); if(REP) VALUES.rep=REP;
+  if(LKEY){ if(CFG['business_sale']) TYPE='business_sale'; loadListingPrefill(); }
+  else applyDefaults();
   loadReps(); loadParties(); loadLois();
 }).catch(function(){ document.getElementById('wrap').innerHTML='<div class="card"><div class="cb"><div class="msg">Could not load the LOI Builder.</div></div></div>'; });
+function loadListingPrefill(){
+  fetch('/api/loi/listing/'+encodeURIComponent(LKEY),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(j&&j.ok&&j.prefill){
+      LMETA=j.listing||null; LCANMANAGE=!!j.canManage; LHASTPL=!!j.hasTemplate;
+      if(j.prefill.type&&CFG[j.prefill.type]) TYPE=j.prefill.type;
+      var pv=j.prefill.values||{}; Object.keys(pv).forEach(function(k){ if(pv[k]!==''&&pv[k]!=null) VALUES[k]=pv[k]; });
+      SEL={}; (j.prefill.clauses||[]).forEach(function(c){ SEL[c]=true; });
+    }
+    applyDefaults(); render();
+  }).catch(function(){ applyDefaults(); render(); });
+}
+function saveListingTemplate(){
+  collect(); var btn=document.getElementById('saveTplBtn'), m=document.getElementById('saveTplMsg');
+  var sel=Object.keys(SEL).filter(function(k){return SEL[k];});
+  var was=btn?btn.textContent:''; if(btn){ btn.disabled=true; btn.textContent='Saving…'; }
+  fetch('/api/loi/listing/'+encodeURIComponent(LKEY),{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({values:VALUES,clauses:sel})})
+    .then(function(r){return r.json();}).then(function(j){ if(btn){ btn.disabled=false; btn.textContent=was; }
+      if(j&&j.ok){ LHASTPL=true; if(m){ m.style.color='#1f8a5b'; m.textContent='Saved as this listing’s offer template ✓'; setTimeout(function(){ if(m) m.textContent=''; },3200); } }
+      else if(m){ m.style.color='#C0261B'; m.textContent=(j&&j.error)||'Could not save.'; } })
+    .catch(function(){ if(btn){ btn.disabled=false; btn.textContent=was; } if(m){ m.style.color='#C0261B'; m.textContent='Could not reach the server.'; } });
+}
 try{ loadLois(); }catch(e){}
 function openAiLoi(){ var ov=document.getElementById('aiov'); if(!ov) return; document.getElementById('aip_text').value=''; document.getElementById('aip_msg').textContent=''; var sm=document.getElementById('aip_sum'); sm.style.display='none'; sm.textContent=''; ov.hidden=false; }
 function aiLoiParse(){
