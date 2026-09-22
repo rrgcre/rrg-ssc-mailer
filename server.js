@@ -75,8 +75,10 @@ console.log('[DB] Primary store: ' + DB_KIND + (PG_OK ? ' + Postgres backup' : '
 function writeJsonGuarded(file, data, label) {
   const ok = DB_OK ? _db.writeStore(path.basename(file), data, label) : _fileWriteGuarded(file, data, label);
   if (PG_OK) { try { _pg.mirror(path.basename(file), data); } catch (e) {} }
+  if (!ok) { _lastWriteFail = { at: Date.now(), label: (label || path.basename(file)) }; console.error('[SAVE] write FAILED for ' + (label || file) + ' — disk may be full or read-only. Nothing was persisted.'); }
   return ok;
 }
+let _lastWriteFail = null;
 function rj(file) {
   if (DB_OK) return _db.readOrThrow(path.basename(file));
   return JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -236,7 +238,7 @@ let _pplCache = null, _pplCacheAt = 0;
 function loadPeople() { const _n = Date.now(); if (_pplCache && (_n - _pplCacheAt) < 4000) return _pplCache; try { const a = rj(PEOPLE_FILE); _pplCache = Array.isArray(a) ? a : []; } catch (e) { _pplCache = []; } _pplCacheAt = _n; return _pplCache; }
 function savePeople(a) {
   try {
-    if (!Array.isArray(a)) return;
+    if (!Array.isArray(a)) return false;
     _pplCache = a; _pplCacheAt = Date.now();
     if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true });
     if (a.length === 0) {
@@ -245,14 +247,18 @@ function savePeople(a) {
         if (Array.isArray(_cur) && _cur.length >= 2) {
           try { fs.writeFileSync(PEOPLE_FILE + '.rescue-' + Date.now() + '.json', JSON.stringify(_cur, null, 2)); } catch (e) {}
           console.error('[DATA GUARD] savePeople BLOCKED: refused to overwrite ' + _cur.length + ' contacts with an empty list. Rescue copy written next to people.json.');
-          return;
+          return false;
         }
       } catch (e) {}
     }
     const _tmp = PEOPLE_FILE + '.tmp';
     fs.writeFileSync(_tmp, JSON.stringify(a, null, 2));
     fs.renameSync(_tmp, PEOPLE_FILE);
-  } catch (e) {}
+    // Mirror to the durable stores (this hand-rolled writer historically skipped them).
+    if (DB_OK) { try { _db.writeStore(path.basename(PEOPLE_FILE), a, 'savePeople'); } catch (e) {} }
+    if (PG_OK) { try { _pg.mirror(path.basename(PEOPLE_FILE), a); } catch (e) {} }
+    return true;
+  } catch (e) { console.error('[SAVE] savePeople write failed: ' + (e && e.message)); return false; }
 }
 function newPersonId() { return 'per_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 const SPACES_FILE = path.join(BOV_DATA_DIR, 'spaces.json');
@@ -471,7 +477,7 @@ let _coCache = null, _coCacheAt = 0;
 function loadCompanies() { const _n = Date.now(); if (_coCache && (_n - _coCacheAt) < 4000) return _coCache; try { const a = rj(COMPANIES_FILE); _coCache = Array.isArray(a) ? a : []; } catch (e) { _coCache = []; } _coCacheAt = _n; return _coCache; }
 function saveCompanies(a) {
   try {
-    if (!Array.isArray(a)) return;
+    if (!Array.isArray(a)) return false;
     _coCache = a; _coCacheAt = Date.now();
     if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true });
     if (a.length === 0) {
@@ -480,14 +486,19 @@ function saveCompanies(a) {
         if (Array.isArray(_cur) && _cur.length >= 2) {
           try { fs.writeFileSync(COMPANIES_FILE + '.rescue-' + Date.now() + '.json', JSON.stringify(_cur, null, 2)); } catch (e) {}
           console.error('[DATA GUARD] saveCompanies BLOCKED: refused to overwrite ' + _cur.length + ' companies with an empty list. Rescue copy written next to companies.json.');
-          return;
+          return false;
         }
       } catch (e) {}
     }
     const _tmp = COMPANIES_FILE + '.tmp';
     fs.writeFileSync(_tmp, JSON.stringify(a, null, 2));
     fs.renameSync(_tmp, COMPANIES_FILE);
-  } catch (e) {}
+    // Mirror to the durable stores so companies survive a disk loss and match every
+    // other store (this hand-rolled writer historically skipped SQLite/Postgres).
+    if (DB_OK) { try { _db.writeStore(path.basename(COMPANIES_FILE), a, 'saveCompanies'); } catch (e) {} }
+    if (PG_OK) { try { _pg.mirror(path.basename(COMPANIES_FILE), a); } catch (e) {} }
+    return true;
+  } catch (e) { console.error('[SAVE] saveCompanies write failed: ' + (e && e.message)); return false; }
 }
 function newCompanyId() { return 'co_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 function companyById(id) { if (!id) return null; return loadCompanies().find(c => c.id === id) || null; }
@@ -828,7 +839,13 @@ function effBoardCardFlags(){ const s=loadSettings(); const d=BOARD_CARD_FLAGS_D
 // daily snapshot is kept on the persistent disk; admins can download any snapshot
 // or a fresh one on demand, and an automation token allows off-site copies. ----
 const BACKUP_DIR = path.join(BOV_DATA_DIR, 'backups');
-const BACKUP_KEEP = 14; // rolling window of daily snapshots retained on disk
+// Rolling window of daily snapshots kept on the finite persistent disk. Each snapshot
+// is ~0.6 GB, so on a 10 GB volume this must stay small — Postgres is the real source of
+// truth and has its own daily backups + point-in-time recovery, so the on-disk zips are
+// only a convenience copy. Override with BACKUP_KEEP env if the disk is resized.
+const BACKUP_KEEP = Math.max(2, parseInt(process.env.BACKUP_KEEP, 10) || 7);
+// Free bytes on the volume holding `dir` (null if the platform can't report it).
+function _freeBytes(dir) { try { const st = fs.statfsSync(dir); return st.bavail * st.bsize; } catch (e) { return null; } }
 function backupStamp(d) { d = d || new Date(); const p = n => String(n).padStart(2, '0'); return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); }
 function backupStampFull(d) { d = d || new Date(); const p = n => String(n).padStart(2, '0'); return backupStamp(d) + '_' + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds()); }
 // Pipe a zip of the data directory to any writable stream. Excludes the backups
@@ -862,22 +879,47 @@ function listBackups() {
     }).sort((a, b) => (String(b.at)).localeCompare(String(a.at)) || b.name.localeCompare(a.name));
   } catch (e) { return []; }
 }
+// Reclaim disk: delete failed/partial .tmp backups (any age) and keep only the newest
+// BACKUP_KEEP completed .zip snapshots. Robust to a full disk — deletes always succeed.
 function pruneBackups() {
   try {
-    const files = fs.readdirSync(BACKUP_DIR).filter(f => /\.zip$/.test(f)).sort();
-    while (files.length > BACKUP_KEEP) { const old = files.shift(); try { fs.unlinkSync(path.join(BACKUP_DIR, old)); } catch (e) {} }
+    if (!fs.existsSync(BACKUP_DIR)) return;
+    const all = fs.readdirSync(BACKUP_DIR);
+    // 1) stale partials from interrupted/failed backups — pure junk, remove them all.
+    all.filter(f => /\.tmp$/.test(f)).forEach(f => { try { fs.unlinkSync(path.join(BACKUP_DIR, f)); } catch (e) {} });
+    // 2) trim completed snapshots to the newest BACKUP_KEEP (by modified time).
+    const zips = all.filter(f => /\.zip$/.test(f)).map(f => {
+      let m = 0; try { m = fs.statSync(path.join(BACKUP_DIR, f)).mtimeMs; } catch (e) {}
+      return { f: f, m: m };
+    }).sort((a, b) => b.m - a.m); // newest first
+    zips.slice(BACKUP_KEEP).forEach(x => { try { fs.unlinkSync(path.join(BACKUP_DIR, x.f)); } catch (e) {} });
   } catch (e) {}
 }
 async function makeSnapshot(tag) {
   try { if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true }); } catch (e) {}
+  // Prune BEFORE writing so a nightly backup can never fill the disk and then fail to
+  // clean up after itself — this is what broke previously (prune only ran post-write).
+  pruneBackups();
+  // Preflight: never start a snapshot we can't finish. If free space is under the size of
+  // the last snapshot plus a safety margin, skip and log loudly rather than wedge the disk.
+  const free = _freeBytes(BOV_DATA_DIR);
+  if (free != null) {
+    const recent = listBackups()[0];
+    const est = (recent && recent.size) ? recent.size : 700 * 1024 * 1024;
+    const need = est + 300 * 1024 * 1024;
+    if (free < need) { console.error('[BACKUP] Skipped — only ' + Math.round(free / 1048576) + ' MB free, need ~' + Math.round(need / 1048576) + ' MB. Reduce BACKUP_KEEP or enlarge the disk.'); throw new Error('Not enough free disk for a backup (' + Math.round(free / 1048576) + ' MB free).'); }
+  }
   const name = 'rrg-backup-' + (tag || backupStamp()) + '.zip';
   const tmp = path.join(BACKUP_DIR, '.' + name + '.tmp');
   const out = fs.createWriteStream(tmp);
-  await writeBackupZip(out);
+  try { await writeBackupZip(out); } catch (e) { try { fs.unlinkSync(tmp); } catch (e2) {} throw e; }
   try { fs.renameSync(tmp, path.join(BACKUP_DIR, name)); } catch (e) { try { fs.unlinkSync(tmp); } catch (e2) {} throw e; }
   pruneBackups();
   return name;
 }
+// On boot, immediately cap the backups folder and clear any failed partials, so a
+// redeploy self-heals a volume that filled from accumulated snapshots.
+try { pruneBackups(); } catch (e) {}
 // Daily automatic snapshot: on boot and then hourly, ensure today's snapshot exists.
 let _lastBackupDay = '';
 async function ensureDailyBackup() {
@@ -1471,7 +1513,12 @@ function requireAdmin(req, res, next) {
   return res.status(403).send('Admin access only.');
 }
 
-app.get('/health', (_req, res) => res.json({ ok: true, storage: DB_KIND, pgBackup: PG_OK ? 'on' : 'off', pgPending: PG_OK ? _pg.pendingCount() : 0, blobStore: blobstore.ready() ? 'on' : 'off', blobPending: blobstore.ready() ? blobstore.pendingCount() : 0 }));
+app.get('/health', (_req, res) => {
+  let diskFreeMb = null, diskTotalMb = null, diskUsePct = null;
+  try { const st = fs.statfsSync(BOV_DATA_DIR); const free = st.bavail * st.bsize, total = st.blocks * st.bsize; diskFreeMb = Math.round(free / 1048576); diskTotalMb = Math.round(total / 1048576); diskUsePct = total > 0 ? Math.round((1 - free / total) * 100) : null; } catch (e) {}
+  res.json({ ok: true, storage: DB_KIND, pgBackup: PG_OK ? 'on' : 'off', pgPending: PG_OK ? _pg.pendingCount() : 0, blobStore: blobstore.ready() ? 'on' : 'off', blobPending: blobstore.ready() ? blobstore.pendingCount() : 0,
+    diskFreeMb: diskFreeMb, diskTotalMb: diskTotalMb, diskUsePct: diskUsePct, lastWriteFail: _lastWriteFail });
+});
 // ---- Admin disk tools: see what's on the data volume, and clear the safe junk ----
 app.get('/api/admin/disk', requireAdmin, (req, res) => {
   const r = _diskReport();
@@ -13819,7 +13866,8 @@ app.post('/api/company/:id/concept', express.json(), (req, res) => {
     cpt = { id: newConceptId(), name: name.slice(0, 120), website: website, logo: (typeof b.logo === 'string' && b.logo) ? b.logo.slice(0, 400) : '', markets: Array.isArray(b.markets) ? b.markets.map(x => String(x || '').slice(0, 80)).filter(Boolean).slice(0, 30) : [], conceptType: (typeof b.conceptType === 'string' && effConceptTypes().indexOf(b.conceptType) >= 0) ? b.conceptType : '', pricePoint: (typeof b.pricePoint === 'string' && PRICE_POINTS.indexOf(b.pricePoint) >= 0) ? b.pricePoint : '', cuisine: (typeof b.cuisine === 'string' && effCuisineTypes().indexOf(b.cuisine) >= 0) ? b.cuisine : '', createdAt: now };
     c.concepts.push(cpt);
   }
-  c.updatedAt = now; saveCompanies(arr);
+  c.updatedAt = now;
+  if (!saveCompanies(arr)) return res.status(507).json({ ok: false, error: 'Could not save — the server’s storage is full or unwritable. Nothing was saved. Please tell your admin.' });
   res.json({ ok: true, concepts: c.concepts, locations: c.locations || [], concept: cpt });
 });
 // Concept logo upload — store an image and point the concept's logo at it.
