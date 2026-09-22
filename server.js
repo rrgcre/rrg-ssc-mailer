@@ -93,6 +93,61 @@ const BINARY_PREFIXES = ['agreedocs/', 'agreetemplates/', 'documents/', 'userdoc
 // binary fs.writeFileSync / fs.unlinkSync call sites.
 function binWrite(file, data, opts) { const r = fs.writeFileSync(file, data, opts); try { blobstore.mirrorPut(file); } catch (e) {} return r; }
 function binDel(file) { try { blobstore.mirrorDel(file); } catch (e) {} return fs.unlinkSync(file); }
+// ---- Disk hygiene: the data volume must never fill with redundant junk ----
+// Two kinds of file are pure overhead once written: `*.rescue-*.json` (safety
+// snapshots the empty-overwrite guard drops — redundant with the live file and
+// Postgres) and `*.tmp` (orphaned halves of an atomic write that never got
+// renamed). Both are safe to delete: they are never read by the app. This sweep
+// removes them and reports how much it freed, so a full disk self-heals on boot.
+function _isJunkDataFile(name) {
+  return /\.rescue-\d+\.json$/.test(name) || /\.tmp$/.test(name);
+}
+function _diskJunkScan(doDelete) {
+  const out = { files: 0, bytes: 0, kept: 0 };
+  let names = [];
+  try { names = fs.readdirSync(BOV_DATA_DIR); } catch (e) { return out; }
+  for (const n of names) {
+    if (!_isJunkDataFile(n)) continue;
+    const fp = path.join(BOV_DATA_DIR, n);
+    let sz = 0;
+    try { const st = fs.statSync(fp); if (!st.isFile()) continue; sz = st.size; } catch (e) { continue; }
+    if (doDelete) {
+      try { fs.unlinkSync(fp); out.files++; out.bytes += sz; } catch (e) { out.kept++; }
+    } else { out.files++; out.bytes += sz; }
+  }
+  return out;
+}
+// Full-volume usage report (top-level entries, recursive size), for the admin tool.
+function _dirSizeBytes(dir, budget) {
+  let total = 0; budget = budget || { n: 0 };
+  let ents = [];
+  try { ents = fs.readdirSync(dir, { withFileTypes: true }); } catch (e) { return 0; }
+  for (const e of ents) {
+    if (budget.n > 200000) break; budget.n++;
+    const fp = path.join(dir, e.name);
+    try {
+      if (e.isDirectory()) total += _dirSizeBytes(fp, budget);
+      else if (e.isFile()) { const st = fs.statSync(fp); total += st.size; }
+    } catch (er) {}
+  }
+  return total;
+}
+function _diskReport() {
+  const rows = []; let names = [];
+  try { names = fs.readdirSync(BOV_DATA_DIR, { withFileTypes: true }); } catch (e) { return { total: 0, entries: [], junk: _diskJunkScan(false) }; }
+  let total = 0;
+  for (const e of names) {
+    const fp = path.join(BOV_DATA_DIR, e.name);
+    let sz = 0;
+    try { sz = e.isDirectory() ? _dirSizeBytes(fp) : fs.statSync(fp).size; } catch (er) {}
+    rows.push({ name: e.name, dir: e.isDirectory(), bytes: sz });
+    total += sz;
+  }
+  rows.sort((a, b) => b.bytes - a.bytes);
+  return { total: total, entries: rows.slice(0, 40), junk: _diskJunkScan(false) };
+}
+// Run the safe sweep once at boot so a wedged, full volume recovers on redeploy.
+try { const _sw = _diskJunkScan(true); if (_sw.files) console.log('[DISK] boot sweep removed ' + _sw.files + ' rescue/tmp file(s), freed ~' + Math.round(_sw.bytes / 1048576) + ' MB'); } catch (e) {}
 function saveBovs(a) { return writeJsonGuarded(BOVS_FILE, a, 'saveBovs'); }
 function newBovId() { return 'bov_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
@@ -1417,6 +1472,19 @@ function requireAdmin(req, res, next) {
 }
 
 app.get('/health', (_req, res) => res.json({ ok: true, storage: DB_KIND, pgBackup: PG_OK ? 'on' : 'off', pgPending: PG_OK ? _pg.pendingCount() : 0, blobStore: blobstore.ready() ? 'on' : 'off', blobPending: blobstore.ready() ? blobstore.pendingCount() : 0 }));
+// ---- Admin disk tools: see what's on the data volume, and clear the safe junk ----
+app.get('/api/admin/disk', requireAdmin, (req, res) => {
+  const r = _diskReport();
+  res.json({ ok: true, dataDir: BOV_DATA_DIR, totalBytes: r.total,
+    entries: r.entries.map(e => ({ name: e.name, dir: e.dir, bytes: e.bytes, mb: Math.round(e.bytes / 1048576) })),
+    junk: { files: r.junk.files, bytes: r.junk.bytes, mb: Math.round(r.junk.bytes / 1048576) } });
+});
+app.post('/api/admin/disk/cleanup', requireAdmin, express.json(), (req, res) => {
+  const before = _diskJunkScan(false);
+  const done = _diskJunkScan(true);
+  try { logSysEvent(req, 'System', 'Cleared ' + done.files + ' rescue/temp file(s) from the data volume (~' + Math.round(done.bytes / 1048576) + ' MB freed)', { tool: 'disk', kind: 'cleanup' }); } catch (e) {}
+  res.json({ ok: true, removed: done.files, freedBytes: done.bytes, freedMb: Math.round(done.bytes / 1048576), skipped: done.kept, foundBefore: before.files });
+});
 
 /* ---------- login / logout ---------- */
 app.get('/login', (req, res) => {
