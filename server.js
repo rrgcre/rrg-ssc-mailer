@@ -6278,6 +6278,7 @@ function buyBoxClean(b, prev) {
   if (b.markets !== undefined) out.markets = (Array.isArray(b.markets) ? b.markets : []).map(String).filter(x => effMarkets().indexOf(x) >= 0).slice(0, 12);
   if (b.priceMax !== undefined) out.priceMax = (b.priceMax in MKT_PRICE && b.priceMax) ? b.priceMax : '';
   if (b.sdeMin !== undefined) out.sdeMin = (b.sdeMin in MKT_CASH && b.sdeMin) ? b.sdeMin : '';
+  if (b.earningsBasis !== undefined) out.earningsBasis = (b.earningsBasis === 'ebitda') ? 'ebitda' : 'sde'; // owner-operators value on SDE; absentee/investor buyers on EBITDA
   if (b.unitsMin !== undefined) out.unitsMin = (b.unitsMin === '' || b.unitsMin == null) ? '' : Math.max(0, Math.min(999, parseInt(b.unitsMin, 10) || 0));
   if (b.unitsMax !== undefined) out.unitsMax = (b.unitsMax === '' || b.unitsMax == null) ? '' : Math.max(0, Math.min(999, parseInt(b.unitsMax, 10) || 0));
   if (b.realEstate !== undefined) out.realEstate = (['yes', 'no', 'either'].indexOf(b.realEstate) >= 0) ? b.realEstate : 'either';
@@ -6312,7 +6313,7 @@ function buyBoxMatch(bb, L) {
   if (!crit(!!(bb.concepts && bb.concepts.length), !!L.conceptKey, !!(L.conceptKey && (bb.concepts || []).indexOf(L.conceptKey) >= 0), 'concept')) return { match: false, reasons: [] };
   if (!crit(!!(bb.markets && bb.markets.length), !!L.marketKey, !!(L.marketKey && (bb.markets || []).indexOf(L.marketKey) >= 0), 'market')) return { match: false, reasons: [] };
   if (!crit(!!bb.priceMax, _priceIdx(L.priceBand) >= 0, _priceIdx(L.priceBand) >= 0 && _priceIdx(L.priceBand) <= _priceIdx(bb.priceMax), 'price')) return { match: false, reasons: [] };
-  if (!crit(!!bb.sdeMin, _cashIdx(L.cashBand) >= 0, _cashIdx(L.cashBand) >= 0 && _cashIdx(L.cashBand) >= _cashIdx(bb.sdeMin), 'SDE')) return { match: false, reasons: [] };
+  if (!crit(!!bb.sdeMin, _cashIdx(L.cashBand) >= 0, _cashIdx(L.cashBand) >= 0 && _cashIdx(L.cashBand) >= _cashIdx(bb.sdeMin), (bb.earningsBasis === 'ebitda' ? 'EBITDA' : 'SDE'))) return { match: false, reasons: [] };
   if (!crit(bb.unitsMin !== '' && bb.unitsMin != null, L.units > 0, L.units >= Number(bb.unitsMin), 'units')) return { match: false, reasons: [] };
   if (!crit(bb.unitsMax !== '' && bb.unitsMax != null, L.units > 0, L.units <= Number(bb.unitsMax), 'units')) return { match: false, reasons: [] };
   if (bb.realEstate === 'yes') { specified++; if (!L.reAvailable) return { match: false, reasons: [] }; positive++; reasons.push('RE'); }
