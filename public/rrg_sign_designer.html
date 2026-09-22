@@ -140,10 +140,17 @@ label.fld{display:block;font-size:10px;letter-spacing:.05em;text-transform:upper
   </div>
   <div class="stage" id="stage"><div class="loading">Loading document…</div></div>
 </div>
+<div id="zoombar" style="position:fixed;right:22px;bottom:22px;z-index:50;display:flex;align-items:center;gap:2px;background:#fff;border:1px solid #d3dae6;border-radius:11px;box-shadow:0 6px 22px rgba(10,20,50,.18);padding:4px;font:inherit">
+  <button type="button" id="zOut" title="Zoom out" style="width:34px;height:32px;border:none;background:transparent;border-radius:8px;font-size:19px;font-weight:700;color:#20334f;cursor:pointer;line-height:1">−</button>
+  <button type="button" id="zPct" title="Reset to fit" style="min-width:52px;height:32px;border:none;background:transparent;border-radius:8px;font-size:13px;font-weight:700;color:#20334f;cursor:pointer">100%</button>
+  <button type="button" id="zIn" title="Zoom in" style="width:34px;height:32px;border:none;background:transparent;border-radius:8px;font-size:19px;font-weight:700;color:#20334f;cursor:pointer;line-height:1">+</button>
+  <span style="width:1px;height:20px;background:#e2e7ef;margin:0 2px"></span>
+  <button type="button" id="zFit" title="Fit to width" style="height:32px;padding:0 11px;border:none;background:transparent;border-radius:8px;font-size:12.5px;font-weight:700;color:#20334f;cursor:pointer">Fit</button>
+</div>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function qs(k){return new URLSearchParams(location.search).get(k);}
-var TID=qs('template'), TPL=null, FIELDS=[], TOOL='', SIGNER=1, SELECTED=null, MULTI=[], SNAP=false, PAGEPT={w:0,h:0}, SCALES=[], NPAGES=0;
+var TID=qs('template'), TPL=null, FIELDS=[], TOOL='', SIGNER=1, SELECTED=null, MULTI=[], SNAP=false, PAGEPT={w:0,h:0}, SCALES=[], NPAGES=0, ZOOM=1;
 // SaaS branding: no hard-coded "RRG". Pull the brokerage/app name so the badge and
 // "You (…)" header reflect whichever org is signed in.
 (function(){ try{ fetch('/api/appname',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(!j||!j.ok) return; var short=(j.name||(j.org&&(j.org.name||j.org.legalName))||'').trim()||'RRG'; try{ document.title=short+' — Field Designer'; }catch(e){} var disc=document.getElementById('brandDisc'); if(disc){ var ini=String(short).replace(/[^A-Za-z0-9 ]/g,' ').trim().split(/\s+/).map(function(w){return w?w[0]:'';}).join('').slice(0,3).toUpperCase(); disc.textContent=ini||String(short).slice(0,3).toUpperCase(); } var yh=document.getElementById('youHdr'); if(yh) yh.textContent='You ('+short+')'; }).catch(function(){}); }catch(e){} })();
@@ -339,26 +346,41 @@ document.getElementById('saveBtn').addEventListener('click',function(){ doSave(t
 ['s1label','s2label','s3label'].forEach(function(id){ var e=document.getElementById(id); if(e) e.addEventListener('input',function(){ syncSegs(); scheduleSave(); }); });
 
 function renderPages(){
-  var stage=document.getElementById('stage'); stage.innerHTML='';
+  var stage=document.getElementById('stage');
+  if(window._PDFDOC){ _renderDoc(window._PDFDOC); return; }
+  stage.innerHTML='<div class="loading">Loading document…</div>';
   var url='/api/agreement-templates/'+encodeURIComponent(TID)+'/file?v='+Date.now();
   fetch(url,{credentials:'same-origin'}).then(function(r){ if(!r.ok) throw new Error('no file'); return r.arrayBuffer(); }).then(function(buf){
     return pdfjsLib.getDocument({data:buf}).promise;
-  }).then(function(pdf){
-    NPAGES=pdf.numPages; window._PDFDOC=pdf;
-    var chain=Promise.resolve();
-    for(var i=1;i<=pdf.numPages;i++){ (function(pn){ chain=chain.then(function(){ return pdf.getPage(pn).then(function(page){
-      var vp1=page.getViewport({scale:1}); if(pn===1){ PAGEPT={w:vp1.width,h:vp1.height}; } var targetW=Math.min(820, stage.clientWidth-44); var scale=targetW/vp1.width; var vp=page.getViewport({scale:scale});
-      var wrap=document.createElement('div'); wrap.className='pagewrap'; wrap.style.width=vp.width+'px'; wrap.style.height=vp.height+'px';
-      var pn2=document.createElement('div'); pn2.className='pnum'; pn2.textContent='Page '+pn; wrap.appendChild(pn2);
-      var cv=document.createElement('canvas'); cv.width=vp.width; cv.height=vp.height; wrap.appendChild(cv);
-      var ov=document.createElement('div'); ov.className='ov'; ov.id='ov'+(pn-1); wrap.appendChild(ov);
-      stage.appendChild(wrap);
-      ov.addEventListener('click',function(e){ if(e.target!==ov) return; if(!TOOL){ SELECTED=null; drawFields(); openPanel(); return; } var rect=ov.getBoundingClientRect(); var xf=(e.clientX-rect.left)/ov.clientWidth; var yf=(e.clientY-rect.top)/ov.clientHeight; addField(pn-1,xf,yf); });
-      return page.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;
-    }); }); })(i); }
-    return chain;
-  }).then(function(){ drawFields(); }).catch(function(e){ stage.innerHTML='<div class="loading">Could not load the PDF. Make sure this template has a PDF document uploaded.<br><br><a href="/rrg_agreement_templates.html">← Back to templates</a></div>'; });
+  }).then(function(pdf){ window._PDFDOC=pdf; NPAGES=pdf.numPages; _renderDoc(pdf); })
+  .catch(function(e){ stage.innerHTML='<div class="loading">Could not load the PDF. Make sure this template has a PDF document uploaded.<br><br><a href="/rrg_agreement_templates.html">← Back to templates</a></div>'; });
 }
+function _renderDoc(pdf){
+  var stage=document.getElementById('stage'); stage.innerHTML=''; NPAGES=pdf.numPages;
+  var chain=Promise.resolve();
+  for(var i=1;i<=pdf.numPages;i++){ (function(pn){ chain=chain.then(function(){ return pdf.getPage(pn).then(function(page){
+    var vp1=page.getViewport({scale:1}); if(pn===1){ PAGEPT={w:vp1.width,h:vp1.height}; } var targetW=Math.min(820, stage.clientWidth-44); var scale=(targetW/vp1.width)*ZOOM; var vp=page.getViewport({scale:scale});
+    var wrap=document.createElement('div'); wrap.className='pagewrap'; wrap.style.width=vp.width+'px'; wrap.style.height=vp.height+'px';
+    var pn2=document.createElement('div'); pn2.className='pnum'; pn2.textContent='Page '+pn; wrap.appendChild(pn2);
+    var cv=document.createElement('canvas'); cv.width=vp.width; cv.height=vp.height; wrap.appendChild(cv);
+    var ov=document.createElement('div'); ov.className='ov'; ov.id='ov'+(pn-1); wrap.appendChild(ov);
+    stage.appendChild(wrap);
+    ov.addEventListener('click',function(e){ if(e.target!==ov) return; if(!TOOL){ SELECTED=null; drawFields(); openPanel(); return; } var rect=ov.getBoundingClientRect(); var xf=(e.clientX-rect.left)/ov.clientWidth; var yf=(e.clientY-rect.top)/ov.clientHeight; addField(pn-1,xf,yf); });
+    return page.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;
+  }); }); })(i); }
+  chain.then(function(){ drawFields(); }).catch(function(){});
+}
+var _zT=null;
+function setZoom(z){ ZOOM=Math.max(0.5,Math.min(3, Math.round(z*100)/100)); var zp=document.getElementById('zPct'); if(zp) zp.textContent=Math.round(ZOOM*100)+'%'; if(_zT) clearTimeout(_zT); _zT=setTimeout(renderPages, 60); }
+(function(){
+  var zi=document.getElementById('zIn'), zo=document.getElementById('zOut'), zf=document.getElementById('zFit'), zp=document.getElementById('zPct');
+  if(zi) zi.addEventListener('click',function(){ setZoom(ZOOM+0.25); });
+  if(zo) zo.addEventListener('click',function(){ setZoom(ZOOM-0.25); });
+  if(zf) zf.addEventListener('click',function(){ setZoom(1); });
+  if(zp) zp.addEventListener('click',function(){ setZoom(1); });
+  var stg=document.getElementById('stage');
+  if(stg) stg.addEventListener('wheel',function(e){ if(e.ctrlKey||e.metaKey){ e.preventDefault(); setZoom(ZOOM + (e.deltaY<0?0.1:-0.1)); } },{passive:false});
+})();
 
 function boot(){
   if(!TID){ document.getElementById('stage').innerHTML='<div class="loading">No template selected.</div>'; return; }
@@ -380,7 +402,7 @@ function boot(){
     renderPages();
   }).catch(function(){ document.getElementById('stage').innerHTML='<div class="loading">Could not reach the server.</div>'; });
 }
-(function(){ var fi=document.getElementById('repdfFile'); if(!fi) return; fi.addEventListener('change',function(){ var f=fi.files&&fi.files[0]; if(!f) return; if(f.type!=='application/pdf' && !/\.pdf$/i.test(f.name)){ var m0=document.getElementById('msg'); if(m0) m0.textContent='Please choose a PDF file.'; fi.value=''; return; } var msg=document.getElementById('msg'); if(msg) msg.textContent='Uploading new PDF\u2026'; var lbl=document.getElementById('repdfLabel'); if(lbl) lbl.style.opacity='.5'; var rd=new FileReader(); rd.onload=function(){ fetch('/api/admin/agreement-templates/'+encodeURIComponent(TID)+'/file',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({filename:f.name,dataB64:String(rd.result||'')})}).then(function(r){return r.json();}).then(function(j){ if(lbl) lbl.style.opacity=''; if(j&&j.ok){ if(TPL) TPL.fileExt='pdf'; if(msg) msg.textContent='PDF replaced \u2014 '+FIELDS.length+' field'+(FIELDS.length===1?'':'s')+' kept in place.'; renderPages(); } else { if(msg) msg.textContent=(j&&j.error)||'Could not replace the PDF.'; } fi.value=''; }).catch(function(){ if(lbl) lbl.style.opacity=''; if(msg) msg.textContent='Could not reach the server.'; fi.value=''; }); }; rd.readAsDataURL(f); }); })();
+(function(){ var fi=document.getElementById('repdfFile'); if(!fi) return; fi.addEventListener('change',function(){ var f=fi.files&&fi.files[0]; if(!f) return; if(f.type!=='application/pdf' && !/\.pdf$/i.test(f.name)){ var m0=document.getElementById('msg'); if(m0) m0.textContent='Please choose a PDF file.'; fi.value=''; return; } var msg=document.getElementById('msg'); if(msg) msg.textContent='Uploading new PDF\u2026'; var lbl=document.getElementById('repdfLabel'); if(lbl) lbl.style.opacity='.5'; var rd=new FileReader(); rd.onload=function(){ fetch('/api/admin/agreement-templates/'+encodeURIComponent(TID)+'/file',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({filename:f.name,dataB64:String(rd.result||'')})}).then(function(r){return r.json();}).then(function(j){ if(lbl) lbl.style.opacity=''; if(j&&j.ok){ if(TPL) TPL.fileExt='pdf'; if(msg) msg.textContent='PDF replaced \u2014 '+FIELDS.length+' field'+(FIELDS.length===1?'':'s')+' kept in place.'; window._PDFDOC=null; renderPages(); } else { if(msg) msg.textContent=(j&&j.error)||'Could not replace the PDF.'; } fi.value=''; }).catch(function(){ if(lbl) lbl.style.opacity=''; if(msg) msg.textContent='Could not reach the server.'; fi.value=''; }); }; rd.readAsDataURL(f); }); })();
 boot();
 </script>
 </body>
