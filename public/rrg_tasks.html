@@ -117,6 +117,7 @@ input,select,textarea{border-radius:4px;}
       <span style="flex:1"></span>
       <button data-scope="mine" class="on" id="scMine">My tasks</button>
       <button data-scope="all" id="scAll" style="display:none">Everyone</button>
+      <button type="button" id="clearImports" class="danger" style="display:none;margin-left:8px" title="Delete completed tasks that aren't tied to a contact or listing (e.g. bulk-imported follow-ups). Open tasks and anything linked to a record are kept.">🧹 Clear completed imports</button>
     </div>
     <div id="list"><div class="empty">Loading…</div></div>
   </div>
@@ -192,27 +193,39 @@ function render(){
   var today=todayStr();
   var list=visibleTasks(); var _tc=document.getElementById('tcount'); if(_tc) _tc.textContent=list.length+' task'+(list.length===1?'':'s');
   var cfg={ mount:'#list', data:list, key:'tasks', empty:'<div class="empty">No tasks here.</div>',
-    rowId:function(t){return t.id;}, defaultSort:5, defaultDir:1,
+    rowId:function(t){return t.id;}, defaultSort:4, defaultDir:1,
     columns:[
       { label:'', width:38, sortable:false, cell:function(t){ return '<input type="checkbox" class="tchk" data-toggle="'+esc(t.id)+'"'+(t.status==='done'?' checked':'')+' title="'+(t.status==='done'?'Completed — click to reopen':'Mark complete')+'">'; } },
       { label:'Task', sort:function(a,b){return RRGList.cmp(a.title,b.title);}, edit:{ type:'text', get:function(t){return t.title||'';}, save:function(t,v){ if(!(v||'').trim()) return Promise.reject(new Error('Title is required.')); return taskSave(t,{title:v}); } }, cell:function(t){ return '<div class="ttitle'+(t.status==='done'?' done':'')+'">'+esc(t.title)+(t.repeat?(' <span class="rpt">🔁 '+esc(repeatLabel(t.repeat))+'</span>'):'')+'</div>'+(t.notes?('<div class="tnotes">'+esc(t.notes)+'</div>'):''); } },
       { label:'Priority', sort:function(a,b){return RRGList.cmp(a.priority,b.priority);}, edit:{ type:'select', options:function(){return PRIORITIES;}, get:function(t){return t.priority||'Normal';}, save:function(t,v){ return taskSave(t,{priority:v}); } }, cell:function(t){ return '<span class="pill '+esc(t.priority||'Normal')+'">'+esc(t.priority||'Normal')+'</span>'; } },
       { label:'Type', defaultHidden:true, sort:function(a,b){return RRGList.cmp(a.type,b.type);}, cell:function(t){ return t.type?esc(t.type):'<span class="meta">—</span>'; } },
-      { label:'Link', sortable:false, cell:function(t){ var c=linkChip(t); return c||'<span class="meta">—</span>'; } },
       { label:'Contact', sort:function(a,b){return RRGList.cmp(taskContact(a).name,taskContact(b).name);}, filterVal:function(t){return taskContact(t).name;}, cell:function(t){ var c=taskContact(t); if(!c.name) return '<span class="meta">—</span>'; return c.id?('<a href="./rrg_person.html?id='+encodeURIComponent(c.id)+'" style="color:var(--navy);text-decoration:none;font-weight:500">'+esc(c.name)+'</a>'):esc(c.name); } },
       { label:'Company', sort:function(a,b){return RRGList.cmp(taskCompany(a),taskCompany(b));}, filterVal:function(t){return taskCompany(t);}, cell:function(t){ var co=taskCompany(t); return co?esc(co):'<span class="meta">—</span>'; } },
-      { label:'Due', sort:function(a,b){return RRGList.cmp(a.due||'9999',b.due||'9999');}, edit:{ type:'date', get:function(t){return (t.due||'').slice(0,10);}, save:function(t,v){ return taskSave(t,{due:v}); } }, cell:function(t){ var over=(t.status==='open'&&t.due&&t.due<today); return t.due?('<span class="due-lbl'+(over?' over':'')+'">'+(over?'Overdue ':'')+esc(fmt(t.due))+'</span>'):'<span class="meta">—</span>'; } },
-      { label:'Created', sort:function(a,b){return RRGList.cmp(a.createdAt||'',b.createdAt||'');}, cell:function(t){ return t.createdAt?esc(fmtD(t.createdAt)):'<span class="meta">—</span>'; } },
       { label:'Owner', sort:function(a,b){return RRGList.cmp(a.createdByName||'',b.createdByName||'');}, cell:function(t){ return t.createdByName?esc(t.createdByName):'<span class="meta">—</span>'; } },
       { label:'Completed', sort:function(a,b){return RRGList.cmp(a.doneAt||'',b.doneAt||'');}, cell:function(t){ return t.doneAt?esc(fmtD(t.doneAt)):'<span class="meta">—</span>'; } },
-      { label:'Reminder', defaultHidden:true, sort:function(a,b){return RRGList.cmp(a.reminder||'',b.reminder||'');}, cell:function(t){ return t.reminder?('⏰ '+esc(fmt(t.reminder))):'<span class="meta">—</span>'; } },
       { label:'Assignee', defaultHidden:true, sort:function(a,b){return RRGList.cmp(a.assigneeName,b.assigneeName);}, cell:function(t){ return t.assigneeName?esc(t.assigneeName):'<span class="meta">—</span>'; } },
       { label:'', align:'right', sortable:false, width:132, cell:function(t){ return '<span style="white-space:nowrap;display:inline-flex;gap:4px;justify-content:flex-end"><button class="tbtn" data-edit="'+esc(t.id)+'">Edit</button>'+((ISADMIN||t.createdBy===ME)?('<button class="tbtn delx" data-del="'+esc(t.id)+'" title="Delete" aria-label="Delete">✕</button>'):'')+'</span>'; } }
     ],
     bulk:[ { label:'✓ Mark complete', fn:function(ids,done){ bulkCompleteTasks(ids,done); } }, { label:'Delete selected', danger:true, fn:function(ids,done){ bulkDelTasks(ids,done); } } ]
   };
   if(TCTL) TCTL.refresh(list); else TCTL=RRGList.create(cfg);
+  updateClearImports();
 }
+// Completed tasks with no contact/deal link — bulk-imported follow-ups that clutter the list.
+function completedImportIds(){ return (TASKS||[]).filter(function(t){ return t && t.status==='done' && !(t.linkType==='contact'&&t.linkId) && !(t.linkType==='deal'&&t.linkId); }).map(function(t){return t.id;}); }
+function updateClearImports(){ var b=document.getElementById('clearImports'); if(!b) return; var n=completedImportIds().length; if(n>0){ b.style.display=''; b.textContent='🧹 Clear completed imports ('+n.toLocaleString()+')'; } else { b.style.display='none'; } }
+function clearCompletedImports(){
+  var ids=completedImportIds();
+  if(!ids.length){ if(window.rrgToast) rrgToast('Nothing to clear.'); return; }
+  (window.rrgConfirm?rrgConfirm('Delete '+ids.length.toLocaleString()+' completed tasks that aren’t tied to a contact or listing? Open tasks and anything linked to a record are kept. This cannot be undone.',{title:'Clear completed imports?',okText:'Delete '+ids.length.toLocaleString(),danger:true}):Promise.resolve(confirm('Delete '+ids.length+' completed unlinked tasks?'))).then(function(ok){
+    if(!ok) return;
+    var b=document.getElementById('clearImports'); if(b){ b.disabled=true; b.textContent='Clearing…'; }
+    var chunks=[]; for(var i=0;i<ids.length;i+=2500) chunks.push(ids.slice(i,i+2500));
+    var del=0;
+    (function next(){ if(!chunks.length){ if(b){ b.disabled=false; } if(window.rrgToast) rrgToast('Cleared '+del.toLocaleString()+' completed task'+(del===1?'':'s')); load(); return; } var c=chunks.shift(); fetch('/api/tasks/bulk-delete',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({ids:c})}).then(function(r){return r.json();}).then(function(j){ del+=(j&&j.deleted)||0; next(); }).catch(function(){ if(b){ b.disabled=false; b.textContent='🧹 Clear completed imports'; } if(window.rrgToast) rrgToast('Network error — stopped after '+del+' deleted.'); load(); }); })();
+  });
+}
+document.addEventListener('click',function(e){ if(e.target&&e.target.closest&&e.target.closest('#clearImports')){ e.preventDefault(); clearCompletedImports(); } });
 function collect(){
   var lt=document.getElementById('t_linktype').value;
   var tgt=document.getElementById('t_linktarget');
