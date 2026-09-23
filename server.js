@@ -5979,7 +5979,7 @@ function assignmentView(d, overlay, _opts) {
     roomId: (room && room.id) || (deal && deal.roomId) || '',
     status: o.status || 'New', notes: o.notes || '', shareTeam: !!o.shareTeam, owner: o.owner || by, businessOverride: o.businessOverride || '', codeName: o.codeName || '', listingNo: o.listingNo || 0, listingId: (o.listingNo ? ('RRG-' + o.listingNo) : ''),
     saleLane: (['business', 'asset', 'other'].indexOf(o.saleLane) >= 0 ? o.saleLane : ((deal && deal.saleLane) || 'business')),
-    stageFlags: o.stageFlags || {}, pipelineId: o.pipelineId || '', needsSetup: !!o.needsSetup, fromBbs: !!o.fromBbs, referredBy: o.referredBy || '', referredById: o.referredById || '', referralPct: o.referralPct || '', listPrice: o.listPrice || '', priceHistory: Array.isArray(o.priceHistory) ? o.priceHistory : [], financials3y: Array.isArray(o.financials3y) ? o.financials3y : [], totalCommission: o.totalCommission || '', commissionEst: estCommissionFromPrice(o.listPrice || ''), listingLive: o.listingLive || '', listingStart: o.listingStart || '', listingExpires: o.listingExpires || '', autoRenew: !!o.autoRenew, renewable: !!o.renewable,
+    stageFlags: o.stageFlags || {}, pipelineId: o.pipelineId || '', needsSetup: !!o.needsSetup, fromBbs: !!o.fromBbs, referredBy: o.referredBy || '', referredById: o.referredById || '', referralPct: o.referralPct || '', listPrice: o.listPrice || '', priceHistory: Array.isArray(o.priceHistory) ? o.priceHistory : [], financials3y: Array.isArray(o.financials3y) ? o.financials3y : [], totalCommission: o.totalCommission || '', commissionEst: estCommissionFromPrice(o.listPrice || ''), listingLive: o.listingLive || '', listingStart: o.listingStart || '', listingExpires: o.listingExpires || '', targetClose: o.targetClose || '', autoRenew: !!o.autoRenew, renewable: !!o.renewable,
     location: (o.location && typeof o.location === 'object') ? o.location : {}, premises: (o.premises && typeof o.premises === 'object') ? o.premises : {}, sites: Array.isArray(o.sites) ? o.sites : [], openedDate: o.openedDate || '', reasonSale: o.reasonSale || '', priorSales: o.priorSales || '', links: (o.links && typeof o.links === 'object') ? o.links : {}, staffing: (o.staffing && typeof o.staffing === 'object') ? o.staffing : {},
     offers: Array.isArray(o.offers) ? o.offers : [],
     tours: Array.isArray(o.tours) ? o.tours : [],
@@ -7382,6 +7382,7 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   if (typeof b.listingLive === 'string') cur.listingLive = b.listingLive.slice(0, 10);
   if (typeof b.listingStart === 'string') cur.listingStart = b.listingStart.slice(0, 10);
   if (typeof b.listingExpires === 'string') cur.listingExpires = b.listingExpires.slice(0, 10);
+  if (typeof b.targetClose === 'string') cur.targetClose = b.targetClose.slice(0, 60);   // anticipated closing — a date or a freeform period (e.g. "Q1 2026", "~60 days after LOI")
   if (typeof b.autoRenew === 'boolean') cur.autoRenew = b.autoRenew;
   if (typeof b.renewable === 'boolean') cur.renewable = b.renewable;
   if (typeof b.bbsRef === 'string') cur.bbsRef = b.bbsRef.slice(0, 80);
