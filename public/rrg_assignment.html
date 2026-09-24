@@ -660,7 +660,12 @@ function invoicesCardDeal(){
 function crBox(){
   var c=(A&&A.criteria)||{};
   return ''
-    +'<div class="fldrow"><label class="fld">Target markets / trade areas</label><input class="owner" id="cr_markets" value="'+esc(c.markets||'')+'" placeholder="e.g. Dallas — Uptown, Deep Ellum, Bishop Arts"></div>'
+    +'<div class="fldrow"><label class="fld">Target markets / trade areas</label>'
+      +'<div id="cr_mkt_wrap" class="mktpick"></div>'
+      +'<datalist id="crMarketList">'+((typeof MARKETS!=='undefined'&&MARKETS)||[]).map(function(m){return '<option value="'+esc(m)+'"></option>';}).join('')+'</datalist>'
+      +'<input type="hidden" id="cr_markets" value="'+esc(c.markets||'')+'">'
+      +'<div style="font-size:11px;color:#8a93a8;margin-top:5px;line-height:1.4">Pick from your firm’s markets or type any trade area, then press Enter. Add as many as you like.</div>'
+    +'</div>'
     +'<div class="fldrow2"><div><label class="fld">Use / concept</label><input class="owner" id="cr_use" value="'+esc(c.useType||'')+'" placeholder="e.g. Full-service restaurant w/ bar"></div>'
     +'<div><label class="fld">Budget (rent)</label><input class="owner" id="cr_budget" value="'+esc(c.budget||'')+'" placeholder="e.g. $35–45/SF NNN"></div></div>'
     +'<div class="fldrow2"><div><label class="fld">Size min (SF)</label><input class="owner" id="cr_sizemin" value="'+esc(c.sizeMin||'')+'" placeholder="2,500"></div>'
@@ -671,6 +676,44 @@ function crBox(){
     +'<div class="fldrow"><label class="fld">Must-haves / dealbreakers</label><textarea class="owner" id="cr_features" style="min-height:60px" placeholder="Venting, existing kitchen, co-tenancy, demographics, drive-thru…">'+esc(c.features||'')+'</textarea></div>'
     +'<div class="fldrow"><label class="fld">Criteria notes</label><textarea class="owner" id="cr_crnotes" style="min-height:56px" placeholder="Anything else the space search should honor…">'+esc(c.notes||'')+'</textarea></div>'
     +'<div class="expnote">The tenant\'s Site Selection Criteria — what we are hunting for. Saves with the assignment.</div>';
+}
+function _wireCrMarkets(){
+  var wrap=document.getElementById('cr_mkt_wrap'), hid=document.getElementById('cr_markets');
+  if(!wrap||!hid) return;
+  if(!document.getElementById('crMktCss')){ var st=document.createElement('style'); st.id='crMktCss';
+    st.textContent='.mktpick{display:flex;flex-wrap:wrap;gap:6px;align-items:center;border:1px solid var(--line,#d7dce6);border-radius:7px;padding:6px 8px;background:#fff;min-height:38px;cursor:text}'
+      +'.mktpick .mchip{display:inline-flex;align-items:center;gap:5px;background:#23496f;color:#fff;font-weight:700;font-size:12.5px;border-radius:6px;padding:4px 6px 4px 9px;box-shadow:0 1px 2px rgba(20,40,80,.18)}'
+      +'.mktpick .mchipx{border:0;background:transparent;color:#cfe0f2;font-size:15px;line-height:1;cursor:pointer;padding:0 1px}'
+      +'.mktpick .mchipx:hover{color:#fff}'
+      +'.mktpick .mktin{flex:1;min-width:150px;border:0;outline:none;padding:5px 2px;font-size:13px;background:transparent}';
+    document.head.appendChild(st); }
+  var sel=String(hid.value||'').split(',').map(function(s){return s.trim();}).filter(Boolean);
+  var inp=document.createElement('input'); inp.className='mktin'; inp.setAttribute('list','crMarketList'); inp.setAttribute('autocomplete','off');
+  function sync(){ hid.value=sel.join(', '); hid.dispatchEvent(new Event('change',{bubbles:true})); }
+  function add(v){ v=String(v||'').trim().replace(/,+$/,'').trim(); if(!v) return;
+    if(sel.some(function(s){return s.toLowerCase()===v.toLowerCase();})){ inp.value=''; return; }
+    sel.push(v); inp.value=''; render(); sync(); }
+  function render(){
+    wrap.innerHTML='';
+    sel.forEach(function(m,i){
+      var chip=document.createElement('span'); chip.className='mchip'; chip.appendChild(document.createTextNode(m));
+      var x=document.createElement('button'); x.type='button'; x.className='mchipx'; x.textContent='×'; x.title='Remove';
+      x.onclick=function(e){ e.stopPropagation(); sel.splice(i,1); render(); sync(); inp.focus(); };
+      chip.appendChild(x); wrap.appendChild(chip);
+    });
+    inp.placeholder=sel.length?'Add another market…':'Type or pick a market…';
+    wrap.appendChild(inp);
+  }
+  inp.addEventListener('keydown',function(e){
+    if(e.key==='Enter'||e.key===','){ e.preventDefault(); add(inp.value); }
+    else if(e.key==='Backspace'&&!inp.value&&sel.length){ sel.pop(); render(); sync(); }
+  });
+  // Picking from the datalist dropdown fires a change/input with the full market string.
+  inp.addEventListener('change',function(){ var v=(inp.value||'').trim();
+    if(v && (((typeof MARKETS!=='undefined'&&MARKETS)||[]).some(function(m){return m.toLowerCase()===v.toLowerCase();}))) add(v); });
+  inp.addEventListener('blur',function(){ if((inp.value||'').trim()) add(inp.value); });
+  wrap.addEventListener('mousedown',function(e){ if(e.target===wrap){ e.preventDefault(); inp.focus(); } });
+  render();
 }
 function spaceBox(){
   var s=(A&&A.space)||{};
@@ -1386,6 +1429,7 @@ function render(){
   // The map now lives inside the Locations / Units card; _wireSites() renders it and refreshes it as locations change.
   if(document.getElementById('optHint')){ _optHint(); ['f_optcount','f_optyears'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener('input',_optHint); }); }
   if(document.getElementById('sitesWrap')) _wireSites();
+  if(document.getElementById('cr_mkt_wrap')) _wireCrMarkets();
   updateExpNote();
   document.getElementById('savebtn').addEventListener('click',function(){save();});
   var scb=document.getElementById('suggestCodeBtn'); if(scb) scb.addEventListener('click',function(){ var s=suggestCodeName(); var el=document.getElementById('f_codename'); if(!el) return; el.value=s; el.focus(); try{el.setSelectionRange(s.length,s.length);}catch(e){} setDirty(true); save(); });

@@ -6276,7 +6276,7 @@ function buyBoxClean(b, prev) {
   if (b.active !== undefined) out.active = !!b.active;
   if (b.concepts !== undefined) out.concepts = (Array.isArray(b.concepts) ? b.concepts : []).map(String).filter(x => MKT_CONCEPTS.indexOf(x) >= 0).slice(0, 12);
   if (b.markets !== undefined) out.markets = (Array.isArray(b.markets) ? b.markets : []).map(String).filter(x => effMarkets().indexOf(x) >= 0).slice(0, 12);
-  if (b.priceMax !== undefined) out.priceMax = (b.priceMax in MKT_PRICE && b.priceMax) ? b.priceMax : '';
+  if (b.priceMax !== undefined) out.priceMax = String(b.priceMax || '').slice(0, 40);   // free-form (e.g. "$5M", "$3–20M"); legacy band keys still match
   if (b.sdeMin !== undefined) out.sdeMin = (b.sdeMin in MKT_CASH && b.sdeMin) ? b.sdeMin : '';
   if (b.earningsBasis !== undefined) out.earningsBasis = (b.earningsBasis === 'ebitda') ? 'ebitda' : 'sde'; // owner-operators value on SDE; absentee/investor buyers on EBITDA
   if (b.unitsMin !== undefined) out.unitsMin = (b.unitsMin === '' || b.unitsMin == null) ? '' : Math.max(0, Math.min(999, parseInt(b.unitsMin, 10) || 0));
@@ -6312,7 +6312,7 @@ function buyBoxMatch(bb, L) {
   }
   if (!crit(!!(bb.concepts && bb.concepts.length), !!L.conceptKey, !!(L.conceptKey && (bb.concepts || []).indexOf(L.conceptKey) >= 0), 'concept')) return { match: false, reasons: [] };
   if (!crit(!!(bb.markets && bb.markets.length), !!L.marketKey, !!(L.marketKey && (bb.markets || []).indexOf(L.marketKey) >= 0), 'market')) return { match: false, reasons: [] };
-  if (!crit(!!bb.priceMax, _priceIdx(L.priceBand) >= 0, _priceIdx(L.priceBand) >= 0 && _priceIdx(L.priceBand) <= _priceIdx(bb.priceMax), 'price')) return { match: false, reasons: [] };
+  if (!crit(_priceIdx(bb.priceMax) >= 0, _priceIdx(L.priceBand) >= 0, _priceIdx(L.priceBand) >= 0 && _priceIdx(L.priceBand) <= _priceIdx(bb.priceMax), 'price')) return { match: false, reasons: [] };
   if (!crit(!!bb.sdeMin, _cashIdx(L.cashBand) >= 0, _cashIdx(L.cashBand) >= 0 && _cashIdx(L.cashBand) >= _cashIdx(bb.sdeMin), (bb.earningsBasis === 'ebitda' ? 'EBITDA' : 'SDE'))) return { match: false, reasons: [] };
   if (!crit(bb.unitsMin !== '' && bb.unitsMin != null, L.units > 0, L.units >= Number(bb.unitsMin), 'units')) return { match: false, reasons: [] };
   if (!crit(bb.unitsMax !== '' && bb.unitsMax != null, L.units > 0, L.units <= Number(bb.unitsMax), 'units')) return { match: false, reasons: [] };
@@ -14612,7 +14612,9 @@ app.post('/api/deal/new', express.json(), (req, res) => {
   if (_linkedPerson) { rec.contactPersonId = _linkedPerson.id; if (!String(rec.contact || '').trim()) rec.contact = _linkedPerson.name; }
   else if (rec.contact || b.contactEmail) { const p = findOrCreatePerson(req, { name: rec.contact, email: b.contactEmail, type: 'Client', companyId: rec.companyId }); if (p) { rec.contactPersonId = p.id; if (!rec.contact) rec.contact = p.name; } }
   const arr = loadDeals(); arr.push(rec);
-  const room = ensureRoomForDeal(req, rec);   // auto-build its structured data room
+  // Tenant-rep engagements are space searches for a client — there's nothing to sell, so no data room.
+  // Sellers and landlord-rep listings still get their structured data room auto-built.
+  const room = _isTR ? null : ensureRoomForDeal(req, rec);
   if (room) rec.roomId = room.id;
   saveDeals(arr);
   const _atype = _isTR ? 'tenant_rep' : (_isLL ? 'landlord_rep' : '');
