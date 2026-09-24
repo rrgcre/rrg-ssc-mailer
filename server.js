@@ -11004,7 +11004,9 @@ function _companyLastActive(c, contactMax){ if(!c) return ''; let t=_maxStr(c.up
 app.get('/api/people', (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   const cos = {}, coMain = {}; loadCompanies().forEach(c => { cos[c.id] = c.name; coMain[c.id] = c.mainContactId || ''; });
-  const people = loadPeople().filter(p => !restrictToOwn(req) || permOwnerMatch(req, p.by)).map(p => Object.assign(personBrief(p), { companyName: (p.companyId && cos[p.companyId]) || '', isMainContact: !!(p.companyId && coMain[p.companyId] === p.id), lastActiveAt: _personLastActive(p), lastContacted: p.lastContacted || '', interactions: (Array.isArray(p.activities) ? p.activities.length : 0) }));
+  // Next follow-up per contact = earliest due date among that contact's open tasks.
+  const _nextFU = {}; try { loadTasks().forEach(t => { if (t && t.status === 'open' && t.linkType === 'contact' && t.linkId && t.due) { const d = String(t.due).slice(0, 10); const cur = _nextFU[t.linkId]; if (!cur || d < cur) _nextFU[t.linkId] = d; } }); } catch (e) {}
+  const people = loadPeople().filter(p => !restrictToOwn(req) || permOwnerMatch(req, p.by)).map(p => Object.assign(personBrief(p), { companyName: (p.companyId && cos[p.companyId]) || '', isMainContact: !!(p.companyId && coMain[p.companyId] === p.id), lastActiveAt: _personLastActive(p), lastContacted: p.lastContacted || '', interactions: (Array.isArray(p.activities) ? p.activities.length : 0), nextFollowUp: _nextFU[p.id] || '', blurb: p.blurb || '' }));
   res.json({ ok: true, people: people, canDelete: canDelete(req), types: effPersonTypes(), leadSources: effLeadSources(), users: auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => String(a.name).localeCompare(String(b.name))), recencyDays: (effListRecencyEnabled() ? effListRecencyDays() : 0), me: (req.user && req.user.username) || '', isAdmin: !!(req.user && isSuper(req.user)) });
 });
 // Live duplicate-email check — used by the contact form to warn the moment a rep leaves
@@ -11078,6 +11080,7 @@ app.post('/api/person', express.json(), (req, res) => {
   if (b.preferred !== undefined) p.preferred = !!b.preferred;
   if (b.tags !== undefined) p.tags = (cleanStrList(b.tags, 30, 40) || []);
   if (typeof b.notes === 'string') p.notes = b.notes.slice(0, 4000);
+  if (typeof b.blurb === 'string') p.blurb = b.blurb.slice(0, 200);   // short one-line description shown on the contacts list
   if (isNew) logContactAdded(p, req);
   p.updatedAt = now; savePeople(arr);
   // Optionally start a pipeline listing for a brand-new contact (mirrors /api/company).
@@ -16243,6 +16246,12 @@ app.delete('/api/admin/pipelines/:id', requireAdmin, (req, res) => {
 const SAVED_SEARCH_FILE = path.join(BOV_DATA_DIR, 'saved_searches.json');
 function loadSavedSearches() { try { return rj(SAVED_SEARCH_FILE) || []; } catch (e) { return []; } }
 function saveSavedSearches(a) { return writeJsonGuarded(SAVED_SEARCH_FILE, a, 'saveSavedSearches'); }
+// Per-user default saved search, keyed { username: { list: searchId } } — the filter a
+// list auto-applies when the user opens it.
+const SAVED_SEARCH_DEFAULT_FILE = path.join(BOV_DATA_DIR, 'saved_search_defaults.json');
+function loadSearchDefaults() { try { return rj(SAVED_SEARCH_DEFAULT_FILE) || {}; } catch (e) { return {}; } }
+function saveSearchDefaults(o) { return writeJsonGuarded(SAVED_SEARCH_DEFAULT_FILE, o || {}, 'saveSearchDefaults'); }
+function userSearchDefault(meU, list) { try { const d = loadSearchDefaults()[meU] || {}; return d[list] || ''; } catch (e) { return ''; } }
 function newSearchId() { return 'ss_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 app.get('/api/saved-searches', (req, res) => {
   const meU = (req.user && req.user.username) || '';
@@ -16256,7 +16265,8 @@ app.get('/api/saved-searches', (req, res) => {
   }
   const list = String(req.query.list || '').slice(0, 40);
   const rows = visible.filter(x => !list || x.list === list);
-  res.json({ ok: true, searches: rows.map(brief) });
+  const defId = list ? userSearchDefault(meU, list) : '';
+  res.json({ ok: true, searches: rows.map(brief), defaultId: (defId && rows.some(r => r.id === defId)) ? defId : '' });
 });
 app.get('/api/saved-searches/:id', (req, res) => {
   const meU = (req.user && req.user.username) || '';
@@ -16280,7 +16290,19 @@ app.delete('/api/saved-searches/:id', (req, res) => {
   const meU = (req.user && req.user.username) || ''; const all = loadSavedSearches(); const i = all.findIndex(x => x.id === req.params.id);
   if (i < 0) return res.status(404).json({ ok: false, error: 'Not found.' });
   if (all[i].owner !== meU && !(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Not yours.' });
-  all.splice(i, 1); saveSavedSearches(all); res.json({ ok: true });
+  all.splice(i, 1); saveSavedSearches(all);
+  // If this was anyone's default, clear those stale pointers.
+  try { const defs = loadSearchDefaults(); let ch = false; Object.keys(defs).forEach(u => { Object.keys(defs[u] || {}).forEach(l => { if (defs[u][l] === req.params.id) { delete defs[u][l]; ch = true; } }); }); if (ch) saveSearchDefaults(defs); } catch (e) {}
+  res.json({ ok: true });
+});
+// Set (or clear, with id:'') the caller's default saved search for a list.
+app.post('/api/saved-searches/default', express.json(), (req, res) => {
+  const meU = (req.user && req.user.username) || ''; if (!meU) return res.status(401).json({ ok: false, error: 'Not signed in.' });
+  const b = req.body || {}; const list = String(b.list || '').slice(0, 40); const id = String(b.id || '').slice(0, 60);
+  if (!list) return res.status(400).json({ ok: false, error: 'List is required.' });
+  if (id) { const s = loadSavedSearches().find(x => x.id === id); if (!s || !(s.shared || s.owner === meU) || s.list !== list) return res.status(404).json({ ok: false, error: 'Saved search not found for this list.' }); }
+  const defs = loadSearchDefaults(); defs[meU] = defs[meU] || {}; if (id) defs[meU][list] = id; else delete defs[meU][list];
+  saveSearchDefaults(defs); res.json({ ok: true, defaultId: id });
 });
 // ===== Copper / CSV import (companies + contacts) =====
 function _impStr(v, n) { return String(v == null ? '' : v).trim().slice(0, n || 200); }
