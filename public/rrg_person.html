@@ -182,7 +182,8 @@ body.booting .flagbtn{transition:none!important;}
 .bbchips{display:flex;flex-wrap:wrap;gap:5px;}
 .bbchip{display:inline-flex;align-items:center;font-size:11.5px;font-weight:600;color:#5a6478;background:#f1f4f8;border:1px solid #dbe0e9;border-radius:999px;padding:3px 9px;cursor:pointer;user-select:none;}
 .bbchip input{display:none;}
-.bbchip.on{background:#eaf1fb;border-color:#8fb2dd;color:#20334f;}
+.bbchip.on{background:#23496f;border-color:#23496f;color:#fff;font-weight:700;box-shadow:0 1px 2px rgba(20,40,80,.20);}
+.bbchip.on::before{content:'\2713';margin-right:5px;font-weight:800;font-size:11px;line-height:1;}
 .bbrow{display:flex;gap:8px;margin-top:2px;} .bbrow > div{flex:1;min-width:0;}
 #buyBoxCard select,#buyBoxCard textarea,#tenantBoxCard select,#tenantBoxCard textarea,.bbin{width:100%;box-sizing:border-box;border:1px solid #cfd6e2;border-radius:6px;padding:7px 9px;font:inherit;font-size:12.5px;background:#fff;}
 #buyBoxCard select:focus,#buyBoxCard textarea:focus,#tenantBoxCard select:focus,#tenantBoxCard textarea:focus,.bbin:focus{outline:none;border-color:#2c5c8f;}
