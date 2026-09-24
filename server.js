@@ -17248,6 +17248,11 @@ app.post('/api/tasks', express.json(), (req, res) => {
   if (typeof b.linkId === 'string') t.linkId = b.linkId.slice(0, 60);
   if (typeof b.linkLabel === 'string') t.linkLabel = b.linkLabel.slice(0, 200);
   if (b.linkType === '') { t.linkId = ''; t.linkLabel = ''; }
+  // Optional secondary listing reference — lets a task stay linked to its contact while
+  // also tagging the listing it relates to (so linking to a listing no longer wipes the contact link).
+  if (typeof b.dealKey === 'string') t.dealKey = b.dealKey.slice(0, 80);
+  if (typeof b.dealLabel === 'string') t.dealLabel = b.dealLabel.slice(0, 200);
+  if (b.dealKey === '') { t.dealKey = ''; t.dealLabel = ''; }
   if (typeof b.repeat === 'string') t.repeat = TASK_REPEATS.indexOf(b.repeat) >= 0 ? b.repeat : '';
   if (t.repeat === 'monthly_last' && t.due) t.due = _taskEomSnap(t.due);
   if (typeof b.reminder === 'string') { t.reminder = b.reminder.slice(0, 16); t.remSent = false; }
