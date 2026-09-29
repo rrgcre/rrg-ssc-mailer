@@ -131,6 +131,7 @@ document.addEventListener('click',function(e){ if(!e.target.closest) return; var
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function fmt(d){ if(!d) return ''; var s=String(d); var p=s.slice(0,10).split('-'); if(p.length!==3) return d; var out=p[1]+'/'+p[2]+'/'+p[0]; var t=s.slice(11,16); if(t){ var hh=parseInt(t.slice(0,2),10)||0, mm=t.slice(3,5); var ap=hh>=12?'p':'a', h12=((hh%12)||12); out+=' '+h12+':'+mm+ap; } return out; }
 function fmtD(d){ if(!d) return ''; var s=String(d).slice(0,10).split('-'); if(s.length!==3) return ''; return s[1]+'/'+s[2]+'/'+s[0]; }
+function fmtT(d){ if(!d) return ''; var t=String(d).slice(11,16); if(!t) return ''; var hh=parseInt(t.slice(0,2),10)||0, mm=t.slice(3,5); var ap=hh>=12?'PM':'AM', h12=((hh%12)||12); return h12+':'+mm+' '+ap; }
 var REPEAT_LABELS={daily:'Daily',weekly:'Weekly',biweekly:'Every 2 weeks',monthly:'Monthly',monthly_last:'Monthly — last day',quarterly:'Quarterly',yearly:'Yearly'};
 function repeatLabel(v){ return REPEAT_LABELS[v]||''; }
 function todayStr(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
@@ -193,10 +194,12 @@ function render(){
   var today=todayStr();
   var list=visibleTasks(); var _tc=document.getElementById('tcount'); if(_tc) _tc.textContent=list.length+' task'+(list.length===1?'':'s');
   var cfg={ mount:'#list', data:list, key:'tasks', empty:'<div class="empty">No tasks here.</div>',
-    rowId:function(t){return t.id;}, defaultSort:4, defaultDir:1,
+    rowId:function(t){return t.id;}, defaultSort:2, defaultDir:1,
     columns:[
       { label:'', width:38, sortable:false, cell:function(t){ return '<input type="checkbox" class="tchk" data-toggle="'+esc(t.id)+'"'+(t.status==='done'?' checked':'')+' title="'+(t.status==='done'?'Completed — click to reopen':'Mark complete')+'">'; } },
       { label:'Task', sort:function(a,b){return RRGList.cmp(a.title,b.title);}, edit:{ type:'text', get:function(t){return t.title||'';}, save:function(t,v){ if(!(v||'').trim()) return Promise.reject(new Error('Title is required.')); return taskSave(t,{title:v}); } }, cell:function(t){ return '<div class="ttitle'+(t.status==='done'?' done':'')+'">'+esc(t.title)+(t.repeat?(' <span class="rpt">🔁 '+esc(repeatLabel(t.repeat))+'</span>'):'')+'</div>'+(t.notes?('<div class="tnotes">'+esc(t.notes)+'</div>'):''); } },
+      { label:'Due date', sort:function(a,b){ var da=a.due||'', db=b.due||''; if(!da&&!db) return 0; if(!da) return 1; if(!db) return -1; return RRGList.cmp(String(da).slice(0,10),String(db).slice(0,10)); }, cell:function(t){ if(!t.due) return '<span class="meta">—</span>'; var over=(t.status!=='done' && String(t.due).slice(0,10) < today); return '<span class="due-lbl'+(over?' over':'')+'">'+esc(fmtD(t.due))+'</span>'; } },
+      { label:'Due time', sort:function(a,b){ var ta=String(a.due||'').slice(11,16), tb=String(b.due||'').slice(11,16); if(!ta&&!tb) return 0; if(!ta) return 1; if(!tb) return -1; return RRGList.cmp(ta,tb); }, cell:function(t){ var tt=fmtT(t.due); return tt?('<span class="due-lbl'+((t.status!=='done'&&String(t.due).slice(0,10)<today)?' over':'')+'">'+esc(tt)+'</span>'):'<span class="meta">—</span>'; } },
       { label:'Priority', sort:function(a,b){return RRGList.cmp(a.priority,b.priority);}, edit:{ type:'select', options:function(){return PRIORITIES;}, get:function(t){return t.priority||'Normal';}, save:function(t,v){ return taskSave(t,{priority:v}); } }, cell:function(t){ return '<span class="pill '+esc(t.priority||'Normal')+'">'+esc(t.priority||'Normal')+'</span>'; } },
       { label:'Type', defaultHidden:true, sort:function(a,b){return RRGList.cmp(a.type,b.type);}, cell:function(t){ return t.type?esc(t.type):'<span class="meta">—</span>'; } },
       { label:'Contact', sort:function(a,b){return RRGList.cmp(taskContact(a).name,taskContact(b).name);}, filterVal:function(t){return taskContact(t).name;}, cell:function(t){ var c=taskContact(t); if(!c.name) return '<span class="meta">—</span>'; return c.id?('<a href="./rrg_person.html?id='+encodeURIComponent(c.id)+'" style="color:var(--navy);text-decoration:none;font-weight:500">'+esc(c.name)+'</a>'):esc(c.name); } },
