@@ -7312,7 +7312,7 @@ footer{background:#05081a;color:#8597b8;font-size:13px;padding:40px 0 30px;}
 </style>${heroBgStyle}</head>
 <body>
 <header><div class="wrap"><nav class="nav">
-  <a class="brand" href="#top"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant Brokers</i></span></a>
+  <a class="brand" href="#top"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
   <a class="navlink" href="#services">Services</a>
   <a class="navlink" href="#process">How it works</a>
@@ -7325,7 +7325,7 @@ footer{background:#05081a;color:#8597b8;font-size:13px;padding:40px 0 30px;}
 <a id="top"></a>
 <div class="hero${heroImgSafe ? ' hasimg' : ''}"><div class="wrap"><div class="${heroGridClass}">
   <div>
-    <div class="eyebrow">Texas Restaurant Brokerage</div>
+    <div class="eyebrow">Texas Restaurant &amp; Bar Brokers</div>
     <h1 class="serif">${esc(s.tagline || '')}</h1>
     <p class="sub">${esc(s.heroSub || '')}</p>
     <div class="hcta">
@@ -7414,7 +7414,7 @@ footer{background:#05081a;color:#8597b8;font-size:13px;padding:40px 0 30px;}
 <footer><div class="wrap">
   <div class="foot">
     <div>
-      <a class="brand" href="#top" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant Brokers</i></span></a>
+      <a class="brand" href="#top" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
     <div><h4>Explore</h4><a href="#services">Services</a><a href="#opportunities">Opportunities</a><a href="/market">Marketplace</a><a href="#contact">Contact</a></div>
