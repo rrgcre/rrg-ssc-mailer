@@ -6838,7 +6838,37 @@ function defaultWebsite() {
       { city: 'New Braunfels', phone: '830-929-5224' }
     ],
     contactEmail: '',
-    customDomain: 'www.rrgcre.com'
+    customDomain: 'www.rrgcre.com',
+    processes: [
+      { name: 'Selling a restaurant', steps: [
+        { t: 'Valuation & strategy', d: 'We price it right and build the plan before anything goes to market.' },
+        { t: 'Confidential positioning', d: 'Marketed discreetly to the right audience — never your staff or guests.' },
+        { t: 'Qualified buyers only', d: 'Every buyer is vetted, NDA’d, and qualified before they reach you.' },
+        { t: 'LOI & due diligence', d: 'We manage offers, terms, and diligence so momentum never stalls.' },
+        { t: 'A clean close', d: 'Lease assignment, licensing, and closing — handled to the finish.' }
+      ]},
+      { name: 'Exiting a lease', steps: [
+        { t: 'Assess the exposure', d: 'We read the lease and quantify what a clean exit really takes.' },
+        { t: 'Position the space', d: 'Packaged and marketed to replacement tenants and assignees.' },
+        { t: 'Source the taker', d: 'We find the operator or assignee who makes the landlord whole.' },
+        { t: 'Negotiate the exit', d: 'Assignment, sublease, or termination — structured in your favor.' },
+        { t: 'Hand off clean', d: 'Documented, signed, and closed so the liability is truly gone.' }
+      ]},
+      { name: 'Securing a location', steps: [
+        { t: 'Define the criteria', d: 'Concept, economics, and trade-area targets set up front.' },
+        { t: 'Search & shortlist', d: 'We work the corridors and surface sites that actually fit.' },
+        { t: 'Tour & compare', d: 'Side-by-side on rent, build-out, and real restaurant fit.' },
+        { t: 'LOI & lease', d: 'We negotiate rate, TI, and terms that protect your P&L.' },
+        { t: 'Build-out handoff', d: 'Clean transition from signed lease to open doors.' }
+      ]},
+      { name: 'Placing an operator', steps: [
+        { t: 'Understand the space', d: 'Economics, infrastructure, and the right concept fit.' },
+        { t: 'Source operators', d: 'We tap our bench of qualified, funded operators.' },
+        { t: 'Vet & match', d: 'Track record, capital, and concept verified before intros.' },
+        { t: 'Deal terms', d: 'We structure the lease or purchase that works for both sides.' },
+        { t: 'Transition', d: 'From handshake to handover, managed end to end.' }
+      ]}
+    ]
   };
 }
 function loadWebsite() {
@@ -6846,7 +6876,7 @@ function loadWebsite() {
   try { s = rj(WEBSITE_FILE); } catch (e) {}
   if (!s || typeof s !== 'object') return d;
   const out = Object.assign({}, d, s);
-  ['stats', 'services', 'offices'].forEach(function (k) { if (!Array.isArray(out[k]) || !out[k].length) out[k] = d[k]; });
+  ['stats', 'services', 'offices', 'processes'].forEach(function (k) { if (!Array.isArray(out[k]) || !out[k].length) out[k] = d[k]; });
   return out;
 }
 function saveWebsite(o) { return writeJsonGuarded(WEBSITE_FILE, o || {}, 'saveWebsite'); }
@@ -6881,6 +6911,9 @@ app.post('/api/website', requireAdmin, express.json({ limit: '256kb' }), (req, r
   if (Array.isArray(b.stats)) out.stats = b.stats.slice(0, 6).map(function (x) { return { n: S(x && x.n, 16), l: S(x && x.l, 48) }; }).filter(function (x) { return x.n || x.l; });
   if (Array.isArray(b.services)) out.services = b.services.slice(0, 8).map(function (x) { return { t: S(x && x.t, 80), d: S(x && x.d, 400) }; }).filter(function (x) { return x.t || x.d; });
   if (Array.isArray(b.offices)) out.offices = b.offices.slice(0, 12).map(function (x) { return { city: S(x && x.city, 60), phone: S(x && x.phone, 40) }; }).filter(function (x) { return x.city || x.phone; });
+  if (Array.isArray(b.processes)) out.processes = b.processes.slice(0, 8).map(function (p) {
+    return { name: S(p && p.name, 80), steps: (Array.isArray(p && p.steps) ? p.steps : []).slice(0, 10).map(function (x) { return { t: S(x && x.t, 90), d: S(x && x.d, 300) }; }).filter(function (x) { return x.t || x.d; }) };
+  }).filter(function (p) { return p.name || p.steps.length; });
   out.updatedAt = new Date().toISOString();
   const ok = saveWebsite(out);
   res.json({ ok: !!ok, site: out });
@@ -6888,7 +6921,7 @@ app.post('/api/website', requireAdmin, express.json({ limit: '256kb' }), (req, r
 // Public — config subset + live listings
 app.get('/api/website/public', (req, res) => {
   const s = loadWebsite();
-  const pub = { brand: s.brand, tagline: s.tagline, heroSub: s.heroSub, heroCtaText: s.heroCtaText, stats: s.stats, services: s.services, aboutHead: s.aboutHead, about: s.about, offices: s.offices, contactEmail: s.contactEmail, published: !!s.published };
+  const pub = { brand: s.brand, tagline: s.tagline, heroSub: s.heroSub, heroCtaText: s.heroCtaText, stats: s.stats, services: s.services, processes: s.processes, aboutHead: s.aboutHead, about: s.about, offices: s.offices, contactEmail: s.contactEmail, published: !!s.published };
   res.json({ ok: true, site: pub, org: orgDisplayName(), listings: websitePublicListings() });
 });
 // Public — contact / lead form submission, captured for the Website manager
@@ -6921,152 +6954,327 @@ function publicSitePage(req) {
   const org = esc(s.brand || orgDisplayName() || 'Restaurant Realty Group');
   if (!s.published) {
     return '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>' + org + '</title>'
-      + '<style>body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:#000E31;color:#fff;display:flex;min-height:100vh;align-items:center;justify-content:center;text-align:center}.b{padding:30px}h1{font-weight:800;letter-spacing:-.01em;margin:0 0 8px}p{color:#9fb0cc;margin:0}</style>'
+      + '<style>body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:#060E22;color:#fff;display:flex;min-height:100vh;align-items:center;justify-content:center;text-align:center}.b{padding:30px}h1{font-weight:800;letter-spacing:-.01em;margin:0 0 8px}p{color:#9fb0cc;margin:0}</style>'
       + '</head><body><div class="b"><h1>' + org + '</h1><p>Our new site is coming soon.</p></div></body></html>';
   }
   const listings = websitePublicListings();
-  const stats = (s.stats || []).map(function (x) { return '<div class="stat"><div class="statn">' + esc(x.n || '') + '</div><div class="statl">' + esc(x.l || '') + '</div></div>'; }).join('');
-  const svc = (s.services || []).map(function (x) { return '<div class="svc"><div class="svct">' + esc(x.t || '') + '</div><div class="svcd">' + esc(x.d || '') + '</div></div>'; }).join('');
-  const offices = (s.offices || []).map(function (o) { const ph = esc(o.phone || ''); const tel = ph.replace(/[^0-9+]/g, ''); return '<div class="off"><div class="offc">' + esc(o.city || '') + '</div>' + (ph ? ('<a class="offp" href="tel:' + tel + '">' + ph + '</a>') : '') + '</div>'; }).join('');
+  const year = new Date().getFullYear();
+
+  // --- inline SVG icon set (stroke = currentColor) ---
+  const ICON = {
+    sell: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0l-6.2-6.2a2 2 0 0 1-.6-1.4V5a1 1 0 0 1 1-1h8a2 2 0 0 1 1.4.6l6.4 6.4a2 2 0 0 1 0 2.4Z"/><circle cx="8" cy="8" r="1.4"/></svg>',
+    exit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>',
+    secure: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.2-7-11a7 7 0 0 1 14 0c0 5.8-7 11-7 11Z"/><circle cx="12" cy="10" r="2.4"/></svg>',
+    place: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5"/><circle cx="17" cy="10" r="2.4"/><path d="M14.5 20c0-2.6 1.4-4.3 3.5-4.3s3.5 1.7 3.5 4.3"/></svg>',
+    value: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l3-4 3 2 4-6"/></svg>',
+    brief: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
+    fork: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v6a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V3"/><path d="M7 11v10"/><path d="M17 3c-1.7 0-3 2-3 5s1.3 4 3 4m0 0v9m0-9c1.7 0 3-1 3-4s-1.3-5-3-5"/></svg>',
+    phone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.1-8.7A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.4-1.2a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2Z"/></svg>'
+  };
+  const svcIcons = [ICON.sell, ICON.exit, ICON.secure, ICON.place];
+  const svcHtml = (s.services || []).map(function (x, i) {
+    const ic = svcIcons[i] || ICON.brief;
+    return '<div class="svc"><div class="svcic">' + ic + '</div><div class="svct">' + esc(x.t || '') + '</div><div class="svcd">' + esc(x.d || '') + '</div></div>';
+  }).join('');
+
+  const statHtml = (s.stats || []).map(function (x) { return '<div class="stat"><div class="statn">' + esc(x.n || '') + '</div><div class="statl">' + esc(x.l || '') + '</div></div>'; }).join('');
+
+  // --- stylized Texas map with pinned markets ---
+  const TXCO = { 'austin': [49, 52], 'dallas': [57, 29], 'fort worth': [50, 30], 'houston': [73, 55], 'san antonio': [44, 66], 'new braunfels': [50, 60], 'rio grande valley': [48, 84], 'el paso': [14, 44], 'central texas': [50, 50] };
+  const pinCities = (s.offices && s.offices.length ? s.offices.map(function (o) { return o.city; }) : ['Austin', 'Dallas', 'Houston', 'San Antonio']);
+  const pins = pinCities.map(function (c) { const co = TXCO[String(c || '').trim().toLowerCase()]; return co ? { c: c, x: co[0], y: co[1] } : null; }).filter(Boolean)
+    .filter(function (p, i, arr) { return arr.findIndex(function (q) { return q.x === p.x && q.y === p.y; }) === i; });
+  const txPath = 'M26,9 L41,9 L41,22 L55,22 L59,17 L64,22 L69,33 L79,42 L87,50 L89,56 L83,61 L79,58 L75,64 L68,62 L61,73 L53,85 L47,75 L43,67 L35,63 L25,57 L12,47 L18,41 L22,31 L24,22 L26,22 Z';
+  const pinSvg = pins.map(function (p) {
+    return '<g class="pin"><circle cx="' + p.x + '" cy="' + p.y + '" r="1.8" fill="#C8A24B" stroke="#fff" stroke-width="0.7"/><circle cx="' + p.x + '" cy="' + p.y + '" r="3.4" fill="none" stroke="#C8A24B" stroke-width="0.5" opacity="0.5"/><text x="' + (p.x + 4.3) + '" y="' + (p.y + 1.1) + '" font-size="3.1" fill="#eaf0ff" font-weight="600">' + esc(p.c) + '</text></g>';
+  }).join('');
+  const txMap = '<svg class="txmap" viewBox="0 0 100 100" aria-label="Texas markets" role="img">'
+    + '<path d="' + txPath + '" fill="rgba(200,162,75,0.08)" stroke="rgba(200,162,75,0.55)" stroke-width="0.8" stroke-linejoin="round"/>'
+    + pinSvg + '</svg>';
+
+  // --- opportunity cards ---
   let cards = (listings || []).slice(0, 6).map(function (t) {
     const price = esc(t.guide || t.price || t.priceBand || '');
-    const sub = [esc(t.loc || ''), esc(t.badge || '')].filter(Boolean).join(' &middot; ');
+    const loc = esc(t.loc || '');
+    const badge = esc(t.badge || '');
     const flag = t.flagLabel ? ('<span class="opflag">' + esc(t.flagLabel) + '</span>') : '';
-    return '<a class="op" href="/market">' + flag + '<div class="oph">' + esc(t.headline || 'Confidential restaurant opportunity') + '</div>' + (sub ? ('<div class="opm">' + sub + '</div>') : '') + (price ? ('<div class="opp">' + price + '</div>') : '') + '<span class="oplink">Request details &rarr;</span></a>';
+    return '<a class="op" href="/market"><div class="opimg">' + ICON.fork + flag + '</div><div class="opbody"><div class="oph">' + esc(t.headline || 'Confidential restaurant opportunity') + '</div>'
+      + (loc || badge ? ('<div class="opm">' + [loc, badge].filter(Boolean).join(' &middot; ') + '</div>') : '')
+      + (price ? ('<div class="opp">' + price + '</div>') : '<div class="opp dash">Inquire for details</div>')
+      + '<span class="oplink">Request details &rarr;</span></div></a>';
   }).join('');
   if (!(listings || []).length) cards = '<div class="noops">New opportunities are posted here as they come to market. <a href="/market">Browse the marketplace &rarr;</a></div>';
+
   const interestOpts = '<option value="">What can we help with?</option>' + (s.services || []).map(function (x) { return '<option>' + esc(x.t || '') + '</option>'; }).join('') + '<option>General inquiry</option>';
   const email = esc(s.contactEmail || '');
+  const officeHtml = (s.offices || []).map(function (o) { const ph = esc(o.phone || ''); const tel = ph.replace(/[^0-9+]/g, ''); return '<div class="off"><div class="offc">' + esc(o.city || '') + '</div>' + (ph ? ('<a class="offp" href="tel:' + tel + '">' + ICON.phone + '<span>' + ph + '</span></a>') : '') + '</div>'; }).join('');
+  const PROC_DEFAULT = [
+    { name: 'Selling a restaurant', steps: [
+      { t: 'Valuation & strategy', d: 'We price it right and build the plan before anything goes to market.' },
+      { t: 'Confidential positioning', d: 'Marketed discreetly to the right audience — never your staff or guests.' },
+      { t: 'Qualified buyers only', d: 'Every buyer is vetted, NDA’d, and qualified before they reach you.' },
+      { t: 'LOI & due diligence', d: 'We manage offers, terms, and diligence so momentum never stalls.' },
+      { t: 'A clean close', d: 'Lease assignment, licensing, and closing — handled to the finish.' }
+    ]},
+    { name: 'Exiting a lease', steps: [
+      { t: 'Assess the exposure', d: 'We read the lease and quantify what a clean exit really takes.' },
+      { t: 'Position the space', d: 'Packaged and marketed to replacement tenants and assignees.' },
+      { t: 'Source the taker', d: 'We find the operator or assignee who makes the landlord whole.' },
+      { t: 'Negotiate the exit', d: 'Assignment, sublease, or termination — structured in your favor.' },
+      { t: 'Hand off clean', d: 'Documented, signed, and closed so the liability is truly gone.' }
+    ]},
+    { name: 'Securing a location', steps: [
+      { t: 'Define the criteria', d: 'Concept, economics, and trade-area targets set up front.' },
+      { t: 'Search & shortlist', d: 'We work the corridors and surface sites that actually fit.' },
+      { t: 'Tour & compare', d: 'Side-by-side on rent, build-out, and real restaurant fit.' },
+      { t: 'LOI & lease', d: 'We negotiate rate, TI, and terms that protect your P&L.' },
+      { t: 'Build-out handoff', d: 'Clean transition from signed lease to open doors.' }
+    ]},
+    { name: 'Placing an operator', steps: [
+      { t: 'Understand the space', d: 'Economics, infrastructure, and the right concept fit.' },
+      { t: 'Source operators', d: 'We tap our bench of qualified, funded operators.' },
+      { t: 'Vet & match', d: 'Track record, capital, and concept verified before intros.' },
+      { t: 'Deal terms', d: 'We structure the lease or purchase that works for both sides.' },
+      { t: 'Transition', d: 'From handshake to handover, managed end to end.' }
+    ]}
+  ];
+  const processes = (Array.isArray(s.processes) && s.processes.length) ? s.processes : PROC_DEFAULT;
+  const procTabs = processes.map(function (p, i) { return '<button type="button" class="ptab' + (i === 0 ? ' on' : '') + '" data-ptab="' + i + '">' + esc(p.name || ('Process ' + (i + 1))) + '</button>'; }).join('');
+  const procPanels = processes.map(function (p, i) {
+    const st = (p.steps || []).map(function (x, j) { return '<div class="step"><div class="stepn">' + (j + 1) + '</div><div class="stepb"><div class="stept">' + esc(x.t || '') + '</div><div class="stepd">' + esc(x.d || '') + '</div></div></div>'; }).join('');
+    return '<div class="ppanel' + (i === 0 ? ' on' : '') + '" data-ppanel="' + i + '"><div class="steps">' + st + '</div></div>';
+  }).join('');
+
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${org} — ${esc(s.tagline || '')}</title>
 <meta name="description" content="${esc(s.heroSub || '')}">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-:root{--navy:#000E31;--navy2:#0b1f45;--red:#DA2B1F;--gold:#C8A24B;--ink:#1a2236;--muted:#5f6b80;--line:#e5e9f1;--wash:#f5f7fb;}
+:root{--navy:#0A1733;--navy2:#060E22;--panel:#0f1f44;--gold:#C8A24B;--gold2:#e0c27e;--red:#DA2B1F;--cream:#F7F4EC;--ink:#1b2440;--muted:#5d6782;--line:#e7e3d8;--line2:#e9ecf3;}
 *{box-sizing:border-box;margin:0;padding:0;}
 html{scroll-behavior:smooth;}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:#fff;line-height:1.6;-webkit-font-smoothing:antialiased;}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;color:var(--ink);background:#fff;line-height:1.6;-webkit-font-smoothing:antialiased;}
+img{max-width:100%;}
 a{color:inherit;}
-.wrap{max-width:1120px;margin:0 auto;padding:0 24px;}
-header{position:sticky;top:0;z-index:30;background:rgba(0,14,49,.96);backdrop-filter:blur(6px);border-bottom:1px solid rgba(255,255,255,.08);}
-.nav{display:flex;align-items:center;gap:18px;padding:14px 0;}
-.brand{display:flex;align-items:center;gap:10px;color:#fff;text-decoration:none;font-weight:800;letter-spacing:.01em;}
-.brand .disc{width:34px;height:34px;border-radius:6px;background:var(--red);color:#fff;font:900 12px/1 'Arial Black',Arial;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.serif{font-family:'Fraunces',Georgia,serif;}
+.wrap{max-width:1180px;margin:0 auto;padding:0 26px;}
+.eyebrow{color:var(--gold);font-weight:700;letter-spacing:.2em;text-transform:uppercase;font-size:11.5px;}
+.btn{display:inline-block;text-decoration:none;font-weight:700;font-size:14px;padding:14px 24px;border-radius:10px;cursor:pointer;border:none;transition:transform .12s,filter .12s,background .12s;letter-spacing:.01em;}
+.btn:hover{transform:translateY(-1px);}
+.btn.red{background:var(--red);color:#fff;box-shadow:0 8px 24px rgba(218,43,31,.28);}
+.btn.gold{background:var(--gold);color:#1a1405;box-shadow:0 8px 24px rgba(200,162,75,.3);}
+.btn.ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.34);}
+.btn.ghost:hover{border-color:#fff;background:rgba(255,255,255,.06);}
+/* header */
+header{position:sticky;top:0;z-index:40;background:rgba(6,14,34,.82);backdrop-filter:blur(10px);border-bottom:1px solid rgba(255,255,255,.08);}
+.nav{display:flex;align-items:center;gap:20px;padding:15px 0;}
+.brand{display:flex;align-items:center;gap:11px;color:#fff;text-decoration:none;}
+.brand .disc{width:38px;height:38px;border-radius:8px;background:var(--red);color:#fff;font:900 13px/1 'Arial Black',Arial;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;box-shadow:0 4px 14px rgba(218,43,31,.4);}
+.brand .bn{font-weight:800;font-size:15px;letter-spacing:.01em;}
+.brand .bn i{display:block;font-style:normal;font-size:9.5px;letter-spacing:.22em;color:var(--gold);font-weight:700;margin-top:1px;}
 .nav .sp{flex:1;}
 .nav a.navlink{color:#c7d2e6;text-decoration:none;font-size:13.5px;font-weight:600;}
 .nav a.navlink:hover{color:#fff;}
-.nav a.navcta{background:var(--red);color:#fff;padding:9px 16px;border-radius:7px;font-size:13px;font-weight:800;text-decoration:none;}
-@media(max-width:760px){.nav a.navlink{display:none;}}
-.hero{background:radial-gradient(120% 120% at 70% 0,#13275a 0,#000E31 60%);color:#fff;padding:76px 0 84px;}
-.kick{color:var(--gold);font-weight:800;letter-spacing:.22em;text-transform:uppercase;font-size:11.5px;}
-.hero h1{font-size:46px;line-height:1.05;font-weight:800;letter-spacing:-.02em;margin:14px 0 0;text-wrap:balance;max-width:16ch;}
-.hero p{color:#c3cee2;font-size:17px;margin-top:16px;max-width:60ch;}
-.hcta{display:flex;gap:12px;flex-wrap:wrap;margin-top:26px;}
-.btn{display:inline-block;text-decoration:none;font-weight:800;font-size:14px;padding:13px 22px;border-radius:9px;cursor:pointer;border:none;}
-.btn.red{background:var(--red);color:#fff;}
-.btn.ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.3);}
-.btn.red:hover{filter:brightness(1.07);} .btn.ghost:hover{border-color:#fff;}
-.statband{background:var(--navy2);border-top:1px solid rgba(255,255,255,.08);}
-.stats{display:flex;flex-wrap:wrap;gap:12px;padding:22px 0;}
-.stat{flex:1;min-width:150px;}
-.statn{font-size:30px;font-weight:800;color:#fff;letter-spacing:-.01em;font-variant-numeric:tabular-nums;}
-.statl{color:#93a2c2;font-size:12.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-top:2px;}
-section{padding:66px 0;}
-.eyebrow{color:var(--red);font-weight:800;letter-spacing:.14em;text-transform:uppercase;font-size:11.5px;}
-.h2{font-size:30px;font-weight:800;letter-spacing:-.01em;margin:8px 0 0;color:var(--navy);text-wrap:balance;}
-.lead{color:var(--muted);font-size:16px;margin-top:10px;max-width:64ch;}
-.svcs{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:30px;}
-@media(max-width:700px){.svcs{grid-template-columns:1fr;}}
-.svc{border:1px solid var(--line);border-radius:12px;padding:22px 22px 24px;background:#fff;transition:box-shadow .15s,border-color .15s;}
-.svc:hover{border-color:#cdd6e6;box-shadow:0 10px 30px rgba(10,20,50,.07);}
-.svct{font-size:17px;font-weight:800;color:var(--navy);}
-.svct::before{content:'';display:block;width:30px;height:3px;border-radius:2px;background:var(--gold);margin-bottom:12px;}
-.svcd{color:var(--muted);font-size:14px;margin-top:8px;}
-.ops{background:var(--wash);border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
-.opgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:30px;}
+.nav a.navcta{background:var(--gold);color:#1a1405;padding:10px 17px;border-radius:9px;font-size:13px;font-weight:800;text-decoration:none;}
+@media(max-width:840px){.nav a.navlink{display:none;}}
+/* hero */
+.hero{position:relative;background:radial-gradient(130% 120% at 78% -10%,#15275a 0,#0A1733 45%,#060E22 100%);color:#fff;overflow:hidden;}
+.hero::before{content:'';position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.055) 1px,transparent 1.4px);background-size:22px 22px;opacity:.6;}
+.hero::after{content:'';position:absolute;right:-120px;top:-120px;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,rgba(200,162,75,.22),transparent 65%);}
+.herogrid{position:relative;display:grid;grid-template-columns:1.15fr .85fr;gap:44px;align-items:center;padding:78px 0 86px;}
+@media(max-width:900px){.herogrid{grid-template-columns:1fr;gap:28px;padding:56px 0 64px;}}
+.hero h1{font-size:54px;line-height:1.03;font-weight:600;letter-spacing:-.015em;margin:16px 0 0;text-wrap:balance;}
+@media(max-width:900px){.hero h1{font-size:40px;}}
+.hero h1 em{font-style:italic;color:var(--gold2);}
+.hero p.sub{color:#c3cee2;font-size:17.5px;margin-top:18px;max-width:54ch;}
+.hcta{display:flex;gap:13px;flex-wrap:wrap;margin-top:28px;}
+.htrust{display:flex;gap:26px;flex-wrap:wrap;margin-top:34px;padding-top:26px;border-top:1px solid rgba(255,255,255,.12);}
+.htrust .n{font-family:'Fraunces',serif;font-size:26px;font-weight:600;color:#fff;}
+.htrust .l{font-size:11px;color:#93a2c2;text-transform:uppercase;letter-spacing:.08em;font-weight:700;margin-top:2px;}
+.herocard{position:relative;background:linear-gradient(170deg,rgba(255,255,255,.06),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.14);border-radius:20px;padding:22px;box-shadow:0 30px 70px rgba(0,0,0,.4);}
+.herocard .cap{display:flex;align-items:center;justify-content:space-between;color:#aeb9d4;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;}
+.herocard .cap b{color:var(--gold);}
+.txmap{width:100%;height:auto;display:block;}
+/* sections */
+section{padding:84px 0;}
+.sec-head{max-width:720px;}
+.h2{font-family:'Fraunces',serif;font-size:38px;font-weight:600;letter-spacing:-.01em;margin:10px 0 0;color:var(--navy);line-height:1.1;text-wrap:balance;}
+@media(max-width:720px){.h2{font-size:30px;}}
+.lead{color:var(--muted);font-size:17px;margin-top:12px;max-width:62ch;}
+/* services */
+.svcs{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-top:38px;}
+@media(max-width:720px){.svcs{grid-template-columns:1fr;}}
+.svc{position:relative;border:1px solid var(--line2);border-radius:16px;padding:26px;background:#fff;transition:box-shadow .18s,transform .18s,border-color .18s;overflow:hidden;}
+.svc::after{content:'';position:absolute;left:0;top:0;height:3px;width:46px;background:var(--gold);}
+.svc:hover{border-color:#d7dceb;box-shadow:0 18px 44px rgba(10,20,50,.09);transform:translateY(-3px);}
+.svcic{width:50px;height:50px;border-radius:12px;background:linear-gradient(160deg,#0f1f44,#0A1733);color:var(--gold);display:flex;align-items:center;justify-content:center;margin-bottom:16px;}
+.svcic svg{width:25px;height:25px;}
+.svct{font-size:19px;font-weight:700;color:var(--navy);font-family:'Fraunces',serif;}
+.svcd{color:var(--muted);font-size:14.5px;margin-top:8px;}
+/* process */
+.process{background:var(--cream);border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:40px;counter-reset:st;}
+@media(max-width:860px){.steps{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:520px){.steps{grid-template-columns:1fr;}}
+.step{position:relative;}
+.stepn{width:44px;height:44px;border-radius:50%;background:var(--navy);color:var(--gold);font-family:'Fraunces',serif;font-size:19px;font-weight:600;display:flex;align-items:center;justify-content:center;border:1px solid rgba(200,162,75,.5);}
+.stept{font-weight:700;color:var(--navy);margin-top:14px;font-size:16px;}
+.stepd{color:var(--muted);font-size:14px;margin-top:5px;}
+.ptabs{display:flex;flex-wrap:wrap;gap:9px;margin-top:34px;}
+.ptab{border:1px solid var(--line);background:#fff;color:var(--muted);font:inherit;font-weight:700;font-size:13.5px;padding:11px 18px;border-radius:999px;cursor:pointer;transition:all .14s;}
+.ptab:hover{border-color:var(--gold);color:var(--navy);}
+.ptab.on{background:var(--navy);color:#fff;border-color:var(--navy);box-shadow:0 8px 20px rgba(10,20,50,.18);}
+.ppanels{margin-top:30px;}
+.ppanel{display:none;}
+.ppanel.on{display:block;animation:fade .3s ease;}
+@keyframes fade{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+/* opportunities */
+.ops{background:var(--navy2);color:#fff;}
+.ops .h2{color:#fff;} .ops .lead{color:#c3cee2;}
+.ops .eyebrow{color:var(--gold2);}
+.opgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:40px;}
 @media(max-width:860px){.opgrid{grid-template-columns:repeat(2,1fr);}}
 @media(max-width:560px){.opgrid{grid-template-columns:1fr;}}
-.op{display:block;position:relative;background:#fff;border:1px solid var(--line);border-radius:12px;padding:20px;text-decoration:none;color:inherit;transition:box-shadow .15s,transform .15s,border-color .15s;}
-.op:hover{box-shadow:0 12px 30px rgba(10,20,50,.1);transform:translateY(-2px);border-color:#cdd6e6;}
-.opflag{display:inline-block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#8a5a12;background:#f5ecd6;border:1px solid #e7d6ad;border-radius:999px;padding:2px 9px;margin-bottom:10px;}
-.oph{font-size:16px;font-weight:800;color:var(--navy);line-height:1.3;}
-.opm{color:var(--muted);font-size:12.5px;margin-top:5px;}
-.opp{font-size:15px;font-weight:800;color:var(--navy);margin-top:12px;}
+.op{display:block;background:#fff;border-radius:16px;overflow:hidden;text-decoration:none;color:inherit;transition:box-shadow .18s,transform .18s;box-shadow:0 2px 10px rgba(0,0,0,.18);}
+.op:hover{transform:translateY(-4px);box-shadow:0 22px 48px rgba(0,0,0,.34);}
+.opimg{position:relative;height:120px;background:linear-gradient(135deg,#13275a,#0A1733);display:flex;align-items:center;justify-content:center;color:rgba(200,162,75,.85);}
+.opimg svg{width:44px;height:44px;}
+.opimg::before{content:'';position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.07) 1px,transparent 1.3px);background-size:16px 16px;}
+.opflag{position:absolute;top:12px;left:12px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#1a1405;background:var(--gold);border-radius:999px;padding:3px 10px;}
+.opbody{padding:18px 18px 20px;}
+.oph{font-size:16.5px;font-weight:700;color:var(--navy);line-height:1.3;font-family:'Fraunces',serif;}
+.opm{color:var(--muted);font-size:12.5px;margin-top:6px;}
+.opp{font-size:16px;font-weight:800;color:var(--navy);margin-top:12px;}
+.opp.dash{color:var(--muted);font-weight:600;font-size:13.5px;}
 .oplink{display:inline-block;color:var(--red);font-weight:800;font-size:12.5px;margin-top:12px;}
-.noops{background:#fff;border:1px dashed var(--line);border-radius:12px;padding:26px;text-align:center;color:var(--muted);margin-top:24px;}
-.noops a{color:var(--red);font-weight:800;text-decoration:none;}
-.opall{margin-top:26px;}
-.about{display:grid;grid-template-columns:1.1fr .9fr;gap:40px;align-items:start;}
-@media(max-width:760px){.about{grid-template-columns:1fr;gap:24px;}}
-.offs{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
-.off{border:1px solid var(--line);border-radius:10px;padding:14px 16px;background:#fff;}
-.offc{font-weight:800;color:var(--navy);font-size:14px;}
-.offp{display:inline-block;margin-top:3px;color:var(--red);font-weight:700;font-size:14px;text-decoration:none;}
-.contact{background:var(--navy);color:#fff;}
-.cgrid{display:grid;grid-template-columns:.9fr 1.1fr;gap:40px;align-items:start;}
-@media(max-width:760px){.cgrid{grid-template-columns:1fr;gap:26px;}}
-.contact .h2{color:#fff;}
-.contact .lead{color:#c3cee2;}
-.form{background:#fff;border-radius:14px;padding:22px;}
-.row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.noops{grid-column:1/-1;background:rgba(255,255,255,.05);border:1px dashed rgba(255,255,255,.25);border-radius:14px;padding:30px;text-align:center;color:#c3cee2;}
+.noops a{color:var(--gold2);font-weight:800;text-decoration:none;}
+.opall{margin-top:30px;}
+/* markets split */
+.mkt{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center;}
+@media(max-width:820px){.mkt{grid-template-columns:1fr;gap:30px;}}
+.mktmap{background:linear-gradient(170deg,#0f1f44,#0A1733);border-radius:20px;padding:26px;box-shadow:0 24px 60px rgba(10,20,50,.18);}
+/* about */
+.about{display:grid;grid-template-columns:1.05fr .95fr;gap:46px;align-items:start;}
+@media(max-width:820px){.about{grid-template-columns:1fr;gap:28px;}}
+.promise{background:var(--navy);color:#fff;border-radius:20px;padding:34px;position:relative;overflow:hidden;}
+.promise::before{content:'\\201C';position:absolute;top:-6px;left:18px;font-family:'Fraunces',serif;font-size:120px;color:rgba(200,162,75,.22);line-height:1;}
+.promise .pq{font-family:'Fraunces',serif;font-size:23px;line-height:1.35;font-weight:500;position:relative;}
+.promise .pa{margin-top:18px;color:var(--gold2);font-weight:700;font-size:13px;letter-spacing:.04em;text-transform:uppercase;}
+/* offices */
+.offs{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:38px;}
+@media(max-width:720px){.offs{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:460px){.offs{grid-template-columns:1fr;}}
+.off{border:1px solid var(--line2);border-radius:14px;padding:18px 20px;background:#fff;}
+.offc{font-weight:700;color:var(--navy);font-size:15px;font-family:'Fraunces',serif;}
+.offp{display:inline-flex;align-items:center;gap:8px;margin-top:8px;color:var(--red);font-weight:700;font-size:14.5px;text-decoration:none;}
+.offp svg{width:15px;height:15px;}
+/* cta band */
+.ctaband{background:linear-gradient(120deg,var(--gold),#b78a34);color:#231a05;}
+.ctab{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;padding:46px 0;}
+.ctab h3{font-family:'Fraunces',serif;font-size:30px;font-weight:600;letter-spacing:-.01em;max-width:20ch;}
+.ctab .btn.dark{background:var(--navy);color:#fff;}
+/* contact */
+.contact{background:var(--navy2);color:#fff;}
+.cgrid{display:grid;grid-template-columns:.9fr 1.1fr;gap:46px;align-items:start;}
+@media(max-width:820px){.cgrid{grid-template-columns:1fr;gap:28px;}}
+.contact .h2{color:#fff;} .contact .lead{color:#c3cee2;} .contact .eyebrow{color:var(--gold2);}
+.form{background:#fff;border-radius:18px;padding:26px;box-shadow:0 24px 60px rgba(0,0,0,.34);}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:13px;}
 @media(max-width:520px){.row{grid-template-columns:1fr;}}
-.fld{margin-top:12px;}
-.fld label{display:block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:5px;}
-.fld input,.fld select,.fld textarea{width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:11px 12px;font:inherit;font-size:14px;color:var(--ink);background:#fff;}
-.fld textarea{min-height:92px;resize:vertical;}
+.fld{margin-top:13px;}
+.fld label{display:block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:6px;}
+.fld input,.fld select,.fld textarea{width:100%;border:1px solid #cfd6e2;border-radius:10px;padding:12px 13px;font:inherit;font-size:14.5px;color:var(--ink);background:#fff;}
+.fld input:focus,.fld select:focus,.fld textarea:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(200,162,75,.18);}
+.fld textarea{min-height:96px;resize:vertical;}
 .lmsg{font-size:13px;font-weight:700;margin-left:12px;}
 .lmsg.ok{color:#1f8a5b;} .lmsg.err{color:var(--red);}
-footer{background:#00081f;color:#8597b8;font-size:12.5px;padding:26px 0;}
-.foot{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;}
-.foot a{color:#b9c6df;text-decoration:none;}
+/* footer */
+footer{background:#05081a;color:#8597b8;font-size:13px;padding:40px 0 30px;}
+.foot{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:24px;}
+@media(max-width:720px){.foot{grid-template-columns:1fr;gap:18px;}}
+.foot h4{color:#fff;font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;}
+.foot a{color:#b9c6df;text-decoration:none;display:block;margin:5px 0;}
+.foot a:hover{color:#fff;}
+.footbar{border-top:1px solid rgba(255,255,255,.08);margin-top:28px;padding-top:18px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;color:#6b7a99;font-size:12px;}
 </style></head>
 <body>
 <header><div class="wrap"><nav class="nav">
-  <a class="brand" href="#top"><span class="disc">RRG</span><span>${org}</span></a>
+  <a class="brand" href="#top"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant Brokers</i></span></a>
   <span class="sp"></span>
   <a class="navlink" href="#services">Services</a>
+  <a class="navlink" href="#process">How it works</a>
   <a class="navlink" href="#opportunities">Opportunities</a>
-  <a class="navlink" href="#about">About</a>
-  <a class="navcta" href="#contact">Contact</a>
+  <a class="navlink" href="#markets">Markets</a>
+  <a class="navcta" href="#contact">Talk to a broker</a>
 </nav></div></header>
 
 <a id="top"></a>
-<div class="hero"><div class="wrap">
-  <div class="kick">Texas Restaurant Brokerage</div>
-  <h1>${esc(s.tagline || '')}</h1>
-  <p>${esc(s.heroSub || '')}</p>
-  <div class="hcta">
-    <a class="btn red" href="#opportunities">${esc(s.heroCtaText || 'See current opportunities')}</a>
-    <a class="btn ghost" href="#contact">Talk to a broker</a>
+<div class="hero"><div class="wrap"><div class="herogrid">
+  <div>
+    <div class="eyebrow">Texas Restaurant Brokerage</div>
+    <h1 class="serif">${esc(s.tagline || '')}</h1>
+    <p class="sub">${esc(s.heroSub || '')}</p>
+    <div class="hcta">
+      <a class="btn gold" href="#opportunities">${esc(s.heroCtaText || 'See current opportunities')}</a>
+      <a class="btn ghost" href="#contact">Talk to a broker</a>
+    </div>
+    <div class="htrust">${(s.stats || []).slice(0, 3).map(function (x) { return '<div><div class="n">' + esc(x.n || '') + '</div><div class="l">' + esc(x.l || '') + '</div></div>'; }).join('')}</div>
   </div>
-</div></div>
-<div class="statband"><div class="wrap"><div class="stats">${stats}</div></div></div>
+  <div class="herocard">
+    <div class="cap"><span>Where we work</span><b>Texas</b></div>
+    ${txMap}
+  </div>
+</div></div></div>
 
 <section id="services"><div class="wrap">
-  <div class="eyebrow">What we do</div>
-  <div class="h2">Full-service restaurant representation</div>
-  <p class="lead">Sellers, buyers, landlords, and tenants — we handle the whole transaction, start to close.</p>
-  <div class="svcs">${svc}</div>
+  <div class="sec-head"><div class="eyebrow">What we do</div><div class="h2">Full-service restaurant representation</div>
+  <p class="lead">Sellers, buyers, landlords, and tenants — we handle the entire transaction, from first valuation to a clean close.</p></div>
+  <div class="svcs">${svcHtml}</div>
+</div></section>
+
+<section id="process" class="process"><div class="wrap">
+  <div class="sec-head"><div class="eyebrow">Our processes</div><div class="h2">A proven playbook for every kind of deal</div>
+  <p class="lead">Selling, exiting a lease, securing a site, or placing an operator — each runs on its own disciplined, controlled process built to close.</p></div>
+  <div class="ptabs">${procTabs}</div>
+  <div class="ppanels">${procPanels}</div>
 </div></section>
 
 <section id="opportunities" class="ops"><div class="wrap">
-  <div class="eyebrow">On the market</div>
-  <div class="h2">Current opportunities</div>
-  <p class="lead">A sample of what’s live right now. Business listings are confidential — request details and we’ll qualify you under NDA.</p>
+  <div class="sec-head"><div class="eyebrow">On the market</div><div class="h2">Current opportunities</div>
+  <p class="lead">A sample of what’s live right now. Business listings are confidential — request details and we’ll qualify you under NDA.</p></div>
   <div class="opgrid">${cards}</div>
-  <div class="opall"><a class="btn red" href="/market">View the full marketplace &rarr;</a></div>
+  <div class="opall"><a class="btn gold" href="/market">View the full marketplace &rarr;</a></div>
 </div></section>
 
-<section id="about"><div class="wrap"><div class="about">
+<section id="markets"><div class="wrap"><div class="mkt">
+  <div>
+    <div class="eyebrow">Coverage</div>
+    <div class="h2">On the ground across Texas</div>
+    <p class="lead">Local brokers in every major Texas metro — we know the corridors, the landlords, and the operators, market by market.</p>
+    <div class="offs" style="margin-top:26px">${officeHtml}</div>
+  </div>
+  <div class="mktmap">${txMap}</div>
+</div></div></section>
+
+<section id="about" style="background:var(--cream);border-top:1px solid var(--line)"><div class="wrap"><div class="about">
   <div>
     <div class="eyebrow">About RRG</div>
     <div class="h2">${esc(s.aboutHead || '')}</div>
     <p class="lead">${esc(s.about || '')}</p>
+    <div class="hcta" style="margin-top:22px"><a class="btn red" href="#contact">Start a conversation</a></div>
   </div>
-  <div>
-    <div class="eyebrow" style="margin-bottom:12px">Offices</div>
-    <div class="offs">${offices}</div>
+  <div class="promise">
+    <div class="pq">We run a structured, controlled process built to close — so your transaction gets done right, not just listed.</div>
+    <div class="pa">— ${org}</div>
   </div>
 </div></div></section>
+
+<div class="ctaband"><div class="wrap"><div class="ctab">
+  <h3 class="serif">Thinking about buying, selling, or leasing a restaurant?</h3>
+  <a class="btn dark" href="#contact">Talk to a broker &rarr;</a>
+</div></div></div>
 
 <section id="contact" class="contact"><div class="wrap"><div class="cgrid">
   <div>
@@ -7083,16 +7291,29 @@ footer{background:#00081f;color:#8597b8;font-size:12.5px;padding:26px 0;}
     <div class="fld"><label>Email</label><input id="lf_email" type="email" autocomplete="email"></div>
     <div class="fld"><label>I'm interested in</label><select id="lf_interest">${interestOpts}</select></div>
     <div class="fld"><label>How can we help?</label><textarea id="lf_message" placeholder="A few details about your restaurant, location, or timeline…"></textarea></div>
-    <div style="margin-top:16px;display:flex;align-items:center"><button type="submit" class="btn red" id="leadBtn">Send message</button><span class="lmsg" id="leadMsg"></span></div>
+    <div style="margin-top:18px;display:flex;align-items:center"><button type="submit" class="btn red" id="leadBtn">Send message</button><span class="lmsg" id="leadMsg"></span></div>
   </form>
 </div></div></section>
 
-<footer><div class="wrap"><div class="foot">
-  <span>&copy; ${new Date().getFullYear()} ${org}. Restaurant Transactions. Done Right.</span>
-  <span><a href="/market">Marketplace</a> &nbsp;&middot;&nbsp; <a href="#contact">Contact</a></span>
-</div></div></footer>
+<footer><div class="wrap">
+  <div class="foot">
+    <div>
+      <a class="brand" href="#top" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant Brokers</i></span></a>
+      <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
+    </div>
+    <div><h4>Explore</h4><a href="#services">Services</a><a href="#opportunities">Opportunities</a><a href="/market">Marketplace</a><a href="#contact">Contact</a></div>
+    <div><h4>Offices</h4>${(s.offices || []).map(function (o) { const tel = String(o.phone || '').replace(/[^0-9+]/g, ''); return '<a href="tel:' + tel + '">' + esc(o.city || '') + ' &middot; ' + esc(o.phone || '') + '</a>'; }).join('')}</div>
+  </div>
+  <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
+</div></footer>
 
 <script>
+(function(){ var tabs=document.querySelectorAll('.ptab'); if(!tabs.length) return;
+  tabs.forEach(function(b){ b.addEventListener('click',function(){ var i=b.getAttribute('data-ptab');
+    document.querySelectorAll('.ptab').forEach(function(x){ x.classList.toggle('on', x.getAttribute('data-ptab')===i); });
+    document.querySelectorAll('.ppanel').forEach(function(x){ x.classList.toggle('on', x.getAttribute('data-ppanel')===i); });
+  }); });
+})();
 (function(){
   var f=document.getElementById('leadForm'); if(!f) return;
   function val(id){ var el=document.getElementById(id); return el?String(el.value||'').trim():''; }

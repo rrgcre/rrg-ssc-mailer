@@ -98,6 +98,14 @@ function load(){
 function rowStat(x,i){ x=x||{}; return '<div class="rowitem" data-stat><div class="rh"><b>Stat '+(i+1)+'</b><span class="sp"></span><button type="button" class="xbtn" onclick="this.closest(\'[data-stat]\').remove()">Remove</button></div><div class="fld2"><div><label class="fld">Number</label><input class="s_n" value="'+esc(x.n||'')+'" placeholder="200+"></div><div><label class="fld">Label</label><input class="s_l" value="'+esc(x.l||'')+'" placeholder="Restaurant transactions"></div></div></div>'; }
 function rowSvc(x,i){ x=x||{}; return '<div class="rowitem" data-svc><div class="rh"><b>Service '+(i+1)+'</b><span class="sp"></span><button type="button" class="xbtn" onclick="this.closest(\'[data-svc]\').remove()">Remove</button></div><div class="f"><label class="fld">Title</label><input class="v_t" value="'+esc(x.t||'')+'" placeholder="Sell Your Restaurant"></div><div><label class="fld">Description</label><textarea class="v_d" style="min-height:60px">'+esc(x.d||'')+'</textarea></div></div>'; }
 function rowOff(x,i){ x=x||{}; return '<div class="rowitem" data-off><div class="rh"><b>Office '+(i+1)+'</b><span class="sp"></span><button type="button" class="xbtn" onclick="this.closest(\'[data-off]\').remove()">Remove</button></div><div class="fld2"><div><label class="fld">City</label><input class="o_c" value="'+esc(x.city||'')+'" placeholder="Austin"></div><div><label class="fld">Phone</label><input class="o_p" value="'+esc(x.phone||'')+'" placeholder="210-204-2471"></div></div></div>'; }
+function stepRow(x){ x=x||{}; return '<div class="rowitem" data-step style="background:#fff;margin-bottom:8px"><div class="rh"><b>Step</b><span class="sp"></span><button type="button" class="xbtn" onclick="this.closest(\'[data-step]\').remove()">Remove</button></div><div class="f" style="margin-bottom:8px"><label class="fld">Step title</label><input class="st_t" value="'+esc(x.t||'')+'" placeholder="Valuation & strategy"></div><div><label class="fld">Step description</label><textarea class="st_d" style="min-height:48px">'+esc(x.d||'')+'</textarea></div></div>'; }
+function rowProc(p,i){ p=p||{}; var steps=(p.steps||[]).map(stepRow).join('');
+  return '<div class="rowitem" data-proc style="background:#f2f5fb;border-color:#d7dfee"><div class="rh"><b>Process '+(i+1)+'</b><span class="sp"></span><button type="button" class="xbtn" onclick="this.closest(\'[data-proc]\').remove()">Remove process</button></div>'
+    +'<div class="f"><label class="fld">Process name</label><input class="p_name" value="'+esc(p.name||'')+'" placeholder="Selling a restaurant"></div>'
+    +'<label class="fld">Steps</label><div class="p_steps">'+steps+'</div>'
+    +'<button type="button" class="addbtn" style="margin-top:4px" onclick="addStep(this)">+ Add step</button></div>'; }
+function addProc(){ var d=document.createElement('div'); d.innerHTML=rowProc({steps:[{}]}, el('procBox').children.length); el('procBox').appendChild(d.firstChild); }
+function addStep(btn){ var box=btn.closest('[data-proc]').querySelector('.p_steps'); var d=document.createElement('div'); d.innerHTML=stepRow({}); box.appendChild(d.firstChild); }
 
 function leadRow(l){
   var when=''; try{ when=new Date(l.createdAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }catch(e){}
@@ -131,6 +139,8 @@ function render(){
 
   +'<div class="card"><h2>Services</h2><p class="sub">What you do — shown as cards.</p><div id="svcBox"></div><button type="button" class="addbtn" onclick="addSvc()">+ Add service</button></div>'
 
+  +'<div class="card"><h2>Processes</h2><p class="sub">Your playbooks — each one shows on the site as its own tab with numbered steps. Add a process per deal type.</p><div id="procBox"></div><button type="button" class="addbtn" onclick="addProc()">+ Add process</button></div>'
+
   +'<div class="card"><h2>About</h2>'
     +'<div class="f"><label class="fld">Section heading</label><input id="f_aboutHead" value="'+esc(s.aboutHead||'')+'"></div>'
     +'<div><label class="fld">About text</label><textarea id="f_about" style="min-height:110px">'+esc(s.about||'')+'</textarea></div>'
@@ -153,6 +163,7 @@ function render(){
   // populate dynamic rows
   el('statsBox').innerHTML=(s.stats||[]).map(rowStat).join('');
   el('svcBox').innerHTML=(s.services||[]).map(rowSvc).join('');
+  el('procBox').innerHTML=(s.processes||[]).map(rowProc).join('');
   el('offBox').innerHTML=(s.offices||[]).map(rowOff).join('');
   el('leadBox').innerHTML=LEADS.length?LEADS.map(leadRow).join(''):'<div class="empty">No leads yet. They’ll show up here the moment someone uses your contact form.</div>';
   renderDns(); updateStatusLbl();
@@ -183,7 +194,11 @@ function collect(){
     aboutHead: val('f_aboutHead'), about: val('f_about'), contactEmail: val('f_contactEmail'), customDomain: val('f_customDomain'),
     stats: rows('[data-stat]',function(r){ return { n:r.querySelector('.s_n').value, l:r.querySelector('.s_l').value }; }).filter(function(x){return x.n||x.l;}),
     services: rows('[data-svc]',function(r){ return { t:r.querySelector('.v_t').value, d:r.querySelector('.v_d').value }; }).filter(function(x){return x.t||x.d;}),
-    offices: rows('[data-off]',function(r){ return { city:r.querySelector('.o_c').value, phone:r.querySelector('.o_p').value }; }).filter(function(x){return x.city||x.phone;})
+    offices: rows('[data-off]',function(r){ return { city:r.querySelector('.o_c').value, phone:r.querySelector('.o_p').value }; }).filter(function(x){return x.city||x.phone;}),
+    processes: rows('[data-proc]',function(r){
+      var steps=Array.prototype.slice.call(r.querySelectorAll('[data-step]')).map(function(sr){ return { t:sr.querySelector('.st_t').value, d:sr.querySelector('.st_d').value }; }).filter(function(x){return x.t||x.d;});
+      return { name:r.querySelector('.p_name').value, steps:steps };
+    }).filter(function(p){return p.name||p.steps.length;})
   };
 }
 function save(){
