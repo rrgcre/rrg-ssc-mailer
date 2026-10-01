@@ -106,6 +106,13 @@ function rowProc(p,i){ p=p||{}; var steps=(p.steps||[]).map(stepRow).join('');
     +'<button type="button" class="addbtn" style="margin-top:4px" onclick="addStep(this)">+ Add step</button></div>'; }
 function addProc(){ var d=document.createElement('div'); d.innerHTML=rowProc({steps:[{}]}, el('procBox').children.length); el('procBox').appendChild(d.firstChild); }
 function addStep(btn){ var box=btn.closest('[data-proc]').querySelector('.p_steps'); var d=document.createElement('div'); d.innerHTML=stepRow({}); box.appendChild(d.firstChild); }
+function rowWin(x,i){ x=x||{}; function opt(v){ return '<option'+(String(x.type||'')===v?' selected':'')+'>'+v+'</option>'; }
+  return '<div class="rowitem" data-win><div class="rh"><b>Transaction '+(i+1)+'</b><span class="sp"></span><button type="button" class="xbtn" onclick="this.closest(\'[data-win]\').remove()">Remove</button></div>'
+    +'<div class="fld2"><div><label class="fld">Result</label><select class="w_type"><option value="">— type —</option>'+opt('Sold')+opt('Leased')+opt('Placed')+'</select></div>'
+    +'<div><label class="fld">Market</label><input class="w_market" value="'+esc(x.market||'')+'" placeholder="Austin"></div></div>'
+    +'<div class="f" style="margin-top:12px"><label class="fld">What it was</label><input class="w_label" value="'+esc(x.label||'')+'" placeholder="Multi-unit Tex-Mex group"></div>'
+    +'<div><label class="fld">Detail <span style="text-transform:none;color:#98a1b5">(no client names)</span></label><input class="w_detail" value="'+esc(x.detail||'')+'" placeholder="3 locations · going concern"></div></div>'; }
+function addWin(){ var d=document.createElement('div'); d.innerHTML=rowWin({}, el('winBox').children.length); el('winBox').appendChild(d.firstChild); }
 
 function leadRow(l){
   var when=''; try{ when=new Date(l.createdAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }catch(e){}
@@ -133,6 +140,8 @@ function render(){
     +'<div class="f"><label class="fld">Headline / tagline</label><input id="f_tagline" value="'+esc(s.tagline||'')+'"></div>'
     +'<div class="f"><label class="fld">Sub-headline</label><textarea id="f_heroSub">'+esc(s.heroSub||'')+'</textarea></div>'
     +'<div class="f"><label class="fld">Primary button text</label><input id="f_heroCtaText" value="'+esc(s.heroCtaText||'')+'" style="max-width:320px"></div>'
+    +'<div class="f"><label class="fld">Hero background image URL <span style="text-transform:none;color:#98a1b5">(optional — a restaurant/bar photo; leave blank for the Texas map)</span></label><input id="f_heroImage" value="'+esc(s.heroImage||'')+'" placeholder="https://…/restaurant.jpg"></div>'
+    +'<div class="hint">Paste a link to a high-res photo (e.g. an upscale dining room or bar). It fills the hero full-width behind the headline with a dark overlay for legibility. Want me to source or generate one? Just ask.</div>'
   +'</div>'
 
   +'<div class="card"><h2>Stats band</h2><p class="sub">The numbers shown under the hero.</p><div id="statsBox"></div><button type="button" class="addbtn" onclick="addStat()">+ Add stat</button></div>'
@@ -140,6 +149,8 @@ function render(){
   +'<div class="card"><h2>Services</h2><p class="sub">What you do — shown as cards.</p><div id="svcBox"></div><button type="button" class="addbtn" onclick="addSvc()">+ Add service</button></div>'
 
   +'<div class="card"><h2>Processes</h2><p class="sub">Your playbooks — each one shows on the site as its own tab with numbered steps. Add a process per deal type.</p><div id="procBox"></div><button type="button" class="addbtn" onclick="addProc()">+ Add process</button></div>'
+
+  +'<div class="card"><h2>Selected transactions</h2><p class="sub">Your “skins on the wall” — closed deals shown in the Track record section. Use Sold / Leased / Placed. Keep them confidential (no client names needed).</p><div id="winBox"></div><button type="button" class="addbtn" onclick="addWin()">+ Add transaction</button></div>'
 
   +'<div class="card"><h2>About</h2>'
     +'<div class="f"><label class="fld">Section heading</label><input id="f_aboutHead" value="'+esc(s.aboutHead||'')+'"></div>'
@@ -164,6 +175,7 @@ function render(){
   el('statsBox').innerHTML=(s.stats||[]).map(rowStat).join('');
   el('svcBox').innerHTML=(s.services||[]).map(rowSvc).join('');
   el('procBox').innerHTML=(s.processes||[]).map(rowProc).join('');
+  el('winBox').innerHTML=(s.wins||[]).map(rowWin).join('');
   el('offBox').innerHTML=(s.offices||[]).map(rowOff).join('');
   el('leadBox').innerHTML=LEADS.length?LEADS.map(leadRow).join(''):'<div class="empty">No leads yet. They’ll show up here the moment someone uses your contact form.</div>';
   renderDns(); updateStatusLbl();
@@ -191,14 +203,15 @@ function collect(){
   return {
     published: el('f_published').checked,
     brand: val('f_brand'), tagline: val('f_tagline'), heroSub: val('f_heroSub'), heroCtaText: val('f_heroCtaText'),
-    aboutHead: val('f_aboutHead'), about: val('f_about'), contactEmail: val('f_contactEmail'), customDomain: val('f_customDomain'),
+    aboutHead: val('f_aboutHead'), about: val('f_about'), contactEmail: val('f_contactEmail'), customDomain: val('f_customDomain'), heroImage: val('f_heroImage'),
     stats: rows('[data-stat]',function(r){ return { n:r.querySelector('.s_n').value, l:r.querySelector('.s_l').value }; }).filter(function(x){return x.n||x.l;}),
     services: rows('[data-svc]',function(r){ return { t:r.querySelector('.v_t').value, d:r.querySelector('.v_d').value }; }).filter(function(x){return x.t||x.d;}),
     offices: rows('[data-off]',function(r){ return { city:r.querySelector('.o_c').value, phone:r.querySelector('.o_p').value }; }).filter(function(x){return x.city||x.phone;}),
     processes: rows('[data-proc]',function(r){
       var steps=Array.prototype.slice.call(r.querySelectorAll('[data-step]')).map(function(sr){ return { t:sr.querySelector('.st_t').value, d:sr.querySelector('.st_d').value }; }).filter(function(x){return x.t||x.d;});
       return { name:r.querySelector('.p_name').value, steps:steps };
-    }).filter(function(p){return p.name||p.steps.length;})
+    }).filter(function(p){return p.name||p.steps.length;}),
+    wins: rows('[data-win]',function(r){ return { type:r.querySelector('.w_type').value, label:r.querySelector('.w_label').value, market:r.querySelector('.w_market').value, detail:r.querySelector('.w_detail').value }; }).filter(function(w){return w.label||w.type;})
   };
 }
 function save(){

@@ -6821,7 +6821,16 @@ function defaultWebsite() {
     tagline: 'Restaurant Transactions. Done Right.',
     heroSub: 'Texas’s restaurant brokerage — 200+ closed transactions across Austin, Dallas, Houston, and San Antonio. We run a structured, controlled process built to close.',
     heroCtaText: 'See current opportunities',
+    heroImage: '',
     stats: [ { n: '200+', l: 'Restaurant transactions' }, { n: '4', l: 'Texas metros' }, { n: '5', l: 'Offices' } ],
+    wins: [
+      { type: 'Sold', label: 'Multi-unit Tex-Mex group', market: 'Austin', detail: '3 locations · going concern' },
+      { type: 'Leased', label: '2nd-gen restaurant endcap', market: 'Dallas', detail: '4,200 SF · 10-yr term' },
+      { type: 'Sold', label: 'Neighborhood bar & grill', market: 'San Antonio', detail: 'Business + real estate' },
+      { type: 'Placed', label: 'National franchise operator', market: 'Houston', detail: 'Operator into 2nd-gen space' },
+      { type: 'Sold', label: 'Fast-casual concept', market: 'Austin', detail: 'Owner retirement' },
+      { type: 'Leased', label: 'Patio bar & venue space', market: 'New Braunfels', detail: 'Ground-up · 5,000 SF' }
+    ],
     services: [
       { t: 'Sell Your Restaurant', d: 'Positioning, pricing, and managing the sale with qualified, vetted buyers — confidentially.' },
       { t: 'Exit a Leased Location', d: 'Structuring clean exits from underperforming or unwanted sites.' },
@@ -6876,7 +6885,7 @@ function loadWebsite() {
   try { s = rj(WEBSITE_FILE); } catch (e) {}
   if (!s || typeof s !== 'object') return d;
   const out = Object.assign({}, d, s);
-  ['stats', 'services', 'offices', 'processes'].forEach(function (k) { if (!Array.isArray(out[k]) || !out[k].length) out[k] = d[k]; });
+  ['stats', 'services', 'offices', 'processes', 'wins'].forEach(function (k) { if (!Array.isArray(out[k]) || !out[k].length) out[k] = d[k]; });
   return out;
 }
 function saveWebsite(o) { return writeJsonGuarded(WEBSITE_FILE, o || {}, 'saveWebsite'); }
@@ -6904,6 +6913,7 @@ app.post('/api/website', requireAdmin, express.json({ limit: '256kb' }), (req, r
   if (b.tagline !== undefined) out.tagline = S(b.tagline, 160);
   if (b.heroSub !== undefined) out.heroSub = S(b.heroSub, 600);
   if (b.heroCtaText !== undefined) out.heroCtaText = S(b.heroCtaText, 60) || d.heroCtaText;
+  if (b.heroImage !== undefined) out.heroImage = S(b.heroImage, 600);
   if (b.aboutHead !== undefined) out.aboutHead = S(b.aboutHead, 120);
   if (b.about !== undefined) out.about = S(b.about, 2000);
   if (b.contactEmail !== undefined) out.contactEmail = S(b.contactEmail, 160);
@@ -6914,6 +6924,7 @@ app.post('/api/website', requireAdmin, express.json({ limit: '256kb' }), (req, r
   if (Array.isArray(b.processes)) out.processes = b.processes.slice(0, 8).map(function (p) {
     return { name: S(p && p.name, 80), steps: (Array.isArray(p && p.steps) ? p.steps : []).slice(0, 10).map(function (x) { return { t: S(x && x.t, 90), d: S(x && x.d, 300) }; }).filter(function (x) { return x.t || x.d; }) };
   }).filter(function (p) { return p.name || p.steps.length; });
+  if (Array.isArray(b.wins)) out.wins = b.wins.slice(0, 24).map(function (x) { return { type: S(x && x.type, 20), label: S(x && x.label, 90), market: S(x && x.market, 40), detail: S(x && x.detail, 120) }; }).filter(function (x) { return x.label || x.type; });
   out.updatedAt = new Date().toISOString();
   const ok = saveWebsite(out);
   res.json({ ok: !!ok, site: out });
@@ -6921,7 +6932,7 @@ app.post('/api/website', requireAdmin, express.json({ limit: '256kb' }), (req, r
 // Public — config subset + live listings
 app.get('/api/website/public', (req, res) => {
   const s = loadWebsite();
-  const pub = { brand: s.brand, tagline: s.tagline, heroSub: s.heroSub, heroCtaText: s.heroCtaText, stats: s.stats, services: s.services, processes: s.processes, aboutHead: s.aboutHead, about: s.about, offices: s.offices, contactEmail: s.contactEmail, published: !!s.published };
+  const pub = { brand: s.brand, tagline: s.tagline, heroSub: s.heroSub, heroCtaText: s.heroCtaText, heroImage: s.heroImage, stats: s.stats, services: s.services, processes: s.processes, wins: s.wins, aboutHead: s.aboutHead, about: s.about, offices: s.offices, contactEmail: s.contactEmail, published: !!s.published };
   res.json({ ok: true, site: pub, org: orgDisplayName(), listings: websitePublicListings() });
 });
 // Public — contact / lead form submission, captured for the Website manager
@@ -6980,11 +6991,12 @@ function publicSitePage(req) {
   const statHtml = (s.stats || []).map(function (x) { return '<div class="stat"><div class="statn">' + esc(x.n || '') + '</div><div class="statl">' + esc(x.l || '') + '</div></div>'; }).join('');
 
   // --- stylized Texas map with pinned markets ---
-  const TXCO = { 'austin': [49, 52], 'dallas': [57, 29], 'fort worth': [50, 30], 'houston': [73, 55], 'san antonio': [44, 66], 'new braunfels': [50, 60], 'rio grande valley': [48, 84], 'el paso': [14, 44], 'central texas': [50, 50] };
-  const pinCities = (s.offices && s.offices.length ? s.offices.map(function (o) { return o.city; }) : ['Austin', 'Dallas', 'Houston', 'San Antonio']);
+  const TXCO = { 'austin': [49, 50], 'dallas': [56, 33], 'fort worth': [52, 33], 'houston': [62, 52], 'san antonio': [45, 56], 'new braunfels': [48, 53], 'rio grande valley': [48, 71], 'el paso': [16, 40], 'central texas': [50, 48] };
+  // Pin only the major metros so the map stays clean; every office still lists below with its phone.
+  const pinCities = ['Austin', 'Dallas', 'Houston', 'San Antonio'];
   const pins = pinCities.map(function (c) { const co = TXCO[String(c || '').trim().toLowerCase()]; return co ? { c: c, x: co[0], y: co[1] } : null; }).filter(Boolean)
     .filter(function (p, i, arr) { return arr.findIndex(function (q) { return q.x === p.x && q.y === p.y; }) === i; });
-  const txPath = 'M26,9 L41,9 L41,22 L55,22 L59,17 L64,22 L69,33 L79,42 L87,50 L89,56 L83,61 L79,58 L75,64 L68,62 L61,73 L53,85 L47,75 L43,67 L35,63 L25,57 L12,47 L18,41 L22,31 L24,22 L26,22 Z';
+  const txPath = 'M30,7 L45,7 L45,25 L58,25 L61,26 L64,28 L65,36 L66,43 L67,48 L63,50 L59,54 L55,59 L52,64 L50,79 L46,72 L41,65 L36,60 L31,56 L28,53 L26,49 L20,45 L13,40 L15,31 L22,30 L30,30 Z';
   const pinSvg = pins.map(function (p) {
     return '<g class="pin"><circle cx="' + p.x + '" cy="' + p.y + '" r="1.8" fill="#C8A24B" stroke="#fff" stroke-width="0.7"/><circle cx="' + p.x + '" cy="' + p.y + '" r="3.4" fill="none" stroke="#C8A24B" stroke-width="0.5" opacity="0.5"/><text x="' + (p.x + 4.3) + '" y="' + (p.y + 1.1) + '" font-size="3.1" fill="#eaf0ff" font-weight="600">' + esc(p.c) + '</text></g>';
   }).join('');
@@ -6993,15 +7005,24 @@ function publicSitePage(req) {
     + pinSvg + '</svg>';
 
   // --- opportunity cards ---
+  const lockSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
   let cards = (listings || []).slice(0, 6).map(function (t) {
-    const price = esc(t.guide || t.price || t.priceBand || '');
-    const loc = esc(t.loc || '');
-    const badge = esc(t.badge || '');
-    const flag = t.flagLabel ? ('<span class="opflag">' + esc(t.flagLabel) + '</span>') : '';
-    return '<a class="op" href="/market"><div class="opimg">' + ICON.fork + flag + '</div><div class="opbody"><div class="oph">' + esc(t.headline || 'Confidential restaurant opportunity') + '</div>'
-      + (loc || badge ? ('<div class="opm">' + [loc, badge].filter(Boolean).join(' &middot; ') + '</div>') : '')
-      + (price ? ('<div class="opp">' + price + '</div>') : '<div class="opp dash">Inquire for details</div>')
-      + '<span class="oplink">Request details &rarr;</span></div></a>';
+    const ask = esc(t.guide || t.price || '');
+    const basis = esc(t.earnBasis || 'SDE');
+    const sde = esc(t.sde || '');
+    const rev = esc(t.revenue || '');
+    const mets = [];
+    if (ask) mets.push('<div><div class="v">' + ask + '</div><div class="k">Guide</div></div>');
+    if (sde) mets.push('<div><div class="v">' + sde + '</div><div class="k">' + basis + '</div></div>');
+    if (rev) mets.push('<div><div class="v">' + rev + '</div><div class="k">Revenue</div></div>');
+    const metHtml = mets.length ? mets.join('') : '<div><div class="v" style="font-size:14px">Under NDA</div><div class="k">Financials on request</div></div>';
+    const ribbon = (t.flagLabel || t.featured) ? ('<span class="fribbon">' + esc(t.flagLabel || '★ Featured') + '</span>') : '';
+    return '<a class="fcard" href="/market">'
+      + '<div class="ftop"><span class="med">' + ICON.fork + '</span><div class="floc">' + esc(t.loc || t.marketKey || 'Texas') + '</div>' + ribbon + '</div>'
+      + '<h3>' + esc(t.headline || 'Confidential restaurant opportunity') + '</h3><div class="fbadge">' + esc(t.badge || 'Restaurant') + '</div>'
+      + '<div class="fmet">' + metHtml + '</div>'
+      + '<div class="ffoot"><span class="flock">' + lockSvg + 'Blind until NDA</span><span class="act">Request details &rarr;</span></div>'
+      + '</a>';
   }).join('');
   if (!(listings || []).length) cards = '<div class="noops">New opportunities are posted here as they come to market. <a href="/market">Browse the marketplace &rarr;</a></div>';
 
@@ -7044,6 +7065,16 @@ function publicSitePage(req) {
     const st = (p.steps || []).map(function (x, j) { return '<div class="step"><div class="stepn">' + (j + 1) + '</div><div class="stepb"><div class="stept">' + esc(x.t || '') + '</div><div class="stepd">' + esc(x.d || '') + '</div></div></div>'; }).join('');
     return '<div class="ppanel' + (i === 0 ? ' on' : '') + '" data-ppanel="' + i + '"><div class="steps">' + st + '</div></div>';
   }).join('');
+  const winHtml = (s.wins || []).map(function (w) {
+    const type = String(w.type || '').toLowerCase();
+    const cls = type.indexOf('sold') >= 0 ? 'sold' : (type.indexOf('leas') >= 0 ? 'leased' : (type.indexOf('plac') >= 0 ? 'placed' : 'other'));
+    const meta = [esc(w.market || ''), esc(w.detail || '')].filter(Boolean).join(' &middot; ');
+    return '<div class="win"><span class="wtag ' + cls + '">' + esc(w.type || 'Closed') + '</span><div class="wl">' + esc(w.label || '') + '</div>' + (meta ? ('<div class="wm">' + meta + '</div>') : '') + '</div>';
+  }).join('');
+  const heroImgSafe = String(s.heroImage || '').replace(/["'<>]/g, '').trim();
+  const heroBgStyle = heroImgSafe ? ('<style>.hero{background-image:linear-gradient(rgba(6,14,34,.66),rgba(5,10,28,.88)),url("' + heroImgSafe + '");background-size:cover;background-position:center;}</style>') : '';
+  const heroCard = heroImgSafe ? '' : ('<div class="herocard"><div class="cap"><span>Where we work</span><b>Texas</b></div>' + txMap + '</div>');
+  const heroGridClass = heroImgSafe ? 'herogrid solo' : 'herogrid';
 
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${org} — ${esc(s.tagline || '')}</title>
@@ -7051,7 +7082,7 @@ function publicSitePage(req) {
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-:root{--navy:#0A1733;--navy2:#060E22;--panel:#0f1f44;--gold:#C8A24B;--gold2:#e0c27e;--red:#DA2B1F;--cream:#F7F4EC;--ink:#1b2440;--muted:#5d6782;--line:#e7e3d8;--line2:#e9ecf3;}
+:root{--navy:#0A1733;--navy2:#060E22;--panel:#0f1f44;--gold:#C8A24B;--gold2:#e0c27e;--red:#DA2B1F;--cream:#F7F4EC;--ink:#1b2440;--muted:#5d6782;--soft:#8a93a8;--line:#e7e3d8;--line2:#e9ecf3;}
 *{box-sizing:border-box;margin:0;padding:0;}
 html{scroll-behavior:smooth;}
 body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;color:var(--ink);background:#fff;line-height:1.6;-webkit-font-smoothing:antialiased;}
@@ -7129,27 +7160,30 @@ section{padding:84px 0;}
 .ppanel{display:none;}
 .ppanel.on{display:block;animation:fade .3s ease;}
 @keyframes fade{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
-/* opportunities */
-.ops{background:var(--navy2);color:#fff;}
-.ops .h2{color:#fff;} .ops .lead{color:#c3cee2;}
-.ops .eyebrow{color:var(--gold2);}
+/* opportunities — matched to the /market featured-card design */
+.ops{background:#eef2f6;border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
 .opgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:40px;}
 @media(max-width:860px){.opgrid{grid-template-columns:repeat(2,1fr);}}
 @media(max-width:560px){.opgrid{grid-template-columns:1fr;}}
-.op{display:block;background:#fff;border-radius:16px;overflow:hidden;text-decoration:none;color:inherit;transition:box-shadow .18s,transform .18s;box-shadow:0 2px 10px rgba(0,0,0,.18);}
-.op:hover{transform:translateY(-4px);box-shadow:0 22px 48px rgba(0,0,0,.34);}
-.opimg{position:relative;height:120px;background:linear-gradient(135deg,#13275a,#0A1733);display:flex;align-items:center;justify-content:center;color:rgba(200,162,75,.85);}
-.opimg svg{width:44px;height:44px;}
-.opimg::before{content:'';position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.07) 1px,transparent 1.3px);background-size:16px 16px;}
-.opflag{position:absolute;top:12px;left:12px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#1a1405;background:var(--gold);border-radius:999px;padding:3px 10px;}
-.opbody{padding:18px 18px 20px;}
-.oph{font-size:16.5px;font-weight:700;color:var(--navy);line-height:1.3;font-family:'Fraunces',serif;}
-.opm{color:var(--muted);font-size:12.5px;margin-top:6px;}
-.opp{font-size:16px;font-weight:800;color:var(--navy);margin-top:12px;}
-.opp.dash{color:var(--muted);font-weight:600;font-size:13.5px;}
-.oplink{display:inline-block;color:var(--red);font-weight:800;font-size:12.5px;margin-top:12px;}
-.noops{grid-column:1/-1;background:rgba(255,255,255,.05);border:1px dashed rgba(255,255,255,.25);border-radius:14px;padding:30px;text-align:center;color:#c3cee2;}
-.noops a{color:var(--gold2);font-weight:800;text-decoration:none;}
+.fcard{background:#fff;border:1px solid var(--line2);border-top:3px solid var(--navy);border-radius:12px;box-shadow:0 6px 18px rgba(16,26,48,.08);padding:18px 18px 16px;display:flex;flex-direction:column;position:relative;overflow:hidden;text-decoration:none;color:inherit;transition:box-shadow .15s,transform .15s;}
+.fcard:hover{box-shadow:0 18px 40px rgba(16,26,48,.16);transform:translateY(-3px);}
+.fcard::after{content:'';position:absolute;right:-70px;top:-90px;width:240px;height:240px;border-radius:50%;background:radial-gradient(circle,rgba(200,162,75,.14),transparent 62%);pointer-events:none;}
+.fcard .ftop{display:flex;align-items:center;gap:12px;position:relative;z-index:1;}
+.fcard .med{width:44px;height:44px;flex:none;border-radius:11px;background:linear-gradient(160deg,#0f1f44,#0A1733);border:1px solid #0A1733;display:flex;align-items:center;justify-content:center;color:var(--gold);}
+.fcard .med svg{width:23px;height:23px;}
+.fcard .floc{font-size:10.5px;color:var(--soft);font-weight:700;text-transform:uppercase;letter-spacing:.05em;}
+.fcard .fribbon{margin-left:auto;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#1a1405;background:var(--gold);border:1px solid var(--gold);border-radius:100px;padding:5px 11px;}
+.fcard h3{font-size:17px;font-weight:700;font-family:'Fraunces',serif;color:var(--navy);line-height:1.22;margin:12px 0 2px;letter-spacing:-.01em;}
+.fcard .fbadge{font-size:12px;color:var(--muted);font-weight:600;}
+.fcard .fmet{display:flex;gap:22px;margin:14px 0;padding:12px 0;border-top:1px solid var(--line2);border-bottom:1px solid var(--line2);flex-wrap:wrap;}
+.fcard .fmet .v{font-size:16px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums;letter-spacing:-.01em;}
+.fcard .fmet .k{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);margin-top:3px;}
+.fcard .ffoot{display:flex;align-items:center;justify-content:space-between;margin-top:auto;gap:12px;}
+.fcard .flock{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--soft);font-weight:600;}
+.fcard .flock svg{width:14px;height:14px;}
+.fcard .act{background:var(--navy);color:#fff;border-radius:8px;padding:9px 15px;font-size:12.5px;font-weight:800;white-space:nowrap;}
+.noops{grid-column:1/-1;background:#fff;border:1px dashed #cdd6e6;border-radius:14px;padding:30px;text-align:center;color:var(--muted);}
+.noops a{color:var(--red);font-weight:800;text-decoration:none;}
 .opall{margin-top:30px;}
 /* markets split */
 .mkt{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center;}
@@ -7198,7 +7232,24 @@ footer{background:#05081a;color:#8597b8;font-size:13px;padding:40px 0 30px;}
 .foot a{color:#b9c6df;text-decoration:none;display:block;margin:5px 0;}
 .foot a:hover{color:#fff;}
 .footbar{border-top:1px solid rgba(255,255,255,.08);margin-top:28px;padding-top:18px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;color:#6b7a99;font-size:12px;}
-</style></head>
+.herogrid.solo{grid-template-columns:1fr;max-width:860px;}
+.hero.hasimg{background:#060E22;}
+/* track record */
+.track{background:var(--navy);color:#fff;}
+.track .eyebrow{color:var(--gold2);} .track .h2{color:#fff;} .track .lead{color:#c3cee2;}
+.wins{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:38px;}
+@media(max-width:860px){.wins{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:520px){.wins{grid-template-columns:1fr;}}
+.win{background:linear-gradient(170deg,rgba(255,255,255,.06),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:18px 18px 16px;}
+.wtag{display:inline-block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;border-radius:100px;padding:4px 11px;margin-bottom:11px;}
+.wtag.sold{background:rgba(63,125,111,.22);color:#86d6bf;border:1px solid rgba(63,125,111,.5);}
+.wtag.leased{background:rgba(200,162,75,.2);color:var(--gold2);border:1px solid rgba(200,162,75,.5);}
+.wtag.placed{background:rgba(91,110,170,.24);color:#aeb9e8;border:1px solid rgba(91,110,170,.5);}
+.wtag.other{background:rgba(255,255,255,.1);color:#cfd8ea;border:1px solid rgba(255,255,255,.2);}
+.win .wl{font-family:'Fraunces',serif;font-size:16.5px;font-weight:600;color:#fff;line-height:1.25;}
+.win .wm{color:#9fb0cc;font-size:12.5px;margin-top:6px;}
+.trackfoot{margin-top:26px;color:#8fa0c0;font-size:12.5px;}
+</style>${heroBgStyle}</head>
 <body>
 <header><div class="wrap"><nav class="nav">
   <a class="brand" href="#top"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant Brokers</i></span></a>
@@ -7206,12 +7257,13 @@ footer{background:#05081a;color:#8597b8;font-size:13px;padding:40px 0 30px;}
   <a class="navlink" href="#services">Services</a>
   <a class="navlink" href="#process">How it works</a>
   <a class="navlink" href="#opportunities">Opportunities</a>
+  <a class="navlink" href="#track">Track record</a>
   <a class="navlink" href="#markets">Markets</a>
   <a class="navcta" href="#contact">Talk to a broker</a>
 </nav></div></header>
 
 <a id="top"></a>
-<div class="hero"><div class="wrap"><div class="herogrid">
+<div class="hero${heroImgSafe ? ' hasimg' : ''}"><div class="wrap"><div class="${heroGridClass}">
   <div>
     <div class="eyebrow">Texas Restaurant Brokerage</div>
     <h1 class="serif">${esc(s.tagline || '')}</h1>
@@ -7222,10 +7274,7 @@ footer{background:#05081a;color:#8597b8;font-size:13px;padding:40px 0 30px;}
     </div>
     <div class="htrust">${(s.stats || []).slice(0, 3).map(function (x) { return '<div><div class="n">' + esc(x.n || '') + '</div><div class="l">' + esc(x.l || '') + '</div></div>'; }).join('')}</div>
   </div>
-  <div class="herocard">
-    <div class="cap"><span>Where we work</span><b>Texas</b></div>
-    ${txMap}
-  </div>
+  ${heroCard}
 </div></div></div>
 
 <section id="services"><div class="wrap">
@@ -7246,6 +7295,13 @@ footer{background:#05081a;color:#8597b8;font-size:13px;padding:40px 0 30px;}
   <p class="lead">A sample of what’s live right now. Business listings are confidential — request details and we’ll qualify you under NDA.</p></div>
   <div class="opgrid">${cards}</div>
   <div class="opall"><a class="btn gold" href="/market">View the full marketplace &rarr;</a></div>
+</div></section>
+
+<section id="track" class="track"><div class="wrap">
+  <div class="sec-head"><div class="eyebrow">Track record</div><div class="h2">Deals we&rsquo;ve closed</div>
+  <p class="lead">A sample of recent restaurant transactions across Texas &mdash; sales, leases, and operator placements.</p></div>
+  <div class="wins">${winHtml}</div>
+  <div class="trackfoot">Specific terms kept confidential. Full references available on request.</div>
 </div></section>
 
 <section id="markets"><div class="wrap"><div class="mkt">
