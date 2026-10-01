@@ -1470,7 +1470,7 @@ app.use(express.urlencoded({ extended: false }));
 const OPEN = new Set(['/health', '/login', '/api/login', '/logout', '/favicon.ico', '/api/appname', '/api/brand', '/api/brand/logo', '/api/brand/logo/light', '/rrg_brand.js', '/rrg_theme.css', '/api/gmail/callback']);
 app.use((req, res, next) => {
   // Buyer-facing data-room links are public (the unguessable token is the gate).
-  if (OPEN.has(req.path) || req.path.startsWith('/room/') || req.path.startsWith('/deal/') || req.path.startsWith('/roomfile/') || req.path.startsWith('/roomview/') || req.path.startsWith('/vendor/') || req.path.startsWith('/sign/') || req.path.startsWith('/api/sign/') || req.path.startsWith('/eo/') || req.path.startsWith('/ec/') || req.path.startsWith('/u/') || req.path.startsWith('/api/u/') || req.path.startsWith('/book/') || req.path.startsWith('/api/book/') || req.path.startsWith('/pay/') || req.path.startsWith('/api/pay/') || req.path === '/api/stripe/webhook' || req.path === '/api/mail/ses-webhook' || req.path.startsWith('/mail/') || req.path === '/market' || req.path === '/api/market/public' || req.path === '/api/market/request-access' || req.path === '/site' || req.path.startsWith('/site/') || req.path === '/api/website/public' || req.path === '/api/website/lead' || req.path === '/api/website/hero-image' || req.path.startsWith('/api/property-public-photo/') || req.path.startsWith('/s/') || req.path === '/seller_intake.html' || req.path === '/seller_record.html') return next();
+  if (OPEN.has(req.path) || req.path.startsWith('/room/') || req.path.startsWith('/deal/') || req.path.startsWith('/roomfile/') || req.path.startsWith('/roomview/') || req.path.startsWith('/vendor/') || req.path.startsWith('/sign/') || req.path.startsWith('/api/sign/') || req.path.startsWith('/eo/') || req.path.startsWith('/ec/') || req.path.startsWith('/u/') || req.path.startsWith('/api/u/') || req.path.startsWith('/book/') || req.path.startsWith('/api/book/') || req.path.startsWith('/pay/') || req.path.startsWith('/api/pay/') || req.path === '/api/stripe/webhook' || req.path === '/api/mail/ses-webhook' || req.path.startsWith('/mail/') || req.path === '/market' || req.path === '/api/market/public' || req.path === '/api/market/request-access' || req.path === '/site' || req.path.startsWith('/site/') || req.path === '/api/website/public' || req.path === '/api/website/lead' || req.path === '/api/website/subscribe' || req.path === '/api/website/hero-image' || req.path.startsWith('/api/property-public-photo/') || req.path.startsWith('/s/') || req.path === '/seller_intake.html' || req.path === '/seller_record.html') return next();
   const sess = auth.readSession(parseCookies(req)[COOKIE]);
   if (sess) {
     req.user = sess;
@@ -6814,6 +6814,7 @@ app.get('/market', (req, res) => { res.set('Content-Type', 'text/html; charset=u
 // ===================== Connected public website (upgrade for www.rrgcre.com) =====================
 const WEBSITE_FILE = path.join(BOV_DATA_DIR, 'website.json');
 const WEBSITE_LEADS_FILE = path.join(BOV_DATA_DIR, 'website_leads.json');
+const WEBSITE_SUBS_FILE = path.join(BOV_DATA_DIR, 'website_subscribers.json');
 function defaultWebsite() {
   return {
     published: false,
@@ -6824,12 +6825,12 @@ function defaultWebsite() {
     heroImage: '/rrg_hero.jpg',
     stats: [ { n: '200+', l: 'Restaurant transactions' }, { n: '4', l: 'Texas metros' }, { n: '5', l: 'Offices' } ],
     wins: [
-      { type: 'Sold', label: 'Multi-unit Tex-Mex group', market: 'Austin', detail: '3 locations · going concern' },
+      { type: 'Sold', label: 'Multi-unit Tex-Mex group', market: 'Austin', detail: '3 locations · portfolio sale' },
+      { type: 'Sold', label: '5-unit QSR franchise portfolio', market: 'DFW', detail: 'Multi-unit · real estate included' },
       { type: 'Leased', label: '2nd-gen restaurant endcap', market: 'Dallas', detail: '4,200 SF · 10-yr term' },
       { type: 'Sold', label: 'Neighborhood bar & grill', market: 'San Antonio', detail: 'Business + real estate' },
       { type: 'Placed', label: 'National franchise operator', market: 'Houston', detail: 'Operator into 2nd-gen space' },
-      { type: 'Sold', label: 'Fast-casual concept', market: 'Austin', detail: 'Owner retirement' },
-      { type: 'Leased', label: 'Patio bar & venue space', market: 'New Braunfels', detail: 'Ground-up · 5,000 SF' }
+      { type: 'Sold', label: 'Fast-casual concept', market: 'Austin', detail: 'Owner retirement' }
     ],
     services: [
       { t: 'Sell Your Restaurant', d: 'Positioning, pricing, and managing the sale with qualified, vetted buyers — confidentially.' },
@@ -6837,6 +6838,7 @@ function defaultWebsite() {
       { t: 'Secure the Right Location', d: 'Identifying and negotiating the right restaurant space for your concept.' },
       { t: 'Place the Right Operator', d: 'Connecting qualified operators with the right properties and landlords.' }
     ],
+    concepts: ['Multi-unit & portfolios', 'Full-service restaurants', 'Quick-serve & fast-casual', 'Bars & nightlife', 'Food halls', 'Cafés & coffee', 'Breweries & taprooms', 'Ghost kitchens'],
     servicesTransition: 'Whatever the deal, the standard is the same — a defined path built to protect your leverage, hold momentum, and produce real outcomes.',
     aboutHead: 'Why operators trust RRG',
     about: 'Restaurant deals fail for predictable reasons. We run a detail-oriented, controlled process — from valuation and positioning through qualified buyers and a clean close — so your transaction gets done right. We represent sellers, buyers, landlords, and tenants across Texas.',
@@ -6887,12 +6889,14 @@ function loadWebsite() {
   try { s = rj(WEBSITE_FILE); } catch (e) {}
   if (!s || typeof s !== 'object') return d;
   const out = Object.assign({}, d, s);
-  ['stats', 'services', 'offices', 'processes', 'wins'].forEach(function (k) { if (!Array.isArray(out[k]) || !out[k].length) out[k] = d[k]; });
+  ['stats', 'services', 'offices', 'processes', 'wins', 'concepts'].forEach(function (k) { if (!Array.isArray(out[k]) || !out[k].length) out[k] = d[k]; });
   return out;
 }
 function saveWebsite(o) { return writeJsonGuarded(WEBSITE_FILE, o || {}, 'saveWebsite'); }
 function loadWebsiteLeads() { try { const a = rj(WEBSITE_LEADS_FILE); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
 function saveWebsiteLeads(a) { return writeJsonGuarded(WEBSITE_LEADS_FILE, Array.isArray(a) ? a : [], 'saveWebsiteLeads'); }
+function loadWebsiteSubs() { try { const a = rj(WEBSITE_SUBS_FILE); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+function saveWebsiteSubs(a) { return writeJsonGuarded(WEBSITE_SUBS_FILE, Array.isArray(a) ? a : [], 'saveWebsiteSubs'); }
 function websitePublicListings() {
   try {
     let props = []; try { props = publicPropertyTeasers(); } catch (e) {}
@@ -6903,7 +6907,7 @@ function websitePublicListings() {
 }
 // Admin — read config + leads
 app.get('/api/website', requireAdmin, (req, res) => {
-  res.json({ ok: true, site: loadWebsite(), leads: loadWebsiteLeads().slice(0, 500), publicUrl: (appBaseUrl() || (req.protocol + '://' + req.get('host'))) + '/site' });
+  res.json({ ok: true, site: loadWebsite(), leads: loadWebsiteLeads().slice(0, 500), subscribers: loadWebsiteSubs().slice(0, 2000), publicUrl: (appBaseUrl() || (req.protocol + '://' + req.get('host'))) + '/site' });
 });
 // Admin — save config
 app.post('/api/website', requireAdmin, express.json({ limit: '256kb' }), (req, res) => {
@@ -6924,6 +6928,7 @@ app.post('/api/website', requireAdmin, express.json({ limit: '256kb' }), (req, r
   if (b.customDomain !== undefined) out.customDomain = S(b.customDomain, 120);
   if (Array.isArray(b.stats)) out.stats = b.stats.slice(0, 6).map(function (x) { return { n: S(x && x.n, 16), l: S(x && x.l, 48) }; }).filter(function (x) { return x.n || x.l; });
   if (Array.isArray(b.services)) out.services = b.services.slice(0, 8).map(function (x) { return { t: S(x && x.t, 80), d: S(x && x.d, 400) }; }).filter(function (x) { return x.t || x.d; });
+  if (Array.isArray(b.concepts)) out.concepts = b.concepts.map(function (x) { return S(x, 48); }).filter(Boolean).slice(0, 20);
   if (Array.isArray(b.offices)) out.offices = b.offices.slice(0, 12).map(function (x) { return { city: S(x && x.city, 60), phone: S(x && x.phone, 40) }; }).filter(function (x) { return x.city || x.phone; });
   if (Array.isArray(b.processes)) out.processes = b.processes.slice(0, 8).map(function (p) {
     return { name: S(p && p.name, 80), steps: (Array.isArray(p && p.steps) ? p.steps : []).slice(0, 10).map(function (x) { return { t: S(x && x.t, 90), d: S(x && x.d, 300) }; }).filter(function (x) { return x.t || x.d; }) };
@@ -6936,7 +6941,7 @@ app.post('/api/website', requireAdmin, express.json({ limit: '256kb' }), (req, r
 // Public — config subset + live listings
 app.get('/api/website/public', (req, res) => {
   const s = loadWebsite();
-  const pub = { brand: s.brand, tagline: s.tagline, heroSub: s.heroSub, heroCtaText: s.heroCtaText, heroImage: s.heroImage, stats: s.stats, services: s.services, servicesTransition: s.servicesTransition, processes: s.processes, wins: s.wins, aboutHead: s.aboutHead, about: s.about, offices: s.offices, contactEmail: s.contactEmail, bookingUrl: s.bookingUrl, published: !!s.published };
+  const pub = { brand: s.brand, tagline: s.tagline, heroSub: s.heroSub, heroCtaText: s.heroCtaText, heroImage: s.heroImage, stats: s.stats, services: s.services, concepts: s.concepts, servicesTransition: s.servicesTransition, processes: s.processes, wins: s.wins, aboutHead: s.aboutHead, about: s.about, offices: s.offices, contactEmail: s.contactEmail, bookingUrl: s.bookingUrl, published: !!s.published };
   res.json({ ok: true, site: pub, org: orgDisplayName(), listings: websitePublicListings() });
 });
 // Public — contact / lead form submission, captured for the Website manager
@@ -6960,6 +6965,34 @@ app.post('/api/website/lead/:id', requireAdmin, express.json(), (req, res) => {
   if ((req.body || {}).remove) { const before = leads.length; leads = leads.filter(function (l) { return l.id !== id; }); hit = leads.length !== before; }
   else { leads.forEach(function (l) { if (l.id === id) { l.handled = !!(req.body || {}).handled; hit = true; } }); }
   if (hit) saveWebsiteLeads(leads);
+  res.json({ ok: hit });
+});
+// Public — listing-alert subscribe (broker or operator + markets)
+app.post('/api/website/subscribe', express.json({ limit: '32kb' }), (req, res) => {
+  const b = req.body || {};
+  const name = String(b.name || '').trim().slice(0, 120);
+  const email = String(b.email || '').trim().slice(0, 160);
+  let audience = String(b.audience || '').trim().toLowerCase();
+  if (audience !== 'broker' && audience !== 'operator') audience = 'operator';
+  let markets = Array.isArray(b.markets) ? b.markets : [];
+  markets = markets.map(function (m) { return String(m || '').trim().slice(0, 60); }).filter(Boolean).slice(0, 40);
+  if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return res.status(400).json({ ok: false, error: 'Please enter a valid email address.' });
+  let subs = loadWebsiteSubs();
+  const existing = subs.filter(function (x) { return String(x.email || '').toLowerCase() === email.toLowerCase(); })[0];
+  if (existing) {
+    existing.name = name || existing.name; existing.audience = audience; existing.markets = markets; existing.updatedAt = new Date().toISOString();
+  } else {
+    subs.unshift({ id: newInquiryId(), name: name, email: email, audience: audience, markets: markets, source: 'Website', createdAt: new Date().toISOString() });
+  }
+  if (subs.length > 20000) subs = subs.slice(0, 20000);
+  saveWebsiteSubs(subs);
+  res.json({ ok: true });
+});
+// Admin — remove a subscriber
+app.post('/api/website/sub/:id', requireAdmin, express.json(), (req, res) => {
+  const id = req.params.id; let subs = loadWebsiteSubs(); const before = subs.length;
+  subs = subs.filter(function (x) { return x.id !== id; });
+  const hit = subs.length !== before; if (hit) saveWebsiteSubs(subs);
   res.json({ ok: hit });
 });
 // Admin — upload a hero background photo (stored on disk, served publicly)
@@ -7002,6 +7035,330 @@ app.get('/site', (req, res) => { res.set('Content-Type', 'text/html; charset=utf
 
 // ===== Seller-focused service detail page: /site/sell =====
 app.get('/site/sell', (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8').send(siteSellPage(req)); });
+
+// ===== Multi-unit & portfolio detail page: /site/multi-unit =====
+app.get('/site/multi-unit', (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8').send(siteMultiUnitPage(req)); });
+
+// ===== Listing-alert subscribe page: /site/subscribe =====
+app.get('/site/subscribe', (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8').send(siteSubscribePage(req)); });
+function siteSubscribePage(req) {
+  const s = loadWebsite();
+  const org = esc(s.brand || orgDisplayName() || 'Restaurant Realty Group');
+  const year = new Date().getFullYear();
+  const metros = [];
+  (s.offices || []).forEach(function (o) { const c = String(o.city || '').trim(); if (c && metros.indexOf(c) < 0) metros.push(c); });
+  if (!metros.length) ['Austin', 'Dallas', 'Fort Worth', 'Houston', 'San Antonio'].forEach(function (c) { metros.push(c); });
+  const marketChips = metros.map(function (c) { return '<label class="mk"><input type="checkbox" name="mk" value="' + esc(c) + '"><span>' + esc(c) + '</span></label>'; }).join('');
+
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Get New Listings — ${org}</title>
+<meta name="description" content="Get confidential restaurant and bar listings from ${org} the moment they come to market — in the Texas markets you choose.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>${SITE_CSS}</style>
+<style>
+.subwrap{max-width:720px;margin:0 auto;padding:0 24px;}
+.subhero{background:linear-gradient(115deg,#060e22,#0a1733 55%,#122a5a);color:#fff;padding:46px 0 40px;text-align:center;}
+.subhero .eyebrow{color:var(--gold2);justify-content:center;}
+.subhero h1{font-family:'Fraunces',serif;font-weight:600;font-size:40px;line-height:1.06;margin:14px 0 0;text-wrap:balance;}
+@media(max-width:620px){.subhero h1{font-size:30px;}}
+.subhero p{color:#c6d1e6;font-size:17px;line-height:1.55;max-width:52ch;margin:16px auto 0;}
+.subcard{background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:0 24px 60px rgba(10,20,50,.14);padding:34px 32px;margin:-28px auto 60px;position:relative;z-index:2;}
+@media(max-width:620px){.subcard{padding:26px 20px;}}
+.flabel{font-size:12.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--navy);margin:0 0 12px;}
+.aud{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:26px;}
+@media(max-width:520px){.aud{grid-template-columns:1fr;}}
+.audopt{position:relative;cursor:pointer;}
+.audopt input{position:absolute;opacity:0;pointer-events:none;}
+.audbox{border:2px solid var(--line);border-radius:14px;padding:18px 18px;transition:border-color .15s,box-shadow .15s,background .15s;height:100%;}
+.audbox .at{font-family:'Fraunces',serif;font-weight:600;font-size:18px;color:var(--navy);display:flex;align-items:center;gap:10px;}
+.audbox .ad{color:var(--muted);font-size:13px;line-height:1.5;margin-top:7px;}
+.audbox .tick{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);margin-left:auto;flex:none;display:flex;align-items:center;justify-content:center;}
+.audopt input:checked + .audbox{border-color:var(--navy);background:#f6f9fe;box-shadow:0 10px 24px rgba(10,20,50,.1);}
+.audopt input:checked + .audbox .tick{border-color:var(--red);background:var(--red);}
+.audopt input:checked + .audbox .tick::after{content:'';width:8px;height:8px;border-radius:50%;background:#fff;}
+.mks{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:8px;}
+.mk{cursor:pointer;}
+.mk input{position:absolute;opacity:0;pointer-events:none;}
+.mk span{display:inline-flex;align-items:center;gap:8px;border:1.5px solid var(--line);border-radius:100px;padding:9px 16px;font-size:14px;font-weight:700;color:var(--navy);transition:all .15s;}
+.mk span::before{content:'';width:7px;height:7px;border-radius:50%;background:#cdd5e5;transition:background .15s;}
+.mk input:checked + span{border-color:var(--navy);background:var(--navy);color:#fff;}
+.mk input:checked + span::before{background:var(--gold2);}
+.mkall{margin:0 0 22px;}
+.mkall label{display:inline-flex;align-items:center;gap:9px;font-size:13.5px;font-weight:700;color:var(--muted);cursor:pointer;}
+.subrow{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media(max-width:520px){.subrow{grid-template-columns:1fr;}}
+.subfld{margin-bottom:16px;}
+.subfld label{display:block;font-size:12.5px;font-weight:700;color:var(--ink);margin-bottom:6px;}
+.subfld input{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:12px 14px;font:inherit;font-size:15px;color:var(--ink);background:#fff;}
+.subfld input:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(44,92,143,.14);}
+.subsubmit{display:flex;align-items:center;gap:14px;margin-top:8px;flex-wrap:wrap;}
+.submsg{font-size:13.5px;font-weight:700;}
+.submsg.err{color:var(--red);} .submsg.ok{color:#1f8a5b;}
+.subfine{color:var(--soft);font-size:12px;margin-top:16px;line-height:1.5;}
+.subback{display:inline-flex;align-items:center;gap:7px;color:#9fb0cc;font-size:13px;font-weight:700;text-decoration:none;}
+.subback:hover{color:#fff;}
+</style></head>
+<body style="background:var(--cream)">
+<header><div class="wrap"><nav class="nav">
+  <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
+  <span class="sp"></span>
+  <a class="navlink" href="/site#services">Services</a>
+  <a class="navlink" href="/site#opportunities">Opportunities</a>
+  <a class="navcta" href="/site#contact">Talk to a broker</a>
+</nav></div></header>
+
+<section class="subhero"><div class="subwrap">
+  <a class="subback" href="/site">&larr; Back to ${org}</a>
+  <div class="eyebrow" style="margin-top:14px">Listing alerts</div>
+  <h1>Get new listings before they hit the market</h1>
+  <p>Exclusive restaurant &amp; bar opportunities, the moment they come up — in the Texas markets you choose. Confidential, no spam, unsubscribe anytime.</p>
+</div></section>
+
+<div class="subwrap"><div class="subcard">
+  <form id="subForm" novalidate>
+    <div class="flabel">I am a…</div>
+    <div class="aud">
+      <label class="audopt"><input type="radio" name="aud" value="operator" checked>
+        <div class="audbox"><div class="at">Restaurant / Operator<span class="tick"></span></div><div class="ad">I own or operate restaurants or bars, or I’m looking to buy, lease, or expand.</div></div></label>
+      <label class="audopt"><input type="radio" name="aud" value="broker">
+        <div class="audbox"><div class="at">Broker<span class="tick"></span></div><div class="ad">I’m a broker or agent and want to see listings to match with my clients.</div></div></label>
+    </div>
+
+    <div class="flabel">Markets I want listings in</div>
+    <div class="mks">${marketChips}</div>
+    <div class="mkall"><label><input type="checkbox" id="mkAll"> Select all markets</label></div>
+
+    <div class="subrow">
+      <div class="subfld"><label>Name</label><input id="sub_name" autocomplete="name"></div>
+      <div class="subfld"><label>Email</label><input id="sub_email" type="email" autocomplete="email" required></div>
+    </div>
+
+    <div class="subsubmit"><button type="submit" class="btn red" id="subBtn">Send me new listings</button><span class="submsg" id="subMsg"></span></div>
+    <p class="subfine">By subscribing you agree to receive listing emails from ${org}. We never share your information, and every email has a one-click unsubscribe.</p>
+  </form>
+</div></div>
+
+<footer><div class="wrap">
+  <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span><a href="/site" style="color:#8597b8">Back to site</a></span></div>
+</div></footer>
+
+<script>
+(function(){
+  var all=document.getElementById('mkAll');
+  function boxes(){ return Array.prototype.slice.call(document.querySelectorAll('input[name=mk]')); }
+  if(all){ all.addEventListener('change',function(){ boxes().forEach(function(c){ c.checked=all.checked; }); }); }
+  boxes().forEach(function(c){ c.addEventListener('change',function(){ if(all){ all.checked=boxes().every(function(x){return x.checked;}); } }); });
+  var f=document.getElementById('subForm'); if(!f) return;
+  function val(id){ var el=document.getElementById(id); return el?String(el.value||'').trim():''; }
+  f.addEventListener('submit',function(e){ e.preventDefault();
+    var msg=document.getElementById('subMsg'), btn=document.getElementById('subBtn');
+    var mkts=boxes().filter(function(c){return c.checked;}).map(function(c){return c.value;});
+    var aud=(document.querySelector('input[name=aud]:checked')||{}).value||'operator';
+    var email=val('sub_email');
+    if(!email || !/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(email)){ msg.textContent='Enter a valid email.'; msg.className='submsg err'; return; }
+    if(!mkts.length){ msg.textContent='Pick at least one market.'; msg.className='submsg err'; return; }
+    var body={ name:val('sub_name'), email:email, audience:aud, markets:mkts };
+    var old=btn.textContent; btn.disabled=true; btn.textContent='Subscribing…'; msg.textContent='';
+    fetch('/api/website/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+      .then(function(r){return r.json();}).then(function(j){
+        if(j&&j.ok){ f.reset(); if(all)all.checked=false; msg.textContent='You’re on the list — watch your inbox.'; msg.className='submsg ok'; }
+        else { msg.textContent=(j&&j.error)||'Something went wrong. Please try again.'; msg.className='submsg err'; }
+        btn.disabled=false; btn.textContent=old;
+      }).catch(function(){ msg.textContent='Network error. Please try again.'; msg.className='submsg err'; btn.disabled=false; btn.textContent=old; });
+  });
+})();
+</script>
+</body></html>`;
+}
+
+function siteMultiUnitPage(req) {
+  const s = loadWebsite();
+  const org = esc(s.brand || orgDisplayName() || 'Restaurant Realty Group');
+  const year = new Date().getFullYear();
+  const bookUrl = String(s.bookingUrl || '').replace(/["'<>]/g, '').trim();
+  const bookBtn = bookUrl ? ('<a class="btn gold" href="' + bookUrl + '" target="_blank" rel="noopener">📅 Book a call</a>') : '';
+  const email = esc(s.contactEmail || '');
+
+  const steps = [
+    { t: 'Portfolio review & valuation', d: 'We value the group on blended earnings, real estate, and growth — not a unit-by-unit guess — and map the cleanest way to market it.' },
+    { t: 'Confidential packaging', d: 'The whole group is packaged in a controlled data room and marketed blind, so no single location — or your competitors — sees it coming.' },
+    { t: 'Targeted buyer outreach', d: 'We go straight to the buyers who transact at scale: private equity, franchise groups, and funded multi-unit operators — under NDA.' },
+    { t: 'Offers & structure', d: 'We drive competing offers and structure the deal — full sale, partial, or sale-leaseback — to maximize value and fit your goals.' },
+    { t: 'Coordinated diligence', d: 'Books, leases, licensing, and real estate across every unit — we quarterback diligence as one organized process.' },
+    { t: 'One clean close', d: 'Lease assignments, license transfers, and closings across all locations, managed together so nothing stalls at the finish.' }
+  ];
+  const stepHtml = steps.map(function (x, j) { return '<div class="step"><div class="stepn">' + (j + 1) + '</div><div class="stepb"><div class="stept">' + esc(x.t || '') + '</div><div class="stepd">' + esc(x.d || '') + '</div></div></div>'; }).join('');
+
+  const muRe = /multi[- ]?unit|portfolio|\b\d+\s*[- ]?unit|units|group|roll[- ]?up/i;
+  const muWins = (s.wins || []).filter(function (w) { return muRe.test(String((w && w.label) || '') + ' ' + String((w && w.detail) || '')); });
+  const soldWins = (s.wins || []).filter(function (w) { return /sold|sale/i.test(String(w && w.type || '')); });
+  const winSrc = muWins.length ? muWins : (soldWins.length ? soldWins : (s.wins || []).slice(0, 6));
+  const winHtml = winSrc.slice(0, 6).map(function (w) { const meta = [esc(w.market || ''), esc(w.detail || '')].filter(Boolean).join(' &middot; '); return '<div class="win"><span class="wtag sold">' + esc(w.type || 'Closed') + '</span><div class="wl">' + esc(w.label || '') + '</div>' + (meta ? ('<div class="wm">' + meta + '</div>') : '') + '</div>'; }).join('');
+  const hasWins = !!winHtml;
+
+  const bookRow = bookUrl ? ('<div style="margin-top:20px"><div style="font-size:12.5px;color:#9fb0cc;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:9px">Prefer to grab a time?</div>' + bookBtn + '</div>') : '';
+  const emailRow = email ? ('<p class="lead" style="margin-top:14px">Prefer email? <a style="color:#fff;font-weight:800" href="mailto:' + email + '">' + email + '</a></p>') : '';
+  const offLinks = (s.offices || []).map(function (o) { const tel = String(o.phone || '').replace(/[^0-9+]/g, ''); return '<a href="tel:' + tel + '">' + esc(o.city || '') + ' &middot; ' + esc(o.phone || '') + '</a>'; }).join('');
+
+  const VIC = {
+    conf: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.2 20 5v6c0 5-3.4 8.9-8 10.8C7.4 19.9 4 16 4 11V5l8-2.8Z"/><path d="M9.3 11.4l1.9 1.9 3.6-3.8" fill="none" stroke="#0d1f49" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    cap: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 10.5 12 4l9 6.5v1.5H3v-1.5Z"/><rect x="5" y="13" width="2.6" height="6" rx="1"/><rect x="10.7" y="13" width="2.6" height="6" rx="1"/><rect x="16.4" y="13" width="2.6" height="6" rx="1"/><rect x="3" y="20" width="18" height="2.2" rx="1"/></svg>',
+    val: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="12" width="4" height="8" rx="1"/><rect x="10" y="7" width="4" height="13" rx="1"/><rect x="17" y="3" width="4" height="17" rx="1"/></svg>',
+    close: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3.5" width="12" height="9" rx="1.6"/><rect x="6.5" y="8" width="12" height="9" rx="1.6" opacity=".75"/><rect x="10" y="12.5" width="11" height="8" rx="1.6" opacity=".5"/></svg>'
+  };
+  const values = [
+    { ic: VIC.conf, t: 'Confidentiality at scale', d: 'We market the whole group blind. No single unit, no staff, and no competitor learns the portfolio is in play until a buyer is qualified and under NDA.' },
+    { ic: VIC.cap, t: 'Access to real capital', d: 'We take your group straight to the buyers who transact at size — private equity, franchise groups, and funded multi-unit operators — not retail tire-kickers.' },
+    { ic: VIC.val, t: 'Portfolio-grade valuation', d: 'Your group is valued on blended earnings, real estate, and growth — so you are priced as a platform, not a stack of single locations.' },
+    { ic: VIC.close, t: 'One coordinated close', d: 'Leases, licenses, and transfers across every location, run as a single controlled process so the whole deal lands clean and on time.' }
+  ];
+  const valueHtml = values.map(function (v) { return '<div class="svc" style="box-shadow:0 10px 26px rgba(10,20,50,.09)"><div class="svcic">' + v.ic + '</div><div class="svct">' + esc(v.t) + '</div><div class="svcd">' + esc(v.d) + '</div></div>'; }).join('');
+
+  const faqs = [
+    { q: 'What counts as a multi-unit or portfolio deal?', a: 'Anything from a two- or three-unit group to a full franchise portfolio — restaurants, bars, and the real estate under them. If you operate, own, or are acquiring more than one location, this is the right page.' },
+    { q: 'How do you keep a multi-unit sale confidential?', a: 'The same way we protect a single sale, extended across the group: the portfolio is marketed blind, buyers are qualified and NDA’d before they see identifying detail, and materials live in a controlled data room. Your teams across every unit stay focused on running the business.' },
+    { q: 'Who actually buys a group of restaurants?', a: 'Buyers who transact at scale — private equity and family offices, franchise and multi-brand groups, and well-capitalized operators expanding a footprint. We maintain relationships with those buyers and take your group to them directly.' },
+    { q: 'How is a multi-unit business valued?', a: 'On blended, normalized earnings across the group, the quality and term of the leases, any owned real estate, and the growth story — then benchmarked against real portfolio comps. Priced as a platform, a group is usually worth more than the sum of its units.' },
+    { q: 'Can you do sale-leasebacks or sell only part of the group?', a: 'Yes. We structure full sales, partial sales, and sale-leasebacks that unlock the capital in your owned real estate while you keep operating — whatever fits your goals for the portfolio.' },
+    { q: 'What does a portfolio transaction timeline look like?', a: 'Longer than a single unit but just as controlled — valuation and packaging up front, a focused buyer process, then coordinated diligence and a close across all locations. A well-documented portfolio moves faster, which is what our process is built to deliver.' }
+  ];
+  const faqHtml = faqs.map(function (f) { return '<details class="faq"><summary>' + esc(f.q) + '</summary><div class="fa">' + esc(f.a) + '</div></details>'; }).join('');
+
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Multi-Unit &amp; Portfolio Brokerage — ${org}</title>
+<meta name="description" content="Portfolio-grade brokerage for multi-unit restaurant and bar operators. ${org} sells groups and portfolios confidentially — real valuation, funded buyers, and one coordinated close.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>${SITE_CSS}</style>
+<style>
+.shero{position:relative;background:linear-gradient(115deg,#060e22,#0a1733 55%,#122a5a);color:#fff;padding:52px 0 78px;overflow:hidden;}
+.shero::after{content:'';position:absolute;right:-140px;top:-140px;width:460px;height:460px;border-radius:50%;background:radial-gradient(circle,rgba(200,162,75,.16),transparent 70%);pointer-events:none;}
+.shero .wrap{position:relative;z-index:1;}
+.shero .eyebrow{color:var(--gold2);}
+.shero h1{font-family:'Fraunces',serif;font-weight:600;font-size:52px;line-height:1.05;letter-spacing:-.015em;margin:14px 0 0;max-width:17ch;text-wrap:balance;}
+@media(max-width:720px){.shero h1{font-size:34px;}}
+.shero .sub{color:#c6d1e6;font-size:18px;line-height:1.55;max-width:60ch;margin:20px 0 0;}
+.sherocta{display:flex;flex-wrap:wrap;gap:14px;margin-top:30px;}
+.strust{display:flex;flex-wrap:wrap;gap:10px 28px;margin-top:32px;color:#9fb0cc;font-size:13px;font-weight:700;}
+.strust span{display:inline-flex;align-items:center;gap:9px;}
+.strust b{color:var(--gold2);font-weight:800;}
+.sback{display:inline-flex;align-items:center;gap:7px;color:#9fb0cc;font-size:13px;font-weight:700;text-decoration:none;}
+.sback:hover{color:#fff;}
+.svalue{background:var(--cream);}
+.faqwrap{margin-top:38px;display:grid;gap:12px;max-width:840px;}
+.faq{border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden;box-shadow:0 2px 10px rgba(10,20,50,.04);}
+.faq summary{cursor:pointer;list-style:none;padding:19px 22px;font-family:'Fraunces',serif;font-weight:600;font-size:18px;color:var(--navy);display:flex;justify-content:space-between;align-items:center;gap:16px;}
+.faq summary::-webkit-details-marker{display:none;}
+.faq summary::after{content:'+';font-family:Inter,sans-serif;font-size:26px;color:var(--gold);font-weight:400;line-height:1;transition:transform .2s;}
+.faq[open] summary::after{transform:rotate(45deg);}
+.faq .fa{padding:0 22px 20px;color:var(--muted);font-size:15px;line-height:1.62;max-width:72ch;}
+</style></head>
+<body>
+<header><div class="wrap"><nav class="nav">
+  <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
+  <span class="sp"></span>
+  <a class="navlink" href="/site#services">All services</a>
+  <a class="navlink" href="#process">How it works</a>
+  <a class="navlink" href="/site#opportunities">Opportunities</a>
+  <a class="navlink" href="#track">Track record</a>
+  <a class="navcta" href="#contact">Talk about a deal</a>
+</nav></div></header>
+
+<section class="shero"><div class="wrap">
+  <a class="sback" href="/site">&larr; Back to ${org}</a>
+  <div class="eyebrow" style="margin-top:16px">Multi-unit &amp; portfolio</div>
+  <h1>Portfolio-grade brokerage for multi-unit operators.</h1>
+  <p class="sub">Groups, portfolios, and the bigger deals — run with the discretion, valuation rigor, and controlled process that larger transactions demand, and taken straight to the buyers who transact at scale.</p>
+  <div class="sherocta">
+    <a class="btn red" href="#contact">Talk about a portfolio deal</a>
+    ${bookUrl ? bookBtn : '<a class="btn ghost" href="#process">See how it works</a>'}
+  </div>
+  <div class="strust">
+    <span><b>PE &amp; funded</b> buyer network</span>
+    <span><b>Blind</b> until NDA</span>
+    <span><b>One</b> coordinated close</span>
+  </div>
+</div></section>
+
+<section class="svalue"><div class="wrap">
+  <div class="sec-head"><div class="eyebrow">Why operators at scale choose RRG</div><div class="h2">What a portfolio deal needs — handled</div>
+  <p class="lead">A group is not a bigger single sale. It takes confidentiality across every unit, buyers with real capital, portfolio-level valuation, and a close coordinated across locations.</p></div>
+  <div class="svcs">${valueHtml}</div>
+</div></section>
+
+<section id="process" class="process"><div class="wrap">
+  <div class="sec-head"><div class="eyebrow">The process</div><div class="h2">How a portfolio sale runs</div>
+  <p class="lead">A disciplined, controlled path built for scale — from portfolio valuation to a single coordinated close across every location.</p></div>
+  <div class="ppanel on" style="margin-top:38px"><div class="steps">${stepHtml}</div></div>
+</div></section>
+
+${hasWins ? `<section id="track" class="track"><div class="wrap">
+  <div class="sec-head"><div class="eyebrow">Proof</div><div class="h2">Closings that speak to scale</div>
+  <p class="lead">A sample of closed transactions. Details kept confidential — no client names needed to show the work.</p></div>
+  <div class="wins">${winHtml}</div>
+  <div class="trackfoot">Representative closings across Texas. Your outcome depends on your group, leases, and market.</div>
+</div></section>` : ''}
+
+<section class="svalue"><div class="wrap">
+  <div class="sec-head"><div class="eyebrow">Operator questions</div><div class="h2">Answered, straight</div>
+  <p class="lead">What multi-unit owners ask before they engage.</p></div>
+  <div class="faqwrap">${faqHtml}</div>
+</div></section>
+
+<section id="contact" class="contact"><div class="wrap"><div class="cgrid">
+  <div>
+    <div class="eyebrow">Start here</div>
+    <div class="h2">Let’s talk about your portfolio</div>
+    <p class="lead">Tell us about your group — how many units, the markets, and what you’re weighing. The right broker will reach out, confidentially, with real numbers and next steps. No obligation.</p>
+    ${bookRow}
+    ${emailRow}
+  </div>
+  <form class="form" id="leadForm" novalidate>
+    <div class="row">
+      <div class="fld"><label>Name</label><input id="lf_name" autocomplete="name" required></div>
+      <div class="fld"><label>Phone</label><input id="lf_phone" autocomplete="tel"></div>
+    </div>
+    <div class="fld"><label>Email</label><input id="lf_email" type="email" autocomplete="email"></div>
+    <div class="fld"><label>Tell us about your group</label><textarea id="lf_message" placeholder="Number of units, markets, concepts, owned vs. leased real estate, and your timeline…"></textarea></div>
+    <input type="hidden" id="lf_interest" value="Multi-unit / portfolio">
+    <div style="margin-top:18px;display:flex;align-items:center"><button type="submit" class="btn red" id="leadBtn">Start the conversation</button><span class="lmsg" id="leadMsg"></span></div>
+  </form>
+</div></div></section>
+
+<footer><div class="wrap">
+  <div class="foot">
+    <div>
+      <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
+      <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
+    </div>
+    <div><h4>Explore</h4><a href="/site#services">Services</a><a href="/site#opportunities">Opportunities</a><a href="/market">Marketplace</a><a href="#contact">Contact</a></div>
+    <div><h4>Offices</h4>${offLinks}</div>
+  </div>
+  <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
+</div></footer>
+
+<script>
+(function(){
+  var f=document.getElementById('leadForm'); if(!f) return;
+  function val(id){ var el=document.getElementById(id); return el?String(el.value||'').trim():''; }
+  f.addEventListener('submit',function(e){ e.preventDefault();
+    var msg=document.getElementById('leadMsg'), btn=document.getElementById('leadBtn');
+    var body={ name:val('lf_name'), email:val('lf_email'), phone:val('lf_phone'), interest:val('lf_interest')||'Multi-unit / portfolio', message:val('lf_message') };
+    if(!body.name || (!body.email && !body.phone)){ msg.textContent='Add your name and an email or phone.'; msg.className='lmsg err'; return; }
+    var old=btn.textContent; btn.disabled=true; btn.textContent='Sending…'; msg.textContent='';
+    fetch('/api/website/lead',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+      .then(function(r){return r.json();}).then(function(j){
+        if(j&&j.ok){ f.reset(); document.getElementById('lf_interest').value='Multi-unit / portfolio'; msg.textContent='Thanks — we’ll be in touch shortly, confidentially.'; msg.className='lmsg ok'; }
+        else { msg.textContent=(j&&j.error)||'Something went wrong. Please call us.'; msg.className='lmsg err'; }
+        btn.disabled=false; btn.textContent=old;
+      }).catch(function(){ msg.textContent='Network error. Please call us.'; msg.className='lmsg err'; btn.disabled=false; btn.textContent=old; });
+  });
+})();
+</script>
+</body></html>`;
+}
+
 function siteSellPage(req) {
   const s = loadWebsite();
   const org = esc(s.brand || orgDisplayName() || 'Restaurant Realty Group');
@@ -7205,8 +7562,8 @@ a{color:inherit;}
 .btn.red{background:var(--red);color:#fff;box-shadow:0 12px 26px rgba(218,43,31,.32),inset 0 1px 0 rgba(255,255,255,.28);}
 .btn.gold{background:var(--gold);color:#201700;box-shadow:0 12px 26px rgba(200,162,75,.34),inset 0 1px 0 rgba(255,255,255,.4);}
 .btn.navy{background:var(--navy);color:#fff;box-shadow:0 12px 26px rgba(10,20,50,.3),inset 0 1px 0 rgba(255,255,255,.12);}
-.btn.ghost{background:#fff;color:var(--navy);border:2px solid #fff;box-shadow:0 10px 24px rgba(0,0,0,.18);}
-.btn.ghost:hover{background:#f2f6fb;border-color:#f2f6fb;}
+.btn.ghost{background:rgba(255,255,255,.06);color:#fff;border:2px solid rgba(255,255,255,.55);}
+.btn.ghost:hover{background:rgba(255,255,255,.12);border-color:#fff;}
 /* header */
 header{position:sticky;top:0;z-index:40;background:#000E31;border-bottom:1px solid rgba(200,162,75,.22);box-shadow:0 2px 14px rgba(0,0,0,.18);}
 .nav{display:flex;align-items:center;gap:20px;padding:15px 0;}
@@ -7399,6 +7756,10 @@ footer{background:#05081a;color:#8597b8;font-size:13px;padding:40px 0 30px;}
 .wtag.leased{background:rgba(44,92,143,.2);color:var(--blue2);border:1px solid rgba(44,92,143,.5);}
 .wtag.placed{background:rgba(140,152,176,.2);color:#cfd8e8;border:1px solid rgba(140,152,176,.45);}
 .wtag.other{background:rgba(255,255,255,.1);color:#cfd8ea;border:1px solid rgba(255,255,255,.2);}
+.wtagrow{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin-bottom:11px;}
+.wtagrow .wtag{margin-bottom:0;}
+.wscale{display:inline-flex;align-items:center;gap:6px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;border-radius:100px;padding:4px 10px;background:rgba(200,162,75,.16);color:var(--gold2);border:1px solid rgba(200,162,75,.5);}
+.wscale::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--gold2);}
 .win .wl{font-family:'Fraunces',serif;font-size:16.5px;font-weight:600;color:#fff;line-height:1.25;}
 .win .wm{color:#9fb0cc;font-size:12.5px;margin-top:6px;}
 .trackfoot{margin-top:26px;color:#8fa0c0;font-size:12.5px;}
@@ -7408,7 +7769,7 @@ section[id],a[id]{scroll-margin-top:86px;}
 *:focus-visible{outline:2px solid var(--blue2);outline-offset:3px;border-radius:3px;}
 .btn:hover{transform:translateY(-2px);filter:brightness(1.04);}
 .btn:active{transform:translateY(0);}
-.btn.ghost:hover{background:#eef3fb;border-color:#eef3fb;}
+.btn.ghost:hover{background:rgba(255,255,255,.12);border-color:#fff;}
 /* editorial eyebrow tick */
 .eyebrow{display:inline-flex;align-items:center;gap:11px;}
 .eyebrow::before{content:'';width:24px;height:2px;background:currentColor;opacity:.8;border-radius:2px;flex:none;}
@@ -7472,6 +7833,11 @@ function publicSitePage(req) {
       return '<a class="svc" href="/site/sell">' + inner + '<span class="svccta">Learn more' + arrow + '</span></a>';
     }
     return '<a class="svc" href="#contact" onclick="(function(){var s=document.getElementById(\'lf_interest\');if(s&&s.options[' + oi + '])s.selectedIndex=' + oi + ';})()">' + inner + '<span class="svccta">Discuss this' + arrow + '</span></a>';
+  }).join('');
+  const conceptHtml = (Array.isArray(s.concepts) ? s.concepts : []).map(function (c) {
+    const txt = String(c || '').trim(); if (!txt) return '';
+    const hot = /multi[- ]?unit|portfolio/i.test(txt) ? ' hot' : '';
+    return '<span class="cpill' + hot + '">' + esc(txt) + '</span>';
   }).join('');
 
   const statHtml = (s.stats || []).map(function (x) { return '<div class="stat"><div class="statn">' + esc(x.n || '') + '</div><div class="statl">' + esc(x.l || '') + '</div></div>'; }).join('');
@@ -7545,11 +7911,13 @@ function publicSitePage(req) {
     const st = (p.steps || []).map(function (x, j) { return '<div class="step"><div class="stepn">' + (j + 1) + '</div><div class="stepb"><div class="stept">' + esc(x.t || '') + '</div><div class="stepd">' + esc(x.d || '') + '</div></div></div>'; }).join('');
     return '<div class="ppanel' + (i === 0 ? ' on' : '') + '" data-ppanel="' + i + '"><div class="steps">' + st + '</div></div>';
   }).join('');
+  const winScaleRe = /multi[- ]?unit|portfolio|\b\d+\s*[- ]?unit|\b\d+\s*locations?|franchise|group|roll[- ]?up/i;
   const winHtml = (s.wins || []).map(function (w) {
     const type = String(w.type || '').toLowerCase();
     const cls = type.indexOf('sold') >= 0 ? 'sold' : (type.indexOf('leas') >= 0 ? 'leased' : (type.indexOf('plac') >= 0 ? 'placed' : 'other'));
     const meta = [esc(w.market || ''), esc(w.detail || '')].filter(Boolean).join(' &middot; ');
-    return '<div class="win"><span class="wtag ' + cls + '">' + esc(w.type || 'Closed') + '</span><div class="wl">' + esc(w.label || '') + '</div>' + (meta ? ('<div class="wm">' + meta + '</div>') : '') + '</div>';
+    const scaleBadge = winScaleRe.test(String(w.label || '') + ' ' + String(w.detail || '')) ? '<span class="wscale">Multi-unit</span>' : '';
+    return '<div class="win"><div class="wtagrow"><span class="wtag ' + cls + '">' + esc(w.type || 'Closed') + '</span>' + scaleBadge + '</div><div class="wl">' + esc(w.label || '') + '</div>' + (meta ? ('<div class="wm">' + meta + '</div>') : '') + '</div>';
   }).join('');
   const heroImgSafe = String(s.heroImage || '').replace(/["'<>]/g, '').trim();
   const heroBgStyle = heroImgSafe ? ('<style>.hero{background-color:#0A1733;background-image:linear-gradient(100deg,rgba(6,14,34,.86) 0%,rgba(6,14,34,.56) 40%,rgba(8,16,40,.26) 100%),url("' + heroImgSafe + '");background-size:cover;background-position:center;}</style>') : '';
@@ -7588,6 +7956,7 @@ ${SITE_CSS}
   <a class="navlink" href="#opportunities">Opportunities</a>
   <a class="navlink" href="#track">Track record</a>
   <a class="navlink" href="#markets">Markets</a>
+  <a class="navlink" href="/site/subscribe">Get listings</a>
   <a class="navcta" href="#contact">Talk to a broker</a>
 </nav></div></header>
 
@@ -7609,9 +7978,7 @@ ${SITE_CSS}
 <section id="services"><div class="wrap">
   <div class="sec-head"><div class="eyebrow">What we do</div><div class="h2">Full-service representation across food &amp; beverage</div>
   <p class="lead">Whatever the concept, we run the entire transaction — from first valuation to a clean close — for sellers, buyers, landlords, and tenants.</p></div>
-  <div class="concepts">
-    <span class="cpill hot">Multi-unit &amp; portfolios</span><span class="cpill">Full-service restaurants</span><span class="cpill">Quick-serve &amp; fast-casual</span><span class="cpill">Bars &amp; nightlife</span><span class="cpill">Food trucks &amp; trailers</span><span class="cpill">Food halls</span><span class="cpill">Cafés &amp; coffee</span><span class="cpill">Breweries &amp; taprooms</span><span class="cpill">Ghost kitchens</span>
-  </div>
+  ${conceptHtml ? '<div class="concepts">' + conceptHtml + '</div>' : ''}
   <div class="svcs">${svcHtml}</div>
   ${s.servicesTransition ? '<p class="svctrans">' + esc(s.servicesTransition) + '</p>' : ''}
 </div></section>
@@ -7621,7 +7988,7 @@ ${SITE_CSS}
     <div class="eyebrow">Multi-unit &amp; portfolio</div>
     <div class="h2">Built for operators who think in units, not just locations</div>
     <p class="lead">Selling a group, expanding a footprint, or restructuring a portfolio — we run multi-unit and portfolio transactions with the discretion, valuation rigor, and controlled process larger deals demand.</p>
-    <div class="mucta"><a class="btn gold" href="#contact" onclick="(function(){var m=document.getElementById('lf_message');if(m&&!m.value){m.value='Multi-unit / portfolio inquiry: ';}})()">Talk about a portfolio deal</a></div>
+    <div class="mucta"><a class="btn gold" href="/site/multi-unit">How we handle portfolio deals &rarr;</a></div>
   </div>
   <div class="mupoints">
     <div class="mupoint"><div class="mun">01</div><div><b>Portfolio &amp; multi-unit sales</b><span>Package and sell a group of locations — marketed blind and only to qualified, funded buyers.</span></div></div>
@@ -7641,7 +8008,7 @@ ${SITE_CSS}
   <div class="sec-head"><div class="eyebrow">On the market</div><div class="h2">Exclusive opportunities</div>
   <p class="lead">Every RRG listing is an exclusive representation — if it’s here, you can only get it through us. Business listings are confidential; request details and we’ll qualify you under NDA.</p></div>
   <div class="opgrid">${cards}</div>
-  <div class="opall"><a class="btn gold" href="/market">View the full marketplace &rarr;</a></div>
+  <div class="opall" style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;justify-content:center"><a class="btn gold" href="/market">View the full marketplace &rarr;</a><a class="btn navy" href="/site/subscribe">Get new listings by email</a></div>
 </div></section>
 
 <section id="track" class="track"><div class="wrap">
@@ -7705,7 +8072,7 @@ ${SITE_CSS}
       <a class="brand" href="#top" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
-    <div><h4>Explore</h4><a href="#services">Services</a><a href="#opportunities">Opportunities</a><a href="/market">Marketplace</a><a href="#contact">Contact</a></div>
+    <div><h4>Explore</h4><a href="#services">Services</a><a href="#opportunities">Opportunities</a><a href="/market">Marketplace</a><a href="/site/subscribe">Get new listings</a><a href="#contact">Contact</a></div>
     <div><h4>Offices</h4>${(s.offices || []).map(function (o) { const tel = String(o.phone || '').replace(/[^0-9+]/g, ''); return '<a href="tel:' + tel + '">' + esc(o.city || '') + ' &middot; ' + esc(o.phone || '') + '</a>'; }).join('')}</div>
   </div>
   <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>

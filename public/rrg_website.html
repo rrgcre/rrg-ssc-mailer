@@ -80,7 +80,7 @@ textarea{min-height:76px;resize:vertical;}
 </div></div>
 
 <script>
-var SITE=null, LEADS=[], PUBURL='';
+var SITE=null, LEADS=[], SUBS=[], PUBURL='';
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function el(id){ return document.getElementById(id); }
 function val(id){ var e=el(id); return e?e.value:''; }
@@ -88,7 +88,7 @@ function val(id){ var e=el(id); return e?e.value:''; }
 function load(){
   fetch('/api/website',{credentials:'same-origin'}).then(function(r){ if(r.status===401||r.status===403) throw new Error('admin'); return r.json(); }).then(function(j){
     if(!j||!j.ok) throw new Error('load');
-    SITE=j.site||{}; LEADS=j.leads||[]; PUBURL=j.publicUrl||'/site';
+    SITE=j.site||{}; LEADS=j.leads||[]; SUBS=j.subscribers||[]; PUBURL=j.publicUrl||'/site';
     render();
   }).catch(function(e){
     el('wrap').innerHTML='<div class="card"><h2>Website</h2><p class="sub">'+(e&&e.message==='admin'?'This page is for administrators. Ask an admin to manage the public website.':'Could not load the website settings.')+'</p></div>';
@@ -124,6 +124,29 @@ function leadRow(l){
     +'<span class="lacts"><button class="btn ghost sm" onclick="toggleLead(\''+esc(l.id)+'\','+(l.handled?'false':'true')+')">'+(l.handled?'Reopen':'Mark handled')+'</button><button class="xbtn" onclick="removeLead(\''+esc(l.id)+'\')">Delete</button></span>'
     +'</div>'+(l.message?('<div class="lbody">'+esc(l.message)+'</div>'):'')+'</div>';
 }
+function subRow(x){
+  var when=''; try{ when=new Date(x.createdAt).toLocaleString('en-US',{month:'short',day:'numeric'}); }catch(e){}
+  var aud=(String(x.audience||'operator').toLowerCase()==='broker')?'Broker':'Restaurant / Operator';
+  var mk=(Array.isArray(x.markets)&&x.markets.length)?x.markets.map(esc).join(', '):'All / unspecified';
+  return '<div class="lead" data-sub="'+esc(x.id)+'"><div class="lh">'
+    +'<span class="lnm">'+esc(x.name||x.email||'(no name)')+'</span>'
+    +'<span class="ltag">'+esc(aud)+'</span>'
+    +'<span class="lmeta">'+esc(x.email||'')+(when?(' · '+esc(when)):'')+'</span>'
+    +'<span class="lacts"><button class="xbtn" onclick="removeSub(\''+esc(x.id)+'\')">Delete</button></span>'
+    +'</div><div class="lbody">Markets: '+mk+'</div></div>';
+}
+function removeSub(id){
+  fetch('/api/website/sub/'+encodeURIComponent(id),{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({})})
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ SUBS=SUBS.filter(function(x){return x.id!==id;}); el('subBox').innerHTML=SUBS.length?SUBS.map(subRow).join(''):'<div class="empty">No subscribers yet. Share your <b>/site/subscribe</b> link to start building the list.</div>'; } });
+}
+function exportSubs(){
+  if(!SUBS.length){ alert('No subscribers to export yet.'); return; }
+  var rows=[['Name','Email','Audience','Markets','Signed up']];
+  SUBS.forEach(function(x){ rows.push([x.name||'',x.email||'',(String(x.audience||'operator').toLowerCase()==='broker'?'Broker':'Restaurant/Operator'),(Array.isArray(x.markets)?x.markets.join('; '):''),x.createdAt||'']); });
+  var csv=rows.map(function(r){ return r.map(function(c){ c=String(c==null?'':c); return /[",\n]/.test(c)?('"'+c.replace(/"/g,'""')+'"'):c; }).join(','); }).join('\r\n');
+  var blob=new Blob([csv],{type:'text/csv'}); var url=URL.createObjectURL(blob);
+  var a=document.createElement('a'); a.href=url; a.download='listing-subscribers.csv'; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+}
 
 function render(){
   var s=SITE||{};
@@ -154,6 +177,7 @@ function render(){
   +'<div class="card"><h2>Stats band</h2><p class="sub">The numbers shown under the hero.</p><div id="statsBox"></div><button type="button" class="addbtn" onclick="addStat()">+ Add stat</button></div>'
 
   +'<div class="card"><h2>Services</h2><p class="sub">What you do — shown as cards.</p><div id="svcBox"></div><button type="button" class="addbtn" onclick="addSvc()">+ Add service</button>'
+    +'<div class="f" style="margin-top:16px"><label class="fld">Concept tags (one per line)</label><textarea id="f_concepts" style="min-height:120px" placeholder="Multi-unit &amp; portfolios&#10;Full-service restaurants&#10;Bars &amp; nightlife">'+esc((s.concepts||[]).join('\n'))+'</textarea><div class="sub" style="margin-top:4px">Shown as pills above the service cards. One concept per line. Any line containing “multi-unit” or “portfolio” is highlighted automatically.</div></div>'
     +'<div class="f" style="margin-top:16px"><label class="fld">Closing line (under the cards)</label><textarea id="f_servicesTransition" style="min-height:70px" placeholder="A one-line sentence that closes the section. Leave blank to hide it.">'+esc(s.servicesTransition||'')+'</textarea><div class="sub" style="margin-top:4px">Centered line shown beneath the service cards. Clear it to remove the line.</div></div>'
   +'</div>'
 
@@ -179,7 +203,9 @@ function render(){
     +'<div class="dns" id="dnsBox"></div>'
   +'</div>'
 
-  +'<div class="card"><h2>Lead inbox'+(newLeads?(' · <span style="color:var(--red)">'+newLeads+' new</span>'):'')+'</h2><p class="sub">Everyone who submits the contact form on your site lands here.</p><div id="leadBox"></div></div>';
+  +'<div class="card"><h2>Lead inbox'+(newLeads?(' · <span style="color:var(--red)">'+newLeads+' new</span>'):'')+'</h2><p class="sub">Everyone who submits the contact form on your site lands here.</p><div id="leadBox"></div></div>'
+
+  +'<div class="card"><h2>Listing-alert subscribers'+(SUBS.length?(' · '+SUBS.length):'')+'</h2><p class="sub">People who signed up at <code>/site/subscribe</code> to receive new listings. <a href="#" onclick="exportSubs();return false;">Export CSV</a> to use them in your email tool.</p><div id="subBox"></div></div>';
 
   el('wrap').innerHTML=html;
   // populate dynamic rows
@@ -189,6 +215,7 @@ function render(){
   el('winBox').innerHTML=(s.wins||[]).map(rowWin).join('');
   el('offBox').innerHTML=(s.offices||[]).map(rowOff).join('');
   el('leadBox').innerHTML=LEADS.length?LEADS.map(leadRow).join(''):'<div class="empty">No leads yet. They’ll show up here the moment someone uses your contact form.</div>';
+  el('subBox').innerHTML=SUBS.length?SUBS.map(subRow).join(''):'<div class="empty">No subscribers yet. Share your <b>/site/subscribe</b> link to start building the list.</div>';
   heroPreview(s.heroImage||''); renderDns(); updateStatusLbl();
   el('f_published').addEventListener('change',updateStatusLbl);
   el('f_customDomain').addEventListener('input',renderDns);
@@ -218,6 +245,7 @@ function collect(){
     aboutHead: val('f_aboutHead'), about: val('f_about'), contactEmail: val('f_contactEmail'), bookingUrl: val('f_bookingUrl'), customDomain: val('f_customDomain'), heroImage: val('f_heroImage'),
     stats: rows('[data-stat]',function(r){ return { n:r.querySelector('.s_n').value, l:r.querySelector('.s_l').value }; }).filter(function(x){return x.n||x.l;}),
     services: rows('[data-svc]',function(r){ return { t:r.querySelector('.v_t').value, d:r.querySelector('.v_d').value }; }).filter(function(x){return x.t||x.d;}),
+    concepts: (val('f_concepts')||'').split('\n').map(function(x){return x.trim();}).filter(Boolean),
     offices: rows('[data-off]',function(r){ return { city:r.querySelector('.o_c').value, phone:r.querySelector('.o_p').value }; }).filter(function(x){return x.city||x.phone;}),
     processes: rows('[data-proc]',function(r){
       var steps=Array.prototype.slice.call(r.querySelectorAll('[data-step]')).map(function(sr){ return { t:sr.querySelector('.st_t').value, d:sr.querySelector('.st_d').value }; }).filter(function(x){return x.t||x.d;});
