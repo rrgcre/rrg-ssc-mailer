@@ -169,6 +169,8 @@ function render(){
 
   +'<div class="card"><h2>Contact</h2><p class="sub">The contact form drops leads straight into the inbox below. Email is optional and shown on the site.</p>'
     +'<div class="f" style="max-width:420px"><label class="fld">Public contact email (optional)</label><input id="f_contactEmail" value="'+esc(s.contactEmail||'')+'" placeholder="info@rrgcre.com"></div>'
+    +'<div class="f"><label class="fld">Book-a-call link (your scheduling page)</label><input id="f_bookingUrl" value="'+esc(s.bookingUrl||'')+'" placeholder="https://rrg-ssc-mailer.onrender.com/book/…"></div>'
+    +'<div class="hint">Paste your booking link so visitors can grab a time directly. Get it from <a href="./rrg_account.html" target="_blank" style="color:#2c5c8f;font-weight:700;text-decoration:none">Account → Booking &amp; Availability</a> (turn on your booking page, then copy the share link). When set, a “📅 Book a call” button appears on the site.</div>'
   +'</div>'
 
   +'<div class="card"><h2>Connect your domain</h2><p class="sub">Point www.rrgcre.com at this site.</p>'
@@ -211,7 +213,7 @@ function collect(){
   return {
     published: el('f_published').checked,
     brand: val('f_brand'), tagline: val('f_tagline'), heroSub: val('f_heroSub'), heroCtaText: val('f_heroCtaText'),
-    aboutHead: val('f_aboutHead'), about: val('f_about'), contactEmail: val('f_contactEmail'), customDomain: val('f_customDomain'), heroImage: val('f_heroImage'),
+    aboutHead: val('f_aboutHead'), about: val('f_about'), contactEmail: val('f_contactEmail'), bookingUrl: val('f_bookingUrl'), customDomain: val('f_customDomain'), heroImage: val('f_heroImage'),
     stats: rows('[data-stat]',function(r){ return { n:r.querySelector('.s_n').value, l:r.querySelector('.s_l').value }; }).filter(function(x){return x.n||x.l;}),
     services: rows('[data-svc]',function(r){ return { t:r.querySelector('.v_t').value, d:r.querySelector('.v_d').value }; }).filter(function(x){return x.t||x.d;}),
     offices: rows('[data-off]',function(r){ return { city:r.querySelector('.o_c').value, phone:r.querySelector('.o_p').value }; }).filter(function(x){return x.city||x.phone;}),

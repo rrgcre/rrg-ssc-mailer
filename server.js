@@ -6847,6 +6847,7 @@ function defaultWebsite() {
       { city: 'New Braunfels', phone: '830-929-5224' }
     ],
     contactEmail: '',
+    bookingUrl: '',
     customDomain: 'www.rrgcre.com',
     processes: [
       { name: 'Selling a restaurant', steps: [
@@ -6917,6 +6918,7 @@ app.post('/api/website', requireAdmin, express.json({ limit: '256kb' }), (req, r
   if (b.aboutHead !== undefined) out.aboutHead = S(b.aboutHead, 120);
   if (b.about !== undefined) out.about = S(b.about, 2000);
   if (b.contactEmail !== undefined) out.contactEmail = S(b.contactEmail, 160);
+  if (b.bookingUrl !== undefined) out.bookingUrl = S(b.bookingUrl, 300);
   if (b.customDomain !== undefined) out.customDomain = S(b.customDomain, 120);
   if (Array.isArray(b.stats)) out.stats = b.stats.slice(0, 6).map(function (x) { return { n: S(x && x.n, 16), l: S(x && x.l, 48) }; }).filter(function (x) { return x.n || x.l; });
   if (Array.isArray(b.services)) out.services = b.services.slice(0, 8).map(function (x) { return { t: S(x && x.t, 80), d: S(x && x.d, 400) }; }).filter(function (x) { return x.t || x.d; });
@@ -6932,7 +6934,7 @@ app.post('/api/website', requireAdmin, express.json({ limit: '256kb' }), (req, r
 // Public — config subset + live listings
 app.get('/api/website/public', (req, res) => {
   const s = loadWebsite();
-  const pub = { brand: s.brand, tagline: s.tagline, heroSub: s.heroSub, heroCtaText: s.heroCtaText, heroImage: s.heroImage, stats: s.stats, services: s.services, processes: s.processes, wins: s.wins, aboutHead: s.aboutHead, about: s.about, offices: s.offices, contactEmail: s.contactEmail, published: !!s.published };
+  const pub = { brand: s.brand, tagline: s.tagline, heroSub: s.heroSub, heroCtaText: s.heroCtaText, heroImage: s.heroImage, stats: s.stats, services: s.services, processes: s.processes, wins: s.wins, aboutHead: s.aboutHead, about: s.about, offices: s.offices, contactEmail: s.contactEmail, bookingUrl: s.bookingUrl, published: !!s.published };
   res.json({ ok: true, site: pub, org: orgDisplayName(), listings: websitePublicListings() });
 });
 // Public — contact / lead form submission, captured for the Website manager
@@ -7045,7 +7047,7 @@ function publicSitePage(req) {
     const metHtml = mets.length ? mets.join('') : '<div><div class="v" style="font-size:14px">Under NDA</div><div class="k">Financials on request</div></div>';
     const ribbon = (t.flagLabel || t.featured) ? ('<span class="fribbon">' + esc(t.flagLabel || '★ Featured') + '</span>') : '';
     return '<a class="fcard" href="/market">'
-      + '<div class="ftop"><span class="med">' + ICON.fork + '</span><div class="floc">' + esc(t.loc || t.marketKey || 'Texas') + '</div>' + ribbon + '</div>'
+      + '<div class="ftop"><span class="med">' + ICON.fork + '</span><div class="floc">' + esc(t.loc || t.marketKey || 'Texas') + '</div><span class="exbadge">Exclusive</span>' + ribbon + '</div>'
       + '<h3>' + esc(t.headline || 'Confidential restaurant opportunity') + '</h3><div class="fbadge">' + esc(t.badge || 'Restaurant') + '</div>'
       + '<div class="fmet">' + metHtml + '</div>'
       + '<div class="ffoot"><span class="flock">' + lockSvg + 'Blind until NDA</span><span class="act">Request details &rarr;</span></div>'
@@ -7055,6 +7057,8 @@ function publicSitePage(req) {
 
   const interestOpts = '<option value="">What can we help with?</option>' + (s.services || []).map(function (x) { return '<option>' + esc(x.t || '') + '</option>'; }).join('') + '<option>General inquiry</option>';
   const email = esc(s.contactEmail || '');
+  const bookUrl = String(s.bookingUrl || '').replace(/["'<>]/g, '').trim();
+  const bookBtn = bookUrl ? ('<a class="btn gold" href="' + bookUrl + '" target="_blank" rel="noopener">📅 Book a call</a>') : '';
   const officeHtml = (s.offices || []).map(function (o) { const ph = esc(o.phone || ''); const tel = ph.replace(/[^0-9+]/g, ''); return '<div class="off"><div class="offc">' + esc(o.city || '') + '</div>' + (ph ? ('<a class="offp" href="tel:' + tel + '">' + ICON.phone + '<span>' + ph + '</span></a>') : '') + '</div>'; }).join('');
   const PROC_DEFAULT = [
     { name: 'Selling a restaurant', steps: [
@@ -7227,6 +7231,8 @@ section{padding:84px 0;}
 .fcard .med svg{width:23px;height:23px;}
 .fcard .floc{font-size:10.5px;color:var(--soft);font-weight:700;text-transform:uppercase;letter-spacing:.05em;}
 .fcard .fribbon{margin-left:auto;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#fff;background:var(--red);border:1px solid var(--red);border-radius:100px;padding:5px 11px;}
+.fcard .exbadge{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#8a6a1f;background:rgba(200,162,75,.16);border:1px solid rgba(200,162,75,.5);border-radius:100px;padding:3px 9px;}
+.fcard .ftop .fribbon{margin-left:auto;}
 .fcard h3{font-size:17px;font-weight:700;font-family:'Fraunces',serif;color:var(--navy);line-height:1.22;margin:12px 0 2px;letter-spacing:-.01em;}
 .fcard .fbadge{font-size:12px;color:var(--muted);font-weight:600;}
 .fcard .fmet{display:flex;gap:22px;margin:14px 0;padding:12px 0;border-top:1px solid var(--line2);border-bottom:1px solid var(--line2);flex-wrap:wrap;}
@@ -7388,8 +7394,8 @@ footer{background:#05081a;color:#8597b8;font-size:13px;padding:40px 0 30px;}
 </div></div></section>
 
 <div class="ctaband"><div class="wrap"><div class="ctab">
-  <h3 class="serif">Thinking about buying, selling, or leasing a restaurant?</h3>
-  <a class="btn dark" href="#contact">Talk to a broker &rarr;</a>
+  <h3 class="serif">Thinking about buying, selling, or leasing a restaurant or bar?</h3>
+  <div style="display:flex;gap:12px;flex-wrap:wrap">${bookBtn}<a class="btn dark" href="#contact">Talk to a broker &rarr;</a></div>
 </div></div></div>
 
 <section id="contact" class="contact"><div class="wrap"><div class="cgrid">
@@ -7397,6 +7403,7 @@ footer{background:#05081a;color:#8597b8;font-size:13px;padding:40px 0 30px;}
     <div class="eyebrow">Get in touch</div>
     <div class="h2">Let’s talk about your restaurant</div>
     <p class="lead">Buying, selling, leasing, or just weighing your options — tell us what you’re working on and the right broker will reach out.</p>
+    ${bookUrl ? ('<div style="margin-top:20px"><div style="font-size:12.5px;color:#9fb0cc;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:9px">Prefer to grab a time?</div>' + bookBtn + '</div>') : ''}
     ${email ? ('<p class="lead" style="margin-top:14px">Prefer email? <a style="color:#fff;font-weight:800" href="mailto:' + email + '">' + email + '</a></p>') : ''}
   </div>
   <form class="form" id="leadForm" novalidate>
