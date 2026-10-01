@@ -7010,10 +7010,10 @@ function publicSitePage(req) {
 
   // --- inline SVG icon set (stroke = currentColor) ---
   const ICON = {
-    sell: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 9.5 5 4.8h14l1.5 4.7"/><path d="M5.2 9.6V19.5h13.6V9.6"/><path d="M3.5 9.5a2.4 2.4 0 0 0 4.8 0 2.4 2.4 0 0 0 4.8 0 2.4 2.4 0 0 0 4.8 0"/><path d="M9.5 19.5v-4.8h5v4.8"/></svg>',
-    exit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3.5H6.2a1 1 0 0 0-1 1v15a1 1 0 0 0 1 1H13"/><path d="M9.8 12h11"/><path d="M17.8 8.6 21.3 12l-3.5 3.4"/></svg>',
-    secure: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.2s-6.3-5.2-6.3-10.3a6.3 6.3 0 0 1 12.6 0C18.3 16 12 21.2 12 21.2Z"/><circle cx="12" cy="10.4" r="2.3"/></svg>',
-    place: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7.2 20.5h9.6"/><path d="M8 20.5v-3.8h8v3.8"/><path d="M8.2 16.7C5.8 16.7 4 15 4 12.7c0-2 1.7-3.6 3.8-3.6.3-2 2.1-3.6 4.2-3.6s3.9 1.6 4.2 3.6c2.1 0 3.8 1.6 3.8 3.6 0 2.3-1.8 4-4.2 4"/></svg>',
+    sell: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.4 9.3 5 4.8h14l1.6 4.5a2.5 2.5 0 0 1-4.5 1.5 2.5 2.5 0 0 1-3.8 0 2.5 2.5 0 0 1-3.8 0A2.5 2.5 0 0 1 3.4 9.3Z"/><path d="M5 11.4h14V20a1 1 0 0 1-1 1h-3.6v-5.1a1 1 0 0 0-1-1h-2.8a1 1 0 0 0-1 1V21H6a1 1 0 0 1-1-1V11.4Z"/></svg>',
+    exit: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 3.5h9a1 1 0 0 1 1 1V9h-2.1V5.6H6v12.8h5.9V15H14v4.5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z"/><path d="M14.6 12H21.2" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" fill="none"/><path d="M18.3 9.2 21.3 12l-3 2.8" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>',
+    secure: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.2a7 7 0 0 0-7 7c0 5.1 7 12 7 12s7-6.9 7-12a7 7 0 0 0-7-7Z"/><circle cx="12" cy="9.2" r="2.6" fill="#0d1f49"/></svg>',
+    place: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 17.2h10V20a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1v-2.8Z"/><path d="M17 16.2H7a4.4 4.4 0 0 1-1.1-8.7A5 5 0 0 1 16.1 6.6 4.4 4.4 0 0 1 17 16.2Z"/></svg>',
     value: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l3-4 3 2 4-6"/></svg>',
     brief: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
     fork: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v6a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V3"/><path d="M7 11v10"/><path d="M17 3c-1.7 0-3 2-3 5s1.3 4 3 4m0 0v9m0-9c1.7 0 3-1 3-4s-1.3-5-3-5"/></svg>',
@@ -7146,7 +7146,7 @@ a{color:inherit;}
 .btn.ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.34);}
 .btn.ghost:hover{border-color:#fff;background:rgba(255,255,255,.06);}
 /* header */
-header{position:sticky;top:0;z-index:40;background:rgba(6,14,34,.82);backdrop-filter:blur(10px);border-bottom:1px solid rgba(255,255,255,.08);}
+header{position:sticky;top:0;z-index:40;background:#000E31;border-bottom:1px solid rgba(200,162,75,.22);box-shadow:0 2px 14px rgba(0,0,0,.18);}
 .nav{display:flex;align-items:center;gap:20px;padding:15px 0;}
 .brand{display:flex;align-items:center;gap:11px;color:#fff;text-decoration:none;}
 .brand .disc{width:38px;height:38px;border-radius:8px;background:var(--red);color:#fff;font:900 13px/1 'Arial Black',Arial;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;box-shadow:0 4px 14px rgba(218,43,31,.4);}
@@ -7197,19 +7197,16 @@ section{padding:84px 0;}
 /* services */
 .svcs{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;margin-top:40px;}
 @media(max-width:720px){.svcs{grid-template-columns:1fr;}}
-.svc{position:relative;border:1px solid var(--line2);border-radius:16px;padding:30px 28px 32px;background:#fff;box-shadow:0 2px 8px rgba(10,20,50,.04);transition:box-shadow .2s,transform .2s,border-color .2s;overflow:hidden;}
-.svc::before{content:'';position:absolute;inset:0;background:linear-gradient(160deg,rgba(44,92,143,.05),transparent 42%);pointer-events:none;opacity:0;transition:opacity .2s;}
-.svc:hover::before{opacity:1;}
-.svc::after{content:'';position:absolute;left:0;top:0;height:3px;width:52px;background:var(--gold);transition:width .25s;}
-.svc:hover::after{width:100%;}
-.svc:hover{border-color:#cfd8ea;box-shadow:0 22px 50px rgba(10,20,50,.12);transform:translateY(-4px);}
+.svc{position:relative;border:1px solid var(--line2);border-radius:16px;padding:30px 28px 32px;background:#fff;box-shadow:0 2px 8px rgba(10,20,50,.04);transition:box-shadow .2s,border-color .2s;overflow:hidden;}
+.svc::after{content:'';position:absolute;left:0;top:0;height:3px;width:52px;background:var(--gold);}
+.svc:hover{border-color:#d7dceb;box-shadow:0 6px 18px rgba(10,20,50,.06);}
 .svcic{position:relative;width:58px;height:58px;border-radius:15px;background:linear-gradient(155deg,#16305f,#0A1733);color:var(--gold2);display:flex;align-items:center;justify-content:center;margin-bottom:18px;box-shadow:0 10px 24px rgba(10,23,51,.28),inset 0 1px 0 rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.06);}
 .svcic svg{width:28px;height:28px;}
 .svct{font-size:20px;font-weight:700;color:var(--navy);font-family:'Fraunces',serif;letter-spacing:-.01em;}
 .svcd{color:var(--muted);font-size:14.5px;margin-top:9px;line-height:1.6;}
 /* process */
 .process{background:var(--cream);border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
-.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:40px;counter-reset:st;}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(176px,1fr));gap:18px;margin-top:40px;position:relative;}
 @media(max-width:860px){.steps{grid-template-columns:repeat(2,1fr);}}
 @media(max-width:520px){.steps{grid-template-columns:1fr;}}
 .step{position:relative;}
@@ -7321,6 +7318,44 @@ footer{background:#05081a;color:#8597b8;font-size:13px;padding:40px 0 30px;}
 .win .wl{font-family:'Fraunces',serif;font-size:16.5px;font-weight:600;color:#fff;line-height:1.25;}
 .win .wm{color:#9fb0cc;font-size:12.5px;margin-top:6px;}
 .trackfoot{margin-top:26px;color:#8fa0c0;font-size:12.5px;}
+/* ================= polish pass ================= */
+html{scroll-padding-top:86px;}
+section[id],a[id]{scroll-margin-top:86px;}
+*:focus-visible{outline:2px solid var(--blue2);outline-offset:3px;border-radius:3px;}
+.btn{transition:transform .14s,filter .14s,box-shadow .16s,background .14s;}
+.btn:active{transform:translateY(0);}
+.btn.gold:hover{filter:brightness(1.04);box-shadow:0 12px 30px rgba(200,162,75,.34);}
+.btn.red:hover{filter:brightness(1.06);box-shadow:0 12px 26px rgba(218,43,31,.3);}
+.btn.navy:hover{filter:brightness(1.18);box-shadow:0 12px 28px rgba(10,20,50,.3);}
+.btn.ghost:hover{background:rgba(255,255,255,.08);border-color:#fff;}
+/* editorial eyebrow tick */
+.eyebrow{display:inline-flex;align-items:center;gap:11px;}
+.eyebrow::before{content:'';width:24px;height:2px;background:currentColor;opacity:.8;border-radius:2px;flex:none;}
+/* nav underline reveal */
+.nav a.navlink{position:relative;padding:4px 1px;}
+.nav a.navlink::after{content:'';position:absolute;left:0;right:100%;bottom:-3px;height:2px;background:var(--gold2);transition:right .22s ease;}
+.nav a.navlink:hover::after{right:0;}
+/* process: connecting rail behind the numbered steps */
+.ppanel .steps::before{content:'';position:absolute;left:28px;right:28px;top:22px;height:2px;background:linear-gradient(90deg,transparent,rgba(10,23,51,.14) 12%,rgba(10,23,51,.14) 88%,transparent);z-index:0;}
+@media(max-width:700px){.ppanel .steps::before{display:none;}}
+.step{position:relative;z-index:1;}
+.stepn{position:relative;z-index:1;}
+/* lift states */
+.metro{transition:transform .16s,border-color .16s,background .16s;}
+.metro:hover{border-color:rgba(200,162,75,.35);background:rgba(255,255,255,.07);}
+.win{transition:transform .16s,border-color .16s,box-shadow .16s;}
+.win:hover{border-color:rgba(200,162,75,.32);}
+.off{transition:transform .16s,border-color .16s,box-shadow .16s;}
+.off:hover{border-color:#d7dceb;}
+.fcard{will-change:transform;}
+/* footer brand rule */
+footer{position:relative;}
+footer::before{content:'';position:absolute;left:0;right:0;top:0;height:2px;background:linear-gradient(90deg,var(--red),var(--gold2) 42%,var(--blue2) 82%,transparent);opacity:.85;}
+.foot a{transition:color .14s;}
+/* section-heading hairline accent under the H2 for editorial polish */
+.sec-head .h2{position:relative;}
+/* respect reduced motion */
+@media(prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;transition:none!important;scroll-behavior:auto!important;}}
 </style>${heroBgStyle}</head>
 <body>
 <header><div class="wrap"><nav class="nav">
