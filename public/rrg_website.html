@@ -176,7 +176,10 @@ function render(){
 
   +'<div class="card"><h2>Stats band</h2><p class="sub">The numbers shown under the hero.</p><div id="statsBox"></div><button type="button" class="addbtn" onclick="addStat()">+ Add stat</button></div>'
 
-  +'<div class="card"><h2>Services</h2><p class="sub">What you do — shown as cards.</p><div id="svcBox"></div><button type="button" class="addbtn" onclick="addSvc()">+ Add service</button>'
+  +'<div class="card"><h2>Services</h2><p class="sub">What you do — shown as cards.</p>'
+    +'<div class="f"><label class="fld">Section heading</label><input id="f_servicesHead" value="'+esc(s.servicesHead||'')+'" placeholder="Full-service representation across food &amp; beverage"></div>'
+    +'<div class="f" style="margin-top:12px"><label class="fld">Section intro line</label><textarea id="f_servicesLead" style="min-height:70px" placeholder="One or two sentences introducing what you do.">'+esc(s.servicesLead||'')+'</textarea></div>'
+    +'<div style="height:10px"></div><div id="svcBox"></div><button type="button" class="addbtn" onclick="addSvc()">+ Add service</button>'
     +'<div class="f" style="margin-top:16px"><label class="fld">Concept tags (one per line)</label><textarea id="f_concepts" style="min-height:120px" placeholder="Multi-unit &amp; portfolios&#10;Full-service restaurants&#10;Bars &amp; nightlife">'+esc((s.concepts||[]).join('\n'))+'</textarea><div class="sub" style="margin-top:4px">Shown as pills above the service cards. One concept per line. Any line containing “multi-unit” or “portfolio” is highlighted automatically.</div></div>'
     +'<div class="f" style="margin-top:16px"><label class="fld">Closing line (under the cards)</label><textarea id="f_servicesTransition" style="min-height:70px" placeholder="A one-line sentence that closes the section. Leave blank to hide it.">'+esc(s.servicesTransition||'')+'</textarea><div class="sub" style="margin-top:4px">Centered line shown beneath the service cards. Clear it to remove the line.</div></div>'
   +'</div>'
@@ -245,6 +248,7 @@ function collect(){
     aboutHead: val('f_aboutHead'), about: val('f_about'), contactEmail: val('f_contactEmail'), bookingUrl: val('f_bookingUrl'), customDomain: val('f_customDomain'), heroImage: val('f_heroImage'),
     stats: rows('[data-stat]',function(r){ return { n:r.querySelector('.s_n').value, l:r.querySelector('.s_l').value }; }).filter(function(x){return x.n||x.l;}),
     services: rows('[data-svc]',function(r){ return { t:r.querySelector('.v_t').value, d:r.querySelector('.v_d').value }; }).filter(function(x){return x.t||x.d;}),
+    servicesHead: val('f_servicesHead'), servicesLead: val('f_servicesLead'),
     concepts: (val('f_concepts')||'').split('\n').map(function(x){return x.trim();}).filter(Boolean),
     offices: rows('[data-off]',function(r){ return { city:r.querySelector('.o_c').value, phone:r.querySelector('.o_p').value }; }).filter(function(x){return x.city||x.phone;}),
     processes: rows('[data-proc]',function(r){

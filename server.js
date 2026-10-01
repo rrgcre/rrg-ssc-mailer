@@ -6838,6 +6838,8 @@ function defaultWebsite() {
       { t: 'Secure the Right Location', d: 'Identifying and negotiating the right restaurant space for your concept.' },
       { t: 'Place the Right Operator', d: 'Connecting qualified operators with the right properties and landlords.' }
     ],
+    servicesHead: 'Full-service representation across food & beverage',
+    servicesLead: 'Whatever the concept, we run the entire transaction — from first valuation to a clean close — for sellers, buyers, landlords, and tenants.',
     concepts: ['Multi-unit & portfolios', 'Full-service restaurants', 'Quick-serve & fast-casual', 'Bars & nightlife', 'Food halls', 'Cafés & coffee', 'Breweries & taprooms', 'Ghost kitchens'],
     servicesTransition: 'Whatever the deal, the standard is the same — a defined path built to protect your leverage, hold momentum, and produce real outcomes.',
     aboutHead: 'Why operators trust RRG',
@@ -6920,6 +6922,8 @@ app.post('/api/website', requireAdmin, express.json({ limit: '256kb' }), (req, r
   if (b.heroSub !== undefined) out.heroSub = S(b.heroSub, 600);
   if (b.heroCtaText !== undefined) out.heroCtaText = S(b.heroCtaText, 60) || d.heroCtaText;
   if (b.heroImage !== undefined) out.heroImage = S(b.heroImage, 600);
+  if (b.servicesHead !== undefined) out.servicesHead = S(b.servicesHead, 160);
+  if (b.servicesLead !== undefined) out.servicesLead = S(b.servicesLead, 500);
   if (b.servicesTransition !== undefined) out.servicesTransition = S(b.servicesTransition, 400);
   if (b.aboutHead !== undefined) out.aboutHead = S(b.aboutHead, 120);
   if (b.about !== undefined) out.about = S(b.about, 2000);
@@ -6941,7 +6945,7 @@ app.post('/api/website', requireAdmin, express.json({ limit: '256kb' }), (req, r
 // Public — config subset + live listings
 app.get('/api/website/public', (req, res) => {
   const s = loadWebsite();
-  const pub = { brand: s.brand, tagline: s.tagline, heroSub: s.heroSub, heroCtaText: s.heroCtaText, heroImage: s.heroImage, stats: s.stats, services: s.services, concepts: s.concepts, servicesTransition: s.servicesTransition, processes: s.processes, wins: s.wins, aboutHead: s.aboutHead, about: s.about, offices: s.offices, contactEmail: s.contactEmail, bookingUrl: s.bookingUrl, published: !!s.published };
+  const pub = { brand: s.brand, tagline: s.tagline, heroSub: s.heroSub, heroCtaText: s.heroCtaText, heroImage: s.heroImage, stats: s.stats, services: s.services, servicesHead: s.servicesHead, servicesLead: s.servicesLead, concepts: s.concepts, servicesTransition: s.servicesTransition, processes: s.processes, wins: s.wins, aboutHead: s.aboutHead, about: s.about, offices: s.offices, contactEmail: s.contactEmail, bookingUrl: s.bookingUrl, published: !!s.published };
   res.json({ ok: true, site: pub, org: orgDisplayName(), listings: websitePublicListings() });
 });
 // Public — contact / lead form submission, captured for the Website manager
@@ -7976,8 +7980,8 @@ ${SITE_CSS}
 </div></div></div>
 
 <section id="services"><div class="wrap">
-  <div class="sec-head"><div class="eyebrow">What we do</div><div class="h2">Full-service representation across food &amp; beverage</div>
-  <p class="lead">Whatever the concept, we run the entire transaction — from first valuation to a clean close — for sellers, buyers, landlords, and tenants.</p></div>
+  <div class="sec-head"><div class="eyebrow">What we do</div><div class="h2">${esc(s.servicesHead || '')}</div>
+  ${s.servicesLead ? '<p class="lead">' + esc(s.servicesLead) + '</p>' : ''}</div>
   ${conceptHtml ? '<div class="concepts">' + conceptHtml + '</div>' : ''}
   <div class="svcs">${svcHtml}</div>
   ${s.servicesTransition ? '<p class="svctrans">' + esc(s.servicesTransition) + '</p>' : ''}
