@@ -7201,12 +7201,12 @@ a{color:inherit;}
 .wrap{max-width:1180px;margin:0 auto;padding:0 26px;}
 .eyebrow{color:var(--blue);font-weight:700;letter-spacing:.2em;text-transform:uppercase;font-size:11.5px;}
 .hero .eyebrow{color:var(--gold2);}
-.btn{display:inline-block;text-decoration:none;font-weight:800;font-size:15px;padding:15px 30px;border-radius:7px;cursor:pointer;border:none;transition:transform .08s ease,filter .14s;letter-spacing:.01em;}
-.btn.red{background:var(--red);color:#fff;}
-.btn.gold{background:var(--gold);color:#201700;}
-.btn.navy{background:var(--navy);color:#fff;}
-.btn.ghost{background:rgba(255,255,255,.05);color:#fff;border:2px solid rgba(255,255,255,.5);}
-.btn.ghost:hover{border-color:#fff;background:rgba(255,255,255,.1);}
+.btn{display:inline-block;text-decoration:none;font-weight:800;font-size:15px;padding:16px 30px;border-radius:12px;cursor:pointer;border:none;transition:transform .14s ease,filter .14s,box-shadow .14s;letter-spacing:.01em;}
+.btn.red{background:var(--red);color:#fff;box-shadow:0 12px 26px rgba(218,43,31,.32),inset 0 1px 0 rgba(255,255,255,.28);}
+.btn.gold{background:var(--gold);color:#201700;box-shadow:0 12px 26px rgba(200,162,75,.34),inset 0 1px 0 rgba(255,255,255,.4);}
+.btn.navy{background:var(--navy);color:#fff;box-shadow:0 12px 26px rgba(10,20,50,.3),inset 0 1px 0 rgba(255,255,255,.12);}
+.btn.ghost{background:#fff;color:var(--navy);border:2px solid #fff;box-shadow:0 10px 24px rgba(0,0,0,.18);}
+.btn.ghost:hover{background:#f2f6fb;border-color:#f2f6fb;}
 /* header */
 header{position:sticky;top:0;z-index:40;background:#000E31;border-bottom:1px solid rgba(200,162,75,.22);box-shadow:0 2px 14px rgba(0,0,0,.18);}
 .nav{display:flex;align-items:center;gap:20px;padding:15px 0;}
@@ -7389,9 +7389,9 @@ footer{background:#05081a;color:#8597b8;font-size:13px;padding:40px 0 30px;}
 html{scroll-padding-top:86px;}
 section[id],a[id]{scroll-margin-top:86px;}
 *:focus-visible{outline:2px solid var(--blue2);outline-offset:3px;border-radius:3px;}
-.btn:hover{filter:brightness(1.06);}
-.btn:active{transform:translateY(1px);}
-.btn.ghost:hover{background:rgba(255,255,255,.1);border-color:#fff;}
+.btn:hover{transform:translateY(-2px);filter:brightness(1.04);}
+.btn:active{transform:translateY(0);}
+.btn.ghost:hover{background:#eef3fb;border-color:#eef3fb;}
 /* editorial eyebrow tick */
 .eyebrow{display:inline-flex;align-items:center;gap:11px;}
 .eyebrow::before{content:'';width:24px;height:2px;background:currentColor;opacity:.8;border-radius:2px;flex:none;}
