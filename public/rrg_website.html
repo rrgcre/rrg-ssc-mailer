@@ -207,6 +207,14 @@ function render(){
     +'<div class="subh">FAQ <span class="sub" style="font-weight:600">· “Operator questions”</span></div><div id="muFaqBox"></div><button type="button" class="addbtn" onclick="addQA(\'muFaqBox\',\'mufaq\')">+ Add question</button>'
   +'</div>'
 
+  +'<div class="card"><h2>Exit page <span class="sub" style="font-weight:600">· /site/exit</span></h2><p class="sub">The “Exit a Leased Location” detail page. Everything below is yours to edit.</p>'
+    +'<div class="f"><label class="fld">Hero headline</label><input id="f_exitHeroHead" value="'+esc(s.exitHeroHead||'')+'"></div>'
+    +'<div class="f" style="margin-top:12px"><label class="fld">Hero sub-line</label><textarea id="f_exitHeroSub" style="min-height:66px">'+esc(s.exitHeroSub||'')+'</textarea></div>'
+    +'<div class="subh">Process steps <span class="sub" style="font-weight:600">· the numbered “How a clean exit runs”</span></div><div id="exitStepBox"></div><button type="button" class="addbtn" onclick="addTD(\'exitStepBox\',\'exitstep\',\'Step\')">+ Add step</button>'
+    +'<div class="subh">Value cards <span class="sub" style="font-weight:600">· “Get out clean — and get paid”</span></div><div id="exitValBox"></div><button type="button" class="addbtn" onclick="addTD(\'exitValBox\',\'exitval\',\'Value\')">+ Add value</button>'
+    +'<div class="subh">FAQ <span class="sub" style="font-weight:600">· “Common questions”</span></div><div id="exitFaqBox"></div><button type="button" class="addbtn" onclick="addQA(\'exitFaqBox\',\'exitfaq\')">+ Add question</button>'
+  +'</div>'
+
   +'<div class="card"><h2>Selected transactions</h2><p class="sub">Your “skins on the wall” — closed deals shown in the Track record section. Use Sold / Leased / Placed. Keep them confidential (no client names needed).</p><div id="winBox"></div><button type="button" class="addbtn" onclick="addWin()">+ Add transaction</button></div>'
 
   +'<div class="card"><h2>About</h2>'
@@ -244,6 +252,9 @@ function render(){
   el('muStepBox').innerHTML=(s.muSteps||[]).map(function(x,i){return rowTD(x,i,'mustep','Step');}).join('');
   el('muValBox').innerHTML=(s.muValues||[]).map(function(x,i){return rowTD(x,i,'muval','Value');}).join('');
   el('muFaqBox').innerHTML=(s.muFaqs||[]).map(function(x,i){return rowQA(x,i,'mufaq');}).join('');
+  el('exitStepBox').innerHTML=(s.exitSteps||[]).map(function(x,i){return rowTD(x,i,'exitstep','Step');}).join('');
+  el('exitValBox').innerHTML=(s.exitValues||[]).map(function(x,i){return rowTD(x,i,'exitval','Value');}).join('');
+  el('exitFaqBox').innerHTML=(s.exitFaqs||[]).map(function(x,i){return rowQA(x,i,'exitfaq');}).join('');
   el('leadBox').innerHTML=LEADS.length?LEADS.map(leadRow).join(''):'<div class="empty">No leads yet. They’ll show up here the moment someone uses your contact form.</div>';
   el('subBox').innerHTML=SUBS.length?SUBS.map(subRow).join(''):'<div class="empty">No subscribers yet. Share your <b>/site/subscribe</b> link to start building the list.</div>';
   heroPreview(s.heroImage||''); renderDns(); updateStatusLbl();
@@ -284,6 +295,8 @@ function collect(){
     sellSteps: rows('[data-sellstep]',tdMap).filter(tdKeep), sellValues: rows('[data-sellval]',tdMap).filter(tdKeep), sellFaqs: rows('[data-sellfaq]',qaMap).filter(qaKeep),
     muHeroHead: val('f_muHeroHead'), muHeroSub: val('f_muHeroSub'),
     muSteps: rows('[data-mustep]',tdMap).filter(tdKeep), muValues: rows('[data-muval]',tdMap).filter(tdKeep), muFaqs: rows('[data-mufaq]',qaMap).filter(qaKeep),
+    exitHeroHead: val('f_exitHeroHead'), exitHeroSub: val('f_exitHeroSub'),
+    exitSteps: rows('[data-exitstep]',tdMap).filter(tdKeep), exitValues: rows('[data-exitval]',tdMap).filter(tdKeep), exitFaqs: rows('[data-exitfaq]',qaMap).filter(qaKeep),
     offices: rows('[data-off]',function(r){ return { city:r.querySelector('.o_c').value, phone:r.querySelector('.o_p').value }; }).filter(function(x){return x.city||x.phone;}),
     processes: rows('[data-proc]',function(r){
       var steps=Array.prototype.slice.call(r.querySelectorAll('[data-step]')).map(function(sr){ return { t:sr.querySelector('.st_t').value, d:sr.querySelector('.st_d').value }; }).filter(function(x){return x.t||x.d;});

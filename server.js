@@ -6890,6 +6890,30 @@ function defaultWebsite() {
       { q: 'Can you do sale-leasebacks or sell only part of the group?', a: 'Yes. We structure full sales, partial sales, and sale-leasebacks that unlock the capital in your owned real estate while you keep operating — whatever fits your goals for the portfolio.' },
       { q: 'What does a portfolio transaction timeline look like?', a: 'Longer than a single unit but just as controlled — valuation and packaging up front, a focused buyer process, then coordinated diligence and a close across all locations. A well-documented portfolio moves faster, which is what our process is built to deliver.' }
     ],
+    exitHeroHead: 'Exit your lease — clean, and with value in your pocket.',
+    exitHeroSub: 'Stuck in a lease on a location that\'s closed, underperforming, or no longer fits? We structure the exit as an asset sale to a replacement operator — by lease assignment, sublease, or a new lease with your landlord — so you recover value from your build-out and equipment, stop the rent, and get the liability off your name.',
+    exitSteps: [
+      { t: 'Assess the exposure', d: 'We read the lease and quantify what a clean exit really takes — remaining term, assignment and sublease rights, personal guaranty, and any restoration obligations.' },
+      { t: 'Value the assets', d: 'We price the FF&E, hood and refrigeration, leasehold improvements, and goodwill a replacement operator will actually pay for — instead of handing it back for free.' },
+      { t: 'Position the space', d: 'The space and assets are packaged and marketed discreetly to replacement tenants, assignees, and operators hunting second-generation restaurant space.' },
+      { t: 'Source the taker', d: 'We find and qualify the operator or assignee who makes the landlord whole and fits the space.' },
+      { t: 'Structure the exit', d: 'Assignment, sublease, or a new lease paired with an asset sale — structured to maximize your recovery and release your liability.' },
+      { t: 'Close & hand off', d: 'Documented, signed, and closed — keys handed over and the lease obligation off your name.' }
+    ],
+    exitValues: [
+      { t: 'Stop the bleed', d: 'Every month in a dead lease costs you rent, CAM, and exposure under your personal guaranty. We move to end it as fast as a clean deal allows.' },
+      { t: 'Recover real value', d: 'Your hood, walk-ins, equipment, build-out, and goodwill are worth money to the right incoming operator. We package and sell them — you don\'t walk away from them.' },
+      { t: 'The right taker', d: 'A clean exit needs an operator or assignee your landlord will approve. We source and qualify them so the deal actually closes.' },
+      { t: 'Landlord, handled', d: 'Assignment, sublease, or termination — negotiated and documented so the lease liability is truly off you, not lingering.' }
+    ],
+    exitFaqs: [
+      { q: 'I signed a personal guaranty — am I stuck?', a: 'Not necessarily. A personal guaranty raises the stakes, but the fix is the same: get a qualified replacement into the space so the landlord is made whole and your guaranty is released or burned off. We negotiate that release as part of the exit.' },
+      { q: 'The business is closed — can I still get value out of it?', a: 'Often, yes. The build-out, hood, walk-ins, and equipment in a former restaurant are worth real money to an operator who wants a second-generation space instead of building from scratch. We sell those assets rather than letting you hand them back for nothing.' },
+      { q: 'Assignment, sublease, or termination — which is right for me?', a: 'It depends on your lease terms, your landlord, and who the replacement is. An assignment transfers the lease and can release you; a sublease keeps you behind a paying subtenant; a negotiated termination buys your way out. We read the lease and recommend the path that gets you out cleanest.' },
+      { q: 'Will my landlord even allow this?', a: 'Most leases allow assignment or sublease with landlord consent, and a good landlord would rather have a paying, qualified operator than an empty box and a defaulting tenant. We manage that conversation so consent doesn\'t become the thing that kills the deal.' },
+      { q: 'How fast can I be out?', a: 'It depends on the space, the lease, and finding the right taker — but every week counts while rent is running. We move quickly to value, package, and market the space so you\'re not carrying a dead location any longer than you have to.' },
+      { q: 'The location loses money every month — where do I start?', a: 'With a call. Tell us the situation and we\'ll tell you what your lease and assets realistically allow, and the fastest clean path out. Confidential, no obligation.' }
+    ],
     aboutHead: 'Why operators trust RRG',
     about: 'Restaurant deals fail for predictable reasons. We run a detail-oriented, controlled process — from valuation and positioning through qualified buyers and a clean close — so your transaction gets done right. We represent sellers, buyers, landlords, and tenants across Texas.',
     offices: [
@@ -6939,7 +6963,7 @@ function loadWebsite() {
   try { s = rj(WEBSITE_FILE); } catch (e) {}
   if (!s || typeof s !== 'object') return d;
   const out = Object.assign({}, d, s);
-  ['stats', 'services', 'offices', 'processes', 'wins', 'concepts', 'sellSteps', 'sellValues', 'sellFaqs', 'muSteps', 'muValues', 'muFaqs'].forEach(function (k) { if (!Array.isArray(out[k]) || !out[k].length) out[k] = d[k]; });
+  ['stats', 'services', 'offices', 'processes', 'wins', 'concepts', 'sellSteps', 'sellValues', 'sellFaqs', 'muSteps', 'muValues', 'muFaqs', 'exitSteps', 'exitValues', 'exitFaqs'].forEach(function (k) { if (!Array.isArray(out[k]) || !out[k].length) out[k] = d[k]; });
   return out;
 }
 function saveWebsite(o) { return writeJsonGuarded(WEBSITE_FILE, o || {}, 'saveWebsite'); }
@@ -6984,6 +7008,11 @@ app.post('/api/website', requireAdmin, express.json({ limit: '256kb' }), (req, r
   if (Array.isArray(b.muSteps)) out.muSteps = cleanTD(b.muSteps, 8);
   if (Array.isArray(b.muValues)) out.muValues = cleanTD(b.muValues, 6);
   if (Array.isArray(b.muFaqs)) out.muFaqs = cleanQA(b.muFaqs, 12);
+  if (b.exitHeroHead !== undefined) out.exitHeroHead = S(b.exitHeroHead, 200);
+  if (b.exitHeroSub !== undefined) out.exitHeroSub = S(b.exitHeroSub, 700);
+  if (Array.isArray(b.exitSteps)) out.exitSteps = cleanTD(b.exitSteps, 8);
+  if (Array.isArray(b.exitValues)) out.exitValues = cleanTD(b.exitValues, 6);
+  if (Array.isArray(b.exitFaqs)) out.exitFaqs = cleanQA(b.exitFaqs, 12);
   if (b.servicesTransition !== undefined) out.servicesTransition = S(b.servicesTransition, 400);
   if (b.aboutHead !== undefined) out.aboutHead = S(b.aboutHead, 120);
   if (b.about !== undefined) out.about = S(b.about, 2000);
@@ -7102,6 +7131,174 @@ app.get('/site/sell', (req, res) => { res.set('Content-Type', 'text/html; charse
 
 // ===== Multi-unit & portfolio detail page: /site/multi-unit =====
 app.get('/site/multi-unit', (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8').send(siteMultiUnitPage(req)); });
+
+// ===== Lease-exit / asset-sale detail page: /site/exit =====
+app.get('/site/exit', (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8').send(siteExitPage(req)); });
+function siteExitPage(req) {
+  const s = loadWebsite();
+  const org = esc(s.brand || orgDisplayName() || 'Restaurant Realty Group');
+  const year = new Date().getFullYear();
+  const bookUrl = String(s.bookingUrl || '').replace(/["'<>]/g, '').trim();
+  const bookBtn = bookUrl ? ('<a class="btn gold" href="' + bookUrl + '" target="_blank" rel="noopener">📅 Book a call</a>') : '';
+  const email = esc(s.contactEmail || '');
+
+  const steps = Array.isArray(s.exitSteps) ? s.exitSteps : [];
+  const stepHtml = steps.slice(0, 8).map(function (x, j) { return '<div class="step"><div class="stepn">' + (j + 1) + '</div><div class="stepb"><div class="stept">' + esc(x.t || '') + '</div><div class="stepd">' + esc(x.d || '') + '</div></div></div>'; }).join('');
+
+  const exRe = /leas|assign|sublease|exit|2nd[- ]?gen|second[- ]?gen|endcap|termination/i;
+  const exWins = (s.wins || []).filter(function (w) { return exRe.test(String((w && w.label) || '') + ' ' + String((w && w.detail) || '') + ' ' + String((w && w.type) || '')); });
+  const winSrc = exWins.length ? exWins : (s.wins || []).slice(0, 6);
+  const winHtml = winSrc.slice(0, 6).map(function (w) { const type = String(w.type || '').toLowerCase(); const cls = type.indexOf('sold') >= 0 ? 'sold' : (type.indexOf('leas') >= 0 ? 'leased' : (type.indexOf('plac') >= 0 ? 'placed' : 'other')); const meta = [esc(w.market || ''), esc(w.detail || '')].filter(Boolean).join(' &middot; '); return '<div class="win"><span class="wtag ' + cls + '">' + esc(w.type || 'Closed') + '</span><div class="wl">' + esc(w.label || '') + '</div>' + (meta ? ('<div class="wm">' + meta + '</div>') : '') + '</div>'; }).join('');
+  const hasWins = !!winHtml;
+
+  const bookRow = bookUrl ? ('<div style="margin-top:20px"><div style="font-size:12.5px;color:#9fb0cc;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:9px">Prefer to grab a time?</div>' + bookBtn + '</div>') : '';
+  const emailRow = email ? ('<p class="lead" style="margin-top:14px">Prefer email? <a style="color:#fff;font-weight:800" href="mailto:' + email + '">' + email + '</a></p>') : '';
+  const offLinks = (s.offices || []).map(function (o) { const tel = String(o.phone || '').replace(/[^0-9+]/g, ''); return '<a href="tel:' + tel + '">' + esc(o.city || '') + ' &middot; ' + esc(o.phone || '') + '</a>'; }).join('');
+
+  const VIC = [
+    '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7.2v5l3.2 2" fill="none" stroke="#eef3fb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.6 12.6V5.3A1.7 1.7 0 0 1 5.3 3.6h7.3a1.7 1.7 0 0 1 1.2.5l6.1 6.1a1.7 1.7 0 0 1 0 2.4l-7.3 7.3a1.7 1.7 0 0 1-2.4 0l-6.1-6.1a1.7 1.7 0 0 1-.5-1.2Z"/><circle cx="7.7" cy="7.7" r="1.5" fill="#eef3fb"/></svg>',
+    '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="8" r="4.6"/><path d="M11 11 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M17.4 17.4l1.8-1.8M14.8 14.8l1.8-1.8" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>',
+    '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 2.5h8l4 4v15a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1Z"/><path d="M8.5 13.3l2.2 2.2 4.3-4.6" fill="none" stroke="#eef3fb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+  ];
+  const valueHtml = (Array.isArray(s.exitValues) ? s.exitValues : []).map(function (v, i) { return '<div class="svc" style="box-shadow:0 10px 26px rgba(10,20,50,.09)"><div class="svcic">' + (VIC[i] || VIC[0]) + '</div><div class="svct">' + esc(v.t || '') + '</div><div class="svcd">' + esc(v.d || '') + '</div></div>'; }).join('');
+
+  const faqHtml = (Array.isArray(s.exitFaqs) ? s.exitFaqs : []).map(function (f) { return '<details class="faq"><summary>' + esc(f.q || '') + '</summary><div class="fa">' + esc(f.a || '') + '</div></details>'; }).join('');
+
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exit a Leased Location — ${org}</title>
+<meta name="description" content="Exit a restaurant lease clean. ${org} structures lease exits as an asset sale to a replacement operator — assignment, sublease, or new lease — so you recover value and release your liability.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>${SITE_CSS}</style>
+<style>
+.shero{position:relative;background:linear-gradient(115deg,#060e22,#0a1733 55%,#122a5a);color:#fff;padding:52px 0 78px;overflow:hidden;}
+.shero::after{content:'';position:absolute;right:-140px;top:-140px;width:460px;height:460px;border-radius:50%;background:radial-gradient(circle,rgba(200,162,75,.16),transparent 70%);pointer-events:none;}
+.shero .wrap{position:relative;z-index:1;}
+.shero .eyebrow{color:var(--gold2);}
+.shero h1{font-family:'Fraunces',serif;font-weight:600;font-size:52px;line-height:1.05;letter-spacing:-.015em;margin:14px 0 0;max-width:18ch;text-wrap:balance;}
+@media(max-width:720px){.shero h1{font-size:34px;}}
+.shero .sub{color:#c6d1e6;font-size:18px;line-height:1.55;max-width:62ch;margin:20px 0 0;}
+.sherocta{display:flex;flex-wrap:wrap;gap:14px;margin-top:30px;}
+.strust{display:flex;flex-wrap:wrap;gap:10px 28px;margin-top:32px;color:#9fb0cc;font-size:13px;font-weight:700;}
+.strust span{display:inline-flex;align-items:center;gap:9px;}
+.strust b{color:var(--gold2);font-weight:800;}
+.sback{display:inline-flex;align-items:center;gap:7px;color:#9fb0cc;font-size:13px;font-weight:700;text-decoration:none;}
+.sback:hover{color:#fff;}
+.svalue{background:var(--cream);}
+.faqwrap{margin-top:38px;display:grid;gap:12px;max-width:840px;}
+.faq{border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden;box-shadow:0 2px 10px rgba(10,20,50,.04);}
+.faq summary{cursor:pointer;list-style:none;padding:19px 22px;font-family:'Fraunces',serif;font-weight:600;font-size:18px;color:var(--navy);display:flex;justify-content:space-between;align-items:center;gap:16px;}
+.faq summary::-webkit-details-marker{display:none;}
+.faq summary::after{content:'+';font-family:Inter,sans-serif;font-size:26px;color:var(--gold);font-weight:400;line-height:1;transition:transform .2s;}
+.faq[open] summary::after{transform:rotate(45deg);}
+.faq .fa{padding:0 22px 20px;color:var(--muted);font-size:15px;line-height:1.62;max-width:72ch;}
+</style></head>
+<body>
+<header><div class="wrap"><nav class="nav">
+  <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
+  <span class="sp"></span>
+  <a class="navlink" href="/site#services">All services</a>
+  <a class="navlink" href="#process">How it works</a>
+  <a class="navlink" href="/site#opportunities">Opportunities</a>
+  <a class="navlink" href="#track">Track record</a>
+  <a class="navcta" href="#contact">Talk about your exit</a>
+</nav></div></header>
+
+<section class="shero"><div class="wrap">
+  <a class="sback" href="/site">&larr; Back to ${org}</a>
+  <div class="eyebrow" style="margin-top:16px">Lease exits &amp; asset sales</div>
+  <h1>${esc(s.exitHeroHead || '')}</h1>
+  ${s.exitHeroSub ? '<p class="sub">' + esc(s.exitHeroSub) + '</p>' : ''}
+  <div class="sherocta">
+    <a class="btn red" href="#contact">Talk about your exit</a>
+    ${bookUrl ? bookBtn : '<a class="btn ghost" href="#process">See how it works</a>'}
+  </div>
+  <div class="strust">
+    <span><b>Asset sale</b> + lease transfer</span>
+    <span><b>Assignment</b>, sublease, or new lease</span>
+    <span><b>Guaranty</b> release negotiated</span>
+  </div>
+</div></section>
+
+<section class="svalue"><div class="wrap">
+  <div class="sec-head"><div class="eyebrow">Why exit with RRG</div><div class="h2">Get out clean — and get paid for what you built</div>
+  <p class="lead">A lease exit is not just walking away. It is an asset sale paired with a lease transfer — the right replacement operator, the right structure, and your liability released.</p></div>
+  <div class="svcs">${valueHtml}</div>
+</div></section>
+
+<section id="process" class="process"><div class="wrap">
+  <div class="sec-head"><div class="eyebrow">The process</div><div class="h2">How a clean exit runs</div>
+  <p class="lead">A controlled path from reading the lease to handing over the keys — built to protect your recovery and release your liability.</p></div>
+  <div class="ppanel on" style="margin-top:38px"><div class="steps">${stepHtml}</div></div>
+</div></section>
+
+${hasWins ? `<section id="track" class="track"><div class="wrap">
+  <div class="sec-head"><div class="eyebrow">Proof</div><div class="h2">Exits &amp; lease transfers we've closed</div>
+  <p class="lead">A sample of closed transactions. Details kept confidential — no client names needed to show the work.</p></div>
+  <div class="wins">${winHtml}</div>
+  <div class="trackfoot">Representative closings across Texas. Your outcome depends on your lease, your space, and the market.</div>
+</div></section>` : ''}
+
+<section class="svalue"><div class="wrap">
+  <div class="sec-head"><div class="eyebrow">Common questions</div><div class="h2">Answered, straight</div>
+  <p class="lead">What operators ask when they need out of a lease.</p></div>
+  <div class="faqwrap">${faqHtml}</div>
+</div></section>
+
+<section id="contact" class="contact"><div class="wrap"><div class="cgrid">
+  <div>
+    <div class="eyebrow">Start here</div>
+    <div class="h2">Let’s find your way out</div>
+    <p class="lead">Tell us about your location and your lease. On our first call we’ll walk through your exposure — remaining term, assignment rights, personal guaranty — and what your build-out and equipment are really worth, then lay out the cleanest path out. Confidential, and no obligation.</p>
+    ${bookRow}
+    ${emailRow}
+  </div>
+  <form class="form" id="leadForm" novalidate>
+    <div class="row">
+      <div class="fld"><label>Name</label><input id="lf_name" autocomplete="name" required></div>
+      <div class="fld"><label>Phone</label><input id="lf_phone" autocomplete="tel"></div>
+    </div>
+    <div class="fld"><label>Email</label><input id="lf_email" type="email" autocomplete="email"></div>
+    <div class="fld"><label>Tell us about your location &amp; lease</label><textarea id="lf_message" placeholder="Concept, location/market, remaining lease term, rent, whether you signed a personal guaranty, and your timeline…"></textarea></div>
+    <input type="hidden" id="lf_interest" value="Exit a Leased Location">
+    <div style="margin-top:18px;display:flex;align-items:center"><button type="submit" class="btn red" id="leadBtn">Talk about my exit</button><span class="lmsg" id="leadMsg"></span></div>
+  </form>
+</div></div></section>
+
+<footer><div class="wrap">
+  <div class="foot">
+    <div>
+      <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
+      <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
+    </div>
+    <div><h4>Explore</h4><a href="/site#services">Services</a><a href="/site#opportunities">Opportunities</a><a href="/market">Marketplace</a><a href="#contact">Contact</a></div>
+    <div><h4>Offices</h4>${offLinks}</div>
+  </div>
+  <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
+</div></footer>
+
+<script>
+(function(){
+  var f=document.getElementById('leadForm'); if(!f) return;
+  function val(id){ var el=document.getElementById(id); return el?String(el.value||'').trim():''; }
+  f.addEventListener('submit',function(e){ e.preventDefault();
+    var msg=document.getElementById('leadMsg'), btn=document.getElementById('leadBtn');
+    var body={ name:val('lf_name'), email:val('lf_email'), phone:val('lf_phone'), interest:val('lf_interest')||'Exit a Leased Location', message:val('lf_message') };
+    if(!body.name || (!body.email && !body.phone)){ msg.textContent='Add your name and an email or phone.'; msg.className='lmsg err'; return; }
+    var old=btn.textContent; btn.disabled=true; btn.textContent='Sending…'; msg.textContent='';
+    fetch('/api/website/lead',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+      .then(function(r){return r.json();}).then(function(j){
+        if(j&&j.ok){ f.reset(); document.getElementById('lf_interest').value='Exit a Leased Location'; msg.textContent='Thanks — we’ll be in touch shortly, confidentially.'; msg.className='lmsg ok'; }
+        else { msg.textContent=(j&&j.error)||'Something went wrong. Please call us.'; msg.className='lmsg err'; }
+        btn.disabled=false; btn.textContent=old;
+      }).catch(function(){ msg.textContent='Network error. Please call us.'; msg.className='lmsg err'; btn.disabled=false; btn.textContent=old; });
+  });
+})();
+</script>
+</body></html>`;
+}
+
 
 // ===== Listing-alert subscribe page: /site/subscribe =====
 app.get('/site/subscribe', (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8').send(siteSubscribePage(req)); });
@@ -7849,10 +8046,11 @@ function publicSitePage(req) {
     const ic = svcIcons[i] || ICON.brief;
     const oi = i + 1;
     const arrow = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
-    const isSell = /\bsell\b|selling|sale/i.test(String(x.t || ''));
+    const t = String(x.t || '');
+    const detailHref = (/\bsell\b|selling|sale/i.test(t)) ? '/site/sell' : ((/\bexit\b|leav|leased location|lease/i.test(t)) ? '/site/exit' : '');
     const inner = '<div class="svcic">' + ic + '</div><div class="svct">' + esc(x.t || '') + '</div><div class="svcd">' + esc(x.d || '') + '</div>';
-    if (isSell) {
-      return '<a class="svc" href="/site/sell">' + inner + '<span class="svccta">Learn more' + arrow + '</span></a>';
+    if (detailHref) {
+      return '<a class="svc" href="' + detailHref + '">' + inner + '<span class="svccta">Learn more' + arrow + '</span></a>';
     }
     return '<a class="svc" href="#contact" onclick="(function(){var s=document.getElementById(\'lf_interest\');if(s&&s.options[' + oi + '])s.selectedIndex=' + oi + ';})()">' + inner + '<span class="svccta">Discuss this' + arrow + '</span></a>';
   }).join('');
