@@ -7594,7 +7594,7 @@ ${SITE_CSS}
 
 <section id="services"><div class="wrap">
   <div class="sec-head"><div class="eyebrow">What we do</div><div class="h2">Full-service representation across food &amp; beverage</div>
-  <p class="lead">From full-service and quick-serve to bars, food trucks, and food halls — we handle the entire transaction, from first valuation to a clean close, for sellers, buyers, landlords, and tenants.</p></div>
+  <p class="lead">Whatever the concept, we run the entire transaction — from first valuation to a clean close — for sellers, buyers, landlords, and tenants.</p></div>
   <div class="concepts">
     <span class="cpill">Full-service restaurants</span><span class="cpill">Quick-serve &amp; fast-casual</span><span class="cpill">Bars &amp; nightlife</span><span class="cpill">Food trucks &amp; trailers</span><span class="cpill">Food halls</span><span class="cpill">Cafés &amp; coffee</span><span class="cpill">Breweries &amp; taprooms</span><span class="cpill">Ghost kitchens</span>
   </div>
