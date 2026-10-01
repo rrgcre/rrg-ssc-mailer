@@ -6842,6 +6842,54 @@ function defaultWebsite() {
     servicesLead: 'Whatever the concept, we run the entire transaction — from first valuation to a clean close — for sellers, buyers, landlords, and tenants.',
     concepts: ['Multi-unit & portfolios', 'Full-service restaurants', 'Quick-serve & fast-casual', 'Bars & nightlife', 'Food halls', 'Cafés & coffee', 'Breweries & taprooms', 'Ghost kitchens'],
     servicesTransition: 'Whatever the deal, the standard is the same — a defined path built to protect your leverage, hold momentum, and produce real outcomes.',
+    sellHeroHead: "Sell your restaurant — confidentially, and for what it's worth.",
+    sellHeroSub: 'Most restaurant sales leak value: the wrong price, the wrong buyers, and word getting out before the owner is ready. We run a controlled, confidential process built to protect your leverage and close clean.',
+    sellSteps: [
+      { t: 'Valuation & strategy', d: 'We establish real, defensible value — SDE/EBITDA, comps, and the levers that move your number — before anything goes to market.' },
+      { t: 'Confidential positioning', d: 'Your business is packaged and marketed blind. Staff, guests, suppliers, your landlord, and competitors never see it coming.' },
+      { t: 'Qualified buyers only', d: 'Every buyer is screened for capital and fit and signs an NDA before they ever learn who you are.' },
+      { t: 'Offers & LOI', d: 'We drive competing interest, negotiate price and terms, and keep the leverage on your side of the table.' },
+      { t: 'Diligence, managed', d: 'Books, lease, licensing, equipment — we quarterback diligence so momentum never stalls.' },
+      { t: 'A clean close', d: 'Lease assignment, license transfer, and closing handled to the finish — so you walk away clean.' }
+    ],
+    sellValues: [
+      { t: 'A number you can defend', d: 'Real valuation built on SDE/EBITDA and live comps — not a listing-site guess — so you price to sell and leave nothing on the table.' },
+      { t: 'Total confidentiality', d: 'Marketed blind until NDA. Your staff, guests, suppliers, landlord, and competitors do not find out you are selling.' },
+      { t: 'Only qualified buyers', d: 'Every buyer is screened for capital and concept fit and signs an NDA before they ever reach you. No tire-kickers.' },
+      { t: 'A clean close', d: 'Lease assignment, license transfer, equipment, and closing — quarterbacked end to end so the deal actually finishes.' }
+    ],
+    sellFaqs: [
+      { q: 'Will anyone know my restaurant is for sale?', a: 'No. We market every business blind — no name, no address, no identifying photos — until a buyer is qualified and under NDA. Your team, your regulars, your vendors, and your landlord stay in the dark until you decide otherwise.' },
+      { q: 'What is my restaurant actually worth?', a: 'It depends on your earnings, lease, equipment, and the strength of the concept — not a multiple off the internet. We build a defensible valuation from your real numbers and current market comps before we ever talk price publicly. Start with a confidential valuation and you will know where you stand.' },
+      { q: 'What does it cost to work with you?', a: 'Our fee is success-based — we are paid when your deal closes, aligned with getting you the best outcome. There is no cost to get a valuation or to talk through your options.' },
+      { q: 'How long does a sale take?', a: 'Most restaurant sales run a few months from go-to-market to close, depending on price, lease, and buyer financing. A clean, well-priced, well-documented deal moves faster — which is exactly what our process is built to produce.' },
+      { q: 'What about my lease and my landlord?', a: 'The lease is often where restaurant deals live or die. We read it early, plan the assignment or new lease with the landlord, and manage that conversation so it does not blow up the sale at the finish line.' },
+      { q: 'I am not sure I am ready to sell. Is it worth a call?', a: 'Yes. Plenty of our sellers start by just wanting to know what they have and what the market looks like. A confidential conversation costs you nothing and gives you real numbers to decide with — on your timeline, not ours.' }
+    ],
+    muHeroHead: 'Portfolio-grade brokerage for multi-unit operators.',
+    muHeroSub: 'Groups, portfolios, and the bigger deals — run with the discretion, valuation rigor, and controlled process that larger transactions demand, and taken straight to the buyers who transact at scale.',
+    muSteps: [
+      { t: 'Portfolio review & valuation', d: 'We value the group on blended earnings, real estate, and growth — not a unit-by-unit guess — and map the cleanest way to market it.' },
+      { t: 'Confidential packaging', d: 'The whole group is packaged in a controlled data room and marketed blind, so no single location — or your competitors — sees it coming.' },
+      { t: 'Targeted buyer outreach', d: 'We go straight to the buyers who transact at scale: private equity, franchise groups, and funded multi-unit operators — under NDA.' },
+      { t: 'Offers & structure', d: 'We drive competing offers and structure the deal — full sale, partial, or sale-leaseback — to maximize value and fit your goals.' },
+      { t: 'Coordinated diligence', d: 'Books, leases, licensing, and real estate across every unit — we quarterback diligence as one organized process.' },
+      { t: 'One clean close', d: 'Lease assignments, license transfers, and closings across all locations, managed together so nothing stalls at the finish.' }
+    ],
+    muValues: [
+      { t: 'Confidentiality at scale', d: 'We market the whole group blind. No single unit, no staff, and no competitor learns the portfolio is in play until a buyer is qualified and under NDA.' },
+      { t: 'Access to real capital', d: 'We take your group straight to the buyers who transact at size — private equity, franchise groups, and funded multi-unit operators — not retail tire-kickers.' },
+      { t: 'Portfolio-grade valuation', d: 'Your group is valued on blended earnings, real estate, and growth — so you are priced as a platform, not a stack of single locations.' },
+      { t: 'One coordinated close', d: 'Leases, licenses, and transfers across every location, run as a single controlled process so the whole deal lands clean and on time.' }
+    ],
+    muFaqs: [
+      { q: 'What counts as a multi-unit or portfolio deal?', a: 'Anything from a two- or three-unit group to a full franchise portfolio — restaurants, bars, and the real estate under them. If you operate, own, or are acquiring more than one location, this is the right page.' },
+      { q: 'How do you keep a multi-unit sale confidential?', a: 'The same way we protect a single sale, extended across the group: the portfolio is marketed blind, buyers are qualified and NDA’d before they see identifying detail, and materials live in a controlled data room. Your teams across every unit stay focused on running the business.' },
+      { q: 'Who actually buys a group of restaurants?', a: 'Buyers who transact at scale — private equity and family offices, franchise and multi-brand groups, and well-capitalized operators expanding a footprint. We maintain relationships with those buyers and take your group to them directly.' },
+      { q: 'How is a multi-unit business valued?', a: 'On blended, normalized earnings across the group, the quality and term of the leases, any owned real estate, and the growth story — then benchmarked against real portfolio comps. Priced as a platform, a group is usually worth more than the sum of its units.' },
+      { q: 'Can you do sale-leasebacks or sell only part of the group?', a: 'Yes. We structure full sales, partial sales, and sale-leasebacks that unlock the capital in your owned real estate while you keep operating — whatever fits your goals for the portfolio.' },
+      { q: 'What does a portfolio transaction timeline look like?', a: 'Longer than a single unit but just as controlled — valuation and packaging up front, a focused buyer process, then coordinated diligence and a close across all locations. A well-documented portfolio moves faster, which is what our process is built to deliver.' }
+    ],
     aboutHead: 'Why operators trust RRG',
     about: 'Restaurant deals fail for predictable reasons. We run a detail-oriented, controlled process — from valuation and positioning through qualified buyers and a clean close — so your transaction gets done right. We represent sellers, buyers, landlords, and tenants across Texas.',
     offices: [
@@ -6891,7 +6939,7 @@ function loadWebsite() {
   try { s = rj(WEBSITE_FILE); } catch (e) {}
   if (!s || typeof s !== 'object') return d;
   const out = Object.assign({}, d, s);
-  ['stats', 'services', 'offices', 'processes', 'wins', 'concepts'].forEach(function (k) { if (!Array.isArray(out[k]) || !out[k].length) out[k] = d[k]; });
+  ['stats', 'services', 'offices', 'processes', 'wins', 'concepts', 'sellSteps', 'sellValues', 'sellFaqs', 'muSteps', 'muValues', 'muFaqs'].forEach(function (k) { if (!Array.isArray(out[k]) || !out[k].length) out[k] = d[k]; });
   return out;
 }
 function saveWebsite(o) { return writeJsonGuarded(WEBSITE_FILE, o || {}, 'saveWebsite'); }
@@ -6924,6 +6972,18 @@ app.post('/api/website', requireAdmin, express.json({ limit: '256kb' }), (req, r
   if (b.heroImage !== undefined) out.heroImage = S(b.heroImage, 600);
   if (b.servicesHead !== undefined) out.servicesHead = S(b.servicesHead, 160);
   if (b.servicesLead !== undefined) out.servicesLead = S(b.servicesLead, 500);
+  function cleanTD(arr, max) { return (Array.isArray(arr) ? arr : []).slice(0, max).map(function (x) { return { t: S(x && x.t, 90), d: S(x && x.d, 500) }; }).filter(function (x) { return x.t || x.d; }); }
+  function cleanQA(arr, max) { return (Array.isArray(arr) ? arr : []).slice(0, max).map(function (x) { return { q: S(x && x.q, 200), a: S(x && x.a, 1200) }; }).filter(function (x) { return x.q || x.a; }); }
+  if (b.sellHeroHead !== undefined) out.sellHeroHead = S(b.sellHeroHead, 200);
+  if (b.sellHeroSub !== undefined) out.sellHeroSub = S(b.sellHeroSub, 700);
+  if (Array.isArray(b.sellSteps)) out.sellSteps = cleanTD(b.sellSteps, 8);
+  if (Array.isArray(b.sellValues)) out.sellValues = cleanTD(b.sellValues, 6);
+  if (Array.isArray(b.sellFaqs)) out.sellFaqs = cleanQA(b.sellFaqs, 12);
+  if (b.muHeroHead !== undefined) out.muHeroHead = S(b.muHeroHead, 200);
+  if (b.muHeroSub !== undefined) out.muHeroSub = S(b.muHeroSub, 700);
+  if (Array.isArray(b.muSteps)) out.muSteps = cleanTD(b.muSteps, 8);
+  if (Array.isArray(b.muValues)) out.muValues = cleanTD(b.muValues, 6);
+  if (Array.isArray(b.muFaqs)) out.muFaqs = cleanQA(b.muFaqs, 12);
   if (b.servicesTransition !== undefined) out.servicesTransition = S(b.servicesTransition, 400);
   if (b.aboutHead !== undefined) out.aboutHead = S(b.aboutHead, 120);
   if (b.about !== undefined) out.about = S(b.about, 2000);
@@ -7184,15 +7244,8 @@ function siteMultiUnitPage(req) {
   const bookBtn = bookUrl ? ('<a class="btn gold" href="' + bookUrl + '" target="_blank" rel="noopener">📅 Book a call</a>') : '';
   const email = esc(s.contactEmail || '');
 
-  const steps = [
-    { t: 'Portfolio review & valuation', d: 'We value the group on blended earnings, real estate, and growth — not a unit-by-unit guess — and map the cleanest way to market it.' },
-    { t: 'Confidential packaging', d: 'The whole group is packaged in a controlled data room and marketed blind, so no single location — or your competitors — sees it coming.' },
-    { t: 'Targeted buyer outreach', d: 'We go straight to the buyers who transact at scale: private equity, franchise groups, and funded multi-unit operators — under NDA.' },
-    { t: 'Offers & structure', d: 'We drive competing offers and structure the deal — full sale, partial, or sale-leaseback — to maximize value and fit your goals.' },
-    { t: 'Coordinated diligence', d: 'Books, leases, licensing, and real estate across every unit — we quarterback diligence as one organized process.' },
-    { t: 'One clean close', d: 'Lease assignments, license transfers, and closings across all locations, managed together so nothing stalls at the finish.' }
-  ];
-  const stepHtml = steps.map(function (x, j) { return '<div class="step"><div class="stepn">' + (j + 1) + '</div><div class="stepb"><div class="stept">' + esc(x.t || '') + '</div><div class="stepd">' + esc(x.d || '') + '</div></div></div>'; }).join('');
+  const steps = Array.isArray(s.muSteps) ? s.muSteps : [];
+  const stepHtml = steps.slice(0, 8).map(function (x, j) { return '<div class="step"><div class="stepn">' + (j + 1) + '</div><div class="stepb"><div class="stept">' + esc(x.t || '') + '</div><div class="stepd">' + esc(x.d || '') + '</div></div></div>'; }).join('');
 
   const muRe = /multi[- ]?unit|portfolio|\b\d+\s*[- ]?unit|units|group|roll[- ]?up/i;
   const muWins = (s.wins || []).filter(function (w) { return muRe.test(String((w && w.label) || '') + ' ' + String((w && w.detail) || '')); });
@@ -7211,23 +7264,10 @@ function siteMultiUnitPage(req) {
     val: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="12" width="4" height="8" rx="1"/><rect x="10" y="7" width="4" height="13" rx="1"/><rect x="17" y="3" width="4" height="17" rx="1"/></svg>',
     close: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3.5" width="12" height="9" rx="1.6"/><rect x="6.5" y="8" width="12" height="9" rx="1.6" opacity=".75"/><rect x="10" y="12.5" width="11" height="8" rx="1.6" opacity=".5"/></svg>'
   };
-  const values = [
-    { ic: VIC.conf, t: 'Confidentiality at scale', d: 'We market the whole group blind. No single unit, no staff, and no competitor learns the portfolio is in play until a buyer is qualified and under NDA.' },
-    { ic: VIC.cap, t: 'Access to real capital', d: 'We take your group straight to the buyers who transact at size — private equity, franchise groups, and funded multi-unit operators — not retail tire-kickers.' },
-    { ic: VIC.val, t: 'Portfolio-grade valuation', d: 'Your group is valued on blended earnings, real estate, and growth — so you are priced as a platform, not a stack of single locations.' },
-    { ic: VIC.close, t: 'One coordinated close', d: 'Leases, licenses, and transfers across every location, run as a single controlled process so the whole deal lands clean and on time.' }
-  ];
-  const valueHtml = values.map(function (v) { return '<div class="svc" style="box-shadow:0 10px 26px rgba(10,20,50,.09)"><div class="svcic">' + v.ic + '</div><div class="svct">' + esc(v.t) + '</div><div class="svcd">' + esc(v.d) + '</div></div>'; }).join('');
+  const _vicList = [VIC.conf, VIC.cap, VIC.val, VIC.close];
+  const valueHtml = (Array.isArray(s.muValues) ? s.muValues : []).map(function (v, i) { return '<div class="svc" style="box-shadow:0 10px 26px rgba(10,20,50,.09)"><div class="svcic">' + (_vicList[i] || VIC.val) + '</div><div class="svct">' + esc(v.t || '') + '</div><div class="svcd">' + esc(v.d || '') + '</div></div>'; }).join('');
 
-  const faqs = [
-    { q: 'What counts as a multi-unit or portfolio deal?', a: 'Anything from a two- or three-unit group to a full franchise portfolio — restaurants, bars, and the real estate under them. If you operate, own, or are acquiring more than one location, this is the right page.' },
-    { q: 'How do you keep a multi-unit sale confidential?', a: 'The same way we protect a single sale, extended across the group: the portfolio is marketed blind, buyers are qualified and NDA’d before they see identifying detail, and materials live in a controlled data room. Your teams across every unit stay focused on running the business.' },
-    { q: 'Who actually buys a group of restaurants?', a: 'Buyers who transact at scale — private equity and family offices, franchise and multi-brand groups, and well-capitalized operators expanding a footprint. We maintain relationships with those buyers and take your group to them directly.' },
-    { q: 'How is a multi-unit business valued?', a: 'On blended, normalized earnings across the group, the quality and term of the leases, any owned real estate, and the growth story — then benchmarked against real portfolio comps. Priced as a platform, a group is usually worth more than the sum of its units.' },
-    { q: 'Can you do sale-leasebacks or sell only part of the group?', a: 'Yes. We structure full sales, partial sales, and sale-leasebacks that unlock the capital in your owned real estate while you keep operating — whatever fits your goals for the portfolio.' },
-    { q: 'What does a portfolio transaction timeline look like?', a: 'Longer than a single unit but just as controlled — valuation and packaging up front, a focused buyer process, then coordinated diligence and a close across all locations. A well-documented portfolio moves faster, which is what our process is built to deliver.' }
-  ];
-  const faqHtml = faqs.map(function (f) { return '<details class="faq"><summary>' + esc(f.q) + '</summary><div class="fa">' + esc(f.a) + '</div></details>'; }).join('');
+  const faqHtml = (Array.isArray(s.muFaqs) ? s.muFaqs : []).map(function (f) { return '<details class="faq"><summary>' + esc(f.q || '') + '</summary><div class="fa">' + esc(f.a || '') + '</div></details>'; }).join('');
 
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Multi-Unit &amp; Portfolio Brokerage — ${org}</title>
@@ -7272,8 +7312,8 @@ function siteMultiUnitPage(req) {
 <section class="shero"><div class="wrap">
   <a class="sback" href="/site">&larr; Back to ${org}</a>
   <div class="eyebrow" style="margin-top:16px">Multi-unit &amp; portfolio</div>
-  <h1>Portfolio-grade brokerage for multi-unit operators.</h1>
-  <p class="sub">Groups, portfolios, and the bigger deals — run with the discretion, valuation rigor, and controlled process that larger transactions demand, and taken straight to the buyers who transact at scale.</p>
+  <h1>${esc(s.muHeroHead || '')}</h1>
+  ${s.muHeroSub ? '<p class="sub">' + esc(s.muHeroSub) + '</p>' : ''}
   <div class="sherocta">
     <a class="btn red" href="#contact">Talk about a portfolio deal</a>
     ${bookUrl ? bookBtn : '<a class="btn ghost" href="#process">See how it works</a>'}
@@ -7371,17 +7411,8 @@ function siteSellPage(req) {
   const bookBtn = bookUrl ? ('<a class="btn gold" href="' + bookUrl + '" target="_blank" rel="noopener">📅 Book a call</a>') : '';
   const email = esc(s.contactEmail || '');
 
-  const procs = Array.isArray(s.processes) ? s.processes : [];
-  let sell = procs.filter(function (p) { return /sell|sale|selling/i.test(String(p && p.name || '')); })[0];
-  const sellSteps = (sell && Array.isArray(sell.steps) && sell.steps.length) ? sell.steps : [
-    { t: 'Valuation & strategy', d: 'We establish real, defensible value — SDE/EBITDA, comps, and the levers that move your number — before anything goes to market.' },
-    { t: 'Confidential positioning', d: 'Your business is packaged and marketed blind. Staff, guests, suppliers, your landlord, and competitors never see it coming.' },
-    { t: 'Qualified buyers only', d: 'Every buyer is screened for capital and fit and signs an NDA before they ever learn who you are.' },
-    { t: 'Offers & LOI', d: 'We drive competing interest, negotiate price and terms, and keep the leverage on your side of the table.' },
-    { t: 'Diligence, managed', d: 'Books, lease, licensing, equipment — we quarterback diligence so momentum never stalls.' },
-    { t: 'A clean close', d: 'Lease assignment, license transfer, and closing handled to the finish — so you walk away clean.' }
-  ];
-  const stepHtml = sellSteps.slice(0, 6).map(function (x, j) { return '<div class="step"><div class="stepn">' + (j + 1) + '</div><div class="stepb"><div class="stept">' + esc(x.t || '') + '</div><div class="stepd">' + esc(x.d || '') + '</div></div></div>'; }).join('');
+  const sellSteps = Array.isArray(s.sellSteps) ? s.sellSteps : [];
+  const stepHtml = sellSteps.slice(0, 8).map(function (x, j) { return '<div class="step"><div class="stepn">' + (j + 1) + '</div><div class="stepb"><div class="stept">' + esc(x.t || '') + '</div><div class="stepd">' + esc(x.d || '') + '</div></div></div>'; }).join('');
 
   const soldWins = (s.wins || []).filter(function (w) { return /sold|sale/i.test(String(w && w.type || '')); });
   const winSrc = soldWins.length ? soldWins : (s.wins || []).slice(0, 6);
@@ -7398,23 +7429,10 @@ function siteSellPage(req) {
     buyers: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="9" r="6.5"/><path d="M9.1 9.1l2 2 3.6-3.8" fill="none" stroke="#eef3fb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.2 15.1 6.6 21l5.4-2.3L17.4 21l-1.6-5.9" fill="currentColor"/></svg>',
     close: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 3a1 1 0 0 1 1-1h13l-2.6 4.2L19 10H7v10a1 1 0 0 1-2 0V3Z"/></svg>'
   };
-  const values = [
-    { ic: VIC.val, t: 'A number you can defend', d: 'Real valuation built on SDE/EBITDA and live comps — not a listing-site guess — so you price to sell and leave nothing on the table.' },
-    { ic: VIC.conf, t: 'Total confidentiality', d: 'Marketed blind until NDA. Your staff, guests, suppliers, landlord, and competitors do not find out you are selling.' },
-    { ic: VIC.buyers, t: 'Only qualified buyers', d: 'Every buyer is screened for capital and concept fit and signs an NDA before they ever reach you. No tire-kickers.' },
-    { ic: VIC.close, t: 'A clean close', d: 'Lease assignment, license transfer, equipment, and closing — quarterbacked end to end so the deal actually finishes.' }
-  ];
-  const valueHtml = values.map(function (v) { return '<div class="svc" style="box-shadow:0 10px 26px rgba(10,20,50,.09)"><div class="svcic">' + v.ic + '</div><div class="svct">' + esc(v.t) + '</div><div class="svcd">' + esc(v.d) + '</div></div>'; }).join('');
+  const _vicList = [VIC.val, VIC.conf, VIC.buyers, VIC.close];
+  const valueHtml = (Array.isArray(s.sellValues) ? s.sellValues : []).map(function (v, i) { return '<div class="svc" style="box-shadow:0 10px 26px rgba(10,20,50,.09)"><div class="svcic">' + (_vicList[i] || VIC.val) + '</div><div class="svct">' + esc(v.t || '') + '</div><div class="svcd">' + esc(v.d || '') + '</div></div>'; }).join('');
 
-  const faqs = [
-    { q: 'Will anyone know my restaurant is for sale?', a: 'No. We market every business blind — no name, no address, no identifying photos — until a buyer is qualified and under NDA. Your team, your regulars, your vendors, and your landlord stay in the dark until you decide otherwise.' },
-    { q: 'What is my restaurant actually worth?', a: 'It depends on your earnings, lease, equipment, and the strength of the concept — not a multiple off the internet. We build a defensible valuation from your real numbers and current market comps before we ever talk price publicly. Start with a confidential valuation and you will know where you stand.' },
-    { q: 'What does it cost to work with you?', a: 'Our fee is success-based — we are paid when your deal closes, aligned with getting you the best outcome. There is no cost to get a valuation or to talk through your options.' },
-    { q: 'How long does a sale take?', a: 'Most restaurant sales run a few months from go-to-market to close, depending on price, lease, and buyer financing. A clean, well-priced, well-documented deal moves faster — which is exactly what our process is built to produce.' },
-    { q: 'What about my lease and my landlord?', a: 'The lease is often where restaurant deals live or die. We read it early, plan the assignment or new lease with the landlord, and manage that conversation so it does not blow up the sale at the finish line.' },
-    { q: 'I am not sure I am ready to sell. Is it worth a call?', a: 'Yes. Plenty of our sellers start by just wanting to know what they have and what the market looks like. A confidential conversation costs you nothing and gives you real numbers to decide with — on your timeline, not ours.' }
-  ];
-  const faqHtml = faqs.map(function (f) { return '<details class="faq"><summary>' + esc(f.q) + '</summary><div class="fa">' + esc(f.a) + '</div></details>'; }).join('');
+  const faqHtml = (Array.isArray(s.sellFaqs) ? s.sellFaqs : []).map(function (f) { return '<details class="faq"><summary>' + esc(f.q || '') + '</summary><div class="fa">' + esc(f.a || '') + '</div></details>'; }).join('');
 
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Sell Your Restaurant — ${org}</title>
@@ -7460,8 +7478,8 @@ function siteSellPage(req) {
 <section class="shero"><div class="wrap">
   <a class="sback" href="/site">&larr; Back to ${org}</a>
   <div class="eyebrow" style="margin-top:16px">Sell-side representation</div>
-  <h1>Sell your restaurant — confidentially, and for what it's worth.</h1>
-  <p class="sub">Most restaurant sales leak value: the wrong price, the wrong buyers, and word getting out before the owner is ready. We run a controlled, confidential process built to protect your leverage and close clean.</p>
+  <h1>${esc(s.sellHeroHead || '')}</h1>
+  ${s.sellHeroSub ? '<p class="sub">' + esc(s.sellHeroSub) + '</p>' : ''}
   <div class="sherocta">
     <a class="btn red" href="#contact">Request a confidential valuation</a>
     ${bookUrl ? bookBtn : '<a class="btn ghost" href="#process">See how it works</a>'}
@@ -7502,7 +7520,7 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
   <div>
     <div class="eyebrow">Start here</div>
     <div class="h2">Find out what your restaurant is worth</div>
-    <p class="lead">Tell us a little about your restaurant and the right broker will reach out — confidentially — with real numbers and next steps. No obligation.</p>
+    <p class="lead">Tell us a little about your restaurant. On our first call we'll walk through a few things that actually drive value — your lease, your earnings, and your concept — and lay out exactly which financial reports we'll need to put a real, defensible number on your business. A credible valuation comes from your numbers, not a 15-minute guess. Confidential, and no obligation.</p>
     ${bookRow}
     ${emailRow}
   </div>

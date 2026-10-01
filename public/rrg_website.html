@@ -47,6 +47,7 @@ textarea{min-height:76px;resize:vertical;}
 .xbtn{background:#fff;border:1px solid #f0c9c6;color:var(--red);border-radius:7px;padding:5px 10px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;}
 .xbtn:hover{background:var(--red);color:#fff;border-color:var(--red);}
 .addbtn{background:#fff;border:1px dashed #c3ccdf;color:var(--navy);border-radius:8px;padding:9px 13px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;}
+.subh{font-size:13px;font-weight:800;color:var(--navy);margin:20px 0 10px;padding-top:14px;border-top:1px solid var(--line);}
 .dns{background:#fbfcfe;border:1px solid var(--line);border-radius:10px;padding:14px 16px;font-size:13px;color:var(--ink);line-height:1.6;}
 .dns code{background:#eef2f8;border:1px solid #dde4ee;border-radius:5px;padding:1px 6px;font-size:12.5px;}
 .dns table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12.5px;}
@@ -99,6 +100,10 @@ function rowStat(x,i){ x=x||{}; return '<div class="rowitem" data-stat><div clas
 function rowSvc(x,i){ x=x||{}; return '<div class="rowitem" data-svc><div class="rh"><b>Service '+(i+1)+'</b><span class="sp"></span><button type="button" class="xbtn" onclick="this.closest(\'[data-svc]\').remove()">Remove</button></div><div class="f"><label class="fld">Title</label><input class="v_t" value="'+esc(x.t||'')+'" placeholder="Sell Your Restaurant"></div><div><label class="fld">Description</label><textarea class="v_d" style="min-height:60px">'+esc(x.d||'')+'</textarea></div></div>'; }
 function rowOff(x,i){ x=x||{}; return '<div class="rowitem" data-off><div class="rh"><b>Office '+(i+1)+'</b><span class="sp"></span><button type="button" class="xbtn" onclick="this.closest(\'[data-off]\').remove()">Remove</button></div><div class="fld2"><div><label class="fld">City</label><input class="o_c" value="'+esc(x.city||'')+'" placeholder="Austin"></div><div><label class="fld">Phone</label><input class="o_p" value="'+esc(x.phone||'')+'" placeholder="210-204-2471"></div></div></div>'; }
 function stepRow(x){ x=x||{}; return '<div class="rowitem" data-step style="background:#fff;margin-bottom:8px"><div class="rh"><b>Step</b><span class="sp"></span><button type="button" class="xbtn" onclick="this.closest(\'[data-step]\').remove()">Remove</button></div><div class="f" style="margin-bottom:8px"><label class="fld">Step title</label><input class="st_t" value="'+esc(x.t||'')+'" placeholder="Valuation & strategy"></div><div><label class="fld">Step description</label><textarea class="st_d" style="min-height:48px">'+esc(x.d||'')+'</textarea></div></div>'; }
+function rowTD(x,i,tag,label){ x=x||{}; return '<div class="rowitem" data-'+tag+'><div class="rh"><b>'+label+' '+(i+1)+'</b><span class="sp"></span><button type="button" class="xbtn" onclick="this.closest(\'[data-'+tag+']\').remove()">Remove</button></div><div class="f"><label class="fld">Title</label><input class="td_t" value="'+esc(x.t||'')+'"></div><div><label class="fld">Description</label><textarea class="td_d" style="min-height:58px">'+esc(x.d||'')+'</textarea></div></div>'; }
+function rowQA(x,i,tag){ x=x||{}; return '<div class="rowitem" data-'+tag+'><div class="rh"><b>Q'+(i+1)+'</b><span class="sp"></span><button type="button" class="xbtn" onclick="this.closest(\'[data-'+tag+']\').remove()">Remove</button></div><div class="f"><label class="fld">Question</label><input class="qa_q" value="'+esc(x.q||'')+'"></div><div><label class="fld">Answer</label><textarea class="qa_a" style="min-height:70px">'+esc(x.a||'')+'</textarea></div></div>'; }
+function addTD(boxId,tag,label){ var box=el(boxId); var d=document.createElement('div'); d.innerHTML=rowTD({},box.children.length,tag,label); box.appendChild(d.firstChild); }
+function addQA(boxId,tag){ var box=el(boxId); var d=document.createElement('div'); d.innerHTML=rowQA({},box.children.length,tag); box.appendChild(d.firstChild); }
 function rowProc(p,i){ p=p||{}; var steps=(p.steps||[]).map(stepRow).join('');
   return '<div class="rowitem" data-proc style="background:#f2f5fb;border-color:#d7dfee"><div class="rh"><b>Process '+(i+1)+'</b><span class="sp"></span><button type="button" class="xbtn" onclick="this.closest(\'[data-proc]\').remove()">Remove process</button></div>'
     +'<div class="f"><label class="fld">Process name</label><input class="p_name" value="'+esc(p.name||'')+'" placeholder="Selling a restaurant"></div>'
@@ -186,6 +191,22 @@ function render(){
 
   +'<div class="card"><h2>Processes</h2><p class="sub">Your playbooks — each one shows on the site as its own tab with numbered steps. Add a process per deal type.</p><div id="procBox"></div><button type="button" class="addbtn" onclick="addProc()">+ Add process</button></div>'
 
+  +'<div class="card"><h2>Sell page <span class="sub" style="font-weight:600">· /site/sell</span></h2><p class="sub">The “Sell Your Restaurant” detail page. Everything below is yours to edit.</p>'
+    +'<div class="f"><label class="fld">Hero headline</label><input id="f_sellHeroHead" value="'+esc(s.sellHeroHead||'')+'"></div>'
+    +'<div class="f" style="margin-top:12px"><label class="fld">Hero sub-line</label><textarea id="f_sellHeroSub" style="min-height:66px">'+esc(s.sellHeroSub||'')+'</textarea></div>'
+    +'<div class="subh">Process steps <span class="sub" style="font-weight:600">· the numbered “How a sale runs”</span></div><div id="sellStepBox"></div><button type="button" class="addbtn" onclick="addTD(\'sellStepBox\',\'sellstep\',\'Step\')">+ Add step</button>'
+    +'<div class="subh">Value cards <span class="sub" style="font-weight:600">· “What selling with us gets you”</span></div><div id="sellValBox"></div><button type="button" class="addbtn" onclick="addTD(\'sellValBox\',\'sellval\',\'Value\')">+ Add value</button>'
+    +'<div class="subh">FAQ <span class="sub" style="font-weight:600">· “Seller questions, answered”</span></div><div id="sellFaqBox"></div><button type="button" class="addbtn" onclick="addQA(\'sellFaqBox\',\'sellfaq\')">+ Add question</button>'
+  +'</div>'
+
+  +'<div class="card"><h2>Multi-unit page <span class="sub" style="font-weight:600">· /site/multi-unit</span></h2><p class="sub">The portfolio / multi-unit detail page. Everything below is yours to edit.</p>'
+    +'<div class="f"><label class="fld">Hero headline</label><input id="f_muHeroHead" value="'+esc(s.muHeroHead||'')+'"></div>'
+    +'<div class="f" style="margin-top:12px"><label class="fld">Hero sub-line</label><textarea id="f_muHeroSub" style="min-height:66px">'+esc(s.muHeroSub||'')+'</textarea></div>'
+    +'<div class="subh">Process steps <span class="sub" style="font-weight:600">· the numbered “How a portfolio sale runs”</span></div><div id="muStepBox"></div><button type="button" class="addbtn" onclick="addTD(\'muStepBox\',\'mustep\',\'Step\')">+ Add step</button>'
+    +'<div class="subh">Value cards <span class="sub" style="font-weight:600">· “What a portfolio deal needs”</span></div><div id="muValBox"></div><button type="button" class="addbtn" onclick="addTD(\'muValBox\',\'muval\',\'Value\')">+ Add value</button>'
+    +'<div class="subh">FAQ <span class="sub" style="font-weight:600">· “Operator questions”</span></div><div id="muFaqBox"></div><button type="button" class="addbtn" onclick="addQA(\'muFaqBox\',\'mufaq\')">+ Add question</button>'
+  +'</div>'
+
   +'<div class="card"><h2>Selected transactions</h2><p class="sub">Your “skins on the wall” — closed deals shown in the Track record section. Use Sold / Leased / Placed. Keep them confidential (no client names needed).</p><div id="winBox"></div><button type="button" class="addbtn" onclick="addWin()">+ Add transaction</button></div>'
 
   +'<div class="card"><h2>About</h2>'
@@ -217,6 +238,12 @@ function render(){
   el('procBox').innerHTML=(s.processes||[]).map(rowProc).join('');
   el('winBox').innerHTML=(s.wins||[]).map(rowWin).join('');
   el('offBox').innerHTML=(s.offices||[]).map(rowOff).join('');
+  el('sellStepBox').innerHTML=(s.sellSteps||[]).map(function(x,i){return rowTD(x,i,'sellstep','Step');}).join('');
+  el('sellValBox').innerHTML=(s.sellValues||[]).map(function(x,i){return rowTD(x,i,'sellval','Value');}).join('');
+  el('sellFaqBox').innerHTML=(s.sellFaqs||[]).map(function(x,i){return rowQA(x,i,'sellfaq');}).join('');
+  el('muStepBox').innerHTML=(s.muSteps||[]).map(function(x,i){return rowTD(x,i,'mustep','Step');}).join('');
+  el('muValBox').innerHTML=(s.muValues||[]).map(function(x,i){return rowTD(x,i,'muval','Value');}).join('');
+  el('muFaqBox').innerHTML=(s.muFaqs||[]).map(function(x,i){return rowQA(x,i,'mufaq');}).join('');
   el('leadBox').innerHTML=LEADS.length?LEADS.map(leadRow).join(''):'<div class="empty">No leads yet. They’ll show up here the moment someone uses your contact form.</div>';
   el('subBox').innerHTML=SUBS.length?SUBS.map(subRow).join(''):'<div class="empty">No subscribers yet. Share your <b>/site/subscribe</b> link to start building the list.</div>';
   heroPreview(s.heroImage||''); renderDns(); updateStatusLbl();
@@ -241,6 +268,9 @@ function addOff(){ var d=document.createElement('div'); d.innerHTML=rowOff({}, e
 
 function collect(){
   function rows(sel,map){ return Array.prototype.slice.call(document.querySelectorAll(sel)).map(map); }
+  function tdMap(r){ return { t:r.querySelector('.td_t').value, d:r.querySelector('.td_d').value }; }
+  function qaMap(r){ return { q:r.querySelector('.qa_q').value, a:r.querySelector('.qa_a').value }; }
+  function tdKeep(x){ return x.t||x.d; } function qaKeep(x){ return x.q||x.a; }
   return {
     published: el('f_published').checked,
     brand: val('f_brand'), tagline: val('f_tagline'), heroSub: val('f_heroSub'),
@@ -250,6 +280,10 @@ function collect(){
     services: rows('[data-svc]',function(r){ return { t:r.querySelector('.v_t').value, d:r.querySelector('.v_d').value }; }).filter(function(x){return x.t||x.d;}),
     servicesHead: val('f_servicesHead'), servicesLead: val('f_servicesLead'),
     concepts: (val('f_concepts')||'').split('\n').map(function(x){return x.trim();}).filter(Boolean),
+    sellHeroHead: val('f_sellHeroHead'), sellHeroSub: val('f_sellHeroSub'),
+    sellSteps: rows('[data-sellstep]',tdMap).filter(tdKeep), sellValues: rows('[data-sellval]',tdMap).filter(tdKeep), sellFaqs: rows('[data-sellfaq]',qaMap).filter(qaKeep),
+    muHeroHead: val('f_muHeroHead'), muHeroSub: val('f_muHeroSub'),
+    muSteps: rows('[data-mustep]',tdMap).filter(tdKeep), muValues: rows('[data-muval]',tdMap).filter(tdKeep), muFaqs: rows('[data-mufaq]',qaMap).filter(qaKeep),
     offices: rows('[data-off]',function(r){ return { city:r.querySelector('.o_c').value, phone:r.querySelector('.o_p').value }; }).filter(function(x){return x.city||x.phone;}),
     processes: rows('[data-proc]',function(r){
       var steps=Array.prototype.slice.call(r.querySelectorAll('[data-step]')).map(function(sr){ return { t:sr.querySelector('.st_t').value, d:sr.querySelector('.st_d').value }; }).filter(function(x){return x.t||x.d;});
