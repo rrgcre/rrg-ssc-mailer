@@ -7260,6 +7260,20 @@ section{padding:84px 0;}
 .concepts{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px;}
 .cpill{display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:100px;padding:9px 16px;font-size:13.5px;font-weight:700;color:var(--navy);box-shadow:0 2px 8px rgba(10,20,50,.04);}
 .cpill::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--gold);flex:none;}
+.cpill.hot{background:var(--navy);color:#fff;border-color:var(--navy);box-shadow:0 6px 16px rgba(10,20,50,.16);}
+.cpill.hot::before{background:var(--gold2);}
+.muband{background:linear-gradient(120deg,#0c2a5e,#001A4A);color:#fff;}
+.muband .eyebrow{color:var(--gold2);}
+.muband .h2{color:#fff;}
+.muband .lead{color:#c6d1e6;}
+.mugrid{display:grid;grid-template-columns:1.05fr 1fr;gap:52px;align-items:center;}
+@media(max-width:860px){.mugrid{grid-template-columns:1fr;gap:34px;}}
+.mucta{margin-top:26px;}
+.mupoints{display:flex;flex-direction:column;gap:16px;}
+.mupoint{display:flex;gap:16px;align-items:flex-start;background:linear-gradient(170deg,rgba(255,255,255,.07),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:18px 20px;}
+.mun{font-family:'Fraunces',serif;font-weight:600;font-size:17px;color:var(--gold2);background:rgba(200,162,75,.14);border:1px solid rgba(200,162,75,.42);border-radius:10px;width:46px;height:46px;display:flex;align-items:center;justify-content:center;flex:none;}
+.mupoint b{display:block;font-family:'Fraunces',serif;font-weight:600;font-size:16.5px;color:#fff;margin-bottom:4px;}
+.mupoint span{color:#aebcd6;font-size:13.5px;line-height:1.5;}
 .svcs{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:34px;}
 @media(max-width:980px){.svcs{grid-template-columns:repeat(2,1fr);}}
 @media(max-width:560px){.svcs{grid-template-columns:1fr;}}
@@ -7596,11 +7610,25 @@ ${SITE_CSS}
   <div class="sec-head"><div class="eyebrow">What we do</div><div class="h2">Full-service representation across food &amp; beverage</div>
   <p class="lead">Whatever the concept, we run the entire transaction — from first valuation to a clean close — for sellers, buyers, landlords, and tenants.</p></div>
   <div class="concepts">
-    <span class="cpill">Full-service restaurants</span><span class="cpill">Quick-serve &amp; fast-casual</span><span class="cpill">Bars &amp; nightlife</span><span class="cpill">Food trucks &amp; trailers</span><span class="cpill">Food halls</span><span class="cpill">Cafés &amp; coffee</span><span class="cpill">Breweries &amp; taprooms</span><span class="cpill">Ghost kitchens</span>
+    <span class="cpill hot">Multi-unit &amp; portfolios</span><span class="cpill">Full-service restaurants</span><span class="cpill">Quick-serve &amp; fast-casual</span><span class="cpill">Bars &amp; nightlife</span><span class="cpill">Food trucks &amp; trailers</span><span class="cpill">Food halls</span><span class="cpill">Cafés &amp; coffee</span><span class="cpill">Breweries &amp; taprooms</span><span class="cpill">Ghost kitchens</span>
   </div>
   <div class="svcs">${svcHtml}</div>
   ${s.servicesTransition ? '<p class="svctrans">' + esc(s.servicesTransition) + '</p>' : ''}
 </div></section>
+
+<section class="muband"><div class="wrap"><div class="mugrid">
+  <div class="muhead">
+    <div class="eyebrow">Multi-unit &amp; portfolio</div>
+    <div class="h2">Built for operators who think in units, not just locations</div>
+    <p class="lead">Selling a group, expanding a footprint, or restructuring a portfolio — we run multi-unit and portfolio transactions with the discretion, valuation rigor, and controlled process larger deals demand.</p>
+    <div class="mucta"><a class="btn gold" href="#contact" onclick="(function(){var m=document.getElementById('lf_message');if(m&&!m.value){m.value='Multi-unit / portfolio inquiry: ';}})()">Talk about a portfolio deal</a></div>
+  </div>
+  <div class="mupoints">
+    <div class="mupoint"><div class="mun">01</div><div><b>Portfolio &amp; multi-unit sales</b><span>Package and sell a group of locations — marketed blind and only to qualified, funded buyers.</span></div></div>
+    <div class="mupoint"><div class="mun">02</div><div><b>Growth &amp; acquisitions</b><span>Source sites and operating businesses to expand your footprint, on and off market.</span></div></div>
+    <div class="mupoint"><div class="mun">03</div><div><b>Sale-leasebacks &amp; restructures</b><span>Unlock capital from owned real estate and reposition underperforming units.</span></div></div>
+  </div>
+</div></div></section>
 
 <section id="process" class="process"><div class="wrap">
   <div class="sec-head"><div class="eyebrow">Our processes</div><div class="h2">A proven playbook for every kind of deal</div>
