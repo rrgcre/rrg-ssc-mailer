@@ -7201,11 +7201,11 @@ a{color:inherit;}
 .wrap{max-width:1180px;margin:0 auto;padding:0 26px;}
 .eyebrow{color:var(--blue);font-weight:700;letter-spacing:.2em;text-transform:uppercase;font-size:11.5px;}
 .hero .eyebrow{color:var(--gold2);}
-.btn{display:inline-block;text-decoration:none;font-weight:800;font-size:15px;padding:15px 30px;border-radius:7px;cursor:pointer;border:none;transition:transform .08s ease,box-shadow .08s ease,filter .14s;letter-spacing:.01em;}
-.btn.red{background:var(--red);color:#fff;box-shadow:0 5px 0 #9c1a12,0 14px 22px rgba(218,43,31,.22);}
-.btn.gold{background:var(--gold);color:#201700;box-shadow:0 5px 0 #8a6f27,0 14px 22px rgba(200,162,75,.28);}
-.btn.navy{background:var(--navy);color:#fff;box-shadow:0 5px 0 #000a22,0 14px 22px rgba(10,20,50,.26);}
-.btn.ghost{background:rgba(255,255,255,.05);color:#fff;border:2px solid rgba(255,255,255,.5);box-shadow:0 5px 0 rgba(0,0,0,.24),0 14px 22px rgba(0,0,0,.22);}
+.btn{display:inline-block;text-decoration:none;font-weight:800;font-size:15px;padding:15px 30px;border-radius:7px;cursor:pointer;border:none;transition:transform .08s ease,filter .14s;letter-spacing:.01em;}
+.btn.red{background:var(--red);color:#fff;}
+.btn.gold{background:var(--gold);color:#201700;}
+.btn.navy{background:var(--navy);color:#fff;}
+.btn.ghost{background:rgba(255,255,255,.05);color:#fff;border:2px solid rgba(255,255,255,.5);}
 .btn.ghost:hover{border-color:#fff;background:rgba(255,255,255,.1);}
 /* header */
 header{position:sticky;top:0;z-index:40;background:#000E31;border-bottom:1px solid rgba(200,162,75,.22);box-shadow:0 2px 14px rgba(0,0,0,.18);}
@@ -7389,12 +7389,8 @@ footer{background:#05081a;color:#8597b8;font-size:13px;padding:40px 0 30px;}
 html{scroll-padding-top:86px;}
 section[id],a[id]{scroll-margin-top:86px;}
 *:focus-visible{outline:2px solid var(--blue2);outline-offset:3px;border-radius:3px;}
-.btn:hover{transform:translateY(-1px);filter:brightness(1.05);}
-.btn:active{transform:translateY(4px);}
-.btn.red:active{box-shadow:0 1px 0 #9c1a12,0 5px 11px rgba(218,43,31,.2);}
-.btn.gold:active{box-shadow:0 1px 0 #8a6f27,0 5px 11px rgba(200,162,75,.24);}
-.btn.navy:active{box-shadow:0 1px 0 #000a22,0 5px 11px rgba(10,20,50,.24);}
-.btn.ghost:active{box-shadow:0 1px 0 rgba(0,0,0,.24),0 5px 11px rgba(0,0,0,.2);}
+.btn:hover{filter:brightness(1.06);}
+.btn:active{transform:translateY(1px);}
 .btn.ghost:hover{background:rgba(255,255,255,.1);border-color:#fff;}
 /* editorial eyebrow tick */
 .eyebrow{display:inline-flex;align-items:center;gap:11px;}
