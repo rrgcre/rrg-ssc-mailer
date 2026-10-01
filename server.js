@@ -7206,7 +7206,7 @@ function siteMultiUnitPage(req) {
   const offLinks = (s.offices || []).map(function (o) { const tel = String(o.phone || '').replace(/[^0-9+]/g, ''); return '<a href="tel:' + tel + '">' + esc(o.city || '') + ' &middot; ' + esc(o.phone || '') + '</a>'; }).join('');
 
   const VIC = {
-    conf: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.2 20 5v6c0 5-3.4 8.9-8 10.8C7.4 19.9 4 16 4 11V5l8-2.8Z"/><path d="M9.3 11.4l1.9 1.9 3.6-3.8" fill="none" stroke="#0d1f49" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    conf: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.2 20 5v6c0 5-3.4 8.9-8 10.8C7.4 19.9 4 16 4 11V5l8-2.8Z"/><path d="M9.3 11.4l1.9 1.9 3.6-3.8" fill="none" stroke="#eef3fb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     cap: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 10.5 12 4l9 6.5v1.5H3v-1.5Z"/><rect x="5" y="13" width="2.6" height="6" rx="1"/><rect x="10.7" y="13" width="2.6" height="6" rx="1"/><rect x="16.4" y="13" width="2.6" height="6" rx="1"/><rect x="3" y="20" width="18" height="2.2" rx="1"/></svg>',
     val: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="12" width="4" height="8" rx="1"/><rect x="10" y="7" width="4" height="13" rx="1"/><rect x="17" y="3" width="4" height="17" rx="1"/></svg>',
     close: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3.5" width="12" height="9" rx="1.6"/><rect x="6.5" y="8" width="12" height="9" rx="1.6" opacity=".75"/><rect x="10" y="12.5" width="11" height="8" rx="1.6" opacity=".5"/></svg>'
@@ -7394,8 +7394,8 @@ function siteSellPage(req) {
 
   const VIC = {
     val: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="12" width="4" height="8" rx="1"/><rect x="10" y="7" width="4" height="13" rx="1"/><rect x="17" y="3" width="4" height="17" rx="1"/></svg>',
-    conf: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.2 20 5v6c0 5-3.4 8.9-8 10.8C7.4 19.9 4 16 4 11V5l8-2.8Z"/><path d="M9.3 11.4l1.9 1.9 3.6-3.8" fill="none" stroke="#0d1f49" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-    buyers: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="9" r="6.5"/><path d="M9.1 9.1l2 2 3.6-3.8" fill="none" stroke="#0d1f49" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.2 15.1 6.6 21l5.4-2.3L17.4 21l-1.6-5.9" fill="currentColor"/></svg>',
+    conf: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.2 20 5v6c0 5-3.4 8.9-8 10.8C7.4 19.9 4 16 4 11V5l8-2.8Z"/><path d="M9.3 11.4l1.9 1.9 3.6-3.8" fill="none" stroke="#eef3fb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    buyers: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="9" r="6.5"/><path d="M9.1 9.1l2 2 3.6-3.8" fill="none" stroke="#eef3fb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.2 15.1 6.6 21l5.4-2.3L17.4 21l-1.6-5.9" fill="currentColor"/></svg>',
     close: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 3a1 1 0 0 1 1-1h13l-2.6 4.2L19 10H7v10a1 1 0 0 1-2 0V3Z"/></svg>'
   };
   const values = [
@@ -7642,7 +7642,7 @@ section{padding:84px 0;}
 .svctrans::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:46px;height:3px;border-radius:2px;background:var(--gold);}
 .svc{display:flex;flex-direction:column;position:relative;border:1px solid #e1e6ef;border-top:6px solid var(--navy);border-radius:4px;padding:30px 28px 30px;background:#fff;box-shadow:0 18px 40px rgba(10,20,50,.12);transition:box-shadow .2s,transform .2s,border-color .2s;text-decoration:none;color:inherit;}
 .svc:hover{transform:translateY(-3px);box-shadow:0 24px 52px rgba(10,20,50,.17);border-top-color:var(--red);}
-.svcic{position:relative;width:58px;height:58px;border-radius:15px;background:linear-gradient(155deg,#16305f,#0A1733);color:var(--gold2);display:flex;align-items:center;justify-content:center;margin-bottom:18px;box-shadow:0 10px 22px rgba(10,23,51,.3),inset 0 1px 0 rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.06);}
+.svcic{position:relative;width:58px;height:58px;border-radius:15px;background:#eef3fb;color:var(--navy);display:flex;align-items:center;justify-content:center;margin-bottom:18px;border:1px solid #e3e9f3;}
 .svccta{display:inline-flex;align-self:flex-start;align-items:center;gap:7px;margin-top:auto;padding-top:18px;color:var(--red);font-weight:800;font-size:13px;letter-spacing:.02em;}
 .svccta svg{width:16px;height:16px;transition:transform .2s;}
 .svc:hover .svccta svg{transform:translateX(4px);}
@@ -7817,10 +7817,10 @@ function publicSitePage(req) {
 
   // --- inline SVG icon set (stroke = currentColor) ---
   const ICON = {
-    sell: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.4 9.3 5 4.8h14l1.6 4.5a2.5 2.5 0 0 1-4.5 1.5 2.5 2.5 0 0 1-3.8 0 2.5 2.5 0 0 1-3.8 0A2.5 2.5 0 0 1 3.4 9.3Z"/><path d="M5 11.4h14V20a1 1 0 0 1-1 1h-3.6v-5.1a1 1 0 0 0-1-1h-2.8a1 1 0 0 0-1 1V21H6a1 1 0 0 1-1-1V11.4Z"/></svg>',
-    exit: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 3.5h9a1 1 0 0 1 1 1V9h-2.1V5.6H6v12.8h5.9V15H14v4.5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z"/><path d="M14.6 12H21.2" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" fill="none"/><path d="M18.3 9.2 21.3 12l-3 2.8" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>',
-    secure: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.2a7 7 0 0 0-7 7c0 5.1 7 12 7 12s7-6.9 7-12a7 7 0 0 0-7-7Z"/><circle cx="12" cy="9.2" r="2.6" fill="#0d1f49"/></svg>',
-    place: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 17.2h10V20a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1v-2.8Z"/><path d="M17 16.2H7a4.4 4.4 0 0 1-1.1-8.7A5 5 0 0 1 16.1 6.6 4.4 4.4 0 0 1 17 16.2Z"/></svg>',
+    sell: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 6.3a.9.9 0 0 0-.9.9v.25c-1.3.3-2.15 1.25-2.15 2.5 0 1.45 1.2 2.15 2.5 2.55 1 .3 1.35.5 1.35.95 0 .45-.4.75-1.05.75-.6 0-1.1-.2-1.55-.6a.9.9 0 1 0-1.15 1.38c.55.47 1.2.76 1.9.86v.26a.9.9 0 0 0 1.8 0v-.28c1.35-.32 2.2-1.26 2.2-2.52 0-1.5-1.25-2.2-2.6-2.6-.85-.28-1.25-.48-1.25-.9 0-.38.38-.66.95-.66.5 0 .9.12 1.3.4a.9.9 0 1 0 1-1.48c-.4-.28-.85-.47-1.3-.56v-.28a.9.9 0 0 0-.9-.9Z" fill="#eef3fb"/></svg>',
+    exit: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="4.5" y="10.3" width="15" height="10.7" rx="2.2"/><path d="M8 10.3V7.4a4 4 0 0 1 7.5-1.9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="15.1" r="1.5" fill="#eef3fb"/></svg>',
+    secure: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="11" y="2.8" width="2" height="18.4" rx="1"/><path d="M13 5h5.8l2.1 2.1-2.1 2.1H13z"/><path d="M11 10.6H5.2L3.1 12.7l2.1 2.1H11z"/></svg>',
+    place: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8.3" r="5.6"/><path d="M9.3 8.3l1.9 1.9 3.6-3.9" fill="none" stroke="#eef3fb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 13.3 6.3 21l5.7-2.6 5.7 2.6-1.7-7.7"/></svg>',
     value: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l3-4 3 2 4-6"/></svg>',
     brief: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
     fork: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v6a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V3"/><path d="M7 11v10"/><path d="M17 3c-1.7 0-3 2-3 5s1.3 4 3 4m0 0v9m0-9c1.7 0 3-1 3-4s-1.3-5-3-5"/></svg>',
