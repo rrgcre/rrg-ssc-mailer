@@ -7257,7 +7257,10 @@ section{padding:84px 0;}
 @media(max-width:720px){.h2{font-size:30px;}}
 .lead{color:var(--muted);font-size:17px;margin-top:12px;max-width:62ch;}
 /* services */
-.svcs{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:40px;}
+.concepts{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px;}
+.cpill{display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:100px;padding:9px 16px;font-size:13.5px;font-weight:700;color:var(--navy);box-shadow:0 2px 8px rgba(10,20,50,.04);}
+.cpill::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--gold);flex:none;}
+.svcs{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:34px;}
 @media(max-width:980px){.svcs{grid-template-columns:repeat(2,1fr);}}
 @media(max-width:560px){.svcs{grid-template-columns:1fr;}}
 .svctrans{position:relative;max-width:58ch;margin:40px auto 0;padding-top:24px;text-align:center;font-family:Fraunces,Georgia,serif;font-size:19px;line-height:1.5;color:var(--navy);font-weight:600;}
@@ -7577,7 +7580,7 @@ ${SITE_CSS}
 <a id="top"></a>
 <div class="hero${heroImgSafe ? ' hasimg' : ''}"><div class="wrap"><div class="${heroGridClass}">
   <div>
-    <div class="eyebrow">Texas Restaurant &amp; Bar Brokers</div>
+    <div class="eyebrow">The Texas Restaurant &amp; Bar Brokers</div>
     <h1 class="serif">${esc(s.tagline || '')}</h1>
     <p class="sub">${esc(s.heroSub || '')}</p>
     <div class="hcta">
@@ -7590,8 +7593,11 @@ ${SITE_CSS}
 </div></div></div>
 
 <section id="services"><div class="wrap">
-  <div class="sec-head"><div class="eyebrow">What we do</div><div class="h2">Full-service restaurant representation</div>
-  <p class="lead">Sellers, buyers, landlords, and tenants — we handle the entire transaction, from first valuation to a clean close.</p></div>
+  <div class="sec-head"><div class="eyebrow">What we do</div><div class="h2">Full-service representation across food &amp; beverage</div>
+  <p class="lead">From full-service and quick-serve to bars, food trucks, and food halls — we handle the entire transaction, from first valuation to a clean close, for sellers, buyers, landlords, and tenants.</p></div>
+  <div class="concepts">
+    <span class="cpill">Full-service restaurants</span><span class="cpill">Quick-serve &amp; fast-casual</span><span class="cpill">Bars &amp; nightlife</span><span class="cpill">Food trucks &amp; trailers</span><span class="cpill">Food halls</span><span class="cpill">Cafés &amp; coffee</span><span class="cpill">Breweries &amp; taprooms</span><span class="cpill">Ghost kitchens</span>
+  </div>
   <div class="svcs">${svcHtml}</div>
   ${s.servicesTransition ? '<p class="svctrans">' + esc(s.servicesTransition) + '</p>' : ''}
 </div></section>
