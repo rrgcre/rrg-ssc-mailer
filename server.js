@@ -6820,7 +6820,7 @@ function defaultWebsite() {
     brand: orgDisplayName() || 'Restaurant Realty Group',
     tagline: 'Restaurant Transactions. Done Right.',
     heroSub: 'Texas’s restaurant brokerage — 200+ closed transactions across Austin, Dallas, Houston, and San Antonio. We run a structured, controlled process built to close.',
-    heroCtaText: 'See current opportunities',
+    heroCtaText: 'Sell Your Restaurant(s)',
     heroImage: '/rrg_hero.jpg',
     stats: [ { n: '200+', l: 'Restaurant transactions' }, { n: '4', l: 'Texas metros' }, { n: '5', l: 'Offices' } ],
     wins: [
@@ -7329,8 +7329,8 @@ footer{background:#05081a;color:#8597b8;font-size:13px;padding:40px 0 30px;}
     <h1 class="serif">${esc(s.tagline || '')}</h1>
     <p class="sub">${esc(s.heroSub || '')}</p>
     <div class="hcta">
-      <a class="btn gold" href="#opportunities">${esc(s.heroCtaText || 'See current opportunities')}</a>
-      <a class="btn ghost" href="#contact">Talk to a broker</a>
+      <a class="btn gold" href="#contact" onclick="(function(){var i=document.getElementById('lf_interest');if(i){for(var k=0;k<i.options.length;k++){if(/sell/i.test(i.options[k].text)){i.selectedIndex=k;break;}}}})()">${esc(s.heroCtaText || 'Sell Your Restaurant(s)')}</a>
+      <a class="btn ghost" href="#opportunities">See exclusive opportunities</a>
     </div>
     <div class="htrust">${(s.stats || []).slice(0, 3).map(function (x) { return '<div><div class="n">' + esc(x.n || '') + '</div><div class="l">' + esc(x.l || '') + '</div></div>'; }).join('')}</div>
   </div>
@@ -7351,8 +7351,8 @@ footer{background:#05081a;color:#8597b8;font-size:13px;padding:40px 0 30px;}
 </div></section>
 
 <section id="opportunities" class="ops"><div class="wrap">
-  <div class="sec-head"><div class="eyebrow">On the market</div><div class="h2">Current opportunities</div>
-  <p class="lead">A sample of what’s live right now. Business listings are confidential — request details and we’ll qualify you under NDA.</p></div>
+  <div class="sec-head"><div class="eyebrow">On the market</div><div class="h2">Exclusive opportunities</div>
+  <p class="lead">Every RRG listing is an exclusive representation — if it’s here, you can only get it through us. Business listings are confidential; request details and we’ll qualify you under NDA.</p></div>
   <div class="opgrid">${cards}</div>
   <div class="opall"><a class="btn gold" href="/market">View the full marketplace &rarr;</a></div>
 </div></section>
