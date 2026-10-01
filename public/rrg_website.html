@@ -153,7 +153,9 @@ function render(){
 
   +'<div class="card"><h2>Stats band</h2><p class="sub">The numbers shown under the hero.</p><div id="statsBox"></div><button type="button" class="addbtn" onclick="addStat()">+ Add stat</button></div>'
 
-  +'<div class="card"><h2>Services</h2><p class="sub">What you do — shown as cards.</p><div id="svcBox"></div><button type="button" class="addbtn" onclick="addSvc()">+ Add service</button></div>'
+  +'<div class="card"><h2>Services</h2><p class="sub">What you do — shown as cards.</p><div id="svcBox"></div><button type="button" class="addbtn" onclick="addSvc()">+ Add service</button>'
+    +'<div class="f" style="margin-top:16px"><label class="fld">Closing line (under the cards)</label><textarea id="f_servicesTransition" style="min-height:70px" placeholder="A one-line sentence that closes the section. Leave blank to hide it.">'+esc(s.servicesTransition||'')+'</textarea><div class="sub" style="margin-top:4px">Centered line shown beneath the service cards. Clear it to remove the line.</div></div>'
+  +'</div>'
 
   +'<div class="card"><h2>Processes</h2><p class="sub">Your playbooks — each one shows on the site as its own tab with numbered steps. Add a process per deal type.</p><div id="procBox"></div><button type="button" class="addbtn" onclick="addProc()">+ Add process</button></div>'
 
@@ -212,6 +214,7 @@ function collect(){
   return {
     published: el('f_published').checked,
     brand: val('f_brand'), tagline: val('f_tagline'), heroSub: val('f_heroSub'),
+    servicesTransition: val('f_servicesTransition'),
     aboutHead: val('f_aboutHead'), about: val('f_about'), contactEmail: val('f_contactEmail'), bookingUrl: val('f_bookingUrl'), customDomain: val('f_customDomain'), heroImage: val('f_heroImage'),
     stats: rows('[data-stat]',function(r){ return { n:r.querySelector('.s_n').value, l:r.querySelector('.s_l').value }; }).filter(function(x){return x.n||x.l;}),
     services: rows('[data-svc]',function(r){ return { t:r.querySelector('.v_t').value, d:r.querySelector('.v_d').value }; }).filter(function(x){return x.t||x.d;}),

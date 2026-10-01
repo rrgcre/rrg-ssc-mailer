@@ -1470,7 +1470,7 @@ app.use(express.urlencoded({ extended: false }));
 const OPEN = new Set(['/health', '/login', '/api/login', '/logout', '/favicon.ico', '/api/appname', '/api/brand', '/api/brand/logo', '/api/brand/logo/light', '/rrg_brand.js', '/rrg_theme.css', '/api/gmail/callback']);
 app.use((req, res, next) => {
   // Buyer-facing data-room links are public (the unguessable token is the gate).
-  if (OPEN.has(req.path) || req.path.startsWith('/room/') || req.path.startsWith('/deal/') || req.path.startsWith('/roomfile/') || req.path.startsWith('/roomview/') || req.path.startsWith('/vendor/') || req.path.startsWith('/sign/') || req.path.startsWith('/api/sign/') || req.path.startsWith('/eo/') || req.path.startsWith('/ec/') || req.path.startsWith('/u/') || req.path.startsWith('/api/u/') || req.path.startsWith('/book/') || req.path.startsWith('/api/book/') || req.path.startsWith('/pay/') || req.path.startsWith('/api/pay/') || req.path === '/api/stripe/webhook' || req.path === '/api/mail/ses-webhook' || req.path.startsWith('/mail/') || req.path === '/market' || req.path === '/api/market/public' || req.path === '/api/market/request-access' || req.path === '/site' || req.path === '/api/website/public' || req.path === '/api/website/lead' || req.path === '/api/website/hero-image' || req.path.startsWith('/api/property-public-photo/') || req.path.startsWith('/s/') || req.path === '/seller_intake.html' || req.path === '/seller_record.html') return next();
+  if (OPEN.has(req.path) || req.path.startsWith('/room/') || req.path.startsWith('/deal/') || req.path.startsWith('/roomfile/') || req.path.startsWith('/roomview/') || req.path.startsWith('/vendor/') || req.path.startsWith('/sign/') || req.path.startsWith('/api/sign/') || req.path.startsWith('/eo/') || req.path.startsWith('/ec/') || req.path.startsWith('/u/') || req.path.startsWith('/api/u/') || req.path.startsWith('/book/') || req.path.startsWith('/api/book/') || req.path.startsWith('/pay/') || req.path.startsWith('/api/pay/') || req.path === '/api/stripe/webhook' || req.path === '/api/mail/ses-webhook' || req.path.startsWith('/mail/') || req.path === '/market' || req.path === '/api/market/public' || req.path === '/api/market/request-access' || req.path === '/site' || req.path.startsWith('/site/') || req.path === '/api/website/public' || req.path === '/api/website/lead' || req.path === '/api/website/hero-image' || req.path.startsWith('/api/property-public-photo/') || req.path.startsWith('/s/') || req.path === '/seller_intake.html' || req.path === '/seller_record.html') return next();
   const sess = auth.readSession(parseCookies(req)[COOKIE]);
   if (sess) {
     req.user = sess;
@@ -6837,6 +6837,7 @@ function defaultWebsite() {
       { t: 'Secure the Right Location', d: 'Identifying and negotiating the right restaurant space for your concept.' },
       { t: 'Place the Right Operator', d: 'Connecting qualified operators with the right properties and landlords.' }
     ],
+    servicesTransition: 'Whatever the deal, the standard is the same — a defined path built to protect your leverage, hold momentum, and produce real outcomes.',
     aboutHead: 'Why operators trust RRG',
     about: 'Restaurant deals fail for predictable reasons. We run a detail-oriented, controlled process — from valuation and positioning through qualified buyers and a clean close — so your transaction gets done right. We represent sellers, buyers, landlords, and tenants across Texas.',
     offices: [
@@ -6915,6 +6916,7 @@ app.post('/api/website', requireAdmin, express.json({ limit: '256kb' }), (req, r
   if (b.heroSub !== undefined) out.heroSub = S(b.heroSub, 600);
   if (b.heroCtaText !== undefined) out.heroCtaText = S(b.heroCtaText, 60) || d.heroCtaText;
   if (b.heroImage !== undefined) out.heroImage = S(b.heroImage, 600);
+  if (b.servicesTransition !== undefined) out.servicesTransition = S(b.servicesTransition, 400);
   if (b.aboutHead !== undefined) out.aboutHead = S(b.aboutHead, 120);
   if (b.about !== undefined) out.about = S(b.about, 2000);
   if (b.contactEmail !== undefined) out.contactEmail = S(b.contactEmail, 160);
@@ -6934,7 +6936,7 @@ app.post('/api/website', requireAdmin, express.json({ limit: '256kb' }), (req, r
 // Public — config subset + live listings
 app.get('/api/website/public', (req, res) => {
   const s = loadWebsite();
-  const pub = { brand: s.brand, tagline: s.tagline, heroSub: s.heroSub, heroCtaText: s.heroCtaText, heroImage: s.heroImage, stats: s.stats, services: s.services, processes: s.processes, wins: s.wins, aboutHead: s.aboutHead, about: s.about, offices: s.offices, contactEmail: s.contactEmail, bookingUrl: s.bookingUrl, published: !!s.published };
+  const pub = { brand: s.brand, tagline: s.tagline, heroSub: s.heroSub, heroCtaText: s.heroCtaText, heroImage: s.heroImage, stats: s.stats, services: s.services, servicesTransition: s.servicesTransition, processes: s.processes, wins: s.wins, aboutHead: s.aboutHead, about: s.about, offices: s.offices, contactEmail: s.contactEmail, bookingUrl: s.bookingUrl, published: !!s.published };
   res.json({ ok: true, site: pub, org: orgDisplayName(), listings: websitePublicListings() });
 });
 // Public — contact / lead form submission, captured for the Website manager
@@ -6997,138 +6999,198 @@ app.get('/api/website/hero-image', (req, res) => {
 });
 // Public site
 app.get('/site', (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8').send(publicSitePage(req)); });
-function publicSitePage(req) {
+
+// ===== Seller-focused service detail page: /site/sell =====
+app.get('/site/sell', (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8').send(siteSellPage(req)); });
+function siteSellPage(req) {
   const s = loadWebsite();
   const org = esc(s.brand || orgDisplayName() || 'Restaurant Realty Group');
-  if (!s.published) {
-    return '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>' + org + '</title>'
-      + '<style>body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:#060E22;color:#fff;display:flex;min-height:100vh;align-items:center;justify-content:center;text-align:center}.b{padding:30px}h1{font-weight:800;letter-spacing:-.01em;margin:0 0 8px}p{color:#9fb0cc;margin:0}</style>'
-      + '</head><body><div class="b"><h1>' + org + '</h1><p>Our new site is coming soon.</p></div></body></html>';
-  }
-  const listings = websitePublicListings();
   const year = new Date().getFullYear();
-
-  // --- inline SVG icon set (stroke = currentColor) ---
-  const ICON = {
-    sell: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.4 9.3 5 4.8h14l1.6 4.5a2.5 2.5 0 0 1-4.5 1.5 2.5 2.5 0 0 1-3.8 0 2.5 2.5 0 0 1-3.8 0A2.5 2.5 0 0 1 3.4 9.3Z"/><path d="M5 11.4h14V20a1 1 0 0 1-1 1h-3.6v-5.1a1 1 0 0 0-1-1h-2.8a1 1 0 0 0-1 1V21H6a1 1 0 0 1-1-1V11.4Z"/></svg>',
-    exit: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 3.5h9a1 1 0 0 1 1 1V9h-2.1V5.6H6v12.8h5.9V15H14v4.5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z"/><path d="M14.6 12H21.2" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" fill="none"/><path d="M18.3 9.2 21.3 12l-3 2.8" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>',
-    secure: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.2a7 7 0 0 0-7 7c0 5.1 7 12 7 12s7-6.9 7-12a7 7 0 0 0-7-7Z"/><circle cx="12" cy="9.2" r="2.6" fill="#0d1f49"/></svg>',
-    place: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 17.2h10V20a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1v-2.8Z"/><path d="M17 16.2H7a4.4 4.4 0 0 1-1.1-8.7A5 5 0 0 1 16.1 6.6 4.4 4.4 0 0 1 17 16.2Z"/></svg>',
-    value: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l3-4 3 2 4-6"/></svg>',
-    brief: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
-    fork: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v6a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V3"/><path d="M7 11v10"/><path d="M17 3c-1.7 0-3 2-3 5s1.3 4 3 4m0 0v9m0-9c1.7 0 3-1 3-4s-1.3-5-3-5"/></svg>',
-    phone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.1-8.7A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.4-1.2a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2Z"/></svg>'
-  };
-  const svcIcons = [ICON.sell, ICON.exit, ICON.secure, ICON.place];
-  const svcHtml = (s.services || []).map(function (x, i) {
-    const ic = svcIcons[i] || ICON.brief;
-    const oi = i + 1;
-    return '<a class="svc" href="#contact" onclick="(function(){var s=document.getElementById(\'lf_interest\');if(s&&s.options[' + oi + '])s.selectedIndex=' + oi + ';})()"><div class="svcic">' + ic + '</div><div class="svct">' + esc(x.t || '') + '</div><div class="svcd">' + esc(x.d || '') + '</div><span class="svccta">Discuss this<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></a>';
-  }).join('');
-
-  const statHtml = (s.stats || []).map(function (x) { return '<div class="stat"><div class="statn">' + esc(x.n || '') + '</div><div class="statl">' + esc(x.l || '') + '</div></div>'; }).join('');
-
-  // --- markets covered (derived from offices, de-duped) ---
-  const metros = []; (s.offices || []).forEach(function (o) { const c = String(o.city || '').trim(); if (c && metros.indexOf(c) < 0) metros.push(c); });
-  if (!metros.length) ['Austin', 'Dallas', 'Houston', 'San Antonio'].forEach(function (c) { metros.push(c); });
-  const pinSvgIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.2-7-11a7 7 0 0 1 14 0c0 5.8-7 11-7 11Z"/><circle cx="12" cy="10" r="2.3"/></svg>';
-  const metroGrid = '<div class="metros">' + metros.map(function (c) { return '<div class="metro"><span class="metroic">' + pinSvgIcon + '</span><div><div class="metron">' + esc(c) + '</div><div class="metros2">Brokers on the ground</div></div></div>'; }).join('') + '</div>';
-
-  // --- opportunity cards ---
-  const lockSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
-  let cards = (listings || []).slice(0, 6).map(function (t) {
-    const ask = esc(t.guide || t.price || '');
-    const basis = esc(t.earnBasis || 'SDE');
-    const sde = esc(t.sde || '');
-    const rev = esc(t.revenue || '');
-    const mets = [];
-    if (ask) mets.push('<div><div class="v">' + ask + '</div><div class="k">Guide</div></div>');
-    if (sde) mets.push('<div><div class="v">' + sde + '</div><div class="k">' + basis + '</div></div>');
-    if (rev) mets.push('<div><div class="v">' + rev + '</div><div class="k">Revenue</div></div>');
-    const metHtml = mets.length ? mets.join('') : '<div><div class="v" style="font-size:14px">Under NDA</div><div class="k">Financials on request</div></div>';
-    const ribbon = (t.flagLabel || t.featured) ? ('<span class="fribbon">' + esc(t.flagLabel || '★ Featured') + '</span>') : '';
-    return '<a class="fcard" href="/market">'
-      + '<div class="ftop"><span class="med">' + ICON.fork + '</span><div class="floc">' + esc(t.loc || t.marketKey || 'Texas') + '</div><span class="exbadge">Exclusive</span>' + ribbon + '</div>'
-      + '<h3>' + esc(t.headline || 'Confidential restaurant opportunity') + '</h3><div class="fbadge">' + esc(t.badge || 'Restaurant') + '</div>'
-      + '<div class="fmet">' + metHtml + '</div>'
-      + '<div class="ffoot"><span class="flock">' + lockSvg + 'Blind until NDA</span><span class="act">Request details &rarr;</span></div>'
-      + '</a>';
-  }).join('');
-  if (!(listings || []).length) cards = '<div class="noops">New opportunities are posted here as they come to market. <a href="/market">Browse the marketplace &rarr;</a></div>';
-
-  const interestOpts = '<option value="">What can we help with?</option>' + (s.services || []).map(function (x) { return '<option>' + esc(x.t || '') + '</option>'; }).join('') + '<option>General inquiry</option>';
-  const email = esc(s.contactEmail || '');
   const bookUrl = String(s.bookingUrl || '').replace(/["'<>]/g, '').trim();
   const bookBtn = bookUrl ? ('<a class="btn gold" href="' + bookUrl + '" target="_blank" rel="noopener">📅 Book a call</a>') : '';
-  const officeHtml = (s.offices || []).map(function (o) { const ph = esc(o.phone || ''); const tel = ph.replace(/[^0-9+]/g, ''); return '<div class="off"><div class="offc">' + esc(o.city || '') + '</div>' + (ph ? ('<a class="offp" href="tel:' + tel + '">' + ICON.phone + '<span>' + ph + '</span></a>') : '') + '</div>'; }).join('');
-  const PROC_DEFAULT = [
-    { name: 'Selling a restaurant', steps: [
-      { t: 'Valuation & strategy', d: 'We price it right and build the plan before anything goes to market.' },
-      { t: 'Confidential positioning', d: 'Marketed discreetly to the right audience — never your staff or guests.' },
-      { t: 'Qualified buyers only', d: 'Every buyer is vetted, NDA’d, and qualified before they reach you.' },
-      { t: 'LOI & due diligence', d: 'We manage offers, terms, and diligence so momentum never stalls.' },
-      { t: 'A clean close', d: 'Lease assignment, licensing, and closing — handled to the finish.' }
-    ]},
-    { name: 'Exiting a lease', steps: [
-      { t: 'Assess the exposure', d: 'We read the lease and quantify what a clean exit really takes.' },
-      { t: 'Position the space', d: 'Packaged and marketed to replacement tenants and assignees.' },
-      { t: 'Source the taker', d: 'We find the operator or assignee who makes the landlord whole.' },
-      { t: 'Negotiate the exit', d: 'Assignment, sublease, or termination — structured in your favor.' },
-      { t: 'Hand off clean', d: 'Documented, signed, and closed so the liability is truly gone.' }
-    ]},
-    { name: 'Securing a location', steps: [
-      { t: 'Define the criteria', d: 'Concept, economics, and trade-area targets set up front.' },
-      { t: 'Search & shortlist', d: 'We work the corridors and surface sites that actually fit.' },
-      { t: 'Tour & compare', d: 'Side-by-side on rent, build-out, and real restaurant fit.' },
-      { t: 'LOI & lease', d: 'We negotiate rate, TI, and terms that protect your P&L.' },
-      { t: 'Build-out handoff', d: 'Clean transition from signed lease to open doors.' }
-    ]},
-    { name: 'Placing an operator', steps: [
-      { t: 'Understand the space', d: 'Economics, infrastructure, and the right concept fit.' },
-      { t: 'Source operators', d: 'We tap our bench of qualified, funded operators.' },
-      { t: 'Vet & match', d: 'Track record, capital, and concept verified before intros.' },
-      { t: 'Deal terms', d: 'We structure the lease or purchase that works for both sides.' },
-      { t: 'Transition', d: 'From handshake to handover, managed end to end.' }
-    ]}
+  const email = esc(s.contactEmail || '');
+
+  const procs = Array.isArray(s.processes) ? s.processes : [];
+  let sell = procs.filter(function (p) { return /sell|sale|selling/i.test(String(p && p.name || '')); })[0];
+  const sellSteps = (sell && Array.isArray(sell.steps) && sell.steps.length) ? sell.steps : [
+    { t: 'Valuation & strategy', d: 'We establish real, defensible value — SDE/EBITDA, comps, and the levers that move your number — before anything goes to market.' },
+    { t: 'Confidential positioning', d: 'Your business is packaged and marketed blind. Staff, guests, suppliers, your landlord, and competitors never see it coming.' },
+    { t: 'Qualified buyers only', d: 'Every buyer is screened for capital and fit and signs an NDA before they ever learn who you are.' },
+    { t: 'Offers & LOI', d: 'We drive competing interest, negotiate price and terms, and keep the leverage on your side of the table.' },
+    { t: 'Diligence, managed', d: 'Books, lease, licensing, equipment — we quarterback diligence so momentum never stalls.' },
+    { t: 'A clean close', d: 'Lease assignment, license transfer, and closing handled to the finish — so you walk away clean.' }
   ];
-  const processes = (Array.isArray(s.processes) && s.processes.length) ? s.processes : PROC_DEFAULT;
-  const procTabs = processes.map(function (p, i) { return '<button type="button" class="ptab' + (i === 0 ? ' on' : '') + '" data-ptab="' + i + '">' + esc(p.name || ('Process ' + (i + 1))) + '</button>'; }).join('');
-  const procPanels = processes.map(function (p, i) {
-    const st = (p.steps || []).map(function (x, j) { return '<div class="step"><div class="stepn">' + (j + 1) + '</div><div class="stepb"><div class="stept">' + esc(x.t || '') + '</div><div class="stepd">' + esc(x.d || '') + '</div></div></div>'; }).join('');
-    return '<div class="ppanel' + (i === 0 ? ' on' : '') + '" data-ppanel="' + i + '"><div class="steps">' + st + '</div></div>';
-  }).join('');
-  const winHtml = (s.wins || []).map(function (w) {
-    const type = String(w.type || '').toLowerCase();
-    const cls = type.indexOf('sold') >= 0 ? 'sold' : (type.indexOf('leas') >= 0 ? 'leased' : (type.indexOf('plac') >= 0 ? 'placed' : 'other'));
-    const meta = [esc(w.market || ''), esc(w.detail || '')].filter(Boolean).join(' &middot; ');
-    return '<div class="win"><span class="wtag ' + cls + '">' + esc(w.type || 'Closed') + '</span><div class="wl">' + esc(w.label || '') + '</div>' + (meta ? ('<div class="wm">' + meta + '</div>') : '') + '</div>';
-  }).join('');
-  const heroImgSafe = String(s.heroImage || '').replace(/["'<>]/g, '').trim();
-  const heroBgStyle = heroImgSafe ? ('<style>.hero{background-color:#0A1733;background-image:linear-gradient(100deg,rgba(6,14,34,.86) 0%,rgba(6,14,34,.56) 40%,rgba(8,16,40,.26) 100%),url("' + heroImgSafe + '");background-size:cover;background-position:center;}</style>') : '';
-  const feat = (listings || [])[0];
-  const heroInner = feat
-    ? ('<div class="cap"><span>Featured on the market</span><b>Live</b></div>'
-      + '<div class="hfeat"><div class="hftop"><span class="hfmed">' + ICON.fork + '</span><div class="hfloc">' + esc(feat.loc || feat.marketKey || 'Texas') + '</div></div>'
-      + '<div class="hfh">' + esc(feat.headline || 'Confidential restaurant opportunity') + '</div>'
-      + '<div class="hfbadge">' + esc(feat.badge || 'Restaurant') + '</div>'
-      + '<div class="hfp">' + esc(feat.guide || feat.price || 'Financials under NDA') + '</div>'
-      + '<a class="btn gold hfbtn" href="/market">Request details &rarr;</a></div>')
-    : ('<div class="cap"><span>Full-service brokerage</span><b>Texas</b></div>'
-      + '<div class="hcreds">'
-      + '<div class="cred"><b>Sellers &amp; buyers</b><span>Confidential, qualified</span></div>'
-      + '<div class="cred"><b>Landlords &amp; tenants</b><span>Lease, assign, exit</span></div>'
-      + '<div class="cred"><b>Valuations</b><span>Priced to close</span></div>'
-      + '<div class="cred"><b>Operator placement</b><span>Funded &amp; vetted</span></div>'
-      + '</div>');
-  const heroCard = heroImgSafe ? '' : ('<div class="herocard">' + heroInner + '</div>');
-  const heroGridClass = heroImgSafe ? 'herogrid solo' : 'herogrid';
+  const stepHtml = sellSteps.slice(0, 6).map(function (x, j) { return '<div class="step"><div class="stepn">' + (j + 1) + '</div><div class="stepb"><div class="stept">' + esc(x.t || '') + '</div><div class="stepd">' + esc(x.d || '') + '</div></div></div>'; }).join('');
+
+  const soldWins = (s.wins || []).filter(function (w) { return /sold|sale/i.test(String(w && w.type || '')); });
+  const winSrc = soldWins.length ? soldWins : (s.wins || []).slice(0, 6);
+  const winHtml = winSrc.slice(0, 6).map(function (w) { const meta = [esc(w.market || ''), esc(w.detail || '')].filter(Boolean).join(' &middot; '); return '<div class="win"><span class="wtag sold">' + esc(w.type || 'Sold') + '</span><div class="wl">' + esc(w.label || '') + '</div>' + (meta ? ('<div class="wm">' + meta + '</div>') : '') + '</div>'; }).join('');
+  const hasWins = !!winHtml;
+
+  const bookRow = bookUrl ? ('<div style="margin-top:20px"><div style="font-size:12.5px;color:#9fb0cc;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:9px">Prefer to grab a time?</div>' + bookBtn + '</div>') : '';
+  const emailRow = email ? ('<p class="lead" style="margin-top:14px">Prefer email? <a style="color:#fff;font-weight:800" href="mailto:' + email + '">' + email + '</a></p>') : '';
+  const offLinks = (s.offices || []).map(function (o) { const tel = String(o.phone || '').replace(/[^0-9+]/g, ''); return '<a href="tel:' + tel + '">' + esc(o.city || '') + ' &middot; ' + esc(o.phone || '') + '</a>'; }).join('');
+
+  const VIC = {
+    val: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="12" width="4" height="8" rx="1"/><rect x="10" y="7" width="4" height="13" rx="1"/><rect x="17" y="3" width="4" height="17" rx="1"/></svg>',
+    conf: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.2 20 5v6c0 5-3.4 8.9-8 10.8C7.4 19.9 4 16 4 11V5l8-2.8Z"/><path d="M9.3 11.4l1.9 1.9 3.6-3.8" fill="none" stroke="#0d1f49" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    buyers: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="9" r="6.5"/><path d="M9.1 9.1l2 2 3.6-3.8" fill="none" stroke="#0d1f49" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.2 15.1 6.6 21l5.4-2.3L17.4 21l-1.6-5.9" fill="currentColor"/></svg>',
+    close: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 3a1 1 0 0 1 1-1h13l-2.6 4.2L19 10H7v10a1 1 0 0 1-2 0V3Z"/></svg>'
+  };
+  const values = [
+    { ic: VIC.val, t: 'A number you can defend', d: 'Real valuation built on SDE/EBITDA and live comps — not a listing-site guess — so you price to sell and leave nothing on the table.' },
+    { ic: VIC.conf, t: 'Total confidentiality', d: 'Marketed blind until NDA. Your staff, guests, suppliers, landlord, and competitors do not find out you are selling.' },
+    { ic: VIC.buyers, t: 'Only qualified buyers', d: 'Every buyer is screened for capital and concept fit and signs an NDA before they ever reach you. No tire-kickers.' },
+    { ic: VIC.close, t: 'A clean close', d: 'Lease assignment, license transfer, equipment, and closing — quarterbacked end to end so the deal actually finishes.' }
+  ];
+  const valueHtml = values.map(function (v) { return '<div class="svc" style="box-shadow:0 10px 26px rgba(10,20,50,.09)"><div class="svcic">' + v.ic + '</div><div class="svct">' + esc(v.t) + '</div><div class="svcd">' + esc(v.d) + '</div></div>'; }).join('');
+
+  const faqs = [
+    { q: 'Will anyone know my restaurant is for sale?', a: 'No. We market every business blind — no name, no address, no identifying photos — until a buyer is qualified and under NDA. Your team, your regulars, your vendors, and your landlord stay in the dark until you decide otherwise.' },
+    { q: 'What is my restaurant actually worth?', a: 'It depends on your earnings, lease, equipment, and the strength of the concept — not a multiple off the internet. We build a defensible valuation from your real numbers and current market comps before we ever talk price publicly. Start with a confidential valuation and you will know where you stand.' },
+    { q: 'What does it cost to work with you?', a: 'Our fee is success-based — we are paid when your deal closes, aligned with getting you the best outcome. There is no cost to get a valuation or to talk through your options.' },
+    { q: 'How long does a sale take?', a: 'Most restaurant sales run a few months from go-to-market to close, depending on price, lease, and buyer financing. A clean, well-priced, well-documented deal moves faster — which is exactly what our process is built to produce.' },
+    { q: 'What about my lease and my landlord?', a: 'The lease is often where restaurant deals live or die. We read it early, plan the assignment or new lease with the landlord, and manage that conversation so it does not blow up the sale at the finish line.' },
+    { q: 'I am not sure I am ready to sell. Is it worth a call?', a: 'Yes. Plenty of our sellers start by just wanting to know what they have and what the market looks like. A confidential conversation costs you nothing and gives you real numbers to decide with — on your timeline, not ours.' }
+  ];
+  const faqHtml = faqs.map(function (f) { return '<details class="faq"><summary>' + esc(f.q) + '</summary><div class="fa">' + esc(f.a) + '</div></details>'; }).join('');
 
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${org} — ${esc(s.tagline || '')}</title>
-<meta name="description" content="${esc(s.heroSub || '')}">
+<title>Sell Your Restaurant — ${org}</title>
+<meta name="description" content="Sell your restaurant confidentially and for what it's worth. ${org} runs a controlled, discreet sell-side process — real valuation, qualified buyers, and a clean close.">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>${SITE_CSS}</style>
 <style>
+.shero{position:relative;background:linear-gradient(115deg,#060e22,#0a1733 55%,#122a5a);color:#fff;padding:52px 0 78px;overflow:hidden;}
+.shero::after{content:'';position:absolute;right:-140px;top:-140px;width:460px;height:460px;border-radius:50%;background:radial-gradient(circle,rgba(200,162,75,.16),transparent 70%);pointer-events:none;}
+.shero .wrap{position:relative;z-index:1;}
+.shero .eyebrow{color:var(--gold2);}
+.shero h1{font-family:'Fraunces',serif;font-weight:600;font-size:52px;line-height:1.05;letter-spacing:-.015em;margin:14px 0 0;max-width:17ch;text-wrap:balance;}
+@media(max-width:720px){.shero h1{font-size:34px;}}
+.shero .sub{color:#c6d1e6;font-size:18px;line-height:1.55;max-width:60ch;margin:20px 0 0;}
+.sherocta{display:flex;flex-wrap:wrap;gap:14px;margin-top:30px;}
+.strust{display:flex;flex-wrap:wrap;gap:10px 28px;margin-top:32px;color:#9fb0cc;font-size:13px;font-weight:700;}
+.strust span{display:inline-flex;align-items:center;gap:9px;}
+.strust b{color:var(--gold2);font-weight:800;}
+.sback{display:inline-flex;align-items:center;gap:7px;color:#9fb0cc;font-size:13px;font-weight:700;text-decoration:none;}
+.sback:hover{color:#fff;}
+.svalue{background:var(--cream);}
+.faqwrap{margin-top:38px;display:grid;gap:12px;max-width:840px;}
+.faq{border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden;box-shadow:0 2px 10px rgba(10,20,50,.04);}
+.faq summary{cursor:pointer;list-style:none;padding:19px 22px;font-family:'Fraunces',serif;font-weight:600;font-size:18px;color:var(--navy);display:flex;justify-content:space-between;align-items:center;gap:16px;}
+.faq summary::-webkit-details-marker{display:none;}
+.faq summary::after{content:'+';font-family:Inter,sans-serif;font-size:26px;color:var(--gold);font-weight:400;line-height:1;transition:transform .2s;}
+.faq[open] summary::after{transform:rotate(45deg);}
+.faq .fa{padding:0 22px 20px;color:var(--muted);font-size:15px;line-height:1.62;max-width:72ch;}
+.selclose{background:linear-gradient(120deg,#0c2a5e,#001A4A);color:#fff;}
+</style></head>
+<body>
+<header><div class="wrap"><nav class="nav">
+  <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
+  <span class="sp"></span>
+  <a class="navlink" href="/site#services">All services</a>
+  <a class="navlink" href="#process">How it works</a>
+  <a class="navlink" href="/site#opportunities">Opportunities</a>
+  <a class="navlink" href="#track">Track record</a>
+  <a class="navcta" href="#contact">Request a valuation</a>
+</nav></div></header>
+
+<section class="shero"><div class="wrap">
+  <a class="sback" href="/site">&larr; Back to ${org}</a>
+  <div class="eyebrow" style="margin-top:16px">Sell-side representation</div>
+  <h1>Sell your restaurant — confidentially, and for what it's worth.</h1>
+  <p class="sub">Most restaurant sales leak value: the wrong price, the wrong buyers, and word getting out before the owner is ready. We run a controlled, confidential process built to protect your leverage and close clean.</p>
+  <div class="sherocta">
+    <a class="btn red" href="#contact">Request a confidential valuation</a>
+    ${bookUrl ? bookBtn : '<a class="btn ghost" href="#process">See how it works</a>'}
+  </div>
+  <div class="strust">
+    <span><b>200+</b> transactions closed</span>
+    <span><b>Blind</b> until NDA</span>
+    <span><b>Success-based</b> fee — no upfront cost</span>
+  </div>
+</div></section>
+
+<section class="svalue"><div class="wrap">
+  <div class="sec-head"><div class="eyebrow">Why sell with RRG</div><div class="h2">What selling with us actually gets you</div>
+  <p class="lead">Selling a restaurant is not listing it. It is valuation, discretion, qualified demand, and a close that holds together — handled by brokers who do only this.</p></div>
+  <div class="svcs">${valueHtml}</div>
+</div></section>
+
+<section id="process" class="process"><div class="wrap">
+  <div class="sec-head"><div class="eyebrow">The process</div><div class="h2">How a sale runs</div>
+  <p class="lead">A disciplined, controlled path from first valuation to a clean close — built to protect your confidentiality and your leverage at every step.</p></div>
+  <div class="ppanel on" style="margin-top:38px"><div class="steps">${stepHtml}</div></div>
+</div></section>
+
+${hasWins ? `<section id="track" class="track"><div class="wrap">
+  <div class="sec-head"><div class="eyebrow">Proof</div><div class="h2">Recent sell-side closings</div>
+  <p class="lead">A sample of closed transactions. Details kept confidential — no client names needed to show the work.</p></div>
+  <div class="wins">${winHtml}</div>
+  <div class="trackfoot">Representative closings across Texas. Your outcome depends on your business, lease, and market.</div>
+</div></section>` : ''}
+
+<section class="svalue"><div class="wrap">
+  <div class="sec-head"><div class="eyebrow">Seller questions</div><div class="h2">Answered, straight</div>
+  <p class="lead">The things every owner asks before they pick up the phone.</p></div>
+  <div class="faqwrap">${faqHtml}</div>
+</div></section>
+
+<section id="contact" class="contact"><div class="wrap"><div class="cgrid">
+  <div>
+    <div class="eyebrow">Start here</div>
+    <div class="h2">Find out what your restaurant is worth</div>
+    <p class="lead">Tell us a little about your restaurant and the right broker will reach out — confidentially — with real numbers and next steps. No obligation.</p>
+    ${bookRow}
+    ${emailRow}
+  </div>
+  <form class="form" id="leadForm" novalidate>
+    <div class="row">
+      <div class="fld"><label>Name</label><input id="lf_name" autocomplete="name" required></div>
+      <div class="fld"><label>Phone</label><input id="lf_phone" autocomplete="tel"></div>
+    </div>
+    <div class="fld"><label>Email</label><input id="lf_email" type="email" autocomplete="email"></div>
+    <div class="fld"><label>Tell us about your restaurant</label><textarea id="lf_message" placeholder="Concept, location/market, approximate sales, lease situation, and your timeline…"></textarea></div>
+    <input type="hidden" id="lf_interest" value="Sell Your Restaurant">
+    <div style="margin-top:18px;display:flex;align-items:center"><button type="submit" class="btn red" id="leadBtn">Request my valuation</button><span class="lmsg" id="leadMsg"></span></div>
+  </form>
+</div></div></section>
+
+<footer><div class="wrap">
+  <div class="foot">
+    <div>
+      <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
+      <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
+    </div>
+    <div><h4>Explore</h4><a href="/site#services">Services</a><a href="/site#opportunities">Opportunities</a><a href="/market">Marketplace</a><a href="#contact">Contact</a></div>
+    <div><h4>Offices</h4>${offLinks}</div>
+  </div>
+  <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
+</div></footer>
+
+<script>
+(function(){
+  var f=document.getElementById('leadForm'); if(!f) return;
+  function val(id){ var el=document.getElementById(id); return el?String(el.value||'').trim():''; }
+  f.addEventListener('submit',function(e){ e.preventDefault();
+    var msg=document.getElementById('leadMsg'), btn=document.getElementById('leadBtn');
+    var body={ name:val('lf_name'), email:val('lf_email'), phone:val('lf_phone'), interest:val('lf_interest')||'Sell Your Restaurant', message:val('lf_message') };
+    if(!body.name || (!body.email && !body.phone)){ msg.textContent='Add your name and an email or phone.'; msg.className='lmsg err'; return; }
+    var old=btn.textContent; btn.disabled=true; btn.textContent='Sending…'; msg.textContent='';
+    fetch('/api/website/lead',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+      .then(function(r){return r.json();}).then(function(j){
+        if(j&&j.ok){ f.reset(); document.getElementById('lf_interest').value='Sell Your Restaurant'; msg.textContent='Thanks — we’ll be in touch shortly, confidentially.'; msg.className='lmsg ok'; }
+        else { msg.textContent=(j&&j.error)||'Something went wrong. Please call us.'; msg.className='lmsg err'; }
+        btn.disabled=false; btn.textContent=old;
+      }).catch(function(){ msg.textContent='Network error. Please call us.'; msg.className='lmsg err'; btn.disabled=false; btn.textContent=old; });
+  });
+})();
+</script>
+</body></html>`;
+}
+
+const SITE_CSS = `
 :root{--navy:#001A4A;--navy2:#000E31;--panel:#0c2a5e;--blue:#2C5C8F;--blue2:#5B93CF;--red:#DA2B1F;--red2:#b4241a;--gold:#C8A24B;--gold2:#E0C27E;--cream:#f2f6fb;--ink:#1b2440;--muted:#5d6782;--soft:#8a93a8;--line:#e5e9f1;--line2:#e9ecf3;}
 *{box-sizing:border-box;margin:0;padding:0;}
 html{scroll-behavior:smooth;}
@@ -7362,6 +7424,147 @@ footer::before{content:'';position:absolute;left:0;right:0;top:0;height:2px;back
 .sec-head .h2{position:relative;}
 /* respect reduced motion */
 @media(prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;transition:none!important;scroll-behavior:auto!important;}}
+`;
+
+function publicSitePage(req) {
+  const s = loadWebsite();
+  const org = esc(s.brand || orgDisplayName() || 'Restaurant Realty Group');
+  if (!s.published) {
+    return '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>' + org + '</title>'
+      + '<style>body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:#060E22;color:#fff;display:flex;min-height:100vh;align-items:center;justify-content:center;text-align:center}.b{padding:30px}h1{font-weight:800;letter-spacing:-.01em;margin:0 0 8px}p{color:#9fb0cc;margin:0}</style>'
+      + '</head><body><div class="b"><h1>' + org + '</h1><p>Our new site is coming soon.</p></div></body></html>';
+  }
+  const listings = websitePublicListings();
+  const year = new Date().getFullYear();
+
+  // --- inline SVG icon set (stroke = currentColor) ---
+  const ICON = {
+    sell: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.4 9.3 5 4.8h14l1.6 4.5a2.5 2.5 0 0 1-4.5 1.5 2.5 2.5 0 0 1-3.8 0 2.5 2.5 0 0 1-3.8 0A2.5 2.5 0 0 1 3.4 9.3Z"/><path d="M5 11.4h14V20a1 1 0 0 1-1 1h-3.6v-5.1a1 1 0 0 0-1-1h-2.8a1 1 0 0 0-1 1V21H6a1 1 0 0 1-1-1V11.4Z"/></svg>',
+    exit: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 3.5h9a1 1 0 0 1 1 1V9h-2.1V5.6H6v12.8h5.9V15H14v4.5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z"/><path d="M14.6 12H21.2" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" fill="none"/><path d="M18.3 9.2 21.3 12l-3 2.8" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>',
+    secure: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.2a7 7 0 0 0-7 7c0 5.1 7 12 7 12s7-6.9 7-12a7 7 0 0 0-7-7Z"/><circle cx="12" cy="9.2" r="2.6" fill="#0d1f49"/></svg>',
+    place: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 17.2h10V20a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1v-2.8Z"/><path d="M17 16.2H7a4.4 4.4 0 0 1-1.1-8.7A5 5 0 0 1 16.1 6.6 4.4 4.4 0 0 1 17 16.2Z"/></svg>',
+    value: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l3-4 3 2 4-6"/></svg>',
+    brief: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
+    fork: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v6a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V3"/><path d="M7 11v10"/><path d="M17 3c-1.7 0-3 2-3 5s1.3 4 3 4m0 0v9m0-9c1.7 0 3-1 3-4s-1.3-5-3-5"/></svg>',
+    phone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.1-8.7A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.4-1.2a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2Z"/></svg>'
+  };
+  const svcIcons = [ICON.sell, ICON.exit, ICON.secure, ICON.place];
+  const svcHtml = (s.services || []).map(function (x, i) {
+    const ic = svcIcons[i] || ICON.brief;
+    const oi = i + 1;
+    const arrow = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+    const isSell = /\bsell\b|selling|sale/i.test(String(x.t || ''));
+    const inner = '<div class="svcic">' + ic + '</div><div class="svct">' + esc(x.t || '') + '</div><div class="svcd">' + esc(x.d || '') + '</div>';
+    if (isSell) {
+      return '<a class="svc" href="/site/sell">' + inner + '<span class="svccta">Learn more' + arrow + '</span></a>';
+    }
+    return '<a class="svc" href="#contact" onclick="(function(){var s=document.getElementById(\'lf_interest\');if(s&&s.options[' + oi + '])s.selectedIndex=' + oi + ';})()">' + inner + '<span class="svccta">Discuss this' + arrow + '</span></a>';
+  }).join('');
+
+  const statHtml = (s.stats || []).map(function (x) { return '<div class="stat"><div class="statn">' + esc(x.n || '') + '</div><div class="statl">' + esc(x.l || '') + '</div></div>'; }).join('');
+
+  // --- markets covered (derived from offices, de-duped) ---
+  const metros = []; (s.offices || []).forEach(function (o) { const c = String(o.city || '').trim(); if (c && metros.indexOf(c) < 0) metros.push(c); });
+  if (!metros.length) ['Austin', 'Dallas', 'Houston', 'San Antonio'].forEach(function (c) { metros.push(c); });
+  const pinSvgIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.2-7-11a7 7 0 0 1 14 0c0 5.8-7 11-7 11Z"/><circle cx="12" cy="10" r="2.3"/></svg>';
+  const metroGrid = '<div class="metros">' + metros.map(function (c) { return '<div class="metro"><span class="metroic">' + pinSvgIcon + '</span><div><div class="metron">' + esc(c) + '</div><div class="metros2">Brokers on the ground</div></div></div>'; }).join('') + '</div>';
+
+  // --- opportunity cards ---
+  const lockSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+  let cards = (listings || []).slice(0, 6).map(function (t) {
+    const ask = esc(t.guide || t.price || '');
+    const basis = esc(t.earnBasis || 'SDE');
+    const sde = esc(t.sde || '');
+    const rev = esc(t.revenue || '');
+    const mets = [];
+    if (ask) mets.push('<div><div class="v">' + ask + '</div><div class="k">Guide</div></div>');
+    if (sde) mets.push('<div><div class="v">' + sde + '</div><div class="k">' + basis + '</div></div>');
+    if (rev) mets.push('<div><div class="v">' + rev + '</div><div class="k">Revenue</div></div>');
+    const metHtml = mets.length ? mets.join('') : '<div><div class="v" style="font-size:14px">Under NDA</div><div class="k">Financials on request</div></div>';
+    const ribbon = (t.flagLabel || t.featured) ? ('<span class="fribbon">' + esc(t.flagLabel || '★ Featured') + '</span>') : '';
+    return '<a class="fcard" href="/market">'
+      + '<div class="ftop"><span class="med">' + ICON.fork + '</span><div class="floc">' + esc(t.loc || t.marketKey || 'Texas') + '</div><span class="exbadge">Exclusive</span>' + ribbon + '</div>'
+      + '<h3>' + esc(t.headline || 'Confidential restaurant opportunity') + '</h3><div class="fbadge">' + esc(t.badge || 'Restaurant') + '</div>'
+      + '<div class="fmet">' + metHtml + '</div>'
+      + '<div class="ffoot"><span class="flock">' + lockSvg + 'Blind until NDA</span><span class="act">Request details &rarr;</span></div>'
+      + '</a>';
+  }).join('');
+  if (!(listings || []).length) cards = '<div class="noops">New opportunities are posted here as they come to market. <a href="/market">Browse the marketplace &rarr;</a></div>';
+
+  const interestOpts = '<option value="">What can we help with?</option>' + (s.services || []).map(function (x) { return '<option>' + esc(x.t || '') + '</option>'; }).join('') + '<option>General inquiry</option>';
+  const email = esc(s.contactEmail || '');
+  const bookUrl = String(s.bookingUrl || '').replace(/["'<>]/g, '').trim();
+  const bookBtn = bookUrl ? ('<a class="btn gold" href="' + bookUrl + '" target="_blank" rel="noopener">📅 Book a call</a>') : '';
+  const officeHtml = (s.offices || []).map(function (o) { const ph = esc(o.phone || ''); const tel = ph.replace(/[^0-9+]/g, ''); return '<div class="off"><div class="offc">' + esc(o.city || '') + '</div>' + (ph ? ('<a class="offp" href="tel:' + tel + '">' + ICON.phone + '<span>' + ph + '</span></a>') : '') + '</div>'; }).join('');
+  const PROC_DEFAULT = [
+    { name: 'Selling a restaurant', steps: [
+      { t: 'Valuation & strategy', d: 'We price it right and build the plan before anything goes to market.' },
+      { t: 'Confidential positioning', d: 'Marketed discreetly to the right audience — never your staff or guests.' },
+      { t: 'Qualified buyers only', d: 'Every buyer is vetted, NDA’d, and qualified before they reach you.' },
+      { t: 'LOI & due diligence', d: 'We manage offers, terms, and diligence so momentum never stalls.' },
+      { t: 'A clean close', d: 'Lease assignment, licensing, and closing — handled to the finish.' }
+    ]},
+    { name: 'Exiting a lease', steps: [
+      { t: 'Assess the exposure', d: 'We read the lease and quantify what a clean exit really takes.' },
+      { t: 'Position the space', d: 'Packaged and marketed to replacement tenants and assignees.' },
+      { t: 'Source the taker', d: 'We find the operator or assignee who makes the landlord whole.' },
+      { t: 'Negotiate the exit', d: 'Assignment, sublease, or termination — structured in your favor.' },
+      { t: 'Hand off clean', d: 'Documented, signed, and closed so the liability is truly gone.' }
+    ]},
+    { name: 'Securing a location', steps: [
+      { t: 'Define the criteria', d: 'Concept, economics, and trade-area targets set up front.' },
+      { t: 'Search & shortlist', d: 'We work the corridors and surface sites that actually fit.' },
+      { t: 'Tour & compare', d: 'Side-by-side on rent, build-out, and real restaurant fit.' },
+      { t: 'LOI & lease', d: 'We negotiate rate, TI, and terms that protect your P&L.' },
+      { t: 'Build-out handoff', d: 'Clean transition from signed lease to open doors.' }
+    ]},
+    { name: 'Placing an operator', steps: [
+      { t: 'Understand the space', d: 'Economics, infrastructure, and the right concept fit.' },
+      { t: 'Source operators', d: 'We tap our bench of qualified, funded operators.' },
+      { t: 'Vet & match', d: 'Track record, capital, and concept verified before intros.' },
+      { t: 'Deal terms', d: 'We structure the lease or purchase that works for both sides.' },
+      { t: 'Transition', d: 'From handshake to handover, managed end to end.' }
+    ]}
+  ];
+  const processes = (Array.isArray(s.processes) && s.processes.length) ? s.processes : PROC_DEFAULT;
+  const procTabs = processes.map(function (p, i) { return '<button type="button" class="ptab' + (i === 0 ? ' on' : '') + '" data-ptab="' + i + '">' + esc(p.name || ('Process ' + (i + 1))) + '</button>'; }).join('');
+  const procPanels = processes.map(function (p, i) {
+    const st = (p.steps || []).map(function (x, j) { return '<div class="step"><div class="stepn">' + (j + 1) + '</div><div class="stepb"><div class="stept">' + esc(x.t || '') + '</div><div class="stepd">' + esc(x.d || '') + '</div></div></div>'; }).join('');
+    return '<div class="ppanel' + (i === 0 ? ' on' : '') + '" data-ppanel="' + i + '"><div class="steps">' + st + '</div></div>';
+  }).join('');
+  const winHtml = (s.wins || []).map(function (w) {
+    const type = String(w.type || '').toLowerCase();
+    const cls = type.indexOf('sold') >= 0 ? 'sold' : (type.indexOf('leas') >= 0 ? 'leased' : (type.indexOf('plac') >= 0 ? 'placed' : 'other'));
+    const meta = [esc(w.market || ''), esc(w.detail || '')].filter(Boolean).join(' &middot; ');
+    return '<div class="win"><span class="wtag ' + cls + '">' + esc(w.type || 'Closed') + '</span><div class="wl">' + esc(w.label || '') + '</div>' + (meta ? ('<div class="wm">' + meta + '</div>') : '') + '</div>';
+  }).join('');
+  const heroImgSafe = String(s.heroImage || '').replace(/["'<>]/g, '').trim();
+  const heroBgStyle = heroImgSafe ? ('<style>.hero{background-color:#0A1733;background-image:linear-gradient(100deg,rgba(6,14,34,.86) 0%,rgba(6,14,34,.56) 40%,rgba(8,16,40,.26) 100%),url("' + heroImgSafe + '");background-size:cover;background-position:center;}</style>') : '';
+  const feat = (listings || [])[0];
+  const heroInner = feat
+    ? ('<div class="cap"><span>Featured on the market</span><b>Live</b></div>'
+      + '<div class="hfeat"><div class="hftop"><span class="hfmed">' + ICON.fork + '</span><div class="hfloc">' + esc(feat.loc || feat.marketKey || 'Texas') + '</div></div>'
+      + '<div class="hfh">' + esc(feat.headline || 'Confidential restaurant opportunity') + '</div>'
+      + '<div class="hfbadge">' + esc(feat.badge || 'Restaurant') + '</div>'
+      + '<div class="hfp">' + esc(feat.guide || feat.price || 'Financials under NDA') + '</div>'
+      + '<a class="btn gold hfbtn" href="/market">Request details &rarr;</a></div>')
+    : ('<div class="cap"><span>Full-service brokerage</span><b>Texas</b></div>'
+      + '<div class="hcreds">'
+      + '<div class="cred"><b>Sellers &amp; buyers</b><span>Confidential, qualified</span></div>'
+      + '<div class="cred"><b>Landlords &amp; tenants</b><span>Lease, assign, exit</span></div>'
+      + '<div class="cred"><b>Valuations</b><span>Priced to close</span></div>'
+      + '<div class="cred"><b>Operator placement</b><span>Funded &amp; vetted</span></div>'
+      + '</div>');
+  const heroCard = heroImgSafe ? '' : ('<div class="herocard">' + heroInner + '</div>');
+  const heroGridClass = heroImgSafe ? 'herogrid solo' : 'herogrid';
+
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${org} — ${esc(s.tagline || '')}</title>
+<meta name="description" content="${esc(s.heroSub || '')}">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+${SITE_CSS}
 </style>${heroBgStyle}</head>
 <body>
 <header><div class="wrap"><nav class="nav">
@@ -7394,7 +7597,7 @@ footer::before{content:'';position:absolute;left:0;right:0;top:0;height:2px;back
   <div class="sec-head"><div class="eyebrow">What we do</div><div class="h2">Full-service restaurant representation</div>
   <p class="lead">Sellers, buyers, landlords, and tenants — we handle the entire transaction, from first valuation to a clean close.</p></div>
   <div class="svcs">${svcHtml}</div>
-  <p class="svctrans">Whatever the deal, the standard is the same — a defined path built to protect your leverage, hold momentum, and produce real outcomes.</p>
+  ${s.servicesTransition ? '<p class="svctrans">' + esc(s.servicesTransition) + '</p>' : ''}
 </div></section>
 
 <section id="process" class="process"><div class="wrap">
