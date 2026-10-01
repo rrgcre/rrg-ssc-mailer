@@ -139,7 +139,6 @@ function render(){
     +'<div class="f"><label class="fld">Brand name</label><input id="f_brand" value="'+esc(s.brand||'')+'"></div>'
     +'<div class="f"><label class="fld">Headline / tagline</label><input id="f_tagline" value="'+esc(s.tagline||'')+'"></div>'
     +'<div class="f"><label class="fld">Sub-headline</label><textarea id="f_heroSub">'+esc(s.heroSub||'')+'</textarea></div>'
-    +'<div class="f"><label class="fld">Primary button text</label><input id="f_heroCtaText" value="'+esc(s.heroCtaText||'')+'" style="max-width:320px"></div>'
     +'<div class="f"><label class="fld">Hero background photo</label>'
       +'<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'
         +'<input type="file" id="heroFile" accept="image/*" style="display:none" onchange="uploadHero(this.files[0])">'
@@ -212,7 +211,7 @@ function collect(){
   function rows(sel,map){ return Array.prototype.slice.call(document.querySelectorAll(sel)).map(map); }
   return {
     published: el('f_published').checked,
-    brand: val('f_brand'), tagline: val('f_tagline'), heroSub: val('f_heroSub'), heroCtaText: val('f_heroCtaText'),
+    brand: val('f_brand'), tagline: val('f_tagline'), heroSub: val('f_heroSub'),
     aboutHead: val('f_aboutHead'), about: val('f_about'), contactEmail: val('f_contactEmail'), bookingUrl: val('f_bookingUrl'), customDomain: val('f_customDomain'), heroImage: val('f_heroImage'),
     stats: rows('[data-stat]',function(r){ return { n:r.querySelector('.s_n').value, l:r.querySelector('.s_l').value }; }).filter(function(x){return x.n||x.l;}),
     services: rows('[data-svc]',function(r){ return { t:r.querySelector('.v_t').value, d:r.querySelector('.v_d').value }; }).filter(function(x){return x.t||x.d;}),
