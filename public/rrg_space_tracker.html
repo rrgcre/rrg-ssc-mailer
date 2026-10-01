@@ -210,6 +210,7 @@ function draw(){
     onFilterChange:function(cnt){ if(!MAP_VIEW) return; var refit=(cnt!==_lastMapFilterCount); _lastMapFilterCount=cnt; mapRefresh(refit); },
     empty:'<div class="empty"><b>No spaces yet.</b> Click <b>+ Add space</b> to log an available space and its bones.</div>',
     rowId:function(sp){return sp.id;}, defaultSort:10, defaultDir:-1,
+    onRowClick:function(id){ var sp=SPACES.filter(function(s){return s.id===id;})[0]; if(sp) openForm(sp); },
     columns:[
       { label:'Space', filterable:false, sort:function(a,b){ return RRGList.cmp(a.name||a.address,b.name||b.address); }, cell:function(sp){ var t=esc(sp.name||sp.address||'Untitled space'); var sub=[ (sp.name?sp.address:'') ].filter(Boolean).map(esc).join(' · '); var head=sp.url?('<a class="spname" href="'+esc(sp.url)+'" target="_blank" rel="noopener">'+t+'</a>'):('<span class="spname">'+t+'</span>'); return '<div>'+head+'</div>'+(sub?('<div class="meta">'+sub+'</div>'):''); } },
       { label:'Shopping center', filterVal:function(sp){ return sp.center||''; }, sort:function(a,b){ return RRGList.cmp(a.center,b.center); }, cell:function(sp){ return sp.center?esc(sp.center):'<span class="meta">—</span>'; } },

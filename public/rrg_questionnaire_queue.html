@@ -74,6 +74,7 @@ tr.selrow td{background:#fff6e9;} tr.selrow td:first-child{box-shadow:inset 3px 
   th:last-child,td:last-child{display:none;}   /* hide Actions column */
   th.hide,td.hide{display:table-cell!important;}
   tr{break-inside:avoid;}
+  body.printsel tbody tr.rl-tr:not(.rl-sel){display:none!important;}  /* print only checked rows */
 }
 </style>
 <script src="/rrg_brand.js"></script>
@@ -139,17 +140,23 @@ function paint(){
   CURRENT=list;
   render(list);
 }
+// Checked rows if any are checked, otherwise the whole current view — mirrors the shared list.
+function _selRows(){ try{ var ids=(CTL&&CTL.getSelected)?CTL.getSelected():[]; if(!ids||!ids.length) return null; var set={}; ids.forEach(function(i){set[String(i)]=1;}); var r=CURRENT.filter(function(s){return set[String(s.id)];}); return r.length?r:null; }catch(e){ return null; } }
 function printLog(){
+  var sel=_selRows(); var rows=sel||CURRENT;
   var label={all:'All questionnaires',waiting:'Waiting to build a BOV',advanced:'BOV started',passed:'Rejected'}[VIEW]||'All questionnaires';
   var when=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
-  document.getElementById('printhead').innerHTML='<div class="ph-title">RRG Questionnaire Log</div><div class="ph-sub">'+esc(label)+' · '+CURRENT.length+' questionnaire'+(CURRENT.length===1?'':'s')+' · '+when+'</div>';
+  document.getElementById('printhead').innerHTML='<div class="ph-title">RRG Questionnaire Log</div><div class="ph-sub">'+esc(label)+(sel?' · selected':'')+' · '+rows.length+' questionnaire'+(rows.length===1?'':'s')+' · '+when+'</div>';
+  if(sel) document.body.classList.add('printsel');
   window.print();
+  if(sel) document.body.classList.remove('printsel');
 }
 function csvCell(v){ v=(v==null?'':String(v)); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
 function exportCsv(){
+  var rows=_selRows()||CURRENT;
   var head=['Business','Metro','State','Rep','Created'];
   var lines=[head.join(',')];
-  CURRENT.forEach(function(s){ lines.push([s.business,s.market,stateOf(s),s.by,fmt(s.createdAt)].map(csvCell).join(',')); });
+  rows.forEach(function(s){ lines.push([s.business,s.market,stateOf(s),s.by,fmt(s.createdAt)].map(csvCell).join(',')); });
   var blob=new Blob([lines.join('\n')],{type:'text/csv;charset=utf-8'});
   var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='rrg-questionnaire-log.csv'; document.body.appendChild(a); a.click(); document.body.removeChild(a);
 }

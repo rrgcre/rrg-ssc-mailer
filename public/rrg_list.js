@@ -292,7 +292,7 @@
         var id = visibleIds[i];
         var ck = '<td class="rl-ck"><input type="checkbox" class="rl-row" data-id="'+esc(id)+'"'+(state.sel[id]?' checked':'')+'></td>';
         var tds = vis.map(function(m){ var c=m.c; var align=c.align?(' style="text-align:'+c.align+'"'):''; var canEd=!!(c.edit && (!c.edit.editable || c.edit.editable(it))); var cls=((c.cls||'')+(canEd?' rl-ed':'')).trim(); var clsAttr=cls?(' class="'+cls+'"'):''; var edAttr=canEd?(' data-edkey="'+esc(m.key)+'"'):''; return '<td'+clsAttr+edAttr+align+'>'+c.cell(it)+'</td>'; }).join('');
-        return '<tr class="rl-tr'+(state.sel[id]?' rl-sel':'')+(opts.rowHref?' rl-clickable':'')+'" data-rowid="'+esc(id)+'">'+ck+tds+'</tr>';
+        return '<tr class="rl-tr'+(state.sel[id]?' rl-sel':'')+((opts.rowHref||opts.onRowClick)?' rl-clickable':'')+'" data-rowid="'+esc(id)+'">'+ck+tds+'</tr>';
       }).join('');
 
       var _fixed = vis.length && vis.every(function(m){ return state.widths[m.key]!=null; });
@@ -355,11 +355,16 @@
       _exportToast(msg+' to your Downloads folder');
     }
     function printList(){
-      var vc=visibleMeta(); var data=sortedData(); var title=(document.title||'List').split(/[—|]/)[0].trim();
+      var vc=visibleMeta(); var all=sortedData(); var sel=state.sel||{};
+      // Mirror CSV export: print the checked rows if any are checked, otherwise the whole filtered list.
+      var selected=all.filter(function(it,i){ return sel[rowId(it,i)]; });
+      var data=selected.length?selected:all;
+      var title=(document.title||'List').split(/[—|]/)[0].trim();
       var thead='<tr>'+vc.map(function(m){ return '<th>'+esc(m.c.label||'')+'</th>'; }).join('')+'</tr>';
       var tbody=data.map(function(it){ return '<tr>'+vc.map(function(m){ return '<td>'+esc(cellText(m.c,it))+'</td>'; }).join('')+'</tr>'; }).join('');
       var w=window.open('','_blank'); if(!w){ alert('Allow pop-ups to print.'); return; }
-      w.document.write('<html><head><title>'+esc(title)+'</title><style>body{font-family:-apple-system,Arial,sans-serif;padding:26px;color:#111}h1{font-size:16px;margin:0 0 4px}.sub{color:#666;font-size:12px;margin:0 0 16px}table{border-collapse:collapse;width:100%;font-size:11px}th,td{border:1px solid #d5d5d5;padding:6px 8px;text-align:left}th{background:#f2f4f7;font-size:10px;text-transform:uppercase;letter-spacing:.03em;color:#444}tr:nth-child(even) td{background:#fafbfc}@media print{@page{margin:14mm}}</style></head><body><h1>'+esc(title)+'</h1><div class="sub">'+data.length+' record'+(data.length===1?'':'s')+' · '+new Date().toLocaleDateString()+'</div><table><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table></body></html>');
+      var subcount=data.length+(selected.length?' selected':'')+' record'+(data.length===1?'':'s');
+      w.document.write('<html><head><title>'+esc(title)+'</title><style>body{font-family:-apple-system,Arial,sans-serif;padding:26px;color:#111}h1{font-size:16px;margin:0 0 4px}.sub{color:#666;font-size:12px;margin:0 0 16px}table{border-collapse:collapse;width:100%;font-size:11px}th,td{border:1px solid #d5d5d5;padding:6px 8px;text-align:left}th{background:#f2f4f7;font-size:10px;text-transform:uppercase;letter-spacing:.03em;color:#444}tr:nth-child(even) td{background:#fafbfc}@media print{@page{margin:14mm}}</style></head><body><h1>'+esc(title)+'</h1><div class="sub">'+subcount+' · '+new Date().toLocaleDateString()+'</div><table><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table></body></html>');
       w.document.close(); w.focus(); setTimeout(function(){ try{ w.print(); }catch(e){} },300);
     }
 
@@ -375,7 +380,7 @@
     function wire(){
       var all=$('.rl-all',mount); if(all) all.onclick=function(){ var ids=currentSlice().ids; var on=all.checked; ids.forEach(function(id){ state.sel[id]=on; }); render(); };
       mount.querySelectorAll('.rl-row').forEach(function(cb){ cb.onclick=function(){ state.sel[cb.getAttribute('data-id')]=cb.checked; render(); }; });
-      mount.querySelectorAll('tbody tr.rl-tr').forEach(function(tr){ tr.addEventListener('click',function(e){ if(e.target.closest('a,button,input,select,label,.rl-resize,.rl-ed')) return; var id=tr.getAttribute('data-rowid'); if(opts.rowHref){ var href=opts.rowHref(id); if(href){ location.href=href; return; } } state.sel[id]=!state.sel[id]; render(); }); });
+      mount.querySelectorAll('tbody tr.rl-tr').forEach(function(tr){ tr.addEventListener('click',function(e){ if(e.target.closest('a,button,input,select,label,.rl-resize,.rl-ed')) return; var id=tr.getAttribute('data-rowid'); if(opts.onRowClick){ opts.onRowClick(id); return; } if(opts.rowHref){ var href=opts.rowHref(id); if(href){ location.href=href; return; } } state.sel[id]=!state.sel[id]; render(); }); });
       mount.querySelectorAll('td.rl-ed').forEach(function(td){ td.addEventListener('click',function(e){ if(e.target.closest('a,button,input,select,label')) return; e.stopPropagation(); startEdit(td); }); });
       mount.querySelectorAll('.rl-resize').forEach(function(h){ h.addEventListener('mousedown',function(e){ e.preventDefault(); e.stopPropagation(); var th=h.parentNode; var key=th.getAttribute('data-key'); th.setAttribute('draggable','false'); var tbl=th.closest('table'); mount.querySelectorAll('th.rl-th').forEach(function(t){ var k=t.getAttribute('data-key'); var cw=t.offsetWidth; t.style.width=cw+'px'; state.widths[k]=cw; }); if(tbl) tbl.style.tableLayout='fixed'; var comp=null, ns=th.nextElementSibling; if(ns&&ns.classList.contains('rl-th')) comp=ns; else { var ps=th.previousElementSibling; if(ps&&ps.classList.contains('rl-th')) comp=ps; } var compKey=comp?comp.getAttribute('data-key'):null, compStartW=comp?comp.offsetWidth:0; var startX=e.clientX, startW=th.offsetWidth; function mm(ev){ var w=Math.max(52, startW+(ev.clientX-startX)); var used=w-startW; th.style.width=w+'px'; state.widths[key]=w; if(comp){ var cw2=Math.max(52, compStartW-used); comp.style.width=cw2+'px'; state.widths[compKey]=cw2; } } function mu(){ document.removeEventListener('mousemove',mm); document.removeEventListener('mouseup',mu); th.setAttribute('draggable','true'); persist(); } document.addEventListener('mousemove',mm); document.addEventListener('mouseup',mu); }); h.addEventListener('click',function(e){ e.stopPropagation(); }); });
       // sort

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Website</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--gold:#C8A24B;--ink:#1a2236;--muted:#6b7488;--line:#e6e9f0;--wash:#f5f7fb;--bg:#eef1f6;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg);}
+.top{background:#000E31;border-bottom:2px solid #2c5c8f;color:#fff;padding:20px 0;}
+.top-inner{max-width:1080px;margin:0 auto;padding:0 24px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+.brand{display:inline-flex;align-items:center;gap:11px;}
+.brand .disc{background:var(--red);color:#fff;border-radius:50%;width:38px;height:38px;font-family:'Arial Black',Arial;font-weight:900;font-size:12px;display:flex;align-items:center;justify-content:center;}
+.brand .wm{font-weight:700;font-size:15px;}
+.top .sp{flex:1;}
+.top a.back{color:#c3ccdf;text-decoration:none;font-weight:600;font-size:13px;border:1px solid rgba(255,255,255,.2);padding:7px 13px;border-radius:7px;}
+.top a.back:hover{border-color:#fff;color:#fff;}
+.wrap{max-width:1080px;margin:0 auto;padding:22px 24px 70px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin-bottom:18px;}
+.card h2{font-size:15px;color:var(--navy);margin:0 0 3px;}
+.card .sub{font-size:12.5px;color:var(--muted);margin:0 0 16px;}
+label.fld{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;margin:0 0 5px;}
+input,select,textarea{width:100%;border:1px solid #cfd6e2;border-radius:8px;padding:10px 11px;font:inherit;font-size:14px;background:#fff;color:var(--ink);}
+textarea{min-height:76px;resize:vertical;}
+.fld2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media(max-width:640px){.fld2{grid-template-columns:1fr;}}
+.f{margin-bottom:14px;}
+.btn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:8px;padding:10px 16px;font:inherit;font-size:13.5px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-block;}
+.btn.red{background:var(--red);border-color:var(--red);}
+.btn.ghost{background:#fff;color:var(--navy);border:1px solid #cfd6e2;}
+.btn.sm{padding:6px 11px;font-size:12px;}
+.btnrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:6px;}
+.msg{font-size:12.5px;color:var(--muted);}
+.msg.ok{color:#1f8a5b;font-weight:700;} .msg.err{color:var(--red);font-weight:700;}
+.pubbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--wash);border:1px solid var(--line);border-radius:10px;padding:14px 16px;}
+.toggle{display:inline-flex;align-items:center;gap:9px;font-weight:700;font-size:14px;color:var(--navy);cursor:pointer;}
+.toggle input{width:18px;height:18px;}
+.statuspill{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;border-radius:999px;padding:3px 10px;}
+.statuspill.live{background:#e7f5ee;color:#1f8a5b;} .statuspill.off{background:#f3f4f7;color:#8a93a3;}
+.urlline{font-size:13px;color:var(--muted);}
+.urlline a{color:#2c5c8f;font-weight:700;text-decoration:none;}
+.rowitem{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:#fbfcfe;}
+.rowitem .rh{display:flex;gap:10px;align-items:center;margin-bottom:8px;}
+.rowitem .rh b{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;}
+.rowitem .rh .sp{flex:1;}
+.xbtn{background:#fff;border:1px solid #f0c9c6;color:var(--red);border-radius:7px;padding:5px 10px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;}
+.xbtn:hover{background:var(--red);color:#fff;border-color:var(--red);}
+.addbtn{background:#fff;border:1px dashed #c3ccdf;color:var(--navy);border-radius:8px;padding:9px 13px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;}
+.dns{background:#fbfcfe;border:1px solid var(--line);border-radius:10px;padding:14px 16px;font-size:13px;color:var(--ink);line-height:1.6;}
+.dns code{background:#eef2f8;border:1px solid #dde4ee;border-radius:5px;padding:1px 6px;font-size:12.5px;}
+.dns table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12.5px;}
+.dns th,.dns td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);}
+.dns th{color:var(--muted);text-transform:uppercase;font-size:10.5px;letter-spacing:.05em;}
+.lead{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:#fff;}
+.lead.handled{opacity:.6;}
+.lead .lh{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.lead .lnm{font-weight:800;color:var(--navy);font-size:14px;}
+.lead .lmeta{font-size:12px;color:var(--muted);}
+.lead .ltag{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;background:#eef2fb;color:#23496f;border-radius:999px;padding:2px 9px;}
+.lead .lbody{font-size:13px;color:#44506a;margin-top:6px;white-space:pre-wrap;}
+.lead .lacts{margin-left:auto;display:flex;gap:6px;}
+.empty{color:var(--muted);font-size:13px;padding:12px 2px;}
+.savebar{position:sticky;bottom:0;background:rgba(255,255,255,.96);backdrop-filter:blur(4px);border-top:1px solid var(--line);padding:12px 0;margin-top:6px;}
+.savebar .inner{max-width:1080px;margin:0 auto;padding:0 24px;display:flex;gap:12px;align-items:center;}
+.hint{font-size:11.5px;color:#98a1b5;margin-top:4px;}
+</style>
+</head>
+<body>
+<div class="top"><div class="top-inner">
+  <span class="brand"><span class="disc">RRG</span><span class="wm">Website</span></span>
+  <span class="sp"></span>
+  <a class="back" href="./index.html">← Dashboard</a>
+</div></div>
+<div class="wrap" id="wrap"><div class="card"><div class="empty">Loading…</div></div></div>
+<div class="savebar" id="savebar" style="display:none"><div class="inner">
+  <button class="btn red" id="saveBtn">Save changes</button>
+  <a class="btn ghost" id="previewBtn" target="_blank" rel="noopener">Preview site ↗</a>
+  <span class="msg" id="saveMsg"></span>
+</div></div>
+
+<script>
+var SITE=null, LEADS=[], PUBURL='';
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function el(id){ return document.getElementById(id); }
+function val(id){ var e=el(id); return e?e.value:''; }
+
+function load(){
+  fetch('/api/website',{credentials:'same-origin'}).then(function(r){ if(r.status===401||r.status===403) throw new Error('admin'); return r.json(); }).then(function(j){
+    if(!j||!j.ok) throw new Error('load');
+    SITE=j.site||{}; LEADS=j.leads||[]; PUBURL=j.publicUrl||'/site';
+    render();
+  }).catch(function(e){
+    el('wrap').innerHTML='<div class="card"><h2>Website</h2><p class="sub">'+(e&&e.message==='admin'?'This page is for administrators. Ask an admin to manage the public website.':'Could not load the website settings.')+'</p></div>';
+  });
+}
+
+function rowStat(x,i){ x=x||{}; return '<div class="rowitem" data-stat><div class="rh"><b>Stat '+(i+1)+'</b><span class="sp"></span><button type="button" class="xbtn" onclick="this.closest(\'[data-stat]\').remove()">Remove</button></div><div class="fld2"><div><label class="fld">Number</label><input class="s_n" value="'+esc(x.n||'')+'" placeholder="200+"></div><div><label class="fld">Label</label><input class="s_l" value="'+esc(x.l||'')+'" placeholder="Restaurant transactions"></div></div></div>'; }
+function rowSvc(x,i){ x=x||{}; return '<div class="rowitem" data-svc><div class="rh"><b>Service '+(i+1)+'</b><span class="sp"></span><button type="button" class="xbtn" onclick="this.closest(\'[data-svc]\').remove()">Remove</button></div><div class="f"><label class="fld">Title</label><input class="v_t" value="'+esc(x.t||'')+'" placeholder="Sell Your Restaurant"></div><div><label class="fld">Description</label><textarea class="v_d" style="min-height:60px">'+esc(x.d||'')+'</textarea></div></div>'; }
+function rowOff(x,i){ x=x||{}; return '<div class="rowitem" data-off><div class="rh"><b>Office '+(i+1)+'</b><span class="sp"></span><button type="button" class="xbtn" onclick="this.closest(\'[data-off]\').remove()">Remove</button></div><div class="fld2"><div><label class="fld">City</label><input class="o_c" value="'+esc(x.city||'')+'" placeholder="Austin"></div><div><label class="fld">Phone</label><input class="o_p" value="'+esc(x.phone||'')+'" placeholder="210-204-2471"></div></div></div>'; }
+
+function leadRow(l){
+  var when=''; try{ when=new Date(l.createdAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }catch(e){}
+  var contact=[l.email,l.phone].filter(Boolean).map(esc).join(' · ');
+  return '<div class="lead'+(l.handled?' handled':'')+'" data-lead="'+esc(l.id)+'"><div class="lh">'
+    +'<span class="lnm">'+esc(l.name||'(no name)')+'</span>'
+    +(l.interest?('<span class="ltag">'+esc(l.interest)+'</span>'):'')
+    +'<span class="lmeta">'+contact+(when?(' · '+esc(when)):'')+'</span>'
+    +'<span class="lacts"><button class="btn ghost sm" onclick="toggleLead(\''+esc(l.id)+'\','+(l.handled?'false':'true')+')">'+(l.handled?'Reopen':'Mark handled')+'</button><button class="xbtn" onclick="removeLead(\''+esc(l.id)+'\')">Delete</button></span>'
+    +'</div>'+(l.message?('<div class="lbody">'+esc(l.message)+'</div>'):'')+'</div>';
+}
+
+function render(){
+  var s=SITE||{};
+  var newLeads=LEADS.filter(function(l){return !l.handled;}).length;
+  var html=''
+  +'<div class="card"><div class="pubbar">'
+    +'<label class="toggle"><input type="checkbox" id="f_published"'+(s.published?' checked':'')+'> Site is '+'<span id="statuslbl"></span></label>'
+    +'<span class="sp" style="flex:1"></span>'
+    +'<span class="urlline">Live at: <a href="'+esc(PUBURL)+'" target="_blank" rel="noopener">'+esc(PUBURL)+'</a></span>'
+  +'</div><div class="hint">Turn this on to make the public site live. While off, visitors see a short “coming soon” page.</div></div>'
+
+  +'<div class="card"><h2>Hero</h2><p class="sub">The first thing visitors see at the top of the page.</p>'
+    +'<div class="f"><label class="fld">Brand name</label><input id="f_brand" value="'+esc(s.brand||'')+'"></div>'
+    +'<div class="f"><label class="fld">Headline / tagline</label><input id="f_tagline" value="'+esc(s.tagline||'')+'"></div>'
+    +'<div class="f"><label class="fld">Sub-headline</label><textarea id="f_heroSub">'+esc(s.heroSub||'')+'</textarea></div>'
+    +'<div class="f"><label class="fld">Primary button text</label><input id="f_heroCtaText" value="'+esc(s.heroCtaText||'')+'" style="max-width:320px"></div>'
+  +'</div>'
+
+  +'<div class="card"><h2>Stats band</h2><p class="sub">The numbers shown under the hero.</p><div id="statsBox"></div><button type="button" class="addbtn" onclick="addStat()">+ Add stat</button></div>'
+
+  +'<div class="card"><h2>Services</h2><p class="sub">What you do — shown as cards.</p><div id="svcBox"></div><button type="button" class="addbtn" onclick="addSvc()">+ Add service</button></div>'
+
+  +'<div class="card"><h2>About</h2>'
+    +'<div class="f"><label class="fld">Section heading</label><input id="f_aboutHead" value="'+esc(s.aboutHead||'')+'"></div>'
+    +'<div><label class="fld">About text</label><textarea id="f_about" style="min-height:110px">'+esc(s.about||'')+'</textarea></div>'
+  +'</div>'
+
+  +'<div class="card"><h2>Offices</h2><p class="sub">Shown in the About section and used for click-to-call.</p><div id="offBox"></div><button type="button" class="addbtn" onclick="addOff()">+ Add office</button></div>'
+
+  +'<div class="card"><h2>Contact</h2><p class="sub">The contact form drops leads straight into the inbox below. Email is optional and shown on the site.</p>'
+    +'<div class="f" style="max-width:420px"><label class="fld">Public contact email (optional)</label><input id="f_contactEmail" value="'+esc(s.contactEmail||'')+'" placeholder="info@rrgcre.com"></div>'
+  +'</div>'
+
+  +'<div class="card"><h2>Connect your domain</h2><p class="sub">Point www.rrgcre.com at this site.</p>'
+    +'<div class="f" style="max-width:420px"><label class="fld">Custom domain</label><input id="f_customDomain" value="'+esc(s.customDomain||'')+'" placeholder="www.rrgcre.com"></div>'
+    +'<div class="dns" id="dnsBox"></div>'
+  +'</div>'
+
+  +'<div class="card"><h2>Lead inbox'+(newLeads?(' · <span style="color:var(--red)">'+newLeads+' new</span>'):'')+'</h2><p class="sub">Everyone who submits the contact form on your site lands here.</p><div id="leadBox"></div></div>';
+
+  el('wrap').innerHTML=html;
+  // populate dynamic rows
+  el('statsBox').innerHTML=(s.stats||[]).map(rowStat).join('');
+  el('svcBox').innerHTML=(s.services||[]).map(rowSvc).join('');
+  el('offBox').innerHTML=(s.offices||[]).map(rowOff).join('');
+  el('leadBox').innerHTML=LEADS.length?LEADS.map(leadRow).join(''):'<div class="empty">No leads yet. They’ll show up here the moment someone uses your contact form.</div>';
+  renderDns(); updateStatusLbl();
+  el('f_published').addEventListener('change',updateStatusLbl);
+  el('f_customDomain').addEventListener('input',renderDns);
+  el('savebar').style.display='';
+  el('previewBtn').href=PUBURL;
+}
+function updateStatusLbl(){ var on=el('f_published')&&el('f_published').checked; var l=el('statuslbl'); if(l) l.innerHTML='<span class="statuspill '+(on?'live':'off')+'">'+(on?'Live':'Off')+'</span>'; }
+function renderDns(){
+  var box=el('dnsBox'); if(!box) return;
+  var dom=(val('f_customDomain')||'www.rrgcre.com').trim();
+  var host=''; try{ host=(PUBURL.split('/')[2]||''); }catch(e){}
+  box.innerHTML='To point <code>'+esc(dom)+'</code> at this site, add this record at your domain registrar (GoDaddy, Namecheap, etc.), then add the domain in your hosting dashboard (Render → the service → <b>Custom Domains</b>):'
+    +'<table><tr><th>Type</th><th>Name</th><th>Value</th></tr>'
+    +'<tr><td>CNAME</td><td>'+esc(dom.replace(/^https?:\/\//,'').split('.')[0]||'www')+'</td><td>'+esc(host||'your-app.onrender.com')+'</td></tr></table>'
+    +'<div style="margin-top:8px;color:var(--muted);font-size:12px">DNS changes can take up to a few hours to take effect. Until the domain is connected, your site is always reachable at the live URL above.</div>';
+}
+function addStat(){ var d=document.createElement('div'); d.innerHTML=rowStat({}, el('statsBox').children.length); el('statsBox').appendChild(d.firstChild); }
+function addSvc(){ var d=document.createElement('div'); d.innerHTML=rowSvc({}, el('svcBox').children.length); el('svcBox').appendChild(d.firstChild); }
+function addOff(){ var d=document.createElement('div'); d.innerHTML=rowOff({}, el('offBox').children.length); el('offBox').appendChild(d.firstChild); }
+
+function collect(){
+  function rows(sel,map){ return Array.prototype.slice.call(document.querySelectorAll(sel)).map(map); }
+  return {
+    published: el('f_published').checked,
+    brand: val('f_brand'), tagline: val('f_tagline'), heroSub: val('f_heroSub'), heroCtaText: val('f_heroCtaText'),
+    aboutHead: val('f_aboutHead'), about: val('f_about'), contactEmail: val('f_contactEmail'), customDomain: val('f_customDomain'),
+    stats: rows('[data-stat]',function(r){ return { n:r.querySelector('.s_n').value, l:r.querySelector('.s_l').value }; }).filter(function(x){return x.n||x.l;}),
+    services: rows('[data-svc]',function(r){ return { t:r.querySelector('.v_t').value, d:r.querySelector('.v_d').value }; }).filter(function(x){return x.t||x.d;}),
+    offices: rows('[data-off]',function(r){ return { city:r.querySelector('.o_c').value, phone:r.querySelector('.o_p').value }; }).filter(function(x){return x.city||x.phone;})
+  };
+}
+function save(){
+  var msg=el('saveMsg'), btn=el('saveBtn'); btn.disabled=true; msg.className='msg'; msg.textContent='Saving…';
+  fetch('/api/website',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(collect())})
+    .then(function(r){return r.json();}).then(function(j){ btn.disabled=false;
+      if(j&&j.ok){ SITE=j.site||SITE; msg.className='msg ok'; msg.textContent='Saved ✓'; setTimeout(function(){ if(msg.textContent==='Saved ✓') msg.textContent=''; },2000); }
+      else { msg.className='msg err'; msg.textContent=(j&&j.error)||'Save failed.'; }
+    }).catch(function(){ btn.disabled=false; msg.className='msg err'; msg.textContent='Network error.'; });
+}
+function toggleLead(id,handled){
+  fetch('/api/website/lead/'+encodeURIComponent(id),{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({handled:handled})})
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ LEADS.forEach(function(l){ if(l.id===id) l.handled=handled; }); render(); } });
+}
+function removeLead(id){
+  if(!confirm('Delete this lead?')) return;
+  fetch('/api/website/lead/'+encodeURIComponent(id),{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({remove:true})})
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ LEADS=LEADS.filter(function(l){return l.id!==id;}); render(); } });
+}
+document.getElementById('saveBtn').addEventListener('click',save);
+load();
+</script>
+</body>
+</html>
