@@ -1461,7 +1461,7 @@ app.use(cors({ origin: process.env.ALLOW_ORIGIN || '*' }));
 // The document-upload endpoints declare their own larger JSON limits below.
 // Exempt them here so this 1 MB global cap doesn't 413 real uploads first.
 app.use((req, res, next) => {
-  if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/generate-lease' || req.path === '/api/generate-map' || req.path === '/api/valuation-factors' || req.path === '/api/admin/backup/restore' || req.path === '/api/admin/upload-doc' || req.path === '/api/admin/logo' || req.path === '/api/admin/favicon' || req.path === '/api/files' || req.path === '/api/form/build' || req.path === '/api/room-upload' || /^\/api\/room\/[^/]+\/bulk-upload$/.test(req.path) || /^\/api\/company\/[^/]+\/location\/[^/]+\/photo$/.test(req.path) || /^\/api\/company\/[^/]+\/concept\/[^/]+\/logo$/.test(req.path) || /^\/api\/company\/[^/]+\/logo$/.test(req.path) || /^\/api\/email-templates\/[^/]+\/attachment$/.test(req.path) || /^\/api\/agreements\/[^/]+\/doc$/.test(req.path) || /^\/api\/admin\/agreement-templates\/[^/]+\/file$/.test(req.path) || /^\/api\/sign\/[^/]+$/.test(req.path) || req.path.indexOf('/api/admin/import/') === 0 || req.path === '/api/admin/enrich-apply' || req.path === '/api/admin/concepts-apply' || req.path === '/api/admin/cleanup-apply' || req.path === '/api/admin/apply-logos' || req.path === '/api/admin/emaildomain-apply' || req.path === '/api/gmail/send' || /^\/api\/person\/[^/]+\/email$/.test(req.path) || /^\/api\/ticket\/[^/]+\/file$/.test(req.path) || req.path === '/api/subscribers/import') return next();
+  if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/generate-lease' || req.path === '/api/generate-map' || req.path === '/api/valuation-factors' || req.path === '/api/admin/backup/restore' || req.path === '/api/admin/upload-doc' || req.path === '/api/admin/logo' || req.path === '/api/admin/favicon' || req.path === '/api/files' || req.path === '/api/form/build' || req.path === '/api/room-upload' || /^\/api\/room\/[^/]+\/bulk-upload$/.test(req.path) || /^\/api\/company\/[^/]+\/location\/[^/]+\/photo$/.test(req.path) || /^\/api\/company\/[^/]+\/concept\/[^/]+\/logo$/.test(req.path) || /^\/api\/company\/[^/]+\/logo$/.test(req.path) || /^\/api\/email-templates\/[^/]+\/attachment$/.test(req.path) || /^\/api\/agreements\/[^/]+\/doc$/.test(req.path) || /^\/api\/admin\/agreement-templates\/[^/]+\/file$/.test(req.path) || /^\/api\/sign\/[^/]+$/.test(req.path) || req.path.indexOf('/api/admin/import/') === 0 || req.path === '/api/admin/enrich-apply' || req.path === '/api/admin/concepts-apply' || req.path === '/api/admin/cleanup-apply' || req.path === '/api/admin/apply-logos' || req.path === '/api/admin/emaildomain-apply' || req.path === '/api/gmail/send' || /^\/api\/person\/[^/]+\/email$/.test(req.path) || /^\/api\/ticket\/[^/]+\/file$/.test(req.path) || req.path === '/api/subscribers/import' || req.path === '/api/website/hero') return next();
   express.json({ limit: '1mb' })(req, res, next);
 });
 app.use(express.urlencoded({ extended: false }));
@@ -1470,7 +1470,7 @@ app.use(express.urlencoded({ extended: false }));
 const OPEN = new Set(['/health', '/login', '/api/login', '/logout', '/favicon.ico', '/api/appname', '/api/brand', '/api/brand/logo', '/api/brand/logo/light', '/rrg_brand.js', '/rrg_theme.css', '/api/gmail/callback']);
 app.use((req, res, next) => {
   // Buyer-facing data-room links are public (the unguessable token is the gate).
-  if (OPEN.has(req.path) || req.path.startsWith('/room/') || req.path.startsWith('/deal/') || req.path.startsWith('/roomfile/') || req.path.startsWith('/roomview/') || req.path.startsWith('/vendor/') || req.path.startsWith('/sign/') || req.path.startsWith('/api/sign/') || req.path.startsWith('/eo/') || req.path.startsWith('/ec/') || req.path.startsWith('/u/') || req.path.startsWith('/api/u/') || req.path.startsWith('/book/') || req.path.startsWith('/api/book/') || req.path.startsWith('/pay/') || req.path.startsWith('/api/pay/') || req.path === '/api/stripe/webhook' || req.path === '/api/mail/ses-webhook' || req.path.startsWith('/mail/') || req.path === '/market' || req.path === '/api/market/public' || req.path === '/api/market/request-access' || req.path === '/site' || req.path === '/api/website/public' || req.path === '/api/website/lead' || req.path.startsWith('/api/property-public-photo/') || req.path.startsWith('/s/') || req.path === '/seller_intake.html' || req.path === '/seller_record.html') return next();
+  if (OPEN.has(req.path) || req.path.startsWith('/room/') || req.path.startsWith('/deal/') || req.path.startsWith('/roomfile/') || req.path.startsWith('/roomview/') || req.path.startsWith('/vendor/') || req.path.startsWith('/sign/') || req.path.startsWith('/api/sign/') || req.path.startsWith('/eo/') || req.path.startsWith('/ec/') || req.path.startsWith('/u/') || req.path.startsWith('/api/u/') || req.path.startsWith('/book/') || req.path.startsWith('/api/book/') || req.path.startsWith('/pay/') || req.path.startsWith('/api/pay/') || req.path === '/api/stripe/webhook' || req.path === '/api/mail/ses-webhook' || req.path.startsWith('/mail/') || req.path === '/market' || req.path === '/api/market/public' || req.path === '/api/market/request-access' || req.path === '/site' || req.path === '/api/website/public' || req.path === '/api/website/lead' || req.path === '/api/website/hero-image' || req.path.startsWith('/api/property-public-photo/') || req.path.startsWith('/s/') || req.path === '/seller_intake.html' || req.path === '/seller_record.html') return next();
   const sess = auth.readSession(parseCookies(req)[COOKIE]);
   if (sess) {
     req.user = sess;
@@ -6821,7 +6821,7 @@ function defaultWebsite() {
     tagline: 'Restaurant Transactions. Done Right.',
     heroSub: 'Texas’s restaurant brokerage — 200+ closed transactions across Austin, Dallas, Houston, and San Antonio. We run a structured, controlled process built to close.',
     heroCtaText: 'See current opportunities',
-    heroImage: '',
+    heroImage: '/rrg_hero.jpg',
     stats: [ { n: '200+', l: 'Restaurant transactions' }, { n: '4', l: 'Texas metros' }, { n: '5', l: 'Offices' } ],
     wins: [
       { type: 'Sold', label: 'Multi-unit Tex-Mex group', market: 'Austin', detail: '3 locations · going concern' },
@@ -6958,6 +6958,41 @@ app.post('/api/website/lead/:id', requireAdmin, express.json(), (req, res) => {
   if (hit) saveWebsiteLeads(leads);
   res.json({ ok: hit });
 });
+// Admin — upload a hero background photo (stored on disk, served publicly)
+const WEBSITE_HERO_BASE = path.join(BOV_DATA_DIR, 'website_hero');
+app.post('/api/website/hero', requireAdmin, express.json({ limit: '10mb' }), (req, res) => {
+  const b = req.body || {};
+  const dataB64 = String(b.dataB64 || '');
+  const fn = String(b.filename || '').toLowerCase();
+  const m = fn.match(/\.(jpe?g|png|webp|gif)$/);
+  if (!dataB64 || !m) return res.status(400).json({ ok: false, error: 'Upload a JPG, PNG, WEBP, or GIF image.' });
+  const ext = (m[1] === 'jpeg') ? 'jpg' : m[1];
+  const mime = { jpg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif' }[ext];
+  let buf;
+  try { buf = Buffer.from(dataB64.replace(/^data:[^,]*,/, ''), 'base64'); } catch (e) { return res.status(400).json({ ok: false, error: 'Could not read the image.' }); }
+  if (!buf || !buf.length) return res.status(400).json({ ok: false, error: 'Empty image.' });
+  if (buf.length > 9 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'Image is too large (max ~9 MB).' });
+  try {
+    ['jpg', 'png', 'webp', 'gif'].forEach(function (e) { if (e !== ext) { try { fs.unlinkSync(WEBSITE_HERO_BASE + '.' + e); } catch (x) {} } });
+    fs.writeFileSync(WEBSITE_HERO_BASE + '.' + ext, buf);
+  } catch (e) { return res.status(507).json({ ok: false, error: 'Could not save the image on the server (disk).' }); }
+  const cur = loadWebsite();
+  cur.heroUpload = { ext: ext, mime: mime, at: Date.now() };
+  cur.heroImage = '/api/website/hero-image?v=' + cur.heroUpload.at;
+  saveWebsite(cur);
+  res.json({ ok: true, url: cur.heroImage });
+});
+// Public — serve the uploaded hero photo
+app.get('/api/website/hero-image', (req, res) => {
+  try {
+    const u = (loadWebsite() || {}).heroUpload;
+    if (!u || !u.ext) return res.status(404).end();
+    const buf = fs.readFileSync(WEBSITE_HERO_BASE + '.' + u.ext);
+    res.set('Content-Type', u.mime || 'image/jpeg');
+    res.set('Cache-Control', 'public, max-age=86400');
+    res.send(buf);
+  } catch (e) { res.status(404).end(); }
+});
 // Public site
 app.get('/site', (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8').send(publicSitePage(req)); });
 function publicSitePage(req) {
@@ -6990,19 +7025,11 @@ function publicSitePage(req) {
 
   const statHtml = (s.stats || []).map(function (x) { return '<div class="stat"><div class="statn">' + esc(x.n || '') + '</div><div class="statl">' + esc(x.l || '') + '</div></div>'; }).join('');
 
-  // --- stylized Texas map with pinned markets ---
-  const TXCO = { 'austin': [49, 50], 'dallas': [56, 33], 'fort worth': [52, 33], 'houston': [62, 52], 'san antonio': [45, 56], 'new braunfels': [48, 53], 'rio grande valley': [48, 71], 'el paso': [16, 40], 'central texas': [50, 48] };
-  // Pin only the major metros so the map stays clean; every office still lists below with its phone.
-  const pinCities = ['Austin', 'Dallas', 'Houston', 'San Antonio'];
-  const pins = pinCities.map(function (c) { const co = TXCO[String(c || '').trim().toLowerCase()]; return co ? { c: c, x: co[0], y: co[1] } : null; }).filter(Boolean)
-    .filter(function (p, i, arr) { return arr.findIndex(function (q) { return q.x === p.x && q.y === p.y; }) === i; });
-  const txPath = 'M30,7 L45,7 L45,25 L58,25 L61,26 L64,28 L65,36 L66,43 L67,48 L63,50 L59,54 L55,59 L52,64 L50,79 L46,72 L41,65 L36,60 L31,56 L28,53 L26,49 L20,45 L13,40 L15,31 L22,30 L30,30 Z';
-  const pinSvg = pins.map(function (p) {
-    return '<g class="pin"><circle cx="' + p.x + '" cy="' + p.y + '" r="1.8" fill="#C8A24B" stroke="#fff" stroke-width="0.7"/><circle cx="' + p.x + '" cy="' + p.y + '" r="3.4" fill="none" stroke="#C8A24B" stroke-width="0.5" opacity="0.5"/><text x="' + (p.x + 4.3) + '" y="' + (p.y + 1.1) + '" font-size="3.1" fill="#eaf0ff" font-weight="600">' + esc(p.c) + '</text></g>';
-  }).join('');
-  const txMap = '<svg class="txmap" viewBox="0 0 100 100" aria-label="Texas markets" role="img">'
-    + '<path d="' + txPath + '" fill="rgba(200,162,75,0.08)" stroke="rgba(200,162,75,0.55)" stroke-width="0.8" stroke-linejoin="round"/>'
-    + pinSvg + '</svg>';
+  // --- markets covered (derived from offices, de-duped) ---
+  const metros = []; (s.offices || []).forEach(function (o) { const c = String(o.city || '').trim(); if (c && metros.indexOf(c) < 0) metros.push(c); });
+  if (!metros.length) ['Austin', 'Dallas', 'Houston', 'San Antonio'].forEach(function (c) { metros.push(c); });
+  const pinSvgIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.2-7-11a7 7 0 0 1 14 0c0 5.8-7 11-7 11Z"/><circle cx="12" cy="10" r="2.3"/></svg>';
+  const metroGrid = '<div class="metros">' + metros.map(function (c) { return '<div class="metro"><span class="metroic">' + pinSvgIcon + '</span><div><div class="metron">' + esc(c) + '</div><div class="metros2">Brokers on the ground</div></div></div>'; }).join('') + '</div>';
 
   // --- opportunity cards ---
   const lockSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
@@ -7072,8 +7099,23 @@ function publicSitePage(req) {
     return '<div class="win"><span class="wtag ' + cls + '">' + esc(w.type || 'Closed') + '</span><div class="wl">' + esc(w.label || '') + '</div>' + (meta ? ('<div class="wm">' + meta + '</div>') : '') + '</div>';
   }).join('');
   const heroImgSafe = String(s.heroImage || '').replace(/["'<>]/g, '').trim();
-  const heroBgStyle = heroImgSafe ? ('<style>.hero{background-image:linear-gradient(rgba(6,14,34,.66),rgba(5,10,28,.88)),url("' + heroImgSafe + '");background-size:cover;background-position:center;}</style>') : '';
-  const heroCard = heroImgSafe ? '' : ('<div class="herocard"><div class="cap"><span>Where we work</span><b>Texas</b></div>' + txMap + '</div>');
+  const heroBgStyle = heroImgSafe ? ('<style>.hero{background-color:#0A1733;background-image:linear-gradient(100deg,rgba(6,14,34,.86) 0%,rgba(6,14,34,.56) 40%,rgba(8,16,40,.26) 100%),url("' + heroImgSafe + '");background-size:cover;background-position:center;}</style>') : '';
+  const feat = (listings || [])[0];
+  const heroInner = feat
+    ? ('<div class="cap"><span>Featured on the market</span><b>Live</b></div>'
+      + '<div class="hfeat"><div class="hftop"><span class="hfmed">' + ICON.fork + '</span><div class="hfloc">' + esc(feat.loc || feat.marketKey || 'Texas') + '</div></div>'
+      + '<div class="hfh">' + esc(feat.headline || 'Confidential restaurant opportunity') + '</div>'
+      + '<div class="hfbadge">' + esc(feat.badge || 'Restaurant') + '</div>'
+      + '<div class="hfp">' + esc(feat.guide || feat.price || 'Financials under NDA') + '</div>'
+      + '<a class="btn gold hfbtn" href="/market">Request details &rarr;</a></div>')
+    : ('<div class="cap"><span>Full-service brokerage</span><b>Texas</b></div>'
+      + '<div class="hcreds">'
+      + '<div class="cred"><b>Sellers &amp; buyers</b><span>Confidential, qualified</span></div>'
+      + '<div class="cred"><b>Landlords &amp; tenants</b><span>Lease, assign, exit</span></div>'
+      + '<div class="cred"><b>Valuations</b><span>Priced to close</span></div>'
+      + '<div class="cred"><b>Operator placement</b><span>Funded &amp; vetted</span></div>'
+      + '</div>');
+  const heroCard = heroImgSafe ? '' : ('<div class="herocard">' + heroInner + '</div>');
   const heroGridClass = heroImgSafe ? 'herogrid solo' : 'herogrid';
 
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7126,7 +7168,19 @@ header{position:sticky;top:0;z-index:40;background:rgba(6,14,34,.82);backdrop-fi
 .herocard{position:relative;background:linear-gradient(170deg,rgba(255,255,255,.06),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.14);border-radius:20px;padding:22px;box-shadow:0 30px 70px rgba(0,0,0,.4);}
 .herocard .cap{display:flex;align-items:center;justify-content:space-between;color:#aeb9d4;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;}
 .herocard .cap b{color:var(--gold);}
-.txmap{width:100%;height:auto;display:block;}
+.hfeat{background:#fff;border-radius:14px;padding:18px;color:var(--ink);box-shadow:0 10px 30px rgba(0,0,0,.25);}
+.hfeat .hftop{display:flex;align-items:center;gap:11px;}
+.hfeat .hfmed{width:42px;height:42px;flex:none;border-radius:10px;background:linear-gradient(160deg,#0f1f44,#0A1733);display:flex;align-items:center;justify-content:center;color:var(--gold);}
+.hfeat .hfmed svg{width:22px;height:22px;}
+.hfeat .hfloc{font-size:10.5px;color:var(--soft);font-weight:700;text-transform:uppercase;letter-spacing:.05em;}
+.hfeat .hfh{font-family:'Fraunces',serif;font-size:18px;font-weight:600;color:var(--navy);line-height:1.22;margin:12px 0 2px;}
+.hfeat .hfbadge{font-size:12px;color:var(--muted);font-weight:600;}
+.hfeat .hfp{font-size:18px;font-weight:800;color:var(--navy);margin:12px 0;font-variant-numeric:tabular-nums;}
+.hfeat .hfbtn{width:100%;text-align:center;}
+.hcreds{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.hcreds .cred{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:14px;}
+.hcreds .cred b{display:block;color:#fff;font-size:13.5px;font-weight:700;}
+.hcreds .cred span{display:block;color:#9fb0cc;font-size:11.5px;margin-top:3px;}
 /* sections */
 section{padding:84px 0;}
 .sec-head{max-width:720px;}
@@ -7188,7 +7242,14 @@ section{padding:84px 0;}
 /* markets split */
 .mkt{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center;}
 @media(max-width:820px){.mkt{grid-template-columns:1fr;gap:30px;}}
-.mktmap{background:linear-gradient(170deg,#0f1f44,#0A1733);border-radius:20px;padding:26px;box-shadow:0 24px 60px rgba(10,20,50,.18);}
+.mktmap{background:linear-gradient(170deg,#0f1f44,#0A1733);border-radius:20px;padding:22px;box-shadow:0 24px 60px rgba(10,20,50,.18);}
+.metros{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media(max-width:400px){.metros{grid-template-columns:1fr;}}
+.metro{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:14px;}
+.metro .metroic{width:38px;height:38px;flex:none;border-radius:10px;background:rgba(200,162,75,.14);border:1px solid rgba(200,162,75,.35);display:flex;align-items:center;justify-content:center;color:var(--gold2);}
+.metro .metroic svg{width:19px;height:19px;}
+.metro .metron{color:#fff;font-weight:700;font-size:14.5px;font-family:'Fraunces',serif;}
+.metro .metros2{color:#93a2c2;font-size:11px;margin-top:1px;}
 /* about */
 .about{display:grid;grid-template-columns:1.05fr .95fr;gap:46px;align-items:start;}
 @media(max-width:820px){.about{grid-template-columns:1fr;gap:28px;}}
@@ -7233,7 +7294,6 @@ footer{background:#05081a;color:#8597b8;font-size:13px;padding:40px 0 30px;}
 .foot a:hover{color:#fff;}
 .footbar{border-top:1px solid rgba(255,255,255,.08);margin-top:28px;padding-top:18px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;color:#6b7a99;font-size:12px;}
 .herogrid.solo{grid-template-columns:1fr;max-width:860px;}
-.hero.hasimg{background:#060E22;}
 /* track record */
 .track{background:var(--navy);color:#fff;}
 .track .eyebrow{color:var(--gold2);} .track .h2{color:#fff;} .track .lead{color:#c3cee2;}
@@ -7311,7 +7371,7 @@ footer{background:#05081a;color:#8597b8;font-size:13px;padding:40px 0 30px;}
     <p class="lead">Local brokers in every major Texas metro — we know the corridors, the landlords, and the operators, market by market.</p>
     <div class="offs" style="margin-top:26px">${officeHtml}</div>
   </div>
-  <div class="mktmap">${txMap}</div>
+  <div class="mktmap">${metroGrid}</div>
 </div></div></section>
 
 <section id="about" style="background:var(--cream);border-top:1px solid var(--line)"><div class="wrap"><div class="about">
