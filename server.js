@@ -8347,7 +8347,10 @@ section{padding:84px 0;}
 .metro .metroic{width:38px;height:38px;flex:none;border-radius:10px;background:rgba(44,92,143,.14);border:1px solid rgba(44,92,143,.35);display:flex;align-items:center;justify-content:center;color:var(--blue2);}
 .metro .metroic svg{width:19px;height:19px;}
 .metro .metron{color:#fff;font-weight:700;font-size:14.5px;font-family:'Fraunces',serif;}
-.metro .metros2{color:#93a2c2;font-size:11px;margin-top:1px;}
+.metro .metros2{color:#93a2c2;font-size:11px;margin-top:2px;}
+.metro .metrotel{display:inline-flex;align-items:center;gap:7px;margin-top:4px;color:var(--blue2);font-weight:700;font-size:13.5px;text-decoration:none;font-variant-numeric:tabular-nums;}
+.metro .metrotel svg{width:14px;height:14px;}
+.metro .metrotel:hover{color:#fff;}
 /* about */
 .about{display:grid;grid-template-columns:1.05fr .95fr;gap:46px;align-items:start;}
 @media(max-width:820px){.about{grid-template-columns:1fr;gap:28px;}}
@@ -8499,10 +8502,9 @@ function publicSitePage(req) {
   const statHtml = (s.stats || []).map(function (x) { return '<div class="stat"><div class="statn">' + esc(x.n || '') + '</div><div class="statl">' + esc(x.l || '') + '</div></div>'; }).join('');
 
   // --- markets covered (derived from offices, de-duped) ---
-  const metros = []; (s.offices || []).forEach(function (o) { const c = String(o.city || '').trim(); if (c && metros.indexOf(c) < 0) metros.push(c); });
-  if (!metros.length) ['Austin', 'Dallas', 'Houston', 'San Antonio'].forEach(function (c) { metros.push(c); });
+  const mktSrc = (Array.isArray(s.offices) && s.offices.filter(function (o) { return o && String(o.city || '').trim(); }).length) ? s.offices.filter(function (o) { return o && String(o.city || '').trim(); }) : ['Austin', 'Dallas', 'Fort Worth', 'Houston', 'San Antonio'].map(function (c) { return { city: c }; });
   const pinSvgIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.2-7-11a7 7 0 0 1 14 0c0 5.8-7 11-7 11Z"/><circle cx="12" cy="10" r="2.3"/></svg>';
-  const metroGrid = '<div class="metros">' + metros.map(function (c) { return '<div class="metro"><span class="metroic">' + pinSvgIcon + '</span><div><div class="metron">' + esc(c) + '</div><div class="metros2">Brokers on the ground</div></div></div>'; }).join('') + '</div>';
+  const metroGrid = '<div class="metros">' + mktSrc.slice(0, 8).map(function (o) { const city = esc(String(o.city || '').trim()); const ph = esc(o.phone || ''); const tel = ph.replace(/[^0-9+]/g, ''); const line = ph ? ('<a class="metrotel" href="tel:' + tel + '">' + ICON.phone + '<span>' + ph + '</span></a>') : '<div class="metros2">Brokers on the ground</div>'; return '<div class="metro"><span class="metroic">' + pinSvgIcon + '</span><div><div class="metron">' + city + '</div>' + line + '</div></div>'; }).join('') + '</div>';
 
   // --- opportunity cards ---
   const lockSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
@@ -8695,8 +8697,8 @@ ${SITE_CSS}
   <div>
     <div class="eyebrow">Coverage</div>
     <div class="h2">On the ground across Texas</div>
-    <p class="lead">Local brokers in every major Texas metro — we know the corridors, the landlords, and the operators, market by market.</p>
-    <div class="offs" style="margin-top:26px">${officeHtml}</div>
+    <p class="lead">Local brokers in every major Texas metro — we know the corridors, the landlords, and the operators, market by market. One call connects you to the broker who works your market every day.</p>
+    <div class="hcta" style="margin-top:26px"><a class="btn navy" href="#contact">Talk to a broker</a></div>
   </div>
   <div class="mktmap">${metroGrid}</div>
 </div></div></section>
