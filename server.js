@@ -6915,7 +6915,7 @@ function defaultWebsite() {
       { q: 'The location loses money every month — where do I start?', a: 'With a call. Tell us the situation and we\'ll tell you what your lease and assets realistically allow, and the fastest clean path out. Confidential, no obligation.' }
     ],
     secHeroHead: 'Secure the right location — on the right terms.',
-    secHeroSub: 'Finding a restaurant space is easy. Finding the right one, on terms that protect your P&L, is not. We work the corridors, surface on- and off-market sites, and negotiate the rent, TI, and restaurant-specific terms that make or break a deal — representing you, usually at no cost to you.',
+    secHeroSub: 'Whether you\'re opening your next location or expanding into — and across — Texas, finding a space is easy; finding the right one, on terms that protect your P&L, is not. We work the corridors, surface on- and off-market sites, and negotiate the rent, TI, and restaurant-specific terms that make or break a deal — representing you, usually at no cost to you.',
     secSteps: [
       { t: 'Define the criteria', d: 'Concept, target trade areas, size, economics, and must-haves set up front so we only chase sites that actually fit.' },
       { t: 'Search & shortlist', d: 'We work the market and surface sites that fit — on-market, second-generation, and off-market space before it is listed.' },
@@ -7292,8 +7292,8 @@ function siteSecurePage(req) {
 </div></section>
 
 ${hasWins ? `<section id="track" class="track"><div class="wrap">
-  <div class="sec-head"><div class="eyebrow">Proof</div><div class="h2">Spaces we've secured</div>
-  <p class="lead">A sample of closed transactions. Details kept confidential — no client names needed to show the work.</p></div>
+  <div class="sec-head"><div class="eyebrow">Proof</div><div class="h2">Operators we've helped expand across Texas</div>
+  <p class="lead">Established operators entering Texas and multi-unit groups adding their next location — a sample of the sites we've secured. Details kept confidential; no client names needed to show the work.</p></div>
   <div class="wins">${winHtml}</div>
   <div class="trackfoot">Representative closings across Texas. Your outcome depends on your concept, the market, and the deal.</div>
 </div></section>` : ''}
@@ -8256,9 +8256,10 @@ section{padding:84px 0;}
 .svcd{color:var(--muted);font-size:14.5px;margin-top:9px;line-height:1.6;}
 /* process */
 .process{background:var(--cream);border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
-.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(176px,1fr));gap:18px;margin-top:40px;position:relative;}
-@media(max-width:860px){.steps{grid-template-columns:repeat(2,1fr);}}
-@media(max-width:520px){.steps{grid-template-columns:1fr;}}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:15px;margin-top:40px;position:relative;}
+@media(max-width:980px){.steps{grid-template-columns:repeat(3,1fr);}}
+@media(max-width:640px){.steps{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:440px){.steps{grid-template-columns:1fr;}}
 .step{position:relative;}
 .stepn{width:44px;height:44px;border-radius:50%;background:var(--navy);color:var(--gold2);font-family:'Fraunces',serif;font-size:19px;font-weight:600;display:flex;align-items:center;justify-content:center;border:1px solid rgba(200,162,75,.55);box-shadow:0 0 0 4px rgba(200,162,75,.10);}
 .stept{font-weight:700;color:var(--navy);margin-top:14px;font-size:16px;}
@@ -8388,7 +8389,7 @@ section[id],a[id]{scroll-margin-top:86px;}
 .nav a.navlink:hover::after{right:0;}
 /* process: connecting rail behind the numbered steps */
 .ppanel .steps::before{content:'';position:absolute;left:28px;right:28px;top:22px;height:2px;background:linear-gradient(90deg,transparent,rgba(10,23,51,.14) 12%,rgba(10,23,51,.14) 88%,transparent);z-index:0;}
-@media(max-width:700px){.ppanel .steps::before{display:none;}}
+@media(max-width:980px){.ppanel .steps::before{display:none;}}
 .step{position:relative;z-index:1;}
 .stepn{position:relative;z-index:1;}
 /* lift states */
