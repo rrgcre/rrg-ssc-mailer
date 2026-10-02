@@ -7259,8 +7259,7 @@ function siteSecurePage(req) {
   <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
   <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a></div></div>
-  <a class="navlink" href="/site/multi-unit">Multi-unit</a>
-  <a class="navlink" href="#process">How it works</a>
+  <a class="navlink" href="#process">How we work</a>
   <a class="navlink" href="/market">Opportunities</a>
   <a class="navlink" href="#track">Track record</a>
   <a class="navlink" href="/site#markets">Markets</a>
@@ -7429,8 +7428,7 @@ function siteOperatorPage(req) {
   <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
   <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a></div></div>
-  <a class="navlink" href="/site/multi-unit">Multi-unit</a>
-  <a class="navlink" href="#process">How it works</a>
+  <a class="navlink" href="#process">How we work</a>
   <a class="navlink" href="/market">Opportunities</a>
   <a class="navlink" href="#track">Track record</a>
   <a class="navlink" href="/site#markets">Markets</a>
@@ -7597,8 +7595,7 @@ function siteExitPage(req) {
   <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
   <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a></div></div>
-  <a class="navlink" href="/site/multi-unit">Multi-unit</a>
-  <a class="navlink" href="#process">How it works</a>
+  <a class="navlink" href="#process">How we work</a>
   <a class="navlink" href="/market">Opportunities</a>
   <a class="navlink" href="#track">Track record</a>
   <a class="navlink" href="/site#markets">Markets</a>
@@ -7771,8 +7768,7 @@ function siteSubscribePage(req) {
   <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
   <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a></div></div>
-  <a class="navlink" href="/site/multi-unit">Multi-unit</a>
-  <a class="navlink" href="/site#process">How it works</a>
+  <a class="navlink" href="/site#process">How we work</a>
   <a class="navlink" href="/market">Opportunities</a>
   <a class="navlink" href="/site#track">Track record</a>
   <a class="navlink" href="/site#markets">Markets</a>
@@ -7917,8 +7913,7 @@ function siteMultiUnitPage(req) {
   <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
   <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a></div></div>
-  <a class="navlink" href="/site/multi-unit">Multi-unit</a>
-  <a class="navlink" href="#process">How it works</a>
+  <a class="navlink" href="#process">How we work</a>
   <a class="navlink" href="/market">Opportunities</a>
   <a class="navlink" href="#track">Track record</a>
   <a class="navlink" href="/site#markets">Markets</a>
@@ -8086,8 +8081,7 @@ function siteSellPage(req) {
   <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
   <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a></div></div>
-  <a class="navlink" href="/site/multi-unit">Multi-unit</a>
-  <a class="navlink" href="#process">How it works</a>
+  <a class="navlink" href="#process">How we work</a>
   <a class="navlink" href="/market">Opportunities</a>
   <a class="navlink" href="#track">Track record</a>
   <a class="navlink" href="/site#markets">Markets</a>
@@ -8616,8 +8610,7 @@ ${SITE_CSS}
   <a class="brand" href="#top"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
   <div class="navdd"><a class="navlink" href="#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a></div></div>
-  <a class="navlink" href="/site/multi-unit">Multi-unit</a>
-  <a class="navlink" href="#process">How it works</a>
+  <a class="navlink" href="#process">How we work</a>
   <a class="navlink" href="/market">Opportunities</a>
   <a class="navlink" href="#track">Track record</a>
   <a class="navlink" href="#markets">Markets</a>
@@ -8970,8 +8963,7 @@ footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} 
   <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
   <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a></div></div>
-  <a class="navlink" href="/site/multi-unit">Multi-unit</a>
-  <a class="navlink" href="/site#process">How it works</a>
+  <a class="navlink" href="/site#process">How we work</a>
   <a class="navlink active" href="/market">Opportunities</a>
   <a class="navlink" href="/site#track">Track record</a>
   <a class="navlink" href="/site#markets">Markets</a>
