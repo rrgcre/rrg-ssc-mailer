@@ -6119,7 +6119,7 @@ function effMarketTheme() { const s = loadSettings(); const t = (s.marketTheme &
 // line 2 the service-area list. Plain text; rendered escaped.
 const MARKET_HEADER_DEFAULT = { tagline: 'Confidential brokerage — restaurants, bars & hospitality real estate', areas: 'Texas · Austin · Dallas · Fort Worth · Houston · San Antonio', heading: '', lede: 'Confidential restaurant & bar businesses for acquisition, plus restaurant real estate and turnkey asset sales — for sale or lease. Operating businesses are marketed blind until NDA; real estate and asset sales are openly listed with photos and location.' };
 // The default headline follows the brokerage name unless the admin overrides it.
-function marketHeaderDefaults() { return { tagline: MARKET_HEADER_DEFAULT.tagline, areas: MARKET_HEADER_DEFAULT.areas, heading: 'The ' + orgDisplayName() + ' Marketplace', lede: MARKET_HEADER_DEFAULT.lede }; }
+function marketHeaderDefaults() { return { tagline: MARKET_HEADER_DEFAULT.tagline, areas: MARKET_HEADER_DEFAULT.areas, heading: 'Exclusive opportunities', lede: MARKET_HEADER_DEFAULT.lede }; }
 function effMarketHeader() { const s = loadSettings(); const h = (s.marketHeader && typeof s.marketHeader === 'object') ? s.marketHeader : {}; const d = marketHeaderDefaults(); return { tagline: (typeof h.tagline === 'string' && h.tagline.trim()) ? h.tagline : d.tagline, areas: (typeof h.areas === 'string' && h.areas.trim()) ? h.areas : d.areas, heading: (typeof h.heading === 'string' && h.heading.trim()) ? h.heading : d.heading, lede: (typeof h.lede === 'string' && h.lede.trim()) ? h.lede : d.lede }; }
 function cleanMarketHeader(b) { b = b || {}; return { tagline: String(b.tagline || '').slice(0, 200), areas: String(b.areas || '').slice(0, 200), heading: String(b.heading || '').slice(0, 200), lede: String(b.lede || '').slice(0, 800) }; }
 function mktClean(b, prev) {
@@ -6969,6 +6969,7 @@ function defaultWebsite() {
       { city: 'San Antonio', phone: '210-362-0678' },
       { city: 'New Braunfels', phone: '830-929-5224' }
     ],
+    subMarkets: [],
     contactEmail: '',
     bookingUrl: '',
     customDomain: 'www.rrgcre.com',
@@ -7079,6 +7080,7 @@ app.post('/api/website', requireAdmin, express.json({ limit: '256kb' }), (req, r
   if (Array.isArray(b.services)) out.services = b.services.slice(0, 8).map(function (x) { return { t: S(x && x.t, 80), d: S(x && x.d, 400) }; }).filter(function (x) { return x.t || x.d; });
   if (Array.isArray(b.concepts)) out.concepts = b.concepts.map(function (x) { return S(x, 48); }).filter(Boolean).slice(0, 20);
   if (Array.isArray(b.offices)) out.offices = b.offices.slice(0, 12).map(function (x) { return { city: S(x && x.city, 60), phone: S(x && x.phone, 40) }; }).filter(function (x) { return x.city || x.phone; });
+  if (Array.isArray(b.subMarkets)) out.subMarkets = b.subMarkets.map(function (x) { return S(x, 60); }).filter(Boolean).slice(0, 40);
   if (Array.isArray(b.processes)) out.processes = b.processes.slice(0, 8).map(function (p) {
     return { name: S(p && p.name, 80), steps: (Array.isArray(p && p.steps) ? p.steps : []).slice(0, 10).map(function (x) { return { t: S(x && x.t, 90), d: S(x && x.d, 300) }; }).filter(function (x) { return x.t || x.d; }) };
   }).filter(function (p) { return p.name || p.steps.length; });
@@ -7258,7 +7260,7 @@ function siteSecurePage(req) {
   <span class="sp"></span>
   <a class="navlink" href="/site#services">Services</a>
   <a class="navlink" href="#process">How it works</a>
-  <a class="navlink" href="/site#opportunities">Opportunities</a>
+  <a class="navlink" href="/market">Opportunities</a>
   <a class="navlink" href="#track">Track record</a>
   <a class="navlink" href="/site#markets">Markets</a>
   <a class="navlink" href="/site/subscribe">Get listings</a>
@@ -7332,7 +7334,7 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
       <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
-    <div><h4>Explore</h4><a href="/site#services">Services</a><a href="/site#opportunities">Opportunities</a><a href="/market">Marketplace</a><a href="#contact">Contact</a></div>
+    <div><h4>Explore</h4><a href="/site#services">Services</a><a href="/market">Opportunities</a><a href="#contact">Contact</a></div>
     <div><h4>Offices</h4>${offLinks}</div>
   </div>
   <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
@@ -7427,7 +7429,7 @@ function siteOperatorPage(req) {
   <span class="sp"></span>
   <a class="navlink" href="/site#services">Services</a>
   <a class="navlink" href="#process">How it works</a>
-  <a class="navlink" href="/site#opportunities">Opportunities</a>
+  <a class="navlink" href="/market">Opportunities</a>
   <a class="navlink" href="#track">Track record</a>
   <a class="navlink" href="/site#markets">Markets</a>
   <a class="navlink" href="/site/subscribe">Get listings</a>
@@ -7501,7 +7503,7 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
       <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
-    <div><h4>Explore</h4><a href="/site#services">Services</a><a href="/site#opportunities">Opportunities</a><a href="/market">Marketplace</a><a href="#contact">Contact</a></div>
+    <div><h4>Explore</h4><a href="/site#services">Services</a><a href="/market">Opportunities</a><a href="#contact">Contact</a></div>
     <div><h4>Offices</h4>${offLinks}</div>
   </div>
   <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
@@ -7594,7 +7596,7 @@ function siteExitPage(req) {
   <span class="sp"></span>
   <a class="navlink" href="/site#services">Services</a>
   <a class="navlink" href="#process">How it works</a>
-  <a class="navlink" href="/site#opportunities">Opportunities</a>
+  <a class="navlink" href="/market">Opportunities</a>
   <a class="navlink" href="#track">Track record</a>
   <a class="navlink" href="/site#markets">Markets</a>
   <a class="navlink" href="/site/subscribe">Get listings</a>
@@ -7668,7 +7670,7 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
       <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
-    <div><h4>Explore</h4><a href="/site#services">Services</a><a href="/site#opportunities">Opportunities</a><a href="/market">Marketplace</a><a href="#contact">Contact</a></div>
+    <div><h4>Explore</h4><a href="/site#services">Services</a><a href="/market">Opportunities</a><a href="#contact">Contact</a></div>
     <div><h4>Offices</h4>${offLinks}</div>
   </div>
   <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
@@ -7703,7 +7705,8 @@ function siteSubscribePage(req) {
   const org = esc(s.brand || orgDisplayName() || 'Restaurant Realty Group');
   const year = new Date().getFullYear();
   const metros = [];
-  (s.offices || []).forEach(function (o) { const c = String(o.city || '').trim(); if (c && metros.indexOf(c) < 0) metros.push(c); });
+  (Array.isArray(s.subMarkets) ? s.subMarkets : []).forEach(function (c) { c = String(c || '').trim(); if (c && metros.indexOf(c) < 0) metros.push(c); });
+  if (!metros.length) (s.offices || []).forEach(function (o) { const c = String(o.city || '').trim(); if (c && metros.indexOf(c) < 0) metros.push(c); });
   if (!metros.length) ['Austin', 'Dallas', 'Fort Worth', 'Houston', 'San Antonio'].forEach(function (c) { metros.push(c); });
   const marketChips = metros.map(function (c) { return '<label class="mk"><input type="checkbox" name="mk" value="' + esc(c) + '"><span>' + esc(c) + '</span></label>'; }).join('');
 
@@ -7762,7 +7765,7 @@ function siteSubscribePage(req) {
   <span class="sp"></span>
   <a class="navlink" href="/site#services">Services</a>
   <a class="navlink" href="/site#process">How it works</a>
-  <a class="navlink" href="/site#opportunities">Opportunities</a>
+  <a class="navlink" href="/market">Opportunities</a>
   <a class="navlink" href="/site#track">Track record</a>
   <a class="navlink" href="/site#markets">Markets</a>
   <a class="navlink" href="/site/subscribe">Get listings</a>
@@ -7901,7 +7904,7 @@ function siteMultiUnitPage(req) {
   <span class="sp"></span>
   <a class="navlink" href="/site#services">Services</a>
   <a class="navlink" href="#process">How it works</a>
-  <a class="navlink" href="/site#opportunities">Opportunities</a>
+  <a class="navlink" href="/market">Opportunities</a>
   <a class="navlink" href="#track">Track record</a>
   <a class="navlink" href="/site#markets">Markets</a>
   <a class="navlink" href="/site/subscribe">Get listings</a>
@@ -7975,7 +7978,7 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
       <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
-    <div><h4>Explore</h4><a href="/site#services">Services</a><a href="/site#opportunities">Opportunities</a><a href="/market">Marketplace</a><a href="#contact">Contact</a></div>
+    <div><h4>Explore</h4><a href="/site#services">Services</a><a href="/market">Opportunities</a><a href="#contact">Contact</a></div>
     <div><h4>Offices</h4>${offLinks}</div>
   </div>
   <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
@@ -8069,7 +8072,7 @@ function siteSellPage(req) {
   <span class="sp"></span>
   <a class="navlink" href="/site#services">Services</a>
   <a class="navlink" href="#process">How it works</a>
-  <a class="navlink" href="/site#opportunities">Opportunities</a>
+  <a class="navlink" href="/market">Opportunities</a>
   <a class="navlink" href="#track">Track record</a>
   <a class="navlink" href="/site#markets">Markets</a>
   <a class="navlink" href="/site/subscribe">Get listings</a>
@@ -8143,7 +8146,7 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
       <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
-    <div><h4>Explore</h4><a href="/site#services">Services</a><a href="/site#opportunities">Opportunities</a><a href="/market">Marketplace</a><a href="#contact">Contact</a></div>
+    <div><h4>Explore</h4><a href="/site#services">Services</a><a href="/market">Opportunities</a><a href="#contact">Contact</a></div>
     <div><h4>Offices</h4>${offLinks}</div>
   </div>
   <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
@@ -8500,7 +8503,7 @@ function publicSitePage(req) {
       + '<div class="ffoot"><span class="flock">' + lockSvg + 'Confidential</span><span class="act">Request details &rarr;</span></div>'
       + '</a>';
   }).join('');
-  if (!(listings || []).length) cards = '<div class="noops">New opportunities are posted here as they come to market. <a href="/market">Browse the marketplace &rarr;</a></div>';
+  if (!(listings || []).length) cards = '<div class="noops">New opportunities are posted here as they come to market. <a href="/market">Browse all opportunities &rarr;</a></div>';
 
   const interestOpts = '<option value="">What can we help with?</option>' + (s.services || []).map(function (x) { return '<option>' + esc(x.t || '') + '</option>'; }).join('') + '<option>General inquiry</option>';
   const email = esc(s.contactEmail || '');
@@ -8590,7 +8593,7 @@ ${SITE_CSS}
   <span class="sp"></span>
   <a class="navlink" href="#services">Services</a>
   <a class="navlink" href="#process">How it works</a>
-  <a class="navlink" href="#opportunities">Opportunities</a>
+  <a class="navlink" href="/market">Opportunities</a>
   <a class="navlink" href="#track">Track record</a>
   <a class="navlink" href="#markets">Markets</a>
   <a class="navlink" href="/site/subscribe">Get listings</a>
@@ -8645,7 +8648,7 @@ ${SITE_CSS}
   <div class="sec-head"><div class="eyebrow">On the market</div><div class="h2">Exclusive opportunities</div>
   <p class="lead">Every RRG listing is an exclusive representation — if it’s here, you can only get it through us. Business listings are confidential; request details and we’ll qualify you under NDA.</p></div>
   <div class="opgrid">${cards}</div>
-  <div class="opall" style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;justify-content:center"><a class="btn red" href="/market">View the full marketplace &rarr;</a><a class="btn navy" href="/site/subscribe">Get new listings by email</a></div>
+  <div class="opall" style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;justify-content:center"><a class="btn red" href="/market">View all opportunities &rarr;</a><a class="btn navy" href="/site/subscribe">Get new listings by email</a></div>
 </div></section>
 
 <section id="track" class="track"><div class="wrap">
@@ -8709,7 +8712,7 @@ ${SITE_CSS}
       <a class="brand" href="#top" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
-    <div><h4>Explore</h4><a href="#services">Services</a><a href="#opportunities">Opportunities</a><a href="/market">Marketplace</a><a href="/site/subscribe">Get new listings</a><a href="#contact">Contact</a></div>
+    <div><h4>Explore</h4><a href="#services">Services</a><a href="/market">Opportunities</a><a href="/site/subscribe">Get new listings</a><a href="#contact">Contact</a></div>
     <div><h4>Offices</h4>${(s.offices || []).map(function (o) { const tel = String(o.phone || '').replace(/[^0-9+]/g, ''); return '<a href="tel:' + tel + '">' + esc(o.city || '') + ' &middot; ' + esc(o.phone || '') + '</a>'; }).join('')}</div>
   </div>
   <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
@@ -8748,7 +8751,7 @@ function marketplacePublicPage(req) {
   const _brand = loadBrand();
   const mLogo = brandLogoLightUrl() || (_brand.logoExt ? ('/api/brand/logo?v=' + encodeURIComponent(_brand.updatedAt || '')) : '');
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${org} — Marketplace</title>
+<title>${org} — Opportunities</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin>
 <style>
 :root{--navy:${T.dark};--navy2:${T.dark2};--slate:${T.dark2};--accent:${T.accent};--accent-d:${T.accentD};--strip:${T.strip};--primary:${T.link};--primary-d:${T.linkD};--red:${T.mark};--zebra:${T.zebra};--zebra-h:${T.zebraH};--zebra-f:${T.zebraF};--ink:#22333a;--muted:#5f7178;--soft:#8a9aa0;--line:#d8dfde;--line2:#edf1f0;--wash:#f2f5f4;--inp:#c4ccda;--gold:${T.accent};--goldbg:#f2ecdf;--green:#3f7d6f;--greenbg:#e7f0ec;--redbg:#f6e6e9;--bluebg:#e6f0f0;--amber:#9c6416;--amberbg:#f5ecd9;--teal:#2b8391;--tealbg:#e6f0f0;--indigo:#5b4b9a;--indigobg:#ece9f7;}
@@ -8772,6 +8775,19 @@ header{background:linear-gradient(180deg,var(--navy2),var(--navy));border-bottom
 .hauth a:hover{filter:brightness(1.08);}
 .hback{background:transparent;color:#dbe3f0;box-shadow:none;border:1px solid rgba(255,255,255,.32);display:inline-flex;align-items:center;gap:6px;}
 .hback:hover{background:rgba(255,255,255,.08);filter:none;border-color:rgba(255,255,255,.55);}
+.sitenav{background:#000E31;border-bottom:1px solid rgba(200,162,75,.22);box-shadow:0 2px 14px rgba(0,0,0,.18);position:sticky;top:0;z-index:40;}
+.sitenav .in{max-width:1280px;margin:0 auto;padding:0 24px;display:flex;align-items:center;gap:20px;min-height:66px;flex-wrap:wrap;}
+.sitenav .brand{display:flex;align-items:center;gap:11px;color:#fff;text-decoration:none;}
+.sitenav .brand .disc{width:38px;height:38px;border-radius:8px;background:#DA2B1F;color:#fff;font:900 13px/1 'Arial Black',Arial;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;box-shadow:0 4px 14px rgba(218,43,31,.4);}
+.sitenav .brand .bn{font-weight:800;font-size:15px;letter-spacing:.01em;color:#fff;}
+.sitenav .brand .bn i{display:block;font-style:normal;font-size:9.5px;letter-spacing:.22em;color:#5B93CF;font-weight:700;margin-top:1px;}
+.sitenav .sp{flex:1;}
+.sitenav a.navlink{color:#c7d2e6;text-decoration:none;font-size:13.5px;font-weight:600;padding:4px 1px;white-space:nowrap;}
+.sitenav a.navlink:hover{color:#fff;}
+.sitenav a.navlink.active{color:#fff;border-bottom:2px solid var(--accent);padding-bottom:2px;}
+.sitenav a.navcta{background:#DA2B1F;color:#fff;text-decoration:none;font-size:14px;font-weight:800;padding:11px 20px;border-radius:11px;box-shadow:0 10px 22px rgba(218,43,31,.28);white-space:nowrap;}
+.sitenav a.navcta:hover{filter:brightness(1.05);}
+@media(max-width:980px){.sitenav a.navlink{display:none;}}
 .hd{padding:20px 0 0;}
 .hd h1{font-size:21px;font-weight:800;color:var(--navy);letter-spacing:-.01em;}
 .hd .lede{font-size:13px;color:var(--muted);margin-top:4px;max-width:760px;}
@@ -8917,10 +8933,16 @@ footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} 
 </style></head>
 <body>
 <div class="tstrip"><div class="tin"><span>${esc(H.tagline)}</span><span>${esc(H.areas)}</span></div></div>
-<header><div class="wrap hrow">
-  <a class="hbrand" href="/site">${mLogo ? `<img class="mlogo" src="${mLogo}" alt="${org}">` : `<span class="disc">RRG</span>`}
-  <span class="bwm">${org}</span></a>
-  <span class="hauth"><a class="hback" href="/site">&larr; Back to site</a><a href="mailto:?subject=Buyer%20registration">Register as a buyer</a></span>
+<header class="sitenav"><div class="in">
+  <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
+  <span class="sp"></span>
+  <a class="navlink" href="/site#services">Services</a>
+  <a class="navlink" href="/site#process">How it works</a>
+  <a class="navlink active" href="/market">Opportunities</a>
+  <a class="navlink" href="/site#track">Track record</a>
+  <a class="navlink" href="/site#markets">Markets</a>
+  <a class="navlink" href="/site/subscribe">Get listings</a>
+  <a class="navcta" href="/site#contact">Talk to a broker</a>
 </div></header>
 <div class="wrap">
   <div class="hd">

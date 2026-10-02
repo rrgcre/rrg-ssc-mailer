@@ -240,6 +240,8 @@ function render(){
 
   +'<div class="card"><h2>Offices</h2><p class="sub">Shown in the About section and used for click-to-call.</p><div id="offBox"></div><button type="button" class="addbtn" onclick="addOff()">+ Add office</button></div>'
 
+  +'<div class="card"><h2>Listing-alert markets</h2><p class="sub">The market checkboxes buyers pick from on your <b>/site/subscribe</b> signup page. One market per line, in the order you want them shown. Leave blank to fall back to your office cities.</p><textarea id="f_subMarkets" style="min-height:140px" placeholder="Austin&#10;Dallas&#10;Fort Worth&#10;Houston&#10;San Antonio">'+esc((s.subMarkets||[]).join('\n'))+'</textarea></div>'
+
   +'<div class="card"><h2>Contact</h2><p class="sub">The contact form drops leads straight into the inbox below. Email is optional and shown on the site.</p>'
     +'<div class="f" style="max-width:420px"><label class="fld">Public contact email (optional)</label><input id="f_contactEmail" value="'+esc(s.contactEmail||'')+'" placeholder="info@rrgcre.com"></div>'
     +'<div class="f"><label class="fld">Book-a-call link (your scheduling page)</label><input id="f_bookingUrl" value="'+esc(s.bookingUrl||'')+'" placeholder="https://rrg-ssc-mailer.onrender.com/book/…"></div>'
@@ -324,6 +326,7 @@ function collect(){
     placeHeroHead: val('f_placeHeroHead'), placeHeroSub: val('f_placeHeroSub'),
     placeSteps: rows('[data-placestep]',tdMap).filter(tdKeep), placeValues: rows('[data-placeval]',tdMap).filter(tdKeep), placeFaqs: rows('[data-placefaq]',qaMap).filter(qaKeep),
     offices: rows('[data-off]',function(r){ return { city:r.querySelector('.o_c').value, phone:r.querySelector('.o_p').value }; }).filter(function(x){return x.city||x.phone;}),
+    subMarkets: (val('f_subMarkets')||'').split('\n').map(function(x){return x.trim();}).filter(Boolean),
     wins: rows('[data-win]',function(r){ return { type:r.querySelector('.w_type').value, label:r.querySelector('.w_label').value, market:r.querySelector('.w_market').value, detail:r.querySelector('.w_detail').value }; }).filter(function(w){return w.label||w.type;})
   };
 }
