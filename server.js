@@ -8898,7 +8898,7 @@ header{background:linear-gradient(180deg,var(--navy2),var(--navy));border-bottom
 @media(max-width:980px){.navdd{display:none;}}
 .hd{padding:20px 0 0;}
 .hd h1{font-family:'Fraunces',Georgia,'Times New Roman',serif;font-size:30px;font-weight:600;color:var(--navy);letter-spacing:-.01em;line-height:1.08;}
-.hd .lede{font-size:13px;color:var(--muted);margin-top:4px;max-width:760px;}
+.hd .lede{font-size:17px;color:var(--muted);margin-top:12px;max-width:62ch;line-height:1.6;}
 .modes{margin-top:16px;}
 .modeseg{display:inline-flex;border:1px solid var(--inp);border-radius:6px;overflow:hidden;background:#fff;}
 .modeseg button{border:none;background:#fff;padding:10px 18px;font:inherit;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;gap:8px;}
@@ -8960,6 +8960,11 @@ td.r{text-align:right;}
 .fhdr h2{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--slate);}
 .fhdr .ln{flex:1;height:1px;background:var(--line);}
 .fhdr .n{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);}
+#bizFeat, #reFeat{background:linear-gradient(165deg,#0f2147,#0a1733 60%,#0c1d40);border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:22px 24px 26px;margin:22px 0 28px;box-shadow:0 24px 60px rgba(10,20,50,.16);}
+#bizFeat .fhdr, #reFeat .fhdr{margin:0 0 16px;}
+#bizFeat .fhdr h2, #reFeat .fhdr h2{color:#fff;}
+#bizFeat .fhdr .ln, #reFeat .fhdr .ln{background:rgba(255,255,255,.16);}
+#bizFeat .fhdr .n, #reFeat .fhdr .n{color:#9fb0cc;}
 .fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(430px,1fr));gap:16px;}
 .fcard{background:#fff;border:1px solid var(--line);border-top:3px solid var(--navy);border-radius:8px;box-shadow:0 6px 18px rgba(16,26,48,.09);padding:12px 16px;display:flex;flex-direction:column;position:relative;overflow:hidden;transition:box-shadow .14s,transform .14s;}
 .fcard:hover{box-shadow:0 14px 34px rgba(16,26,48,.16);transform:translateY(-2px);}
@@ -8968,7 +8973,7 @@ td.r{text-align:right;}
 .fcard .med{width:40px;height:40px;flex:none;border-radius:10px;background:#eef1f7;border:1px solid #dde4ee;display:flex;align-items:center;justify-content:center;color:#2a3a57;}
 .fcard .med svg{width:22px;height:22px;}
 .fcard .floc{font-size:10.5px;color:var(--soft);font-weight:700;text-transform:uppercase;letter-spacing:.05em;}
-.fcard .fribbon{margin-left:auto;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#fbf6ec;background:var(--accent);border:1px solid var(--accent);border-radius:100px;padding:5px 12px;}
+.fcard .fribbon{margin-left:auto;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#15233f;background:linear-gradient(180deg,#eccb7e,#d9b25f);border:1px solid #e4c173;border-radius:100px;padding:5px 12px;box-shadow:0 3px 10px rgba(10,20,50,.25);}
 .fcard h3{font-size:16px;font-weight:800;color:var(--navy);line-height:1.2;margin:7px 0 2px;letter-spacing:-.01em;}
 .fcard .fbadge{font-size:11.5px;color:var(--muted);font-weight:600;}
 .fcard .fmet{display:flex;gap:22px;margin:10px 0;padding:10px 0;border-top:1px solid var(--line2);border-bottom:1px solid var(--line2);flex-wrap:wrap;}
@@ -9013,7 +9018,7 @@ td.r{text-align:right;}
 .refcard .rfph .ico{width:74px;height:74px;color:rgba(255,255,255,.5);}
 .refcard .txn{position:absolute;left:12px;top:12px;z-index:2;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;border-radius:3px;padding:5px 11px;color:#fff;}
 .refcard .txn.lease{background:var(--teal);} .refcard .txn.sale{background:var(--indigo);} .refcard .txn.asset{background:var(--amber);}
-.refcard .fribbon{position:absolute;right:12px;top:12px;z-index:2;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#fbf6ec;background:var(--accent);border:1px solid var(--accent);border-radius:100px;padding:5px 12px;}
+.refcard .fribbon{position:absolute;right:12px;top:12px;z-index:2;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#15233f;background:linear-gradient(180deg,#eccb7e,#d9b25f);border:1px solid #e4c173;border-radius:100px;padding:5px 12px;box-shadow:0 3px 10px rgba(10,20,50,.25);}
 .refcard .rfbody{padding:13px 16px 15px;flex:1;display:flex;flex-direction:column;}
 .refcard .rtype{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--primary);}
 .refcard h3{font-size:16px;font-weight:800;color:var(--navy);line-height:1.2;margin:4px 0 2px;letter-spacing:-.01em;}
