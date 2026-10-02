@@ -215,6 +215,22 @@ function render(){
     +'<div class="subh">FAQ <span class="sub" style="font-weight:600">· “Common questions”</span></div><div id="exitFaqBox"></div><button type="button" class="addbtn" onclick="addQA(\'exitFaqBox\',\'exitfaq\')">+ Add question</button>'
   +'</div>'
 
+  +'<div class="card"><h2>Secure page <span class="sub" style="font-weight:600">· /site/secure</span></h2><p class="sub">The “Secure the Right Location” detail page. Everything below is yours to edit.</p>'
+    +'<div class="f"><label class="fld">Hero headline</label><input id="f_secHeroHead" value="'+esc(s.secHeroHead||'')+'"></div>'
+    +'<div class="f" style="margin-top:12px"><label class="fld">Hero sub-line</label><textarea id="f_secHeroSub" style="min-height:66px">'+esc(s.secHeroSub||'')+'</textarea></div>'
+    +'<div class="subh">Process steps <span class="sub" style="font-weight:600">· “How a site search runs”</span></div><div id="secStepBox"></div><button type="button" class="addbtn" onclick="addTD(\'secStepBox\',\'secstep\',\'Step\')">+ Add step</button>'
+    +'<div class="subh">Value cards <span class="sub" style="font-weight:600">· “What a tenant rep gets you”</span></div><div id="secValBox"></div><button type="button" class="addbtn" onclick="addTD(\'secValBox\',\'secval\',\'Value\')">+ Add value</button>'
+    +'<div class="subh">FAQ <span class="sub" style="font-weight:600">· “Tenant questions”</span></div><div id="secFaqBox"></div><button type="button" class="addbtn" onclick="addQA(\'secFaqBox\',\'secfaq\')">+ Add question</button>'
+  +'</div>'
+
+  +'<div class="card"><h2>Place page <span class="sub" style="font-weight:600">· /site/place</span></h2><p class="sub">The “Place the Right Operator” detail page. Everything below is yours to edit.</p>'
+    +'<div class="f"><label class="fld">Hero headline</label><input id="f_placeHeroHead" value="'+esc(s.placeHeroHead||'')+'"></div>'
+    +'<div class="f" style="margin-top:12px"><label class="fld">Hero sub-line</label><textarea id="f_placeHeroSub" style="min-height:66px">'+esc(s.placeHeroSub||'')+'</textarea></div>'
+    +'<div class="subh">Process steps <span class="sub" style="font-weight:600">· “How a placement runs”</span></div><div id="placeStepBox"></div><button type="button" class="addbtn" onclick="addTD(\'placeStepBox\',\'placestep\',\'Step\')">+ Add step</button>'
+    +'<div class="subh">Value cards <span class="sub" style="font-weight:600">· “What the right placement takes”</span></div><div id="placeValBox"></div><button type="button" class="addbtn" onclick="addTD(\'placeValBox\',\'placeval\',\'Value\')">+ Add value</button>'
+    +'<div class="subh">FAQ <span class="sub" style="font-weight:600">· “Owner questions”</span></div><div id="placeFaqBox"></div><button type="button" class="addbtn" onclick="addQA(\'placeFaqBox\',\'placefaq\')">+ Add question</button>'
+  +'</div>'
+
   +'<div class="card"><h2>Selected transactions</h2><p class="sub">Your “skins on the wall” — closed deals shown in the Track record section. Use Sold / Leased / Placed. Keep them confidential (no client names needed).</p><div id="winBox"></div><button type="button" class="addbtn" onclick="addWin()">+ Add transaction</button></div>'
 
   +'<div class="card"><h2>About</h2>'
@@ -255,6 +271,12 @@ function render(){
   el('exitStepBox').innerHTML=(s.exitSteps||[]).map(function(x,i){return rowTD(x,i,'exitstep','Step');}).join('');
   el('exitValBox').innerHTML=(s.exitValues||[]).map(function(x,i){return rowTD(x,i,'exitval','Value');}).join('');
   el('exitFaqBox').innerHTML=(s.exitFaqs||[]).map(function(x,i){return rowQA(x,i,'exitfaq');}).join('');
+  el('secStepBox').innerHTML=(s.secSteps||[]).map(function(x,i){return rowTD(x,i,'secstep','Step');}).join('');
+  el('secValBox').innerHTML=(s.secValues||[]).map(function(x,i){return rowTD(x,i,'secval','Value');}).join('');
+  el('secFaqBox').innerHTML=(s.secFaqs||[]).map(function(x,i){return rowQA(x,i,'secfaq');}).join('');
+  el('placeStepBox').innerHTML=(s.placeSteps||[]).map(function(x,i){return rowTD(x,i,'placestep','Step');}).join('');
+  el('placeValBox').innerHTML=(s.placeValues||[]).map(function(x,i){return rowTD(x,i,'placeval','Value');}).join('');
+  el('placeFaqBox').innerHTML=(s.placeFaqs||[]).map(function(x,i){return rowQA(x,i,'placefaq');}).join('');
   el('leadBox').innerHTML=LEADS.length?LEADS.map(leadRow).join(''):'<div class="empty">No leads yet. They’ll show up here the moment someone uses your contact form.</div>';
   el('subBox').innerHTML=SUBS.length?SUBS.map(subRow).join(''):'<div class="empty">No subscribers yet. Share your <b>/site/subscribe</b> link to start building the list.</div>';
   heroPreview(s.heroImage||''); renderDns(); updateStatusLbl();
@@ -297,6 +319,10 @@ function collect(){
     muSteps: rows('[data-mustep]',tdMap).filter(tdKeep), muValues: rows('[data-muval]',tdMap).filter(tdKeep), muFaqs: rows('[data-mufaq]',qaMap).filter(qaKeep),
     exitHeroHead: val('f_exitHeroHead'), exitHeroSub: val('f_exitHeroSub'),
     exitSteps: rows('[data-exitstep]',tdMap).filter(tdKeep), exitValues: rows('[data-exitval]',tdMap).filter(tdKeep), exitFaqs: rows('[data-exitfaq]',qaMap).filter(qaKeep),
+    secHeroHead: val('f_secHeroHead'), secHeroSub: val('f_secHeroSub'),
+    secSteps: rows('[data-secstep]',tdMap).filter(tdKeep), secValues: rows('[data-secval]',tdMap).filter(tdKeep), secFaqs: rows('[data-secfaq]',qaMap).filter(qaKeep),
+    placeHeroHead: val('f_placeHeroHead'), placeHeroSub: val('f_placeHeroSub'),
+    placeSteps: rows('[data-placestep]',tdMap).filter(tdKeep), placeValues: rows('[data-placeval]',tdMap).filter(tdKeep), placeFaqs: rows('[data-placefaq]',qaMap).filter(qaKeep),
     offices: rows('[data-off]',function(r){ return { city:r.querySelector('.o_c').value, phone:r.querySelector('.o_p').value }; }).filter(function(x){return x.city||x.phone;}),
     processes: rows('[data-proc]',function(r){
       var steps=Array.prototype.slice.call(r.querySelectorAll('[data-step]')).map(function(sr){ return { t:sr.querySelector('.st_t').value, d:sr.querySelector('.st_d').value }; }).filter(function(x){return x.t||x.d;});

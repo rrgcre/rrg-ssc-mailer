@@ -6914,6 +6914,52 @@ function defaultWebsite() {
       { q: 'How fast can I be out?', a: 'It depends on the space, the lease, and finding the right taker — but every week counts while rent is running. We move quickly to value, package, and market the space so you\'re not carrying a dead location any longer than you have to.' },
       { q: 'The location loses money every month — where do I start?', a: 'With a call. Tell us the situation and we\'ll tell you what your lease and assets realistically allow, and the fastest clean path out. Confidential, no obligation.' }
     ],
+    secHeroHead: 'Secure the right location — on the right terms.',
+    secHeroSub: 'Finding a restaurant space is easy. Finding the right one, on terms that protect your P&L, is not. We work the corridors, surface on- and off-market sites, and negotiate the rent, TI, and restaurant-specific terms that make or break a deal — representing you, usually at no cost to you.',
+    secSteps: [
+      { t: 'Define the criteria', d: 'Concept, target trade areas, size, economics, and must-haves set up front so we only chase sites that actually fit.' },
+      { t: 'Search & shortlist', d: 'We work the market and surface sites that fit — on-market, second-generation, and off-market space before it is listed.' },
+      { t: 'Tour & compare', d: 'Side by side on rent, build-out, delivery condition, and real restaurant fit — not just square footage.' },
+      { t: 'LOI & negotiation', d: 'We negotiate base rent, free rent, TI allowance, exclusives, co-tenancy, and options — the terms that protect your P&L.' },
+      { t: 'Lease & diligence', d: 'We quarterback the lease and the restaurant-specific diligence — venting, grease, power, parking, zoning, occupancy — before you sign.' },
+      { t: 'Build-out handoff', d: 'A clean transition from signed lease to open doors.' }
+    ],
+    secValues: [
+      { t: 'The whole market, including off-market', d: 'On-market, second-generation restaurant space, and sites before they ever hit a sign — not just whatever happens to be advertised.' },
+      { t: 'Restaurant-specific diligence', d: 'Venting and hood, grease, power and gas capacity, parking, zoning, occupancy, and delivery condition — checked before you commit.' },
+      { t: 'Terms that protect your P&L', d: 'Base rent, free rent, TI allowance, exclusives, co-tenancy, and renewal options — negotiated, not just the headline rate.' },
+      { t: 'Representation at no cost to you', d: 'In most deals the landlord pays our fee, so you get a professional negotiator on your side — for free.' }
+    ],
+    secFaqs: [
+      { q: 'What does it cost me to use a tenant rep?', a: 'Usually nothing. In most lease deals the landlord pays our commission, so you get a professional negotiator working only for you at no cost.' },
+      { q: 'Can\'t I just call the number on the sign?', a: 'You can — but that agent works for the landlord. We work only for you, and we see sites, including off-market space, that never make it to a sign.' },
+      { q: 'What makes a restaurant space different to lease?', a: 'Venting and hood, grease interceptor, power and gas capacity, parking, zoning, occupancy classification, and delivery condition. We vet all of it before you sign, because any one of them can sink a deal after the fact.' },
+      { q: 'I\'m expanding — can you help me find multiple sites?', a: 'Yes. We run multi-site searches and roll-outs — see the Multi-unit & portfolio page too, since growth across several locations runs on its own playbook.' },
+      { q: 'How far out should I start looking?', a: 'Earlier than you think. The right space, a well-negotiated lease, and a build-out all take time — starting early keeps you from forcing a bad deal under a clock.' },
+      { q: 'I already found a space — can you still represent me?', a: 'Often yes, as long as we register you with the landlord before you engage them. Loop us in before you sign or negotiate anything so you keep a broker on your side.' }
+    ],
+    placeHeroHead: 'Place the right operator — vetted, funded, and ready.',
+    placeHeroSub: 'An empty restaurant space is a liability, and the wrong tenant is worse. We match landlords and property owners with qualified, funded operators whose concept fits the space — and structure the deal that sets both sides up to succeed.',
+    placeSteps: [
+      { t: 'Understand the space', d: 'Economics, infrastructure, trade area, and the concepts that genuinely fit the box.' },
+      { t: 'Source operators', d: 'We tap our bench of qualified, funded operators actively looking for space.' },
+      { t: 'Vet & match', d: 'Track record, capital, and concept fit verified before any introduction.' },
+      { t: 'Deal terms', d: 'We structure the lease or purchase terms that work for both sides.' },
+      { t: 'Transition', d: 'From handshake to handover, managed end to end.' }
+    ],
+    placeValues: [
+      { t: 'A bench of qualified operators', d: 'We maintain relationships with funded, proven operators actively looking for space — so your box reaches real prospects, fast.' },
+      { t: 'Concept that fits the space', d: 'We match infrastructure, trade area, and economics to the right concept — not just any tenant who will sign.' },
+      { t: 'Vetted before intro', d: 'Track record, capital, and concept verified before an operator ever reaches you. No time wasted on who can\'t perform or can\'t fund it.' },
+      { t: 'A deal that holds', d: 'We structure the lease or purchase so both sides are set up to succeed — and the deal actually closes and sticks.' }
+    ],
+    placeFaqs: [
+      { q: 'I have a vacant restaurant space — how fast can you fill it?', a: 'It depends on the space and the market, but we move quickly because we already know the operators who are looking. We bring qualified, funded prospects, not window-shoppers.' },
+      { q: 'How do you vet operators?', a: 'Track record, capital, and concept fit — verified before we ever make an introduction. You don\'t waste time on operators who can\'t perform or can\'t fund the build-out.' },
+      { q: 'I\'d rather sell the property than lease it — can you help?', a: 'Yes. Whether it\'s a lease, a sale, or a sale-leaseback, we structure the path that fits your goals for the asset.' },
+      { q: 'My space isn\'t a former restaurant — does that matter?', a: 'It matters, and we account for it. Venting, power, grease, and occupancy drive which concepts fit and what build-out a tenant will take on — we match accordingly.' },
+      { q: 'Do you represent the landlord or the operator?', a: 'On this side, we represent you, the owner. Our job is to protect your asset and place an operator who will make it succeed.' }
+    ],
     aboutHead: 'Why operators trust RRG',
     about: 'Restaurant deals fail for predictable reasons. We run a detail-oriented, controlled process — from valuation and positioning through qualified buyers and a clean close — so your transaction gets done right. We represent sellers, buyers, landlords, and tenants across Texas.',
     offices: [
@@ -6963,7 +7009,7 @@ function loadWebsite() {
   try { s = rj(WEBSITE_FILE); } catch (e) {}
   if (!s || typeof s !== 'object') return d;
   const out = Object.assign({}, d, s);
-  ['stats', 'services', 'offices', 'processes', 'wins', 'concepts', 'sellSteps', 'sellValues', 'sellFaqs', 'muSteps', 'muValues', 'muFaqs', 'exitSteps', 'exitValues', 'exitFaqs'].forEach(function (k) { if (!Array.isArray(out[k]) || !out[k].length) out[k] = d[k]; });
+  ['stats', 'services', 'offices', 'processes', 'wins', 'concepts', 'sellSteps', 'sellValues', 'sellFaqs', 'muSteps', 'muValues', 'muFaqs', 'exitSteps', 'exitValues', 'exitFaqs', 'secSteps', 'secValues', 'secFaqs', 'placeSteps', 'placeValues', 'placeFaqs'].forEach(function (k) { if (!Array.isArray(out[k]) || !out[k].length) out[k] = d[k]; });
   return out;
 }
 function saveWebsite(o) { return writeJsonGuarded(WEBSITE_FILE, o || {}, 'saveWebsite'); }
@@ -7013,6 +7059,16 @@ app.post('/api/website', requireAdmin, express.json({ limit: '256kb' }), (req, r
   if (Array.isArray(b.exitSteps)) out.exitSteps = cleanTD(b.exitSteps, 8);
   if (Array.isArray(b.exitValues)) out.exitValues = cleanTD(b.exitValues, 6);
   if (Array.isArray(b.exitFaqs)) out.exitFaqs = cleanQA(b.exitFaqs, 12);
+  if (b.secHeroHead !== undefined) out.secHeroHead = S(b.secHeroHead, 200);
+  if (b.secHeroSub !== undefined) out.secHeroSub = S(b.secHeroSub, 700);
+  if (Array.isArray(b.secSteps)) out.secSteps = cleanTD(b.secSteps, 8);
+  if (Array.isArray(b.secValues)) out.secValues = cleanTD(b.secValues, 6);
+  if (Array.isArray(b.secFaqs)) out.secFaqs = cleanQA(b.secFaqs, 12);
+  if (b.placeHeroHead !== undefined) out.placeHeroHead = S(b.placeHeroHead, 200);
+  if (b.placeHeroSub !== undefined) out.placeHeroSub = S(b.placeHeroSub, 700);
+  if (Array.isArray(b.placeSteps)) out.placeSteps = cleanTD(b.placeSteps, 8);
+  if (Array.isArray(b.placeValues)) out.placeValues = cleanTD(b.placeValues, 6);
+  if (Array.isArray(b.placeFaqs)) out.placeFaqs = cleanQA(b.placeFaqs, 12);
   if (b.servicesTransition !== undefined) out.servicesTransition = S(b.servicesTransition, 400);
   if (b.aboutHead !== undefined) out.aboutHead = S(b.aboutHead, 120);
   if (b.about !== undefined) out.about = S(b.about, 2000);
@@ -7134,6 +7190,340 @@ app.get('/site/multi-unit', (req, res) => { res.set('Content-Type', 'text/html; 
 
 // ===== Lease-exit / asset-sale detail page: /site/exit =====
 app.get('/site/exit', (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8').send(siteExitPage(req)); });
+
+// ===== Tenant-rep / site-selection detail page: /site/secure =====
+app.get('/site/secure', (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8').send(siteSecurePage(req)); });
+function siteSecurePage(req) {
+  const s = loadWebsite();
+  const org = esc(s.brand || orgDisplayName() || 'Restaurant Realty Group');
+  const year = new Date().getFullYear();
+  const bookUrl = String(s.bookingUrl || '').replace(/["'<>]/g, '').trim();
+  const bookBtn = bookUrl ? ('<a class="btn gold" href="' + bookUrl + '" target="_blank" rel="noopener">📅 Book a call</a>') : '';
+  const email = esc(s.contactEmail || '');
+
+  const steps = Array.isArray(s.secSteps) ? s.secSteps : [];
+  const stepHtml = steps.slice(0, 8).map(function (x, j) { return '<div class="step"><div class="stepn">' + (j + 1) + '</div><div class="stepb"><div class="stept">' + esc(x.t || '') + '</div><div class="stepd">' + esc(x.d || '') + '</div></div></div>'; }).join('');
+
+  const re = /leas|secured|\bsite\b|\bspace\b|endcap|2nd[- ]?gen|second[- ]?gen/i;
+  const hit = (s.wins || []).filter(function (w) { return re.test(String((w && w.label) || '') + ' ' + String((w && w.detail) || '') + ' ' + String((w && w.type) || '')); });
+  const winSrc = hit.length ? hit : (s.wins || []).slice(0, 6);
+  const winHtml = winSrc.slice(0, 6).map(function (w) { const type = String(w.type || '').toLowerCase(); const cls = type.indexOf('sold') >= 0 ? 'sold' : (type.indexOf('leas') >= 0 ? 'leased' : (type.indexOf('plac') >= 0 ? 'placed' : 'other')); const meta = [esc(w.market || ''), esc(w.detail || '')].filter(Boolean).join(' &middot; '); return '<div class="win"><span class="wtag ' + cls + '">' + esc(w.type || 'Closed') + '</span><div class="wl">' + esc(w.label || '') + '</div>' + (meta ? ('<div class="wm">' + meta + '</div>') : '') + '</div>'; }).join('');
+  const hasWins = !!winHtml;
+
+  const bookRow = bookUrl ? ('<div style="margin-top:20px"><div style="font-size:12.5px;color:#9fb0cc;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:9px">Prefer to grab a time?</div>' + bookBtn + '</div>') : '';
+  const emailRow = email ? ('<p class="lead" style="margin-top:14px">Prefer email? <a style="color:#fff;font-weight:800" href="mailto:' + email + '">' + email + '</a></p>') : '';
+  const offLinks = (s.offices || []).map(function (o) { const tel = String(o.phone || '').replace(/[^0-9+]/g, ''); return '<a href="tel:' + tel + '">' + esc(o.city || '') + ' &middot; ' + esc(o.phone || '') + '</a>'; }).join('');
+
+  const VIC = [
+    '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.4 15.4 21 21" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>',
+    '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="4" width="14" height="18" rx="2"/><rect x="9" y="2.6" width="6" height="3.4" rx="1.1" fill="#eef3fb"/><path d="M8.5 13l2.2 2.2 4.3-4.6" fill="none" stroke="#eef3fb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="11" y="3" width="2" height="17" rx="1"/><rect x="6" y="19.6" width="12" height="2.2" rx="1"/><path d="M5 6h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M5 6 2.4 11.6h5.2L5 6Z"/><path d="M19 6 16.4 11.6h5.2L19 6Z"/></svg>',
+    '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 6.3a.9.9 0 0 0-.9.9v.25c-1.3.3-2.15 1.25-2.15 2.5 0 1.45 1.2 2.15 2.5 2.55 1 .3 1.35.5 1.35.95 0 .45-.4.75-1.05.75-.6 0-1.1-.2-1.55-.6a.9.9 0 1 0-1.15 1.38c.55.47 1.2.76 1.9.86v.26a.9.9 0 0 0 1.8 0v-.28c1.35-.32 2.2-1.26 2.2-2.52 0-1.5-1.25-2.2-2.6-2.6-.85-.28-1.25-.48-1.25-.9 0-.38.38-.66.95-.66.5 0 .9.12 1.3.4a.9.9 0 1 0 1-1.48c-.4-.28-.85-.47-1.3-.56v-.28a.9.9 0 0 0-.9-.9Z" fill="#eef3fb"/></svg>'
+  ];
+  const valueHtml = (Array.isArray(s.secValues) ? s.secValues : []).map(function (v, i) { return '<div class="svc" style="box-shadow:0 10px 26px rgba(10,20,50,.09)"><div class="svcic">' + (VIC[i] || VIC[0]) + '</div><div class="svct">' + esc(v.t || '') + '</div><div class="svcd">' + esc(v.d || '') + '</div></div>'; }).join('');
+  const faqHtml = (Array.isArray(s.secFaqs) ? s.secFaqs : []).map(function (f) { return '<details class="faq"><summary>' + esc(f.q || '') + '</summary><div class="fa">' + esc(f.a || '') + '</div></details>'; }).join('');
+
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Secure the Right Location — ${org}</title>
+<meta name="description" content="Find and secure the right restaurant space on the right terms. ${org} represents tenants — on- and off-market sites, restaurant-specific diligence, and hard lease negotiation, usually at no cost to you.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>${SITE_CSS}</style>
+<style>
+.shero{position:relative;background:linear-gradient(115deg,#060e22,#0a1733 55%,#122a5a);color:#fff;padding:52px 0 78px;overflow:hidden;}
+.shero::after{content:'';position:absolute;right:-140px;top:-140px;width:460px;height:460px;border-radius:50%;background:radial-gradient(circle,rgba(200,162,75,.16),transparent 70%);pointer-events:none;}
+.shero .wrap{position:relative;z-index:1;}
+.shero .eyebrow{color:var(--gold2);}
+.shero h1{font-family:'Fraunces',serif;font-weight:600;font-size:52px;line-height:1.05;letter-spacing:-.015em;margin:14px 0 0;max-width:18ch;text-wrap:balance;}
+@media(max-width:720px){.shero h1{font-size:34px;}}
+.shero .sub{color:#c6d1e6;font-size:18px;line-height:1.55;max-width:62ch;margin:20px 0 0;}
+.sherocta{display:flex;flex-wrap:wrap;gap:14px;margin-top:30px;}
+.strust{display:flex;flex-wrap:wrap;gap:10px 28px;margin-top:32px;color:#9fb0cc;font-size:13px;font-weight:700;}
+.strust span{display:inline-flex;align-items:center;gap:9px;}
+.strust b{color:var(--gold2);font-weight:800;}
+.sback{display:inline-flex;align-items:center;gap:7px;color:#9fb0cc;font-size:13px;font-weight:700;text-decoration:none;}
+.sback:hover{color:#fff;}
+.svalue{background:var(--cream);}
+.faqwrap{margin-top:38px;display:grid;gap:12px;max-width:840px;}
+.faq{border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden;box-shadow:0 2px 10px rgba(10,20,50,.04);}
+.faq summary{cursor:pointer;list-style:none;padding:19px 22px;font-family:'Fraunces',serif;font-weight:600;font-size:18px;color:var(--navy);display:flex;justify-content:space-between;align-items:center;gap:16px;}
+.faq summary::-webkit-details-marker{display:none;}
+.faq summary::after{content:'+';font-family:Inter,sans-serif;font-size:26px;color:var(--gold);font-weight:400;line-height:1;transition:transform .2s;}
+.faq[open] summary::after{transform:rotate(45deg);}
+.faq .fa{padding:0 22px 20px;color:var(--muted);font-size:15px;line-height:1.62;max-width:72ch;}
+</style></head>
+<body>
+<header><div class="wrap"><nav class="nav">
+  <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
+  <span class="sp"></span>
+  <a class="navlink" href="/site#services">All services</a>
+  <a class="navlink" href="#process">How it works</a>
+  <a class="navlink" href="/site#opportunities">Opportunities</a>
+  <a class="navlink" href="#track">Track record</a>
+  <a class="navcta" href="#contact">Start your search</a>
+</nav></div></header>
+
+<section class="shero"><div class="wrap">
+  <a class="sback" href="/site">&larr; Back to ${org}</a>
+  <div class="eyebrow" style="margin-top:16px">Tenant representation</div>
+  <h1>${esc(s.secHeroHead || '')}</h1>
+  ${s.secHeroSub ? '<p class="sub">' + esc(s.secHeroSub) + '</p>' : ''}
+  <div class="sherocta">
+    <a class="btn red" href="#contact">Start your search</a>
+    ${bookUrl ? bookBtn : '<a class="btn ghost" href="#process">See how it works</a>'}
+  </div>
+  <div class="strust">
+    <span><b>On- &amp; off-market</b> sites</span>
+    <span><b>Rent, TI &amp; terms</b> negotiated</span>
+    <span><b>Usually no cost</b> to you</span>
+  </div>
+</div></section>
+
+<section class="svalue"><div class="wrap">
+  <div class="sec-head"><div class="eyebrow">Why tenant rep with RRG</div><div class="h2">What a tenant rep actually gets you</div>
+  <p class="lead">Securing the right space is market access, restaurant-specific diligence, and hard negotiation — with someone who works only for you.</p></div>
+  <div class="svcs">${valueHtml}</div>
+</div></section>
+
+<section id="process" class="process"><div class="wrap">
+  <div class="sec-head"><div class="eyebrow">The process</div><div class="h2">How a site search runs</div>
+  <p class="lead">A disciplined path from criteria to open doors — built to land the right space on the right terms.</p></div>
+  <div class="ppanel on" style="margin-top:38px"><div class="steps">${stepHtml}</div></div>
+</div></section>
+
+${hasWins ? `<section id="track" class="track"><div class="wrap">
+  <div class="sec-head"><div class="eyebrow">Proof</div><div class="h2">Spaces we've secured</div>
+  <p class="lead">A sample of closed transactions. Details kept confidential — no client names needed to show the work.</p></div>
+  <div class="wins">${winHtml}</div>
+  <div class="trackfoot">Representative closings across Texas. Your outcome depends on your concept, the market, and the deal.</div>
+</div></section>` : ''}
+
+<section class="svalue"><div class="wrap">
+  <div class="sec-head"><div class="eyebrow">Tenant questions</div><div class="h2">Answered, straight</div>
+  <p class="lead">What operators ask before they start a search.</p></div>
+  <div class="faqwrap">${faqHtml}</div>
+</div></section>
+
+<section id="contact" class="contact"><div class="wrap"><div class="cgrid">
+  <div>
+    <div class="eyebrow">Start here</div>
+    <div class="h2">Let’s find your space</div>
+    <p class="lead">Tell us about your concept and where you want to be. On our first call we’ll pin down your criteria and economics, then start working the market — on and off — for sites that actually fit. Confidential, and no obligation.</p>
+    ${bookRow}
+    ${emailRow}
+  </div>
+  <form class="form" id="leadForm" novalidate>
+    <div class="row">
+      <div class="fld"><label>Name</label><input id="lf_name" autocomplete="name" required></div>
+      <div class="fld"><label>Phone</label><input id="lf_phone" autocomplete="tel"></div>
+    </div>
+    <div class="fld"><label>Email</label><input id="lf_email" type="email" autocomplete="email"></div>
+    <div class="fld"><label>Tell us about your concept &amp; target markets</label><textarea id="lf_message" placeholder="Concept, target trade areas, size, budget/occupancy cost, timeline, and any must-haves…"></textarea></div>
+    <input type="hidden" id="lf_interest" value="Secure the Right Location">
+    <div style="margin-top:18px;display:flex;align-items:center"><button type="submit" class="btn red" id="leadBtn">Start my search</button><span class="lmsg" id="leadMsg"></span></div>
+  </form>
+</div></div></section>
+
+<footer><div class="wrap">
+  <div class="foot">
+    <div>
+      <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
+      <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
+    </div>
+    <div><h4>Explore</h4><a href="/site#services">Services</a><a href="/site#opportunities">Opportunities</a><a href="/market">Marketplace</a><a href="#contact">Contact</a></div>
+    <div><h4>Offices</h4>${offLinks}</div>
+  </div>
+  <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
+</div></footer>
+
+<script>
+(function(){
+  var f=document.getElementById('leadForm'); if(!f) return;
+  function val(id){ var el=document.getElementById(id); return el?String(el.value||'').trim():''; }
+  f.addEventListener('submit',function(e){ e.preventDefault();
+    var msg=document.getElementById('leadMsg'), btn=document.getElementById('leadBtn');
+    var body={ name:val('lf_name'), email:val('lf_email'), phone:val('lf_phone'), interest:val('lf_interest')||'Secure the Right Location', message:val('lf_message') };
+    if(!body.name || (!body.email && !body.phone)){ msg.textContent='Add your name and an email or phone.'; msg.className='lmsg err'; return; }
+    var old=btn.textContent; btn.disabled=true; btn.textContent='Sending…'; msg.textContent='';
+    fetch('/api/website/lead',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+      .then(function(r){return r.json();}).then(function(j){
+        if(j&&j.ok){ f.reset(); document.getElementById('lf_interest').value='Secure the Right Location'; msg.textContent='Thanks — we’ll be in touch shortly.'; msg.className='lmsg ok'; }
+        else { msg.textContent=(j&&j.error)||'Something went wrong. Please call us.'; msg.className='lmsg err'; }
+        btn.disabled=false; btn.textContent=old;
+      }).catch(function(){ msg.textContent='Network error. Please call us.'; msg.className='lmsg err'; btn.disabled=false; btn.textContent=old; });
+  });
+})();
+</script>
+</body></html>`;
+}
+
+
+// ===== Operator-placement / landlord-side detail page: /site/place =====
+app.get('/site/place', (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8').send(siteOperatorPage(req)); });
+function siteOperatorPage(req) {
+  const s = loadWebsite();
+  const org = esc(s.brand || orgDisplayName() || 'Restaurant Realty Group');
+  const year = new Date().getFullYear();
+  const bookUrl = String(s.bookingUrl || '').replace(/["'<>]/g, '').trim();
+  const bookBtn = bookUrl ? ('<a class="btn gold" href="' + bookUrl + '" target="_blank" rel="noopener">📅 Book a call</a>') : '';
+  const email = esc(s.contactEmail || '');
+
+  const steps = Array.isArray(s.placeSteps) ? s.placeSteps : [];
+  const stepHtml = steps.slice(0, 8).map(function (x, j) { return '<div class="step"><div class="stepn">' + (j + 1) + '</div><div class="stepb"><div class="stept">' + esc(x.t || '') + '</div><div class="stepd">' + esc(x.d || '') + '</div></div></div>'; }).join('');
+
+  const re = /plac|operator|tenant|lease|endcap/i;
+  const hit = (s.wins || []).filter(function (w) { return re.test(String((w && w.label) || '') + ' ' + String((w && w.detail) || '') + ' ' + String((w && w.type) || '')); });
+  const winSrc = hit.length ? hit : (s.wins || []).slice(0, 6);
+  const winHtml = winSrc.slice(0, 6).map(function (w) { const type = String(w.type || '').toLowerCase(); const cls = type.indexOf('sold') >= 0 ? 'sold' : (type.indexOf('leas') >= 0 ? 'leased' : (type.indexOf('plac') >= 0 ? 'placed' : 'other')); const meta = [esc(w.market || ''), esc(w.detail || '')].filter(Boolean).join(' &middot; '); return '<div class="win"><span class="wtag ' + cls + '">' + esc(w.type || 'Closed') + '</span><div class="wl">' + esc(w.label || '') + '</div>' + (meta ? ('<div class="wm">' + meta + '</div>') : '') + '</div>'; }).join('');
+  const hasWins = !!winHtml;
+
+  const bookRow = bookUrl ? ('<div style="margin-top:20px"><div style="font-size:12.5px;color:#9fb0cc;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:9px">Prefer to grab a time?</div>' + bookBtn + '</div>') : '';
+  const emailRow = email ? ('<p class="lead" style="margin-top:14px">Prefer email? <a style="color:#fff;font-weight:800" href="mailto:' + email + '">' + email + '</a></p>') : '';
+  const offLinks = (s.offices || []).map(function (o) { const tel = String(o.phone || '').replace(/[^0-9+]/g, ''); return '<a href="tel:' + tel + '">' + esc(o.city || '') + ' &middot; ' + esc(o.phone || '') + '</a>'; }).join('');
+
+  const VIC = [
+    '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="7.5" r="3.6"/><path d="M9 12.2c-3.6 0-6.2 2.5-6.2 5.8V20h12.4v-2A5.9 5.9 0 0 0 9 12.2Z"/><circle cx="17.5" cy="8.8" r="2.6"/><path d="M17.5 12.6c-1 0-1.9.25-2.6.68A7.3 7.3 0 0 1 16.9 18v2h4.3v-1.7c0-3-2-5.7-3.7-5.7Z"/></svg>',
+    '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.4 9.3 5 4.8h14l1.6 4.5a2.5 2.5 0 0 1-4.5 1.5 2.5 2.5 0 0 1-3.8 0 2.5 2.5 0 0 1-3.8 0A2.5 2.5 0 0 1 3.4 9.3Z"/><path d="M5 11.4h14V20a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V11.4Z"/><path d="M9 15.6l1.8 1.8 3.4-3.6" fill="none" stroke="#eef3fb" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8.3" r="5.6"/><path d="M9.3 8.3l1.9 1.9 3.6-3.9" fill="none" stroke="#eef3fb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 13.3 6.3 21l5.7-2.6 5.7 2.6-1.7-7.7"/></svg>',
+    '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 2.5h8l4 4v15a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1Z"/><path d="M8.5 13.3l2.2 2.2 4.3-4.6" fill="none" stroke="#eef3fb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+  ];
+  const valueHtml = (Array.isArray(s.placeValues) ? s.placeValues : []).map(function (v, i) { return '<div class="svc" style="box-shadow:0 10px 26px rgba(10,20,50,.09)"><div class="svcic">' + (VIC[i] || VIC[0]) + '</div><div class="svct">' + esc(v.t || '') + '</div><div class="svcd">' + esc(v.d || '') + '</div></div>'; }).join('');
+  const faqHtml = (Array.isArray(s.placeFaqs) ? s.placeFaqs : []).map(function (f) { return '<details class="faq"><summary>' + esc(f.q || '') + '</summary><div class="fa">' + esc(f.a || '') + '</div></details>'; }).join('');
+
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Place the Right Operator — ${org}</title>
+<meta name="description" content="Fill your restaurant space with a qualified, funded operator. ${org} matches landlords and property owners with vetted operators whose concept fits the space, and structures a deal that holds.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>${SITE_CSS}</style>
+<style>
+.shero{position:relative;background:linear-gradient(115deg,#060e22,#0a1733 55%,#122a5a);color:#fff;padding:52px 0 78px;overflow:hidden;}
+.shero::after{content:'';position:absolute;right:-140px;top:-140px;width:460px;height:460px;border-radius:50%;background:radial-gradient(circle,rgba(200,162,75,.16),transparent 70%);pointer-events:none;}
+.shero .wrap{position:relative;z-index:1;}
+.shero .eyebrow{color:var(--gold2);}
+.shero h1{font-family:'Fraunces',serif;font-weight:600;font-size:52px;line-height:1.05;letter-spacing:-.015em;margin:14px 0 0;max-width:18ch;text-wrap:balance;}
+@media(max-width:720px){.shero h1{font-size:34px;}}
+.shero .sub{color:#c6d1e6;font-size:18px;line-height:1.55;max-width:62ch;margin:20px 0 0;}
+.sherocta{display:flex;flex-wrap:wrap;gap:14px;margin-top:30px;}
+.strust{display:flex;flex-wrap:wrap;gap:10px 28px;margin-top:32px;color:#9fb0cc;font-size:13px;font-weight:700;}
+.strust span{display:inline-flex;align-items:center;gap:9px;}
+.strust b{color:var(--gold2);font-weight:800;}
+.sback{display:inline-flex;align-items:center;gap:7px;color:#9fb0cc;font-size:13px;font-weight:700;text-decoration:none;}
+.sback:hover{color:#fff;}
+.svalue{background:var(--cream);}
+.faqwrap{margin-top:38px;display:grid;gap:12px;max-width:840px;}
+.faq{border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden;box-shadow:0 2px 10px rgba(10,20,50,.04);}
+.faq summary{cursor:pointer;list-style:none;padding:19px 22px;font-family:'Fraunces',serif;font-weight:600;font-size:18px;color:var(--navy);display:flex;justify-content:space-between;align-items:center;gap:16px;}
+.faq summary::-webkit-details-marker{display:none;}
+.faq summary::after{content:'+';font-family:Inter,sans-serif;font-size:26px;color:var(--gold);font-weight:400;line-height:1;transition:transform .2s;}
+.faq[open] summary::after{transform:rotate(45deg);}
+.faq .fa{padding:0 22px 20px;color:var(--muted);font-size:15px;line-height:1.62;max-width:72ch;}
+</style></head>
+<body>
+<header><div class="wrap"><nav class="nav">
+  <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
+  <span class="sp"></span>
+  <a class="navlink" href="/site#services">All services</a>
+  <a class="navlink" href="#process">How it works</a>
+  <a class="navlink" href="/site#opportunities">Opportunities</a>
+  <a class="navlink" href="#track">Track record</a>
+  <a class="navcta" href="#contact">Place an operator</a>
+</nav></div></header>
+
+<section class="shero"><div class="wrap">
+  <a class="sback" href="/site">&larr; Back to ${org}</a>
+  <div class="eyebrow" style="margin-top:16px">Operator placement</div>
+  <h1>${esc(s.placeHeroHead || '')}</h1>
+  ${s.placeHeroSub ? '<p class="sub">' + esc(s.placeHeroSub) + '</p>' : ''}
+  <div class="sherocta">
+    <a class="btn red" href="#contact">Place an operator</a>
+    ${bookUrl ? bookBtn : '<a class="btn ghost" href="#process">See how it works</a>'}
+  </div>
+  <div class="strust">
+    <span><b>Funded</b> operators</span>
+    <span><b>Vetted</b> before intro</span>
+    <span><b>Lease or sale</b> structured</span>
+  </div>
+</div></section>
+
+<section class="svalue"><div class="wrap">
+  <div class="sec-head"><div class="eyebrow">Why place with RRG</div><div class="h2">What the right placement takes</div>
+  <p class="lead">Filling a space well is not finding a tenant — it is matching a vetted, funded operator to the right concept and structuring a deal that holds.</p></div>
+  <div class="svcs">${valueHtml}</div>
+</div></section>
+
+<section id="process" class="process"><div class="wrap">
+  <div class="sec-head"><div class="eyebrow">The process</div><div class="h2">How a placement runs</div>
+  <p class="lead">A controlled path from understanding your space to a signed, qualified operator ready to open.</p></div>
+  <div class="ppanel on" style="margin-top:38px"><div class="steps">${stepHtml}</div></div>
+</div></section>
+
+${hasWins ? `<section id="track" class="track"><div class="wrap">
+  <div class="sec-head"><div class="eyebrow">Proof</div><div class="h2">Operators we've placed</div>
+  <p class="lead">A sample of closed transactions. Details kept confidential — no client names needed to show the work.</p></div>
+  <div class="wins">${winHtml}</div>
+  <div class="trackfoot">Representative closings across Texas. Your outcome depends on the space, the market, and the deal.</div>
+</div></section>` : ''}
+
+<section class="svalue"><div class="wrap">
+  <div class="sec-head"><div class="eyebrow">Owner questions</div><div class="h2">Answered, straight</div>
+  <p class="lead">What landlords and owners ask before they engage.</p></div>
+  <div class="faqwrap">${faqHtml}</div>
+</div></section>
+
+<section id="contact" class="contact"><div class="wrap"><div class="cgrid">
+  <div>
+    <div class="eyebrow">Start here</div>
+    <div class="h2">Let’s fill your space</div>
+    <p class="lead">Tell us about your space or property. On our first call we’ll walk through the economics and infrastructure, then start matching it to qualified, funded operators who fit. Confidential, and no obligation.</p>
+    ${bookRow}
+    ${emailRow}
+  </div>
+  <form class="form" id="leadForm" novalidate>
+    <div class="row">
+      <div class="fld"><label>Name</label><input id="lf_name" autocomplete="name" required></div>
+      <div class="fld"><label>Phone</label><input id="lf_phone" autocomplete="tel"></div>
+    </div>
+    <div class="fld"><label>Email</label><input id="lf_email" type="email" autocomplete="email"></div>
+    <div class="fld"><label>Tell us about your space or property</label><textarea id="lf_message" placeholder="Location/market, size, former use, current rent or asking, former restaurant or not, and your timeline…"></textarea></div>
+    <input type="hidden" id="lf_interest" value="Place the Right Operator">
+    <div style="margin-top:18px;display:flex;align-items:center"><button type="submit" class="btn red" id="leadBtn">Find my operator</button><span class="lmsg" id="leadMsg"></span></div>
+  </form>
+</div></div></section>
+
+<footer><div class="wrap">
+  <div class="foot">
+    <div>
+      <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
+      <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
+    </div>
+    <div><h4>Explore</h4><a href="/site#services">Services</a><a href="/site#opportunities">Opportunities</a><a href="/market">Marketplace</a><a href="#contact">Contact</a></div>
+    <div><h4>Offices</h4>${offLinks}</div>
+  </div>
+  <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
+</div></footer>
+
+<script>
+(function(){
+  var f=document.getElementById('leadForm'); if(!f) return;
+  function val(id){ var el=document.getElementById(id); return el?String(el.value||'').trim():''; }
+  f.addEventListener('submit',function(e){ e.preventDefault();
+    var msg=document.getElementById('leadMsg'), btn=document.getElementById('leadBtn');
+    var body={ name:val('lf_name'), email:val('lf_email'), phone:val('lf_phone'), interest:val('lf_interest')||'Place the Right Operator', message:val('lf_message') };
+    if(!body.name || (!body.email && !body.phone)){ msg.textContent='Add your name and an email or phone.'; msg.className='lmsg err'; return; }
+    var old=btn.textContent; btn.disabled=true; btn.textContent='Sending…'; msg.textContent='';
+    fetch('/api/website/lead',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+      .then(function(r){return r.json();}).then(function(j){
+        if(j&&j.ok){ f.reset(); document.getElementById('lf_interest').value='Place the Right Operator'; msg.textContent='Thanks — we’ll be in touch shortly.'; msg.className='lmsg ok'; }
+        else { msg.textContent=(j&&j.error)||'Something went wrong. Please call us.'; msg.className='lmsg err'; }
+        btn.disabled=false; btn.textContent=old;
+      }).catch(function(){ msg.textContent='Network error. Please call us.'; msg.className='lmsg err'; btn.disabled=false; btn.textContent=old; });
+  });
+})();
+</script>
+</body></html>`;
+}
+
 function siteExitPage(req) {
   const s = loadWebsite();
   const org = esc(s.brand || orgDisplayName() || 'Restaurant Realty Group');
@@ -8047,7 +8437,7 @@ function publicSitePage(req) {
     const oi = i + 1;
     const arrow = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
     const t = String(x.t || '');
-    const detailHref = (/\bsell\b|selling|sale/i.test(t)) ? '/site/sell' : ((/\bexit\b|leav|leased location|lease/i.test(t)) ? '/site/exit' : '');
+    const detailHref = (/\bsell\b|selling|sale/i.test(t)) ? '/site/sell' : ((/\bexit\b|leav|leased location|lease/i.test(t)) ? '/site/exit' : ((/secure|right location|\bsite\b|\bspace\b/i.test(t)) ? '/site/secure' : ((/\bplace\b|operator/i.test(t)) ? '/site/place' : '')));
     const inner = '<div class="svcic">' + ic + '</div><div class="svct">' + esc(x.t || '') + '</div><div class="svcd">' + esc(x.d || '') + '</div>';
     if (detailHref) {
       return '<a class="svc" href="' + detailHref + '">' + inner + '<span class="svccta">Learn more' + arrow + '</span></a>';
