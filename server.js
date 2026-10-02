@@ -6978,6 +6978,13 @@ function defaultWebsite() {
     contactEmail: '',
     bookingUrl: '',
     customDomain: 'www.rrgcre.com',
+    welcomeEmail: {
+      enabled: true,
+      subject: 'You’re on the list — new restaurant & bar listings from RRG',
+      heading: 'You’re on the list',
+      body: 'Thanks for subscribing. You’ll be among the first to know when new restaurant and bar opportunities come to market in the areas you chose — often before they’re listed anywhere else.\n\nEvery listing is confidential and sent straight to your inbox. No spam, and you can unsubscribe anytime.',
+      signoff: '— The team at Restaurant Realty Group'
+    },
     processes: [
       { name: 'Selling a restaurant', steps: [
         { t: 'Valuation & strategy', d: 'We price it right and build the plan before anything goes to market.' },
@@ -7086,6 +7093,7 @@ app.post('/api/website', requireAdmin, express.json({ limit: '256kb' }), (req, r
   if (Array.isArray(b.concepts)) out.concepts = b.concepts.map(function (x) { return S(x, 48); }).filter(Boolean).slice(0, 20);
   if (Array.isArray(b.offices)) out.offices = b.offices.slice(0, 12).map(function (x) { return { city: S(x && x.city, 60), phone: S(x && x.phone, 40) }; }).filter(function (x) { return x.city || x.phone; });
   if (Array.isArray(b.subMarkets)) out.subMarkets = b.subMarkets.map(function (x) { return S(x, 60); }).filter(Boolean).slice(0, 40);
+  if (b.welcomeEmail && typeof b.welcomeEmail === 'object') { const w = b.welcomeEmail; out.welcomeEmail = { enabled: w.enabled !== false, subject: S(w.subject, 200), heading: S(w.heading, 120), body: S(w.body, 2000), signoff: S(w.signoff, 160) }; }
   if (Array.isArray(b.processes)) out.processes = b.processes.slice(0, 8).map(function (p) {
     return { name: S(p && p.name, 80), steps: (Array.isArray(p && p.steps) ? p.steps : []).slice(0, 10).map(function (x) { return { t: S(x && x.t, 90), d: S(x && x.d, 300) }; }).filter(function (x) { return x.t || x.d; }) };
   }).filter(function (p) { return p.name || p.steps.length; });
@@ -7143,8 +7151,73 @@ app.post('/api/website/subscribe', express.json({ limit: '32kb' }), (req, res) =
   }
   if (subs.length > 20000) subs = subs.slice(0, 20000);
   saveWebsiteSubs(subs);
+  // Enroll on the actual mailing list so they receive listings, and capture an unsubscribe token.
+  let unsubToken = '';
+  try {
+    const all = loadSubscribers();
+    let cs = all.find(function (x) { return subKey(x.email) === subKey(email); });
+    if (!cs) { cs = { id: newSubscriberId(), unsubToken: newUnsubToken(), createdAt: new Date().toISOString(), status: 'subscribed' }; all.push(cs); }
+    cs.email = subKey(email);
+    if (name) cs.name = name;
+    cs.type = (audience === 'broker') ? 'Broker' : 'Restaurant';
+    cs.metros = markets;
+    cs.mode = markets.length ? 'metros' : 'all';
+    if (cs.status === 'unsubscribed') cs.status = 'subscribed';
+    cs.source = cs.source || 'Website';
+    if (!cs.unsubToken) cs.unsubToken = newUnsubToken();
+    cs.updatedAt = new Date().toISOString();
+    saveSubscribers(all);
+    unsubToken = cs.unsubToken;
+  } catch (e) { console.error('subscriber sync error:', e && e.message); }
+  // Best-effort branded welcome email — never blocks or fails the signup.
+  try {
+    const we = (loadWebsite().welcomeEmail) || {};
+    if (!existing && we.enabled !== false) {
+      sendWebsiteWelcomeEmail(email, name, markets, unsubToken).catch(function (e) { console.error('welcome email error:', e && e.message); });
+    }
+  } catch (e) {}
   res.json({ ok: true });
 });
+
+// Build + send the branded listing-alert welcome email. Best-effort; silent if email isn't configured.
+async function sendWebsiteWelcomeEmail(email, name, markets, unsubToken) {
+  if (!isEmailConfigured()) return;
+  const site = loadWebsite();
+  const we = site.welcomeEmail || {};
+  const org = orgDisplayName() || 'Restaurant Realty Group';
+  const E = function (v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+  const subject = (we.subject && String(we.subject).trim()) || ('You\u2019re on the list \u2014 ' + org);
+  const heading = (we.heading && String(we.heading).trim()) || 'You\u2019re on the list';
+  const bodyRaw = (we.body && String(we.body).trim()) || 'Thanks for subscribing. You\u2019ll be among the first to know when new restaurant and bar opportunities come to market in the areas you chose.';
+  const signoff = (we.signoff && String(we.signoff).trim()) || ('\u2014 The team at ' + org);
+  const base = appBaseUrl();
+  const marketUrl = (base || '') + '/market';
+  const unsubUrl = unsubToken ? ((base || '') + '/u/' + unsubToken) : '';
+  const mkLine = (Array.isArray(markets) && markets.length) ? markets.join(' \u00b7 ') : 'All Texas markets';
+  const paras = bodyRaw.split(/\n{2,}/).map(function (p) { return '<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#2a3344">' + E(p).replace(/\n/g, '<br>') + '</p>'; }).join('');
+  const html =
+    '<!doctype html><html><body style="margin:0;background:#eef2f6;padding:24px 12px;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">' +
+    '<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#fff;border-radius:14px;overflow:hidden;border:1px solid #e3e9f3;">' +
+    '<tr><td style="background:#001A4A;padding:22px 28px;">' +
+    '<table role="presentation" cellpadding="0" cellspacing="0"><tr>' +
+    '<td style="background:#DA2B1F;width:40px;height:40px;border-radius:8px;text-align:center;vertical-align:middle;color:#fff;font:900 13px \'Arial Black\',Arial;letter-spacing:-1px;">RRG</td>' +
+    '<td style="padding-left:12px;color:#fff;font-weight:800;font-size:15px;">' + E(org) + '<div style="color:#9fc0e8;font-size:9.5px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-top:3px;">Restaurant &amp; Bar Brokers</div></td>' +
+    '</tr></table></td></tr>' +
+    '<tr><td style="padding:30px 28px 10px;">' +
+    '<h1 style="margin:0 0 16px;font-family:Georgia,\'Times New Roman\',serif;font-weight:600;font-size:24px;color:#001A4A;">' + E(heading) + '</h1>' +
+    paras +
+    '<div style="margin:18px 0;padding:14px 16px;background:#f4f7fb;border:1px solid #e3e9f3;border-radius:10px;font-size:13px;color:#2a3344;"><b style="color:#001A4A;">Your markets:</b> ' + E(mkLine) + '</div>' +
+    '<a href="' + E(marketUrl) + '" style="display:inline-block;background:#DA2B1F;color:#fff;text-decoration:none;font-weight:800;font-size:14px;padding:13px 24px;border-radius:10px;margin:6px 0 10px;">Browse current opportunities &rarr;</a>' +
+    '<p style="margin:18px 0 0;font-size:15px;color:#2a3344;">' + E(signoff) + '</p>' +
+    '</td></tr>' +
+    '<tr><td style="padding:18px 28px 24px;border-top:1px solid #eef1f7;color:#8a93a8;font-size:11.5px;line-height:1.6;">' +
+    E(org) + ' &middot; Confidential restaurant &amp; bar brokerage across Texas.' +
+    (unsubUrl ? ('<br>You\u2019re receiving this because you signed up for listing alerts. <a href="' + E(unsubUrl) + '" style="color:#8a93a8;">Unsubscribe</a>.') : '') +
+    '</td></tr></table></td></tr></table></body></html>';
+  const text = heading + '\n\n' + bodyRaw + '\n\nYour markets: ' + mkLine + '\n\nBrowse current opportunities: ' + marketUrl + '\n\n' + signoff + (unsubUrl ? ('\n\nUnsubscribe: ' + unsubUrl) : '');
+  return sendNotifyMail(email, subject, text, html);
+}
 // Admin — remove a subscriber
 app.post('/api/website/sub/:id', requireAdmin, express.json(), (req, res) => {
   const id = req.params.id; let subs = loadWebsiteSubs(); const before = subs.length;

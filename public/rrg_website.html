@@ -244,6 +244,13 @@ function render(){
   +'<div class="card"><h2>Offices</h2><p class="sub">Shown in the About section and used for click-to-call.</p><div id="offBox"></div><button type="button" class="addbtn" onclick="addOff()">+ Add office</button></div>'
 
   +'<div class="card"><h2>Listing-alert markets</h2><p class="sub">The market checkboxes buyers pick from on your <b>/site/subscribe</b> signup page. One market per line, in the order you want them shown. Leave blank to fall back to your office cities.</p><textarea id="f_subMarkets" style="min-height:140px" placeholder="Austin&#10;Dallas&#10;Fort Worth&#10;Houston&#10;San Antonio">'+esc((s.subMarkets||[]).join('\n'))+'</textarea></div>'
+  +'<div class="card"><h2>Listing-alert welcome email</h2><p class="sub">Sent automatically to each person who subscribes on your <b>/site/subscribe</b> page. Their chosen markets, a button to the marketplace, and a one-click unsubscribe are added for you.</p>'
+    +'<label style="display:flex;align-items:center;gap:9px;font-weight:600;margin-bottom:16px"><input type="checkbox" id="we_enabled"'+(((s.welcomeEmail||{}).enabled!==false)?' checked':'')+'> Send a welcome email when someone subscribes</label>'
+    +'<div class="f"><label class="fld">Subject line</label><input id="we_subject" value="'+esc((s.welcomeEmail||{}).subject||'')+'" placeholder="You’re on the list — new listings from RRG"></div>'
+    +'<div class="f"><label class="fld">Heading</label><input id="we_heading" value="'+esc((s.welcomeEmail||{}).heading||'')+'" placeholder="You’re on the list"></div>'
+    +'<div class="f"><label class="fld">Body <span style="text-transform:none;color:#98a1b5">(leave a blank line between paragraphs)</span></label><textarea id="we_body" style="min-height:150px">'+esc((s.welcomeEmail||{}).body||'')+'</textarea></div>'
+    +'<div class="f"><label class="fld">Sign-off</label><input id="we_signoff" value="'+esc((s.welcomeEmail||{}).signoff||'')+'" placeholder="— The team at Restaurant Realty Group"></div>'
+  +'</div>'
 
   +'<div class="card"><h2>Contact</h2><p class="sub">The contact form drops leads straight into the inbox below. Email is optional and shown on the site.</p>'
     +'<div class="f" style="max-width:420px"><label class="fld">Public contact email (optional)</label><input id="f_contactEmail" value="'+esc(s.contactEmail||'')+'" placeholder="info@rrgcre.com"></div>'
@@ -332,6 +339,7 @@ function collect(){
     placeSteps: rows('[data-placestep]',tdMap).filter(tdKeep), placeValues: rows('[data-placeval]',tdMap).filter(tdKeep), placeFaqs: rows('[data-placefaq]',qaMap).filter(qaKeep),
     offices: rows('[data-off]',function(r){ return { city:r.querySelector('.o_c').value, phone:r.querySelector('.o_p').value }; }).filter(function(x){return x.city||x.phone;}),
     subMarkets: (val('f_subMarkets')||'').split('\n').map(function(x){return x.trim();}).filter(Boolean),
+    welcomeEmail: { enabled: (el('we_enabled')?el('we_enabled').checked:true), subject: val('we_subject'), heading: val('we_heading'), body: (el('we_body')?el('we_body').value:''), signoff: val('we_signoff') },
     wins: rows('[data-win]',function(r){ return { type:r.querySelector('.w_type').value, label:r.querySelector('.w_label').value, value:r.querySelector('.w_value').value, market:r.querySelector('.w_market').value, detail:r.querySelector('.w_detail').value }; }).filter(function(w){return w.label||w.type;}),
     trackStats: rows('[data-tstat]',function(r){ return { n:r.querySelector('.ts_n').value, l:r.querySelector('.ts_l').value }; }).filter(function(x){return x.n||x.l;})
   };
