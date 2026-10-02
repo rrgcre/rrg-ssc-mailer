@@ -8515,7 +8515,12 @@ function publicSitePage(req) {
       { t: 'Transition', d: 'From handshake to handover, managed end to end.' }
     ]}
   ];
-  const processes = (Array.isArray(s.processes) && s.processes.length) ? s.processes : PROC_DEFAULT;
+  const processes = [
+    { name: 'Selling a restaurant', steps: s.sellSteps },
+    { name: 'Exiting a lease', steps: s.exitSteps },
+    { name: 'Securing a location', steps: s.secSteps },
+    { name: 'Placing an operator', steps: s.placeSteps }
+  ].filter(function (p) { return Array.isArray(p.steps) && p.steps.length; });
   const procTabs = processes.map(function (p, i) { return '<button type="button" class="ptab' + (i === 0 ? ' on' : '') + '" data-ptab="' + i + '">' + esc(p.name || ('Process ' + (i + 1))) + '</button>'; }).join('');
   const procPanels = processes.map(function (p, i) {
     const st = (p.steps || []).map(function (x, j) { return '<div class="step"><div class="stepn">' + (j + 1) + '</div><div class="stepb"><div class="stept">' + esc(x.t || '') + '</div><div class="stepd">' + esc(x.d || '') + '</div></div></div>'; }).join('');

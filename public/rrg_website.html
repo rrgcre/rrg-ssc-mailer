@@ -189,7 +189,7 @@ function render(){
     +'<div class="f" style="margin-top:16px"><label class="fld">Closing line (under the cards)</label><textarea id="f_servicesTransition" style="min-height:70px" placeholder="A one-line sentence that closes the section. Leave blank to hide it.">'+esc(s.servicesTransition||'')+'</textarea><div class="sub" style="margin-top:4px">Centered line shown beneath the service cards. Clear it to remove the line.</div></div>'
   +'</div>'
 
-  +'<div class="card"><h2>Processes</h2><p class="sub">Your playbooks — each one shows on the site as its own tab with numbered steps. Add a process per deal type.</p><div id="procBox"></div><button type="button" class="addbtn" onclick="addProc()">+ Add process</button></div>'
+  +'<div class="card"><h2>Processes</h2><p class="sub">Your deal-type playbooks now live with each service page below — edit the steps under the <b>Sell</b>, <b>Exit</b>, <b>Secure</b>, and <b>Place</b> page sections. They show both on the homepage “Our processes” tabs and on each detail page, always in sync.</p></div>'
 
   +'<div class="card"><h2>Sell page <span class="sub" style="font-weight:600">· /site/sell</span></h2><p class="sub">The “Sell Your Restaurant” detail page. Everything below is yours to edit.</p>'
     +'<div class="f"><label class="fld">Hero headline</label><input id="f_sellHeroHead" value="'+esc(s.sellHeroHead||'')+'"></div>'
@@ -259,7 +259,7 @@ function render(){
   // populate dynamic rows
   el('statsBox').innerHTML=(s.stats||[]).map(rowStat).join('');
   el('svcBox').innerHTML=(s.services||[]).map(rowSvc).join('');
-  el('procBox').innerHTML=(s.processes||[]).map(rowProc).join('');
+  var _pb=el('procBox'); if(_pb) _pb.innerHTML=(s.processes||[]).map(rowProc).join('');
   el('winBox').innerHTML=(s.wins||[]).map(rowWin).join('');
   el('offBox').innerHTML=(s.offices||[]).map(rowOff).join('');
   el('sellStepBox').innerHTML=(s.sellSteps||[]).map(function(x,i){return rowTD(x,i,'sellstep','Step');}).join('');
@@ -324,10 +324,6 @@ function collect(){
     placeHeroHead: val('f_placeHeroHead'), placeHeroSub: val('f_placeHeroSub'),
     placeSteps: rows('[data-placestep]',tdMap).filter(tdKeep), placeValues: rows('[data-placeval]',tdMap).filter(tdKeep), placeFaqs: rows('[data-placefaq]',qaMap).filter(qaKeep),
     offices: rows('[data-off]',function(r){ return { city:r.querySelector('.o_c').value, phone:r.querySelector('.o_p').value }; }).filter(function(x){return x.city||x.phone;}),
-    processes: rows('[data-proc]',function(r){
-      var steps=Array.prototype.slice.call(r.querySelectorAll('[data-step]')).map(function(sr){ return { t:sr.querySelector('.st_t').value, d:sr.querySelector('.st_d').value }; }).filter(function(x){return x.t||x.d;});
-      return { name:r.querySelector('.p_name').value, steps:steps };
-    }).filter(function(p){return p.name||p.steps.length;}),
     wins: rows('[data-win]',function(r){ return { type:r.querySelector('.w_type').value, label:r.querySelector('.w_label').value, market:r.querySelector('.w_market').value, detail:r.querySelector('.w_detail').value }; }).filter(function(w){return w.label||w.type;})
   };
 }
