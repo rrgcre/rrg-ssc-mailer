@@ -8666,7 +8666,7 @@ ${SITE_CSS}
   <div class="sec-head"><div class="eyebrow">On the market</div><div class="h2">Exclusive opportunities</div>
   <p class="lead">Every RRG listing is an exclusive representation — if it’s here, you can only get it through us. Business listings are confidential; request details and we’ll qualify you under NDA.</p></div>
   <div class="opgrid">${cards}</div>
-  <div class="opall" style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;justify-content:center"><a class="btn red" href="/market">View all opportunities &rarr;</a><a class="btn navy" href="/site/subscribe">Get new listings by email</a></div>
+  <div class="opall" style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;justify-content:center"><a class="btn gold" href="/market">View all opportunities &rarr;</a><a class="btn navy" href="/site/subscribe">Get new listings by email</a></div>
 </div></section>
 
 <section id="track" class="track"><div class="wrap">
