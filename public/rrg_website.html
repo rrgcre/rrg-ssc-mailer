@@ -97,6 +97,7 @@ function load(){
 }
 
 function rowStat(x,i){ x=x||{}; return '<div class="rowitem" data-stat><div class="rh"><b>Stat '+(i+1)+'</b><span class="sp"></span><button type="button" class="xbtn" onclick="this.closest(\'[data-stat]\').remove()">Remove</button></div><div class="fld2"><div><label class="fld">Number</label><input class="s_n" value="'+esc(x.n||'')+'" placeholder="200+"></div><div><label class="fld">Label</label><input class="s_l" value="'+esc(x.l||'')+'" placeholder="Restaurant transactions"></div></div></div>'; }
+function rowTStat(x,i){ x=x||{}; return '<div class="rowitem" data-tstat><div class="rh"><b>Total '+(i+1)+'</b><span class="sp"></span><button type="button" class="xbtn" onclick="this.closest(\'[data-tstat]\').remove()">Remove</button></div><div class="fld2"><div><label class="fld">Number</label><input class="ts_n" value="'+esc(x.n||'')+'" placeholder="$40M+"></div><div><label class="fld">Label</label><input class="ts_l" value="'+esc(x.l||'')+'" placeholder="In restaurant & bar transactions"></div></div></div>'; }
 function rowSvc(x,i){ x=x||{}; return '<div class="rowitem" data-svc><div class="rh"><b>Service '+(i+1)+'</b><span class="sp"></span><button type="button" class="xbtn" onclick="this.closest(\'[data-svc]\').remove()">Remove</button></div><div class="f"><label class="fld">Title</label><input class="v_t" value="'+esc(x.t||'')+'" placeholder="Sell Your Restaurant"></div><div><label class="fld">Description</label><textarea class="v_d" style="min-height:60px">'+esc(x.d||'')+'</textarea></div></div>'; }
 function rowOff(x,i){ x=x||{}; return '<div class="rowitem" data-off><div class="rh"><b>Office '+(i+1)+'</b><span class="sp"></span><button type="button" class="xbtn" onclick="this.closest(\'[data-off]\').remove()">Remove</button></div><div class="fld2"><div><label class="fld">City</label><input class="o_c" value="'+esc(x.city||'')+'" placeholder="Austin"></div><div><label class="fld">Phone</label><input class="o_p" value="'+esc(x.phone||'')+'" placeholder="210-204-2471"></div></div></div>'; }
 function stepRow(x){ x=x||{}; return '<div class="rowitem" data-step style="background:#fff;margin-bottom:8px"><div class="rh"><b>Step</b><span class="sp"></span><button type="button" class="xbtn" onclick="this.closest(\'[data-step]\').remove()">Remove</button></div><div class="f" style="margin-bottom:8px"><label class="fld">Step title</label><input class="st_t" value="'+esc(x.t||'')+'" placeholder="Valuation & strategy"></div><div><label class="fld">Step description</label><textarea class="st_d" style="min-height:48px">'+esc(x.d||'')+'</textarea></div></div>'; }
@@ -116,7 +117,8 @@ function rowWin(x,i){ x=x||{}; function opt(v){ return '<option'+(String(x.type|
     +'<div class="fld2"><div><label class="fld">Result</label><select class="w_type"><option value="">— type —</option>'+opt('Sold')+opt('Leased')+opt('Placed')+'</select></div>'
     +'<div><label class="fld">Market</label><input class="w_market" value="'+esc(x.market||'')+'" placeholder="Austin"></div></div>'
     +'<div class="f" style="margin-top:12px"><label class="fld">What it was</label><input class="w_label" value="'+esc(x.label||'')+'" placeholder="Multi-unit Tex-Mex group"></div>'
-    +'<div><label class="fld">Detail <span style="text-transform:none;color:#98a1b5">(no client names)</span></label><input class="w_detail" value="'+esc(x.detail||'')+'" placeholder="3 locations · going concern"></div></div>'; }
+    +'<div class="fld2"><div><label class="fld">Value / size</label><input class="w_value" value="'+esc(x.value||'')+'" placeholder="$3.2M or 4,200 SF"></div>'
+    +'<div><label class="fld">Detail <span style="text-transform:none;color:#98a1b5">(no client names)</span></label><input class="w_detail" value="'+esc(x.detail||'')+'" placeholder="3 locations · going concern"></div></div></div>'; }
 function addWin(){ var d=document.createElement('div'); d.innerHTML=rowWin({}, el('winBox').children.length); el('winBox').appendChild(d.firstChild); }
 
 function leadRow(l){
@@ -231,6 +233,7 @@ function render(){
     +'<div class="subh">FAQ <span class="sub" style="font-weight:600">· “Owner questions”</span></div><div id="placeFaqBox"></div><button type="button" class="addbtn" onclick="addQA(\'placeFaqBox\',\'placefaq\')">+ Add question</button>'
   +'</div>'
 
+  +'<div class="card"><h2>Track-record totals</h2><p class="sub">The headline numbers shown above your closed deals in the Track record section. Leave empty to hide the band.</p><div id="tstatBox"></div><button type="button" class="addbtn" onclick="addTStat()">+ Add total</button></div>'
   +'<div class="card"><h2>Selected transactions</h2><p class="sub">Your “skins on the wall” — closed deals shown in the Track record section. Use Sold / Leased / Placed. Keep them confidential (no client names needed).</p><div id="winBox"></div><button type="button" class="addbtn" onclick="addWin()">+ Add transaction</button></div>'
 
   +'<div class="card"><h2>About</h2>'
@@ -263,6 +266,7 @@ function render(){
   el('svcBox').innerHTML=(s.services||[]).map(rowSvc).join('');
   var _pb=el('procBox'); if(_pb) _pb.innerHTML=(s.processes||[]).map(rowProc).join('');
   el('winBox').innerHTML=(s.wins||[]).map(rowWin).join('');
+  { var _tb=el('tstatBox'); if(_tb) _tb.innerHTML=(s.trackStats||[]).map(rowTStat).join(''); }
   el('offBox').innerHTML=(s.offices||[]).map(rowOff).join('');
   el('sellStepBox').innerHTML=(s.sellSteps||[]).map(function(x,i){return rowTD(x,i,'sellstep','Step');}).join('');
   el('sellValBox').innerHTML=(s.sellValues||[]).map(function(x,i){return rowTD(x,i,'sellval','Value');}).join('');
@@ -298,6 +302,7 @@ function renderDns(){
     +'<div style="margin-top:8px;color:var(--muted);font-size:12px">DNS changes can take up to a few hours to take effect. Until the domain is connected, your site is always reachable at the live URL above.</div>';
 }
 function addStat(){ var d=document.createElement('div'); d.innerHTML=rowStat({}, el('statsBox').children.length); el('statsBox').appendChild(d.firstChild); }
+function addTStat(){ var d=document.createElement('div'); d.innerHTML=rowTStat({}, el('tstatBox').children.length); el('tstatBox').appendChild(d.firstChild); }
 function addSvc(){ var d=document.createElement('div'); d.innerHTML=rowSvc({}, el('svcBox').children.length); el('svcBox').appendChild(d.firstChild); }
 function addOff(){ var d=document.createElement('div'); d.innerHTML=rowOff({}, el('offBox').children.length); el('offBox').appendChild(d.firstChild); }
 
@@ -327,7 +332,8 @@ function collect(){
     placeSteps: rows('[data-placestep]',tdMap).filter(tdKeep), placeValues: rows('[data-placeval]',tdMap).filter(tdKeep), placeFaqs: rows('[data-placefaq]',qaMap).filter(qaKeep),
     offices: rows('[data-off]',function(r){ return { city:r.querySelector('.o_c').value, phone:r.querySelector('.o_p').value }; }).filter(function(x){return x.city||x.phone;}),
     subMarkets: (val('f_subMarkets')||'').split('\n').map(function(x){return x.trim();}).filter(Boolean),
-    wins: rows('[data-win]',function(r){ return { type:r.querySelector('.w_type').value, label:r.querySelector('.w_label').value, market:r.querySelector('.w_market').value, detail:r.querySelector('.w_detail').value }; }).filter(function(w){return w.label||w.type;})
+    wins: rows('[data-win]',function(r){ return { type:r.querySelector('.w_type').value, label:r.querySelector('.w_label').value, value:r.querySelector('.w_value').value, market:r.querySelector('.w_market').value, detail:r.querySelector('.w_detail').value }; }).filter(function(w){return w.label||w.type;}),
+    trackStats: rows('[data-tstat]',function(r){ return { n:r.querySelector('.ts_n').value, l:r.querySelector('.ts_l').value }; }).filter(function(x){return x.n||x.l;})
   };
 }
 function heroPreview(u){ var p=el('heroPrev'); if(!p) return; p.innerHTML=u?('<img src="'+esc(u)+'" alt="hero preview" style="max-width:340px;width:100%;border-radius:10px;border:1px solid var(--line);display:block">'):''; }

@@ -6825,12 +6825,17 @@ function defaultWebsite() {
     heroImage: '/rrg_hero.jpg',
     stats: [ { n: '200+', l: 'Restaurant transactions' }, { n: '4', l: 'Texas metros' }, { n: '5', l: 'Offices' } ],
     wins: [
-      { type: 'Sold', label: 'Multi-unit Tex-Mex group', market: 'Austin', detail: '3 locations · portfolio sale' },
-      { type: 'Sold', label: '5-unit QSR franchise portfolio', market: 'DFW', detail: 'Multi-unit · real estate included' },
-      { type: 'Leased', label: '2nd-gen restaurant endcap', market: 'Dallas', detail: '4,200 SF · 10-yr term' },
-      { type: 'Sold', label: 'Neighborhood bar & grill', market: 'San Antonio', detail: 'Business + real estate' },
-      { type: 'Placed', label: 'National franchise operator', market: 'Houston', detail: 'Operator into 2nd-gen space' },
-      { type: 'Sold', label: 'Fast-casual concept', market: 'Austin', detail: 'Owner retirement' }
+      { type: 'Sold', label: 'Multi-unit Tex-Mex group', value: '$3.2M', market: 'Austin', detail: '3 locations · portfolio sale' },
+      { type: 'Sold', label: '5-unit QSR franchise portfolio', value: '$6.5M', market: 'DFW', detail: 'Multi-unit · real estate included' },
+      { type: 'Leased', label: '2nd-gen restaurant endcap', value: '4,200 SF', market: 'Dallas', detail: '10-yr term' },
+      { type: 'Sold', label: 'Neighborhood bar & grill', value: '$1.4M', market: 'San Antonio', detail: 'Business + real estate' },
+      { type: 'Placed', label: 'National franchise operator', value: '12,000 SF', market: 'Houston', detail: 'Operator into 2nd-gen space' },
+      { type: 'Sold', label: 'Fast-casual concept', value: '$850K', market: 'Austin', detail: 'Owner retirement' }
+    ],
+    trackStats: [
+      { n: '$40M+', l: 'In restaurant & bar transactions' },
+      { n: '60+', l: 'Deals closed across Texas' },
+      { n: '5', l: 'Major metros covered' }
     ],
     services: [
       { t: 'Sell Your Restaurant', d: 'Positioning, pricing, and managing the sale with qualified, vetted buyers — confidentially.' },
@@ -7084,7 +7089,8 @@ app.post('/api/website', requireAdmin, express.json({ limit: '256kb' }), (req, r
   if (Array.isArray(b.processes)) out.processes = b.processes.slice(0, 8).map(function (p) {
     return { name: S(p && p.name, 80), steps: (Array.isArray(p && p.steps) ? p.steps : []).slice(0, 10).map(function (x) { return { t: S(x && x.t, 90), d: S(x && x.d, 300) }; }).filter(function (x) { return x.t || x.d; }) };
   }).filter(function (p) { return p.name || p.steps.length; });
-  if (Array.isArray(b.wins)) out.wins = b.wins.slice(0, 24).map(function (x) { return { type: S(x && x.type, 20), label: S(x && x.label, 90), market: S(x && x.market, 40), detail: S(x && x.detail, 120) }; }).filter(function (x) { return x.label || x.type; });
+  if (Array.isArray(b.wins)) out.wins = b.wins.slice(0, 24).map(function (x) { return { type: S(x && x.type, 20), label: S(x && x.label, 90), value: S(x && x.value, 40), market: S(x && x.market, 40), detail: S(x && x.detail, 120) }; }).filter(function (x) { return x.label || x.type; });
+  if (Array.isArray(b.trackStats)) out.trackStats = b.trackStats.slice(0, 4).map(function (x) { return { n: S(x && x.n, 20), l: S(x && x.l, 60) }; }).filter(function (x) { return x.n || x.l; });
   out.updatedAt = new Date().toISOString();
   const ok = saveWebsite(out);
   res.json({ ok: !!ok, site: out });
@@ -7209,7 +7215,7 @@ function siteSecurePage(req) {
   const re = /leas|secured|\bsite\b|\bspace\b|endcap|2nd[- ]?gen|second[- ]?gen/i;
   const hit = (s.wins || []).filter(function (w) { return re.test(String((w && w.label) || '') + ' ' + String((w && w.detail) || '') + ' ' + String((w && w.type) || '')); });
   const winSrc = hit.length ? hit : (s.wins || []).slice(0, 6);
-  const winHtml = winSrc.slice(0, 6).map(function (w) { const type = String(w.type || '').toLowerCase(); const cls = type.indexOf('sold') >= 0 ? 'sold' : (type.indexOf('leas') >= 0 ? 'leased' : (type.indexOf('plac') >= 0 ? 'placed' : 'other')); const meta = [esc(w.market || ''), esc(w.detail || '')].filter(Boolean).join(' &middot; '); return '<div class="win"><span class="wtag ' + cls + '">' + esc(w.type || 'Closed') + '</span><div class="wl">' + esc(w.label || '') + '</div>' + (meta ? ('<div class="wm">' + meta + '</div>') : '') + '</div>'; }).join('');
+  const winHtml = winSrc.slice(0, 6).map(function (w) { const type = String(w.type || '').toLowerCase(); const cls = type.indexOf('sold') >= 0 ? 'sold' : (type.indexOf('leas') >= 0 ? 'leased' : (type.indexOf('plac') >= 0 ? 'placed' : 'other')); const meta = [esc(w.market || ''), esc(w.detail || '')].filter(Boolean).join(' &middot; '); return '<div class="win"><span class="wtag ' + cls + '">' + esc(w.type || 'Closed') + '</span><div class="wl">' + esc(w.label || '') + '</div>' + (w.value ? ('<div class="wval">' + esc(w.value) + '</div>') : '') + (meta ? ('<div class="wm">' + meta + '</div>') : '') + '</div>'; }).join('');
   const hasWins = !!winHtml;
 
   const bookRow = bookUrl ? ('<div style="margin-top:20px"><div style="font-size:12.5px;color:#9fb0cc;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:9px">Prefer to grab a time?</div>' + bookBtn + '</div>') : '';
@@ -7378,7 +7384,7 @@ function siteOperatorPage(req) {
   const re = /plac|operator|tenant|lease|endcap/i;
   const hit = (s.wins || []).filter(function (w) { return re.test(String((w && w.label) || '') + ' ' + String((w && w.detail) || '') + ' ' + String((w && w.type) || '')); });
   const winSrc = hit.length ? hit : (s.wins || []).slice(0, 6);
-  const winHtml = winSrc.slice(0, 6).map(function (w) { const type = String(w.type || '').toLowerCase(); const cls = type.indexOf('sold') >= 0 ? 'sold' : (type.indexOf('leas') >= 0 ? 'leased' : (type.indexOf('plac') >= 0 ? 'placed' : 'other')); const meta = [esc(w.market || ''), esc(w.detail || '')].filter(Boolean).join(' &middot; '); return '<div class="win"><span class="wtag ' + cls + '">' + esc(w.type || 'Closed') + '</span><div class="wl">' + esc(w.label || '') + '</div>' + (meta ? ('<div class="wm">' + meta + '</div>') : '') + '</div>'; }).join('');
+  const winHtml = winSrc.slice(0, 6).map(function (w) { const type = String(w.type || '').toLowerCase(); const cls = type.indexOf('sold') >= 0 ? 'sold' : (type.indexOf('leas') >= 0 ? 'leased' : (type.indexOf('plac') >= 0 ? 'placed' : 'other')); const meta = [esc(w.market || ''), esc(w.detail || '')].filter(Boolean).join(' &middot; '); return '<div class="win"><span class="wtag ' + cls + '">' + esc(w.type || 'Closed') + '</span><div class="wl">' + esc(w.label || '') + '</div>' + (w.value ? ('<div class="wval">' + esc(w.value) + '</div>') : '') + (meta ? ('<div class="wm">' + meta + '</div>') : '') + '</div>'; }).join('');
   const hasWins = !!winHtml;
 
   const bookRow = bookUrl ? ('<div style="margin-top:20px"><div style="font-size:12.5px;color:#9fb0cc;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:9px">Prefer to grab a time?</div>' + bookBtn + '</div>') : '';
@@ -7544,7 +7550,7 @@ function siteExitPage(req) {
   const exRe = /leas|assign|sublease|exit|2nd[- ]?gen|second[- ]?gen|endcap|termination/i;
   const exWins = (s.wins || []).filter(function (w) { return exRe.test(String((w && w.label) || '') + ' ' + String((w && w.detail) || '') + ' ' + String((w && w.type) || '')); });
   const winSrc = exWins.length ? exWins : (s.wins || []).slice(0, 6);
-  const winHtml = winSrc.slice(0, 6).map(function (w) { const type = String(w.type || '').toLowerCase(); const cls = type.indexOf('sold') >= 0 ? 'sold' : (type.indexOf('leas') >= 0 ? 'leased' : (type.indexOf('plac') >= 0 ? 'placed' : 'other')); const meta = [esc(w.market || ''), esc(w.detail || '')].filter(Boolean).join(' &middot; '); return '<div class="win"><span class="wtag ' + cls + '">' + esc(w.type || 'Closed') + '</span><div class="wl">' + esc(w.label || '') + '</div>' + (meta ? ('<div class="wm">' + meta + '</div>') : '') + '</div>'; }).join('');
+  const winHtml = winSrc.slice(0, 6).map(function (w) { const type = String(w.type || '').toLowerCase(); const cls = type.indexOf('sold') >= 0 ? 'sold' : (type.indexOf('leas') >= 0 ? 'leased' : (type.indexOf('plac') >= 0 ? 'placed' : 'other')); const meta = [esc(w.market || ''), esc(w.detail || '')].filter(Boolean).join(' &middot; '); return '<div class="win"><span class="wtag ' + cls + '">' + esc(w.type || 'Closed') + '</span><div class="wl">' + esc(w.label || '') + '</div>' + (w.value ? ('<div class="wval">' + esc(w.value) + '</div>') : '') + (meta ? ('<div class="wm">' + meta + '</div>') : '') + '</div>'; }).join('');
   const hasWins = !!winHtml;
 
   const bookRow = bookUrl ? ('<div style="margin-top:20px"><div style="font-size:12.5px;color:#9fb0cc;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:9px">Prefer to grab a time?</div>' + bookBtn + '</div>') : '';
@@ -7861,7 +7867,7 @@ function siteMultiUnitPage(req) {
   const muWins = (s.wins || []).filter(function (w) { return muRe.test(String((w && w.label) || '') + ' ' + String((w && w.detail) || '')); });
   const soldWins = (s.wins || []).filter(function (w) { return /sold|sale/i.test(String(w && w.type || '')); });
   const winSrc = muWins.length ? muWins : (soldWins.length ? soldWins : (s.wins || []).slice(0, 6));
-  const winHtml = winSrc.slice(0, 6).map(function (w) { const meta = [esc(w.market || ''), esc(w.detail || '')].filter(Boolean).join(' &middot; '); return '<div class="win"><span class="wtag sold">' + esc(w.type || 'Closed') + '</span><div class="wl">' + esc(w.label || '') + '</div>' + (meta ? ('<div class="wm">' + meta + '</div>') : '') + '</div>'; }).join('');
+  const winHtml = winSrc.slice(0, 6).map(function (w) { const meta = [esc(w.market || ''), esc(w.detail || '')].filter(Boolean).join(' &middot; '); return '<div class="win"><span class="wtag sold">' + esc(w.type || 'Closed') + '</span><div class="wl">' + esc(w.label || '') + '</div>' + (w.value ? ('<div class="wval">' + esc(w.value) + '</div>') : '') + (meta ? ('<div class="wm">' + meta + '</div>') : '') + '</div>'; }).join('');
   const hasWins = !!winHtml;
 
   const bookRow = bookUrl ? ('<div style="margin-top:20px"><div style="font-size:12.5px;color:#9fb0cc;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:9px">Prefer to grab a time?</div>' + bookBtn + '</div>') : '';
@@ -8028,7 +8034,7 @@ function siteSellPage(req) {
 
   const soldWins = (s.wins || []).filter(function (w) { return /sold|sale/i.test(String(w && w.type || '')); });
   const winSrc = soldWins.length ? soldWins : (s.wins || []).slice(0, 6);
-  const winHtml = winSrc.slice(0, 6).map(function (w) { const meta = [esc(w.market || ''), esc(w.detail || '')].filter(Boolean).join(' &middot; '); return '<div class="win"><span class="wtag sold">' + esc(w.type || 'Sold') + '</span><div class="wl">' + esc(w.label || '') + '</div>' + (meta ? ('<div class="wm">' + meta + '</div>') : '') + '</div>'; }).join('');
+  const winHtml = winSrc.slice(0, 6).map(function (w) { const meta = [esc(w.market || ''), esc(w.detail || '')].filter(Boolean).join(' &middot; '); return '<div class="win"><span class="wtag sold">' + esc(w.type || 'Sold') + '</span><div class="wl">' + esc(w.label || '') + '</div>' + (w.value ? ('<div class="wval">' + esc(w.value) + '</div>') : '') + (meta ? ('<div class="wm">' + meta + '</div>') : '') + '</div>'; }).join('');
   const hasWins = !!winHtml;
 
   const bookRow = bookUrl ? ('<div style="margin-top:20px"><div style="font-size:12.5px;color:#9fb0cc;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:9px">Prefer to grab a time?</div>' + bookBtn + '</div>') : '';
@@ -8405,6 +8411,13 @@ footer{background:#05081a;color:#8597b8;font-size:13px;padding:40px 0 30px;}
 .win .wl{font-family:'Fraunces',serif;font-size:16.5px;font-weight:600;color:#fff;line-height:1.25;}
 .win .wm{color:#9fb0cc;font-size:12.5px;margin-top:6px;}
 .trackfoot{margin-top:26px;color:#8fa0c0;font-size:12.5px;}
+.win .wval{margin-top:9px;font-family:'Fraunces',serif;font-weight:600;font-size:17px;color:#E0C27E;letter-spacing:-.01em;}
+.trackstats{display:flex;flex-wrap:wrap;margin-top:30px;border:1px solid rgba(255,255,255,.12);border-radius:16px;background:linear-gradient(170deg,rgba(255,255,255,.05),rgba(255,255,255,.015));overflow:hidden;}
+.tstat{flex:1;min-width:150px;padding:22px 26px;border-right:1px solid rgba(255,255,255,.1);}
+.tstat:last-child{border-right:none;}
+.tstat .tn{font-family:'Fraunces',serif;font-weight:600;font-size:32px;color:#E0C27E;letter-spacing:-.01em;line-height:1;}
+.tstat .tl{margin-top:8px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#9fb0cc;}
+@media(max-width:640px){.tstat{flex:1 1 100%;border-right:none;border-bottom:1px solid rgba(255,255,255,.1);}.tstat:last-child{border-bottom:none;}}
 /* ================= polish pass ================= */
 html{scroll-padding-top:86px;}
 section[id],a[id]{scroll-margin-top:86px;}
@@ -8570,12 +8583,13 @@ function publicSitePage(req) {
     return '<div class="ppanel' + (i === 0 ? ' on' : '') + '" data-ppanel="' + i + '"><div class="steps">' + st + '</div></div>';
   }).join('');
   const winScaleRe = /multi[- ]?unit|portfolio|\b\d+\s*[- ]?unit|\b\d+\s*locations?|franchise|group|roll[- ]?up/i;
+  const trackStatsHtml = (Array.isArray(s.trackStats) && s.trackStats.length) ? ('<div class="trackstats">' + s.trackStats.slice(0, 4).map(function (x) { return '<div class="tstat"><div class="tn">' + esc(x.n || '') + '</div><div class="tl">' + esc(x.l || '') + '</div></div>'; }).join('') + '</div>') : '';
   const winHtml = (s.wins || []).map(function (w) {
     const type = String(w.type || '').toLowerCase();
     const cls = type.indexOf('sold') >= 0 ? 'sold' : (type.indexOf('leas') >= 0 ? 'leased' : (type.indexOf('plac') >= 0 ? 'placed' : 'other'));
     const meta = [esc(w.market || ''), esc(w.detail || '')].filter(Boolean).join(' &middot; ');
     const scaleBadge = winScaleRe.test(String(w.label || '') + ' ' + String(w.detail || '')) ? '<span class="wscale">Multi-unit</span>' : '';
-    return '<div class="win"><div class="wtagrow"><span class="wtag ' + cls + '">' + esc(w.type || 'Closed') + '</span>' + scaleBadge + '</div><div class="wl">' + esc(w.label || '') + '</div>' + (meta ? ('<div class="wm">' + meta + '</div>') : '') + '</div>';
+    return '<div class="win"><div class="wtagrow"><span class="wtag ' + cls + '">' + esc(w.type || 'Closed') + '</span>' + scaleBadge + '</div><div class="wl">' + esc(w.label || '') + '</div>' + (w.value ? ('<div class="wval">' + esc(w.value) + '</div>') : '') + (meta ? ('<div class="wm">' + meta + '</div>') : '') + '</div>';
   }).join('');
   const heroImgSafe = String(s.heroImage || '').replace(/["'<>]/g, '').trim();
   const heroBgStyle = heroImgSafe ? ('<style>.hero{background-color:#0A1733;background-image:linear-gradient(100deg,rgba(6,14,34,.86) 0%,rgba(6,14,34,.56) 40%,rgba(8,16,40,.26) 100%),url("' + heroImgSafe + '");background-size:cover;background-position:center;}</style>') : '';
@@ -8672,6 +8686,7 @@ ${SITE_CSS}
 <section id="track" class="track"><div class="wrap">
   <div class="sec-head"><div class="eyebrow">Track record</div><div class="h2">Deals we&rsquo;ve closed</div>
   <p class="lead">A sample of recent restaurant transactions across Texas &mdash; sales, leases, and operator placements.</p></div>
+  ${trackStatsHtml}
   <div class="wins">${winHtml}</div>
   <div class="trackfoot">Specific terms kept confidential. Full references available on request.</div>
 </div></section>
