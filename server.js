@@ -8964,7 +8964,6 @@ footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} 
 @media(max-width:980px){thead th.hide,tbody td.hide{display:none;}.panel{overflow-x:auto;}.resplit{grid-template-columns:1fr;}.remap{position:relative;height:340px;top:0;}.recard{flex-direction:column;}.recard .rph{width:100%;height:170px;}}
 </style></head>
 <body>
-<div class="tstrip"><div class="tin"><span>${esc(H.tagline)}</span><span>${esc(H.areas)}</span></div></div>
 <header class="sitenav"><div class="in">
   <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
