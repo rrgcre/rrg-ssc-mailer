@@ -6841,7 +6841,7 @@ function defaultWebsite() {
     servicesHead: 'Full-service representation across food & beverage',
     servicesLead: 'Whatever the concept, we run the entire transaction — from first valuation to a clean close — for sellers, buyers, landlords, and tenants.',
     concepts: ['Multi-unit & portfolios', 'Full-service restaurants', 'Quick-serve & fast-casual', 'Bars & nightlife', 'Food halls', 'Cafés & coffee', 'Breweries & taprooms', 'Ghost kitchens'],
-    servicesTransition: 'Whatever the deal, the standard is the same — a defined path built to protect your leverage, hold momentum, and produce real outcomes.',
+    servicesTransition: 'Restaurants and bars aren\'t a sideline for us — they\'re all we do. That focus is the difference.',
     sellHeroHead: "Sell your restaurant — confidentially, and for what it's worth.",
     sellHeroSub: 'Most restaurant sales leak value: the wrong price, the wrong buyers, and word getting out before the owner is ready. We run a controlled, confidential process built to protect your leverage and close clean.',
     sellSteps: [
@@ -8594,6 +8594,13 @@ ${SITE_CSS}
   ${s.servicesTransition ? '<p class="svctrans">' + esc(s.servicesTransition) + '</p>' : ''}
 </div></section>
 
+<section id="process" class="process"><div class="wrap">
+  <div class="sec-head"><div class="eyebrow">Our processes</div><div class="h2">A proven playbook for every kind of deal</div>
+  <p class="lead">Selling, exiting a lease, securing a site, or placing an operator — each runs on its own disciplined, controlled process built to close.</p></div>
+  <div class="ptabs">${procTabs}</div>
+  <div class="ppanels">${procPanels}</div>
+</div></section>
+
 <section class="muband"><div class="wrap"><div class="mugrid">
   <div class="muhead">
     <div class="eyebrow">Multi-unit &amp; portfolio</div>
@@ -8607,13 +8614,6 @@ ${SITE_CSS}
     <div class="mupoint"><div class="mun">03</div><div><b>Sale-leasebacks &amp; restructures</b><span>Unlock capital from owned real estate and reposition underperforming units.</span></div></div>
   </div>
 </div></div></section>
-
-<section id="process" class="process"><div class="wrap">
-  <div class="sec-head"><div class="eyebrow">Our processes</div><div class="h2">A proven playbook for every kind of deal</div>
-  <p class="lead">Selling, exiting a lease, securing a site, or placing an operator — each runs on its own disciplined, controlled process built to close.</p></div>
-  <div class="ptabs">${procTabs}</div>
-  <div class="ppanels">${procPanels}</div>
-</div></section>
 
 <section id="opportunities" class="ops"><div class="wrap">
   <div class="sec-head"><div class="eyebrow">On the market</div><div class="h2">Exclusive opportunities</div>
