@@ -6759,6 +6759,7 @@ app.post('/api/market/request-access', express.json(), (req, res) => {
     pr.inquiries = Array.isArray(pr.inquiries) ? pr.inquiries : [];
     pr.inquiries.push({ id: newInquiryId(), source: 'Marketplace', name: name, email: email, phone: phone, note: note ? ('Property info request — ' + note) : 'Property info request', createdAt: new Date().toISOString() });
     pr.updatedAt = new Date().toISOString(); saveProperties(arr);
+    try { sendAccessRequestAlert({ deal: String((pr.name || pr.headline || 'Property listing')).slice(0, 140), ref: key, market: String(pr.market || pr.marketKey || pr.loc || '').slice(0, 60), type: String(pr.propType || pr.kind || 'Real estate').slice(0, 60), asking: String(pr.rate || pr.price || pr.guide || pr.ask || '').slice(0, 40), name: name, email: email, phone: phone, note: note }).catch(function (e) { console.error('access alert error:', e && e.message); }); } catch (e) {}
     return res.json({ ok: true });
   }
   const overlay = loadAssignOverlay(); const cur = overlay[key];
@@ -6766,8 +6767,44 @@ app.post('/api/market/request-access', express.json(), (req, res) => {
   const inqs = Array.isArray(cur.inquiries) ? cur.inquiries : [];
   inqs.push({ id: newInquiryId(), source: 'Marketplace', name: name, email: email, phone: phone, status: (buyerStageNamesFor(cur)[0] || 'Unqualified'), note: note ? ('Marketplace access request — ' + note) : 'Marketplace access request', createdAt: new Date().toISOString() });
   cur.inquiries = inqs; cur.updatedAt = new Date().toISOString(); overlay[key] = cur; saveAssignOverlay(overlay);
+  try { const _m = cur.market || {}; const _kl = { business: 'Business for sale', lease: 'Real estate · for lease', sale: 'Real estate · for sale', asset: 'Asset sale' }; sendAccessRequestAlert({ deal: String((_m.headline || _m.codeName) || 'Confidential opportunity').slice(0, 140), ref: key, market: String(_m.marketKey || _m.loc || '').slice(0, 60), type: String(_m.conceptType || _m.propType || _kl[_m.kind] || _m.kind || '').slice(0, 60), asking: String(_m.guide || _m.price || _m.rate || '').slice(0, 40), name: name, email: email, phone: phone, note: note }).catch(function (e) { console.error('access alert error:', e && e.message); }); } catch (e) {}
   res.json({ ok: true });
 });
+
+// Build + send an internal alert when a buyer requests marketplace access. Best-effort; goes to the configured mailbox.
+async function sendAccessRequestAlert(o) {
+  o = o || {};
+  if (!isEmailConfigured()) return;
+  const to = mailFrom(); if (!to) return;
+  const a = (loadWebsite().accessAlert) || {};
+  if (a.enabled === false) return;
+  const org = orgDisplayName() || 'Restaurant Realty Group';
+  const E = function (v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+  const deal = String(o.deal || 'a listing');
+  const subject = ((a.subject && String(a.subject).trim()) || 'New access request \u2014 {deal}').replace(/\{deal\}/g, deal);
+  const heading = (a.heading && String(a.heading).trim()) || 'New marketplace access request';
+  const intro = (a.intro && String(a.intro).trim()) || 'Someone just requested access to one of your listings. Their details are below.';
+  const rows = [['Deal', deal]];
+  if (o.ref) rows.push(['Reference', o.ref]);
+  if (o.market) rows.push(['Market', o.market]);
+  if (o.type) rows.push(['Type', o.type]);
+  if (o.asking) rows.push(['Asking', o.asking]);
+  rows.push(['Name', o.name || '']); rows.push(['Email', o.email || '']); rows.push(['Phone', o.phone || '\u2014']); rows.push(['Note', o.note || '\u2014']);
+  const rowsHtml = rows.map(function (r) { return '<tr><td style="padding:7px 14px 7px 0;color:#8a93a8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;width:92px;vertical-align:top;white-space:nowrap">' + E(r[0]) + '</td><td style="padding:7px 0;color:#1a2236;font-size:14px;line-height:1.5">' + E(r[1]) + '</td></tr>'; }).join('');
+  const emailLink = o.email ? ('<a href="mailto:' + E(o.email) + '" style="display:inline-block;background:#DA2B1F;color:#fff;text-decoration:none;font-weight:800;font-size:14px;padding:12px 22px;border-radius:10px;margin-top:4px">Reply to ' + E(o.name || 'them') + ' &rarr;</a>') : '';
+  const html = '<!doctype html><html><body style="margin:0;background:#eef2f6;padding:24px 12px;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">'
+    + '<table role="presentation" width="100%"><tr><td align="center"><table role="presentation" width="560" style="max-width:560px;width:100%;background:#fff;border-radius:14px;overflow:hidden;border:1px solid #e3e9f3;">'
+    + '<tr><td style="background:#001A4A;padding:16px 26px;color:#fff;font-weight:800;font-size:13.5px;letter-spacing:.02em;">' + E(org) + ' &middot; Marketplace</td></tr>'
+    + '<tr><td style="padding:26px 26px 22px;">'
+    + '<h1 style="margin:0 0 8px;font-family:Georgia,serif;font-weight:600;font-size:22px;color:#001A4A;">' + E(heading) + '</h1>'
+    + '<p style="margin:0 0 18px;font-size:14.5px;line-height:1.55;color:#2a3344">' + E(intro) + '</p>'
+    + '<table role="presentation" width="100%" style="border-top:1px solid #eef1f7;border-bottom:1px solid #eef1f7;margin-bottom:18px"><tbody>' + rowsHtml + '</tbody></table>'
+    + emailLink
+    + '<p style="margin:20px 0 0;font-size:12px;color:#8a93a8;line-height:1.6">This request is also filed on the listing\u2019s buyer inquiries in your CRM.</p>'
+    + '</td></tr></table></td></tr></table></body></html>';
+  const text = heading + '\n\n' + intro + '\n\n' + rows.map(function (r) { return r[0] + ': ' + r[1]; }).join('\n') + '\n\nFiled on the listing\u2019s buyer inquiries in your CRM.';
+  return sendNotifyMail(to, subject, text, html);
+}
 // PUBLIC — lightweight marketplace engagement tracking (impressions, detail opens, favorites) for the listing KPIs.
 // Best-effort and never errors; only counts against a live/published listing. Impressions arrive batched + de-duped per visitor.
 app.post('/api/market/track', express.json(), (req, res) => {
@@ -6985,6 +7022,12 @@ function defaultWebsite() {
       body: 'Thanks for subscribing. You’ll be among the first to know when new restaurant and bar opportunities come to market in the areas you chose — often before they’re listed anywhere else.\n\nEvery listing is confidential and sent straight to your inbox. No spam, and you can unsubscribe anytime.',
       signoff: '— The team at Restaurant Realty Group'
     },
+    accessAlert: {
+      enabled: true,
+      subject: 'New access request — {deal}',
+      heading: 'New marketplace access request',
+      intro: 'Someone just requested access to one of your listings. Their details are below — reach out while they’re warm.'
+    },
     processes: [
       { name: 'Selling a restaurant', steps: [
         { t: 'Valuation & strategy', d: 'We price it right and build the plan before anything goes to market.' },
@@ -7094,6 +7137,7 @@ app.post('/api/website', requireAdmin, express.json({ limit: '256kb' }), (req, r
   if (Array.isArray(b.offices)) out.offices = b.offices.slice(0, 12).map(function (x) { return { city: S(x && x.city, 60), phone: S(x && x.phone, 40) }; }).filter(function (x) { return x.city || x.phone; });
   if (Array.isArray(b.subMarkets)) out.subMarkets = b.subMarkets.map(function (x) { return S(x, 60); }).filter(Boolean).slice(0, 40);
   if (b.welcomeEmail && typeof b.welcomeEmail === 'object') { const w = b.welcomeEmail; out.welcomeEmail = { enabled: w.enabled !== false, subject: S(w.subject, 200), heading: S(w.heading, 120), body: S(w.body, 2000), signoff: S(w.signoff, 160) }; }
+  if (b.accessAlert && typeof b.accessAlert === 'object') { const w = b.accessAlert; out.accessAlert = { enabled: w.enabled !== false, subject: S(w.subject, 200), heading: S(w.heading, 120), intro: S(w.intro, 600) }; }
   if (Array.isArray(b.processes)) out.processes = b.processes.slice(0, 8).map(function (p) {
     return { name: S(p && p.name, 80), steps: (Array.isArray(p && p.steps) ? p.steps : []).slice(0, 10).map(function (x) { return { t: S(x && x.t, 90), d: S(x && x.d, 300) }; }).filter(function (x) { return x.t || x.d; }) };
   }).filter(function (p) { return p.name || p.steps.length; });
@@ -8896,8 +8940,9 @@ header{background:linear-gradient(180deg,var(--navy2),var(--navy));border-bottom
 .navdd-menu a{color:#c7d2e6;text-decoration:none;font-size:13.5px;font-weight:600;padding:9px 12px;border-radius:7px;white-space:nowrap;}
 .navdd-menu a:hover{background:rgba(255,255,255,.09);color:#fff;}
 @media(max-width:980px){.navdd{display:none;}}
-.hd{padding:20px 0 0;}
-.hd h1{font-family:'Fraunces',Georgia,'Times New Roman',serif;font-size:30px;font-weight:600;color:var(--navy);letter-spacing:-.01em;line-height:1.08;}
+.hd{padding:40px 0 6px;}
+.hd h1{font-family:'Fraunces',Georgia,'Times New Roman',serif;font-size:38px;font-weight:600;color:var(--navy);letter-spacing:-.01em;line-height:1.06;}
+@media(max-width:720px){.hd h1{font-size:30px;}}
 .hd .lede{font-size:17px;color:var(--muted);margin-top:12px;max-width:62ch;line-height:1.6;}
 .modes{margin-top:16px;}
 .modeseg{display:inline-flex;border:1px solid var(--inp);border-radius:6px;overflow:hidden;background:#fff;}
@@ -8960,11 +9005,11 @@ td.r{text-align:right;}
 .fhdr h2{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--slate);}
 .fhdr .ln{flex:1;height:1px;background:var(--line);}
 .fhdr .n{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);}
-#bizFeat, #reFeat{background:linear-gradient(165deg,#0f2147,#0a1733 60%,#0c1d40);border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:22px 24px 26px;margin:22px 0 28px;box-shadow:0 24px 60px rgba(10,20,50,.16);}
-#bizFeat .fhdr, #reFeat .fhdr{margin:0 0 16px;}
-#bizFeat .fhdr h2, #reFeat .fhdr h2{color:#fff;}
-#bizFeat .fhdr .ln, #reFeat .fhdr .ln{background:rgba(255,255,255,.16);}
-#bizFeat .fhdr .n, #reFeat .fhdr .n{color:#9fb0cc;}
+#bizFeat, #reFeat{background:linear-gradient(180deg,#f5f8fc,#eef3fa);border:1px solid #e1e8f2;border-radius:18px;padding:20px 22px 24px;margin:22px 0 28px;}
+#bizFeat .fhdr, #reFeat .fhdr{margin:0 0 14px;}
+#bizFeat .fhdr h2, #reFeat .fhdr h2{color:var(--navy);}
+#bizFeat .fhdr .ln, #reFeat .fhdr .ln{background:#d7e0ee;}
+#bizFeat .fhdr .n, #reFeat .fhdr .n{color:var(--soft);}
 .fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(430px,1fr));gap:16px;}
 .fcard{background:#fff;border:1px solid var(--line);border-top:3px solid var(--navy);border-radius:8px;box-shadow:0 6px 18px rgba(16,26,48,.09);padding:12px 16px;display:flex;flex-direction:column;position:relative;overflow:hidden;transition:box-shadow .14s,transform .14s;}
 .fcard:hover{box-shadow:0 14px 34px rgba(16,26,48,.16);transform:translateY(-2px);}

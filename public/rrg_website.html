@@ -252,6 +252,13 @@ function render(){
     +'<div class="f"><label class="fld">Sign-off</label><input id="we_signoff" value="'+esc((s.welcomeEmail||{}).signoff||'')+'" placeholder="— The team at Restaurant Realty Group"></div>'
   +'</div>'
 
+  +'<div class="card"><h2>Access-request alert</h2><p class="sub">Emailed to you the moment someone clicks <b>Request access</b> on a marketplace listing. The deal, their contact details, and their note are filled in automatically. Use <b>{deal}</b> in the subject to drop in the listing name.</p>'
+    +'<label style="display:flex;align-items:center;gap:9px;font-weight:600;margin-bottom:16px"><input type="checkbox" id="aa_enabled"'+(((s.accessAlert||{}).enabled!==false)?' checked':'')+'> Email me when someone requests access</label>'
+    +'<div class="f"><label class="fld">Subject line</label><input id="aa_subject" value="'+esc((s.accessAlert||{}).subject||'')+'" placeholder="New access request — {deal}"></div>'
+    +'<div class="f"><label class="fld">Heading</label><input id="aa_heading" value="'+esc((s.accessAlert||{}).heading||'')+'" placeholder="New marketplace access request"></div>'
+    +'<div class="f"><label class="fld">Intro line</label><textarea id="aa_intro" style="min-height:90px">'+esc((s.accessAlert||{}).intro||'')+'</textarea></div>'
+  +'</div>'
+
   +'<div class="card"><h2>Contact</h2><p class="sub">The contact form drops leads straight into the inbox below. Email is optional and shown on the site.</p>'
     +'<div class="f" style="max-width:420px"><label class="fld">Public contact email (optional)</label><input id="f_contactEmail" value="'+esc(s.contactEmail||'')+'" placeholder="info@rrgcre.com"></div>'
     +'<div class="f"><label class="fld">Book-a-call link (your scheduling page)</label><input id="f_bookingUrl" value="'+esc(s.bookingUrl||'')+'" placeholder="https://rrg-ssc-mailer.onrender.com/book/…"></div>'
@@ -340,6 +347,7 @@ function collect(){
     offices: rows('[data-off]',function(r){ return { city:r.querySelector('.o_c').value, phone:r.querySelector('.o_p').value }; }).filter(function(x){return x.city||x.phone;}),
     subMarkets: (val('f_subMarkets')||'').split('\n').map(function(x){return x.trim();}).filter(Boolean),
     welcomeEmail: { enabled: (el('we_enabled')?el('we_enabled').checked:true), subject: val('we_subject'), heading: val('we_heading'), body: (el('we_body')?el('we_body').value:''), signoff: val('we_signoff') },
+    accessAlert: { enabled: (el('aa_enabled')?el('aa_enabled').checked:true), subject: val('aa_subject'), heading: val('aa_heading'), intro: (el('aa_intro')?el('aa_intro').value:'') },
     wins: rows('[data-win]',function(r){ return { type:r.querySelector('.w_type').value, label:r.querySelector('.w_label').value, value:r.querySelector('.w_value').value, market:r.querySelector('.w_market').value, detail:r.querySelector('.w_detail').value }; }).filter(function(w){return w.label||w.type;}),
     trackStats: rows('[data-tstat]',function(r){ return { n:r.querySelector('.ts_n').value, l:r.querySelector('.ts_l').value }; }).filter(function(x){return x.n||x.l;})
   };
