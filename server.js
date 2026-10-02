@@ -7755,7 +7755,11 @@ function siteSubscribePage(req) {
   <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
   <a class="navlink" href="/site#services">Services</a>
+  <a class="navlink" href="/site#process">How it works</a>
   <a class="navlink" href="/site#opportunities">Opportunities</a>
+  <a class="navlink" href="/site#track">Track record</a>
+  <a class="navlink" href="/site#markets">Markets</a>
+  <a class="navlink" href="/site/subscribe">Get listings</a>
   <a class="navcta" href="/site#contact">Talk to a broker</a>
 </nav></div></header>
 
