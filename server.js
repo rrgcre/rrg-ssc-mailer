@@ -8340,17 +8340,17 @@ section{padding:84px 0;}
 /* markets split */
 .mkt{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center;}
 @media(max-width:820px){.mkt{grid-template-columns:1fr;gap:30px;}}
-.mktmap{background:linear-gradient(170deg,#0f1f44,#0A1733);border-radius:20px;padding:22px;box-shadow:0 24px 60px rgba(10,20,50,.18);}
+.mktmap{background:#f4f7fb;border:1px solid var(--line2);border-radius:20px;padding:18px;}
 .metros{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
 @media(max-width:400px){.metros{grid-template-columns:1fr;}}
-.metro{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:14px;}
-.metro .metroic{width:38px;height:38px;flex:none;border-radius:10px;background:rgba(44,92,143,.14);border:1px solid rgba(44,92,143,.35);display:flex;align-items:center;justify-content:center;color:var(--blue2);}
+.metro{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line2);border-radius:12px;padding:14px 16px;box-shadow:0 2px 8px rgba(16,26,48,.04);}
+.metro .metroic{width:38px;height:38px;flex:none;border-radius:10px;background:#eef3fb;border:1px solid #dce6f3;display:flex;align-items:center;justify-content:center;color:var(--blue);}
 .metro .metroic svg{width:19px;height:19px;}
-.metro .metron{color:#fff;font-weight:700;font-size:14.5px;font-family:'Fraunces',serif;}
-.metro .metros2{color:#93a2c2;font-size:11px;margin-top:2px;}
-.metro .metrotel{display:inline-flex;align-items:center;gap:7px;margin-top:4px;color:var(--blue2);font-weight:700;font-size:13.5px;text-decoration:none;font-variant-numeric:tabular-nums;}
+.metro .metron{color:var(--navy);font-weight:600;font-size:14.5px;font-family:'Fraunces',serif;}
+.metro .metros2{color:var(--soft);font-size:11px;margin-top:2px;}
+.metro .metrotel{display:inline-flex;align-items:center;gap:7px;margin-top:4px;color:var(--red);font-weight:700;font-size:13.5px;text-decoration:none;font-variant-numeric:tabular-nums;}
 .metro .metrotel svg{width:14px;height:14px;}
-.metro .metrotel:hover{color:#fff;}
+.metro .metrotel:hover{text-decoration:underline;}
 /* about */
 .about{display:grid;grid-template-columns:1.05fr .95fr;gap:46px;align-items:start;}
 @media(max-width:820px){.about{grid-template-columns:1fr;gap:28px;}}
@@ -8442,7 +8442,7 @@ section[id],a[id]{scroll-margin-top:86px;}
 .stepn{position:relative;z-index:1;}
 /* lift states */
 .metro{transition:transform .16s,border-color .16s,background .16s;}
-.metro:hover{border-color:rgba(200,162,75,.35);background:rgba(255,255,255,.07);}
+.metro:hover{border-color:#cdd9ec;box-shadow:0 8px 20px rgba(16,26,48,.08);}
 .win{transition:transform .16s,border-color .16s,box-shadow .16s;}
 .win:hover{border-color:rgba(200,162,75,.32);}
 .off{transition:transform .16s,border-color .16s,box-shadow .16s;}
