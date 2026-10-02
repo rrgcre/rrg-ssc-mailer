@@ -8277,25 +8277,24 @@ section{padding:84px 0;}
 .opgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:40px;}
 @media(max-width:860px){.opgrid{grid-template-columns:repeat(2,1fr);}}
 @media(max-width:560px){.opgrid{grid-template-columns:1fr;}}
-.fcard{background:#fff;border:1px solid var(--line2);border-top:3px solid var(--navy);border-radius:12px;box-shadow:0 6px 18px rgba(16,26,48,.08);padding:18px 18px 16px;display:flex;flex-direction:column;position:relative;overflow:hidden;text-decoration:none;color:inherit;transition:box-shadow .15s,transform .15s;}
-.fcard:hover{box-shadow:0 18px 40px rgba(16,26,48,.16);transform:translateY(-3px);}
-.fcard::after{content:'';position:absolute;right:-70px;top:-90px;width:240px;height:240px;border-radius:50%;background:radial-gradient(circle,rgba(44,92,143,.14),transparent 62%);pointer-events:none;}
-.fcard .ftop{display:flex;align-items:center;gap:12px;position:relative;z-index:1;}
+.fcard{background:#fff;border:1px solid var(--line2);border-radius:12px;box-shadow:0 2px 10px rgba(16,26,48,.05);padding:22px 22px 18px;display:flex;flex-direction:column;position:relative;overflow:hidden;text-decoration:none;color:inherit;transition:box-shadow .15s,transform .15s,border-color .15s;}
+.fcard:hover{box-shadow:0 12px 28px rgba(16,26,48,.1);transform:translateY(-2px);border-color:#d7dceb;}
+.fcard .ftop{display:flex;align-items:center;gap:10px;position:relative;z-index:1;}
 .fcard .med{width:44px;height:44px;flex:none;border-radius:11px;background:linear-gradient(160deg,#0f1f44,#0A1733);border:1px solid #0A1733;display:flex;align-items:center;justify-content:center;color:var(--blue2);}
 .fcard .med svg{width:23px;height:23px;}
-.fcard .floc{font-size:10.5px;color:var(--soft);font-weight:700;text-transform:uppercase;letter-spacing:.05em;}
-.fcard .fribbon{margin-left:auto;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#fff;background:var(--navy);border:1px solid var(--navy);border-radius:100px;padding:5px 11px;}
-.fcard .exbadge{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#8a6a1f;background:rgba(200,162,75,.16);border:1px solid rgba(200,162,75,.5);border-radius:100px;padding:3px 9px;}
+.fcard .floc{font-size:11px;color:var(--soft);font-weight:700;text-transform:uppercase;letter-spacing:.07em;}
+.fcard .fribbon{margin-left:auto;font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--red);background:rgba(218,43,31,.07);border:1px solid rgba(218,43,31,.28);border-radius:100px;padding:3px 10px;}
+.fcard .exbadge{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#8a6a1f;}
 .fcard .ftop .fribbon{margin-left:auto;}
-.fcard h3{font-size:17px;font-weight:700;font-family:'Fraunces',serif;color:var(--navy);line-height:1.22;margin:12px 0 2px;letter-spacing:-.01em;}
-.fcard .fbadge{font-size:12px;color:var(--muted);font-weight:600;}
-.fcard .fmet{display:flex;gap:22px;margin:14px 0;padding:12px 0;border-top:1px solid var(--line2);border-bottom:1px solid var(--line2);flex-wrap:wrap;}
-.fcard .fmet .v{font-size:16px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums;letter-spacing:-.01em;}
-.fcard .fmet .k{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);margin-top:3px;}
-.fcard .ffoot{display:flex;align-items:center;justify-content:space-between;margin-top:auto;gap:12px;}
-.fcard .flock{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--soft);font-weight:600;}
-.fcard .flock svg{width:14px;height:14px;}
-.fcard .act{background:var(--navy);color:#fff;border-radius:8px;padding:9px 15px;font-size:12.5px;font-weight:800;white-space:nowrap;}
+.fcard h3{font-size:18px;font-weight:600;font-family:'Fraunces',serif;color:var(--navy);line-height:1.25;margin:13px 0 3px;letter-spacing:-.01em;}
+.fcard .fbadge{font-size:13px;color:var(--muted);font-weight:500;}
+.fcard .fmet{display:flex;gap:28px;margin:15px 0;padding:14px 0 0;border-top:1px solid var(--line2);flex-wrap:wrap;}
+.fcard .fmet .v{font-size:16px;font-weight:700;color:var(--navy);font-variant-numeric:tabular-nums;letter-spacing:-.01em;}
+.fcard .fmet .k{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--soft);margin-top:3px;}
+.fcard .ffoot{display:flex;align-items:center;justify-content:space-between;margin-top:16px;gap:12px;}
+.fcard .flock{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--soft);font-weight:500;}
+.fcard .flock svg{width:13px;height:13px;}
+.fcard .act{color:var(--red);font-size:13px;font-weight:700;white-space:nowrap;}
 .noops{grid-column:1/-1;background:#fff;border:1px dashed #cdd6e6;border-radius:14px;padding:30px;text-align:center;color:var(--muted);}
 .noops a{color:var(--red);font-weight:800;text-decoration:none;}
 .opall{margin-top:30px;}
@@ -8473,7 +8472,7 @@ function publicSitePage(req) {
     const metHtml = mets.length ? mets.join('') : '<div><div class="v" style="font-size:14px">Under NDA</div><div class="k">Financials on request</div></div>';
     const ribbon = (t.flagLabel || t.featured) ? ('<span class="fribbon">' + esc(t.flagLabel || '★ Featured') + '</span>') : '';
     return '<a class="fcard" href="/market">'
-      + '<div class="ftop"><span class="med">' + ICON.fork + '</span><div class="floc">' + esc(t.loc || t.marketKey || 'Texas') + '</div><span class="exbadge">Exclusive</span>' + ribbon + '</div>'
+      + '<div class="ftop"><div class="floc">' + esc(t.loc || t.marketKey || 'Texas') + '</div>' + ribbon + '</div>'
       + '<h3>' + esc(t.headline || 'Confidential restaurant opportunity') + '</h3><div class="fbadge">' + esc(t.badge || 'Restaurant') + '</div>'
       + '<div class="fmet">' + metHtml + '</div>'
       + '<div class="ffoot"><span class="flock">' + lockSvg + 'Blind until NDA</span><span class="act">Request details &rarr;</span></div>'
