@@ -7258,7 +7258,8 @@ function siteSecurePage(req) {
 <header><div class="wrap"><nav class="nav">
   <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
-  <a class="navlink" href="/site#services">Services</a>
+  <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a></div></div>
+  <a class="navlink" href="/site/multi-unit">Multi-unit</a>
   <a class="navlink" href="#process">How it works</a>
   <a class="navlink" href="/market">Opportunities</a>
   <a class="navlink" href="#track">Track record</a>
@@ -7427,7 +7428,8 @@ function siteOperatorPage(req) {
 <header><div class="wrap"><nav class="nav">
   <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
-  <a class="navlink" href="/site#services">Services</a>
+  <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a></div></div>
+  <a class="navlink" href="/site/multi-unit">Multi-unit</a>
   <a class="navlink" href="#process">How it works</a>
   <a class="navlink" href="/market">Opportunities</a>
   <a class="navlink" href="#track">Track record</a>
@@ -7594,7 +7596,8 @@ function siteExitPage(req) {
 <header><div class="wrap"><nav class="nav">
   <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
-  <a class="navlink" href="/site#services">Services</a>
+  <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a></div></div>
+  <a class="navlink" href="/site/multi-unit">Multi-unit</a>
   <a class="navlink" href="#process">How it works</a>
   <a class="navlink" href="/market">Opportunities</a>
   <a class="navlink" href="#track">Track record</a>
@@ -7767,7 +7770,8 @@ function siteSubscribePage(req) {
 <header><div class="wrap"><nav class="nav">
   <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
-  <a class="navlink" href="/site#services">Services</a>
+  <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a></div></div>
+  <a class="navlink" href="/site/multi-unit">Multi-unit</a>
   <a class="navlink" href="/site#process">How it works</a>
   <a class="navlink" href="/market">Opportunities</a>
   <a class="navlink" href="/site#track">Track record</a>
@@ -7912,7 +7916,8 @@ function siteMultiUnitPage(req) {
 <header><div class="wrap"><nav class="nav">
   <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
-  <a class="navlink" href="/site#services">Services</a>
+  <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a></div></div>
+  <a class="navlink" href="/site/multi-unit">Multi-unit</a>
   <a class="navlink" href="#process">How it works</a>
   <a class="navlink" href="/market">Opportunities</a>
   <a class="navlink" href="#track">Track record</a>
@@ -8080,7 +8085,8 @@ function siteSellPage(req) {
 <header><div class="wrap"><nav class="nav">
   <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
-  <a class="navlink" href="/site#services">Services</a>
+  <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a></div></div>
+  <a class="navlink" href="/site/multi-unit">Multi-unit</a>
   <a class="navlink" href="#process">How it works</a>
   <a class="navlink" href="/market">Opportunities</a>
   <a class="navlink" href="#track">Track record</a>
@@ -8213,6 +8219,14 @@ header{position:sticky;top:0;z-index:40;background:#000E31;border-bottom:1px sol
 .nav a.navcta{background:transparent;border:1px solid rgba(255,255,255,.5);color:#fff;padding:9px 16px;border-radius:9px;font-size:13px;font-weight:700;text-decoration:none;}
 .nav a.navcta:hover{border-color:#fff;background:rgba(255,255,255,.08);}
 @media(max-width:840px){.nav a.navlink{display:none;}}
+.navdd{position:relative;display:inline-flex;align-items:center;padding:6px 0;}
+.navdd>.navlink{cursor:pointer;display:inline-flex;align-items:center;}
+.navdd::after{content:"";align-self:center;margin-left:6px;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid #9fb2d0;opacity:.85;}
+.navdd-menu{position:absolute;top:100%;left:0;min-width:214px;background:#0b1a3d;border:1px solid rgba(255,255,255,.14);border-radius:10px;box-shadow:0 18px 44px rgba(0,0,0,.42);padding:8px;display:none;flex-direction:column;gap:2px;z-index:60;}
+.navdd:hover .navdd-menu,.navdd:focus-within .navdd-menu{display:flex;}
+.navdd-menu a{color:#c7d2e6;text-decoration:none;font-size:13.5px;font-weight:600;padding:9px 12px;border-radius:7px;white-space:nowrap;}
+.navdd-menu a:hover{background:rgba(255,255,255,.09);color:#fff;}
+@media(max-width:840px){.navdd{display:none;}}
 /* hero */
 .hero{position:relative;background:radial-gradient(130% 120% at 78% -10%,#15275a 0,#0A1733 45%,#060E22 100%);color:#fff;overflow:hidden;}
 .hero::before{content:'';position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.055) 1px,transparent 1.4px);background-size:22px 22px;opacity:.6;}
@@ -8601,7 +8615,8 @@ ${SITE_CSS}
 <header><div class="wrap"><nav class="nav">
   <a class="brand" href="#top"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
-  <a class="navlink" href="#services">Services</a>
+  <div class="navdd"><a class="navlink" href="#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a></div></div>
+  <a class="navlink" href="/site/multi-unit">Multi-unit</a>
   <a class="navlink" href="#process">How it works</a>
   <a class="navlink" href="/market">Opportunities</a>
   <a class="navlink" href="#track">Track record</a>
@@ -8798,6 +8813,14 @@ header{background:linear-gradient(180deg,var(--navy2),var(--navy));border-bottom
 .sitenav a.navcta{background:#DA2B1F;color:#fff;text-decoration:none;font-size:14px;font-weight:800;padding:11px 20px;border-radius:11px;white-space:nowrap;}
 .sitenav a.navcta:hover{filter:brightness(1.05);}
 @media(max-width:980px){.sitenav a.navlink{display:none;}}
+.navdd{position:relative;display:inline-flex;align-items:center;padding:6px 0;}
+.navdd>.navlink{cursor:pointer;display:inline-flex;align-items:center;}
+.navdd::after{content:"";align-self:center;margin-left:6px;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid #9fb2d0;opacity:.85;}
+.navdd-menu{position:absolute;top:100%;left:0;min-width:214px;background:#0b1a3d;border:1px solid rgba(255,255,255,.14);border-radius:10px;box-shadow:0 18px 44px rgba(0,0,0,.42);padding:8px;display:none;flex-direction:column;gap:2px;z-index:60;}
+.navdd:hover .navdd-menu,.navdd:focus-within .navdd-menu{display:flex;}
+.navdd-menu a{color:#c7d2e6;text-decoration:none;font-size:13.5px;font-weight:600;padding:9px 12px;border-radius:7px;white-space:nowrap;}
+.navdd-menu a:hover{background:rgba(255,255,255,.09);color:#fff;}
+@media(max-width:980px){.navdd{display:none;}}
 .hd{padding:20px 0 0;}
 .hd h1{font-size:21px;font-weight:800;color:var(--navy);letter-spacing:-.01em;}
 .hd .lede{font-size:13px;color:var(--muted);margin-top:4px;max-width:760px;}
@@ -8946,7 +8969,8 @@ footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} 
 <header class="sitenav"><div class="in">
   <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
-  <a class="navlink" href="/site#services">Services</a>
+  <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a></div></div>
+  <a class="navlink" href="/site/multi-unit">Multi-unit</a>
   <a class="navlink" href="/site#process">How it works</a>
   <a class="navlink active" href="/market">Opportunities</a>
   <a class="navlink" href="/site#track">Track record</a>
