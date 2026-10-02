@@ -7957,9 +7957,7 @@ function siteSubscribePage(req) {
       .then(function(r){return r.json();}).then(function(j){
         if(j&&j.ok){
           var card=f.closest('.subcard')||f.parentNode;
-          if(card){ card.innerHTML='<div class="subdone"><div class="subdone-ic">\u2713</div><h2>You\u2019re subscribed</h2><p>You\u2019re on the list \u2014 new listings in your markets will come straight to your inbox. You can close this tab.</p><a href="/site" class="btn navy">Back to the site</a></div>'; }
-          try{ window.close(); }catch(_){}
-          setTimeout(function(){ try{ window.close(); }catch(_){} }, 500);
+          if(card){ card.innerHTML='<div class="subdone"><div class="subdone-ic">\u2713</div><h2>You\u2019re subscribed</h2><p>You\u2019re on the list \u2014 new listings in your markets will come straight to your inbox.</p><a href="/site" class="btn navy">Back to the site</a></div>'; try{ card.scrollIntoView({behavior:'smooth',block:'center'}); }catch(_){} }
           return;
         }
         else { msg.textContent=(j&&j.error)||'Something went wrong. Please try again.'; msg.className='submsg err'; }
