@@ -7755,6 +7755,10 @@ function siteSubscribePage(req) {
 .subsubmit{display:flex;align-items:center;gap:14px;margin-top:8px;flex-wrap:wrap;}
 .submsg{font-size:13.5px;font-weight:700;}
 .submsg.err{color:var(--red);} .submsg.ok{color:#1f8a5b;}
+.subdone{text-align:center;padding:18px 6px 10px;}
+.subdone-ic{width:66px;height:66px;margin:0 auto 18px;border-radius:50%;background:#e7f4ee;color:#1f8a5b;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:800;}
+.subdone h2{font-family:'Fraunces',serif;font-weight:600;color:var(--navy);font-size:25px;margin:0 0 10px;letter-spacing:-.01em;}
+.subdone p{color:var(--muted);font-size:15px;line-height:1.6;max-width:44ch;margin:0 auto 22px;}
 .subfine{color:var(--soft);font-size:12px;margin-top:16px;line-height:1.5;}
 .subback{display:inline-flex;align-items:center;gap:7px;color:#9fb0cc;font-size:13px;font-weight:700;text-decoration:none;}
 .subback:hover{color:#fff;}
@@ -7826,7 +7830,13 @@ function siteSubscribePage(req) {
     var old=btn.textContent; btn.disabled=true; btn.textContent='Subscribing…'; msg.textContent='';
     fetch('/api/website/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
       .then(function(r){return r.json();}).then(function(j){
-        if(j&&j.ok){ f.reset(); if(all)all.checked=false; msg.textContent='You’re on the list — watch your inbox.'; msg.className='submsg ok'; }
+        if(j&&j.ok){
+          var card=f.closest('.subcard')||f.parentNode;
+          if(card){ card.innerHTML='<div class="subdone"><div class="subdone-ic">\u2713</div><h2>You\u2019re subscribed</h2><p>You\u2019re on the list \u2014 new listings in your markets will come straight to your inbox. You can close this tab.</p><a href="/site" class="btn navy">Back to the site</a></div>'; }
+          try{ window.close(); }catch(_){}
+          setTimeout(function(){ try{ window.close(); }catch(_){} }, 500);
+          return;
+        }
         else { msg.textContent=(j&&j.error)||'Something went wrong. Please try again.'; msg.className='submsg err'; }
         btn.disabled=false; btn.textContent=old;
       }).catch(function(){ msg.textContent='Network error. Please try again.'; msg.className='submsg err'; btn.disabled=false; btn.textContent=old; });
@@ -8185,7 +8195,7 @@ a{color:inherit;}
 .eyebrow{color:var(--blue);font-weight:700;letter-spacing:.2em;text-transform:uppercase;font-size:11.5px;}
 .hero .eyebrow{color:var(--gold2);}
 .btn{display:inline-block;text-decoration:none;font-weight:800;font-size:15px;padding:16px 30px;border-radius:12px;cursor:pointer;border:none;transition:transform .14s ease,filter .14s,box-shadow .14s;letter-spacing:.01em;}
-.btn.red{background:var(--red);color:#fff;box-shadow:0 12px 26px rgba(218,43,31,.32),inset 0 1px 0 rgba(255,255,255,.28);}
+.btn.red{background:var(--red);color:#fff;box-shadow:0 8px 20px rgba(10,16,30,.32);}
 .btn.gold{background:var(--gold);color:#201700;box-shadow:0 12px 26px rgba(200,162,75,.34),inset 0 1px 0 rgba(255,255,255,.4);}
 .btn.navy{background:var(--navy);color:#fff;box-shadow:0 12px 26px rgba(10,20,50,.3),inset 0 1px 0 rgba(255,255,255,.12);}
 .btn.ghost{background:rgba(255,255,255,.06);color:#fff;border:2px solid rgba(255,255,255,.55);}
