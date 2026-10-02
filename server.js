@@ -7256,10 +7256,12 @@ function siteSecurePage(req) {
 <header><div class="wrap"><nav class="nav">
   <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
-  <a class="navlink" href="/site#services">All services</a>
+  <a class="navlink" href="/site#services">Services</a>
   <a class="navlink" href="#process">How it works</a>
   <a class="navlink" href="/site#opportunities">Opportunities</a>
   <a class="navlink" href="#track">Track record</a>
+  <a class="navlink" href="/site#markets">Markets</a>
+  <a class="navlink" href="/site/subscribe">Get listings</a>
   <a class="navcta" href="#contact">Start your search</a>
 </nav></div></header>
 
@@ -7423,10 +7425,12 @@ function siteOperatorPage(req) {
 <header><div class="wrap"><nav class="nav">
   <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
-  <a class="navlink" href="/site#services">All services</a>
+  <a class="navlink" href="/site#services">Services</a>
   <a class="navlink" href="#process">How it works</a>
   <a class="navlink" href="/site#opportunities">Opportunities</a>
   <a class="navlink" href="#track">Track record</a>
+  <a class="navlink" href="/site#markets">Markets</a>
+  <a class="navlink" href="/site/subscribe">Get listings</a>
   <a class="navcta" href="#contact">Place an operator</a>
 </nav></div></header>
 
@@ -7588,10 +7592,12 @@ function siteExitPage(req) {
 <header><div class="wrap"><nav class="nav">
   <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
-  <a class="navlink" href="/site#services">All services</a>
+  <a class="navlink" href="/site#services">Services</a>
   <a class="navlink" href="#process">How it works</a>
   <a class="navlink" href="/site#opportunities">Opportunities</a>
   <a class="navlink" href="#track">Track record</a>
+  <a class="navlink" href="/site#markets">Markets</a>
+  <a class="navlink" href="/site/subscribe">Get listings</a>
   <a class="navcta" href="#contact">Talk about your exit</a>
 </nav></div></header>
 
@@ -7893,10 +7899,12 @@ function siteMultiUnitPage(req) {
 <header><div class="wrap"><nav class="nav">
   <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
-  <a class="navlink" href="/site#services">All services</a>
+  <a class="navlink" href="/site#services">Services</a>
   <a class="navlink" href="#process">How it works</a>
   <a class="navlink" href="/site#opportunities">Opportunities</a>
   <a class="navlink" href="#track">Track record</a>
+  <a class="navlink" href="/site#markets">Markets</a>
+  <a class="navlink" href="/site/subscribe">Get listings</a>
   <a class="navcta" href="#contact">Talk about a deal</a>
 </nav></div></header>
 
@@ -8059,10 +8067,12 @@ function siteSellPage(req) {
 <header><div class="wrap"><nav class="nav">
   <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
-  <a class="navlink" href="/site#services">All services</a>
+  <a class="navlink" href="/site#services">Services</a>
   <a class="navlink" href="#process">How it works</a>
   <a class="navlink" href="/site#opportunities">Opportunities</a>
   <a class="navlink" href="#track">Track record</a>
+  <a class="navlink" href="/site#markets">Markets</a>
+  <a class="navlink" href="/site/subscribe">Get listings</a>
   <a class="navcta" href="#contact">Request a valuation</a>
 </nav></div></header>
 
