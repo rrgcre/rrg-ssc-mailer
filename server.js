@@ -8460,7 +8460,7 @@ function publicSitePage(req) {
 
   // --- opportunity cards ---
   const lockSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
-  let cards = (listings || []).slice(0, 6).map(function (t) {
+  let cards = (listings || []).slice(0, 3).map(function (t) {
     const ask = esc(t.guide || t.price || '');
     const basis = esc(t.earnBasis || 'SDE');
     const sde = esc(t.sde || '');
