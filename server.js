@@ -8195,7 +8195,7 @@ a{color:inherit;}
 .eyebrow{color:var(--blue);font-weight:700;letter-spacing:.2em;text-transform:uppercase;font-size:11.5px;}
 .hero .eyebrow{color:var(--gold2);}
 .btn{display:inline-block;text-decoration:none;font-weight:800;font-size:15px;padding:16px 30px;border-radius:12px;cursor:pointer;border:none;transition:transform .14s ease,filter .14s,box-shadow .14s;letter-spacing:.01em;}
-.btn.red{background:var(--red);color:#fff;box-shadow:0 8px 20px rgba(10,16,30,.32);}
+.btn.red{background:var(--red);color:#fff;box-shadow:none;}
 .btn.gold{background:var(--gold);color:#201700;box-shadow:0 12px 26px rgba(200,162,75,.34),inset 0 1px 0 rgba(255,255,255,.4);}
 .btn.navy{background:var(--navy);color:#fff;box-shadow:0 12px 26px rgba(10,20,50,.3),inset 0 1px 0 rgba(255,255,255,.12);}
 .btn.ghost{background:rgba(255,255,255,.06);color:#fff;border:2px solid rgba(255,255,255,.55);}
