@@ -8703,29 +8703,12 @@ ${SITE_CSS}
   <div class="mktmap">${metroGrid}</div>
 </div></div></section>
 
-<section id="about" style="background:var(--cream);border-top:1px solid var(--line)"><div class="wrap"><div class="about">
-  <div>
-    <div class="eyebrow">About RRG</div>
-    <div class="h2">${esc(s.aboutHead || '')}</div>
-    <p class="lead">${esc(s.about || '')}</p>
-    <div class="hcta" style="margin-top:22px"><a class="btn navy" href="#contact">Start a conversation</a></div>
-  </div>
-  <div class="promise">
-    <div class="pq">We run a structured, controlled process built to close — so your transaction gets done right, not just listed.</div>
-    <div class="pa">— ${org}</div>
-  </div>
-</div></div></section>
-
-<div class="ctaband"><div class="wrap"><div class="ctab">
-  <h3 class="serif">Thinking about buying, selling, or leasing a restaurant or bar?</h3>
-  <div style="display:flex;gap:12px;flex-wrap:wrap">${bookBtn}<a class="btn dark" href="#contact">Talk to a broker &rarr;</a></div>
-</div></div></div>
-
 <section id="contact" class="contact"><div class="wrap"><div class="cgrid">
   <div>
     <div class="eyebrow">Get in touch</div>
     <div class="h2">Let’s talk about your restaurant</div>
     <p class="lead">Buying, selling, leasing, or just weighing your options — tell us what you’re working on and the right broker will reach out.</p>
+    ${s.about ? ('<p class="lead" style="margin-top:14px;font-size:14.5px;color:#aebccf">' + esc(s.about) + '</p>') : ''}
     ${bookUrl ? ('<div style="margin-top:20px"><div style="font-size:12.5px;color:#9fb0cc;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:9px">Prefer to grab a time?</div>' + bookBtn + '</div>') : ''}
     ${email ? ('<p class="lead" style="margin-top:14px">Prefer email? <a style="color:#fff;font-weight:800" href="mailto:' + email + '">' + email + '</a></p>') : ''}
   </div>
