@@ -7269,7 +7269,7 @@ function siteSecurePage(req) {
   <a class="navlink" href="/market">Opportunities</a>
   <a class="navlink" href="#track">Track record</a>
   <a class="navlink" href="/site#markets">Markets</a>
-  <a class="navlink" href="/site/subscribe">Get listings</a>
+  <a class="navlink" href="/site/subscribe">Listing alerts</a>
   <a class="navcta" href="#contact">Start your search</a>
 </nav></div></header>
 
@@ -7340,7 +7340,7 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
       <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
-    <div><h4>Explore</h4><a href="/site#services">Services</a><a href="/market">Opportunities</a><a href="#contact">Contact</a></div>
+    <div><h4>Explore</h4><a href="/site#services">Services</a><a href="/site#process">How we work</a><a href="/market">Opportunities</a><a href="/site#track">Track record</a><a href="/site#markets">Markets</a><a href="/site/subscribe">Listing alerts</a><a href="#contact">Contact</a></div>
     <div><h4>Offices</h4>${offLinks}</div>
   </div>
   <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
@@ -7438,7 +7438,7 @@ function siteOperatorPage(req) {
   <a class="navlink" href="/market">Opportunities</a>
   <a class="navlink" href="#track">Track record</a>
   <a class="navlink" href="/site#markets">Markets</a>
-  <a class="navlink" href="/site/subscribe">Get listings</a>
+  <a class="navlink" href="/site/subscribe">Listing alerts</a>
   <a class="navcta" href="#contact">Place an operator</a>
 </nav></div></header>
 
@@ -7509,7 +7509,7 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
       <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
-    <div><h4>Explore</h4><a href="/site#services">Services</a><a href="/market">Opportunities</a><a href="#contact">Contact</a></div>
+    <div><h4>Explore</h4><a href="/site#services">Services</a><a href="/site#process">How we work</a><a href="/market">Opportunities</a><a href="/site#track">Track record</a><a href="/site#markets">Markets</a><a href="/site/subscribe">Listing alerts</a><a href="#contact">Contact</a></div>
     <div><h4>Offices</h4>${offLinks}</div>
   </div>
   <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
@@ -7605,7 +7605,7 @@ function siteExitPage(req) {
   <a class="navlink" href="/market">Opportunities</a>
   <a class="navlink" href="#track">Track record</a>
   <a class="navlink" href="/site#markets">Markets</a>
-  <a class="navlink" href="/site/subscribe">Get listings</a>
+  <a class="navlink" href="/site/subscribe">Listing alerts</a>
   <a class="navcta" href="#contact">Talk about your exit</a>
 </nav></div></header>
 
@@ -7676,7 +7676,7 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
       <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
-    <div><h4>Explore</h4><a href="/site#services">Services</a><a href="/market">Opportunities</a><a href="#contact">Contact</a></div>
+    <div><h4>Explore</h4><a href="/site#services">Services</a><a href="/site#process">How we work</a><a href="/market">Opportunities</a><a href="/site#track">Track record</a><a href="/site#markets">Markets</a><a href="/site/subscribe">Listing alerts</a><a href="#contact">Contact</a></div>
     <div><h4>Offices</h4>${offLinks}</div>
   </div>
   <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
@@ -7778,7 +7778,7 @@ function siteSubscribePage(req) {
   <a class="navlink" href="/market">Opportunities</a>
   <a class="navlink" href="/site#track">Track record</a>
   <a class="navlink" href="/site#markets">Markets</a>
-  <a class="navlink" href="/site/subscribe">Get listings</a>
+  <a class="navlink" href="/site/subscribe">Listing alerts</a>
   <a class="navcta" href="/site#contact">Talk to a broker</a>
 </nav></div></header>
 
@@ -7923,7 +7923,7 @@ function siteMultiUnitPage(req) {
   <a class="navlink" href="/market">Opportunities</a>
   <a class="navlink" href="#track">Track record</a>
   <a class="navlink" href="/site#markets">Markets</a>
-  <a class="navlink" href="/site/subscribe">Get listings</a>
+  <a class="navlink" href="/site/subscribe">Listing alerts</a>
   <a class="navcta" href="#contact">Talk about a deal</a>
 </nav></div></header>
 
@@ -7994,7 +7994,7 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
       <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
-    <div><h4>Explore</h4><a href="/site#services">Services</a><a href="/market">Opportunities</a><a href="#contact">Contact</a></div>
+    <div><h4>Explore</h4><a href="/site#services">Services</a><a href="/site#process">How we work</a><a href="/market">Opportunities</a><a href="/site#track">Track record</a><a href="/site#markets">Markets</a><a href="/site/subscribe">Listing alerts</a><a href="#contact">Contact</a></div>
     <div><h4>Offices</h4>${offLinks}</div>
   </div>
   <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
@@ -8091,7 +8091,7 @@ function siteSellPage(req) {
   <a class="navlink" href="/market">Opportunities</a>
   <a class="navlink" href="#track">Track record</a>
   <a class="navlink" href="/site#markets">Markets</a>
-  <a class="navlink" href="/site/subscribe">Get listings</a>
+  <a class="navlink" href="/site/subscribe">Listing alerts</a>
   <a class="navcta" href="#contact">Request a valuation</a>
 </nav></div></header>
 
@@ -8162,7 +8162,7 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
       <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
-    <div><h4>Explore</h4><a href="/site#services">Services</a><a href="/market">Opportunities</a><a href="#contact">Contact</a></div>
+    <div><h4>Explore</h4><a href="/site#services">Services</a><a href="/site#process">How we work</a><a href="/market">Opportunities</a><a href="/site#track">Track record</a><a href="/site#markets">Markets</a><a href="/site/subscribe">Listing alerts</a><a href="#contact">Contact</a></div>
     <div><h4>Offices</h4>${offLinks}</div>
   </div>
   <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
@@ -8635,7 +8635,7 @@ ${SITE_CSS}
   <a class="navlink" href="/market">Opportunities</a>
   <a class="navlink" href="#track">Track record</a>
   <a class="navlink" href="#markets">Markets</a>
-  <a class="navlink" href="/site/subscribe">Get listings</a>
+  <a class="navlink" href="/site/subscribe">Listing alerts</a>
   <a class="navcta" href="#contact">Talk to a broker</a>
 </nav></div></header>
 
@@ -8736,7 +8736,7 @@ ${SITE_CSS}
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
       <div class="annbadge"><span class="anndisc">RRG</span><span class="anntxt"><b>10 Years</b><i>2016 – 2026</i></span></div>
     </div>
-    <div><h4>Explore</h4><a href="#services">Services</a><a href="/market">Opportunities</a><a href="/site/subscribe">Get new listings</a><a href="#contact">Contact</a></div>
+    <div><h4>Explore</h4><a href="#services">Services</a><a href="#process">How we work</a><a href="/market">Opportunities</a><a href="#track">Track record</a><a href="#markets">Markets</a><a href="/site/subscribe">Listing alerts</a><a href="#contact">Contact</a></div>
     <div><h4>Offices</h4>${(s.offices || []).map(function (o) { const tel = String(o.phone || '').replace(/[^0-9+]/g, ''); return '<a href="tel:' + tel + '">' + esc(o.city || '') + ' &middot; ' + esc(o.phone || '') + '</a>'; }).join('')}</div>
   </div>
   <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
@@ -8972,7 +8972,7 @@ footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} 
   <a class="navlink active" href="/market">Opportunities</a>
   <a class="navlink" href="/site#track">Track record</a>
   <a class="navlink" href="/site#markets">Markets</a>
-  <a class="navlink" href="/site/subscribe">Get listings</a>
+  <a class="navlink" href="/site/subscribe">Listing alerts</a>
   <a class="navcta" href="/site#contact">Talk to a broker</a>
 </div></header>
 <div class="wrap">
