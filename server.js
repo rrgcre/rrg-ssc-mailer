@@ -8277,20 +8277,18 @@ section{padding:84px 0;}
 .opgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:40px;}
 @media(max-width:860px){.opgrid{grid-template-columns:repeat(2,1fr);}}
 @media(max-width:560px){.opgrid{grid-template-columns:1fr;}}
-.fcard{background:#fff;border:1px solid var(--line2);border-radius:12px;box-shadow:0 2px 10px rgba(16,26,48,.05);padding:22px 22px 18px;display:flex;flex-direction:column;position:relative;overflow:hidden;text-decoration:none;color:inherit;transition:box-shadow .15s,transform .15s,border-color .15s;}
-.fcard:hover{box-shadow:0 12px 28px rgba(16,26,48,.1);transform:translateY(-2px);border-color:#d7dceb;}
-.fcard .ftop{display:flex;align-items:center;gap:10px;position:relative;z-index:1;}
-.fcard .med{width:44px;height:44px;flex:none;border-radius:11px;background:linear-gradient(160deg,#0f1f44,#0A1733);border:1px solid #0A1733;display:flex;align-items:center;justify-content:center;color:var(--blue2);}
-.fcard .med svg{width:23px;height:23px;}
-.fcard .floc{font-size:11px;color:var(--soft);font-weight:700;text-transform:uppercase;letter-spacing:.07em;}
+.fcard{background:#fff;border:1px solid var(--line2);border-top:3px solid var(--gold);border-radius:13px;box-shadow:0 2px 10px rgba(16,26,48,.05);padding:20px 20px 16px;display:flex;flex-direction:column;position:relative;overflow:hidden;text-decoration:none;color:inherit;transition:box-shadow .15s,transform .15s,border-color .15s;}
+.fcard:hover{box-shadow:0 12px 28px rgba(16,26,48,.1);transform:translateY(-2px);}
+.fcard .ftop{display:flex;align-items:center;gap:10px;margin-bottom:4px;position:relative;z-index:1;}
+.fcard .ftype{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--blue);background:#eef3fb;border:1px solid #dce6f3;border-radius:100px;padding:4px 10px;}
+.fcard .floc{margin-left:auto;font-size:11px;color:var(--soft);font-weight:700;text-transform:uppercase;letter-spacing:.06em;}
 .fcard .fribbon{margin-left:auto;font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--red);background:rgba(218,43,31,.07);border:1px solid rgba(218,43,31,.28);border-radius:100px;padding:3px 10px;}
-.fcard .exbadge{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#8a6a1f;}
-.fcard .ftop .fribbon{margin-left:auto;}
-.fcard h3{font-size:18px;font-weight:600;font-family:'Fraunces',serif;color:var(--navy);line-height:1.25;margin:13px 0 3px;letter-spacing:-.01em;}
+.fcard h3{font-size:18px;font-weight:600;font-family:'Fraunces',serif;color:var(--navy);line-height:1.25;margin:11px 0 3px;letter-spacing:-.01em;}
 .fcard .fbadge{font-size:13px;color:var(--muted);font-weight:500;}
-.fcard .fmet{display:flex;gap:28px;margin:15px 0;padding:14px 0 0;border-top:1px solid var(--line2);flex-wrap:wrap;}
-.fcard .fmet .v{font-size:16px;font-weight:700;color:var(--navy);font-variant-numeric:tabular-nums;letter-spacing:-.01em;}
-.fcard .fmet .k{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--soft);margin-top:3px;}
+.fcard .ffigs{margin:14px 0 0;padding-top:13px;border-top:1px solid var(--line2);font-size:13.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px;align-items:baseline;}
+.fcard .ffigs b{color:var(--navy);font-weight:700;font-size:15px;font-variant-numeric:tabular-nums;letter-spacing:-.01em;}
+.fcard .ffigs i{color:#c3ccdb;margin:0 5px;font-style:normal;}
+.fcard .fnda{margin:14px 0 0;padding-top:13px;border-top:1px solid var(--line2);font-size:13.5px;color:var(--soft);font-style:italic;}
 .fcard .ffoot{display:flex;align-items:center;justify-content:space-between;margin-top:16px;gap:12px;}
 .fcard .flock{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--soft);font-weight:500;}
 .fcard .flock svg{width:13px;height:13px;}
@@ -8461,21 +8459,31 @@ function publicSitePage(req) {
   // --- opportunity cards ---
   const lockSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
   let cards = (listings || []).slice(0, 3).map(function (t) {
-    const ask = esc(t.guide || t.price || '');
+    const k = String(t.kind || '').toLowerCase();
+    const typeChip = k === 'lease' ? 'Real estate · For lease'
+      : k === 'sale' ? 'Real estate · For sale'
+      : k === 'asset' ? 'Asset sale'
+      : k === 'business' ? 'Business for sale'
+      : (t.rate || t.price) ? 'Real estate' : 'Business for sale';
+    const ask = esc(t.guide || t.price || t.rate || '');
     const basis = esc(t.earnBasis || 'SDE');
     const sde = esc(t.sde || '');
     const rev = esc(t.revenue || '');
-    const mets = [];
-    if (ask) mets.push('<div><div class="v">' + ask + '</div><div class="k">Guide</div></div>');
-    if (sde) mets.push('<div><div class="v">' + sde + '</div><div class="k">' + basis + '</div></div>');
-    if (rev) mets.push('<div><div class="v">' + rev + '</div><div class="k">Revenue</div></div>');
-    const metHtml = mets.length ? mets.join('') : '<div><div class="v" style="font-size:14px">Under NDA</div><div class="k">Financials on request</div></div>';
-    const ribbon = (t.flagLabel || t.featured) ? ('<span class="fribbon">' + esc(t.flagLabel || '★ Featured') + '</span>') : '';
+    const figs = [];
+    if (ask) figs.push('<span><b>' + ask + '</b> ' + (t.rate ? 'Asking' : 'Guide') + '</span>');
+    if (sde) figs.push('<span><b>' + sde + '</b> ' + basis + '</span>');
+    if (rev) figs.push('<span><b>' + rev + '</b> Revenue</span>');
+    const figHtml = figs.length
+      ? ('<div class="ffigs">' + figs.join('<i>·</i>') + '</div>')
+      : '<div class="fnda">Financials shared under NDA</div>';
+    const topRight = (t.flagLabel || t.featured)
+      ? ('<span class="fribbon">' + esc(t.flagLabel || '★ Featured') + '</span>')
+      : ('<span class="floc">' + esc(t.loc || t.marketKey || 'Texas') + '</span>');
     return '<a class="fcard" href="/market">'
-      + '<div class="ftop"><div class="floc">' + esc(t.loc || t.marketKey || 'Texas') + '</div>' + ribbon + '</div>'
+      + '<div class="ftop"><span class="ftype">' + esc(typeChip) + '</span>' + topRight + '</div>'
       + '<h3>' + esc(t.headline || 'Confidential restaurant opportunity') + '</h3><div class="fbadge">' + esc(t.badge || 'Restaurant') + '</div>'
-      + '<div class="fmet">' + metHtml + '</div>'
-      + '<div class="ffoot"><span class="flock">' + lockSvg + 'Blind until NDA</span><span class="act">Request details &rarr;</span></div>'
+      + figHtml
+      + '<div class="ffoot"><span class="flock">' + lockSvg + 'Confidential</span><span class="act">Request details &rarr;</span></div>'
       + '</a>';
   }).join('');
   if (!(listings || []).length) cards = '<div class="noops">New opportunities are posted here as they come to market. <a href="/market">Browse the marketplace &rarr;</a></div>';
