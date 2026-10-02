@@ -8388,6 +8388,11 @@ section{padding:84px 0;}
 .lmsg.ok{color:#1f8a5b;} .lmsg.err{color:var(--red);}
 /* footer */
 footer{background:#05081a;color:#8597b8;font-size:13px;padding:40px 0 30px;}
+.annbadge{display:inline-flex;align-items:center;gap:11px;margin-top:18px;background:#101f40;border:1px solid rgba(255,255,255,.12);border-radius:100px;padding:7px 18px 7px 7px;}
+.annbadge .anndisc{width:32px;height:32px;flex:none;border-radius:50%;background:var(--red);color:#fff;font:900 10.5px/1 'Arial Black',Arial;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.annbadge .anntxt{display:flex;flex-direction:column;line-height:1.12;}
+.annbadge .anntxt b{color:#fff;font-weight:800;font-size:12.5px;letter-spacing:.09em;text-transform:uppercase;}
+.annbadge .anntxt i{color:#E0C27E;font-style:normal;font-size:10px;font-weight:700;letter-spacing:.11em;margin-top:2px;}
 .foot{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:24px;}
 @media(max-width:720px){.foot{grid-template-columns:1fr;gap:18px;}}
 .foot h4{color:#fff;font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;}
@@ -8729,6 +8734,7 @@ ${SITE_CSS}
     <div>
       <a class="brand" href="#top" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
+      <div class="annbadge"><span class="anndisc">RRG</span><span class="anntxt"><b>10 Years</b><i>2016 – 2026</i></span></div>
     </div>
     <div><h4>Explore</h4><a href="#services">Services</a><a href="/market">Opportunities</a><a href="/site/subscribe">Get new listings</a><a href="#contact">Contact</a></div>
     <div><h4>Offices</h4>${(s.offices || []).map(function (o) { const tel = String(o.phone || '').replace(/[^0-9+]/g, ''); return '<a href="tel:' + tel + '">' + esc(o.city || '') + ' &middot; ' + esc(o.phone || '') + '</a>'; }).join('')}</div>
