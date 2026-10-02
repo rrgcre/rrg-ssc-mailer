@@ -8631,7 +8631,7 @@ ${SITE_CSS}
   <div class="sec-head"><div class="eyebrow">On the market</div><div class="h2">Exclusive opportunities</div>
   <p class="lead">Every RRG listing is an exclusive representation — if it’s here, you can only get it through us. Business listings are confidential; request details and we’ll qualify you under NDA.</p></div>
   <div class="opgrid">${cards}</div>
-  <div class="opall" style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;justify-content:center"><a class="btn gold" href="/market">View the full marketplace &rarr;</a><a class="btn navy" href="/site/subscribe">Get new listings by email</a></div>
+  <div class="opall" style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;justify-content:center"><a class="btn red" href="/market">View the full marketplace &rarr;</a><a class="btn navy" href="/site/subscribe">Get new listings by email</a></div>
 </div></section>
 
 <section id="track" class="track"><div class="wrap">
@@ -8752,9 +8752,12 @@ header{background:linear-gradient(180deg,var(--navy2),var(--navy));border-bottom
 .bwm i{font-style:normal;color:#8fa0be;font-weight:600;font-size:10px;letter-spacing:.09em;display:block;margin-top:2px;}
 .vb{width:1px;height:26px;background:rgba(255,255,255,.22);margin:0 5px;}
 .mkt{font-weight:700;font-size:15px;color:#fff;}
-.hauth{margin-left:auto;}
+.hbrand{display:flex;align-items:center;gap:13px;text-decoration:none;}
+.hauth{margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
 .hauth a{font-size:12px;font-weight:800;text-decoration:none;color:#fbf6ec;background:var(--accent);padding:9px 16px;border-radius:5px;box-shadow:0 2px 8px rgba(120,92,52,.28);}
 .hauth a:hover{filter:brightness(1.08);}
+.hback{background:transparent;color:#dbe3f0;box-shadow:none;border:1px solid rgba(255,255,255,.32);display:inline-flex;align-items:center;gap:6px;}
+.hback:hover{background:rgba(255,255,255,.08);filter:none;border-color:rgba(255,255,255,.55);}
 .hd{padding:20px 0 0;}
 .hd h1{font-size:21px;font-weight:800;color:var(--navy);letter-spacing:-.01em;}
 .hd .lede{font-size:13px;color:var(--muted);margin-top:4px;max-width:760px;}
@@ -8901,9 +8904,9 @@ footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} 
 <body>
 <div class="tstrip"><div class="tin"><span>${esc(H.tagline)}</span><span>${esc(H.areas)}</span></div></div>
 <header><div class="wrap hrow">
-  ${mLogo ? `<img class="mlogo" src="${mLogo}" alt="${org}">` : `<span class="disc">RRG</span>`}
-  <span class="bwm">${org}</span>
-  <span class="hauth"><a href="mailto:?subject=Buyer%20registration">Register as a buyer</a></span>
+  <a class="hbrand" href="/site">${mLogo ? `<img class="mlogo" src="${mLogo}" alt="${org}">` : `<span class="disc">RRG</span>`}
+  <span class="bwm">${org}</span></a>
+  <span class="hauth"><a class="hback" href="/site">&larr; Back to site</a><a href="mailto:?subject=Buyer%20registration">Register as a buyer</a></span>
 </div></header>
 <div class="wrap">
   <div class="hd">
