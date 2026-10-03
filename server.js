@@ -6744,30 +6744,78 @@ app.get('/api/market/public', (req, res) => {
   res.json({ ok: true, listings: listings, org: orgDisplayName() });
 });
 // PUBLIC — a buyer requests access to a blind listing; logged as an inquiry for the rep to qualify under NDA.
+// Capture a marketplace requestor into the CRM: upsert the company and the person (buyer),
+// enrich with LinkedIn / background, link them, log the request. Returns {personId, companyId}.
+function captureMarketRequestor(req, o) {
+  o = o || {};
+  const name = String(o.name || '').trim();
+  const email = String(o.email || '').trim();
+  if (!name && !email) return {};
+  let co = null;
+  if (o.company) { try { co = findOrCreateCompany(req, { name: o.company, market: o.market || '', tag: 'Marketplace' }); } catch (e) {} }
+  let per = null;
+  try {
+    per = findOrCreatePerson(req, { name: name, firstName: o.firstName || '', lastName: o.lastName || '', email: email, phones: o.phone ? [o.phone] : [], company: o.company || '', companyId: (co && co.id) || '', type: 'Buyer', tag: 'Marketplace' });
+  } catch (e) {}
+  if (!per) return { companyId: (co && co.id) || '' };
+  try {
+    const arr = loadPeople();
+    const p = arr.find(x => x.id === per.id) || per;
+    let ch = false;
+    if (!p.leadSource) { p.leadSource = 'Marketplace'; ch = true; }
+    if (co && co.id && !p.companyId) { p.companyId = co.id; p.company = co.name; ch = true; }
+    if (o.linkedin && !p.linkedin) { p.linkedin = String(o.linkedin).slice(0, 300); ch = true; }
+    if (o.experience) { const ex = 'Background: ' + String(o.experience).slice(0, 600); if (String(p.notes || '').indexOf(ex) < 0) { p.notes = (p.notes ? (p.notes + '\n') : '') + ex; ch = true; } }
+    try {
+      const bits = [];
+      if (o.dealLabel) bits.push(o.dealLabel);
+      if (o.experience) bits.push('Background: ' + o.experience);
+      if (o.linkedin) bits.push('LinkedIn: ' + o.linkedin);
+      logActivity(p, 'Note', 'Marketplace access request' + (bits.length ? (' — ' + bits.join(' · ')) : ''), { auto: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' });
+      ch = true;
+    } catch (e) {}
+    if (ch) { p.updatedAt = new Date().toISOString(); savePeople(arr); }
+    return { personId: p.id, companyId: (co && co.id) || p.companyId || '' };
+  } catch (e) { return { personId: per.id, companyId: (co && co.id) || '' }; }
+}
 app.post('/api/market/request-access', express.json(), (req, res) => {
   const b = req.body || {};
   const key = String(b.listingKey || '').slice(0, 60);
-  const name = String(b.name || '').trim().slice(0, 120);
+  const first = String(b.firstName || '').trim().slice(0, 80);
+  const last = String(b.lastName || '').trim().slice(0, 80);
+  let name = String(b.name || '').trim().slice(0, 120); if (!name) name = (first + ' ' + last).trim();
   const email = String(b.email || '').trim().slice(0, 160);
   const phone = String(b.phone || '').trim().slice(0, 60);
   const note = String(b.note || '').trim().slice(0, 1000);
+  const company = String(b.company || '').trim().slice(0, 160);
+  const experience = String(b.experience || '').trim().slice(0, 600);
+  const linkedin = String(b.linkedin || '').trim().slice(0, 300);
+  const qual = [company ? ('Company: ' + company) : '', experience ? ('Background: ' + experience) : '', linkedin ? ('LinkedIn: ' + linkedin) : ''].filter(Boolean).join(' · ');
   if (!name || !email) return res.status(400).json({ ok: false, error: 'Name and email are required.' });
   // Property listings (real estate) — record the inquiry on the property record.
   if (key.indexOf('prop_') === 0) {
     const arr = loadProperties(); const pr = arr.find(x => x.id === key);
     if (!pr || !pr.public) return res.status(404).json({ ok: false, error: 'That property is no longer available.' });
+    const dealLabel = String((pr.name || pr.headline || 'Property listing')).slice(0, 140);
+    const market = String(pr.market || pr.marketKey || pr.loc || '').slice(0, 60);
+    const cap = captureMarketRequestor(req, { name: name, firstName: first, lastName: last, email: email, phone: phone, company: company, experience: experience, linkedin: linkedin, dealLabel: dealLabel, market: market });
     pr.inquiries = Array.isArray(pr.inquiries) ? pr.inquiries : [];
-    pr.inquiries.push({ id: newInquiryId(), source: 'Marketplace', name: name, email: email, phone: phone, note: note ? ('Property info request — ' + note) : 'Property info request', createdAt: new Date().toISOString() });
+    pr.inquiries.push({ id: newInquiryId(), source: 'Marketplace', personId: (cap && cap.personId) || '', companyId: (cap && cap.companyId) || '', name: name, email: email, phone: phone, company: company, experience: experience, linkedin: linkedin, note: ['Property info request', qual, note].filter(Boolean).join(' — '), createdAt: new Date().toISOString() });
     pr.updatedAt = new Date().toISOString(); saveProperties(arr);
-    try { sendAccessRequestAlert({ deal: String((pr.name || pr.headline || 'Property listing')).slice(0, 140), ref: key, market: String(pr.market || pr.marketKey || pr.loc || '').slice(0, 60), type: String(pr.propType || pr.kind || 'Real estate').slice(0, 60), asking: String(pr.rate || pr.price || pr.guide || pr.ask || '').slice(0, 40), name: name, email: email, phone: phone, note: note }).catch(function (e) { console.error('access alert error:', e && e.message); }); } catch (e) {}
+    try { sendAccessRequestAlert({ deal: dealLabel, ref: key, market: market, type: String(pr.propType || pr.kind || 'Real estate').slice(0, 60), asking: String(pr.rate || pr.price || pr.guide || pr.ask || '').slice(0, 40), name: name, email: email, phone: phone, company: company, experience: experience, linkedin: linkedin, note: note }).catch(function (e) { console.error('access alert error:', e && e.message); }); } catch (e) {}
     return res.json({ ok: true });
   }
   const overlay = loadAssignOverlay(); const cur = overlay[key];
   if (!cur || !cur.market || !cur.market.published) return res.status(404).json({ ok: false, error: 'That opportunity is no longer available.' });
+  const _m = cur.market || {};
+  const _kl = { business: 'Business for sale', lease: 'Real estate · for lease', sale: 'Real estate · for sale', asset: 'Asset sale' };
+  const dealLabel = String((_m.headline || _m.codeName) || 'Confidential opportunity').slice(0, 140);
+  const market = String(_m.marketKey || _m.loc || '').slice(0, 60);
+  const cap = captureMarketRequestor(req, { name: name, firstName: first, lastName: last, email: email, phone: phone, company: company, experience: experience, linkedin: linkedin, dealLabel: dealLabel, market: market });
   const inqs = Array.isArray(cur.inquiries) ? cur.inquiries : [];
-  inqs.push({ id: newInquiryId(), source: 'Marketplace', name: name, email: email, phone: phone, status: (buyerStageNamesFor(cur)[0] || 'Unqualified'), note: note ? ('Marketplace access request — ' + note) : 'Marketplace access request', createdAt: new Date().toISOString() });
+  inqs.push({ id: newInquiryId(), source: 'Marketplace', personId: (cap && cap.personId) || '', companyId: (cap && cap.companyId) || '', name: name, email: email, phone: phone, company: company, experience: experience, linkedin: linkedin, status: (buyerStageNamesFor(cur)[0] || 'Unqualified'), note: ['Marketplace access request', qual, note].filter(Boolean).join(' — '), createdAt: new Date().toISOString() });
   cur.inquiries = inqs; cur.updatedAt = new Date().toISOString(); overlay[key] = cur; saveAssignOverlay(overlay);
-  try { const _m = cur.market || {}; const _kl = { business: 'Business for sale', lease: 'Real estate · for lease', sale: 'Real estate · for sale', asset: 'Asset sale' }; sendAccessRequestAlert({ deal: String((_m.headline || _m.codeName) || 'Confidential opportunity').slice(0, 140), ref: key, market: String(_m.marketKey || _m.loc || '').slice(0, 60), type: String(_m.conceptType || _m.propType || _kl[_m.kind] || _m.kind || '').slice(0, 60), asking: String(_m.guide || _m.price || _m.rate || '').slice(0, 40), name: name, email: email, phone: phone, note: note }).catch(function (e) { console.error('access alert error:', e && e.message); }); } catch (e) {}
+  try { sendAccessRequestAlert({ deal: dealLabel, ref: key, market: market, type: String(_m.conceptType || _m.propType || _kl[_m.kind] || _m.kind || '').slice(0, 60), asking: String(_m.guide || _m.price || _m.rate || '').slice(0, 40), name: name, email: email, phone: phone, company: company, experience: experience, linkedin: linkedin, note: note }).catch(function (e) { console.error('access alert error:', e && e.message); }); } catch (e) {}
   res.json({ ok: true });
 });
 
@@ -6789,8 +6837,17 @@ async function sendAccessRequestAlert(o) {
   if (o.market) rows.push(['Market', o.market]);
   if (o.type) rows.push(['Type', o.type]);
   if (o.asking) rows.push(['Asking', o.asking]);
-  rows.push(['Name', o.name || '']); rows.push(['Email', o.email || '']); rows.push(['Phone', o.phone || '\u2014']); rows.push(['Note', o.note || '\u2014']);
-  const rowsHtml = rows.map(function (r) { return '<tr><td style="padding:7px 14px 7px 0;color:#8a93a8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;width:92px;vertical-align:top;white-space:nowrap">' + E(r[0]) + '</td><td style="padding:7px 0;color:#1a2236;font-size:14px;line-height:1.5">' + E(r[1]) + '</td></tr>'; }).join('');
+  rows.push(['Name', o.name || '']); rows.push(['Email', o.email || '']); rows.push(['Phone', o.phone || '\u2014']);
+  if (o.company) rows.push(['Company', o.company]);
+  if (o.experience) rows.push(['Background', o.experience]);
+  if (o.linkedin) rows.push(['LinkedIn', o.linkedin]);
+  rows.push(['Note', o.note || '\u2014']);
+  const rowsHtml = rows.map(function (r) {
+    var vcell;
+    if (r[0] === 'LinkedIn' && r[1]) { var href = /^https?:/i.test(r[1]) ? r[1] : ('https://' + r[1]); vcell = '<a href="' + E(href) + '" style="color:#2C5C8F;font-weight:600;text-decoration:none">' + E(r[1]) + '</a>'; }
+    else { vcell = E(r[1]); }
+    return '<tr><td style="padding:7px 14px 7px 0;color:#8a93a8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;width:92px;vertical-align:top;white-space:nowrap">' + E(r[0]) + '</td><td style="padding:7px 0;color:#1a2236;font-size:14px;line-height:1.5">' + vcell + '</td></tr>';
+  }).join('');
   const emailLink = o.email ? ('<a href="mailto:' + E(o.email) + '" style="display:inline-block;background:#DA2B1F;color:#fff;text-decoration:none;font-weight:800;font-size:14px;padding:12px 22px;border-radius:10px;margin-top:4px">Reply to ' + E(o.name || 'them') + ' &rarr;</a>') : '';
   const html = '<!doctype html><html><body style="margin:0;background:#eef2f6;padding:24px 12px;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">'
     + '<table role="presentation" width="100%"><tr><td align="center"><table role="presentation" width="560" style="max-width:560px;width:100%;background:#fff;border-radius:14px;overflow:hidden;border:1px solid #e3e9f3;">'
@@ -9239,9 +9296,15 @@ footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} 
 <div class="ov" id="ov"><div class="mbox">
   <h2 id="mvTitle">Request access</h2>
   <p id="mvSub">Tell us who you are and we'll follow up. For blind business listings we'll send an NDA and, once signed, open the full offering and data room.</p>
-  <label>Full name *</label><input id="rName" autocomplete="name">
+  <label>First name *</label><input id="rFirst" autocomplete="given-name">
+  <label>Last name *</label><input id="rLast" autocomplete="family-name">
   <label>Email *</label><input id="rEmail" type="email" autocomplete="email">
   <label>Phone</label><input id="rPhone" autocomplete="tel">
+  <div id="rQual">
+  <label>Company / entity</label><input id="rCompany" autocomplete="organization" placeholder="Who you represent">
+  <label>Your background</label><input id="rExp" placeholder="e.g. 12 yrs multi-unit operator &middot; 3 acquisitions">
+  <label>LinkedIn</label><input id="rLinked" type="url" placeholder="linkedin.com/in/you">
+  </div>
   <label>Anything we should know? (optional)</label><textarea id="rNote" rows="3" placeholder="Acquisition criteria, timeline, proof of funds&hellip;"></textarea>
   <div class="mmsg" id="rMsg"></div>
   <div class="mf"><button class="mbtn ghost" id="rCancel">Cancel</button><button class="mbtn go" id="rGo">Request access</button></div>
@@ -9457,6 +9520,7 @@ var curKey='';
 function openReq(k,isRE){ curKey=k; var l=ALL.filter(function(x){return x.id===k;})[0]||{};
   document.getElementById('mvTitle').textContent=isRE?'Request information':'Request access';
   document.getElementById('mvSub').textContent=isRE?'Tell us who you are and we\\'ll send the full property package and set up a tour.':'Tell us who you are. We\\'ll follow up with an NDA and, once it\\'s signed, open the full offering and data room for this opportunity.';
+  var _q=document.getElementById('rQual'); if(_q) _q.style.display=isRE?'none':'';
   document.getElementById('rMsg').textContent=''; document.getElementById('ov').classList.add('on'); track('detail',[k]);
 }
 function closeReq(){ document.getElementById('ov').classList.remove('on'); }
@@ -9472,12 +9536,12 @@ document.getElementById('maptog').addEventListener('click',function(){ var sp=do
 document.getElementById('rCancel').addEventListener('click',closeReq);
 document.getElementById('ov').addEventListener('click',function(e){ if(e.target===this) closeReq(); });
 document.getElementById('rGo').addEventListener('click',function(){
-  var name=document.getElementById('rName').value.trim(), email=document.getElementById('rEmail').value.trim();
-  var msg=document.getElementById('rMsg'); if(!name||!email){ msg.style.color='#b5311f'; msg.textContent='Name and email are required.'; return; }
+  var first=document.getElementById('rFirst').value.trim(), last=document.getElementById('rLast').value.trim(), email=document.getElementById('rEmail').value.trim();
+  var msg=document.getElementById('rMsg'); if(!first||!last||!email){ msg.style.color='#b5311f'; msg.textContent='First name, last name, and email are required.'; return; }
   var btn=this; btn.disabled=true; btn.textContent='Sending…';
-  fetch('/api/market/request-access',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({listingKey:curKey,name:name,email:email,phone:document.getElementById('rPhone').value.trim(),note:document.getElementById('rNote').value.trim()})})
+  fetch('/api/market/request-access',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({listingKey:curKey,firstName:first,lastName:last,name:(first+' '+last).trim(),email:email,phone:document.getElementById('rPhone').value.trim(),company:document.getElementById('rCompany').value.trim(),experience:document.getElementById('rExp').value.trim(),linkedin:document.getElementById('rLinked').value.trim(),note:document.getElementById('rNote').value.trim()})})
     .then(function(r){return r.json();}).then(function(j){ btn.disabled=false; btn.textContent='Request access';
-      if(j&&j.ok){ msg.style.color='#1f6b46'; msg.textContent='Sent — we\\'ll be in touch shortly.'; setTimeout(closeReq,1400); ['rName','rEmail','rPhone','rNote'].forEach(function(id){document.getElementById(id).value='';}); }
+      if(j&&j.ok){ msg.style.color='#1f6b46'; msg.textContent='Sent — we\\'ll be in touch shortly.'; setTimeout(closeReq,1400); ['rFirst','rLast','rEmail','rPhone','rCompany','rExp','rLinked','rNote'].forEach(function(id){var el=document.getElementById(id); if(el) el.value='';}); }
       else { msg.style.color='#b5311f'; msg.textContent=(j&&j.error)||'Could not send.'; } })
     .catch(function(){ btn.disabled=false; btn.textContent='Request access'; msg.style.color='#b5311f'; msg.textContent='Could not reach the server.'; });
 });
