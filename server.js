@@ -7304,6 +7304,87 @@ app.get('/api/website/hero-image', (req, res) => {
     res.send(buf);
   } catch (e) { res.status(404).end(); }
 });
+// ===================== Public-site SEO (canonical, Open Graph, Twitter, JSON-LD, sitemap, robots) =====================
+// Absolute base URL for canonical/OG/sitemap. Prefers the configured custom domain,
+// then the platform APP_URL, then the request host — so links are correct once live on www.rrgcre.com.
+function siteBaseUrl(req) {
+  try {
+    const s = loadWebsite();
+    const cd = String((s && s.customDomain) || '').trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+    if (cd) return 'https://' + cd;
+  } catch (e) {}
+  const ab = appBaseUrl();
+  if (ab) return ab;
+  try {
+    const proto = String(req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0].trim();
+    if (req.headers.host) return proto + '://' + req.headers.host;
+  } catch (e) {}
+  return '';
+}
+// Open Graph + Twitter Card + canonical for a public page. opts: {path,title,description,type,image}
+function seoMeta(req, opts) {
+  opts = opts || {};
+  const base = siteBaseUrl(req);
+  const url = base + (opts.path || '');
+  const org = esc(orgDisplayName() || 'Restaurant Realty Group');
+  const title = esc(opts.title || org);
+  const desc = esc(String(opts.description || '').replace(/\s+/g, ' ').trim());
+  const rawImg = opts.image || '/rrg_hero.jpg';
+  const img = esc(/^https?:/i.test(rawImg) ? rawImg : (base + rawImg));
+  const u = esc(url);
+  return '<link rel="canonical" href="' + u + '">'
+    + '<meta property="og:type" content="' + (opts.type || 'website') + '">'
+    + '<meta property="og:site_name" content="' + org + '">'
+    + '<meta property="og:title" content="' + title + '">'
+    + (desc ? '<meta property="og:description" content="' + desc + '">' : '')
+    + '<meta property="og:url" content="' + u + '">'
+    + '<meta property="og:image" content="' + img + '">'
+    + '<meta name="twitter:card" content="summary_large_image">'
+    + '<meta name="twitter:title" content="' + title + '">'
+    + (desc ? '<meta name="twitter:description" content="' + desc + '">' : '')
+    + '<meta name="twitter:image" content="' + img + '">';
+}
+// RealEstateAgent structured data — tells Google exactly what RRG is and where it operates.
+function orgJsonLd(req) {
+  let s = {};
+  try { s = loadWebsite() || {}; } catch (e) {}
+  const base = siteBaseUrl(req);
+  const org = orgDisplayName() || 'Restaurant Realty Group';
+  const offices = Array.isArray(s.offices) ? s.offices.filter(function (o) { return o && (o.city || o.phone); }) : [];
+  const cities = offices.map(function (o) { return String(o.city || '').trim(); }).filter(Boolean);
+  ['Austin', 'Dallas', 'Fort Worth', 'Houston', 'San Antonio', 'Texas'].forEach(function (c) { if (cities.indexOf(c) < 0) cities.push(c); });
+  const data = {
+    '@context': 'https://schema.org',
+    '@type': 'RealEstateAgent',
+    name: org,
+    description: String(s.heroSub || 'Confidential brokerage for restaurants, bars, and hospitality real estate across Texas.').replace(/\s+/g, ' ').trim(),
+    url: base + '/site',
+    image: base + String(s.heroImage || '/rrg_hero.jpg'),
+    telephone: (offices[0] && offices[0].phone) || '',
+    priceRange: '$$$',
+    address: { '@type': 'PostalAddress', addressRegion: 'TX', addressCountry: 'US' },
+    areaServed: cities.map(function (c) { return { '@type': 'City', name: c }; }),
+    knowsAbout: ['Restaurant brokerage', 'Bar sales', 'Restaurant real estate', 'Lease assignment', 'Business valuation', 'Multi-unit portfolio sales'],
+    contactPoint: offices.map(function (o) { return { '@type': 'ContactPoint', contactType: 'sales', telephone: o.phone || '', areaServed: o.city || '' }; })
+  };
+  return '<script type="application/ld+json">' + JSON.stringify(data).replace(/</g, '\\u003c') + '</script>';
+}
+app.get('/robots.txt', (req, res) => {
+  const base = siteBaseUrl(req);
+  const body = 'User-agent: *\nAllow: /\nDisallow: /api/\n' + (base ? ('Sitemap: ' + base + '/sitemap.xml\n') : '');
+  res.set('Content-Type', 'text/plain; charset=utf-8').send(body);
+});
+app.get('/sitemap.xml', (req, res) => {
+  const base = siteBaseUrl(req);
+  const paths = ['/site', '/site/sell', '/site/multi-unit', '/site/exit', '/site/secure', '/site/place', '/site/subscribe', '/market'];
+  const today = new Date().toISOString().slice(0, 10);
+  const urls = paths.map(function (p) {
+    return '<url><loc>' + esc(base + p) + '</loc><lastmod>' + today + '</lastmod><changefreq>weekly</changefreq><priority>' + (p === '/site' ? '1.0' : '0.8') + '</priority></url>';
+  }).join('');
+  res.set('Content-Type', 'application/xml; charset=utf-8')
+    .send('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + urls + '</urlset>');
+});
+
 // Public site
 app.get('/site', (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8').send(publicSitePage(req)); });
 
@@ -7350,7 +7431,7 @@ function siteSecurePage(req) {
 
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Secure the Right Location — ${org}</title>
-<meta name="description" content="Find and secure the right restaurant space on the right terms. ${org} represents tenants — on- and off-market sites, restaurant-specific diligence, and hard lease negotiation, usually at no cost to you.">
+<meta name="description" content="Find and secure the right restaurant space on the right terms. ${org} represents tenants — on- and off-market sites, restaurant-specific diligence, and hard lease negotiation, usually at no cost to you.">${seoMeta(req,{path:'/site/secure',title:"Secure the Right Location — "+(s.brand||orgDisplayName()||'Restaurant Realty Group'),description:"Find and secure the right restaurant space on the right terms. "+(s.brand||orgDisplayName()||'Restaurant Realty Group')+" represents tenants — on- and off-market sites, restaurant-specific diligence, and hard lease negotiation, usually at no cost to you."})}${orgJsonLd(req)}
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>${SITE_CSS}</style>
@@ -7519,7 +7600,7 @@ function siteOperatorPage(req) {
 
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Place the Right Operator — ${org}</title>
-<meta name="description" content="Fill your restaurant space with a qualified, funded operator. ${org} matches landlords and property owners with vetted operators whose concept fits the space, and structures a deal that holds.">
+<meta name="description" content="Fill your restaurant space with a qualified, funded operator. ${org} matches landlords and property owners with vetted operators whose concept fits the space, and structures a deal that holds.">${seoMeta(req,{path:'/site/place',title:"Place the Right Operator — "+(s.brand||orgDisplayName()||'Restaurant Realty Group'),description:"Fill your restaurant space with a qualified, funded operator. "+(s.brand||orgDisplayName()||'Restaurant Realty Group')+" matches landlords and property owners with vetted operators whose concept fits the space, and structures a deal that holds."})}${orgJsonLd(req)}
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>${SITE_CSS}</style>
@@ -7686,7 +7767,7 @@ function siteExitPage(req) {
 
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Exit a Leased Location — ${org}</title>
-<meta name="description" content="Exit a restaurant lease clean. ${org} structures lease exits as an asset sale to a replacement operator — assignment, sublease, or new lease — so you recover value and release your liability.">
+<meta name="description" content="Exit a restaurant lease clean. ${org} structures lease exits as an asset sale to a replacement operator — assignment, sublease, or new lease — so you recover value and release your liability.">${seoMeta(req,{path:'/site/exit',title:"Exit a Leased Location — "+(s.brand||orgDisplayName()||'Restaurant Realty Group'),description:"Exit a restaurant lease clean. "+(s.brand||orgDisplayName()||'Restaurant Realty Group')+" structures lease exits as an asset sale to a replacement operator — assignment, sublease, or new lease — so you recover value and release your liability."})}${orgJsonLd(req)}
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>${SITE_CSS}</style>
@@ -7835,7 +7916,7 @@ function siteSubscribePage(req) {
 
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Get New Listings — ${org}</title>
-<meta name="description" content="Get confidential restaurant and bar listings from ${org} the moment they come to market — in the Texas markets you choose.">
+<meta name="description" content="Get confidential restaurant and bar listings from ${org} the moment they come to market — in the Texas markets you choose.">${seoMeta(req,{path:'/site/subscribe',title:"Get New Listings — "+(s.brand||orgDisplayName()||'Restaurant Realty Group'),description:"Get confidential restaurant and bar listings from "+(s.brand||orgDisplayName()||'Restaurant Realty Group')+" the moment they come to market — in the Texas markets you choose."})}${orgJsonLd(req)}
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>${SITE_CSS}</style>
@@ -8004,7 +8085,7 @@ function siteMultiUnitPage(req) {
 
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Multi-Unit &amp; Portfolio Brokerage — ${org}</title>
-<meta name="description" content="Portfolio-grade brokerage for multi-unit restaurant and bar operators. ${org} sells groups and portfolios confidentially — real valuation, funded buyers, and one coordinated close.">
+<meta name="description" content="Portfolio-grade brokerage for multi-unit restaurant and bar operators. ${org} sells groups and portfolios confidentially — real valuation, funded buyers, and one coordinated close.">${seoMeta(req,{path:'/site/multi-unit',title:"Multi-Unit & Portfolio Brokerage — "+(s.brand||orgDisplayName()||'Restaurant Realty Group'),description:"Portfolio-grade brokerage for multi-unit restaurant and bar operators. "+(s.brand||orgDisplayName()||'Restaurant Realty Group')+" sells groups and portfolios confidentially — real valuation, funded buyers, and one coordinated close."})}${orgJsonLd(req)}
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>${SITE_CSS}</style>
@@ -8171,7 +8252,7 @@ function siteSellPage(req) {
 
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Sell Your Restaurant — ${org}</title>
-<meta name="description" content="Sell your restaurant confidentially and for what it's worth. ${org} runs a controlled, discreet sell-side process — real valuation, qualified buyers, and a clean close.">
+<meta name="description" content="Sell your restaurant confidentially and for what it's worth. ${org} runs a controlled, discreet sell-side process — real valuation, qualified buyers, and a clean close.">${seoMeta(req,{path:'/site/sell',title:"Sell Your Restaurant — "+(s.brand||orgDisplayName()||'Restaurant Realty Group'),description:"Sell your restaurant confidentially and for what it's worth. "+(s.brand||orgDisplayName()||'Restaurant Realty Group')+" runs a controlled, discreet sell-side process — real valuation, qualified buyers, and a clean close."})}${orgJsonLd(req)}
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>${SITE_CSS}</style>
@@ -8737,7 +8818,7 @@ function publicSitePage(req) {
 
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${org} — ${esc(s.tagline || '')}</title>
-<meta name="description" content="${esc(s.heroSub || '')}">
+<meta name="description" content="${esc(s.heroSub || '')}">${seoMeta(req,{path:'/site',title:(s.brand||orgDisplayName()||'Restaurant Realty Group')+(s.tagline?(" — "+s.tagline):""),description:(s.heroSub||"")})}${orgJsonLd(req)}
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -8893,6 +8974,7 @@ function marketplacePublicPage(req) {
   const mLogo = brandLogoLightUrl() || (_brand.logoExt ? ('/api/brand/logo?v=' + encodeURIComponent(_brand.updatedAt || '')) : '');
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${org} — Opportunities</title>
+<meta name="description" content="${esc(H.lede || 'Confidential restaurant & bar businesses for acquisition, plus restaurant real estate and turnkey asset sales across Texas.')}">${seoMeta(req,{path:'/market',title:(orgDisplayName()||'Restaurant Realty Group')+" — Opportunities",description:(H.lede||'Confidential restaurant & bar businesses for acquisition, plus restaurant real estate and turnkey asset sales across Texas.')})}${orgJsonLd(req)}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
