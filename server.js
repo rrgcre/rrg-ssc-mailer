@@ -8067,7 +8067,7 @@ function siteMultiUnitPage(req) {
 </div></section>
 
 <section id="process" class="process"><div class="wrap">
-  <div class="sec-head"><div class="eyebrow">The process</div><div class="h2">How a portfolio sale runs</div>
+  <div class="sec-head"><div class="eyebrow">The process</div><div class="h2">How we run portfolio sales</div>
   <p class="lead">A disciplined, controlled path built for scale — from portfolio valuation to a single coordinated close across every location.</p></div>
   <div class="ppanel on" style="margin-top:38px"><div class="steps">${stepHtml}</div></div>
 </div></section>
