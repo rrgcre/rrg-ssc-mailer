@@ -6958,7 +6958,7 @@ function defaultWebsite() {
       { t: 'A clean close', d: 'Lease assignment, license transfer, equipment, and closing — quarterbacked end to end so the deal actually finishes.' }
     ],
     sellFaqs: [
-      { q: 'Will anyone know my restaurant is for sale?', a: 'No. We market every business blind — no name, no address, no identifying photos — until a buyer is qualified and under NDA. Your team, your regulars, your vendors, and your landlord stay in the dark until you decide otherwise.' },
+      { q: 'Will anyone know my restaurant is for sale?', a: 'Not from us, and not from our process. We market every business blind — no name, no address, no identifying photos — and no buyer sees a single identifying detail until they’re qualified and under NDA. That keeps your team, your regulars, your vendors, and your landlord out of it until you choose to tell them. We’ll be straight with you: in a business built on people, no one can promise a secret is never spoken out of turn — controlling who knows is exactly what our process is built to do, and the vast majority of our sales close before anyone outside the room is aware.' },
       { q: 'What is my restaurant actually worth?', a: 'It depends on your earnings, lease, equipment, and the strength of the concept — not a multiple off the internet. We build a defensible valuation from your real numbers and current market comps before we ever talk price publicly. Start with a confidential valuation and you will know where you stand.' },
       { q: 'What does it cost to work with you?', a: 'Our fee is success-based — we are paid when your deal closes, aligned with getting you the best outcome. There is no cost to get a valuation or to talk through your options.' },
       { q: 'How long does a sale take?', a: 'Most restaurant sales run a few months from go-to-market to close, depending on price, lease, and buyer financing. A clean, well-priced, well-documented deal moves faster — which is exactly what our process is built to produce.' },
@@ -7551,7 +7551,7 @@ function siteSecurePage(req) {
 </div></section>
 
 <section id="process" class="process"><div class="wrap">
-  <div class="sec-head"><div class="eyebrow">The process</div><div class="h2">How a site search runs</div>
+  <div class="sec-head"><div class="eyebrow">The process</div><div class="h2">How we run your search</div>
   <p class="lead">A disciplined path from criteria to open doors — built to land the right space on the right terms.</p></div>
   <div class="ppanel on" style="margin-top:38px"><div class="steps">${stepHtml}</div></div>
 </div></section>
@@ -7720,7 +7720,7 @@ function siteOperatorPage(req) {
 </div></section>
 
 <section id="process" class="process"><div class="wrap">
-  <div class="sec-head"><div class="eyebrow">The process</div><div class="h2">How a placement runs</div>
+  <div class="sec-head"><div class="eyebrow">The process</div><div class="h2">How we place your operator</div>
   <p class="lead">A controlled path from understanding your space to a signed, qualified operator ready to open.</p></div>
   <div class="ppanel on" style="margin-top:38px"><div class="steps">${stepHtml}</div></div>
 </div></section>
@@ -7887,7 +7887,7 @@ function siteExitPage(req) {
 </div></section>
 
 <section id="process" class="process"><div class="wrap">
-  <div class="sec-head"><div class="eyebrow">The process</div><div class="h2">How a clean exit runs</div>
+  <div class="sec-head"><div class="eyebrow">The process</div><div class="h2">How we run your exit</div>
   <p class="lead">A controlled path from reading the lease to handing over the keys — built to protect your recovery and release your liability.</p></div>
   <div class="ppanel on" style="margin-top:38px"><div class="steps">${stepHtml}</div></div>
 </div></section>
@@ -8373,7 +8373,7 @@ function siteSellPage(req) {
 </div></section>
 
 <section id="process" class="process"><div class="wrap">
-  <div class="sec-head"><div class="eyebrow">The process</div><div class="h2">How a sale runs</div>
+  <div class="sec-head"><div class="eyebrow">The process</div><div class="h2">How we run your sale</div>
   <p class="lead">A disciplined, controlled path from first valuation to a clean close — built to protect your confidentiality and your leverage at every step.</p></div>
   <div class="ppanel on" style="margin-top:38px"><div class="steps">${stepHtml}</div></div>
 </div></section>
