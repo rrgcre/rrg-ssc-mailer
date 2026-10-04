@@ -171,6 +171,7 @@ function coLeads(){ var m={}; (LEADSOURCES||[]).forEach(function(x){ if(x) m[x]=
 function coMarkets(){ var m={}; (METROS||[]).forEach(function(x){ if(x) m[x]=1; }); (ALL||[]).forEach(function(c){ (c.markets||[]).forEach(function(x){ if(x) m[x]=1; }); }); return Object.keys(m).sort(); }
 function coTags(){ var m={}; (ALL||[]).forEach(function(c){ (c.tags||[]).forEach(function(x){ if(x) m[x]=1; }); }); return Object.keys(m).sort(); }
 var CF=(window.RRGFilters&&document.getElementById('filterBtn'))?RRGFilters.create({ list:'companies', title:'companies', button:document.getElementById('filterBtn'), isAdmin:function(){return IS_ADMIN;}, fields:[
+  { key:'star', label:'Starred', type:'bool', get:function(c){return !!c.star;} },
   { key:'types', label:'Type', type:'multi', options:function(){return CTYPES;}, get:function(c){return c.type||'';} },
   { key:'markets', label:'Market', type:'multiany', options:coMarkets, get:function(c){return c.markets||[];} },
   { key:'owners', label:'Owner', type:'multi', options:coOwners, get:function(c){return c.owner||'';} },

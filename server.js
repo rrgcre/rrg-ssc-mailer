@@ -1470,7 +1470,7 @@ app.use(express.urlencoded({ extended: false }));
 const OPEN = new Set(['/health', '/login', '/api/login', '/logout', '/favicon.ico', '/api/appname', '/api/brand', '/api/brand/logo', '/api/brand/logo/light', '/rrg_brand.js', '/rrg_theme.css', '/api/gmail/callback']);
 app.use((req, res, next) => {
   // Buyer-facing data-room links are public (the unguessable token is the gate).
-  if (OPEN.has(req.path) || req.path.startsWith('/room/') || req.path.startsWith('/deal/') || req.path.startsWith('/roomfile/') || req.path.startsWith('/roomview/') || req.path.startsWith('/vendor/') || req.path.startsWith('/sign/') || req.path.startsWith('/api/sign/') || req.path.startsWith('/eo/') || req.path.startsWith('/ec/') || req.path.startsWith('/u/') || req.path.startsWith('/api/u/') || req.path.startsWith('/book/') || req.path.startsWith('/api/book/') || req.path.startsWith('/pay/') || req.path.startsWith('/api/pay/') || req.path === '/api/stripe/webhook' || req.path === '/api/mail/ses-webhook' || req.path.startsWith('/mail/') || req.path === '/market' || req.path === '/api/market/public' || req.path === '/api/market/request-access' || req.path === '/site' || req.path.startsWith('/site/') || req.path === '/api/website/public' || req.path === '/api/website/lead' || req.path === '/api/website/subscribe' || req.path === '/api/website/hero-image' || req.path === '/rrg_anniversary.png' || req.path.startsWith('/api/property-public-photo/') || req.path.startsWith('/s/') || req.path === '/seller_intake.html' || req.path === '/seller_record.html') return next();
+  if (OPEN.has(req.path) || req.path.startsWith('/room/') || req.path.startsWith('/deal/') || req.path.startsWith('/roomfile/') || req.path.startsWith('/roomview/') || req.path.startsWith('/vendor/') || req.path.startsWith('/sign/') || req.path.startsWith('/api/sign/') || req.path.startsWith('/eo/') || req.path.startsWith('/ec/') || req.path.startsWith('/u/') || req.path.startsWith('/api/u/') || req.path.startsWith('/book/') || req.path.startsWith('/api/book/') || req.path.startsWith('/pay/') || req.path.startsWith('/api/pay/') || req.path === '/api/stripe/webhook' || req.path === '/api/mail/ses-webhook' || req.path.startsWith('/mail/') || req.path === '/market' || req.path === '/api/market/public' || req.path === '/api/market/request-access' || req.path === '/site' || req.path.startsWith('/site/') || req.path === '/api/website/public' || req.path === '/api/website/lead' || req.path === '/api/website/subscribe' || req.path === '/api/website/hero-image' || req.path.startsWith('/api/property-public-photo/') || req.path.startsWith('/s/') || req.path === '/seller_intake.html' || req.path === '/seller_record.html') return next();
   const sess = auth.readSession(parseCookies(req)[COOKIE]);
   if (sess) {
     req.user = sess;
@@ -8657,9 +8657,6 @@ footer{background:#05081a;color:#8597b8;font-size:13px;padding:40px 0 30px;}
 .herogrid.solo{grid-template-columns:1fr;max-width:860px;}
 /* track record */
 .track{background:var(--navy);color:#fff;}
-.annwrap{display:flex;justify-content:center;margin-bottom:30px;}
-.annemblem{width:360px;max-width:80%;height:auto;background:#fff;border-radius:18px;box-shadow:0 14px 34px rgba(0,0,0,.28);}
-@media(max-width:560px){.annemblem{width:250px;}}
 .track .eyebrow{color:var(--blue2);} .track .h2{color:#fff;} .track .lead{color:#c3cee2;}
 .wins{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:38px;}
 @media(max-width:860px){.wins{grid-template-columns:repeat(2,1fr);}}
@@ -8949,7 +8946,6 @@ ${SITE_CSS}
 </div></section>
 
 <section id="track" class="track"><div class="wrap">
-  <div class="annwrap"><img class="annemblem" src="/rrg_anniversary.png" alt="Restaurant Realty Group — 10 Year Anniversary · 2016–2026" width="380" height="267" loading="lazy"></div>
   <div class="sec-head"><div class="eyebrow">Track record</div><div class="h2">Deals we&rsquo;ve closed</div>
   <p class="lead">A sample of recent restaurant transactions across Texas &mdash; sales, leases, and operator placements.</p></div>
   ${trackStatsHtml}
