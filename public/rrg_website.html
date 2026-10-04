@@ -75,6 +75,16 @@ textarea{min-height:76px;resize:vertical;}
 .wmnav a:hover{color:var(--navy);border-color:#c3ccdf;}
 .wmnav a.active{color:#fff;background:var(--navy);border-color:var(--navy);}
 @media(max-width:640px){.wmnav-inner{padding:8px 16px;}}
+/* collapsible sections (added) */
+.card > h2{cursor:pointer;user-select:none;}
+.card > h2::before{content:'\25be';display:inline-block;width:13px;color:#9aa4b8;font-size:11px;}
+.card.collapsed > h2::before{content:'\25b8';}
+.card.collapsed > *:not(h2){display:none!important;}
+.card.collapsed{padding-bottom:14px;}
+.wmnav-bar{max-width:1080px;margin:0 auto;padding:7px 24px;display:flex;align-items:center;gap:10px;}
+.wmnav-bar .wmnav-inner{max-width:none;margin:0;padding:0;flex:1;min-width:0;}
+.wmnav-all{flex:none;font-size:11px;font-weight:700;color:var(--navy);background:#fff;border:1px solid #cfd6e2;border-radius:7px;padding:6px 10px;cursor:pointer;white-space:nowrap;}
+.wmnav-all:hover{border-color:#9aa4b8;}
 </style>
 </head>
 <body>
@@ -398,32 +408,43 @@ document.getElementById('saveBtn').addEventListener('click',save);
 load();
 </script>
 <script>
-/* Section jump-nav for the long editor form (added) */
+/* Section jump-nav + collapsible sections for the long editor form (added) */
 (function(){
   function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
   function slug(s){return 'sec-'+String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40);}
   function shortLabel(n){return n.replace(/\s+page$/i,'').replace(/^Listing-alert\s+/i,'Alert: ').replace(/Track-record totals/i,'Track record').replace(/Selected transactions/i,'Transactions').replace(/Connect your domain/i,'Domain').replace(/Listing-alert subscribers/i,'Subscribers').replace(/Lead inbox/i,'Leads');}
+  function lsGet(id){ try{ return localStorage.getItem('wmcol:'+id)==='1'; }catch(e){ return false; } }
+  function lsSet(id,v){ try{ if(v) localStorage.setItem('wmcol:'+id,'1'); else localStorage.removeItem('wmcol:'+id); }catch(e){} }
+  function cardList(){ var w=document.getElementById('wrap'); return w?Array.prototype.filter.call(w.querySelectorAll('.card'),function(c){return c.querySelector('h2');}):[]; }
+  function setCollapsed(c,v){ c.classList.toggle('collapsed',!!v); if(c.id) lsSet(c.id,!!v); }
+  function updateAllBtn(){ var b=document.getElementById('wmAll'); if(!b)return; var anyOpen=cardList().some(function(c){return !c.classList.contains('collapsed');}); b.textContent=anyOpen?'Collapse all':'Expand all'; }
   function build(){
     var wrap=document.getElementById('wrap'); if(!wrap) return;
-    var cards=Array.prototype.filter.call(wrap.querySelectorAll('.card'),function(c){return c.querySelector('h2');});
-    if(!cards.length) return;
+    var cs=cardList(); if(!cs.length) return;
     var used={}, chips='';
-    cards.forEach(function(c){ var h=c.querySelector('h2'); var raw=(h.textContent||'').split('\u00b7')[0].trim(); if(!raw) raw='Section'; var id=slug(raw); while(used[id])id+='x'; used[id]=1; c.id=id; chips+='<a data-sec="'+id+'" href="#'+id+'">'+esc(shortLabel(raw))+'</a>'; });
+    cs.forEach(function(c){
+      var h=c.querySelector('h2'); var raw=(h.textContent||'').split('\u00b7')[0].trim(); if(!raw) raw='Section';
+      var id=slug(raw); while(used[id])id+='x'; used[id]=1; c.id=id;
+      chips+='<a data-sec="'+id+'" href="#'+id+'">'+esc(shortLabel(raw))+'</a>';
+      if(!h._wmTog){ h._wmTog=1; h.addEventListener('click',function(){ setCollapsed(c,!c.classList.contains('collapsed')); updateAllBtn(); }); }
+      if(lsGet(id)) c.classList.add('collapsed');
+    });
     var nav=document.getElementById('wmnav');
-    var html='<div class="wmnav-inner"><span class="lbl">Jump to</span>'+chips+'</div>';
-    if(!nav){ nav=document.createElement('nav'); nav.className='wmnav'; nav.id='wmnav'; nav.innerHTML=html; wrap.parentNode.insertBefore(nav,wrap); }
-    else if(nav._sig!==chips){ nav.innerHTML=html; }
+    var bar='<div class="wmnav-bar"><div class="wmnav-inner"><span class="lbl">Jump to</span>'+chips+'</div><button type="button" class="wmnav-all" id="wmAll">Collapse all</button></div>';
+    if(!nav){ nav=document.createElement('nav'); nav.className='wmnav'; nav.id='wmnav'; nav.innerHTML=bar; wrap.parentNode.insertBefore(nav,wrap); }
+    else if(nav._sig!==chips){ nav.innerHTML=bar; }
     nav._sig=chips;
     var inner=nav.querySelector('.wmnav-inner');
-    Array.prototype.forEach.call(inner.querySelectorAll('a[data-sec]'),function(a){ a.onclick=function(e){ e.preventDefault(); var c=document.getElementById(a.getAttribute('data-sec')); if(!c)return; var y=c.getBoundingClientRect().top+window.pageYOffset-(nav.offsetHeight+14); window.scrollTo({top:y,behavior:'smooth'}); }; });
+    Array.prototype.forEach.call(inner.querySelectorAll('a[data-sec]'),function(a){ a.onclick=function(e){ e.preventDefault(); var c=document.getElementById(a.getAttribute('data-sec')); if(!c)return; if(c.classList.contains('collapsed')) setCollapsed(c,false); var y=c.getBoundingClientRect().top+window.pageYOffset-(nav.offsetHeight+14); window.scrollTo({top:y,behavior:'smooth'}); updateAllBtn(); }; });
+    var allBtn=nav.querySelector('#wmAll'); if(allBtn){ allBtn.onclick=function(){ var cl=cardList(); var anyOpen=cl.some(function(c){return !c.classList.contains('collapsed');}); cl.forEach(function(c){ setCollapsed(c,anyOpen); }); updateAllBtn(); if(anyOpen) window.scrollTo({top:0,behavior:'smooth'}); }; }
+    updateAllBtn();
     nav._cur=null; spy(nav);
   }
   function spy(nav){
-    var wrap=document.getElementById('wrap'); if(!wrap)return;
-    var cards=Array.prototype.slice.call(wrap.querySelectorAll('.card[id]'));
+    var cs=cardList().filter(function(c){return c.id;});
     var navH=nav.offsetHeight+22, cur=null;
-    for(var i=0;i<cards.length;i++){ if(cards[i].getBoundingClientRect().top<=navH) cur=cards[i]; }
-    if(!cur&&cards.length) cur=cards[0];
+    for(var i=0;i<cs.length;i++){ if(cs[i].getBoundingClientRect().top<=navH) cur=cs[i]; }
+    if(!cur&&cs.length) cur=cs[0];
     var id=cur?cur.id:null;
     if(id===nav._cur) return; nav._cur=id;
     var inner=nav.querySelector('.wmnav-inner');
