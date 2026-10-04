@@ -6935,7 +6935,8 @@ function defaultWebsite() {
       { t: 'Sell Your Restaurant', d: 'Positioning, pricing, and managing the sale with qualified, vetted buyers — confidentially.' },
       { t: 'Exit a Leased Location', d: 'Structuring clean exits from underperforming or unwanted sites.' },
       { t: 'Secure the Right Location', d: 'Identifying and negotiating the right restaurant space for your concept.' },
-      { t: 'Place the Right Operator', d: 'Connecting qualified operators with the right properties and landlords.' }
+      { t: 'Place the Right Operator', d: 'Connecting qualified operators with the right properties and landlords.' },
+      { t: 'Asset & Turnkey Sales', d: 'Selling restaurant equipment, build-out, and turnkey second-generation space to operators who want to open faster.' }
     ],
     servicesHead: 'Full-service representation across food & beverage',
     servicesLead: 'Whatever the concept, we run the entire transaction — from first valuation to a clean close — for sellers, buyers, landlords, and tenants.',
@@ -7433,7 +7434,7 @@ app.get('/robots.txt', (req, res) => {
 });
 app.get('/sitemap.xml', (req, res) => {
   const base = siteBaseUrl(req);
-  const paths = ['/site', '/site/sell', '/site/multi-unit', '/site/exit', '/site/secure', '/site/place', '/site/subscribe', '/market'];
+  const paths = ['/site', '/site/sell', '/site/multi-unit', '/site/exit', '/site/secure', '/site/place', '/site/assets', '/site/subscribe', '/market'];
   const today = new Date().toISOString().slice(0, 10);
   const urls = paths.map(function (p) {
     return '<url><loc>' + esc(base + p) + '</loc><lastmod>' + today + '</lastmod><changefreq>weekly</changefreq><priority>' + (p === '/site' ? '1.0' : '0.8') + '</priority></url>';
@@ -7519,7 +7520,7 @@ function siteSecurePage(req) {
 <header><div class="wrap"><nav class="nav">
   <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
-  <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a></div></div>
+  <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a></div></div>
   <a class="navlink" href="/market">Opportunities</a>
   <a class="navlink" href="#process">How we work</a>
   <a class="navlink" href="#track">Track record</a>
@@ -7595,7 +7596,7 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
       <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
-    <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/subscribe">Listing alerts</a></div>
+    <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/subscribe">Listing alerts</a></div>
     <div><h4>Offices</h4>${offLinks}</div>
   </div>
   <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
@@ -7688,7 +7689,7 @@ function siteOperatorPage(req) {
 <header><div class="wrap"><nav class="nav">
   <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
-  <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a></div></div>
+  <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a></div></div>
   <a class="navlink" href="/market">Opportunities</a>
   <a class="navlink" href="#process">How we work</a>
   <a class="navlink" href="#track">Track record</a>
@@ -7764,7 +7765,7 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
       <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
-    <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/subscribe">Listing alerts</a></div>
+    <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/subscribe">Listing alerts</a></div>
     <div><h4>Offices</h4>${offLinks}</div>
   </div>
   <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
@@ -7855,7 +7856,7 @@ function siteExitPage(req) {
 <header><div class="wrap"><nav class="nav">
   <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
-  <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a></div></div>
+  <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a></div></div>
   <a class="navlink" href="/market">Opportunities</a>
   <a class="navlink" href="#process">How we work</a>
   <a class="navlink" href="#track">Track record</a>
@@ -7931,7 +7932,7 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
       <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
-    <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/subscribe">Listing alerts</a></div>
+    <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/subscribe">Listing alerts</a></div>
     <div><h4>Offices</h4>${offLinks}</div>
   </div>
   <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
@@ -7958,6 +7959,197 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
 </body></html>`;
 }
 
+
+app.get('/site/assets', (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8').send(siteAssetPage(req)); });
+function siteAssetPage(req) {
+  const s = loadWebsite();
+  const org = esc(s.brand || orgDisplayName() || 'Restaurant Realty Group');
+  const year = new Date().getFullYear();
+  const bookUrl = String(s.bookingUrl || '').replace(/["'<>]/g, '').trim();
+  const bookBtn = bookUrl ? ('<a class="btn gold" href="' + bookUrl + '" target="_blank" rel="noopener">📅 Book a call</a>') : '';
+  const email = esc(s.contactEmail || '');
+
+  const HERO_HEAD = s.assetHeroHead || 'Sell your restaurant’s assets — turn a closed space into cash.';
+  const HERO_SUB = s.assetHeroSub || 'Equipment, hoods, walk-ins, build-out, and the lease itself — packaged and sold to the operator who wants a turnkey second-generation space. Whether you’ve closed, you’re a landlord with a vacated restaurant, or you’re clearing a location you own, we turn stranded assets into real money — without a fire-sale price.';
+
+  const STEPS = (Array.isArray(s.assetSteps) && s.assetSteps.length) ? s.assetSteps : [
+    { t: 'Inventory & value', d: 'We walk the space and price the FF&E, hood, refrigeration, and leasehold improvements at what a replacement operator will actually pay — not a liquidator’s lowball.' },
+    { t: 'Package the space', d: 'Photos, an equipment schedule, floor plan, and the turnkey story — assembled into a listing that sells the built-out kitchen, not just a pile of used gear.' },
+    { t: 'Market openly', d: 'Listed on our marketplace and taken straight to our network of operators and investors hunting second-generation space — so every qualified buyer sees it.' },
+    { t: 'Qualify buyers', d: 'We screen for operators who can actually close and, where a lease is involved, who the landlord will approve.' },
+    { t: 'Structure the deal', d: 'An asset sale on its own, or paired with a lease assignment or new lease — structured to maximize your recovery.' },
+    { t: 'Close & hand off', d: 'Bill of sale, equipment transfer, lease paperwork where it applies, and keys — documented and closed clean.' }
+  ];
+  const stepHtml = STEPS.slice(0, 8).map(function (x, j) { return '<div class="step"><div class="stepn">' + (j + 1) + '</div><div class="stepb"><div class="stept">' + esc(x.t || '') + '</div><div class="stepd">' + esc(x.d || '') + '</div></div></div>'; }).join('');
+
+  const VALUES = (Array.isArray(s.assetValues) && s.assetValues.length) ? s.assetValues : [
+    { t: 'Your build-out is worth money', d: 'A hood, walk-in, grease trap, and finished kitchen cost a fortune to build. To the right incoming operator they’re a shortcut worth paying for — we price and sell them instead of handing them to a liquidator for pennies.' },
+    { t: 'Buyers who want turnkey', d: 'We keep a live network of operators and investors hunting second-generation restaurant space to open faster and cheaper. Your assets go straight to the people who value them most.' },
+    { t: 'Marketed in the open', d: 'Unlike a confidential business sale, asset and turnkey listings are marketed openly — real photos, specs, and location — so they reach every qualified buyer and move quickly.' },
+    { t: 'A clean handoff', d: 'Bill of sale, equipment lists, lease assignment where it applies, and a coordinated closing — so the deal actually finishes and the space changes hands clean.' }
+  ];
+  const VIC = [
+    '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7.2v5l3.2 2" fill="none" stroke="#eef3fb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.6 12.6V5.3A1.7 1.7 0 0 1 5.3 3.6h7.3a1.7 1.7 0 0 1 1.2.5l6.1 6.1a1.7 1.7 0 0 1 0 2.4l-7.3 7.3a1.7 1.7 0 0 1-2.4 0l-6.1-6.1a1.7 1.7 0 0 1-.5-1.2Z"/><circle cx="7.7" cy="7.7" r="1.5" fill="#eef3fb"/></svg>',
+    '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="8" r="4.6"/><path d="M11 11 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M17.4 17.4l1.8-1.8M14.8 14.8l1.8-1.8" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>',
+    '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 2.5h8l4 4v15a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1Z"/><path d="M8.5 13.3l2.2 2.2 4.3-4.6" fill="none" stroke="#eef3fb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+  ];
+  const valueHtml = VALUES.map(function (v, i) { return '<div class="svc" style="box-shadow:0 10px 26px rgba(10,20,50,.09)"><div class="svcic">' + (VIC[i] || VIC[0]) + '</div><div class="svct">' + esc(v.t || '') + '</div><div class="svcd">' + esc(v.d || '') + '</div></div>'; }).join('');
+
+  const FAQS = (Array.isArray(s.assetFaqs) && s.assetFaqs.length) ? s.assetFaqs : [
+    { q: 'What counts as an asset sale?', a: 'Selling the physical assets of a restaurant — equipment, hood and refrigeration, furniture, and the built-out space itself — rather than an operating business. It’s the right path when a location has closed, when you’re a landlord with a vacated restaurant, or when you want to recover value from a build-out instead of walking away from it.' },
+    { q: 'My restaurant already closed — is it too late?', a: 'No. The build-out, hood, walk-ins, and equipment in a former restaurant are worth real money to an operator who wants a second-generation space instead of building from scratch. We sell those assets rather than letting you hand them back for nothing.' },
+    { q: 'I’m a landlord with a vacated restaurant space. Can you help?', a: 'Yes. A turnkey second-generation space with equipment already in place leases and sells faster — and for more — than an empty box. We package and market it to restaurant operators specifically, the buyers who pay for a kitchen that’s ready to go.' },
+    { q: 'Do I have to sell the lease too?', a: 'Not necessarily. We sell the assets on their own, or pair them with a lease assignment or a new lease when that gets you the best outcome — whatever recovers the most value and fits your situation.' },
+    { q: 'What are my assets actually worth?', a: 'It depends on the age and quality of the equipment, the build-out, the lease, and demand for the location. We build a real number from the assets and current market demand — not a liquidator’s lowball — and tell you where you stand before anything goes to market.' }
+  ];
+  const faqHtml = FAQS.map(function (f) { return '<details class="faq"><summary>' + esc(f.q || '') + '</summary><div class="fa">' + esc(f.a || '') + '</div></details>'; }).join('');
+
+  const asRe = /asset|turnkey|2nd[- ]?gen|second[- ]?gen|equipment|ff&e|endcap|lease/i;
+  const asWins = (s.wins || []).filter(function (w) { return asRe.test(String((w && w.label) || '') + ' ' + String((w && w.detail) || '') + ' ' + String((w && w.type) || '')); });
+  const winSrc = asWins.length ? asWins : (s.wins || []).slice(0, 6);
+  const winHtml = winSrc.slice(0, 6).map(function (w) { const type = String(w.type || '').toLowerCase(); const cls = type.indexOf('sold') >= 0 ? 'sold' : (type.indexOf('leas') >= 0 ? 'leased' : (type.indexOf('plac') >= 0 ? 'placed' : 'other')); const meta = [esc(w.market || ''), esc(w.detail || '')].filter(Boolean).join(' &middot; '); return '<div class="win"><span class="wtag ' + cls + '">' + esc(w.type || 'Closed') + '</span><div class="wl">' + esc(w.label || '') + '</div>' + (w.value ? ('<div class="wval">' + esc(w.value) + '</div>') : '') + (meta ? ('<div class="wm">' + meta + '</div>') : '') + '</div>'; }).join('');
+  const hasWins = !!winHtml;
+
+  const bookRow = bookUrl ? ('<div style="margin-top:20px"><div style="font-size:12.5px;color:#9fb0cc;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:9px">Prefer to grab a time?</div>' + bookBtn + '</div>') : '';
+  const emailRow = email ? ('<p class="lead" style="margin-top:14px">Prefer email? <a style="color:#fff;font-weight:800" href="mailto:' + email + '">' + email + '</a></p>') : '';
+  const offLinks = (s.offices || []).map(function (o) { const tel = String(o.phone || '').replace(/[^0-9+]/g, ''); return '<a href="tel:' + tel + '">' + esc(o.city || '') + ' &middot; ' + esc(o.phone || '') + '</a>'; }).join('');
+
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Asset Sales &amp; Turnkey Spaces — ${org}</title>
+<meta name="description" content="Sell restaurant assets and turnkey space with ${org}. We value and sell equipment, FF&amp;E, hoods, and built-out second-generation restaurant space — openly marketed to operators who want turnkey, so you recover real value from a closed or vacated location.">${seoMeta(req,{path:'/site/assets',title:"Asset Sales & Turnkey Spaces — "+(s.brand||orgDisplayName()||'Restaurant Realty Group'),description:"Sell restaurant assets and turnkey space with "+(s.brand||orgDisplayName()||'Restaurant Realty Group')+". We value and sell equipment, FF&E, and built-out second-generation restaurant space — openly marketed to operators who want turnkey, so you recover real value from a closed or vacated location."})}${orgJsonLd(req)}
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>${SITE_CSS}</style>
+<style>
+.shero{position:relative;background:linear-gradient(115deg,#060e22,#0a1733 55%,#122a5a);color:#fff;padding:52px 0 78px;overflow:hidden;}
+.shero::after{content:'';position:absolute;right:-140px;top:-140px;width:460px;height:460px;border-radius:50%;background:radial-gradient(circle,rgba(200,162,75,.16),transparent 70%);pointer-events:none;}
+.shero .wrap{position:relative;z-index:1;}
+.shero .eyebrow{color:var(--gold2);}
+.shero h1{font-family:'Fraunces',serif;font-weight:600;font-size:52px;line-height:1.05;letter-spacing:-.015em;margin:14px 0 0;max-width:18ch;text-wrap:balance;}
+@media(max-width:720px){.shero h1{font-size:34px;}}
+.shero .sub{color:#c6d1e6;font-size:18px;line-height:1.55;max-width:62ch;margin:20px 0 0;}
+.sherocta{display:flex;flex-wrap:wrap;gap:14px;margin-top:30px;}
+.strust{display:flex;flex-wrap:wrap;gap:10px 28px;margin-top:32px;color:#9fb0cc;font-size:13px;font-weight:700;}
+.strust span{display:inline-flex;align-items:center;gap:9px;}
+.strust b{color:var(--gold2);font-weight:800;}
+.sback{display:inline-flex;align-items:center;gap:7px;color:#9fb0cc;font-size:13px;font-weight:700;text-decoration:none;}
+.sback:hover{color:#fff;}
+.svalue{background:var(--cream);}
+.faqwrap{margin-top:38px;display:grid;gap:12px;max-width:840px;}
+.faq{border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden;box-shadow:0 2px 10px rgba(10,20,50,.04);}
+.faq summary{cursor:pointer;list-style:none;padding:19px 22px;font-family:'Fraunces',serif;font-weight:600;font-size:18px;color:var(--navy);display:flex;justify-content:space-between;align-items:center;gap:16px;}
+.faq summary::-webkit-details-marker{display:none;}
+.faq summary::after{content:'+';font-family:Inter,sans-serif;font-size:26px;color:var(--gold);font-weight:400;line-height:1;transition:transform .2s;}
+.faq[open] summary::after{transform:rotate(45deg);}
+.faq .fa{padding:0 22px 20px;color:var(--muted);font-size:15px;line-height:1.62;max-width:72ch;}
+</style></head>
+<body>
+<header><div class="wrap"><nav class="nav">
+  <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
+  <span class="sp"></span>
+  <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a></div></div>
+  <a class="navlink" href="/market">Opportunities</a>
+  <a class="navlink" href="#process">How we work</a>
+  <a class="navlink" href="#track">Track record</a>
+  <a class="navlink" href="/site#markets">Markets</a>
+  <a class="navlink" href="/site/subscribe">Listing alerts</a>
+  <a class="navcta" href="#contact">Talk about your assets</a>
+</nav></div></header>
+
+<section class="shero"><div class="wrap">
+  <a class="sback" href="/site">&larr; Back to ${org}</a>
+  <div class="eyebrow" style="margin-top:16px">Asset sales &amp; turnkey spaces</div>
+  <h1>${esc(HERO_HEAD)}</h1>
+  <p class="sub">${esc(HERO_SUB)}</p>
+  <div class="sherocta">
+    <a class="btn red" href="#contact">Talk about your assets</a>
+    ${bookUrl ? bookBtn : '<a class="btn ghost" href="#process">See how it works</a>'}
+  </div>
+  <div class="strust">
+    <span><b>FF&amp;E</b> + build-out valued</span>
+    <span><b>Turnkey</b> buyers in our network</span>
+    <span><b>Sold</b>, not scrapped</span>
+  </div>
+</div></section>
+
+<section class="svalue"><div class="wrap">
+  <div class="sec-head"><div class="eyebrow">Why sell your assets with RRG</div><div class="h2">Turn stranded assets into real money</div>
+  <p class="lead">A closed or vacated restaurant is full of value — a built-out kitchen, equipment, and a location an operator wants. We sell that to the people who pay for turnkey, instead of letting it go to a liquidator for pennies.</p></div>
+  <div class="svcs">${valueHtml}</div>
+</div></section>
+
+<section id="process" class="process"><div class="wrap">
+  <div class="sec-head"><div class="eyebrow">The process</div><div class="h2">How we run an asset sale</div>
+  <p class="lead">A controlled path from pricing the equipment to handing over the keys — built to recover the most value from what you built.</p></div>
+  <div class="ppanel on" style="margin-top:38px"><div class="steps">${stepHtml}</div></div>
+</div></section>
+
+${hasWins ? `<section id="track" class="track"><div class="wrap">
+  <div class="sec-head"><div class="eyebrow">Proof</div><div class="h2">Asset &amp; turnkey sales we've closed</div>
+  <p class="lead">A sample of closed transactions. Details kept confidential — no client names needed to show the work.</p></div>
+  <div class="wins">${winHtml}</div>
+  <div class="trackfoot">Representative closings across Texas. Your outcome depends on your equipment, your space, and the market.</div>
+</div></section>` : ''}
+
+<section class="svalue"><div class="wrap">
+  <div class="sec-head"><div class="eyebrow">Common questions</div><div class="h2">Answered, straight</div>
+  <p class="lead">What owners and landlords ask about selling restaurant assets.</p></div>
+  <div class="faqwrap">${faqHtml}</div>
+</div></section>
+
+<section id="contact" class="contact"><div class="wrap"><div class="cgrid">
+  <div>
+    <div class="eyebrow">Start here</div>
+    <div class="h2">Let’s put a number on it</div>
+    <p class="lead">Tell us about the space and what’s in it — the concept, the location, the equipment and build-out, and whether a lease is involved. On our first call we’ll tell you what your assets are realistically worth and the fastest clean path to selling them. Confidential, and no obligation.</p>
+    ${bookRow}
+    ${emailRow}
+  </div>
+  <form class="form" id="leadForm" novalidate>
+    <div class="row">
+      <div class="fld"><label>Name</label><input id="lf_name" autocomplete="name" required></div>
+      <div class="fld"><label>Phone</label><input id="lf_phone" autocomplete="tel"></div>
+    </div>
+    <div class="fld"><label>Email</label><input id="lf_email" type="email" autocomplete="email"></div>
+    <div class="fld"><label>Tell us about the space &amp; assets</label><textarea id="lf_message" placeholder="Concept, location/market, what equipment and build-out is in place, whether there’s a lease, and your timeline…"></textarea></div>
+    <input type="hidden" id="lf_interest" value="Asset Sale">
+    <div style="margin-top:18px;display:flex;align-items:center"><button type="submit" class="btn red" id="leadBtn">Talk about my assets</button><span class="lmsg" id="leadMsg"></span></div>
+  </form>
+</div></div></section>
+
+<footer><div class="wrap">
+  <div class="foot">
+    <div>
+      <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
+      <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
+    </div>
+    <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/subscribe">Listing alerts</a></div>
+    <div><h4>Offices</h4>${offLinks}</div>
+  </div>
+  <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
+</div></footer>
+
+<script>
+(function(){
+  var f=document.getElementById('leadForm'); if(!f) return;
+  function val(id){ var el=document.getElementById(id); return el?String(el.value||'').trim():''; }
+  f.addEventListener('submit',function(e){ e.preventDefault();
+    var msg=document.getElementById('leadMsg'), btn=document.getElementById('leadBtn');
+    var body={ name:val('lf_name'), email:val('lf_email'), phone:val('lf_phone'), interest:val('lf_interest')||'Asset Sale', message:val('lf_message') };
+    if(!body.name || (!body.email && !body.phone)){ msg.textContent='Add your name and an email or phone.'; msg.className='lmsg err'; return; }
+    var old=btn.textContent; btn.disabled=true; btn.textContent='Sending…'; msg.textContent='';
+    fetch('/api/website/lead',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+      .then(function(r){return r.json();}).then(function(j){
+        if(j&&j.ok){ f.reset(); document.getElementById('lf_interest').value='Asset Sale'; msg.textContent='Thanks — we’ll be in touch shortly, confidentially.'; msg.className='lmsg ok'; }
+        else { msg.textContent=(j&&j.error)||'Something went wrong. Please call us.'; msg.className='lmsg err'; }
+        btn.disabled=false; btn.textContent=old;
+      }).catch(function(){ msg.textContent='Network error. Please call us.'; msg.className='lmsg err'; btn.disabled=false; btn.textContent=old; });
+  });
+})();
+</script>
+</body></html>`;
+}
 
 // ===== Listing-alert subscribe page: /site/subscribe =====
 app.get('/site/subscribe', (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8').send(siteSubscribePage(req)); });
@@ -8030,7 +8222,7 @@ function siteSubscribePage(req) {
 <header><div class="wrap"><nav class="nav">
   <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
-  <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a></div></div>
+  <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a></div></div>
   <a class="navlink" href="/market">Opportunities</a>
   <a class="navlink" href="/site#process">How we work</a>
   <a class="navlink" href="/site#track">Track record</a>
@@ -8173,7 +8365,7 @@ function siteMultiUnitPage(req) {
 <header><div class="wrap"><nav class="nav">
   <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
-  <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a></div></div>
+  <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a></div></div>
   <a class="navlink" href="/market">Opportunities</a>
   <a class="navlink" href="#process">How we work</a>
   <a class="navlink" href="#track">Track record</a>
@@ -8249,7 +8441,7 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
       <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
-    <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/subscribe">Listing alerts</a></div>
+    <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/subscribe">Listing alerts</a></div>
     <div><h4>Offices</h4>${offLinks}</div>
   </div>
   <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
@@ -8341,7 +8533,7 @@ function siteSellPage(req) {
 <header><div class="wrap"><nav class="nav">
   <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
-  <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a></div></div>
+  <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a></div></div>
   <a class="navlink" href="/market">Opportunities</a>
   <a class="navlink" href="#process">How we work</a>
   <a class="navlink" href="#track">Track record</a>
@@ -8417,7 +8609,7 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
       <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
-    <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/subscribe">Listing alerts</a></div>
+    <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/subscribe">Listing alerts</a></div>
     <div><h4>Offices</h4>${offLinks}</div>
   </div>
   <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
@@ -8746,7 +8938,7 @@ function publicSitePage(req) {
     const oi = i + 1;
     const arrow = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
     const t = String(x.t || '');
-    const detailHref = (/\bsell\b|selling|sale/i.test(t)) ? '/site/sell' : ((/\bexit\b|leav|leased location|lease/i.test(t)) ? '/site/exit' : ((/secure|right location|\bsite\b|\bspace\b/i.test(t)) ? '/site/secure' : ((/\bplace\b|operator/i.test(t)) ? '/site/place' : '')));
+    const detailHref = (/asset|turnkey|equipment|ff&e/i.test(t)) ? '/site/assets' : ((/\bsell\b|selling|sale/i.test(t)) ? '/site/sell' : ((/\bexit\b|leav|leased location|lease/i.test(t)) ? '/site/exit' : ((/secure|right location|\bsite\b|\bspace\b/i.test(t)) ? '/site/secure' : ((/\bplace\b|operator/i.test(t)) ? '/site/place' : ''))));
     const inner = '<div class="svcic">' + ic + '</div><div class="svct">' + esc(x.t || '') + '</div><div class="svcd">' + esc(x.d || '') + '</div>';
     if (detailHref) {
       return '<a class="svc" href="' + detailHref + '">' + inner + '<span class="svccta">Learn more' + arrow + '</span></a>';
@@ -8885,7 +9077,7 @@ ${SITE_CSS}
 <header><div class="wrap"><nav class="nav">
   <a class="brand" href="#top"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
-  <div class="navdd"><a class="navlink" href="#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a></div></div>
+  <div class="navdd"><a class="navlink" href="#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a></div></div>
   <a class="navlink" href="/market">Opportunities</a>
   <a class="navlink" href="#process">How we work</a>
   <a class="navlink" href="#track">Track record</a>
@@ -8991,7 +9183,7 @@ ${SITE_CSS}
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
       <div class="annbadge"><span class="anndisc">RRG</span><span class="anntxt"><b>10 Years</b><i>2016 – 2026</i></span></div>
     </div>
-    <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/subscribe">Listing alerts</a></div>
+    <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/subscribe">Listing alerts</a></div>
     <div><h4>Offices</h4>${(s.offices || []).map(function (o) { const tel = String(o.phone || '').replace(/[^0-9+]/g, ''); return '<a href="tel:' + tel + '">' + esc(o.city || '') + ' &middot; ' + esc(o.phone || '') + '</a>'; }).join('')}</div>
   </div>
   <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
@@ -9230,7 +9422,7 @@ footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} 
 <header class="sitenav"><div class="in">
   <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
-  <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a></div></div>
+  <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a></div></div>
   <a class="navlink active" href="/market">Opportunities</a>
   <a class="navlink" href="/site#process">How we work</a>
   <a class="navlink" href="/site#track">Track record</a>
