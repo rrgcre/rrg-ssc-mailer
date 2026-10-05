@@ -7522,10 +7522,10 @@ function siteSecurePage(req) {
   <span class="sp"></span>
   <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a></div></div>
   <a class="navlink" href="/market">Listings</a>
+  <a class="navlink" href="/site/subscribe">Listing alerts</a>
   <a class="navlink" href="#process">How we work</a>
   <a class="navlink" href="#track">Track record</a>
   <a class="navlink" href="/site#markets">Markets</a>
-  <a class="navlink" href="/site/subscribe">Listing alerts</a>
   <a class="navcta" href="#contact">Start your search</a>
 </nav></div></header>
 
@@ -7691,10 +7691,10 @@ function siteOperatorPage(req) {
   <span class="sp"></span>
   <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a></div></div>
   <a class="navlink" href="/market">Listings</a>
+  <a class="navlink" href="/site/subscribe">Listing alerts</a>
   <a class="navlink" href="#process">How we work</a>
   <a class="navlink" href="#track">Track record</a>
   <a class="navlink" href="/site#markets">Markets</a>
-  <a class="navlink" href="/site/subscribe">Listing alerts</a>
   <a class="navcta" href="#contact">Place an operator</a>
 </nav></div></header>
 
@@ -7858,10 +7858,10 @@ function siteExitPage(req) {
   <span class="sp"></span>
   <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a></div></div>
   <a class="navlink" href="/market">Listings</a>
+  <a class="navlink" href="/site/subscribe">Listing alerts</a>
   <a class="navlink" href="#process">How we work</a>
   <a class="navlink" href="#track">Track record</a>
   <a class="navlink" href="/site#markets">Markets</a>
-  <a class="navlink" href="/site/subscribe">Listing alerts</a>
   <a class="navcta" href="#contact">Talk about your exit</a>
 </nav></div></header>
 
@@ -8052,10 +8052,10 @@ function siteAssetPage(req) {
   <span class="sp"></span>
   <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a></div></div>
   <a class="navlink" href="/market">Listings</a>
+  <a class="navlink" href="/site/subscribe">Listing alerts</a>
   <a class="navlink" href="#process">How we work</a>
   <a class="navlink" href="#track">Track record</a>
   <a class="navlink" href="/site#markets">Markets</a>
-  <a class="navlink" href="/site/subscribe">Listing alerts</a>
   <a class="navcta" href="#contact">Talk about your assets</a>
 </nav></div></header>
 
@@ -8227,10 +8227,10 @@ function siteSubscribePage(req) {
   <span class="sp"></span>
   <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a></div></div>
   <a class="navlink" href="/market">Listings</a>
+  <a class="navlink" href="/site/subscribe">Listing alerts</a>
   <a class="navlink" href="/site#process">How we work</a>
   <a class="navlink" href="/site#track">Track record</a>
   <a class="navlink" href="/site#markets">Markets</a>
-  <a class="navlink" href="/site/subscribe">Listing alerts</a>
   <a class="navcta" href="/site#contact">Talk to a broker</a>
 </nav></div></header>
 
@@ -8370,10 +8370,10 @@ function siteMultiUnitPage(req) {
   <span class="sp"></span>
   <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a></div></div>
   <a class="navlink" href="/market">Listings</a>
+  <a class="navlink" href="/site/subscribe">Listing alerts</a>
   <a class="navlink" href="#process">How we work</a>
   <a class="navlink" href="#track">Track record</a>
   <a class="navlink" href="/site#markets">Markets</a>
-  <a class="navlink" href="/site/subscribe">Listing alerts</a>
   <a class="navcta" href="#contact">Talk about a deal</a>
 </nav></div></header>
 
@@ -8538,10 +8538,10 @@ function siteSellPage(req) {
   <span class="sp"></span>
   <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a></div></div>
   <a class="navlink" href="/market">Listings</a>
+  <a class="navlink" href="/site/subscribe">Listing alerts</a>
   <a class="navlink" href="#process">How we work</a>
   <a class="navlink" href="#track">Track record</a>
   <a class="navlink" href="/site#markets">Markets</a>
-  <a class="navlink" href="/site/subscribe">Listing alerts</a>
   <a class="navcta" href="#contact">Request a valuation</a>
 </nav></div></header>
 
@@ -9082,10 +9082,10 @@ ${SITE_CSS}
   <span class="sp"></span>
   <div class="navdd"><a class="navlink" href="#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a></div></div>
   <a class="navlink" href="/market">Listings</a>
+  <a class="navlink" href="/site/subscribe">Listing alerts</a>
   <a class="navlink" href="#process">How we work</a>
   <a class="navlink" href="#track">Track record</a>
   <a class="navlink" href="#markets">Markets</a>
-  <a class="navlink" href="/site/subscribe">Listing alerts</a>
   <a class="navcta" href="#contact">Talk to a broker</a>
 </nav></div></header>
 
@@ -9427,10 +9427,10 @@ footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} 
   <span class="sp"></span>
   <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a></div></div>
   <a class="navlink active" href="/market">Listings</a>
+  <a class="navlink" href="/site/subscribe">Listing alerts</a>
   <a class="navlink" href="/site#process">How we work</a>
   <a class="navlink" href="/site#track">Track record</a>
   <a class="navlink" href="/site#markets">Markets</a>
-  <a class="navlink" href="/site/subscribe">Listing alerts</a>
   <a class="navcta" href="/site#contact">Talk to a broker</a>
 </div></header>
 <div class="wrap">
