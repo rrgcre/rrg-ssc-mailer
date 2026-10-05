@@ -164,6 +164,7 @@
       { ic: '✔', label: 'Tasks', href: 'rrg_tasks.html' },
       { ic: '◫', label: 'Calendar', href: 'rrg_calendar.html' },
       { ic: '◱', label: 'Feed', href: 'rrg_feed.html' },
+      { ic: '＄', label: 'Commissions', href: 'rrg_commission.html' },
       { ic: '▤', label: 'Views', href: '#', views: true }
     ] },
     { grp: 'Book of Business', color: '#7ea6d8', items: [

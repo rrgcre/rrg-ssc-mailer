@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Commissions</title>
+<script src="/rrg_brand.js"></script>
+<style>
+:root{ --navy:#000E31; --red:#DA2B1F; --gold:#C8A24B; --ink:#1a2236; --muted:#6b7488; --line:#e6e9f0; --wash:#f5f7fb; --bg:#eef1f6; --green:#1f8a5b; }
+*{box-sizing:border-box;} html,body{margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg);}
+.top{background:#000E31;border-bottom:2px solid #2c5c8f;color:#fff;padding:20px 0;}
+.top-inner{max-width:1280px;margin:0 auto;padding:0 28px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+.brand{display:inline-flex;align-items:center;gap:11px;}
+.brand .disc{background:var(--red);color:#fff;border-radius:50%;width:38px;height:38px;font-family:'Arial Black',Arial;font-weight:900;font-size:12px;display:flex;align-items:center;justify-content:center;}
+.brand .wm{font-weight:700;font-size:15px;}
+.top a.back{color:#c3ccdf;text-decoration:none;font-weight:600;font-size:13px;border:1px solid rgba(255,255,255,.2);padding:7px 13px;border-radius:8px;}
+.top a.back:hover{border-color:#fff;color:#fff;}
+.wrap{max-width:1280px;margin:0 auto;padding:22px 28px 70px;}
+
+.ctrls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px;}
+.ctrls select,.ctrls .seg{border:1px solid #cfd6e2;border-radius:9px;background:#fff;font:inherit;font-size:13px;color:var(--ink);}
+.ctrls select{padding:8px 11px;font-weight:600;}
+.seg{display:inline-flex;overflow:hidden;}
+.seg button{border:none;background:#fff;color:var(--muted);font:inherit;font-size:12.5px;font-weight:700;padding:8px 14px;cursor:pointer;}
+.seg button.on{background:var(--navy);color:#fff;}
+.ctrls .sp{flex:1;}
+.btn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:9px;padding:8px 14px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-block;}
+.btn.ghost{background:#fff;color:var(--navy);border:1px solid #cfd6e2;}
+.who{font-size:13px;color:var(--muted);} .who b{color:var(--navy);}
+
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px;}
+.tile{background:#fff;border:1px solid var(--line);border-radius:12px;padding:15px 16px;}
+.tile .k{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:800;margin-bottom:7px;}
+.tile .v{font-size:23px;font-weight:800;color:var(--navy);letter-spacing:-.01em;font-variant-numeric:tabular-nums;}
+.tile .s{font-size:11.5px;color:var(--muted);margin-top:3px;}
+.tile.hero{background:linear-gradient(140deg,#071022,#102a56);border-color:#102a56;}
+.tile.hero .k{color:#9db4df;} .tile.hero .v{color:#fff;} .tile.hero .s{color:#aab9d6;}
+.tile.owe .v{color:var(--red);} .tile.paid .v{color:var(--green);}
+
+.card{background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;}
+.card .hd{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line);}
+.card .hd b{color:var(--navy);font-size:14px;} .card .hd .cnt{color:var(--muted);font-size:12.5px;}
+.tblscroll{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:860px;}
+th,td{text-align:right;padding:11px 12px;border-bottom:1px solid var(--line);white-space:nowrap;font-variant-numeric:tabular-nums;}
+th:first-child,td:first-child{text-align:left;white-space:normal;}
+th:nth-child(2),td:nth-child(2),th:nth-child(3),td:nth-child(3){text-align:left;}
+th{font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);font-weight:800;background:#fafbfe;position:sticky;top:0;}
+tbody tr:hover td{background:var(--wash);}
+td .dn{font-weight:700;color:var(--navy);} td .dn a{color:var(--navy);text-decoration:none;} td .dn a:hover{text-decoration:underline;}
+td .by{font-size:11.5px;color:var(--muted);}
+.net{font-weight:800;color:var(--navy);}
+.owe{color:var(--red);font-weight:700;} .zero{color:#c3c9d4;}
+.pill{font-size:10px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;border-radius:999px;padding:3px 9px;}
+.pill.Paid{background:#e7f5ee;color:var(--green);} .pill.Unpaid{background:#fbe9e7;color:var(--red);} .pill.Partial{background:#fff4e0;color:#9a7400;} .pill.Invoiced{background:#eaf0ff;color:#2647b0;}
+.pill.open{background:#f0f2f7;color:#5b6472;}
+tfoot td{font-weight:800;color:var(--navy);border-top:2px solid var(--line);background:#fafbfe;}
+.empty{padding:40px;text-align:center;color:var(--muted);}
+.note{font-size:11.5px;color:var(--muted);margin-top:12px;line-height:1.5;}
+.loading{padding:44px;text-align:center;color:var(--muted);}
+.sechd{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:800;margin:22px 0 10px;}
+</style>
+</head>
+<body>
+<div class="top"><div class="top-inner">
+  <span class="brand"><span class="disc">RRG</span><span class="wm">Commissions</span></span>
+  <a class="back" href="./index.html">← Dashboard</a>
+</div></div>
+<div class="wrap">
+  <div class="ctrls">
+    <span class="who" id="who"></span>
+    <select id="repSel" style="display:none"></select>
+    <div class="seg" id="rangeSeg"><button data-r="all" class="on">All time</button><button data-r="year">This year</button></div>
+    <span class="sp"></span>
+    <a class="btn ghost" id="csvBtn" href="#">Export CSV</a>
+  </div>
+
+  <div id="body"><div class="loading">Loading your commissions…</div></div>
+</div>
+
+<script>
+var CSTATE={ user:'', year:'', isAdmin:false };
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+function money(n){ n=Math.round(Number(n)||0); return '$'+n.toLocaleString('en-US'); }
+function cell(n){ n=Math.round(Number(n)||0); return n?('$'+n.toLocaleString('en-US')):'<span class="zero">—</span>'; }
+
+function curYear(){ return String(new Date().getFullYear()); }
+
+function render(d){
+  var t=d.totals||{};
+  var who=document.getElementById('who');
+  who.innerHTML = d.isAdmin ? 'Statement for <b>'+esc(d.user.name)+'</b>' : 'Your commission statement';
+  // admin rep selector
+  var sel=document.getElementById('repSel');
+  if(d.isAdmin && d.team && d.team.length){
+    sel.style.display='';
+    if(!sel.dataset.built){ sel.innerHTML=d.team.map(function(m){return '<option value="'+esc(m.username)+'">'+esc(m.name)+'</option>';}).join(''); sel.dataset.built='1'; }
+    sel.value=d.user.username;
+  }
+  // CSV link
+  var q='?format=csv'+(d.user.username?('&user='+encodeURIComponent(d.user.username)):'')+(CSTATE.year?('&year='+CSTATE.year):'');
+  document.getElementById('csvBtn').setAttribute('href','/api/commission/statement'+q);
+
+  var deals=d.deals||[];
+  var closed=deals.filter(function(x){return x.closed;});
+  var open=deals.filter(function(x){return !x.closed;});
+
+  var tiles=''+
+  '<div class="tiles">'+
+    '<div class="tile hero"><div class="k">Your net — earned</div><div class="v">'+money(t.net)+'</div><div class="s">'+ (t.closedDeals||0) +' closed deal'+((t.closedDeals===1)?'':'s')+' · '+(d.split||0)+'% split</div></div>'+
+    '<div class="tile owe"><div class="k">Owed to you</div><div class="v">'+money(sumOwed(closed))+'</div><div class="s">2nd-half &amp; unpaid</div></div>'+
+    '<div class="tile paid"><div class="k">Paid to you</div><div class="v">'+money(sumPaid(closed))+'</div><div class="s">received</div></div>'+
+    '<div class="tile"><div class="k">Your net — pipeline</div><div class="v">'+money(t.netOpen)+'</div><div class="s">'+(t.openDeals||0)+' open</div></div>'+
+    '<div class="tile"><div class="k">Firm GCI</div><div class="v">'+money(t.gci)+'</div><div class="s">closed, gross</div></div>'+
+    '<div class="tile"><div class="k">Referrals + co-broke</div><div class="v">'+money((t.referrals||0)+(t.coBroke||0))+'</div><div class="s">paid out off the top</div></div>'+
+  '</div>';
+
+  var out=tiles;
+  out+='<div class="sechd">Closed — earned</div>'+dealTable(closed, true);
+  if(open.length){ out+='<div class="sechd">Open pipeline — projected</div>'+dealTable(open, false); }
+  out+='<div class="note">Waterfall per deal: gross commission (GCI) &rarr; referral fee off the top &rarr; co-broke side split &rarr; the remaining company dollar is split with you at your rate. “Owed to you” is your share of what the firm hasn’t collected yet, pro-rated to payments received. Figures follow the amounts entered on each deal.</div>';
+  document.getElementById('body').innerHTML=out;
+}
+
+function sumOwed(rows){ var s=0; rows.forEach(function(r){ s+=Number(r.agentOwed)||0; }); return s; }
+function sumPaid(rows){ var s=0; rows.forEach(function(r){ s+=Number(r.agentPaid)||0; }); return s; }
+
+function dealTable(rows, closed){
+  if(!rows.length) return '<div class="card"><div class="empty">No '+(closed?'closed':'open')+' deals'+(CSTATE.year?(' for '+CSTATE.year):'')+'.</div></div>';
+  var tot={gci:0,ref:0,cob:0,co:0,net:0,paid:0,owed:0};
+  var body=rows.map(function(r){
+    tot.gci+=Number(r.gci)||0; tot.ref+=Number(r.referralAmt)||0; tot.cob+=Number(r.coBrokeAmt)||0; tot.co+=Number(r.companyDollar)||0; tot.net+=Number(r.agentNet)||0; tot.paid+=Number(r.agentPaid)||0; tot.owed+=Number(r.agentOwed)||0;
+    var ps=String(r.commissionStatus||'Unpaid'); var pc=closed?ps:'open'; var plabel=closed?ps:(r.status||'Open');
+    var dn='<a href="rrg_assignment.html?key='+encodeURIComponent(r.key)+'">'+esc(r.business||'Deal')+'</a>';
+    var sub=(r.referralTo?('ref: '+esc(r.referralTo)):'')+(r.coBrokeRep?((r.referralTo?' · ':'')+'co: '+esc(r.coBrokeRep)):'');
+    return '<tr>'+
+      '<td><div class="dn">'+dn+'</div>'+(r.buyer?('<div class="by">'+esc(r.buyer)+'</div>'):'')+(sub?('<div class="by">'+sub+'</div>'):'')+'</td>'+
+      '<td>'+esc(closed?'Closed':(r.status||''))+'</td>'+
+      '<td>'+esc(r.close||'')+'</td>'+
+      '<td>'+cell(r.gci)+'</td>'+
+      '<td>'+cell(r.referralAmt)+'</td>'+
+      '<td>'+cell(r.coBrokeAmt)+'</td>'+
+      '<td>'+cell(r.companyDollar)+'</td>'+
+      '<td>'+(r.agentSplitPct||0)+'%</td>'+
+      '<td class="net">'+cell(r.agentNet)+'</td>'+
+      '<td>'+cell(r.agentPaid)+'</td>'+
+      '<td class="'+((Number(r.agentOwed)>0)?'owe':'')+'">'+cell(r.agentOwed)+'</td>'+
+      '<td><span class="pill '+esc(pc)+'">'+esc(plabel)+'</span></td>'+
+    '</tr>';
+  }).join('');
+  var foot='<tfoot><tr><td>Total</td><td></td><td></td><td>'+cell(tot.gci)+'</td><td>'+cell(tot.ref)+'</td><td>'+cell(tot.cob)+'</td><td>'+cell(tot.co)+'</td><td></td><td>'+cell(tot.net)+'</td><td>'+cell(tot.paid)+'</td><td>'+cell(tot.owed)+'</td><td></td></tr></tfoot>';
+  return '<div class="card"><div class="tblscroll"><table>'+
+    '<thead><tr><th>Deal</th><th>Status</th><th>Close</th><th>GCI</th><th>Referral</th><th>Co-broke</th><th>Company $</th><th>Split</th><th>Your net</th><th>Paid</th><th>Owed</th><th>Payment</th></tr></thead>'+
+    '<tbody>'+body+'</tbody>'+foot+'</table></div></div>';
+}
+
+function load(){
+  var q='?'+(CSTATE.user?('user='+encodeURIComponent(CSTATE.user)+'&'):'')+(CSTATE.year?('year='+CSTATE.year):'');
+  document.getElementById('body').innerHTML='<div class="loading">Loading…</div>';
+  fetch('/api/commission/statement'+q,{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(!j.ok){ document.getElementById('body').innerHTML='<div class="card"><div class="empty">'+esc(j.error||'Could not load.')+'</div></div>'; return; }
+    CSTATE.isAdmin=j.isAdmin; if(!CSTATE.user) CSTATE.user=j.user.username;
+    render(j);
+  }).catch(function(){ document.getElementById('body').innerHTML='<div class="card"><div class="empty">Network error — try reloading.</div></div>'; });
+}
+
+document.getElementById('rangeSeg').addEventListener('click',function(e){
+  var b=e.target.closest('button'); if(!b) return;
+  this.querySelectorAll('button').forEach(function(x){x.classList.remove('on');}); b.classList.add('on');
+  CSTATE.year=(b.getAttribute('data-r')==='year')?curYear():''; load();
+});
+document.getElementById('repSel').addEventListener('change',function(){ CSTATE.user=this.value; load(); });
+
+load();
+</script>
+</body>
+</html>

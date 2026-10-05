@@ -10078,7 +10078,7 @@ app.get('/api/deals', (req, res) => {
     if (!(isAdmin || canSeeAllDeals(req) || ownsAssignment(req, d))) return;
     let business = cur.businessOverride || '';
     try { business = business || assignmentView(d, overlay).business; } catch (e) {}
-    out.push({ key: d.key, business: business || '', buyer: t.buyer || '', buyerCompany: t.buyerCompany || '', personId: t.personId || '', price: t.price || '', status: t.status || '', opened: t.opened || '', expectedClose: t.expectedClose || '', closedDate: t.closedDate || '', terms: t.terms || '', commissionRate: t.commissionRate || '', commissionDue: t.commissionDue || '', commissionPaid: t.commissionPaid || '', commissionStatus: t.commissionStatus || '', coBrokeRep: t.coBrokeRep || '', coBrokeSplit: (t.coBrokeSplit===0?0:(t.coBrokeSplit||'')), updatedAt: t.updatedAt || '' });
+    out.push({ key: d.key, business: business || '', buyer: t.buyer || '', buyerCompany: t.buyerCompany || '', personId: t.personId || '', price: t.price || '', status: t.status || '', opened: t.opened || '', expectedClose: t.expectedClose || '', closedDate: t.closedDate || '', terms: t.terms || '', commissionRate: t.commissionRate || '', commissionDue: t.commissionDue || '', commissionPaid: t.commissionPaid || '', commissionStatus: t.commissionStatus || '', coBrokeRep: t.coBrokeRep || '', coBrokeSplit: (t.coBrokeSplit===0?0:(t.coBrokeSplit||'')), referralTo: t.referralTo || '', referralPct: (t.referralPct===0?0:(t.referralPct||'')), updatedAt: t.updatedAt || '' });
   });
   out.sort(function (a, b) { return String(b.updatedAt).localeCompare(String(a.updatedAt)); });
   res.json({ ok: true, deals: out, statuses: TXN_STATUSES, commStatuses: TXN_COMM_STATUS, isAdmin: !!isAdmin });
@@ -10109,6 +10109,8 @@ app.post('/api/assignment/:key/deal', express.json(), (req, res) => {
   if (typeof b.commissionStatus === 'string' && TXN_COMM_STATUS.indexOf(b.commissionStatus) >= 0) t.commissionStatus = b.commissionStatus;
   if (typeof b.coBrokeRep === 'string') t.coBrokeRep = b.coBrokeRep.slice(0, 80);
   if (b.coBrokeSplit !== undefined) { const _cs = parseInt(b.coBrokeSplit, 10); t.coBrokeSplit = (isFinite(_cs) && _cs >= 0 && _cs <= 100) ? _cs : ''; }
+  if (typeof b.referralTo === 'string') t.referralTo = b.referralTo.slice(0, 80);
+  if (b.referralPct !== undefined) { const _rp = Number(String(b.referralPct).replace(/[^0-9.]/g, '')); t.referralPct = (isFinite(_rp) && _rp > 0 && _rp <= 100) ? _rp : ''; }
   t.updatedAt = new Date().toISOString();
   if (t.buyer || b.buyerEmail) { const p = findOrCreatePerson(req, { name: t.buyer, email: b.buyerEmail, company: t.buyerCompany, type: 'Buying' }); if (p) t.personId = p.id; }
   cur.transaction = t; cur.updatedAt = new Date().toISOString();
@@ -18219,6 +18221,7 @@ function repRollup(u, opts) {
   const idx = assignmentsIndex(), overlay = loadAssignOverlay();
   const listings = [], deals = [];
   let activeListings = 0, closedDeals = 0, openDeals = 0, gci = 0, gciOpen = 0, pipeline = 0, received = 0, waiting = 0;
+  let netAcc = 0, netOpenAcc = 0, netYtdAcc = 0, referralAcc = 0, coBrokeAcc = 0; // rep net via the commission waterfall
   let closedDealsYtd = 0, gciYtd = 0, lostDeals = 0; const _KYR = new Date().getFullYear();
   let leads = 0; const _pls = loadPipelines(); const _preByPipe = {}, _stgByPipe = {}; _pls.forEach(function(p){ _stgByPipe[p.id] = (p.stages||[]).map(function(x){return x.name;}); var m={}; (p.stages||[]).forEach(function(st){ if(st&&st.preListing) m[st.name]=1; }); _preByPipe[p.id]=m; });
   for (const key in idx) {
@@ -18233,16 +18236,48 @@ function repRollup(u, opts) {
     if (opts.lists) listings.push({ key: key, business: v.business, market: v.market || '', status: st, value: v.value || '', expires: v.listingExpires || '', hasDeal: !!t });
     if (t) {
       const closed = (t.status === 'Closed'); const due = _relNum(t.commissionDue); const paid = _relNum(t.commissionPaid);
+      const bd = dealCommissionBreakdown(t, v, u.username);
       received += paid;
-      if (closed) { closedDeals++; gci += due; waiting += Math.max(0, due - paid); const _cd = String(t.closedDate || t.closedAt || ''); if (_cd && Number(String(_cd).slice(0, 4)) === _KYR) { closedDealsYtd++; gciYtd += due; } } else { openDeals++; gciOpen += due; }
-      if (opts.lists) deals.push({ key: key, business: v.business, buyer: t.buyer || '', price: t.price || '', status: t.status || '', close: t.expectedClose || t.closedDate || '', commissionDue: t.commissionDue || '', commissionPaid: t.commissionPaid || '', commissionStatus: t.commissionStatus || '' });
+      if (closed) { closedDeals++; gci += due; waiting += Math.max(0, due - paid); netAcc += bd.agentNet; referralAcc += bd.referralAmt; coBrokeAcc += bd.coBrokeAmt; const _cd = String(t.closedDate || t.closedAt || ''); if (_cd && Number(String(_cd).slice(0, 4)) === _KYR) { closedDealsYtd++; gciYtd += due; netYtdAcc += bd.agentNet; } } else { openDeals++; gciOpen += due; netOpenAcc += bd.agentNet; }
+      if (opts.lists) deals.push({ key: key, business: v.business, buyer: t.buyer || '', price: t.price || '', status: t.status || '', close: t.expectedClose || t.closedDate || '', commissionDue: t.commissionDue || '', commissionPaid: t.commissionPaid || '', commissionStatus: t.commissionStatus || '', gci: bd.gci, referralAmt: bd.referralAmt, referralTo: bd.referralTo, coBrokeAmt: bd.coBrokeAmt, coBrokeRep: bd.coBrokeRep, companyDollar: bd.companyDollar, agentNet: bd.agentNet, agentPaid: bd.agentPaid, agentOwed: bd.agentOwed, agentSplitPct: bd.agentSplitPct });
     }
   }
-  const splitPct = effCommissionAgentSplit(); const split = splitPct / 100;
-  const out = { activeListings, dealCount: (openDeals + closedDeals), openDeals, closedDeals, gci, gciOpen, net: Math.round(gci * split), netOpen: Math.round(gciOpen * split), netYtd: Math.round(gciYtd * split), gciYtd, closedDealsYtd, lostDeals, leads, pipeline, received: Math.round(received), waiting: Math.round(waiting), split: splitPct };
+  const splitPct = effUserSplit(u.username);
+  const out = { activeListings, dealCount: (openDeals + closedDeals), openDeals, closedDeals, gci, gciOpen, net: Math.round(netAcc), netOpen: Math.round(netOpenAcc), netYtd: Math.round(netYtdAcc), referrals: Math.round(referralAcc), coBroke: Math.round(coBrokeAcc), gciYtd, closedDealsYtd, lostDeals, leads, pipeline, received: Math.round(received), waiting: Math.round(waiting), split: splitPct };
   if (opts.lists) { out.listings = listings.sort((a, b) => String(a.business).localeCompare(String(b.business))); out.deals = deals; }
   return out;
 }
+// ---- Rep commission statement: every deal's full waterfall + what the rep has been paid / is owed.
+// A rep sees their own; an admin can pull any rep's (or the whole firm). CSV export via ?format=csv.
+app.get('/api/commission/statement', (req, res) => {
+  if (!req.user) return res.status(401).json({ ok: false, error: 'Sign in required.' });
+  const isAdmin = isSuper(req.user);
+  let uname = req.user.username;
+  if (isAdmin && req.query.user) uname = String(req.query.user);
+  const u = auth.findUser(uname); if (!u) return res.status(404).json({ ok: false, error: 'User not found.' });
+  const r = repRollup(u, { lists: true });
+  const year = String(req.query.year || '').trim();
+  let deals = (r.deals || []).map(function (d) {
+    const closed = /closed/i.test(String(d.status || ''));
+    const yr = String(d.close || '').slice(0, 4);
+    return Object.assign({}, d, { closed: closed, year: yr });
+  });
+  if (year) deals = deals.filter(d => d.year === year || !d.closed);
+  // Sort: open/active first by close date, then closed newest first.
+  deals.sort(function (a, b) { if (a.closed !== b.closed) return a.closed ? 1 : -1; return String(b.close || '').localeCompare(String(a.close || '')); });
+  if (String(req.query.format || '') === 'csv') {
+    const rows = deals.map(function (d) { return [d.business || '', d.buyer || '', d.status || '', d.close || '', d.commissionDue || '', d.referralAmt || 0, d.coBrokeAmt || 0, d.companyDollar || 0, (d.agentSplitPct || 0) + '%', d.agentNet || 0, d.agentPaid || 0, d.agentOwed || 0, d.commissionStatus || '']; });
+    return _sendCsv(res, 'commission-' + (u.username || 'rep'), ['Deal', 'Buyer', 'Status', 'Close', 'GCI', 'Referral', 'Co-broke', 'Company $', 'Split', 'Your net', 'Paid to you', 'Owed to you', 'Payment'], rows);
+  }
+  res.json({
+    ok: true, me: req.user.username, isAdmin: isAdmin,
+    user: { username: u.username, name: u.name || u.username, title: u.title || '' },
+    split: r.split,
+    totals: { gci: r.gci, referrals: r.referrals, coBroke: r.coBroke, net: r.net, netOpen: r.netOpen, received: r.received, waiting: r.waiting, closedDeals: r.closedDeals, openDeals: r.openDeals },
+    deals: deals,
+    team: isAdmin ? auth.loadUsers().filter(x => !x.disabled).map(x => ({ username: x.username, name: x.name || x.username })) : [],
+  });
+});
 app.get('/api/team', (req, res) => {
   if (!req.user) return res.status(401).json({ ok: false, error: 'Sign in required.' });
   const isAdmin = isSuper(req.user);
@@ -20959,6 +20994,48 @@ function effCommissionFlatRate() { const s = loadSettings(); let r = Number(s.co
 // tiers with the per-deal minimum-fee floor. Powers the projected commission shown on an
 // active listing (the listing file + the pipeline card) before a closing figure exists.
 function estCommissionFromPrice(p) { const n = Number(String(p == null ? '' : p).replace(/[^0-9.]/g, '')) || 0; if (n <= 0) return 0; const g = Math.round(commissionForTiers(n, effCommissionTiers())); return Math.max(g, effCommissionMinFee()); }
+// ---- Commission waterfall: GCI -> referral off the top -> co-broke side split -> agent split ----
+// A rep's effective split: their own commissionSplit override (0-100) if set, else the firm default.
+function effUserSplit(username) {
+  try { const u = auth.findUser(username); if (u && u.commissionSplit !== undefined && u.commissionSplit !== null && u.commissionSplit !== '') { const n = Number(u.commissionSplit); if (isFinite(n) && n > 0 && n <= 100) return n; } } catch (e) {}
+  return effCommissionAgentSplit();
+}
+function _moneyNum(v) { const n = Number(String(v == null ? '' : v).replace(/[^0-9.\-]/g, '')); return isFinite(n) ? n : 0; }
+function _pctNum(v) { const n = Number(String(v == null ? '' : v).replace(/[^0-9.\-]/g, '')); return isFinite(n) ? n : 0; }
+// gci: gross commission to the firm. referralPct: % of GCI paid to a referrer, off the top.
+// coBrokeSharePct: OUR side's share of the post-referral commission (blank/null => 100 = sole).
+// agentSplitPct: the rep's % of the company dollar. Returns every line of the waterfall.
+function commissionWaterfall(gci, referralPct, coBrokeSharePct, agentSplitPct) {
+  gci = Math.max(0, Math.round(Number(gci) || 0));
+  const refP = Math.min(100, Math.max(0, Number(referralPct) || 0));
+  const referralAmt = Math.round(gci * refP / 100);
+  const afterRef = Math.max(0, gci - referralAmt);
+  let our = (coBrokeSharePct === '' || coBrokeSharePct == null) ? 100 : Number(coBrokeSharePct);
+  if (!isFinite(our) || our < 0) our = 100; if (our > 100) our = 100;
+  const companyDollar = Math.round(afterRef * our / 100);
+  const coBrokeAmt = Math.max(0, afterRef - companyDollar);
+  const aP = Math.min(100, Math.max(0, Number(agentSplitPct) || 0));
+  const agentNet = Math.round(companyDollar * aP / 100);
+  const houseNet = Math.max(0, companyDollar - agentNet);
+  return { gci: gci, referralPct: refP, referralAmt: referralAmt, afterReferral: afterRef, coBrokeSharePct: our, coBrokeAmt: coBrokeAmt, companyDollar: companyDollar, agentSplitPct: aP, agentNet: agentNet, houseNet: houseNet };
+}
+// Full per-deal breakdown from a transaction + its listing. Referral and co-broke can be set on
+// the deal; referral falls back to the listing's referralPct. Adds paid/owed at GCI and rep level.
+function dealCommissionBreakdown(t, A, ownerUsername) {
+  t = t || {};
+  const gci = _moneyNum(t.commissionDue);
+  const refPct = (t.referralPct !== undefined && t.referralPct !== null && t.referralPct !== '') ? _pctNum(t.referralPct) : (A && A.referralPct ? _pctNum(A.referralPct) : 0);
+  const coShare = (t.coBrokeSplit === 0 ? 0 : (t.coBrokeSplit || ''));
+  const w = commissionWaterfall(gci, refPct, coShare, effUserSplit(ownerUsername));
+  w.paid = _moneyNum(t.commissionPaid);
+  w.owed = Math.max(0, gci - w.paid);
+  w.agentOwed = gci > 0 ? Math.round(w.agentNet * (w.owed / gci)) : 0;
+  w.agentPaid = Math.max(0, w.agentNet - w.agentOwed);
+  w.coBrokeRep = t.coBrokeRep || '';
+  w.referralTo = t.referralTo || ((A && A.referredBy) || '');
+  w.commissionStatus = t.commissionStatus || 'Unpaid';
+  return w;
+}
 function agrNum(v){ var n=Number(String(v==null?'':v).replace(/[^0-9.\-]/g,'')); return isFinite(n)?n:0; }
 function agrDealValue(a){
   if(agrNum(a.commValue)>0) return agrNum(a.commValue);
