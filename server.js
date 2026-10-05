@@ -21317,7 +21317,7 @@ app.get('/api/documents', (req, res) => {
         statusKey: s.becameListing ? (s.provisional ? 'provisional' : 'livelisting') : ((s.callState === 'complete' || s.completed) ? 'complete' : (s.callState === 'pending' ? 'pending' : 'live')),
         owner: s.by || s.byUser || '', createdAt: s.createdAt || '',
         completePct: pct, completed: !!s.completed,
-        openUrl: '/api/screening/' + encodeURIComponent(s.id) + '/view', editUrl: '/api/screening/' + encodeURIComponent(s.id) + '/view', deleteUrl: '/api/screening/' + encodeURIComponent(s.id), downloadUrl:'' });
+        openUrl: '/seller_screening.html?screening=' + encodeURIComponent(s.id), editUrl: '/seller_screening.html?screening=' + encodeURIComponent(s.id) + '&edit=1', deleteUrl: '/api/screening/' + encodeURIComponent(s.id), downloadUrl:'' });
     });
     let sellers = store.readAll().filter(r => r.form === 'seller' && !_seenFid[(r.data && r.data.formId) || '\u0000']);
     if (restrictToOwn(req)) sellers = sellers.filter(r => permOwnerMatch(req, r.rep));
@@ -21413,21 +21413,14 @@ app.get('/api/seller/:key/view', (req, res) => {
 });
 
 // Read-only Q&A view of a seller screening call (opens from the document lists).
+// The old read-only screening form is phased out \u2014 this route now redirects to the live screening
+// page (it loads the record by id, so it opens right where the rep left off). Kept so old links /
+// bookmarks don't 404.
 app.get('/api/screening/:id/view', (req, res) => {
   const s = (loadScreens() || []).find(x => x.id === req.params.id);
   if (!s) return res.status(404).send('Not found.');
   if (restrictToOwn(req) && !ownsScreen(req, s)) return res.status(403).send('Not authorized.');
-  const pct = (typeof s.completePct === 'number' ? s.completePct : (s.completed ? 100 : 0));
-  const rec = { data: s.data || {}, name: (s.business && s.business !== 'Seller') ? s.business : (s.contact || (s.data && s.data.company) || 'Seller Screening'), market: s.market || '', rep: s.by || s.byUser || '', timestamp: s.createdAt || '', highlights: s.completed ? (s.statusText || s.decision || 'Complete') : (s.skipped ? (s.statusText || 'Pre-qualified \u2014 no call, enter details') : ('In progress \u2014 ' + pct + '%')) };
-  let html = intakeViewHtml(rec, s.skipped ? 'Seller Screening \u2014 Pre-qualified (no call)' : 'Seller Screening Call');
-  const _bs = 'display:inline-flex;align-items:center;gap:7px;text-decoration:none;font:600 13px -apple-system,Segoe UI,Roboto,sans-serif;padding:10px 16px;border-radius:4px;box-shadow:0 6px 20px rgba(16,24,40,.18);cursor:pointer;border:1px solid #d7dde8;background:#fff;color:#1a2236';
-  const _eurl = '/seller_screening.html?screening=' + encodeURIComponent(s.id) + '&edit=1';
-  const edit = '<div class="noprint" style="position:fixed;left:16px;bottom:16px;z-index:50"><button type="button" onclick="history.length>1?history.back():window.close()" style="' + _bs + '">\u2190 Back</button></div>'
-    + '<div class="noprint" style="position:fixed;right:16px;bottom:16px;z-index:50;display:flex;gap:10px">'
-    + '<a href="' + _eurl + '" style="' + _bs + '">\u270e ' + (s.skipped ? 'Edit details' : 'Edit call') + '</a>'
-    + '<button type="button" onclick="window.print()" style="' + _bs + ';background:#000E31;color:#fff;border-color:#000E31">\u2b07 Download PDF</button></div>';
-  html = html.replace('</body>', edit + '</body>');
-  res.set('Content-Type', 'text/html; charset=utf-8').send(html);
+  return res.redirect(302, '/seller_screening.html?screening=' + encodeURIComponent(s.id) + '&edit=1');
 });
 app.get('/api/questionnaire/:id/view', (req, res) => {
   const s = (loadQuests() || []).find(x => x.id === req.params.id);
