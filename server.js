@@ -7867,7 +7867,7 @@ function siteExitPage(req) {
 
 <section class="shero"><div class="wrap">
   <a class="sback" href="/site">&larr; Back to ${org}</a>
-  <div class="eyebrow" style="margin-top:16px">Lease exits &amp; asset sales</div>
+  <div class="eyebrow" style="margin-top:16px">Lease exits &amp; liability release</div>
   <h1>${esc(s.exitHeroHead || '')}</h1>
   ${s.exitHeroSub ? '<p class="sub">' + esc(s.exitHeroSub) + '</p>' : ''}
   <div class="sherocta">
@@ -7883,7 +7883,7 @@ function siteExitPage(req) {
 
 <section class="svalue"><div class="wrap">
   <div class="sec-head"><div class="eyebrow">Why exit with RRG</div><div class="h2">Get out clean — and get paid for what you built</div>
-  <p class="lead">A lease exit is not just walking away. It is an asset sale paired with a lease transfer — the right replacement operator, the right structure, and your liability released.</p></div>
+  <p class="lead">A lease exit is not just walking away. It pairs a replacement operator with a lease transfer — structured to release your remaining obligation and personal guaranty, not leave them hanging over you.</p><p class="lead" style="margin-top:12px;font-size:15px">Own the space, or a landlord with a vacated restaurant? There’s no lease to exit — that’s an <a href="/site/assets" style="color:var(--red);font-weight:700;text-decoration:none">asset sale &rarr;</a></p></div>
   <div class="svcs">${valueHtml}</div>
 </div></section>
 
@@ -8000,6 +8000,7 @@ function siteAssetPage(req) {
   const FAQS = (Array.isArray(s.assetFaqs) && s.assetFaqs.length) ? s.assetFaqs : [
     { q: 'What counts as an asset sale?', a: 'It’s selling your restaurant as a turnkey space rather than an operating business — the built-out, equipped, ready-to-run location itself. The buyer pays for a head start: opening fast and avoiding most of a new build-out. It’s the right path when a location has closed, when you’re a landlord with a vacated restaurant, or when you want to recover the value of your build-out instead of walking away from it.' },
     { q: 'Does an asset sale get me out of my lease?', a: 'It can — but getting truly released takes more than handing the keys to someone else. Putting a qualified replacement operator in the space, by assignment or a new lease, is what makes a release possible, because the landlord gets a paying tenant. The release of your remaining obligation and your personal guaranty still has to be negotiated with the landlord — an assignment on its own usually leaves you secondarily liable if the new operator defaults. We push for a full release as part of the deal and tell you straight where your lease and your landlord actually give you leverage.' },
+    { q: 'Asset sale or lease exit — which do I need?', a: 'If your biggest problem is getting off a lease and a personal guaranty, start with our Exit a lease service — it’s built around releasing your liability. Asset sales is about getting paid for a turnkey, built-out space, and it’s also the right fit when you own the real estate or you’re a landlord with a vacated restaurant — where there’s no lease to exit at all. Plenty of deals touch both; tell us your situation and we’ll point you to the right path.' },
     { q: 'My restaurant already closed — is it too late?', a: 'No. The build-out, hood, walk-ins, and equipment in a former restaurant are worth real money to an operator who wants a second-generation space instead of building from scratch. We sell those assets rather than letting you hand them back for nothing.' },
     { q: 'I’m a landlord with a vacated restaurant space. Can you help?', a: 'Yes. A turnkey second-generation space with equipment already in place leases and sells faster — and for more — than an empty box. We package and market it to restaurant operators specifically, the buyers who pay for a kitchen that’s ready to go.' },
     { q: 'Do I have to sell the lease too?', a: 'Not necessarily. We sell the assets on their own, or pair them with a lease assignment or a new lease when that gets you the best outcome — whatever recovers the most value and fits your situation.' },
@@ -8078,7 +8079,7 @@ function siteAssetPage(req) {
 
 <section class="svalue"><div class="wrap">
   <div class="sec-head"><div class="eyebrow">Why sell your assets with RRG</div><div class="h2">A turnkey restaurant is worth more than its parts</div>
-  <p class="lead">A closed or vacated restaurant is full of value — a built-out kitchen, equipment, and a location an operator wants. We sell that to the people who pay for turnkey — and when you’re stuck on a lease, we get you out from under it at the same time.</p></div>
+  <p class="lead">A closed or vacated restaurant is full of value — a built-out kitchen, a location an operator wants, and a head start worth paying for. We sell that to the people who want turnkey: operators opening their next spot, and landlords filling a vacated space.</p><p class="lead" style="margin-top:12px;font-size:15px">Still on a lease and your goal is just getting out? Start with <a href="/site/exit" style="color:var(--red);font-weight:700;text-decoration:none">Exit a lease &rarr;</a></p></div>
   <div class="svcs">${valueHtml}</div>
 </div></section>
 
@@ -9449,7 +9450,7 @@ footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} 
       <select class="sel" id="fMarket"><option value="">All metros</option></select>
       <select class="sel" id="fConcept"><option value="">All concepts</option></select>
       <select class="sel" id="fCash"><option value="">Any cash flow</option>${Object.keys(MKT_CASH).filter(function(k){return k;}).map(function(k){return '<option value="'+k+'">'+MKT_CASH[k]+'</option>';}).join('')}</select>
-      <select class="sel" id="fAsk"><option value="">Any asking</option>${Object.keys(MKT_PRICE).filter(function(k){return k;}).map(function(k){return '<option value="'+k+'">'+MKT_PRICE[k]+'</option>';}).join('')}</select>
+      <select class="sel" id="fAsk"><option value="">Any price</option>${Object.keys(MKT_PRICE).filter(function(k){return k;}).map(function(k){return '<option value="'+k+'">'+MKT_PRICE[k]+'</option>';}).join('')}</select>
       <span class="spacer"></span>
       <select class="sel" id="fSort"><option value="new">Sort: Newest</option><option value="price">Guide: high &rarr; low</option></select>
     </div>
