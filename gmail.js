@@ -364,6 +364,28 @@ async function listAgreementCandidates(username, max) {
   }));
   return out.filter(Boolean).sort((a, b) => b.ts - a.ts);
 }
+// Generic: list messages matching a caller-supplied query that carry PDF/Word attachments,
+// returning each with its attachment metadata. Used by the inbox-review attachment filer.
+async function listLabeledAttachments(username, q, max) {
+  const lim = Math.min(max || 30, 50);
+  const u = 'https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=' + lim + '&q=' + encodeURIComponent(q || '');
+  const r = await gapi(username, u, {});
+  const j = await r.json();
+  if (!r.ok) throw new Error((j && j.error && j.error.message) || 'Gmail search failed.');
+  const ids = (j.messages || []).map(m => m.id).slice(0, lim);
+  const out = await Promise.all(ids.map(async id => {
+    try {
+      const mr = await gapi(username, 'https://gmail.googleapis.com/gmail/v1/users/me/messages/' + id + '?format=full', {});
+      const mj = await mr.json();
+      if (!mr.ok) return null;
+      const H = mj.payload && mj.payload.headers;
+      const atts = collectAttachments(mj.payload).filter(a => /\.(pdf|docx?)$/i.test(a.filename));
+      if (!atts.length) return null;
+      return { id: mj.id, threadId: mj.threadId, from: hdr(H, 'From'), to: hdr(H, 'To'), subject: hdr(H, 'Subject'), date: hdr(H, 'Date') || (mj.internalDate ? new Date(Number(mj.internalDate)).toISOString() : ''), ts: mj.internalDate ? Number(mj.internalDate) : 0, snippet: mj.snippet || '', attachments: atts };
+    } catch (e) { return null; }
+  }));
+  return out.filter(Boolean).sort((a, b) => b.ts - a.ts);
+}
 // Download a single attachment; returns a Buffer.
 async function getAttachment(username, messageId, attachmentId) {
   const u = 'https://gmail.googleapis.com/gmail/v1/users/me/messages/' + encodeURIComponent(messageId) + '/attachments/' + encodeURIComponent(attachmentId);
@@ -455,5 +477,5 @@ module.exports = {
   connectFromCode, deleteToken, loadToken, statusForUser: statusFor,
   messagesForContact, messageFull, searchLeadBodies, listCorrespondents, sendMessage, TOK_DIR,
   gapi, gapiJSON, accessToken, parseAddrs, listAgreementCandidates, getAttachment, listListingCandidates,
-  sentMessages,
+  listLabeledAttachments, sentMessages,
 };

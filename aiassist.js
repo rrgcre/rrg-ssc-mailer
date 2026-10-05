@@ -155,6 +155,25 @@ async function parseEmailContact({ from, subject, body }) {
   const payload = 'FROM: ' + String(from || '') + '\nSUBJECT: ' + String(subject || '') + '\n\nBODY:\n' + String(body || '').slice(0, 12000);
   return extractJson(await callClaude(sys, payload, 700)) || { found: false };
 }
+// 6a2) Read ONE email from a KNOWN contact and propose well-supported CRM updates — to the contact
+// and/or to one of their open deals. Confirm-gated upstream: this only proposes; the rep approves.
+async function parseEmailUpdate({ from, subject, body, person, deals, statuses, interests }) {
+  const sys = 'You are a restaurant/bar commercial real-estate broker\'s assistant. You are given ONE email from a KNOWN contact, that contact\'s CURRENT CRM record, and their OPEN DEALS. Propose ONLY updates the email clearly supports — do not guess, do not restate what is already on the record. ' +
+    'Return ONLY JSON: {"contact":{"title":"","phone":"","email":"","interest":""},"deal":{"key":"","status":"","price":"","expectedClose":"","terms":""},"note":"","confidence":"high|medium|low","summary":""}. ' +
+    'RULES: Include a contact field ONLY if the email gives a NEW or CHANGED value for it (e.g. a new direct line in their signature, a title change); leave it "" otherwise. ' +
+    'For deal: set "key" to the exact key of the ONE open deal the email is about, and include only the fields the email changes. ' +
+    '"status" MUST be exactly one of the provided DEAL STATUSES or "". "expectedClose" is YYYY-MM-DD or "". "price" keeps the contact\'s stated figure as written (e.g. "$1.1M"). "terms" is a short note of a term change. If the email is not about any listed deal, leave "deal" empty. ' +
+    '"interest" MUST be one of the provided INTERESTS or "". NEVER fabricate a phone, price, or date not stated in the email. "note" is one short line capturing what the contact said (always useful to log); "summary" is one line on why this matters. If nothing is worth updating and nothing is worth logging, return everything empty.';
+  const rec = {
+    name: (person && person.name) || '', title: (person && person.title) || '', email: (person && person.email) || '',
+    phone: (person && person.phone) || '', company: (person && person.company) || '', interest: (person && person.type) || '',
+  };
+  const payload = 'DEAL STATUSES: ' + JSON.stringify(statuses || []) + '\nINTERESTS: ' + JSON.stringify(interests || []) +
+    '\n\nCONTACT RECORD (current):\n' + JSON.stringify(rec) +
+    '\n\nTHEIR OPEN DEALS:\n' + JSON.stringify((deals || []).slice(0, 6)) +
+    '\n\nEMAIL\nFROM: ' + String(from || '') + '\nSUBJECT: ' + String(subject || '') + '\n\nBODY:\n' + String(body || '').slice(0, 12000);
+  return extractJson(await callClaude(sys, payload, 800)) || {};
+}
 // 6b) Structure a pasted list of a group's brands + locations (NO web lookup — just organize what's given).
 async function parseConceptList({ text, conceptTypes, cuisines }) {
   const sys = 'You are a restaurant/bar commercial real-estate broker\'s intake assistant. You are given a pasted list of restaurant/bar brands and their locations, all owned by ONE ownership group. ' +
@@ -450,4 +469,4 @@ async function rewriteEmail({ text }) {
   const out = await callClaude(sys, "DRAFT EMAIL (may contain HTML):\n" + String(text || "").slice(0, 12000), 1400);
   return _emailHtmlOut(out);
 }
-module.exports = { rewriteEmail, parseSpaceListing, parseSpaceListingDoc, enrichCenters, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, parseEmailContact, parseConceptList, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, enrichCenterDetail, enrichPropertyDetail, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary, buildQuestionnaire, classifyRoomDocs, polishPrompts, refineBov };
+module.exports = { rewriteEmail, parseSpaceListing, parseSpaceListingDoc, enrichCenters, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, parseEmailContact, parseEmailUpdate, parseConceptList, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, enrichCenterDetail, enrichPropertyDetail, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary, buildQuestionnaire, classifyRoomDocs, polishPrompts, refineBov };

@@ -40,6 +40,32 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .prop{background:#fff;border:1px solid var(--line);border-radius:12px;padding:0;margin-bottom:16px;overflow:hidden;box-shadow:0 1px 2px rgba(16,32,70,.04);}
 .prop .ph{display:flex;align-items:flex-start;gap:12px;padding:15px 18px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#fbfcfe,#f6f8fc);}
 .prop .pk{flex:0 0 auto;font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#2647b0;background:#eaf0ff;border-radius:999px;padding:4px 10px;margin-top:2px;}
+.prop .pk.upd{color:#8a5a00;background:#fbf0d8;}
+.chgwrap{padding:10px 18px 4px;}
+.chg{display:flex;gap:11px;align-items:flex-start;padding:10px 0;border-bottom:1px dashed var(--line);}
+.chg:last-child{border-bottom:none;}
+.chg .chk{flex:0 0 auto;padding-top:2px;}
+.chg .chk input{width:16px;height:16px;accent-color:var(--red);}
+.chgbody{flex:1;min-width:0;}
+.chglbl{font-size:12px;color:var(--navy);font-weight:700;margin-bottom:5px;}
+.chglbl .chgt{font-size:9.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);background:#f0f2f7;border-radius:5px;padding:2px 6px;margin-right:4px;}
+.chgval{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.chgval .was{font-size:12.5px;color:#9aa3b2;text-decoration:line-through;}
+.chgval .arr{font-size:12px;color:var(--muted);font-weight:700;}
+.chgval .chgafter{flex:1;min-width:140px;border:1px solid #cfd6e2;border-radius:7px;padding:7px 10px;font:inherit;font-size:13px;color:var(--ink);}
+.chgnone{padding:4px 0 10px;color:var(--muted);font-size:12.5px;}
+.prop .pk.file{color:#1f6f5c;background:#e3f3ee;}
+.attwrap{padding:4px 18px 6px;}
+.att{display:flex;gap:11px;align-items:flex-start;padding:10px 0;border-bottom:1px dashed var(--line);}
+.att:last-child{border-bottom:none;}
+.att .chk{flex:0 0 auto;padding-top:2px;}
+.att .chk input{width:16px;height:16px;accent-color:var(--red);}
+.attbody{flex:1;min-width:0;display:flex;gap:14px;align-items:center;flex-wrap:wrap;}
+.attname{font-size:13px;color:var(--navy);font-weight:600;word-break:break-word;flex:1;min-width:160px;}
+.attname .attsz{color:var(--muted);font-weight:500;font-size:11.5px;margin-left:6px;}
+.atttype{display:flex;align-items:center;gap:7px;}
+.atttype .fld{margin:0;}
+.atttype .attdt{width:130px;border:1px solid #cfd6e2;border-radius:7px;padding:6px 9px;font:inherit;font-size:12.5px;}
 .prop .pt{flex:1;min-width:0;}
 .prop .pt h3{margin:0;font-size:15px;color:var(--navy);line-height:1.3;}
 .prop .src{margin-top:4px;font-size:12px;color:var(--muted);}
@@ -127,7 +153,7 @@ function propCard(p){
   if(s.from||s.subject){ srcLine='<div class="src"><span class="frm">'+esc(s.from||'')+'</span>'+(s.subject?(' · '+esc(s.subject)):'')+'</div>'; }
   var snip = s.snippet ? ('<div class="snip"><b>From the email</b>'+esc(s.snippet)+'</div>') : '';
   return ''+
-  '<div class="prop" data-id="'+esc(p.id)+'">'+
+  '<div class="prop" data-id="'+esc(p.id)+'" data-kind="new_lead">'+
     '<div class="ph"><span class="pk">New lead</span><div class="pt"><h3>'+esc(p.title||('Add '+who))+'</h3>'+srcLine+'</div></div>'+
     snip+
     '<div class="grid">'+
@@ -156,6 +182,70 @@ function collectFields(card){
   return out;
 }
 
+function updateCard(p){
+  var f=p.fields||{}, s=p.source||{};
+  var srcLine='';
+  if(s.from||s.subject){ srcLine='<div class="src"><span class="frm">'+esc(s.from||'')+'</span>'+(s.subject?(' · '+esc(s.subject)):'')+'</div>'; }
+  var snip = s.snippet ? ('<div class="snip"><b>From the email</b>'+esc(s.snippet)+'</div>') : '';
+  var chg=(f.changes||[]);
+  var rows=chg.map(function(ch,i){
+    var tgt=ch.target==='deal'?('Deal · '+esc(f.dealLabel||'')):'Contact';
+    return ''+
+    '<div class="chg" data-ci="'+i+'">'+
+      '<label class="chk"><input type="checkbox" class="chgon" checked></label>'+
+      '<div class="chgbody">'+
+        '<div class="chglbl"><span class="chgt">'+esc(tgt)+'</span> '+esc(ch.label||ch.field||'')+'</div>'+
+        '<div class="chgval">'+(ch.before?('<span class="was">'+esc(ch.before)+'</span><span class="arr">&rarr;</span>'):'<span class="arr">add</span>')+'<input class="chgafter" value="'+esc(ch.after||'')+'"></div>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+  if(!rows) rows='<div class="chgnone">No field changes — just a note to log.</div>';
+  return ''+
+  '<div class="prop" data-id="'+esc(p.id)+'" data-kind="record_update">'+
+    '<div class="ph"><span class="pk upd">Update</span><div class="pt"><h3>'+esc(p.title||'Update record')+'</h3>'+srcLine+'</div></div>'+
+    snip+
+    '<div class="chgwrap">'+rows+'</div>'+
+    '<div class="grid"><div class="full"><label class="fld">Note to log on the contact</label><textarea data-note>'+esc(f.note||'')+'</textarea></div></div>'+
+    '<div class="pf">'+
+      (p.confidence!=null?('<span class="conf">Read confidence: '+Math.round(p.confidence*100)+'%</span>'):'')+
+      '<span class="sp"></span>'+
+      '<span class="pmsg" data-msg></span>'+
+      '<button class="btn ghost sm" data-act="dismiss">Dismiss</button>'+
+      '<button class="btn red" data-act="confirm">Confirm &amp; apply</button>'+
+    '</div>'+
+  '</div>';
+}
+
+function wireUpdateCard(card){
+  var id=card.getAttribute('data-id');
+  var msg=card.querySelector('[data-msg]');
+  card.querySelector('[data-act="confirm"]').addEventListener('click',function(){
+    var btn=this; btn.disabled=true; msg.textContent=''; msg.className='pmsg';
+    var changes=[];
+    card.querySelectorAll('.chg').forEach(function(row){
+      if(!row.querySelector('.chgon').checked) return;
+      var i=parseInt(row.getAttribute('data-ci'),10);
+      var base=(window._INBOXMAP&&window._INBOXMAP[id]&&window._INBOXMAP[id].fields.changes[i])||{};
+      changes.push({ target:base.target, field:base.field, dealKey:base.dealKey, label:base.label, before:base.before, after:row.querySelector('.chgafter').value });
+    });
+    var note=(card.querySelector('[data-note]')||{}).value||'';
+    if(!changes.length && !note.trim()){ msg.textContent='Nothing selected.'; msg.className='pmsg err'; btn.disabled=false; return; }
+    fetch('/api/inbox/'+encodeURIComponent(id)+'/confirm',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({fields:{changes:changes,note:note}})})
+      .then(function(r){return r.json();}).then(function(j){
+        if(!j.ok){ msg.textContent=j.error||'Could not apply.'; msg.className='pmsg err'; btn.disabled=false; return; }
+        var n=(j.result&&j.result.applied)||0;
+        flash('Applied '+n+' change'+(n===1?'':'s')+'.');
+        removeCard(card); setBadge(j.pendingCount||0);
+      }).catch(function(){ msg.textContent='Network error.'; msg.className='pmsg err'; btn.disabled=false; });
+  });
+  card.querySelector('[data-act="dismiss"]').addEventListener('click',function(){
+    var btn=this; btn.disabled=true;
+    fetch('/api/inbox/'+encodeURIComponent(id)+'/dismiss',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:'{}'})
+      .then(function(r){return r.json();}).then(function(j){ flash('Dismissed.'); removeCard(card); setBadge((j&&j.pendingCount)||0); })
+      .catch(function(){ btn.disabled=false; });
+  });
+}
+
 function wireCard(card){
   var id=card.getAttribute('data-id');
   var msg=card.querySelector('[data-msg]');
@@ -168,6 +258,75 @@ function wireCard(card){
         flash((j.result&&j.result.isNew?'Added ':'Updated ')+nm+' in your book.');
         removeCard(card); setBadge(j.pendingCount||0);
       }).catch(function(){ msg.textContent='Network error.'; msg.className='pmsg err'; btn.disabled=false; });
+  });
+  card.querySelector('[data-act="dismiss"]').addEventListener('click',function(){
+    var btn=this; btn.disabled=true;
+    fetch('/api/inbox/'+encodeURIComponent(id)+'/dismiss',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:'{}'})
+      .then(function(r){return r.json();}).then(function(j){ flash('Dismissed.'); removeCard(card); setBadge((j&&j.pendingCount)||0); })
+      .catch(function(){ btn.disabled=false; });
+  });
+}
+
+function fsize(n){ n=Number(n)||0; if(n<1024) return n+' B'; if(n<1048576) return Math.round(n/1024)+' KB'; return (n/1048576).toFixed(1)+' MB'; }
+
+function fileCard(p){
+  var f=p.fields||{}, s=p.source||{}, sug=f.suggest||{};
+  var srcLine='';
+  if(s.from||s.subject){ srcLine='<div class="src"><span class="frm">'+esc(s.from||'')+'</span>'+(s.subject?(' · '+esc(s.subject)):'')+'</div>'; }
+  var snip = s.snippet ? ('<div class="snip"><b>From the email</b>'+esc(s.snippet)+'</div>') : '';
+  // Target options
+  var opts=''; var defVal='none';
+  (sug.deals||[]).forEach(function(d){ opts+='<option value="deal:'+esc(d.key)+'">Deal · '+esc(d.business||d.key)+'</option>'; });
+  if(sug.personId){ opts+='<option value="contact:'+esc(sug.personId)+'">Contact · '+esc(sug.personName||'')+'</option>'; }
+  opts+='<option value="none">Just the Doc Vault (no link)</option>';
+  if(sug.dealKey) defVal='deal:'+sug.dealKey; else if(sug.personId) defVal='contact:'+sug.personId;
+  var atts=(f.attachments||[]).map(function(a){
+    return ''+
+    '<div class="att" data-aid="'+esc(a.attachmentId)+'">'+
+      '<label class="chk"><input type="checkbox" class="atton" checked></label>'+
+      '<div class="attbody"><div class="attname">'+esc(a.filename)+' <span class="attsz">'+fsize(a.size)+'</span></div>'+
+        '<div class="atttype"><label class="fld">Type</label><input class="attdt" value="'+esc(a.docType||'General')+'"></div>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+  return ''+
+  '<div class="prop" data-id="'+esc(p.id)+'" data-kind="file_attachment">'+
+    '<div class="ph"><span class="pk file">File</span><div class="pt"><h3>'+esc(p.title||'File attachment')+'</h3>'+srcLine+'</div></div>'+
+    snip+
+    '<div class="grid"><div class="full"><label class="fld">File onto</label><select data-target>'+opts.replace('value="'+defVal+'"','value="'+defVal+'" selected')+'</select></div></div>'+
+    '<div class="attwrap">'+atts+'</div>'+
+    '<div class="grid"><div class="full"><label class="fld">Note (logged with the file)</label><textarea data-note>'+esc(f.note||'')+'</textarea></div></div>'+
+    '<div class="pf"><span class="sp"></span><span class="pmsg" data-msg></span>'+
+      '<button class="btn ghost sm" data-act="dismiss">Dismiss</button>'+
+      '<button class="btn red" data-act="confirm">Confirm &amp; file</button>'+
+    '</div>'+
+  '</div>';
+}
+
+function wireFileCard(card){
+  var id=card.getAttribute('data-id');
+  var msg=card.querySelector('[data-msg]');
+  card.querySelector('[data-act="confirm"]').addEventListener('click',function(){
+    var btn=this; btn.disabled=true; msg.textContent=''; msg.className='pmsg';
+    var ids=[]; var docTypes={};
+    card.querySelectorAll('.att').forEach(function(row){
+      if(!row.querySelector('.atton').checked) return;
+      var aid=row.getAttribute('data-aid'); ids.push(aid); docTypes[aid]=row.querySelector('.attdt').value;
+    });
+    if(!ids.length){ msg.textContent='Select at least one file.'; msg.className='pmsg err'; btn.disabled=false; return; }
+    var tv=(card.querySelector('[data-target]')||{}).value||'none';
+    var target={type:'none'};
+    if(tv.indexOf('deal:')===0){ target={type:'deal',dealKey:tv.slice(5)}; var o=card.querySelector('[data-target]').selectedOptions[0]; target.dealLabel=o?o.textContent.replace(/^Deal · /,''):''; }
+    else if(tv.indexOf('contact:')===0){ target={type:'contact',personId:tv.slice(8)}; }
+    var note=(card.querySelector('[data-note]')||{}).value||'';
+    btn.textContent='Filing…';
+    fetch('/api/inbox/'+encodeURIComponent(id)+'/confirm',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({fields:{attachmentIds:ids,docTypes:docTypes,target:target,note:note}})})
+      .then(function(r){return r.json();}).then(function(j){
+        if(!j.ok){ msg.textContent=j.error||'Could not file.'; msg.className='pmsg err'; btn.disabled=false; btn.textContent='Confirm & file'; return; }
+        var n=(j.result&&j.result.filed)||0;
+        flash('Filed '+n+' file'+(n===1?'':'s')+'.');
+        removeCard(card); setBadge(j.pendingCount||0);
+      }).catch(function(){ msg.textContent='Network error.'; msg.className='pmsg err'; btn.disabled=false; btn.textContent='Confirm & file'; });
   });
   card.querySelector('[data-act="dismiss"]').addEventListener('click',function(){
     var btn=this; btn.disabled=true;
@@ -198,8 +357,9 @@ function render(d){
   var list=d.pending||[];
   if(list.length){
     plabel.style.display=''; plabel.textContent='To review ('+list.length+')';
-    pend.innerHTML=list.map(propCard).join('');
-    pend.querySelectorAll('.prop').forEach(wireCard);
+    window._INBOXMAP={}; list.forEach(function(p){ window._INBOXMAP[p.id]=p; });
+    pend.innerHTML=list.map(function(p){ return p.kind==='record_update'?updateCard(p):(p.kind==='file_attachment'?fileCard(p):propCard(p)); }).join('');
+    pend.querySelectorAll('.prop').forEach(function(card){ var k=card.getAttribute('data-kind'); if(k==='record_update') wireUpdateCard(card); else if(k==='file_attachment') wireFileCard(card); else wireCard(card); });
   } else {
     plabel.style.display='none';
     pend.innerHTML=''+
@@ -211,10 +371,16 @@ function render(d){
   if(rec.length){
     rw.innerHTML='<details class="recent"><summary>Recently handled <span class="cnt">('+rec.length+')</span></summary>'+
       rec.map(function(p){
-        var f=p.fields||{}; var who=((f.firstName||'')+' '+(f.lastName||'')).trim()||f.email||'Contact';
-        var link=(p.result&&p.result.personId)?('<a href="rrg_person.html?id='+encodeURIComponent(p.result.personId)+'">open</a>'):'';
-        return '<div class="recrow"><span class="rn">'+esc(who)+(f.companyName?(' · '+esc(f.companyName)):'')+'</span>'+
-          '<span class="rs '+(p.status==='confirmed'?'conf':'dis')+'">'+(p.status==='confirmed'?'Added':'Dismissed')+'</span>'+link+'</div>';
+        var f=p.fields||{};
+        var isUpd=(p.kind==='record_update'); var isFile=(p.kind==='file_attachment');
+        var sug=f.suggest||{};
+        var who=isUpd?(f.personName||'Contact'):(isFile?(sug.personName||(p.title||'Attachment')):(((f.firstName||'')+' '+(f.lastName||'')).trim()||f.email||'Contact'));
+        var sub=isUpd?(f.dealLabel?(' · '+esc(f.dealLabel)):''):(isFile?((p.result&&p.result.filed)?(' · '+p.result.filed+' file'+(p.result.filed===1?'':'s')):''):(f.companyName?(' · '+esc(f.companyName)):''));
+        var pid=(p.result&&p.result.personId)||(isUpd&&f.personId)||(isFile&&sug.personId)||'';
+        var link=pid?('<a href="rrg_person.html?id='+encodeURIComponent(pid)+'">open</a>'):'';
+        var doneWord=isUpd?'Updated':(isFile?'Filed':'Added');
+        return '<div class="recrow"><span class="rn">'+esc(who)+sub+'</span>'+
+          '<span class="rs '+(p.status==='confirmed'?'conf':'dis')+'">'+(p.status==='confirmed'?doneWord:'Dismissed')+'</span>'+link+'</div>';
       }).join('')+'</details>';
   } else { rw.innerHTML=''; }
 }

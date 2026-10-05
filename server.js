@@ -10451,8 +10451,18 @@ async function gmailAddPull(username, name, opts) {
     const hasWho = parsed && parsed.found && (String(parsed.firstName || '').trim() || String(parsed.lastName || '').trim() || String(parsed.email || '').trim());
     if (!hasWho) { skipped++; continue; }
     if (reviewMode) {
-      const pr = addLeadProposal(username, parsed, { messageId: m.id, from: m.from, subject: m.subject, snippet: String(m.body || '').slice(0, 600), date: m.date || m.internalDate || '' });
-      if (pr.created) { proposed++; results.push({ proposal: pr.id, name: composeName(parsed.firstName, parsed.lastName) || parsed.email || '', company: parsed.companyName || '', pending: true }); } else { skipped++; }
+      const src = { messageId: m.id, from: m.from, subject: m.subject, snippet: String(m.body || '').slice(0, 600), date: m.date || m.internalDate || '' };
+      const existing = findPersonByEmail(parsed.email) || (parsed.email ? null : findPersonByEmail((String(m.from || '').match(/[\w.+-]+@[\w.-]+\.[a-z]{2,}/i) || [''])[0]));
+      if (existing) {
+        // Known contact → propose updates to their record / deal instead of a duplicate lead.
+        let upd = null;
+        try { upd = await aiassist.parseEmailUpdate({ from: m.from, subject: m.subject, body: m.body, person: existing, deals: personDealsSnapshot(existing.id), statuses: TXN_STATUSES, interests: effPersonTypes() }); } catch (e) { upd = null; }
+        const ur = upd ? addUpdateProposal(username, upd, existing, src) : { created: false };
+        if (ur.created) { proposed++; results.push({ proposal: ur.id, name: existing.name || '', update: true, pending: true }); } else { skipped++; }
+      } else {
+        const pr = addLeadProposal(username, parsed, src);
+        if (pr.created) { proposed++; results.push({ proposal: pr.id, name: composeName(parsed.firstName, parsed.lastName) || parsed.email || '', company: parsed.companyName || '', pending: true }); } else { skipped++; }
+      }
       continue;
     }
     let co = null;
@@ -10509,8 +10519,16 @@ app.post('/api/gmail-add/run', express.json(), async (req, res) => {
     const u = (req.user && req.user.username) || '';
     if (!gmail.statusFor(u).connected) return res.status(400).json({ ok: false, error: 'Connect your Gmail first — Account page, Connect Gmail.' });
     const out = await gmailAddPull(u, (req.user && req.user.name) || u, { all: !!(req.body && req.body.all) });
-    if (out.ok && out.reviewMode && out.proposed) out.note = out.proposed + ' lead' + (out.proposed === 1 ? '' : 's') + ' ready to review on the Review queue.';
-    else if (out.ok && !out.added && !out.updated && !out.proposed) out.note = out.scanned ? ('Scanned ' + out.scanned + ' labeled email(s)' + (out.fresh === 0 ? ' — all already processed.' : ' — none had a contact I could read.')) : ('No emails found with the label “' + ((loadGaddPoll()[u] || {}).label || 'FullServe') + '” — add the label to a few emails in Gmail first.');
+    // Also scan the same labeled mail for attachments to file (LOIs, flyers) — always confirm-gated.
+    let attOut = null;
+    try { attOut = await gmailAttachPull(u, (req.user && req.user.name) || u, { all: !!(req.body && req.body.all) }); } catch (e) { attOut = null; }
+    const fileProposed = (attOut && attOut.ok) ? (attOut.proposed || 0) : 0;
+    out.fileProposed = fileProposed;
+    const leadBits = [];
+    if (out.ok && out.reviewMode && out.proposed) leadBits.push(out.proposed + ' lead/update' + (out.proposed === 1 ? '' : 's'));
+    if (fileProposed) leadBits.push(fileProposed + ' attachment' + (fileProposed === 1 ? '' : 's'));
+    if (out.ok && leadBits.length) out.note = leadBits.join(' and ') + ' ready to review on the Review queue.';
+    else if (out.ok && !out.added && !out.updated && !out.proposed && !fileProposed) out.note = out.scanned ? ('Scanned ' + out.scanned + ' labeled email(s)' + (out.fresh === 0 ? ' — all already processed.' : ' — nothing new to propose.')) : ('No emails found with the label “' + ((loadGaddPoll()[u] || {}).label || 'FullServe') + '” — add the label to a few emails in Gmail first.');
     res.json(out);
   } catch (e) { res.status(502).json({ ok: false, error: String((e && e.message) || e) }); }
 });
@@ -10529,6 +10547,7 @@ async function gaddPollTick() {
         if (now - last < iv) continue;
         const prof = (users || []).find(x => x.username === uname) || {};
         try { const r = await gmailAddPull(uname, prof.name || uname, {}); if (r && r.added) console.log('Gmail add: created ' + r.added + ' contact(s) for ' + uname); } catch (e) { console.error('gadd poll error ' + uname + ':', e && e.message); }
+        try { const ra = await gmailAttachPull(uname, prof.name || uname, {}); if (ra && ra.proposed) console.log('Gmail attach: proposed ' + ra.proposed + ' file(s) for ' + uname); } catch (e) { console.error('gatt poll error ' + uname + ':', e && e.message); }
       }
     }
   } catch (e) { console.error('gadd poll tick:', e && e.message); }
@@ -10595,8 +10614,159 @@ function addLeadProposal(username, parsed, source) {
   saveProposals(arr);
   return { created: true, id: p.id };
 }
+// Read-only: find an existing person by email (no creation).
+function findPersonByEmail(email) {
+  const e = cleanEmailAddr(String(email || '')); if (!e) return null;
+  const k = normKey(e); if (!k) return null;
+  const arr = loadPeople();
+  return arr.find(x => (normKey(x.email) === k) || (Array.isArray(x.emails) && x.emails.some(y => normKey(y) === k))) || null;
+}
+// A person's OPEN deals (not Closed/Lost), compact for the AI + the proposal card.
+function personDealsSnapshot(personId) {
+  if (!personId) return [];
+  const out = [];
+  try {
+    const idx = assignmentsIndex(); const overlay = loadAssignOverlay();
+    Object.values(idx).forEach(function (d) {
+      const cur = overlay[d.key] || {}; const t = cur.transaction;
+      if (!t || typeof t !== 'object' || t.personId !== personId) return;
+      const st = t.status || '';
+      if (st === 'Closed' || st === 'Lost') return;
+      let business = cur.businessOverride || '';
+      try { business = business || assignmentView(d, overlay).business; } catch (e) {}
+      out.push({ key: d.key, business: business || '', status: st, price: t.price || '', expectedClose: t.expectedClose || '', terms: (t.terms || '').slice(0, 200) });
+    });
+  } catch (e) {}
+  return out;
+}
+// Build a record_update proposal from the AI's reading of an email against a known contact.
+// Only well-supported, actually-changed fields become line items. Returns {created,id} or {created:false}.
+function addUpdateProposal(username, upd, person, source) {
+  if (!username || !person || !upd) return { created: false };
+  const msgId = String((source && source.messageId) || '').trim();
+  const arr = loadProposals();
+  if (msgId && arr.some(x => x.forUser === username && x.source && x.source.messageId === msgId && (x.status === 'pending' || x.status === 'confirmed'))) return { created: false, dup: true };
+  const changes = []; // each: { target:'contact'|'deal', dealKey?, field, label, before, after }
+  const c = upd.contact || {};
+  const contactLabels = { title: 'Title', phone: 'Phone', email: 'Email', interest: 'Interest' };
+  ['title', 'phone', 'email', 'interest'].forEach(function (k) {
+    const v = String(c[k] == null ? '' : c[k]).trim(); if (!v) return;
+    if (k === 'interest' && effPersonTypes().indexOf(v) < 0) return;
+    const before = String(person[k === 'interest' ? 'type' : k] || '');
+    if (normKey(before) === normKey(v)) return; // no real change
+    changes.push({ target: 'contact', field: k, label: contactLabels[k], before: before, after: v.slice(0, 160) });
+  });
+  const d = upd.deal || {};
+  const dealKey = String(d.key || '').trim();
+  let dealLabel = '';
+  if (dealKey) {
+    const snap = personDealsSnapshot(person.id).find(x => x.key === dealKey);
+    if (snap) {
+      dealLabel = snap.business || 'deal';
+      const dealLabels = { status: 'Deal status', price: 'Asking / price', expectedClose: 'Expected close', terms: 'Terms' };
+      [['status', TXN_STATUSES], ['price', null], ['expectedClose', null], ['terms', null]].forEach(function (pair) {
+        const k = pair[0]; const v = String(d[k] == null ? '' : d[k]).trim(); if (!v) return;
+        if (pair[1] && pair[1].indexOf(v) < 0) return; // status must be valid
+        const before = String(snap[k] || '');
+        if (normKey(before) === normKey(v)) return;
+        changes.push({ target: 'deal', dealKey: dealKey, field: k, label: dealLabels[k], before: before, after: v.slice(0, 200) });
+      });
+    }
+  }
+  const note = String(upd.note || '').trim().slice(0, 400);
+  if (!changes.length && !note) return { created: false, empty: true };
+  const bits = [];
+  changes.forEach(function (x) { bits.push(x.label); });
+  const who = person.name || person.email || 'contact';
+  let title;
+  if (changes.some(x => x.target === 'deal')) title = 'Update ' + (dealLabel || 'deal') + ' — from ' + who;
+  else if (changes.length) title = 'Update ' + who + ' — ' + bits.slice(0, 3).join(', ');
+  else title = 'Log a note on ' + who;
+  const p = {
+    id: newProposalId(), kind: 'record_update', status: 'pending', forUser: username,
+    source: {
+      channel: 'gmail', messageId: msgId, from: String((source && source.from) || '').slice(0, 300),
+      subject: String((source && source.subject) || '').slice(0, 300),
+      snippet: String((source && source.snippet) || '').slice(0, 600), date: String((source && source.date) || ''),
+    },
+    title: title.slice(0, 200), summary: String(upd.summary || note).slice(0, 400),
+    fields: { personId: person.id, personName: who, dealKey: dealKey, dealLabel: dealLabel, changes: changes, note: note },
+    confidence: (upd.confidence === 'high' ? 0.9 : upd.confidence === 'low' ? 0.4 : (upd.confidence === 'medium' ? 0.7 : null)),
+    createdAt: new Date().toISOString(),
+  };
+  arr.unshift(p);
+  if (arr.length > 2000) { const keep = arr.filter(x => x.status === 'pending'); const decided = arr.filter(x => x.status !== 'pending').slice(0, Math.max(0, 2000 - keep.length)); arr.length = 0; arr.push.apply(arr, keep.concat(decided)); }
+  saveProposals(arr);
+  return { created: true, id: p.id };
+}
+// Guess a Doc Vault type from a filename + email subject (filename/subject only; no file read).
+function guessDocType(filename, subject) {
+  const s = (String(filename || '') + ' ' + String(subject || '')).toLowerCase();
+  if (/\bloi\b|letter[\s_-]?of[\s_-]?intent/.test(s)) return 'LOI';
+  if (/\bnda\b|non[\s_-]?disclos|confidential/.test(s)) return 'NDA';
+  if (/agreement|\betra\b|representation|referral/.test(s)) return 'Agreement';
+  if (/flyer|brochure|offering|marketing|\bom\b/.test(s)) return 'Flyer';
+  if (/lease/.test(s)) return 'Lease';
+  if (/p&l|p-l|financ|statement|tax\b|balance\s?sheet/.test(s)) return 'Financials';
+  return 'General';
+}
+// Build a file_attachment proposal from an email that carries PDF/Word attachments. Suggests a
+// filing target (the known sender, and their single open deal when there's exactly one).
+function addFileProposal(username, msg) {
+  const msgId = String((msg && msg.id) || '').trim(); if (!username || !msgId) return { created: false };
+  const arr = loadProposals();
+  if (arr.some(x => x.forUser === username && x.kind === 'file_attachment' && x.source && x.source.messageId === msgId && (x.status === 'pending' || x.status === 'confirmed'))) return { created: false, dup: true };
+  const atts = (msg.attachments || []).map(function (a) {
+    const ext = (String(a.filename || '').match(/\.([a-z0-9]+)$/i) || ['', ''])[1].toLowerCase();
+    return { attachmentId: a.attachmentId, filename: String(a.filename || '').slice(0, 200), ext: ext, size: a.size || 0, mimeType: a.mimeType || '', docType: guessDocType(a.filename, msg.subject) };
+  }).filter(a => /^(pdf|docx?)$/.test(a.ext) && a.attachmentId);
+  if (!atts.length) return { created: false, empty: true };
+  const fromEmail = (String(msg.from || '').match(/[\w.+-]+@[\w.-]+\.[a-z]{2,}/i) || [''])[0];
+  const person = findPersonByEmail(fromEmail);
+  const deals = person ? personDealsSnapshot(person.id) : [];
+  const suggest = {
+    personId: person ? person.id : '', personName: person ? (person.name || person.email || '') : '',
+    companyId: person ? (person.companyId || '') : '',
+    dealKey: deals.length === 1 ? deals[0].key : '', dealLabel: deals.length === 1 ? (deals[0].business || '') : '',
+    deals: deals.map(d => ({ key: d.key, business: d.business || '' })),
+  };
+  const title = (atts.length === 1 ? ('File “' + atts[0].filename + '”') : ('File ' + atts.length + ' attachments')) + (suggest.personName ? (' — from ' + suggest.personName) : '');
+  const p = {
+    id: newProposalId(), kind: 'file_attachment', status: 'pending', forUser: username,
+    source: {
+      channel: 'gmail', messageId: msgId, from: String(msg.from || '').slice(0, 300),
+      subject: String(msg.subject || '').slice(0, 300), snippet: String(msg.snippet || '').slice(0, 600), date: String(msg.date || ''),
+    },
+    title: title.slice(0, 200), summary: atts.map(a => a.docType).filter((v, i, s) => s.indexOf(v) === i).join(', '),
+    fields: { attachments: atts, suggest: suggest },
+    confidence: null, createdAt: new Date().toISOString(),
+  };
+  arr.unshift(p);
+  if (arr.length > 2000) { const keep = arr.filter(x => x.status === 'pending'); const decided = arr.filter(x => x.status !== 'pending').slice(0, Math.max(0, 2000 - keep.length)); arr.length = 0; arr.push.apply(arr, keep.concat(decided)); }
+  saveProposals(arr);
+  return { created: true, id: p.id };
+}
+// Scan the rep's labeled emails that carry PDF/Word attachments and propose filing them. Always
+// confirm-gated (there is no auto-file). Shares the intake label + seen-set bookkeeping.
+async function gmailAttachPull(username, name, opts) {
+  opts = opts || {};
+  if (!gmail.statusFor(username).connected) return { ok: false, error: 'Gmail not connected.' };
+  const store = loadGaddPoll(); const rec = store[username] || {};
+  const days = opts.all ? 180 : (rec.lastAttRun ? 30 : 60);
+  const q = gaddLabelQuery(rec.label) + ' has:attachment (filename:pdf OR filename:doc OR filename:docx) newer_than:' + days + 'd';
+  let msgs = [];
+  try { msgs = await gmail.listLabeledAttachments(username, q, 30); } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
+  const seenArr = Array.isArray(rec.attSeen) ? rec.attSeen : [];
+  const seenSet = {}; seenArr.forEach(id => seenSet[id] = 1);
+  const fresh = opts.all ? msgs : msgs.filter(m => !seenSet[m.id]);
+  rec.attSeen = seenArr.concat(msgs.map(m => m.id)).filter((v, i, a) => a.indexOf(v) === i).slice(-3000);
+  let proposed = 0; const results = [];
+  for (const m of fresh) { const r = addFileProposal(username, m); if (r.created) { proposed++; results.push({ proposal: r.id }); } }
+  rec.lastAttRun = new Date().toISOString(); store[username] = rec; saveGaddPoll(store);
+  return { ok: true, proposed, scanned: msgs.length, fresh: fresh.length, results };
+}
 // Apply a confirmed proposal. `edits` are the rep's reviewed field values. Returns a result object.
-function applyProposal(p, edits, req) {
+async function applyProposal(p, edits, req) {
   const username = (req && req.user && req.user.username) || p.forUser;
   const name = (req && req.user && req.user.name) || username;
   const rep = { user: { name: name, username: username } };
@@ -10633,6 +10803,88 @@ function applyProposal(p, edits, req) {
     } catch (e) {}
     return { ok: true, personId: person.id, companyId: co ? co.id : '', isNew: isNew, name: person.name || composeName(f.firstName, f.lastName) };
   }
+  if (p.kind === 'record_update') {
+    const pid = (p.fields && p.fields.personId) || '';
+    // The rep's reviewed subset; fall back to every proposed change.
+    const changes = (edits && Array.isArray(edits.changes)) ? edits.changes : ((p.fields && p.fields.changes) || []);
+    const note = String((edits && edits.note != null) ? edits.note : ((p.fields && p.fields.note) || '')).slice(0, 400);
+    let applied = 0; const dealKeysTouched = {};
+    const contactCh = changes.filter(x => x && x.target === 'contact');
+    const dealCh = changes.filter(x => x && x.target === 'deal' && x.dealKey);
+    // ---- Contact field changes ----
+    const ppl = loadPeople(); const pp = pid ? ppl.find(x => x.id === pid) : null;
+    if (pp) {
+      contactCh.forEach(function (ch) {
+        const v = String(ch.after || '').trim(); if (!v) return;
+        if (ch.field === 'title') { pp.title = v.slice(0, 120); applied++; }
+        else if (ch.field === 'phone') { pp.phones = Array.isArray(pp.phones) ? pp.phones : []; if (pp.phones.indexOf(v) < 0) pp.phones.unshift(v.slice(0, 60)); pp.phone = pp.phones[0]; applied++; }
+        else if (ch.field === 'email') { pp.emails = Array.isArray(pp.emails) ? pp.emails : []; const ve = cleanEmailAddr(v); if (ve && pp.emails.map(normKey).indexOf(normKey(ve)) < 0) pp.emails.push(ve.slice(0, 160)); if (ve) pp.email = pp.email || ve; applied++; }
+        else if (ch.field === 'interest' && effPersonTypes().indexOf(v) >= 0) { pp.type = v; pp.types = [v]; applied++; }
+      });
+      if (note) logActivity(pp, 'Note', ('From inbox review — ' + note).slice(0, 300), { by: name, byUser: username });
+      if (applied || note) { pp.updatedAt = new Date().toISOString(); savePeople(ppl); }
+    }
+    // ---- Deal field changes ----
+    if (dealCh.length) {
+      try {
+        const overlay = loadAssignOverlay(); let ovChanged = false;
+        dealCh.forEach(function (ch) {
+          const cur = overlay[ch.dealKey]; if (!cur || !cur.transaction || typeof cur.transaction !== 'object') return;
+          const t = cur.transaction; const v = String(ch.after || '').trim(); if (!v) return;
+          if (ch.field === 'status' && TXN_STATUSES.indexOf(v) >= 0) { t.status = v; applied++; }
+          else if (ch.field === 'price') { t.price = v.slice(0, 40); applied++; }
+          else if (ch.field === 'expectedClose') { t.expectedClose = v.slice(0, 10); applied++; }
+          else if (ch.field === 'terms') { t.terms = (String(t.terms || '') ? (String(t.terms) + ' | ') : '') + v.slice(0, 400); applied++; }
+          else return;
+          t.updatedAt = new Date().toISOString(); cur.updatedAt = t.updatedAt; overlay[ch.dealKey] = cur; ovChanged = true; dealKeysTouched[ch.dealKey] = 1;
+        });
+        if (ovChanged) saveAssignOverlay(overlay);
+      } catch (e) {}
+    }
+    if (!applied && !note) return { ok: false, error: 'Nothing was selected to apply.' };
+    return { ok: true, personId: pid, name: (p.fields && p.fields.personName) || '', applied: applied, deals: Object.keys(dealKeysTouched) };
+  }
+  if (p.kind === 'file_attachment') {
+    const msgId = (p.source && p.source.messageId) || '';
+    const sug = (p.fields && p.fields.suggest) || {};
+    const allAtts = (p.fields && p.fields.attachments) || [];
+    const selIds = (edits && Array.isArray(edits.attachmentIds)) ? edits.attachmentIds : null;
+    const atts = allAtts.filter(a => !selIds || selIds.indexOf(a.attachmentId) >= 0);
+    if (!atts.length) return { ok: false, error: 'No attachments selected.' };
+    const note = String((edits && edits.note) || '').slice(0, 400);
+    const target = (edits && edits.target) || {};
+    const ttype = target.type || (sug.dealKey ? 'deal' : (sug.personId ? 'contact' : 'none'));
+    let _co = '', _pe = '', _dk = '', rt = '', rname = '';
+    if (ttype === 'deal') { _dk = String(target.dealKey || sug.dealKey || ''); rt = _dk ? 'listing' : ''; rname = String(target.dealLabel || sug.dealLabel || ''); }
+    else if (ttype === 'contact') { _pe = String(target.personId || sug.personId || ''); rt = _pe ? 'contact' : ''; rname = sug.personName || ''; }
+    else if (ttype === 'company') { _co = String(target.companyId || sug.companyId || ''); rt = _co ? 'company' : ''; }
+    // Overridden docType per attachment, if the rep edited it.
+    const dtMap = (edits && edits.docTypes && typeof edits.docTypes === 'object') ? edits.docTypes : {};
+    try { if (!fs.existsSync(USERDOCS_DIR)) fs.mkdirSync(USERDOCS_DIR, { recursive: true }); } catch (e) {}
+    const files = loadUserFiles(); let filed = 0; const names = [];
+    for (const a of atts) {
+      let buf = null;
+      try { buf = await gmail.getAttachment((req && req.user && req.user.username) || p.forUser, msgId, a.attachmentId); } catch (e) { buf = null; }
+      if (!buf || !buf.length || buf.length > 25 * 1024 * 1024) continue;
+      const id = newFileId();
+      try { binWrite(path.join(USERDOCS_DIR, id + '.' + a.ext), buf); } catch (e) { continue; }
+      const rec = {
+        id: id, name: (prettyName(a.filename) || a.filename || 'document').slice(0, 160), originalName: a.filename, ext: a.ext, size: buf.length,
+        docType: String(dtMap[a.attachmentId] || a.docType || 'General').slice(0, 40),
+        companyId: _co, personId: _pe, dealKey: _dk, relatesToType: rt, relatesToName: String(rname || '').slice(0, 160),
+        note: note, by: name, byUser: username, createdBy: username, source: 'Gmail', uploadedAt: new Date().toISOString(),
+      };
+      files.push(rec); filed++; names.push(rec.name);
+    }
+    if (!filed) return { ok: false, error: 'Could not download the attachment(s) from Gmail — the message or token may have expired.' };
+    saveUserFiles(files);
+    try {
+      const fnote = ('Filed from inbox review: ' + names.join(', ')).slice(0, 300);
+      if (_pe) { const ppl = loadPeople(); const pp = ppl.find(x => x.id === _pe); if (pp) { logActivity(pp, 'File', fnote, { by: name, byUser: username, auto: true }); savePeople(ppl); } }
+      if (_co) { const cos = loadCompanies(); const cc = cos.find(x => x.id === _co); if (cc) { logActivity(cc, 'File', fnote, { by: name, byUser: username, auto: true }); saveCompanies(cos); } }
+    } catch (e) {}
+    return { ok: true, filed: filed, target: ttype, personId: _pe, dealKey: _dk, names: names };
+  }
   return { ok: false, error: 'This kind of proposal is not handled yet.' };
 }
 // Count a rep's pending proposals (drives the nav badge).
@@ -10648,7 +10900,7 @@ app.get('/api/inbox', (req, res) => {
     reviewMode: (rec.reviewMode !== false), intakeEnabled: !!rec.enabled, label: rec.label || 'FullServe',
     connected: gmail.statusFor(me).connected, types: effPersonTypes() });
 });
-app.post('/api/inbox/:id/confirm', express.json(), (req, res) => {
+app.post('/api/inbox/:id/confirm', express.json(), async (req, res) => {
   if (!req.user) return res.status(401).json({ ok: false, error: 'Sign in required.' });
   const me = req.user.username;
   const arr = loadProposals(); const p = arr.find(x => x.id === req.params.id);
@@ -10656,7 +10908,7 @@ app.post('/api/inbox/:id/confirm', express.json(), (req, res) => {
   if (p.forUser !== me && !isSuper(req.user)) return res.status(403).json({ ok: false, error: 'Not your item.' });
   if (p.status !== 'pending') return res.json({ ok: true, already: true, status: p.status, result: p.result || null });
   let result;
-  try { result = applyProposal(p, (req.body && req.body.fields) || {}, req); } catch (e) { return res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+  try { result = await applyProposal(p, (req.body && req.body.fields) || {}, req); } catch (e) { return res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
   if (!result || !result.ok) return res.status(400).json({ ok: false, error: (result && result.error) || 'Could not apply.' });
   p.status = 'confirmed'; p.decidedAt = new Date().toISOString(); p.decidedBy = me; p.result = result;
   if (req.body && req.body.fields) p.fields = Object.assign({}, p.fields, req.body.fields);
