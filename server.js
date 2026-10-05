@@ -9462,7 +9462,7 @@ footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} 
       <select class="sel" id="fCash"><option value="">Any cash flow</option>${Object.keys(MKT_CASH).filter(function(k){return k;}).map(function(k){return '<option value="'+k+'">'+MKT_CASH[k]+'</option>';}).join('')}</select>
       <select class="sel" id="fAsk"><option value="">Any price</option>${Object.keys(MKT_PRICE).filter(function(k){return k;}).map(function(k){return '<option value="'+k+'">'+MKT_PRICE[k]+'</option>';}).join('')}</select>
       <span class="spacer"></span>
-      <select class="sel" id="fSort"><option value="new">Sort: Newest</option><option value="price">Guide: high &rarr; low</option></select>
+      <select class="sel" id="fSort"><option value="price">Price: high &rarr; low</option><option value="new">Newest</option></select>
     </div>
     <div id="bizFeat" style="display:none"></div>
     <div class="panelwrap" id="bizPanelWrap"><div class="panel">
