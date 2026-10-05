@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Review</title>
+<script src="/rrg_brand.js"></script>
+<style>
+:root{ --navy:#000E31; --red:#DA2B1F; --gold:#C8A24B; --ink:#1a2236; --muted:#6b7488; --line:#e6e9f0; --wash:#f5f7fb; --bg:#eef1f6; --green:#1f8a5b; }
+*{box-sizing:border-box;} html,body{margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg);}
+.top{background:#000E31;border-bottom:2px solid #2c5c8f;color:#fff;padding:20px 0;}
+.top-inner{max-width:1080px;margin:0 auto;padding:0 28px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+.brand{display:inline-flex;align-items:center;gap:11px;}
+.brand .disc{background:var(--red);color:#fff;border-radius:50%;width:38px;height:38px;font-family:'Arial Black',Arial;font-weight:900;font-size:12px;display:flex;align-items:center;justify-content:center;}
+.brand .wm{font-weight:700;font-size:15px;}
+.top a.back{color:#c3ccdf;text-decoration:none;font-weight:600;font-size:13px;border:1px solid rgba(255,255,255,.2);padding:7px 13px;border-radius:8px;}
+.top a.back:hover{border-color:#fff;color:#fff;}
+.wrap{max-width:1080px;margin:0 auto;padding:22px 28px 70px;}
+
+.statusbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-radius:10px;padding:13px 16px;margin-bottom:18px;}
+.statusbar .dot{width:9px;height:9px;border-radius:50%;background:#c3c9d4;flex:0 0 auto;}
+.statusbar .dot.on{background:var(--green);}
+.statusbar .lead{font-weight:700;color:var(--navy);font-size:13.5px;}
+.statusbar .meta{color:var(--muted);font-size:12.5px;}
+.statusbar .sp{flex:1;}
+.statusbar .act{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.toggle{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:var(--navy);cursor:pointer;user-select:none;}
+.toggle input{width:16px;height:16px;accent-color:var(--red);}
+
+.btn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:8px;padding:9px 15px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-block;}
+.btn:hover{background:#0a1733;}
+.btn.red{background:var(--red);border-color:var(--red);} .btn.red:hover{background:#b8281d;}
+.btn.ghost{background:#fff;color:var(--navy);border:1px solid #cfd6e2;} .btn.ghost:hover{border-color:#9fb0cc;}
+.btn.sm{padding:6px 11px;font-size:12px;}
+.btn:disabled{opacity:.5;cursor:default;}
+
+.sectlabel{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:800;margin:4px 0 12px;}
+
+.prop{background:#fff;border:1px solid var(--line);border-radius:12px;padding:0;margin-bottom:16px;overflow:hidden;box-shadow:0 1px 2px rgba(16,32,70,.04);}
+.prop .ph{display:flex;align-items:flex-start;gap:12px;padding:15px 18px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#fbfcfe,#f6f8fc);}
+.prop .pk{flex:0 0 auto;font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#2647b0;background:#eaf0ff;border-radius:999px;padding:4px 10px;margin-top:2px;}
+.prop .pt{flex:1;min-width:0;}
+.prop .pt h3{margin:0;font-size:15px;color:var(--navy);line-height:1.3;}
+.prop .src{margin-top:4px;font-size:12px;color:var(--muted);}
+.prop .src .frm{font-weight:600;color:#3a4256;}
+.snip{margin:0;padding:11px 18px;background:#fafbfe;border-bottom:1px solid var(--line);font-size:12.5px;color:#485061;line-height:1.5;max-height:92px;overflow:auto;white-space:pre-wrap;}
+.snip b{color:var(--muted);font-weight:700;display:block;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;margin-bottom:4px;}
+
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px;padding:16px 18px;}
+.grid .full{grid-column:1 / -1;}
+@media(max-width:640px){.grid{grid-template-columns:1fr;}}
+label.fld{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;margin:0 0 5px;}
+input,select,textarea{width:100%;border:1px solid #cfd6e2;border-radius:8px;padding:9px 11px;font:inherit;font-size:13.5px;background:#fff;color:var(--ink);}
+input:focus,select:focus,textarea:focus{outline:none;border-color:#2c5c8f;box-shadow:0 0 0 3px rgba(44,92,143,.12);}
+textarea{min-height:52px;resize:vertical;}
+
+.pf{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:0 18px 16px;}
+.pf .sp{flex:1;}
+.pf .conf{font-size:11.5px;color:var(--muted);}
+.pmsg{font-size:12.5px;font-weight:700;}
+.pmsg.ok{color:var(--green);} .pmsg.err{color:var(--red);}
+
+.empty{background:#fff;border:1px dashed #cdd5e2;border-radius:12px;padding:34px 26px;text-align:center;color:var(--muted);}
+.empty h3{color:var(--navy);font-size:16px;margin:0 0 8px;}
+.empty p{margin:6px auto;max-width:560px;font-size:13.5px;line-height:1.6;}
+.empty .steps{text-align:left;max-width:520px;margin:16px auto 0;font-size:13px;color:#3a4256;line-height:1.6;}
+
+.recent{background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-top:6px;}
+.recent summary{cursor:pointer;list-style:none;padding:13px 18px;font-weight:700;color:var(--navy);font-size:13px;display:flex;align-items:center;gap:8px;}
+.recent summary::-webkit-details-marker{display:none;}
+.recent summary .cnt{color:var(--muted);font-weight:600;}
+.recrow{display:flex;align-items:center;gap:10px;padding:10px 18px;border-top:1px solid var(--line);font-size:12.5px;}
+.recrow .rn{font-weight:600;color:var(--navy);flex:1;min-width:0;}
+.recrow .rs{font-size:10.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;border-radius:999px;padding:3px 9px;}
+.recrow .rs.conf{background:#e7f5ee;color:var(--green);} .recrow .rs.dis{background:#f3f4f7;color:#8a93a3;}
+.recrow a{color:#2647b0;text-decoration:none;font-weight:600;}
+
+.flash{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(16px);background:var(--navy);color:#fff;font-weight:700;font-size:13px;padding:11px 18px;border-radius:10px;box-shadow:0 10px 30px rgba(16,32,70,.3);opacity:0;pointer-events:none;transition:all .22s;z-index:50;}
+.flash.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.loading{color:var(--muted);text-align:center;padding:40px;font-size:13.5px;}
+</style>
+</head>
+<body>
+<div class="top"><div class="top-inner">
+  <span class="brand"><span class="disc">RRG</span><span class="wm">Review</span></span>
+  <a class="back" href="./index.html">← Dashboard</a>
+</div></div>
+<div class="wrap">
+
+  <div class="statusbar" id="statusbar" style="display:none">
+    <span class="dot" id="statusdot"></span>
+    <span class="lead" id="statuslead">Inbox review</span>
+    <span class="meta" id="statusmeta"></span>
+    <span class="sp"></span>
+    <div class="act">
+      <label class="toggle" title="When on, the agent proposes each lead here for you to confirm instead of adding it straight to your book."><input type="checkbox" id="reviewToggle"> Confirm before adding</label>
+      <button class="btn ghost sm" id="scanBtn">Scan now</button>
+    </div>
+  </div>
+
+  <div class="sectlabel" id="pendlabel" style="display:none">To review</div>
+  <div id="pending"><div class="loading">Loading your queue…</div></div>
+
+  <div id="recentWrap"></div>
+</div>
+
+<div class="flash" id="flash"></div>
+
+<script>
+var INBOX = { types: [], label: 'FullServe' };
+
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+function flash(msg){ var f=document.getElementById('flash'); f.textContent=msg; f.classList.add('show'); clearTimeout(flash._t); flash._t=setTimeout(function(){ f.classList.remove('show'); },2600); }
+function setBadge(n){ try{ document.querySelectorAll('a.it[href="rrg_inbox.html"] .navbadge, a.it[href="rrg_inbox.html"] .navbadge').forEach(function(b){ if(n>0){ b.textContent=n>999?'999+':String(n); } else { b.remove(); } }); }catch(e){} }
+
+function typeOptions(sel){
+  var opts='<option value="">— Set interest —</option>';
+  (INBOX.types||[]).forEach(function(t){ opts+='<option'+(t===sel?' selected':'')+'>'+esc(t)+'</option>'; });
+  return opts;
+}
+
+function propCard(p){
+  var f=p.fields||{}, s=p.source||{};
+  var who=((f.firstName||'')+' '+(f.lastName||'')).trim()||f.email||'contact';
+  var srcLine='';
+  if(s.from||s.subject){ srcLine='<div class="src"><span class="frm">'+esc(s.from||'')+'</span>'+(s.subject?(' · '+esc(s.subject)):'')+'</div>'; }
+  var snip = s.snippet ? ('<div class="snip"><b>From the email</b>'+esc(s.snippet)+'</div>') : '';
+  return ''+
+  '<div class="prop" data-id="'+esc(p.id)+'">'+
+    '<div class="ph"><span class="pk">New lead</span><div class="pt"><h3>'+esc(p.title||('Add '+who))+'</h3>'+srcLine+'</div></div>'+
+    snip+
+    '<div class="grid">'+
+      '<div><label class="fld">First name</label><input data-k="firstName" value="'+esc(f.firstName||'')+'"></div>'+
+      '<div><label class="fld">Last name</label><input data-k="lastName" value="'+esc(f.lastName||'')+'"></div>'+
+      '<div><label class="fld">Email</label><input data-k="email" value="'+esc(f.email||'')+'"></div>'+
+      '<div><label class="fld">Phone</label><input data-k="phone" value="'+esc(f.phone||'')+'"></div>'+
+      '<div><label class="fld">Title</label><input data-k="title" value="'+esc(f.title||'')+'"></div>'+
+      '<div><label class="fld">Interest</label><select data-k="type">'+typeOptions(f.type||'')+'</select></div>'+
+      '<div class="full"><label class="fld">Company</label><input data-k="companyName" value="'+esc(f.companyName||'')+'"></div>'+
+      '<div class="full"><label class="fld">Note (logged to the contact)</label><textarea data-k="note">'+esc(f.note||'')+'</textarea></div>'+
+    '</div>'+
+    '<div class="pf">'+
+      (p.confidence!=null?('<span class="conf">Read confidence: '+Math.round(p.confidence*100)+'%</span>'):'')+
+      '<span class="sp"></span>'+
+      '<span class="pmsg" data-msg></span>'+
+      '<button class="btn ghost sm" data-act="dismiss">Dismiss</button>'+
+      '<button class="btn red" data-act="confirm">Confirm &amp; add</button>'+
+    '</div>'+
+  '</div>';
+}
+
+function collectFields(card){
+  var out={};
+  card.querySelectorAll('[data-k]').forEach(function(el){ out[el.getAttribute('data-k')]=el.value; });
+  return out;
+}
+
+function wireCard(card){
+  var id=card.getAttribute('data-id');
+  var msg=card.querySelector('[data-msg]');
+  card.querySelector('[data-act="confirm"]').addEventListener('click',function(){
+    var btn=this; btn.disabled=true; msg.textContent=''; msg.className='pmsg';
+    fetch('/api/inbox/'+encodeURIComponent(id)+'/confirm',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({fields:collectFields(card)})})
+      .then(function(r){return r.json();}).then(function(j){
+        if(!j.ok){ msg.textContent=j.error||'Could not add.'; msg.className='pmsg err'; btn.disabled=false; return; }
+        var nm=(j.result&&j.result.name)||'Contact';
+        flash((j.result&&j.result.isNew?'Added ':'Updated ')+nm+' in your book.');
+        removeCard(card); setBadge(j.pendingCount||0);
+      }).catch(function(){ msg.textContent='Network error.'; msg.className='pmsg err'; btn.disabled=false; });
+  });
+  card.querySelector('[data-act="dismiss"]').addEventListener('click',function(){
+    var btn=this; btn.disabled=true;
+    fetch('/api/inbox/'+encodeURIComponent(id)+'/dismiss',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:'{}'})
+      .then(function(r){return r.json();}).then(function(j){ flash('Dismissed.'); removeCard(card); setBadge((j&&j.pendingCount)||0); })
+      .catch(function(){ btn.disabled=false; });
+  });
+}
+
+function removeCard(card){
+  card.style.transition='opacity .18s'; card.style.opacity='0';
+  setTimeout(function(){ card.remove(); if(!document.querySelector('#pending .prop')){ load(); } },190);
+}
+
+function renderStatus(d){
+  var sb=document.getElementById('statusbar'); sb.style.display='';
+  var dot=document.getElementById('statusdot'); var lead=document.getElementById('statuslead'); var meta=document.getElementById('statusmeta');
+  var tog=document.getElementById('reviewToggle'); tog.checked=(d.reviewMode!==false);
+  if(!d.connected){ dot.className='dot'; lead.textContent='Inbox not connected'; meta.textContent='Connect Gmail on your Account page to let the agent read labeled emails.'; }
+  else if(d.intakeEnabled){ dot.className='dot on'; lead.textContent='Watching your inbox'; meta.textContent='Reading emails you label “'+(d.label||'FullServe')+'” in Gmail.'; }
+  else { dot.className='dot'; lead.textContent='Inbox watching is off'; meta.textContent='Turn on auto-intake on your Account page, or use Scan now.'; }
+}
+
+function render(d){
+  INBOX.types=d.types||[]; INBOX.label=d.label||'FullServe';
+  renderStatus(d);
+  var pend=document.getElementById('pending'); var plabel=document.getElementById('pendlabel');
+  var list=d.pending||[];
+  if(list.length){
+    plabel.style.display=''; plabel.textContent='To review ('+list.length+')';
+    pend.innerHTML=list.map(propCard).join('');
+    pend.querySelectorAll('.prop').forEach(wireCard);
+  } else {
+    plabel.style.display='none';
+    pend.innerHTML=''+
+      '<div class="empty"><h3>Your queue is clear</h3>'+
+      '<p>When the agent reads a new lead out of your inbox, it lands here pre-filled. You confirm, and it goes into your book — nothing is added without your say-so.</p>'+
+      '<div class="steps"><b>Two ways leads show up:</b><br>1. Label an email <b>“'+esc(INBOX.label)+'”</b> in Gmail — the agent reads the sender, pulls their details, and proposes the lead here.<br>2. Turn on auto-intake (Account page) and it checks on a schedule on its own.</div></div>';
+  }
+  var rw=document.getElementById('recentWrap'); var rec=d.recent||[];
+  if(rec.length){
+    rw.innerHTML='<details class="recent"><summary>Recently handled <span class="cnt">('+rec.length+')</span></summary>'+
+      rec.map(function(p){
+        var f=p.fields||{}; var who=((f.firstName||'')+' '+(f.lastName||'')).trim()||f.email||'Contact';
+        var link=(p.result&&p.result.personId)?('<a href="rrg_person.html?id='+encodeURIComponent(p.result.personId)+'">open</a>'):'';
+        return '<div class="recrow"><span class="rn">'+esc(who)+(f.companyName?(' · '+esc(f.companyName)):'')+'</span>'+
+          '<span class="rs '+(p.status==='confirmed'?'conf':'dis')+'">'+(p.status==='confirmed'?'Added':'Dismissed')+'</span>'+link+'</div>';
+      }).join('')+'</details>';
+  } else { rw.innerHTML=''; }
+}
+
+function load(){
+  fetch('/api/inbox',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(!j.ok){ document.getElementById('pending').innerHTML='<div class="empty"><p>'+esc(j.error||'Could not load.')+'</p></div>'; return; }
+    render(j); setBadge(j.pendingCount||0);
+  }).catch(function(){ document.getElementById('pending').innerHTML='<div class="empty"><p>Network error — try reloading.</p></div>'; });
+}
+
+document.getElementById('reviewToggle').addEventListener('change',function(){
+  var on=this.checked;
+  fetch('/api/gmail-add/poll',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({reviewMode:on})})
+    .then(function(r){return r.json();}).then(function(){ flash(on?'Confirm-before-adding is on.':'Leads will be added automatically.'); });
+});
+document.getElementById('scanBtn').addEventListener('click',function(){
+  var b=this; b.disabled=true; var old=b.textContent; b.textContent='Scanning…';
+  fetch('/api/gmail-add/run',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:'{}'})
+    .then(function(r){return r.json();}).then(function(j){
+      b.disabled=false; b.textContent=old;
+      if(!j.ok){ flash(j.error||'Scan failed.'); return; }
+      flash(j.note||((j.proposed||0)+' new to review.')); load();
+    }).catch(function(){ b.disabled=false; b.textContent=old; flash('Scan failed.'); });
+});
+
+load();
+</script>
+</body>
+</html>

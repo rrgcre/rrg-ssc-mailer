@@ -10441,12 +10441,20 @@ async function gmailAddPull(username, name, opts) {
   rec.seen = seenArr.concat(msgs.map(m => m.id)).filter((v, i, a) => a.indexOf(v) === i).slice(-3000);
   const plan = rec.automationId ? loadAutomations().find(a => a.id === rec.automationId && a.active !== false) : null;
   const tag = String(rec.tag || 'Gmail intake').slice(0, 60);
-  const results = []; let added = 0, updated = 0, skipped = 0;
+  // Review mode (default ON): the agent proposes the lead to the rep's review queue instead of
+  // writing it straight into the book. Flip it off to keep the old auto-add behavior.
+  const reviewMode = (rec.reviewMode !== false);
+  const results = []; let added = 0, updated = 0, skipped = 0, proposed = 0;
   for (const m of fresh) {
     let parsed = null;
     try { parsed = await aiassist.parseEmailContact({ from: m.from, subject: m.subject, body: m.body }); } catch (e) { parsed = null; }
     const hasWho = parsed && parsed.found && (String(parsed.firstName || '').trim() || String(parsed.lastName || '').trim() || String(parsed.email || '').trim());
     if (!hasWho) { skipped++; continue; }
+    if (reviewMode) {
+      const pr = addLeadProposal(username, parsed, { messageId: m.id, from: m.from, subject: m.subject, snippet: String(m.body || '').slice(0, 600), date: m.date || m.internalDate || '' });
+      if (pr.created) { proposed++; results.push({ proposal: pr.id, name: composeName(parsed.firstName, parsed.lastName) || parsed.email || '', company: parsed.companyName || '', pending: true }); } else { skipped++; }
+      continue;
+    }
     let co = null;
     if (parsed.companyName) { try { co = ensureCompanyByName(parsed.companyName, rep, { website: parsed.companyWebsite, address: parsed.address, city: parsed.city, state: parsed.state, phone: parsed.companyPhone, leadSource: 'Gmail' }); } catch (e) {} }
     const validInterest = (effPersonTypes().indexOf(parsed.interest) >= 0) ? parsed.interest : '';
@@ -10476,31 +10484,33 @@ async function gmailAddPull(username, name, opts) {
     if (isNew) added++; else updated++;
     results.push({ id: person.id, name: person.name || composeName(parsed.firstName, parsed.lastName), company: parsed.companyName || '', isNew: isNew });
   }
-  rec.lastRun = new Date().toISOString(); rec.lastCount = added; store[username] = rec; saveGaddPoll(store);
-  return { ok: true, added, updated, skipped, scanned: msgs.length, fresh: fresh.length, results };
+  rec.lastRun = new Date().toISOString(); rec.lastCount = reviewMode ? proposed : added; store[username] = rec; saveGaddPoll(store);
+  return { ok: true, added, updated, skipped, proposed, reviewMode, scanned: msgs.length, fresh: fresh.length, results };
 }
 app.get('/api/gmail-add/poll', (req, res) => {
   const u = (req.user && req.user.username) || ''; const rec = (loadGaddPoll()[u]) || {};
   const autos = loadAutomations().filter(a => a.active !== false && ((a.scope !== 'private') || a.ownerUser === u || isSuper(req.user))).map(a => ({ id: a.id, name: a.name || '' }));
-  res.json({ ok: true, enabled: !!rec.enabled, intervalMin: rec.intervalMin || 15, label: rec.label || 'FullServe', tag: rec.tag || 'Gmail intake', automationId: rec.automationId || '', connected: gmail.statusFor(u).connected, configured: gmail.isConfigured(), lastRun: rec.lastRun || '', lastCount: rec.lastCount || 0, automations: autos });
+  res.json({ ok: true, enabled: !!rec.enabled, intervalMin: rec.intervalMin || 15, label: rec.label || 'FullServe', tag: rec.tag || 'Gmail intake', automationId: rec.automationId || '', reviewMode: (rec.reviewMode !== false), connected: gmail.statusFor(u).connected, configured: gmail.isConfigured(), lastRun: rec.lastRun || '', lastCount: rec.lastCount || 0, automations: autos });
 });
 app.post('/api/gmail-add/poll', express.json(), (req, res) => {
   const u = (req.user && req.user.username) || ''; if (!u) return res.status(401).json({ ok: false, error: 'Sign in required.' });
   const b = req.body || {}; const store = loadGaddPoll(); const rec = store[u] || {};
   if (typeof b.enabled === 'boolean') rec.enabled = b.enabled;
+  if (typeof b.reviewMode === 'boolean') rec.reviewMode = b.reviewMode;
   if (b.intervalMin != null) { const m = parseInt(b.intervalMin, 10); rec.intervalMin = (isFinite(m) && m >= 5) ? Math.min(m, 720) : 15; }
   if (typeof b.label === 'string') rec.label = b.label.trim().slice(0, 80) || 'FullServe';
   if (typeof b.tag === 'string') rec.tag = b.tag.trim().slice(0, 60);
   if (typeof b.automationId === 'string') rec.automationId = b.automationId.slice(0, 60);
   store[u] = rec; saveGaddPoll(store);
-  res.json({ ok: true, enabled: !!rec.enabled, intervalMin: rec.intervalMin || 15, label: rec.label || 'FullServe', tag: rec.tag || 'Gmail intake', automationId: rec.automationId || '' });
+  res.json({ ok: true, enabled: !!rec.enabled, intervalMin: rec.intervalMin || 15, label: rec.label || 'FullServe', tag: rec.tag || 'Gmail intake', automationId: rec.automationId || '', reviewMode: (rec.reviewMode !== false) });
 });
 app.post('/api/gmail-add/run', express.json(), async (req, res) => {
   try {
     const u = (req.user && req.user.username) || '';
     if (!gmail.statusFor(u).connected) return res.status(400).json({ ok: false, error: 'Connect your Gmail first — Account page, Connect Gmail.' });
     const out = await gmailAddPull(u, (req.user && req.user.name) || u, { all: !!(req.body && req.body.all) });
-    if (out.ok && !out.added && !out.updated) out.note = out.scanned ? ('Scanned ' + out.scanned + ' labeled email(s)' + (out.fresh === 0 ? ' — all already processed.' : ' — none had a contact I could read.')) : ('No emails found with the label “' + ((loadGaddPoll()[u] || {}).label || 'FullServe') + '” — add the label to a few emails in Gmail first.');
+    if (out.ok && out.reviewMode && out.proposed) out.note = out.proposed + ' lead' + (out.proposed === 1 ? '' : 's') + ' ready to review on the Review queue.';
+    else if (out.ok && !out.added && !out.updated && !out.proposed) out.note = out.scanned ? ('Scanned ' + out.scanned + ' labeled email(s)' + (out.fresh === 0 ? ' — all already processed.' : ' — none had a contact I could read.')) : ('No emails found with the label “' + ((loadGaddPoll()[u] || {}).label || 'FullServe') + '” — add the label to a few emails in Gmail first.');
     res.json(out);
   } catch (e) { res.status(502).json({ ok: false, error: String((e && e.message) || e) }); }
 });
@@ -10525,6 +10535,143 @@ async function gaddPollTick() {
   _gaddPolling = false;
 }
 setInterval(gaddPollTick, 60 * 1000);
+
+// ================= Inbox Review Queue (confirm-before-write) =================
+// The agent proposes an action from an email; nothing touches the CRM until the rep
+// confirms. Each proposal carries a pre-filled, editable payload + the source email so
+// the rep can see what it's reading. Kinds: new_lead (live), with record_update and
+// file_attachment reserved for the next legs. Dedup is by (forUser, source message id).
+const PROPOSALS_FILE = path.join(BOV_DATA_DIR, 'proposals.json');
+function loadProposals() { try { const a = rj(PROPOSALS_FILE); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+function saveProposals(a) { return writeJsonGuarded(PROPOSALS_FILE, a, 'saveProposals'); }
+function newProposalId() { return 'prop_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+const PROPOSAL_KINDS = ['new_lead', 'record_update', 'file_attachment'];
+function proposalBrief(p) {
+  return {
+    id: p.id, kind: p.kind, status: p.status, title: p.title || '', summary: p.summary || '',
+    fields: p.fields || {}, confidence: (typeof p.confidence === 'number') ? p.confidence : null,
+    source: p.source || {}, createdAt: p.createdAt || '', decidedAt: p.decidedAt || '',
+    decidedBy: p.decidedBy || '', result: p.result || null,
+  };
+}
+// Create a pending lead proposal from a parsed email. Returns {created:bool, id}.
+function addLeadProposal(username, parsed, source) {
+  if (!username || !parsed) return { created: false };
+  const msgId = String((source && source.messageId) || '').trim();
+  const arr = loadProposals();
+  // Dedup: same user + same source message, still pending or already confirmed → skip.
+  if (msgId && arr.some(p => p.forUser === username && p.source && p.source.messageId === msgId && (p.status === 'pending' || p.status === 'confirmed'))) {
+    return { created: false, dup: true };
+  }
+  const first = String(parsed.firstName || '').trim();
+  const last = String(parsed.lastName || '').trim();
+  const nm = composeName(first, last) || String(parsed.email || '').trim();
+  const co = String(parsed.companyName || '').trim();
+  const validInterest = (effPersonTypes().indexOf(parsed.interest) >= 0) ? parsed.interest : '';
+  const fields = {
+    firstName: first.slice(0, 80), lastName: last.slice(0, 80),
+    email: String(parsed.email || '').slice(0, 160), phone: String(parsed.phone || '').slice(0, 60),
+    title: String(parsed.title || '').slice(0, 120), companyName: co.slice(0, 160),
+    companyWebsite: String(parsed.companyWebsite || '').slice(0, 300),
+    address: String(parsed.address || '').slice(0, 200), city: String(parsed.city || '').slice(0, 120),
+    state: String(parsed.state || '').slice(0, 60), companyPhone: String(parsed.companyPhone || '').slice(0, 60),
+    type: validInterest, note: String(parsed.summary || '').slice(0, 400),
+  };
+  const title = 'Add ' + (nm || 'contact') + (co ? (' — ' + co) : '') + ' as a lead';
+  const p = {
+    id: newProposalId(), kind: 'new_lead', status: 'pending', forUser: username,
+    source: {
+      channel: 'gmail', messageId: msgId, from: String((source && source.from) || '').slice(0, 300),
+      subject: String((source && source.subject) || '').slice(0, 300),
+      snippet: String((source && source.snippet) || '').slice(0, 600), date: String((source && source.date) || ''),
+    },
+    title: title.slice(0, 200), summary: fields.note,
+    fields: fields, confidence: (typeof parsed.confidence === 'number') ? parsed.confidence : null,
+    createdAt: new Date().toISOString(),
+  };
+  arr.unshift(p);
+  // Keep the store bounded — drop oldest decided beyond 2000.
+  if (arr.length > 2000) { const keep = arr.filter(x => x.status === 'pending'); const decided = arr.filter(x => x.status !== 'pending').slice(0, Math.max(0, 2000 - keep.length)); arr.length = 0; arr.push.apply(arr, keep.concat(decided)); }
+  saveProposals(arr);
+  return { created: true, id: p.id };
+}
+// Apply a confirmed proposal. `edits` are the rep's reviewed field values. Returns a result object.
+function applyProposal(p, edits, req) {
+  const username = (req && req.user && req.user.username) || p.forUser;
+  const name = (req && req.user && req.user.name) || username;
+  const rep = { user: { name: name, username: username } };
+  const f = Object.assign({}, p.fields || {}, edits || {});
+  if (p.kind === 'new_lead') {
+    let co = null;
+    if (f.companyName) { try { co = ensureCompanyByName(f.companyName, rep, { website: f.companyWebsite, address: f.address, city: f.city, state: f.state, phone: f.companyPhone, leadSource: 'Gmail' }); } catch (e) {} }
+    const validInterest = (effPersonTypes().indexOf(f.type) >= 0) ? f.type : '';
+    const before = loadPeople().length;
+    const person = findOrCreatePerson(rep, {
+      firstName: f.firstName, lastName: f.lastName, name: composeName(f.firstName, f.lastName),
+      email: f.email, emails: f.email ? [f.email] : [], phones: f.phone ? [f.phone] : [],
+      companyId: co ? co.id : '', company: f.companyName || '', type: validInterest || 'Buyer',
+      tag: 'Inbox review', strict: false,
+    });
+    if (!person) return { ok: false, error: 'Could not create the contact (no name or email).' };
+    const isNew = loadPeople().length > before;
+    try {
+      const ppl = loadPeople(); const pp = ppl.find(x => x.id === person.id);
+      if (pp) {
+        if (f.title && !pp.title) pp.title = String(f.title).slice(0, 120);
+        if (co && !pp.companyId) pp.companyId = co.id;
+        if (co && f.companyName && !pp.company) pp.company = String(f.companyName).slice(0, 160);
+        if (!pp.leadSource) pp.leadSource = 'Gmail';
+        if (validInterest) { pp.type = validInterest; pp.types = [validInterest]; }
+        if (f.phone && (!Array.isArray(pp.phones) || !pp.phones.length)) { pp.phones = [String(f.phone).slice(0, 60)]; pp.phone = pp.phones[0]; }
+        pp.updatedAt = new Date().toISOString();
+        const subj = p.source && p.source.subject;
+        logActivity(pp, 'Note', ('Added from inbox review' + (subj ? (' (“' + String(subj).slice(0, 80) + '”)') : '') + (f.note ? (' — ' + String(f.note).slice(0, 160)) : '')).slice(0, 300), { by: name, byUser: username });
+        savePeople(ppl);
+        // Honor the intake's chosen follow-up automation, if the rep set one.
+        try { const rec = (loadGaddPoll()[username]) || {}; const plan = rec.automationId ? loadAutomations().find(a => a.id === rec.automationId && a.active !== false) : null; if (plan) { const ppl2 = loadPeople(); const pp2 = ppl2.find(x => x.id === person.id); if (pp2 && enrollPerson(pp2, plan, { byName: 'Inbox review', byUser: username })) savePeople(ppl2); } } catch (e) {}
+      }
+    } catch (e) {}
+    return { ok: true, personId: person.id, companyId: co ? co.id : '', isNew: isNew, name: person.name || composeName(f.firstName, f.lastName) };
+  }
+  return { ok: false, error: 'This kind of proposal is not handled yet.' };
+}
+// Count a rep's pending proposals (drives the nav badge).
+function pendingProposalCount(username) { if (!username) return 0; try { return loadProposals().filter(p => p.status === 'pending' && p.forUser === username).length; } catch (e) { return 0; } }
+app.get('/api/inbox', (req, res) => {
+  if (!req.user) return res.status(401).json({ ok: false, error: 'Sign in required.' });
+  const me = req.user.username;
+  const all = loadProposals().filter(p => p.forUser === me);
+  const pending = all.filter(p => p.status === 'pending').map(proposalBrief);
+  const recent = all.filter(p => p.status !== 'pending').slice(0, 30).map(proposalBrief);
+  const rec = (loadGaddPoll()[me]) || {};
+  res.json({ ok: true, pending: pending, recent: recent, pendingCount: pending.length,
+    reviewMode: (rec.reviewMode !== false), intakeEnabled: !!rec.enabled, label: rec.label || 'FullServe',
+    connected: gmail.statusFor(me).connected, types: effPersonTypes() });
+});
+app.post('/api/inbox/:id/confirm', express.json(), (req, res) => {
+  if (!req.user) return res.status(401).json({ ok: false, error: 'Sign in required.' });
+  const me = req.user.username;
+  const arr = loadProposals(); const p = arr.find(x => x.id === req.params.id);
+  if (!p) return res.status(404).json({ ok: false, error: 'That item is no longer in your queue.' });
+  if (p.forUser !== me && !isSuper(req.user)) return res.status(403).json({ ok: false, error: 'Not your item.' });
+  if (p.status !== 'pending') return res.json({ ok: true, already: true, status: p.status, result: p.result || null });
+  let result;
+  try { result = applyProposal(p, (req.body && req.body.fields) || {}, req); } catch (e) { return res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+  if (!result || !result.ok) return res.status(400).json({ ok: false, error: (result && result.error) || 'Could not apply.' });
+  p.status = 'confirmed'; p.decidedAt = new Date().toISOString(); p.decidedBy = me; p.result = result;
+  if (req.body && req.body.fields) p.fields = Object.assign({}, p.fields, req.body.fields);
+  saveProposals(arr);
+  res.json({ ok: true, result: result, pendingCount: pendingProposalCount(me) });
+});
+app.post('/api/inbox/:id/dismiss', express.json(), (req, res) => {
+  if (!req.user) return res.status(401).json({ ok: false, error: 'Sign in required.' });
+  const me = req.user.username;
+  const arr = loadProposals(); const p = arr.find(x => x.id === req.params.id);
+  if (!p) return res.status(404).json({ ok: false, error: 'That item is no longer in your queue.' });
+  if (p.forUser !== me && !isSuper(req.user)) return res.status(403).json({ ok: false, error: 'Not your item.' });
+  if (p.status === 'pending') { p.status = 'dismissed'; p.decidedAt = new Date().toISOString(); p.decidedBy = me; saveProposals(arr); }
+  res.json({ ok: true, pendingCount: pendingProposalCount(me) });
+});
 function cleanupPeopleAddrs() {
   try {
     const arr = loadPeople(); let ch = false;
@@ -17603,7 +17750,8 @@ app.get('/api/counts', (req, res) => {
   let newBookings = 0;
   try { const me = req.user && req.user.username; if (me) { const seen = ((loadSettings().bookingSeen || {})[String(me).toLowerCase()]) || ''; loadAppts().forEach(a => { if (a && a.source === 'booking' && a.byUser === me && a.status !== 'cancelled' && a.status !== 'deleted' && String(a.createdAt || '') > seen) newBookings++; }); } } catch (e) {}
   const newbookings = { 'rrg_calendar.html': newBookings };
-  res.json({ ok: true, counts, active, expiring, overdue, dueToday, newbookings });
+  const review = { 'rrg_inbox.html': pendingProposalCount(req.user && req.user.username) };
+  res.json({ ok: true, counts, active, expiring, overdue, dueToday, newbookings, review });
 });
 // ---- Command Center — management + prospecting intelligence across the book & pipeline ----
 function daysUntil(dateStr) {
