@@ -7969,25 +7969,25 @@ function siteAssetPage(req) {
   const bookBtn = bookUrl ? ('<a class="btn gold" href="' + bookUrl + '" target="_blank" rel="noopener">📅 Book a call</a>') : '';
   const email = esc(s.contactEmail || '');
 
-  const HERO_HEAD = s.assetHeroHead || 'Sell your restaurant’s assets — turn a closed space into cash.';
-  const HERO_SUB = s.assetHeroSub || 'Equipment, hoods, walk-ins, build-out — and the lease itself — sold to the operator who wants a turnkey second-generation space. For a closed or struggling location, the biggest win is often getting out from under the lease: the right buyer takes it over, the rent stops, and your personal guaranty is released. We turn a stranded space and a liability into real money and a clean break.';
+  const HERO_HEAD = s.assetHeroHead || 'Sell your restaurant as a turnkey space — not a pile of equipment.';
+  const HERO_SUB = s.assetHeroSub || 'A built-out restaurant is worth far more sold turnkey than stripped and liquidated. What a buyer pays for is speed and savings: opening in weeks instead of a year, and skipping most of a six-figure build-out. We package your space as a ready-to-run restaurant and sell that value — and when there’s a lease, the right buyer takes it over, so the rent stops and your personal guaranty is released.';
 
   const STEPS = (Array.isArray(s.assetSteps) && s.assetSteps.length) ? s.assetSteps : [
-    { t: 'Inventory & value', d: 'We walk the space and price the FF&E, hood, refrigeration, and leasehold improvements at what a replacement operator will actually pay — not a liquidator’s lowball.' },
-    { t: 'Package the space', d: 'Photos, an equipment schedule, floor plan, and the turnkey story — assembled into a listing that sells the built-out kitchen, not just a pile of used gear.' },
+    { t: 'Value the space', d: 'We walk the space and value it as a turnkey restaurant — what an operator will pay to open here fast, not what the used equipment would fetch at auction.' },
+    { t: 'Package the space', d: 'Photos, floor plan, and the turnkey story — what’s built, what it seats, what it’s permitted for, and how quickly a buyer can open the doors.' },
     { t: 'Market openly', d: 'Listed on our marketplace and taken straight to our network of operators and investors hunting second-generation space — so every qualified buyer sees it.' },
     { t: 'Qualify buyers', d: 'We screen for operators who can actually close and, where a lease is involved, who the landlord will approve.' },
     { t: 'Structure the deal', d: 'An asset sale on its own, or paired with a lease assignment or new lease — structured to maximize your recovery.' },
-    { t: 'Close & hand off', d: 'Bill of sale, equipment transfer, lease paperwork where it applies, and keys — documented and closed clean.' }
+    { t: 'Close & hand off', d: 'Bill of sale, lease assignment or new lease where it applies, and keys — documented and closed clean.' },
   ];
   const stepHtml = STEPS.slice(0, 8).map(function (x, j) { return '<div class="step"><div class="stepn">' + (j + 1) + '</div><div class="stepb"><div class="stept">' + esc(x.t || '') + '</div><div class="stepd">' + esc(x.d || '') + '</div></div></div>'; }).join('');
 
   const VALUES = (Array.isArray(s.assetValues) && s.assetValues.length) ? s.assetValues : [
     { t: 'Off the lease, off the hook', d: 'For most closed or struggling locations, this is the real prize. The right buyer takes over the space — by lease assignment or a new lease with your landlord — so the rent stops, your remaining term is covered, and your personal guaranty is released. That exposure is often worth more than the equipment itself.' },
-    { t: 'Your build-out is worth money', d: 'A hood, walk-in, grease trap, and finished kitchen cost a fortune to build. To the right incoming operator they’re a shortcut worth paying for — we price and sell them instead of handing them to a liquidator for pennies.' },
-    { t: 'Buyers who want turnkey', d: 'We keep a live network of operators and investors hunting second-generation restaurant space to open faster and cheaper. Your assets go straight to the people who value them most.' },
+    { t: 'What you built is worth paying for', d: 'A finished, permitted, built-out restaurant lets the next operator open in weeks instead of a year and skip most of a six-figure build-out. That head start is what they pay for — which is why selling turnkey recovers far more than selling equipment piece by piece.' },
+    { t: 'Buyers who want turnkey', d: 'We keep a live network of operators and investors hunting second-generation space to open faster and cheaper. Your space goes straight to the people who value a head start — and pay for it.' },
     { t: 'Marketed in the open', d: 'Unlike a confidential business sale, asset and turnkey listings are marketed openly — real photos, specs, and location — so they reach every qualified buyer and move quickly.' },
-    { t: 'A clean handoff', d: 'Bill of sale, equipment lists, lease assignment where it applies, and a coordinated closing — so the deal actually finishes and the space changes hands clean.' }
+    { t: 'A clean handoff', d: 'Bill of sale, lease assignment or a new lease where it applies, and a coordinated closing — so the space changes hands clean and the buyer can get to work.' },
   ];
   const VIC = [
     '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7.2v5l3.2 2" fill="none" stroke="#eef3fb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
@@ -7998,12 +7998,12 @@ function siteAssetPage(req) {
   const valueHtml = VALUES.map(function (v, i) { return '<div class="svc" style="box-shadow:0 10px 26px rgba(10,20,50,.09)"><div class="svcic">' + (VIC[i] || VIC[0]) + '</div><div class="svct">' + esc(v.t || '') + '</div><div class="svcd">' + esc(v.d || '') + '</div></div>'; }).join('');
 
   const FAQS = (Array.isArray(s.assetFaqs) && s.assetFaqs.length) ? s.assetFaqs : [
-    { q: 'What counts as an asset sale?', a: 'Selling the physical assets of a restaurant — equipment, hood and refrigeration, furniture, and the built-out space itself — rather than an operating business. It’s the right path when a location has closed, when you’re a landlord with a vacated restaurant, or when you want to recover value from a build-out instead of walking away from it.' },
+    { q: 'What counts as an asset sale?', a: 'It’s selling your restaurant as a turnkey space rather than an operating business — the built-out, equipped, ready-to-run location itself. The buyer pays for a head start: opening fast and avoiding most of a new build-out. It’s the right path when a location has closed, when you’re a landlord with a vacated restaurant, or when you want to recover the value of your build-out instead of walking away from it.' },
     { q: 'Does an asset sale get me out of my lease?', a: 'Often yes — and it’s frequently the biggest reason to do one. When we place a replacement operator who takes an assignment or signs a new lease, your remaining rent obligation ends and your personal guaranty is released. We negotiate that release as part of the deal, not as an afterthought, so you get a genuinely clean break.' },
     { q: 'My restaurant already closed — is it too late?', a: 'No. The build-out, hood, walk-ins, and equipment in a former restaurant are worth real money to an operator who wants a second-generation space instead of building from scratch. We sell those assets rather than letting you hand them back for nothing.' },
     { q: 'I’m a landlord with a vacated restaurant space. Can you help?', a: 'Yes. A turnkey second-generation space with equipment already in place leases and sells faster — and for more — than an empty box. We package and market it to restaurant operators specifically, the buyers who pay for a kitchen that’s ready to go.' },
     { q: 'Do I have to sell the lease too?', a: 'Not necessarily. We sell the assets on their own, or pair them with a lease assignment or a new lease when that gets you the best outcome — whatever recovers the most value and fits your situation.' },
-    { q: 'What are my assets actually worth?', a: 'It depends on the age and quality of the equipment, the build-out, the lease, and demand for the location. We build a real number from the assets and current market demand — not a liquidator’s lowball — and tell you where you stand before anything goes to market.' }
+    { q: 'What is my space worth?', a: 'It’s valued as a turnkey restaurant, not an equipment list — what an operator will pay to open here quickly and skip the build-out, based on the condition and layout of the space, the lease, and demand for the location. We build that number from real market demand, not an auctioneer’s estimate, and tell you where you stand before anything goes to market.' },
   ];
   const faqHtml = FAQS.map(function (f) { return '<details class="faq"><summary>' + esc(f.q || '') + '</summary><div class="fa">' + esc(f.a || '') + '</div></details>'; }).join('');
 
@@ -8019,7 +8019,7 @@ function siteAssetPage(req) {
 
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Asset Sales &amp; Turnkey Spaces — ${org}</title>
-<meta name="description" content="Sell restaurant assets and turnkey space with ${org}. We value and sell equipment, FF&amp;E, hoods, and built-out second-generation restaurant space — openly marketed to operators who want turnkey, so you recover real value from a closed or vacated location.">${seoMeta(req,{path:'/site/assets',title:"Asset Sales & Turnkey Spaces — "+(s.brand||orgDisplayName()||'Restaurant Realty Group'),description:"Sell restaurant assets and turnkey space with "+(s.brand||orgDisplayName()||'Restaurant Realty Group')+". We value and sell equipment, FF&E, and built-out second-generation restaurant space — openly marketed to operators who want turnkey, so you recover real value from a closed or vacated location."})}${orgJsonLd(req)}
+<meta name="description" content="Sell restaurant assets and turnkey space with ${org}. We sell built-out, permitted, ready-to-run restaurants — openly marketed to operators who want turnkey, so you recover real value from a closed or vacated location.">${seoMeta(req,{path:'/site/assets',title:"Asset Sales & Turnkey Spaces — "+(s.brand||orgDisplayName()||'Restaurant Realty Group'),description:"Sell restaurant assets and turnkey space with "+(s.brand||orgDisplayName()||'Restaurant Realty Group')+". We sell built-out, permitted, ready-to-run restaurants — openly marketed to operators who want turnkey, so you recover real value from a closed or vacated location."})}${orgJsonLd(req)}
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>${SITE_CSS}</style>
@@ -8071,13 +8071,13 @@ function siteAssetPage(req) {
   <div class="strust">
     <span><b>Off the lease</b> — rent stops</span>
     <span><b>Guaranty</b> released</span>
-    <span><b>FF&amp;E + build-out</b> valued</span>
-    <span><b>Turnkey</b> buyers ready</span>
+    <span><b>Open in weeks</b>, not a year</span>
+    <span><b>Build-out</b> cost skipped</span>
   </div>
 </div></section>
 
 <section class="svalue"><div class="wrap">
-  <div class="sec-head"><div class="eyebrow">Why sell your assets with RRG</div><div class="h2">Turn stranded assets into real money</div>
+  <div class="sec-head"><div class="eyebrow">Why sell your assets with RRG</div><div class="h2">A turnkey restaurant is worth more than its parts</div>
   <p class="lead">A closed or vacated restaurant is full of value — a built-out kitchen, equipment, and a location an operator wants. We sell that to the people who pay for turnkey — and when you’re stuck on a lease, we get you out from under it at the same time.</p></div>
   <div class="svcs">${valueHtml}</div>
 </div></section>
