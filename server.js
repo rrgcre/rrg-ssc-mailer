@@ -9277,6 +9277,13 @@ header{background:linear-gradient(180deg,var(--navy2),var(--navy));border-bottom
 .hd h1{font-family:'Fraunces',Georgia,'Times New Roman',serif;font-size:38px;font-weight:600;color:var(--navy);letter-spacing:-.01em;line-height:1.06;}
 @media(max-width:720px){.hd h1{font-size:30px;}}
 .hd .lede{font-size:17px;color:var(--muted);margin-top:12px;max-width:62ch;line-height:1.6;}
+.mkthero{background:linear-gradient(115deg,#060e22,#0a1733 55%,#122a5a);color:#fff;position:relative;overflow:hidden;}
+.mkthero::after{content:'';position:absolute;right:-150px;top:-150px;width:480px;height:480px;border-radius:50%;background:radial-gradient(circle,rgba(200,162,75,.14),transparent 70%);pointer-events:none;}
+.mkthero .wrap{position:relative;z-index:1;}
+.mkthero .hd{padding:42px 0 34px;}
+.mkthero .hd h1{color:#fff;}
+.mkthero .hd .lede{color:#c6d1e6;}
+.mkt-eyebrow{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#e0c27e;margin-bottom:13px;}
 .modes{margin-top:16px;}
 .modeseg{display:inline-flex;border:1px solid var(--inp);border-radius:6px;overflow:hidden;background:#fff;}
 .modeseg button{border:none;background:#fff;padding:10px 18px;font:inherit;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;gap:8px;}
@@ -9434,8 +9441,9 @@ footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} 
   <a class="navlink" href="/site#markets">Markets</a>
   <a class="navcta" href="/site#contact">Talk to a broker</a>
 </div></header>
-<div class="wrap">
+<section class="mkthero"><div class="wrap">
   <div class="hd">
+    <div class="mkt-eyebrow">${esc(H.areas)}</div>
     <h1>${esc(H.heading)}</h1>
     <div class="lede">${esc(H.lede)}</div>
     <div class="modes"><div class="modeseg">
@@ -9443,6 +9451,8 @@ footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} 
       <button data-m="re">Real Estate &amp; Assets <span class="c" id="cRe"></span></button>
     </div></div>
   </div>
+</div></section>
+<div class="wrap">
 
   <section id="mBiz">
     <div class="tools">
