@@ -46,8 +46,12 @@ tr:hover td{background:#fbfcfe;}
 .act .del{color:var(--red);border-color:#f0c9c6;}
 .pill{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:999px;margin-left:8px;vertical-align:middle;}
 .pill.pend{background:#fff4e6;color:#b9761a;border:1px solid #f0d7ad;}
+.pill.ready{background:#eaf1fb;color:#2c5c8f;border:1px solid #cfe0f3;}
 .pill.done{background:#eaf7f0;color:var(--green);border:1px solid #bfe6d1;}
 .pill.final{background:#0e7a53;color:#fff;border:1px solid #0e7a53;}
+.chklist{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;}
+.chklist .ck{font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:3px;}
+.chklist .ck.on{color:#1f8a5b;} .chklist .ck.off{color:#aab2c0;}
 .empty{text-align:center;color:var(--muted);padding:54px 20px;}
 .empty b{color:var(--navy);display:block;font-size:15px;margin-bottom:6px;}
 .foot{max-width:1080px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
@@ -121,10 +125,15 @@ function render(bovs){
     mount:'#body', data:bovs, key:'bovs', rowId:function(b){ return b.id; }, defaultSort:0, defaultDir:1,
     columns:[
       { label:'Business', sort:function(a,b){ return RRGList.cmp(a.business,b.business); }, cell:function(b){
-          var pending=!!b.pending, fin=!!b.finalizedAt;
-          var pill = fin ? ('<span class="pill final">Final'+((b.version||1)>1?(' v'+(b.version||1)):'')+'</span>') : (pending?'<span class="pill pend">Requested</span>':'<span class="pill done">Built</span>');
+          var pending=!!b.pending, fin=!!b.finalizedAt, inp=b.inputs||{};
+          var pill;
+          if(fin) pill='<span class="pill final">Final'+((b.version||1)>1?(' v'+(b.version||1)):'')+'</span>';
+          else if(pending) pill='<span class="pill '+(inp.financials?'ready':'pend')+'">'+esc(b.statusLabel||'Requested')+'</span>';
+          else pill='<span class="pill done">Built</span>';
           var when = fin ? ('Finalized '+fmt(b.finalizedAt)) : (pending?('Requested '+fmt(b.createdAt)):('Built '+fmt(b.builtAt||b.createdAt)));
-          return '<div class="biz">'+esc(b.business||'Untitled')+pill+'</div><div class="meta">'+esc(when)+(b.by?(' · '+esc(b.by)):'')+'</div>'; } },
+          var chk='';
+          if(pending){ var ck=function(on,lbl){ return '<span class="ck '+(on?'on':'off')+'">'+(on?'✓':'○')+' '+lbl+'</span>'; }; chk='<div class="chklist" title="Inputs on file — only financials are required to build">'+ck(inp.questionnaire,'Questionnaire')+ck(inp.financials,'Financials')+ck(inp.lease,'Lease')+'</div>'; }
+          return '<div class="biz">'+esc(b.business||'Untitled')+pill+'</div><div class="meta">'+esc(when)+(b.by?(' · '+esc(b.by)):'')+'</div>'+chk; } },
       { label:'Revenue', cls:'hide', sort:function(a,b){ return num(a.revText)-num(b.revText); }, cell:function(b){
           return (b.pending||!b.revText)?'<span class="dim">—</span>':'<span class="val"><span class="t">'+esc(b.revText)+'</span></span>'; } },
       { label:'SDE', cls:'hide', sort:function(a,b){ return num(a.sdeText)-num(b.sdeText); }, cell:function(b){

@@ -2658,14 +2658,14 @@ app.get('/api/bovs', (req, res) => {
   const list = loadBovs().slice().reverse().filter(b => isAdmin || ownsBov(req, b));
   res.json({
     ok: true, isAdmin: !!isAdmin,
-    bovs: list.map(b => ({ id: b.id, business: b.business, date: b.date, revText: bovRevenueText(b), rangeText: b.rangeText, targetText: b.targetText, multText: b.multText, ebitdaText: b.ebitdaText, sdeText: b.sdeText || '', adjText: b.adjText || '', basis: b.basis || '', pending: !!b.pending, srcQuestId: b.srcQuestId || '', by: b.by, byUser: b.byUser, createdAt: b.createdAt, builtAt: b.builtAt || '', finalizedAt: b.finalizedAt || '', version: b.version || 1, versionCount: (b.versions || []).length })),
+    bovs: list.map(b => { const _inp = bovInputs(req, b); return { id: b.id, business: b.business, date: b.date, revText: bovRevenueText(b), rangeText: b.rangeText, targetText: b.targetText, multText: b.multText, ebitdaText: b.ebitdaText, sdeText: b.sdeText || '', adjText: b.adjText || '', basis: b.basis || '', pending: !!b.pending, srcQuestId: b.srcQuestId || '', by: b.by, byUser: b.byUser, createdAt: b.createdAt, builtAt: b.builtAt || '', finalizedAt: b.finalizedAt || '', version: b.version || 1, versionCount: (b.versions || []).length, inputs: { questionnaire: _inp.questionnaire, financials: _inp.financials, lease: _inp.lease, have: _inp.have }, statusLabel: _inp.status }; }),
   });
 });
 app.get('/api/bov/:id', (req, res) => {
   const b = loadBovs().find(x => x.id === req.params.id);
   if (!b) return res.status(404).json({ ok: false, error: 'Not found.' });
   if (!ownsBov(req, b)) return res.status(403).json({ ok: false, error: 'Not yours.' });
-  res.json({ ok: true, bov: b });
+  res.json({ ok: true, bov: b, inputs: bovInputs(req, b), statusLabel: bovInputs(req, b).status });
 });
 // AI-generate a BOV from uploaded documents, then save it to the queue.
 // Does a room doc read as Financials / a Lease? Lenient on purpose: the category is the strong
@@ -2762,6 +2762,31 @@ app.get('/api/valuation-room-ready', (req, res) => {
   } catch (e) { res.json({ ok: true, financials: false, lease: false, abstract: false, abstractPending: false, abstractId: '', hasQuestionnaire: false, interviewSkipped: false }); }
 });
 
+// ---- The three-input valuation gate: Questionnaire + Financials + Lease ----
+// A BOV needs all three before it can be generated (collection basket, not assembly line).
+// Lease is satisfied by a lease abstract, a lease doc in the room, OR a "no lease" room flag
+// (owned real estate / N/A). Returns the checklist + a plain status for the queue + builder.
+function bovInputs(req, bov) {
+  if (!bov) return { questionnaire: false, financials: false, lease: false, have: 0, ready: false, status: 'Gathering inputs (0 of 3)' };
+  const pid = bov.personId || '', cid = bov.companyId || '';
+  let questionnaire = !!bov.srcQuestId || !!bov.interviewSkipped;
+  if (!questionnaire) { try { if (interviewQuestText(pid, cid)) questionnaire = true; } catch (e) {} }
+  let financials = !!(Array.isArray(bov.financials) && bov.financials.length);
+  let lease = !!(Array.isArray(bov.lease) && bov.lease.length);
+  try { const room = resolveRoomFor(bov); if (room) { (room.docs || []).forEach(d => { if (_isFinDoc(d)) financials = true; if (_isLeaseDoc(d)) lease = true; }); if (room.noLease) lease = true; } } catch (e) {}
+  if (!lease) { try { if (leaseForBov(req, bov)) lease = true; } catch (e) {} }
+  const have = (questionnaire ? 1 : 0) + (financials ? 1 : 0) + (lease ? 1 : 0);
+  // Financials are the one input needed to generate; the questionnaire and lease are shown for
+  // completeness but never block. "ready" therefore tracks whether we can value (financials in).
+  const ready = financials;
+  let status;
+  if (bov.finalizedAt) status = 'Final';
+  else if (!bov.pending) status = 'Built';
+  else if (financials) status = 'Ready to value';
+  else status = 'Awaiting financials';
+  return { questionnaire: questionnaire, financials: financials, lease: lease, have: have, ready: ready, status: status };
+}
+
 // Pull the lease document(s) already sitting in the linked listing's data room, as file blocks
 // {name,type,dataB64|text} — so a lease abstract can be built from the room without re-uploading.
 // Resolve the room the same way the assignment page does (listing key first), then fall back to the
@@ -2850,6 +2875,8 @@ app.post('/api/generate-bov', express.json({ limit: '48mb' }), async (req, res) 
     if (target && target.finalizedAt) {
       return res.status(409).json({ ok: false, finalized: true, error: 'This valuation is Final (v' + (target.version || 1) + '). Its earnings bridge is locked. Open it in Business Valuations and click \u201cRevise (new version)\u201d to start a new draft, then re-generate.' });
     }
+    // Financials are the one hard requirement (checked above). The questionnaire and lease are shown
+    // as a completeness checklist but are NOT required to generate \u2014 per Van.
 
     // Fold in the linked LEASE ABSTRACT so the valuation is built on the read lease — the single
     // biggest swing on a restaurant/bar deal (remaining term, options, occupancy %, assignability).
