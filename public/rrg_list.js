@@ -149,6 +149,25 @@
     function firstSortable(){ for(var i=0;i<cols.length;i++){ if(cols[i].sortable!==false && cols[i].sort) return i; } return -1; }
     function persist(){ try{ localStorage.setItem(lsKey, JSON.stringify({per:state.per, sort:state.sort, dir:state.dir, compact:state.compact, widths:state.widths, order:orderedMeta().map(function(m){return m.key;}), hidden:state.hidden, filters:state.filters})); }catch(e){} }
 
+    // ---- "Clear filters" for a page that brings its own filter button ----
+    // Decoupled from render order: a MutationObserver on the page's filter button re-syncs the
+    // injected Clear button whenever that button's active state (class/badge) changes.
+    function _extFiltActive(){
+      if(typeof opts.filterActive==='function'){ try{ if(opts.filterActive()) return true; }catch(e){} }
+      var b=opts.filterButton; if(!b) return false;
+      return b.classList.contains('on') || !!b.querySelector('.rlf-badge,.rlfcount,.rlf-count,.fbadge,[class*="badge"]');
+    }
+    function doClear(){ state.filters={}; state.page=0; persist(); try{ document.dispatchEvent(new CustomEvent('rrg:clearfilters',{detail:{key:opts.key}})); }catch(e){} if(opts.onClear){ try{ opts.onClear(); }catch(e){} } render(); }
+    var _extClearBtn=null;
+    function syncExtClear(){
+      if(!opts.filterButton || !opts.filterButton.parentNode) return;
+      if(_extFiltActive()){
+        if(!_extClearBtn){ _extClearBtn=document.createElement('button'); _extClearBtn.type='button'; _extClearBtn.className='rl-btn rl-clearbtn'; _extClearBtn.title='Clear all filters'; _extClearBtn.setAttribute('data-rlc',(opts.key||'list')); _extClearBtn.innerHTML='<span class="rlic">✕</span>Clear filters'; _extClearBtn.style.marginLeft='6px'; _extClearBtn.onclick=doClear; }
+        if(opts.filterButton.nextSibling!==_extClearBtn){ try{ opts.filterButton.parentNode.insertBefore(_extClearBtn, opts.filterButton.nextSibling); }catch(e){} }
+      } else if(_extClearBtn && _extClearBtn.parentNode){ _extClearBtn.parentNode.removeChild(_extClearBtn); }
+    }
+    if(opts.filterButton && window.MutationObserver){ try{ new MutationObserver(function(){ try{ syncExtClear(); }catch(e){} }).observe(opts.filterButton,{attributes:true,attributeFilter:['class'],childList:true,subtree:true}); }catch(e){} }
+
     function orderedMeta(){
       var meta=metaAll(), byKey={}; meta.forEach(function(m){ byKey[m.key]=m; });
       var out=[]; (state.order||[]).forEach(function(k){ if(byKey[k]){ out.push(byKey[k]); byKey[k]=null; } });
@@ -238,12 +257,10 @@
       var _extFilter = !!opts.filterButton;
       var filtBtn = (opts.noFilter || _extFilter) ? '' : ('<button class="rl-btn rl-filtbtn'+(state._filterOpen?' on':'')+'" title="Filter rows"><span class="rlic">\u2261</span>Filter'+(fcount?('<span class="rlfcount">'+fcount+'</span>'):'')+'</button>');
       var savedBtn = (opts.noSaved || (_extFilter && !opts.keepSaved)) ? '' : '<div class="rl-colwrap"><button class="rl-btn rl-savedbtn" title="Saved searches"><span class="rlic">\u2606</span>Saved</button><div class="rl-savedmenu" hidden></div></div>';
-      // "Clear filters" \u2014 shows whenever any filter is active (built-in filters, or the page's own
-      // filter button). Clicking it resets built-in filters and broadcasts rrg:clearfilters so the
-      // page's advanced filters (RRGFilters) reset too.
-      var _extActive = _extFilter && opts.filterButton && (opts.filterButton.classList.contains('on') || !!opts.filterButton.querySelector('.rlf-badge,.rlfcount,.rlf-count,[class*="badge"]'));
-      var _showClear = (fcount>0) || _extActive || (typeof opts.filterActive==='function' && opts.filterActive());
-      var clearBtn = _showClear ? '<button class="rl-btn rl-clearbtn" title="Clear all filters"><span class="rlic">\u2715</span>Clear filters</button>' : '';
+      // "Clear filters" for built-in filters renders inline in the toolbar when any are set. For a
+      // page that supplies its own filter button, the Clear button is injected next to it by
+      // syncExtClear() (driven by a MutationObserver), so it never depends on render order.
+      var clearBtn = (!_extFilter && fcount>0) ? '<button class="rl-btn rl-clearbtn" title="Clear all filters"><span class="rlic">\u2715</span>Clear filters</button>' : '';
       var colsBtn = '<div class="rl-colwrap"><button class="rl-btn rl-colbtn" title="Choose columns"><span class="rlic">▦</span>Columns</button><div class="rl-colmenu" hidden></div></div>';
       var expBtn = '<button class="rl-btn rl-export" title="Export to CSV"><span class="rlic">⬇</span>Export</button>';
       var prnBtn = '<button class="rl-btn rl-print" title="Print this list"><span class="rlic">⎙</span>Print</button>';
@@ -308,18 +325,7 @@
       // Group the page's own filter button into the toolbar, right before Saved,
       // so Filters + Saved sit together in the same spot on every list.
       if(opts.filterButton){ try{ var _bar=mount.querySelector('.rl-bar'), _sb=mount.querySelector('.rl-savedbtn'); var _anchor=_sb?(_sb.closest('.rl-colwrap')||_sb):null; if(_bar&&_anchor){ opts.filterButton.style.marginLeft='0'; _bar.insertBefore(opts.filterButton,_anchor); } }catch(e){} }
-      // Place "Clear filters" right after the active filter button (wherever the page keeps it) and
-      // wire it. Bound here (not in wire()) because the filter button may live outside our mount.
-      // Any copy this instance moved outside the mount on a prior render is removed first so a
-      // re-render never leaves a stale duplicate behind.
-      try{ var _rlc=(opts.key||'list');
-        document.querySelectorAll('.rl-clearbtn[data-rlc="'+_rlc+'"]').forEach(function(x){ if(!mount.contains(x) && x.parentNode) x.parentNode.removeChild(x); });
-        var _cb=mount.querySelector('.rl-clearbtn');
-        if(_cb){ _cb.setAttribute('data-rlc',_rlc);
-          if(opts.filterButton && opts.filterButton.parentNode){ opts.filterButton.parentNode.insertBefore(_cb, opts.filterButton.nextSibling); _cb.style.marginLeft='6px'; }
-          _cb.onclick=function(){ state.filters={}; state.page=0; persist(); try{ document.dispatchEvent(new CustomEvent('rrg:clearfilters',{detail:{key:opts.key}})); }catch(e){} if(opts.onClear){ try{ opts.onClear(); }catch(e){} } render(); };
-        }
-      }catch(e){}
+      try{ syncExtClear(); }catch(e){}
       mount.classList.toggle('rl-compact', !!state.compact);
       wire();
       if(keepMenu){ keepMenu=false; openColMenu(); }
@@ -427,6 +433,7 @@
       var fbt=$('.rl-filtbtn',mount); if(fbt) fbt.onclick=function(){ state._filterOpen=!state._filterOpen; render(); };
       var svb=$('.rl-savedbtn',mount); if(svb) svb.onclick=function(e){ e.stopPropagation(); var menu=$('.rl-savedmenu',mount); if(menu.hidden) openSavedMenu(); else menu.hidden=true; };
       var fcl=$('.rl-filterclear',mount); if(fcl) fcl.onclick=function(){ state.filters={}; state.page=0; persist(); render(); };
+      var _clb=$('.rl-clearbtn',mount); if(_clb) _clb.onclick=doClear;
       function _fobj(k){ var c=state.filters[k]; return (c&&typeof c==='object')?c:{}; }
       mount.querySelectorAll('.rl-filterfield input[type="date"][data-filterkey]').forEach(function(fi){ fi.onchange=function(){ var k=fi.getAttribute('data-filterkey'); var cur=_fobj(k); cur[fi.getAttribute('data-fdate')]=fi.value; state.filters[k]=cur; state.page=0; persist(); render(); }; });
       mount.querySelectorAll('.rl-filterfield [data-fmin][data-filterkey],.rl-filterfield [data-fmax][data-filterkey]').forEach(function(fi){ fi.oninput=function(){ var k=fi.getAttribute('data-filterkey'); if(fi._t) clearTimeout(fi._t); fi._t=setTimeout(function(){ var cur=_fobj(k); var isMin=fi.hasAttribute('data-fmin'); if(isMin) cur.min=fi.value; else cur.max=fi.value; state.filters[k]=cur; state._focusFilter=k+'|'+(isMin?'min':'max'); state.page=0; persist(); render(); },240); }; });

@@ -18070,7 +18070,10 @@ app.get('/api/counts', (req, res) => {
   try { const me = req.user && req.user.username; if (me) { const seen = ((loadSettings().bookingSeen || {})[String(me).toLowerCase()]) || ''; loadAppts().forEach(a => { if (a && a.source === 'booking' && a.byUser === me && a.status !== 'cancelled' && a.status !== 'deleted' && String(a.createdAt || '') > seen) newBookings++; }); } } catch (e) {}
   const newbookings = { 'rrg_calendar.html': newBookings };
   const review = { 'rrg_inbox.html': pendingProposalCount(req.user && req.user.username) };
-  res.json({ ok: true, counts, active, expiring, overdue, dueToday, newbookings, review });
+  let tasksOpen = 0;
+  loadTasks().forEach(t => { if (t.status === 'open' && taskVisible(t, req)) tasksOpen++; });
+  const opentasks = { 'rrg_tasks.html': tasksOpen };
+  res.json({ ok: true, counts, active, expiring, overdue, dueToday, newbookings, review, opentasks });
 });
 // ---- Command Center — management + prospecting intelligence across the book & pipeline ----
 function daysUntil(dateStr) {
