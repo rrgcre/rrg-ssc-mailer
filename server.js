@@ -18054,24 +18054,28 @@ app.get('/api/counts', (req, res) => {
   const _t = new Date(); const _ts = _t.getFullYear()+'-'+String(_t.getMonth()+1).padStart(2,'0')+'-'+String(_t.getDate()).padStart(2,'0');
   let agrExpiring = 0;
   loadAgreements().forEach(a => { if (a.status === 'terminated' || !a.expires || a.expires < _ts) return; const du = daysUntil(a.expires); if (du != null && du <= 60) agrExpiring++; });
+  // Task KPIs are always the logged-in user's OWN tasks (even for admins) — matching the Tasks
+  // page's default "mine" view (assignee or creator is me).
+  const _meU = (req.user && req.user.username) || '';
+  const _mineTask = t => t.status === 'open' && (t.assignee === _meU || t.createdBy === _meU);
   let tasksDue = 0;
-  loadTasks().forEach(t => { if (t.status === 'open' && taskVisible(t, req) && t.reminder && String(t.reminder).slice(0, 10) <= _ts) tasksDue++; });
+  loadTasks().forEach(t => { if (_mineTask(t) && t.reminder && String(t.reminder).slice(0, 10) <= _ts) tasksDue++; });
   let tasksOverdue = 0;
-  loadTasks().forEach(t => { if (t.status === 'open' && taskVisible(t, req) && t.due && String(t.due).slice(0, 10) < _ts) tasksOverdue++; });
+  loadTasks().forEach(t => { if (_mineTask(t) && t.due && String(t.due).slice(0, 10) < _ts) tasksOverdue++; });
   const expiring = { 'rrg_agreements.html': agrExpiring, 'rrg_tasks.html': tasksDue };
   let reqOverdue = 0;
   const _rnow = Date.now(); const _sla = { Urgent: 1, High: 2, Normal: 4 };
   loadTickets().forEach(t => { if (!canSeeTicket(req, t)) return; const st = t.status || 'Open'; if (st === 'Closed' || st === 'Answered') return; const created = Date.parse(t.createdAt || t.at || '') || 0; if (!created) return; const ageDays = (_rnow - created) / 86400000; const sla = (_sla[t.priority] != null) ? _sla[t.priority] : 4; if (ageDays > sla) reqOverdue++; });
   const overdue = { 'rrg_tasks.html': tasksOverdue, 'rrg_tickets.html': reqOverdue };
   let tasksToday = 0;
-  loadTasks().forEach(t => { if (t.status === 'open' && taskVisible(t, req) && t.due && String(t.due).slice(0, 10) === _ts) tasksToday++; });
+  loadTasks().forEach(t => { if (_mineTask(t) && t.due && String(t.due).slice(0, 10) === _ts) tasksToday++; });
   const dueToday = { 'rrg_tasks.html': tasksToday };
   let newBookings = 0;
   try { const me = req.user && req.user.username; if (me) { const seen = ((loadSettings().bookingSeen || {})[String(me).toLowerCase()]) || ''; loadAppts().forEach(a => { if (a && a.source === 'booking' && a.byUser === me && a.status !== 'cancelled' && a.status !== 'deleted' && String(a.createdAt || '') > seen) newBookings++; }); } } catch (e) {}
   const newbookings = { 'rrg_calendar.html': newBookings };
   const review = { 'rrg_inbox.html': pendingProposalCount(req.user && req.user.username) };
   let tasksOpen = 0;
-  loadTasks().forEach(t => { if (t.status === 'open' && taskVisible(t, req)) tasksOpen++; });
+  loadTasks().forEach(t => { if (_mineTask(t)) tasksOpen++; });
   const opentasks = { 'rrg_tasks.html': tasksOpen };
   res.json({ ok: true, counts, active, expiring, overdue, dueToday, newbookings, review, opentasks });
 });
