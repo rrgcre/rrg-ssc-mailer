@@ -246,9 +246,10 @@ async function messageFull(username, id) {
   const H = j.payload && j.payload.headers;
   return {
     id: j.id, threadId: j.threadId,
-    from: hdr(H, 'From'), to: hdr(H, 'To'), subject: hdr(H, 'Subject'),
+    from: hdr(H, 'From'), to: hdr(H, 'To'), cc: hdr(H, 'Cc'), subject: hdr(H, 'Subject'),
     date: hdr(H, 'Date'), messageId: hdr(H, 'Message-ID'),
     body: decodeBody(j.payload), snippet: j.snippet || '',
+    attachments: collectAttachments(j.payload).map(a => ({ filename: a.filename, attachmentId: a.attachmentId, mimeType: a.mimeType || '', size: a.size || 0 })),
   };
 }
 

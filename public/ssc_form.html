@@ -797,12 +797,14 @@
         }
       }
     });
+    var _lk=(window.__SSC_LINK||{});
     return {
       concept: header['restaurant / concept name']||'Concept',
-      contact: header['primary contact']||'',
+      contact: header['primary contact']||_lk.contactName||'',
       preparedBy: header['rrg advisor / tenant rep']||'',
       date: header['date completed']||'',
       repEmail: (document.getElementById('clientEmail').value||'').trim(),
+      personId: _lk.personId||'', companyId: _lk.companyId||'', company: _lk.company||'',
       sections: sections
     };
   }
@@ -834,6 +836,16 @@
   window.smClose=function(){ document.getElementById('smodal').classList.remove('show'); };
 
   window._collectData=_collectData;
+  // When launched from a contact (?personId&companyId&contact&company), link the SSC to that
+  // record and prefill the concept + primary-contact fields.
+  (function(){ try{
+    var q=new URLSearchParams(location.search);
+    window.__SSC_LINK={personId:q.get('personId')||'',companyId:q.get('companyId')||'',company:q.get('company')||'',contactName:q.get('contact')||''};
+    function pf(){ try{ var company=q.get('company')||'', contact=q.get('contact')||'';
+      document.querySelectorAll('#sscform .field').forEach(function(el){ var lb=el.querySelector('label.k'), inp=el.querySelector('input,textarea'); if(!lb||!inp||String(inp.value||'').trim()) return; var t=(lb.textContent||'').toLowerCase();
+        if(company && /concept name|restaurant/.test(t)) inp.value=company; else if(contact && /primary contact/.test(t)) inp.value=contact; }); }catch(e){} }
+    if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',pf); else pf();
+  }catch(e){} })();
   function _sendViaBackend(){
     var data=_collectData(); _sm('sending');
     fetch(String(window.RRG_API).replace(/\/$/,'')+'/api/send-ssc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})

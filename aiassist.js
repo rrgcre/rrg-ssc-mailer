@@ -174,6 +174,20 @@ async function parseEmailUpdate({ from, subject, body, person, deals, statuses, 
     '\n\nEMAIL\nFROM: ' + String(from || '') + '\nSUBJECT: ' + String(subject || '') + '\n\nBODY:\n' + String(body || '').slice(0, 12000);
   return extractJson(await callClaude(sys, payload, 800)) || {};
 }
+// 6a3) Convert a completed Site Selection Criteria (SSC) questionnaire into ONE structured
+// Tenant-Box requirement. List fields are constrained to the CRM's own option lists.
+async function sscToTenantBox({ ssc, conditions, spaceTypes, amenities, markets }) {
+  const sys = 'You are a restaurant/bar tenant-rep assistant. Convert a completed Site Selection Criteria (SSC) questionnaire into ONE structured Tenant-Box requirement for the CRM. ' +
+    'For the list fields use ONLY the provided option lists — copy values verbatim, pick only the ones the SSC clearly supports, leave a list empty when unclear. Numbers are plain digits with no units. NEVER invent a number or an option the SSC does not support. ' +
+    'Return ONLY JSON: {"concept":"","sfMin":"","sfIdeal":"","sfMax":"","deal":"both","condition":[],"spaceTypes":[],"amenities":[],"markets":[],"budget":"","areaNote":"","notes":""}. ' +
+    'concept = the restaurant/concept name. sfMin/sfIdeal/sfMax = square footage as digits. budget = max rent in $/SF/yr as digits if stated. deal = exactly one of "lease", "purchase", or "both". areaNote = trade-area / location preferences in one short line. notes = anything important the structured fields do not capture.';
+  const payload = 'ALLOWED condition: ' + JSON.stringify(conditions || []) +
+    '\nALLOWED spaceTypes: ' + JSON.stringify(spaceTypes || []) +
+    '\nALLOWED amenities: ' + JSON.stringify(amenities || []) +
+    '\nALLOWED markets: ' + JSON.stringify(markets || []) +
+    '\n\nSSC SUBMISSION (JSON):\n' + JSON.stringify(ssc || {}).slice(0, 18000);
+  return extractJson(await callClaude(sys, payload, 900)) || {};
+}
 // 6b) Structure a pasted list of a group's brands + locations (NO web lookup — just organize what's given).
 async function parseConceptList({ text, conceptTypes, cuisines }) {
   const sys = 'You are a restaurant/bar commercial real-estate broker\'s intake assistant. You are given a pasted list of restaurant/bar brands and their locations, all owned by ONE ownership group. ' +
@@ -469,4 +483,4 @@ async function rewriteEmail({ text }) {
   const out = await callClaude(sys, "DRAFT EMAIL (may contain HTML):\n" + String(text || "").slice(0, 12000), 1400);
   return _emailHtmlOut(out);
 }
-module.exports = { rewriteEmail, parseSpaceListing, parseSpaceListingDoc, enrichCenters, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, parseEmailContact, parseEmailUpdate, parseConceptList, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, enrichCenterDetail, enrichPropertyDetail, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary, buildQuestionnaire, classifyRoomDocs, polishPrompts, refineBov };
+module.exports = { rewriteEmail, parseSpaceListing, parseSpaceListingDoc, enrichCenters, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, parseEmailContact, parseEmailUpdate, sscToTenantBox, parseConceptList, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, enrichCenterDetail, enrichPropertyDetail, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary, buildQuestionnaire, classifyRoomDocs, polishPrompts, refineBov };

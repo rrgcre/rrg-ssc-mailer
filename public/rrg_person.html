@@ -80,7 +80,7 @@ body.booting .flagbtn{transition:none!important;}
 .flagbtn.etr.on{border-color:#3f7cac;color:#fff;background:#3f7cac;}
 .actfsel{border:1px solid #d5dbe6;border-radius:8px;padding:5px 8px;font:inherit;font-size:12px;color:#26324a;background:#fff;}
 .actcond{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:#6b7488;cursor:pointer;white-space:nowrap;}
-.feed.condensed .feednote,.feed.condensed .acttask,.feed.condensed .gmexpand,.feed.condensed .feedmeta{display:none;}
+.feed.condensed .feednote,.feed.condensed .acttask,.feed.condensed .gmexpand,.feed.condensed .gmacts,.feed.condensed .gmatts,.feed.condensed .feedmeta{display:none;}
 .feed.condensed .feedrow{padding-top:5px!important;padding-bottom:5px!important;}
 .mfrow{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
 .tagedit{display:flex;flex-wrap:wrap;gap:6px;} .tagbean{background:#eef2fb;color:#23496f;cursor:default;} .tagempty{color:#98a1b5;font-size:12px;}
@@ -277,6 +277,12 @@ select.nlselect{appearance:none;-webkit-appearance:none;-moz-appearance:none;bac
 .gmexpand:hover{background:#eaeef6;border-color:#cdd6e4;color:#23324d;}
 .gmexpand::after{content:"\25be";display:inline-block;font-size:9px;opacity:.65;transition:transform .12s;}
 .gmexpand[data-state="full"]::after{transform:rotate(180deg);}
+.gmacts{display:flex;align-items:center;gap:8px;margin-top:7px;flex-wrap:wrap;}
+.gmacts .gmexpand{margin-top:0;}
+.gmreply,.gmfwd{font-size:11.5px;font-weight:700;color:#3a4560;text-decoration:none;cursor:pointer;}
+.gmreply:hover,.gmfwd:hover{color:#c5221f;text-decoration:underline;}
+.gmsep{color:#c3c9d4;font-size:11px;}
+.gmatts{margin-top:2px;}
 .feedchip{flex:none;font-size:9.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:4px 8px;border-radius:999px;min-width:56px;text-align:center;line-height:1.1;}
 .feedmain{flex:1;min-width:0;}
 .feedtop{display:flex;align-items:center;gap:9px;flex-wrap:wrap;}
@@ -1453,7 +1459,7 @@ function activityCard(){
   (GMAIL||[]).forEach(function(g){ items.push({k:'g',t:(g.ts?new Date(g.ts).toISOString():(g.date||'')),d:g}); });
   items.sort(function(x,y){ return String(y.t).localeCompare(String(x.t)); });
   var feed = items.length ? items.map(function(it){
-    if(it.k==='g'){ var g=it.d; var dir=g.direction==='out'?'Sent':'Received'; var who=g.direction==='out'?('To '+esc(addrLabel(g.to))):('From '+esc(addrLabel(g.from))); return '<div class="feedrow" data-atype="email" data-gmid="'+esc(g.id)+'"><span class="feedic" title="Gmail" style="color:#c5221f">\u2709</span><div class="feedmain"><div class="feedtop"><span class="feedttl">'+esc(dec(g.subject||'(no subject)'))+'</span><span class="feedwhen">'+esc(fmt(g.ts?new Date(g.ts).toISOString():g.date))+'</span></div><div class="feedmeta">Gmail \u00b7 '+dir+' \u00b7 '+who+(g.unread?' \u00b7 <b style="color:#c5221f">unread</b>':'')+'</div><div class="feednote gmsnip" data-gmsnip="'+esc(g.id)+'">'+esc(dec(g.snippet||''))+'</div><a href="#" class="gmexpand" data-gmfull="'+esc(g.id)+'">Show full email</a></div></div>'; }
+    if(it.k==='g'){ var g=it.d; var dir=g.direction==='out'?'Sent':'Received'; var who=g.direction==='out'?('To '+esc(addrLabel(g.to))):('From '+esc(addrLabel(g.from))); return '<div class="feedrow" data-atype="email" data-gmid="'+esc(g.id)+'"><span class="feedic" title="Gmail" style="color:#c5221f">\u2709</span><div class="feedmain"><div class="feedtop"><span class="feedttl">'+esc(dec(g.subject||'(no subject)'))+'</span><span class="feedwhen">'+esc(fmt(g.ts?new Date(g.ts).toISOString():g.date))+'</span></div><div class="feedmeta">Gmail \u00b7 '+dir+' \u00b7 '+who+(g.unread?' \u00b7 <b style="color:#c5221f">unread</b>':'')+'</div><div class="feednote gmsnip" data-gmsnip="'+esc(g.id)+'">'+esc(dec(g.snippet||''))+'</div><div class="gmatts" data-gmatts="'+esc(g.id)+'"></div><div class="gmacts"><a href="#" class="gmexpand" data-gmfull="'+esc(g.id)+'">Show full email</a><span class="gmsep">·</span><a href="#" class="gmreply" data-gmreply="'+esc(g.id)+'">Reply</a><span class="gmsep">·</span><a href="#" class="gmfwd" data-gmfwd="'+esc(g.id)+'">Forward</a></div></div></div>'; }
     if(it.k==='e'){ var e=it.d; var opn=(e.opens>0)?(' · <b style="color:#1f8a5b">\ud83d\udc41 Opened '+e.opens+'\u00d7</b>'+(e.lastOpen?(' · last '+esc(fmt(e.lastOpen))):'')):(e.openToken?' · <span style="color:#8a94a6">not opened yet</span>':''); return '<div class="feedrow" data-atype="email"><span class="feedic" title="Sent from the system — open-tracked" style="background:#fff;color:#1f8a5b;box-shadow:inset 0 0 0 1.6px #1f8a5b">✉</span><div class="feedmain"><div class="feedtop"><span class="feedttl">'+esc(dec(e.subject||'(no subject)'))+'</span><span class="feedwhen">'+esc(fmt(e.sentAt))+'</span></div><div class="feedmeta">Email · To '+esc(e.to)+(e.by?(' · '+esc(e.by)):'')+opn+'</div>'+(e.body?('<div class="feednote">'+esc(dec(e.body)).split('\n').join('<br>')+'</div>'):'')+'</div></div>'; }
     var a=it.d; var c=actColor(a.type); return '<div class="feedrow" data-atype="'+esc(a.type)+'"><span class="feedic" style="background:'+c[0]+';color:'+c[1]+'">'+actIcon(a.type)+'</span><div class="feedmain"><div class="feedtop"><span class="feedwhen">'+esc(fmtDT(a.at||a.date))+'</span>'+(a.auto?'<span class="actauto">auto</span>':'')+'<span class="feedchip" style="background:'+c[0]+';color:'+c[1]+'">'+esc(a.type)+'</span>'+(a.by?('<span class="actby">'+esc(a.by)+'</span>'):'')+'</div>'+(a.note?('<div class="feednote">'+esc(a.note)+'</div>'):'')+(a.taskId?'<div class="acttask">↳ task created</div>':'')+'</div><button class="actdel delx" data-actdel="'+esc(a.id)+'" title="Delete" aria-label="Delete">✕</button></div>';
   }).join('') : '<div class="empty" style="padding:16px 2px">No activity yet. Log a call, tour, meal or note — or send an email — using the buttons above.</div>';
@@ -1474,7 +1480,7 @@ function wireActivity(){
   var _as=document.getElementById('act_show'),_es=document.getElementById('em_show'),_ac=document.getElementById('actComposer'),_ec=document.getElementById('emailComposer');
   function _tog(showEl,hideEl){ if(!showEl)return; var h=showEl.hasAttribute('hidden'); if(h){ showEl.removeAttribute('hidden'); if(hideEl) hideEl.setAttribute('hidden',''); var f=showEl.querySelector('input,select,textarea'); if(f) try{f.focus();}catch(e){} } else showEl.setAttribute('hidden',''); }
   if(_es) _es.addEventListener('click',function(){ _tog(_ec,null); });
-  document.querySelectorAll('.cotab[data-tab]').forEach(function(b){ b.addEventListener('click',function(){ var t=b.getAttribute('data-tab'); document.querySelectorAll('.cotab').forEach(function(x){ x.classList.toggle('on',x===b); }); var lg=document.getElementById('actTabLog'), nt=document.getElementById('actTabNote'), em=document.getElementById('actTabEmail'); if(lg) lg.hidden=(t!=='log'); if(nt) nt.hidden=(t!=='note'); if(em) em.hidden=(t!=='email'); }); });
+  document.querySelectorAll('.cotab[data-tab]').forEach(function(b){ b.addEventListener('click',function(){ var t=b.getAttribute('data-tab'); if(t==='email') EM_REPLY=null; document.querySelectorAll('.cotab').forEach(function(x){ x.classList.toggle('on',x===b); }); var lg=document.getElementById('actTabLog'), nt=document.getElementById('actTabNote'), em=document.getElementById('actTabEmail'); if(lg) lg.hidden=(t!=='log'); if(nt) nt.hidden=(t!=='note'); if(em) em.hidden=(t!=='email'); }); });
   var _na=document.getElementById('act_noteadd'); if(_na) _na.addEventListener('click',function(){ var no=((document.getElementById('act_notetext')||{}).value||'').trim(); if(!no) return; _na.disabled=true; fetch('/api/person/'+encodeURIComponent(ID)+'/activity',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({type:'Note',note:no})}).then(function(r){return r.json();}).then(function(j){ _na.disabled=false; if(j&&j.ok){ ACTIVITIES=j.activities||ACTIVITIES; if(j.lastContacted) P.lastContacted=j.lastContacted; render(); } else alert((j&&j.error)||'Could not save note.'); }).catch(function(){ _na.disabled=false; }); });
   var _at=document.getElementById('act_type'), _ao=document.getElementById('act_owner');
   function _syncOwner(){ if(_ao) _ao.hidden=(_at&&_at.value!=='To-Do'); }
@@ -1497,8 +1503,13 @@ function wireActivity(){
     // First expansion \u2014 stash the snippet, fetch the full message.
     if(!snip.getAttribute('data-snip')) snip.setAttribute('data-snip', snip.innerHTML);
     x.textContent='Loading\u2026';
-    fetch('/api/gmail/message/'+encodeURIComponent(id),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.message){ var full=esc(dec(j.message.body||j.message.snippet||'(no content)')).split('\n').join('<br>'); snip.setAttribute('data-full', full); snip.innerHTML=full; x.textContent='Hide full email'; x.setAttribute('data-state','full'); } else { x.textContent='Could not load'; } }).catch(function(){ x.textContent='Could not load'; }); }); });
+    fetch('/api/gmail/message/'+encodeURIComponent(id),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.message){ var full=esc(dec(j.message.body||j.message.snippet||'(no content)')).split('\n').join('<br>'); snip.setAttribute('data-full', full); snip.innerHTML=full; x.textContent='Hide full email'; x.setAttribute('data-state','full'); renderGmAtts(id, j.message.attachments||[]); } else { x.textContent='Could not load'; } }).catch(function(){ x.textContent='Could not load'; }); }); });
+  document.querySelectorAll('[data-gmreply]').forEach(function(x){ x.addEventListener('click',function(ev){ ev.preventDefault(); startReplyFwd(x.getAttribute('data-gmreply'),'reply'); }); });
+  document.querySelectorAll('[data-gmfwd]').forEach(function(x){ x.addEventListener('click',function(ev){ ev.preventDefault(); startReplyFwd(x.getAttribute('data-gmfwd'),'forward'); }); });
 }
+function fbytes(n){ n=Number(n)||0; if(n<1024) return n+' B'; if(n<1048576) return Math.round(n/1024)+' KB'; return (n/1048576).toFixed(1)+' MB'; }
+function renderGmAtts(id, atts){ var box=document.querySelector('[data-gmatts="'+id+'"]'); if(!box) return; if(!atts||!atts.length){ box.innerHTML=''; return; }
+  box.innerHTML=atts.map(function(a){ var href='/api/gmail/message/'+encodeURIComponent(id)+'/attachment/'+encodeURIComponent(a.attachmentId)+'?name='+encodeURIComponent(a.filename||'attachment')+'&mt='+encodeURIComponent(a.mimeType||''); return '<a href="'+href+'" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:5px;background:#eef2fb;border:1px solid #dbe3f0;border-radius:999px;padding:3px 9px;font-size:12px;color:#26324a;text-decoration:none;margin:4px 6px 0 0">📎 '+esc(a.filename||'attachment')+' <span style="color:#8a94a6">'+fbytes(a.size)+'</span></a>'; }).join(''); }
 function emailCard(){
   var to=P.email||((P.emails&&P.emails[0])||'');
   var count=(P.emailLog&&P.emailLog.length)||0; var inner;
@@ -1516,6 +1527,35 @@ function emailCard(){
   return '<div class="card"><div class="ch"><b>Email</b><span>'+count+'</span></div><div class="cb">'+inner+'</div></div>';
 }
 var EM_ATTACH=[];
+var EM_REPLY=null;
+function _addrEmail(s){ s=dec(String(s||'')); var m=s.match(/[\w.+-]+@[\w.-]+\.[a-z]{2,}/i); return m?m[0]:''; }
+function setEmField(id,v){ var e=document.getElementById(id); if(e) e.value=v; }
+function setEmBody(html){ if(window.RRGRte) RRGRte.set('em_body', html); else { var bo=document.getElementById('em_body'); if(bo) bo.value=String(html).replace(/<br\s*\/?>/gi,'\n').replace(/<[^>]+>/g,''); } }
+function _openEmailTab(){ var lg=document.getElementById('actTabLog'),nt=document.getElementById('actTabNote'),em=document.getElementById('actTabEmail'); if(lg)lg.hidden=true; if(nt)nt.hidden=true; if(em)em.hidden=false; document.querySelectorAll('.cotab').forEach(function(x){ x.classList.toggle('on', x.getAttribute('data-tab')==='email'); }); if(em) try{ em.scrollIntoView({behavior:'smooth',block:'nearest'}); }catch(e){} }
+function _quoteBlock(msg){ var who=esc(dec(addrLabel(msg.from)||msg.from||'')); var when=esc(fmt(msg.date||'')); var bodyHtml=esc(dec(msg.body||msg.snippet||'')).split('\n').join('<br>'); return '<br><br><div style="color:#667">On '+when+', '+who+' wrote:</div><blockquote style="margin:6px 0 0;padding:4px 0 4px 12px;border-left:3px solid #d7dde8;color:#475569">'+bodyHtml+'</blockquote>'; }
+function fwdAttachments(id, atts){ EM_ATTACH=EM_ATTACH||[]; return Promise.all((atts||[]).map(function(a){ return fetch('/api/gmail/message/'+encodeURIComponent(id)+'/attachment/'+encodeURIComponent(a.attachmentId)+'?name='+encodeURIComponent(a.filename||'attachment')+'&mt='+encodeURIComponent(a.mimeType||''),{credentials:'same-origin'}).then(function(r){ return r.ok?r.blob():null; }).then(function(bl){ if(!bl) return; return new Promise(function(res){ var rd=new FileReader(); rd.onload=function(){ EM_ATTACH.push({filename:a.filename||'attachment', dataB64:String(rd.result||'').replace(/^data:[^,]*,/,''), size:a.size||bl.size, contentType:a.mimeType||bl.type||''}); res(); }; rd.onerror=function(){ res(); }; rd.readAsDataURL(bl); }); }).catch(function(){}); })); }
+function startReplyFwd(id, mode){
+  _openEmailTab();
+  var m=document.getElementById('em_msg'); if(m) m.textContent='Loading the original…';
+  fetch('/api/gmail/message/'+encodeURIComponent(id),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok||!j.message){ if(m) m.textContent='Could not load the original email.'; return; }
+    var msg=j.message; var subjRaw=dec(msg.subject||'');
+    if(mode==='reply'){
+      var mine=(GMAILEMAIL||'').toLowerCase(); var fromE=_addrEmail(msg.from), toE=_addrEmail(msg.to);
+      var target=(mine && fromE.toLowerCase()===mine)?toE:fromE;
+      setEmField('em_to', target||''); setEmField('em_subj', /^re:/i.test(subjRaw)?subjRaw:('Re: '+subjRaw));
+      setEmBody(_quoteBlock(msg));
+      EM_REPLY={threadId:msg.threadId||'', inReplyTo:msg.messageId||''};
+      if(m) m.textContent='Replying — this threads in Gmail.';
+    } else {
+      setEmField('em_to',''); setEmField('em_subj', /^fwd:/i.test(subjRaw)?subjRaw:('Fwd: '+subjRaw));
+      setEmBody('<br>---------- Forwarded message ----------<br>From: '+esc(dec(msg.from||''))+'<br>Date: '+esc(fmt(msg.date||''))+'<br>Subject: '+esc(subjRaw)+(msg.to?('<br>To: '+esc(dec(msg.to))):'')+'<br><br>'+esc(dec(msg.body||msg.snippet||'')).split('\n').join('<br>'));
+      EM_REPLY=null;
+      if(msg.attachments&&msg.attachments.length){ if(m) m.textContent='Forwarding — pulling '+msg.attachments.length+' attachment(s)…'; fwdAttachments(id, msg.attachments).then(function(){ emAttachRender(); if(m) m.textContent='Ready to forward — '+EM_ATTACH.length+' attachment(s) carried over.'; }); } else { if(m) m.textContent='Ready to forward.'; }
+    }
+    var toEl=document.getElementById('em_to'); if(toEl) try{ toEl.focus(); }catch(e){}
+  }).catch(function(){ if(m) m.textContent='Could not load the original email.'; });
+}
 function emAttachRender(){ var box=document.getElementById('em_attach'); if(!box) return;
   var _tpl=((typeof EM_TPL_ATTS!=='undefined'&&EM_TPL_ATTS)||[]);
   var tplHtml=_tpl.map(function(a){ return '<span title="Sent automatically with this template" style="display:inline-flex;align-items:center;gap:5px;background:#eef7f0;border:1px solid #cfe6d6;border-radius:999px;padding:3px 9px;font-size:12px;color:#25603f">\ud83d\udcce '+esc(a.name||'attachment')+' <span style="font-size:9.5px;text-transform:uppercase;letter-spacing:.04em;color:#4a8a63;font-weight:800">template</span></span>'; }).join('');
@@ -1534,9 +1574,10 @@ function wireEmail(){
     b.disabled=true; m.textContent='Sending…';
     var _url = GMAILCONN ? '/api/gmail/send' : ('/api/person/'+encodeURIComponent(ID)+'/email');
     var _payload = GMAILCONN ? {personId:ID,to:to,cc:cc,bcc:bcc,subject:subj,body:body,templateId:EM_TPL_ID} : {to:to,cc:cc,bcc:bcc,subject:subj,body:body,templateId:EM_TPL_ID};
+    if(GMAILCONN && EM_REPLY){ _payload.threadId=EM_REPLY.threadId||''; _payload.inReplyTo=EM_REPLY.inReplyTo||''; }
     if(EM_ATTACH.length) _payload.attachments=EM_ATTACH.map(function(a){return {filename:a.filename,dataB64:a.dataB64,contentType:a.contentType};});
     fetch(_url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(_payload)})
-      .then(function(r){return r.json();}).then(function(j){ b.disabled=false; if(j&&j.ok){ if(j.emailLog) P.emailLog=j.emailLog; if(j.lastContacted) P.lastContacted=j.lastContacted; render(); } else { m.textContent=(j&&j.error)||'Send failed.'; } })
+      .then(function(r){return r.json();}).then(function(j){ b.disabled=false; if(j&&j.ok){ EM_REPLY=null; if(j.emailLog) P.emailLog=j.emailLog; if(j.lastContacted) P.lastContacted=j.lastContacted; render(); } else { m.textContent=(j&&j.error)||'Send failed.'; } })
       .catch(function(){ b.disabled=false; m.textContent='Could not reach the server.'; });
   });
 }
@@ -1883,7 +1924,7 @@ function _tbSyncTabs(){ TBOXES=_tbGather(); var tabs=document.getElementById('tb
 function tenantBoxCard(){
   TBOXES=(P&&Array.isArray(P.tenantBoxes))?P.tenantBoxes.slice():((P&&P.tenantBox)?[P.tenantBox]:[]);
   if(!TBOXES.length) TBOXES=[_tbEmpty()];
-  return '<div class="card" id="tenantBoxCard"><div class="ch"><b>Tenant-Box</b><span style="margin-left:7px;font-size:10.5px;color:#8a93a8;font-weight:600;text-transform:none">one per concept</span><button type="button" class="mfadd" id="tbAddSet" title="Add another concept requirement" style="margin-left:auto;width:28px;height:26px;padding:0;font-size:18px;line-height:1;font-weight:700;display:inline-flex;align-items:center;justify-content:center">+</button></div><div class="cb">'
+  return '<div class="card" id="tenantBoxCard"><div class="ch"><b>Tenant-Box</b><span style="margin-left:7px;font-size:10.5px;color:#8a93a8;font-weight:600;text-transform:none">one per concept</span><button type="button" class="abtn" id="tbFromSsc" data-ai="" title="Read the Site Criteria (SSC) on file and draft a concept to review" style="margin-left:auto;font-size:11.5px;padding:5px 11px">✦ Fill from SSC</button><button type="button" class="mfadd" id="tbAddSet" title="Add another concept requirement" style="margin-left:8px;width:28px;height:26px;padding:0;font-size:18px;line-height:1;font-weight:700;display:inline-flex;align-items:center;justify-content:center">+</button></div><div class="cb">'
     +'<div id="tbTabs" class="tbtabs">'+tbTabsHtml()+'</div>'
     +'<div id="tbSets">'+TBOXES.map(tbSetHtml).join('')+'</div>'
     +'<div class="bbbtns"><button type="button" class="savebtn" id="tbSave" style="width:auto;padding:8px 16px">Save tenant-box</button><span id="tbMsg" style="font-size:12px;color:#6b7488"></span></div>'
@@ -1905,9 +1946,26 @@ function wireTenantBox(){
     var _sec=e.target.closest&&e.target.closest('[data-tbsectog]'); if(_sec){ e.preventDefault(); var _sk=_sec.getAttribute('data-tbsectog'); var _willCol=!(_sec.parentNode&&_sec.parentNode.classList.contains('collapsed')); document.querySelectorAll('#tenantBoxCard .tbsec').forEach(function(sc){ if(sc.getAttribute('data-tbsec')===_sk) sc.classList.toggle('collapsed',_willCol); }); try{ var _m=JSON.parse(localStorage.getItem('rrgTbSec')||'{}'); _m[_sk]=_willCol; localStorage.setItem('rrgTbSec',JSON.stringify(_m)); }catch(e){} return; }
     var d=e.target.closest&&e.target.closest('.tbDel'); if(d){ e.preventDefault(); TBOXES=_tbGather(); TBOXES.splice(+d.getAttribute('data-i'),1); if(!TBOXES.length) TBOXES=[_tbEmpty()]; if(TB_ACTIVE>TBOXES.length-1) TB_ACTIVE=TBOXES.length-1; if(TB_ACTIVE<0) TB_ACTIVE=0; _tbRerender(); return; }
     var a=e.target.closest&&e.target.closest('#tbAddSet'); if(a){ e.preventDefault(); TBOXES=_tbGather(); TBOXES.push(_tbEmpty()); TB_ACTIVE=TBOXES.length-1; _tbRerender(); return; }
+    var fs=e.target.closest&&e.target.closest('#tbFromSsc'); if(fs){ e.preventDefault(); tbFillFromSsc(fs); return; }
     var s=e.target.closest&&e.target.closest('#tbSave'); if(s){ e.preventDefault(); TBOXES=_tbGather(); var save=s, msg=document.getElementById('tbMsg'); if(msg){msg.style.color='#6b7488';msg.textContent='Saving…';} save.disabled=true; fetch('/api/person/'+encodeURIComponent(ID)+'/tenantbox',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({boxes:TBOXES})}).then(function(r){return r.json();}).then(function(j){ save.disabled=false; if(j&&j.ok){ if(P) P.tenantBoxes=j.tenantBoxes; if(msg){msg.style.color='#1f8a5b';msg.textContent='Saved ✓';setTimeout(function(){if(msg)msg.textContent='';},1500);} loadTbMatches(); } else { if(msg){msg.style.color='#DA2B1F';msg.textContent=(j&&j.error)||'Could not save.';} } }).catch(function(){ save.disabled=false; if(msg){msg.style.color='#DA2B1F';msg.textContent='Network error.';} }); return; }
   });
   loadTbMatches();
+}
+function tbFillFromSsc(btn){
+  var msg=document.getElementById('tbMsg');
+  function go(){
+    TBOXES=_tbGather();
+    if(btn) btn.disabled=true; if(msg){ msg.style.color='#6b7488'; msg.textContent='Reading the SSC…'; }
+    try{ if(window.rrgAiWork) window.rrgAiWork.show('Reading the Site Criteria and drafting a concept…'); }catch(e){}
+    fetch('/api/person/'+encodeURIComponent(ID)+'/tenantbox/from-ssc',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:'{}'})
+      .then(function(r){return r.json();}).then(function(j){ try{ if(window.rrgAiWork) window.rrgAiWork.hide(); }catch(e){} if(btn) btn.disabled=false;
+        if(!j||!j.ok){ if(msg){ msg.style.color='#DA2B1F'; msg.textContent=(j&&j.error)||'Could not read an SSC.'; } return; }
+        if(TBOXES.length===1 && !String(TBOXES[0].concept||'').trim() && !String(TBOXES[0].sfMin||'') && !(TBOXES[0].markets&&TBOXES[0].markets.length)) TBOXES=[];
+        TBOXES.push(j.box); TB_ACTIVE=TBOXES.length-1; _tbRerender();
+        if(msg){ msg.style.color='#1f8a5b'; msg.textContent='Pulled from “'+(j.sscName||'SSC')+'” — review the fields and Save.'; }
+      }).catch(function(){ try{ if(window.rrgAiWork) window.rrgAiWork.hide(); }catch(e){} if(btn) btn.disabled=false; if(msg){ msg.style.color='#DA2B1F'; msg.textContent='Network error.'; } });
+  }
+  if(window.rrgAiConfirm){ window.rrgAiConfirm({actionKey:'tbFromSsc', title:'Fill from SSC', body:'This reads the Site Criteria (SSC) on file for this contact and drafts a tenant-box concept for you to review. It’s a metered AI action.', onProceed:go}); } else { go(); }
 }
 function _tbSpaceRow(l){ var badges=(l.reasons||[]).map(function(r){return '<span class="bbrz">'+esc(r)+'</span>';}).join(''); var parts=[]; if(l.market) parts.push(esc(l.market)); if(l.size) parts.push(esc(Number(l.size).toLocaleString('en-US'))+' SF'); if(l.rent) parts.push('$'+esc(Number(l.rent).toLocaleString('en-US'))+'/SF'); if(l.spaceType) parts.push(esc(l.spaceType)); return '<div class="bbmatch"><div class="bbmt"><b>'+esc(l.name||'Space')+'</b>'+(l.status?'<span class="bbpub" style="color:#2c5c8f;background:#eef4fb">'+esc(l.status)+'</span>':'')+'</div><div class="bbmm">'+(l.center?(esc(l.center)+(parts.length?' · ':'')):'')+parts.join(' · ')+'</div><div class="bbmrz">'+badges+'</div></div>'; }
 function loadTbMatches(){ if(!ID) return; fetch('/api/person/'+encodeURIComponent(ID)+'/matching-spaces',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(!j||!j.ok) return; var byI={}; (j.sets||[]).forEach(function(s){ byI[s.i]=s; }); document.querySelectorAll('#tbSets .tbMatches').forEach(function(host){ var set=byI[+host.getAttribute('data-i')]; var em=function(t){ return '<div style="color:#8a93a8;font-size:12px;padding:4px 0">'+t+'</div>'; }; if(!set){ host.innerHTML=em('Save to see matches.'); return; } if(!set.active){ host.innerHTML=em('Mark <b>Active</b> and save to see matches.'); return; } if(!set.hasCriteria){ host.innerHTML=em('Add a criterion, then save.'); return; } var L=set.spaces||[]; if(!L.length){ host.innerHTML=em('No open spaces match this concept yet.'); return; } host.innerHTML=L.map(_tbSpaceRow).join(''); }); }).catch(function(){}); }
@@ -2272,6 +2330,8 @@ load();
     var TRA=[
       {hdr:'Engagement'},
       {t:'Start Tenant Rep Engagement', sub:'Sign this client to a space search — opens the tenant pipeline at Needs Analysis', f:function(){ if(typeof openNewListing==='function'){ openNewListing('tenant_rep'); } else { alert('One moment — still loading.'); } }},
+      {hdr:'Criteria'},
+      {t:'Start Site Criteria (SSC)', sub:'Capture this client’s space & concept criteria — links to this record', f:function(){ var q='personId='+encodeURIComponent(ID)+'&companyId='+encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.id)||'')+'&contact='+encodeURIComponent((P&&P.name)||'')+'&company='+encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.name)||''); location.href='./ssc_form.html?'+q; }},
       {hdr:'Paperwork (optional)'},
       {t:'Send a Tenant Rep Agreement', sub:'Exclusive Tenant Representation — only when the client wants exclusivity', f:function(){ if(typeof openSendModal==='function'){ openSendModal(); } else { alert('Agreements are still loading — try again in a moment.'); } }}
     ];

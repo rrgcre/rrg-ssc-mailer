@@ -1943,6 +1943,16 @@ app.post('/api/send-ssc', async (req, res) => {
   } catch (e) { err = e; }
   try { store.appendSubmission('ssc', data, { ip: req.ip, emailed, by: req.user && req.user.username }); }
   catch (le) { console.error('log error:', le); }
+  // If the SSC was launched from a contact, log it on that record so it shows in the activity feed.
+  try {
+    if (data.personId) {
+      const ppl = loadPeople(); const pp = ppl.find(x => x.id === data.personId);
+      if (pp) {
+        logActivity(pp, 'Note', ('Site Criteria (SSC) ' + (emailed ? 'sent' : 'saved') + (data.concept ? (' — ' + String(data.concept).slice(0, 80)) : '')).slice(0, 200), { by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' });
+        pp.updatedAt = new Date().toISOString(); savePeople(ppl);
+      }
+    }
+  } catch (e) {}
   if (err) { console.error('send-ssc error:', err); return res.status(500).json({ ok: false, error: String((err && err.message) || err) }); }
   res.json({ ok: true, messageId: out.info.messageId, filename: out.filename, bytes: out.size });
 });
@@ -6459,6 +6469,46 @@ app.post('/api/person/:id/tenantbox', express.json({ limit: '512kb' }), (req, re
   if (p.tenantBox) delete p.tenantBox; // retire the legacy single field
   p.updatedAt = new Date().toISOString(); savePeople(arr);
   res.json({ ok: true, tenantBoxes: p.tenantBoxes });
+});
+// Find the most recent SSC (Site Criteria) on file for a contact — by link, else by company, else by name.
+function findSscForPerson(p) {
+  try {
+    const recs = store.readAll().filter(r => r.form === 'ssc');
+    if (!recs.length) return null;
+    const pid = p.id, cid = p.companyId || '';
+    let hit = recs.filter(r => r.data && r.data.personId === pid);
+    if (!hit.length && cid) hit = recs.filter(r => r.data && r.data.companyId === cid);
+    if (!hit.length) {
+      const nm = normKey(p.name || '');
+      const coNm = cid ? normKey((loadCompanies().find(c => c.id === cid) || {}).name || '') : '';
+      hit = recs.filter(r => { const d = r.data || {}; const c = normKey(d.contact || ''); const b = normKey(r.name || d.concept || ''); const cmp = normKey(d.company || ''); return (nm && c === nm) || (coNm && (cmp === coNm || b === coNm)); });
+    }
+    hit.sort((a, b) => String(b.timestamp).localeCompare(String(a.timestamp)));
+    return hit[0] || null;
+  } catch (e) { return null; }
+}
+// AI: read the latest SSC on file and propose a Tenant-Box concept (does NOT save — the rep reviews).
+app.post('/api/person/:id/tenantbox/from-ssc', express.json(), async (req, res) => {
+  const arr = loadPeople(); const p = arr.find(x => x.id === req.params.id);
+  if (!p) return res.status(404).json({ ok: false, error: 'Contact not found.' });
+  const rec = findSscForPerson(p);
+  if (!rec) return res.json({ ok: false, error: 'No Site Criteria (SSC) on file for this contact yet.' });
+  const markets = effMarkets();
+  const conditions = ['Shell', 'Second-gen', 'Dirt / pad'];
+  const spaceTypes = ['End cap', 'Inline', 'Pad / Outparcel', 'Freestanding'];
+  const amenities = ['Drive-thru', 'Patio', 'Hood / exhaust', 'Grease trap', 'Gas service', 'Walk-in cooler', 'Bar built-out', 'Fire suppression', '3-phase power', 'Restrooms (ADA)'];
+  let box = {};
+  try { box = await aiassist.sscToTenantBox({ ssc: rec.data || {}, conditions, spaceTypes, amenities, markets }) || {}; }
+  catch (e) { return res.status(502).json({ ok: false, error: String((e && e.message) || e) }); }
+  const _vl = (v, allow) => Array.isArray(v) ? v.filter(x => allow.indexOf(x) >= 0) : [];
+  const out = {
+    concept: String(box.concept || rec.name || '').slice(0, 80), active: false,
+    sfMin: String(box.sfMin || '').replace(/[^0-9]/g, ''), sfIdeal: String(box.sfIdeal || '').replace(/[^0-9]/g, ''), sfMax: String(box.sfMax || '').replace(/[^0-9]/g, ''),
+    deal: (['both', 'lease', 'purchase'].indexOf(box.deal) >= 0 ? box.deal : 'both'),
+    condition: _vl(box.condition, conditions), spaceTypes: _vl(box.spaceTypes, spaceTypes), amenities: _vl(box.amenities, amenities), markets: _vl(box.markets, markets),
+    budget: String(box.budget || '').replace(/[^0-9]/g, ''), areaNote: String(box.areaNote || '').slice(0, 300), notes: String(box.notes || '').slice(0, 1000),
+  };
+  res.json({ ok: true, box: out, sscName: rec.name || (rec.data && rec.data.concept) || 'Site Criteria', sscDate: rec.timestamp || '' });
 });
 // Sites/spaces matching this tenant's requirement sets (open inventory only), grouped by concept.
 app.get('/api/person/:id/matching-spaces', (req, res) => {
@@ -15882,6 +15932,21 @@ app.get('/api/gmail/message/:id', async (req, res) => {
   if (!gmail.statusFor(u).connected) return res.status(400).json({ ok: false, error: 'Gmail not connected.' });
   try { const m = await gmail.messageFull(u, req.params.id); res.json({ ok: true, message: m }); }
   catch (e) { res.status(502).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+// Download one attachment from a Gmail message (used by the contact email history). name/mt come
+// from the message's attachment metadata the UI already holds.
+app.get('/api/gmail/message/:id/attachment/:attId', async (req, res) => {
+  const u = (req.user && req.user.username) || '';
+  if (!gmail.statusFor(u).connected) return res.status(400).send('Gmail not connected.');
+  try {
+    const buf = await gmail.getAttachment(u, req.params.id, req.params.attId);
+    if (!buf || !buf.length) return res.status(404).send('Attachment not found.');
+    const name = String(req.query.name || 'attachment').replace(/[^\w.\- ]+/g, '').slice(0, 200) || 'attachment';
+    const mt = String(req.query.mt || '').replace(/[^\w.+/\-]+/g, '').slice(0, 100) || 'application/octet-stream';
+    res.set('Content-Type', mt);
+    res.set('Content-Disposition', 'attachment; filename="' + name + '"');
+    res.send(buf);
+  } catch (e) { res.status(502).send('Could not download the attachment.'); }
 });
 app.post('/api/gmail/send', express.json({ limit: '40mb' }), async (req, res) => {
   const u = (req.user && req.user.username) || '';
