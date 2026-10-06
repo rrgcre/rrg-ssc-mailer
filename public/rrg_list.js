@@ -238,11 +238,17 @@
       var _extFilter = !!opts.filterButton;
       var filtBtn = (opts.noFilter || _extFilter) ? '' : ('<button class="rl-btn rl-filtbtn'+(state._filterOpen?' on':'')+'" title="Filter rows"><span class="rlic">\u2261</span>Filter'+(fcount?('<span class="rlfcount">'+fcount+'</span>'):'')+'</button>');
       var savedBtn = (opts.noSaved || (_extFilter && !opts.keepSaved)) ? '' : '<div class="rl-colwrap"><button class="rl-btn rl-savedbtn" title="Saved searches"><span class="rlic">\u2606</span>Saved</button><div class="rl-savedmenu" hidden></div></div>';
+      // "Clear filters" \u2014 shows whenever any filter is active (built-in filters, or the page's own
+      // filter button). Clicking it resets built-in filters and broadcasts rrg:clearfilters so the
+      // page's advanced filters (RRGFilters) reset too.
+      var _extActive = _extFilter && opts.filterButton && (opts.filterButton.classList.contains('on') || !!opts.filterButton.querySelector('.rlf-badge,.rlfcount,.rlf-count,[class*="badge"]'));
+      var _showClear = (fcount>0) || _extActive || (typeof opts.filterActive==='function' && opts.filterActive());
+      var clearBtn = _showClear ? '<button class="rl-btn rl-clearbtn" title="Clear all filters"><span class="rlic">\u2715</span>Clear filters</button>' : '';
       var colsBtn = '<div class="rl-colwrap"><button class="rl-btn rl-colbtn" title="Choose columns"><span class="rlic">▦</span>Columns</button><div class="rl-colmenu" hidden></div></div>';
       var expBtn = '<button class="rl-btn rl-export" title="Export to CSV"><span class="rlic">⬇</span>Export</button>';
       var prnBtn = '<button class="rl-btn rl-print" title="Print this list"><span class="rlic">⎙</span>Print</button>';
       if(!canExport()){ expBtn=expBtn.replace('<button ','<button hidden '); prnBtn=prnBtn.replace('<button ','<button hidden '); }
-      var bar = '<div class="rl-bar"><span class="rl-sp"></span>'+count+densTog+perSel+filtBtn+savedBtn+colsBtn+expBtn+prnBtn+'</div>';
+      var bar = '<div class="rl-bar"><span class="rl-sp"></span>'+count+densTog+perSel+filtBtn+savedBtn+clearBtn+colsBtn+expBtn+prnBtn+'</div>';
       // Page numbers live BELOW the table (standard convention), and only when there's more than one page.
       var botPager = (pc>1) ? '<div class="rl-botbar">'+pager+'</div>' : '';
       var filterPanel='';
@@ -302,6 +308,18 @@
       // Group the page's own filter button into the toolbar, right before Saved,
       // so Filters + Saved sit together in the same spot on every list.
       if(opts.filterButton){ try{ var _bar=mount.querySelector('.rl-bar'), _sb=mount.querySelector('.rl-savedbtn'); var _anchor=_sb?(_sb.closest('.rl-colwrap')||_sb):null; if(_bar&&_anchor){ opts.filterButton.style.marginLeft='0'; _bar.insertBefore(opts.filterButton,_anchor); } }catch(e){} }
+      // Place "Clear filters" right after the active filter button (wherever the page keeps it) and
+      // wire it. Bound here (not in wire()) because the filter button may live outside our mount.
+      // Any copy this instance moved outside the mount on a prior render is removed first so a
+      // re-render never leaves a stale duplicate behind.
+      try{ var _rlc=(opts.key||'list');
+        document.querySelectorAll('.rl-clearbtn[data-rlc="'+_rlc+'"]').forEach(function(x){ if(!mount.contains(x) && x.parentNode) x.parentNode.removeChild(x); });
+        var _cb=mount.querySelector('.rl-clearbtn');
+        if(_cb){ _cb.setAttribute('data-rlc',_rlc);
+          if(opts.filterButton && opts.filterButton.parentNode){ opts.filterButton.parentNode.insertBefore(_cb, opts.filterButton.nextSibling); _cb.style.marginLeft='6px'; }
+          _cb.onclick=function(){ state.filters={}; state.page=0; persist(); try{ document.dispatchEvent(new CustomEvent('rrg:clearfilters',{detail:{key:opts.key}})); }catch(e){} if(opts.onClear){ try{ opts.onClear(); }catch(e){} } render(); };
+        }
+      }catch(e){}
       mount.classList.toggle('rl-compact', !!state.compact);
       wire();
       if(keepMenu){ keepMenu=false; openColMenu(); }

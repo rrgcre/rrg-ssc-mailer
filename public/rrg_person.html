@@ -1570,15 +1570,24 @@ function wireEmail(){
   b.addEventListener('click',function(){
     var to=document.getElementById('em_to').value.trim(), subj=mergeTok(document.getElementById('em_subj').value), _bh=(window.RRGRte?RRGRte.get('em_body'):((document.getElementById('em_body')||{}).value||'')), _bt=(window.RRGRte?RRGRte.getText('em_body'):_bh), body=mergeTok(_bh), m=document.getElementById('em_msg'), cc=((document.getElementById('em_cc')||{}).value||'').trim(), bcc=((document.getElementById('em_bcc')||{}).value||'').trim();
     if(!to){ m.textContent='Add a recipient email.'; return; }
-    if(!subj.trim()&&!_bt.trim()){ m.textContent='Add a subject or a message.'; return; }
-    b.disabled=true; m.textContent='Sending…';
-    var _url = GMAILCONN ? '/api/gmail/send' : ('/api/person/'+encodeURIComponent(ID)+'/email');
-    var _payload = GMAILCONN ? {personId:ID,to:to,cc:cc,bcc:bcc,subject:subj,body:body,templateId:EM_TPL_ID} : {to:to,cc:cc,bcc:bcc,subject:subj,body:body,templateId:EM_TPL_ID};
-    if(GMAILCONN && EM_REPLY){ _payload.threadId=EM_REPLY.threadId||''; _payload.inReplyTo=EM_REPLY.inReplyTo||''; }
-    if(EM_ATTACH.length) _payload.attachments=EM_ATTACH.map(function(a){return {filename:a.filename,dataB64:a.dataB64,contentType:a.contentType};});
-    fetch(_url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(_payload)})
-      .then(function(r){return r.json();}).then(function(j){ b.disabled=false; if(j&&j.ok){ EM_REPLY=null; if(j.emailLog) P.emailLog=j.emailLog; if(j.lastContacted) P.lastContacted=j.lastContacted; render(); } else { m.textContent=(j&&j.error)||'Send failed.'; } })
-      .catch(function(){ b.disabled=false; m.textContent='Could not reach the server.'; });
+    var _doSend=function(){
+      b.disabled=true; m.textContent='Sending…';
+      var _url = GMAILCONN ? '/api/gmail/send' : ('/api/person/'+encodeURIComponent(ID)+'/email');
+      var _payload = GMAILCONN ? {personId:ID,to:to,cc:cc,bcc:bcc,subject:subj,body:body,templateId:EM_TPL_ID} : {to:to,cc:cc,bcc:bcc,subject:subj,body:body,templateId:EM_TPL_ID};
+      if(GMAILCONN && EM_REPLY){ _payload.threadId=EM_REPLY.threadId||''; _payload.inReplyTo=EM_REPLY.inReplyTo||''; }
+      if(EM_ATTACH.length) _payload.attachments=EM_ATTACH.map(function(a){return {filename:a.filename,dataB64:a.dataB64,contentType:a.contentType};});
+      fetch(_url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(_payload)})
+        .then(function(r){return r.json();}).then(function(j){ b.disabled=false; if(j&&j.ok){ EM_REPLY=null; if(j.emailLog) P.emailLog=j.emailLog; if(j.lastContacted) P.lastContacted=j.lastContacted; render(); } else { m.textContent=(j&&j.error)||'Send failed.'; } })
+        .catch(function(){ b.disabled=false; m.textContent='Could not reach the server.'; });
+    };
+    // Missing subject and/or message — confirm before sending (Gmail-style guardrail).
+    var _miss=[]; if(!subj.trim()) _miss.push('subject line'); if(!_bt.trim()) _miss.push('message');
+    if(_miss.length){
+      var _w='This email has no '+_miss.join(' and no ')+'. Send it anyway?';
+      if(window.rrgConfirm){ window.rrgConfirm(_w,{title:'Send anyway?',okText:'Send anyway'}).then(function(ok){ if(ok) _doSend(); }); return; }
+      if(!window.confirm(_w)) return;
+    }
+    _doSend();
   });
 }
 var _FLAG_SVG={

@@ -192,6 +192,8 @@
     // Auto-apply the user's default saved search for this list on load (unless a URL param overrides).
     (function(){ try{ if(cfg.noDefault) return; var _p=new URLSearchParams(location.search); if(_p.get('view')||_p.get('type')) return; fetch('/api/saved-searches?list='+encodeURIComponent(cfg.list),{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.defaultId){ var sc=(j.searches||[]).filter(function(x){return x.id===j.defaultId;})[0]; if(sc){ FILTERS=Object.assign(empty(), sc.payload||{}); if(cfg.onChange) cfg.onChange(); } } }).catch(function(){}); }catch(e){} })();
     (function(){ try{ var vid=new URLSearchParams(location.search).get('view'); if(!vid) return; fetch('/api/saved-searches/'+encodeURIComponent(vid),{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.search&&j.search.list===cfg.list){ FILTERS=Object.assign(empty(), j.search.payload||{}); if(cfg.onChange) cfg.onChange(); } }).catch(function(){}); }catch(e){} })();
+    // Respond to a global "Clear filters" (fired by the list toolbar button) — reset and re-apply.
+    try{ document.addEventListener('rrg:clearfilters',function(){ if(activeCount()>0){ FILTERS=empty(); updateBtn(); if(cfg.onChange) cfg.onChange(); } }); }catch(e){}
     return { filter:filter, open:open, updateBtn:updateBtn, activeCount:activeCount, getFilters:function(){return FILTERS;}, clear:function(){ FILTERS=empty(); }, openSaved:function(){ openFly(FLYBTN); }, applySaved:function(p){ FILTERS=Object.assign(empty(), p||{}); if(cfg.onChange) cfg.onChange(); } };
   }
   window.RRGFilters={ create:create, chip:chip, injectCss:injectCss };
