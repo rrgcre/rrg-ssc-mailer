@@ -562,15 +562,31 @@
     // context (e.g. a contact showing its parent company). items=[{label,href}...]; the last
     // item renders as the current page (no link). Overrides the auto-filled leaf above.
     window.rrgSetCrumb = function(items){ try{ var el=document.querySelector('.rrgcrumb'); if(!el||!items||!items.length) return; var h='<a href="index.html">Command</a>'; for(var i=0;i<items.length;i++){ var it=items[i]||{}; h+='<span class="sep">›</span>'; if(i<items.length-1 && it.href){ h+='<a href="'+esc(it.href)+'">'+esc(it.label||'')+'</a>'; } else { h+='<span class="rrgcrumb-cur">'+esc(it.label||'')+'</span>'; } } el.innerHTML=h; }catch(_e){} };
-    try { fetch('/api/counts',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    // Paint the nav count badges from a /api/counts payload. Idempotent: clears every existing
+    // badge first, so it can be re-run any time the underlying data changes (e.g. after a task
+    // is created) without doubling or leaving stale counts.
+    function rrgPaintCounts(j){
+      try{ var _old=nav.querySelectorAll('.navbadge'); for(var _i=0;_i<_old.length;_i++) _old[_i].remove(); }catch(e){}
       function _badge(tl,cls,c,title,cap){ if(c<=0) return; var b=document.createElement('span'); b.className='navbadge'+(cls?(' '+cls):''); b.textContent=c>(cap||999)?((cap||999)+'+'):String(c); b.title=title; tl.appendChild(b); }
       var od=(j&&j.overdue)||{}; var NOUN={'rrg_tickets.html':'past-due request','rrg_tasks.html':'overdue task'};
       Object.keys(od).forEach(function(href){ if(href==='rrg_tasks.html') return; var c=od[href]||0; var tl=nav.querySelector('a.it[href="'+href+'"]'); if(!tl||c<=0||tl.querySelector('.navbadge')) return; tl.title=c+' '+(NOUN[href]||'item')+(c===1?'':'s'); _badge(tl,'',c,tl.title); });
       var nb=(j&&j.newbookings)||{}; Object.keys(nb).forEach(function(href){ var c=nb[href]||0; var tl=nav.querySelector('a.it[href="'+href+'"]'); if(!tl||c<=0||tl.querySelector('.navbadge')) return; _badge(tl,'',c,c+' new meeting'+(c===1?'':'s')+' booked',99); });
       var rv=(j&&j.review)||{}; Object.keys(rv).forEach(function(href){ var c=rv[href]||0; var tl=nav.querySelector('a.it[href="'+href+'"]'); if(!tl||c<=0||tl.querySelector('.navbadge')) return; _badge(tl,'',c,c+' lead'+(c===1?'':'s')+' to review',99); });
       // Tasks nav — three KPIs at a glance: open total (navy), late/overdue (red), due today (gold).
-      (function(){ var tl=nav.querySelector('a.it[href="rrg_tasks.html"]'); if(!tl) return; var open=((j&&j.opentasks)||{})['rrg_tasks.html']||0; var late=((j&&j.overdue)||{})['rrg_tasks.html']||0; var today=((j&&j.dueToday)||{})['rrg_tasks.html']||0; var ex=tl.querySelectorAll('.navbadge'); for(var i=0;i<ex.length;i++) ex[i].remove(); tl.title=open+' open'+(late?(' · '+late+' late'):'')+(today?(' · '+today+' due today'):''); _badge(tl,'open',open,open+' open task'+(open===1?'':'s')); _badge(tl,'',late,late+' late (overdue)'); _badge(tl,'gold',today,today+' due today'); })();
-    }).catch(function(){}); } catch(e){}
+      (function(){ var tl=nav.querySelector('a.it[href="rrg_tasks.html"]'); if(!tl) return; var open=((j&&j.opentasks)||{})['rrg_tasks.html']||0; var late=((j&&j.overdue)||{})['rrg_tasks.html']||0; var today=((j&&j.dueToday)||{})['rrg_tasks.html']||0; tl.title=open+' open'+(late?(' · '+late+' late'):'')+(today?(' · '+today+' due today'):''); _badge(tl,'open',open,open+' open task'+(open===1?'':'s')); _badge(tl,'',late,late+' late (overdue)'); _badge(tl,'gold',today,today+' due today'); })();
+    }
+    // Public refresh hook — any page can call window.rrgRefreshCounts() after it changes
+    // something the toolbar counts (create/complete a task, clear a lead, etc.) to repaint the
+    // badges live, no reload. Fired on load, and on a cross-tab 'rrgCountsDirty' storage ping.
+    window.rrgRefreshCounts=function(){ try{ fetch('/api/counts',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ rrgPaintCounts(j); }).catch(function(){}); }catch(e){} };
+    window.rrgRefreshCounts();
+    try{ window.addEventListener('storage',function(e){ if(e && e.key==='rrgCountsDirty') window.rrgRefreshCounts(); }); }catch(e){}
+    // Call after changing anything the toolbar counts: repaints this tab's badges now and pings
+    // every other open tab (via storage) to do the same.
+    window.rrgCountsChanged=function(){ try{ window.rrgRefreshCounts(); }catch(e){} try{ localStorage.setItem('rrgCountsDirty', String(Date.now())); }catch(e){} };
+    // Self-heal: when the tab is brought back to the foreground, repaint the counts (throttled to
+    // once per 20s) so the toolbar is never stale after a change made on another page or tab.
+    (function(){ var _last=Date.now(); try{ document.addEventListener('visibilitychange',function(){ if(document.visibilityState!=='visible') return; var now=Date.now(); if(now-_last<20000) return; _last=now; window.rrgRefreshCounts(); }); }catch(e){} })();
     // Create New dropdown
     (function(){ var cb=document.getElementById('rrgCreateBtn'), cm=document.getElementById('rrgCreateMenu'); if(!cb||!cm) return;
       function openM(){ cm.hidden=false; cb.setAttribute('aria-expanded','true'); }
