@@ -147,7 +147,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .offchip{display:flex;align-items:center;gap:8px;border:1px solid #e3e8f0;border-radius:9px;background:#fff;padding:6px 10px;font-size:12.5px;}
 .offchip .ocn{font-weight:700;color:#20334f;}
 .offchip .ocs{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;border-radius:5px;padding:1px 6px;}
-.offchip .ocs.hold{background:#fdf1df;color:#b5791f;} .offchip .ocs.lost{background:#f8e6e3;color:#b23a2c;}
+.offchip .ocs.hold{background:#fdf1df;color:#b5791f;} .offchip .ocs.lost{background:#f8e6e3;color:#b23a2c;} .offchip .ocs.nodeal{background:#eef1f6;color:#5b6472;}
 .offchip .ocret{font-size:11px;font-weight:700;color:#23496f;background:#eef2fb;border:1px solid #d3ddf3;border-radius:6px;padding:3px 8px;cursor:pointer;}
 .offchip .ocret:hover{background:#e2ebfa;}
 .offmenu{position:fixed;z-index:200;background:#fff;border:1px solid #e3e8f0;border-radius:10px;box-shadow:0 14px 40px rgba(12,22,54,.2);padding:6px;min-width:186px;}
@@ -155,7 +155,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .offmenu button{display:flex;width:100%;align-items:center;gap:9px;background:#fff;border:none;border-radius:7px;padding:8px 10px;font:inherit;font-size:13px;font-weight:600;color:#1a2236;cursor:pointer;text-align:left;}
 .offmenu button:hover{background:#f2f5fa;}
 .offmenu button .od{width:8px;height:8px;border-radius:50%;flex:none;}
-.offmenu .od.hold{background:#e0a83c;} .offmenu .od.lost{background:#c0392b;}
+.offmenu .od.hold{background:#e0a83c;} .offmenu .od.lost{background:#c0392b;} .offmenu .od.nodeal{background:#8a93a3;}
 .offmenu .omcancel{color:#8a94a6;font-weight:600;justify-content:center;font-size:12px;}
 </style>
 <script src="/rrg_brand.js"></script>
@@ -222,12 +222,12 @@ function isTenantBoard(){ return /tenant/i.test((DATA&&DATA.pipelineName)||''); 
 function entPlural(){ return isTenantBoard()?'Tenants':'Listings'; }
 function entSingular(){ return isTenantBoard()?'Tenant':'Listing'; }
 function dealType(){ return isTenantBoard()?'tenant_rep':'listing'; }
-var OFF_STATUSES=['On Hold','Lost']; var SHOW_OFF=false;
+var OFF_STATUSES=['On Hold','Lost','No Deal']; var SHOW_OFF=false;
 var VIEW=(function(){ try{ return localStorage.getItem('rrg_board_view')||'board'; }catch(e){ return 'board'; } })(), LTBL=null;
 var TB={ q:'', owner:'', markets:[], statuses:[], min:'', max:'', sort:'act_desc', per:25 };
 var FILTER_OPEN=false, SAVE_OPEN=false, EXPANDED={};
 var DENSITY=(function(){try{return localStorage.getItem('rrg_board_density')||'full';}catch(e){return 'full';}})();
-var CARDF=(function(){var d={contact:true,value:true,commission:true,days:true,market:true,status:false,bbs:false,activity:true,prefSf:true,crUse:true,crBudget:true,crMkts:true};try{var o=JSON.parse(localStorage.getItem('rrg_board_cardf')||'null');if(o&&typeof o==='object')return Object.assign(d,o);}catch(e){}return d;})();
+var CARDF=(function(){var d={photo:true,contact:true,value:true,commission:true,days:true,market:true,status:false,bbs:false,activity:true,prefSf:true,crUse:true,crBudget:true,crMkts:true};try{var o=JSON.parse(localStorage.getItem('rrg_board_cardf')||'null');if(o&&typeof o==='object')return Object.assign(d,o);}catch(e){}return d;})();
 var CARDF_OPEN=false, EXPCARD={};
 var ROLLED=(function(){try{return JSON.parse(localStorage.getItem('rrg_board_rolled')||'{}')||{};}catch(e){return {};}})();
 function saveROLLED(){ try{ localStorage.setItem('rrg_board_rolled',JSON.stringify(ROLLED)); }catch(e){} }
@@ -425,7 +425,7 @@ function renderList(cards){
       { label:'BOV', key:'bov', sort:function(a,b){return money(a.value)-money(b.value);}, edit:{ editable:function(c){ return !c.valueBov; }, type:'text', get:function(c){return c.value||'';}, save:function(c,val){ var d=String(val||'').replace(/[^0-9.]/g,''); return _saveAssign(c,{valueOverride:d},function(){ c.value=d; }); } }, cell:function(c){ return c.value?fmtMoneyMaybe(c.value):'<span style="color:#b0b8c6">—</span>'; } },
       { label:'Listing Price', key:'listprice', sort:function(a,b){return money(a.listPrice)-money(b.listPrice);}, edit:{ type:'text', get:function(c){return c.listPrice||'';}, save:function(c,val){ var d=String(val||'').replace(/[^0-9.]/g,''); return _saveAssign(c,{listPrice:d},function(){ c.listPrice=d; }); } }, cell:function(c){ return c.listPrice?fmtMoneyMaybe(c.listPrice):'<span style="color:#b0b8c6">—</span>'; } },
       { label:'Commission', key:'commission', sort:function(a,b){return money(a.commission)-money(b.commission);}, edit:{ type:'text', get:function(c){return c.totalCommission||c.commission||'';}, save:function(c,val){ var d=String(val||'').replace(/[^0-9.]/g,''); return _saveAssign(c,{totalCommission:d},function(){ c.totalCommission=d; c.commission=d; }); } }, cell:function(c){ return c.commission?fmtMoneyMaybe(c.commission):'<span style="color:#b0b8c6">—</span>'; } },
-      { label:'Status', sort:function(a,b){return RRGList.cmp(a.status,b.status);}, edit:{ type:'select', options:function(){ return _optsPlus(['Unqualified','New','Live','Under Contract','Closed','On Hold','Lost'], 'status'); }, get:function(c){return c.status||'';}, save:function(c,val){ return _saveAssign(c,{status:val},function(){ c.status=val; }); } }, cell:function(c){ return c.status?('<span class="lstage" style="background:#eef1f6;color:#5b6472">'+esc(c.status)+'</span>'):'<span style="color:#b0b8c6">—</span>'; } },
+      { label:'Status', sort:function(a,b){return RRGList.cmp(a.status,b.status);}, edit:{ type:'select', options:function(){ return _optsPlus(['Unqualified','New','Live','Under Contract','Closed','On Hold','Lost','No Deal'], 'status'); }, get:function(c){return c.status||'';}, save:function(c,val){ return _saveAssign(c,{status:val},function(){ c.status=val; }); } }, cell:function(c){ return c.status?('<span class="lstage" style="background:#eef1f6;color:#5b6472">'+esc(c.status)+'</span>'):'<span style="color:#b0b8c6">—</span>'; } },
       { label:'BBS #', defaultHidden:true, sort:function(a,b){return RRGList.cmp(a.bbsNumber,b.bbsNumber);}, cell:function(c){ return c.bbsNumber?esc(c.bbsNumber):'<span style="color:#b0b8c6">—</span>'; } },
       { label:'Owner', sort:function(a,b){return RRGList.cmp(a.owner,b.owner);}, edit:{ type:'select', allowBlank:true, options:_ownerOpts, get:function(c){return c.owner||'';}, save:function(c,val){ return _saveAssign(c,{owner:val},function(){ c.owner=val; }); } }, cell:function(c){ return c.owner?esc(c.owner):'<span style="color:#b0b8c6">—</span>'; } },
       { label:'Last activity', sort:function(a,b){return RRGList.cmp(a.lastActivity||'',b.lastActivity||'');}, cell:function(c){ return c.lastActivity?esc(fmtDate(c.lastActivity)):'<span style="color:#b0b8c6">—</span>'; } }
@@ -436,7 +436,7 @@ function renderList(cards){
 }
 function bulkSetStatus(ids,done){
   if(!ids||!ids.length) return;
-  var STATS=['Unqualified','New','Live','Under Contract','Closed','On Hold','Lost'];
+  var STATS=['Unqualified','New','Live','Under Contract','Closed','On Hold','Lost','No Deal'];
   var ov=document.createElement('div'); ov.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(10,20,45,.42);display:flex;align-items:center;justify-content:center';
   ov.innerHTML='<div style="background:#fff;border-radius:12px;box-shadow:0 20px 60px rgba(10,20,50,.3);width:340px;max-width:92vw;overflow:hidden"><div style="padding:14px 18px;font-weight:800;font-size:14px;color:#000E31;border-bottom:1px solid #eef1f6">Set status — '+ids.length+' listing'+(ids.length>1?'s':'')+'</div><div style="padding:8px">'+STATS.map(function(s){ return '<button type="button" data-st="'+esc(s)+'" style="display:block;width:100%;text-align:left;padding:9px 12px;border:none;background:#fff;border-radius:8px;font:inherit;font-size:13px;font-weight:600;color:#233;cursor:pointer">'+esc(s)+'</button>'; }).join('')+'</div><div style="padding:6px 14px 14px;text-align:right"><button type="button" id="bss_cancel" style="background:#fff;border:1px solid #cdd6e6;border-radius:8px;padding:8px 14px;font:inherit;font-weight:700;color:#33415c;cursor:pointer">Cancel</button></div></div>';
   document.body.appendChild(ov);
@@ -522,7 +522,7 @@ function offbarHtml(offAll){
   var toggle=n?('<button type="button" class="obtoggle" id="offToggle">'+(SHOW_OFF?'Hide':('Show '+n))+'</button>'):'';
   var tray='';
   if(SHOW_OFF && n){
-    tray='<div class="offtray">'+offAll.map(function(c){ var lost=(c.status==='Lost'); return '<div class="offchip"><span class="ocn">'+esc(c.business||c.key)+'</span><span class="ocs '+(lost?'lost':'hold')+'">'+esc(c.status)+'</span><button type="button" class="ocret" data-ret="'+esc(c.key)+'">↩ Return</button></div>'; }).join('')+'</div>';
+    tray='<div class="offtray">'+offAll.map(function(c){ var cls=(c.status==='Lost')?'lost':((c.status==='No Deal')?'nodeal':'hold'); return '<div class="offchip"><span class="ocn">'+esc(c.business||c.key)+'</span><span class="ocs '+cls+'">'+esc(c.status)+'</span><button type="button" class="ocret" data-ret="'+esc(c.key)+'">↩ Return</button></div>'; }).join('')+'</div>';
   }
   return '<div class="offbar" id="offbar"><span class="obicon">⇩</span><span class="obl">Off the board'+(n?(' <span class="obcount">'+n+'</span>'):'')+'</span><span class="obhint">Drag a card here to park it (On Hold or Lost) without pushing it through the pipeline.</span>'+toggle+tray+'</div>';
 }
@@ -544,6 +544,7 @@ function offDropMenu(key,x,y){
   m.innerHTML='<div class="omh">Take “'+esc(nm)+'” off the board</div>'
     +'<button type="button" data-off="On Hold"><span class="od hold"></span>Park (On Hold)</button>'
     +'<button type="button" data-off="Lost"><span class="od lost"></span>Mark Lost</button>'
+    +'<button type="button" data-off="No Deal"><span class="od nodeal"></span>No Deal <span style="color:#98a1b5;font-weight:400;font-size:11px">— didn’t qualify / no terms</span></button>'
     +'<button type="button" class="omcancel" data-off="">Cancel</button>';
   document.body.appendChild(m);
   var vw=window.innerWidth, vh=window.innerHeight, r=m.getBoundingClientRect();
@@ -564,7 +565,7 @@ function returnToBoard(key){
   fetch('/api/assignment/'+encodeURIComponent(key)+'/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({status:'Live'})})
     .then(function(r){return r.json();}).then(function(j){ if(!j||!j.ok){ load(); } }).catch(function(){ load(); });
 }
-var CARDF_FIELDS=[['contact','Contact'],['value','Value'],['commission','Commission'],['days','Days in stage'],['market','Market'],['status','Status'],['bbs','BBS #'],['activity','Last activity']];
+var CARDF_FIELDS=[['photo','Photo'],['contact','Contact'],['value','Value'],['commission','Commission'],['days','Days in stage'],['market','Market'],['status','Status'],['bbs','BBS #'],['activity','Last activity']];
 var CARDF_TENANT_FIELDS=[['prefSf','Preferred SF (min–max)'],['crUse','Use / concept'],['crBudget','Budget (rent)'],['crMkts','Target markets']];
 function saveCARDF(){ try{ localStorage.setItem('rrg_board_cardf',JSON.stringify(CARDF)); }catch(e){} }
 function renderCardfMenu(){
@@ -617,7 +618,7 @@ function cardFieldsHtml(c){
   return h;
 }
 function saleLaneBadge(c){ if(!c.saleLane) return ''; var lane=c.saleLane; var m=(lane==='asset')?{t:'Asset Sale — space, fixtures &amp; equipment',bg:'#3f7cac',ltr:'A'}:((lane==='other')?{t:'Other listing type',bg:'#8a93a3',ltr:'O'}:{t:'Going Concern — operating business (business sale)',bg:'#1c7a45',ltr:'B'}); return '<span title="'+m.t+'" style="flex:none;display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;border-radius:50%;font-size:10px;font-weight:800;color:#fff;background:'+m.bg+'">'+m.ltr+'</span>'; }
-function cardAvatar(c){ if(!c.avatarUrl) return ''; return '<img class="cav" src="'+esc(c.avatarUrl)+'" alt="" style="object-fit:'+((c.avatarFit==='cover')?'cover':'contain')+'">'; }
+function cardAvatar(c){ if(!c.avatarUrl || CARDF.photo===false) return ''; return '<img class="cav" src="'+esc(c.avatarUrl)+'" alt="" style="object-fit:'+((c.avatarFit==='cover')?'cover':'contain')+'">'; }
 function cardHtml(c){
   var open='./rrg_assignment.html?key='+encodeURIComponent(c.key);
   var flags=flagBadges(c);

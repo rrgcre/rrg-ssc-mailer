@@ -5530,7 +5530,10 @@ function roomClosedPage(r) {
 const ASSIGN_FILE = path.join(BOV_DATA_DIR, 'assignments.json');
 function loadAssignOverlay() { try { return rj(ASSIGN_FILE) || {}; } catch (e) { return {}; } }
 function saveAssignOverlay(o) { return writeJsonGuarded(ASSIGN_FILE, o, 'saveAssignOverlay'); }
-const ASSIGN_STATUSES = ['Unqualified', 'New', 'Live', 'Under Contract', 'Closed', 'On Hold', 'Lost'];
+const ASSIGN_STATUSES = ['Unqualified', 'New', 'Live', 'Under Contract', 'Closed', 'On Hold', 'Lost', 'No Deal'];
+// "Dead" = off the active board: a won close, a competitive loss, or no deal to be had
+// (couldn't qualify / couldn't come to terms). "No Deal" is NOT counted as a lost deal.
+function _deadAssign(s){ return s === 'Closed' || s === 'Lost' || s === 'No Deal'; }
 // Legacy listings stored status 'Active'; it's now 'Live'. Normalize any inbound/legacy value.
 function normAssignStatus(s) { return s === 'Active' ? 'Live' : s; }
 // ===== Buyer pipeline (buy-side funnel, per listing) =====
@@ -6546,7 +6549,7 @@ function _relNum(s) { return Number(String(s == null ? '' : s).replace(/[^0-9.\-
 function _relFromListing(d, overlay, roll) {
   const key = d.screenId ? ('s_' + d.screenId) : ('d_' + d.id);
   const o = overlay[key] || {}; const t = o.transaction || null; const st = o.status || '';
-  if (st !== 'Closed' && st !== 'Lost') roll.activeListings++;
+  if (!_deadAssign(st)) roll.activeListings++;
   if (t) {
     if (t.status === 'Closed') { roll.closedDeals++; roll.commission += _relNum(t.commissionDue); roll.volume += _relNum(t.price); }
     else if (t.status && t.status !== 'Dead') roll.pipeline += _relNum(t.price);
@@ -10683,7 +10686,7 @@ function personDealsSnapshot(personId) {
       const cur = overlay[d.key] || {}; const t = cur.transaction;
       if (!t || typeof t !== 'object' || t.personId !== personId) return;
       const st = t.status || '';
-      if (st === 'Closed' || st === 'Lost') return;
+      if (_deadAssign(st)) return;
       let business = cur.businessOverride || '';
       try { business = business || assignmentView(d, overlay).business; } catch (e) {}
       out.push({ key: d.key, business: business || '', status: st, price: t.price || '', expectedClose: t.expectedClose || '', terms: (t.terms || '').slice(0, 200) });
@@ -15484,7 +15487,7 @@ app.get('/api/feed/snapshot', (req, res) => {
     let active = 0, openOffers = 0, inDiligence = 0, closingThisMonth = 0;
     listings.forEach(l => {
       const st = String(l.status || '');
-      if (st !== 'Closed' && st !== 'Lost') active++;
+      if (!_deadAssign(st)) active++;
       (Array.isArray(l.offers) ? l.offers : []).forEach(o => {
         const os = String((o && o.status) || '').toLowerCase();
         if (!/accept|reject|withdraw|dead|declin|expired|lost/.test(os)) openOffers++;
@@ -18034,7 +18037,7 @@ app.get('/api/counts', (req, res) => {
   try {
     const idx = assignmentsIndex(); const ov = loadAssignOverlay();
     const keys = Object.keys(idx); dealCount = keys.length;
-    keys.forEach(k => { const st = (ov[k] && ov[k].status) || 'New'; if (st !== 'Closed' && st !== 'Lost') activeDeals++; });
+    keys.forEach(k => { const st = (ov[k] && ov[k].status) || 'New'; if (!_deadAssign(st)) activeDeals++; });
   } catch (e) { dealCount = loadDeals().length; activeDeals = dealCount; }
   const counts = {
     'rrg_companies.html': loadCompanies().length,
@@ -18132,7 +18135,7 @@ app.get('/api/command', (req, res) => {
   deals.forEach(d => {
     STAGE_KEYS.forEach(k => { if (d.stages[k] && d.stages[k].done) funnel[k]++; });
     statusBreak[d.status] = (statusBreak[d.status] || 0) + 1;
-    const live = d.status !== 'Closed' && d.status !== 'Lost';
+    const live = !_deadAssign(d.status);
     const own = d.owner || '—';
     byOwner[own] = byOwner[own] || { owner: own, active: 0, total: 0, expiring: 0, value: 0 };
     byOwner[own].total++;
@@ -18300,7 +18303,7 @@ function repRollup(u, opts) {
     let v; try { v = assignmentView(idx[key], overlay); } catch (e) { continue; }
     if (!repMatchesOwner(v.owner, u)) continue;
     const t = v.transaction || null; const st = v.status || '';
-    const active = (st !== 'Closed' && st !== 'Lost');
+    const active = (!_deadAssign(st));
     if (st === 'Lost') lostDeals++;
     const _o = overlay[key] || {}; const _pl = _o.pipelineId || 'p_bizsales'; const _stgs = _stgByPipe[_pl] || []; let _stage = _o.pipelineStage || ''; if (_stgs.indexOf(_stage) < 0) { try { const _ss = listingStageSummary(idx[key], overlay); const _si = Math.max(0, Math.min((_ss.done || 0), _stgs.length - 1)); _stage = _stgs[_si] || _stgs[0] || ''; } catch (e) { _stage = _stgs[0] || ''; } }
     const _isLead = !!(active && _preByPipe[_pl] && _preByPipe[_pl][_stage]); if (_isLead) leads++;
@@ -20037,7 +20040,7 @@ function dashboardData(req) {
   const closed = listings.filter(l => l.status === 'Closed').length;
   const buyers = people.filter(p => p.type === 'Buyer').length;
   const sellers = people.filter(p => p.type === 'Seller').length;
-  const statusOrder = ['New', 'Live', 'Under Contract', 'On Hold', 'Closed', 'Lost'];
+  const statusOrder = ['New', 'Live', 'Under Contract', 'On Hold', 'Closed', 'Lost', 'No Deal'];
   const dstat = {}; listings.forEach(l => { const st = l.status || 'New'; dstat[st] = (dstat[st] || 0) + 1; });
   const dealStatus = statusOrder.filter(st => dstat[st]).map(st => ({ label: st, value: dstat[st] }));
   const ptype = {}; people.forEach(p => { const t = p.type || 'Other'; ptype[t] = (ptype[t] || 0) + 1; });
