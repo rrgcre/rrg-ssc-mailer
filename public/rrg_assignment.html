@@ -875,7 +875,22 @@ function financialsCard(){
     +'</tbody></table></div>';
   var hist=(A&&Array.isArray(A.priceHistory))?A.priceHistory.slice():[];
   var histHtml=''; if(hist.length){ var rows=hist.map(function(h,i){ return _histRow(h, i===0 && !h.prev); }).reverse().join(''); histHtml='<div style="margin-top:16px"><div style="font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8;margin-bottom:2px">Price history</div>'+rows+'</div>'; }
-  var bovLink=(fin.bovId)?('<a href="./rrg_bov_builder.html?bov='+encodeURIComponent(fin.bovId)+'" style="margin-left:auto;font-size:12px;font-weight:700;color:#23496f;text-decoration:none">Open BOV ↗</a>'):'';
+  // Valuation launcher on the deal file. One control, three states — and it always opens or
+  // creates the SAME listing-anchored BOV (via /api/valuation-ensure keyed to this listing),
+  // never a second, orphaned valuation.
+  var _lnkCtl='font-size:12px;font-weight:700;color:#23496f;text-decoration:none';
+  var bovLink;
+  if(fin.bovId){
+    var _bovState=String(fin.state||'');
+    var _openUrl=(_bovState==='requested'?'./rrg_bov_generate.html?bov=':'./rrg_bov_builder.html?bov=')+encodeURIComponent(fin.bovId);
+    var _openTxt=(_bovState==='requested')?'Open valuation →':'Open BOV ↗';
+    bovLink='<span style="margin-left:auto;display:inline-flex;gap:14px;align-items:center">'
+      +'<a href="'+_openUrl+'" style="'+_lnkCtl+'">'+_openTxt+'</a>'
+      +(_bovState==='final'?('<a href="#" onclick="rrgReviseBov(\''+encodeURIComponent(fin.bovId)+'\');return false" title="Start a new version — the current final is kept in the version history" style="'+_lnkCtl+'">Revise value →</a>'):'')
+      +'</span>';
+  } else {
+    bovLink='<a href="#" onclick="rrgListingStartBov();return false" title="Build the Broker&#39;s Opinion of Value for this listing — we&#39;ll pull the financials &amp; lease" style="margin-left:auto;'+_lnkCtl+'">＋ Build the valuation (BOV)</a>';
+  }
   var finCard='<div class="card" id="finCard"><div class="ch"><b>Financials</b><span style="margin-left:8px">operating performance</span></div><div class="cb" style="padding-top:14px">'+table+'</div></div>';
   var valCard='<div class="card" id="valCard"><div class="ch"><b>Valuation &amp; Pricing</b><span style="margin-left:8px">how the price is derived</span>'+bovLink+'</div><div class="cb" style="padding-top:14px"><div id="valBridge" style="margin:0 0 16px;padding:13px 15px;border:1px solid #e2e8f2;border-radius:10px;background:#f7faff">'+_valBridgeInner()+'</div>'+snap+reBlock+priceGrid+histHtml+'</div></div>';
   return finCard+valCard;
@@ -1633,6 +1648,32 @@ function wireDocs(){
   var addb=document.getElementById('docAddBtn'); if(addb) addb.addEventListener('click',openDocUpload);
 }
 function promoteListing(){ var b=document.getElementById('promoteBtn'); if(b){b.disabled=true;b.textContent='Promoting…';} fetch('/api/assignment/'+encodeURIComponent(KEY)+'/promote',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.reload(); } else { if(b){b.disabled=false;b.textContent='Go Live →';} alert((j&&j.error)||'Could not promote.'); } }).catch(function(){ if(b){b.disabled=false;b.textContent='Go Live →';} alert('Could not reach the server.'); }); }
+// Launch the valuation from the deal file. Reuses /api/valuation-ensure with THIS listing's
+// key + seller IDs, so it opens the BOV already tied to this listing or creates one linked to
+// the same seller record — never a parallel, orphaned valuation. Routes to the generator (same
+// page the seller-side "Generate valuation" action uses), which handles new & in-progress BOVs.
+function rrgListingStartBov(){
+  var pid=(A&&A.clientPersonId)||'', cid=(A&&A.company&&A.company.id)||'';
+  if(!pid&&!cid){ if(window.rrgToast){ rrgToast('Link a seller contact first — use the Seller contact field on the left, then build the valuation.'); } else { alert('Link a seller contact to this listing first — add one in the Seller contact field on the left.'); } return; }
+  fetch('/api/valuation-ensure',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({personId:pid,companyId:cid,listingKey:KEY})}).then(function(r){return r.json();}).then(function(j){
+    if(j&&j.ok&&j.bovId){ location.href='./rrg_bov_generate.html?bov='+encodeURIComponent(j.bovId); }
+    else { if(window.rrgToast){ rrgToast((j&&j.error)||'Could not start the valuation.'); } else { alert((j&&j.error)||'Could not start the valuation.'); } }
+  }).catch(function(){ if(window.rrgToast){ rrgToast('Could not reach the server.'); } else { alert('Could not reach the server.'); } });
+}
+// Revise a finalized valuation — snapshots the current final into version history and reopens
+// the builder on a fresh editable version. (Server only allows this on a finalized BOV, which
+// is exactly when the Revise control is shown.)
+function rrgReviseBov(id){
+  id=decodeURIComponent(id||''); if(!id) return;
+  var _go=function(ok){ if(!ok) return;
+    fetch('/api/bov/'+encodeURIComponent(id)+'/revise',{method:'POST',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+      if(j&&j.ok){ location.href='./rrg_bov_builder.html?bov='+encodeURIComponent(id); }
+      else { if(window.rrgToast){ rrgToast((j&&j.error)||'Could not start a revision.'); } else { alert((j&&j.error)||'Could not start a revision.'); } }
+    }).catch(function(){ if(window.rrgToast){ rrgToast('Could not reach the server.'); } else { alert('Could not reach the server.'); } });
+  };
+  var _m='Revise the valuation? The current finalized version is saved to history and a new editable version opens.';
+  if(window.rrgConfirm){ window.rrgConfirm(_m,{title:'Revise valuation?',okText:'Revise'}).then(_go); } else { _go(window.confirm(_m)); }
+}
 async function newListingForClient(){
   var b=document.getElementById('hqNewForClient');
   var who=(A&&A.contact)||'this client';
