@@ -940,9 +940,6 @@ function render(){
 
   document.getElementById('root').className='wrap';
   var _sideHtml='<div class="side"><div class="card"><div class="ch"><b>Manage</b></div><div class="cb" style="padding-top:14px">'
-      + ((A.canDelete !== false) ? ('<div class="hqbar">'
-          + '<button class="hqbtn del" id="delDealBtn" title="Removes this engagement and its records. Cannot be undone.">Delete</button>'
-          + '</div>') : '')
       + '<div class="fldrow"><label class="fld">Representation</label><select id="f_status">'+opts+'</select></div>'
       + (PIPES.length?('<div class="fldrow"><label class="fld">Tenant pipeline <span style="font-weight:400;color:#8a93a8;font-size:11px">— move the tenant through the search</span></label><select id="f_pipeline">'+pipeOpts+'</select></div>'):'')
       + (PIPES.length?('<div class="fldrow"><label class="fld">Space pipeline <span style="font-weight:400;color:#8a93a8;font-size:11px">— move viable spaces through their stages</span></label><select id="f_buyerpipe">'+spacePipeOpts+'</select></div>'):'')
@@ -972,7 +969,9 @@ function render(){
       + '<div class="fldrow"><label class="fld">Notes</label><textarea id="f_notes" placeholder="Private notes on this listing — next steps, seller temperature, key dates…">'+esc(A.notes||'')+'</textarea></div>'
       + '<button class="savebtn" id="savebtn" disabled>Save changes</button>'
       + '<div class="saved" id="saved">Saved ✓</div>'
-      + ''
+      // Delete lives here at the bottom, out of the way — deleting an engagement is rare and
+      // irreversible, so it's a quiet link beneath everything else rather than a top button.
+      + ((A.canDelete !== false) ? ('<div style="margin-top:24px;padding-top:13px;border-top:1px solid #e9edf3;text-align:right"><button type="button" id="delDealBtn" title="Removes this engagement and its records. Cannot be undone." style="background:none;border:none;color:#aeb6c3;font-size:11.5px;font-weight:600;cursor:pointer;padding:4px 2px">Delete this engagement…</button></div>') : '')
     + '</div></div></div>';
   document.getElementById('root').innerHTML=
     _sideHtml

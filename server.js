@@ -3581,6 +3581,42 @@ app.post('/api/generate-map', express.json({ limit: '8mb' }), async (req, res) =
     res.status(500).json({ ok: false, error: String((e && e.message) || e) });
   }
 });
+// Draft a TENANT Market Attack Plan from the engagement's own site-selection criteria.
+// Anchored to the deal (map.listingKey): pulls the criteria, tenant and markets, asks the
+// analyst to build the plan, and writes it onto the map's state. Re-drafting is allowed (the
+// tool confirms before overwriting), so this has no "already built" lock.
+app.post('/api/map/:id/generate-tenant', express.json(), async (req, res) => {
+  try {
+    const arr = loadMaps();
+    const m = arr.find(x => x.id === req.params.id);
+    if (!m) return res.status(404).json({ ok: false, error: 'Market Attack Plan not found.' });
+    if (!ownsMap(req, m)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+    // Resolve the engagement behind this plan so the draft is grounded in its real criteria.
+    let av = null;
+    try { if (m.listingKey) { const idx = assignmentsIndex(), ov = loadAssignOverlay(); const d = idx[m.listingKey]; if (d) av = assignmentView(d, ov, { noBoard: true }); } } catch (e) {}
+    const criteria = (av && av.criteria) || {};
+    const business = (av && av.business) || m.business || '';
+    const market = (av && av.market) || m.market || '';
+    const tenant = (av && av.contact) || business || '';
+    const out = await attackgen.generateTenantMap({
+      business: business, market: market, criteria: criteria, tenant: tenant,
+      preparedBy: (req.user && req.user.preparedBy) || (req.user && req.user.name) || '',
+    });
+    out.state = out.state || {}; out.state.vals = out.state.vals || {};
+    // Keep a preparedBy the rep already set in the plan.
+    const prevPB = (m.state && m.state.vals && m.state.vals.preparedBy) || '';
+    if (prevPB) out.state.vals.preparedBy = prevPB;
+    m.state = out.state; m.aiGenerated = true; m.pending = false;
+    if (!m.builtAt) m.builtAt = new Date().toISOString();
+    m.updatedAt = new Date().toISOString();
+    if (out.business) m.business = String(out.business).slice(0, 120);
+    saveMaps(arr);
+    res.json({ ok: true, state: out.state });
+  } catch (e) {
+    console.error('generate-tenant-map error:', e);
+    res.status(500).json({ ok: false, error: String((e && e.message) || e) });
+  }
+});
 
 // AI-complete the Valuation Factors section from the questionnaire answers (text only).
 app.post('/api/valuation-factors', express.json({ limit: '4mb' }), async (req, res) => {

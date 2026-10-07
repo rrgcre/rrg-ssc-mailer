@@ -124,6 +124,7 @@ td [contenteditable]:empty:before{content:attr(data-ph);color:#b6bfce;}
   <div class="tt">RRG Tenant Market Attack Plan <span>The site-acquisition campaign — Print / Save PDF</span></div>
   <div class="actions">
     <span class="savechip" id="savechip">Draft saved ✓</span>
+    <button class="btn" id="draftBtn" style="display:none" onclick="draftFromAssignment()" title="Draft this plan from the engagement's site-selection criteria">✦ Draft from assignment</button>
     <button class="btn" onclick="loadSample()">Load sample</button>
     <button class="btn" onclick="clearAll()">Clear</button>
     <button class="btn print" onclick="growAll();window.print()">Print</button>
@@ -377,10 +378,28 @@ function loadSample(){
   paint(); ['sub','tgt','tl'].forEach(renderRows); growAll(); save();
 }
 
+// AI draft from the engagement's site criteria (anchored plans only). Fills the assignment
+// header, the submarkets, the target-site profiles and the timeline — then the rep edits.
+async function draftFromAssignment(){
+  if(!MAPID) return;
+  var filled=(state.rows.sub.length>1||state.rows.tgt.length>1||(state.vals&&Object.keys(state.vals).filter(function(k){return k!=='preparedBy'&&state.vals[k];}).length>0));
+  if(filled && !await rrgConfirm('Draft this plan from the engagement’s criteria? It replaces what’s here now (your prepared-by line is kept). You can still edit everything after.')) return;
+  var db=document.getElementById('draftBtn'); var old=db?db.textContent:''; if(db){ db.disabled=true; db.textContent='Drafting…'; }
+  fetch('/api/map/'+encodeURIComponent(MAPID)+'/generate-tenant',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'})
+    .then(function(r){return r.json();}).then(function(j){
+      if(j&&j.ok&&j.state){ var o=j.state; state.vals=o.vals||{}; state.checks=o.checks||{}; state.rows={sub:(o.rows&&o.rows.sub)||[],tgt:(o.rows&&o.rows.tgt)||[],tl:(o.rows&&o.rows.tl)||[]};
+        if(!state.rows.sub.length)state.rows.sub=[{}]; if(!state.rows.tgt.length)state.rows.tgt=[{}]; if(!state.rows.tl.length)state.rows.tl=[{}];
+        paint(); ['sub','tgt','tl'].forEach(renderRows); growAll();
+        if(window.rrgToast) rrgToast('Draft ready — review and edit.'); }
+      else { alert((j&&j.error)||'Could not draft the plan.'); }
+      if(db){ db.disabled=false; db.textContent=old; }
+    }).catch(function(){ if(db){ db.disabled=false; db.textContent=old; } alert('Could not reach the server.'); });
+}
 /* init */
 function _boot(){
   if(!state.rows.sub.length && !state.rows.tgt.length && !state.rows.tl.length){ state.rows={sub:[{}],tgt:[{}],tl:[{}]}; }
   bind(); paint(); ['sub','tgt','tl'].forEach(renderRows); growAll();
+  if(MAPID){ var db=document.getElementById('draftBtn'); if(db) db.style.display=''; }
 }
 if(MAPID){ loadServer(function(){ _boot(); }); } else { load(); _boot(); }
 window.addEventListener('load', growAll);

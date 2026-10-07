@@ -138,5 +138,90 @@ async function generateMap({ business, bovSummary, bovState, cimState, questionn
   return { state, business: (state.header && state.header.business) || business || 'Market Attack Plan', usage: data.usage || null };
 }
 
+// ===== TENANT side =====
+// The Tenant Market Attack Plan is the site-acquisition campaign (find & secure space for a
+// restaurant/bar tenant). Unlike the sell side there is no BOV/CIM — the inputs are the
+// engagement's site-selection criteria. Output matches the tenant plan worksheet's own state
+// shape exactly: { vals:{...}, checks:{c1..c8}, rows:{ sub[], tgt[], tl[] } }.
+const SYSTEM_TENANT = `You are a deeply experienced restaurant & bar TENANT-REP broker at Restaurant Realty Group (RRG). You write the Tenant Market Attack Plan — the site-acquisition campaign RRG runs to find and secure the right space for a restaurant/bar tenant. It is the plan of attack: the submarkets to hunt, the kinds of sites to pull and the owners to approach, the tour-and-score process, the lease-leverage posture, and the week-by-week timeline. Write in RRG's voice: confident, precise, strategic, no fluff.
+
+You are given this engagement's site-selection criteria and tenant profile from the RRG system. Build the plan from THOSE facts — the concept/use, the markets, the size, the budget/occupancy ceiling, the must-haves, the timeline. Do not contradict the criteria.
+
+Output a SINGLE JSON object — no prose, no markdown fences — with EXACTLY this shape (every value a string unless noted; use "" for anything you genuinely cannot support):
+{
+ "vals": {
+   "client": "tenant / concept name",
+   "mission": "the assignment in one line, e.g. 'Secure a San Antonio home — a 12,000 SF endcap on the 1604 or Loop 410 nightlife corridor'",
+   "markets": "target markets & corridors, e.g. 'San Antonio · 1604 (US-281 / IH-35 / Bandera) · Alamo Ranch · Loop 410'",
+   "preparedFor": "who it's prepared for — the tenant / contact",
+   "date": "",
+   "timeline": "search timeline, e.g. '90 days'",
+   "exclusive": "recommended exclusive tenant-rep term, e.g. '12 months'",
+   "format": "concept / use, e.g. 'Bar / dance hall · destination nightlife · full bar'",
+   "size": "target size range in SF, e.g. '10,500–15,000 SF (ideal 12,000)'",
+   "siteTypes": "site types to target, e.g. 'Endcap · freestanding · 2nd-gen preferred, shell OK'",
+   "occCeil": "occupancy-cost ceiling anchored to the stated budget, e.g. '$30–40K/mo incl. NNN · 6–8% of sales'",
+   "targetOpen": "target open date if derivable, else ''",
+   "units": "unit / growth context if known, else ''",
+   "musts": "the deal-maker must-haves from the criteria (patio, hood/bar, ceiling height, parking, power, etc.)",
+   "assignNarr": "ONE tight paragraph: who the tenant is, what they need, and what a home-run site looks like",
+   "canvassNarr": "ONE paragraph: how RRG attacks the market — on-market pulls + off-market owner outreach, driving the corridors, the RRG landlord/developer network, and cadence",
+   "tourNarr": "ONE paragraph: how candidates are logged in Tour Tracker and scored in Site & Concept Fit, including the occupancy-cost test, and the deal-makers verified on each tour",
+   "leverageNarr": "ONE paragraph: the LOI / negotiation posture — parallel LOIs to create competition, what to push (abatement, TI, term, use protection), and the walk-away discipline",
+   "reportNarr": "ONE paragraph: reporting cadence and the immediate next step (countersign the exclusive)",
+   "tBase": "target base-rent posture, e.g. '≤ $24–26/SF base · hold all-in ≤ $30K/mo'",
+   "tTI": "tenant-improvement posture",
+   "tFree": "free-rent / abatement posture",
+   "tTerm": "term & options posture",
+   "tExcl": "use / exclusive protection to secure",
+   "tCoten": "co-tenancy / environment requirement (e.g. noise-tolerant, buffered from residential)"
+ },
+ "checks": { "c1": true, "c2": true, "c3": true, "c4": true, "c5": true, "c6": true, "c7": true, "c8": false },
+ "rows": {
+   "sub": [ { "name":"Submarket / corridor — REAL for the stated metro", "why":"demand drivers — daytime pop, rooftops, generators, gap in market", "roof":"rooftops / income shorthand, e.g. 'High income / strong daytime'", "pri":"P1" } ],
+   "tgt": [ { "prop":"a TARGET SITE PROFILE to source — descriptive, NOT a specific real address", "type":"site type · size, e.g. 'Endcap · 13,500 SF'", "ask":"a realistic target asking-rent range for the market, or 'TBD'", "ll":"owner/landlord CHANNEL or type, e.g. 'Owner direct' / 'Listing broker' — never a fabricated real name", "mkt":"'On-market (pull)' or 'Off-market (source)'", "status":"'To source' / 'Owner outreach' / 'Pull list'" } ],
+   "tl": [ { "phase":"Launch", "win":"Weeks 1–2", "act":"actions & deliverables" } ]
+ }
+}
+Provide 4–6 submarkets (ranked P1/P2/P3), 4–6 target site profiles, and 4–6 timeline phases across the stated search timeline.
+
+Rules:
+- Ground everything in the criteria. The occupancy ceiling must reflect the stated budget; size must reflect the stated size; markets must be the stated markets.
+- SUBMARKETS must be REAL corridors/areas for the stated metro(s) (legitimate market knowledge). The TARGET SITES are profiles to source — do NOT fabricate specific street addresses, real landlord names, or claim a specific space is currently available for lease; frame them as the kinds of sites to pull and the owners to approach.
+- Keep each narrative to ONE tight paragraph. Strategic and direct.
+- RRG uses Tour Tracker and Site & Concept Fit (name them), and DocuSign for agreements.
+- Output the JSON object only.`;
+
+async function generateTenantMap({ business, market, criteria, tenant, preparedBy, systemPrompt }) {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) throw new Error('ANTHROPIC_API_KEY is not set on the server.');
+  const sys = (systemPrompt && String(systemPrompt).trim()) ? String(systemPrompt) : SYSTEM_TENANT;
+  const content = [];
+  content.push({ type: 'text', text:
+    '=== Engagement — tenant site-selection criteria (from the RRG system) ===\n' +
+    JSON.stringify({ tenant: tenant || business || '', business: business || '', markets: (criteria && (criteria.markets || criteria.market)) || market || '', criteria: criteria || {} }).slice(0, 40000) });
+  content.push({ type: 'text', text:
+    'Tenant / concept: ' + (tenant || business || '(infer from the criteria)') + '.\n' +
+    'Prepared By (the RRG rep on this engagement): ' + (preparedBy || 'Restaurant Realty Group') + '.\n' +
+    'Write the full Tenant Market Attack Plan JSON object now, grounded in the criteria above.' });
+  const resp = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+    body: JSON.stringify({ model: MODEL, max_tokens: 6000, temperature: 0.35, system: [{ type: 'text', text: sys, cache_control: { type: 'ephemeral' } }], messages: [{ role: 'user', content }] }),
+  });
+  if (!resp.ok) {
+    const t = await resp.text().catch(() => '');
+    throw new Error('AI service error ' + resp.status + ': ' + t.slice(0, 400));
+  }
+  const data = await resp.json();
+  const text = (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n');
+  const state = extractJson(text);
+  if (!state || !state.vals) throw new Error('Could not parse a Tenant Market Attack Plan from the model response.');
+  state.vals = state.vals || {}; state.checks = state.checks || {}; state.rows = state.rows || {};
+  ['sub', 'tgt', 'tl'].forEach(function (k) { if (!Array.isArray(state.rows[k])) state.rows[k] = []; });
+  if (preparedBy && !state.vals.preparedBy) state.vals.preparedBy = preparedBy;
+  return { state, business: state.vals.client || tenant || business || 'Tenant Market Attack Plan', usage: data.usage || null };
+}
+
 function setModel(m){ if (m) MODEL = String(m); }
-module.exports = { setModel,  generateMap, MODEL, DEFAULT_SYSTEM: SYSTEM };
+module.exports = { setModel, generateMap, generateTenantMap, MODEL, DEFAULT_SYSTEM: SYSTEM, DEFAULT_SYSTEM_TENANT: SYSTEM_TENANT };
