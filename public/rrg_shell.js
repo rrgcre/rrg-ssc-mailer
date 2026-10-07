@@ -164,7 +164,6 @@
       { ic: '✔', label: 'Tasks', href: 'rrg_tasks.html' },
       { ic: '◫', label: 'Calendar', href: 'rrg_calendar.html' },
       { ic: '◱', label: 'Feed', href: 'rrg_feed.html' },
-      { ic: '＄', label: 'Commissions', href: 'rrg_commission.html' },
       { ic: '▤', label: 'Views', href: '#', views: true }
     ] },
     { grp: 'Book of Business', color: '#7ea6d8', items: [
@@ -197,12 +196,13 @@
       { ic: '➤', label: 'Market Attack Plans', href: 'rrg_attack_queue.html' },
       { ic: '⟳', label: 'Automations', href: 'rrg_admin_automations.html', admin: true }
     ] },
-    { grp: 'Accounting', admin: true, color: '#4fb0a6', items: [
-      { ic: '❏', label: 'Invoices', href: 'rrg_invoices.html' },
-      { ic: '＄', label: 'Payments', href: 'rrg_payments.html' },
-      { ic: '⊟', label: 'Expenses', href: 'rrg_expenses.html' },
-      { ic: '▦', label: 'Profit & Loss', href: 'rrg_pnl.html' },
-      { ic: '≣', label: 'General Ledger', href: 'rrg_gl.html' }
+    { grp: 'Financials', color: '#4fb0a6', items: [
+      { ic: '％', label: 'Commissions', href: 'rrg_commission.html' },
+      { ic: '❏', label: 'Invoices', href: 'rrg_invoices.html', admin: true },
+      { ic: '＄', label: 'Payments', href: 'rrg_payments.html', admin: true },
+      { ic: '⊟', label: 'Expenses', href: 'rrg_expenses.html', admin: true },
+      { ic: '▦', label: 'Profit & Loss', href: 'rrg_pnl.html', admin: true },
+      { ic: '≣', label: 'General Ledger', href: 'rrg_gl.html', admin: true }
     ] },
     { grp: 'Tools', color: '#a99be0', items: [
       { ic: '◎', label: 'Site Criteria', href: 'ssc_form.html' },

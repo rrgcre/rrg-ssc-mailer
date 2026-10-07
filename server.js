@@ -8264,13 +8264,13 @@ function siteSubscribePage(req) {
 .subpanel .ph{position:absolute;inset:0;background-size:cover;background-position:center;opacity:.16;mix-blend-mode:luminosity;}
 .subpanel .ph::after{content:'';position:absolute;inset:0;background:linear-gradient(150deg,rgba(6,14,34,.5),rgba(18,42,90,.3));}
 .subpanel > *{position:relative;z-index:1;}
-.subback{display:inline-flex;align-items:center;gap:7px;color:#9fb0cc;font-size:13px;font-weight:700;text-decoration:none;margin-bottom:auto;}
+.subback{display:inline-flex;align-items:center;gap:7px;color:#9fb0cc;font-size:13px;font-weight:700;text-decoration:none;}
 .subback:hover{color:#fff;}
 .subpanel .eyebrow{color:var(--gold2);justify-content:flex-start;letter-spacing:.14em;font-size:12px;font-weight:800;text-transform:uppercase;margin-top:30px;}
 .subpanel h1{font-family:'Fraunces',serif;font-weight:600;font-size:37px;line-height:1.08;margin:13px 0 0;text-wrap:balance;}
 @media(max-width:860px){.subpanel h1{font-size:29px;}}
 .subpanel p{color:#c6d1e6;font-size:16px;line-height:1.6;margin:15px 0 0;max-width:40ch;}
-.subpanel .reassure{margin:26px 0 0;padding:0;display:flex;flex-direction:column;gap:11px;}
+.subpanel .reassure{margin:34px 0 0;margin-top:auto;padding:30px 0 0;display:flex;flex-direction:column;gap:11px;}
 .subpanel .reassure li{list-style:none;display:flex;align-items:flex-start;gap:10px;color:#dbe4f3;font-size:13.5px;font-weight:600;line-height:1.4;}
 .subpanel .reassure .rc{color:var(--gold2);flex:none;font-weight:800;}
 .subformcol{padding:46px 44px;}
