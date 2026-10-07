@@ -7317,7 +7317,10 @@ app.post('/api/website/lead/:id', requireAdmin, express.json(), (req, res) => {
 // Public — listing-alert subscribe (broker or operator + markets)
 app.post('/api/website/subscribe', express.json({ limit: '32kb' }), (req, res) => {
   const b = req.body || {};
-  const name = String(b.name || '').trim().slice(0, 120);
+  const first = String(b.firstName || '').trim().slice(0, 80);
+  const last = String(b.lastName || '').trim().slice(0, 80);
+  let name = String(b.name || '').trim().slice(0, 120);
+  if (!name) name = (first + ' ' + last).trim();
   const email = String(b.email || '').trim().slice(0, 160);
   let audience = String(b.audience || '').trim().toLowerCase();
   if (audience !== 'broker' && audience !== 'operator') audience = 'operator';
@@ -7327,9 +7330,9 @@ app.post('/api/website/subscribe', express.json({ limit: '32kb' }), (req, res) =
   let subs = loadWebsiteSubs();
   const existing = subs.filter(function (x) { return String(x.email || '').toLowerCase() === email.toLowerCase(); })[0];
   if (existing) {
-    existing.name = name || existing.name; existing.audience = audience; existing.markets = markets; existing.updatedAt = new Date().toISOString();
+    existing.name = name || existing.name; if (first) existing.firstName = first; if (last) existing.lastName = last; existing.audience = audience; existing.markets = markets; existing.updatedAt = new Date().toISOString();
   } else {
-    subs.unshift({ id: newInquiryId(), name: name, email: email, audience: audience, markets: markets, source: 'Website', createdAt: new Date().toISOString() });
+    subs.unshift({ id: newInquiryId(), name: name, firstName: first, lastName: last, email: email, audience: audience, markets: markets, source: 'Website', createdAt: new Date().toISOString() });
   }
   if (subs.length > 20000) subs = subs.slice(0, 20000);
   saveWebsiteSubs(subs);
@@ -7341,6 +7344,8 @@ app.post('/api/website/subscribe', express.json({ limit: '32kb' }), (req, res) =
     if (!cs) { cs = { id: newSubscriberId(), unsubToken: newUnsubToken(), createdAt: new Date().toISOString(), status: 'subscribed' }; all.push(cs); }
     cs.email = subKey(email);
     if (name) cs.name = name;
+    if (first) cs.firstName = first;
+    if (last) cs.lastName = last;
     cs.type = (audience === 'broker') ? 'Broker' : 'Restaurant';
     cs.metros = markets;
     cs.mode = markets.length ? 'metros' : 'all';
@@ -8352,9 +8357,10 @@ function siteSubscribePage(req) {
       <div class="mks">${marketChips}</div>
 
       <div class="subrow" style="margin-top:24px">
-        <div class="subfld"><label>Name</label><input id="sub_name" autocomplete="name"></div>
-        <div class="subfld"><label>Email <span class="req">*</span></label><input id="sub_email" type="email" autocomplete="email" required></div>
+        <div class="subfld"><label>First name</label><input id="sub_first" autocomplete="given-name"></div>
+        <div class="subfld"><label>Last name</label><input id="sub_last" autocomplete="family-name"></div>
       </div>
+      <div class="subfld"><label>Email <span class="req">*</span></label><input id="sub_email" type="email" autocomplete="email" required></div>
 
       <div class="subsubmit"><button type="submit" class="btn red" id="subBtn">Send me new listings</button><span class="submsg" id="subMsg"></span></div>
       <p class="subfine">By subscribing you agree to receive listing emails from ${org}. We never share your information, and every email has a one-click unsubscribe.</p>
@@ -8381,7 +8387,8 @@ function siteSubscribePage(req) {
     var email=val('sub_email');
     if(!email || !/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(email)){ msg.textContent='Enter a valid email.'; msg.className='submsg err'; return; }
     if(!mkts.length){ msg.textContent='Pick at least one market.'; msg.className='submsg err'; return; }
-    var body={ name:val('sub_name'), email:email, audience:aud, markets:mkts };
+    var first=val('sub_first'), last=val('sub_last');
+    var body={ firstName:first, lastName:last, name:(first+' '+last).trim(), email:email, audience:aud, markets:mkts };
     var old=btn.textContent; btn.disabled=true; btn.textContent='Subscribing…'; msg.textContent='';
     fetch('/api/website/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
       .then(function(r){return r.json();}).then(function(j){
