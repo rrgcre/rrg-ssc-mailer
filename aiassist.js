@@ -116,9 +116,13 @@ async function matchSpaces({ criteria, spaces }) {
 }
 
 // 4) Daily pipeline brief — grounded in the rep's live data.
-async function dailyBrief({ data, repName, today }) {
+async function dailyBrief({ data, repName, today, scopeLabel }) {
+  const scopeLine = scopeLabel
+    ? 'SCOPE: this snapshot covers ' + scopeLabel + ' only. Every count and task in it belongs to ' + scopeLabel + '. Never describe another person\'s work as the reader\'s own. The "spaces" block is firm-wide; if you cite it, say so.\n'
+    : '';
   const sys =
     'You are a deeply experienced restaurant/bar commercial real estate broker acting as ' + (repName ? (repName + "'s") : 'the') + ' chief of staff. You receive a JSON snapshot of the live pipeline and produce a tight, prioritized daily brief. No fluff, best practice, plays to win. ' +
+    scopeLine +
     'Focus on what makes or protects money: listings expiring, deals under contract or closing, commissions owed, LOIs awaiting a response, agreements about to lapse, overdue tasks. Be specific — name the business/party and the number.\n' +
     'Return ONLY JSON: {"headline":"","today":[{"what":"","detail":"","urgency":"high|med|low"}],"thisWeek":[""],"note":""}. ' +
     '"today" = the 3-7 highest-leverage actions right now, most urgent first. "thisWeek" = 0-5 heads-up items. "note" = one sharp strategic line. ' +

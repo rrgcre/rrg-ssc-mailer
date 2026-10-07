@@ -6117,6 +6117,13 @@ function ownsAssignment(req, d) {
   const u = req.user && req.user.username;
   return [d.deal, d.screen, d.quest, d.bov, d.cim, d.map, d.room, d.lease].filter(Boolean).some(r => r.byUser === u);
 }
+// Same ownership test as ownsAssignment, but against an explicit username rather than
+// the caller. Used by the brief so an admin can view another rep's book without
+// isSuper() short-circuiting the filter to "everything".
+function assignmentOwnedBy(d, username) {
+  if (!username) return false;
+  return [d.deal, d.screen, d.quest, d.bov, d.cim, d.map, d.room, d.lease].filter(Boolean).some(r => r.byUser === username);
+}
 // Data-room access, shaped for the deal file: everyone granted access with their
 // tallies, plus the full event log so the UI can drill into what each person did.
 function roomActivityFor(d, origin) {
@@ -15176,19 +15183,44 @@ app.post('/api/loi/ai-parse', express.json({ limit: '256kb' }), async (req, res)
 app.get('/api/ai/brief', async (req, res) => {
   try {
     const uname = (req.user && req.user.username) || '';
-    const seeAll = isSuper(req.user) || canSeeAllDeals(req);
+    const canAll = isSuper(req.user) || canSeeAllDeals(req);
+    // Scope the brief to one person. Default is the caller's own book: an admin
+    // passes isSuper() everywhere, so without this the brief silently aggregated
+    // the whole firm's tasks and reported them as the caller's own.
+    let scope = String(req.query.scope || '').trim();
+    if (!scope || scope === 'me') scope = uname;
+    if (!canAll) scope = uname; // non-privileged users can only ever see themselves
+    const scopeAll = (scope === 'all');
+    const roster = (function () { try { return auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => String(a.name).localeCompare(String(b.name))); } catch (e) { return []; } })();
+    const scopeName = scopeAll ? 'Firm-wide' : ((roster.find(u => u.username === scope) || {}).name || scope || '');
+
+    const seeAll = canAll;
     const overlay = loadAssignOverlay(); const idx = assignmentsIndex();
-    const listingsAll = Object.values(idx).filter(d => seeAll || ownsAssignment(req, d)).map(d => assignmentView(d, overlay));
+    const listingsAll = Object.values(idx)
+      .filter(d => seeAll || ownsAssignment(req, d))
+      .filter(d => scopeAll || assignmentOwnedBy(d, scope))
+      .map(d => assignmentView(d, overlay));
     const ownedKeys = new Set(listingsAll.map(l => l.key));
     const _ts = new Date().toISOString().slice(0, 10);
     const listings = listingsAll.map(l => ({ business: l.business, market: l.market, status: l.status, owner: l.owner, expires: l.listingExpires || '', daysToExpiry: l.listingExpires ? daysUntil(l.listingExpires) : null, value: l.value || '', hasDeal: !!l.transaction, deal: l.transaction ? { status: l.transaction.status || '', price: l.transaction.price || '', close: l.transaction.expectedClose || l.transaction.closedDate || '', commissionStatus: l.transaction.commissionStatus || '', commissionDue: l.transaction.commissionDue || '' } : null }));
-    const tasks = loadTasks().filter(t => t.status === 'open' && taskVisible(t, req) && t.due).map(t => ({ title: t.title, due: String(t.due).slice(0, 10), overdue: String(t.due).slice(0, 10) < _ts, assignee: t.assigneeName || '', priority: t.priority || '' })).sort((a, b) => a.due.localeCompare(b.due)).slice(0, 25);
-    const agreementsExpiring = loadAgreements().filter(a => a.status !== 'terminated' && a.expires && a.expires >= _ts).filter(a => seeAll || ownedKeys.has(a.dealKey) || a.byUser === uname).map(a => ({ name: a.name || a.type, type: a.type, party: a.personName || '', expires: a.expires, days: daysUntil(a.expires), signStatus: a.signStatus || '' })).filter(a => a.days != null && a.days <= 60).sort((a, b) => a.days - b.days).slice(0, 20);
-    const recentLois = loadLois().filter(l => seeAll || l.byUser === uname || l.by === (req.user && req.user.name)).slice().sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || ''))).slice(0, 15).map(l => ({ type: l.typeName || l.type || '', tenant: l.tenant || '', landlord: l.landlord || '', property: l.property || '', created: l.createdAt || '' }));
-    const sp = loadSpaces(); const spaces = { total: sp.length, available: sp.filter(x => x.status === 'Available').length, loiOut: sp.filter(x => x.status === 'LOI Out').length };
-    const data = { listings, tasks, agreementsExpiring, recentLois, spaces, counts: { listings: listings.length, openTasks: tasks.length, overdueTasks: tasks.filter(t => t.overdue).length, dealsUnderContract: listings.filter(l => l.deal && /Under Contract|Closing/i.test(l.deal.status)).length } };
-    const brief = await aiassist.dailyBrief({ data, repName: (req.user && req.user.name) || '', today: new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) });
-    res.json({ ok: true, brief, generatedAt: new Date().toISOString(), repName: (req.user && req.user.name) || '' });
+    const tasks = loadTasks()
+      .filter(t => t.status === 'open' && t.due && taskVisible(t, req))
+      .filter(t => scopeAll || t.assignee === scope)
+      .map(t => ({ title: t.title, due: String(t.due).slice(0, 10), overdue: String(t.due).slice(0, 10) < _ts, assignee: t.assigneeName || '', priority: t.priority || '' }))
+      .sort((a, b) => a.due.localeCompare(b.due)).slice(0, 25);
+    const agreementsExpiring = loadAgreements().filter(a => a.status !== 'terminated' && a.expires && a.expires >= _ts)
+      .filter(a => seeAll || ownedKeys.has(a.dealKey) || a.byUser === uname)
+      .filter(a => scopeAll || ownedKeys.has(a.dealKey) || a.byUser === scope)
+      .map(a => ({ name: a.name || a.type, type: a.type, party: a.personName || '', expires: a.expires, days: daysUntil(a.expires), signStatus: a.signStatus || '' })).filter(a => a.days != null && a.days <= 60).sort((a, b) => a.days - b.days).slice(0, 20);
+    const recentLois = loadLois()
+      .filter(l => seeAll || l.byUser === uname || l.by === (req.user && req.user.name))
+      .filter(l => scopeAll || l.byUser === scope)
+      .slice().sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || ''))).slice(0, 15).map(l => ({ type: l.typeName || l.type || '', tenant: l.tenant || '', landlord: l.landlord || '', property: l.property || '', created: l.createdAt || '' }));
+    // Spaces have no per-rep owner, so this block stays firm-wide in every scope.
+    const sp = loadSpaces(); const spaces = { total: sp.length, available: sp.filter(x => x.status === 'Available').length, loiOut: sp.filter(x => x.status === 'LOI Out').length, scope: 'firm-wide' };
+    const data = { scope: scopeAll ? 'firm-wide' : scopeName, listings, tasks, agreementsExpiring, recentLois, spaces, counts: { listings: listings.length, openTasks: tasks.length, overdueTasks: tasks.filter(t => t.overdue).length, dealsUnderContract: listings.filter(l => l.deal && /Under Contract|Closing/i.test(l.deal.status)).length } };
+    const brief = await aiassist.dailyBrief({ data, repName: scopeAll ? '' : scopeName, today: new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }), scopeLabel: scopeAll ? 'the whole firm' : scopeName });
+    res.json({ ok: true, brief, generatedAt: new Date().toISOString(), repName: (req.user && req.user.name) || '', scope: scopeAll ? 'all' : scope, scopeName, scopeAll, canAll, me: uname, users: canAll ? roster : [] });
   } catch (e) { res.status(502).json({ ok: false, error: String(e.message || e) }); }
 });
 function aiRoute(fn) { return async (req, res) => { try { const result = await fn(req.body || {}); res.json({ ok: true, result: result || {} }); } catch (e) { res.status(502).json({ ok: false, error: String(e.message || e) }); } }; }

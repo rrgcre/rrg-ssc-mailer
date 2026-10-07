@@ -52,6 +52,16 @@ h1{font-size:27px;font-weight:700;margin:5px 0 0;letter-spacing:-.01em;}
 @keyframes prog{0%{margin-left:-45%}100%{margin-left:105%}}
 .retrylink{color:var(--navy);font-weight:700;text-decoration:none;}
 .err{background:#fdeceb;border:1px solid #f3c9c5;color:#a5352c;border-radius:4px;padding:14px 16px;font-size:13.5px;}
+/* Scope control */
+.scopebar{max-width:960px;margin:18px auto -6px;padding:0 20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:4px;overflow:hidden;background:#fff;}
+.seg button{background:#fff;border:0;border-right:1px solid var(--line);font:inherit;font-size:12.5px;font-weight:700;color:var(--muted);padding:7px 14px;cursor:pointer;white-space:nowrap;}
+.seg button:last-child{border-right:0;}
+.seg button:hover{background:#f4f6f9;color:var(--navy);}
+.seg button[aria-pressed="true"]{background:var(--navy);color:#fff;}
+.scopesel{font:inherit;font-size:12.5px;font-weight:700;color:var(--navy);background:#fff;border:1px solid var(--line);border-radius:4px;padding:7px 10px;cursor:pointer;}
+.scopenote{font-size:12px;color:var(--muted);}
+.scopetag{display:inline-block;background:#eef1f6;color:#44506b;border:1px solid #dfe3ea;font-weight:700;font-size:10.5px;padding:2px 8px;border-radius:3px;letter-spacing:.04em;text-transform:uppercase;margin-bottom:12px;}
 /* NetSuite normalization: flat squared containers & buttons */
 .card,.week,.note,.err{border-radius:4px;}
 .card{box-shadow:none;}
@@ -63,12 +73,58 @@ h1{font-size:27px;font-weight:700;margin:5px 0 0;letter-spacing:-.01em;}
   <div><div class="kick">Your book · AI</div><h1>RRG Brief</h1><div class="date" id="date"></div></div>
   <button class="refresh" id="refresh">↻ Refresh</button>
 </div></div>
+<div class="scopebar" id="scopebar" hidden>
+  <div class="seg" role="group" aria-label="Whose brief to show">
+    <button type="button" id="scMine" aria-pressed="true">Mine</button>
+    <button type="button" id="scAll" aria-pressed="false">Everyone</button>
+  </div>
+  <select class="scopesel" id="scWho" aria-label="Show another person's brief"><option value="">Someone else…</option></select>
+  <span class="scopenote" id="scNote"></span>
+</div>
 <div class="wrap"><div id="out"><div class="state"><span class="spin"></span>Reading your pipeline…</div></div></div>
 
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function fmtWhen(iso){ try{ return new Date(iso).toLocaleString('en-US',{hour:'numeric',minute:'2-digit',month:'short',day:'numeric'}); }catch(e){ return ''; } }
 var CTRL=null, BRIEF_TIMER=null, ASSISTANT='the assistant';
+// Whose brief we are showing: 'me', 'all', or a username. Survives reloads and is
+// linkable, so ?scope=avery opens Avery's brief directly.
+var SCOPE=(function(){
+  try{
+    var q=new URLSearchParams(location.search).get('scope');
+    if(q) return q;
+    return localStorage.getItem('rrg_brief_scope')||'me';
+  }catch(e){ return 'me'; }
+})();
+function setScope(v){
+  SCOPE=v||'me';
+  try{ localStorage.setItem('rrg_brief_scope',SCOPE); }catch(e){}
+  try{
+    var u=new URL(location.href);
+    if(SCOPE==='me') u.searchParams.delete('scope'); else u.searchParams.set('scope',SCOPE);
+    history.replaceState(null,'',u.toString());
+  }catch(e){}
+  _doLoad();
+}
+function paintScope(j){
+  var bar=document.getElementById('scopebar'); if(!bar) return;
+  if(!j||!j.canAll){ bar.hidden=true; return; }   // only privileged users get the switch
+  bar.hidden=false;
+  var isAll=!!j.scopeAll, isMe=(!isAll && j.scope===j.me);
+  document.getElementById('scMine').setAttribute('aria-pressed',isMe?'true':'false');
+  document.getElementById('scAll').setAttribute('aria-pressed',isAll?'true':'false');
+  var sel=document.getElementById('scWho');
+  if(sel && !sel.dataset.filled && Array.isArray(j.users)){
+    j.users.forEach(function(u){
+      if(u.username===j.me) return;
+      var o=document.createElement('option'); o.value=u.username; o.textContent=u.name; sel.appendChild(o);
+    });
+    sel.dataset.filled='1';
+  }
+  if(sel) sel.value=(!isAll && !isMe)?j.scope:'';
+  var note=document.getElementById('scNote');
+  if(note) note.textContent=isAll?'Firm-wide — every rep\u2019s tasks and listings.':('Showing '+(j.scopeName||'')+'\u2019s book. Available spaces stay firm-wide.');
+}
 function stopTimer(){ if(BRIEF_TIMER){ clearInterval(BRIEF_TIMER); BRIEF_TIMER=null; } }
 function cancelled(){ stopTimer(); var out=document.getElementById('out'); out.innerHTML='<div class="state">Cancelled. <a href="#" class="retrylink" id="retryLink">Run the brief →</a></div>'; var rl=document.getElementById('retryLink'); if(rl) rl.addEventListener('click',function(e){ e.preventDefault(); load(); }); }
 function load(){
@@ -82,15 +138,18 @@ function _doLoad(){
   out.innerHTML='<div class="state"><div class="workwrap"><span class="cspin"></span><div class="worktext"><div id="briefStep">'+STEPS[0]+'</div><div class="workingnote"><span class="aibadge">'+esc(ASSISTANT)+'</span> is working — usually a few seconds.</div></div></div><div><button class="cancelbtn" id="cancelBtn">Cancel</button></div></div>';
   var si=0; BRIEF_TIMER=setInterval(function(){ si=(si+1)%STEPS.length; var e=document.getElementById('briefStep'); if(e) e.textContent=STEPS[si]; },1700);
   var cb=document.getElementById('cancelBtn'); if(cb) cb.addEventListener('click',function(){ if(CTRL){ try{CTRL.abort();}catch(e){} } cancelled(); });
-  fetch('/api/ai/brief',{credentials:'same-origin',signal:CTRL?CTRL.signal:undefined}).then(function(r){return r.json();}).then(function(j){
+  fetch('/api/ai/brief?scope='+encodeURIComponent(SCOPE),{credentials:'same-origin',signal:CTRL?CTRL.signal:undefined}).then(function(r){return r.json();}).then(function(j){
     stopTimer();
-    if(!j||!j.ok){ out.innerHTML='<div class="err">'+esc((j&&j.error)||'Could not build the brief.')+(/not configured/i.test((j&&j.error)||'')?' — set the Anthropic API key in Admin → Settings.':'')+'</div>'; return; }
+    if(!j||!j.ok){ paintScope(j); out.innerHTML='<div class="err">'+esc((j&&j.error)||'Could not build the brief.')+(/not configured/i.test((j&&j.error)||'')?' — set the Anthropic API key in Admin → Settings.':'')+'</div>'; return; }
     render(j);
   }).catch(function(err){ stopTimer(); if(err&&err.name==='AbortError') return; out.innerHTML='<div class="err">Network error building the brief.</div>'; });
 }
 function render(j){
   var b=j.brief||{}; var out=document.getElementById('out'); var h='';
+  paintScope(j);
   if(j.generatedAt) document.getElementById('date').textContent='Generated '+fmtWhen(j.generatedAt);
+  // Always say whose numbers these are — an unlabeled brief reads as the viewer's own.
+  h+='<div class="scopetag">'+esc(j.scopeAll?'Firm-wide brief':((j.scopeName||'Your')+' \u00b7 brief'))+'</div>';
   if(b.headline) h+='<div class="headline">'+esc(b.headline)+'</div>';
   var today=Array.isArray(b.today)?b.today:[];
   if(today.length){
@@ -105,6 +164,9 @@ function render(j){
   out.innerHTML=h;
 }
 document.getElementById('refresh').addEventListener('click',load);
+document.getElementById('scMine').addEventListener('click',function(){ if(SCOPE!=='me') setScope('me'); });
+document.getElementById('scAll').addEventListener('click',function(){ if(SCOPE!=='all') setScope('all'); });
+document.getElementById('scWho').addEventListener('change',function(){ if(this.value) setScope(this.value); });
 fetch('/api/appname',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.assistant) ASSISTANT=j.assistant; }).catch(function(){}).then(function(){ _doLoad(); });
 </script>
 <script src="/rrg_brand.js"></script>
