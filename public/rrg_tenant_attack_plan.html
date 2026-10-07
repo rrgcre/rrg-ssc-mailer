@@ -252,6 +252,9 @@ td [contenteditable]:empty:before{content:attr(data-ph);color:#b6bfce;}
 
 <script>
 var K='rrg_tenantplan_v1';
+// When opened with ?map=<id> this plan is anchored to a deal/engagement and persists on the
+// server (one plan per engagement). Without it, the tool stays a standalone localStorage draft.
+var MAPID=(function(){ try{ return new URLSearchParams(location.search).get('map')||''; }catch(e){ return ''; } })();
 var COLS = {
   sub:[ {k:'name',ph:'Submarket'}, {k:'why',ph:'Demand drivers — daytime pop, rooftops, generators, gap in market'}, {k:'roof',ph:'e.g. 72k / 19k'}, {k:'pri',ph:'P1',cls:'pri'} ],
   tgt:[ {k:'prop',ph:'Property / address'}, {k:'type',ph:'End cap · 2,600 SF'}, {k:'ask',ph:'$32 + $9.50'}, {k:'ll',ph:'Landlord · broker · contact'}, {k:'mkt',ph:'On / Off'}, {k:'status',ph:'Available'} ],
@@ -312,9 +315,15 @@ function paint(){
   document.querySelectorAll('[data-c]').forEach(function(el){ el.checked=!!state.checks[el.getAttribute('data-c')]; });
 }
 
-var t;
-function save(){ try{ localStorage.setItem(K, JSON.stringify(state)); }catch(e){} var c=document.getElementById('savechip'); c.classList.add('show'); clearTimeout(t); t=setTimeout(function(){c.classList.remove('show');},1200); }
+var t, _st;
+function _savechip(){ var c=document.getElementById('savechip'); if(!c) return; c.classList.add('show'); clearTimeout(t); t=setTimeout(function(){c.classList.remove('show');},1200); }
+function save(){
+  if(MAPID){ _savechip(); if(_st) clearTimeout(_st); _st=setTimeout(function(){ fetch('/api/map-save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:MAPID,state:state})}).catch(function(){}); },600); return; }
+  try{ localStorage.setItem(K, JSON.stringify(state)); }catch(e){} _savechip();
+}
 function load(){ try{ var s=localStorage.getItem(K); if(s){ var o=JSON.parse(s); state.vals=o.vals||{}; state.checks=o.checks||{}; state.rows=o.rows||{sub:[],tgt:[],tl:[]}; } }catch(e){} }
+// Anchored mode: hydrate this plan's state from its server record before first paint.
+function loadServer(cb){ fetch('/api/map/'+encodeURIComponent(MAPID),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ var o=(j&&j.ok&&j.map&&j.map.state)||null; if(o){ state.vals=o.vals||{}; state.checks=o.checks||{}; state.rows=o.rows||{sub:[],tgt:[],tl:[]}; } cb(!!o); }).catch(function(){ cb(false); }); }
 
 async function clearAll(){
   if(!await rrgConfirm('Clear this attack plan?')) return;
@@ -369,9 +378,11 @@ function loadSample(){
 }
 
 /* init */
-load();
-if(!state.rows.sub.length && !state.rows.tgt.length && !state.rows.tl.length){ state.rows={sub:[{}],tgt:[{}],tl:[{}]}; }
-bind(); paint(); ['sub','tgt','tl'].forEach(renderRows); growAll();
+function _boot(){
+  if(!state.rows.sub.length && !state.rows.tgt.length && !state.rows.tl.length){ state.rows={sub:[{}],tgt:[{}],tl:[{}]}; }
+  bind(); paint(); ['sub','tgt','tl'].forEach(renderRows); growAll();
+}
+if(MAPID){ loadServer(function(){ _boot(); }); } else { load(); _boot(); }
 window.addEventListener('load', growAll);
 </script>
 </body>

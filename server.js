@@ -3483,7 +3483,38 @@ function mapInputsFor(map) {
 app.get('/api/maps', (req, res) => {
   const isAdmin = req.user && isSuper(req.user);
   const list = loadMaps().slice().reverse().filter(m => isAdmin || ownsMap(req, m));
-  res.json({ ok: true, isAdmin: !!isAdmin, maps: list.map(m => ({ id: m.id, business: m.business, market: m.market || '', pending: !!m.pending, srcCimId: m.srcCimId || '', srcBovId: m.srcBovId || '', by: m.by, byUser: m.byUser, createdAt: m.createdAt, builtAt: m.builtAt || '' })) });
+  res.json({ ok: true, isAdmin: !!isAdmin, maps: list.map(m => ({ id: m.id, business: m.business, market: m.market || '', pending: !!m.pending, kind: m.kind || 'seller', listingKey: m.listingKey || '', srcCimId: m.srcCimId || '', srcBovId: m.srcBovId || '', by: m.by, byUser: m.byUser, createdAt: m.createdAt, builtAt: m.builtAt || '', updatedAt: m.updatedAt || '' })) });
+});
+// Open-or-create a Market Attack Plan tied DIRECTLY to a deal/engagement — no CIM required.
+// This is what anchors the tenant-rep engagement's MAP: one plan per engagement (keyed to the
+// listing), found-or-created so a rep never spins up a second, orphaned plan. kind defaults to
+// 'tenant' (the engagement side); the sell-side MAP still flows through the CIM chain above.
+app.post('/api/map-ensure', express.json(), (req, res) => {
+  try {
+    const b = req.body || {};
+    const lk = String(b.listingKey || '').trim().slice(0, 64);
+    const pid = String(b.personId || '').trim().slice(0, 48);
+    const cid = String(b.companyId || '').trim().slice(0, 48);
+    let kind = String(b.kind || 'tenant').trim().toLowerCase(); if (kind !== 'tenant' && kind !== 'seller') kind = 'tenant';
+    if (!lk && !pid && !cid) return res.status(400).json({ ok: false, error: 'No engagement.' });
+    const arr = loadMaps();
+    // Reuse the plan already tied to this engagement (by listing key), else one on the contact.
+    let m = lk ? arr.find(x => x && x.listingKey === lk && (x.kind || 'seller') === kind) : null;
+    if (!m && (pid || cid)) m = arr.find(x => x && (x.kind || 'seller') === kind && !x.listingKey && ((pid && x.personId === pid) || (cid && x.companyId === cid)));
+    if (m) { if (lk && !m.listingKey) { m.listingKey = lk; saveMaps(arr); } return res.json({ ok: true, mapId: m.id, pending: !!m.pending, builtAt: m.builtAt || '' }); }
+    let biz = '', mkt = '';
+    try { const _sd = lk ? _dealFromListingKey(lk) : null; if (_sd) { biz = _sd.business || ''; mkt = _sd.market || _sd.city || ''; } } catch (e) {}
+    if (!biz && cid) { try { const _c = loadCompanies().find(c => c.id === cid); if (_c) biz = _c.name || ''; } catch (e) {} }
+    const rec = {
+      id: newMapId(), kind: kind, listingKey: lk || '', srcCimId: '', srcBovId: '', srcQuestId: '',
+      pending: true, personId: pid || '', companyId: cid || '',
+      business: biz || 'Engagement', market: mkt || '',
+      by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
+      createdAt: new Date().toISOString(),
+    };
+    arr.push(rec); saveMaps(arr);
+    res.json({ ok: true, mapId: rec.id, pending: true, builtAt: '' });
+  } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 app.get('/api/map/:id', (req, res) => {
   const m = loadMaps().find(x => x.id === req.params.id);
