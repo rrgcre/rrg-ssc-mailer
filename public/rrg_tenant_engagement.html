@@ -114,8 +114,11 @@ textarea{min-height:120px;resize:vertical;line-height:1.5;}
 .fldrow2 input{padding:8px 10px;font-size:13px;}
 .autorow{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink);font-weight:600;cursor:pointer;}
 .autorow input{width:auto;}
-.expnote{margin-top:9px;font-size:12px;font-weight:700;color:var(--muted);}
+.expnote{margin-top:10px;font-size:13px;font-weight:700;color:var(--muted);}
+.expnote .expdays{font-weight:800;font-size:15.5px;letter-spacing:.2px;}
 .expnote.warn{color:#b9761a;} .expnote.bad{color:var(--red);}
+.expnote.bad,.expnote.warn{display:inline-block;padding:4px 11px;border-radius:7px;}
+.expnote.bad{background:#fdecea;} .expnote.warn{background:#fdf3e3;}
 .savebtn{width:100%;background:var(--navy);color:#fff;border:none;border-radius:9px;padding:12px;font:inherit;font-size:13.5px;font-weight:700;cursor:pointer;}
 .savebtn:disabled{opacity:.55;cursor:default;}
 .saved{text-align:center;font-size:11.5px;color:var(--green);font-weight:700;margin-top:9px;height:14px;opacity:0;transition:opacity .2s;}
@@ -511,6 +514,17 @@ function leaseStripHtml(){
 // fall back to the built-in business-sale tool workflow.
 function activeStages(){ var p=activePipe(); return (p && (p.stages||[]).length) ? pipeStages(p) : STAGES; }
 function domDays(){ if(!A||!A.listingLive) return ''; var d=new Date(A.listingLive+'T00:00:00'); if(isNaN(d)) return ''; var n=Math.floor((Date.now()-d.getTime())/86400000); return n>=0?(n+' day'+(n===1?'':'s')):''; }
+// Days active = elapsed since "Listed on", ending at today — or at "Expires" if the term has
+// already ended. Auto-derived from the two date fields above it, live as they change.
+function activeDaysText(startISO, expISO){
+  if(!startISO) return '';
+  var start=new Date(startISO+'T00:00:00'); if(isNaN(start.getTime())) return '';
+  var end=new Date(); end.setHours(0,0,0,0);
+  if(expISO){ var ex=new Date(expISO+'T00:00:00'); if(!isNaN(ex.getTime()) && ex.getTime()<end.getTime()) end=ex; }
+  var n=Math.floor((end.getTime()-start.getTime())/86400000); if(n<0) n=0;
+  return n+' day'+(n===1?'':'s');
+}
+function recalcDaysActive(){ var s=document.getElementById('f_lstart'), e=document.getElementById('f_lexp'), out=document.getElementById('f_dom'); if(out) out.value=activeDaysText(s?s.value:'', e?e.value:''); }
 // Generate a neutral confidential project code name (SaaS-generic — no brand words).
 function suggestCodeName(){
   var W=['Falcon','Harbor','Summit','Cedar','Atlas','Orion','Meridian','Cobalt','Vantage','Aspen','Sable','Beacon','Cypress','Marlin','Keystone','Laurel','Onyx','Compass','Anchor','Willow','Everest','Cascade','Juniper','Halcyon','Sterling','Magnolia','Redwood','Tahoe','Cardinal','Sequoia','Monarch','Solstice'];
@@ -954,7 +968,7 @@ function render(){
         + '<div class="listinghd">Representation agreement</div>'
         + '<div class="fldrow2"><div><label class="fld">Listed on</label><input type="date" class="owner" id="f_lstart" value="'+esc(A.listingStart||'')+'"></div>'
         + '<div><label class="fld">Expires</label><input type="date" class="owner" id="f_lexp" value="'+esc(A.listingExpires||'')+'"></div></div>'
-        + '<div class="fldrow"><label class="fld">Days active</label><input class="owner" id="f_dom" value="'+esc(domDays())+'" readonly style="background:#f5f7fb;font-weight:700;max-width:160px"></div>'
+        + '<div class="fldrow"><label class="fld">Days active <span style="font-weight:400;color:#8a93a8;font-size:11px">— auto from the dates above</span></label><input class="owner" id="f_dom" value="'+esc(activeDaysText(A.listingStart||'', A.listingExpires||''))+'" readonly style="background:#f5f7fb;font-weight:700;max-width:160px"></div>'
         + '<label class="autorow"><input type="checkbox" id="f_lauto"'+(A.autoRenew?' checked':'')+'> Auto-renews</label>'
         + '<div class="expnote" id="expNote"></div>'
       + '</div>'
@@ -996,11 +1010,12 @@ function render(){
   ['f_status','f_owner','f_contact','f_refby','f_refpct','f_biz','f_codename','f_market','f_notes','f_lstart','f_lexp','f_llive','f_lauto','f_bbsref','f_bbsnum','f_costar','f_crexi','f_leadauto','cr_markets','cr_use','cr_budget','cr_sizemin','cr_sizemax','cr_term','cr_timeline','cr_parking','cr_features','cr_crnotes','sp_size','sp_rent','sp_term','sp_cond','sp_use','sp_avail','sp_feat','sp_notes'].forEach(function(id){
     var el=document.getElementById(id); if(!el) return;
     var ev=(el.tagName==='SELECT'||el.type==='checkbox'||el.type==='date')?'change':'input';
-    el.addEventListener(ev,function(){ setDirty(true); if(id==='f_lexp'||id==='f_lauto') updateExpNote(); });
+    el.addEventListener(ev,function(){ setDirty(true); if(id==='f_lexp'||id==='f_lauto') updateExpNote(); if(id==='f_lstart'||id==='f_lexp') recalcDaysActive(); });
   });
   // Autosave: save on leaving a field (change/blur) or after a ~1s pause while typing.
   (function(){ var _aAS=null; function commit(){ if(_aAS){ clearTimeout(_aAS); _aAS=null; } if(DIRTY) save(); } function pause(){ if(_aAS) clearTimeout(_aAS); _aAS=setTimeout(commit,1000); } ['f_status','f_owner','f_contact','f_refby','f_refpct','f_biz','f_codename','f_market','f_notes','f_lstart','f_lexp','f_llive','f_lauto','f_bbsref','f_bbsnum','f_costar','f_crexi','f_leadauto','cr_markets','cr_use','cr_budget','cr_sizemin','cr_sizemax','cr_term','cr_timeline','cr_parking','cr_features','cr_crnotes','sp_size','sp_rent','sp_term','sp_cond','sp_use','sp_avail','sp_feat','sp_notes'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener('input',pause); el.addEventListener('change',commit); }); })();
   updateExpNote();
+  recalcDaysActive();
   document.getElementById('savebtn').addEventListener('click',function(){save();});
   var scb=document.getElementById('suggestCodeBtn'); if(scb) scb.addEventListener('click',function(){ var s=suggestCodeName(); var el=document.getElementById('f_codename'); if(!el) return; el.value=s; el.focus(); try{el.setSelectionRange(s.length,s.length);}catch(e){} setDirty(true); save(); });
   var pipeEl=document.getElementById('f_pipeline'); if(pipeEl) pipeEl.addEventListener('change',function(){ A.pipelineId=pipeEl.value; setDirty(true); save(true); });
@@ -1675,12 +1690,13 @@ function updateExpNote(){
   if(!ev){ el.textContent=''; el.className='expnote'; return; }
   var d=new Date(ev+'T00:00:00'); if(isNaN(d.getTime())){ el.textContent=''; return; }
   var t=new Date(); t.setHours(0,0,0,0); var n=Math.round((d-t)/86400000);
-  var txt, cls='expnote';
-  if(n<0){ txt='Expired '+(-n)+' day'+(n===-1?'':'s')+' ago'; cls='expnote bad'; }
-  else if(n===0){ txt='Expires today'; cls='expnote bad'; }
-  else { txt='Expires in '+n+' day'+(n===1?'':'s'); cls='expnote'+(n<=14?' bad':(n<=30?' warn':'')); }
-  if(auto) txt+=' · auto-renews';
-  el.textContent=txt; el.className=cls;
+  var cls='expnote', html;
+  var num=function(v,color){ return '<span class="expdays" style="color:'+color+'">'+v+'</span>'; };
+  if(n<0){ cls='expnote bad'; html='Expired '+num((-n)+' day'+(n===-1?'':'s'),'var(--red)')+' ago'; }
+  else if(n===0){ cls='expnote bad'; html='Expires '+num('today','var(--red)'); }
+  else { var color=(n<=14?'var(--red)':(n<=30?'#b9761a':'#1f8a5b')); cls='expnote'+(n<=14?' bad':(n<=30?' warn':'')); html='Expires in '+num(n+' day'+(n===1?'':'s'),color); }
+  if(auto) html+=' <span style="color:#8a93a8;font-weight:600">· auto-renews</span>';
+  el.innerHTML=html; el.className=cls;
 }
 function save(rerender){
   var b=document.getElementById('savebtn'); b.disabled=true; b.textContent='Saving…';
