@@ -320,7 +320,7 @@ BODY structure (HTML fragment):
 1. A one-line greeting to a fellow broker ("<p>Colleagues,</p>" or similar — generic, no merge tokens).
 2. One short paragraph: RRG represents a tenant (described generically / blind) that is actively in the market for space, and you're reaching out to the brokerage community to source sites.
 3. A <ul> of the hard criteria pulled from the engagement — each <li> a labeled line using <strong>: Concept / Use, Target Markets, Size, Site Types, Occupancy / Budget, Must-Haves, Timeline. Omit any line the criteria don't support rather than guessing.
-4. One short paragraph: what RRG is looking for from them — on- or off-market space, listings, pads/endcaps, 2nd-gen restaurant space, and owner/landlord relationships in the target corridors; note the tenant is well-qualified and ready to move, and that RRG protects cooperating brokers (full cooperation / commission).
+4. One short paragraph: what RRG is looking for from them — on- or off-market space, listings, pads/endcaps, 2nd-gen restaurant space, and owner/landlord relationships in the target corridors; note the tenant is well-qualified and ready to move. Do NOT mention broker cooperation, co-brokerage, commission, protecting cooperating brokers, or any fee/commission arrangement — leave that out entirely.
 5. A closing paragraph: ask them to reply with anything that fits; RRG will move quickly and confidentially. Sign off from the RRG rep (use the preparedBy name if given, else "Restaurant Realty Group").
 
 Rules:

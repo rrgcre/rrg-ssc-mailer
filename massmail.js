@@ -734,7 +734,33 @@ function mount(app, deps) {
     res.json({ ok: true, added: added, manual: manual, skippedWeekend: skipWeekend, skippedHoliday: skipHoliday, skippedSlot: skipSlot, skippedPast: skipPast, schedules: rows });
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.get('/api/mail/schedule-events', requireAdmin, guard, async (req, res) => { try {
-    const rows = (await q(`SELECT s.id, s.campaign_id, s.run_at, c.name FROM mm_schedules s JOIN mm_campaigns c ON c.id=s.campaign_id WHERE s.tenant=$1 AND s.status='pending' ORDER BY s.run_at ASC LIMIT 500`, [TENANT])).rows;
+    const rows = (await q(`SELECT s.id, s.campaign_id, s.run_at, COALESCE(s.slot,'') AS slot, COALESCE(s.manual,false) AS manual,
+        c.name, c.subject, c.status AS cstatus, COALESCE(c.src,'') AS src, COALESCE(c.src_key,'') AS src_key,
+        COALESCE(c.seg_type,'') AS seg_type, COALESCE(c.seg_mode,'') AS seg_mode, c.seg_metros, c.list_id, COALESCE(c.by_user,'') AS by_user,
+        (SELECT l.name FROM mm_lists l WHERE l.id=c.list_id) AS list_name
+      FROM mm_schedules s JOIN mm_campaigns c ON c.id=s.campaign_id
+      WHERE s.tenant=$1 AND s.status='pending' ORDER BY s.run_at ASC LIMIT 500`, [TENANT])).rows;
+    // Estimate the live recipient count per distinct campaign (cached within this request).
+    const estCache = {};
+    for (const r of rows) {
+      const cid = r.campaign_id;
+      if (estCache[cid] === undefined) {
+        try {
+          if (r.seg_type || r.seg_mode === 'area') {
+            let metros = r.seg_metros; if (typeof metros === 'string') { try { metros = JSON.parse(metros); } catch (e) { metros = []; } }
+            estCache[cid] = await countSegment({ type: r.seg_type || '', mode: r.seg_mode || '', metros: Array.isArray(metros) ? metros : [] });
+          } else if (r.list_id) {
+            estCache[cid] = (await q(`SELECT count(*)::int n FROM mm_subscribers s WHERE s.tenant=$1 AND s.status='active' AND s.id IN (SELECT subscriber_id FROM mm_list_members WHERE list_id=$2) AND NOT EXISTS(SELECT 1 FROM mm_suppressions x WHERE x.tenant=$1 AND x.email=s.email)`, [TENANT, r.list_id])).rows[0].n;
+          } else {
+            estCache[cid] = (await q(`SELECT count(*)::int n FROM mm_subscribers s WHERE s.tenant=$1 AND s.status='active' AND NOT EXISTS(SELECT 1 FROM mm_suppressions x WHERE x.tenant=$1 AND x.email=s.email)`, [TENANT])).rows[0].n;
+          }
+        } catch (e) { estCache[cid] = null; }
+      }
+      r.est = estCache[cid];
+      r.audience = r.seg_type ? (r.seg_type + (r.seg_mode === 'area' ? ' · area-matched' : '')) : (r.list_name ? ('List: ' + r.list_name) : 'All active');
+      r.kind = (r.src === 'broker-blast') ? 'broker-blast' : 'campaign';
+      delete r.seg_metros;
+    }
     res.json({ ok: true, events: rows });
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
 
