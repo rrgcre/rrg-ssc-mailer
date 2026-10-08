@@ -3617,6 +3617,66 @@ app.post('/api/map/:id/generate-tenant', express.json(), async (req, res) => {
     res.status(500).json({ ok: false, error: String((e && e.message) || e) });
   }
 });
+// Refine an existing TENANT Market Attack Plan from a plain-English instruction (+ optional
+// pasted data). The assistant takes the CURRENT plan as the base of truth and revises only
+// what's asked, staying anchored to the engagement criteria. We snapshot the pre-revision
+// state onto the map (single-level undo) so the rep can revert the last AI change.
+app.post('/api/map/:id/refine-tenant', express.json({ limit: '2mb' }), async (req, res) => {
+  try {
+    const arr = loadMaps();
+    const m = arr.find(x => x.id === req.params.id);
+    if (!m) return res.status(404).json({ ok: false, error: 'Market Attack Plan not found.' });
+    if (!ownsMap(req, m)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+    if (!m.state || !m.state.vals) return res.status(400).json({ ok: false, error: 'Build the plan first, then refine it.' });
+    const b = req.body || {};
+    const instruction = String(b.instruction || '').trim();
+    if (!instruction) return res.status(400).json({ ok: false, error: 'Tell the assistant what to change.' });
+    const extraData = String(b.extraData || '');
+    // Resolve the engagement behind this plan so the revision stays grounded in its criteria.
+    let av = null;
+    try { if (m.listingKey) { const idx = assignmentsIndex(), ov = loadAssignOverlay(); const d = idx[m.listingKey]; if (d) av = assignmentView(d, ov, { noBoard: true }); } } catch (e) {}
+    const criteria = (av && av.criteria) || {};
+    const business = (av && av.business) || m.business || '';
+    const market = (av && av.market) || m.market || '';
+    const tenant = (av && av.contact) || business || '';
+    const out = await attackgen.refineTenantMap({
+      state: m.state, instruction: instruction, extraData: extraData,
+      business: business, market: market, criteria: criteria, tenant: tenant,
+      preparedBy: (req.user && req.user.preparedBy) || (req.user && req.user.name) || '',
+    });
+    out.state = out.state || {}; out.state.vals = out.state.vals || {};
+    // Snapshot for one-level undo (keep the pre-revision plan + a timestamp).
+    m.refineUndo = { state: m.state, at: new Date().toISOString(), instruction: instruction.slice(0, 400) };
+    m.state = out.state; m.aiGenerated = true; m.pending = false;
+    if (!m.builtAt) m.builtAt = new Date().toISOString();
+    m.updatedAt = new Date().toISOString();
+    if (out.business) m.business = String(out.business).slice(0, 120);
+    saveMaps(arr);
+    res.json({ ok: true, state: out.state, canUndo: true });
+  } catch (e) {
+    console.error('refine-tenant-map error:', e);
+    res.status(500).json({ ok: false, error: String((e && e.message) || e) });
+  }
+});
+// Undo the last AI refinement — restore the snapshot taken before the most recent revision.
+app.post('/api/map/:id/undo-refine', express.json(), (req, res) => {
+  try {
+    const arr = loadMaps();
+    const m = arr.find(x => x.id === req.params.id);
+    if (!m) return res.status(404).json({ ok: false, error: 'Market Attack Plan not found.' });
+    if (!ownsMap(req, m)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+    if (!m.refineUndo || !m.refineUndo.state) return res.status(400).json({ ok: false, error: 'Nothing to undo.' });
+    m.state = m.refineUndo.state;
+    m.refineUndo = null;                           // single level — undo is not itself undoable
+    m.updatedAt = new Date().toISOString();
+    if (m.state && m.state.vals && m.state.vals.client) m.business = String(m.state.vals.client).slice(0, 120);
+    saveMaps(arr);
+    res.json({ ok: true, state: m.state, canUndo: false });
+  } catch (e) {
+    console.error('undo-refine error:', e);
+    res.status(500).json({ ok: false, error: String((e && e.message) || e) });
+  }
+});
 
 // AI-complete the Valuation Factors section from the questionnaire answers (text only).
 app.post('/api/valuation-factors', express.json({ limit: '4mb' }), async (req, res) => {
@@ -10079,6 +10139,135 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   overlay[d.key] = cur; saveAssignOverlay(overlay);
   res.json({ ok: true });
 });
+
+// ===== Broker requirement blast (from a tenant engagement) =====
+// RRG represents a tenant; we canvass the brokerage community for matching space. The email
+// is drafted blind (concept + criteria, tenant name withheld) and sent — via the same tracked
+// / unsubscribe mass-email pipeline — to BROKER subscribers whose interest is "all areas" OR
+// whose metros include this engagement's market(s). Owner- or admin-gated (the rep running the
+// engagement sends their own requirement; mass studio stays admin-only).
+//
+// Resolve the engagement's market(s) to the firm's configured metros so the audience filter can
+// match market-only broker subscribers. Freeform market text (criteria.markets, the engagement
+// market, and the listing city) is scanned for each firm metro name.
+function dealBlastMetros(av) {
+  const hay = [
+    (av && av.market) || '',
+    (av && av.criteria && av.criteria.markets) || '',
+    (av && av.location && (av.location.city || '')) || '',
+    (av && av.location && (av.location.county || '')) || ''
+  ].join(' · ').toLowerCase();
+  const out = [];
+  effMarkets().forEach(function (m) {
+    const name = String(m || '').trim(); if (!name) return;
+    if (hay.indexOf(name.toLowerCase()) >= 0) out.push(name);
+  });
+  // Fall back to resolving the listing city to its metro if nothing matched directly.
+  if (!out.length) {
+    try { const mm = _metroForCity((av && av.location && av.location.city) || (av && av.market) || ''); if (mm && out.indexOf(mm) < 0) out.push(mm); } catch (e) {}
+  }
+  return out;
+}
+function _resolveEngagement(req, res) {
+  const deals = assignmentsIndex();
+  const d = deals[req.params.key];
+  if (!d) { res.status(404).json({ ok: false, error: 'Engagement not found.' }); return null; }
+  if (!ownsAssignment(req, d)) { res.status(403).json({ ok: false, error: 'Not yours.' }); return null; }
+  let av = null;
+  try { av = assignmentView(d, loadAssignOverlay(), { noBoard: true }); } catch (e) {}
+  if (!av) { res.status(500).json({ ok: false, error: 'Could not read the engagement.' }); return null; }
+  return { d, av };
+}
+// Draft the blind broker-requirement email from the engagement criteria + resolve the audience.
+app.post('/api/deal/:key/broker-blast/draft', express.json(), async (req, res) => {
+  try {
+    const r = _resolveEngagement(req, res); if (!r) return;
+    const av = r.av;
+    const metros = dealBlastMetros(av);
+    const out = await attackgen.generateBrokerRequirement({
+      business: av.business || '', market: av.market || '', criteria: av.criteria || {},
+      preparedBy: (req.user && req.user.preparedBy) || (req.user && req.user.name) || '',
+      blind: true,
+    });
+    const recips = massAudience({ types: ['Broker'] }, metros);
+    res.json({
+      ok: true, subject: out.subject, body: out.body, blind: true,
+      markets: metros, recipientCount: recips.length,
+      sample: recips.slice(0, 40).map(s => ({ id: s.id, name: subDisplayName(s), email: s.email, company: s.company || '', mode: (s.mode === 'metros' ? 'metros' : 'all') }))
+    });
+  } catch (e) {
+    console.error('broker-blast draft error:', e);
+    res.status(500).json({ ok: false, error: String((e && e.message) || e) });
+  }
+});
+// Send the broker-requirement blast through the tracked/unsubscribe campaign pipeline.
+app.post('/api/deal/:key/broker-blast/send', express.json({ limit: '1mb' }), async (req, res) => {
+  try {
+    const r = _resolveEngagement(req, res); if (!r) return;
+    const av = r.av;
+    if (!isEmailConfigured()) return res.status(400).json({ ok: false, error: "Email isn't set up. Configure it in Admin -> Email." });
+    const b = req.body || {};
+    const subject = String(b.subject || '').trim().slice(0, 300);
+    const bodyRaw = String(b.body || '');
+    if (!subject || !bodyRaw.trim()) return res.status(400).json({ ok: false, error: 'Add a subject and a message.' });
+    const metros = dealBlastMetros(av);                         // re-resolved server-side; never trusted from the client
+    const user = req.user || {}; const origin = reqOrigin(req);
+    const sigHtml = userSignatureHtml(user.username, user); const sigTxt = userSignatureText(user.username, user);
+    if (b.test) {
+      const to = user.email; if (!massValidEmail(to)) return res.status(400).json({ ok: false, error: 'Your account has no email address for a test send. Set one in Account.' });
+      try {
+        const tok = newOpenToken();
+        const bod = bodyRaw;
+        const txt = (_bodyLooksHtml(bod) ? htmlToText(bod) : bod) + (sigTxt ? ('\n\n' + sigTxt) : '');
+        await sendMailWL({ from: mailFrom(), to, subject: '[TEST] ' + (subject || '(no subject)'), text: txt, html: trackedEmailHtml(bod, origin, tok, sigHtml) });
+        return res.json({ ok: true, test: true, to });
+      } catch (e) { return res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+    }
+    const recips = massAudience({ types: ['Broker'] }, metros).slice(0, MASS_MAX);
+    if (!recips.length) return res.status(400).json({ ok: false, error: 'No broker subscribers match this engagement\'s markets (or "all areas").' });
+    const now = new Date().toISOString();
+    const nm = 'Broker requirement — ' + (av.business || av.market || 'tenant') ;
+    const camp = {
+      id: newCampaignId(), name: nm.slice(0, 140), subject, body: bodyRaw.slice(0, 20000), templateId: '',
+      audience: { types: ['Broker'] }, metros: metros.slice(0, 40), source: 'broker-blast', dealKey: r.d.key,
+      status: 'sending', recipientCount: recips.length, sentCount: 0, failedCount: 0,
+      by: user.name || '', byUser: user.username || '', createdAt: now, sentAt: ''
+    };
+    const camps = loadCampaigns(); camps.unshift(camp); saveCampaigns(camps);
+    res.json({ ok: true, campaignId: camp.id, recipientCount: recips.length, markets: metros });
+    (async () => {
+      const arr = loadSubscribers(); let sent = 0, failed = 0; const ids = recips.map(x => x.id);
+      for (const sid of ids) {
+        const s = arr.find(x => x.id === sid); if (!s || s.status === 'unsubscribed') { failed++; continue; }
+        const to = s.email; if (!massValidEmail(to)) { failed++; continue; }
+        try {
+          if (!s.unsubToken) s.unsubToken = newUnsubToken();
+          const tok = newOpenToken(); const pp = subPseudoPerson(s);
+          const subj = mergeTokens(subject, pp, user) || '(no subject)';
+          const bod = mergeTokens(bodyRaw, pp, user);
+          const unsubUrl = origin + '/u/' + s.unsubToken;
+          const unsubHtml = '<div style="margin-top:20px;font-size:11px;color:#98a1b5">You are receiving this because you subscribed to ' + orgDisplayName() + '. <a href="' + unsubUrl + '" style="color:#98a1b5">Unsubscribe or manage preferences</a>.</div>';
+          const html = trackedEmailHtml(linkTrack(bod, origin, tok), origin, tok, sigHtml) + unsubHtml;
+          const txt = (_bodyLooksHtml(bod) ? htmlToText(bod) : bod) + (sigTxt ? ('\n\n' + sigTxt) : '') + '\n\nUnsubscribe: ' + unsubUrl;
+          await sendMailWL({ from: mailFrom(), to, subject: subj, text: txt, html });
+          const nowI = new Date().toISOString();
+          s.emailLog = Array.isArray(s.emailLog) ? s.emailLog : [];
+          s.emailLog.unshift({ id: 'eml_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), to, subject: subj, sentAt: nowI, campaignId: camp.id, campaignName: nm, openToken: tok, opens: 0 });
+          s.emailLog = s.emailLog.slice(0, 60);
+          s.lastEmailedAt = nowI; s.updatedAt = nowI;
+          sent++;
+        } catch (e) { failed++; }
+        if ((sent + failed) % 10 === 0) { try { saveSubscribers(arr); const cc = loadCampaigns(); const ci = cc.find(x => x.id === camp.id); if (ci) { ci.sentCount = sent; ci.failedCount = failed; saveCampaigns(cc); } } catch (e) {} }
+        await new Promise(rr => setTimeout(rr, 120));
+      }
+      try { saveSubscribers(arr); } catch (e) {}
+      try { const cc = loadCampaigns(); const ci = cc.find(x => x.id === camp.id); if (ci) { ci.sentCount = sent; ci.failedCount = failed; ci.status = 'sent'; ci.sentAt = new Date().toISOString(); saveCampaigns(cc); } } catch (e) {}
+    })().catch(e => { console.error('broker-blast send:', e && e.message); try { const cc = loadCampaigns(); const ci = cc.find(x => x.id === camp.id); if (ci) { ci.status = 'sent'; ci.sentAt = new Date().toISOString(); saveCampaigns(cc); } } catch (e2) {} });
+  } catch (e) {
+    console.error('broker-blast send error:', e);
+    res.status(500).json({ ok: false, error: String((e && e.message) || e) });
+  }
+});
 // Resolve a city to one of the firm's configured metros (Settings → Markets), for Market auto-fill on the listing page.
 app.get('/api/metro-for-city', (req, res) => { res.json({ ok: true, metro: _metroForCity(req.query.city || ''), markets: effMarkets() }); });
 // ===== Listing media: photos, video, Matterport =====
@@ -12195,12 +12384,14 @@ function newCampaignId() { return 'camp_' + Date.now().toString(36) + Math.rando
 function massAudience(aud, campaignMetros) {
   aud = aud || {};
   const tags = (aud.tags || []).filter(Boolean).map(x => String(x).toLowerCase());
+  const types = (aud.types || []).filter(Boolean).map(x => String(x).toLowerCase());
   const days = parseInt(aud.notContactedDays, 10) || 0;
   const cutoff = days > 0 ? (Date.now() - days * 86400000) : 0;
   const cm = (campaignMetros || []).filter(Boolean).map(x => String(x).toLowerCase());
   return loadSubscribers().filter(s => {
     if (s.status === 'unsubscribed' || s.status === 'bounced') return false;
     if (!massValidEmail(s.email)) return false;
+    if (types.length) { if (types.indexOf(String(s.type || '').toLowerCase()) < 0) return false; }
     if (tags.length) { const sg = (s.tags || []).map(x => String(x).toLowerCase()); if (!tags.some(t => sg.indexOf(t) >= 0)) return false; }
     if (cutoff) { const le = Date.parse(s.lastEmailedAt || 0) || 0; if (le && le > cutoff) return false; }
     if ((s.mode || 'all') === 'metros') { const pm = (s.metros || []).map(x => String(x).toLowerCase()); if (!cm.length || !cm.some(m => pm.indexOf(m) >= 0)) return false; }

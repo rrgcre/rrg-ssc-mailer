@@ -333,6 +333,8 @@ a.feat:hover{background:#f7f9fc;}
 .dchip{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:var(--navy);background:#eef2fb;border:1px solid #d3ddf3;border-radius:999px;padding:4px 11px;}
 .dcf{padding:12px 20px 18px;display:flex;align-items:center;gap:10px;}
 .dcf .dmsg{font-size:12px;color:var(--red);flex:1;}
+.dcf .dmsg.ok{color:#1f8a5b;}
+.dcf .dmsg.work{color:#6b7488;}
 .dbtn{font:inherit;font-size:13px;font-weight:700;border-radius:9px;padding:9px 16px;cursor:pointer;border:1px solid transparent;}
 .dbtn.go{background:var(--navy);color:#fff;}
 .dbtn.go:disabled{opacity:.55;cursor:default;}
@@ -383,6 +385,20 @@ a.feat:hover{background:#f7f9fc;}
     <textarea id="docUpNote" maxlength="400" placeholder="Anything worth remembering about this document…"></textarea>
   </div>
   <div class="dcf"><span class="dmsg" id="docUpMsg"></span><button class="dbtn ghost" onclick="closeDocUpload()">Cancel</button><button class="dbtn go" id="docUpGo" onclick="doDocUpload()">Upload</button></div>
+</div></div>
+<div id="blastMask" class="dmask" hidden><div class="dcard" style="width:min(640px,100%)">
+  <div class="dch">Blast to brokers</div>
+  <div class="dcsub">A <b>blind</b> requirement email — concept &amp; criteria only, the tenant name withheld — drafted from this engagement and sent to brokers who cover <span id="blastMkts" class="dchip">these markets</span> or who selected <b>all areas</b>. Tracked, with one-click unsubscribe.</div>
+  <div class="dcb">
+    <div id="blastAudLine" style="font-size:12.5px;color:#55607a;margin:0 0 12px;padding:9px 12px;background:#f5f7fb;border:1px solid #e6e9f0;border-radius:9px">Resolving audience…</div>
+    <label>Subject</label>
+    <input type="text" id="blastSubj" maxlength="300" placeholder="Site needed — concept, size, market">
+    <label>Message <span style="font-weight:400;color:#8a93a8">— edit freely; your signature and the unsubscribe footer are added on send</span></label>
+    <textarea id="blastBody" style="min-height:260px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;line-height:1.5" placeholder="The drafted requirement will appear here…"></textarea>
+    <div style="font-size:11.5px;color:#8a93a8;margin-top:6px">Written as HTML. A preview is below.</div>
+    <div id="blastPrev" style="margin-top:10px;border:1px solid #e6e9f0;border-radius:9px;padding:12px 14px;max-height:220px;overflow:auto;background:#fff;font-size:13.5px;color:#1a2236;line-height:1.5"></div>
+  </div>
+  <div class="dcf"><span class="dmsg" id="blastMsg"></span><button class="dbtn ghost" onclick="closeBlast()">Cancel</button><button class="dbtn ghost" id="blastTestBtn" onclick="blastSend(true)" title="Send only to your own inbox">Send test to me</button><button class="dbtn go" id="blastGo" onclick="blastConfirmSend()">Send to brokers</button></div>
 </div></div>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
@@ -1406,7 +1422,7 @@ document.addEventListener('change',function(e){ if(!e.target.closest) return; va
 function _mapFmtD(iso){ try{ var d=new Date(iso); if(isNaN(d.getTime())) return ''; return (d.getMonth()+1)+'/'+d.getDate()+'/'+d.getFullYear(); }catch(e){ return ''; } }
 function marketAttackCard(){
   return '<div class="card" id="mapCard"><div class="ch"><b>Market Attack Plan</b>'
-    + '<span style="margin-left:auto;display:inline-flex;gap:14px;align-items:center"><a href="#" id="mapDelLink" onclick="mapDelete();return false;" title="Delete this Market Attack Plan" style="display:none;font-size:11.5px;font-weight:600;color:#aeb6c3;text-decoration:none">Delete</a><a href="#" id="mapOpenLink" onclick="mapOpen();return false;" style="font-size:12px;font-weight:700;color:#23496f;text-decoration:none">Build the plan →</a></span></div>'
+    + '<span style="margin-left:auto;display:inline-flex;gap:14px;align-items:center"><a href="#" id="mapDelLink" onclick="mapDelete();return false;" title="Delete this Market Attack Plan" style="display:none;font-size:11.5px;font-weight:600;color:#aeb6c3;text-decoration:none">Delete</a><a href="#" id="brokerBlastLink" onclick="brokerBlastOpen();return false;" title="Draft a blind requirement email and blast it to matched brokers" style="font-size:12px;font-weight:700;color:#8a4a9c;text-decoration:none">✦ Blast to brokers →</a><a href="#" id="mapOpenLink" onclick="mapOpen();return false;" style="font-size:12px;font-weight:700;color:#23496f;text-decoration:none">Build the plan →</a></span></div>'
     + '<div class="cb" style="padding:12px 16px">'
     + '<div id="mapStatus" style="font-size:12.5px;color:#55607a;line-height:1.55">Your plan of attack for this tenant — submarkets, target sites, canvass cadence and timeline. It drives the shortlist and tours below.</div>'
     + '</div></div>';
@@ -1444,6 +1460,56 @@ function loadMapStatus(){
   fetch('/api/maps',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     _tmap=((j&&j.maps)||[]).filter(function(x){return x.listingKey===KEY && (x.kind||'seller')==='tenant';})[0]||null; applyMapStatus();
   }).catch(function(){ _tmapFetched=false; });
+}
+// ===== Blast to brokers — blind requirement email from this engagement =====
+var _blastMkts=[];
+function blastPreview(){ var pv=document.getElementById('blastPrev'), ta=document.getElementById('blastBody'); if(pv&&ta) pv.innerHTML=ta.value||'<span style="color:#aab2c0">Nothing to preview yet.</span>'; }
+function brokerBlastOpen(){
+  if(window.rrgAiWork) rrgAiWork.show('Drafting a blind broker requirement from this engagement…');
+  fetch('/api/deal/'+encodeURIComponent(KEY)+'/broker-blast/draft',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'})
+    .then(function(r){return r.json();}).then(function(j){
+      if(window.rrgAiWork) rrgAiWork.hide();
+      if(!j||!j.ok){ if(window.rrgToast){rrgToast((j&&j.error)||'Could not draft the requirement.');}else{alert((j&&j.error)||'Could not draft the requirement.');} return; }
+      _blastMkts=j.markets||[];
+      document.getElementById('blastSubj').value=j.subject||'';
+      document.getElementById('blastBody').value=j.body||'';
+      var mk=document.getElementById('blastMkts'); if(mk) mk.textContent=_blastMkts.length?_blastMkts.join(', '):'any market';
+      var n=j.recipientCount||0;
+      var al=document.getElementById('blastAudLine');
+      if(al){
+        var mtxt=_blastMkts.length?('<b>'+esc(_blastMkts.join(', '))+'</b>'):'no specific market resolved from this engagement';
+        al.innerHTML='<b style="color:#1a2236">'+n+'</b> broker'+(n===1?'':'s')+' match — those covering '+mtxt+', plus everyone set to <b>all areas</b>.'+(n?'':' <span style="color:#b5791f">Nothing to send to yet — add broker subscribers or widen their markets.</span>');
+      }
+      var go=document.getElementById('blastGo'); if(go){ go.disabled=!n; go.textContent=n?('Send to '+n+' broker'+(n===1?'':'s')):'No recipients'; }
+      document.getElementById('blastMsg').textContent='';
+      blastPreview();
+      var ta=document.getElementById('blastBody'); if(ta){ ta.oninput=blastPreview; }
+      var mask=document.getElementById('blastMask'); if(mask) mask.hidden=false;
+    }).catch(function(){ if(window.rrgAiWork) rrgAiWork.hide(); if(window.rrgToast){rrgToast('Could not reach the server.');}else{alert('Could not reach the server.');} });
+}
+function closeBlast(){ var m=document.getElementById('blastMask'); if(m) m.hidden=true; }
+function blastConfirmSend(){
+  var n=(document.getElementById('blastGo')||{}).textContent||'';
+  var subj=(document.getElementById('blastSubj')||{}).value||'';
+  if(!subj.trim()){ var mg=document.getElementById('blastMsg'); if(mg){mg.textContent='Add a subject first.';mg.className='dmsg';} return; }
+  var msg='Send this blind requirement to '+( _blastMkts.length?('brokers covering '+_blastMkts.join(', ')+' and all-areas brokers'):'all matched brokers')+'? The tenant name is withheld. This goes out immediately.';
+  var go=function(ok){ if(ok) blastSend(false); };
+  if(window.rrgConfirm){ window.rrgConfirm(msg,{title:'Send broker blast?',okText:'Send it'}).then(go); } else { go(window.confirm(msg)); }
+}
+function blastSend(test){
+  var subj=(document.getElementById('blastSubj')||{}).value||'', body=(document.getElementById('blastBody')||{}).value||'';
+  var mg=document.getElementById('blastMsg'); var go=document.getElementById('blastGo'), tb=document.getElementById('blastTestBtn');
+  if(!test && !subj.trim()){ if(mg){mg.textContent='Add a subject first.';mg.className='dmsg';} return; }
+  if(mg){ mg.textContent=test?'Sending test…':'Sending…'; mg.className='dmsg work'; }
+  if(go) go.disabled=true; if(tb) tb.disabled=true;
+  fetch('/api/deal/'+encodeURIComponent(KEY)+'/broker-blast/send',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({subject:subj,body:body,test:!!test})})
+    .then(function(r){return r.json();}).then(function(j){
+      if(go) go.disabled=false; if(tb) tb.disabled=false;
+      if(!j||!j.ok){ if(mg){mg.textContent=(j&&j.error)||'Could not send.';mg.className='dmsg err';} return; }
+      if(test){ if(mg){mg.textContent='Test sent to '+(j.to||'you')+' ✓';mg.className='dmsg ok';} return; }
+      closeBlast();
+      if(window.rrgToast) rrgToast('Requirement sent to '+(j.recipientCount||0)+' broker'+((j.recipientCount===1)?'':'s')+'.');
+    }).catch(function(){ if(go) go.disabled=false; if(tb) tb.disabled=false; if(mg){mg.textContent='Could not reach the server.';mg.className='dmsg err';} });
 }
 function spaceShortlistCard(){
   var cr=(A&&A.criteria)||{};

@@ -132,11 +132,31 @@ td [contenteditable]:empty:before{content:attr(data-ph);color:#b6bfce;}
   <div class="actions">
     <span class="savechip" id="savechip">Draft saved ✓</span>
     <button class="btn" id="draftBtn" style="display:none" onclick="draftFromAssignment()" title="Draft this plan from the engagement's site-selection criteria">✦ Draft from assignment</button>
+    <button class="btn" id="refineBtn" style="display:none;border-color:#d9c6e6;color:#7a3f93" onclick="refineOpen()" title="Give the assistant more data or direction and get a revised plan">✦ Refine with AI</button>
+    <button class="btn" id="undoRefineBtn" style="display:none" onclick="undoRefine()" title="Undo the last AI revision">↩ Undo AI change</button>
     <button class="btn" onclick="loadSample()">Load sample</button>
     <button class="btn" onclick="clearAll()">Clear</button>
     <button class="btn print" onclick="growAll();window.print()">Print</button>
   </div>
 </div></div>
+
+<div id="rfMask" class="rrg-noprint" hidden style="position:fixed;inset:0;background:rgba(9,17,40,.5);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px">
+  <div style="background:#fff;border-radius:14px;width:min(600px,100%);max-height:90vh;overflow:auto;box-shadow:0 30px 80px rgba(9,17,40,.4)">
+    <div style="padding:16px 20px 4px;font-size:16px;font-weight:800;color:#16223c">✦ Refine the plan with AI</div>
+    <div style="padding:0 20px;font-size:12.5px;color:#6b7488;margin-top:3px;line-height:1.5">Tell the assistant what to change — a new budget, a corridor to add, sites to drop, a corrected must-have — and it revises <b>this</b> plan, keeping everything else intact. Paste any supporting data below and it'll be worked in. Still anchored to the engagement's criteria.</div>
+    <div style="padding:14px 20px">
+      <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#6b7488;margin:4px 0 5px">What should change?</label>
+      <textarea id="rfInstr" style="width:100%;box-sizing:border-box;font:inherit;font-size:13px;padding:9px 11px;border:1px solid #d6dded;border-radius:9px;min-height:92px;resize:vertical;line-height:1.5" placeholder="e.g. Budget is really $45K/mo all-in — rework occupancy. Add the La Cantera / IH-10 corridor as P1. Drop the P3 submarkets. Tenant wants 2nd-gen only, no shell."></textarea>
+      <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#6b7488;margin:14px 0 5px">Extra data to work in <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#8a93a8">— optional (a rent sheet, a list of corridors, revised criteria)</span></label>
+      <textarea id="rfData" style="width:100%;box-sizing:border-box;font:inherit;font-size:13px;padding:9px 11px;border:1px solid #d6dded;border-radius:9px;min-height:72px;resize:vertical;line-height:1.5" placeholder="Paste anything relevant here…"></textarea>
+    </div>
+    <div style="padding:12px 20px 18px;display:flex;align-items:center;gap:10px">
+      <span id="rfMsg" style="font-size:12px;color:#DA2B1F;flex:1"></span>
+      <button class="btn" onclick="refineClose()">Cancel</button>
+      <button class="btn" id="rfGo" style="background:var(--navy);color:#fff;border-color:var(--navy)" onclick="refineRun()">Revise the plan</button>
+    </div>
+  </div>
+</div>
 
 <div class="wrap" id="sheet">
   <div class="band">
@@ -331,8 +351,8 @@ function save(){
 }
 function load(){ try{ var s=localStorage.getItem(K); if(s){ var o=JSON.parse(s); state.vals=o.vals||{}; state.checks=o.checks||{}; state.rows=o.rows||{sub:[],tgt:[],tl:[]}; } }catch(e){} }
 // Anchored mode: hydrate this plan's state from its server record before first paint.
-var _mapBuilt=false;
-function loadServer(cb){ fetch('/api/map/'+encodeURIComponent(MAPID),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ var mp=(j&&j.ok&&j.map)||null; var o=(mp&&mp.state)||null; if(o){ state.vals=o.vals||{}; state.checks=o.checks||{}; state.rows=o.rows||{sub:[],tgt:[],tl:[]}; } _mapBuilt=!!(mp&&(mp.aiGenerated||mp.builtAt)); cb(!!o); }).catch(function(){ cb(false); }); }
+var _mapBuilt=false, _canUndo=false;
+function loadServer(cb){ fetch('/api/map/'+encodeURIComponent(MAPID),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ var mp=(j&&j.ok&&j.map)||null; var o=(mp&&mp.state)||null; if(o){ state.vals=o.vals||{}; state.checks=o.checks||{}; state.rows=o.rows||{sub:[],tgt:[],tl:[]}; } _mapBuilt=!!(mp&&(mp.aiGenerated||mp.builtAt)); _canUndo=!!(mp&&mp.refineUndo&&mp.refineUndo.state); cb(!!o); }).catch(function(){ cb(false); }); }
 // Does the plan already hold real content (ignoring the standing prepared-by line)?
 function _planHasContent(){ var v=state.vals||{}; var hasV=Object.keys(v).some(function(k){ return k!=='preparedBy' && v[k]; }); var r=state.rows||{}; var hasR=!!((r.sub&&r.sub.length)||(r.tgt&&r.tgt.length)||(r.tl&&r.tl.length)); return hasV||hasR; }
 // Uses the app's standard AI-working dialog (rrg_aiwork.js → window.rrgAiWork): the full
@@ -404,17 +424,58 @@ async function draftFromAssignment(){
       _draftBanner(false);
       if(j&&j.ok&&j.state){ var o=j.state; state.vals=o.vals||{}; state.checks=o.checks||{}; state.rows={sub:(o.rows&&o.rows.sub)||[],tgt:(o.rows&&o.rows.tgt)||[],tl:(o.rows&&o.rows.tl)||[]};
         if(!state.rows.sub.length)state.rows.sub=[{}]; if(!state.rows.tgt.length)state.rows.tgt=[{}]; if(!state.rows.tl.length)state.rows.tl=[{}];
-        _mapBuilt=true; paint(); ['sub','tgt','tl'].forEach(renderRows); growAll();
+        _mapBuilt=true; paint(); ['sub','tgt','tl'].forEach(renderRows); growAll(); _refreshAiBtns(false);
         if(window.rrgToast) rrgToast('Draft ready — review and edit.'); }
       else { if(window.rrgToast){ rrgToast((j&&j.error)||'Could not draft the plan — fill it in manually or try again.'); } else { alert((j&&j.error)||'Could not draft the plan.'); } }
       if(db){ db.disabled=false; db.textContent=old; }
     }).catch(function(){ _draftBanner(false); if(db){ db.disabled=false; db.textContent=old; } if(window.rrgToast){ rrgToast('Could not reach the server.'); } else { alert('Could not reach the server.'); } });
 }
+// Apply a server-returned MAP state onto the page (shared by Refine and Undo).
+function _applyMapState(o){
+  if(!o) return;
+  state.vals=o.vals||{}; state.checks=o.checks||{};
+  state.rows={sub:(o.rows&&o.rows.sub)||[],tgt:(o.rows&&o.rows.tgt)||[],tl:(o.rows&&o.rows.tl)||[]};
+  if(!state.rows.sub.length)state.rows.sub=[{}]; if(!state.rows.tgt.length)state.rows.tgt=[{}]; if(!state.rows.tl.length)state.rows.tl=[{}];
+  paint(); ['sub','tgt','tl'].forEach(renderRows); growAll();
+}
+// Show the AI controls: Refine once a plan is built; Undo only when a revision can be reverted.
+function _refreshAiBtns(canUndo){
+  var rb=document.getElementById('refineBtn'), ub=document.getElementById('undoRefineBtn');
+  if(rb) rb.style.display=(MAPID&&_mapBuilt)?'':'none';
+  if(ub && canUndo!==undefined) ub.style.display=canUndo?'':'none';
+}
+function refineOpen(){ var m=document.getElementById('rfMask'); if(m){ document.getElementById('rfMsg').textContent=''; m.hidden=false; var t=document.getElementById('rfInstr'); if(t) t.focus(); } }
+function refineClose(){ var m=document.getElementById('rfMask'); if(m) m.hidden=true; }
+function refineRun(){
+  var instr=(document.getElementById('rfInstr')||{}).value||'', data=(document.getElementById('rfData')||{}).value||'';
+  var msg=document.getElementById('rfMsg'), go=document.getElementById('rfGo');
+  if(!instr.trim()){ if(msg) msg.textContent='Tell the assistant what to change first.'; return; }
+  if(go){ go.disabled=true; go.textContent='Revising…'; }
+  if(window.rrgAiWork) rrgAiWork.show('Revising your Market Attack Plan — applying your direction and new data, keeping the rest of the plan intact.');
+  fetch('/api/map/'+encodeURIComponent(MAPID)+'/refine-tenant',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({instruction:instr,extraData:data})})
+    .then(function(r){return r.json();}).then(function(j){
+      if(window.rrgAiWork) rrgAiWork.hide();
+      if(go){ go.disabled=false; go.textContent='Revise the plan'; }
+      if(j&&j.ok&&j.state){ _applyMapState(j.state); _mapBuilt=true; _refreshAiBtns(true);
+        refineClose(); var ti=document.getElementById('rfInstr'); if(ti) ti.value=''; var td=document.getElementById('rfData'); if(td) td.value='';
+        if(window.rrgToast) rrgToast('Plan revised — review the changes. You can undo this.'); }
+      else { if(msg) msg.textContent=(j&&j.error)||'Could not revise the plan.'; }
+    }).catch(function(){ if(window.rrgAiWork) rrgAiWork.hide(); if(go){ go.disabled=false; go.textContent='Revise the plan'; } if(msg) msg.textContent='Could not reach the server.'; });
+}
+function undoRefine(){
+  var ub=document.getElementById('undoRefineBtn'); if(ub){ ub.disabled=true; }
+  fetch('/api/map/'+encodeURIComponent(MAPID)+'/undo-refine',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'})
+    .then(function(r){return r.json();}).then(function(j){
+      if(ub){ ub.disabled=false; }
+      if(j&&j.ok&&j.state){ _applyMapState(j.state); _refreshAiBtns(false); if(window.rrgToast) rrgToast('Reverted the last AI change.'); }
+      else { if(window.rrgToast){ rrgToast((j&&j.error)||'Nothing to undo.'); } }
+    }).catch(function(){ if(ub){ ub.disabled=false; } if(window.rrgToast) rrgToast('Could not reach the server.'); });
+}
 /* init */
 function _boot(){
   if(!state.rows.sub.length && !state.rows.tgt.length && !state.rows.tl.length){ state.rows={sub:[{}],tgt:[{}],tl:[{}]}; }
   bind(); paint(); ['sub','tgt','tl'].forEach(renderRows); growAll();
-  if(MAPID){ var db=document.getElementById('draftBtn'); if(db) db.style.display=''; }
+  if(MAPID){ var db=document.getElementById('draftBtn'); if(db) db.style.display=''; _refreshAiBtns(_canUndo); }
 }
 // Anchored + brand-new + empty → draft it from the assignment automatically, so "Build the
 // plan" opens a populated plan rather than a blank form. A plan that's already been built (or

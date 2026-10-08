@@ -223,5 +223,128 @@ async function generateTenantMap({ business, market, criteria, tenant, preparedB
   return { state, business: state.vals.client || tenant || business || 'Tenant Market Attack Plan', usage: data.usage || null };
 }
 
+// Revise an EXISTING Tenant Market Attack Plan from a plain-English instruction (and any
+// pasted data). The current plan is the base of truth; we change only what the broker asks,
+// keep everything else intact, and stay grounded in the engagement criteria. Same JSON shape.
+const SYSTEM_TENANT_REFINE = SYSTEM_TENANT + `
+
+=== REVISION MODE ===
+You are now REVISING an existing Tenant Market Attack Plan, not writing one from scratch. You are given the CURRENT plan (as JSON, in the exact shape above) and a broker's revision instruction, plus any additional data the broker pasted in.
+
+Rules for the revision:
+- The CURRENT plan is the base of truth. PRESERVE everything the broker did not ask to change — keep existing wording, rows, checks, and values intact unless the instruction (or the new data) clearly requires a change.
+- Apply the broker's instruction faithfully and completely. If they give a new budget, size, market, timeline, must-have, or a correction, update every part of the plan that depends on it so the whole plan stays internally consistent (e.g. a new occupancy ceiling flows into occCeil, tBase, and the leverage posture).
+- Incorporate any pasted data as fact where it fits (new corridors, a landlord's rent sheet, revised criteria, site intel). Do not discard existing good rows — add to or edit them.
+- Keep the engagement criteria as the outer guardrail: don't contradict the stated concept/markets unless the instruction explicitly changes them. Never fabricate specific street addresses or real landlord names.
+- Output the COMPLETE revised plan as the same single JSON object (every field present, same shape). Output the JSON object only — no prose, no fences.`;
+
+async function refineTenantMap({ state, instruction, extraData, business, market, criteria, tenant, preparedBy, systemPrompt }) {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) throw new Error('ANTHROPIC_API_KEY is not set on the server.');
+  if (!instruction || !String(instruction).trim()) throw new Error('Tell the assistant what to change.');
+  const sys = (systemPrompt && String(systemPrompt).trim()) ? String(systemPrompt) : SYSTEM_TENANT_REFINE;
+  const content = [];
+  content.push({ type: 'text', text:
+    '=== Engagement — tenant site-selection criteria (the outer guardrail) ===\n' +
+    JSON.stringify({ tenant: tenant || business || '', business: business || '', markets: (criteria && (criteria.markets || criteria.market)) || market || '', criteria: criteria || {} }).slice(0, 40000) });
+  content.push({ type: 'text', text:
+    '=== CURRENT Tenant Market Attack Plan (the base of truth — preserve what is not being changed) ===\n' +
+    JSON.stringify(state || {}).slice(0, 90000) });
+  if (extraData && String(extraData).trim()) {
+    content.push({ type: 'text', text: '=== Additional data the broker pasted in (treat as fact where it fits) ===\n' + String(extraData).slice(0, 40000) });
+  }
+  content.push({ type: 'text', text:
+    "Broker's revision instruction:\n" + String(instruction).slice(0, 8000) + '\n\n' +
+    'Apply it and output the COMPLETE revised Tenant Market Attack Plan JSON object now.' });
+  const resp = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+    body: JSON.stringify({ model: MODEL, max_tokens: 6000, temperature: 0.3, system: [{ type: 'text', text: sys, cache_control: { type: 'ephemeral' } }], messages: [{ role: 'user', content }] }),
+  });
+  if (!resp.ok) {
+    const t = await resp.text().catch(() => '');
+    if (/too long|prompt is too|maximum.*tokens|context.*length|exceed/i.test(t)) throw new Error('The plan plus your notes are too large to revise in one pass. Trim the pasted data and try again.');
+    throw new Error('AI service error ' + resp.status + ': ' + t.slice(0, 400));
+  }
+  const data = await resp.json();
+  const text = (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n');
+  const next = extractJson(text);
+  if (!next || !next.vals) throw new Error('Could not parse the revised plan from the model response.');
+  next.vals = next.vals || {}; next.checks = next.checks || {}; next.rows = next.rows || {};
+  ['sub', 'tgt', 'tl'].forEach(function (k) { if (!Array.isArray(next.rows[k])) next.rows[k] = (state && state.rows && Array.isArray(state.rows[k])) ? state.rows[k] : []; });
+  // Never let a revision blank out the rep's preparedBy.
+  if (!next.vals.preparedBy) next.vals.preparedBy = (state && state.vals && state.vals.preparedBy) || preparedBy || '';
+  return { state: next, business: next.vals.client || (state && state.vals && state.vals.client) || tenant || business || 'Tenant Market Attack Plan', usage: data.usage || null };
+}
+
+// ===== BROKER REQUIREMENT BLAST =====
+// A broker-to-broker "requirement" email: RRG represents a tenant and is canvassing the
+// brokerage community for space that fits. When blind, the tenant's NAME is withheld — we
+// lead with the concept, the criteria, and RRG's credibility, and invite brokers to bring
+// sites and owner relationships. Output is a subject line + an HTML email body (fragment —
+// the mass-email pipeline wraps it with tracking + unsubscribe), grounded ONLY in the
+// engagement's site-selection criteria. Requires ANTHROPIC_API_KEY.
+const SYSTEM_BROKER_REQ = `You are a deeply experienced restaurant & bar TENANT-REP broker at Restaurant Realty Group (RRG). You are writing a REQUIREMENT email sent broker-to-broker — to the brokerage and landlord community — announcing that RRG represents a tenant actively seeking space, and asking brokers to bring matching sites, listings, and owner relationships. This is a canvassing / site-sourcing tool, NOT a consumer ad. Write in RRG's voice: confident, precise, professional, collegial, no fluff. Respect that the reader is another licensed broker — be specific about the criteria so they can instantly tell whether they have a fit, and make it easy and worthwhile for them to respond.
+
+You are given this engagement's site-selection criteria from the RRG system: the concept/use, the target markets & corridors, the size, the budget / occupancy ceiling, the must-have features, the timeline, and the site types. Build the requirement from THOSE facts. Do not contradict them and do not invent criteria that are not supported.
+
+CONFIDENTIALITY — this requirement is BLIND unless told otherwise: you MUST NOT state the tenant's name, brand, or any detail that would identify the specific business. Describe the tenant generically by concept, caliber, and track record (e.g. "an established, well-capitalized full-service restaurant operator" / "a proven high-volume bar & live-music concept"). Never imply the name. If the inputs contain the business name, treat it as confidential and withhold it.
+
+Output a SINGLE JSON object — no prose, no markdown fences — with EXACTLY this shape:
+{
+ "subject": "a tight, broker-to-broker subject line that signals the requirement — concept + market + the headline size/criteria, e.g. 'Site Needed — Full-Service Restaurant, 6–8K SF, San Antonio (1604 / Loop 410)'. No tenant name when blind.",
+ "body": "the email body as clean HTML — a sequence of <p> paragraphs and ONE <ul> of criteria. See structure below. No <html>/<head>/<body> wrapper, no inline styles, no tracking pixels, no unsubscribe link (the system adds those). Plain semantic HTML only: <p>, <strong>, <ul>, <li>, <br>."
+}
+
+BODY structure (HTML fragment):
+1. A one-line greeting to a fellow broker ("<p>Colleagues,</p>" or similar — generic, no merge tokens).
+2. One short paragraph: RRG represents a tenant (described generically / blind) that is actively in the market for space, and you're reaching out to the brokerage community to source sites.
+3. A <ul> of the hard criteria pulled from the engagement — each <li> a labeled line using <strong>: Concept / Use, Target Markets, Size, Site Types, Occupancy / Budget, Must-Haves, Timeline. Omit any line the criteria don't support rather than guessing.
+4. One short paragraph: what RRG is looking for from them — on- or off-market space, listings, pads/endcaps, 2nd-gen restaurant space, and owner/landlord relationships in the target corridors; note the tenant is well-qualified and ready to move, and that RRG protects cooperating brokers (full cooperation / commission).
+5. A closing paragraph: ask them to reply with anything that fits; RRG will move quickly and confidentially. Sign off from the RRG rep (use the preparedBy name if given, else "Restaurant Realty Group").
+
+Rules:
+- BLIND: never reveal or hint at the tenant's name or any identifying specific when blind.
+- Ground every criterion in the inputs; omit what you don't have. Do not fabricate markets, sizes, or budgets.
+- Keep it concise — a broker should read it in under 30 seconds and know instantly if they have a fit.
+- Collegial and professional: this is broker-to-broker, cooperation offered. No hype, no emojis, no consumer-marketing tone.
+- HTML body must be a clean fragment (<p>, <strong>, <ul>, <li>, <br> only) — no styles, no wrapper, no links.
+- Output the JSON object only.`;
+
+async function generateBrokerRequirement({ business, market, criteria, preparedBy, blind, systemPrompt }) {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) throw new Error('ANTHROPIC_API_KEY is not set on the server.');
+  const sys = (systemPrompt && String(systemPrompt).trim()) ? String(systemPrompt) : SYSTEM_BROKER_REQ;
+  const isBlind = (blind === undefined || blind === null) ? true : !!blind;
+  const content = [];
+  content.push({ type: 'text', text:
+    '=== Engagement — tenant site-selection criteria (from the RRG system) ===\n' +
+    JSON.stringify({
+      business: business || '',
+      markets: (criteria && (criteria.markets || criteria.market)) || market || '',
+      criteria: criteria || {}
+    }).slice(0, 40000) });
+  content.push({ type: 'text', text:
+    'Confidentiality: ' + (isBlind
+      ? 'BLIND — the tenant is RRG\'s confidential client. Withhold the tenant name and any identifying specific; describe the tenant generically by concept and caliber.'
+      : 'NOT blind — you may name the tenant/concept.') + '\n' +
+    'Prepared By (the RRG rep sending this): ' + (preparedBy || 'Restaurant Realty Group') + '.\n' +
+    'Write the broker-to-broker requirement email JSON object now, grounded in the criteria above.' });
+  const resp = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+    body: JSON.stringify({ model: MODEL, max_tokens: 2500, temperature: 0.4, system: [{ type: 'text', text: sys, cache_control: { type: 'ephemeral' } }], messages: [{ role: 'user', content }] }),
+  });
+  if (!resp.ok) {
+    const t = await resp.text().catch(() => '');
+    throw new Error('AI service error ' + resp.status + ': ' + t.slice(0, 400));
+  }
+  const data = await resp.json();
+  const text = (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n');
+  const out = extractJson(text);
+  if (!out || !out.subject || !out.body) throw new Error('Could not parse a broker requirement email from the model response.');
+  return { subject: String(out.subject).trim(), body: String(out.body).trim(), blind: isBlind, usage: data.usage || null };
+}
+
 function setModel(m){ if (m) MODEL = String(m); }
-module.exports = { setModel, generateMap, generateTenantMap, MODEL, DEFAULT_SYSTEM: SYSTEM, DEFAULT_SYSTEM_TENANT: SYSTEM_TENANT };
+module.exports = { setModel, generateMap, generateTenantMap, refineTenantMap, generateBrokerRequirement, MODEL, DEFAULT_SYSTEM: SYSTEM, DEFAULT_SYSTEM_TENANT: SYSTEM_TENANT, DEFAULT_SYSTEM_BROKER_REQ: SYSTEM_BROKER_REQ };
