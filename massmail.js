@@ -69,6 +69,14 @@ async function migrate() {
     await pool.query(`ALTER TABLE mm_sends ADD COLUMN IF NOT EXISTS run_seq INT DEFAULT 1`);
     await pool.query(`ALTER TABLE mm_campaigns ADD COLUMN IF NOT EXISTS runs INT DEFAULT 0`);
     await pool.query(`ALTER TABLE mm_campaigns ADD COLUMN IF NOT EXISTS last_run_at TIMESTAMPTZ`);
+    // Dynamic segment (used instead of a list_id): target subscribers by type and, optionally,
+    // an "all areas OR these metros" area rule. Plus a source tag so other tools (e.g. the
+    // tenant-engagement broker blast) can find and manage the campaigns they created.
+    await pool.query(`ALTER TABLE mm_campaigns ADD COLUMN IF NOT EXISTS seg_type TEXT DEFAULT ''`);
+    await pool.query(`ALTER TABLE mm_campaigns ADD COLUMN IF NOT EXISTS seg_mode TEXT DEFAULT ''`);
+    await pool.query(`ALTER TABLE mm_campaigns ADD COLUMN IF NOT EXISTS seg_metros JSONB`);
+    await pool.query(`ALTER TABLE mm_campaigns ADD COLUMN IF NOT EXISTS src TEXT DEFAULT ''`);
+    await pool.query(`ALTER TABLE mm_campaigns ADD COLUMN IF NOT EXISTS src_key TEXT DEFAULT ''`);
     await pool.query(`CREATE TABLE IF NOT EXISTS mm_schedules(
       id BIGSERIAL PRIMARY KEY, tenant TEXT NOT NULL DEFAULT 'default', campaign_id BIGINT NOT NULL,
       run_at TIMESTAMPTZ NOT NULL, status TEXT NOT NULL DEFAULT 'pending', note TEXT DEFAULT '',
@@ -361,13 +369,24 @@ async function materialize(campaignId, runSeq, useAB) {
   runSeq = runSeq || 1;
   const c = (await q('SELECT * FROM mm_campaigns WHERE tenant=$1 AND id=$2', [TENANT, campaignId])).rows[0];
   if (!c) throw new Error('Campaign not found.');
-  const listFilter = c.list_id ? ' AND s.id IN (SELECT subscriber_id FROM mm_list_members WHERE list_id=$2)' : '';
-  const params = c.list_id ? [TENANT, c.list_id] : [TENANT];
+  // Audience = a named list (list_id) and/or a dynamic segment (seg_type + optional area rule).
+  // A campaign with neither still means "all active subscribers" (the original behavior).
+  const params = [TENANT]; let filt = '';
+  if (c.list_id) { params.push(c.list_id); filt += ` AND s.id IN (SELECT subscriber_id FROM mm_list_members WHERE list_id=$${params.length})`; }
+  if (c.seg_type) { params.push(String(c.seg_type)); filt += ` AND s.meta->>'type' = $${params.length}`; }
+  if (c.seg_mode === 'area') {
+    // "all areas OR overlaps these metros": subscribers set to 'all' always qualify; metros-only
+    // subscribers qualify only if one of their metros is in the campaign's target list.
+    let metros = c.seg_metros; if (typeof metros === 'string') { try { metros = JSON.parse(metros); } catch (e) { metros = []; } }
+    metros = Array.isArray(metros) ? metros.map(x => String(x)) : [];
+    params.push(metros);
+    filt += ` AND ( s.meta->>'mode' = 'all' OR (s.meta->'metros' ?| $${params.length}::text[]) )`;
+  }
   // insert pending sends for this run: eligible subscribers not already queued in THIS run and not suppressed
   const sql = `INSERT INTO mm_sends(tenant,campaign_id,subscriber_id,email,token,status,run_seq)
     SELECT $1, ${campaignId}, s.id, s.email, md5(random()::text||clock_timestamp()::text||s.id::text||'${runSeq}'), 'pending', ${runSeq}
     FROM mm_subscribers s
-    WHERE s.tenant=$1 AND s.status='active'${listFilter}
+    WHERE s.tenant=$1 AND s.status='active'${filt}
       AND NOT EXISTS (SELECT 1 FROM mm_suppressions x WHERE x.tenant=$1 AND x.email=s.email)
       AND NOT EXISTS (SELECT 1 FROM mm_sends d WHERE d.campaign_id=${campaignId} AND d.run_seq=${runSeq} AND d.subscriber_id=s.id)`;
   await q(sql, params);
@@ -963,4 +982,63 @@ function mount(app, deps) {
   if (DB_READY) { migrate().then(() => checkSchedules()).catch(() => {}); }
 }
 
-module.exports = { mount, dbReady, sesConfigured, importSubscribers, parseCsv };
+// ===== Segment-targeted requirement blasts (used by the tenant-engagement "Blast to brokers") =====
+// These let another module create and run a campaign against a dynamic segment (e.g. all Broker
+// subscribers, optionally area-matched) through the Studio's own send / schedule / track /
+// unsubscribe pipeline — one subscriber store, one suppression list, one compliance surface.
+async function countSegment(opts) {
+  opts = opts || {};
+  const params = [TENANT]; let filt = '';
+  if (opts.type) { params.push(String(opts.type)); filt += ` AND s.meta->>'type' = $${params.length}`; }
+  if (opts.mode === 'area') {
+    const metros = Array.isArray(opts.metros) ? opts.metros.map(x => String(x)) : [];
+    params.push(metros);
+    filt += ` AND ( s.meta->>'mode' = 'all' OR (s.meta->'metros' ?| $${params.length}::text[]) )`;
+  }
+  const r = await q(`SELECT count(*)::int AS n FROM mm_subscribers s
+    WHERE s.tenant=$1 AND s.status='active'${filt}
+      AND NOT EXISTS (SELECT 1 FROM mm_suppressions x WHERE x.tenant=$1 AND x.email=s.email)`, params);
+  return r.rows[0].n;
+}
+async function createRequirementCampaign(o) {
+  o = o || {};
+  const metros = Array.isArray(o.segMetros) ? o.segMetros.map(x => String(x)) : [];
+  const r = await q(`INSERT INTO mm_campaigns(tenant,name,subject,from_name,from_email,reply_to,html,by_user,seg_type,seg_mode,seg_metros,src,src_key,status)
+    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13,'draft') RETURNING id`,
+    [TENANT, String(o.name || '').slice(0, 200), String(o.subject || '').slice(0, 300),
+     String(o.fromName || process.env.MAIL_FROM_NAME || '').slice(0, 120),
+     String(o.fromEmail || process.env.SES_FROM || process.env.MAIL_FROM || '').slice(0, 200),
+     String(o.replyTo || '').slice(0, 200), String(o.html || ''), String(o.byUser || '').slice(0, 120),
+     String(o.segType || '').slice(0, 60), String(o.segMode || '').slice(0, 20), JSON.stringify(metros),
+     String(o.src || '').slice(0, 40), String(o.srcKey || '').slice(0, 120)]);
+  return r.rows[0].id;
+}
+async function sendCampaign(id, actor) { return startCampaign(Number(id), actor); }
+async function scheduleCampaignAt(id, runAtISO) {
+  id = Number(id); const d = new Date(runAtISO);
+  if (isNaN(d.getTime())) throw new Error('Invalid schedule time.');
+  // manual=true marks this a deliberate, time-specific send: exempt from the weekend/holiday
+  // blackout and the once-per-slot cadence spreading that auto-series use.
+  await q(`INSERT INTO mm_schedules(tenant,campaign_id,run_at,status,manual) VALUES($1,$2,$3,'pending',true)`, [TENANT, id, d.toISOString()]);
+  await q(`UPDATE mm_campaigns SET status='scheduled' WHERE tenant=$1 AND id=$2 AND status IN('draft')`, [TENANT, id]);
+  return { campaignId: id, runAt: d.toISOString() };
+}
+async function scheduledRequirementsFor(srcKey) {
+  const rows = (await q(`SELECT c.id, c.subject, s.run_at
+    FROM mm_campaigns c JOIN mm_schedules s ON s.campaign_id=c.id AND s.status='pending'
+    WHERE c.tenant=$1 AND c.src='broker-blast' AND c.src_key=$2 AND c.status='scheduled'
+    ORDER BY s.run_at ASC`, [TENANT, String(srcKey || '')])).rows;
+  return rows.map(r => ({ id: String(r.id), sendAt: r.run_at, subject: r.subject || '' }));
+}
+async function cancelRequirement(id, srcKey) {
+  id = Number(id);
+  const c = (await q(`SELECT id,status FROM mm_campaigns WHERE tenant=$1 AND id=$2 AND src='broker-blast' AND ($3=''::text OR src_key=$3)`, [TENANT, id, String(srcKey || '')])).rows[0];
+  if (!c) throw new Error('Scheduled blast not found.');
+  if (c.status !== 'scheduled') throw new Error('This blast is already ' + c.status + ' — too late to cancel.');
+  await q(`UPDATE mm_schedules SET status='canceled', done_at=now() WHERE tenant=$1 AND campaign_id=$2 AND status='pending'`, [TENANT, id]);
+  await q(`UPDATE mm_campaigns SET status='draft', archived=true WHERE tenant=$1 AND id=$2`, [TENANT, id]);
+  return true;
+}
+
+module.exports = { mount, dbReady, sesConfigured, importSubscribers, parseCsv,
+  countSegment, createRequirementCampaign, sendCampaign, scheduleCampaignAt, scheduledRequirementsFor, cancelRequirement };

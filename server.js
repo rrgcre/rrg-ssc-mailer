@@ -10178,7 +10178,13 @@ function _resolveEngagement(req, res) {
   if (!av) { res.status(500).json({ ok: false, error: 'Could not read the engagement.' }); return null; }
   return { d, av };
 }
-// Draft the blind broker-requirement email from the engagement criteria + resolve the audience.
+// Pending (not-yet-sent) scheduled blasts for a deal, newest first — so the UI can show & cancel them.
+// Wrap the AI message fragment in a minimal, email-safe container. The Email Studio appends the
+// unsubscribe footer and open/click tracking at send time, so the body carries neither here.
+function _brokerBlastHtml(bodyFragment) {
+  return '<div style="font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Arial,sans-serif;font-size:14px;line-height:1.55;color:#1a2236">' + String(bodyFragment || '') + '</div>';
+}
+// Draft the blind broker-requirement email + resolve the broker audience from the Email Studio.
 app.post('/api/deal/:key/broker-blast/draft', express.json(), async (req, res) => {
   try {
     const r = _resolveEngagement(req, res); if (!r) return;
@@ -10189,83 +10195,83 @@ app.post('/api/deal/:key/broker-blast/draft', express.json(), async (req, res) =
       preparedBy: (req.user && req.user.preparedBy) || (req.user && req.user.name) || '',
       blind: true,
     });
-    const recips = massAudience({ types: ['Broker'] }, metros);
+    let recipientCount = 0, scheduled = []; const studio = massmail.dbReady();
+    if (studio) {
+      try { recipientCount = await massmail.countSegment({ type: 'Broker', mode: 'area', metros: metros }); } catch (e) {}
+      try { scheduled = await massmail.scheduledRequirementsFor(r.d.key); } catch (e) {}
+    }
     res.json({
       ok: true, subject: out.subject, body: out.body, blind: true,
-      markets: metros, recipientCount: recips.length,
-      sample: recips.slice(0, 40).map(s => ({ id: s.id, name: subDisplayName(s), email: s.email, company: s.company || '', mode: (s.mode === 'metros' ? 'metros' : 'all') }))
+      markets: metros, recipientCount: recipientCount,
+      studio: studio, sending: massmail.sesConfigured(), scheduled: scheduled
     });
   } catch (e) {
     console.error('broker-blast draft error:', e);
     res.status(500).json({ ok: false, error: String((e && e.message) || e) });
   }
 });
-// Send the broker-requirement blast through the tracked/unsubscribe campaign pipeline.
+// Send (or schedule) the blind requirement to brokers — through the Email Studio: its subscribers,
+// suppression list, open/click tracking and one-click unsubscribe. Test sends go to the rep only.
 app.post('/api/deal/:key/broker-blast/send', express.json({ limit: '1mb' }), async (req, res) => {
   try {
     const r = _resolveEngagement(req, res); if (!r) return;
     const av = r.av;
-    if (!isEmailConfigured()) return res.status(400).json({ ok: false, error: "Email isn't set up. Configure it in Admin -> Email." });
     const b = req.body || {};
     const subject = String(b.subject || '').trim().slice(0, 300);
     const bodyRaw = String(b.body || '');
     if (!subject || !bodyRaw.trim()) return res.status(400).json({ ok: false, error: 'Add a subject and a message.' });
-    const metros = dealBlastMetros(av);                         // re-resolved server-side; never trusted from the client
-    const user = req.user || {}; const origin = reqOrigin(req);
-    const sigHtml = userSignatureHtml(user.username, user); const sigTxt = userSignatureText(user.username, user);
+    const html = _brokerBlastHtml(bodyRaw);
+    // Test → the rep's own inbox only (a self-preview, not a subscriber send). Uses the regular mailer.
     if (b.test) {
+      if (!isEmailConfigured()) return res.status(400).json({ ok: false, error: "Email isn't set up for test sends. Configure it in Admin -> Email." });
+      const user = req.user || {}; const origin = reqOrigin(req);
       const to = user.email; if (!massValidEmail(to)) return res.status(400).json({ ok: false, error: 'Your account has no email address for a test send. Set one in Account.' });
       try {
-        const tok = newOpenToken();
-        const bod = bodyRaw;
-        const txt = (_bodyLooksHtml(bod) ? htmlToText(bod) : bod) + (sigTxt ? ('\n\n' + sigTxt) : '');
-        await sendMailWL({ from: mailFrom(), to, subject: '[TEST] ' + (subject || '(no subject)'), text: txt, html: trackedEmailHtml(bod, origin, tok, sigHtml) });
+        const tok = newOpenToken(); const sigHtml = userSignatureHtml(user.username, user); const sigTxt = userSignatureText(user.username, user);
+        const txt = (_bodyLooksHtml(bodyRaw) ? htmlToText(bodyRaw) : bodyRaw) + (sigTxt ? ('\n\n' + sigTxt) : '');
+        await sendMailWL({ from: mailFrom(), to, subject: '[TEST] ' + (subject || '(no subject)'), text: txt, html: trackedEmailHtml(html, origin, tok, sigHtml) });
         return res.json({ ok: true, test: true, to });
       } catch (e) { return res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
     }
-    const recips = massAudience({ types: ['Broker'] }, metros).slice(0, MASS_MAX);
-    if (!recips.length) return res.status(400).json({ ok: false, error: 'No broker subscribers match this engagement\'s markets (or "all areas").' });
-    const now = new Date().toISOString();
-    const nm = 'Broker requirement — ' + (av.business || av.market || 'tenant') ;
-    const camp = {
-      id: newCampaignId(), name: nm.slice(0, 140), subject, body: bodyRaw.slice(0, 20000), templateId: '',
-      audience: { types: ['Broker'] }, metros: metros.slice(0, 40), source: 'broker-blast', dealKey: r.d.key,
-      status: 'sending', recipientCount: recips.length, sentCount: 0, failedCount: 0,
-      by: user.name || '', byUser: user.username || '', createdAt: now, sentAt: ''
-    };
-    const camps = loadCampaigns(); camps.unshift(camp); saveCampaigns(camps);
-    res.json({ ok: true, campaignId: camp.id, recipientCount: recips.length, markets: metros });
-    (async () => {
-      const arr = loadSubscribers(); let sent = 0, failed = 0; const ids = recips.map(x => x.id);
-      for (const sid of ids) {
-        const s = arr.find(x => x.id === sid); if (!s || s.status === 'unsubscribed') { failed++; continue; }
-        const to = s.email; if (!massValidEmail(to)) { failed++; continue; }
-        try {
-          if (!s.unsubToken) s.unsubToken = newUnsubToken();
-          const tok = newOpenToken(); const pp = subPseudoPerson(s);
-          const subj = mergeTokens(subject, pp, user) || '(no subject)';
-          const bod = mergeTokens(bodyRaw, pp, user);
-          const unsubUrl = origin + '/u/' + s.unsubToken;
-          const unsubHtml = '<div style="margin-top:20px;font-size:11px;color:#98a1b5">You are receiving this because you subscribed to ' + orgDisplayName() + '. <a href="' + unsubUrl + '" style="color:#98a1b5">Unsubscribe or manage preferences</a>.</div>';
-          const html = trackedEmailHtml(linkTrack(bod, origin, tok), origin, tok, sigHtml) + unsubHtml;
-          const txt = (_bodyLooksHtml(bod) ? htmlToText(bod) : bod) + (sigTxt ? ('\n\n' + sigTxt) : '') + '\n\nUnsubscribe: ' + unsubUrl;
-          await sendMailWL({ from: mailFrom(), to, subject: subj, text: txt, html });
-          const nowI = new Date().toISOString();
-          s.emailLog = Array.isArray(s.emailLog) ? s.emailLog : [];
-          s.emailLog.unshift({ id: 'eml_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), to, subject: subj, sentAt: nowI, campaignId: camp.id, campaignName: nm, openToken: tok, opens: 0 });
-          s.emailLog = s.emailLog.slice(0, 60);
-          s.lastEmailedAt = nowI; s.updatedAt = nowI;
-          sent++;
-        } catch (e) { failed++; }
-        if ((sent + failed) % 10 === 0) { try { saveSubscribers(arr); const cc = loadCampaigns(); const ci = cc.find(x => x.id === camp.id); if (ci) { ci.sentCount = sent; ci.failedCount = failed; saveCampaigns(cc); } } catch (e) {} }
-        await new Promise(rr => setTimeout(rr, 120));
-      }
-      try { saveSubscribers(arr); } catch (e) {}
-      try { const cc = loadCampaigns(); const ci = cc.find(x => x.id === camp.id); if (ci) { ci.sentCount = sent; ci.failedCount = failed; ci.status = 'sent'; ci.sentAt = new Date().toISOString(); saveCampaigns(cc); } } catch (e) {}
-    })().catch(e => { console.error('broker-blast send:', e && e.message); try { const cc = loadCampaigns(); const ci = cc.find(x => x.id === camp.id); if (ci) { ci.status = 'sent'; ci.sentAt = new Date().toISOString(); saveCampaigns(cc); } } catch (e2) {} });
+    // Real send → the Email Studio (Postgres subscribers + SES).
+    if (!massmail.dbReady()) return res.status(400).json({ ok: false, error: 'The Email Studio storage (Postgres) isn’t configured, so broker blasts can’t be sent yet.' });
+    if (!massmail.sesConfigured()) return res.status(400).json({ ok: false, error: 'Email Studio sending (SES) isn’t configured yet.' });
+    const metros = dealBlastMetros(av);                          // re-resolved server-side
+    const count = await massmail.countSegment({ type: 'Broker', mode: 'area', metros: metros });
+    if (!count) return res.status(400).json({ ok: false, error: 'No broker subscribers match this engagement’s markets (or “all areas”).' });
+    const user = req.user || {};
+    const nm = 'Broker requirement — ' + (av.business || av.market || 'tenant');
+    const campaignId = await massmail.createRequirementCampaign({
+      name: nm, subject: subject, html: html,
+      segType: 'Broker', segMode: 'area', segMetros: metros,
+      src: 'broker-blast', srcKey: r.d.key, byUser: (user.name || user.username || '')
+    });
+    // Optional schedule: epoch ms from the rep's local clock (or ISO). Fires via the Studio scheduler.
+    let when = 0;
+    if (b.sendAt != null && b.sendAt !== '') { const t = (typeof b.sendAt === 'number') ? b.sendAt : Date.parse(b.sendAt); if (isFinite(t)) when = t; }
+    if (when && when > Date.now() + 20000) {
+      const sch = await massmail.scheduleCampaignAt(campaignId, new Date(when).toISOString());
+      return res.json({ ok: true, scheduled: true, campaignId: String(campaignId), sendAt: sch.runAt, recipientCount: count, markets: metros });
+    }
+    await massmail.sendCampaign(campaignId, req);
+    return res.json({ ok: true, campaignId: String(campaignId), recipientCount: count, markets: metros });
   } catch (e) {
     console.error('broker-blast send error:', e);
     res.status(500).json({ ok: false, error: String((e && e.message) || e) });
+  }
+});
+// Cancel a still-pending scheduled broker blast for this engagement (archives the Studio campaign).
+app.post('/api/deal/:key/broker-blast/cancel', express.json(), async (req, res) => {
+  try {
+    const r = _resolveEngagement(req, res); if (!r) return;
+    const id = String((req.body && req.body.campaignId) || '');
+    if (!massmail.dbReady()) return res.status(400).json({ ok: false, error: 'Email Studio storage isn’t configured.' });
+    await massmail.cancelRequirement(id, r.d.key);
+    let scheduled = []; try { scheduled = await massmail.scheduledRequirementsFor(r.d.key); } catch (e) {}
+    res.json({ ok: true, scheduled: scheduled });
+  } catch (e) {
+    console.error('broker-blast cancel error:', e);
+    res.status(400).json({ ok: false, error: String((e && e.message) || e) });
   }
 });
 // Resolve a city to one of the firm's configured metros (Settings → Markets), for Market auto-fill on the listing page.

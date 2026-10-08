@@ -391,12 +391,21 @@ a.feat:hover{background:#f7f9fc;}
   <div class="dcsub">A <b>blind</b> requirement email — concept &amp; criteria only, the tenant name withheld — drafted from this engagement and sent to brokers who cover <span id="blastMkts" class="dchip">these markets</span> or who selected <b>all areas</b>. Tracked, with one-click unsubscribe.</div>
   <div class="dcb">
     <div id="blastAudLine" style="font-size:12.5px;color:#55607a;margin:0 0 12px;padding:9px 12px;background:#f5f7fb;border:1px solid #e6e9f0;border-radius:9px">Resolving audience…</div>
+    <div id="blastSched" style="display:none;font-size:12.5px;margin:0 0 12px;padding:9px 12px;background:#fff8e8;border:1px solid #f0e2c0;border-radius:9px;color:#7a5b16"></div>
     <label>Subject</label>
     <input type="text" id="blastSubj" maxlength="300" placeholder="Site needed — concept, size, market">
-    <label>Message <span style="font-weight:400;color:#8a93a8">— edit freely; your signature and the unsubscribe footer are added on send</span></label>
-    <textarea id="blastBody" style="min-height:260px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;line-height:1.5" placeholder="The drafted requirement will appear here…"></textarea>
-    <div style="font-size:11.5px;color:#8a93a8;margin-top:6px">Written as HTML. A preview is below.</div>
-    <div id="blastPrev" style="margin-top:10px;border:1px solid #e6e9f0;border-radius:9px;padding:12px 14px;max-height:220px;overflow:auto;background:#fff;font-size:13.5px;color:#1a2236;line-height:1.5"></div>
+    <label>Message <span style="font-weight:400;color:#8a93a8">— edit the formatted email directly; your signature and the unsubscribe footer are added on send</span></label>
+    <div id="blastTools" style="display:flex;gap:6px;margin:0 0 6px;flex-wrap:wrap">
+      <button type="button" class="rfmt" data-cmd="bold" title="Bold (Ctrl/Cmd+B)" style="font:inherit;font-size:12px;font-weight:800;min-width:30px;padding:5px 9px;border:1px solid #d6dded;border-radius:7px;background:#fff;color:#16223c;cursor:pointer">B</button>
+      <button type="button" class="rfmt" data-cmd="insertUnorderedList" title="Bulleted list" style="font:inherit;font-size:12px;font-weight:600;padding:5px 9px;border:1px solid #d6dded;border-radius:7px;background:#fff;color:#16223c;cursor:pointer">• List</button>
+      <button type="button" class="rfmt" data-cmd="removeFormat" title="Clear formatting" style="font:inherit;font-size:12px;font-weight:600;padding:5px 9px;border:1px solid #d6dded;border-radius:7px;background:#fff;color:#6b7488;cursor:pointer">Clear</button>
+    </div>
+    <div id="blastBody" contenteditable="true" style="width:100%;box-sizing:border-box;min-height:260px;max-height:380px;overflow:auto;font:inherit;font-size:13.5px;line-height:1.55;color:#1a2236;padding:12px 14px;border:1px solid #d6dded;border-radius:9px;background:#fff;outline:none"></div>
+    <div style="margin-top:14px;display:flex;flex-wrap:wrap;gap:16px;align-items:center">
+      <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:#16223c;cursor:pointer;text-transform:none;letter-spacing:0;margin:0"><input type="radio" name="blastWhen" value="now" checked onchange="blastWhenChange()"> Send now</label>
+      <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:#16223c;cursor:pointer;text-transform:none;letter-spacing:0;margin:0"><input type="radio" name="blastWhen" value="later" onchange="blastWhenChange()"> Schedule for later</label>
+      <input type="datetime-local" id="blastAt" style="display:none;font:inherit;font-size:13px;padding:7px 9px;border:1px solid #d6dded;border-radius:8px;color:#16223c" onchange="blastWhenChange()">
+    </div>
   </div>
   <div class="dcf"><span class="dmsg" id="blastMsg"></span><button class="dbtn ghost" onclick="closeBlast()">Cancel</button><button class="dbtn ghost" id="blastTestBtn" onclick="blastSend(true)" title="Send only to your own inbox">Send test to me</button><button class="dbtn go" id="blastGo" onclick="blastConfirmSend()">Send to brokers</button></div>
 </div></div>
@@ -1462,8 +1471,44 @@ function loadMapStatus(){
   }).catch(function(){ _tmapFetched=false; });
 }
 // ===== Blast to brokers — blind requirement email from this engagement =====
-var _blastMkts=[];
-function blastPreview(){ var pv=document.getElementById('blastPrev'), ta=document.getElementById('blastBody'); if(pv&&ta) pv.innerHTML=ta.value||'<span style="color:#aab2c0">Nothing to preview yet.</span>'; }
+var _blastMkts=[], _blastN=0;
+function _blastBodyHtml(){ var ed=document.getElementById('blastBody'); return ed?(ed.innerHTML||'').trim():''; }
+function _blastWhenMode(){ var el=document.querySelector('input[name="blastWhen"]:checked'); return el?el.value:'now'; }
+function _blastFmtWhen(iso){ try{ var d=new Date(iso); if(isNaN(d.getTime())) return iso; return d.toLocaleString([], {weekday:'short', month:'short', day:'numeric', hour:'numeric', minute:'2-digit'}); }catch(e){ return iso; } }
+function blastWhenChange(){
+  var later=_blastWhenMode()==='later';
+  var at=document.getElementById('blastAt'); if(at) at.style.display=later?'':'none';
+  var go=document.getElementById('blastGo'); if(go && !go.disabled){ go.textContent=later?'Schedule blast':('Send to '+_blastN+' broker'+(_blastN===1?'':'s')); }
+}
+function _blastRenderSched(list){
+  var box=document.getElementById('blastSched'); if(!box) return;
+  list=list||[];
+  if(!list.length){ box.style.display='none'; box.innerHTML=''; return; }
+  box.style.display='';
+  box.innerHTML=list.map(function(s){
+    return '<div style="display:flex;align-items:center;gap:8px;justify-content:space-between;padding:2px 0">'
+      +'<span>⏰ Scheduled for <b>'+esc(_blastFmtWhen(s.sendAt))+'</b> — brokers (recalculated at send time)</span>'
+      +'<a href="#" onclick="cancelScheduledBlast(\''+esc(s.id)+'\');return false;" style="font-weight:700;color:#b5791f;text-decoration:none;white-space:nowrap">Cancel</a></div>';
+  }).join('');
+}
+function cancelScheduledBlast(id){
+  fetch('/api/deal/'+encodeURIComponent(KEY)+'/broker-blast/cancel',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({campaignId:id})})
+    .then(function(r){return r.json();}).then(function(j){
+      if(j&&j.ok){ _blastRenderSched(j.scheduled||[]); if(window.rrgToast) rrgToast('Scheduled blast canceled.'); }
+      else { if(window.rrgToast) rrgToast((j&&j.error)||'Could not cancel.'); }
+    }).catch(function(){ if(window.rrgToast) rrgToast('Could not reach the server.'); });
+}
+var _blastToolsWired=false;
+function _wireBlastTools(){
+  if(_blastToolsWired) return; _blastToolsWired=true;
+  var tools=document.getElementById('blastTools'); var ed=document.getElementById('blastBody');
+  if(!tools||!ed) return;
+  tools.querySelectorAll('.rfmt').forEach(function(b){
+    // preventDefault on mousedown keeps the editor's selection while the button is clicked
+    b.addEventListener('mousedown',function(e){ e.preventDefault(); });
+    b.addEventListener('click',function(e){ e.preventDefault(); ed.focus(); try{ document.execCommand(b.getAttribute('data-cmd'),false,null); }catch(_){} });
+  });
+}
 function brokerBlastOpen(){
   if(window.rrgAiWork) rrgAiWork.show('Drafting a blind broker requirement from this engagement…');
   fetch('/api/deal/'+encodeURIComponent(KEY)+'/broker-blast/draft',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'})
@@ -1472,43 +1517,67 @@ function brokerBlastOpen(){
       if(!j||!j.ok){ if(window.rrgToast){rrgToast((j&&j.error)||'Could not draft the requirement.');}else{alert((j&&j.error)||'Could not draft the requirement.');} return; }
       _blastMkts=j.markets||[];
       document.getElementById('blastSubj').value=j.subject||'';
-      document.getElementById('blastBody').value=j.body||'';
+      document.getElementById('blastBody').innerHTML=j.body||'';
       var mk=document.getElementById('blastMkts'); if(mk) mk.textContent=_blastMkts.length?_blastMkts.join(', '):'any market';
-      var n=j.recipientCount||0;
+      var n=j.recipientCount||0; _blastN=n;
       var al=document.getElementById('blastAudLine');
       if(al){
-        var mtxt=_blastMkts.length?('<b>'+esc(_blastMkts.join(', '))+'</b>'):'no specific market resolved from this engagement';
-        al.innerHTML='<b style="color:#1a2236">'+n+'</b> broker'+(n===1?'':'s')+' match — those covering '+mtxt+', plus everyone set to <b>all areas</b>.'+(n?'':' <span style="color:#b5791f">Nothing to send to yet — add broker subscribers or widen their markets.</span>');
+        if(j.studio===false){ al.innerHTML='<span style="color:#b5791f">The campaign module (Email Studio) isn’t connected, so brokers can’t be reached yet.</span>'; }
+        else {
+          var mtxt=_blastMkts.length?('<b>'+esc(_blastMkts.join(', '))+'</b>'):'any market';
+          al.innerHTML='<b style="color:#1a2236">'+n+'</b> broker'+(n===1?'':'s')+' in the Email Studio — those covering '+mtxt+', plus everyone set to <b>all areas</b>. Sent via the campaign module with tracking &amp; one-click unsubscribe.'+(n?'':' <span style="color:#b5791f">No brokers match yet.</span>')+(j.sending===false?' <span style="color:#b5791f">(Sending/SES not configured — can’t send yet.)</span>':'');
+        }
       }
+      // reset the schedule controls to "Send now"
+      var rn=document.querySelector('input[name="blastWhen"][value="now"]'); if(rn) rn.checked=true;
+      var at=document.getElementById('blastAt'); if(at){ at.style.display='none';
+        var d=new Date(Date.now()+15*60000); d.setSeconds(0,0); var p=function(x){return String(x).padStart(2,'0');};
+        at.min=d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes()); at.value='';
+      }
+      _blastRenderSched(j.scheduled||[]);
       var go=document.getElementById('blastGo'); if(go){ go.disabled=!n; go.textContent=n?('Send to '+n+' broker'+(n===1?'':'s')):'No recipients'; }
       document.getElementById('blastMsg').textContent='';
-      blastPreview();
-      var ta=document.getElementById('blastBody'); if(ta){ ta.oninput=blastPreview; }
+      _wireBlastTools();
       var mask=document.getElementById('blastMask'); if(mask) mask.hidden=false;
     }).catch(function(){ if(window.rrgAiWork) rrgAiWork.hide(); if(window.rrgToast){rrgToast('Could not reach the server.');}else{alert('Could not reach the server.');} });
 }
 function closeBlast(){ var m=document.getElementById('blastMask'); if(m) m.hidden=true; }
 function blastConfirmSend(){
-  var n=(document.getElementById('blastGo')||{}).textContent||'';
+  var mg=document.getElementById('blastMsg');
   var subj=(document.getElementById('blastSubj')||{}).value||'';
-  if(!subj.trim()){ var mg=document.getElementById('blastMsg'); if(mg){mg.textContent='Add a subject first.';mg.className='dmsg';} return; }
-  var msg='Send this blind requirement to '+( _blastMkts.length?('brokers covering '+_blastMkts.join(', ')+' and all-areas brokers'):'all matched brokers')+'? The tenant name is withheld. This goes out immediately.';
+  if(!subj.trim()){ if(mg){mg.textContent='Add a subject first.';mg.className='dmsg';} return; }
+  var who=( _blastMkts.length?('brokers covering '+_blastMkts.join(', ')+' and all-areas brokers'):'all matched brokers');
+  if(_blastWhenMode()==='later'){
+    var at=document.getElementById('blastAt'); var val=at?at.value:'';
+    if(!val){ if(mg){mg.textContent='Pick a date and time to schedule.';mg.className='dmsg';} return; }
+    var when=new Date(val).getTime();
+    if(!isFinite(when)){ if(mg){mg.textContent='That date/time isn’t valid.';mg.className='dmsg';} return; }
+    if(when < Date.now()+60000){ if(mg){mg.textContent='Pick a time at least a minute from now.';mg.className='dmsg';} return; }
+    var smsg='Schedule this blind requirement to '+who+' for '+_blastFmtWhen(new Date(when).toISOString())+'? The tenant name is withheld. It will send automatically then — the audience is recalculated at send time.';
+    var sgo=function(ok){ if(ok) blastSend(false, when); };
+    if(window.rrgConfirm){ window.rrgConfirm(smsg,{title:'Schedule broker blast?',okText:'Schedule it'}).then(sgo); } else { sgo(window.confirm(smsg)); }
+    return;
+  }
+  var msg='Send this blind requirement to '+who+'? The tenant name is withheld. This goes out immediately.';
   var go=function(ok){ if(ok) blastSend(false); };
   if(window.rrgConfirm){ window.rrgConfirm(msg,{title:'Send broker blast?',okText:'Send it'}).then(go); } else { go(window.confirm(msg)); }
 }
-function blastSend(test){
-  var subj=(document.getElementById('blastSubj')||{}).value||'', body=(document.getElementById('blastBody')||{}).value||'';
+function blastSend(test, sendAtMs){
+  var subj=(document.getElementById('blastSubj')||{}).value||'', body=_blastBodyHtml();
   var mg=document.getElementById('blastMsg'); var go=document.getElementById('blastGo'), tb=document.getElementById('blastTestBtn');
   if(!test && !subj.trim()){ if(mg){mg.textContent='Add a subject first.';mg.className='dmsg';} return; }
-  if(mg){ mg.textContent=test?'Sending test…':'Sending…'; mg.className='dmsg work'; }
+  var scheduling=(!test && sendAtMs);
+  if(mg){ mg.textContent=test?'Sending test…':(scheduling?'Scheduling…':'Sending…'); mg.className='dmsg work'; }
   if(go) go.disabled=true; if(tb) tb.disabled=true;
-  fetch('/api/deal/'+encodeURIComponent(KEY)+'/broker-blast/send',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({subject:subj,body:body,test:!!test})})
+  var payload={subject:subj,body:body,test:!!test}; if(scheduling) payload.sendAt=sendAtMs;
+  fetch('/api/deal/'+encodeURIComponent(KEY)+'/broker-blast/send',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(payload)})
     .then(function(r){return r.json();}).then(function(j){
       if(go) go.disabled=false; if(tb) tb.disabled=false;
       if(!j||!j.ok){ if(mg){mg.textContent=(j&&j.error)||'Could not send.';mg.className='dmsg err';} return; }
       if(test){ if(mg){mg.textContent='Test sent to '+(j.to||'you')+' ✓';mg.className='dmsg ok';} return; }
       closeBlast();
-      if(window.rrgToast) rrgToast('Requirement sent to '+(j.recipientCount||0)+' broker'+((j.recipientCount===1)?'':'s')+'.');
+      if(j.scheduled){ if(window.rrgToast) rrgToast('Blast scheduled for '+_blastFmtWhen(j.sendAt)+'.'); }
+      else { if(window.rrgToast) rrgToast('Requirement sent to '+(j.recipientCount||0)+' broker'+((j.recipientCount===1)?'':'s')+'.'); }
     }).catch(function(){ if(go) go.disabled=false; if(tb) tb.disabled=false; if(mg){mg.textContent='Could not reach the server.';mg.className='dmsg err';} });
 }
 function spaceShortlistCard(){
