@@ -1431,9 +1431,13 @@ document.addEventListener('change',function(e){ if(!e.target.closest) return; va
 function _mapFmtD(iso){ try{ var d=new Date(iso); if(isNaN(d.getTime())) return ''; return (d.getMonth()+1)+'/'+d.getDate()+'/'+d.getFullYear(); }catch(e){ return ''; } }
 function marketAttackCard(){
   return '<div class="card" id="mapCard"><div class="ch"><b>Market Attack Plan</b>'
-    + '<span style="margin-left:auto;display:inline-flex;gap:14px;align-items:center"><a href="#" id="mapDelLink" onclick="mapDelete();return false;" title="Delete this Market Attack Plan" style="display:none;font-size:11.5px;font-weight:600;color:#aeb6c3;text-decoration:none">Delete</a><a href="#" id="brokerBlastLink" onclick="brokerBlastOpen();return false;" title="Draft a blind requirement email and blast it to matched brokers" style="font-size:12px;font-weight:700;color:#8a4a9c;text-decoration:none">✦ Blast to brokers →</a><a href="#" id="mapOpenLink" onclick="mapOpen();return false;" style="font-size:12px;font-weight:700;color:#23496f;text-decoration:none">Build the plan →</a></span></div>'
+    + '<button type="button" class="railadd" id="mapOpenLink" onclick="mapOpen();return false;" title="Build the plan">+</button></div>'
     + '<div class="cb" style="padding:12px 16px">'
     + '<div id="mapStatus" style="font-size:12.5px;color:#55607a;line-height:1.55">Your plan of attack for this tenant — submarkets, target sites, canvass cadence and timeline. It drives the shortlist and tours below.</div>'
+    + '<div style="margin-top:11px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
+    +   '<button type="button" class="phupload" style="margin-left:0;color:#8a4a9c;border-color:#d9c6e6" onclick="brokerBlastOpen()" title="Draft a blind requirement email and blast it to matched brokers">✦ Blast to brokers</button>'
+    +   '<a href="#" id="mapDelLink" onclick="mapDelete();return false;" title="Delete this Market Attack Plan" style="display:none;font-size:11.5px;font-weight:600;color:#aeb6c3;text-decoration:none">Delete plan</a>'
+    + '</div>'
     + '</div></div>';
 }
 function mapOpen(){
@@ -1446,8 +1450,8 @@ var _tmap=null, _tmapFetched=false;
 function applyMapStatus(){
   var m=_tmap, lk=document.getElementById('mapOpenLink'), st=document.getElementById('mapStatus'), dl=document.getElementById('mapDelLink');
   if(!lk||!st) return;
-  if(!m){ lk.textContent='Build the plan →'; if(dl) dl.style.display='none'; return; }
-  lk.textContent='Open the plan →';
+  if(!m){ lk.title='Build the plan'; if(dl) dl.style.display='none'; return; }
+  lk.title='Open the plan';
   if(dl) dl.style.display='';
   var when=m.updatedAt||m.builtAt||''; var lbl=m.pending?'In progress':'Built';
   st.innerHTML='<span style="font-weight:700;color:'+(m.pending?'#b5791f':'#1f8a5b')+'">'+lbl+'</span>'+(when?(' <span style="color:#8a93a8">· updated '+esc(_mapFmtD(when))+'</span>'):'')+'<div style="margin-top:4px;color:#8a93a8">Submarkets, target sites, canvass cadence &amp; timeline — anchored to this engagement.</div>';
