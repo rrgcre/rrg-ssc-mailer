@@ -3652,7 +3652,7 @@ app.post('/api/map/:id/refine-tenant', express.json({ limit: '2mb' }), async (re
     m.updatedAt = new Date().toISOString();
     if (out.business) m.business = String(out.business).slice(0, 120);
     saveMaps(arr);
-    res.json({ ok: true, state: out.state, canUndo: true });
+    res.json({ ok: true, state: out.state, canUndo: true, note: out.note || '' });
   } catch (e) {
     console.error('refine-tenant-map error:', e);
     res.status(500).json({ ok: false, error: String((e && e.message) || e) });

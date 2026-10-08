@@ -458,7 +458,7 @@ function refineRun(){
       if(go){ go.disabled=false; go.textContent='Revise the plan'; }
       if(j&&j.ok&&j.state){ _applyMapState(j.state); _mapBuilt=true; _refreshAiBtns(true);
         refineClose(); var ti=document.getElementById('rfInstr'); if(ti) ti.value=''; var td=document.getElementById('rfData'); if(td) td.value='';
-        if(window.rrgToast) rrgToast('Plan revised — review the changes. You can undo this.'); }
+        if(window.rrgToast) rrgToast(j.note?('Revised: '+j.note+' You can undo this.'):'Plan revised — review the changes. You can undo this.'); }
       else { if(msg) msg.textContent=(j&&j.error)||'Could not revise the plan.'; }
     }).catch(function(){ if(window.rrgAiWork) rrgAiWork.hide(); if(go){ go.disabled=false; go.textContent='Revise the plan'; } if(msg) msg.textContent='Could not reach the server.'; });
 }

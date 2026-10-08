@@ -228,34 +228,41 @@ async function generateTenantMap({ business, market, criteria, tenant, preparedB
 // keep everything else intact, and stay grounded in the engagement criteria. Same JSON shape.
 const SYSTEM_TENANT_REFINE = SYSTEM_TENANT + `
 
-=== REVISION MODE ===
-You are now REVISING an existing Tenant Market Attack Plan, not writing one from scratch. You are given the CURRENT plan (as JSON, in the exact shape above) and a broker's revision instruction, plus any additional data the broker pasted in.
+=== REVISION MODE (RETURN A PATCH, NOT THE WHOLE PLAN) ===
+You are REVISING an existing Tenant Market Attack Plan. You are given the CURRENT plan (JSON, in the exact shape above), a broker's revision instruction, and any pasted data. Apply the instruction — but return ONLY the parts that change, as a small PATCH. Returning the whole plan is wrong and wasteful; return the minimum.
 
-Rules for the revision:
-- The CURRENT plan is the base of truth. PRESERVE everything the broker did not ask to change — keep existing wording, rows, checks, and values intact unless the instruction (or the new data) clearly requires a change.
-- Apply the broker's instruction faithfully and completely. If they give a new budget, size, market, timeline, must-have, or a correction, update every part of the plan that depends on it so the whole plan stays internally consistent (e.g. a new occupancy ceiling flows into occCeil, tBase, and the leverage posture).
-- Incorporate any pasted data as fact where it fits (new corridors, a landlord's rent sheet, revised criteria, site intel). Do not discard existing good rows — add to or edit them.
-- Keep the engagement criteria as the outer guardrail: don't contradict the stated concept/markets unless the instruction explicitly changes them. Never fabricate specific street addresses or real landlord names.
-- Output the COMPLETE revised plan as the same single JSON object (every field present, same shape). Output the JSON object only — no prose, no fences.`;
+Apply the change completely and consistently: if the broker changes a budget, size, market, timeline or must-have, update EVERY field that depends on it (e.g. a new occupancy ceiling flows into vals.occCeil, vals.tBase and vals.leverageNarr) — but include ONLY those changed fields in the patch. Work pasted data in as fact where it fits. Stay inside the engagement criteria; never fabricate specific street addresses or real landlord names.
+
+Output a SINGLE JSON object — no prose, no fences — with ONLY the keys that change, in this PATCH shape:
+{
+ "vals": { /* ONLY the vals keys whose value changes — e.g. {"exclusive":"18 months"} or {"occCeil":"…","tBase":"…","leverageNarr":"…"}. Omit this key entirely if no vals change. */ },
+ "checks": { /* ONLY checkbox keys that flip — e.g. {"c8": true}. Omit if none change. */ },
+ "rows": { /* Include a row group ONLY if it changes, and then give the COMPLETE new array for that one group (not a diff of individual rows). e.g. {"sub":[ …all submarkets… ]}. Omit groups that don't change, and omit "rows" entirely if no rows change. */ },
+ "note": "one short sentence naming what you changed"
+}
+Rules: include a field only if its value actually changes; never restate unchanged values; for a changed row group give the full new array for that group; if truly nothing should change, return {}. Output the JSON object only.`;
+
+function _isPlainObj(o){ return o && typeof o === 'object' && !Array.isArray(o); }
 
 async function refineTenantMap({ state, instruction, extraData, business, market, criteria, tenant, preparedBy, systemPrompt }) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new Error('ANTHROPIC_API_KEY is not set on the server.');
   if (!instruction || !String(instruction).trim()) throw new Error('Tell the assistant what to change.');
+  const base = (state && typeof state === 'object') ? state : {};
   const sys = (systemPrompt && String(systemPrompt).trim()) ? String(systemPrompt) : SYSTEM_TENANT_REFINE;
   const content = [];
   content.push({ type: 'text', text:
     '=== Engagement — tenant site-selection criteria (the outer guardrail) ===\n' +
     JSON.stringify({ tenant: tenant || business || '', business: business || '', markets: (criteria && (criteria.markets || criteria.market)) || market || '', criteria: criteria || {} }).slice(0, 40000) });
   content.push({ type: 'text', text:
-    '=== CURRENT Tenant Market Attack Plan (the base of truth — preserve what is not being changed) ===\n' +
-    JSON.stringify(state || {}).slice(0, 90000) });
+    '=== CURRENT Tenant Market Attack Plan (the base of truth — change only what the instruction requires) ===\n' +
+    JSON.stringify(base).slice(0, 90000) });
   if (extraData && String(extraData).trim()) {
     content.push({ type: 'text', text: '=== Additional data the broker pasted in (treat as fact where it fits) ===\n' + String(extraData).slice(0, 40000) });
   }
   content.push({ type: 'text', text:
     "Broker's revision instruction:\n" + String(instruction).slice(0, 8000) + '\n\n' +
-    'Apply it and output the COMPLETE revised Tenant Market Attack Plan JSON object now.' });
+    'Return the PATCH JSON object now — ONLY the fields that change.' });
   const resp = await fetch(API_URL, {
     method: 'POST',
     headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
@@ -268,13 +275,26 @@ async function refineTenantMap({ state, instruction, extraData, business, market
   }
   const data = await resp.json();
   const text = (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n');
-  const next = extractJson(text);
-  if (!next || !next.vals) throw new Error('Could not parse the revised plan from the model response.');
-  next.vals = next.vals || {}; next.checks = next.checks || {}; next.rows = next.rows || {};
-  ['sub', 'tgt', 'tl'].forEach(function (k) { if (!Array.isArray(next.rows[k])) next.rows[k] = (state && state.rows && Array.isArray(state.rows[k])) ? state.rows[k] : []; });
+  const patch = extractJson(text);
+  if (!patch || typeof patch !== 'object') throw new Error('Could not parse the revision from the model response.');
+  // Merge the patch onto the current plan. vals/checks shallow-merge; each rows group is
+  // replaced wholesale only if the patch supplies it. Everything else is preserved as-is.
+  const next = {
+    vals: Object.assign({}, base.vals || {}),
+    checks: Object.assign({}, base.checks || {}),
+    rows: {
+      sub: (base.rows && Array.isArray(base.rows.sub)) ? base.rows.sub.slice() : [],
+      tgt: (base.rows && Array.isArray(base.rows.tgt)) ? base.rows.tgt.slice() : [],
+      tl: (base.rows && Array.isArray(base.rows.tl)) ? base.rows.tl.slice() : []
+    }
+  };
+  // Tolerate a model that returns a full plan instead of a patch: same merge rules apply.
+  if (_isPlainObj(patch.vals)) Object.keys(patch.vals).forEach(function (k) { next.vals[k] = patch.vals[k]; });
+  if (_isPlainObj(patch.checks)) Object.keys(patch.checks).forEach(function (k) { next.checks[k] = !!patch.checks[k]; });
+  if (_isPlainObj(patch.rows)) ['sub', 'tgt', 'tl'].forEach(function (k) { if (Array.isArray(patch.rows[k])) next.rows[k] = patch.rows[k]; });
   // Never let a revision blank out the rep's preparedBy.
-  if (!next.vals.preparedBy) next.vals.preparedBy = (state && state.vals && state.vals.preparedBy) || preparedBy || '';
-  return { state: next, business: next.vals.client || (state && state.vals && state.vals.client) || tenant || business || 'Tenant Market Attack Plan', usage: data.usage || null };
+  if (!next.vals.preparedBy) next.vals.preparedBy = (base.vals && base.vals.preparedBy) || preparedBy || '';
+  return { state: next, business: next.vals.client || (base.vals && base.vals.client) || tenant || business || 'Tenant Market Attack Plan', note: (patch && typeof patch.note === 'string') ? patch.note : '', usage: data.usage || null };
 }
 
 // ===== BROKER REQUIREMENT BLAST =====
