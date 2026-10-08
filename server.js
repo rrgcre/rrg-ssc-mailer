@@ -8336,59 +8336,60 @@ function siteSubscribePage(req) {
 <style>
 .subwrap{max-width:1160px;margin:0 auto;padding:0 24px;}
 /* Two-column lead form — dark branded panel + clean form, in the style of a classic advisor-contact layout */
-.subsplit{display:grid;grid-template-columns:minmax(290px,400px) 1fr;margin:34px auto 70px;background:#fff;border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:0 24px 60px rgba(10,20,50,.14);}
+.subsplit{display:grid;grid-template-columns:minmax(290px,400px) 1fr;margin:22px auto 44px;background:#fff;border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:0 24px 60px rgba(10,20,50,.14);}
 @media(max-width:860px){.subsplit{grid-template-columns:1fr;}}
-.subpanel{position:relative;background:linear-gradient(150deg,#060e22,#0a1733 55%,#122a5a);color:#fff;padding:52px 46px;display:flex;flex-direction:column;overflow:hidden;}
-@media(max-width:860px){.subpanel{padding:40px 34px;}}
+.subpanel{position:relative;background:linear-gradient(150deg,#060e22,#0a1733 55%,#122a5a);color:#fff;padding:36px 42px;display:flex;flex-direction:column;overflow:hidden;}
+@media(max-width:860px){.subpanel{padding:30px 28px;}}
 .subpanel .ph{position:absolute;inset:0;background-size:cover;background-position:center;opacity:.16;mix-blend-mode:luminosity;}
 .subpanel .ph::after{content:'';position:absolute;inset:0;background:linear-gradient(150deg,rgba(6,14,34,.5),rgba(18,42,90,.3));}
 .subpanel > *{position:relative;z-index:1;}
 .subback{display:inline-flex;align-items:center;gap:7px;color:#9fb0cc;font-size:13px;font-weight:700;text-decoration:none;}
 .subback:hover{color:#fff;}
-.subpanel .eyebrow{color:var(--gold2);justify-content:flex-start;letter-spacing:.14em;font-size:12px;font-weight:800;text-transform:uppercase;margin-top:30px;}
-.subpanel h1{font-family:'Fraunces',serif;font-weight:600;font-size:37px;line-height:1.08;margin:13px 0 0;text-wrap:balance;}
-@media(max-width:860px){.subpanel h1{font-size:29px;}}
-.subpanel p{color:#c6d1e6;font-size:16px;line-height:1.6;margin:15px 0 0;max-width:40ch;}
-.subpanel .reassure{margin:34px 0 0;margin-top:auto;padding:30px 0 0;display:flex;flex-direction:column;gap:11px;}
-.subpanel .reassure li{list-style:none;display:flex;align-items:flex-start;gap:10px;color:#dbe4f3;font-size:13.5px;font-weight:600;line-height:1.4;}
+.subpanel .eyebrow{color:var(--gold2);justify-content:flex-start;letter-spacing:.14em;font-size:12px;font-weight:800;text-transform:uppercase;margin-top:20px;}
+.subpanel h1{font-family:'Fraunces',serif;font-weight:600;font-size:31px;line-height:1.1;margin:10px 0 0;text-wrap:balance;}
+@media(max-width:860px){.subpanel h1{font-size:26px;}}
+.subpanel p{color:#c6d1e6;font-size:15px;line-height:1.55;margin:11px 0 0;max-width:40ch;}
+.subpanel .reassure{margin:22px 0 0;margin-top:auto;padding:18px 0 0;display:flex;flex-direction:column;gap:9px;}
+.subpanel .reassure li{list-style:none;display:flex;align-items:flex-start;gap:10px;color:#dbe4f3;font-size:13px;font-weight:600;line-height:1.4;}
 .subpanel .reassure .rc{color:var(--gold2);flex:none;font-weight:800;}
-.subformcol{padding:46px 44px;}
-@media(max-width:860px){.subformcol{padding:36px 26px;}}
-.subintro{color:var(--muted);font-size:15.5px;line-height:1.6;margin:0 0 26px;max-width:54ch;}
-.flabel{font-size:12.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--navy);margin:0 0 12px;}
+.subformcol{padding:32px 40px;}
+@media(max-width:860px){.subformcol{padding:26px 24px;}}
+.subintro{color:var(--muted);font-size:15px;line-height:1.55;margin:0 0 16px;max-width:54ch;}
+.flabel{font-size:12.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--navy);margin:0 0 9px;}
 .flabel .req{color:var(--red);}
-.audlist{display:flex;flex-direction:column;gap:10px;margin-bottom:26px;}
+.audlist{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;}
 .audopt{position:relative;cursor:pointer;display:flex;align-items:flex-start;gap:11px;}
 .audopt input{position:absolute;opacity:0;pointer-events:none;}
 .audopt .mark{width:20px;height:20px;border:2px solid #cdd5e5;border-radius:50%;flex:none;margin-top:1px;display:flex;align-items:center;justify-content:center;transition:all .15s;}
 .audopt input:checked + .mark{border-color:var(--navy);}
 .audopt input:checked + .mark::after{content:'';width:10px;height:10px;border-radius:50%;background:var(--red);}
-.audopt .atx{font-size:14.5px;line-height:1.4;}
+.audopt .atx{font-size:14px;line-height:1.35;}
 .audopt .atx b{font-weight:700;color:var(--navy);display:block;}
 .audopt .atx span{color:var(--muted);font-size:12.5px;}
-.mks{display:flex;flex-direction:column;gap:10px;margin-bottom:8px;}
+.mks{display:flex;flex-direction:column;gap:8px;margin-bottom:6px;}
 .mk{cursor:pointer;display:flex;align-items:center;gap:11px;}
 .mk input{position:absolute;opacity:0;pointer-events:none;}
 .mk .box{width:19px;height:19px;border:2px solid #cdd5e5;border-radius:5px;flex:none;display:flex;align-items:center;justify-content:center;transition:all .15s;}
 .mk input:checked + .box{border-color:var(--navy);background:var(--navy);}
 .mk input:checked + .box::after{content:'';width:5px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg) translateY(-1px);}
-.mk .mkn{font-size:14.5px;font-weight:600;color:var(--ink);}
-.mkall{margin:0 0 6px;}
+.mk .mkn{font-size:14px;font-weight:600;color:var(--ink);}
+.mkall{margin:0 0 4px;}
 .subrow{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
 @media(max-width:520px){.subrow{grid-template-columns:1fr;}}
-.subfld{margin-bottom:18px;}
-.subfld label{display:block;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:7px;}
+.subfld{margin-bottom:12px;}
+.subfld label{display:block;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:6px;}
 .subfld label .req{color:var(--red);}
-.subfld input{width:100%;border:1px solid #cfd6e4;border-radius:4px;padding:12px 14px;font:inherit;font-size:15px;color:var(--ink);background:#fff;transition:border-color .15s,box-shadow .15s;}
+.subfld input{width:100%;border:1px solid #cfd6e4;border-radius:4px;padding:10px 13px;font:inherit;font-size:15px;color:var(--ink);background:#fff;transition:border-color .15s,box-shadow .15s;}
 .subfld input:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(44,92,143,.14);}
-.subsubmit{display:flex;align-items:center;gap:14px;margin-top:10px;flex-wrap:wrap;}
+.subsubmit{display:flex;align-items:center;gap:14px;margin-top:6px;flex-wrap:wrap;}
+#subBtn{padding:12px 26px;font-size:14.5px;border-radius:10px;}
 .submsg{font-size:13.5px;font-weight:700;}
 .submsg.err{color:var(--red);} .submsg.ok{color:#1f8a5b;}
-.subdone{text-align:center;padding:30px 6px;}
-.subdone-ic{width:66px;height:66px;margin:0 auto 18px;border-radius:50%;background:#e7f4ee;color:#1f8a5b;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:800;}
-.subdone h2{font-family:'Fraunces',serif;font-weight:600;color:var(--navy);font-size:25px;margin:0 0 10px;letter-spacing:-.01em;}
-.subdone p{color:var(--muted);font-size:15px;line-height:1.6;max-width:44ch;margin:0 auto 22px;}
-.subfine{color:var(--soft);font-size:12px;margin-top:18px;line-height:1.5;}
+.subdone{text-align:center;padding:24px 6px;}
+.subdone-ic{width:60px;height:60px;margin:0 auto 14px;border-radius:50%;background:#e7f4ee;color:#1f8a5b;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:800;}
+.subdone h2{font-family:'Fraunces',serif;font-weight:600;color:var(--navy);font-size:24px;margin:0 0 9px;letter-spacing:-.01em;}
+.subdone p{color:var(--muted);font-size:15px;line-height:1.55;max-width:44ch;margin:0 auto 18px;}
+.subfine{color:var(--soft);font-size:12px;margin-top:12px;line-height:1.5;}
 </style></head>
 <body style="background:var(--cream)">
 <header><div class="wrap"><nav class="nav">
@@ -8430,7 +8431,7 @@ function siteSubscribePage(req) {
       <div class="mkall"><label class="mk"><input type="checkbox" id="mkAll"><span class="box"></span><span class="mkn" style="color:var(--muted);font-weight:700">Select all markets</span></label></div>
       <div class="mks">${marketChips}</div>
 
-      <div class="subrow" style="margin-top:24px">
+      <div class="subrow" style="margin-top:16px">
         <div class="subfld"><label>First name</label><input id="sub_first" autocomplete="given-name"></div>
         <div class="subfld"><label>Last name</label><input id="sub_last" autocomplete="family-name"></div>
       </div>
