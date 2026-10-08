@@ -6084,7 +6084,7 @@ function assignmentView(d, overlay, _opts) {
     clientPersonId: (o.clientPersonId || (deal ? (deal.contactPersonId || '') : '')),
     companyId: deal ? (deal.companyId || '') : '', company: (deal && deal.companyId && companyById(deal.companyId)) ? companyBrief(companyById(deal.companyId)) : null,
     roomId: (room && room.id) || (deal && deal.roomId) || '',
-    status: o.status || 'New', notes: o.notes || '', shareTeam: !!o.shareTeam, owner: o.owner || by, businessOverride: o.businessOverride || '', codeName: o.codeName || '', listingNo: o.listingNo || 0, listingId: (o.listingNo ? ('RRG-' + o.listingNo) : ''),
+    status: o.status || 'New', repType: o.repType || '', notes: o.notes || '', shareTeam: !!o.shareTeam, owner: o.owner || by, businessOverride: o.businessOverride || '', codeName: o.codeName || '', listingNo: o.listingNo || 0, listingId: (o.listingNo ? ('RRG-' + o.listingNo) : ''),
     saleLane: (['business', 'asset', 'other'].indexOf(o.saleLane) >= 0 ? o.saleLane : ((deal && deal.saleLane) || 'business')),
     stageFlags: o.stageFlags || {}, pipelineId: o.pipelineId || '', needsSetup: !!o.needsSetup, fromBbs: !!o.fromBbs, referredBy: o.referredBy || '', referredById: o.referredById || '', referralPct: o.referralPct || '', listPrice: o.listPrice || '', priceHistory: Array.isArray(o.priceHistory) ? o.priceHistory : [], financials3y: Array.isArray(o.financials3y) ? o.financials3y : [], totalCommission: o.totalCommission || '', commissionEst: estCommissionFromPrice(o.listPrice || ''), listingLive: o.listingLive || '', listingStart: o.listingStart || '', listingExpires: o.listingExpires || '', targetClose: o.targetClose || '', autoRenew: !!o.autoRenew, renewable: !!o.renewable,
     location: (o.location && typeof o.location === 'object') ? o.location : {}, premises: (o.premises && typeof o.premises === 'object') ? o.premises : {}, sites: Array.isArray(o.sites) ? o.sites : [], openedDate: o.openedDate || '', reasonSale: o.reasonSale || '', priorSales: o.priorSales || '', links: (o.links && typeof o.links === 'object') ? o.links : {}, staffing: (o.staffing && typeof o.staffing === 'object') ? o.staffing : {},
@@ -9993,6 +9993,9 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   const overlay = loadAssignOverlay();
   const b = req.body || {}, cur = overlay[d.key] || {};
   if (typeof b.status === 'string' && ASSIGN_STATUSES.indexOf(normAssignStatus(b.status)) >= 0) cur.status = normAssignStatus(b.status);
+  // Representation type (Exclusive / Non-exclusive / Other) — its own field, separate from the
+  // pipeline status, so the tenant-engagement "Representation" selector persists.
+  if (typeof b.repType === 'string') cur.repType = b.repType.slice(0, 40);
   if (typeof b.notes === 'string') cur.notes = b.notes.slice(0, 8000);
   if (typeof b.owner === 'string') cur.owner = b.owner.slice(0, 120);
   if (typeof b.businessOverride === 'string') cur.businessOverride = b.businessOverride.slice(0, 120);
