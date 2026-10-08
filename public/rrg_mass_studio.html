@@ -385,7 +385,7 @@ function starterHtml(){
 function loadCampaigns(){
   if(!CFG.storage){ $('tabCamps').innerHTML='<div class="note warn">Connect Postgres to manage campaigns.</div>'; return; }
   if(EDIT){ renderEditor(); return; }
-  if(['created','scheduled','sent','archived'].indexOf(CAMPVIEW)<0) CAMPVIEW='scheduled';
+  if(['all','scheduled','sent','archived'].indexOf(CAMPVIEW)<0) CAMPVIEW='all';
   Promise.all([
     api('GET','/api/mail/campaigns?archived=0&days=0'),
     api('GET','/api/mail/campaigns?archived=1&days=0'),
@@ -393,13 +393,12 @@ function loadCampaigns(){
   ]).then(function(res){
     var active=(res[0]&&res[0].campaigns)||[], archivedRows=(res[1]&&res[1].campaigns)||[];
     _UPCOMING=(res[2]&&res[2].events)||[];
-    var created=active.filter(function(c){ return c.status==='draft'; });
     var sent=active.filter(function(c){ return c.status==='sent'||c.status==='sending'||Number(c.sent||0)>0||Number(c.runs||0)>0; });
-    var counts={ created:created.length, scheduled:_UPCOMING.length, sent:sent.length, archived:archivedRows.length };
+    var counts={ all:active.length, scheduled:_UPCOMING.length, sent:sent.length, archived:archivedRows.length };
     var tabBtn=function(v,label){ return '<button data-cv="'+v+'" class="'+(CAMPVIEW===v?'on':'')+'" style="padding:6px 13px;">'+label+' <span style="color:var(--soft);font-weight:600;">'+(counts[v]||0)+'</span></button>'; };
     var h='<div class="card" style="padding:0;overflow:visible">'
       +'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding:12px 18px;border-bottom:1px solid var(--line);">'
-      +'<div class="tabs" style="border:none;margin:0;gap:2px;">'+tabBtn('created','Created')+tabBtn('scheduled','Scheduled')+tabBtn('sent','Sent')+tabBtn('archived','Archived')+'</div>'
+      +'<div class="tabs" style="border:none;margin:0;gap:2px;">'+tabBtn('all','All')+tabBtn('scheduled','Scheduled')+tabBtn('sent','Sent')+tabBtn('archived','Archived')+'</div>'
       +'<button class="btn primary" id="newCamp">+ New campaign</button>'
       +'</div>'
       +'<div id="campBody" style="padding:6px 8px 14px;"></div>'
@@ -407,8 +406,8 @@ function loadCampaigns(){
     $('tabCamps').innerHTML=h;
     wireCampHead();
     if(CAMPVIEW==='scheduled'){ renderScheduledTab(); return; }
-    var rows = CAMPVIEW==='created'?created : (CAMPVIEW==='sent'?sent : archivedRows);
-    var emptyMsg = CAMPVIEW==='created' ? 'No drafts. Click <b>+ New campaign</b> to start — a draft stays here until you schedule or send it.' : (CAMPVIEW==='sent' ? 'Nothing sent yet.' : 'No archived campaigns.');
+    var rows = CAMPVIEW==='all'?active : (CAMPVIEW==='sent'?sent : archivedRows);
+    var emptyMsg = CAMPVIEW==='all' ? 'No campaigns yet. Click <b>+ New campaign</b> to start one.' : (CAMPVIEW==='sent' ? 'Nothing sent yet.' : 'No archived campaigns.');
     var cfg={
       mount:'#campBody', data:rows, key:'mm_campaigns',
       empty:'<div class="pgs" style="padding:24px 12px;">'+emptyMsg+'</div>',
@@ -508,7 +507,7 @@ function renderSchedList(){
     mount:'#schedBody', data:ev, key:'mm_sched', rowId:function(e){ return String(e.id); }, defaultSort:0, defaultDir:1,
     columns:[
       { label:'Date', sort:tsCmp, cell:function(e){ return '<span style="font-weight:600;color:var(--navy);white-space:nowrap">'+esc(schedDate(e.run_at))+'</span>'; } },
-      { label:'Time', sort:tsCmp, cell:function(e){ var slot=(e.slot||slotOf(e.run_at)||'').toUpperCase(); return '<span style="font-variant-numeric:tabular-nums;white-space:nowrap">'+esc(_upTime(e.run_at))+'</span>'+(slot?(' <span style="color:var(--muted);font-size:11px">'+slot+'</span>'):''); } },
+      { label:'Time', sort:tsCmp, cell:function(e){ return '<span style="font-variant-numeric:tabular-nums;white-space:nowrap">'+esc(_upTime(e.run_at))+'</span>'; } },
       { label:'When', sort:tsCmp, cell:function(e){ return '<span style="color:var(--blue);font-weight:700;font-size:12px;white-space:nowrap">'+esc(relTime(e.run_at))+'</span>'; } },
       { label:'Campaign / Subject', sort:function(a,b){ return RRGList.cmp((a.name||'').toLowerCase(),(b.name||'').toLowerCase()); }, cell:schedNameCell },
       { label:'Audience', sort:function(a,b){ return RRGList.cmp(a.audience||'',b.audience||''); }, cell:function(e){ return '<span style="font-size:12.5px">'+esc(e.audience||'All active')+'</span>'; } },
