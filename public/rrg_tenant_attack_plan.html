@@ -324,7 +324,11 @@ function save(){
 }
 function load(){ try{ var s=localStorage.getItem(K); if(s){ var o=JSON.parse(s); state.vals=o.vals||{}; state.checks=o.checks||{}; state.rows=o.rows||{sub:[],tgt:[],tl:[]}; } }catch(e){} }
 // Anchored mode: hydrate this plan's state from its server record before first paint.
-function loadServer(cb){ fetch('/api/map/'+encodeURIComponent(MAPID),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ var o=(j&&j.ok&&j.map&&j.map.state)||null; if(o){ state.vals=o.vals||{}; state.checks=o.checks||{}; state.rows=o.rows||{sub:[],tgt:[],tl:[]}; } cb(!!o); }).catch(function(){ cb(false); }); }
+var _mapBuilt=false;
+function loadServer(cb){ fetch('/api/map/'+encodeURIComponent(MAPID),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ var mp=(j&&j.ok&&j.map)||null; var o=(mp&&mp.state)||null; if(o){ state.vals=o.vals||{}; state.checks=o.checks||{}; state.rows=o.rows||{sub:[],tgt:[],tl:[]}; } _mapBuilt=!!(mp&&(mp.aiGenerated||mp.builtAt)); cb(!!o); }).catch(function(){ cb(false); }); }
+// Does the plan already hold real content (ignoring the standing prepared-by line)?
+function _planHasContent(){ var v=state.vals||{}; var hasV=Object.keys(v).some(function(k){ return k!=='preparedBy' && v[k]; }); var r=state.rows||{}; var hasR=!!((r.sub&&r.sub.length)||(r.tgt&&r.tgt.length)||(r.tl&&r.tl.length)); return hasV||hasR; }
+function _draftBanner(on){ var b=document.getElementById('draftBanner'); if(on){ if(!b){ b=document.createElement('div'); b.id='draftBanner'; b.textContent='✦ Drafting your plan from the engagement… a few seconds.'; b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9998;background:#000E31;color:#fff;font:600 13px/1.2 -apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;padding:12px 16px;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,.22)'; document.body.appendChild(b); } b.style.display='block'; } else if(b){ b.style.display='none'; } }
 
 async function clearAll(){
   if(!await rrgConfirm('Clear this attack plan?')) return;
@@ -385,15 +389,17 @@ async function draftFromAssignment(){
   var filled=(state.rows.sub.length>1||state.rows.tgt.length>1||(state.vals&&Object.keys(state.vals).filter(function(k){return k!=='preparedBy'&&state.vals[k];}).length>0));
   if(filled && !await rrgConfirm('Draft this plan from the engagement’s criteria? It replaces what’s here now (your prepared-by line is kept). You can still edit everything after.')) return;
   var db=document.getElementById('draftBtn'); var old=db?db.textContent:''; if(db){ db.disabled=true; db.textContent='Drafting…'; }
+  _draftBanner(true);
   fetch('/api/map/'+encodeURIComponent(MAPID)+'/generate-tenant',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'})
     .then(function(r){return r.json();}).then(function(j){
+      _draftBanner(false);
       if(j&&j.ok&&j.state){ var o=j.state; state.vals=o.vals||{}; state.checks=o.checks||{}; state.rows={sub:(o.rows&&o.rows.sub)||[],tgt:(o.rows&&o.rows.tgt)||[],tl:(o.rows&&o.rows.tl)||[]};
         if(!state.rows.sub.length)state.rows.sub=[{}]; if(!state.rows.tgt.length)state.rows.tgt=[{}]; if(!state.rows.tl.length)state.rows.tl=[{}];
-        paint(); ['sub','tgt','tl'].forEach(renderRows); growAll();
+        _mapBuilt=true; paint(); ['sub','tgt','tl'].forEach(renderRows); growAll();
         if(window.rrgToast) rrgToast('Draft ready — review and edit.'); }
-      else { alert((j&&j.error)||'Could not draft the plan.'); }
+      else { if(window.rrgToast){ rrgToast((j&&j.error)||'Could not draft the plan — fill it in manually or try again.'); } else { alert((j&&j.error)||'Could not draft the plan.'); } }
       if(db){ db.disabled=false; db.textContent=old; }
-    }).catch(function(){ if(db){ db.disabled=false; db.textContent=old; } alert('Could not reach the server.'); });
+    }).catch(function(){ _draftBanner(false); if(db){ db.disabled=false; db.textContent=old; } if(window.rrgToast){ rrgToast('Could not reach the server.'); } else { alert('Could not reach the server.'); } });
 }
 /* init */
 function _boot(){
@@ -401,7 +407,10 @@ function _boot(){
   bind(); paint(); ['sub','tgt','tl'].forEach(renderRows); growAll();
   if(MAPID){ var db=document.getElementById('draftBtn'); if(db) db.style.display=''; }
 }
-if(MAPID){ loadServer(function(){ _boot(); }); } else { load(); _boot(); }
+// Anchored + brand-new + empty → draft it from the assignment automatically, so "Build the
+// plan" opens a populated plan rather than a blank form. A plan that's already been built (or
+// that a rep deliberately cleared) is left as-is; they can re-draft with the button.
+if(MAPID){ loadServer(function(){ var empty=!_planHasContent(); _boot(); if(empty && !_mapBuilt){ draftFromAssignment(); } }); } else { load(); _boot(); }
 window.addEventListener('load', growAll);
 </script>
 </body>
