@@ -170,7 +170,9 @@ async function messagesForContact(username, emails, max) {
   // Real correspondence with the contact — exclude marketing/social blasts, spam and trash
   // so bulk mail that merely touches the address never clutters the contact's timeline.
   const addrQ = list.map(e => '(from:' + e + ' OR to:' + e + ')').join(' OR ');
-  const q = '(' + addrQ + ') -category:promotions -category:social -in:spam -in:trash';
+  // Exclude drafts: an unsent draft addressed to the contact is NOT correspondence, and being
+  // From the user it would otherwise be mislabeled "Sent" in the timeline.
+  const q = '(' + addrQ + ') -category:promotions -category:social -in:spam -in:trash -in:drafts';
   const u = 'https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=' + (max || 25) + '&q=' + encodeURIComponent(q);
   const r = await gapi(username, u, {});
   const j = await r.json();
@@ -185,14 +187,18 @@ async function messagesForContact(username, emails, max) {
       if (!mr.ok) return null;
       const H = mj.payload && mj.payload.headers;
       const from = hdr(H, 'From');
+      const _labels = mj.labelIds || [];
+      const isDraft = _labels.indexOf('DRAFT') >= 0;
       const outbound = me && from.toLowerCase().indexOf(me.toLowerCase()) >= 0;
+      // Safety net: even if a draft slips past the query filter, never label it "Sent".
+      const _dir = isDraft ? 'draft' : (outbound ? 'out' : 'in');
       return {
         id: mj.id, threadId: mj.threadId,
         from: from, to: hdr(H, 'To'), subject: hdr(H, 'Subject'),
         date: hdr(H, 'Date') || (mj.internalDate ? new Date(Number(mj.internalDate)).toISOString() : ''),
         ts: mj.internalDate ? Number(mj.internalDate) : 0,
-        snippet: mj.snippet || '', direction: outbound ? 'out' : 'in',
-        unread: (mj.labelIds || []).indexOf('UNREAD') >= 0,
+        snippet: mj.snippet || '', direction: _dir, isDraft: isDraft,
+        unread: _labels.indexOf('UNREAD') >= 0,
       };
     } catch (e) { return null; }
   }));

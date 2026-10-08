@@ -7350,6 +7350,7 @@ app.post('/api/website', requireAdmin, express.json({ limit: '256kb' }), (req, r
   if (Array.isArray(b.subMarkets)) out.subMarkets = b.subMarkets.map(function (x) { return S(x, 60); }).filter(Boolean).slice(0, 40);
   if (b.welcomeEmail && typeof b.welcomeEmail === 'object') { const w = b.welcomeEmail; out.welcomeEmail = { enabled: w.enabled !== false, subject: S(w.subject, 200), heading: S(w.heading, 120), body: S(w.body, 2000), signoff: S(w.signoff, 160) }; }
   if (b.accessAlert && typeof b.accessAlert === 'object') { const w = b.accessAlert; out.accessAlert = { enabled: w.enabled !== false, subject: S(w.subject, 200), heading: S(w.heading, 120), intro: S(w.intro, 600) }; }
+  if (b.subscribe && typeof b.subscribe === 'object') { const w = b.subscribe; out.subscribe = { headline: S(w.headline, 160), sub: S(w.sub, 400), intro: S(w.intro, 400), operatorDesc: S(w.operatorDesc, 300), brokerDesc: S(w.brokerDesc, 300), submitText: S(w.submitText, 60), fine: S(w.fine, 400), reassure: (Array.isArray(w.reassure) ? w.reassure : []).map(function (x) { return S(x, 120); }).filter(Boolean).slice(0, 5) }; }
   if (Array.isArray(b.processes)) out.processes = b.processes.slice(0, 8).map(function (p) {
     return { name: S(p && p.name, 80), steps: (Array.isArray(p && p.steps) ? p.steps : []).slice(0, 10).map(function (x) { return { t: S(x && x.t, 90), d: S(x && x.d, 300) }; }).filter(function (x) { return x.t || x.d; }) };
   }).filter(function (p) { return p.name || p.steps.length; });
@@ -8326,6 +8327,21 @@ function siteSubscribePage(req) {
   if (!metros.length) ['Austin', 'Dallas', 'Fort Worth', 'Houston', 'San Antonio'].forEach(function (c) { metros.push(c); });
   const marketChips = metros.map(function (c) { return '<label class="mk"><input type="checkbox" name="mk" value="' + esc(c) + '"><span class="box"></span><span class="mkn">' + esc(c) + '</span></label>'; }).join('');
   const heroImg = (s.heroImage && String(s.heroImage).trim()) ? String(s.heroImage).trim() : '';
+  // Page copy is editable in the CMS (Admin → Website → "Listing-alert page"). Each field
+  // falls back to the built-in default when left blank, so an empty config still renders fully.
+  const _sub = (s.subscribe && typeof s.subscribe === 'object') ? s.subscribe : {};
+  const _orgName = s.brand || orgDisplayName() || 'Restaurant Realty Group';
+  const subHeadline = esc((_sub.headline && _sub.headline.trim()) || 'Get new listings before they hit the market');
+  const subSub = esc((_sub.sub && _sub.sub.trim()) || 'Exclusive restaurant & bar listings, the moment they come up — in the Texas markets you choose.');
+  const subIntro = esc((_sub.intro && _sub.intro.trim()) || 'Tell us where you buy and who you are, and we’ll send new restaurant & bar listings in your markets the moment they come up.');
+  const subOpDesc = esc((_sub.operatorDesc && _sub.operatorDesc.trim()) || 'I own or operate restaurants or bars, or I’m looking to buy, lease, or expand.');
+  const subBrDesc = esc((_sub.brokerDesc && _sub.brokerDesc.trim()) || 'I’m a Texas-licensed broker or agent and want listings to match with my clients.');
+  const subSubmit = esc((_sub.submitText && _sub.submitText.trim()) || 'Send me new listings');
+  const subFine = esc((_sub.fine && _sub.fine.trim()) || ('By subscribing you agree to receive listing emails from ' + _orgName + '. We never share your information, and every email has a one-click unsubscribe.'));
+  const _reassure = (Array.isArray(_sub.reassure) && _sub.reassure.filter(function (x) { return x && String(x).trim(); }).length)
+    ? _sub.reassure.filter(function (x) { return x && String(x).trim(); })
+    : ['Confidential — we never share your information', 'No spam, just new inventory in your markets', 'One-click unsubscribe, anytime'];
+  const reassureHtml = _reassure.slice(0, 5).map(function (r) { return '<li><span class="rc">&#10003;</span> ' + esc(r) + '</li>'; }).join('');
 
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Get New Listings — ${org}</title>
@@ -8409,22 +8425,18 @@ function siteSubscribePage(req) {
     ${heroImg ? `<div class="ph" style="background-image:url('${heroImg}')"></div>` : ''}
     <a class="subback" href="/site">&larr; Back to ${org}</a>
     <div class="eyebrow">${org}</div>
-    <h1>Get new listings before they hit the market</h1>
-    <p>Exclusive restaurant &amp; bar listings, the moment they come up — in the Texas markets you choose.</p>
-    <ul class="reassure">
-      <li><span class="rc">&#10003;</span> Confidential — we never share your information</li>
-      <li><span class="rc">&#10003;</span> No spam, just new inventory in your markets</li>
-      <li><span class="rc">&#10003;</span> One-click unsubscribe, anytime</li>
-    </ul>
+    <h1>${subHeadline}</h1>
+    <p>${subSub}</p>
+    <ul class="reassure">${reassureHtml}</ul>
   </aside>
 
   <div class="subformcol subcard">
-    <p class="subintro">Tell us where you buy and who you are, and we’ll send new restaurant &amp; bar listings in your markets the moment they come up.</p>
+    <p class="subintro">${subIntro}</p>
     <form id="subForm" novalidate>
       <div class="flabel">I am a… <span class="req">*</span></div>
       <div class="audlist">
-        <label class="audopt"><input type="radio" name="aud" value="operator" checked><span class="mark"></span><span class="atx"><b>Restaurant / Operator</b><span>I own or operate restaurants or bars, or I’m looking to buy, lease, or expand.</span></span></label>
-        <label class="audopt"><input type="radio" name="aud" value="broker"><span class="mark"></span><span class="atx"><b>Broker</b><span>I’m a broker or agent and want listings to match with my clients.</span></span></label>
+        <label class="audopt"><input type="radio" name="aud" value="operator" checked><span class="mark"></span><span class="atx"><b>Restaurant / Operator</b><span>${subOpDesc}</span></span></label>
+        <label class="audopt"><input type="radio" name="aud" value="broker"><span class="mark"></span><span class="atx"><b>Broker</b><span>${subBrDesc}</span></span></label>
       </div>
 
       <div class="flabel">Markets I want listings in <span class="req">*</span></div>
@@ -8437,8 +8449,8 @@ function siteSubscribePage(req) {
       </div>
       <div class="subfld"><label>Email <span class="req">*</span></label><input id="sub_email" type="email" autocomplete="email" required></div>
 
-      <div class="subsubmit"><button type="submit" class="btn red" id="subBtn">Send me new listings</button><span class="submsg" id="subMsg"></span></div>
-      <p class="subfine">By subscribing you agree to receive listing emails from ${org}. We never share your information, and every email has a one-click unsubscribe.</p>
+      <div class="subsubmit"><button type="submit" class="btn red" id="subBtn">${subSubmit}</button><span class="submsg" id="subMsg"></span></div>
+      <p class="subfine">${subFine}</p>
     </form>
   </div>
 </div></div>
