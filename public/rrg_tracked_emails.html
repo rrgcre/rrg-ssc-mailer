@@ -45,6 +45,19 @@ thead th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(
 #opTip .opv{color:#8a94a6;white-space:nowrap;}
 .opq{cursor:pointer;}
 .opq:focus{outline:2px solid #cfe0f5;outline-offset:1px;}
+a.subj{display:inline-block;text-decoration:none;cursor:pointer;}
+a.subj:hover{color:var(--navy);text-decoration:underline;}
+.emov{position:fixed;inset:0;z-index:10000;background:rgba(6,14,32,.5);display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto;}
+.emov[hidden]{display:none;}
+.emcard{position:relative;background:#fff;border-radius:14px;box-shadow:0 24px 60px rgba(6,14,32,.3);width:100%;max-width:680px;padding:26px 28px 28px;}
+.emx{position:absolute;top:12px;right:14px;background:none;border:none;font-size:18px;color:#8a94a6;cursor:pointer;line-height:1;padding:4px;}
+.emx:hover{color:var(--ink);}
+.emhd{font-size:19px;font-weight:700;color:var(--navy);line-height:1.3;padding-right:28px;margin-bottom:14px;}
+.emmeta{border:1px solid var(--line);border-radius:10px;background:var(--wash);padding:10px 14px;margin-bottom:16px;}
+.emrow{display:flex;gap:12px;padding:3px 0;font-size:13px;}
+.emrow .emk{flex:none;width:64px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-size:10.5px;color:var(--muted);padding-top:2px;}
+.emrow .emv{color:var(--ink);word-break:break-word;}
+.embody{white-space:pre-wrap;font-size:14px;line-height:1.6;color:var(--ink);word-break:break-word;}
 </style>
 </head>
 <body>
@@ -87,7 +100,7 @@ function render(){
     defaultSort:0, defaultDir:1,
     columns:[
       { label:'Sent', sort:function(a,b){return RRGList.cmp(a.sentAt,b.sentAt);}, cell:function(e){ return '<span title="'+esc(e.sentAt)+'">'+esc(fmtDT(e.sentAt))+'</span>'; } },
-      { label:'Subject', sort:function(a,b){return RRGList.cmp(a.subject,b.subject);}, cell:function(e){ return '<div class="subj">'+esc(e.subject||'(no subject)')+'</div>'; } },
+      { label:'Subject', sort:function(a,b){return RRGList.cmp(a.subject,b.subject);}, cell:function(e){ return '<a href="#" class="subj viewrow" data-viewid="'+esc(e.id)+'" title="Click to read this email">'+esc(e.subject||'(no subject)')+'</a>'; } },
       { label:'Contact', sort:function(a,b){return RRGList.cmp(a.personName,b.personName);}, cell:function(e){ return e.personId?('<a class="lk" href="./rrg_person.html?id='+encodeURIComponent(e.personId)+'">'+esc(e.personName||'Contact')+'</a>'):esc(e.personName||'—'); } },
       { label:'Company', sort:function(a,b){return RRGList.cmp(a.company,b.company);}, cell:function(e){ return e.company?esc(e.company):'<span class="meta">—</span>'; } },
       { label:'To', defaultHidden:true, sort:function(a,b){return RRGList.cmp(a.to,b.to);}, cell:function(e){ return '<span class="meta">'+esc(e.to||'—')+'</span>'; } },
@@ -120,5 +133,40 @@ document.addEventListener('click',function(e){ var el=e.target.closest&&e.target
 window.addEventListener('scroll',function(){ if(!_opPinned){ var tip=document.getElementById('opTip'); if(tip) tip.classList.remove('on'); } }, true);
 </script>
 <div id="opTip"></div>
+<div id="emOverlay" class="emov" hidden>
+  <div class="emcard">
+    <button class="emx" type="button" onclick="closeEmail()" aria-label="Close">✕</button>
+    <div class="emhd" id="emSubject">—</div>
+    <div class="emmeta" id="emMeta"></div>
+    <div class="embody" id="emBody"></div>
+  </div>
+</div>
+<script>
+function openEmail(id){
+  var sub=document.getElementById('emSubject'), meta=document.getElementById('emMeta'), body=document.getElementById('emBody');
+  sub.textContent='Loading…'; meta.innerHTML=''; body.textContent='';
+  document.getElementById('emOverlay').hidden=false;
+  fetch('/api/tracked-email/'+encodeURIComponent(id),{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok||!j.email){ sub.textContent=(j&&j.error)||'Could not load this email.'; return; }
+    var e=j.email;
+    sub.textContent=e.subject||'(no subject)';
+    var rows=[];
+    rows.push('<div class="emrow"><span class="emk">To</span><span class="emv">'+esc(e.to||'—')+'</span></div>');
+    if(e.cc) rows.push('<div class="emrow"><span class="emk">Cc</span><span class="emv">'+esc(e.cc)+'</span></div>');
+    rows.push('<div class="emrow"><span class="emk">Sent</span><span class="emv">'+esc(fmtDT(e.sentAt))+(e.by?(' · '+esc(e.by)):'')+(e.via?(' · '+esc(e.via)):'')+'</span></div>');
+    var op = e.tracked ? (((e.opens||0)>0) ? ('Opened '+e.opens+'×'+((e.lastOpen||e.firstOpen)?(' · last '+fmtDT(e.lastOpen||e.firstOpen)):'')) : 'Not opened yet') : 'Not tracked';
+    rows.push('<div class="emrow"><span class="emk">Opens</span><span class="emv">'+esc(op)+'</span></div>');
+    if(e.personId) rows.push('<div class="emrow"><span class="emk">Contact</span><span class="emv"><a class="lk" href="./rrg_person.html?id='+encodeURIComponent(e.personId)+'">'+esc(e.personName||'Contact')+'</a></span></div>');
+    meta.innerHTML=rows.join('');
+    body.textContent=e.body||'';
+    if(!e.body){ body.innerHTML='<span class="note">No message text was stored for this email.</span>'; }
+    if(e.via==='gmail'){ var n=document.createElement('div'); n.className='note'; n.style.marginTop='12px'; n.textContent='This is a preview from Gmail — open it in Gmail for the full message.'; body.appendChild(n); }
+  }).catch(function(){ sub.textContent='Could not reach the server.'; });
+}
+function closeEmail(){ var ov=document.getElementById('emOverlay'); if(ov) ov.hidden=true; }
+document.addEventListener('click',function(e){ var el=e.target.closest&&e.target.closest('[data-viewid]'); if(el){ e.preventDefault(); openEmail(el.getAttribute('data-viewid')); } });
+(function(){ var ov=document.getElementById('emOverlay'); if(ov) ov.addEventListener('click',function(e){ if(e.target===ov) closeEmail(); }); })();
+document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeEmail(); });
+</script>
 </body>
 </html>

@@ -15517,6 +15517,28 @@ app.get('/api/tracked-emails', (req, res) => {
   out.sort((a, b) => String(b.sentAt || '').localeCompare(String(a.sentAt || '')));
   res.json({ ok: true, emails: out.slice(0, 500), isAdmin: !!(req.user && isSuper(req.user)), canSeeAll: !restrict });
 });
+// One tracked email with its full body — for click-to-read on the Tracked Emails page. Mirrors
+// the list's access rule (a restricted user only sees their own sends).
+app.get('/api/tracked-email/:id', (req, res) => {
+  const restrict = restrictToOwn(req);
+  const uname = (req.user && req.user.username) || '';
+  const coName = {}; loadCompanies().forEach(c => { coName[c.id] = c.name || ''; });
+  const people = loadPeople();
+  for (const p of people) {
+    const log = Array.isArray(p.emailLog) ? p.emailLog : [];
+    const e = log.find(x => x && x.id === req.params.id);
+    if (!e) continue;
+    if (restrict && e.byUser && e.byUser !== uname) return res.status(403).json({ ok: false, error: 'Not yours.' });
+    return res.json({ ok: true, email: {
+      id: e.id || '', personId: p.id, personName: p.name || 'Contact',
+      company: (p.companyId && coName[p.companyId]) || p.company || '',
+      to: e.to || '', cc: e.cc || '', bcc: e.bcc || '', subject: e.subject || '',
+      body: e.body || '', sentAt: e.sentAt || '', by: e.by || '', via: e.via || '',
+      opens: e.opens || 0, firstOpen: e.firstOpen || '', lastOpen: e.lastOpen || '', tracked: !!e.openToken
+    } });
+  }
+  res.status(404).json({ ok: false, error: 'Email not found.' });
+});
 async function gmailSentImportForUser(username, days) {
   const msgs = await gmail.sentMessages(username, days, 250);
   const arr = loadPeople();
