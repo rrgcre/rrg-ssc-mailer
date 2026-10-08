@@ -140,7 +140,7 @@ td [contenteditable]:empty:before{content:attr(data-ph);color:#b6bfce;}
   </div>
 </div></div>
 
-<div id="rfMask" class="rrg-noprint" hidden style="position:fixed;inset:0;background:rgba(9,17,40,.5);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px">
+<div id="rfMask" class="rrg-noprint" hidden style="position:fixed;inset:0;background:rgba(9,17,40,.5);display:none;align-items:center;justify-content:center;z-index:1000;padding:20px">
   <div style="background:#fff;border-radius:14px;width:min(600px,100%);max-height:90vh;overflow:auto;box-shadow:0 30px 80px rgba(9,17,40,.4)">
     <div style="padding:16px 20px 4px;font-size:16px;font-weight:800;color:#16223c">✦ Refine the plan with AI</div>
     <div style="padding:0 20px;font-size:12.5px;color:#6b7488;margin-top:3px;line-height:1.5">Tell the assistant what to change — a new budget, a corridor to add, sites to drop, a corrected must-have — and it revises <b>this</b> plan, keeping everything else intact. Paste any supporting data below and it'll be worked in. Still anchored to the engagement's criteria.</div>
@@ -444,8 +444,8 @@ function _refreshAiBtns(canUndo){
   if(rb) rb.style.display=(MAPID&&_mapBuilt)?'':'none';
   if(ub && canUndo!==undefined) ub.style.display=canUndo?'':'none';
 }
-function refineOpen(){ var m=document.getElementById('rfMask'); if(m){ document.getElementById('rfMsg').textContent=''; m.hidden=false; var t=document.getElementById('rfInstr'); if(t) t.focus(); } }
-function refineClose(){ var m=document.getElementById('rfMask'); if(m) m.hidden=true; }
+function refineOpen(){ var m=document.getElementById('rfMask'); if(m){ document.getElementById('rfMsg').textContent=''; m.hidden=false; m.style.display='flex'; var t=document.getElementById('rfInstr'); if(t) t.focus(); } }
+function refineClose(){ var m=document.getElementById('rfMask'); if(m){ m.hidden=true; m.style.display='none'; } }
 function refineRun(){
   var instr=(document.getElementById('rfInstr')||{}).value||'', data=(document.getElementById('rfData')||{}).value||'';
   var msg=document.getElementById('rfMsg'), go=document.getElementById('rfGo');
