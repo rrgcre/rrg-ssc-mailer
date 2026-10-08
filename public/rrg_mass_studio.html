@@ -385,26 +385,33 @@ function starterHtml(){
 function loadCampaigns(){
   if(!CFG.storage){ $('tabCamps').innerHTML='<div class="note warn">Connect Postgres to manage campaigns.</div>'; return; }
   if(EDIT){ renderEditor(); return; }
-  if(CAMPVIEW==null) CAMPVIEW='active';
-  var arch = CAMPVIEW==='archived' ? '1':'0';
-  api('GET','/api/mail/campaigns?archived='+arch+'&days=0').then(function(r){
-    var rows=(r&&r.campaigns)||[];
-    var h='<div id="upcomingWrap"></div>'
-      +'<div class="card" style="padding:0;overflow:visible">'
-      +'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line);">'
-      +'<div class="tabs" style="border:none;margin:0;gap:2px;">'
-      +'<button data-cv="active" class="'+(CAMPVIEW==='active'?'on':'')+'" style="padding:6px 12px;">Campaigns <span id="campCnt" style="color:var(--soft);font-weight:600;"></span></button>'
-      +'<button data-cv="archived" class="'+(CAMPVIEW==='archived'?'on':'')+'" style="padding:6px 12px;">Archived</button>'
-      +'</div>'
+  if(['created','scheduled','sent','archived'].indexOf(CAMPVIEW)<0) CAMPVIEW='scheduled';
+  Promise.all([
+    api('GET','/api/mail/campaigns?archived=0&days=0'),
+    api('GET','/api/mail/campaigns?archived=1&days=0'),
+    api('GET','/api/mail/schedule-events')
+  ]).then(function(res){
+    var active=(res[0]&&res[0].campaigns)||[], archivedRows=(res[1]&&res[1].campaigns)||[];
+    _UPCOMING=(res[2]&&res[2].events)||[];
+    var created=active.filter(function(c){ return c.status==='draft'; });
+    var sent=active.filter(function(c){ return c.status==='sent'||c.status==='sending'||Number(c.sent||0)>0||Number(c.runs||0)>0; });
+    var counts={ created:created.length, scheduled:_UPCOMING.length, sent:sent.length, archived:archivedRows.length };
+    var tabBtn=function(v,label){ return '<button data-cv="'+v+'" class="'+(CAMPVIEW===v?'on':'')+'" style="padding:6px 13px;">'+label+' <span style="color:var(--soft);font-weight:600;">'+(counts[v]||0)+'</span></button>'; };
+    var h='<div class="card" style="padding:0;overflow:visible">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding:12px 18px;border-bottom:1px solid var(--line);">'
+      +'<div class="tabs" style="border:none;margin:0;gap:2px;">'+tabBtn('created','Created')+tabBtn('scheduled','Scheduled')+tabBtn('sent','Sent')+tabBtn('archived','Archived')+'</div>'
       +'<button class="btn primary" id="newCamp">+ New campaign</button>'
       +'</div>'
       +'<div id="campBody" style="padding:6px 8px 14px;"></div>'
       +'</div>';
     $('tabCamps').innerHTML=h;
     wireCampHead();
+    if(CAMPVIEW==='scheduled'){ renderScheduledTab(); return; }
+    var rows = CAMPVIEW==='created'?created : (CAMPVIEW==='sent'?sent : archivedRows);
+    var emptyMsg = CAMPVIEW==='created' ? 'No drafts. Click <b>+ New campaign</b> to start — a draft stays here until you schedule or send it.' : (CAMPVIEW==='sent' ? 'Nothing sent yet.' : 'No archived campaigns.');
     var cfg={
-      mount:'#campBody', data:rows, key:'mm_campaigns', countEl:'#campCnt',
-      empty:'<div class="pgs" style="padding:24px 12px;">'+(CAMPVIEW==='archived'?'No archived campaigns.':'No campaigns yet. Click <b>+ New campaign</b> to start.')+'</div>',
+      mount:'#campBody', data:rows, key:'mm_campaigns',
+      empty:'<div class="pgs" style="padding:24px 12px;">'+emptyMsg+'</div>',
       rowId:function(c){ return String(c.id); }, defaultSort:12, defaultDir:-1,
       columns:[
         { label:'Campaign / Subject', sort:function(a,b){ return RRGList.cmp((a.name||'').toLowerCase(),(b.name||'').toLowerCase()); }, cell:campNameCell },
@@ -424,7 +431,6 @@ function loadCampaigns(){
       ]
     };
     RRGList.create(cfg);
-    loadUpcoming();
     var body=$('campBody');
     if(body){ body.addEventListener('click',function(e){
       var t=e.target.closest?e.target.closest('[data-open],[data-prev],[data-exp],[data-arch],[data-sched],[data-hist],[data-del]'):null; if(!t) return;
@@ -439,7 +445,9 @@ function loadCampaigns(){
   });
 }
 // ===== Upcoming / Scheduled blasts — a powerful at-a-glance view of every pending send =====
-var _UPCOMING=[];
+// Scales to hundreds: summary always reflects the full set; the list is searchable, type- and
+// range-filtered, and grouped by day with collapse/expand so a big queue stays scannable.
+var _UPCOMING=[], _UPF={q:'',kind:'all',days:7}, _UPCOLL={};
 function relTime(iso){
   var d=new Date(iso).getTime(); if(isNaN(d)) return '';
   var diff=d-Date.now(), past=diff<0; diff=Math.abs(diff);
@@ -455,84 +463,108 @@ function relTime(iso){
 }
 function _upDay(iso){ try{ var x=new Date(iso); return x.toLocaleDateString([], {weekday:'short',month:'short',day:'numeric'}); }catch(e){ return ''; } }
 function _upTime(iso){ try{ var x=new Date(iso); return x.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}); }catch(e){ return ''; } }
-function loadUpcoming(){
-  var wrap=$('upcomingWrap'); if(!wrap) return;
-  api('GET','/api/mail/schedule-events').then(function(r){
-    _UPCOMING=(r&&r.events)||[]; renderUpcoming();
-  }).catch(function(){ /* leave silent */ });
+function tsOf(e){ var t=new Date(e.run_at).getTime(); return isNaN(t)?0:t; }
+function tsCmp(a,b){ return tsOf(a)-tsOf(b); }
+function schedDate(iso){ try{ var x=new Date(iso); return x.toLocaleDateString([], {weekday:'short',month:'short',day:'numeric',year:'2-digit'}); }catch(e){ return ''; } }
+function _upFiltered(){
+  var q=(_UPF.q||'').toLowerCase().trim();
+  var lim=_UPF.days>0?(Date.now()+_UPF.days*86400000):Infinity;
+  return (_UPCOMING||[]).filter(function(e){
+    if(isFinite(lim) && tsOf(e)>lim) return false;
+    if(_UPF.kind==='broker' && e.kind!=='broker-blast') return false;
+    if(_UPF.kind==='campaign' && e.kind==='broker-blast') return false;
+    if(q){ var hay=((e.name||'')+' '+(e.subject||'')+' '+(e.audience||'')).toLowerCase(); if(hay.indexOf(q)<0) return false; }
+    return true;
+  });
 }
-function renderUpcoming(){
-  var wrap=$('upcomingWrap'); if(!wrap) return;
-  var ev=_UPCOMING||[];
-  var head='<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line)">'
-    +'<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><b style="color:var(--navy);font-size:15px">⏰ Upcoming blasts</b>'
-    +'<span style="color:var(--soft);font-size:12.5px">'+(ev.length?('<b style="color:var(--navy)">'+ev.length+'</b> scheduled send'+(ev.length===1?'':'s')+' · next <b style="color:var(--navy)">'+esc(_upDay(ev[0].run_at))+' '+esc(_upTime(ev[0].run_at))+'</b> ('+esc(relTime(ev[0].run_at))+')'):'nothing scheduled right now')+'</span></div>'
-    +'<div style="display:flex;gap:8px"><button class="btn" type="button" id="upCal">📅 Calendar</button><button class="btn" type="button" id="upRefresh">↻ Refresh</button></div></div>';
-  var bodyH;
-  if(!ev.length){
-    bodyH='<div style="padding:22px 18px;color:var(--soft);font-size:13px;line-height:1.6">No blasts are scheduled. Schedule a campaign (open one → <b>Schedule</b>) or a broker requirement from a tenant engagement, and every pending send shows up here — soonest first — with its audience, recipients and timing, ready to reschedule or cancel in one click.</div>';
-  } else {
-    bodyH='<div style="padding:12px 12px 6px">'+ev.map(function(e,i){ return upcomingRow(e,i); }).join('')+'</div>';
-  }
-  wrap.innerHTML='<div class="card" style="padding:0;overflow:visible;margin-bottom:16px;border-color:#dbe4f3">'+head+bodyH+'</div>';
+// The Scheduled tab: a sortable table of every pending send with date & time as fields.
+function renderScheduledTab(){
+  var body=$('campBody'); if(!body) return;
+  var all=_UPCOMING||[], now=Date.now();
+  var wk=all.filter(function(e){ return tsOf(e)<=now+7*864e5; }).length;
+  var mo=all.filter(function(e){ return tsOf(e)<=now+30*864e5; }).length;
+  var nextS=all.length?('next <b style="color:var(--navy)">'+esc(schedDate(all[0].run_at))+' '+esc(_upTime(all[0].run_at))+'</b> ('+esc(relTime(all[0].run_at))+')'):'nothing scheduled right now';
+  function seg(id,val,cur,label){ var on=String(cur)===String(val); return '<button type="button" data-'+id+'="'+val+'" style="padding:5px 11px;border:1px solid var(--line);background:'+(on?'var(--navy)':'#fff')+';color:'+(on?'#fff':'var(--navy)')+';border-radius:999px;font:inherit;font-size:12px;font-weight:600;cursor:pointer">'+label+'</button>'; }
+  var summary='<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding:4px 8px 10px">'
+    +'<div style="color:var(--soft);font-size:12.5px">'+(all.length?('<b style="color:var(--navy)">'+num(all.length)+'</b> scheduled send'+(all.length===1?'':'s')+' · '+nextS+' · <b style="color:var(--navy)">'+num(wk)+'</b> this week · <b style="color:var(--navy)">'+num(mo)+'</b> this month'):'Nothing scheduled right now — schedule a campaign (open one → Schedule) or a broker requirement from a tenant engagement.')+'</div>'
+    +'<button class="btn" type="button" id="upCal">📅 Calendar</button></div>';
+  var controls='<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:0 8px 12px">'
+    +'<input id="upQ" value="'+esc(_UPF.q||'')+'" placeholder="Search campaign or subject…" style="font:inherit;font-size:12.5px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;min-width:200px;flex:1;max-width:300px">'
+    +'<div style="display:flex;gap:5px">'+seg('upkind','all',_UPF.kind,'All')+seg('upkind','broker',_UPF.kind,'Broker')+seg('upkind','campaign',_UPF.kind,'Campaigns')+'</div>'
+    +'<div style="display:flex;gap:5px;align-items:center"><span style="color:var(--soft);font-size:11.5px;margin-right:2px">Range</span>'+seg('updays','7',_UPF.days,'7 days')+seg('updays','30',_UPF.days,'30 days')+seg('updays','0',_UPF.days,'All')+'</div>'
+    +'</div>';
+  body.innerHTML=summary+controls+'<div id="schedBody"></div>';
   var cal=$('upCal'); if(cal) cal.onclick=function(){ try{ openIcsFeed(); }catch(e){} };
-  var rf=$('upRefresh'); if(rf) rf.onclick=function(){ loadUpcoming(); };
-  wireUpcoming();
+  var q=$('upQ'); if(q){ q.oninput=function(){ _UPF.q=q.value; renderSchedList(); }; }
+  body.querySelectorAll('[data-upkind]').forEach(function(b){ b.onclick=function(){ _UPF.kind=b.getAttribute('data-upkind'); renderScheduledTab(); }; });
+  body.querySelectorAll('[data-updays]').forEach(function(b){ b.onclick=function(){ _UPF.days=parseInt(b.getAttribute('data-updays'),10)||0; renderScheduledTab(); }; });
+  renderSchedList();
 }
-function upcomingRow(e,i){
-  var soon=i===0;
-  var accent=soon?'var(--accent)':'#e3e9f3';
-  var badges='';
-  if(e.kind==='broker-blast') badges+=' <span class="pill" style="background:#f3eaf9;color:#8a4a9c;vertical-align:middle">Broker blast</span>';
-  if(e.manual) badges+=' <span class="pill" style="background:#fff3e0;color:#9a6a1a;vertical-align:middle" title="Deliberate send — weekend/holiday blackout lifted">Deliberate</span>';
-  var est=(e.est==null)?'':('~'+num(e.est)+' recipient'+(e.est===1?'':'s'));
-  var slot=(e.slot||slotOf(e.run_at)||'').toUpperCase();
-  var meta=[esc(e.audience||'All active'), est, slot?('<span style="color:var(--muted)">'+slot+'</span>'):''].filter(Boolean).join(' &middot; ');
-  return '<div class="upc-row" data-sid="'+esc(e.id)+'" style="display:flex;gap:14px;align-items:center;padding:12px 10px 12px 14px;border:1px solid var(--line);border-left:4px solid '+accent+';border-radius:12px;background:'+(soon?'#f7faff':'#fff')+';margin:0 2px 8px">'
-    +'<div style="min-width:118px;text-align:center;flex:none">'
-      +'<div style="font-weight:800;color:var(--navy);font-size:13px;line-height:1.2">'+esc(_upDay(e.run_at))+'</div>'
-      +'<div style="font-size:13px;color:var(--navy);font-variant-numeric:tabular-nums">'+esc(_upTime(e.run_at))+'</div>'
-      +'<div style="font-size:11px;color:'+(soon?'var(--accent)':'var(--blue)')+';font-weight:800;margin-top:2px">'+esc(relTime(e.run_at))+'</div>'
-    +'</div>'
-    +'<div style="flex:1;min-width:0">'
-      +'<div style="font-weight:700;color:var(--navy)">'+esc(e.name||'(untitled)')+badges+'</div>'
-      +(e.subject?('<div style="color:var(--muted);font-size:12px;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:420px">'+esc(e.subject)+'</div>'):'')
-      +'<div style="font-size:11.5px;color:var(--soft);margin-top:4px">'+meta+'</div>'
-      +'<div class="upc-resched" hidden style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input type="datetime-local" class="upc-when" style="font:inherit;font-size:12.5px;padding:6px 8px;border:1px solid var(--line);border-radius:8px"><button class="btn primary upc-save" type="button" style="padding:6px 12px">Save</button><button class="btn upc-cancelresched" type="button" style="padding:6px 12px">Cancel</button><span class="upc-msg" style="font-size:11.5px;color:var(--red)"></span></div>'
-    +'</div>'
-    +'<div style="display:flex;gap:12px;align-items:center;white-space:nowrap;flex:none">'
-      +'<span data-upopen="'+esc(e.campaign_id)+'" style="color:var(--blue);cursor:pointer;font-weight:600;font-size:12.5px">Open</span>'
-      +'<span data-upresched="'+esc(e.id)+'" style="color:var(--blue);cursor:pointer;font-size:12.5px">Reschedule</span>'
-      +'<span data-upcancel="'+esc(e.id)+'" data-nm="'+esc(e.name||'this blast')+'" style="color:#b23a2c;cursor:pointer;font-size:12.5px">Cancel</span>'
-    +'</div></div>';
+function renderSchedList(){
+  var el=$('schedBody'); if(!el) return;
+  var ev=_upFiltered();
+  if(!ev.length){ el.innerHTML='<div class="pgs" style="padding:22px 10px;color:var(--soft)">No scheduled sends'+((_UPF.q||_UPF.kind!=='all'||_UPF.days>0)?' match these filters':'')+'.'+(_UPF.days>0?' Try a wider range.':'')+'</div>'; return; }
+  RRGList.create({
+    mount:'#schedBody', data:ev, key:'mm_sched', rowId:function(e){ return String(e.id); }, defaultSort:0, defaultDir:1,
+    columns:[
+      { label:'Date', sort:tsCmp, cell:function(e){ return '<span style="font-weight:600;color:var(--navy);white-space:nowrap">'+esc(schedDate(e.run_at))+'</span>'; } },
+      { label:'Time', sort:tsCmp, cell:function(e){ var slot=(e.slot||slotOf(e.run_at)||'').toUpperCase(); return '<span style="font-variant-numeric:tabular-nums;white-space:nowrap">'+esc(_upTime(e.run_at))+'</span>'+(slot?(' <span style="color:var(--muted);font-size:11px">'+slot+'</span>'):''); } },
+      { label:'When', sort:tsCmp, cell:function(e){ return '<span style="color:var(--blue);font-weight:700;font-size:12px;white-space:nowrap">'+esc(relTime(e.run_at))+'</span>'; } },
+      { label:'Campaign / Subject', sort:function(a,b){ return RRGList.cmp((a.name||'').toLowerCase(),(b.name||'').toLowerCase()); }, cell:schedNameCell },
+      { label:'Audience', sort:function(a,b){ return RRGList.cmp(a.audience||'',b.audience||''); }, cell:function(e){ return '<span style="font-size:12.5px">'+esc(e.audience||'All active')+'</span>'; } },
+      { label:'Recipients', align:'right', sort:function(a,b){ return (a.est||0)-(b.est||0); }, cell:function(e){ return (e.est==null)?'<span style="color:var(--muted)">—</span>':('<span style="font-variant-numeric:tabular-nums">'+num(e.est)+'</span>'); } },
+      { label:'Type', sort:function(a,b){ return RRGList.cmp(a.kind,b.kind); }, cell:schedTypeCell },
+      { label:'Actions', align:'right', sortable:false, cell:schedActionsCell }
+    ]
+  });
+  var sb=$('schedBody');
+  if(sb){ sb.onclick=function(e){
+    var t=e.target.closest?e.target.closest('[data-upopen],[data-upresched],[data-upcancel]'):null; if(!t) return;
+    if(t.hasAttribute('data-upopen')) openCampaign(t.getAttribute('data-upopen'));
+    else if(t.hasAttribute('data-upcancel')) schedCancel(t.getAttribute('data-upcancel'), t.getAttribute('data-nm'));
+    else if(t.hasAttribute('data-upresched')) upReschedOpen(t.getAttribute('data-upresched'), t.getAttribute('data-iso'), t.getAttribute('data-nm'));
+  }; }
 }
-function wireUpcoming(){
-  var wrap=$('upcomingWrap'); if(!wrap) return;
-  wrap.querySelectorAll('[data-upopen]').forEach(function(b){ b.onclick=function(){ openCampaign(b.getAttribute('data-upopen')); }; });
-  wrap.querySelectorAll('[data-upcancel]').forEach(function(b){ b.onclick=function(){
-    var sid=b.getAttribute('data-upcancel'), nm=b.getAttribute('data-nm')||'this blast';
-    if(!window.confirm('Cancel the scheduled send for “'+nm+'”? It will not go out at the scheduled time.')) return;
-    api('POST','/api/mail/schedules/'+sid+'/cancel',{}).then(function(r){ if(r&&r.ok===false){ _cmToast((r&&r.error)||'Could not cancel.',true); return; } _cmToast('Scheduled send canceled.'); loadUpcoming(); loadStats(); api('GET','/api/mail/campaigns?archived=0&days=0'); }).catch(function(){ _cmToast('Could not reach the server.',true); });
-  }; });
-  wrap.querySelectorAll('[data-upresched]').forEach(function(b){ b.onclick=function(){
-    var row=b.closest('.upc-row'); if(!row) return;
-    var box=row.querySelector('.upc-resched'); if(!box) return;
-    var showing=!box.hidden;
-    wrap.querySelectorAll('.upc-resched').forEach(function(x){ x.hidden=true; });
-    if(showing) return;
-    var inp=box.querySelector('.upc-when');
-    if(inp){ var d=new Date(Date.now()+15*60000); d.setSeconds(0,0); var p=function(x){return String(x).padStart(2,'0');}; inp.min=d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes()); inp.value=''; }
-    box.hidden=false; if(inp) inp.focus();
-    var save=box.querySelector('.upc-save'), cancel=box.querySelector('.upc-cancelresched'), msg=box.querySelector('.upc-msg');
-    var sid=b.getAttribute('data-upresched');
-    if(cancel) cancel.onclick=function(){ box.hidden=true; };
-    if(save) save.onclick=function(){
-      var v=inp?inp.value:''; if(!v){ if(msg) msg.textContent='Pick a date and time.'; return; }
-      var when=new Date(v).getTime(); if(!isFinite(when) || when<Date.now()+60000){ if(msg) msg.textContent='Pick a time at least a minute out.'; return; }
-      if(msg){ msg.style.color='var(--soft)'; msg.textContent='Saving…'; }
-      api('POST','/api/mail/schedules/'+sid+'/reschedule',{run_at:new Date(when).toISOString()}).then(function(r){ if(!r||!r.ok){ if(msg){ msg.style.color='var(--red)'; msg.textContent=(r&&r.error)||'Could not reschedule.'; } return; } _cmToast('Rescheduled.'); loadUpcoming(); }).catch(function(){ if(msg){ msg.style.color='var(--red)'; msg.textContent='Server error.'; } });
-    };
-  }; });
+function schedNameCell(e){
+  return '<div style="font-weight:700;color:var(--navy)">'+esc(e.name||'(untitled)')+'</div>'
+    +(e.subject?('<div style="color:var(--muted);font-size:12px;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:300px">'+esc(e.subject)+'</div>'):'');
+}
+function schedTypeCell(e){
+  var b = (e.kind==='broker-blast')
+    ? '<span class="pill" style="background:#f3eaf9;color:#8a4a9c">Broker blast</span>'
+    : '<span class="pill" style="background:#eef3fb;color:#2c5c8f">Campaign</span>';
+  if(e.manual) b+=' <span class="pill" style="background:#fff3e0;color:#9a6a1a" title="Deliberate send — weekend/holiday blackout lifted">Deliberate</span>';
+  return b;
+}
+function schedActionsCell(e){
+  return '<span data-upopen="'+esc(e.campaign_id)+'" style="color:var(--blue);cursor:pointer;font-weight:600">Open</span>'
+    +' <span data-upresched="'+esc(e.id)+'" data-iso="'+esc(e.run_at)+'" data-nm="'+esc(e.name||'this blast')+'" style="color:var(--blue);cursor:pointer">Reschedule</span>'
+    +' <span data-upcancel="'+esc(e.id)+'" data-nm="'+esc(e.name||'this blast')+'" style="color:#b23a2c;cursor:pointer">Cancel</span>';
+}
+function schedCancel(sid,nm){
+  if(!window.confirm('Cancel the scheduled send for “'+(nm||'this blast')+'”? It will not go out at the scheduled time.')) return;
+  api('POST','/api/mail/schedules/'+sid+'/cancel',{}).then(function(r){ if(r&&r.ok===false){ _cmToast((r&&r.error)||'Could not cancel.',true); return; } _cmToast('Scheduled send canceled.'); loadStats(); loadCampaigns(); }).catch(function(){ _cmToast('Could not reach the server.',true); });
+}
+function upReschedOpen(sid, iso, nm){
+  var p=function(x){return String(x).padStart(2,'0');};
+  var mnD=new Date(Date.now()+15*60000); mnD.setSeconds(0,0);
+  var mn=mnD.getFullYear()+'-'+p(mnD.getMonth()+1)+'-'+p(mnD.getDate())+'T'+p(mnD.getHours())+':'+p(mnD.getMinutes());
+  var cur=new Date(iso), val=isNaN(cur.getTime())?'':(cur.getFullYear()+'-'+p(cur.getMonth()+1)+'-'+p(cur.getDate())+'T'+p(cur.getHours())+':'+p(cur.getMinutes()));
+  var ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(9,17,40,.45);display:flex;align-items:center;justify-content:center;z-index:4000;padding:20px';
+  ov.innerHTML='<div style="background:#fff;border-radius:14px;width:min(420px,100%);box-shadow:0 24px 70px rgba(0,0,0,.3)"><div style="padding:16px 20px 2px;font-weight:800;color:var(--navy);font-size:15px">Reschedule send</div><div style="padding:0 20px;color:var(--soft);font-size:12.5px">'+esc(nm||'')+'</div><div style="padding:14px 20px"><label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#6b7488;margin-bottom:5px">New date &amp; time</label><input type="datetime-local" id="upRsWhen" min="'+mn+'" value="'+val+'" style="width:100%;box-sizing:border-box;font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line);border-radius:9px"></div><div style="padding:6px 20px 18px;display:flex;gap:10px;align-items:center"><span id="upRsMsg" style="font-size:12px;color:var(--red);flex:1"></span><button class="btn" id="upRsCancel" type="button">Cancel</button><button class="btn primary" id="upRsSave" type="button">Save</button></div></div>';
+  document.body.appendChild(ov);
+  var close=function(){ try{ document.body.removeChild(ov); }catch(e){} };
+  ov.addEventListener('click',function(e){ if(e.target===ov) close(); });
+  $('upRsCancel').onclick=close;
+  $('upRsSave').onclick=function(){
+    var v=$('upRsWhen').value, msg=$('upRsMsg');
+    if(!v){ msg.textContent='Pick a date and time.'; return; }
+    var when=new Date(v).getTime();
+    if(!isFinite(when)||when<Date.now()+60000){ msg.textContent='Pick a time at least a minute out.'; return; }
+    msg.style.color='var(--soft)'; msg.textContent='Saving…';
+    api('POST','/api/mail/schedules/'+sid+'/reschedule',{run_at:new Date(when).toISOString()}).then(function(r){ if(!r||!r.ok){ msg.style.color='var(--red)'; msg.textContent=(r&&r.error)||'Could not reschedule.'; return; } close(); _cmToast('Rescheduled.'); loadCampaigns(); }).catch(function(){ msg.style.color='var(--red)'; msg.textContent='Server error.'; });
+  };
 }
 function campNameCell(c){
   return '<div style="font-weight:700;color:var(--navy);">'+esc(c.name||'(untitled)')
