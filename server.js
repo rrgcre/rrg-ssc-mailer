@@ -196,6 +196,38 @@ function clearLeasePromptCustom() { try { fs.unlinkSync(LEASE_PROMPT_FILE); } ca
 const MAPS_FILE = path.join(BOV_DATA_DIR, 'maps.json');
 function loadMaps() { try { return rj(MAPS_FILE); } catch (e) { return []; } }
 function saveMaps(a) { return writeJsonGuarded(MAPS_FILE, a, 'saveMaps'); }
+// ---- Market Attack Plan version history ----
+// Kept in its own store ({ [mapId]: [version…] }) so the plan record — and every list that reads maps.json — stays small.
+// A version is a full snapshot of the plan's state AFTER an event (AI draft, AI revision, manual edits, restore).
+// Manual autosaves by the same rep within MAP_VER_COALESCE_MS fold into one "Manual edits" version.
+const MAP_VERSIONS_FILE = path.join(BOV_DATA_DIR, 'map_versions.json');
+const MAP_VER_MAX = 40, MAP_VER_COALESCE_MS = 15 * 60 * 1000;
+function loadMapVersions() { try { const o = rj(MAP_VERSIONS_FILE); return (o && typeof o === 'object' && !Array.isArray(o)) ? o : {}; } catch (e) { return {}; } }
+function saveMapVersions(o) { return writeJsonGuarded(MAP_VERSIONS_FILE, o, 'saveMapVersions'); }
+function _mapStateJson(st) { try { return JSON.stringify(st || null); } catch (e) { return ''; } }
+function _mapStateHasContent(st) { if (!st || typeof st !== 'object') return false; const v = st.vals || {}; const r = st.rows || {}; return Object.keys(v).some(k => k !== 'preparedBy' && v[k]) || ['sub', 'tgt', 'tl'].some(k => Array.isArray(r[k]) && r[k].some(x => x && Object.keys(x).some(f => x[f]))); }
+// kind: 'ai-draft' | 'ai-refine' | 'manual' | 'restore' | 'undo' | 'original'. prevState seeds an "Original" version the first time.
+function recordMapVersion(m, req, kind, label, prevState) {
+  try {
+    if (!m || !m.id || !m.state) return null;
+    const all = loadMapVersions(); const list = Array.isArray(all[m.id]) ? all[m.id] : [];
+    const now = new Date(); const byUser = (req && req.user && req.user.username) || ''; const by = (req && req.user && req.user.name) || byUser;
+    const cur = _mapStateJson(m.state);
+    if (!list.length && prevState && _mapStateHasContent(prevState) && _mapStateJson(prevState) !== cur) {
+      list.push({ id: 'mv_' + now.getTime().toString(36) + 'o', at: m.updatedAt || m.builtAt || m.createdAt || now.toISOString(), by: m.by || '', byUser: m.byUser || '', kind: 'original', label: 'Before version history', state: JSON.parse(_mapStateJson(prevState)) });
+    }
+    const last = list[list.length - 1];
+    if (last && _mapStateJson(last.state) === cur && kind === 'manual') return last;   // nothing actually changed
+    if (kind === 'manual' && last && last.kind === 'manual' && last.byUser === byUser && (now.getTime() - Date.parse(last.at)) < MAP_VER_COALESCE_MS) {
+      last.state = JSON.parse(cur); last.at = now.toISOString();
+    } else {
+      list.push({ id: 'mv_' + now.getTime().toString(36) + Math.random().toString(36).slice(2, 6), at: now.toISOString(), by: by, byUser: byUser, kind: kind, label: String(label || '').slice(0, 300), state: JSON.parse(cur) });
+    }
+    all[m.id] = list.slice(-MAP_VER_MAX);
+    saveMapVersions(all);
+    return all[m.id][all[m.id].length - 1];
+  } catch (e) { console.error('recordMapVersion error:', e && e.message); return null; }
+}
 function newMapId() { return 'map_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 const MAP_PROMPT_FILE = path.join(BOV_DATA_DIR, 'map_prompt.txt');
 function loadMapPromptCustom() { try { const t = fs.readFileSync(MAP_PROMPT_FILE, 'utf8'); return (t && t.trim()) ? t : ''; } catch (e) { return ''; } }
@@ -3528,6 +3560,7 @@ app.delete('/api/map/:id', (req, res) => {
   if (!m) return res.status(404).json({ ok: false, error: 'Not found.' });
   if (!ownsMap(req, m)) return res.status(403).json({ ok: false, error: 'Not yours.' });
   saveMaps(arr.filter(x => x.id !== m.id));
+  try { const mv = loadMapVersions(); if (mv[m.id]) { delete mv[m.id]; saveMapVersions(mv); } } catch (e) {}
   res.json({ ok: true });
 });
 // Advance a Marketing Pack to a Market Attack Plan — ensure one exists, return its id.
@@ -3548,10 +3581,12 @@ app.post('/api/map-save', express.json({ limit: '4mb' }), (req, res) => {
   if (!m) return res.status(404).json({ ok: false, error: 'Market Attack Plan not found.' });
   if (!ownsMap(req, m)) return res.status(403).json({ ok: false, error: 'Not yours.' });
   if (b.state && typeof b.state === 'object') {
+    const _prev = m.state;
     m.state = b.state;
     if (m.state.header && m.state.header.business) m.business = String(m.state.header.business).slice(0, 120);
     if (m.pending) { m.pending = false; if (!m.builtAt) m.builtAt = new Date().toISOString(); }
     m.updatedAt = new Date().toISOString(); saveMaps(arr);
+    if (_mapStateHasContent(m.state) || _mapStateHasContent(_prev)) recordMapVersion(m, req, 'manual', 'Manual edits', _prev);
   }
   res.json({ ok: true });
 });
@@ -3573,8 +3608,10 @@ app.post('/api/generate-map', express.json({ limit: '8mb' }), async (req, res) =
     });
     out.state = out.state || {};
     m.business = String(out.business || m.business || 'Market Attack Plan').slice(0, 120);
+    const _prevG = m.state;
     m.state = out.state; m.aiGenerated = true; m.pending = false; m.builtAt = new Date().toISOString();
     saveMaps(arr);
+    recordMapVersion(m, req, 'ai-draft', 'AI built the plan', _prevG);
     res.json({ ok: true, id: m.id });
   } catch (e) {
     console.error('generate-map error:', e);
@@ -3606,11 +3643,13 @@ app.post('/api/map/:id/generate-tenant', express.json(), async (req, res) => {
     // Keep a preparedBy the rep already set in the plan.
     const prevPB = (m.state && m.state.vals && m.state.vals.preparedBy) || '';
     if (prevPB) out.state.vals.preparedBy = prevPB;
+    const _prevT = m.state;
     m.state = out.state; m.aiGenerated = true; m.pending = false;
     if (!m.builtAt) m.builtAt = new Date().toISOString();
     m.updatedAt = new Date().toISOString();
     if (out.business) m.business = String(out.business).slice(0, 120);
     saveMaps(arr);
+    recordMapVersion(m, req, 'ai-draft', 'AI drafted from the assignment', _prevT);
     res.json({ ok: true, state: out.state });
   } catch (e) {
     console.error('generate-tenant-map error:', e);
@@ -3647,11 +3686,13 @@ app.post('/api/map/:id/refine-tenant', express.json({ limit: '2mb' }), async (re
     out.state = out.state || {}; out.state.vals = out.state.vals || {};
     // Snapshot for one-level undo (keep the pre-revision plan + a timestamp).
     m.refineUndo = { state: m.state, at: new Date().toISOString(), instruction: instruction.slice(0, 400) };
+    const _prevR = m.state;
     m.state = out.state; m.aiGenerated = true; m.pending = false;
     if (!m.builtAt) m.builtAt = new Date().toISOString();
     m.updatedAt = new Date().toISOString();
     if (out.business) m.business = String(out.business).slice(0, 120);
     saveMaps(arr);
+    recordMapVersion(m, req, 'ai-refine', 'AI revision: ' + instruction.slice(0, 240), _prevR);
     res.json({ ok: true, state: out.state, canUndo: true, note: out.note || '' });
   } catch (e) {
     console.error('refine-tenant-map error:', e);
@@ -3671,9 +3712,48 @@ app.post('/api/map/:id/undo-refine', express.json(), (req, res) => {
     m.updatedAt = new Date().toISOString();
     if (m.state && m.state.vals && m.state.vals.client) m.business = String(m.state.vals.client).slice(0, 120);
     saveMaps(arr);
+    recordMapVersion(m, req, 'undo', 'Undid the last AI revision');
     res.json({ ok: true, state: m.state, canUndo: false });
   } catch (e) {
     console.error('undo-refine error:', e);
+    res.status(500).json({ ok: false, error: String((e && e.message) || e) });
+  }
+});
+// Version history — list (no state payloads), and restore any version as the current plan (restoring is itself a version).
+app.get('/api/map/:id/versions', (req, res) => {
+  const m = loadMaps().find(x => x.id === req.params.id);
+  if (!m) return res.status(404).json({ ok: false, error: 'Market Attack Plan not found.' });
+  if (!ownsMap(req, m)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const list = loadMapVersions()[m.id] || []; const cur = _mapStateJson(m.state); let curSeen = false;
+  res.json({ ok: true, versions: list.slice().reverse().map(v => {
+    const isCur = !curSeen && _mapStateJson(v.state) === cur; if (isCur) curSeen = true;
+    const r = (v.state && v.state.rows) || {};
+    return { id: v.id, at: v.at, by: v.by || v.byUser || '', kind: v.kind, label: v.label || '', current: isCur,
+      counts: { submarkets: (r.sub || []).filter(x => x && Object.keys(x).some(f => x[f])).length, sites: (r.tgt || []).filter(x => x && Object.keys(x).some(f => x[f])).length, milestones: (r.tl || []).filter(x => x && Object.keys(x).some(f => x[f])).length } };
+  }) });
+});
+app.post('/api/map/:id/versions/:vid/restore', express.json(), (req, res) => {
+  try {
+    const arr = loadMaps();
+    const m = arr.find(x => x.id === req.params.id);
+    if (!m) return res.status(404).json({ ok: false, error: 'Market Attack Plan not found.' });
+    if (!ownsMap(req, m)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+    const list = loadMapVersions()[m.id] || [];
+    const v = list.find(x => x.id === req.params.vid);
+    if (!v || !v.state) return res.status(404).json({ ok: false, error: 'That version no longer exists.' });
+    // Make sure the plan as it stands right now is in history before we replace it.
+    const last = list[list.length - 1];
+    if (m.state && (!last || _mapStateJson(last.state) !== _mapStateJson(m.state))) recordMapVersion(m, req, 'manual', 'Before restore');
+    m.state = JSON.parse(_mapStateJson(v.state));
+    m.refineUndo = null;
+    m.updatedAt = new Date().toISOString();
+    if (m.state && m.state.vals && m.state.vals.client) m.business = String(m.state.vals.client).slice(0, 120);
+    saveMaps(arr);
+    const when = (function () { try { return new Date(v.at).toLocaleString('en-US', { timeZone: 'America/Chicago', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); } catch (e) { return v.at; } })();
+    recordMapVersion(m, req, 'restore', 'Restored version from ' + when + (v.label ? (' (' + v.label.slice(0, 120) + ')') : ''));
+    res.json({ ok: true, state: m.state, canUndo: false });
+  } catch (e) {
+    console.error('map restore error:', e);
     res.status(500).json({ ok: false, error: String((e && e.message) || e) });
   }
 });
@@ -7491,6 +7571,14 @@ app.post('/api/website/subscribe', express.json({ limit: '32kb' }), (req, res) =
     saveSubscribers(all);
     unsubToken = cs.unsubToken;
   } catch (e) { console.error('subscriber sync error:', e && e.message); }
+  // The Email Studio (Postgres) is the list every campaign and broker blast actually sends to — put the signup there too.
+  // The legacy record above is kept only as the token behind the welcome email's preferences/unsubscribe link.
+  try {
+    if (massmail.dbReady()) {
+      massmail.importSubscribers([{ email: subKey(email), first_name: first || '', last_name: last || '', type: (audience === 'broker') ? 'Broker' : 'Restaurant', metros: markets, mode: markets.length ? 'metros' : 'all' }], 'Website')
+        .catch(function (e) { console.error('studio signup sync error:', e && e.message); });
+    }
+  } catch (e) { console.error('studio signup sync error:', e && e.message); }
   // Best-effort branded welcome email — never blocks or fails the signup.
   try {
     const we = (loadWebsite().welcomeEmail) || {};
@@ -11461,7 +11549,7 @@ function mergeTokens(t, p, user) {
 }
 function smsNotifyEnabled() { const s = loadSettings(); return s.smsNotifyEnabled === true; }
 let _unsubCache = null, _unsubCacheAt = 0;
-function unsubscribedEmailSet() { const now = Date.now(); if (_unsubCache && (now - _unsubCacheAt) < 60000) return _unsubCache; const set = new Set(); try { loadSubscribers().forEach(s => { if (s.status === 'unsubscribed') set.add(String(s.email || '').trim().toLowerCase()); }); } catch (e) {} _unsubCache = set; _unsubCacheAt = now; return set; }
+function unsubscribedEmailSet() { const now = Date.now(); if (_unsubCache && (now - _unsubCacheAt) < 60000) return _unsubCache; const set = new Set(); try { loadSubscribers().forEach(s => { if (s.status === 'unsubscribed') set.add(String(s.email || '').trim().toLowerCase()); }); } catch (e) {} try { (_legacyRetireInfo().retirements || []).forEach(r => (r.records || []).forEach(s => { if (s && s.status === 'unsubscribed') set.add(String(s.email || '').trim().toLowerCase()); })); } catch (e) {} _unsubCache = set; _unsubCacheAt = now; return set; }
 function isEmailUnsubscribed(email) { email = String(email || '').trim().toLowerCase(); return !!email && unsubscribedEmailSet().has(email); }
 function automationTallies() { const t = {}; try { loadPeople().forEach(p => { (p.enrollments || []).forEach(en => { if (!en || !en.automationId) return; const k = en.automationId; t[k] = t[k] || { enrolled: 0, active: 0, done: 0 }; t[k].enrolled++; if (en.status === 'active') t[k].active++; else if (en.status === 'done') t[k].done++; }); }); } catch (e) {} return t; }
 function personMatchesSeg(p, aud) { aud = aud || {}; const types = (aud.types || []).filter(Boolean).map(x => String(x).toLowerCase()); const tags = (aud.tags || []).filter(Boolean).map(x => String(x).toLowerCase()); const srcs = (aud.leadSources || []).filter(Boolean).map(x => String(x).toLowerCase()); if (types.length) { const pt = personTypesOf(p).map(x => String(x).toLowerCase()); if (!types.some(t => pt.indexOf(t) >= 0)) return false; } if (tags.length) { const pg = personTags(p).map(x => String(x).toLowerCase()); if (!tags.some(t => pg.indexOf(t) >= 0)) return false; } if (srcs.length) { if (srcs.indexOf(String(p.leadSource || '').toLowerCase()) < 0) return false; } return true; }
@@ -12378,6 +12466,36 @@ app.post('/api/subscribers/migrate-to-studio', requireAdmin, async (req, res) =>
     res.json({ ok: true, total: rows.length, added: r.added, updated: r.updated, skipped: r.skipped, suppressed: r.suppressed });
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
+// ---- Retire the legacy flat-file subscriber store ----
+// The Email Studio is the real list. This shows what's left in the old store and retires it: optional copy into the
+// Studio (opt-outs carried as suppressions), a full backup to subscribers.retired.json, then the old store is emptied.
+const LEGACY_SUBS_BACKUP = path.join(BOV_DATA_DIR, 'subscribers.retired.json');
+function _legacyRetireInfo() { try { const b = rj(LEGACY_SUBS_BACKUP); return (b && Array.isArray(b.retirements)) ? b : { retirements: [] }; } catch (e) { return { retirements: [] }; } }
+app.get('/api/admin/legacy-subscribers', requireAdmin, (req, res) => {
+  const a = loadSubscribers(); const info = _legacyRetireInfo(); const last = info.retirements[info.retirements.length - 1] || null;
+  res.json({ ok: true, count: a.length, studio: massmail.dbReady(),
+    records: a.slice(0, 50).map(s => ({ email: s.email || '', name: subDisplayName(s), type: s.type || '', status: s.status || 'subscribed', source: s.source || '', createdAt: s.createdAt || '' })),
+    lastRetired: last ? { at: last.at, by: last.by, count: (last.records || []).length, migrated: !!last.migrated } : null });
+});
+app.post('/api/admin/legacy-subscribers/retire', requireAdmin, express.json(), async (req, res) => {
+  try {
+    const b = req.body || {}; const legacy = loadSubscribers();
+    if (!legacy.length) return res.json({ ok: true, retired: 0, migrated: null });
+    let mig = null;
+    if (b.migrate) {
+      if (!massmail.dbReady()) return res.status(400).json({ ok: false, error: 'Email Studio storage isn’t configured, so the records can’t be copied over. Untick “copy” to retire without copying.' });
+      const rows = legacy.map(s => ({ email: s.email, first_name: s.firstName || '', last_name: s.lastName || '', status: s.status || 'subscribed', type: s.type || '', metros: Array.isArray(s.metros) ? s.metros : [], mode: s.mode || '' }));
+      mig = await massmail.importSubscribers(rows, 'legacy');
+    }
+    const info = _legacyRetireInfo();
+    info.retirements.push({ at: new Date().toISOString(), by: (req.user && (req.user.username || req.user.name)) || '', migrated: !!b.migrate, records: legacy });
+    if (!writeJsonGuarded(LEGACY_SUBS_BACKUP, info, 'legacySubsBackup')) return res.status(500).json({ ok: false, error: 'Couldn’t write the backup, so nothing was retired.' });
+    if (!saveSubscribers([])) return res.status(500).json({ ok: false, error: 'Backup written, but the old store couldn’t be cleared.' });
+    try { _unsubCache = null; } catch (e) {}
+    try { logSysEvent(req, 'Subscribers', 'Legacy subscriber store retired — ' + legacy.length + ' record(s)' + (b.migrate ? ' copied to the Email Studio and' : '') + ' backed up', { count: legacy.length }); } catch (e) {}
+    res.json({ ok: true, retired: legacy.length, migrated: mig ? { added: mig.added, updated: mig.updated, suppressed: mig.suppressed } : null });
+  } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
 // Single subscriber for the detail page. Defined after the named GETs above so 'meta'/'contact-count' aren't captured as an :id.
 app.get('/api/subscribers/:id', (req, res) => { const s = loadSubscribers().find(x => x.id === req.params.id); if (!s) return res.status(404).json({ ok: false, error: 'Subscriber not found.' }); res.json({ ok: true, subscriber: subscriberBrief(s), metros: effMarkets(), types: SUBSCRIBER_TYPES, allTags: subTags() }); });
 
@@ -12502,6 +12620,13 @@ app.post('/api/u/:token', express.json(), (req, res) => {
   if (b.optOut) { s.status = 'unsubscribed'; s.unsubscribedAt = new Date().toISOString(); }
   else { s.status = 'subscribed'; s.mode = (b.mode === 'metros') ? 'metros' : 'all'; s.metros = Array.isArray(b.metros) ? b.metros.filter(Boolean).map(x => String(x).slice(0, 80)).slice(0, 60) : []; }
   s.updatedAt = new Date().toISOString(); saveSubscribers(arr);
+  // Mirror to the Email Studio so an unsubscribe here stops every Studio campaign / broker blast too.
+  try {
+    if (massmail.dbReady() && s.email) {
+      if (b.optOut) massmail.suppressEmail(s.email, 'unsubscribed', 'website preferences page').catch(function () {});
+      else massmail.importSubscribers([{ email: s.email, type: s.type || '', metros: s.metros || [], mode: s.mode || 'all' }], 'Website').catch(function () {});
+    }
+  } catch (e) {}
   res.json({ ok: true });
 });
 

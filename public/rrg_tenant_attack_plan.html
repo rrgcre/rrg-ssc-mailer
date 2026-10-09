@@ -134,12 +134,20 @@ td [contenteditable]:empty:before{content:attr(data-ph);color:#b6bfce;}
     <button class="btn" id="draftBtn" style="display:none" onclick="draftFromAssignment()" title="Draft this plan from the engagement's site-selection criteria">✦ Draft from assignment</button>
     <button class="btn" id="refineBtn" style="display:none;border-color:#d9c6e6;color:#7a3f93" onclick="refineOpen()" title="Give the assistant more data or direction and get a revised plan">✦ Refine with AI</button>
     <button class="btn" id="undoRefineBtn" style="display:none" onclick="undoRefine()" title="Undo the last AI revision">↩ Undo AI change</button>
+    <button class="btn" id="historyBtn" style="display:none" onclick="historyOpen()" title="Every saved version of this plan — restore any of them">🕘 History</button>
     <button class="btn" onclick="loadSample()">Load sample</button>
     <button class="btn" onclick="clearAll()">Clear</button>
     <button class="btn print" onclick="growAll();window.print()">Print</button>
   </div>
 </div></div>
 
+<div id="vhMask" class="rrg-noprint" hidden style="position:fixed;inset:0;background:rgba(9,17,40,.5);display:none;align-items:center;justify-content:center;z-index:1000;padding:20px">
+  <div style="background:#fff;border-radius:14px;width:min(640px,100%);max-height:90vh;display:flex;flex-direction:column;box-shadow:0 30px 80px rgba(9,17,40,.4)">
+    <div style="padding:16px 20px 4px;display:flex;align-items:center"><span style="font-size:16px;font-weight:800;color:#16223c">🕘 Version history</span><button class="btn" style="margin-left:auto;padding:4px 10px" onclick="historyClose()" aria-label="Close">×</button></div>
+    <div style="padding:0 20px;font-size:12.5px;color:#6b7488;margin-top:3px;line-height:1.5">Every AI draft, AI revision, restore and stretch of manual edits is kept. Restoring a version makes it the current plan — and the plan you had is kept here too, so nothing is lost.</div>
+    <div id="vhList" style="padding:12px 20px 18px;overflow:auto;flex:1"></div>
+  </div>
+</div>
 <div id="rfMask" class="rrg-noprint" hidden style="position:fixed;inset:0;background:rgba(9,17,40,.5);display:none;align-items:center;justify-content:center;z-index:1000;padding:20px">
   <div style="background:#fff;border-radius:14px;width:min(600px,100%);max-height:90vh;overflow:auto;box-shadow:0 30px 80px rgba(9,17,40,.4)">
     <div style="padding:16px 20px 4px;font-size:16px;font-weight:800;color:#16223c">✦ Refine the plan with AI</div>
@@ -443,6 +451,41 @@ function _refreshAiBtns(canUndo){
   var rb=document.getElementById('refineBtn'), ub=document.getElementById('undoRefineBtn');
   if(rb) rb.style.display=(MAPID&&_mapBuilt)?'':'none';
   if(ub && canUndo!==undefined) ub.style.display=canUndo?'':'none';
+  var hb=document.getElementById('historyBtn'); if(hb) hb.style.display=MAPID?'':'none';
+}
+// ---- Version history ----
+var _VH_KIND={'ai-draft':['✦ AI draft','#7a3f93','#f5eefa'],'ai-refine':['✦ AI revision','#7a3f93','#f5eefa'],'manual':['✎ Manual edits','#274b7a','#e7edf7'],'restore':['↺ Restored','#40614a','#eef2ee'],'undo':['↩ Undo','#5a6378','#f1f2f6'],'original':['● Original','#5a6378','#f1f2f6']};
+function _vhEsc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+function _vhWhen(iso){ var d=new Date(iso); if(isNaN(d)) return ''; return d.toLocaleString([], {month:'short',day:'numeric',year:(d.getFullYear()!==new Date().getFullYear()?'numeric':undefined),hour:'numeric',minute:'2-digit'}); }
+function historyClose(){ var m=document.getElementById('vhMask'); if(m){ m.hidden=true; m.style.display='none'; } }
+function historyOpen(){
+  var m=document.getElementById('vhMask'), host=document.getElementById('vhList'); if(!m||!host||!MAPID) return;
+  m.hidden=false; m.style.display='flex'; host.innerHTML='<div style="color:#6b7488;font-size:13px">Loading…</div>';
+  // Flush a pending autosave first so the newest edits are in the list.
+  var go=function(){ fetch('/api/map/'+encodeURIComponent(MAPID)+'/versions',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ host.innerHTML='<div style="color:#DA2B1F;font-size:13px">'+_vhEsc((j&&j.error)||'Could not load history.')+'</div>'; return; }
+    var v=j.versions||[]; if(!v.length){ host.innerHTML='<div style="color:#6b7488;font-size:13px;padding:8px 0">No versions yet. History starts with the next AI draft, AI revision or edit.</div>'; return; }
+    host.innerHTML=v.map(function(x){ var k=_VH_KIND[x.kind]||[x.kind,'#5a6378','#f1f2f6'], c=x.counts||{};
+      return '<div style="display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-top:1px solid #eef1f6">'
+        +'<div style="flex:1;min-width:0"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;color:'+k[1]+';background:'+k[2]+'">'+_vhEsc(k[0])+'</span><b style="font-size:13px;color:#16223c">'+_vhEsc(_vhWhen(x.at))+'</b>'+(x.by?('<span style="font-size:12px;color:#6b7488">· '+_vhEsc(x.by)+'</span>'):'')+(x.current?'<span style="font-size:11px;font-weight:700;color:#1f8a5b">· Current</span>':'')+'</div>'
+        +(x.label&&x.kind!=='manual'?('<div style="font-size:12.5px;color:#33405a;margin-top:4px;line-height:1.45;word-break:break-word">'+_vhEsc(x.label)+'</div>'):'')
+        +'<div style="font-size:11.5px;color:#8a93a8;margin-top:3px">'+(c.submarkets||0)+' submarkets · '+(c.sites||0)+' target sites · '+(c.milestones||0)+' milestones</div></div>'
+        +(x.current?'':'<button class="btn" data-vid="'+_vhEsc(x.id)+'" style="flex:none;padding:5px 11px;font-size:12px">Restore</button>')+'</div>';
+    }).join('');
+    host.querySelectorAll('[data-vid]').forEach(function(b){ b.onclick=function(){ historyRestore(b.getAttribute('data-vid'), b); }; });
+  }).catch(function(){ host.innerHTML='<div style="color:#DA2B1F;font-size:13px">Could not reach the server.</div>'; }); };
+  if(_st){ clearTimeout(_st); _st=null; fetch('/api/map-save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:MAPID,state:state})}).then(go,go); } else go();
+}
+function historyRestore(vid, btn){
+  var ask=window.rrgConfirm?rrgConfirm('Restore this version as the current plan? The plan you have now stays in history.',{title:'Restore version?',okText:'Restore',danger:false}):Promise.resolve(window.confirm('Restore this version as the current plan?'));
+  ask.then(function(ok){ if(!ok) return; if(btn){ btn.disabled=true; btn.textContent='Restoring…'; }
+    if(_st){ clearTimeout(_st); _st=null; }   // never let a stale autosave overwrite the restore
+    fetch('/api/map/'+encodeURIComponent(MAPID)+'/versions/'+encodeURIComponent(vid)+'/restore',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'})
+      .then(function(r){return r.json();}).then(function(j){
+        if(j&&j.ok&&j.state){ _applyMapState(j.state); _refreshAiBtns(false); historyClose(); if(window.rrgToast) rrgToast('Version restored. The previous plan is still in History.'); }
+        else { if(btn){ btn.disabled=false; btn.textContent='Restore'; } if(window.rrgToast) rrgToast((j&&j.error)||'Could not restore.'); }
+      }).catch(function(){ if(btn){ btn.disabled=false; btn.textContent='Restore'; } if(window.rrgToast) rrgToast('Could not reach the server.'); });
+  });
 }
 function refineOpen(){ var m=document.getElementById('rfMask'); if(m){ document.getElementById('rfMsg').textContent=''; m.hidden=false; m.style.display='flex'; var t=document.getElementById('rfInstr'); if(t) t.focus(); } }
 function refineClose(){ var m=document.getElementById('rfMask'); if(m){ m.hidden=true; m.style.display='none'; } }
@@ -464,10 +507,11 @@ function refineRun(){
 }
 function undoRefine(){
   var ub=document.getElementById('undoRefineBtn'); if(ub){ ub.disabled=true; }
+  if(_st){ clearTimeout(_st); _st=null; }
   fetch('/api/map/'+encodeURIComponent(MAPID)+'/undo-refine',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'})
     .then(function(r){return r.json();}).then(function(j){
       if(ub){ ub.disabled=false; }
-      if(j&&j.ok&&j.state){ _applyMapState(j.state); _refreshAiBtns(false); if(window.rrgToast) rrgToast('Reverted the last AI change.'); }
+      if(j&&j.ok&&j.state){ _applyMapState(j.state); _refreshAiBtns(false); if(window.rrgToast) rrgToast('Reverted the last AI change. Every earlier version is in History.'); }
       else { if(window.rrgToast){ rrgToast((j&&j.error)||'Nothing to undo.'); } }
     }).catch(function(){ if(ub){ ub.disabled=false; } if(window.rrgToast) rrgToast('Could not reach the server.'); });
 }

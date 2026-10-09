@@ -577,6 +577,7 @@ function mount(app, deps) {
   BASE = (deps.appBaseUrl && deps.appBaseUrl()) || '';
   const express = require('express');
   initDb();
+  const _isAdm = deps.isAdmin || function (u) { return !!(u && (u.role === 'admin' || u.role === 'creator')); };
   function guard(req, res, next) { if (!DB_READY) return res.status(503).json({ ok: false, error: 'Mass email is not configured — set DATABASE_URL.' }); next(); }
 
   app.get('/api/mail/config', requireAdmin, (req, res) => { res.json({ ok: true, storage: DB_READY, sending: sesConfigured(), from: process.env.SES_FROM || process.env.MAIL_FROM || '', fromName: process.env.MAIL_FROM_NAME || '', postal: process.env.MAIL_POSTAL_ADDRESS || '', rate: RATE, cadence: mailCadence() }); });
@@ -733,6 +734,22 @@ function mount(app, deps) {
     const rows = (await q(`SELECT id, run_at, status, slot, COALESCE(manual,false) AS manual FROM mm_schedules WHERE tenant=$1 AND campaign_id=$2 AND status='pending' ORDER BY run_at ASC`, [TENANT, id])).rows;
     res.json({ ok: true, added: added, manual: manual, skippedWeekend: skipWeekend, skippedHoliday: skipHoliday, skippedSlot: skipSlot, skippedPast: skipPast, schedules: rows });
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
+  // Audience label + live recipient estimate for one campaign row (needs seg_type, seg_mode, seg_metros, list_id, list_name).
+  async function _campaignAudience(r) {
+    let est = null;
+    try {
+      if (r.seg_type || r.seg_mode === 'area') {
+        let metros = r.seg_metros; if (typeof metros === 'string') { try { metros = JSON.parse(metros); } catch (e) { metros = []; } }
+        est = await countSegment({ type: r.seg_type || '', mode: r.seg_mode || '', metros: Array.isArray(metros) ? metros : [] });
+      } else if (r.list_id) {
+        est = (await q(`SELECT count(*)::int n FROM mm_subscribers s WHERE s.tenant=$1 AND s.status='active' AND s.id IN (SELECT subscriber_id FROM mm_list_members WHERE list_id=$2) AND NOT EXISTS(SELECT 1 FROM mm_suppressions x WHERE x.tenant=$1 AND x.email=s.email)`, [TENANT, r.list_id])).rows[0].n;
+      } else {
+        est = (await q(`SELECT count(*)::int n FROM mm_subscribers s WHERE s.tenant=$1 AND s.status='active' AND NOT EXISTS(SELECT 1 FROM mm_suppressions x WHERE x.tenant=$1 AND x.email=s.email)`, [TENANT])).rows[0].n;
+      }
+    } catch (e) { est = null; }
+    const audience = r.seg_type ? (r.seg_type + (r.seg_mode === 'area' ? ' · area-matched' : '')) : (r.list_name ? ('List: ' + r.list_name) : 'All active');
+    return { audience, est };
+  }
   app.get('/api/mail/schedule-events', requireAdmin, guard, async (req, res) => { try {
     const rows = (await q(`SELECT s.id, s.campaign_id, s.run_at, COALESCE(s.slot,'') AS slot, COALESCE(s.manual,false) AS manual,
         c.name, c.subject, c.status AS cstatus, COALESCE(c.src,'') AS src, COALESCE(c.src_key,'') AS src_key,
@@ -741,23 +758,12 @@ function mount(app, deps) {
       FROM mm_schedules s JOIN mm_campaigns c ON c.id=s.campaign_id
       WHERE s.tenant=$1 AND s.status='pending' ORDER BY s.run_at ASC LIMIT 500`, [TENANT])).rows;
     // Estimate the live recipient count per distinct campaign (cached within this request).
-    const estCache = {};
+    const audCache = {};
     for (const r of rows) {
       const cid = r.campaign_id;
-      if (estCache[cid] === undefined) {
-        try {
-          if (r.seg_type || r.seg_mode === 'area') {
-            let metros = r.seg_metros; if (typeof metros === 'string') { try { metros = JSON.parse(metros); } catch (e) { metros = []; } }
-            estCache[cid] = await countSegment({ type: r.seg_type || '', mode: r.seg_mode || '', metros: Array.isArray(metros) ? metros : [] });
-          } else if (r.list_id) {
-            estCache[cid] = (await q(`SELECT count(*)::int n FROM mm_subscribers s WHERE s.tenant=$1 AND s.status='active' AND s.id IN (SELECT subscriber_id FROM mm_list_members WHERE list_id=$2) AND NOT EXISTS(SELECT 1 FROM mm_suppressions x WHERE x.tenant=$1 AND x.email=s.email)`, [TENANT, r.list_id])).rows[0].n;
-          } else {
-            estCache[cid] = (await q(`SELECT count(*)::int n FROM mm_subscribers s WHERE s.tenant=$1 AND s.status='active' AND NOT EXISTS(SELECT 1 FROM mm_suppressions x WHERE x.tenant=$1 AND x.email=s.email)`, [TENANT])).rows[0].n;
-          }
-        } catch (e) { estCache[cid] = null; }
-      }
-      r.est = estCache[cid];
-      r.audience = r.seg_type ? (r.seg_type + (r.seg_mode === 'area' ? ' · area-matched' : '')) : (r.list_name ? ('List: ' + r.list_name) : 'All active');
+      if (audCache[cid] === undefined) audCache[cid] = await _campaignAudience(r);
+      r.est = audCache[cid].est;
+      r.audience = audCache[cid].audience;
       r.kind = (r.src === 'broker-blast') ? 'broker-blast' : 'campaign';
       delete r.seg_metros;
     }
@@ -833,12 +839,43 @@ function mount(app, deps) {
   // All email as calendar events — scheduled sends (future) + finished campaigns (past). Rendered on rrg_calendar.
   // Any signed-in teammate can see scheduled & sent blasts on the shared calendar (read-only; global auth still applies).
   app.get('/api/mail/calendar-events', guard, async (req, res) => { try {
-    const sched = (await q(`SELECT s.id, s.campaign_id, s.run_at, c.name FROM mm_schedules s JOIN mm_campaigns c ON c.id=s.campaign_id WHERE s.tenant=$1 AND s.status='pending' ORDER BY s.run_at ASC LIMIT 500`, [TENANT])).rows;
-    const sent = (await q(`SELECT c.id, c.name, c.subject, c.finished_at, c.started_at, c.sent, c.opens, c.clicks FROM mm_campaigns c WHERE c.tenant=$1 AND c.finished_at IS NOT NULL ORDER BY c.finished_at DESC LIMIT 500`, [TENANT])).rows;
-    const events = [];
-    sched.forEach(r => events.push({ kind: 'scheduled', id: 's' + r.id, campaignId: r.campaign_id, title: r.name || 'Campaign', at: r.run_at }));
-    sent.forEach(r => events.push({ kind: 'sent', id: 'c' + r.id, campaignId: r.id, title: r.name || 'Campaign', subject: r.subject || '', at: r.finished_at || r.started_at, sent: r.sent || 0, opens: r.opens || 0, clicks: r.clicks || 0 }));
-    res.json({ ok: true, events });
+    const sched = (await q(`SELECT s.id, s.campaign_id, s.run_at, c.name, c.subject, COALESCE(c.src,'') AS src,
+        COALESCE(c.seg_type,'') AS seg_type, COALESCE(c.seg_mode,'') AS seg_mode, c.seg_metros, c.list_id,
+        (SELECT l.name FROM mm_lists l WHERE l.id=c.list_id) AS list_name
+      FROM mm_schedules s JOIN mm_campaigns c ON c.id=s.campaign_id WHERE s.tenant=$1 AND s.status='pending' ORDER BY s.run_at ASC LIMIT 500`, [TENANT])).rows;
+    const sent = (await q(`SELECT c.id, c.name, c.subject, c.finished_at, c.started_at, c.sent, c.opens, c.clicks, COALESCE(c.src,'') AS src,
+        COALESCE(c.seg_type,'') AS seg_type, COALESCE(c.seg_mode,'') AS seg_mode, (SELECT l.name FROM mm_lists l WHERE l.id=c.list_id) AS list_name
+      FROM mm_campaigns c WHERE c.tenant=$1 AND c.finished_at IS NOT NULL ORDER BY c.finished_at DESC LIMIT 500`, [TENANT])).rows;
+    const events = []; const audCache = {};
+    for (const r of sched) {
+      if (audCache[r.campaign_id] === undefined) audCache[r.campaign_id] = await _campaignAudience(r);
+      const a = audCache[r.campaign_id];
+      events.push({ kind: 'scheduled', id: 's' + r.id, campaignId: r.campaign_id, title: r.name || 'Campaign', subject: r.subject || '', at: r.run_at, audience: a.audience, est: a.est, type: r.src === 'broker-blast' ? 'broker-blast' : 'campaign' });
+    }
+    sent.forEach(r => events.push({ kind: 'sent', id: 'c' + r.id, campaignId: r.id, title: r.name || 'Campaign', subject: r.subject || '', at: r.finished_at || r.started_at, sent: r.sent || 0, opens: r.opens || 0, clicks: r.clicks || 0,
+      audience: r.seg_type ? (r.seg_type + (r.seg_mode === 'area' ? ' · area-matched' : '')) : (r.list_name ? ('List: ' + r.list_name) : 'All active'), type: r.src === 'broker-blast' ? 'broker-blast' : 'campaign' }));
+    res.json({ ok: true, events, isAdmin: _isAdm(req.user) });
+  } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
+  // Read-only detail for one blast — powers the calendar popover for every signed-in teammate (no edit, no recipient list).
+  app.get('/api/mail/calendar-event/:cid', guard, async (req, res) => { try {
+    const cid = Number(req.params.cid); if (!cid) return res.status(400).json({ ok: false, error: 'Bad id.' });
+    const c = (await q(`SELECT c.id, c.name, c.subject, c.preheader, c.html, c.status, c.from_name, c.from_email, COALESCE(c.by_user,'') AS by_user,
+        c.created_at, c.started_at, c.finished_at, c.total, c.sent, c.failed, c.opens, c.clicks, c.bounces, c.unsubs, COALESCE(c.src,'') AS src,
+        COALESCE(c.seg_type,'') AS seg_type, COALESCE(c.seg_mode,'') AS seg_mode, c.seg_metros, c.list_id,
+        (SELECT l.name FROM mm_lists l WHERE l.id=c.list_id) AS list_name
+      FROM mm_campaigns c WHERE c.tenant=$1 AND c.id=$2`, [TENANT, cid])).rows[0];
+    if (!c) return res.status(404).json({ ok: false, error: 'Not found.' });
+    const nxt = (await q(`SELECT id, run_at FROM mm_schedules WHERE tenant=$1 AND campaign_id=$2 AND status='pending' ORDER BY run_at ASC LIMIT 1`, [TENANT, cid])).rows[0] || null;
+    const a = c.finished_at ? { audience: c.seg_type ? (c.seg_type + (c.seg_mode === 'area' ? ' · area-matched' : '')) : (c.list_name ? ('List: ' + c.list_name) : 'All active'), est: null } : await _campaignAudience(c);
+    let metros = c.seg_metros; if (typeof metros === 'string') { try { metros = JSON.parse(metros); } catch (e) { metros = []; } }
+    const text = htmlToText(c.html || '');
+    res.json({ ok: true, isAdmin: _isAdm(req.user), event: {
+      id: c.id, name: c.name || 'Campaign', subject: c.subject || '', preheader: c.preheader || '', status: c.status || '',
+      type: c.src === 'broker-blast' ? 'broker-blast' : 'campaign', byUser: c.by_user, fromName: c.from_name || '', fromEmail: c.from_email || '',
+      runAt: nxt ? nxt.run_at : null, finishedAt: c.finished_at, startedAt: c.started_at, createdAt: c.created_at,
+      audience: a.audience, est: a.est, metros: (c.seg_mode === 'area' && Array.isArray(metros)) ? metros : [],
+      stats: { total: c.total || 0, sent: c.sent || 0, failed: c.failed || 0, opens: c.opens || 0, clicks: c.clicks || 0, bounces: c.bounces || 0, unsubs: c.unsubs || 0 },
+      preview: text.length > 900 ? (text.slice(0, 900).replace(/\s+\S*$/, '') + '…') : text } });
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   // Standalone subscribe-able "Email Blasts" calendar (ICS). Public but token-gated (calendar apps can't sign in).
   app.get('/mail/calendar.ics', async (req, res) => { try {
@@ -1066,5 +1103,7 @@ async function cancelRequirement(id, srcKey) {
   return true;
 }
 
-module.exports = { mount, dbReady, sesConfigured, importSubscribers, parseCsv,
+// Opt an address out of every Studio send (used by the legacy website preference page so an unsubscribe there sticks here too).
+async function suppressEmail(email, reason, detail) { if (!DB_READY) return false; const e = _norm(email); if (!_validEmail(e)) return false; await addSuppression(e, reason || 'unsubscribed', detail || ''); return true; }
+module.exports = { mount, dbReady, sesConfigured, importSubscribers, parseCsv, suppressEmail,
   countSegment, createRequirementCampaign, sendCampaign, scheduleCampaignAt, scheduledRequirementsFor, cancelRequirement };

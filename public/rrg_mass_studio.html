@@ -140,7 +140,7 @@ iframe.prev{width:100%;height:420px;border:1px solid var(--line);border-radius:6
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function $(id){return document.getElementById(id);}
 function api(m,u,b){return fetch(u,{method:m,headers:b?{'Content-Type':'application/json'}:undefined,credentials:'same-origin',body:b?JSON.stringify(b):undefined}).then(function(r){return r.json();});}
-var CFG={}, EDIT=null, POLL=null, CAMPVIEW=null, CAMPQ="", CAMPDAYS=0, LISTS=[];
+var CFG={}, EDIT=null, POLL=null, CAMPVIEW=(function(){ var h=String(location.hash||'').replace('#','').toLowerCase(); return ['all','drafts','scheduled','sent','archived'].indexOf(h)>=0?h:null; })(), CAMPQ="", CAMPDAYS=0, LISTS=[];
 var TAB='subs';
 
 function boot(){
@@ -385,7 +385,7 @@ function starterHtml(){
 function loadCampaigns(){
   if(!CFG.storage){ $('tabCamps').innerHTML='<div class="note warn">Connect Postgres to manage campaigns.</div>'; return; }
   if(EDIT){ renderEditor(); return; }
-  if(['all','scheduled','sent','archived'].indexOf(CAMPVIEW)<0) CAMPVIEW='all';
+  if(['all','drafts','scheduled','sent','archived'].indexOf(CAMPVIEW)<0) CAMPVIEW='all';
   Promise.all([
     api('GET','/api/mail/campaigns?archived=0&days=0'),
     api('GET','/api/mail/campaigns?archived=1&days=0'),
@@ -394,11 +394,14 @@ function loadCampaigns(){
     var active=(res[0]&&res[0].campaigns)||[], archivedRows=(res[1]&&res[1].campaigns)||[];
     _UPCOMING=(res[2]&&res[2].events)||[];
     var sent=active.filter(function(c){ return c.status==='sent'||c.status==='sending'||Number(c.sent||0)>0||Number(c.runs||0)>0; });
-    var counts={ all:active.length, scheduled:_UPCOMING.length, sent:sent.length, archived:archivedRows.length };
+    // Drafts = never sent and nothing pending on the schedule.
+    var _schedIds={}; _UPCOMING.forEach(function(e){ _schedIds[String(e.campaign_id)]=1; });
+    var drafts=active.filter(function(c){ return sent.indexOf(c)<0 && c.status!=='scheduled' && !_schedIds[String(c.id)]; });
+    var counts={ all:active.length, drafts:drafts.length, scheduled:_UPCOMING.length, sent:sent.length, archived:archivedRows.length };
     var tabBtn=function(v,label){ return '<button data-cv="'+v+'" class="'+(CAMPVIEW===v?'on':'')+'" style="padding:6px 13px;">'+label+' <span style="color:var(--soft);font-weight:600;">'+(counts[v]||0)+'</span></button>'; };
     var h='<div class="card" style="padding:0;overflow:visible">'
       +'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding:12px 18px;border-bottom:1px solid var(--line);">'
-      +'<div class="tabs" style="border:none;margin:0;gap:2px;">'+tabBtn('all','All')+tabBtn('scheduled','Scheduled')+tabBtn('sent','Sent')+tabBtn('archived','Archived')+'</div>'
+      +'<div class="tabs" style="border:none;margin:0;gap:2px;">'+tabBtn('all','All')+tabBtn('drafts','Drafts')+tabBtn('scheduled','Scheduled')+tabBtn('sent','Sent')+tabBtn('archived','Archived')+'</div>'
       +'<button class="btn primary" id="newCamp">+ New campaign</button>'
       +'</div>'
       +'<div id="campBody" style="padding:6px 8px 14px;"></div>'
@@ -406,8 +409,8 @@ function loadCampaigns(){
     $('tabCamps').innerHTML=h;
     wireCampHead();
     if(CAMPVIEW==='scheduled'){ renderScheduledTab(); return; }
-    var rows = CAMPVIEW==='all'?active : (CAMPVIEW==='sent'?sent : archivedRows);
-    var emptyMsg = CAMPVIEW==='all' ? 'No campaigns yet. Click <b>+ New campaign</b> to start one.' : (CAMPVIEW==='sent' ? 'Nothing sent yet.' : 'No archived campaigns.');
+    var rows = CAMPVIEW==='all'?active : (CAMPVIEW==='drafts'?drafts : (CAMPVIEW==='sent'?sent : archivedRows));
+    var emptyMsg = CAMPVIEW==='all' ? 'No campaigns yet. Click <b>+ New campaign</b> to start one.' : (CAMPVIEW==='drafts' ? 'No drafts — every campaign has been sent or scheduled.' : (CAMPVIEW==='sent' ? 'Nothing sent yet.' : 'No archived campaigns.'));
     var cfg={
       mount:'#campBody', data:rows, key:'mm_campaigns',
       empty:'<div class="pgs" style="padding:24px 12px;">'+emptyMsg+'</div>',
@@ -598,7 +601,7 @@ function lastSent(c){ if(c.finished_at) return c.finished_at; if(Number(c.sent||
 function dateSent(c){ if(c.started_at) return c.started_at; if(Number(c.sent||0)>0 || c.status==='sent') return c.finished_at||''; return ''; }
 function metricInline(v,denom){ v=Number(v||0); var p=denom? (Math.round((v/denom)*1000)/10):0; return '<span style="font-variant-numeric:tabular-nums;"><b style="font-weight:600;">'+num(v)+'</b> <span style="color:var(--muted);font-size:11px;">'+p+'%</span></span>'; }
 function wireCampHead(){
-  bindAll('[data-cv]', function(el){ CAMPVIEW=el.getAttribute('data-cv'); loadCampaigns(); });
+  bindAll('[data-cv]', function(el){ CAMPVIEW=el.getAttribute('data-cv'); try{ history.replaceState(null,'',location.pathname+location.search+(CAMPVIEW==='all'?'':('#'+CAMPVIEW))); }catch(e){} loadCampaigns(); });
   var nc=$('newCamp'); if(nc) nc.onclick=function(){ EDIT={ from_name:CFG.fromName||'', from_email:CFG.from||'', reply_to:'', html:starterHtml() }; renderEditor(); };
 }
 function bindAll(sel, fn){ var n=$('tabCamps').querySelectorAll(sel); for(var i=0;i<n.length;i++){ (function(el){ el.onclick=function(){ fn(el); }; })(n[i]); } }
