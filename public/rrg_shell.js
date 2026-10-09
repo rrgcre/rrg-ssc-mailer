@@ -158,7 +158,7 @@
   try { (function(){ var _sym='$'; window.RRG_CCYSYM=_sym; window.rrgMoney=function(n){ n=Number(n); if(!isFinite(n)) n=0; return window.RRG_CCYSYM + n.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0}); }; fetch('/api/session',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(ss){ if(ss&&ss.currencySymbol){ window.RRG_CCYSYM=ss.currencySymbol; try{ document.querySelectorAll('.ccysym').forEach(function(el){ el.textContent=window.RRG_CCYSYM; }); }catch(e){} } }).catch(function(){}); })(); } catch(e){}
 
   var NAV = [
-    { color: '#8fa2c4', items: [
+    { title: 'My Work', color: '#8fa2c4', items: [
       { ic: '☀︎', label: 'Daily Brief', href: 'rrg_brief.html', ai: true },
       { ic: '✦', label: 'Review', href: 'rrg_inbox.html', ai: true },
       { ic: '✔', label: 'Tasks', href: 'rrg_tasks.html' },
@@ -269,6 +269,7 @@
     + '#rrgnav .grp{margin-top:6px;background:transparent!important;border:0!important;border-radius:0!important;padding:0!important;box-shadow:none!important;}'
     + '#rrgnav .lbl{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:rgba(255,255,255,.34);font-weight:700;padding:2px 10px 2px;display:flex;align-items:center;gap:6px;cursor:pointer;border-radius:7px;}'
     + '#rrgnav .lbl:hover{color:rgba(255,255,255,.6);background:rgba(255,255,255,.04);}'
+    + '#rrgnav .lbl.fixed{cursor:default;}#rrgnav .lbl.fixed:hover{color:rgba(255,255,255,.34);background:transparent;}'
     + '#rrgnav .lbl{background:transparent;border:0;box-shadow:none;}'
     + '#rrgnav a.it{background:transparent;box-shadow:none;}'
     + '#rrgnav .lbl .gcv{margin-left:auto;font-size:12px;color:rgba(255,255,255,.6);transition:transform .15s;}'
@@ -388,6 +389,8 @@
     var cls = (g.admin ? ' data-admingrp="1"' : '') + (_sp.length ? (' style="' + _sp.join(';') + '"') : '');
     navHtml += '<div class="grp"' + cls + '>';
     if (g.grp) navHtml += '<div class="lbl" data-grp="' + esc(g.grp) + '"><span>' + esc(g.grp) + '</span><span class="gcv">\u25be</span></div>';
+    // A fixed (non-collapsible) header — the daily-driver group stays open; no data-grp, so the roll-up code ignores it.
+    else if (g.title) navHtml += '<div class="lbl fixed"><span>' + esc(g.title) + '</span></div>';
     g.items.forEach(function (it) {
       var _na = it.need ? (' data-need="' + esc(it.need) + '" style="display:none"') : (it.admin ? ' data-adminit="1" style="display:none"' : '');
       var _ai = it.ai ? ' data-ai=""' : '';
