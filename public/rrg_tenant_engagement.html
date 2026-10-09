@@ -238,6 +238,15 @@ textarea{min-height:120px;resize:vertical;line-height:1.5;}
 .tmeta{font-size:12px;color:var(--muted);margin-top:5px;} .tnotes{font-size:12.5px;color:var(--ink);margin-top:8px;line-height:1.5;background:var(--wash);border:1px solid var(--line);border-radius:8px;padding:9px 12px;white-space:pre-wrap;word-break:break-word;}
 .tint{font-size:9.5px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;padding:3px 9px;border-radius:999px;border:1px solid;}
 .ti-hot{background:#fdeceb;color:var(--red);border-color:#f3cfc9;} .ti-warm{background:#fff4e6;color:#b9761a;border-color:#f0d7ad;} .ti-cool{background:#eef2fb;color:#23496f;border-color:#d3ddf3;} .ti-passed{background:#f2f4f8;color:#6b7488;border-color:#e0e5ee;}
+.tsum{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:10px 20px;border-bottom:1px solid var(--line);font-size:12px;color:var(--muted);background:#fafbfd;} .tsum b{color:var(--navy);}
+.tsort{display:inline-flex;gap:2px;} .tsort a{font-size:11.5px;font-weight:700;color:var(--muted);text-decoration:none;padding:3px 8px;border-radius:999px;} .tsort a.on{background:var(--navy);color:#fff;}
+.tprint{font-size:11.5px;font-weight:700;color:#23496f;text-decoration:none;} .tprint:hover{text-decoration:underline;}
+.treact{font-size:10px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;padding:3px 8px;border-radius:999px;border:1px solid;white-space:nowrap;}
+.tr-loved{background:#e6f5ec;color:#1f6b45;border-color:#bfe6d1;} .tr-liked{background:#eef4fb;color:#23496f;border-color:#d3ddf3;} .tr-maybe{background:#fff4e6;color:#9a6a12;border-color:#f0d7ad;} .tr-passed{background:#f3f4f7;color:#6b7488;border-color:#e0e3ea;}
+.tstars{letter-spacing:1px;font-size:12.5px;color:#d5d9e2;} .tstars .on{color:#e0a53a;} .tfacts{margin-left:6px;} .tfacts b{color:var(--navy);}
+.ttop{font-size:9.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#fff;background:#1f8a5b;border-radius:999px;padding:2px 7px;vertical-align:2px;margin-left:4px;}
+.tcard.tpassed .tparty{color:#8a93a8;} .tnl{display:block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#8a93a8;margin-bottom:3px;}
+.tpick{margin-bottom:10px;} .tpick input{width:100%;box-sizing:border-box;} .tgross{font-weight:800;color:var(--navy);font-size:14px;padding:8px 0;}
 .tedit,.tdel{background:#fff;border:1px solid var(--line);color:var(--navy);padding:6px 11px;font-size:11.5px;border-radius:8px;cursor:pointer;} .tdel{color:var(--red);border-color:#f0c9c6;}
 .ofgrid{display:grid;grid-template-columns:110px 1fr 1fr;gap:12px;} .tourgrid{grid-template-columns:1fr 1fr 1fr;} .off.wide{grid-column:1/-1;} .off label.fld{margin-top:0;}
 .off input,.off select,.off textarea{width:100%;border:1px solid #cfd6e2;border-radius:4px;padding:9px 11px;font:inherit;font-size:13px;} .off textarea{min-height:60px;}
@@ -533,7 +542,7 @@ function _tenantTool(name){
   function h(){ for(var i=0;i<arguments.length;i++){ if(n.indexOf(arguments[i])>=0) return true; } return false; }
   if(h('needs analysis','needs','site criteria','criteria')) return { href:'./ssc_form.html', open:'Open Site Criteria' };
   if(h('site search','site & concept','site and concept','concept fit','sourcing','shortlist')) return { href:'./rrg_site_fit.html', open:'Open Site & Concept Fit' };
-  if(h('tour')) return { href:'./rrg_tour_tracker.html', open:'Open Tour Tracker' };
+  if(h('tour')) return { href:'./rrg_tours.html'+((typeof KEY!=='undefined'&&KEY)?('?key='+encodeURIComponent(KEY)):''), open:'Open Tours' };
   if(h('loi','letter of intent','negotiat')) return { href:'./rrg_loi_builder.html', open:'Open LOI Builder' };
   return null;
 }
@@ -1840,58 +1849,107 @@ function wireOffers(){
 }
 /* ---------- Location Tours ---------- */
 function tourIntClass(i){ return 'ti-'+String(i||'').toLowerCase(); }
+// ===== Location Tours (tenant rep) — every space shown to our tenant, with their read. Server-stored on the engagement. =====
+var TOUR_REACTIONS=['Loved','Liked','Maybe','Passed'], TOUR_SPACE_TYPES=['End cap','Inline','Pad / Outparcel','Freestanding','Second-gen','Land','Other'];
+var TOURSORT='date', SPACESCACHE=null;
+function _tMoney(n){ return (n==null||n==='')?'':('$'+Number(n).toFixed(2).replace(/\.00$/,'')); }
+function _tGross(t){ var b=Number(t.baseRent)||0, n=Number(t.nnn)||0; return (b||n)?(b+n):null; }
+function _tStars(n){ n=Number(n)||0; var h=''; for(var i=1;i<=5;i++) h+='<span class="'+(i<=n?'on':'')+'">★</span>'; return '<span class="tstars" title="'+(n?n+' of 5':'Not rated')+'">'+h+'</span>'; }
+function _spaceTours(){ return (TOURS||[]).filter(function(t){ return t && (t.kind==='space' || (!t.party && (t.property||t.suite))); }); }
+function _tourTopPick(list){ var best=null; list.forEach(function(t){ if(t.reaction==='Passed') return; var sc=(Number(t.rating)||0)*10+({Loved:3,Liked:2,Maybe:1}[t.reaction]||0); if(sc>0&&(!best||sc>best.sc)) best={t:t,sc:sc}; }); return best?best.t:null; }
 function tourCardHTML(t){
-  var intr=t.interest?('<span class="tint '+tourIntClass(t.interest)+'">'+esc(t.interest)+'</span>'):'';
-  var meta=[t.date?('Toured '+fmt(t.date)):'', t.host?('Hosted by '+t.host):'', t.attendees?(t.attendees):''].filter(Boolean).map(esc).join(' · ');
-  var pl=personLine(t.personId); if(pl) meta=meta?(meta+' · '+pl):pl;
-  return '<div class="tcard" data-tid="'+esc(t.id)+'">'
-    +'<div class="thead"><div class="tparty">'+esc(t.party||'Prospective buyer')+'</div>'+intr
+  if(t.party && t.kind!=='space'){   // legacy buyer-style tour (kept readable, editable as notes)
+    return '<div class="tcard" data-tid="'+esc(t.id)+'"><div class="thead"><div class="tparty">'+esc(t.party)+'</div><span class="ospacer"></span><button class="tdel" data-tid="'+esc(t.id)+'">Delete</button></div>'
+      +'<div class="tmeta">'+esc([t.date?('Toured '+fmt(t.date)):'', t.interest||''].filter(Boolean).join(' · '))+'</div>'+(t.notes?('<div class="tnotes">'+esc(t.notes)+'</div>'):'')+'</div>';
+  }
+  var g=_tGross(t), top=(_tourTopPick(_spaceTours())===t);
+  var react=t.reaction?('<span class="treact tr-'+esc(String(t.reaction).toLowerCase())+'">'+esc(t.reaction)+'</span>'):'';
+  var name=[t.property, t.suite].filter(Boolean).join(' · ')||'Untitled space';
+  var facts=[t.spaceType||'', t.sf?(Number(t.sf).toLocaleString()+' SF'):'', (t.baseRent!=null||t.nnn!=null)?(_tMoney(t.baseRent||0)+' + '+_tMoney(t.nnn||0)+' NNN = <b>'+_tMoney(g)+'/SF gross</b>'):''].filter(Boolean).join(' · ');
+  var meta=[t.date?('Toured '+fmt(t.date)):'', t.host?('Shown by '+esc(t.host)):''].filter(Boolean).join(' · ');
+  return '<div class="tcard'+(t.reaction==='Passed'?' tpassed':'')+'" data-tid="'+esc(t.id)+'">'
+    +'<div class="thead"><div class="tparty">'+esc(name)+(top?' <span class="ttop">Top pick</span>':'')+'</div>'+react
       +'<span class="ospacer"></span><button class="tedit" data-tid="'+esc(t.id)+'">Edit</button><button class="tdel" data-tid="'+esc(t.id)+'">Delete</button></div>'
+    +'<div class="tmeta">'+_tStars(t.rating)+(facts?(' <span class="tfacts">'+facts+'</span>'):'')+'</div>'
     +(meta?('<div class="tmeta">'+meta+'</div>'):'')
-    +(t.notes?('<div class="tnotes">'+esc(t.notes)+'</div>'):'')
+    +(t.thoughts?('<div class="tnotes"><span class="tnl">Tenant’s thoughts</span>'+esc(t.thoughts)+'</div>'):'')
   +'</div>';
 }
 function toursCard(){
+  var list=_spaceTours(), other=(TOURS||[]).filter(function(t){ return list.indexOf(t)<0; });
   var body;
   if(!TOURS.length){
-    body='<div class="noev" style="padding:18px 20px">No tours logged yet. Record each buyer site visit — who came, when, who hosted, and their read — so you can see interest building across the marketing period.</div>';
+    body='<div class="noev" style="padding:18px 20px">No tours yet. Log every space you show the tenant — rents, their reaction and a 1–5 rating — and the front-runner rises to the top.</div>';
   } else {
-    var sorted=TOURS.slice().sort(function(a,b){ return String(b.date||'').localeCompare(String(a.date||'')); });
-    body='<div class="tlist">'+sorted.map(tourCardHTML).join('')+'</div>';
+    var sorted=list.slice().sort(TOURSORT==='rating'
+      ? function(a,b){ var d=(Number(b.rating)||0)-(Number(a.rating)||0); if(d) return d; return ({Loved:0,Liked:1,Maybe:2,Passed:3}[a.reaction]||4)-({Loved:0,Liked:1,Maybe:2,Passed:3}[b.reaction]||4); }
+      : function(a,b){ return String(b.date||'').localeCompare(String(a.date||'')); });
+    var liked=list.filter(function(t){ return t.reaction==='Loved'||t.reaction==='Liked'; }).length, top=_tourTopPick(list);
+    var sum='<div class="tsum"><span><b>'+list.length+'</b> shown</span><span><b>'+liked+'</b> liked or better</span>'+(top?('<span>Top pick: <b>'+esc([top.property,top.suite].filter(Boolean).join(' · ')||'—')+'</b></span>'):'')
+      +'<span class="ospacer"></span><span class="tsort"><a href="#" data-tsort="date" class="'+(TOURSORT==='date'?'on':'')+'">Newest</a><a href="#" data-tsort="rating" class="'+(TOURSORT==='rating'?'on':'')+'">Best rated</a></span>'
+      +'<a class="tprint" href="./rrg_tours.html?key='+encodeURIComponent(KEY)+'" title="Open the client tour summary (print / PDF)">Summary ↗</a></div>';
+    body=sum+'<div class="tlist">'+sorted.map(tourCardHTML).join('')+other.map(tourCardHTML).join('')+'</div>';
   }
-  var addbtn='<button class="railadd" id="addTourBtn" title="Log a tour">+</button>';
+  var addbtn='<button class="railadd" id="addTourBtn" title="Log a space you showed the tenant">+</button>';
   return '<div class="card"><div class="ch"><b>Location Tours</b><span>'+TOURS.length+'</span>'+addbtn+'</div>'
     + '<div class="cb tours"><div id="tourForm" hidden></div>'+body+'</div></div>';
 }
 function tourFormHTML(t){
   t=t||{};
-  var isel='<option value=""'+(!t.interest?' selected':'')+'>— interest —</option>'+TOUR_INTEREST.map(function(x){return '<option'+(t.interest===x?' selected':'')+'>'+x+'</option>';}).join('');
-  return '<div class="ofgrid tourgrid">'
-    +'<div class="off"><label class="fld">Who toured</label><input id="tf_party" list="peopleList" value="'+esc(t.party||'')+'" placeholder="Buyer / party name"></div>'
-    +'<div class="off"><label class="fld">Email (links buyer)</label><input id="tf_email" value="'+esc(t.email||'')+'" placeholder="optional"></div>'
-    +'<div class="off"><label class="fld">Date</label><input id="tf_date" type="date" value="'+esc(t.date||'')+'"></div>'
-    +'<div class="off"><label class="fld">Interest</label><select id="tf_interest">'+isel+'</select></div>'
-    +'<div class="off"><label class="fld">Hosted by</label><input id="tf_host" value="'+esc(t.host||'')+'" placeholder="RRG rep who showed it"></div>'
-    +'<div class="off"><label class="fld">Attendees</label><input id="tf_attendees" value="'+esc(t.attendees||'')+'" placeholder="Who attended (optional)"></div>'
-    +'<div class="off wide"><label class="fld">Notes / feedback</label><textarea id="tf_notes" placeholder="What they said, questions raised, follow-up…">'+esc(t.notes||'')+'</textarea></div>'
+  var tsel='<option value="">— type —</option>'+TOUR_SPACE_TYPES.map(function(x){return '<option'+(t.spaceType===x?' selected':'')+'>'+x+'</option>';}).join('');
+  var rsel='<option value="">— reaction —</option>'+TOUR_REACTIONS.map(function(x){return '<option'+(t.reaction===x?' selected':'')+'>'+x+'</option>';}).join('');
+  var stsel='<option value="0">— rate —</option>'+[5,4,3,2,1].map(function(n){return '<option value="'+n+'"'+(Number(t.rating)===n?' selected':'')+'>'+'★★★★★'.slice(0,n)+' ('+n+')</option>';}).join('');
+  var today=(function(){ var d=new Date(), p=function(x){return (x<10?'0':'')+x;}; return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate()); })();
+  return '<div class="tpick"><label class="fld">From Space Tracker <span style="text-transform:none;font-weight:500;color:#8a93a8">— optional, fills the details</span></label><input id="tf_space" list="tourSpaceList" placeholder="Start typing a center, address or suite…" autocomplete="off"><datalist id="tourSpaceList"></datalist></div>'
+    +'<div class="ofgrid tourgrid">'
+    +'<div class="off"><label class="fld">Property / center</label><input id="tf_property" value="'+esc(t.property||'')+'" placeholder="Address or center"></div>'
+    +'<div class="off"><label class="fld">Suite</label><input id="tf_suite" value="'+esc(t.suite||'')+'" placeholder="Ste / Pad"></div>'
+    +'<div class="off"><label class="fld">Type</label><select id="tf_type">'+tsel+'</select></div>'
+    +'<div class="off"><label class="fld">Date toured</label><input id="tf_date" type="date" value="'+esc(t.date||(t.id?'':today))+'"></div>'
+    +'<div class="off"><label class="fld">Size (SF)</label><input id="tf_sf" inputmode="numeric" value="'+esc(t.sf==null?'':t.sf)+'" placeholder="0"></div>'
+    +'<div class="off"><label class="fld">Shown by</label><input id="tf_host" value="'+esc(t.host||'')+'" placeholder="RRG rep"></div>'
+    +'<div class="off"><label class="fld">Base rent $/SF/yr</label><input id="tf_base" inputmode="decimal" value="'+esc(t.baseRent==null?'':t.baseRent)+'" placeholder="$0.00"></div>'
+    +'<div class="off"><label class="fld">NNN $/SF/yr</label><input id="tf_nnn" inputmode="decimal" value="'+esc(t.nnn==null?'':t.nnn)+'" placeholder="$0.00"></div>'
+    +'<div class="off"><label class="fld">Gross $/SF</label><div id="tf_gross" class="tgross">—</div></div>'
+    +'<div class="off"><label class="fld">Reaction</label><select id="tf_reaction">'+rsel+'</select></div>'
+    +'<div class="off"><label class="fld">Rating</label><select id="tf_rating">'+stsel+'</select></div>'
+    +'<div class="off"></div>'
+    +'<div class="off wide"><label class="fld">Tenant’s thoughts</label><textarea id="tf_thoughts" placeholder="What they liked, what worried them, deal-breakers…">'+esc(t.thoughts||'')+'</textarea></div>'
     +'</div>'
+    +'<input type="hidden" id="tf_spaceid" value="'+esc(t.spaceId||'')+'">'
     +'<div class="ofbtns"><button class="savebtn2" id="tf_save">'+(t.id?'Save tour':'Log tour')+'</button><button class="cancelbtn" id="tf_cancel">Cancel</button></div>';
+}
+function _tfGross(){ var b=parseFloat(String((document.getElementById('tf_base')||{}).value||'').replace(/[^0-9.]/g,''))||0, n=parseFloat(String((document.getElementById('tf_nnn')||{}).value||'').replace(/[^0-9.]/g,''))||0; var el=document.getElementById('tf_gross'); if(el) el.textContent=(b||n)?('$'+(b+n).toFixed(2)):'—'; }
+function _spaceLabel(sp){ return [sp.center||sp.address||'', sp.name||'', sp.market||''].filter(Boolean).join(' · '); }
+function _wireSpacePick(){
+  var inp=document.getElementById('tf_space'), dl=document.getElementById('tourSpaceList'); if(!inp||!dl) return;
+  var fill=function(list){ SPACESCACHE=list; dl.innerHTML=list.slice(0,800).map(function(sp){ return '<option value="'+esc(_spaceLabel(sp))+'"></option>'; }).join(''); };
+  if(SPACESCACHE) fill(SPACESCACHE); else fetch('/api/spaces',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ fill((j&&j.spaces)||[]); }).catch(function(){});
+  inp.addEventListener('change',function(){ var v=inp.value; var sp=(SPACESCACHE||[]).filter(function(x){ return _spaceLabel(x)===v; })[0]; if(!sp) return;
+    var set=function(id,val){ var el=document.getElementById(id); if(el&&val!=null&&val!=='') el.value=val; };
+    set('tf_property', sp.center||sp.address); set('tf_suite', sp.name); set('tf_sf', sp.size); set('tf_base', sp.rent); set('tf_nnn', sp.nnn);
+    var map={'End cap':'End cap','Inline':'Inline','Pad / Outparcel':'Pad / Outparcel','Freestanding':'Freestanding'}; if(map[sp.spaceType]) set('tf_type', map[sp.spaceType]); else if(sp.condition==='Second-gen') set('tf_type','Second-gen');
+    var hid=document.getElementById('tf_spaceid'); if(hid) hid.value=sp.id||''; _tfGross(); });
 }
 function openTourForm(t){
   var f=document.getElementById('tourForm');
   expandSectionOf(f);
   f.innerHTML=tourFormHTML(t); f.removeAttribute('hidden');
+  ['tf_base','tf_nnn'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener('input',_tfGross); }); _tfGross();
+  _wireSpacePick();
   document.getElementById('tf_save').addEventListener('click',function(){ saveTour(t&&t.id); });
   document.getElementById('tf_cancel').addEventListener('click',function(){ f.setAttribute('hidden',''); f.innerHTML=''; });
   f.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 function collectTour(){
-  return { party:document.getElementById('tf_party').value.trim(), partyEmail:document.getElementById('tf_email').value.trim(), date:document.getElementById('tf_date').value,
-    interest:document.getElementById('tf_interest').value, host:document.getElementById('tf_host').value.trim(),
-    attendees:document.getElementById('tf_attendees').value.trim(), notes:document.getElementById('tf_notes').value.trim() };
+  var v=function(id){ return (document.getElementById(id)||{}).value||''; };
+  return { kind:'space', property:v('tf_property').trim(), suite:v('tf_suite').trim(), spaceType:v('tf_type'), date:v('tf_date'), sf:v('tf_sf'), host:v('tf_host').trim(),
+    baseRent:v('tf_base'), nnn:v('tf_nnn'), reaction:v('tf_reaction'), rating:v('tf_rating'), thoughts:v('tf_thoughts').trim(), spaceId:v('tf_spaceid') };
 }
 function saveTour(id){
   var body=collectTour(); if(id) body.id=id;
+  if(!id && !body.host) delete body.host;   // blank on a new tour → the server stamps the logged-in rep
+  if(!body.property && !body.suite){ if(window.rrgToast) rrgToast('Add the property or suite first.'); return; }
   var btn=document.getElementById('tf_save'); if(btn){ btn.disabled=true; btn.textContent='Saving…'; }
   fetch('/api/assignment/'+encodeURIComponent(KEY)+'/tour',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
     .then(function(r){return r.json();}).then(function(j){
@@ -1918,6 +1976,7 @@ function wireTours(){
   var add=document.getElementById('addTourBtn'); if(add) add.addEventListener('click',function(){ openTourForm(null); });
   document.querySelectorAll('.tedit').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); var t=tourById(b.getAttribute('data-tid')); if(t) openTourForm(t); }); });
   document.querySelectorAll('.tdel').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); delTour(b.getAttribute('data-tid')); }); });
+  document.querySelectorAll('[data-tsort]').forEach(function(b){ b.addEventListener('click',function(e){ e.preventDefault(); e.stopPropagation(); TOURSORT=b.getAttribute('data-tsort'); rerenderTours(); }); });
 }
 /* ---------- NDAs (linked to the buyer registry) ---------- */
 function ndaStatusClass(s){ return 'os-'+String(s||'Received').toLowerCase().replace(/[^a-z]+/g,''); }

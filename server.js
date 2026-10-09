@@ -5836,7 +5836,22 @@ const OFFER_STATUSES = ['Received', 'Under review', 'Countered', 'Accepted', 'Re
 const OFFER_RATINGS = ['Strong', 'Good', 'Fair', 'Weak'];   // the rep's own 1-of-4 gut rating
 const TOUR_INTEREST = ['Hot', 'Warm', 'Cool', 'Passed'];    // buyer's read after a location tour
 function newTourId() { return 'tur_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+// Tenant-rep "space tours" (a space shown to OUR tenant) share the tours[] array with buyer tours, flagged kind:'space'.
+const TOUR_REACTIONS = ['Loved', 'Liked', 'Maybe', 'Passed'];
+const TOUR_SPACE_TYPES = ['End cap', 'Inline', 'Pad / Outparcel', 'Freestanding', 'Second-gen', 'Land', 'Other'];
+function _tourNum(v) { if (v === '' || v == null) return null; const n = parseFloat(String(v).replace(/[^0-9.\-]/g, '')); return isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : null; }
 function applyTourFields(t, b) {
+  if (b.kind === 'space') t.kind = 'space';
+  if (typeof b.property === 'string') t.property = b.property.slice(0, 200);
+  if (typeof b.suite === 'string') t.suite = b.suite.slice(0, 60);
+  if (typeof b.spaceType === 'string') t.spaceType = TOUR_SPACE_TYPES.indexOf(b.spaceType) >= 0 ? b.spaceType : '';
+  if (typeof b.spaceId === 'string') t.spaceId = b.spaceId.slice(0, 40);
+  if (b.sf !== undefined) t.sf = _tourNum(b.sf);
+  if (b.baseRent !== undefined) t.baseRent = _tourNum(b.baseRent);
+  if (b.nnn !== undefined) t.nnn = _tourNum(b.nnn);
+  if (typeof b.reaction === 'string') t.reaction = TOUR_REACTIONS.indexOf(b.reaction) >= 0 ? b.reaction : '';
+  if (b.rating !== undefined) { const r = parseInt(b.rating, 10); t.rating = (r >= 1 && r <= 5) ? r : 0; }
+  if (typeof b.thoughts === 'string') t.thoughts = b.thoughts.slice(0, 4000);
   if (typeof b.party === 'string') t.party = b.party.slice(0, 160);
   if (typeof b.date === 'string') t.date = b.date.slice(0, 20);
   if (typeof b.attendees === 'string') t.attendees = b.attendees.slice(0, 300);
@@ -6229,7 +6244,7 @@ function assignmentView(d, overlay, _opts) {
     stageFlags: o.stageFlags || {}, pipelineId: o.pipelineId || '', needsSetup: !!o.needsSetup, fromBbs: !!o.fromBbs, referredBy: o.referredBy || '', referredById: o.referredById || '', referralPct: o.referralPct || '', listPrice: o.listPrice || '', priceHistory: Array.isArray(o.priceHistory) ? o.priceHistory : [], financials3y: Array.isArray(o.financials3y) ? o.financials3y : [], totalCommission: o.totalCommission || '', commissionEst: estCommissionFromPrice(o.listPrice || ''), listingLive: o.listingLive || '', listingStart: o.listingStart || '', listingExpires: o.listingExpires || '', targetClose: o.targetClose || '', autoRenew: !!o.autoRenew, renewable: !!o.renewable,
     location: (o.location && typeof o.location === 'object') ? o.location : {}, premises: (o.premises && typeof o.premises === 'object') ? o.premises : {}, sites: Array.isArray(o.sites) ? o.sites : [], openedDate: o.openedDate || '', reasonSale: o.reasonSale || '', priorSales: o.priorSales || '', links: (o.links && typeof o.links === 'object') ? o.links : {}, staffing: (o.staffing && typeof o.staffing === 'object') ? o.staffing : {},
     offers: Array.isArray(o.offers) ? o.offers : [],
-    tours: Array.isArray(o.tours) ? o.tours : [],
+    tours: Array.isArray(o.tours) ? o.tours : [], tourNotes: o.tourNotes || '',
     ndas: Array.isArray(o.ndas) ? o.ndas : [],
     inquiries: Array.isArray(o.inquiries) ? o.inquiries : [],
     marketStats: { impressions: Math.max(0, parseInt((o.stats || {}).impressions, 10) || 0), detailViews: Math.max(0, parseInt((o.stats || {}).detailViews, 10) || 0), favorites: Math.max(0, parseInt((o.stats || {}).favorites, 10) || 0) },
@@ -14358,6 +14373,52 @@ app.delete('/api/assignment/:key/tour/:tourId', (req, res) => {
   cur.tours = tours; cur.updatedAt = new Date().toISOString();
   overlay[d.key] = cur; saveAssignOverlay(overlay);
   res.json({ ok: true, tours });
+});
+// Tenant-rep tour summary note ("overall notes & next steps") — one per engagement, printed on the client tour summary.
+app.post('/api/assignment/:key/tour-notes', express.json(), (req, res) => {
+  const deals = assignmentsIndex(); const d = deals[req.params.key];
+  if (!d) return res.status(404).json({ ok: false, error: 'Assignment not found.' });
+  if (!ownsAssignment(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const overlay = loadAssignOverlay(); const cur = overlay[d.key] || {};
+  cur.tourNotes = String((req.body || {}).notes || '').slice(0, 8000); cur.updatedAt = new Date().toISOString();
+  overlay[d.key] = cur; saveAssignOverlay(overlay);
+  res.json({ ok: true, tourNotes: cur.tourNotes });
+});
+// Import tours saved by the retired browser-only Tour Tracker into an engagement (server = the record of truth).
+app.post('/api/assignment/:key/tours/import', express.json({ limit: '2mb' }), (req, res) => {
+  const deals = assignmentsIndex(); const d = deals[req.params.key];
+  if (!d) return res.status(404).json({ ok: false, error: 'Assignment not found.' });
+  if (!ownsAssignment(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const b = req.body || {}; const rows = Array.isArray(b.tours) ? b.tours.slice(0, 300) : [];
+  const overlay = loadAssignOverlay(); const cur = overlay[d.key] || {};
+  const tours = Array.isArray(cur.tours) ? cur.tours : []; const now = new Date().toISOString(); let added = 0;
+  rows.forEach(r => {
+    if (!r || typeof r !== 'object') return;
+    const rec = { id: newTourId(), kind: 'space', party: '', date: '', attendees: '', host: (typeof r.host === 'string' && r.host) ? r.host.slice(0, 120) : ((req.user && req.user.name) || ''), interest: '', notes: '',
+      createdAt: now, updatedAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', importedFrom: 'tour-tracker' };
+    applyTourFields(rec, Object.assign({}, r, { kind: 'space' }));
+    if (typeof r.date === 'string') rec.date = r.date.slice(0, 20);
+    if (!rec.property && !rec.suite && !rec.thoughts) return;   // skip blank rows
+    tours.push(rec); added++;
+  });
+  cur.tours = tours;
+  if (typeof b.notes === 'string' && b.notes.trim()) cur.tourNotes = (cur.tourNotes ? (cur.tourNotes + '\n\n') : '') + b.notes.trim().slice(0, 8000);
+  cur.updatedAt = now; overlay[d.key] = cur; saveAssignOverlay(overlay);
+  res.json({ ok: true, added: added, tours: tours });
+});
+// Every space tour across the tenant-rep engagements the caller can see (admins: all) — the firm-wide Tours list.
+app.get('/api/tours', (req, res) => {
+  const deals = assignmentsIndex(), overlay = loadAssignOverlay(); const out = [];
+  Object.keys(deals).forEach(k => {
+    const d = deals[k]; const o = overlay[d.key] || {};
+    if (o.assignmentType !== 'tenant_rep') return;
+    if (!ownsAssignment(req, d)) return;
+    let v = null; try { v = assignmentView(d, overlay, { noBoard: true }); } catch (e) { return; }
+    const tours = (Array.isArray(o.tours) ? o.tours : []).filter(t => t && t.kind === 'space');
+    out.push({ key: d.key, business: v.business || '', codeName: v.codeName || '', market: v.market || '', owner: v.owner || v.by || '', status: v.status || '', tourNotes: o.tourNotes || '', tours: tours });
+  });
+  out.sort((a, b) => String(a.business).localeCompare(String(b.business)));
+  res.json({ ok: true, engagements: out, reactions: TOUR_REACTIONS, types: TOUR_SPACE_TYPES });
 });
 // NDAs — signed non-disclosures received on this deal (linked to the buyer registry).
 app.post('/api/assignment/:key/nda', express.json(), (req, res) => {

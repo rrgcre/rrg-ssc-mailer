@@ -478,7 +478,7 @@ function _tenantTool(name){
   function h(){ for(var i=0;i<arguments.length;i++){ if(n.indexOf(arguments[i])>=0) return true; } return false; }
   if(h('needs analysis','needs','site criteria','criteria')) return { href:'./ssc_form.html', open:'Open Site Criteria' };
   if(h('site search','site & concept','site and concept','concept fit','sourcing','shortlist')) return { href:'./rrg_site_fit.html', open:'Open Site & Concept Fit' };
-  if(h('tour')) return { href:'./rrg_tour_tracker.html', open:'Open Tour Tracker' };
+  if(h('tour')) return { href:'./rrg_tours.html'+((typeof KEY!=='undefined'&&KEY)?('?key='+encodeURIComponent(KEY)):''), open:'Open Tours' };
   if(h('loi','letter of intent','negotiat')) return { href:'./rrg_loi_builder.html', open:'Open LOI Builder' };
   return null;
 }

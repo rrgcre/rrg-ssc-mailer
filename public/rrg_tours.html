@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Tours</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.wrap{max-width:1240px;margin:0 auto;padding:22px 24px 40px;}
+.pgh{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px;}
+.kick{font-size:10.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--red);}
+.pgh h1{margin:3px 0 0;font-size:24px;font-weight:800;color:var(--navy);letter-spacing:-.01em;}
+.pgs{color:var(--muted);font-size:12.5px;margin-top:4px;max-width:720px;line-height:1.5;}
+.acts{display:flex;gap:8px;flex-wrap:wrap;}
+.btn{font:inherit;font-size:12.5px;font-weight:700;border:1px solid #cfd6e2;background:#fff;color:var(--navy);border-radius:8px;padding:8px 13px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;}
+.btn:hover{border-color:#9fb0cc;} .btn.pri{background:var(--navy);color:#fff;border-color:var(--navy);}
+.card{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 6px 24px rgba(11,26,56,.05);overflow:hidden;margin-bottom:14px;}
+.bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--line);}
+.bar select,.bar input{font:inherit;font-size:13px;padding:7px 10px;border:1px solid #cfd6e2;border-radius:8px;background:#fff;color:var(--ink);}
+.bar input{min-width:220px;} .bar .cnt{margin-left:auto;color:var(--muted);font-size:12.5px;}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);}
+.kpi{background:#fff;padding:14px 18px;} .kpi .n{font-size:22px;font-weight:800;color:var(--navy);} .kpi .l{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:2px;}
+.kpi .n.sm{font-size:15px;line-height:1.3;padding-top:4px;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{background:#f4f6fa;color:#4a5570;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);white-space:nowrap;cursor:pointer;user-select:none;}
+th.num,td.num{text-align:right;} th .ar{color:#9aa4b6;margin-left:3px;}
+td{padding:10px 12px;border-bottom:1px solid #f0f3f8;vertical-align:top;}
+tr:last-child td{border-bottom:none;} tr.passed td{color:#8a93a8;}
+td .sub{color:var(--muted);font-size:12px;margin-top:2px;} td a{color:#23496f;font-weight:700;text-decoration:none;} td a:hover{text-decoration:underline;}
+.th-thought{white-space:normal;color:#33405a;font-size:12.5px;line-height:1.45;max-width:360px;}
+.react{font-size:10px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;padding:3px 8px;border-radius:999px;border:1px solid;white-space:nowrap;}
+.r-loved{background:#e6f5ec;color:#1f6b45;border-color:#bfe6d1;} .r-liked{background:#eef4fb;color:#23496f;border-color:#d3ddf3;} .r-maybe{background:#fff4e6;color:#9a6a12;border-color:#f0d7ad;} .r-passed{background:#f3f4f7;color:#6b7488;border-color:#e0e3ea;}
+.stars{letter-spacing:1px;color:#d5d9e2;white-space:nowrap;} .stars .on{color:#e0a53a;}
+.top{font-size:9.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#fff;background:#1f8a5b;border-radius:999px;padding:2px 7px;margin-left:6px;vertical-align:1px;}
+.empty{padding:36px 20px;text-align:center;color:var(--muted);font-size:13.5px;line-height:1.6;}
+.notes{padding:14px 16px;} .notes h3{margin:0 0 8px;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--navy);}
+.notes textarea{width:100%;min-height:96px;font:inherit;font-size:13.5px;line-height:1.55;padding:10px 12px;border:1px solid #cfd6e2;border-radius:8px;resize:vertical;color:var(--ink);}
+.notes .pnotes{display:none;white-space:pre-wrap;font-size:13.5px;line-height:1.6;}
+.saved{font-size:11.5px;color:var(--green);font-weight:700;margin-left:8px;opacity:0;transition:opacity .2s;} .saved.on{opacity:1;}
+.imp{background:#fffaf0;border:1px solid #f0dcb4;border-radius:12px;padding:14px 16px;margin-bottom:14px;font-size:13px;color:#5a4a2a;}
+.imp b{color:#6b4e12;} .imp table{margin-top:10px;background:#fff;border:1px solid #f0e2c0;border-radius:8px;overflow:hidden;}
+.imp td,.imp th{font-size:12.5px;} .imp select{font:inherit;font-size:12.5px;padding:5px 8px;border:1px solid #cfd6e2;border-radius:6px;max-width:320px;}
+.imp .row{display:flex;gap:10px;align-items:center;margin-top:10px;flex-wrap:wrap;} .imp .msg{font-size:12.5px;color:var(--muted);}
+.printhd{display:none;}
+@media (max-width:760px){ .kpis{grid-template-columns:1fr 1fr;} .hide-sm{display:none;} .wrap{padding:16px;} }
+@media print{
+  html,body{background:#fff;} .wrap{padding:0;max-width:none;} .noprint{display:none !important;}
+  .card{box-shadow:none;border:none;border-radius:0;} .bar{display:none;}
+  .printhd{display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid var(--navy);padding-bottom:10px;margin-bottom:12px;}
+  .printhd .wm{font-weight:800;font-size:13px;text-transform:uppercase;color:var(--navy);letter-spacing:.04em;}
+  .notes textarea{display:none;} .notes .pnotes{display:block;}
+  th{cursor:default;} th .ar{display:none;} tr{page-break-inside:avoid;}
+  .foot{display:block !important;}
+}
+.foot{display:none;margin-top:16px;font-size:10.5px;color:#8a93a8;text-align:center;}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<div class="wrap" id="app"><div class="empty">Loading tours…</div></div>
+<script>
+var KEY=(function(){ try{ return new URLSearchParams(location.search).get('key')||''; }catch(e){ return ''; } })();
+var DATA=null, SORT={k:'date',d:-1}, F={eng:'',react:'',q:''};
+var OLDKEY='rrg_tourdb_v1';   // the retired browser-only Tour Tracker's storage key
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+function money(n){ return (n==null||n==='')?'—':('$'+Number(n).toFixed(2)); }
+function gross(t){ var b=Number(t.baseRent)||0, n=Number(t.nnn)||0; return (b||n)?(b+n):null; }
+function fdate(d){ if(!d) return '—'; var m=String(d).match(/^(\d{4})-(\d{2})-(\d{2})/); if(!m) return esc(d); return new Date(+m[1],+m[2]-1,+m[3]).toLocaleDateString([], {month:'short',day:'numeric',year:'numeric'}); }
+function stars(n){ n=Number(n)||0; var h=''; for(var i=1;i<=5;i++) h+='<span class="'+(i<=n?'on':'')+'">★</span>'; return '<span class="stars" title="'+(n?n+' of 5':'Not rated')+'">'+h+'</span>'; }
+function react(r){ return r?('<span class="react r-'+esc(String(r).toLowerCase())+'">'+esc(r)+'</span>'):'<span style="color:#b6bdcb">—</span>'; }
+function score(t){ return (Number(t.rating)||0)*10+({Loved:3,Liked:2,Maybe:1}[t.reaction]||0); }
+function topPick(list){ var best=null; list.forEach(function(t){ if(t.reaction==='Passed') return; var s=score(t); if(s>0&&(!best||s>score(best))) best=t; }); return best; }
+function spaceName(t){ return [t.property,t.suite].filter(Boolean).join(' · ')||'Untitled space'; }
+function api(m,u,b){ return fetch(u,{method:m,credentials:'same-origin',headers:b?{'Content-Type':'application/json'}:undefined,body:b?JSON.stringify(b):undefined}).then(function(r){return r.json();}); }
+function sortRows(rows){
+  var k=SORT.k, d=SORT.d;
+  var val=function(r){ var t=r.t; switch(k){ case 'date': return t.date||''; case 'tenant': return (r.e.business||'').toLowerCase(); case 'space': return spaceName(t).toLowerCase(); case 'sf': return Number(t.sf)||0; case 'gross': return gross(t)||0; case 'rating': return score(t); case 'react': return ({Loved:4,Liked:3,Maybe:2,Passed:1}[t.reaction]||0); default: return ''; } };
+  return rows.slice().sort(function(a,b){ var x=val(a), y=val(b); return (x<y?-1:x>y?1:0)*d; });
+}
+function th(k,label,cls){ var ar=SORT.k===k?(SORT.d>0?'▲':'▼'):''; return '<th'+(cls?' class="'+cls+'"':'')+' data-sort="'+k+'">'+label+'<span class="ar">'+ar+'</span></th>'; }
+function wireSort(){ document.querySelectorAll('[data-sort]').forEach(function(h){ h.onclick=function(){ var k=h.getAttribute('data-sort'); if(SORT.k===k) SORT.d=-SORT.d; else { SORT.k=k; SORT.d=(k==='tenant'||k==='space')?1:-1; } render(); }; }); }
+
+// ---------- Old browser-only Tour Tracker → server import ----------
+function oldDB(){ try{ var raw=localStorage.getItem(OLDKEY); if(!raw) return null; var d=JSON.parse(raw); if(!d||!Array.isArray(d.clients)) return null;
+  d.clients=d.clients.filter(function(c){ return c && Array.isArray(c.rows) && c.rows.some(function(r){ return r && (r.addr||r.suite||r.notes); }); }); return d.clients.length?d:null; }catch(e){ return null; } }
+function oldDate(s){ s=String(s||'').trim(); var m=s.match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?$/); if(!m) return ''; var y=m[3]?(m[3].length===2?('20'+m[3]):m[3]):String(new Date().getFullYear()); var p=function(x){ x=String(x); return x.length<2?('0'+x):x; }; return y+'-'+p(m[1])+'-'+p(m[2]); }
+function oldType(t){ return ({'End Cap':'End cap','Inline':'Inline','Freestanding':'Freestanding','Pad':'Pad / Outparcel','2nd Gen':'Second-gen','Land':'Land','Other':'Other'})[t]||''; }
+function importHTML(){
+  var db=oldDB(); if(!db||!DATA) return '';
+  var engs=DATA.engagements||[];
+  var opts=function(cl){ var nm=String(cl.name||'').toLowerCase(); var guess=engs.filter(function(e){ return nm && (String(e.business).toLowerCase().indexOf(nm)>=0 || nm.indexOf(String(e.business).toLowerCase())>=0); })[0];
+    return '<option value="">— don’t import —</option>'+engs.map(function(e){ return '<option value="'+esc(e.key)+'"'+(guess&&guess.key===e.key?' selected':'')+'>'+esc(e.business)+(e.market?(' · '+esc(e.market)):'')+'</option>'; }).join(''); };
+  var rows=db.clients.map(function(cl,i){ var n=cl.rows.filter(function(r){ return r&&(r.addr||r.suite||r.notes); }).length;
+    return '<tr><td><b>'+esc(cl.name||'Unnamed client')+'</b>'+(cl.market?('<div class="sub">'+esc(cl.market)+'</div>'):'')+'</td><td class="num">'+n+'</td><td><select data-imp="'+i+'">'+opts(cl)+'</select></td></tr>'; }).join('');
+  return '<div class="imp noprint" id="impBox"><b>Tour logs saved in this browser only.</b> The old Tour Tracker kept these on this computer, not on the server. Pick the tenant engagement each one belongs to and import them. They’ll be saved to the engagement for the whole team, and then removed from this browser.'
+    +'<table><thead><tr><th>Client (old Tour Tracker)</th><th class="num">Spaces</th><th>Import into engagement</th></tr></thead><tbody>'+rows+'</tbody></table>'
+    +'<div class="row"><button class="btn pri" id="impGo" type="button">Import to server</button><span class="msg" id="impMsg">'+(engs.length?'':'No tenant engagements yet — create the engagement first, then import.')+'</span></div></div>';
+}
+function runImport(){
+  var db=oldDB(); if(!db) return; var jobs=[], keep=[];
+  db.clients.forEach(function(cl,i){ var sel=document.querySelector('[data-imp="'+i+'"]'); var key=sel&&sel.value; if(!key){ keep.push(cl); return; }
+    var tours=cl.rows.filter(function(r){ return r&&(r.addr||r.suite||r.notes); }).map(function(r){ return { property:r.addr||'', suite:r.suite||'', spaceType:oldType(r.type), date:oldDate(r.date), sf:r.sf||'', baseRent:r.psf||'', nnn:r.nnn||'', reaction:(['Loved','Liked','Maybe','Passed'].indexOf(r.reaction)>=0?r.reaction:''), rating:r.rating||0, thoughts:(r.notes||'')+((r.date&&!oldDate(r.date))?(' (toured '+r.date+')'):''), host:cl.rep||'' }; });
+    jobs.push({cl:cl,key:key,tours:tours}); });
+  if(!jobs.length){ document.getElementById('impMsg').textContent='Pick at least one engagement to import into.'; return; }
+  var btn=document.getElementById('impGo'); btn.disabled=true; btn.textContent='Importing…'; var done=0, added=0, failed=[];
+  var next=function(){ if(!jobs.length){
+      try{ if(keep.length||failed.length){ var d=oldDB()||{clients:[]}; d.clients=keep.concat(failed); d.active=(d.clients[0]||{}).id||null; localStorage.setItem(OLDKEY, JSON.stringify(d)); } else localStorage.removeItem(OLDKEY); }catch(e){}
+      if(window.rrgToast) rrgToast('Imported '+added+' tour'+(added===1?'':'s')+' from '+done+' client'+(done===1?'':'s')+' to the server.'+(failed.length?(' '+failed.length+' failed — still in this browser.'):''));
+      load(); return; }
+    var j=jobs.shift();
+    api('POST','/api/assignment/'+encodeURIComponent(j.key)+'/tours/import',{tours:j.tours,notes:j.cl.overall||''}).then(function(r){ if(r&&r.ok){ done++; added+=r.added||0; } else failed.push(j.cl); next(); }).catch(function(){ failed.push(j.cl); next(); });
+  };
+  next();
+}
+
+// ---------- Firm-wide list ----------
+function renderAll(){
+  var engs=DATA.engagements||[]; var rows=[];
+  engs.forEach(function(e){ (e.tours||[]).forEach(function(t){ rows.push({e:e,t:t}); }); });
+  var all=rows.length;
+  var q=F.q.toLowerCase();
+  rows=rows.filter(function(r){ if(F.eng&&r.e.key!==F.eng) return false; if(F.react&&r.t.reaction!==F.react) return false;
+    if(q){ var hay=[r.e.business,r.t.property,r.t.suite,r.t.thoughts,r.t.host,r.t.spaceType].join(' ').toLowerCase(); if(hay.indexOf(q)<0) return false; } return true; });
+  rows=sortRows(rows);
+  var liked=rows.filter(function(r){ return r.t.reaction==='Loved'||r.t.reaction==='Liked'; }).length;
+  var engsTouring=engs.filter(function(e){ return (e.tours||[]).length; }).length;
+  var last30=rows.filter(function(r){ var d=Date.parse(r.t.date||''); return d && (Date.now()-d) < 30*86400000; }).length;
+  var h='<div class="pgh"><div><div class="kick">Tenant Rep</div><h1>Tours</h1><div class="pgs">Every space shown to every tenant you represent, from each engagement’s Location Tours. Open an engagement for its client tour summary (print / PDF).</div></div></div>'
+    +importHTML()
+    +'<div class="card"><div class="kpis"><div class="kpi"><div class="n">'+rows.length+'</div><div class="l">Spaces shown</div></div><div class="kpi"><div class="n">'+liked+'</div><div class="l">Liked or better</div></div><div class="kpi"><div class="n">'+last30+'</div><div class="l">Last 30 days</div></div><div class="kpi"><div class="n">'+engsTouring+'</div><div class="l">Tenants touring</div></div></div></div>'
+    +'<div class="card"><div class="bar"><select id="fEng"><option value="">All tenants</option>'+engs.map(function(e){ return '<option value="'+esc(e.key)+'"'+(F.eng===e.key?' selected':'')+'>'+esc(e.business)+' ('+(e.tours||[]).length+')</option>'; }).join('')+'</select>'
+    +'<select id="fReact"><option value="">Any reaction</option>'+['Loved','Liked','Maybe','Passed'].map(function(x){ return '<option'+(F.react===x?' selected':'')+'>'+x+'</option>'; }).join('')+'</select>'
+    +'<input id="fQ" type="search" placeholder="Search spaces, notes…" value="'+esc(F.q)+'">'
+    +(F.eng?'<a class="btn" href="?key='+encodeURIComponent(F.eng)+'">Client summary ↗</a>':'')
+    +'<span class="cnt">'+rows.length+(rows.length!==all?(' of '+all):'')+' tour'+(all===1?'':'s')+'</span></div>';
+  if(!rows.length){ h+='<div class="empty">'+(all?'No tours match those filters.':'No tours logged yet. Open a tenant engagement and hit <b>+</b> on <b>Location Tours</b> to log each space you show.')+'</div></div>'; }
+  else {
+    h+='<div style="overflow-x:auto"><table><thead><tr>'+th('date','Date')+th('tenant','Tenant')+th('space','Space')+'<th class="hide-sm">Type</th>'+th('sf','SF','num hide-sm')+'<th class="num hide-sm">Base / NNN</th>'+th('gross','Gross $/SF','num')+th('react','Reaction')+th('rating','Rating')+'<th class="hide-sm">Tenant’s thoughts</th></tr></thead><tbody>'
+      +rows.map(function(r){ var t=r.t, g=gross(t);
+        return '<tr class="'+(t.reaction==='Passed'?'passed':'')+'"><td style="white-space:nowrap">'+fdate(t.date)+'</td><td><a href="./rrg_tenant_engagement.html?key='+encodeURIComponent(r.e.key)+'">'+esc(r.e.business)+'</a>'+(r.e.market?('<div class="sub">'+esc(r.e.market)+'</div>'):'')+'</td>'
+          +'<td><b>'+esc(spaceName(t))+'</b>'+(t.host?('<div class="sub">Shown by '+esc(t.host)+'</div>'):'')+'</td><td class="hide-sm">'+esc(t.spaceType||'—')+'</td><td class="num hide-sm">'+(t.sf?Number(t.sf).toLocaleString():'—')+'</td>'
+          +'<td class="num hide-sm">'+(t.baseRent!=null||t.nnn!=null?(money(t.baseRent)+' / '+money(t.nnn)):'—')+'</td><td class="num"><b>'+money(g)+'</b></td><td>'+react(t.reaction)+'</td><td>'+stars(t.rating)+'</td><td class="hide-sm th-thought">'+esc(t.thoughts||'')+'</td></tr>'; }).join('')
+      +'</tbody></table></div></div>';
+  }
+  document.getElementById('app').innerHTML=h;
+  var fe=document.getElementById('fEng'); if(fe) fe.onchange=function(){ F.eng=fe.value; render(); };
+  var fr=document.getElementById('fReact'); if(fr) fr.onchange=function(){ F.react=fr.value; render(); };
+  var fq=document.getElementById('fQ'); if(fq) fq.oninput=function(){ F.q=fq.value; render(); var n=document.getElementById('fQ'); if(n){ n.focus(); var L=n.value.length; try{ n.setSelectionRange(L,L); }catch(e){} } };
+  var ig=document.getElementById('impGo'); if(ig) ig.onclick=runImport;
+  wireSort();
+}
+
+// ---------- One engagement: client tour summary (print / PDF) ----------
+function renderOne(){
+  var e=(DATA.engagements||[]).filter(function(x){ return x.key===KEY; })[0];
+  if(!e){ document.getElementById('app').innerHTML='<div class="empty">That engagement isn’t a tenant-rep engagement you can see. <a href="./rrg_tours.html">All tours</a></div>'; return; }
+  var list=(e.tours||[]).map(function(t){ return {e:e,t:t}; }); list=sortRows(list);
+  var liked=list.filter(function(r){ return r.t.reaction==='Loved'||r.t.reaction==='Liked'; }).length, top=topPick((e.tours||[]));
+  var h='<div class="printhd"><span class="wm">Restaurant Realty Group</span><span style="font-size:11px;color:#6b7488">Tour Summary · '+esc(new Date().toLocaleDateString([], {month:'long',day:'numeric',year:'numeric'}))+'</span></div>'
+    +'<div class="pgh"><div><div class="kick">Tour Summary</div><h1>'+esc(e.business)+'</h1><div class="pgs">'+esc([e.market, e.owner?('RRG advisor: '+e.owner):''].filter(Boolean).join(' · '))+'</div></div>'
+    +'<div class="acts noprint"><a class="btn" href="./rrg_tenant_engagement.html?key='+encodeURIComponent(e.key)+'">← Engagement</a><a class="btn" href="./rrg_tours.html">All tours</a><button class="btn pri" type="button" onclick="window.print()">Print / PDF</button></div></div>'
+    +'<div class="card"><div class="kpis"><div class="kpi"><div class="n">'+list.length+'</div><div class="l">Spaces shown</div></div><div class="kpi"><div class="n">'+liked+'</div><div class="l">Liked or better</div></div><div class="kpi"><div class="n sm">'+(top?esc(spaceName(top)):'—')+'</div><div class="l">Top pick</div></div><div class="kpi"><div class="n">'+(top&&gross(top)!=null?money(gross(top)):'—')+'</div><div class="l">Top pick gross $/SF</div></div></div></div>';
+  h+='<div class="card">';
+  if(!list.length) h+='<div class="empty">No spaces shown yet. Log tours on the engagement’s <b>Location Tours</b> section.</div>';
+  else h+='<div style="overflow-x:auto"><table><thead><tr><th>#</th>'+th('space','Space')+th('date','Toured')+'<th>Type</th>'+th('sf','SF','num')+'<th class="num">Base</th><th class="num">NNN</th>'+th('gross','Gross $/SF','num')+th('react','Reaction')+th('rating','Rating')+'<th>Tenant’s thoughts</th></tr></thead><tbody>'
+    +list.map(function(r,i){ var t=r.t; return '<tr class="'+(t.reaction==='Passed'?'passed':'')+'"><td style="color:#8a93a8">'+(i+1)+'</td><td><b>'+esc(spaceName(t))+'</b>'+(top===t?'<span class="top">Top pick</span>':'')+'</td><td style="white-space:nowrap">'+fdate(t.date)+'</td><td>'+esc(t.spaceType||'—')+'</td><td class="num">'+(t.sf?Number(t.sf).toLocaleString():'—')+'</td><td class="num">'+money(t.baseRent)+'</td><td class="num">'+money(t.nnn)+'</td><td class="num"><b>'+money(gross(t))+'</b></td><td>'+react(t.reaction)+'</td><td>'+stars(t.rating)+'</td><td class="th-thought">'+esc(t.thoughts||'')+'</td></tr>'; }).join('')
+    +'</tbody></table></div>';
+  h+='</div><div class="card notes"><h3>Overall notes &amp; next steps <span class="saved" id="nSaved">Saved</span></h3><textarea id="nText" placeholder="Front-runner, backups, what we’re countering, next tours…">'+esc(e.tourNotes||'')+'</textarea><div class="pnotes">'+esc(e.tourNotes||'—')+'</div></div>'
+    +'<div class="foot">Restaurant Realty Group · Proprietary &amp; Confidential</div>';
+  document.getElementById('app').innerHTML=h;
+  wireSort();
+  var ta=document.getElementById('nText'), tmr=null, last=e.tourNotes||'';
+  var saveN=function(){ var v=ta.value; if(v===last) return; api('POST','/api/assignment/'+encodeURIComponent(e.key)+'/tour-notes',{notes:v}).then(function(r){ if(r&&r.ok){ last=v; e.tourNotes=v; var p=document.querySelector('.pnotes'); if(p) p.textContent=v||'—'; var s=document.getElementById('nSaved'); if(s){ s.classList.add('on'); setTimeout(function(){ s.classList.remove('on'); },1400); } } else if(window.rrgToast) rrgToast((r&&r.error)||'Could not save the notes.'); }); };
+  ta.addEventListener('input',function(){ if(tmr) clearTimeout(tmr); tmr=setTimeout(saveN,900); });
+  ta.addEventListener('blur',saveN);
+  window.addEventListener('beforeprint',saveN);
+}
+function render(){ if(KEY) renderOne(); else renderAll(); }
+function load(){ api('GET','/api/tours').then(function(j){ if(!j||!j.ok){ document.getElementById('app').innerHTML='<div class="empty">'+esc((j&&j.error)||'Could not load tours.')+'</div>'; return; } DATA=j; render(); }).catch(function(){ document.getElementById('app').innerHTML='<div class="empty">Could not reach the server.</div>'; }); }
+if(KEY){ SORT={k:'rating',d:-1}; }
+load();
+</script>
+</body>
+</html>
