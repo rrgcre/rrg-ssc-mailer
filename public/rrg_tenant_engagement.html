@@ -102,6 +102,12 @@ a.hpstep:hover .hpname,button.hpstep:hover .hpname{color:var(--red);}
 .bbacts{margin-left:auto;display:inline-flex;gap:4px;}
 .bbbtn{display:inline-flex;align-items:center;justify-content:center;width:26px;height:24px;border:1px solid #dfe5ef;border-radius:6px;background:#fff;color:#3f4b63;cursor:pointer;padding:0;}
 .bbbtn:hover{background:#f4f7fb;border-color:#9fb0cc;} .bbbtn.del:hover{color:#b23a2c;border-color:#e8b4ae;background:#fdf3f2;}
+.bbrounds{margin-top:6px;border-left:2px solid #e3e8f1;padding-left:9px;}
+.bbr{display:flex;gap:7px;align-items:baseline;font-size:12px;line-height:1.5;color:#55607a;}
+.bbr .bbrn{flex:none;width:14px;color:#8a93a8;font-weight:700;font-size:11px;font-variant-numeric:tabular-nums;}
+.bbr .bbrd{flex:none;font-weight:700;color:#1a2236;} .bbr .bbrs{color:#6b7488;}
+.bbr.nxt .bbrd{color:#274b7a;} .bbr.nxt .bbrs{color:#274b7a;}
+.bbmore{display:inline-block;margin-top:7px;font-size:12px;font-weight:700;color:#23496f;text-decoration:none;} .bbmore:hover{text-decoration:underline;}
 .bbrow{padding:9px 0;border-top:1px solid #eef1f6;font-size:12.5px;line-height:1.45;}
 .bbrow:first-child{border-top:none;padding-top:2px;}
 .bbrow .bbw{display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
@@ -1500,10 +1506,10 @@ function loadMapStatus(){
   }).catch(function(){ _tmapFetched=false; });
 }
 // ===== Broker Blasts card — every blind requirement sent / scheduled for this engagement =====
-var _bblasts=null, _bbStudio=true;
+var _bblasts=null, _bbStudio=true, _bbCanSched=false;
 function brokerBlastsCard(){
   return '<div class="card" id="blastCard"><div class="ch"><b>Broker Blasts</b><span class="bbcnt" hidden>0</span>'
-    + '<button type="button" class="railadd" id="blastAddBtn" onclick="brokerBlastOpen();return false;" title="Draft a blind requirement and blast it to matched brokers">+</button></div>'
+    + '<button type="button" class="railadd" id="blastAddBtn" style="display:none" onclick="brokerBlastOpen();return false;" title="Draft a blind requirement and blast it to matched brokers">+</button></div>'
     + '<div class="cb" style="padding:12px 16px"><div id="blastList" style="font-size:12.5px;color:#8a93a8">Loading…</div></div></div>';
 }
 function _bbDate(iso){ try{ var d=new Date(iso); if(isNaN(d.getTime())) return ''; var y=d.getFullYear()!==new Date().getFullYear(); return d.toLocaleString([], {weekday:'short',month:'short',day:'numeric',year:y?'numeric':undefined,hour:'numeric',minute:'2-digit'}); }catch(e){ return ''; } }
@@ -1512,20 +1518,37 @@ function renderBrokerBlasts(studio){
   var box=document.getElementById('blastList'), card=document.getElementById('blastCard'); if(!box) return;
   var list=_bblasts||[];
   var cnt=card&&card.querySelector('.ch > .bbcnt'); if(cnt){ cnt.textContent=String(list.length); cnt.hidden=!list.length; }
+  // One blast per engagement (re-sent in rounds from the Email Studio): "+" only while there's none — it returns once the blast is deleted.
+  // Marketing is admin-only: reps see the list read-only (no +, no delete, no scheduling).
+  var add=document.getElementById('blastAddBtn'); if(add) add.style.display=(list.length||studio===false||!_bbCanSched)?'none':'';
   if(studio===false){ box.innerHTML='<span style="color:#b5791f">The Email Studio isn’t connected, so blasts can’t be sent or tracked yet.</span>'; return; }
-  if(!list.length){ box.innerHTML='<div style="color:#55607a;line-height:1.55">No blasts yet. Hit <b>+</b> to draft a blind requirement and send it to matched brokers — every send and its results show up here.</div>'; return; }
+  if(!list.length){ box.innerHTML='<div style="color:#55607a;line-height:1.55">'+(_bbCanSched?'No blasts yet. Hit <b>+</b> to draft a blind requirement and send it to matched brokers — every send and its results show up here.':'No broker blasts yet. Blasts are sent by RRG marketing — every send and its results will show up here.')+'</div>'; return; }
   box.innerHTML=list.map(function(b){
+    var runs=(b.runs||[]).filter(function(r){ return r.sentAt||r.sent; });
+    if(runs.length){
+      var head=(b.status==='sending')?'<span class="bbp ing">Sending</span><b>Round '+runs.length+'</b>':'<span class="bbp snt">Sent</span><b>'+runs.length+' round'+(runs.length===1?'':'s')+'</b>';
+      var lines=runs.map(function(r,i){ var n=r.sent||0; return '<div class="bbr"><span class="bbrn">'+(i+1)+'</span><span class="bbrd">'+esc(_bbDate(r.sentAt))+'</span><span class="bbrs">'+Number(n).toLocaleString()+' sent · '+Number(r.opens||0).toLocaleString()+' opens'+_bbPct(r.opens||0,n)+' · '+Number(r.clicks||0).toLocaleString()+' clicks'+_bbPct(r.clicks||0,n)+'</span></div>'; }).join('');
+      var next=(b.sendAt&&b.status!=='sending')?('<div class="bbr nxt"><span class="bbrn">'+(runs.length+1)+'</span><span class="bbrd">'+esc(_bbDate(b.sendAt))+'</span><span class="bbrs">Scheduled'+(b.est!=null?(' · ~'+Number(b.est).toLocaleString()+' brokers'):'')+'</span></div>'):'';
+      var sched=_bbCanSched?('<a class="bbmore" href="rrg_mass_studio.html?schedule='+encodeURIComponent(b.id)+'#sent" title="Schedule another send of this blast in the Email Studio">+ Schedule another round ↗</a>'):'';
+      return '<div class="bbrow"><div class="bbw">'+head+_bbActs(b)+'</div>'
+        +(b.subject?('<div class="bbj" title="'+esc(b.subject)+'">'+esc(b.subject)+'</div>'):'')
+        +'<div class="bbrounds">'+lines+next+'</div>'+sched+'</div>';
+    }
     var pill, when, stats='';
     if(b.status==='scheduled'){ pill='<span class="bbp sch">Scheduled</span>'; when=_bbDate(b.sendAt); stats=(b.est!=null?('~'+Number(b.est).toLocaleString()+' brokers (recounted at send time)'):'Brokers recounted at send time'); }
     else if(b.status==='sending'){ pill='<span class="bbp ing">Sending</span>'; when=_bbDate(b.startedAt||b.createdAt); stats=Number(b.sent||0).toLocaleString()+' of '+Number(b.total||0).toLocaleString()+' sent'; }
     else if(b.finishedAt||b.status==='sent'){ pill='<span class="bbp snt">Sent</span>'; when=_bbDate(b.finishedAt||b.startedAt); var n=b.sent||0; stats=Number(n).toLocaleString()+' sent · '+Number(b.opens||0).toLocaleString()+' opens'+_bbPct(b.opens||0,n)+' · '+Number(b.clicks||0).toLocaleString()+' clicks'+_bbPct(b.clicks||0,n)+(b.unsubs?(' · '+b.unsubs+' unsub'):''); }
     else { pill='<span class="bbp oth">'+esc(b.status||'Draft')+'</span>'; when=_bbDate(b.startedAt||b.createdAt); }
     return '<div class="bbrow"><div class="bbw">'+pill+'<b>'+esc(when)+'</b>'
-      +'<span class="bbacts"><button type="button" class="bbbtn" title="View the email" aria-label="View the email" onclick="viewBlast(\''+esc(b.id)+'\')">'+_icoEye+'</button>'
-      +(b.status==='sending'?'':('<button type="button" class="bbbtn del" title="'+(b.status==='scheduled'?'Cancel and delete this blast':'Delete this blast')+'" aria-label="Delete this blast" onclick="deleteBlast(\''+esc(b.id)+'\',\''+esc(b.status)+'\')">'+_icoTrash+'</button>'))+'</span></div>'
+      +_bbActs(b)+'</div>'
       +(stats?('<div class="bbs">'+esc(stats)+'</div>'):'')
       +(b.subject?('<div class="bbj" title="'+esc(b.subject)+'">'+esc(b.subject)+'</div>'):'')+'</div>';
   }).join('');
+}
+function _bbActs(b){
+  var sentOnce=(b.runs||[]).some(function(r){ return r.sentAt||r.sent; });
+  return '<span class="bbacts"><button type="button" class="bbbtn" title="View the email" aria-label="View the email" onclick="viewBlast(\''+esc(b.id)+'\')">'+_icoEye+'</button>'
+    +((b.status==='sending'||!_bbCanSched)?'':('<button type="button" class="bbbtn del" title="Delete this blast" aria-label="Delete this blast" onclick="deleteBlast(\''+esc(b.id)+'\',\''+(sentOnce?'sent':esc(b.status))+'\')">'+_icoTrash+'</button>'))+'</span>';
 }
 function _bvClose(){ var m=document.getElementById('bvMask'); if(m) m.hidden=true; }
 function viewBlast(id){
@@ -1544,7 +1567,7 @@ function viewBlast(id){
 }
 function deleteBlast(id, status){
   var sch=(status==='scheduled');
-  var msg=sch?'Delete this scheduled blast? It will be canceled and won’t go out.':'Remove this sent blast from the engagement? Its send record, opens and unsubscribes are kept in the Email Studio’s Archived tab.';
+  var msg=sch?'Delete this scheduled blast? It will be canceled and won’t go out.':'Delete this blast? Any scheduled round is canceled, and it comes off this engagement. Its send record, opens and unsubscribes are kept in the Email Studio’s Archived tab.';
   var go=function(ok){ if(!ok) return;
     fetch('/api/deal/'+encodeURIComponent(KEY)+'/broker-blast/delete',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({campaignId:id})})
       .then(function(r){return r.json();}).then(function(j){
@@ -1558,7 +1581,7 @@ function loadBrokerBlasts(){
   if(!KEY) return;
   fetch('/api/deal/'+encodeURIComponent(KEY)+'/broker-blasts',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok){ var b=document.getElementById('blastList'); if(b) b.textContent=(j&&j.error)||'Could not load blasts.'; return; }
-    _bblasts=j.blasts||[]; _bbStudio=(j.studio!==false); renderBrokerBlasts(_bbStudio);
+    _bblasts=j.blasts||[]; _bbStudio=(j.studio!==false); _bbCanSched=!!j.canSchedule; renderBrokerBlasts(_bbStudio);
   }).catch(function(){ var b=document.getElementById('blastList'); if(b) b.textContent='Could not reach the server.'; });
 }
 // ===== Blast to brokers — blind requirement email from this engagement =====

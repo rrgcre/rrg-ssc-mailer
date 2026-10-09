@@ -10278,11 +10278,12 @@ app.get('/api/deal/:key/broker-blasts', async (req, res) => {
     const r = _resolveEngagement(req, res); if (!r) return;
     if (!massmail.dbReady()) return res.json({ ok: true, studio: false, blasts: [] });
     const blasts = await massmail.requirementsFor(r.d.key);
-    res.json({ ok: true, studio: true, blasts: blasts });
+    res.json({ ok: true, studio: true, blasts: blasts, canSchedule: isSuper(req.user) });
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 // Delete a blast from this engagement (scheduled → canceled; sent → archived with its send record kept).
-app.post('/api/deal/:key/broker-blast/delete', express.json(), async (req, res) => {
+// Broker blasts are marketing — admins only (reps get the read-only list via GET /broker-blasts).
+app.post('/api/deal/:key/broker-blast/delete', requireAdmin, express.json(), async (req, res) => {
   try {
     const r = _resolveEngagement(req, res); if (!r) return;
     if (!massmail.dbReady()) return res.status(400).json({ ok: false, error: 'Email Studio storage isn’t configured.' });
@@ -10293,7 +10294,7 @@ app.post('/api/deal/:key/broker-blast/delete', express.json(), async (req, res) 
   } catch (e) { res.status(400).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 // Draft the blind broker-requirement email + resolve the broker audience from the Email Studio.
-app.post('/api/deal/:key/broker-blast/draft', express.json(), async (req, res) => {
+app.post('/api/deal/:key/broker-blast/draft', requireAdmin, express.json(), async (req, res) => {
   try {
     const r = _resolveEngagement(req, res); if (!r) return;
     const av = r.av;
@@ -10320,7 +10321,7 @@ app.post('/api/deal/:key/broker-blast/draft', express.json(), async (req, res) =
 });
 // Send (or schedule) the blind requirement to brokers — through the Email Studio: its subscribers,
 // suppression list, open/click tracking and one-click unsubscribe. Test sends go to the rep only.
-app.post('/api/deal/:key/broker-blast/send', express.json({ limit: '1mb' }), async (req, res) => {
+app.post('/api/deal/:key/broker-blast/send', requireAdmin, express.json({ limit: '1mb' }), async (req, res) => {
   try {
     const r = _resolveEngagement(req, res); if (!r) return;
     const av = r.av;
@@ -10369,7 +10370,7 @@ app.post('/api/deal/:key/broker-blast/send', express.json({ limit: '1mb' }), asy
   }
 });
 // Cancel a still-pending scheduled broker blast for this engagement (archives the Studio campaign).
-app.post('/api/deal/:key/broker-blast/cancel', express.json(), async (req, res) => {
+app.post('/api/deal/:key/broker-blast/cancel', requireAdmin, express.json(), async (req, res) => {
   try {
     const r = _resolveEngagement(req, res); if (!r) return;
     const id = String((req.body && req.body.campaignId) || '');

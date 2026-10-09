@@ -150,6 +150,9 @@ function boot(){
     CFG=cfg||{}; CFG.brand=brand;
     paintStatus(); wireUnsub();
     loadLists(); loadStats(); loadCampaigns();
+    // Deep links from elsewhere in the app: ?schedule=<id> opens that campaign's scheduler, ?open=<id> opens it.
+    try{ var _dl=new URLSearchParams(location.search), _sid=_dl.get('schedule'), _oid=_dl.get('open');
+      if(_sid&&/^\d+$/.test(_sid)) openScheduleModal(Number(_sid)); else if(_oid&&/^\d+$/.test(_oid)) openCampaign(Number(_oid)); }catch(e){}
   }).catch(function(){ $('statusNote').innerHTML='<div class="note warn">Could not reach the mail engine.</div>'; });
 }
 function wireTabs(){

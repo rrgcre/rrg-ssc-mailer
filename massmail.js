@@ -1105,12 +1105,21 @@ async function requirementsFor(srcKey) {
       AND NOT COALESCE(c.archived,false)
     ORDER BY COALESCE((SELECT min(s.run_at) FROM mm_schedules s WHERE s.tenant=c.tenant AND s.campaign_id=c.id AND s.status='pending'), c.finished_at, c.started_at, c.created_at) DESC
     LIMIT 100`, [TENANT, String(srcKey || '')])).rows;
+  // Every send round of each blast (a campaign can be re-sent; each send is its own run_seq).
+  const runsBy = {};
+  if (rows.length) {
+    const rr = (await q(`SELECT campaign_id, run_seq, min(sent_at) AS sent_at, count(*)::int AS recipients, count(sent_at)::int AS sent,
+        count(opened_at)::int AS opens, count(clicked_at)::int AS clicks
+      FROM mm_sends WHERE tenant=$1 AND campaign_id = ANY($2::bigint[]) GROUP BY campaign_id, run_seq ORDER BY campaign_id, run_seq`, [TENANT, rows.map(r => Number(r.id))])).rows;
+    rr.forEach(x => { const k = String(x.campaign_id); (runsBy[k] = runsBy[k] || []).push({ seq: x.run_seq, sentAt: x.sent_at, recipients: x.recipients, sent: x.sent, opens: x.opens, clicks: x.clicks }); });
+  }
   const out = [];
   for (const r of rows) {
-    const scheduled = !!r.run_at && r.status === 'scheduled';
+    const scheduled = !!r.run_at;   // a pending round — first send or a re-send of an already-sent blast
     let est = null;
     if (scheduled) { try { let m = r.seg_metros; if (typeof m === 'string') { try { m = JSON.parse(m); } catch (e) { m = []; } } est = await countSegment({ type: r.seg_type || 'Broker', mode: r.seg_mode || '', metros: Array.isArray(m) ? m : [] }); } catch (e) { est = null; } }
-    out.push({ id: String(r.id), subject: r.subject || '', status: scheduled ? 'scheduled' : (r.status || ''), byUser: r.by_user,
+    const runs = runsBy[String(r.id)] || [];
+    out.push({ id: String(r.id), subject: r.subject || '', status: (r.status === 'sending' || r.status === 'queued') ? 'sending' : (scheduled ? 'scheduled' : (r.status || '')), byUser: r.by_user, runs: runs,
       sendAt: r.run_at || null, startedAt: r.started_at || null, finishedAt: r.finished_at || null, createdAt: r.created_at || null,
       est: est, total: r.total || 0, sent: r.sent || 0, failed: r.failed || 0, opens: r.opens || 0, clicks: r.clicks || 0, unsubs: r.unsubs || 0, bounces: r.bounces || 0 });
   }
