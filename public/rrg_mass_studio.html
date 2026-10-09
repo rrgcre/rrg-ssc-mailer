@@ -59,6 +59,29 @@ td{padding:9px 10px;border-bottom:1px solid #f1f3f8;}
 .schedm-man{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);}
 .schedm-note{font-size:12.5px;color:var(--muted);padding:6px 0;}
 .schedm-msg{font-size:12.5px;font-weight:700;margin-top:8px;min-height:16px;}
+.nscard{max-width:780px;}
+.nshd{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:14px 18px;border-bottom:1px solid var(--line);background:#f7f9fc;}
+.nshd b{color:var(--navy);font-size:17px;} .nskicker{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:2px;}
+.nsbtns{display:flex;gap:8px;flex:none;}
+.nsbody{padding:6px 18px 14px;}
+.nsgrp{font-size:12px;font-weight:800;color:var(--navy);text-transform:uppercase;letter-spacing:.05em;margin:16px 0 10px;padding-bottom:6px;border-bottom:2px solid var(--navy);display:flex;align-items:baseline;gap:10px;}
+.nsgrp .nscount{font-size:12px;font-weight:600;color:var(--muted);text-transform:none;letter-spacing:0;}
+.nsgrp .nscount b{color:#1f6b45;}
+.nsgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px 14px;}
+.nsf{display:flex;flex-direction:column;gap:4px;min-width:0;} .nsf>span{font-size:11px;font-weight:700;color:#4a5570;text-transform:uppercase;letter-spacing:.03em;} .nsf i{color:var(--red);font-style:normal;}
+.nsf input,.nsf select{width:100%;box-sizing:border-box;font:inherit;font-size:13px;padding:7px 9px;border:1px solid #c7cfdd;border-radius:6px;background:#fff;color:var(--ink);min-width:0;}
+.nsinl{display:flex;align-items:center;gap:6px;} .nsinl input{width:70px;flex:none;} .nsinl em{font-style:normal;font-size:12.5px;color:var(--muted);}
+.nschk{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;color:var(--ink);font-weight:600;cursor:pointer;justify-content:flex-start;}
+.nschk input[type=checkbox]{width:16px !important;height:16px;flex:none;margin:0;padding:0;} .nschk span{font-weight:400;color:var(--muted);font-size:12px;}
+.nstblw{border:1px solid var(--line);border-radius:6px;overflow:auto;max-height:300px;}
+.nstbl{width:100%;border-collapse:collapse;font-size:13px;} .nstbl th{position:sticky;top:0;background:#eef2f8;color:#4a5570;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);}
+.nstbl td{padding:7px 10px;border-bottom:1px solid #f0f3f8;color:var(--ink);} .nstbl tr:last-child td{border-bottom:none;}
+.nstbl tr.nsnew td{background:#f3faf6;} .nstbl .nsnum{color:var(--muted);width:28px;font-variant-numeric:tabular-nums;} .nstbl .nsact{text-align:right;} .nstbl .nsact a{color:var(--red);font-size:12px;font-weight:700;text-decoration:none;}
+.nspill{display:inline-block;font-size:10.5px;font-weight:800;border-radius:999px;padding:2px 8px;letter-spacing:.02em;} .nspill.new{background:#dff3e7;color:#1f6b45;} .nspill.sch{background:#e7edf7;color:#274b7a;}
+.nsnote{font-size:11px;color:#9a6a12;} .nsempty{color:var(--muted);text-align:center;padding:18px 10px !important;}
+.nswarn{margin:10px 0 0;padding:9px 12px;border-radius:6px;background:#fff6e6;border:1px solid #f0dcb4;color:#7a5b16;font-size:12.5px;}
+.nshelp{font-size:11.5px;color:var(--muted);line-height:1.5;margin-top:10px;}
+@media (max-width:640px){ .nsgrid{grid-template-columns:1fr 1fr;} .nshd .nsbtns{display:none;} }
 .schedm-ft{display:flex;justify-content:flex-end;gap:8px;padding:12px 18px;border-top:1px solid var(--line);}
 .split{display:grid;grid-template-columns:1fr 1fr;gap:16px;} @media(max-width:820px){.split{grid-template-columns:1fr;}}
 iframe.prev{width:100%;height:420px;border:1px solid var(--line);border-radius:6px;background:#fff;}
@@ -385,6 +408,8 @@ function starterHtml(){
   +'  <tr><td style="padding:22px 34px 26px;background:#f5f7fb;border-top:1px solid #e6e9f0;"><div style="color:#8a93a8;font:600 10px/1.6 Arial,Helvetica,sans-serif;letter-spacing:1.2px;text-transform:uppercase;text-align:center;">Austin &middot; Dallas &middot; Houston &middot; San Antonio</div><div style="color:#9aa3b5;font:400 11.5px/1.7 Arial,Helvetica,sans-serif;text-align:center;margin-top:10px;">You are receiving this because you opted in to RRG listing alerts.<br><a href="{{unsubscribe_url}}" style="color:#5c667d;text-decoration:underline;">Unsubscribe</a></div></td></tr>\n'
   +'</table>\n</td></tr></table>';
 }
+// Audience label — a broker blast targets a segment (seg_type), not a list; never show it as "all subscribers".
+function _audLabel(c){ if(c.seg_type){ var t=String(c.seg_type); return (t==='Broker'?'Brokers':t)+(c.seg_mode==='area'?' · area-matched':''); } return c.list_name||'All active subscribers'; }
 function loadCampaigns(){
   if(!CFG.storage){ $('tabCamps').innerHTML='<div class="note warn">Connect Postgres to manage campaigns.</div>'; return; }
   if(EDIT){ renderEditor(); return; }
@@ -420,7 +445,7 @@ function loadCampaigns(){
       rowId:function(c){ return String(c.id); }, defaultSort:12, defaultDir:-1,
       columns:[
         { label:'Campaign / Subject', sort:function(a,b){ return RRGList.cmp((a.name||'').toLowerCase(),(b.name||'').toLowerCase()); }, cell:campNameCell },
-        { label:'Audience', sort:function(a,b){ return RRGList.cmp(a.list_name||'',b.list_name||''); }, cell:function(c){ return '<span style="font-size:12.5px;">'+esc(c.list_name||'All active subscribers')+'</span>'; } },
+        { label:'Audience', sort:function(a,b){ return RRGList.cmp(_audLabel(a),_audLabel(b)); }, cell:function(c){ return '<span style="font-size:12.5px;">'+esc(_audLabel(c))+'</span>'; } },
         { label:'Status', sort:function(a,b){ return RRGList.cmp(a.status,b.status); }, cell:function(c){ return '<span class="pill '+esc(c.status)+'">'+esc(c.status)+'</span>'; } },
         { label:'Times sent', align:'right', sort:function(a,b){ return timesSent(a)-timesSent(b); }, cell:function(c){ var n=timesSent(c); return n?('<span style="font-variant-numeric:tabular-nums;font-weight:600;">'+num(n)+'</span>'):'<span style="color:var(--muted);">—</span>'; } },
         { label:'Recipients', align:'right', sort:function(a,b){ return (a.total||a.sent||0)-(b.total||b.sent||0); }, cell:function(c){ return '<span style="font-variant-numeric:tabular-nums;">'+num(c.total||c.sent||0)+'</span>'; } },
@@ -867,76 +892,91 @@ function histRender(r){
     +'</div></div>';
 }
 function openScheduleModal(id){
-  SCHEDM={ id:id, name:'', status:'', saved:[], pending:[] };
+  SCHEDM={ id:id, name:'', status:'', saved:[], pending:[], form:null };
   var ov=document.getElementById('schedmOv');
   if(!ov){ ov=document.createElement('div'); ov.id='schedmOv'; ov.className='schedm-ov'; document.body.appendChild(ov); ov.addEventListener('click',function(e){ if(e.target===ov) closeScheduleModal(); }); document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeScheduleModal(); }); }
   ov.style.display='flex'; ov.innerHTML='<div class="schedm-card"><div class="schedm-body schedm-note">Loading…</div></div>';
   api('GET','/api/mail/campaigns/'+id).then(function(r){ if(r&&r.campaign){ SCHEDM.name=r.campaign.name||''; SCHEDM.status=r.campaign.status||''; } return api('GET','/api/mail/campaigns/'+id+'/schedule'); }).then(function(r){ SCHEDM.saved=((r&&r.schedules)||[]).filter(function(x){return x.status==='pending';}); schedmRender(); }).catch(function(){ SCHEDM.saved=[]; schedmRender(); });
 }
+// ===== Schedule sends — NetSuite-style form: Recurrence field group + Sends sublist, live preview =====
+var SCHED_MAX=52;   // hard ceiling per campaign (one a week for a year)
+function _nsAddStep(d, freq, n){ var x=new Date(d.getTime()); if(freq==='daily') x.setDate(x.getDate()+n); else if(freq==='weekly') x.setDate(x.getDate()+7*n); else if(freq==='monthly') x.setMonth(x.getMonth()+n); return x; }
+function _nsBizOk(d, allow){ return allow || (d.getDay()!==0 && d.getDay()!==6 && !_isHol(d)); }
+// Build the list of NEW send times from the Recurrence fields (weekend/holiday dates roll forward to the next business day).
+function schedmBuild(){
+  var f=SCHEDM.form||{}; var out=[]; if(!f.start) return out;
+  var first=new Date(f.start); if(isNaN(first.getTime())) return out;
+  var n=(f.freq==='once')?1:Math.max(1,Math.min(SCHED_MAX,parseInt(f.count,10)||1));
+  var every=Math.max(1,parseInt(f.every,10)||1);
+  for(var i=0;i<n;i++){
+    var d=(f.freq==='once')?new Date(first.getTime()):_nsAddStep(first,f.freq,i*every), g=0;
+    while(!_nsBizOk(d,f.allow) && g<14){ d=new Date(d.getTime()+86400000); g++; }
+    out.push({at:toLocalInput(d), moved:g>0});
+  }
+  return out;
+}
 function schedmRender(){
   var ov=document.getElementById('schedmOv'); if(!ov) return;
-  var _pw=document.getElementById('schedmWhen'), _pe=document.getElementById('schedmEvery'), _pc=document.getElementById('schedmCount'), _pm=document.getElementById('schedmManual');
-  var _keep={ when:_pw?_pw.value:'', every:_pe?_pe.value:'', count:_pc?_pc.value:'', man:_pm?_pm.checked:false };
-  var total=schedmCount(), remain=12-total, sending=(SCHEDM.status==='sending');
-  var savedH=SCHEDM.saved.map(function(sc){ return '<div class="schedm-row"><span class="pill scheduled">'+esc(fmtWhen(sc.run_at))+'</span><span class="schedm-slot">'+((sc.slot||slotOf(sc.run_at))+'').toUpperCase()+'</span><span class="schedm-x" data-cancel="'+sc.id+'">cancel</span></div>'; }).join('');
-  var pendH=SCHEDM.pending.map(function(t,i){ return '<div class="schedm-row"><span class="pill draft">'+esc(fmtWhen(t))+'</span><span class="schedm-slot">'+slotOf(t)+'</span><span class="schedm-x" data-rm="'+i+'" style="color:var(--red)">remove</span></div>'; }).join('');
-  ov.innerHTML='<div class="schedm-card">'
-    +'<div class="schedm-hd"><div><b>Schedule sends</b><div class="schedm-sub">'+esc(SCHEDM.name||'Campaign')+'</div></div><button class="schedm-close" id="schedmClose" type="button">\u00d7</button></div>'
-    +'<div class="schedm-body">'
-    +(sending?'<div class="schedm-note" style="color:#9a6a12">This campaign is currently sending \u2014 scheduling is paused until it finishes.</div>':'')
-    +'<div class="schedm-cap">'+total+' of 12 scheduled'+(remain<=0?' \u00b7 limit reached':'')+'</div>'
-    +(savedH?('<div class="schedm-sec">Scheduled</div>'+savedH):'')
-    +(pendH?('<div class="schedm-sec">To be scheduled</div>'+pendH):'')
-    +((savedH||pendH)?'':'<div class="schedm-note">No sends scheduled yet. Add one below.</div>')
-    +'<div class="schedm-add"'+((remain<=0||sending)?' style="opacity:.5;pointer-events:none"':'')+'>'
-      +'<div class="schedm-line"><input type="datetime-local" id="schedmWhen"><button class="btn" id="schedmAdd" type="button">+ Add time</button></div>'
-      +'<div class="schedm-line"><span class="pgs">or repeat every</span><input type="number" min="1" value="1" id="schedmEvery" style="width:58px"><select id="schedmUnit"><option value="1">days</option><option value="7">weeks</option></select><span class="pgs">\u00d7</span><input type="number" min="1" max="12" value="4" id="schedmCount" style="width:58px"><button class="btn" id="schedmGen" type="button">Generate</button></div>'
-      +'<label class="schedm-man"><input type="checkbox" id="schedmManual"> Deliberate send (allow weekend / holiday)</label>'
+  if(!SCHEDM.form){ var t=new Date(Date.now()+86400000); t.setHours(9,0,0,0); while(!_nsBizOk(t,false)) t=new Date(t.getTime()+86400000); SCHEDM.form={ freq:'once', start:toLocalInput(t), every:1, count:4, allow:false }; }
+  var f=SCHEDM.form, sending=(SCHEDM.status==='sending');
+  var neu=schedmBuild(); SCHEDM.pending=neu.map(function(x){return x.at;});
+  var have=SCHEDM.saved.length, room=Math.max(0,SCHED_MAX-have), over=neu.length>room;
+  var unit={daily:'day(s)',weekly:'week(s)',monthly:'month(s)'}[f.freq]||'';
+  var rec=(f.freq!=='once');
+  var rows=[];
+  SCHEDM.saved.forEach(function(sc){ rows.push({at:sc.run_at, st:'saved', id:sc.id, slot:(sc.slot||slotOf(sc.run_at))}); });
+  neu.forEach(function(x,i){ rows.push({at:x.at, st:'new', i:i, moved:x.moved, slot:slotOf(x.at)}); });
+  rows.sort(function(a,b){ return new Date(a.at)-new Date(b.at); });
+  var _d=function(t){ try{ return new Date(t).toLocaleDateString([], {weekday:'short',month:'short',day:'numeric',year:'numeric'}); }catch(e){ return ''; } };
+  var _t=function(t){ try{ return new Date(t).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}); }catch(e){ return ''; } };
+  var body=rows.length?rows.map(function(r,k){ return '<tr class="'+(r.st==='new'?'nsnew':'')+'"><td class="nsnum">'+(k+1)+'</td><td>'+esc(_d(r.at))+'</td><td>'+esc(_t(r.at))+'</td><td>'+esc(String(r.slot||'').toUpperCase())+'</td>'
+      +'<td>'+(r.st==='new'?('<span class="nspill new">New</span>'+(r.moved?' <span class="nsnote" title="Moved off a weekend/holiday">moved to next business day</span>':'')):'<span class="nspill sch">Scheduled</span>')+'</td>'
+      +'<td class="nsact">'+(r.st==='saved'?'<a href="#" data-cancel="'+esc(r.id)+'">Cancel</a>':'')+'</td></tr>'; }).join('')
+    :'<tr><td colspan="6" class="nsempty">No sends yet. Set the Recurrence above — new sends preview here before you save.</td></tr>';
+  var btnLbl=neu.length?('Schedule '+neu.length+' send'+(neu.length===1?'':'s')):'Schedule';
+  var dis=(!neu.length||over||sending);
+  var actions='<button class="btn" type="button" data-nsclose>Cancel</button><button class="btn primary" type="button" data-nssave'+(dis?' disabled':'')+'>'+btnLbl+'</button>';
+  ov.innerHTML='<div class="schedm-card nscard">'
+    +'<div class="nshd"><div><div class="nskicker">Campaign · Schedule</div><b>Schedule Sends</b><div class="schedm-sub">'+esc(SCHEDM.name||'Campaign')+'</div></div><div class="nsbtns">'+actions+'</div></div>'
+    +'<div class="schedm-body nsbody">'
+    +(sending?'<div class="nswarn">This campaign is sending right now — new sends can be scheduled once it finishes.</div>':'')
+    +'<div class="nsgrp">Recurrence</div>'
+    +'<div class="nsgrid">'
+      +'<label class="nsf"><span>Frequency</span><select id="nsFreq"><option value="once">Does not repeat</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></label>'
+      +'<label class="nsf"><span>'+(rec?'First send':'Send on')+' <i>*</i></span><input type="datetime-local" id="nsStart" value="'+esc(f.start||'')+'"></label>'
+      +(rec?'<label class="nsf"><span>Repeat every</span><div class="nsinl"><input type="number" min="1" max="99" id="nsEvery" value="'+esc(f.every)+'"><em>'+unit+'</em></div></label>':'<div></div>')
+      +(rec?'<label class="nsf"><span>Number of sends <i>*</i></span><input type="number" min="1" max="'+SCHED_MAX+'" id="nsCount" value="'+esc(f.count)+'"></label>':'<div></div>')
     +'</div>'
+    +'<label class="nschk"><input type="checkbox" id="nsAllow"'+(f.allow?' checked':'')+'> Allow weekends &amp; holidays <span>— otherwise those dates move to the next business day</span></label>'
+    +'<div class="nsgrp">Sends <span class="nscount">'+have+' scheduled'+(neu.length?(' · <b>'+neu.length+' new</b> · '+(have+neu.length)+' total'):'')+'</span></div>'
+    +'<div class="nstblw"><table class="nstbl"><thead><tr><th>#</th><th>Date</th><th>Time</th><th>Slot</th><th>Status</th><th></th></tr></thead><tbody>'+body+'</tbody></table></div>'
+    +(over?'<div class="nswarn">That’s more than '+SCHED_MAX+' sends on one campaign ('+have+' already scheduled). Lower the number of sends.</div>':'')
+    +'<div class="nshelp">Only one send per morning and one per afternoon across all campaigns — if a slot is already taken by another campaign, that send is skipped and reported. Tick <b>Allow weekends &amp; holidays</b> for a deliberate one-off that should ignore the calendar rules.</div>'
     +'<div class="schedm-msg" id="schedmMsg"></div>'
     +'</div>'
-    +'<div class="schedm-ft"><button class="btn" id="schedmCloseB" type="button">Close</button><button class="btn primary" id="schedmSave" type="button"'+(SCHEDM.pending.length?'':' disabled')+'>Schedule'+(SCHEDM.pending.length?(' ('+SCHEDM.pending.length+')'):'')+'</button></div>'
+    +'<div class="schedm-ft">'+actions+'</div>'
     +'</div>';
-  document.getElementById('schedmClose').onclick=closeScheduleModal;
-  document.getElementById('schedmCloseB').onclick=closeScheduleModal;
-  var ab=document.getElementById('schedmAdd'); if(ab) ab.onclick=schedmAdd;
-  var gb=document.getElementById('schedmGen'); if(gb) gb.onclick=schedmGen;
-  var sb=document.getElementById('schedmSave'); if(sb) sb.onclick=schedmSave;
-  ov.querySelectorAll('[data-cancel]').forEach(function(b){ b.onclick=function(){ var sid=b.getAttribute('data-cancel'); api('POST','/api/mail/schedules/'+sid+'/cancel',{}).then(function(){ SCHEDM.saved=SCHEDM.saved.filter(function(x){return String(x.id)!==sid;}); schedmRender(); loadCampaigns(); }); }; });
-  ov.querySelectorAll('[data-rm]').forEach(function(b){ b.onclick=function(){ SCHEDM.pending.splice(parseInt(b.getAttribute('data-rm'),10),1); schedmRender(); }; });
-  var nw=document.getElementById('schedmWhen'); if(nw&&_keep.when) nw.value=_keep.when;
-  var ne=document.getElementById('schedmEvery'); if(ne&&_keep.every) ne.value=_keep.every;
-  var nc=document.getElementById('schedmCount'); if(nc&&_keep.count) nc.value=_keep.count;
-  var nm=document.getElementById('schedmManual'); if(nm) nm.checked=_keep.man;
+  var fq=document.getElementById('nsFreq'); fq.value=f.freq;
+  var bind=function(id,key,ev,num){ var el=document.getElementById(id); if(!el) return; el.addEventListener(ev||'change',function(){ f[key]=(el.type==='checkbox')?el.checked:el.value; schedmRender(); var nx=document.getElementById(id); if(nx&&nx.focus&&ev==='input'){ try{ nx.focus(); var L=String(nx.value).length; if(nx.setSelectionRange&&nx.type!=='number') nx.setSelectionRange(L,L); }catch(e){} } }); };
+  bind('nsFreq','freq'); bind('nsStart','start'); bind('nsEvery','every','input'); bind('nsCount','count','input'); bind('nsAllow','allow');
+  ov.querySelectorAll('[data-nsclose]').forEach(function(b){ b.onclick=closeScheduleModal; });
+  ov.querySelectorAll('[data-nssave]').forEach(function(b){ b.onclick=schedmSave; });
+  ov.querySelectorAll('[data-cancel]').forEach(function(b){ b.onclick=function(e){ e.preventDefault(); var sid=b.getAttribute('data-cancel'); api('POST','/api/mail/schedules/'+sid+'/cancel',{}).then(function(){ SCHEDM.saved=SCHEDM.saved.filter(function(x){return String(x.id)!==sid;}); schedmRender(); schedmMsg('Send canceled.',false); loadCampaigns(); }); }; });
 }
-function schedmAdd(){
-  var el=document.getElementById('schedmWhen'); var v=el&&el.value; if(!v){ schedmMsg('Pick a date and time.',true); return; }
-  if(schedmCount()>=12){ schedmMsg('Up to 12 scheduled sends per campaign.',true); return; }
-  var d=new Date(v), man=schedmManualOn();
-  if(!man){ if(d.getDay()===0||d.getDay()===6){ schedmMsg('Weekends are blacked out \u2014 tick Deliberate send to allow.',true); return; } if(_isHol(d)){ schedmMsg('That date is a major holiday \u2014 tick Deliberate send to allow.',true); return; } }
-  SCHEDM.pending.push(v); schedmMsg(''); schedmRender();
-}
-function schedmGen(){
-  var el=document.getElementById('schedmWhen'); var v=el&&el.value; if(!v){ schedmMsg('Pick a start time first.',true); return; }
-  var remain=12-schedmCount(); if(remain<=0){ schedmMsg('Up to 12 scheduled sends per campaign.',true); return; }
-  var man=schedmManualOn();
-  var stepDays=Math.max(1,parseInt(document.getElementById('schedmEvery').value,10)||1)*(parseInt(document.getElementById('schedmUnit').value,10)||1);
-  var count=Math.max(1,Math.min(remain,Math.min(12,parseInt(document.getElementById('schedmCount').value,10)||1)));
-  var cur=new Date(v), got=0, guard=0;
-  while(got<count && guard<800){ guard++; var ok=man||(cur.getDay()!==0&&cur.getDay()!==6&&!_isHol(cur)); if(ok){ SCHEDM.pending.push(toLocalInput(cur)); got++; cur=new Date(cur.getTime()+stepDays*86400000); } else { cur=new Date(cur.getTime()+86400000); } }
-  schedmMsg('Added '+got+' send'+(got===1?'':'s')+(man?'':' \u2014 weekends & holidays skipped')+'.'); schedmRender();
-}
+function schedmAdd(){ schedmRender(); }
+function schedmGen(){ schedmRender(); }
 function schedmSave(){
-  if(!SCHEDM.pending.length){ schedmMsg('Add at least one time first.',true); return; }
+  if(!SCHEDM.pending.length){ schedmMsg('Set a send date first.',true); return; }
   if(!CFG.sending){ schedmMsg('Amazon SES must be configured before scheduling can send.',true); return; }
-  var man=schedmManualOn(); var times=SCHEDM.pending.map(function(t){ return new Date(t).toISOString(); });
-  var btn=document.getElementById('schedmSave'); if(btn){ btn.disabled=true; btn.textContent='Scheduling\u2026'; }
+  var past=SCHEDM.pending.filter(function(t){ return new Date(t).getTime() < Date.now()+60000; }).length;
+  if(past){ schedmMsg((past===1?'A send is':past+' sends are')+' in the past — move the first send later.',true); return; }
+  var man=!!(SCHEDM.form&&SCHEDM.form.allow); var times=SCHEDM.pending.map(function(t){ return new Date(t).toISOString(); });
+  document.querySelectorAll('#schedmOv [data-nssave]').forEach(function(b){ b.disabled=true; b.textContent='Scheduling…'; });
   api('POST','/api/mail/campaigns/'+SCHEDM.id+'/schedule',{ times:times, manual:man }).then(function(r){
-    if(!r||!r.ok){ schedmMsg((r&&r.error)||'Could not schedule.',true); if(btn){btn.disabled=false;btn.textContent='Schedule';} return; }
-    SCHEDM.pending=[];
-    var msg='Scheduled '+(r.added||0)+' send'+((r.added===1)?'':'s')+'.'; var sk=[]; if(r.skippedWeekend) sk.push(r.skippedWeekend+' weekend'); if(r.skippedHoliday) sk.push(r.skippedHoliday+' holiday'); if(r.skippedSlot) sk.push(r.skippedSlot+' slot taken'); if(r.skippedPast) sk.push(r.skippedPast+' past'); if(sk.length) msg+=' Skipped '+sk.join(', ')+'.';
-    api('GET','/api/mail/campaigns/'+SCHEDM.id+'/schedule').then(function(rr){ SCHEDM.saved=((rr&&rr.schedules)||[]).filter(function(x){return x.status==='pending';}); schedmRender(); schedmMsg(msg,false); loadCampaigns(); });
-  }).catch(function(){ schedmMsg('Could not reach the server.',true); if(btn){btn.disabled=false;btn.textContent='Schedule';} });
+    if(!r||!r.ok){ schedmRender(); schedmMsg((r&&r.error)||'Could not schedule.',true); return; }
+    var msg='Scheduled '+(r.added||0)+' send'+((r.added===1)?'':'s')+'.'; var sk=[]; if(r.skippedWeekend) sk.push(r.skippedWeekend+' weekend'); if(r.skippedHoliday) sk.push(r.skippedHoliday+' holiday'); if(r.skippedSlot) sk.push(r.skippedSlot+' slot already taken by another campaign'); if(r.skippedPast) sk.push(r.skippedPast+' in the past'); if(sk.length) msg+=' Skipped: '+sk.join(', ')+'.';
+    api('GET','/api/mail/campaigns/'+SCHEDM.id+'/schedule').then(function(rr){ SCHEDM.saved=((rr&&rr.schedules)||[]).filter(function(x){return x.status==='pending';}); var f=SCHEDM.form; if(f){ f.freq='once'; var t=new Date(Date.now()+86400000); t.setHours(9,0,0,0); f.start=''; } schedmRender(); schedmMsg(msg,!!sk.length); loadCampaigns(); });
+  }).catch(function(){ schedmRender(); schedmMsg('Could not reach the server.',true); });
 }
 var RESCHED=null;
 function _localDT(t){ try{ if(typeof t==='string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(t)) return t.slice(0,16); return toLocalInput(new Date(t)); }catch(e){ return ''; } }
