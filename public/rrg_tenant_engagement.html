@@ -1528,11 +1528,17 @@ function renderBrokerBlasts(studio){
     if(runs.length){
       var head=(b.status==='sending')?'<span class="bbp ing">Sending</span><b>Round '+runs.length+'</b>':'<span class="bbp snt">Sent</span><b>'+runs.length+' round'+(runs.length===1?'':'s')+'</b>';
       var lines=runs.map(function(r,i){ var n=r.sent||0; return '<div class="bbr"><span class="bbrn">'+(i+1)+'</span><span class="bbrd">'+esc(_bbDate(r.sentAt))+'</span><span class="bbrs">'+Number(n).toLocaleString()+' sent · '+Number(r.opens||0).toLocaleString()+' opens'+_bbPct(r.opens||0,n)+' · '+Number(r.clicks||0).toLocaleString()+' clicks'+_bbPct(r.clicks||0,n)+'</span></div>'; }).join('');
-      var next=(b.sendAt&&b.status!=='sending')?('<div class="bbr nxt"><span class="bbrn">'+(runs.length+1)+'</span><span class="bbrd">'+esc(_bbDate(b.sendAt))+'</span><span class="bbrs">Scheduled'+(b.est!=null?(' · ~'+Number(b.est).toLocaleString()+' brokers'):'')+'</span></div>'):'';
+      var next=_bbPending(b, runs.length);
       var sched=_bbCanSched?('<a class="bbmore" href="rrg_mass_studio.html?schedule='+encodeURIComponent(b.id)+'#sent" title="Schedule another send of this blast in the Email Studio">+ Schedule another round ↗</a>'):'';
       return '<div class="bbrow"><div class="bbw">'+head+_bbActs(b)+'</div>'
         +(b.subject?('<div class="bbj" title="'+esc(b.subject)+'">'+esc(b.subject)+'</div>'):'')
         +'<div class="bbrounds">'+lines+next+'</div>'+sched+'</div>';
+    }
+    if(b.status==='scheduled' && b.pending && b.pending.length>1){
+      var sched2=_bbCanSched?('<a class="bbmore" href="rrg_mass_studio.html?schedule='+encodeURIComponent(b.id)+'#scheduled" title="Add or change scheduled rounds in the Email Studio">Manage rounds ↗</a>'):'';
+      return '<div class="bbrow"><div class="bbw"><span class="bbp sch">Scheduled</span><b>'+b.pending.length+' rounds</b>'+_bbActs(b)+'</div>'
+        +(b.subject?('<div class="bbj" title="'+esc(b.subject)+'">'+esc(b.subject)+'</div>'):'')
+        +'<div class="bbrounds">'+_bbPending(b,0)+'</div>'+sched2+'</div>';
     }
     var pill, when, stats='';
     if(b.status==='scheduled'){ pill='<span class="bbp sch">Scheduled</span>'; when=_bbDate(b.sendAt); stats=(b.est!=null?('~'+Number(b.est).toLocaleString()+' brokers (recounted at send time)'):'Brokers recounted at send time'); }
@@ -1544,6 +1550,12 @@ function renderBrokerBlasts(studio){
       +(stats?('<div class="bbs">'+esc(stats)+'</div>'):'')
       +(b.subject?('<div class="bbj" title="'+esc(b.subject)+'">'+esc(b.subject)+'</div>'):'')+'</div>';
   }).join('');
+}
+// Every scheduled round of a blast (numbered after the rounds already sent).
+function _bbPending(b, sentCount){
+  var p=(b.pending&&b.pending.length)?b.pending:(b.sendAt?[b.sendAt]:[]);
+  if(b.status==='sending') p=p.slice(0);
+  return p.map(function(at,i){ return '<div class="bbr nxt"><span class="bbrn">'+(sentCount+i+1)+'</span><span class="bbrd">'+esc(_bbDate(at))+'</span><span class="bbrs">Scheduled'+(i===0&&b.est!=null?(' · ~'+Number(b.est).toLocaleString()+' brokers'):'')+'</span></div>'; }).join('');
 }
 function _bbActs(b){
   var sentOnce=(b.runs||[]).some(function(r){ return r.sentAt||r.sent; });
