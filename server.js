@@ -10272,6 +10272,15 @@ function _resolveEngagement(req, res) {
 function _brokerBlastHtml(bodyFragment) {
   return '<div style="font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Arial,sans-serif;font-size:14px;line-height:1.55;color:#1a2236">' + String(bodyFragment || '') + '</div>';
 }
+// Every broker blast sent / scheduled for this engagement — powers the Broker Blasts card on the deal file.
+app.get('/api/deal/:key/broker-blasts', async (req, res) => {
+  try {
+    const r = _resolveEngagement(req, res); if (!r) return;
+    if (!massmail.dbReady()) return res.json({ ok: true, studio: false, blasts: [] });
+    const blasts = await massmail.requirementsFor(r.d.key);
+    res.json({ ok: true, studio: true, blasts: blasts });
+  } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
 // Draft the blind broker-requirement email + resolve the broker audience from the Email Studio.
 app.post('/api/deal/:key/broker-blast/draft', express.json(), async (req, res) => {
   try {

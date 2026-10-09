@@ -1093,6 +1093,28 @@ async function scheduledRequirementsFor(srcKey) {
     ORDER BY s.run_at ASC`, [TENANT, String(srcKey || '')])).rows;
   return rows.map(r => ({ id: String(r.id), sendAt: r.run_at, subject: r.subject || '' }));
 }
+// Every broker blast for a deal — scheduled, sending and sent (canceled ones are dropped) — newest first, with stats.
+async function requirementsFor(srcKey) {
+  const rows = (await q(`SELECT c.id, c.subject, c.status, c.total, c.sent, c.failed, c.opens, c.clicks, c.unsubs, c.bounces,
+      c.started_at, c.finished_at, c.created_at, COALESCE(c.by_user,'') AS by_user,
+      COALESCE(c.seg_type,'') AS seg_type, COALESCE(c.seg_mode,'') AS seg_mode, c.seg_metros,
+      (SELECT min(s.run_at) FROM mm_schedules s WHERE s.tenant=c.tenant AND s.campaign_id=c.id AND s.status='pending') AS run_at
+    FROM mm_campaigns c
+    WHERE c.tenant=$1 AND c.src='broker-blast' AND c.src_key=$2
+      AND NOT (COALESCE(c.archived,false) AND c.status='draft' AND COALESCE(c.sent,0)=0)
+    ORDER BY COALESCE((SELECT min(s.run_at) FROM mm_schedules s WHERE s.tenant=c.tenant AND s.campaign_id=c.id AND s.status='pending'), c.finished_at, c.started_at, c.created_at) DESC
+    LIMIT 100`, [TENANT, String(srcKey || '')])).rows;
+  const out = [];
+  for (const r of rows) {
+    const scheduled = !!r.run_at && r.status === 'scheduled';
+    let est = null;
+    if (scheduled) { try { let m = r.seg_metros; if (typeof m === 'string') { try { m = JSON.parse(m); } catch (e) { m = []; } } est = await countSegment({ type: r.seg_type || 'Broker', mode: r.seg_mode || '', metros: Array.isArray(m) ? m : [] }); } catch (e) { est = null; } }
+    out.push({ id: String(r.id), subject: r.subject || '', status: scheduled ? 'scheduled' : (r.status || ''), byUser: r.by_user,
+      sendAt: r.run_at || null, startedAt: r.started_at || null, finishedAt: r.finished_at || null, createdAt: r.created_at || null,
+      est: est, total: r.total || 0, sent: r.sent || 0, failed: r.failed || 0, opens: r.opens || 0, clicks: r.clicks || 0, unsubs: r.unsubs || 0, bounces: r.bounces || 0 });
+  }
+  return out;
+}
 async function cancelRequirement(id, srcKey) {
   id = Number(id);
   const c = (await q(`SELECT id,status FROM mm_campaigns WHERE tenant=$1 AND id=$2 AND src='broker-blast' AND ($3=''::text OR src_key=$3)`, [TENANT, id, String(srcKey || '')])).rows[0];
@@ -1106,4 +1128,4 @@ async function cancelRequirement(id, srcKey) {
 // Opt an address out of every Studio send (used by the legacy website preference page so an unsubscribe there sticks here too).
 async function suppressEmail(email, reason, detail) { if (!DB_READY) return false; const e = _norm(email); if (!_validEmail(e)) return false; await addSuppression(e, reason || 'unsubscribed', detail || ''); return true; }
 module.exports = { mount, dbReady, sesConfigured, importSubscribers, parseCsv, suppressEmail,
-  countSegment, createRequirementCampaign, sendCampaign, scheduleCampaignAt, scheduledRequirementsFor, cancelRequirement };
+  countSegment, createRequirementCampaign, sendCampaign, scheduleCampaignAt, scheduledRequirementsFor, requirementsFor, cancelRequirement };
