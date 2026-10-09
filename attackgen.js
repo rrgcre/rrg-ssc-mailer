@@ -321,14 +321,17 @@ BODY structure (HTML fragment):
 2. One short paragraph: RRG represents a tenant (described generically / blind) that is actively in the market for space, and you're reaching out to the brokerage community to source sites.
 3. A <ul> of the hard criteria pulled from the engagement — each <li> a labeled line using <strong>: Concept / Use, Target Markets, Size, Site Types, Occupancy / Budget, Must-Haves, Timeline. Omit any line the criteria don't support rather than guessing.
 4. One short paragraph: what RRG is looking for from them — on- or off-market space, listings, pads/endcaps, 2nd-gen restaurant space, and owner/landlord relationships in the target corridors; note the tenant is well-qualified and ready to move. Do NOT mention broker cooperation, co-brokerage, commission, protecting cooperating brokers, or any fee/commission arrangement — leave that out entirely.
-5. A closing paragraph: ask them to reply with anything that fits; RRG will move quickly and confidentially. Sign off from the RRG rep (use the preparedBy name if given, else "Restaurant Realty Group").
+5. A closing paragraph: ask them to reply with anything that fits; RRG will move quickly and confidentially. END THERE — the closing ask is the last line of the body.
+
+NO SIGNATURE: the sending system automatically appends the rep's own email signature. Do NOT add a sign-off ("Best,", "Regards,", "Thanks,", "Sincerely,"), a name, a title, "Restaurant Realty Group", a phone number, an email address, or any contact block at the end. A signature in the body would print twice.
 
 Rules:
 - BLIND: never reveal or hint at the tenant's name or any identifying specific when blind.
 - Ground every criterion in the inputs; omit what you don't have. Do not fabricate markets, sizes, or budgets.
 - Keep it concise — a broker should read it in under 30 seconds and know instantly if they have a fit.
-- Collegial and professional: this is broker-to-broker, cooperation offered. No hype, no emojis, no consumer-marketing tone.
+- Collegial and professional: this is broker-to-broker. No hype, no emojis, no consumer-marketing tone.
 - HTML body must be a clean fragment (<p>, <strong>, <ul>, <li>, <br> only) — no styles, no wrapper, no links.
+- No sign-off, name, or contact block — the system adds the rep's signature.
 - Output the JSON object only.`;
 
 async function generateBrokerRequirement({ business, market, criteria, preparedBy, blind, systemPrompt }) {
@@ -348,7 +351,7 @@ async function generateBrokerRequirement({ business, market, criteria, preparedB
     'Confidentiality: ' + (isBlind
       ? 'BLIND — the tenant is RRG\'s confidential client. Withhold the tenant name and any identifying specific; describe the tenant generically by concept and caliber.'
       : 'NOT blind — you may name the tenant/concept.') + '\n' +
-    'Prepared By (the RRG rep sending this): ' + (preparedBy || 'Restaurant Realty Group') + '.\n' +
+    'Do not sign the email — the system appends the sender\'s own signature.\n' +
     'Write the broker-to-broker requirement email JSON object now, grounded in the criteria above.' });
   const resp = await fetch(API_URL, {
     method: 'POST',
@@ -363,8 +366,41 @@ async function generateBrokerRequirement({ business, market, criteria, preparedB
   const text = (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n');
   const out = extractJson(text);
   if (!out || !out.subject || !out.body) throw new Error('Could not parse a broker requirement email from the model response.');
-  return { subject: String(out.subject).trim(), body: String(out.body).trim(), blind: isBlind, usage: data.usage || null };
+  return { subject: String(out.subject).trim(), body: stripSignOff(String(out.body).trim(), preparedBy), blind: isBlind, usage: data.usage || null };
+}
+// Belt-and-braces: remove any trailing sign-off / signature block the model adds anyway — the sending system
+// appends the rep's own signature, so one in the body prints twice. Only trailing short paragraphs are touched.
+function stripSignOff(html, preparedBy) {
+  let s = String(html || '').trim();
+  const name = String(preparedBy || '').trim().toLowerCase().replace(/[^a-z ]/g, '').trim();
+  const isSig = function (txt) {
+    const t = txt.replace(/\s+/g, ' ').trim(); const l = t.toLowerCase();
+    if (!t) return true;
+    if (t.length > 160) return false;
+    if (/^(best|best regards|regards|kind regards|warm regards|thanks|thank you|many thanks|sincerely|cheers|respectfully|all the best|talk soon)\b/i.test(t) && t.split(' ').length <= 6) return true;
+    if (/^[—–-]\s*\S/.test(t)) return true;                                                   // "— Van Rinn"
+    if (/restaurant realty group|\brrg\b/i.test(t) && t.length <= 80 && !/\?/.test(t) && !/(represent|seeking|looking|reply|move|confiden)/i.test(l)) return true;
+    if (name && l.replace(/[^a-z ]/g, '').trim() === name) return true;
+    if (/\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}/.test(t) && t.length <= 100) return true;           // phone line
+    if (/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(t)) return true;                                  // bare email line
+    if (/^(president|founder|broker|associate|advisor|vice president|principal|managing)\b/i.test(t) && t.length <= 80) return true; // title line
+    return false;
+  };
+  for (let i = 0; i < 8; i++) {
+    const m = s.match(/<p\b[^>]*>((?:(?!<p\b)[\s\S])*?)<\/p>\s*$/i);
+    if (!m) break;
+    const inner = m[1];
+    const raw = inner.split(/<br\s*\/?>/i);
+    const lines = raw.map(x => x.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').trim());
+    if (lines.every(isSig)) { s = s.slice(0, m.index).trim(); continue; }
+    // A closing paragraph that ends with "<br>Best,<br>Van" — trim only the trailing signature lines.
+    let k = lines.length; while (k > 1 && isSig(lines[k - 1])) k--;
+    if (k < lines.length) s = s.slice(0, m.index) + '<p>' + raw.slice(0, k).join('<br>').trim() + '</p>';
+    break;
+  }
+  return s;
 }
 
+
 function setModel(m){ if (m) MODEL = String(m); }
-module.exports = { setModel, generateMap, generateTenantMap, refineTenantMap, generateBrokerRequirement, MODEL, DEFAULT_SYSTEM: SYSTEM, DEFAULT_SYSTEM_TENANT: SYSTEM_TENANT, DEFAULT_SYSTEM_BROKER_REQ: SYSTEM_BROKER_REQ };
+module.exports = { setModel, generateMap, generateTenantMap, refineTenantMap, generateBrokerRequirement, stripSignOff, MODEL, DEFAULT_SYSTEM: SYSTEM, DEFAULT_SYSTEM_TENANT: SYSTEM_TENANT, DEFAULT_SYSTEM_BROKER_REQ: SYSTEM_BROKER_REQ };
