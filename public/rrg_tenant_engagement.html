@@ -95,6 +95,13 @@ a.hpstep:hover .hpname,button.hpstep:hover .hpname{color:var(--red);}
 .rail > .card > .ch > span:not(.rgrip):not(.accchev):not([id]){color:#6b7488;font-size:10.5px;font-weight:700;background:#eef2f6;border-radius:999px;padding:1px 8px;line-height:1.7;font-variant-numeric:tabular-nums;margin-left:0;}
 .rail > .card > .ch > span[id]{background:none;padding:0;color:#8a93a8;margin-left:0;font-weight:700;font-size:11px;}
 .rail > .card > .ch .railadd{margin-left:auto;background:#fff;border:1px solid #cdd6e6;color:var(--navy);border-radius:6px;height:26px;min-width:28px;padding:0 7px;font:inherit;font-size:16px;font-weight:700;line-height:1;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex:none;text-decoration:none;white-space:nowrap;}
+.rail > .card > .ch .railacts{margin-left:auto;display:inline-flex;gap:6px;align-items:center;}
+.rail > .card > .ch .railacts .railadd{margin-left:0;}
+.rail > .card > .ch .railico{display:inline-flex;align-items:center;justify-content:center;padding:0;width:28px;color:#3f4b63;}
+.rail > .card > .ch .raildel:hover{color:#b23a2c;border-color:#e8b4ae;background:#fdf3f2;}
+.bbacts{margin-left:auto;display:inline-flex;gap:4px;}
+.bbbtn{display:inline-flex;align-items:center;justify-content:center;width:26px;height:24px;border:1px solid #dfe5ef;border-radius:6px;background:#fff;color:#3f4b63;cursor:pointer;padding:0;}
+.bbbtn:hover{background:#f4f7fb;border-color:#9fb0cc;} .bbbtn.del:hover{color:#b23a2c;border-color:#e8b4ae;background:#fdf3f2;}
 .bbrow{padding:9px 0;border-top:1px solid #eef1f6;font-size:12.5px;line-height:1.45;}
 .bbrow:first-child{border-top:none;padding-top:2px;}
 .bbrow .bbw{display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
@@ -329,6 +336,8 @@ a.feat:hover{background:#f7f9fc;}
 /* mini upload modal on the listing page */
 .dmask{position:fixed;inset:0;background:rgba(9,17,40,.5);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px;}
 .dmask[hidden]{display:none;}
+.bvmsg{background:#fff;border:1px solid #e6e9f0;border-radius:10px;padding:16px 20px;font-size:14px;line-height:1.6;color:#1a2236;}
+.bvmsg p{margin:0 0 12px;} .bvmsg p:last-child{margin-bottom:0;} .bvmsg ul,.bvmsg ol{margin:0 0 12px;padding-left:20px;} .bvmsg li{margin:0 0 5px;} .bvmsg strong{color:#0b1636;}
 .dcard{background:#fff;border-radius:14px;width:min(460px,100%);max-height:90vh;overflow:auto;box-shadow:0 30px 80px rgba(9,17,40,.4);}
 .dch{padding:16px 20px 4px;font-size:16px;font-weight:800;color:#16223c;}
 .dcsub{padding:0 20px;font-size:12px;color:var(--soft);margin-top:2px;}
@@ -393,6 +402,11 @@ a.feat:hover{background:#f7f9fc;}
     <textarea id="docUpNote" maxlength="400" placeholder="Anything worth remembering about this document…"></textarea>
   </div>
   <div class="dcf"><span class="dmsg" id="docUpMsg"></span><button class="dbtn ghost" onclick="closeDocUpload()">Cancel</button><button class="dbtn go" id="docUpGo" onclick="doDocUpload()">Upload</button></div>
+</div></div>
+<div id="bvMask" class="dmask" hidden onclick="if(event.target===this)_bvClose()"><div class="dcard" style="width:min(680px,100%)">
+  <div class="dch" style="display:flex;align-items:flex-start;gap:12px"><span id="bvTitle" style="flex:1">Broker blast</span><button type="button" onclick="_bvClose()" aria-label="Close" style="background:none;border:none;font-size:22px;line-height:1;color:#8a93a8;cursor:pointer">×</button></div>
+  <div class="dcb" id="bvBody"></div>
+  <div class="dcf"><span class="dmsg"></span><button type="button" class="phupload" style="margin-left:0" onclick="_bvClose()">Close</button></div>
 </div></div>
 <div id="blastMask" class="dmask" hidden><div class="dcard" style="width:min(640px,100%)">
   <div class="dch">Blast to brokers</div>
@@ -1439,14 +1453,15 @@ document.addEventListener('change',function(e){ if(!e.target.closest) return; va
 // tenant. Anchored to THIS engagement (open-or-create one plan via /api/map-ensure), so it's
 // never a throwaway draft and the same plan reopens every time.
 function _mapFmtD(iso){ try{ var d=new Date(iso); if(isNaN(d.getTime())) return ''; return (d.getMonth()+1)+'/'+d.getDate()+'/'+d.getFullYear(); }catch(e){ return ''; } }
+var _icoEye='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+var _icoTrash='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>';
 function marketAttackCard(){
   return '<div class="card" id="mapCard"><div class="ch"><b>Market Attack Plan</b>'
-    + '<button type="button" class="railadd" id="mapOpenLink" onclick="mapOpen();return false;" title="Build the plan">+</button></div>'
+    + '<div class="railacts"><button type="button" class="railadd railico" id="mapViewBtn" style="display:none" onclick="mapOpen();return false;" title="View the plan" aria-label="View the plan">'+_icoEye+'</button>'
+    + '<button type="button" class="railadd railico raildel" id="mapDelBtn" style="display:none" onclick="mapDelete();return false;" title="Delete the plan" aria-label="Delete the plan">'+_icoTrash+'</button>'
+    + '<button type="button" class="railadd" id="mapOpenLink" onclick="mapOpen();return false;" title="Build the plan">+</button></div></div>'
     + '<div class="cb" style="padding:12px 16px">'
     + '<div id="mapStatus" style="font-size:12.5px;color:#55607a;line-height:1.55">Your plan of attack for this tenant — submarkets, target sites, canvass cadence and timeline. It drives the shortlist and tours below.</div>'
-    + '<div style="margin-top:11px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
-    +   '<a href="#" id="mapDelLink" onclick="mapDelete();return false;" title="Delete this Market Attack Plan" style="display:none;font-size:11.5px;font-weight:600;color:#aeb6c3;text-decoration:none">Delete plan</a>'
-    + '</div>'
     + '</div></div>';
 }
 function mapOpen(){
@@ -1457,11 +1472,12 @@ function mapOpen(){
 }
 var _tmap=null, _tmapFetched=false;
 function applyMapStatus(){
-  var m=_tmap, lk=document.getElementById('mapOpenLink'), st=document.getElementById('mapStatus'), dl=document.getElementById('mapDelLink');
+  var m=_tmap, lk=document.getElementById('mapOpenLink'), st=document.getElementById('mapStatus'), dl=document.getElementById('mapDelBtn'), vw=document.getElementById('mapViewBtn');
   if(!lk||!st) return;
-  if(!m){ lk.title='Build the plan'; if(dl) dl.style.display='none'; return; }
-  lk.title='Open the plan';
-  if(dl) dl.style.display='';
+  // One plan per engagement: "+" builds it; once it exists the header shows View + Delete instead.
+  if(!m){ lk.style.display=''; lk.title='Build the plan'; if(dl) dl.style.display='none'; if(vw) vw.style.display='none'; return; }
+  lk.style.display='none';
+  if(vw) vw.style.display=''; if(dl) dl.style.display='';
   var when=m.updatedAt||m.builtAt||''; var lbl=m.pending?'In progress':'Built';
   st.innerHTML='<span style="font-weight:700;color:'+(m.pending?'#b5791f':'#1f8a5b')+'">'+lbl+'</span>'+(when?(' <span style="color:#8a93a8">· updated '+esc(_mapFmtD(when))+'</span>'):'')+'<div style="margin-top:4px;color:#8a93a8">Submarkets, target sites, canvass cadence &amp; timeline — anchored to this engagement.</div>';
 }
@@ -1505,10 +1521,38 @@ function renderBrokerBlasts(studio){
     else if(b.finishedAt||b.status==='sent'){ pill='<span class="bbp snt">Sent</span>'; when=_bbDate(b.finishedAt||b.startedAt); var n=b.sent||0; stats=Number(n).toLocaleString()+' sent · '+Number(b.opens||0).toLocaleString()+' opens'+_bbPct(b.opens||0,n)+' · '+Number(b.clicks||0).toLocaleString()+' clicks'+_bbPct(b.clicks||0,n)+(b.unsubs?(' · '+b.unsubs+' unsub'):''); }
     else { pill='<span class="bbp oth">'+esc(b.status||'Draft')+'</span>'; when=_bbDate(b.startedAt||b.createdAt); }
     return '<div class="bbrow"><div class="bbw">'+pill+'<b>'+esc(when)+'</b>'
-      +(b.status==='scheduled'?('<a href="#" class="bbx" onclick="cancelScheduledBlast(\''+esc(b.id)+'\');return false;">Cancel</a>'):'')+'</div>'
+      +'<span class="bbacts"><button type="button" class="bbbtn" title="View the email" aria-label="View the email" onclick="viewBlast(\''+esc(b.id)+'\')">'+_icoEye+'</button>'
+      +(b.status==='sending'?'':('<button type="button" class="bbbtn del" title="'+(b.status==='scheduled'?'Cancel and delete this blast':'Delete this blast')+'" aria-label="Delete this blast" onclick="deleteBlast(\''+esc(b.id)+'\',\''+esc(b.status)+'\')">'+_icoTrash+'</button>'))+'</span></div>'
       +(stats?('<div class="bbs">'+esc(stats)+'</div>'):'')
       +(b.subject?('<div class="bbj" title="'+esc(b.subject)+'">'+esc(b.subject)+'</div>'):'')+'</div>';
   }).join('');
+}
+function _bvClose(){ var m=document.getElementById('bvMask'); if(m) m.hidden=true; }
+function viewBlast(id){
+  var m=document.getElementById('bvMask'), body=document.getElementById('bvBody'), tt=document.getElementById('bvTitle'); if(!m) return;
+  tt.textContent='Broker blast'; body.innerHTML='<div style="color:#6b7488;font-size:13px">Loading…</div>'; m.hidden=false;
+  fetch('/api/mail/calendar-event/'+encodeURIComponent(id),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok||!j.event){ body.innerHTML='<div style="color:#b23a2c;font-size:13px">'+esc((j&&j.error)||'Couldn’t load this email.')+'</div>'; return; }
+    var e=j.event, s=e.stats||{}, sent=!!e.finishedAt;
+    tt.textContent=e.subject||e.name||'Broker blast';
+    var meta=sent?('Sent '+_bbDate(e.finishedAt)+' · '+Number(s.sent||0).toLocaleString()+' sent · '+Number(s.opens||0).toLocaleString()+' opens · '+Number(s.clicks||0).toLocaleString()+' clicks')
+      :(e.runAt?('Scheduled for '+_bbDate(e.runAt)+(e.est!=null?(' · ~'+Number(e.est).toLocaleString()+' brokers'):'')):(e.status||''));
+    body.innerHTML='<div style="font-size:12.5px;color:#6b7488;margin-bottom:12px">'+esc(meta)+(e.audience?(' · '+esc(e.audience)):'')+'</div>'
+      +(e.previewHtml?('<div class="bvmsg">'+e.previewHtml+'</div>'):('<div class="bvmsg" style="white-space:pre-wrap">'+esc(e.preview||'')+'</div>'))
+      +'<div style="font-size:11.5px;color:#8a93a8;margin-top:10px">Your email signature and the unsubscribe footer are added when it sends.</div>';
+  }).catch(function(){ body.innerHTML='<div style="color:#b23a2c;font-size:13px">Couldn’t reach the server.</div>'; });
+}
+function deleteBlast(id, status){
+  var sch=(status==='scheduled');
+  var msg=sch?'Delete this scheduled blast? It will be canceled and won’t go out.':'Remove this sent blast from the engagement? Its send record, opens and unsubscribes are kept in the Email Studio’s Archived tab.';
+  var go=function(ok){ if(!ok) return;
+    fetch('/api/deal/'+encodeURIComponent(KEY)+'/broker-blast/delete',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({campaignId:id})})
+      .then(function(r){return r.json();}).then(function(j){
+        if(j&&j.ok){ _bblasts=j.blasts||[]; renderBrokerBlasts(true); if(window.rrgToast) rrgToast(sch?'Blast canceled and deleted.':'Blast removed from this engagement.'); }
+        else { if(window.rrgToast) rrgToast((j&&j.error)||'Could not delete the blast.'); }
+      }).catch(function(){ if(window.rrgToast) rrgToast('Could not reach the server.'); });
+  };
+  if(window.rrgConfirm){ window.rrgConfirm(msg,{title:sch?'Delete scheduled blast?':'Remove blast?',okText:'Delete',danger:true}).then(go); } else { go(window.confirm(msg)); }
 }
 function loadBrokerBlasts(){
   if(!KEY) return;

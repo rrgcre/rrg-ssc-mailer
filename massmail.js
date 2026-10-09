@@ -875,7 +875,8 @@ function mount(app, deps) {
       runAt: nxt ? nxt.run_at : null, finishedAt: c.finished_at, startedAt: c.started_at, createdAt: c.created_at,
       audience: a.audience, est: a.est, metros: (c.seg_mode === 'area' && Array.isArray(metros)) ? metros : [],
       stats: { total: c.total || 0, sent: c.sent || 0, failed: c.failed || 0, opens: c.opens || 0, clicks: c.clicks || 0, bounces: c.bounces || 0, unsubs: c.unsubs || 0 },
-      preview: text.length > 900 ? (text.slice(0, 900).replace(/\s+\S*$/, '') + '…') : text } });
+      preview: text.length > 900 ? (text.slice(0, 900).replace(/\s+\S*$/, '') + '…') : text,
+      previewHtml: _safePreviewHtml(c.html || '') } });
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   // Standalone subscribe-able "Email Blasts" calendar (ICS). Public but token-gated (calendar apps can't sign in).
   app.get('/mail/calendar.ics', async (req, res) => { try {
@@ -1101,7 +1102,7 @@ async function requirementsFor(srcKey) {
       (SELECT min(s.run_at) FROM mm_schedules s WHERE s.tenant=c.tenant AND s.campaign_id=c.id AND s.status='pending') AS run_at
     FROM mm_campaigns c
     WHERE c.tenant=$1 AND c.src='broker-blast' AND c.src_key=$2
-      AND NOT (COALESCE(c.archived,false) AND c.status='draft' AND COALESCE(c.sent,0)=0)
+      AND NOT COALESCE(c.archived,false)
     ORDER BY COALESCE((SELECT min(s.run_at) FROM mm_schedules s WHERE s.tenant=c.tenant AND s.campaign_id=c.id AND s.status='pending'), c.finished_at, c.started_at, c.created_at) DESC
     LIMIT 100`, [TENANT, String(srcKey || '')])).rows;
   const out = [];
@@ -1125,7 +1126,35 @@ async function cancelRequirement(id, srcKey) {
   return true;
 }
 
+// Remove a broker blast from its engagement. Scheduled → the send is canceled; sent → archived (the send log,
+// opens and unsubscribes are kept for the record and stay in the Studio's Archived tab). Never while sending.
+async function removeRequirement(id, srcKey) {
+  id = Number(id);
+  const c = (await q(`SELECT id,status FROM mm_campaigns WHERE tenant=$1 AND id=$2 AND src='broker-blast' AND ($3=''::text OR src_key=$3)`, [TENANT, id, String(srcKey || '')])).rows[0];
+  if (!c) throw new Error('Blast not found.');
+  if (c.status === 'sending' || c.status === 'queued') throw new Error('This blast is sending right now — it can be removed once it finishes.');
+  await q(`UPDATE mm_schedules SET status='canceled', done_at=now() WHERE tenant=$1 AND campaign_id=$2 AND status='pending'`, [TENANT, id]);
+  await q(`UPDATE mm_campaigns SET status=CASE WHEN status='scheduled' THEN 'draft' ELSE status END, archived=true WHERE tenant=$1 AND id=$2`, [TENANT, id]);
+  return true;
+}
 // Opt an address out of every Studio send (used by the legacy website preference page so an unsubscribe there sticks here too).
+// Read-only preview of a campaign body that keeps its structure (paragraphs, lists, bold) but nothing else:
+// allow-listed tags only, every attribute stripped, any other '<' escaped — safe to drop into innerHTML.
+function _safePreviewHtml(html) {
+  let s = String(html || '').slice(0, 200000);
+  s = s.replace(/<(script|style|head|title|noscript|template)\b[\s\S]*?<\/\1\s*>/gi, '').replace(/<!--[\s\S]*?-->/g, '');
+  const KEEP = { p: 'p', br: 'br', ul: 'ul', ol: 'ol', li: 'li', strong: 'strong', b: 'strong', em: 'em', i: 'em', h1: 'p', h2: 'p', h3: 'p', h4: 'p' };
+  const BLOCK = { div: 1, tr: 1, table: 1, section: 1, blockquote: 1, h5: 1, h6: 1 };
+  s = s.replace(/<(\/?)([a-z][a-z0-9]*)\b[^>]*>/gi, function (m, close, tag) {
+    tag = tag.toLowerCase();
+    if (KEEP[tag]) { const t = KEEP[tag]; if (t === 'br') return '<br>'; return '<' + close + t + '>'; }
+    if (BLOCK[tag]) return close ? '<br>' : '';
+    return '';
+  });
+  s = s.replace(/<(?!\/?(?:p|br|ul|ol|li|strong|em)>)/gi, '&lt;');
+  s = s.replace(/<p>\s*(?:<br>\s*)*<\/p>/gi, '').replace(/(?:<br>\s*){3,}/gi, '<br><br>').replace(/^(?:\s*<br>)+|(?:<br>\s*)+$/gi, '').trim();
+  return s.slice(0, 60000);
+}
 async function suppressEmail(email, reason, detail) { if (!DB_READY) return false; const e = _norm(email); if (!_validEmail(e)) return false; await addSuppression(e, reason || 'unsubscribed', detail || ''); return true; }
 module.exports = { mount, dbReady, sesConfigured, importSubscribers, parseCsv, suppressEmail,
-  countSegment, createRequirementCampaign, sendCampaign, scheduleCampaignAt, scheduledRequirementsFor, requirementsFor, cancelRequirement };
+  countSegment, createRequirementCampaign, sendCampaign, scheduleCampaignAt, scheduledRequirementsFor, requirementsFor, removeRequirement, cancelRequirement };

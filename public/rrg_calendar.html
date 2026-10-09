@@ -60,7 +60,7 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Hel
 .empty{padding:40px;text-align:center;color:var(--muted);font-size:13.5px;}
 .modal{position:fixed;inset:0;background:rgba(6,14,32,.5);display:flex;align-items:center;justify-content:center;z-index:500;padding:18px;}
 .modal[hidden]{display:none;}
-.bcard{max-width:600px;}
+.bcard{max-width:680px;}
 .mft a.btn{text-decoration:none;display:inline-block;}
 .bload{color:var(--muted);font-size:13.5px;padding:10px 0;}
 .bpill{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.03em;padding:3px 9px;border-radius:999px;margin-right:6px;}
@@ -71,7 +71,11 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Hel
 .bstats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0 4px;}
 .bstat{background:var(--wash);border-radius:10px;padding:9px 10px;text-align:center;}
 .bstat b{display:block;font-size:17px;color:var(--navy);}.bstat span{font-size:11px;color:var(--muted);}
-.bprev{background:var(--wash);border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.55;color:#33405a;white-space:pre-wrap;max-height:230px;overflow:auto;}
+.bprev{background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px 20px;font-size:14px;line-height:1.6;color:var(--ink);white-space:pre-wrap;}
+.bprev.html{white-space:normal;}
+.bprev p{margin:0 0 12px;} .bprev p:last-child{margin-bottom:0;}
+.bprev ul,.bprev ol{margin:0 0 12px;padding-left:20px;} .bprev li{margin:0 0 5px;}
+.bprev strong{color:var(--navy);font-weight:700;}
 .bnote{font-size:11.5px;color:var(--soft);margin-top:10px;}
 @media (max-width:520px){ .bgrid{grid-template-columns:1fr;gap:2px 0;} .bgrid .k{padding-top:8px;} .bstats{grid-template-columns:repeat(2,1fr);} }
 .mcard{background:#fff;border-radius:15px;width:100%;max-width:560px;max-height:calc(100vh - 40px);overflow:auto;box-shadow:0 24px 70px rgba(0,0,0,.4);}
@@ -436,7 +440,8 @@ function openBlast(cid){
     var h='<div>'+st+ty+'</div><div class="bgrid">'+rows.map(function(r){return '<div class="k">'+r[0]+'</div><div class="v">'+r[1]+'</div>';}).join('')+'</div>';
     if(sent){ var s=e.stats||{}; var pct=function(n){ return s.sent?(' · '+Math.round(n*100/s.sent)+'%'):''; };
       h+='<div class="bstats"><div class="bstat"><b>'+Number(s.sent||0).toLocaleString()+'</b><span>Sent</span></div><div class="bstat"><b>'+Number(s.opens||0).toLocaleString()+'</b><span>Opens'+pct(s.opens||0)+'</span></div><div class="bstat"><b>'+Number(s.clicks||0).toLocaleString()+'</b><span>Clicks'+pct(s.clicks||0)+'</span></div><div class="bstat"><b>'+Number(s.unsubs||0).toLocaleString()+'</b><span>Unsubs</span></div></div>'; }
-    if(e.preview){ h+='<label class="fld" style="margin-top:14px">Message preview</label><div class="bprev">'+esc(e.preview)+'</div>'; }
+    if(e.previewHtml){ h+='<label class="fld" style="margin-top:16px">Message</label><div class="bprev html">'+e.previewHtml+'</div>'; }
+    else if(e.preview){ h+='<label class="fld" style="margin-top:16px">Message</label><div class="bprev">'+esc(e.preview)+'</div>'; }
     if(!j.isAdmin) h+='<div class="bnote">Read-only. Scheduling, edits and cancellations are handled by an admin in the Email Studio.</div>';
     body.innerHTML=h;
     foot.innerHTML=(j.isAdmin?'<a class="btn red" href="rrg_mass_studio.html'+(sched?'#scheduled':'')+'">Open in Email Studio</a>':'')+'<button class="btn" id="bdone">Close</button>';

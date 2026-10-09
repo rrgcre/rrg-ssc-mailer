@@ -10281,6 +10281,17 @@ app.get('/api/deal/:key/broker-blasts', async (req, res) => {
     res.json({ ok: true, studio: true, blasts: blasts });
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
+// Delete a blast from this engagement (scheduled → canceled; sent → archived with its send record kept).
+app.post('/api/deal/:key/broker-blast/delete', express.json(), async (req, res) => {
+  try {
+    const r = _resolveEngagement(req, res); if (!r) return;
+    if (!massmail.dbReady()) return res.status(400).json({ ok: false, error: 'Email Studio storage isn’t configured.' });
+    const id = Number((req.body || {}).campaignId); if (!id) return res.status(400).json({ ok: false, error: 'Missing blast id.' });
+    await massmail.removeRequirement(id, r.d.key);
+    const blasts = await massmail.requirementsFor(r.d.key);
+    res.json({ ok: true, blasts: blasts });
+  } catch (e) { res.status(400).json({ ok: false, error: String((e && e.message) || e) }); }
+});
 // Draft the blind broker-requirement email + resolve the broker audience from the Email Studio.
 app.post('/api/deal/:key/broker-blast/draft', express.json(), async (req, res) => {
   try {
