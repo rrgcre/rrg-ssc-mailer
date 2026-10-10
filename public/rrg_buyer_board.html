@@ -96,6 +96,10 @@ h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
 .offmenu button{display:flex;width:100%;align-items:center;gap:9px;background:#fff;border:none;border-radius:7px;padding:8px 10px;font:inherit;font-size:13px;font-weight:600;color:#1a2236;cursor:pointer;text-align:left;} .offmenu button:hover{background:#f2f5fa;}
 .offmenu button .od{width:8px;height:8px;border-radius:50%;flex:none;} .offmenu .od.hold{background:#e0a83c;} .offmenu .od.lost{background:#c0392b;}
 .offmenu .omcancel{color:#8a94a6;font-weight:600;justify-content:center;font-size:12px;}
+.vtog{display:inline-flex;border:1px solid #cfd6e2;border-radius:6px;overflow:hidden;}
+.vbtn{background:#fff;border:none;padding:7px 12px;font:inherit;font-size:12.5px;font-weight:700;color:#6b7488;cursor:pointer;}
+.vbtn+.vbtn{border-left:1px solid #cfd6e2;} .vbtn.on{background:var(--navy,#000E31);color:#fff;}
+.listwrap{background:#fff;border:1px solid #e6e9f0;border-radius:12px;padding:12px 14px;box-shadow:0 4px 18px rgba(11,26,56,.05);}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -128,12 +132,15 @@ h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
     <span class="lbl" style="margin-left:8px">Pipeline</span>
     <select id="pipeSel" class="pipesel"></select>
     <span class="tot" id="tot"></span>
+    <div class="vtog" id="viewTog"><button type="button" class="vbtn" data-view="board">▤ Board</button><button type="button" class="vbtn" data-view="list">☰ List</button></div>
   </div>
   <div id="root"><div class="state">Loading the buyer pipeline…</div></div>
 </div>
 <div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
 <div class="toast" id="toast"></div>
+<script src="/rrg_list.js"></script>
 <script>
+var VIEW=(function(){ try{ return localStorage.getItem('rrg_buyerboard_view')||'board'; }catch(e){ return 'board'; } })(), LTBL=null;
 var STAGES=[], BUYERS=[], LISTINGS=[], PIPENAME='', HASPIPE=true, FILTER='__all__', DRAG=null, PIPELINES=[], BUYERPID='', SHOW_OFF=false;
 function qs(k){ try{ return new URLSearchParams(location.search).get(k)||''; }catch(e){ return ''; } }
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
@@ -154,10 +161,38 @@ function cardHtml(b){
     +'<div class="bbody">'+(meta?('<div class="bmeta">'+meta+'</div>'):'')+chip+src+'</div>'
   +'</div>';
 }
+function syncViewTog(){ document.querySelectorAll('#viewTog .vbtn').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-view')===VIEW); }); }
+(function(){ document.querySelectorAll('#viewTog .vbtn').forEach(function(b){ b.addEventListener('click',function(){ var v=b.getAttribute('data-view'); if(v===VIEW) return; VIEW=v; try{ localStorage.setItem('rrg_buyerboard_view',VIEW); }catch(e){} LTBL=null; render(); }); }); syncViewTog(); })();
+function _bbDate(d){ if(!d) return ''; var t=new Date(d); if(isNaN(t)) return ''; return (t.getMonth()+1)+'/'+t.getDate()+'/'+String(t.getFullYear()).slice(2); }
+function _bbStatus(b){ return b.lost?'Lost':(b.parked?'On Hold':'Active'); }
+// List view — the same buyers (on and off the board) as a sortable, filterable list; stage editable in place.
+function renderList(all){
+  var root=document.getElementById('root');
+  if(!document.getElementById('buyerlist')){ root.innerHTML='<div class="listwrap"><div id="buyerlist"></div></div>'; LTBL=null; }
+  var stageOpts=function(){ return STAGES.slice(); };
+  var cfg={ mount:'#buyerlist', data:all, key:'buyerboardlist', rowId:function(b){ return b.listingKey+'|'+b.id; }, noSaved:true,
+    empty:'<div style="padding:26px;text-align:center;color:#8a94a6">No buyers'+(FILTER==='__all__'?' yet.':' on this listing yet.')+'</div>',
+    columns:[
+      { label:'Buyer', sort:function(a,b){return RRGList.cmp(a.name,b.name);}, cell:function(b){ return b.personId?('<a href="./rrg_person.html?id='+encodeURIComponent(b.personId)+'" style="color:var(--navy,#0b1a3a);font-weight:700;text-decoration:none">'+esc(b.name)+'</a>'):('<b>'+esc(b.name)+'</b>'); } },
+      { label:'Company', sort:function(a,b){return RRGList.cmp(a.company,b.company);}, cell:function(b){ return b.company?esc(b.company):'<span style="color:#b0b8c6">—</span>'; } },
+      { label:'Email', sort:function(a,b){return RRGList.cmp(a.email,b.email);}, cell:function(b){ return b.email?('<a href="mailto:'+esc(b.email)+'" style="color:#2c5c8f;text-decoration:none">'+esc(b.email)+'</a>'):'<span style="color:#b0b8c6">—</span>'; } },
+      { label:'Listing', sort:function(a,b){return RRGList.cmp(a.business,b.business);}, cell:function(b){ return '<a href="./rrg_assignment.html?key='+encodeURIComponent(b.listingKey)+'" style="color:#2c5c8f;font-weight:600;text-decoration:none">'+esc(b.business||'Listing')+'</a>'; } },
+      { label:'Stage', sort:function(a,b){ return STAGES.indexOf(a.stage)-STAGES.indexOf(b.stage); }, cell:function(b){ return b.stage?('<span style="font-size:12px;font-weight:700;color:var(--navy,#0b1a3a);background:#eef2fb;border:1px solid #d3ddf3;border-radius:999px;padding:2px 9px">'+esc(b.stage)+'</span>'):'<span style="color:#b0b8c6">\u2014</span>'; }, edit:{ type:'select', options:stageOpts, get:function(b){ return b.stage||''; },
+          save:function(b,val){ return api('POST','/api/buyer-board/move',{key:b.listingKey,id:b.id,stage:val}).then(function(j){ if(j&&j.ok){ b.stage=val; toast('Moved to '+val); return true; } throw new Error((j&&j.error)||'Could not move the buyer.'); }); } } },
+      { label:'Status', sort:function(a,b){return RRGList.cmp(_bbStatus(a),_bbStatus(b));}, cell:function(b){ var s=_bbStatus(b); var c=s==='Lost'?'#a5352c':(s==='On Hold'?'#9a6a12':'#1f6b45'); return '<span style="font-size:11px;font-weight:800;color:'+c+'">'+s+'</span>'; } },
+      { label:'Source', sort:function(a,b){return RRGList.cmp(a.source,b.source);}, cell:function(b){ return b.source?esc(b.source):'<span style="color:#b0b8c6">—</span>'; } },
+      { label:'Added', sort:function(a,b){return RRGList.cmp(a.createdAt||'',b.createdAt||'');}, cell:function(b){ return b.createdAt?esc(_bbDate(b.createdAt)):'<span style="color:#b0b8c6">—</span>'; } },
+      { label:'Updated', sort:function(a,b){return RRGList.cmp(a.updatedAt||'',b.updatedAt||'');}, cell:function(b){ return b.updatedAt?esc(_bbDate(b.updatedAt)):'<span style="color:#b0b8c6">—</span>'; } }
+    ]
+  };
+  if(LTBL) LTBL.refresh(all); else LTBL=RRGList.create(cfg);
+}
 function render(){
   var root=document.getElementById('root');
+  syncViewTog();
   if(!HASPIPE){ root.innerHTML='<div class="state"><b>No buyer pipeline yet.</b>Create one under <a href="./rrg_admin_pipelines.html">Admin → Pipelines</a> and set its Practice area to <b>Buyer</b>. Add your stages (e.g. Contacted → Qualified → NDA Sent → Toured → Offer) and this board fills in as buyer leads come in.</div>'; return; }
   var visAll=visibleBuyers();
+  if(VIEW==='list'){ renderList(visAll); var t=document.getElementById('tot'); if(t) t.textContent=visAll.length+' buyer'+(visAll.length===1?'':'s')+(FILTER==='__all__'?(' across '+LISTINGS.length+' listing'+(LISTINGS.length===1?'':'s')):(' on '+(lfLabelFor(FILTER)||'this listing'))); return; }
   var offAll=visAll.filter(isOffBuyer);                        // parked / lost — off the board
   var vis=visAll.filter(function(b){return !isOffBuyer(b);});
   var byStage={}; STAGES.forEach(function(s){byStage[s]=[];});
