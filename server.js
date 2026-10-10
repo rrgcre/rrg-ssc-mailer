@@ -9667,6 +9667,18 @@ header{background:linear-gradient(180deg,var(--navy2),var(--navy));border-bottom
 .mkthero .hd h1{color:#fff;}
 .mkthero .hd .lede{color:#c6d1e6;}
 .mkt-eyebrow{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#e0c27e;margin-bottom:13px;}
+.mkthero .hdgrid{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:48px;align-items:center;}
+.mktstats{border:1px solid rgba(224,194,126,.28);background:rgba(255,255,255,.04);border-radius:12px;padding:20px 22px 16px;backdrop-filter:blur(2px);}
+.mktstats .sh{display:flex;align-items:center;justify-content:space-between;font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#e0c27e;margin-bottom:14px;}
+.mktstats .sh .live{display:inline-flex;align-items:center;gap:6px;color:#9fb0cf;letter-spacing:.08em;font-weight:700;}
+.mktstats .sh .live i{width:7px;height:7px;border-radius:50%;background:#3fbf7f;box-shadow:0 0 0 3px rgba(63,191,127,.18);}
+.mktstats .sg{display:grid;grid-template-columns:1fr 1fr;gap:16px 18px;}
+.mktstats .sv{font-family:'Fraunces',Georgia,serif;font-size:30px;font-weight:600;color:#fff;line-height:1;letter-spacing:-.01em;font-variant-numeric:tabular-nums;}
+.mktstats .sk{font-size:11.5px;font-weight:600;color:#9fb0cf;margin-top:6px;line-height:1.3;}
+.mktstats .sf{margin-top:15px;padding-top:12px;border-top:1px solid rgba(255,255,255,.1);font-size:12px;color:#9fb0cf;}
+.mktstats .sf b{color:#fff;font-weight:700;}
+@media(max-width:980px){.mkthero .hdgrid{grid-template-columns:1fr;gap:22px;}.mktstats .sv{font-size:24px;}.mktstats .sg{grid-template-columns:repeat(4,1fr);}}
+@media(max-width:560px){.mktstats .sg{grid-template-columns:1fr 1fr;}}
 .modes{margin-top:16px;}
 .modeseg{display:inline-flex;border:1px solid var(--inp);border-radius:6px;overflow:hidden;background:#fff;}
 .modeseg button{border:none;background:#fff;padding:10px 18px;font:inherit;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;gap:8px;}
@@ -9825,7 +9837,7 @@ footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} 
   <a class="navcta" href="/site#contact">Talk to a broker</a>
 </div></header>
 <section class="mkthero"><div class="wrap">
-  <div class="hd">
+  <div class="hd hdgrid"><div>
     <div class="mkt-eyebrow">${esc(H.areas)}</div>
     <h1>${esc(H.heading)}</h1>
     <div class="lede">${esc(H.lede)}</div>
@@ -9833,6 +9845,8 @@ footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} 
       <button class="on" data-m="biz">Businesses <span class="c" id="cBiz"></span></button>
       <button data-m="re">Real Estate &amp; Assets <span class="c" id="cRe"></span></button>
     </div></div>
+  </div>
+  <aside class="mktstats" id="mktStats" style="display:none" aria-label="Current inventory"></aside>
   </div>
 </div></section>
 <div class="wrap">
@@ -10101,8 +10115,33 @@ function render(){
   RE=ALL.filter(function(l){return l.kind==='asset'||l.kind==='lease'||l.kind==='sale';});
   document.getElementById('cBiz').textContent=BIZ.length;
   document.getElementById('cRe').textContent=RE.length;
+  renderStats();
   fillFilters(); renderBiz(); renderRE();
   track('impression', ALL.map(function(l){return l.id;}));
+}
+// hero inventory stats — computed from the live public listings, never hard-coded
+function _fmtMoney(n){ if(n>=1e9) return '$'+(n/1e9).toFixed(1).replace(/[.]0$/,'')+'B'; if(n>=1e6) return '$'+(n/1e6).toFixed(n>=1e8?0:1).replace(/[.]0$/,'')+'M'; if(n>=1e3) return '$'+Math.round(n/1e3)+'K'; return '$'+Math.round(n); }
+function renderStats(){
+  var el=document.getElementById('mktStats'); if(!el) return;
+  if(!ALL.length){ el.style.display='none'; return; }
+  var ask=0, askN=0, cash=0, cashN=0, mets={}, fresh=0, now=Date.now();
+  var askAp=false, cashAp=false;
+  // ranges / bands count at their low end, so the total is shown as a floor ("+")
+  function _isRange(t){ return /[-–+]|under/i.test(String(t||'')); }
+  BIZ.forEach(function(l){ var al=askLabel(l), a=_mkNum(al); if(!isNaN(a)&&a>0){ ask+=a; askN++; if(_isRange(al)) askAp=true; } var cl=cashLabel(l), c=_mkNum(cl); if(!isNaN(c)&&c>0){ cash+=c; cashN++; if(_isRange(cl)) cashAp=true; } });
+  ALL.forEach(function(l){ var m=l.marketKey||''; if(m&&m!=='Other') mets[m]=1; var t=Date.parse(l.publishedAt||''); if(!isNaN(t)&&now-t<=30*864e5) fresh++; });
+  var cells=[];
+  cells.push([String(BIZ.length),BIZ.length===1?'Business for sale':'Businesses for sale']);
+  if(RE.length) cells.push([String(RE.length),'Real estate &amp; asset deals']);
+  if(askN) cells.push([_fmtMoney(ask)+((askAp||askN<BIZ.length)?'+':''),'Combined asking price']);
+  if(cashN) cells.push([_fmtMoney(cash)+((cashAp||cashN<BIZ.length)?'+':''),'Combined cash flow']);
+  var nm=Object.keys(mets).length; if(cells.length<4&&nm) cells.push([String(nm),nm===1?'Metro':'Metros']);
+  cells=cells.slice(0,4);
+  var foot=fresh?('<b>'+fresh+' new</b> in the last 30 days'):'Updated as listings go live';
+  el.innerHTML='<div class="sh"><span>On the market</span><span class="live"><i></i>Live</span></div>'
+    +'<div class="sg">'+cells.map(function(c){ return '<div><div class="sv">'+c[0]+'</div><div class="sk">'+c[1]+'</div></div>'; }).join('')+'</div>'
+    +'<div class="sf">'+foot+'</div>';
+  el.style.display='';
 }
 // request-access modal
 var curKey='';
