@@ -1097,6 +1097,7 @@ function render(){
   loadMapStatus();
   if(_bblasts) renderBrokerBlasts(_bbStudio); else loadBrokerBlasts();
   loadLoisCard();
+  loadShortlist();
   wirePhotos();
   wireDocs(); loadListingDocs();
   if(A && A.assignmentType==='listing'){ if(MKT) fillMarketplaceCard(); else loadMarketplace(); }
@@ -1761,21 +1762,37 @@ function blastSend(test, sendAtMs){
 }
 function spaceShortlistCard(){
   var cr=(A&&A.criteria)||{};
-  var bits=[];
-  if(cr.useType) bits.push('Use: '+esc(cr.useType));
-  if(cr.markets) bits.push('Markets: '+esc(cr.markets));
-  if(cr.sizeMin||cr.sizeMax) bits.push('Size: '+esc([cr.sizeMin,cr.sizeMax].filter(Boolean).join('–'))+' SF');
-  if(cr.budget) bits.push('Budget: '+esc(cr.budget));
-  var summary=bits.length
-    ? '<div style="font-size:12px;color:#6b7488;line-height:1.6;margin-bottom:10px">'+bits.join(' · ')+'</div>'
-    : '<div style="font-size:12px;color:#8a93a8;margin-bottom:10px">Set the site-selection criteria on the left to sharpen your search.</div>';
   var mk=String(cr.markets||'').split(/[,;]/)[0].trim();
   var stHref='./rrg_space_tracker.html'+(mk?('?market='+encodeURIComponent(mk)):'');
-  return '<div class="card" id="spaceShortlistCard"><div class="ch"><b>Space shortlist</b><span style="margin-left:auto"><a href="'+stHref+'" style="font-size:12px;font-weight:700;color:#23496f;text-decoration:none">Open Space Tracker ↗</a></span></div>'
-    + '<div class="cb" style="padding:12px 16px">'+summary
-    + '<div style="font-size:12.5px;color:#55607a;line-height:1.55">Hunt available spaces in <b>Space Tracker</b>, tour the ones that fit and log each visit under <b>Location Tours</b>, then record LOIs under <b>Offers — IOIs &amp; LOIs</b> as you narrow the field.</div>'
-    + '</div></div>';
+  return '<div class="card" id="spaceShortlistCard"><div class="ch"><b>Space shortlist</b><span class="bbcnt" hidden>0</span><div style="margin-left:auto;display:flex;gap:10px;align-items:center;white-space:nowrap"><a href="#" id="ssSurvey" style="font-size:12px;font-weight:700;color:#23496f;text-decoration:none;display:none">⬇ Survey</a><a href="'+stHref+'" style="font-size:12px;font-weight:700;color:#23496f;text-decoration:none">Tracker ↗</a></div></div>'
+    + '<div class="cb" style="padding:12px 16px"><div id="ssBody" style="font-size:12.5px;color:#8a93a8">Matching spaces to the criteria…</div></div></div>';
 }
+var _ss=null, _ssAll=false;
+function _ssMoney(v){ var n=parseFloat(String(v==null?'':v).replace(/[^0-9.]/g,'')); return isFinite(n)?('$'+n.toFixed(2)):''; }
+function loadShortlist(){ if(!document.getElementById('ssBody')) return; fetch('/api/assignment/'+encodeURIComponent(KEY)+'/space-matches'+(_ssAll?'?all=1':''),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ _ss=j; renderShortlist(); }).catch(function(){ var b=document.getElementById('ssBody'); if(b) b.innerHTML='<span style="color:#b23a2c">Couldn’t load matches.</span>'; }); }
+function renderShortlist(){
+  var b=document.getElementById('ssBody'), card=document.getElementById('spaceShortlistCard'); if(!b||!_ss) return; var j=_ss;
+  if(!j.ok){ b.innerHTML='<span style="color:#b23a2c">'+esc(j.error||'Couldn’t load matches.')+'</span>'; return; }
+  var m=j.matches||[]; var cnt=card&&card.querySelector('.ch > .bbcnt'); if(cnt){ cnt.textContent=String(m.length); cnt.hidden=!m.length; }
+  var c=j.criteria||{}; var bits=[]; if(c.sizeMin||c.sizeMax) bits.push(((c.sizeMin||0).toLocaleString())+'–'+(c.sizeMax?c.sizeMax.toLocaleString():'any')+' SF'); if((c.areas||[]).length) bits.push(c.areas.map(function(a){ return a.replace(/\b\w/g,function(m){return m.toUpperCase();}); }).join(', ')); else if((c.metros||[]).length) bits.push(c.metros.join(', ')); if(c.budget) bits.push('≤ $'+c.budget.hi+'/SF'); if((c.needs||[]).length) bits.push('needs '+c.needs.join(', '));
+  var head=j.hasCriteria?('<div style="font-size:11.5px;color:#6b7488;margin-bottom:8px">Scored live against: '+esc(bits.join(' · '))+' — new spaces land here automatically.</div>'):'<div style="font-size:12.5px;color:#55607a;line-height:1.55">Fill in the <b>Site Selection Criteria</b> (size, markets, budget, build needs) and every space in the tracker is scored against it automatically — new ones show up here the day they’re logged.</div>';
+  if(!j.hasCriteria){ b.innerHTML=head; return; }
+  var sv=document.getElementById('ssSurvey'); if(sv){ var ids=m.filter(function(x){return x.shortlisted;}).map(function(x){return x.spaceId;}); if(!ids.length) ids=m.slice(0,8).map(function(x){return x.spaceId;}); sv.style.display=ids.length?'':'none'; sv.title=ids.length+' space'+(ids.length===1?'':'s')+(m.some(function(x){return x.shortlisted;})?' (shortlisted)':' (top matches)'); sv.onclick=function(e){ e.preventDefault(); ssSurvey(ids,sv); }; }
+  if(!m.length){ b.innerHTML=head+'<div style="color:#55607a">No spaces fit yet. As spaces are added to the tracker — by hand, from flyers, or from email — the ones that fit show up here.</div>'+(j.dismissedCount?('<a href="#" id="ssShowAll" style="font-size:12px;color:#23496f;font-weight:700">Show '+j.dismissedCount+' dismissed</a>'):''); _ssWire(); return; }
+  b.innerHTML=head+m.map(function(x){ var sc=x.score>=80?['#e7f5ee','#1f6b45']:(x.score>=65?['#eef4fb','#23496f']:['#fff4e6','#9a6a12']);
+    var facts=[x.size?(Number(x.size).toLocaleString()+' SF'):'', x.rent?(_ssMoney(x.rent)+(x.nnn?(' + '+_ssMoney(x.nnn)):'')+'/SF'):'', x.readyGrade&&x.readyGrade!=='Unknown'?(x.readyGrade+(x.savesHi?(' · saves ~$'+Math.round(x.savesLo/1000)+'–'+Math.round(x.savesHi/1000)+'K'):'')):''].filter(Boolean).join(' · ');
+    return '<div class="loirow"'+(x.dismissed?' style="opacity:.55"':'')+'><div class="lw"><span class="loip" style="background:'+sc[0]+';color:'+sc[1]+'" title="Fit score">'+(x.shortlisted&&!x.score?'★':x.score)+'</span><a href="./rrg_space.html?id='+encodeURIComponent(x.spaceId)+'">'+esc([x.center,x.name].filter(Boolean).join(' · ')||x.address||'Space')+'</a>'+(x.isNew?'<span class="loip" style="background:#DA2B1F;color:#fff">NEW</span>':'')+(x.flags&&x.flags.priceDrop?'<span class="loip" style="background:#e7f5ee;color:#1f6b45">↓ price</span>':'')
+      +'<span style="margin-left:auto;display:flex;gap:4px"><button type="button" class="bbbtn" data-ssact="'+(x.shortlisted?'unshortlist':'shortlist')+'" data-sid="'+esc(x.spaceId)+'" title="'+(x.shortlisted?'Remove from shortlist':'Shortlist')+'" style="color:'+(x.shortlisted?'#e0a53a':'#9aa4b6')+';font-size:15px">★</button>'+(x.dismissed?('<button type="button" class="bbbtn" data-ssact="restore" data-sid="'+esc(x.spaceId)+'" title="Restore">↺</button>'):('<button type="button" class="bbbtn" data-ssact="dismiss" data-sid="'+esc(x.spaceId)+'" title="Not a fit — hide">✕</button>'))+'<a class="bbbtn" href="./rrg_loi_builder.html?key='+encodeURIComponent(KEY)+'&space='+encodeURIComponent(x.spaceId)+'#new" title="Write an LOI" style="text-decoration:none;font-size:11px;font-weight:800">LOI</a></span></div>'
+      +(facts?('<div class="ls">'+esc(facts)+'</div>'):'')
+      +(x.reasons.length?('<div class="ls" style="color:#1f6b45">✓ '+esc(x.reasons.join(' · '))+'</div>'):'')+(x.misses.length?('<div class="ls" style="color:#9a6a12">'+esc(x.misses.join(' · '))+'</div>'):'')+'</div>'; }).join('')
+    +(j.dismissedCount&&!_ssAll?('<a href="#" id="ssShowAll" style="display:inline-block;margin-top:8px;font-size:12px;color:#23496f;font-weight:700;text-decoration:none">Show '+j.dismissedCount+' dismissed</a>'):'');
+  _ssWire();
+  var fresh=m.filter(function(x){return x.isNew;}).map(function(x){return x.spaceId;}); if(fresh.length) setTimeout(function(){ fetch('/api/assignment/'+encodeURIComponent(KEY)+'/space-match',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'seen',spaceIds:fresh})}).catch(function(){}); },4000);
+}
+function _ssWire(){ var b=document.getElementById('ssBody'); if(!b) return;
+  b.querySelectorAll('[data-ssact]').forEach(function(btn){ btn.onclick=function(){ fetch('/api/assignment/'+encodeURIComponent(KEY)+'/space-match',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:btn.getAttribute('data-ssact'),spaceId:btn.getAttribute('data-sid')})}).then(function(){ loadShortlist(); }); }; });
+  var sa=document.getElementById('ssShowAll'); if(sa) sa.onclick=function(e){ e.preventDefault(); _ssAll=true; loadShortlist(); }; }
+function ssSurvey(ids,a){ var was=a.textContent; a.textContent='Building…'; fetch('/api/spaces/survey',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({spaceIds:ids,engagementKey:KEY})}).then(function(r){ if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Could not build.'); }); var cd=r.headers.get('Content-Disposition')||''; var mm=cd.match(/filename="([^"]+)"/); return r.blob().then(function(bl){ return {bl:bl,name:mm?mm[1]:'Market_Survey.pdf'}; }); }).then(function(x){ var u=URL.createObjectURL(x.bl); var l=document.createElement('a'); l.href=u; l.download=x.name; document.body.appendChild(l); l.click(); l.remove(); setTimeout(function(){URL.revokeObjectURL(u);},1500); a.textContent=was; }).catch(function(e){ a.textContent=was; if(window.rrgToast) rrgToast(e.message); }); }
 function offersCard(){
   var body;
   if(!OFFERS.length){
@@ -2089,6 +2106,7 @@ function save(rerender){
         document.getElementById('subline').querySelector('.hpill').textContent=body.status;
         if(body.businessOverride){ A.business=body.businessOverride; document.getElementById('h1').textContent=body.businessOverride; document.getElementById('crumb').textContent=body.businessOverride; }
         var s=document.getElementById('saved'); s.classList.add('show'); setTimeout(function(){ s.classList.remove('show'); },2200);
+        if(body.criteria) setTimeout(loadShortlist,300);
       } else { b.disabled=false; alert((j&&j.error)||'Could not save.'); }
     }).catch(function(){ b.textContent='Save changes'; b.disabled=false; alert('Could not reach the server.'); });
 }

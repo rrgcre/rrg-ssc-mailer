@@ -406,7 +406,7 @@ function _enrichCenterFrom(c, linkedSpaces, opts) {
   return changed;
 }
 const SPACE_TYPES = ['End cap', 'Inline', 'Pad / Outparcel', 'Freestanding'];
-const SPACE_STATUS = ['Available', 'Toured', 'LOI Out', 'Leased', 'Passed'];
+const SPACE_STATUS = ['Available', 'Toured', 'LOI Out', 'Leased', 'Passed', 'Off-market'];
 const SPACE_FEATURES = ['Drive-thru', 'Hood / exhaust', 'Grease trap', 'Gas service', 'Walk-in cooler', 'Bar built-out', 'Patio', 'Fire suppression', '3-phase power', 'Restrooms (ADA)', '2nd-gen restaurant'];
 function splitName(n) { n = String(n || '').trim(); if (!n) return { first: '', last: '' }; const i = n.indexOf(' '); if (i < 0) return { first: n, last: '' }; return { first: n.slice(0, i).trim(), last: n.slice(i + 1).trim() }; }
 function composeName(f, l) { return [String(f || '').trim(), String(l || '').trim()].filter(Boolean).join(' '); }
@@ -14740,6 +14740,7 @@ app.post('/api/space', express.json(), (req, res) => {
   let sp = b.id ? arr.find(x => x.id === b.id) : null;
   if (!sp) { sp = { id: newSpaceId(), createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }; arr.push(sp); }
   const _oldAddr = sp.address || '';
+  const _before = spaceSnap(sp); const _isNew = !b.id;
   if (typeof b.name === 'string') sp.name = b.name.slice(0, 160);
   if (typeof b.address === 'string') sp.address = b.address.slice(0, 200);
   // Address changed → drop the cached map coordinates so the space re-geocodes to its new spot.
@@ -14760,8 +14761,20 @@ app.post('/api/space', express.json(), (req, res) => {
   if (typeof b.url === 'string') sp.url = b.url.slice(0, 300);
   if (Array.isArray(b.features)) sp.features = b.features.map(x => String(x).slice(0, 40)).filter(Boolean).slice(0, 40);
   if (typeof b.notes === 'string') sp.notes = b.notes.slice(0, 4000);
+  // Restaurant infrastructure detail (feeds the restaurant-ready score).
+  if (b.infra && typeof b.infra === 'object') { const inf = sp.infra || {}; ['hoodFt', 'greaseGal', 'amps', 'parking', 'patioSf', 'seats', 'ceilingFt', 'prevUse'].forEach(k => { if (b.infra[k] !== undefined) inf[k] = String(b.infra[k] == null ? '' : b.infra[k]).slice(0, 80); }); sp.infra = inf; }
+  // Listing broker.
+  ['brokerName', 'brokerEmail', 'brokerPhone', 'brokerCompany', 'brokerPersonId'].forEach(k => { if (typeof b[k] === 'string') sp[k] = b[k].slice(0, 160); });
+  // Leased comp details.
+  if (b.leasedRent !== undefined) sp.leasedRent = num(b.leasedRent);
+  if (typeof b.leasedTo === 'string') sp.leasedTo = b.leasedTo.slice(0, 160);
+  if (typeof b.leasedAt === 'string') sp.leasedAt = b.leasedAt.slice(0, 10);
+  if (typeof b.leasedTerm === 'string') sp.leasedTerm = b.leasedTerm.slice(0, 40);
+  if (_isNew) { sp.history = [{ at: now, by: (req.user && req.user.name) || '', field: 'created', from: '', to: sp.status }]; if (sp.status === 'Available') sp.availableSince = now.slice(0, 10); }
+  else spaceLogChanges(sp, _before, (req.user && req.user.name) || '');
   sp.updatedAt = now;
   saveSpaces(arr);
+  setTimeout(spaceMatchSweep, 1500);
   res.json({ ok: true, space: sp, spaces: arr });
 });
 // Cache a space's geocoded map coordinates (set by the client after it geocodes the address once).
@@ -15706,7 +15719,7 @@ app.get('/api/ai/brief', async (req, res) => {
       .filter(l => scopeAll || l.byUser === scope)
       .slice().sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || ''))).slice(0, 15).map(l => ({ type: l.typeName || l.type || '', tenant: l.tenant || '', landlord: l.landlord || '', property: l.property || '', created: l.createdAt || '' }));
     // Spaces have no per-rep owner, so this block stays firm-wide in every scope.
-    const sp = loadSpaces(); const spaces = { total: sp.length, available: sp.filter(x => x.status === 'Available').length, loiOut: sp.filter(x => x.status === 'LOI Out').length, scope: 'firm-wide' };
+    const sp = loadSpaces(); const spaces = { total: sp.length, available: sp.filter(x => x.status === 'Available').length, loiOut: sp.filter(x => x.status === 'LOI Out').length, scope: 'firm-wide', newFitsForMyTenants: briefSpaceMatches(req, scope, scopeAll) };
     const data = { scope: scopeAll ? 'firm-wide' : scopeName, listings, tasks, agreementsExpiring, recentLois, spaces, counts: { listings: listings.length, openTasks: tasks.length, overdueTasks: tasks.filter(t => t.overdue).length, dealsUnderContract: listings.filter(l => l.deal && /Under Contract|Closing/i.test(l.deal.status)).length } };
     const brief = await aiassist.dailyBrief({ data, repName: scopeAll ? '' : scopeName, today: new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }), scopeLabel: scopeAll ? 'the whole firm' : scopeName });
     res.json({ ok: true, brief, generatedAt: new Date().toISOString(), repName: (req.user && req.user.name) || '', scope: scopeAll ? 'all' : scope, scopeName, scopeAll, canAll, me: uname, users: canAll ? roster : [] });
@@ -24348,6 +24361,479 @@ app.post('/api/loi/:id/send', express.json({ limit: '256kb' }), async (req, res)
     try { logSysEvent(req, 'LOI', 'Emailed LOI v' + (l.version || 1) + ' — ' + (l.property || '') + ' to ' + to, { tool: 'loi', kind: 'send', id: l.id }); } catch (e) {}
     res.json({ ok: true, loi: loiSummary(l), loggedOn: loggedOn });
   } catch (e) { console.error('loi send:', e && e.message); res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+
+
+// ===================== SPACES: restaurant-ready score · auto-match · history · broker · nearby · survey · TX data =====================
+// --- Restaurant-ready score + 2nd-gen value. Points sum to 100; $ = typical build-out a tenant avoids (estimates). ---
+const SPACE_READY_ITEMS = [
+  { k: 'hood', label: 'Hood / exhaust', feat: 'Hood / exhaust', pts: 20, lo: 40000, hi: 90000 },
+  { k: 'grease', label: 'Grease trap / interceptor', feat: 'Grease trap', pts: 15, lo: 25000, hi: 60000 },
+  { k: 'gas', label: 'Gas service', feat: 'Gas service', pts: 10, lo: 10000, hi: 30000 },
+  { k: 'power', label: '3-phase / heavy power', feat: '3-phase power', pts: 8, lo: 15000, hi: 40000 },
+  { k: 'walkin', label: 'Walk-in cooler', feat: 'Walk-in cooler', pts: 8, lo: 15000, hi: 35000 },
+  { k: 'restrooms', label: 'ADA restrooms', feat: 'Restrooms (ADA)', pts: 7, lo: 20000, hi: 45000 },
+  { k: 'bar', label: 'Bar built-out', feat: 'Bar built-out', pts: 7, lo: 25000, hi: 75000 },
+  { k: 'fire', label: 'Fire suppression', feat: 'Fire suppression', pts: 5, lo: 5000, hi: 12000 },
+  { k: 'patio', label: 'Patio', feat: 'Patio', pts: 6, lo: 15000, hi: 50000 },
+  { k: 'drive', label: 'Drive-thru', feat: 'Drive-thru', pts: 6, lo: 50000, hi: 150000 },
+  { k: 'secondgen', label: 'Former restaurant (2nd-gen)', feat: '2nd-gen restaurant', pts: 8, lo: 0, hi: 0 }
+];
+function _spNum(v) { if (v === '' || v == null) return null; const n = parseFloat(String(v).replace(/[^0-9.\-]/g, '')); return isFinite(n) ? n : null; }
+function spaceReady(sp) {
+  const f = Array.isArray(sp && sp.features) ? sp.features : []; const inf = (sp && sp.infra) || {};
+  const has = function (it) {
+    if (f.indexOf(it.feat) >= 0) return true;
+    if (it.k === 'hood') return (_spNum(inf.hoodFt) || 0) > 0;
+    if (it.k === 'grease') return (_spNum(inf.greaseGal) || 0) > 0;
+    if (it.k === 'power') return (_spNum(inf.amps) || 0) >= 400;
+    if (it.k === 'patio') return (_spNum(inf.patioSf) || 0) > 0;
+    if (it.k === 'secondgen') return sp && sp.condition === 'Second-gen';
+    return false;
+  };
+  let score = 0, lo = 0, hi = 0; const items = SPACE_READY_ITEMS.map(function (it) { const h = has(it); if (h) { score += it.pts; lo += it.lo; hi += it.hi; } return { k: it.k, label: it.label, have: h, pts: it.pts, lo: it.lo, hi: it.hi }; });
+  const characterized = f.length > 0 || Object.keys(inf).some(k => String(inf[k] || '').trim()) || !!(sp && sp.condition);
+  return { score: score, grade: !characterized ? 'Unknown' : (score >= 60 ? 'Restaurant-ready' : (score >= 35 ? 'Partial' : 'Shell')), savesLo: lo, savesHi: hi, items: items, characterized: characterized };
+}
+// --- History: every change to rent / NNN / size / status / type / condition is logged on the space. ---
+const SPACE_HIST_FIELDS = { rent: 'Base rent', nnn: 'NNN', size: 'Size', status: 'Status', spaceType: 'Type', condition: 'Condition', leasedRent: 'Leased at' };
+function spaceSnap(sp) { const o = {}; Object.keys(SPACE_HIST_FIELDS).forEach(k => { o[k] = (sp[k] == null ? '' : sp[k]); }); return o; }
+function spaceLogChanges(sp, before, by) {
+  const now = new Date().toISOString(); sp.history = Array.isArray(sp.history) ? sp.history : [];
+  Object.keys(SPACE_HIST_FIELDS).forEach(function (k) { const a = before[k], b = (sp[k] == null ? '' : sp[k]); if (String(a) !== String(b)) sp.history.push({ at: now, by: by || '', field: k, from: a, to: b }); });
+  if (before.status !== sp.status && sp.status === 'Leased' && !sp.leasedAt) sp.leasedAt = now.slice(0, 10);
+  if (before.status !== sp.status && sp.status === 'Available') sp.availableSince = now.slice(0, 10);
+  sp.history = sp.history.slice(-200);
+}
+function spaceFlags(sp) {
+  const today = Date.now(); const out = {};
+  const since = sp.availableSince || String(sp.createdAt || '').slice(0, 10);
+  if (since && (sp.status === 'Available' || !sp.status)) { const d = Math.floor((today - Date.parse(since)) / 864e5); if (isFinite(d) && d >= 0) out.dom = d; }
+  const h = Array.isArray(sp.history) ? sp.history : [];
+  const lastRent = h.filter(x => x.field === 'rent' && x.from !== '' && x.to !== '').slice(-1)[0];
+  if (lastRent && Number(lastRent.to) < Number(lastRent.from) && (today - Date.parse(lastRent.at)) < 45 * 864e5) out.priceDrop = { from: Number(lastRent.from), to: Number(lastRent.to), at: lastRent.at };
+  const upd = Date.parse(sp.updatedAt || sp.createdAt || ''); if ((sp.status === 'Available' || !sp.status) && isFinite(upd) && (today - upd) > 60 * 864e5) out.stale = Math.floor((today - upd) / 864e5);
+  return out;
+}
+// --- Matching a space to a tenant engagement's Site Selection Criteria (scored 0–100 with reasons). ---
+const _SPACE_NEED_WORDS = [
+  { re: /hood|vent|exhaust|kitchen/i, feat: 'Hood / exhaust', label: 'hood' }, { re: /grease/i, feat: 'Grease trap', label: 'grease trap' },
+  { re: /\bgas\b/i, feat: 'Gas service', label: 'gas' }, { re: /walk-?in|cooler|freezer/i, feat: 'Walk-in cooler', label: 'walk-in' },
+  { re: /patio|outdoor/i, feat: 'Patio', label: 'patio' }, { re: /drive[- ]?thr/i, feat: 'Drive-thru', label: 'drive-thru' },
+  { re: /\bbar\b|cocktail|liquor/i, feat: 'Bar built-out', label: 'bar' }, { re: /3[- ]?phase|power|amp/i, feat: '3-phase power', label: 'power' },
+  { re: /2nd[- ]?gen|second[- ]gen|existing (kitchen|restaurant)|former restaurant/i, feat: '2nd-gen restaurant', label: '2nd-gen' },
+  { re: /end[- ]?cap/i, type: 'End cap', label: 'end cap' }, { re: /pad|outparcel|freestanding/i, type: 'Pad / Outparcel', label: 'pad' }
+];
+const _MKT_STOP = { tx: 1, texas: 1, area: 1, areas: 1, and: 1, the: 1, near: 1, north: 0, south: 0, east: 0, west: 0, trade: 1, market: 1, markets: 1, metro: 1, city: 1, any: 1, open: 1, to: 1, or: 1, of: 1 };
+function engSpaceCriteria(av) {
+  const c = (av && av.criteria) || {};
+  const metros = effMarkets().filter(x => x !== 'Other');
+  const mtxt = String(c.markets || '') + ' ' + String(av.market || '');
+  const metroKeys = metros.filter(m => mtxt.toLowerCase().indexOf(m.toLowerCase()) >= 0);
+  const tokens = String(c.markets || '').toLowerCase().split(/[,;\/—–\-\(\)]+/).map(s => s.trim()).filter(Boolean)
+    .filter(t => t.length >= 4 && !_MKT_STOP[t] && metros.map(m => m.toLowerCase()).indexOf(t) < 0);
+  const nums = String(c.budget || '').match(/\d+(\.\d+)?/g) || []; const bn = nums.map(Number).filter(n => n > 0 && n < 500);
+  const budget = bn.length ? { lo: Math.min.apply(null, bn), hi: Math.max.apply(null, bn) } : null;
+  const needsTxt = [c.parking, c.features, c.useType, c.notes].filter(Boolean).join(' ');
+  const needs = []; _SPACE_NEED_WORDS.forEach(w => { if (w.re.test(needsTxt)) needs.push(w); });
+  const useTxt = String(c.useType || '').toLowerCase(); const isFood = !useTxt || /restaurant|bar|cafe|caf|kitchen|food|grill|pizza|taco|bbq|coffee|brew|bakery|qsr|fast/i.test(useTxt);
+  return { sizeMin: _spNum(c.sizeMin), sizeMax: _spNum(c.sizeMax), metroKeys: metroKeys, tokens: tokens, budget: budget, needs: needs, isFood: isFood,
+    // Enough to search on: a size range, or a location plus a budget or build need. A bare metro would match everything.
+    has: !!(_spNum(c.sizeMin) || _spNum(c.sizeMax) || ((metroKeys.length || tokens.length) && (budget || needs.length))) };
+}
+function scoreSpaceForEng(sp, cr) {
+  if (!cr || !cr.has) return null;
+  if (['Leased', 'Passed'].indexOf(sp.status) >= 0) return null;
+  const reasons = [], misses = []; let score = 0;
+  // Size (35)
+  const size = _spNum(sp.size);
+  if (cr.sizeMin || cr.sizeMax) {
+    if (size == null) { score += 10; misses.push('size unknown'); }
+    else { const lo = cr.sizeMin || 0, hi = cr.sizeMax || Infinity;
+      if (size >= lo && size <= hi) { score += 35; reasons.push(size.toLocaleString('en-US') + ' SF in range'); }
+      else if (size >= lo * 0.85 && size <= hi * 1.15) { score += 18; misses.push(size.toLocaleString('en-US') + ' SF — just ' + (size < lo ? 'under' : 'over')); }
+      else return null; }
+  } else score += 12;
+  // Market (25)
+  const stxt = [sp.market, sp.center, sp.address, sp.name].filter(Boolean).join(' ').toLowerCase();
+  const smetro = effMarkets().filter(x => x !== 'Other' && stxt.indexOf(x.toLowerCase()) >= 0)[0] || '';
+  if (cr.metroKeys.length || cr.tokens.length) {
+    const tok = cr.tokens.filter(t => stxt.indexOf(t) >= 0)[0];
+    if (tok) { score += 25; reasons.push('in ' + tok.replace(/\b\w/g, m => m.toUpperCase())); }
+    else if (smetro && cr.metroKeys.indexOf(smetro) >= 0) { score += 15; reasons.push(smetro); }
+    else if (smetro && cr.metroKeys.length && cr.metroKeys.indexOf(smetro) < 0) return null;
+    else { score += 6; misses.push('location unconfirmed'); }
+  } else score += 12;
+  // Budget (20)
+  const rent = _spNum(sp.rent);
+  if (cr.budget) {
+    if (rent == null) { score += 8; misses.push('rent unknown'); }
+    else if (rent <= cr.budget.hi) { score += 20; reasons.push('$' + rent.toFixed(2) + '/SF within budget'); }
+    else if (rent <= cr.budget.hi * 1.1) { score += 10; misses.push('$' + rent.toFixed(2) + '/SF slightly over'); }
+    else { misses.push('$' + rent.toFixed(2) + '/SF over budget'); }
+  } else score += 10;
+  // Build needs / restaurant-readiness (20)
+  const rd = spaceReady(sp); const f = Array.isArray(sp.features) ? sp.features : [];
+  if (cr.needs.length) {
+    let hit = 0; cr.needs.forEach(n => { const ok = n.type ? (sp.spaceType === n.type) : (f.indexOf(n.feat) >= 0 || (n.feat === '2nd-gen restaurant' && sp.condition === 'Second-gen') || (n.feat === 'Hood / exhaust' && rd.items[0].have) || (n.feat === 'Grease trap' && rd.items[1].have)); if (ok) { hit++; reasons.push(n.label); } else if (rd.characterized || n.type) misses.push('no ' + n.label); });
+    score += Math.round(20 * (rd.characterized || cr.needs.some(n => n.type) ? hit / cr.needs.length : 0.4));
+  } else if (cr.isFood) { score += Math.round(20 * (rd.characterized ? rd.score / 100 : 0.4)); if (rd.grade === 'Restaurant-ready') reasons.push('restaurant-ready'); }
+  else score += 12;
+  return { score: Math.max(0, Math.min(100, score)), reasons: reasons, misses: misses };
+}
+const SPACE_FIT_MIN = 55;
+function tenantEngagementsFor(req) {
+  const idx = assignmentsIndex(), ov = loadAssignOverlay(); const out = [];
+  Object.values(idx).forEach(d => {
+    if (req && !(canSeeAllDeals(req) || ownsAssignment(req, d))) return;
+    let av = null; try { av = assignmentView(d, ov, { noBoard: true }); } catch (e) {} if (!av || av.assignmentType !== 'tenant_rep' || _deadAssign(av.status)) return;
+    out.push({ d: d, av: av, o: ov[av.key] || {} });
+  });
+  return out;
+}
+function engagementSpaceMatches(e, spaces, opts) {
+  opts = opts || {}; const cr = engSpaceCriteria(e.av); const o = e.o || {};
+  const dis = Array.isArray(o.spaceDismissed) ? o.spaceDismissed : []; const sl = Array.isArray(o.spaceShort) ? o.spaceShort : []; const seen = o.spaceSeen || {};
+  const out = [];
+  (spaces || loadSpaces()).forEach(sp => {
+    const isShort = sl.indexOf(sp.id) >= 0;
+    if (!opts.includeDismissed && dis.indexOf(sp.id) >= 0) return;
+    const r = scoreSpaceForEng(sp, cr);
+    if (!r && !isShort) return;
+    if (r && r.score < SPACE_FIT_MIN && !isShort) return;
+    const rd = spaceReady(sp);
+    out.push({ spaceId: sp.id, name: sp.name || '', center: sp.center || '', address: sp.address || '', market: sp.market || '', size: sp.size, rent: sp.rent, nnn: sp.nnn, status: sp.status || 'Available', spaceType: sp.spaceType || '',
+      score: r ? r.score : 0, reasons: r ? r.reasons : [], misses: r ? r.misses : ['no longer fits'], ready: rd.score, readyGrade: rd.grade, savesLo: rd.savesLo, savesHi: rd.savesHi,
+      shortlisted: isShort, dismissed: dis.indexOf(sp.id) >= 0, isNew: !seen[sp.id] && !isShort, createdAt: sp.createdAt || '', flags: spaceFlags(sp) });
+  });
+  out.sort((a, b) => (b.shortlisted - a.shortlisted) || (b.score - a.score));
+  return { criteria: cr, matches: out };
+}
+// Engagement-side: the live, scored shortlist.
+app.get('/api/assignment/:key/space-matches', (req, res) => {
+  const r = _resolveEngagement(req, res); if (!r) return;
+  const e = { d: r.d, av: r.av, o: loadAssignOverlay()[req.params.key] || {} };
+  const m = engagementSpaceMatches(e, null, { includeDismissed: req.query.all === '1' });
+  const cr = m.criteria;
+  res.json({ ok: true, hasCriteria: cr.has, criteria: { sizeMin: cr.sizeMin, sizeMax: cr.sizeMax, metros: cr.metroKeys, areas: cr.tokens, budget: cr.budget, needs: cr.needs.map(n => n.label) }, matches: m.matches, dismissedCount: (e.o.spaceDismissed || []).length, minScore: SPACE_FIT_MIN });
+});
+app.post('/api/assignment/:key/space-match', express.json(), (req, res) => {
+  const r = _resolveEngagement(req, res); if (!r) return;
+  const b = req.body || {}; const ov = loadAssignOverlay(); const cur = ov[req.params.key] || {};
+  const ids = (Array.isArray(b.spaceIds) ? b.spaceIds : [b.spaceId]).map(x => String(x || '')).filter(Boolean).slice(0, 500);
+  cur.spaceDismissed = Array.isArray(cur.spaceDismissed) ? cur.spaceDismissed : []; cur.spaceShort = Array.isArray(cur.spaceShort) ? cur.spaceShort : []; cur.spaceSeen = cur.spaceSeen || {};
+  const now = new Date().toISOString();
+  ids.forEach(id => {
+    if (b.action === 'dismiss') { if (cur.spaceDismissed.indexOf(id) < 0) cur.spaceDismissed.push(id); cur.spaceShort = cur.spaceShort.filter(x => x !== id); }
+    else if (b.action === 'restore') cur.spaceDismissed = cur.spaceDismissed.filter(x => x !== id);
+    else if (b.action === 'shortlist') { if (cur.spaceShort.indexOf(id) < 0) cur.spaceShort.push(id); cur.spaceDismissed = cur.spaceDismissed.filter(x => x !== id); }
+    else if (b.action === 'unshortlist') cur.spaceShort = cur.spaceShort.filter(x => x !== id);
+    cur.spaceSeen[id] = cur.spaceSeen[id] || now;
+  });
+  if (b.action === 'seen') ids.forEach(id => { cur.spaceSeen[id] = cur.spaceSeen[id] || now; });
+  cur.updatedAt = now; ov[req.params.key] = cur; saveAssignOverlay(ov);
+  res.json({ ok: true });
+});
+// Space-side: which of my tenant engagements this space fits, and per-space fit counts for the tracker.
+app.get('/api/space/:id/engagement-matches', (req, res) => {
+  const sp = loadSpaces().find(x => x.id === req.params.id); if (!sp) return res.status(404).json({ ok: false, error: 'Space not found.' });
+  const out = [];
+  tenantEngagementsFor(req).forEach(e => { const r = scoreSpaceForEng(sp, engSpaceCriteria(e.av)); const sl = (e.o.spaceShort || []).indexOf(sp.id) >= 0; if ((r && r.score >= SPACE_FIT_MIN) || sl) out.push({ key: e.av.key, business: e.av.business || '', owner: e.av.owner || '', score: r ? r.score : 0, reasons: r ? r.reasons : [], misses: r ? r.misses : [], shortlisted: sl }); });
+  out.sort((a, b) => b.score - a.score);
+  res.json({ ok: true, matches: out });
+});
+app.get('/api/spaces/insights', (req, res) => {
+  const spaces = loadSpaces(); const engs = tenantEngagementsFor(req).map(e => ({ e: e, cr: engSpaceCriteria(e.av) })).filter(x => x.cr.has);
+  const out = {};
+  spaces.forEach(sp => { let n = 0; const who = []; engs.forEach(x => { const r = scoreSpaceForEng(sp, x.cr); if (r && r.score >= SPACE_FIT_MIN) { n++; if (who.length < 4) who.push(x.e.av.business || ''); } }); const rd = spaceReady(sp); out[sp.id] = { fits: n, fitWho: who, ready: rd.score, readyGrade: rd.grade, savesLo: rd.savesLo, savesHi: rd.savesHi, flags: spaceFlags(sp) }; });
+  res.json({ ok: true, insights: out, engagements: engs.length });
+});
+// Background sweep: when a space newly fits an active tenant, put it in the feed once (per engagement+space).
+function spaceMatchSweep() {
+  try {
+    const spaces = loadSpaces(); if (!spaces.length) return 0;
+    const ov = loadAssignOverlay(); let changed = false, n = 0;
+    tenantEngagementsFor(null).forEach(e => {
+      const cr = engSpaceCriteria(e.av); if (!cr.has) return;
+      const cur = ov[e.av.key] || {}; cur.spaceNotified = cur.spaceNotified || {};
+      const firstRun = !cur.spaceSweepAt;
+      spaces.forEach(sp => {
+        if (cur.spaceNotified[sp.id]) return;
+        const r = scoreSpaceForEng(sp, cr); if (!r || r.score < SPACE_FIT_MIN) return;
+        cur.spaceNotified[sp.id] = new Date().toISOString(); changed = true;
+        if (!firstRun) { n++; try { logSysEvent({ user: { name: 'Space matcher', username: (e.d.deal && e.d.deal.byUser) || '' } }, 'Space Match', 'New space fits ' + (e.av.business || 'a tenant') + ': ' + [sp.center, sp.name].filter(Boolean).join(' · ') + ' (' + r.score + '/100 — ' + r.reasons.slice(0, 3).join(', ') + ')', { tool: 'spaces', kind: 'match', key: e.av.key, spaceId: sp.id, score: r.score }); } catch (x) {} }
+      });
+      if (!cur.spaceSweepAt) { cur.spaceSweepAt = new Date().toISOString(); changed = true; }
+      ov[e.av.key] = cur;
+    });
+    if (changed) saveAssignOverlay(ov);
+    return n;
+  } catch (e) { console.error('space sweep:', e && e.message); return 0; }
+}
+setInterval(spaceMatchSweep, 10 * 60 * 1000);
+setTimeout(spaceMatchSweep, 45 * 1000);
+// New fits for a rep's engagements in the last week — fed to the Daily Brief.
+function briefSpaceMatches(req, scopeUser, scopeAll) {
+  try {
+    const spaces = loadSpaces(); const out = []; const weekAgo = Date.now() - 7 * 864e5;
+    tenantEngagementsFor(req).forEach(e => {
+      if (!scopeAll && !assignmentOwnedBy(e.d, scopeUser)) return;
+      const cr = engSpaceCriteria(e.av); if (!cr.has) return; const notified = (e.o.spaceNotified) || {};
+      spaces.forEach(sp => { const t = Date.parse(notified[sp.id] || sp.createdAt || ''); if (!isFinite(t) || t < weekAgo) return; const r = scoreSpaceForEng(sp, cr); if (r && r.score >= SPACE_FIT_MIN) out.push({ tenant: e.av.business || '', space: [sp.center, sp.name].filter(Boolean).join(' · '), score: r.score, why: r.reasons.slice(0, 3).join(', ') }); });
+    });
+    return out.sort((a, b) => b.score - a.score).slice(0, 12);
+  } catch (e) { return []; }
+}
+// --- Rent comps: leased spaces + asking-rent stats by market and type. ---
+app.get('/api/spaces/comps', (req, res) => {
+  const spaces = loadSpaces(); const mk = String(req.query.market || '').toLowerCase(); const ty = String(req.query.type || '');
+  const pick = spaces.filter(sp => (!mk || String(sp.market || sp.center || '').toLowerCase().indexOf(mk) >= 0) && (!ty || sp.spaceType === ty));
+  const med = a => { const s = a.filter(x => x != null && isFinite(x)).sort((x, y) => x - y); if (!s.length) return null; const m = Math.floor(s.length / 2); return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+  const avail = pick.filter(sp => sp.status === 'Available' || !sp.status);
+  const leased = pick.filter(sp => sp.status === 'Leased').map(sp => ({ id: sp.id, name: sp.name || '', center: sp.center || '', market: sp.market || '', size: sp.size, asking: sp.rent, leasedRent: sp.leasedRent, nnn: sp.nnn, leasedTo: sp.leasedTo || '', leasedAt: sp.leasedAt || '', spaceType: sp.spaceType || '', condition: sp.condition || '' }));
+  const groups = {};
+  pick.forEach(sp => { const g = (sp.market || 'Unknown') + '|' + (sp.spaceType || 'Any'); (groups[g] = groups[g] || []).push(sp); });
+  const byGroup = Object.keys(groups).map(g => { const a = groups[g]; const av = a.filter(sp => sp.status === 'Available' || !sp.status); const le = a.filter(sp => sp.status === 'Leased'); const p = g.split('|');
+    return { market: p[0], spaceType: p[1], count: a.length, available: av.length, medAsking: med(av.map(x => _spNum(x.rent))), medLeased: med(le.map(x => _spNum(x.leasedRent) || _spNum(x.rent))), medNnn: med(a.map(x => _spNum(x.nnn))), medDom: med(av.map(x => spaceFlags(x).dom)) }; })
+    .sort((a, b) => b.count - a.count);
+  res.json({ ok: true, summary: { spaces: pick.length, available: avail.length, leased: leased.length, medAsking: med(avail.map(x => _spNum(x.rent))), medLeased: med(leased.map(x => _spNum(x.leasedRent) || _spNum(x.asking))), medNnn: med(pick.map(x => _spNum(x.nnn))), medDom: med(avail.map(x => spaceFlags(x).dom)) }, groups: byGroup, leased: leased });
+});
+// --- Full detail for the Space page. ---
+app.get('/api/space/:id/detail', (req, res) => {
+  const spaces = loadSpaces(); const sp = spaces.find(x => x.id === req.params.id); if (!sp) return res.status(404).json({ ok: false, error: 'Space not found.' });
+  const center = sp.centerId ? (loadCenters().find(c => c.id === sp.centerId) || null) : null;
+  let broker = null; if (sp.brokerPersonId) { const p = personById(sp.brokerPersonId); if (p) broker = { id: p.id, name: p.name || '', email: preferredEmailOf(p), phone: preferredPhoneOf(p), company: p.company || '' }; }
+  if (!broker && (sp.brokerName || sp.brokerEmail)) broker = { id: '', name: sp.brokerName || '', email: sp.brokerEmail || '', phone: sp.brokerPhone || '', company: sp.brokerCompany || '' };
+  const reqs = Array.isArray(sp.brokerRequests) ? sp.brokerRequests : [];
+  // Broker scorecard: how fast this broker answers across every space they list.
+  let brokerStats = null;
+  if (broker && (broker.id || broker.email)) {
+    const all = []; spaces.forEach(x => { if ((broker.id && x.brokerPersonId === broker.id) || (broker.email && String(x.brokerEmail || '').toLowerCase() === String(broker.email).toLowerCase())) (x.brokerRequests || []).forEach(r => all.push(r)); });
+    const answered = all.filter(r => r.respondedAt); const hrs = answered.map(r => (Date.parse(r.respondedAt) - Date.parse(r.at)) / 36e5).filter(h => isFinite(h) && h >= 0);
+    brokerStats = { requests: all.length, answered: answered.length, avgHours: hrs.length ? Math.round(hrs.reduce((a, b) => a + b, 0) / hrs.length) : null };
+  }
+  const peers = spaces.filter(x => x.id !== sp.id && x.status === 'Leased' && (x.leasedRent || x.rent) && String(x.market || '').toLowerCase() === String(sp.market || '').toLowerCase()).slice(0, 12).map(x => ({ id: x.id, name: x.name || '', center: x.center || '', size: x.size, leasedRent: x.leasedRent || x.rent, leasedAt: x.leasedAt || '', spaceType: x.spaceType || '' }));
+  res.json({ ok: true, space: sp, ready: spaceReady(sp), flags: spaceFlags(sp), center: center ? { id: center.id, name: center.name || '', anchor: center.anchor || '', coTenants: center.coTenants || '', existingRestaurants: center.existingRestaurants || '', vpd: center.vpd || '', gla: center.gla || '', centerType: center.centerType || '', hasPhoto: !!center.photoExt } : null,
+    broker: broker, brokerStats: brokerStats, requests: reqs.slice().reverse(), comps: peers, readyItems: SPACE_READY_ITEMS.map(x => ({ k: x.k, label: x.label, feat: x.feat, pts: x.pts, lo: x.lo, hi: x.hi })), hasMaps: !!loadGmapsKey(), canEmail: isEmailConfigured() });
+});
+// --- Listing-broker requests: one click to ask for info / a tour; opens tracked, replies logged. ---
+app.post('/api/space/:id/broker-request', express.json(), async (req, res) => {
+  const arr = loadSpaces(); const sp = arr.find(x => x.id === req.params.id); if (!sp) return res.status(404).json({ ok: false, error: 'Space not found.' });
+  if (!isEmailConfigured()) return res.status(400).json({ ok: false, error: "Email isn't set up. Configure it in Admin -> Email." });
+  const b = req.body || {}; const to = String(b.to || '').trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return res.status(400).json({ ok: false, error: 'A valid broker email is required.' });
+  const kind = b.kind === 'tour' ? 'tour' : 'info';
+  const subject = String(b.subject || '').slice(0, 300) || ((kind === 'tour' ? 'Tour request — ' : 'Information request — ') + [sp.center, sp.name].filter(Boolean).join(' '));
+  const body = String(b.body || '').slice(0, 10000);
+  try {
+    const origin = reqOrigin(req); const tok = newOpenToken();
+    const sigHtml = userSignatureHtml(req.user && req.user.username, req.user); const sigTxt = userSignatureText(req.user && req.user.username, req.user);
+    const info = await sendMailWL({ from: mailFrom(), to: to, cc: cleanAddrList(b.cc) || undefined, subject: subject, text: body + (sigTxt ? ('\n\n' + sigTxt) : ''), html: trackedEmailHtml(esc(body).split('\n').join('<br>'), origin, tok, sigHtml), replyTo: (req.user && req.user.email) || undefined });
+    const now = new Date().toISOString();
+    const rec = { id: 'brq_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), at: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', kind: kind, to: to, subject: subject, openToken: tok, engagementKey: String(b.engagementKey || '').slice(0, 80) };
+    sp.brokerRequests = Array.isArray(sp.brokerRequests) ? sp.brokerRequests : []; sp.brokerRequests.push(rec); sp.brokerRequests = sp.brokerRequests.slice(-60);
+    if (!sp.brokerEmail && !sp.brokerPersonId) sp.brokerEmail = to;
+    saveSpaces(arr);
+    try { const ppl = loadPeople(); const p = (sp.brokerPersonId && ppl.find(x => x.id === sp.brokerPersonId)) || ppl.find(x => personEmails(x).some(e => String(e).toLowerCase() === to.toLowerCase()));
+      if (p) { p.emailLog = Array.isArray(p.emailLog) ? p.emailLog : []; p.emailLog.unshift({ id: 'eml_' + Date.now().toString(36), to: to, subject: subject, body: body.slice(0, 6000), sentAt: now, by: rec.by, byUser: rec.byUser, messageId: (info && info.messageId) || '', openToken: tok, opens: 0, spaceId: sp.id }); p.emailLog = p.emailLog.slice(0, 100); logActivity(p, 'Email', subject, { auto: true, by: rec.by, byUser: rec.byUser }); savePeople(ppl); } } catch (e) {}
+    try { logSysEvent(req, 'Space', (kind === 'tour' ? 'Tour' : 'Info') + ' request sent to ' + to + ' — ' + [sp.center, sp.name].filter(Boolean).join(' · '), { tool: 'spaces', kind: 'broker-request', spaceId: sp.id }); } catch (e) {}
+    res.json({ ok: true, request: rec });
+  } catch (e) { console.error('broker request:', e && e.message); res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+app.post('/api/space/:id/broker-request/:rid/responded', express.json(), (req, res) => {
+  const arr = loadSpaces(); const sp = arr.find(x => x.id === req.params.id); if (!sp) return res.status(404).json({ ok: false, error: 'Space not found.' });
+  const r = (sp.brokerRequests || []).find(x => x.id === req.params.rid); if (!r) return res.status(404).json({ ok: false, error: 'Request not found.' });
+  r.respondedAt = (req.body && req.body.undo) ? '' : new Date().toISOString(); if (req.body && typeof req.body.note === 'string') r.note = req.body.note.slice(0, 1000);
+  saveSpaces(arr); res.json({ ok: true, request: r });
+});
+// --- Nearby restaurants / co-tenancy (Google Places, cached 30 days on the space). ---
+const GPLACES_BASE = process.env.GPLACES_BASE || 'https://maps.googleapis.com';
+function _distM(a, b, c, d) { const R = 6371000, t = x => x * Math.PI / 180; const dl = t(c - a), dn = t(d - b); const h = Math.sin(dl / 2) ** 2 + Math.cos(t(a)) * Math.cos(t(c)) * Math.sin(dn / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(h)); }
+const _CUISINE = [[/pizza/i, 'Pizza'], [/taco|mexican|tex-?mex|cantina|taqueria/i, 'Mexican / Tex-Mex'], [/bbq|barbecue|smokehouse/i, 'BBQ'], [/sushi|ramen|japanese|hibachi/i, 'Japanese'], [/thai|pho|vietnam|asian|chinese|wok|korean|indian/i, 'Asian'], [/burger|grill/i, 'Burgers / Grill'], [/coffee|cafe|espresso|bakery|donut/i, 'Coffee / Bakery'], [/chicken|wing/i, 'Chicken / Wings'], [/steak|chophouse/i, 'Steakhouse'], [/bar|pub|tavern|brew|saloon|icehouse/i, 'Bar / Pub'], [/italian|pasta|trattoria/i, 'Italian'], [/seafood|crab|oyster|fish/i, 'Seafood'], [/breakfast|brunch|pancake/i, 'Breakfast']];
+function _cuisineOf(name, types) { const s = String(name || '') + ' ' + (types || []).join(' '); for (const c of _CUISINE) if (c[0].test(s)) return c[1]; if ((types || []).indexOf('bar') >= 0) return 'Bar / Pub'; if ((types || []).indexOf('cafe') >= 0) return 'Coffee / Bakery'; if ((types || []).indexOf('meal_takeaway') >= 0) return 'Quick service'; return 'Other'; }
+app.get('/api/space/:id/nearby', async (req, res) => {
+  const arr = loadSpaces(); const sp = arr.find(x => x.id === req.params.id); if (!sp) return res.status(404).json({ ok: false, error: 'Space not found.' });
+  const fresh = sp.nearby && sp.nearby.at && (Date.now() - Date.parse(sp.nearby.at)) < 30 * 864e5;
+  if (fresh && req.query.refresh !== '1') return res.json({ ok: true, nearby: sp.nearby, cached: true });
+  const key = loadGmapsKey(); if (!key) return res.json({ ok: false, error: 'Add a Google Maps key in Admin to pull nearby restaurants.', needKey: true });
+  if (!isFinite(Number(sp.lat)) || !isFinite(Number(sp.lng)) || sp.lat == null) return res.json({ ok: false, error: 'This space has no map location yet — open it on the Space Tracker map once so it geocodes.', needGeo: true });
+  const radius = Math.max(300, Math.min(3000, parseInt(req.query.radius, 10) || 1600));
+  try {
+    const items = []; let next = '';
+    for (let page = 0; page < 3; page++) {
+      const u = GPLACES_BASE + '/maps/api/place/nearbysearch/json?location=' + sp.lat + ',' + sp.lng + '&radius=' + radius + '&type=restaurant&key=' + encodeURIComponent(key) + (next ? ('&pagetoken=' + encodeURIComponent(next)) : '');
+      if (next) await new Promise(r => setTimeout(r, 2000));
+      const r = await fetch(u); const j = await r.json();
+      if (j.status && j.status !== 'OK' && j.status !== 'ZERO_RESULTS') { if (!items.length) return res.json({ ok: false, error: 'Google Places: ' + j.status + (j.error_message ? (' — ' + j.error_message) : '') }); break; }
+      (j.results || []).forEach(p => { const loc = p.geometry && p.geometry.location; if (!loc) return; items.push({ name: p.name || '', rating: p.rating || null, reviews: p.user_ratings_total || 0, price: p.price_level == null ? null : p.price_level, types: (p.types || []).slice(0, 6), vicinity: p.vicinity || '', open: p.business_status || '', dist: Math.round(_distM(Number(sp.lat), Number(sp.lng), loc.lat, loc.lng)), cuisine: _cuisineOf(p.name, p.types) }); });
+      next = j.next_page_token || ''; if (!next) break;
+    }
+    items.sort((a, b) => a.dist - b.dist);
+    const mix = {}; items.forEach(i => { mix[i.cuisine] = (mix[i.cuisine] || 0) + 1; });
+    sp.nearby = { at: new Date().toISOString(), radius: radius, items: items.slice(0, 60), mix: mix, closed: items.filter(i => i.open === 'CLOSED_PERMANENTLY').length };
+    saveSpaces(arr); res.json({ ok: true, nearby: sp.nearby });
+  } catch (e) { res.json({ ok: false, error: 'Could not reach Google Places: ' + String((e && e.message) || e) }); }
+});
+// --- Tenant market survey (letterhead PDF of selected spaces). ---
+function _surveyImg(sp) {
+  try { const f = (sp.files || []).find(x => x.kind === 'photo' || /^(png|jpg|gif|webp)$/.test(x.ext)); if (!f) return '';
+    const fp = path.join(SPACEFILES_DIR, sp.id + '_' + f.id + '.' + f.ext); if (!fs.existsSync(fp)) return ''; const buf = fs.readFileSync(fp); if (buf.length > 4 * 1024 * 1024) return '';
+    return 'data:' + spaceFileMime(f.ext) + ';base64,' + buf.toString('base64'); } catch (e) { return ''; }
+}
+function _centerImg(sp) { try { if (!sp.centerId) return ''; const c = loadCenters().find(x => x.id === sp.centerId); if (!c || !c.photoExt) return ''; const fp = path.join(CENTER_PHOTO_DIR, c.id + '.' + c.photoExt); if (!fs.existsSync(fp)) return ''; const buf = fs.readFileSync(fp); if (buf.length > 4 * 1024 * 1024) return ''; return 'data:' + (LOGO_MIME[c.photoExt] || 'image/jpeg') + ';base64,' + buf.toString('base64'); } catch (e) { return ''; } }
+function surveyHtml(spaces, opts) {
+  const o = effOrg(); const pal = effPalette(); const navy = pal.primary || '#000E31'; const logo = loiLogoData(); const mime = logo ? (LOGO_MIME[logo.ext] || 'image/png') : '';
+  const logoHtml = logo ? ('<img class="lg" src="data:' + mime + ';base64,' + logo.buf.toString('base64') + '">') : ('<b style="font-size:16pt;color:' + navy + '">' + esc(orgDisplayName()) + '</b>');
+  const key = loadGmapsKey();
+  const m = v => (v == null || v === '' || !isFinite(Number(v))) ? '—' : ('$' + Number(v).toFixed(2));
+  const sfm = v => (v == null || v === '' || !isFinite(Number(v))) ? '—' : (Number(v).toLocaleString('en-US') + ' SF');
+  const k = v => '$' + Math.round(v / 1000) + 'K';
+  const pins = spaces.filter(sp => sp.lat != null && isFinite(Number(sp.lat))).map((sp, i) => 'markers=' + encodeURIComponent('color:0x' + navy.replace('#', '') + '|label:' + (i < 9 ? String(i + 1) : '') + '|' + sp.lat + ',' + sp.lng)).join('&');
+  const mapImg = (key && pins) ? ('<img class="map" onerror="this.remove()" src="' + GPLACES_BASE + '/maps/api/staticmap?size=1000x420&scale=2&maptype=roadmap&' + pins + '&key=' + encodeURIComponent(key) + '">') : '';
+  const rows = spaces.map((sp, i) => { const g = (_spNum(sp.rent) || 0) + (_spNum(sp.nnn) || 0); const rd = spaceReady(sp); return '<tr><td class="n">' + (i + 1) + '</td><td><b>' + esc(sp.center || sp.address || '') + '</b><div class="s">' + esc([sp.name, sp.market].filter(Boolean).join(' · ')) + '</div></td><td class="r">' + sfm(sp.size) + '</td><td class="r">' + m(sp.rent) + '</td><td class="r">' + m(sp.nnn) + '</td><td class="r"><b>' + (g ? ('$' + g.toFixed(2)) : '—') + '</b></td><td>' + esc(sp.spaceType || '—') + '</td><td class="r">' + (rd.characterized ? (rd.score + '/100') : '—') + '</td></tr>'; }).join('');
+  const pages = spaces.map((sp, i) => {
+    const rd = spaceReady(sp); const img = _surveyImg(sp) || _centerImg(sp); const g = (_spNum(sp.rent) || 0) + (_spNum(sp.nnn) || 0);
+    const center = sp.centerId ? (loadCenters().find(c => c.id === sp.centerId) || {}) : {};
+    const facts = [['Size', sfm(sp.size)], ['Base rent', m(sp.rent) + (sp.rent ? '/SF/yr' : '')], ['NNN / CAM', m(sp.nnn) + (sp.nnn ? '/SF/yr' : '')], ['Gross', g ? ('$' + g.toFixed(2) + '/SF/yr') : '—'], ['Position', sp.spaceType || '—'], ['Condition', sp.condition || '—'], ['Deal', sp.dealType ? (sp.dealType === 'both' ? 'Lease or sale' : (sp.dealType === 'sale' ? 'For sale' : 'For lease')) : '—'], ['Landlord', sp.landlord || '—']]
+      .concat(center.anchor ? [['Anchor', center.anchor]] : []).concat(center.vpd ? [['Traffic', center.vpd + ' VPD']] : []);
+    const nb = sp.nearby && Array.isArray(sp.nearby.items) ? sp.nearby.items.filter(x => x.open !== 'CLOSED_PERMANENTLY').slice(0, 6) : [];
+    return '<div class="pg"><div class="sh"><span class="num">' + (i + 1) + '</span><div><div class="t">' + esc(sp.center || sp.address || 'Space') + '</div><div class="s">' + esc([sp.name, sp.address, sp.market].filter(Boolean).join(' · ')) + '</div></div></div>'
+      + '<div class="grid">' + (img ? ('<div class="ph"><img src="' + img + '"></div>') : '<div class="ph none">No photo on file</div>')
+      + '<div><table class="facts">' + facts.map(f => '<tr><td>' + esc(f[0]) + '</td><td>' + esc(f[1]) + '</td></tr>').join('') + '</table></div></div>'
+      + '<div class="ready"><div class="rh"><b>Restaurant-ready ' + (rd.characterized ? (rd.score + '/100 · ' + esc(rd.grade)) : '— not yet characterized') + '</b>' + (rd.savesHi ? ('<span>Existing infrastructure avoids an estimated <b>' + k(rd.savesLo) + '–' + k(rd.savesHi) + '</b> of build-out</span>') : '') + '</div>'
+      + '<div class="chips">' + rd.items.map(it => '<span class="chip' + (it.have ? ' on' : '') + '">' + (it.have ? '✓ ' : '') + esc(it.label) + '</span>').join('') + '</div></div>'
+      + (nb.length ? ('<div class="nb"><b>Nearby restaurants</b> ' + nb.map(x => esc(x.name) + ' <span>(' + Math.round(x.dist / 160.9) / 10 + ' mi)</span>').join(' · ') + '</div>') : '')
+      + (center.coTenants ? ('<div class="nb"><b>Co-tenants</b> ' + esc(String(center.coTenants).slice(0, 300)) + '</div>') : '')
+      + (sp.notes ? ('<div class="nt">' + esc(String(sp.notes).slice(0, 700)) + '</div>') : '') + '</div>';
+  }).join('');
+  const loc = [o.city, o.state].filter(Boolean).join(', ');
+  return '<!DOCTYPE html><html><head><meta charset="utf-8"><style>@page{size:Letter;margin:.6in .65in .7in}*{box-sizing:border-box}body{margin:0;font-family:Helvetica,Arial,sans-serif;color:#1b2440;font-size:9.6pt}'
+    + '.lh{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2.5px solid ' + navy + ';padding-bottom:10px}.lh .lg{max-height:50px;max-width:230px}.lh .o{text-align:right;font-size:8pt;color:#5d6782;line-height:1.45}'
+    + 'h1{font-family:Georgia,serif;font-size:22pt;color:' + navy + ';margin:20px 0 2px;font-weight:600}.sub{color:#5d6782;font-size:10pt;margin-bottom:14px}.map{width:100%;border-radius:8px;border:1px solid #e3e7ee;margin:6px 0 12px}'
+    + 'table.sum{width:100%;border-collapse:collapse;font-size:9pt}table.sum th{background:' + navy + ';color:#fff;text-align:left;padding:6px 7px;font-size:7.6pt;text-transform:uppercase;letter-spacing:.05em}table.sum td{padding:6px 7px;border-bottom:1px solid #e9ecf2;vertical-align:top}.r{text-align:right}.n{color:#8a93a8;font-weight:700}.s{color:#6b7488;font-size:8.2pt;margin-top:1px}'
+    + '.pg{page-break-before:always}.sh{display:flex;gap:12px;align-items:center;border-bottom:1.5px solid #e3e7ee;padding-bottom:9px;margin-bottom:12px}.sh .num{width:30px;height:30px;border-radius:50%;background:' + navy + ';color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800}.sh .t{font-family:Georgia,serif;font-size:16pt;color:' + navy + '}'
+    + '.grid{display:grid;grid-template-columns:1.25fr 1fr;gap:16px}.ph{height:230px;border-radius:8px;overflow:hidden;background:#f1f3f8}.ph img{width:100%;height:100%;object-fit:cover}.ph.none{display:flex;align-items:center;justify-content:center;color:#98a1b5}'
+    + 'table.facts{width:100%;border-collapse:collapse}table.facts td{padding:5px 0;border-bottom:1px solid #eef1f6}table.facts td:first-child{color:#6b7488;width:42%}table.facts td:last-child{font-weight:700}'
+    + '.ready{margin-top:14px;border:1px solid #e3e7ee;border-radius:8px;padding:10px 12px}.rh{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:7px;color:' + navy + '}.rh span{color:#1f6b45}.chips{display:flex;flex-wrap:wrap;gap:5px}.chip{font-size:7.8pt;padding:2px 8px;border-radius:99px;background:#f1f3f8;color:#98a1b5}.chip.on{background:#e7f5ee;color:#1f6b45;font-weight:700}'
+    + '.nb{margin-top:10px;font-size:8.6pt;color:#33405a;line-height:1.5}.nb span{color:#8a93a8}.nt{margin-top:10px;font-size:8.8pt;color:#33405a;line-height:1.55;white-space:pre-wrap;border-left:3px solid #e3e7ee;padding-left:9px}'
+    + '.disc{margin-top:14px;font-size:7.4pt;color:#98a1b5;line-height:1.5}</style></head><body>'
+    + '<div class="lh"><div>' + logoHtml + '</div><div class="o">' + [o.legalName || o.name, o.address, loc + (o.zip ? (' ' + o.zip) : ''), o.phone].filter(Boolean).map(esc).join('<br>') + '</div></div>'
+    + '<h1>' + esc(opts.title || 'Market Survey') + '</h1><div class="sub">' + esc([opts.tenant ? ('Prepared for ' + opts.tenant) : '', new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }), spaces.length + ' space' + (spaces.length === 1 ? '' : 's')].filter(Boolean).join('  ·  ')) + '</div>'
+    + mapImg + '<table class="sum"><thead><tr><th></th><th>Space</th><th class="r">Size</th><th class="r">Base</th><th class="r">NNN</th><th class="r">Gross</th><th>Position</th><th class="r">Ready</th></tr></thead><tbody>' + rows + '</tbody></table>'
+    + (opts.notes ? ('<div class="nt" style="margin-top:14px">' + esc(String(opts.notes).slice(0, 2000)) + '</div>') : '')
+    + '<div class="disc">Rents are asking figures per square foot per year as marketed; NNN/CAM are estimates. Restaurant-ready scores and avoided build-out are ' + esc(orgDisplayName()) + ' estimates based on the infrastructure on file and typical Texas build-out costs — verify on site. Information deemed reliable but not guaranteed.</div>'
+    + pages + '</body></html>';
+}
+app.post('/api/spaces/survey', express.json(), async (req, res) => {
+  const b = req.body || {}; const ids = (Array.isArray(b.spaceIds) ? b.spaceIds : []).map(String).slice(0, 40);
+  const all = loadSpaces(); const spaces = ids.map(id => all.find(x => x.id === id)).filter(Boolean);
+  if (!spaces.length) return res.status(400).json({ ok: false, error: 'Pick at least one space.' });
+  let tenant = String(b.tenant || '').slice(0, 120);
+  if (b.engagementKey) { const d = assignmentsIndex()[b.engagementKey]; if (d && ownsAssignment(req, d)) { try { tenant = tenant || assignmentView(d, loadAssignOverlay(), { noBoard: true }).business || ''; } catch (e) {} } }
+  try {
+    const html = surveyHtml(spaces, { title: String(b.title || 'Market Survey').slice(0, 120), tenant: tenant, notes: String(b.notes || '') });
+    const puppeteer = require('puppeteer');
+    const browser = await puppeteer.launch({ headless: 'new', executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+    let pdf; try { const page = await browser.newPage(); await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30000 }).catch(() => {}); pdf = await page.pdf({ printBackground: true, preferCSSPageSize: true, displayHeaderFooter: true, headerTemplate: '<span></span>', footerTemplate: '<div style="width:100%;font-family:Helvetica,Arial;font-size:7px;color:#8a93a8;padding:0 .65in;display:flex;justify-content:space-between"><span>' + esc(orgDisplayName()) + ' · Market Survey' + (tenant ? (' · ' + esc(tenant)) : '') + '</span><span>Page <span class="pageNumber"></span> of <span class="totalPages"></span></span></div>' }); } finally { try { await browser.close(); } catch (e) {} }
+    const stem = ('Market_Survey' + (tenant ? ('_' + tenant) : '')).replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
+    try { logSysEvent(req, 'Space', 'Built a market survey (' + spaces.length + ' spaces)' + (tenant ? (' for ' + tenant) : ''), { tool: 'spaces', kind: 'survey' }); } catch (e) {}
+    res.setHeader('Content-Type', 'application/pdf'); res.setHeader('Content-Disposition', 'attachment; filename="' + stem + '.pdf"'); res.send(pdf);
+  } catch (e) { console.error('survey pdf:', e && e.message); res.status(500).json({ ok: false, error: 'Could not build the survey: ' + String((e && e.message) || e) }); }
+});
+// ===================== TEXAS DATA: Comptroller mixed-beverage receipts + TABC permits (data.texas.gov) =====================
+const TXDATA_BASE = process.env.TXDATA_BASE || 'https://data.texas.gov';
+const TX_MB = 'naix-2893', TX_TABC = '7hf9-qc9f', TX_PENDING = 'mxm5-tdpj', TX_CREDIT = 'ix8u-msb9';
+async function txQuery(ds, params) {
+  const qs = Object.keys(params).map(k => encodeURIComponent(k) + '=' + encodeURIComponent(params[k])).join('&');
+  const r = await fetch(TXDATA_BASE + '/resource/' + ds + '.json?' + qs, { headers: { Accept: 'application/json' } });
+  if (!r.ok) throw new Error('data.texas.gov ' + r.status);
+  return r.json();
+}
+function _txEsc(s) { return String(s || '').replace(/'/g, "''").toUpperCase(); }
+// "255 E Basse Rd, Ste 110, San Antonio, TX" → { street:'255 E BASSE', city:'SAN ANTONIO' }
+function txAddrParts(addr, market) {
+  const s = String(addr || '').toUpperCase().replace(/\./g, '');
+  const m = s.match(/^\s*(\d+[A-Z]?)\s+((?:[NSEW]\s+)?[A-Z0-9]+)/); if (!m) return null;
+  const metros = effMarkets().filter(x => x !== 'Other').map(x => x.toUpperCase());
+  let city = ''; const parts = s.split(',').map(x => x.trim());
+  for (const p of parts.slice(1)) { if (/^\d/.test(p) || /^(STE|SUITE|UNIT|#)/.test(p) || /^TX\b/.test(p)) continue; city = p.replace(/\s+TX.*$/, '').trim(); if (city) break; }
+  if (!city) { const mk = String(market || '').toUpperCase(); city = metros.filter(x => mk.indexOf(x) >= 0)[0] || ''; }
+  return { street: (m[1] + ' ' + m[2]).trim(), city: city };
+}
+function txMonthKey(d) { return String(d || '').slice(0, 7); }
+async function txAtAddress(addr, market) {
+  const ap = txAddrParts(addr, market); if (!ap) return { ok: false, error: 'Need a street address (number + street) to look up Texas records.' };
+  const whereCity = ap.city ? (" AND upper(location_city)='" + _txEsc(ap.city) + "'") : '';
+  const since = new Date(Date.now() - 37 * 30.44 * 864e5).toISOString().slice(0, 10);
+  const mb = await txQuery(TX_MB, { '$select': 'taxpayer_name,location_name,location_address,location_city,tabc_permit_number,obligation_end_date_yyyymmdd,total_receipts,liquor_receipts,wine_receipts,beer_receipts', '$where': "upper(location_address) like '" + _txEsc(ap.street) + "%'" + whereCity + " AND obligation_end_date_yyyymmdd>='" + since + "'", '$order': 'obligation_end_date_yyyymmdd ASC', '$limit': '5000' });
+  // Group by operator at this address → monthly series.
+  const ops = {};
+  (mb || []).forEach(r => { const k = (r.tabc_permit_number || r.location_name || r.taxpayer_name || '?'); const o = ops[k] = ops[k] || { name: r.location_name || r.taxpayer_name || '', taxpayer: r.taxpayer_name || '', address: r.location_address || '', permit: r.tabc_permit_number || '', months: {} }; const mk = txMonthKey(r.obligation_end_date_yyyymmdd); o.months[mk] = (o.months[mk] || 0) + (Number(r.total_receipts) || 0); });
+  const operators = Object.keys(ops).map(k => { const o = ops[k]; const series = Object.keys(o.months).sort().map(m => ({ m: m, v: o.months[m] })); const last = series[series.length - 1] || null; const t12 = series.slice(-12).reduce((a, x) => a + x.v, 0);
+    const recent3 = series.slice(-3).reduce((a, x) => a + x.v, 0); const prior3 = series.slice(-15, -12).reduce((a, x) => a + x.v, 0);
+    return { name: o.name, taxpayer: o.taxpayer, address: o.address, permit: o.permit, series: series, lastMonth: last ? last.m : '', trailing12: t12, yoy3: (prior3 > 0 ? Math.round((recent3 - prior3) / prior3 * 100) : null) }; })
+    .sort((a, b) => String(b.lastMonth).localeCompare(String(a.lastMonth)) || b.trailing12 - a.trailing12);
+  let permits = [], credit = [];
+  try { permits = await txQuery(TX_TABC, { '$select': 'trade_name,owner,address,city,license_type,license_id,primary_status,secondary_status,original_issue_date,expiration_date,status_change_date', '$where': "upper(address) like '" + _txEsc(ap.street) + "%'" + (ap.city ? (" AND upper(city)='" + _txEsc(ap.city) + "'") : ''), '$limit': '50' }); } catch (e) {}
+  try { credit = await txQuery(TX_CREDIT, { '$where': "upper(streetaddress) like '" + _txEsc(ap.street) + "%'" + (ap.city ? (" AND upper(city)='" + _txEsc(ap.city) + "'") : ''), '$limit': '20' }); } catch (e) {}
+  return { ok: true, query: ap, at: new Date().toISOString(), operators: operators.slice(0, 20), permits: (permits || []).map(p => ({ name: p.trade_name || '', owner: p.owner || '', address: p.address || '', type: p.license_type || '', id: p.license_id || '', status: p.primary_status || '', secondary: p.secondary_status || '', issued: String(p.original_issue_date || '').slice(0, 10), expires: String(p.expiration_date || '').slice(0, 10), changed: String(p.status_change_date || '').slice(0, 10) })),
+    creditLaw: (credit || []).map(c => ({ name: c.tradename || c.corporatename || '', address: c.streetaddress || '', effective: String(c.effectivedate || '').slice(0, 10), status: c.permitstatus || '' })) };
+}
+app.get('/api/space/:id/txbev', async (req, res) => {
+  const arr = loadSpaces(); const sp = arr.find(x => x.id === req.params.id); if (!sp) return res.status(404).json({ ok: false, error: 'Space not found.' });
+  const fresh = sp.txbev && sp.txbev.at && (Date.now() - Date.parse(sp.txbev.at)) < 7 * 864e5;
+  if (fresh && req.query.refresh !== '1') return res.json(Object.assign({ cached: true }, sp.txbev));
+  try { const r = await txAtAddress(sp.address || sp.geoAddr || '', sp.market || ''); if (r.ok) { sp.txbev = r; saveSpaces(arr); } res.json(r); }
+  catch (e) { res.json({ ok: false, error: 'Could not reach data.texas.gov: ' + String((e && e.message) || e) }); }
+});
+// Market Radar — vacancy and seller signals across a city, from the state's own filings. Cached a day per city.
+const TXRADAR_DIR = path.join(BOV_DATA_DIR, 'txradar');
+async function txRadarBuild(city) {
+  const C = _txEsc(city); const since = new Date(Date.now() - 26 * 30.44 * 864e5).toISOString().slice(0, 10);
+  const rows = []; for (let off = 0; off < 300000; off += 50000) { const page = await txQuery(TX_MB, { '$select': 'taxpayer_name,location_name,location_address,location_zip,tabc_permit_number,obligation_end_date_yyyymmdd,total_receipts', '$where': "upper(location_city)='" + C + "' AND obligation_end_date_yyyymmdd>='" + since + "'", '$order': 'obligation_end_date_yyyymmdd ASC', '$limit': '50000', '$offset': String(off) }); (page || []).forEach(r => rows.push(r)); if (!page || page.length < 50000) break; }
+  const ops = {}; let latest = '';
+  rows.forEach(r => { const k = r.tabc_permit_number || (r.location_name + '|' + r.location_address); const o = ops[k] = ops[k] || { name: r.location_name || r.taxpayer_name || '', taxpayer: r.taxpayer_name || '', address: r.location_address || '', zip: r.location_zip || '', permit: r.tabc_permit_number || '', months: {} }; const m = txMonthKey(r.obligation_end_date_yyyymmdd); o.months[m] = (o.months[m] || 0) + (Number(r.total_receipts) || 0); if (m > latest) latest = m; });
+  const mAdd = (m, n) => { const d = new Date(m + '-15T00:00:00Z'); d.setUTCMonth(d.getUTCMonth() + n); return d.toISOString().slice(0, 7); };
+  // The state reports with a lag: treat the newest month present as "current".
+  const cur = latest; const sig = [];
+  Object.keys(ops).forEach(k => { const o = ops[k]; const ms = Object.keys(o.months).sort(); if (!ms.length) return; const last = ms[ms.length - 1];
+    const val = m => o.months[m] || 0; const sum = (a, b) => { let s = 0; for (let i = a; i <= b; i++) s += val(mAdd(cur, -i)); return s; };
+    const r3 = sum(0, 2), p3 = sum(12, 14), t12 = sum(0, 11);
+    const series = []; for (let i = 23; i >= 0; i--) series.push(val(mAdd(cur, -i)));
+    const gap = (Date.parse(cur + '-15') - Date.parse(last + '-15')) / (30.44 * 864e5);
+    const base = { name: o.name, taxpayer: o.taxpayer, address: o.address, zip: o.zip, permit: o.permit, lastMonth: last, trailing12: t12, series: series };
+    const priorAvg = ms.length >= 6 ? ms.slice(-9, -3).reduce((a, m) => a + o.months[m], 0) / 6 : 0;
+    if (gap >= 2.5 && priorAvg >= 15000) sig.push(Object.assign({ signal: 'stopped', label: 'Stopped reporting', detail: 'No filings since ' + last + ' after ~$' + Math.round(priorAvg / 1000) + 'K/mo', rank: priorAvg }, base));
+    else if (p3 >= 45000 && r3 > 0 && (r3 - p3) / p3 <= -0.25) sig.push(Object.assign({ signal: 'declining', label: 'Sales down', detail: Math.round((r3 - p3) / p3 * 100) + '% vs same 3 months last year', pct: Math.round((r3 - p3) / p3 * 100), rank: p3 - r3 }, base));
+    else if (ms.length <= 4 && val(cur) > 0 && gap < 1.5) sig.push(Object.assign({ signal: 'new', label: 'New operator', detail: 'First filed ' + ms[0], rank: t12 }, base));
+  });
+  let pending = [], credit = [];
+  try { pending = (await txQuery(TX_PENDING, { '$where': "upper(city)='" + C + "'", '$order': 'submission_date DESC', '$limit': '200' })) || []; } catch (e) {}
+  try { credit = (await txQuery(TX_CREDIT, { '$where': "upper(city)='" + C + "'", '$order': 'effectivedate DESC', '$limit': '200' })) || []; } catch (e) {}
+  sig.sort((a, b) => b.rank - a.rank);
+  return { ok: true, city: city, at: new Date().toISOString(), latestMonth: cur, operators: Object.keys(ops).length, signals: sig.slice(0, 600),
+    pending: pending.map(p => ({ name: p.trade_name || '', owner: p.owner || '', address: [p.address, p.address_2].filter(Boolean).join(' '), type: p.license_type || '', submitted: String(p.submission_date || '').slice(0, 10), status: p.applicationstatus || '' })),
+    creditLaw: credit.map(c => ({ name: c.tradename || c.corporatename || '', address: c.streetaddress || '', effective: String(c.effectivedate || '').slice(0, 10), status: c.permitstatus || '' })) };
+}
+app.get('/api/tx/radar', async (req, res) => {
+  const city = String(req.query.city || 'San Antonio').trim().slice(0, 60); if (!city) return res.status(400).json({ ok: false, error: 'Pick a city.' });
+  const fp = path.join(TXRADAR_DIR, city.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.json');
+  try { if (req.query.refresh !== '1' && fs.existsSync(fp)) { const c = JSON.parse(fs.readFileSync(fp, 'utf8')); if (c && c.at && (Date.now() - Date.parse(c.at)) < 24 * 36e5) return res.json(Object.assign({ cached: true }, c)); } } catch (e) {}
+  try { const r = await txRadarBuild(city); try { if (!fs.existsSync(TXRADAR_DIR)) fs.mkdirSync(TXRADAR_DIR, { recursive: true }); fs.writeFileSync(fp, JSON.stringify(r)); } catch (e) {} res.json(r); }
+  catch (e) { res.json({ ok: false, error: 'Could not reach data.texas.gov: ' + String((e && e.message) || e) }); }
+});
+// Turn a radar signal into an off-market space to work.
+app.post('/api/tx/radar/track', express.json(), (req, res) => {
+  const b = req.body || {}; const arr = loadSpaces(); const now = new Date().toISOString();
+  const addr = String(b.address || '').slice(0, 200); if (!addr) return res.status(400).json({ ok: false, error: 'No address.' });
+  const city = String(b.city || '').slice(0, 80);
+  const dup = arr.find(x => String(x.address || '').toUpperCase().indexOf(addr.toUpperCase()) === 0);
+  if (dup) return res.json({ ok: true, spaceId: dup.id, existing: true });
+  const sp = { id: newSpaceId(), createdAt: now, updatedAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', name: String(b.name || '').slice(0, 160), address: addr + (city ? (', ' + city + ', TX') : ''), market: city, status: 'Off-market', condition: 'Second-gen', features: ['2nd-gen restaurant'],
+    notes: 'Off-market lead from Texas mixed-beverage filings — ' + String(b.detail || b.signal || '').slice(0, 300) + '. Operator: ' + String(b.name || '') + (b.permit ? (' (TABC ' + b.permit + ')') : '') + '.', source: 'tx-radar', history: [{ at: now, by: (req.user && req.user.name) || '', field: 'status', from: '', to: 'Off-market' }] };
+  arr.push(sp); saveSpaces(arr);
+  try { logSysEvent(req, 'Space', 'Tracking off-market space from Market Radar — ' + sp.address, { tool: 'spaces', kind: 'radar', spaceId: sp.id }); } catch (e) {}
+  res.json({ ok: true, spaceId: sp.id });
 });
 
 // ---- Global error handler: /api routes ALWAYS return JSON, never Express's HTML 500 page ----

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Market Radar</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--green:#1f8a5b;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.wrap{max-width:1320px;margin:0 auto;padding:22px 24px 48px;}
+.kick{font-size:10.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--red);}
+h1{margin:3px 0 0;font-size:24px;font-weight:800;color:var(--navy);}
+.pgs{color:var(--muted);font-size:12.5px;margin-top:4px;max-width:820px;line-height:1.55;}
+.card{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 6px 24px rgba(11,26,56,.05);overflow:hidden;margin:14px 0;}
+.bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--line);}
+.bar select,.bar input{font:inherit;font-size:13px;padding:7px 10px;border:1px solid #cfd6e2;border-radius:8px;background:#fff;}
+.btn{font:inherit;font-size:12.5px;font-weight:700;border:1px solid #cfd6e2;background:#fff;color:var(--navy);border-radius:8px;padding:7px 12px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;}
+.btn.pri{background:var(--navy);color:#fff;border-color:var(--navy);} .btn.sm{padding:4px 9px;font-size:11.5px;} .btn[disabled]{opacity:.5;}
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--line);padding:0 12px;}
+.tab{font:inherit;font-size:13px;font-weight:700;color:var(--muted);background:none;border:none;border-bottom:2.5px solid transparent;padding:11px 14px;cursor:pointer;}
+.tab.on{color:var(--navy);border-bottom-color:var(--red);} .tab .c{font-size:11px;background:#eef1f6;border-radius:999px;padding:1px 7px;margin-left:5px;color:#4a5570;}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);}
+.kpi{background:#fff;padding:13px 16px;} .kpi .n{font-size:21px;font-weight:800;color:var(--navy);} .kpi .l{font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:2px;}
+table{width:100%;border-collapse:collapse;font-size:12.5px;} th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:8px 12px;border-bottom:1px solid var(--line);background:#f7f9fc;cursor:pointer;white-space:nowrap;} td{padding:9px 12px;border-bottom:1px solid #f1f3f8;vertical-align:middle;} td.r,th.r{text-align:right;}
+.sig{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:3px 8px;border-radius:999px;white-space:nowrap;}
+.s-stopped{background:#fdeceb;color:#a5352c;} .s-declining{background:#fff4e6;color:#9a6a12;} .s-new{background:#e7f5ee;color:#1f6b45;}
+.sub{color:var(--soft);font-size:11.5px;margin-top:2px;}
+.empty{padding:40px 20px;text-align:center;color:var(--muted);line-height:1.6;}
+.note{font-size:11.5px;color:var(--muted);padding:10px 16px;line-height:1.55;}
+@media(max-width:860px){ .kpis{grid-template-columns:1fr 1fr;} .hide-sm{display:none;} }
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <div class="kick">Tenant Rep · Business Sales · State data</div><h1>Market Radar</h1>
+  <div class="pgs">Every bar and restaurant in a city, from the Texas Comptroller's monthly mixed-beverage filings and TABC permit records. <b>Stopped reporting</b> and <b>sales down</b> are the earliest signs of a second-gen space about to open up — and of an owner who may want to sell. Track any of them as an off-market space with one click.</div>
+  <div class="card">
+    <div class="bar"><span style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">City</span><select id="city"><option>San Antonio</option><option>Austin</option><option>Dallas</option><option>Houston</option><option>Fort Worth</option><option>New Braunfels</option><option>San Marcos</option><option>Boerne</option><option>Plano</option><option>Frisco</option><option>The Woodlands</option></select>
+      <input id="q" placeholder="Search name, address, zip…" style="min-width:220px"><select id="minT"><option value="0">Any size</option><option value="250000">$250K+ / yr</option><option value="500000">$500K+ / yr</option><option value="1000000">$1M+ / yr</option></select>
+      <span style="margin-left:auto" class="sub" id="meta"></span><button class="btn" id="refresh">Refresh from the state</button></div>
+    <div class="kpis" id="kpis"></div>
+    <div class="tabs" id="tabs"></div>
+    <div id="body"><div class="empty">Loading state filings…</div></div>
+    <div class="note">Sources: Texas Comptroller Mixed Beverage Gross Receipts, TABC license records, pending applications and the credit-law delinquent list (data.texas.gov). Filings lag one to two months; a business that files late can look "stopped" for a month. Signals are leads to verify, not conclusions.</div>
+  </div>
+</div>
+<script>
+var D=null, TAB='stopped', SORT={k:'rank',d:-1}, TRACKED={};
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function money(v){ return (v==null||!isFinite(v))?'—':('$'+Math.round(v).toLocaleString('en-US')); }
+function k(v){ return v>=1e6?('$'+(v/1e6).toFixed(1)+'M'):('$'+Math.round(v/1000)+'K'); }
+function spark(v){ var w=110,h=26; if(!v||!v.length) return ''; var mx=Math.max.apply(null,v)||1; var st=w/Math.max(1,v.length-1); var pts=v.map(function(x,i){ return (i*st).toFixed(1)+','+(h-2-(x/mx)*(h-4)).toFixed(1); }).join(' '); return '<svg width="'+w+'" height="'+h+'"><polyline points="'+pts+'" fill="none" stroke="#2c5c8f" stroke-width="1.5"/></svg>'; }
+function load(refresh){ var city=document.getElementById('city').value; document.getElementById('body').innerHTML='<div class="empty">'+(refresh?'Pulling fresh filings from data.texas.gov — a big city can take a minute…':'Loading state filings…')+'</div>';
+  fetch('/api/tx/radar?city='+encodeURIComponent(city)+(refresh?'&refresh=1':''),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ D=j; render(); }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not reach the server.</div>'; }); }
+function rows(){ if(!D||!D.ok) return []; var q=document.getElementById('q').value.trim().toLowerCase(); var mt=+document.getElementById('minT').value||0;
+  if(TAB==='pending') return (D.pending||[]).filter(function(p){ return !q||[p.name,p.owner,p.address].join(' ').toLowerCase().indexOf(q)>=0; });
+  if(TAB==='credit') return (D.creditLaw||[]).filter(function(p){ return !q||[p.name,p.address].join(' ').toLowerCase().indexOf(q)>=0; });
+  return (D.signals||[]).filter(function(s){ return s.signal===TAB && (!q||[s.name,s.taxpayer,s.address,s.zip].join(' ').toLowerCase().indexOf(q)>=0) && (TAB==='new'||(s.signal==='stopped'?(s.series.slice(0,12).reduce(function(a,b){return a+b;},0)>=mt):s.trailing12>=mt)); }); }
+function render(){ var b=document.getElementById('body');
+  if(!D||!D.ok){ b.innerHTML='<div class="empty">'+esc((D&&D.error)||'No data.')+'</div>'; document.getElementById('kpis').innerHTML=''; document.getElementById('tabs').innerHTML=''; return; }
+  var sg=D.signals||[]; var c={stopped:0,declining:0,new:0}; sg.forEach(function(s){ c[s.signal]=(c[s.signal]||0)+1; });
+  document.getElementById('meta').textContent=(D.operators||0).toLocaleString()+' operators · data through '+(D.latestMonth||'—')+(D.cached?' · cached':'');
+  document.getElementById('kpis').innerHTML=[[c.stopped,'Stopped reporting'],[c.declining,'Sales down 25%+'],[c.new,'New operators'],[(D.creditLaw||[]).length,'Credit-law delinquent']].map(function(x){ return '<div class="kpi"><div class="n">'+x[0]+'</div><div class="l">'+x[1]+'</div></div>'; }).join('');
+  document.getElementById('tabs').innerHTML=[['stopped','Stopped reporting',c.stopped],['declining','Sales down',c.declining],['new','New operators',c.new],['pending','Pending permits',(D.pending||[]).length],['credit','Credit-law delinquent',(D.creditLaw||[]).length]].map(function(t){ return '<button class="tab'+(TAB===t[0]?' on':'')+'" data-t="'+t[0]+'">'+t[1]+'<span class="c">'+t[2]+'</span></button>'; }).join('');
+  document.querySelectorAll('.tab').forEach(function(t){ t.onclick=function(){ TAB=t.getAttribute('data-t'); render(); }; });
+  var R=rows(); var city=D.city;
+  if(!R.length){ b.innerHTML='<div class="empty">Nothing in this view'+(document.getElementById('q').value?' for that search':'')+'.</div>'; return; }
+  if(TAB==='pending'){ b.innerHTML='<table><thead><tr><th>Applicant</th><th>Address</th><th>Permit type</th><th>Submitted</th><th>Status</th></tr></thead><tbody>'+R.slice(0,400).map(function(p){ return '<tr><td><b>'+esc(p.name)+'</b><div class="sub">'+esc(p.owner)+'</div></td><td>'+esc(p.address)+'</td><td>'+esc(p.type)+'</td><td>'+esc(p.submitted)+'</td><td>'+esc(p.status)+'</td></tr>'; }).join('')+'</tbody></table><div class="note">New permit applications = new concepts coming into the market — competition for your listings, and tenants who may still need a space or a broker.</div>'; return; }
+  if(TAB==='credit'){ b.innerHTML='<table><thead><tr><th>Business</th><th>Address</th><th>On list since</th><th>Status</th><th></th></tr></thead><tbody>'+R.slice(0,400).map(function(p,i){ return '<tr><td><b>'+esc(p.name)+'</b></td><td>'+esc(p.address)+'</td><td>'+esc(p.effective)+'</td><td>'+esc(p.status)+'</td><td class="r">'+trackBtn({name:p.name,address:p.address,detail:'On TABC credit-law delinquent list since '+p.effective},'c'+i)+'</td></tr>'; }).join('')+'</tbody></table><div class="note">Operators on the credit-law list are behind paying their alcohol distributors — a strong sign of distress: a likely vacancy, or a seller who needs out.</div>'; wireTrack(R,'c'); return; }
+  var h='<table><thead><tr><th>Operator</th><th class="hide-sm">Address</th><th>Last 24 months</th><th class="r">Trailing 12</th><th>Signal</th><th>Last filed</th><th></th></tr></thead><tbody>';
+  h+=R.slice(0,400).map(function(s,i){ return '<tr><td><b>'+esc(s.name)+'</b><div class="sub">'+esc(s.taxpayer!==s.name?s.taxpayer:'')+(s.permit?(' · '+esc(s.permit)):'')+'</div></td><td class="hide-sm">'+esc(s.address)+'<div class="sub">'+esc(s.zip)+'</div></td><td>'+spark(s.series)+'</td><td class="r"><b>'+k(s.trailing12)+'</b></td><td><span class="sig s-'+s.signal+'">'+esc(s.label)+'</span><div class="sub">'+esc(s.detail)+'</div></td><td>'+esc(s.lastMonth)+'</td><td class="r" style="white-space:nowrap">'+trackBtn({name:s.name,address:s.address,permit:s.permit,detail:s.label+' — '+s.detail},'s'+i)+' <a class="btn sm" target="_blank" rel="noopener" href="https://www.google.com/search?q='+encodeURIComponent(s.name+' '+s.address+' '+city)+'">Look up</a></td></tr>'; }).join('');
+  b.innerHTML=h+'</tbody></table>'; wireTrack(R,'s');
+}
+function trackBtn(o,id){ var t=TRACKED[(o.address||'').toUpperCase()]; if(t) return '<a class="btn sm" href="./rrg_space.html?id='+encodeURIComponent(t)+'">Open space</a>'; return '<button class="btn sm pri" data-track="'+id+'">Track space</button>'; }
+function wireTrack(R,pfx){ document.querySelectorAll('[data-track]').forEach(function(b){ b.onclick=function(){ var i=+b.getAttribute('data-track').slice(1); var r=R[i]; b.disabled=true; b.textContent='Adding…';
+  fetch('/api/tx/radar/track',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:r.name,address:r.address,permit:r.permit||'',detail:r.detail||(r.label?r.label:''),city:D.city})}).then(function(x){return x.json();}).then(function(j){ if(j&&j.ok){ TRACKED[(r.address||'').toUpperCase()]=j.spaceId; render(); } else { b.disabled=false; b.textContent='Track space'; alert((j&&j.error)||'Could not add.'); } }); }; }); }
+document.getElementById('city').onchange=function(){ load(false); };
+document.getElementById('q').oninput=function(){ render(); };
+document.getElementById('minT').onchange=function(){ render(); };
+document.getElementById('refresh').onclick=function(){ load(true); };
+load(false);
+</script>
+</body>
+</html>
