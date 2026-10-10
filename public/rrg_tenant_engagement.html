@@ -115,6 +115,11 @@ a.hpstep:hover .hpname,button.hpstep:hover .hpname{color:var(--red);}
 .bbrow .bbp{font-size:10.5px;font-weight:700;border-radius:999px;padding:1px 8px;letter-spacing:.02em;}
 .bbp.sch{background:#e7edf7;color:#274b7a;} .bbp.snt{background:#e8f3ec;color:#1f6b45;} .bbp.ing{background:#fff4e0;color:#8a5a12;} .bbp.oth{background:#f1f2f6;color:#5a6378;}
 .bbrow .bbs{color:#6b7488;margin-top:2px;} .bbrow .bbj{color:#8a93a8;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.loirow{padding:9px 0;border-top:1px solid #eef1f6;font-size:12.5px;line-height:1.45;} .loirow:first-child{border-top:none;padding-top:2px;}
+.loirow .lw{display:flex;align-items:center;gap:7px;flex-wrap:wrap;} .loirow .lw a{color:#1a2236;font-weight:700;text-decoration:none;} .loirow .lw a:hover{text-decoration:underline;}
+.loip{font-size:10.5px;font-weight:700;border-radius:999px;padding:1px 8px;} .loiv{font-size:10.5px;font-weight:700;color:#5a6378;background:#f1f2f6;border-radius:999px;padding:1px 7px;}
+.loirow .ls{color:#6b7488;margin-top:2px;} .loirow .ld{color:#8a93a8;margin-top:2px;} .loirow .ld.late{color:#c0261b;font-weight:700;}
+.loicmp{display:inline-block;margin-top:9px;font-size:12px;font-weight:700;color:#23496f;text-decoration:none;} .loicmp:hover{text-decoration:underline;}
 .bbrow .bbx{margin-left:auto;font-size:11.5px;font-weight:700;color:#b5791f;text-decoration:none;}
 .rail > .card > .ch .railadd:hover{background:#f4f7fb;border-color:#9fb0cc;}
 .rail > .card > .ch .railadd.slink,.rail > .card > .ch a.railadd{font-size:12px;font-weight:600;padding:0 11px;}
@@ -1062,6 +1067,7 @@ function render(){
     + brokerBlastsCard()
     + spaceShortlistCard()
     + toursCard()
+    + loisCard()
     + offersCard()
     + agreementsCardDeal()
     + dealCard()
@@ -1090,6 +1096,7 @@ function render(){
   wireRoomActivity();
   loadMapStatus();
   if(_bblasts) renderBrokerBlasts(_bbStudio); else loadBrokerBlasts();
+  loadLoisCard();
   wirePhotos();
   wireDocs(); loadListingDocs();
   if(A && A.assignmentType==='listing'){ if(MKT) fillMarketplaceCard(); else loadMarketplace(); }
@@ -1514,6 +1521,38 @@ function loadMapStatus(){
     _tmap=((j&&j.maps)||[]).filter(function(x){return x.listingKey===KEY && (x.kind||'seller')==='tenant';})[0]||null; applyMapStatus();
   }).catch(function(){ _tmapFetched=false; });
 }
+
+// ===== LOIs card — every lease LOI on this engagement (status, version, response deadline) =====
+var _lois=null;
+function loisCard(){
+  if(!A||A.assignmentType!=='tenant_rep') return '';
+  return '<div class="card" id="loiCard"><div class="ch"><b>LOIs</b><span class="bbcnt" hidden>0</span>'
+    + '<a class="railadd" href="./rrg_loi_builder.html?key='+encodeURIComponent(KEY)+'#new" title="Write a new LOI for this tenant" style="text-decoration:none;display:inline-flex;align-items:center;justify-content:center">+</a></div>'
+    + '<div class="cb" style="padding:12px 16px"><div id="loiList" style="font-size:12.5px;color:#8a93a8">Loading…</div></div></div>';
+}
+function _loiPill(st){ var c=({Draft:['#f1f2f6','#5a6378'],Sent:['#e7edf7','#274b7a'],Countered:['#fdf1df','#8a5a12'],Negotiating:['#f3edfb','#6a43b8'],Accepted:['#e8f3ec','#1f6b45'],Dead:['#f3f4f7','#98a1b5']})[st||'Draft']||['#f1f2f6','#5a6378']; return '<span class="loip" style="background:'+c[0]+';color:'+c[1]+'">'+esc(st||'Draft')+'</span>'; }
+function _loiD(d){ var x=String(d||'').slice(0,10).split('-'); return x.length===3?(+x[1]+'/'+(+x[2])+'/'+x[0]):String(d||''); }
+function _loiMoney(v){ var n=parseFloat(String(v==null?'':v).replace(/[^0-9.]/g,'')); return isFinite(n)?('$'+n.toFixed(2)):''; }
+function renderLoisCard(){
+  var box=document.getElementById('loiList'), card=document.getElementById('loiCard'); if(!box) return;
+  var list=(_lois||[]).filter(function(l){ return l.type==='tenant_rep'; });
+  var cnt=card&&card.querySelector('.ch > .bbcnt'); if(cnt){ cnt.textContent=String(list.length); cnt.hidden=!list.length; }
+  if(!list.length){ box.innerHTML='<div style="color:#55607a;line-height:1.55">No LOIs yet. Hit <b>+</b> to write one — pick a space and the property, SF, rent and NNN fill in. Or click <b>LOI</b> on a toured space.</div>'; return; }
+  var today=new Date().toISOString().slice(0,10);
+  box.innerHTML=list.map(function(l){
+    var v=l.values||{}; var open=['Accepted','Dead'].indexOf(l.status)<0; var late=open&&l.respondBy&&l.respondBy<today;
+    var terms=[v.rsf?(Number(String(v.rsf).replace(/[^0-9.]/g,''))||0).toLocaleString()+' SF':'', v.base_rent?(_loiMoney(v.base_rent)+'/SF'):'', v.term?(v.term+' yrs'):'', v.ti?('TI $'+String(v.ti).replace(/[^0-9.]/g,'')+'/SF'):''].filter(Boolean).join(' · ');
+    return '<div class="loirow"><div class="lw">'+_loiPill(l.status)+'<a href="./rrg_loi_builder.html?id='+encodeURIComponent(l.id)+'">'+esc([l.property,l.premises].filter(Boolean).join(' · ')||'Untitled LOI')+'</a><span class="loiv">v'+(l.version||1)+'</span></div>'
+      +(terms?('<div class="ls">'+esc(terms)+'</div>'):'')
+      +(l.respondBy&&open?('<div class="ld'+(late?' late':'')+'">'+(late?'Response overdue — was due ':'Response due ')+esc(_loiD(l.respondBy))+'</div>'):'')
+      +'</div>';
+  }).join('')+(list.length>1?('<a class="loicmp" href="./rrg_loi_compare.html?key='+encodeURIComponent(KEY)+'">Compare side by side · net effective rent ↗</a>'):('<a class="loicmp" href="./rrg_loi_compare.html?key='+encodeURIComponent(KEY)+'">Net effective rent ↗</a>'));
+}
+function loadLoisCard(){
+  if(!document.getElementById('loiList')) return;
+  if(_lois){ renderLoisCard(); return; }
+  fetch('/api/assignment/'+encodeURIComponent(KEY)+'/lois',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ _lois=(j&&j.lois)||[]; renderLoisCard(); }).catch(function(){ var b=document.getElementById('loiList'); if(b) b.innerHTML='<span style="color:#b23a2c">Couldn’t load LOIs.</span>'; });
+}
 // ===== Broker Blasts card — every blind requirement sent / scheduled for this engagement =====
 var _bblasts=null, _bbStudio=true, _bbCanSched=false;
 function brokerBlastsCard(){
@@ -1869,7 +1908,7 @@ function tourCardHTML(t){
   var meta=[t.date?('Toured '+fmt(t.date)):'', t.host?('Shown by '+esc(t.host)):''].filter(Boolean).join(' · ');
   return '<div class="tcard'+(t.reaction==='Passed'?' tpassed':'')+'" data-tid="'+esc(t.id)+'">'
     +'<div class="thead"><div class="tparty">'+esc(name)+(top?' <span class="ttop">Top pick</span>':'')+'</div>'+react
-      +'<span class="ospacer"></span><button class="tedit" data-tid="'+esc(t.id)+'">Edit</button><button class="tdel" data-tid="'+esc(t.id)+'">Delete</button></div>'
+      +'<span class="ospacer"></span>'+(t.spaceId?('<a class="tedit" style="text-decoration:none" href="./rrg_loi_builder.html?key='+encodeURIComponent(KEY)+'&space='+encodeURIComponent(t.spaceId)+'#new" title="Write an LOI on this space">LOI</a>'):'')+'<button class="tedit" data-tid="'+esc(t.id)+'">Edit</button><button class="tdel" data-tid="'+esc(t.id)+'">Delete</button></div>'
     +'<div class="tmeta">'+_tStars(t.rating)+(facts?(' <span class="tfacts">'+facts+'</span>'):'')+'</div>'
     +(meta?('<div class="tmeta">'+meta+'</div>'):'')
     +(t.thoughts?('<div class="tnotes"><span class="tnl">Tenant’s thoughts</span>'+esc(t.thoughts)+'</div>'):'')

@@ -80,6 +80,17 @@ h1{font-size:27px;font-weight:800;margin:5px 0 0;letter-spacing:-.01em;}
 .btn{background:var(--navy);color:#fff;border:none;border-radius:9px;padding:9px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-block;}
 .btn.ghost{background:#fff;color:var(--navy);border:1px solid #cfd6e2;}
 .docbar{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap;}
+.sppick{display:flex;align-items:center;gap:10px;margin-left:auto;flex:1;max-width:560px;}
+.sppick input{flex:1;border:1px solid #cfd6e2;border-radius:8px;padding:8px 11px;font:inherit;font-size:13px;min-width:0;}
+.splinked{font-size:11.5px;font-weight:800;color:#1f8a5b;white-space:nowrap;}
+.docver{font-size:12px;font-weight:700;color:var(--muted);background:#f1f4f9;border-radius:999px;padding:4px 10px;}
+.sdl{display:block;font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:12px 0 5px;}
+.sdi{width:100%;border:1px solid #cfd6e2;border-radius:8px;padding:9px 11px;font:inherit;font-size:13px;}
+.vrow{display:flex;align-items:center;gap:10px;padding:8px 12px;border-top:1px solid #f2f4f8;font-size:13px;}
+.vdiff{margin:6px 0 12px;border:1px solid #eef1f6;border-radius:9px;overflow:hidden;font-size:12.5px;}
+.vdiff div{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:10px;padding:6px 12px;border-top:1px solid #f4f6fa;}
+.vdiff .was{color:#a5352c;text-decoration:line-through;} .vdiff .now{color:#1f8a5b;font-weight:700;}
+
 .doc{background:#fff;border:1px solid var(--line);border-radius:6px;box-shadow:0 6px 24px rgba(10,20,50,.08);padding:56px 64px;max-width:8.5in;margin:0 auto;font-family:Georgia,'Times New Roman',serif;font-size:15px;line-height:1.6;color:#1a2236;}
 .doc:focus{outline:none;}
 .doc .dochdr{text-align:center;margin-bottom:26px;border-bottom:2px solid #222;padding-bottom:14px;}
@@ -177,12 +188,12 @@ function render(){
   }
   document.getElementById('wrap').innerHTML=
     '<div style="margin-bottom:12px"><a href="#" id="toList" style="color:var(--navy);font-weight:700;font-size:13px;text-decoration:none">← All LOIs</a></div>'
-    +lbanner
+    +lbanner+contextBanner()
     +'<div class="card"><div class="ch"><b>LOI Builder</b><button class="btn" id="aiLoiBtn" type="button" data-ai="" style="margin-left:auto;margin-right:8px">✨ Fill from a received LOI</button>'+adminLink+'</div><div class="cb"><div class="typerow">'+typebtns+'</div></div></div>'
-    +'<div class="card"><div class="ch"><b>Key info</b></div><div class="cb"><div class="grid">'+info+'</div></div></div>'
+    +'<div class="card"><div class="ch"><b>Key info</b>'+spacePickHtml()+'</div><div class="cb"><div class="grid">'+info+'</div></div></div>'
     +'<div class="card"><div class="ch"><b>Key terms</b><span class="hint">Blanks become fill-in lines in the draft</span></div><div class="cb"><div class="grid">'+terms+'</div></div></div>'
     +'<div class="card"><div class="ch"><b>Optional sections</b>'+tbadge+'<button class="btn" id="sugBtn" type="button" data-ai="" style="margin-left:10px;padding:5px 11px;font-size:12px">✨ Suggest</button><span class="selcount" style="margin-left:auto">'+selN+' selected</span></div><div class="cb"><div class="clfilters"><input id="clSearch" placeholder="Search sections…" value="'+esc(CLQ)+'"><select id="clVenue"><option value="">All venues</option>'+VENUES.map(function(v){return '<option'+(CLVENUE===v?' selected':'')+'>'+esc(v)+'</option>';}).join('')+'</select><select id="clSort"><option value="order"'+(CLSORT==='order'?' selected':'')+'>Default order</option><option value="az"'+(CLSORT==='az'?' selected':'')+'>A \u2192 Z</option><option value="za"'+(CLSORT==='za'?' selected':'')+'>Z \u2192 A</option></select></div><div class="clausescroll"><div id="clauselist"></div></div></div></div>'
-    +'<div class="card"><div class="cb"><div class="actions"><button class="gen" id="genBtn">Build LOI →</button><button class="btn" id="revBtn" type="button" data-ai="" style="margin-left:10px">✨ Review draft</button><span class="msg" id="genMsg"></span></div><div class="note">Assembles an editable, on-screen letter with your logo at the top. Edit anything in place, then Print / Save as PDF — or download an editable .rtf. Blank terms show as fill-in lines.</div></div></div>';
+    +'<div class="card"><div class="cb"><div class="actions"><button class="gen" id="genBtn">Build LOI →</button><button class="btn ghost" id="saveDraftBtn" type="button" style="margin-left:10px">💾 '+(CURID?('Save as v'+(CURVER+1)):'Save draft')+'</button><button class="btn" id="revBtn" type="button" data-ai="" style="margin-left:10px">✨ Review draft</button><span class="msg" id="genMsg"></span></div><div class="note">Assembles an editable, on-screen letter. Edit anything in place, then save it, download the letterhead PDF or a Word file for redlines, or email it straight from here. Blank terms show as fill-in lines.</div></div></div>';
   wire();
 }
 function collect(){
@@ -205,6 +216,9 @@ function wire(){
   var sb=document.getElementById('sugBtn'); if(sb) sb.addEventListener('click',loiSuggest);
   var rb=document.getElementById('revBtn'); if(rb) rb.addEventListener('click',loiReview);
   var stb=document.getElementById('saveTplBtn'); if(stb) stb.addEventListener('click',saveListingTemplate);
+  wireSpacePick();
+  var sdb=document.getElementById('saveDraftBtn'); if(sdb) sdb.addEventListener('click',function(){ saveLoi().then(function(){ render(); }).catch(function(e){ loiToast(e.message||'Could not save.',true); }); });
+  var anb=document.getElementById('asNewBtn'); if(anb) anb.addEventListener('click',function(){ CURID=''; CURVER=0; CURSTATUS=''; try{ var u=new URL(location.href); u.searchParams.delete('id'); history.replaceState(null,'',u.toString()); }catch(e){} DIRTY=true; render(); loiToast('Now a separate LOI — save to create it'); });
   document.querySelectorAll('#wrap [data-party]').forEach(function(inp){
     var key=inp.getAttribute('data-party'); var wrap=inp.parentNode; var sug=wrap.querySelector('.partysug');
     function close(){ sug.hidden=true; sug.innerHTML=''; }
@@ -212,7 +226,12 @@ function wire(){
     inp.addEventListener('blur',function(){ setTimeout(close,160); });
   });
 }
-function fillC(text){ return String(text==null?'':text).replace(/\{\{(\w+)\}\}/g,function(_,k){ var v=VALUES[k]; return (v!=null&&String(v).trim()!=='')?String(v):'____________'; }); }
+function loiAlias(k){ var num=function(x){ var n=parseFloat(String(x==null?'':x).replace(/[^0-9.]/g,'')); return isFinite(n)?n:null; };
+  if(k==='ti_allowance'&&num(VALUES.ti)!=null) return '$'+num(VALUES.ti).toLocaleString('en-US')+' per rentable square foot';
+  if(k==='free_rent_months'&&num(VALUES.free_rent)!=null) return String(Math.round(num(VALUES.free_rent)/30.4375*2)/2);
+  if(k==='guaranty_years') return String(VALUES.pg_burnoff_years||VALUES.pg_years||'').trim();
+  return ''; }
+function fillC(text){ return String(text==null?'':text).replace(/\{\{(\w+)\}\}/g,function(_,k){ var v=VALUES[k]; if(v==null||String(v).trim()==='') v=loiAlias(k); return (v!=null&&String(v).trim()!=='')?String(v):'____________'; }); }
 function docParas(txt){ return fillC(txt).split(/\n{2,}/).map(function(p){ return '<p>'+esc(p).split('\n').join('<br>')+'</p>'; }).join(''); }
 var LOILIST=null; var NEGO={}; var FORMAT='classic';
 function loiFmtD(iso){ if(!iso) return ''; var x=String(iso).slice(0,10).split('-'); if(x.length!==3) return String(iso).slice(0,10); return x[1]+'/'+x[2]+'/'+x[0]; }
@@ -230,10 +249,11 @@ function loadLois(){
         { label:'Property', sort:function(a,b){return RRGList.cmp(a.property,b.property);}, cell:function(l){ return esc(l.property||'—'); } },
         { label:'Tenant / Buyer', sort:function(a,b){return RRGList.cmp(a.tenant,b.tenant);}, cell:function(l){ return loiPartyCell(l.tenant,l.tenantId,l.tenantKind); } },
         { label:'Landlord / Seller', sort:function(a,b){return RRGList.cmp(a.landlord,b.landlord);}, cell:function(l){ return loiPartyCell(l.landlord,l.landlordId,l.landlordKind); } },
-        { label:'Status', sort:function(a,b){return RRGList.cmp(a.status||'Draft',b.status||'Draft');}, cell:function(l){ return negoPill(l.status)+(l.rounds?(' <span style="color:var(--muted);font-size:11px">\u00b7 '+l.rounds+' rd</span>'):''); } },
+        { label:'Status', sort:function(a,b){return RRGList.cmp(a.status||'Draft',b.status||'Draft');}, cell:function(l){ return negoPill(l.status)+' <span style="color:var(--muted);font-size:11px">v'+(l.version||1)+(l.rounds?(' \u00b7 '+l.rounds+' rd'):'')+'</span>'; } },
+        { label:'Respond by', sort:function(a,b){return RRGList.cmp(a.respondBy||'9999',b.respondBy||'9999');}, cell:function(l){ if(!l.respondBy) return '<span style="color:var(--muted)">\u2014</span>'; var open=['Accepted','Dead'].indexOf(l.status)<0; var late=open&&l.respondBy<new Date().toISOString().slice(0,10); return '<span style="font-weight:700;color:'+(late?'#c0261b':(open?'#0b1a3a':'#98a1b5'))+'">'+esc(loiFmtD(l.respondBy))+(late?' \u00b7 overdue':'')+'</span>'; } },
         { label:'Created', sort:function(a,b){return RRGList.cmp(a.createdAt,b.createdAt);}, cell:function(l){ return '<span style="color:var(--muted)">'+esc(loiFmtD(l.createdAt))+'</span>'; } },
         { label:'By', sort:function(a,b){return RRGList.cmp(a.by,b.by);}, cell:function(l){ return esc(l.by||'—'); } },
-        { label:'', sortable:false, cell:function(l){ return '<button class="btn" data-loimanage="'+esc(l.id)+'" style="padding:5px 12px;font-size:12px">Manage \u2192</button>'; } }
+        { label:'', sortable:false, cell:function(l){ return '<a class="btn ghost" href="./rrg_loi_builder.html?id='+encodeURIComponent(l.id)+'" style="padding:5px 12px;font-size:12px;margin-right:6px">Edit</a><button class="btn" data-loimanage="'+esc(l.id)+'" style="padding:5px 12px;font-size:12px">Manage \u2192</button>'; } }
       ]
     });
   }).catch(function(){});
@@ -259,13 +279,17 @@ function buildDoc(){
   (t.clauses||[]).slice().sort(function(a,b){return (a.order||0)-(b.order||0);}).filter(function(c){return selIds.indexOf(c.id)>=0;}).forEach(function(c){ body+='<h3 class="dochead">'+esc(c.title)+'</h3>'+docParas(c.body); });
   body+=docParas(t.bottom);
   var dv=document.getElementById('docview');
-  dv.innerHTML='<div class="docbar"><button class="btn ghost" id="docBack">\u2190 Back to edit</button><button class="btn" id="docPrint">Print / Save PDF</button><button class="btn ghost" id="docLog">Log to records</button><button class="btn ghost" id="docRtf">Download .rtf</button><span style="margin-left:6px;display:inline-flex;align-items:center;gap:5px;font-size:12.5px;color:var(--muted)">Format <select id="docFmt" style="border:1px solid #cfd6e2;border-radius:7px;padding:4px 7px;font:inherit;font-size:12.5px"><option value="classic"'+(FORMAT==='classic'?' selected':'')+'>Classic</option><option value="modern"'+(FORMAT==='modern'?' selected':'')+'>Modern</option></select></span><span class="msg" id="docMsg" style="margin-left:6px">Click into the document to edit, then print.</span></div><div class="doc '+FORMAT+'" id="thedoc" contenteditable="true">'+body+'</div>';
+  dv.innerHTML='<div class="docbar"><button class="btn ghost" id="docBack">\u2190 Back to edit</button><button class="btn" id="docSave">Save</button><span class="docver" id="docVer"></span><button class="btn ghost" id="docPdf">\u2b07 PDF</button><button class="btn ghost" id="docWord">\u2b07 Word</button><button class="btn" id="docSend" style="background:var(--red)">\u2709 Send\u2026</button><button class="btn ghost" id="docPrint">Print</button><span style="margin-left:6px;display:inline-flex;align-items:center;gap:5px;font-size:12.5px;color:var(--muted)">Format <select id="docFmt" style="border:1px solid #cfd6e2;border-radius:7px;padding:4px 7px;font:inherit;font-size:12.5px"><option value="classic"'+(FORMAT==='classic'?' selected':'')+'>Classic</option><option value="modern"'+(FORMAT==='modern'?' selected':'')+'>Modern</option></select></span><span class="msg" id="docMsg" style="margin-left:6px">Click into the document to edit — your edits are saved with the version.</span></div><div class="doc '+FORMAT+'" id="thedoc" contenteditable="true">'+body+'</div>';
   document.getElementById('wrap').style.display='none'; dv.style.display=''; window.scrollTo(0,0);
   document.getElementById('docBack').addEventListener('click',function(){ dv.style.display='none'; document.getElementById('wrap').style.display=''; });
   var _df=document.getElementById('docFmt'); if(_df) _df.addEventListener('change',function(){ FORMAT=_df.value; buildDoc(); });
   document.getElementById('docPrint').addEventListener('click',function(){ window.print(); });
-  document.getElementById('docRtf').addEventListener('click',generate);
-  var dl=document.getElementById('docLog'); if(dl) dl.addEventListener('click',saveToRecords);
+  document.getElementById('docSave').addEventListener('click',function(){ saveLoi().catch(function(e){ loiToast(e.message||'Could not save.',true); }); });
+  document.getElementById('docPdf').addEventListener('click',function(){ dlFile('/api/loi/{id}/pdf?dl=1','LOI.pdf',this); });
+  document.getElementById('docWord').addEventListener('click',function(){ dlFile('/api/loi/{id}/docx','LOI.docx',this); });
+  document.getElementById('docSend').addEventListener('click',openSend);
+  DIRTY=true; syncDocBar();
+  var _td=document.getElementById('thedoc'); if(_td) _td.addEventListener('input',function(){ DIRTY=true; syncDocBar(); });
 }
 function generate(){
   collect(); var g=document.getElementById('docRtf'), m=document.getElementById('docMsg');
@@ -281,6 +305,7 @@ fetch('/api/loi',{credentials:'same-origin'}).then(function(r){return r.json();}
   if(TYPES.length && !CFG[TYPE]) TYPE=TYPES[0].key;
   VALUES.date=todayStr(); if(REP) VALUES.rep=REP;
   if(LKEY){ if(CFG['business_sale']) TYPE='business_sale'; loadListingPrefill(); }
+  else if(CURID||EKEY){ bootContext(); }
   else applyDefaults();
   loadReps(); loadParties(); loadLois();
 }).catch(function(){ document.getElementById('wrap').innerHTML='<div class="card"><div class="cb"><div class="msg">Could not load the LOI Builder.</div></div></div>'; });
@@ -366,10 +391,12 @@ function termColor(st){ return ({Open:['#eef1f6','#6b7488'],Proposed:['#e8f0fd',
 function openNego(id){ var body=document.getElementById('negoBody'); body.innerHTML='<div style="color:#6b7488;padding:20px">Loading…</div>'; document.getElementById('negov').hidden=false; fetch('/api/loi/'+encodeURIComponent(id),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(!j||!j.ok){ body.innerHTML='<div style="color:#a5352c;padding:20px">'+esc((j&&j.error)||'Could not load.')+'</div>'; return; } NEGO={id:id,loi:j.loi||{},terms:j.terms||[],statuses:j.statuses||['Draft','Sent','Countered','Negotiating','Accepted','Dead'],termStates:j.termStates||['Open','Proposed','Accepted','Countered','Rejected']}; var l=NEGO.loi; document.getElementById('negoTitle').textContent=(l.type==='business_sale'?'Business Sale':'Tenant Rep')+(l.property?(' — '+l.property):'')+' · Negotiation'; renderNego(); }).catch(function(){ body.innerHTML='<div style="color:#a5352c;padding:20px">Network error.</div>'; }); }
 function renderNego(){ var l=NEGO.loi||{}; var terms=NEGO.terms||[]; var ts=l.termStatus||{}; var vals=l.values||{}; var statusOpts=NEGO.statuses.map(function(x){return '<option'+((l.status||'Draft')===x?' selected':'')+'>'+esc(x)+'</option>';}).join(''); var h='';
  h+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap"><span style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Status</span><select id="negoStatus" style="border:1px solid #cfd6e2;border-radius:8px;padding:7px 10px;font:inherit;font-size:13px">'+statusOpts+'</select>'+negoPill(l.status)+'<span style="margin-left:auto;display:flex;gap:6px"><button class="btn" data-negoquick="Accepted" style="padding:6px 12px;font-size:12px;background:#1f8a5b;border-color:#1f8a5b">Mark accepted</button><button class="btn" data-negoquick="Dead" style="padding:6px 12px;font-size:12px;background:#98a1b5;border-color:#98a1b5">Dead</button></span></div>';
+ h+=negoToolsHtml(l);
  h+='<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:6px 0 8px">Terms — click a chip to cycle</div>';
  if(terms.length){ h+='<div style="border:1px solid #eef1f6;border-radius:10px;overflow:hidden;margin-bottom:18px">'+terms.map(function(t,i){ var v=vals[t.key]; var st=ts[t.key]||'Open'; var c=termColor(st); return '<div style="display:flex;align-items:center;gap:10px;padding:9px 12px'+(i?';border-top:1px solid #f2f4f8':'')+'"><div style="flex:1"><div style="font-weight:600;color:var(--navy);font-size:13px">'+esc(t.label)+'</div>'+((v!=null&&String(v).trim()!=='')?('<div style="color:#6b7488;font-size:12px">'+esc(String(v))+'</div>'):'<div style="color:#c0c7d3;font-size:12px">—</div>')+'</div><button class="termchip" data-term="'+esc(t.key)+'" style="cursor:pointer;background:'+c[0]+';color:'+c[1]+';border:none;font-size:11px;font-weight:800;padding:5px 13px;border-radius:999px">'+esc(st)+'</button></div>'; }).join('')+'</div>'; } else { h+='<div style="color:#98a1b5;font-size:13px;margin-bottom:18px">No structured terms on this LOI.</div>'; }
  h+='<div data-ai="" style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#2c5c8f;margin:6px 0 8px">✨ Log a counter</div>';
  h+='<div data-ai="" style="margin-bottom:18px"><textarea id="negoCounter" placeholder="Paste their counter or response — AI extracts what moved and flips the term chips…" style="width:100%;min-height:80px;border:1px solid #d7cff0;border-radius:9px;padding:9px 11px;font:inherit;font-size:13px;resize:vertical"></textarea><div style="margin-top:8px;display:flex;gap:8px;align-items:center"><button class="btn" id="negoAnalyze" type="button">Analyze counter</button><span class="msg" id="negoCmsg"></span></div><div id="negoCres"></div></div>';
+ h+=negoVersionsHtml(l,terms);
  h+='<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:6px 0 8px">Rounds</div>';
  h+='<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap"><select id="negoDir" style="border:1px solid #cfd6e2;border-radius:8px;padding:7px 10px;font:inherit;font-size:13px"><option value="sent">We sent</option><option value="received">We received</option></select><input id="negoNote" placeholder="Note (optional)" style="flex:1;min-width:160px;border:1px solid #cfd6e2;border-radius:8px;padding:7px 10px;font:inherit;font-size:13px"><button class="btn" id="negoAddRound" type="button">Add round</button></div>';
  var rounds=Array.isArray(l.rounds)?l.rounds:[];
@@ -379,7 +406,35 @@ function wireNego(){ var st=document.getElementById('negoStatus'); if(st) st.onc
  document.querySelectorAll('#negoBody [data-negoquick]').forEach(function(b){ b.onclick=function(){ var v=b.getAttribute('data-negoquick'); saveNego({status:v,logActivity:(v==='Accepted'?'Accepted':undefined)}); }; });
  document.querySelectorAll('#negoBody .termchip').forEach(function(b){ b.onclick=function(){ var key=b.getAttribute('data-term'); var cur=(NEGO.loi.termStatus||{})[key]||'Open'; var stt=NEGO.termStates; var next=stt[(stt.indexOf(cur)+1)%stt.length]; var p={}; p[key]=next; saveNego({termStatus:p}); }; });
  var ar=document.getElementById('negoAddRound'); if(ar) ar.onclick=function(){ var dir=document.getElementById('negoDir').value; var note=document.getElementById('negoNote').value; saveNego({round:{direction:dir,note:note}}); };
- var an=document.getElementById('negoAnalyze'); if(an) an.onclick=negoAnalyze; }
+ var an=document.getElementById('negoAnalyze'); if(an) an.onclick=negoAnalyze;
+ var rb=document.getElementById('negoResp'); if(rb) rb.onchange=function(){ saveNego({respondBy:rb.value||''}); };
+ document.querySelectorAll('#negoBody [data-vdiff]').forEach(function(b){ b.onclick=function(){ var el=document.getElementById('vd_'+b.getAttribute('data-vdiff')); if(el) el.hidden=!el.hidden; }; });
+ var np=document.getElementById('negoPdf'); if(np) np.onclick=function(){ dlFile('/api/loi/{id}/pdf?dl=1','LOI.pdf',np,NEGO.id); };
+ var nw=document.getElementById('negoWord'); if(nw) nw.onclick=function(){ dlFile('/api/loi/{id}/docx','LOI.docx',nw,NEGO.id); }; }
+function negoToolsHtml(l){
+  var late=l.respondBy&&['Accepted','Dead'].indexOf(l.status)<0&&l.respondBy<new Date().toISOString().slice(0,10);
+  return '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:-4px 0 18px;padding:10px 12px;background:#f7f9fc;border:1px solid #eef1f6;border-radius:10px">'
+    +'<span style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Response due</span><input type="date" id="negoResp" value="'+esc(l.respondBy||'')+'" style="border:1px solid #cfd6e2;border-radius:8px;padding:6px 9px;font:inherit;font-size:13px">'
+    +(late?'<span style="color:#c0261b;font-weight:800;font-size:12px">Overdue</span>':(l.respondBy?'<span style="color:#6b7488;font-size:12px">task on your list</span>':''))
+    +'<span style="margin-left:auto;display:flex;gap:6px"><a class="btn ghost" href="./rrg_loi_builder.html?id='+encodeURIComponent(l.id)+'" style="padding:6px 12px;font-size:12px">Edit → v'+((l.version||1)+1)+'</a><button class="btn ghost" id="negoPdf" type="button" style="padding:6px 12px;font-size:12px">⬇ PDF</button><button class="btn ghost" id="negoWord" type="button" style="padding:6px 12px;font-size:12px">⬇ Word</button>'
+    +(l.engagementKey?'<a class="btn ghost" href="./rrg_loi_compare.html?key='+encodeURIComponent(l.engagementKey)+'" style="padding:6px 12px;font-size:12px">Compare ↗</a>':'')+'</span></div>';
+}
+function _vval(v){ return (v==null||String(v).trim()==='')?'—':String(v); }
+function negoVersionsHtml(l,terms){
+  var vs=Array.isArray(l.versions)?l.versions.slice():[]; if(!vs.length) return '';
+  var cur={ v:l.version||1, values:l.values||{}, savedAt:l.savedAt||l.updatedAt||l.createdAt, by:l.savedBy||l.by };
+  var all=vs.concat([cur]);
+  var keys=terms.map(function(t){return t.key;}); var lbl={}; terms.forEach(function(t){ lbl[t.key]=t.label; });
+  ['esc_amount','esc_unit','renewal_count','renewal_years','pg_years','nnn','tenant','landlord','buyer','seller'].forEach(function(k){ if(keys.indexOf(k)<0){ keys.push(k); lbl[k]=lbl[k]||k.replace(/_/g,' '); } });
+  var rows=all.slice().reverse().map(function(v,i,arr){
+    var prev=arr[i+1]; var diff='';
+    if(prev){ var ch=keys.filter(function(k){ return _vval(prev.values[k])!==_vval(v.values[k]); });
+      diff=ch.length?('<div class="vdiff" id="vd_'+v.v+'" hidden><div style="background:#f7f9fc;font-weight:800;color:#6b7488;font-size:11px;text-transform:uppercase;letter-spacing:.05em"><span>Term</span><span>v'+prev.v+'</span><span>v'+v.v+'</span></div>'+ch.map(function(k){ return '<div><span style="font-weight:700;color:#0b1a3a">'+esc(lbl[k]||k)+'</span><span class="was">'+esc(_vval(prev.values[k]))+'</span><span class="now">'+esc(_vval(v.values[k]))+'</span></div>'; }).join('')+'</div>'):'<div class="vdiff" id="vd_'+v.v+'" hidden><div style="grid-template-columns:1fr;color:#98a1b5">No term changes — wording or sections only.</div></div>';
+    }
+    return '<div class="vrow"><b style="color:var(--navy)">v'+v.v+'</b>'+(i===0?'<span style="font-size:10px;font-weight:800;background:#e7f5ee;color:#1f8a5b;border-radius:999px;padding:2px 8px">CURRENT</span>':'')+'<span style="color:#98a1b5;font-size:12px">'+esc(loiFmtD(v.savedAt))+(v.by?(' · '+esc(v.by)):'')+'</span>'+(prev?'<button class="btn ghost" data-vdiff="'+v.v+'" type="button" style="margin-left:auto;padding:4px 10px;font-size:11.5px">What changed vs v'+prev.v+'</button>':'')+'</div>'+diff;
+  }).join('');
+  return '<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:6px 0 8px">Versions</div><div style="border:1px solid #eef1f6;border-radius:10px;overflow:hidden;margin-bottom:18px">'+rows.replace('<div class="vrow">','<div class="vrow" style="border-top:none">')+'</div>';
+}
 function saveNego(patch){ fetch('/api/loi/'+encodeURIComponent(NEGO.id)+'/nego',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(patch)}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ NEGO.loi=j.loi; renderNego(); try{loadLois();}catch(e){} } }).catch(function(){}); }
 function negoAnalyze(){ var t=document.getElementById('negoCounter').value; var m=document.getElementById('negoCmsg'); var res=document.getElementById('negoCres'); if(!t.trim()){ m.textContent='Paste the counter first.'; return; } var btn=document.getElementById('negoAnalyze'); btn.disabled=true; m.textContent=(window.__rrgAssistant||'AI')+' is reading the counter…';
  fetch('/api/ai/loi-counter',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:NEGO.id,text:t})}).then(function(r){return r.json();}).then(function(j){ btn.disabled=false; m.textContent='';
@@ -392,7 +447,121 @@ function negoAnalyze(){ var t=document.getElementById('negoCounter').value; var 
 function negoApply(changes,summary){ var patch={}; var chgList=[]; (changes||[]).forEach(function(x){ if(x&&x.key){ var st=(x.status||'').charAt(0).toUpperCase()+(x.status||'').slice(1); if(NEGO.termStates.indexOf(st)<0) st='Countered'; patch[x.key]=st; chgList.push({key:x.key,label:x.label||x.key,to:(x.to||st),status:st}); } }); saveNego({termStatus:patch,status:'Countered',round:{direction:'received',note:(summary||'Counter received'),changes:chgList},logActivity:'Countered'}); }
 document.addEventListener('click',function(e){ var mg=e.target.closest('[data-loimanage]'); if(mg){ openNego(mg.getAttribute('data-loimanage')); return; } if(e.target.closest('#negoX')){ document.getElementById('negov').hidden=true; return; } var ov=document.getElementById('negov'); if(e.target===ov){ /* stay open */ } });
 
-(function(){ var nb=document.getElementById('newLoiBtn'); if(nb) nb.addEventListener('click',function(){ showBuilder(); }); })();
+(function(){ var nb=document.getElementById('newLoiBtn'); if(nb) nb.addEventListener('click',function(){ if(CURID){ location.href='./rrg_loi_builder.html'+(EKEY?('?key='+encodeURIComponent(EKEY)):'')+'#new'; return; } showBuilder(); }); if(location.hash==='#new'&&!CURID) setTimeout(showBuilder,0); })();
+// ===================== Engagement link · versions · PDF / Word · send · deadline =====================
+var CURID=qsParam('id'), CURVER=0, EKEY=qsParam('key'), EMETA=null, SPACEID=qsParam('space'), TOURED=[], SPACES=null, DIRTY=false, CURSTATUS='';
+function loiToast(msg,bad){ var t=document.getElementById('loiToast'); if(!t){ t=document.createElement('div'); t.id='loiToast'; t.style.cssText='position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#0b1a3a;color:#fff;font-size:13px;font-weight:700;padding:10px 18px;border-radius:100px;box-shadow:0 8px 24px rgba(0,0,0,.3);z-index:400;transition:opacity .2s;opacity:0;pointer-events:none'; document.body.appendChild(t); } t.textContent=msg; t.style.background=bad?'#a5352c':'#0b1a3a'; t.style.opacity='1'; clearTimeout(t._h); t._h=setTimeout(function(){ t.style.opacity='0'; },2600); }
+document.addEventListener('input',function(e){ if(e.target.closest&&(e.target.closest('#wrap')||e.target.closest('#thedoc'))) DIRTY=true; },true);
+document.addEventListener('change',function(e){ if(e.target.closest&&e.target.closest('#wrap')) DIRTY=true; },true);
+function _spLabel(sp){ return [sp.center||sp.address||'', sp.name||'', sp.market||''].filter(Boolean).join(' · '); }
+function loadSpacesList(cb){ if(SPACES){ cb&&cb(); return; } fetch('/api/spaces',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ SPACES=(j&&j.spaces)||[]; cb&&cb(); }).catch(function(){ SPACES=[]; cb&&cb(); }); }
+function spacePickHtml(){
+  if(TYPE!=='tenant_rep') return '';
+  var cur=SPACEID&&SPACES?SPACES.filter(function(s){return s.id===SPACEID;})[0]:null;
+  return '<div class="sppick"><span class="fld" style="margin:0">Space</span><input id="spPick" list="spPickList" placeholder="Pick from Space Tracker — fills property, suite, SF, rent & NNN…" value="'+esc(cur?_spLabel(cur):'')+'" autocomplete="off"><datalist id="spPickList"></datalist>'+(cur?'<span class="splinked">✓ linked</span>':'')+'</div>';
+}
+function fillSpaceList(){
+  var dl=document.getElementById('spPickList'); if(!dl||!SPACES) return;
+  var tour={}; TOURED.forEach(function(t){ tour[t.spaceId]=t; });
+  var list=SPACES.slice().sort(function(a,b){ return (tour[b.id]?1:0)-(tour[a.id]?1:0); });
+  dl.innerHTML=list.slice(0,900).map(function(sp){ var t=tour[sp.id]; return '<option value="'+esc(_spLabel(sp))+'">'+(t?('★ Toured'+(t.reaction?(' · '+esc(t.reaction)):'')):'')+'</option>'; }).join('');
+}
+function applySpace(sp){
+  if(!sp) return;
+  var set=function(k,v){ if(v!=null&&String(v).trim()!=='') VALUES[k]=String(v); };
+  var prop=sp.center?(sp.center+(sp.address?(', '+sp.address):'')):(sp.address||'');
+  set('property',prop); set('premises',sp.name); set('rsf',sp.size); set('base_rent',sp.rent); set('nnn',sp.nnn);
+  if(sp.landlord&&!VALUES.landlord) set('landlord',sp.landlord);
+  SPACEID=sp.id||''; DIRTY=true; render(); loiToast('Filled from Space Tracker');
+}
+function wireSpacePick(){
+  var inp=document.getElementById('spPick'); if(!inp) return;
+  loadSpacesList(fillSpaceList);
+  inp.addEventListener('change',function(){ var sp=(SPACES||[]).filter(function(x){ return _spLabel(x)===inp.value; })[0]; if(sp) applySpace(sp); });
+}
+function contextBanner(){
+  var h='';
+  if(EKEY&&EMETA) h+='<div class="card" style="border-left:4px solid var(--navy)"><div class="cb" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><div><div style="font-weight:800;color:var(--navy);font-size:14px">LOI for '+esc(EMETA.business||'this engagement')+'</div><div style="color:var(--muted);font-size:12.5px;margin-top:2px">Saved to the engagement — it shows on its LOIs card and in the side-by-side comparison.</div></div><a class="btn ghost" style="margin-left:auto" href="./rrg_tenant_engagement.html?key='+encodeURIComponent(EKEY)+'">Open engagement ↗</a></div></div>';
+  if(CURID) h+='<div class="card" style="border-left:4px solid #b5791f"><div class="cb" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><div><div style="font-weight:800;color:#8a5a12;font-size:14px">Revising v'+CURVER+(CURSTATUS?(' · '+esc(CURSTATUS)):'')+'</div><div style="color:var(--muted);font-size:12.5px;margin-top:2px">Saving creates <b>v'+(CURVER+1)+'</b> of this same LOI — earlier versions are kept and can be compared.</div></div><button class="btn ghost" id="asNewBtn" type="button" style="margin-left:auto">Start a separate LOI instead</button></div></div>';
+  return h;
+}
+function docHtmlForSave(){ var d=document.getElementById('thedoc'); if(!d) return ''; var c=d.cloneNode(true); var hd=c.querySelector('.dochdr'); if(hd) hd.remove(); return c.innerHTML; }
+function saveLoi(opts){
+  opts=opts||{}; collect();
+  var tk=(TYPE==='business_sale')?'buyer':'tenant'; var lk=(TYPE==='business_sale')?'seller':'landlord';
+  function party(k){ return VALUES[k+'_id']?{name:VALUES[k]||'',id:VALUES[k+'_id'],kind:VALUES[k+'_kind']||'contact'}:(VALUES[k]?{name:VALUES[k],id:'',kind:''}:null); }
+  var inDoc=document.getElementById('docview').style.display!=='none';
+  var body={ id:(opts.asNew?'':CURID), type:TYPE, values:VALUES, clauses:Object.keys(SEL).filter(function(k){return SEL[k];}), tenant:party(tk), landlord:party(lk), engagementKey:EKEY||'', listingKey:LKEY||'', spaceId:SPACEID||'', docHtml:(inDoc?docHtmlForSave():'') };
+  return fetch('/api/loi/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
+    .then(function(r){return r.json();}).then(function(j){
+      if(!j||!j.ok) throw new Error((j&&j.error)||'Could not save.');
+      CURID=j.id; CURVER=j.version; DIRTY=false; CURSTATUS=(j.loi&&j.loi.status)||CURSTATUS;
+      try{ var u=new URL(location.href); u.searchParams.set('id',CURID); history.replaceState(null,'',u.toString()); }catch(e){}
+      loadLois(); syncDocBar(); if(!opts.quiet) loiToast((j.created?'Saved':'Saved as v'+j.version)+((j.logged&&j.logged.length)?(' · logged to '+j.logged.join(' & ')):''));
+      return j;
+    });
+}
+function ensureSaved(){ if(CURID&&!DIRTY) return Promise.resolve({id:CURID}); return saveLoi({quiet:true}); }
+function syncDocBar(){ var b=document.getElementById('docSave'); if(b) b.textContent=CURID?('💾 Save as v'+(CURVER+1)):'💾 Save LOI'; var v=document.getElementById('docVer'); if(v) v.textContent=CURID?('v'+CURVER+(DIRTY?' · unsaved changes':' · saved')):'Not saved yet'; }
+function dlFile(url,fallbackName,btn,fixedId){
+  var was=btn?btn.textContent:''; if(btn){ btn.disabled=true; btn.textContent='Preparing…'; }
+  (fixedId?Promise.resolve():ensureSaved()).then(function(){ return fetch(url.replace('{id}',encodeURIComponent(fixedId||CURID)),{credentials:'same-origin'}); })
+    .then(function(r){ if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Could not build the file.'); }); var cd=r.headers.get('Content-Disposition')||''; var mm=cd.match(/filename="([^"]+)"/); var name=mm?mm[1]:fallbackName; return r.blob().then(function(bl){ return {bl:bl,name:name}; }); })
+    .then(function(res){ var u=URL.createObjectURL(res.bl); var a=document.createElement('a'); a.href=u; a.download=res.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){URL.revokeObjectURL(u);},1500); if(btn){ btn.disabled=false; btn.textContent=was; } loiToast('Downloaded '+res.name); syncDocBar(); })
+    .catch(function(e){ if(btn){ btn.disabled=false; btn.textContent=was; } loiToast(e.message||'Could not download.',true); });
+}
+function addDaysIso(n){ var d=new Date(); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); }
+function partyEmailGuess(k){ var id=VALUES[k+'_id']; if(!id) return ''; var p=PARTIES.filter(function(x){return x.id===id;})[0]; return (p&&/@/.test(p.sub||''))?p.sub:''; }
+function openSend(){
+  collect(); var ov=document.getElementById('sendov'); if(!ov) return;
+  var lk=(TYPE==='business_sale')?'seller':'landlord', tk=(TYPE==='business_sale')?'buyer':'tenant';
+  var exp=parseInt(String(VALUES.expiration||'').replace(/[^0-9]/g,''),10);
+  document.getElementById('sd_to').value=partyEmailGuess(lk);
+  document.getElementById('sd_pid').value=(VALUES[lk+'_kind']==='contact'?(VALUES[lk+'_id']||''):'');
+  document.getElementById('sd_cc').value='';
+  document.getElementById('sd_subj').value='Letter of Intent — '+[VALUES.property||VALUES.business||'', VALUES[tk]||''].filter(Boolean).join(' — ');
+  document.getElementById('sd_body').value='Hi,\n\nAttached is our letter of intent'+(VALUES[tk]?(' on behalf of '+VALUES[tk]):'')+(VALUES.property?(' for '+VALUES.property):'')+'. Please review and let me know your thoughts'+(exp?(' — the proposal is open for '+exp+' days'):'')+'.\n\nHappy to walk through any of the terms.';
+  document.getElementById('sd_resp').value=addDaysIso(exp&&exp<60?exp:5);
+  document.getElementById('sd_msg').textContent='';
+  ov.hidden=false;
+}
+function doSend(){
+  var btn=document.getElementById('sd_go'), m=document.getElementById('sd_msg');
+  var payload={ to:document.getElementById('sd_to').value.trim(), cc:document.getElementById('sd_cc').value.trim(), subject:document.getElementById('sd_subj').value, body:document.getElementById('sd_body').value, personId:document.getElementById('sd_pid').value, respondBy:document.getElementById('sd_resp').value||'' };
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.to)){ m.style.color='#a5352c'; m.textContent='Enter a valid recipient email.'; return; }
+  btn.disabled=true; m.style.color='#6b7488'; m.textContent='Saving, rendering the PDF and sending…';
+  ensureSaved().then(function(){ return fetch('/api/loi/'+encodeURIComponent(CURID)+'/send',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(payload)}).then(function(r){return r.json();}); })
+    .then(function(j){ btn.disabled=false; if(!j||!j.ok) throw new Error((j&&j.error)||'Could not send.'); document.getElementById('sendov').hidden=true; CURSTATUS=(j.loi&&j.loi.status)||'Sent'; loadLois(); loiToast('Sent v'+CURVER+' to '+payload.to+(j.loggedOn?(' · logged on '+j.loggedOn):'')+(payload.respondBy?(' · response due '+loiFmtD(payload.respondBy)):'')); })
+    .catch(function(e){ btn.disabled=false; m.style.color='#a5352c'; m.textContent=e.message||'Could not send.'; });
+}
+function loadExisting(id){
+  return fetch('/api/loi/'+encodeURIComponent(id),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ loiToast((j&&j.error)||'Could not open that LOI.',true); CURID=''; return; }
+    var l=j.loi||{}; TYPE=(l.type==='business_sale'&&CFG.business_sale)?'business_sale':'tenant_rep';
+    VALUES=Object.assign({},l.values||{}); SEL={}; (l.clauses||[]).forEach(function(c){ SEL[c]=true; });
+    CURVER=l.version||1; CURSTATUS=l.status||'Draft'; if(l.engagementKey&&!EKEY) EKEY=l.engagementKey; if(l.spaceId) SPACEID=l.spaceId;
+    ['tenant','landlord'].forEach(function(k){ var p=l[k]; if(p&&p.id){ var key=(l.type==='business_sale')?(k==='tenant'?'buyer':'seller'):k; VALUES[key+'_id']=p.id; VALUES[key+'_kind']=p.kind||'contact'; } });
+    DIRTY=false;
+  });
+}
+function loadEngagement(){
+  return fetch('/api/loi/engagement/'+encodeURIComponent(EKEY),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ EKEY=''; return; }
+    EMETA=j.engagement||null; TOURED=j.tours||[];
+    if(!CURID){ TYPE='tenant_rep'; if(j.tenant&&!VALUES.tenant){ VALUES.tenant=j.tenant.name; if(j.tenant.id){ VALUES.tenant_id=j.tenant.id; VALUES.tenant_kind=j.tenant.kind; } } }
+  }).catch(function(){ EKEY=''; });
+}
+function bootContext(){
+  var chain=Promise.resolve();
+  if(CURID) chain=chain.then(function(){ return loadExisting(CURID); });
+  if(EKEY||CURID) chain=chain.then(function(){ return EKEY?loadEngagement():null; });
+  return chain.then(function(){
+    if(!CURID) applyDefaults();
+    if(SPACEID&&!CURID){ loadSpacesList(function(){ var sp=(SPACES||[]).filter(function(x){return x.id===SPACEID;})[0]; if(sp) applySpace(sp); }); }
+    if(CURID||EKEY){ showBuilder(); render(); }
+  });
+}
+
 </script>
 <div class="aiov" id="aiov" hidden><div class="aimodal">
   <div class="aimh"><b style="color:var(--navy);font-size:15px">✨ Fill from a received LOI</b><button id="aip_x" type="button" style="border:none;background:#f2f4f8;width:30px;height:30px;border-radius:8px;cursor:pointer;color:#6b7488;font-size:14px">✕</button></div>
@@ -404,6 +573,17 @@ document.addEventListener('click',function(e){ var mg=e.target.closest('[data-lo
   </div>
 </div></div>
 <div class="aiov" id="airov" hidden><div class="aimodal"><div class="aimh"><b id="airtitle" style="color:var(--navy);font-size:15px"></b><button id="airx" type="button" style="border:none;background:#f2f4f8;width:30px;height:30px;border-radius:8px;cursor:pointer;color:#6b7488;font-size:14px">✕</button></div><div class="aimb" id="airbody" style="max-height:62vh;overflow:auto"></div></div></div>
+<div class="aiov" id="sendov" hidden><div class="aimodal" style="max-width:600px"><div class="aimh"><b style="color:var(--navy);font-size:15px">✉ Send LOI</b><button type="button" onclick="document.getElementById('sendov').hidden=true" style="border:none;background:#f2f4f8;width:30px;height:30px;border-radius:8px;cursor:pointer;color:#6b7488;font-size:14px">✕</button></div><div class="aimb">
+  <div style="font-size:12.5px;color:#6b7488">Sends the letterhead PDF as an attachment, tracks opens, logs it on the contact, marks the LOI <b>Sent</b>, records the round, and sets the response deadline as a task.</div>
+  <input type="hidden" id="sd_pid">
+  <label class="sdl">To</label><input class="sdi" id="sd_to" placeholder="landlord or listing broker email">
+  <label class="sdl">Cc</label><input class="sdi" id="sd_cc" placeholder="optional — separate with commas">
+  <label class="sdl">Subject</label><input class="sdi" id="sd_subj">
+  <label class="sdl">Message</label><textarea class="sdi" id="sd_body" rows="7" style="resize:vertical"></textarea>
+  <label class="sdl">Response due</label><input class="sdi" id="sd_resp" type="date" style="max-width:200px">
+  <div style="margin-top:14px;display:flex;align-items:center;gap:10px"><button class="btn" id="sd_go" type="button" style="background:var(--red)" onclick="doSend()">Send LOI</button><span class="msg" id="sd_msg"></span></div>
+  <div style="font-size:11.5px;color:#98a1b5;margin-top:8px">Your email signature is added automatically.</div>
+</div></div></div>
 <div class="aiov" id="negov" hidden><div class="aimodal" style="max-width:720px"><div class="aimh"><b id="negoTitle" style="color:var(--navy);font-size:15px">LOI negotiation</b><button id="negoX" type="button" style="border:none;background:#f2f4f8;width:30px;height:30px;border-radius:8px;cursor:pointer;color:#6b7488;font-size:14px">✕</button></div><div class="aimb" id="negoBody" style="max-height:74vh;overflow:auto"></div></div></div>
 </body>
 </html>

@@ -23815,7 +23815,16 @@ function saveLoiConfig(cfg) { const s = loadSettings(); s.loi = cfg; saveSetting
   } catch (e) { console.error('LOI clause seed error:', e && e.message); }
 })();
 
-function loiFill(text, vals) { return String(text == null ? '' : text).replace(/\{\{(\w+)\}\}/g, function (_, k) { var v = vals[k]; return (v != null && String(v).trim() !== '') ? String(v) : '____________'; }); }
+// Clause placeholders that mirror a key term under a different name fall back to that term,
+// so a clause never prints a blank for something the rep already filled in (e.g. TI, free rent).
+function loiAlias(k, vals) {
+  var num = function (x) { var n = parseFloat(String(x == null ? '' : x).replace(/[^0-9.]/g, '')); return isFinite(n) ? n : null; };
+  if (k === 'ti_allowance' && num(vals.ti) != null) return '$' + num(vals.ti).toLocaleString('en-US') + ' per rentable square foot';
+  if (k === 'free_rent_months' && num(vals.free_rent) != null) { var m = Math.round(num(vals.free_rent) / 30.4375 * 2) / 2; return String(m); }
+  if (k === 'guaranty_years') { var g = String(vals.pg_burnoff_years || vals.pg_years || '').trim(); return g || ''; }
+  return '';
+}
+function loiFill(text, vals) { return String(text == null ? '' : text).replace(/\{\{(\w+)\}\}/g, function (_, k) { var v = vals[k]; if (v == null || String(v).trim() === '') v = loiAlias(k, vals); return (v != null && String(v).trim() !== '') ? String(v) : '____________'; }); }
 function loiFmtTerm(f, vals) {
   var t = f.type;
   if (t === 'number') {
@@ -23855,7 +23864,7 @@ function loiRtfEsc(s) {
 }
 
 app.get('/api/loi', (req, res) => {
-  res.json({ ok: true, types: LOI_TYPES, venues: LOI_VENUES, config: loadLoiConfig(), isAdmin: !!(req.user && isSuper(req.user)), canManage: manageLoiOk(req), rep: (req.user && req.user.name) || '', logoUrl: (function(){ const _b = loadBrand(); return _b.logoExt ? ('/api/brand/logo?v=' + encodeURIComponent(_b.updatedAt || '')) : ''; })(), logoLightUrl: brandLogoLightUrl(), appName: loadAppName() });
+  res.json({ ok: true, orgName: orgDisplayName(), types: LOI_TYPES, venues: LOI_VENUES, config: loadLoiConfig(), isAdmin: !!(req.user && isSuper(req.user)), canManage: manageLoiOk(req), rep: (req.user && req.user.name) || '', logoUrl: (function(){ const _b = loadBrand(); return _b.logoExt ? ('/api/brand/logo?v=' + encodeURIComponent(_b.updatedAt || '')) : ''; })(), logoLightUrl: brandLogoLightUrl(), appName: loadAppName() });
 });
 const LOIS_FILE = path.join(BOV_DATA_DIR, 'lois.json');
 function loadLois() { try { return rj(LOIS_FILE) || []; } catch (e) { return []; } }
@@ -23921,22 +23930,51 @@ app.delete('/api/loi/listing/:key', (req, res) => {
   const ov = loadAssignOverlay(); if (ov[key] && ov[key].loiTemplate) { delete ov[key].loiTemplate; saveAssignOverlay(ov); }
   res.json({ ok: true });
 });
-app.post('/api/loi/save', express.json(), (req, res) => {
+app.post('/api/loi/save', express.json({ limit: '2mb' }), (req, res) => {
+  // Saving an existing LOI makes a new VERSION of the same record (v1 → v2 …), keeping each prior
+  // version's terms + document. "Save as new" (no id) starts a separate LOI. Sending is logged on send.
   const b = req.body || {}; const now = new Date().toISOString();
-  const lois = loadLois();
-  const rec = { id: newLoiId(), type: b.type || 'tenant_rep', property: (b.values && b.values.property) || '', tenant: b.tenant || null, landlord: b.landlord || null, values: b.values || {}, clauses: Array.isArray(b.clauses) ? b.clauses : [], createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' };
-  lois.push(rec); saveLois(lois);
-  const label = (rec.type === 'business_sale' ? 'Business Sale' : 'Tenant Rep') + (rec.property ? (' - ' + rec.property) : '');
+  const lois = loadLois(); const me = { name: (req.user && req.user.name) || '', user: (req.user && req.user.username) || '' };
+  const values = (b.values && typeof b.values === 'object') ? b.values : {};
+  const clauses = Array.isArray(b.clauses) ? b.clauses.filter(x => typeof x === 'string').slice(0, 200) : [];
+  const docHtml = (typeof b.docHtml === 'string' && b.docHtml.trim()) ? loiSanitizeHtml(b.docHtml) : '';
+  let engagementKey = String(b.engagementKey || '').slice(0, 80);
+  if (engagementKey) { const d = assignmentsIndex()[engagementKey]; if (!d || !ownsAssignment(req, d)) engagementKey = ''; }
+  let rec = b.id ? lois.find(x => x.id === String(b.id)) : null;
+  if (b.id && !rec) return res.status(404).json({ ok: false, error: 'LOI not found.' });
+  if (rec && !loiCanSee(req, rec)) return res.status(403).json({ ok: false, error: 'Not authorized for this LOI.' });
+  let created = false;
+  if (rec) {
+    rec.versions = Array.isArray(rec.versions) ? rec.versions : [];
+    rec.versions.push({ v: rec.version || 1, values: rec.values || {}, clauses: rec.clauses || [], docHtml: rec.docHtml || '', tenant: rec.tenant || null, landlord: rec.landlord || null, property: rec.property || '', savedAt: rec.savedAt || rec.updatedAt || rec.createdAt || '', by: rec.savedBy || rec.by || '' });
+    rec.versions = rec.versions.slice(-40);
+    rec.version = (rec.version || 1) + 1;
+  } else {
+    rec = { id: newLoiId(), createdAt: now, by: me.name, byUser: me.user, status: 'Draft', version: 1 }; lois.push(rec); created = true;
+  }
+  rec.type = (b.type === 'business_sale') ? 'business_sale' : 'tenant_rep';
+  rec.values = values; rec.clauses = clauses; rec.docHtml = docHtml;
+  rec.property = values.property || values.business || rec.property || '';
+  rec.tenant = b.tenant || null; rec.landlord = b.landlord || null;
+  if (engagementKey) rec.engagementKey = engagementKey;
+  if (typeof b.listingKey === 'string' && b.listingKey) rec.listingKey = b.listingKey.slice(0, 80);
+  if (typeof b.spaceId === 'string') rec.spaceId = b.spaceId.slice(0, 60);
+  rec.savedAt = now; rec.savedBy = me.name; rec.updatedAt = now;
+  saveLois(lois);
   const logged = [];
-  [b.tenant, b.landlord].forEach(function (party) {
-    if (party && party.kind === 'contact' && party.id) {
-      try { const arr = loadPeople(); const p = arr.find(x => x.id === party.id); if (p) { logActivity(p, 'LOI Sent', label, { auto: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); savePeople(arr); logged.push(p.name || party.name || ''); } } catch (e) {}
-    }
-  });
-  res.json({ ok: true, id: rec.id, logged: logged });
+  if (created) {
+    const label = (rec.type === 'business_sale' ? 'Business Sale' : 'Tenant Rep') + (rec.property ? (' - ' + rec.property) : '');
+    [rec.tenant, rec.landlord].forEach(function (party) {
+      if (party && party.kind === 'contact' && party.id) {
+        try { const arr = loadPeople(); const p = arr.find(x => x.id === party.id); if (p) { logActivity(p, 'LOI Drafted', label, { auto: true, by: me.name, byUser: me.user }); savePeople(arr); logged.push(p.name || party.name || ''); } } catch (e) {}
+      }
+    });
+  }
+  res.json({ ok: true, id: rec.id, version: rec.version, created: created, logged: logged, loi: loiSummary(rec) });
 });
+
 app.get('/api/lois', (req, res) => {
-  const lois = loadLois().slice().reverse().map(function (l) { return { id: l.id, type: l.type || 'tenant_rep', typeName: (l.type === 'business_sale' ? 'Business Sale' : 'Tenant Rep'), property: l.property || '', tenant: (l.tenant && l.tenant.name) || '', tenantId: (l.tenant && l.tenant.id) || '', tenantKind: (l.tenant && l.tenant.kind) || '', landlord: (l.landlord && l.landlord.name) || '', landlordId: (l.landlord && l.landlord.id) || '', landlordKind: (l.landlord && l.landlord.kind) || '', createdAt: l.createdAt || '', by: l.by || '', status: l.status || '', updatedAt: l.updatedAt || '', rounds: Array.isArray(l.rounds) ? l.rounds.length : 0 }; });
+  const lois = loadLois().filter(l => loiCanSee(req, l)).slice().reverse().map(loiSummary);
   res.json({ ok: true, lois: lois });
 });
 function loiViewHtml(l, terms) {
@@ -23962,7 +24000,7 @@ function loiViewHtml(l, terms) {
 app.get('/api/loi/:id/view', (req, res) => {
   const l = loadLois().find(x => x.id === String(req.params.id||''));
   if (!l) return res.status(404).send('Not found.');
-  if (restrictToOwn(req) && !permOwnerMatch(req, l.byUser || l.by)) return res.status(403).send('Not authorized.');
+  if (!loiCanSee(req, l)) return res.status(403).send('Not authorized.');
   const cfg = loadLoiConfig(); const tkey = (l.type === 'business_sale') ? 'business_sale' : 'tenant_rep';
   const terms = ((cfg[tkey] && cfg[tkey].terms) || []).map(t => ({ key: t.key, label: t.label }));
   res.set('Content-Type','text/html; charset=utf-8').send(loiViewHtml(l, terms));
@@ -23977,20 +24015,19 @@ app.post('/api/loi/defaults', requireManageLoi, express.json(), (req, res) => {
   res.json({ ok: true, defaults: t.defaults });
 });
 app.get('/api/loi/:id', (req, res) => {
-  const l = loadLois().find(x => x.id === req.params.id);
-  if (!l) return res.status(404).json({ ok: false, error: 'LOI not found.' });
+  const _f = loiFindFor(req, res, req.params.id); if (!_f) return; const l = _f.l;
   const cfg = loadLoiConfig(); const tkey = (l.type === 'business_sale') ? 'business_sale' : 'tenant_rep';
   const terms = ((cfg[tkey] && cfg[tkey].terms) || []).map(t => ({ key: t.key, label: t.label }));
   res.json({ ok: true, loi: l, terms, statuses: LOI_NEGO_STATUSES, termStates: LOI_TERM_STATES });
 });
 app.post('/api/loi/:id/nego', express.json({ limit: '256kb' }), (req, res) => {
-  const b = req.body || {}; const lois = loadLois(); const l = lois.find(x => x.id === req.params.id);
-  if (!l) return res.status(404).json({ ok: false, error: 'LOI not found.' });
+  const b = req.body || {}; const _f = loiFindFor(req, res, req.params.id); if (!_f) return; const lois = _f.lois; const l = _f.l;
+  if (typeof b.respondBy === 'string') l.respondBy = /^\d{4}-\d{2}-\d{2}$/.test(b.respondBy) ? b.respondBy : '';
   const now = new Date().toISOString();
   if (typeof b.status === 'string' && LOI_NEGO_STATUSES.indexOf(b.status) >= 0) l.status = b.status;
   if (b.termStatus && typeof b.termStatus === 'object') l.termStatus = Object.assign({}, l.termStatus || {}, b.termStatus);
   if (b.round && typeof b.round === 'object') { l.rounds = Array.isArray(l.rounds) ? l.rounds : []; l.rounds.push({ at: now, direction: (b.round.direction === 'received' ? 'received' : 'sent'), by: (req.user && req.user.name) || '', note: String(b.round.note || '').slice(0, 4000), changes: Array.isArray(b.round.changes) ? b.round.changes.slice(0, 60) : [] }); }
-  l.updatedAt = now; saveLois(lois);
+  l.updatedAt = now; loiSyncDeadlineTask(req, l); saveLois(lois);
   if (typeof b.logActivity === 'string' && ['Countered', 'Accepted'].indexOf(b.logActivity) >= 0) {
     const label = (l.type === 'business_sale' ? 'Business Sale' : 'Tenant Rep') + (l.property ? (' - ' + l.property) : '');
     [l.tenant, l.landlord].forEach(function (party) { if (party && party.kind === 'contact' && party.id) { try { const arr = loadPeople(); const p = arr.find(x => x.id === party.id); if (p) { logActivity(p, 'LOI ' + b.logActivity, label, { auto: true, by: (req.user && req.user.name) || '' }); savePeople(arr); } } catch (e) {} } });
@@ -23999,8 +24036,7 @@ app.post('/api/loi/:id/nego', express.json({ limit: '256kb' }), (req, res) => {
 });
 app.post('/api/ai/loi-counter', express.json({ limit: '256kb' }), async (req, res) => {
   try {
-    const b = req.body || {}; const l = loadLois().find(x => x.id === b.id);
-    if (!l) return res.status(404).json({ ok: false, error: 'LOI not found.' });
+    const b = req.body || {}; const _f = loiFindFor(req, res, b.id); if (!_f) return; const l = _f.l;
     const cfg = loadLoiConfig(); const tkey = (l.type === 'business_sale') ? 'business_sale' : 'tenant_rep';
     const terms = ((cfg[tkey] && cfg[tkey].terms) || []).map(t => ({ key: t.key, label: t.label }));
     const result = await aiassist.counterDiff({ text: b.text || '', current: l.values || {}, terms });
@@ -24078,6 +24114,241 @@ app.post('/api/loi/clause/reorder', requireManageLoi, express.json(), (req, res)
   saveLoiConfig(cfg); res.json({ ok: true, config: cfg });
 });
 
+
+
+// ===================== LOI: access, versions, engagement link, PDF / Word, deadline, send =====================
+// Who may see / work an LOI. Admins and see-all reps: everything. Otherwise the author, or the owner of the
+// engagement the LOI belongs to. (Before this, /api/loi/:id and /nego had no check at all.)
+function loiCanSee(req, l) {
+  if (!l) return false;
+  if (!restrictToOwn(req)) return true;
+  if (permOwnerMatch(req, l.byUser || l.by)) return true;
+  if (l.engagementKey) { try { const d = assignmentsIndex()[l.engagementKey]; if (d && ownsAssignment(req, d)) return true; } catch (e) {} }
+  return false;
+}
+function loiFindFor(req, res, id) {
+  const lois = loadLois(); const l = lois.find(x => x.id === String(id || ''));
+  if (!l) { res.status(404).json({ ok: false, error: 'LOI not found.' }); return null; }
+  if (!loiCanSee(req, l)) { res.status(403).json({ ok: false, error: 'Not authorized for this LOI.' }); return null; }
+  return { lois, l };
+}
+// Only a small, inert subset of HTML survives into stored / rendered LOI documents.
+function loiSanitizeHtml(h) {
+  let s = String(h || '').slice(0, 400000);
+  s = s.replace(/<(script|style|iframe|object|embed|svg|math|form|input|button|textarea|select|link|meta)[\s\S]*?(<\/\1\s*>|$)/gi, '');
+  s = s.replace(/<\/?([a-zA-Z0-9]+)([^>]*)>/g, function (m, tag, attrs) {
+    tag = tag.toLowerCase();
+    if (['p', 'br', 'b', 'strong', 'i', 'em', 'u', 'h3', 'h4', 'div', 'span', 'ul', 'ol', 'li'].indexOf(tag) < 0) return '';
+    if (m.charAt(1) === '/') return '</' + tag + '>';
+    const cm = /class\s*=\s*"([a-zA-Z0-9 _-]{0,80})"/.exec(attrs || '');
+    return '<' + tag + (cm ? (' class="' + cm[1] + '"') : '') + '>';
+  });
+  return s;
+}
+function loiTypeKey(l) { return (l && l.type === 'business_sale') ? 'business_sale' : 'tenant_rep'; }
+// Structured document (same assembly as the on-screen builder) — used when no edited copy was saved.
+function loiDocBlocks(l) {
+  const cfg = loadLoiConfig(); const t = cfg[loiTypeKey(l)] || {}; const vals = Object.assign({}, l.values || {});
+  if (!vals.date) vals.date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const paras = function (txt) { return loiFill(txt, vals).split(/\n{2,}/).map(function (p) { return p.trim(); }).filter(Boolean); };
+  const sel = Array.isArray(l.clauses) ? l.clauses : [];
+  const blocks = [];
+  paras(t.top).forEach(function (p) { blocks.push({ k: 'p', text: p }); });
+  const terms = (t.terms || []).map(function (f) { const d = loiFmtTerm(f, vals); return (d && String(d).trim()) ? { label: f.label, value: String(d) } : null; }).filter(Boolean);
+  if (terms.length) { blocks.push({ k: 'h', text: 'KEY TERMS' }); terms.forEach(function (x) { blocks.push({ k: 't', label: x.label, text: x.value }); }); }
+  (t.clauses || []).filter(function (c) { return sel.indexOf(c.id) >= 0; }).sort(function (a, c) { return (a.order || 0) - (c.order || 0); }).forEach(function (c) {
+    blocks.push({ k: 'h', text: c.title || '' }); paras(c.body).forEach(function (p) { blocks.push({ k: 'p', text: p }); });
+  });
+  paras(t.bottom).forEach(function (p) { blocks.push({ k: 'p', text: p }); });
+  return blocks;
+}
+function loiBlocksHtml(blocks) {
+  return blocks.map(function (b) {
+    if (b.k === 'h') return '<h3 class="dochead">' + esc(b.text) + '</h3>';
+    if (b.k === 't') return '<div class="docterm"><b>' + esc(b.label) + ':</b> ' + esc(b.text) + '</div>';
+    return '<p>' + esc(b.text).split('\n').join('<br>') + '</p>';
+  }).join('');
+}
+function loiLogoData() {
+  try { const b = loadBrand(); const ext = b.logoLightExt || b.logoExt; if (!ext) return null; const file = path.join(BOV_DATA_DIR, (b.logoLightExt ? 'brand_logo_light.' : 'brand_logo.') + ext);
+    if (!fs.existsSync(file)) { if (!b.logoExt) return null; const f2 = path.join(BOV_DATA_DIR, 'brand_logo.' + b.logoExt); if (!fs.existsSync(f2)) return null; return { buf: fs.readFileSync(f2), ext: b.logoExt }; }
+    return { buf: fs.readFileSync(file), ext: ext }; } catch (e) { return null; }
+}
+function loiLetterheadHtml(l, docHtml) {
+  const o = effOrg(); const pal = effPalette(); const navy = pal.primary || '#000E31';
+  const logo = loiLogoData(); const mime = logo ? (LOGO_MIME[logo.ext] || 'image/png') : '';
+  const logoHtml = logo ? ('<img src="data:' + mime + ';base64,' + logo.buf.toString('base64') + '" alt="">') : ('<div class="orgnm">' + esc(orgDisplayName()) + '</div>');
+  const loc = [o.city, o.state].filter(Boolean).join(', ') + (o.zip ? (' ' + o.zip) : '');
+  const orgLines = [o.legalName || o.name, o.address, loc, [o.phone, o.website].filter(Boolean).join('  ·  '), o.license ? ('License ' + o.license) : ''].filter(Boolean).map(esc).join('<br>');
+  const tn = loiTypeKey(l) === 'business_sale' ? 'Business Purchase' : 'Lease';
+  return '<!DOCTYPE html><html><head><meta charset="utf-8"><style>'
+    + '@page{size:Letter;margin:.75in .9in .85in}*{box-sizing:border-box}body{margin:0;font-family:Georgia,"Times New Roman",serif;font-size:11.3pt;line-height:1.5;color:#1b2440}'
+    + '.lh{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;padding-bottom:12px;border-bottom:2.5px solid ' + navy + ';margin-bottom:6px}.lh img{max-height:58px;max-width:260px}'
+    + '.orgnm{font-family:Helvetica,Arial,sans-serif;font-weight:800;font-size:17pt;color:' + navy + '}.org{text-align:right;font-family:Helvetica,Arial,sans-serif;font-size:8.2pt;color:#5d6782;line-height:1.5}'
+    + '.kick{font-family:Helvetica,Arial,sans-serif;font-size:8.5pt;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#8a93a8;margin:10px 0 18px;display:flex;justify-content:space-between}'
+    + 'p{margin:0 0 10px}h3,h3.dochead{font-family:Helvetica,Arial,sans-serif;font-size:9.6pt;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:' + navy + ';margin:18px 0 6px;page-break-after:avoid}'
+    + '.docterm{margin:0 0 4px;padding-left:12px;text-indent:-12px}.docterm b{color:#0c1b3d}.dochdr{display:none}'
+    + '</style></head><body><div class="lh"><div>' + logoHtml + '</div><div class="org">' + orgLines + '</div></div>'
+    + '<div class="kick"><span>Letter of Intent · ' + esc(tn) + '</span><span>Non-binding · Confidential</span></div>'
+    + docHtml + '</body></html>';
+}
+async function loiPdfBuffer(l) {
+  const docHtml = l.docHtml ? loiSanitizeHtml(l.docHtml) : loiBlocksHtml(loiDocBlocks(l));
+  const html = loiLetterheadHtml(l, docHtml);
+  const puppeteer = require('puppeteer');
+  const browser = await puppeteer.launch({ headless: 'new', executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+  try {
+    const page = await browser.newPage(); await page.setContent(html, { waitUntil: 'networkidle0' });
+    const foot = '<div style="width:100%;font-family:Helvetica,Arial,sans-serif;font-size:7.5px;color:#8a93a8;padding:0 .9in;display:flex;justify-content:space-between"><span>' + esc(orgDisplayName()) + ' · Letter of Intent' + (l.version ? (' · v' + l.version) : '') + '</span><span>Page <span class="pageNumber"></span> of <span class="totalPages"></span></span></div>';
+    return await page.pdf({ printBackground: true, preferCSSPageSize: true, displayHeaderFooter: true, headerTemplate: '<span></span>', footerTemplate: foot });
+  } finally { try { await browser.close(); } catch (e) {} }
+}
+function loiFileStem(l) {
+  const v = l.values || {}; const who = String(v.tenant || v.buyer || v.business || l.property || 'Draft').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'Draft';
+  return 'LOI_' + (loiTypeKey(l) === 'business_sale' ? 'Business' : 'Lease') + '_' + who + (l.version ? ('_v' + l.version) : '');
+}
+// ---- Minimal, valid .docx (WordprocessingML) built from the structured blocks — editable for redlines ----
+function _xmlEsc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function _imgSize(buf, ext) {
+  try {
+    if (ext === 'png' && buf.readUInt32BE(12) === 0x49484452) return { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) };
+    if (ext === 'jpg' || ext === 'jpeg') { let i = 2; while (i < buf.length) { if (buf[i] !== 0xFF) { i++; continue; } const m = buf[i + 1]; const len = buf.readUInt16BE(i + 2); if (m >= 0xC0 && m <= 0xCF && [0xC4, 0xC8, 0xCC].indexOf(m) < 0) return { h: buf.readUInt16BE(i + 5), w: buf.readUInt16BE(i + 7) }; i += 2 + len; } }
+  } catch (e) {}
+  return null;
+}
+function loiDocxBuffer(l) {
+  const AdmZip = require('adm-zip'); const zip = new AdmZip();
+  const pal = effPalette(); const navy = String(pal.primary || '#000E31').replace('#', '');
+  const o = effOrg(); const loc = [o.city, o.state].filter(Boolean).join(', ') + (o.zip ? (' ' + o.zip) : '');
+  const run = function (text, opt) { opt = opt || {}; const pr = (opt.b ? '<w:b/>' : '') + (opt.color ? ('<w:color w:val="' + opt.color + '"/>') : '') + (opt.sz ? ('<w:sz w:val="' + opt.sz + '"/>') : '') + (opt.caps ? '<w:caps/>' : '') + (opt.font ? ('<w:rFonts w:ascii="' + opt.font + '" w:hAnsi="' + opt.font + '"/>') : '');
+    return String(text).split('\n').map(function (line, i) { return (i ? '<w:r><w:br/></w:r>' : '') + '<w:r>' + (pr ? ('<w:rPr>' + pr + '</w:rPr>') : '') + '<w:t xml:space="preserve">' + _xmlEsc(line) + '</w:t></w:r>'; }).join(''); };
+  const para = function (runs, ppr) { return '<w:p>' + (ppr ? ('<w:pPr>' + ppr + '</w:pPr>') : '') + runs + '</w:p>'; };
+  let body = '';
+  const logo = loiLogoData(); let hasImg = false;
+  if (logo && (logo.ext === 'png' || logo.ext === 'jpg' || logo.ext === 'jpeg')) {
+    const sz = _imgSize(logo.buf, logo.ext);
+    if (sz && sz.w && sz.h) {
+      hasImg = true; const maxW = 2.6 * 914400, maxH = 0.62 * 914400; let cx = sz.w * 9525, cy = sz.h * 9525; const k = Math.min(maxW / cx, maxH / cy, 1); cx = Math.round(cx * k); cy = Math.round(cy * k);
+      zip.addFile('word/media/logo.' + (logo.ext === 'jpeg' ? 'jpg' : logo.ext), logo.buf);
+      body += '<w:p><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="' + cx + '" cy="' + cy + '"/><wp:docPr id="1" name="Logo"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="1" name="logo"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="rIdLogo"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="' + cx + '" cy="' + cy + '"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>';
+    }
+  }
+  if (!hasImg) body += para(run(orgDisplayName(), { b: true, sz: 32, color: navy, font: 'Arial' }));
+  const orgLine = [o.legalName || o.name, o.address, loc, o.phone, o.website].filter(Boolean).join('  ·  ');
+  if (orgLine) body += para(run(orgLine, { sz: 16, color: '5D6782', font: 'Arial' }), '<w:pBdr><w:bottom w:val="single" w:sz="12" w:space="6" w:color="' + navy + '"/></w:pBdr><w:spacing w:after="240"/>');
+  body += para(run('Letter of Intent · ' + (loiTypeKey(l) === 'business_sale' ? 'Business Purchase' : 'Lease') + ' — Non-binding', { b: true, sz: 16, color: '8A93A8', caps: true, font: 'Arial' }), '<w:spacing w:after="240"/>');
+  loiDocBlocks(l).forEach(function (b) {
+    if (b.k === 'h') body += para(run(b.text, { b: true, sz: 19, color: navy, caps: true, font: 'Arial' }), '<w:keepNext/><w:spacing w:before="280" w:after="100"/>');
+    else if (b.k === 't') body += para(run(b.label + ': ', { b: true }) + run(b.text), '<w:spacing w:after="60"/><w:ind w:left="240" w:hanging="240"/>');
+    else body += para(run(b.text), '<w:spacing w:after="160"/>');
+  });
+  const docXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"><w:body>' + body
+    + '<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1080" w:right="1296" w:bottom="1152" w:left="1296" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr></w:body></w:document>';
+  const styles = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Georgia" w:hAnsi="Georgia" w:cs="Georgia"/><w:sz w:val="22"/><w:color w:val="1B2440"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:line="300" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults></w:styles>';
+  const imgExt = hasImg ? (logo.ext === 'jpeg' ? 'jpg' : logo.ext) : '';
+  zip.addFile('[Content_Types].xml', Buffer.from('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>' + (hasImg ? ('<Default Extension="' + imgExt + '" ContentType="' + (imgExt === 'png' ? 'image/png' : 'image/jpeg') + '"/>') : '') + '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>'));
+  zip.addFile('_rels/.rels', Buffer.from('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>'));
+  zip.addFile('word/_rels/document.xml.rels', Buffer.from('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdStyles" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' + (hasImg ? ('<Relationship Id="rIdLogo" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/logo.' + imgExt + '"/>') : '') + '</Relationships>'));
+  zip.addFile('word/document.xml', Buffer.from(docXml));
+  zip.addFile('word/styles.xml', Buffer.from(styles));
+  return zip.toBuffer();
+}
+// ---- Response deadline → a real task (shows on Tasks, Calendar and the Daily Brief) ----
+function loiSyncDeadlineTask(req, l) {
+  try {
+    const all = loadTasks(); let t = l.taskId ? all.find(x => x.id === l.taskId) : null;
+    const closed = ['Accepted', 'Dead'].indexOf(l.status || '') >= 0;
+    if (!l.respondBy || closed) { if (t && t.status !== 'done') { t.status = 'done'; t.doneAt = new Date().toISOString(); saveTasks(all); } return; }
+    const tenant = (l.tenant && l.tenant.name) || (l.values && (l.values.tenant || l.values.buyer)) || '';
+    const title = 'LOI response due — ' + (l.property || 'LOI') + (tenant ? (' (' + tenant + ')') : '');
+    const now = new Date().toISOString();
+    if (!t) { t = { id: newTaskId(), createdBy: l.byUser || (req.user && req.user.username) || '', createdByName: l.by || (req.user && req.user.name) || '', createdAt: now, status: 'open', doneAt: '', priority: 'High' }; all.push(t); l.taskId = t.id; }
+    t.title = title.slice(0, 300); t.due = String(l.respondBy).slice(0, 10); t.status = 'open'; t.doneAt = '';
+    if (!t.assignee) { t.assignee = l.byUser || (req.user && req.user.username) || ''; t.assigneeName = l.by || (req.user && req.user.name) || ''; }
+    t.notes = 'Follow up on the ' + (loiTypeKey(l) === 'business_sale' ? 'business-sale' : 'lease') + ' LOI (v' + (l.version || 1) + ', status ' + (l.status || 'Draft') + '). Open: /rrg_loi_builder.html?id=' + l.id;
+    if (l.engagementKey) { let biz = ''; try { const d = assignmentsIndex()[l.engagementKey]; if (d) biz = assignmentView(d, loadAssignOverlay(), { noBoard: true }).business || ''; } catch (e) {} t.linkType = 'deal'; t.linkId = l.engagementKey; t.linkLabel = biz; t.dealKey = l.engagementKey; t.dealLabel = biz; }
+    t.loiId = l.id; t.updatedAt = now; saveTasks(all);
+  } catch (e) { console.error('loi deadline task:', e && e.message); }
+}
+function loiSummary(l) {
+  return { id: l.id, type: loiTypeKey(l), typeName: (loiTypeKey(l) === 'business_sale' ? 'Business Sale' : 'Tenant Rep'), property: l.property || '', premises: (l.values && l.values.premises) || '',
+    tenant: (l.tenant && l.tenant.name) || '', tenantId: (l.tenant && l.tenant.id) || '', tenantKind: (l.tenant && l.tenant.kind) || '',
+    landlord: (l.landlord && l.landlord.name) || '', landlordId: (l.landlord && l.landlord.id) || '', landlordKind: (l.landlord && l.landlord.kind) || '',
+    createdAt: l.createdAt || '', by: l.by || '', status: l.status || 'Draft', updatedAt: l.updatedAt || '', rounds: Array.isArray(l.rounds) ? l.rounds.length : 0,
+    version: l.version || 1, engagementKey: l.engagementKey || '', respondBy: l.respondBy || '', sentAt: l.sentAt || '', spaceId: l.spaceId || '' };
+}
+// Engagement → builder prefill: the tenant party, the rep, and the spaces already toured (offered first).
+app.get('/api/loi/engagement/:key', (req, res) => {
+  const r = _resolveEngagement(req, res); if (!r) return;
+  const av = r.av; let tenant = null;
+  if (av.company && av.company.name) tenant = { name: av.company.name, id: av.company.id || av.companyId || '', kind: 'company' };
+  else if (av.clientPersonId) { const p = personById(av.clientPersonId); if (p) tenant = { name: p.name || '', id: p.id, kind: 'contact' }; }
+  const tours = (Array.isArray(av.tours) ? av.tours : []).filter(t => t && t.spaceId).map(t => ({ spaceId: t.spaceId, reaction: t.reaction || '', rating: t.rating || 0, property: t.property || '' }));
+  res.json({ ok: true, engagement: { key: req.params.key, business: av.business || '', type: av.assignmentType || '' }, tenant: tenant, tours: tours });
+});
+// Every LOI on one engagement (the engagement's LOIs card + the comparison page).
+app.get('/api/assignment/:key/lois', (req, res) => {
+  const r = _resolveEngagement(req, res); if (!r) return;
+  const key = req.params.key;
+  const list = loadLois().filter(l => l.engagementKey === key).slice().reverse();
+  res.json({ ok: true, business: r.av.business || '', lois: list.map(function (l) { return Object.assign(loiSummary(l), { values: l.values || {} }); }) });
+});
+app.get('/api/loi/:id/pdf', async (req, res) => {
+  const f = loiFindFor(req, res, req.params.id); if (!f) return;
+  try { const pdf = await loiPdfBuffer(f.l); res.setHeader('Content-Type', 'application/pdf'); res.setHeader('Content-Disposition', (req.query.dl === '1' ? 'attachment' : 'inline') + '; filename="' + loiFileStem(f.l) + '.pdf"'); res.send(pdf); }
+  catch (e) { console.error('loi pdf:', e && e.message); res.status(500).json({ ok: false, error: 'Could not render the PDF: ' + String((e && e.message) || e) }); }
+});
+app.get('/api/loi/:id/docx', (req, res) => {
+  const f = loiFindFor(req, res, req.params.id); if (!f) return;
+  try { const buf = loiDocxBuffer(f.l); res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'); res.setHeader('Content-Disposition', 'attachment; filename="' + loiFileStem(f.l) + '.docx"'); res.send(buf); }
+  catch (e) { console.error('loi docx:', e && e.message); res.status(500).json({ ok: false, error: 'Could not build the Word file.' }); }
+});
+// Analysis-only inputs (e.g. the NNN estimate on the comparison) — no new version.
+app.post('/api/loi/:id/field', express.json(), (req, res) => {
+  const f = loiFindFor(req, res, req.params.id); if (!f) return;
+  const b = req.body || {}; const allowed = ['nnn'];
+  if (allowed.indexOf(String(b.key || '')) < 0) return res.status(400).json({ ok: false, error: 'That field cannot be edited here.' });
+  f.l.values = f.l.values || {}; f.l.values[b.key] = String(b.value == null ? '' : b.value).slice(0, 40); f.l.updatedAt = new Date().toISOString(); saveLois(f.lois);
+  res.json({ ok: true });
+});
+// Email the LOI as a letterhead PDF — tracked, logged on the contact, round + status + deadline in one step.
+app.post('/api/loi/:id/send', express.json({ limit: '256kb' }), async (req, res) => {
+  const f = loiFindFor(req, res, req.params.id); if (!f) return;
+  if (!isEmailConfigured()) return res.status(400).json({ ok: false, error: "Email isn't set up. Configure it in Admin -> Email." });
+  const b = req.body || {}; const l = f.l;
+  const to = String(b.to || '').trim(); const cc = cleanAddrList(b.cc);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return res.status(400).json({ ok: false, error: 'A valid recipient email is required.' });
+  const subject = String(b.subject || '').slice(0, 300) || ('Letter of Intent — ' + (l.property || 'Proposal'));
+  const body = String(b.body || '').slice(0, 20000);
+  try {
+    const pdf = await loiPdfBuffer(l);
+    const origin = reqOrigin(req); const tok = newOpenToken();
+    const sigHtml = userSignatureHtml(req.user && req.user.username, req.user); const sigTxt = userSignatureText(req.user && req.user.username, req.user);
+    const bodyHtml = esc(body).split('\n').join('<br>');
+    const info = await sendMailWL({ from: mailFrom(), to: to, cc: cc || undefined, subject: subject, text: body + (sigTxt ? ('\n\n' + sigTxt) : ''), html: trackedEmailHtml(bodyHtml, origin, tok, sigHtml), replyTo: (req.user && req.user.email) || undefined, attachments: [{ filename: loiFileStem(l) + '.pdf', content: pdf, contentType: 'application/pdf' }] });
+    const now = new Date().toISOString();
+    // Log on the recipient's contact record (powers Tracked Emails + the timeline).
+    let loggedOn = '';
+    try {
+      const arr = loadPeople(); const pid = String(b.personId || '');
+      const p = (pid && arr.find(x => x.id === pid)) || arr.find(x => personEmails(x).some(e => String(e || '').toLowerCase() === to.toLowerCase()));
+      if (p) {
+        p.emailLog = Array.isArray(p.emailLog) ? p.emailLog : [];
+        p.emailLog.unshift({ id: 'eml_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), to: to, subject: subject, body: body.slice(0, 6000), sentAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', messageId: (info && info.messageId) || '', cc: cc, openToken: tok, opens: 0, loiId: l.id, attachments: [loiFileStem(l) + '.pdf'] });
+        p.emailLog = p.emailLog.slice(0, 100);
+        logActivity(p, 'LOI Sent', (loiTypeKey(l) === 'business_sale' ? 'Business Sale' : 'Tenant Rep') + (l.property ? (' - ' + l.property) : '') + ' (v' + (l.version || 1) + ')', { auto: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' });
+        p.lastContacted = now.slice(0, 10); p.updatedAt = now; savePeople(arr); loggedOn = p.name || '';
+      }
+    } catch (e) {}
+    if (!l.status || l.status === 'Draft') l.status = 'Sent';
+    l.sentAt = now; l.rounds = Array.isArray(l.rounds) ? l.rounds : [];
+    l.rounds.push({ at: now, direction: 'sent', by: (req.user && req.user.name) || '', note: 'Emailed v' + (l.version || 1) + ' to ' + to + (cc ? (' (cc ' + cc + ')') : ''), changes: [] });
+    if (typeof b.respondBy === 'string') l.respondBy = /^\d{4}-\d{2}-\d{2}$/.test(b.respondBy) ? b.respondBy : '';
+    l.updatedAt = now; saveLois(f.lois); loiSyncDeadlineTask(req, l); saveLois(f.lois);
+    try { logSysEvent(req, 'LOI', 'Emailed LOI v' + (l.version || 1) + ' — ' + (l.property || '') + ' to ' + to, { tool: 'loi', kind: 'send', id: l.id }); } catch (e) {}
+    res.json({ ok: true, loi: loiSummary(l), loggedOn: loggedOn });
+  } catch (e) { console.error('loi send:', e && e.message); res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
 
 // ---- Global error handler: /api routes ALWAYS return JSON, never Express's HTML 500 page ----
 app.use((err, req, res, next) => {
