@@ -91,6 +91,13 @@ h1{font-size:30px;font-weight:700;margin:0;letter-spacing:-.01em;}
 .mapop .med{margin-top:4px;color:var(--muted);font-size:12px;}
 .mapop .st{margin-top:6px;}
 .mapop a.ed{display:inline-block;margin-top:9px;color:#2c5c8f;font-weight:700;text-decoration:none;cursor:pointer;}
+.newbtn{background:var(--navy,#000E31);color:#fff;border:1px solid var(--navy,#000E31);border-radius:9px;padding:8px 14px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.newbtn:hover{filter:brightness(1.25);}
+/* FullServe UI standard (list windows): title · count · [view toggle] ……… search · secondary actions · + New (always top-right) */
+.lhd > *{order:2;}
+.lhd > b,.lhd > .cnt,.lhd > .meta,.lhd > .msg,.lhd > .hint,.lhd > .viewseg,.lhd > style{order:0;}
+.lhd > .searchwrap{order:1;margin-left:auto !important;}
+.lhd > .newbtn:not(#docSavedBtn){order:3;margin-left:10px !important;}
 </style>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -106,14 +113,14 @@ h1{font-size:30px;font-weight:700;margin:0;letter-spacing:-.01em;}
 
 <div class="wrap">
   <div class="card">
-    <div class="ch"><b>All spaces</b><span class="hint" id="cnt"></span><span class="viewseg"><button type="button" id="vTable" class="on">▤ Table</button><button type="button" id="vMap">🗺 Map</button></span><div class="searchwrap"><svg class="searchic" viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"></circle><line x1="12.8" y1="12.8" x2="17.5" y2="17.5"></line></svg><input id="sp_search" oninput="spSearch(this.value)" placeholder="Search spaces…" autocomplete="off"></div><button class="btn" id="reviewBtn" style="margin-left:10px;display:none">⚑ Review<span id="revCount"></span></button><button class="btn" id="autoBtn" style="margin-left:10px">📥 Auto-import</button><button class="btn" id="matchBtn" data-ai="" style="margin-left:8px">✨ AI match</button><button class="btn primary" id="addBtn" style="margin-left:8px">+ Add space</button></div>
+    <div class="ch lhd"><b>All spaces</b><span class="hint" id="cnt"></span><span class="viewseg"><button type="button" id="vTable" class="on">▤ Table</button><button type="button" id="vMap">🗺 Map</button></span><div class="searchwrap"><svg class="searchic" viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"></circle><line x1="12.8" y1="12.8" x2="17.5" y2="17.5"></line></svg><input id="sp_search" oninput="spSearch(this.value)" placeholder="Search spaces…" autocomplete="off"></div><button class="btn" id="reviewBtn" style="margin-left:10px;display:none">⚑ Review<span id="revCount"></span></button><button class="btn" id="autoBtn" style="margin-left:10px">📥 Auto-import</button><button class="btn" id="matchBtn" data-ai="" style="margin-left:8px">✨ AI match</button><button class="newbtn" id="addBtn">+ New space</button></div>
     <div class="tiles" id="tiles"></div>
     <div class="cb"><div id="mapWrap" hidden><div id="spmap"></div><div id="mapLegend"></div><div id="mapNote"></div></div><div id="list"></div></div>
   </div>
 </div>
 
 <div class="ov" id="ov" hidden><div class="modal">
-  <div class="mh"><b id="mtitle">Add space</b><button class="x" id="mx">✕</button></div>
+  <div class="mh"><b id="mtitle">New space</b><button class="x" id="mx">✕</button></div>
   <div class="mb">
     <div class="aibox" data-ai=""><div class="aihd">✨ AI fill from a listing <span>Paste a CoStar / LoopNet / Crexi blurb or broker email, or upload PDFs — one fills the fields to review, several auto-create a listing each</span></div><textarea id="ai_paste" placeholder="Paste the listing here…"></textarea><div class="airow"><button class="btn" id="ai_fill" type="button">Fill the fields ↓</button><input type="file" id="ai_pdf" accept=".pdf,.doc,.docx,.txt" multiple style="display:none"><button class="btn" id="ai_pdf_btn" type="button" title="One file fills the form to review; pick several to auto-create a listing each">⬆ Upload PDF(s)</button><span class="msg" id="ai_msg"></span></div><div class="airow" style="margin-top:9px;border-top:1px solid rgba(0,0,0,.07);padding-top:10px"><label style="font-size:11.5px;color:#5a6478;display:inline-flex;align-items:center;gap:5px">Or scan my email for listings from the last <input type="number" id="ai_days" value="90" min="1" max="730" style="width:60px;font:inherit;font-size:12px;padding:4px 6px;border:1px solid #cfd6e2;border-radius:7px"> days</label><button class="btn" id="ai_email_btn" type="button">✉ Scan email → auto-create</button></div></div>
     <div class="grid">
@@ -208,7 +215,7 @@ function draw(){
   document.getElementById('cnt').textContent=rows.length?(rows.length+' space'+(rows.length===1?'':'s')):'';
   var cfg={ mount:'#list', data:rows, key:'spaces', countEl:null, filterOpen:true,
     onFilterChange:function(cnt){ if(!MAP_VIEW) return; var refit=(cnt!==_lastMapFilterCount); _lastMapFilterCount=cnt; mapRefresh(refit); },
-    empty:'<div class="empty"><b>No spaces yet.</b> Click <b>+ Add space</b> to log an available space and its bones.</div>',
+    empty:'<div class="empty"><b>No spaces yet.</b> Click <b>+ New space</b> to log an available space and its bones.</div>',
     rowId:function(sp){return sp.id;}, defaultSort:10, defaultDir:-1,
     onRowClick:function(id){ var sp=SPACES.filter(function(s){return s.id===id;})[0]; if(sp) openForm(sp); },
     columns:[
@@ -287,7 +294,7 @@ function cancelNewCenter(){ var nb=document.getElementById('f_center_new'); if(n
 function openForm(sp){
   EDIT=sp||null; SEL={};
   if(sp && sp.features) sp.features.forEach(function(f){ SEL[f]=true; });
-  document.getElementById('mtitle').textContent=sp?'Edit space':'Add space';
+  document.getElementById('mtitle').textContent=sp?'Edit space':'New space';
   fillSelects();
   setv('f_address',sp&&sp.address); document.getElementById('f_center_id').value=(sp&&sp.centerId)||''; setv('f_center',sp&&sp.center); setv('f_market',sp&&sp.market); fillCenterSel();
   setv('f_name',sp&&sp.name); setv('f_size',sp&&sp.size); setv('f_rent',sp&&sp.rent); setv('f_nnn',sp&&sp.nnn);

@@ -335,8 +335,7 @@ function createDeal(){ var business=(document.getElementById('nd_business').valu
 function renderToolbar(){
   var vc=activeFilterCount();
   var perLabel=function(p){ return p===0?'All':String(p); };
-  var html='<div class="tb">'+'<span class="pgtitle">'+entPlural()+'</span>'+'<button class="tbtn" id="tb_newlisting" style="background:#000E31;color:#fff;border-color:#000E31;font-weight:800">+ New '+entSingular()+'</button>'
-    +(!isTenantBoard()?'<a class="tbtn" href="/market" target="_blank" rel="noopener" title="Open the public confidential marketplace in a new tab" style="text-decoration:none">\ud83d\udce3 Marketplace \u2197</a>':'')
+  var html='<div class="tb">'+'<span class="pgtitle">'+entPlural()+'</span>'
     +'<div class="vtog"><button class="vbtn'+(VIEW==='board'?' on':'')+'" data-view="board">\u25a4 Board</button><button class="vbtn'+(VIEW==='list'?' on':'')+'" data-view="list">\u2630 List</button></div>'
     +'<div class="search"><span class="mag">⌕</span><input id="tb_q" placeholder="Search listings…" value="'+esc(TB.q)+'"></div>'
     +'<button class="tbtn'+(FILTER_OPEN?' on':'')+'" id="tb_filter">☰ Filters'+(vc?(' <span class="pip">'+vc+'</span>'):'')+'</button>'
@@ -349,6 +348,10 @@ function renderToolbar(){
       +'<div style="position:relative;display:inline-block"><button class="tbtn" id="tb_cardf">\u2699 Card fields \u25be</button><div id="cardfmenu"></div></div>'
       +'<div style="position:relative;display:inline-block"><button class="tbtn" id="tb_flags">\u2691 Card flags \u25be</button><div id="flagmenu"></div></div>'
     ) : '')
+    // UI standard: title · view toggle … then the primary + New pushed right (with any page-level links).
+    +'<span style="margin-left:auto;display:inline-flex;gap:8px;align-items:center">'
+    +(!isTenantBoard()?'<a class="tbtn" href="/market" target="_blank" rel="noopener" title="Open the public confidential marketplace in a new tab" style="text-decoration:none">\ud83d\udce3 Marketplace \u2197</a>':'')
+    +'<button class="tbtn" id="tb_newlisting" style="background:#000E31;color:#fff;border-color:#000E31;font-weight:800">+ New '+entSingular()+'</button></span>'
     +'</div>';
   document.getElementById('toolbar').innerHTML=html; var _nl=document.getElementById('tb_newlisting'); if(_nl) _nl.addEventListener('click',openDealModal);
   renderFilterPanel();

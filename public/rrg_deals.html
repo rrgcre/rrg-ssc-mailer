@@ -5,7 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>RRG — Deals</title>
 <script src="/rrg_brand.js"></script>
-<style>.rl-filtbtn{display:none!important;}</style>
+<style>.rl-filtbtn{display:none!important;}.newbtn{background:var(--navy,#000E31);color:#fff;border:1px solid var(--navy,#000E31);border-radius:9px;padding:8px 14px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.newbtn:hover{filter:brightness(1.25);}
+/* FullServe UI standard (list windows): title · count · [view toggle] ……… search · secondary actions · + New (always top-right) */
+.lhd > *{order:2;}
+.lhd > b,.lhd > .cnt,.lhd > .meta,.lhd > .msg,.lhd > .hint,.lhd > .viewseg,.lhd > style{order:0;}
+.lhd > .searchwrap{order:1;margin-left:auto !important;}
+.lhd > .newbtn:not(#docSavedBtn){order:3;margin-left:10px !important;}
+</style>
 <script src="/rrg_list.js"></script>
 <script src="/rrg_filters.js"></script>
 <style>
@@ -44,7 +51,7 @@ h1{font-size:26px;font-weight:700;margin:5px 0 0;}
 </div></div>
 <div class="wrap">
   <div class="tiles" id="tiles"></div>
-  <div class="card"><div class="hd"><b>Deals</b><span class="meta" id="cnt"></span><button id="filterBtn" class="rlf-btn">⚙ Filters</button><button id="newDealBtn" class="newdealbtn">+ New deal</button></div><div class="cb"><div id="list"><div class="empty">Loading…</div></div></div></div>
+  <div class="card"><div class="hd lhd"><b>Deals</b><span class="meta" id="cnt"></span><button id="filterBtn" class="rlf-btn" style="margin-left:auto">⚙ Filters</button><button id="newDealBtn" class="newbtn">+ New deal</button></div><div class="cb"><div id="list"><div class="empty">Loading…</div></div></div></div>
 </div>
 <div id="ndModal" style="position:fixed;inset:0;background:rgba(6,14,32,.55);display:none;align-items:flex-start;justify-content:center;z-index:200;padding:28px 20px;overflow:auto">
   <div style="background:#fff;border-radius:16px;width:100%;max-width:520px;box-shadow:0 24px 60px rgba(0,0,0,.35)">

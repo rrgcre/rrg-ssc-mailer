@@ -96,6 +96,13 @@ tr:hover td{background:#fbfcfe;}
 .filerow .fdel:hover{background:var(--red);color:#fff;}
 #cmap{height:200px;border-radius:9px;border:1px solid var(--line);margin-top:10px;background:var(--wash);}
 .savefirst{font-size:12px;color:var(--muted);background:var(--wash);border:1px dashed var(--inp);border-radius:9px;padding:12px;text-align:center;}
+.newbtn{background:var(--navy,#000E31);color:#fff;border:1px solid var(--navy,#000E31);border-radius:9px;padding:8px 14px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.newbtn:hover{filter:brightness(1.25);}
+/* FullServe UI standard (list windows): title · count · [view toggle] ……… search · secondary actions · + New (always top-right) */
+.lhd > *{order:2;}
+.lhd > b,.lhd > .cnt,.lhd > .meta,.lhd > .msg,.lhd > .hint,.lhd > .viewseg,.lhd > style{order:0;}
+.lhd > .searchwrap{order:1;margin-left:auto !important;}
+.lhd > .newbtn:not(#docSavedBtn){order:3;margin-left:10px !important;}
 </style>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
@@ -111,14 +118,14 @@ tr:hover td{background:#fbfcfe;}
 </div></div>
 <div class="wrap">
   <div class="card">
-    <div class="hd"><b>Centers</b><span class="msg" id="count"></span><div class="searchwrap"><svg class="searchic" viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"></circle><line x1="12.8" y1="12.8" x2="17.5" y2="17.5"></line></svg><input id="q" placeholder="Search name, market, anchor…" oninput="draw()" autocomplete="off"></div><button class="btn" id="enrichBtn" onclick="enrichAll()" style="margin-left:10px" title="Fill in address, city, metro, type/anchor and a photo for every center — from your own listings">✨ Enrich centers</button><button class="btn pri" onclick="openEdit()" style="margin-left:8px">＋ Add center</button></div>
+    <div class="hd lhd"><b>Centers</b><span class="msg" id="count"></span><div class="searchwrap"><svg class="searchic" viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"></circle><line x1="12.8" y1="12.8" x2="17.5" y2="17.5"></line></svg><input id="q" placeholder="Search name, market, anchor…" oninput="draw()" autocomplete="off"></div><button class="btn" id="enrichBtn" onclick="enrichAll()" style="margin-left:10px" title="Fill in address, city, metro, type/anchor and a photo for every center — from your own listings">✨ Enrich centers</button><button class="newbtn" onclick="openEdit()">+ New center</button></div>
     <div id="list"><div class="empty">Loading…</div></div>
   </div>
 </div>
 
 <div class="ov" id="ov" hidden>
   <div class="mod">
-    <div class="mhd"><span id="modTitle">Add center</span><button class="btn" onclick="closeEdit()">✕</button></div>
+    <div class="mhd"><span id="modTitle">New center</span><button class="btn" onclick="closeEdit()">✕</button></div>
     <div class="mb">
       <div class="phrow">
         <div class="thumb" id="phThumb">▤</div>
@@ -285,7 +292,7 @@ document.addEventListener('click',function(e){ var ed=e.target.closest&&e.target
 function setv(id,v){ var el=document.getElementById(id); if(el) el.value=(v==null?'':v); }
 function openEdit(id){
   EDIT=id?CENTERS.find(function(c){return c.id===id;}):null; PENDING_PHOTO=null;
-  document.getElementById('modTitle').textContent=EDIT?'Edit center':'Add center';
+  document.getElementById('modTitle').textContent=EDIT?'Edit center':'New center';
   document.getElementById('modMsg').textContent=''; document.getElementById('phMsg').textContent='';
   setv('c_name',EDIT&&EDIT.name); setv('c_address',EDIT&&EDIT.address); setv('c_city',EDIT&&EDIT.city); setv('c_market',EDIT&&EDIT.market);
   document.getElementById('c_type').value=(EDIT&&EDIT.centerType)||'';

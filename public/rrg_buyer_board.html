@@ -78,14 +78,16 @@ h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
 .foot{max-width:1320px;margin:0 auto;padding:0 28px 40px;color:var(--muted);font-size:11.5px;}
 .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:var(--navy);color:#fff;font-size:12.5px;font-weight:700;padding:10px 18px;border-radius:100px;box-shadow:0 8px 24px rgba(0,0,0,.3);opacity:0;transition:opacity .2s;pointer-events:none;z-index:99;} .toast.show{opacity:1;} .toast.err{background:var(--red);}
 /* Off-the-board drop bar (park a buyer without pushing it through the pipeline) */
-.offbar{margin:6px 0 4px;border:1.5px dashed #cfd6e2;border-radius:12px;background:#fbfcff;padding:10px 15px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;transition:background .12s,border-color .12s;}
+.offbar{position:sticky;bottom:12px;z-index:6;box-shadow:0 6px 22px rgba(16,24,40,.10);margin:6px 0 4px;border:1.5px dashed #cfd6e2;border-radius:12px;background:#fbfcff;padding:10px 15px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;transition:background .12s,border-color .12s;}
 .offbar.dragover{border-color:#c0392b;background:#fdf0ee;}
 .offbar .obl{font-size:12.5px;font-weight:800;color:#5b6472;display:flex;align-items:center;gap:8px;}
 .offbar .obicon{font-size:15px;color:#98a1b5;} .offbar.dragover .obl,.offbar.dragover .obicon{color:#c0392b;}
 .offbar .obcount{background:#eef1f6;color:#5b6472;border-radius:999px;padding:1px 9px;font-size:11.5px;font-weight:800;}
 .offbar .obhint{font-size:12px;color:#98a1b5;}
 .offbar .obtoggle{margin-left:auto;font-size:12px;font-weight:700;color:#23496f;background:none;border:none;cursor:pointer;padding:2px 4px;} .offbar .obtoggle:hover{text-decoration:underline;}
-.offtray{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;width:100%;}
+.offtray{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;width:100%;max-height:180px;overflow-y:auto;}
+.bcard .cmenu{flex:none;border:none;background:none;cursor:pointer;color:#9aa4b6;font-size:15px;line-height:1;padding:1px 4px;margin-top:1px;border-radius:5px;letter-spacing:1px;}
+.bcard .cmenu:hover{color:#5b6472;background:#f1f3f8;}
 .offchip{display:flex;align-items:center;gap:8px;border:1px solid #e3e8f0;border-radius:9px;background:#fff;padding:6px 10px;font-size:12.5px;}
 .offchip .ocn{font-weight:700;color:#20334f;}
 .offchip .ocs{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;border-radius:5px;padding:1px 6px;}
@@ -96,7 +98,7 @@ h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
 .offmenu button{display:flex;width:100%;align-items:center;gap:9px;background:#fff;border:none;border-radius:7px;padding:8px 10px;font:inherit;font-size:13px;font-weight:600;color:#1a2236;cursor:pointer;text-align:left;} .offmenu button:hover{background:#f2f5fa;}
 .offmenu button .od{width:8px;height:8px;border-radius:50%;flex:none;} .offmenu .od.hold{background:#e0a83c;} .offmenu .od.lost{background:#c0392b;}
 .offmenu .omcancel{color:#8a94a6;font-weight:600;justify-content:center;font-size:12px;}
-.vtog{display:inline-flex;border:1px solid #cfd6e2;border-radius:6px;overflow:hidden;}
+.vtog{display:inline-flex;border:1px solid #cfd6e2;border-radius:3px;overflow:hidden;}
 .vbtn{background:#fff;border:none;padding:7px 12px;font:inherit;font-size:12.5px;font-weight:700;color:#6b7488;cursor:pointer;}
 .vbtn+.vbtn{border-left:1px solid #cfd6e2;} .vbtn.on{background:var(--navy,#000E31);color:#fff;}
 .listwrap{background:#fff;border:1px solid #e6e9f0;border-radius:12px;padding:12px 14px;box-shadow:0 4px 18px rgba(11,26,56,.05);}
@@ -122,7 +124,8 @@ h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
     </div>
   </div>
   <div class="ctl">
-    <span class="lbl">Listing</span>
+    <div class="vtog" id="viewTog"><button type="button" class="vbtn" data-view="board">▤ Board</button><button type="button" class="vbtn" data-view="list">☰ List</button></div>
+    <span class="lbl" style="margin-left:6px">Listing</span>
     <div class="lfcbx" id="listingCbx">
       <svg class="lfic" viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"></circle><line x1="12.8" y1="12.8" x2="17.5" y2="17.5"></line></svg>
       <input type="text" id="lfInput" placeholder="All listings — type to search…" autocomplete="off" spellcheck="false">
@@ -132,7 +135,6 @@ h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
     <span class="lbl" style="margin-left:8px">Pipeline</span>
     <select id="pipeSel" class="pipesel"></select>
     <span class="tot" id="tot"></span>
-    <div class="vtog" id="viewTog"><button type="button" class="vbtn" data-view="board">▤ Board</button><button type="button" class="vbtn" data-view="list">☰ List</button></div>
   </div>
   <div id="root"><div class="state">Loading the buyer pipeline…</div></div>
 </div>
@@ -155,7 +157,7 @@ function cardHtml(b){
   var src=(b.source&&b.source!=='Manual')?('<span class="src">'+esc(b.source)+'</span>'):'';
   var chip=FILTER==='__all__'?('<a class="lchip" href="./rrg_assignment.html?key='+encodeURIComponent(b.listingKey)+'" title="'+esc(b.business)+'">📁 '+esc(b.business)+'</a>'):'';
   var rk=b.listingKey+'|'+b.id, rolled=!!ROLLED[rk];
-  var chev='<button class="rollup" data-roll="'+esc(rk)+'" title="Roll up / expand">▾</button>';
+  var chev='<button class="cmenu" data-cm="'+esc(b.id)+'" data-cmkey="'+esc(b.listingKey)+'" title="Take off the board">&middot;&middot;&middot;</button><button class="rollup" data-roll="'+esc(rk)+'" title="Roll up / expand">▾</button>';
   return '<div class="bcard'+(rolled?' rolled':'')+'" draggable="true" data-id="'+esc(b.id)+'" data-key="'+esc(b.listingKey)+'">'
     +'<div class="bhd">'+who+chev+'</div>'
     +'<div class="bbody">'+(meta?('<div class="bmeta">'+meta+'</div>'):'')+chip+src+'</div>'
@@ -179,7 +181,8 @@ function renderList(all){
       { label:'Listing', sort:function(a,b){return RRGList.cmp(a.business,b.business);}, cell:function(b){ return '<a href="./rrg_assignment.html?key='+encodeURIComponent(b.listingKey)+'" style="color:#2c5c8f;font-weight:600;text-decoration:none">'+esc(b.business||'Listing')+'</a>'; } },
       { label:'Stage', sort:function(a,b){ return STAGES.indexOf(a.stage)-STAGES.indexOf(b.stage); }, cell:function(b){ return b.stage?('<span style="font-size:12px;font-weight:700;color:var(--navy,#0b1a3a);background:#eef2fb;border:1px solid #d3ddf3;border-radius:999px;padding:2px 9px">'+esc(b.stage)+'</span>'):'<span style="color:#b0b8c6">\u2014</span>'; }, edit:{ type:'select', options:stageOpts, get:function(b){ return b.stage||''; },
           save:function(b,val){ return api('POST','/api/buyer-board/move',{key:b.listingKey,id:b.id,stage:val}).then(function(j){ if(j&&j.ok){ b.stage=val; toast('Moved to '+val); return true; } throw new Error((j&&j.error)||'Could not move the buyer.'); }); } } },
-      { label:'Status', sort:function(a,b){return RRGList.cmp(_bbStatus(a),_bbStatus(b));}, cell:function(b){ var s=_bbStatus(b); var c=s==='Lost'?'#a5352c':(s==='On Hold'?'#9a6a12':'#1f6b45'); return '<span style="font-size:11px;font-weight:800;color:'+c+'">'+s+'</span>'; } },
+      { label:'Status', sort:function(a,b){return RRGList.cmp(_bbStatus(a),_bbStatus(b));}, cell:function(b){ var s=_bbStatus(b); var c=s==='Lost'?'#a5352c':(s==='On Hold'?'#9a6a12':'#1f6b45'); return '<span style="font-size:11px;font-weight:800;color:'+c+'">'+s+'</span>'; }, edit:{ type:'select', options:function(){ return ['Active','On Hold','Lost']; }, get:function(b){ return _bbStatus(b); },
+          save:function(b,val){ var mode=val==='Lost'?'lost':(val==='On Hold'?'hold':'active'); return api('POST','/api/buyer-board/park',{key:b.listingKey,id:b.id,mode:mode}).then(function(j){ if(j&&j.ok){ b.lost=(mode==='lost'); b.parked=(mode==='hold'); toast(val==='Active'?'Back on the board':(val==='Lost'?'Marked lost':'Parked (On Hold)')); return true; } throw new Error((j&&j.error)||'Could not update.'); }); } } },
       { label:'Source', sort:function(a,b){return RRGList.cmp(a.source,b.source);}, cell:function(b){ return b.source?esc(b.source):'<span style="color:#b0b8c6">—</span>'; } },
       { label:'Added', sort:function(a,b){return RRGList.cmp(a.createdAt||'',b.createdAt||'');}, cell:function(b){ return b.createdAt?esc(_bbDate(b.createdAt)):'<span style="color:#b0b8c6">—</span>'; } },
       { label:'Updated', sort:function(a,b){return RRGList.cmp(a.updatedAt||'',b.updatedAt||'');}, cell:function(b){ return b.updatedAt?esc(_bbDate(b.updatedAt)):'<span style="color:#b0b8c6">—</span>'; } }
@@ -217,7 +220,7 @@ function offbarHtml(offAll){
   if(SHOW_OFF && n){
     tray='<div class="offtray">'+offAll.map(function(b){ var lost=!!b.lost; return '<div class="offchip"><span class="ocn">'+esc(b.name||'Buyer')+'</span>'+(FILTER==='__all__'&&b.business?('<span style="color:#8a94a6;font-size:11px">'+esc(b.business)+'</span>'):'')+'<span class="ocs '+(lost?'lost':'hold')+'">'+(lost?'Lost':'On Hold')+'</span><button type="button" class="ocret" data-ret="'+esc(b.id)+'" data-retkey="'+esc(b.listingKey)+'">↩ Return</button></div>'; }).join('')+'</div>';
   }
-  return '<div class="offbar" id="offbar"><span class="obicon">⇩</span><span class="obl">Off the board'+(n?(' <span class="obcount">'+n+'</span>'):'')+'</span><span class="obhint">Drag a buyer here to park it (On Hold or Lost) without pushing it through the pipeline.</span>'+toggle+tray+'</div>';
+  return '<div class="offbar" id="offbar"><span class="obicon">⇩</span><span class="obl">Off the board'+(n?(' <span class="obcount">'+n+'</span>'):'')+'</span><span class="obhint">Drag a buyer here, or use ··· on a card, to park it (On Hold) or mark it Lost.</span>'+toggle+tray+'</div>';
 }
 function wireOffbar(offAll){
   var bar=document.getElementById('offbar'); if(!bar) return;
@@ -259,6 +262,11 @@ function wireBoard(){
   document.querySelectorAll('.bcard').forEach(function(c){
     c.addEventListener('dragstart',function(e){ DRAG={id:c.getAttribute('data-id'),key:c.getAttribute('data-key'),from:c.closest('.col').getAttribute('data-stage')}; c.classList.add('drag'); try{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',DRAG.id);}catch(_){} });
     c.addEventListener('dragend',function(){ c.classList.remove('drag'); DRAG=null; document.querySelectorAll('.col.drop').forEach(function(x){x.classList.remove('drop');}); });
+  });
+  document.querySelectorAll('.bcard .cmenu').forEach(function(el){
+    el.addEventListener('mousedown',function(e){ e.stopPropagation(); });
+    el.addEventListener('dragstart',function(e){ e.preventDefault(); e.stopPropagation(); });
+    el.addEventListener('click',function(e){ e.preventDefault(); e.stopPropagation(); var r=el.getBoundingClientRect(); offDropMenu(el.getAttribute('data-cm'), el.getAttribute('data-cmkey'), r.left, r.bottom+4); });
   });
   document.querySelectorAll('.bcard .rollup').forEach(function(el){
     el.addEventListener('mousedown',function(e){ e.stopPropagation(); });

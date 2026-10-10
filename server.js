@@ -9667,18 +9667,9 @@ header{background:linear-gradient(180deg,var(--navy2),var(--navy));border-bottom
 .mkthero .hd h1{color:#fff;}
 .mkthero .hd .lede{color:#c6d1e6;}
 .mkt-eyebrow{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#e0c27e;margin-bottom:13px;}
-.mkthero .hdgrid{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:48px;align-items:center;}
-.mktstats{border:1px solid rgba(224,194,126,.28);background:rgba(255,255,255,.04);border-radius:12px;padding:20px 22px 16px;backdrop-filter:blur(2px);}
-.mktstats .sh{display:flex;align-items:center;justify-content:space-between;font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#e0c27e;margin-bottom:14px;}
-.mktstats .sh .live{display:inline-flex;align-items:center;gap:6px;color:#9fb0cf;letter-spacing:.08em;font-weight:700;}
-.mktstats .sh .live i{width:7px;height:7px;border-radius:50%;background:#3fbf7f;box-shadow:0 0 0 3px rgba(63,191,127,.18);}
-.mktstats .sg{display:grid;grid-template-columns:1fr 1fr;gap:16px 18px;}
-.mktstats .sv{font-family:'Fraunces',Georgia,serif;font-size:30px;font-weight:600;color:#fff;line-height:1;letter-spacing:-.01em;font-variant-numeric:tabular-nums;}
-.mktstats .sk{font-size:11.5px;font-weight:600;color:#9fb0cf;margin-top:6px;line-height:1.3;}
-.mktstats .sf{margin-top:15px;padding-top:12px;border-top:1px solid rgba(255,255,255,.1);font-size:12px;color:#9fb0cf;}
-.mktstats .sf b{color:#fff;font-weight:700;}
-@media(max-width:980px){.mkthero .hdgrid{grid-template-columns:1fr;gap:22px;}.mktstats .sv{font-size:24px;}.mktstats .sg{grid-template-columns:repeat(4,1fr);}}
-@media(max-width:560px){.mktstats .sg{grid-template-columns:1fr 1fr;}}
+.mkt-art{position:absolute;top:0;height:100%;width:520px;right:max(24px,calc((100vw - 1280px) / 2 + 24px));pointer-events:none;-webkit-mask-image:linear-gradient(90deg,transparent 0%,#000 30%);mask-image:linear-gradient(90deg,transparent 0%,#000 30%);}
+@media(max-width:1100px){.mkt-art{display:none;}}
+@media(prefers-reduced-motion:no-preference){.mkt-art .pin{animation:mktpin 5s ease-in-out infinite;}@keyframes mktpin{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}}
 .modes{margin-top:16px;}
 .modeseg{display:inline-flex;border:1px solid var(--inp);border-radius:6px;overflow:hidden;background:#fff;}
 .modeseg button{border:none;background:#fff;padding:10px 18px;font:inherit;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;gap:8px;}
@@ -9716,6 +9707,26 @@ tbody tr:last-child td{border-bottom:none;}
 tbody tr:nth-child(even) td{background:var(--zebra);}
 tbody tr:hover td{background:var(--zebra-h);}
 tbody tr.feat td{background:var(--zebra-f);}
+/* Featured listings live in the same table — pinned on top, double-height, gold-accented */
+tbody tr.frow td{background:#fffaf0;padding-top:18px;padding-bottom:18px;border-bottom:1px solid #efe3c8;}
+tbody tr.frow:hover td{background:#fff5e2;}
+tbody tr.frow td:first-child{box-shadow:inset 3px 0 0 var(--gold,#C8A24B);}
+tbody tr.frow + tr:not(.frow) td{border-top:1.5px solid #e6d6ae;}
+.frow .thumb.ico{width:76px;height:76px;border-radius:8px;background:linear-gradient(145deg,#fff6e3,#f6e8c6);border-color:#ead7aa;color:#8a6418;}
+.frow .thumb.ico svg{width:30px;height:30px;}
+.frow .frib{display:inline-flex;align-items:center;gap:5px;font-size:9.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8a6418;background:#fbefd3;border:1px solid #ecd9a8;border-radius:100px;padding:2px 9px;margin-bottom:6px;}
+.frow .biz{font-family:'Fraunces',Georgia,serif;font-size:17px;font-weight:600;letter-spacing:-.01em;}
+.frow .fchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;}
+.frow .fchip{font-size:11.5px;color:var(--muted);background:#fff;border:1px solid #ece2cb;border-radius:6px;padding:3px 8px;white-space:nowrap;}
+.frow .fchip b{color:var(--navy);font-weight:700;}
+.frow .fchip.lockc{display:inline-flex;align-items:center;gap:5px;}
+.frow .fchip.lockc svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2;}
+.frow .fbig{font-size:17px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums;letter-spacing:-.01em;}
+.frow .fsub{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);margin-top:3px;}
+.frow .fbtn{border:1px solid var(--navy);background:var(--navy);color:#fff;font:inherit;font-size:12.5px;font-weight:700;border-radius:7px;padding:9px 14px;cursor:pointer;white-space:nowrap;}
+.frow .fbtn:hover{filter:brightness(1.3);text-decoration:none;color:#fff;}
+@media(max-width:980px){.frow .fchip.mcash{display:inline-block !important;}}
+@media(max-width:640px){.frow .thumb.ico{width:48px;height:48px;}.frow .thumb.ico svg{width:22px;height:22px;}.frow .biz{font-size:15px;}}
 td.r{text-align:right;}
 .lcell{display:flex;gap:11px;align-items:center;}
 .thumb{width:64px;height:48px;border-radius:4px;overflow:hidden;flex:none;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;background:repeating-linear-gradient(135deg,#eef1f6 0 6px,#e6eaf1 6px 12px);color:var(--soft);}
@@ -9836,8 +9847,8 @@ footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} 
   <a class="navlink" href="/site#markets">Markets</a>
   <a class="navcta" href="/site#contact">Talk to a broker</a>
 </div></header>
-<section class="mkthero"><div class="wrap">
-  <div class="hd hdgrid"><div>
+<section class="mkthero"><svg class="mkt-art" viewBox="0 0 640 420" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false"><path d="M170 352H630" fill="none" stroke="#d9b867" stroke-opacity="0.22" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" /><path d="M200 352V250H296V352" fill="none" stroke="#d9b867" stroke-opacity="0.16" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" /><path d="M196 262H300L296 276Q288.0 285 280.0 276Q272.0 285 264.0 276Q256.0 285 248.0 276Q240.0 285 232.0 276Q224.0 285 216.0 276Q208.0 285 200.0 276L196 262" fill="none" stroke="#d9b867" stroke-opacity="0.2" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" /><path d="M217.28 352V296H241.28V352" fill="none" stroke="#d9b867" stroke-opacity="0.16" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" /><rect x="246" y="294" width="38" height="38" rx="2" fill="none" stroke="#d9b867" stroke-opacity=".14" stroke-width="1.2"/><path d="M300 352V214H420V352" fill="none" stroke="#d9b867" stroke-opacity="0.16" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" /><path d="M296 226H424L420 240Q410.0 249 400.0 240Q390.0 249 380.0 240Q370.0 249 360.0 240Q350.0 249 340.0 240Q330.0 249 320.0 240Q310.0 249 300.0 240L296 226" fill="none" stroke="#d9b867" stroke-opacity="0.2" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" /><path d="M321.6 352V296H345.6V352" fill="none" stroke="#d9b867" stroke-opacity="0.16" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" /><rect x="358" y="258" width="48" height="38" rx="2" fill="none" stroke="#d9b867" stroke-opacity=".14" stroke-width="1.2"/><path d="M424 352V236H528V352" fill="none" stroke="#d9b867" stroke-opacity="0.16" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" /><path d="M420 248H532L528 262Q519.3333333333334 271 510.6666666666667 262Q502.0 271 493.3333333333333 262Q484.66666666666663 271 476.0 262Q467.33333333333337 271 458.6666666666667 262Q450.0 271 441.33333333333337 262Q432.66666666666663 271 424.0 262L420 248" fill="none" stroke="#d9b867" stroke-opacity="0.2" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" /><path d="M442.72 352V296H466.72V352" fill="none" stroke="#d9b867" stroke-opacity="0.16" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" /><rect x="474" y="280" width="42" height="38" rx="2" fill="none" stroke="#d9b867" stroke-opacity=".14" stroke-width="1.2"/><path d="M532 352V206H624V352" fill="none" stroke="#d9b867" stroke-opacity="0.16" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" /><path d="M528 218H628L624 232Q616.3333333333333 241 608.6666666666666 232Q601.0 241 593.3333333333333 232Q585.6666666666667 241 578.0 232Q570.3333333333333 241 562.6666666666666 232Q555.0 241 547.3333333333333 232Q539.6666666666667 241 532.0 232L528 218" fill="none" stroke="#d9b867" stroke-opacity="0.2" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" /><path d="M548.56 352V296H572.56V352" fill="none" stroke="#d9b867" stroke-opacity="0.16" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" /><rect x="576" y="250" width="37" height="38" rx="2" fill="none" stroke="#d9b867" stroke-opacity=".14" stroke-width="1.2"/><g class="pin" style="animation-delay:2.0s"><path d="M250 192C239 179 239 170 250 170S261 179 250 192Z" fill="none" stroke="#d9b867" stroke-opacity="0.35" stroke-width="1.4"/><circle cx="250" cy="178" r="3" fill="#d9b867" fill-opacity="0.28"/></g><path d="M250 196V210" fill="none" stroke="#d9b867" stroke-opacity="0.13999999999999999" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2 4"/><g class="pin" style="animation-delay:1.2s"><path d="M360 172C349 159 349 150 360 150S371 159 360 172Z" fill="none" stroke="#d9b867" stroke-opacity="0.5" stroke-width="1.4"/><circle cx="360" cy="158" r="3" fill="#d9b867" fill-opacity="0.40"/></g><path d="M360 176V190" fill="none" stroke="#d9b867" stroke-opacity="0.2" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2 4"/><g class="pin" style="animation-delay:0.0s"><path d="M476 204C465 191 465 182 476 182S487 191 476 204Z" fill="none" stroke="#d9b867" stroke-opacity="0.35" stroke-width="1.4"/><circle cx="476" cy="190" r="3" fill="#d9b867" fill-opacity="0.28"/></g><path d="M476 208V222" fill="none" stroke="#d9b867" stroke-opacity="0.13999999999999999" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2 4"/><g class="pin" style="animation-delay:1.6s"><path d="M578 182C567 169 567 160 578 160S589 169 578 182Z" fill="none" stroke="#d9b867" stroke-opacity="0.42" stroke-width="1.4"/><circle cx="578" cy="168" r="3" fill="#d9b867" fill-opacity="0.34"/></g><path d="M578 186V200" fill="none" stroke="#d9b867" stroke-opacity="0.168" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2 4"/><g transform="translate(388 248) rotate(-9)"><rect x="-74" y="-96" width="148" height="192" rx="8" fill="#0a1733" fill-opacity=".85" stroke="#d9b867" stroke-opacity="0.22" stroke-width="1.5"/><path d="M-52 -58H18" fill="none" stroke="#d9b867" stroke-opacity="0.14" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /><path d="M-52 -44H52" fill="none" stroke="#d9b867" stroke-opacity="0.14" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /><path d="M-52 -30H52" fill="none" stroke="#d9b867" stroke-opacity="0.14" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /></g><g transform="translate(470 236) rotate(7)"><rect x="-74" y="-96" width="148" height="192" rx="8" fill="#0a1733" fill-opacity=".85" stroke="#d9b867" stroke-opacity="0.26" stroke-width="1.5"/><path d="M-52 -58H18" fill="none" stroke="#d9b867" stroke-opacity="0.16" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /><path d="M-52 -44H52" fill="none" stroke="#d9b867" stroke-opacity="0.16" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /><path d="M-52 -30H52" fill="none" stroke="#d9b867" stroke-opacity="0.16" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /></g><g transform="translate(430 232) rotate(0)"><rect x="-74" y="-96" width="148" height="192" rx="8" fill="#0a1733" fill-opacity=".85" stroke="#d9b867" stroke-opacity="0.5" stroke-width="1.5"/><path d="M-52 -70H20" fill="none" stroke="#d9b867" stroke-opacity="0.45" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" /><path d="M-52 -56H40" fill="none" stroke="#d9b867" stroke-opacity="0.2" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" /><g transform="translate(0 -14)"><rect x="-17" y="-8" width="34" height="26" rx="4" fill="none" stroke="#d9b867" stroke-opacity=".7" stroke-width="1.6"/><path d="M-10 -8V-16a10 10 0 0 1 20 0V-8" fill="none" stroke="#d9b867" stroke-opacity=".7" stroke-width="1.6"/><circle cx="0" cy="3" r="3" fill="#d9b867" fill-opacity=".7"/></g><path d="M-34 24H34" fill="none" stroke="#d9b867" stroke-opacity="0.18" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="3 4"/><path d="M-50 70L-28 56L-8 62L14 40L34 46L52 24" fill="none" stroke="#d9b867" stroke-opacity="0.55" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" /><circle cx="52" cy="24" r="3" fill="#d9b867" fill-opacity=".7"/></g></svg><div class="wrap">
+  <div class="hd">
     <div class="mkt-eyebrow">${esc(H.areas)}</div>
     <h1>${esc(H.heading)}</h1>
     <div class="lede">${esc(H.lede)}</div>
@@ -9845,8 +9856,6 @@ footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} 
       <button class="on" data-m="biz">Businesses <span class="c" id="cBiz"></span></button>
       <button data-m="re">Real Estate &amp; Assets <span class="c" id="cRe"></span></button>
     </div></div>
-  </div>
-  <aside class="mktstats" id="mktStats" style="display:none" aria-label="Current inventory"></aside>
   </div>
 </div></section>
 <div class="wrap">
@@ -9949,6 +9958,22 @@ function bizRow(l){
     +'<td>'+statusPill(l)+'</td>'
     +'<td class="r"><button class="actlink" data-k="'+esc(l.id)+'">Request access &rarr;</button></td></tr>';
 }
+function featRow(l){
+  var cash=cashLabel(l), ask=askLabel(l), chips=[];
+  if(l.revenue) chips.push('<span class="fchip">Revenue <b>'+esc(l.revenue)+'</b></span>');
+  if(cash) chips.push('<span class="fchip mcash" style="display:none">'+esc(l.earnBasis||'SDE')+' <b>'+esc(cash)+'</b></span>');
+  chips.push('<span class="fchip lockc"><svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Blind until NDA</span>');
+  var st=l.flagLabel?statusPill(l):'<span class="dash">&mdash;</span>';
+  return '<tr class="frow">'
+    +'<td><div class="lcell"><span class="thumb ico" title="'+esc(l.conceptKey||l.badge||'Restaurant')+'">'+svgIcon(l,'')+'</span>'
+      +'<div><div class="frib">&#9733; Featured</div><div class="biz">'+esc(l.headline)+'</div><div class="bmeta">'+esc(l.badge||'Restaurant')+'</div><div class="fchips">'+chips.join('')+'</div></div></div></td>'
+    +'<td class="mk2">'+esc(l.marketKey||l.loc||'Texas')+'</td>'
+    +'<td class="hide"><span class="mk2">'+esc(l.conceptKey||l.badge||'Restaurant')+'</span></td>'
+    +'<td class="r hide">'+(cash?('<div class="fbig num">'+esc(cash)+'</div><div class="fsub">'+esc(l.earnBasis||'SDE')+'</div>'):'<span class="dash">&mdash;</span>')+'</td>'
+    +'<td class="r">'+(ask?('<div class="fbig num">'+esc(ask)+'</div><div class="fsub">Guide</div>'):'<span class="dash">Under NDA</span>')+'</td>'
+    +'<td>'+st+'</td>'
+    +'<td class="r"><button class="fbtn actlink" data-k="'+esc(l.id)+'">Request access &rarr;</button></td></tr>';
+}
 function featCard(l){
   var cash=cashLabel(l), ask=askLabel(l), mets=[];
   if(ask) mets.push(['Guide',ask]); if(cash) mets.push([l.earnBasis||'SDE',cash]); if(l.revenue) mets.push(['Revenue',l.revenue]);
@@ -9977,9 +10002,9 @@ function renderBiz(){
   list.sort(function(a,b){ if(sv==='price'){ return (askRank(b)-askRank(a))||String(b.publishedAt).localeCompare(String(a.publishedAt)); } return ((b.featured?1:0)-(a.featured?1:0))||(((a.featOrder==null?9999:a.featOrder))-((b.featOrder==null?9999:b.featOrder)))||String(b.publishedAt).localeCompare(String(a.publishedAt)); });
   var feats=list.filter(function(l){return l.featured;});
   var rest=list.filter(function(l){return !l.featured;});
-  var fb=document.getElementById('bizFeat');
-  if(feats.length){ fb.style.display=''; fb.innerHTML='<div class="fhdr"><h2>Featured Listings</h2><span class="ln"></span><span class="n">'+feats.length+' highlighted</span></div><div class="fgrid">'+feats.map(featCard).join('')+'</div>'; }
-  else { fb.style.display='none'; fb.innerHTML=''; }
+  // Featured listings sit in the same table as everything else — pinned to the top of page 1.
+  var fb=document.getElementById('bizFeat'); if(fb){ fb.style.display='none'; fb.innerHTML=''; }
+  var featHtml=feats.map(featRow).join('');
   var pw=document.getElementById('bizPanelWrap');
   var tb=document.getElementById('bizRows');
   if(rest.length){
@@ -9987,10 +10012,10 @@ function renderBiz(){
     if(bizPage>pages) bizPage=pages; if(bizPage<1) bizPage=1;
     var startI=(bizPage-1)*BIZ_PGSZ;
     var pageRows=rest.slice(startI,startI+BIZ_PGSZ);
-    pw.style.display=''; tb.innerHTML=pageRows.map(bizRow).join('');
+    pw.style.display=''; tb.innerHTML=(bizPage===1?featHtml:'')+pageRows.map(bizRow).join('');
     renderBizPager(rest.length,pages,startI,pageRows.length);
   }
-  else if(feats.length){ pw.style.display='none'; tb.innerHTML=''; renderBizPager(0,1,0,0); }
+  else if(feats.length){ pw.style.display=''; tb.innerHTML=featHtml; renderBizPager(0,1,0,0); }
   else { pw.style.display=''; tb.innerHTML='<tr><td colspan="7"><div class="empty">No matching listings. Adjust your filters, or register as a buyer to be notified of new listings.</div></td></tr>'; renderBizPager(0,1,0,0); }
 }
 function gotoBizPage(n){ bizPage=n; renderBiz(); var s=document.getElementById('mBiz'); if(s&&s.scrollIntoView) s.scrollIntoView({behavior:'smooth',block:'start'}); }
@@ -10115,33 +10140,8 @@ function render(){
   RE=ALL.filter(function(l){return l.kind==='asset'||l.kind==='lease'||l.kind==='sale';});
   document.getElementById('cBiz').textContent=BIZ.length;
   document.getElementById('cRe').textContent=RE.length;
-  renderStats();
   fillFilters(); renderBiz(); renderRE();
   track('impression', ALL.map(function(l){return l.id;}));
-}
-// hero inventory stats — computed from the live public listings, never hard-coded
-function _fmtMoney(n){ if(n>=1e9) return '$'+(n/1e9).toFixed(1).replace(/[.]0$/,'')+'B'; if(n>=1e6) return '$'+(n/1e6).toFixed(n>=1e8?0:1).replace(/[.]0$/,'')+'M'; if(n>=1e3) return '$'+Math.round(n/1e3)+'K'; return '$'+Math.round(n); }
-function renderStats(){
-  var el=document.getElementById('mktStats'); if(!el) return;
-  if(!ALL.length){ el.style.display='none'; return; }
-  var ask=0, askN=0, cash=0, cashN=0, mets={}, fresh=0, now=Date.now();
-  var askAp=false, cashAp=false;
-  // ranges / bands count at their low end, so the total is shown as a floor ("+")
-  function _isRange(t){ return /[-–+]|under/i.test(String(t||'')); }
-  BIZ.forEach(function(l){ var al=askLabel(l), a=_mkNum(al); if(!isNaN(a)&&a>0){ ask+=a; askN++; if(_isRange(al)) askAp=true; } var cl=cashLabel(l), c=_mkNum(cl); if(!isNaN(c)&&c>0){ cash+=c; cashN++; if(_isRange(cl)) cashAp=true; } });
-  ALL.forEach(function(l){ var m=l.marketKey||''; if(m&&m!=='Other') mets[m]=1; var t=Date.parse(l.publishedAt||''); if(!isNaN(t)&&now-t<=30*864e5) fresh++; });
-  var cells=[];
-  cells.push([String(BIZ.length),BIZ.length===1?'Business for sale':'Businesses for sale']);
-  if(RE.length) cells.push([String(RE.length),'Real estate &amp; asset deals']);
-  if(askN) cells.push([_fmtMoney(ask)+((askAp||askN<BIZ.length)?'+':''),'Combined asking price']);
-  if(cashN) cells.push([_fmtMoney(cash)+((cashAp||cashN<BIZ.length)?'+':''),'Combined cash flow']);
-  var nm=Object.keys(mets).length; if(cells.length<4&&nm) cells.push([String(nm),nm===1?'Metro':'Metros']);
-  cells=cells.slice(0,4);
-  var foot=fresh?('<b>'+fresh+' new</b> in the last 30 days'):'Updated as listings go live';
-  el.innerHTML='<div class="sh"><span>On the market</span><span class="live"><i></i>Live</span></div>'
-    +'<div class="sg">'+cells.map(function(c){ return '<div><div class="sv">'+c[0]+'</div><div class="sk">'+c[1]+'</div></div>'; }).join('')+'</div>'
-    +'<div class="sf">'+foot+'</div>';
-  el.style.display='';
 }
 // request-access modal
 var curKey='';
