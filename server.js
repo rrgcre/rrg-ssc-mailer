@@ -25346,11 +25346,14 @@ app.post('/api/admin/txdata/test', requireAdmin, async (req, res) => {
 app.get('/api/tx/config', (req, res) => { const c = txCfg(); res.json({ ok: true, enabled: !!c.enabled, label: c.label || 'State' }); });
 // Market Radar — vacancy and seller signals across a city, from the state's own filings. Cached a day per city.
 const TXRADAR_DIR = path.join(BOV_DATA_DIR, 'txradar');
-async function txRadarBuild(city) {
+// scope: a city name (string), or { area, label, counties:[codes], cities:[names for the permit lists] } from txAreaScope().
+async function txRadarBuild(scope) {
+  const isArea = scope && typeof scope === 'object'; const city = isArea ? scope.label : scope;
   const C = _txEsc(city); const since = new Date(Date.now() - 26 * 30.44 * 864e5).toISOString().slice(0, 10);
-  const rows = []; for (let off = 0; off < 300000; off += 50000) { const page = await txQuery(TX_MB, { '$select': 'taxpayer_name,taxpayer_number,location_name,location_address,location_zip,tabc_permit_number,obligation_end_date_yyyymmdd,total_receipts,liquor_receipts,wine_receipts,beer_receipts', '$where': "upper(location_city)='" + C + "' AND obligation_end_date_yyyymmdd>='" + since + "'", '$order': 'obligation_end_date_yyyymmdd ASC', '$limit': '50000', '$offset': String(off) }); (page || []).forEach(r => rows.push(r)); if (!page || page.length < 50000) break; }
+  const where = isArea ? ('location_county in (' + scope.counties.map(c => "'" + String(c).replace(/[^0-9]/g, '') + "'").join(',') + ')') : ("upper(location_city)='" + C + "'");
+  const rows = []; for (let off = 0; off < (isArea ? 900000 : 300000); off += 50000) { const page = await txQuery(TX_MB, { '$select': 'taxpayer_name,taxpayer_number,location_name,location_address,location_city,location_zip,tabc_permit_number,obligation_end_date_yyyymmdd,total_receipts,liquor_receipts,wine_receipts,beer_receipts', '$where': where + " AND obligation_end_date_yyyymmdd>='" + since + "'", '$order': 'obligation_end_date_yyyymmdd ASC', '$limit': '50000', '$offset': String(off) }); (page || []).forEach(r => rows.push(r)); if (!page || page.length < 50000) break; }
   const ops = {}; let latest = '';
-  rows.forEach(r => { const k = r.tabc_permit_number || (r.location_name + '|' + r.location_address); const o = ops[k] = ops[k] || { name: r.location_name || r.taxpayer_name || '', taxpayer: r.taxpayer_name || '', tpn: r.taxpayer_number || '', address: r.location_address || '', zip: r.location_zip || '', permit: r.tabc_permit_number || '', months: {}, liq: {}, wine: {}, beer: {} }; const m = txMonthKey(r.obligation_end_date_yyyymmdd); o.months[m] = (o.months[m] || 0) + (Number(r.total_receipts) || 0); o.liq[m] = (o.liq[m] || 0) + (Number(r.liquor_receipts) || 0); o.wine[m] = (o.wine[m] || 0) + (Number(r.wine_receipts) || 0); o.beer[m] = (o.beer[m] || 0) + (Number(r.beer_receipts) || 0); if (m > latest) latest = m; });
+  rows.forEach(r => { const k = r.tabc_permit_number || (r.location_name + '|' + r.location_address); const o = ops[k] = ops[k] || { name: r.location_name || r.taxpayer_name || '', taxpayer: r.taxpayer_name || '', tpn: r.taxpayer_number || '', address: r.location_address || '', city: txTitle(r.location_city), zip: r.location_zip || '', permit: r.tabc_permit_number || '', months: {}, liq: {}, wine: {}, beer: {} }; const m = txMonthKey(r.obligation_end_date_yyyymmdd); o.months[m] = (o.months[m] || 0) + (Number(r.total_receipts) || 0); o.liq[m] = (o.liq[m] || 0) + (Number(r.liquor_receipts) || 0); o.wine[m] = (o.wine[m] || 0) + (Number(r.wine_receipts) || 0); o.beer[m] = (o.beer[m] || 0) + (Number(r.beer_receipts) || 0); if (m > latest) latest = m; });
   const mAdd = (m, n) => { const d = new Date(m + '-15T00:00:00Z'); d.setUTCMonth(d.getUTCMonth() + n); return d.toISOString().slice(0, 7); };
   // The state reports with a lag: treat the newest month present as "current".
   const cur = latest; const sig = [];
@@ -25359,15 +25362,19 @@ async function txRadarBuild(city) {
     const r3 = sum(0, 2), p3 = sum(12, 14), t12 = sum(0, 11);
     const series = []; for (let i = 23; i >= 0; i--) series.push(val(mAdd(cur, -i)));
     const gap = (Date.parse(cur + '-15') - Date.parse(last + '-15')) / (30.44 * 864e5);
-    const base = { name: o.name, taxpayer: o.taxpayer, address: o.address, zip: o.zip, permit: o.permit, lastMonth: last, trailing12: t12, series: series };
+    const base = { name: o.name, taxpayer: o.taxpayer, address: o.address, city: o.city || '', zip: o.zip, permit: o.permit, lastMonth: last, trailing12: t12, series: series };
     const priorAvg = ms.length >= 6 ? ms.slice(-9, -3).reduce((a, m) => a + o.months[m], 0) / 6 : 0;
     if (gap >= 2.5 && priorAvg >= 15000) sig.push(Object.assign({ signal: 'stopped', label: 'Stopped reporting', detail: 'No filings since ' + last + ' after ~$' + Math.round(priorAvg / 1000) + 'K/mo', rank: priorAvg }, base));
     else if (p3 >= 45000 && r3 > 0 && (r3 - p3) / p3 <= -0.25) sig.push(Object.assign({ signal: 'declining', label: 'Sales down', detail: Math.round((r3 - p3) / p3 * 100) + '% vs same 3 months last year', pct: Math.round((r3 - p3) / p3 * 100), rank: p3 - r3 }, base));
     else if (ms.length <= 4 && val(cur) > 0 && gap < 1.5) sig.push(Object.assign({ signal: 'new', label: 'New operator', detail: 'First filed ' + ms[0], rank: t12 }, base));
   });
   let pending = [], credit = [];
-  try { pending = (await txQuery(TX_PENDING, { '$where': "upper(city)='" + C + "'", '$order': 'submission_date DESC', '$limit': '200' })) || []; } catch (e) {}
-  try { credit = (await txQuery(TX_CREDIT, { '$where': "upper(city)='" + C + "'", '$order': 'effectivedate DESC', '$limit': '200' })) || []; } catch (e) {}
+  // Permit applications and credit-law notices are filed by city; an area asks for every city in its counties.
+  const cityWhere = isArea ? ((scope.cities || []).length ? ('upper(city) in (' + scope.cities.map(c => "'" + _txEsc(c) + "'").join(',') + ')') : '') : ("upper(city)='" + C + "'");
+  if (cityWhere) {
+    try { pending = (await txQuery(TX_PENDING, { '$where': cityWhere, '$order': 'submission_date DESC', '$limit': isArea ? '600' : '200' })) || []; } catch (e) {}
+    try { credit = (await txQuery(TX_CREDIT, { '$where': cityWhere, '$order': 'effectivedate DESC', '$limit': isArea ? '600' : '200' })) || []; } catch (e) {}
+  }
   sig.sort((a, b) => b.rank - a.rank);
   // Every operator with its metrics — the Radar filters these client-side (any % change, any window, size, recency, zip).
   const pct = (a, b) => (b > 0 ? Math.round((a - b) / b * 100) : null);
@@ -25380,23 +25387,86 @@ async function txRadarBuild(city) {
     // Category split over the last 12 months (or the 12 before it stopped, for a stopped operator).
     const off = status === 'stopped' ? gap : 0; const csum = (map) => { let x = 0; for (let i = off; i <= off + 11; i++) x += (map[mAdd(cur, -i)] || 0); return x; };
     const liquor12 = csum(o.liq), wine12 = csum(o.wine), beer12 = csum(o.beer); const cat = liquor12 + wine12 + beer12;
-    return { name: o.name, taxpayer: o.taxpayer, tpn: o.tpn || '', address: o.address, zip: o.zip, permit: o.permit, firstMonth: ms[0], lastMonth: last, monthsSince: gap, monthsReporting: ms.length, status: status,
+    return { name: o.name, taxpayer: o.taxpayer, tpn: o.tpn || '', address: o.address, city: o.city || '', zip: o.zip, permit: o.permit, firstMonth: ms[0], lastMonth: last, monthsSince: gap, monthsReporting: ms.length, status: status,
       trailing12: sum(0, 11), prior12: sum(12, 23), avgMonth: Math.round(sum(0, 11) / 12), priorAvg: Math.round(prior),
       chg3: pct(sum(0, 2), sum(12, 14)), chg6: pct(sum(0, 5), sum(12, 17)), chg12: pct(sum(0, 11), sum(12, 23)), series: series,
       liquor12: liquor12, wine12: wine12, beer12: beer12, liquorPct: cat ? Math.round(liquor12 / cat * 100) : null, winePct: cat ? Math.round(wine12 / cat * 100) : null, beerPct: cat ? Math.round(beer12 / cat * 100) : null };
   }).filter(Boolean).sort((a, b) => b.trailing12 - a.trailing12 || b.priorAvg - a.priorAvg);
-  return { ok: true, v: 3, city: city, at: new Date().toISOString(), latestMonth: cur, operators: Object.keys(ops).length, all: all.slice(0, 8000), signals: sig.slice(0, 600),
-    pending: pending.map(p => ({ name: p.trade_name || '', owner: p.owner || '', address: [p.address, p.address_2].filter(Boolean).join(' '), type: p.license_type || '', submitted: String(p.submission_date || '').slice(0, 10), status: p.applicationstatus || '' })),
-    creditLaw: credit.map(c => ({ name: c.tradename || c.corporatename || '', address: c.streetaddress || '', effective: String(c.effectivedate || '').slice(0, 10), status: c.permitstatus || '' })) };
+  return { ok: true, v: 3, city: city, area: isArea ? scope.area : '', areaCounties: isArea ? scope.countyNames : undefined, at: new Date().toISOString(), latestMonth: cur, operators: Object.keys(ops).length, all: all.slice(0, isArea ? 25000 : 8000), signals: sig.slice(0, isArea ? 1500 : 600),
+    pending: pending.map(p => ({ name: p.trade_name || '', owner: p.owner || '', address: [p.address, p.address_2].filter(Boolean).join(' '), city: txTitle(p.city), type: p.license_type || '', submitted: String(p.submission_date || '').slice(0, 10), status: p.applicationstatus || '' })),
+    creditLaw: credit.map(c => ({ name: c.tradename || c.corporatename || '', address: c.streetaddress || '', city: txTitle(c.city), effective: String(c.effectivedate || '').slice(0, 10), status: c.permitstatus || '' })) };
 }
-async function txRadarGet(city, refresh) {
-  const fp = path.join(TXRADAR_DIR, city.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.json');
+async function txRadarGet(scope, refresh) {
+  const isArea = scope && typeof scope === 'object';
+  const fp = path.join(TXRADAR_DIR, isArea ? ('_area_' + scope.area.replace(/[^a-z0-9]+/gi, '-') + '.json') : (scope.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.json'));
   try { if (!refresh && fs.existsSync(fp)) { const c = JSON.parse(fs.readFileSync(fp, 'utf8')); if (c && c.v === 3 && c.at && (Date.now() - Date.parse(c.at)) < 24 * 36e5) return Object.assign({ cached: true }, c); } } catch (e) {}
-  const r = await txRadarBuild(city); try { if (!fs.existsSync(TXRADAR_DIR)) fs.mkdirSync(TXRADAR_DIR, { recursive: true }); fs.writeFileSync(fp, JSON.stringify(r)); } catch (e) {} return r;
+  const r = await txRadarBuild(scope); try { if (!fs.existsSync(TXRADAR_DIR)) fs.mkdirSync(TXRADAR_DIR, { recursive: true }); fs.writeFileSync(fp, JSON.stringify(r)); } catch (e) {} return r;
+}
+// A metro or county area can run to tens of thousands of operators — gzip the JSON when the browser accepts it.
+function txSendJson(req, res, obj) {
+  const body = JSON.stringify(obj);
+  if (body.length > 150000 && /\bgzip\b/.test(String(req.headers['accept-encoding'] || ''))) {
+    try { const z = require('zlib').gzipSync(body); res.setHeader('Content-Type', 'application/json; charset=utf-8'); res.setHeader('Content-Encoding', 'gzip'); res.setHeader('Vary', 'Accept-Encoding'); return res.end(z); } catch (e) {}
+  }
+  res.type('json').send(body);
 }
 app.get('/api/tx/radar', async (req, res) => {
-  const city = String(req.query.city || 'San Antonio').trim().slice(0, 60); if (!city) return res.status(400).json({ ok: false, error: 'Pick a city.' });
-  try { res.json(await txRadarGet(city, req.query.refresh === '1')); }
+  const area = String(req.query.area || '').trim().slice(0, 40);
+  let scope = null;
+  if (area) { scope = await txAreaScope(area); if (!scope) return res.status(400).json({ ok: false, error: 'Unknown area — pick one from the list.' }); }
+  else { scope = String(req.query.city || 'San Antonio').trim().slice(0, 60); if (!scope) return res.status(400).json({ ok: false, error: 'Pick a city.' }); }
+  try { txSendJson(req, res, await txRadarGet(scope, req.query.refresh === '1')); }
+  catch (e) { res.json({ ok: false, error: 'Could not reach the state data source: ' + String((e && e.message) || e) }); }
+});
+// ---- Places for the Alcohol Sales picker: every city with recent filings, every county, and metro areas ----
+// Comptroller county codes are the 254 Texas counties in alphabetical order (Bexar 15, Dallas 57, Harris 101, Travis 227).
+const TX_COUNTY_NAMES = ['Anderson','Andrews','Angelina','Aransas','Archer','Armstrong','Atascosa','Austin','Bailey','Bandera','Bastrop','Baylor','Bee','Bell','Bexar','Blanco','Borden','Bosque','Bowie','Brazoria','Brazos','Brewster','Briscoe','Brooks','Brown','Burleson','Burnet','Caldwell','Calhoun','Callahan','Cameron','Camp','Carson','Cass','Castro','Chambers','Cherokee','Childress','Clay','Cochran','Coke','Coleman','Collin','Collingsworth','Colorado','Comal','Comanche','Concho','Cooke','Coryell','Cottle','Crane','Crockett','Crosby','Culberson','Dallam','Dallas','Dawson','Deaf Smith','Delta','Denton','DeWitt','Dickens','Dimmit','Donley','Duval','Eastland','Ector','Edwards','Ellis','El Paso','Erath','Falls','Fannin','Fayette','Fisher','Floyd','Foard','Fort Bend','Franklin','Freestone','Frio','Gaines','Galveston','Garza','Gillespie','Glasscock','Goliad','Gonzales','Gray','Grayson','Gregg','Grimes','Guadalupe','Hale','Hall','Hamilton','Hansford','Hardeman','Hardin','Harris','Harrison','Hartley','Haskell','Hays','Hemphill','Henderson','Hidalgo','Hill','Hockley','Hood','Hopkins','Houston','Howard','Hudspeth','Hunt','Hutchinson','Irion','Jack','Jackson','Jasper','Jeff Davis','Jefferson','Jim Hogg','Jim Wells','Johnson','Jones','Karnes','Kaufman','Kendall','Kenedy','Kent','Kerr','Kimble','King','Kinney','Kleberg','Knox','Lamar','Lamb','Lampasas','La Salle','Lavaca','Lee','Leon','Liberty','Limestone','Lipscomb','Live Oak','Llano','Loving','Lubbock','Lynn','McCulloch','McLennan','McMullen','Madison','Marion','Martin','Mason','Matagorda','Maverick','Medina','Menard','Midland','Milam','Mills','Mitchell','Montague','Montgomery','Moore','Morris','Motley','Nacogdoches','Navarro','Newton','Nolan','Nueces','Ochiltree','Oldham','Orange','Palo Pinto','Panola','Parker','Parmer','Pecos','Polk','Potter','Presidio','Rains','Randall','Reagan','Real','Red River','Reeves','Refugio','Roberts','Robertson','Rockwall','Runnels','Rusk','Sabine','San Augustine','San Jacinto','San Patricio','San Saba','Schleicher','Scurry','Shackelford','Shelby','Sherman','Smith','Somervell','Starr','Stephens','Sterling','Stonewall','Sutton','Swisher','Tarrant','Taylor','Terrell','Terry','Throckmorton','Titus','Tom Green','Travis','Trinity','Tyler','Upshur','Upton','Uvalde','Val Verde','Van Zandt','Victoria','Walker','Waller','Ward','Washington','Webb','Wharton','Wheeler','Wichita','Wilbarger','Willacy','Williamson','Wilson','Winkler','Wise','Wood','Yoakum','Young','Zapata','Zavala'];
+function txCountyName(code) { const n = parseInt(code, 10); return (n >= 1 && n <= TX_COUNTY_NAMES.length) ? TX_COUNTY_NAMES[n - 1] : ''; }
+function txCountyCode(name) { const i = TX_COUNTY_NAMES.findIndex(x => x.toLowerCase() === String(name || '').toLowerCase()); return i >= 0 ? String(i + 1) : ''; }
+function txTitle(s) { return String(s || '').toLowerCase().replace(/\b([a-z])/g, m => m.toUpperCase()).replace(/\bMc([a-z])/g, (m, c) => 'Mc' + c.toUpperCase()).trim(); }
+// Metro areas = the core counties of each metro; the picker shows the county list so it's clear what's included.
+const TX_METROS = [
+  { key: 'sa', label: 'Greater San Antonio', counties: ['Bexar', 'Comal', 'Guadalupe', 'Kendall', 'Medina', 'Atascosa', 'Bandera', 'Wilson'] },
+  { key: 'austin', label: 'Greater Austin', counties: ['Travis', 'Williamson', 'Hays', 'Bastrop', 'Caldwell'] },
+  { key: 'dfw', label: 'Dallas–Fort Worth', counties: ['Dallas', 'Tarrant', 'Collin', 'Denton', 'Ellis', 'Johnson', 'Kaufman', 'Parker', 'Rockwall', 'Hunt', 'Wise'] },
+  { key: 'houston', label: 'Greater Houston', counties: ['Harris', 'Fort Bend', 'Montgomery', 'Brazoria', 'Galveston', 'Liberty', 'Waller', 'Chambers', 'Austin'] }
+];
+const TXPLACES_FILE = () => path.join(TXRADAR_DIR, '_places.json');
+// One pass over the last ~4 months of filings: each permit counted once, under its city and county.
+async function txPlacesBuild() {
+  const cfg = txCfg(); const isTexas = /^texas$/i.test(String(cfg.label || '')) && cfg.mb === TXDATA_DEFAULT.mb;
+  const since = new Date(Date.now() - 120 * 864e5).toISOString().slice(0, 10);
+  const seen = {}, cities = {}, counties = {};
+  for (let off = 0; off < 600000; off += 50000) {
+    const page = await txQuery(TX_MB, { '$select': 'location_city,location_county,tabc_permit_number', '$where': "obligation_end_date_yyyymmdd>='" + since + "'", '$order': ':id', '$limit': '50000', '$offset': String(off) });
+    (page || []).forEach(r => { const c = String(r.location_city || '').trim().toUpperCase(); const pm = String(r.tabc_permit_number || '').trim(); if (!c || !pm) return; const k = c + '|' + pm; if (seen[k]) return; seen[k] = 1;
+      const x = cities[c] = cities[c] || { ops: 0, cty: {} }; x.ops++; const cc = String(r.location_county || '').replace(/[^0-9]/g, ''); if (cc) { x.cty[cc] = (x.cty[cc] || 0) + 1; counties[cc] = (counties[cc] || 0) + 1; } });
+    if (!page || page.length < 50000) break;
+  }
+  const cityList = Object.keys(cities).map(c => { const x = cities[c]; const cc = Object.keys(x.cty).sort((a, b) => x.cty[b] - x.cty[a])[0] || ''; return { name: txTitle(c), county: cc, countyName: isTexas ? txCountyName(cc) : '', ops: x.ops }; }).sort((a, b) => b.ops - a.ops);
+  const countyList = isTexas ? Object.keys(counties).map(cc => ({ code: cc, name: txCountyName(cc), ops: counties[cc] })).filter(x => x.name).sort((a, b) => b.ops - a.ops) : [];
+  const metros = isTexas ? TX_METROS.map(m => { const codes = m.counties.map(txCountyCode).filter(Boolean); return { key: m.key, label: m.label, counties: m.counties, ops: codes.reduce((a, c) => a + (counties[c] || 0), 0) }; }) : [];
+  return { ok: true, at: new Date().toISOString(), since: since, cities: cityList, counties: countyList, metros: metros };
+}
+let _txPlacesBuilding = null;
+function txPlacesRefresh() { if (!_txPlacesBuilding) _txPlacesBuilding = txPlacesBuild().then(r => { try { if (!fs.existsSync(TXRADAR_DIR)) fs.mkdirSync(TXRADAR_DIR, { recursive: true }); fs.writeFileSync(TXPLACES_FILE(), JSON.stringify(r)); } catch (e) {} return r; }).finally(() => { _txPlacesBuilding = null; }); return _txPlacesBuilding; }
+// Cached a week; a stale list is served at once and rebuilt in the background.
+async function txPlacesGet() {
+  let c = null; try { if (fs.existsSync(TXPLACES_FILE())) c = JSON.parse(fs.readFileSync(TXPLACES_FILE(), 'utf8')); } catch (e) {}
+  if (c && c.ok) { if ((Date.now() - Date.parse(c.at)) > 7 * 864e5) txPlacesRefresh().catch(() => {}); return c; }
+  return txPlacesRefresh();
+}
+// "metro:sa" / "county:15" → the scope txRadarBuild runs on.
+async function txAreaScope(area) {
+  const m = String(area || '').match(/^(metro|county):([a-z0-9]+)$/i); if (!m) return null;
+  let codes = [], label = '';
+  if (m[1].toLowerCase() === 'metro') { const mt = TX_METROS.find(x => x.key === m[2].toLowerCase()); if (!mt) return null; codes = mt.counties.map(txCountyCode).filter(Boolean); label = mt.label; }
+  else { const nm = txCountyName(m[2]); if (!nm) return null; codes = [String(parseInt(m[2], 10))]; label = nm + ' County'; }
+  let cities = []; try { const pl = await txPlacesGet(); cities = (pl.cities || []).filter(c => codes.indexOf(c.county) >= 0).map(c => c.name); } catch (e) {}
+  return { area: m[1].toLowerCase() + ':' + m[2].toLowerCase(), label: label, counties: codes, countyNames: codes.map(txCountyName), cities: cities };
+}
+app.get('/api/tx/places', async (req, res) => {
+  try { res.json(await txPlacesGet()); }
   catch (e) { res.json({ ok: false, error: 'Could not reach the state data source: ' + String((e && e.message) || e) }); }
 });
 // One establishment — full filing history, period comparisons, revenue mix, chain locations, permit, rankings.
