@@ -205,7 +205,7 @@
       { ic: '≣', label: 'General Ledger', href: 'rrg_gl.html', admin: true }
     ] },
     { grp: 'Tools', color: '#a99be0', items: [
-      { ic: '◉', label: 'Market Radar', href: 'rrg_market_radar.html' },
+      { ic: '◉', label: 'Alcohol Sales', href: 'rrg_market_radar.html' },
       { ic: '◎', label: 'Site Criteria', href: 'ssc_form.html' },
       { ic: '▭', label: 'Lease Abstracts', href: 'rrg_lease_queue.html' },
       { ic: '✚', label: 'Site & Concept Fit', href: 'rrg_site_fit.html' },

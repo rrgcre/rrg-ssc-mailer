@@ -65,6 +65,28 @@ input.key{flex:1;min-width:260px;border:1px solid #cfd6e2;border-radius:9px;padd
   </div>
 
   <div class="card">
+    <h2>State alcohol-sales data</h2>
+    <span class="cs">Feeds <b>Alcohol Sales</b>, the operator pages and each space's alcohol records. Defaults to Texas's public open-data portal (no key needed). Another state's portal can be used if it publishes the same kind of datasets in Socrata format.</span>
+    <div class="state" id="txstate">Loading…</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin:10px 0">
+      <label style="font-size:12px;font-weight:700;color:#6b7488">Source URL<input id="tx_base" class="key" style="width:100%;margin-top:4px" placeholder="https://data.texas.gov"></label>
+      <label style="font-size:12px;font-weight:700;color:#6b7488">State / label<input id="tx_label" class="key" style="width:100%;margin-top:4px" placeholder="Texas"></label>
+      <label style="font-size:12px;font-weight:700;color:#6b7488">Mixed-beverage receipts dataset ID<input id="tx_mb" class="key" style="width:100%;margin-top:4px" placeholder="naix-2893"></label>
+      <label style="font-size:12px;font-weight:700;color:#6b7488">Liquor licenses dataset ID<input id="tx_tabc" class="key" style="width:100%;margin-top:4px" placeholder="7hf9-qc9f"></label>
+      <label style="font-size:12px;font-weight:700;color:#6b7488">Pending applications dataset ID<input id="tx_pending" class="key" style="width:100%;margin-top:4px" placeholder="mxm5-tdpj"></label>
+      <label style="font-size:12px;font-weight:700;color:#6b7488">Credit-law delinquent dataset ID<input id="tx_credit" class="key" style="width:100%;margin-top:4px" placeholder="ix8u-msb9"></label>
+    </div>
+    <div class="inrow">
+      <label style="display:inline-flex;gap:6px;align-items:center;font-size:13px;font-weight:600"><input type="checkbox" id="tx_on"> Enabled</label>
+      <button class="btn primary" onclick="saveTx()">Save</button>
+      <button class="btn ghost" onclick="testTx()">Test connection</button>
+      <button class="btn ghost" onclick="resetTx()">Reset to Texas defaults</button>
+      <span id="txmsg" class="msg"></span>
+    </div>
+    <div class="hint">Saving clears the cached city data so the next load pulls from the new source.</div>
+  </div>
+
+  <div class="card">
     <h2>Regrid parcel data (county records)</h2>
     <span class="cs">Pulls county appraisal-district facts — APN/parcel, lot size, year built, zoning, county, and owner of record — into a property listing when you Enrich it. Get an API token at <b>regrid.com</b> (Parcel API), then paste it here.</span>
     <div class="state" id="rgstate">Loading…</div>
@@ -175,10 +197,15 @@ function testSms(){ var to=document.getElementById('sms_test').value.trim(), m=d
 function _ssState(en,iv){ var s=document.getElementById('ssState'); if(!s) return; s.textContent=en?('On — checking every '+iv+' min.'):'Off — automatic sync paused.'; }
 function saveSentSync(){ var m=document.getElementById('ssMsg'); var en=document.getElementById('ssEnabled').checked; var iv=parseInt(document.getElementById('ssInterval').value,10); if(!(iv>=2&&iv<=720)){ m.textContent='Enter 2–720 minutes.'; return; } m.textContent='Saving…'; post('/api/admin/types',{sentSyncEnabled:en,sentSyncIntervalMin:iv}).then(function(j){ if(j&&j.ok){ var _iv=(j.sentSyncIntervalMin||iv); m.textContent=en?('On — every '+_iv+' min ✓'):'Off — paused ✓'; _ssState(en,_iv); } else { m.textContent=(j&&j.error)||'Could not save.'; } }).catch(function(){ m.textContent='Could not reach the server.'; }); }
 function saveBbsWindow(){ var m=document.getElementById('bbsMsg'); var d=parseInt(document.getElementById('bbsBack').value,10); var o=parseInt(document.getElementById('bbsBackOn').value,10); if(!(d>=1&&d<=365)){ m.textContent='First scan: enter 1–365 days.'; return; } if(!(o>=1&&o<=365)){ m.textContent='Ongoing scans: enter 1–365 days.'; return; } m.textContent='Saving…'; post('/api/bizbuysell/poll',{lookbackDays:d,lookbackDaysOngoing:o}).then(function(j){ if(j&&j.ok){ m.textContent='Saved — first scan '+(j.lookbackDays||d)+' days, then '+(j.lookbackDaysOngoing||o)+' days each ✓'; } else { m.textContent=(j&&j.error)||'Could not save.'; } }); }
+function _txFill(c){ ['base','label','mb','tabc','pending','credit'].forEach(function(k){ var e=document.getElementById('tx_'+k); if(e) e.value=c[k]||''; }); var on=document.getElementById('tx_on'); if(on) on.checked=c.enabled!==false; var s=document.getElementById('txstate'); if(s) s.textContent=(c.enabled===false)?'Off — Alcohol Sales and operator pages are disabled.':('On — pulling from '+String(c.base||'').replace(/^https?:\/\//,'')+' ('+(c.label||'State')+').'); }
+function loadTx(){ fetch('/api/admin/txdata',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok) _txFill(j.config); }).catch(function(){}); }
+function saveTx(){ var m=document.getElementById('txmsg'); var b={enabled:document.getElementById('tx_on').checked}; ['base','label','mb','tabc','pending','credit'].forEach(function(k){ b[k]=document.getElementById('tx_'+k).value.trim(); }); m.textContent='Saving…'; post('/api/admin/txdata',b).then(function(j){ if(j&&j.ok){ _txFill(j.config); m.textContent='Saved ✓'; } else m.textContent=(j&&j.error)||'Could not save.'; }); }
+function resetTx(){ var m=document.getElementById('txmsg'); post('/api/admin/txdata',{reset:true}).then(function(j){ if(j&&j.ok){ _txFill(j.config); m.textContent='Reset to Texas defaults ✓'; } }); }
+function testTx(){ var m=document.getElementById('txmsg'); m.textContent='Testing each dataset…'; post('/api/admin/txdata/test',{}).then(function(j){ var r=(j&&j.results)||{}; m.textContent=(j&&j.ok)?'All four datasets respond ✓':('Problems: '+Object.keys(r).filter(function(k){return r[k]!=='ok';}).map(function(k){ return k+' — '+r[k]; }).join('; ')); }).catch(function(){ m.textContent='Could not reach the server.'; }); }
 function loadGmailSync(){ fetch('/api/admin/types',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ var en=(j.sentSyncEnabled!==false); var iv=(j.sentSyncIntervalMin!=null?j.sentSyncIntervalMin:10); var _e=document.getElementById('ssEnabled'); if(_e) _e.checked=en; var _i=document.getElementById('ssInterval'); if(_i) _i.value=iv; _ssState(en,iv); } }).catch(function(){}); fetch('/api/bizbuysell/poll',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ var _b=document.getElementById('bbsBack'); if(_b&&j.lookbackDays) _b.value=j.lookbackDays; var _o=document.getElementById('bbsBackOn'); if(_o&&j.lookbackDaysOngoing) _o.value=j.lookbackDaysOngoing; } }).catch(function(){}); }
 fetch('/api/admin/gmaps-key',{credentials:'same-origin'}).then(function(r){ if(r.status===403) throw 0; return r.json(); }).then(function(j){
   if(!j||!j.ok){ gate(); return; }
-  _gmState(j); loadEmail(); loadSms(); loadGmailSync(); loadRegrid();
+  _gmState(j); loadEmail(); loadSms(); loadGmailSync(); loadRegrid(); loadTx();
 }).catch(function(){ gate(); });
 </script>
 </body>

@@ -24754,12 +24754,17 @@ app.post('/api/spaces/survey', express.json(), async (req, res) => {
   } catch (e) { console.error('survey pdf:', e && e.message); res.status(500).json({ ok: false, error: 'Could not build the survey: ' + String((e && e.message) || e) }); }
 });
 // ===================== TEXAS DATA: Comptroller mixed-beverage receipts + TABC permits (data.texas.gov) =====================
-const TXDATA_BASE = process.env.TXDATA_BASE || 'https://data.texas.gov';
-const TX_MB = 'naix-2893', TX_TABC = '7hf9-qc9f', TX_PENDING = 'mxm5-tdpj', TX_CREDIT = 'ix8u-msb9';
+// Source is an Admin setting (Integrations → State alcohol-sales data) so each SaaS tenant can point at its own
+// Socrata-style open-data portal and dataset IDs, or turn the feature off. Texas defaults below.
+const TXDATA_DEFAULT = { enabled: true, label: 'Texas', base: process.env.TXDATA_BASE || 'https://data.texas.gov', mb: 'naix-2893', tabc: '7hf9-qc9f', pending: 'mxm5-tdpj', credit: 'ix8u-msb9' };
+function txCfg() { const s = loadSettings(); const c = (s.txData && typeof s.txData === 'object') ? s.txData : {}; const o = Object.assign({}, TXDATA_DEFAULT); Object.keys(TXDATA_DEFAULT).forEach(k => { if (c[k] !== undefined && c[k] !== '') o[k] = c[k]; }); if (process.env.TXDATA_BASE && !c.base) o.base = process.env.TXDATA_BASE; o.base = String(o.base || '').replace(/\/+$/, ''); return o; }
+const TX_MB = 'mb', TX_TABC = 'tabc', TX_PENDING = 'pending', TX_CREDIT = 'credit';
 async function txQuery(ds, params) {
   const qs = Object.keys(params).map(k => encodeURIComponent(k) + '=' + encodeURIComponent(params[k])).join('&');
-  const r = await fetch(TXDATA_BASE + '/resource/' + ds + '.json?' + qs, { headers: { Accept: 'application/json' } });
-  if (!r.ok) throw new Error('data.texas.gov ' + r.status);
+  const cfg = txCfg(); if (!cfg.enabled) throw new Error('State alcohol-sales data is turned off in Admin → Integrations.');
+  const id = cfg[ds] || ds; if (!id) throw new Error('No dataset configured for ' + ds + ' (Admin → Integrations).');
+  const r = await fetch(cfg.base + '/resource/' + encodeURIComponent(id) + '.json?' + qs, { headers: { Accept: 'application/json' } });
+  if (!r.ok) throw new Error(cfg.base.replace(/^https?:\/\//, '') + ' returned ' + r.status);
   return r.json();
 }
 function _txEsc(s) { return String(s || '').replace(/'/g, "''").toUpperCase(); }
@@ -24781,10 +24786,11 @@ async function txAtAddress(addr, market) {
   const mb = await txQuery(TX_MB, { '$select': 'taxpayer_name,location_name,location_address,location_city,tabc_permit_number,obligation_end_date_yyyymmdd,total_receipts,liquor_receipts,wine_receipts,beer_receipts', '$where': "upper(location_address) like '" + _txEsc(ap.street) + "%'" + whereCity + " AND obligation_end_date_yyyymmdd>='" + since + "'", '$order': 'obligation_end_date_yyyymmdd ASC', '$limit': '5000' });
   // Group by operator at this address → monthly series.
   const ops = {};
-  (mb || []).forEach(r => { const k = (r.tabc_permit_number || r.location_name || r.taxpayer_name || '?'); const o = ops[k] = ops[k] || { name: r.location_name || r.taxpayer_name || '', taxpayer: r.taxpayer_name || '', address: r.location_address || '', permit: r.tabc_permit_number || '', months: {} }; const mk = txMonthKey(r.obligation_end_date_yyyymmdd); o.months[mk] = (o.months[mk] || 0) + (Number(r.total_receipts) || 0); });
+  (mb || []).forEach(r => { const k = (r.tabc_permit_number || r.location_name || r.taxpayer_name || '?'); const o = ops[k] = ops[k] || { name: r.location_name || r.taxpayer_name || '', taxpayer: r.taxpayer_name || '', address: r.location_address || '', permit: r.tabc_permit_number || '', months: {}, cat: {} }; const mk = txMonthKey(r.obligation_end_date_yyyymmdd); o.months[mk] = (o.months[mk] || 0) + (Number(r.total_receipts) || 0); const c = o.cat[mk] = o.cat[mk] || { l: 0, w: 0, b: 0 }; c.l += Number(r.liquor_receipts) || 0; c.w += Number(r.wine_receipts) || 0; c.b += Number(r.beer_receipts) || 0; });
   const operators = Object.keys(ops).map(k => { const o = ops[k]; const series = Object.keys(o.months).sort().map(m => ({ m: m, v: o.months[m] })); const last = series[series.length - 1] || null; const t12 = series.slice(-12).reduce((a, x) => a + x.v, 0);
     const recent3 = series.slice(-3).reduce((a, x) => a + x.v, 0); const prior3 = series.slice(-15, -12).reduce((a, x) => a + x.v, 0);
-    return { name: o.name, taxpayer: o.taxpayer, address: o.address, permit: o.permit, series: series, lastMonth: last ? last.m : '', trailing12: t12, yoy3: (prior3 > 0 ? Math.round((recent3 - prior3) / prior3 * 100) : null) }; })
+    const l12 = series.slice(-12).map(x => o.cat[x.m] || { l: 0, w: 0, b: 0 }); const liquor12 = l12.reduce((a, c) => a + c.l, 0), wine12 = l12.reduce((a, c) => a + c.w, 0), beer12 = l12.reduce((a, c) => a + c.b, 0);
+    return { name: o.name, taxpayer: o.taxpayer, address: o.address, permit: o.permit, series: series, lastMonth: last ? last.m : '', trailing12: t12, yoy3: (prior3 > 0 ? Math.round((recent3 - prior3) / prior3 * 100) : null), liquor12: liquor12, wine12: wine12, beer12: beer12, avgMonth: Math.round(t12 / Math.max(1, Math.min(12, series.length))) }; })
     .sort((a, b) => String(b.lastMonth).localeCompare(String(a.lastMonth)) || b.trailing12 - a.trailing12);
   let permits = [], credit = [];
   try { permits = await txQuery(TX_TABC, { '$select': 'trade_name,owner,address,city,license_type,license_id,primary_status,secondary_status,original_issue_date,expiration_date,status_change_date', '$where': "upper(address) like '" + _txEsc(ap.street) + "%'" + (ap.city ? (" AND upper(city)='" + _txEsc(ap.city) + "'") : ''), '$limit': '50' }); } catch (e) {}
@@ -24794,18 +24800,35 @@ async function txAtAddress(addr, market) {
 }
 app.get('/api/space/:id/txbev', async (req, res) => {
   const arr = loadSpaces(); const sp = arr.find(x => x.id === req.params.id); if (!sp) return res.status(404).json({ ok: false, error: 'Space not found.' });
-  const fresh = sp.txbev && sp.txbev.at && (Date.now() - Date.parse(sp.txbev.at)) < 7 * 864e5;
+  const fresh = sp.txbev && sp.txbev.v === 2 && sp.txbev.at && (Date.now() - Date.parse(sp.txbev.at)) < 7 * 864e5;
   if (fresh && req.query.refresh !== '1') return res.json(Object.assign({ cached: true }, sp.txbev));
-  try { const r = await txAtAddress(sp.address || sp.geoAddr || '', sp.market || ''); if (r.ok) { sp.txbev = r; saveSpaces(arr); } res.json(r); }
+  try { const r = await txAtAddress(sp.address || sp.geoAddr || '', sp.market || ''); if (r.ok) { r.v = 2; sp.txbev = r; saveSpaces(arr); } res.json(r); }
   catch (e) { res.json({ ok: false, error: 'Could not reach data.texas.gov: ' + String((e && e.message) || e) }); }
 });
+app.get('/api/admin/txdata', requireAdmin, (req, res) => res.json({ ok: true, config: txCfg(), defaults: TXDATA_DEFAULT }));
+app.post('/api/admin/txdata', requireAdmin, express.json(), (req, res) => {
+  const b = req.body || {}; const s = loadSettings();
+  if (b.reset) { delete s.txData; saveSettings(s); return res.json({ ok: true, config: txCfg() }); }
+  const c = {}; c.enabled = b.enabled !== false;
+  ['label', 'base', 'mb', 'tabc', 'pending', 'credit'].forEach(k => { if (typeof b[k] === 'string') c[k] = b[k].trim().slice(0, k === 'base' ? 200 : 60); });
+  if (c.base && !/^https?:\/\/[^\s]+$/i.test(c.base)) return res.status(400).json({ ok: false, error: 'The source URL must start with http:// or https://' });
+  s.txData = c; saveSettings(s);
+  try { if (fs.existsSync(TXRADAR_DIR)) fs.readdirSync(TXRADAR_DIR).forEach(f => { try { fs.unlinkSync(path.join(TXRADAR_DIR, f)); } catch (e) {} }); } catch (e) {}
+  logSysEvent(req, 'Settings', 'Updated state alcohol-sales data source', { tool: 'integrations' });
+  res.json({ ok: true, config: txCfg() });
+});
+app.post('/api/admin/txdata/test', requireAdmin, async (req, res) => {
+  const out = {}; for (const ds of ['mb', 'tabc', 'pending', 'credit']) { try { const r = await txQuery(ds, { '$limit': '1' }); out[ds] = Array.isArray(r) ? 'ok' : 'unexpected response'; } catch (e) { out[ds] = String(e.message || e); } }
+  res.json({ ok: Object.values(out).every(v => v === 'ok'), results: out });
+});
+app.get('/api/tx/config', (req, res) => { const c = txCfg(); res.json({ ok: true, enabled: !!c.enabled, label: c.label || 'State' }); });
 // Market Radar — vacancy and seller signals across a city, from the state's own filings. Cached a day per city.
 const TXRADAR_DIR = path.join(BOV_DATA_DIR, 'txradar');
 async function txRadarBuild(city) {
   const C = _txEsc(city); const since = new Date(Date.now() - 26 * 30.44 * 864e5).toISOString().slice(0, 10);
-  const rows = []; for (let off = 0; off < 300000; off += 50000) { const page = await txQuery(TX_MB, { '$select': 'taxpayer_name,location_name,location_address,location_zip,tabc_permit_number,obligation_end_date_yyyymmdd,total_receipts', '$where': "upper(location_city)='" + C + "' AND obligation_end_date_yyyymmdd>='" + since + "'", '$order': 'obligation_end_date_yyyymmdd ASC', '$limit': '50000', '$offset': String(off) }); (page || []).forEach(r => rows.push(r)); if (!page || page.length < 50000) break; }
+  const rows = []; for (let off = 0; off < 300000; off += 50000) { const page = await txQuery(TX_MB, { '$select': 'taxpayer_name,location_name,location_address,location_zip,tabc_permit_number,obligation_end_date_yyyymmdd,total_receipts,liquor_receipts,wine_receipts,beer_receipts', '$where': "upper(location_city)='" + C + "' AND obligation_end_date_yyyymmdd>='" + since + "'", '$order': 'obligation_end_date_yyyymmdd ASC', '$limit': '50000', '$offset': String(off) }); (page || []).forEach(r => rows.push(r)); if (!page || page.length < 50000) break; }
   const ops = {}; let latest = '';
-  rows.forEach(r => { const k = r.tabc_permit_number || (r.location_name + '|' + r.location_address); const o = ops[k] = ops[k] || { name: r.location_name || r.taxpayer_name || '', taxpayer: r.taxpayer_name || '', address: r.location_address || '', zip: r.location_zip || '', permit: r.tabc_permit_number || '', months: {} }; const m = txMonthKey(r.obligation_end_date_yyyymmdd); o.months[m] = (o.months[m] || 0) + (Number(r.total_receipts) || 0); if (m > latest) latest = m; });
+  rows.forEach(r => { const k = r.tabc_permit_number || (r.location_name + '|' + r.location_address); const o = ops[k] = ops[k] || { name: r.location_name || r.taxpayer_name || '', taxpayer: r.taxpayer_name || '', address: r.location_address || '', zip: r.location_zip || '', permit: r.tabc_permit_number || '', months: {}, liq: {}, wine: {}, beer: {} }; const m = txMonthKey(r.obligation_end_date_yyyymmdd); o.months[m] = (o.months[m] || 0) + (Number(r.total_receipts) || 0); o.liq[m] = (o.liq[m] || 0) + (Number(r.liquor_receipts) || 0); o.wine[m] = (o.wine[m] || 0) + (Number(r.wine_receipts) || 0); o.beer[m] = (o.beer[m] || 0) + (Number(r.beer_receipts) || 0); if (m > latest) latest = m; });
   const mAdd = (m, n) => { const d = new Date(m + '-15T00:00:00Z'); d.setUTCMonth(d.getUTCMonth() + n); return d.toISOString().slice(0, 7); };
   // The state reports with a lag: treat the newest month present as "current".
   const cur = latest; const sig = [];
@@ -24824,16 +24847,68 @@ async function txRadarBuild(city) {
   try { pending = (await txQuery(TX_PENDING, { '$where': "upper(city)='" + C + "'", '$order': 'submission_date DESC', '$limit': '200' })) || []; } catch (e) {}
   try { credit = (await txQuery(TX_CREDIT, { '$where': "upper(city)='" + C + "'", '$order': 'effectivedate DESC', '$limit': '200' })) || []; } catch (e) {}
   sig.sort((a, b) => b.rank - a.rank);
-  return { ok: true, city: city, at: new Date().toISOString(), latestMonth: cur, operators: Object.keys(ops).length, signals: sig.slice(0, 600),
+  // Every operator with its metrics — the Radar filters these client-side (any % change, any window, size, recency, zip).
+  const pct = (a, b) => (b > 0 ? Math.round((a - b) / b * 100) : null);
+  const all = Object.keys(ops).map(k => { const o = ops[k]; const ms = Object.keys(o.months).sort(); if (!ms.length) return null; const last = ms[ms.length - 1];
+    const val = m => o.months[m] || 0; const sum = (a, b) => { let x = 0; for (let i = a; i <= b; i++) x += val(mAdd(cur, -i)); return x; };
+    const series = []; for (let i = 23; i >= 0; i--) series.push(val(mAdd(cur, -i)));
+    const gap = Math.round((Date.parse(cur + '-15') - Date.parse(last + '-15')) / (30.44 * 864e5));
+    const prior = ms.length >= 6 ? ms.slice(-9, -3).reduce((a, m) => a + o.months[m], 0) / Math.min(6, ms.length - 3 || 1) : 0;
+    const status = gap >= 2 ? 'stopped' : (ms.length <= 4 ? 'new' : 'active');
+    // Category split over the last 12 months (or the 12 before it stopped, for a stopped operator).
+    const off = status === 'stopped' ? gap : 0; const csum = (map) => { let x = 0; for (let i = off; i <= off + 11; i++) x += (map[mAdd(cur, -i)] || 0); return x; };
+    const liquor12 = csum(o.liq), wine12 = csum(o.wine), beer12 = csum(o.beer); const cat = liquor12 + wine12 + beer12;
+    return { name: o.name, taxpayer: o.taxpayer, address: o.address, zip: o.zip, permit: o.permit, firstMonth: ms[0], lastMonth: last, monthsSince: gap, monthsReporting: ms.length, status: status,
+      trailing12: sum(0, 11), prior12: sum(12, 23), avgMonth: Math.round(sum(0, 11) / 12), priorAvg: Math.round(prior),
+      chg3: pct(sum(0, 2), sum(12, 14)), chg6: pct(sum(0, 5), sum(12, 17)), chg12: pct(sum(0, 11), sum(12, 23)), series: series,
+      liquor12: liquor12, wine12: wine12, beer12: beer12, liquorPct: cat ? Math.round(liquor12 / cat * 100) : null, winePct: cat ? Math.round(wine12 / cat * 100) : null, beerPct: cat ? Math.round(beer12 / cat * 100) : null };
+  }).filter(Boolean).sort((a, b) => b.trailing12 - a.trailing12 || b.priorAvg - a.priorAvg);
+  return { ok: true, v: 3, city: city, at: new Date().toISOString(), latestMonth: cur, operators: Object.keys(ops).length, all: all.slice(0, 8000), signals: sig.slice(0, 600),
     pending: pending.map(p => ({ name: p.trade_name || '', owner: p.owner || '', address: [p.address, p.address_2].filter(Boolean).join(' '), type: p.license_type || '', submitted: String(p.submission_date || '').slice(0, 10), status: p.applicationstatus || '' })),
     creditLaw: credit.map(c => ({ name: c.tradename || c.corporatename || '', address: c.streetaddress || '', effective: String(c.effectivedate || '').slice(0, 10), status: c.permitstatus || '' })) };
 }
+async function txRadarGet(city, refresh) {
+  const fp = path.join(TXRADAR_DIR, city.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.json');
+  try { if (!refresh && fs.existsSync(fp)) { const c = JSON.parse(fs.readFileSync(fp, 'utf8')); if (c && c.v === 3 && c.at && (Date.now() - Date.parse(c.at)) < 24 * 36e5) return Object.assign({ cached: true }, c); } } catch (e) {}
+  const r = await txRadarBuild(city); try { if (!fs.existsSync(TXRADAR_DIR)) fs.mkdirSync(TXRADAR_DIR, { recursive: true }); fs.writeFileSync(fp, JSON.stringify(r)); } catch (e) {} return r;
+}
 app.get('/api/tx/radar', async (req, res) => {
   const city = String(req.query.city || 'San Antonio').trim().slice(0, 60); if (!city) return res.status(400).json({ ok: false, error: 'Pick a city.' });
-  const fp = path.join(TXRADAR_DIR, city.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.json');
-  try { if (req.query.refresh !== '1' && fs.existsSync(fp)) { const c = JSON.parse(fs.readFileSync(fp, 'utf8')); if (c && c.at && (Date.now() - Date.parse(c.at)) < 24 * 36e5) return res.json(Object.assign({ cached: true }, c)); } } catch (e) {}
-  try { const r = await txRadarBuild(city); try { if (!fs.existsSync(TXRADAR_DIR)) fs.mkdirSync(TXRADAR_DIR, { recursive: true }); fs.writeFileSync(fp, JSON.stringify(r)); } catch (e) {} res.json(r); }
-  catch (e) { res.json({ ok: false, error: 'Could not reach data.texas.gov: ' + String((e && e.message) || e) }); }
+  try { res.json(await txRadarGet(city, req.query.refresh === '1')); }
+  catch (e) { res.json({ ok: false, error: 'Could not reach the state data source: ' + String((e && e.message) || e) }); }
+});
+// One establishment — full filing history, period comparisons, revenue mix, chain locations, permit, rankings.
+app.get('/api/tx/operator', async (req, res) => {
+  const permit = String(req.query.permit || '').trim().slice(0, 30); if (!permit) return res.status(400).json({ ok: false, error: 'No permit number.' });
+  try {
+    const rows = await txQuery(TX_MB, { '$where': "tabc_permit_number='" + permit.replace(/'/g, "''") + "'", '$order': 'obligation_end_date_yyyymmdd ASC', '$limit': '5000' });
+    if (!rows || !rows.length) return res.json({ ok: false, error: 'No filings found for permit ' + permit + '.' });
+    const f = rows[rows.length - 1];
+    const months = {}; rows.forEach(r => { const m = txMonthKey(r.obligation_end_date_yyyymmdd); const o = months[m] = months[m] || { m: m, total: 0, liquor: 0, wine: 0, beer: 0, cover: 0 }; o.total += Number(r.total_receipts) || 0; o.liquor += Number(r.liquor_receipts) || 0; o.wine += Number(r.wine_receipts) || 0; o.beer += Number(r.beer_receipts) || 0; o.cover += Number(r.cover_charge_receipts) || 0; });
+    const monthly = Object.keys(months).sort().map(k => months[k]);
+    const years = {}; monthly.forEach(x => { const y = x.m.slice(0, 4); const o = years[y] = years[y] || { y: y, total: 0, liquor: 0, wine: 0, beer: 0, cover: 0, months: 0 }; ['total', 'liquor', 'wine', 'beer', 'cover'].forEach(k => { o[k] += x[k]; }); o.months++; });
+    const last = monthly[monthly.length - 1].m;
+    const mAdd = (m, n) => { const d = new Date(m + '-15T00:00:00Z'); d.setUTCMonth(d.getUTCMonth() + n); return d.toISOString().slice(0, 7); };
+    const val = m => (months[m] ? months[m].total : 0);
+    // Compare to the same-length window a year (or, for 24 months, two years) earlier — only when that whole prior window was filed.
+    const win = n => { let a = 0, b = 0, have = 0; const off = n >= 12 ? n : 12; for (let i = 0; i < n; i++) { a += val(mAdd(last, -i)); const pm = mAdd(last, -i - off); if (months[pm]) { have++; b += months[pm].total; } } return { total: a, prior: b, chg: (have === n && b > 0) ? Math.round((a - b) / b * 1000) / 10 : null }; };
+    const periods = { month: Object.assign({ label: last }, win(1)), quarter: win(3), half: win(6), year: win(12), twoYear: win(24) };
+    const mix12 = { liquor: 0, wine: 0, beer: 0, cover: 0 }; for (let i = 0; i < 12; i++) { const x = months[mAdd(last, -i)]; if (x) ['liquor', 'wine', 'beer', 'cover'].forEach(k => { mix12[k] += x[k]; }); }
+    // Chain: every location filed under the same taxpayer number.
+    let chain = [];
+    if (f.taxpayer_number) { try { const cr = await txQuery(TX_MB, { '$select': 'location_name,location_address,location_city,location_number,tabc_permit_number,obligation_end_date_yyyymmdd,total_receipts', '$where': "taxpayer_number='" + String(f.taxpayer_number).replace(/'/g, "''") + "' AND obligation_end_date_yyyymmdd>='" + mAdd(last, -11) + "-01'", '$limit': '5000' }); const by = {}; (cr || []).forEach(r => { const k = r.tabc_permit_number || r.location_address; const o = by[k] = by[k] || { name: r.location_name || '', address: r.location_address || '', city: r.location_city || '', permit: r.tabc_permit_number || '', number: r.location_number || '', last: '', t12: 0 }; const m = txMonthKey(r.obligation_end_date_yyyymmdd); if (m > o.last) o.last = m; o.t12 += Number(r.total_receipts) || 0; }); chain = Object.values(by).sort((a, b) => b.t12 - a.t12); } catch (e) {} }
+    let lic = null; try { const t = await txQuery(TX_TABC, { '$where': "license_id='" + permit.replace(/'/g, "''") + "'", '$limit': '1' }); if (t && t[0]) lic = { type: t[0].license_type || '', status: t[0].primary_status || '', secondary: t[0].secondary_status || '', issued: String(t[0].original_issue_date || '').slice(0, 10), expires: String(t[0].expiration_date || '').slice(0, 10), owner: t[0].owner || '', phone: t[0].phone || '' }; } catch (e) {}
+    // Rankings within the city and zip (trailing 12 months), from the city's Radar data.
+    let ranks = null; const city = String(f.location_city || '').trim();
+    if (city && req.query.ranks !== '0') { try { const R = await txRadarGet(city, false); if (R && R.all) { const me = R.all.find(o => o.permit === permit); const zip = String(f.location_zip || '').slice(0, 5);
+      const rank = (arr, key) => { const s2 = arr.filter(o => o.status !== 'stopped').map(o => o[key] || 0).sort((a, b) => b - a); const v = me ? (me[key] || 0) : 0; return { rank: s2.findIndex(x => x <= v) + 1, of: s2.length }; };
+      const inZip = R.all.filter(o => String(o.zip || '').slice(0, 5) === zip);
+      if (me) ranks = { basis: 'trailing 12 months', city: city, zip: zip, rows: [['Total receipts', 'trailing12'], ['Liquor', 'liquor12'], ['Wine', 'wine12'], ['Beer', 'beer12']].map(r => ({ label: r[0], city: rank(R.all, r[1]), zip: rank(inZip, r[1]) })) }; } } catch (e) {} }
+    const first = monthly[0].m; const since = f.responsibility_begin_date_yyyymmdd ? String(f.responsibility_begin_date_yyyymmdd).slice(0, 10) : '';
+    const tracked = loadSpaces().find(sp => String(sp.address || '').toUpperCase().indexOf(String(f.location_address || '').toUpperCase()) === 0);
+    res.json({ ok: true, source: txCfg().label, name: f.location_name || f.taxpayer_name || '', taxpayer: f.taxpayer_name || '', taxpayerNumber: f.taxpayer_number || '', locationNumber: f.location_number || '', address: f.location_address || '', city: city, state: f.location_state || 'TX', zip: f.location_zip || '', county: f.location_county || '', permit: permit, responsibleSince: since, firstMonth: first, lastMonth: last,
+      periods: periods, mix12: mix12, monthly: monthly.slice().reverse(), yearly: Object.values(years).sort((a, b) => b.y.localeCompare(a.y)), chain: chain, license: lic, ranks: ranks, trackedSpaceId: tracked ? tracked.id : '' });
+  } catch (e) { res.json({ ok: false, error: 'Could not reach the state data source: ' + String((e && e.message) || e) }); }
 });
 // Turn a radar signal into an off-market space to work.
 app.post('/api/tx/radar/track', express.json(), (req, res) => {
@@ -24845,7 +24920,7 @@ app.post('/api/tx/radar/track', express.json(), (req, res) => {
   const sp = { id: newSpaceId(), createdAt: now, updatedAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', name: String(b.name || '').slice(0, 160), address: addr + (city ? (', ' + city + ', TX') : ''), market: city, status: 'Off-market', condition: 'Second-gen', features: ['2nd-gen restaurant'],
     notes: 'Off-market lead from Texas mixed-beverage filings — ' + String(b.detail || b.signal || '').slice(0, 300) + '. Operator: ' + String(b.name || '') + (b.permit ? (' (TABC ' + b.permit + ')') : '') + '.', source: 'tx-radar', history: [{ at: now, by: (req.user && req.user.name) || '', field: 'status', from: '', to: 'Off-market' }] };
   arr.push(sp); saveSpaces(arr);
-  try { logSysEvent(req, 'Space', 'Tracking off-market space from Market Radar — ' + sp.address, { tool: 'spaces', kind: 'radar', spaceId: sp.id }); } catch (e) {}
+  try { logSysEvent(req, 'Space', 'Tracking off-market space from Alcohol Sales — ' + sp.address, { tool: 'spaces', kind: 'radar', spaceId: sp.id }); } catch (e) {}
   res.json({ ok: true, spaceId: sp.id });
 });
 
