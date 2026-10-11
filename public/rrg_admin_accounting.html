@@ -145,7 +145,7 @@ async function clearStripe(){ if(window.rrgConfirm){ if(!await window.rrgConfirm
 function render(){
   if(!ADMIN){
     document.getElementById('root').innerHTML='<div class="pkick">Admin · Finance</div><h1>Accounting &amp; Invoicing</h1>'
-      +'<div class="card"><div class="cardh">Revenue recognition</div><div class="cardb"><p class="hint" style="margin:0">Your reports currently use <b>'+(BASIS==='cash'?'cash (collected)':'accrual (invoiced)')+'</b> basis. Only an administrator can change this.</p></div></div>'+termsCardRO()+taxCardRO()+ldCardRO()+itemsCardRO()+methodsCardRO()+stripeCardRO();
+      +'<div class="card"><div class="cardh">Revenue recognition</div><div class="cardb"><p class="hint" style="margin:0">Your Profit &amp; Loss report currently uses <b>'+(BASIS==='cash'?'cash (collected)':'accrual (invoiced)')+'</b> basis. The General Ledger is always kept on the accrual basis. Only an administrator can change this.</p></div></div>'+termsCardRO()+taxCardRO()+ldCardRO()+itemsCardRO()+methodsCardRO()+stripeCardRO();
     return;
   }
   function opt(v,title,tag,desc){ return '<div class="opt'+(SEL===v?' on':'')+'" data-v="'+v+'"><div class="rad"></div><div class="tx"><b>'+title+'</b>'+(tag?'<span class="tag">'+tag+'</span>':'')+'<p>'+desc+'</p></div></div>'; }
@@ -153,7 +153,7 @@ function render(){
     +'<div class="pkick">Admin · Finance</div><h1>Accounting &amp; Invoicing</h1>'
     +'<div class="sub">Choose how the Profit &amp; Loss report recognizes revenue. This is a firm-wide setting.</div>'
     +'<div class="card"><div class="cardh">Revenue recognition</div><div class="cardb">'
-      +'<p class="hint">Either method shows both invoiced and collected figures plus outstanding A/R on the report — this only sets which number headlines your net income.</p>'
+      +'<p class="hint">Either method shows both invoiced and collected figures plus outstanding A/R on the report — this only sets which number headlines your net income. It applies to the Profit &amp; Loss only: the General Ledger always keeps accrual books (A/R is charged when an invoice is issued and cleared when it’s paid).</p>'
       +'<div class="opts">'
         +opt('accrual','Accrual','Recommended','Revenue counts when you <b>invoice</b> it — the moment a commission is earned, whether or not it&rsquo;s been paid. Matches the work to the period it happened. Standard for a P&amp;L.')
         +opt('cash','Cash','','Revenue counts when the money is <b>collected</b> — a payment hits against an invoice. Simpler, and how many small firms file taxes. Ignores what&rsquo;s still owed.')

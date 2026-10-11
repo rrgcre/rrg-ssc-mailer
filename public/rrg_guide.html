@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Help &amp; User Guide</title>
+<style>
+:root{ --navy:#000E31; --slate:#20334f; --primary:#2c5c8f; --primary-d:#23496f; --red:#b23a2c; --ink:#2b3648; --muted:#69748a; --soft:#96a1b2; --line:#dbe0e9; --wash:#f4f6f9; --inp:#c4ccda; --gold:#b5791f; --green:#2f7a55; }
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:#eef1f6;font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased;}
+a{color:var(--primary);text-decoration:none;} a:hover{text-decoration:underline;}
+.top{background:var(--navy);border-bottom:2px solid var(--primary);color:#fff;position:sticky;top:0;z-index:50;}
+.top-in{max-width:1180px;margin:0 auto;padding:12px 24px;display:flex;align-items:center;gap:13px;}
+.disc{width:34px;height:34px;border-radius:4px;background:var(--red);color:#fff;font:900 12px 'Arial Black',Arial;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;flex:none;}
+.wm{font-weight:700;font-size:12px;line-height:1.05;text-transform:uppercase;letter-spacing:.02em;color:#cdd6e4;}
+.bar{width:1px;height:24px;background:rgba(255,255,255,.28);margin:0 5px;}
+.ttl{font-weight:700;font-size:15px;color:#fff;}
+.ttl small{display:block;font-size:10.5px;font-weight:600;color:#9fb0cc;text-transform:uppercase;letter-spacing:.06em;margin-top:1px;}
+.backlink{margin-left:auto;color:#cdd6e4;font-size:12.5px;font-weight:600;} .backlink:hover{color:#fff;text-decoration:none;}
+.shell{max-width:1180px;margin:22px auto;padding:0 24px 70px;display:grid;grid-template-columns:250px minmax(0,1fr);gap:26px;align-items:start;}
+.toc{position:sticky;top:74px;background:#fff;border:1px solid var(--line);border-radius:6px;overflow:hidden;}
+.toc .th{background:var(--wash);border-bottom:1px solid var(--line);padding:11px 15px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--soft);}
+.tsearch{padding:10px 12px;border-bottom:1px solid var(--line);}
+.tsearch input{width:100%;border:1px solid var(--inp);border-radius:4px;padding:7px 10px;font:inherit;font-size:12.5px;}
+.toc nav{max-height:calc(100vh - 200px);overflow:auto;padding:6px 0;}
+.toc a{display:block;padding:6px 15px;font-size:12.5px;font-weight:600;color:var(--slate);border-left:2px solid transparent;}
+.toc a:hover{background:var(--wash);text-decoration:none;}
+.toc a.on{border-left-color:var(--primary);background:#eef4fa;color:var(--primary-d);}
+.toc .miss{padding:10px 15px;color:var(--soft);font-size:12px;}
+.doc{min-width:0;}
+.hero{background:#fff;border:1px solid var(--line);border-radius:6px;padding:24px 26px;margin-bottom:20px;}
+.hero h1{font-size:22px;font-weight:700;color:var(--navy);letter-spacing:-.01em;}
+.hero p{color:var(--muted);font-size:14.5px;margin-top:9px;max-width:760px;}
+.hero .meta{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;}
+.tag{font-size:11px;font-weight:700;color:var(--slate);background:var(--wash);border:1px solid var(--line);border-radius:3px;padding:4px 10px;}
+section.card{background:#fff;border:1px solid var(--line);border-radius:6px;padding:22px 26px;margin-bottom:16px;scroll-margin-top:74px;}
+section.card>h2{font-size:16px;font-weight:700;color:var(--navy);letter-spacing:-.01em;padding-bottom:10px;border-bottom:1px solid var(--line);margin-bottom:14px;display:flex;align-items:center;gap:9px;}
+section.card>h2 .n{width:24px;height:24px;border-radius:4px;background:var(--navy);color:#fff;font-size:12px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex:none;}
+h3{font-size:14.5px;font-weight:700;color:var(--slate);margin:18px 0 7px;}
+p{margin:9px 0;} .lead{color:var(--muted);font-size:14px;}
+ul,ol{margin:9px 0 9px 4px;padding-left:22px;} li{margin:5px 0;}
+.kbd{display:inline-block;background:var(--wash);border:1px solid var(--inp);border-bottom-width:2px;border-radius:3px;padding:1px 7px;font-size:12px;font-weight:700;color:var(--slate);}
+.callout{border:1px solid var(--line);border-left:3px solid var(--primary);background:#f7fafd;border-radius:0 4px 4px 0;padding:13px 16px;margin:14px 0;font-size:13.5px;}
+.callout.tip{border-left-color:var(--green);background:#f1f8f4;}
+.callout .lbl{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:3px;}
+.callout.tip .lbl{color:var(--green);}
+.fq{border-top:1px solid var(--line);padding:13px 0;} .fq:first-of-type{border-top:none;} .fq h3{margin:0 0 4px;font-size:14px;} .fq p{margin:0;color:var(--muted);font-size:13.5px;}
+.foot{max-width:1180px;margin:0 auto;padding:0 24px 50px;color:var(--soft);font-size:12px;text-align:center;}
+.totop{position:fixed;right:20px;bottom:20px;background:var(--navy);color:#fff;border:none;border-radius:4px;padding:9px 13px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .15s;z-index:60;}
+.totop.show{opacity:1;pointer-events:auto;}
+@media(max-width:900px){.shell{grid-template-columns:1fr;}.toc{position:static;}.toc nav{max-height:none;}}
+</style>
+<style>.hubgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;margin-top:6px;} .hubgrid a{display:block;background:#fff;border:1px solid var(--line);border-radius:6px;padding:12px 14px;color:var(--slate);font-weight:700;} .hubgrid a:hover{border-color:var(--primary);text-decoration:none;} .hubgrid a span{display:block;font-weight:400;font-size:12.5px;color:var(--muted);margin-top:3px;} .grp{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--soft);margin:18px 0 6px;} .fic{margin-right:6px;} .admintag{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#8a5a12;background:#fff4dc;border-radius:4px;padding:1px 6px;margin-left:8px;vertical-align:2px;} .more{margin-top:12px;font-size:13px;}</style>
+<script src="/rrg_features.js"></script>
+<script src="/rrg_guide_data.js"></script>
+</head>
+<body>
+<div class="top"><div class="top-in">
+  <span class="disc" id="disc">RRG</span><span class="wm" id="wm">Restaurant<br>Realty Group</span><span class="bar"></span>
+  <span class="ttl" id="ttl">Help<small>Help &amp; User Guide</small></span>
+  <a class="backlink" id="back" href="index.html">&larr; Back</a>
+</div></div>
+<div class="shell">
+  <aside class="toc">
+    <div class="th">Contents</div>
+    <div class="tsearch"><input id="tocSearch" placeholder="Search this guide…" autocomplete="off"></div>
+    <nav id="tocNav"></nav>
+  </aside>
+  <main class="doc" id="doc"></main>
+</div>
+<div class="foot" id="foot"></div>
+<button class="totop" id="totop" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑ Top</button>
+<script>
+(function(){
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+  // Help text may carry light formatting (<b>, <i>, <a href>, kbd spans). Everything else is escaped.
+  function rich(s){ var t=esc(s); t=t.replace(/&lt;(\/?)(b|i|em|strong|br)&gt;/g,'<$1$2>'); t=t.replace(/&lt;span class=&quot;kbd&quot;&gt;([\s\S]*?)&lt;\/span&gt;/g,'<span class="kbd">$1</span>'); t=t.replace(/&lt;a href=&quot;([^&"<>]+)&quot;&gt;([\s\S]*?)&lt;\/a&gt;/g,function(m,h,x){ return /^(#|rrg_[a-z0-9_]+\.html|[a-z0-9_]+\.html)/i.test(h)?('<a href="'+h+'">'+x+'</a>'):x; }); return t; }
+  var R=window.RRG_FEATS||{}, G=window.RRG_GUIDE||{};
+  var key=''; try{ key=new URLSearchParams(location.search).get('p')||''; }catch(e){}
+  var doc=document.getElementById('doc'), nav=document.getElementById('tocNav');
+  var e=R[key];
+  if(!e){
+    // Hub: every section's guide, grouped like the sidebar.
+    document.title='Help & User Guide';
+    var groups={}, order=[]; Object.keys(R).forEach(function(k){ var x=R[k]; if(x.hidden) return; var g=x.group||'Other'; if(!groups[g]){ groups[g]=[]; order.push(g); } groups[g].push(k); });
+    var h='<div class="hero"><h1>Help &amp; User Guide</h1><p>Every section in the sidebar has a guide. Pick one below, or open any section and tap a tile in its <b>What this section does</b> strip to jump straight to that feature\'s help.</p></div><section class="card" id="all"><h2>All guides</h2>';
+    order.forEach(function(g){ h+='<div class="grp">'+esc(g)+'</div><div class="hubgrid">'+groups[g].map(function(k){ var x=R[k]; return '<a href="rrg_guide.html?p='+encodeURIComponent(k)+'">'+esc(x.label||k)+'<span>'+esc(x.sub||'')+'</span></a>'; }).join('')+'</div>'; });
+    doc.innerHTML=h+'</section>'; nav.innerHTML='<a href="#all">All guides</a>'; return;
+  }
+  var g=G[key]||{feats:{}}; var label=e.label||key;
+  document.title=label+' — Help & User Guide';
+  document.getElementById('ttl').innerHTML=esc(label)+'<small>Help &amp; User Guide</small>';
+  var back=document.getElementById('back'); back.href=e.page||'index.html'; back.innerHTML='&larr; Back to '+esc(label);
+  document.getElementById('foot').textContent=label+' — Help & User Guide';
+  var toc=['<a href="#overview">1 · Overview</a>'], n=1;
+  var h='<div class="hero"><h1>'+esc(label)+' — Help &amp; User Guide</h1><p>'+rich(g.intro||e.sub||'')+'</p><div class="meta">'+(e.group?'<span class="tag">'+esc(e.group)+'</span>':'')+(e.admin?'<span class="tag">Admin only</span>':'')+'<span class="tag">'+(e.feats||[]).length+' features</span></div></div>';
+  h+='<section class="card" id="overview"><h2><span class="n">1</span> Overview</h2>'+(g.overview||[]).map(function(p){ return '<p'+(p===(g.overview||[])[0]?' class="lead"':'')+'>'+rich(p)+'</p>'; }).join('')+(e.guide?'<div class="callout"><div class="lbl">Full manual</div>This section also has a detailed manual: <a href="'+esc(e.guide)+'">open it here</a>.</div>':'')+'</section>';
+  (e.feats||[]).forEach(function(f){ n++; var fh=(g.feats||{})[f.id]||{}; toc.push('<a href="#'+esc(f.id)+'">'+n+' · '+esc(f.t)+'</a>');
+    h+='<section class="card" id="'+esc(f.id)+'"><h2><span class="n">'+n+'</span> <span class="fic">'+esc(f.ic||'')+'</span>'+esc(f.t)+(f.admin?'<span class="admintag">Admin</span>':'')+'</h2>'
+      +'<p class="lead">'+rich(fh.lead||f.d)+'</p>'+(fh.body||[]).map(function(p){ return '<p>'+rich(p)+'</p>'; }).join('')
+      +((fh.steps||[]).length?('<h3>How to</h3><ol>'+fh.steps.map(function(s){ return '<li>'+rich(s)+'</li>'; }).join('')+'</ol>'):'')
+      +(fh.tip?('<div class="callout tip"><div class="lbl">Tip</div>'+rich(fh.tip)+'</div>'):'')
+      +(f.href?('<p class="more">More detail: <a href="'+esc(f.href)+'">the full '+esc(label)+' manual ↗</a></p>'):'')+'</section>'; });
+  if((g.faq||[]).length){ n++; toc.push('<a href="#faq">'+n+' · FAQ</a>'); h+='<section class="card" id="faq"><h2><span class="n">'+n+'</span> FAQ</h2>'+g.faq.map(function(q){ return '<div class="fq"><h3>'+rich(q.q)+'</h3><p>'+rich(q.a)+'</p></div>'; }).join('')+'</section>'; }
+  doc.innerHTML=h; nav.innerHTML=toc.join('');
+  if(location.hash){ var t=document.getElementById(decodeURIComponent(location.hash.slice(1))); if(t) setTimeout(function(){ t.scrollIntoView(); },0); }
+})();
+</script>
+<script>
+(function(){
+  var links=[].slice.call(document.querySelectorAll('#tocNav a'));
+  var secs=links.map(function(a){return document.getElementById(a.getAttribute('href').slice(1));}).filter(Boolean);
+  function spy(){ var y=window.scrollY+90, cur=secs[0]; for(var i=0;i<secs.length;i++){ if(secs[i].offsetTop<=y) cur=secs[i]; } links.forEach(function(a){ a.classList.toggle('on', a.getAttribute('href')==='#'+(cur&&cur.id)); }); var tt=document.getElementById('totop'); tt.classList.toggle('show', window.scrollY>400); }
+  window.addEventListener('scroll',spy,{passive:true}); spy();
+  var box=document.getElementById('tocSearch'), nav=document.getElementById('tocNav');
+  box.addEventListener('input',function(){ var q=box.value.trim().toLowerCase(); var any=false; links.forEach(function(a){ var sec=document.getElementById(a.getAttribute('href').slice(1)); var hit=!q || a.textContent.toLowerCase().indexOf(q)>=0 || (sec&&sec.textContent.toLowerCase().indexOf(q)>=0); a.style.display=hit?'':'none'; if(hit) any=true; }); var m=document.getElementById('tocMiss'); if(m) m.remove(); if(!any){ var d=document.createElement('div'); d.className='miss'; d.id='tocMiss'; d.textContent='No matches.'; nav.appendChild(d); } });
+})();
+</script>
+</body>
+</html>

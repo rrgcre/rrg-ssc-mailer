@@ -50,6 +50,7 @@ tr:hover td{background:#fbfcfe;}
   <div class="sub">Turn a lease into a clean, one-look abstract — term, rent, options, NNN, assignment, and guaranty. Upload the lease and the analyst pulls the terms, or start blank and fill it in. Abstracts can ride with a deal into its Marketing Pack, or stand alone.</div>
 </div></div>
 <div class="wrap">
+  <div data-rrg-feats="lease_queue"></div>
   <div class="card">
     <div class="hd"><b>Lease Abstracts</b><span class="cnt" id="cnt"></span><button class="newbtn" onclick="newAbstract(this)">+ New abstract</button></div>
     <div id="body"></div>
@@ -72,7 +73,7 @@ function renderList(list){
       { label:'Business / Property', sort:function(a,b){ return RRGList.cmp(a.business,b.business); },
         cell:function(c){ var url=c.pending?('./rrg_lease_generate.html?lease='+encodeURIComponent(c.id)):('./rrg_lease_abstract.html?lease='+encodeURIComponent(c.id)); var meta=[(c.propertyAddress||''),(c.by||'')].filter(Boolean).map(esc).join(' · '); return '<a class="bizlink" href="'+url+'">'+esc(c.business||'Lease Abstract')+'</a>'+(meta?'<div class="meta">'+meta+'</div>':''); } },
       { label:'Term', sort:function(a,b){ return (a.remMonths||0)-(b.remMonths||0); },
-        cell:function(c){ var p=[]; if(c.remMonths!=null) p.push('<b>'+c.remMonths+' mo</b> left'); if(c.optMonths!=null) p.push(c.optMonths+' mo option'); var exp=c.expiration?('Exp '+esc(c.expiration)):''; return '<div class="termcell">'+(p.join(' · ')||'—')+'</div>'+(exp?'<div class="meta">'+exp+'</div>':''); } },
+        cell:function(c){ var p=[]; if(c.remMonths!=null) p.push('<b>'+c.remMonths+' mo</b> left'); if(c.optMonths!=null) p.push(c.optMonths+' mo of options'); var exp=c.expiration?('Exp '+esc(c.expiration)):''; return '<div class="termcell">'+(p.join(' · ')||'—')+'</div>'+(exp?'<div class="meta">'+exp+'</div>':''); } },
       { label:'Status', sort:function(a,b){ return (statusRank(a)-statusRank(b)) || RRGList.cmp(dateOf(a),dateOf(b)); },
         cell:function(c){ return c.pending?'<span class="pill pend">Not built</span>':'<span class="pill done">Abstracted</span>'; } },
       { label:'Date', sort:function(a,b){ return RRGList.cmp(dateOf(a),dateOf(b)); },
@@ -104,14 +105,15 @@ async function bulkDel(ids,done){
 }
 async function delLease(id,btn){
   if(!await rrgConfirm('Delete this lease abstract?')) return;
-  if(btn){ btn.disabled=true; btn.textContent='Deleting…'; }
+  var was=btn?btn.innerHTML:''; if(btn){ btn.disabled=true; btn.textContent='Deleting…'; }
   fetch('/api/lease/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();})
-    .then(function(j){ if(j&&j.ok){ load(); } else { if(btn){btn.disabled=false;btn.textContent='Delete';} alert((j&&j.error)||'Could not delete.'); } })
-    .catch(function(){ if(btn){btn.disabled=false;btn.textContent='Delete';} alert('Could not reach the server.'); });
+    .then(function(j){ if(j&&j.ok){ load(); } else { if(btn){btn.disabled=false;btn.innerHTML=was;} alert((j&&j.error)||'Could not delete.'); } })
+    .catch(function(){ if(btn){btn.disabled=false;btn.innerHTML=was;} alert('Could not reach the server.'); });
 }
 load();
 </script>
 <script>window.addEventListener("pageshow",function(e){if(e.persisted)location.reload();});</script>
 <script>/*rrgbfcache*/window.addEventListener("pageshow",function(e){if(e.persisted)location.reload();});</script>
+<script src="/rrg_features.js"></script>
 </body>
 </html>

@@ -255,12 +255,12 @@ table.mx td b{color:var(--slate);}
         <li><b>Regenerate link</b> — issue a fresh link at any time, which instantly invalidates the old one. Use this if a link may have been forwarded.</li>
         <li><b>Copy link</b> is one click from the room and from the Rooms queue.</li>
       </ul>
-      <div class="callout warn"><div class="lbl">Remember</div>Before the first buyer is authorized, the raw link opens the room. After that, the link alone isn't enough — a code is required. So sharing the link early (pre-authorization) is different from sharing it once the room is locked.</div>
+      <div class="callout warn"><div class="lbl">Remember</div>The raw link only opens a room that has no buyer documents in it yet (an empty shell). As soon as the room holds a document buyers could see — or once you've authorized a buyer — the link alone isn't enough: anyone opening it is asked for a personal access code. So sharing the link early gets nobody in to the documents; authorize the buyer and send them their code. You can always check the buyer side yourself with <b>Buyer view</b> while signed in.</div>
     </section>
 
     <section class="card" id="buyerview">
       <h2><span class="n">9</span> What the buyer sees</h2>
-      <p class="lead">Use <b>Buyer view</b> to preview the room exactly as an NDA'd buyer sees it — no surprises.</p>
+      <p class="lead">Use <b>Buyer view</b> to preview the buyer side of the room — no surprises. While you're signed in you can open and download every file from it without an access code. The preview shows <b>every folder</b>; each buyer only sees the folders you've granted them in the permission grid.</p>
       <ul>
         <li><b>In-browser viewer</b> — PDFs, images, and text open in a viewer inside the room.</li>
         <li><b>Spreadsheets render in the browser too</b>, client-side — so an Excel or CSV P&amp;L can be read on screen and the file never leaves the confidential room. A view-only buyer reads the numbers without walking away with your working model.</li>
@@ -298,7 +298,7 @@ table.mx td b{color:var(--slate);}
         <li>An authorized buyer can ask questions right inside the room — no separate email channel.</li>
         <li><b>Private per buyer</b> — each buyer sees only their own thread; buyers never see each other's questions.</li>
         <li>Questions land in your inbox <b>and</b> in a "Buyer questions" panel, flagged <b>Awaiting reply</b> until you answer.</li>
-        <li>Reply inline; the buyer sees your answer next time they're in.</li>
+        <li>Reply inline; the buyer gets an email saying you've answered (the answer itself stays behind their access code) and sees it in the room.</li>
       </ul>
     </section>
 

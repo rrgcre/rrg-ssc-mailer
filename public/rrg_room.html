@@ -124,7 +124,7 @@ body.rrg-shelled .pagehd{display:block;}
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
       <h2 class="pagehd-t" id="roomHdr" style="margin:0">Data Room</h2>
       <a href="#" id="roomRenameBtn" onclick="startRename();return false;" style="font-size:12px;font-weight:700;color:#2c5c8f;text-decoration:none">✎ Rename</a>
-      <a href="#" id="hdrBuyerView" target="_blank" rel="noopener" title="Open the room exactly as an NDA'd buyer sees it" style="margin-left:auto;font-size:12.5px;font-weight:700;color:#fff;background:#1f8a5b;border-radius:8px;padding:7px 14px;text-decoration:none;white-space:nowrap">👁 Buyer view</a>
+      <a href="#" id="hdrBuyerView" target="_blank" rel="noopener" title="Preview the buyer side of the room — shows every folder; each buyer only sees the folders you grant them" style="margin-left:auto;font-size:12.5px;font-weight:700;color:#fff;background:#1f8a5b;border-radius:8px;padding:7px 14px;text-decoration:none;white-space:nowrap">👁 Buyer view</a>
     </div>
     <div class="pagehd-s">Add or remove files anytime. Share the buyer link with an NDA'd buyer to give them view &amp; download access.</div>
   </div>
@@ -162,7 +162,7 @@ body.rrg-shelled .pagehd{display:block;}
   <div class="card"><div class="cbody">
     <h2 class="rmhd" onclick="rmToggle(this)"><span class="rmcav">▸</span>Buyer link</h2>
     <div class="h">Anyone with this link can view and download the documents in this room. Share it only with qualified, NDA'd buyers. Regenerate it to retire the old link instantly.</div>
-    <div class="linkbar"><span class="url" id="url">…</span><button class="btn primary" onclick="copyLink()">Copy link</button><a class="btn green" id="openLink" href="#" target="_blank" rel="noopener" title="Open the room exactly as an NDA'd buyer sees it">Buyer view</a><button class="btn" onclick="regen()">Regenerate</button></div>
+    <div class="linkbar"><span class="url" id="url">…</span><button class="btn primary" onclick="copyLink()">Copy link</button><a class="btn green" id="openLink" href="#" target="_blank" rel="noopener" title="Preview the buyer side of the room — shows every folder; each buyer only sees the folders you grant them">Buyer view</a><button class="btn" onclick="regen()">Regenerate</button></div>
   </div></div>
 
   <div class="card" id="ivCard" style="display:none">
@@ -190,6 +190,11 @@ body.rrg-shelled .pagehd{display:block;}
     <div class="umsg" id="bmsg"></div>
     <div id="buyerList"></div>
   </div></div>
+
+  <div class="card" id="qaCard">
+    <div class="cbody" style="padding-bottom:6px"><h2 class="rmhd" onclick="rmToggle(this)"><span class="rmcav">▸</span>Buyer questions <span class="n" id="qaCount" style="font-weight:700;font-size:10.5px;color:var(--muted)"></span></h2><div class="h" style="margin-bottom:2px">Questions buyers ask from inside the room — one private thread per buyer. Your reply is posted to that buyer&rsquo;s thread in the room (only they see it) and they&rsquo;re emailed that you answered.</div></div>
+    <div id="qaList"></div>
+  </div>
 
   <div class="card" id="engCard"><div class="cbody">
     <h2 class="rmhd" onclick="rmToggle(this)"><span class="rmcav">▸</span>Buyer engagement</h2>
@@ -258,28 +263,42 @@ function bulkUpload(dropped){
   if(files.length>40){ files=files.slice(0,40); }
   if(!files.length){ m.textContent=(skippedBig?('Those file(s) are over 25 MB — add smaller ones.'):''); fi.value=''; return; }
   var _hz=files.some(function(f){ return /\.zip$/i.test(f.name); });
-  if(_hz && window.ROOM && ROOM.allowZip){ _zipChoose((files.length===1?files[0].name:'the zip file(s)'), function(_zm){ if(!_zm){ fi.value=''; if(m) m.textContent=''; return; } _bulkGo(files,m,fi,_zm); }); return; }
-  _bulkGo(files,m,fi,'');
+  if(_hz && window.ROOM && ROOM.allowZip){ _zipChoose((files.length===1?files[0].name:'the zip file(s)'), function(_zm){ if(!_zm){ fi.value=''; if(m) m.textContent=''; return; } _bulkGo(files,m,fi,_zm,skippedBig); }); return; }
+  _bulkGo(files,m,fi,'',skippedBig);
 }
-function _bulkGo(files,m,fi,zipMode){
+function _bulkGo(files,m,fi,zipMode,skippedBig){ skippedBig=skippedBig||0;   // over-25 MB count from bulkUpload (was referenced here but out of scope — the result summary never showed)
   showOrb('Reading '+files.length+' document'+(files.length===1?'':'s')+'…',aiName()+' is sorting each file into the right folder.');
   var reads=files.map(function(f){ return new Promise(function(resolve){ var rd=new FileReader(); rd.onload=function(){ var s=String(rd.result||''),i=s.indexOf(','),b64=(i>=0?s.slice(i+1):s); resolve({filename:f.name,dataB64:b64}); }; rd.onerror=function(){ resolve(null); }; rd.readAsDataURL(f); }); });
   Promise.all(reads).then(function(payload){ payload=payload.filter(Boolean);
     if(!payload.length){ hideOrb(); fi.value=''; m.textContent='Could not read those files — try again.'; return; }
     // Send in chunks so a big batch never exceeds the server's request-size limit (which is
     // what made large uploads silently fail). Each request stays well under it; files stream in.
-    var MAXB=28*1024*1024, MAXN=8, chunks=[], cur=[], curSize=0;
-    payload.forEach(function(p){ var sz=(p.dataB64||'').length; if(cur.length && (curSize+sz>MAXB || cur.length>=MAXN)){ chunks.push(cur); cur=[]; curSize=0; } cur.push(p); curSize+=sz; });
-    if(cur.length) chunks.push(cur);
-    var added=0, results=[], lastDocs=null, done=0, total=payload.length;
-    function finish(){ hideOrb(); fi.value=''; if(lastDocs){ ROOM.docs=lastDocs; renderDocs(); } var byCat={}; results.forEach(function(x){ if(x.ok){ var _c=x.category||'Other'; (byCat[_c]=byCat[_c]||[]).push(x.name||''); } }); var skips=results.filter(function(x){ return !x.ok; }).map(function(x){ return {name:x.name||'', error:x.error||'Skipped.'}; }); if(skippedBig){ skips.push({name:'', error:skippedBig+' file'+(skippedBig===1?'':'s')+' over 25 MB — not sent.'}); } var skipped=skips.length ? (results.filter(function(x){ return !x.ok; }).length + skippedBig) : 0; m.textContent='Filed '+added+' file'+(added===1?'':'s')+(skipped?(' · '+skipped+' skipped'):'')+'.'; showFileResult(added, byCat, skips); }
+    var MAXB=28*1024*1024, MAXN=8;
+    function mkChunks(list){ var out=[], cur=[], curSize=0; list.forEach(function(p){ var sz=(p.dataB64||'').length; if(cur.length && (curSize+sz>MAXB || cur.length>=MAXN)){ out.push(cur); cur=[]; curSize=0; } cur.push(p); curSize+=sz; }); if(cur.length) out.push(cur); return out; }
+    var chunks=mkChunks(payload);
+    var added=0, results=[], lastDocs=null, done=0, total=payload.length, dups=[], forced=false;
+    // Duplicates (same content or same name already in the room) are held back by the server, like the
+    // single-file upload: ask once for the whole batch, then re-send the confirmed ones with force.
+    async function finish(){
+      if(dups.length && !forced){
+        hideOrb(); var held=dups; dups=[];
+        var lines=held.slice(0,12).map(function(d){ var x=d.x, ex=x.existing||{}; return '• '+(x.name||'')+' — '+(x.reason==='content'?'identical to':'same name as')+' “'+(ex.title||ex.originalName||'')+'”'+(ex.category?(' in '+ex.category):''); });
+        if(held.length>12) lines.push('…and '+(held.length-12)+' more');
+        var _dq=held.length+' file'+(held.length===1?' is':'s are')+' already in this data room:\n\n'+lines.join('\n')+'\n\nUpload '+(held.length===1?'it':'them')+' again anyway?';
+        var again=window.rrgConfirm?(await rrgConfirm(_dq,{okText:'Upload anyway',cancelText:'Skip duplicates',danger:false})):confirm(_dq);
+        if(again){ forced=true; var redo=held.map(function(d){ var c={}; for(var k in d.p) c[k]=d.p[k]; c.force=true; return c; }); chunks=mkChunks(redo); done=0; total=redo.length; post(0); return; }
+        held.forEach(function(d){ results.push({ok:false,name:d.x.name||'',error:'Duplicate — already in this data room (skipped).'}); });
+      }
+      _bulkDone();
+    }
+    function _bulkDone(){ hideOrb(); fi.value=''; if(lastDocs){ ROOM.docs=lastDocs; renderDocs(); } var byCat={}; results.forEach(function(x){ if(x.ok){ var _c=x.category||'Other'; (byCat[_c]=byCat[_c]||[]).push(x.name||''); } }); var skips=results.filter(function(x){ return !x.ok; }).map(function(x){ return {name:x.name||'', error:x.error||'Skipped.'}; }); if(skippedBig){ skips.push({name:'', error:skippedBig+' file'+(skippedBig===1?'':'s')+' over 25 MB — not sent.'}); } var skipped=skips.length ? (results.filter(function(x){ return !x.ok; }).length + skippedBig) : 0; m.textContent='Filed '+added+' file'+(added===1?'':'s')+(skipped?(' · '+skipped+' skipped'):'')+'.'; showFileResult(added, byCat, skips); }
     function post(ci){
       if(ci>=chunks.length){ finish(); return; }
       var chunk=chunks[ci];
       showOrb('Filing '+(done+1)+(chunk.length>1?('–'+(done+chunk.length)):'')+' of '+total+'…',aiName()+' is sorting each file into the right folder.');
       fetch('/api/room/'+encodeURIComponent(RID)+'/bulk-upload',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({files:chunk, zipMode:(zipMode||undefined)})})
         .then(function(r){ return r.json().catch(function(){ return {ok:false,error:'Server error ('+r.status+')'}; }); })
-        .then(function(j){ if(j&&j.ok){ added+=(j.added||0); (j.results||[]).forEach(function(x){ results.push(x); }); if(j.docs) lastDocs=j.docs; } else { chunk.forEach(function(p){ results.push({ok:false,name:p.filename||'',error:(j&&j.error)||'Upload failed'}); }); } done+=chunk.length; post(ci+1); })
+        .then(function(j){ if(j&&j.ok){ added+=(j.added||0); (j.results||[]).forEach(function(x){ if(x&&x.duplicate&&chunk[x.idx]) dups.push({p:chunk[x.idx],x:x}); else results.push(x); }); if(j.docs) lastDocs=j.docs; } else { chunk.forEach(function(p){ results.push({ok:false,name:p.filename||'',error:(j&&j.error)||'Upload failed'}); }); } done+=chunk.length; post(ci+1); })
         .catch(function(){ chunk.forEach(function(p){ results.push({ok:false,name:p.filename||'',error:'Upload failed'}); }); done+=chunk.length; post(ci+1); });
     }
     post(0);
@@ -456,6 +475,32 @@ function renderLog(){
   }).join('');
   el.innerHTML=fbar+head+rows;
 }
+// ---- Buyer Q&A: one private thread per buyer (grant); the owner replies inline ----
+function renderQa(){
+  var el=document.getElementById('qaList'); if(!el) return;
+  var qa=(ROOM&&Array.isArray(ROOM.qa))?ROOM.qa:[], grants=(ROOM&&ROOM.grants)||[], th={}, order=[];
+  qa.forEach(function(q){ if(!q||!q.grantId) return; if(!th[q.grantId]){ th[q.grantId]=[]; order.push(q.grantId); } th[q.grantId].push(q); });
+  order.sort(function(a,b){ var la=th[a][th[a].length-1].at||'', lb=th[b][th[b].length-1].at||''; return String(lb).localeCompare(String(la)); });
+  var open=order.filter(function(g){ var t=th[g]; return t[t.length-1].from!=='broker'; }).length;
+  var cnt=document.getElementById('qaCount'); if(cnt) cnt.textContent=order.length?('· '+order.length+' thread'+(order.length===1?'':'s')+(open?(' · '+open+' awaiting reply'):'')):'';
+  if(!order.length){ el.innerHTML='<div class="catempty">No buyer questions yet. Authorized buyers can ask from inside the room; you&rsquo;re emailed when they do.</div>'; return; }
+  el.innerHTML=order.map(function(gid){
+    var t=th[gid], g=grants.filter(function(x){ return x.id===gid; })[0]||null, firstB=t.filter(function(q){ return q.from!=='broker'; })[0]||t[0];
+    var name=(g&&(g.name||g.email))||firstB.who||'Buyer', last=t[t.length-1], waiting=last.from!=='broker';
+    var badge=waiting?'<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#8a5a12;background:#fff4e6;border:1px solid #f3d9a8;border-radius:99px;padding:1px 8px">Awaiting reply</span>':'<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#1f7a4d;background:#e8f3ec;border:1px solid #bfe2cd;border-radius:99px;padding:1px 8px">Answered</span>';
+    var gone=(!g||g.active===false)?' <span style="font-weight:600;color:var(--soft);font-size:10.5px;text-transform:none;letter-spacing:0">(access revoked)</span>':'';
+    var msgs=t.map(function(q){ var b=q.from==='broker'; return '<div style="padding:7px 13px 7px '+(b?'28px':'13px')+';border-top:1px solid #eef1f5;'+(b?'background:#f7f9fc':'')+'"><div class="dm" style="margin:0 0 2px"><b style="color:'+(b?'var(--primary-d)':'var(--navy)')+'">'+esc(b?((q.who||'You')+' (reply)'):(q.who||name))+'</b> · '+esc(fmtWhen(q.at))+'</div><div style="font-size:12.5px;line-height:1.5;color:var(--ink);white-space:pre-wrap;word-break:break-word">'+esc(q.text||'')+'</div></div>'; }).join('');
+    var reply=(ROOM&&ROOM.closed)?'<div class="catempty">Room is closed — reopen it to reply.</div>':(g?('<div style="padding:8px 13px 10px;border-top:1px solid #eef1f5;display:flex;gap:8px;align-items:flex-start"><textarea id="qaR_'+esc(gid)+'" rows="2" maxlength="4000" placeholder="Reply to '+esc(name)+'…" style="flex:1;border:1px solid var(--inp);border-radius:3px;padding:6px 9px;font:inherit;font-size:12px;resize:vertical"></textarea><button class="btn primary" onclick="qaReply(\''+esc(gid)+'\',this)">Send reply</button></div>'):'');
+    return '<div class="cat"><div class="cathd" style="text-transform:none;letter-spacing:0;font-size:12px;cursor:default;user-select:auto"><span>'+esc(name)+gone+'</span><span class="n">'+t.length+' message'+(t.length===1?'':'s')+'</span><span style="margin-left:auto">'+badge+'</span></div>'+msgs+reply+'</div>';
+  }).join('');
+}
+function qaReply(gid,btn){
+  var ta=document.getElementById('qaR_'+gid); var txt=ta?String(ta.value||'').trim():''; if(!txt){ if(ta) ta.focus(); return; }
+  if(btn){ btn.disabled=true; btn.textContent='Sending…'; }
+  fetch('/api/room/'+encodeURIComponent(RID)+'/qa-reply',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({grantId:gid,text:txt})})
+    .then(function(r){ return r.json(); }).then(function(j){ if(j&&j.ok){ ROOM.qa=j.qa||[]; renderQa(); toast('Reply sent ✓'); } else { if(btn){ btn.disabled=false; btn.textContent='Send reply'; } alert((j&&j.error)||'Could not send the reply.'); } })
+    .catch(function(){ if(btn){ btn.disabled=false; btn.textContent='Send reply'; } alert('Could not reach the server.'); });
+}
 var CELL_ORDER=['none','view','download','edit'];
 function levelInfo(l){
   if(l==='none') return {t:'No access', bg:'#f2f4f8', fg:'#9aa3b5'};
@@ -563,7 +608,7 @@ async function removeGrant(id){
   fetch('/api/room/'+encodeURIComponent(RID)+'/grant-delete',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({grantId:id})})
    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ROOM.grants=j.grants||[]; renderGrants(); toast('Removed ✓'); } else alert((j&&j.error)||'Could not remove.'); }).catch(function(){ alert('Could not reach the server.'); });
 }
-function paint(){ var _biz=(ROOM.business&&String(ROOM.business).trim())||''; var _t=_biz?('Data Room · '+_biz):'Data Room'; document.getElementById('hdr').textContent=_t; var _rh=document.getElementById('roomHdr'); if(_rh) _rh.textContent=_biz||'Data Room'; paintLink(); renderInterviews(); renderCats(); renderDocs(); renderGrants(); renderLog(); renderMfa(); paintClosed(); }
+function paint(){ var _biz=(ROOM.business&&String(ROOM.business).trim())||''; var _t=_biz?('Data Room · '+_biz):'Data Room'; document.getElementById('hdr').textContent=_t; var _rh=document.getElementById('roomHdr'); if(_rh) _rh.textContent=_biz||'Data Room'; paintLink(); renderInterviews(); renderCats(); renderDocs(); renderGrants(); renderQa(); renderLog(); renderMfa(); paintClosed(); }
 function startRename(){
   var h=document.getElementById('roomHdr'); if(!h||document.getElementById('renameBox')) return;
   var cur=(ROOM&&ROOM.business)||'';

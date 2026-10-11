@@ -178,6 +178,22 @@ function effOrg() { const b = loadBrand(); const o = (b && b.org) || {}; return 
 function orgOneLine() { const o = effOrg(); const loc = [o.city, o.state].filter(Boolean).join(', ') + (o.zip ? (' ' + o.zip) : ''); return [o.name || o.legalName, o.address, loc, o.phone].filter(Boolean).join(' · '); }
 function orgDisplayName() { const o = effOrg(); return o.name || o.legalName || loadAppName(); }
 function orgLegalName() { const o = effOrg(); return o.legalName || o.name || loadAppName(); }
+// Firm time zone. Task due/reminder times and meeting start/end are stored zone-less ("YYYY-MM-DDTHH:MM",
+// as typed in the browser), so they mean wall-clock time in the firm's zone — never the server's clock (UTC on Render).
+const DEFAULT_FIRM_TZ = 'America/Chicago';
+function _validTz(z) { try { if (!z) return false; new Intl.DateTimeFormat('en-US', { timeZone: z }); return true; } catch (e) { return false; } }
+function firmTz() { try { const z = String((loadBrand() || {}).timeZone || '').trim(); return _validTz(z) ? z : DEFAULT_FIRM_TZ; } catch (e) { return DEFAULT_FIRM_TZ; } }
+// Wall-clock "YYYY-MM-DDTHH:MM" of an instant (default: now) in the firm zone (or tz).
+function firmNaive(d, tz) { const dt = d ? new Date(d) : new Date(); try { const p = new Intl.DateTimeFormat('en-CA', { timeZone: tz || firmTz(), year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(dt); const o = {}; p.forEach(x => o[x.type] = x.value); return o.year + '-' + o.month + '-' + o.day + 'T' + (o.hour === '24' ? '00' : o.hour) + ':' + o.minute; } catch (e) { return dt.toISOString().slice(0, 16); } }
+function firmToday() { return firmNaive().slice(0, 10); }
+// Zone-less "YYYY-MM-DD[THH:MM]" in the firm zone (or tz) -> real Date (DST-aware). Strings that already carry a zone pass through.
+function firmNaiveToDate(s, tz) {
+  s = String(s || ''); if (/(Z|[+-]\d{2}:?\d{2})$/i.test(s)) return new Date(s);
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/); if (!m) return new Date(NaN);
+  const want = Date.UTC(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0));
+  const off = (t) => { const n = firmNaive(t, tz); const q = n.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/); return Date.UTC(+q[1], +q[2] - 1, +q[3], +q[4], +q[5]) - t; };
+  let t = want - off(want); t = want - off(t); return new Date(t);
+}
 // ---- CIM store (Confidential Information Memorandums) — mirrors the BOV store ----
 const CIMS_FILE = path.join(BOV_DATA_DIR, 'cims.json');
 function loadCims() { try { return rj(CIMS_FILE); } catch (e) { return []; } }
@@ -476,7 +492,7 @@ function findOrCreatePerson(req, info) {
     if (ch) { p.updatedAt = new Date().toISOString(); savePeople(arr); }
     return p;
   }
-  const type = (info && PERSON_TYPES.indexOf(info.type) >= 0) ? info.type : 'Buyer';
+  const type = personTypeOrBlank(info && info.type);
   const fullName = (name.slice(0, 160) || email.slice(0, 160));
   const sp = splitName(fullName);
   const emails = cleanList(((info && info.emails) || (email ? [email] : [])).map(cleanEmailAddr).filter(Boolean), 10, 160);
@@ -490,6 +506,14 @@ function findOrCreatePerson(req, info) {
   };
   arr.push(p); logContactAdded(p, req); savePeople(arr);
   return p;
+}
+// Resolve a requested contact type to a current Main Interest: a valid one (case-insensitive) is kept,
+// an old retired name maps to its replacement (Buyer → Buying, ...), anything else stays blank for the rep to set.
+const RETIRED_PERSON_TYPE_MAP = { 'buyer': 'Buying', 'seller': 'Selling', 'investor': 'Investing', 'referral source': 'Referring' };
+function personTypeOrBlank(t) {
+  const k = String(t || '').trim().toLowerCase(); if (!k) return '';
+  const hit = effPersonTypes().find(x => String(x).toLowerCase() === k); if (hit) return hit;
+  return RETIRED_PERSON_TYPE_MAP[k] || '';
 }
 // A contact can carry multiple "Main Interests" (Buying, Selling, ...). `types` is the
 // source of truth; `type` stays synced to the first for every legacy reader.
@@ -852,6 +876,7 @@ function deptNotifyEmails(d) {
 function canSeeTicket(req, t) {
   const uname = String((req.user && req.user.username) || '').toLowerCase();
   if (!uname) return false;
+  if (isSuper(req.user)) return true;   // admins oversee every department's requests (the "All users" view)
   if (t.byUser && String(t.byUser).toLowerCase() === uname) return true;   // your own request
   const d = ticketDept(t);
   if (d && Array.isArray(d.members) && d.members.indexOf(uname) >= 0) return true;  // you're on the team it routed to
@@ -888,7 +913,7 @@ function writeBackupZip(dest) {
     let bytes = 0;
     archive.on('error', reject);
     archive.on('data', c => { bytes += c.length; });
-    if (dest && typeof dest.on === 'function') dest.on('close', () => resolve(bytes));
+    if (dest && typeof dest.on === 'function') { dest.on('close', () => resolve(bytes)); dest.on('error', reject); } // a write error (bad folder, disk full) must fail the snapshot, not hang it
     archive.pipe(dest);
     try {
       const entries = fs.readdirSync(BOV_DATA_DIR, { withFileTypes: true });
@@ -1493,6 +1518,8 @@ app.use(cors({ origin: process.env.ALLOW_ORIGIN || '*' }));
 // The document-upload endpoints declare their own larger JSON limits below.
 // Exempt them here so this 1 MB global cap doesn't 413 real uploads first.
 app.use((req, res, next) => {
+  // Stripe signs the raw body — its webhook reads it with express.raw, so the global JSON parser must not consume it first.
+  if (req.path === '/api/stripe/webhook') return next();
   if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/generate-lease' || req.path === '/api/generate-map' || req.path === '/api/valuation-factors' || req.path === '/api/admin/backup/restore' || req.path === '/api/admin/upload-doc' || req.path === '/api/admin/logo' || req.path === '/api/admin/favicon' || req.path === '/api/files' || req.path === '/api/form/build' || req.path === '/api/room-upload' || /^\/api\/room\/[^/]+\/bulk-upload$/.test(req.path) || /^\/api\/company\/[^/]+\/location\/[^/]+\/photo$/.test(req.path) || /^\/api\/company\/[^/]+\/concept\/[^/]+\/logo$/.test(req.path) || /^\/api\/company\/[^/]+\/logo$/.test(req.path) || /^\/api\/email-templates\/[^/]+\/attachment$/.test(req.path) || /^\/api\/agreements\/[^/]+\/doc$/.test(req.path) || /^\/api\/admin\/agreement-templates\/[^/]+\/file$/.test(req.path) || /^\/api\/sign\/[^/]+$/.test(req.path) || req.path.indexOf('/api/admin/import/') === 0 || req.path === '/api/admin/enrich-apply' || req.path === '/api/admin/concepts-apply' || req.path === '/api/admin/cleanup-apply' || req.path === '/api/admin/apply-logos' || req.path === '/api/admin/emaildomain-apply' || req.path === '/api/gmail/send' || /^\/api\/person\/[^/]+\/email$/.test(req.path) || /^\/api\/ticket\/[^/]+\/file$/.test(req.path) || req.path === '/api/subscribers/import' || req.path === '/api/website/hero') return next();
   express.json({ limit: '1mb' })(req, res, next);
 });
@@ -1907,7 +1934,7 @@ app.post('/api/admin/calendar-invite-template', requireAdmin, express.json(), (r
 // ---- Firm commission structure (both methods configured; picked per deal) ----
 app.get('/api/commission-structure', (req, res) => {
   if (!req.user) return res.status(401).json({ ok: false, error: 'Sign in required.' });
-  res.json({ ok: true, tiers: effCommissionTiers(), minFee: effCommissionMinFee(), flatRate: effCommissionFlatRate(), agentSplit: effCommissionAgentSplit(), isAdmin: !!(req.user && isSuper(req.user)) });
+  res.json({ ok: true, tiers: effCommissionTiers(), minFee: effCommissionMinFee(), flatRate: effCommissionFlatRate(), agentSplit: effCommissionAgentSplit(), mySplit: effUserSplit(req.user.username), isAdmin: !!(req.user && isSuper(req.user)) });
 });
 app.post('/api/admin/commission-structure', requireAdmin, express.json(), (req, res) => {
   const b = req.body || {}; const s = loadSettings();
@@ -1962,6 +1989,10 @@ async function sendNotifyMail(to, subject, text, html) {
 }
 function ticketOwnerEmail(t) { try { const u = auth.findUser(t.byUser); return (u && u.email) || ''; } catch (e) { return ''; } }
 function appBaseUrl() { return String(process.env.APP_URL || process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || (process.env.RENDER_EXTERNAL_HOSTNAME ? ('https://' + process.env.RENDER_EXTERNAL_HOSTNAME) : '')).replace(/\/$/, ''); }
+// Who gets copied on every emailed Site Criteria: the firm's contact email (Admin → Brokerage Info), else the
+// firm's sending mailbox (Admin → Email "From"), else nobody. Replaces the old hard-coded van@rrgcre.com.
+function sscCcAddr() { const ok = (e) => /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(String(e || '').trim()); const o = effOrg(); if (ok(o.email)) return String(o.email).trim(); let f = ''; try { f = _fromAddr(); } catch (e) {} return ok(f) ? f : ''; }
+app.get('/api/ssc-cc', (req, res) => res.json({ ok: true, cc: sscCcAddr() }));
 app.post('/api/send-ssc', async (req, res) => {
   const data = req.body || {};
   if (!data.repEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.repEmail)) {
@@ -1970,7 +2001,7 @@ app.post('/api/send-ssc', async (req, res) => {
   let out = null, err = null, emailed = false;
   try {
     if (!isEmailConfigured()) throw new Error('Server email is not configured. Set it in Admin → Email.');
-    out = await sendSsc(data, buildTransport());
+    out = await sendSsc(data, buildTransport(), { cc: sscCcAddr() });
     emailed = true;
   } catch (e) { err = e; }
   try { store.appendSubmission('ssc', data, { ip: req.ip, emailed, by: req.user && req.user.username }); }
@@ -1986,7 +2017,7 @@ app.post('/api/send-ssc', async (req, res) => {
     }
   } catch (e) {}
   if (err) { console.error('send-ssc error:', err); return res.status(500).json({ ok: false, error: String((err && err.message) || err) }); }
-  res.json({ ok: true, messageId: out.info.messageId, filename: out.filename, bytes: out.size });
+  res.json({ ok: true, messageId: out.info.messageId, filename: out.filename, bytes: out.size, cc: sscCcAddr() });
 });
 app.post('/api/log', (req, res) => {
   const data = req.body || {};
@@ -3119,6 +3150,20 @@ function ownsLease(req, l) {
   if (l.byUser) return l.byUser === (req.user && req.user.username);
   return l.by && l.by === (req.user && req.user.name);
 }
+function _optionMonths(txt){
+  let os=String(txt||'').toLowerCase(); if(!os.trim() || /^\s*(none|no\b|n\/a)/.test(os)) return null;
+  const W={ single:1, one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10, eleven:11, twelve:12, fifteen:15, twenty:20, thirty:30, sixty:60 };
+  os=os.replace(/\b(single|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|sixty)\b/g, w => String(W[w]));
+  os=os.replace(/\((\d+(?:\.\d+)?)\)/g, ' $1 ').replace(/(?<![\d.])(\d+(?:\.\d+)?)\s+\1(?![\d.])/g, '$1'); // "five (5)" -> "5"
+  const tm=os.match(/(?<![\d.])(\d+(?:\.\d+)?)\s*-?\s*(years?|yrs?|months?|mos?)\b/); if(!tm) return null;
+  const per=parseFloat(tm[1]); if(isNaN(per)) return null;
+  const perMo=/^y/.test(tm[2]) ? per*12 : per;
+  // Count = the closest whole number before the term that isn't itself a duration/amount (e.g. "2 x", "two", "three options of").
+  let count=1; const re=/(?<![\d.$])(\d+)(?![\d.])(?!\s*-?\s*(?:years?|yrs?|months?|mos?|days?|%|percent)\b)/g; let cm;
+  const before=os.slice(0, tm.index);
+  while((cm=re.exec(before))){ const n=parseInt(cm[1],10); if(n>=1 && n<=10) count=n; }
+  return Math.round(count*perMo);
+}
 function _leaseMonths(l){
   const st = (l && l.state) || {}; const term = st.term || {}, opts = st.options || {};
   function monthsFromText(t){ if(!t) return null; t=String(t);
@@ -3130,11 +3175,9 @@ function _leaseMonths(l){
   const ed = exp ? new Date(exp) : null;
   if(ed && !isNaN(ed.getTime())){ const now=new Date(); rem=Math.max(0, Math.round((ed-now)/(1000*60*60*24*30.44))); }
   if(rem==null) rem=monthsFromText(term.remainingTerm);
-  // option term: e.g. "Two (2) x 5 years" -> count * per-option; else first figure
-  let opt=null; const os=String(opts.renewalOptions||'');
-  let mm=os.match(/(?:x|\u00d7|\*)\s*([\d.]+)\s*(year|yr|month|mo)/i) || os.match(/([\d.]+)\s*(year|yr|month|mo)/i);
-  if(mm){ let n=parseFloat(mm[1]); if(!isNaN(n)) opt=/year|yr/i.test(mm[2])?Math.round(n*12):Math.round(n); }
-  return { rem: rem, opt: opt, expiration: exp };
+  // option term: total months of renewal options = count * per-option term, e.g. "Two (2) x 5 years" -> 120,
+  // "two 5-year options" -> 120, "one (1) option of five (5) years" -> 60, "three options of 60 months" -> 180.
+  return { rem: rem, opt: _optionMonths(opts.renewalOptions), expiration: exp };
 }
 app.get('/api/leases', (req, res) => {
   const isAdmin = req.user && isSuper(req.user);
@@ -4110,7 +4153,7 @@ app.post('/api/admin/logo/light/clear', requireAdmin, (req, res) => {
   res.json({ ok: true, hasLogoLight: false });
 });
 // ---- App name (admin-set) — drives the browser tab title on every page ----
-const DEFAULT_APP_NAME = 'FullServe';
+const DEFAULT_APP_NAME = 'Lavano';
 function loadAppName() { const b = loadBrand(); return (b.appName && String(b.appName).trim()) || DEFAULT_APP_NAME; }
 // ---- AI action confirmations (admin master switch; default ON) ----
 function effAiConfirm() { const b = loadBrand(); return b.aiConfirm !== false; }
@@ -4238,6 +4281,16 @@ app.post('/api/admin/org', requireAdmin, express.json(), (req, res) => {
   b.org = { name: S(x.name, 120), legalName: S(x.legalName, 160), address: S(x.address, 200), city: S(x.city, 80), state: S(x.state, 20), zip: S(x.zip, 20), phone: S(x.phone, 40), email: S(x.email, 160), website: S(x.website, 200), license: S(x.license, 60), ein: S(x.ein, 40) };
   b.updatedAt = new Date().toISOString(); saveBrand(b);
   res.json({ ok: true, org: effOrg() });
+});
+// ---- Firm time zone (Admin → Calendar): the zone zone-less task/meeting times are read in ----
+app.get('/api/admin/time-zone', requireAdmin, (req, res) => res.json({ ok: true, timeZone: firmTz(), default: DEFAULT_FIRM_TZ, now: firmNaive() }));
+app.post('/api/admin/time-zone', requireAdmin, express.json(), (req, res) => {
+  const z = String((req.body && req.body.timeZone) || '').trim().slice(0, 64);
+  if (z && !_validTz(z)) return res.status(400).json({ ok: false, error: 'Unknown time zone: ' + z });
+  const b = loadBrand();
+  if (!z || z === DEFAULT_FIRM_TZ) { delete b.timeZone; } else { b.timeZone = z; }
+  b.updatedAt = new Date().toISOString(); saveBrand(b);
+  res.json({ ok: true, timeZone: firmTz(), now: firmNaive() });
 });
 // ---- AI confirmation gate (admin master switch) ----
 app.get('/api/admin/ai-confirm', requireAdmin, (req, res) => res.json({ ok: true, on: effAiConfirm() }));
@@ -4474,6 +4527,9 @@ function ownsRoomSess(sess, r) {
   if (r.byUser) return r.byUser === sess.username;
   return !!(r.by && r.by === sess.name);
 }
+// Owner "Buyer view" preview: the signed-in owner/admin (staff session = the credential) asked
+// for ?preview=1. Buyers and anonymous visitors have no app session, so this never opens for them.
+function roomOwnerPreview(req, r) { return String((req.query && req.query.preview) || '') === '1' && ownsRoomSess(auth.readSession(parseCookies(req)[COOKIE]), r); }
 function ensureRoomForCim(req, cim) {
   if (!cim) return null;
   const arr = loadRooms();
@@ -4519,7 +4575,7 @@ app.get('/api/rooms', (req, res) => {
   const isAdmin = req.user && isSuper(req.user);
   const list = loadRooms().slice().reverse().filter(r => isAdmin || ownsRoom(req, r));
   const origin = req.protocol + '://' + req.get('host');
-  res.json({ ok: true, isAdmin: !!isAdmin, rooms: list.map(r => roomPublic(r, origin)),
+  res.json({ ok: true, isAdmin: !!isAdmin, canDelete: canDelete(req), rooms: list.map(r => roomPublic(r, origin)),
     users: auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => String(a.name).localeCompare(String(b.name))),
     me: { username: (req.user && req.user.username) || '', name: (req.user && req.user.name) || '' } });
 });
@@ -4590,7 +4646,7 @@ app.post('/api/room/:id/grant', express.json(), (req, res) => {
   try {
     const pid = String(b.personId || '');
     if (pid) person = (loadPeople().find(x => x.id === pid && !x.system)) || null;
-    if (!person) person = findOrCreatePerson(req, { name, email, type: 'Buyer' });
+    if (!person) person = findOrCreatePerson(req, { name, email, type: 'Buying' });
   } catch (e) { console.error('grant person link:', e && e.message); }
   const gName = name || (person && person.name) || '';
   const gEmail = email || (person && (person.email || preferredEmailOf(person))) || '';
@@ -4728,6 +4784,21 @@ function notifyRoomQuestion(r, grant, text, req) {
     if (p && p.catch) p.catch(e => console.error('room question send:', e && e.message));
   } catch (e) { console.error('notifyRoomQuestion:', e && e.message); }
 }
+// Let the buyer know the broker answered. The reply itself stays behind the access code —
+// the email only points them back to the room.
+function notifyBuyerQaReply(r, grant, req) {
+  try {
+    if (!r || !grant || !grant.email) return;
+    const org = orgDisplayName(), biz = r.business || 'the data room', who = grant.name || 'there';
+    const origin = (req && req.get) ? (req.protocol + '://' + req.get('host')) : '';
+    const roomUrl = origin ? (origin + '/room/' + r.token) : '';
+    const subject = org + ' — reply to your question · ' + biz;
+    const text = 'Hi ' + who + ',\n\n' + org + ' replied to your question in the ' + biz + ' data room.' + (roomUrl ? ('\n\nOpen the data room to read it (your access code is required): ' + roomUrl) : '') + '\n\n— ' + org;
+    const html = '<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.55;color:#1a2236"><p>Hi ' + esc(who) + ',</p><p>' + esc(org) + ' replied to your question in the <b>' + esc(biz) + '</b> data room.</p>' + (roomUrl ? ('<p><a href="' + esc(roomUrl) + '" style="color:#1155cc;text-decoration:underline">Open the data room</a> to read it — your access code is required.</p>') : '') + '<p style="color:#8a93a3">— ' + esc(org) + '</p></div>';
+    const p = sendMailWL({ from: mailFrom(), to: grant.email, subject, text, html });
+    if (p && p.catch) p.catch(e => console.error('room qa reply send:', e && e.message));
+  } catch (e) { console.error('notifyBuyerQaReply:', e && e.message); }
+}
 function newQaId() { return 'qa_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 app.post('/room/:token/qa', express.json({ limit: '32kb' }), (req, res) => {
   const arr = loadRooms(); const r = arr.find(x => x.token === req.params.token);
@@ -4748,10 +4819,13 @@ app.post('/api/room/:id/qa-reply', express.json({ limit: '32kb' }), (req, res) =
   if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
   const b = req.body || {}; const grantId = String(b.grantId || ''); const text = String(b.text || '').trim().slice(0, 4000);
   if (!grantId || !text) return res.status(400).json({ ok: false, error: 'Pick a buyer and write a reply.' });
-  if (!(r.grants || []).some(g => g.id === grantId)) return res.status(400).json({ ok: false, error: 'Unknown buyer.' });
+  const qg = (r.grants || []).find(g => g.id === grantId);
+  if (!qg) return res.status(400).json({ ok: false, error: 'Unknown buyer.' });
+  if (r.closed) return res.status(400).json({ ok: false, error: 'This room is closed — reopen it to reply.' });
   r.qa = r.qa || [];
   r.qa.push({ id: newQaId(), grantId, who: (req.user && req.user.name) || orgDisplayName(), from: 'broker', at: new Date().toISOString(), text });
   saveRooms(arr);
+  if (qg.active !== false) { try { notifyBuyerQaReply(r, qg, req); } catch (e) {} }
   res.json({ ok: true, qa: r.qa });
 });
 // Create a standalone data room (not tied to a Marketing Pack).
@@ -4764,7 +4838,7 @@ app.post('/api/room/new', express.json(), (req, res) => {
     try { const p = loadPeople().find(x => x.id === personId); if (p) { companyId = p.companyId || ''; } else personId = ''; } catch (e) { personId = ''; }
   }
   if (!personId && String(b.personName || '').trim()) {
-    try { const p = findOrCreatePerson(req, { name: b.personName, type: 'Seller' }); if (p) { personId = p.id; companyId = p.companyId || ''; } } catch (e) {}
+    try { const p = findOrCreatePerson(req, { name: b.personName, type: 'Selling' }); if (p) { personId = p.id; companyId = p.companyId || ''; } } catch (e) {}
   }
   // Rep — default to the current user; allow assigning a teammate.
   let byUser = (req.user && req.user.username) || '';
@@ -4894,7 +4968,17 @@ app.post('/api/room/:id/bulk-upload', express.json({ limit: '80mb' }), async (re
       continue;
     }
     const cat = _rc.indexOf(byIdx[i]) >= 0 ? byIdx[i] : roomCatFromName(f.filename, _rc);
-    const out = addFileToRoomEx(r, { name: f.filename, dataB64: f.dataB64 }, { category: cat, title: (String(f.title || '').trim() || prettyName(f.filename || '')), by: ((req.user && req.user.name) || '') + ' · AI-filed', source: 'bulk:' + Date.now() + ':' + i });
+    // Same duplicate check as the single-file upload: an identical file (content hash) or a same-name
+    // file already in the room is held back and reported, unless the uploader re-sends it with force:true.
+    if (!f.force) {
+      let _dh = ''; try { _dh = crypto.createHash('sha256').update(Buffer.from(String(f.dataB64 || ''), 'base64')).digest('hex'); } catch (e) {}
+      const _on = _fn.trim().toLowerCase();
+      const byHash = _dh ? (r.docs || []).find(d => d.hash && d.hash === _dh) : null;
+      const byName = _on ? (r.docs || []).find(d => String(d.originalName || '').trim().toLowerCase() === _on) : null;
+      const dup = byHash || byName;
+      if (dup) { results.push({ ok: false, duplicate: true, idx: i, reason: byHash ? 'content' : 'name', name: _fn, category: cat, error: byHash ? 'Duplicate — an identical file is already in this data room.' : 'Duplicate — a file with this name is already in this data room.', existing: { title: dup.title || dup.originalName || '', originalName: dup.originalName || '', category: dup.category || '', uploadedAt: dup.uploadedAt || '' } }); continue; }
+    }
+    const out = addFileToRoomEx(r, { name: f.filename, dataB64: f.dataB64 }, { category: cat, title: (String(f.title || '').trim() || prettyName(f.filename || '')), by: ((req.user && req.user.name) || '') + ' · AI-filed', source: 'bulk:' + Date.now() + ':' + i, force: !!f.force });
     if (out && out.doc) { added++; results.push({ ok: true, name: f.filename || '', category: cat, id: out.doc.id }); }
     else { const reason = (out && out.error) || 'Skipped.'; console.error('bulk-upload skip:', f.filename || ('file ' + (i + 1)), '→', reason); results.push({ ok: false, name: f.filename || '', category: cat, error: reason }); }
   }
@@ -5092,6 +5176,8 @@ app.delete('/api/room/:id', (req, res) => {
   const arr = loadRooms();
   const r = arr.find(x => x.id === req.params.id);
   if (!r) return res.status(404).json({ ok: false, error: 'Not found.' });
+  // Same rule as deleting a listing: the Delete permission AND ownership (admins pass both).
+  if (!canDelete(req)) return res.status(403).json({ ok: false, error: 'You do not have permission to delete data rooms.' });
   if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
   (r.docs || []).forEach(d => { try { binDel(path.join(ROOMS_DIR, d.id + '.' + d.ext)); } catch (e) {} });
   saveRooms(arr.filter(x => x.id !== r.id));
@@ -5101,6 +5187,7 @@ app.delete('/api/room/:id', (req, res) => {
 app.post('/api/rooms/bulk-delete', express.json({ limit: '512kb' }), (req, res) => {
   const ids = Array.isArray(req.body && req.body.ids) ? req.body.ids.map(String) : [];
   if (!ids.length) return res.status(400).json({ ok: false, error: 'No data rooms given.' });
+  if (!canDelete(req)) return res.status(403).json({ ok: false, error: 'You do not have permission to delete data rooms.' });
   const idset = {}; ids.forEach(id => { idset[id] = 1; });
   const arr = loadRooms();
   const targets = arr.filter(r => idset[r.id] && ownsRoom(req, r));
@@ -5385,8 +5472,8 @@ app.get('/roomfile/:token/:docid', async (req, res) => {
   const r = arr.find(x => x.token === req.params.token);
   if (!r) return res.status(404).end();
   if (r.closed) return res.status(410).end();
-  let grant = null;
-  if (roomNeedsGrant(r)) { grant = roomGrantFor(req, r); if (!grant) return res.redirect('/room/' + r.token); }
+  let grant = null, ownerPv = false;
+  if (roomNeedsGrant(r)) { grant = roomGrantFor(req, r); if (!grant) { ownerPv = roomOwnerPreview(req, r); if (!ownerPv) return res.redirect('/room/' + r.token); } }
   const d = (r.docs || []).find(x => x.id === String(req.params.docid));
   if (!d) return res.status(404).end();
   if (d.brokerOnly) return res.status(404).end();   // redacted originals are never served to buyers
@@ -5398,6 +5485,7 @@ app.get('/roomfile/:token/:docid', async (req, res) => {
   const wantDl = String(req.query.dl || '') === '1';
   const asDownload = wantDl && level !== 'view';   // view-only buyers can preview but never download
   const fnameSafe = String(d.title || d.originalName || d.id).replace(/[^\w.\- ]+/g, '_') + '.' + d.ext;
+  if (ownerPv) { res.setHeader('Content-Disposition', (asDownload ? 'attachment' : 'inline') + '; filename="' + fnameSafe + '"'); return res.sendFile(fp); }   // owner preview: not buyer activity — no counts, alerts, log or watermark
   if (asDownload && grant) { grant.downloads = (grant.downloads || 0) + 1; }
   if (asDownload) { d.downloads = (d.downloads || 0) + 1; d.lastDownloadAt = new Date().toISOString(); }   // per-file download tracking
   notifyRoomActivity(r, grant, d, asDownload ? 'download' : 'view', req);
@@ -5416,17 +5504,19 @@ app.get('/roomfile/:token/:docid', async (req, res) => {
 const ROOM_VIEWABLE = /^(pdf|png|jpe?g|gif|webp|txt)$/i;
 const ROOM_SHEET = /^(xlsx|xlsm|xlsb|xls|csv)$/i;
 function roomViewerCanRender(ext) { return ROOM_VIEWABLE.test(ext || '') || ROOM_SHEET.test(ext || ''); }
-function roomViewerPage(r, d, grant, canDl) {
+function roomViewerPage(r, d, grant, canDl, preview) {
   const viewable = ROOM_VIEWABLE.test(d.ext || '');
   const isSheet = ROOM_SHEET.test(d.ext || '');
-  const fileUrl = '/roomfile/' + esc(r.token) + '/' + esc(d.id);
+  const pq = preview ? '?preview=1' : '';   // owner preview: keep the file + back links inside the preview
+  const fileUrl = '/roomfile/' + esc(r.token) + '/' + esc(d.id) + pq;
+  const dlUrl = fileUrl + (preview ? '&dl=1' : '?dl=1');
   const title = esc(d.title || d.originalName || 'Document');
-  const dlBtn = canDl ? `<a href="${fileUrl}?dl=1" class="vbtn" download>Download</a>` : '';
+  const dlBtn = canDl ? `<a href="${dlUrl}" class="vbtn" download>Download</a>` : '';
   const stage = isSheet
     ? `<div class="vsheetwrap"><div id="xlsxtabs" class="xtabs"></div><div class="vsheet"><div id="xlsxmsg" class="vsmsg">Rendering spreadsheet…</div><div id="xlsxbox" class="xbox"></div></div></div>`
     : viewable
       ? `<iframe class="vframe" src="${fileUrl}" title="${title}"></iframe>`
-      : `<div class="vfallback"><div class="vfi">${roomFileIcon(d.ext)}</div><div class="vft">${title}</div><div class="vfd">This file type opens in its own app.</div>${canDl ? `<a href="${fileUrl}?dl=1" class="vbtn solid" download>Download to open</a>` : `<a href="${fileUrl}" class="vbtn solid" target="_blank" rel="noopener">Open file</a>`}</div>`;
+      : `<div class="vfallback"><div class="vfi">${roomFileIcon(d.ext)}</div><div class="vft">${title}</div><div class="vfd">This file type opens in its own app.</div>${canDl ? `<a href="${dlUrl}" class="vbtn solid" download>Download to open</a>` : `<a href="${fileUrl}" class="vbtn solid" target="_blank" rel="noopener">Open file</a>`}</div>`;
   const sheetLib = isSheet ? `<script src="/vendor/xlsx.full.min.js"><\/script>` : '';
   const sheetScript = isSheet ? `<script>(function(){
   function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
@@ -5464,7 +5554,7 @@ function roomViewerPage(r, d, grant, canDl) {
 .xbox td,.xbox th{border:1px solid #e4e8f0;padding:4px 9px;white-space:nowrap;max-width:360px;overflow:hidden;text-overflow:ellipsis;}
 .xbox tr:first-child td{background:#f4f6f9;font-weight:700;position:sticky;top:0;}
 </style>${sheetLib}</head><body>
-<div class="vbar"><a class="vback" href="/room/${esc(r.token)}">← Back to the data room</a><div class="vtitle">${title}</div><span class="vconf">Confidential</span>${dlBtn}</div>
+<div class="vbar"><a class="vback" href="/room/${esc(r.token)}${pq}">← Back to the data room</a><div class="vtitle">${title}</div><span class="vconf">Confidential</span>${dlBtn}</div>
 ${stage}
 ${sheetScript}
 <script>(function(){
@@ -5486,15 +5576,15 @@ app.get('/roomview/:token/:docid', (req, res) => {
   const r = arr.find(x => x.token === req.params.token);
   if (!r) return res.status(404).set('Content-Type', 'text/html').send(roomNotFoundPage());
   if (r.closed) return res.status(410).set('Content-Type', 'text/html; charset=utf-8').send(roomClosedPage(r));
-  let grant = null;
-  if (roomNeedsGrant(r)) { grant = roomGrantFor(req, r); if (!grant) return res.redirect('/room/' + r.token); }
+  let grant = null, ownerPv = false;
+  if (roomNeedsGrant(r)) { grant = roomGrantFor(req, r); if (!grant) { ownerPv = roomOwnerPreview(req, r); if (!ownerPv) return res.redirect('/room/' + r.token); } }
   const d = (r.docs || []).find(x => x.id === String(req.params.docid));
   if (!d) return res.status(404).end();
   if (d.brokerOnly) return res.status(404).end();   // redacted originals are never shown to buyers
   const level = grant ? effGrantLevelForDoc(grant, d) : 'download';
   if (level === 'none') return res.status(403).end();
   const canDl = level !== 'view';
-  res.set('Content-Type', 'text/html; charset=utf-8').send(roomViewerPage(r, d, grant, canDl));
+  res.set('Content-Type', 'text/html; charset=utf-8').send(roomViewerPage(r, d, grant, canDl, ownerPv));
 });
 // Heartbeat from the viewer: accumulate how long a buyer has spent reading a document.
 app.post('/room/:token/dwell', express.json({ limit: '4kb' }), (req, res) => {
@@ -5514,6 +5604,11 @@ app.post('/room/:token/dwell', express.json({ limit: '4kb' }), (req, res) => {
     secs = Math.min(secs, 600);                                  // cap a single beacon at 10 min
     grant.dwell = grant.dwell || {};
     grant.dwell[docid] = Math.min((grant.dwell[docid] || 0) + secs, 360000);   // cap 100h/doc/buyer
+    // Same seconds, bucketed by UTC day, so Reports can show read time for a chosen window (dwell itself is all-time).
+    const _day = new Date().toISOString().slice(0, 10);
+    grant.dwellByDay = grant.dwellByDay || {}; const _dd = grant.dwellByDay[_day] = grant.dwellByDay[_day] || {};
+    _dd[docid] = Math.min((_dd[docid] || 0) + secs, 86400);
+    const _days = Object.keys(grant.dwellByDay); if (_days.length > 400) _days.sort().slice(0, _days.length - 400).forEach(k => { delete grant.dwellByDay[k]; });
     grant.dwellOpens = grant.dwellOpens || {};
     d.readSeconds = Math.min((d.readSeconds || 0) + secs, 3600000);
     grant.lastSeen = new Date().toISOString();
@@ -5604,6 +5699,7 @@ function roomFileIcon(ext) {
 }
 function roomPublicPage(r, grant, opts) {
   const _preview = !!(opts && opts.preview);
+  const _pq = _preview ? '?preview=1' : '';   // owner preview: file links carry the flag so the owner's session opens them
   const docs = (r.docs || []);
   const catLevel = cat => grant ? effGrantLevel(grant, cat) : 'download';
   const docLevel = d => d.brokerOnly ? 'none' : (grant ? effGrantLevelForDoc(grant, d) : 'download');   // broker-only (redacted) originals are hidden from buyers
@@ -5615,8 +5711,8 @@ function roomPublicPage(r, grant, opts) {
   const who = grant ? `<div class="sub" style="margin-top:8px;color:#cdd6ea">Signed in as ${esc(grant.name || grant.email)} · ${esc(lvlLabel)} · this device is verified for 10 days</div>` : '';
   const head = `<div class="kick">Confidential Data Room</div><h1>${esc(r.business || 'Confidential Opportunity')}</h1><div class="sub">${visCount} document${visCount === 1 ? '' : 's'} · Provided by ${esc(orgDisplayName())} under NDA</div>${who}`;
   let body = '';
-  if (_preview) body += `<nav style="margin-bottom:10px;font-size:12.5px;font-weight:600;color:#5f6a7d;line-height:1.4"><a href="/index.html" style="color:#2c5c8f;text-decoration:none">Command</a><span style="color:#96a1b2;margin:0 7px">›</span><a href="/rrg_rooms_queue.html" style="color:#2c5c8f;text-decoration:none">Data Rooms</a><span style="color:#96a1b2;margin:0 7px">›</span><a href="/rrg_room.html?room=${esc(r.id)}" style="color:#2c5c8f;text-decoration:none">${esc(r.business || 'Data Room')}</a><span style="color:#96a1b2;margin:0 7px">›</span><span style="color:#20334f;font-weight:700">Preview</span></nav><div id="rrgPrevBar" style="margin-bottom:12px;display:flex;align-items:center;gap:10px;color:#8a5a12;background:#fff4e6;border:1px solid #f3d9a8;border-radius:4px;padding:7px 11px;font-size:11.5px;font-weight:600"><span style="flex:1">Preview — this is exactly what an NDA'd buyer sees. They do not see this bar.</span><a href="#" onclick="var b=document.getElementById('rrgPrevBar');if(b)b.style.display='none';return false;" title="Dismiss this notice" style="flex:none;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;border:1px solid #e2cfa0;border-radius:3px;color:#8a5a12;text-decoration:none;font-weight:700;font-size:14px;line-height:1;background:#fff">×</a></div>`;
-  if (r.srcCimId) body += `<a href="/deal/${esc(r.token)}" style="display:inline-flex;align-items:center;gap:6px;margin-bottom:12px;background:#fff;color:#20334f;border:1px solid #c4ccda;text-decoration:none;font-weight:600;font-size:11.5px;padding:6px 12px;border-radius:3px">← Offering overview</a>`;
+  if (_preview) body += `<nav style="margin-bottom:10px;font-size:12.5px;font-weight:600;color:#5f6a7d;line-height:1.4"><a href="/index.html" style="color:#2c5c8f;text-decoration:none">Command</a><span style="color:#96a1b2;margin:0 7px">›</span><a href="/rrg_rooms_queue.html" style="color:#2c5c8f;text-decoration:none">Data Rooms</a><span style="color:#96a1b2;margin:0 7px">›</span><a href="/rrg_room.html?room=${esc(r.id)}" style="color:#2c5c8f;text-decoration:none">${esc(r.business || 'Data Room')}</a><span style="color:#96a1b2;margin:0 7px">›</span><span style="color:#20334f;font-weight:700">Preview</span></nav><div id="rrgPrevBar" style="margin-bottom:12px;display:flex;align-items:center;gap:10px;color:#8a5a12;background:#fff4e6;border:1px solid #f3d9a8;border-radius:4px;padding:7px 11px;font-size:11.5px;font-weight:600"><span style="flex:1">${grant ? 'Preview — this is what this buyer sees. They do not see this bar.' : 'Preview — all folders, as a buyer with full access would see them. Each buyer only sees the folders you grant them. Buyers do not see this bar.'}</span><a href="#" onclick="var b=document.getElementById('rrgPrevBar');if(b)b.style.display='none';return false;" title="Dismiss this notice" style="flex:none;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;border:1px solid #e2cfa0;border-radius:3px;color:#8a5a12;text-decoration:none;font-weight:700;font-size:14px;line-height:1;background:#fff">×</a></div>`;
+  if (r.srcCimId) body += `<a href="/deal/${esc(r.token)}${_pq}" style="display:inline-flex;align-items:center;gap:6px;margin-bottom:12px;background:#fff;color:#20334f;border:1px solid #c4ccda;text-decoration:none;font-weight:600;font-size:11.5px;padding:6px 12px;border-radius:3px">← Offering overview</a>`;
   body += `<div class="note conf"><span class="lock"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span><div><b>Confidential — provided under NDA.</b> These materials are shared solely so you can evaluate a potential acquisition of ${esc(r.business || 'this business')}. Do not copy, forward, screenshot, print, or distribute them, and do not share this link. All inquiries route exclusively through ${esc(orgDisplayName())}.</div></div>`;
   if (editCats.length) {
     body += `<div class="card"><div class="chd">Add a document</div><div style="padding:14px 20px">` +
@@ -5635,9 +5731,9 @@ function roomPublicPage(r, grant, opts) {
       const canDl = docLevel(d) !== 'view';
       const viewable = roomViewerCanRender(d.ext || '');
       let acts = '';
-      if (viewable) acts += `<a class="dl ghost" href="/roomview/${esc(r.token)}/${esc(d.id)}" target="_blank" rel="noopener">View →</a>`;
-      if (canDl) acts += `<a class="dl" href="/roomfile/${esc(r.token)}/${esc(d.id)}?dl=1" download>Download →</a>`;
-      if (!viewable && !canDl) acts += `<a class="dl" href="/roomview/${esc(r.token)}/${esc(d.id)}" target="_blank" rel="noopener">Open →</a>`;
+      if (viewable) acts += `<a class="dl ghost" href="/roomview/${esc(r.token)}/${esc(d.id)}${_pq}" target="_blank" rel="noopener">View →</a>`;
+      if (canDl) acts += `<a class="dl" href="/roomfile/${esc(r.token)}/${esc(d.id)}${_pq ? _pq + '&dl=1' : '?dl=1'}" download>Download →</a>`;
+      if (!viewable && !canDl) acts += `<a class="dl" href="/roomview/${esc(r.token)}/${esc(d.id)}${_pq}" target="_blank" rel="noopener">Open →</a>`;
       return `<div class="docrow"><span class="ext">${roomFileIcon(d.ext)}</span><div style="flex:1"><div class="dt">${esc(d.title || d.originalName)}</div><div class="dm">${esc(fmtBytes(d.size))}</div></div><span class="acts">${acts}</span></div>`;
     }).join('');
     body += _tops.map(cat => {
@@ -5650,9 +5746,16 @@ function roomPublicPage(r, grant, opts) {
       return `<div class="card" data-fp="${esc(cat)}"><div class="chd folderhd" onclick="rmToggle(this)"><span class="cav">▸</span>${esc(cat)}<span class="n">${total}</span></div><div class="folderbody">${inner}</div></div>`;
     }).join('');
   }
+  // Buyer Q&A: a private thread between THIS buyer and the broker (other buyers' threads are never shown).
+  if (grant) {
+    const mine = (r.qa || []).filter(q => q && q.grantId === grant.id);
+    const msgs = mine.map(q => { const isB = q.from === 'broker'; return `<div style="padding:8px 15px;border-top:1px solid #eef1f5;${isB ? 'background:#f6f8fc' : ''}"><div class="dm" style="margin:0 0 3px;font-weight:700;color:${isB ? 'var(--primary-d)' : 'var(--navy)'}">${isB ? esc(orgDisplayName()) : 'You'}<span style="font-weight:500;color:var(--muted)"> · ${esc(String(q.at || '').slice(0, 10))}</span></div><div style="font-size:12.5px;line-height:1.5;white-space:pre-wrap;word-break:break-word">${esc(q.text || '')}</div></div>`; }).join('');
+    body += `<div class="card"><div class="chd">Questions for ${esc(orgDisplayName())}<span class="n">${mine.length ? mine.length + ' message' + (mine.length === 1 ? '' : 's') : ''}</span></div>${msgs}<div style="padding:11px 15px;border-top:1px solid #eef1f5"><div class="note" style="border:none;padding:0;margin:0 0 8px">Ask about anything in the room. Your question goes privately to your ${esc(orgDisplayName())} representative — other buyers never see it. You'll get an email when they reply.</div><textarea id="qaTxt" rows="3" maxlength="4000" placeholder="Type your question…" style="width:100%;border:1px solid #cfd6e2;border-radius:3px;padding:8px 10px;font:inherit;font-size:12.5px;resize:vertical"></textarea><div style="margin-top:7px;display:flex;align-items:center;gap:10px"><button class="dl" id="qaBtn" style="border:none;cursor:pointer">Send question</button><span id="qaMsg" style="font-size:12px;color:var(--muted)"></span></div></div></div>`;
+  }
   const script = editCats.length ? `<script>(function(){var fi=document.getElementById('bup');if(!fi)return;fi.addEventListener('change',function(){var f=fi.files&&fi.files[0];var m=document.getElementById('bupmsg');if(!f)return;if(f.size>20*1024*1024){m.textContent='That file is over 20 MB.';fi.value='';return;}m.textContent='Uploading '+f.name+'…';var rd=new FileReader();rd.onload=function(){var s=String(rd.result||''),i=s.indexOf(','),b64=(i>=0?s.slice(i+1):s);var cat=(document.getElementById('bupcat')||{}).value||'';fetch(location.pathname.replace(/\/+$/,'')+'/upload',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({filename:f.name,dataB64:b64,category:cat})}).then(function(r){return r.json();}).then(function(j){if(j&&j.ok){m.textContent='Added ✓ — reloading…';setTimeout(function(){location.reload();},700);}else{m.textContent=(j&&j.error)||'Upload failed.';fi.value='';}}).catch(function(){m.textContent='Upload failed.';fi.value='';});};rd.readAsDataURL(f);});})();<\/script>` : '';
+  const _qaJs = grant ? `<script>(function(){var b=document.getElementById('qaBtn'),t=document.getElementById('qaTxt'),m=document.getElementById('qaMsg');if(!b||!t)return;b.addEventListener('click',function(){var v=String(t.value||'').trim();if(!v){m.textContent='Type a question first.';return;}b.disabled=true;m.textContent='Sending…';fetch('/room/'+${JSON.stringify(encodeURIComponent(r.token))}+'/qa',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({text:v})}).then(function(r){return r.json();}).then(function(j){if(j&&j.ok){m.textContent='Sent ✓ — reloading…';setTimeout(function(){location.reload();},600);}else{b.disabled=false;m.textContent=(j&&j.error)||'Could not send.';}}).catch(function(){b.disabled=false;m.textContent='Could not send — try again.';});});})();<\/script>` : '';
   const _toggleJs = `<script>var RT=${JSON.stringify(r.token)};function rmToggle(h){var c=h&&h.parentNode;if(!c)return;c.classList.toggle('open');try{var K='rrgRoomFold_'+RT;var st=JSON.parse(localStorage.getItem(K)||'{}')||{};var p=c.getAttribute('data-fp');if(p){if(c.classList.contains('open'))st[p]=1;else delete st[p];localStorage.setItem(K,JSON.stringify(st));}}catch(e){}}(function(){try{var K='rrgRoomFold_'+RT;var st=JSON.parse(localStorage.getItem(K)||'{}')||{};document.querySelectorAll('[data-fp]').forEach(function(el){if(st[el.getAttribute('data-fp')])el.classList.add('open');});}catch(e){}})();</script>`;
-  return roomShell('RRG Data Room — ' + (r.business || 'Confidential'), { head, body: body + script + _toggleJs });
+  return roomShell('RRG Data Room — ' + (r.business || 'Confidential'), { head, body: body + script + _qaJs + _toggleJs });
 }
 
 // ---- Deal microsite: the CIM rendered as a gated, buyer-facing web page. Served
@@ -5661,7 +5764,7 @@ function micrositePage(r, cim, opts) {
   opts = opts || {};
   const s = (cim && cim.state) || null;
   const org = esc(orgDisplayName());
-  const roomUrl = '/room/' + esc(r.token);
+  const roomUrl = '/room/' + esc(r.token) + (opts.preview ? '?preview=1' : '');
   const cover = (s && s.cover) || {};
   const title = esc((cover.title) || r.business || 'Confidential Opportunity');
   const E = (x) => esc(String(x == null ? '' : x));
@@ -5788,13 +5891,18 @@ function defaultBuyerPipelineId() {
   try { const m = loadPipelineMap(); const pls = loadPipelines(); if (m.buyer && pls.some(function(p){ return p.id === m.buyer; })) return m.buyer; } catch(e){}
   const a = buyerPipelinesAll(); return (a[0] && a[0].id) || '';
 }
-function buyerStagesFor(o) {
+// The buyer pipeline a listing's buyer leads move through: the listing's own choice, else the firm default, else the first.
+function buyerPipelineFor(o) {
   o = o || {};
   const pls = loadPipelines();
   let p = null;
   if (o.buyerPipelineId) p = pls.find(function(x){ return x.id === o.buyerPipelineId; }) || null;
   if (!p) { const did = defaultBuyerPipelineId(); if (did) p = pls.find(function(x){ return x.id === did; }) || null; }
   if (!p) p = buyerPipelinesAll()[0] || null;
+  return p;
+}
+function buyerStagesFor(o) {
+  const p = buyerPipelineFor(o);
   const names = p ? (p.stages||[]).map(function(s){ return String((s&&s.name)||''); }).filter(Boolean) : [];
   if (names.length) return names.map(function(n){ return { k:n, name:n }; });
   return BUYER_STAGES.slice();
@@ -6042,7 +6150,7 @@ function addFileToRoomEx(room, file, opts) {
     if (source && room.docs.some(d => d.source === source && d.originalName === orig)) return { error: 'Already filed from this source.' };
     // duplicate content: skip if an identical file (same hash) is already in the room
     const hash = crypto.createHash('sha256').update(buf).digest('hex');
-    if (room.docs.some(d => d.hash && d.hash === hash)) return { error: 'Duplicate — this exact file is already in the room.' };
+    if (!opts.force && room.docs.some(d => d.hash && d.hash === hash)) return { error: 'Duplicate — this exact file is already in the room.' };   // force: the uploader confirmed a re-upload
     try { if (!fs.existsSync(ROOMS_DIR)) fs.mkdirSync(ROOMS_DIR, { recursive: true }); } catch (e) { return { error: 'Storage folder unavailable on the server.' }; }
     const id = newRoomDocId();
     try { binWrite(path.join(ROOMS_DIR, id + '.' + ext), buf); }
@@ -6267,17 +6375,29 @@ function assignmentView(d, overlay, _opts) {
     stages, lastActivity, createdAt: created,
   };
 }
+// The listing's assigned owner (overlay.owner — the display name picked in the New Listing modal or the
+// Owner field) counts as an owner alongside whoever created the underlying records. The overlay is read
+// once per request (ownsAssignment runs inside list filters).
+function _assignOwnerName(req, d) {
+  try { if (!req._assignOv) req._assignOv = loadAssignOverlay(); const o = req._assignOv[d.key]; return (o && typeof o.owner === 'string') ? o.owner.trim() : ''; } catch (e) { return ''; }
+}
 function ownsAssignment(req, d) {
   if (req.user && isSuper(req.user)) return true;
   const u = req.user && req.user.username;
-  return [d.deal, d.screen, d.quest, d.bov, d.cim, d.map, d.room, d.lease].filter(Boolean).some(r => r.byUser === u);
+  if ([d.deal, d.screen, d.quest, d.bov, d.cim, d.map, d.room, d.lease].filter(Boolean).some(r => r.byUser === u)) return true;
+  const own = _assignOwnerName(req, d);
+  return !!(own && u && permOwnerMatch(req, own));
 }
 // Same ownership test as ownsAssignment, but against an explicit username rather than
 // the caller. Used by the brief so an admin can view another rep's book without
 // isSuper() short-circuiting the filter to "everything".
-function assignmentOwnedBy(d, username) {
+function assignmentOwnedBy(d, username, _ov) {
   if (!username) return false;
-  return [d.deal, d.screen, d.quest, d.bov, d.cim, d.map, d.room, d.lease].filter(Boolean).some(r => r.byUser === username);
+  if ([d.deal, d.screen, d.quest, d.bov, d.cim, d.map, d.room, d.lease].filter(Boolean).some(r => r.byUser === username)) return true;
+  let u = null; try { u = auth.findUser(username); } catch (e) {}
+  const fake = { user: { username: username, name: (u && u.name) || '' } }; if (_ov) fake._assignOv = _ov;
+  const own = _assignOwnerName(fake, d);
+  return !!(own && permOwnerMatch(fake, own));
 }
 // Data-room access, shaped for the deal file: everyone granted access with their
 // tallies, plus the full event log so the UI can drill into what each person did.
@@ -6904,16 +7024,20 @@ function sellerActivitySummary(key, days, label) {
   } catch (e) {}
   const activeBuyers = Array.isArray(o.buyers) ? o.buyers.filter(b => b && !b.lost).length : 0;
   const periodLabel = label || (days === 7 ? 'past week' : ('last ' + days + ' days'));
-  return { key, days, periodLabel, from: new Date(cutoff).toISOString().slice(0, 10), business: view.business || 'your listing', ndas, tours, offers, inquiries, views, downloads, visitors, activeBuyers, total: ndas + tours + offers + inquiries + views + downloads };
+  return { key, days, periodLabel, from: new Date(cutoff).toISOString().slice(0, 10), business: view.business || 'your listing', landlord: view.assignmentType === 'landlord_rep', ndas, tours, offers, inquiries, views, downloads, visitors, activeBuyers, total: ndas + tours + offers + inquiries + views + downloads };
 }
 function sellerActivityEmailHtml(sum, opts) {
   opts = opts || {}; const org = orgDisplayName();
-  const rows = [['Buyer inquiries', sum.inquiries], ['NDAs signed', sum.ndas], ['Property tours', sum.tours], ['Offers received', sum.offers], ['Confidential data-room views', sum.views], ['Documents downloaded', sum.downloads]].filter(r => r[1] > 0);
+  // Landlord-rep listings market SPACE to prospective tenants — not a confidential business sale to buyers.
+  const LL = !!sum.landlord;
+  const rows = (LL
+    ? [['Tenant inquiries', sum.inquiries], ['NDAs signed', sum.ndas], ['Showings', sum.tours], ['LOIs received', sum.offers], ['Data-room views', sum.views], ['Documents downloaded', sum.downloads]]
+    : [['Buyer inquiries', sum.inquiries], ['NDAs signed', sum.ndas], ['Property tours', sum.tours], ['Offers received', sum.offers], ['Confidential data-room views', sum.views], ['Documents downloaded', sum.downloads]]).filter(r => r[1] > 0);
   const periodPhrase = sum.periodLabel || (sum.days === 7 ? 'past week' : ('last ' + sum.days + ' days'));
   const P = 'margin:0 0 14px;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.55;color:#25303f';
   let inner = '';
   inner += '<p style="' + P + '">Hi ' + esc(opts.firstName || 'there') + ',</p>';
-  inner += '<p style="' + P + '">Here’s the marketing activity on <b>' + esc(sum.business) + '</b> over the ' + esc(periodPhrase) + '.</p>';
+  inner += '<p style="' + P + '">Here’s the ' + (LL ? 'leasing' : 'marketing') + ' activity on <b>' + esc(sum.business) + '</b> over the ' + esc(periodPhrase) + '.</p>';
   if (rows.length) {
     inner += '<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;margin:4px 0 12px">';
     rows.forEach(function (r, i) {
@@ -6922,9 +7046,9 @@ function sellerActivityEmailHtml(sum, opts) {
         + '<td align="right" style="padding:11px 0;' + bb + 'font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;font-size:19px;font-weight:800;color:#0b1a38">' + esc(String(r[1])) + '</td></tr>';
     });
     inner += '</table>';
-    if (sum.activeBuyers > 0) inner += '<p style="' + P + 'font-size:13.5px;color:#5a6478">There ' + (sum.activeBuyers === 1 ? 'is' : 'are') + ' <b>' + esc(String(sum.activeBuyers)) + '</b> active buyer' + (sum.activeBuyers === 1 ? '' : 's') + ' in the pipeline on your listing right now.</p>';
+    if (sum.activeBuyers > 0) inner += '<p style="' + P + 'font-size:13.5px;color:#5a6478">There ' + (sum.activeBuyers === 1 ? 'is' : 'are') + ' <b>' + esc(String(sum.activeBuyers)) + '</b> active ' + (LL ? 'prospective tenant' : 'buyer') + (sum.activeBuyers === 1 ? '' : 's') + ' in the pipeline on your ' + (LL ? 'space' : 'listing') + ' right now.</p>';
   } else {
-    inner += '<div style="margin:4px 0 14px;padding:14px 16px;background:#f5f7fb;border:1px solid #e6ebf3;border-radius:9px;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.55;color:#465265">It was a quieter stretch — no new buyer activity to report over the ' + esc(periodPhrase) + '. That happens; I’m continuing to market your business confidentially and work my buyer network.</div>';
+    inner += '<div style="margin:4px 0 14px;padding:14px 16px;background:#f5f7fb;border:1px solid #e6ebf3;border-radius:9px;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.55;color:#465265">It was a quieter stretch — no new ' + (LL ? 'tenant' : 'buyer') + ' activity to report over the ' + esc(periodPhrase) + '. That happens; ' + (LL ? 'I’m continuing to market the space to prospective tenants and tenant-rep brokers.' : 'I’m continuing to market your business confidentially and work my buyer network.') + '</div>';
   }
   inner += '<p style="' + P + '">Happy to talk through any of this — just reply or give me a call.</p>';
   inner += '<p style="' + P + 'margin-bottom:2px">Best,<br><b>' + esc(opts.repName || org) + '</b></p>';
@@ -6932,9 +7056,9 @@ function sellerActivityEmailHtml(sum, opts) {
   let h = '<div style="margin:0;padding:24px 12px;background:#eef1f6;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif">';
   h += '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr><td align="center">';
   h += '<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="width:560px;max-width:560px;background:#ffffff;border:1px solid #e3e7ee;border-radius:12px;overflow:hidden">';
-  h += '<tr><td style="background:#000E31;padding:16px 28px"><span style="color:#ffffff;font-weight:800;font-size:15px;letter-spacing:.02em">' + esc(org) + '</span><span style="color:#9fb0cc;font-size:12px;margin-left:10px">Marketing activity update</span></td></tr>';
+  h += '<tr><td style="background:#000E31;padding:16px 28px"><span style="color:#ffffff;font-weight:800;font-size:15px;letter-spacing:.02em">' + esc(org) + '</span><span style="color:#9fb0cc;font-size:12px;margin-left:10px">' + (LL ? 'Leasing activity update' : 'Marketing activity update') + '</span></td></tr>';
   h += '<tr><td style="padding:24px 28px 6px">' + inner + '</td></tr>';
-  h += '<tr><td style="padding:2px 28px 22px"><div style="border-top:1px solid #eef1f6;padding-top:13px;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;font-size:11px;line-height:1.5;color:#9aa4b5">Your business is marketed <b>confidentially</b> — its name, address, and the identities of interested buyers are never disclosed to the market. Prepared for the owner of ' + esc(sum.business) + ' by ' + esc(org) + '.</div></td></tr>';
+  h += '<tr><td style="padding:2px 28px 22px"><div style="border-top:1px solid #eef1f6;padding-top:13px;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;font-size:11px;line-height:1.5;color:#9aa4b5">' + (LL ? ('Prepared for the landlord of ' + esc(sum.business) + ' by ' + esc(org) + '.') : ('Your business is marketed <b>confidentially</b> — its name, address, and the identities of interested buyers are never disclosed to the market. Prepared for the owner of ' + esc(sum.business) + ' by ' + esc(org) + '.')) + '</div></td></tr>';
   h += '</table></td></tr></table></div>';
   return h;
 }
@@ -6955,10 +7079,10 @@ function sendSellerActivityReport(key, opts) {
   const firstName = String((seller.name || '').split(/\s+/)[0] || 'there');
   const repName = opts.repName || view.owner || orgDisplayName();
   const html = sellerActivityEmailHtml(sum, { firstName, repName });
-  try { sendMailWL({ from: mailFrom(), to: to, subject: 'Marketing activity update — ' + (sum.business || 'your listing'), html: html, text: html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() }); }
+  try { sendMailWL({ from: mailFrom(), to: to, subject: (sum.landlord ? 'Leasing activity update — ' : 'Marketing activity update — ') + (sum.business || 'your listing'), html: html, text: html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() }); }
   catch (e) { return { ok: false, reason: 'send-failed', error: String((e && e.message) || e) }; }
   o.sellerReport = { off: lc.off, lastSentAt: new Date().toISOString() }; overlay[key] = o; saveAssignOverlay(overlay);
-  try { const ppl = loadPeople(); const p = ppl.find(x => x.id === view.clientPersonId); if (p) { logActivity(p, 'Note', 'Marketing activity report sent (' + sum.days + '-day: ' + sum.inquiries + ' inquiries, ' + sum.ndas + ' NDAs, ' + sum.tours + ' tours, ' + sum.offers + ' offers, ' + sum.views + ' room views)', { auto: true, byUser: (opts.byUser || '') }); savePeople(ppl); } } catch (e) {}
+  try { const ppl = loadPeople(); const p = ppl.find(x => x.id === view.clientPersonId); if (p) { logActivity(p, 'Note', (sum.landlord ? 'Leasing' : 'Marketing') + ' activity report sent (' + sum.days + '-day: ' + sum.inquiries + ' inquiries, ' + sum.ndas + ' NDAs, ' + sum.tours + ' tours, ' + sum.offers + ' offers, ' + sum.views + ' room views)', { auto: true, byUser: (opts.byUser || '') }); savePeople(ppl); } } catch (e) {}
   return { ok: true, sent: true, to: to, stats: sum };
 }
 // Hourly worker: on the firm cadence, email each actively-marketed (published) listing's seller.
@@ -7064,7 +7188,7 @@ function captureMarketRequestor(req, o) {
   if (o.company) { try { co = findOrCreateCompany(req, { name: o.company, market: o.market || '', tag: 'Marketplace' }); } catch (e) {} }
   let per = null;
   try {
-    per = findOrCreatePerson(req, { name: name, firstName: o.firstName || '', lastName: o.lastName || '', email: email, phones: o.phone ? [o.phone] : [], company: o.company || '', companyId: (co && co.id) || '', type: 'Buyer', tag: 'Marketplace' });
+    per = findOrCreatePerson(req, { name: name, firstName: o.firstName || '', lastName: o.lastName || '', email: email, phones: o.phone ? [o.phone] : [], company: o.company || '', companyId: (co && co.id) || '', type: 'Buying', tag: 'Marketplace' });
   } catch (e) {}
   if (!per) return { companyId: (co && co.id) || '' };
   try {
@@ -10699,8 +10823,9 @@ app.post('/api/assignment/:key/deal', express.json(), (req, res) => {
   if (typeof b.terms === 'string') t.terms = b.terms.slice(0, 2000);
   if (typeof b.commissionRate === 'string') t.commissionRate = b.commissionRate.slice(0, 40);
   if (typeof b.commissionDue === 'string') t.commissionDue = b.commissionDue.slice(0, 40);
-  if (typeof b.commissionPaid === 'string') t.commissionPaid = b.commissionPaid.slice(0, 40);
-  if (typeof b.commissionStatus === 'string' && TXN_COMM_STATUS.indexOf(b.commissionStatus) >= 0) t.commissionStatus = b.commissionStatus;
+  // Changing the paid figure or status by hand makes it a manual override (invoices then only advance it).
+  if (typeof b.commissionPaid === 'string') { const _cp = b.commissionPaid.slice(0, 40); if (_cp !== (t.commissionPaid || '')) delete t.commissionPaidAuto; t.commissionPaid = _cp; }
+  if (typeof b.commissionStatus === 'string' && TXN_COMM_STATUS.indexOf(b.commissionStatus) >= 0) { if (b.commissionStatus !== (t.commissionStatus || 'Unpaid')) delete t.commissionStatusAuto; t.commissionStatus = b.commissionStatus; }
   if (typeof b.coBrokeRep === 'string') t.coBrokeRep = b.coBrokeRep.slice(0, 80);
   if (b.coBrokeSplit !== undefined) { const _cs = parseInt(b.coBrokeSplit, 10); t.coBrokeSplit = (isFinite(_cs) && _cs >= 0 && _cs <= 100) ? _cs : ''; }
   if (typeof b.referralTo === 'string') t.referralTo = b.referralTo.slice(0, 80);
@@ -10709,7 +10834,9 @@ app.post('/api/assignment/:key/deal', express.json(), (req, res) => {
   if (t.buyer || b.buyerEmail) { const p = findOrCreatePerson(req, { name: t.buyer, email: b.buyerEmail, company: t.buyerCompany, type: 'Buying' }); if (p) t.personId = p.id; }
   cur.transaction = t; cur.updatedAt = new Date().toISOString();
   overlay[d.key] = cur; saveAssignOverlay(overlay);
-  res.json({ ok: true, transaction: t, people: loadPeople().map(personBrief) });
+  syncDealCommissionFromInvoices(d.key);
+  const _ts = ((loadAssignOverlay()[d.key] || {}).transaction) || t;
+  res.json({ ok: true, transaction: _ts, people: loadPeople().map(personBrief) });
 });
 app.delete('/api/assignment/:key/deal', (req, res) => {
   const deals = assignmentsIndex();
@@ -10998,10 +11125,19 @@ setInterval(bbsPollTick, 60 * 1000);
 const GADD_POLL_FILE = path.join(BOV_DATA_DIR, 'gmailadd_poll.json');
 function loadGaddPoll() { try { return rj(GADD_POLL_FILE) || {}; } catch (e) { return {}; } }
 function saveGaddPoll(o) { return writeJsonGuarded(GADD_POLL_FILE, o, 'saveGaddPoll'); }
+// The Gmail label the intake watches. New users default to "Lavano". A saved label is always used as-is
+// (never rewritten). A user who already ran intake before ever saving a label has been watching the old
+// default "FullServe" in Gmail — keep that for them, since switching would need a matching label rename in Gmail.
+// The first scan pins whichever label it used onto the record (same value, so nothing changes for anyone).
+const GADD_DEFAULT_LABEL = 'Lavano', GADD_LEGACY_LABEL = 'FullServe';
+function gaddLabelOf(rec) {
+  rec = rec || {}; const l = String(rec.label || '').trim(); if (l) return l;
+  return (rec.lastRun || rec.lastAttRun || rec.enabled) ? GADD_LEGACY_LABEL : GADD_DEFAULT_LABEL;
+}
 function gaddLabelQuery(label) {
   // Gmail search treats a label with spaces as hyphenated (label:my-label). Sanitize to match.
-  const l = String(label || 'FullServe').trim().replace(/[^A-Za-z0-9 _\/-]/g, '').replace(/\s+/g, '-');
-  return 'label:' + (l || 'FullServe');
+  const l = String(label || GADD_DEFAULT_LABEL).trim().replace(/[^A-Za-z0-9 _\/-]/g, '').replace(/\s+/g, '-');
+  return 'label:' + (l || GADD_DEFAULT_LABEL);
 }
 // Find or create a company by name, filling website/office from parsed signature data.
 function ensureCompanyByName(name, req, extra) {
@@ -11027,6 +11163,7 @@ async function gmailAddPull(username, name, opts) {
   const rep = { user: { name: name || username, username: username } };
   const store = loadGaddPoll(); const rec = store[username] || {};
   const days = opts.all ? 180 : (rec.lastRun ? 30 : 60);
+  rec.label = gaddLabelOf(rec); // pin the label actually watched, so a first run never flips the default later
   const q = gaddLabelQuery(rec.label) + ' newer_than:' + days + 'd';
   let msgs = [];
   try { msgs = await gmail.searchLeadBodies(username, q, 30); } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
@@ -11068,7 +11205,7 @@ async function gmailAddPull(username, name, opts) {
     const person = findOrCreatePerson(rep, {
       firstName: parsed.firstName, lastName: parsed.lastName, name: composeName(parsed.firstName, parsed.lastName),
       email: parsed.email, emails: parsed.email ? [parsed.email] : [], phones: parsed.phone ? [parsed.phone] : [],
-      companyId: co ? co.id : '', company: parsed.companyName || '', type: validInterest || 'Buyer', tag: tag, strict: false,
+      companyId: co ? co.id : '', company: parsed.companyName || '', type: validInterest, tag: tag, strict: false,
     });
     if (!person) { skipped++; continue; }
     const isNew = loadPeople().length > before;
@@ -11096,7 +11233,7 @@ async function gmailAddPull(username, name, opts) {
 app.get('/api/gmail-add/poll', (req, res) => {
   const u = (req.user && req.user.username) || ''; const rec = (loadGaddPoll()[u]) || {};
   const autos = loadAutomations().filter(a => a.active !== false && ((a.scope !== 'private') || a.ownerUser === u || isSuper(req.user))).map(a => ({ id: a.id, name: a.name || '' }));
-  res.json({ ok: true, enabled: !!rec.enabled, intervalMin: rec.intervalMin || 15, label: rec.label || 'FullServe', tag: rec.tag || 'Gmail intake', automationId: rec.automationId || '', reviewMode: (rec.reviewMode !== false), connected: gmail.statusFor(u).connected, configured: gmail.isConfigured(), lastRun: rec.lastRun || '', lastCount: rec.lastCount || 0, automations: autos });
+  res.json({ ok: true, enabled: !!rec.enabled, intervalMin: rec.intervalMin || 15, label: gaddLabelOf(rec), tag: rec.tag || 'Gmail intake', automationId: rec.automationId || '', reviewMode: (rec.reviewMode !== false), connected: gmail.statusFor(u).connected, configured: gmail.isConfigured(), lastRun: rec.lastRun || '', lastCount: rec.lastCount || 0, automations: autos });
 });
 app.post('/api/gmail-add/poll', express.json(), (req, res) => {
   const u = (req.user && req.user.username) || ''; if (!u) return res.status(401).json({ ok: false, error: 'Sign in required.' });
@@ -11104,11 +11241,11 @@ app.post('/api/gmail-add/poll', express.json(), (req, res) => {
   if (typeof b.enabled === 'boolean') rec.enabled = b.enabled;
   if (typeof b.reviewMode === 'boolean') rec.reviewMode = b.reviewMode;
   if (b.intervalMin != null) { const m = parseInt(b.intervalMin, 10); rec.intervalMin = (isFinite(m) && m >= 5) ? Math.min(m, 720) : 15; }
-  if (typeof b.label === 'string') rec.label = b.label.trim().slice(0, 80) || 'FullServe';
+  if (typeof b.label === 'string') rec.label = b.label.trim().slice(0, 80) || gaddLabelOf(Object.assign({}, rec, { label: '' }));
   if (typeof b.tag === 'string') rec.tag = b.tag.trim().slice(0, 60);
   if (typeof b.automationId === 'string') rec.automationId = b.automationId.slice(0, 60);
   store[u] = rec; saveGaddPoll(store);
-  res.json({ ok: true, enabled: !!rec.enabled, intervalMin: rec.intervalMin || 15, label: rec.label || 'FullServe', tag: rec.tag || 'Gmail intake', automationId: rec.automationId || '', reviewMode: (rec.reviewMode !== false) });
+  res.json({ ok: true, enabled: !!rec.enabled, intervalMin: rec.intervalMin || 15, label: gaddLabelOf(rec), tag: rec.tag || 'Gmail intake', automationId: rec.automationId || '', reviewMode: (rec.reviewMode !== false) });
 });
 app.post('/api/gmail-add/run', express.json(), async (req, res) => {
   try {
@@ -11124,7 +11261,7 @@ app.post('/api/gmail-add/run', express.json(), async (req, res) => {
     if (out.ok && out.reviewMode && out.proposed) leadBits.push(out.proposed + ' lead/update' + (out.proposed === 1 ? '' : 's'));
     if (fileProposed) leadBits.push(fileProposed + ' attachment' + (fileProposed === 1 ? '' : 's'));
     if (out.ok && leadBits.length) out.note = leadBits.join(' and ') + ' ready to review on the Review queue.';
-    else if (out.ok && !out.added && !out.updated && !out.proposed && !fileProposed) out.note = out.scanned ? ('Scanned ' + out.scanned + ' labeled email(s)' + (out.fresh === 0 ? ' — all already processed.' : ' — nothing new to propose.')) : ('No emails found with the label “' + ((loadGaddPoll()[u] || {}).label || 'FullServe') + '” — add the label to a few emails in Gmail first.');
+    else if (out.ok && !out.added && !out.updated && !out.proposed && !fileProposed) out.note = out.scanned ? ('Scanned ' + out.scanned + ' labeled email(s)' + (out.fresh === 0 ? ' — all already processed.' : ' — nothing new to propose.')) : ('No emails found with the label “' + gaddLabelOf(loadGaddPoll()[u]) + '” — add the label to a few emails in Gmail first.');
     res.json(out);
   } catch (e) { res.status(502).json({ ok: false, error: String((e && e.message) || e) }); }
 });
@@ -11201,7 +11338,7 @@ function addLeadProposal(username, parsed, source) {
       snippet: String((source && source.snippet) || '').slice(0, 600), date: String((source && source.date) || ''),
     },
     title: title.slice(0, 200), summary: fields.note,
-    fields: fields, confidence: (typeof parsed.confidence === 'number') ? parsed.confidence : null,
+    fields: fields, confidence: (typeof parsed.confidence === 'number') ? parsed.confidence : (parsed.confidence === 'high' ? 0.9 : parsed.confidence === 'low' ? 0.4 : (parsed.confidence === 'medium' ? 0.7 : null)),
     createdAt: new Date().toISOString(),
   };
   arr.unshift(p);
@@ -11323,6 +11460,7 @@ function addFileProposal(username, msg) {
   const suggest = {
     personId: person ? person.id : '', personName: person ? (person.name || person.email || '') : '',
     companyId: person ? (person.companyId || '') : '',
+    companyName: (person && person.companyId) ? (((loadCompanies().find(c => c.id === person.companyId) || {}).name) || person.company || '') : '',
     dealKey: deals.length === 1 ? deals[0].key : '', dealLabel: deals.length === 1 ? (deals[0].business || '') : '',
     deals: deals.map(d => ({ key: d.key, business: d.business || '' })),
   };
@@ -11349,6 +11487,7 @@ async function gmailAttachPull(username, name, opts) {
   if (!gmail.statusFor(username).connected) return { ok: false, error: 'Gmail not connected.' };
   const store = loadGaddPoll(); const rec = store[username] || {};
   const days = opts.all ? 180 : (rec.lastAttRun ? 30 : 60);
+  rec.label = gaddLabelOf(rec);
   const q = gaddLabelQuery(rec.label) + ' has:attachment (filename:pdf OR filename:doc OR filename:docx) newer_than:' + days + 'd';
   let msgs = [];
   try { msgs = await gmail.listLabeledAttachments(username, q, 30); } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
@@ -11375,7 +11514,7 @@ async function applyProposal(p, edits, req) {
     const person = findOrCreatePerson(rep, {
       firstName: f.firstName, lastName: f.lastName, name: composeName(f.firstName, f.lastName),
       email: f.email, emails: f.email ? [f.email] : [], phones: f.phone ? [f.phone] : [],
-      companyId: co ? co.id : '', company: f.companyName || '', type: validInterest || 'Buyer',
+      companyId: co ? co.id : '', company: f.companyName || '', type: validInterest,
       tag: 'Inbox review', strict: false,
     });
     if (!person) return { ok: false, error: 'Could not create the contact (no name or email).' };
@@ -11453,7 +11592,7 @@ async function applyProposal(p, edits, req) {
     let _co = '', _pe = '', _dk = '', rt = '', rname = '';
     if (ttype === 'deal') { _dk = String(target.dealKey || sug.dealKey || ''); rt = _dk ? 'listing' : ''; rname = String(target.dealLabel || sug.dealLabel || ''); }
     else if (ttype === 'contact') { _pe = String(target.personId || sug.personId || ''); rt = _pe ? 'contact' : ''; rname = sug.personName || ''; }
-    else if (ttype === 'company') { _co = String(target.companyId || sug.companyId || ''); rt = _co ? 'company' : ''; }
+    else if (ttype === 'company') { _co = String(target.companyId || sug.companyId || ''); rt = _co ? 'company' : ''; rname = _co ? (((loadCompanies().find(c => c.id === _co) || {}).name) || sug.companyName || '') : ''; }
     // Overridden docType per attachment, if the rep edited it.
     const dtMap = (edits && edits.docTypes && typeof edits.docTypes === 'object') ? edits.docTypes : {};
     try { if (!fs.existsSync(USERDOCS_DIR)) fs.mkdirSync(USERDOCS_DIR, { recursive: true }); } catch (e) {}
@@ -11493,7 +11632,7 @@ app.get('/api/inbox', (req, res) => {
   const recent = all.filter(p => p.status !== 'pending').slice(0, 30).map(proposalBrief);
   const rec = (loadGaddPoll()[me]) || {};
   res.json({ ok: true, pending: pending, recent: recent, pendingCount: pending.length,
-    reviewMode: (rec.reviewMode !== false), intakeEnabled: !!rec.enabled, label: rec.label || 'FullServe',
+    reviewMode: (rec.reviewMode !== false), intakeEnabled: !!rec.enabled, label: gaddLabelOf(rec),
     connected: gmail.statusFor(me).connected, types: effPersonTypes() });
 });
 app.post('/api/inbox/:id/confirm', express.json(), async (req, res) => {
@@ -11683,9 +11822,24 @@ function enrollPerson(p, plan, opts) {
   p.enrollments.push(en);
   return en;
 }
+// "Me" for an automation's {{my_name}} / {{my_email}} / {{my_phone}} tokens: the rep who enrolled the contact, else the
+// listing's rep (for a deal-linked run), else the contact's record owner; any blank field falls back to the firm's sender identity.
+function automationMeUser(p, en) {
+  let u = null;
+  try {
+    const users = auth.loadUsers() || []; const _by = function (un) { un = String(un || ''); return (un && un !== 'automation' && un !== 'system') ? (users.find(function (x) { return x.username === un && !x.disabled; }) || null) : null; };
+    u = _by(en && en.enrolledByUser);
+    if (!u && en && en.dealKey) { try { const d = assignmentsIndex()[en.dealKey]; const _a = d && (d.deal || d.screen || d.quest || d.bov || d.cim || d.map || d.lease || d.room); if (_a) u = _by(_a.byUser); } catch (e) {} }
+    if (!u && p) u = _by(p.byUser);
+  } catch (e) { u = null; }
+  let org = {}; try { org = effOrg(); } catch (e) {}
+  let fromAddr = ''; try { fromAddr = _fromAddr(); } catch (e) {}
+  return { username: (u && u.username) || '', name: (u && u.name) || orgDisplayName(), title: (u && u.title) || '', email: (u && u.email) || org.email || fromAddr || '', phone: (u && u.phone) || org.phone || '' };
+}
 async function runAutomationStep(p, en, step) {
-  if (step.type === 'dialog') { try { queueFlashDialog(en.enrolledByUser || en.enrolledBy || '', mergeTokens(step.dialogTitle || '', p), mergeTokens(step.dialogBody || '', p), p, en); return 'dialog queued for ' + (en.enrolledByUser || 'rep'); } catch (e) { return 'dialog error: ' + (e && e.message); } }
-  if (step.type === 'logactivity') { try { logActivity(p, (step.actType || 'Note'), mergeTokens(step.actNote || '', p) || 'Logged by automation', { auto: true, by: 'Automation' }); return 'activity logged'; } catch (e) { return 'activity error: ' + (e && e.message); } }
+  const _me = automationMeUser(p, en);
+  if (step.type === 'dialog') { try { queueFlashDialog(en.enrolledByUser || en.enrolledBy || '', mergeTokens(step.dialogTitle || '', p, _me), mergeTokens(step.dialogBody || '', p, _me), p, en); return 'dialog queued for ' + (en.enrolledByUser || 'rep'); } catch (e) { return 'dialog error: ' + (e && e.message); } }
+  if (step.type === 'logactivity') { try { logActivity(p, (step.actType || 'Note'), mergeTokens(step.actNote || '', p, _me) || 'Logged by automation', { auto: true, by: 'Automation' }); return 'activity logged'; } catch (e) { return 'activity error: ' + (e && e.message); } }
   if (step.type === 'assignment') { if (!en.dealKey) return 'skipped: no linked assignment'; try { const ov = loadAssignOverlay(); const cur = ov[en.dealKey] || {}; if (step.setStatus && ASSIGN_STATUSES.indexOf(normAssignStatus(step.setStatus)) >= 0) cur.status = normAssignStatus(step.setStatus); if (step.advanceStage && ['outreach','agreed','offers','dd','closing'].indexOf(step.advanceStage) >= 0) { cur.stageFlags = cur.stageFlags || {}; cur.stageFlags[step.advanceStage] = true; } if (step.markLive && !cur.listingStart) cur.listingStart = new Date().toISOString().slice(0, 10); cur.updatedAt = new Date().toISOString(); ov[en.dealKey] = cur; saveAssignOverlay(ov); logActivity(p, 'Note', 'Automation updated the linked assignment', { auto: true, by: 'Automation' }); return 'assignment updated'; } catch (e) { return 'assignment error: ' + (e && e.message); } }
   if (step.type === 'pipeline') {
     if (!en.dealKey) return 'skipped: no linked listing';
@@ -11709,32 +11863,32 @@ async function runAutomationStep(p, en, step) {
       let ph = ''; try { const _u = auth.loadUsers().find(function (u) { return u.username === en.enrolledByUser; }); ph = _u && _u.phone ? _u.phone : ''; } catch (e) {}
       if (!ph) return 'skipped: rep has no mobile number for text';
       const _lnk = String(process.env.APP_URL || '').replace(/\/+$/, '') + '/rrg_person.html?id=' + encodeURIComponent(p.id);
-      const smsBody = (mergeTokens(step.message, p) + ' — ' + (p.name || 'a contact') + (p.company ? (' (' + p.company + ')') : '') + ' ' + _lnk).slice(0, 600);
+      const smsBody = (mergeTokens(step.message, p, _me) + ' — ' + (p.name || 'a contact') + (p.company ? (' (' + p.company + ')') : '') + ' ' + _lnk).slice(0, 600);
       try { await sendSms(ph, smsBody); logActivity(p, 'Note', 'Automation text notification sent to rep', { auto: true, by: 'Automation' }); return 'notification texted to ' + ph; } catch (e) { return 'notify text error: ' + (e && e.message); }
     }
     const to = (step.notifyEmail && step.notifyEmail.trim()) || en.replyTo || mailFrom();
     if (!to) return 'skipped: no notify recipient';
     if (!isEmailConfigured()) return 'skipped: email not configured';
     const link = String(process.env.APP_URL || '').replace(/\/$/, '') + '/rrg_person.html?id=' + encodeURIComponent(p.id);
-    const text = mergeTokens(step.message, p) + '\n\nContact: ' + (p.name || '') + (p.company ? (' (' + p.company + ')') : '') + (p.email ? ('\n' + p.email) : '') + (link ? ('\n' + link) : '') + '\n\n\u2014 ' + orgDisplayName() + ' automation (' + (en.automationName || '') + ')';
+    const text = mergeTokens(step.message, p, _me) + '\n\nContact: ' + (p.name || '') + (p.company ? (' (' + p.company + ')') : '') + (p.email ? ('\n' + p.email) : '') + (link ? ('\n' + link) : '') + '\n\n\u2014 ' + orgDisplayName() + ' automation (' + (en.automationName || '') + ')';
     try { await sendNotifyMail(to, 'Automation follow-up: ' + (p.name || 'a contact'), text); logActivity(p, 'Note', 'Automation notification sent to ' + to, { auto: true, by: 'Automation' }); return 'notification sent to ' + to; }
     catch (e) { return 'notify error: ' + (e && e.message); }
   }
   if (step.type === 'task') {
     try {
       const tasks = loadTasks(); const now = new Date().toISOString();
-      tasks.push({ id: newTaskId(), title: mergeTokens(step.taskTitle, p).slice(0, 300), notes: mergeTokens(step.taskNote || '', p).slice(0, 2000), assignee: en.enrolledByUser || '', assigneeName: en.enrolledBy || '', due: now.slice(0, 10), reminder: now.slice(0, 10), priority: 'Normal', status: 'open', linkType: 'contact', linkId: p.id, linkLabel: p.name || '', createdBy: 'automation', createdByName: 'Automation (' + (en.automationName || '') + ')', createdAt: now, updatedAt: now });
+      tasks.push({ id: newTaskId(), title: mergeTokens(step.taskTitle, p, _me).slice(0, 300), notes: mergeTokens(step.taskNote || '', p, _me).slice(0, 2000), assignee: en.enrolledByUser || '', assigneeName: en.enrolledBy || '', due: now.slice(0, 10), reminder: now.slice(0, 10), priority: 'Normal', status: 'open', linkType: 'contact', linkId: p.id, linkLabel: p.name || '', createdBy: 'automation', createdByName: 'Automation (' + (en.automationName || '') + ')', createdAt: now, updatedAt: now });
       saveTasks(tasks);
-      logActivity(p, 'To-Do', 'Automation created a task: ' + mergeTokens(step.taskTitle, p), { auto: true, by: 'Automation' });
+      logActivity(p, 'To-Do', 'Automation created a task: ' + mergeTokens(step.taskTitle, p, _me), { auto: true, by: 'Automation' });
       return 'task created';
     } catch (e) { return 'task error: ' + (e && e.message); }
   }
   if (step.type === 'createcontact') {
     try {
-      const _nm = mergeTokens(step.cName || '', p).replace(/\s+/g, ' ').trim();
+      const _nm = mergeTokens(step.cName || '', p, _me).replace(/\s+/g, ' ').trim();
       if (!_nm) return 'skipped: no contact name';
       const _now = new Date().toISOString();
-      const _coName = mergeTokens(step.cCompany || '', p).replace(/\s+/g, ' ').trim().slice(0, 160);
+      const _coName = mergeTokens(step.cCompany || '', p, _me).replace(/\s+/g, ' ').trim().slice(0, 160);
       let _companyId = '', _companyNm = '';
       if (_coName) {
         const _cos = loadCompanies();
@@ -11742,9 +11896,9 @@ async function runAutomationStep(p, en, step) {
         if (!_co) { _co = { id: newCompanyId(), name: _coName, type: '', concepts: [], createdAt: _now, by: 'Automation (' + (en.automationName || '') + ')', byUser: 'automation' }; _cos.push(_co); saveCompanies(_cos); }
         _companyId = _co.id; _companyNm = _co.name;
       }
-      const _email = mergeTokens(step.cEmail || '', p).trim().slice(0, 160);
-      const _phone = mergeTokens(step.cPhone || '', p).trim().slice(0, 60);
-      const _notes = mergeTokens(step.cNotes || '', p).slice(0, 2000);
+      const _email = mergeTokens(step.cEmail || '', p, _me).trim().slice(0, 160);
+      const _phone = mergeTokens(step.cPhone || '', p, _me).trim().slice(0, 60);
+      const _notes = mergeTokens(step.cNotes || '', p, _me).slice(0, 2000);
       const _parts = _nm.split(' ');
       const _np = { id: newPersonId(), name: _nm.slice(0, 160), firstName: (_parts[0] || _nm).slice(0, 80), lastName: _parts.slice(1).join(' ').slice(0, 80), company: _companyNm, companyId: _companyId, emails: _email ? [_email] : [], phones: _phone ? [_phone] : [], type: 'Other', notes: _notes, referredById: p.id, referredBy: p.name || '', leadSource: 'Referral', createdAt: _now, updatedAt: _now, by: 'Automation (' + (en.automationName || '') + ')', byUser: 'automation' };
       const _ppl = loadPeople(); _ppl.push(_np); savePeople(_ppl);
@@ -11756,15 +11910,15 @@ async function runAutomationStep(p, en, step) {
   const to = preferredEmailOf(p);
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return 'skipped: no valid email';
   if (isEmailUnsubscribed(to)) return 'skipped: recipient unsubscribed';
-  const subject = mergeTokens(step.subject, p).slice(0, 300) || '(no subject)';
-  const body = mergeTokens(step.body, p).slice(0, 20000);
+  const subject = mergeTokens(step.subject, p, _me).slice(0, 300) || '(no subject)';
+  const body = mergeTokens(step.body, p, _me).slice(0, 20000);
   const tok = newOpenToken();
   const origin = String(process.env.APP_URL || '').replace(/\/$/, '');
   try {
     await sendMailWL({ from: mailFrom(), to: to, subject: subject, text: (_bodyLooksHtml(body) ? htmlToText(body) : body), html: trackedEmailHtml(body, origin, tok), replyTo: en.replyTo || undefined });
     const now = new Date().toISOString();
     p.emailLog = Array.isArray(p.emailLog) ? p.emailLog : [];
-    p.emailLog.unshift({ id: 'eml_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), to: to, subject: subject, body: body.slice(0, 6000), sentAt: now, by: 'Automation (' + (en.automationName || '') + ')', byUser: 'automation', openToken: tok, opens: 0, senderIp: '', via: 'automation' });
+    p.emailLog.unshift({ id: 'eml_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), to: to, subject: subject, body: body.slice(0, 6000), sentAt: now, by: 'Automation (' + (en.automationName || '') + ')', byUser: 'automation', triggeredBy: en.enrolledByUser || '', openToken: tok, opens: 0, senderIp: '', via: 'automation' });
     p.emailLog = p.emailLog.slice(0, 100);
     logActivity(p, 'Email', subject, { auto: true, by: 'Automation' });
     p.lastContacted = now.slice(0, 10);
@@ -11782,7 +11936,11 @@ async function automationTick() {
       for (const en of ens) {
         if (en.status !== 'active') continue;
         const plan = byId[en.automationId];
-        if (!plan || !Array.isArray(plan.steps) || !plan.steps.length) continue;
+        if (!plan) continue;
+        // Steps were removed from the automation after this contact enrolled: the step it was waiting on no
+        // longer exists, so finish the enrollment instead of leaving it "active" forever.
+        const _nSteps = Array.isArray(plan.steps) ? plan.steps.length : 0;
+        if (!((parseInt(en.stepIndex, 10) || 0) < _nSteps)) { en.history = Array.isArray(en.history) ? en.history : []; en.history.push({ stepIndex: en.stepIndex, at: new Date().toISOString(), type: '', result: 'completed: the automation no longer has this step' }); if (en.history.length > 100) en.history = en.history.slice(-100); en.status = 'done'; en.nextAt = ''; ch = true; continue; }
         let guard = 0;
         while (en.status === 'active' && en.stepIndex < plan.steps.length && en.nextAt && Date.parse(en.nextAt) <= now && guard < 30) {
           guard++;
@@ -12854,6 +13012,10 @@ function _invTaxRate(x){ const r = Number(x && x.taxRate || 0); return (isFinite
 function _invSubtotal(x){ const items = Array.isArray(x.lineItems) ? x.lineItems : []; return _glR2(items.reduce((s, li) => s + _expNum(li.amount), 0)); }
 function _invTaxAmt(x){ return _glR2(_invSubtotal(x) * _invTaxRate(x) / 100); }
 function _invGrandTotal(x){ return _glR2(_invSubtotal(x) + _invTaxAmt(x)); }
+// Is the invoice on the books? Sent invoices are. A payment can only be taken against an issued invoice, so a
+// Draft that already carries a payment (records saved before payments started issuing their Draft) counts as
+// issued too — otherwise its payment would clear A/R that was never charged. Void never is.
+function _invIssued(x) { if (!x || x.status === 'Void') return false; if (x.status === 'Sent') return true; return (x.payments || []).some(p => _expNum(p.amount) > 0); }
 function invoiceBrief(x, user, opts) {
   opts = opts || {};
   const items = Array.isArray(x.lineItems) ? x.lineItems : [];
@@ -12880,6 +13042,32 @@ function dealInvoiceRollup(key, user) {
   return { items: rows, billed: billed, collected: collected, outstanding: billed - collected, count: rows.length, statuses: INVOICE_STATUSES, methods: paymentMethods() };
 }
 function _invCanEdit(x, u) { return !!(x.ownerUser === u.username || isSuper(u)); }
+// Keep a deal's commission status and "commission paid" figure in step with the invoices billed against it:
+// Invoiced once an invoice is issued, Partial when part of the commission is collected, Paid when collections
+// (pre-tax) cover the commission due. A status or paid figure typed on the deal by hand is a manual override
+// that invoices can only advance, never lower; values written here are flagged *Auto and follow the invoices
+// both ways (a payment removed, an invoice voided or deleted).
+const _COMM_RANK = { Unpaid: 0, Invoiced: 1, Partial: 2, Paid: 3 };
+function syncDealCommissionFromInvoices(listingKey) {
+  if (!listingKey) return;
+  try {
+    const ov = loadAssignOverlay(); const cur = ov[listingKey]; const t = cur && cur.transaction; if (!t || typeof t !== 'object') return;
+    const inv = loadInvoices().filter(x => x.listingKey === listingKey && _invIssued(x));
+    let billed = 0, collected = 0;
+    inv.forEach(x => { const sub = _invSubtotal(x), tot = _invGrandTotal(x); const paid = (x.payments || []).reduce((s2, p) => s2 + _expNum(p.amount), 0); billed += sub; if (tot > 0) collected += Math.min(sub, paid * sub / tot); });
+    billed = _glR2(billed); collected = _glR2(collected);
+    const due = _moneyNum(t.commissionDue) > 0 ? _moneyNum(t.commissionDue) : billed;
+    const want = !inv.length ? '' : ((collected > 0 && collected >= due - 0.005) ? 'Paid' : (collected > 0 ? 'Partial' : 'Invoiced'));
+    const before = JSON.stringify(t);
+    const curS = TXN_COMM_STATUS.indexOf(t.commissionStatus) >= 0 ? t.commissionStatus : 'Unpaid';
+    if (want) { if (t.commissionStatusAuto || _COMM_RANK[want] > _COMM_RANK[curS]) { t.commissionStatus = want; t.commissionStatusAuto = true; } }
+    else if (t.commissionStatusAuto) { t.commissionStatus = 'Unpaid'; delete t.commissionStatusAuto; }
+    if (inv.length && (t.commissionPaidAuto || (collected > 0 && _moneyNum(t.commissionPaid) < collected))) { t.commissionPaid = collected > 0 ? ('$' + collected.toLocaleString('en-US', { maximumFractionDigits: 2 })) : ''; t.commissionPaidAuto = true; }
+    else if (!inv.length && t.commissionPaidAuto) { t.commissionPaid = ''; delete t.commissionPaidAuto; }
+    if (JSON.stringify(t) === before) return;
+    t.updatedAt = new Date().toISOString(); cur.updatedAt = t.updatedAt; ov[listingKey] = cur; saveAssignOverlay(ov);
+  } catch (e) { console.error('syncDealCommissionFromInvoices:', e && e.message); }
+}
 // ---- Recurring invoices ----
 const INVOICE_RECUR_FREQS = ['weekly', 'biweekly', 'monthly', 'quarterly', 'yearly'];
 function _invFmtISO(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
@@ -12899,18 +13087,18 @@ function _invDueFrom(inv, issue) { if (!inv.dueDate || !inv.issueDate) return ''
 // a normal Sent invoice (copy of the template's line items) tied back to the series via seriesId.
 function generateDueRecurringInvoices() {
   let all; try { all = loadInvoices(); } catch (e) { return 0; }
-  const today = _invFmtISO(new Date()); let changed = false, made = 0;
+  const today = _invFmtISO(new Date()); let changed = false, made = 0; const synced = {};
   all.slice().forEach(inv => {
     const rc = inv.recur; if (!rc || rc.active === false || INVOICE_RECUR_FREQS.indexOf(rc.freq) < 0 || !rc.nextDate) return;
     let guard = 0;
     while (String(rc.nextDate) <= today && guard < 120) {
       guard++;
       const child = { id: newInvoiceId(), number: nextInvoiceNumber(all), listingKey: inv.listingKey || '', listingLabel: inv.listingLabel || '', billTo: inv.billTo || '', billToEmail: inv.billToEmail || '', issueDate: rc.nextDate, dueDate: _invDueFrom(inv, rc.nextDate), status: 'Sent', lineItems: (inv.lineItems || []).map(li => ({ desc: li.desc || '', qty: (li.qty != null ? li.qty : ''), rate: (li.rate != null ? li.rate : ''), amount: _expNum(li.amount), account: li.account || '' })), taxRate: inv.taxRate || 0, taxLabel: inv.taxLabel || '', payments: [], notes: inv.notes || '', terms: inv.terms || '', ownerUser: inv.ownerUser || '', ownerName: inv.ownerName || '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), seriesId: inv.seriesId || inv.id };
-      all.push(child); made++; changed = true;
+      all.push(child); made++; changed = true; if (child.listingKey) synced[child.listingKey] = 1;
       rc.nextDate = _invAdvanceDate(rc.nextDate, rc.freq); rc.count = (rc.count || 0) + 1; rc.lastGenerated = child.issueDate;
     }
   });
-  if (changed) saveInvoices(all);
+  if (changed) { saveInvoices(all); Object.keys(synced).forEach(syncDealCommissionFromInvoices); }
   return made;
 }
 setTimeout(() => { try { generateDueRecurringInvoices(); } catch (e) {} }, 20000);
@@ -12935,6 +13123,7 @@ app.post('/api/invoices', express.json({ limit: '512kb' }), (req, res) => {
   if (b.id) { x = all.find(e => e.id === b.id); if (!x) return res.status(404).json({ ok: false, error: 'Invoice not found.' });
     if (!_invCanEdit(x, u)) return res.status(403).json({ ok: false, error: 'You can only edit your own invoices.' }); }
   else { x = { id: newInvoiceId(), number: nextInvoiceNumber(all), payments: [], ownerUser: u.username || '', ownerName: u.name || '', createdAt: new Date().toISOString() }; all.push(x); }
+  const prevListingKey = x.listingKey || '';
   if (b.listingKey !== undefined) x.listingKey = String(b.listingKey || '').slice(0, 80);
   if (b.listingLabel !== undefined) x.listingLabel = String(b.listingLabel || '').slice(0, 160);
   if (b.billTo !== undefined) x.billTo = String(b.billTo || '').slice(0, 160);
@@ -12956,25 +13145,17 @@ app.post('/api/invoices', express.json({ limit: '512kb' }), (req, res) => {
   }
   ensurePayToken(x);
   if (_invTaxRate(x) > 0) ensureTaxPayableAccount();
-  // When a NEW invoice is billed against a listing's deal, advance that deal's commission lifecycle to "Invoiced".
-  try {
-    if (!b.id && x.listingKey) {
-      const ov = loadAssignOverlay(); const cur = ov[x.listingKey];
-      if (cur && cur.transaction && (!cur.transaction.commissionStatus || cur.transaction.commissionStatus === 'Unpaid')) {
-        cur.transaction.commissionStatus = 'Invoiced';
-        cur.transaction.updatedAt = new Date().toISOString(); cur.updatedAt = new Date().toISOString();
-        ov[x.listingKey] = cur; saveAssignOverlay(ov);
-      }
-    }
-  } catch (e) {}
   x.updatedAt = new Date().toISOString(); saveInvoices(all);
+  // The deal's commission status follows its invoices (Invoiced / Partial / Paid) — re-derive it for the deal
+  // this invoice is on, and for the one it was moved off.
+  syncDealCommissionFromInvoices(x.listingKey); if (prevListingKey && prevListingKey !== x.listingKey) syncDealCommissionFromInvoices(prevListingKey);
   res.json({ ok: true, invoice: invoiceBrief(x, u, { full: true }) });
 });
 app.delete('/api/invoices/:id', (req, res) => {
   const u = req.user || {}; let all = loadInvoices(); const x = all.find(e => e.id === req.params.id);
   if (!x) return res.status(404).json({ ok: false, error: 'Not found.' });
   if (!_invCanEdit(x, u)) return res.status(403).json({ ok: false, error: 'You can only delete your own invoices.' });
-  all = all.filter(e => e.id !== req.params.id); saveInvoices(all);
+  all = all.filter(e => e.id !== req.params.id); saveInvoices(all); syncDealCommissionFromInvoices(x.listingKey);
   res.json({ ok: true });
 });
 app.post('/api/invoices/:id/payment', express.json({ limit: '128kb' }), (req, res) => {
@@ -12983,16 +13164,21 @@ app.post('/api/invoices/:id/payment', express.json({ limit: '128kb' }), (req, re
   if (!_invCanEdit(x, u)) return res.status(403).json({ ok: false, error: 'Not yours.' });
   const amt = _expNum(b.amount); if (!(amt > 0)) return res.status(400).json({ ok: false, error: 'Enter a payment amount.' });
   if (!Array.isArray(x.payments)) x.payments = [];
-  x.payments.push({ id: newPaymentId(), date: String(b.date || '').slice(0, 10), amount: amt, method: String(b.method || '').slice(0, 40), reference: String(b.reference || '').slice(0, 120), notes: String(b.notes || '').slice(0, 600), createdAt: new Date().toISOString() });
-  x.updatedAt = new Date().toISOString(); saveInvoices(all);
-  res.json({ ok: true, invoice: invoiceBrief(x, u, { full: true }) });
+  const payDate = String(b.date || '').slice(0, 10);
+  x.payments.push({ id: newPaymentId(), date: payDate, amount: amt, method: String(b.method || '').slice(0, 40), reference: String(b.reference || '').slice(0, 120), notes: String(b.notes || '').slice(0, 600), createdAt: new Date().toISOString() });
+  // A payment means the invoice was issued: a Draft becomes Sent (as an online payment already does), so the
+  // ledger charges A/R before the payment clears it and the P&L counts the revenue.
+  let issued = false;
+  if (x.status !== 'Sent' && x.status !== 'Void') { x.status = 'Sent'; issued = true; if (!x.issueDate) x.issueDate = payDate || _invFmtISO(new Date()); }
+  x.updatedAt = new Date().toISOString(); saveInvoices(all); syncDealCommissionFromInvoices(x.listingKey);
+  res.json({ ok: true, issued: issued, invoice: invoiceBrief(x, u, { full: true }) });
 });
 app.delete('/api/invoices/:id/payment/:pid', (req, res) => {
   const u = req.user || {}; const all = loadInvoices(); const x = all.find(e => e.id === req.params.id);
   if (!x) return res.status(404).json({ ok: false, error: 'Invoice not found.' });
   if (!_invCanEdit(x, u)) return res.status(403).json({ ok: false, error: 'Not yours.' });
   x.payments = (x.payments || []).filter(p => p.id !== req.params.pid);
-  x.updatedAt = new Date().toISOString(); saveInvoices(all);
+  x.updatedAt = new Date().toISOString(); saveInvoices(all); syncDealCommissionFromInvoices(x.listingKey);
   res.json({ ok: true, invoice: invoiceBrief(x, u, { full: true }) });
 });
 // Accounting basis — accrual (revenue when invoiced) vs cash (revenue when collected).
@@ -13087,7 +13273,7 @@ async function _recordStripePayment(sess) {
     if (fee > 0) ensureStripeFeeAccount();
     x.payments.push({ id: newPaymentId(), date: new Date().toISOString().slice(0, 10), amount: amt, fee: fee, method: 'Online (Stripe)', reference: ref, notes: 'Paid online via Stripe' + (fee > 0 ? (' \u2014 processing fee $' + fee.toFixed(2)) : ''), createdAt: new Date().toISOString() });
     if (x.status === 'Draft') x.status = 'Sent';
-    x.updatedAt = new Date().toISOString(); saveInvoices(all);
+    x.updatedAt = new Date().toISOString(); saveInvoices(all); syncDealCommissionFromInvoices(x.listingKey);
   } catch (e) { console.error('record stripe payment:', e && e.message); }
 }
 app.get('/api/admin/stripe', (req, res) => {
@@ -13952,10 +14138,12 @@ app.get('/api/payments', (req, res) => {
   const u = req.user || {}; const admin = isSuper(u); const all = loadInvoices();
   const vis = all.filter(x => admin || x.ownerUser === u.username);
   const rows = [];
-  vis.forEach(x => { (x.payments || []).forEach(p => { rows.push({ id: p.id, invoiceId: x.id, number: x.number || '', listingKey: x.listingKey || '', listingLabel: x.listingLabel || '', billTo: x.billTo || '', date: p.date || '', amount: _expNum(p.amount), method: p.method || '', reference: p.reference || '', ownerName: x.ownerName || '', mine: !!(u && (x.ownerUser === u.username || admin)) }); }); });
+  vis.forEach(x => { (x.payments || []).forEach(p => { rows.push({ id: p.id, invoiceId: x.id, number: x.number || '', listingKey: x.listingKey || '', listingLabel: x.listingLabel || '', billTo: x.billTo || '', date: p.date || '', amount: _expNum(p.amount), method: p.method || '', reference: p.reference || '', voided: x.status === 'Void', ownerName: x.ownerName || '', mine: !!(u && (x.ownerUser === u.username || admin)) }); }); });
   rows.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
-  const total = rows.reduce((s2, p) => s2 + _expNum(p.amount), 0);
-  res.json({ ok: true, isAdmin: !!admin, methods: paymentMethods(), total: total, payments: rows });
+  // Payments on a voided invoice are reversed with it (the ledger drops them) — list them, but don't count them as collected.
+  const total = rows.reduce((s2, p) => s2 + (p.voided ? 0 : _expNum(p.amount)), 0);
+  const voidedTotal = rows.reduce((s2, p) => s2 + (p.voided ? _expNum(p.amount) : 0), 0);
+  res.json({ ok: true, isAdmin: !!admin, methods: paymentMethods(), total: total, voidedTotal: voidedTotal, payments: rows });
 });
 
 // ===== General Ledger (simple double-entry) =====
@@ -13979,7 +14167,10 @@ function _glDefaultAccounts() {
   (EXPENSE_CATEGORIES || []).forEach((cat, i) => base.push({ code: String(5000 + i * 10), name: cat, type: 'Expense', cat: cat }));
   return base;
 }
-function loadGlAccounts() { let a; try { a = rj(GL_ACCOUNTS_FILE); } catch (e) { a = null; } if (!Array.isArray(a)) { a = _glDefaultAccounts(); try { writeJsonGuarded(GL_ACCOUNTS_FILE, a, 'seedGlAccounts'); } catch (e) {} } return a; }
+function loadGlAccounts() { let a; try { a = rj(GL_ACCOUNTS_FILE); } catch (e) { a = null; } if (!Array.isArray(a)) { a = _glDefaultAccounts(); try { writeJsonGuarded(GL_ACCOUNTS_FILE, a, 'seedGlAccounts'); } catch (e) {} }
+  // A chart emptied by the old "Delete everything" has nowhere for auto-posted entries to land — re-seed the system accounts.
+  else if (!a.length) { a = _glSystemAccounts([]); try { writeJsonGuarded(GL_ACCOUNTS_FILE, a, 'seedGlAccounts'); } catch (e) {} }
+  return a; }
 function saveGlAccounts(a) { return writeJsonGuarded(GL_ACCOUNTS_FILE, a, 'saveGlAccounts'); }
 function loadGlJournal() { try { return rj(GL_JOURNAL_FILE) || []; } catch (e) { return []; } }
 function saveGlJournal(a) { return writeJsonGuarded(GL_JOURNAL_FILE, a, 'saveGlJournal'); }
@@ -13996,7 +14187,7 @@ function glAutoEntries(accounts) {
       const taxAmt = _invTaxAmt(x);
       const grand = _glR2(subtotal + taxAmt);
       const label = x.billTo || x.listingLabel || '';
-      if (x.status === 'Sent' && grand > 0) {
+      if (_invIssued(x) && grand > 0) {
         // Debit A/R for the full invoice; credit each line to its Income account (default 4000);
         // sales tax collected is a liability (Sales Tax Payable), not income.
         const _valid = new Set(accounts.map(a => a.code));
@@ -14005,7 +14196,7 @@ function glAutoEntries(accounts) {
         const _lines = [{ account: '1100', debit: grand, credit: 0 }];
         Object.keys(_cr).forEach(acct => _lines.push({ account: acct, debit: 0, credit: _cr[acct] }));
         if (taxAmt > 0) _lines.push({ account: GL_TAX_PAYABLE_CODE, debit: 0, credit: taxAmt });
-        out.push({ id: 'auto:inv:' + x.id, date: x.issueDate || x.createdAt || '', memo: 'Invoice ' + (x.number || '') + (label ? (' — ' + label) : ''), source: 'invoice', editable: false, lines: _lines });
+        out.push({ id: 'auto:inv:' + x.id, date: x.issueDate || x.createdAt || '', memo: 'Invoice ' + (x.number || '') + (label ? (' — ' + label) : ''), source: 'invoice', invoiceId: x.id, editable: false, lines: _lines });
       }
       if (x.status !== 'Void') {
         (x.payments || []).forEach(p => {
@@ -14014,9 +14205,9 @@ function glAutoEntries(accounts) {
           const memo = 'Payment received — Invoice ' + (x.number || '') + (label ? (' — ' + label) : '');
           if (fee > 0) {
             // Bank gets the net; the processing fee is booked as an expense; A/R clears the full gross.
-            out.push({ id: 'auto:pay:' + p.id, date: p.date || '', memo: memo, source: 'payment', editable: false, lines: [{ account: '1000', debit: _glR2(amt - fee), credit: 0 }, { account: GL_STRIPE_FEE_CODE, debit: fee, credit: 0 }, { account: '1100', debit: 0, credit: amt }] });
+            out.push({ id: 'auto:pay:' + p.id, date: p.date || '', memo: memo, source: 'payment', invoiceId: x.id, editable: false, lines: [{ account: '1000', debit: _glR2(amt - fee), credit: 0 }, { account: GL_STRIPE_FEE_CODE, debit: fee, credit: 0 }, { account: '1100', debit: 0, credit: amt }] });
           } else {
-            out.push({ id: 'auto:pay:' + p.id, date: p.date || '', memo: memo, source: 'payment', editable: false, lines: [{ account: '1000', debit: amt, credit: 0 }, { account: '1100', debit: 0, credit: amt }] });
+            out.push({ id: 'auto:pay:' + p.id, date: p.date || '', memo: memo, source: 'payment', invoiceId: x.id, editable: false, lines: [{ account: '1000', debit: amt, credit: 0 }, { account: '1100', debit: 0, credit: amt }] });
           }
         });
       }
@@ -14037,10 +14228,50 @@ function glTrialBalance(accounts, entries) {
   const totDebit = _glR2(rows.reduce((s, r) => s + r.debit, 0)); const totCredit = _glR2(rows.reduce((s, r) => s + r.credit, 0));
   return { rows, totalDebit: totDebit, totalCredit: totCredit, balanced: Math.abs(totDebit - totCredit) < 0.005 };
 }
+// Profit & Loss built from the ledger itself, so it always ties to the GL. Accrual = the GL's income statement for
+// the period: every Income and Expense account line from every source (issued invoices net of sales tax, which
+// sits in Sales Tax Payable; expenses; processing fees; manual journal entries). Cash = the same, except invoice
+// revenue is recognised when collected — each payment credits its invoice's income accounts pro-rata to their
+// pre-tax share of the invoice. (The ledger itself is always kept on the accrual basis.)
+function glProfitAndLoss(accounts, entries, from, to, basis) {
+  const byCode = {}; accounts.forEach(a => { byCode[a.code] = a; });
+  const s = String(from || '0000-01-01'), e = String(to || '9999-12-31');
+  const inRange = d => { d = String(d || '').slice(0, 10); return !!d && d >= s && d <= e; };
+  const invEntry = {}; entries.forEach(en => { if (en.source === 'invoice' && en.invoiceId) invEntry[en.invoiceId] = en; });
+  const amt = {}; let invoiced = 0, collected = 0;
+  const post = (code, credit, debit) => { const a = byCode[code]; if (!a || (a.type !== 'Income' && a.type !== 'Expense')) return; amt[code] = (amt[code] || 0) + (a.type === 'Income' ? credit - debit : debit - credit); };
+  entries.forEach(en => {
+    if (!inRange(en.date)) return;
+    if (en.source === 'invoice') invoiced += (en.lines || []).reduce((t, l) => t + (l.account === '1100' ? (Number(l.debit) || 0) : 0), 0);
+    if (en.source === 'payment') {
+      const gross = (en.lines || []).reduce((t, l) => t + (l.account === '1100' ? (Number(l.credit) || 0) : 0), 0); collected += gross;
+      if (basis === 'cash') {
+        const ie = invEntry[en.invoiceId]; const grand = ie ? ie.lines.reduce((t, l) => t + (l.account === '1100' ? (Number(l.debit) || 0) : 0), 0) : 0;
+        if (ie && grand > 0) ie.lines.forEach(l => { if (l.account !== '1100') post(l.account, (Number(l.credit) || 0) * gross / grand, (Number(l.debit) || 0) * gross / grand); });
+        else post('4000', gross, 0);
+      }
+    }
+    if (basis === 'cash' && en.source === 'invoice') return;
+    (en.lines || []).forEach(l => post(l.account, Number(l.credit) || 0, Number(l.debit) || 0));
+  });
+  const rows = type => Object.keys(amt).filter(c => byCode[c].type === type && Math.abs(amt[c]) >= 0.005).sort().map(c => ({ code: c, name: byCode[c].name, amount: _glR2(amt[c]) }));
+  const income = rows('Income'), expense = rows('Expense');
+  const revenue = _glR2(income.reduce((t, r) => t + r.amount, 0)), expenses = _glR2(expense.reduce((t, r) => t + r.amount, 0));
+  const ar = glTrialBalance(accounts, entries).rows.find(r => r.code === '1100');
+  return { basis: basis === 'cash' ? 'cash' : 'accrual', from: s, to: e, income, expense, revenue, expenses, net: _glR2(revenue - expenses), invoiced: _glR2(invoiced), collected: _glR2(collected), outstanding: ar ? ar.balance : 0 };
+}
 app.get('/api/gl', requireAdmin, (req, res) => {
   const accounts = loadGlAccounts();
   const entries = glAllEntries(accounts);
-  res.json({ ok: true, accounts, entries, trialBalance: glTrialBalance(accounts, entries), accountTypes: GL_ACCOUNT_TYPES, basis: effAccountingBasis() });
+  // The ledger is always kept on the accrual basis (A/R is charged when an invoice is issued); the firm's
+  // cash/accrual setting only changes how the Profit & Loss recognises revenue.
+  res.json({ ok: true, accounts, entries, trialBalance: glTrialBalance(accounts, entries), accountTypes: GL_ACCOUNT_TYPES, basis: 'accrual', reportBasis: effAccountingBasis() });
+});
+app.get('/api/pnl', requireAdmin, (req, res) => {
+  const accounts = loadGlAccounts(); const entries = glAllEntries(accounts);
+  const basis = (req.query.basis === 'cash' || req.query.basis === 'accrual') ? req.query.basis : effAccountingBasis();
+  const ymd = v => /^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? String(v) : '';
+  res.json(Object.assign({ ok: true }, glProfitAndLoss(accounts, entries, ymd(req.query.from), ymd(req.query.to), basis)));
 });
 // Would setting `parent` on `code` create a loop? (parent is a descendant of code)
 function _glWouldCycle(accounts, code, parent) {
@@ -14132,8 +14363,8 @@ app.post('/api/gl/import-accounts', requireAdmin, express.json({ limit: '4mb' })
   saveGlAccounts(accounts);
   res.json({ ok: true, added, updated, skipped, accounts });
 });
-// Wipe GL data. journal:true clears manual entries; accounts:'empty' removes every account,
-// accounts:'default' resets to the starter chart. Auto-posted entries come from invoices /
+// Wipe GL data. journal:true clears manual entries; accounts:'empty' removes every account except the
+// system accounts the auto-posting needs; accounts:'default' resets to the starter chart. Auto-posted entries come from invoices /
 // payments / expenses and are not stored here, so they are unaffected.
 // The data writer guards against overwriting >=2 records with an empty array — a safety net
 // against accidental wipes. A GL reset is a *deliberate* wipe, so it bypasses that one guard.
@@ -14144,10 +14375,19 @@ function _glForceWrite(file, data) {
     fs.writeFileSync(file, JSON.stringify(data, null, 2)); return true;
   } catch (e) { console.error('glForceWrite:', e && e.message); return false; }
 }
+// The accounts the auto-posting writes to: cash, A/R, A/P, sales tax, equity, commission income, processing fees,
+// and the expense account for each expense category. "Delete everything" keeps these (re-seeding any that are
+// missing) so invoices, payments and expenses keep landing on the Trial Balance.
+const GL_SYSTEM_CODES = ['1000', '1100', '2000', GL_TAX_PAYABLE_CODE, '3000', '4000', GL_STRIPE_FEE_CODE];
+function _glSystemAccounts(current) {
+  const keep = (current || []).filter(a => a && (GL_SYSTEM_CODES.indexOf(a.code) >= 0 || (a.type === 'Expense' && a.cat && EXPENSE_CATEGORIES.indexOf(a.cat) >= 0))).map(a => { const c = Object.assign({}, a); delete c.parent; return c; });
+  _glDefaultAccounts().forEach(d => { if (GL_SYSTEM_CODES.indexOf(d.code) < 0 && !d.cat) return; if (keep.some(a => a.code === d.code || (d.cat && a.cat === d.cat))) return; keep.push(d); });
+  return keep.sort((a, b) => String(a.code).localeCompare(String(b.code)));
+}
 app.post('/api/gl/reset', requireAdmin, express.json(), (req, res) => {
   const b = req.body || {};
   if (b.journal) _glForceWrite(GL_JOURNAL_FILE, []);
-  if (b.accounts === 'empty') _glForceWrite(GL_ACCOUNTS_FILE, []);
+  if (b.accounts === 'empty') _glForceWrite(GL_ACCOUNTS_FILE, _glSystemAccounts(loadGlAccounts()));
   else if (b.accounts === 'default') saveGlAccounts(_glDefaultAccounts());
   res.json({ ok: true, accounts: loadGlAccounts() });
 });
@@ -14225,12 +14465,13 @@ app.post('/api/assignment/:key/inquiry', express.json(), (req, res) => {
   const inqs = Array.isArray(cur.inquiries) ? cur.inquiries : [];
   const b = req.body || {}; const now = new Date().toISOString();
   const INQ_STATUS = ['Unqualified', 'Contacted', 'Qualified', 'NDA Sent', 'Toured', 'Offer', 'Passed', 'Dead'];
-  let rec = b.id ? inqs.find(x => x.id === b.id) : null;
-  if (!rec) { rec = { id: newInquiryId(), source: b.source || 'Manual', createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }; inqs.push(rec); }
+  let rec = b.id ? inqs.find(x => x.id === b.id) : null; let _inqNew = false;
+  if (!rec) { rec = { id: newInquiryId(), source: b.source || 'Manual', createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }; inqs.push(rec); _inqNew = true; }
   if (typeof b.name === 'string') rec.name = b.name.slice(0, 120);
   if (typeof b.email === 'string') rec.email = b.email.slice(0, 160);
   if (typeof b.phone === 'string') rec.phone = b.phone.slice(0, 60);
   if (typeof b.note === 'string') rec.note = b.note.slice(0, 2000);
+  const _oldInqStatus = _inqNew ? '' : (rec.status || '');
   // Accept the fixed funnel OR the deal's configured Buyer-pipeline stages.
   const _buyerStageNames = buyerStageNamesFor(cur) || [];
   const _allowedStatuses = INQ_STATUS.concat(_buyerStageNames);
@@ -14239,6 +14480,8 @@ app.post('/api/assignment/:key/inquiry', express.json(), (req, res) => {
   if ((rec.name || rec.email) && !rec.personId) { const p = findOrCreatePerson(req, { name: rec.name || '', email: rec.email || '', phones: rec.phone ? [rec.phone] : [], type: 'Buying' }); if (p) rec.personId = p.id; }
   rec.updatedAt = now;
   cur.inquiries = inqs; cur.updatedAt = now; overlay[d.key] = cur; saveAssignOverlay(overlay);
+  // Moving an existing buyer lead to another stage fires that buyer stage's On-leave / On-enter automations (Admin -> Pipelines).
+  if (!_inqNew && _oldInqStatus !== rec.status) { try { _fireBuyerStageAutos(buyerPipelineFor(cur), d.key, rec, _oldInqStatus, rec.status, req); } catch (e) {} }
   res.json({ ok: true, inquiries: inqs, statuses: (_buyerStageNames.length ? _buyerStageNames : INQ_STATUS) });
 });
 app.post('/api/assignment/:key/inquiry/:id/remove', (req, res) => {
@@ -14268,6 +14511,8 @@ app.get('/api/buyer-board', (req, res) => {
   const listings = [], buyers = [];
   visible.map(d => assignmentView(d, overlay, { noBoard: true })).forEach(v => {
     if (v.assignmentType === 'tenant_rep') return;
+    // Only listings whose buyers move through the pipeline being shown, so every column is a valid stage for every card.
+    if (selPipe) { const _lbp = buyerPipelineFor(overlay[v.key] || {}); if (_lbp && _lbp.id !== selPipe.id) return; }
     const inqs = Array.isArray(v.inquiries) ? v.inquiries : [];
     if (inqs.length) listings.push({ key: v.key, business: v.business });
     inqs.forEach(x => {
@@ -14288,9 +14533,16 @@ app.post('/api/buyer-board/move', express.json(), (req, res) => {
   const inqs = Array.isArray(cur.inquiries) ? cur.inquiries : [];
   const rec = inqs.find(x => x.id === id);
   if (!rec) return res.status(404).json({ ok: false, error: 'Buyer lead not found.' });
+  const _bpipe = buyerPipelineFor(cur);
+  // The board sends the buyer pipeline it is showing; a lead can only move through its own listing's buyer pipeline.
+  const _shownBp = String(b.bp || '');
+  if (_shownBp && _bpipe && _shownBp !== _bpipe.id) return res.status(400).json({ ok: false, error: 'This buyer\u2019s listing uses the \u201c' + (_bpipe.name || 'other') + '\u201d buyer pipeline \u2014 switch to that board to move it.' });
   const allowed = buyerStageNamesFor(cur).concat(['Unqualified', 'Contacted', 'Qualified', 'NDA Sent', 'Toured', 'Offer', 'Passed', 'Dead']);
   if (!stage || allowed.indexOf(stage) < 0) return res.status(400).json({ ok: false, error: 'Unknown stage.' });
+  const _oldStage = rec.status || '';
   rec.status = stage; rec.updatedAt = new Date().toISOString(); cur.inquiries = inqs; cur.updatedAt = rec.updatedAt; overlay[key] = cur; saveAssignOverlay(overlay);
+  // Fire the buyer stage's On-leave / On-enter automations (Admin -> Pipelines) — once, only when the stage actually changed.
+  if (_oldStage !== stage) { try { _fireBuyerStageAutos(_bpipe, key, rec, _oldStage, stage, req); } catch (e) {} }
   res.json({ ok: true });
 });
 // Take a buyer lead off the board (park / mark lost) without pushing it through the pipeline —
@@ -14332,7 +14584,7 @@ app.post('/api/assignment/:key/buyer', express.json(), (req, res) => {
   _buyerClean(rec, b, now, stageNames);
   if ((rec.name || rec.email) && !rec.personId) { const pp = findOrCreatePerson(req, { name: rec.name||'', email: rec.email||'', phones: rec.phone?[rec.phone]:[], company: rec.company||'', type:'Buying' }); if (pp) rec.personId = pp.id; }
   // Fire the buyer stage's on-leave / on-enter automations against this buyer (config in Admin -> Pipelines).
-  const _bpipe = (function(){ const pls = loadPipelines(); let pp = cur.buyerPipelineId ? pls.find(function(x){ return x.id === cur.buyerPipelineId; }) : null; if (!pp) { const did = defaultBuyerPipelineId(); if (did) pp = pls.find(function(x){ return x.id === did; }); } if (!pp) pp = buyerPipelinesAll()[0] || null; return pp; })();
+  const _bpipe = buyerPipelineFor(cur);
   try { _fireBuyerStageAutos(_bpipe, d.key, rec, _oldStage, rec.stage || '', req); } catch (e) {}
   cur.buyers = buyers; cur.updatedAt = now; overlay[d.key] = cur; saveAssignOverlay(overlay);
   res.json({ ok:true, buyers, buyerSummary: buyerSummary(buyers, stageNames), stages: bStages });
@@ -15403,6 +15655,9 @@ app.post('/api/spaces/ai-batch', express.json({ limit: '80mb' }), async (req, re
   const now = new Date().toISOString();
   const num = (v) => { if (v === '' || v == null) return null; const n = parseFloat(String(v).replace(/[^0-9.\-]/g, '')); return isFinite(n) ? n : null; };
   const results = []; let created = 0;
+  // Same dedupe + center linking as the Gmail import (_scanSpacesForUser): skip addresses already on file, link/create the shopping center.
+  const centers = loadCenters(); let centersDirty = false; let centersMade = 0; const _gkeyBatch = loadGmapsKey();
+  const seen = new Set(arr.map(s => String(s.address || '').toLowerCase().trim()).filter(Boolean));
   for (let i = 0; i < files.length; i++) {
     const f = files[i] || {};
     try {
@@ -15414,11 +15669,23 @@ app.post('/api/spaces/ai-batch', express.json({ limit: '80mb' }), async (req, re
         spaceType: SPACE_TYPES.indexOf(fd.spaceType) >= 0 ? fd.spaceType : '', size: num(fd.size), rent: num(fd.rent), nnn: num(fd.nnn),
         features: Array.isArray(fd.features) ? fd.features.map(x => String(x).slice(0, 40)).filter(Boolean).slice(0, 40) : [],
         notes: String(fd.notes || '').slice(0, 4000), source: 'pdf:' + String(f.filename || '') };
-      arr.push(sp); created++; results.push({ ok: true, name: f.filename || '', id: sp.id, address: sp.address || sp.name || '' });
+      const key = String(sp.address || '').toLowerCase().trim();
+      if (key && seen.has(key)) { results.push({ ok: false, name: f.filename || '', duplicate: true, reason: 'already in system', error: 'Already in the system (same address).' }); continue; }
+      if (fd.center && String(fd.center).trim()) {
+        const _cn = String(fd.center).trim().toLowerCase();
+        let ctr = centers.find(x => String(x.name || '').trim().toLowerCase() === _cn);
+        let _ctrNew = false;
+        if (!ctr) { ctr = { id: newCenterId(), name: String(fd.center).slice(0, 160), createdAt: now, updatedAt: now, by: sp.by, byUser: sp.byUser, source: 'pdf-batch' }; centers.push(ctr); centersDirty = true; centersMade++; _ctrNew = true; }
+        sp.centerId = ctr.id; sp.center = ctr.name;
+        if (_enrichCenterFrom(ctr, [sp], {})) centersDirty = true;
+        if (_gkeyBatch && _ctrNew) { try { const _wr = await _centerWebEnrich(_gkeyBatch, ctr, {}); if (_wr.changed) centersDirty = true; } catch (e) {} }
+      }
+      arr.push(sp); created++; if (key) seen.add(key); results.push({ ok: true, name: f.filename || '', id: sp.id, address: sp.address || sp.name || '', center: sp.center || '' });
     } catch (e) { results.push({ ok: false, name: f.filename || '', error: String((e && e.message) || e) }); }
   }
+  if (centersDirty) saveCenters(centers);
   if (created) saveSpaces(arr);
-  res.json({ ok: true, created, results, spaces: arr });
+  res.json({ ok: true, created, centersMade, results, spaces: arr });
 });
 
 function _spaceFromFields(fd, req, extra) {
@@ -15653,6 +15920,8 @@ app.get('/api/site-criteria', (req, res) => {
 // Pre-fill the Site & Concept Fit sheet from an on-file Site Criteria Screening, an uploaded
 // document (PDF / Word / text), or pasted text. Returns AI-mapped values keyed by the sheet fields.
 app.post('/api/site-fit/prefill', express.json({ limit: '28mb' }), async (req, res) => {
+  // The AI mapping step (aiassist.siteFitPrefill) isn't in the AI module yet — say so plainly instead of a TypeError.
+  if (typeof aiassist.siteFitPrefill !== 'function') return res.status(501).json({ ok: false, error: 'Fill from SSC / PDF isn\u2019t available in this version yet \u2014 fill the fields manually for now.' });
   try {
     const b = req.body || {};
     let source = '';
@@ -15695,6 +15964,11 @@ app.post('/api/loi/ai-parse', express.json({ limit: '256kb' }), async (req, res)
     const values = await aiassist.parseLoiText({ text, terms }); res.json({ ok: true, values: values || {} });
   } catch (e) { res.status(502).json({ ok: false, error: String(e.message || e) }); }
 });
+// Last Daily Brief per viewer + scope (see /api/ai/brief).
+const BRIEF_CACHE_FILE = path.join(BOV_DATA_DIR, 'brief_cache.json');
+const BRIEF_CACHE_MIN = 60;
+function loadBriefCache() { try { return rj(BRIEF_CACHE_FILE) || {}; } catch (e) { return {}; } }
+function saveBriefCache(c) { return writeJsonGuarded(BRIEF_CACHE_FILE, c, 'saveBriefCache'); }
 app.get('/api/ai/brief', async (req, res) => {
   try {
     const uname = (req.user && req.user.username) || '';
@@ -15713,10 +15987,10 @@ app.get('/api/ai/brief', async (req, res) => {
     const overlay = loadAssignOverlay(); const idx = assignmentsIndex();
     const listingsAll = Object.values(idx)
       .filter(d => seeAll || ownsAssignment(req, d))
-      .filter(d => scopeAll || assignmentOwnedBy(d, scope))
+      .filter(d => scopeAll || assignmentOwnedBy(d, scope, overlay))
       .map(d => assignmentView(d, overlay));
     const ownedKeys = new Set(listingsAll.map(l => l.key));
-    const _ts = new Date().toISOString().slice(0, 10);
+    const _ts = firmToday();
     const listings = listingsAll.map(l => ({ business: l.business, market: l.market, status: l.status, owner: l.owner, expires: l.listingExpires || '', daysToExpiry: l.listingExpires ? daysUntil(l.listingExpires) : null, value: l.value || '', hasDeal: !!l.transaction, deal: l.transaction ? { status: l.transaction.status || '', price: l.transaction.price || '', close: l.transaction.expectedClose || l.transaction.closedDate || '', commissionStatus: l.transaction.commissionStatus || '', commissionDue: l.transaction.commissionDue || '' } : null }));
     const tasks = loadTasks()
       .filter(t => t.status === 'open' && t.due && taskVisible(t, req))
@@ -15734,8 +16008,21 @@ app.get('/api/ai/brief', async (req, res) => {
     // Spaces have no per-rep owner, so this block stays firm-wide in every scope.
     const sp = loadSpaces(); const spaces = { total: sp.length, available: sp.filter(x => x.status === 'Available').length, loiOut: sp.filter(x => x.status === 'LOI Out').length, scope: 'firm-wide', newFitsForMyTenants: briefSpaceMatches(req, scope, scopeAll) };
     const data = { scope: scopeAll ? 'firm-wide' : scopeName, listings, tasks, agreementsExpiring, recentLois, spaces, counts: { listings: listings.length, openTasks: tasks.length, overdueTasks: tasks.filter(t => t.overdue).length, dealsUnderContract: listings.filter(l => l.deal && /Under Contract|Closing/i.test(l.deal.status)).length } };
-    const brief = await aiassist.dailyBrief({ data, repName: scopeAll ? '' : scopeName, today: new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }), scopeLabel: scopeAll ? 'the whole firm' : scopeName });
-    res.json({ ok: true, brief, generatedAt: new Date().toISOString(), repName: (req.user && req.user.name) || '', scope: scopeAll ? 'all' : scope, scopeName, scopeAll, canAll, me: uname, users: canAll ? roster : [] });
+    const meta = { repName: (req.user && req.user.name) || '', scope: scopeAll ? 'all' : scope, scopeName, scopeAll, canAll, me: uname, users: canAll ? roster : [] };
+    // Cache: the AI call is metered, so opening the page reuses this viewer's last brief for this scope
+    // while the pipeline snapshot is unchanged (same firm day), or for up to an hour even if it changed.
+    // ?refresh=1 (the Refresh button) always runs a new one.
+    const today = firmToday();
+    const fp = crypto.createHash('sha1').update(today + '|' + JSON.stringify(data)).digest('hex');
+    const ckey = uname + '|' + meta.scope; const cache = loadBriefCache(); const hit = cache[ckey];
+    if (String(req.query.refresh || '') !== '1' && hit && hit.brief) {
+      const ageMin = (Date.now() - Date.parse(hit.at || 0)) / 60000;
+      if ((hit.fp === fp && hit.day === today) || ageMin < BRIEF_CACHE_MIN) return res.json(Object.assign({ ok: true, brief: hit.brief, generatedAt: hit.at, cached: true, stale: hit.fp !== fp }, meta));
+    }
+    const brief = await aiassist.dailyBrief({ data, repName: scopeAll ? '' : scopeName, today: new Date().toLocaleDateString('en-US', { timeZone: firmTz(), weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }), scopeLabel: scopeAll ? 'the whole firm' : scopeName });
+    const generatedAt = new Date().toISOString();
+    if (brief) { const cutoff = Date.now() - 2 * 86400000; Object.keys(cache).forEach(k => { if (!(Date.parse((cache[k] || {}).at || 0) > cutoff)) delete cache[k]; }); cache[ckey] = { brief, at: generatedAt, fp, day: today }; saveBriefCache(cache); }
+    res.json(Object.assign({ ok: true, brief, generatedAt, cached: false, stale: false }, meta));
   } catch (e) { res.status(502).json({ ok: false, error: String(e.message || e) }); }
 });
 function aiRoute(fn) { return async (req, res) => { try { const result = await fn(req.body || {}); res.json({ ok: true, result: result || {} }); } catch (e) { res.status(502).json({ ok: false, error: String(e.message || e) }); } }; }
@@ -15810,8 +16097,8 @@ app.post('/api/ai/loi-suggest', express.json({ limit: '256kb' }), async (req, re
 app.post('/api/person/merge', express.json(), (req, res) => {
  try {
   const u = req.user || {};
-  const canMerge = isSuper(u) || (permsEnabled() && effectivePerms(u).delete);
-  if (!canMerge) return res.status(403).json({ ok: false, error: 'You do not have permission to merge contacts.' });
+  const canMerge = isSuper(u);   // admins only — matches the UI (Merge is shown to admins; Duplicates is admin-only)
+  if (!canMerge) return res.status(403).json({ ok: false, error: 'Only an admin can merge contacts.' });
   const b = req.body || {};
   const keepId = String(b.keepId || '');
   let mergeIds = Array.isArray(b.mergeIds) ? b.mergeIds.map(String).filter(Boolean) : [];
@@ -15876,8 +16163,8 @@ app.post('/api/person/merge', express.json(), (req, res) => {
 app.post('/api/person/merge-bulk', express.json({ limit: '8mb' }), (req, res) => {
  try {
   const u = req.user || {};
-  const canMerge = isSuper(u) || (permsEnabled() && effectivePerms(u).delete);
-  if (!canMerge) return res.status(403).json({ ok: false, error: 'You do not have permission to merge contacts.' });
+  const canMerge = isSuper(u);   // admins only — matches the UI (Merge is shown to admins; Duplicates is admin-only)
+  if (!canMerge) return res.status(403).json({ ok: false, error: 'Only an admin can merge contacts.' });
   const groupsIn = Array.isArray((req.body || {}).groups) ? req.body.groups : [];
   if (!groupsIn.length) return res.status(400).json({ ok: false, error: 'No groups provided.' });
   const people = loadPeople();
@@ -16003,6 +16290,17 @@ app.get('/eo/:token', (req, res) => {
   res.end(_OPEN_GIF);
 });
 // ---- Tracked Emails: every sent email with open counts, newest first. Reps see their own; admins see all. ----
+// Tracked Emails access for a restricted rep: their own sends (and unattributed legacy rows, as before),
+// plus automation sends to a contact they own or from an automation they enrolled the contact in
+// (triggeredBy; older rows without it are matched to the contact's enrollment by automation name).
+function trackedEmailVisible(req, p, e, restrict, uname) {
+  if (!restrict) return true;
+  if (!e.byUser || e.byUser === uname) return true;
+  if (e.byUser !== 'automation') return false;
+  if (p.by && permOwnerMatch(req, p.by)) return true;
+  if (e.triggeredBy) return e.triggeredBy === uname;
+  return (Array.isArray(p.enrollments) ? p.enrollments : []).some(en => en && en.enrolledByUser === uname && ('Automation (' + (en.automationName || '') + ')') === e.by);
+}
 app.get('/api/tracked-emails', (req, res) => {
   const restrict = restrictToOwn(req);
   const uname = (req.user && req.user.username) || '';
@@ -16012,7 +16310,7 @@ app.get('/api/tracked-emails', (req, res) => {
   people.forEach(p => {
     (Array.isArray(p.emailLog) ? p.emailLog : []).forEach(e => {
       if (!e) return;
-      if (restrict && e.byUser && e.byUser !== uname) return;
+      if (!trackedEmailVisible(req, p, e, restrict, uname)) return;
       out.push({ id: e.id || '', personId: p.id, personName: p.name || 'Contact', company: (p.companyId && coName[p.companyId]) || p.company || '', to: e.to || '', subject: e.subject || '', sentAt: e.sentAt || '', by: e.by || '', byUser: e.byUser || '', via: e.via || '', opens: e.opens || 0, firstOpen: e.firstOpen || '', lastOpen: e.lastOpen || '', openHits: (Array.isArray(e.openHits) ? e.openHits.filter(function(h){ return h && h.counted !== false; }).slice(-30) : []), tracked: !!e.openToken });
     });
   });
@@ -16030,7 +16328,7 @@ app.get('/api/tracked-email/:id', (req, res) => {
     const log = Array.isArray(p.emailLog) ? p.emailLog : [];
     const e = log.find(x => x && x.id === req.params.id);
     if (!e) continue;
-    if (restrict && e.byUser && e.byUser !== uname) return res.status(403).json({ ok: false, error: 'Not yours.' });
+    if (!trackedEmailVisible(req, p, e, restrict, uname)) return res.status(403).json({ ok: false, error: 'Not yours.' });
     return res.json({ ok: true, email: {
       id: e.id || '', personId: p.id, personName: p.name || 'Contact',
       company: (p.companyId && coName[p.companyId]) || p.company || '',
@@ -16201,7 +16499,7 @@ app.get('/api/feed/nudges', async (req, res) => {
       if (!taskVisible(t, req)) return;
       if (t.assignee && t.assignee !== u) return;
       const due = String(t.due || '').slice(0, 10); if (!/^\d{4}-\d{2}-\d{2}/.test(due)) return;
-      const overdue = Math.floor((now - new Date(due + 'T00:00:00').getTime()) / DAY);
+      const overdue = Math.round((new Date(firmToday() + 'T00:00:00Z').getTime() - new Date(due + 'T00:00:00Z').getTime()) / DAY);
       if (overdue < 0) return;
       var _tpid = (t.linkType === 'contact' ? t.linkId : '') || '';
       var _tcn = t.linkLabel || ''; if (!_tcn && _tpid) { try { var _tp = personById(_tpid); if (_tp) _tcn = _tp.name || ''; } catch (e) {} }
@@ -16230,8 +16528,9 @@ app.get('/api/feed/nudges', async (req, res) => {
   } catch (e) {}
   // 2) Deal-aware: active buyers/sellers who've gone quiet (recently engaged, now cooling).
   try {
-    const quiet = [];
+    const quiet = []; const _own = restrictToOwn(req);   // restricted reps: only their own contacts (as in Contacts)
     loadPeople().forEach(p => {
+      if (_own && !permOwnerMatch(req, p.by)) return;
       const types = (typeof personTypesOf === 'function' ? personTypesOf(p) : (p.types || [])) || [];
       const active = types.some(t => /buyer|seller/i.test(String(t)));
       if (!active) return;
@@ -16338,7 +16637,7 @@ app.get('/api/places-suggest', async (req, res) => {
 });
 
 // ===== Google two-way sync — Contacts (People API) + Calendar (Calendar API) =====
-const GSYNC_TZ = 'America/Chicago';
+// Zone sent to Google with our zone-less times — the firm time zone (Admin → Calendar).
 function _gErr(e) { const m = (e && e.message) || 'Sync failed.'; if (/api has not been used|accessNotConfigured|is disabled|enable it by visiting|SERVICE_DISABLED|has not been enabled/i.test(m)) return 'The server\u2019s Google project needs the People API (Contacts) and Calendar API enabled. An admin must enable both in Google Cloud Console for this OAuth app, then reconnect.'; if (e && (e.status === 403 || e.status === 401 || /insufficient|scope|permission|forbidden|invalid_grant|unauthorized/i.test(m))) return 'Google hasn\u2019t granted Contacts/Calendar access. Click Reconnect on the Gmail card (Account → Gmail) and approve the Contacts and Calendar permissions on Google\u2019s screen. If it still fails, the server\u2019s Google project needs the People API and Calendar API enabled in Google Cloud Console.'; return m; }
 function _gLocal(dt) { const m = String(dt || '').match(/(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/); if (m) return m[1] + 'T' + m[2]; const d = String(dt || '').match(/^(\d{4}-\d{2}-\d{2})$/); return d ? (d[1] + 'T00:00') : ''; }
 function _gDT(s) { s = String(s || ''); return s.length === 16 ? (s + ':00') : s; }
@@ -16428,7 +16727,7 @@ async function googleCalendarPush(req) {
   const appts = loadAppts(); let pushed = 0, failed = 0; const now = new Date().toISOString();
   for (const a of appts) {
     if (a.googleEventId || a.status === 'deleted' || !a.start) continue;
-    const body = { summary: a.title || 'Meeting', location: a.location || '', description: a.notes || '', start: { dateTime: _gDT(a.start), timeZone: GSYNC_TZ }, end: { dateTime: _gDT(a.end || a.start), timeZone: GSYNC_TZ }, attendees: (a.attendees || []).filter(x => x.email).map(x => ({ email: x.email })) };
+    const body = { summary: a.title || 'Meeting', location: a.location || '', description: a.notes || '', start: { dateTime: _gDT(a.start), timeZone: firmTz() }, end: { dateTime: _gDT(a.end || a.start), timeZone: firmTz() }, attendees: (a.attendees || []).filter(x => x.email).map(x => ({ email: x.email })) };
     try { const j = await gmail.gapiJSON(u, 'https://www.googleapis.com/calendar/v3/calendars/primary/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); if (j && j.id) { a.googleEventId = j.id; a.googleCalId = 'primary'; a.updatedAt = now; pushed++; } } catch (e) { failed++; if (e && (e.status === 403 || e.status === 401)) throw e; }
   }
   saveAppts(appts);
@@ -16444,7 +16743,7 @@ async function ensureReminderCalendar(u){
     pageToken = j.nextPageToken || '';
   } while (pageToken && !found);
   if (found) return found;
-  const created = await gmail.gapiJSON(u, 'https://www.googleapis.com/calendar/v3/calendars', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ summary: name, timeZone: GSYNC_TZ }) });
+  const created = await gmail.gapiJSON(u, 'https://www.googleapis.com/calendar/v3/calendars', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ summary: name, timeZone: firmTz() }) });
   return created && created.id;
 }
 function _remNextDay(d){ const dt = new Date(String(d).slice(0,10) + 'T00:00:00Z'); dt.setUTCDate(dt.getUTCDate() + 1); return dt.toISOString().slice(0,10); }
@@ -16788,12 +17087,14 @@ const BIZ_PIPE = [
 function listingBoardStage(d, overlay) {
   try {
     const o = (overlay || {})[d.key] || {};
-    const lp = o.pipelineId || 'p_bizsales';
+    const lp = listingPipelineIdOf(o);
     const pipe = loadPipelines().find(p => p.id === lp) || null;
     const stageNames = pipe ? (pipe.stages || []).map(s => s.name) : [];
     if (!stageNames.length) return '';
     let stage = o.pipelineStage || '';
     if (stageNames.indexOf(stage) < 0) {
+      // A tenant / landlord engagement with no saved pipeline has no Business Sales checklist to derive from — start it on the first stage.
+      if (!o.pipelineId && lp !== 'p_bizsales') return stageNames[0] || '';
       const ss = listingStageSummary(d, overlay); const si = Math.max(0, Math.min((ss.done || 0), stageNames.length - 1));
       stage = stageNames[si] || stageNames[0] || '';
     }
@@ -18020,8 +18321,8 @@ app.post('/api/company/:id/contact/:personId/remove', (req, res) => {
 app.post('/api/company/merge', express.json(), (req, res) => {
  try {
   const u = req.user || {};
-  const canMerge = isSuper(u) || (permsEnabled() && effectivePerms(u).delete);
-  if (!canMerge) return res.status(403).json({ ok: false, error: 'You do not have permission to merge companies.' });
+  const canMerge = isSuper(u);   // admins only — matches the UI (Merge is shown to admins; Duplicates is admin-only)
+  if (!canMerge) return res.status(403).json({ ok: false, error: 'Only an admin can merge companies.' });
   const b = req.body || {};
   const keepId = String(b.keepId || '');
   let mergeIds = Array.isArray(b.mergeIds) ? b.mergeIds.map(String).filter(Boolean) : [];
@@ -18087,8 +18388,8 @@ app.post('/api/company/merge', express.json(), (req, res) => {
 app.post('/api/company/merge-bulk', express.json({ limit: '8mb' }), (req, res) => {
  try {
   const u = req.user || {};
-  const canMerge = isSuper(u) || (permsEnabled() && effectivePerms(u).delete);
-  if (!canMerge) return res.status(403).json({ ok: false, error: 'You do not have permission to merge companies.' });
+  const canMerge = isSuper(u);   // admins only — matches the UI (Merge is shown to admins; Duplicates is admin-only)
+  if (!canMerge) return res.status(403).json({ ok: false, error: 'Only an admin can merge companies.' });
   const groupsIn = Array.isArray((req.body || {}).groups) ? req.body.groups : [];
   if (!groupsIn.length) return res.status(400).json({ ok: false, error: 'No groups provided.' });
   const companies = loadCompanies();
@@ -18224,7 +18525,7 @@ app.post('/api/deal/new', express.json(), (req, res) => {
   // Onboarding: reuse the given company, else open the company file for the subject business...
   let company = null;
   try { const _cid = String(b.companyId || ''); if (_cid) company = loadCompanies().find(c => c.id === _cid) || null; } catch (e) {}
-  if (!company) company = findOrCreateCompany(req, { name: rec.business, market: rec.market, type: _isTR ? 'Buyer' : (_isLL ? 'Landlord' : 'Seller') });
+  if (!company) company = findOrCreateCompany(req, { name: rec.business, market: rec.market, type: _isLL ? 'Landlord' : '' });
   if (company) rec.companyId = company.id;
   // ...and reuse the linked client, or locate/onboard one by name, associated with that company.
   if (_linkedPerson) { rec.contactPersonId = _linkedPerson.id; if (!String(rec.contact || '').trim()) rec.contact = _linkedPerson.name; }
@@ -18740,7 +19041,7 @@ app.get('/api/counts', (req, res) => {
   };
   // Secondary "active" badges keyed by tool file.
   const active = { 'rrg_assignments.html': activeDeals };
-  const _t = new Date(); const _ts = _t.getFullYear()+'-'+String(_t.getMonth()+1).padStart(2,'0')+'-'+String(_t.getDate()).padStart(2,'0');
+  const _ts = firmToday();
   let agrExpiring = 0;
   loadAgreements().forEach(a => { if (a.status === 'terminated' || !a.expires || a.expires < _ts) return; const du = daysUntil(a.expires); if (du != null && du <= 60) agrExpiring++; });
   // Task KPIs are always the logged-in user's OWN tasks (even for admins) — matching the Tasks
@@ -18771,8 +19072,8 @@ app.get('/api/counts', (req, res) => {
 // ---- Command Center — management + prospecting intelligence across the book & pipeline ----
 function daysUntil(dateStr) {
   if (!dateStr) return null;
-  const d = new Date(String(dateStr) + 'T00:00:00'); if (isNaN(d.getTime())) return null;
-  const t = new Date(); t.setHours(0, 0, 0, 0);
+  const d = new Date(String(dateStr).slice(0, 10) + 'T00:00:00Z'); if (isNaN(d.getTime())) return null;
+  const t = new Date(firmToday() + 'T00:00:00Z');   // "today" in the firm's zone, not the server's
   return Math.round((d - t) / 86400000);
 }
 function parseMoney(str) {
@@ -19000,7 +19301,7 @@ function repRollup(u, opts) {
       const bd = dealCommissionBreakdown(t, v, u.username);
       received += paid;
       if (closed) { closedDeals++; gci += due; waiting += Math.max(0, due - paid); netAcc += bd.agentNet; referralAcc += bd.referralAmt; coBrokeAcc += bd.coBrokeAmt; const _cd = String(t.closedDate || t.closedAt || ''); if (_cd && Number(String(_cd).slice(0, 4)) === _KYR) { closedDealsYtd++; gciYtd += due; netYtdAcc += bd.agentNet; } } else { openDeals++; gciOpen += due; netOpenAcc += bd.agentNet; }
-      if (opts.lists) deals.push({ key: key, business: v.business, buyer: t.buyer || '', price: t.price || '', status: t.status || '', close: t.expectedClose || t.closedDate || '', commissionDue: t.commissionDue || '', commissionPaid: t.commissionPaid || '', commissionStatus: t.commissionStatus || '', gci: bd.gci, referralAmt: bd.referralAmt, referralTo: bd.referralTo, coBrokeAmt: bd.coBrokeAmt, coBrokeRep: bd.coBrokeRep, companyDollar: bd.companyDollar, agentNet: bd.agentNet, agentPaid: bd.agentPaid, agentOwed: bd.agentOwed, agentSplitPct: bd.agentSplitPct });
+      if (opts.lists) deals.push({ key: key, business: v.business, buyer: t.buyer || '', price: t.price || '', status: t.status || '', close: t.expectedClose || t.closedDate || '', closedDate: t.closedDate || t.closedAt || '', commissionDue: t.commissionDue || '', commissionPaid: t.commissionPaid || '', commissionStatus: t.commissionStatus || '', gci: bd.gci, referralAmt: bd.referralAmt, referralTo: bd.referralTo, coBrokeAmt: bd.coBrokeAmt, coBrokeRep: bd.coBrokeRep, companyDollar: bd.companyDollar, agentNet: bd.agentNet, agentPaid: bd.agentPaid, agentOwed: bd.agentOwed, agentSplitPct: bd.agentSplitPct });
     }
   }
   const splitPct = effUserSplit(u.username);
@@ -19020,10 +19321,18 @@ app.get('/api/commission/statement', (req, res) => {
   const year = String(req.query.year || '').trim();
   let deals = (r.deals || []).map(function (d) {
     const closed = /closed/i.test(String(d.status || ''));
-    const yr = String(d.close || '').slice(0, 4);
+    const yr = String((closed ? (d.closedDate || d.close) : d.close) || '').slice(0, 4);
     return Object.assign({}, d, { closed: closed, year: yr });
   });
-  if (year) deals = deals.filter(d => d.year === year || !d.closed);
+  // A year view keeps the deals closed that year plus open deals still expected by then (no date, or an
+  // expected close in or before that year) — and every total below is re-added from exactly those deals.
+  if (year) deals = deals.filter(d => d.closed ? d.year === year : !(d.year && d.year > year));
+  let totals = { gci: r.gci, referrals: r.referrals, coBroke: r.coBroke, net: r.net, netOpen: r.netOpen, received: r.received, waiting: r.waiting, closedDeals: r.closedDeals, openDeals: r.openDeals };
+  if (year) {
+    const n = v => Number(v) || 0; const cl = deals.filter(d => d.closed), op = deals.filter(d => !d.closed);
+    totals = { gci: cl.reduce((a, d) => a + n(d.gci), 0), referrals: cl.reduce((a, d) => a + n(d.referralAmt), 0), coBroke: cl.reduce((a, d) => a + n(d.coBrokeAmt), 0), net: cl.reduce((a, d) => a + n(d.agentNet), 0), netOpen: op.reduce((a, d) => a + n(d.agentNet), 0),
+      received: Math.round(deals.reduce((a, d) => a + _relNum(d.commissionPaid), 0)), waiting: Math.round(cl.reduce((a, d) => a + Math.max(0, _relNum(d.commissionDue) - _relNum(d.commissionPaid)), 0)), closedDeals: cl.length, openDeals: op.length };
+  }
   // Sort: open/active first by close date, then closed newest first.
   deals.sort(function (a, b) { if (a.closed !== b.closed) return a.closed ? 1 : -1; return String(b.close || '').localeCompare(String(a.close || '')); });
   if (String(req.query.format || '') === 'csv') {
@@ -19034,7 +19343,7 @@ app.get('/api/commission/statement', (req, res) => {
     ok: true, me: req.user.username, isAdmin: isAdmin,
     user: { username: u.username, name: u.name || u.username, title: u.title || '' },
     split: r.split,
-    totals: { gci: r.gci, referrals: r.referrals, coBroke: r.coBroke, net: r.net, netOpen: r.netOpen, received: r.received, waiting: r.waiting, closedDeals: r.closedDeals, openDeals: r.openDeals },
+    totals: totals, year: year,
     deals: deals,
     team: isAdmin ? auth.loadUsers().filter(x => !x.disabled).map(x => ({ username: x.username, name: x.name || x.username })) : [],
   });
@@ -19365,8 +19674,10 @@ app.post('/api/admin/backup/restore', express.json({ limit: '256mb' }), async (r
   const jsonCount = entries.filter(e => !e.isDirectory && /\.json$/i.test(e.entryName)).length;
   if (!jsonCount) return res.status(400).json({ ok: false, error: 'That zip does not look like an RRG backup (no data files inside).' });
 
+  // Never overwrite live data without a way back: if the pre-restore safety snapshot can't be written, abort untouched.
   let safety = '';
-  try { safety = await makeSnapshot('pre-restore_' + backupStampFull()); } catch (e) {}
+  try { safety = await makeSnapshot('pre-restore_' + backupStampFull()); } catch (e) { console.error('[BACKUP] Restore aborted — safety snapshot failed:', e && e.message); return res.status(500).json({ ok: false, error: 'Restore aborted — nothing was changed. The safety snapshot of your current data could not be written (' + String((e && e.message) || e) + '). Free up disk space or fix the backups folder, then try again.' }); }
+  if (!safety) return res.status(500).json({ ok: false, error: 'Restore aborted — nothing was changed. The safety snapshot of your current data could not be written.' });
 
   const base = path.resolve(BOV_DATA_DIR);
   let restored = 0, skipped = 0;
@@ -19616,7 +19927,7 @@ function taskRecurTick() {
       const t = all.find(x => {
         if (!x.repeat || TASK_REPEATS.indexOf(x.repeat) < 0) return false;
         if (hasNext[x.id] || !x.due) return false;
-        const ms = new Date(String(x.due).length > 10 ? x.due : (x.due + 'T23:59')).getTime();
+        const ms = firmNaiveToDate(String(x.due).length > 10 ? x.due : (x.due + 'T23:59')).getTime();
         return !isNaN(ms) && ms <= nowMs;
       });
       if (!t) break;
@@ -19815,19 +20126,13 @@ app.get('/api/board', (req, res) => {
     // Which board a listing belongs to: its explicit pipeline, else the default for its rep type —
     // so tenant-rep / landlord-rep assignments land on their own board even if no pipeline was set,
     // instead of defaulting onto Business Sales.
-    let lp = o.pipelineId;
-    if (!lp) {
-      const _at = o.assignmentType;
-      lp = (_at === 'tenant_rep') ? ((typeof pipelineForCategory === 'function' && pipelineForCategory('tenantRep')) || 'p_tenantrep')
-         : (_at === 'landlord_rep') ? ((typeof pipelineForCategory === 'function' && pipelineForCategory('landlordLease')) || 'p_llrep')
-         : 'p_bizsales';
-    }
+    const lp = listingPipelineIdOf(o);
     if (lp !== pid) return;
     let v; try { v = assignmentView(d, overlay); } catch (e) { return; }
     let stage = listingBoardStage(d, overlay);
     if (stageNames.indexOf(stage) < 0) stage = stageNames[0] || '';
     const _prov = !!(d.screen && d.screen.provisional);
-    cards.push({ key: d.key, business: v.business, listingNo: o.listingNo || 0, listingId: (o.listingNo ? ('RRG-' + o.listingNo) : ''), codeName: o.codeName || '', company: coNameById[v.companyId] || (d.screen && d.screen.data && d.screen.data.company) || '', companyId: v.companyId || '', contactPersonId: v.clientPersonId || '', concept: v.business, contact: v.contact || '', value: v.value || '', valueBov: !!v.valueBov, market: v.market || '', owner: v.owner || '', lastActivity: v.lastActivity || '', createdAt: v.createdAt || '', status: _prov ? 'Pending Approval' : (o.status || 'New'), provisional: _prov, bbsNumber: v.bbsNumber || '', stage: stage, isLead: !!_preSet[stage], winPct: (_winByStage[stage] != null ? _winByStage[stage] : ''), stageSince: o.stageSince || v.createdAt || '', published: !!(o.market && o.market.published), listPrice: o.listPrice || v.value || '', commission: (o.totalCommission || estCommissionFromPrice(o.listPrice || v.value || '') || (v.transaction && v.transaction.commissionDue) || ''), commissionEst: estCommissionFromPrice(o.listPrice || v.value || ''), totalCommission: o.totalCommission || (v.transaction && v.transaction.commissionDue) || '', ownerPhoto: ownerPhotoBy[String(v.owner || '').toLowerCase()] || '', avatarUrl: (v.avatar && v.avatar.url) || '', avatarFit: (v.avatar && v.avatar.fit) || 'contain',
+    cards.push({ key: d.key, canEdit: !!(isAdmin || ownsAssignment(req, d)), business: v.business, listingNo: o.listingNo || 0, listingId: (o.listingNo ? ('RRG-' + o.listingNo) : ''), codeName: o.codeName || '', company: coNameById[v.companyId] || (d.screen && d.screen.data && d.screen.data.company) || '', companyId: v.companyId || '', contactPersonId: v.clientPersonId || '', concept: v.business, contact: v.contact || '', value: v.value || '', valueBov: !!v.valueBov, market: v.market || '', owner: v.owner || '', lastActivity: v.lastActivity || '', createdAt: v.createdAt || '', status: _prov ? 'Pending Approval' : (o.status || 'New'), provisional: _prov, bbsNumber: v.bbsNumber || '', stage: stage, isLead: !!_preSet[stage], winPct: (_winByStage[stage] != null ? _winByStage[stage] : ''), stageSince: o.stageSince || v.createdAt || '', published: !!(o.market && o.market.published), listPrice: o.listPrice || v.value || '', commission: (o.totalCommission || estCommissionFromPrice(o.listPrice || v.value || '') || (v.transaction && v.transaction.commissionDue) || ''), commissionEst: estCommissionFromPrice(o.listPrice || v.value || ''), totalCommission: o.totalCommission || (v.transaction && v.transaction.commissionDue) || '', ownerPhoto: ownerPhotoBy[String(v.owner || '').toLowerCase()] || '', avatarUrl: (v.avatar && v.avatar.url) || '', avatarFit: (v.avatar && v.avatar.fit) || 'contain',
       isTenant: (o.assignmentType === 'tenant_rep'), stageTargetDays: (_dueByStage[stage] != null ? _dueByStage[stage] : 0),
       saleLane: (o.assignmentType === 'tenant_rep' || o.assignmentType === 'landlord_rep') ? '' : (v.saleLane || 'business'),
       crSf: (function(){ var c=v.criteria||{}; var a=String(c.sizeMin||'').trim(), b=String(c.sizeMax||'').trim(); if(a&&b) return a+'–'+b+' SF'; if(a) return a+'+ SF'; if(b) return 'up to '+b+' SF'; return ''; })(),
@@ -19835,10 +20140,28 @@ app.get('/api/board', (req, res) => {
   });
   res.json({ ok: true, pipelines: pipelines.filter(p => String(p.area||'') !== 'Buyer').map(p => ({ id: p.id, name: p.name })), pipelineId: pid, pipelineName: pipe.name || '', stages: stageNames, preStages: stageNames.filter(function(n){ return _preSet[n]; }), cards: cards, markets: effMarkets(), cardFields: effBoardCardFields(), cardFlags: effBoardCardFlags(), isAdmin: !!isAdmin, users: auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => String(a.name).localeCompare(String(b.name))), me: (req.user && (req.user.name || req.user.username)) || '' });
 });
+// The pipeline a listing / engagement sits on: its saved pipeline, else the default for its rep type (tenant-rep and
+// landlord-rep engagements default to their own pipelines, everything else to Business Sales). The board and the
+// stage-move route both use this so a card is always validated against the pipeline it is shown on.
+function listingPipelineIdOf(o) {
+  o = o || {};
+  if (o.pipelineId) return o.pipelineId;
+  const _at = o.assignmentType;
+  return (_at === 'tenant_rep') ? ((typeof pipelineForCategory === 'function' && pipelineForCategory('tenantRep')) || 'p_tenantrep')
+       : (_at === 'landlord_rep') ? ((typeof pipelineForCategory === 'function' && pipelineForCategory('landlordLease')) || 'p_llrep')
+       : 'p_bizsales';
+}
+// The listing's seller / client contact — the contact linked on the listing, else the one on its deal or screening call.
+function listingClientPersonId(d, o) {
+  if (!d) return '';
+  o = o || {};
+  return String(o.clientPersonId || (d.deal && (d.deal.contactPersonId || d.deal.personId)) || (d.screen && d.screen.personId) || '');
+}
 function _fireStageAutos(pipe, d, oldStage, newStage, req) {
   try {
     if (!pipe || oldStage === newStage) return;
-    const pid = d.contactPersonId || d.personId || '';
+    let _ov = {}; try { _ov = loadAssignOverlay()[d.key] || {}; } catch (e) {}
+    const pid = listingClientPersonId(d, _ov);
     if (!pid) return;
     const stages = pipe.stages || [];
     const _find = function (nm) { return stages.filter(function (s) { return s.name === nm; })[0]; };
@@ -19875,7 +20198,7 @@ app.post('/api/assignment/:key/stage', express.json(), (req, res) => {
   if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
   if (!ownsAssignment(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
   const overlay = loadAssignOverlay(); const cur = overlay[d.key] || {};
-  const pipelines = loadPipelines(); const pid = cur.pipelineId || 'p_bizsales';
+  const pipelines = loadPipelines(); const pid = listingPipelineIdOf(cur);
   const pipe = pipelines.find(p => p.id === pid);
   const stage = String((req.body || {}).stage || '');
   if (pipe && (pipe.stages || []).map(s => s.name).indexOf(stage) < 0) return res.status(400).json({ ok: false, error: 'Unknown stage for this pipeline.' });
@@ -20808,8 +21131,12 @@ function normFbStatus(v) { v = String(v || 'New'); if (FEEDBACK_STATUSES.indexOf
 function matchFbStatus(v) { v = String(v || '').trim(); for (const s2 of FEEDBACK_STATUSES) { if (s2.toLowerCase() === v.toLowerCase()) return s2; } if (FEEDBACK_STATUS_LEGACY[v]) return FEEDBACK_STATUS_LEGACY[v]; const low = v.toLowerCase(); if (low === 'done' || low === 'complete' || low === 'completed' || low === 'ship' || low === 'shipped') return 'Shipped'; if (low === 'wip' || low === 'in-progress' || low === 'progress' || low === 'started') return 'In progress'; if (low === 'sent') return 'Sent to Claude'; if (low === 'approve' || low === 'approved') return 'Approved'; if (low === 'decline' || low === 'declined' || low === 'rejected' || low === 'wontfix' || low === "won't do") return 'Declined'; return ''; }
 function fbView(it) { return Object.assign({}, it, { status: normFbStatus(it.status), approvedBy: it.approvedBy || '', approvedByName: it.approvedByName || '', approvedAt: it.approvedAt || '', sentAt: it.sentAt || '', claudeResponse: it.claudeResponse || '', claudeUpdatedAt: it.claudeUpdatedAt || '' }); }
 const FEEDBACK_PRIORITIES = ['Critical', 'High', 'Medium', 'Low'];
+// One vote per person per item. Legacy items carry only a count (votes) from before voters were tracked;
+// that count is kept and each tracked voter adds/removes exactly one on top of it.
+function fbVoted(it, req) { const u = (req.user && req.user.username) || ''; return !!(u && Array.isArray(it.voters) && it.voters.indexOf(u) >= 0); }
+function fbViewFor(it, req) { const v = fbView(it); v.myVote = fbVoted(it, req); return v; }
 app.get('/api/feedback', (req, res) => {
-  res.json({ ok: true, items: loadFeedback().map(fbView), types: FEEDBACK_TYPES, statuses: FEEDBACK_STATUSES, priorities: FEEDBACK_PRIORITIES, isAdmin: !!(req.user && isSuper(req.user)), canDelete: canDelete(req), me: (req.user && req.user.username) || '' });
+  res.json({ ok: true, items: loadFeedback().map(it => fbViewFor(it, req)), types: FEEDBACK_TYPES, statuses: FEEDBACK_STATUSES, priorities: FEEDBACK_PRIORITIES, isAdmin: !!(req.user && isSuper(req.user)), canDelete: canDelete(req), me: (req.user && req.user.username) || '' });
 });
 app.post('/api/feedback', express.json(), (req, res) => {
   const b = req.body || {}; const all = loadFeedback(); const now = new Date().toISOString();
@@ -20818,6 +21145,12 @@ app.post('/api/feedback', express.json(), (req, res) => {
   if (b.id) {
     it = all.find(x => x.id === b.id);
     if (!it) return res.status(404).json({ ok: false, error: 'Item not found.' });
+    // Status, type, priority and admin notes are admin decisions (approval flow). A submitter may still
+    // edit the wording of their own request while it is New.
+    if (!(req.user && isSuper(req.user))) {
+      if (b.status !== undefined || b.type !== undefined || b.priority !== undefined || b.adminNotes !== undefined || b.claudeResponse !== undefined) return res.status(403).json({ ok: false, error: 'Only an admin can change the status, type or priority of a request.' });
+      if (!(it.submittedBy && it.submittedBy === meU && normFbStatus(it.status) === 'New')) return res.status(403).json({ ok: false, error: 'You can only edit your own request while it is New.' });
+    }
     if (typeof b.title === 'string' && b.title.trim()) it.title = b.title.trim().slice(0, 200);
     if (typeof b.detail === 'string') it.detail = b.detail.slice(0, 6000);
     if (typeof b.type === 'string' && FEEDBACK_TYPES.indexOf(b.type) >= 0) it.type = b.type;
@@ -20826,13 +21159,13 @@ app.post('/api/feedback', express.json(), (req, res) => {
     if (typeof b.priority === 'string' && FEEDBACK_PRIORITIES.indexOf(b.priority) >= 0) it.priority = b.priority;
     if (typeof b.adminNotes === 'string') it.adminNotes = b.adminNotes.slice(0, 4000);
     it.updatedAt = now; saveFeedback(all);
-    return res.json({ ok: true, item: fbView(it) });
+    return res.json({ ok: true, item: fbViewFor(it, req) });
   }
   const title = String(b.title || '').trim().slice(0, 200);
   if (!title) return res.status(400).json({ ok: false, error: 'A short title is required.' });
   it = { id: newFeedbackId(), title: title, type: (FEEDBACK_TYPES.indexOf(b.type) >= 0 ? b.type : 'Feature request'), detail: String(b.detail || '').slice(0, 6000), status: 'New', priority: (FEEDBACK_PRIORITIES.indexOf(b.priority) >= 0 ? b.priority : 'Medium'), votes: 0, submittedBy: meU, submittedByName: meN, adminNotes: '', approvedBy: '', approvedByName: '', approvedAt: '', sentAt: '', claudeResponse: '', claudeUpdatedAt: '', createdAt: now, updatedAt: now };
   all.push(it); saveFeedback(all);
-  res.json({ ok: true, item: fbView(it) });
+  res.json({ ok: true, item: fbViewFor(it, req) });
 });
 app.post('/api/feedback/:id/approve', express.json(), (req, res) => {
   if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Admins only.' });
@@ -20843,7 +21176,7 @@ app.post('/api/feedback/:id/approve', express.json(), (req, res) => {
   if (b.unapprove) { it.status = 'New'; it.approvedBy = ''; it.approvedByName = ''; it.approvedAt = ''; }
   else { it.status = 'Approved'; it.approvedBy = (req.user && req.user.username) || ''; it.approvedByName = (req.user && req.user.name) || ''; it.approvedAt = now; }
   it.updatedAt = now; saveFeedback(all);
-  res.json({ ok: true, item: fbView(it) });
+  res.json({ ok: true, item: fbViewFor(it, req) });
 });
 app.post('/api/feedback/send-batch', express.json(), (req, res) => {
   if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Admins only.' });
@@ -20852,7 +21185,7 @@ app.post('/api/feedback/send-batch', express.json(), (req, res) => {
   let sent = 0;
   all.forEach(it => { const st = normFbStatus(it.status); const pick = ids ? (ids.indexOf(it.id) >= 0) : (st === 'Approved'); if (pick && st !== 'Declined') { it.status = 'Sent to Claude'; it.sentAt = now; it.updatedAt = now; sent++; } });
   saveFeedback(all);
-  res.json({ ok: true, sent, items: all.map(fbView) });
+  res.json({ ok: true, sent, items: all.map(it => fbViewFor(it, req)) });
 });
 app.post('/api/feedback/apply-updates', express.json({ limit: '256kb' }), (req, res) => {
   if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Admins only.' });
@@ -20872,14 +21205,20 @@ app.post('/api/feedback/apply-updates', express.json({ limit: '256kb' }), (req, 
     it.updatedAt = now; updated++;
   });
   saveFeedback(all);
-  res.json({ ok: true, updated, unknown, items: all.map(fbView) });
+  res.json({ ok: true, updated, unknown, items: all.map(it => fbViewFor(it, req)) });
 });
 app.post('/api/feedback/:id/vote', express.json(), (req, res) => {
   const all = loadFeedback(); const it = all.find(x => x.id === req.params.id);
   if (!it) return res.status(404).json({ ok: false, error: 'Not found.' });
-  it.votes = (it.votes || 0) + ((req.body && req.body.dir === 'down') ? -1 : 1); if (it.votes < 0) it.votes = 0;
+  const meU = (req.user && req.user.username) || ''; if (!meU) return res.status(401).json({ ok: false, error: 'Not signed in.' });
+  if (!Array.isArray(it.voters)) it.voters = [];
+  // No dir = toggle (a second click takes your vote back); dir 'up' / 'down' set it. Either way at most one vote each.
+  const had = it.voters.indexOf(meU) >= 0; const dir = req.body && req.body.dir; const want = dir === 'down' ? false : (dir === 'up' ? true : !had);
+  if (want && !had) { it.voters.push(meU); it.votes = (it.votes || 0) + 1; }
+  else if (!want && had) { it.voters = it.voters.filter(u => u !== meU); it.votes = Math.max(it.voters.length, (it.votes || 0) - 1); }
+  else return res.json({ ok: true, votes: it.votes || 0, myVote: had });
   it.updatedAt = new Date().toISOString(); saveFeedback(all);
-  res.json({ ok: true, votes: it.votes });
+  res.json({ ok: true, votes: it.votes, myVote: want });
 });
 app.delete('/api/feedback/:id', (req, res) => {
   if (!canDelete(req)) return res.status(403).json({ ok: false, error: 'You do not have permission to delete.' });
@@ -21093,13 +21432,19 @@ function apptBrief(a) { return { id: a.id, title: a.title || '', contactPersonId
 function apptIcs(a) {
   function e(s) { return String(s || '').replace(/([,;\\])/g, '\\$1').replace(/\r?\n/g, '\\n'); }
   function dt(s) { var m = String(s || '').match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/); return m ? (m[1] + m[2] + m[3] + 'T' + m[4] + m[5] + '00') : ''; }
-  var start = dt(a.start), end = dt(a.end) || start;
+  // Stored times are zone-less firm-local wall clock; emit them as absolute UTC ("Z") so every guest's calendar shows the right local time.
+  function utc(s) { var d = firmNaiveToDate(s); return isNaN(d.getTime()) ? '' : (dt(d.toISOString()) + 'Z'); }
+  function dOnly(s) { var m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? (m[1] + m[2] + m[3]) : ''; }
+  var allDay = !!a.allDay || !/T\d{2}:\d{2}/.test(String(a.start || ''));
+  var dStart, dEnd;
+  if (allDay) { var _s = dOnly(a.start), _e = dOnly(a.end); if (!_e || _e <= _s) { var _n = new Date(String(a.start).slice(0, 10) + 'T00:00:00Z'); _n.setUTCDate(_n.getUTCDate() + 1); _e = dOnly(_n.toISOString()); } dStart = 'DTSTART;VALUE=DATE:' + _s; dEnd = 'DTEND;VALUE=DATE:' + _e; }
+  else { var start = utc(a.start), end = utc(a.end) || start; dStart = 'DTSTART:' + start; dEnd = 'DTEND:' + end; }
   var org = _fromAddr() || 'no-reply@rrgcre.com';
   var orgCn = e(a.byName || '');
   var att = (a.attendees || []).filter(function (x) { return x.email; }).map(function (x) { return 'ATTENDEE;CN=' + e(x.name || x.email) + ':mailto:' + x.email; }).join('\r\n');
   var stamp = dt(new Date().toISOString());
   var _desc = [a.meetUrl ? ('Join the Google Meet: ' + a.meetUrl) : '', a.notes || ''].filter(Boolean).join('\n\n');
-  var lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//RRG//FullServe//EN', 'CALSCALE:GREGORIAN', 'METHOD:REQUEST', 'BEGIN:VEVENT', 'UID:' + a.id + '@rrgcre', 'DTSTAMP:' + stamp + 'Z', 'DTSTART:' + start, 'DTEND:' + end, 'SUMMARY:' + e(a.title || 'Meeting'), (a.location ? 'LOCATION:' + e(a.location) : ''), (_desc ? 'DESCRIPTION:' + e(_desc) : ''), (orgCn ? ('ORGANIZER;CN=' + orgCn + ':mailto:' + org) : ('ORGANIZER:mailto:' + org)), att, 'STATUS:CONFIRMED', 'END:VEVENT', 'END:VCALENDAR'].filter(Boolean);
+  var lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Lavano//Calendar//EN', 'CALSCALE:GREGORIAN', 'METHOD:REQUEST', 'BEGIN:VEVENT', 'UID:' + a.id + '@rrgcre', 'DTSTAMP:' + stamp + 'Z', dStart, dEnd, 'SUMMARY:' + e(a.title || 'Meeting'), (a.location ? 'LOCATION:' + e(a.location) : ''), (_desc ? 'DESCRIPTION:' + e(_desc) : ''), (orgCn ? ('ORGANIZER;CN=' + orgCn + ':mailto:' + org) : ('ORGANIZER:mailto:' + org)), att, 'STATUS:CONFIRMED', 'END:VEVENT', 'END:VCALENDAR'].filter(Boolean);
   return lines.join('\r\n');
 }
 async function sendInviteMail(to, subject, text, ics, cc, bcc, fromName, replyTo, html) {
@@ -21214,7 +21559,7 @@ app.post('/api/appointments', express.json(), (req, res) => {
     const _earliest = rems.length ? rems[0].minutes : '';
     a.remMinutes = _earliest;
     a.reminder = (_earliest === '') ? '' : _apptReminderIso(a.start, _earliest);
-    a.remSent = false;
+    a.remSent = false; a.remPopupSent = false;
   }
   a.updatedAt = now;
   // Scheduling a meeting captures the guest as a contact (find-or-create from an external
@@ -21248,7 +21593,7 @@ app.post('/api/appointments', express.json(), (req, res) => {
     const cnt = Math.max(1, Math.min(60, parseInt(b.repeatCount, 10) || 12));
     for (let i = 1; i < cnt; i++) {
       const st2 = _apptStep(a.start, _rep, i), en2 = a.end ? _apptStep(a.end, _rep, i) : '';
-      all.push(Object.assign({}, a, { id: newApptId(), start: st2, end: en2, reminders: (Array.isArray(a.reminders) ? a.reminders.map(r => ({ minutes: r.minutes, sent: false })) : []), reminder: (a.remMinutes === '' || a.remMinutes == null) ? '' : _apptReminderIso(st2, a.remMinutes), remSent: false, seriesId: a.id, googleEventId: '', meetUrl: '', invitedAt: '', createdAt: now, updatedAt: now }));
+      all.push(Object.assign({}, a, { id: newApptId(), start: st2, end: en2, reminders: (Array.isArray(a.reminders) ? a.reminders.map(r => ({ minutes: r.minutes, sent: false })) : []), reminder: (a.remMinutes === '' || a.remMinutes == null) ? '' : _apptReminderIso(st2, a.remMinutes), remSent: false, remPopupSent: false, seriesId: a.id, googleEventId: '', meetUrl: '', invitedAt: '', createdAt: now, updatedAt: now }));
     }
   }
   saveAppts(all);
@@ -21327,7 +21672,7 @@ app.post('/api/appointments/:id/meet', express.json(), async (req, res) => {
   const reqId = 'rrgmeet-' + a.id + '-' + Date.now().toString(36);
   const body = {
     summary: a.title || 'Meeting', location: a.location || '', description: a.notes || '',
-    start: { dateTime: _gDT(a.start), timeZone: GSYNC_TZ }, end: { dateTime: _gDT(a.end || a.start), timeZone: GSYNC_TZ },
+    start: { dateTime: _gDT(a.start), timeZone: firmTz() }, end: { dateTime: _gDT(a.end || a.start), timeZone: firmTz() },
     attendees: (a.attendees || []).filter(x => x.email).map(x => ({ email: x.email })),
     conferenceData: { createRequest: { requestId: reqId, conferenceSolutionKey: { type: 'hangoutsMeet' } } }
   };
@@ -21402,7 +21747,7 @@ function _bDow(dstr) { return new Date(dstr + 'T12:00:00Z').getUTCDay(); }
 function _fmtClock(hhmm) { const p = String(hhmm || '').split(':'); let h = parseInt(p[0], 10) || 0; const mi = (p[1] || '00').slice(0, 2); const ap = h >= 12 ? 'PM' : 'AM'; let h12 = h % 12; if (h12 === 0) h12 = 12; return h12 + ':' + mi + ' ' + ap; }
 // Friendly date + 12-hour time ("2026-09-15T14:30" -> "Tuesday, September 15, 2026 at 2:30 PM").
 function _fmtWhen(naive) { const m = String(naive || '').match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/); if (!m) return String(naive || '').replace('T', ' at '); const y = +m[1], mo = +m[2], d = +m[3]; const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']; const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']; const wd = days[new Date(Date.UTC(y, mo - 1, d)).getUTCDay()]; return wd + ', ' + months[mo - 1] + ' ' + d + ', ' + y + ' at ' + _fmtClock(m[4] + ':' + m[5]); }
-function _bNow() { try { const p = new Intl.DateTimeFormat('en-CA', { timeZone: GSYNC_TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date()); const o = {}; p.forEach(x => o[x.type] = x.value); const hh = (o.hour === '24' ? '00' : o.hour); return o.year + '-' + o.month + '-' + o.day + 'T' + hh + ':' + o.minute; } catch (e) { return new Date().toISOString().slice(0, 16); } }
+function _bNow() { try { const p = new Intl.DateTimeFormat('en-CA', { timeZone: firmTz(), year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date()); const o = {}; p.forEach(x => o[x.type] = x.value); const hh = (o.hour === '24' ? '00' : o.hour); return o.year + '-' + o.month + '-' + o.day + 'T' + hh + ':' + o.minute; } catch (e) { return new Date().toISOString().slice(0, 16); } }
 // Meeting types on a booking page. Back-compat: a page with only a single `length` becomes one type.
 function sanitizeRich(html) {
   let s = String(html == null ? '' : html).slice(0, 4000);
@@ -21471,7 +21816,7 @@ function bookingAvailability(username, days, lenOverride) {
 }
 app.get('/api/me/booking', (req, res) => {
   const un = req.user && req.user.username; const bk = (loadBookings()[un]) || {}; const base = appBaseUrl();
-  res.json({ ok: true, enabled: !!bk.enabled, token: bk.token || '', length: bk.length || 30, buffer: bk.buffer || 0, minNotice: bk.minNotice || 0, title: bk.title || '', types: (Array.isArray(bk.types) ? bk.types : []), roleTypes: (bk.roleTypes && typeof bk.roleTypes === 'object') ? bk.roleTypes : {}, questions: (Array.isArray(bk.questions) ? bk.questions : []), lengths: BOOK_LENGTHS, ownerTz: GSYNC_TZ, link: (bk.token ? ((base || '') + '/book/' + bk.token) : '') });
+  res.json({ ok: true, enabled: !!bk.enabled, token: bk.token || '', length: bk.length || 30, buffer: bk.buffer || 0, minNotice: bk.minNotice || 0, title: bk.title || '', types: (Array.isArray(bk.types) ? bk.types : []), roleTypes: (bk.roleTypes && typeof bk.roleTypes === 'object') ? bk.roleTypes : {}, questions: (Array.isArray(bk.questions) ? bk.questions : []), lengths: BOOK_LENGTHS, ownerTz: firmTz(), link: (bk.token ? ((base || '') + '/book/' + bk.token) : '') });
 });
 app.post('/api/me/booking', express.json(), (req, res) => {
   const un = req.user && req.user.username; if (!un) return res.status(401).json({ ok: false });
@@ -21499,7 +21844,7 @@ app.post('/api/me/booking', express.json(), (req, res) => {
   }
   if (cur.enabled && !cur.token) cur.token = _bookToken();
   all[un] = cur; saveBookings(all); const base = appBaseUrl();
-  res.json({ ok: true, enabled: !!cur.enabled, token: cur.token || '', length: cur.length || 30, buffer: cur.buffer || 0, minNotice: cur.minNotice || 0, title: cur.title || '', types: (Array.isArray(cur.types) ? cur.types : []), roleTypes: (cur.roleTypes && typeof cur.roleTypes === 'object') ? cur.roleTypes : {}, questions: (Array.isArray(cur.questions) ? cur.questions : []), lengths: BOOK_LENGTHS, ownerTz: GSYNC_TZ, link: (cur.token ? ((base || '') + '/book/' + cur.token) : '') });
+  res.json({ ok: true, enabled: !!cur.enabled, token: cur.token || '', length: cur.length || 30, buffer: cur.buffer || 0, minNotice: cur.minNotice || 0, title: cur.title || '', types: (Array.isArray(cur.types) ? cur.types : []), roleTypes: (cur.roleTypes && typeof cur.roleTypes === 'object') ? cur.roleTypes : {}, questions: (Array.isArray(cur.questions) ? cur.questions : []), lengths: BOOK_LENGTHS, ownerTz: firmTz(), link: (cur.token ? ((base || '') + '/book/' + cur.token) : '') });
 });
 app.post('/api/me/bookings-seen', express.json(), (req, res) => {
   const un = req.user && req.user.username; if (!un) return res.status(401).json({ ok: false });
@@ -21512,14 +21857,14 @@ app.get('/api/book/:token', (req, res) => {
   const bk = bookingByToken(req.params.token); if (!bk) return res.status(404).json({ ok: false, error: 'This booking link is not active.' });
   const types = bookTypes(bk);
   const av = bookingAvailability(bk.username, 1, types[0].length);
-  res.json({ ok: true, owner: av.owner, length: av.length, title: bk.title || '', business: (effOrg().name || loadAppName()), types: types, questions: (Array.isArray(bk.questions) ? bk.questions : []), ownerTz: GSYNC_TZ });
+  res.json({ ok: true, owner: av.owner, length: av.length, title: bk.title || '', business: (effOrg().name || loadAppName()), types: types, questions: (Array.isArray(bk.questions) ? bk.questions : []), ownerTz: firmTz() });
 });
 app.get('/api/book/:token/slots', (req, res) => {
   const bk = bookingByToken(req.params.token); if (!bk) return res.status(404).json({ ok: false, error: 'This booking link is not active.' });
   const t = bookTypeById(bk, String(req.query.type || ''));
   const _dw = Math.max(1, Math.min(62, parseInt(req.query.days, 10) || 21));
   const av = bookingAvailability(bk.username, _dw, t.length);
-  res.json({ ok: true, length: av.length, days: av.days, owner: av.owner, ownerTz: GSYNC_TZ, type: t });
+  res.json({ ok: true, length: av.length, days: av.days, owner: av.owner, ownerTz: firmTz(), type: t });
 });
 // Best-effort: create a real Google Meet link on the rep's calendar for an online booking.
 // Returns the link or '' — never throws, so it can't break the booking flow.
@@ -21531,7 +21876,7 @@ async function _bookingMeetLink(u, a) {
     const reqId = 'rrgbook-' + a.id + '-' + Date.now().toString(36);
     const body = {
       summary: a.title || 'Meeting', description: a.notes || '',
-      start: { dateTime: _gDT(a.start), timeZone: GSYNC_TZ }, end: { dateTime: _gDT(a.end || a.start), timeZone: GSYNC_TZ },
+      start: { dateTime: _gDT(a.start), timeZone: firmTz() }, end: { dateTime: _gDT(a.end || a.start), timeZone: firmTz() },
       attendees: (a.attendees || []).filter(x => x.email).map(x => ({ email: x.email })),
       conferenceData: { createRequest: { requestId: reqId, conferenceSolutionKey: { type: 'hangoutsMeet' } } }
     };
@@ -21634,7 +21979,7 @@ app.get('/book/manage/:token', (req, res) => { res.sendFile(path.join(__dirname,
 app.get('/api/book/manage/:token', (req, res) => {
   const a = _apptByManageToken(req.params.token); if (!a) return res.status(404).json({ ok: false, error: 'This link is no longer valid.' });
   const prof = auth.profileOf(auth.findUser(a.byUser)) || {};
-  res.json({ ok: true, title: a.title, start: a.start, end: a.end, location: a.location || '', status: a.status || 'scheduled', owner: prof.name || a.byName || '', business: (effOrg().name || loadAppName()), ownerTz: GSYNC_TZ, rebook: a.bookToken ? ('/book/' + a.bookToken) : '' });
+  res.json({ ok: true, title: a.title, start: a.start, end: a.end, location: a.location || '', status: a.status || 'scheduled', owner: prof.name || a.byName || '', business: (effOrg().name || loadAppName()), ownerTz: firmTz(), rebook: a.bookToken ? ('/book/' + a.bookToken) : '' });
 });
 app.post('/api/book/manage/:token/cancel', express.json(), (req, res) => {
   const all = loadAppts(); const a = all.find(x => x.manageToken === req.params.token);
@@ -21875,10 +22220,36 @@ function newFileId() { return 'file_' + Date.now().toString(36) + Math.random().
 const USERFILE_MIME = { pdf:'application/pdf', doc:'application/msword', docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document', xls:'application/vnd.ms-excel', xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', ppt:'application/vnd.ms-powerpoint', pptx:'application/vnd.openxmlformats-officedocument.presentationml.presentation', png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg', gif:'image/gif', webp:'image/webp', txt:'text/plain', csv:'text/csv', zip:'application/zip' };
 function userFileMime(ext) { return USERFILE_MIME[String(ext||'').toLowerCase()] || 'application/octet-stream'; }
 
+// Doc Vault delete gate: admins always; everyone else needs the Delete permission AND must be able to
+// see the record as its owner — the same per-kind ownership test the Doc Vault list (/api/documents) uses
+// (agreements, LOIs, site criteria, seller calls & files also open to see-all users, as listings are).
+function docDeleteOk(req, kind, rec) {
+  if (req.user && isSuper(req.user)) return true;
+  if (!canDelete(req)) return false;
+  if (kind === 'valuation') return ownsBov(req, rec);
+  if (kind === 'marketingpack') return ownsCim(req, rec);
+  if (rec && rec._screen) return ownsScreen(req, rec);
+  if (!restrictToOwn(req)) return true;
+  if (kind === 'agreement') return permOwnerMatch(req, rec.createdBy);
+  if (kind === 'loi') return permOwnerMatch(req, rec.byUser || rec.by);
+  if (kind === 'seller' || kind === 'ssc') return permOwnerMatch(req, rec.rep);
+  if (kind === 'file') return permOwnerMatch(req, rec.createdBy);
+  return false;
+}
 app.delete('/api/document/:kind/:id', (req, res) => {
   if (!req.user) return res.status(401).json({ ok: false, error: 'Sign in required.' });
   const kind = String(req.params.kind || ''); const id = req.params.id;
   try {
+    let rec = null;
+    if (kind === 'agreement') rec = loadAgreements().find(x => x.id === id);
+    else if (kind === 'valuation') rec = loadBovs().find(x => x.id === id);
+    else if (kind === 'marketingpack') rec = loadCims().find(x => x.id === id);
+    else if (kind === 'loi') rec = loadLois().find(x => x.id === id);
+    else if (kind === 'seller' || kind === 'ssc') { const _s = loadScreens().find(x => x.id === id); rec = _s ? Object.assign({ _screen: true }, _s) : store.readAll().find(r => String(r.timestamp) === String(id)); }
+    else if (kind === 'file') rec = loadUserFiles().find(x => x.id === id);
+    else return res.status(400).json({ ok: false, error: 'Unknown document type.' });
+    if (!rec) return res.status(404).json({ ok: false, error: 'Not found.' });
+    if (!docDeleteOk(req, kind, rec)) return res.status(403).json({ ok: false, error: canDelete(req) ? 'Not yours.' : 'You do not have permission to delete records.' });
     if (kind === 'agreement') { const all = loadAgreements(); const a = all.find(x => x.id === id); if (a && a.docExt) { try { binDel(path.join(AGREEMENT_DOC_DIR, a.id + '.' + a.docExt)); } catch (e) {} } saveAgreements(all.filter(x => x.id !== id)); return res.json({ ok: true }); }
     if (kind === 'valuation') { saveBovs(loadBovs().filter(x => x.id !== id)); return res.json({ ok: true }); }
     if (kind === 'marketingpack') { saveCims(loadCims().filter(x => x.id !== id)); return res.json({ ok: true }); }
@@ -22031,7 +22402,7 @@ app.get('/api/documents', (req, res) => {
     let ivx = loadInterviews();
     if (restrictToOwn(req)) ivx = ivx.filter(iv => permOwnerMatch(req, iv.byUser));
     ivx.forEach(iv => {
-      const _open = iv.roomId ? ('rrg_room.html?id=' + encodeURIComponent(iv.roomId)) : ('/api/interview/' + iv.id + '/view');
+      const _open = iv.roomId ? ('rrg_room.html?room=' + encodeURIComponent(iv.roomId)) : ('/api/interview/' + iv.id + '/view');
       out.push({ id: iv.id, kind: 'interview', title: (iv.business || 'Seller interview') + ' — Interview', typeLabel: 'Interview',
         matchNames: [iv.business || ''], personId: iv.personId || '', companyId: iv.companyId || '',
         companyName: coNameById[iv.companyId] || '', personName: nameById[iv.personId] || '', dealName: '',
@@ -22042,7 +22413,7 @@ app.get('/api/documents', (req, res) => {
   } catch (e) {}
   try {
     let sscs = store.readAll().filter(r => r.form === 'ssc');
-    if (restrictToOwn(req)) sscs = sscs.filter(r => permOwnerMatch(req, r.rep));
+    if (restrictToOwn(req)) sscs = sscs.filter(r => sscOwnerMatch(req, r));
     sscs.forEach(r => { out.push({ id: r.timestamp, kind:'ssc', title: r.name || 'Site Criteria', typeLabel:'Site Criteria', matchNames:[r.name||'', (r.data&&r.data.company)||'', (r.data&&r.data.contact)||''], personId:(r.data&&r.data.personId)||'', companyId:(r.data&&r.data.companyId)||'', companyName: coNameById[r.data&&r.data.companyId] || r.market||'', personName: nameById[r.data&&r.data.personId]||'', dealName:'', relatesToName:'', status: r.highlights || '', statusKey:'ssc', owner: r.rep || '', createdAt: r.timestamp || '', deleteUrl: '/api/document/ssc/'+encodeURIComponent(r.timestamp), openUrl: '/api/ssc/'+encodeURIComponent(r.timestamp)+'/view', downloadUrl:'' }); });
   } catch (e) {}
   // ---- Seller screening calls ---------------------------------------------------------
@@ -22163,7 +22534,7 @@ function intakeViewHtml(rec, kicker) {
 app.get('/api/ssc/:key/view', (req, res) => {
   const rec = store.readAll().filter(r => r.form === 'ssc' && r.timestamp === String(req.params.key||''))[0];
   if (!rec) return res.status(404).send('Not found.');
-  if (restrictToOwn(req) && !permOwnerMatch(req, rec.rep)) return res.status(403).send('Not authorized.');
+  if (restrictToOwn(req) && !sscOwnerMatch(req, rec)) return res.status(403).send('Not authorized.');
   res.set('Content-Type','text/html; charset=utf-8').send(intakeViewHtml(rec, 'Site & Concept Criteria'));
 });
 app.get('/api/seller/:key/view', (req, res) => {
@@ -22206,7 +22577,7 @@ app.get('/api/questionnaire/:id/view', (req, res) => {
 // expiring within 60 / 30 days (idempotent via flags; re-arms if the expiry date moves).
 function agreementExpiryTick() {
   try {
-    const all = loadAgreements(); const today = new Date().toISOString().slice(0, 10);
+    const all = loadAgreements(); const today = firmToday();
     let changed = false, tasks = null;
     const daysTo = (d) => { try { return Math.ceil((new Date(d + 'T00:00:00Z') - new Date(today + 'T00:00:00Z')) / 86400000); } catch (e) { return null; } };
     const rd = effAgrRenewDays(); const cfgKey = rd.first + '/' + rd.second;
@@ -23276,6 +23647,9 @@ function userCan(user, key) {
   if (user && isSuper(user)) return true;
   return !!effectivePerms(user)[key];
 }
+// Site Criteria (SSC) records: owned by the user who saved them (byUser, stored since this fix) or the named
+// "RRG Advisor"; records saved before byUser existed fall back to the old advisor-name match.
+function sscOwnerMatch(req, r) { if (!r) return false; const u = req.user || {}; if (r.byUser) return r.byUser === u.username || (!!r.rep && permOwnerMatch(req, r.rep)); return permOwnerMatch(req, r.rep); }
 function permOwnerMatch(req, owner) { if (!owner) return true; const u = req.user || {}; return owner === u.name || owner === u.username; }
 function restrictToOwn(req) { if (!permsEnabled()) return false; if (req.user && isSuper(req.user)) return false; return !effectivePerms(req.user).see_all; }
 function canSeeAllDeals(req) { if (req.user && isSuper(req.user)) return true; return permsEnabled() && !!effectivePerms(req.user).see_all; }
@@ -23320,11 +23694,12 @@ function reportsRoomInsights(days) {
   const inWin = at => String(at || '').slice(0, 10) >= cutoff;
   const rooms = loadRooms();
   const docMap = {}, buyerMap = {}; let totViews = 0, totDl = 0;
-  // Read time is cumulative (dwell isn't timestamped) — joined per doc name.
+  // Read time for the window, from the per-day dwell buckets (grant.dwellByDay) — joined per doc name.
+  // Reading logged before those buckets existed has no date, so it isn't counted in any window.
   const readByKey = {};
   rooms.forEach(r => {
     const byId = {}; (r.docs || []).forEach(d => { byId[d.id] = d; });
-    (r.grants || []).forEach(g => { const dw = g.dwell || {}; Object.keys(dw).forEach(id => { const doc = byId[id]; if (!doc) return; const nm = String(doc.title || doc.originalName || ''); const k = r.id + '|' + nm; readByKey[k] = (readByKey[k] || 0) + (Number(dw[id]) || 0); }); });
+    (r.grants || []).forEach(g => { const bd = g.dwellByDay || {}; Object.keys(bd).forEach(day => { if (!inWin(day)) return; const dw = bd[day] || {}; Object.keys(dw).forEach(id => { const doc = byId[id]; if (!doc) return; const nm = String(doc.title || doc.originalName || ''); const k = r.id + '|' + nm; readByKey[k] = (readByKey[k] || 0) + (Number(dw[id]) || 0); }); }); });
     const gname = {}; (r.grants || []).forEach(g => { gname[g.id] = g.name || g.email || 'Buyer'; });
     (r.access || []).forEach(ev => {
       if (!ev || (ev.event !== 'view' && ev.event !== 'download') || !ev.doc || !inWin(ev.at)) return;
@@ -23542,15 +23917,38 @@ app.get('/api/permissions/me', (req, res) => {
 // ---- Task reminders: due-list (for pop-ups) + background email sender ----
 app.get('/api/reminders/due', (req, res) => {
   const meU = req.user && req.user.username;
-  const nowIso = new Date().toISOString().slice(0, 16);
+  const nowIso = firmNaive();   // stored reminder times are firm-local wall clock, not UTC
   const due = loadTasks().filter(t => t.status !== 'done' && t.reminder && taskChannels(t).indexOf('popup') >= 0 && String(t.reminder).slice(0, 16) <= nowIso && (t.assignee === meU || t.createdBy === meU))
     .map(t => ({ id: t.id, title: t.title, due: t.due || '', linkLabel: t.linkLabel || '', reminder: t.reminder }));
+  // Meeting pop-ups: the organizer's meetings whose reminder time has arrived (and that haven't ended).
+  // Each pop-up is served once — flagged popupSent (separate from the email sender's `sent`).
+  try {
+    const appts = loadAppts(); let apChanged = false;
+    appts.forEach(a => {
+      if (!meU || a.byUser !== meU || a.status === 'cancelled' || !a.start) return;
+      const ch = (Array.isArray(a.remChannels) && a.remChannels.length) ? a.remChannels : ['popup', 'email'];
+      if (ch.indexOf('popup') < 0) return;
+      const endKey = String(a.end || a.start); if ((endKey.length > 10 ? endKey.slice(0, 16) : (endKey.slice(0, 10) + 'T23:59')) < nowIso) return;
+      const item = (key, at) => ({ id: key, kind: 'meeting', title: a.title || 'Meeting', start: a.start, when: _fmtWhen(a.start), linkLabel: a.location || a.contactName || '', reminder: at });
+      if (Array.isArray(a.reminders) && a.reminders.length) {
+        a.reminders.forEach(r => {
+          if (!r || r.popupSent) return;
+          const fireIso = _apptReminderIso(a.start, r.minutes);
+          if (!fireIso || String(fireIso).slice(0, 16) > nowIso) return;
+          due.push(item(a.id + ':' + r.minutes, fireIso)); r.popupSent = true; apChanged = true;
+        });
+      } else if (a.reminder && !a.remPopupSent && String(a.reminder).slice(0, 16) <= nowIso) {
+        due.push(item(a.id, a.reminder)); a.remPopupSent = true; apChanged = true;
+      }
+    });
+    if (apChanged) saveAppts(appts);
+  } catch (e) { console.error('meeting pop-ups:', e && e.message); }
   res.json({ ok: true, reminders: due });
 });
 function runReminderSender() {
   try {
     if (!isEmailConfigured()) return;
-    const nowIso = new Date().toISOString().slice(0, 16);
+    const nowIso = firmNaive();   // stored reminder times are firm-local wall clock, not UTC
     const all = loadTasks(); let changed = false; const users = auth.loadUsers();
     all.forEach(t => {
       if (t.status !== 'done' && t.reminder && !t.remSent && String(t.reminder).slice(0, 16) <= nowIso) {
@@ -23898,7 +24296,7 @@ function saveLois(a) { return writeJsonGuarded(LOIS_FILE, a || [], 'saveLois'); 
 function newLoiId() { return 'loi_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 app.get('/api/loi/parties', (req, res) => {
   const out = [];
-  try { loadPeople().forEach(p => out.push({ id: p.id, kind: 'contact', name: p.name || '', sub: p.company || preferredEmailOf(p) || '' })); } catch (e) {}
+  try { loadPeople().forEach(p => out.push({ id: p.id, kind: 'contact', name: p.name || '', sub: p.company || preferredEmailOf(p) || '', email: preferredEmailOf(p) || '' })); } catch (e) {}
   try { loadCompanies().forEach(c => out.push({ id: c.id, kind: 'company', name: c.name || '', sub: c.type || '' })); } catch (e) {}
   res.json({ ok: true, parties: out });
 });
@@ -24588,9 +24986,9 @@ setTimeout(spaceMatchSweep, 45 * 1000);
 // New fits for a rep's engagements in the last week — fed to the Daily Brief.
 function briefSpaceMatches(req, scopeUser, scopeAll) {
   try {
-    const spaces = loadSpaces(); const out = []; const weekAgo = Date.now() - 7 * 864e5;
+    const spaces = loadSpaces(); const out = []; const weekAgo = Date.now() - 7 * 864e5; const _aov = scopeAll ? null : loadAssignOverlay();
     tenantEngagementsFor(req).forEach(e => {
-      if (!scopeAll && !assignmentOwnedBy(e.d, scopeUser)) return;
+      if (!scopeAll && !assignmentOwnedBy(e.d, scopeUser, _aov)) return;
       const cr = engSpaceCriteria(e.av); if (!cr.has) return; const notified = (e.o.spaceNotified) || {};
       spaces.forEach(sp => { const t = Date.parse(notified[sp.id] || sp.createdAt || ''); if (!isFinite(t) || t < weekAgo) return; const r = scoreSpaceForEng(sp, cr); if (r && r.score >= SPACE_FIT_MIN) out.push({ tenant: e.av.business || '', space: [sp.center, sp.name].filter(Boolean).join(' · '), score: r.score, why: r.reasons.slice(0, 3).join(', ') }); });
     });
@@ -24826,9 +25224,9 @@ app.get('/api/tx/config', (req, res) => { const c = txCfg(); res.json({ ok: true
 const TXRADAR_DIR = path.join(BOV_DATA_DIR, 'txradar');
 async function txRadarBuild(city) {
   const C = _txEsc(city); const since = new Date(Date.now() - 26 * 30.44 * 864e5).toISOString().slice(0, 10);
-  const rows = []; for (let off = 0; off < 300000; off += 50000) { const page = await txQuery(TX_MB, { '$select': 'taxpayer_name,location_name,location_address,location_zip,tabc_permit_number,obligation_end_date_yyyymmdd,total_receipts,liquor_receipts,wine_receipts,beer_receipts', '$where': "upper(location_city)='" + C + "' AND obligation_end_date_yyyymmdd>='" + since + "'", '$order': 'obligation_end_date_yyyymmdd ASC', '$limit': '50000', '$offset': String(off) }); (page || []).forEach(r => rows.push(r)); if (!page || page.length < 50000) break; }
+  const rows = []; for (let off = 0; off < 300000; off += 50000) { const page = await txQuery(TX_MB, { '$select': 'taxpayer_name,taxpayer_number,location_name,location_address,location_zip,tabc_permit_number,obligation_end_date_yyyymmdd,total_receipts,liquor_receipts,wine_receipts,beer_receipts', '$where': "upper(location_city)='" + C + "' AND obligation_end_date_yyyymmdd>='" + since + "'", '$order': 'obligation_end_date_yyyymmdd ASC', '$limit': '50000', '$offset': String(off) }); (page || []).forEach(r => rows.push(r)); if (!page || page.length < 50000) break; }
   const ops = {}; let latest = '';
-  rows.forEach(r => { const k = r.tabc_permit_number || (r.location_name + '|' + r.location_address); const o = ops[k] = ops[k] || { name: r.location_name || r.taxpayer_name || '', taxpayer: r.taxpayer_name || '', address: r.location_address || '', zip: r.location_zip || '', permit: r.tabc_permit_number || '', months: {}, liq: {}, wine: {}, beer: {} }; const m = txMonthKey(r.obligation_end_date_yyyymmdd); o.months[m] = (o.months[m] || 0) + (Number(r.total_receipts) || 0); o.liq[m] = (o.liq[m] || 0) + (Number(r.liquor_receipts) || 0); o.wine[m] = (o.wine[m] || 0) + (Number(r.wine_receipts) || 0); o.beer[m] = (o.beer[m] || 0) + (Number(r.beer_receipts) || 0); if (m > latest) latest = m; });
+  rows.forEach(r => { const k = r.tabc_permit_number || (r.location_name + '|' + r.location_address); const o = ops[k] = ops[k] || { name: r.location_name || r.taxpayer_name || '', taxpayer: r.taxpayer_name || '', tpn: r.taxpayer_number || '', address: r.location_address || '', zip: r.location_zip || '', permit: r.tabc_permit_number || '', months: {}, liq: {}, wine: {}, beer: {} }; const m = txMonthKey(r.obligation_end_date_yyyymmdd); o.months[m] = (o.months[m] || 0) + (Number(r.total_receipts) || 0); o.liq[m] = (o.liq[m] || 0) + (Number(r.liquor_receipts) || 0); o.wine[m] = (o.wine[m] || 0) + (Number(r.wine_receipts) || 0); o.beer[m] = (o.beer[m] || 0) + (Number(r.beer_receipts) || 0); if (m > latest) latest = m; });
   const mAdd = (m, n) => { const d = new Date(m + '-15T00:00:00Z'); d.setUTCMonth(d.getUTCMonth() + n); return d.toISOString().slice(0, 7); };
   // The state reports with a lag: treat the newest month present as "current".
   const cur = latest; const sig = [];
@@ -24858,7 +25256,7 @@ async function txRadarBuild(city) {
     // Category split over the last 12 months (or the 12 before it stopped, for a stopped operator).
     const off = status === 'stopped' ? gap : 0; const csum = (map) => { let x = 0; for (let i = off; i <= off + 11; i++) x += (map[mAdd(cur, -i)] || 0); return x; };
     const liquor12 = csum(o.liq), wine12 = csum(o.wine), beer12 = csum(o.beer); const cat = liquor12 + wine12 + beer12;
-    return { name: o.name, taxpayer: o.taxpayer, address: o.address, zip: o.zip, permit: o.permit, firstMonth: ms[0], lastMonth: last, monthsSince: gap, monthsReporting: ms.length, status: status,
+    return { name: o.name, taxpayer: o.taxpayer, tpn: o.tpn || '', address: o.address, zip: o.zip, permit: o.permit, firstMonth: ms[0], lastMonth: last, monthsSince: gap, monthsReporting: ms.length, status: status,
       trailing12: sum(0, 11), prior12: sum(12, 23), avgMonth: Math.round(sum(0, 11) / 12), priorAvg: Math.round(prior),
       chg3: pct(sum(0, 2), sum(12, 14)), chg6: pct(sum(0, 5), sum(12, 17)), chg12: pct(sum(0, 11), sum(12, 23)), series: series,
       liquor12: liquor12, wine12: wine12, beer12: beer12, liquorPct: cat ? Math.round(liquor12 / cat * 100) : null, winePct: cat ? Math.round(wine12 / cat * 100) : null, beerPct: cat ? Math.round(beer12 / cat * 100) : null };

@@ -39,6 +39,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 <div class="wrap">
   <h1 class="pgh">Payments</h1>
   <div class="pgs">Every payment recorded against your invoices, in one ledger. Record payments from an invoice; they roll up here. Your payments are private to you; admins see the whole team.</div>
+  <div data-rrg-feats="payments"></div>
   <div class="stats" id="stats"></div>
   <div class="card">
     <div class="hd"><b>Payment Ledger</b><span class="meta" id="pcount"></span>
@@ -68,11 +69,11 @@ function listCfg(data){ var cols=[
     { label:'Bill to', sort:function(a,b){return RRGList.cmp(a.billTo,b.billTo);}, cell:function(x){ return x.billTo?esc(x.billTo):'<span class="meta">—</span>'; } },
     { label:'Method', sort:function(a,b){return RRGList.cmp(a.method,b.method);}, cell:function(x){ return x.method?esc(x.method):'<span class="meta">—</span>'; } },
     { label:'Reference', sort:function(a,b){return RRGList.cmp(a.reference,b.reference);}, cell:function(x){ return x.reference?('<span class="meta">'+esc(x.reference)+'</span>'):'<span class="meta">—</span>'; }, defaultHidden:true },
-    { label:'Amount', align:'right', sort:function(a,b){return RRGList.cmp(Number(a.amount||0),Number(b.amount||0));}, cell:function(x){ return '<span class="amt">'+money(x.amount)+'</span>'; } } ];
+    { label:'Amount', align:'right', sort:function(a,b){return RRGList.cmp(Number(a.amount||0),Number(b.amount||0));}, cell:function(x){ return x.voided?('<span class="amt" style="color:var(--soft);text-decoration:line-through" title="Invoice voided — not counted as collected">'+money(x.amount)+'</span> <span class="meta">void</span>'):('<span class="amt">'+money(x.amount)+'</span>'); } } ];
   if(IS_ADMIN) cols.push({ label:'Rep', sort:function(a,b){return RRGList.cmp(a.ownerName,b.ownerName);}, cell:function(x){ return x.mine?'You':(x.ownerName?esc(x.ownerName):'<span class="meta">—</span>'); } });
   return { mount:'#plist', data:data, key:'payments', empty:'<div class="empty">No payments recorded yet. Record them against an invoice and they show up here.</div>',
     rowId:function(x){return x.id;}, defaultSort:0, defaultDir:-1, columns:cols }; }
-function renderStats(data){ var host=document.getElementById('stats'); if(!host) return; var sum=0, ytd=0, yr=String(new Date().getFullYear()); (data||[]).forEach(function(x){ var a=Number(x.amount||0); sum+=a; if(String(x.date||'').slice(0,4)===yr) ytd+=a; }); var isFiltered=(data||[]).length!==ROWS.length; host.innerHTML='<div class="stat green"><div class="k">'+(isFiltered?'Collected (shown)':'Total collected')+'</div><div class="v">'+money(isFiltered?sum:TOTAL)+'</div></div><div class="stat"><div class="k">This year</div><div class="v">'+money(ytd)+'</div></div><div class="stat"><div class="k">Payments</div><div class="v">'+(data||[]).length+'</div></div>'; }
+function renderStats(data){ var host=document.getElementById('stats'); if(!host) return; var sum=0, ytd=0, n=0, vsum=0, vn=0, yr=String(new Date().getFullYear()); (data||[]).forEach(function(x){ var a=Number(x.amount||0); if(x.voided){ vsum+=a; vn++; return; } n++; sum+=a; if(String(x.date||'').slice(0,4)===yr) ytd+=a; }); var isFiltered=(data||[]).length!==ROWS.length; host.innerHTML='<div class="stat green"><div class="k">'+(isFiltered?'Collected (shown)':'Total collected')+'</div><div class="v">'+money(isFiltered?sum:TOTAL)+'</div></div><div class="stat"><div class="k">This year</div><div class="v">'+money(ytd)+'</div></div><div class="stat"><div class="k">Payments</div><div class="v">'+n+'</div></div>'+(vn?('<div class="stat"><div class="k">On voided invoices</div><div class="v" style="color:var(--soft)">'+money(vsum)+'</div><div class="meta">'+vn+' payment'+(vn===1?'':'s')+' · not counted</div></div>'):''); }
 function applyFilter(){
   var q=(document.getElementById('search').value||'').trim().toLowerCase();
   var base=(CF)?CF.filter(ROWS):ROWS;
@@ -86,5 +87,6 @@ function applyFilter(){
 function load(){ api('GET','/api/payments').then(function(j){ ROWS=j.payments||[]; TOTAL=Number(j.total||0); IS_ADMIN=!!j.isAdmin; applyFilter(); }); }
 load();
 </script>
+<script src="/rrg_features.js"></script>
 </body>
 </html>

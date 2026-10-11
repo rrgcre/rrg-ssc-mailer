@@ -100,6 +100,7 @@ tbody tr:hover{background:#fafbfe;}
     </div>
   </div>
 
+  <div data-rrg-feats="email_finder"></div>
   <div id="keyNote"></div>
 
   <div class="card">
@@ -211,6 +212,7 @@ tbody tr:hover{background:#fafbfe;}
     <div class="save-row" style="margin-bottom:14px;">
       <input id="listName" placeholder="Name this list (e.g. Austin BBQ)" autocomplete="off">
       <button class="btn primary mini" id="saveBtn" type="button">Save as list</button>
+      <button class="btn mini" id="saveNewBtn" type="button" hidden>Save as new</button>
       <span id="saveMsg" style="font-size:12.5px;"></span>
     </div>
     <div style="overflow-x:auto;">
@@ -334,6 +336,7 @@ tbody tr:hover{background:#fafbfe;}
       if(firstBatch){ META={city:city,state:state,zip:zip,type:label,googleType:slug}; $('onlyEmail').checked=false; if(!$('listName').value.trim()) $('listName').value=((label?label+' — ':'')+(zip||city)).trim(); }
       $('resultsCard').hidden=(ROWS.length===0);
       var extra=(j.skippedZips>0)?(' <span style="color:var(--red)">'+j.skippedZips+' ZIP'+(j.skippedZips===1?'':'s')+' over the 12-per-search limit were skipped — run them separately.</span>'):'';
+      if(j.capped && j.zips && j.zipsSearched<j.zips.length) extra+=' <span style="color:var(--muted)">Reached Max results ('+max+') after '+j.zipsSearched+' of '+j.zips.length+' ZIPs — search the rest separately or raise Max results.</span>';
       if(!incoming.length){ $('searchMsg').innerHTML='<span style="color:var(--muted)">No restaurants found for that search'+(ROWS.length?' — nothing added.':'.')+'</span>'+extra; }
       else { $('searchMsg').innerHTML='<span style="color:var(--green)">Added '+added+' '+(added===1?'restaurant':'restaurants')+(dup?(' · '+dup+' already listed'):'')+'. '+ROWS.length+' in the list.</span>'+extra; }
       renderRows(); updateSum();
@@ -411,21 +414,26 @@ tbody tr:hover{background:#fafbfe;}
     if(ROWS.length && !window.confirm('Clear the '+ROWS.length+' restaurant'+(ROWS.length===1?'':'s')+' in the current list? (Saved lists are not affected.)')) return;
     ROWS=[]; META={city:'',state:'',zip:'',type:'',googleType:'restaurant'};
     $('resultsCard').hidden=true; $('rows').innerHTML=''; $('onlyEmail').checked=false;
-    $('listName').value=''; $('saveMsg').textContent='';
+    $('listName').value=''; $('saveMsg').textContent=''; setCur(null);
     $('searchMsg').innerHTML='<span style="color:var(--muted)">List cleared. Your next search starts fresh.</span>';
   });
 
   /* ---- save as list ---- */
-  $('saveBtn').addEventListener('click', function(){
+  // CUR = the saved list currently open (from Open). Saving then updates it in place; "Save as new" makes a copy.
+  var CUR=null;
+  function setCur(l){ CUR=l?{id:l.id,name:l.name||''}:null; $('saveBtn').textContent=CUR?'Save changes':'Save as list'; $('saveNewBtn').hidden=!CUR; }
+  $('saveBtn').addEventListener('click', function(){ saveList(!!CUR); });
+  $('saveNewBtn').addEventListener('click', function(){ saveList(false); });
+  function saveList(update){
     if(!ROWS.length){ return; }
     var name=$('listName').value.trim();
-    var btn=$('saveBtn'); btn.disabled=true; $('saveMsg').textContent='Saving…';
-    api('POST','/api/finder/lists',{name:name,city:META.city,state:META.state,zip:META.zip,type:META.type,googleType:META.googleType,rows:ROWS.map(function(r){return {placeId:r.placeId,name:r.name,address:r.address,phone:r.phone,website:r.website,email:r.email,emailSource:r.emailSource,rating:r.rating,userRatingsTotal:r.userRatingsTotal};})}).then(function(j){
-      btn.disabled=false;
-      if(j&&j.ok){ $('saveMsg').innerHTML='<span style="color:var(--green)">Saved ✓ '+j.total+' restaurants, '+j.withEmail+' with email.</span>'; loadSaved(); }
-      else { $('saveMsg').innerHTML='<span style="color:var(--red)">'+esc((j&&j.error)||'Could not save.')+'</span>'; }
-    }).catch(function(){ btn.disabled=false; $('saveMsg').innerHTML='<span style="color:var(--red)">Could not reach the server.</span>'; });
-  });
+    var btn=$('saveBtn'), btn2=$('saveNewBtn'); btn.disabled=true; btn2.disabled=true; $('saveMsg').textContent='Saving…';
+    api('POST','/api/finder/lists',{id:(update&&CUR)?CUR.id:undefined,name:name,city:META.city,state:META.state,zip:META.zip,type:META.type,googleType:META.googleType,rows:ROWS.map(function(r){return {placeId:r.placeId,name:r.name,address:r.address,phone:r.phone,website:r.website,email:r.email,emailSource:r.emailSource,rating:r.rating,userRatingsTotal:r.userRatingsTotal};})}).then(function(j){
+      btn.disabled=false; btn2.disabled=false;
+      if(j&&j.ok){ var was=!!(update&&CUR); setCur({id:j.id,name:name}); $('saveMsg').innerHTML='<span style="color:var(--green)">'+(was?'Updated ✓ ':'Saved ✓ ')+j.total+' restaurants, '+j.withEmail+' with email.</span>'; loadSaved(); }
+      else { $('saveMsg').innerHTML='<span style="color:var(--red)">'+esc((j&&j.error)||'Could not save.')+'</span>'+((update&&CUR&&j&&/not found/i.test(j.error||''))?' <span style="color:var(--muted)">It may have been deleted — use <b>Save as new</b>.</span>':''); }
+    }).catch(function(){ btn.disabled=false; btn2.disabled=false; $('saveMsg').innerHTML='<span style="color:var(--red)">Could not reach the server.</span>'; });
+  }
 
   /* ---- saved lists ---- */
   function loadSaved(){
@@ -451,15 +459,15 @@ tbody tr:hover{background:#fafbfe;}
       ROWS=(l.rows||[]).map(function(r){return r;}); META={city:l.city,state:l.state,zip:l.zip||'',type:l.type,googleType:l.googleType||'restaurant'};
       if(l.zip){ setMode('zip'); $('zip').value=l.zip; } else { setMode('place'); $('city').value=l.city||''; $('state').value=l.state||''; }
       try{ $('type').value=l.googleType||'restaurant'; }catch(e){}
-      $('listName').value=l.name||'';
+      $('listName').value=l.name||''; setCur(l);
       $('resultsCard').hidden=false; $('onlyEmail').checked=false; renderRows(); updateSum();
-      $('saveMsg').innerHTML='<span style="color:var(--muted)">Loaded “'+esc(l.name)+'”. Saving again updates a new copy.</span>';
+      $('saveMsg').innerHTML='<span style="color:var(--muted)">Loaded “'+esc(l.name)+'”. <b>Save changes</b> updates this list; <b>Save as new</b> keeps it and saves a copy.</span>';
       window.scrollTo({top:0,behavior:'smooth'});
     });
   }
   function delList(id){
     if(!window.confirm('Delete this saved list? This cannot be undone.')) return;
-    api('DELETE','/api/finder/lists/'+encodeURIComponent(id)).then(function(j){ if(j&&j.ok) loadSaved(); });
+    api('DELETE','/api/finder/lists/'+encodeURIComponent(id)).then(function(j){ if(j&&j.ok){ if(CUR&&CUR.id===id) setCur(null); loadSaved(); } });
   }
   loadSaved();
 
@@ -472,5 +480,6 @@ tbody tr:hover{background:#fafbfe;}
   document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeAll(); });
 })();
 </script>
+<script src="/rrg_features.js"></script>
 </body>
 </html>

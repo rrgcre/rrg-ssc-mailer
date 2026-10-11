@@ -35,6 +35,12 @@ h1{font-size:26px;font-weight:700;margin:5px 0 0;}
 .card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 24px rgba(10,20,50,.06);overflow:hidden;}
 .hd{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;}
 .hd b{color:var(--navy);font-size:14px;}
+.searchwrap{margin-left:auto;position:relative;display:flex;align-items:center;}
+.searchwrap .searchic{position:absolute;left:12px;color:#9aa3b2;pointer-events:none;}
+.hd .searchwrap input{border:1px solid var(--line);border-radius:9px;padding:8px 32px 8px 36px;font:inherit;font-size:13px;min-width:240px;}
+.searchwrap .searchx{position:absolute;right:8px;background:none;border:none;color:#b0b8c6;font-size:18px;line-height:1;cursor:pointer;padding:0 4px;display:none;}
+.searchwrap .searchx.show{display:block;}
+.searchwrap .searchx:hover{color:#DA2B1F;}
 .cb{padding:6px 8px 10px;}
 .pill{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:3px 9px;border-radius:999px;}
 .lk{color:var(--navy);text-decoration:none;font-weight:600;} .lk:hover{text-decoration:underline;}
@@ -47,11 +53,12 @@ h1{font-size:26px;font-weight:700;margin:5px 0 0;}
 <div class="top"><div class="top-inner">
   <div class="kick">Book of Business</div>
   <h1>Deals</h1>
-  <div class="sub">Every buyer transaction across your listings — price, status, close, and commission due &amp; paid. Each becomes an invoice at closing.</div>
+  <div class="sub">Every buyer transaction across your listings — price, status, close, and commission due &amp; paid. Closing a deal doesn’t create an invoice — invoices are made by hand.</div>
 </div></div>
 <div class="wrap">
+  <div data-rrg-feats="deals"></div>
   <div class="tiles" id="tiles"></div>
-  <div class="card"><div class="hd lhd"><b>Deals</b><span class="meta" id="cnt"></span><button id="filterBtn" class="rlf-btn" style="margin-left:auto">⚙ Filters</button><button id="newDealBtn" class="newbtn">+ New deal</button></div><div class="cb"><div id="list"><div class="empty">Loading…</div></div></div></div>
+  <div class="card"><div class="hd lhd"><b>Deals</b><span class="meta" id="cnt"></span><div class="searchwrap"><svg class="searchic" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"></circle><line x1="12.8" y1="12.8" x2="17.5" y2="17.5"></line></svg><input id="search" placeholder="Search deals by listing, buyer, or status…" oninput="applyFilter()" autocomplete="off"><button type="button" class="searchx" id="searchx" title="Clear search" onclick="var s=document.getElementById(&#39;search&#39;);s.value=&#39;&#39;;applyFilter();s.focus();">×</button></div><button id="filterBtn" class="rlf-btn" style="margin-left:8px">⚙ Filters</button><button id="newDealBtn" class="newbtn">+ New deal</button></div><div class="cb"><div id="list"><div class="empty">Loading…</div></div></div></div>
 </div>
 <div id="ndModal" style="position:fixed;inset:0;background:rgba(6,14,32,.55);display:none;align-items:flex-start;justify-content:center;z-index:200;padding:28px 20px;overflow:auto">
   <div style="background:#fff;border-radius:16px;width:100%;max-width:520px;box-shadow:0 24px 60px rgba(0,0,0,.35)">
@@ -106,7 +113,8 @@ function cfg(data){ return { mount:'#list', data:data, key:'dealsboard',
     { label:'Rate', defaultHidden:true, sortable:false, cell:function(d){ return d.commissionRate?esc(d.commissionRate):'<span class="meta">—</span>'; } }
   ]
 }; }
-function applyFilter(){ var base=(typeof CF!=='undefined'&&CF)?CF.filter(ALL):ALL; var data=base.filter(filterFn()); if(typeof CF!=='undefined'&&CF) CF.updateBtn(); var _x=data; document.getElementById('cnt').textContent=data.length?(data.length+' deal'+(data.length===1?'':'s')):''; if(CTL) CTL.refresh(data); else CTL=RRGList.create(cfg(data)); }
+function dealMatches(d,q){ if(!q) return true; var hay=[d.business,d.buyer,d.buyerCompany,d.status,d.commissionStatus,d.price].join(' ').toLowerCase(); return q.split(/\s+/).filter(Boolean).every(function(t){ return hay.indexOf(t)>=0; }); }
+function applyFilter(){ var q=((document.getElementById('search')||{}).value||'').toLowerCase().trim(); var _sx=document.getElementById('searchx'); if(_sx) _sx.classList.toggle('show', !!q); var base=(typeof CF!=='undefined'&&CF)?CF.filter(ALL):ALL; var data=base.filter(filterFn()).filter(function(d){ return dealMatches(d,q); }); if(typeof CF!=='undefined'&&CF) CF.updateBtn(); var _x=data; document.getElementById('cnt').textContent=data.length?(data.length+' deal'+(data.length===1?'':'s')):''; if(CTL) CTL.refresh(data); else CTL=RRGList.create(cfg(data)); }
 function reloadDeals(){ return fetch('/api/deals',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.deals)||[]; if(j&&j.statuses) STATUSES=j.statuses; if(j&&j.commStatuses) COMMSTATUSES=j.commStatuses; IS_ADMIN=!!(j&&j.isAdmin); renderTiles(); applyFilter(); }).catch(function(){ document.getElementById('list').innerHTML='<div class="empty">Could not load deals.</div>'; }); }
 function openNewDeal(){ var m=document.getElementById('ndModal'); m.style.display='flex'; document.getElementById('nd_msg').textContent='';
   var have={}; ALL.forEach(function(d){have[d.key]=1;});
@@ -121,5 +129,6 @@ document.getElementById('nd_x').addEventListener('click',closeNewDeal);
 document.getElementById('ndModal').addEventListener('click',function(e){ if(e.target===document.getElementById('ndModal')){ /* stay open */ } });
 reloadDeals();
 </script>
+<script src="/rrg_features.js"></script>
 </body>
 </html>

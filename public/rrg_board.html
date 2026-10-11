@@ -69,7 +69,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .colh .cnt{font-size:11px;font-weight:700;color:#6b7488;background:#dfe4ec;border-radius:3px;padding:1px 7px;}
 .colh .sum{font-size:12px;color:var(--green);font-weight:700;margin-top:4px;}
 .colb{padding:9px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:7px;}
-.cardx{background:#fff;border:1px solid var(--line);border-radius:4px;padding:7px 10px;box-shadow:none;cursor:grab;text-decoration:none;color:inherit;display:block;}
+.cardx{background:#fff;border:1px solid var(--line);border-radius:4px;padding:7px 10px;box-shadow:none;cursor:grab;text-decoration:none;color:inherit;display:block;} .cardx.ro{cursor:default;}
 .cardx:hover{border-color:#c4ccda;box-shadow:0 2px 6px rgba(16,24,40,.07);}
 .cardx.dragging{opacity:.4;}
 .cardx .t{font-size:13px;font-weight:700;color:var(--navy);line-height:1.22;margin-bottom:3px;}
@@ -168,22 +168,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
   <h1 id="bdTitle">Pipeline Board</h1>
   <div class="sub" id="bdSub">Every active listing on the board, moving stage by stage — drag a card to advance it, or switch to the list view.</div>
 </div></div>
-<div class="feats" id="bdFeatStrip">
-  <div class="featshd" id="bdFeatHd"><b>What the pipeline board does</b><span class="sh">every listing, stage by stage — from first call to close</span><span class="chev">▾</span></div>
-  <div class="featgrid">
-    <div class="feat"><span class="fic">🔀</span><div><b>Drag to advance a listing</b><span>Move a card across the pipeline and its stage updates instantly — no forms. The board is the deal, live.</span></div></div>
-    <div class="feat"><span class="fic">🎬</span><div><b>Every stage opens its tool</b><span>Click a stage on a card to jump straight into that step — Seller Call, Questionnaire, BOV, Data Room, Marketing Pack, Attack Plan, Closing.</span></div></div>
-    <div class="feat"><span class="fic">🗂️</span><div><b>Switch pipelines</b><span>Run separate boards for business sales and tenant rep — pick the pipeline from the selector and the board reflows to its stages.</span></div></div>
-    <div class="feat"><span class="fic">👁️</span><div><b>Board or list view</b><span>Toggle between the kanban board and a sortable, filterable list of the same listings — whichever way you work.</span></div></div>
-    <div class="feat"><span class="fic">🔎</span><div><b>Filter &amp; save your views</b><span>Slice by owner, market, status, value or commission, and save the views you run most.</span></div></div>
-    <div class="feat"><span class="fic">➕</span><div><b>Start a listing in one step</b><span>Create a listing with a business, market and client — it builds the data room and links the client automatically.</span></div></div>
-    <div class="feat"><span class="fic">💰</span><div><b>Value, days &amp; commission on the card</b><span>Each card shows its valuation, days on market and commission at a glance — configurable in the card settings.</span></div></div>
-    <div class="feat"><span class="fic">🧲</span><div><b>Buyer leads auto-attach</b><span>BizBuySell and CoStar inquiries land on the matching listing as deduped buyers with a follow-up task already waiting.</span></div></div>
-    <div class="feat"><span class="fic">🎯</span><div><b>Matching buyers on every listing</b><span>Open a listing and see the active buyers whose Buy-Box fits it — with one-click open and email.</span></div></div>
-    <div class="feat"><span class="fic">🔒</span><div><b>Data room &amp; documents built in</b><span>Every listing carries its confidential data room, agreements, NDAs, tours and files — all on the listing record.</span></div></div>
-  </div>
-</div>
-<script>(function(){ var fs=document.getElementById('bdFeatStrip'), hd=document.getElementById('bdFeatHd'); if(!fs||!hd) return; try{ if(localStorage.getItem('rrg_bdfeats')!=='1') fs.classList.add('collapsed'); }catch(e){ fs.classList.add('collapsed'); } hd.addEventListener('click',function(){ var col=fs.classList.toggle('collapsed'); try{ localStorage.setItem('rrg_bdfeats', col?'0':'1'); }catch(e){} }); })();</script>
+<div data-rrg-feats="board" style="margin:14px 26px 0"></div>
 <div class="boardctl">
   <label class="boardctl-l">Pipeline</label>
   <select class="psel" id="psel"></select>
@@ -222,17 +207,25 @@ function isTenantBoard(){ return /tenant/i.test((DATA&&DATA.pipelineName)||''); 
 function entPlural(){ return isTenantBoard()?'Tenants':'Listings'; }
 function entSingular(){ return isTenantBoard()?'Tenant':'Listing'; }
 function dealType(){ return isTenantBoard()?'tenant_rep':'listing'; }
+// Lower-case record noun for counts / prompts: "3 engagements" on the Tenants board, "3 listings" elsewhere.
+function entWord(n){ var w=isTenantBoard()?'engagement':'listing'; return (n===1)?w:(w+'s'); }
 var OFF_STATUSES=['On Hold','Lost','No Deal']; var SHOW_OFF=false;
 var VIEW=(function(){ try{ return localStorage.getItem('rrg_board_view')||'board'; }catch(e){ return 'board'; } })(), LTBL=null;
 var TB={ q:'', owner:'', markets:[], statuses:[], min:'', max:'', sort:'act_desc', per:25 };
 var FILTER_OPEN=false, SAVE_OPEN=false, EXPANDED={};
 var DENSITY=(function(){try{return localStorage.getItem('rrg_board_density')||'full';}catch(e){return 'full';}})();
-var CARDF=(function(){var d={photo:true,contact:true,value:true,commission:true,days:true,market:true,status:false,bbs:false,activity:true,prefSf:true,crUse:true,crBudget:true,crMkts:true};try{var o=JSON.parse(localStorage.getItem('rrg_board_cardf')||'null');if(o&&typeof o==='object')return Object.assign(d,o);}catch(e){}return d;})();
+// Card fields / flags: a rep's own choices (saved in this browser) win; until they make one, the firm-wide defaults the server sends apply.
+var CARDF_MINE=false, FLAGS_MINE=false;
+var CARDF=(function(){var d={photo:true,contact:true,value:true,listPrice:true,commission:true,days:true,market:true,status:false,bbs:false,activity:true,prefSf:true,crUse:true,crBudget:true,crMkts:true};try{var o=JSON.parse(localStorage.getItem('rrg_board_cardf')||'null');if(o&&typeof o==='object'){CARDF_MINE=true;return Object.assign(d,o);}}catch(e){}return d;})();
 var CARDF_OPEN=false, EXPCARD={};
 var ROLLED=(function(){try{return JSON.parse(localStorage.getItem('rrg_board_rolled')||'{}')||{};}catch(e){return {};}})();
 function saveROLLED(){ try{ localStorage.setItem('rrg_board_rolled',JSON.stringify(ROLLED)); }catch(e){} }
-var FLAGS=(function(){var d={highValue:{on:true,amount:'200000'},slipping:{on:true,days:'30'}};try{var g=JSON.parse(localStorage.getItem('rrg_board_flags')||'null');if(g&&typeof g==='object'){ if(g.highValue) d.highValue=Object.assign(d.highValue,g.highValue); if(g.slipping) d.slipping=Object.assign(d.slipping,g.slipping);} }catch(e){}return d;})();
-function saveFLAGS(){ try{ localStorage.setItem('rrg_board_flags',JSON.stringify(FLAGS)); }catch(e){} }
+var FLAGS=(function(){var d={highValue:{on:true,amount:'200000'},slipping:{on:true,days:'30'}};try{var g=JSON.parse(localStorage.getItem('rrg_board_flags')||'null');if(g&&typeof g==='object'){ FLAGS_MINE=true; if(g.highValue) d.highValue=Object.assign(d.highValue,g.highValue); if(g.slipping) d.slipping=Object.assign(d.slipping,g.slipping);} }catch(e){}return d;})();
+function saveFLAGS(){ FLAGS_MINE=true; try{ localStorage.setItem('rrg_board_flags',JSON.stringify(FLAGS)); }catch(e){} }
+function applyFirmCardDefaults(j){
+  if(!CARDF_MINE && j && j.cardFields && typeof j.cardFields==='object'){ Object.keys(j.cardFields).forEach(function(k){ if(typeof j.cardFields[k]==='boolean') CARDF[k]=j.cardFields[k]; }); }
+  if(!FLAGS_MINE && j && j.cardFlags && typeof j.cardFlags==='object'){ var g=j.cardFlags; if(g.highValue&&typeof g.highValue==='object') FLAGS.highValue=Object.assign({},FLAGS.highValue,g.highValue); if(g.slipping&&typeof g.slipping==='object') FLAGS.slipping=Object.assign({},FLAGS.slipping,g.slipping); }
+}
 var FLAGS_OPEN=false;
 var SORTS=[['act_desc','Newest activity'],['act_asc','Oldest activity'],['val_desc','Value: high → low'],['val_asc','Value: low → high'],['name_asc','Name: A → Z'],['created_desc','Newest listing']];
 var PER_OPTS=[10,25,50,0];
@@ -275,7 +268,7 @@ function sortCards(arr){
 function load(){
   fetch('/api/board'+(PID?('?pipelineId='+encodeURIComponent(PID)):''),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">Could not load the board.</div>'; return; }
-    DATA=j; PID=j.pipelineId; loadTB(); EXPANDED={};
+    DATA=j; PID=j.pipelineId; loadTB(); EXPANDED={}; applyFirmCardDefaults(j);
     // Reflect which pipeline is showing in the header (Tenant Rep reads as "Tenants").
     try{
       var _isTR=/tenant/i.test(j.pipelineName||'');
@@ -287,7 +280,7 @@ function load(){
       try{ document.title = 'RRG — ' + (_isTR?'Tenants':'Pipeline Board'); }catch(e){}
     }catch(e){}
     var sel=document.getElementById('psel');
-    sel.innerHTML=(j.pipelines||[]).map(function(p){ return '<option value="'+esc(p.id)+'"'+(p.id===PID?' selected':'')+'>'+esc(p.name)+'</option>'; }).join('')+'<option disabled>──────────</option><option value="__buyers__">Business Sales (Buyers) →</option>';
+    sel.innerHTML=(j.pipelines||[]).map(function(p){ return '<option value="'+esc(p.id)+'"'+(p.id===PID?' selected':'')+'>'+esc(p.name)+'</option>'; }).join('')+(isTenantBoard()?'':'<option disabled>──────────</option><option value="__buyers__">Business Sales (Buyers) →</option>');
     renderToolbar(); render();
   }).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not reach the server.</div>'; });
 }
@@ -308,7 +301,7 @@ function ndContactHi(){ var pop=document.getElementById('nd_contactPop'); if(!po
 function ndContactKey(e){ var pop=document.getElementById('nd_contactPop'); if(!pop||pop.style.display==='none') return; if(e.key==='ArrowDown'){ e.preventDefault(); _ndCsel=Math.min(_ndCsel+1,_ndCmatches.length-1); ndContactHi(); } else if(e.key==='ArrowUp'){ e.preventDefault(); _ndCsel=Math.max(_ndCsel-1,0); ndContactHi(); } else if(e.key==='Enter'){ if(_ndCsel>=0){ e.preventDefault(); ndContactPick(_ndCsel); } } else if(e.key==='Escape'){ pop.style.display='none'; } }
 function ndContactBlur(){ setTimeout(function(){ var pop=document.getElementById('nd_contactPop'); if(pop) pop.style.display='none'; },160); }
 function clientMatch(){ var v=(document.getElementById('nd_contact').value||'').trim().toLowerCase(); if(!v) return null; return PEOPLE.filter(function(p){ return (p.name||'').toLowerCase()===v; })[0]||null; }
-function updateClientHint(){ var h=document.getElementById('clientHint'); if(!h) return; var m=clientMatch(); if(m){ h.innerHTML='✓ Linking to existing client <b>'+esc(m.name)+'</b>'+(m.company?(' · '+esc(m.company)):'')+'. This listing joins their record.'; } else if((document.getElementById('nd_contact').value||'').trim()){ h.innerHTML='New client — <b>'+esc(document.getElementById('nd_contact').value.trim())+'</b> will be onboarded into your registry.'; } else { h.innerHTML='Creating a listing builds its data room automatically and links the client to your registry — a matching client is reused, a new one is onboarded.'; } }
+function updateClientHint(){ var h=document.getElementById('clientHint'); if(!h) return; var m=clientMatch(); if(m){ h.innerHTML='✓ Linking to existing client <b>'+esc(m.name)+'</b>'+(m.company?(' · '+esc(m.company)):'')+'. This '+entWord(1)+' joins their record.'; } else if((document.getElementById('nd_contact').value||'').trim()){ h.innerHTML='New client — <b>'+esc(document.getElementById('nd_contact').value.trim())+'</b> will be onboarded into your registry.'; } else { h.innerHTML='Creating a listing builds its data room automatically and links the client to your registry — a matching client is reused, a new one is onboarded.'; } }
 function openDealModal(){ var m=document.getElementById('dealModal'); if(!m) return; m.removeAttribute('hidden');
   // Relabel the modal for the current board (Tenant vs Listing).
   try{ var isT=isTenantBoard();
@@ -337,13 +330,14 @@ function renderToolbar(){
   var perLabel=function(p){ return p===0?'All':String(p); };
   var html='<div class="tb">'+'<span class="pgtitle">'+entPlural()+'</span>'
     +'<div class="vtog"><button class="vbtn'+(VIEW==='board'?' on':'')+'" data-view="board">\u25a4 Board</button><button class="vbtn'+(VIEW==='list'?' on':'')+'" data-view="list">\u2630 List</button></div>'
-    +'<div class="search"><span class="mag">⌕</span><input id="tb_q" placeholder="Search listings…" value="'+esc(TB.q)+'"></div>'
+    +'<div class="search"><span class="mag">⌕</span><input id="tb_q" placeholder="Search '+entWord(2)+'…" value="'+esc(TB.q)+'"></div>'
     +'<button class="tbtn'+(FILTER_OPEN?' on':'')+'" id="tb_filter">☰ Filters'+(vc?(' <span class="pip">'+vc+'</span>'):'')+'</button>'
     +'<div style="position:relative;display:inline-block"><button class="tbtn" id="tb_saved">★ Saved views ▾</button><div id="savemenu"></div></div>'
     // Per column / Cards / Card fields / Card flags only shape the kanban cards \u2014 they have no
     // meaning in List view (RRGList owns rows, density and columns there), so show them only on Board.
     +(VIEW==='board' ? (
-      '<span class="tblabel">Per column</span><select class="tbsel" id="tb_per">'+PER_OPTS.map(function(p){return '<option value="'+p+'"'+(TB.per===p?' selected':'')+'>'+perLabel(p)+'</option>';}).join('')+'</select>'
+      '<span class="tblabel">Sort</span><select class="tbsel" id="tb_sort">'+SORTS.map(function(o){return '<option value="'+o[0]+'"'+(TB.sort===o[0]?' selected':'')+'>'+esc(o[0]==='created_desc'?('Newest '+entWord(1)):o[1])+'</option>';}).join('')+'</select>'
+      +'<span class="tblabel">Per column</span><select class="tbsel" id="tb_per">'+PER_OPTS.map(function(p){return '<option value="'+p+'"'+(TB.per===p?' selected':'')+'>'+perLabel(p)+'</option>';}).join('')+'</select>'
       +'<span class="tblabel">Cards</span><div class="vtog"><button class="dbtn'+(DENSITY==='full'?' on':'')+'" data-density="full">Full</button><button class="dbtn'+(DENSITY==='compact'?' on':'')+'" data-density="compact">Compact</button></div>'
       +'<div style="position:relative;display:inline-block"><button class="tbtn" id="tb_cardf">\u2699 Card fields \u25be</button><div id="cardfmenu"></div></div>'
       +'<div style="position:relative;display:inline-block"><button class="tbtn" id="tb_flags">\u2691 Card flags \u25be</button><div id="flagmenu"></div></div>'
@@ -413,26 +407,30 @@ function _saveAssign(c, body, apply){ return fetch('/api/assignment/'+encodeURIC
 // an editor on an off-list value (e.g. a legacy owner) and clicking away can never clobber it.
 function _optsPlus(base, field){ var out=[], seen={}; (base||[]).forEach(function(v){ v=String(v||''); if(v && !seen[v.toLowerCase()]){ seen[v.toLowerCase()]=1; out.push(v); } }); ((DATA&&DATA.cards)||[]).forEach(function(c){ var v=String((c&&c[field])||''); if(v && !seen[v.toLowerCase()]){ seen[v.toLowerCase()]=1; out.push(v); } }); return out; }
 function _ownerOpts(){ return _optsPlus(((DATA&&DATA.users)||[]).map(function(u){return u.name||u.username;}), 'owner'); }
+// See-all users can view every listing but only change their own (owner or creator) — admins change any.
+function _canEdit(c){ return !c || c.canEdit!==false; }
+var VIEW_ONLY_MSG='View only — you can see this listing, but only its owner or an admin can change it.';
 function _marketOpts(){ return _optsPlus((DATA&&DATA.markets)||[], 'market'); }
 function renderList(cards){
   var root=document.getElementById('root');
   if(!document.getElementById('boardlist')){ root.innerHTML='<div class="listwrap"><div id="boardlist"></div></div>'; LTBL=null; }
-  var cfg={ mount:'#boardlist', data:cards, key:'boardlist', rowId:function(c){return c.key;}, noFilter:true, noSaved:true,
+  var _ten=isTenantBoard();
+  var cfg={ mount:'#boardlist', data:cards, key:(_ten?'boardlist_tenant':'boardlist'), rowId:function(c){return c.key;}, noFilter:true, noSaved:true,
     empty:'<div style="padding:26px;text-align:center;color:#8a94a6">No deals match your filters.</div>',
     columns:[
-      { label:'Listing', sort:function(a,b){return RRGList.cmp(a.business||a.company||a.concept,b.business||b.company||b.concept);}, cell:function(c){ var nm=c.business||c.company||c.concept||'Listing'; var av=c.avatarUrl?('<img src="'+esc(c.avatarUrl)+'" alt="" style="width:22px;height:22px;border-radius:5px;flex:none;background:#fff;border:1px solid var(--line,#dbe0e9);object-fit:'+((c.avatarFit==='cover')?'cover':'contain')+'">'):''; return '<span style="display:inline-flex;align-items:center;gap:8px;min-width:0">'+av+'<a href="./rrg_assignment.html?key='+encodeURIComponent(c.key)+'" style="color:var(--navy,#000E31);font-weight:700;text-decoration:none" title="Open listing">'+esc(nm)+'</a></span>'; } },
-      { label:'Name', sort:function(a,b){return RRGList.cmp(a.concept||a.business,b.concept||b.business);}, cell:function(c){ var cc=c.concept||c.business; return cc?('<a href="./rrg_assignment.html?key='+encodeURIComponent(c.key)+'" style="color:var(--navy,#000E31);text-decoration:none" title="Open listing">'+esc(cc)+'</a>'):'<span style="color:#b0b8c6">—</span>'; } },
-      { label:'Stage', sort:function(a,b){return RRGList.cmp(a.stage,b.stage);}, edit:{ type:'select', options:function(){ return _optsPlus((DATA&&DATA.stages)||[], 'stage'); }, get:function(c){return c.stage||'';}, save:function(c,val){ return fetch('/api/assignment/'+encodeURIComponent(c.key)+'/stage',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({stage:val})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ c.stage=val; c.stageSince=new Date().toISOString(); return true; } throw new Error((j&&j.error)||'Could not change stage.'); }); } }, cell:function(c){ return '<span class="lstage">'+esc(c.stage||'—')+'</span>'; } },
+      { label:(_ten?'Engagement':'Listing'), key:'listing', sort:function(a,b){return RRGList.cmp(a.business||a.company||a.concept,b.business||b.company||b.concept);}, cell:function(c){ var nm=c.business||c.company||c.concept||entSingular(); var av=c.avatarUrl?('<img src="'+esc(c.avatarUrl)+'" alt="" style="width:22px;height:22px;border-radius:5px;flex:none;background:#fff;border:1px solid var(--line,#dbe0e9);object-fit:'+((c.avatarFit==='cover')?'cover':'contain')+'">'):''; return '<span style="display:inline-flex;align-items:center;gap:8px;min-width:0">'+av+'<a href="./rrg_assignment.html?key='+encodeURIComponent(c.key)+'" style="color:var(--navy,#000E31);font-weight:700;text-decoration:none" title="Open listing">'+esc(nm)+'</a></span>'; } },
+      { label:'Name', sort:function(a,b){return RRGList.cmp(a.concept||a.business,b.concept||b.business);}, cell:function(c){ var cc=c.concept||c.business; return cc?('<a href="./rrg_assignment.html?key='+encodeURIComponent(c.key)+'" style="color:var(--navy,#000E31);text-decoration:none" title="Open '+entWord(1)+'">'+esc(cc)+'</a>'):'<span style="color:#b0b8c6">—</span>'; } },
+      { label:'Stage', sort:function(a,b){return RRGList.cmp(a.stage,b.stage);}, edit:{ editable:_canEdit, type:'select', options:function(){ return _optsPlus((DATA&&DATA.stages)||[], 'stage'); }, get:function(c){return c.stage||'';}, save:function(c,val){ return fetch('/api/assignment/'+encodeURIComponent(c.key)+'/stage',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({stage:val})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ c.stage=val; c.stageSince=new Date().toISOString(); return true; } throw new Error((j&&j.error)||'Could not change stage.'); }); } }, cell:function(c){ return '<span class="lstage">'+esc(c.stage||'—')+'</span>'; } },
       { label:'Contact', sort:function(a,b){return RRGList.cmp(a.contact,b.contact);}, cell:function(c){ if(!c.contact) return '<span style="color:#b0b8c6">—</span>'; return c.contactPersonId?('<a href="./rrg_person.html?id='+encodeURIComponent(c.contactPersonId)+'" style="color:var(--navy,#000E31);text-decoration:none">'+esc(c.contact)+'</a>'):esc(c.contact); } },
-      { label:'Market', sort:function(a,b){return RRGList.cmp(a.market,b.market);}, edit:{ type:'select', allowBlank:true, options:_marketOpts, get:function(c){return c.market||'';}, save:function(c,val){ return _saveAssign(c,{marketOverride:val},function(){ c.market=val; }); } }, cell:function(c){ return c.market?esc(c.market):'<span style="color:#b0b8c6">—</span>'; } },
-      { label:'BOV', key:'bov', sort:function(a,b){return money(a.value)-money(b.value);}, edit:{ editable:function(c){ return !c.valueBov; }, type:'text', get:function(c){return c.value||'';}, save:function(c,val){ var d=String(val||'').replace(/[^0-9.]/g,''); return _saveAssign(c,{valueOverride:d},function(){ c.value=d; }); } }, cell:function(c){ return c.value?fmtMoneyMaybe(c.value):'<span style="color:#b0b8c6">—</span>'; } },
-      { label:'Listing Price', key:'listprice', sort:function(a,b){return money(a.listPrice)-money(b.listPrice);}, edit:{ type:'text', get:function(c){return c.listPrice||'';}, save:function(c,val){ var d=String(val||'').replace(/[^0-9.]/g,''); return _saveAssign(c,{listPrice:d},function(){ c.listPrice=d; }); } }, cell:function(c){ return c.listPrice?fmtMoneyMaybe(c.listPrice):'<span style="color:#b0b8c6">—</span>'; } },
-      { label:'Commission', key:'commission', sort:function(a,b){return money(a.commission)-money(b.commission);}, edit:{ type:'text', get:function(c){return c.totalCommission||c.commission||'';}, save:function(c,val){ var d=String(val||'').replace(/[^0-9.]/g,''); return _saveAssign(c,{totalCommission:d},function(){ c.totalCommission=d; c.commission=d; }); } }, cell:function(c){ return c.commission?fmtMoneyMaybe(c.commission):'<span style="color:#b0b8c6">—</span>'; } },
-      { label:'Status', sort:function(a,b){return RRGList.cmp(a.status,b.status);}, edit:{ type:'select', options:function(){ return _optsPlus(['Unqualified','New','Live','Under Contract','Closed','On Hold','Lost','No Deal'], 'status'); }, get:function(c){return c.status||'';}, save:function(c,val){ return _saveAssign(c,{status:val},function(){ c.status=val; }); } }, cell:function(c){ return c.status?('<span class="lstage" style="background:#eef1f6;color:#5b6472">'+esc(c.status)+'</span>'):'<span style="color:#b0b8c6">—</span>'; } },
+      { label:'Market', sort:function(a,b){return RRGList.cmp(a.market,b.market);}, edit:{ editable:_canEdit, type:'select', allowBlank:true, options:_marketOpts, get:function(c){return c.market||'';}, save:function(c,val){ return _saveAssign(c,{marketOverride:val},function(){ c.market=val; }); } }, cell:function(c){ return c.market?esc(c.market):'<span style="color:#b0b8c6">—</span>'; } },
+      { label:'BOV', key:'bov', sellerOnly:true, sort:function(a,b){return money(a.value)-money(b.value);}, edit:{ editable:function(c){ return !c.valueBov && _canEdit(c); }, type:'text', get:function(c){return c.value||'';}, save:function(c,val){ var d=String(val||'').replace(/[^0-9.]/g,''); return _saveAssign(c,{valueOverride:d},function(){ c.value=d; }); } }, cell:function(c){ return c.value?fmtMoneyMaybe(c.value):'<span style="color:#b0b8c6">—</span>'; } },
+      { label:'Listing Price', key:'listprice', sellerOnly:true, sort:function(a,b){return money(a.listPrice)-money(b.listPrice);}, edit:{ editable:_canEdit, type:'text', get:function(c){return c.listPrice||'';}, save:function(c,val){ var d=String(val||'').replace(/[^0-9.]/g,''); return _saveAssign(c,{listPrice:d},function(){ c.listPrice=d; }); } }, cell:function(c){ return c.listPrice?fmtMoneyMaybe(c.listPrice):'<span style="color:#b0b8c6">—</span>'; } },
+      { label:'Commission', key:'commission', sort:function(a,b){return money(a.commission)-money(b.commission);}, edit:{ editable:_canEdit, type:'text', get:function(c){return c.totalCommission||c.commission||'';}, save:function(c,val){ var d=String(val||'').replace(/[^0-9.]/g,''); return _saveAssign(c,{totalCommission:d},function(){ c.totalCommission=d; c.commission=d; }); } }, cell:function(c){ return c.commission?fmtMoneyMaybe(c.commission):'<span style="color:#b0b8c6">—</span>'; } },
+      { label:'Status', sort:function(a,b){return RRGList.cmp(a.status,b.status);}, edit:{ editable:_canEdit, type:'select', options:function(){ return _optsPlus(['Unqualified','New','Live','Under Contract','Closed','On Hold','Lost','No Deal'], 'status'); }, get:function(c){return c.status||'';}, save:function(c,val){ return _saveAssign(c,{status:val},function(){ c.status=val; }); } }, cell:function(c){ return c.status?('<span class="lstage" style="background:#eef1f6;color:#5b6472">'+esc(c.status)+'</span>'):'<span style="color:#b0b8c6">—</span>'; } },
       { label:'BBS #', defaultHidden:true, sort:function(a,b){return RRGList.cmp(a.bbsNumber,b.bbsNumber);}, cell:function(c){ return c.bbsNumber?esc(c.bbsNumber):'<span style="color:#b0b8c6">—</span>'; } },
-      { label:'Owner', sort:function(a,b){return RRGList.cmp(a.owner,b.owner);}, edit:{ type:'select', allowBlank:true, options:_ownerOpts, get:function(c){return c.owner||'';}, save:function(c,val){ return _saveAssign(c,{owner:val},function(){ c.owner=val; }); } }, cell:function(c){ return c.owner?esc(c.owner):'<span style="color:#b0b8c6">—</span>'; } },
+      { label:'Owner', sort:function(a,b){return RRGList.cmp(a.owner,b.owner);}, edit:{ editable:_canEdit, type:'select', allowBlank:true, options:_ownerOpts, get:function(c){return c.owner||'';}, save:function(c,val){ return _saveAssign(c,{owner:val},function(){ c.owner=val; }); } }, cell:function(c){ return c.owner?esc(c.owner):'<span style="color:#b0b8c6">—</span>'; } },
       { label:'Last activity', sort:function(a,b){return RRGList.cmp(a.lastActivity||'',b.lastActivity||'');}, cell:function(c){ return c.lastActivity?esc(fmtDate(c.lastActivity)):'<span style="color:#b0b8c6">—</span>'; } }
-    ],
+    ].filter(function(col){ return !(_ten && col.sellerOnly); }),   // BOV / listing price mean nothing on a tenant engagement
     bulk:[ { label:'Set status…', fn:function(ids,done){ bulkSetStatus(ids,done); } }, { label:'Set stage…', fn:function(ids,done){ bulkSetStage(ids,done); } }, { label:'Set owner…', fn:function(ids,done){ bulkSetOwner(ids,done); } }, { label:'Set market…', fn:function(ids,done){ bulkSetMarket(ids,done); } }, { label:'Delete selected', danger:true, fn:function(ids,done){ bulkDelListings(ids,done); } } ]
   };
   if(LTBL) LTBL.refresh(cards); else LTBL=RRGList.create(cfg);
@@ -441,7 +439,7 @@ function bulkSetStatus(ids,done){
   if(!ids||!ids.length) return;
   var STATS=['Unqualified','New','Live','Under Contract','Closed','On Hold','Lost','No Deal'];
   var ov=document.createElement('div'); ov.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(10,20,45,.42);display:flex;align-items:center;justify-content:center';
-  ov.innerHTML='<div style="background:#fff;border-radius:12px;box-shadow:0 20px 60px rgba(10,20,50,.3);width:340px;max-width:92vw;overflow:hidden"><div style="padding:14px 18px;font-weight:800;font-size:14px;color:#000E31;border-bottom:1px solid #eef1f6">Set status — '+ids.length+' listing'+(ids.length>1?'s':'')+'</div><div style="padding:8px">'+STATS.map(function(s){ return '<button type="button" data-st="'+esc(s)+'" style="display:block;width:100%;text-align:left;padding:9px 12px;border:none;background:#fff;border-radius:8px;font:inherit;font-size:13px;font-weight:600;color:#233;cursor:pointer">'+esc(s)+'</button>'; }).join('')+'</div><div style="padding:6px 14px 14px;text-align:right"><button type="button" id="bss_cancel" style="background:#fff;border:1px solid #cdd6e6;border-radius:8px;padding:8px 14px;font:inherit;font-weight:700;color:#33415c;cursor:pointer">Cancel</button></div></div>';
+  ov.innerHTML='<div style="background:#fff;border-radius:12px;box-shadow:0 20px 60px rgba(10,20,50,.3);width:340px;max-width:92vw;overflow:hidden"><div style="padding:14px 18px;font-weight:800;font-size:14px;color:#000E31;border-bottom:1px solid #eef1f6">Set status — '+ids.length+' '+entWord(ids.length)+'</div><div style="padding:8px">'+STATS.map(function(s){ return '<button type="button" data-st="'+esc(s)+'" style="display:block;width:100%;text-align:left;padding:9px 12px;border:none;background:#fff;border-radius:8px;font:inherit;font-size:13px;font-weight:600;color:#233;cursor:pointer">'+esc(s)+'</button>'; }).join('')+'</div><div style="padding:6px 14px 14px;text-align:right"><button type="button" id="bss_cancel" style="background:#fff;border:1px solid #cdd6e6;border-radius:8px;padding:8px 14px;font:inherit;font-weight:700;color:#33415c;cursor:pointer">Cancel</button></div></div>';
   document.body.appendChild(ov);
   function close(){ ov.remove(); }
   ov.addEventListener('click',function(e){ if(e.target===ov) close(); });
@@ -453,7 +451,7 @@ function _applyBulkStatus(ids,st,done){
   ids.forEach(function(key){
     fetch('/api/assignment/'+encodeURIComponent(key)+'/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({status:st})}).then(function(r){return r.json();})
       .then(function(j){ if(j&&j.ok) okc++; }).catch(function(){})
-      .then(function(){ if(++n===ids.length){ if(done)done(); if(window.rrgToast) rrgToast('Set '+okc+' listing'+(okc===1?'':'s')+' to '+st); load(); } });
+      .then(function(){ if(++n===ids.length){ if(done)done(); if(window.rrgToast) rrgToast('Set '+okc+' '+entWord(okc)+' to '+st); load(); } });
   });
 }
 // Generic bulk-field picker: shows an option list, applies the chosen value to every selected listing.
@@ -461,7 +459,7 @@ function _bulkPick(ids, done, title, options, applyFn, verb){
   if(!ids||!ids.length) return;
   var ov=document.createElement('div'); ov.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(10,20,45,.42);display:flex;align-items:center;justify-content:center';
   var btns=options.map(function(s){ var lbl=(s===''?'— Clear —':s); return '<button type="button" data-v="'+esc(s)+'" style="display:block;width:100%;text-align:left;padding:9px 12px;border:none;background:#fff;border-radius:8px;font:inherit;font-size:13px;font-weight:600;color:#233;cursor:pointer">'+esc(lbl)+'</button>'; }).join('') || '<div style="padding:10px 12px;font-size:12.5px;color:#8a93a3">No options available.</div>';
-  ov.innerHTML='<div style="background:#fff;border-radius:12px;box-shadow:0 20px 60px rgba(10,20,50,.3);width:340px;max-width:92vw;overflow:hidden"><div style="padding:14px 18px;font-weight:800;font-size:14px;color:#000E31;border-bottom:1px solid #eef1f6">'+esc(title)+' — '+ids.length+' listing'+(ids.length>1?'s':'')+'</div><div style="padding:8px;max-height:52vh;overflow:auto">'+btns+'</div><div style="padding:6px 14px 14px;text-align:right"><button type="button" id="bp_cancel" style="background:#fff;border:1px solid #cdd6e6;border-radius:8px;padding:8px 14px;font:inherit;font-weight:700;color:#33415c;cursor:pointer">Cancel</button></div></div>';
+  ov.innerHTML='<div style="background:#fff;border-radius:12px;box-shadow:0 20px 60px rgba(10,20,50,.3);width:340px;max-width:92vw;overflow:hidden"><div style="padding:14px 18px;font-weight:800;font-size:14px;color:#000E31;border-bottom:1px solid #eef1f6">'+esc(title)+' — '+ids.length+' '+entWord(ids.length)+'</div><div style="padding:8px;max-height:52vh;overflow:auto">'+btns+'</div><div style="padding:6px 14px 14px;text-align:right"><button type="button" id="bp_cancel" style="background:#fff;border:1px solid #cdd6e6;border-radius:8px;padding:8px 14px;font:inherit;font-weight:700;color:#33415c;cursor:pointer">Cancel</button></div></div>';
   document.body.appendChild(ov);
   function close(){ ov.remove(); }
   ov.addEventListener('click',function(e){ if(e.target===ov) close(); });
@@ -471,7 +469,7 @@ function _bulkPick(ids, done, title, options, applyFn, verb){
 function _bulkRun(ids, applyFn, val, verb, done){
   var n=0, okc=0;
   ids.forEach(function(key){
-    Promise.resolve(applyFn(key,val)).then(function(ok){ if(ok) okc++; }).catch(function(){}).then(function(){ if(++n===ids.length){ if(done)done(); if(window.rrgToast) rrgToast(verb+' '+okc+' listing'+(okc===1?'':'s')+(val?(' → '+val):'')); load(); } });
+    Promise.resolve(applyFn(key,val)).then(function(ok){ if(ok) okc++; }).catch(function(){}).then(function(){ if(++n===ids.length){ if(done)done(); if(window.rrgToast) rrgToast(verb+' '+okc+' '+entWord(okc)+(val?(' → '+val):'')); load(); } });
   });
 }
 function _bulkSaveField(key, body){ return fetch('/api/assignment/'+encodeURIComponent(key)+'/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){return !!(j&&j.ok);}); }
@@ -480,14 +478,14 @@ function bulkSetMarket(ids,done){ _bulkPick(ids,done,'Set market',[''].concat(_m
 function bulkSetStage(ids,done){ var st=(DATA&&DATA.stages)||[]; if(!st.length){ if(window.rrgToast) rrgToast('This pipeline has no stages.'); return; } _bulkPick(ids,done,'Set stage',st,function(key,v){return fetch('/api/assignment/'+encodeURIComponent(key)+'/stage',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({stage:v})}).then(function(r){return r.json();}).then(function(j){return !!(j&&j.ok);});},'Moved'); }
 async function bulkDelListings(ids,done){
   if(!ids||!ids.length) return;
-  var _msg='Delete '+ids.length+' listing'+(ids.length>1?'s':'')+'? This removes the listing and its records — this cannot be undone.';
+  var _msg='Delete '+ids.length+' '+entWord(ids.length)+'? This removes the '+entWord(ids.length)+' and '+(ids.length>1?'their':'its')+' records — this cannot be undone.';
   var _ok = window.rrgConfirm ? (await rrgConfirm(_msg)) : window.confirm(_msg);
   if(!_ok) return;
   var n=0, okc=0;
   ids.forEach(function(key){
     fetch('/api/assignment/'+encodeURIComponent(key),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();})
       .then(function(j){ if(j&&j.ok) okc++; }).catch(function(){})
-      .then(function(){ if(++n===ids.length){ if(done)done(); if(window.rrgToast) rrgToast('Deleted '+okc+' listing'+(okc===1?'':'s')); load(); } });
+      .then(function(){ if(++n===ids.length){ if(done)done(); if(window.rrgToast) rrgToast('Deleted '+okc+' '+entWord(okc)); load(); } });
   });
 }
 
@@ -542,7 +540,7 @@ function _offMenuOutside(e){ var m=document.getElementById('offMenu'); if(m && !
 function offDropMenu(key,x,y){
   closeOffMenu();
   var card=(DATA.cards||[]).filter(function(c){return c.key===key;})[0];
-  var nm=card?(card.business||card.key):'this listing';
+  var nm=card?(card.business||card.key):('this '+entWord(1));
   var m=document.createElement('div'); m.className='offmenu'; m.id='offMenu';
   m.innerHTML='<div class="omh">Take “'+esc(nm)+'” off the board</div>'
     +'<button type="button" data-off="On Hold"><span class="od hold"></span>Park (On Hold)</button>'
@@ -568,9 +566,9 @@ function returnToBoard(key){
   fetch('/api/assignment/'+encodeURIComponent(key)+'/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({status:'Live'})})
     .then(function(r){return r.json();}).then(function(j){ if(!j||!j.ok){ load(); } }).catch(function(){ load(); });
 }
-var CARDF_FIELDS=[['photo','Photo'],['contact','Contact'],['value','Value'],['commission','Commission'],['days','Days in stage'],['market','Market'],['status','Status'],['bbs','BBS #'],['activity','Last activity']];
+var CARDF_FIELDS=[['photo','Photo'],['contact','Contact'],['listPrice','Asking price'],['value','Value'],['commission','Commission'],['days','Days in stage'],['market','Market'],['status','Status'],['bbs','BBS #'],['activity','Last activity']];
 var CARDF_TENANT_FIELDS=[['prefSf','Preferred SF (min–max)'],['crUse','Use / concept'],['crBudget','Budget (rent)'],['crMkts','Target markets']];
-function saveCARDF(){ try{ localStorage.setItem('rrg_board_cardf',JSON.stringify(CARDF)); }catch(e){} }
+function saveCARDF(){ CARDF_MINE=true; try{ localStorage.setItem('rrg_board_cardf',JSON.stringify(CARDF)); }catch(e){} }
 function renderCardfMenu(){
   var host=document.getElementById('cardfmenu'); if(!host) return;
   if(!CARDF_OPEN){ host.innerHTML=''; host.className=''; return; }
@@ -630,14 +628,14 @@ function cardHtml(c){
   var chev='<button class="rollup" data-roll="'+esc(c.key)+'" title="Roll up / expand">▾</button>';
   if(DENSITY==='compact'){
     var exp=!!EXPCARD[c.key];
-    return '<div class="cardx compact'+(exp?' expanded':'')+'" draggable="true" data-key="'+esc(c.key)+'">'
-      +'<div class="chd">'+cardAvatar(c)+'<span class="t">'+esc(c.business||'Listing')+(c.provisional?' <span class="pvbadge">Provisional</span>':'')+'</span>'+slb+flags+cardOwner(c)+'</div>'
+    return '<div class="cardx compact'+(exp?' expanded':'')+(_canEdit(c)?'':' ro')+'" draggable="'+(_canEdit(c)?'true':'false')+'"'+(_canEdit(c)?'':' title="'+esc(VIEW_ONLY_MSG)+'"')+' data-key="'+esc(c.key)+'">'
+      +'<div class="chd">'+cardAvatar(c)+'<span class="t">'+esc(c.business||entSingular())+(c.provisional?' <span class="pvbadge">Provisional</span>':'')+'</span>'+slb+flags+cardOwner(c)+'</div>'
       +'<div class="cbody">'+(cardFieldsHtml(c)||'<div class="r" style="color:#98a1b5">No extra details</div>')
         +'<div class="ft"><span class="dt">'+(CARDF.activity&&c.lastActivity?esc(fmtDate(c.lastActivity)):'')+'</span><a class="opendeal" href="'+open+'">Open deal →</a></div>'
       +'</div></div>';
   }
-  return '<div class="cardx'+(rolled?' rolled':'')+'" draggable="true" data-key="'+esc(c.key)+'">'
-    +'<div class="chd">'+cardAvatar(c)+'<a class="t" href="'+open+'">'+esc(c.business||'Listing')+'</a>'+slb+flags+chev+'</div>'
+  return '<div class="cardx'+(rolled?' rolled':'')+(_canEdit(c)?'':' ro')+'" draggable="'+(_canEdit(c)?'true':'false')+'"'+(_canEdit(c)?'':' title="'+esc(VIEW_ONLY_MSG)+'"')+' data-key="'+esc(c.key)+'">'
+    +'<div class="chd">'+cardAvatar(c)+'<a class="t" href="'+open+'">'+esc(c.business||entSingular())+'</a>'+slb+flags+chev+'</div>'
     +'<div class="cbody">'
       +(c.provisional?'<div style="margin:-2px 0 6px"><span class="pvbadge">Provisional</span></div>':'')
       +cardFieldsHtml(c)
@@ -663,12 +661,14 @@ function wireDnD(){
 function moveCard(key,stage){
   var card=(DATA.cards||[]).filter(function(c){return c.key===key;})[0];
   if(!card || card.stage===stage) return;
+  if(!_canEdit(card)){ if(window.rrgToast) rrgToast(VIEW_ONLY_MSG); else alert(VIEW_ONLY_MSG); return; }
   card.stage=stage; render();
   fetch('/api/assignment/'+encodeURIComponent(key)+'/stage',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({stage:stage})})
-    .then(function(r){return r.json();}).then(function(j){ if(!j||!j.ok){ load(); } }).catch(function(){ load(); });
+    .then(function(r){return r.json();}).then(function(j){ if(!j||!j.ok){ if(window.rrgToast) rrgToast((j&&j.error)||'Could not move the listing.'); load(); } }).catch(function(){ load(); });
 }
-document.getElementById('psel').addEventListener('change',function(){ if(this.value==='__buyers__'){ location.href='./rrg_buyer_board.html'; return; } PID=this.value; EXPANDED={}; load(); });
+document.getElementById('psel').addEventListener('change',function(){ if(this.value==='__buyers__'){ location.href='./rrg_buyer_board.html'; return; } PID=this.value; EXPANDED={}; LTBL=null; var _bl=document.getElementById('boardlist'); if(_bl&&_bl.parentNode) _bl.parentNode.removeChild(_bl); load(); });
 load();
 </script>
+<script src="/rrg_features.js"></script>
 </body>
 </html>

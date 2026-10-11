@@ -58,9 +58,33 @@ function render(){
       +'<div class="row"><div class="tx"><b>Template used for calendar invites</b><p>When you send an invitation to a calendar event, this is the email that goes out. Choose which template to use — edit its wording anytime in <b>Settings &rarr; Email Templates</b>.</p></div>'
       +'<select id="itSel" style="flex:none;min-width:240px;max-width:320px;margin-top:2px;padding:8px 10px;border:1px solid var(--inp);border-radius:6px;font-size:13px;color:var(--ink);background:#fff;"><option>Loading…</option></select></div>'
     +'</div></div>'
+    +'<div class="card"><div class="cardh">Firm time zone<span class="m" id="tzMsg"></span></div><div class="cardb">'
+      +'<div class="row"><div class="tx"><b>Time zone for meetings, tasks &amp; reminders</b><p>Meeting times, task due dates and reminder times are entered as your firm\u2019s local time. This zone decides when reminders fire, what counts as \u201ctoday\u201d or overdue, and the times on calendar invites guests receive.</p></div>'
+      +'<select id="tzSel" style="flex:none;min-width:240px;max-width:320px;margin-top:2px;padding:8px 10px;border:1px solid var(--inp);border-radius:6px;font-size:13px;color:var(--ink);background:#fff;"><option>Loading…</option></select></div>'
+    +'</div></div>'
     +'<div class="note">Turning a feature off hides it for everyone and removes its controls from the Calendar and contact pages. Existing data (synced events, booking links) is kept and reappears if you turn the feature back on.</div>';
   [].slice.call(document.querySelectorAll('input[data-k]')).forEach(function(inp){ inp.addEventListener('change',function(){ saveToggle(inp.getAttribute('data-k'), inp.checked, inp); }); });
   loadInviteTpl();
+  loadTz();
+}
+var TZ_OPTS=[['America/New_York','Eastern Time'],['America/Chicago','Central Time'],['America/Denver','Mountain Time'],['America/Phoenix','Arizona'],['America/Los_Angeles','Pacific Time'],['America/Anchorage','Alaska'],['Pacific/Honolulu','Hawaii']];
+function loadTz(){
+  var sel=document.getElementById('tzSel'); if(!sel) return;
+  fetch('/api/admin/time-zone',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ sel.innerHTML='<option>Unavailable</option>'; return; }
+    var cur=j.timeZone||'America/Chicago', opts=TZ_OPTS.slice(); if(!opts.some(function(o){return o[0]===cur;})) opts.push([cur,cur]);
+    sel.innerHTML=opts.map(function(o){ return '<option value="'+esc(o[0])+'"'+(o[0]===cur?' selected':'')+'>'+esc(o[1])+(o[0]===j.default?' (default)':'')+'</option>'; }).join('');
+    sel.addEventListener('change',function(){ saveTz(sel.value); });
+  }).catch(function(){ sel.innerHTML='<option>Unavailable</option>'; });
+}
+function saveTz(z){
+  var m=document.getElementById('tzMsg'); if(m){ m.style.color='var(--dim)'; m.textContent='Saving…'; }
+  fetch('/api/admin/time-zone',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({timeZone:z})})
+    .then(function(r){return r.json();}).then(function(j){
+      if(j&&j.ok){ if(m){ m.style.color='var(--green)'; m.textContent='Saved ✓'; setTimeout(function(){ if(m.textContent==='Saved ✓') m.textContent=''; },1600); } }
+      else { if(m){ m.style.color='var(--red)'; m.textContent=(j&&j.error)||'Could not save.'; } }
+    })
+    .catch(function(){ if(m){ m.style.color='var(--red)'; m.textContent='Could not reach the server.'; } });
 }
 function loadInviteTpl(){
   var sel=document.getElementById('itSel'); if(!sel) return;

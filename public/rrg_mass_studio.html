@@ -140,21 +140,7 @@ iframe.prev{width:100%;height:420px;border:1px solid var(--line);border-radius:6
     </div>
   </div>
   <div id="statusNote"></div>
-  <div class="wtw" id="campWtw">
-    <div class="wtwhd" id="campWtwHd"><b>What the Campaigns window does</b><span class="sh">plan, send, schedule &amp; track email blasts · tap a tile for the full feature list</span><span class="chev">▾</span></div>
-    <div class="wtwgrid">
-      <div class="wtwf" data-openfeat><span class="fic">✉️</span><div><b>Compose &amp; brand</b><span>Block editor with your logo and colors, pull-from-listing, and a test send before any blast.</span></div></div>
-      <div class="wtwf" data-openfeat><span class="fic">🎯</span><div><b>Pick the audience</b><span>Send to a whole list or a segment. Build lists and add subscribers on the Subscribers page.</span></div></div>
-      <div class="wtwf" data-openfeat><span class="fic">🗓️</span><div><b>Standard cadence</b><span>One click fills 12 weekday sends at 9 AM — first 6 ~26 days apart, last 6 ~30, holidays skipped. Defaults are admin-set.</span></div></div>
-      <div class="wtwf" data-openfeat><span class="fic">🔀</span><div><b>A/B subject test</b><span>Split two subject lines to a slice of the list; the winner auto-sends to everyone else.</span></div></div>
-      <div class="wtwf" data-openfeat><span class="fic">⏰</span><div><b>Schedule &amp; reschedule</b><span>Schedule one or many sends; reschedule or cancel any pending send inline. Weekdays only, no holidays.</span></div></div>
-      <div class="wtwf" data-openfeat><span class="fic">📜</span><div><b>Send history</b><span>Per-send breakdown — recipients, opens, clicks, unsubs, complaints, bounces — with a running total.</span></div></div>
-      <div class="wtwf" data-openfeat><span class="fic">📅</span><div><b>Team blast calendar</b><span>A subscribe-able Email Blasts calendar the whole team can add to their phone and desktop.</span></div></div>
-      <div class="wtwf" data-openfeat><span class="fic">📈</span><div><b>KPIs &amp; reporting</b><span>Campaigns, emails sent (30-day &amp; all-time), open and click rates, times &amp; dates sent.</span></div></div>
-      <div class="wtwf" data-openfeat><span class="fic">🗂️</span><div><b>Manage</b><span>Mark addresses unsubscribed, archive a campaign, or permanently delete one.</span></div></div>
-    </div>
-  </div>
-  <script>(function(){ var fs=document.getElementById('campWtw'), hd=document.getElementById('campWtwHd'); if(!fs||!hd) return; try{ if(localStorage.getItem('rrg_campwtw')!=='1') fs.classList.add('collapsed'); }catch(e){ fs.classList.add('collapsed'); } hd.addEventListener('click',function(){ var col=fs.classList.toggle('collapsed'); try{ localStorage.setItem('rrg_campwtw', col?'0':'1'); }catch(e){} }); document.querySelectorAll('.wtwf[data-openfeat]').forEach(function(t){ t.addEventListener('click',function(){ var ov=document.getElementById('featOv'); if(ov){ var h=document.getElementById('helpOv'); if(h)h.classList.remove('show'); ov.classList.add('show'); } }); }); })();</script>
+  <div data-rrg-feats="mass_studio"></div>
   <div class="tiles" id="tiles"></div>
   <div id="tabCamps"></div>
 </div>
@@ -450,7 +436,7 @@ function loadCampaigns(){
         { label:'Times sent', align:'right', sort:function(a,b){ return timesSent(a)-timesSent(b); }, cell:function(c){ var n=timesSent(c); return n?('<span style="font-variant-numeric:tabular-nums;font-weight:600;">'+num(n)+'</span>'):'<span style="color:var(--muted);">—</span>'; } },
         { label:'Recipients', align:'right', sort:function(a,b){ return (a.total||a.sent||0)-(b.total||b.sent||0); }, cell:function(c){ return '<span style="font-variant-numeric:tabular-nums;">'+num(c.total||c.sent||0)+'</span>'; } },
         { label:'Opens', align:'right', sort:function(a,b){ return rate(a,'opens')-rate(b,'opens'); }, cell:function(c){ return metricInline(c.opens,c.total||c.sent||0); } },
-        { label:'Clicks', align:'right', sort:function(a,b){ return rate(a,'clicks')-rate(b,'clicks'); }, cell:function(c){ return metricInline(c.clicks,c.total||c.sent||0); } },
+        { label:'Clicks', align:'right', sort:function(a,b){ return rate(a,'clicks')-rate(b,'clicks'); }, cell:function(c){ return '<span title="'+num(c.clicks)+' unique · '+num(c.clicks_total)+' total clicks">'+metricInline(c.clicks,c.total||c.sent||0)+'</span>'; } },
         { label:'Unsubs', align:'right', sort:function(a,b){ return (a.unsubs||0)-(b.unsubs||0); }, cell:function(c){ return metricInline(c.unsubs,c.total||c.sent||0); } },
         { label:'Complaints', align:'right', sort:function(a,b){ return (a.complaints||0)-(b.complaints||0); }, cell:function(c){ return metricInline(c.complaints,c.total||c.sent||0); } },
         { label:'Bounces', align:'right', sort:function(a,b){ return (a.bounces||0)-(b.bounces||0); }, cell:function(c){ return metricInline(c.bounces,c.total||c.sent||0); } },
@@ -680,13 +666,13 @@ function renderEditor(){
      '</div>'+
    '</div></div>'+
    '<div class="card"><h2>Schedule</h2>'+
-   '<div class="pgs" style="margin-bottom:10px">Send now with the button below, or schedule this campaign to go out on one or more dates. Each scheduled time re-sends to your full active list \u2014 so the same blast can repeat. Auto-scheduling stays on <b>weekdays only</b>, never on weekends or major holidays, and holds to one send per morning and one per afternoon (system-wide).</div>'+
+   '<div class="pgs" style="margin-bottom:10px">Send now with the button below, or schedule this campaign to go out on one or more dates. Each scheduled time re-sends to this campaign\u2019s audience (the <b>Send to</b> choice above, re-checked at each send so unsubscribes drop out) \u2014 so the same blast can repeat. Auto-scheduling stays on <b>weekdays only</b>, never on weekends or major holidays, and holds to one send per morning and one per afternoon (system-wide).</div>'+
    '<div class="row">'+
      '<div class="fld half"><label class="fl">Send time</label><input type="datetime-local" id="schWhen"></div>'+
      '<div class="fld half" style="display:flex;align-items:flex-end;"><button class="btn" id="schAdd" type="button">+ Add this time</button></div>'+
    '</div>'+
    '<div class="fld"><label class="fl">Quick fill</label><div class="toolbar" style="gap:9px;flex-wrap:wrap;align-items:center"><button class="btn primary" id="schStd" type="button">Standard cadence — '+cad().sends+' sends</button><span class="pgs">'+cadNote()+'</span></div></div>'+
-   '<div class="fld"><label class="fl">Or make it repeat</label><div class="toolbar" style="gap:8px;flex-wrap:wrap;"><span class="pgs">every</span><input id="schEvery" type="number" min="1" value="1" style="max-width:64px;"><select id="schUnit" style="max-width:100px;"><option value="1">days</option><option value="7">weeks</option></select><span class="pgs">for</span><input id="schCount" type="number" min="1" max="12" value="4" style="max-width:64px;"><span class="pgs">sends (up to 12) from the time above</span><button class="btn" id="schGen" type="button">Generate</button></div></div>'+
+   '<div class="fld"><label class="fl">Or make it repeat</label><div class="toolbar" style="gap:8px;flex-wrap:wrap;"><span class="pgs">every</span><input id="schEvery" type="number" min="1" value="1" style="max-width:64px;"><select id="schUnit" style="max-width:100px;"><option value="1">days</option><option value="7">weeks</option></select><span class="pgs">for</span><input id="schCount" type="number" min="1" max="'+SCHED_MAX+'" value="4" style="max-width:64px;"><span class="pgs">sends (up to '+SCHED_MAX+' per campaign) from the time above</span><button class="btn" id="schGen" type="button">Generate</button></div></div>'+
    '<div class="fld" style="margin-top:2px"><label class="fl" style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;"><input type="checkbox" id="schManual" style="width:auto;margin:0;"> Deliberate send &mdash; allow a weekend or holiday</label><div class="pgs" style="margin-top:4px">Check this only for an intentional send like a holiday greeting. It lifts the weekend/holiday blackout for the times below. Leave unchecked for normal business-day blasts.</div></div>'+
    '<div id="schList"></div>'+
    '<div style="margin-top:10px"><button class="btn primary" id="schSave" type="button">Schedule these times</button><span class="msg" id="schMsg"></span></div>'+
@@ -700,8 +686,10 @@ function renderEditor(){
    '</div>'+(CFG.sending?'':'<div class="pgs">Sending is disabled until Amazon SES is configured on the server. You can still save drafts, preview, and prepare.</div>')+'</div>';
   $('tabCamps').innerHTML=h;
   var sel=$('cList');
-  sel.innerHTML='<option value="">All active subscribers (whole list)</option>';
-  api('GET','/api/mail/lists').then(function(r){
+  // A broker blast targets a segment (seg_type, optionally area-matched), not a list — show that audience, read-only.
+  if(c.seg_type){ sel.innerHTML='<option value="">'+esc(_audLabel(c))+'</option>'; sel.disabled=true; sel.title='Set by the broker blast that created this campaign'; }
+  else { sel.innerHTML='<option value="">All active subscribers (whole list)</option>'; }
+  if(!c.seg_type) api('GET','/api/mail/lists').then(function(r){
     ((r&&r.lists)||[]).forEach(function(l){ var o=document.createElement('option'); o.value=l.id; o.textContent=l.name+' ('+l.members+')'; if(String(c.list_id||'')===String(l.id)) o.selected=true; sel.appendChild(o); });
   });
   $('backList').onclick=function(){ EDIT=null; loadCampaigns(); };
@@ -824,8 +812,8 @@ function schStdGen(){
   var c=cad(), man=schManualOn(), am=_hm(c.amTime);
   var v=$('schWhen')?$('schWhen').value:''; var start; if(v){ start=new Date(v); } else { start=new Date(); start.setDate(start.getDate()+1); }
   start.setHours(am.h,am.m,0,0);
-  var remain=12-(EDITSCHED.saved.length+EDITSCHED.pending.length);
-  if(remain<=0){ schMsg('Up to 12 scheduled sends per campaign — cancel one first.',true); return; }
+  var remain=SCHED_MAX-(EDITSCHED.saved.length+EDITSCHED.pending.length);
+  if(remain<=0){ schMsg('Up to '+SCHED_MAX+' scheduled sends per campaign — cancel one first.',true); return; }
   var count=Math.min(c.sends, remain);
   function rollValid(d){ var g=0; d=new Date(d); while(g<500){ g++; if(man || (d.getDay()!==0 && d.getDay()!==6 && !_isHol(d))) return d; d=new Date(d.getTime()+86400000); d.setHours(am.h,am.m,0,0); } return d; }
   var cur=rollValid(start), got=0;
@@ -835,15 +823,15 @@ function schStdGen(){
 }
 function initSchedule(){
   EDITSCHED={ pending:[], saved:[] };
-  if($('schAdd')) $('schAdd').onclick=function(){ var v=$('schWhen').value; if(!v){ schMsg('Pick a date and time.',true); return; } if((EDITSCHED.saved.length+EDITSCHED.pending.length)>=12){ schMsg('Up to 12 scheduled sends per campaign.',true); return; } var d=new Date(v); var man=schManualOn(); if(!man){ if(d.getDay()===0||d.getDay()===6){ schMsg('Weekends are blacked out. Pick a weekday, or check \u201cDeliberate send\u201d for an intentional weekend/holiday send.',true); return; } if(_isHol(d)){ schMsg('That date is a major holiday (auto-schedule blackout). Check \u201cDeliberate send\u201d if you mean to send a holiday greeting.',true); return; } } EDITSCHED.pending.push(v); schMsg(man?'Deliberate send added \u2014 weekend/holiday allowed.':''); renderSched(); };
-  if($('schGen')) $('schGen').onclick=function(){ var v=$('schWhen').value; if(!v){ schMsg('Pick a start time first.',true); return; } var man=schManualOn(); var stepDays=Math.max(1,parseInt($('schEvery').value,10)||1)*(parseInt($('schUnit').value,10)||1); var remain=12-(EDITSCHED.saved.length+EDITSCHED.pending.length); if(remain<=0){ schMsg('Up to 12 scheduled sends per campaign \u2014 cancel one first.',true); return; } var count=Math.max(1,Math.min(remain,Math.min(12,parseInt($('schCount').value,10)||1))); var cur=new Date(v); var got=0, guard=0; while(got<count && guard<800){ guard++; var ok = man || (cur.getDay()!==0 && cur.getDay()!==6 && !_isHol(cur)); if(ok){ EDITSCHED.pending.push(toLocalInput(cur)); got++; cur=new Date(cur.getTime()+stepDays*86400000); } else { cur=new Date(cur.getTime()+86400000); } } schMsg('Generated '+got+' '+(man?'send':'business-day send')+(got===1?'':'s')+(man?' (weekend/holiday allowed).':' — weekends & holidays skipped.')); renderSched(); };
+  if($('schAdd')) $('schAdd').onclick=function(){ var v=$('schWhen').value; if(!v){ schMsg('Pick a date and time.',true); return; } if((EDITSCHED.saved.length+EDITSCHED.pending.length)>=SCHED_MAX){ schMsg('Up to '+SCHED_MAX+' scheduled sends per campaign.',true); return; } var d=new Date(v); var man=schManualOn(); if(!man){ if(d.getDay()===0||d.getDay()===6){ schMsg('Weekends are blacked out. Pick a weekday, or check \u201cDeliberate send\u201d for an intentional weekend/holiday send.',true); return; } if(_isHol(d)){ schMsg('That date is a major holiday (auto-schedule blackout). Check \u201cDeliberate send\u201d if you mean to send a holiday greeting.',true); return; } } EDITSCHED.pending.push(v); schMsg(man?'Deliberate send added \u2014 weekend/holiday allowed.':''); renderSched(); };
+  if($('schGen')) $('schGen').onclick=function(){ var v=$('schWhen').value; if(!v){ schMsg('Pick a start time first.',true); return; } var man=schManualOn(); var stepDays=Math.max(1,parseInt($('schEvery').value,10)||1)*(parseInt($('schUnit').value,10)||1); var remain=SCHED_MAX-(EDITSCHED.saved.length+EDITSCHED.pending.length); if(remain<=0){ schMsg('Up to '+SCHED_MAX+' scheduled sends per campaign \u2014 cancel one first.',true); return; } var count=Math.max(1,Math.min(remain,Math.min(SCHED_MAX,parseInt($('schCount').value,10)||1))); var cur=new Date(v); var got=0, guard=0; while(got<count && guard<800){ guard++; var ok = man || (cur.getDay()!==0 && cur.getDay()!==6 && !_isHol(cur)); if(ok){ EDITSCHED.pending.push(toLocalInput(cur)); got++; cur=new Date(cur.getTime()+stepDays*86400000); } else { cur=new Date(cur.getTime()+86400000); } } schMsg('Generated '+got+' '+(man?'send':'business-day send')+(got===1?'':'s')+(man?' (weekend/holiday allowed).':' — weekends & holidays skipped.')); renderSched(); };
   if($('schStd')) $('schStd').onclick=schStdGen;
   if($('schSave')) $('schSave').onclick=saveSchedule;
   loadSchedules();
 }
 function loadSchedules(){ if(!EDIT.id){ EDITSCHED.saved=[]; renderSched(); return; } api('GET','/api/mail/campaigns/'+EDIT.id+'/schedule').then(function(r){ EDITSCHED.saved=((r&&r.schedules)||[]).filter(function(x){return x.status==='pending';}); renderSched(); }); }
 function slotOf(t){ try{ return new Date(t).getHours()<12?'AM':'PM'; }catch(e){ return ''; } }
-// ===== Schedule-from-list modal — pick up to 12 send times for a campaign without opening the editor =====
+// ===== Schedule-from-list modal — pick up to SCHED_MAX send times for a campaign without opening the editor =====
 var SCHEDM={ id:'', name:'', status:'', saved:[], pending:[] };
 function schedmCount(){ return SCHEDM.saved.length+SCHEDM.pending.length; }
 function schedmManualOn(){ var c=document.getElementById('schedmManual'); return !!(c&&c.checked); }
@@ -974,7 +962,7 @@ function schedmSave(){
   document.querySelectorAll('#schedmOv [data-nssave]').forEach(function(b){ b.disabled=true; b.textContent='Scheduling…'; });
   api('POST','/api/mail/campaigns/'+SCHEDM.id+'/schedule',{ times:times, manual:man }).then(function(r){
     if(!r||!r.ok){ schedmRender(); schedmMsg((r&&r.error)||'Could not schedule.',true); return; }
-    var msg='Scheduled '+(r.added||0)+' send'+((r.added===1)?'':'s')+'.'; var sk=[]; if(r.skippedWeekend) sk.push(r.skippedWeekend+' weekend'); if(r.skippedHoliday) sk.push(r.skippedHoliday+' holiday'); if(r.skippedSlot) sk.push(r.skippedSlot+' slot already taken by another campaign'); if(r.skippedPast) sk.push(r.skippedPast+' in the past'); if(sk.length) msg+=' Skipped: '+sk.join(', ')+'.';
+    var msg='Scheduled '+(r.added||0)+' send'+((r.added===1)?'':'s')+'.'; var sk=[]; if(r.skippedWeekend) sk.push(r.skippedWeekend+' weekend'); if(r.skippedHoliday) sk.push(r.skippedHoliday+' holiday'); if(r.skippedSlot) sk.push(r.skippedSlot+' slot already taken by another campaign'); if(r.skippedPast) sk.push(r.skippedPast+' in the past'); if(r.skippedCap) sk.push(r.skippedCap+' over the '+(r.max||SCHED_MAX)+'-send limit'); if(sk.length) msg+=' Skipped: '+sk.join(', ')+'.';
     api('GET','/api/mail/campaigns/'+SCHEDM.id+'/schedule').then(function(rr){ SCHEDM.saved=((rr&&rr.schedules)||[]).filter(function(x){return x.status==='pending';}); var f=SCHEDM.form; if(f){ f.freq='once'; var t=new Date(Date.now()+86400000); t.setHours(9,0,0,0); f.start=''; } schedmRender(); schedmMsg(msg,!!sk.length); loadCampaigns(); });
   }).catch(function(){ schedmRender(); schedmMsg('Could not reach the server.',true); });
 }
@@ -1008,7 +996,7 @@ function saveSchedule(){
     var man=schManualOn();
     api('POST','/api/mail/campaigns/'+EDIT.id+'/schedule',{ times:times, manual:man }).then(function(r){
       if(!r||!r.ok){ schMsg((r&&r.error)||'Could not schedule.',true); return; }
-      EDITSCHED.pending=[]; var msg='Scheduled '+(r.added||0)+' send'+((r.added===1)?'':'s')+(r.manual?' (deliberate — weekend/holiday allowed).':'.'); var sk=[]; if(r.skippedWeekend) sk.push(r.skippedWeekend+' weekend'); if(r.skippedHoliday) sk.push(r.skippedHoliday+' holiday'); if(r.skippedSlot) sk.push(r.skippedSlot+' slot taken'); if(r.skippedPast) sk.push(r.skippedPast+' past'); if(sk.length) msg+=' Skipped '+sk.join(', ')+'.'; schMsg(msg, (r.added?false:true)); loadSchedules();
+      EDITSCHED.pending=[]; var msg='Scheduled '+(r.added||0)+' send'+((r.added===1)?'':'s')+(r.manual?' (deliberate — weekend/holiday allowed).':'.'); var sk=[]; if(r.skippedWeekend) sk.push(r.skippedWeekend+' weekend'); if(r.skippedHoliday) sk.push(r.skippedHoliday+' holiday'); if(r.skippedSlot) sk.push(r.skippedSlot+' slot taken'); if(r.skippedPast) sk.push(r.skippedPast+' past'); if(r.skippedCap) sk.push(r.skippedCap+' over the '+(r.max||SCHED_MAX)+'-send limit'); if(sk.length) msg+=' Skipped '+sk.join(', ')+'.'; schMsg(msg, (r.added?false:true)); loadSchedules();
     });
   });
 }
@@ -1016,8 +1004,8 @@ function tileM(k,v){ return '<div class="tile"><div class="k">'+k+'</div><div cl
 function renderMonitor(){
   stopPoll();
   var c=EDIT;
-  var h='<div class="card"><div class="toolbar" style="justify-content:space-between"><h2 style="margin:0">'+esc(c.name)+' <span class="pill '+esc(c.status)+'">'+esc(c.status)+'</span></h2><button class="btn" id="backList">&larr; All campaigns</button></div>'+
-    '<div class="tiles">'+tileM('Audience',c.total)+tileM('Sent',c.sent)+tileM('Failed',c.failed)+tileM('Opens',c.opens)+tileM('Clicks',c.clicks)+tileM('Bounces',c.bounces)+tileM('Complaints',c.complaints)+tileM('Unsubs',c.unsubs)+'</div>'+
+  var h='<div class="card" id="campMonitor" data-cid="'+esc(c.id)+'"><div class="toolbar" style="justify-content:space-between"><h2 style="margin:0">'+esc(c.name)+' <span class="pill '+esc(c.status)+'">'+esc(c.status)+'</span></h2><button class="btn" id="backList">&larr; All campaigns</button></div>'+
+    '<div class="tiles">'+tileM('Audience',c.total)+tileM('Sent',c.sent)+tileM('Failed',c.failed)+tileM('Opens',c.opens)+tileM('Clicks',c.clicks)+tileM('Total clicks',c.clicks_total)+tileM('Bounces',c.bounces)+tileM('Complaints',c.complaints)+tileM('Unsubs',c.unsubs)+'</div>'+
     '<div class="pgs">Subject: '+esc(c.subject)+'</div>'+
     '<div class="toolbar">'+
       (c.status==='sending'?'<button class="btn" id="pauseBtn">Pause</button>':'')+
@@ -1031,7 +1019,9 @@ function renderMonitor(){
   if(c.status==='sending'){
     POLL=setInterval(function(){
       api('GET','/api/mail/campaigns/'+c.id).then(function(r){
-        if(r&&r.campaign){ EDIT=r.campaign; if(TAB==='camps' && !$('cHtml')){ renderMonitor(); } if(r.campaign.status!=='sending'){ stopPoll(); loadStats(); } }
+        // Redraw only while this campaign's monitor card is still on screen; stop once the user has moved on.
+        var mon=$('campMonitor'); if(!mon || mon.getAttribute('data-cid')!==String(c.id)){ stopPoll(); return; }
+        if(r&&r.campaign){ EDIT=r.campaign; renderMonitor(); if(r.campaign.status!=='sending'){ stopPoll(); loadStats(); } }
       });
     },4000);
   }
@@ -1092,13 +1082,13 @@ boot();
       <h4>1 · Build your lists</h4>
       <p>Subscribers live on the <b>Subscribers</b> page (in the left nav). Import addresses (paste or CSV), filter to a segment, and use <b>Add to list</b> to build audiences — for example <b>Restaurants</b> and <b>Brokers</b>. One database, multiple lists; you target the right one here when you send. Every list shares one suppression list, so an unsubscribe covers all of them.</p>
       <h4>2 · Compose the email</h4>
-      <p>Create a campaign, pick a template style, and edit in the visual block editor — header, hero, text, buttons, stats, signature, footer. <b>Pull from a listing</b> to auto-fill a campaign from one of your live listings. Always send yourself a <b>test</b> before a real blast.</p>
+      <p>Create a campaign and edit it in the visual block editor — header, hero, text, buttons, stats, signature, footer — or switch to <b>HTML</b> for full control. The look (logo, colors and email style) comes from your branding in Admin. <b>Pull from a listing</b> to auto-fill a campaign from one of your live listings. Always send yourself a <b>test</b> before a real blast.</p>
       <h4>3 · Choose the audience</h4>
-      <p>Set the campaign to send to a whole list or a filtered segment, so the right subscribers get the right message. The recipient count updates as you narrow it.</p>
+      <p>In the editor, <b>Send to</b> picks one of your lists, or all active subscribers. Unsubscribed, bounced and suppressed addresses are always left out, and the audience is re-checked at every send. Broker blasts started from a tenant-rep engagement target <b>Brokers · area-matched</b> and show that audience instead.</p>
       <h4>4 · Schedule the send</h4>
       <p>Send now, or schedule one or more times. The <b>Standard cadence</b> button fills your firm's default series in one click (by default 12 sends: the first 6 about 26 days apart, the last 6 about 30), on weekdays at 9&nbsp;AM. <b>Auto-scheduling stays on business days</b> — never weekends or major holidays, and one send per morning / one per afternoon system-wide. Tick <b>Deliberate send</b> to lift the blackout for an intentional holiday greeting. You can <b>reschedule</b> or <b>cancel</b> any scheduled send inline. The defaults live in <b>Admin → Settings → Campaign send cadence</b>.</p>
       <h4>5 · Track results</h4>
-      <p>The list below shows every blast with opens, clicks, unsubscribes, complaints and bounces, plus how many times it was sent and when. For a campaign sent more than once, open <b>History</b> for a per-send breakdown and the total. Scheduled and sent blasts also appear on the team calendar — and there's a subscribe-able <b>Email Blasts</b> calendar (📅 Blast calendar) you can add to everyone's phone.</p>
+      <p>The list below shows every blast with opens, clicks (links in the email are tracked automatically), unsubscribes, complaints and bounces, plus how many times it was sent and when. For a campaign sent more than once, open <b>History</b> for a per-send breakdown and the total. Scheduled and sent blasts also appear on the team calendar — and there's a subscribe-able <b>Email Blasts</b> calendar (📅 Blast calendar) you can add to everyone's phone.</p>
       <h4>Suppression</h4>
       <p>Anyone suppressed is permanently excluded from every send, tenant-wide. Bounces, complaints, and one-click unsubscribes land there automatically; use <b>✖ Mark unsubscribed</b> to paste addresses by hand, or manage individual subscribers on the <b>Subscribers</b> page.</p>
       <h4>A/B subject testing</h4>
@@ -1119,7 +1109,7 @@ boot();
         <li><b>Amazon SES sending</b> — throttled, high-deliverability bulk delivery.</li>
         <li><b>Audiences from Subscribers</b> — build lists on the Subscribers page (import, filter, Add&nbsp;to&nbsp;list), then target one here with <b>Send to</b>, or send to all active.</li>
         <li><b>Visual template editor</b> — block editor: header, hero, text, stats, buttons, signature, footer.</li>
-        <li><b>Brokerage-branded styles</b> — templates pull your logo and colors from Admin; three selectable looks.</li>
+        <li><b>Brokerage-branded styles</b> — templates pull your logo, colors and email style (three looks, chosen in Admin).</li>
         <li><b>Pull from a listing</b> — auto-fill a campaign from one of your live listings.</li>
         <li><b>Test sends</b> — fire a proof to yourself before any blast.</li>
         <li><b>Standard cadence (1-click)</b> — fills your firm's default series (12 sends: first 6 ~26 days apart, last 6 ~30) on weekdays at 9&nbsp;AM. Defaults are set in Admin&nbsp;→&nbsp;Settings.</li>
@@ -1148,4 +1138,5 @@ boot();
   document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeAll(); });
 })();
 </script>
+<script src="/rrg_features.js"></script>
 </body></html>

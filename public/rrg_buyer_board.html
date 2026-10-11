@@ -114,15 +114,7 @@ h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
   <div class="sub">Every buyer lead across all your listings, on one board, moving through your buyer pipeline stages. Filter to a single listing, or watch the whole book at once. Drag a buyer to the next stage and it updates on their listing instantly.</div>
 </div></div>
 <div class="wrap">
-  <div class="feats" id="bpFeatStrip">
-    <div class="featshd" id="bpFeatHd"><b>What this section does</b><span class="sh">one buyer pipeline, every listing's buyers — filter by listing, drag to advance</span><span class="chev">▾</span></div>
-    <div class="featgrid">
-      <div class="feat"><span class="fic">🗂️</span><div><b>One pipeline, all listings</b><span>Your buyer pipeline is shared across every listing. This board pools all their buyer leads into one place, grouped by stage.</span></div></div>
-      <div class="feat"><span class="fic">🔎</span><div><b>Filter by listing</b><span>Pick a listing up top to see just its buyers, or leave it on <b>All listings</b> to work your whole buyer book.</span></div></div>
-      <div class="feat"><span class="fic">🔀</span><div><b>Drag to advance</b><span>Move a buyer's card to the next stage and it updates that buyer's stage on their listing — no forms.</span></div></div>
-      <div class="feat"><span class="fic">👤</span><div><b>Straight to the contact</b><span>Click a buyer's name to open their contact, or the listing chip to open the listing they're on.</span></div></div>
-    </div>
-  </div>
+  <div data-rrg-feats="buyer_board"></div>
   <div class="ctl">
     <div class="vtog" id="viewTog"><button type="button" class="vbtn" data-view="board">▤ Board</button><button type="button" class="vbtn" data-view="list">☰ List</button></div>
     <span class="lbl" style="margin-left:6px">Listing</span>
@@ -180,7 +172,7 @@ function renderList(all){
       { label:'Email', sort:function(a,b){return RRGList.cmp(a.email,b.email);}, cell:function(b){ return b.email?('<a href="mailto:'+esc(b.email)+'" style="color:#2c5c8f;text-decoration:none">'+esc(b.email)+'</a>'):'<span style="color:#b0b8c6">—</span>'; } },
       { label:'Listing', sort:function(a,b){return RRGList.cmp(a.business,b.business);}, cell:function(b){ return '<a href="./rrg_assignment.html?key='+encodeURIComponent(b.listingKey)+'" style="color:#2c5c8f;font-weight:600;text-decoration:none">'+esc(b.business||'Listing')+'</a>'; } },
       { label:'Stage', sort:function(a,b){ return STAGES.indexOf(a.stage)-STAGES.indexOf(b.stage); }, cell:function(b){ return b.stage?('<span style="font-size:12px;font-weight:700;color:var(--navy,#0b1a3a);background:#eef2fb;border:1px solid #d3ddf3;border-radius:999px;padding:2px 9px">'+esc(b.stage)+'</span>'):'<span style="color:#b0b8c6">\u2014</span>'; }, edit:{ type:'select', options:stageOpts, get:function(b){ return b.stage||''; },
-          save:function(b,val){ return api('POST','/api/buyer-board/move',{key:b.listingKey,id:b.id,stage:val}).then(function(j){ if(j&&j.ok){ b.stage=val; toast('Moved to '+val); return true; } throw new Error((j&&j.error)||'Could not move the buyer.'); }); } } },
+          save:function(b,val){ return api('POST','/api/buyer-board/move',{key:b.listingKey,id:b.id,stage:val,bp:BUYERPID}).then(function(j){ if(j&&j.ok){ b.stage=val; toast('Moved to '+val); return true; } throw new Error((j&&j.error)||'Could not move the buyer.'); }); } } },
       { label:'Status', sort:function(a,b){return RRGList.cmp(_bbStatus(a),_bbStatus(b));}, cell:function(b){ var s=_bbStatus(b); var c=s==='Lost'?'#a5352c':(s==='On Hold'?'#9a6a12':'#1f6b45'); return '<span style="font-size:11px;font-weight:800;color:'+c+'">'+s+'</span>'; }, edit:{ type:'select', options:function(){ return ['Active','On Hold','Lost']; }, get:function(b){ return _bbStatus(b); },
           save:function(b,val){ var mode=val==='Lost'?'lost':(val==='On Hold'?'hold':'active'); return api('POST','/api/buyer-board/park',{key:b.listingKey,id:b.id,mode:mode}).then(function(j){ if(j&&j.ok){ b.lost=(mode==='lost'); b.parked=(mode==='hold'); toast(val==='Active'?'Back on the board':(val==='Lost'?'Marked lost':'Parked (On Hold)')); return true; } throw new Error((j&&j.error)||'Could not update.'); }); } } },
       { label:'Source', sort:function(a,b){return RRGList.cmp(a.source,b.source);}, cell:function(b){ return b.source?esc(b.source):'<span style="color:#b0b8c6">—</span>'; } },
@@ -282,7 +274,7 @@ function wireBoard(){
 function moveBuyer(id,key,stage){
   var b=BUYERS.filter(function(x){return x.id===id&&x.listingKey===key;})[0]; if(!b) return;
   var prev=b.stage; b.stage=stage; render();
-  api('POST','/api/buyer-board/move',{key:key,id:id,stage:stage}).then(function(j){
+  api('POST','/api/buyer-board/move',{key:key,id:id,stage:stage,bp:BUYERPID}).then(function(j){
     if(!j||!j.ok){ b.stage=prev; render(); toast((j&&j.error)||'Could not move the buyer.',true); }
     else { toast('Moved to '+stage); }
   }).catch(function(){ b.stage=prev; render(); toast('Could not reach the server.',true); });
@@ -345,9 +337,9 @@ function load(){
     buildFilter(); render();
   }).catch(function(){ document.getElementById('root').innerHTML='<div class="state">Could not reach the server.</div>'; });
 }
-(function(){ var fs=document.getElementById('bpFeatStrip'), hd=document.getElementById('bpFeatHd'); if(fs&&hd){ try{ if(localStorage.getItem('rrg_bpfeats')!=='1') fs.classList.add('collapsed'); }catch(e){ fs.classList.add('collapsed'); } hd.addEventListener('click',function(){ var col=fs.classList.toggle('collapsed'); try{ localStorage.setItem('rrg_bpfeats', col?'0':'1'); }catch(e){} }); } })();
 load();
 </script>
 <script>window.addEventListener("pageshow",function(e){if(e.persisted)location.reload();});</script>
+<script src="/rrg_features.js"></script>
 </body>
 </html>

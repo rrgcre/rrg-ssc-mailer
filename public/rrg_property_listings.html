@@ -99,6 +99,7 @@ tr:hover td{background:#fbfcfe;}
   </div>
 </div></div>
 <div class="wrap">
+  <div data-rrg-feats="property_listings"></div>
   <div class="card">
     <div class="hd lhd"><b>Property Listings</b><span class="msg" id="count"></span><div class="searchwrap"><svg class="searchic" viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"></circle><line x1="12.8" y1="12.8" x2="17.5" y2="17.5"></line></svg><input id="q" placeholder="Search name, address, market, type…" oninput="draw()" autocomplete="off"></div><button class="newbtn" onclick="openEdit()">+ New property</button></div>
     <div id="list"><div class="empty">Loading…</div></div>
@@ -565,5 +566,6 @@ function copySynd(){ var ta=document.getElementById('s_body'), t=ta.value||''; v
 function emailSynd(){ _syndRemember(); var to=(document.getElementById('s_repEmail').value||'').trim(); var subj=document.getElementById('s_subject').value||''; var sheet=document.getElementById('s_body').value||''; var body='Please post the following listing to CoStar / LoopNet under Restaurant Realty Group — physical details below; photos and the offering package on request.\n\n'+sheet+'\n\nThanks,\n'+((EDIT&&EDIT.by)||'Restaurant Realty Group'); window.location.href='mailto:'+encodeURIComponent(to)+'?subject='+encodeURIComponent(subj)+'&body='+encodeURIComponent(body); }
 load();
 </script>
+<script src="/rrg_features.js"></script>
 </body>
 </html>

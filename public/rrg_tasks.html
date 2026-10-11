@@ -89,6 +89,7 @@ input,select,textarea{border-radius:4px;}
   <a class="back" href="./index.html">← Dashboard</a>
 </div></div>
 <div class="wrap">
+  <div data-rrg-feats="tasks"></div>
   <div id="taskModal" class="tmodal" hidden><div class="tmodalcard">
     <div class="tmodalh"><h2 id="formTitle" style="margin:0;font-size:18px">New task</h2><button type="button" id="taskClose" class="tmx" aria-label="Close">×</button></div>
     <div class="subline">Assign to yourself or a teammate, set a due date and time, link it to a contact or project, add a reminder, and set it to repeat.</div>
@@ -119,6 +120,7 @@ input,select,textarea{border-radius:4px;}
     <div class="subbar filters">
       <button data-s="open" class="on" id="sOpen">Open</button>
       <button data-s="done" id="sDone">Done</button>
+      <button data-s="all" id="sAll" title="Open and completed tasks together">All</button>
       <span style="flex:1"></span>
       <button data-scope="mine" class="on" id="scMine">My tasks</button>
       <button data-scope="all" id="scAll" style="display:none">Everyone</button>
@@ -184,6 +186,8 @@ function taskCompany(t){
   return '';
 }
 var TSEARCH='';
+// Owner = who the task is assigned to (falls back to whoever created it).
+function taskOwnerName(t){ if(t.assignee){ if(t.assigneeName) return t.assigneeName; var u=(USERS||[]).filter(function(x){return x.username===t.assignee;})[0]; return (u&&u.name)||t.assignee; } return t.createdByName||t.createdBy||''; }
 function visibleTasks(){
   var q=TSEARCH.trim().toLowerCase(); var toks=q?q.split(/\s+/):[];
   return TASKS.filter(function(t){
@@ -209,7 +213,7 @@ function render(){
       { label:'Type', defaultHidden:true, sort:function(a,b){return RRGList.cmp(a.type,b.type);}, cell:function(t){ return t.type?esc(t.type):'<span class="meta">—</span>'; } },
       { label:'Contact', sort:function(a,b){return RRGList.cmp(taskContact(a).name,taskContact(b).name);}, filterVal:function(t){return taskContact(t).name;}, cell:function(t){ var c=taskContact(t); if(!c.name) return '<span class="meta">—</span>'; return c.id?('<a href="./rrg_person.html?id='+encodeURIComponent(c.id)+'" style="color:var(--navy);text-decoration:none;font-weight:500">'+esc(c.name)+'</a>'):esc(c.name); } },
       { label:'Company', sort:function(a,b){return RRGList.cmp(taskCompany(a),taskCompany(b));}, filterVal:function(t){return taskCompany(t);}, cell:function(t){ var co=taskCompany(t); return co?esc(co):'<span class="meta">—</span>'; } },
-      { label:'Owner', sort:function(a,b){return RRGList.cmp(a.createdByName||'',b.createdByName||'');}, cell:function(t){ return t.createdByName?esc(t.createdByName):'<span class="meta">—</span>'; } },
+      { label:'Owner', sort:function(a,b){return RRGList.cmp(taskOwnerName(a),taskOwnerName(b));}, filterVal:function(t){return taskOwnerName(t);}, cell:function(t){ var n=taskOwnerName(t); return n?esc(n):'<span class="meta">—</span>'; } },
       { label:'Completed', sort:function(a,b){return RRGList.cmp(a.doneAt||'',b.doneAt||'');}, cell:function(t){ return t.doneAt?esc(fmtD(t.doneAt)):'<span class="meta">—</span>'; } },
       { label:'Assignee', defaultHidden:true, sort:function(a,b){return RRGList.cmp(a.assigneeName,b.assigneeName);}, cell:function(t){ return t.assigneeName?esc(t.assigneeName):'<span class="meta">—</span>'; } },
       { label:'', align:'right', sortable:false, width:132, cell:function(t){ return '<span style="white-space:nowrap;display:inline-flex;gap:4px;justify-content:flex-end"><button class="tbtn" data-edit="'+esc(t.id)+'">Edit</button>'+((ISADMIN||t.createdBy===ME)?('<button class="tbtn delx" data-del="'+esc(t.id)+'" title="Delete" aria-label="Delete">✕</button>'):'')+'</span>'; } }
@@ -220,17 +224,19 @@ function render(){
   updateClearImports();
 }
 // Completed tasks with no contact/deal link — bulk-imported follow-ups that clutter the list.
-function completedImportIds(){ return (TASKS||[]).filter(function(t){ return t && t.status==='done' && !(t.linkType==='contact'&&t.linkId) && !(t.linkType==='deal'&&t.linkId); }).map(function(t){return t.id;}); }
-function updateClearImports(){ var b=document.getElementById('clearImports'); if(!b) return; var n=completedImportIds().length; if(n>0){ b.style.display=''; b.textContent='🧹 Clear completed imports ('+n.toLocaleString()+')'; } else { b.style.display='none'; } }
+// Non-admins can only delete tasks they created, so only those are counted/offered to them.
+function completedImportIds(){ return (TASKS||[]).filter(function(t){ return t && t.status==='done' && !(t.linkType==='contact'&&t.linkId) && !(t.linkType==='deal'&&t.linkId) && (ISADMIN||t.createdBy===ME); }).map(function(t){return t.id;}); }
+function clearImportsLabel(){ return ISADMIN?'🧹 Clear completed imports':'🧹 Clear my completed imports'; }
+function updateClearImports(){ var b=document.getElementById('clearImports'); if(!b) return; var n=completedImportIds().length; if(n>0){ b.style.display=''; b.textContent=clearImportsLabel()+' ('+n.toLocaleString()+')'; b.title=ISADMIN?'Delete completed tasks that aren\'t tied to a contact or listing (e.g. bulk-imported follow-ups), for everyone. Open tasks and anything linked to a record are kept.':'Delete completed tasks you created that aren\'t tied to a contact or listing (e.g. bulk-imported follow-ups). Open tasks, anything linked to a record, and tasks others created are kept.'; } else { b.style.display='none'; } }
 function clearCompletedImports(){
   var ids=completedImportIds();
   if(!ids.length){ if(window.rrgToast) rrgToast('Nothing to clear.'); return; }
-  (window.rrgConfirm?rrgConfirm('Delete '+ids.length.toLocaleString()+' completed tasks that aren’t tied to a contact or listing? Open tasks and anything linked to a record are kept. This cannot be undone.',{title:'Clear completed imports?',okText:'Delete '+ids.length.toLocaleString(),danger:true}):Promise.resolve(confirm('Delete '+ids.length+' completed unlinked tasks?'))).then(function(ok){
+  (window.rrgConfirm?rrgConfirm('Delete '+ids.length.toLocaleString()+' completed tasks '+(ISADMIN?'':'you created ')+'that aren’t tied to a contact or listing? Open tasks and anything linked to a record'+(ISADMIN?'':' (and tasks other people created)')+' are kept. This cannot be undone.',{title:ISADMIN?'Clear completed imports?':'Clear my completed imports?',okText:'Delete '+ids.length.toLocaleString(),danger:true}):Promise.resolve(confirm('Delete '+ids.length+' completed unlinked tasks?'))).then(function(ok){
     if(!ok) return;
     var b=document.getElementById('clearImports'); if(b){ b.disabled=true; b.textContent='Clearing…'; }
     var chunks=[]; for(var i=0;i<ids.length;i+=2500) chunks.push(ids.slice(i,i+2500));
     var del=0;
-    (function next(){ if(!chunks.length){ if(b){ b.disabled=false; } if(window.rrgToast) rrgToast('Cleared '+del.toLocaleString()+' completed task'+(del===1?'':'s')); load(); return; } var c=chunks.shift(); fetch('/api/tasks/bulk-delete',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({ids:c})}).then(function(r){return r.json();}).then(function(j){ del+=(j&&j.deleted)||0; next(); }).catch(function(){ if(b){ b.disabled=false; b.textContent='🧹 Clear completed imports'; } if(window.rrgToast) rrgToast('Network error — stopped after '+del+' deleted.'); load(); }); })();
+    (function next(){ if(!chunks.length){ if(b){ b.disabled=false; } if(window.rrgToast) rrgToast('Cleared '+del.toLocaleString()+' completed task'+(del===1?'':'s')); load(); return; } var c=chunks.shift(); fetch('/api/tasks/bulk-delete',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({ids:c})}).then(function(r){return r.json();}).then(function(j){ del+=(j&&j.deleted)||0; next(); }).catch(function(){ if(b){ b.disabled=false; b.textContent=clearImportsLabel(); } if(window.rrgToast) rrgToast('Network error — stopped after '+del+' deleted.'); load(); }); })();
   });
 }
 document.addEventListener('click',function(e){ if(e.target&&e.target.closest&&e.target.closest('#clearImports')){ e.preventDefault(); clearCompletedImports(); } });
@@ -320,5 +326,6 @@ document.querySelectorAll('.filters [data-scope]').forEach(function(b){ b.addEve
 load();
 </script>
 <script>/*rrgbfcache*/window.addEventListener("pageshow",function(e){if(e.persisted)location.reload();});</script>
+<script src="/rrg_features.js"></script>
 </body>
 </html>

@@ -99,13 +99,13 @@
   } catch (e) {}
 })();
 
-/* Task reminder pop-ups (fire while the app is open in a browser). Email is the reliable backstop. */
+/* Task + meeting reminder pop-ups (fire while the app is open in a browser). Email is the reliable backstop. */
 (function () {
   if (/\/(login|sign)\b/.test(location.pathname)) return;
   var SEEN = 'rrg_rem_seen';
   function seen() { try { return JSON.parse(localStorage.getItem(SEEN) || '[]'); } catch (e) { return []; } }
   function mark(ids) { try { var s = seen(); ids.forEach(function (i) { if (s.indexOf(i) < 0) s.push(i); }); localStorage.setItem(SEEN, JSON.stringify(s.slice(-300))); } catch (e) {} }
-  function notify(t) { try { new Notification('Reminder: ' + t.title, { body: (t.due ? ('Due ' + t.due) : '') + (t.linkLabel ? (' · ' + t.linkLabel) : ''), tag: t.id }); } catch (e) {} }
+  function notify(t) { try { var body = (t.kind === 'meeting') ? ((t.when || t.start || '') + (t.linkLabel ? (' · ' + t.linkLabel) : '')) : ((t.due ? ('Due ' + t.due) : '') + (t.linkLabel ? (' · ' + t.linkLabel) : '')); new Notification((t.kind === 'meeting' ? 'Meeting: ' : 'Reminder: ') + t.title, { body: body, tag: t.id }); } catch (e) {} }
   function poll() {
     if (!(window.Notification && Notification.permission === 'granted')) return;
     fetch('/api/reminders/due', { credentials: 'same-origin' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {

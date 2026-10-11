@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const { Pool } = require('pg');
 
 const TENANT = process.env.MAIL_TENANT || 'default';
+const SCHED_MAX = 52;   // max pending scheduled sends per campaign (one a week for a year)
 let pool = null, DB_READY = false, _migrated = null, _drainTimer = null, _abTimer = null, _schedTimer = null;
 
 function _ssl() { const m = String(process.env.PGSSL || '').toLowerCase(); if (m === 'disable' || m === 'off' || m === 'false') return false; return { rejectUnauthorized: false }; }
@@ -86,6 +87,10 @@ async function migrate() {
     await pool.query(`ALTER TABLE mm_schedules ADD COLUMN IF NOT EXISTS slot TEXT`);
     await pool.query(`ALTER TABLE mm_schedules ADD COLUMN IF NOT EXISTS manual BOOLEAN DEFAULT false`);
     await pool.query(`CREATE TABLE IF NOT EXISTS mm_config(tenant TEXT NOT NULL, key TEXT NOT NULL, val TEXT, PRIMARY KEY(tenant,key))`);
+    // Click tracking: mm_campaigns.clicks / mm_sends.clicked_at hold UNIQUE clicks (first click per send);
+    // these hold every click, repeat clicks included.
+    await pool.query(`ALTER TABLE mm_campaigns ADD COLUMN IF NOT EXISTS clicks_total INT DEFAULT 0`);
+    await pool.query(`ALTER TABLE mm_sends ADD COLUMN IF NOT EXISTS click_count INT DEFAULT 0`);
   })().catch(e => { console.error('[MAIL] migrate failed: ' + (e && e.message)); _migrated = null; throw e; });
   return _migrated;
 }
@@ -174,6 +179,47 @@ function ensureFooter(html, unsubUrl) {
   // append footer before </body> if present, else at end
   if (/<\/body>/i.test(html)) return html.replace(/<\/body>/i, foot + '</body>');
   return html + foot;
+}
+// ---- Click tracking ----
+// Each http(s) link in a campaign email is rewritten to BASE/mail/c/<sendToken>.<b64url(url)>.<sig>, where sig is an
+// HMAC of the send token + destination under a server secret — so the route only ever redirects to URLs we signed
+// (never an open redirect), and the send token identifies the recipient/campaign the click belongs to.
+// Key: the server's SESSION_SECRET when set, else a per-tenant key kept in Postgres (mm_config) next to the sends it
+// signs — not a file on the app disk, so a wiped/rebuilt disk can't break the links in emails already delivered.
+let _dbLinkKey = '';
+async function _dbKey() {
+  if (_dbLinkKey) return _dbLinkKey;
+  await q('INSERT INTO mm_config(tenant,key,val) VALUES($1,$2,$3) ON CONFLICT(tenant,key) DO NOTHING', [TENANT, 'click_key', newToken() + newToken()]);
+  const r = (await q('SELECT val FROM mm_config WHERE tenant=$1 AND key=$2', [TENANT, 'click_key'])).rows[0];
+  _dbLinkKey = (r && r.val) || ''; return _dbLinkKey;
+}
+async function _linkKey() { return process.env.SESSION_SECRET || await _dbKey(); }
+// Keys a click link may have been signed with (so adding SESSION_SECRET later doesn't break earlier emails).
+async function _linkKeys() { const out = []; if (process.env.SESSION_SECRET) out.push(process.env.SESSION_SECRET); if (DB_READY) { try { const k = await _dbKey(); if (k) out.push(k); } catch (e) {} } return out; }
+function _clickSig(key, sendToken, url) { return crypto.createHmac('sha256', String(key)).update('mm-click|' + sendToken + '|' + url).digest('base64url').slice(0, 32); }
+function clickToken(key, sendToken, url) { return sendToken + '.' + Buffer.from(String(url), 'utf8').toString('base64url') + '.' + _clickSig(key, sendToken, url); }
+// Verify a click token against the candidate keys; returns { sendToken, url } only when a signature matches, else null.
+function readClickToken(keys, tok) {
+  const p = String(tok || '').split('.');
+  keys = [].concat(keys || []).filter(Boolean);
+  if (!keys.length || p.length !== 3 || !/^[A-Za-z0-9_-]{1,100}$/.test(p[0]) || !/^[A-Za-z0-9_-]+$/.test(p[1]) || !/^[A-Za-z0-9_-]{32}$/.test(p[2])) return null;
+  let url = ''; try { url = Buffer.from(p[1], 'base64url').toString('utf8'); } catch (e) { return null; }
+  if (!/^https?:\/\/[^\s]+$/i.test(url)) return null;
+  const ok = keys.some(k => crypto.timingSafeEqual(Buffer.from(p[2]), Buffer.from(_clickSig(k, p[0], url))));
+  return ok ? { sendToken: p[0], url: url } : null;
+}
+function _attrDecode(s) { return String(s).replace(/&#0*39;/g, "'").replace(/&quot;/gi, '"').replace(/&#x0*26;/gi, '&').replace(/&#0*38;/g, '&').replace(/&amp;/gi, '&'); }
+// Rewrite <a href="http(s)://…"> links to tracked redirects. mailto:/tel:/#anchors/{{merge}} placeholders and the
+// app's own /mail/ links (unsubscribe, preferences, open pixel) are left untouched. Needs an absolute BASE —
+// a relative tracking URL would break the link in a mail client, so without one links are sent as written.
+function trackLinks(html, key, sendToken) {
+  if (!BASE || !/^https?:\/\//i.test(BASE) || !key || !sendToken) return String(html || '');
+  const own = BASE + '/mail/';
+  return String(html || '').replace(/(<a\b[^>]*?\shref\s*=\s*)(?:"([^"]*)"|'([^']*)')/gi, function (m, pre, dq, sq) {
+    const raw = dq != null ? dq : sq; const url = _attrDecode(raw).trim();
+    if (!/^https?:\/\/[^\s]+$/i.test(url) || url.indexOf(own) === 0) return m;
+    return pre + '"' + escapeHtml(BASE + '/mail/c/' + clickToken(key, sendToken, url)) + '"';
+  });
 }
 function openPixel(html, url) { const px = '<img src="' + url + '" width="1" height="1" alt="" style="display:block;border:0" />'; if (/<\/body>/i.test(html)) return html.replace(/<\/body>/i, px + '</body>'); return html + px; }
 function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
@@ -465,7 +511,7 @@ async function maybeDecideAb() {
   let released = false;
   const cands = (await q(`SELECT id, ab_metric, ab_hours FROM mm_campaigns
      WHERE tenant=$1 AND status='sending' AND ab_enabled=true AND (ab_winner='' OR ab_winner IS NULL)
-       AND started_at IS NOT NULL AND now() >= started_at + ((ab_hours||4) * interval '1 hour')`, [TENANT])).rows;
+       AND started_at IS NOT NULL AND now() >= started_at + (COALESCE(ab_hours,4) * interval '1 hour')`, [TENANT])).rows;
   for (const c of cands) {
     const pend = (await q(`SELECT count(*)::int n FROM mm_sends WHERE campaign_id=$1 AND variant IN('A','B') AND status='pending'`, [c.id])).rows[0].n;
     if (pend > 0) continue;
@@ -498,6 +544,7 @@ async function _loop() {
     }
     const t0 = Date.now(); const camps = {};
     for (const row of batch) { if (!camps[row.campaign_id]) camps[row.campaign_id] = (await q('SELECT * FROM mm_campaigns WHERE id=$1', [row.campaign_id])).rows[0]; }
+    let lkey = ''; try { lkey = await _linkKey(); } catch (e) { lkey = ''; }
     for (const row of batch) {
       const c = camps[row.campaign_id]; if (!c) continue;
       try {
@@ -510,6 +557,7 @@ async function _loop() {
         const rawSubj = (useB && c.subject_b) ? c.subject_b : c.subject;
         let html = mergeFields(rawHtml, sub);
         if (c.preheader) html = _injectPreheader(html, mergeFields(c.preheader, sub));
+        html = trackLinks(html, lkey, row.token);   // before the footer, so unsubscribe/preferences links stay direct
         html = ensureFooter(html, unsubUrl);
         html = openPixel(html, openUrl);
         const subject = mergeFields(rawSubj, sub);
@@ -532,6 +580,19 @@ async function _loop() {
 async function handleOpen(token) {
   const d = (await q(`UPDATE mm_sends SET opened_at=COALESCE(opened_at, now()) WHERE token=$1 AND opened_at IS NULL RETURNING campaign_id,email`, [token])).rows[0];
   if (d) { await q('UPDATE mm_campaigns SET opens=opens+1 WHERE id=$1', [d.campaign_id]); await q(`INSERT INTO mm_events(tenant,email,campaign_id,type) VALUES($1,$2,$3,'open')`, [TENANT, d.email, d.campaign_id]); }
+}
+// A click on a tracked link. Every click adds to the totals; the first click on a send is the unique click
+// (mm_sends.clicked_at + mm_campaigns.clicks — what click rates and the A/B "Click rate" winner use).
+// A click proves the email was opened, so an image-blocked open is counted too.
+async function handleClick(token, url) {
+  const d = (await q(`UPDATE mm_sends SET click_count=COALESCE(click_count,0)+1 WHERE tenant=$1 AND token=$2 RETURNING id,campaign_id,email`, [TENANT, token])).rows[0];
+  if (!d) return null;
+  const first = (await q(`UPDATE mm_sends SET clicked_at=now() WHERE id=$1 AND clicked_at IS NULL RETURNING id`, [d.id])).rowCount > 0;
+  const opened = (await q(`UPDATE mm_sends SET opened_at=now() WHERE id=$1 AND opened_at IS NULL RETURNING id`, [d.id])).rowCount > 0;
+  await q(`UPDATE mm_campaigns SET clicks_total=COALESCE(clicks_total,0)+1${first ? ', clicks=COALESCE(clicks,0)+1' : ''}${opened ? ', opens=COALESCE(opens,0)+1' : ''} WHERE id=$1`, [d.campaign_id]);
+  if (opened) await q(`INSERT INTO mm_events(tenant,email,campaign_id,type,meta) VALUES($1,$2,$3,'open',$4::jsonb)`, [TENANT, d.email, d.campaign_id, JSON.stringify({ via: 'click' })]);
+  await q(`INSERT INTO mm_events(tenant,email,campaign_id,type,meta) VALUES($1,$2,$3,'click',$4::jsonb)`, [TENANT, d.email, d.campaign_id, JSON.stringify({ url: String(url || '').slice(0, 500), unique: first })]);
+  return { campaignId: d.campaign_id, unique: first };
 }
 async function handleUnsub(token) {
   const d = (await q('SELECT campaign_id,email FROM mm_sends WHERE token=$1 LIMIT 1', [token])).rows[0];
@@ -562,7 +623,9 @@ async function handleSns(raw) {
 async function sendTest(campaignId, toEmail) {
   const c = (await q('SELECT * FROM mm_campaigns WHERE tenant=$1 AND id=$2', [TENANT, campaignId])).rows[0]; if (!c) throw new Error('Campaign not found.');
   const sub = { first_name: '', last_name: '', email: toEmail }; const token = 'test' + newToken(); const unsubUrl = BASE + '/mail/u/' + token;
-  let html = mergeFields(c.html, sub); if (c.preheader) html = _injectPreheader(html, mergeFields(c.preheader, sub)); html = ensureFooter(html, unsubUrl);
+  let html = mergeFields(c.html, sub); if (c.preheader) html = _injectPreheader(html, mergeFields(c.preheader, sub));
+  let lkey = ''; try { lkey = await _linkKey(); } catch (e) {} html = trackLinks(html, lkey, token);  // same tracked links as the real send (a test click redirects but isn't counted)
+  html = ensureFooter(html, unsubUrl);
   const mime = buildMime({ to: toEmail, subject: '[TEST] ' + mergeFields(c.subject, sub), html: html, text: htmlToText(html), fromName: c.from_name, fromEmail: c.from_email, replyTo: c.reply_to, unsubUrl: unsubUrl });
   return await sesSendRaw(mime);
 }
@@ -646,7 +709,7 @@ function mount(app, deps) {
     const p=[TENANT]; let wh='c.tenant=$1 AND COALESCE(c.archived,false)=$2'; p.push(arch);
     if(qq){ p.push('%'+qq+'%'); wh+=' AND (LOWER(c.name) LIKE $'+p.length+' OR LOWER(c.subject) LIKE $'+p.length+')'; }
     if(days>0){ p.push(days); wh+=' AND c.created_at >= now() - ($'+p.length+" * interval '1 day')"; }
-    const rows = (await q(`SELECT c.id,c.name,c.subject,c.status,c.total,c.sent,c.failed,c.opens,c.clicks,c.bounces,c.complaints,c.unsubs,c.created_at,c.started_at,c.finished_at,COALESCE(c.archived,false) AS archived,COALESCE(c.ab_enabled,false) AS ab_enabled,COALESCE(c.ab_winner,'') AS ab_winner,COALESCE(c.runs,0) AS runs,(SELECT min(run_at) FROM mm_schedules x WHERE x.tenant=c.tenant AND x.campaign_id=c.id AND x.status='pending') AS next_run,(SELECT count(*)::int FROM mm_schedules x WHERE x.tenant=c.tenant AND x.campaign_id=c.id AND x.status='pending') AS sched_pending,l.name AS list_name,COALESCE(c.seg_type,'') AS seg_type,COALESCE(c.seg_mode,'') AS seg_mode FROM mm_campaigns c LEFT JOIN mm_lists l ON l.id=c.list_id WHERE ${wh} ORDER BY c.id DESC LIMIT 500`, p)).rows;
+    const rows = (await q(`SELECT c.id,c.name,c.subject,c.status,c.total,c.sent,c.failed,c.opens,c.clicks,COALESCE(c.clicks_total,0) AS clicks_total,c.bounces,c.complaints,c.unsubs,c.created_at,c.started_at,c.finished_at,COALESCE(c.archived,false) AS archived,COALESCE(c.ab_enabled,false) AS ab_enabled,COALESCE(c.ab_winner,'') AS ab_winner,COALESCE(c.runs,0) AS runs,(SELECT min(run_at) FROM mm_schedules x WHERE x.tenant=c.tenant AND x.campaign_id=c.id AND x.status='pending') AS next_run,(SELECT count(*)::int FROM mm_schedules x WHERE x.tenant=c.tenant AND x.campaign_id=c.id AND x.status='pending') AS sched_pending,l.name AS list_name,COALESCE(c.seg_type,'') AS seg_type,COALESCE(c.seg_mode,'') AS seg_mode FROM mm_campaigns c LEFT JOIN mm_lists l ON l.id=c.list_id WHERE ${wh} ORDER BY c.id DESC LIMIT 500`, p)).rows;
     res.json({ ok: true, campaigns: rows });
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.get('/api/mail/campaigns/:id', requireAdmin, guard, async (req, res) => { try { const c = (await q('SELECT * FROM mm_campaigns WHERE tenant=$1 AND id=$2', [TENANT, req.params.id])).rows[0]; if (!c) return res.status(404).json({ ok: false, error: 'Not found.' }); res.json({ ok: true, campaign: c }); } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
@@ -712,9 +775,12 @@ function mount(app, deps) {
     // blackout. Auto-scheduled series stay inside business days. Default is auto (safe).
     const manual = b.manual === true || b.force === true || b.allowBlackout === true;
     const tz = process.env.MAIL_TZ || 'America/Chicago';
-    const now = Date.now(); let added = 0, skipWeekend = 0, skipSlot = 0, skipPast = 0, skipHoliday = 0;
+    const now = Date.now(); let added = 0, skipWeekend = 0, skipSlot = 0, skipPast = 0, skipHoliday = 0, skipCap = 0;
     const usedBatch = {};
+    // Hard ceiling of SCHED_MAX pending sends per campaign (the Studio's schedule window and editor enforce the same number).
+    const havePending = (await q(`SELECT count(*)::int AS n FROM mm_schedules WHERE tenant=$1 AND campaign_id=$2 AND status='pending'`, [TENANT, id])).rows[0].n;
     for (const t of times) {
+      if (havePending + added >= SCHED_MAX) { skipCap++; continue; }
       const d = new Date(t);
       if (isNaN(d.getTime()) || d.getTime() <= now - 60000) { skipPast++; continue; }
       // classify in the brokerage's local timezone: weekday + AM/PM + local date
@@ -732,7 +798,7 @@ function mount(app, deps) {
     }
     if (added) await q(`UPDATE mm_campaigns SET status='scheduled' WHERE tenant=$1 AND id=$2 AND status IN('draft')`, [TENANT, id]);
     const rows = (await q(`SELECT id, run_at, status, slot, COALESCE(manual,false) AS manual FROM mm_schedules WHERE tenant=$1 AND campaign_id=$2 AND status='pending' ORDER BY run_at ASC`, [TENANT, id])).rows;
-    res.json({ ok: true, added: added, manual: manual, skippedWeekend: skipWeekend, skippedHoliday: skipHoliday, skippedSlot: skipSlot, skippedPast: skipPast, schedules: rows });
+    res.json({ ok: true, added: added, manual: manual, skippedWeekend: skipWeekend, skippedHoliday: skipHoliday, skippedSlot: skipSlot, skippedPast: skipPast, skippedCap: skipCap, max: SCHED_MAX, schedules: rows });
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   // Audience label + live recipient estimate for one campaign row (needs seg_type, seg_mode, seg_metros, list_id, list_name).
   async function _campaignAudience(r) {
@@ -921,9 +987,9 @@ function mount(app, deps) {
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.get('/api/mail/campaigns/:id/export', requireAdmin, guard, async (req, res) => { try {
     const c = (await q('SELECT name FROM mm_campaigns WHERE tenant=$1 AND id=$2', [TENANT, Number(req.params.id)])).rows[0]; if(!c) return res.status(404).json({ ok:false, error:'Not found.' });
-    const rows = (await q(`SELECT email,status,sent_at,opened_at,clicked_at FROM mm_sends WHERE tenant=$1 AND campaign_id=$2 ORDER BY id`, [TENANT, Number(req.params.id)])).rows;
+    const rows = (await q(`SELECT email,status,sent_at,opened_at,clicked_at,COALESCE(click_count,0) AS clicks FROM mm_sends WHERE tenant=$1 AND campaign_id=$2 ORDER BY id`, [TENANT, Number(req.params.id)])).rows;
     const esc=v=>{ v=(v==null?'':String(v)); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; };
-    let csv='email,status,sent_at,opened_at,clicked_at\n'; rows.forEach(r=>{ csv+=[r.email,r.status,r.sent_at||'',r.opened_at||'',r.clicked_at||''].map(esc).join(',')+'\n'; });
+    let csv='email,status,sent_at,opened_at,clicked_at,clicks\n'; rows.forEach(r=>{ csv+=[r.email,r.status,r.sent_at||'',r.opened_at||'',r.clicked_at||'',r.clicks||0].map(esc).join(',')+'\n'; });
     res.set('Content-Type','text/csv; charset=utf-8'); res.set('Content-Disposition','attachment; filename="campaign-'+Number(req.params.id)+'-recipients.csv"'); res.send(csv);
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
 
@@ -948,6 +1014,13 @@ function mount(app, deps) {
   app.post('/api/mail/ses-webhook', express.text({ type: '*/*', limit: '2mb' }), async (req, res) => { try { await handleSns(req.body); } catch (e) { console.error('[MAIL] sns: ' + (e && e.message)); } res.json({ ok: true }); });
   const GIF = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
   app.get('/mail/o/:token', async (req, res) => { try { if (DB_READY) await handleOpen(String(req.params.token).replace(/\.gif$/i, '')); } catch (e) {} res.set('Content-Type', 'image/gif').set('Cache-Control', 'no-store, no-cache, must-revalidate').send(GIF); });
+  // Tracked link click: verify the signature, record the click (GET only — HEAD probes don't count), then redirect.
+  app.get('/mail/c/:tok', async (req, res) => {
+    let t = null; try { t = readClickToken(await _linkKeys(), String(req.params.tok || '')); } catch (e) { t = null; }
+    if (!t) return res.status(400).set('Content-Type', 'text/plain; charset=utf-8').send('This link is invalid or has expired.');
+    if (DB_READY && req.method === 'GET') { try { await handleClick(t.sendToken, t.url); } catch (e) { console.error('[MAIL] click: ' + (e && e.message)); } }
+    res.set('Cache-Control', 'no-store'); res.redirect(302, t.url);
+  });
   function _unsubPage(email) { return '<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Unsubscribed</title><body style="font-family:-apple-system,Segoe UI,Arial,sans-serif;background:#eef1f6;margin:0"><div style="max-width:480px;margin:70px auto;background:#fff;border:1px solid #e6e9f0;border-radius:12px;padding:34px;text-align:center"><h2 style="color:#000E31;margin:0 0 8px">You\'re unsubscribed</h2><p style="color:#6b7488">' + (email ? ('<b>' + escapeHtml(email) + '</b> has been removed and won\'t receive further emails.') : 'You will not receive further emails.') + '</p></div></body>'; }
   function _prefsPage(token) {
     const T = String(token || '').replace(/[^a-zA-Z0-9._-]/g, '');

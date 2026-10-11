@@ -62,7 +62,7 @@ td .sub{color:var(--muted);font-size:12px;margin-top:2px;} td a{color:#23496f;fo
 <div class="wrap" id="app"><div class="empty">Loading tours…</div></div>
 <script>
 var KEY=(function(){ try{ return new URLSearchParams(location.search).get('key')||''; }catch(e){ return ''; } })();
-var DATA=null, SORT={k:'date',d:-1}, F={eng:'',react:'',q:''};
+var DATA=null, SORT={k:'date',d:-1}, F={eng:'',react:'',q:''}, ORGNAME='';
 var OLDKEY='rrg_tourdb_v1';   // the retired browser-only Tour Tracker's storage key
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
 function money(n){ return (n==null||n==='')?'—':('$'+Number(n).toFixed(2)); }
@@ -125,9 +125,10 @@ function renderAll(){
     if(q){ var hay=[r.e.business,r.t.property,r.t.suite,r.t.thoughts,r.t.host,r.t.spaceType].join(' ').toLowerCase(); if(hay.indexOf(q)<0) return false; } return true; });
   rows=sortRows(rows);
   var liked=rows.filter(function(r){ return r.t.reaction==='Loved'||r.t.reaction==='Liked'; }).length;
-  var engsTouring=engs.filter(function(e){ return (e.tours||[]).length; }).length;
+  var _seenEng={}; rows.forEach(function(r){ _seenEng[r.e.key]=1; }); var engsTouring=Object.keys(_seenEng).length;
   var last30=rows.filter(function(r){ var d=Date.parse(r.t.date||''); return d && (Date.now()-d) < 30*86400000; }).length;
   var h='<div class="pgh"><div><div class="kick">Tenant Rep</div><h1>Tours</h1><div class="pgs">Every space shown to every tenant you represent, from each engagement’s Location Tours. Open an engagement for its client tour summary (print / PDF).</div></div></div>'
+    +'<div data-rrg-feats="tours"></div>'
     +importHTML()
     +'<div class="card"><div class="kpis"><div class="kpi"><div class="n">'+rows.length+'</div><div class="l">Spaces shown</div></div><div class="kpi"><div class="n">'+liked+'</div><div class="l">Liked or better</div></div><div class="kpi"><div class="n">'+last30+'</div><div class="l">Last 30 days</div></div><div class="kpi"><div class="n">'+engsTouring+'</div><div class="l">Tenants touring</div></div></div></div>'
     +'<div class="card"><div class="bar"><select id="fEng"><option value="">All tenants</option>'+engs.map(function(e){ return '<option value="'+esc(e.key)+'"'+(F.eng===e.key?' selected':'')+'>'+esc(e.business)+' ('+(e.tours||[]).length+')</option>'; }).join('')+'</select>'
@@ -158,7 +159,7 @@ function renderOne(){
   if(!e){ document.getElementById('app').innerHTML='<div class="empty">That engagement isn’t a tenant-rep engagement you can see. <a href="./rrg_tours.html">All tours</a></div>'; return; }
   var list=(e.tours||[]).map(function(t){ return {e:e,t:t}; }); list=sortRows(list);
   var liked=list.filter(function(r){ return r.t.reaction==='Loved'||r.t.reaction==='Liked'; }).length, top=topPick((e.tours||[]));
-  var h='<div class="printhd"><span class="wm">Restaurant Realty Group</span><span style="font-size:11px;color:#6b7488">Tour Summary · '+esc(new Date().toLocaleDateString([], {month:'long',day:'numeric',year:'numeric'}))+'</span></div>'
+  var h='<div class="printhd"><span class="wm">'+esc(ORGNAME)+'</span><span style="font-size:11px;color:#6b7488">Tour Summary · '+esc(new Date().toLocaleDateString([], {month:'long',day:'numeric',year:'numeric'}))+'</span></div>'
     +'<div class="pgh"><div><div class="kick">Tour Summary</div><h1>'+esc(e.business)+'</h1><div class="pgs">'+esc([e.market, e.owner?('RRG advisor: '+e.owner):''].filter(Boolean).join(' · '))+'</div></div>'
     +'<div class="acts noprint"><a class="btn" href="./rrg_tenant_engagement.html?key='+encodeURIComponent(e.key)+'">← Engagement</a><a class="btn" href="./rrg_tours.html">All tours</a><button class="btn pri" type="button" onclick="window.print()">Print / PDF</button></div></div>'
     +'<div class="card"><div class="kpis"><div class="kpi"><div class="n">'+list.length+'</div><div class="l">Spaces shown</div></div><div class="kpi"><div class="n">'+liked+'</div><div class="l">Liked or better</div></div><div class="kpi"><div class="n sm">'+(top?esc(spaceName(top)):'—')+'</div><div class="l">Top pick</div></div><div class="kpi"><div class="n">'+(top&&gross(top)!=null?money(gross(top)):'—')+'</div><div class="l">Top pick gross $/SF</div></div></div></div>';
@@ -168,7 +169,7 @@ function renderOne(){
     +list.map(function(r,i){ var t=r.t; return '<tr class="'+(t.reaction==='Passed'?'passed':'')+'"><td style="color:#8a93a8">'+(i+1)+'</td><td><b>'+esc(spaceName(t))+'</b>'+(top===t?'<span class="top">Top pick</span>':'')+'</td><td style="white-space:nowrap">'+fdate(t.date)+'</td><td>'+esc(t.spaceType||'—')+'</td><td class="num">'+(t.sf?Number(t.sf).toLocaleString():'—')+'</td><td class="num">'+money(t.baseRent)+'</td><td class="num">'+money(t.nnn)+'</td><td class="num"><b>'+money(gross(t))+'</b></td><td>'+react(t.reaction)+'</td><td>'+stars(t.rating)+'</td><td class="th-thought">'+esc(t.thoughts||'')+'</td></tr>'; }).join('')
     +'</tbody></table></div>';
   h+='</div><div class="card notes"><h3>Overall notes &amp; next steps <span class="saved" id="nSaved">Saved</span></h3><textarea id="nText" placeholder="Front-runner, backups, what we’re countering, next tours…">'+esc(e.tourNotes||'')+'</textarea><div class="pnotes">'+esc(e.tourNotes||'—')+'</div></div>'
-    +'<div class="foot">Restaurant Realty Group · Proprietary &amp; Confidential</div>';
+    +'<div class="foot">'+(ORGNAME?(esc(ORGNAME)+' · '):'')+'Proprietary &amp; Confidential</div>';
   document.getElementById('app').innerHTML=h;
   wireSort();
   var ta=document.getElementById('nText'), tmr=null, last=e.tourNotes||'';
@@ -180,7 +181,9 @@ function renderOne(){
 function render(){ if(KEY) renderOne(); else renderAll(); }
 function load(){ api('GET','/api/tours').then(function(j){ if(!j||!j.ok){ document.getElementById('app').innerHTML='<div class="empty">'+esc((j&&j.error)||'Could not load tours.')+'</div>'; return; } DATA=j; render(); }).catch(function(){ document.getElementById('app').innerHTML='<div class="empty">Could not reach the server.</div>'; }); }
 if(KEY){ SORT={k:'rating',d:-1}; }
-load();
+// Print header/footer carry the firm's configured name (Branding → org name, else the app name), like the other printables.
+fetch('/api/appname',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ var o=(j&&j.org)||{}; ORGNAME=o.name||o.legalName||(j&&j.name)||''; }).catch(function(){}).then(load);
 </script>
+<script src="/rrg_features.js"></script>
 </body>
 </html>

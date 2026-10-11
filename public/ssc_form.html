@@ -263,7 +263,7 @@
     <div class="emodal-h">Send Site Selection Criteria</div>
     <div class="emodal-sub">Review, then open your email app &mdash; or copy the text and paste into a new message.</div>
     <div class="emodal-row"><b>To:</b> <span id="em-to"></span></div>
-    <div class="emodal-row"><b>Cc:</b> van@rrgcre.com</div>
+    <div class="emodal-row" id="em-ccrow"><b>Cc:</b> <span id="em-cc"></span></div>
     <div class="emodal-row"><b>Subject:</b> <span id="em-subj"></span></div>
     <textarea id="em-body" class="emodal-body" readonly></textarea>
     <div class="emodal-actions">
@@ -283,6 +283,7 @@
 </div>
 <div id="printview"></div>
 <form id="sscform" class="wrap">
+ <div data-rrg-feats="ssc_form"></div>
  <div class="sheet">
 
   <!-- COVER -->
@@ -798,8 +799,10 @@
       }
     });
     var _lk=(window.__SSC_LINK||{});
+    var _mk=''; sections.forEach(function(sc){ sc.groups.forEach(function(g){ if(!_mk&&g.kind==='options'&&g.label==='Primary Markets') _mk=(g.selected||[]).join(', '); }); });
     return {
       concept: header['restaurant / concept name']||'Concept',
+      market: _mk,
       contact: header['primary contact']||_lk.contactName||'',
       preparedBy: header['rrg advisor / tenant rep']||'',
       date: header['date completed']||'',
@@ -815,10 +818,12 @@
     var rep=(document.getElementById('clientEmail').value||'').trim();
     var subject='Site Selection Criteria \u2014 '+concept;
     var body=_collect();
-    window.__lastMailto='mailto:'+encodeURIComponent(rep)+'?cc='+encodeURIComponent('van@rrgcre.com')+'&subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
+    var cc=window.__SSC_CC||'';
+    window.__lastMailto='mailto:'+encodeURIComponent(rep)+'?'+(cc?('cc='+encodeURIComponent(cc)+'&'):'')+'subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
     document.getElementById('em-to').textContent=rep;
+    document.getElementById('em-cc').textContent=cc; document.getElementById('em-ccrow').style.display=cc?'':'none';
     document.getElementById('em-subj').textContent=subject;
-    document.getElementById('em-body').value='To: '+rep+'\nCc: van@rrgcre.com\nSubject: '+subject+'\n\n'+body;
+    document.getElementById('em-body').value='To: '+rep+(cc?('\nCc: '+cc):'')+'\nSubject: '+subject+'\n\n'+body;
     document.getElementById('emodal').classList.add('show');
     if(window.__mailtoHook){ window.__mailtoHook(window.__lastMailto); }
   }
@@ -826,8 +831,9 @@
   function _sm(state, extra){
     var h=document.getElementById('sm-h'), msg=document.getElementById('sm-msg'), act=document.getElementById('sm-actions');
     act.innerHTML='';
-    if(state==='sending'){ h.textContent='Sending\u2026'; msg.textContent='Rendering the branded PDF and emailing it to the tenant rep (CC van@rrgcre.com)\u2026'; }
-    else if(state==='sent'){ h.textContent='Sent \u2713'; msg.textContent='The branded SSC PDF was emailed to '+extra+', with van@rrgcre.com copied.';
+    var cc=window.__SSC_CC||'';
+    if(state==='sending'){ h.textContent='Sending\u2026'; msg.textContent='Rendering the branded PDF and emailing it to the tenant rep'+(cc?(' (CC '+cc+')'):'')+'\u2026'; }
+    else if(state==='sent'){ h.textContent='Sent \u2713'; msg.textContent='The branded SSC PDF was emailed to '+extra+(cc?(', with '+cc+' copied.'):'.');
       act.innerHTML='<button type="button" class="mbtn p" onclick="smClose()">Done</button>'; }
     else { h.textContent='Couldn\u2019t send automatically'; msg.textContent=(extra||'The mailer service didn\u2019t respond.')+' You can send it manually instead.';
       act.innerHTML='<button type="button" class="mbtn p" onclick="smClose();_openCopyPanel();">Copy email text</button><button type="button" class="mbtn g" onclick="smClose()">Close</button>'; }
@@ -846,11 +852,13 @@
         if(company && /concept name|restaurant/.test(t)) inp.value=company; else if(contact && /primary contact/.test(t)) inp.value=contact; }); }catch(e){} }
     if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',pf); else pf();
   }catch(e){} })();
+  // The firm's configured CC for emailed SSCs (Brokerage Info email, else the firm's sending mailbox).
+  window.__SSC_CC=''; try{ fetch(String(window.RRG_API||'').replace(/\/$/,'')+'/api/ssc-cc',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok) window.__SSC_CC=j.cc||''; }).catch(function(){}); }catch(e){}
   function _sendViaBackend(){
     var data=_collectData(); _sm('sending');
     fetch(String(window.RRG_API).replace(/\/$/,'')+'/api/send-ssc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
       .then(function(r){ return r.json().then(function(j){ return {ok:r.ok,j:j}; }); })
-      .then(function(res){ if(res.ok && res.j && res.j.ok){ _sm('sent', data.repEmail); } else { _sm('error', (res.j&&res.j.error)||('Server error ('+ (res.j?'':'no JSON') +').')); } })
+      .then(function(res){ if(res.ok && res.j && res.j.ok){ if(res.j.cc!==undefined) window.__SSC_CC=res.j.cc||''; _sm('sent', data.repEmail); } else { _sm('error', (res.j&&res.j.error)||('Server error ('+ (res.j?'':'no JSON') +').')); } })
       .catch(function(e){ _sm('error', String(e.message||e)); });
     return true;
   }
@@ -1086,5 +1094,6 @@
   window.addEventListener('beforeunload', save);
 })();
 </script>
+<script src="/rrg_features.js"></script>
 </body>
 </html>

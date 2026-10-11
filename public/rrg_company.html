@@ -412,7 +412,7 @@ function refreshDocListCo(){
   var c=document.getElementById('coDocCount'); if(c) c.textContent=String(docCountCo());
 }
 function agreementsCardCo(){
-  return '<div class="card"><div class="ch"><b>Documents</b><span id="coDocCount">'+docCountCo()+'</span></div><div class="cb"><div id="coAgrForm" hidden></div><div class="agrlistco" id="coDocList">'+docListHtmlCo()+'</div></div></div>';
+  return '<div class="card"><div class="ch"><b>Documents</b><span id="coDocCount">'+docCountCo()+'</span><button type="button" class="addbtn" id="addAgrBtn" title="Add an agreement \u2014 record a signed one, or upload a PDF and send it for signature" style="margin-left:auto;width:auto;height:26px;padding:0 10px;font-size:11.5px;font-weight:700;display:inline-flex;align-items:center;gap:5px">\u270D Add agreement</button></div><div class="cb"><div id="coAgrForm" hidden></div><div class="agrlistco" id="coDocList">'+docListHtmlCo()+'</div></div></div>';
 }
 function filesCountCo(){ return (window.RRGDocs&&RRGDocs.filesCount&&RRGDocs.filesCount())||0; }
 function filesListHtmlCo(){ var rows=(window.RRGDocs?RRGDocs.filesRowsHtml():''); if(rows) return rows; return '<div class="rrempty">'+((window.RRGDocs&&RRGDocs.ready())?'No files uploaded for this company yet. Use + to add a lease, P&L, or other document.':'Loading files\u2026')+'</div>'; }
@@ -598,7 +598,7 @@ function render(){
     var logo=cpt.logo?('<img class="cptlogo" src="'+esc(cpt.logo)+'" alt="" data-mono="'+esc(mletter)+'" onerror="cptLogoFail(this)">'):mono;
     return '<div class="cptblock'+(open?' open':'')+'"><div class="cptbar" data-cpt="'+esc(cpt.id)+'"><span class="cptchev">▸</span>'+logo
       + '<div class="cptname"><div class="cptnm" title="Click to open · use Edit to rename">'+esc(cpt.name)+'</div>'+metaLine+'</div>'
-      + '<div class="cptacts"><button class="mini" data-addloc="'+esc(cpt.id)+'">+ Location</button><button class="mini" data-editc="'+esc(cpt.id)+'">Edit</button><button class="mini danger" data-rmc="'+esc(cpt.id)+'" title="Remove concept"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"></path></svg> Remove</button></div></div>'
+      + '<div class="cptacts">'+(mine.length?'<button class="mini" data-photos="'+esc(cpt.name)+'" title="Pull Google photos for this concept\u2019s locations that don\u2019t have any yet">\u2913 Photos</button>':'')+'<button class="mini" data-addloc="'+esc(cpt.id)+'">+ Location</button><button class="mini" data-editc="'+esc(cpt.id)+'">Edit</button><button class="mini danger" data-rmc="'+esc(cpt.id)+'" title="Remove concept"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"></path></svg> Remove</button></div></div>'
       + '<div class="cptlocs">'+rows+'</div></div>';
   }
   var known={}; CONCEPTS.forEach(function(x){known[x.name]=1;});
@@ -635,7 +635,7 @@ function render(){
     + '</div>'
     + '<div class="rail">'
     + '<div class="card"><div class="ch"><b>Contacts</b><span>'+CONTACTS.length+'</span><button class="addbtn" id="linkContactBtn" title="Link an existing contact from your book" style="margin-left:auto;width:auto;height:26px;padding:0 10px;font-size:11.5px;font-weight:700;display:inline-flex;align-items:center;gap:5px">🔗 Link</button><button class="addbtn" id="addContactBtn" title="Add a new contact" style="margin-left:6px;width:28px;height:26px;padding:0;font-size:18px;line-height:1;font-weight:700;display:inline-flex;align-items:center;justify-content:center">+</button></div><div class="cb"><div id="contactForm" hidden></div>'+contacts+'</div></div>'
-    + '<div class="card"><div class="ch"><b>'+esc(CLABELP)+'</b>'+'<div class="chact">'+(LOCATIONS.length?'<button class="chbtn" id="locMapBtn" title="View locations on a map"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6-5.686-6-10a6 6 0 0 1 12 0c0 4.314-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg>Map</button><span class="chsep"></span>':'')+'<button class="chadd ghost" id="addCommBtn" title="Add commissary">+</button><button class="chadd" id="addConceptBtn" title="Add '+esc(CLABEL.toLowerCase())+'">+</button></div></div><div class="cb"><div class="cocount">'+CONCEPTS.length+' '+(CONCEPTS.length===1?esc(CLABEL.toLowerCase()):esc(CLABELP.toLowerCase()))+(commissaries.length?(' · '+commissaries.length+' commissar'+(commissaries.length===1?'y':'ies')):'')+' · '+LOCATIONS.length+' location'+(LOCATIONS.length===1?'':'s')+'</div><div id="conceptForm" hidden></div><div id="findForm" hidden></div><div id="locForm" hidden></div>'+locs+'</div></div>'
+    + '<div class="card"><div class="ch"><b>'+esc(CLABELP)+'</b>'+'<div class="chact">'+(LOCATIONS.length?'<button class="chbtn" id="locMapBtn" title="View locations on a map"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6-5.686-6-10a6 6 0 0 1 12 0c0 4.314-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg>Map</button><span class="chsep"></span>':'')+'<button class="chadd ghost" id="addCommBtn" title="Add commissary">+</button><button class="chadd" id="addConceptBtn" title="Add '+esc(CLABEL.toLowerCase())+'">+</button></div></div><div class="cb"><div class="cocount">'+CONCEPTS.length+' '+(CONCEPTS.length===1?esc(CLABEL.toLowerCase()):esc(CLABELP.toLowerCase()))+(commissaries.length?(' · '+commissaries.length+' commissar'+(commissaries.length===1?'y':'ies')):'')+' · '+LOCATIONS.length+' location'+(LOCATIONS.length===1?'':'s')+'</div><div id="conceptForm" hidden></div><div id="locForm" hidden></div>'+locs+'</div></div>'
     + '<div class="card"><div class="ch"><b>Listings</b><span>'+DEALS.length+'</span></div><div class="cb">'+deals+'</div></div>'
     + agreementsCardCo()
     + filesCardCo()
@@ -683,7 +683,6 @@ function render(){
   var acb=document.getElementById('addConceptBtn'); if(acb) acb.addEventListener('click',openConceptBuilder);
   var acb2=document.getElementById('addCommBtn'); if(acb2) acb2.addEventListener('click',function(){ openLocForm({commissary:true,servesAll:true},''); });
   var lmb=document.getElementById('locMapBtn'); if(lmb) lmb.addEventListener('click',openLocMap);
-  document.querySelectorAll('.mini[data-find]').forEach(function(b){ b.addEventListener('click',function(){ openFindForm(b.getAttribute('data-find')); }); });
   document.querySelectorAll('.mini[data-addloc]').forEach(function(b){ b.addEventListener('click',function(){ var c=conceptById(b.getAttribute('data-addloc')); openLocForm(null,c?c.name:''); }); });
   document.querySelectorAll('[data-editc]').forEach(function(b){ b.addEventListener('click',function(e){ if(e&&e.stopPropagation) e.stopPropagation(); var c=conceptById(b.getAttribute('data-editc')); if(c) openConceptForm(c); }); });
   document.querySelectorAll('.mini[data-rmc]').forEach(function(b){ b.addEventListener('click',function(){ removeConcept(b.getAttribute('data-rmc')); }); });
@@ -1101,38 +1100,6 @@ function removeLocPhoto(locId,photoId){
   fetch('/api/company/'+encodeURIComponent(ID)+'/location/'+encodeURIComponent(locId)+'/photo/'+encodeURIComponent(photoId)+'/remove',{method:'POST',credentials:'same-origin'})
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ LOCATIONS=j.locations||LOCATIONS; var nl=LOCATIONS.filter(function(x){return x.id===locId;})[0]; openLocForm(nl); } else alert((j&&j.error)||'Could not remove.'); })
     .catch(function(){ alert('Could not reach the server.'); });
-}
-function openFindForm(cptId){
-  var cpt=cptId?conceptById(cptId):null;
-  var f=document.getElementById('findForm');
-  var csel=conceptSelectHtml('fd_concept', cpt?cpt.name:'');
-  f.innerHTML='<div class="cform findcard"><div class="findhd">✨ Find this concept’s locations</div>'
-    +'<div class="findsub">Pick the concept and confirm its website. '+esc(ASSISTANT)+' searches the web and creates a location record — address and phone — for each unit it finds. Review and edit them after.</div>'
-    +'<div class="cgrid">'
-    +'<div><label class="fld">Concept</label>'+csel+'</div>'
-    +'<div><label class="fld">Approx. # of locations</label><input id="fd_count" placeholder="e.g. 8"></div>'
-    +'<div class="wide"><label class="fld">Website</label><input id="fd_site" value="'+esc(cpt&&cpt.website||'')+'"></div>'
-    +'</div><div class="cbtns"><button class="sbtn" id="fd_go">Search the web &amp; add locations</button><button class="cbtn" id="fd_cancel">Cancel</button><span id="fd_msg" class="findmsg"></span></div></div>';
-  f.removeAttribute('hidden'); expandCardOf(f);
-  // auto-fill website when concept changes
-  document.getElementById('fd_concept').addEventListener('change',function(){ var c=CONCEPTS.filter(function(x){return x.name===this.value;},this)[0]; var s=document.getElementById('fd_site'); if(c&&c.website&&!s.value) s.value=c.website; }.bind(document.getElementById('fd_concept')));
-  document.getElementById('fd_go').addEventListener('click',runFindLocations);
-  document.getElementById('fd_cancel').addEventListener('click',function(){ f.setAttribute('hidden',''); f.innerHTML=''; });
-}
-function runFindLocations(){
-  var concept=document.getElementById('fd_concept').value.trim();
-  var website=document.getElementById('fd_site').value.trim();
-  var count=document.getElementById('fd_count').value.trim();
-  var msg=document.getElementById('fd_msg');
-  if(!concept){ document.getElementById('fd_concept').focus(); msg.textContent='Pick a concept first (add one above if none).'; return; }
-  if(!website){ document.getElementById('fd_site').focus(); msg.textContent='A website is needed to search.'; return; }
-  var b=document.getElementById('fd_go'); b.disabled=true; b.textContent='Searching the web…'; msg.textContent='This can take up to a minute — '+ASSISTANT+' is reading the site and map listings.';
-  fetch('/api/company/'+encodeURIComponent(ID)+'/find-locations',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({concept:concept,website:website,count:count})})
-    .then(function(r){return r.json();}).then(function(j){
-      if(j&&j.ok){ CONCEPTS=j.concepts||CONCEPTS; var cpt2=CONCEPTS.filter(function(x){return x.name===concept;})[0]; if(cpt2) EXPANDED[cpt2.id]=true; LOCATIONS=j.locations||LOCATIONS; render(); }
-      else { b.disabled=false;b.textContent='Search the web & add locations'; msg.textContent=(j&&j.error)||'Search failed.'; }
-    })
-    .catch(function(){ b.disabled=false;b.textContent='Search the web & add locations'; msg.textContent='Could not reach the server.'; });
 }
 function assignOrphan(locId, conceptName){ if(!conceptName) return; fetch('/api/company/'+encodeURIComponent(ID)+'/location',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:locId,concept:conceptName})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ LOCATIONS=j.locations||LOCATIONS; var cpt=CONCEPTS.filter(function(x){return x.name===conceptName;})[0]; if(cpt) EXPANDED[cpt.id]=true; render(); if(window.rrgToast) rrgToast('Filed under '+conceptName+' \u2713'); } else alert((j&&j.error)||'Could not assign.'); }).catch(function(){ alert('Could not reach the server.'); }); }
 function assignAllOrphans(conceptName){ if(!conceptName) return; var known={}; CONCEPTS.forEach(function(x){known[x.name]=1;}); var ids=LOCATIONS.filter(function(l){ return (!l.concept || !known[l.concept]) && !l.commissary; }).map(function(l){return l.id;}); if(!ids.length) return; var i=0; (function next(){ if(i>=ids.length){ var cpt=CONCEPTS.filter(function(x){return x.name===conceptName;})[0]; if(cpt) EXPANDED[cpt.id]=true; render(); if(window.rrgToast) rrgToast('Filed '+ids.length+' location'+(ids.length===1?'':'s')+' under '+conceptName+' \u2713'); return; } fetch('/api/company/'+encodeURIComponent(ID)+'/location',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:ids[i],concept:conceptName})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok) LOCATIONS=j.locations||LOCATIONS; i++; next(); }).catch(function(){ i++; next(); }); })(); }

@@ -65,7 +65,7 @@ table{width:100%;border-collapse:collapse;font-size:12.5px;} th{text-align:left;
 <body>
 <div class="wrap" id="app"><div class="empty">Loading space…</div></div>
 <div class="ov" id="reqOv" hidden><div class="modal"><div class="mh"><span id="rqTitle">Request info</span><button class="btn sm" onclick="closeReq()">✕</button></div><div class="mb">
-  <div class="muted">Sends from your email with your signature. Opens are tracked and the request is logged on this space and the broker's contact.</div>
+  <div class="muted">Sends from the firm’s email address with your signature; replies go to the email on your account. Opens are tracked and the request is logged on this space and the broker's contact.</div>
   <label>To</label><input class="fi" id="rq_to"><label>Cc</label><input class="fi" id="rq_cc" placeholder="optional">
   <label>Subject</label><input class="fi" id="rq_subj"><label>Message</label><textarea class="fi" id="rq_body" rows="8" style="resize:vertical"></textarea>
   <div style="margin-top:12px;display:flex;gap:10px;align-items:center"><button class="btn pri" id="rq_go" onclick="sendReq()">Send request</button><span class="muted" id="rq_msg"></span></div>

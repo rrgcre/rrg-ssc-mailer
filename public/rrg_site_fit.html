@@ -174,6 +174,7 @@ tr.tot td.scoreval{color:var(--red);text-align:right;}
   </div>
 </div></div>
 
+<div data-rrg-feats="site_fit" style="max-width:920px;margin:22px auto 0"></div>
 <div class="wrap" id="sheet">
   <div class="band">
     <div class="confline">Internal Broker Analysis &nbsp;·&nbsp; Restaurant Realty Group &nbsp;·&nbsp; Not a Guarantee of Performance</div>
@@ -185,7 +186,7 @@ tr.tot td.scoreval{color:var(--red);text-align:right;}
     <div class="accent"></div>
     <div class="prep">
       <div class="pf"><label>Prepared For</label><input data-k="preparedFor" placeholder="Client / Tenant"></div>
-      <div class="pf"><label>Prepared By</label><input data-k="preparedBy" value="Van Rinn, President & Founder · 210-362-0678 · van@rrgcre.com"></div>
+      <div class="pf"><label>Prepared By</label><input data-k="preparedBy" value=""></div>
       <div class="pf"><label>Date</label><input data-k="date" placeholder="Month DD, YYYY"></div>
     </div>
   </div>
@@ -541,7 +542,7 @@ function loadSample(){
   state.vals={
     concept:'Taco Libre — Fast-Casual', address:'1604 & Bulverde Rd, San Antonio, TX 78247',
     tagline:'Grocery-anchored end cap · fast-casual, lunch + dinner', preparedFor:'Taco Libre Holdings, LLC',
-    preparedBy:'Van Rinn, President & Founder · 210-362-0678 · van@rrgcre.com', date:'July 17, 2026',
+    preparedBy:ME_PB, date:'July 17, 2026',
     fbType:'Fast Casual', pricePoint:'$$ — Moderate', daypart:'All-day', model:'Counter / grab-and-go',
     avgCheck:'14.50', coversDay:'190', daysYr:'358', segment:'Families + daytime office + H-E-B crossover',
     sfNeeded:'2,400', mustHaves:'patio · hood/venting · 200A · monument signage',
@@ -550,7 +551,7 @@ function loadSample(){
     parking:'6.5 / 1,000', term:'10 yr · $45/SF TI · 2×5 options',
     cotenancy:'H-E-B anchor, Starbucks, orthodontist, F45, Great Clips; middle school + two office parks within a mile',
     competition:'Chipotle 1.2 mi, a local taqueria 0.8 mi; no fast-casual Mex in this specific node',
-    econNote:'At $14.50 check and 340 covers/day the space runs ~10.6% occupancy — workable but the concept has to hit plan. Push base to $30 or win $50/SF TI to bring it under 10%.',
+    econNote:'At $14.50 check and 190 covers/day the space runs ~10.9% occupancy — workable but the concept has to hit plan. Push base to $28 or build volume to ~210 covers/day to bring it under 10%.',
     pros:'Real daytime + residential demand for an all-day taco concept\nH-E-B crossover traffic and strong signage on an end cap\nNo direct fast-casual Mexican in this specific node',
     cons:'Base rent is a dollar or two high for the projected volume\nPatio and grease interceptor add buildout cost — verify 2nd-gen infrastructure\nParking tightens at H-E-B peak; confirm shared-parking terms',
     nextSteps:'LOI at $30 base / $45 TI, 10 yr with 2×5. Exclusive on Mexican fast-casual. Verify existing hood/grease and 200A before removing contingency.'
@@ -636,10 +637,15 @@ async function runPrefill(){
 }
 
 /* ---------- init ---------- */
+// "Prepared By" defaults to the signed-in user's name/title/phone/email (their profile), never a hard-coded person.
+var ME_PB='', LEGACY_PB='Van Rinn, President & Founder · 210-362-0678 · van@rrgcre.com';
+function applyMePB(){ var pb=document.querySelector('[data-k=preparedBy]'); if(!pb||!ME_PB) return; var cur=state.vals.preparedBy; if(!cur||(cur===LEGACY_PB&&ME_PB!==LEGACY_PB)){ pb.value=ME_PB; state.vals.preparedBy=ME_PB; save(); } }
+fetch('/api/session',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ ME_PB=(j&&(j.preparedBy||j.name||j.username))||''; applyMePB(); }).catch(function(){});
 load(); bind(); paintVals();
 (function(){ var d=document.querySelector('[data-k=date]'); if(d && !d.value){ try{ var _s=new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}); d.value=_s; state.vals.date=_s; save(); }catch(e){} } })();
 paintRates(); compute();
 window.addEventListener('load', growAll);
 </script>
+<script src="/rrg_features.js"></script>
 </body>
 </html>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>FullServe — Automations</title>
+<title>Lavano — Automations</title>
 <style>.rl-filtbtn{display:none!important;}</style>
 <script src="/rrg_list.js"></script>
 <style>
@@ -65,6 +65,7 @@ textarea{resize:vertical;min-height:80px;line-height:1.5;}
 <div class="wrap">
   <h1 class="pgh">Automations</h1>
   <div class="pgs">Build follow-up sequences that run themselves. Each plan is a list of steps — send an email or create a task — spaced by days. Apply a plan to any contact, or set one on a listing so every buyer lead that comes in for it is worked automatically. Emails send from your firm's address with replies routed to the enrolling rep. Personalize with <code>{{first_name}}</code>.</div>
+  <div data-rrg-feats="admin_automations"></div>
   <div id="root"></div>
 </div>
 <script>
@@ -83,7 +84,7 @@ function listCfg(){ return { mount:'#tlist', data:PLANS, key:'automations',
   rowId:function(p){return p.id;}, defaultSort:0, defaultDir:1,
   columns:[
     { label:'Automation', sort:function(a,b){return RRGList.cmp(a.name,b.name);}, cell:function(p){ return '<a class="lk" href="#" data-edit="'+esc(p.id)+'">'+esc(p.name||'Untitled')+'</a>'; } },
-    { label:'Status', sort:function(a,b){return (a.active===false?1:0)-(b.active===false?1:0);}, cell:function(p){ return p.active===false?'<span class="badge off">Off</span>':'<span class="badge on">Active</span>'; } },
+    { label:'Status', sort:function(a,b){return (a.active===false?1:0)-(b.active===false?1:0);}, cell:function(p){ return (p.active===false?'<span class="badge off">Off</span>':'<span class="badge on">Active</span>')+(p.execDefault?' <span class="badge on" title="Default automation for executed listing agreements">Listing-agreement default</span>':''); } },
     { label:'Visibility', sort:function(a,b){return RRGList.cmp(a.scope||'shared',b.scope||'shared');}, cell:function(p){ var who=p.ownerName?(' <span class="meta">· '+esc(p.ownerName)+'</span>'):''; return (p.scope==='private'?'<span class="badge off">Private</span>':'<span class="badge on">Shared</span>')+who; } },
     { label:'Steps', sort:function(a,b){return RRGList.cmp(a.stepCount,b.stepCount);}, cell:function(p){ var n=p.stepCount||0; return n?esc(n+' step'+(n===1?'':'s')):'<span class="meta">—</span>'; } },
     { label:'Updated', sort:function(a,b){return RRGList.cmp(a.updatedAt,b.updatedAt);}, cell:function(p){ return '<span class="meta">'+esc(fmt(p.updatedAt))+'</span>'; } },
@@ -94,9 +95,11 @@ function curById(id){ return PLANS.filter(function(p){return p.id===id;})[0]||nu
 
 function initSteps(){
   var p=EDIT;
-  STEPS=(p&&p.steps&&p.steps.length)?p.steps.map(function(s){ return {type:(['task','notification','logactivity','assignment','pipeline'].indexOf(s.type)>=0?s.type:'email'),delayDays:(s.delayDays||0),delayHours:(s.delayHours||0),delayMinutes:(s.delayMinutes||0),name:s.name||'',subject:s.subject||'',body:s.body||'',taskTitle:s.taskTitle||'',taskNote:s.taskNote||'',message:s.message||'',notifyEmail:s.notifyEmail||'',channel:(s.channel==='text'?'text':'email'),actType:s.actType||'Note',actNote:s.actNote||'',setStatus:s.setStatus||'',advanceStage:s.advanceStage||'',markLive:!!s.markLive,pipelineId:s.pipelineId||'',pipelineStage:s.pipelineStage||''}; }):((p&&p.id)?[]:[{type:'email',delayDays:0,subject:'',body:'',taskTitle:'',taskNote:''}]);
+  STEPS=(p&&p.steps&&p.steps.length)?p.steps.map(function(s){ return {type:(STEP_TYPES.indexOf(s.type)>=0?s.type:'email'),dialogTitle:s.dialogTitle||'',dialogBody:s.dialogBody||'',cName:s.cName||'',cCompany:s.cCompany||'',cEmail:s.cEmail||'',cPhone:s.cPhone||'',cNotes:s.cNotes||'',delayDays:(s.delayDays||0),delayHours:(s.delayHours||0),delayMinutes:(s.delayMinutes||0),name:s.name||'',subject:s.subject||'',body:s.body||'',taskTitle:s.taskTitle||'',taskNote:s.taskNote||'',message:s.message||'',notifyEmail:s.notifyEmail||'',channel:(s.channel==='text'?'text':'email'),actType:s.actType||'Note',actNote:s.actNote||'',setStatus:s.setStatus||'',advanceStage:s.advanceStage||'',markLive:!!s.markLive,pipelineId:s.pipelineId||'',pipelineStage:s.pipelineStage||''}; }):((p&&p.id)?[]:[{type:'email',delayDays:0,subject:'',body:'',taskTitle:'',taskNote:''}]);
 }
-function _stepTypeLabel(t){ return ({email:'Send email',task:'Create task',notification:'Send notification',logactivity:'Log activity',assignment:'Update assignment',pipeline:'Move to pipeline & stage'})[t]||t; }
+// Every step type the server runs (cleanAutoSteps / runAutomationStep) — the editor must be able to show and save each one.
+var STEP_TYPES=['email','task','notification','logactivity','assignment','pipeline','dialog','createcontact'];
+function _stepTypeLabel(t){ return ({email:'Send email',task:'Create task',notification:'Send notification',logactivity:'Log activity',assignment:'Update assignment',pipeline:'Move to pipeline & stage',dialog:'Pop-up alert to rep',createcontact:'Create contact'})[t]||t; }
 function _fmtDur(mins){ mins=Math.max(0,Math.round(mins)); if(!mins) return '0m'; var d=Math.floor(mins/1440); mins-=d*1440; var h=Math.floor(mins/60); var m=mins-h*60; var parts=[]; if(d)parts.push(d+'d'); if(h)parts.push(h+'h'); if(m)parts.push(m+'m'); return parts.join(' '); }
 function _stepSummaryHtml(){ if(!STEPS.length) return ''; var cum=0; var rows=STEPS.map(function(s,i){ var gap=(parseInt(s.delayDays,10)||0)*1440+(parseInt(s.delayHours,10)||0)*60+(parseInt(s.delayMinutes,10)||0); cum+=gap; var nm=((s.name||'').trim())||_stepTypeLabel(s.type); var right=(i===0)?(gap?_fmtDur(gap):'on enrollment'):('+'+_fmtDur(gap)+' \u00b7 '+_fmtDur(cum)); return '<div style="display:flex;justify-content:space-between;gap:10px;font-size:12.5px;padding:4px 0;border-top:1px solid #eef1f6"><span><b style="color:#000E31">'+(i+1)+'.</b> '+esc(nm)+' <span style="color:#9aa4b6">('+_stepTypeLabel(s.type)+')</span></span><span style="color:#6b7488;white-space:nowrap">'+right+'</span></div>'; }).join(''); return '<div style="margin-top:14px;border:1px solid #e6e9f0;border-radius:11px;padding:12px 14px;background:#fbfcfe"><div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#8a93a8;margin-bottom:2px">Process timeline</div>'+rows+'<div style="display:flex;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:2px solid #e6e9f0;font-size:13px;font-weight:800;color:#000E31"><span>Total process length</span><span>'+_fmtDur(cum)+'</span></div><div style="font-size:11px;color:#9aa4b6;margin-top:4px">Compare this against how long the process actually takes in practice.</div></div>'; }
 function renderSteps(){
@@ -104,7 +107,7 @@ function renderSteps(){
   if(!STEPS.length){ box.innerHTML='<div class="note" style="margin:0 0 6px">No steps yet — add an email or task step below.</div>'; return; }
   box.innerHTML=STEPS.map(function(s,i){
     var waitLabel=(i===0)?'when enrolled (wait':'wait';
-    var typeSel='<select class="st-type" data-i="'+i+'"><option value="email"'+(s.type==='email'?' selected':'')+'>Send email</option><option value="task"'+(s.type==='task'?' selected':'')+'>Create task</option><option value="notification"'+(s.type==='notification'?' selected':'')+'>Send notification</option><option value="logactivity"'+(s.type==='logactivity'?' selected':'')+'>Log activity</option><option value="assignment"'+(s.type==='assignment'?' selected':'')+'>Update assignment</option><option value="pipeline"'+(s.type==='pipeline'?' selected':'')+'>Move to pipeline &amp; stage</option></select>';
+    var typeSel='<select class="st-type" data-i="'+i+'"><option value="email"'+(s.type==='email'?' selected':'')+'>Send email</option><option value="task"'+(s.type==='task'?' selected':'')+'>Create task</option><option value="notification"'+(s.type==='notification'?' selected':'')+'>Send notification</option><option value="logactivity"'+(s.type==='logactivity'?' selected':'')+'>Log activity</option><option value="assignment"'+(s.type==='assignment'?' selected':'')+'>Update assignment</option><option value="pipeline"'+(s.type==='pipeline'?' selected':'')+'>Move to pipeline &amp; stage</option><option value="dialog"'+(s.type==='dialog'?' selected':'')+'>Pop-up alert to rep</option><option value="createcontact"'+(s.type==='createcontact'?' selected':'')+'>Create contact</option>'+'</select>';
     var content;
     if(s.type==='notification'){
       var _txAvail=(SMSNOTIFY&&SMSREADY);
@@ -125,10 +128,14 @@ function renderSteps(){
       var _stageOpts='<option value="">— first stage —</option>'+_stages.map(function(nm){return '<option value="'+esc(nm)+'"'+(s.pipelineStage===nm?' selected':'')+'>'+esc(nm)+'</option>';}).join('');
       var _noPipeNote=_pipes.length?'':'<div class="note" style="margin:0 0 6px;color:var(--red)">No pipelines defined yet. Create one under Admin → Pipelines first.</div>';
       content='<div class="stx">'+_noPipeNote+'<div class="note" style="margin:0 0 6px">Moves the linked listing into a pipeline and stage. Runs only when the enrolled contact has a linked listing.</div><label>Pipeline</label><select class="st-pipeline" data-i="'+i+'">'+_pipeOpts+'</select><label>Stage</label><select class="st-stage" data-i="'+i+'"'+(_curPipe?'':' disabled')+'>'+_stageOpts+'</select></div>';
+    } else if(s.type==='dialog'){
+      content='<div class="stx"><div class="note" style="margin:0 0 6px">Pops up an alert on screen for the rep who enrolled the contact, the next time they have the app open.</div><label>Alert title</label><input type="text" class="st-dlgtitle" data-i="'+i+'" value="'+esc(s.dialogTitle||'')+'" placeholder="e.g. Time to call {{first_name}}"><label>Alert message</label><textarea class="st-dlgbody" data-i="'+i+'" placeholder="e.g. {{name}} toured last week — follow up today.">'+esc(s.dialogBody||'')+'</textarea></div>';
+    } else if(s.type==='createcontact'){
+      content='<div class="stx"><div class="note" style="margin:0 0 6px">Adds a new contact to the registry, marked as referred by the enrolled contact. A company is matched by name or created.</div><label>Contact name</label><input type="text" class="st-cname" data-i="'+i+'" value="'+esc(s.cName||'')+'" placeholder="e.g. {{company}} accountant"><label>Company (optional)</label><input type="text" class="st-ccompany" data-i="'+i+'" value="'+esc(s.cCompany||'')+'"><label>Email (optional)</label><input type="text" class="st-cemail" data-i="'+i+'" value="'+esc(s.cEmail||'')+'"><label>Phone (optional)</label><input type="text" class="st-cphone" data-i="'+i+'" value="'+esc(s.cPhone||'')+'"><label>Notes (optional)</label><textarea class="st-cnotes" data-i="'+i+'">'+esc(s.cNotes||'')+'</textarea></div>';
     } else {
       content='<div class="stx">'+((ETPLS&&ETPLS.length)?('<label>Start from a template</label><select class="st-tplpick" data-i="'+i+'" style="font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:#fff;width:100%;max-width:340px;margin-bottom:2px"><option value="">— choose a template —</option>'+ETPLS.map(function(t){return '<option value="'+esc(t.id)+'">'+esc(t.name)+(t.scope==='shared'?' (shared)':'')+'</option>';}).join('')+'</select>'):'')+'<label>Subject</label><input type="text" class="st-subject" data-i="'+i+'" value="'+esc(s.subject||'')+'" placeholder="e.g. Great to connect, {{first_name}}"><label>Body</label><textarea class="st-body" data-i="'+i+'" placeholder="Write the email… use {{first_name}} to personalize.">'+esc(s.body||'')+'</textarea></div>';
     }
-    var _ic={email:'✉',task:'✓',notification:'!',logactivity:'✎',assignment:'⇄',pipeline:'⇉'}[s.type]||'•';
+    var _ic={email:'✉',task:'✓',notification:'!',logactivity:'✎',assignment:'⇄',pipeline:'⇉',dialog:'◩',createcontact:'+'}[s.type]||'•';
     var _lead=(i===0)?'When enrolled,':'Then';
     var _waitInner=(i===0?'Run':'Wait')+' <input type="number" min="0" max="3650" class="days st-delay" data-i="'+i+'" value="'+(s.delayDays==null?0:s.delayDays)+'"> d <input type="number" min="0" max="23" class="days st-delayh" data-i="'+i+'" value="'+(s.delayHours==null?0:s.delayHours)+'"> h <input type="number" min="0" max="59" class="days st-delaym" data-i="'+i+'" value="'+(s.delayMinutes==null?0:s.delayMinutes)+'"> m '+(i===0?'after enrollment':'after the previous step');
     return '<div class="step" data-si="'+i+'"><div class="sr"><span class="sn c-'+s.type+'">'+_ic+'</span><span class="lead">'+_lead+'</span>'+typeSel
@@ -142,7 +149,7 @@ function renderSteps(){
   Array.prototype.forEach.call(box.querySelectorAll('.st-channel'),function(el){ el.onchange=function(){ collectSteps(); STEPS[+el.getAttribute('data-i')].channel=el.value; renderSteps(); }; });
   Array.prototype.forEach.call(box.querySelectorAll('.st-pipeline'),function(el){ el.onchange=function(){ collectSteps(); var i=+el.getAttribute('data-i'); STEPS[i].pipelineId=el.value; STEPS[i].pipelineStage=''; renderSteps(); }; });
   Array.prototype.forEach.call(box.querySelectorAll('.st-stage'),function(el){ el.onchange=function(){ collectSteps(); }; });
-  Array.prototype.forEach.call(box.querySelectorAll('.st-subject,.st-body,.st-message,.st-tasktitle,.st-tasknote'),function(el){ el.addEventListener('focus',function(){ LASTFLD=el; }); });
+  Array.prototype.forEach.call(box.querySelectorAll('.st-subject,.st-body,.st-message,.st-tasktitle,.st-tasknote,.st-acttype,.st-actnote,.st-dlgtitle,.st-dlgbody,.st-cname,.st-ccompany,.st-cemail,.st-cphone,.st-cnotes'),function(el){ el.addEventListener('focus',function(){ LASTFLD=el; }); });
   Array.prototype.forEach.call(box.querySelectorAll('.st-tplpick'),function(el){ el.onchange=function(){ if(!el.value) return; var t=(ETPLS||[]).filter(function(x){return x.id===el.value;})[0]; if(!t) return; collectSteps(); var i=+el.getAttribute('data-i'); STEPS[i].subject=t.subject||''; STEPS[i].body=t.body||''; renderSteps(); }; });
   Array.prototype.forEach.call(box.querySelectorAll('.ib.up'),function(b){ b.onclick=function(){ moveStep(+b.getAttribute('data-i'),-1); }; });
   Array.prototype.forEach.call(box.querySelectorAll('.ib.dn'),function(b){ b.onclick=function(){ moveStep(+b.getAttribute('data-i'),1); }; });
@@ -168,6 +175,13 @@ function collectSteps(){
     var ml=row.querySelector('.st-marklive'); if(ml) s.markLive=ml.checked;
     var pp=row.querySelector('.st-pipeline'); if(pp) s.pipelineId=pp.value;
     var pst=row.querySelector('.st-stage'); if(pst) s.pipelineStage=pst.value;
+    var dt=row.querySelector('.st-dlgtitle'); if(dt) s.dialogTitle=dt.value;
+    var dbd=row.querySelector('.st-dlgbody'); if(dbd) s.dialogBody=dbd.value;
+    var cn=row.querySelector('.st-cname'); if(cn) s.cName=cn.value;
+    var cc=row.querySelector('.st-ccompany'); if(cc) s.cCompany=cc.value;
+    var ce=row.querySelector('.st-cemail'); if(ce) s.cEmail=ce.value;
+    var cp=row.querySelector('.st-cphone'); if(cp) s.cPhone=cp.value;
+    var cno=row.querySelector('.st-cnotes'); if(cno) s.cNotes=cno.value;
   });
 }
 function moveStep(i,d){ collectSteps(); var j=i+d; if(j<0||j>=STEPS.length) return; var t=STEPS[i]; STEPS[i]=STEPS[j]; STEPS[j]=t; renderSteps(); }
@@ -179,10 +193,11 @@ function renderEditor(){
     +'<div class="fld" style="margin-bottom:14px"><label>Automation name</label><input type="text" id="pName" value="'+esc(p.name||'')+'" placeholder="e.g. Buyer inquiry follow-up" style="max-width:460px"></div>'
     
     +'<label class="chk"><input type="checkbox" id="pActive"'+((p.active===false)?'':' checked')+'> Active (reps can apply it)</label>'
+    +'<label class="chk"><input type="checkbox" id="pExec"'+(p.execDefault?' checked':'')+'> Default automation for executed listing agreements</label><div class="note" style="margin:0 0 8px 24px">Runs automatically for the client when a listing agreement is fully executed, unless the agreement names its own automation. Only one automation can be the default \u2014 checking this clears it from the others, and a private automation becomes shared.</div>'
     +'<div class="fld" style="margin:6px 0 4px"><label>Visibility</label><select id="pScope" style="max-width:340px"><option value="shared"'+((p.scope!=='private')?' selected':'')+'>Shared — everyone on the team can use it</option><option value="private"'+((p.scope==='private')?' selected':'')+'>Private — only you (and admins)</option></select></div>'
     +'<div class="stephd"><b>Steps</b></div><div class="note" style="margin:2px 0 8px">Click a token to drop it into the field you last clicked:</div>'+tokBar()
     +'<div id="stepBox"></div>'
-    +'<div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn" id="addEmail">+ Email step</button><button type="button" class="btn" id="addTask">+ Task step</button><button type="button" class="btn" id="addNotify">+ Notify step</button><button type="button" class="btn" id="addLogAct">+ Log activity</button><button type="button" class="btn" id="addAssign">+ Update assignment</button><button type="button" class="btn" id="addPipeline">+ Move stage</button></div>'
+    +'<div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn" id="addEmail">+ Email step</button><button type="button" class="btn" id="addTask">+ Task step</button><button type="button" class="btn" id="addNotify">+ Notify step</button><button type="button" class="btn" id="addLogAct">+ Log activity</button><button type="button" class="btn" id="addAssign">+ Update assignment</button><button type="button" class="btn" id="addPipeline">+ Move stage</button><button type="button" class="btn" id="addDialog">+ Pop-up alert</button><button type="button" class="btn" id="addContact">+ Create contact</button></div>'
     +'<div class="note">The first step fires when a contact is enrolled (set its wait to 0 days). Each later step waits that many days after the previous one. Emails only go to contacts with a valid email; if email isn’t set up or a contact has none, that step is skipped and noted — the sequence keeps going.</div>'
     +'</div></div>';
   renderSteps();
@@ -195,11 +210,13 @@ function renderEditor(){
   document.getElementById('addLogAct').onclick=function(){ collectSteps(); STEPS.push({type:'logactivity',delayDays:0,actType:'Note',actNote:'',subject:'',body:'',taskTitle:'',taskNote:'',message:'',channel:'email'}); renderSteps(); };
   document.getElementById('addAssign').onclick=function(){ collectSteps(); STEPS.push({type:'assignment',delayDays:0,setStatus:'Live',advanceStage:'agreed',markLive:true,subject:'',body:'',taskTitle:'',taskNote:'',message:'',channel:'email'}); renderSteps(); };
   document.getElementById('addPipeline').onclick=function(){ collectSteps(); STEPS.push({type:'pipeline',delayDays:0,pipelineId:'',pipelineStage:'',subject:'',body:'',taskTitle:'',taskNote:'',message:'',channel:'email'}); renderSteps(); };
+  document.getElementById('addDialog').onclick=function(){ collectSteps(); STEPS.push({type:'dialog',delayDays:0,dialogTitle:'',dialogBody:'',subject:'',body:'',taskTitle:'',taskNote:'',message:'',channel:'email'}); renderSteps(); };
+  document.getElementById('addContact').onclick=function(){ collectSteps(); STEPS.push({type:'createcontact',delayDays:0,cName:'',cCompany:'',cEmail:'',cPhone:'',cNotes:'',subject:'',body:'',taskTitle:'',taskNote:'',message:'',channel:'email'}); renderSteps(); };
   var db=document.getElementById('delBtn'); if(db) db.onclick=onDelete;
 }
 function render(){
   var root=document.getElementById('root');
-  if(!IS_ADMIN){ root.innerHTML='<div class="notadmin">Automations are admin-only. Ask a FullServe administrator to set up a plan.</div>'; return; }
+  if(!IS_ADMIN){ root.innerHTML='<div class="notadmin">Automations are admin-only. Ask a Lavano administrator to set up a plan.</div>'; return; }
   if(!BUILT){ root.innerHTML=LIST_SHELL; BUILT=true; document.getElementById('t_new').onclick=newPlan; }
   var sc=document.getElementById('smsCard'); if(sc){ sc.style.display=IS_ADMIN?'':'none'; var tg=document.getElementById('smsToggle'); if(tg){ tg.checked=SMSNOTIFY; tg.disabled=!SMSREADY; if(!tg._wired){ tg._wired=true; tg.onchange=function(){ api('POST','/api/admin/automation-sms',{enabled:tg.checked}).then(function(j){ if(j&&j.ok){ SMSNOTIFY=!!j.enabled; if(EDIT&&document.getElementById('stepBox')) renderSteps(); } }); }; } var h=document.getElementById('smsHint'); if(h) h.innerHTML=SMSREADY?'When on, a notification step can text the enrolling rep instead of emailing. Each rep needs a mobile number on file.':'Set up SMS (Twilio) in Admin → SMS first, then you can enable texting here.'; } }
   refreshList(); renderEditor();
@@ -213,9 +230,10 @@ function loadPipes(){ api('GET','/api/pipelines').then(function(j){ PIPES=(j&&j.
 function save(){
   var name=(document.getElementById('pName').value||'').trim(); if(!name){ msg('Name the automation first.','err'); document.getElementById('pName').focus(); return; }
   collectSteps();
-  var steps=STEPS.filter(function(s){ if(s.type==='logactivity'||s.type==='assignment') return true; if(s.type==='pipeline') return !!(s.pipelineId||'').trim(); return s.type==='task'?(s.taskTitle||'').trim():((s.subject||'').trim()||(s.body||'').trim()); });
+  var steps=STEPS.filter(function(s){ if(s.type==='logactivity'||s.type==='assignment') return true; if(s.type==='pipeline') return !!(s.pipelineId||'').trim(); if(s.type==='dialog') return !!((s.dialogTitle||'').trim()||(s.dialogBody||'').trim()); if(s.type==='createcontact') return !!(s.cName||'').trim(); if(s.type==='notification') return !!(s.message||'').trim(); return s.type==='task'?(s.taskTitle||'').trim():((s.subject||'').trim()||(s.body||'').trim()); });
   if(!steps.length){ msg('Add at least one step.','err'); return; }
-  var _sc=document.getElementById('pScope'); var body={ name:name, active:document.getElementById('pActive').checked, execDefault:((document.getElementById('pExec')||{}).checked||false), scope:(_sc?_sc.value:'shared'), steps:steps };
+  var _sc=document.getElementById('pScope'); var body={ name:name, active:document.getElementById('pActive').checked, scope:(_sc?_sc.value:'shared'), steps:steps };
+  var _ex=document.getElementById('pExec'); if(_ex) body.execDefault=!!_ex.checked;   // only sent when the checkbox is on the page, so a save never clears it by accident
   if(EDIT&&EDIT.id) body.id=EDIT.id;
   var btn=document.getElementById('saveBtn'); btn.disabled=true;
   api('POST','/api/admin/automations',body).then(function(j){ btn.disabled=false; if(!j.ok){ msg(j.error||'Save failed.','err'); return; } PLANS=j.automations||PLANS; EDIT=j.automation||EDIT; load(); msg('Saved','ok'); });
@@ -231,5 +249,6 @@ loadTpls();
 loadPipes();
 load();
 </script>
+<script src="/rrg_features.js"></script>
 </body>
 </html>

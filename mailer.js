@@ -20,14 +20,16 @@ async function renderPdf(data) {
   }
 }
 
-async function sendSsc(data, transport) {
+async function sendSsc(data, transport, opts) {
+  // opts.cc (when given) is the firm's configured CC; '' means no CC. Without opts, the legacy CC_ALWAYS default applies.
+  const cc = (opts && opts.cc !== undefined) ? (opts.cc || undefined) : CC_ALWAYS;
   const pdf = await renderPdf(data);
   const concept = data.concept || 'Concept';
   const filename = `SSC_${concept.replace(/[^a-z0-9]+/gi, '_').replace(/^_+|_+$/g, '')}.pdf`;
   const info = await transport.sendMail({
     from: process.env.MAIL_FROM || CC_ALWAYS,
     to: data.repEmail,
-    cc: CC_ALWAYS,
+    cc: cc,
     subject: `Site Selection Criteria — ${concept}`,
     text: `Attached is the completed Site Selection Criteria for ${concept}.\n\nCompleted via the RRG SSC intake form.\n\n— Restaurant Realty Group, LLC`,
     attachments: [{ filename, content: pdf, contentType: 'application/pdf' }],

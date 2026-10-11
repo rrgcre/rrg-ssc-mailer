@@ -114,6 +114,7 @@ h1{font-size:27px;font-weight:800;margin:5px 0 0;letter-spacing:-.01em;}
   <h1>LOI Builder</h1>
   <div class="sub">Every letter of intent in one place. Open one to review, or click + New LOI to build a tenant-rep or business-sale letter.</div>
 </div></div>
+<div class="wrap" style="margin-bottom:0"><div data-rrg-feats="loi_builder"></div></div>
 <div class="wrap" id="wrap" style="display:none"><div class="card"><div class="cb"><div class="msg">Loading…</div></div></div></div>
 <div class="wrap" id="docview" style="display:none"></div>
 <div class="wrap" id="loiwrap"><div class="card"><div class="ch"><b>All LOIs</b><span style="color:var(--muted);font-size:12px;margin-left:10px">every letter of intent you've built</span><button class="btn" id="newLoiBtn" style="margin-left:auto">+ New LOI</button></div><div class="cb"><div id="loilist"></div></div></div></div>
@@ -242,7 +243,7 @@ function loadLois(){
     var data=(j&&j.lois)||[];
     if(LOILIST){ LOILIST.refresh(data); return; }
     LOILIST=RRGList.create({ mount:'#loilist', data:data, key:'lois',
-      empty:'<div style="padding:22px;color:var(--muted);font-size:13px">No LOIs yet. Build one above and click <b>Log to records</b>.</div>',
+      empty:'<div style="padding:22px;color:var(--muted);font-size:13px">No LOIs yet. Build one above and click <b>Save</b>.</div>',
       rowId:function(l){return l.id;}, defaultSort:4, defaultDir:-1,
       columns:[
         { label:'Type', sort:function(a,b){return RRGList.cmp(a.typeName,b.typeName);}, cell:function(l){ return esc(l.typeName); } },
@@ -260,16 +261,6 @@ function loadLois(){
 }
 function loadReps(){ fetch('/api/users-list',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ REPS=((j&&j.users)||[]).map(function(u){return u.name||u.username;}).filter(Boolean); }).catch(function(){}); }
 function loadParties(){ fetch('/api/loi/parties',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ PARTIES=(j&&j.parties)||[]; render(); }).catch(function(){ render(); }); }
-function saveToRecords(){
-  var tk=(TYPE==='business_sale')?'buyer':'tenant'; var lk=(TYPE==='business_sale')?'seller':'landlord';
-  function party(k){ return VALUES[k+'_id']?{name:VALUES[k]||'',id:VALUES[k+'_id'],kind:VALUES[k+'_kind']||'contact'}:(VALUES[k]?{name:VALUES[k],id:'',kind:''}:null); }
-  var body={ type:TYPE, values:VALUES, clauses:Object.keys(SEL).filter(function(k){return SEL[k];}), tenant:party(tk), landlord:party(lk) };
-  var btn=document.getElementById('docLog'), m=document.getElementById('docMsg');
-  if(btn){ btn.disabled=true; btn.textContent='Saving…'; }
-  fetch('/api/loi/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
-    .then(function(r){return r.json();}).then(function(j){ if(btn){ btn.disabled=false; btn.textContent='Logged ✓'; } if(m){ m.textContent=(j&&j.logged&&j.logged.length)?('Logged to '+j.logged.join(' & ')+'.'):'Saved. Link a contact to log it on their timeline.'; } loadLois(); setTimeout(showList,900); })
-    .catch(function(){ if(btn){ btn.disabled=false; btn.textContent='Log to records'; } if(m) m.textContent='Could not save.'; });
-}
 function buildDoc(){
   collect(); var t=curType(); var selIds=Object.keys(SEL).filter(function(k){return SEL[k];});
   var _tn=((TYPES.filter(function(x){return x.key===TYPE;})[0])||{}).name||''; var _title=LOGOURL?('<img class="doclogo" src="'+esc(LOGOURL)+'" alt="">'):('<div class="docname">'+esc(APPNAME||'')+'</div>'); var hdr=(FORMAT==='modern')?('<div class="dockicker">Letter of Intent</div>'+_title+'<div class="docsub">'+esc([_tn,VALUES.property||''].filter(Boolean).join('  \u00b7  '))+'</div>'):_title;
@@ -290,15 +281,6 @@ function buildDoc(){
   document.getElementById('docSend').addEventListener('click',openSend);
   DIRTY=true; syncDocBar();
   var _td=document.getElementById('thedoc'); if(_td) _td.addEventListener('input',function(){ DIRTY=true; syncDocBar(); });
-}
-function generate(){
-  collect(); var g=document.getElementById('docRtf'), m=document.getElementById('docMsg');
-  var clauses=Object.keys(SEL).filter(function(k){return SEL[k];});
-  if(g){ g.disabled=true; g.textContent='Generating\u2026'; } if(m) m.textContent='';
-  fetch('/api/loi/generate',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({type:TYPE,values:VALUES,clauses:clauses,format:FORMAT})})
-    .then(function(r){ if(!r.ok) throw new Error('err'); var cd=r.headers.get('Content-Disposition')||''; var mm=cd.match(/filename="([^"]+)"/); var name=mm?mm[1]:'LOI.rtf'; return r.blob().then(function(bl){ return {bl:bl,name:name}; }); })
-    .then(function(res){ var url=URL.createObjectURL(res.bl); var a=document.createElement('a'); a.href=url; a.download=res.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){URL.revokeObjectURL(url);},1500); if(g){ g.disabled=false; g.textContent='Download .rtf'; } if(m) m.textContent='Downloaded '+res.name; })
-    .catch(function(){ if(g){ g.disabled=false; g.textContent='Download .rtf'; } if(m) m.textContent='Could not download.'; });
 }
 fetch('/api/loi',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
   CFG=(j&&j.config)||{}; TYPES=(j&&j.types)||[]; IS_ADMIN=!!(j&&j.isAdmin); CANMANAGE=!!(j&&j.canManage); REP=(j&&j.rep)||''; LOGOURL=(j&&(j.logoLightUrl||j.logoUrl))||''; APPNAME=(j&&j.appName)||''; VENUES=(j&&j.venues)||[];
@@ -511,7 +493,7 @@ function dlFile(url,fallbackName,btn,fixedId){
     .catch(function(e){ if(btn){ btn.disabled=false; btn.textContent=was; } loiToast(e.message||'Could not download.',true); });
 }
 function addDaysIso(n){ var d=new Date(); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); }
-function partyEmailGuess(k){ var id=VALUES[k+'_id']; if(!id) return ''; var p=PARTIES.filter(function(x){return x.id===id;})[0]; return (p&&/@/.test(p.sub||''))?p.sub:''; }
+function partyEmailGuess(k){ var id=VALUES[k+'_id']; if(!id) return ''; var p=PARTIES.filter(function(x){return x.id===id;})[0]; return (p&&/@/.test(p.email||''))?p.email:''; }
 function openSend(){
   collect(); var ov=document.getElementById('sendov'); if(!ov) return;
   var lk=(TYPE==='business_sale')?'seller':'landlord', tk=(TYPE==='business_sale')?'buyer':'tenant';
@@ -596,5 +578,6 @@ document.addEventListener('click',function(e){
 });
 document.addEventListener('keydown',function(e){ if(e.key!=='Escape') return; var open=[].slice.call(document.querySelectorAll('.aiov')).filter(function(o){ return !o.hidden; }); if(!open.length) return; var top=open[open.length-1]; if(top.id==='airov'&&typeof aiCancel==='function') aiCancel(); else top.hidden=true; });
 </script>
+<script src="/rrg_features.js"></script>
 </body>
 </html>

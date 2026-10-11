@@ -76,21 +76,7 @@ a.feat:hover{background:#f4f7fb;} a.feat:hover b{color:var(--navy);}
   <div class="tabs"><a href="./rrg_mail_subscribers.html" class="on">Subscribers</a><a href="./rrg_mass_studio.html">Campaigns</a></div>
 </div></div>
 <div class="wrap">
-  <div class="feats" id="subFeatStrip">
-    <div class="featshd" id="subFeatHd"><b>What the Subscribers window does</b><span class="sh">your email audience — import, segment, and keep it clean · tap any tile for help</span><span class="chev">▾</span></div>
-    <div class="featgrid">
-      <a class="feat" href="rrg_subscribers_help.html#add" target="_blank" rel="noopener"><span class="fic">📥</span><div><b>Import anything</b><span>Paste or upload a CSV — the parser finds the email column wherever it sits, tags Brokers/Restaurants, sets a default status, and shows live progress.</span></div></a>
-      <a class="feat" href="rrg_subscribers_help.html#segment" target="_blank" rel="noopener"><span class="fic">📊</span><div><b>KPIs &amp; type tiles</b><span>Totals plus by-type tiles (Brokers, Restaurants, Untyped) with active counts — click a tile to filter the list.</span></div></a>
-      <a class="feat" href="rrg_subscribers_help.html#segment" target="_blank" rel="noopener"><span class="fic">🔎</span><div><b>Filter &amp; saved segments</b><span>Search, status/type chips, ⚙ Filters and ★ Saved segments. Opens blank or to your last-used view, not the whole list.</span></div></a>
-      <a class="feat" href="rrg_subscribers_help.html#add" target="_blank" rel="noopener"><span class="fic">☰</span><div><b>Lists &amp; audiences</b><span>Create, rename and delete lists; select subscribers and <b>Add to list</b> in one click to build a reusable campaign audience.</span></div></a>
-      <a class="feat" href="rrg_subscribers_help.html#detail" target="_blank" rel="noopener"><span class="fic">👤</span><div><b>Editable detail</b><span>Click any row to open a full record — name, type, status, areas of interest and lists, all editable.</span></div></a>
-      <a class="feat" href="rrg_subscribers_help.html#detail" target="_blank" rel="noopener"><span class="fic">📍</span><div><b>Areas of interest</b><span>Scope a subscriber to specific metros (from your firm's subscriber-areas subset) or all areas.</span></div></a>
-      <a class="feat" href="rrg_subscribers_help.html#prefs" target="_blank" rel="noopener"><span class="fic">⚙️</span><div><b>Self-service preferences</b><span>Every email links to a page where subscribers update their name, areas, lists, and subscribe or unsubscribe themselves.</span></div></a>
-      <a class="feat" href="rrg_subscribers_help.html#status" target="_blank" rel="noopener"><span class="fic">🚫</span><div><b>Clean &amp; suppression-safe</b><span>Bulk Unsubscribe, one-click opt-out, and automatic bounce/complaint suppression across every list.</span></div></a>
-      <a class="feat" href="rrg_subscribers_help.html#faq" target="_blank" rel="noopener"><span class="fic">⬇️</span><div><b>Export &amp; print</b><span>Send the list to CSV or print it — gated by the assignable "Export &amp; print" permission.</span></div></a>
-    </div>
-  </div>
-  <script>(function(){ var fs=document.getElementById('subFeatStrip'), hd=document.getElementById('subFeatHd'); if(!fs||!hd) return; try{ if(localStorage.getItem('rrg_subfeats')!=='1') fs.classList.add('collapsed'); }catch(e){ fs.classList.add('collapsed'); } hd.addEventListener('click',function(){ var col=fs.classList.toggle('collapsed'); try{ localStorage.setItem('rrg_subfeats', col?'0':'1'); }catch(e){} }); })();</script>
+  <div data-rrg-feats="mail_subscribers"></div>
   <div id="legacyBar" hidden></div>
   <div class="tiles" id="tiles"></div>
   <div class="qbar" id="qbar"></div>
@@ -321,7 +307,9 @@ function doImport(){
   if(!txt){ m.style.color='#b23a2c'; m.textContent='Paste some addresses first.'; return; }
   var lines=txt.split(/\r?\n/).filter(function(s){return s.trim();});
   var header='', dataLines=lines;
-  if(/(^|,)\s*e-?mail\s*(,|$)/i.test(lines[0]) && lines[0].indexOf('@')<0){ header=lines[0]; dataLines=lines.slice(1); }
+  // Same rule as the server's CSV parser: a first line with no @ address in it is a header row (whatever its column
+  // names). Peel it off and send it with EVERY batch, so batches after the first keep the name/status/type mapping.
+  if(lines[0].indexOf('@')<0){ header=lines[0]; dataLines=lines.slice(1); }
   var CH=500, chunks=[]; for(var i=0;i<dataLines.length;i+=CH){ chunks.push(dataLines.slice(i,i+CH)); }
   if(!chunks.length){ m.style.color='#b23a2c'; m.textContent='No addresses to import.'; return; }
   var listSel=(g('impList').value||''), listNew=((g('impListNew')&&g('impListNew').value)||'').trim();
@@ -393,5 +381,6 @@ function legacyRetire(){
 }
 legacyLoad();
 </script>
+<script src="/rrg_features.js"></script>
 </body>
 </html>

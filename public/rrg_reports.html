@@ -49,12 +49,14 @@ svg{display:block;max-width:100%;}
   <h1>Reports</h1>
   <div class="sub">Leads, pipeline growth and team activity at a glance. Pick a time window; every chart and table below updates to that period.</div>
 </div></div>
+<div class="wrap" style="margin-bottom:0;padding-bottom:0"><div data-rrg-feats="reports"></div></div>
 <div id="root" class="wrap"><div class="gate">Loading…</div></div>
 <div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
 <script>
 var API=(String(location.protocol).indexOf('http')===0?location.origin:'');
 var RANGE=30, DATA=null, INS=null, TAB='overview';
 function fmtDur(s){ s=Math.round(Number(s)||0); if(s<=0) return '—'; if(s<60) return s+'s'; var m=Math.floor(s/60), ss=s%60; if(m<60) return m+'m'+(ss?(' '+ss+'s'):''); var h=Math.floor(m/60); m=m%60; return h+'h'+(m?(' '+m+'m'):''); }
+function fmtWhen(iso){ if(!iso) return '—'; try{ var d=new Date(iso); if(isNaN(d)) return '—'; return d.toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }catch(e){ return '—'; } }
 function fmtDay(s){ s=String(s||''); return s?s.slice(5):'—'; }
 var PALETTE=['#4a6fc4','#6bbf95','#dfa937','#c77dc0','#e07a5f','#4fb0a6','#8a7fd0','#d98aa8','#5b8def','#9bb04a','#c98a5e','#7ea6d8','#b56db0','#59b06b','#d0a24a','#6f6fb0'];
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
@@ -128,7 +130,7 @@ function docActivityCard(rm){
     var head='<tr><th>Document</th><th>Room</th><th class="num">Views</th><th class="num">Downloads</th><th class="num">Buyers</th><th class="num">Read time</th></tr>';
     var rows=docs.map(function(d){ var star=d.key?'<span title="Key financial/lease document" style="display:inline-block;width:15px;text-align:center;color:#b5791f">★ </span>':'<span style="display:inline-block;width:15px"></span>'; return '<tr><td><span style="display:inline-flex;align-items:baseline;gap:6px">'+star+'<span>'+esc(d.name)+'</span></span></td><td style="color:#6b7488">'+esc(d.room)+'</td><td class="num">'+(d.views||0)+'</td><td class="num">'+(d.downloads||0)+'</td><td class="num">'+(d.uniqueBuyers||0)+'</td><td class="num">'+fmtDur(d.readSeconds)+'</td></tr>'; }).join('');
     body+='<div style="overflow:auto;margin-top:6px"><table><thead>'+head+'</thead><tbody>'+rows+'</tbody></table></div>';
-    body+='<div style="color:#8a93a8;font-size:11px;margin-top:8px">Views, downloads and buyers are for the selected window. Read time is cumulative (total time buyers have spent reading each document).</div>';
+    body+='<div style="color:#8a93a8;font-size:11px;margin-top:8px">Views, downloads, buyers and read time are all for the selected window (read time = total time buyers spent reading each document in that window).</div>';
   }
   return '<div class="card"><div class="ch"><b>Data-room document activity</b><span>what buyers are actually opening, across all rooms</span></div><div class="cb">'+body+'</div></div>';
 }
@@ -198,5 +200,6 @@ function load(){
 }
 load();
 </script>
+<script src="/rrg_features.js"></script>
 </body>
 </html>

@@ -259,18 +259,20 @@ function mount(app, deps) {
         return msg;
       };
 
-      let rows = [], q = '';
+      let rows = [], q = '', zipsSearched = 0;
       try {
         if (zips.length) {
           // One search per ZIP, then hard-filter to addresses actually in that ZIP, then merge & dedupe.
+          // Max results applies to the whole search, not per ZIP: stop once the merged list is full.
           const seen = {}; const parts = [];
           for (const z of zips) {
+            if (rows.length >= max) break;
+            zipsSearched++;
             const zq = (kw ? (kw + ' ') : '') + 'restaurants in ' + z + (/^\d{5}$/.test(z) ? ', USA' : '');
             parts.push(zq);
             const found = await _placesTextSearch(zq, key, 60, includedType); // fetch wide, filtering trims it
             found.filter(r => _addrHasZip(r.address, z))
-                 .slice(0, max)
-                 .forEach(r => { if (r.placeId && !seen[r.placeId]) { seen[r.placeId] = 1; rows.push(r); } });
+                 .forEach(r => { if (rows.length < max && r.placeId && !seen[r.placeId]) { seen[r.placeId] = 1; rows.push(r); } });
           }
           q = parts.join(' | ');
         } else {
@@ -281,7 +283,7 @@ function mount(app, deps) {
 
       // websiteUri + phone already came back from the New Text Search — no extra Details call.
       const withSite = rows.filter(r => r.website).length;
-      res.json({ ok: true, query: q, count: rows.length, withWebsite: withSite, zips: zips, zipsSearched: zips.length, skippedZips: skippedZips, rows: rows });
+      res.json({ ok: true, query: q, count: rows.length, withWebsite: withSite, zips: zips, zipsSearched: zips.length ? zipsSearched : 0, capped: rows.length >= max, skippedZips: skippedZips, rows: rows });
     } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
   });
 

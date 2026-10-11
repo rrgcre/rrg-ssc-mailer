@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>FullServe — Email Template</title>
+<title>Lavano — Email Template</title>
 <style>
 :root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;}
 *{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
@@ -67,7 +67,8 @@ function setHead(){
   var nm=(EDIT&&EDIT.name)?EDIT.name:(EDIT&&!EDIT.id?'New template':'Template');
   document.getElementById('h1').textContent=nm;
   document.getElementById('crumb').textContent=nm;
-  document.title='FullServe — '+nm;
+  var _app='Lavano'; try{ _app=localStorage.getItem('rrg_appname')||_app; }catch(e){}  // admin-set app name (cached by rrg_brand.js)
+  document.title=_app+' — '+nm;
   var sub=document.getElementById('sub');
   if(EDIT&&!EDIT.mine){ sub.innerHTML='Shared template'+(EDIT.ownerName?(' by <b style="color:#fff">'+esc(EDIT.ownerName)+'</b>'):'')+' — view only.'; }
   else sub.textContent='Name it, set who can use it, file it in a folder, and write the email — merge fields with the { } menu.';

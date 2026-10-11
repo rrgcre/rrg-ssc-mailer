@@ -81,13 +81,12 @@ fetch('/api/team',{credentials:'same-origin'}).then(function(r){return r.json();
 
 function render(j){
   IS_ADMIN=!!j.isAdmin; ROLES=j.roles||[]; TEAM=j.team||[];
-  var FEATS='<div class="feats" id="tmFeats">'+'<div class="featshd" id="tmFeatHd"><b>What you can do with Teams</b><span class="sh">your team\u2019s book, production and commission at a glance \u2014 tap any tile for help</span><span class="chev">\u25be</span></div>'+'<div class="featgrid">'+'<a class="feat" href="rrg_team_help.html#roster" target="_blank" rel="noopener"><span class="fic">\ud83d\udccb</span><div><b>Everyone at a glance</b><span>Every team member\u2019s book, production and commission on one screen \u2014 ranked and sortable.</span></div></a>'+'<a class="feat" href="rrg_team_help.html#kpis" target="_blank" rel="noopener"><span class="fic">\ud83d\udcca</span><div><b>Live production KPIs</b><span>Active listings, deals, GCI, received, waiting-on, net and pipeline \u2014 computed live from each rep\u2019s book.</span></div></a>'+'<a class="feat" href="rrg_team_help.html#overview" target="_blank" rel="noopener"><span class="fic">\ud83d\udc64</span><div><b>One record per person</b><span>Click a name for a contact-style employee record with their listings, deals and agreements.</span></div></a>'+'<a class="feat" href="rrg_team_help.html#kpis" target="_blank" rel="noopener"><span class="fic">\u23f3</span><div><b>Commission still owed</b><span>See what\u2019s been received vs. what you\u2019re waiting on \u2014 like the second half of a lease commission.</span></div></a>'+'<a class="feat" href="rrg_team_help.html#details" target="_blank" rel="noopener"><span class="fic">\ud83e\udeaa</span><div><b>Employee details</b><span>Home address, LinkedIn, start &amp; end dates and emergency contact, kept right on the record.</span></div></a>'+'<a class="feat" href="rrg_team_help.html#payroll" target="_blank" rel="noopener"><span class="fic">\ud83d\udd12</span><div><b>Payroll &amp; tax</b><span>Payment method, W-9 on file, tax classification and 1099 details \u2014 visible only to administrators.</span></div></a>'+'<a class="feat" href="rrg_team_help.html#commission" target="_blank" rel="noopener"><span class="fic">\ud83d\udcb0</span><div><b>Commission &amp; agent split</b><span>Net pay follows your firm\u2019s commission structure and agent split, set once in admin.</span></div></a>'+'<a class="feat" href="rrg_team_help.html#roster" target="_blank" rel="noopener"><span class="fic">\ud83d\udee1\ufe0f</span><div><b>Private by design</b><span>Reps see only their own record; the roster and payroll figures are admin-only.</span></div></a>'+'</div></div>';
   var t=j.team||[];
   var tot=t.reduce(function(a,r){ a.listings+=r.activeListings; a.deals+=r.deals; a.closed+=r.closedDeals; a.gci+=r.gci; a.net+=r.net; a.received+=(r.received||0); a.waiting+=(r.waiting||0); a.pipeline+=r.pipeline; a.gciYtd+=(r.gciYtd||0); a.closedYtd+=(r.closedDealsYtd||0); a.lost+=(r.lostDeals||0); return a; },{listings:0,deals:0,closed:0,gci:0,net:0,received:0,waiting:0,pipeline:0,gciYtd:0,closedYtd:0,lost:0});
   var html=''
     +'<div class="pkick">Firm</div><h1>Team</h1>'
     +'<div class="sub">'+t.length+' team member'+(t.length===1?'':'s')+' · book, production and commission at a glance. Click a name to open their employee record. <a href="rrg_team_help.html" style="margin-left:4px;font-weight:600">Help &amp; guide \u2192</a></div>'
-    +FEATS
+    +'<div data-rrg-feats="team" style="margin-top:14px"></div>'
     +'<div class="tiles">'
       +tile(tot.listings,'Active Listings','')
       +tile(tot.deals,'Deals','',tot.closed+' closed · '+tot.closedYtd+' YTD')
@@ -99,8 +98,7 @@ function render(j){
     +'</div>'
     +'<div class="card"><div class="ch"><b>Team members</b><span>'+t.length+' · '+j.split+'% agent split</span>'+(IS_ADMIN?'<span class="tmhdact"><button type="button" class="tmbtn" id="tmAdd">+ Add member</button><a class="tmlink" href="rrg_users.html">Manage users &rarr;</a></span>':'')+'</div><div class="cb"><div id="tm"></div></div></div>';
   document.getElementById('root').innerHTML=html;
-  (function(){ var fs=document.getElementById('tmFeats'), hd=document.getElementById('tmFeatHd'); if(fs&&hd){ try{ if(localStorage.getItem('rrg_tmfeats')!=='1') fs.classList.add('collapsed'); }catch(e){ fs.classList.add('collapsed'); } hd.addEventListener('click',function(){ var col=fs.classList.toggle('collapsed'); try{ localStorage.setItem('rrg_tmfeats', col?'0':'1'); }catch(e){} }); } })();
-  RRGList.create({ mount:document.getElementById('tm'), key:'team_roster', data:t, rowId:function(it){return it.username;}, defaultSort:3, defaultDir:-1, empty:'No team members.',
+  RRGList.create({ mount:document.getElementById('tm'), key:'team_roster', data:t, rowId:function(it){return it.username;}, defaultSort:5, defaultDir:-1, empty:'No team members.',
     columns:([
       {key:'name',label:'Name',cell:function(it){ var ini=(it.name||it.username||'?').trim().split(/\s+/).map(function(w){return w.charAt(0);}).join('').slice(0,2).toUpperCase(); var av=it.photoUrl?('<img src="'+esc(it.photoUrl)+'" onerror="this.remove()">'):esc(ini); return '<div class="rp"><span class="rpav">'+av+'</span><a class="lk" href="rrg_user.html?u='+encodeURIComponent(it.username)+'">'+esc(it.name||it.username)+(it.self?' <span class="meta">(you)</span>':'')+'</a></div>'; },sort:function(a,b){return String(a.name).localeCompare(String(b.name));}},
       {key:'title',label:'Title',cell:function(it){return esc(it.title||it.role||'—');},sort:function(a,b){return String(a.title||a.role).localeCompare(String(b.title||b.role));}},
@@ -113,7 +111,7 @@ function render(j){
       {key:'waiting',label:'Waiting on',align:'right',cell:function(it){return it.waiting?money(it.waiting):'<span class="meta">—</span>';},sort:function(a,b){return (a.waiting||0)-(b.waiting||0);}},
       {key:'net',label:'Net',align:'right',cell:function(it){return it.net?money(it.net):'<span class="meta">—</span>';},sort:function(a,b){return a.net-b.net;}},
       {key:'pipeline',label:'Pipeline',align:'right',cell:function(it){return it.pipeline?money(it.pipeline):'<span class="meta">—</span>';},sort:function(a,b){return a.pipeline-b.pipeline;}}
-    ].concat(IS_ADMIN?[{key:'_act',label:'',align:'right',cell:function(it){ return it.self?'<span class="meta">\u2014</span>':'<button type="button" class="tmact" data-rm="'+esc(it.username)+'" data-nm="'+esc(it.name||it.username)+'" title="Remove from team">\ud83d\uddd1</button>'; },sort:null}]:[])) });
+    ].concat(IS_ADMIN?[{key:'_act',label:'',align:'right',cell:function(it){ return it.self?'<span class="meta">\u2014</span>':'<button type="button" class="tmact" data-rm="'+esc(it.username)+'" data-nm="'+esc(it.name||it.username)+'" title="Deactivate login">\ud83d\uddd1</button>'; },sort:null}]:[])) });
   var _add=document.getElementById('tmAdd'); if(_add) _add.addEventListener('click',openAddMember);
   var _tm=document.getElementById('tm'); if(_tm && !_tm._rmwired){ _tm._rmwired=true; _tm.addEventListener('click',function(e){ var b=e.target.closest&&e.target.closest('[data-rm]'); if(!b) return; removeMember(b.getAttribute('data-rm'), b.getAttribute('data-nm')); }); }
 }
@@ -158,12 +156,13 @@ function submitAddMember(){
 }
 function removeMember(un,nm){
   if(!un) return;
-  if(!window.confirm('Remove '+(nm||un)+' from the team? Their login is deactivated and they are removed from the roster. Their listings, deals and records stay in the system.')) return;
-  fetch('/api/admin/remove',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({username:un})})
-    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.reload(); } else { alert((j&&j.error)||'Could not remove.'); } })
+  if(!window.confirm('Deactivate '+(nm||un)+'? Their login is disabled and they are removed from the roster. Their listings, deals and records stay in the system. You can reactivate them, or delete the account permanently, under Settings \u2192 Users.')) return;
+  fetch('/api/admin/toggle',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({username:un,disabled:'1'})})
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.reload(); } else { alert((j&&j.error)||'Could not deactivate.'); } })
     .catch(function(){ alert('Could not reach the server.'); });
 }
 
 </script>
+<script src="/rrg_features.js"></script>
 </body>
 </html>

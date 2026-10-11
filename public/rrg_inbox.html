@@ -114,6 +114,7 @@ textarea{min-height:52px;resize:vertical;}
 </div></div>
 <div class="wrap">
 
+  <div data-rrg-feats="inbox"></div>
   <div class="statusbar" id="statusbar" style="display:none">
     <span class="dot" id="statusdot"></span>
     <span class="lead" id="statuslead">Inbox review</span>
@@ -134,7 +135,7 @@ textarea{min-height:52px;resize:vertical;}
 <div class="flash" id="flash"></div>
 
 <script>
-var INBOX = { types: [], label: 'FullServe' };
+var INBOX = { types: [], label: 'Lavano' };
 
 function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
 function flash(msg){ var f=document.getElementById('flash'); f.textContent=msg; f.classList.add('show'); clearTimeout(flash._t); flash._t=setTimeout(function(){ f.classList.remove('show'); },2600); }
@@ -278,6 +279,7 @@ function fileCard(p){
   var opts=''; var defVal='none';
   (sug.deals||[]).forEach(function(d){ opts+='<option value="deal:'+esc(d.key)+'">Deal · '+esc(d.business||d.key)+'</option>'; });
   if(sug.personId){ opts+='<option value="contact:'+esc(sug.personId)+'">Contact · '+esc(sug.personName||'')+'</option>'; }
+  if(sug.companyId){ opts+='<option value="company:'+esc(sug.companyId)+'">Company · '+esc(sug.companyName||'their company')+'</option>'; }
   opts+='<option value="none">Just the Doc Vault (no link)</option>';
   if(sug.dealKey) defVal='deal:'+sug.dealKey; else if(sug.personId) defVal='contact:'+sug.personId;
   var atts=(f.attachments||[]).map(function(a){
@@ -318,6 +320,7 @@ function wireFileCard(card){
     var target={type:'none'};
     if(tv.indexOf('deal:')===0){ target={type:'deal',dealKey:tv.slice(5)}; var o=card.querySelector('[data-target]').selectedOptions[0]; target.dealLabel=o?o.textContent.replace(/^Deal · /,''):''; }
     else if(tv.indexOf('contact:')===0){ target={type:'contact',personId:tv.slice(8)}; }
+    else if(tv.indexOf('company:')===0){ target={type:'company',companyId:tv.slice(8)}; }
     var note=(card.querySelector('[data-note]')||{}).value||'';
     btn.textContent='Filing…';
     fetch('/api/inbox/'+encodeURIComponent(id)+'/confirm',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({fields:{attachmentIds:ids,docTypes:docTypes,target:target,note:note}})})
@@ -346,12 +349,12 @@ function renderStatus(d){
   var dot=document.getElementById('statusdot'); var lead=document.getElementById('statuslead'); var meta=document.getElementById('statusmeta');
   var tog=document.getElementById('reviewToggle'); tog.checked=(d.reviewMode!==false);
   if(!d.connected){ dot.className='dot'; lead.textContent='Inbox not connected'; meta.textContent='Connect Gmail on your Account page to let the agent read labeled emails.'; }
-  else if(d.intakeEnabled){ dot.className='dot on'; lead.textContent='Watching your inbox'; meta.textContent='Reading emails you label “'+(d.label||'FullServe')+'” in Gmail.'; }
+  else if(d.intakeEnabled){ dot.className='dot on'; lead.textContent='Watching your inbox'; meta.textContent='Reading emails you label “'+(d.label||'Lavano')+'” in Gmail.'; }
   else { dot.className='dot'; lead.textContent='Inbox watching is off'; meta.textContent='Turn on auto-intake on your Account page, or use Scan now.'; }
 }
 
 function render(d){
-  INBOX.types=d.types||[]; INBOX.label=d.label||'FullServe';
+  INBOX.types=d.types||[]; INBOX.label=d.label||'Lavano';
   renderStatus(d);
   var pend=document.getElementById('pending'); var plabel=document.getElementById('pendlabel');
   var list=d.pending||[];
@@ -364,8 +367,8 @@ function render(d){
     plabel.style.display='none';
     pend.innerHTML=''+
       '<div class="empty"><h3>Your queue is clear</h3>'+
-      '<p>When the agent reads a new lead out of your inbox, it lands here pre-filled. You confirm, and it goes into your book — nothing is added without your say-so.</p>'+
-      '<div class="steps"><b>Two ways leads show up:</b><br>1. Label an email <b>“'+esc(INBOX.label)+'”</b> in Gmail — the agent reads the sender, pulls their details, and proposes the lead here.<br>2. Turn on auto-intake (Account page) and it checks on a schedule on its own.</div></div>';
+      '<p>When the agent reads an email you labeled, what it proposes lands here for you to confirm — a new lead to add, updates to a contact or deal you already have, or attachments to file. Nothing changes in your book without your say-so.</p>'+
+      '<div class="steps"><b>Two ways items show up:</b><br>1. Label an email <b>“'+esc(INBOX.label)+'”</b> in Gmail — the agent reads it and proposes the lead, the update, or the files to file here.<br>2. Turn on auto-intake (Account page) and it checks on a schedule on its own.</div></div>';
   }
   var rw=document.getElementById('recentWrap'); var rec=d.recent||[];
   if(rec.length){
@@ -409,5 +412,6 @@ document.getElementById('scanBtn').addEventListener('click',function(){
 
 load();
 </script>
+<script src="/rrg_features.js"></script>
 </body>
 </html>

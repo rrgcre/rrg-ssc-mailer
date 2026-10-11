@@ -78,19 +78,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
   <h1>Space Listings</h1>
   <div class="sub">Every restaurant &amp; bar space you're marketing for lease on behalf of a landlord — the available space, the landlord contact, and the tenant prospects working toward a signed lease. Open a listing to run it end to end.</div>
 </div></div>
-<div class="featwrap"><div class="feats" id="llFeats">
-  <div class="featshd" id="llFeatHd"><b>What this section does</b><span class="sh">represent a landlord — list a space for lease, market it, work tenants to a signed lease</span><a class="hlink" href="rrg_landlordrep_help.html" target="_blank" rel="noopener" onclick="event.stopPropagation()">Open the full guide ↗</a><span class="chev">▾</span></div>
-  <div class="featgrid">
-    <a class="feat" href="rrg_landlordrep_help.html#overview" target="_blank" rel="noopener" style="text-decoration:none"><span class="fic">🏢</span><div><b>One list of your spaces</b><span>Every restaurant/bar space you're marketing for lease, with landlord, market, size, asking rent and status at a glance.</span></div></a>
-    <a class="feat" href="rrg_landlordrep_help.html#new" target="_blank" rel="noopener" style="text-decoration:none"><span class="fic">➕</span><div><b>Start a space listing</b><span>Name the space, its market, and the landlord contact — it builds the file, links the landlord, and opens the listing.</span></div></a>
-    <a class="feat" href="rrg_landlordrep_help.html#space" target="_blank" rel="noopener" style="text-decoration:none"><span class="fic">📐</span><div><b>Space details</b><span>Size, asking rent, lease term, condition, suitable use, available date and key features live on the listing HQ.</span></div></a>
-    <a class="feat" href="rrg_landlordrep_help.html#tenants" target="_blank" rel="noopener" style="text-decoration:none"><span class="fic">🧲</span><div><b>Work the tenant prospects</b><span>Log inquiries, tours and LOIs, and move each toward a signed lease — the same deal machinery as a sale.</span></div></a>
-    <a class="feat" href="rrg_landlordrep_help.html#pipeline" target="_blank" rel="noopener" style="text-decoration:none"><span class="fic">🚦</span><div><b>Landlord pipeline</b><span>Move each space from Listing Setup → Marketing → Tours → LOI Received → Lease Negotiation → Executed.</span></div></a>
-    <a class="feat" href="rrg_landlordrep_help.html#search" target="_blank" rel="noopener" style="text-decoration:none"><span class="fic">🔎</span><div><b>Search &amp; open</b><span>Find any space by name, landlord, market, size or rent, then click through to run it.</span></div></a>
-  </div>
-</div></div>
-<script>(function(){ var fs=document.getElementById('llFeats'), hd=document.getElementById('llFeatHd'); if(!fs||!hd) return; try{ if(localStorage.getItem('rrg_llfeats')!=='1') fs.classList.add('collapsed'); }catch(e){ fs.classList.add('collapsed'); } hd.addEventListener('click',function(){ var col=fs.classList.toggle('collapsed'); try{ localStorage.setItem('rrg_llfeats', col?'0':'1'); }catch(e){} }); })();</script>
 <div class="wrap">
+  <div data-rrg-feats="landlord_rep"></div>
   <div class="card">
     <div class="hd lhd">
       <b>Space Listings</b><span class="meta" id="count"></span>
@@ -175,5 +164,6 @@ document.getElementById('n_create').addEventListener('click',createListing);
 document.getElementById('newModal').addEventListener('click',function(e){ if(e.target&&e.target.id==='newModal') closeModal(); });
 load(); loadPeople();
 </script>
+<script src="/rrg_features.js"></script>
 </body>
 </html>

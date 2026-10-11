@@ -60,6 +60,7 @@ function appendSubmission(formType, data, meta) {
     name: data.concept || '',
     market: data.market || '',
     rep: data.preparedBy || '',
+    byUser: meta.by || '',
     repEmail: data.repEmail || '',
     dateOnForm: data.date || '',
     emailed: !!meta.emailed,

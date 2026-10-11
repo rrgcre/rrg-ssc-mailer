@@ -867,6 +867,9 @@ function applyFeatStrip(){
       _featCard('🧲','Prospect leads &amp; matches','Log every prospective tenant, and see active tenant-rep searches from your book whose criteria fit this space.'),
       _featCard('🤝','Tours &amp; LOIs','Record each showing and every letter of intent as prospects move toward a lease.'),
       _featCard('🔑','Lease &amp; commission','Track the deal to a signed lease and bill your fee — all tied to this listing.'),
+      _featCard('📄','Documents','Keep the listing’s paper — listing agreement, floor plans, LOIs, the lease — linked to this file and in the Doc Vault.'),
+      _featCard('🔐','Data room activity','The listing’s data room is built automatically — see who signed in and which documents they opened.'),
+      _featCard('📧','Landlord activity report','A leasing activity summary — tenant inquiries, showings, LOIs, room views — emailed to the landlord when you click Send now.'),
       _featCard('🚦','Prospect pipeline','Pick a Prospect pipeline to move each prospect tenant through its own stages — inquiry, toured, LOI, negotiating, signed or passed.'),
       _featCard('🧩','Make it yours','Drag any card in the right rail to reorder it and collapse the ones you don’t need — saved on this device.')
     ].join('');
@@ -977,6 +980,7 @@ function render(){
     + '<div class="mid">'
     + '<div class="card"><div class="ch"><b>Overview</b><span>'+done+' of '+ST.length+' stages complete</span></div><div class="cb">'+facts+'</div></div>'
     + photosCard()
+    + docsCard()
     + '<div class="card"><div class="ch"><b>Leasing Pipeline</b>'+(pipeName?('<span style="margin-left:8px;color:var(--navy);font-weight:700;font-size:11.5px;background:#eef2fb;border:1px solid #d3ddf3;border-radius:999px;padding:2px 10px">'+esc(pipeName)+'</span>'):'')+'<span>'+started+' of '+ST.length+' started</span></div><div class="track"><div class="hpipe">'+steps+'</div></div></div>'
     + prospectPipelineCard()
     + '</div>'
@@ -988,6 +992,8 @@ function render(){
     + dealCard()
     + expensesCardDeal()
     + invoicesCardDeal()
+    + roomActivityCard()
+    + sellerReportShell()
     + '</div>'
     + peopleDatalistHTML();
 
@@ -1023,32 +1029,32 @@ function render(){
 }
 function loadPeople(){ fetch('/api/people',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ PEOPLE=(j&&j.people)||[]; var dl=document.getElementById('peopleList'); if(dl) dl.innerHTML=PEOPLE.map(function(p){return '<option value="'+esc(p.name)+'">'+esc(p.company||p.email||'')+'</option>';}).join(''); var bl=document.getElementById('bizList'); if(bl){ var seen={},bo=''; PEOPLE.forEach(function(p){ var c=String((p&&p.company)||'').trim(); if(c&&!seen[c.toLowerCase()]){ seen[c.toLowerCase()]=1; bo+='<option value="'+esc(c)+'"></option>'; } }); bl.innerHTML=bo; } }).catch(function(){}); }
 function matchBuyersShell(){ return '<div class="card" id="matchBuyersCard"><div class="ch"><b>Matching buyers</b><span id="mbCount" style="color:#8a93a8;font-weight:700;margin-left:6px"></span></div><div class="cb" style="padding:12px 16px"><div id="matchBuyers"><div style="color:#8a93a8;font-size:12.5px;padding:4px 0">Checking your buyer book…</div></div></div></div>'; }
-function sellerReportShell(){ if(A && A.assignmentType==='tenant_rep') return ''; return '<div class="card" id="sellerRepCard"><div class="ch"><b>Seller activity report</b><span id="srStatus" style="margin-left:10px;font-size:12px;color:#8a93a3">Loading…</span></div><div class="cb" id="srBody" style="padding:12px 16px"><div style="color:#8a93a8;font-size:12.5px">Checking…</div></div></div>'; }
+function sellerReportShell(){ if(A && A.assignmentType==='tenant_rep') return ''; return '<div class="card" id="sellerRepCard"><div class="ch"><b>Landlord activity report</b><span id="srStatus" style="margin-left:10px;font-size:12px;color:#8a93a3">Loading…</span></div><div class="cb" id="srBody" style="padding:12px 16px"><div style="color:#8a93a8;font-size:12.5px">Checking…</div></div></div>'; }
 function loadSellerReport(){ var body=document.getElementById('srBody'), st=document.getElementById('srStatus'); if(!body||!KEY) return;
   fetch('/api/assignment/'+encodeURIComponent(KEY)+'/seller-report',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok){ if(st)st.textContent=''; body.innerHTML='<div style="color:#8a93a8;font-size:12.5px">—</div>'; return; }
     window._srSellerEmail=j.sellerEmail||''; window._srSellerName=j.sellerName||''; window._srInterval=j.intervalDays||14; window._srCadence=j.cadence||'';
-    var p=j.preview||{}; var on=j.firmEnabled && !j.off;
+    var p=j.preview||{};
     var perPhrase=(j.cadence==='month1')?'Past month':('Last '+(j.intervalDays||14)+' days');
-    if(st) st.innerHTML = on ? '<span style="color:#1f8a5b;font-weight:700">● On · '+esc(j.cadenceLabel||('every '+(j.intervalDays||14)+' days'))+'</span>' : (j.firmEnabled ? '<span style="color:#b5791f;font-weight:700">Off for this listing</span>' : '<span style="color:#8a93a3">Firm cadence off</span>');
-    var stats='<div style="display:flex;gap:16px;flex-wrap:wrap;margin:2px 0 10px">'+[['Inquiries',p.inquiries],['NDAs',p.ndas],['Tours',p.tours],['Offers',p.offers],['Room views',p.views]].map(function(x){return '<div><div style="font-size:17px;font-weight:800;color:#0b1a38">'+(x[1]||0)+'</div><div style="font-size:11px;color:#8a93a8">'+x[0]+'</div></div>';}).join('')+'</div>';
+    // Landlord listings aren't published to the marketplace, so the firm's automatic cadence never picks them up — this report goes out on demand.
+    if(st) st.innerHTML = '<span style="color:#8a93a3">Sent on demand</span>';
+    var stats='<div style="display:flex;gap:16px;flex-wrap:wrap;margin:2px 0 10px">'+[['Tenant inquiries',p.inquiries],['Showings',p.tours],['LOIs',p.offers],['Room views',p.views]].map(function(x){return '<div><div style="font-size:17px;font-weight:800;color:#0b1a38">'+(x[1]||0)+'</div><div style="font-size:11px;color:#8a93a8">'+x[0]+'</div></div>';}).join('')+'</div>';
     var lastTxt=j.lastSentAt?('Last sent '+new Date(j.lastSentAt).toLocaleDateString()):'Not sent yet';
-    var toTxt=j.sellerEmail?('to '+esc(j.sellerEmail)):'<span style="color:#C0261B">no seller email on file</span>';
+    var toTxt=j.sellerEmail?('to '+esc(j.sellerEmail)):'<span style="color:#C0261B">no landlord email on file</span>';
     body.innerHTML='<div style="font-size:12.5px;color:#5a6478;margin-bottom:8px">'+esc(perPhrase)+' '+toTxt+' · '+esc(lastTxt)+'</div>'+stats
       +'<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'
       +'<button id="srSendNow" style="border:1px solid var(--navy,#20334f);background:#fff;color:var(--navy,#20334f);font-weight:700;font-size:12.5px;padding:7px 13px;border-radius:6px;cursor:pointer">Send now</button>'
-      +(j.firmEnabled?('<label style="font-size:12.5px;display:inline-flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="srOff" '+(j.off?'checked':'')+'> Skip this listing</label>'):'<span style="font-size:12px;color:#8a93a8">Turn the firm cadence on in <a href="rrg_admin_email.html" style="color:#23496f;font-weight:700;text-decoration:none">Admin → Email</a> to schedule these automatically.</span>')
+      +'<span style="font-size:12px;color:#8a93a8">Emails the landlord a summary of leasing activity on the space.</span>'
       +'<span class="msg" id="srMsg" style="font-size:12.5px"></span></div>';
     var sb=document.getElementById('srSendNow'); if(sb) sb.onclick=function(){ srSend(); };
-    var off=document.getElementById('srOff'); if(off) off.onchange=function(){ srToggleOff(off.checked); };
   }).catch(function(){ if(st)st.textContent=''; });
 }
 function srSend(){
   var m=document.getElementById('srMsg'); var to=window._srSellerEmail||'';
-  if(!to){ if(m){m.style.color='#C0261B'; m.textContent='No seller email on file — set the seller contact first.'; } return; }
+  if(!to){ if(m){m.style.color='#C0261B'; m.textContent='No landlord email on file — set the landlord contact first.'; } return; }
   var who=(window._srSellerName?(window._srSellerName+' ('+to+')'):to);
   var span=(window._srCadence==='month1')?'past month':('last '+(window._srInterval||14)+' days');
-  var msg='Send the marketing activity report to the SELLER right now?\n\n'
+  var msg='Send the leasing activity report to the LANDLORD right now?\n\n'
     +'This emails '+who+' a real summary of the '+span+' of activity on this listing. It goes straight to the client — this is not a test.\n\n'
     +'Make sure the numbers above look right first. Continue?';
   var ask=window.rrgConfirm?window.rrgConfirm(msg):Promise.resolve(window.confirm(msg));
@@ -1056,7 +1062,6 @@ function srSend(){
 }
 function _srDoSend(){ var b=document.getElementById('srSendNow'), m=document.getElementById('srMsg'); if(!b) return; b.disabled=true; var was=b.textContent; b.textContent='Sending…'; if(m)m.textContent='';
   fetch('/api/assignment/'+encodeURIComponent(KEY)+'/seller-report/send',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'}).then(function(r){return r.json();}).then(function(j){ b.disabled=false; b.textContent=was; if(j&&j.ok){ if(m){m.style.color='#1f8a5b'; m.textContent='Sent ✓ to '+esc(j.to);} loadSellerReport(); } else { if(m){m.style.color='#C0261B'; m.textContent=(j&&j.error)||'Could not send.';} } }).catch(function(){ b.disabled=false; b.textContent=was; if(m){m.style.color='#C0261B'; m.textContent='Could not reach the server.';} }); }
-function srToggleOff(off){ fetch('/api/assignment/'+encodeURIComponent(KEY)+'/seller-report',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({off:!!off})}).then(function(r){return r.json();}).then(function(){ loadSellerReport(); }).catch(function(){}); }
 function loadMatchingBuyers(){ var host=document.getElementById('matchBuyers'), cnt=document.getElementById('mbCount'); if(!host||!KEY) return;
   fetch('/api/assignment/'+encodeURIComponent(KEY)+'/buyer-matches',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok){ host.innerHTML='<div style="color:#8a93a8;font-size:12.5px;padding:4px 0">—</div>'; return; }
@@ -1080,14 +1085,14 @@ function photosCard(){
     grid='<div class="phgrid">'+photos.map(function(p){
       var isCover=(p.id===m.coverPhotoId);
       return '<div class="phcell'+(isCover?' cover':'')+'" data-pid="'+esc(p.id)+'"><img src="'+esc(p.url)+'" alt="'+esc(p.caption||'listing photo')+'" loading="lazy">'
-        +'<div class="phacts"><button type="button" class="phbtn" data-setcover="'+esc(p.id)+'" title="'+(isCover?'Cover photo':'Make cover')+'">'+(isCover?'★':'☆')+'</button><button type="button" class="phbtn del" data-phdel="'+esc(p.id)+'" title="Delete photo">×</button></div>'
-        +(isCover?'<span class="phcoverbadge">Cover</span>':'')+'</div>';
+        +'<div class="phacts"><button type="button" class="phbtn" data-setcover="'+esc(p.id)+'" title="'+(isCover?'Cover photo':'Make cover')+'">'+(isCover?'★':'☆')+'</button><button type="button" class="phbtn room'+(p.inRoom?' on':'')+'" data-toroom="'+esc(p.id)+'" title="'+(p.inRoom?'In the data room — prospective tenants you authorize can see this':'Send to the data room')+'">'+(p.inRoom?'✓':'⤴')+'</button><button type="button" class="phbtn del" data-phdel="'+esc(p.id)+'" title="Delete photo">×</button></div>'
+        +(isCover?'<span class="phcoverbadge">Cover</span>':'')+(p.inRoom?'<span class="phroombadge" title="In the data room">🔒 Room</span>':'')+'</div>';
     }).join('')+'</div>';
   } else {
     grid='<div class="phempty">No photos yet. Add storefront, interior, kitchen and food shots so the whole team can recognize the place at a glance. The cover photo also seeds the marketplace teaser.</div>';
   }
   grid+='<div class="phdrop" id="phDrop">Drop images here, or click to choose — JPG, PNG, GIF or WebP, up to 15 MB each.</div><input type="file" id="phInput" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden>';
-  grid+='<div class="phxlink">Internal reference shots of the space — storefront, interior and site. The cover photo also seeds the marketplace teaser.</div>';
+  grid+='<div class="phxlink">Internal reference shots of the space — storefront, interior and site. Hover a photo and hit <b>⤴</b> to send it to the listing’s data room. Paperwork lives in <a href="#docsCard" onclick="var c=document.getElementById(\'docsCard\');if(c){c.classList.remove(\'collapsed\');c.scrollIntoView({behavior:\'smooth\',block:\'start\'});}return false;">Documents</a>.</div>';
   return '<div class="card" id="photosCard"><div class="ch"><b>Photos</b><span>'+(m.count||0)+'</span><button type="button" class="phupload" id="phAddBtn">＋ Add photos</button></div><div class="cb" style="padding:12px 16px">'+grid+'</div></div>';
 }
 function wirePhotos(){
@@ -1137,7 +1142,7 @@ function renderListingDocs(){
   var foot='<div class="docfoot"><a href="./rrg_documents.html?q='+q+'">Open all documents for this listing ↗</a></div>';
   if(!LDOCS||!LDOCS.length){
     if(cnt) cnt.textContent='';
-    body.innerHTML='<div class="docempty">No documents linked to this listing yet. Add the LOI, lease, financials, tax returns and signed agreements here so the whole deal’s paper lives in one place.</div>'+foot;
+    body.innerHTML='<div class="docempty">No documents linked to this listing yet. Add the listing agreement, floor plans, site plan, LOIs and the signed lease here so the space’s paper lives in one place.</div>'+foot;
     wireDocRows(); return;
   }
   if(cnt) cnt.textContent='· '+LDOCS.length;
@@ -1355,33 +1360,8 @@ function offerCardHTML(o){
     +'<div class="oanalysis" data-oid="'+esc(o.id)+'"'+(hasA?'':' hidden')+'>'+(hasA?analysisHTML(o.analysis):'')+'</div>'
   +'</div>';
 }
+// Landlord files don't carry a buyer-leads card (prospective tenants are worked under Prospect tenants / Tours / LOIs); INQUIRIES only feeds the shared stage helpers.
 var INQUIRIES=[], INQ_STATUSES=['Unqualified','Contacted','Qualified','NDA Sent','Toured','Offer','Passed','Dead'];
-function inquiriesCard(){
-  var body;
-  if(!INQUIRIES.length){ body='<div class="noev" style="padding:18px 20px">No buyer leads yet. Import them from BizBuySell (the \u2b07 Import leads button on the Listings page), or add one manually. Each lead is a tracked buyer inquiry you can move through the funnel.</div>'; }
-  else { var sorted=INQUIRIES.slice().sort(function(a,b){ return String(b.createdAt||'').localeCompare(String(a.createdAt||'')); }); body='<div class="olist">'+sorted.map(inquiryHTML).join('')+'</div>'; }
-  var summary='';
-  if(INQUIRIES.length){ var _names=buyerStageNames(); var _c={}; INQUIRIES.forEach(function(q){ var s=(_names.indexOf(q.status)>=0)?q.status:_names[0]; _c[s]=(_c[s]||0)+1; });
-    summary='<div style="display:flex;flex-wrap:wrap;gap:6px;padding:10px 20px;border-bottom:1px solid var(--line);background:#f7f9fc">'+_names.map(function(n){ var _n=_c[n]||0; return '<span style="font-size:11.5px;font-weight:700;color:'+(_n?'#20334f':'#aab2c0')+';background:#fff;border:1px solid #e0e5ee;border-radius:100px;padding:3px 10px">'+esc(n)+' <b style="color:'+(_n?'#2c5c8f':'#aab2c0')+'">'+_n+'</b></span>'; }).join('')+'</div>'; }
-  return '<div class="card"><div class="ch"><b>Buyer Leads</b><span>'+INQUIRIES.length+'</span><button class="railadd" id="addInqBtn" title="Add a buyer lead">+</button></div>'+summary+'<div class="cb offers"><div id="inqForm" hidden></div>'+body+'</div></div>';
-}
-function inquiryHTML(q){
-  var _bstages=buyerStageNames(); var _cur=(_bstages.indexOf(q.status)>=0)?q.status:(_bstages[0]||'New'); var ssel=_bstages.map(function(x){return '<option'+(_cur===x?' selected':'')+'>'+esc(x)+'</option>';}).join('');
-  var who=q.name||q.email||'Buyer';
-  var contact=[q.email,q.phone].filter(Boolean).map(esc).join(' \u00b7 ');
-  var src=q.source?('<span class="stag pend" style="margin-left:6px">'+esc(q.source)+'</span>'):'';
-  var plink=q.personId?('<a class="slink ghost inqopen" href="./rrg_person.html?id='+encodeURIComponent(q.personId)+'">Open contact \u2192</a>'):'';
-  return '<div class="inqrow">'
-    +'<div class="inqtop"><div class="inqname">'+esc(who)+src+'</div><button class="inqdel" data-inqdel="'+esc(q.id)+'" title="Remove lead" aria-label="Remove lead">\u00d7</button></div>'
-    +((contact||q.date)?('<div class="inqmeta">'+contact+(q.date?(' \u00b7 '+esc(q.date)):'')+'</div>'):'')
-    +'<div class="inqact"><select class="inqstat" data-inq="'+esc(q.id)+'">'+ssel+'</select>'+plink+'</div>'
-    +'</div>';
-}
-function saveInquiry(payload, cb){ fetch('/api/assignment/'+encodeURIComponent(KEY)+'/inquiry',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(payload)}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ INQUIRIES=j.inquiries||INQUIRIES; if(A) A.inquiries=INQUIRIES; if(cb)cb(j); else render(); } else alert((j&&j.error)||'Could not save the lead.'); }).catch(function(){ alert('Could not reach the server.'); }); }
-async function removeInquiry(id){ if(!await rrgConfirm('Remove this buyer lead from the listing? The contact stays in your registry.')) return; fetch('/api/assignment/'+encodeURIComponent(KEY)+'/inquiry/'+encodeURIComponent(id)+'/remove',{method:'POST',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ INQUIRIES=j.inquiries||[]; if(A) A.inquiries=INQUIRIES; render(); } }); }
-function openInqForm(){ var f=document.getElementById('inqForm'); if(!f) return; if(!f.hidden){ f.hidden=true; f.innerHTML=''; return; } f.innerHTML='<div class="ofgrid"><div class="off"><label class="fld">Name</label><input id="iq_name" list="peopleList" placeholder="Buyer name"></div><div class="off"><label class="fld">Email</label><input id="iq_email" placeholder="buyer@email.com"></div><div class="off"><label class="fld">Phone</label><input id="iq_phone" placeholder="(555) 555-5555"></div><div class="off wide"><label class="fld">Note</label><input id="iq_note" placeholder="Where they came from, interest, listing they asked about\u2026"></div></div><div class="ofbtns"><button class="savebtn2" id="iq_save">Add lead</button><button class="cancelbtn" id="iq_cancel">Cancel</button></div>'; f.hidden=false; var sv=document.getElementById('iq_save'); if(sv) sv.addEventListener('click',function(){ var nm=document.getElementById('iq_name').value.trim(), em=document.getElementById('iq_email').value.trim(); if(!nm&&!em){ alert('Enter a name or email.'); return; } saveInquiry({name:nm,email:em,phone:document.getElementById('iq_phone').value.trim(),note:document.getElementById('iq_note').value.trim(),source:'Manual'}); }); var cn=document.getElementById('iq_cancel'); if(cn) cn.addEventListener('click',function(){ f.hidden=true; f.innerHTML=''; }); }
-document.addEventListener('click',function(e){ if(!e.target.closest) return; if(e.target.closest('#addInqBtn')){ openInqForm(); return; } var d=e.target.closest('[data-inqdel]'); if(d){ removeInquiry(d.getAttribute('data-inqdel')); return; } });
-document.addEventListener('change',function(e){ if(!e.target.closest) return; var st=e.target.closest('.inqstat'); if(st){ saveInquiry({id:st.getAttribute('data-inq'),status:st.value}, function(){}); } });
 function prospectTenantsCard(){
   var s=(A&&A.space)||{};
   var bits=[];
@@ -1726,7 +1706,7 @@ function load(){
   fetch('/api/assignment/'+encodeURIComponent(KEY),{credentials:'same-origin'}).then(function(r){
     if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); });
     return r.json();
-  }).then(function(j){ A=j.assignment; if(A && A.assignmentType!=='landlord_rep'){ location.replace('./rrg_assignment.html?key='+encodeURIComponent(KEY)); return; } LEASE=j.lease||null; if(j.statuses) STATUSES=j.statuses; TXN=(A&&A.transaction)||null; if(j.txnStatuses) TXNSTAT=j.txnStatuses; if(j.commStatuses) TXNCOMM=j.commStatuses; RA=j.roomActivity||null; OFFERS=(A&&A.offers)||[]; TOURS=(A&&A.tours)||[]; NDAS=(A&&A.ndas)||[]; INQUIRIES=(A&&A.inquiries)||[]; AGR=j.agreements||[]; ATYPES=j.agreementTypes||[]; PIPES=j.pipelines||[]; BUYERPIPES=j.buyerPipelines||[]; AUTOS=j.automations||[]; if(Array.isArray(j.markets)&&j.markets.length) MARKETS=j.markets; if(Array.isArray(j.cuisineTypes)) CUISINES=j.cuisineTypes; if(Array.isArray(j.conceptTypes)) CONCEPTS=j.conceptTypes; _ensureCuisineDL(); EXP=j.expenses||null; INVX=j.invoices||null; render(); loadPeople(); })
+  }).then(function(j){ A=j.assignment; if(A && A.assignmentType!=='landlord_rep'){ location.replace('./rrg_assignment.html?key='+encodeURIComponent(KEY)); return; } LEASE=j.lease||null; if(j.statuses) STATUSES=j.statuses; TXN=(A&&A.transaction)||null; if(j.txnStatuses) TXNSTAT=j.txnStatuses; if(j.commStatuses) TXNCOMM=j.commStatuses; RA=j.roomActivity||null; OFFERS=(A&&A.offers)||[]; TOURS=(A&&A.tours)||[]; NDAS=(A&&A.ndas)||[]; INQUIRIES=(A&&A.inquiries)||[]; AGR=j.agreements||[]; ATYPES=j.agreementTypes||[]; PIPES=j.pipelines||[]; BUYERPIPES=j.buyerPipelines||[]; AUTOS=j.automations||[]; if(Array.isArray(j.markets)&&j.markets.length) MARKETS=j.markets; if(Array.isArray(j.cuisineTypes)) CUISINES=j.cuisineTypes; if(Array.isArray(j.conceptTypes)) CONCEPTS=j.conceptTypes; _ensureCuisineDL(); EXP=j.expenses||null; INVX=j.invoices||null; render(); loadPeople(); loadSellerReport(); })
   .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this deal.')+'<br><br><a href="./rrg_board.html" style="color:#000E31;font-weight:700">← Back to deals</a></div>'; });
 }
 load();

@@ -190,23 +190,7 @@ a.feat:hover{background:#f4f7fb;} a.feat:hover b{color:var(--blue);}
 <div class="wrap">
   <h1 class="pgh">Calendar</h1>
   <div class="pgs">Schedule meetings — with your contacts or anyone outside the group — and see everything in one place. Add attendee emails and send a calendar invite in a click.</div>
-  <div class="feats" id="featStrip">
-    <div class="featshd" id="featHd"><b>What your calendar can do</b><span class="sh">your whole team's schedule, at a glance — tap any tile for help</span><span class="chev" id="featChev">▾</span></div>
-    <div class="featgrid">
-      <a class="feat" href="rrg_calendar_help.html#schedule" target="_blank" rel="noopener"><span class="fic">📅</span><div><b>Schedule any meeting</b><span>Meetings, calls, tours and follow-ups — tied to a contact in the system or on their own.</span></div></a>
-      <a class="feat" href="rrg_calendar_help.html#recurring" target="_blank" rel="noopener"><span class="fic">🔁</span><div><b>Recurring meetings</b><span>Weekly, biweekly or monthly, for a set number of times — edit or cancel just one or the whole series.</span></div></a>
-      <a class="feat" href="rrg_calendar_help.html#details" target="_blank" rel="noopener"><span class="fic">📍</span><div><b>Capture the details</b><span>Type, location — address, video link or phone — and notes on every meeting.</span></div></a>
-      <a class="feat" href="rrg_calendar_help.html#attach" target="_blank" rel="noopener"><span class="fic">📎</span><div><b>Attach files to events</b><span>Keep agendas, pre-reads and documents right on the event — all the details in one place.</span></div></a>
-      <a class="feat" href="rrg_calendar_help.html#reminders" target="_blank" rel="noopener"><span class="fic">🔔</span><div><b>Reminders on every meeting</b><span>Pop-up, email or text — from ten minutes to a day before — for you and, when you’ve invited them, your guests too.</span></div></a>
-      <a class="feat" href="rrg_calendar_help.html#invites" target="_blank" rel="noopener"><span class="fic">✉️</span><div><b>Invite outside guests</b><span>Add attendees by name &amp; email and send a real calendar invite in one click.</span></div></a>
-      <a class="feat" href="rrg_calendar_help.html#meet" target="_blank" rel="noopener"><span class="fic">🎥</span><div><b>Video with Google Meet</b><span>Add a Google Meet link to any meeting in a click and connect virtually.</span></div></a>
-      <a class="feat" href="rrg_calendar_help.html#booking" target="_blank" rel="noopener"><span class="fic">🔗</span><div><b>All-in-one booking</b><span>Share a booking page — pick from several meeting types, with buffers, minimum notice, and each visitor’s own time zone. Booked slots land on your calendar and can be rescheduled or cancelled by the guest.</span></div></a>
-      <a class="feat" href="rrg_calendar_help.html#working" target="_blank" rel="noopener"><span class="fic">🏠</span><div><b>Working location &amp; hours</b><span>Let teammates see where you’re working from and what your working hours are — they also set your booking availability.</span></div></a>
-      <a class="feat" href="rrg_calendar_help.html#views" target="_blank" rel="noopener"><span class="fic">🔭</span><div><b>Four ways to look</b><span>Day, Week, Month and Agenda views — step through with ‹ Today ›.</span></div></a>
-      <a class="feat" href="rrg_calendar_help.html#scope" target="_blank" rel="noopener"><span class="fic">👥</span><div><b>See the whole team</b><span>Switch between everyone’s calendar, one person’s, or just your own meetings.</span></div></a>
-      <a class="feat" href="rrg_calendar_help.html#sync" target="_blank" rel="noopener"><span class="fic">🔄</span><div><b>Always in sync</b><span>Meetings booked from a contact’s page appear here automatically; edit or cancel anytime.</span></div></a>
-    </div>
-  </div>
+  <div data-rrg-feats="calendar"></div>
   <div class="calbar">
     <button class="btn" id="prev" title="Previous">‹</button>
     <button class="btn" id="today">Today</button>
@@ -368,7 +352,7 @@ function renderAgenda(){
   document.getElementById('cal').innerHTML=html;
   wireGrid();
 }
-function applyFeatureGates(){ var tt=document.getElementById('taskToggle'); if(tt) tt.style.display=(FEATURES.calTasks===false)?'none':''; if(FEATURES.calTasks===false) SHOWTASKS=false; var gb=document.getElementById('gcalBtn'); if(FEATURES.calSync===false && gb) gb.style.display='none'; }
+function applyFeatureGates(){ if(FEATURES.calTasks===false) SHOWTASKS=false; var gb=document.getElementById('gcalBtn'); if(FEATURES.calSync===false && gb) gb.style.display='none'; }
 function fmtWorkDays(days){ if(!days||!days.length) return ''; var isWk=[1,2,3,4,5].every(function(d){return days.indexOf(d)>=0;})&&days.indexOf(0)<0&&days.indexOf(6)<0; if(isWk&&days.length===5) return 'Mon–Fri'; var lbl=['Sun','Mon','Tue','Wed','Thu','Fri','Sat']; return [1,2,3,4,5,6,0].filter(function(d){return days.indexOf(d)>=0;}).map(function(d){return lbl[d];}).join(', '); }
 function renderWork(){
   var host=document.getElementById('workPanel'); if(!host) return;
@@ -395,7 +379,7 @@ function renderWork(){
     (w.workLocation?('<div class="wkrow"><span>Location</span><b>'+esc(w.workLocation)+'</b></div>'):'')+
     (mine?'<a class="wkedit" href="rrg_account.html">Edit</a>':'')+'</div>';
 }
-function renderLegend(){ var host=document.getElementById('legend'); if(!host) return; var seen={}, reps=[]; (APPTS||[]).forEach(function(a){ var u=a.byUser||''; if(u&&!seen[u]){ seen[u]=1; reps.push({u:u,n:a.byName||u}); } }); reps.sort(function(x,y){ return String(x.n).localeCompare(String(y.n)); }); var items=reps.map(function(r){ var c=colorForUser(r.u); return '<div class="lg"><span class="sw" style="background:'+c.bg+';border-left-color:'+c.border+'"></span>'+esc(r.n)+(r.u===ME?' (you)':'')+'</div>'; }).join(''); if(FEATURES.calTasks!==false) items+='<div class="lg"><span class="sw" style="background:#fff6e6;border-left-color:#e0a53a"></span>Tasks</div>'; if((APPTS||[]).some(function(a){return a.kind==='blast';})) items+='<div class="lg"><span class="sw" style="background:#e7edf7;border-left-color:#2c5c8f"></span>Scheduled email</div>'; if((APPTS||[]).some(function(a){return a.kind==='sentblast';})) items+='<div class="lg"><span class="sw" style="background:#eef2ee;border-left-color:#4a8a63"></span>Sent email</div>'; if(!items){ host.innerHTML=''; return; } host.innerHTML='<div class="lh">Calendars</div>'+items+'<div class="lg" style="color:var(--muted);font-size:11px;margin-top:2px">Struck-through = cancelled</div>'; }
+function renderLegend(){ var host=document.getElementById('legend'); if(!host) return; var seen={}, reps=[]; (APPTS||[]).forEach(function(a){ var u=a.byUser||''; if(u&&!seen[u]){ seen[u]=1; reps.push({u:u,n:a.byName||u}); } }); reps.sort(function(x,y){ return String(x.n).localeCompare(String(y.n)); }); var items=reps.map(function(r){ var c=colorForUser(r.u); return '<div class="lg"><span class="sw" style="background:'+c.bg+';border-left-color:'+c.border+'"></span>'+esc(r.n)+(r.u===ME?' (you)':'')+'</div>'; }).join(''); if(SHOWTASKS) items+='<div class="lg"><span class="sw" style="background:#fff6e6;border-left-color:#e0a53a"></span>Tasks</div>'; if((APPTS||[]).some(function(a){return a.kind==='blast';})) items+='<div class="lg"><span class="sw" style="background:#e7edf7;border-left-color:#2c5c8f"></span>Scheduled email</div>'; if((APPTS||[]).some(function(a){return a.kind==='sentblast';})) items+='<div class="lg"><span class="sw" style="background:#eef2ee;border-left-color:#4a8a63"></span>Sent email</div>'; if(!items){ host.innerHTML=''; return; } host.innerHTML='<div class="lh">Calendars</div>'+items+'<div class="lg" style="color:var(--muted);font-size:11px;margin-top:2px">Struck-through = cancelled</div>'; }
 function renderMini(){
   var host=document.getElementById('mini'); if(!host) return;
   var y=CUR.getFullYear(), mo=CUR.getMonth();
@@ -568,7 +552,6 @@ document.getElementById('del').addEventListener('click',del);
 document.getElementById('sendinv').addEventListener('click',function(){ if(EDIT) sendInvite(EDIT.id,false); });
 document.getElementById('addatt').addEventListener('click',function(){ var box=document.getElementById('f_atts'); box.insertAdjacentHTML('beforeend',attRow({})); wireAttX(); });
 document.getElementById('modal').addEventListener('click',function(e){ if(e.target===this){ /* stay open */ } });
-(function(){ var fs=document.getElementById('featStrip'), hd=document.getElementById('featHd'); if(!fs||!hd) return; try{ if(localStorage.getItem('rrg_calfeats')!=='1') fs.classList.add('collapsed'); }catch(e){ fs.classList.add('collapsed'); } hd.addEventListener('click',function(){ var col=fs.classList.toggle('collapsed'); try{ localStorage.setItem('rrg_calfeats', col?'0':'1'); }catch(e){} }); })();
 /* ---- Google Calendar two-way sync (uses the existing /api/google/sync endpoints) ---- */
 var _GCAL={state:'off'};
 function gcalStatus(){ var btn=document.getElementById('gcalBtn'); if(!btn) return; if(FEATURES.calSync===false){ btn.style.display='none'; _GCAL.state='off'; return; } fetch('/api/google/sync/status',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(!j||!j.configured){ btn.style.display='none'; _GCAL.state='off'; return; } btn.style.display=''; btn.classList.remove('ready','warn'); if(!j.connected){ _GCAL.state='disconnected'; btn.title='Connect Google on your Account page to sync'; btn.classList.add('warn'); } else if(!j.hasCalendar){ _GCAL.state='nocal'; btn.title='Calendar permission not granted — Reconnect on your Account page'; btn.classList.add('warn'); } else { _GCAL.state='ready'; btn.title='Two-way sync with Google Calendar'+(j.email?(' ('+j.email+')'):''); btn.classList.add('ready'); } }).catch(function(){ btn.style.display='none'; }); }
@@ -576,7 +559,6 @@ function gcalSync(){ var btn=document.getElementById('gcalBtn'), bar=document.ge
 document.getElementById('gcalBtn').addEventListener('click',gcalSync);
 document.getElementById('attFile').addEventListener('change',function(){ var f=this.files&&this.files[0]; this.value=''; if(!f||!EDIT||!EDIT.id) return; var m=document.getElementById('mmsg'); if(f.size>20*1024*1024){ m.className='msg err'; m.textContent='File too large (max 20 MB).'; return; } var rd=new FileReader(); rd.onload=function(){ m.className='msg'; m.textContent='Uploading…'; fetch('/api/appointments/'+encodeURIComponent(EDIT.id)+'/files',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({filename:f.name,dataB64:rd.result})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ EDIT.files=j.files; m.textContent=''; renderAtt(); load(); } else { m.className='msg err'; m.textContent=(j&&j.error)||'Upload failed.'; } }).catch(function(){ m.className='msg err'; m.textContent='Could not reach the server.'; }); }; rd.readAsDataURL(f); });
 gcalStatus();
-(function(){ var tb=document.getElementById('taskToggle'); if(!tb) return; function sync(){ tb.classList.toggle('on',SHOWTASKS); } sync(); tb.addEventListener('click',function(){ SHOWTASKS=!SHOWTASKS; try{ localStorage.setItem('rrg_cal_showtasks',SHOWTASKS?'1':'0'); }catch(e){} sync(); render(); }); })();
 function fillAutos(){ var sel=document.getElementById("f_auto"); if(!sel) return; var cur=sel.value; sel.innerHTML='<option value="">\u2014 none \u2014</option>'+AUTOS.map(function(x){return '<option value="'+esc(x.id)+'">'+esc(x.name)+'</option>';}).join(""); sel.value=cur; }
 fetch("/api/automations",{credentials:"same-origin"}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ AUTOS=(j.automations||[]).map(function(x){return {id:x.id,name:x.name||"Automation"};}); fillAutos(); } }).catch(function(){});
 try{ fetch('/api/me/bookings-seen',{method:'POST',credentials:'same-origin'}); }catch(e){}
@@ -623,4 +605,5 @@ try{ fetch('/api/me/bookings-seen',{method:'POST',credentials:'same-origin'}); }
 })();
 load();
 </script>
+<script src="/rrg_features.js"></script>
 </body></html>

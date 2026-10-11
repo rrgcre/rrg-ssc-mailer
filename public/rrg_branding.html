@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>FullServe — Branding & Appearance</title>
+<title>Lavano — Branding & Appearance</title>
 <style>
 :root{--bg:#eef1f7;--card:#fff;--line:#e3e8f1;--ink:#14213d;--dim:#66738f;--faint:#93a0ba;--navy:#16346e;--blue:#2c5c8f;--teal:#12a594;--green:#1f8a5b;--amber:#B7791F;--red:#DA2B1F;}
 *{box-sizing:border-box;} html,body{margin:0;padding:0;background:var(--bg);}
@@ -51,7 +51,7 @@ input.txt.sm{padding:9px 12px;font-size:13px;}
     <span class="cs">The product name shown in the browser tab on every page. Change it here to rebrand the whole app.</span>
     <div class="state" id="appnState">Loading…</div>
     <div class="inrow">
-      <input type="text" id="appName" class="txt" maxlength="60" placeholder="FullServe">
+      <input type="text" id="appName" class="txt" maxlength="60" placeholder="Lavano">
       <button class="btn primary" onclick="saveAppName()">Save name</button>
       <button class="btn ghost" onclick="resetAppName()">Reset to default</button>
       <span id="appnMsg" class="msg"></span>
@@ -134,7 +134,7 @@ input.txt.sm{padding:9px 12px;font-size:13px;}
 function post(url,body){ return fetch(url,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})}).then(function(r){return r.json();}); }
 function gate(){ document.getElementById('root').innerHTML='<div class="gate"><h2>Admins only</h2>Ask an administrator to manage branding.</div>'; }
 
-function _appnState(j){ var s=document.getElementById('appnState'); if(s) s.textContent = j.isDefault ? ('Using the default name ('+(j.name||'FullServe')+').') : ('Custom name: '+j.name+'.'); }
+function _appnState(j){ var s=document.getElementById('appnState'); if(s) s.textContent = j.isDefault ? ('Using the default name ('+(j.name||'Lavano')+').') : ('Custom name: '+j.name+'.'); }
 function saveAppName(){ var v=document.getElementById('appName').value.trim(), m=document.getElementById('appnMsg'); m.textContent='Saving…'; post('/api/admin/app-name',{name:v}).then(function(j){ if(j&&j.ok){ m.textContent='Saved ✓ — reload to see the tab title.'; _appnState(j); } else { m.textContent=(j&&j.error)||'Failed'; } }); }
 function resetAppName(){ post('/api/admin/app-name',{name:''}).then(function(j){ if(j&&j.ok){ document.getElementById('appName').value=j.name||''; document.getElementById('appnMsg').textContent='Reset ✓'; _appnState(j); } }); }
 

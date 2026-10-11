@@ -43,9 +43,9 @@ h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
 .foot{max-width:1320px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
 .cowho{display:flex;align-items:center;gap:10px;} .cowhotext{min-width:0;}
 .kico{width:30px;height:30px;flex:none;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;background:#6b7488;}
-.k-agreement{background:#23496f;} .k-valuation{background:#1f8a5b;} .k-marketingpack{background:#b9761a;} .k-file{background:#5a3d9e;} .k-ssc{background:#0b7285;} .k-loi{background:#b5364f;} .k-seller{background:#4b6b2f;} .k-firmwide{background:#8a5a12;} .k-lease{background:#14746f;} .k-interview{background:#7a4fd0;}
+.k-agreement{background:#23496f;} .k-valuation{background:#1f8a5b;} .k-marketingpack{background:#b9761a;} .k-file{background:#5a3d9e;} .k-ssc{background:#0b7285;} .k-loi{background:#b5364f;} .k-seller{background:#4b6b2f;} .k-firmwide{background:#8a5a12;} .k-lease{background:#14746f;} .k-interview{background:#7a4fd0;} .k-questionnaire{background:#3d6b8a;}
 .tp{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;padding:3px 9px;border-radius:999px;background:#eef2fb;color:#23496f;border:1px solid #d3ddf3;white-space:nowrap;}
-.tp.t-valuation{background:#eaf5ef;color:#1f8a5b;border-color:#c7e6d6;} .tp.t-marketingpack{background:#fdf0e6;color:#b5641a;border-color:#f4d8bd;} .tp.t-file{background:#efe9f7;color:#5a3d9e;border-color:#d9cdf0;} .tp.t-ssc{background:#e6f4f7;color:#0b7285;border-color:#bfe3ea;} .tp.t-loi{background:#fdecef;color:#b5364f;border-color:#f4ccd5;} .tp.t-seller{background:#eef5e6;color:#4b6b2f;border-color:#d3e5bf;}
+.tp.t-valuation{background:#eaf5ef;color:#1f8a5b;border-color:#c7e6d6;} .tp.t-marketingpack{background:#fdf0e6;color:#b5641a;border-color:#f4d8bd;} .tp.t-file{background:#efe9f7;color:#5a3d9e;border-color:#d9cdf0;} .tp.t-ssc{background:#e6f4f7;color:#0b7285;border-color:#bfe3ea;} .tp.t-loi{background:#fdecef;color:#b5364f;border-color:#f4ccd5;} .tp.t-seller{background:#eef5e6;color:#4b6b2f;border-color:#d3e5bf;} .tp.t-lease{background:#e6f4f2;color:#14746f;border-color:#bfe3de;} .tp.t-interview{background:#f1ecfb;color:#7a4fd0;border-color:#ddd0f4;} .tp.t-questionnaire{background:#e9f1f7;color:#3d6b8a;border-color:#c9dbe8;}
 .st{display:inline-block;font-size:10px;font-weight:800;padding:3px 9px;border-radius:999px;background:#eef2fb;color:#23496f;border:1px solid #d3ddf3;white-space:nowrap;}
 .st.s-built,.st.s-active,.st.s-fullyexecuted{background:#eaf5ef;color:#1f8a5b;border-color:#c7e6d6;}
 .st.s-pending,.st.s-awaiting,.st.s-outforsigs,.st.s-expiringsoon,.st.s-draft{background:#fdf0e6;color:#b5641a;border-color:#f4d8bd;}
@@ -105,20 +105,7 @@ h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
   <div class="sub">Every document in one place — agreements, LOIs, valuations, marketing packs, site criteria, firm-wide forms, and anything you upload. Filter by type, sort any column, search, or add your own.</div>
 </div></div>
 <div class="wrap">
-  <div class="feats" id="docFeatStrip">
-    <div class="featshd" id="docFeatHd"><b>What this section does</b><span class="sh">every document your firm produces or collects, in one place</span><span class="chev">▾</span></div>
-    <div class="featgrid">
-      <div class="feat"><span class="fic">📚</span><div><b>One library for everything</b><span>Agreements, LOIs, valuations (BOVs), marketing packs, site criteria, firm-wide forms and your uploads — all in a single searchable list.</span></div></div>
-      <div class="feat"><span class="fic">🗂️</span><div><b>Filter by type</b><span>Jump straight to just the agreements, just the valuations, or whatever you need with one tab.</span></div></div>
-      <div class="feat"><span class="fic">🔎</span><div><b>Search &amp; sort</b><span>Find any document by name and sort any column to surface what matters right now.</span></div></div>
-      <div class="feat"><span class="fic">🔗</span><div><b>Linked to the record</b><span>Every document ties back to its contact, company or listing, so the whole relationship is one click away.</span></div></div>
-      <div class="feat"><span class="fic">✍️</span><div><b>Generated &amp; e-signed</b><span>Agreements and LOIs you generate e-sign and file themselves back to the record automatically.</span></div></div>
-      <div class="feat"><span class="fic">📊</span><div><b>Valuations &amp; packs land here</b><span>Every Broker's Opinion of Value and marketing pack you build is collected here as you go.</span></div></div>
-      <div class="feat"><span class="fic">🏢</span><div><b>Firm-wide forms</b><span>Blank agreements and forms the whole team shares — published once, available to everyone.</span></div></div>
-      <div class="feat"><span class="fic">⬆️</span><div><b>Upload your own</b><span>Drop in any file up to 25 MB and file it under the right type — it shows up in the list instantly.</span></div></div>
-    </div>
-  </div>
-  <script>(function(){ var fs=document.getElementById('docFeatStrip'), hd=document.getElementById('docFeatHd'); if(!fs||!hd) return; try{ if(localStorage.getItem('rrg_docfeats')!=='1') fs.classList.add('collapsed'); }catch(e){ fs.classList.add('collapsed'); } hd.addEventListener('click',function(){ var col=fs.classList.toggle('collapsed'); try{ localStorage.setItem('rrg_docfeats', col?'0':'1'); }catch(e){} }); })();</script>
+  <div data-rrg-feats="documents"></div>
   <div class="doctabs" id="dtabs"></div>
   <div class="card">
     <div class="hd lhd"><b>Documents</b><span class="cnt" id="cnt"></span><button class="newbtn" onclick="openUpload()" title="Max 25 MB per file">⬆ Upload</button><button type="button" id="docSavedBtn" class="newbtn" style="margin-left:8px;background:#fff;color:var(--navy,#000E31);border-color:#cfd6e2">★ Saved</button><span class="uphint" style="margin-left:8px;font-size:11px;color:#9aa3b2;align-self:center;white-space:nowrap">25 MB max</span><div class="searchwrap" style="margin-left:8px"><svg class="searchic" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"></circle><line x1="12.8" y1="12.8" x2="17.5" y2="17.5"></line></svg><input id="search" placeholder="Search documents…" oninput="applyFilter()" autocomplete="off"><button type="button" class="searchx" id="searchx" title="Clear search" onclick="var s=document.getElementById('search');s.value='';applyFilter();s.focus();">×</button></div></div>
@@ -127,7 +114,7 @@ h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
       <select id="fOwner" class="fbsel" onchange="applyFilter()"><option value="">All owners</option></select>
       <select id="fDocType" class="fbsel" onchange="applyFilter()"><option value="">All document types</option></select>
       <select id="fCreated" class="fbsel" onchange="applyFilter()"><option value="">Any time</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option><option value="365">Last 12 months</option><option value="ytd">This year</option></select>
-      <button type="button" class="fbtoggle" id="fbSystem" onclick="toggleSystem()" title="Hide records that flow in automatically from other tools (agreements, LOIs, valuations, marketing packs, site criteria, seller screening) — show only uploaded files and firm-wide forms">Hide system docs</button>
+      <button type="button" class="fbtoggle" id="fbSystem" onclick="toggleSystem()" title="Hide records generated by other tools (agreements, LOIs, valuations, marketing packs, lease abstracts, site criteria, seller screening, seller interviews, questionnaires) — show only uploaded files and firm-wide forms">Hide system docs</button>
       <button type="button" class="fbclear" id="fbClear" onclick="clearFilters()" style="display:none">Clear filters</button>
     </div>
     <style>.listloading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:72px 20px;color:#6b7488;font-size:14px;font-weight:600;gap:15px}.listspin{width:38px;height:38px;border-radius:50%;border:3px solid #e6e9f0;border-top-color:#DA2B1F;animation:listspin .8s linear infinite}@keyframes listspin{to{transform:rotate(360deg)}}</style>
@@ -178,10 +165,11 @@ function cmp(a,b){ return RRGList.cmp(a,b); }
 
 var DOCS=[], CTL=null, CURTYPE=null, FILTER='all', IS_ADMIN=false, HIDE_SYS=false;
 try{ HIDE_SYS = localStorage.getItem('docs_hidesys')==='1'; }catch(e){}
-var SYSTEM_KINDS={agreement:1,loi:1,valuation:1,marketingpack:1,ssc:1,seller:1,interview:1};
+// "System" = records generated by another tool (they flow in here automatically); uploaded files and firm-wide forms are not.
+var SYSTEM_KINDS={agreement:1,loi:1,valuation:1,marketingpack:1,ssc:1,seller:1,interview:1,lease:1,questionnaire:1};
 function toggleSystem(){ HIDE_SYS=!HIDE_SYS; try{ localStorage.setItem('docs_hidesys',HIDE_SYS?'1':'0'); }catch(e){} applyFilter(); }
-var TYPES=[['all','All'],['agreement','Agreements'],['loi','LOIs'],['valuation','Valuations'],['marketingpack','Marketing Packs'],['ssc','Site Criteria'],['seller','Seller Screening'],['file','Files'],['firmwide','Firm-wide']];
-var KICON={agreement:'§',loi:'✎',valuation:'▤',marketingpack:'❏',ssc:'◎',seller:'⊚',file:'▦',firmwide:'★',lease:'⌂',interview:'✍'};
+var TYPES=[['all','All'],['agreement','Agreements'],['loi','LOIs'],['valuation','Valuations'],['marketingpack','Marketing Packs'],['lease','Lease Abstracts'],['ssc','Site Criteria'],['seller','Seller Screening'],['interview','Seller Interviews'],['questionnaire','Questionnaires'],['file','Files'],['firmwide','Firm-wide']];
+var KICON={agreement:'§',loi:'✎',valuation:'▤',marketingpack:'❏',ssc:'◎',seller:'⊚',file:'▦',firmwide:'★',lease:'⌂',interview:'✍',questionnaire:'☰'};
 var RELICON={contact:'◑',company:'▦',listing:'◆'};
 
 function _muted(){ return '<span class="meta">—</span>'; }
@@ -208,6 +196,9 @@ var COLUMNS={
   marketingpack:[ { label:'Business', sort:_s('title'), cell:cName }, { label:'Market', sort:_s('companyName'), cell:function(d){return cText(d.companyName);} }, { label:'Created', sort:_s('createdAt'), cell:function(d){return cDate(d.createdAt);} }, { label:'Status', sort:_s('status'), cell:cStatus }, C_ACT ],
   ssc:[ { label:'Concept', sort:_s('title'), cell:cName }, { label:'Market', sort:_s('companyName'), cell:function(d){return cText(d.companyName);} }, { label:'Rep', sort:_s('owner'), cell:cOwner }, { label:'Submitted', sort:_s('createdAt'), cell:function(d){return cDate(d.createdAt);} }, { label:'Highlights', sort:_s('status'), cell:function(d){return cText(d.status);} }, C_ACT ],
   seller:[ { label:'Concept', sort:_s('title'), cell:cName }, { label:'Market', sort:_s('companyName'), cell:function(d){return cText(d.companyName);} }, { label:'Rep', sort:_s('owner'), cell:cOwner }, { label:'Started', sort:_s('createdAt'), cell:function(d){return cDate(d.createdAt);} }, { label:'Status', sort:_s('status'), cell:function(d){return cText(d.status);} }, C_ACT ],
+  lease:[ { label:'Business', sort:_s('title'), cell:cName }, { label:'Format', sort:_s('typeLabel'), cell:cType }, { label:'Linked to', sort:_s('companyName'), cell:cLinked }, { label:'Owner', sort:_s('owner'), cell:cOwner }, { label:'Created', sort:_s('createdAt'), cell:function(d){return cDate(d.createdAt);} }, { label:'Status', sort:_s('status'), cell:cStatus }, C_ACT ],
+  interview:[ { label:'Business', sort:_s('title'), cell:cName }, { label:'Linked to', sort:_s('companyName'), cell:cLinked }, { label:'Recorded by', sort:_s('owner'), cell:cOwner }, { label:'Recorded', sort:_s('createdAt'), cell:function(d){return cDate(d.createdAt);} }, { label:'Status', sort:_s('status'), cell:function(d){return cText(d.status);} }, C_ACT ],
+  questionnaire:[ { label:'Business', sort:_s('title'), cell:cName }, { label:'Linked to', sort:_s('companyName'), cell:cLinked }, { label:'Rep', sort:_s('owner'), cell:cOwner }, { label:'Started', sort:_s('createdAt'), cell:function(d){return cDate(d.createdAt);} }, { label:'Status', sort:_s('status'), cell:function(d){return cText(d.status);} }, C_ACT ],
   file:[ C_NAME, { label:'Document type', sort:_s('docType'), cell:cDocType }, { label:'Relates to', sort:_s('companyName'), cell:cLinked }, { label:'Uploaded by', sort:_s('owner'), cell:cOwner }, { label:'Date', sort:_s('createdAt'), cell:function(d){return cDate(d.createdAt);} }, { label:'Notes', sort:_s('status'), cell:function(d){return cText(d.status);} }, C_ACT ],
   firmwide:[ C_NAME, { label:'Shelf', sort:_s('category'), cell:function(d){return '<span class="tp t-file">'+esc(d.category||'Document')+'</span>';} }, { label:'Added by', sort:_s('owner'), cell:cOwner }, { label:'Date', sort:_s('createdAt'), cell:function(d){return cDate(d.createdAt);} }, C_ACT ]
 };
@@ -216,10 +207,13 @@ function distinctOwners(){ var seen={},out=[]; DOCS.forEach(function(d){ var o=d
 function distinctDocTypes(){ var seen={},out=[]; DOCS.forEach(function(d){ if(d.kind==='file'&&d.docType&&!seen[d.docType]){seen[d.docType]=1;out.push(d.docType);} }); return out.sort(); }
 
 function fillFilterBar(){
-  var ow=document.getElementById('fOwner'); if(ow){ var cur=ow.value; ow.innerHTML='<option value="">All owners</option>'+distinctOwners().map(function(o){return '<option'+(o===cur?' selected':'')+'>'+esc(o)+'</option>';}).join(''); }
-  var dt=document.getElementById('fDocType'); if(dt){ var curd=dt.value; var ts=distinctDocTypes(); dt.innerHTML='<option value="">All document types</option>'+ts.map(function(o){return '<option'+(o===curd?' selected':'')+'>'+esc(o)+'</option>';}).join(''); dt.style.display=ts.length?'':'none'; if(!ts.length) dt.value=''; }
+  var ow=document.getElementById('fOwner'); if(ow){ var cur=ow.value; var _os=distinctOwners(); if(cur&&_os.indexOf(cur)<0) _os.push(cur); ow.innerHTML='<option value="">All owners</option>'+_os.map(function(o){return '<option'+(o===cur?' selected':'')+'>'+esc(o)+'</option>';}).join(''); }
+  var dt=document.getElementById('fDocType'); if(dt){ var curd=dt.value; var ts=distinctDocTypes(); if(curd&&ts.indexOf(curd)<0) ts.push(curd); dt.innerHTML='<option value="">All document types</option>'+ts.map(function(o){return '<option'+(o===curd?' selected':'')+'>'+esc(o)+'</option>';}).join(''); dt.style.display=ts.length?'':'none'; if(!ts.length) dt.value=''; }
 }
 function createdOk(iso,mode){ if(!mode) return true; if(!iso) return false; var t=new Date(iso).getTime(); if(isNaN(t)) return false; if(mode==='ytd'){ var jan=new Date(new Date().getFullYear(),0,1).getTime(); return t>=jan; } var days=parseInt(mode,10); if(!days) return true; return t>=Date.now()-days*86400000; }
+function _selVal(id){ var el=document.getElementById(id); return (el&&el.value)||''; }
+// Set a filter select, adding the option first when it isn't there yet (a saved view can be applied before the list has loaded).
+function _setSel(id,v){ var el=document.getElementById(id); if(!el) return; v=String(v||''); if(v&&![].some.call(el.options,function(o){ return o.value===v; })){ var o=document.createElement('option'); o.value=v; o.textContent=v; el.appendChild(o); } el.value=v; }
 function clearFilters(){ var ids=['fOwner','fDocType','fCreated']; ids.forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; }); applyFilter(); }
 
 function setType(k){ if(FILTER===k) return; FILTER=k; applyFilter(); }
@@ -274,15 +268,19 @@ async function bulkDeleteDocs(ids, done){
   var docs=ids.map(function(id){ return DOCS.find(function(x){return x.id===id;}); }).filter(Boolean);
   var deletable=docs.filter(function(d){ if(d.kind==='firmwide') return IS_ADMIN; return d.kind==='file'||d.deleteUrl; });
   var skipped=docs.length-deletable.length;
-  if(!deletable.length){ alert('None of the selected items can be deleted here — they’re records managed in their own module (agreements, valuations, marketing packs, screening calls). Open the item to delete it at its source.'); if(done)done(); return; }
-  var prompt='Delete '+deletable.length+' document'+(deletable.length===1?'':'s')+'?'+(skipped?(' '+skipped+' selected item'+(skipped===1?'':'s')+' can’t be deleted here and will be skipped.'):'')+' This cannot be undone.';
+  // Only two kinds can't be deleted from here: a lease abstract's filed PDF copy (it goes when the lease
+  // abstract itself is deleted) and firm-wide forms for non-admins.
+  var _why=[]; if(docs.some(function(d){ return d.kind==='lease'&&d.variant==='pdf'; })) _why.push('a lease abstract’s PDF copy is removed by deleting the lease abstract itself'); if(!IS_ADMIN&&docs.some(function(d){ return d.kind==='firmwide'; })) _why.push('firm-wide forms can only be removed by an admin');
+  if(!deletable.length){ alert('None of the selected items can be deleted here'+(_why.length?(' — '+_why.join('; ')):'')+'.'); if(done)done(); return; }
+  var _src=deletable.some(function(d){ return d.kind!=='file'&&d.kind!=='firmwide'; });
+  var prompt='Delete '+deletable.length+' document'+(deletable.length===1?'':'s')+'?'+(_src?' Records created in other tools (agreements, LOIs, valuations, marketing packs, lease abstracts, site criteria, screening calls, interviews, questionnaires) are deleted at their source too.':'')+(skipped?(' '+skipped+' selected item'+(skipped===1?'':'s')+' can’t be deleted here and will be skipped'+(_why.length?(' ('+_why.join('; ')+')'):'')+'.'):'')+' This cannot be undone.';
   var ok=window.rrgConfirm?(await rrgConfirm(prompt,{title:'Delete documents?',okText:'Delete',danger:true})):confirm(prompt);
   if(!ok){ if(done)done(); return; }
-  var n=0;
-  for(var i=0;i<deletable.length;i++){ var d=deletable[i]; var url=d.deleteUrl||('/api/files/'+encodeURIComponent(d.id)); try{ var r=await fetch(url,{method:'DELETE',credentials:'same-origin'}); var j=await r.json(); if(j&&j.ok) n++; }catch(e){} }
+  var n=0, denied=0;
+  for(var i=0;i<deletable.length;i++){ var d=deletable[i]; var url=d.deleteUrl||('/api/files/'+encodeURIComponent(d.id)); try{ var r=await fetch(url,{method:'DELETE',credentials:'same-origin'}); var j=await r.json(); if(j&&j.ok) n++; else if(r.status===403) denied++; }catch(e){} }
   if(done) done();
   load();
-  var m='Deleted '+n+' document'+(n===1?'':'s')+(skipped?(' · '+skipped+' skipped'):'')+' ✓';
+  var m='Deleted '+n+' document'+(n===1?'':'s')+(skipped?(' · '+skipped+' skipped'):'')+(denied?(' · '+denied+' not permitted (not yours, or no delete permission)'):'')+' ✓';
   if(window.rrgToast) rrgToast(m); else alert(m);
 }
 async function delFile(id){ var d=DOCS.find(function(x){return x.id===id;}); if(!d) return; var url=d.deleteUrl||('/api/files/'+encodeURIComponent(id)); var msg; if(d.kind==='seller'){ msg='Delete the call "'+(d.title||'this call')+'"? This permanently removes the seller screening and its answers. Cannot be undone.'; } else if(d.kind==='interview'){ msg='Delete "'+(d.title||'this interview')+'"? This permanently removes the seller interview and its transcript and debrief. Cannot be undone.'; } else if(d.kind==='firmwide'){ msg='Remove the firm-wide form "'+(d.title||'this form')+'"? It will disappear for the whole team. Cannot be undone.'; } else { msg='Remove "'+(d.title||'this file')+'"? This deletes the uploaded file for everyone.'; } if(!await rrgConfirm(msg)) return;
@@ -318,10 +316,14 @@ function doUpload(){
 load();
 try{ if(window.RRGViews){ RRGViews.attach({ list:'documents', button:document.getElementById('docSavedBtn'),
   isAdmin:function(){ return !!IS_ADMIN; },
-  hasFilters:function(){ var q=(document.getElementById('search')||{}).value||''; return FILTER!=='all' || !!q; },
-  getState:function(){ return { filter:FILTER, q:(document.getElementById('search')||{}).value||'' }; },
-  applyState:function(pl){ pl=pl||{}; FILTER=pl.filter||'all'; var se=document.getElementById('search'); if(se) se.value=pl.q||''; if(typeof renderTabs==='function') renderTabs(); applyFilter(); } }); } }catch(e){}
+  hasFilters:function(){ var q=(document.getElementById('search')||{}).value||''; return FILTER!=='all' || !!q || !!_selVal('fOwner') || !!_selVal('fDocType') || !!_selVal('fCreated') || HIDE_SYS; },
+  getState:function(){ return { filter:FILTER, q:(document.getElementById('search')||{}).value||'', owner:_selVal('fOwner'), docType:_selVal('fDocType'), created:_selVal('fCreated'), hideSys:!!HIDE_SYS }; },
+  applyState:function(pl){ pl=pl||{}; FILTER=pl.filter||'all'; var se=document.getElementById('search'); if(se) se.value=pl.q||''; _setSel('fOwner',pl.owner); _setSel('fDocType',pl.docType); _setSel('fCreated',pl.created);
+    // Views saved before the filters were remembered carry no hideSys — leave the toggle as it is for those.
+    if(typeof pl.hideSys==='boolean'){ HIDE_SYS=pl.hideSys; try{ localStorage.setItem('docs_hidesys',HIDE_SYS?'1':'0'); }catch(e){} }
+    if(typeof renderTabs==='function') renderTabs(); applyFilter(); } }); } }catch(e){}
 window.addEventListener('pageshow',function(e){ if(e.persisted) load(); });
 </script>
+<script src="/rrg_features.js"></script>
 </body>
 </html>

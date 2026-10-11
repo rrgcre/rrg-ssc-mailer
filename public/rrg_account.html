@@ -222,7 +222,7 @@ input.f:disabled{background:var(--wash);color:var(--soft);}
     <div id="gaddBody" style="display:none">
       <label class="fl" style="display:flex;align-items:center;gap:9px;cursor:pointer;font-weight:400;text-transform:none;letter-spacing:0;font-size:14px"><input type="checkbox" id="gaddEnabled" style="width:auto"> <b style="font-weight:700">Turn on Gmail add-to-book</b></label>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
-        <div><label class="fl">Gmail label to watch</label><input class="f" id="gaddLabel" placeholder="FullServe"><div class="hint" style="font-size:11.5px;color:#8a93a8;margin-top:4px">Create this label in Gmail once, then apply it to any email. (Sub-labels like <b>FullServe/Add</b> work too.)</div></div>
+        <div><label class="fl">Gmail label to watch</label><input class="f" id="gaddLabel" placeholder="Lavano"><div class="hint" style="font-size:11.5px;color:#8a93a8;margin-top:4px">Create this label in Gmail once, then apply it to any email. (Sub-labels like <b>Lavano/Add</b> work too.)</div></div>
         <div><label class="fl">Check every</label><select class="f" id="gaddInterval"><option value="5">5 minutes</option><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="60">1 hour</option><option value="240">4 hours</option></select></div>
         <div><label class="fl">Tag new contacts</label><input class="f" id="gaddTag" placeholder="Gmail intake"><div class="hint" style="font-size:11.5px;color:#8a93a8;margin-top:4px">So you can filter and review what came in.</div></div>
         <div><label class="fl">⟳ Start this automation</label><select class="f" id="gaddAuto"><option value="">— none (just add them) —</option></select><div class="hint" style="font-size:11.5px;color:#8a93a8;margin-top:4px">Owns the follow-up (task, email…). Build these in <b>Settings → Automations</b>.</div></div>
@@ -503,10 +503,10 @@ function loadGadd(){
     if(!j||!j.ok){ st.textContent='Could not load these settings.'; return; }
     if(!j.configured){ st.innerHTML='<span style="color:#a05a00">Gmail isn’t set up on the server yet — an admin needs to add the Google credentials.</span>'; body.style.display='none'; return; }
     if(!j.connected){ st.innerHTML='Connect your Gmail on the card above first, then this turns on.'; body.style.display='none'; return; }
-    st.innerHTML='Connected. Label emails <b>'+esc(j.label||'FullServe')+'</b> in Gmail and they’ll appear in your book.';
+    st.innerHTML='Connected. Label emails <b>'+esc(j.label||'Lavano')+'</b> in Gmail and they’ll appear in your book.';
     body.style.display='';
     document.getElementById('gaddEnabled').checked=!!j.enabled;
-    document.getElementById('gaddLabel').value=j.label||'FullServe';
+    document.getElementById('gaddLabel').value=j.label||'Lavano';
     document.getElementById('gaddInterval').value=String(j.intervalMin||15);
     document.getElementById('gaddTag').value=j.tag||'Gmail intake';
     var sel=document.getElementById('gaddAuto'); sel.innerHTML='<option value="">— none (just add them) —</option>'+(j.automations||[]).map(function(a){return '<option value="'+esc(a.id)+'">'+esc(a.name||'Automation')+'</option>';}).join(''); sel.value=j.automationId||'';

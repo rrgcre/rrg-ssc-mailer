@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>FullServe — Pipelines</title>
+<title>Lavano — Pipelines</title>
 <style>
 :root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;--blue:#2f6fe0;}
 *{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
@@ -84,7 +84,7 @@ function api(m,u,b){return fetch(u,{method:m,credentials:'same-origin',headers:b
 function load(){
   api('GET','/api/pipelines').then(function(j){
     IS_ADMIN=!!j.isAdmin; PIPES=(j.pipelines||[]); AUTOS=(j.automations||[]);
-    if(!IS_ADMIN){ document.getElementById('root').innerHTML='<div class="notadmin">Pipeline settings are admin-only. Ask a FullServe administrator if you need a stage added or a target changed.</div>'; return; }
+    if(!IS_ADMIN){ document.getElementById('root').innerHTML='<div class="notadmin">Pipeline settings are admin-only. Ask a Lavano administrator if you need a stage added or a target changed.</div>'; return; }
     api('GET','/api/admin/pipeline-map').then(function(m){
       if(m&&m.ok){ MAP=m.map||{}; MAP_CATS=m.categories||[]; }
       if(CUR && !PIPES.some(function(p){return p.id===CUR;})) CUR=null;
@@ -157,7 +157,7 @@ function renderEditor(){
       +'</div>'
       +'<div class="stgh"><b>Stages</b><span class="c" id="stgCount"></span></div>'
       +'<table class="stg"><thead><tr><th>#</th><th>Stage name</th><th>Target days</th><th>Likelihood %</th><th>On enter (automation)</th><th>On leave (automation)</th><th></th></tr></thead><tbody id="stgBody"></tbody></table>'
-      +'<div class="days-note">Target days = how long a deal should stay in that stage before FullServe flags it as stalled (0 = no target). Likelihood % = the chance a deal in that stage closes — set it higher the further down the funnel it sits. It drives weighted pipeline value and shows on the board.</div>'
+      +'<div class="days-note">Target days = how long a deal should stay in that stage before Lavano flags it as stalled (0 = no target). Likelihood % = the chance a deal in that stage closes — set it higher the further down the funnel it sits. It drives weighted pipeline value and shows on the board.</div>'
       +'<div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="addStg">+ Add stage</button><button class="btn" id="rampWin" type="button" title="Fill in an increasing likelihood across the stages — you can tweak each after">↗ Auto-fill likelihood</button></div>'
     +'</div>';
   renderStages(stages);

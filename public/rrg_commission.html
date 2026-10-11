@@ -68,6 +68,7 @@ tfoot td{font-weight:800;color:var(--navy);border-top:2px solid var(--line);back
   <a class="back" href="./index.html">← Dashboard</a>
 </div></div>
 <div class="wrap">
+  <div data-rrg-feats="commission"></div>
   <div class="ctrls">
     <span class="who" id="who"></span>
     <select id="repSel" style="display:none"></select>
@@ -106,20 +107,21 @@ function render(d){
   var closed=deals.filter(function(x){return x.closed;});
   var open=deals.filter(function(x){return !x.closed;});
 
+  var per=CSTATE.year?(' · '+esc(CSTATE.year)):'';
   var tiles=''+
   '<div class="tiles">'+
-    '<div class="tile hero"><div class="k">Your net — earned</div><div class="v">'+money(t.net)+'</div><div class="s">'+ (t.closedDeals||0) +' closed deal'+((t.closedDeals===1)?'':'s')+' · '+(d.split||0)+'% split</div></div>'+
-    '<div class="tile owe"><div class="k">Owed to you</div><div class="v">'+money(sumOwed(closed))+'</div><div class="s">2nd-half &amp; unpaid</div></div>'+
-    '<div class="tile paid"><div class="k">Paid to you</div><div class="v">'+money(sumPaid(closed))+'</div><div class="s">received</div></div>'+
-    '<div class="tile"><div class="k">Your net — pipeline</div><div class="v">'+money(t.netOpen)+'</div><div class="s">'+(t.openDeals||0)+' open</div></div>'+
-    '<div class="tile"><div class="k">Firm GCI</div><div class="v">'+money(t.gci)+'</div><div class="s">closed, gross</div></div>'+
-    '<div class="tile"><div class="k">Referrals + co-broke</div><div class="v">'+money((t.referrals||0)+(t.coBroke||0))+'</div><div class="s">paid out off the top</div></div>'+
+    '<div class="tile hero"><div class="k">Your net — earned</div><div class="v">'+money(t.net)+'</div><div class="s">'+ (t.closedDeals||0) +' closed deal'+((t.closedDeals===1)?'':'s')+per+' · '+(d.split||0)+'% split</div></div>'+
+    '<div class="tile owe"><div class="k">Owed to you</div><div class="v">'+money(sumOwed(closed))+'</div><div class="s">2nd-half &amp; unpaid'+per+'</div></div>'+
+    '<div class="tile paid"><div class="k">Paid to you</div><div class="v">'+money(sumPaid(closed))+'</div><div class="s">received'+per+'</div></div>'+
+    '<div class="tile"><div class="k">Your net — pipeline</div><div class="v">'+money(t.netOpen)+'</div><div class="s">'+(t.openDeals||0)+' open'+(CSTATE.year?(' · closing by '+esc(CSTATE.year)):'')+'</div></div>'+
+    '<div class="tile"><div class="k">Firm GCI</div><div class="v">'+money(t.gci)+'</div><div class="s">closed, gross'+per+'</div></div>'+
+    '<div class="tile"><div class="k">Referrals + co-broke</div><div class="v">'+money((t.referrals||0)+(t.coBroke||0))+'</div><div class="s">paid out off the top'+per+'</div></div>'+
   '</div>';
 
   var out=tiles;
   out+='<div class="sechd">Closed — earned</div>'+dealTable(closed, true);
   if(open.length){ out+='<div class="sechd">Open pipeline — projected</div>'+dealTable(open, false); }
-  out+='<div class="note">Waterfall per deal: gross commission (GCI) &rarr; referral fee off the top &rarr; co-broke side split &rarr; the remaining company dollar is split with you at your rate. “Owed to you” is your share of what the firm hasn’t collected yet, pro-rated to payments received. Figures follow the amounts entered on each deal.</div>';
+  out+='<div class="note">Waterfall per deal: gross commission (GCI) &rarr; referral fee off the top &rarr; co-broke side split &rarr; the remaining company dollar is split with you at your rate. “Owed to you” is your share of what the firm hasn’t collected yet, pro-rated to payments received. Figures follow the amounts on each deal; payments recorded on the deal’s invoices keep its commission paid and payment status up to date'+(CSTATE.year?('; <b>This year</b> counts deals closed in '+esc(CSTATE.year)+' and open deals expected to close by year-end (or with no date set)'):'')+'.</div>';
   document.getElementById('body').innerHTML=out;
 }
 
@@ -174,5 +176,6 @@ document.getElementById('repSel').addEventListener('change',function(){ CSTATE.u
 
 load();
 </script>
+<script src="/rrg_features.js"></script>
 </body>
 </html>
