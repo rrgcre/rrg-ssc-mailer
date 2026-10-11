@@ -585,5 +585,16 @@ function bootContext(){
   <div style="font-size:11.5px;color:#98a1b5;margin-top:8px">Your email signature is added automatically.</div>
 </div></div></div>
 <div class="aiov" id="negov" hidden><div class="aimodal" style="max-width:720px"><div class="aimh"><b id="negoTitle" style="color:var(--navy);font-size:15px">LOI negotiation</b><button id="negoX" type="button" style="border:none;background:#f2f4f8;width:30px;height:30px;border-radius:8px;cursor:pointer;color:#6b7488;font-size:14px">✕</button></div><div class="aimb" id="negoBody" style="max-height:74vh;overflow:auto"></div></div></div>
+<script>
+// Modal controls live below the main script, so wire them by delegation (the old direct wiring ran before
+// these elements existed, which left the ✕ and "Pull the terms" dead). Escape closes the top-most window.
+document.addEventListener('click',function(e){
+  var t=e.target;
+  if(t.closest('#aip_x')){ document.getElementById('aiov').hidden=true; return; }
+  if(t.closest('#aip_go')){ if(typeof aiLoiParse==='function') aiLoiParse(); return; }
+  if(t.closest('#airx')){ if(typeof aiCancel==='function') aiCancel(); else document.getElementById('airov').hidden=true; return; }
+});
+document.addEventListener('keydown',function(e){ if(e.key!=='Escape') return; var open=[].slice.call(document.querySelectorAll('.aiov')).filter(function(o){ return !o.hidden; }); if(!open.length) return; var top=open[open.length-1]; if(top.id==='airov'&&typeof aiCancel==='function') aiCancel(); else top.hidden=true; });
+</script>
 </body>
 </html>

@@ -188,14 +188,12 @@
       { ic: '⌂', label: 'Property Listings', href: 'rrg_property_listings.html' },
       { ic: '▤', label: 'Centers', href: 'rrg_centers.html' }
     ] },
-    { grp: 'Mass Email', admin: true, color: '#d072b0', items: [
-      { ic: '✉', label: 'Campaigns', href: 'rrg_mass_studio.html', admin: true },
-      { ic: '☷', label: 'Subscribers', href: 'rrg_mail_subscribers.html', admin: true }
-    ] },
+    // Marketing = the Email Studio (admin) + templates & automations. Marketing Packs and Market Attack Plans
+    // are opened from their listing / engagement (and their builders link back to the full lists).
     { grp: 'Marketing', color: '#c77dc0', items: [
+      { ic: '✉', label: 'Campaigns', href: 'rrg_mass_studio.html', admin: true },
+      { ic: '☷', label: 'Subscribers', href: 'rrg_mail_subscribers.html', admin: true },
       { ic: '✎', label: 'Email Templates', href: 'rrg_email_templates.html' },
-      { ic: '▧', label: 'Marketing Packs', href: 'rrg_cim_queue.html' },
-      { ic: '➤', label: 'Market Attack Plans', href: 'rrg_attack_queue.html' },
       { ic: '⟳', label: 'Automations', href: 'rrg_admin_automations.html', admin: true }
     ] },
     { grp: 'Financials', color: '#4fb0a6', items: [
