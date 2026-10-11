@@ -187,8 +187,50 @@ body.booting .flagbtn{transition:none!important;}
 .bbrow{display:flex;gap:8px;margin-top:2px;} .bbrow > div{flex:1;min-width:0;}
 #buyBoxCard select,#buyBoxCard textarea,#tenantBoxCard select,#tenantBoxCard textarea,.bbin{width:100%;box-sizing:border-box;border:1px solid #cfd6e2;border-radius:6px;padding:7px 9px;font:inherit;font-size:12.5px;background:#fff;}
 #buyBoxCard select:focus,#buyBoxCard textarea:focus,#tenantBoxCard select:focus,#tenantBoxCard textarea:focus,.bbin:focus{outline:none;border-color:#2c5c8f;}
-#tenantBoxCard .tbtabs{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:11px;border-bottom:1px solid #e6e9f0;padding-bottom:9px}#tenantBoxCard .tbtab{background:#f2f5f9;border:1px solid #e0e6ef;border-radius:100px;padding:5px 12px;font:inherit;font-size:11.5px;font-weight:700;color:#5b6472;cursor:pointer;display:inline-flex;align-items:center;gap:6px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#tenantBoxCard .tbtab:hover{background:#e8eef6;color:#2c5c8f}#tenantBoxCard .tbtab.on{background:#2c5c8f;border-color:#2c5c8f;color:#fff}#tenantBoxCard .tbtabdot{width:7px;height:7px;border-radius:50%;background:#1f8a5b;flex:none}#tenantBoxCard .tbtab.on .tbtabdot{background:#8fe0b8}
-#tenantBoxCard .tbsec{margin:0 0 2px}#tenantBoxCard .tbsechd{cursor:pointer;display:flex;align-items:center;gap:8px;justify-content:space-between;user-select:none;margin-top:9px}#tenantBoxCard .tbsechd .tbchev{font-size:16px;color:#9aa4b6;transition:transform .15s;flex:none}#tenantBoxCard .tbsec.collapsed .tbchev{transform:rotate(-90deg)}#tenantBoxCard .tbsec.collapsed .tbsecbody{display:none}
+#tenantBoxCard .tbtabs{display:flex;gap:2px;margin:-4px 0 12px;border-bottom:1px solid #e6e9f0;overflow-x:auto;scrollbar-width:none}#tenantBoxCard .tbtabs::-webkit-scrollbar{display:none}
+#tenantBoxCard .tbtabs.single{display:none}
+#tenantBoxCard .tbtab{background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-1px;padding:7px 10px 8px;font:inherit;font-size:12.5px;font-weight:600;color:#6b7488;cursor:pointer;display:inline-flex;align-items:center;gap:6px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:none}
+#tenantBoxCard .tbtab:hover{color:#23496f}#tenantBoxCard .tbtab.on{color:#1d3350;border-bottom-color:#23496f;font-weight:700}
+#tenantBoxCard .tbtabdot{width:7px;height:7px;border-radius:50%;background:#1f8a5b;flex:none}
+#tenantBoxCard .ch .tbhbtn{margin-left:auto;white-space:nowrap;padding:0 10px;height:26px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:5px}
+#tenantBoxCard .ch .tbhbtn .tbspark{color:#b5791f;font-size:11px;background:none;padding:0;border-radius:0;line-height:1}
+#tenantBoxCard .tbname{width:100%;box-sizing:border-box;border:1px solid #cfd6e2;border-radius:8px;padding:8px 11px;font:inherit;font-size:14px;font-weight:700;color:#1d2a3f;background:#fff}
+#tenantBoxCard .tbname::placeholder{font-weight:500;color:#9aa4b6}
+#tenantBoxCard .tbname:focus{outline:none;border-color:#2c5c8f;box-shadow:0 0 0 3px rgba(44,92,143,.12)}
+#tenantBoxCard .tbstat{display:flex;align-items:center;justify-content:space-between;margin:9px 0 2px}
+#tenantBoxCard .tbsw{display:inline-flex;align-items:center;gap:8px;cursor:pointer;user-select:none;font-size:12.5px;font-weight:600;color:#5b6472}
+#tenantBoxCard .tbsw input{position:absolute;opacity:0;width:0;height:0}
+#tenantBoxCard .tbsw .trk{position:relative;width:30px;height:17px;border-radius:999px;background:#cfd6e2;transition:background .15s;flex:none}
+#tenantBoxCard .tbsw .trk::after{content:'';position:absolute;top:2px;left:2px;width:13px;height:13px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);transition:left .15s}
+#tenantBoxCard .tbsw input:checked + .trk{background:#1f8a5b}#tenantBoxCard .tbsw input:checked + .trk::after{left:15px}
+#tenantBoxCard .tbsw input:checked ~ .tbswl{color:#1f8a5b}
+#tenantBoxCard .tbsw input:focus-visible + .trk{box-shadow:0 0 0 3px rgba(44,92,143,.25)}
+#tenantBoxCard .tbrm{background:none;border:none;padding:3px 4px;font:inherit;font-size:12px;font-weight:600;color:#8a93a8;cursor:pointer;display:inline-flex;align-items:center;gap:4px;border-radius:6px}
+#tenantBoxCard .tbrm:hover{color:#DA2B1F;background:#fdeceb}
+#tenantBoxCard .tbgrp{margin-top:12px}
+#tenantBoxCard .tbseg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border:1px solid #cfd6e2;border-radius:8px;background:#fff;overflow:hidden}
+#tenantBoxCard .tbseg.two{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr)}
+#tenantBoxCard .tbseg > label{display:flex;flex-direction:column;gap:1px;padding:6px 10px 7px;border-left:1px solid #e6e9f0;cursor:text;min-width:0}
+#tenantBoxCard .tbseg > label:first-child{border-left:none}
+#tenantBoxCard .tbseg > label:focus-within{background:#f5f8fc;box-shadow:inset 0 -2px 0 #2c5c8f}
+#tenantBoxCard .tbseg .k{font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#8a93a8;white-space:nowrap}
+#tenantBoxCard .tbseg input,#tenantBoxCard .tbseg select{border:none!important;padding:0!important;margin:0;background:transparent!important;font:inherit;font-size:14px!important;font-weight:600;color:#1d2a3f;width:100%;min-width:0;outline:none;box-shadow:none;font-variant-numeric:tabular-nums}
+#tenantBoxCard .tbseg select{cursor:pointer;font-size:13px!important}
+#tenantBoxCard .tbseg .v{display:flex;align-items:baseline;gap:2px;min-width:0}
+#tenantBoxCard .tbseg .v i{font-style:normal;font-size:12px;font-weight:600;color:#9aa4b6;flex:none}
+#tenantBoxCard .tbsec{border-top:1px solid #eef1f6;margin-top:12px}
+#tenantBoxCard .tbsechd{cursor:pointer;display:flex;align-items:center;gap:7px;user-select:none;margin:0;padding:10px 0 0}
+#tenantBoxCard .tbsec.collapsed .tbsechd{padding-bottom:0}
+#tenantBoxCard .tbsechd .tbcnt{font-size:10px;font-weight:700;color:#23496f;background:#eaf1fb;border-radius:999px;padding:0 7px;line-height:17px;letter-spacing:0}
+#tenantBoxCard .tbsechd .tbcnt:empty{display:none}
+#tenantBoxCard .tbsechd .tbchev{margin-left:auto;font-size:9px;color:#9aa4b6;transition:transform .15s;flex:none;line-height:1}
+#tenantBoxCard .tbsechd:hover .tbchev{color:#23496f}
+#tenantBoxCard .tbsec.collapsed .tbchev{transform:rotate(-90deg)}
+#tenantBoxCard .tbsec.collapsed .tbsecbody{display:none}
+#tenantBoxCard .tbsecbody{padding-top:7px}
+#tenantBoxCard .tbhint{font-size:11.5px;color:#8a93a8;margin:-2px 0 7px}
+#tenantBoxCard .tbfoot{display:flex;align-items:center;gap:10px;margin-top:14px;padding-top:12px;border-top:1px solid #eef1f6}
+#tenantBoxCard .tbfoot .savebtn{width:auto;padding:8px 16px;font-size:13px}
 .bbactive{margin-left:auto;display:inline-flex;align-items:center;gap:5px;font-size:11px!important;font-weight:700!important;color:#2c5c8f!important;text-transform:none!important;letter-spacing:0!important;cursor:pointer;}
 .bbactive input{display:inline-block!important;width:auto!important;}
 .bbbtns{display:flex;align-items:center;gap:9px;margin-top:12px;}
@@ -1904,39 +1946,40 @@ var TBOXES=[], TB_CONCEPTS=[], TB_ACTIVE=0;
 function _tbEmpty(){ return {concept:'',active:false,sfMin:'',sfIdeal:'',sfMax:'',condition:[],deal:'both',spaceTypes:[],amenities:[],markets:[],budget:'',areaNote:'',notes:''}; }
 function _tbChips(list,sel,cls){ return list.map(function(x){ var on=(sel||[]).indexOf(x)>=0; return '<label class="bbchip'+(on?' on':'')+'"><input type="checkbox" class="'+cls+'" value="'+esc(x)+'"'+(on?' checked':'')+'>'+esc(x)+'</label>'; }).join(''); }
 function _tbSecCol(key,def){ try{ var m=JSON.parse(localStorage.getItem('rrgTbSec')||'{}'); if(m[key]===true) return true; if(m[key]===false) return false; }catch(e){} return !!def; }
-function tbSec(key,label,body,def){ var col=_tbSecCol(key,def); return '<div class="tbsec'+(col?' collapsed':'')+'" data-tbsec="'+key+'"><div class="tbsechd bblab" data-tbsectog="'+key+'">'+label+'<span class="tbchev">\u25be</span></div><div class="tbsecbody">'+body+'</div></div>'; }
+function tbSec(key,label,body,def,cnt,hint){ var col=_tbSecCol(key,def); return '<div class="tbsec'+(col?' collapsed':'')+'" data-tbsec="'+key+'"><div class="tbsechd bblab" data-tbsectog="'+key+'"'+(hint?' title="'+esc(hint)+'"':'')+'>'+label+'<span class="tbcnt">'+(cnt?cnt:'')+'</span><span class="tbchev">\u25bc</span></div><div class="tbsecbody">'+(hint?'<div class="tbhint">'+esc(hint)+'</div>':'')+body+'</div></div>'; }
+function _tbCnt(list,sel){ return (sel||[]).filter(function(x){ return list.indexOf(x)>=0; }).length; }
+function _tbNum(v){ if(v==null||v==='') return ''; var n=Number(String(v).replace(/[^0-9]/g,'')); return n?n.toLocaleString('en-US'):''; }
 function tbSetHtml(tb,i){
   tb=tb||{};
   var dealOpt=TB_DEAL.map(function(o){return '<option value="'+o[0]+'"'+(((tb.deal||'both')===o[0])?' selected':'')+'>'+o[1]+'</option>';}).join('');
   var nv=function(v){ return (v!=null&&v!=='')?esc(v):''; };
   var dl=(TB_CONCEPTS&&TB_CONCEPTS.length)?('<datalist id="tbCdl'+i+'">'+TB_CONCEPTS.map(function(c){return '<option value="'+esc(c)+'">';}).join('')+'</datalist>'):'';
-  return '<div class="tbset" data-i="'+i+'" style="border:1px solid #e6e9f0;border-radius:9px;padding:10px 11px;margin:0 0 12px;background:#fcfdff'+(i===TB_ACTIVE?'':';display:none')+'">'
-    +'<div style="display:flex;align-items:center;gap:7px;margin-bottom:7px">'
-      +'<input class="bbin tbConcept" list="tbCdl'+i+'" value="'+esc(tb.concept||'')+'" placeholder="Concept (optional)" style="flex:1;font-weight:700">'+dl
-      +'<label class="bbactive" style="margin:0;white-space:nowrap" title="Actively looking for this concept"><input type="checkbox" class="tbActive"'+(tb.active?' checked':'')+'> Active</label>'
-      +'<button type="button" class="tbDel delx" data-i="'+i+'" title="Remove this concept" style="background:none;border:none;color:#c4ccda;cursor:pointer;font-size:17px;line-height:1;padding:0 2px">✕</button>'
-    +'</div>'
-    +'<div class="bbrow"><div><div class="bblab">Min SF</div><input class="bbin tbSfMin" inputmode="numeric" value="'+nv(tb.sfMin)+'" placeholder="—"></div><div><div class="bblab">Ideal SF</div><input class="bbin tbSfIdeal" inputmode="numeric" value="'+nv(tb.sfIdeal)+'" placeholder="—"></div><div><div class="bblab">Max SF</div><input class="bbin tbSfMax" inputmode="numeric" value="'+nv(tb.sfMax)+'" placeholder="—"></div></div>'
-    +tbSec('cond','Condition','<div class="bbchips">'+_tbChips(TB_CONDITIONS,tb.condition,'tbc')+'</div>',false)
-    +'<div class="bbrow"><div><div class="bblab">Deal</div><select class="tbDeal">'+dealOpt+'</select></div><div><div class="bblab">Max rent $/SF/yr</div><input class="bbin tbBudget" inputmode="numeric" value="'+nv(tb.budget)+'" placeholder="—"></div></div>'
-    +tbSec('site','Site &amp; position <span style="font-weight:600;color:#9aa4b6;text-transform:none;letter-spacing:0">— matters for any space</span>','<div class="bbchips">'+_tbChips(TB_SPACE_TYPES,tb.spaceTypes,'tbst')+_tbChips(TB_AMEN_SITE,tb.amenities,'tba')+'</div>',false)
-    +tbSec('2gen','Second-generation infrastructure <span style="font-weight:600;color:#9aa4b6;text-transform:none;letter-spacing:0">— only for 2nd-gen space</span>','<div class="bbchips">'+_tbChips(TB_AMEN_2NDGEN,tb.amenities,'tba')+'</div>',true)
-    +tbSec('mkts','Markets','<div class="bbchips">'+_tbChips(BB_METROS,tb.markets,'tbm')+'</div>',false)
-    +tbSec('area','Area / trade-area details','<input class="bbin tbArea" value="'+esc(tb.areaNote||'')+'" placeholder="e.g. north of 1604, near the medical center">',true)
-    +tbSec('notes','Notes','<textarea class="tbNotes" rows="2" placeholder="Anything else about the space they need">'+esc(tb.notes||'')+'</textarea>',true)
-    +tbSec('match','Matching spaces','<div class="tbMatches bbmatches" data-i="'+i+'"><div style="color:#8a93a8;font-size:12px;padding:4px 0">Mark <b>Active</b> &amp; save to see matches.</div></div>',false)
+  var nm1=TBOXES.length<2;
+  return '<div class="tbset" data-i="'+i+'"'+(i===TB_ACTIVE?'':' style="display:none"')+'>'
+    +'<input class="tbname tbConcept" list="tbCdl'+i+'" value="'+esc(tb.concept||'')+'" placeholder="Concept name \u2014 e.g. Taqueria Fresco" aria-label="Concept name">'+dl
+    +'<div class="tbstat"><label class="tbsw" title="Actively looking \u2014 include this concept in space matching"><input type="checkbox" class="tbActive"'+(tb.active?' checked':'')+'><span class="trk"></span><span class="tbswl">Actively looking</span></label>'
+      +'<button type="button" class="tbDel tbrm" data-i="'+i+'" title="'+(nm1?'Clear this concept':'Remove this concept')+'"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>'+(nm1?'Clear':'Remove')+'</button></div>'
+    +'<div class="tbgrp"><div class="tbseg"><label><span class="k">Min SF</span><input class="tbSfMin tbnum" inputmode="numeric" value="'+_tbNum(tb.sfMin)+'" placeholder="\u2014"></label><label><span class="k">Ideal SF</span><input class="tbSfIdeal tbnum" inputmode="numeric" value="'+_tbNum(tb.sfIdeal)+'" placeholder="\u2014"></label><label><span class="k">Max SF</span><input class="tbSfMax tbnum" inputmode="numeric" value="'+_tbNum(tb.sfMax)+'" placeholder="\u2014"></label></div></div>'
+    +'<div class="tbgrp"><div class="tbseg two"><label><span class="k">Deal</span><select class="tbDeal">'+dealOpt+'</select></label><label><span class="k">Max rent</span><span class="v"><i>$</i><input class="tbBudget" inputmode="numeric" value="'+nv(tb.budget)+'" placeholder="\u2014"><i>/SF/yr</i></span></label></div></div>'
+    +tbSec('cond','Condition','<div class="bbchips">'+_tbChips(TB_CONDITIONS,tb.condition,'tbc')+'</div>',false,_tbCnt(TB_CONDITIONS,tb.condition))
+    +tbSec('site','Site &amp; position','<div class="bbchips">'+_tbChips(TB_SPACE_TYPES,tb.spaceTypes,'tbst')+_tbChips(TB_AMEN_SITE,tb.amenities,'tba')+'</div>',false,_tbCnt(TB_SPACE_TYPES,tb.spaceTypes)+_tbCnt(TB_AMEN_SITE,tb.amenities),'Matters for any space.')
+    +tbSec('2gen','2nd-gen infrastructure','<div class="bbchips">'+_tbChips(TB_AMEN_2NDGEN,tb.amenities,'tba')+'</div>',true,_tbCnt(TB_AMEN_2NDGEN,tb.amenities),'Only applies to second-generation space.')
+    +tbSec('mkts','Markets','<div class="bbchips">'+_tbChips(BB_METROS,tb.markets,'tbm')+'</div>',false,_tbCnt(BB_METROS,tb.markets))
+    +tbSec('area','Trade area','<input class="bbin tbArea" value="'+esc(tb.areaNote||'')+'" placeholder="e.g. north of 1604, near the medical center">',true,(tb.areaNote&&String(tb.areaNote).trim())?'\u2713':'')
+    +tbSec('notes','Notes','<textarea class="tbNotes" rows="2" placeholder="Anything else about the space they need">'+esc(tb.notes||'')+'</textarea>',true,(tb.notes&&String(tb.notes).trim())?'\u2713':'')
+    +tbSec('match','Matching spaces','<div class="tbMatches bbmatches" data-i="'+i+'"><div style="color:#8a93a8;font-size:12px;padding:4px 0">Turn on <b>Actively looking</b> &amp; save to see matches.</div></div>',false)
   +'</div>';
 }
 function tbTabsHtml(){ if(TB_ACTIVE>=TBOXES.length) TB_ACTIVE=TBOXES.length-1; if(TB_ACTIVE<0) TB_ACTIVE=0; return TBOXES.map(function(tb,i){ var nm=(tb&&tb.concept&&String(tb.concept).trim())?String(tb.concept).trim():('Concept '+(i+1)); var dot=(tb&&tb.active)?'<span class="tbtabdot"></span>':''; return '<button type="button" class="tbtab'+(i===TB_ACTIVE?' on':'')+'" data-tbtab="'+i+'" title="'+esc(nm)+'">'+dot+esc(nm)+'</button>'; }).join(''); }
 function _tbSwitchTab(){ document.querySelectorAll('#tbTabs .tbtab').forEach(function(b){ b.classList.toggle('on', +b.getAttribute('data-tbtab')===TB_ACTIVE); }); document.querySelectorAll('#tbSets .tbset').forEach(function(el){ el.style.display=(+el.getAttribute('data-i')===TB_ACTIVE)?'':'none'; }); }
-function _tbSyncTabs(){ TBOXES=_tbGather(); var tabs=document.getElementById('tbTabs'); if(tabs) tabs.innerHTML=tbTabsHtml(); }
+function _tbSyncTabs(){ TBOXES=_tbGather(); var tabs=document.getElementById('tbTabs'); if(tabs){ tabs.innerHTML=tbTabsHtml(); tabs.classList.toggle('single',TBOXES.length<2); } }
 function tenantBoxCard(){
   TBOXES=(P&&Array.isArray(P.tenantBoxes))?P.tenantBoxes.slice():((P&&P.tenantBox)?[P.tenantBox]:[]);
   if(!TBOXES.length) TBOXES=[_tbEmpty()];
-  return '<div class="card" id="tenantBoxCard"><div class="ch"><b>Tenant-Box</b><span style="margin-left:7px;font-size:10.5px;color:#8a93a8;font-weight:600;text-transform:none">one per concept</span><button type="button" class="abtn" id="tbFromSsc" data-ai="" title="Read the Site Criteria (SSC) on file and draft a concept to review" style="margin-left:auto;font-size:11.5px;padding:5px 11px">✦ Fill from SSC</button><button type="button" class="mfadd" id="tbAddSet" title="Add another concept requirement" style="margin-left:8px;width:28px;height:26px;padding:0;font-size:18px;line-height:1;font-weight:700;display:inline-flex;align-items:center;justify-content:center">+</button></div><div class="cb">'
-    +'<div id="tbTabs" class="tbtabs">'+tbTabsHtml()+'</div>'
+  return '<div class="card" id="tenantBoxCard"><div class="ch" title="One requirement per concept this tenant is placing"><b>Tenant-Box</b><span id="tbCount" title="Concepts">'+TBOXES.length+'</span><button type="button" class="mfadd tbhbtn" id="tbFromSsc" data-ai="" title="Read the Site Criteria (SSC) on file and draft a concept to review"><span class="tbspark">\u2726</span>Fill from SSC</button><button type="button" class="mfadd" id="tbAddSet" title="Add another concept" style="width:28px;height:26px;padding:0;font-size:18px;line-height:1;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex:none">+</button></div><div class="cb">'
+    +'<div id="tbTabs" class="tbtabs'+(TBOXES.length<2?' single':'')+'">'+tbTabsHtml()+'</div>'
     +'<div id="tbSets">'+TBOXES.map(tbSetHtml).join('')+'</div>'
-    +'<div class="bbbtns"><button type="button" class="savebtn" id="tbSave" style="width:auto;padding:8px 16px">Save tenant-box</button><span id="tbMsg" style="font-size:12px;color:#6b7488"></span></div>'
+    +'<div class="tbfoot"><button type="button" class="savebtn" id="tbSave">Save tenant-box</button><span id="tbMsg" style="font-size:12px;color:#6b7488"></span></div>'
     +'</div></div>';
 }
 function _tbGather(){ var sets=[]; document.querySelectorAll('#tbSets .tbset').forEach(function(el){
@@ -1945,11 +1988,12 @@ function _tbGather(){ var sets=[]; document.querySelectorAll('#tbSets .tbset').f
   function chips(cls){ return [].slice.call(el.querySelectorAll('.'+cls+':checked')).map(function(x){return x.value;}); }
   sets.push({ concept:v('tbConcept').trim(), active:ck('tbActive'), sfMin:v('tbSfMin').replace(/[^0-9]/g,''), sfIdeal:v('tbSfIdeal').replace(/[^0-9]/g,''), sfMax:v('tbSfMax').replace(/[^0-9]/g,''), condition:chips('tbc'), deal:v('tbDeal')||'both', spaceTypes:chips('tbst'), amenities:chips('tba'), markets:chips('tbm'), budget:v('tbBudget').replace(/[^0-9]/g,''), areaNote:v('tbArea'), notes:v('tbNotes') });
 }); return sets; }
-function _tbRerender(){ var host=document.getElementById('tbSets'); if(!host) return; var tabs=document.getElementById('tbTabs'); if(tabs) tabs.innerHTML=tbTabsHtml(); host.innerHTML=TBOXES.map(tbSetHtml).join(''); loadTbMatches(); }
+function _tbRerender(){ var host=document.getElementById('tbSets'); if(!host) return; var tabs=document.getElementById('tbTabs'); if(tabs){ tabs.innerHTML=tbTabsHtml(); tabs.classList.toggle('single',TBOXES.length<2); } var hc=document.getElementById('tbCount'); if(hc) hc.textContent=TBOXES.length; host.innerHTML=TBOXES.map(tbSetHtml).join(''); loadTbMatches(); }
 function wireTenantBox(){
   var card=document.getElementById('tenantBoxCard'); if(!card) return; if(card._w){ loadTbMatches(); return; } card._w=1;
-  card.addEventListener('change',function(e){ var t=e.target; if(t&&t.matches&&t.matches('.bbchip input')){ var l=t.closest('.bbchip'); if(l) l.classList.toggle('on',t.checked); } if(t&&t.matches&&t.matches('.tbActive')){ _tbSyncTabs(); } });
-  card.addEventListener('input',function(e){ var t=e.target; if(t&&t.classList&&t.classList.contains('tbConcept')){ _tbSyncTabs(); } });
+  card.addEventListener('change',function(e){ var t=e.target; if(t&&t.matches&&t.matches('.bbchip input')){ var l=t.closest('.bbchip'); if(l) l.classList.toggle('on',t.checked); var sec=t.closest('.tbsec'); if(sec){ var cn=sec.querySelector('.tbcnt'); if(cn){ var k=sec.querySelectorAll('.bbchip input:checked').length; cn.textContent=k?k:''; } } } if(t&&t.matches&&t.matches('.tbActive')){ _tbSyncTabs(); } });
+  card.addEventListener('input',function(e){ var t=e.target; if(t&&t.classList&&t.classList.contains('tbConcept')){ _tbSyncTabs(); } if(t&&t.classList&&(t.classList.contains('tbArea')||t.classList.contains('tbNotes'))){ var sec=t.closest('.tbsec'), cn=sec&&sec.querySelector('.tbcnt'); if(cn) cn.textContent=String(t.value||'').trim()?'\u2713':''; } });
+  card.addEventListener('focusout',function(e){ var t=e.target; if(t&&t.classList&&t.classList.contains('tbnum')) t.value=_tbNum(t.value); });
   card.addEventListener('click',function(e){
     var _tab=e.target.closest&&e.target.closest('.tbtab[data-tbtab]'); if(_tab){ e.preventDefault(); TB_ACTIVE=+_tab.getAttribute('data-tbtab'); _tbSwitchTab(); return; }
     var _sec=e.target.closest&&e.target.closest('[data-tbsectog]'); if(_sec){ e.preventDefault(); var _sk=_sec.getAttribute('data-tbsectog'); var _willCol=!(_sec.parentNode&&_sec.parentNode.classList.contains('collapsed')); document.querySelectorAll('#tenantBoxCard .tbsec').forEach(function(sc){ if(sc.getAttribute('data-tbsec')===_sk) sc.classList.toggle('collapsed',_willCol); }); try{ var _m=JSON.parse(localStorage.getItem('rrgTbSec')||'{}'); _m[_sk]=_willCol; localStorage.setItem('rrgTbSec',JSON.stringify(_m)); }catch(e){} return; }
