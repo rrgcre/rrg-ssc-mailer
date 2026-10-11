@@ -178,9 +178,8 @@
       { ic: '◈', label: 'Deals', href: 'rrg_deals.html' }
     ] },
     { grp: 'Tenant Rep', color: '#dfa937', items: [
-      // In the order the work happens: intake → search → test a space → offer.
+      // In the order the work happens: search → test a space → offer. Site Criteria opens from the contact / engagement.
       { ic: '◧', label: 'Tenants', href: 'rrg_board.html?pipelineId=p_tenantrep' },
-      { ic: '◎', label: 'Site Criteria', href: 'ssc_form.html' },
       { ic: '⊡', label: 'Spaces', href: 'rrg_space_tracker.html' },
       { ic: '✚', label: 'Site Fit', href: 'rrg_site_fit.html' },
       { ic: '§', label: 'LOI Builder', href: 'rrg_loi_builder.html' },
@@ -233,8 +232,9 @@
   var curPid=_qpid(location.search);
   function boardPidOf(href){ var f=(href||'').split('/').pop().split('#')[0].split('?')[0].toLowerCase(); if(f!=='rrg_board.html') return null; return _qpid(href); }
   function isActive(it){
-    // Tours has no sidebar item of its own (it opens from the Tenants board) — light up Tenants while on it.
-    if(file==='rrg_tours.html') return boardPidOf(it.href)==='p_tenantrep';
+    // Tours and Site Criteria have no sidebar item of their own (they open from the Tenants board, a contact
+    // or an engagement) — light up Tenants while on them.
+    if(file==='rrg_tours.html'||file==='ssc_form.html') return boardPidOf(it.href)==='p_tenantrep';
     if(!sameFile(it.href)) return false;
     var bp=boardPidOf(it.href);
     if(bp!==null && file==='rrg_board.html'){ return (bp==='p_tenantrep') ? (curPid==='p_tenantrep') : (curPid!=='p_tenantrep'); }
