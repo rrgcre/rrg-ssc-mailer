@@ -4278,7 +4278,11 @@ app.post('/api/admin/app-name', requireAdmin, express.json(), (req, res) => {
 app.get('/api/admin/org', requireAdmin, (req, res) => res.json({ ok: true, org: effOrg() }));
 app.post('/api/admin/org', requireAdmin, express.json(), (req, res) => {
   const b = loadBrand(); const x = req.body || {}; const S = (v, n) => String(v == null ? '' : v).trim().slice(0, n);
-  b.org = { name: S(x.name, 120), legalName: S(x.legalName, 160), address: S(x.address, 200), city: S(x.city, 80), state: S(x.state, 20), zip: S(x.zip, 20), phone: S(x.phone, 40), email: S(x.email, 160), website: S(x.website, 200), license: S(x.license, 60), ein: S(x.ein, 40) };
+  // Merge: only fields sent are changed, so a screen that doesn't show a field (e.g. EIN) can never blank it.
+  const LIM = { name: 120, legalName: 160, address: 200, city: 80, state: 20, zip: 20, phone: 40, email: 160, website: 200, license: 60, ein: 40 };
+  const cur = (b.org && typeof b.org === 'object') ? b.org : {}; const next = {};
+  Object.keys(LIM).forEach(k => { next[k] = (x[k] !== undefined) ? S(x[k], LIM[k]) : S(cur[k], LIM[k]); });
+  b.org = next;
   b.updatedAt = new Date().toISOString(); saveBrand(b);
   res.json({ ok: true, org: effOrg() });
 });
