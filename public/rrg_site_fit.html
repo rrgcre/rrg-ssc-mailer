@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RRG — Site &amp; Concept Fit</title>
+<title>RRG — Site Fit</title>
 <style>
 :root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--line:#e6e9f0;--wash:#f5f7fb;--inp:#cfd6e2;
   --green:#1f8a5b;--amber:#b5791f;--gwash:#e7f5ee;--awash:#fdf1df;--rwash:#fdeceb;}
@@ -157,6 +157,34 @@ tr.tot td.scoreval{color:var(--red);text-align:right;}
 .pferr{color:var(--red);font-size:12px;margin-top:10px;line-height:1.45;}
 .pfbtns{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;}
 @media print{.pfmodal{display:none!important;}}
+/* Saved analyses: link bar, save state, list view */
+[hidden]{display:none !important;}
+/* Inside the app shell the fixed 56px top bar sits over the page — park the sticky toolbar just under it. */
+body.rrg-shelled .toolbar{top:56px;}
+.actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+a.btn{text-decoration:none;display:inline-flex;align-items:center;}
+.savechip{opacity:1;min-width:0;} .savechip.p{color:var(--muted);} .savechip.e{color:var(--red);cursor:pointer;text-decoration:underline;}
+.linkbar{max-width:920px;margin:0 auto;padding:0 18px 10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;}
+.linkbar label{font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-size:10.5px;}
+.linkbar select{font:inherit;font-size:12.5px;border:1px solid var(--inp);border-radius:7px;padding:6px 8px;max-width:260px;background:#fff;color:var(--ink);}
+.linkbar .lnkx{margin-left:auto;display:flex;gap:12px;} .linkbar .lnkx a{color:#23496f;font-weight:700;text-decoration:none;}
+.vobar{max-width:920px;margin:0 auto 10px;padding:8px 14px;border-radius:8px;background:#fff6e5;color:#8a5a12;font-size:12.5px;font-weight:600;}
+.lv{max-width:1100px;margin:18px auto 60px;padding:0 18px;}
+.legacy{background:#fff6e5;border:1px solid #f0d9a8;color:#6b4a10;border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:13px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.legacy b{color:#4a330a;} .legacy .sp{flex:1;min-width:200px;}
+.lcard{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 4px 18px rgba(11,26,56,.05);overflow:hidden;}
+.lhd2{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line);flex-wrap:wrap;}
+.lhd2 b{font-size:16px;color:var(--navy);} .lhd2 .cnt{font-size:12px;color:var(--muted);font-weight:600;}
+.lhd2 input{margin-left:auto;font:inherit;font-size:13px;border:1px solid var(--inp);border-radius:8px;padding:8px 11px;width:260px;max-width:100%;}
+.lhd2 .newbtn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:8px;padding:8px 14px;font-weight:800;font-size:12.5px;text-decoration:none;white-space:nowrap;}
+.lt{width:100%;border-collapse:collapse;font-size:13px;}
+.lt th{text-align:left;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;padding:10px 14px;border-bottom:1px solid var(--line);cursor:pointer;white-space:nowrap;user-select:none;}
+.lt th.on{color:var(--navy);} .lt td{padding:11px 14px;border-bottom:1px solid #eef0f5;vertical-align:top;} .lt tr:hover td{background:#fafbfd;}
+.lt a{color:var(--navy);font-weight:700;text-decoration:none;} .lt a:hover{text-decoration:underline;} .lt .m{color:var(--muted);font-size:12px;}
+.vp{display:inline-block;border-radius:100px;padding:2px 9px;font-size:11px;font-weight:800;white-space:nowrap;}
+.vp.g{background:var(--gwash);color:var(--green);} .vp.a{background:var(--awash);color:var(--amber);} .vp.r{background:var(--rwash);color:var(--red);} .vp.n{background:#eef1f6;color:var(--muted);}
+.lempty{padding:34px 20px;text-align:center;color:var(--muted);font-size:13px;line-height:1.6;}
+@media(max-width:760px){.lt .hm{display:none;} .lhd2 input{margin-left:0;width:100%;order:5;}}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -164,18 +192,32 @@ tr.tot td.scoreval{color:var(--red);text-align:right;}
 <!--rrgback--><a href="./index.html" class="rrg-back" aria-label="Back to dashboard" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)"><span style="font-size:14px;line-height:1">←</span> Dashboard</a><style>@media print{.rrg-back{display:none!important}}@media(max-width:560px){.rrg-back{left:12px;bottom:12px;padding:9px 13px}}</style>
 
 <div class="toolbar"><div class="tb-inner">
-  <div class="tt">RRG Site &amp; Concept Fit <span>Score a space for a concept — then Print / Save PDF</span></div>
-  <div class="actions">
-    <span class="savechip" id="savechip">Draft saved ✓</span>
-    <button class="btn" onclick="openPrefill()">↧ Fill from SSC / PDF</button>
-    <button class="btn" onclick="loadSample()">Load sample</button>
-    <button class="btn" onclick="clearAll()">Clear</button>
-    <button class="btn print" onclick="growAll();window.print()">Print</button>
+  <div class="tt">Site Fit <span id="ttSub">Score a space for a concept — saved to the tenant and the space</span></div>
+  <div class="actions" id="sheetActs" hidden>
+    <span class="savechip" id="savechip"></span>
+    <a class="btn" href="./rrg_site_fit.html">← All analyses</a>
+    <button class="btn" onclick="openPrefill()" data-edit>↧ Fill from SSC / PDF</button>
+    <button class="btn" id="sampleBtn" onclick="loadSample()" hidden>Load sample</button>
+    <button class="btn" id="delBtn" onclick="deleteFit()" hidden>Delete</button>
+    <button class="btn" onclick="growAll();window.print()">Print</button>
+    <a class="btn print" href="./rrg_site_fit.html?new=1">+ New Analysis</a>
   </div>
-</div></div>
+</div>
+<div class="linkbar" id="linkBar" hidden>
+  <label for="lnkEng">Tenant</label><select id="lnkEng"><option value="">— not linked —</option></select>
+  <label for="lnkSpace">Space</label><select id="lnkSpace"><option value="">— not linked —</option></select>
+  <span class="lnkx" id="lnkLinks"></span>
+</div>
+<div class="vobar" id="voBar" hidden></div>
+</div>
 
 <div data-rrg-feats="site_fit" style="max-width:920px;margin:22px auto 0"></div>
-<div class="wrap" id="sheet">
+<div class="lv" id="listView" hidden>
+  <div class="legacy" id="legacyBar" hidden></div>
+  <div class="lcard"><div class="lhd2"><b>Site Fit</b><span class="cnt" id="lvCnt"></span><input id="lvQ" placeholder="Search concept, tenant, space…" autocomplete="off"><a class="newbtn" href="./rrg_site_fit.html?new=1">+ New Analysis</a></div>
+  <div id="lvBody"><div class="lempty">Loading…</div></div></div>
+</div>
+<div class="wrap" id="sheet" hidden>
   <div class="band">
     <div class="confline">Internal Broker Analysis &nbsp;·&nbsp; Restaurant Realty Group &nbsp;·&nbsp; Not a Guarantee of Performance</div>
     <span class="rrg" onclick="location.href='./index.html'" title="Back to dashboard" style="cursor:pointer"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
@@ -502,6 +544,7 @@ function compute(){
   var hOcc=document.getElementById('hOcc'), hSales=document.getElementById('hSales');
   if(ratio>0){ hOcc.textContent=ratio.toFixed(1)+'%'; hOcc.className='v '+(ratio<10?'g':ratio<12?'a':'r'); } else { hOcc.textContent='—'; hOcc.className='v'; }
   hSales.textContent = sales>0?money(sales):'—';
+  _sum={ score: anyRated?pct:null, verdict: anyRated?label:'', occ: ratio>0?Math.round(ratio*10)/10:null, sales: sales>0?Math.round(sales):null };
 
   paintRates();
 }
@@ -518,24 +561,66 @@ function paintVals(){
     var k=el.getAttribute('data-k'); if(state.vals[k]!=null) el.value=state.vals[k];
   });
 }
-var t;
-function save(){
-  try{ localStorage.setItem(K, JSON.stringify(state)); }catch(e){}
-  var chip=document.getElementById('savechip'); chip.classList.add('show');
-  clearTimeout(t); t=setTimeout(function(){chip.classList.remove('show');},1200);
+/* ---------- saved on the server (linked to a tenant engagement and a space) ---------- */
+var SF={ id:'', engagementKey:'', spaceId:'', engagementName:'', spaceName:'', canEdit:true, canDelete:false, by:'', mode:'' };
+var _sum={}, _saveT=null, _saving=false, _again=false, _dirty=false, _legacyPending=false;
+var _NOISE={preparedBy:1,date:1,daysYr:1};
+function _esc(x){ return String(x==null?'':x).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+function chip(txt,cls){ var c=document.getElementById('savechip'); if(!c) return; c.textContent=txt||''; c.className='savechip'+(cls?(' '+cls):''); c.title=(cls==='e')?'Click to try again':''; }
+// Nothing is written until the sheet has real content (or a tenant/space link) — opening Fit to look doesn't create a record.
+function meaningful(){ if(SF.engagementKey||SF.spaceId) return true; var v=state.vals||{}; for(var k in v){ if(!_NOISE[k] && String(v[k]||'').trim()) return true; } var r=state.ratings||{}; for(var q in r){ if(q!=='econ' && r[q]) return true; } return false; }
+function save(){ if(SF.mode!=='sheet'||!SF.canEdit) return; if(!SF.id&&!meaningful()) return; _dirty=true; chip('Saving…','p'); clearTimeout(_saveT); _saveT=setTimeout(flush,700); }
+function flush(){
+  if(_saving){ _again=true; return; } if(!_dirty) return; _dirty=false; _saving=true;
+  var body={ vals:state.vals, ratings:state.ratings, summary:_sum, engagementKey:SF.engagementKey, spaceId:SF.spaceId }; if(SF.id) body.id=SF.id;
+  fetch('/api/site-fit',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+    .then(function(r){ return r.json().catch(function(){return {};}).then(function(j){ return {ok:r.ok,j:j}; }); })
+    .then(function(x){ _saving=false;
+      if(!x.ok||!x.j.ok){ _dirty=true; chip(((x.j&&x.j.error)||'Not saved')+' — retry','e'); return; }
+      if(!SF.id){ SF.id=x.j.fit.id; try{ history.replaceState(null,'','?id='+encodeURIComponent(SF.id)); }catch(e){} }
+      SF.canDelete=!!x.j.canDelete; paintActs(); chip('Saved ✓','');
+      if(_legacyPending){ _legacyPending=false; try{ localStorage.removeItem(K); }catch(e){} if(window.rrgToast) rrgToast('Moved to the server — it’s kept and shared now.'); }
+      if(_again||_dirty){ _again=false; _dirty=true; flush(); } })
+    .catch(function(){ _saving=false; _dirty=true; chip('Not saved — check your connection — retry','e'); });
 }
-function load(){
-  try{ var s=localStorage.getItem(K); if(s){ var o=JSON.parse(s); state.vals=o.vals||{}; state.ratings=o.ratings||{}; } }catch(e){}
+window.addEventListener('beforeunload',function(e){ if(_dirty||_saving){ e.preventDefault(); e.returnValue=''; } });
+function paintActs(){
+  var del=document.getElementById('delBtn'); if(del) del.hidden=!(SF.id&&SF.canDelete);
+  var smp=document.getElementById('sampleBtn'); if(smp) smp.hidden=!(!SF.id&&SF.canEdit);
+  document.querySelectorAll('[data-edit]').forEach(function(b){ b.hidden=!SF.canEdit; });
+  var lk=document.getElementById('lnkLinks'); if(lk){ lk.innerHTML=(SF.engagementKey?('<a href="./rrg_tenant_engagement.html?key='+encodeURIComponent(SF.engagementKey)+'">Open tenant ↗</a>'):'')+(SF.spaceId?('<a href="./rrg_space.html?id='+encodeURIComponent(SF.spaceId)+'">Open space ↗</a>'):''); }
 }
-async function clearAll(){
-  if(!await rrgConfirm('Clear this analysis?')) return;
+// View-only: the sheet still reads and prints, but nothing can be changed.
+function applyRO(){
+  var ro=!SF.canEdit;
+  document.querySelectorAll('[data-k]').forEach(function(el){ if(el.tagName==='SELECT') el.disabled=ro; else el.readOnly=ro; });
+  document.querySelectorAll('.rate button').forEach(function(b){ b.disabled=ro; });
+  ['lnkEng','lnkSpace'].forEach(function(id){ var el=document.getElementById(id); if(el) el.disabled=ro; });
+  var vo=document.getElementById('voBar'); if(vo){ vo.hidden=!ro; vo.textContent=ro?('View only — '+(SF.by?(SF.by+' made this analysis'):'this analysis belongs to someone else')+'. You can read and print it.'):''; }
+}
+// Put values on the sheet. onlyBlank: never overwrite what someone already typed.
+function setVals(values, onlyBlank){
+  var n=0; if(!values) return 0;
+  Object.keys(values).forEach(function(k){ var val=values[k]; if(val==null||val==='') return; var el=document.querySelector('[data-k="'+k+'"]'); if(!el) return;
+    if(onlyBlank && String(state.vals[k]||'').trim()) return;
+    if(el.tagName==='SELECT'){ var opt=Array.prototype.slice.call(el.options).filter(function(o){ return o.value && o.value.toLowerCase()===String(val).toLowerCase(); })[0]; if(!opt) return; el.value=opt.value; } else el.value=String(val);
+    state.vals[k]=el.value; n++; });
+  return n;
+}
+function resetSheet(){
   state={vals:{}, ratings:{}};
-  document.querySelectorAll('[data-k]').forEach(function(el){ if(el.tagName==='SELECT')el.selectedIndex=0; else el.value=(el.getAttribute('data-k')==='preparedBy')?el.value:''; });
-  // keep prepared-by default
-  var pb=document.querySelector('[data-k=preparedBy]'); if(pb) state.vals.preparedBy=pb.value;
+  document.querySelectorAll('[data-k]').forEach(function(el){ if(el.tagName==='SELECT') el.selectedIndex=0; else el.value=''; });
   var dy=document.querySelector('[data-k=daysYr]'); if(dy){ dy.value='358'; state.vals.daysYr='358'; }
-  paintRates(); compute(); growAll(); save();
 }
+async function deleteFit(){
+  if(!SF.id) return; if(!await rrgConfirm('Delete this analysis? This can’t be undone.')) return;
+  fetch('/api/site-fit/'+encodeURIComponent(SF.id),{method:'DELETE',credentials:'same-origin'}).then(function(r){ return r.json(); }).then(function(j){
+    if(!j.ok){ if(window.rrgToast) rrgToast(j.error||'Could not delete.',{danger:true}); return; }
+    _dirty=false; _saving=false; location.href='./rrg_site_fit.html';
+  }).catch(function(){ if(window.rrgToast) rrgToast('Could not reach the server.',{danger:true}); });
+}
+// Analyses saved by the old version live only in this browser — offer to move one to the server.
+function legacyDraft(){ try{ var s=localStorage.getItem(K); if(!s) return null; var o=JSON.parse(s)||{}; var v=o.vals||{}; for(var k in v){ if(!_NOISE[k] && String(v[k]||'').trim()) return o; } }catch(e){} return null; }
 
 /* ---------- sample ---------- */
 function loadSample(){
@@ -557,7 +642,7 @@ function loadSample(){
     nextSteps:'LOI at $30 base / $45 TI, 10 yr with 2×5. Exclusive on Mexican fast-casual. Verify existing hood/grease and 200A before removing contingency.'
   };
   state.ratings={demo:4, daypart:4, coten:5, vis:4, access:3, comp:5, space:3, seg:4, deal:4};
-  paintVals(); paintRates(); compute(); growAll(); save();
+  paintVals(); paintRates(); compute(); growAll(); save(); paintActs();
 }
 
 /* ---------- prefill from SSC / uploaded doc ---------- */
@@ -637,14 +722,117 @@ async function runPrefill(){
 }
 
 /* ---------- init ---------- */
-// "Prepared By" defaults to the signed-in user's name/title/phone/email (their profile), never a hard-coded person.
+// "Prepared By" defaults to the signed-in user's name/title/phone/email (their profile), never a hard-coded person — new sheets only.
 var ME_PB='', LEGACY_PB='Van Rinn, President & Founder · 210-362-0678 · van@rrgcre.com';
-function applyMePB(){ var pb=document.querySelector('[data-k=preparedBy]'); if(!pb||!ME_PB) return; var cur=state.vals.preparedBy; if(!cur||(cur===LEGACY_PB&&ME_PB!==LEGACY_PB)){ pb.value=ME_PB; state.vals.preparedBy=ME_PB; save(); } }
+function applyMePB(){ if(SF.id||SF.mode!=='sheet'||!SF.canEdit) return; var pb=document.querySelector('[data-k=preparedBy]'); if(!pb||!ME_PB) return; var cur=state.vals.preparedBy; if(!cur||(cur===LEGACY_PB&&ME_PB!==LEGACY_PB)){ pb.value=ME_PB; state.vals.preparedBy=ME_PB; } }
 fetch('/api/session',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ ME_PB=(j&&(j.preparedBy||j.name||j.username))||''; applyMePB(); }).catch(function(){});
-load(); bind(); paintVals();
-(function(){ var d=document.querySelector('[data-k=date]'); if(d && !d.value){ try{ var _s=new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}); d.value=_s; state.vals.date=_s; save(); }catch(e){} } })();
-paintRates(); compute();
-window.addEventListener('load', growAll);
+bind();
+
+var _opts=null;
+function loadOptions(){ return fetch('/api/site-fit/options',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ _opts=(j&&j.ok)?j:{engagements:[],spaces:[]}; paintPickers(); }).catch(function(){ _opts={engagements:[],spaces:[]}; paintPickers(); }); }
+function paintPickers(){
+  if(!_opts) return;
+  var e=document.getElementById('lnkEng'), sp=document.getElementById('lnkSpace');
+  // You can link only your own tenant searches; keep showing a link someone else made.
+  var engs=_opts.engagements.filter(function(x){ return x.mine || x.key===SF.engagementKey; });
+  if(SF.engagementKey && !engs.some(function(x){return x.key===SF.engagementKey;})) engs.unshift({key:SF.engagementKey,name:SF.engagementName||'Linked tenant'});
+  e.innerHTML='<option value="">— not linked —</option>'+engs.map(function(x){ return '<option value="'+_esc(x.key)+'">'+_esc(x.name+(x.tenant&&x.tenant!==x.name?(' · '+x.tenant):''))+'</option>'; }).join('');
+  e.value=SF.engagementKey||'';
+  var sps=_opts.spaces.slice(); if(SF.spaceId && !sps.some(function(x){return x.id===SF.spaceId;})) sps.unshift({id:SF.spaceId,name:SF.spaceName||'Linked space'});
+  sp.innerHTML='<option value="">— not linked —</option>'+sps.map(function(x){ return '<option value="'+_esc(x.id)+'">'+_esc(x.name+(x.market?(' · '+x.market):''))+'</option>'; }).join('');
+  sp.value=SF.spaceId||'';
+}
+function startValues(key,spaceId){ var q=[]; if(key) q.push('key='+encodeURIComponent(key)); if(spaceId) q.push('spaceId='+encodeURIComponent(spaceId)); return fetch('/api/site-fit/start?'+q.join('&'),{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}); }
+function onLink(which){
+  var el=document.getElementById(which==='eng'?'lnkEng':'lnkSpace'); var v=el.value;
+  if(which==='eng'){ SF.engagementKey=v; var o=(_opts.engagements.filter(function(x){return x.key===v;})[0]); SF.engagementName=o?o.name:''; }
+  else { SF.spaceId=v; var s2=(_opts.spaces.filter(function(x){return x.id===v;})[0]); SF.spaceName=s2?s2.name:''; }
+  paintActs();
+  if(!v){ save(); return; }
+  startValues(which==='eng'?v:'', which==='eng'?'':v).then(function(j){ var n=(j&&j.ok)?setVals(j.values,true):0; compute(); growAll(); save(); if(n&&window.rrgToast) rrgToast('Filled '+n+' blank field'+(n===1?'':'s')+' from the '+(which==='eng'?'tenant’s criteria':'space')+'.'); }).catch(function(){ save(); });
+}
+document.getElementById('lnkEng').addEventListener('change',function(){ onLink('eng'); });
+document.getElementById('lnkSpace').addEventListener('change',function(){ onLink('space'); });
+document.getElementById('savechip').addEventListener('click',function(){ if(this.classList.contains('e')){ _dirty=true; flush(); } });
+
+function showSheet(){
+  SF.mode='sheet';
+  document.getElementById('listView').hidden=true; document.getElementById('sheet').hidden=false;
+  document.getElementById('sheetActs').hidden=false; document.getElementById('linkBar').hidden=false;
+  paintVals(); paintRates(); compute(); paintActs(); applyRO(); paintPickers(); growAll();
+}
+function newSheet(key,spaceId,values){
+  resetSheet(); SF.id=''; SF.canEdit=true; SF.canDelete=false; SF.by=''; SF.engagementKey=key||''; SF.spaceId=spaceId||''; SF.engagementName=''; SF.spaceName='';
+  try{ var d=new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}); state.vals.date=d; }catch(e){}
+  if(values) Object.keys(values).forEach(function(k){ if(values[k]!=null&&values[k]!=='') state.vals[k]=String(values[k]); });
+  showSheet(); applyMePB(); chip(SF.engagementKey||SF.spaceId?'Not saved yet — saves as you type':'', 'p');
+  document.title='New Analysis · Site Fit';
+}
+function openFit(id){
+  fetch('/api/site-fit/'+encodeURIComponent(id),{credentials:'same-origin',cache:'no-store'}).then(function(r){ return r.json(); }).then(function(j){
+    if(!j||!j.ok){ showList((j&&j.error)||'Could not open that analysis.'); return; }
+    var f=j.fit; resetSheet(); state.vals=f.vals||{}; state.ratings=f.ratings||{};
+    SF.id=f.id; SF.engagementKey=f.engagementKey||''; SF.engagementName=f.engagementName||''; SF.spaceId=f.spaceId||''; SF.spaceName=f.spaceName||''; SF.by=f.by||''; SF.canEdit=!!j.canEdit; SF.canDelete=!!j.canDelete;
+    showSheet(); chip(SF.canEdit?'Saved ✓':'','');
+    document.title=(state.vals.concept||'Analysis')+' · Site Fit';
+  }).catch(function(){ showList('Could not reach the server.'); });
+}
+// From a tenant's shortlist (tenant + space): reopen the analysis already done for that pair instead of starting over.
+function startFrom(key,spaceId,reuse){
+  var go=function(){ startValues(key,spaceId).then(function(j){ if(!j||!j.ok){ if(window.rrgToast) rrgToast((j&&j.error)||'Could not read the tenant or space.',{danger:true}); newSheet('','',null); return; } newSheet(key,spaceId,j.values); if(j.engagement) SF.engagementName=j.engagement.name; if(j.space) SF.spaceName=j.space.name; paintPickers(); }).catch(function(){ newSheet(key,spaceId,null); }); };
+  if(!reuse||!key||!spaceId){ go(); return; }
+  fetch('/api/site-fits?key='+encodeURIComponent(key)+'&spaceId='+encodeURIComponent(spaceId),{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+    var hit=(j&&j.fits||[])[0]; if(hit){ try{ history.replaceState(null,'','?id='+encodeURIComponent(hit.id)); }catch(e){} openFit(hit.id); } else go(); }).catch(go);
+}
+
+/* ---------- list of saved analyses ---------- */
+var _list=[], _sortK='updatedAt', _sortDir=-1;
+function _vcls(v){ return v==='Strong Fit'?'g':(v==='Pass'?'r':(v?'a':'n')); }
+function _fdate(iso){ if(!iso) return ''; var d=new Date(iso); return isNaN(d)?'':d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
+function showList(err){
+  SF.mode='list';
+  document.getElementById('sheet').hidden=true; document.getElementById('sheetActs').hidden=true; document.getElementById('linkBar').hidden=true; document.getElementById('voBar').hidden=true;
+  document.getElementById('listView').hidden=false; document.title='Site Fit';
+  try{ history.replaceState(null,'','./rrg_site_fit.html'); }catch(e){}
+  if(err&&window.rrgToast) rrgToast(err,{danger:true});
+  var lg=legacyDraft(), lb=document.getElementById('legacyBar');
+  if(lg){ lb.hidden=false; lb.innerHTML='<span class="sp">An analysis is saved only in this browser'+((lg.vals&&lg.vals.concept)?(' — <b>'+_esc(lg.vals.concept)+'</b>'):'')+'. Move it to the server so it’s kept, shared and linked to the tenant.</span><button class="btn print" id="lgOpen">Open &amp; save</button><button class="btn" id="lgDrop">Discard</button>';
+    document.getElementById('lgOpen').onclick=function(){ newSheet('','',lg.vals||{}); state.ratings=lg.ratings||{}; paintRates(); compute(); _legacyPending=true; save(); };
+    document.getElementById('lgDrop').onclick=async function(){ if(!await rrgConfirm('Discard the analysis saved in this browser?')) return; try{ localStorage.removeItem(K); }catch(e){} lb.hidden=true; };
+  } else lb.hidden=true;
+  fetch('/api/site-fits',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ _list=(j&&j.fits)||[]; paintList(); })
+    .catch(function(){ document.getElementById('lvBody').innerHTML='<div class="lempty">Could not reach the server.</div>'; });
+}
+function paintList(){
+  var q=(document.getElementById('lvQ').value||'').trim().toLowerCase();
+  var rows=_list.filter(function(f){ return !q || [f.concept,f.engagementName,f.spaceName,f.address,f.by,f.verdict].join(' ').toLowerCase().indexOf(q)>=0; });
+  rows.sort(function(a,b){ var x=a[_sortK], y=b[_sortK]; if(x==null||x==='') return 1; if(y==null||y==='') return -1; return (typeof x==='number'&&typeof y==='number')?(x-y)*_sortDir:String(x).localeCompare(String(y))*_sortDir; });
+  document.getElementById('lvCnt').textContent=_list.length?(rows.length===_list.length?(_list.length+' saved'):(rows.length+' of '+_list.length)):'';
+  var box=document.getElementById('lvBody');
+  if(!_list.length){ box.innerHTML='<div class="lempty">No analyses yet. Start one with <b>+ New Analysis</b> — or click <b>Fit</b> on a space in a tenant’s shortlist and the concept and space fill in for you.</div>'; return; }
+  if(!rows.length){ box.innerHTML='<div class="lempty">Nothing matches “'+_esc(q)+'”.</div>'; return; }
+  var cols=[['concept','Concept'],['engagementName','Tenant'],['spaceName','Space'],['score','Fit'],['verdict','Call'],['occ','Occupancy'],['by','By',1],['updatedAt','Updated',1]];
+  box.innerHTML='<table class="lt"><thead><tr>'+cols.map(function(c){ return '<th data-k="'+c[0]+'"'+(c[2]?' class="hm'+(_sortK===c[0]?' on':'')+'"':(_sortK===c[0]?' class="on"':''))+'>'+c[1]+(_sortK===c[0]?(_sortDir<0?' ▾':' ▴'):'')+'</th>'; }).join('')+'</tr></thead><tbody>'
+    +rows.map(function(f){ return '<tr><td><a href="?id='+encodeURIComponent(f.id)+'">'+_esc(f.concept||'Untitled analysis')+'</a>'+(f.address?('<div class="m">'+_esc(f.address)+'</div>'):'')+'</td>'
+      +'<td>'+(f.engagementKey?('<a href="./rrg_tenant_engagement.html?key='+encodeURIComponent(f.engagementKey)+'">'+_esc(f.engagementName||'Tenant')+'</a>'):'<span class="m">—</span>')+'</td>'
+      +'<td>'+(f.spaceId?('<a href="./rrg_space.html?id='+encodeURIComponent(f.spaceId)+'">'+_esc(f.spaceName||'Space')+'</a>'):(f.spaceName?_esc(f.spaceName):'<span class="m">—</span>'))+'</td>'
+      +'<td>'+(f.score!=null?('<b>'+f.score+'</b>'):'<span class="m">—</span>')+'</td>'
+      +'<td><span class="vp '+_vcls(f.verdict)+'">'+_esc(f.verdict||'Not scored')+'</span></td>'
+      +'<td>'+(f.occ!=null?(f.occ.toFixed(1)+'%'):'<span class="m">—</span>')+'</td>'
+      +'<td class="hm m">'+_esc(f.by||'')+'</td><td class="hm m">'+_esc(_fdate(f.updatedAt))+'</td></tr>'; }).join('')+'</tbody></table>';
+  box.querySelectorAll('th[data-k]').forEach(function(th){ th.onclick=function(){ var k=th.getAttribute('data-k'); if(_sortK===k) _sortDir=-_sortDir; else { _sortK=k; _sortDir=(k==='concept'||k==='engagementName'||k==='spaceName'||k==='by'||k==='verdict')?1:-1; } paintList(); }; });
+}
+document.getElementById('lvQ').addEventListener('input',paintList);
+
+(function(){
+  var P=new URLSearchParams(location.search), qid=P.get('id'), qkey=P.get('key')||'', qsp=P.get('space')||'', qnew=P.get('new')==='1';
+  loadOptions();
+  if(qid) openFit(qid);
+  else if(qkey||qsp) startFrom(qkey,qsp,!qnew);
+  else if(qnew) newSheet('','',null);
+  else showList();
+})();
+window.addEventListener('load', function(){ if(SF.mode==='sheet') growAll(); });
 </script>
 <script src="/rrg_features.js"></script>
 </body>

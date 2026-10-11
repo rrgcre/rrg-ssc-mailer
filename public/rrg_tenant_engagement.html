@@ -546,7 +546,7 @@ function _tenantTool(name){
   var n=String(name||'').toLowerCase();
   function h(){ for(var i=0;i<arguments.length;i++){ if(n.indexOf(arguments[i])>=0) return true; } return false; }
   if(h('needs analysis','needs','site criteria','criteria')) return { href:'./ssc_form.html', open:'Open Site Criteria' };
-  if(h('site search','site & concept','site and concept','concept fit','sourcing','shortlist')) return { href:'./rrg_site_fit.html', open:'Open Site & Concept Fit' };
+  if(h('site search','site & concept','site and concept','concept fit','sourcing','shortlist')) return { href:'./rrg_site_fit.html', open:'Open Site Fit' };
   if(h('tour')) return { href:'./rrg_tours.html'+((typeof KEY!=='undefined'&&KEY)?('?key='+encodeURIComponent(KEY)):''), open:'Open Tours' };
   if(h('loi','letter of intent','negotiat')) return { href:'./rrg_loi_builder.html', open:'Open LOI Builder' };
   return null;
@@ -1067,6 +1067,7 @@ function render(){
     + brokerBlastsCard()
     + spaceShortlistCard()
     + toursCard()
+    + siteFitCard()
     + loisCard()
     + offersCard()
     + agreementsCardDeal()
@@ -1097,6 +1098,7 @@ function render(){
   loadMapStatus();
   if(_bblasts) renderBrokerBlasts(_bbStudio); else loadBrokerBlasts();
   loadLoisCard();
+  loadSiteFits();
   loadShortlist();
   wirePhotos();
   wireDocs(); loadListingDocs();
@@ -1523,6 +1525,32 @@ function loadMapStatus(){
   }).catch(function(){ _tmapFetched=false; });
 }
 
+// ===== Site Fit card — every Site Fit analysis run for this tenant (score, call, occupancy) =====
+var _fits=null;
+function siteFitCard(){
+  if(!A||A.assignmentType!=='tenant_rep') return '';
+  return '<div class="card" id="fitCard"><div class="ch"><b>Site Fit</b><span class="bbcnt" hidden>0</span>'
+    + '<a class="railadd" href="./rrg_site_fit.html?key='+encodeURIComponent(KEY)+'&new=1" title="Score a space for this tenant" style="text-decoration:none;display:inline-flex;align-items:center;justify-content:center">+</a></div>'
+    + '<div class="cb" style="padding:12px 16px"><div id="fitList" style="font-size:12.5px;color:#8a93a8">Loading…</div></div></div>';
+}
+function _fitPill(v,score){ var c=v==='Strong Fit'?['#e7f5ee','#1f6b45']:(v==='Pass'?['#fdecea','#b23a2c']:(v?['#fff4e6','#9a6a12']:['#f1f2f6','#5a6378'])); return '<span class="loip" style="background:'+c[0]+';color:'+c[1]+'">'+(score!=null?(score+' · '):'')+esc(v||'Not scored')+'</span>'; }
+function _fitFor(spaceId){ return (_fits||[]).filter(function(f){ return f.spaceId===spaceId; })[0]||null; }
+function renderSiteFits(){
+  var box=document.getElementById('fitList'), card=document.getElementById('fitCard'); if(!box) return;
+  var list=_fits||[]; var cnt=card&&card.querySelector('.ch > .bbcnt'); if(cnt){ cnt.textContent=String(list.length); cnt.hidden=!list.length; }
+  if(!list.length){ box.innerHTML='<div style="color:#55607a;line-height:1.55">No fit analyses yet. Click <b>Fit</b> on a space in the shortlist — the concept and the space fill in — or hit <b>+</b> to start one.</div>'; return; }
+  box.innerHTML=list.map(function(f){
+    var facts=[f.occ!=null?('occupancy '+f.occ.toFixed(1)+'%'):'', f.sales!=null?('est. sales $'+Math.round(f.sales/1000).toLocaleString()+'K'):'', f.by||''].filter(Boolean).join(' · ');
+    return '<div class="loirow"><div class="lw">'+_fitPill(f.verdict,f.score)+'<a href="./rrg_site_fit.html?id='+encodeURIComponent(f.id)+'">'+esc(f.spaceName||f.address||f.concept||'Analysis')+'</a></div>'+(facts?('<div class="ls">'+esc(facts)+'</div>'):'')+'</div>';
+  }).join('');
+}
+function loadSiteFits(){
+  if(!A||A.assignmentType!=='tenant_rep') return;
+  if(_fits){ renderSiteFits(); return; }
+  fetch('/api/site-fits?key='+encodeURIComponent(KEY),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ _fits=(j&&j.fits)||[]; renderSiteFits(); if(_ss) renderShortlist(); }).catch(function(){ var b=document.getElementById('fitList'); if(b) b.innerHTML='<span style="color:#b23a2c">Couldn’t load fit analyses.</span>'; });
+}
+// "Fit" on a space: opens the analysis already run for this tenant + space, or starts one with both filled in.
+function _fitBtn(spaceId,cls){ var f=_fitFor(spaceId); return '<a class="'+cls+'" href="./rrg_site_fit.html?key='+encodeURIComponent(KEY)+'&space='+encodeURIComponent(spaceId)+'" title="'+(f?('Site Fit: '+esc(f.verdict||'not scored')+(f.score!=null?(' ('+f.score+'/100)'):'')):'Score this space for the tenant — Site Fit')+'" style="text-decoration:none;font-size:11px;font-weight:800;white-space:nowrap;width:auto;min-width:26px;padding:0 5px'+(f?';background:#eef4fb;border-color:#c9d8ec;color:#23496f':'')+'">'+(f&&f.score!=null?('Fit '+f.score):'Fit')+'</a>'; }
 // ===== LOIs card — every lease LOI on this engagement (status, version, response deadline) =====
 var _lois=null;
 function loisCard(){
@@ -1782,7 +1810,7 @@ function renderShortlist(){
   b.innerHTML=head+m.map(function(x){ var sc=x.score>=80?['#e7f5ee','#1f6b45']:(x.score>=65?['#eef4fb','#23496f']:['#fff4e6','#9a6a12']);
     var facts=[x.size?(Number(x.size).toLocaleString()+' SF'):'', x.rent?(_ssMoney(x.rent)+(x.nnn?(' + '+_ssMoney(x.nnn)):'')+'/SF'):'', x.readyGrade&&x.readyGrade!=='Unknown'?(x.readyGrade+(x.savesHi?(' · saves ~$'+Math.round(x.savesLo/1000)+'–'+Math.round(x.savesHi/1000)+'K'):'')):''].filter(Boolean).join(' · ');
     return '<div class="loirow"'+(x.dismissed?' style="opacity:.55"':'')+'><div class="lw"><span class="loip" style="background:'+sc[0]+';color:'+sc[1]+'" title="Fit score">'+(x.shortlisted&&!x.score?'★':x.score)+'</span><a href="./rrg_space.html?id='+encodeURIComponent(x.spaceId)+'">'+esc([x.center,x.name].filter(Boolean).join(' · ')||x.address||'Space')+'</a>'+(x.isNew?'<span class="loip" style="background:#DA2B1F;color:#fff">NEW</span>':'')+(x.flags&&x.flags.priceDrop?'<span class="loip" style="background:#e7f5ee;color:#1f6b45">↓ price</span>':'')
-      +'<span style="margin-left:auto;display:flex;gap:4px"><button type="button" class="bbbtn" data-ssact="'+(x.shortlisted?'unshortlist':'shortlist')+'" data-sid="'+esc(x.spaceId)+'" title="'+(x.shortlisted?'Remove from shortlist':'Shortlist')+'" style="color:'+(x.shortlisted?'#e0a53a':'#9aa4b6')+';font-size:15px">★</button>'+(x.dismissed?('<button type="button" class="bbbtn" data-ssact="restore" data-sid="'+esc(x.spaceId)+'" title="Restore">↺</button>'):('<button type="button" class="bbbtn" data-ssact="dismiss" data-sid="'+esc(x.spaceId)+'" title="Not a fit — hide">✕</button>'))+'<a class="bbbtn" href="./rrg_loi_builder.html?key='+encodeURIComponent(KEY)+'&space='+encodeURIComponent(x.spaceId)+'#new" title="Write an LOI" style="text-decoration:none;font-size:11px;font-weight:800">LOI</a></span></div>'
+      +'<span style="margin-left:auto;display:flex;gap:4px"><button type="button" class="bbbtn" data-ssact="'+(x.shortlisted?'unshortlist':'shortlist')+'" data-sid="'+esc(x.spaceId)+'" title="'+(x.shortlisted?'Remove from shortlist':'Shortlist')+'" style="color:'+(x.shortlisted?'#e0a53a':'#9aa4b6')+';font-size:15px">★</button>'+(x.dismissed?('<button type="button" class="bbbtn" data-ssact="restore" data-sid="'+esc(x.spaceId)+'" title="Restore">↺</button>'):('<button type="button" class="bbbtn" data-ssact="dismiss" data-sid="'+esc(x.spaceId)+'" title="Not a fit — hide">✕</button>'))+_fitBtn(x.spaceId,'bbbtn')+'<a class="bbbtn" href="./rrg_loi_builder.html?key='+encodeURIComponent(KEY)+'&space='+encodeURIComponent(x.spaceId)+'#new" title="Write an LOI" style="text-decoration:none;font-size:11px;font-weight:800">LOI</a></span></div>'
       +(facts?('<div class="ls">'+esc(facts)+'</div>'):'')
       +(x.reasons.length?('<div class="ls" style="color:#1f6b45">✓ '+esc(x.reasons.join(' · '))+'</div>'):'')+(x.misses.length?('<div class="ls" style="color:#9a6a12">'+esc(x.misses.join(' · '))+'</div>'):'')+'</div>'; }).join('')
     +(j.dismissedCount&&!_ssAll?('<a href="#" id="ssShowAll" style="display:inline-block;margin-top:8px;font-size:12px;color:#23496f;font-weight:700;text-decoration:none">Show '+j.dismissedCount+' dismissed</a>'):'');
@@ -1925,7 +1953,7 @@ function tourCardHTML(t){
   var meta=[t.date?('Toured '+fmt(t.date)):'', t.host?('Shown by '+esc(t.host)):''].filter(Boolean).join(' · ');
   return '<div class="tcard'+(t.reaction==='Passed'?' tpassed':'')+'" data-tid="'+esc(t.id)+'">'
     +'<div class="thead"><div class="tparty">'+esc(name)+(top?' <span class="ttop">Top pick</span>':'')+'</div>'+react
-      +'<span class="ospacer"></span>'+(t.spaceId?('<a class="tedit" style="text-decoration:none" href="./rrg_loi_builder.html?key='+encodeURIComponent(KEY)+'&space='+encodeURIComponent(t.spaceId)+'#new" title="Write an LOI on this space">LOI</a>'):'')+'<button class="tedit" data-tid="'+esc(t.id)+'">Edit</button><button class="tdel" data-tid="'+esc(t.id)+'">Delete</button></div>'
+      +'<span class="ospacer"></span>'+(t.spaceId?(_fitBtn(t.spaceId,'tedit')+'<a class="tedit" style="text-decoration:none" href="./rrg_loi_builder.html?key='+encodeURIComponent(KEY)+'&space='+encodeURIComponent(t.spaceId)+'#new" title="Write an LOI on this space">LOI</a>'):'')+'<button class="tedit" data-tid="'+esc(t.id)+'">Edit</button><button class="tdel" data-tid="'+esc(t.id)+'">Delete</button></div>'
     +'<div class="tmeta">'+_tStars(t.rating)+(facts?(' <span class="tfacts">'+facts+'</span>'):'')+'</div>'
     +(meta?('<div class="tmeta">'+meta+'</div>'):'')
     +(t.thoughts?('<div class="tnotes"><span class="tnl">Tenant’s thoughts</span>'+esc(t.thoughts)+'</div>'):'')

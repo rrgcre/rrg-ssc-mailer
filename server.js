@@ -756,7 +756,7 @@ const TOOL_DEFS = [
   { file: 'rrg_commission_calculator.html', name: 'Commission Forecaster' },
   { file: 'ssc_form.html', name: 'Site Selection Criteria' },
   { file: 'rrg_tenant_attack_plan.html', name: 'Market Attack Plan' },
-  { file: 'rrg_site_fit.html', name: 'Site & Concept Fit' },
+  { file: 'rrg_site_fit.html', name: 'Site Fit' },
   { file: 'rrg_tour_tracker.html', name: 'Tour Tracker' },
   { file: 'rrg_lease_queue.html', name: 'Lease Abstracts' },
   { file: 'rrg_lease_commission_calculator.html', name: 'Lease Commission' },
@@ -1460,7 +1460,7 @@ const TOOL_LIST = [
   { name: 'CIM Builder', file: 'rrg_cim_builder.html' },
   { name: 'Market Attack Plan (Sell)', file: 'rrg_seller_attack_plan.html' },
   { name: 'Market Attack Plan (Tenant)', file: 'rrg_tenant_attack_plan.html' },
-  { name: 'Site & Concept Fit', file: 'rrg_site_fit.html' },
+  { name: 'Site Fit', file: 'rrg_site_fit.html' },
   { name: 'Tour Tracker', file: 'rrg_tour_tracker.html' },
   { name: 'Sale Commission', file: 'rrg_commission_calculator.html' },
   { name: 'Lease Commission', file: 'rrg_lease_commission_calculator.html' },
@@ -15944,6 +15944,130 @@ app.post('/api/site-fit/prefill', express.json({ limit: '28mb' }), async (req, r
     res.json({ ok: true, values: (result && result.values) || {}, notes: (result && result.notes) || '' });
   } catch (e) { res.status(502).json({ ok: false, error: String(e.message || e) }); }
 });
+// ===== Site & Concept Fit analyses — saved on the server, linked to a tenant engagement and a space =====
+// One record per analysis: the sheet's values + ratings, plus the computed summary (score, verdict, occupancy, sales)
+// so lists (engagement, space, the Fit list page) can show the call without re-running the sheet.
+const SITE_FITS_FILE = path.join(BOV_DATA_DIR, 'site_fits.json');
+function loadSiteFits() { try { const a = rj(SITE_FITS_FILE); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+function saveSiteFits(a) { return writeJsonGuarded(SITE_FITS_FILE, a, 'saveSiteFits'); }
+const SF_VERDICTS = ['Strong Fit', 'Workable', 'Marginal', 'Pass'];
+function _sfEngagement(key) { if (!key) return null; const d = assignmentsIndex()[key]; if (!d) return null; let av = null; try { av = assignmentView(d, loadAssignOverlay(), { noBoard: true }); } catch (e) {} return av ? { d: d, av: av } : null; }
+function _sfOwnsEng(req, key) { const e = _sfEngagement(key); return !!(e && ownsAssignment(req, e.d)); }
+// Who sees it: admins / See-all, the person who made it, or whoever owns the linked tenant engagement.
+function sfCanSee(req, f) { if (!f) return false; if (canSeeAllDeals(req)) return true; const u = req.user && req.user.username; if (u && f.byUser === u) return true; return !!(f.engagementKey && _sfOwnsEng(req, f.engagementKey)); }
+// Who edits: admins, the maker, or the engagement owner. See-all alone is view-only (same rule as listings).
+function sfCanEdit(req, f) { if (!f) return false; if (req.user && isSuper(req.user)) return true; const u = req.user && req.user.username; if (u && f.byUser === u) return true; return !!(f.engagementKey && _sfOwnsEng(req, f.engagementKey)); }
+// Delete follows the Doc Vault rule: admins, or the delete permission plus edit rights.
+function sfCanDelete(req, f) { if (req.user && isSuper(req.user)) return true; return canDelete(req) && sfCanEdit(req, f); }
+function _sfTenantName(av) { if (!av) return ''; if (av.company && av.company.name) return av.company.name; if (av.clientPersonId) { const p = personById(av.clientPersonId); if (p) return p.name || ''; } return ''; }
+function _sfSpaceLabel(sp) { return sp ? ([sp.center, sp.name].filter(Boolean).join(' · ') || sp.address || 'Space') : ''; }
+function sfSummary(f, req, spacesById) {
+  const s = f.summary || {}; const sp = f.spaceId ? (spacesById ? spacesById[f.spaceId] : loadSpaces().find(x => x.id === f.spaceId)) : null;
+  const v = f.vals || {};
+  return { id: f.id, concept: String(v.concept || ''), address: String(v.address || ''), engagementKey: f.engagementKey || '', engagementName: f.engagementName || '',
+    spaceId: f.spaceId || '', spaceName: sp ? _sfSpaceLabel(sp) : (f.spaceName || ''), score: (typeof s.score === 'number') ? s.score : null, verdict: s.verdict || '',
+    occ: (typeof s.occ === 'number') ? s.occ : null, sales: (typeof s.sales === 'number') ? s.sales : null, by: f.by || '', byUser: f.byUser || '',
+    createdAt: f.createdAt || '', updatedAt: f.updatedAt || '', canEdit: req ? sfCanEdit(req, f) : false };
+}
+function _sfCleanVals(o) { const out = {}; if (!o || typeof o !== 'object') return out; Object.keys(o).slice(0, 80).forEach(k => { if (!/^[A-Za-z][A-Za-z0-9_]{0,40}$/.test(k)) return; const v = o[k]; if (v == null) return; out[k] = String(v).slice(0, 4000); }); return out; }
+function _sfCleanRatings(o) { const out = {}; if (!o || typeof o !== 'object') return out; Object.keys(o).slice(0, 30).forEach(k => { if (!/^[A-Za-z][A-Za-z0-9_]{0,30}$/.test(k)) return; const n = parseInt(o[k], 10); if (n >= 1 && n <= 5) out[k] = n; }); return out; }
+function _sfCleanSummary(o) { o = o || {}; const N = (v, lo, hi) => { if (v == null || v === '') return null; const n = Number(v); return (isFinite(n) && n >= lo && n <= hi) ? Math.round(n * 10) / 10 : null; }; return { score: N(o.score, 0, 100), verdict: SF_VERDICTS.indexOf(o.verdict) >= 0 ? o.verdict : '', occ: N(o.occ, 0, 1000), sales: N(o.sales, 0, 1e10) }; }
+// The facts we already hold, mapped onto the sheet's fields: the engagement's Site Selection Criteria (concept side)
+// and the space + its center (location side). Deterministic — no AI. The page only fills fields that are blank.
+const _SF_FB = [[/ghost|virtual kitchen/i, 'Ghost / Virtual Kitchen'], [/food hall/i, 'Food Hall Stall'], [/fast[\s-]?casual/i, 'Fast Casual'], [/\bqsr\b|fast[\s-]?food|quick[\s-]?serv/i, 'QSR / Fast Food'], [/fine dining|upscale/i, 'Upscale / Fine Dining'], [/brew|taproom/i, 'Brewery / Taproom'], [/night ?club|lounge/i, 'Nightclub / Lounge'], [/sports bar|tavern|\bpub\b|\bbar\b/i, 'Bar / Tavern / Sports Bar'], [/coffee|caf[eé]/i, 'Coffee / Café'], [/bakery|dessert/i, 'Bakery / Dessert'], [/pizza/i, 'Pizza / Delivery-forward'], [/full[\s-]?service|casual dining|sit[\s-]?down/i, 'Full-Service / Casual Dining']];
+function sfStartValues(av, sp) {
+  const v = {};
+  if (av) {
+    const c = av.criteria || {};
+    if (av.business) v.concept = av.business;
+    const tn = _sfTenantName(av); if (tn) v.preparedFor = tn;
+    const fb = _SF_FB.filter(x => x[0].test(String(c.useType || '') + ' ' + String(av.business || '')))[0]; if (fb) v.fbType = fb[1];
+    const lo = _spNum(c.sizeMin), hi = _spNum(c.sizeMax);
+    if (lo || hi) v.sfNeeded = (lo && hi && lo !== hi) ? (lo.toLocaleString('en-US') + '–' + hi.toLocaleString('en-US')) : (hi || lo).toLocaleString('en-US');
+    const must = [c.features, c.parking ? ('parking: ' + c.parking) : ''].filter(Boolean).join(' · '); if (must) v.mustHaves = must.slice(0, 300);
+  }
+  if (sp) {
+    const center = sp.centerId ? (loadCenters().find(x => x.id === sp.centerId) || null) : null;
+    if (sp.address) v.address = sp.address;
+    const tag = [sp.center, sp.spaceType, sp.condition].filter(Boolean).join(' · '); if (tag) v.tagline = tag;
+    const st = ({ 'End cap': 'End Cap', 'Inline': 'Inline', 'Freestanding': 'Freestanding', 'Pad / Outparcel': 'Freestanding' })[sp.spaceType];
+    v.spaceType = (sp.condition === 'Second-gen') ? '2nd-gen restaurant' : (st || (sp.condition === 'Shell' ? 'Gray / vanilla shell' : ''));
+    if (!v.spaceType) delete v.spaceType;
+    if (sp.spaceType === 'End cap') v.centerType = 'End cap'; else if (sp.spaceType === 'Pad / Outparcel' || sp.spaceType === 'Freestanding') v.centerType = 'Freestanding pad';
+    if (sp.name && /^(suite|ste\.?|unit|bldg|building|#)\s*\S+|^\d+[A-Za-z]?$/i.test(String(sp.name).trim())) v.suite = String(sp.name).trim();
+    if (sp.size != null) v.sfAvail = Number(sp.size).toLocaleString('en-US');
+    if (sp.rent != null) v.baseRent = Number(sp.rent).toFixed(2);
+    if (sp.nnn != null) v.nnn = Number(sp.nnn).toFixed(2);
+    if (sp.infra && sp.infra.parking) v.parking = String(sp.infra.parking);
+    if (center) {
+      if (center.vpd) v.vpd = String(center.vpd);
+      const co = [center.anchor ? ('Anchor: ' + center.anchor) : '', center.coTenants || ''].filter(Boolean).join(' · '); if (co) v.cotenancy = co.slice(0, 400);
+      if (center.existingRestaurants) v.competition = ('In the center: ' + center.existingRestaurants).slice(0, 400);
+    }
+  }
+  return v;
+}
+// List: ?key= (an engagement) and/or ?spaceId= ; nothing = everything the caller can see.
+app.get('/api/site-fits', (req, res) => {
+  const key = String(req.query.key || ''), sid = String(req.query.spaceId || '');
+  if (key && !(canSeeAllDeals(req) || _sfOwnsEng(req, key))) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const byId = {}; loadSpaces().forEach(s => { byId[s.id] = s; });
+  const list = loadSiteFits().filter(f => (!key || f.engagementKey === key) && (!sid || f.spaceId === sid) && sfCanSee(req, f))
+    .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || ''))).map(f => sfSummary(f, req, byId));
+  res.json({ ok: true, fits: list });
+});
+// What to pre-fill a new sheet with, and the pickers' choices (tenant engagements the caller can see).
+app.get('/api/site-fit/start', (req, res) => {
+  const key = String(req.query.key || ''), sid = String(req.query.spaceId || '');
+  let eng = null; if (key) { eng = _sfEngagement(key); if (!eng) return res.status(404).json({ ok: false, error: 'Tenant engagement not found.' }); if (!(canSeeAllDeals(req) || ownsAssignment(req, eng.d))) return res.status(403).json({ ok: false, error: 'Not yours.' }); }
+  let sp = null; if (sid) { sp = loadSpaces().find(x => x.id === sid) || null; if (!sp) return res.status(404).json({ ok: false, error: 'Space not found.' }); }
+  res.json({ ok: true, values: sfStartValues(eng && eng.av, sp), engagement: eng ? { key: key, name: eng.av.business || '' } : null, space: sp ? { id: sp.id, name: _sfSpaceLabel(sp) } : null });
+});
+app.get('/api/site-fit/options', (req, res) => {
+  const engs = tenantEngagementsFor(req).filter(e => canSeeAllDeals(req) || ownsAssignment(req, e.d)).map(e => ({ key: e.av.key, name: e.av.business || 'Untitled', tenant: _sfTenantName(e.av), mine: ownsAssignment(req, e.d) }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const spaces = loadSpaces().filter(s => ['Leased', 'Passed'].indexOf(s.status) < 0).map(s => ({ id: s.id, name: _sfSpaceLabel(s), address: s.address || '', market: s.market || '' })).sort((a, b) => a.name.localeCompare(b.name));
+  res.json({ ok: true, engagements: engs, spaces: spaces });
+});
+app.get('/api/site-fit/:id', (req, res) => {
+  const f = loadSiteFits().find(x => x.id === req.params.id); if (!f) return res.status(404).json({ ok: false, error: 'That analysis is no longer on file.' });
+  if (!sfCanSee(req, f)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const sp = f.spaceId ? loadSpaces().find(x => x.id === f.spaceId) : null;
+  // The space record may have been deleted; keep the label the analysis was saved with.
+  const engOk = f.engagementKey && !!_sfEngagement(f.engagementKey);
+  res.json({ ok: true, fit: { id: f.id, vals: f.vals || {}, ratings: f.ratings || {}, summary: f.summary || {}, engagementKey: engOk ? f.engagementKey : '', engagementName: f.engagementName || '', spaceId: sp ? f.spaceId : '', spaceName: sp ? _sfSpaceLabel(sp) : (f.spaceName || ''), by: f.by || '', byUser: f.byUser || '', createdAt: f.createdAt || '', updatedAt: f.updatedAt || '' },
+    canEdit: sfCanEdit(req, f), canDelete: sfCanDelete(req, f) });
+});
+// Create (no id) or update. Linking to an engagement needs owner rights on it; spaces are firm-wide.
+app.post('/api/site-fit', express.json({ limit: '512kb' }), (req, res) => {
+  const b = req.body || {}; const arr = loadSiteFits(); const now = new Date().toISOString();
+  let f = b.id ? arr.find(x => x.id === b.id) : null;
+  if (b.id && !f) return res.status(404).json({ ok: false, error: 'That analysis is no longer on file.' });
+  if (f && !sfCanEdit(req, f)) return res.status(403).json({ ok: false, error: 'View only — this analysis belongs to someone else.' });
+  if (b.engagementKey !== undefined) {
+    const key = String(b.engagementKey || '');
+    if (key) { const e = _sfEngagement(key); if (!e) return res.status(404).json({ ok: false, error: 'Tenant engagement not found.' }); if (!ownsAssignment(req, e.d)) return res.status(403).json({ ok: false, error: 'You can only link an analysis to your own tenant engagements.' }); }
+  }
+  if (b.spaceId !== undefined && b.spaceId && !loadSpaces().some(x => x.id === b.spaceId)) return res.status(404).json({ ok: false, error: 'Space not found.' });
+  const isNew = !f;
+  if (!f) { f = { id: 'sf_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', vals: {}, ratings: {} }; arr.push(f); }
+  if (b.vals !== undefined) f.vals = _sfCleanVals(b.vals);
+  if (b.ratings !== undefined) f.ratings = _sfCleanRatings(b.ratings);
+  if (b.summary !== undefined) f.summary = _sfCleanSummary(b.summary);
+  if (b.engagementKey !== undefined) { f.engagementKey = String(b.engagementKey || ''); const e = _sfEngagement(f.engagementKey); f.engagementName = e ? (e.av.business || '') : ''; }
+  if (b.spaceId !== undefined) { f.spaceId = String(b.spaceId || ''); const sp = f.spaceId ? loadSpaces().find(x => x.id === f.spaceId) : null; f.spaceName = sp ? _sfSpaceLabel(sp) : ''; }
+  f.updatedAt = now; f.updatedBy = (req.user && req.user.name) || '';
+  if (!saveSiteFits(arr)) return res.status(500).json({ ok: false, error: 'Could not save — try again.' });
+  if (isNew) { try { logSysEvent(req, 'Site Fit', 'Site Fit started' + ((f.vals && f.vals.concept) ? (' — ' + f.vals.concept) : '') + (f.spaceName ? (' at ' + f.spaceName) : ''), { tool: 'site-fit', siteFitId: f.id, engagementKey: f.engagementKey || '', spaceId: f.spaceId || '' }); } catch (e) {} }
+  res.json({ ok: true, fit: sfSummary(f, req), canEdit: true, canDelete: sfCanDelete(req, f) });
+});
+app.delete('/api/site-fit/:id', (req, res) => {
+  const arr = loadSiteFits(); const i = arr.findIndex(x => x.id === req.params.id); if (i < 0) return res.status(404).json({ ok: false, error: 'That analysis is no longer on file.' });
+  const f = arr[i]; if (!sfCanDelete(req, f)) return res.status(403).json({ ok: false, error: sfCanEdit(req, f) ? 'You need the delete permission to remove analyses.' : 'Not yours.' });
+  arr.splice(i, 1); if (!saveSiteFits(arr)) return res.status(500).json({ ok: false, error: 'Could not delete — try again.' });
+  try { logSysEvent(req, 'Site Fit', 'Site Fit deleted' + ((f.vals && f.vals.concept) ? (' — ' + f.vals.concept) : ''), { tool: 'site-fit', siteFitId: f.id }); } catch (e) {}
+  res.json({ ok: true });
+});
 app.post('/api/spaces/ai-match', express.json({ limit: '256kb' }), async (req, res) => {
   try {
     const b = req.body || {};
@@ -23598,7 +23722,7 @@ const GATEABLE_TOOLS = [
   { file: 'rrg_attack_queue.html', name: 'Market Attack Plans', cat: 'Sell-Side' },
   { file: 'rrg_loi_builder.html', name: 'LOI Builder', cat: 'Tenant Rep' },
   { file: 'ssc_form.html', name: 'Site Selection Criteria', cat: 'Tenant Rep' },
-  { file: 'rrg_site_fit.html', name: 'Site & Concept Fit', cat: 'Tenant Rep' },
+  { file: 'rrg_site_fit.html', name: 'Site Fit', cat: 'Tenant Rep' },
   { file: 'rrg_tour_tracker.html', name: 'Tour Tracker', cat: 'Tenant Rep' },
   { file: 'rrg_lease_queue.html', name: 'Lease Abstracts', cat: 'Tenant Rep' },
   { file: 'rrg_tenant_attack_plan.html', name: 'Market Attack Plan (Tenant)', cat: 'Tenant Rep' },

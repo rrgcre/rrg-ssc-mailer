@@ -178,8 +178,11 @@
       { ic: '◈', label: 'Deals', href: 'rrg_deals.html' }
     ] },
     { grp: 'Tenant Rep', color: '#dfa937', items: [
+      // In the order the work happens: intake → search → test a space → offer.
       { ic: '◧', label: 'Tenants', href: 'rrg_board.html?pipelineId=p_tenantrep' },
+      { ic: '◎', label: 'Site Criteria', href: 'ssc_form.html' },
       { ic: '⊡', label: 'Spaces', href: 'rrg_space_tracker.html' },
+      { ic: '✚', label: 'Site Fit', href: 'rrg_site_fit.html' },
       { ic: '§', label: 'LOI Builder', href: 'rrg_loi_builder.html' },
     ] },
     { grp: 'Landlord Rep', color: '#c98a5e', items: [
@@ -205,9 +208,7 @@
     ] },
     { grp: 'Tools', color: '#a99be0', items: [
       { ic: '◉', label: 'Alcohol Sales', href: 'rrg_market_radar.html' },
-      { ic: '◎', label: 'Site Criteria', href: 'ssc_form.html' },
       { ic: '▭', label: 'Lease Abstracts', href: 'rrg_lease_queue.html' },
-      { ic: '✚', label: 'Site & Concept Fit', href: 'rrg_site_fit.html' },
       { ic: '∑', label: 'Calculators', href: 'rrg_calculators.html' },
       { ic: '⌕', label: 'Email Finder', href: 'rrg_email_finder.html', admin: true },
       { ic: '◉', label: 'Tracked Emails', href: 'rrg_tracked_emails.html' }
