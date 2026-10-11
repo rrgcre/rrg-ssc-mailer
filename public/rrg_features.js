@@ -21,9 +21,14 @@ window.RRG_FEATS = {"brief":{"label":"Daily Brief","group":"My Work","page":"rrg
       + '.rrgfs-ic{width:26px;height:26px;border-radius:7px;background:#eef3fa;color:#2c5c8f;display:inline-flex;align-items:center;justify-content:center;font-size:13px;flex:none;}'
       + '.rrgfs-t{font-size:14px;font-weight:800;color:var(--navy,#20334f);white-space:nowrap;}'
       + '.rrgfs-sh{font-size:11.5px;color:var(--muted,#5f6a7d);font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}'
-      + '.rrgfs-g{margin-left:auto;font-size:11.5px;font-weight:700;color:#2c5c8f;text-decoration:none;white-space:nowrap;}'
-      + '.rrgfs-g:hover{text-decoration:underline;}'
-      + '.rrgfs-cv{color:var(--muted,#5f6a7d);font-size:16px;line-height:1;transition:transform .15s;flex:none;}'
+      // Two separate controls on the right: an outlined "Full guide ↗" link, a divider, then the Show/Hide toggle.
+      + '.rrgfs-g{margin-left:auto;display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;color:#2c5c8f;text-decoration:none;white-space:nowrap;background:#fff;border:1px solid #cfdcec;border-radius:7px;padding:6px 11px;flex:none;}'
+      + '.rrgfs-g:hover{background:#eef3fa;border-color:#9fb6d3;}'
+      + '.rrgfs-sep{width:1px;height:22px;background:#e2e7ef;flex:none;}'
+      + '.rrgfs-tg{display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:11.5px;font-weight:700;color:var(--navy,#20334f);background:#f3f5f9;border:1px solid #dfe4ec;border-radius:7px;padding:6px 10px;cursor:pointer;flex:none;}'
+      + '.rrgfs-tg:hover{background:#e8edf5;border-color:#c5cfdd;}'
+      + '.rrgfs-tg:focus-visible,.rrgfs-g:focus-visible{outline:2px solid #2c5c8f;outline-offset:2px;}'
+      + '.rrgfs-cv{color:var(--muted,#5f6a7d);font-size:13px;line-height:1;transition:transform .15s;flex:none;}'
       + '.rrgfs.collapsed .rrgfs-cv{transform:rotate(-90deg);}'
       + '.rrgfs.collapsed .rrgfs-grid{display:none;}'
       + '.rrgfs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1px;background:#e6e9f0;border-top:1px solid #e6e9f0;}'
@@ -35,7 +40,7 @@ window.RRG_FEATS = {"brief":{"label":"Daily Brief","group":"My Work","page":"rrg
       + '.rrgfs-fd{display:block;font-size:11.5px;color:var(--muted,#5f6a7d);line-height:1.45;margin-top:2px;}'
       + '.rrgfs-fx{display:inline-block;margin-left:6px;font-size:9.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#8a5a12;background:#fff4dc;border-radius:4px;padding:0 5px;vertical-align:1px;}'
       + '.rrgfs-gs{display:none;}'
-      + '@media(max-width:700px){.rrgfs-sh{display:none;}.rrgfs-hd{padding:12px 14px;}.rrgfs-gl{display:none;}.rrgfs-gs{display:inline;}.rrgfs-t{font-size:13.5px;}}'
+      + '@media(max-width:700px){.rrgfs-sh{display:none;}.rrgfs-hd{padding:12px 14px;gap:8px;}.rrgfs-gl{display:none;}.rrgfs-gs{display:inline;}.rrgfs-t{font-size:13.5px;}.rrgfs-g{padding:6px 9px;}.rrgfs-ic,.rrgfs-tgl{display:none;}.rrgfs-tg{padding:6px 9px;}}'
       + '@media print{.rrgfs{display:none !important;}}';
     document.head.appendChild(st);
   }
@@ -51,16 +56,17 @@ window.RRG_FEATS = {"brief":{"label":"Daily Brief","group":"My Work","page":"rrg
     var storeKey = 'rrg_feats_' + key, open = false; try { open = localStorage.getItem(storeKey) === '1'; } catch (x) {}
     var guide = e.guide ? e.guide : ('rrg_guide.html?p=' + encodeURIComponent(key));
     var h = '<div class="rrgfs' + (open ? '' : ' collapsed') + '" data-key="' + esc(key) + '">'
-      + '<div class="rrgfs-hd" role="button" tabindex="0" aria-expanded="' + open + '"><span class="rrgfs-ic">?</span><span class="rrgfs-t">What this section does</span><span class="rrgfs-sh">' + esc(e.sub || '') + ' — tap any tile for help</span>'
-      + '<a class="rrgfs-g" href="' + esc(guide) + '" target="_blank" rel="noopener"><span class="rrgfs-gl">Open the full guide</span><span class="rrgfs-gs">Guide</span> ↗</a><span class="rrgfs-cv">▾</span></div>'
+      + '<div class="rrgfs-hd"><span class="rrgfs-ic">?</span><span class="rrgfs-t">What this section does</span><span class="rrgfs-sh">' + esc(e.sub || '') + ' — tap any tile for help</span>'
+      + '<a class="rrgfs-g" href="' + esc(guide) + '" target="_blank" rel="noopener"><span class="rrgfs-gl">Full guide</span><span class="rrgfs-gs">Guide</span> ↗</a><span class="rrgfs-sep" aria-hidden="true"></span>'
+      + '<button type="button" class="rrgfs-tg" aria-expanded="' + open + '"><span class="rrgfs-tgl">' + (open ? 'Hide' : 'Show') + '</span><span class="rrgfs-cv" aria-hidden="true">▾</span></button></div>'
       + '<div class="rrgfs-grid">' + (e.feats || []).map(function(f){
           return '<a class="rrgfs-f" href="' + esc(helpHref(key, e, f)) + '" target="_blank" rel="noopener"><span class="rrgfs-fi">' + esc(f.ic || '•') + '</span><div><span class="rrgfs-ft">' + esc(f.t) + (f.admin ? '<span class="rrgfs-fx">Admin</span>' : '') + '</span><span class="rrgfs-fd">' + esc(f.d) + '</span></div></a>';
         }).join('') + '</div></div>';
     el.innerHTML = h;
-    var box = el.firstChild, hd = box.querySelector('.rrgfs-hd');
-    var toggle = function(){ var col = box.classList.toggle('collapsed'); hd.setAttribute('aria-expanded', String(!col)); try { localStorage.setItem(storeKey, col ? '0' : '1'); } catch (x) {} };
+    var box = el.firstChild, hd = box.querySelector('.rrgfs-hd'), tg = box.querySelector('.rrgfs-tg'), tgl = box.querySelector('.rrgfs-tgl');
+    var toggle = function(){ var col = box.classList.toggle('collapsed'); tg.setAttribute('aria-expanded', String(!col)); tgl.textContent = col ? 'Show' : 'Hide'; try { localStorage.setItem(storeKey, col ? '0' : '1'); } catch (x) {} };
+    // The Show/Hide button is the keyboard control; a click anywhere else on the header bar (not the guide link) also toggles.
     hd.addEventListener('click', function(ev){ if (ev.target.closest('a')) return; toggle(); });
-    hd.addEventListener('keydown', function(ev){ if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); toggle(); } });
   }
   function renderAll(){ var els = document.querySelectorAll('[data-rrg-feats]'); for (var i = 0; i < els.length; i++) { if (!els[i].getAttribute('data-rrgfs-done')) { els[i].setAttribute('data-rrgfs-done', '1'); render(els[i]); } } }
   window.RRGFeats = { _v: 1, render: render, renderAll: renderAll, entryFor: entryFor, helpHref: helpHref };
