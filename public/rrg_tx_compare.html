@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Compare Locations</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.cpwrap{max-width:1320px;margin:0 auto;padding:22px 24px 48px;}
+.cpkick{font-size:10.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--red);}
+.cphd{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px;}
+.cphd h1{margin:3px 0 0;font-size:26px;font-weight:800;color:var(--navy);}
+.cpsub{color:var(--muted);font-size:13px;margin-top:4px;}
+.cpbtns{display:flex;gap:8px;flex-wrap:wrap;}
+.cpbtn{font:inherit;font-size:12.5px;font-weight:700;border:1px solid #cfd6e2;background:#fff;color:var(--navy);border-radius:8px;padding:8px 13px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;}
+.cpbtn.pri{background:var(--navy);color:#fff;border-color:var(--navy);}
+.cpbtn[disabled]{opacity:.5;cursor:default;}
+.cpadd{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;position:relative;}
+.cpadd label{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);}
+.cpadd input{font:inherit;font-size:13px;border:1px solid #cfd6e2;border-radius:8px;padding:8px 11px;color:var(--ink);background:#fff;}
+#cpQ{flex:1;min-width:240px;} #cpCity{width:170px;}
+.cpcount{margin-left:auto;font-size:12px;font-weight:700;color:var(--muted);}
+.cpres{position:absolute;left:14px;right:14px;top:calc(100% - 6px);background:#fff;border:1px solid #cfd6e2;border-radius:10px;box-shadow:0 14px 40px rgba(11,26,56,.16);z-index:30;max-height:360px;overflow:auto;}
+.cpres[hidden]{display:none !important;}
+.cpopt{display:flex;gap:12px;align-items:center;padding:9px 12px;border-bottom:1px solid #f1f3f8;cursor:pointer;font-size:13px;}
+.cpopt:hover,.cpopt.act{background:#f4f7fc;} .cpopt .a{color:var(--soft);font-size:11.5px;} .cpopt .v{margin-left:auto;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;} .cpopt.in{opacity:.5;cursor:default;}
+.cpmsg{padding:14px;color:var(--muted);font-size:13px;}
+.cpbody{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 6px 24px rgba(11,26,56,.05);padding:6px 16px 14px;overflow-x:auto;}
+.cpempty{padding:46px 20px;text-align:center;color:var(--muted);font-size:14px;line-height:1.6;}
+.cptip{position:fixed;pointer-events:none;background:#0b1530;color:#fff;font-size:12px;border-radius:8px;padding:8px 10px;box-shadow:0 8px 24px rgba(0,0,0,.25);z-index:40;min-width:170px;}
+.cptip[hidden]{display:none !important;} .cptip b{display:block;margin-bottom:4px;} .cptip div{display:flex;gap:10px;justify-content:space-between;} .cptip i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;}
+.cpov{position:fixed;inset:0;background:rgba(5,12,32,.45);display:flex;align-items:center;justify-content:center;z-index:50;}
+.cpov[hidden]{display:none !important;}
+.cpmodal{background:#fff;border-radius:14px;width:min(520px,92vw);box-shadow:0 30px 80px rgba(0,0,0,.3);}
+.cpmodal .mh{display:flex;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line);} .cpmodal .mh b{font-size:15px;color:var(--navy);} .cpmodal .mh button{margin-left:auto;border:none;background:none;font-size:16px;cursor:pointer;color:var(--muted);}
+.cpmodal .mb{padding:14px 18px;display:grid;gap:10px;} .cpmodal .mb label{font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);display:grid;gap:5px;}
+.cpmodal .mb input,.cpmodal .mb textarea{font:inherit;font-size:13px;border:1px solid #cfd6e2;border-radius:8px;padding:8px 10px;text-transform:none;letter-spacing:0;font-weight:400;color:var(--ink);}
+.cpmodal .mf{display:flex;gap:8px;justify-content:flex-end;padding:12px 18px;border-top:1px solid var(--line);}
+.cperr{color:#a5352c;font-size:12.5px;}
+@media(max-width:700px){ .cpwrap{padding:16px;} #cpCity{width:100%;} }
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<div class="cpwrap">
+  <div class="cphd">
+    <div><div class="cpkick">Alcohol Sales · Compare</div><h1>Compare locations</h1><div class="cpsub">Up to 5 locations side by side — sales, change, mix, rank and permit.</div></div>
+    <div class="cpbtns"><a class="cpbtn" id="cpBack" href="./rrg_market_radar.html">← Alcohol Sales</a><button class="cpbtn" id="cpLink">Copy link</button><button class="cpbtn" id="cpClear">Clear</button><button class="cpbtn pri" id="cpPdf" disabled>⬇ PDF report</button></div>
+  </div>
+  <div class="cpadd">
+    <label for="cpQ">Add a location</label>
+    <input id="cpQ" placeholder="Name, owner, or street (e.g. Billy Bob's, 2520 Rodeo Plaza)" autocomplete="off">
+    <input id="cpCity" placeholder="City (optional)" autocomplete="off">
+    <span class="cpcount" id="cpCount">0 of 5</span>
+    <div class="cpres" id="cpRes" hidden></div>
+  </div>
+  <div class="cpbody" id="cpBody"><div class="cpempty">Add two to five locations to compare.<br>Search above, tick operators on <a href="./rrg_market_radar.html">Alcohol Sales</a>, or use “⇄ Compare” on an operator page.</div></div>
+</div>
+<div class="cptip" id="cpTip" hidden></div>
+<div class="cpov" id="cpOv" hidden><div class="cpmodal" role="dialog" aria-modal="true" aria-labelledby="cpMt">
+  <div class="mh"><b id="cpMt">PDF report</b><button data-close="1" aria-label="Close">✕</button></div>
+  <div class="mb"><label>Title<input id="cpTitle" placeholder="e.g. Basse Road bar comps"></label><label>Prepared for<input id="cpFor" placeholder="Client or prospect (optional)"></label><label>Broker notes<textarea id="cpNotes" rows="4" placeholder="Shown above the comparison (optional)"></textarea></label><div class="cperr" id="cpErr"></div></div>
+  <div class="mf"><button class="cpbtn" data-close="1">Cancel</button><button class="cpbtn pri" id="cpGo">Download PDF</button></div>
+</div></div>
+<script>
+var KEY='rrg_txcmp_v1', MAX=5, PERMITS=[], LAST=null, CSSDONE=false, SEQ=0;
+var COLORS=['#2a78d6','#eb6834','#1baf7a','#eda100','#e87ba4'];
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function $(v){ return (v==null||!isFinite(v))?'—':('$'+Math.round(v).toLocaleString('en-US')); }
+function trayGet(){ try{ var a=JSON.parse(localStorage.getItem(KEY)||'[]'); return Array.isArray(a)?a.slice(0,MAX):[]; }catch(e){ return []; } }
+function traySet(a){ try{ localStorage.setItem(KEY,JSON.stringify(a.slice(0,MAX))); }catch(e){} }
+function syncUrl(){ try{ var u=new URL(location.href); if(PERMITS.length) u.searchParams.set('permits',PERMITS.join(',')); else u.searchParams.delete('permits'); history.replaceState(null,'',u.toString()); }catch(e){} traySet(PERMITS); }
+function setCount(){ document.getElementById('cpCount').textContent=PERMITS.length+' of '+MAX; var full=PERMITS.length>=MAX; var q=document.getElementById('cpQ'); q.disabled=full; q.placeholder=full?'5 locations is the max — remove one to add another':'Name, owner, or street (e.g. Billy Bob\'s, 2520 Rodeo Plaza)'; document.getElementById('cpPdf').disabled=PERMITS.length<2; }
+function load(){ setCount(); syncUrl(); var b=document.getElementById('cpBody');
+  if(!PERMITS.length){ b.innerHTML='<div class="cpempty">Add two to five locations to compare.<br>Search above, tick operators on <a href="./rrg_market_radar.html">Alcohol Sales</a>, or use “⇄ Compare” on an operator page.</div>'; return; }
+  var my=++SEQ; b.innerHTML='<div class="cpempty">Pulling state filings for '+PERMITS.length+' location'+(PERMITS.length===1?'':'s')+'…</div>';
+  fetch('/api/tx/compare?permits='+encodeURIComponent(PERMITS.join(',')),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(my!==SEQ) return; LAST=j;
+    if(!j||!j.ok){ b.innerHTML='<div class="cpempty">'+esc((j&&j.error)||'Could not load.')+'</div>'; return; }
+    if(!CSSDONE&&j.css){ var st=document.createElement('style'); st.textContent=j.css; document.head.appendChild(st); CSSDONE=true; }
+    var miss=(j.missing||[]).map(function(m){return m.permit;}); if(miss.length){ PERMITS=PERMITS.filter(function(p){ return miss.indexOf(p)<0; }); setCount(); syncUrl(); }
+    try{ var nm=JSON.parse(localStorage.getItem('rrg_txcmp_names_v1')||'{}')||{}; j.ops.forEach(function(o){ nm[o.permit]=o.name; }); localStorage.setItem('rrg_txcmp_names_v1',JSON.stringify(nm)); }catch(e){}
+    var city=(j.ops[0]&&j.ops[0].city)||''; if(city) document.getElementById('cpBack').href='./rrg_market_radar.html?city='+encodeURIComponent(city);
+    b.innerHTML=(PERMITS.length<2?'<div class="cpmsg">Add at least one more location to compare.</div>':'')+(miss.length?'<div class="cpmsg cperr">No filings found for '+esc(miss.join(', '))+' — removed.</div>':'')+j.html;
+  }).catch(function(){ if(my===SEQ) b.innerHTML='<div class="cpempty">Could not reach the server.</div>'; }); }
+function add(p){ p=String(p||'').trim(); if(!p||PERMITS.indexOf(p)>=0||PERMITS.length>=MAX) return; PERMITS.push(p); load(); }
+function remove(p){ PERMITS=PERMITS.filter(function(x){ return x!==p; }); load(); }
+// Search
+var T=null, RES=[], ACT=-1;
+function search(){ var q=document.getElementById('cpQ').value.trim(), c=document.getElementById('cpCity').value.trim(), box=document.getElementById('cpRes');
+  if(q.length<2){ box.hidden=true; return; } box.hidden=false; box.innerHTML='<div class="cpmsg">Searching state filings…</div>';
+  fetch('/api/tx/search?q='+encodeURIComponent(q)+(c?('&city='+encodeURIComponent(c)):''),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(document.getElementById('cpQ').value.trim()!==q) return;
+    RES=(j&&j.results)||[]; ACT=RES.length?0:-1;
+    if(!j||!j.ok){ box.innerHTML='<div class="cpmsg cperr">'+esc((j&&j.error)||'Search failed.')+'</div>'; return; }
+    if(!RES.length){ box.innerHTML='<div class="cpmsg">No operators filing in the last two years match “'+esc(q)+'”.</div>'; return; }
+    drawRes(); }); }
+function drawRes(){ document.getElementById('cpRes').innerHTML=RES.map(function(r,i){ var inn=PERMITS.indexOf(r.permit)>=0; return '<div class="cpopt'+(i===ACT?' act':'')+(inn?' in':'')+'" data-p="'+esc(r.permit)+'"><div><b>'+esc(r.name)+'</b><div class="a">'+esc([r.address,r.city,r.zip].filter(Boolean).join(', '))+(r.owner&&r.owner!==r.name?(' · '+esc(r.owner)):'')+'</div></div><div class="v">'+(inn?'Added':$(r.t12))+'<div class="a">last filed '+esc(r.lastMonth)+'</div></div></div>'; }).join(''); }
+document.getElementById('cpQ').addEventListener('input',function(){ clearTimeout(T); T=setTimeout(search,300); });
+document.getElementById('cpCity').addEventListener('input',function(){ clearTimeout(T); T=setTimeout(search,300); });
+document.getElementById('cpQ').addEventListener('keydown',function(e){ var box=document.getElementById('cpRes'); if(box.hidden||!RES.length) return;
+  if(e.key==='ArrowDown'){ ACT=Math.min(RES.length-1,ACT+1); drawRes(); e.preventDefault(); } else if(e.key==='ArrowUp'){ ACT=Math.max(0,ACT-1); drawRes(); e.preventDefault(); } else if(e.key==='Enter'&&ACT>=0){ pick(RES[ACT].permit); e.preventDefault(); } else if(e.key==='Escape'){ box.hidden=true; } });
+function pick(p){ add(p); var q=document.getElementById('cpQ'); q.value=''; document.getElementById('cpRes').hidden=true; RES=[]; if(!q.disabled) q.focus(); }
+document.addEventListener('click',function(e){ var o=e.target.closest('.cpopt'); if(o&&!o.classList.contains('in')){ pick(o.getAttribute('data-p')); return; }
+  var x=e.target.closest('[data-rm]'); if(x){ remove(x.getAttribute('data-rm')); return; }
+  if(e.target.closest('[data-close]')||e.target.id==='cpOv'){ document.getElementById('cpOv').hidden=true; return; }
+  if(!e.target.closest('.cpadd')) document.getElementById('cpRes').hidden=true; });
+document.addEventListener('keydown',function(e){ if(e.key==='Escape') document.getElementById('cpOv').hidden=true; });
+// Chart hover: crosshair + values for every location that month
+document.addEventListener('mousemove',function(e){ var tip=document.getElementById('cpTip'); var h=e.target.closest&&e.target.closest('.txc-hit'); var svg=h&&h.ownerSVGElement;
+  document.querySelectorAll('.txc-cross').forEach(function(c){ if(!svg||c.ownerSVGElement!==svg) c.style.display='none'; });
+  if(!h){ tip.hidden=true; return; } var card=svg.closest('.txc-card'), dj=card&&card.querySelector('.txc-data'); if(!dj) return; var D=JSON.parse(dj.textContent), i=+h.getAttribute('data-i');
+  var cx=+h.getAttribute('x')+(+h.getAttribute('width'))/2, cr=svg.querySelector('.txc-cross'); cr.setAttribute('x1',cx); cr.setAttribute('x2',cx); cr.style.display='';
+  var m=D.axis[i].split('-'), mn=['January','February','March','April','May','June','July','August','September','October','November','December'][+m[1]-1]+' '+m[0];
+  tip.innerHTML='<b>'+esc(mn)+'</b>'+D.series.map(function(s,k){ return '<div><span><i style="background:'+COLORS[k]+'"></i>'+esc(D.names[k])+'</span><span>'+(s[i]==null?'—':$(s[i]))+'</span></div>'; }).join('');
+  tip.hidden=false; var x=e.clientX+16, y=e.clientY+12; if(x+tip.offsetWidth>innerWidth-8) x=e.clientX-tip.offsetWidth-16; if(y+tip.offsetHeight>innerHeight-8) y=innerHeight-tip.offsetHeight-8; tip.style.left=x+'px'; tip.style.top=y+'px'; });
+// Buttons
+document.getElementById('cpClear').onclick=function(){ PERMITS=[]; load(); };
+document.getElementById('cpLink').onclick=function(){ var b=this; try{ navigator.clipboard.writeText(location.href).then(function(){ b.textContent='Copied ✓'; setTimeout(function(){ b.textContent='Copy link'; },1500); }); }catch(e){} };
+document.getElementById('cpPdf').onclick=function(){ document.getElementById('cpErr').textContent=''; var t=document.getElementById('cpTitle'); if(!t.value&&LAST&&LAST.ops) t.placeholder=LAST.ops.slice(0,3).map(function(o){return o.name;}).join(' vs ')+(LAST.ops.length>3?(' + '+(LAST.ops.length-3)+' more'):''); document.getElementById('cpOv').hidden=false; t.focus(); };
+document.getElementById('cpGo').onclick=function(){ var g=this, err=document.getElementById('cpErr'); g.disabled=true; g.textContent='Building PDF…'; err.textContent='';
+  fetch('/api/tx/compare/pdf',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({permits:PERMITS,title:document.getElementById('cpTitle').value,preparedFor:document.getElementById('cpFor').value,notes:document.getElementById('cpNotes').value})})
+  .then(function(r){ if(!r.ok||!/pdf/.test(r.headers.get('content-type')||'')) return r.json().then(function(j){ throw new Error((j&&j.error)||'Could not build the PDF.'); }); var fn=((r.headers.get('content-disposition')||'').match(/filename="([^"]+)"/)||[])[1]||'Alcohol_Sales_Comparison.pdf'; return r.blob().then(function(b){ var a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=fn; document.body.appendChild(a); a.click(); a.remove(); document.getElementById('cpOv').hidden=true; }); })
+  .catch(function(e){ err.textContent=e.message; }).then(function(){ g.disabled=false; g.textContent='Download PDF'; }); };
+// Start: URL wins; otherwise the tray from Alcohol Sales / operator pages.
+(function(){ var q=''; try{ q=new URLSearchParams(location.search).get('permits')||''; }catch(e){} var a=q?q.split(','):trayGet(); a.forEach(function(p){ p=p.trim(); if(p&&PERMITS.indexOf(p)<0&&PERMITS.length<MAX) PERMITS.push(p); }); load(); })();
+</script>
+</body>
+</html>

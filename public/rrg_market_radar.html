@@ -38,6 +38,12 @@ table{width:100%;border-collapse:collapse;font-size:12.5px;} th{text-align:left;
 .rnote{font-size:11.5px;color:var(--muted);padding:10px 16px;line-height:1.55;}
 .more{display:block;margin:10px auto 14px;}
 @media(max-width:980px){ .rf{grid-template-columns:1fr 1fr;} .rf .f.w2{grid-column:span 2;} .kpis{grid-template-columns:1fr 1fr;} .hide-sm{display:none;} }
+.cmpck{width:15px;height:15px;margin:0 8px 0 0;vertical-align:-2px;accent-color:#000E31;cursor:pointer;}
+.cmpbar{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#000E31;color:#fff;border-radius:12px;box-shadow:0 14px 40px rgba(0,0,0,.28);padding:10px 12px 10px 16px;display:flex;gap:10px;align-items:center;z-index:40;font-size:13px;max-width:calc(100vw - 32px);}
+.cmpbar[hidden]{display:none !important;}
+.cmpbar .nm{color:#c6cde0;font-size:12px;max-width:420px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cmpbar a,.cmpbar button{font:inherit;font-size:12.5px;font-weight:700;border-radius:8px;padding:7px 12px;cursor:pointer;text-decoration:none;border:1px solid rgba(255,255,255,.3);background:transparent;color:#fff;}
+.cmpbar a{background:#fff;color:#000E31;border-color:#fff;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -132,7 +138,7 @@ function render(){ var b=document.getElementById('body');
   h+=R.slice(0,LIMIT).map(function(o,i){ var c=chgOf(o); var st=o.status==='stopped'?('Stopped · '+o.monthsSince+' mo'):(o.status==='new'?'New':'Filing');
     var mix=(o.liquorPct!=null)?('<div class="mixbar" title="Liquor '+o.liquorPct+'% · Wine '+o.winePct+'% · Beer '+o.beerPct+'%"><i class="m-l" style="width:'+o.liquorPct+'%"></i><i class="m-w" style="width:'+o.winePct+'%"></i><i class="m-b" style="width:'+o.beerPct+'%"></i></div>'):'';
     var cat=function(v,pc){ return '<td class="r hide-sm">'+k(v)+(pc!=null?('<div class="rsub">'+pc+'%</div>'):'')+'</td>'; };
-    return '<tr><td>'+(o.permit?('<a href="./rrg_tx_operator.html?permit='+encodeURIComponent(o.permit)+'" style="color:var(--navy);text-decoration:none"><b>'+esc(o.name)+'</b></a>'):('<b>'+esc(o.name)+'</b>'))+'<div class="rsub">'+esc(o.address)+(o.zip?(' · '+esc(o.zip)):'')+'</div><div class="rsub">'+esc(o.taxpayer!==o.name?o.taxpayer:'')+(o.permit?((o.taxpayer!==o.name?' · ':'')+esc(o.permit)):'')+'</div></td><td class="hide-sm">'+spark(o.series)+'</td><td class="r">'+k(o.status==='stopped'?o.priorAvg:o.avgMonth)+'<div class="rsub">latest '+k(latest(o))+'</div></td><td class="r"><b>'+k(o.trailing12)+'</b>'+mix+(o.status==='stopped'&&o.priorAvg?('<div class="rsub">was ~'+k(o.priorAvg)+'/mo</div>'):'')+'</td>'+cat(o.liquor12,o.liquorPct)+cat(o.wine12,o.winePct)+cat(o.beer12,o.beerPct)+'<td class="r">'+(c==null?'<span class="rsub">—</span>':('<span class="'+(c<0?'dn':'up')+'">'+(c>0?'+':'')+c+'%</span>'))+'</td><td><span class="sig s-'+o.status+'">'+esc(st)+'</span></td><td>'+esc(o.lastMonth)+'</td><td class="r" style="white-space:nowrap">'+trackBtn(o.address,'s'+i)+' <a class="rbtn sm" target="_blank" rel="noopener" href="https://www.google.com/search?q='+encodeURIComponent(o.name+' '+o.address+' '+city)+'">Look up</a></td></tr>'; }).join('');
+    return '<tr><td>'+(o.permit?('<input type="checkbox" class="cmpck" value="'+esc(o.permit)+'" data-nm="'+esc(o.name)+'" aria-label="Compare '+esc(o.name)+'">'):'')+(o.permit?('<a href="./rrg_tx_operator.html?permit='+encodeURIComponent(o.permit)+'" style="color:var(--navy);text-decoration:none"><b>'+esc(o.name)+'</b></a>'):('<b>'+esc(o.name)+'</b>'))+'<div class="rsub">'+esc(o.address)+(o.zip?(' · '+esc(o.zip)):'')+'</div><div class="rsub">'+esc(o.taxpayer!==o.name?o.taxpayer:'')+(o.permit?((o.taxpayer!==o.name?' · ':'')+esc(o.permit)):'')+'</div></td><td class="hide-sm">'+spark(o.series)+'</td><td class="r">'+k(o.status==='stopped'?o.priorAvg:o.avgMonth)+'<div class="rsub">latest '+k(latest(o))+'</div></td><td class="r"><b>'+k(o.trailing12)+'</b>'+mix+(o.status==='stopped'&&o.priorAvg?('<div class="rsub">was ~'+k(o.priorAvg)+'/mo</div>'):'')+'</td>'+cat(o.liquor12,o.liquorPct)+cat(o.wine12,o.winePct)+cat(o.beer12,o.beerPct)+'<td class="r">'+(c==null?'<span class="rsub">—</span>':('<span class="'+(c<0?'dn':'up')+'">'+(c>0?'+':'')+c+'%</span>'))+'</td><td><span class="sig s-'+o.status+'">'+esc(st)+'</span></td><td>'+esc(o.lastMonth)+'</td><td class="r" style="white-space:nowrap">'+trackBtn(o.address,'s'+i)+' <a class="rbtn sm" target="_blank" rel="noopener" href="https://www.google.com/search?q='+encodeURIComponent(o.name+' '+o.address+' '+city)+'">Look up</a></td></tr>'; }).join('');
   h+='</tbody></table>'+(R.length>LIMIT?('<button class="rbtn more" id="moreBtn">Show '+Math.min(300,R.length-LIMIT)+' more of '+(R.length-LIMIT).toLocaleString()+'</button>'):'');
   b.innerHTML=h;
   b.querySelectorAll('th[data-s]').forEach(function(x){ x.onclick=function(){ var kk=x.getAttribute('data-s'); SORT=(SORT.k===kk)?{k:kk,d:-SORT.d}:{k:kk,d:(kk==='name'||kk==='zip'?1:-1)}; render(); }; });
@@ -158,6 +164,24 @@ document.getElementById('exportBtn').onclick=exportCsv;
 document.getElementById('resetBtn').onclick=function(){ applyPreset('all'); };
 if(!readUrl()){ setF(PRESETS.down.f); PRESET='down'; SORT={k:'chg',d:1}; }
 load(false);
+</script>
+<div class="cmpbar" id="cmpBar" hidden><b id="cmpN"></b><span class="nm" id="cmpNames"></span><a id="cmpGo" href="./rrg_tx_compare.html">⇄ Compare</a><button id="cmpClr">Clear</button></div>
+<script>
+// Compare tray — shared with the operator and compare pages (UI convenience only; the report itself is defined by its URL).
+var CMPK='rrg_txcmp_v1', CMPN='rrg_txcmp_names_v1';
+function cmpGet(){ try{ var a=JSON.parse(localStorage.getItem(CMPK)||'[]'); return Array.isArray(a)?a.slice(0,5):[]; }catch(e){ return []; } }
+function cmpNames(){ try{ return JSON.parse(localStorage.getItem(CMPN)||'{}')||{}; }catch(e){ return {}; } }
+function cmpSet(a,nm){ try{ localStorage.setItem(CMPK,JSON.stringify(a.slice(0,5))); if(nm) localStorage.setItem(CMPN,JSON.stringify(nm)); }catch(e){} }
+function cmpBar(){ var a=cmpGet(), nm=cmpNames(), bar=document.getElementById('cmpBar'); bar.hidden=!a.length; if(!a.length) return;
+  document.getElementById('cmpN').textContent=a.length+' of 5 to compare'; document.getElementById('cmpNames').textContent=a.map(function(p){ return nm[p]||p; }).join(' · ');
+  document.getElementById('cmpGo').href='./rrg_tx_compare.html?permits='+encodeURIComponent(a.join(','));
+  document.querySelectorAll('.cmpck').forEach(function(c){ c.checked=a.indexOf(c.value)>=0; c.disabled=!c.checked&&a.length>=5; c.title=c.disabled?'5 is the max':'Compare'; }); }
+document.addEventListener('change',function(e){ var c=e.target; if(!c.classList||!c.classList.contains('cmpck')) return; var a=cmpGet(), nm=cmpNames();
+  if(c.checked){ if(a.indexOf(c.value)<0&&a.length<5){ a.push(c.value); nm[c.value]=c.getAttribute('data-nm')||c.value; } } else a=a.filter(function(x){ return x!==c.value; });
+  cmpSet(a,nm); cmpBar(); });
+document.getElementById('cmpClr').onclick=function(){ cmpSet([]); cmpBar(); };
+new MutationObserver(function(){ cmpBar(); }).observe(document.getElementById('body'),{childList:true});
+cmpBar();
 </script>
 </body>
 </html>

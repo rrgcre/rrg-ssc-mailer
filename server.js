@@ -24971,6 +24971,156 @@ app.post('/api/tx/operator/ai-summary', express.json(), async (req, res) => {
     res.json({ ok: true, summary: { text: rec.text, at: rec.at, by: rec.by, lastMonth: rec.lastMonth, stale: false }, cached: false });
   } catch (e) { res.status(502).json({ ok: false, error: 'Could not build the summary: ' + String((e && e.message) || e) }); }
 });
+// ---- Side-by-side comparison of up to 5 operators (page + branded PDF share one renderer) ----
+// Find operators by name or street to add to a comparison.
+app.get('/api/tx/search', async (req, res) => {
+  const q = String(req.query.q || '').trim().slice(0, 60); const city = String(req.query.city || '').trim().slice(0, 60);
+  if (q.length < 2) return res.json({ ok: true, results: [] });
+  try {
+    const since = new Date(Date.now() - 25 * 30.44 * 864e5).toISOString().slice(0, 10); const Q = _txEsc(q);
+    const rows = await txQuery(TX_MB, { '$select': 'location_name,taxpayer_name,location_address,location_city,location_zip,tabc_permit_number,obligation_end_date_yyyymmdd,total_receipts',
+      '$where': "(upper(location_name) like '%" + Q + "%' OR upper(taxpayer_name) like '%" + Q + "%' OR upper(location_address) like '" + Q + "%') AND obligation_end_date_yyyymmdd>='" + since + "'" + (city ? (" AND upper(location_city)='" + _txEsc(city) + "'") : ''),
+      '$order': 'obligation_end_date_yyyymmdd DESC', '$limit': '2000' });
+    const by = {}; (rows || []).slice().sort((a, b) => String(b.obligation_end_date_yyyymmdd).localeCompare(String(a.obligation_end_date_yyyymmdd))).forEach(r => { const k = r.tabc_permit_number; if (!k) return; const o = by[k] = by[k] || { permit: k, name: r.location_name || r.taxpayer_name || '', owner: r.taxpayer_name || '', address: r.location_address || '', city: r.location_city || '', zip: String(r.location_zip || '').slice(0, 5), lastMonth: txMonthKey(r.obligation_end_date_yyyymmdd), t12: 0, n: 0 }; if (o.n < 12) { o.t12 += Number(r.total_receipts) || 0; o.n++; } });
+    const results = Object.values(by).sort((a, b) => String(b.lastMonth).localeCompare(String(a.lastMonth)) || b.t12 - a.t12).slice(0, 25);
+    res.json({ ok: true, results: results });
+  } catch (e) { res.json({ ok: false, error: 'Could not reach the state data source: ' + String((e && e.message) || e) }); }
+});
+function txCmpPermits(raw) { const out = []; String(raw || '').split(/[\s,]+/).map(x => x.trim().slice(0, 30)).filter(Boolean).forEach(x => { if (out.indexOf(x) < 0 && out.length < 5) out.push(x); }); return out; }
+async function txCompareData(permits) {
+  const built = await Promise.all(permits.map(p => txOperatorBuild(p, true).catch(e => ({ ok: false, error: String((e && e.message) || e) }))));
+  const ops = [], missing = [];
+  built.forEach((d, i) => { if (!d || !d.ok) { missing.push({ permit: permits[i], error: (d && d.error) || 'No data' }); return; }
+    const lm = String(d.lastMonth || '').split('-'); const now = new Date(); const gap = lm.length === 2 ? ((now.getUTCFullYear() - +lm[0]) * 12 + (now.getUTCMonth() + 1 - +lm[1])) : 0;
+    const mons12 = (d.monthly || []).filter(m => m.m > (function () { const x = new Date(d.lastMonth + '-15T00:00:00Z'); x.setUTCMonth(x.getUTCMonth() - 12); return x.toISOString().slice(0, 7); })()).length;
+    ops.push({ permit: d.permit, name: d.name, taxpayer: d.taxpayer, address: d.address, city: d.city, zip: String(d.zip || '').slice(0, 5), firstMonth: d.firstMonth, lastMonth: d.lastMonth, monthsOnFile: (d.monthly || []).length, stopped: gap >= 4,
+      periods: d.periods, mix12: d.mix12, avgMonth: mons12 ? Math.round(d.periods.year.total / mons12) : 0, monthly: (d.monthly || []).slice(0, 36).slice().reverse(), yearly: d.yearly || [], license: d.license, ranks: d.ranks, chainCount: (d.chain || []).length || 1, trackedSpaceId: d.trackedSpaceId || '' }); });
+  return { ops: ops, missing: missing, source: txCfg().label };
+}
+// Report body (HTML + its own scoped CSS). Used on screen and inside the PDF so both always match.
+const TXC_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4'];
+function txCompareHtml(data, opts) {
+  opts = opts || {}; const ops = data.ops || []; const N = ops.length;
+  const $ = v => (v == null || !isFinite(v)) ? '—' : ('$' + Math.round(v).toLocaleString('en-US'));
+  const $k = v => (v == null || !isFinite(v)) ? '—' : (Math.abs(v) >= 1e6 ? ('$' + (v / 1e6).toFixed(2) + 'M') : ('$' + Math.round(v / 1000).toLocaleString('en-US') + 'K'));
+  const pct = c => c == null ? '<span class="txc-na">n/a</span>' : ('<span class="' + (c < 0 ? 'txc-dn' : (c > 0 ? 'txc-up' : 'txc-flat')) + '">' + (c > 0 ? '▲ ' : (c < 0 ? '▼ ' : '')) + Math.abs(c) + '%</span>');
+  const mlab = m => { const x = String(m || '').split('-'); const n = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']; return x.length === 2 ? (n[+x[1] - 1] + ' ' + x[0]) : String(m || ''); };
+  const ord = n => { const s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); };
+  const sw = i => '<i class="txc-sw" style="background:' + TXC_COLORS[i] + '"></i>';
+  // A row; vals = numbers used to mark the leader (higher is better), cells = display HTML.
+  const row = (label, cells, vals, note) => { let best = -1; if (vals && N > 1) { let bv = -Infinity, cnt = 0; vals.forEach((v, i) => { if (v != null && isFinite(v)) { cnt++; if (v > bv) { bv = v; best = i; } } }); if (cnt < 2) best = -1; }
+    return '<tr><th scope="row">' + esc(label) + (note ? ('<div class="txc-note">' + esc(note) + '</div>') : '') + '</th>' + cells.map((c, i) => '<td' + (i === best ? ' class="txc-best"' : '') + '>' + c + (i === best ? '<span class="txc-lead">Top</span>' : '') + '</td>').join('') + '</tr>'; };
+  const sec = t => '<tr class="txc-sec"><th colspan="' + (N + 1) + '">' + esc(t) + '</th></tr>';
+  const P = k => ops.map(o => o.periods[k] || {});
+  let h = '';
+  // Header
+  h += '<table class="txc-t"><thead><tr><th class="txc-corner"></th>' + ops.map((o, i) => '<th class="txc-col">' + sw(i) + '<div class="txc-nm">' + (opts.links ? ('<a href="./rrg_tx_operator.html?permit=' + encodeURIComponent(o.permit) + '">' + esc(o.name) + '</a>') : esc(o.name)) + '</div><div class="txc-ad">' + esc(o.address) + '<br>' + esc([o.city, o.zip].filter(Boolean).join(' ')) + '</div>' + (o.stopped ? '<div class="txc-flag">No filings since ' + esc(mlab(o.lastMonth)) + '</div>' : '') + (opts.remove ? ('<button class="txc-x" data-rm="' + esc(o.permit) + '" title="Remove">✕</button>') : '') + '</th>').join('') + '</tr></thead><tbody>';
+  h += sec('Sales');
+  h += row('Last 12 months', P('year').map(p => '<b>' + $(p.total) + '</b>'), P('year').map(p => p.total));
+  h += row('Average per month', ops.map(o => $(o.avgMonth)), ops.map(o => o.avgMonth), 'months filed in the last 12');
+  h += row('Latest month', ops.map(o => $(o.periods.month.total) + '<div class="txc-sub">' + esc(mlab(o.lastMonth)) + '</div>'), null);
+  h += row('Last 24 months', P('twoYear').map(p => $(p.total)), P('twoYear').map(p => p.total));
+  h += sec('Change vs the same period a year earlier');
+  [['Latest month', 'month'], ['Last 3 months', 'quarter'], ['Last 6 months', 'half'], ['Last 12 months', 'year']].forEach(r => { h += row(r[0], P(r[1]).map(p => pct(p.chg)), P(r[1]).map(p => p.chg)); });
+  h += sec('Revenue mix · last 12 months');
+  const mt = o => (o.mix12.liquor + o.mix12.wine + o.mix12.beer + o.mix12.cover) || 0;
+  h += row('Mix', ops.map(o => { const t = mt(o); return '<div class="txc-mix">' + [['liquor', '#8a5a12'], ['wine', '#7a2f5a'], ['beer', '#d9a441'], ['cover', '#4a6fa5']].map(c => t && o.mix12[c[0]] ? ('<i style="width:' + (o.mix12[c[0]] / t * 100).toFixed(1) + '%;background:' + c[1] + '"></i>') : '').join('') + '</div>'; }), null);
+  [['Liquor', 'liquor'], ['Wine', 'wine'], ['Beer', 'beer'], ['Cover charges', 'cover']].forEach(r => { if (r[1] === 'cover' && !ops.some(o => o.mix12.cover > 0)) return; h += row(r[0], ops.map(o => { const t = mt(o); return $(o.mix12[r[1]]) + '<span class="txc-pc">' + (t ? Math.round(o.mix12[r[1]] / t * 100) : 0) + '%</span>'; }), ops.map(o => o.mix12[r[1]])); });
+  h += sec('Rank among active filers · last 12 months');
+  h += row('In its city', ops.map(o => o.ranks ? ('<b>' + ord(o.ranks.rows[0].city.rank) + '</b> <span class="txc-sub2">of ' + o.ranks.rows[0].city.of.toLocaleString() + ' · ' + esc(o.ranks.city) + '</span>') : '—'), null);
+  h += row('In its zip', ops.map(o => o.ranks ? ('<b>' + ord(o.ranks.rows[0].zip.rank) + '</b> <span class="txc-sub2">of ' + o.ranks.rows[0].zip.of.toLocaleString() + ' · ' + esc(o.ranks.zip) + '</span>') : '—'), null);
+  h += sec('Permit & ownership');
+  h += row('Owner of record', ops.map(o => esc(o.taxpayer || '—')), null);
+  h += row('Locations under owner', ops.map(o => String(o.chainCount)), null);
+  h += row('Permit', ops.map(o => esc(o.permit) + (o.license && o.license.type ? (' · ' + esc(o.license.type)) : '')), null);
+  h += row('TABC status', ops.map(o => o.license && o.license.status ? ('<span class="' + (/active/i.test(o.license.status) ? 'txc-up' : 'txc-dn') + '">' + esc(o.license.status) + '</span>') : '—'), null);
+  h += row('Permit issued', ops.map(o => o.license && o.license.issued ? esc(o.license.issued) : '—'), null);
+  h += row('Permit expires', ops.map(o => o.license && o.license.expires ? esc(o.license.expires) : '—'), null);
+  h += row('Filings on record', ops.map(o => o.monthsOnFile + ' months<div class="txc-sub">' + esc(mlab(o.firstMonth)) + ' – ' + esc(mlab(o.lastMonth)) + '</div>'), null);
+  h += '</tbody></table>';
+  // Monthly chart: one line per location on a shared month axis ending at the newest filing.
+  if (N) {
+    const end = ops.map(o => o.lastMonth).sort().pop(); const axis = []; { const d = new Date(end + '-15T00:00:00Z'); for (let i = 23; i >= 0; i--) { const x = new Date(d); x.setUTCMonth(x.getUTCMonth() - i); axis.push(x.toISOString().slice(0, 7)); } }
+    const series = ops.map(o => { const m = {}; o.monthly.forEach(x => { m[x.m] = x.total; }); return axis.map(a => (m[a] != null ? m[a] : null)); });
+    const mx = Math.max(1, ...series.map(s => Math.max(0, ...s.filter(v => v != null))));
+    const nice = (v => { const p = Math.pow(10, Math.floor(Math.log10(v))); const f = v / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p; })(mx);
+    const W = 940, H = 280, L = 52, R = 150, T = 12, B = 26, pw = W - L - R, ph = H - T - B; const X = i => L + i * (pw / 23), Y = v => T + ph - (v / nice) * ph;
+    let svg = '<svg class="txc-chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Monthly alcohol receipts, last 24 months">';
+    [0, .25, .5, .75, 1].forEach(f => { const y = Y(nice * f); svg += '<line x1="' + L + '" x2="' + (L + pw) + '" y1="' + y.toFixed(1) + '" y2="' + y.toFixed(1) + '" stroke="#e9ecf2" stroke-width="1"/><text x="' + (L - 8) + '" y="' + (y + 3.5).toFixed(1) + '" text-anchor="end" class="txc-ax">' + $k(nice * f) + '</text>'; });
+    axis.forEach((a, i) => { if (i % 3 === 2 || i === 23) svg += '<text x="' + X(i).toFixed(1) + '" y="' + (H - 6) + '" text-anchor="middle" class="txc-ax">' + esc(mlab(a).replace(/ (\d\d)(\d\d)$/, " '$2")) + '</text>'; });
+    const ends = [];
+    series.forEach((s, k) => { let d = '', pen = false; s.forEach((v, i) => { if (v == null) { pen = false; return; } d += (pen ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(v).toFixed(1); pen = true; });
+      svg += '<path d="' + d + '" fill="none" stroke="' + TXC_COLORS[k] + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+      let li = -1; s.forEach((v, i) => { if (v != null) li = i; }); if (li >= 0) { svg += '<circle cx="' + X(li).toFixed(1) + '" cy="' + Y(s[li]).toFixed(1) + '" r="4" fill="' + TXC_COLORS[k] + '" stroke="#fff" stroke-width="2"/>'; ends.push({ k: k, y: Y(s[li]), x: X(li) }); } });
+    // Direct labels at the line ends, nudged apart so they never collide.
+    ends.sort((a, b) => a.y - b.y); for (let i = 1; i < ends.length; i++) if (ends[i].y - ends[i - 1].y < 14) ends[i].y = ends[i - 1].y + 14;
+    ends.forEach(e => { const nm = ops[e.k].name; svg += '<text x="' + (L + pw + 10) + '" y="' + (e.y + 4).toFixed(1) + '" class="txc-lbl">' + esc(nm.length > 20 ? nm.slice(0, 19) + '…' : nm) + '</text>'; });
+    if (opts.hover) axis.forEach((a, i) => { svg += '<rect class="txc-hit" x="' + (X(i) - pw / 46).toFixed(1) + '" y="' + T + '" width="' + (pw / 23).toFixed(1) + '" height="' + ph + '" fill="transparent" data-i="' + i + '"/>'; });
+    svg += '<line class="txc-cross" x1="0" x2="0" y1="' + T + '" y2="' + (T + ph) + '" stroke="#9aa3b5" stroke-width="1" style="display:none"/></svg>';
+    h += '<div class="txc-card"><div class="txc-h">Monthly receipts · last 24 months</div><div class="txc-legend">' + ops.map((o, i) => '<span>' + sw(i) + esc(o.name) + '</span>').join('') + '</div>' + svg + '<script type="application/json" class="txc-data">' + JSON.stringify({ axis: axis, series: series, names: ops.map(o => o.name) }).replace(/</g, '\\u003c') + '</script></div>';
+    // Yearly table
+    const yrs = Array.from(new Set([].concat(...ops.map(o => o.yearly.map(y => y.y))))).sort().reverse().slice(0, 5);
+    h += '<table class="txc-t txc-yr"><thead><tr><th class="txc-corner">Calendar year</th>' + ops.map((o, i) => '<th>' + sw(i) + esc(o.name) + '</th>').join('') + '</tr></thead><tbody>' + yrs.map(y => '<tr><th scope="row">' + esc(y) + '</th>' + ops.map(o => { const r = o.yearly.find(x => x.y === y); return '<td>' + (r ? ($(r.total) + (r.months < 12 ? ('<span class="txc-pc">' + r.months + ' mo</span>') : '')) : '—') + '</td>'; }).join('') + '</tr>').join('') + '</tbody></table>';
+  }
+  h += '<div class="txc-foot">Source: ' + esc(data.source || 'State') + ' Comptroller mixed-beverage gross receipts and TABC permit records. Receipts are alcohol sold for on-premise consumption — not food or total revenue. Filings lag one to two months. “Top” marks the highest value in a row.' + ((data.missing || []).length ? (' Not found: ' + data.missing.map(m => esc(m.permit)).join(', ') + '.') : '') + '</div>';
+  return h;
+}
+const TXC_CSS = '.txc-t{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px;margin-bottom:16px;background:#fff}'
+  + '.txc-t th,.txc-t td{padding:7px 10px;border-bottom:1px solid #eef0f5;text-align:left;vertical-align:top;font-variant-numeric:tabular-nums}'
+  + '.txc-t thead th{border-bottom:2px solid #000E31;vertical-align:bottom;position:relative}.txc-corner{width:190px}'
+  + '.txc-t tbody th{font-weight:600;color:#4a5570;width:190px}.txc-t td{color:#1a2236}'
+  + '.txc-sec th{background:#f4f6fa;font-size:10px!important;font-weight:800!important;letter-spacing:.08em;text-transform:uppercase;color:#000E31!important;padding:6px 10px!important}'
+  + '.txc-sw{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}'
+  + '.txc-nm{font-size:14px;font-weight:800;color:#000E31;margin-top:4px;line-height:1.25}.txc-nm a{color:#000E31;text-decoration:none}.txc-nm a:hover{text-decoration:underline}'
+  + '.txc-ad{font-size:11px;color:#6b7488;margin-top:3px;line-height:1.4;font-weight:400}.txc-flag{display:inline-block;margin-top:5px;font-size:10px;font-weight:800;padding:2px 7px;border-radius:999px;background:#fdeceb;color:#a5352c}'
+  + '.txc-x{position:absolute;top:6px;right:6px;border:none;background:none;color:#8a93a8;cursor:pointer;font-size:13px}.txc-x:hover{color:#c0392b}'
+  + '.txc-best{background:#f2faf6}.txc-lead{margin-left:6px;font-size:9px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#1f6b45;border:1px solid #bfe3cf;border-radius:4px;padding:0 4px;vertical-align:1px}'
+  + '.txc-flat{color:#4a5570;font-weight:700}.txc-up{color:#1f8a5b;font-weight:700}.txc-dn{color:#c0392b;font-weight:700}.txc-na{color:#8a93a8}'
+  + '.txc-sub{font-size:11px;color:#8a93a8}.txc-sub2{font-size:11px;color:#8a93a8}.txc-note{font-size:10.5px;font-weight:400;color:#8a93a8}.txc-pc{margin-left:6px;font-size:11px;color:#8a93a8}'
+  + '.txc-mix{display:flex;height:10px;border-radius:5px;overflow:hidden;background:#eef1f6;gap:2px}.txc-mix i{display:block;height:100%}'
+  + '.txc-card{background:#fff;border:1px solid #e6e9f0;border-radius:10px;padding:12px 14px;margin-bottom:16px;position:relative;page-break-inside:avoid}'
+  + '.txc-h{font-size:11px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#000E31}'
+  + '.txc-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:#4a5570;margin:6px 0 2px}.txc-chart{width:100%;height:auto;display:block}'
+  + '.txc-ax{font-size:10px;fill:#8a93a8}.txc-lbl{font-size:11px;fill:#1a2236;font-weight:600}'
+  + '.txc-yr thead th{font-size:11.5px;font-weight:700;color:#000E31}'
+  + '.txc-foot{font-size:10.5px;color:#6b7488;line-height:1.55}'
+  + '@media print{.txc-x{display:none}}';
+function txCompareDoc(data, o) {
+  const pal = effPalette(); const navy = pal.primary || '#000E31'; const org = effOrg();
+  const logo = loiLogoData(); const mime = logo ? (LOGO_MIME[logo.ext] || 'image/png') : '';
+  const logoHtml = logo ? ('<img src="data:' + mime + ';base64,' + logo.buf.toString('base64') + '" alt="">') : ('<div style="font-weight:800;font-size:17pt;color:' + navy + '">' + esc(orgDisplayName()) + '</div>');
+  const orgLines = [org.legalName || org.name, [org.phone, org.website].filter(Boolean).join('  ·  ')].filter(Boolean).map(esc).join('<br>');
+  const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  return '<!DOCTYPE html><html><head><meta charset="utf-8"><style>@page{size:Letter landscape;margin:.5in .55in .6in}*{box-sizing:border-box}body{margin:0;font-family:Helvetica,Arial,sans-serif;color:#1a2236;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
+    + '.lh{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;padding-bottom:10px;border-bottom:2.5px solid ' + navy + ';margin-bottom:12px}.lh img{max-height:46px;max-width:240px}.org{text-align:right;font-size:8pt;color:#5d6782;line-height:1.5}'
+    + '.ttl{display:flex;justify-content:space-between;align-items:flex-end;margin:4px 0 12px}.ttl h1{margin:0;font-size:18pt;color:' + navy + '}.ttl .k{font-size:8pt;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#DA2B1F}.ttl .m{font-size:9pt;color:#6b7488;text-align:right}'
+    + '.notes{font-size:10pt;line-height:1.5;margin:0 0 12px;padding:8px 12px;border-left:3px solid ' + navy + ';background:#f6f8fb}'
+    + '.txc-t{page-break-inside:auto}.txc-t tr{page-break-inside:avoid}' + TXC_CSS
+    + '.txc-t{font-size:10.5px;margin-bottom:10px}.txc-t th,.txc-t td{padding:4px 8px}.txc-nm{font-size:12.5px}.txc-ad{font-size:9.5px}.txc-sub,.txc-sub2,.txc-pc,.txc-note{font-size:9.5px}.txc-sec th{padding:4px 8px!important}.txc-card{padding:8px 12px;margin-bottom:10px}.txc-chart{max-height:3.3in}.txc-mix{height:8px}' + '</style></head><body>'
+    + '<div class="lh"><div>' + logoHtml + '</div><div class="org">' + orgLines + '</div></div>'
+    + '<div class="ttl"><div><div class="k">Alcohol sales comparison</div><h1>' + esc(o.title || 'Location Comparison') + '</h1></div><div class="m">' + (o.preparedFor ? ('Prepared for ' + esc(o.preparedFor) + '<br>') : '') + esc(today) + '</div></div>'
+    + (o.notes ? ('<div class="notes">' + esc(o.notes).replace(/\n/g, '<br>') + '</div>') : '')
+    + txCompareHtml(data, {}) + '</body></html>';
+}
+app.get('/api/tx/compare', async (req, res) => {
+  const permits = txCmpPermits(req.query.permits); if (!permits.length) return res.json({ ok: true, ops: [], missing: [], html: '' });
+  try { const data = await txCompareData(permits); res.json({ ok: true, ops: data.ops.map(o => ({ permit: o.permit, name: o.name, address: o.address, city: o.city })), missing: data.missing, html: txCompareHtml(data, { links: true, remove: true, hover: true }), css: TXC_CSS }); }
+  catch (e) { res.json({ ok: false, error: 'Could not reach the state data source: ' + String((e && e.message) || e) }); }
+});
+app.post('/api/tx/compare/pdf', express.json(), async (req, res) => {
+  const b = req.body || {}; const permits = txCmpPermits(Array.isArray(b.permits) ? b.permits.join(',') : b.permits);
+  if (permits.length < 2) return res.status(400).json({ ok: false, error: 'Pick at least two locations.' });
+  try {
+    const data = await txCompareData(permits); if (data.ops.length < 2) return res.status(400).json({ ok: false, error: 'Fewer than two of those locations have filings.' });
+    const o = { title: String(b.title || '').slice(0, 120) || data.ops.map(x => x.name).slice(0, 3).join(' vs ') + (data.ops.length > 3 ? ' + ' + (data.ops.length - 3) + ' more' : ''), preparedFor: String(b.preparedFor || '').slice(0, 120), notes: String(b.notes || '').slice(0, 2000) };
+    const html = txCompareDoc(data, o); const puppeteer = require('puppeteer');
+    const browser = await puppeteer.launch({ headless: 'new', executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+    let pdf; try { const page = await browser.newPage(); await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30000 }).catch(() => {}); pdf = await page.pdf({ printBackground: true, preferCSSPageSize: true, displayHeaderFooter: true, headerTemplate: '<span></span>', footerTemplate: '<div style="width:100%;font-family:Helvetica,Arial;font-size:7px;color:#8a93a8;padding:0 .55in;display:flex;justify-content:space-between"><span>' + esc(orgDisplayName()) + ' · Alcohol sales comparison</span><span>Page <span class="pageNumber"></span> of <span class="totalPages"></span></span></div>' }); } finally { try { await browser.close(); } catch (e) {} }
+    try { logSysEvent(req, 'Report', 'Built an alcohol-sales comparison — ' + data.ops.map(x => x.name).join(', '), { tool: 'alcohol-sales', kind: 'compare' }); } catch (e) {}
+    const stem = ('Alcohol_Sales_Comparison_' + data.ops.map(x => x.name.split(/\s+/)[0]).join('-')).replace(/[^a-zA-Z0-9-]+/g, '_').slice(0, 80);
+    res.setHeader('Content-Type', 'application/pdf'); res.setHeader('Content-Disposition', 'attachment; filename="' + stem + '.pdf"'); res.send(pdf);
+  } catch (e) { console.error('tx compare pdf:', e && e.message); res.status(500).json({ ok: false, error: 'Could not build the PDF: ' + String((e && e.message) || e) }); }
+});
 // Turn a radar signal into an off-market space to work.
 app.post('/api/tx/radar/track', express.json(), (req, res) => {
   const b = req.body || {}; const arr = loadSpaces(); const now = new Date().toISOString();
