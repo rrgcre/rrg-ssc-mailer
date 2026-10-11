@@ -40,6 +40,17 @@ table{width:100%;border-collapse:collapse;font-size:12.5px;} th{text-align:left;
 .oempty{padding:40px 20px;text-align:center;color:var(--muted);}
 .onote{font-size:11.5px;color:var(--muted);padding:10px 16px;line-height:1.55;}
 .pg{display:flex;gap:6px;align-items:center;justify-content:flex-end;padding:8px 10px;font-size:12px;color:var(--muted);}
+.obtn.ai{border-color:#c9b6f0;color:#4b2a8f;background:#faf7ff;}
+.obtn[disabled]{opacity:.6;cursor:default;}
+.aicard{border-color:#ddd0f6;}
+.aicard .och{background:linear-gradient(90deg,#faf7ff,#fff);}
+.aicard .och b{color:#4b2a8f;}
+.aibody{padding:6px 18px 14px;font-size:13.5px;line-height:1.6;color:var(--ink);columns:2 420px;column-gap:34px;}
+.aibody h3{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--navy);margin:12px 0 4px;break-after:avoid;}
+.aibody p{margin:0 0 6px;} .aibody ul{margin:0 0 6px;padding-left:18px;} .aibody li{margin:2px 0;break-inside:avoid;}
+.aibody.busy{columns:auto;color:var(--muted);padding:18px;}
+.aierr{color:#a5352c;}
+.aistale{font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;background:#fff4dc;color:#8a5a12;}
 @media(max-width:980px){ .pers{grid-template-columns:repeat(2,1fr);} .ocols{grid-template-columns:1fr;} }
 </style>
 <script src="/rrg_brand.js"></script>
@@ -48,7 +59,7 @@ table{width:100%;border-collapse:collapse;font-size:12.5px;} th{text-align:left;
 <div class="owrap" id="app"><div class="oempty">Loading state filings…</div></div>
 <script>
 var Q=(function(){ try{ return new URLSearchParams(location.search); }catch(e){ return {get:function(){return '';}}; } })();
-var PERMIT=Q.get('permit')||'', D=null, MPAGE=0, MPER=12;
+var PERMIT=Q.get('permit')||'', D=null, MPAGE=0, MPER=12, AIBUSY=false, AIERR='';
 var CAT=[['liquor','Liquor','var(--liq)'],['wine','Wine','var(--wine)'],['beer','Beer','var(--beer)'],['cover','Cover charges','var(--cov)']];
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function $(v){ return (v==null||!isFinite(v))?'—':('$'+Math.round(v).toLocaleString('en-US')); }
@@ -61,6 +72,18 @@ function chartSvg(rows){ rows=rows.slice(0,24).reverse(); if(!rows.length) retur
   var grid=[0.5,1].map(function(f){ var y=(H-18)-f*(H-34); return '<line x1="'+pad+'" x2="'+W+'" y1="'+y+'" y2="'+y+'" stroke="#eef1f6"/><text x="0" y="'+(y+3)+'" font-size="10" fill="#8a93a8">'+(mx*f>=1e6?('$'+(mx*f/1e6).toFixed(1)+'M'):('$'+Math.round(mx*f/1000)+'K'))+'</text>'; }).join('');
   return '<svg class="chart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">'+grid+bars+'</svg>'; }
 function csv(rows,cols,name){ var q=function(v){ v=v==null?'':String(v); return /[",\n]/.test(v)?('"'+v.replace(/"/g,'""')+'"'):v; }; var s=cols.map(function(c){return q(c[0]);}).join(',')+'\n'+rows.map(function(r){ return cols.map(function(c){ return q(r[c[1]]); }).join(','); }).join('\n'); var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([s],{type:'text/csv'})); a.download=name; document.body.appendChild(a); a.click(); a.remove(); }
+function mdLite(t){ var out=[], inUl=false; String(t||'').split(/\n/).forEach(function(line){ var l=line.trim(); var fmt=function(x){ return esc(x).replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>'); };
+    if(/^#{1,6}\s/.test(l)){ if(inUl){out.push('</ul>');inUl=false;} out.push('<h3>'+fmt(l.replace(/^#{1,6}\s+/,''))+'</h3>'); }
+    else if(/^[-*•]\s+/.test(l)){ if(!inUl){out.push('<ul>');inUl=true;} out.push('<li>'+fmt(l.replace(/^[-*•]\s+/,''))+'</li>'); }
+    else if(l){ if(inUl){out.push('</ul>');inUl=false;} out.push('<p>'+fmt(l)+'</p>'); }
+  }); if(inUl) out.push('</ul>'); return out.join(''); }
+function when(iso){ try{ var d=new Date(iso); return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+' '+d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}); }catch(e){ return ''; } }
+function aiCard(){ var S=D.aiSummary; if(!S&&!AIBUSY&&!AIERR) return '';
+  var head='<div class="och"><b>✨ AI summary</b><span class="h">'+(AIBUSY?'reading the filings…':(S?('Generated '+esc(when(S.at))+(S.by?(' by '+esc(S.by)):'')+' · data through '+esc(mlabel(S.lastMonth))):''))+'</span>'+(S&&S.stale&&!AIBUSY?'<span class="aistale">Newer filings since — regenerate</span>':'')+'<span class="r">'+(S&&!AIBUSY?'<button class="obtn" id="aiCopy">Copy</button><button class="obtn" id="aiRegen">↻ Regenerate</button>':'')+'</span></div>';
+  var body=AIBUSY?'<div class="aibody busy">Summarizing '+esc(D.name)+'\'s sales, mix, permit and group — about 10–20 seconds.</div>':(AIERR?'<div class="aibody busy aierr">'+esc(AIERR)+'</div>':'<div class="aibody">'+mdLite(S.text)+'</div>');
+  return '<div class="ocard aicard" id="aiCard">'+head+body+'<div class="onote" style="padding-top:0">AI draft from state filings only — verify before it goes to a client.</div></div>'; }
+function runAi(refresh){ if(AIBUSY) return; AIBUSY=true; AIERR=''; render(); var c=document.getElementById('aiCard'); if(c) c.scrollIntoView({behavior:'smooth',block:'nearest'});
+  fetch('/api/tx/operator/ai-summary',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({permit:PERMIT,refresh:!!refresh})}).then(function(r){return r.json();}).then(function(j){ AIBUSY=false; if(j&&j.ok){ D.aiSummary=j.summary; } else { AIERR=(j&&j.error)||'The AI summary failed.'; } render(); }).catch(function(){ AIBUSY=false; AIERR='Could not reach the server.'; render(); }); }
 function load(){ if(!PERMIT){ document.getElementById('app').innerHTML='<div class="ocard"><div class="oempty">Open an operator from Alcohol Sales or a space\'s alcohol records.</div></div>'; return; }
   fetch('/api/tx/operator?permit='+encodeURIComponent(PERMIT),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ D=j; render(); }).catch(function(){ document.getElementById('app').innerHTML='<div class="ocard"><div class="oempty">Could not reach the server.</div></div>'; }); }
 function render(){ var a=document.getElementById('app'); if(!D||!D.ok){ a.innerHTML='<div class="ocard"><div class="oempty">'+esc((D&&D.error)||'No data.')+'</div></div>'; return; }
@@ -68,8 +91,9 @@ function render(){ var a=document.getElementById('app'); if(!D||!D.ok){ a.innerH
   var stopped=(function(){ var x=D.lastMonth.split('-'), n=new Date(); return ((n.getFullYear()-+x[0])*12+(n.getMonth()+1-+x[1]))>=4; })();
   var full=[D.address,D.city,(D.state||'TX')+' '+String(D.zip||'').slice(0,5)].filter(Boolean).join(', ');
   var h='<div class="ohd"><div><div class="okick">Alcohol Sales · Operator</div><h1>'+esc(D.name)+'</h1><div class="osub">'+esc(full)+'</div><div class="otags">'+(lic.type?('<span class="otag">'+esc(lic.type)+' permit</span>'):'')+(chainN>1?('<span class="otag">'+chainN+'-location group</span>'):'')+(lic.status?('<span class="otag" style="'+(/active/i.test(lic.status)?'background:#e7f5ee;color:#1f6b45':'background:#fdeceb;color:#a5352c')+'">TABC '+esc(lic.status)+'</span>'):'')+(stopped?'<span class="otag" style="background:#fdeceb;color:#a5352c">No filings since '+esc(mlabel(D.lastMonth))+'</span>':'')+'</div></div>'
-    +'<div class="obtns"><a class="obtn" href="./rrg_market_radar.html?city='+encodeURIComponent(D.city)+'">← Alcohol Sales</a><a class="obtn" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(D.name+' '+full)+'">Map ↗</a><a class="obtn" target="_blank" rel="noopener" href="https://www.google.com/search?q='+encodeURIComponent(D.name+' '+full)+'">Look up ↗</a>'+(D.trackedSpaceId?('<a class="obtn pri" href="./rrg_space.html?id='+encodeURIComponent(D.trackedSpaceId)+'">Open space</a>'):'<button class="obtn pri" id="trackBtn">Track as space</button>')+'</div></div>';
+    +'<div class="obtns"><a class="obtn" href="./rrg_market_radar.html?city='+encodeURIComponent(D.city)+'">← Alcohol Sales</a><a class="obtn" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(D.name+' '+full)+'">Map ↗</a><a class="obtn" target="_blank" rel="noopener" href="https://www.google.com/search?q='+encodeURIComponent(D.name+' '+full)+'">Look up ↗</a>'+'<button class="obtn ai" id="aiBtn"'+(AIBUSY?' disabled':'')+'>'+(AIBUSY?'✨ Summarizing…':'✨ AI summary')+'</button>'+(D.trackedSpaceId?('<a class="obtn pri" href="./rrg_space.html?id='+encodeURIComponent(D.trackedSpaceId)+'">Open space</a>'):'<button class="obtn pri" id="trackBtn">Track as space</button>')+'</div></div>';
   h+='<div class="pers">'+[['Recent month',P.month,mlabel(D.lastMonth)],['Past quarter',P.quarter,'last 3 months'],['Past 6 months',P.half,'last 6 months'],['Past year',P.year,'last 12 months'],['Past 2 years',P.twoYear,'last 24 months']].map(function(x){ return '<div class="per"><div class="t">'+x[0]+'</div><div class="v">'+$(x[1].total)+'</div>'+chg(x[1].chg,x[0]==='Past 2 years')+'<div class="s">'+esc(x[2])+'</div></div>'; }).join('')+'</div>';
+  h+=aiCard();
   h+='<div class="ocols"><div>';
   h+='<div class="ocard"><div class="och"><b>Monthly receipts</b><span class="h">last 24 months</span><span class="r legend">'+CAT.map(function(c){ return '<span><i style="background:'+c[2]+'"></i>'+c[1]+'</span>'; }).join('')+'</span></div><div class="ocb">'+chartSvg(D.monthly)+'</div></div>';
   var mrows=D.monthly.slice(MPAGE*MPER,MPAGE*MPER+MPER), pages=Math.ceil(D.monthly.length/MPER);
@@ -87,6 +111,9 @@ function render(){ var a=document.getElementById('app'); if(!D||!D.ok){ a.innerH
   var cols=[['Period','m'],['Total','total'],['Liquor','liquor'],['Wine','wine'],['Beer','beer'],['Cover','cover']];
   document.getElementById('mExp').onclick=function(){ csv(D.monthly,cols,'Monthly_'+D.permit+'.csv'); };
   document.getElementById('yExp').onclick=function(){ csv(D.yearly,[['Year','y']].concat(cols.slice(1)).concat([['Months','months']]),'Yearly_'+D.permit+'.csv'); };
+  var ab=document.getElementById('aiBtn'); if(ab) ab.onclick=function(){ if(D.aiSummary&&!D.aiSummary.stale){ var c=document.getElementById('aiCard'); if(c){ c.scrollIntoView({behavior:'smooth',block:'nearest'}); return; } } runAi(!!(D.aiSummary&&D.aiSummary.stale)); };
+  var ar=document.getElementById('aiRegen'); if(ar) ar.onclick=function(){ runAi(true); };
+  var ac=document.getElementById('aiCopy'); if(ac) ac.onclick=function(){ var t=D.name+' — AI summary\n\n'+String(D.aiSummary.text||'').replace(/\*\*/g,''); try{ navigator.clipboard.writeText(t).then(function(){ ac.textContent='Copied ✓'; setTimeout(function(){ ac.textContent='Copy'; },1500); }); }catch(e){} };
   var tb=document.getElementById('trackBtn'); if(tb) tb.onclick=function(){ tb.disabled=true; tb.textContent='Adding…'; fetch('/api/tx/radar/track',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:D.name,address:D.address,permit:D.permit,city:D.city,detail:'Trailing 12 '+$(P.year.total)+(P.year.chg!=null?(' ('+(P.year.chg>0?'+':'')+P.year.chg+'% vs prior year)'):'')})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ D.trackedSpaceId=j.spaceId; render(); } else { tb.disabled=false; tb.textContent='Track as space'; } }); };
 }
 load();

@@ -24878,11 +24878,10 @@ app.get('/api/tx/radar', async (req, res) => {
   catch (e) { res.json({ ok: false, error: 'Could not reach the state data source: ' + String((e && e.message) || e) }); }
 });
 // One establishment — full filing history, period comparisons, revenue mix, chain locations, permit, rankings.
-app.get('/api/tx/operator', async (req, res) => {
-  const permit = String(req.query.permit || '').trim().slice(0, 30); if (!permit) return res.status(400).json({ ok: false, error: 'No permit number.' });
-  try {
+// Everything the operator page shows, for one TABC permit. Shared by the page route and the AI summary.
+async function txOperatorBuild(permit, withRanks) {
     const rows = await txQuery(TX_MB, { '$where': "tabc_permit_number='" + permit.replace(/'/g, "''") + "'", '$order': 'obligation_end_date_yyyymmdd ASC', '$limit': '5000' });
-    if (!rows || !rows.length) return res.json({ ok: false, error: 'No filings found for permit ' + permit + '.' });
+    if (!rows || !rows.length) return { ok: false, error: 'No filings found for permit ' + permit + '.' };
     const f = rows[rows.length - 1];
     const months = {}; rows.forEach(r => { const m = txMonthKey(r.obligation_end_date_yyyymmdd); const o = months[m] = months[m] || { m: m, total: 0, liquor: 0, wine: 0, beer: 0, cover: 0 }; o.total += Number(r.total_receipts) || 0; o.liquor += Number(r.liquor_receipts) || 0; o.wine += Number(r.wine_receipts) || 0; o.beer += Number(r.beer_receipts) || 0; o.cover += Number(r.cover_charge_receipts) || 0; });
     const monthly = Object.keys(months).sort().map(k => months[k]);
@@ -24900,15 +24899,77 @@ app.get('/api/tx/operator', async (req, res) => {
     let lic = null; try { const t = await txQuery(TX_TABC, { '$where': "license_id='" + permit.replace(/'/g, "''") + "'", '$limit': '1' }); if (t && t[0]) lic = { type: t[0].license_type || '', status: t[0].primary_status || '', secondary: t[0].secondary_status || '', issued: String(t[0].original_issue_date || '').slice(0, 10), expires: String(t[0].expiration_date || '').slice(0, 10), owner: t[0].owner || '', phone: t[0].phone || '' }; } catch (e) {}
     // Rankings within the city and zip (trailing 12 months), from the city's Radar data.
     let ranks = null; const city = String(f.location_city || '').trim();
-    if (city && req.query.ranks !== '0') { try { const R = await txRadarGet(city, false); if (R && R.all) { const me = R.all.find(o => o.permit === permit); const zip = String(f.location_zip || '').slice(0, 5);
+    if (city && withRanks) { try { const R = await txRadarGet(city, false); if (R && R.all) { const me = R.all.find(o => o.permit === permit); const zip = String(f.location_zip || '').slice(0, 5);
       const rank = (arr, key) => { const s2 = arr.filter(o => o.status !== 'stopped').map(o => o[key] || 0).sort((a, b) => b - a); const v = me ? (me[key] || 0) : 0; return { rank: s2.findIndex(x => x <= v) + 1, of: s2.length }; };
       const inZip = R.all.filter(o => String(o.zip || '').slice(0, 5) === zip);
       if (me) ranks = { basis: 'trailing 12 months', city: city, zip: zip, rows: [['Total receipts', 'trailing12'], ['Liquor', 'liquor12'], ['Wine', 'wine12'], ['Beer', 'beer12']].map(r => ({ label: r[0], city: rank(R.all, r[1]), zip: rank(inZip, r[1]) })) }; } } catch (e) {} }
     const first = monthly[0].m; const since = f.responsibility_begin_date_yyyymmdd ? String(f.responsibility_begin_date_yyyymmdd).slice(0, 10) : '';
     const tracked = loadSpaces().find(sp => String(sp.address || '').toUpperCase().indexOf(String(f.location_address || '').toUpperCase()) === 0);
-    res.json({ ok: true, source: txCfg().label, name: f.location_name || f.taxpayer_name || '', taxpayer: f.taxpayer_name || '', taxpayerNumber: f.taxpayer_number || '', locationNumber: f.location_number || '', address: f.location_address || '', city: city, state: f.location_state || 'TX', zip: f.location_zip || '', county: f.location_county || '', permit: permit, responsibleSince: since, firstMonth: first, lastMonth: last,
-      periods: periods, mix12: mix12, monthly: monthly.slice().reverse(), yearly: Object.values(years).sort((a, b) => b.y.localeCompare(a.y)), chain: chain, license: lic, ranks: ranks, trackedSpaceId: tracked ? tracked.id : '' });
+    return { ok: true, source: txCfg().label, name: f.location_name || f.taxpayer_name || '', taxpayer: f.taxpayer_name || '', taxpayerNumber: f.taxpayer_number || '', locationNumber: f.location_number || '', address: f.location_address || '', city: city, state: f.location_state || 'TX', zip: f.location_zip || '', county: f.location_county || '', permit: permit, responsibleSince: since, firstMonth: first, lastMonth: last,
+      periods: periods, mix12: mix12, monthly: monthly.slice().reverse(), yearly: Object.values(years).sort((a, b) => b.y.localeCompare(a.y)), chain: chain, license: lic, ranks: ranks, trackedSpaceId: tracked ? tracked.id : '' };
+}
+app.get('/api/tx/operator', async (req, res) => {
+  const permit = String(req.query.permit || '').trim().slice(0, 30); if (!permit) return res.status(400).json({ ok: false, error: 'No permit number.' });
+  try {
+    const out = await txOperatorBuild(permit, req.query.ranks !== '0');
+    if (out && out.ok) { const s = txAiLoad()[permit]; if (s && s.text) out.aiSummary = { text: s.text, at: s.at, by: s.by || '', lastMonth: s.lastMonth || '', stale: s.lastMonth !== out.lastMonth }; out.aiReady = !!process.env.ANTHROPIC_API_KEY; }
+    res.json(out);
   } catch (e) { res.json({ ok: false, error: 'Could not reach the state data source: ' + String((e && e.message) || e) }); }
+});
+// ---- AI summary of an operator's state alcohol filings (sales trend, mix, permit, group) ----
+// Saved on the server per permit (not in the browser) and reused until newer filings arrive or someone regenerates.
+const TX_AI_FILE = path.join(BOV_DATA_DIR, 'tx_ai_summaries.json');
+function txAiLoad() { try { const o = rj(TX_AI_FILE); return (o && typeof o === 'object' && !Array.isArray(o)) ? o : {}; } catch (e) { return {}; } }
+function txAiFacts(D) {
+  const r = n => Math.round(Number(n) || 0);
+  const pc = c => (c == null ? 'n/a (prior window not fully filed)' : ((c > 0 ? '+' : '') + c + '%'));
+  const P = D.periods || {}; const mx = D.mix12 || {}; const mt = (mx.liquor || 0) + (mx.wine || 0) + (mx.beer || 0) + (mx.cover || 0);
+  const now = new Date(); const lm = String(D.lastMonth || '').split('-'); const gap = lm.length === 2 ? ((now.getUTCFullYear() - +lm[0]) * 12 + (now.getUTCMonth() + 1 - +lm[1])) : null;
+  const L = [];
+  L.push('Operator: ' + D.name + (D.taxpayer && D.taxpayer !== D.name ? (' (owner of record: ' + D.taxpayer + ')') : ''));
+  L.push('Address: ' + [D.address, D.city, (D.state || 'TX') + ' ' + String(D.zip || '').slice(0, 5)].filter(Boolean).join(', '));
+  L.push('Permit: ' + D.permit + (D.license ? (' · type ' + (D.license.type || '?') + ' · TABC status ' + (D.license.status || '?') + (D.license.secondary ? (' / ' + D.license.secondary) : '') + (D.license.issued ? (' · issued ' + D.license.issued) : '') + (D.license.expires ? (' · expires ' + D.license.expires) : '')) : ' · no TABC license record found'));
+  L.push('Filings on record: ' + D.firstMonth + ' to ' + D.lastMonth + ' (' + (D.monthly || []).length + ' months). Today is ' + now.toISOString().slice(0, 10) + (gap != null ? ('; latest filing is ' + gap + ' month(s) old — filings normally lag 1–2 months, 4+ suggests the operator stopped filing') : '') + '.');
+  L.push('Period totals vs the same window a year earlier: latest month ' + D.lastMonth + ' $' + r(P.month && P.month.total) + ' (' + pc(P.month && P.month.chg) + '); last 3 months $' + r(P.quarter && P.quarter.total) + ' (' + pc(P.quarter && P.quarter.chg) + '); last 6 months $' + r(P.half && P.half.total) + ' (' + pc(P.half && P.half.chg) + '); last 12 months $' + r(P.year && P.year.total) + ' (' + pc(P.year && P.year.chg) + '); last 24 months $' + r(P.twoYear && P.twoYear.total) + ' (' + pc(P.twoYear && P.twoYear.chg) + ' vs the 24 months before).');
+  L.push('Mix, last 12 months: liquor $' + r(mx.liquor) + ', wine $' + r(mx.wine) + ', beer $' + r(mx.beer) + ', cover charges $' + r(mx.cover) + (mt ? (' (liquor ' + Math.round(mx.liquor / mt * 100) + '% / wine ' + Math.round(mx.wine / mt * 100) + '% / beer ' + Math.round(mx.beer / mt * 100) + '% / cover ' + Math.round(mx.cover / mt * 100) + '%)') : '') + '.');
+  L.push('Monthly totals, newest first (up to 36): ' + (D.monthly || []).slice(0, 36).map(m => m.m + ' $' + r(m.total)).join('; ') + '.');
+  L.push('Calendar years: ' + (D.yearly || []).map(y => y.y + ' $' + r(y.total) + ' (' + y.months + ' mo)').join('; ') + '.');
+  if (D.ranks) L.push('Rank by trailing-12 receipts among active filers: ' + D.ranks.rows.map(x => x.label + ' ' + x.city.rank + ' of ' + x.city.of + ' in ' + D.ranks.city + ', ' + x.zip.rank + ' of ' + x.zip.of + ' in zip ' + D.ranks.zip).join('; ') + '.');
+  const ch = (D.chain || []);
+  if (ch.length > 1) L.push('Same owner (taxpayer ' + (D.taxpayerNumber || '?') + ') files ' + ch.length + ' locations; trailing 12 months each: ' + ch.slice(0, 25).map(c => c.name + ' — ' + [c.address, c.city].filter(Boolean).join(', ') + ' $' + r(c.t12) + ' (last filed ' + c.last + ')').join('; ') + '.');
+  else L.push('No other locations filed under the same owner in the last 12 months.');
+  L.push(D.trackedSpaceId ? 'RRG already tracks this address as a space.' : 'RRG does not yet track this address as a space.');
+  return L.join('\n');
+}
+app.post('/api/tx/operator/ai-summary', express.json(), async (req, res) => {
+  const b = req.body || {}; const permit = String(b.permit || '').trim().slice(0, 30);
+  if (!permit) return res.status(400).json({ ok: false, error: 'No permit number.' });
+  const key = process.env.ANTHROPIC_API_KEY; if (!key) return res.status(503).json({ ok: false, error: 'AI is not set up — add ANTHROPIC_API_KEY on the server.' });
+  try {
+    const D = await txOperatorBuild(permit, true);
+    if (!D || !D.ok) return res.json({ ok: false, error: (D && D.error) || 'No filings for this permit.' });
+    const store = txAiLoad(); const prev = store[permit];
+    if (prev && prev.text && !b.refresh && prev.lastMonth === D.lastMonth) return res.json({ ok: true, summary: { text: prev.text, at: prev.at, by: prev.by || '', lastMonth: prev.lastMonth, stale: false }, cached: true });
+    const sys = 'You are a senior commercial real estate broker who works only restaurant and bar deals in Texas (business sales, tenant representation, landlord leasing). You are reading one operator\'s state alcohol records: Comptroller mixed-beverage gross receipts (alcohol sold for on-premise consumption — NOT food, NOT total revenue) and the TABC permit record. Write a short, blunt broker read for your team. Use ONLY the facts given; never invent names, dates, or numbers. Plain language, no hedging filler, no disclaimers paragraph.\n\n'
+      + 'Format exactly, in this order, using "### " headings and "- " bullets, **bold** for the key figure in a line:\n'
+      + '### Bottom line\n2–3 sentences: what this operator is and the single most important thing the numbers say.\n'
+      + '### Sales trend\n2–4 bullets: direction and size of change across the periods, seasonality, any sharp break (name the month), whether filings stopped.\n'
+      + '### Mix & concept\n1–3 bullets: what the liquor/wine/beer/cover split suggests about the concept (e.g. liquor-heavy = bar/nightlife, wine-heavy = full-service dining, beer-heavy = sports bar/icehouse/Tex-Mex, cover = live music/club). Say it is inferred. You may give a rough total-sales range only if you label it an estimate and state the alcohol share you assumed.\n'
+      + '### Permit & ownership\n1–3 bullets: permit type/status/expiry, owner of record, size of the group and where this location ranks within it and its city/zip.\n'
+      + '### Signals for RRG\n2–4 bullets: concrete angles — possible seller (declining, stopped filing, aging permit), expansion-minded group (tenant rep prospect), space likely coming available (landlord/space lead), or a healthy operator to leave alone. Tie each to a number.\n'
+      + '### Next move\n1–3 bullets, each one specific action a broker would take this week.\n'
+      + 'Keep the whole thing under 300 words.';
+    const content = txAiFacts(D) + '\n\nWrite the broker read now.';
+    const resp = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' }, body: JSON.stringify({ model: loadAiModel(), max_tokens: 1400, temperature: 0.2, system: sys, messages: [{ role: 'user', content }] }) });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) return res.status(502).json({ ok: false, error: (data && data.error && data.error.message) || ('AI request failed (' + resp.status + ').') });
+    const text = String(((data && data.content) || []).map(x => x.text || '').join('') || '').trim();
+    if (!text) return res.status(502).json({ ok: false, error: 'AI returned an empty summary.' });
+    const rec = { text: text.slice(0, 8000), at: new Date().toISOString(), by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', lastMonth: D.lastMonth, name: D.name };
+    const fresh = txAiLoad(); fresh[permit] = rec; writeJsonGuarded(TX_AI_FILE, fresh, 'txAiSummary');
+    try { logSysEvent(req, 'AI', 'AI summary of alcohol sales — ' + D.name + ' (' + D.city + ')', { tool: 'alcohol-sales', kind: 'ai-summary', permit: permit }); } catch (e) {}
+    res.json({ ok: true, summary: { text: rec.text, at: rec.at, by: rec.by, lastMonth: rec.lastMonth, stale: false }, cached: false });
+  } catch (e) { res.status(502).json({ ok: false, error: 'Could not build the summary: ' + String((e && e.message) || e) }); }
 });
 // Turn a radar signal into an off-market space to work.
 app.post('/api/tx/radar/track', express.json(), (req, res) => {
