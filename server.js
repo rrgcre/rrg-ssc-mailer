@@ -24878,6 +24878,20 @@ app.get('/api/tx/radar', async (req, res) => {
   catch (e) { res.json({ ok: false, error: 'Could not reach the state data source: ' + String((e && e.message) || e) }); }
 });
 // One establishment — full filing history, period comparisons, revenue mix, chain locations, permit, rankings.
+// TABC permit/license type codes → plain names (the dataset only carries the code). Unknown codes show as-is.
+const TABC_TYPES = { MB: 'Mixed Beverage Permit', LB: 'Mixed Beverage Late Hours Permit', N: 'Private Club Registration Permit', NB: 'Private Club Late Hours Permit', NE: 'Private Club Exemption Certificate', BG: 'Wine and Beer Retailer\'s Permit', BE: 'Beer Retailer\'s On-Premise License', BQ: 'Wine and Beer Retailer\'s Off-Premise Permit', BF: 'Beer Retailer\'s Off-Premise License', FB: 'Food and Beverage Certificate', P: 'Package Store Permit', Q: 'Wine Only Package Store Permit', CB: 'Caterer\'s Permit', PE: 'Beverage Cartage Permit', E: 'Local Cartage Permit', BP: 'Brewpub License', G: 'Winery Permit' };
+function txNameKey(s) { return String(s || '').toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9 ]+/g, ' ').replace(/\b(llc|l l c|inc|incorporated|corp|corporation|co|company|ltd|lp|llp|pllc|the|dba)\b/g, ' ').replace(/\s+/g, ' ').trim(); }
+function txTypeName(code) { const c = String(code || '').trim().toUpperCase(); return TABC_TYPES[c] || ''; }
+function txLicenseOut(r) {
+  r = r || {}; const pick = (...ks) => { for (const k of ks) { if (r[k] != null && String(r[k]).trim() !== '') return String(r[k]).trim(); } return ''; };
+  const mailKeys = Object.keys(r).filter(k => /mail/i.test(k) && !/e_?mail/i.test(k));
+  const mailing = ['mailing_address', 'mail_address', 'mailing_address_1', 'mailing_address_2'].map(k => pick(k)).filter(Boolean).concat([[pick('mailing_city', 'mail_city'), pick('mailing_state', 'mail_state')].filter(Boolean).join(', ') + (pick('mailing_zip', 'mail_zip') ? (' ' + pick('mailing_zip', 'mail_zip').slice(0, 5)) : '')]).filter(x => x.trim()).join(', ')
+    || mailKeys.map(k => String(r[k] || '').trim()).filter(Boolean).join(', ');
+  const type = pick('license_type', 'permit_type');
+  return { id: pick('license_id', 'permit_number'), type: type, typeName: pick('license_type_description', 'license_description', 'type_description') || txTypeName(type), status: pick('primary_status', 'status'), secondary: pick('secondary_status'), issued: pick('original_issue_date').slice(0, 10), expires: pick('expiration_date').slice(0, 10), changed: pick('status_change_date').slice(0, 10),
+    owner: pick('owner', 'owner_name', 'licensee'), trade: pick('trade_name', 'tradename', 'dba'), phone: pick('phone', 'phone_number', 'telephone'), email: pick('email', 'email_address', 'e_mail'),
+    address: [pick('address'), pick('address_2', 'suite')].filter(Boolean).join(' '), city: pick('city'), zip: pick('zip', 'zip_code').slice(0, 5), county: pick('county'), mailing: mailing };
+}
 // Everything the operator page shows, for one TABC permit. Shared by the page route and the AI summary.
 async function txOperatorBuild(permit, withRanks) {
     const rows = await txQuery(TX_MB, { '$where': "tabc_permit_number='" + permit.replace(/'/g, "''") + "'", '$order': 'obligation_end_date_yyyymmdd ASC', '$limit': '5000' });
@@ -24896,7 +24910,17 @@ async function txOperatorBuild(permit, withRanks) {
     // Chain: every location filed under the same taxpayer number.
     let chain = [];
     if (f.taxpayer_number) { try { const cr = await txQuery(TX_MB, { '$select': 'location_name,location_address,location_city,location_number,tabc_permit_number,obligation_end_date_yyyymmdd,total_receipts', '$where': "taxpayer_number='" + String(f.taxpayer_number).replace(/'/g, "''") + "' AND obligation_end_date_yyyymmdd>='" + mAdd(last, -11) + "-01'", '$limit': '5000' }); const by = {}; (cr || []).forEach(r => { const k = r.tabc_permit_number || r.location_address; const o = by[k] = by[k] || { name: r.location_name || '', address: r.location_address || '', city: r.location_city || '', permit: r.tabc_permit_number || '', number: r.location_number || '', last: '', t12: 0 }; const m = txMonthKey(r.obligation_end_date_yyyymmdd); if (m > o.last) o.last = m; o.t12 += Number(r.total_receipts) || 0; }); chain = Object.values(by).sort((a, b) => b.t12 - a.t12); } catch (e) {} }
-    let lic = null; try { const t = await txQuery(TX_TABC, { '$where': "license_id='" + permit.replace(/'/g, "''") + "'", '$limit': '1' }); if (t && t[0]) lic = { type: t[0].license_type || '', status: t[0].primary_status || '', secondary: t[0].secondary_status || '', issued: String(t[0].original_issue_date || '').slice(0, 10), expires: String(t[0].expiration_date || '').slice(0, 10), owner: t[0].owner || '', phone: t[0].phone || '' }; } catch (e) {}
+    let lic = null; try { const t = await txQuery(TX_TABC, { '$where': "license_id='" + permit.replace(/'/g, "''") + "'", '$limit': '1' }); if (t && t[0]) lic = txLicenseOut(t[0]); } catch (e) {}
+    // Every TABC permit at this street address (e.g. MB + late-hours + food & beverage certificate).
+    let permitsHere = []; try { const ap = txAddrParts((f.location_address || '') + ', ' + (f.location_city || '')); if (ap) { const t2 = await txQuery(TX_TABC, { '$where': "upper(address) like '" + _txEsc(ap.street) + "%'" + (ap.city ? (" AND upper(city)='" + _txEsc(ap.city) + "'") : ''), '$limit': '40' }); permitsHere = (t2 || []).map(txLicenseOut).filter(x => x.id).sort((x, y) => (/active/i.test(y.status) ? 1 : 0) - (/active/i.test(x.status) ? 1 : 0) || String(y.issued).localeCompare(String(x.issued))); } } catch (e) {}
+    const taxpayerMail = [f.taxpayer_address, [f.taxpayer_city, f.taxpayer_state].filter(Boolean).join(', ') + (f.taxpayer_zip ? (' ' + String(f.taxpayer_zip).slice(0, 5)) : '')].filter(x => String(x || '').trim()).join(', ');
+    // Already in the CRM? Match companies on the owner / trade / location name; people on the permit phone.
+    const crm = { companies: [], people: [] }; try { const keys = [f.taxpayer_name, f.location_name, lic && lic.owner, lic && lic.trade].filter(Boolean).map(txNameKey).filter(k => k && k.length > 2);
+      crm.companies = loadCompanies().filter(c => !c.system && keys.indexOf(txNameKey(c.name)) >= 0).slice(0, 5).map(c => ({ id: c.id, name: c.name }));
+      const ph = String((lic && lic.phone) || '').replace(/\D/g, '').slice(-10);
+      if (ph.length === 10) crm.people = loadPeople().filter(x => !x.system && (x.phones || []).some(q => String((q && (q.number || q.value)) || q || '').replace(/\D/g, '').slice(-10) === ph)).slice(0, 5).map(x => ({ id: x.id, name: x.name || ((x.firstName || '') + ' ' + (x.lastName || '')).trim(), company: x.company || '' }));
+      const coIds = crm.companies.map(c => c.id); loadPeople().filter(x => !x.system && coIds.indexOf(x.companyId) >= 0).slice(0, 8).forEach(x => { if (!crm.people.some(y => y.id === x.id)) crm.people.push({ id: x.id, name: x.name || ((x.firstName || '') + ' ' + (x.lastName || '')).trim(), company: x.company || '' }); });
+    } catch (e) {}
     // Rankings within the city and zip (trailing 12 months), from the city's Radar data.
     let ranks = null; const city = String(f.location_city || '').trim();
     if (city && withRanks) { try { const R = await txRadarGet(city, false); if (R && R.all) { const me = R.all.find(o => o.permit === permit); const zip = String(f.location_zip || '').slice(0, 5);
@@ -24906,7 +24930,7 @@ async function txOperatorBuild(permit, withRanks) {
     const first = monthly[0].m; const since = f.responsibility_begin_date_yyyymmdd ? String(f.responsibility_begin_date_yyyymmdd).slice(0, 10) : '';
     const tracked = loadSpaces().find(sp => String(sp.address || '').toUpperCase().indexOf(String(f.location_address || '').toUpperCase()) === 0);
     return { ok: true, source: txCfg().label, name: f.location_name || f.taxpayer_name || '', taxpayer: f.taxpayer_name || '', taxpayerNumber: f.taxpayer_number || '', locationNumber: f.location_number || '', address: f.location_address || '', city: city, state: f.location_state || 'TX', zip: f.location_zip || '', county: f.location_county || '', permit: permit, responsibleSince: since, firstMonth: first, lastMonth: last,
-      periods: periods, mix12: mix12, monthly: monthly.slice().reverse(), yearly: Object.values(years).sort((a, b) => b.y.localeCompare(a.y)), chain: chain, license: lic, ranks: ranks, trackedSpaceId: tracked ? tracked.id : '' };
+      periods: periods, mix12: mix12, monthly: monthly.slice().reverse(), yearly: Object.values(years).sort((a, b) => b.y.localeCompare(a.y)), chain: chain, license: lic, permitsHere: permitsHere, taxpayerMail: taxpayerMail, crm: crm, ranks: ranks, trackedSpaceId: tracked ? tracked.id : '' };
 }
 app.get('/api/tx/operator', async (req, res) => {
   const permit = String(req.query.permit || '').trim().slice(0, 30); if (!permit) return res.status(400).json({ ok: false, error: 'No permit number.' });
@@ -24928,7 +24952,7 @@ function txAiFacts(D) {
   const L = [];
   L.push('Operator: ' + D.name + (D.taxpayer && D.taxpayer !== D.name ? (' (owner of record: ' + D.taxpayer + ')') : ''));
   L.push('Address: ' + [D.address, D.city, (D.state || 'TX') + ' ' + String(D.zip || '').slice(0, 5)].filter(Boolean).join(', '));
-  L.push('Permit: ' + D.permit + (D.license ? (' · type ' + (D.license.type || '?') + ' · TABC status ' + (D.license.status || '?') + (D.license.secondary ? (' / ' + D.license.secondary) : '') + (D.license.issued ? (' · issued ' + D.license.issued) : '') + (D.license.expires ? (' · expires ' + D.license.expires) : '')) : ' · no TABC license record found'));
+  L.push('Permit: ' + D.permit + (D.license ? (' · type ' + (D.license.type || '?') + (D.license.typeName ? (' (' + D.license.typeName + ')') : '') + (D.license.owner ? (' · permit holder ' + D.license.owner) : '') + ' · TABC status ' + (D.license.status || '?') + (D.license.secondary ? (' / ' + D.license.secondary) : '') + (D.license.issued ? (' · issued ' + D.license.issued) : '') + (D.license.expires ? (' · expires ' + D.license.expires) : '')) : ' · no TABC license record found'));
   L.push('Filings on record: ' + D.firstMonth + ' to ' + D.lastMonth + ' (' + (D.monthly || []).length + ' months). Today is ' + now.toISOString().slice(0, 10) + (gap != null ? ('; latest filing is ' + gap + ' month(s) old — filings normally lag 1–2 months, 4+ suggests the operator stopped filing') : '') + '.');
   L.push('Period totals vs the same window a year earlier: latest month ' + D.lastMonth + ' $' + r(P.month && P.month.total) + ' (' + pc(P.month && P.month.chg) + '); last 3 months $' + r(P.quarter && P.quarter.total) + ' (' + pc(P.quarter && P.quarter.chg) + '); last 6 months $' + r(P.half && P.half.total) + ' (' + pc(P.half && P.half.chg) + '); last 12 months $' + r(P.year && P.year.total) + ' (' + pc(P.year && P.year.chg) + '); last 24 months $' + r(P.twoYear && P.twoYear.total) + ' (' + pc(P.twoYear && P.twoYear.chg) + ' vs the 24 months before).');
   L.push('Mix, last 12 months: liquor $' + r(mx.liquor) + ', wine $' + r(mx.wine) + ', beer $' + r(mx.beer) + ', cover charges $' + r(mx.cover) + (mt ? (' (liquor ' + Math.round(mx.liquor / mt * 100) + '% / wine ' + Math.round(mx.wine / mt * 100) + '% / beer ' + Math.round(mx.beer / mt * 100) + '% / cover ' + Math.round(mx.cover / mt * 100) + '%)') : '') + '.');
