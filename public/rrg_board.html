@@ -344,7 +344,7 @@ function renderToolbar(){
     ) : '')
     // UI standard: title · view toggle … then the primary + New pushed right (with any page-level links).
     +'<span style="margin-left:auto;display:inline-flex;gap:8px;align-items:center">'
-    +(!isTenantBoard()?'<a class="tbtn" href="/market" target="_blank" rel="noopener" title="Open the public confidential marketplace in a new tab" style="text-decoration:none">\ud83d\udce3 Marketplace \u2197</a>':'')
+    +(!isTenantBoard()?'<a class="tbtn" href="/market" target="_blank" rel="noopener" title="Open the public confidential marketplace in a new tab" style="text-decoration:none">\ud83d\udce3 Marketplace \u2197</a>':'<a class="tbtn" href="rrg_tours.html" title="Every space toured across your tenant searches, in one list" style="text-decoration:none">\u229a Tours</a>')
     +'<button class="tbtn" id="tb_newlisting" style="background:#000E31;color:#fff;border-color:#000E31;font-weight:800">+ New '+entSingular()+'</button></span>'
     +'</div>';
   document.getElementById('toolbar').innerHTML=html; var _nl=document.getElementById('tb_newlisting'); if(_nl) _nl.addEventListener('click',openDealModal);

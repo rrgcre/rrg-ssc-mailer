@@ -180,7 +180,6 @@
     { grp: 'Tenant Rep', color: '#dfa937', items: [
       { ic: '◧', label: 'Tenants', href: 'rrg_board.html?pipelineId=p_tenantrep' },
       { ic: '⊡', label: 'Spaces', href: 'rrg_space_tracker.html' },
-      { ic: '⊚', label: 'Tours', href: 'rrg_tours.html' },
       { ic: '§', label: 'LOI Builder', href: 'rrg_loi_builder.html' },
     ] },
     { grp: 'Landlord Rep', color: '#c98a5e', items: [
@@ -232,7 +231,10 @@
   function _qpid(s){ var m=String(s||'').match(/[?&]pipelineId=([^&#]+)/i); return m?decodeURIComponent(m[1]).toLowerCase():''; }
   var curPid=_qpid(location.search);
   function boardPidOf(href){ var f=(href||'').split('/').pop().split('#')[0].split('?')[0].toLowerCase(); if(f!=='rrg_board.html') return null; return _qpid(href); }
-  function isActive(it){ if(!sameFile(it.href)) return false;
+  function isActive(it){
+    // Tours has no sidebar item of its own (it opens from the Tenants board) — light up Tenants while on it.
+    if(file==='rrg_tours.html') return boardPidOf(it.href)==='p_tenantrep';
+    if(!sameFile(it.href)) return false;
     var bp=boardPidOf(it.href);
     if(bp!==null && file==='rrg_board.html'){ return (bp==='p_tenantrep') ? (curPid==='p_tenantrep') : (curPid!=='p_tenantrep'); }
     var h=hrefHash(it.href); return h ? (h===curHash) : (!_hashMatch); }
