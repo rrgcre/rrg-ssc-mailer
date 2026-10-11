@@ -13,7 +13,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .kick{font-size:10.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--red);}
 .pgh h1{margin:3px 0 0;font-size:24px;font-weight:800;color:var(--navy);letter-spacing:-.01em;}
 .pgs{color:var(--muted);font-size:12.5px;margin-top:4px;max-width:760px;line-height:1.5;}
-.acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.cmpacts{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
 .btn{font:inherit;font-size:12.5px;font-weight:700;border:1px solid #cfd6e2;background:#fff;color:var(--navy);border-radius:8px;padding:8px 13px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;}
 .btn:hover{border-color:#9fb0cc;} .btn.pri{background:var(--navy);color:#fff;border-color:var(--navy);}
 .ck{font-size:12.5px;color:var(--muted);font-weight:600;display:inline-flex;align-items:center;gap:6px;}
@@ -92,7 +92,7 @@ function render(){
   var nDead=all.length-all.filter(function(l){return l.status!=='Dead';}).length;
   var h='<div class="printhd">'+(LOGO?('<img src="'+esc(LOGO)+'" alt="">'):'<span class="wm">'+esc(ORG||'')+'</span>')+'<span class="wm">LOI Comparison · '+esc(DATA.business||'')+'</span></div>';
   h+='<div class="pgh noprint"><div><div class="kick">Tenant Rep · LOI comparison</div><h1>'+esc(DATA.business||'Engagement')+'</h1><div class="pgs">Every lease LOI on this engagement side by side — rent, concessions and <b>net effective rent</b> over the term, the number that decides the deal. Enter an NNN estimate where the LOI doesn\'t carry one.</div></div>'
-    +'<div class="acts">'+(nDead?('<label class="ck"><input type="checkbox" id="showDead"'+(SHOWDEAD?' checked':'')+'> Show dead ('+nDead+')</label>'):'')+'<a class="btn" href="./rrg_tenant_engagement.html?key='+encodeURIComponent(KEY)+'">← Engagement</a><a class="btn" href="./rrg_loi_builder.html?key='+encodeURIComponent(KEY)+'#new">+ New LOI</a><button class="btn pri" onclick="window.print()">Print / PDF</button></div></div>';
+    +'<div class="cmpacts">'+(nDead?('<label class="ck"><input type="checkbox" id="showDead"'+(SHOWDEAD?' checked':'')+'> Show dead ('+nDead+')</label>'):'')+'<a class="btn" href="./rrg_tenant_engagement.html?key='+encodeURIComponent(KEY)+'">← Engagement</a><a class="btn" href="./rrg_loi_builder.html?key='+encodeURIComponent(KEY)+'#new">+ New LOI</a><button class="btn pri" onclick="window.print()">Print / PDF</button></div></div>';
   if(!list.length){ document.getElementById('app').innerHTML=h+'<div class="card"><div class="empty">No lease LOIs on this engagement yet.<br><a class="btn pri" style="margin-top:12px" href="./rrg_loi_builder.html?key='+encodeURIComponent(KEY)+'#new">Build the first LOI</a></div></div>'; wire(); return; }
   var C=list.map(calc);
   function bestIdx(vals,low){ var bi=-1,bv=null; vals.forEach(function(x,i){ if(!isFinite(x)) return; if(bv===null||(low?x<bv:x>bv)){ bv=x; bi=i; } }); var cnt=vals.filter(function(x){return isFinite(x);}).length; return cnt>1?bi:-1; }
