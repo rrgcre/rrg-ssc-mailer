@@ -9676,6 +9676,19 @@ header{background:linear-gradient(180deg,var(--navy2),var(--navy));border-bottom
 .modeseg button+button{border-left:1px solid var(--inp);}
 .modeseg button.on{background:var(--navy);color:#fff;}
 .modeseg .c{font-size:11px;font-weight:700;opacity:.6;}
+/* Hero switch: on the dark hero it must read as a two-way switch, not two white boxes. */
+.modes .mlbl{display:block;font-size:10.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#e0c27e;margin-bottom:8px;}
+.mkthero .modeseg{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.24);border-radius:11px;padding:4px;gap:4px;overflow:visible;}
+.mkthero .modeseg button{background:transparent;color:#d3dcec;border-radius:8px;padding:11px 20px;font-size:14px;transition:background .15s,color .15s;}
+.mkthero .modeseg button+button{border-left:none;}
+.mkthero .modeseg button svg{width:17px;height:17px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+.mkthero .modeseg button:hover{background:rgba(255,255,255,.12);color:#fff;}
+.mkthero .modeseg button.on{background:#fff;color:var(--navy);box-shadow:0 3px 12px rgba(0,0,0,.28);}
+.mkthero .modeseg .c{opacity:1;font-size:11px;font-weight:800;border-radius:999px;padding:1px 8px;background:rgba(255,255,255,.16);color:#fff;}
+.mkthero .modeseg button.on .c{background:var(--navy);color:#fff;}
+.mkthero .modeseg button:focus-visible{outline:2px solid #e0c27e;outline-offset:2px;}
+.mkthero .modeseg button .lx{white-space:pre;}
+@media(max-width:600px){.mkthero .modeseg{display:flex;width:100%;}.mkthero .modeseg button{flex:1;justify-content:center;padding:11px 8px;font-size:13.5px;gap:6px;white-space:nowrap;}.mkthero .modeseg button .lx{display:none;}}
 .tools{margin-top:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
 .search{position:relative;flex:1;min-width:220px;max-width:380px;}
 .search input{width:100%;border:1px solid var(--inp);background:#fff;border-radius:4px;padding:9px 12px 9px 32px;font:inherit;font-size:13px;}
@@ -9852,9 +9865,9 @@ footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} 
     <div class="mkt-eyebrow">${esc(H.areas)}</div>
     <h1>${esc(H.heading)}</h1>
     <div class="lede">${esc(H.lede)}</div>
-    <div class="modes"><div class="modeseg">
-      <button class="on" data-m="biz">Businesses <span class="c" id="cBiz"></span></button>
-      <button data-m="re">Real Estate &amp; Assets <span class="c" id="cRe"></span></button>
+    <div class="modes"><span class="mlbl">Browse</span><div class="modeseg" role="tablist" aria-label="Listing type">
+      <button class="on" data-m="biz" role="tab" aria-selected="true"><svg viewBox="0 0 24 24"><path d="M4 10h16l-1.2-4.5H5.2z"/><path d="M5 10v9h14v-9"/><path d="M10 19v-5h4v5"/></svg>Businesses<span class="lx"> for sale</span> <span class="c" id="cBiz"></span></button>
+      <button data-m="re" role="tab" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M4 20V8l8-4 8 4v12"/><path d="M9 20v-6h6v6"/><path d="M8 10h.01M16 10h.01"/></svg>Real estate<span class="lx"> &amp; assets</span> <span class="c" id="cRe"></span></button>
     </div></div>
   </div>
 </div></section>
@@ -10124,7 +10137,7 @@ function CSSescape(s){ return String(s).replace(/"/g,'\\\\"'); }
 
 // ---------- shared ----------
 function setMode(m){ MODE=m;
-  document.querySelectorAll('.modeseg button').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-m')===m);});
+  document.querySelectorAll('.modeseg button').forEach(function(b){var _on=b.getAttribute('data-m')===m; b.classList.toggle('on',_on); b.setAttribute('aria-selected',_on?'true':'false');});
   document.getElementById('mBiz').style.display=(m==='biz')?'':'none';
   document.getElementById('mRe').style.display=(m==='re')?'':'none';
   if(m==='re'&&mapObj){ setTimeout(function(){mapObj.invalidateSize();},60); }
