@@ -23869,6 +23869,223 @@ function reportsUsageInsights(days) {
   const dayCounts = {}; logins.forEach(l => { if (l.result !== 'success') return; const d = String(l.timestamp).slice(0, 10); dayCounts[d] = (dayCounts[d] || 0) + 1; });
   return { totals: { logins: success, failed: fail, activeUsers: userList.length, tools: tools.length }, users: userList, tools, series: reportsDailySeries(cutoff, Math.max(1, days), dayCounts) };
 }
+// ===================== Owner reports (Reports page) =====================
+// One pass over every listing / engagement builds all the money and pipeline reports:
+// closed deals & GCI, forecast, pipeline aging, receivables, rep scorecard, conversion funnel,
+// listing inventory, lead source → dollars and buyer activity per listing. Admin-only, like the rest of Reports.
+// Dates are YYYY-MM-DD in the firm's time zone; a deal's money uses the same waterfall as the Commissions page.
+function _rpDay(s) { s = String(s || '').slice(0, 10); return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : ''; }
+function _rpIn(day, from, to) { return !!day && day >= from && day <= to; }
+function _rpDaysBetween(a, b) { const x = Date.parse(a + 'T12:00:00Z'), y = Date.parse(b + 'T12:00:00Z'); return (isFinite(x) && isFinite(y)) ? Math.round((y - x) / 864e5) : null; }
+function _rpShiftYear(day, n) { const d = new Date(day + 'T12:00:00Z'); d.setUTCFullYear(d.getUTCFullYear() + n); return d.toISOString().slice(0, 10); }
+function _rpType(v, d) { if (v.assignmentType === 'tenant_rep') return 'Tenant rep'; if (v.assignmentType === 'landlord_rep') return 'Landlord rep'; if (v.saleLane === 'asset' || (d && d.bov && d.bov.assetSale)) return 'Asset sale'; return 'Business sale'; }
+const _RP_MON = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, sept: 9, oct: 10, nov: 11, dec: 12 };
+// Expected close month 'YYYY-MM': the deal's expected close, else the listing's free-text target ("Q1 2026", "Mar 2026", "2026-03", "3/2026").
+function _rpCloseMonth(t, v) {
+  const ec = _rpDay(t && t.expectedClose); if (ec) return ec.slice(0, 7);
+  const s = String((v && v.targetClose) || '').trim(); if (!s) return '';
+  const pad = n => String(n).padStart(2, '0'); let m;
+  if ((m = s.match(/^(\d{4})-(\d{1,2})/))) return m[1] + '-' + pad(+m[2]);
+  if ((m = s.match(/q\s*([1-4])\D{0,3}(\d{4})/i))) return m[2] + '-' + pad(+m[1] * 3);
+  if ((m = s.match(/(\d{4})\D{0,3}q\s*([1-4])/i))) return m[1] + '-' + pad(+m[2] * 3);
+  if ((m = s.match(/\b(\d{1,2})\/(\d{4})\b/)) && +m[1] >= 1 && +m[1] <= 12) return m[2] + '-' + pad(+m[1]);
+  if ((m = s.match(/\b([a-z]{3,4})[a-z]*\.?\s*,?\s*(\d{4})/i)) && _RP_MON[m[1].toLowerCase()]) return m[2] + '-' + pad(_RP_MON[m[1].toLowerCase()]);
+  if ((m = s.match(/^(\d{4})$/))) return m[1] + '-12';
+  return '';
+}
+// A listing's rep: the overlay owner (name or username), else whoever created the source record.
+function _rpRepOf(v, users) {
+  const u = users.find(x => repMatchesOwner(v.owner, x)) || users.find(x => v.byUser && x.username === v.byUser) || null;
+  return u ? { username: u.username, name: u.name || u.username } : { username: '', name: String(v.owner || v.by || '') || '(unassigned)' };
+}
+function _rpLeadSource(v, d, o) {
+  if (o && (o.referredById || o.referredBy)) return 'Referral';
+  if (o && (o.fromBbs || o.bbsRef || o.bbsNumber)) return 'BizBuySell';
+  try { const pid = listingClientPersonId(d, o); const p = pid ? personById(pid) : null; if (p && p.leadSource) return String(p.leadSource); } catch (e) {}
+  try { const cid = v.companyId || (d.deal && d.deal.companyId); const c = cid ? loadCompanies().find(x => x.id === cid) : null; if (c && c.leadSource) return String(c.leadSource); } catch (e) {}
+  return 'Unknown';
+}
+function _rpWhen(x) { return _rpDay(x && (x.date || x.received || x.createdAt || x.at)); }
+function buildOwnerReports(q) {
+  const today = firmToday();
+  const to = _rpDay(q.to) || today; const from = _rpDay(q.from) || (today.slice(0, 4) + '-01-01');
+  const pFrom = _rpShiftYear(from, -1), pTo = _rpShiftYear(to, -1);
+  const fRep = String(q.rep || ''), fMarket = String(q.market || ''), fType = String(q.type || '');
+  const users = auth.loadUsers().filter(u => !u.disabled);
+  const pipes = loadPipelines(); const pipeById = {}; pipes.forEach(p => { pipeById[p.id] = p; });
+  const idx = assignmentsIndex(), ov = loadAssignOverlay();
+  const agreements = (function () { try { return loadAgreements(); } catch (e) { return []; } })();
+  const bovs = (function () { try { return loadBovs(); } catch (e) { return []; } })();
+  const rooms = (function () { try { return loadRooms(); } catch (e) { return []; } })();
+  const est = (typeof estCommissionFromPrice === 'function') ? estCommissionFromPrice : (() => 0);
+  const markets = {}, items = [];
+  for (const key in idx) {
+    const d = idx[key];
+    // A valuation saved against an existing listing (listingKey) can surface as its own bov_ slot — it belongs to that listing, not a new one.
+    if (/^bov_/.test(key) && d.bov && idx[d.bov.listingKey || d.bov.dealKey]) continue;
+    let v; try { v = assignmentView(d, ov); } catch (e) { continue; } if (!v) continue;
+    const o = ov[key] || {}; const t = v.transaction || null;
+    const rep = _rpRepOf(v, users); const type = _rpType(v, d); const market = String(v.market || '').trim() || '—';
+    markets[market] = 1;
+    const pid = listingPipelineIdOf(o); const pipe = pipeById[pid] || null;
+    let stage = ''; try { stage = listingBoardStage(d, ov) || ''; } catch (e) {}
+    const stg = pipe ? (pipe.stages || []).find(s => s.name === stage) || null : null;
+    const stageIdx = pipe && stg ? (pipe.stages || []).indexOf(stg) : -1;
+    const tStatus = (t && t.status) || '';
+    const closed = !!(t && /closed/i.test(tStatus)); const closedDate = closed ? (_rpDay(t.closedDate) || _rpDay(t.closedAt)) : '';
+    // lost = Lost / No Deal / the deal died; done = closed or lost (out of the open pipeline). A listing marked Closed without deal money still counts as closed.
+    const lost = !closed && (v.status === 'Lost' || v.status === 'No Deal' || /dead/i.test(tStatus));
+    const dead = lost || closed || v.status === 'Closed';
+    const due = t ? _moneyNum(t.commissionDue) : 0;
+    let fee = 0, feeSource = '';
+    if (due > 0) { fee = due; feeSource = 'Deal commission'; }
+    else if (_moneyNum(o.totalCommission) > 0) { fee = _moneyNum(o.totalCommission); feeSource = 'Expected fee on listing'; }
+    else if (_moneyNum(o.listPrice) > 0) { fee = est(_moneyNum(o.listPrice)) || 0; feeSource = 'Estimated from asking price'; }
+    else if (_moneyNum(v.value) > 0) { fee = est(_moneyNum(v.value)) || 0; feeSource = 'Estimated from valuation'; }
+    const created = _rpDay(v.createdAt);
+    const bovRecs = [d.bov].concat(bovs.filter(b => b && (b.listingKey === key || b.dealKey === key))).filter(Boolean);
+    const bovDate = bovRecs.map(b => _rpDay(b.createdAt)).filter(Boolean).sort()[0] || '';
+    const agrs = agreements.filter(a => a && a.dealKey === key);
+    const sellAgr = agrs.filter(a => ['Listing', 'BizSeller', 'TenantRep', 'ETRA'].indexOf(a.type) >= 0);
+    const execAgr = sellAgr.filter(a => /executed|signed/i.test(String(a.signStatus || '')) || a.executedAt || a.signedAt);
+    const agrDate = execAgr.map(a => _rpDay(a.executedAt || a.signedAt || a.signedDate)).filter(Boolean).sort()[0] || '';
+    const agrExpires = sellAgr.map(a => _rpDay(a.expires)).filter(Boolean).sort().slice(-1)[0] || '';
+    const listedDate = _rpDay(o.listingStart) || _rpDay(o.listingLive) || _rpDay(o.market && o.market.publishedAt) || _rpDay(d.screen && d.screen.listingLiveAt) || '';
+    const contractDate = (t && t.status) ? (_rpDay(t.opened) || _rpDay(t.createdAt)) : '';
+    const item = { key, d, o, v, t, business: v.business || 'Untitled', type, market, rep, pipelineId: pid, pipelineName: pipe ? pipe.name : '', stage, stageIdx,
+      stageSince: _rpDay(o.stageSince) || created, targetDays: stg ? (Number(stg.targetDays) || 0) : 0, preListing: !!(stg && stg.preListing),
+      winPct: (stg && stg.winPct !== '' && stg.winPct != null && isFinite(Number(stg.winPct))) ? Number(stg.winPct) : null,
+      status: v.status || 'New', tStatus, closed, closedDate, lost, dead, fee, feeSource, created, bovDate, agrDate, agrExpires, listedDate, contractDate,
+      listPrice: _moneyNum(o.listPrice), priceHistory: Array.isArray(o.priceHistory) ? o.priceHistory : [], listingExpires: _rpDay(o.listingExpires),
+      source: _rpLeadSource(v, d, o), roomId: v.roomId || '', published: !!(o.market && o.market.published) };
+    if (fRep && item.rep.username !== fRep) continue;
+    if (fMarket && item.market !== fMarket) continue;
+    if (fType && item.type !== fType) continue;
+    items.push(item);
+  }
+  const sellSide = it => it.type === 'Business sale' || it.type === 'Asset sale';
+  const money = (t, it) => { try { return dealCommissionBreakdown(t, it.v, it.rep.username); } catch (e) { return commissionWaterfall(_moneyNum(t && t.commissionDue), 0, '', 50); } };
+  const sumBy = (arr, keyFn, init, add) => { const m = {}; arr.forEach(x => { const k = keyFn(x); if (!m[k]) m[k] = init(k); add(m[k], x); }); return Object.values(m); };
+  const monthsBetween = (a, b) => { const out = []; let y = +a.slice(0, 4), mo = +a.slice(5, 7); const ey = +b.slice(0, 4), em = +b.slice(5, 7); while (y < ey || (y === ey && mo <= em)) { out.push(y + '-' + String(mo).padStart(2, '0')); mo++; if (mo > 12) { mo = 1; y++; } if (out.length > 60) break; } return out; };
+
+  // 1) Closed deals & GCI
+  const closedIn = items.filter(it => it.closed && _rpIn(it.closedDate, from, to)).map(it => { const w = money(it.t, it); return Object.assign({ it }, w); });
+  const closedPrior = items.filter(it => it.closed && _rpIn(it.closedDate, pFrom, pTo)).map(it => Object.assign({ it }, money(it.t, it)));
+  const tot = arr => arr.reduce((a, x) => { a.deals++; a.gci += x.gci; a.companyDollar += x.companyDollar; a.referrals += x.referralAmt; a.coBroke += x.coBrokeAmt; a.agentNet += x.agentNet; a.houseNet += x.houseNet; return a; }, { deals: 0, gci: 0, companyDollar: 0, referrals: 0, coBroke: 0, agentNet: 0, houseNet: 0 });
+  const gT = tot(closedIn); gT.avgFee = gT.deals ? Math.round(gT.gci / gT.deals) : 0;
+  const gP = tot(closedPrior);
+  const gci = { totals: gT, prior: { deals: gP.deals, gci: gP.gci, companyDollar: gP.companyDollar, from: pFrom, to: pTo },
+    byMonth: monthsBetween(from, to).map(m => { const xs = closedIn.filter(x => x.it.closedDate.slice(0, 7) === m); const ps = closedPrior.filter(x => _rpShiftYear(x.it.closedDate, 1).slice(0, 7) === m); return { month: m, deals: xs.length, gci: xs.reduce((a, x) => a + x.gci, 0), priorGci: ps.reduce((a, x) => a + x.gci, 0) }; }),
+    byRep: sumBy(closedIn, x => x.it.rep.name, k => ({ name: k, deals: 0, gci: 0, companyDollar: 0, agentNet: 0, houseNet: 0 }), (a, x) => { a.deals++; a.gci += x.gci; a.companyDollar += x.companyDollar; a.agentNet += x.agentNet; a.houseNet += x.houseNet; }).sort((a, b) => b.gci - a.gci),
+    byType: sumBy(closedIn, x => x.it.type, k => ({ type: k, deals: 0, gci: 0 }), (a, x) => { a.deals++; a.gci += x.gci; }).sort((a, b) => b.gci - a.gci),
+    deals: closedIn.sort((a, b) => b.it.closedDate.localeCompare(a.it.closedDate)).map(x => ({ key: x.it.key, business: x.it.business, type: x.it.type, market: x.it.market, rep: x.it.rep.name, closedDate: x.it.closedDate, price: _moneyNum(x.it.t.price), gci: x.gci, referrals: x.referralAmt, coBroke: x.coBrokeAmt, companyDollar: x.companyDollar, agentNet: x.agentNet, houseNet: x.houseNet, commissionStatus: x.commissionStatus || 'Unpaid' })) };
+
+  // 2) Forecast — every open item with a fee; weighted by its stage's likelihood %. As of today; the period doesn't apply.
+  const open = items.filter(it => !it.closed && !it.dead);
+  const curMonth = today.slice(0, 7); const horizon = monthsBetween(curMonth, (function () { const d = new Date(today + 'T12:00:00Z'); d.setUTCMonth(d.getUTCMonth() + 11); return d.toISOString().slice(0, 7); })());
+  const in90 = (function () { const d = new Date(today + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + 90); return d.toISOString().slice(0, 10); })();
+  const fItems = open.filter(it => it.fee > 0).map(it => { const cm = _rpCloseMonth(it.t, it.v); const w = it.winPct == null ? null : Math.round(it.fee * it.winPct / 100); return { key: it.key, business: it.business, type: it.type, market: it.market, rep: it.rep.name, pipeline: it.pipelineName, stage: it.stage, winPct: it.winPct, fee: Math.round(it.fee), feeSource: it.feeSource, weighted: w, closeMonth: cm, dealStatus: it.tStatus }; });
+  const missing = {}; open.forEach(it => { if (it.fee > 0 && it.winPct == null && it.stage) { (missing[it.pipelineName || it.pipelineId] = missing[it.pipelineName || it.pipelineId] || {})[it.stage] = 1; } });
+  const fT = fItems.reduce((a, x) => { a.count++; a.pipeline += x.fee; if (x.weighted != null) { a.weighted += x.weighted; a.withPct++; } if (!x.closeMonth) a.undated += x.fee; else if (x.closeMonth < curMonth) a.overdue += x.fee; if (x.closeMonth && x.closeMonth >= curMonth && x.closeMonth <= in90.slice(0, 7)) { a.next90 += x.fee; a.next90w += (x.weighted || 0); } return a; }, { count: 0, withPct: 0, pipeline: 0, weighted: 0, next90: 0, next90w: 0, overdue: 0, undated: 0 });
+  const forecast = { asOf: today, totals: fT, openWithoutFee: open.filter(it => !(it.fee > 0)).length,
+    missingPct: Object.keys(missing).map(p => ({ pipeline: p, stages: Object.keys(missing[p]) })),
+    byMonth: [{ month: 'overdue', label: 'Past due' }].concat(horizon.map(m => ({ month: m }))).concat([{ month: 'undated', label: 'No date' }]).map(b => { const xs = fItems.filter(x => b.month === 'overdue' ? (x.closeMonth && x.closeMonth < curMonth) : (b.month === 'undated' ? !x.closeMonth : x.closeMonth === b.month)); return Object.assign(b, { count: xs.length, pipeline: xs.reduce((a, x) => a + x.fee, 0), weighted: xs.reduce((a, x) => a + (x.weighted || 0), 0) }); }),
+    items: fItems.sort((a, b) => (b.weighted || 0) - (a.weighted || 0) || b.fee - a.fee) };
+
+  // 4) Pipeline & aging — open items by pipeline and stage; stalled = in stage at least its target days.
+  const pipeOut = []; const stalled = [];
+  pipes.forEach(p => { const mine = open.filter(it => it.pipelineId === p.id); if (!mine.length) return;
+    const stages = (p.stages || []).map(s => { const xs = mine.filter(it => it.stage === s.name); const days = xs.map(it => _rpDaysBetween(it.stageSince, today)).filter(n => n != null);
+      const st = xs.filter(it => it.targetDays > 0 && _rpDaysBetween(it.stageSince, today) >= it.targetDays).length;
+      return { name: s.name, count: xs.length, fee: xs.reduce((a, it) => a + it.fee, 0), avgDays: days.length ? Math.round(days.reduce((a, n) => a + n, 0) / days.length) : null, maxDays: days.length ? Math.max.apply(null, days) : null, stalled: st, targetDays: Number(s.targetDays) || 0, winPct: (s.winPct === '' || s.winPct == null) ? null : Number(s.winPct), pre: !!s.preListing }; });
+    pipeOut.push({ id: p.id, name: p.name, count: mine.length, fee: mine.reduce((a, it) => a + it.fee, 0), stages });
+  });
+  open.forEach(it => { const days = _rpDaysBetween(it.stageSince, today); if (it.targetDays > 0 && days != null && days >= it.targetDays) stalled.push({ key: it.key, business: it.business, type: it.type, rep: it.rep.name, pipeline: it.pipelineName, stage: it.stage, days, targetDays: it.targetDays, over: days - it.targetDays, fee: Math.round(it.fee) }); });
+  stalled.sort((a, b) => b.over - a.over);
+  const pipeline = { pipelines: pipeOut, stalled, totals: { open: open.length, stalled: stalled.length, fee: open.reduce((a, it) => a + it.fee, 0) } };
+
+  // 3) Receivables — issued, unpaid invoice balances by age past due; plus commissions owed to reps.
+  const itemByKey = {}; items.forEach(it => { itemByKey[it.key] = it; });
+  const invs = (function () { try { return loadInvoices(); } catch (e) { return []; } })();
+  const BK = [['current', 'Not yet due'], ['d1', '1–30 days'], ['d31', '31–60 days'], ['d61', '61–90 days'], ['d90', '90+ days']];
+  const recRows = [];
+  invs.forEach(x => { if (!x || x.status === 'Void' || !_invIssued(x)) return; const b = invoiceBrief(x); if (!(b.balance > 0.005)) return;
+    const it = b.listingKey ? itemByKey[b.listingKey] : null;
+    if ((fMarket || fType) && !it) return; if (fRep && !(it ? it.rep.username === fRep : x.ownerUser === fRep)) return;
+    const due = _rpDay(b.dueDate) || _rpDay(b.issueDate); const late = due ? _rpDaysBetween(due, today) : 0;
+    const bk = late <= 0 ? 'current' : late <= 30 ? 'd1' : late <= 60 ? 'd31' : late <= 90 ? 'd61' : 'd90';
+    recRows.push({ id: b.id, number: b.number, billTo: b.billTo || '—', listingKey: b.listingKey, listing: b.listingLabel || (it ? it.business : ''), issueDate: b.issueDate, dueDate: b.dueDate, total: Math.round(b.total * 100) / 100, paid: Math.round(b.paid * 100) / 100, balance: Math.round(b.balance * 100) / 100, daysPast: Math.max(0, late || 0), bucket: bk, owner: b.ownerName || b.ownerUser || '' }); });
+  recRows.sort((a, b) => b.daysPast - a.daysPast || b.balance - a.balance);
+  const owedRows = sumBy(items.filter(it => it.closed && it.t), it => it.rep.name, k => ({ name: k, deals: 0, gci: 0, agentNet: 0, agentPaid: 0, agentOwed: 0, firmUncollected: 0 }), (a, it) => { const w = money(it.t, it); a.deals++; a.gci += w.gci; a.agentNet += w.agentNet; a.agentPaid += w.agentPaid; a.agentOwed += w.agentOwed; a.firmUncollected += w.owed; }).sort((a, b) => b.agentOwed - a.agentOwed);
+  const receivables = { asOf: today, buckets: BK.map(b => { const xs = recRows.filter(r => r.bucket === b[0]); return { key: b[0], label: b[1], count: xs.length, amount: Math.round(xs.reduce((a, r) => a + r.balance, 0) * 100) / 100 }; }),
+    totals: { invoices: recRows.length, outstanding: Math.round(recRows.reduce((a, r) => a + r.balance, 0) * 100) / 100, overdue: Math.round(recRows.filter(r => r.daysPast > 0).reduce((a, r) => a + r.balance, 0) * 100) / 100 },
+    invoices: recRows, byClient: sumBy(recRows, r => r.billTo, k => ({ billTo: k, count: 0, balance: 0, oldest: 0 }), (a, r) => { a.count++; a.balance += r.balance; a.oldest = Math.max(a.oldest, r.daysPast); }).sort((a, b) => b.balance - a.balance),
+    commissions: owedRows };
+
+  // 7) Rep scorecard — work done in the period, by rep.
+  const sc = {}; const repRow = (name, username) => { const k = username || ('n:' + name); if (!sc[k]) sc[k] = { username: username || '', name: name || '(unassigned)', newListings: 0, newTenant: 0, valuations: 0, agreements: 0, lois: 0, loisAccepted: 0, tours: 0, calls: 0, emails: 0, activities: 0, closings: 0, gci: 0, agentNet: 0, openCount: 0, openFee: 0 }; return sc[k]; };
+  users.forEach(u => { if (!fRep || u.username === fRep) repRow(u.name || u.username, u.username); });
+  const userName = un => { const u = users.find(x => x.username === un); return u ? (u.name || u.username) : un; };
+  const keep = un => !fRep || un === fRep;
+  const scopeKeyOk = key => !(fMarket || fType) || !!itemByKey[key];
+  items.forEach(it => { const r = repRow(it.rep.name, it.rep.username);
+    if (_rpIn(it.created, from, to)) { if (sellSide(it)) r.newListings++; else r.newTenant++; }
+    if (it.closed && _rpIn(it.closedDate, from, to)) { const w = money(it.t, it); r.closings++; r.gci += w.gci; r.agentNet += w.agentNet; }
+    if (!it.closed && !it.dead) { r.openCount++; r.openFee += it.fee; }
+    (Array.isArray(it.o.tours) ? it.o.tours : []).forEach(tr => { if (!_rpIn(_rpWhen(tr), from, to)) return; const un = tr.byUser || it.rep.username; if (keep(un)) repRow(userName(un), un).tours++; }); });
+  bovs.forEach(b => { if (!b || !_rpIn(_rpDay(b.createdAt), from, to) || !keep(b.byUser)) return; const k = b.listingKey || b.dealKey; if (k && !scopeKeyOk(k)) return; if (!k && (fMarket || fType)) return; repRow(userName(b.byUser), b.byUser).valuations++; });
+  agreements.forEach(a => { const dt = _rpDay(a && (a.executedAt || a.signedAt || a.signedDate)); if (!a || ['NDA', 'CA'].indexOf(a.type) >= 0 || !_rpIn(dt, from, to) || !keep(a.createdBy)) return; if (a.dealKey && !scopeKeyOk(a.dealKey)) return; if (!a.dealKey && (fMarket || fType)) return; repRow(userName(a.createdBy), a.createdBy).agreements++; });
+  (function () { try { loadLois().forEach(l => { if (!l || !_rpIn(_rpDay(l.createdAt), from, to) || !keep(l.byUser)) return; if (l.engagementKey && !scopeKeyOk(l.engagementKey)) return; if (!l.engagementKey && (fMarket || fType)) return; const r = repRow(userName(l.byUser), l.byUser); r.lois++; if (l.status === 'Accepted') r.loisAccepted++; }); } catch (e) {} })();
+  if (!(fMarket || fType)) [].concat(loadPeople(), loadCompanies()).forEach(p => { (Array.isArray(p.activities) ? p.activities : []).forEach(a => { if (!a || a.auto || !a.byUser || !keep(a.byUser)) return; const dt = _rpDay(a.date || a.at); if (!_rpIn(dt, from, to)) return; const r = repRow(userName(a.byUser), a.byUser); r.activities++; if (a.type === 'Call') r.calls++; else if (a.type === 'Email') r.emails++; }); });
+  const scorecard = { rows: Object.values(sc).filter(r => r.username || r.closings || r.openCount || r.newListings || r.newTenant).sort((a, b) => b.gci - a.gci || b.openFee - a.openFee), activitiesFiltered: !!(fMarket || fType) };
+
+  // 5) Conversion funnel — sell-side listings opened in the period, and how far each got.
+  const cohort = items.filter(it => sellSide(it) && _rpIn(it.created, from, to));
+  const stepAvg = (pairs) => { const ds = pairs.map(p => (p[0] && p[1]) ? _rpDaysBetween(p[0], p[1]) : null).filter(n => n != null && n >= 0); return ds.length ? Math.round(ds.reduce((a, n) => a + n, 0) / ds.length) : null; };
+  const fn = { opened: cohort.length, valued: cohort.filter(it => it.bovDate).length, signed: cohort.filter(it => it.agrDate).length, listed: cohort.filter(it => it.listedDate).length, contract: cohort.filter(it => it.contractDate || it.closed || it.status === 'Closed').length, closed: cohort.filter(it => it.closed || it.status === 'Closed').length,
+    lost: cohort.filter(it => it.lost).length, active: cohort.filter(it => !it.dead).length };
+  const funnel = { cohort: fn,
+    steps: [{ k: 'opened', label: 'Opened', n: fn.opened }, { k: 'valued', label: 'Valuation (BOV)', n: fn.valued, days: stepAvg(cohort.map(it => [it.created, it.bovDate])), daysLabel: 'from opened' }, { k: 'signed', label: 'Listing agreement signed', n: fn.signed, days: stepAvg(cohort.map(it => [it.bovDate || it.created, it.agrDate])), daysLabel: 'from valuation' }, { k: 'listed', label: 'On market', n: fn.listed, days: stepAvg(cohort.map(it => [it.agrDate || it.created, it.listedDate])), daysLabel: 'from signed' }, { k: 'contract', label: 'LOI / under contract', n: fn.contract, days: stepAvg(cohort.map(it => [it.listedDate || it.agrDate || it.created, it.contractDate])), daysLabel: 'from on market' }, { k: 'closed', label: 'Closed', n: fn.closed, days: stepAvg(cohort.map(it => [it.contractDate, it.closedDate])), daysLabel: 'from contract' }],
+    lostByStatus: sumBy(cohort.filter(it => it.lost), it => (/dead/i.test(it.tStatus) ? 'Deal died' : it.status), k => ({ status: k, count: 0 }), (a) => { a.count++; }),
+    rows: cohort.map(it => ({ key: it.key, business: it.business, type: it.type, rep: it.rep.name, opened: it.created, valued: it.bovDate, signed: it.agrDate, listed: it.listedDate, contract: it.contractDate, closed: it.closedDate, status: (it.closed || it.status === 'Closed') ? 'Closed' : (it.lost ? (/dead/i.test(it.tStatus) ? 'Deal died' : it.status) : it.status) })).sort((a, b) => b.opened.localeCompare(a.opened)) };
+
+  // 6) Listing inventory — sell-side listings open today: asking, days on market, price cuts, expirations.
+  const inv = items.filter(it => sellSide(it) && !it.closed && !it.dead && (it.listedDate || it.agrDate || /live|under contract/i.test(it.status))).map(it => {
+    const startDay = it.listedDate || it.agrDate || it.created; const dom = _rpDaysBetween(startDay, today);
+    const cuts = it.priceHistory.filter(h => _moneyNum(h.prev) > 0 && _moneyNum(h.price) > 0 && _moneyNum(h.price) < _moneyNum(h.prev));
+    const lastCut = cuts.length ? cuts[cuts.length - 1] : null; const firstPrice = it.priceHistory.length ? (_moneyNum(it.priceHistory[0].prev) || _moneyNum(it.priceHistory[0].price)) : it.listPrice;
+    const exp = it.listingExpires || it.agrExpires; const expIn = exp ? _rpDaysBetween(today, exp) : null;
+    return { key: it.key, business: it.business, type: it.type, market: it.market, rep: it.rep.name, status: it.status, stage: it.stage, asking: it.listPrice, originalAsking: firstPrice || it.listPrice, cuts: cuts.length, lastCutAt: lastCut ? _rpDay(lastCut.at) : '', cutPct: (firstPrice > 0 && it.listPrice > 0 && it.listPrice < firstPrice) ? Math.round((firstPrice - it.listPrice) / firstPrice * 100) : 0, listedDate: it.listedDate, daysOnMarket: dom, expires: exp, expiresIn: expIn, published: it.published, underContract: !!it.contractDate }; }).sort((a, b) => (b.daysOnMarket || 0) - (a.daysOnMarket || 0));
+  const domList = inv.map(x => x.daysOnMarket).filter(n => n != null).sort((a, b) => a - b);
+  const inventory = { asOf: today, rows: inv, totals: { listings: inv.length, asking: inv.reduce((a, x) => a + (x.asking || 0), 0), medianDom: domList.length ? domList[Math.floor(domList.length / 2)] : null, withCuts: inv.filter(x => x.cuts > 0).length, expiring60: inv.filter(x => x.expiresIn != null && x.expiresIn >= 0 && x.expiresIn <= 60).length, expiring90: inv.filter(x => x.expiresIn != null && x.expiresIn >= 0 && x.expiresIn <= 90).length, expired: inv.filter(x => x.expiresIn != null && x.expiresIn < 0).length, underContract: inv.filter(x => x.underContract).length, unpublished: inv.filter(x => !x.published).length } };
+
+  // 8) Lead source → dollars — where the business that pays comes from.
+  const srcRows = sumBy(items, it => it.source, k => ({ source: k, opened: 0, active: 0, closedDeals: 0, gci: 0, openFee: 0 }), (a, it) => { if (_rpIn(it.created, from, to)) a.opened++; if (!it.closed && !it.dead) { a.active++; a.openFee += it.fee; } if (it.closed && _rpIn(it.closedDate, from, to)) { a.closedDeals++; a.gci += money(it.t, it).gci; } })
+    .filter(r => r.opened || r.active || r.closedDeals).sort((a, b) => b.gci - a.gci || b.openFee - a.openFee);
+  const leadSources = { rows: srcRows, note: 'Source = the client contact’s lead source (Referral when a referrer is set; BizBuySell when the listing came from BizBuySell).' };
+
+  // 9) Buyer activity per listing — sell-side listings, activity in the period.
+  const roomById = {}; rooms.forEach(r => { if (r && r.id) roomById[r.id] = r; });
+  const fromMs = Date.parse(from + 'T00:00:00Z'), toMs = Date.parse(to + 'T23:59:59Z');
+  const buyerRows = items.filter(it => sellSide(it) && !it.dead).map(it => { const o = it.o; const inW = x => _rpIn(_rpWhen(x), from, to);
+    const inq = (Array.isArray(o.inquiries) ? o.inquiries : []).filter(inW); const byr = (Array.isArray(o.buyers) ? o.buyers : []).filter(inW);
+    const ndas = (Array.isArray(o.ndas) ? o.ndas : []).filter(inW); const ndaSigned = ndas.filter(n => /received|countersigned/i.test(String(n.status || ''))).length;
+    const tours = (Array.isArray(o.tours) ? o.tours : []).filter(x => x && x.kind !== 'space').filter(inW); const offers = (Array.isArray(o.offers) ? o.offers : []).filter(inW);
+    const room = it.roomId ? roomById[it.roomId] : null; let views = 0, downloads = 0; const visitors = {};
+    if (room) (Array.isArray(room.access) ? room.access : []).forEach(e => { const t = Date.parse(e && e.at); if (!(t >= fromMs && t <= toMs)) return; if (e.event === 'view') views++; else if (e.event === 'download') downloads++; else return; if (e.grantId) visitors[e.grantId] = 1; });
+    const newAccess = room ? (Array.isArray(room.grants) ? room.grants : []).filter(g => _rpIn(_rpDay(g.createdAt), from, to)).length : 0;
+    return { key: it.key, business: it.business, type: it.type, market: it.market, rep: it.rep.name, stage: it.stage, inquiries: inq.length + byr.length, marketplace: inq.filter(x => x.source === 'Marketplace').length, ndas: ndas.length, ndaSigned, roomAccess: newAccess, roomVisitors: Object.keys(visitors).length, roomViews: views, roomDownloads: downloads, tours: tours.length, offers: offers.length, bestOffer: offers.reduce((m, x) => Math.max(m, _moneyNum(x.amount)), 0), hasRoom: !!room };
+  }).sort((a, b) => (b.offers - a.offers) || (b.tours - a.tours) || (b.ndas - a.ndas) || (b.inquiries - a.inquiries));
+  const buyerActivity = { rows: buyerRows, totals: buyerRows.reduce((a, r) => { ['inquiries', 'marketplace', 'ndas', 'ndaSigned', 'roomAccess', 'roomVisitors', 'roomViews', 'tours', 'offers'].forEach(k => { a[k] = (a[k] || 0) + r[k]; }); return a; }, { listings: buyerRows.length }) };
+
+  return { ok: true, generatedAt: new Date().toISOString(), from, to, prior: { from: pFrom, to: pTo }, today,
+    filters: { rep: fRep, market: fMarket, type: fType, reps: users.map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => a.name.localeCompare(b.name)), markets: Object.keys(markets).filter(m => m !== '—').sort(), types: ['Business sale', 'Asset sale', 'Tenant rep', 'Landlord rep'] },
+    gci, forecast, pipeline, receivables, scorecard, funnel, inventory, leadSources, buyerActivity };
+}
+app.get('/api/reports/owner', requireAdmin, (req, res) => {
+  try { res.json(buildOwnerReports(req.query || {})); }
+  catch (e) { console.error('owner reports:', e && e.stack); res.status(500).json({ ok: false, error: 'Could not build the reports: ' + String((e && e.message) || e) }); }
+});
 app.get('/api/reports/insights', requireAdmin, (req, res) => {
   try {
     const days = Math.max(1, Math.min(3650, parseInt(req.query.days, 10) || 30));

@@ -38,7 +38,22 @@ table{width:100%;border-collapse:collapse;font-size:13px;} th{text-align:left;fo
 .empty{color:var(--muted);font-size:13px;padding:14px 4px;}
 .foot{max-width:1180px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
 svg{display:block;max-width:100%;}
-.rtabs{display:flex;gap:2px;border-bottom:1px solid #dbe1ea;margin:16px 0 18px;flex-wrap:wrap}.rtab{background:none;border:none;border-bottom:2px solid transparent;padding:9px 16px;font:inherit;font-size:13px;font-weight:700;color:#6b7488;cursor:pointer;margin-bottom:-1px;border-radius:0}.rtab:hover{color:#000E31}.rtab.on{color:#000E31;border-bottom-color:#DA2B1F}</style>
+.rtabs{display:flex;gap:2px;border-bottom:1px solid #dbe1ea;margin:16px 0 18px;flex-wrap:wrap}.rtab{background:none;border:none;border-bottom:2px solid transparent;padding:9px 16px;font:inherit;font-size:13px;font-weight:700;color:#6b7488;cursor:pointer;margin-bottom:-1px;border-radius:0}.rtab:hover{color:#000E31}.rtab.on{color:#000E31;border-bottom-color:#DA2B1F}.rtgl{font-size:10px;font-weight:800;color:#9aa4b6;text-transform:uppercase;letter-spacing:.08em;align-self:center;padding:0 4px 0 12px;} .rtgl:first-child{padding-left:0}
+.octl select,.octl input[type=date]{font:inherit;font-size:13px;border:1px solid #cdd6e6;border-radius:9px;padding:7px 9px;background:#fff;color:var(--ink);max-width:200px;}
+.octl select[disabled]{opacity:.5;} .olbl{font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-left:6px;} .olbl:first-child{margin-left:0}
+.prange{font-size:12px;color:var(--muted);font-weight:600;} .oright{margin-left:auto;display:flex;gap:8px;}
+.kpi .ks{font-size:11.5px;color:var(--muted);margin-top:4px;line-height:1.35;} .kpi .ks .up{color:#1f8a5b;font-weight:800;} .kpi .ks .dn{color:#c0261b;font-weight:800;} .kpi .n{font-size:26px;}
+.rtbl td{padding:9px 10px;border-bottom:1px solid #eef1f6;vertical-align:top;font-size:13px;} .rtbl tfoot td{border-top:2px solid #e2e6ee;border-bottom:none;} .rtbl tr.dim td{color:#a3abbb;} .rtbl .num{text-align:right;white-space:nowrap;}
+.rlnk{color:var(--navy);font-weight:700;text-decoration:none;} .rlnk:hover{text-decoration:underline;}
+.mut{color:#98a1b5;} .sm{font-size:11px;font-weight:500;}
+.pill{display:inline-block;border-radius:99px;padding:1px 8px;font-size:10.5px;font-weight:800;white-space:nowrap;} .pill.g{background:#e7f5ee;color:#1f6b45;} .pill.a{background:#fff4e6;color:#9a6a12;} .pill.r{background:#fdecea;color:#b23a2c;} .pill.n{background:#eef1f6;color:#5a6378;}
+.warnbox{background:#fff6e5;border:1px solid #f0d9a8;color:#6b4a10;border-radius:12px;padding:12px 16px;margin:0 0 18px;font-size:13px;line-height:1.5;} .warnbox a{color:#6b4a10;font-weight:700;}
+.rnote{color:#7a8396;font-size:12px;line-height:1.55;margin:-6px 2px 20px;}
+.fnrow{display:grid;grid-template-columns:190px 1fr 46px 92px 150px;gap:12px;align-items:center;margin:10px 0;font-size:12.5px;} .fnrow .track{height:18px;background:#f3f5f9;border-radius:5px;overflow:hidden;} .fnrow .fill{height:100%;} .fnrow .v{font-weight:800;text-align:right;} .fnrow .fp,.fnrow .fd{color:var(--muted);font-size:11.5px;}
+@media(max-width:820px){.fnrow{grid-template-columns:120px 1fr 36px;} .fnrow .fp,.fnrow .fd{display:none;} .oright{margin-left:0;width:100%;}}
+.phead{display:none;}
+@media print{ .ctlbar,.rtabs,[data-rrg-feats],.top,.foot,.rrg-back{display:none !important;} html,body{background:#fff !important;} .wrap{margin:0;padding:0;max-width:none;} .card,.kpi{box-shadow:none;break-inside:avoid;} .phead{display:flex;gap:16px;align-items:center;border-bottom:3px solid var(--navy);padding:0 0 12px;margin:0 0 16px;} .phead img{height:44px;} .pfirm{font-weight:800;color:var(--navy);font-size:15px;} .paddr{font-size:11px;color:#5a6378;} .pt{margin-left:auto;text-align:right;} .ptt{font-weight:800;font-size:17px;color:var(--navy);} .ptr{font-size:11px;color:#5a6378;} .rnote{margin-top:0;} *{-webkit-print-color-adjust:exact;print-color-adjust:exact;} }
+</style>
 <script src="/rrg_brand.js"></script>
 </head>
 <body>
@@ -47,14 +62,14 @@ svg{display:block;max-width:100%;}
   <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
   <div class="kicker">Analytics</div>
   <h1>Reports</h1>
-  <div class="sub">Leads, pipeline growth and team activity at a glance. Pick a time window; every chart and table below updates to that period.</div>
+  <div class="sub">Money, pipeline and people: GCI and closings, the forecast, receivables, pipeline aging, the conversion funnel, listing inventory, buyer activity, rep scorecards, lead sources and campaigns — plus lead and team activity.</div>
 </div></div>
 <div class="wrap" style="margin-bottom:0;padding-bottom:0"><div data-rrg-feats="reports"></div></div>
 <div id="root" class="wrap"><div class="gate">Loading…</div></div>
 <div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
 <script>
 var API=(String(location.protocol).indexOf('http')===0?location.origin:'');
-var RANGE=30, DATA=null, INS=null, TAB='overview';
+var RANGE=30, DATA=null, INS=null, TAB='gci';
 function fmtDur(s){ s=Math.round(Number(s)||0); if(s<=0) return '—'; if(s<60) return s+'s'; var m=Math.floor(s/60), ss=s%60; if(m<60) return m+'m'+(ss?(' '+ss+'s'):''); var h=Math.floor(m/60); m=m%60; return h+'h'+(m?(' '+m+'m'):''); }
 function fmtWhen(iso){ if(!iso) return '—'; try{ var d=new Date(iso); if(isNaN(d)) return '—'; return d.toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }catch(e){ return '—'; } }
 function fmtDay(s){ s=String(s||''); return s?s.slice(5):'—'; }
@@ -67,7 +82,7 @@ function ctlbar(){
   var opts=[[7,'7 days'],[30,'30 days'],[90,'90 days'],[365,'12 months']];
   var b=opts.map(function(o){ return '<button class="rbtn'+(RANGE===o[0]?' on':'')+'" data-r="'+o[0]+'">'+o[1]+'</button>'; }).join('');
   var gen=DATA?('Generated '+new Date(DATA.generatedAt).toLocaleString()):'';
-  return '<div class="ctlbar">'+b+'<span class="gen">'+esc(gen)+'</span></div>';
+  return '<div class="ctlbar">'+b+'<span class="gen">'+esc(gen)+'</span><span class="oright" style="margin-left:12px"><button class="rbtn" id="a_pdf" type="button">⎙ Print / PDF</button></span></div>';
 }
 function kpis(t){
   function card(n,l){ return '<div class="kpi"><div class="n">'+n+'</div><div class="l">'+esc(l)+'</div></div>'; }
@@ -162,15 +177,193 @@ function insightsHtml(){
   if(!INS) return '<div class="card"><div class="cb"><div class="empty">Loading data-room &amp; usage insights…</div></div></div>';
   return docActivityCard(INS.rooms)+buyerEngCard(INS.rooms)+usageCard(INS.usage);
 }
+/* ================= Owner reports: money, pipeline, people ================= */
+var OWN=null, OWN_ERR='', CAMP=null, CAMP_ERR='', ORG=null, LOGO='';
+var P={ period:'ytd', from:'', to:'', rep:'', market:'', type:'' };
+var OWNER_TABS=['gci','forecast','receivables','pipeline','funnel','inventory','buyers','scorecard','sources','campaigns'];
+var ASOF_TABS={forecast:1,receivables:1,pipeline:1,inventory:1};
+var TAB_TITLES={gci:'Closed Deals & GCI',forecast:'Forecast',receivables:'Receivables & Commissions',pipeline:'Pipeline & Aging',funnel:'Conversion Funnel',inventory:'Listing Inventory',buyers:'Buyer Activity by Listing',scorecard:'Rep Scorecard',sources:'Lead Source → Dollars',campaigns:'Campaign Results',overview:'New Leads',leads:'Rep Activity',dataroom:'Data Room',team:'Team & Usage'};
+var TAB_GROUPS=[['Money',[['gci','GCI & Closings'],['forecast','Forecast'],['receivables','Receivables']]],['Pipeline',[['pipeline','Pipeline & Aging'],['funnel','Funnel'],['inventory','Inventory'],['buyers','Buyer Activity']]],['People',[['scorecard','Rep Scorecard'],['sources','Lead Sources'],['campaigns','Campaigns']]],['Activity',[['overview','New Leads'],['leads','Rep Activity'],['dataroom','Data Room'],['team','Team & Usage']]]];
+function isOwnerTab(t){ return OWNER_TABS.indexOf(t)>=0; }
+function ymd(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function periodRange(p){ var n=new Date(), y=n.getFullYear(), m=n.getMonth(), q=Math.floor(m/3);
+  if(p==='month') return [ymd(new Date(y,m,1)), ymd(n)];
+  if(p==='lastmonth') return [ymd(new Date(y,m-1,1)), ymd(new Date(y,m,0))];
+  if(p==='quarter') return [ymd(new Date(y,q*3,1)), ymd(n)];
+  if(p==='lastquarter') return [ymd(new Date(y,q*3-3,1)), ymd(new Date(y,q*3,0))];
+  if(p==='lastyear') return [(y-1)+'-01-01', (y-1)+'-12-31'];
+  if(p==='12mo'){ var s=new Date(n); s.setFullYear(s.getFullYear()-1); s.setDate(s.getDate()+1); return [ymd(s), ymd(n)]; }
+  if(p==='custom') return [P.from||(y+'-01-01'), P.to||ymd(n)];
+  return [y+'-01-01', ymd(n)]; }
+var PERIODS=[['month','This month'],['lastmonth','Last month'],['quarter','This quarter'],['lastquarter','Last quarter'],['ytd','Year to date'],['12mo','Last 12 months'],['lastyear','Last year'],['custom','Custom…']];
+function $m(n){ n=Number(n)||0; var a=Math.abs(n), s=n<0?'-':''; if(a>=1e6) return s+'$'+(a/1e6).toFixed(a>=1e7?1:2).replace(/\.?0+$/,'')+'M'; if(a>=1e4) return s+'$'+Math.round(a/1e3)+'K'; return s+'$'+Math.round(a).toLocaleString('en-US'); }
+function $f(n){ n=Number(n)||0; return (n<0?'-$':'$')+Math.abs(Math.round(n)).toLocaleString('en-US'); }
+function pct(a,b){ if(!b) return ''; var v=Math.round((a-b)/b*100); return (v>0?'+':'')+v+'%'; }
+function dshort(s){ s=String(s||''); if(!/^\d{4}-\d{2}-\d{2}/.test(s)) return s||'—'; var d=new Date(s.slice(0,10)+'T12:00:00'); return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
+function mlabel(m){ if(!/^\d{4}-\d{2}$/.test(m)) return m; var d=new Date(m+'-15T12:00:00'); return d.toLocaleDateString('en-US',{month:'short',year:'2-digit'}); }
+function lnk(key,txt){ return key?('<a href="./rrg_assignment.html?key='+encodeURIComponent(key)+'" class="rlnk">'+esc(txt||'—')+'</a>'):esc(txt||'—'); }
+function tbl(cols,rows,opts){ opts=opts||{}; if(!rows.length) return '<div class="empty">'+esc(opts.empty||'Nothing in this period.')+'</div>';
+  var h='<div style="overflow:auto"><table class="rtbl"><thead><tr>'+cols.map(function(c){ return '<th'+(c.num?' class="num"':'')+'>'+esc(c.h)+'</th>'; }).join('')+'</tr></thead><tbody>'+rows.map(function(r){ return '<tr>'+cols.map(function(c){ var v=c.f?c.f(r):esc(r[c.k]==null?'':r[c.k]); return '<td'+(c.num?' class="num"':'')+'>'+v+'</td>'; }).join('')+'</tr>'; }).join('')+'</tbody>'+(opts.foot?('<tfoot><tr>'+opts.foot.map(function(x,i){ return '<td'+(cols[i]&&cols[i].num?' class="num"':'')+'><b>'+x+'</b></td>'; }).join('')+'</tr></tfoot>'):'')+'</table></div>'; return h; }
+function card(title,sub,body){ return '<div class="card"><div class="ch"><b>'+title+'</b>'+(sub?('<span>'+sub+'</span>'):'')+'</div><div class="cb">'+body+'</div></div>'; }
+function kp(n,l,sub){ return '<div class="kpi"><div class="n">'+n+'</div><div class="l">'+esc(l)+'</div>'+(sub?('<div class="ks">'+sub+'</div>'):'')+'</div>'; }
+function note(t){ return '<div class="rnote">'+t+'</div>'; }
+function hbars(rows,lab,val,fmt,color){ if(!rows.length) return '<div class="empty">Nothing in this period.</div>'; var max=Math.max.apply(null,rows.map(function(r){return Math.abs(val(r))||0;}))||1; return rows.map(function(r){ var v=val(r)||0; return '<div class="srcrow"><span class="lbl" title="'+esc(lab(r))+'">'+esc(lab(r))+'</span><div class="track"><div class="fill" style="width:'+(Math.abs(v)/max*100).toFixed(1)+'%;background:'+(color||'#4a6fc4')+'"></div></div><span class="v" style="width:auto;min-width:64px">'+fmt(v)+'</span></div>'; }).join(''); }
+// Vertical bars: series = [{label, a, b}] — a = main (dark), b = comparison (light, drawn behind/beside)
+function vbars(series,o){ o=o||{}; if(!series.length) return '<div class="empty">Nothing to chart.</div>';
+  var W=1100,H=250,pl=58,pb=34,pt=14,iw=W-pl-10,ih=H-pb-pt; var max=Math.max(1,Math.max.apply(null,series.map(function(s){return Math.max(s.a||0,s.b||0);})));
+  var bw=iw/series.length, gw=Math.min(56,bw*0.72), two=series.some(function(s){return s.b!=null;}), b1=two?gw/2:gw;
+  var grid=''; for(var g=0;g<=4;g++){ var y=pt+ih-ih*g/4; grid+='<line x1="'+pl+'" y1="'+y.toFixed(1)+'" x2="'+(W-10)+'" y2="'+y.toFixed(1)+'" stroke="'+(g?'#eef1f6':'#d9dee8')+'"/><text x="'+(pl-6)+'" y="'+(y+3).toFixed(1)+'" text-anchor="end" font-size="9.5" fill="#8a93a8">'+esc($m(max*g/4))+'</text>'; }
+  var bars=series.map(function(s,i){ var x0=pl+i*bw+(bw-gw)/2, out='';
+    if(two){ var hb=Math.round(ih*((s.b||0)/max)); out+='<rect x="'+(x0+b1).toFixed(1)+'" y="'+(pt+ih-hb)+'" width="'+(b1-2).toFixed(1)+'" height="'+hb+'" rx="2" fill="'+(o.bColor||'#c9d3e6')+'"><title>'+esc(s.label)+' · '+esc(o.bName||'')+': '+$f(s.b||0)+'</title></rect>'; }
+    var ha=Math.round(ih*((s.a||0)/max)); out+='<rect x="'+x0.toFixed(1)+'" y="'+(pt+ih-ha)+'" width="'+(b1-(two?2:0)).toFixed(1)+'" height="'+ha+'" rx="2" fill="'+(o.aColor||'#4a6fc4')+'"><title>'+esc(s.label)+' · '+esc(o.aName||'')+': '+$f(s.a||0)+'</title></rect>';
+    if(s.a) out+='<text x="'+(x0+b1/2).toFixed(1)+'" y="'+(pt+ih-ha-4)+'" text-anchor="middle" font-size="9.5" fill="#4a5570">'+esc($m(s.a))+'</text>';
+    out+='<text x="'+(x0+gw/2).toFixed(1)+'" y="'+(H-12)+'" text-anchor="middle" font-size="9.5" fill="#8a93a8">'+esc(s.label)+'</text>'; return out; }).join('');
+  var lg=o.aName?('<div class="legend"><span class="lg"><span class="sw" style="background:'+(o.aColor||'#4a6fc4')+'"></span>'+esc(o.aName)+'</span>'+(two?('<span class="lg"><span class="sw" style="background:'+(o.bColor||'#c9d3e6')+'"></span>'+esc(o.bName)+'</span>'):'')+'</div>'):'';
+  return lg+'<svg viewBox="0 0 '+W+' '+H+'" width="100%" role="img" aria-label="'+esc(o.aria||'chart')+'">'+grid+bars+'</svg>'; }
+var CSV={}; // tab → {name, cols:[[header,key|fn]], rows}
+function setCsv(tab,name,cols,rows){ CSV[tab]={name:name,cols:cols,rows:rows}; }
+function exportCsv(){ var c=CSV[TAB]; if(!c||!c.rows.length){ if(window.rrgToast) rrgToast('Nothing to export on this report.'); return; } var q=function(v){ v=(v==null?'':String(v)); return /[",\n]/.test(v)?('"'+v.replace(/"/g,'""')+'"'):v; };
+  var csv=c.cols.map(function(x){return q(x[0]);}).join(',')+'\n'+c.rows.map(function(r){ return c.cols.map(function(x){ return q(typeof x[1]==='function'?x[1](r):r[x[1]]); }).join(','); }).join('\n');
+  var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download=c.name.replace(/[^A-Za-z0-9]+/g,'_')+'_'+(OWN?(OWN.from+'_to_'+OWN.to):'')+'.csv'; document.body.appendChild(a); a.click(); a.remove(); }
+
+function rGci(){ var g=OWN.gci, t=g.totals, pr=g.prior;
+  var h='<div class="kpis">'+kp($m(t.gci),'Gross commission (GCI)',pr.gci?('<span class="'+(t.gci>=pr.gci?'up':'dn')+'">'+pct(t.gci,pr.gci)+'</span> vs '+$m(pr.gci)+' same period last year'):(pr.from?'No closings same period last year':''))+kp(t.deals,'Deals closed',pr.deals!=null?(pr.deals+' same period last year'):'')+kp($m(t.companyDollar),'Company dollar','after '+$m(t.referrals)+' referrals · '+$m(t.coBroke)+' co-broke')+kp($m(t.houseNet),'House net','after '+$m(t.agentNet)+' paid to reps')+'</div>';
+  h+=card('GCI by month','this period vs the same months last year',vbars(g.byMonth.map(function(m){ return {label:mlabel(m.month),a:m.gci,b:m.priorGci}; }),{aName:'This period',bName:'Last year',aria:'GCI by month'}));
+  h+='<div class="grid2">'+card('By rep','GCI credited to the listing rep',hbars(g.byRep,function(r){return r.name+' ('+r.deals+')';},function(r){return r.gci;},$m))+card('By deal type','',hbars(g.byType,function(r){return r.type+' ('+r.deals+')';},function(r){return r.gci;},$m,'#6bbf95'))+'</div>';
+  var cols=[{h:'Closed',f:function(r){return esc(dshort(r.closedDate));}},{h:'Deal',f:function(r){return lnk(r.key,r.business);}},{h:'Type',k:'type'},{h:'Rep',k:'rep'},{h:'Price',num:1,f:function(r){return r.price?$f(r.price):'—';}},{h:'GCI',num:1,f:function(r){return $f(r.gci);}},{h:'Referral / co-broke',num:1,f:function(r){return (r.referrals||r.coBroke)?$f(r.referrals+r.coBroke):'—';}},{h:'Company $',num:1,f:function(r){return $f(r.companyDollar);}},{h:'Rep net',num:1,f:function(r){return $f(r.agentNet);}},{h:'House net',num:1,f:function(r){return $f(r.houseNet);}},{h:'Commission',f:function(r){return '<span class="pill '+(r.commissionStatus==='Paid'?'g':(r.commissionStatus==='Unpaid'?'r':'a'))+'">'+esc(r.commissionStatus)+'</span>';}}];
+  h+=card('Closed deals','every deal closed in the period',tbl(cols,g.deals,{empty:'No deals closed in this period.',foot:g.deals.length?['Total','','','','',$f(t.gci),$f(t.referrals+t.coBroke),$f(t.companyDollar),$f(t.agentNet),$f(t.houseNet),'']:null}));
+  h+=note('GCI is the commission on each closed deal (Deal card → Commission due). Company dollar is GCI after referral fees and the co-broke’s share; rep net and house net use each rep’s split — the same math as the Commissions page.');
+  setCsv('gci','Closed deals',[['Closed','closedDate'],['Deal','business'],['Type','type'],['Market','market'],['Rep','rep'],['Price','price'],['GCI','gci'],['Referral','referrals'],['Co-broke','coBroke'],['Company dollar','companyDollar'],['Rep net','agentNet'],['House net','houseNet'],['Commission status','commissionStatus']],g.deals);
+  return h; }
+function rForecast(){ var f=OWN.forecast, t=f.totals;
+  var h='<div class="kpis">'+kp($m(t.weighted),'Weighted forecast',t.withPct<t.count?((t.count-t.withPct)+' deal'+(t.count-t.withPct===1?'':'s')+' not weighted — see note'):'pipeline × each stage’s likelihood %')+kp($m(t.pipeline),'Total pipeline (unweighted)',t.count+' open deal'+(t.count===1?'':'s')+' with a fee')+kp($m(t.next90w),'Next 90 days (weighted)',$m(t.next90)+' unweighted')+kp($m(t.overdue+t.undated),'Past due or no date',$m(t.overdue)+' past expected close · '+$m(t.undated)+' undated')+'</div>';
+  if(f.missingPct.length) h+='<div class="warnbox"><b>Some stages have no likelihood %</b>, so their deals count in the pipeline but not the weighted forecast: '+f.missingPct.map(function(m){ return esc(m.pipeline)+' → '+m.stages.map(esc).join(', '); }).join('; ')+'. Set them in <a href="./rrg_settings.html?tab=pipelines" target="_top">Settings → Pipelines &amp; Stages</a> (Likelihood %).</div>';
+  if(f.openWithoutFee) h+=note(f.openWithoutFee+' open listing'+(f.openWithoutFee===1?'':'s')+' have no fee yet (no deal commission, expected fee, asking price or valuation) and aren’t in the forecast.');
+  h+=card('Expected closings by month','weighted forecast in front of the full pipeline',vbars(f.byMonth.filter(function(m){return m.count||(/^\d/.test(m.month));}).map(function(m){ return {label:m.label||mlabel(m.month),a:m.weighted,b:m.pipeline}; }),{aName:'Weighted',bName:'Unweighted pipeline',aColor:'#1f8a5b',bColor:'#cfe3d8',aria:'Forecast by month'}));
+  var cols=[{h:'Deal',f:function(r){return lnk(r.key,r.business);}},{h:'Type',k:'type'},{h:'Rep',k:'rep'},{h:'Stage',f:function(r){return esc(r.stage||'—')+(r.dealStatus?(' <span class="pill a">'+esc(r.dealStatus)+'</span>'):'');}},{h:'Expected close',f:function(r){return r.closeMonth?esc(mlabel(r.closeMonth)):'<span class="mut">no date</span>';}},{h:'Fee',num:1,f:function(r){return $f(r.fee)+'<div class="mut sm">'+esc(r.feeSource)+'</div>';}},{h:'Likelihood',num:1,f:function(r){return r.winPct==null?'<span class="mut">not set</span>':(r.winPct+'%');}},{h:'Weighted',num:1,f:function(r){return r.weighted==null?'—':$f(r.weighted);}}];
+  h+=card('Open deals in the forecast','as of today — the period doesn’t apply',tbl(cols,f.items,{empty:'No open deals with a fee.'}));
+  h+=note('Fee: the deal’s commission when there’s a deal, else the expected fee on the listing, else an estimate from the asking price or valuation (firm fee schedule). Expected close: the deal’s expected close date, else the listing’s target close.');
+  setCsv('forecast','Forecast',[['Deal','business'],['Type','type'],['Market','market'],['Rep','rep'],['Pipeline','pipeline'],['Stage','stage'],['Deal status','dealStatus'],['Expected close','closeMonth'],['Fee','fee'],['Fee basis','feeSource'],['Likelihood %','winPct'],['Weighted','weighted']],f.items);
+  return h; }
+function rReceivables(){ var r=OWN.receivables, t=r.totals;
+  var h='<div class="kpis">'+kp($m(t.outstanding),'Outstanding',t.invoices+' unpaid invoice'+(t.invoices===1?'':'s'))+kp($m(t.overdue),'Past due',t.outstanding?(Math.round(t.overdue/t.outstanding*100)+'% of outstanding'):'')+kp($m((r.buckets.filter(function(b){return b.key==='d61'||b.key==='d90';}).reduce(function(a,b){return a+b.amount;},0))),'61+ days past due','chase these first')+kp($m(r.commissions.reduce(function(a,x){return a+x.agentOwed;},0)),'Commissions owed to reps','on closed deals not yet paid')+'</div>';
+  var mx=Math.max(1,Math.max.apply(null,r.buckets.map(function(b){return b.amount;})));
+  h+=card('Aging','unpaid balances by days past due',r.buckets.map(function(b,i){ var col=['#6bbf95','#dfa937','#e8a33c','#e07a5f','#DA2B1F'][i]; return '<div class="srcrow"><span class="lbl">'+esc(b.label)+'</span><div class="track"><div class="fill" style="width:'+(b.amount/mx*100).toFixed(1)+'%;background:'+col+'"></div></div><span class="v" style="width:auto;min-width:110px">'+$f(b.amount)+' · '+b.count+'</span></div>'; }).join(''));
+  var cols=[{h:'Invoice',f:function(x){return '<a class="rlnk" href="./rrg_invoices.html?id='+encodeURIComponent(x.id)+'">'+esc(x.number||'—')+'</a>';}},{h:'Bill to',k:'billTo'},{h:'Listing',f:function(x){return x.listingKey?lnk(x.listingKey,x.listing):esc(x.listing||'—');}},{h:'Due',f:function(x){return esc(dshort(x.dueDate||x.issueDate));}},{h:'Days past due',num:1,f:function(x){return x.daysPast?('<b style="color:'+(x.daysPast>60?'#c0261b':'#9a6a12')+'">'+x.daysPast+'</b>'):'<span class="mut">not due</span>';}},{h:'Total',num:1,f:function(x){return $f(x.total);}},{h:'Paid',num:1,f:function(x){return $f(x.paid);}},{h:'Balance',num:1,f:function(x){return '<b>'+$f(x.balance)+'</b>';}}];
+  h+=card('Unpaid invoices','oldest first',tbl(cols,r.invoices,{empty:'Every issued invoice is paid. 👍'}));
+  var cc=[{h:'Rep',k:'name'},{h:'Closed deals',num:1,k:'deals'},{h:'GCI',num:1,f:function(x){return $f(x.gci);}},{h:'Rep net',num:1,f:function(x){return $f(x.agentNet);}},{h:'Paid to rep',num:1,f:function(x){return $f(x.agentPaid);}},{h:'Owed to rep',num:1,f:function(x){return x.agentOwed?('<b>'+$f(x.agentOwed)+'</b>'):'—';}},{h:'Not yet collected by firm',num:1,f:function(x){return x.firmUncollected?$f(x.firmUncollected):'—';}}];
+  h+=card('Commissions by rep','all closed deals to date — a rep is owed their share as the firm collects',tbl(cc,r.commissions,{empty:'No closed deals yet.'}));
+  h+=note('Unpaid = issued (sent) invoices with a balance; drafts and voids are left out. Days past due count from the due date (or the issue date when there’s no due date). As of today — the period doesn’t apply.');
+  setCsv('receivables','Unpaid invoices',[['Invoice','number'],['Bill to','billTo'],['Listing','listing'],['Issued','issueDate'],['Due','dueDate'],['Days past due','daysPast'],['Total','total'],['Paid','paid'],['Balance','balance'],['Owner','owner']],r.invoices);
+  return h; }
+function rPipeline(){ var p=OWN.pipeline, t=p.totals;
+  var h='<div class="kpis">'+kp(t.open,'Open listings & searches','')+kp($m(t.fee),'Fees in the pipeline','')+kp(t.stalled,'Stalled','past their stage’s target days')+kp(p.pipelines.length,'Pipelines in use','')+'</div>';
+  if(p.stalled.length){ var sc=[{h:'Deal',f:function(r){return lnk(r.key,r.business);}},{h:'Rep',k:'rep'},{h:'Pipeline',k:'pipeline'},{h:'Stage',k:'stage'},{h:'Days in stage',num:1,f:function(r){return '<b style="color:#c0261b">'+r.days+'</b>';}},{h:'Target',num:1,f:function(r){return r.targetDays+'d';}},{h:'Over by',num:1,f:function(r){return r.over+'d';}},{h:'Fee',num:1,f:function(r){return r.fee?$f(r.fee):'—';}}]; h+=card('Stalled','longest over target first',tbl(sc,p.stalled)); }
+  p.pipelines.forEach(function(pl){ var mx=Math.max(1,Math.max.apply(null,pl.stages.map(function(s){return s.count;})));
+    h+=card(esc(pl.name),pl.count+' open · '+$m(pl.fee)+' in fees','<table class="rtbl"><thead><tr><th>Stage</th><th></th><th class="num">Open</th><th class="num">Fees</th><th class="num">Avg days in stage</th><th class="num">Target</th><th class="num">Stalled</th><th class="num">Likelihood</th></tr></thead><tbody>'+pl.stages.map(function(s){ return '<tr'+(s.count?'':' class="dim"')+'><td>'+esc(s.name)+(s.pre?' <span class="pill n">lead</span>':'')+'</td><td style="width:28%"><div class="track" style="height:10px"><div class="fill" style="height:100%;width:'+(s.count/mx*100).toFixed(1)+'%;background:#4a6fc4"></div></div></td><td class="num">'+(s.count||'—')+'</td><td class="num">'+(s.fee?$m(s.fee):'—')+'</td><td class="num">'+(s.avgDays==null?'—':s.avgDays)+'</td><td class="num">'+(s.targetDays?s.targetDays+'d':'—')+'</td><td class="num">'+(s.stalled?('<b style="color:#c0261b">'+s.stalled+'</b>'):'—')+'</td><td class="num">'+(s.winPct==null?'<span class="mut">—</span>':s.winPct+'%')+'</td></tr>'; }).join('')+'</tbody></table>'); });
+  h+=note('Days in stage count from when the card last moved stages. Target days and likelihood % are set per stage in Settings → Pipelines &amp; Stages. As of today — the period doesn’t apply.');
+  setCsv('pipeline','Stalled deals',[['Deal','business'],['Type','type'],['Rep','rep'],['Pipeline','pipeline'],['Stage','stage'],['Days in stage','days'],['Target days','targetDays'],['Over by','over'],['Fee','fee']],p.stalled);
+  return h; }
+function rFunnel(){ var f=OWN.funnel, c=f.cohort, top=Math.max(1,f.steps[0].n);
+  var h='<div class="kpis">'+kp(c.opened,'Sell-side listings opened','in this period')+kp(c.closed,'Closed',c.opened?(Math.round(c.closed/c.opened*100)+'% of opened'):'')+kp(c.active,'Still active','')+kp(c.lost,'Lost / no deal','')+'</div>';
+  h+=card('How far they got','listings opened in the period — each step as a share of opened',f.steps.map(function(s,i){ return '<div class="fnrow"><span class="lbl">'+esc(s.label)+'</span><div class="track"><div class="fill" style="width:'+(s.n/top*100).toFixed(1)+'%;background:'+['#4a6fc4','#5b7fd0','#6b8fd8','#7ea6d8','#6bbf95','#1f8a5b'][i]+'"></div></div><span class="v">'+s.n+'</span><span class="fp">'+(i?(Math.round(s.n/top*100)+'% of opened'):'')+'</span><span class="fd">'+(s.days!=null?('avg '+s.days+'d '+esc(s.daysLabel)):'')+'</span></div>'; }).join(''));
+  if(f.lostByStatus.length) h+=card('Lost','',hbars(f.lostByStatus,function(r){return r.status;},function(r){return r.count;},function(v){return String(v);},'#e07a5f'));
+  var cols=[{h:'Listing',f:function(r){return lnk(r.key,r.business);}},{h:'Rep',k:'rep'},{h:'Opened',f:function(r){return esc(dshort(r.opened));}},{h:'Valuation',f:function(r){return r.valued?esc(dshort(r.valued)):'<span class="mut">—</span>';}},{h:'Signed',f:function(r){return r.signed?esc(dshort(r.signed)):'<span class="mut">—</span>';}},{h:'On market',f:function(r){return r.listed?esc(dshort(r.listed)):'<span class="mut">—</span>';}},{h:'Contract',f:function(r){return r.contract?esc(dshort(r.contract)):'<span class="mut">—</span>';}},{h:'Closed',f:function(r){return r.closed?esc(dshort(r.closed)):'<span class="mut">—</span>';}},{h:'Status',k:'status'}];
+  h+=card('Listings in this cohort','',tbl(cols,f.rows,{empty:'No sell-side listings opened in this period.'}));
+  h+=note('Milestones come from the records themselves: valuation = first BOV on the listing; signed = executed listing agreement; on market = listing start, live date or marketplace publish; contract = a deal opened on the listing. Lost = marked Lost / No Deal, or the deal died.');
+  setCsv('funnel','Conversion funnel',[['Listing','business'],['Type','type'],['Rep','rep'],['Opened','opened'],['Valuation','valued'],['Signed','signed'],['On market','listed'],['Contract','contract'],['Closed','closed'],['Status','status']],f.rows);
+  return h; }
+function rInventory(){ var v=OWN.inventory, t=v.totals;
+  var h='<div class="kpis">'+kp(t.listings,'Active listings',t.underContract+' under contract')+kp($m(t.asking),'Total asking','')+kp(t.medianDom==null?'—':(t.medianDom+'d'),'Median days on market','')+kp(t.expiring60,'Expiring in 60 days',(t.expired?(t.expired+' already expired · '):'')+t.expiring90+' within 90')+'</div>';
+  if(t.expired||t.unpublished) h+='<div class="warnbox">'+(t.expired?('<b>'+t.expired+' listing agreement'+(t.expired===1?' has':'s have')+' expired</b> — renew or close them out. '):'')+(t.unpublished?(t.unpublished+' active listing'+(t.unpublished===1?' isn’t':'s aren’t')+' published to the marketplace.'):'')+'</div>';
+  var cols=[{h:'Listing',f:function(r){return lnk(r.key,r.business)+(r.underContract?' <span class="pill a">Under contract</span>':'');}},{h:'Rep',k:'rep'},{h:'Market',k:'market'},{h:'Asking',num:1,f:function(r){return r.asking?$f(r.asking):'—';}},{h:'Price cuts',num:1,f:function(r){return r.cuts?(r.cuts+(r.cutPct?(' · −'+r.cutPct+'%'):'')+'<div class="mut sm">last '+esc(dshort(r.lastCutAt))+'</div>'):'—';}},{h:'Days on market',num:1,f:function(r){return r.daysOnMarket==null?'—':('<b style="color:'+(r.daysOnMarket>180?'#c0261b':(r.daysOnMarket>90?'#9a6a12':'#1a2236'))+'">'+r.daysOnMarket+'</b>');}},{h:'Agreement expires',f:function(r){ if(!r.expires) return '<span class="mut">—</span>'; var c=r.expiresIn<0?'#c0261b':(r.expiresIn<=60?'#9a6a12':'#1a2236'); return '<span style="color:'+c+';font-weight:700">'+esc(dshort(r.expires))+'</span><div class="mut sm">'+(r.expiresIn<0?('expired '+(-r.expiresIn)+'d ago'):('in '+r.expiresIn+'d'))+'</div>'; }},{h:'Marketplace',f:function(r){return r.published?'<span class="pill g">Published</span>':'<span class="pill n">Not published</span>';}}];
+  h+=card('Listings on the market','longest on market first',tbl(cols,v.rows,{empty:'No active sell-side listings.'}));
+  h+=note('Days on market count from the listing start / live date (else the signed agreement, else when the listing was opened). Expiry is the listing’s expiration date, else the listing agreement’s. As of today — the period doesn’t apply.');
+  setCsv('inventory','Listing inventory',[['Listing','business'],['Type','type'],['Rep','rep'],['Market','market'],['Status','status'],['Asking','asking'],['Original asking','originalAsking'],['Price cuts','cuts'],['Cut %','cutPct'],['Listed','listedDate'],['Days on market','daysOnMarket'],['Expires','expires'],['Expires in (days)','expiresIn'],['Published','published'],['Under contract','underContract']],v.rows);
+  return h; }
+function rBuyers(){ var b=OWN.buyerActivity, t=b.totals;
+  var h='<div class="kpis">'+kp(t.inquiries||0,'Buyer inquiries',(t.marketplace||0)+' from the marketplace')+kp(t.ndas||0,'NDAs',(t.ndaSigned||0)+' signed')+kp(t.roomVisitors||0,'Data-room visitors',(t.roomAccess||0)+' new access · '+(t.roomViews||0)+' views')+kp((t.tours||0)+' / '+(t.offers||0),'Tours / offers','')+'</div>';
+  var z=function(n){ return n?('<b>'+n+'</b>'):'<span class="mut">0</span>'; };
+  var cols=[{h:'Listing',f:function(r){return lnk(r.key,r.business);}},{h:'Rep',k:'rep'},{h:'Stage',k:'stage'},{h:'Inquiries',num:1,f:function(r){return z(r.inquiries)+(r.marketplace?('<div class="mut sm">'+r.marketplace+' marketplace</div>'):'');}},{h:'NDAs',num:1,f:function(r){return z(r.ndas)+(r.ndaSigned?('<div class="mut sm">'+r.ndaSigned+' signed</div>'):'');}},{h:'Data room',num:1,f:function(r){return r.hasRoom?(z(r.roomVisitors)+'<div class="mut sm">'+r.roomViews+' views · '+r.roomDownloads+' dl</div>'):'<span class="mut">no room</span>';}},{h:'Tours',num:1,f:function(r){return z(r.tours);}},{h:'Offers',num:1,f:function(r){return z(r.offers)+(r.bestOffer?('<div class="mut sm">best '+$m(r.bestOffer)+'</div>'):'');}}];
+  h+=card('Activity by listing','what buyers did on each active listing in the period',tbl(cols,b.rows,{empty:'No active sell-side listings.'}));
+  h+=note('Counts what was logged in the period: inquiries and buyers added, NDAs, data-room visits (unique visitors, views, downloads), buyer tours and offers/IOIs. It’s the story you tell the seller.');
+  setCsv('buyers','Buyer activity',[['Listing','business'],['Type','type'],['Market','market'],['Rep','rep'],['Stage','stage'],['Inquiries','inquiries'],['Marketplace inquiries','marketplace'],['NDAs','ndas'],['NDAs signed','ndaSigned'],['New data-room access','roomAccess'],['Data-room visitors','roomVisitors'],['Room views','roomViews'],['Room downloads','roomDownloads'],['Tours','tours'],['Offers','offers'],['Best offer','bestOffer']],b.rows);
+  return h; }
+function rScorecard(){ var rows=OWN.scorecard.rows;
+  var z=function(n){ return n?String(n):'<span class="mut">0</span>'; };
+  var cols=[{h:'Rep',f:function(r){return '<b style="white-space:nowrap">'+esc(r.name)+'</b>';}},{h:'Listings',num:1,f:function(r){return z(r.newListings);}},{h:'Tenant / LL',num:1,f:function(r){return z(r.newTenant);}},{h:'BOVs',num:1,f:function(r){return z(r.valuations);}},{h:'Agreements',num:1,f:function(r){return z(r.agreements);}},{h:'LOIs',num:1,f:function(r){return z(r.lois)+(r.loisAccepted?('<div class="mut sm">'+r.loisAccepted+' accepted</div>'):'');}},{h:'Tours',num:1,f:function(r){return z(r.tours);}},{h:'Calls / emails',num:1,f:function(r){return OWN.scorecard.activitiesFiltered?'<span class="mut">n/a</span>':(z(r.calls)+' / '+z(r.emails));}},{h:'Closings',num:1,f:function(r){return z(r.closings);}},{h:'GCI',num:1,f:function(r){return r.gci?('<b>'+$f(r.gci)+'</b>'):'—';}},{h:'Rep net',num:1,f:function(r){return r.agentNet?$f(r.agentNet):'—';}},{h:'Open pipeline',num:1,f:function(r){return (r.openFee?$m(r.openFee):'—')+'<div class="mut sm">'+r.openCount+' open</div>';}}];
+  var h=card('Rep scorecard','new listings & searches, BOVs, signed agreements, LOIs, tours, calls/emails and closings in the period',tbl(cols,rows,{empty:'No reps.'}));
+  h+='<div class="grid2">'+card('GCI by rep','',hbars(rows.filter(function(r){return r.gci;}),function(r){return r.name;},function(r){return r.gci;},$m))+card('Open pipeline by rep','fees on open listings and searches (today)',hbars(rows.filter(function(r){return r.openFee;}),function(r){return r.name;},function(r){return r.openFee;},$m,'#6bbf95'))+'</div>';
+  h+=note('New listings/searches, closings and pipeline go to the listing’s rep. Valuations, agreements, LOIs, tours, calls and emails go to whoever logged them.'+(OWN.scorecard.activitiesFiltered?' Calls and emails aren’t tied to a market or deal type, so they’re hidden while those filters are on.':''));
+  setCsv('scorecard','Rep scorecard',[['Rep','name'],['New listings','newListings'],['New tenant/landlord','newTenant'],['Valuations','valuations'],['Agreements signed','agreements'],['LOIs','lois'],['LOIs accepted','loisAccepted'],['Tours','tours'],['Calls','calls'],['Emails','emails'],['Closings','closings'],['GCI','gci'],['Rep net','agentNet'],['Open count','openCount'],['Open pipeline fees','openFee']],rows);
+  return h; }
+function rSources(){ var s=OWN.leadSources, rows=s.rows;
+  var h='<div class="grid2">'+card('Closed GCI by source','in the period',hbars(rows.filter(function(r){return r.gci;}),function(r){return r.source;},function(r){return r.gci;},$m))+card('Open pipeline by source','fees on open listings and searches (today)',hbars(rows.filter(function(r){return r.openFee;}),function(r){return r.source;},function(r){return r.openFee;},$m,'#6bbf95'))+'</div>';
+  var cols=[{h:'Source',f:function(r){return '<b>'+esc(r.source)+'</b>';}},{h:'Listings opened',num:1,k:'opened'},{h:'Active now',num:1,k:'active'},{h:'Deals closed',num:1,k:'closedDeals'},{h:'Closed GCI',num:1,f:function(r){return r.gci?('<b>'+$f(r.gci)+'</b>'):'—';}},{h:'Avg GCI / closing',num:1,f:function(r){return r.closedDeals?$f(r.gci/r.closedDeals):'—';}},{h:'Open pipeline',num:1,f:function(r){return r.openFee?$m(r.openFee):'—';}}];
+  h+=card('Where the money comes from','listings and searches by the client’s lead source',tbl(cols,rows,{empty:'Nothing in this period.'}));
+  h+=note(esc(s.note)+' “Unknown” means the client contact has no lead source — set it on the contact to sharpen this report.');
+  setCsv('sources','Lead source dollars',[['Source','source'],['Listings opened','opened'],['Active now','active'],['Deals closed','closedDeals'],['Closed GCI','gci'],['Open pipeline','openFee']],rows);
+  return h; }
+function rCampaigns(){
+  if(CAMP_ERR) return card('Campaign results','',note(esc(CAMP_ERR)));
+  if(!CAMP) return '<div class="card"><div class="cb"><div class="empty">Loading campaigns…</div></div></div>';
+  var rows=CAMP.filter(function(c){ return (c.sent||0)>0; }); var t=rows.reduce(function(a,c){ a.sent+=c.sent||0; a.opens+=c.opens||0; a.clicks+=c.clicks||0; a.unsubs+=c.unsubs||0; a.bounces+=c.bounces||0; return a; },{sent:0,opens:0,clicks:0,unsubs:0,bounces:0});
+  var rate=function(n,d){ return d?((n/d*100).toFixed(1)+'%'):'—'; };
+  var h='<div class="kpis">'+kp(t.sent.toLocaleString(),'Emails sent',rows.length+' campaign'+(rows.length===1?'':'s'))+kp(rate(t.opens,t.sent),'Open rate',t.opens.toLocaleString()+' unique opens')+kp(rate(t.clicks,t.sent),'Click rate',t.clicks.toLocaleString()+' unique clicks')+kp(rate(t.unsubs,t.sent),'Unsubscribe rate',t.unsubs+' unsubscribed · '+t.bounces+' bounced')+'</div>';
+  var cols=[{h:'Campaign',f:function(c){return '<a class="rlnk" href="./rrg_mass_studio.html?open='+encodeURIComponent(c.id)+'">'+esc(c.name||c.subject||'Campaign')+'</a><div class="mut sm">'+esc(c.subject||'')+'</div>';}},{h:'Audience',f:function(c){ if(c.seg_type){ var t=String(c.seg_type); return esc((t==='Broker'?'Brokers':t)+(c.seg_mode==='area'?' · area-matched':'')); } return esc(c.list_name||'All active subscribers'); }},{h:'Sent',f:function(c){return esc(dshort(c.finished_at||c.started_at||c.created_at));}},{h:'Delivered',num:1,f:function(c){return ((c.sent||0)-(c.bounces||0)).toLocaleString();}},{h:'Opens',num:1,f:function(c){return (c.opens||0).toLocaleString()+'<div class="mut sm">'+rate(c.opens,c.sent)+'</div>';}},{h:'Clicks',num:1,f:function(c){return (c.clicks||0).toLocaleString()+'<div class="mut sm">'+rate(c.clicks,c.sent)+'</div>';}},{h:'Unsubs',num:1,f:function(c){return String(c.unsubs||0);}},{h:'Bounces',num:1,f:function(c){return String(c.bounces||0);}}];
+  h+=card('Campaigns sent in the period','including broker blasts',tbl(cols,rows,{empty:'No campaigns sent in this period.'}));
+  h+=note('From the Email Studio. Opens and clicks are unique (one per recipient). Delivered = sent minus bounces. Rep, market and type filters don’t apply to campaigns.');
+  setCsv('campaigns','Campaign results',[['Campaign','name'],['Subject','subject'],['Started','started_at'],['Sent','sent'],['Bounces','bounces'],['Delivered',function(c){return (c.sent||0)-(c.bounces||0);}],['Unique opens','opens'],['Unique clicks','clicks'],['Unsubscribes','unsubs']],rows);
+  return h; }
+function ownerContent(){
+  if(TAB==='campaigns') return rCampaigns();
+  if(OWN_ERR) return '<div class="card"><div class="cb"><div class="empty">'+esc(OWN_ERR)+'</div></div></div>';
+  if(!OWN) return '<div class="card"><div class="cb"><div class="empty">Building the report…</div></div></div>';
+  return ({gci:rGci,forecast:rForecast,receivables:rReceivables,pipeline:rPipeline,funnel:rFunnel,inventory:rInventory,buyers:rBuyers,scorecard:rScorecard,sources:rSources})[TAB]();
+}
+function ownerCtl(){
+  var r=periodRange(P.period); var asof=!!ASOF_TABS[TAB];
+  var f=OWN&&OWN.filters; var opt=function(v,l,sel){ return '<option value="'+esc(v)+'"'+(v===sel?' selected':'')+'>'+esc(l)+'</option>'; };
+  var h='<div class="ctlbar octl"><label class="olbl">Period</label><select id="o_period"'+(asof?' disabled title="This report is as of today"':'')+'>'+PERIODS.map(function(p){return opt(p[0],p[1],P.period);}).join('')+'</select>';
+  if(P.period==='custom'&&!asof) h+='<input type="date" id="o_from" value="'+esc(r[0])+'"><span class="mut">to</span><input type="date" id="o_to" value="'+esc(r[1])+'">';
+  h+='<span class="prange">'+(asof?('As of '+esc(dshort((OWN&&OWN.today)||ymd(new Date())))):(esc(dshort(r[0]))+' – '+esc(dshort(r[1]))))+'</span>';
+  if(TAB!=='campaigns'){
+    h+='<label class="olbl">Rep</label><select id="o_rep">'+opt('','All reps',P.rep)+((f&&f.reps)||[]).map(function(x){return opt(x.username,x.name,P.rep);}).join('')+'</select>';
+    h+='<label class="olbl">Market</label><select id="o_market">'+opt('','All markets',P.market)+((f&&f.markets)||[]).map(function(x){return opt(x,x,P.market);}).join('')+'</select>';
+    h+='<label class="olbl">Type</label><select id="o_type">'+opt('','All types',P.type)+((f&&f.types)||['Business sale','Asset sale','Tenant rep','Landlord rep']).map(function(x){return opt(x,x,P.type);}).join('')+'</select>';
+  }
+  h+='<span class="oright"><button class="rbtn" id="o_csv" type="button">⬇ Export CSV</button><button class="rbtn" id="o_pdf" type="button">⎙ Print / PDF</button></span></div>';
+  return h; }
+function wireOwner(){
+  var g=function(id){ return document.getElementById(id); };
+  var on=function(id,fn){ var e=g(id); if(e) e.addEventListener('change',fn); };
+  on('o_period',function(){ P.period=g('o_period').value; if(P.period==='custom'){ var r=periodRange('ytd'); P.from=P.from||r[0]; P.to=P.to||r[1]; } loadOwner(); });
+  on('o_from',function(){ P.from=g('o_from').value; loadOwner(); }); on('o_to',function(){ P.to=g('o_to').value; loadOwner(); });
+  on('o_rep',function(){ P.rep=g('o_rep').value; loadOwner(); }); on('o_market',function(){ P.market=g('o_market').value; loadOwner(); }); on('o_type',function(){ P.type=g('o_type').value; loadOwner(); });
+  var c=g('o_csv'); if(c) c.onclick=exportCsv; var p=g('o_pdf'); if(p) p.onclick=function(){ window.print(); };
+}
+function syncUrl(){ try{ var u=new URL(location.href); u.search=''; u.searchParams.set('tab',TAB); if(isOwnerTab(TAB)){ if(P.period!=='ytd') u.searchParams.set('period',P.period); if(P.period==='custom'){ u.searchParams.set('from',P.from); u.searchParams.set('to',P.to); } ['rep','market','type'].forEach(function(k){ if(P[k]) u.searchParams.set(k,P[k]); }); } else if(RANGE!==30) u.searchParams.set('days',RANGE); history.replaceState(null,'',u.toString()); }catch(e){} }
+function readUrl(){ try{ var q=new URLSearchParams(location.search); var t=q.get('tab'); if(t&&(isOwnerTab(t)||['overview','leads','dataroom','team'].indexOf(t)>=0)) TAB=t; if(q.get('period')) P.period=q.get('period'); P.from=q.get('from')||''; P.to=q.get('to')||''; ['rep','market','type'].forEach(function(k){ P[k]=q.get(k)||''; }); var d=parseInt(q.get('days'),10); if([7,30,90,365].indexOf(d)>=0) RANGE=d; }catch(e){} }
+var _ownSeq=0;
+function loadOwner(){ var r=periodRange(P.period); if(P.period==='custom'){ P.from=r[0]; P.to=r[1]; } OWN_ERR=''; var seq=++_ownSeq; OWN=OWN; render();
+  var qs='from='+encodeURIComponent(r[0])+'&to='+encodeURIComponent(r[1])+(P.rep?'&rep='+encodeURIComponent(P.rep):'')+(P.market?'&market='+encodeURIComponent(P.market):'')+(P.type?'&type='+encodeURIComponent(P.type):'');
+  fetch(API+'/api/reports/owner?'+qs,{credentials:'same-origin'}).then(function(x){ return x.json().then(function(j){ return {s:x.status,j:j}; }); }).then(function(x){ if(seq!==_ownSeq) return; if(!x.j||!x.j.ok){ OWN=null; OWN_ERR=(x.s===403)?'Reports are limited to administrators.':((x.j&&x.j.error)||'Could not build the report.'); } else OWN=x.j; render(); }).catch(function(){ if(seq!==_ownSeq) return; OWN_ERR='Could not reach the server.'; render(); });
+  if(TAB==='campaigns') loadCampaigns(); }
+function loadCampaigns(){ var r=periodRange(P.period); var days=Math.max(1,Math.ceil((Date.now()-new Date(r[0]+'T00:00:00').getTime())/864e5)); CAMP=null; CAMP_ERR='';
+  fetch(API+'/api/mail/campaigns?days='+days,{credentials:'same-origin'}).then(function(x){ return x.json().then(function(j){ return {s:x.status,j:j}; }); }).then(function(x){ if(x.s===503||!x.j||!x.j.ok){ CAMP_ERR=(x.s===503)?'Campaign results need the Email Studio — it isn’t connected on this server (no mailing database).':((x.j&&x.j.error)||'Could not load campaigns.'); } else { var to=r[1]; CAMP=(x.j.campaigns||[]).filter(function(c){ var d=String(c.started_at||c.created_at||'').slice(0,10); return !d||(d>=r[0]&&d<=to); }); } if(TAB==='campaigns') render(); }).catch(function(){ CAMP_ERR='Could not reach the server.'; if(TAB==='campaigns') render(); }); }
+function printHead(){ var r=periodRange(P.period); var asof=!!ASOF_TABS[TAB]; var org=ORG||{}; var f=[]; if(P.rep&&OWN){ var rr=(OWN.filters.reps||[]).filter(function(x){return x.username===P.rep;})[0]; f.push('Rep: '+(rr?rr.name:P.rep)); } if(P.market) f.push('Market: '+P.market); if(P.type) f.push('Type: '+P.type);
+  return '<div class="phead">'+(LOGO?('<img src="'+esc(LOGO)+'" alt="">'):'')+'<div><div class="pfirm">'+esc(org.legalName||org.name||'')+'</div><div class="paddr">'+esc([org.address,[org.city,org.state].filter(Boolean).join(', '),org.zip,org.phone].filter(Boolean).join(' · '))+'</div></div><div class="pt"><div class="ptt">'+esc(TAB_TITLES[TAB]||'Report')+'</div><div class="ptr">'+(isOwnerTab(TAB)?(asof?('As of '+esc(dshort((OWN&&OWN.today)||ymd(new Date())))):(esc(dshort(r[0]))+' – '+esc(dshort(r[1])))):('Last '+RANGE+' days'))+(f.length?(' · '+esc(f.join(' · '))):'')+'</div><div class="ptr">Generated '+esc(new Date().toLocaleString())+'</div></div></div>'; }
+
 function render(){
-  var root=document.getElementById('root');
-  if(!DATA){ root.innerHTML=ctlbar()+'<div class="empty">Loading\u2026</div>'; wireCtl(); return; }
-  root.innerHTML=ctlbar()+tabbar()+tabContent(); wireCtl();
+  var root=document.getElementById('root'); syncUrl();
+  if(isOwnerTab(TAB)){ root.innerHTML=printHead()+ownerCtl()+tabbar()+ownerContent(); wireOwner(); wireTabs(); return; }
+  if(!DATA){ root.innerHTML=printHead()+ctlbar()+tabbar()+'<div class="card"><div class="cb"><div class="empty">Loading…</div></div></div>'; wireCtl(); return; }
+  root.innerHTML=printHead()+ctlbar()+tabbar()+tabContent(); wireCtl();
 }
 function tabbar(){
-  var tabs=[['overview','Overview'],['leads','Leads & Activity'],['dataroom','Data Room'],['team','Team & Usage']];
-  return '<div class="rtabs">'+tabs.map(function(t){ return '<button type="button" class="rtab'+(TAB===t[0]?' on':'')+'" data-tab="'+t[0]+'">'+esc(t[1])+'</button>'; }).join('')+'</div>';
+  return '<div class="rtabs">'+TAB_GROUPS.map(function(g){ return '<span class="rtgl">'+esc(g[0])+'</span>'+g[1].map(function(t){ return '<button type="button" class="rtab'+(TAB===t[0]?' on':'')+'" data-tab="'+t[0]+'">'+esc(t[1])+'</button>'; }).join(''); }).join('')+'</div>';
 }
+function wireTabs(){ document.querySelectorAll('[data-tab]').forEach(function(b){ b.addEventListener('click',function(){ var was=TAB; TAB=b.getAttribute('data-tab'); if(isOwnerTab(TAB)){ if(!OWN&&!OWN_ERR) loadOwner(); else if(TAB==='campaigns'&&!CAMP&&!CAMP_ERR) { loadCampaigns(); render(); } else render(); } else { if(!DATA) load(); else render(); } }); }); }
 function tabContent(){
   if(TAB==='dataroom'){ return INS?(docActivityCard(INS.rooms)+buyerEngCard(INS.rooms)):'<div class="card"><div class="cb"><div class="empty">Loading data-room insights\u2026</div></div></div>'; }
   if(TAB==='team'){ return INS?usageCard(INS.usage):'<div class="card"><div class="cb"><div class="empty">Loading usage insights\u2026</div></div></div>'; }
@@ -187,7 +380,7 @@ function tabContent(){
     +'<div class="card"><div class="ch"><b>Leads generated over time</b><span>new contacts added per day</span></div><div class="cb">'+leadsChart(DATA.leadsSeries)+'</div></div>'
     +'<div class="card"><div class="ch"><b>Full lists</b><span>open the complete book; filter and export from there</span></div><div class="cb"><a class="linkbtn" href="./rrg_people.html">◑ All contacts →</a><a class="linkbtn" href="./rrg_companies.html">▦ All companies →</a><a class="linkbtn" href="./rrg_agreements.html">⚖︎ Agreements →</a></div></div>';
 }
-function wireCtl(){ document.querySelectorAll('[data-r]').forEach(function(b){ b.addEventListener('click',function(){ RANGE=parseInt(b.getAttribute('data-r'),10); load(); }); }); document.querySelectorAll('[data-tab]').forEach(function(b){ b.addEventListener('click',function(){ TAB=b.getAttribute('data-tab'); render(); }); }); }
+function wireCtl(){ document.querySelectorAll('[data-r]').forEach(function(b){ b.addEventListener('click',function(){ RANGE=parseInt(b.getAttribute('data-r'),10); load(); }); }); wireTabs(); var pp=document.getElementById('a_pdf'); if(pp) pp.onclick=function(){ window.print(); }; }
 function load(){
   var root=document.getElementById('root');
   var prev=root.innerHTML; render();
@@ -198,7 +391,10 @@ function load(){
     fetch(API+'/api/reports/insights?days='+RANGE,{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(k){ if(k&&k.ok){ INS=k; render(); } }).catch(function(){});
   }).catch(function(){ root.innerHTML='<div class="gate">Could not reach the server.</div>'; });
 }
-load();
+readUrl();
+fetch(API+'/api/admin/org',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok) ORG=j.org||null; }).catch(function(){});
+fetch(API+'/api/brand',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok) LOGO=j.logoUrl||''; }).catch(function(){});
+if(isOwnerTab(TAB)) loadOwner(); else load();
 </script>
 <script src="/rrg_features.js"></script>
 </body>
