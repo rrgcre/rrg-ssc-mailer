@@ -985,6 +985,23 @@ function mount(app, deps) {
     if (!r.rowCount) return res.status(404).json({ ok: false, error: 'That scheduled send was not found (it may have already sent or been canceled).' });
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
+  // Why sends failed — grouped by the error SES (or the suppression check) returned.
+  app.get('/api/mail/campaigns/:id/failures', requireAdmin, guard, async (req, res) => { try {
+    const id = Number(req.params.id);
+    const rows = (await q(`SELECT COALESCE(NULLIF(error,''),'(no reason recorded)') AS error, count(*)::int AS n, min(email) AS sample FROM mm_sends WHERE tenant=$1 AND campaign_id=$2 AND status='failed' GROUP BY 1 ORDER BY 2 DESC LIMIT 12`, [TENANT, id])).rows;
+    res.json({ ok: true, reasons: rows.map(r => ({ error: r.error, count: r.n, sample: r.sample })), total: rows.reduce((a, r) => a + r.n, 0) });
+  } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
+  // Re-queue failed sends (never suppressed addresses — opt-outs, bounces, complaints stay blocked) and resume sending.
+  app.post('/api/mail/campaigns/:id/retry-failed', requireAdmin, guard, async (req, res) => { try {
+    const id = Number(req.params.id);
+    const c = (await q('SELECT id,status FROM mm_campaigns WHERE tenant=$1 AND id=$2', [TENANT, id])).rows[0]; if (!c) return res.status(404).json({ ok: false, error: 'Not found.' });
+    if (c.status === 'sending') return res.status(409).json({ ok: false, error: 'This campaign is sending right now.' });
+    if (!sesConfigured()) return res.status(400).json({ ok: false, error: 'Sending isn\u2019t configured (SES).' });
+    const r = await q(`UPDATE mm_sends SET status='pending', error=NULL WHERE tenant=$1 AND campaign_id=$2 AND status='failed' AND COALESCE(error,'')<>'suppressed' RETURNING id`, [TENANT, id]);
+    const n = r.rowCount || 0; if (!n) return res.json({ ok: true, requeued: 0 });
+    await q(`UPDATE mm_campaigns SET failed=GREATEST(0,failed-$2), status='sending', finished_at=NULL WHERE id=$1`, [id, n]);
+    kickDrainer(); res.json({ ok: true, requeued: n });
+  } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.get('/api/mail/campaigns/:id/export', requireAdmin, guard, async (req, res) => { try {
     const c = (await q('SELECT name FROM mm_campaigns WHERE tenant=$1 AND id=$2', [TENANT, Number(req.params.id)])).rows[0]; if(!c) return res.status(404).json({ ok:false, error:'Not found.' });
     const rows = (await q(`SELECT email,status,sent_at,opened_at,clicked_at,COALESCE(click_count,0) AS clicks FROM mm_sends WHERE tenant=$1 AND campaign_id=$2 ORDER BY id`, [TENANT, Number(req.params.id)])).rows;

@@ -432,9 +432,9 @@ function loadCampaigns(){
       columns:[
         { label:'Campaign / Subject', sort:function(a,b){ return RRGList.cmp((a.name||'').toLowerCase(),(b.name||'').toLowerCase()); }, cell:campNameCell },
         { label:'Audience', sort:function(a,b){ return RRGList.cmp(_audLabel(a),_audLabel(b)); }, cell:function(c){ return '<span style="font-size:12.5px;">'+esc(_audLabel(c))+'</span>'; } },
-        { label:'Status', sort:function(a,b){ return RRGList.cmp(a.status,b.status); }, cell:function(c){ return '<span class="pill '+esc(c.status)+'">'+esc(c.status)+'</span>'; } },
+        { label:'Status', sort:function(a,b){ return RRGList.cmp(a.status,b.status); }, cell:function(c){ var f=Number(c.failed||0), sn=Number(c.sent||0); if(c.status==='sent'&&f>0&&sn===0) return '<span class="pill failed" style="background:#fdeceb;color:#a5352c;border-color:#f3c4bf">failed</span>'; return '<span class="pill '+esc(c.status)+'">'+esc(c.status)+'</span>'+((f>0&&c.status!=='sending')?('<div style="font-size:11px;color:#a5352c;font-weight:700;margin-top:3px">'+num(f)+' failed</div>'):''); } },
         { label:'Times sent', align:'right', sort:function(a,b){ return timesSent(a)-timesSent(b); }, cell:function(c){ var n=timesSent(c); return n?('<span style="font-variant-numeric:tabular-nums;font-weight:600;">'+num(n)+'</span>'):'<span style="color:var(--muted);">—</span>'; } },
-        { label:'Recipients', align:'right', sort:function(a,b){ return (a.total||a.sent||0)-(b.total||b.sent||0); }, cell:function(c){ return '<span style="font-variant-numeric:tabular-nums;">'+num(c.total||c.sent||0)+'</span>'; } },
+        { label:'Recipients', align:'right', sort:function(a,b){ return (a.total||a.sent||0)-(b.total||b.sent||0); }, cell:function(c){ var f=Number(c.failed||0); return '<span style="font-variant-numeric:tabular-nums;">'+num(c.total||c.sent||0)+'</span>'+((f>0||c.status==='sent')?('<div style="font-size:11px;color:'+(f?'#a5352c':'var(--muted)')+';font-variant-numeric:tabular-nums">'+num(c.sent||0)+' delivered to SES</div>'):''); } },
         { label:'Opens', align:'right', sort:function(a,b){ return rate(a,'opens')-rate(b,'opens'); }, cell:function(c){ return metricInline(c.opens,c.total||c.sent||0); } },
         { label:'Clicks', align:'right', sort:function(a,b){ return rate(a,'clicks')-rate(b,'clicks'); }, cell:function(c){ return '<span title="'+num(c.clicks)+' unique · '+num(c.clicks_total)+' total clicks">'+metricInline(c.clicks,c.total||c.sent||0)+'</span>'; } },
         { label:'Unsubs', align:'right', sort:function(a,b){ return (a.unsubs||0)-(b.unsubs||0); }, cell:function(c){ return metricInline(c.unsubs,c.total||c.sent||0); } },
@@ -1006,6 +1006,7 @@ function renderMonitor(){
   var c=EDIT;
   var h='<div class="card" id="campMonitor" data-cid="'+esc(c.id)+'"><div class="toolbar" style="justify-content:space-between"><h2 style="margin:0">'+esc(c.name)+' <span class="pill '+esc(c.status)+'">'+esc(c.status)+'</span></h2><button class="btn" id="backList">&larr; All campaigns</button></div>'+
     '<div class="tiles">'+tileM('Audience',c.total)+tileM('Sent',c.sent)+tileM('Failed',c.failed)+tileM('Opens',c.opens)+tileM('Clicks',c.clicks)+tileM('Total clicks',c.clicks_total)+tileM('Bounces',c.bounces)+tileM('Complaints',c.complaints)+tileM('Unsubs',c.unsubs)+'</div>'+
+    (Number(c.failed||0)>0?('<div id="failBox" style="border:1px solid #f3c4bf;background:#fdf3f2;border-radius:8px;padding:10px 12px;margin:10px 0"><b style="color:#a5352c">'+Number(c.failed).toLocaleString()+' of '+Number(c.total||0).toLocaleString()+' didn\u2019t send.</b> <span id="failWhy" style="color:#5b6472">Checking why…</span><div style="margin-top:8px"><button class="btn" id="retryFailed">Retry failed sends</button> <span class="msg" id="retryMsg"></span></div></div>'):'')+
     '<div class="pgs">Subject: '+esc(c.subject)+'</div>'+
     '<div class="toolbar">'+
       (c.status==='sending'?'<button class="btn" id="pauseBtn">Pause</button>':'')+
@@ -1014,6 +1015,8 @@ function renderMonitor(){
     '</div></div>';
   $('tabCamps').innerHTML=h;
   $('backList').onclick=function(){ EDIT=null; stopPoll(); loadCampaigns(); loadStats(); };
+  if($('failWhy')) api('GET','/api/mail/campaigns/'+c.id+'/failures').then(function(j){ var w=$('failWhy'); if(!w) return; if(!j||!j.ok){ w.textContent=(j&&j.error)||'Could not load the reasons.'; return; } w.innerHTML=(j.reasons||[]).map(function(r){ return '<div style="margin-top:4px"><b>'+num(r.count)+'</b> \u2014 '+esc(r.error)+'</div>'; }).join('')||'No reason recorded.'; });
+  if($('retryFailed')) $('retryFailed').onclick=function(){ var b=this; var go=function(){ b.disabled=true; $('retryMsg').textContent='Re-queuing…'; api('POST','/api/mail/campaigns/'+c.id+'/retry-failed',{}).then(function(j){ if(j&&j.ok){ $('retryMsg').textContent=j.requeued?('Re-queued '+j.requeued.toLocaleString()+' \u2014 sending now.'):'Nothing to retry (suppressed addresses stay blocked).'; setTimeout(function(){ openCampaign(c.id); },1200); } else { b.disabled=false; $('retryMsg').textContent=(j&&j.error)||'Could not retry.'; } }); }; var msg='Retry '+Number(c.failed).toLocaleString()+' failed sends now? Fix the cause first (see the reasons above) or they will fail again. Opted-out and bounced addresses are never retried.'; if(window.rrgConfirm) rrgConfirm(msg).then(function(ok){ if(ok) go(); }); else if(confirm(msg)) go(); };
   if($('pauseBtn')) $('pauseBtn').onclick=function(){ api('POST','/api/mail/campaigns/'+c.id+'/pause',{}).then(function(){ openCampaign(c.id); }); };
   if($('resumeBtn')) $('resumeBtn').onclick=function(){ api('POST','/api/mail/campaigns/'+c.id+'/send',{}).then(function(){ openCampaign(c.id); }); };
   if(c.status==='sending'){
