@@ -7285,14 +7285,15 @@ app.post('/api/market/request-access', express.json(), (req, res) => {
   let name = String(b.name || '').trim().slice(0, 120); if (!name) name = (first + ' ' + last).trim();
   const email = String(b.email || '').trim().slice(0, 160);
   const phone = String(b.phone || '').trim().slice(0, 60);
-  const note = String(b.note || '').trim().slice(0, 1000);
+  let note = String(b.note || '').trim().slice(0, 1000);
   const company = String(b.company || '').trim().slice(0, 160);
   const experience = String(b.experience || '').trim().slice(0, 600);
   const linkedin = String(b.linkedin || '').trim().slice(0, 300);
   const qual = [company ? ('Company: ' + company) : '', experience ? ('Background: ' + experience) : '', linkedin ? ('LinkedIn: ' + linkedin) : ''].filter(Boolean).join(' · ');
   if (!name || !email) return res.status(400).json({ ok: false, error: 'Name and email are required.' });
-  // Under contract with a no-shop, or sold: don't take new buyer inquiries on this listing.
-  if (key) { try { const _d = assignmentsIndex()[key]; const _ov = loadAssignOverlay(); const _m = _ov[key] && _ov[key].market; if (_d && _m) { const _st = mktStatusOf(assignmentView(_d, _ov), _m); if (_st && _st.id === 'sold') return res.status(409).json({ ok: false, error: 'This listing has sold. Browse similar listings, or set up listing alerts.' }); if (_st && _st.noShop) return res.status(409).json({ ok: false, error: 'This listing is under contract and not taking new inquiries. Browse similar listings, or set up listing alerts.' }); } } catch (e) {} }
+  // Under contract (no-shop) or sold: still take the request — the buyer came to us, nothing is sent to them — but file it
+  // as a waitlist / similar-listings lead so the rep knows not to shop the deal.
+  if (key) { try { const _d = assignmentsIndex()[key]; const _ov = loadAssignOverlay(); const _m = _ov[key] && _ov[key].market; if (_d && _m) { const _st = mktStatusOf(assignmentView(_d, _ov), _m); const _tag = (_st && _st.id === 'sold') ? '[Sold — wants similar listings]' : ((_st && _st.noShop) ? '[Under contract, no-shop — waitlist only; do not market]' : ''); if (_tag) note = (_tag + ' ' + note).trim().slice(0, 1100); } } catch (e) {} }
   // Property listings (real estate) — record the inquiry on the property record.
   if (key.indexOf('prop_') === 0) {
     const arr = loadProperties(); const pr = arr.find(x => x.id === key);
@@ -10143,7 +10144,7 @@ var LOCK='<span class="lk"><svg viewBox="0 0 24 24"><rect x="4" y="11" width="16
 function askLabel(l){ return l.price||l.guide||(l.priceBand&&PB[l.priceBand])||''; }
 function hasBadges(l){ return !!(l.status||(l.promos&&l.promos.length)||l.flagLabel); }
 function wasHtml(l){ return l.was?('<span class="was">'+esc(l.was)+'</span>'):''; }
-function ctaHtml(l,cls,isRE,label){ if(l.status==='sold'||l.noShop) return '<button class="'+cls+'" data-sim="'+esc(l.conceptKey||'')+'" data-simre="'+(isRE?'1':'')+'">See similar &rarr;</button>'; return '<button class="'+cls+'" data-k="'+esc(l.id)+'"'+(isRE?' data-re="1"':'')+'>'+label+' &rarr;</button>'; }
+function ctaHtml(l,cls,isRE,label){ return '<button class="'+cls+'" data-k="'+esc(l.id)+'"'+(isRE?' data-re="1"':'')+'>'+label+' &rarr;</button>'; }
 function ribbonHtml(l){ return l.status?('<span class="stribbon" style="background:'+esc(l.statusColor||'#20334f')+'">'+esc(l.statusLabel)+'</span>'):''; }
 function cashLabel(l){ return l.sde||(l.cashBand&&CB[l.cashBand])||''; }
 // Parse a dollar figure out of a label like "$446K", "$3.4M", or a range "$2.75M - $3M" (low end). NaN if none.
@@ -10357,6 +10358,8 @@ function render(){
 var curKey='';
 function openReq(k,isRE){ curKey=k; var l=ALL.filter(function(x){return x.id===k;})[0]||{};
   document.getElementById('mvTitle').textContent=isRE?'Request information':'Request access';
+  var _wl=(l.status==='sold')?'sold':(l.noShop?'nsh':'');
+  if(_wl){ document.getElementById('mvSub').textContent=_wl==='sold'?'This one has sold. Leave your details and we\\'ll send you similar listings as they come to market.':'This one is under contract. Leave your details and we\\'ll let you know if it becomes available again.'; var _q2=document.getElementById('rQual'); if(_q2) _q2.style.display=isRE?'none':''; document.getElementById('rMsg').textContent=''; document.getElementById('ov').classList.add('on'); track('detail',[k]); return; }
   document.getElementById('mvSub').textContent=isRE?'Tell us who you are and we\\'ll send the full property package and set up a tour.':'Tell us who you are. We\\'ll follow up with an NDA and, once it\\'s signed, open the full offering and data room for this opportunity.';
   var _q=document.getElementById('rQual'); if(_q) _q.style.display=isRE?'none':'';
   document.getElementById('rMsg').textContent=''; document.getElementById('ov').classList.add('on'); track('detail',[k]);
