@@ -733,7 +733,7 @@ function spaceBox(){
   +'</div>';
 }
 // ---------- Publish to Marketplace (blind teaser lives on the listing) ----------
-var MKT=null; var MKT_FLAG_LBL={'':'None','new':'New','price':'New price'};
+var MKT=null; var MKT_FLAG_LBL={'':'None','new':'New','price':'Price Reduced'};
 // ---------- Financials snapshot + price history (the deal's top & bottom line) ----------
 function _lpNum(s){ s=String(s==null?'':s).trim(); if(/[–—]|\d\s*[-]\s*\d/.test(s)) return 0; /* a range/band — don't compute a misleading multiple */ var suf=(s.match(/([kmb])\s*$/i)||[])[1]; var mult=suf?({k:1e3,m:1e6,b:1e9})[suf.toLowerCase()]:1; var n=parseFloat(s.replace(/[^0-9.]/g,'')); return isFinite(n)?n*mult:0; }
 function _histRow(h,isOrig){
@@ -1062,6 +1062,16 @@ function cleanBand(text){
   if(nums.length>=2){ nums.sort(function(a,b){return a-b;}); var lo=nums[0], hi=nums[nums.length-1]; if(lo!==hi) return _bandFmt(lo,hi); }
   return _bandFromSingle(nums[0]);
 }
+// ---- Marketplace badges on this listing: status (auto from the pipeline, or manual) + promos that expire on their own ----
+function _mkPromo(t){ var P=(t&&t.promos&&typeof t.promos==='object')?t.promos:{}; if(t&&!t.promos&&t.flag){ P={}; P[t.flag]={on:true,at:t.flagAt||t.publishedAt||''}; } return P; }
+function _mkBadgeDef(id){ var b=((typeof MKT!=='undefined'&&MKT&&MKT.badges)||[]).filter(function(x){return x.id===id;})[0]; return b||{label:id==='new'?'New':'Price Reduced',days:30}; }
+function _mkEnds(p,def){ if(!p||!p.on||!p.at) return ''; var d=(p.days!=null&&p.days!=='')?+p.days:(+def.days||0); if(!d) return 'no end date'; var e=new Date(Date.parse(p.at)+d*864e5); if(isNaN(e)) return ''; return (e<new Date()?'ended ':'ends ')+e.toLocaleDateString('en-US',{month:'short',day:'numeric'}); }
+function _mkAutoHint(){ try{ var st=(A&&A.status)||'', tx=(A&&A.transaction&&A.transaction.status)||''; if(st==='Closed'||tx==='Closed') return ' (now: Sold)'; if(['Lost','No Deal'].indexOf(st)<0&&tx!=='Dead'&&(st==='Under Contract'||['Under Contract','Due Diligence','Financing','Closing'].indexOf(tx)>=0)) return ' (now: Under Contract)'; return ' (now: none)'; }catch(e){ return ''; } }
+function _mkStatusHtml(t){ var cur=(t&&t.statusMode)||'auto'; return '<div class="mkf"><label>Status badge</label><select class="mki" data-f="statusMode" title="Auto follows the pipeline: Under Contract while the deal is under contract, Sold once it closes (shows for the firm\'s set days, then drops off).">'+[['auto','Auto — from the pipeline'+_mkAutoHint()],['none','None'],['contract','Under Contract'],['sold','Sold']].map(function(o){ return '<option value="'+o[0]+'"'+(cur===o[0]?' selected':'')+'>'+esc(o[1])+'</option>'; }).join('')+'</select></div>'
+  +'<div class="mkf wide" style="flex-basis:100%"><label style="display:flex;align-items:flex-start;gap:7px;font-weight:600;font-size:12.5px;text-transform:none;letter-spacing:0;color:#26324a;cursor:pointer"><input type="checkbox" class="mki" data-f="backupOk"'+((t&&t.backupOk)?' checked':'')+' style="margin-top:2px"> <span>Contract allows backup offers<span style="display:block;font-weight:500;font-size:11.5px;color:#8a93a8">While under contract: on = shows \u201cAccepting backup offers\u201d and keeps Request access open. Off (no-shop) = the badge only, and buyers can\u2019t send new inquiries.</span></span></label></div>'; }
+function _mkPromoHtml(t){ var P=_mkPromo(t); return [['new','promoNew'],['price','promoPrice']].map(function(x){ var id=x[0],f=x[1],p=P[id]||{},def=_mkBadgeDef(id); var ends=_mkEnds(p,def);
+    return '<div class="mkf wide" style="flex-basis:100%"><label>'+esc(def.label)+' badge</label><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><label style="display:flex;align-items:center;gap:5px;font-weight:600;font-size:12.5px;text-transform:none;letter-spacing:0;margin:0;color:#26324a"><input type="checkbox" class="mki" data-f="'+f+'"'+(p.on?' checked':'')+'> On</label><input class="mki" data-f="'+f+'Days" type="number" min="1" max="365" value="'+esc(p.days!=null?p.days:'')+'" placeholder="'+(def.days||'')+' days" style="width:86px" title="How many days it shows — blank = firm default"><span style="font-size:11px;color:#8a93a8;white-space:nowrap">'+esc(ends)+'</span></div></div>'; }).join('')
+  +'<div class="mkf wide" style="flex-basis:100%"><label>Was (strike-through)</label><input class="mki" data-f="promoPriceWas" value="'+esc((P.price&&P.price.was)||'')+'" placeholder="Fills itself when you lower the price"></div>'; }
 function fillMarketplaceCard(){
   var body=document.getElementById('mktBody'); if(!body||!MKT) return;
   var L=MKT.listing||{}, t=L.teaser||{}, sg=L.suggest||{};
@@ -1116,7 +1126,8 @@ function fillMarketplaceCard(){
     +'<div class="mkrow">'
       +'<div class="mkf"><label>Market</label><select class="mki" data-f="marketKey">'+_mkOpts(MKT.metros,v('marketKey',sg.marketKey||'Other'),'')+'</select></div>'
       +'<div class="mkf"><label>Location label</label><input class="mki" data-f="loc" value="'+esc(v('loc',sg.loc||''))+'" placeholder="e.g. San Antonio metro"></div>'
-      +'<div class="mkf"><label>Flag</label><select class="mki" data-f="flag">'+['','new','price'].map(function(k){return '<option value="'+k+'"'+(v('flag','')===k?' selected':'')+'>'+MKT_FLAG_LBL[k]+'</option>';}).join('')+'</select></div>'
+      +_mkStatusHtml(t)
+    +'</div><div class="mkrow">'+_mkPromoHtml(t)
     +'</div>'
     +'<div id="mkBizWrap">'
     +'<div class="mkrow">'
@@ -1198,7 +1209,7 @@ function _mkConceptIcon(o){
 function _mkPrevCard(pc,o,badge){
   var cells=[]; if(o.guide)cells.push(['Guide',o.guide]); if(o.sde)cells.push([o.earnBasis||'SDE',o.sde]); if(o.revenue)cells.push(['Revenue',o.revenue]);
   var metHtml=cells.length?cells.map(function(c){return '<div><div style="font-size:16px;font-weight:800;color:#000E31;font-variant-numeric:tabular-nums;letter-spacing:-.01em">'+esc(c[1])+'</div><div style="font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#8a93a8;margin-top:3px">'+esc(c[0])+'</div></div>';}).join(''):'<div><div style="font-size:15px;font-weight:800;color:#000E31">Under NDA</div><div style="font-size:9.5px;font-weight:800;text-transform:uppercase;color:#8a93a8;margin-top:3px">Financials on request</div></div>';
-  var badgeR=o.featured?'<span style="margin-left:auto;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#fbf6ec;background:#DA2B1F;border-radius:100px;padding:5px 12px">★ Featured</span>':(o.flag==='new'?'<span style="margin-left:auto;font-size:10px;font-weight:800;text-transform:uppercase;color:#1f8a5b">New</span>':(o.flag==='price'?'<span style="margin-left:auto;font-size:10px;font-weight:800;text-transform:uppercase;color:#b5791f">New price</span>':''));
+  var badgeR=o.featured?'<span style="margin-left:auto;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#fbf6ec;background:#DA2B1F;border-radius:100px;padding:5px 12px">★ Featured</span>':((o.statusMode==='sold'?false:o.promoNew)?'<span style="margin-left:auto;font-size:10px;font-weight:800;text-transform:uppercase;color:#1f8a5b">New</span>':((o.statusMode==='sold'?false:o.promoPrice)?'<span style="margin-left:auto;font-size:10px;font-weight:800;text-transform:uppercase;color:#b5791f">Price Reduced</span>':''));
   pc.className=''; pc.style.cssText='';
   pc.innerHTML='<div style="background:#fff;border:1px solid #e6e9f0;border-top:3px solid #000E31;border-radius:8px;box-shadow:0 6px 18px rgba(16,26,48,.09);padding:12px 16px;display:flex;flex-direction:column">'
     +'<div style="display:flex;align-items:center;gap:13px">'
@@ -1218,7 +1229,7 @@ function _mkPrevCard(pc,o,badge){
 function _mkPrevLedger(pc,o,badge){
   var ask=_mkGuideOf(o);
   var cb=(MKT&&MKT.cashBands)||{}; var cash=o.sde||(o.cashBand&&cb[o.cashBand])||'';
-  var status=o.featured?'<span class="req">Featured</span>':(o.flag==='new'?'<span class="req">New</span>':(o.flag==='price'?'<span class="req">New price</span>':'<span class="lk">—</span>'));
+  var status=o.featured?'<span class="req">Featured</span>':((o.statusMode==='sold'?false:o.promoNew)?'<span class="req">New</span>':((o.statusMode==='sold'?false:o.promoPrice)?'<span class="req">Price Reduced</span>':'<span class="lk">—</span>'));
   pc.className='mkpv-ledger'; pc.innerHTML='<table><thead><tr><th>Listing</th><th>Metro</th><th class="num">Cash flow</th><th class="num">Asking</th><th>Status</th><th></th></tr></thead><tbody><tr>'
   +'<td><div class="opw"><span class="cic">'+_mkConceptIcon(o)+'</span><div><div class="ey">'+esc(badge)+'</div><h4>'+esc(o.headline||'Confidential restaurant opportunity')+'</h4></div></div></td>'
   +'<td class="s">'+esc(o.marketKey||o.loc||'Texas')+'</td>'

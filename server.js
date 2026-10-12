@@ -6485,7 +6485,28 @@ const MKT_PRICE = { '': 'Any price', u1m: 'Under $1M', '1-3m': '$1M – $3M', '3
 const MKT_CASH = { '': 'Any cash flow', '250k': '$250K+ SDE', '500k': '$500K+ SDE', '1m': '$1M+ SDE' };
 const MKT_FLAGS = ['', 'new', 'price'];
 // Marketplace badges — admin-editable list; each badge auto-expires after N days (0 = stays until removed).
-const MKT_BADGES_DEFAULT = [ { id: 'new', label: 'New', days: 30, color: '#2f7a55' }, { id: 'price', label: 'New price', days: 14, color: '#b23a2c' } ];
+const MKT_BADGES_DEFAULT = [ { id: 'new', label: 'New', days: 30, color: '#2f7a55' }, { id: 'price', label: 'Price Reduced', days: 30, color: '#b23a2c' } ];
+// Status badges come from the pipeline (or a manual override on the listing) and stay until the status changes.
+// Sold listings keep showing SOLD for soldDays, then drop off /market on their own.
+const MKT_STATUS_DEFAULT = { contractLabel: 'Under Contract', contractColor: '#b5791f', backupNote: 'Accepting backup offers', soldLabel: 'Sold', soldColor: '#20334f', soldDays: 60 };
+function effMktStatus() { const s = loadSettings(); const c = (s.mktStatus && typeof s.mktStatus === 'object') ? s.mktStatus : {}; const o = Object.assign({}, MKT_STATUS_DEFAULT);
+  ['contractLabel', 'backupNote', 'soldLabel'].forEach(k => { if (typeof c[k] === 'string') o[k] = c[k].slice(0, 40); });
+  ['contractColor', 'soldColor'].forEach(k => { if (/^#[0-9a-f]{6}$/i.test(String(c[k] || ''))) o[k] = c[k]; });
+  const sd = parseInt(c.soldDays, 10); if (isFinite(sd) && sd >= 0 && sd <= 365) o.soldDays = sd; return o; }
+// Promo badges (New, Price Reduced …) per listing: { id: { on, at, days, was } }. Legacy single flag still reads.
+function mktPromosOf(m) { if (!m) return {}; if (m.promos && typeof m.promos === 'object') return m.promos; if (m.flag) { const x = {}; x[m.flag] = { on: true, at: m.flagAt || m.publishedAt || m.updatedAt || '' }; return x; } return {}; }
+function mktActivePromos(m) { const P = mktPromosOf(m), out = []; effMktBadges().forEach(b => { const p = P[b.id]; if (!p || !p.on) return; const days = (p.days != null && isFinite(+p.days)) ? +p.days : (+b.days || 0); const t = Date.parse(p.at || ''); const ends = (days > 0 && isFinite(t)) ? new Date(t + days * 864e5).toISOString() : ''; if (ends && Date.parse(ends) < Date.now()) return; out.push({ id: b.id, label: b.label, color: b.color, endsAt: ends, was: b.id === 'price' ? String(p.was || '') : '' }); }); return out; }
+const MKT_CONTRACT_TXN = ['Under Contract', 'Due Diligence', 'Financing', 'Closing'];
+function mktStatusOf(view, m) { const st = effMktStatus(); const mode = (m && m.statusMode) || 'auto'; if (mode === 'none') return null;
+  const txn = (view && view.transaction) || {}; let id = '';
+  if (mode === 'contract' || mode === 'sold') id = mode;
+  else if (view) { const closed = view.status === 'Closed' || txn.status === 'Closed'; const dead = ['Lost', 'No Deal'].indexOf(view.status) >= 0 || txn.status === 'Dead'; if (closed) id = 'sold'; else if (!dead && (view.status === 'Under Contract' || MKT_CONTRACT_TXN.indexOf(txn.status) >= 0)) id = 'contract'; }
+  if (!id) return null;
+  if (id === 'contract') return { id, label: st.contractLabel, color: st.contractColor, note: (m && m.backupOk) ? st.backupNote : '', noShop: !(m && m.backupOk) };
+  const soldAt = (m && m.soldAt) || txn.closedDate || (m && m.updatedAt) || '';
+  return { id, label: st.soldLabel, color: st.soldColor, soldAt: soldAt, note: '' }; }
+// Sold listings drop off the public marketplace soldDays after the sale.
+function mktSoldExpired(stat) { if (!stat || stat.id !== 'sold') return false; const d = effMktStatus().soldDays; const t = Date.parse(stat.soldAt || ''); if (!isFinite(t)) return false; return (Date.now() - t) > d * 864e5; }
 function _slugBadge(x) { return String(x || '').toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 24); }
 function cleanMktBadges(arr) {
   if (!Array.isArray(arr)) return null;
@@ -6545,7 +6566,18 @@ function mktClean(b, prev) {
   if (b.priceBand !== undefined) out.priceBand = (b.priceBand in MKT_PRICE) ? b.priceBand : '';
   if (b.cashBand !== undefined) out.cashBand = (b.cashBand in MKT_CASH) ? b.cashBand : '';
   if (b.reAvailable !== undefined) out.reAvailable = !!b.reAvailable;
-  if (b.flag !== undefined) out.flag = mktBadgeById(b.flag) ? b.flag : '';
+  if (b.flag !== undefined && b.promoNew === undefined && b.promoPrice === undefined) { const _f = mktBadgeById(b.flag) ? b.flag : ''; const _p = {}; if (_f) _p[_f] = { on: true, at: (mktPromosOf(prev)[_f] && mktPromosOf(prev)[_f].on && mktPromosOf(prev)[_f].at) || new Date().toISOString() }; out.promos = _p; out.flag = _f; }
+  // Promo badges: promoNew / promoPrice (+ …Days, promoPriceWas). Turning one on stamps its start date; days blank = firm default.
+  if (b.promoNew !== undefined || b.promoPrice !== undefined) {
+    const P = Object.assign({}, mktPromosOf(prev)); const nowIso = new Date().toISOString();
+    [['new', 'promoNew'], ['price', 'promoPrice']].forEach(function (pr) { const id = pr[0], f = pr[1]; if (b[f] === undefined) return; const was = P[id] || {}; const on = !!b[f];
+      const dRaw = b[f + 'Days']; const dN = parseInt(dRaw, 10); const days = (dRaw === '' || dRaw == null || !isFinite(dN)) ? null : Math.max(1, Math.min(365, dN));
+      P[id] = { on: on, at: on ? ((was.on && was.at) ? was.at : nowIso) : '', days: days };
+      if (id === 'price') P[id].was = s(b.promoPriceWas != null ? b.promoPriceWas : (was.was || ''), 40); });
+    out.promos = P; const first = ['new', 'price'].find(function (k) { return P[k] && P[k].on; }); out.flag = first || ''; }
+  if (b.backupOk !== undefined) out.backupOk = !!b.backupOk;   // contract allows shopping for backup offers (default: no — many LOIs/PSAs carry a no-shop)
+  if (b.statusMode !== undefined) out.statusMode = (['auto', 'none', 'contract', 'sold'].indexOf(b.statusMode) >= 0) ? b.statusMode : 'auto';
+  if (b.soldAt !== undefined) out.soldAt = /^\d{4}-\d{2}-\d{2}/.test(String(b.soldAt || '')) ? String(b.soldAt).slice(0, 10) : '';
   if (b.icon !== undefined) out.icon = MKT_ICON_BY[b.icon] ? b.icon : '';
   // Listing kind + real-estate attributes. kind '' means auto-derive from the listing's saleLane at teaser time.
   if (b.kind !== undefined) out.kind = (MKT_KINDS.indexOf(b.kind) >= 0) ? b.kind : '';
@@ -6581,7 +6613,10 @@ function mktTeaser(key, view, m) {
   const _unitN = _siteN > 0 ? _siteN : (parseInt(m.units, 10) || 0);
   const units = (_unitN > 1) ? (' · ' + _unitN + ' units') : '';
   const badge = ((m.conceptType || m.conceptKey || 'Restaurant') + (m.reAvailable ? ' · RE available' : units)).trim();
-  const ab = mktActiveBadge(m);
+  const stat = mktStatusOf(view, m);
+  const promos = (stat && stat.id === 'sold') ? [] : mktActivePromos(m);
+  const ab = stat ? { id: stat.id, label: stat.label, color: stat.color } : (promos[0] || null);
+  const _pr = promos.find(function (p) { return p.id === 'price'; });
   const kind = _teaserKind(m, view);
   const isRE = (kind !== 'business');   // asset / lease / sale are openly marketed on the property side (photos + area)
   // Public cover photo — only for openly-marketed real estate; blind business/asset listings never expose imagery.
@@ -6606,7 +6641,9 @@ function mktTeaser(key, view, m) {
     // real-estate attributes (present when the rep fills them in)
     propType: m.propType || '', addr: isRE ? (m.addr || '') : '', rate: m.rate || '', term: m.term || '', cap: m.cap || '', lot: m.lot || '', sf: m.sf || '', ffe: m.ffe || '', price: isRE ? (m.price || '') : '',
     photo: photo, lat: plat, lng: plng,
-    flag: ab ? ab.id : '', flagLabel: ab ? ab.label : '', flagColor: ab ? ab.color : '', featured: !!m.featured, publishedAt: m.publishedAt || '', icon: m.icon || ''
+    flag: ab ? ab.id : '', flagLabel: ab ? ab.label : '', flagColor: ab ? ab.color : '', featured: !!m.featured, publishedAt: m.publishedAt || '', icon: m.icon || '',
+    noShop: !!(stat && stat.noShop), status: stat ? stat.id : '', statusLabel: stat ? stat.label : '', statusColor: stat ? stat.color : '', statusNote: stat ? (stat.note || '') : '',
+    promos: promos.map(function (p) { return { id: p.id, label: p.label, color: p.color }; }), was: _pr ? _pr.was : ''
   };
 }
 function mktPublicList() {
@@ -6615,7 +6652,7 @@ function mktPublicList() {
   Object.values(deals).forEach(d => {
     const o = overlay[d.key] || {}; const m = o.market;
     if (!m || !m.published) return;
-    try { out.push(mktTeaser(d.key, assignmentView(d, overlay), m)); } catch (e) {}
+    try { const _v = assignmentView(d, overlay); if (mktSoldExpired(mktStatusOf(_v, m))) return; out.push(mktTeaser(d.key, _v, m)); } catch (e) {}
   });
   // Admin-curated featured order (Settings → Marketplace, drag to reorder). Keys not listed fall to the end.
   const _fo = (loadSettings().featuredOrder || []); const _rank = {}; _fo.forEach((k, i) => { _rank[String(k)] = i; });
@@ -7169,6 +7206,17 @@ app.post('/api/assignment/:key/seller-report/send', express.json(), (req, res) =
   const msgs = { 'no-seller-email': 'No seller email on file — set the listing’s seller contact first.', 'unsubscribed': 'The seller’s email is unsubscribed.', 'email-not-configured': 'Email isn’t configured yet — set it up in Admin → Email.', 'not-found': 'Listing not found.', 'no-data': 'No listing data.', 'send-failed': 'The email could not be sent.' };
   res.json({ ok: false, error: (msgs[r && r.reason]) || 'Could not send the report.' });
 });
+app.get('/api/admin/market-badges', (req, res) => { res.json({ ok: true, badges: effMktBadges(), status: effMktStatus(), defaults: { badges: MKT_BADGES_DEFAULT, status: MKT_STATUS_DEFAULT } }); });
+app.post('/api/admin/market-badges', requireAdmin, express.json(), (req, res) => {
+  const b = req.body || {}; const s = loadSettings();
+  if (b.reset) { delete s.mktBadges; delete s.mktStatus; }
+  else {
+    if (Array.isArray(b.badges)) { const cur = effMktBadges(); const next = cur.map(function (x) { const y = b.badges.find(function (z) { return z && z.id === x.id; }); return y ? Object.assign({}, x, { label: String(y.label || x.label).slice(0, 40), color: /^#[0-9a-f]{6}$/i.test(String(y.color || '')) ? y.color : x.color, days: Math.max(0, Math.min(365, parseInt(y.days, 10) || 0)) }) : x; }); s.mktBadges = cleanMktBadges(next) || next; }
+    if (b.status && typeof b.status === 'object') { const st = Object.assign({}, effMktStatus()); ['contractLabel', 'backupNote', 'soldLabel'].forEach(function (k) { if (typeof b.status[k] === 'string') st[k] = b.status[k].trim().slice(0, 40); }); ['contractColor', 'soldColor'].forEach(function (k) { if (/^#[0-9a-f]{6}$/i.test(String(b.status[k] || ''))) st[k] = b.status[k]; }); const sd = parseInt(b.status.soldDays, 10); if (isFinite(sd)) st.soldDays = Math.max(0, Math.min(365, sd)); s.mktStatus = st; }
+  }
+  if (!saveSettings(s)) return res.status(500).json({ ok: false, error: 'Could not save.' });
+  res.json({ ok: true, badges: effMktBadges(), status: effMktStatus() });
+});
 app.post('/api/marketplace/:key', express.json(), (req, res) => {
   const key = req.params.key; const deals = assignmentsIndex(); const d = deals[key];
   if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
@@ -7180,6 +7228,9 @@ app.post('/api/marketplace/:key', express.json(), (req, res) => {
   m.updatedAt = now; if (m.published && !wasPub) m.publishedAt = now;
   const prevFlag = (cur.market && cur.market.flag) || '';
   if (m.flag && m.flag !== prevFlag) m.flagAt = now; else if (!m.flag) delete m.flagAt;
+  // Asking/guide lowered in this save → Price Reduced turns on by itself, with the old figure kept for a strike-through.
+  try { const pm = cur.market || {}; const num = function (x) { const mm = String(x || '').replace(/,/g, '').match(/([0-9]+(?:\.[0-9]+)?)\s*([kKmM])?/); if (!mm) return NaN; let n = parseFloat(mm[1]); const u = (mm[2] || '').toLowerCase(); if (u === 'k') n *= 1e3; if (u === 'm') n *= 1e6; return n; };
+    [['guide'], ['price']].forEach(function (f) { f = f[0]; const a = num(pm[f]), z = num(m[f]); if (pm[f] && m[f] && isFinite(a) && isFinite(z) && z < a) { const P = Object.assign({}, mktPromosOf(m)); const cp = P.price || {}; P.price = { on: true, at: (cp.on && cp.at) ? cp.at : now, days: cp.days == null ? null : cp.days, was: String(pm[f]).slice(0, 40) }; m.promos = P; if (!m.flag) m.flag = 'price'; } }); } catch (e) {}
   cur.market = m; overlay[key] = cur; saveAssignOverlay(overlay);
   let _matched = 0; if (m.published) { try { _matched = runBuyerMatchPush(key, req); } catch (e) {} }
   res.json({ ok: true, teaser: m, matched: _matched });
@@ -7240,6 +7291,8 @@ app.post('/api/market/request-access', express.json(), (req, res) => {
   const linkedin = String(b.linkedin || '').trim().slice(0, 300);
   const qual = [company ? ('Company: ' + company) : '', experience ? ('Background: ' + experience) : '', linkedin ? ('LinkedIn: ' + linkedin) : ''].filter(Boolean).join(' · ');
   if (!name || !email) return res.status(400).json({ ok: false, error: 'Name and email are required.' });
+  // Under contract with a no-shop, or sold: don't take new buyer inquiries on this listing.
+  if (key) { try { const _d = assignmentsIndex()[key]; const _ov = loadAssignOverlay(); const _m = _ov[key] && _ov[key].market; if (_d && _m) { const _st = mktStatusOf(assignmentView(_d, _ov), _m); if (_st && _st.id === 'sold') return res.status(409).json({ ok: false, error: 'This listing has sold. Browse similar listings, or set up listing alerts.' }); if (_st && _st.noShop) return res.status(409).json({ ok: false, error: 'This listing is under contract and not taking new inquiries. Browse similar listings, or set up listing alerts.' }); } } catch (e) {} }
   // Property listings (real estate) — record the inquiry on the property record.
   if (key.indexOf('prop_') === 0) {
     const arr = loadProperties(); const pr = arr.find(x => x.id === key);
@@ -9892,6 +9945,7 @@ td.r{text-align:right;}
 .cdot i{width:9px;height:9px;border-radius:2px;flex:none;}
 .mk2{color:var(--slate);font-weight:600;white-space:nowrap;}
 .pill{display:inline-block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;border-radius:3px;padding:4px 8px;white-space:nowrap;}
+.pills{display:inline-flex;flex-wrap:wrap;gap:4px;align-items:center;} .pill.solid{color:#fff!important;} .stnote{display:block;font-size:10.5px;font-weight:600;color:#8a5a12;margin-top:3px;white-space:nowrap;} .was{color:#8a93a8;text-decoration:line-through;font-weight:600;font-size:.82em;margin-right:5px;} tr.sold td,.sold-card{opacity:.82;} .stribbon{position:absolute;top:10px;right:10px;z-index:2;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#fff;border-radius:3px;padding:5px 10px;box-shadow:0 2px 6px rgba(0,0,0,.18);} .rph,.rfph{position:relative;}
 .lnum{font-weight:700;color:var(--slate);} .lask{font-weight:800;color:var(--navy);font-size:14px;} .dash{color:var(--soft);font-weight:600;}
 .actlink{border:none;background:none;color:var(--primary);font:inherit;font-size:12px;font-weight:700;cursor:pointer;padding:4px 0;white-space:nowrap;}
 .actlink:hover{text-decoration:underline;color:var(--primary-d);}
@@ -10088,6 +10142,9 @@ function cc(c){return CC[c]||'#2c6a8f';}
 function svgIcon(l,cls){ var p=(l.icon&&ICON[l.icon])?ICON[l.icon]:'<path d="M6 3v8M9 3v8M7.5 11v10"/><path d="M16 3c-1.5 1.5-1.5 6 0 7v11"/>'; return '<svg class="'+(cls||'')+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">'+p+'</svg>'; }
 var LOCK='<span class="lk"><svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>';
 function askLabel(l){ return l.price||l.guide||(l.priceBand&&PB[l.priceBand])||''; }
+function wasHtml(l){ return l.was?('<span class="was">'+esc(l.was)+'</span>'):''; }
+function ctaHtml(l,cls,isRE,label){ if(l.status==='sold'||l.noShop) return '<button class="'+cls+'" data-sim="'+esc(l.conceptKey||'')+'" data-simre="'+(isRE?'1':'')+'">See similar &rarr;</button>'; return '<button class="'+cls+'" data-k="'+esc(l.id)+'"'+(isRE?' data-re="1"':'')+'>'+label+' &rarr;</button>'; }
+function ribbonHtml(l){ return l.status?('<span class="stribbon" style="background:'+esc(l.statusColor||'#20334f')+'">'+esc(l.statusLabel)+'</span>'):''; }
 function cashLabel(l){ return l.sde||(l.cashBand&&CB[l.cashBand])||''; }
 // Parse a dollar figure out of a label like "$446K", "$3.4M", or a range "$2.75M - $3M" (low end). NaN if none.
 function _mkNum(s){ s=String(s==null?'':s); var m=s.match(/([0-9][0-9.,]*)\s*([kKmM])?/); if(!m) return NaN; var n=parseFloat(m[1].replace(/,/g,'')); if(isNaN(n)) return NaN; var u=(m[2]||'').toLowerCase(); if(!u){ var m2=s.match(/[kKmM]/); if(m2) u=m2[0].toLowerCase(); } if(u==='k') n*=1e3; else if(u==='m') n*=1e6; return n; }
@@ -10097,44 +10154,46 @@ function cashPass(l,band){ if(!band) return true; var n=_mkNum(cashLabel(l)); if
 function askPass(l,band){ if(!band) return true; var n=_mkNum(askLabel(l)); if(isNaN(n)) return l.priceBand===band; if(band==='u1m') return n<1000000; if(band==='1-3m') return n>=1000000&&n<3000000; if(band==='3-5m') return n>=3000000&&n<5000000; if(band==='5m+') return n>=5000000; return true; }
 
 // ---------- businesses (blind) ----------
-function statusPill(l){ if(l.flagLabel){var c=l.flagColor||'#1f6b46';return '<span class="pill" style="background:'+c+'18;color:'+c+';border:1px solid '+c+'55">'+esc(l.flagLabel)+'</span>';} return l.featured?'<span class="pill" style="background:var(--bluebg);color:var(--navy);border:1px solid #cfe0f2">Featured</span>':'<span class="dash">&mdash;</span>'; }
+function _pillHtml(lbl,c,solid){ return '<span class="pill'+(solid?' solid':'')+'" style="'+(solid?('background:'+c+';border:1px solid '+c):('background:'+c+'18;color:'+c+';border:1px solid '+c+'55'))+'">'+esc(lbl)+'</span>'; }
+function statusPill(l){ if(l.status||(l.promos&&l.promos.length)){ var h=''; if(l.status) h+=_pillHtml(l.statusLabel,l.statusColor||'#20334f',true); (l.promos||[]).forEach(function(p){ h+=_pillHtml(p.label,p.color||'#2f7a55',false); }); return '<span class="pills">'+h+'</span>'+(l.status==='contract'&&l.statusNote?('<span class="stnote">'+esc(l.statusNote)+'</span>'):''); }
+  if(l.flagLabel){var c=l.flagColor||'#1f6b46';return '<span class="pill" style="background:'+c+'18;color:'+c+';border:1px solid '+c+'55">'+esc(l.flagLabel)+'</span>';} return l.featured?'<span class="pill" style="background:var(--bluebg);color:var(--navy);border:1px solid #cfe0f2">Featured</span>':'<span class="dash">&mdash;</span>'; }
 function bizRow(l){
   var cash=cashLabel(l), ask=askLabel(l);
-  return '<tr class="'+(l.featured?'feat':'')+'">'
+  return '<tr class="'+(l.featured?'feat':'')+(l.status==='sold'?' sold':'')+'">'
     +'<td><div class="lcell"><span class="thumb ico" title="'+esc(l.conceptKey||l.badge||'Restaurant')+'">'+svgIcon(l,'')+'</span>'
       +'<div><div class="biz">'+esc(l.headline)+'</div><div class="bmeta">'+esc(l.badge||'Restaurant')+'</div></div></div></td>'
     +'<td class="mk2">'+esc(l.marketKey||l.loc||'Texas')+'</td>'
     +'<td class="hide"><span class="mk2">'+esc(l.conceptKey||l.badge||'Restaurant')+'</span></td>'
     +'<td class="r hide">'+(cash?'<span class="lnum num">'+esc(cash)+'</span>':'<span class="dash">&mdash;</span>')+'</td>'
-    +'<td class="r">'+(ask?'<span class="lask num">'+esc(ask)+'</span>':'<span class="dash">Under NDA</span>')+'</td>'
+    +'<td class="r">'+(ask?(wasHtml(l)+'<span class="lask num">'+esc(ask)+'</span>'):'<span class="dash">Under NDA</span>')+'</td>'
     +'<td>'+statusPill(l)+'</td>'
-    +'<td class="r"><button class="actlink" data-k="'+esc(l.id)+'">Request access &rarr;</button></td></tr>';
+    +'<td class="r">'+ctaHtml(l,'actlink',false,'Request access')+'</td></tr>';
 }
 function featRow(l){
   var cash=cashLabel(l), ask=askLabel(l), chips=[];
   if(l.revenue) chips.push('<span class="fchip">Revenue <b>'+esc(l.revenue)+'</b></span>');
   if(cash) chips.push('<span class="fchip mcash" style="display:none">'+esc(l.earnBasis||'SDE')+' <b>'+esc(cash)+'</b></span>');
   chips.push('<span class="fchip lockc"><svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Blind until NDA</span>');
-  var st=l.flagLabel?statusPill(l):'<span class="dash">&mdash;</span>';
+  var st=(l.flagLabel||l.status||(l.promos&&l.promos.length))?statusPill(l):'<span class="dash">&mdash;</span>';
   return '<tr class="frow">'
     +'<td><div class="lcell"><span class="thumb ico" title="'+esc(l.conceptKey||l.badge||'Restaurant')+'">'+svgIcon(l,'')+'</span>'
       +'<div><div class="frib">&#9733; Featured</div><div class="biz">'+esc(l.headline)+'</div><div class="bmeta">'+esc(l.badge||'Restaurant')+'</div><div class="fchips">'+chips.join('')+'</div></div></div></td>'
     +'<td class="mk2">'+esc(l.marketKey||l.loc||'Texas')+'</td>'
     +'<td class="hide"><span class="mk2">'+esc(l.conceptKey||l.badge||'Restaurant')+'</span></td>'
     +'<td class="r hide">'+(cash?('<div class="fbig num">'+esc(cash)+'</div><div class="fsub">'+esc(l.earnBasis||'SDE')+'</div>'):'<span class="dash">&mdash;</span>')+'</td>'
-    +'<td class="r">'+(ask?('<div class="fbig num">'+esc(ask)+'</div><div class="fsub">Guide</div>'):'<span class="dash">Under NDA</span>')+'</td>'
+    +'<td class="r">'+(ask?('<div class="fbig num">'+wasHtml(l)+esc(ask)+'</div><div class="fsub">Guide</div>'):'<span class="dash">Under NDA</span>')+'</td>'
     +'<td>'+st+'</td>'
-    +'<td class="r"><button class="fbtn actlink" data-k="'+esc(l.id)+'">Request access &rarr;</button></td></tr>';
+    +'<td class="r">'+ctaHtml(l,'fbtn actlink',false,'Request access')+'</td></tr>';
 }
 function featCard(l){
   var cash=cashLabel(l), ask=askLabel(l), mets=[];
-  if(ask) mets.push(['Guide',ask]); if(cash) mets.push([l.earnBasis||'SDE',cash]); if(l.revenue) mets.push(['Revenue',l.revenue]);
-  var metHtml=mets.length?mets.map(function(c){return '<div><div class="v num">'+esc(c[1])+'</div><div class="k">'+esc(c[0])+'</div></div>';}).join(''):'<div><div class="v">Under NDA</div><div class="k">Financials on request</div></div>';
-  return '<div class="fcard">'
-    +'<div class="ftop"><span class="med">'+svgIcon(l,'')+'</span><div class="floc">'+esc(l.marketKey||l.loc||'Texas')+'</div><span class="fribbon">&#9733; Featured</span></div>'
+  if(ask) mets.push(['Guide',ask,1]); if(cash) mets.push([l.earnBasis||'SDE',cash]); if(l.revenue) mets.push(['Revenue',l.revenue]);
+  var metHtml=mets.length?mets.map(function(c){return '<div><div class="v num">'+(c[2]?wasHtml(l):'')+esc(c[1])+'</div><div class="k">'+esc(c[0])+'</div></div>';}).join(''):'<div><div class="v">Under NDA</div><div class="k">Financials on request</div></div>';
+  return '<div class="fcard'+(l.status==='sold'?' sold-card':'')+'">'
+    +'<div class="ftop"><span class="med">'+svgIcon(l,'')+'</span><div class="floc">'+esc(l.marketKey||l.loc||'Texas')+'</div><span class="fribbon"'+(l.status?(' style="background:'+esc(l.statusColor||'#20334f')+'"'):'')+'>'+(l.status?esc(l.statusLabel):'&#9733; Featured')+'</span></div>'
     +'<h3>'+esc(l.headline)+'</h3><div class="fbadge">'+esc(l.badge||'Restaurant')+'</div>'
     +'<div class="fmet">'+metHtml+'</div>'
-    +'<div class="ffoot"><span class="flock"><svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Blind until NDA</span><button class="act" data-k="'+esc(l.id)+'">Request access &rarr;</button></div>'
+    +'<div class="ffoot"><span class="flock"><svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Blind until NDA</span>'+ctaHtml(l,'act',false,'Request access')+'</div>'
   +'</div>';
 }
 function renderBiz(){
@@ -10152,8 +10211,9 @@ function renderBiz(){
   var sv=document.getElementById('fSort').value;
   function askRank(l){ var m={u1m:1,'1-3m':2,'3-5m':3,'5m+':4}; return m[l.priceBand]||0; }
   list.sort(function(a,b){ if(sv==='price'){ return (askRank(b)-askRank(a))||String(b.publishedAt).localeCompare(String(a.publishedAt)); } return ((b.featured?1:0)-(a.featured?1:0))||(((a.featOrder==null?9999:a.featOrder))-((b.featOrder==null?9999:b.featOrder)))||String(b.publishedAt).localeCompare(String(a.publishedAt)); });
-  var feats=list.filter(function(l){return l.featured;});
-  var rest=list.filter(function(l){return !l.featured;});
+  list=list.filter(function(l){return l.status!=='sold';}).concat(list.filter(function(l){return l.status==='sold';}));
+  var feats=list.filter(function(l){return l.featured&&l.status!=='sold';});
+  var rest=list.filter(function(l){return !(l.featured&&l.status!=='sold');});
   // Featured listings sit in the same table as everything else — pinned to the top of page 1.
   var fb=document.getElementById('bizFeat'); if(fb){ fb.style.display='none'; fb.innerHTML=''; }
   var featHtml=feats.map(featRow).join('');
@@ -10195,28 +10255,29 @@ function reMetrics(l){
 }
 function reCard(l){
   var img=l.photo?('<img src="'+esc(l.photo)+'" alt="">'):svgIcon(l,'ico');
-  return '<div class="recard" data-id="'+esc(l.id)+'">'
-    +'<div class="rph"><span class="txn '+esc(l.kind)+'">'+esc(TXNLBL[l.kind]||'Listing')+'</span>'+(l.featured?'<span class="feat2">Featured</span>':'')+img+'</div>'
+  return '<div class="recard'+(l.status==='sold'?' sold-card':'')+'" data-id="'+esc(l.id)+'">'
+    +'<div class="rph"><span class="txn '+esc(l.kind)+'">'+esc(TXNLBL[l.kind]||'Listing')+'</span>'+(l.status?ribbonHtml(l):(l.featured?'<span class="feat2">Featured</span>':''))+img+'</div>'
     +'<div class="rd"><div class="rtype">'+esc(l.propType||l.badge||'Restaurant real estate')+'</div><h3>'+esc(l.headline)+'</h3>'
       +'<div class="addr">'+esc(l.addr||l.loc||l.marketKey||'Texas')+'</div>'
       +'<div class="rstats">'+reMetrics(l)+'</div>'
-      +'<div class="rfoot"><span class="adv"><b>'+esc(ORG)+'</b> Advisory</span><button class="act" data-k="'+esc(l.id)+'" data-re="1">Request info &rarr;</button></div>'
+      +'<div class="rfoot"><span class="adv"><b>'+esc(ORG)+'</b> Advisory</span>'+((l.promos&&l.promos.length&&!l.status)?statusPill(l):'')+ctaHtml(l,'act',true,'Request info')+'</div>'
     +'</div></div>';
 }
 function featCardRE(l){
   var img=l.photo?('<img src="'+esc(l.photo)+'" alt="">'):svgIcon(l,'ico');
   return '<div class="refcard" data-id="'+esc(l.id)+'">'
-    +'<div class="rfph"><span class="txn '+esc(l.kind)+'">'+esc(TXNLBL[l.kind]||'Listing')+'</span><span class="fribbon">&#9733; Featured</span>'+img+'</div>'
+    +'<div class="rfph"><span class="txn '+esc(l.kind)+'">'+esc(TXNLBL[l.kind]||'Listing')+'</span>'+(l.status?ribbonHtml(l):'<span class="fribbon">&#9733; Featured</span>')+img+'</div>'
     +'<div class="rfbody"><div class="rtype">'+esc(l.propType||l.badge||'Restaurant real estate')+'</div><h3>'+esc(l.headline)+'</h3>'
       +'<div class="addr">'+esc(l.addr||l.loc||l.marketKey||'Texas')+'</div>'
       +'<div class="rstats">'+reMetrics(l)+'</div>'
-      +'<div class="rfoot"><span class="adv"><b>'+esc(ORG)+'</b> Advisory</span><button class="act" data-k="'+esc(l.id)+'" data-re="1">Request info &rarr;</button></div>'
+      +'<div class="rfoot"><span class="adv"><b>'+esc(ORG)+'</b> Advisory</span>'+((l.promos&&l.promos.length&&!l.status)?statusPill(l):'')+ctaHtml(l,'act',true,'Request info')+'</div>'
     +'</div></div>';
 }
 function renderRE(){
   var list=RE.filter(function(l){ return reTxn==='all'||l.kind===reTxn; });
-  var feats=list.filter(function(l){return l.featured;});
-  var rest=list.filter(function(l){return !l.featured;});
+  list=list.filter(function(l){return l.status!=='sold';}).concat(list.filter(function(l){return l.status==='sold';}));
+  var feats=list.filter(function(l){return l.featured&&l.status!=='sold';});
+  var rest=list.filter(function(l){return !(l.featured&&l.status!=='sold');});
   var fb=document.getElementById('reFeat');
   if(feats.length){ fb.style.display=''; fb.innerHTML='<div class="fhdr"><h2>Featured Listings</h2><span class="ln"></span><span class="n">'+feats.length+' highlighted</span></div><div class="refeat">'+feats.map(featCardRE).join('')+'</div>'; }
   else { fb.style.display='none'; fb.innerHTML=''; }
@@ -10307,6 +10368,7 @@ function closeReq(){ document.getElementById('ov').classList.remove('on'); }
 function track(ev,keys){ try{ if(!keys||!keys.length) return; navigator.sendBeacon? navigator.sendBeacon('/api/market/track', new Blob([JSON.stringify({event:ev,keys:keys})],{type:'application/json'})) : fetch('/api/market/track',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({event:ev,keys:keys})}); }catch(e){} }
 
 document.addEventListener('click',function(e){
+  var sm=e.target.closest('[data-sim]'); if(sm){ var isRE=sm.getAttribute('data-simre')==='1'; setMode(isRE?'re':'biz'); if(!isRE){ var fc=document.getElementById('fConcept'), ck=sm.getAttribute('data-sim'); if(fc&&ck&&[].some.call(fc.options,function(o){return o.value===ck;})) fc.value=ck; var fm=document.getElementById('fMarket'); if(fm) fm.value=''; bizPage=1; renderBiz(); } var tg=document.getElementById(isRE?'mRe':'mBiz'); if(tg&&tg.scrollIntoView) tg.scrollIntoView({behavior:'smooth',block:'start'}); return; }
   var b=e.target.closest('[data-k]'); if(b){ openReq(b.getAttribute('data-k'), b.getAttribute('data-re')==='1'); return; }
 });
 document.querySelectorAll('.modeseg button').forEach(function(b){ b.addEventListener('click',function(){ setMode(b.getAttribute('data-m')); }); });

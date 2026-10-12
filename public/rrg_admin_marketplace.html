@@ -31,6 +31,7 @@ h1{font-size:20px;font-weight:700;color:var(--navy);margin:0 0 4px}
 .colors>div{text-align:center}
 .btnrow{display:flex;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap}
 .btn{background:var(--navy);color:#fff;border:none;border-radius:8px;padding:10px 18px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.bgtbl{width:100%;border-collapse:collapse;font-size:13px}.bgtbl th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#6b7488;padding:6px 8px;border-bottom:1px solid #e6e9f0}.bgtbl td{padding:7px 8px;border-bottom:1px solid #f1f3f8;vertical-align:middle}.bgtbl input[type=text]{width:100%;max-width:200px;border:1px solid #cfd6e2;border-radius:7px;padding:7px 9px;font:inherit;font-size:13px}.bgtbl input[type=number]{width:74px;border:1px solid #cfd6e2;border-radius:7px;padding:7px 9px;font:inherit;font-size:13px}.bgtbl input[type=color]{width:42px;height:32px;border:1px solid #cfd6e2;border-radius:7px;padding:2px;background:#fff;cursor:pointer}.bgtbl .lc{font-size:11.5px;color:#8a93a8}
 .btn.ghost{background:#eef1f6;color:#33415c;border:1px solid #dce2ec}
 .msg{font-size:12.5px;font-weight:600}.msg.ok{color:var(--green)}.msg.err{color:var(--red)}
 .note{font-size:12px;color:var(--soft);margin-top:12px;line-height:1.6}
@@ -71,6 +72,13 @@ function render(){
       +'<div class="btnrow"><button class="btn" id="foSave" disabled>Save order</button><span class="msg" id="foMsg"></span></div>'
       +'<div class="note">These are the listings you\'ve marked <b>Featured</b> (flip Featured on a listing\'s <b>Publish to Marketplace</b> panel to add one). Drag the handle to reorder — the order applies to both the Businesses and Real&nbsp;Estate featured bands. A newly featured listing lands at the end until you place it.</div>'
     +'</div></div>'
+    // Badges
+    +'<div class="card"><div class="ch"><b>Listing badges</b><span>— what buyers see on a listing card, and how long it lasts.</span></div><div class="cb">'
+      +'<table class="bgtbl"><thead><tr><th>Badge</th><th>Label</th><th>Color</th><th>Shows for</th></tr></thead><tbody id="bgRows"><tr><td colspan="4" class="foempty">Loading…</td></tr></tbody></table>'
+      +'<div class="fld" style="margin-top:12px"><label>Under Contract — line under the badge <span class="lc">(only on listings that allow backup offers; blank to hide)</span></label><input type="text" id="bgBackup" maxlength="40" placeholder="Accepting backup offers"></div>'
+      +'<div class="btnrow"><button class="btn" id="bgSave">Save badges</button><button class="btn ghost" id="bgReset">Reset to default</button><span class="msg" id="bgMsg"></span></div>'
+      +'<div class="note"><b>New</b> and <b>Price Reduced</b> are turned on per listing (its <b>Publish to Marketplace</b> panel) and drop off after their days — a rep can set different days on one listing. Lowering a listing\'s asking or guide price turns Price Reduced on by itself and keeps the old figure as a strike-through. <b>Under Contract</b> and <b>Sold</b> follow the pipeline: Under Contract while the deal is under contract, Sold once it closes. Under Contract listings stop taking new inquiries unless the listing is marked <b>Contract allows backup offers</b> — many LOIs and contracts carry a no-shop — and only then show the line below. A sold listing keeps its SOLD badge for the days you set, its button becomes <b>See similar</b>, then it drops off /market. A rep can override the status on the listing.</div>'
+    +'</div></div>'
     // Add to your website
     +'<div class="card"><div class="ch"><b>Add to your website</b><span>— link to your marketplace from any page on your site.</span></div><div class="cb">'
       +'<div class="fld"><label>Your public link</label><div class="eclink"><input type="text" id="ecUrl" readonly value="'+esc(PUB)+'"><button class="tbtn" id="ecCopyUrl">Copy link</button></div></div>'
@@ -101,9 +109,21 @@ function render(){
   document.getElementById('mhSave').addEventListener('click',saveHeader);
   document.getElementById('mhReset').addEventListener('click',resetHeader);
   var _fs=document.getElementById('foSave'); if(_fs) _fs.addEventListener('click',saveFeaturedOrder);
-  fetchFeatured();
+  fetchFeatured(); fetchBadges();
+  document.getElementById('bgSave').addEventListener('click',saveBadges);
+  document.getElementById('bgReset').addEventListener('click',function(){ _msg('bgMsg','Saving…'); _bgPost({reset:true}); });
 }
 var FEAT=[]; var _foDragIdx=-1;
+// ---- Listing badges ----
+function _bgRow(key,name,label,color,days,daysNote){ return '<tr data-bg="'+key+'"><td><b>'+esc(name)+'</b></td><td><input type="text" class="bgl" maxlength="40" value="'+esc(label)+'"></td><td><input type="color" class="bgc" value="'+esc(color)+'"></td><td><input type="number" class="bgd" min="0" max="365" value="'+esc(days)+'"> <span class="lc">'+esc(daysNote)+'</span></td></tr>'; }
+function _bgFill(j){ var B={}; (j.badges||[]).forEach(function(b){ B[b.id]=b; }); var st=j.status||{}; var nw=B['new']||{label:'New',color:'#2f7a55',days:30}, pr=B.price||{label:'Price Reduced',color:'#b23a2c',days:30};
+  document.getElementById('bgRows').innerHTML=_bgRow('new','New listing',nw.label,nw.color,nw.days,'days (0 = until removed)')+_bgRow('price','Price reduced',pr.label,pr.color,pr.days,'days (0 = until removed)')+_bgRow('contract','Under contract',st.contractLabel,st.contractColor,'','until it closes or falls through')+_bgRow('sold','Sold',st.soldLabel,st.soldColor,st.soldDays,'days after closing, then off /market');
+  var cr=document.querySelector('tr[data-bg="contract"] .bgd'); if(cr){ cr.style.display='none'; } document.getElementById('bgBackup').value=st.backupNote||''; }
+function fetchBadges(){ fetch('/api/admin/market-badges',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok) _bgFill(j); }).catch(function(){}); }
+function _bgGet(k,c){ var el=document.querySelector('tr[data-bg="'+k+'"] .'+c); return el?el.value:''; }
+function _bgPost(body){ fetch('/api/admin/market-badges',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ _bgFill(j); _msg('bgMsg','Saved ✓ — live on /market','ok'); } else _msg('bgMsg',(j&&j.error)||'Could not save.','err'); }).catch(function(){ _msg('bgMsg','Network error.','err'); }); }
+function saveBadges(){ _msg('bgMsg','Saving…'); _bgPost({ badges:[{id:'new',label:_bgGet('new','bgl'),color:_bgGet('new','bgc'),days:_bgGet('new','bgd')},{id:'price',label:_bgGet('price','bgl'),color:_bgGet('price','bgc'),days:_bgGet('price','bgd')}],
+  status:{ contractLabel:_bgGet('contract','bgl'), contractColor:_bgGet('contract','bgc'), soldLabel:_bgGet('sold','bgl'), soldColor:_bgGet('sold','bgc'), soldDays:_bgGet('sold','bgd'), backupNote:(document.getElementById('bgBackup').value||'') } }); }
 function foKindLabel(k){ return k==='business'?'Business':(k==='asset'?'Asset':(k==='lease'?'Lease':(k==='sale'?'Real estate':'Listing'))); }
 function renderFeatured(){
   var host=document.getElementById('foList'); if(!host) return;
