@@ -9945,7 +9945,7 @@ td.r{text-align:right;}
 .cdot i{width:9px;height:9px;border-radius:2px;flex:none;}
 .mk2{color:var(--slate);font-weight:600;white-space:nowrap;}
 .pill{display:inline-block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;border-radius:3px;padding:4px 8px;white-space:nowrap;}
-.pills{display:inline-flex;flex-wrap:wrap;gap:4px;align-items:center;} .pill.solid{color:#fff!important;} .stnote{display:block;font-size:10.5px;font-weight:600;color:#8a5a12;margin-top:3px;white-space:nowrap;} .was{color:#8a93a8;text-decoration:line-through;font-weight:600;font-size:.82em;margin-right:5px;} tr.sold td,.sold-card{opacity:.82;} .stribbon{position:absolute;top:10px;right:10px;z-index:2;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#fff;border-radius:3px;padding:5px 10px;box-shadow:0 2px 6px rgba(0,0,0,.18);} .rph,.rfph{position:relative;}
+.pills{display:inline-flex;flex-wrap:wrap;gap:4px;align-items:center;} .bchips{margin-top:6px;} .fchips .pills{margin-left:2px;} .fchips .stnote,.bchips .stnote{display:inline-block;margin:0 0 0 6px;} .pill.solid{color:#fff!important;} .stnote{display:block;font-size:10.5px;font-weight:600;color:#8a5a12;margin-top:3px;white-space:nowrap;} .was{color:#8a93a8;text-decoration:line-through;font-weight:600;font-size:.82em;margin-right:5px;} tr.sold td,.sold-card{opacity:.82;} .stribbon{position:absolute;top:10px;right:10px;z-index:2;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#fff;border-radius:3px;padding:5px 10px;box-shadow:0 2px 6px rgba(0,0,0,.18);} .rph,.rfph{position:relative;}
 .lnum{font-weight:700;color:var(--slate);} .lask{font-weight:800;color:var(--navy);font-size:14px;} .dash{color:var(--soft);font-weight:600;}
 .actlink{border:none;background:none;color:var(--primary);font:inherit;font-size:12px;font-weight:700;cursor:pointer;padding:4px 0;white-space:nowrap;}
 .actlink:hover{text-decoration:underline;color:var(--primary-d);}
@@ -10084,7 +10084,6 @@ footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} 
         <th data-s="conceptKey" class="hide">Concept <span class="ar">&#9662;</span></th>
         <th data-s="sde" class="r hide">Cash flow <span class="ar">&#9662;</span></th>
         <th data-s="ask" class="r sort">Asking <span class="ar">&#9662;</span></th>
-        <th data-s="status">Status <span class="ar">&#9662;</span></th>
         <th></th>
       </tr></thead><tbody id="bizRows"></tbody></table>
     </div></div>
@@ -10142,6 +10141,7 @@ function cc(c){return CC[c]||'#2c6a8f';}
 function svgIcon(l,cls){ var p=(l.icon&&ICON[l.icon])?ICON[l.icon]:'<path d="M6 3v8M9 3v8M7.5 11v10"/><path d="M16 3c-1.5 1.5-1.5 6 0 7v11"/>'; return '<svg class="'+(cls||'')+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">'+p+'</svg>'; }
 var LOCK='<span class="lk"><svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>';
 function askLabel(l){ return l.price||l.guide||(l.priceBand&&PB[l.priceBand])||''; }
+function hasBadges(l){ return !!(l.status||(l.promos&&l.promos.length)||l.flagLabel); }
 function wasHtml(l){ return l.was?('<span class="was">'+esc(l.was)+'</span>'):''; }
 function ctaHtml(l,cls,isRE,label){ if(l.status==='sold'||l.noShop) return '<button class="'+cls+'" data-sim="'+esc(l.conceptKey||'')+'" data-simre="'+(isRE?'1':'')+'">See similar &rarr;</button>'; return '<button class="'+cls+'" data-k="'+esc(l.id)+'"'+(isRE?' data-re="1"':'')+'>'+label+' &rarr;</button>'; }
 function ribbonHtml(l){ return l.status?('<span class="stribbon" style="background:'+esc(l.statusColor||'#20334f')+'">'+esc(l.statusLabel)+'</span>'):''; }
@@ -10161,20 +10161,18 @@ function bizRow(l){
   var cash=cashLabel(l), ask=askLabel(l);
   return '<tr class="'+(l.featured?'feat':'')+(l.status==='sold'?' sold':'')+'">'
     +'<td><div class="lcell"><span class="thumb ico" title="'+esc(l.conceptKey||l.badge||'Restaurant')+'">'+svgIcon(l,'')+'</span>'
-      +'<div><div class="biz">'+esc(l.headline)+'</div><div class="bmeta">'+esc(l.badge||'Restaurant')+'</div></div></div></td>'
+      +'<div><div class="biz">'+esc(l.headline)+'</div><div class="bmeta">'+esc(l.badge||'Restaurant')+'</div>'+(hasBadges(l)?('<div class="bchips">'+statusPill(l)+'</div>'):'')+'</div></div></td>'
     +'<td class="mk2">'+esc(l.marketKey||l.loc||'Texas')+'</td>'
     +'<td class="hide"><span class="mk2">'+esc(l.conceptKey||l.badge||'Restaurant')+'</span></td>'
     +'<td class="r hide">'+(cash?'<span class="lnum num">'+esc(cash)+'</span>':'<span class="dash">&mdash;</span>')+'</td>'
     +'<td class="r">'+(ask?(wasHtml(l)+'<span class="lask num">'+esc(ask)+'</span>'):'<span class="dash">Under NDA</span>')+'</td>'
-    +'<td>'+statusPill(l)+'</td>'
     +'<td class="r">'+ctaHtml(l,'actlink',false,'Request access')+'</td></tr>';
 }
 function featRow(l){
   var cash=cashLabel(l), ask=askLabel(l), chips=[];
   if(l.revenue) chips.push('<span class="fchip">Revenue <b>'+esc(l.revenue)+'</b></span>');
   if(cash) chips.push('<span class="fchip mcash" style="display:none">'+esc(l.earnBasis||'SDE')+' <b>'+esc(cash)+'</b></span>');
-  chips.push('<span class="fchip lockc"><svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Blind until NDA</span>');
-  var st=(l.flagLabel||l.status||(l.promos&&l.promos.length))?statusPill(l):'<span class="dash">&mdash;</span>';
+  if(hasBadges(l)) chips.push(statusPill(l));
   return '<tr class="frow">'
     +'<td><div class="lcell"><span class="thumb ico" title="'+esc(l.conceptKey||l.badge||'Restaurant')+'">'+svgIcon(l,'')+'</span>'
       +'<div><div class="frib">&#9733; Featured</div><div class="biz">'+esc(l.headline)+'</div><div class="bmeta">'+esc(l.badge||'Restaurant')+'</div><div class="fchips">'+chips.join('')+'</div></div></div></td>'
@@ -10182,7 +10180,6 @@ function featRow(l){
     +'<td class="hide"><span class="mk2">'+esc(l.conceptKey||l.badge||'Restaurant')+'</span></td>'
     +'<td class="r hide">'+(cash?('<div class="fbig num">'+esc(cash)+'</div><div class="fsub">'+esc(l.earnBasis||'SDE')+'</div>'):'<span class="dash">&mdash;</span>')+'</td>'
     +'<td class="r">'+(ask?('<div class="fbig num">'+wasHtml(l)+esc(ask)+'</div><div class="fsub">Guide</div>'):'<span class="dash">Under NDA</span>')+'</td>'
-    +'<td>'+st+'</td>'
     +'<td class="r">'+ctaHtml(l,'fbtn actlink',false,'Request access')+'</td></tr>';
 }
 function featCard(l){
@@ -10228,7 +10225,7 @@ function renderBiz(){
     renderBizPager(rest.length,pages,startI,pageRows.length);
   }
   else if(feats.length){ pw.style.display=''; tb.innerHTML=featHtml; renderBizPager(0,1,0,0); }
-  else { pw.style.display=''; tb.innerHTML='<tr><td colspan="7"><div class="empty">No matching listings. Adjust your filters, or register as a buyer to be notified of new listings.</div></td></tr>'; renderBizPager(0,1,0,0); }
+  else { pw.style.display=''; tb.innerHTML='<tr><td colspan="6"><div class="empty">No matching listings. Adjust your filters, or register as a buyer to be notified of new listings.</div></td></tr>'; renderBizPager(0,1,0,0); }
 }
 function gotoBizPage(n){ bizPage=n; renderBiz(); var s=document.getElementById('mBiz'); if(s&&s.scrollIntoView) s.scrollIntoView({behavior:'smooth',block:'start'}); }
 function renderBizPager(total,pages,startI,shown){
