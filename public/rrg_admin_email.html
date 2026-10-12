@@ -91,6 +91,15 @@ function render(){
       +'<div class="savebar"><button class="savebtn ghost" id="test">Send test email</button><span class="msg" id="testmsg"></span></div>'
     +'</div>'
     +'<div class="card">'
+      +'<h2>Weekly owner digest</h2><div class="ch-sub">One email to the firm\'s admins each week: last week\'s closings and GCI, year to date vs last year, the 90-day forecast, stalled deals, buyer activity, listings expiring, money owed, rep activity, and the top three things to act on.</div>'
+      +'<label class="check" style="margin-top:6px"><input type="checkbox" id="wdEnabled"> Send the weekly digest automatically</label>'
+      +'<div class="grid" style="margin-top:12px"><div class="fld"><label class="lbl">Day</label><select id="wdDay">'+['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].map(function(d,i){ return '<option value="'+i+'">'+d+'</option>'; }).join('')+'</select></div>'
+      +'<div class="fld"><label class="lbl">Time <span id="wdTz" style="text-transform:none;letter-spacing:0;font-weight:600"></span></label><select id="wdHour">'+Array.apply(null,{length:24}).map(function(_,h){ var l=(h%12||12)+':00 '+(h<12?'AM':'PM'); return '<option value="'+h+'">'+l+'</option>'; }).join('')+'</select></div>'
+      +'<div class="fld full"><label class="lbl">Also send to <span style="text-transform:none;letter-spacing:0;font-weight:600">(optional — emails, comma separated)</span></label><input id="wdExtra" placeholder="e.g. partner@yourfirm.com"></div></div>'
+      +'<div class="note" id="wdTo" style="margin-top:8px"></div>'
+      +'<div class="savebar"><button class="savebtn" id="wdSave">Save digest</button><button class="savebtn ghost" id="wdPreview" type="button">Preview</button><button class="savebtn ghost" id="wdSendMe" type="button">Email me one now</button><span class="msg" id="wdMsg"></span></div>'
+    +'</div>'
+    +'<div class="card">'
       +'<h2>Weekly seller activity report</h2><div class="ch-sub">Automatically email each seller a summary of the marketing on their listing — inquiries, NDAs, tours, offers and confidential data-room views. Keeps owners informed and listings renewing. Sends only for listings that are live on the marketplace and have a seller email on file; a rep can turn it off for any single listing.</div>'
       +'<label class="check" style="margin-top:6px"><input type="checkbox" id="srEnabled"> Send the seller activity report automatically</label>'
       +'<div class="grid" style="margin-top:12px"><div class="fld"><label class="lbl">How often</label><select id="srInterval"><option value="month1">Monthly — 1st business day</option><option value="7">Every 7 days</option><option value="14">Every 14 days</option><option value="30">Every 30 days</option></select></div></div>'
@@ -103,8 +112,18 @@ function render(){
   document.getElementById('save').addEventListener('click',save);
   document.getElementById('test').addEventListener('click',sendTest);
   detectHint();
-  loadSellerReport();
+  loadSellerReport(); loadDigest();
 }
+function _wdMsg(t,ok){ var m=document.getElementById('wdMsg'); m.style.color=ok?'#1f8a5b':(ok===false?'#C0261B':''); m.textContent=t; }
+function _wdTo(j){ var t=document.getElementById('wdTo'); if(!t) return; var r=(j&&j.recipients)||[]; t.innerHTML=r.length?('Goes to: <b>'+r.map(esc).join(', ')+'</b>'):'<span style="color:#C0261B">No admin has an email on file — add yours on your Account page, or add an address above.</span>'; }
+function loadDigest(){ fetch('/api/admin/weekly-digest',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ if(!j||!j.ok) return;
+  document.getElementById('wdEnabled').checked=!!j.enabled; document.getElementById('wdDay').value=String(j.day); document.getElementById('wdHour').value=String(j.hour); document.getElementById('wdExtra').value=j.extra||''; document.getElementById('wdTz').textContent='('+(j.tz||'')+')'; _wdTo(j);
+  document.getElementById('wdSave').onclick=saveDigest;
+  document.getElementById('wdPreview').onclick=function(){ window.open('/api/admin/weekly-digest/preview','_blank'); };
+  document.getElementById('wdSendMe').onclick=function(){ var b=this; b.disabled=true; _wdMsg('Sending…'); fetch('/api/admin/weekly-digest/send-me',{method:'POST',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(x){ b.disabled=false; if(x&&x.ok) _wdMsg('Sent to '+x.to+' ✓',true); else _wdMsg((x&&x.error)||'Could not send.',false); }).catch(function(){ b.disabled=false; _wdMsg('Could not reach the server.',false); }); };
+}).catch(function(){}); }
+function saveDigest(){ var b=document.getElementById('wdSave'); b.disabled=true; _wdMsg('Saving…');
+  fetch('/api/admin/weekly-digest',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({ enabled:chk('wdEnabled'), day:val('wdDay'), hour:val('wdHour'), extra:val('wdExtra') })}).then(function(r){return r.json();}).then(function(j){ b.disabled=false; if(j&&j.ok){ _wdMsg('Saved ✓',true); _wdTo(j); } else _wdMsg((j&&j.error)||'Could not save.',false); }).catch(function(){ b.disabled=false; _wdMsg('Could not reach the server.',false); }); }
 function loadSellerReport(){
   fetch('/api/admin/seller-report',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok) return;

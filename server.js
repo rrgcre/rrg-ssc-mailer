@@ -24180,6 +24180,92 @@ function buildOwnerReports(q) {
     filters: { rep: fRep, market: fMarket, type: fType, reps: users.map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => a.name.localeCompare(b.name)), markets: Object.keys(markets).filter(m => m !== '—').sort(), types: ['Business sale', 'Asset sale', 'Tenant rep', 'Landlord rep'] },
     gci, forecast, pipeline, receivables, scorecard, funnel, inventory, leadSources, buyerActivity };
 }
+// ===== Monday owner digest — last week's results + what needs attention, emailed to the admins =====
+// Settings → Email → "Weekly owner digest": on/off, day, hour (firm time zone), extra recipients. Sent once per week.
+const WD_DEFAULT = { enabled: true, day: 1, hour: 7, extra: '', lastSentWeek: '' };
+function effWeeklyDigest() { const s = loadSettings(); const c = (s.weeklyDigest && typeof s.weeklyDigest === 'object') ? s.weeklyDigest : {}; const o = Object.assign({}, WD_DEFAULT, c);
+  o.enabled = o.enabled !== false; o.day = Math.max(0, Math.min(6, parseInt(o.day, 10) || 0)); if (!isFinite(parseInt(c.day, 10))) o.day = WD_DEFAULT.day; o.hour = Math.max(0, Math.min(23, isFinite(parseInt(o.hour, 10)) ? parseInt(o.hour, 10) : 7)); o.extra = String(o.extra || '').slice(0, 600); return o; }
+function wdRecipients(cfg) { const out = {}; try { auth.loadUsers().forEach(u => { if (u.disabled || !isSuper(u)) return; const e = String(((auth.profileOf(u) || {}).email) || u.email || '').trim(); if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) out[e.toLowerCase()] = e; }); } catch (e) {}
+  String((cfg || {}).extra || '').split(/[\s,;]+/).forEach(e => { e = e.trim(); if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) out[e.toLowerCase()] = e; }); return Object.values(out); }
+function _wdAddDays(day, n) { const d = new Date(day + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
+// Last full Mon–Sun week in the firm's time zone.
+function wdLastWeek() { const today = firmToday(); const dow = new Date(today + 'T12:00:00Z').getUTCDay(); const thisMon = _wdAddDays(today, -((dow + 6) % 7)); return { from: _wdAddDays(thisMon, -7), to: _wdAddDays(thisMon, -1), weekKey: thisMon }; }
+function buildWeeklyDigest() {
+  const wk = wdLastWeek(); const today = firmToday();
+  const W = buildOwnerReports({ from: wk.from, to: wk.to });
+  const Y = buildOwnerReports({ from: today.slice(0, 4) + '-01-01', to: today });
+  const sc = (W.scorecard.rows || []).filter(r => r.username);
+  const act = sc.map(r => ({ name: r.name, newListings: (r.newListings || 0) + (r.newTenant || 0), valuations: r.valuations || 0, agreements: r.agreements || 0, lois: r.lois || 0, tours: r.tours || 0, calls: r.calls || 0, emails: r.emails || 0, closings: r.closings || 0 })).filter(r => r.newListings || r.valuations || r.agreements || r.lois || r.tours || r.calls || r.emails || r.closings);
+  const quiet = sc.filter(r => !act.some(a => a.name === r.name)).map(r => r.name);
+  const stalled = (W.pipeline.stalled || []).slice(0, 5);
+  const pastDue = (W.receivables.invoices || []).filter(r => r.daysPast > 0).slice(0, 5);
+  const owed = (W.receivables.commissions || []).filter(r => r.agentOwed > 0).sort((a, b) => b.agentOwed - a.agentOwed);
+  const inv = W.inventory || {}; const expiring = (inv.rows || []).filter(r => r.expiresIn != null && r.expiresIn >= 0 && r.expiresIn <= 30).sort((a, b) => a.expiresIn - b.expiresIn).slice(0, 5);
+  const buyers = (W.buyerActivity.rows || []).filter(r => r.inquiries || r.ndas || r.tours || r.offers).sort((a, b) => (b.offers - a.offers) || (b.tours - a.tours) || (b.ndas - a.ndas) || (b.inquiries - a.inquiries)).slice(0, 5);
+  const todo = [];
+  if (stalled[0]) todo.push(stalled[0].business + ' has sat in ' + stalled[0].stage + ' ' + stalled[0].days + ' days (' + stalled[0].over + ' past target) — ' + (stalled[0].rep || 'unassigned') + '.');
+  if (pastDue[0]) todo.push('Invoice ' + (pastDue[0].number || '') + ' to ' + pastDue[0].billTo + ' is ' + pastDue[0].daysPast + ' days past due — $' + Math.round(pastDue[0].balance).toLocaleString('en-US') + '.');
+  if (expiring[0]) todo.push(expiring[0].business + '’s listing agreement expires in ' + expiring[0].expiresIn + ' days — get the renewal signed.');
+  if (todo.length < 3 && (W.forecast.totals.overdue || 0) > 0) todo.push('$' + Math.round(W.forecast.totals.overdue).toLocaleString('en-US') + ' of pipeline has a close date that already passed — update the dates or the stages.');
+  if (todo.length < 3 && quiet.length) todo.push('No logged activity last week from ' + quiet.slice(0, 4).join(', ') + '.');
+  return { week: wk, today, gci: W.gci, ytd: Y.gci, forecast: W.forecast.totals, missingPct: (W.forecast.missingPct || []).length, receivables: W.receivables.totals, owedTotal: owed.reduce((a, r) => a + r.agentOwed, 0), owed: owed.slice(0, 5), stalled, stalledCount: (W.pipeline.stalled || []).length, pastDue, inventory: inv.totals || {}, expiring, buyers, activity: act, quiet, todo: todo.slice(0, 3) };
+}
+function weeklyDigestHtml(D) {
+  const E = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const $ = n => '$' + Math.round(Number(n) || 0).toLocaleString('en-US');
+  const fmtD = d => { try { return new Date(d + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }); } catch (e) { return d; } };
+  const org = orgDisplayName() || 'Lavano'; const base = appBaseUrl();
+  const H = (t, link) => '<tr><td style="padding:22px 26px 6px"><div style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8a93a8">' + E(t) + (link && base ? (' &nbsp;<a href="' + E(base + link) + '" style="color:#2c5c8f;text-decoration:none;font-weight:700;text-transform:none;letter-spacing:0">Open ↗</a>') : '') + '</div></td></tr>';
+  const kpi = (v, l, sub) => '<td style="padding:10px 12px;border:1px solid #e6e9f0;border-radius:8px;background:#fafbfd;width:25%;vertical-align:top"><div style="font-size:20px;font-weight:800;color:#0b1a38">' + v + '</div><div style="font-size:11px;color:#6b7488;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-top:2px">' + E(l) + '</div>' + (sub ? ('<div style="font-size:11.5px;color:#8a93a8;margin-top:3px">' + sub + '</div>') : '') + '</td>';
+  const table = (cols, rows) => rows.length ? ('<table role="presentation" width="100%" style="border-collapse:collapse;font-size:13px">' + '<tr>' + cols.map(c => '<td style="padding:6px 8px;border-bottom:1px solid #e6e9f0;font-size:10.5px;font-weight:800;color:#8a93a8;text-transform:uppercase;letter-spacing:.04em' + (c.r ? ';text-align:right' : '') + '">' + E(c.h) + '</td>').join('') + '</tr>' + rows.map(r => '<tr>' + cols.map(c => '<td style="padding:7px 8px;border-bottom:1px solid #f1f3f8;color:#26324a' + (c.r ? ';text-align:right;white-space:nowrap' : '') + '">' + c.f(r) + '</td>').join('') + '</tr>').join('') + '</table>') : '<div style="font-size:13px;color:#8a93a8">Nothing here.</div>';
+  const body = (inner) => '<tr><td style="padding:0 26px 4px">' + inner + '</td></tr>';
+  const g = D.gci.totals || {}, gp = D.gci.prior || {}, y = D.ytd.totals || {}, yp = D.ytd.prior || {};
+  const pct = (a, b) => b > 0 ? ((a >= b ? '+' : '') + Math.round((a - b) / b * 100) + '% vs last year') : '';
+  let h = '<!doctype html><html><body style="margin:0;background:#eef2f6;padding:24px 12px;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">'
+    + '<table role="presentation" width="100%"><tr><td align="center"><table role="presentation" width="640" style="max-width:640px;width:100%;background:#fff;border-radius:14px;overflow:hidden;border:1px solid #e3e9f3">'
+    + '<tr><td style="background:#0b1a38;padding:18px 26px;color:#fff"><div style="font-weight:800;font-size:13.5px">' + E(org) + ' · Weekly digest</div><div style="font-size:12.5px;color:#aab4c8;margin-top:3px">Week of ' + E(fmtD(D.week.from)) + ' – ' + E(fmtD(D.week.to)) + '</div></td></tr>';
+  if (D.todo.length) h += H('Act on this week') + body('<ol style="margin:4px 0 0 18px;padding:0;font-size:14px;line-height:1.55;color:#1a2236">' + D.todo.map(t => '<li style="margin-bottom:5px">' + E(t) + '</li>').join('') + '</ol>');
+  h += H('Results', '/rrg_reports.html?tab=gci') + body('<table role="presentation" width="100%" style="border-collapse:separate;border-spacing:6px 0"><tr>'
+    + kpi($(g.gci), 'GCI last week', (g.deals || 0) + ' closing' + (g.deals === 1 ? '' : 's'))
+    + kpi($(y.gci), 'GCI year to date', E(pct(y.gci || 0, yp.gci || 0)))
+    + kpi($(D.forecast.next90w || D.forecast.next90), 'Next 90 days', D.forecast.next90w ? ('weighted · ' + $(D.forecast.next90) + ' gross') : 'closing in 90 days')
+    + kpi($(D.receivables.overdue), 'Past due', $(D.receivables.outstanding) + ' outstanding') + '</tr></table>');
+  const deals = (D.gci.deals || []);
+  if (deals.length) h += body('<div style="margin-top:10px">' + table([{ h: 'Closed', f: r => E(r.business) }, { h: 'Rep', f: r => E(r.rep) }, { h: 'GCI', r: 1, f: r => $(r.gci) }], deals.slice(0, 8)) + '</div>');
+  if (D.missingPct) h += body('<div style="font-size:11.5px;color:#8a5a12;margin-top:6px">Some stages have no Likelihood % set, so the weighted forecast undercounts — set them in Settings → Pipelines &amp; Stages.</div>');
+  h += H('Stalled deals' + (D.stalledCount ? (' · ' + D.stalledCount) : ''), '/rrg_reports.html?tab=pipeline') + body(table([{ h: 'Deal', f: r => E(r.business) }, { h: 'Stage', f: r => E(r.stage) }, { h: 'Days', r: 1, f: r => r.days + ' <span style="color:#a5352c">(+' + r.over + ')</span>' }, { h: 'Rep', f: r => E(r.rep || '—') }], D.stalled));
+  h += H('Buyer activity last week', '/rrg_reports.html?tab=buyers') + body(table([{ h: 'Listing', f: r => E(r.business) }, { h: 'Inquiries', r: 1, f: r => r.inquiries }, { h: 'NDAs', r: 1, f: r => r.ndas }, { h: 'Tours', r: 1, f: r => r.tours }, { h: 'Offers', r: 1, f: r => r.offers }], D.buyers));
+  if (D.expiring.length) h += H('Listing agreements expiring in 30 days', '/rrg_reports.html?tab=inventory') + body(table([{ h: 'Listing', f: r => E(r.business) }, { h: 'Rep', f: r => E(r.rep) }, { h: 'Expires in', r: 1, f: r => r.expiresIn + ' days' }], D.expiring));
+  h += H('Money owed', '/rrg_reports.html?tab=receivables') + body(table([{ h: 'Past-due invoice', f: r => E((r.number ? r.number + ' · ' : '') + r.billTo) }, { h: 'Days late', r: 1, f: r => r.daysPast }, { h: 'Balance', r: 1, f: r => $(r.balance) }], D.pastDue)
+    + (D.owed.length ? ('<div style="margin-top:10px">' + table([{ h: 'Commission owed to', f: r => E(r.name) }, { h: 'Owed', r: 1, f: r => $(r.agentOwed) }], D.owed) + '</div>') : ''));
+  h += H('Rep activity last week', '/rrg_reports.html?tab=scorecard') + body(table([{ h: 'Rep', f: r => E(r.name) }, { h: 'New', r: 1, f: r => r.newListings }, { h: 'BOVs', r: 1, f: r => r.valuations }, { h: 'Signed', r: 1, f: r => r.agreements }, { h: 'LOIs', r: 1, f: r => r.lois }, { h: 'Tours', r: 1, f: r => r.tours }, { h: 'Calls', r: 1, f: r => r.calls }, { h: 'Emails', r: 1, f: r => r.emails }], D.activity)
+    + (D.quiet.length ? ('<div style="font-size:12px;color:#8a93a8;margin-top:6px">No logged activity: ' + E(D.quiet.join(', ')) + '</div>') : ''));
+  h += '<tr><td style="padding:22px 26px 24px;font-size:11.5px;color:#8a93a8;line-height:1.6;border-top:1px solid #eef1f6">Sent every week to ' + E(org) + ' admins. Change the day, time or recipients in Settings → Email / SMTP.</td></tr></table></td></tr></table></body></html>';
+  return h;
+}
+async function sendWeeklyDigest(to) { const D = buildWeeklyDigest(); const subj = 'Weekly digest — ' + (D.gci.totals.deals ? (D.gci.totals.deals + ' closing' + (D.gci.totals.deals === 1 ? '' : 's') + ', ') : '') + D.stalledCount + ' stalled, $' + Math.round(D.receivables.overdue || 0).toLocaleString('en-US') + ' past due';
+  const html = weeklyDigestHtml(D); const text = 'Weekly digest ' + D.week.from + ' – ' + D.week.to + '\n\n' + D.todo.map((t, i) => (i + 1) + '. ' + t).join('\n') + '\n\nOpen Reports for the full numbers.';
+  const list = Array.isArray(to) ? to : [to]; let sent = 0; for (const t of list) { try { await sendNotifyMail(t, subj, text, html); sent++; } catch (e) { console.error('weekly digest to ' + t + ': ' + (e && e.message)); } } return sent; }
+async function weeklyDigestTick() { try {
+  const cfg = effWeeklyDigest(); if (!cfg.enabled || !isEmailConfigured()) return;
+  const now = firmNaive(); const dow = new Date(now.slice(0, 10) + 'T12:00:00Z').getUTCDay(); const hr = parseInt(now.slice(11, 13), 10);
+  if (dow !== cfg.day || hr < cfg.hour) return;
+  const wk = wdLastWeek().weekKey; if (cfg.lastSentWeek === wk) return;
+  const to = wdRecipients(cfg); if (!to.length) return;
+  const s = loadSettings(); s.weeklyDigest = Object.assign({}, s.weeklyDigest || {}, { lastSentWeek: wk }); saveSettings(s);   // mark first so a slow send never doubles
+  const n = await sendWeeklyDigest(to); try { logSysEvent(null, 'Weekly Digest', 'Weekly digest emailed to ' + n + ' admin' + (n === 1 ? '' : 's'), { tool: 'reports' }); } catch (e) {}
+} catch (e) { console.error('weeklyDigestTick:', e && e.message); } }
+setInterval(weeklyDigestTick, 10 * 60 * 1000); setTimeout(weeklyDigestTick, 60 * 1000);
+app.get('/api/admin/weekly-digest', requireAdmin, (req, res) => { const c = effWeeklyDigest(); res.json({ ok: true, enabled: c.enabled, day: c.day, hour: c.hour, extra: c.extra, lastSentWeek: c.lastSentWeek, recipients: wdRecipients(c), tz: firmTz(), emailReady: isEmailConfigured() }); });
+app.post('/api/admin/weekly-digest', requireAdmin, express.json(), (req, res) => { const b = req.body || {}; const s = loadSettings(); const c = Object.assign({}, effWeeklyDigest());
+  if (typeof b.enabled === 'boolean') c.enabled = b.enabled; if (b.day != null) c.day = Math.max(0, Math.min(6, parseInt(b.day, 10) || 0)); if (b.hour != null) c.hour = Math.max(0, Math.min(23, parseInt(b.hour, 10) || 0)); if (typeof b.extra === 'string') c.extra = b.extra.slice(0, 600);
+  s.weeklyDigest = c; if (!saveSettings(s)) return res.status(500).json({ ok: false, error: 'Could not save.' }); res.json({ ok: true, enabled: c.enabled, day: c.day, hour: c.hour, extra: c.extra, recipients: wdRecipients(c) }); });
+app.get('/api/admin/weekly-digest/preview', requireAdmin, (req, res) => { try { res.type('html').send(weeklyDigestHtml(buildWeeklyDigest())); } catch (e) { res.status(500).send('Could not build the digest: ' + String(e && e.message)); } });
+app.post('/api/admin/weekly-digest/send-me', requireAdmin, async (req, res) => { try {
+  if (!isEmailConfigured()) return res.status(400).json({ ok: false, error: 'Email isn’t set up yet — fill in the SMTP settings above.' });
+  const u = auth.findUser(req.user.username) || {}; const e = String(((auth.profileOf(u) || {}).email) || u.email || '').trim(); if (!e) return res.status(400).json({ ok: false, error: 'Add your email on your Account page first.' });
+  const n = await sendWeeklyDigest([e]); res.json({ ok: n > 0, to: e, error: n ? '' : 'Could not send — check the SMTP settings.' });
+} catch (e) { res.status(500).json({ ok: false, error: String(e && e.message || e) }); } });
 app.get('/api/reports/owner', requireAdmin, (req, res) => {
   try { res.json(buildOwnerReports(req.query || {})); }
   catch (e) { console.error('owner reports:', e && e.stack); res.status(500).json({ ok: false, error: 'Could not build the reports: ' + String((e && e.message) || e) }); }
