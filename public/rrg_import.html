@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>FullServe — Import Data</title>
+<title>Lavano — Import Data</title>
 <style>
 :root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;--indigo:#4a5cd0;}
 *{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;}
@@ -95,7 +95,7 @@ table{border-collapse:collapse;width:100%;font-size:12px;} th,td{border-bottom:1
   <span class="disc" onclick="location.href='./index.html'">RRG</span>
   <div class="kicker">Data Migration</div>
   <h1>Import your data</h1>
-  <div class="sub">Bring your companies and contacts in from any CRM in three steps. Export a spreadsheet, drop it here, and FullServe auto-detects the columns, dedupes, and links every contact to its company. Works with Copper, HubSpot, Salesforce, Pipedrive — or any CSV / Excel file.</div>
+  <div class="sub">Bring your companies and contacts in from any CRM in three steps. Export a spreadsheet, drop it here, and Lavano auto-detects the columns, dedupes, and links every contact to its company. Works with Copper, HubSpot, Salesforce, Pipedrive — or any CSV / Excel file.</div>
   <div class="srcrow" id="srcrow"></div>
 </div></div>
 <div id="root" class="wrap"><div class="gate">Checking access…</div></div>
@@ -294,7 +294,7 @@ function renderResult(j){
   var cards, tip;
   if(MODE==='companies'){ cards='<div class="rc g"><div class="n">'+j.created+'</div><div class="l">Created</div></div><div class="rc"><div class="n">'+j.updated+'</div><div class="l">Matched (deduped)</div></div>'+((j.conceptsCreated!=null)?('<div class="rc g"><div class="n">'+j.conceptsCreated+'</div><div class="l">Concepts</div></div>'):'')+((j.locationsCreated!=null)?('<div class="rc g"><div class="n">'+j.locationsCreated+'</div><div class="l">Locations</div></div>'):'')+'<div class="rc a"><div class="n">'+j.skipped+'</div><div class="l">Skipped · no name</div></div>'; tip='Companies are in <b>Book of Business → Companies</b>. Next, switch to <b>Contacts</b> above and import your people file — they&rsquo;ll auto-link to these companies by name.'; }
   else if(MODE==='tasks'){ var _unl=(j.noContact!=null?j.noContact:((j.created||0)-(j.linked||0))); cards='<div class="rc g"><div class="n">'+j.created+'</div><div class="l">Tasks added</div></div><div class="rc g"><div class="n">'+(j.linked||0)+'</div><div class="l">Linked to a contact</div></div><div class="rc a'+(_unl>0?' rc-click':'')+'" id="unlinkedCard"><div class="n">'+_unl+'</div><div class="l">On “No Contact”'+(_unl>0?' · click to reassign':'')+'</div></div><div class="rc a"><div class="n">'+(j.notitle||0)+'</div><div class="l">Skipped · no title</div></div>'; tip='Tasks are in <b>Tasks</b> on the toolbar. Rows matched by email or name are linked to that contact; the rest are parked on the <b>No Contact</b> record so nothing is lost — click the box above to reassign them.'; }
-  else { cards='<div class="rc g"><div class="n">'+j.created+'</div><div class="l">Contacts added</div></div><div class="rc a"><div class="n">'+j.dupe+'</div><div class="l">Skipped · email exists</div></div><div class="rc a"><div class="n">'+j.noname+'</div><div class="l">Skipped · no name</div></div>'; tip='Contacts are in <b>Book of Business → Contacts</b>, each linked to its company. Duplicates were skipped by email so nothing already in FullServe got overwritten.'; }
+  else { cards='<div class="rc g"><div class="n">'+j.created+'</div><div class="l">Contacts added</div></div><div class="rc a"><div class="n">'+j.dupe+'</div><div class="l">Skipped · email exists</div></div><div class="rc a"><div class="n">'+j.noname+'</div><div class="l">Skipped · no name</div></div>'; tip='Contacts are in <b>Book of Business → Contacts</b>, each linked to its company. Duplicates were skipped by email so nothing already in Lavano got overwritten.'; }
   var logoCta=(MODE==='companies'&&((j.created||0)+(j.updated||0))>0)?'<a class="btn green" href="rrg_logos.html" style="text-decoration:none;margin-right:9px;display:inline-block">◐ Find logos (AI)</a>':'';
   var logoNote=(MODE==='companies')?' <b>Tip:</b> tap <b>Find logos (AI)</b> to auto-pull a logo for every company with a website — you approve each one before it&rsquo;s applied.':'';
   var tagChip=(j.batchTag)?('<div style="margin:2px 0 10px"><span style="display:inline-flex;align-items:center;gap:6px;background:#eef2fb;color:#23496f;border:1px solid #d6e0ee;border-radius:100px;padding:4px 12px;font-size:12.5px;font-weight:700">🏷 Tagged <b>'+esc(j.batchTag)+'</b> — filter this batch anytime from the '+(MODE==='companies'?'Companies':'Contacts')+' list</span></div>'):'';
@@ -341,7 +341,7 @@ function build(){
     '<div class="card hide" id="step3"><div class="ch"><span class="st">Step 3</span><b>Preview &amp; import</b></div><div class="cb">'+
       '<div id="prevbox"></div>'+
       '<div class="progline hide"><i id="prog"></i></div>'+
-      '<div class="bar"><button class="btn green big" id="importBtn">Import into FullServe</button><span class="msg" id="importMsg"></span></div>'+
+      '<div class="bar"><button class="btn green big" id="importBtn">Import into Lavano</button><span class="msg" id="importMsg"></span></div>'+
       '<div id="resbox" class="hide"></div>'+
     '</div></div>'+
     '<div class="card"><div class="ch"><b>Past Imports</b><span class="hint">revert removes only the rows that import added</span></div><div class="cb"><div id="pastbox"><div class="note">Loading…</div></div></div></div>'+

@@ -1,6 +1,6 @@
 'use strict';
 /*
- * blobstore.js — durable object storage for FullServe's BINARY assets.
+ * blobstore.js — durable object storage for Lavano's BINARY assets.
  *
  * Executed agreement PDFs, signature images, agreement templates, data-room
  * documents, uploaded files, photos and logos live as files on the /var/data

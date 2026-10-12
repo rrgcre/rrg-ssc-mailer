@@ -1,5 +1,5 @@
 'use strict';
-// FullServe data layer — SQLite document store (first-pass migration off JSON files).
+// Lavano data layer — SQLite document store (first-pass migration off JSON files).
 // Each named store (people.json, companies.json, …) is one JSON document in a row of
 // `stores`, read/written in a single ACID transaction. Store names are the old file
 // basenames, so the rest of the app keeps referring to files while the bytes live in

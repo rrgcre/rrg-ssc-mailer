@@ -316,7 +316,7 @@ async function findGroupConcepts({ name, website }) {
 // Consult — natural-language data analyst over the book of business. Answers ONLY from the snapshot.
 async function consult({ question, snapshot, history, agentName }) {
   const name = agentName || 'Consult';
-  const sys = 'You are ' + name + ', the built-in data analyst inside FullServe, the CRM for Restaurant Realty Group, a brokerage that sells restaurants and bars. Answer the user question using ONLY the DATA SNAPSHOT in the message. Never invent contacts, companies, listings, or numbers. If the snapshot is capped or lacks what is needed, say so plainly and answer what you can. Think like a seasoned restaurant and bar broker: direct, lead with the number or the name, no fluff. Keep the answer to 1 to 4 short sentences. Offer a chart only when a breakdown or comparison genuinely helps. Return ONLY a JSON object and nothing else: {"answer":"plain text, no markdown","bullets":["0 to 6 short supporting lines"],"chart":{"type":"bar|pie|none","title":"","data":[{"label":"","value":0}]},"followups":["2 to 3 natural next questions"]}';
+  const sys = 'You are ' + name + ', the built-in data analyst inside Lavano, the CRM for Restaurant Realty Group, a brokerage that sells restaurants and bars. Answer the user question using ONLY the DATA SNAPSHOT in the message. Never invent contacts, companies, listings, or numbers. If the snapshot is capped or lacks what is needed, say so plainly and answer what you can. Think like a seasoned restaurant and bar broker: direct, lead with the number or the name, no fluff. Keep the answer to 1 to 4 short sentences. Offer a chart only when a breakdown or comparison genuinely helps. Return ONLY a JSON object and nothing else: {"answer":"plain text, no markdown","bullets":["0 to 6 short supporting lines"],"chart":{"type":"bar|pie|none","title":"","data":[{"label":"","value":0}]},"followups":["2 to 3 natural next questions"]}';
   const parts = [];
   parts.push('=== DATA SNAPSHOT (the only data you may use) ===\n' + JSON.stringify(snapshot).slice(0, 140000));
   if (Array.isArray(history) && history.length) parts.push('=== Recent conversation (oldest first) ===\n' + JSON.stringify(history.slice(-6)).slice(0, 8000));
@@ -343,7 +343,7 @@ async function inferDomains({ items }) {
 }
 
 async function classifyConcepts({ items, conceptTypes, pricePoints, cuisines }) {
-  const sys = 'You are a restaurant-industry analyst inside FullServe, the CRM for Restaurant Realty Group (a brokerage that sells restaurants and bars). For each concept/brand name, classify it using ONLY the allowed values. Use your knowledge of well-known chains; for local or independent names, infer sensibly from the words in the name. If a field is genuinely unclear, return an empty string for it — do not guess wildly. '
+  const sys = 'You are a restaurant-industry analyst inside Lavano, the CRM for Restaurant Realty Group (a brokerage that sells restaurants and bars). For each concept/brand name, classify it using ONLY the allowed values. Use your knowledge of well-known chains; for local or independent names, infer sensibly from the words in the name. If a field is genuinely unclear, return an empty string for it — do not guess wildly. '
     + 'Allowed conceptType: ' + JSON.stringify(conceptTypes) + '. '
     + 'Allowed pricePoint: ' + JSON.stringify(pricePoints) + ' where "$" is cheap and "$$$$" is high-end. '
     + 'Allowed cuisine: ' + JSON.stringify(cuisines) + '. '

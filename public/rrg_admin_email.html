@@ -100,6 +100,20 @@ function render(){
       +'<div class="savebar"><button class="savebtn" id="wdSave">Save digest</button><button class="savebtn ghost" id="wdPreview" type="button">Preview</button><button class="savebtn ghost" id="wdSendMe" type="button">Email me one now</button><span class="msg" id="wdMsg"></span></div>'
     +'</div>'
     +'<div class="card">'
+      +'<h2>Weekly industry brief</h2><div class="ch-sub">An AI-researched email to the managers you pick: last week\'s restaurant and bar industry news in your markets (sales, expansions, closings, openings, rule changes) with the move for each, plus industry events coming up worth attending. Every item links to its source.</div>'
+      +'<label class="check" style="margin-top:6px"><input type="checkbox" id="ibEnabled"> Send the industry brief automatically</label>'
+      +'<div class="grid" style="margin-top:12px"><div class="fld"><label class="lbl">Day</label><select id="ibDay">'+['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].map(function(d,i){ return '<option value="'+i+'">'+d+'</option>'; }).join('')+'</select></div>'
+      +'<div class="fld"><label class="lbl">Time <span id="ibTz" style="text-transform:none;letter-spacing:0;font-weight:600"></span></label><select id="ibHour">'+Array.apply(null,{length:24}).map(function(_,h){ var l=(h%12||12)+':00 '+(h<12?'AM':'PM'); return '<option value="'+h+'">'+l+'</option>'; }).join('')+'</select></div>'
+      +'<div class="fld full"><label class="lbl">Send to</label><div id="ibUsers" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px 14px;padding:4px 0"></div></div>'
+      +'<div class="fld full"><label class="lbl">Also send to <span style="text-transform:none;letter-spacing:0;font-weight:600">(optional — emails, comma separated)</span></label><input id="ibExtra" placeholder="e.g. partner@yourfirm.com"></div>'
+      +'<div class="fld full"><label class="lbl">Markets</label><input id="ibMarkets" placeholder="San Antonio, Austin, Dallas–Fort Worth, Houston, New Braunfels"></div>'
+      +'<div class="fld"><label class="lbl">Events look-ahead</label><select id="ibLook"><option value="30">Next 30 days</option><option value="60">Next 60 days</option><option value="90">Next 90 days</option><option value="120">Next 120 days</option></select></div>'
+      +'<div class="fld full"><label class="lbl">Extra focus <span style="text-transform:none;letter-spacing:0;font-weight:600">(optional)</span></label><input id="ibFocus" placeholder="e.g. Watch for Tex-Mex and pizza groups, and anything on the Pearl or Domain"></div></div>'
+      +'<div class="note" id="ibTo" style="margin-top:8px"></div>'
+      +'<div class="savebar"><button class="savebtn" id="ibSave">Save brief</button><button class="savebtn ghost" id="ibBuild" type="button">Build now</button><button class="savebtn ghost" id="ibPreview" type="button">Preview</button><button class="savebtn ghost" id="ibSendMe" type="button">Email me the latest</button><span class="msg" id="ibMsg"></span></div>'
+      +'<div class="note">Built fresh each week with live web search, about $0.50 a run. Items the AI can\'t tie to a real source page are dropped. <b>Build now</b> runs a new search (about a minute); <b>Preview</b> and <b>Email me the latest</b> use the last one built.</div>'
+    +'</div>'
+    +'<div class="card">'
       +'<h2>Weekly seller activity report</h2><div class="ch-sub">Automatically email each seller a summary of the marketing on their listing — inquiries, NDAs, tours, offers and confidential data-room views. Keeps owners informed and listings renewing. Sends only for listings that are live on the marketplace and have a seller email on file; a rep can turn it off for any single listing.</div>'
       +'<label class="check" style="margin-top:6px"><input type="checkbox" id="srEnabled"> Send the seller activity report automatically</label>'
       +'<div class="grid" style="margin-top:12px"><div class="fld"><label class="lbl">How often</label><select id="srInterval"><option value="month1">Monthly — 1st business day</option><option value="7">Every 7 days</option><option value="14">Every 14 days</option><option value="30">Every 30 days</option></select></div></div>'
@@ -112,7 +126,7 @@ function render(){
   document.getElementById('save').addEventListener('click',save);
   document.getElementById('test').addEventListener('click',sendTest);
   detectHint();
-  loadSellerReport(); loadDigest();
+  loadSellerReport(); loadDigest(); loadIB();
 }
 function _wdMsg(t,ok){ var m=document.getElementById('wdMsg'); m.style.color=ok?'#1f8a5b':(ok===false?'#C0261B':''); m.textContent=t; }
 function _wdTo(j){ var t=document.getElementById('wdTo'); if(!t) return; var r=(j&&j.recipients)||[]; t.innerHTML=r.length?('Goes to: <b>'+r.map(esc).join(', ')+'</b>'):'<span style="color:#C0261B">No admin has an email on file — add yours on your Account page, or add an address above.</span>'; }
@@ -124,6 +138,27 @@ function loadDigest(){ fetch('/api/admin/weekly-digest',{credentials:'same-origi
 }).catch(function(){}); }
 function saveDigest(){ var b=document.getElementById('wdSave'); b.disabled=true; _wdMsg('Saving…');
   fetch('/api/admin/weekly-digest',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({ enabled:chk('wdEnabled'), day:val('wdDay'), hour:val('wdHour'), extra:val('wdExtra') })}).then(function(r){return r.json();}).then(function(j){ b.disabled=false; if(j&&j.ok){ _wdMsg('Saved ✓',true); _wdTo(j); } else _wdMsg((j&&j.error)||'Could not save.',false); }).catch(function(){ b.disabled=false; _wdMsg('Could not reach the server.',false); }); }
+function _ibMsg(t,ok){ var m=document.getElementById('ibMsg'); m.style.color=ok?'#1f8a5b':(ok===false?'#C0261B':''); m.textContent=t; }
+function _ibState(j){ var t=document.getElementById('ibTo'); if(!t||!j) return; var r=j.recipients||[], bits=[];
+  bits.push(r.length?('Goes to: <b>'+r.map(esc).join(', ')+'</b>'):'<span style="color:#C0261B">Nobody selected has an email on file — tick someone above or add an address.</span>');
+  if(j.last) bits.push('Last built '+esc(new Date(j.last.at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}))+' — '+j.last.news+' news, '+j.last.events+' events.');
+  if(j.lastError) bits.push('<span style="color:#C0261B">Last automatic run failed: '+esc(j.lastError)+'</span>');
+  if(!j.aiReady) bits.push('<span style="color:#C0261B">AI isn’t set up on the server (ANTHROPIC_API_KEY).</span>');
+  if(!j.emailReady) bits.push('<span style="color:#C0261B">Email isn’t set up yet — fill in the SMTP settings above.</span>');
+  t.innerHTML=bits.join('<br>'); }
+function _ibUsers(j){ var box=document.getElementById('ibUsers'); var sel=j.users||[];
+  box.innerHTML=(j.candidates||[]).map(function(c){ return '<label class="check" style="margin:0;font-weight:600'+(c.email?'':';opacity:.55')+'" title="'+esc(c.email||'No email on file')+'"><input type="checkbox" data-ibu="'+esc(c.username)+'"'+(sel.indexOf(c.username)>=0?' checked':'')+(c.email?'':' disabled')+'> '+esc(c.name)+' <span style="color:#8a93a8;font-weight:500">· '+esc(c.roleName||c.role)+(c.email?'':' · no email')+'</span></label>'; }).join('')||'<span class="note">No users yet.</span>'; }
+function loadIB(){ fetch('/api/admin/industry-brief',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ if(!j||!j.ok) return;
+  document.getElementById('ibEnabled').checked=!!j.enabled; document.getElementById('ibDay').value=String(j.day); document.getElementById('ibHour').value=String(j.hour); document.getElementById('ibExtra').value=j.extra||''; document.getElementById('ibMarkets').value=j.markets||''; document.getElementById('ibFocus').value=j.focus||''; document.getElementById('ibLook').value=String(j.lookahead||90); document.getElementById('ibTz').textContent='('+(j.tz||'')+')';
+  _ibUsers(j); _ibState(j);
+  document.getElementById('ibSave').onclick=saveIB;
+  document.getElementById('ibPreview').onclick=function(){ window.open('/api/admin/industry-brief/preview','_blank'); };
+  document.getElementById('ibBuild').onclick=function(){ var b=this; b.disabled=true; var W=window.rrgAiWork; if(W) W.show('Researching this week’s industry news and events — about a minute…'); _ibMsg('Searching the web — about a minute…');
+    fetch('/api/admin/industry-brief/build',{method:'POST',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(x){ b.disabled=false; if(W) W.hide(); if(x&&x.ok){ _ibMsg('Built ✓ — '+x.news+' news, '+x.events+' events',true); loadIB(); window.open('/api/admin/industry-brief/preview','_blank'); } else _ibMsg((x&&x.error)||'Could not build.',false); }).catch(function(){ b.disabled=false; if(W) W.hide(); _ibMsg('Could not reach the server.',false); }); };
+  document.getElementById('ibSendMe').onclick=function(){ var b=this; b.disabled=true; _ibMsg('Sending…'); fetch('/api/admin/industry-brief/send-me',{method:'POST',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(x){ b.disabled=false; if(x&&x.ok) _ibMsg('Sent to '+x.to+' ✓',true); else _ibMsg((x&&x.error)||'Could not send.',false); }).catch(function(){ b.disabled=false; _ibMsg('Could not reach the server.',false); }); };
+}).catch(function(){}); }
+function saveIB(){ var b=document.getElementById('ibSave'); b.disabled=true; _ibMsg('Saving…'); var users=[].slice.call(document.querySelectorAll('[data-ibu]')).filter(function(x){return x.checked;}).map(function(x){return x.getAttribute('data-ibu');});
+  fetch('/api/admin/industry-brief',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({ enabled:chk('ibEnabled'), day:val('ibDay'), hour:val('ibHour'), users:users, extra:val('ibExtra'), markets:val('ibMarkets'), focus:val('ibFocus'), lookahead:val('ibLook') })}).then(function(r){return r.json();}).then(function(j){ b.disabled=false; if(j&&j.ok){ _ibMsg('Saved ✓',true); _ibUsers(j); _ibState(j); } else _ibMsg((j&&j.error)||'Could not save.',false); }).catch(function(){ b.disabled=false; _ibMsg('Could not reach the server.',false); }); }
 function loadSellerReport(){
   fetch('/api/admin/seller-report',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok) return;

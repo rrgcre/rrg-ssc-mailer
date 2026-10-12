@@ -1699,7 +1699,7 @@ const AI_USAGE_FILE = path.join(BOV_DATA_DIR, 'ai_usage.json');
 function loadAiUsage() { try { return rj(AI_USAGE_FILE) || []; } catch (e) { return []; } }
 function saveAiUsage(a) { return writeJsonGuarded(AI_USAGE_FILE, a.slice(-20000), 'saveAiUsage'); }
 // Rough $ estimate per AI action (web-search actions cost far more than a small text call).
-const AI_FEATURE_COST = { 'build-concepts': 0.22, 'find-locations': 0.09, 'find-concepts': 0.07, 'concept-resolve': 0.03, 'brief': 0.04, 'loi-review': 0.03, 'loi-suggest': 0.02, 'loi-parse': 0.02, 'loi-counter': 0.02, 'enrich-company': 0.02, 'enrich-contact': 0.02, 'contact-prep': 0.02, 'concept': 0.02, 'site-read': 0.02, 'calc-summary': 0.01, 'placer': 0.01, 'space-intake': 0.02, 'space-match': 0.02, 'consult': 0.02, 'concept-intel': 0.03, 'logo-ai': 0.02 };
+const AI_FEATURE_COST = { 'industry-brief': 0.45, 'build-concepts': 0.22, 'find-locations': 0.09, 'find-concepts': 0.07, 'concept-resolve': 0.03, 'brief': 0.04, 'loi-review': 0.03, 'loi-suggest': 0.02, 'loi-parse': 0.02, 'loi-counter': 0.02, 'enrich-company': 0.02, 'enrich-contact': 0.02, 'contact-prep': 0.02, 'concept': 0.02, 'site-read': 0.02, 'calc-summary': 0.01, 'placer': 0.01, 'space-intake': 0.02, 'space-match': 0.02, 'consult': 0.02, 'concept-intel': 0.03, 'logo-ai': 0.02 };
 function aiMeterFeature(p) {
   p = String(p || '');
   var m = p.match(/^\/api\/ai\/([\w-]+)/); if (m) return m[1];
@@ -9462,7 +9462,7 @@ section[id],a[id]{scroll-margin-top:86px;}
 .btn.ghost:hover{background:rgba(255,255,255,.12);border-color:#fff;}
 /* editorial eyebrow tick */
 .eyebrow{display:inline-flex;align-items:center;gap:11px;}
-.eyebrow::before{content:'';width:24px;height:2px;background:currentColor;opacity:.8;border-radius:2px;flex:none;}
+.eyebrow::before{content:'';width:14px;height:2px;background:currentColor;opacity:.8;border-radius:2px;flex:none;}
 /* nav underline reveal */
 .nav a.navlink{position:relative;padding:4px 1px;}
 .nav a.navlink::after{content:'';position:absolute;left:0;right:100%;bottom:-3px;height:2px;background:var(--gold2);transition:right .22s ease;}
@@ -24265,6 +24265,137 @@ app.post('/api/admin/weekly-digest/send-me', requireAdmin, async (req, res) => {
   if (!isEmailConfigured()) return res.status(400).json({ ok: false, error: 'Email isn’t set up yet — fill in the SMTP settings above.' });
   const u = auth.findUser(req.user.username) || {}; const e = String(((auth.profileOf(u) || {}).email) || u.email || '').trim(); if (!e) return res.status(400).json({ ok: false, error: 'Add your email on your Account page first.' });
   const n = await sendWeeklyDigest([e]); res.json({ ok: n > 0, to: e, error: n ? '' : 'Could not send — check the SMTP settings.' });
+} catch (e) { res.status(500).json({ ok: false, error: String(e && e.message || e) }); } });
+// ===== Industry brief — weekly email to selected managers: last week's restaurant/bar industry news + upcoming industry events.
+// Claude builds it with the server-side web search tool; every item must cite a URL that came back from an actual search.
+const IB_FILE = path.join(BOV_DATA_DIR, 'industry_brief.json');
+const IB_MARKETS_DEFAULT = 'San Antonio, Austin, Dallas–Fort Worth, Houston, New Braunfels';
+const IB_DEFAULT = { enabled: true, day: 1, hour: 7, users: null, extra: '', markets: IB_MARKETS_DEFAULT, focus: '', lookahead: 90, lastSentWeek: '', attemptWeek: '', attempts: 0, lastAttemptAt: '', lastError: '' };
+function effIndustryBrief() { const s = loadSettings(); const c = (s.industryBrief && typeof s.industryBrief === 'object') ? s.industryBrief : {}; const o = Object.assign({}, IB_DEFAULT, c);
+  o.enabled = o.enabled !== false; o.day = isFinite(parseInt(c.day, 10)) ? Math.max(0, Math.min(6, parseInt(c.day, 10))) : IB_DEFAULT.day; o.hour = isFinite(parseInt(c.hour, 10)) ? Math.max(0, Math.min(23, parseInt(c.hour, 10))) : IB_DEFAULT.hour;
+  o.users = Array.isArray(c.users) ? c.users.map(String) : null; o.extra = String(o.extra || '').slice(0, 600); o.markets = String(o.markets || '').trim().slice(0, 300) || IB_MARKETS_DEFAULT; o.focus = String(o.focus || '').slice(0, 600);
+  o.lookahead = [30, 60, 90, 120].indexOf(parseInt(c.lookahead, 10)) >= 0 ? parseInt(c.lookahead, 10) : 90; return o; }
+const _ibEmailOk = e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(e || ''));
+function _ibUserEmail(u) { return String(((auth.profileOf(u) || {}).email) || u.email || '').trim(); }
+// Everyone who could receive it (active users with an email on file).
+function ibCandidates() { let roles = {}; try { loadRoles().forEach(r => { roles[r.key] = r.name; }); } catch (e) {}
+  const out = []; try { auth.loadUsers().forEach(u => { if (u.disabled) return; const e = _ibUserEmail(u); out.push({ username: u.username, name: u.name || u.username, role: u.role || '', roleName: roles[u.role] || (u.role === 'creator' ? 'Owner' : (u.role || '')), email: _ibEmailOk(e) ? e : '', admin: isSuper(u) }); }); } catch (e) {}
+  return out.sort((a, b) => (b.admin - a.admin) || String(a.name).toLowerCase().localeCompare(String(b.name).toLowerCase())); }
+// Selected users; until someone picks, it defaults to the admins.
+function ibSelectedUsers(cfg) { const c = ibCandidates(); return Array.isArray(cfg.users) ? cfg.users.filter(u => c.some(x => x.username === u)) : c.filter(x => x.admin).map(x => x.username); }
+function ibRecipients(cfg) { const out = {}; const sel = ibSelectedUsers(cfg); ibCandidates().forEach(x => { if (sel.indexOf(x.username) >= 0 && x.email) out[x.email.toLowerCase()] = x.email; });
+  String(cfg.extra || '').split(/[\s,;]+/).forEach(e => { e = e.trim(); if (_ibEmailOk(e)) out[e.toLowerCase()] = e; }); return Object.values(out); }
+function ibLoad() { try { return rj(IB_FILE) || null; } catch (e) { return null; } }
+function _ibHost(u) { try { return new URL(u).hostname.replace(/^www\./, '').toLowerCase(); } catch (e) { return ''; } }
+async function buildIndustryBrief(cfg) {
+  const key = process.env.ANTHROPIC_API_KEY; if (!key) throw new Error('AI is not set up — add ANTHROPIC_API_KEY on the server.');
+  const today = firmToday(); const from = _wdAddDays(today, -7); const until = _wdAddDays(today, cfg.lookahead);
+  const sys = 'You are the research desk for ' + (orgDisplayName() || 'Restaurant Realty Group') + ', a Texas commercial real estate brokerage that works only restaurant and bar deals: selling restaurant businesses (going-concern sales, valuations), tenant representation / site selection for restaurant operators, and landlord leasing of restaurant space. Core markets: ' + cfg.markets + '.\n'
+    + 'Use the web_search tool to build a weekly industry brief for the firm\'s managers. Search thoroughly (local business journals, Eater and city food press, Nation\'s Restaurant News, Restaurant Business, QSR, Texas Restaurant Association, ICSC, Bizjournals, association and event sites).\n'
+    + 'PART 1 — NEWS from ' + from + ' to ' + today + ': restaurant and bar industry news a restaurant broker would act on. Priority: restaurant groups buying, selling or raising capital; multi-unit concepts expanding into our markets or signing leases; notable closures and bankruptcies (second-generation spaces coming available); notable openings and lease deals; franchise development deals; private equity activity in restaurants; Texas rules affecting restaurants and bars (TABC, permits, labor). Texas first, then national news only if it clearly matters to Texas operators or deal values. Up to 12 items.\n'
+    + 'PART 2 — EVENTS from ' + today + ' to ' + until + ': industry events worth a broker\'s time — restaurant and hospitality trade shows, restaurant association meetings and mixers, ICSC and retail real estate events, CCIM/NAIOP/commercial real estate networking, franchise expos, restaurant finance / M&A conferences, food and beverage festivals where owners gather. In our markets first; national events only if they are major (e.g. National Restaurant Association Show, ICSC Las Vegas, Restaurant Finance & Development Conference). Up to 15 items.\n'
+    + (cfg.focus ? ('Extra focus from the firm: ' + cfg.focus + '\n') : '')
+    + 'RULES: Only include an item if you found it in search results this session and you can give the exact source URL from those results. Never invent events, dates, names or URLs. Dates must be exact (YYYY-MM-DD); skip an event whose date you cannot confirm. Skip anything outside the date windows. No duplicates.\n'
+    + 'Return ONLY one JSON object, no markdown, no commentary:\n'
+    + '{"news":[{"headline":"","date":"YYYY-MM-DD","city":"","source":"publication name","url":"","summary":"1-2 plain sentences","angle":"seller lead|tenant lead|space available|market intel|regulation","why":"one sentence: what RRG should do with this"}],'
+    + '"events":[{"name":"","date":"YYYY-MM-DD","endDate":"YYYY-MM-DD or empty","city":"","venue":"","organizer":"","url":"","category":"trade show|association|real estate|networking|conference|festival","priority":"high|medium|low","why":"one sentence: why a restaurant broker should go"}]}';
+  const tools = [{ type: 'web_search_20250305', name: 'web_search', max_uses: 14, user_location: { type: 'approximate', city: 'San Antonio', region: 'Texas', country: 'US', timezone: firmTz() || 'America/Chicago' } }];
+  let messages = [{ role: 'user', content: 'Today is ' + today + '. Build this week\'s industry brief now.' }];
+  const seenUrls = new Set(), seenHosts = new Set(); let searches = 0; let final = null;
+  for (let turn = 0; turn < 5; turn++) {
+    const ctrl = new AbortController(); const tm = setTimeout(() => ctrl.abort(), 240000);
+    let resp, data; try { resp = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', signal: ctrl.signal, headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' }, body: JSON.stringify({ model: loadAiModel(), max_tokens: 8000, system: sys, tools, messages }) }); data = await resp.json().catch(() => ({})); } finally { clearTimeout(tm); }
+    if (!resp.ok) throw new Error((data && data.error && data.error.message) || ('AI request failed (' + resp.status + ').'));
+    (data.content || []).forEach(b => { if (b.type === 'server_tool_use') searches++; if (b.type === 'web_search_tool_result' && Array.isArray(b.content)) b.content.forEach(r => { if (r && r.url) { seenUrls.add(r.url); const h = _ibHost(r.url); if (h) seenHosts.add(h); } }); });
+    if (data.stop_reason === 'pause_turn') { messages = messages.concat([{ role: 'assistant', content: data.content }]); continue; }
+    final = data; break;
+  }
+  if (!final) throw new Error('The research run did not finish — try again.');
+  const txt = (final.content || []).filter(b => b.type === 'text').map(b => b.text || '').join('');
+  const a = txt.indexOf('{'), z = txt.lastIndexOf('}'); if (a < 0 || z <= a) throw new Error('The AI did not return a brief.');
+  let J; try { J = JSON.parse(txt.slice(a, z + 1)); } catch (e) { throw new Error('The AI returned a brief that could not be read.'); }
+  const S = (v, n) => String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, n);
+  const okUrl = u => /^https?:\/\//i.test(u) && (seenUrls.has(u) || seenHosts.has(_ibHost(u)));   // must trace back to a real search result
+  const isDay = d => /^\d{4}-\d{2}-\d{2}$/.test(d);
+  const ANG = ['seller lead', 'tenant lead', 'space available', 'market intel', 'regulation'];
+  const nk = {}, ek = {};
+  const news = (Array.isArray(J.news) ? J.news : []).map(n => ({ headline: S(n.headline, 200), date: S(n.date, 10), city: S(n.city, 60), source: S(n.source, 80), url: S(n.url, 600), summary: S(n.summary, 400), angle: ANG.indexOf(S(n.angle, 30).toLowerCase()) >= 0 ? S(n.angle, 30).toLowerCase() : 'market intel', why: S(n.why, 300) }))
+    .filter(n => n.headline && okUrl(n.url) && (!n.date || (isDay(n.date) && n.date >= _wdAddDays(from, -3) && n.date <= today)))
+    .filter(n => { const k = n.url.toLowerCase(); if (nk[k]) return false; nk[k] = 1; return true; }).slice(0, 12);
+  const events = (Array.isArray(J.events) ? J.events : []).map(e => ({ name: S(e.name, 160), date: S(e.date, 10), endDate: S(e.endDate, 10), city: S(e.city, 60), venue: S(e.venue, 120), organizer: S(e.organizer, 120), url: S(e.url, 600), category: S(e.category, 30), priority: ['high', 'medium', 'low'].indexOf(S(e.priority, 10).toLowerCase()) >= 0 ? S(e.priority, 10).toLowerCase() : 'medium', why: S(e.why, 300) }))
+    .filter(e => e.name && okUrl(e.url) && isDay(e.date) && (e.date >= today || (isDay(e.endDate) && e.endDate >= today)) && e.date <= until)
+    .filter(e => { const k = (e.name + '|' + e.date).toLowerCase(); if (ek[k]) return false; ek[k] = 1; return true; })
+    .sort((x, y) => x.date < y.date ? -1 : x.date > y.date ? 1 : 0).slice(0, 15);
+  const B = { at: new Date().toISOString(), today, newsFrom: from, until, markets: cfg.markets, searches, news, events, dropped: { news: (Array.isArray(J.news) ? J.news.length : 0) - news.length, events: (Array.isArray(J.events) ? J.events.length : 0) - events.length } };
+  writeJsonGuarded(IB_FILE, B, 'industryBrief'); return B;
+}
+function industryBriefHtml(B) {
+  const E = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const fmtD = (d, o) => { try { return new Date(d + 'T12:00:00Z').toLocaleDateString('en-US', Object.assign({ month: 'short', day: 'numeric', timeZone: 'UTC' }, o || {})); } catch (e) { return d; } };
+  const org = orgDisplayName() || 'Lavano';
+  const H = (t, n) => '<tr><td style="padding:22px 26px 8px"><div style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8a93a8">' + E(t) + (n ? (' · ' + n) : '') + '</div></td></tr>';
+  const ANGC = { 'seller lead': ['#fff4e0', '#8a5a12'], 'tenant lead': ['#e6f0fb', '#1f4f86'], 'space available': ['#e8f6ee', '#1f7a4d'], 'market intel': ['#f1f3f8', '#4a5468'], 'regulation': ['#fbeceb', '#a5352c'] };
+  const pill = (t, c) => '<span style="display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;padding:2px 7px;border-radius:5px;background:' + c[0] + ';color:' + c[1] + '">' + E(t) + '</span>';
+  let h = '<!doctype html><html><body style="margin:0;background:#eef2f6;padding:24px 12px;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">'
+    + '<table role="presentation" width="100%"><tr><td align="center"><table role="presentation" width="640" style="max-width:640px;width:100%;background:#fff;border-radius:14px;overflow:hidden;border:1px solid #e3e9f3">'
+    + '<tr><td style="background:#0b1a38;padding:18px 26px;color:#fff"><div style="font-weight:800;font-size:13.5px">' + E(org) + ' · Industry brief</div><div style="font-size:12.5px;color:#aab4c8;margin-top:3px">News ' + E(fmtD(B.newsFrom)) + ' – ' + E(fmtD(B.today)) + ' · Events through ' + E(fmtD(B.until)) + ' · ' + E(B.markets) + '</div></td></tr>';
+  h += H('Last week in the industry', (B.news || []).length);
+  if ((B.news || []).length) (B.news || []).forEach(n => { h += '<tr><td style="padding:6px 26px 12px"><div style="border-left:3px solid #e3e9f3;padding-left:12px">'
+    + '<div style="margin-bottom:4px">' + pill(n.angle, ANGC[n.angle] || ANGC['market intel']) + '</div>'
+    + '<a href="' + E(n.url) + '" style="font-size:15px;font-weight:700;color:#0b1a38;text-decoration:none;line-height:1.35">' + E(n.headline) + '</a>'
+    + '<div style="font-size:12px;color:#8a93a8;margin-top:2px">' + E([n.city, n.source, n.date ? fmtD(n.date) : ''].filter(Boolean).join(' · ')) + '</div>'
+    + (n.summary ? ('<div style="font-size:13.5px;color:#26324a;line-height:1.5;margin-top:5px">' + E(n.summary) + '</div>') : '')
+    + (n.why ? ('<div style="font-size:13px;color:#1f4f86;line-height:1.5;margin-top:4px"><b>Our move:</b> ' + E(n.why) + '</div>') : '')
+    + '</div></td></tr>'; });
+  else h += '<tr><td style="padding:0 26px 6px;font-size:13px;color:#8a93a8">No verified news this week.</td></tr>';
+  h += H('Upcoming events', (B.events || []).length);
+  if ((B.events || []).length) h += '<tr><td style="padding:0 26px 6px"><table role="presentation" width="100%" style="border-collapse:collapse">' + (B.events || []).map(e => '<tr>'
+    + '<td style="vertical-align:top;padding:9px 12px 9px 0;border-bottom:1px solid #f1f3f8;width:58px"><div style="text-align:center;border:1px solid #e3e9f3;border-radius:8px;padding:5px 0;background:#fafbfd"><div style="font-size:10px;font-weight:800;color:#a5352c;text-transform:uppercase">' + E(fmtD(e.date, { day: undefined })) + '</div><div style="font-size:18px;font-weight:800;color:#0b1a38;line-height:1.1">' + E(fmtD(e.date, { month: undefined })) + '</div></div></td>'
+    + '<td style="vertical-align:top;padding:9px 0;border-bottom:1px solid #f1f3f8">' + (e.priority === 'high' ? ('<div style="margin-bottom:3px">' + pill('Worth attending', ['#fff4e0', '#8a5a12']) + '</div>') : '')
+    + '<a href="' + E(e.url) + '" style="font-size:14.5px;font-weight:700;color:#0b1a38;text-decoration:none">' + E(e.name) + '</a>'
+    + '<div style="font-size:12px;color:#8a93a8;margin-top:2px">' + E([(e.endDate && e.endDate !== e.date) ? (fmtD(e.date) + ' – ' + fmtD(e.endDate)) : fmtD(e.date, { weekday: 'short' }), e.city, e.venue, e.organizer].filter(Boolean).join(' · ')) + '</div>'
+    + (e.why ? ('<div style="font-size:13px;color:#26324a;line-height:1.5;margin-top:4px">' + E(e.why) + '</div>') : '') + '</td></tr>').join('') + '</table></td></tr>';
+  else h += '<tr><td style="padding:0 26px 6px;font-size:13px;color:#8a93a8">No verified events in this window.</td></tr>';
+  h += '<tr><td style="padding:22px 26px 24px;font-size:11.5px;color:#8a93a8;line-height:1.6;border-top:1px solid #eef1f6;margin-top:10px">Researched by AI from public web sources; every item links to the page it came from. Confirm dates and details before registering or acting. Change recipients, markets and send time in Settings → Email / SMTP.</td></tr></table></td></tr></table></body></html>';
+  return h;
+}
+function _ibSubject(B) { return 'Industry brief — ' + (B.news || []).length + ' news item' + ((B.news || []).length === 1 ? '' : 's') + ', ' + (B.events || []).length + ' upcoming event' + ((B.events || []).length === 1 ? '' : 's'); }
+function _ibText(B) { return 'Industry brief\n\nNEWS\n' + (B.news || []).map(n => '- ' + n.headline + ' (' + [n.city, n.source].filter(Boolean).join(', ') + ')\n  ' + n.url).join('\n') + '\n\nEVENTS\n' + (B.events || []).map(e => '- ' + e.date + ' ' + e.name + (e.city ? (' — ' + e.city) : '') + '\n  ' + e.url).join('\n'); }
+async function sendIndustryBrief(B, to) { const subj = _ibSubject(B), html = industryBriefHtml(B), text = _ibText(B); let sent = 0;
+  for (const t of to) { try { await sendNotifyMail(t, subj, text, html); sent++; } catch (e) { console.error('industry brief to ' + t + ': ' + (e && e.message)); } } return sent; }
+let _ibBusy = false;
+async function industryBriefTick() { if (_ibBusy) return; try {
+  const cfg = effIndustryBrief(); if (!cfg.enabled || !isEmailConfigured() || !process.env.ANTHROPIC_API_KEY) return;
+  const now = firmNaive(); const dow = new Date(now.slice(0, 10) + 'T12:00:00Z').getUTCDay(); const hr = parseInt(now.slice(11, 13), 10);
+  if (dow !== cfg.day || hr < cfg.hour) return;
+  const wk = wdLastWeek().weekKey; if (cfg.lastSentWeek === wk) return;
+  const attempts = cfg.attemptWeek === wk ? (cfg.attempts || 0) : 0; if (attempts >= 3) return;                        // 3 tries a week, an hour apart
+  if (cfg.lastAttemptAt && (Date.now() - Date.parse(cfg.lastAttemptAt)) < 55 * 60 * 1000) return;
+  const to = ibRecipients(cfg); if (!to.length) return;
+  _ibBusy = true;
+  let s = loadSettings(); s.industryBrief = Object.assign({}, s.industryBrief || {}, { attemptWeek: wk, attempts: attempts + 1, lastAttemptAt: new Date().toISOString() }); saveSettings(s);
+  let B; try { B = await buildIndustryBrief(cfg); logAiCall('industry-brief', null); } catch (e) { s = loadSettings(); s.industryBrief = Object.assign({}, s.industryBrief || {}, { lastError: String(e && e.message || e).slice(0, 300) }); saveSettings(s); console.error('industry brief build:', e && e.message); return; }
+  s = loadSettings(); s.industryBrief = Object.assign({}, s.industryBrief || {}, { lastSentWeek: wk, lastError: '' }); saveSettings(s);   // mark before sending so a slow send never doubles
+  const n = await sendIndustryBrief(B, to); try { logSysEvent(null, 'Industry Brief', 'Industry brief emailed to ' + n + ' manager' + (n === 1 ? '' : 's') + ' (' + B.news.length + ' news, ' + B.events.length + ' events)', { tool: 'reports' }); } catch (e) {}
+} catch (e) { console.error('industryBriefTick:', e && e.message); } finally { _ibBusy = false; } }
+setInterval(industryBriefTick, 10 * 60 * 1000); setTimeout(industryBriefTick, 90 * 1000);
+function _ibState(c) { const B = ibLoad(); return { ok: true, enabled: c.enabled, day: c.day, hour: c.hour, users: ibSelectedUsers(c), candidates: ibCandidates(), extra: c.extra, markets: c.markets, focus: c.focus, lookahead: c.lookahead, recipients: ibRecipients(c), lastSentWeek: c.lastSentWeek, lastError: c.lastError, last: B ? { at: B.at, news: (B.news || []).length, events: (B.events || []).length } : null, tz: firmTz(), emailReady: isEmailConfigured(), aiReady: !!process.env.ANTHROPIC_API_KEY }; }
+app.get('/api/admin/industry-brief', requireAdmin, (req, res) => res.json(_ibState(effIndustryBrief())));
+app.post('/api/admin/industry-brief', requireAdmin, express.json(), (req, res) => { const b = req.body || {}; const s = loadSettings(); const c = Object.assign({}, (s.industryBrief && typeof s.industryBrief === 'object') ? s.industryBrief : {});
+  if (typeof b.enabled === 'boolean') c.enabled = b.enabled; if (b.day != null) c.day = Math.max(0, Math.min(6, parseInt(b.day, 10) || 0)); if (b.hour != null) c.hour = Math.max(0, Math.min(23, parseInt(b.hour, 10) || 0));
+  if (Array.isArray(b.users)) { const ok = ibCandidates().map(x => x.username); c.users = b.users.map(String).filter(u => ok.indexOf(u) >= 0); }
+  if (typeof b.extra === 'string') c.extra = b.extra.slice(0, 600); if (typeof b.markets === 'string') c.markets = b.markets.slice(0, 300); if (typeof b.focus === 'string') c.focus = b.focus.slice(0, 600);
+  if (b.lookahead != null && [30, 60, 90, 120].indexOf(parseInt(b.lookahead, 10)) >= 0) c.lookahead = parseInt(b.lookahead, 10);
+  s.industryBrief = c; if (!saveSettings(s)) return res.status(500).json({ ok: false, error: 'Could not save.' }); res.json(_ibState(effIndustryBrief())); });
+app.post('/api/admin/industry-brief/build', requireAdmin, async (req, res) => { if (_ibBusy) return res.status(409).json({ ok: false, error: 'A brief is already being built — give it a minute.' });
+  _ibBusy = true; const t0 = Date.now(); try { const B = await buildIndustryBrief(effIndustryBrief()); logAiCall('industry-brief', req, Date.now() - t0); res.json({ ok: true, at: B.at, news: B.news.length, events: B.events.length, searches: B.searches }); }
+  catch (e) { res.status(502).json({ ok: false, error: String(e && e.message || e) }); } finally { _ibBusy = false; } });
+app.get('/api/admin/industry-brief/preview', requireAdmin, (req, res) => { const B = ibLoad(); if (!B) return res.type('html').send('<p style="font-family:Arial;padding:30px;color:#555">No brief built yet — click <b>Build now</b> in Settings → Email / SMTP.</p>'); res.type('html').send(industryBriefHtml(B)); });
+app.post('/api/admin/industry-brief/send-me', requireAdmin, async (req, res) => { try {
+  if (!isEmailConfigured()) return res.status(400).json({ ok: false, error: 'Email isn’t set up yet — fill in the SMTP settings above.' });
+  const u = auth.findUser(req.user.username) || {}; const e = _ibUserEmail(u); if (!_ibEmailOk(e)) return res.status(400).json({ ok: false, error: 'Add your email on your Account page first.' });
+  const B = ibLoad(); if (!B) return res.status(400).json({ ok: false, error: 'Build the brief first.' });
+  const n = await sendIndustryBrief(B, [e]); res.json({ ok: n > 0, to: e, error: n ? '' : 'Could not send — check the SMTP settings.' });
 } catch (e) { res.status(500).json({ ok: false, error: String(e && e.message || e) }); } });
 app.get('/api/reports/owner', requireAdmin, (req, res) => {
   try { res.json(buildOwnerReports(req.query || {})); }

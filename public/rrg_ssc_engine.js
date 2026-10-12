@@ -66,7 +66,7 @@ window.RRG_FORMS.seller = {
     ]},
     { n:'6', title:'Call Outcome & Notes', decision:true, questions:[
       {sub:'Call Summary', draft:true},
-      {type:'textarea', full:true, id:'callNotes', label:'Call Notes', required:true, placeholder:"3–4 sentences: motivation, financial picture, expectations, and your read on the lead. This goes into the contact's record in FullServe.", prompt:"Give me your 3–4 sentence summary — or hit Draft to generate one.", hint:"Write it so another broker could pick this lead up cold. Or hit Draft from answers and edit what comes back — never send it unread."},
+      {type:'textarea', full:true, id:'callNotes', label:'Call Notes', required:true, placeholder:"3–4 sentences: motivation, financial picture, expectations, and your read on the lead. This goes into the contact's record in Lavano.", prompt:"Give me your 3–4 sentence summary — or hit Draft to generate one.", hint:"Write it so another broker could pick this lead up cold. Or hit Draft from answers and edit what comes back — never send it unread."},
       {type:'options', full:true, cols:2, required:true, label:'Deal Call', options:['Business Sale','Asset Sale','Nurture','Decline'], prompt:"Your call — business sale, asset sale, nurture, or decline?", hint:"Business Sale = going concern with transferable earnings. Asset Sale = the value is in the buildout, FF&E or license, not the earnings. Nurture = real but not ready. Decline = we can't deliver it or it's not worth our time. The AI pre-fills its read; you own the final call."}
     ]}
   ]

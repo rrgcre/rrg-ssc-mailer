@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>FullServe — Command</title>
+<title>Lavano — Command</title>
 <style>
 :root{--bg:#eef1f7;--card:#fff;--line:#e5e9f1;--ink:#141a29;--dim:#5f6a7d;--soft:#8a93a3;--navy:#0b1636;--navy2:#16346e;--red:#C0261B;--green:#1f8a5b;--gold:#a9822f;}
 *{box-sizing:border-box;margin:0;padding:0;} html,body{background:var(--bg);}
@@ -117,7 +117,7 @@ function startPresence(seed){ PREV_ONLINE={}; (seed||[]).forEach(function(u){ PR
 function render(NAME,D,META,ONLINE,ISADMIN){
   var vt=verText(META);
   var vw=''; try{ if(META.booted) vw=new Date(META.booted).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }catch(e){}
-  var vlabel=(vt?('FullServe '+vt):'FullServe')+(vw?(' · '+vw):'');
+  var vlabel=(vt?('Lavano '+vt):'Lavano')+(vw?(' · '+vw):'');
   document.getElementById('root').innerHTML=''
     +'<div class="wrap">'
     +'<div class="pagehead"><div><div class="greet">'+esc(greeting())+(NAME?(', '+esc(NAME.split(' ')[0])):'')+'<span class="live"><span class="d"></span>Live</span></div><div class="date">'+esc(dateLine())+' · '+num(D.listingsTotal||0)+' active listings · '+num(D.agreementsOut||0)+' agreements out</div></div>'

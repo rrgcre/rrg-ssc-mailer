@@ -86,7 +86,7 @@
     fetch('/api/appname', { credentials: 'same-origin' })
       .then(function (r) { return r.json(); })
       .then(function (j) {
-        var n = (j && j.name) || 'FullServe';
+        var n = (j && j.name) || 'Lavano';
         document.title = suffix ? (n + ' — ' + suffix) : n;
         try { localStorage.setItem('rrg_appname', n); } catch (e) {}
         try { window.__rrgAiConfirm = (j && j.aiConfirm !== false); } catch (e) {}

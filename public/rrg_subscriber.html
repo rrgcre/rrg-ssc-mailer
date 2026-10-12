@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>FullServe — Subscriber</title>
+<title>Lavano — Subscriber</title>
 <style>
 :root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;--inp:#cfd6e2;}
 *{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
@@ -81,7 +81,7 @@ function goBack(){ if(document.referrer.indexOf('rrg_subscribers.html')>=0 && hi
 var EDIT=null, METROS=[], TYPES=['Broker','Restaurant','Buyer'], DEL_ARM=false;
 var ST={ type:'', status:'subscribed', mode:'all', metros:[] };
 
-function setHead(){ var nm=((EDIT.firstName||'')+' '+(EDIT.lastName||'')).trim()||EDIT.email||(EDIT.id?'Subscriber':'New subscriber'); document.getElementById('h1').textContent=nm; document.getElementById('crumb').textContent=nm; document.title='FullServe — '+nm; }
+function setHead(){ var nm=((EDIT.firstName||'')+' '+(EDIT.lastName||'')).trim()||EDIT.email||(EDIT.id?'Subscriber':'New subscriber'); document.getElementById('h1').textContent=nm; document.getElementById('crumb').textContent=nm; document.title='Lavano — '+nm; }
 
 function typeSeg(){ var opts=[['','None']].concat(TYPES.map(function(t){return [t,t];})); return '<div class="seg" id="typeSeg">'+opts.map(function(o){ return '<label data-type="'+esc(o[0])+'"'+(ST.type===o[0]?' class="on"':'')+'>'+esc(o[1])+'</label>'; }).join('')+'</div>'; }
 function metroChips(){ return (METROS||[]).map(function(m){ var on=ST.metros.indexOf(m)>=0; return '<button type="button" class="chip'+(on?' on':'')+'" data-metro="'+esc(m)+'">'+esc(m)+'</button>'; }).join(''); }

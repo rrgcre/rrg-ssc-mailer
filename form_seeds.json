@@ -525,7 +525,7 @@
             "id": "callNotes",
             "label": "Call Notes",
             "required": true,
-            "placeholder": "3–4 sentences: motivation, financial picture, expectations, and your read on the lead. This goes into the contact's record in FullServe.",
+            "placeholder": "3–4 sentences: motivation, financial picture, expectations, and your read on the lead. This goes into the contact's record in Lavano.",
             "prompt": "Give me your 3–4 sentence summary — or hit Draft to generate one.",
             "hint": "Capture the story: WHY they're selling, WHAT the financials show, WHAT they expect, and YOUR gut on deal viability. This is what someone reads six months from now."
           },

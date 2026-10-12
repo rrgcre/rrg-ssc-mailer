@@ -1,6 +1,6 @@
 'use strict';
 /*
- * pgstore.js — Postgres BACKUP REPLICA for FullServe's records.
+ * pgstore.js — Postgres BACKUP REPLICA for Lavano's records.
  *
  * The persistent-disk JSON files are the source of truth and the working store:
  * the app reads and writes them synchronously, exactly as it always has, so a

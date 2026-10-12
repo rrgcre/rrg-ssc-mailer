@@ -1,6 +1,6 @@
 'use strict';
 /*
- * datasafe.js — the safety-critical data writer for FullServe.
+ * datasafe.js — the safety-critical data writer for Lavano.
  *
  * Isolated from server.js so it can be unit-tested and reasoned about on its
  * own. This is the function that stands between a bug (or a full disk) and
