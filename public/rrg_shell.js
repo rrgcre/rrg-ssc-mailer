@@ -200,9 +200,9 @@
       { ic: '⟳', label: 'Automations', href: 'rrg_admin_automations.html', admin: true }
     ] },
     { grp: 'Financials', color: '#4fb0a6', items: [
-      { ic: '％', label: 'Commissions', href: 'rrg_commission.html' },
       { ic: '❏', label: 'Invoices', href: 'rrg_invoices.html', admin: true },
       { ic: '＄', label: 'Payments', href: 'rrg_payments.html', admin: true },
+      { ic: '％', label: 'Commissions', href: 'rrg_commission.html' },
       { ic: '⊟', label: 'Expenses', href: 'rrg_expenses.html', admin: true },
       { ic: '▦', label: 'Profit & Loss', href: 'rrg_pnl.html', admin: true },
       { ic: '≣', label: 'General Ledger', href: 'rrg_gl.html', admin: true }
