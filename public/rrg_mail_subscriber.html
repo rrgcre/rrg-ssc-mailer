@@ -82,7 +82,7 @@ function typeOptions(cur){
 function areasHtml(){
   var sel={}; (SUB.metros||[]).forEach(function(m){ sel[m]=1; });
   var chips=(MARKETS||[]).map(function(m){ return '<label class="ar-lab'+(sel[m]?' on':'')+'"><input type="checkbox" class="ar-cb" value="'+esc(m)+'"'+(sel[m]?' checked':'')+'> '+esc(m)+'</label>'; }).join('');
-  return chips||'<span class="meta">No markets configured yet — set them in Admin → Settings → Markets.</span>';
+  return chips||'<span class="meta">No markets configured yet — set them in Settings → Markets.</span>';
 }
 function render(){
   var st=SUB.status||'active';

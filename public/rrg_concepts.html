@@ -52,7 +52,7 @@ var CANDS=[], ROWS={}, ORDER=[], STATE={}, SCANNED=0, ONLYNEEDS=true, CPTCANCEL=
 function fieldsOn(){ return { cuisine:document.getElementById('f_cuisine').checked, type:document.getElementById('f_type').checked, price:document.getElementById('f_price').checked, mu:document.getElementById('f_mu').checked }; }
 function build(aiReady){
   var root=document.getElementById('root'); root.className='wrap';
-  if(!aiReady){ root.innerHTML='<div class="setup"><b>Turn on AI first</b><p>Concept classification uses AI (your Anthropic key). Save your key under <b>Admin → Settings</b>, then come back.</p><a class="btn purple" href="rrg_admin_settings.html" style="text-decoration:none;color:#fff">Open Settings</a></div>'; return; }
+  if(!aiReady){ root.innerHTML='<div class="setup"><b>Turn on AI first</b><p>Concept classification uses AI (your Anthropic key). Save your key under <b>Settings</b>, then come back.</p><a class="btn purple" href="rrg_admin_settings.html" style="text-decoration:none;color:#fff">Open Settings</a></div>'; return; }
   root.innerHTML=''
    +'<div class="fields"><span class="ttl">Apply</span>'
    +'<label><input type="checkbox" id="f_cuisine" checked> Cuisine</label>'

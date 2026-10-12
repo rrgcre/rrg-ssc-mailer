@@ -354,7 +354,7 @@
     if(inList) html+='</ul>';
     return html;
   }
-  // Duration + message are admin-configurable (Admin → Questionnaire Intro Screen).
+  // Duration + message are admin-configurable (Settings → Questionnaire Intro Screen).
   fetch('/api/bov-config',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     if(j&&j.ok&&j.introMessage){ var bd=document.getElementById('qintroBody'); if(bd){ var h=renderMsg(j.introMessage); if(h) bd.innerHTML=h; } }
     run(j&&j.ok&&j.introSeconds!=null ? j.introSeconds : 10);

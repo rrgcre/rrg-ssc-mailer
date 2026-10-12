@@ -555,7 +555,7 @@ function tasksCard(){
     '<div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#8a93a8;margin:2px 0 4px">Assign to</div>'+
     '<select id="taskAssignee" style="width:100%;box-sizing:border-box;border:1px solid #cfd6e2;border-radius:8px;padding:7px 9px;font:inherit;font-size:12.5px;margin-bottom:9px">'+(USERS||[]).map(function(u){ return '<option value="'+esc(u.username)+'"'+(u.username===_tdo?' selected':'')+'>'+esc(u.name)+'</option>'; }).join('')+'</select>'+
     '<div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#8a93a8;margin:2px 0 4px">⟳ Run automation <span style="font-weight:500;text-transform:none;letter-spacing:0">(optional)</span></div>'+
-    ((AUTOMATIONS&&AUTOMATIONS.length)?('<select id="taskAuto" style="width:100%;box-sizing:border-box;border:1px solid #cfd6e2;border-radius:8px;padding:7px 9px;font:inherit;font-size:12.5px;margin-bottom:9px"><option value="">— none —</option>'+(AUTOMATIONS||[]).map(function(a){return '<option value="'+esc(a.id)+'">'+esc(a.name||'Automation')+'</option>';}).join('')+'</select>'):('<div style="font-size:11.5px;color:#8a94a6;margin:0 0 9px">No automations built yet — add one under Admin → Automations.</div>'))+
+    ((AUTOMATIONS&&AUTOMATIONS.length)?('<select id="taskAuto" style="width:100%;box-sizing:border-box;border:1px solid #cfd6e2;border-radius:8px;padding:7px 9px;font:inherit;font-size:12.5px;margin-bottom:9px"><option value="">— none —</option>'+(AUTOMATIONS||[]).map(function(a){return '<option value="'+esc(a.id)+'">'+esc(a.name||'Automation')+'</option>';}).join('')+'</select>'):('<div style="font-size:11.5px;color:#8a94a6;margin:0 0 9px">No automations built yet — add one under Settings → Automations.</div>'))+
     '<div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" id="taskCancelBtn" class="mfadd" style="padding:7px 12px">Cancel</button><button type="button" id="taskSaveBtn" class="savebtn" style="width:auto;padding:8px 16px">Save task</button></div>'+
     '<div id="taskMsg" style="font-size:12px;color:#DA2B1F;margin-top:5px"></div></div>';
   var addrow='<button type="button" id="taskAddRow" style="width:100%;text-align:left;background:#f7f9fc;border:1px dashed #c9d3e2;border-radius:8px;padding:9px 12px;font:inherit;font-size:13px;font-weight:600;color:#5b6472;cursor:pointer;margin-bottom:9px;display:block">+ Add a task\u2026</button>';
@@ -847,11 +847,11 @@ function renderAdvSig(a){
     '<div id="advfill"></div>'+'<div class="advsigners">'+rows+'</div>'+
     (doneAll?'<div class="agrsignedinfo">✓ Fully signed — the finished PDF with signatures and audit trail is ready.</div>':'')+
     '<div class="agrsigbtns" style="margin-top:10px">'+(doneAll?'':'<button type="button" class="mfadd" id="adv_send">✉ '+btnLabel+'</button>')+finalLink+'<span id="adv_msg" style="font-size:12px;color:#6b7488"></span></div>'+
-    '<div style="font-size:11.5px;color:#98a1b5;margin-top:8px">Fields are placed on the template PDF (Admin → Agreement templates → Design fields).</div>';
+    '<div style="font-size:11.5px;color:#98a1b5;margin-top:8px">Fields are placed on the template PDF (Settings → Agreement templates → Design fields).</div>';
   function saveSigners(){ var out={}; sig.querySelectorAll('.advname').forEach(function(n){ var o=+n.getAttribute('data-o'); out[o]=out[o]||{order:o}; out[o].name=n.value; }); sig.querySelectorAll('.advemail').forEach(function(e){ var o=+e.getAttribute('data-o'); out[o]=out[o]||{order:o}; out[o].email=e.value; }); var arr=Object.keys(out).map(function(k){return out[k];}); return fetch('/api/agreements/'+encodeURIComponent(a.id)+'/signers',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({signers:arr})}).then(function(r){return r.json();}); }
   loadFillSection(a);
   sig.querySelectorAll('.advname,.advemail').forEach(function(el){ el.addEventListener('change',function(){ saveSigners(); }); });
-  var sb=document.getElementById('adv_send'); if(sb) sb.addEventListener('click',function(){ if(!EMAILREADY){ alert('Email is not set up yet (Admin → Email).'); return; } var m=document.getElementById('adv_msg'); m.textContent='Saving…'; saveFillSilent(a).then(function(){ return saveSigners(); }).then(function(){ m.textContent='Sending…'; return fetch('/api/agreements/'+encodeURIComponent(a.id)+'/send-adv',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({})}).then(function(r){return r.json();}); }).then(function(j){ if(j&&j.ok){ load(); } else { m.textContent=(j&&j.error)||'Send failed.'; alert((j&&j.error)||'Send failed.'); } }).catch(function(){ m.textContent='Could not reach the server.'; }); });
+  var sb=document.getElementById('adv_send'); if(sb) sb.addEventListener('click',function(){ if(!EMAILREADY){ alert('Email is not set up yet (Settings → Email).'); return; } var m=document.getElementById('adv_msg'); m.textContent='Saving…'; saveFillSilent(a).then(function(){ return saveSigners(); }).then(function(){ m.textContent='Sending…'; return fetch('/api/agreements/'+encodeURIComponent(a.id)+'/send-adv',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({})}).then(function(r){return r.json();}); }).then(function(j){ if(j&&j.ok){ load(); } else { m.textContent=(j&&j.error)||'Send failed.'; alert((j&&j.error)||'Send failed.'); } }).catch(function(){ m.textContent='Could not reach the server.'; }); });
 }
 function loadFillSection(a){
   var host=document.getElementById('advfill'); if(!host) return;
@@ -912,7 +912,7 @@ async function delAgreement(id){ if(!await rrgConfirm('Delete this agreement?'))
 function refreshAgr(u){ if(!u){ load(); return; } var found=false; AGREEMENTS=AGREEMENTS.map(function(x){ if(x.id===u.id){found=true; return u;} return x; }); if(!found) AGREEMENTS.push(u); render(); openAgrForm(u); }
 function uploadAgrDoc(id,file){ if(file.size>20*1024*1024){ alert('File too large (max 20 MB).'); return; } var m=document.getElementById('agr_sigmsg'); if(m)m.textContent='Uploading…'; var rd=new FileReader(); rd.onload=function(){ fetch('/api/agreements/'+encodeURIComponent(id)+'/doc',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({filename:file.name,dataB64:String(rd.result||'')})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ refreshAgr(j.agreement); } else { if(m)m.textContent=(j&&j.error)||'Upload failed.'; } }).catch(function(){ if(m)m.textContent='Upload failed.'; }); }; rd.readAsDataURL(file); }
 async function clearAgrDoc(id){ if(!await rrgConfirm('Remove the attached document?')) return; fetch('/api/agreements/'+encodeURIComponent(id)+'/doc/clear',{method:'POST',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok) refreshAgr(j.agreement); }); }
-async function sendAgrForSig(id){ if(!EMAILREADY){ alert('Email is not set up yet (Admin → Email).'); return; } if(!await rrgConfirm('Email this agreement to the contact for signature?')) return; var m=document.getElementById('agr_sigmsg'); if(m)m.textContent='Sending…'; fetch('/api/agreements/'+encodeURIComponent(id)+'/send',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else { if(m)m.textContent=(j&&j.error)||'Send failed.'; alert((j&&j.error)||'Send failed.'); } }).catch(function(){ if(m)m.textContent='Could not reach the server.'; }); }
+async function sendAgrForSig(id){ if(!EMAILREADY){ alert('Email is not set up yet (Settings → Email).'); return; } if(!await rrgConfirm('Email this agreement to the contact for signature?')) return; var m=document.getElementById('agr_sigmsg'); if(m)m.textContent='Sending…'; fetch('/api/agreements/'+encodeURIComponent(id)+'/send',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else { if(m)m.textContent=(j&&j.error)||'Send failed.'; alert((j&&j.error)||'Send failed.'); } }).catch(function(){ if(m)m.textContent='Could not reach the server.'; }); }
 function applyTemplate(id,tplId){ var m=document.getElementById('agr_sigmsg'); if(m)m.textContent='Loading template…'; fetch('/api/agreements/'+encodeURIComponent(id)+'/apply-template',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({templateId:tplId})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ refreshAgr(j.agreement); } else { if(m)m.textContent=(j&&j.error)||'Could not apply template.'; alert((j&&j.error)||'Could not apply template.'); } }).catch(function(){ if(m)m.textContent='Could not reach the server.'; }); }
 function openCountersign(id){
   var ov=document.createElement('div');
@@ -1128,7 +1128,7 @@ function openSendAgrMenu(btn){
   var pending=(TEMPLATES||[]).filter(function(t){return !t.fileExt && t.active!==false;});
   var html='';
   if(ready.length){ html+='<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#8a93a8;padding:6px 9px 3px">Send for signature</div>'; ready.forEach(function(t){ html+='<button type="button" class="samItem" data-tpl="'+esc(t.id)+'" style="'+IST+'">✉ '+esc(t.name)+'</button>'; }); }
-  else if(!pending.length){ html+='<div style="font-size:12px;color:#8a93a8;padding:8px 9px;line-height:1.4">No templates yet — add them in Admin → Agreement templates.</div>'; }
+  else if(!pending.length){ html+='<div style="font-size:12px;color:#8a93a8;padding:8px 9px;line-height:1.4">No templates yet — add them in Settings → Agreement templates.</div>'; }
   if(pending.length){ html+='<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#b5791f;padding:8px 9px 3px">Needs a document</div>'; pending.forEach(function(t){ html+='<button type="button" class="samItem" data-settings="1" title="Finish setup: upload the document and place the signing fields" style="'+IST+';cursor:default"><span style="color:#6b7488">'+esc(t.name)+'</span><span style="display:block;font-size:11px;color:#b5791f;margin-top:1px">Upload a document to enable ›</span></button>'; }); }
   html+='<div style="height:1px;background:#eef1f6;margin:5px 0"></div>';
   html+='<button type="button" class="samItem" data-act="upload" style="'+IST+'">📎 Use another agreement (upload)</button>';
@@ -1340,7 +1340,7 @@ function openListingAgreement(){
     var tpl=(TEMPLATES||[]).filter(function(t){ return t.fileExt && String(t.type||'')==='Listing'; })[0];
     var out=document.getElementById('sm_msgout');
     if(tpl && stpl){ stpl.value=tpl.id; if(typeof smOnTpl==='function') smOnTpl(); if(out){ out.style.color='#1f8a5b'; out.textContent='Exclusive Business Listing loaded — review the details and send for signature.'; } }
-    else if(out){ out.style.color='#b5791f'; out.textContent='No Exclusive Business Listing template found yet — pick a template or attach the agreement to send. (Add one in Admin → Agreement templates, tagged “Exclusive Business Listing”.)'; }
+    else if(out){ out.style.color='#b5791f'; out.textContent='No Exclusive Business Listing template found yet — pick a template or attach the agreement to send. (Add one in Settings → Agreement templates, tagged “Exclusive Business Listing”.)'; }
   }catch(e){}
 }
 function openNda(){
@@ -1351,7 +1351,7 @@ function openNda(){
     var tpl=(TEMPLATES||[]).filter(function(t){ return t.fileExt && String(t.type||'')==='NDA'; })[0];
     var out=document.getElementById('sm_msgout');
     if(tpl && stpl){ stpl.value=tpl.id; if(typeof smOnTpl==='function') smOnTpl(); if(out){ out.style.color='#1f8a5b'; out.textContent='NDA loaded — review the details and send for signature.'; } }
-    else { var _st=document.getElementById('sm_type'); if(_st) _st.value='NDA'; if(out){ out.style.color='#b5791f'; out.textContent='No NDA template found yet — pick a template or attach the NDA to send. (Add one in Admin → Agreement templates, tagged “NDA”.)'; } }
+    else { var _st=document.getElementById('sm_type'); if(_st) _st.value='NDA'; if(out){ out.style.color='#b5791f'; out.textContent='No NDA template found yet — pick a template or attach the NDA to send. (Add one in Settings → Agreement templates, tagged “NDA”.)'; } }
   }catch(e){}
 }
 // Pre-NDA "heads-up" email — tees the seller up before the NDA goes out: tells them it's
@@ -1367,11 +1367,11 @@ var PRENDA_BODY=''
   +'<p>Send over any questions in the meantime. Looking forward to it.</p>'
   +'<p>Best,<br>{{my_name}}</p>';
 function openPreNdaEmail(){
-  if(!(EMAILREADY||GMAILCONN)){ alert('Email is not set up yet (Admin → Email), so this note can’t be composed here. Set up email, or send it from your own inbox.'); return; }
+  if(!(EMAILREADY||GMAILCONN)){ alert('Email is not set up yet (Settings → Email), so this note can’t be composed here. Set up email, or send it from your own inbox.'); return; }
   var tabBtn=document.querySelector('.cotab[data-tab="email"]'); if(tabBtn) tabBtn.click();
   try{
     var to=document.getElementById('em_to'); if(to && !to.value.trim()){ to.value=_pEmail(); }
-    // Prefer the editable library template (Admin → Email templates); fall back to the built-in text.
+    // Prefer the editable library template (Marketing → Email Templates); fall back to the built-in text.
     var lib=(EMAILTPLS||[]).filter(function(t){ return t.id==='etpl_prenda' || /nda\s*&?\s*docs?\s*heads?-?up/i.test(t.name||''); })[0];
     if(lib){ var sel=document.getElementById('em_tpl'); if(sel) sel.value=lib.id; if(typeof applyEmailTemplate==='function'){ applyEmailTemplate(lib.id); } }
     else {
@@ -1385,7 +1385,7 @@ function openPreNdaEmail(){
 }
 function doSendAgreement(){
   var out=document.getElementById('sm_msgout');
-  if(!EMAILREADY){ alert('Email is not set up yet (Admin → Email).'); return; }
+  if(!EMAILREADY){ alert('Email is not set up yet (Settings → Email).'); return; }
   var v=document.getElementById('sm_tpl').value;
   if(!v){ out.textContent='Pick a template, or choose to attach your own file.'; return; }
   try{ if(v&&v!=='__file') localStorage.setItem('rrgLastAgrTpl',v); }catch(e){}

@@ -59,7 +59,7 @@ function statusPill(s,bs){ var cls='pill',lbl=s||bs||'—'; if(s==='Operating'){
 function fieldsOn(){ return { status:document.getElementById('f_status').checked, price:document.getElementById('f_price').checked, fills:document.getElementById('f_fills').checked }; }
 function build(hasKey){
   var root=document.getElementById('root'); root.className='wrap';
-  if(!hasKey){ root.innerHTML='<div class="setup"><b>Add your Google key first</b><p>This tool uses the Google Places API. Save your key under <b>Admin → Settings</b> (Places API New + billing enabled), then come back.</p><a class="btn green" href="rrg_admin_settings.html" style="text-decoration:none;color:#fff">Open Settings</a> <a class="btn" href="rrg_data.html" style="text-decoration:none">Back</a></div>'; return; }
+  if(!hasKey){ root.innerHTML='<div class="setup"><b>Add your Google key first</b><p>This tool uses the Google Places API. Save your key under <b>Settings</b> (Places API New + billing enabled), then come back.</p><a class="btn green" href="rrg_admin_settings.html" style="text-decoration:none;color:#fff">Open Settings</a> <a class="btn" href="rrg_data.html" style="text-decoration:none">Back</a></div>'; return; }
   root.innerHTML=''
    +'<div class="fields"><span class="ttl">Apply</span>'
    +'<label><input type="checkbox" id="f_status" checked> Operating status</label>'

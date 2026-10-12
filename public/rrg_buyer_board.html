@@ -185,7 +185,7 @@ function renderList(all){
 function render(){
   var root=document.getElementById('root');
   syncViewTog();
-  if(!HASPIPE){ root.innerHTML='<div class="state"><b>No buyer pipeline yet.</b>Create one under <a href="./rrg_admin_pipelines.html">Admin → Pipelines</a> and set its Practice area to <b>Buyer</b>. Add your stages (e.g. Contacted → Qualified → NDA Sent → Toured → Offer) and this board fills in as buyer leads come in.</div>'; return; }
+  if(!HASPIPE){ root.innerHTML='<div class="state"><b>No buyer pipeline yet.</b>Create one under <a href="./rrg_admin_pipelines.html">Settings → Pipelines</a> and set its Practice area to <b>Buyer</b>. Add your stages (e.g. Contacted → Qualified → NDA Sent → Toured → Offer) and this board fills in as buyer leads come in.</div>'; return; }
   var visAll=visibleBuyers();
   if(VIEW==='list'){ renderList(visAll); var t=document.getElementById('tot'); if(t) t.textContent=visAll.length+' buyer'+(visAll.length===1?'':'s')+(FILTER==='__all__'?(' across '+LISTINGS.length+' listing'+(LISTINGS.length===1?'':'s')):(' on '+(lfLabelFor(FILTER)||'this listing'))); return; }
   var offAll=visAll.filter(isOffBuyer);                        // parked / lost — off the board

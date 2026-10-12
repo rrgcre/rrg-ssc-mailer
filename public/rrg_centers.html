@@ -257,7 +257,7 @@ function enrichAll(){
   var btn=document.getElementById('enrichBtn'), msg=document.getElementById('count');
   if(!CENTERS.length){ if(msg) msg.textContent='No centers to enrich yet.'; return; }
   var src=HASMAPS?'Google (verified address + Street View photo) and your own listings':'your own listings';
-  var note=HASMAPS?'' : '\n\n(No Google Maps key set — this uses your listings only. Add a key in Admin → Integrations for verified addresses + Street View photos.)';
+  var note=HASMAPS?'' : '\n\n(No Google Maps key set — this uses your listings only. Add a key in Settings → Integrations for verified addresses + Street View photos.)';
   if(!confirm('Fill in address, city, metro, type/anchor and a photo for all '+CENTERS.length+' centers, using '+src+'?\n\nThis only fills blanks — it won’t overwrite anything you’ve already entered. With Google on, it can take a couple of minutes.'+note)) return;
   btn.disabled=true; var old=btn.textContent; btn.textContent='Enriching…';
   if(msg){ msg.style.color=''; msg.textContent='Enriching '+CENTERS.length+' centers'+(HASMAPS?' with Google verification':'')+' — this can take a couple of minutes…'; }

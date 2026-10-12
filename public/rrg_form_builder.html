@@ -335,7 +335,7 @@ function polishPrompts(){
       if(_canceled) return;
       _restoreBtn();
       var items=(j&&j.ok&&j.result&&j.result.items)||null;
-      if(!items||!items.length){ if(window.rrgAiWork) rrgAiWork.hide(); if(m){ m.className='msg err'; m.textContent=(j&&j.error)||'Could not rewrite the prompts — check the AI key in Admin → Settings.'; } return; }
+      if(!items||!items.length){ if(window.rrgAiWork) rrgAiWork.hide(); if(m){ m.className='msg err'; m.textContent=(j&&j.error)||'Could not rewrite the prompts — check the AI key in Settings.'; } return; }
       var n=0; items.forEach(function(it){ var ta=proms[it.i]; if(ta && typeof it.prompt==='string' && it.prompt){ ta.value=it.prompt; n++; } });
       if(m){ m.className='msg ok'; m.textContent='Rewrote '+n+' prompt'+(n===1?'':'s')+' — review and tweak, then Save & close.'; }
       if(typeof autoSave==='function') autoSave();

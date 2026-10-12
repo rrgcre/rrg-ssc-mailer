@@ -231,7 +231,7 @@ async function resetBook(){
   if(!await rrgConfirm('CHECK 1 of 2 — This permanently deletes ALL companies, concepts, and locations (and their photos). Contacts and deals are kept. Continue?')) return;
   if(!await rrgConfirm('CHECK 2 of 2 — Are you absolutely sure? A full backup of everything will be saved first, but this wipes the book of companies and cannot be undone. Click OK only if you are certain.')) { m.textContent='Cancelled — nothing was deleted.'; m.className='msg'; return; }
   m.textContent='Backing up, then resetting…'; m.className='msg';
-  post('/api/admin/reset-book',{confirm:'RESET'}).then(function(j){ if(j&&j.ok){ document.getElementById('resetConfirm').value=''; m.textContent='Done — backed up to '+(j.backup||'a snapshot')+', then cleared '+(j.cleared||0)+' company record'+((j.cleared===1)?'':'s')+'. Restore it from Admin → Backups if needed.'; m.className='msg ok'; } else { m.textContent=(j&&j.error)||'Could not reset.'; m.className='msg err'; } });
+  post('/api/admin/reset-book',{confirm:'RESET'}).then(function(j){ if(j&&j.ok){ document.getElementById('resetConfirm').value=''; m.textContent='Done — backed up to '+(j.backup||'a snapshot')+', then cleared '+(j.cleared||0)+' company record'+((j.cleared===1)?'':'s')+'. Restore it from Settings → Backups if needed.'; m.className='msg ok'; } else { m.textContent=(j&&j.error)||'Could not reset.'; m.className='msg err'; } });
 }
 
 function build(){

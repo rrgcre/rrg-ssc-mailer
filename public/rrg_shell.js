@@ -157,6 +157,8 @@
 
   try { (function(){ var _sym='$'; window.RRG_CCYSYM=_sym; window.rrgMoney=function(n){ n=Number(n); if(!isFinite(n)) n=0; return window.RRG_CCYSYM + n.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0}); }; fetch('/api/session',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(ss){ if(ss&&ss.currencySymbol){ window.RRG_CCYSYM=ss.currencySymbol; try{ document.querySelectorAll('.ccysym').forEach(function(el){ el.textContent=window.RRG_CCYSYM; }); }catch(e){} } }).catch(function(){}); })(); } catch(e){}
 
+  // Settings is pinned to the bottom of the sidebar (admins only), apart from the work groups.
+  var NAV_PIN = { ic: '\u2699', label: 'Settings', href: 'rrg_settings.html', admin: true };
   var NAV = [
     { title: 'My Work', color: '#8fa2c4', items: [
       { ic: '☀︎', label: 'Daily Brief', href: 'rrg_brief.html', ai: true },
@@ -215,7 +217,6 @@
     { grp: 'Admin', admin: true, color: '#dd8a82', items: [
       { ic: '✉', label: 'Office Requests', href: 'rrg_tickets.html' },
       { ic: '<svg viewBox="0 0 20 20" width="14" height="14" style="vertical-align:-2px" fill="currentColor"><rect x="3" y="10" width="3" height="7" rx="1"></rect><rect x="8.5" y="6" width="3" height="11" rx="1"></rect><rect x="14" y="3" width="3" height="14" rx="1"></rect></svg>', label: 'Reports', href: 'rrg_reports.html', admin: true },
-      { ic: '⚙', label: 'Settings', href: 'rrg_settings.html' },
       { ic: '❖', label: 'Team', href: 'rrg_team.html' },
       { ic: '⚑', label: 'Wish List', href: 'rrg_feedback.html' }
     ] }
@@ -290,6 +291,7 @@
     + '#rrgnav a.it .navbadge.open{background:#e7ecf5;color:#2c4e86;}'
     + '#rrgnav a.it .navbadge + .navbadge{margin-left:4px;}'
     + '#rrgnav a.it .aitag{margin-left:5px;font-size:11px;line-height:1;opacity:.85;}'
+    + '#rrgnav .navpin{flex:none;border-top:1px solid rgba(255,255,255,.10);padding:8px 10px 10px;}#rrgnav .navpin a.it{padding:7px 10px;}#rrgnav .navpin a.it .i{color:#aab4c8;}'
     + '#rrgnav .foot{border-top:1px solid rgba(255,255,255,.09);padding:8px 8px;display:flex;align-items:center;gap:4px;}#rrgnav .foot a.it{flex:none;padding:6px 9px;}#rrgnav .foot a.it:first-child{flex:1;min-width:0;}#rrgnav .foot a.it:first-child #rrgacct{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}'
     + '#rrgtop{position:fixed;top:0;left:238px;right:0;height:56px;background:#fff;border-bottom:1px solid #e9edf3;display:flex;align-items:center;gap:18px;padding:0 22px;z-index:59;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}'
     + 'html.rrg-anim #rrgnav{transition:width .16s ease;} html.rrg-anim #rrgtop{transition:left .16s ease;} html.rrg-anim body.rrg-shelled{transition:padding-left .16s ease;}'
@@ -379,7 +381,7 @@
   var _cachedName = (function(){ try { return localStorage.getItem('rrg_appname') || ''; } catch(e){ return ''; } })();
   var _cachedLogo = (function(){ try { return localStorage.getItem('rrg_logo') || ''; } catch(e){ return ''; } })();
   var _brandInner = _cachedLogo ? ('<img src="'+esc(_cachedLogo)+'" alt="" class="rrgbrandimg">') : esc(_cachedName);
-  // Custom tool names (Admin → Tool Labels) applied to the nav by default label, e.g. Listings→Engagements.
+  // Custom tool names (Settings → Tool Labels) applied to the nav by default label, e.g. Listings→Engagements.
   // Cached so the rename shows on first paint; refreshed from /api/session below.
   var _NAVL = (function(){ try { return JSON.parse(localStorage.getItem('rrg_nav_labels_v1')||'{}') || {}; } catch(e){ return {}; } })();
   function _navLbl(def){ return (_NAVL && _NAVL[def]) || def; }
@@ -401,13 +403,16 @@
     navHtml += '</div>';
   });
   navHtml += '</div>';
-  // Account / Help / Log out moved to the top-right avatar menu; no bottom footer.
+  // Pinned footer: Settings (admins only — revealed with the admin groups).
+  navHtml += '<div class="navpin" data-adminit="1" style="display:none"><a class="it' + (isActive(NAV_PIN) ? ' on' : '') + '" data-lbl="Settings" title="Settings" href="' + esc(NAV_PIN.href) + '"><span class="i">' + NAV_PIN.ic + '</span><span class="itlbl">Settings</span></a></div>';
+  // Account / Help / Log out live in the top-right avatar menu.
 
   var nav = document.createElement('aside'); nav.id='rrgnav'; nav.innerHTML=navHtml;
 
   // ---------- top bar ----------
   var activeLabel = '';
   NAV.forEach(function (g) { g.items.forEach(function (it) { if (isActive(it)) activeLabel = it.label; }); });
+  if (!activeLabel && isActive(NAV_PIN)) activeLabel = NAV_PIN.label;
   if (!activeLabel) { var t = (document.title || '').split('—')[0].split(' - ')[0].trim(); activeLabel = t || _cachedName || ''; }
   var top = document.createElement('div'); top.id='rrgtop';
   top.innerHTML = ''
@@ -717,7 +722,7 @@
       }).catch(function(){});
       fetch('/api/session',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(s){
         try{ window.__rrgSession=s; window.__rrgAssistant=(s&&s.assistant)||'the assistant'; document.dispatchEvent(new CustomEvent('rrg:session',{detail:s})); }catch(e){} try{ if(s&&s.assistant){ var _cl=nav.querySelector('a.it[href="rrg_consult.html"] .itlbl'); if(_cl) _cl.textContent='Consult '+s.assistant; } }catch(e){}
-        // Apply custom tool names (Admin → Tool Labels) to the nav — a rename permeates the sidebar.
+        // Apply custom tool names (Settings → Tool Labels) to the nav — a rename permeates the sidebar.
         try{ var _nl=(s&&s.navLabels)||{}; try{ localStorage.setItem('rrg_nav_labels_v1', JSON.stringify(_nl)); }catch(e){} nav.querySelectorAll('a.it[data-lbl]').forEach(function(el){ var d=el.getAttribute('data-lbl'); var lb=_nl[d]||d; var sp=el.querySelector('.itlbl'); if(sp && sp.textContent!==lb) sp.textContent=lb; el.setAttribute('title', lb); }); }catch(e){}
         if(s&&(s.role==='admin'||s.role==='creator')){ nav.querySelectorAll('[data-admingrp]').forEach(function(g){ g.style.display=''; }); nav.querySelectorAll('[data-adminit]').forEach(function(el){ el.style.display=''; }); }
         if(s&&s.canManageLoi){ nav.querySelectorAll('a.it[data-need="loi"]').forEach(function(el){ el.style.display=''; }); }

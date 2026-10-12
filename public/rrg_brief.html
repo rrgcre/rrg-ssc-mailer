@@ -148,7 +148,7 @@ function _doLoad(force){
   var cb=document.getElementById('cancelBtn'); if(cb) cb.addEventListener('click',function(){ if(CTRL){ try{CTRL.abort();}catch(e){} } cancelled(); });
   fetch('/api/ai/brief?scope='+encodeURIComponent(SCOPE)+(force?'&refresh=1':''),{credentials:'same-origin',signal:CTRL?CTRL.signal:undefined}).then(function(r){return r.json();}).then(function(j){
     stopTimer();
-    if(!j||!j.ok){ paintScope(j); out.innerHTML='<div class="err">'+esc((j&&j.error)||'Could not build the brief.')+(/not configured/i.test((j&&j.error)||'')?' — set the Anthropic API key in Admin → Settings.':'')+'</div>'; return; }
+    if(!j||!j.ok){ paintScope(j); out.innerHTML='<div class="err">'+esc((j&&j.error)||'Could not build the brief.')+(/not configured/i.test((j&&j.error)||'')?' — set the Anthropic API key in Settings.':'')+'</div>'; return; }
     render(j);
   }).catch(function(err){ stopTimer(); if(err&&err.name==='AbortError') return; out.innerHTML='<div class="err">Network error building the brief.</div>'; });
 }

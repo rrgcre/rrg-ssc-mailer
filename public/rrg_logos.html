@@ -104,7 +104,7 @@ function aiFind(){
   function stop(msg){ AIW.hide(); reset(); if(msg){ var m=document.getElementById('msg'); m.className='msg ok'; m.textContent=msg; } }
   fetch('/api/admin/logo-nowebsite',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok){ stop(''); return; }
-    if(!j.aiReady){ stop(''); alert('Set your Anthropic key in Admin → Settings to use AI.'); return; }
+    if(!j.aiReady){ stop(''); alert('Set your Anthropic key in Settings to use AI.'); return; }
     var pool=j.companies||[]; if(!pool.length){ stop(''); alert('Every company already has a website or a logo.'); return; }
     AIW.progress(0,pool.length,{noun:'companies', msg:'Reading brands with AI…'});
     var chunks=[]; for(var i=0;i<pool.length;i+=15) chunks.push(pool.slice(i,i+15)); var ci=0, found=0, scanned=0;
