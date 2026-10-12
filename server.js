@@ -25699,11 +25699,11 @@ app.post('/api/tx/crm-import', requireAdmin, express.json({ limit: '8mb' }), (re
     const money = v => v == null ? '—' : ('$' + v.toLocaleString('en-US'));
     const notes = ['Imported from Alcohol Sales (Texas Comptroller mixed-beverage filings) on ' + now.slice(0, 10) + (b.areaLabel ? (' — ' + S(b.areaLabel, 80)) : '') + '.',
       'Locations filing: ' + locs.length + (owners.length ? (' · Owner' + (owners.length > 1 ? 's' : '') + ' of record: ' + owners.slice(0, 6).join('; ') + (owners.length > 6 ? ' …' : '')) : ''),
-      'Trailing-12 alcohol sales: ' + money(t12) + ' (avg ' + money(avg) + '/mo)' + (chg != null ? (' · ' + (chg > 0 ? '+' : '') + chg + '% vs prior year') : ''),
+      (N(r.score) != null ? ('Sellability score: ' + N(r.score) + '/100' + (N(r.score) >= 70 ? ' (Prime seller)' : (N(r.score) >= 55 ? ' (Strong)' : '')) + '\n') : '') + 'Trailing-12 alcohol sales: ' + money(t12) + ' (avg ' + money(avg) + '/mo)' + (chg != null ? (' · ' + (chg > 0 ? '+' : '') + chg + '% vs prior year') : ''),
       'Locations:'].concat(locs.slice(0, 40).map(l => '• ' + [l.name, [l.address, l.city, l.zip].filter(Boolean).join(', '), l.permit ? ('TABC ' + l.permit) : '', l.status === 'stopped' ? 'stopped filing' : ''].filter(Boolean).join(' — '))).join('\n').slice(0, 6000);
     created.push({ id: newCompanyId(), name, market: titleCaseMarket(top.city || ''), type: effCompanyTypes().indexOf('Restaurant Group') >= 0 ? 'Restaurant Group' : (effCompanyTypes()[0] || 'Restaurant Group'), tags, notes, leadSource: 'Alcohol Sales',
       office: { address: top.address || '', city: titleCaseMarket(top.city || ''), state: 'TX' }, createdAt: now, updatedAt: now, by: ownerName, byUser: ownerUser, importedBy: (req.user && req.user.username) || '',
-      txData: { permits, locations: locs.length, t12, avgMonth: avg, chg12: chg, kind: S(r.kind, 20), at: now } });
+      txData: { permits, locations: locs.length, t12, avgMonth: avg, chg12: chg, score: N(r.score), kind: S(r.kind, 20), at: now } });
   });
   const summary = { ok: true, commit, toCreate: created.length, existing: existing.length, existingSample: existing.slice(0, 12), owner: { username: ownerUser, name: ownerName }, sample: created.slice(0, 8).map(c => ({ name: c.name, market: c.market, tags: c.tags, locations: c.txData.locations, t12: c.txData.t12 })) };
   if (!commit) return res.json(summary);
