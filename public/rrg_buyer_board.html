@@ -135,7 +135,7 @@ h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
 <script src="/rrg_list.js"></script>
 <script>
 var VIEW=(function(){ try{ return localStorage.getItem('rrg_buyerboard_view')||'board'; }catch(e){ return 'board'; } })(), LTBL=null;
-var STAGES=[], BUYERS=[], LISTINGS=[], PIPENAME='', HASPIPE=true, FILTER='__all__', DRAG=null, PIPELINES=[], BUYERPID='', SHOW_OFF=false;
+var CAN_DELETE=false, STAGES=[], BUYERS=[], LISTINGS=[], PIPENAME='', HASPIPE=true, FILTER='__all__', DRAG=null, PIPELINES=[], BUYERPID='', SHOW_OFF=false;
 function qs(k){ try{ return new URLSearchParams(location.search).get(k)||''; }catch(e){ return ''; } }
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function api(m,u,b){return fetch(u,{method:m,credentials:'same-origin',headers:b?{'Content-Type':'application/json'}:undefined,body:b?JSON.stringify(b):undefined}).then(function(r){return r.json();});}
@@ -164,7 +164,9 @@ function renderList(all){
   var root=document.getElementById('root');
   if(!document.getElementById('buyerlist')){ root.innerHTML='<div class="listwrap"><div id="buyerlist"></div></div>'; LTBL=null; }
   var stageOpts=function(){ return STAGES.slice(); };
-  var cfg={ mount:'#buyerlist', data:all, key:'buyerboardlist', rowId:function(b){ return b.listingKey+'|'+b.id; }, noSaved:true,
+  var _bulk=[ { label:'Mark Lost', fn:function(ids,done){ bbBulk('lost',ids,done); } }, { label:'Put On Hold', fn:function(ids,done){ bbBulk('hold',ids,done); } }, { label:'Return to board (Active)', fn:function(ids,done){ bbBulk('active',ids,done); } } ];
+  if(CAN_DELETE) _bulk.push({ label:'Remove from listing\u2026', danger:true, fn:function(ids,done){ bbBulk('remove',ids,done); } });
+  var cfg={ mount:'#buyerlist', data:all, key:'buyerboardlist', rowId:function(b){ return b.listingKey+'|'+b.id; }, noSaved:true, bulk:_bulk,
     empty:'<div style="padding:26px;text-align:center;color:#8a94a6">No buyers'+(FILTER==='__all__'?' yet.':' on this listing yet.')+'</div>',
     columns:[
       { label:'Buyer', sort:function(a,b){return RRGList.cmp(a.name,b.name);}, cell:function(b){ return b.personId?('<a href="./rrg_person.html?id='+encodeURIComponent(b.personId)+'" style="color:var(--navy,#0b1a3a);font-weight:700;text-decoration:none">'+esc(b.name)+'</a>'):('<b>'+esc(b.name)+'</b>'); } },
@@ -181,6 +183,23 @@ function renderList(all){
     ]
   };
   if(LTBL) LTBL.refresh(all); else LTBL=RRGList.create(cfg);
+}
+// Bulk actions from List view. ids are "listingKey|leadId". Remove takes leads off their listings (contacts stay).
+async function bbBulk(action,ids,done){
+  var items=(ids||[]).map(function(x){ x=String(x); var i=x.lastIndexOf('|'); return {key:x.slice(0,i), id:x.slice(i+1)}; }).filter(function(x){ return x.key&&x.id; });
+  if(!items.length) return; var n=items.length, w=n===1?'buyer lead':'buyer leads';
+  if(action==='remove'){ var msg='Remove '+n+' '+w+' from '+(n===1?'its listing':'their listings')+'? They drop off the board and out of buyer reports. The contacts stay in your registry. This cannot be undone.\n\nTo keep the history, use Mark Lost instead.'; var ok=window.rrgConfirm?(await rrgConfirm(msg)):window.confirm(msg); if(!ok) return; }
+  api('POST','/api/buyer-board/bulk',{action:action,items:items}).then(function(j){
+    if(!j||!j.ok){ toast((j&&j.error)||'Could not update the buyers.',true); return; }
+    var hit={}; items.forEach(function(x){ hit[x.key+'|'+x.id]=1; });
+    if(action==='remove') BUYERS=BUYERS.filter(function(b){ return !hit[b.listingKey+'|'+b.id]; });
+    else BUYERS.forEach(function(b){ if(hit[b.listingKey+'|'+b.id]){ b.lost=(action==='lost'); b.parked=(action==='hold'); } });
+    var sk=j.skipped||{}, skN=(sk.notYours||0)+(sk.notFound||0);
+    var verb={lost:'Marked Lost',hold:'Put on hold',active:'Returned to the board',remove:'Removed'}[action];
+    toast(verb+': '+j.done+(skN?(' \u00b7 skipped '+skN+(sk.notYours?' (not your listing)':'')):''), skN>0);
+    if(done) done(); render();
+    if(skN) load();
+  }).catch(function(){ toast('Network error.',true); });
 }
 function render(){
   var root=document.getElementById('root');
@@ -329,13 +348,20 @@ function buildPipeSel(){
   sel.innerHTML=html||('<option>'+esc(PIPENAME||'Buyer Pipeline')+'</option>');
   sel.onchange=function(){ var o=sel.options[sel.selectedIndex]; var area=o&&o.getAttribute('data-area'); var id=sel.value; if(area==='Buyer'){ location.href='./rrg_buyer_board.html?bp='+encodeURIComponent(id); } else { location.href='./rrg_board.html?pipelineId='+encodeURIComponent(id); } };
 }
+// First load shows the shared working dialog (plain, not the AI variant — no AI runs here). It waits 250 ms so
+// a fast load never flashes it; later background refreshes stay quiet.
+var _BB_LOADED=false;
 function load(){
-  var bp=qs('bp');
+  var bp=qs('bp'), _first=!_BB_LOADED, _shown=false;
+  var _wt=_first?setTimeout(function(){ if(window.rrgWork){ rrgWork.show('Gathering every buyer lead across your listings…',null,{title:'Loading the buyer pipeline…'}); _shown=true; } },250):null;
+  function _end(){ if(_wt) clearTimeout(_wt); if(_shown&&window.rrgWork) rrgWork.hide(); }
   api('GET','/api/buyer-board'+(bp?('?bp='+encodeURIComponent(bp)):'')).then(function(j){
+    _end();
     if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="state">Could not load the buyer pipeline.</div>'; return; }
-    STAGES=j.stages||[]; BUYERS=j.buyers||[]; LISTINGS=j.listings||[]; PIPENAME=j.pipelineName||''; HASPIPE=j.hasBuyerPipeline!==false; PIPELINES=j.pipelines||[]; BUYERPID=j.buyerPipelineId||'';
+    _BB_LOADED=true;
+    STAGES=j.stages||[]; BUYERS=j.buyers||[]; LISTINGS=j.listings||[]; PIPENAME=j.pipelineName||''; HASPIPE=j.hasBuyerPipeline!==false; CAN_DELETE=!!j.canDelete; PIPELINES=j.pipelines||[]; BUYERPID=j.buyerPipelineId||'';
     buildFilter(); render();
-  }).catch(function(){ document.getElementById('root').innerHTML='<div class="state">Could not reach the server.</div>'; });
+  }).catch(function(){ _end(); document.getElementById('root').innerHTML='<div class="state">Could not reach the server.</div>'; });
 }
 load();
 </script>

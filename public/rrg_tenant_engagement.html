@@ -1464,7 +1464,7 @@ function inquiryHTML(q){
   var src=q.source?('<span class="stag pend" style="margin-left:6px">'+esc(q.source)+'</span>'):'';
   var plink=q.personId?('<a class="slink ghost inqopen" href="./rrg_person.html?id='+encodeURIComponent(q.personId)+'">Open contact \u2192</a>'):'';
   return '<div class="inqrow">'
-    +'<div class="inqtop"><div class="inqname">'+esc(who)+src+'</div><button class="inqdel" data-inqdel="'+esc(q.id)+'" title="Remove lead" aria-label="Remove lead">\u00d7</button></div>'
+    +'<div class="inqtop"><div class="inqname">'+esc(who)+src+'</div>'+((typeof A!=='undefined'&&A&&A.canDelete===false)?'':'<button class="inqdel" data-inqdel="'+esc(q.id)+'" title="Remove lead" aria-label="Remove lead">\u00d7</button>')+'</div>'
     +((contact||q.date)?('<div class="inqmeta">'+contact+(q.date?(' \u00b7 '+esc(q.date)):'')+'</div>'):'')
     +'<div class="inqact"><select class="inqstat" data-inq="'+esc(q.id)+'">'+ssel+'</select>'+plink+'</div>'
     +'</div>';
@@ -2202,7 +2202,7 @@ function load(){
   fetch('/api/assignment/'+encodeURIComponent(KEY),{credentials:'same-origin'}).then(function(r){
     if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); });
     return r.json();
-  }).then(function(j){ A=j.assignment; if(A && A.assignmentType!=='tenant_rep'){ location.replace('./rrg_assignment.html?key='+encodeURIComponent(KEY)); return; } LEASE=j.lease||null; if(j.statuses) STATUSES=j.statuses; TXN=(A&&A.transaction)||null; if(j.txnStatuses) TXNSTAT=j.txnStatuses; if(j.commStatuses) TXNCOMM=j.commStatuses; RA=j.roomActivity||null; OFFERS=(A&&A.offers)||[]; TOURS=(A&&A.tours)||[]; NDAS=(A&&A.ndas)||[]; INQUIRIES=(A&&A.inquiries)||[]; AGR=j.agreements||[]; ATYPES=j.agreementTypes||[]; PIPES=j.pipelines||[]; BUYERPIPES=j.buyerPipelines||[]; AUTOS=j.automations||[]; if(Array.isArray(j.markets)&&j.markets.length) MARKETS=j.markets; if(Array.isArray(j.cuisineTypes)) CUISINES=j.cuisineTypes; if(Array.isArray(j.conceptTypes)) CONCEPTS=j.conceptTypes; _ensureCuisineDL(); EXP=j.expenses||null; INVX=j.invoices||null; render(); loadPeople(); })
+  }).then(function(j){ A=j.assignment; if(A&&j&&typeof j.canDelete==='boolean') A.canDelete=j.canDelete; if(A && A.assignmentType!=='tenant_rep'){ location.replace('./rrg_assignment.html?key='+encodeURIComponent(KEY)); return; } LEASE=j.lease||null; if(j.statuses) STATUSES=j.statuses; TXN=(A&&A.transaction)||null; if(j.txnStatuses) TXNSTAT=j.txnStatuses; if(j.commStatuses) TXNCOMM=j.commStatuses; RA=j.roomActivity||null; OFFERS=(A&&A.offers)||[]; TOURS=(A&&A.tours)||[]; NDAS=(A&&A.ndas)||[]; INQUIRIES=(A&&A.inquiries)||[]; AGR=j.agreements||[]; ATYPES=j.agreementTypes||[]; PIPES=j.pipelines||[]; BUYERPIPES=j.buyerPipelines||[]; AUTOS=j.automations||[]; if(Array.isArray(j.markets)&&j.markets.length) MARKETS=j.markets; if(Array.isArray(j.cuisineTypes)) CUISINES=j.cuisineTypes; if(Array.isArray(j.conceptTypes)) CONCEPTS=j.conceptTypes; _ensureCuisineDL(); EXP=j.expenses||null; INVX=j.invoices||null; render(); loadPeople(); })
   .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this engagement.')+'<br><br><a href="./rrg_board.html?pipelineId=p_tenantrep" style="color:#000E31;font-weight:700">← Back to tenants</a></div>'; });
 }
 load();

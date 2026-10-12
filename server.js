@@ -14492,6 +14492,7 @@ app.post('/api/assignment/:key/inquiry/:id/remove', (req, res) => {
   const deals = assignmentsIndex(); const d = deals[req.params.key];
   if (!d) return res.status(404).json({ ok: false, error: 'Assignment not found.' });
   if (!ownsAssignment(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  if (!canDelete(req)) return res.status(403).json({ ok: false, error: 'You don\u2019t have permission to delete. Mark the buyer Lost instead.' });
   const overlay = loadAssignOverlay(); const cur = overlay[d.key] || {};
   cur.inquiries = (Array.isArray(cur.inquiries) ? cur.inquiries : []).filter(x => x.id !== req.params.id);
   cur.updatedAt = new Date().toISOString(); overlay[d.key] = cur; saveAssignOverlay(overlay);
@@ -14526,7 +14527,7 @@ app.get('/api/buyer-board', (req, res) => {
     });
   });
   listings.sort((a, b) => String(a.business).toLowerCase().localeCompare(String(b.business).toLowerCase()));
-  res.json({ ok: true, stages, pipelineName, buyerPipelineId: (selPipe && selPipe.id) || '', listings, buyers, hasBuyerPipeline: bp.length > 0, pipelines: allPipes.map(p => ({ id: p.id, name: p.name || '', area: p.area || '' })) });
+  res.json({ ok: true, stages, pipelineName, buyerPipelineId: (selPipe && selPipe.id) || '', listings, buyers, hasBuyerPipeline: bp.length > 0, canDelete: canDelete(req), pipelines: allPipes.map(p => ({ id: p.id, name: p.name || '', area: p.area || '' })) });
 });
 app.post('/api/buyer-board/move', express.json(), (req, res) => {
   const b = req.body || {}; const key = String(b.key || ''); const id = String(b.id || ''); const stage = String(b.stage || '');
@@ -14552,11 +14553,35 @@ app.post('/api/buyer-board/move', express.json(), (req, res) => {
 // Take a buyer lead off the board (park / mark lost) without pushing it through the pipeline —
 // or return it. Sets flags only; the buyer's stage is preserved so a returned buyer reappears
 // exactly where it was.
+// Bulk action on buyer leads from the board's List view: { items:[{key,id}], action:'lost'|'hold'|'active'|'remove' }.
+// Lost / On Hold / Active need the listing to be yours (See-all is view-only). Remove also needs the delete
+// permission and only takes the lead off the listing — the contact stays in the registry.
+app.post('/api/buyer-board/bulk', express.json({ limit: '1mb' }), (req, res) => {
+  const b = req.body || {}; const action = String(b.action || '');
+  if (['lost', 'hold', 'active', 'remove'].indexOf(action) < 0) return res.status(400).json({ ok: false, error: 'Unknown action.' });
+  const items = (Array.isArray(b.items) ? b.items : []).slice(0, 5000).map(x => ({ key: String((x && x.key) || ''), id: String((x && x.id) || '') })).filter(x => x.key && x.id);
+  if (!items.length) return res.status(400).json({ ok: false, error: 'Nothing selected.' });
+  if (action === 'remove' && !canDelete(req)) return res.status(403).json({ ok: false, error: 'You don\u2019t have permission to delete. Mark them Lost instead.' });
+  const deals = assignmentsIndex(); const overlay = loadAssignOverlay(); const now = new Date().toISOString();
+  let done = 0; const skipped = { notYours: 0, notFound: 0 }; const touched = {};
+  items.forEach(function (it) {
+    const d = deals[it.key]; if (!d) { skipped.notFound++; return; }
+    if (!ownsAssignment(req, d)) { skipped.notYours++; return; }
+    const cur = overlay[d.key] || {}; const inqs = Array.isArray(cur.inquiries) ? cur.inquiries : [];
+    const idx = inqs.findIndex(x => x && x.id === it.id); if (idx < 0) { skipped.notFound++; return; }
+    if (action === 'remove') inqs.splice(idx, 1);
+    else { const rec = inqs[idx]; rec.lost = (action === 'lost'); rec.parked = (action === 'hold'); rec.updatedAt = now; }
+    cur.inquiries = inqs; cur.updatedAt = now; overlay[d.key] = cur; touched[d.key] = 1; done++;
+  });
+  if (done) saveAssignOverlay(overlay);
+  if (done && action === 'remove') { try { logSysEvent(req, 'Buyer Leads Removed', done + ' buyer lead' + (done === 1 ? '' : 's') + ' removed from ' + Object.keys(touched).length + ' listing' + (Object.keys(touched).length === 1 ? '' : 's') + ' (Buyer Pipeline)', { tool: 'buyer-board' }); } catch (e) {} }
+  res.json({ ok: true, done, skipped });
+});
 app.post('/api/buyer-board/park', express.json(), (req, res) => {
   const b = req.body || {}; const key = String(b.key || ''); const id = String(b.id || ''); const mode = String(b.mode || '');
   const deals = assignmentsIndex(); const d = deals[key];
   if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
-  if (!(canSeeAllDeals(req) || ownsAssignment(req, d))) return res.status(403).json({ ok: false, error: 'You can only change buyers on your own listings.' });
+  if (!ownsAssignment(req, d)) return res.status(403).json({ ok: false, error: 'You can only change buyers on your own listings.' });
   const overlay = loadAssignOverlay(); const cur = overlay[key] || {};
   const inqs = Array.isArray(cur.inquiries) ? cur.inquiries : [];
   const rec = inqs.find(x => x.id === id);
