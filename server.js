@@ -25664,6 +25664,52 @@ app.get('/api/tx/radar', async (req, res) => {
   try { txSendJson(req, res, await txRadarGet(scope, req.query.refresh === '1')); }
   catch (e) { res.json({ ok: false, error: 'Could not reach the state data source: ' + String((e && e.message) || e) }); }
 });
+// ---- Alcohol Sales → CRM bulk import (admin only). The page sends the operators in its current view
+// (independents, chains rolled up by brand, platform groups); each becomes a company tagged "Alcohol Sales"
+// with its signals, owned by the chosen user. Anything already in the CRM — same name/owner name, or a
+// company that already carries one of the permits — is skipped, never overwritten. commit:false = preview.
+app.post('/api/tx/crm-import', requireAdmin, express.json({ limit: '8mb' }), (req, res) => {
+  const b = req.body || {}; const commit = b.commit === true;
+  const recs = (Array.isArray(b.records) ? b.records : []).slice(0, 2000);
+  if (!recs.length) return res.status(400).json({ ok: false, error: 'Nothing to import — the view is empty.' });
+  let ownerUser = String(b.owner || '').trim(), ownerName = '';
+  if (ownerUser) { const u = auth.findUser(ownerUser); if (!u || u.disabled) return res.status(400).json({ ok: false, error: 'Pick an active user as the owner.' }); ownerUser = u.username; const pr = auth.profileOf(u); ownerName = (pr && pr.name) || u.name || u.username; }
+  else { ownerUser = (req.user && req.user.username) || ''; ownerName = (req.user && req.user.name) || ownerUser; }
+  const S = (v, n) => String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, n);
+  const N = v => { const x = Number(v); return isFinite(x) ? Math.round(x) : null; };
+  const arr = loadCompanies();
+  const nameIdx = {}, permitIdx = {};
+  arr.forEach(c => { if (c.system) return; const k = txNameKey(c.name); if (k) nameIdx[k] = c; ((c.txData && c.txData.permits) || []).forEach(pm => { permitIdx[pm] = c; }); });
+  const now = new Date().toISOString();
+  const created = [], existing = [], seen = {};
+  recs.forEach(r => {
+    const _raw = S(r && r.name, 160); if (!_raw) return;
+    // State filings are ALL CAPS — store a readable name ("CHUY'S #12" → "Chuy's #12"), keep LLC/DBA-style tokens upper.
+    const name = (_raw === _raw.toUpperCase()) ? _raw.toLowerCase().replace(/(^|[\s\-\/(&.])([a-z])/g, (m, a, c) => a + c.toUpperCase()).replace(/\b(Llc|Lp|Llp|Inc|Dba|Bbq|Usa|Tx)\b/g, w => w.toUpperCase()) : _raw;
+    const locs = (Array.isArray(r.locations) ? r.locations : []).slice(0, 200).map(l => ({ name: S(l && l.name, 160), address: S(l && l.address, 200), city: S(l && l.city, 80), zip: S(l && l.zip, 10), permit: S(l && l.permit, 30), status: S(l && l.status, 12) }));
+    const permits = locs.map(l => l.permit).filter(Boolean);
+    const owners = (Array.isArray(r.owners) ? r.owners : []).slice(0, 50).map(x => S(x, 160)).filter(Boolean);
+    const keys = [name].concat(owners.length <= 2 ? owners : []).map(txNameKey).filter(Boolean);
+    const hit = permits.map(pm => permitIdx[pm]).find(Boolean) || keys.map(k => nameIdx[k]).find(Boolean);
+    if (hit) { existing.push({ name, companyId: hit.id, companyName: hit.name }); return; }
+    const dk = keys[0] || name.toLowerCase(); if (seen[dk]) return; seen[dk] = 1;
+    const top = locs[0] || {};
+    const tags = ['Alcohol Sales'].concat((Array.isArray(r.signals) ? r.signals : []).map(x => S(x, 40)).filter(Boolean)).filter((t, i, a) => a.indexOf(t) === i).slice(0, 12);
+    const t12 = N(r.t12), avg = N(r.avgMonth), chg = N(r.chg12);
+    const money = v => v == null ? '—' : ('$' + v.toLocaleString('en-US'));
+    const notes = ['Imported from Alcohol Sales (Texas Comptroller mixed-beverage filings) on ' + now.slice(0, 10) + (b.areaLabel ? (' — ' + S(b.areaLabel, 80)) : '') + '.',
+      'Locations filing: ' + locs.length + (owners.length ? (' · Owner' + (owners.length > 1 ? 's' : '') + ' of record: ' + owners.slice(0, 6).join('; ') + (owners.length > 6 ? ' …' : '')) : ''),
+      'Trailing-12 alcohol sales: ' + money(t12) + ' (avg ' + money(avg) + '/mo)' + (chg != null ? (' · ' + (chg > 0 ? '+' : '') + chg + '% vs prior year') : ''),
+      'Locations:'].concat(locs.slice(0, 40).map(l => '• ' + [l.name, [l.address, l.city, l.zip].filter(Boolean).join(', '), l.permit ? ('TABC ' + l.permit) : '', l.status === 'stopped' ? 'stopped filing' : ''].filter(Boolean).join(' — '))).join('\n').slice(0, 6000);
+    created.push({ id: newCompanyId(), name, market: titleCaseMarket(top.city || ''), type: effCompanyTypes().indexOf('Restaurant Group') >= 0 ? 'Restaurant Group' : (effCompanyTypes()[0] || 'Restaurant Group'), tags, notes, leadSource: 'Alcohol Sales',
+      office: { address: top.address || '', city: titleCaseMarket(top.city || ''), state: 'TX' }, createdAt: now, updatedAt: now, by: ownerName, byUser: ownerUser, importedBy: (req.user && req.user.username) || '',
+      txData: { permits, locations: locs.length, t12, avgMonth: avg, chg12: chg, kind: S(r.kind, 20), at: now } });
+  });
+  const summary = { ok: true, commit, toCreate: created.length, existing: existing.length, existingSample: existing.slice(0, 12), owner: { username: ownerUser, name: ownerName }, sample: created.slice(0, 8).map(c => ({ name: c.name, market: c.market, tags: c.tags, locations: c.txData.locations, t12: c.txData.t12 })) };
+  if (!commit) return res.json(summary);
+  if (created.length) { saveCompanies(arr.concat(created)); try { logSysEvent(req, 'CRM Import', created.length + ' compan' + (created.length === 1 ? 'y' : 'ies') + ' imported from Alcohol Sales' + (b.areaLabel ? (' (' + S(b.areaLabel, 60) + ')') : '') + ' · owner ' + ownerName + (existing.length ? (' · ' + existing.length + ' already in the CRM, skipped') : ''), { tool: 'alcohol-sales' }); } catch (e) {} }
+  summary.created = created.length; res.json(summary);
+});
 // ---- Places for the Alcohol Sales picker: every city with recent filings, every county, and metro areas ----
 // Comptroller county codes are the 254 Texas counties in alphabetical order (Bexar 15, Dallas 57, Harris 101, Travis 227).
 const TX_COUNTY_NAMES = ['Anderson','Andrews','Angelina','Aransas','Archer','Armstrong','Atascosa','Austin','Bailey','Bandera','Bastrop','Baylor','Bee','Bell','Bexar','Blanco','Borden','Bosque','Bowie','Brazoria','Brazos','Brewster','Briscoe','Brooks','Brown','Burleson','Burnet','Caldwell','Calhoun','Callahan','Cameron','Camp','Carson','Cass','Castro','Chambers','Cherokee','Childress','Clay','Cochran','Coke','Coleman','Collin','Collingsworth','Colorado','Comal','Comanche','Concho','Cooke','Coryell','Cottle','Crane','Crockett','Crosby','Culberson','Dallam','Dallas','Dawson','Deaf Smith','Delta','Denton','DeWitt','Dickens','Dimmit','Donley','Duval','Eastland','Ector','Edwards','Ellis','El Paso','Erath','Falls','Fannin','Fayette','Fisher','Floyd','Foard','Fort Bend','Franklin','Freestone','Frio','Gaines','Galveston','Garza','Gillespie','Glasscock','Goliad','Gonzales','Gray','Grayson','Gregg','Grimes','Guadalupe','Hale','Hall','Hamilton','Hansford','Hardeman','Hardin','Harris','Harrison','Hartley','Haskell','Hays','Hemphill','Henderson','Hidalgo','Hill','Hockley','Hood','Hopkins','Houston','Howard','Hudspeth','Hunt','Hutchinson','Irion','Jack','Jackson','Jasper','Jeff Davis','Jefferson','Jim Hogg','Jim Wells','Johnson','Jones','Karnes','Kaufman','Kendall','Kenedy','Kent','Kerr','Kimble','King','Kinney','Kleberg','Knox','Lamar','Lamb','Lampasas','La Salle','Lavaca','Lee','Leon','Liberty','Limestone','Lipscomb','Live Oak','Llano','Loving','Lubbock','Lynn','McCulloch','McLennan','McMullen','Madison','Marion','Martin','Mason','Matagorda','Maverick','Medina','Menard','Midland','Milam','Mills','Mitchell','Montague','Montgomery','Moore','Morris','Motley','Nacogdoches','Navarro','Newton','Nolan','Nueces','Ochiltree','Oldham','Orange','Palo Pinto','Panola','Parker','Parmer','Pecos','Polk','Potter','Presidio','Rains','Randall','Reagan','Real','Red River','Reeves','Refugio','Roberts','Robertson','Rockwall','Runnels','Rusk','Sabine','San Augustine','San Jacinto','San Patricio','San Saba','Schleicher','Scurry','Shackelford','Shelby','Sherman','Smith','Somervell','Starr','Stephens','Sterling','Stonewall','Sutton','Swisher','Tarrant','Taylor','Terrell','Terry','Throckmorton','Titus','Tom Green','Travis','Trinity','Tyler','Upshur','Upton','Uvalde','Val Verde','Van Zandt','Victoria','Walker','Waller','Ward','Washington','Webb','Wharton','Wheeler','Wichita','Wilbarger','Willacy','Williamson','Wilson','Winkler','Wise','Wood','Yoakum','Young','Zapata','Zavala'];

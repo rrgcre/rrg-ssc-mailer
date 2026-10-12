@@ -59,6 +59,17 @@ table{width:100%;border-collapse:collapse;font-size:12.5px;} th{text-align:left;
 .gpill{font-size:10.5px;font-weight:800;color:#23496f;background:#e6eef8;border-radius:999px;padding:2px 8px;margin-left:4px;white-space:nowrap;}
 .gmem td{background:#fcfdfe;font-size:12px;} .gmem td:first-child{border-left:3px solid #c9d6ea;} .grow td:first-child b{white-space:nowrap;}
 .s-mixed{background:#fff4dc;color:#8a5a12;}
+.kpill{font-size:10px;font-weight:800;border-radius:999px;padding:2px 7px;margin-left:4px;white-space:nowrap;text-transform:uppercase;letter-spacing:.03em;}
+.k-ind{background:#e7f5ee;color:#1f6b45;} .k-fr{background:#f1f3f8;color:#6b7488;} .k-pend{background:#fff4dc;color:#8a5a12;}
+.rbtn[hidden],.imov [hidden]{display:none!important;}
+.imov{position:fixed;inset:0;background:rgba(16,22,40,.5);display:flex;align-items:center;justify-content:center;z-index:9000;padding:16px;} .imov[hidden]{display:none!important;}
+.imbox{background:#fff;border-radius:10px;box-shadow:0 18px 44px rgba(11,26,56,.25);width:100%;max-width:560px;max-height:calc(100vh - 32px);overflow:auto;}
+.imhd{padding:16px 20px 12px;border-bottom:1px solid var(--line);font-weight:800;color:var(--navy);font-size:16px;display:flex;align-items:center;gap:10px;} .imhd button{margin-left:auto;border:none;background:none;font-size:20px;color:#8a93a8;cursor:pointer;}
+.imbd{padding:14px 20px;display:flex;flex-direction:column;gap:12px;font-size:13px;color:#33405a;}
+.imbd label.f{display:flex;flex-direction:column;gap:5px;} .imbd input[type=number],.imbd select{font:inherit;font-size:13px;padding:7px 10px;border:1px solid #cfd6e2;border-radius:8px;}
+.imbd .ck{display:flex;align-items:center;gap:8px;cursor:pointer;} .imbd .ck input{width:16px;height:16px;accent-color:#000E31;}
+.imres{background:#f7f9fc;border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:12.5px;line-height:1.6;} .imres b{color:var(--navy);}
+.imft{padding:12px 20px 16px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end;align-items:center;} .imft .msg{margin-right:auto;font-size:12px;color:var(--muted);}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -70,7 +81,7 @@ table{width:100%;border-collapse:collapse;font-size:12.5px;} th{text-align:left;
   <div class="rcard">
     <div class="rbar"><span class="rlbl">Area</span><div class="cpk"><input id="city" value="San Antonio" autocomplete="off" spellcheck="false" placeholder="City, county or metro…" role="combobox" aria-expanded="false" aria-controls="cityPop" aria-autocomplete="list" title="Any Texas city, county or metro area"><div class="cpop" id="cityPop" role="listbox" hidden></div></div><button class="rbtn" id="loadCity">Load</button>
       <input id="q" placeholder="Quick search anything…" style="min-width:200px">
-      <span style="margin-left:auto" class="rsub" id="meta"></span><button class="rbtn" id="exportBtn">⬇ Export CSV</button><button class="rbtn" id="refresh">Refresh from the state</button></div>
+      <span style="margin-left:auto" class="rsub" id="meta"></span><button class="rbtn" id="importBtn" hidden title="Add the operators in this view to the CRM as companies (admins)">＋ Import to CRM</button><button class="rbtn" id="exportBtn">⬇ Export CSV</button><button class="rbtn" id="refresh">Refresh from the state</button></div>
     <div class="presets" id="presets"></div>
     <div class="rf" id="filters">
       <div class="f w2"><span class="rlbl">Name (business)</span><input id="f_name" placeholder="contains… e.g. cantina"></div>
@@ -84,6 +95,7 @@ table{width:100%;border-collapse:collapse;font-size:12.5px;} th{text-align:left;
       <div class="f w2"><span class="rlbl">Zip codes</span><input id="f_zip" placeholder="e.g. 78209, 78212, 78216"></div>
       <div class="f w2"><span class="rlbl">Liquor share of sales (%)</span><div class="row"><input id="f_lqmin" type="number" min="0" max="100" step="5" placeholder="Min"><span>–</span><input id="f_lqmax" type="number" min="0" max="100" step="5" placeholder="Max"><span style="white-space:nowrap">· bars run high, restaurants low</span></div></div>
       <div class="f"><span class="rlbl">Filing history</span><select id="f_hist"><option value="">Any</option><option value="12">12+ months</option><option value="24">24+ months</option></select></div>
+      <div class="f"><span class="rlbl">Ownership</span><select id="f_own" title="Independent = the brand is held by one owner (or LLCs carrying its name). Franchise = the same brand under 3+ unrelated owners."><option value="">Any</option><option value="indep">Independents only</option><option value="platform">Platforms · independent, 3+ filing</option><option value="franchise">Chains &amp; franchises</option></select></div>
       <div class="f w2 consf"><span class="rlbl">Franchises &amp; chains</span><div class="row"><label class="ccon"><input type="checkbox" id="f_cons"> Consolidate into one row</label><select id="f_consby" style="width:auto" title="How locations are grouped"><option value="brand">by brand name</option><option value="owner">by owner</option></select></div></div>
       <div class="f" style="justify-content:flex-end"><button class="rbtn" id="resetBtn">Reset filters</button></div>
     </div>
@@ -94,8 +106,8 @@ table{width:100%;border-collapse:collapse;font-size:12.5px;} th{text-align:left;
 </div>
 <script>
 var EXP={}, D=null, VIEW='ops', SORT={k:'trailing12',d:-1}, TRACKED={}, SPACEADDR=[], LIMIT=300, PRESET='';
-var F_IDS=['f_name','f_owner','f_street','f_status','f_dir','f_pct','f_win','f_basis','f_min','f_max','f_since','f_prior','f_zip','f_lqmin','f_lqmax','f_hist'];
-var PRESETS={ all:{label:'All operators',f:{f_dir:''}}, stopped:{label:'Stopped filing',f:{f_status:'stopped',f_dir:'',f_prior:'15000'},sort:'priorAvg'}, down:{label:'Sales down 25%+',f:{f_status:'active',f_dir:'down',f_pct:'25',f_win:'3',f_min:'12500'},sort:'chg'}, up:{label:'Growing 25%+',f:{f_status:'active',f_dir:'up',f_pct:'25',f_win:'3',f_min:'12500'},sort:'chg',d:-1}, newop:{label:'New operators',f:{f_status:'new',f_dir:''},sort:'trailing12'}, pending:{label:'Pending permits',view:'pending'}, credit:{label:'Credit-law delinquent',view:'credit'} };
+var F_IDS=['f_name','f_owner','f_street','f_status','f_dir','f_pct','f_win','f_basis','f_min','f_max','f_since','f_prior','f_zip','f_lqmin','f_lqmax','f_hist','f_own'];
+var PRESETS={ all:{label:'All operators',f:{f_dir:''}}, strong:{label:'Strong performers',f:{f_status:'active',f_dir:'up',f_pct:'0',f_win:'12',f_min:'40000',f_hist:'24',f_own:'indep'},sort:'trailing12'}, stopped:{label:'Stopped filing',f:{f_status:'stopped',f_dir:'',f_prior:'15000'},sort:'priorAvg'}, down:{label:'Sales down 25%+',f:{f_status:'active',f_dir:'down',f_pct:'25',f_win:'3',f_min:'12500'},sort:'chg'}, up:{label:'Growing 25%+',f:{f_status:'active',f_dir:'up',f_pct:'25',f_win:'3',f_min:'12500'},sort:'chg',d:-1}, platform:{label:'Platforms (3+ units)',f:{f_dir:'',f_own:'platform'},sort:'trailing12',cons:'brand'}, newop:{label:'New operators',f:{f_status:'new',f_dir:''},sort:'trailing12'}, pending:{label:'Pending permits',view:'pending'}, credit:{label:'Credit-law delinquent',view:'credit'} };
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function k(v){ if(v==null||!isFinite(v)) return '—'; return v>=1e6?('$'+(v/1e6).toFixed(1)+'M'):('$'+Math.round(v/1000)+'K'); }
 function spark(v){ var w=110,h=26; if(!v||!v.length) return ''; var mx=Math.max.apply(null,v)||1; var st=w/Math.max(1,v.length-1); var pts=v.map(function(x,i){ return (i*st).toFixed(1)+','+(h-2-(x/mx)*(h-4)).toFixed(1); }).join(' '); return '<svg width="'+w+'" height="'+h+'"><polyline points="'+pts+'" fill="none" stroke="#2c5c8f" stroke-width="1.5"/></svg>'; }
@@ -129,7 +141,30 @@ function matchPerf(o){
   var pr=parseFloat(fv('f_prior')); if(isFinite(pr)&&o.priorAvg<pr) return false;
   var lq1=parseFloat(fv('f_lqmin')), lq2=parseFloat(fv('f_lqmax')); if((isFinite(lq1)||isFinite(lq2))&&o.liquorPct==null) return false; if(isFinite(lq1)&&o.liquorPct<lq1) return false; if(isFinite(lq2)&&o.liquorPct>lq2) return false;
   return true; }
-function matches(o){ return matchLoc(o)&&matchPerf(o); }
+function matches(o){ return matchLoc(o)&&matchPerf(o)&&matchOwn(o); }
+// ---- Independent vs franchise, from the whole area's filings ----
+// A brand is a franchise/chain when 3+ unrelated owners hold it; it is independent when one owner (or LLCs that
+// carry the brand's name, e.g. "CANE ROSSO WHITE ROCK LLC") hold most locations. National chains with only one or
+// two locations in the area can read as independent — the owner name usually gives them away.
+var BS=null, BS_FOR=null, PEND=null, PFX=null, PFX_FOR=null;
+// Locations named "CANE ROSSO DEEP ELLUM" / "CANE ROSSO WHITE ROCK" are one brand when 2+ locations' owner LLCs carry the
+// shared 2–3 word prefix ("CANE ROSSO … LLC"). The owner-name test keeps generic prefixes ("SAN ANTONIO …") apart.
+function _normT(t){ return ' '+String(t||'').toUpperCase().replace(/&/g,' AND ').replace(/'/g,'').replace(/[^A-Z0-9 ]+/g,' ').replace(/\s+/g,' ').trim()+' '; }
+function prefixTable(){ if(PFX&&PFX_FOR===D) return PFX; PFX={}; PFX_FOR=D; var cnt={};
+  (D.all||[]).forEach(function(o){ var w=brandKey(o.name).split(' '), t=_normT(o.taxpayer); [2,3].forEach(function(n){ if(w.length<n) return; var pf=w.slice(0,n).join(' '); if(pf.replace(/ /g,'').length<6) return; if(t.indexOf(' '+pf+' ')>=0) cnt[pf]=(cnt[pf]||0)+1; }); });
+  Object.keys(cnt).forEach(function(k){ if(cnt[k]>=2) PFX[k]=1; }); return PFX; }
+function brandKeyC(n){ var bk=brandKey(n); if(!D) return bk; var T=prefixTable(), w=bk.split(' '); for(var i=2;i<=3;i++){ if(w.length>i){ var pf=w.slice(0,i).join(' '); if(T[pf]) return pf; } } return bk; }
+function brandWord(bk){ var w=String(bk||'').split(' ').filter(function(x){ return x.length>=4; }); return w[0]||String(bk||'').split(' ')[0]||''; }
+function brandStats(){ if(BS&&BS_FOR===D) return BS; BS={}; BS_FOR=D;
+  (D.all||[]).forEach(function(o){ var bk=brandKeyC(o.name), x=BS[bk]=BS[bk]||{n:0,owners:{},aff:0}; x.n++; x.owners[ownerKey(o)]=1; var t=String(o.taxpayer||'').toUpperCase().replace(/[^A-Z0-9 ]+/g,' '); var w=brandWord(bk); if(t&&(t.indexOf(bk)>=0||(w.length>=4&&(' '+t+' ').indexOf(' '+w+' ')>=0))) x.aff++; });
+  Object.keys(BS).forEach(function(k){ var x=BS[k], on=Object.keys(x.owners).length; x.ownersN=on; x.franchise=on>=3&&(x.aff/x.n)<0.5; });
+  PEND={}; (D.pending||[]).forEach(function(p){ var bk=brandKeyC(p.name); if(bk) PEND[bk]=(PEND[bk]||0)+1; });
+  return BS; }
+function kindOf(o){ var S=brandStats(); if(!o.isGroup){ var x=S[brandKeyC(o.name)]; return (x&&x.franchise)?'franchise':'independent'; }
+  if(o.kind) return o.kind; var fr=o.members.filter(function(m){ var x=S[brandKeyC(m.name)]; return x&&x.franchise; }).length; return (fr*2>o.members.length)?'franchise':'independent'; }
+function pendOf(o){ brandStats(); if(o.isGroup&&o.key.indexOf('b:')===0) return PEND[o.key.slice(2)]||0; if(!o.isGroup) return PEND[brandKeyC(o.name)]||0; var seen={}, n=0; o.members.forEach(function(m){ var bk=brandKeyC(m.name); if(!seen[bk]){ seen[bk]=1; n+=PEND[bk]||0; } }); return n; }
+function isPlatform(o){ return !!(o.isGroup&&kindOf(o)==='independent'&&o.active>=3); }
+function matchOwn(o){ var v=fv('f_own'); if(!v) return true; var k=kindOf(o); if(v==='indep') return k==='independent'; if(v==='franchise') return k==='franchise'; if(v==='platform') return isPlatform(o); return true; }
 // ---- Consolidate franchises / chains ----
 function consOn(){ var e=document.getElementById('f_cons'); return !!(e&&e.checked); }
 function consBy(){ return fv('f_consby')||'brand'; }
@@ -140,8 +175,8 @@ function brandKey(n){ var x=String(n||'').toUpperCase().replace(/[’`]/g,"'");
   x=x.replace(/(\s+\d+[A-Z]?)+\s*$/,'').replace(/\s+/g,' ').trim(); return x||String(n||'').toUpperCase(); }
 function ownerKey(o){ if(o.tpn) return 'T'+o.tpn; return String(o.taxpayer||o.name||'').toUpperCase().replace(/&/g,' AND ').replace(/'/g,'').replace(/[^A-Z0-9 ]+/g,' ').replace(/\b(LLC|L L C|INC|CORP|CO|LTD|LP|LLP|DBA|THE)\b/g,' ').replace(/\s+/g,' ').trim(); }
 function displayName(members){ var cnt={}; members.forEach(function(m){ var d=String(m.name||'').replace(/\s+(#|NO\.?\s*\d|STORE\s+\d|UNIT\s+\d).*$/i,'').replace(/\s+[-–—|]\s+.*$/,'').replace(/\s*\(.*$/,'').replace(/(\s+\d+[A-Z]?)+\s*$/,'').trim(); cnt[d]=(cnt[d]||0)+1; }); return Object.keys(cnt).sort(function(a,b){ return cnt[b]-cnt[a]||a.length-b.length; })[0]||members[0].name; }
-function consolidate(locs){ var by={}, order=[]; var byOwner=consBy()==='owner';
-  locs.forEach(function(o){ var key=byOwner?ownerKey(o):brandKey(o.name); if(!by[key]){ by[key]=[]; order.push(key); } by[key].push(o); });
+function consolidate(locs,mode){ var by={}, order=[]; var byOwner=(mode||consBy())==='owner';
+  locs.forEach(function(o){ var key=byOwner?ownerKey(o):brandKeyC(o.name); if(!by[key]){ by[key]=[]; order.push(key); } by[key].push(o); });
   var out=[]; order.forEach(function(key){ var m=by[key]; if(m.length<2){ out.push(m[0]); return; }
     var series=[]; for(var i=0;i<24;i++) series.push(m.reduce(function(a,o){ return a+((o.series||[])[i]||0); },0));
     var sum=function(a,b){ var x=0; for(var i=a;i<=b;i++) x+=series[23-i]||0; return x; };
@@ -156,11 +191,11 @@ function consolidate(locs){ var by={}, order=[]; var byOwner=consBy()==='owner';
       chg3:pct(sum(0,2),sum(12,14)), chg6:pct(sum(0,5),sum(12,17)), chg12:pct(sum(0,11),sum(12,23)), series:series,
       liquor12:L, wine12:W, beer12:B, liquorPct:cat?Math.round(L/cat*100):null, winePct:cat?Math.round(W/cat*100):null, beerPct:cat?Math.round(B/cat*100):null }); });
   return out; }
-function rows(){ var all=D.all||[]; if(!consOn()) return all.filter(matches); return consolidate(all.filter(matchLoc)).filter(matchPerf); }
+function rows(){ var all=D.all||[]; var plat=fv('f_own')==='platform'; if(!consOn()&&!plat) return all.filter(matches); return consolidate(all.filter(matchLoc),(!consOn()&&plat)?'brand':null).filter(function(o){ return matchPerf(o)&&matchOwn(o); }); }
 function presetCounts(){ var all=D.all||[]; var save={}; F_IDS.forEach(function(id){ save[id]=fv(id); }); var q=fv('q'); var out={};
-  Object.keys(PRESETS).forEach(function(key){ var p=PRESETS[key]; if(p.view==='pending'){ out[key]=(D.pending||[]).length; return; } if(p.view==='credit'){ out[key]=(D.creditLaw||[]).length; return; } setF(p.f); out[key]=all.filter(matches).length; });
+  Object.keys(PRESETS).forEach(function(key){ var p=PRESETS[key]; if(p.view==='pending'){ out[key]=(D.pending||[]).length; return; } if(p.view==='credit'){ out[key]=(D.creditLaw||[]).length; return; } setF(p.f); out[key]=(p.f.f_own==='platform')?consolidate(all.filter(matchLoc),'brand').filter(function(g){ return matchPerf(g)&&matchOwn(g); }).length:all.filter(matches).length; });
   setF(save); document.getElementById('q').value=q; return out; }
-function applyPreset(key){ var p=PRESETS[key]; PRESET=key; LIMIT=300; if(p.view){ VIEW=p.view; } else { VIEW='ops'; setF(p.f); if(p.sort){ SORT={k:p.sort,d:(p.d!=null?p.d:(p.sort==='chg'&&p.f.f_dir==='down'?1:-1))}; } } render(); }
+function applyPreset(key){ var p=PRESETS[key]; PRESET=key; LIMIT=300; if(p.view){ VIEW=p.view; } else { VIEW='ops'; setF(p.f); if(p.cons){ var _c=document.getElementById('f_cons'), _b=document.getElementById('f_consby'); _c.checked=true; _b.value=p.cons; _b.disabled=false; EXP={}; } if(p.sort){ SORT={k:p.sort,d:(p.d!=null?p.d:(p.sort==='chg'&&p.f.f_dir==='down'?1:-1))}; } } render(); }
 function render(){ var b=document.getElementById('body');
   if(!D||!D.ok){ b.innerHTML='<div class="rempty">'+esc((D&&D.error)||'No data.')+'</div>'; document.getElementById('kpis').innerHTML=''; document.getElementById('presets').innerHTML=''; return; }
   if(D.area&&D.city&&document.activeElement!==document.getElementById('city')){ AREA=D.area; AREA_LABEL=D.city; document.getElementById('city').value=D.city; }
@@ -181,7 +216,7 @@ function render(){ var b=document.getElementById('body');
   var R=rows(); var CONS=consOn(); var locN=CONS?R.reduce(function(a,o){ return a+(o.isGroup?o.n:1); },0):R.length, grpN=R.filter(function(o){return o.isGroup;}).length;
   var key=SORT.k; var gv=function(o){ return key==='chg'?chgOf(o):(key==='latestSales'?latest(o):o[key]); }; R.sort(function(a,c){ var x=gv(a), y=gv(c); if(x==null) x=SORT.d>0?Infinity:-Infinity; if(y==null) y=SORT.d>0?Infinity:-Infinity; if(typeof x==='string') return SORT.d*String(x).localeCompare(String(y)); return SORT.d*(x-y); });
   var t12=R.reduce(function(a,o){ return a+o.trailing12; },0), stp=R.reduce(function(a,o){ return a+(o.isGroup?o.stoppedN:(o.status==='stopped'?1:0)); },0), dn=R.filter(function(o){ var c=chgOf(o); return c!=null&&c<=-25; }).length;
-  document.getElementById('kpis').innerHTML=[CONS?[R.length.toLocaleString(),grpN.toLocaleString()+' chains + '+(R.length-grpN).toLocaleString()+' independents · '+locN.toLocaleString()+' locations']:[R.length.toLocaleString(),'Matching operators'],[k(t12),'Combined trailing-12 sales'],[stp,'Stopped filing'+(CONS?' (locations)':'')],[dn,'Down 25%+ ('+win()+' mo)']].map(function(x){ return '<div class="kp"><div class="n">'+x[0]+'</div><div class="l">'+x[1]+'</div></div>'; }).join('');
+  document.getElementById('kpis').innerHTML=[CONS?[R.length.toLocaleString(),grpN.toLocaleString()+' groups + '+(R.length-grpN).toLocaleString()+' single locations · '+locN.toLocaleString()+' locations']:[R.length.toLocaleString(),'Matching operators'],[k(t12),'Combined trailing-12 sales'],[stp,'Stopped filing'+(CONS?' (locations)':'')],[dn,'Down 25%+ ('+win()+' mo)']].map(function(x){ return '<div class="kp"><div class="n">'+x[0]+'</div><div class="l">'+x[1]+'</div></div>'; }).join('');
   if(!R.length){ b.innerHTML='<div class="rempty">No operators match these filters. Loosen the % change or the sales range.</div>'; return; }
   function th(lbl,kk,cls){ var on=SORT.k===kk; return '<th class="'+(cls||'')+'" data-s="'+kk+'">'+lbl+'<span class="ar">'+(on?(SORT.d>0?'▲':'▼'):'')+'</span></th>'; }
   var h='<div style="padding:8px 16px 0;text-align:right"><span class="legend"><span><i class="m-l"></i>Liquor</span><span><i class="m-w"></i>Wine</span><span><i class="m-b"></i>Beer</span></span></div><table><thead><tr>'+th('Operator','name')+'<th class="hide-sm">Last 24 months</th>'+th('Avg / mo','avgMonth','r')+th('Trailing 12','trailing12','r')+th('Liquor','liquor12','r hide-sm')+th('Wine','wine12','r hide-sm')+th('Beer','beer12','r hide-sm')+th('Change · '+win()+' mo','chg','r')+th('Status','monthsSince')+th('Last filed','lastMonth')+'<th></th></tr></thead><tbody>';
@@ -193,7 +228,7 @@ function render(){ var b=document.getElementById('body');
   function grpRow(g){ var c=chgOf(g), open=!!EXP[g.key]; var st=g.active?(g.stoppedN?(g.active+' filing · '+g.stoppedN+' stopped'):'All filing'):('All stopped · '+g.monthsSince+' mo');
     var mix=(g.liquorPct!=null)?('<div class="mixbar" title="Liquor '+g.liquorPct+'% · Wine '+g.winePct+'% · Beer '+g.beerPct+'%"><i class="m-l" style="width:'+g.liquorPct+'%"></i><i class="m-w" style="width:'+g.winePct+'%"></i><i class="m-b" style="width:'+g.beerPct+'%"></i></div>'):'';
     var cat=function(v,pc){ return '<td class="r hide-sm">'+k(v)+(pc!=null?('<div class="rsub">'+pc+'%</div>'):'')+'</td>'; };
-    var hdr='<tr class="grow'+(open?' open':'')+'" data-g="'+esc(g.key)+'"><td><button class="gtog" data-g="'+esc(g.key)+'" aria-expanded="'+open+'">'+(open?'▾':'▸')+'</button><b>'+esc(g.name)+'</b> <span class="gpill">'+g.n+' locations</span><div class="rsub" style="padding-left:24px">'+(g.key.indexOf('o:')===0?(function(){ var nm=[]; g.members.forEach(function(o){ var d=displayName([o]); if(nm.indexOf(d)<0) nm.push(d); }); return esc(nm.slice(0,4).join(' · ')+(nm.length>4?(' + '+(nm.length-4)+' more'):'')); })():(g.owners.length===1?esc(g.owners[0]):(g.owners.length+' different owners · franchise')))+'</div></td><td class="hide-sm">'+spark(g.series)+'</td><td class="r">'+k(g.avgMonth)+'<div class="rsub">latest '+k(latest(g))+'</div></td><td class="r"><b>'+k(g.trailing12)+'</b>'+mix+'</td>'+cat(g.liquor12,g.liquorPct)+cat(g.wine12,g.winePct)+cat(g.beer12,g.beerPct)+'<td class="r">'+(c==null?'<span class="rsub">—</span>':('<span class="'+(c<0?'dn':'up')+'">'+(c>0?'+':'')+c+'%</span>'))+'</td><td><span class="sig s-'+(g.active?(g.stoppedN?'mixed':'active'):'stopped')+'">'+esc(st)+'</span></td><td>'+esc(g.lastMonth)+'</td><td class="r"></td></tr>';
+    var hdr='<tr class="grow'+(open?' open':'')+'" data-g="'+esc(g.key)+'"><td><button class="gtog" data-g="'+esc(g.key)+'" aria-expanded="'+open+'">'+(open?'▾':'▸')+'</button><b>'+esc(g.name)+'</b> <span class="gpill">'+g.n+' locations</span>'+(kindOf(g)==='independent'?(isPlatform(g)?'<span class="kpill k-ind" title="Independent group with 3+ locations filing">Platform</span>':'<span class="kpill k-ind">Independent</span>'):'<span class="kpill k-fr">Franchise</span>')+(pendOf(g)?('<span class="kpill k-pend" title="Pending TABC application(s) under this brand — likely a new location">＋'+pendOf(g)+' permit pending</span>'):'')+'<div class="rsub" style="padding-left:24px">'+(g.key.indexOf('o:')===0?(function(){ var nm=[]; g.members.forEach(function(o){ var d=displayName([o]); if(nm.indexOf(d)<0) nm.push(d); }); return esc(nm.slice(0,4).join(' · ')+(nm.length>4?(' + '+(nm.length-4)+' more'):'')); })():(g.owners.length===1?esc(g.owners[0]):(kindOf(g)==='independent'?(g.owners.length+' related owners · '+esc(g.owners.slice(0,2).join('; '))+(g.owners.length>2?' …':'')):(g.owners.length+' different owners · franchise'))))+'</div></td><td class="hide-sm">'+spark(g.series)+'</td><td class="r">'+k(g.avgMonth)+'<div class="rsub">latest '+k(latest(g))+'</div></td><td class="r"><b>'+k(g.trailing12)+'</b>'+mix+'</td>'+cat(g.liquor12,g.liquorPct)+cat(g.wine12,g.winePct)+cat(g.beer12,g.beerPct)+'<td class="r">'+(c==null?'<span class="rsub">—</span>':('<span class="'+(c<0?'dn':'up')+'">'+(c>0?'+':'')+c+'%</span>'))+'</td><td><span class="sig s-'+(g.active?(g.stoppedN?'mixed':'active'):'stopped')+'">'+esc(st)+'</span></td><td>'+esc(g.lastMonth)+'</td><td class="r"></td></tr>';
     return hdr+(open?g.members.map(function(o){ return locRow(o,g.key); }).join(''):''); }
   h+=R.slice(0,LIMIT).map(function(o){ return o.isGroup?grpRow(o):locRow(o,''); }).join('');
   h+='</tbody></table>'+(R.length>LIMIT?('<button class="rbtn more" id="moreBtn">Show '+Math.min(300,R.length-LIMIT)+' more of '+(R.length-LIMIT).toLocaleString()+'</button>'):'');
@@ -262,9 +297,45 @@ document.getElementById('refresh').onclick=function(){ load(true); };
 document.getElementById('exportBtn').onclick=exportCsv;
 (function(){ var c=document.getElementById('f_cons'), by=document.getElementById('f_consby'); var sync=function(){ by.disabled=!c.checked; }; c.addEventListener('change',function(){ sync(); EXP={}; LIMIT=300; render(); }); by.addEventListener('change',function(){ EXP={}; LIMIT=300; render(); }); sync(); })();
 document.getElementById('resetBtn').onclick=function(){ document.getElementById('f_cons').checked=false; document.getElementById('f_consby').value='brand'; document.getElementById('f_consby').disabled=true; EXP={}; applyPreset('all'); };
-if(!readUrl()){ setF(PRESETS.down.f); PRESET='down'; SORT={k:'chg',d:1}; }
+/* ---------- Import the current view to the CRM (admins) ---------- */
+var IM_USERS=null;
+document.addEventListener('rrg:session',function(e){ var s=e.detail||{}; if(s.role==='admin'||s.role==='creator') document.getElementById('importBtn').hidden=false; });
+try{ if(window.__rrgSession&&(window.__rrgSession.role==='admin'||window.__rrgSession.role==='creator')) document.getElementById('importBtn').hidden=false; }catch(e){}
+function imRecord(o){ var locs=o.isGroup?o.members:[o]; var k=kindOf(o), c=o.chg12, pend=pendOf(o); var cities={}; locs.forEach(function(m){ if(m.city) cities[m.city]=1; });
+  var sig=[k==='independent'?'Independent':'Chain / franchise']; if(isPlatform(o)) sig.push('Platform target'); else if(o.isGroup&&k==='independent') sig.push('Multi-unit independent');
+  if(c!=null&&c<=-15) sig.push('Sales declining'); if(c!=null&&c>=15) sig.push('Sales growing'); if(o.status==='stopped') sig.push('Stopped filing'); if(pend) sig.push('New permit pending'); if(Object.keys(cities).length>=2) sig.push('Multi-market');
+  return { name:o.name, owners:o.isGroup?o.owners:(o.taxpayer?[o.taxpayer]:[]), kind:k, signals:sig, t12:o.trailing12, avgMonth:o.avgMonth, chg12:c,
+    locations:locs.map(function(m){ return {name:m.name,address:m.address,city:m.city||(D.area?'':D.city)||'',zip:m.zip,permit:m.permit,status:m.status}; }) }; }
+function imPick(){ var R=rows(); var floor=parseFloat(document.getElementById('imFloor').value)||0, skipFr=document.getElementById('imSkipFr').checked;
+  var out=[], below=0, fr=0; R.forEach(function(o){ if(skipFr&&kindOf(o)==='franchise'){ fr++; return; } if((o.status==='stopped'?o.priorAvg:o.avgMonth)<floor){ below++; return; } out.push(o); });
+  return {rows:out, below:below, fr:fr, total:R.length}; }
+function imSummary(){ var x=imPick(); document.getElementById('imCount').innerHTML='<b>'+x.rows.length.toLocaleString()+'</b> to check of '+x.total.toLocaleString()+' in this view'+(x.fr?(' · '+x.fr.toLocaleString()+' chains/franchises left out'):'')+(x.below?(' · '+x.below.toLocaleString()+' below the sales floor'):'')+(x.rows.length>2000?' · <b>first 2,000 only</b> — narrow the view and import again':''); document.getElementById('imRes').hidden=true; document.getElementById('imGo').hidden=true; document.getElementById('imPrev').hidden=false; return x; }
+function imPost(commit){ var x=imPick(); var recs=x.rows.slice(0,2000).map(imRecord); var msg=document.getElementById('imMsg'); msg.textContent=commit?'Importing…':'Checking against the CRM…';
+  document.getElementById('imPrev').disabled=document.getElementById('imGo').disabled=true;
+  return fetch('/api/tx/crm-import',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({commit:commit,owner:document.getElementById('imOwner').value,areaLabel:D.city||'',records:recs})}).then(function(r){return r.json();}).then(function(j){
+    document.getElementById('imPrev').disabled=document.getElementById('imGo').disabled=false; msg.textContent='';
+    if(!j||!j.ok){ msg.textContent=(j&&j.error)||'Could not import.'; return; }
+    var res=document.getElementById('imRes'); res.hidden=false;
+    if(commit){ res.innerHTML='<b>'+j.created.toLocaleString()+' compan'+(j.created===1?'y':'ies')+' added</b> to the CRM, owned by '+esc(j.owner.name)+', tagged <b>Alcohol Sales</b>'+(j.existing?(' · '+j.existing.toLocaleString()+' already there, left as they were'):'')+'.<div style="margin-top:6px"><a href="./rrg_companies.html" style="color:#2c5c8f;font-weight:700">Open Companies ↗</a></div>'; document.getElementById('imGo').hidden=true; document.getElementById('imPrev').hidden=true; return; }
+    res.innerHTML='<b>'+j.toCreate.toLocaleString()+' new</b> will be added · <b>'+j.existing.toLocaleString()+'</b> already in the CRM (skipped)'+(j.sample&&j.sample.length?('<div style="margin-top:6px;color:#5f6a7d">e.g. '+j.sample.slice(0,5).map(function(c){ return esc(c.name)+(c.locations>1?(' ('+c.locations+')'):''); }).join(' · ')+'</div>'):'')+(j.existingSample&&j.existingSample.length?('<div style="margin-top:4px;color:#8a93a8">Already there: '+j.existingSample.slice(0,4).map(function(c){ return esc(c.companyName); }).join(' · ')+'</div>'):'');
+    var go=document.getElementById('imGo'); go.hidden=!j.toCreate; go.textContent='Import '+j.toCreate.toLocaleString(); document.getElementById('imPrev').hidden=true;
+  }).catch(function(){ document.getElementById('imPrev').disabled=document.getElementById('imGo').disabled=false; msg.textContent='Network error.'; }); }
+function openImport(){ if(!D||!D.all) return; var ov=document.getElementById('imOv'); ov.hidden=false; document.getElementById('imArea').textContent=D.city||'';
+  var sel=document.getElementById('imOwner');
+  if(!IM_USERS){ fetch('/api/users-list',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ IM_USERS=(j&&j.users)||[]; var me=(window.__rrgSession&&window.__rrgSession.username)||''; sel.innerHTML=IM_USERS.map(function(u){ return '<option value="'+esc(u.username)+'"'+(u.username===me?' selected':'')+'>'+esc(u.name||u.username)+(u.username===me?' (me — house)':'')+'</option>'; }).join(''); }).catch(function(){}); }
+  imSummary(); }
+document.getElementById('importBtn').onclick=openImport;
+if(!readUrl()){ setF(PRESETS.strong.f); PRESET='strong'; SORT={k:'trailing12',d:-1}; }
 loadTracked(); loadPlaces(); load(false);
 </script>
+<div class="imov" id="imOv" hidden><div class="imbox" role="dialog" aria-label="Import to CRM"><div class="imhd">Import to CRM <span class="rsub" id="imArea" style="font-weight:600"></span><button type="button" id="imX" aria-label="Close">×</button></div>
+  <div class="imbd"><div>Adds the operators in your current view as <b>companies</b> — one per location, or one per group when “Consolidate” is on — tagged <b>Alcohol Sales</b> with their signals (Independent, Platform target, Sales declining…). Anything already in the CRM is skipped, never overwritten. No one is added to email lists.</div>
+    <label class="f"><span class="rlbl">Minimum avg monthly alcohol sales ($)</span><input type="number" id="imFloor" value="40000" min="0" step="5000"><span class="rsub">Groups are judged on combined sales. A stopped operator is judged on what it did before it stopped.</span></label>
+    <label class="ck"><input type="checkbox" id="imSkipFr" checked> Leave out chains &amp; franchises</label>
+    <label class="f"><span class="rlbl">Owner of the new records</span><select id="imOwner"><option value="">Me</option></select></label>
+    <div id="imCount" class="rsub" style="font-size:12.5px"></div>
+    <div class="imres" id="imRes" hidden></div></div>
+  <div class="imft"><span class="msg" id="imMsg"></span><button class="rbtn" type="button" id="imCancel">Close</button><button class="rbtn" type="button" id="imPrev">Check against CRM</button><button class="rbtn pri" type="button" id="imGo" hidden>Import</button></div></div></div>
 <div class="cmpbar" id="cmpBar" hidden><b id="cmpN"></b><span class="nm" id="cmpNames"></span><a id="cmpGo" href="./rrg_tx_compare.html">⇄ Compare</a><button id="cmpClr">Clear</button></div>
 <script>
 // Compare tray — shared with the operator and compare pages (UI convenience only; the report itself is defined by its URL).
@@ -282,6 +353,9 @@ document.addEventListener('change',function(e){ var c=e.target; if(!c.classList|
 document.getElementById('cmpClr').onclick=function(){ cmpSet([]); cmpBar(); };
 new MutationObserver(function(){ cmpBar(); }).observe(document.getElementById('body'),{childList:true});
 cmpBar();
+(function(){ var ov=document.getElementById('imOv'); function close(){ ov.hidden=true; } document.getElementById('imX').onclick=close; document.getElementById('imCancel').onclick=close; ov.addEventListener('mousedown',function(e){ if(e.target===ov) close(); });
+  document.getElementById('imFloor').oninput=imSummary; document.getElementById('imSkipFr').onchange=imSummary; document.getElementById('imOwner').onchange=imSummary;
+  document.getElementById('imPrev').onclick=function(){ imPost(false); }; document.getElementById('imGo').onclick=function(){ imPost(true); }; })();
 </script>
 <script src="/rrg_features.js"></script>
 </body>
