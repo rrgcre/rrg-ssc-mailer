@@ -1609,7 +1609,7 @@ app.post('/api/login', (req, res) => {
   }
   auth.logLogin({ ...meta, username: user.username, result: 'success' });
   setSessionCookie(res, auth.makeSession(user));
-  res.json({ ok: true, role: user.role, name: user.name });
+  res.json({ ok: true, role: user.role, name: user.name, keepNav: !!userPrefsOf(user.username).keepNav });
 });
 
 app.get('/logout', (_req, res) => { clearSessionCookie(res); res.redirect('/login?e=1'); });
@@ -1657,6 +1657,17 @@ app.get('/api/users-list', (req, res) => {
 // ---- Self-service account: view/edit own contact info + change own password ----
 app.get('/api/me', (req, res) => { const prof = auth.profileOf(auth.findUser(req.user.username)); if (prof && prof.photoExt) { prof.photoUrl = '/api/userphoto/' + String(req.user.username).replace(/[^a-z0-9_.-]/gi,'_') + '.' + prof.photoExt + '?v=' + encodeURIComponent(prof.photoAt || 0); } res.json({ ok: true, profile: prof }); });
 
+// Personal UI preferences (per user, server-side so they follow the user to any device).
+// keepNav: keep the sidebar sections open between logins (default: every login starts with them all closed).
+function userPrefsOf(username) { const s = loadSettings(); const all = (s.userPrefs && typeof s.userPrefs === 'object') ? s.userPrefs : {}; const p = all[String(username || '').toLowerCase()]; return (p && typeof p === 'object') ? p : {}; }
+app.get('/api/me/prefs', (req, res) => { res.json({ ok: true, prefs: { keepNav: !!userPrefsOf(req.user.username).keepNav } }); });
+app.post('/api/me/prefs', express.json(), (req, res) => {
+  const b = req.body || {}; const s = loadSettings(); s.userPrefs = (s.userPrefs && typeof s.userPrefs === 'object') ? s.userPrefs : {};
+  const k = String(req.user.username || '').toLowerCase(); const cur = Object.assign({}, s.userPrefs[k] || {});
+  if (typeof b.keepNav === 'boolean') cur.keepNav = b.keepNav;
+  s.userPrefs[k] = cur; if (!saveSettings(s)) return res.status(500).json({ ok: false, error: 'Could not save.' });
+  res.json({ ok: true, prefs: { keepNav: !!cur.keepNav } });
+});
 app.post('/api/me/profile', express.json(), (req, res) => {
   try {
     const b = req.body || {};
@@ -20012,7 +20023,7 @@ button:hover{background:var(--ink);}
 function go(f){
   var e=document.getElementById('err'); e.style.display='none';
   fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:f.username.value,password:f.password.value})})
-    .then(r=>r.json()).then(j=>{ if(j.ok){ location.href='/'; } else { e.textContent=j.error||'Sign in failed.'; e.style.display='block'; } })
+    .then(r=>r.json()).then(j=>{ if(j.ok){ if(!j.keepNav) try{ localStorage.removeItem('rrg_navcoll_v2'); localStorage.removeItem('rrg_nav_html_v1'); localStorage.removeItem('rrg_views_coll_v1'); }catch(_e){} location.href='/'; } else { e.textContent=j.error||'Sign in failed.'; e.style.display='block'; } })
     .catch(()=>{ e.textContent='Network error.'; e.style.display='block'; });
   return false;
 }

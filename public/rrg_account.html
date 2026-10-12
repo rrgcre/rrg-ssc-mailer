@@ -200,6 +200,12 @@ input.f:disabled{background:var(--wash);color:var(--soft);}
   </div>
 
   <div class="card" data-atab="profile">
+    <h2>Sidebar</h2>
+    <div class="desc">Every login starts with the sidebar sections closed. Turn this on to keep the ones you had open.</div>
+    <label style="display:flex;align-items:center;gap:9px;font-size:13.5px;font-weight:600;color:#26324a;cursor:pointer"><input type="checkbox" id="keepNav" style="width:17px;height:17px;accent-color:#20334f;margin:0"> Keep my sidebar sections open between logins</label>
+    <span class="msg" id="navMsg"></span>
+  </div>
+  <div class="card" data-atab="profile">
     <h2>My Quick Links</h2>
     <div class="desc">Your own dashboard shortcuts, shown alongside the company default links. Up to 12.</div>
     <div id="linkRows"></div>
@@ -526,6 +532,10 @@ renderGmail();
 renderGSync();
 loadGadd();
 
+(function(){ var cb=document.getElementById('keepNav'), m=document.getElementById('navMsg'); if(!cb) return;
+  fetch('/api/me/prefs',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok) cb.checked=!!j.prefs.keepNav; }).catch(function(){});
+  cb.addEventListener('change',function(){ m.textContent='Saving…'; m.style.color=''; fetch('/api/me/prefs',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({keepNav:cb.checked})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ m.textContent='Saved ✓'; setTimeout(function(){ m.textContent=''; },1500); } else { m.textContent=(j&&j.error)||'Could not save.'; m.style.color='#DA2B1F'; cb.checked=!cb.checked; } }).catch(function(){ m.textContent='Network error.'; m.style.color='#DA2B1F'; cb.checked=!cb.checked; }); });
+})();
 function acctTab(name){
   try{ localStorage.setItem('rrg_acct_tab', name); }catch(e){}
   var tabs=document.querySelectorAll('#acctTabs .subtab');
