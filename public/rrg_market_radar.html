@@ -221,7 +221,7 @@ function render(){ var b=document.getElementById('body');
   if(D.area&&D.city&&document.activeElement!==document.getElementById('city')){ AREA=D.area; AREA_LABEL=D.city; document.getElementById('city').value=D.city; }
   if(!D.all){ b.innerHTML='<div class="rempty">This city\'s cache is from the older version — click <b>Refresh from the state</b>.</div>'; return; }
   syncUrl();
-  document.getElementById('meta').textContent=(D.operators||0).toLocaleString()+' operators'+(D.areaCounties&&D.areaCounties.length>1?(' · '+D.areaCounties.length+' counties'):'')+' · data through '+(D.latestMonth||'—')+(D.cached?' · cached':'');
+  document.getElementById('meta').textContent=(D.operators||0).toLocaleString()+' operators'+(D.areaCounties&&D.areaCounties.length>1?(' · '+D.areaCounties.length+' counties'):'')+' · data through '+(D.latestMonth||'—')+(D.partialMonth?(' ('+D.partialMonth+' still coming in — left out)'):'')+(D.cached?' · cached':'');
   var pc=presetCounts();
   document.getElementById('presets').innerHTML='<span class="rlbl" style="margin-right:4px">Quick views</span>'+Object.keys(PRESETS).map(function(key){ var on=(PRESET===key)||(PRESETS[key].view&&VIEW===PRESETS[key].view); return '<button class="chip'+(on?' on':'')+'" data-p="'+key+'">'+esc(PRESETS[key].label)+' <span class="c">'+(pc[key]||0).toLocaleString()+'</span></button>'; }).join('');
   document.querySelectorAll('[data-p]').forEach(function(x){ x.onclick=function(){ applyPreset(x.getAttribute('data-p')); }; });

@@ -25601,8 +25601,16 @@ async function txRadarBuild(scope) {
   const ops = {}; let latest = '';
   rows.forEach(r => { const k = r.tabc_permit_number || (r.location_name + '|' + r.location_address); const o = ops[k] = ops[k] || { name: r.location_name || r.taxpayer_name || '', taxpayer: r.taxpayer_name || '', tpn: r.taxpayer_number || '', address: r.location_address || '', city: txTitle(r.location_city), zip: r.location_zip || '', permit: r.tabc_permit_number || '', months: {}, liq: {}, wine: {}, beer: {} }; const m = txMonthKey(r.obligation_end_date_yyyymmdd); o.months[m] = (o.months[m] || 0) + (Number(r.total_receipts) || 0); o.liq[m] = (o.liq[m] || 0) + (Number(r.liquor_receipts) || 0); o.wine[m] = (o.wine[m] || 0) + (Number(r.wine_receipts) || 0); o.beer[m] = (o.beer[m] || 0) + (Number(r.beer_receipts) || 0); if (m > latest) latest = m; });
   const mAdd = (m, n) => { const d = new Date(m + '-15T00:00:00Z'); d.setUTCMonth(d.getUTCMonth() + n); return d.toISOString().slice(0, 7); };
-  // The state reports with a lag: treat the newest month present as "current".
-  const cur = latest; const sig = [];
+  // The state reports with a lag, and the newest month trickles in: a handful of early filers make it "present" while
+  // most operators haven't filed it yet. Treating it as current drew every sparkline down to zero and dragged
+  // trailing-12, 3-month change and "latest" down with it. "Current" = the newest COMPLETE month: step back while a
+  // month has under 80% of the filers of the month before it (at most 3 months).
+  const _filers = {}; Object.keys(ops).forEach(k => { Object.keys(ops[k].months).forEach(m => { if (ops[k].months[m] > 0) _filers[m] = (_filers[m] || 0) + 1; }); });
+  let cur = latest, partialMonth = '';
+  for (let i = 0; i < 3 && cur; i++) { const prev = mAdd(cur, -1); if ((_filers[prev] || 0) > 0 && (_filers[cur] || 0) < 0.8 * _filers[prev]) { if (!partialMonth) partialMonth = cur; cur = prev; } else break; }
+  // Leave the partial month(s) out of every operator's numbers (kept only for an operator with nothing else yet).
+  if (cur !== latest) Object.keys(ops).forEach(k => { const o = ops[k]; const keep = Object.keys(o.months).some(m => m <= cur); if (!keep) return; ['months', 'liq', 'wine', 'beer'].forEach(f => { Object.keys(o[f] || {}).forEach(m => { if (m > cur) delete o[f][m]; }); }); });
+  const sig = [];
   Object.keys(ops).forEach(k => { const o = ops[k]; const ms = Object.keys(o.months).sort(); if (!ms.length) return; const last = ms[ms.length - 1];
     const val = m => o.months[m] || 0; const sum = (a, b) => { let s = 0; for (let i = a; i <= b; i++) s += val(mAdd(cur, -i)); return s; };
     const r3 = sum(0, 2), p3 = sum(12, 14), t12 = sum(0, 11);
@@ -25627,7 +25635,7 @@ async function txRadarBuild(scope) {
   const all = Object.keys(ops).map(k => { const o = ops[k]; const ms = Object.keys(o.months).sort(); if (!ms.length) return null; const last = ms[ms.length - 1];
     const val = m => o.months[m] || 0; const sum = (a, b) => { let x = 0; for (let i = a; i <= b; i++) x += val(mAdd(cur, -i)); return x; };
     const series = []; for (let i = 23; i >= 0; i--) series.push(val(mAdd(cur, -i)));
-    const gap = Math.round((Date.parse(cur + '-15') - Date.parse(last + '-15')) / (30.44 * 864e5));
+    const gap = Math.max(0, Math.round((Date.parse(cur + '-15') - Date.parse(last + '-15')) / (30.44 * 864e5)));
     const prior = ms.length >= 6 ? ms.slice(-9, -3).reduce((a, m) => a + o.months[m], 0) / Math.min(6, ms.length - 3 || 1) : 0;
     const status = gap >= 2 ? 'stopped' : (ms.length <= 4 ? 'new' : 'active');
     // Category split over the last 12 months (or the 12 before it stopped, for a stopped operator).
@@ -25638,14 +25646,14 @@ async function txRadarBuild(scope) {
       chg3: pct(sum(0, 2), sum(12, 14)), chg6: pct(sum(0, 5), sum(12, 17)), chg12: pct(sum(0, 11), sum(12, 23)), series: series,
       liquor12: liquor12, wine12: wine12, beer12: beer12, liquorPct: cat ? Math.round(liquor12 / cat * 100) : null, winePct: cat ? Math.round(wine12 / cat * 100) : null, beerPct: cat ? Math.round(beer12 / cat * 100) : null };
   }).filter(Boolean).sort((a, b) => b.trailing12 - a.trailing12 || b.priorAvg - a.priorAvg);
-  return { ok: true, v: 3, city: city, area: isArea ? scope.area : '', areaCounties: isArea ? scope.countyNames : undefined, at: new Date().toISOString(), latestMonth: cur, operators: Object.keys(ops).length, all: all.slice(0, isArea ? 25000 : 8000), signals: sig.slice(0, isArea ? 1500 : 600),
+  return { ok: true, v: 4, city: city, partialMonth: partialMonth, area: isArea ? scope.area : '', areaCounties: isArea ? scope.countyNames : undefined, at: new Date().toISOString(), latestMonth: cur, operators: Object.keys(ops).length, all: all.slice(0, isArea ? 25000 : 8000), signals: sig.slice(0, isArea ? 1500 : 600),
     pending: pending.map(p => ({ name: p.trade_name || '', owner: p.owner || '', address: [p.address, p.address_2].filter(Boolean).join(' '), city: txTitle(p.city), type: p.license_type || '', submitted: String(p.submission_date || '').slice(0, 10), status: p.applicationstatus || '' })),
     creditLaw: credit.map(c => ({ name: c.tradename || c.corporatename || '', address: c.streetaddress || '', city: txTitle(c.city), effective: String(c.effectivedate || '').slice(0, 10), status: c.permitstatus || '' })) };
 }
 async function txRadarGet(scope, refresh) {
   const isArea = scope && typeof scope === 'object';
   const fp = path.join(TXRADAR_DIR, isArea ? ('_area_' + scope.area.replace(/[^a-z0-9]+/gi, '-') + '.json') : (scope.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.json'));
-  try { if (!refresh && fs.existsSync(fp)) { const c = JSON.parse(fs.readFileSync(fp, 'utf8')); if (c && c.v === 3 && c.at && (Date.now() - Date.parse(c.at)) < 24 * 36e5) return Object.assign({ cached: true }, c); } } catch (e) {}
+  try { if (!refresh && fs.existsSync(fp)) { const c = JSON.parse(fs.readFileSync(fp, 'utf8')); if (c && c.v === 4 && c.at && (Date.now() - Date.parse(c.at)) < 24 * 36e5) return Object.assign({ cached: true }, c); } } catch (e) {}
   const r = await txRadarBuild(scope); try { if (!fs.existsSync(TXRADAR_DIR)) fs.mkdirSync(TXRADAR_DIR, { recursive: true }); fs.writeFileSync(fp, JSON.stringify(r)); } catch (e) {} return r;
 }
 // A metro or county area can run to tens of thousands of operators — gzip the JSON when the browser accepts it.
