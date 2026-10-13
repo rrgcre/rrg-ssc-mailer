@@ -218,6 +218,16 @@ body.booting .flagbtn{transition:none!important;}
 #tenantBoxCard .tbseg select{cursor:pointer;font-size:13px!important}
 #tenantBoxCard .tbseg .v{display:flex;align-items:baseline;gap:2px;min-width:0}
 #tenantBoxCard .tbseg .v i{font-style:normal;font-size:12px;font-weight:600;color:#9aa4b6;flex:none}
+#tenantBoxCard .tbro-note{font-size:12px;color:#6b7488;line-height:1.5}
+#tenantBoxCard .tbro{padding:11px 0;border-bottom:1px solid #eef1f6}
+#tenantBoxCard .tbro:last-of-type{border-bottom:none}
+#tenantBoxCard .tbro-h{font-size:13.5px;font-weight:800;color:#000E31;display:flex;align-items:center;gap:6px}
+#tenantBoxCard .tbro-f{font-size:12.5px;color:#1d2a3f;font-weight:600;margin-top:3px}
+#tenantBoxCard .tbro-r{font-size:12px;color:#3d475c;margin-top:4px;line-height:1.45}
+#tenantBoxCard .tbro-r span{display:inline-block;min-width:72px;font-size:9.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#8a93a8}
+#tenantBoxCard .tbro-n{font-size:12px;color:#6b7488;margin-top:5px;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+#tenantBoxCard .tbro-links{display:flex;flex-direction:column;gap:4px;margin-top:8px;padding-top:9px;border-top:1px solid #eef1f6}
+#tenantBoxCard .tbro-link{font-size:12.5px;font-weight:700;color:#2c5c8f;text-decoration:none}
 #tenantBoxCard .tbsec{margin-top:11px}
 #tenantBoxCard .tbsec[data-tbsec="match"]{border-top:1px solid #eef1f6;margin-top:13px}
 #tenantBoxCard .tbsechd .tbprev{flex:1;min-width:0;font-size:12px;font-weight:500;color:#8a93a8;text-transform:none;letter-spacing:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:none}
@@ -727,7 +737,7 @@ function refreshDocList(){
 }
 function agreementsCard(){
   var opts=ATYPES.map(function(t){return '<option value="'+esc(t.key)+'">'+esc(t.label)+'</option>';}).join('');
-  return '<div class="card"><div class="ch"><b>Documents</b><span id="docCount">'+docCount()+'</span><button type="button" class="mfadd" onclick="openAgrChooser()" title="Add an agreement — send a template, record a signed one, or upload a PDF for signature" style="margin-left:auto;padding:5px 11px;font-size:12px">✉ Send agreement</button></div>'
+  return '<div class="card"><div class="ch"><b>Documents</b><span id="docCount">'+docCount()+'</span><button type="button" class="mfadd" onclick="openAgrChooser()" title="Add an agreement — send a template, record a signed one, or upload a PDF for signature" style="margin-left:auto;padding:5px 11px;font-size:12px">✉ Send for signature</button></div>'
     +'<div class="cb"><div class="agrlist" id="docList">'+docListHtml()+'</div>'
     +'<div id="agrForm" hidden style="margin-top:12px;border-top:1px solid #e6e9f0;padding-top:12px">'
       +'<input type="hidden" id="agr_id">'
@@ -1996,8 +2006,27 @@ function tbSetHtml(tb,i){
 function tbTabsHtml(){ if(TB_ACTIVE>=TBOXES.length) TB_ACTIVE=TBOXES.length-1; if(TB_ACTIVE<0) TB_ACTIVE=0; return TBOXES.map(function(tb,i){ var nm=(tb&&tb.concept&&String(tb.concept).trim())?String(tb.concept).trim():('Concept '+(i+1)); var dot=(tb&&tb.active)?'<span class="tbtabdot"></span>':''; return '<button type="button" class="tbtab'+(i===TB_ACTIVE?' on':'')+'" data-tbtab="'+i+'" title="'+esc(nm)+'">'+dot+esc(nm)+'</button>'; }).join(''); }
 function _tbSwitchTab(){ document.querySelectorAll('#tbTabs .tbtab').forEach(function(b){ b.classList.toggle('on', +b.getAttribute('data-tbtab')===TB_ACTIVE); }); document.querySelectorAll('#tbSets .tbset').forEach(function(el){ el.style.display=(+el.getAttribute('data-i')===TB_ACTIVE)?'':'none'; }); }
 function _tbSyncTabs(){ TBOXES=_tbGather(); var tabs=document.getElementById('tbTabs'); if(tabs){ tabs.innerHTML=tbTabsHtml(); tabs.classList.toggle('single',TBOXES.length<2); } }
+// Once this tenant has a live tenant-rep engagement, the engagement owns the requirement: the card here is a
+// read-only summary that links to it (one place to edit, one match list — the engagement's Space shortlist).
+function _tbEngs(){ return (typeof DEALS!=='undefined'&&DEALS||[]).filter(function(d){ return d.type==='tenant_rep'&&!d.dead; }); }
+function _tbSummary(tb){ var n=function(v){ v=Number(String(v==null?'':v).replace(/[^0-9]/g,'')); return v?v.toLocaleString('en-US'):''; };
+  var size=(n(tb.sfMin)&&n(tb.sfMax))?(n(tb.sfMin)+'–'+n(tb.sfMax)+' SF'):(n(tb.sfMin)?(n(tb.sfMin)+'+ SF'):(n(tb.sfMax)?('up to '+n(tb.sfMax)+' SF'):''));
+  var facts=[size, n(tb.sfIdeal)?('ideal '+n(tb.sfIdeal)):'', n(tb.budget)?('≤ $'+n(tb.budget)+'/SF'):'', ({lease:'Lease only',purchase:'Purchase only'})[tb.deal]||''].filter(Boolean).join(' · ');
+  var row=function(k,v){ v=(v||[]).filter(Boolean); return v.length?('<div class="tbro-r"><span>'+k+'</span>'+esc(v.join(', '))+'</div>'):''; };
+  var site=(tb.spaceTypes||[]).concat((tb.amenities||[]).filter(function(x){return TB_AMEN_SITE.indexOf(x)>=0;})), infra=(tb.amenities||[]).filter(function(x){return TB_AMEN_2NDGEN.indexOf(x)>=0;});
+  var notes=[tb.areaNote,tb.notes].map(function(x){return String(x||'').trim();}).filter(Boolean).join(' · ');
+  return '<div class="tbro"><div class="tbro-h">'+(tb.active?'<span class="tbtabdot"></span>':'')+esc(String(tb.concept||'').trim()||'Concept')+'</div>'+(facts?('<div class="tbro-f">'+esc(facts)+'</div>'):'')
+    +row('Markets',tb.markets)+row('Condition',tb.condition)+row('Site',site)+row('Build-out',infra)+(notes?('<div class="tbro-n">'+esc(notes)+'</div>'):'')+'</div>'; }
+function tenantBoxReadOnly(engs){
+  var boxes=TBOXES.filter(function(b){ return b&&(String(b.concept||'').trim()||b.sfMin||b.sfMax||(b.markets||[]).length); });
+  var links=engs.map(function(d){ return '<a class="tbro-link" href="./rrg_tenant_engagement.html?key='+encodeURIComponent(d.key)+'">Edit on the '+esc(d.business||'tenant rep')+' engagement \u2197</a>'; }).join('');
+  return '<div class="card" id="tenantBoxCard"><div class="ch" title="The requirement lives on the tenant-rep engagement"><b>Tenant-Box</b><span id="tbCount" title="Concepts">'+boxes.length+'</span></div><div class="cb">'
+    +'<div class="tbro-note">Managed on the engagement — edit it there. Matching runs on the engagement’s Space shortlist.</div>'
+    +(boxes.length?boxes.map(_tbSummary).join(''):'<div class="tbro-note" style="margin-top:6px">No requirement on file yet.</div>')
+    +'<div class="tbro-links">'+links+'</div></div></div>'; }
 function tenantBoxCard(){
   TBOXES=(P&&Array.isArray(P.tenantBoxes))?P.tenantBoxes.slice():((P&&P.tenantBox)?[P.tenantBox]:[]);
+  var _engs=_tbEngs(); if(_engs.length) return tenantBoxReadOnly(_engs);
   if(!TBOXES.length) TBOXES=[_tbEmpty()];
   return '<div class="card" id="tenantBoxCard"><div class="ch" title="One requirement per concept this tenant is placing"><b>Tenant-Box</b><span id="tbCount" title="Concepts">'+TBOXES.length+'</span><button type="button" class="mfadd tbhbtn" id="tbFromSsc" data-ai="" title="Read the Site Criteria (SSC) on file and draft a concept to review"><span class="tbspark">\u2726</span>Fill from SSC</button><button type="button" class="mfadd" id="tbAddSet" title="Add another concept" style="width:28px;height:26px;padding:0;font-size:18px;line-height:1;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex:none">+</button></div><div class="cb">'
     +'<div id="tbTabs" class="tbtabs'+(TBOXES.length<2?' single':'')+'">'+tbTabsHtml()+'</div>'

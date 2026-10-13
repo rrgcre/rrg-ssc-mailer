@@ -449,6 +449,16 @@ a.feat:hover{background:#f7f9fc;}
 .mmact .bbacts{display:inline-flex;gap:5px}
 .mmact .railadd{background:#fff;border:1px solid #cdd6e6;color:var(--navy);border-radius:6px;height:26px;min-width:28px;padding:0 7px;font:inherit;font-size:16px;font-weight:700;line-height:1;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;text-decoration:none}
 .mmact .railico{padding:0;width:28px;color:#3f4b63}
+/* Requirement editor */
+.tbe-sec{display:flex;align-items:center;gap:8px;font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--navy);margin:14px 0 10px;padding-bottom:6px;border-bottom:2px solid #eef1f6}
+.tbe-sec:first-child{margin-top:4px}
+.tbe-act{margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;letter-spacing:0;text-transform:none;color:#1f8a5b;cursor:pointer}
+.fldrow2.three{grid-template-columns:1fr 1fr 1fr}
+.tbe-chips{display:flex;flex-wrap:wrap;gap:6px}
+.tbe-chip{display:inline-flex;align-items:center;font-size:12.5px;font-weight:600;color:#3d475c;background:#fff;border:1px solid #d6dde8;border-radius:999px;padding:4px 11px;cursor:pointer;user-select:none}
+.tbe-chip input{display:none}
+.tbe-chip.on{background:#23496f;border-color:#23496f;color:#fff}
+.tbe-bar{display:flex;align-items:center;gap:10px;margin:4px 0 6px}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -804,6 +814,17 @@ function invoicesCardDeal(){
 
 function crBox(){
   var c=(A&&A.criteria)||{};
+  // With a client contact, the structured Tenant-Box concept is the requirement (size, rent, markets, build-out, notes);
+  // only the engagement-only terms stay here. The old free-text fields ride along hidden so nothing is lost.
+  if(A&&A.clientPersonId){ var hid=function(id,v){ return '<input type="hidden" id="'+id+'" value="'+esc(v||'')+'">'; };
+    return '<div id="tbEd"><div style="font-size:12px;color:#8a93a8">Loading the requirement…</div></div>'
+      +'<div class="tbe-sec">Engagement terms</div>'
+      +'<div class="fldrow2"><div><label class="fld">Use / concept</label><input class="owner" id="cr_use" list="_cuisineDL" value="'+esc(c.useType||'')+'" placeholder="e.g. Full-service restaurant w/ bar"></div>'
+      +'<div><label class="fld">Term (yrs)</label><input class="owner" id="cr_term" value="'+esc(c.termYears||'')+'" placeholder="10"></div></div>'
+      +'<div class="fldrow2"><div><label class="fld">Timeline</label><input class="owner" id="cr_timeline" value="'+esc(c.timeline||'')+'" placeholder="Open by Q2 2027"></div><div></div></div>'
+      +'<div class="fldrow"><label class="fld">Must-haves / dealbreakers</label><textarea class="owner" id="cr_features" style="min-height:60px" placeholder="Liquor license, co-tenancy, demographics…">'+esc(c.features||'')+'</textarea></div>'
+      +hid('cr_markets',c.markets)+hid('cr_budget',c.budget)+hid('cr_sizemin',c.sizeMin)+hid('cr_sizemax',c.sizeMax)+hid('cr_parking',c.parking)+hid('cr_crnotes',c.notes)
+      +'<div class="expnote">One requirement for this tenant — the contact page shows it read-only. It drives the Space shortlist.</div>'; }
   return ''
     +'<div class="fldrow"><label class="fld">Target markets / trade areas</label><input class="owner" id="cr_markets" value="'+esc(c.markets||'')+'" placeholder="e.g. Dallas — Uptown, Deep Ellum, Bishop Arts"></div>'
     +'<div class="fldrow2"><div><label class="fld">Use / concept</label><input class="owner" id="cr_use" list="_cuisineDL" value="'+esc(c.useType||'')+'" placeholder="Pick or type — e.g. Full-service restaurant w/ bar"></div>'
@@ -1046,7 +1067,7 @@ function _mmSsc(hits){ var sub=document.getElementById('mmSscSub'), act=document
   if(!hits.length){ var q='personId='+encodeURIComponent(A.clientPersonId||'')+'&companyId='+encodeURIComponent((A.company&&A.company.id)||'')+'&contact='+encodeURIComponent(A.contact||'')+'&company='+encodeURIComponent((A.company&&A.company.name)||A.business||''); sub.textContent='None on file'; if(act) act.innerHTML='<a class="railadd" href="./ssc_form.html?'+q+'" title="Start a Site Selection Criteria for this tenant">+</a>'; _mmSet('ssc',false); return; }
   var c=hits[0], d=_mmD(c.when);
   sub.innerHTML='<span style="font-weight:700;color:#1f8a5b">On file</span>'+(d?(' · '+esc(d)):'')+(hits.length>1?(' · '+hits.length+' versions'):'');
-  if(act) act.innerHTML='<a class="railadd railico" href="/api/ssc/'+encodeURIComponent(c.key)+'/view" target="_blank" rel="noopener" title="View the SSC" aria-label="View the SSC">'+_icoEye+'</a>'+((A&&A.canDelete===false)?'':('<button type="button" class="railadd railico raildel" title="Delete '+(hits.length>1?'the latest version of ':'')+'the SSC" aria-label="Delete the SSC" onclick="sscDelete(\''+esc(c.key)+'\','+hits.length+');return false;">'+_icoTrash+'</button>')); _mmSet('ssc',true); }
+  if(act) act.innerHTML='<a class="railadd railico" href="/api/ssc/'+encodeURIComponent(c.key)+'/view" target="_blank" rel="noopener" title="View the SSC" aria-label="View the SSC">'+_icoEye+'</a><a class="railadd railico" href="/api/ssc/'+encodeURIComponent(c.key)+'/view?print=1" target="_blank" rel="noopener" title="Print / save as PDF" aria-label="Print the SSC"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg></a>'+((A&&A.canDelete===false)?'':('<button type="button" class="railadd railico raildel" title="Delete '+(hits.length>1?'the latest version of ':'')+'the SSC" aria-label="Delete the SSC" onclick="sscDelete(\''+esc(c.key)+'\','+hits.length+');return false;">'+_icoTrash+'</button>')); _mmSet('ssc',true); }
 function sscDelete(key,n){
   var go=function(ok){ if(!ok) return;
     fetch('/api/document/ssc/'+encodeURIComponent(key),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
@@ -1067,6 +1088,37 @@ function loadSscLink(){ var el=document.getElementById('sscLink'); if(!el||!A) r
     el.innerHTML=hits.slice(0,3).map(function(c,i){ var d=''; try{ d=new Date(c.when).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }catch(e){}
       return '<a href="/api/ssc/'+encodeURIComponent(c.key)+'/view" target="_blank" rel="noopener" style="color:var(--navy);margin-left:'+(i?'12px':'0')+'" title="'+esc(c.name)+'">View SSC'+(hits.length>1?(' · '+esc(d)):'')+' ↗</a>'; }).join('');
   }).catch(function(){}); }
+// ===== Requirement editor (structured Tenant-Box concept for this engagement) =====
+var TBE_COND=['Shell','Second-gen','Dirt / pad'], TBE_SITE=['End cap','Inline','Pad / Outparcel','Freestanding'], TBE_SITEAM=['Drive-thru','Patio'], TBE_INFRA=['Hood / exhaust','Grease trap','Gas service','Walk-in cooler','Bar built-out','Fire suppression','3-phase power','Restrooms (ADA)'];
+function _tbeChips(list,sel,cls){ return list.map(function(x){ var on=(sel||[]).indexOf(x)>=0; return '<label class="tbe-chip'+(on?' on':'')+'"><input type="checkbox" class="'+cls+'" value="'+esc(x)+'"'+(on?' checked':'')+'>'+esc(x)+'</label>'; }).join(''); }
+function tbEdPaint(){ var host=document.getElementById('tbEd'); if(!host) return; var t=RQ_TB||{concept:(A&&A.business)||''};
+  var n=function(v){ v=Number(String(v==null?'':v).replace(/[^0-9]/g,'')); return v?v.toLocaleString('en-US'):''; };
+  var mk=(MARKETS||[]).filter(function(m){ return m!=='Other'; });
+  var deal=['both','lease','purchase'].map(function(v,i){ return '<option value="'+v+'"'+((t.deal||'both')===v?' selected':'')+'>'+['Lease or purchase','Lease only','Purchase only'][i]+'</option>'; }).join('');
+  host.innerHTML='<div class="tbe-sec">Requirement'+(t.concept?(' · <span style="text-transform:none;letter-spacing:0;color:#1d2a3f">'+esc(t.concept)+'</span>'):'')+'<label class="tbe-act"><input type="checkbox" id="te_active"'+(t.active?' checked':'')+'> Actively looking</label></div>'
+    +'<div class="fldrow2 three"><div><label class="fld">Min SF</label><input class="owner" id="te_sfmin" inputmode="numeric" value="'+n(t.sfMin)+'"></div><div><label class="fld">Ideal SF</label><input class="owner" id="te_sfideal" inputmode="numeric" value="'+n(t.sfIdeal)+'"></div><div><label class="fld">Max SF</label><input class="owner" id="te_sfmax" inputmode="numeric" value="'+n(t.sfMax)+'"></div></div>'
+    +'<div class="fldrow2"><div><label class="fld">Deal</label><select class="owner" id="te_deal">'+deal+'</select></div><div><label class="fld">Max rent ($/SF/yr)</label><input class="owner" id="te_budget" inputmode="numeric" value="'+n(t.budget)+'"></div></div>'
+    +'<div class="fldrow"><label class="fld">Markets</label><div class="tbe-chips">'+_tbeChips(mk,t.markets,'te_m')+'</div></div>'
+    +'<div class="fldrow"><label class="fld">Condition</label><div class="tbe-chips">'+_tbeChips(TBE_COND,t.condition,'te_c')+'</div></div>'
+    +'<div class="fldrow"><label class="fld">Site &amp; position</label><div class="tbe-chips">'+_tbeChips(TBE_SITE,t.spaceTypes,'te_s')+_tbeChips(TBE_SITEAM,t.amenities,'te_a')+'</div></div>'
+    +'<div class="fldrow"><label class="fld">Build-out (2nd-gen)</label><div class="tbe-chips">'+_tbeChips(TBE_INFRA,t.amenities,'te_a')+'</div></div>'
+    +'<div class="fldrow"><label class="fld">Trade area</label><input class="owner" id="te_area" value="'+esc(t.areaNote||'')+'" placeholder="e.g. north of 1604, near the medical center"></div>'
+    +'<div class="fldrow"><label class="fld">Notes</label><textarea class="owner" id="te_notes" style="min-height:60px">'+esc(t.notes||'')+'</textarea></div>'
+    +'<div class="tbe-bar"><button type="button" class="savebtn" id="te_save" style="width:auto;padding:8px 16px">Save requirement</button><span id="te_msg" style="font-size:12px;color:#6b7488"></span></div>'; }
+document.addEventListener('change',function(e){ var t=e.target; if(t&&t.closest&&t.closest('.tbe-chip')) t.closest('.tbe-chip').classList.toggle('on',t.checked); });
+document.addEventListener('click',function(e){ var b=e.target.closest&&e.target.closest('#te_save'); if(!b) return; e.preventDefault(); tbEdSave(b); });
+function tbEdSave(btn){ var pid=A&&A.clientPersonId; if(!pid) return; var msg=document.getElementById('te_msg'); var v=function(id){ var x=document.getElementById(id); return x?String(x.value||''):''; };
+  var picks=function(cls){ return [].slice.call(document.querySelectorAll('#tbEd .'+cls+':checked')).map(function(x){ return x.value; }); };
+  var box={ concept:(RQ_TB&&RQ_TB.concept)||(A.business||''), active:!!(document.getElementById('te_active')||{}).checked, sfMin:v('te_sfmin').replace(/[^0-9]/g,''), sfIdeal:v('te_sfideal').replace(/[^0-9]/g,''), sfMax:v('te_sfmax').replace(/[^0-9]/g,''), deal:v('te_deal')||'both', budget:v('te_budget').replace(/[^0-9]/g,''), markets:picks('te_m'), condition:picks('te_c'), spaceTypes:picks('te_s'), amenities:picks('te_a'), areaNote:v('te_area'), notes:v('te_notes') };
+  btn.disabled=true; if(msg){ msg.style.color='#6b7488'; msg.textContent='Saving…'; }
+  fetch('/api/person/'+encodeURIComponent(pid),{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ var p=(j&&(j.person||j))||{}; var boxes=(Array.isArray(p.tenantBoxes)?p.tenantBoxes:(p.tenantBox?[p.tenantBox]:[])).slice();
+      var i=(RQ_TB&&RQ_TB._i!=null&&RQ_TB._i<boxes.length)?RQ_TB._i:-1; var blank=boxes.length===1&&!String(boxes[0].concept||'').trim()&&!boxes[0].sfMin&&!(boxes[0].markets||[]).length;
+      if(i>=0) boxes[i]=box; else if(blank) { boxes[0]=box; i=0; } else { boxes.push(box); i=boxes.length-1; }
+      return fetch('/api/person/'+encodeURIComponent(pid)+'/tenantbox',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({boxes:boxes})}).then(function(r){return r.json();}).then(function(k){ btn.disabled=false;
+        if(!k||!k.ok){ if(msg){ msg.style.color='#DA2B1F'; msg.textContent=(k&&k.error)||'Could not save.'; } return; }
+        RQ_TB=(k.tenantBoxes||[])[i]||box; RQ_TB._i=i; renderReq(); if(msg){ msg.style.color='#1f8a5b'; msg.textContent='Saved ✓'; setTimeout(function(){ if(msg) msg.textContent=''; },1600); }
+        try{ _ss=null; loadShortlist(); }catch(e){} }); })
+    .catch(function(){ btn.disabled=false; if(msg){ msg.style.color='#DA2B1F'; msg.textContent='Network error.'; } }); }
 // ===== The Requirement — Tenant-Box (from the contact) + Site Selection Criteria, as one spec sheet =====
 var CR_EDIT=false, RQ_TB=null, RQ_MATCH=null;
 function _rqv(id,k){ var e=document.getElementById(id); if(e) return String(e.value||'').trim(); return String(((A&&A.criteria)||{})[k]||'').trim(); }
@@ -1075,7 +1127,7 @@ function _rqK(n){ return Number(n).toLocaleString('en-US'); }
 function _rqSplit(v,re){ return String(v||'').split(re||/\s*[;·]\s*/).map(function(x){return x.trim();}).filter(Boolean); }
 function _rqPickTb(boxes){ if(!boxes||!boxes.length) return null; var nm=_sscNorm(A&&A.business); var hit=boxes.filter(function(b){ var c=_sscNorm(b&&b.concept); return c.length>=4&&nm.length>=4&&(c.indexOf(nm)===0||nm.indexOf(c)===0); })[0]; return hit||(boxes.length===1?boxes[0]:(boxes.filter(function(b){return b&&b.active;})[0]||boxes[0])); }
 function loadReqTb(){ if(!A||!A.clientPersonId) return; var pid=A.clientPersonId;
-  fetch('/api/person/'+encodeURIComponent(pid),{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ var p=(j&&(j.person||j))||{}; var boxes=Array.isArray(p.tenantBoxes)?p.tenantBoxes:(p.tenantBox?[p.tenantBox]:[]); RQ_TB=_rqPickTb(boxes); if(RQ_TB) RQ_TB._i=boxes.indexOf(RQ_TB); renderReq();
+  fetch('/api/person/'+encodeURIComponent(pid),{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ var p=(j&&(j.person||j))||{}; var boxes=Array.isArray(p.tenantBoxes)?p.tenantBoxes:(p.tenantBox?[p.tenantBox]:[]); RQ_TB=_rqPickTb(boxes); if(RQ_TB) RQ_TB._i=boxes.indexOf(RQ_TB); renderReq(); try{ tbEdPaint(); }catch(e){}
     return fetch('/api/person/'+encodeURIComponent(pid)+'/matching-spaces',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(m){ var set=((m&&m.sets)||[]).filter(function(x){return RQ_TB&&x.i===RQ_TB._i;})[0]; RQ_MATCH=set?{active:set.active,n:(set.spaces||[]).length}:null; renderReq(); });
   }).catch(function(){}); }
 function renderReq(){ var host=document.getElementById('rqView'); if(!host||!A) return; var tb=RQ_TB||{};

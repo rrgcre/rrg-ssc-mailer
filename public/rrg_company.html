@@ -97,7 +97,7 @@ h1{font-size:29px;font-weight:700;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 /*rrg-accordion-css*/.card > .ch{cursor:pointer;} .card > .ch .rrgchev{margin-left:8px;color:#3f4b63;font-size:16px;font-weight:700;transition:transform .15s;flex:none;} .card.collapsed > .ch .rrgchev{transform:rotate(-90deg);} .card.collapsed > .cb{display:none;}
 .rail .rrgchev{display:none!important;}
 .ch{display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid #eef1f6;} .ch b{color:var(--ink);font-size:15px;font-weight:600;} .ch span{color:var(--soft);font-size:12.5px;font-weight:500;} .rail .card .ch b{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--soft);} .rail .card .ch span{font-size:10.5px;font-weight:700;color:#6b7488;background:#eef2f6;border-radius:999px;padding:1px 8px;line-height:1.7;font-variant-numeric:tabular-nums;}
-.addbtn{margin-left:auto;background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:8px;padding:8px 15px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;}
+.addbtn{margin-left:auto;background:#fff;color:var(--navy);border:1px solid #cdd6e6;border-radius:8px;padding:8px 15px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;}
 .addbtn.ghost{background:#fff;color:var(--navy);border-color:#cdd6e6;}
 .ch .chact{margin-left:auto;display:flex;align-items:center;gap:7px;}
 .ch .chsep{width:1px;height:16px;background:var(--line);flex:none;}
@@ -105,8 +105,9 @@ h1{font-size:29px;font-weight:700;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .chbtn{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 12px;background:#fff;color:var(--navy);border:1px solid #cdd6e6;border-radius:8px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;transition:background .12s,border-color .12s;}
 .chbtn:hover{background:var(--wash);border-color:#b4c0d6;}
 .chbtn svg{opacity:.7;}
-.chadd{width:28px;height:28px;padding:0;display:inline-flex;align-items:center;justify-content:center;font-size:18px;line-height:1;font-weight:600;background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:8px;cursor:pointer;transition:filter .12s,background .12s;}
-.chadd:hover{filter:brightness(1.12);}
+.chadd{width:28px;height:28px;padding:0;display:inline-flex;align-items:center;justify-content:center;font-size:18px;line-height:1;font-weight:700;background:#fff;color:var(--navy);border:1px solid #cdd6e6;border-radius:8px;cursor:pointer;transition:filter .12s,background .12s;}
+.chadd:hover{background:var(--wash);}
+.addbtn:hover{background:var(--wash);}
 .chadd.ghost{background:#fff;color:var(--navy);border-color:#cdd6e6;}
 .chadd.ghost:hover{background:var(--wash);filter:none;}
 .findcard{background:#fff8f7;border-bottom:1px solid #f3d9d5;}
@@ -412,7 +413,7 @@ function refreshDocListCo(){
   var c=document.getElementById('coDocCount'); if(c) c.textContent=String(docCountCo());
 }
 function agreementsCardCo(){
-  return '<div class="card"><div class="ch"><b>Documents</b><span id="coDocCount">'+docCountCo()+'</span><button type="button" class="addbtn" id="addAgrBtn" title="Send an agreement for signature \u2014 or record one already signed" style="margin-left:auto;width:auto;height:26px;padding:0 10px;font-size:11.5px;font-weight:700;display:inline-flex;align-items:center;gap:5px">\u2709 Send agreement</button></div><div class="cb"><div id="coAgrForm" hidden></div><div class="agrlistco" id="coDocList">'+docListHtmlCo()+'</div></div></div>';
+  return '<div class="card"><div class="ch"><b>Documents</b><span id="coDocCount">'+docCountCo()+'</span><button type="button" class="addbtn" id="addAgrBtn" title="Send an agreement for signature \u2014 or record one already signed" style="margin-left:auto;width:auto;height:26px;padding:0 10px;font-size:11.5px;font-weight:700;display:inline-flex;align-items:center;gap:5px">\u2709 Send for signature</button></div><div class="cb"><div id="coAgrForm" hidden></div><div class="agrlistco" id="coDocList">'+docListHtmlCo()+'</div></div></div>';
 }
 function filesCountCo(){ return (window.RRGDocs&&RRGDocs.filesCount&&RRGDocs.filesCount())||0; }
 function filesListHtmlCo(){ var rows=(window.RRGDocs?RRGDocs.filesRowsHtml():''); if(rows) return rows; return '<div class="rrempty">'+((window.RRGDocs&&RRGDocs.ready())?'No files uploaded for this company yet. Use + to add a lease, P&L, or other document.':'Loading files\u2026')+'</div>'; }
@@ -637,7 +638,7 @@ function render(){
     + '</div>'
     + '<div class="rail">'
     + '<div class="card"><div class="ch"><b>Contacts</b><span>'+CONTACTS.length+'</span><button class="addbtn" id="linkContactBtn" title="Link an existing contact from your book" style="margin-left:auto;width:auto;height:26px;padding:0 10px;font-size:11.5px;font-weight:700;display:inline-flex;align-items:center;gap:5px">🔗 Link</button><button class="addbtn" id="addContactBtn" title="Add a new contact" style="margin-left:6px;width:28px;height:26px;padding:0;font-size:18px;line-height:1;font-weight:700;display:inline-flex;align-items:center;justify-content:center">+</button></div><div class="cb"><div id="contactForm" hidden></div>'+contacts+'</div></div>'
-    + '<div class="card"><div class="ch"><b>'+esc(CLABELP)+'</b>'+'<div class="chact">'+(LOCATIONS.length?'<button class="chbtn" id="locMapBtn" title="View locations on a map"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6-5.686-6-10a6 6 0 0 1 12 0c0 4.314-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg>Map</button><span class="chsep"></span>':'')+'<button class="chadd ghost" id="addCommBtn" title="Add commissary">+</button><button class="chadd" id="addConceptBtn" title="Add '+esc(CLABEL.toLowerCase())+'">+</button></div></div><div class="cb"><div class="cocount">'+CONCEPTS.length+' '+(CONCEPTS.length===1?esc(CLABEL.toLowerCase()):esc(CLABELP.toLowerCase()))+(commissaries.length?(' · '+commissaries.length+' commissar'+(commissaries.length===1?'y':'ies')):'')+' · '+LOCATIONS.length+' location'+(LOCATIONS.length===1?'':'s')+'</div><div id="conceptForm" hidden></div><div id="locForm" hidden></div>'+locs+'</div></div>'
+    + '<div class="card"><div class="ch"><b>'+esc(CLABELP)+'</b>'+'<div class="chact">'+(LOCATIONS.length?'<button class="chbtn" id="locMapBtn" title="View locations on a map"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6-5.686-6-10a6 6 0 0 1 12 0c0 4.314-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg>Map</button><span class="chsep"></span>':'')+'<button class="chadd ghost" id="addCommBtn" title="Add a commissary kitchen" style="width:auto;padding:0 10px;font-size:11.5px">+ Commissary</button><button class="chadd" id="addConceptBtn" title="Add '+esc(CLABEL.toLowerCase())+'">+</button></div></div><div class="cb"><div class="cocount">'+CONCEPTS.length+' '+(CONCEPTS.length===1?esc(CLABEL.toLowerCase()):esc(CLABELP.toLowerCase()))+(commissaries.length?(' · '+commissaries.length+' commissar'+(commissaries.length===1?'y':'ies')):'')+' · '+LOCATIONS.length+' location'+(LOCATIONS.length===1?'':'s')+'</div><div id="conceptForm" hidden></div><div id="locForm" hidden></div>'+locs+'</div></div>'
     + '<div class="card"><div class="ch"><b>Listings</b><span>'+_LSTD.length+'</span></div><div class="cb">'+deals+'</div></div>'
     + '<div class="card"><div class="ch"><b>Rep Engagements</b><span>'+_REPD.length+'</span></div><div class="cb">'+reps+'</div></div>'
     + agreementsCardCo()
