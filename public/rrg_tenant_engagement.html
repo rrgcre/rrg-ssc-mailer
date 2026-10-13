@@ -585,6 +585,9 @@ function buyerPipelineCard(){
 }
 var OFFER_TYPES=['IOI','LOI'], OFFER_STATUSES=['Received','Under review','Countered','Accepted','Rejected','Withdrawn'];
 var TXN=null, TXNSTAT=['LOI','Under Contract','Due Diligence','Financing','Closing','Closed','Dead'];
+// Lease wording for the shared transaction statuses (stored values stay the same, so commission reports keep working: Signed = Closed).
+var LEASE_LBL={'LOI':'LOI','Under Contract':'Lease drafting','Due Diligence':'Lease review','Financing':'Lease review','Closing':'Out for signature','Closed':'Signed','Dead':'Dead'};
+function leaseLbl(s){ return LEASE_LBL[s]||s||'LOI'; }
 var TXNCOMM=['Unpaid','Invoiced','Partial','Paid'];
 var TOUR_INTEREST=['Hot','Warm','Cool','Passed'];
 var NDA_METHODS=['DocuSign','Email','Paper','Other'], NDA_STATUSES=['Sent','Received','Countersigned','Expired'];
@@ -753,7 +756,7 @@ function expensesCardDeal(){
     +'<div><div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:#8a93a8;font-weight:700">Unpaid</div><div style="font-size:19px;font-weight:800;color:#b7791f">'+expMoney(E.unpaid)+'</div></div>'
     +'<div><div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:#8a93a8;font-weight:700">Reimbursable open</div><div style="font-size:19px;font-weight:800;color:#1f8a5b">'+expMoney(E.reimbursable)+'</div></div>'
     +'</div>';
-  return '<div class="card"><div class="ch" style="display:flex"><b>Deal Expenses</b><span>'+E.count+'</span><button class="railadd" id="addExpBtn" title="Add an expense">+</button></div>'
+  return '<div class="card"><div class="ch" style="display:flex"><b>Expenses</b><span>'+E.count+'</span><button class="railadd" id="addExpBtn" title="Add an expense">+</button></div>'
     +'<div class="cb" style="padding:8px 20px 16px"><div id="expForm" hidden></div>'+totals+rows+'</div></div>';
 }
 function openExpForm(){
@@ -2389,52 +2392,58 @@ function dealCard(){
   if(TXN){
     var c=txnStatusColor(TXN.status||'');
     var rows=[];
-    if(TXN.buyer) rows.push(['Buyer', esc(TXN.buyer)+(TXN.buyerCompany?(' · '+esc(TXN.buyerCompany)):'')]);
-    if(TXN.price) rows.push(['Price', esc(TXN.price)]);
+    if(TXN.buyer) rows.push(['Landlord', esc(TXN.buyer)]); if(TXN.buyerCompany) rows.push(['Premises', esc(TXN.buyerCompany)]);
+    if(TXN.price) rows.push(['Lease value', esc(TXN.price)]);
     if(TXN.opened) rows.push(['Opened', esc(TXN.opened)]);
-    if(TXN.expectedClose) rows.push(['Expected close', esc(TXN.expectedClose)]);
-    if(TXN.closedDate) rows.push(['Closed', esc(TXN.closedDate)]);
+    if(TXN.expectedClose) rows.push(['Expected signing', esc(TXN.expectedClose)]);
+    if(TXN.closedDate) rows.push(['Lease signed', esc(TXN.closedDate)]);
+    if(TXN.rentStart) rows.push(['Rent start', esc(TXN.rentStart)]);
     if(TXN.terms) rows.push(['Terms', esc(TXN.terms)]);
     if(TXN.commissionRate) rows.push(['Commission rate', esc(TXN.commissionRate)]);
     if(TXN.commissionDue) rows.push(['Commission due', esc(TXN.commissionDue)]);
+    (function(){ var due=parseFloat(String(TXN.commissionDue||'').replace(/[^0-9.]/g,'')); var sp=(TXN.signingPct===''||TXN.signingPct==null)?50:Number(TXN.signingPct); if(!due) return;
+      var m=function(v){ return '$'+Math.round(v).toLocaleString('en-US'); }; var a=due*sp/100, b=due-a;
+      rows.push(['At signing', m(a)+' <span style="color:#8a93a8">('+sp+'%'+(TXN.closedDate?(' · '+esc(TXN.closedDate)):'')+')</span>']);
+      if(b>0) rows.push(['At rent start', m(b)+' <span style="color:#8a93a8">('+(100-sp)+'%'+(TXN.rentStart?(' · '+esc(TXN.rentStart)):' · date not set')+')</span>']); })();
     if(TXN.commissionPaid) rows.push(['Commission paid', esc(TXN.commissionPaid)]);
     if(TXN.commissionStatus) rows.push(['Commission', esc(TXN.commissionStatus)]);
     if(TXN.notes) rows.push(['Notes', esc(TXN.notes)]);
     var meta=rows.map(function(r){ return '<div class="dealkv"><span class="dkk">'+r[0]+'</span><span class="dkv">'+r[1]+'</span></div>'; }).join('');
-    body='<div class="dealview"><span class="dealpill" style="background:'+c[0]+';color:'+c[1]+'">'+esc(TXN.status||'LOI')+'</span>'+meta
+    body='<div class="dealview"><span class="dealpill" style="background:'+c[0]+';color:'+c[1]+'">'+esc(leaseLbl(TXN.status||'LOI'))+'</span>'+meta
        + '<div class="dealacts"><button class="mbtn ghost" id="dealEdit">Edit</button><button class="mbtn" id="dealDel" style="background:#fff;color:var(--red,#DA2B1F);border:1px solid #f0c9c6">Remove</button></div></div>';
     addbtn='';
   } else {
-    body='<div class="noev" style="padding:16px 18px">No deal yet. When a buyer goes under contract on this listing, open the deal — buyer, price, and close date — to track it to closing.</div>';
-    addbtn='<button class="railadd" id="dealAdd" title="Open the deal">+</button>';
+    body='<div class="noev" style="padding:16px 18px">No lease yet. When an LOI turns into a lease, open it here — landlord, premises, lease value and signing date — and track it to execution and commission.</div>';
+    addbtn='<button class="railadd" id="dealAdd" title="Open the lease">+</button>';
   }
-  return '<div class="card"><div class="ch"><b>Deal</b>'+addbtn+'</div><div class="cb"><div id="dealForm" hidden></div>'+body+'</div></div>';
+  return '<div class="card"><div class="ch"><b>Lease</b>'+addbtn+'</div><div class="cb"><div id="dealForm" hidden></div>'+body+'</div></div>';
 }
 function dealFormHTML(){
   var t=TXN||{};
-  var sopts=TXNSTAT.map(function(s){return '<option'+((t.status||'LOI')===s?' selected':'')+'>'+esc(s)+'</option>';}).join('');
+  var sopts=TXNSTAT.filter(function(s){ return s!=='Financing'||t.status==='Financing'; }).map(function(s){return '<option value="'+esc(s)+'"'+((t.status||'LOI')===s?' selected':'')+'>'+esc(leaseLbl(s))+'</option>';}).join('');
   var copts=TXNCOMM.map(function(x){return '<option'+((t.commissionStatus||'Unpaid')===x?' selected':'')+'>'+esc(x)+'</option>';}).join('');
   return '<div class="dealform">'
-    + '<div class="fldrow2"><div><label class="fld">Buyer</label><input id="dl_buyer" list="peopleList" value="'+esc(t.buyer||'')+'" placeholder="Buyer name"></div><div><label class="fld">Buyer email</label><input id="dl_email" value="" placeholder="links to registry"></div></div>'
-    + '<div class="fldrow2"><div><label class="fld">Buyer company</label><input id="dl_co" value="'+esc(t.buyerCompany||'')+'"></div><div><label class="fld">Price</label><input id="dl_price" value="'+esc(t.price||'')+'" placeholder="$"></div></div>'
+    + '<div class="fldrow2"><div><label class="fld">Landlord</label><input id="dl_buyer" list="peopleList" value="'+esc(t.buyer||'')+'" placeholder="Landlord or contact"></div><div><label class="fld">Landlord email</label><input id="dl_email" value="" placeholder="links to registry"></div></div>'
+    + '<div class="fldrow2"><div><label class="fld">Premises</label><input id="dl_co" placeholder="Center · suite / address" value="'+esc(t.buyerCompany||'')+'"></div><div><label class="fld">Lease value</label><input id="dl_price" value="'+esc(t.price||'')+'" placeholder="$ total rent over the term"></div></div>'
     + '<div class="fldrow2"><div><label class="fld">Status</label><select id="dl_status">'+sopts+'</select></div><div><label class="fld">Opened</label><input type="date" id="dl_opened" value="'+esc(t.opened||'')+'"></div></div>'
-    + '<div class="fldrow2"><div><label class="fld">Expected close</label><input type="date" id="dl_exp" value="'+esc(t.expectedClose||'')+'"></div><div><label class="fld">Closed</label><input type="date" id="dl_closed" value="'+esc(t.closedDate||'')+'"></div></div>'
-    + '<div><label class="fld">Notes</label><textarea id="dl_notes" placeholder="Deal notes, contingencies, key dates…">'+esc(t.notes||'')+'</textarea></div>'
-    + '<div><label class="fld">Terms</label><textarea id="dl_terms" placeholder="Deal terms">'+esc(t.terms||'')+'</textarea></div>'
+    + '<div class="fldrow2"><div><label class="fld">Expected signing</label><input type="date" id="dl_exp" value="'+esc(t.expectedClose||'')+'"></div><div><label class="fld">Lease signed</label><input type="date" id="dl_closed" value="'+esc(t.closedDate||'')+'"></div></div>'
+    + '<div class="fldrow2"><div><label class="fld">Rent start</label><input type="date" id="dl_rentstart" value="'+esc(t.rentStart||'')+'"></div><div><label class="fld">Commission paid at signing (%)</label><input id="dl_signpct" inputmode="decimal" value="'+esc((t.signingPct===''||t.signingPct==null)?'50':t.signingPct)+'" placeholder="50"></div></div>'
+    + '<div><label class="fld">Notes</label><textarea id="dl_notes" placeholder="Contingencies, permits, delivery and rent-start dates…">'+esc(t.notes||'')+'</textarea></div>'
+    + '<div><label class="fld">Terms</label><textarea id="dl_terms" placeholder="Base rent, term, TI, free rent, options…">'+esc(t.terms||'')+'</textarea></div>'
     + '<div class="fldrow2"><div><label class="fld">Commission rate</label><input id="dl_crate" value="'+esc(t.commissionRate||'')+'" placeholder="e.g. 6%"></div><div><label class="fld">Commission due</label><input id="dl_cdue" value="'+esc(t.commissionDue||'')+'" placeholder="$"></div></div>'
     + '<div class="fldrow2"><div><label class="fld">Commission paid</label><input id="dl_cpaid" value="'+esc(t.commissionPaid||'')+'" placeholder="$"></div><div><label class="fld">Commission status</label><select id="dl_cstatus">'+copts+'</select></div></div>'
-    + '<div class="dealformf"><button class="mbtn ghost" id="dl_cancel">Cancel</button><button class="mbtn" id="dl_save">Save deal</button></div></div>';
+    + '<div class="dealformf"><button class="mbtn ghost" id="dl_cancel">Cancel</button><button class="mbtn" id="dl_save">Save lease</button></div></div>';
 }
 function openDealForm(){ var f=document.getElementById('dealForm'); if(!f) return; f.innerHTML=dealFormHTML(); f.removeAttribute('hidden'); document.getElementById('dl_cancel').addEventListener('click',function(){ f.setAttribute('hidden',''); f.innerHTML=''; }); document.getElementById('dl_save').addEventListener('click',saveDeal); }
 function saveDeal(){
-  var body={ buyer:dlv('dl_buyer'), buyerEmail:dlv('dl_email'), buyerCompany:dlv('dl_co'), price:dlv('dl_price'), status:dlv('dl_status'), opened:dlv('dl_opened'), expectedClose:dlv('dl_exp'), closedDate:dlv('dl_closed'), notes:dlv('dl_notes'), terms:dlv('dl_terms'), commissionRate:dlv('dl_crate'), commissionDue:dlv('dl_cdue'), commissionPaid:dlv('dl_cpaid'), commissionStatus:dlv('dl_cstatus') };
+  var body={ buyer:dlv('dl_buyer'), buyerEmail:dlv('dl_email'), buyerCompany:dlv('dl_co'), price:dlv('dl_price'), status:dlv('dl_status'), opened:dlv('dl_opened'), expectedClose:dlv('dl_exp'), rentStart:dlv('dl_rentstart'), signingPct:dlv('dl_signpct'), closedDate:dlv('dl_closed'), notes:dlv('dl_notes'), terms:dlv('dl_terms'), commissionRate:dlv('dl_crate'), commissionDue:dlv('dl_cdue'), commissionPaid:dlv('dl_cpaid'), commissionStatus:dlv('dl_cstatus') };
   var b=document.getElementById('dl_save'); if(b){b.disabled=true;b.textContent='Saving…';}
   fetch('/api/assignment/'+encodeURIComponent(KEY)+'/deal',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
-    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ TXN=j.transaction||null; if(A) A.transaction=TXN; if(j.people) PEOPLE=j.people; rerenderDeal(); } else { if(b){b.disabled=false;b.textContent='Save deal';} alert((j&&j.error)||'Could not save the deal.'); } })
-    .catch(function(){ if(b){b.disabled=false;b.textContent='Save deal';} alert('Could not reach the server.'); });
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ TXN=j.transaction||null; if(A) A.transaction=TXN; if(j.people) PEOPLE=j.people; rerenderDeal(); } else { if(b){b.disabled=false;b.textContent='Save lease';} alert((j&&j.error)||'Could not save the lease.'); } })
+    .catch(function(){ if(b){b.disabled=false;b.textContent='Save lease';} alert('Could not reach the server.'); });
 }
-async function removeDeal(){ if(!await rrgConfirm('Remove the deal from this listing? The listing itself stays.')) return; fetch('/api/assignment/'+encodeURIComponent(KEY)+'/deal',{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ TXN=null; if(A) A.transaction=null; rerenderDeal(); } else alert((j&&j.error)||'Could not remove the deal.'); }).catch(function(){ alert('Could not reach the server.'); }); }
-function rerenderDeal(){ var main=document.querySelector('.rail'); if(!main) return; var existing=null; main.querySelectorAll('.card .ch b').forEach(function(bb){ if(bb.textContent==='Deal') existing=bb.closest('.card'); }); if(!existing) return; var tmp=document.createElement('div'); tmp.innerHTML=dealCard(); existing.parentNode.replaceChild(tmp.firstChild,existing); wireDeal(); }
+async function removeDeal(){ if(!await rrgConfirm('Remove the lease record from this engagement? The engagement itself stays.')) return; fetch('/api/assignment/'+encodeURIComponent(KEY)+'/deal',{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ TXN=null; if(A) A.transaction=null; rerenderDeal(); } else alert((j&&j.error)||'Could not remove the lease.'); }).catch(function(){ alert('Could not reach the server.'); }); }
+function rerenderDeal(){ var main=document.querySelector('.rail'); if(!main) return; var existing=null; main.querySelectorAll('.card .ch b').forEach(function(bb){ if(bb.textContent==='Deal'||bb.textContent==='Lease') existing=bb.closest('.card'); }); if(!existing) return; var tmp=document.createElement('div'); tmp.innerHTML=dealCard(); existing.parentNode.replaceChild(tmp.firstChild,existing); wireDeal(); }
 function wireDeal(){ var a=document.getElementById('dealAdd'); if(a) a.addEventListener('click',openDealForm); var e=document.getElementById('dealEdit'); if(e) e.addEventListener('click',openDealForm); var d=document.getElementById('dealDel'); if(d) d.addEventListener('click',removeDeal); }
 
 var AUTOS=[], MARKETS=[], CUISINES=[], CONCEPTS=[];

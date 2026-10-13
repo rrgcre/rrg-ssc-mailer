@@ -10940,6 +10940,9 @@ app.post('/api/assignment/:key/deal', express.json(), (req, res) => {
   if (typeof b.opened === 'string') t.opened = b.opened.slice(0, 10);
   if (typeof b.expectedClose === 'string') t.expectedClose = b.expectedClose.slice(0, 10);
   if (typeof b.closedDate === 'string') t.closedDate = b.closedDate.slice(0, 10);
+  // Leases: commission is paid in two parts — at signing and at rent start.
+  if (typeof b.rentStart === 'string') t.rentStart = /^\d{4}-\d{2}-\d{2}$/.test(b.rentStart) ? b.rentStart : '';
+  if (b.signingPct !== undefined) { const _sp = Number(String(b.signingPct).replace(/[^0-9.]/g, '')); t.signingPct = (isFinite(_sp) && _sp >= 0 && _sp <= 100 && String(b.signingPct).trim() !== '') ? _sp : ''; }
   if (typeof b.notes === 'string') t.notes = b.notes.slice(0, 2000);
   if (typeof b.terms === 'string') t.terms = b.terms.slice(0, 2000);
   if (typeof b.commissionRate === 'string') t.commissionRate = b.commissionRate.slice(0, 40);
@@ -10952,7 +10955,7 @@ app.post('/api/assignment/:key/deal', express.json(), (req, res) => {
   if (typeof b.referralTo === 'string') t.referralTo = b.referralTo.slice(0, 80);
   if (b.referralPct !== undefined) { const _rp = Number(String(b.referralPct).replace(/[^0-9.]/g, '')); t.referralPct = (isFinite(_rp) && _rp > 0 && _rp <= 100) ? _rp : ''; }
   t.updatedAt = new Date().toISOString();
-  if (t.buyer || b.buyerEmail) { const p = findOrCreatePerson(req, { name: t.buyer, email: b.buyerEmail, company: t.buyerCompany, type: 'Buying' }); if (p) t.personId = p.id; }
+  if (t.buyer || b.buyerEmail) { const p = findOrCreatePerson(req, { name: t.buyer, email: b.buyerEmail, company: (cur.assignmentType === 'tenant_rep') ? '' : t.buyerCompany, type: (cur.assignmentType === 'tenant_rep') ? 'Other' : 'Buying' }); if (p) t.personId = p.id; }
   cur.transaction = t; cur.updatedAt = new Date().toISOString();
   overlay[d.key] = cur; saveAssignOverlay(overlay);
   syncDealCommissionFromInvoices(d.key);
