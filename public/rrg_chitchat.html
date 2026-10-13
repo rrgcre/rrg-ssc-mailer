@@ -54,7 +54,7 @@ function esc(s){var d=document.createElement('div');d.textContent=s==null?'':Str
 function $(id){return document.getElementById(id);}
 function post(url,body){return fetch(url,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})}).then(function(r){return r.json();});}
 var ST=null, CUR=null;
-var SECS=[['openings','Now seating — Openings'],['awards','Chef’s kiss — Awards'],['closings','86’D — Closings'],['moves','On the pass — Moves']];
+var SECS=[['openings','Now seating — Openings'],['awards','Chef’s kiss — Awards'],['closings','86’D — Closings'],['realestate','Seats open — Real estate'],['moves','On the pass — Moves']];
 function msg(id,t,ok){var m=$(id); if(!m) return; m.style.color=ok?'#1f8a5b':(ok===false?'#C0261B':''); m.textContent=t;}
 function load(){
   fetch('/api/admin/chitchat',{credentials:'same-origin',cache:'no-store'}).then(function(r){ if(r.status===401||r.status===403) throw new Error('admin'); return r.json(); }).then(function(j){
@@ -110,7 +110,7 @@ function paintEditor(){ var x=CUR, D=x.data||{}, locked=x.status==='sent'; var e
     +'<div class="grid"><div class="fld full"><label class="lbl" for="eSubj">Subject line</label><input type="text" id="eSubj" value="'+esc(D.subject)+'"></div><div class="fld full"><label class="lbl" for="eLede">Lede (*** FIRE ***)</label><textarea id="eLede">'+esc(D.lede)+'</textarea></div></div>';
   SECS.forEach(function(s){ var xs=D[s[0]]||[]; h+='<div class="sec"><h3>'+s[1]+' · '+xs.length+'</h3>'+(xs.length?xs.map(function(it,i){return itemHtml(s[0],it,i);}).join(''):'<div class="note">Nothing this week.</div>')+'</div>'; });
   h+='<div class="sec"><h3>On the books — Events · '+(D.events||[]).length+'</h3>'+(D.events||[]).map(function(ev,i){ return '<div class="item'+(ev.include===false?' off':'')+'"><div class="row"><label class="check"><input type="checkbox" data-k="events" data-i="'+i+'" data-f="include"'+(ev.include===false?'':' checked')+'> Include</label><span class="src"><a href="'+esc(ev.url)+'" target="_blank" rel="noopener">source ↗</a></span></div><div class="grid"><div class="fld"><label class="lbl">Date</label><input type="date" data-k="events" data-i="'+i+'" data-f="date" value="'+esc(ev.date)+'"></div><div class="fld"><label class="lbl">City</label><input type="text" data-k="events" data-i="'+i+'" data-f="city" value="'+esc(ev.city)+'"></div><div class="fld full"><label class="lbl">Event</label><input type="text" data-k="events" data-i="'+i+'" data-f="name" value="'+esc(ev.name)+'"></div></div></div>'; }).join('')+'</div>';
-  h+='<div class="savebar">'+(locked?'':'<button class="btn" type="button" id="eSave">Save</button>')+'<button class="btn ghost" type="button" id="ePrev">Preview</button>'
+  h+='<div class="savebar">'+(locked?'':'<button class="btn" type="button" id="eSave">Save</button>')+'<button class="btn ghost" type="button" id="ePrev">Preview</button>'+'<input type="email" id="eTestTo" placeholder="test to (blank = me)" style="max-width:200px" aria-label="Send test to"><button class="btn ghost" type="button" id="eTest">Send me a test</button>'
     +(x.campaignId?'<a class="btn ghost" style="text-decoration:none;display:inline-flex;align-items:center" href="rrg_mass_studio.html?open='+x.campaignId+'">Open in Email Studio</a>':'<button class="btn ghost" type="button" id="eApprove">Approve &amp; create campaign</button><button class="btn red" type="button" id="eDel">Delete draft</button>')
     +'<span class="msg" id="eMsg"></span></div></div>';
   e.innerHTML=h;
@@ -118,6 +118,7 @@ function paintEditor(){ var x=CUR, D=x.data||{}, locked=x.status==='sent'; var e
   if($('eSave')) $('eSave').onclick=function(){ saveIssue().then(function(ok){ if(ok) msg('eMsg','Saved ✓',true); }); };
   $('ePrev').onclick=function(){ (locked?Promise.resolve(true):saveIssue()).then(function(){ window.open('/api/admin/chitchat/issues/'+encodeURIComponent(x.id)+'/preview','_blank'); }); };
   if($('eApprove')) $('eApprove').onclick=approve;
+  $('eTest').onclick=function(){ var b=this; b.disabled=true; (locked?Promise.resolve(true):saveIssue()).then(function(ok){ if(!ok){ b.disabled=false; return; } msg('eMsg','Sending test…'); post('/api/admin/chitchat/issues/'+encodeURIComponent(x.id)+'/test',{email:$('eTestTo').value.trim()}).then(function(j){ b.disabled=false; if(j&&j.ok) msg('eMsg','Test sent to '+j.to+' ✓',true); else msg('eMsg',(j&&j.error)||'Could not send.',false); }).catch(function(){ b.disabled=false; msg('eMsg','Could not reach the server.',false); }); }); };
   if($('eDel')) $('eDel').onclick=delIssue;
 }
 function collect(){ var D=JSON.parse(JSON.stringify(CUR.data||{})); D.subject=$('eSubj').value; D.lede=$('eLede').value;
