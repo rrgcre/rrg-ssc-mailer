@@ -1728,7 +1728,7 @@ function _accHas(card){ var ch=card.querySelector('.ch');
   return !!body && !/^(no |not |nothing |loading|your plan of attack|fill in |nothing yet)/i.test(body);
 }
 function _accAutoFold(){ document.querySelectorAll('.rail > .card').forEach(function(card){ var t=accTitle(card); if(ACC_USER[t]) return; card.classList.toggle('collapsed',!_accHas(card)); }); }
-var _accFoldT=null; function _accFoldSoon(){ _accAutoFold(); if(_accFoldT) return; _accFoldT=1; [700,1800,4000].forEach(function(ms){ setTimeout(_accAutoFold,ms); }); }
+var _accFoldT=null; function _accFoldSoon(){ _accAutoFold(); if(_accFoldT) return; _accFoldT=1; var rail=document.querySelector('.rail'); if(!rail||!window.MutationObserver) return; var db=null, mo=new MutationObserver(function(){ if(db) return; db=setTimeout(function(){ db=null; _accAutoFold(); },120); }); mo.observe(rail,{childList:true,subtree:true,characterData:true}); setTimeout(function(){ mo.disconnect(); },20000); }
 function setupAccordion(){
   if(!ACC_INIT){ var saved=null; try{ saved=JSON.parse(localStorage.getItem(ASG_COLLAPSE_KEY)||'null'); }catch(e){} if(saved&&typeof saved==='object'){ ACC_STATE=saved; } else { ACC_STATE['Location Tours']=true; ACC_STATE['Data Room']=true; } ACC_INIT=true; }
   var main=document.querySelector('.rail');

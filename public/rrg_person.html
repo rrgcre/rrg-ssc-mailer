@@ -1782,7 +1782,7 @@ function _railHas(c){ var k=c.getAttribute('data-rk')||'';
   var body=c.querySelector('.cb,.railbody'); var t=body?String(body.innerText||'').trim():''; return !!t&&!/^(no |not |nothing )/i.test(t);
 }
 function _railAutoFold(rail){ if(!rail) return; Array.prototype.forEach.call(rail.children,function(c){ if(!c.classList||!c.classList.contains('card')||c._userFold) return; c.classList.toggle('railcollapsed',!_railHas(c)); }); }
-function _railFoldSoon(rail){ _railAutoFold(rail); [700,1800,4000].forEach(function(ms){ setTimeout(function(){ _railAutoFold(document.querySelector('.rail')); },ms); }); }
+var _railMO=null; function _railFoldSoon(rail){ _railAutoFold(rail); if(_railMO||!rail||!window.MutationObserver) return; var db=null; _railMO=new MutationObserver(function(){ if(db) return; db=setTimeout(function(){ db=null; _railAutoFold(document.querySelector('.rail')); },120); }); _railMO.observe(rail,{childList:true,subtree:true,characterData:true}); setTimeout(function(){ if(_railMO) _railMO.disconnect(); },20000); }
 function applyRailOrder(){
   var rail=document.querySelector('.rail'); if(!rail) return;
   _railChildren(rail).forEach(function(c){ var k=_railKey(c); if(k) c.setAttribute('data-rk',k); });

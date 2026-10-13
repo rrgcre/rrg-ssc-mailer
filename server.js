@@ -607,7 +607,9 @@ function backlinkBbsLeads() {
     }
   } catch (e) { console.error('backlinkBbsLeads:', e && e.message); }
 }
-function companyBrief(c) { return c ? { id: c.id, name: c.name || '', market: c.market || '', type: c.type || '', mainContactId: c.mainContactId || '', address: (c.office && [c.office.address, c.office.city, c.office.state].filter(Boolean).join(', ')) || '' } : null; }
+function companyBrief(c) { return c ? { id: c.id, name: c.name || '', market: c.market || '', type: c.type || '', mainContactId: c.mainContactId || '', address: (c.office && [c.office.address, c.office.city, c.office.state].filter(Boolean).join(', ')) || '', logo: _coLogo(c), conceptLogos: (Array.isArray(c.concepts) ? c.concepts : []).filter(x => x && x.logo).slice(0, 20).map(x => ({ name: x.name || '', logo: x.logo })) } : null; }
+// A company's logo: the one set on it, else its first concept's, else the favicon of its website.
+function _coLogo(c) { try { if (String(c.logo || '').trim()) return c.logo; const cp = (c.concepts || []).find(x => x && String(x.logo || '').trim()); if (cp) return cp.logo; return logoFromWebsite(c.website || (c.office && c.office.website) || '') || ''; } catch (e) { return ''; } }
 // Company activity feed: this company's own logged activity + every contact's activity, newest first.
 function companyActivityFeed(c) {
   if (!c) return [];
@@ -25803,7 +25805,7 @@ app.get('/api/assignment/:key/space-matches', (req, res) => {
   const e = { d: r.d, av: r.av, o: loadAssignOverlay()[req.params.key] || {} };
   const m = engagementSpaceMatches(e, null, { includeDismissed: req.query.all === '1' });
   const cr = m.criteria;
-  res.json({ ok: true, hasCriteria: cr.has, criteria: { sizeMin: cr.sizeMin, sizeMax: cr.sizeMax, metros: cr.metroKeys, areas: cr.tokens, budget: cr.budget, needs: cr.needs.map(n => n.label) }, matches: m.matches, dismissedCount: (e.o.spaceDismissed || []).length, minScore: SPACE_FIT_MIN });
+  res.json({ ok: true, hasCriteria: cr.has, criteria: { sizeMin: cr.sizeMin, sizeMax: cr.sizeMax, metros: cr.metroKeys, areas: cr.tokens, budget: cr.budget, needs: cr.needs.map(n => n.label) }, matches: m.matches.map(x => Object.assign({}, x, { sentAt: (e.o.spaceSent || {})[x.spaceId] || '' })), dismissedCount: (e.o.spaceDismissed || []).length, sentCount: Object.keys(e.o.spaceSent || {}).length, minScore: SPACE_FIT_MIN });
 });
 app.post('/api/assignment/:key/space-match', express.json(), (req, res) => {
   const r = _resolveEngagement(req, res); if (!r) return;
@@ -25816,6 +25818,9 @@ app.post('/api/assignment/:key/space-match', express.json(), (req, res) => {
     else if (b.action === 'restore') cur.spaceDismissed = cur.spaceDismissed.filter(x => x !== id);
     else if (b.action === 'shortlist') { if (cur.spaceShort.indexOf(id) < 0) cur.spaceShort.push(id); cur.spaceDismissed = cur.spaceDismissed.filter(x => x !== id); }
     else if (b.action === 'unshortlist') cur.spaceShort = cur.spaceShort.filter(x => x !== id);
+    // Sent to the client for review — counts toward the engagement's "Spaces sent" KPI; a sent space stays on the shortlist.
+    else if (b.action === 'sent') { cur.spaceSent = cur.spaceSent || {}; if (!cur.spaceSent[id]) cur.spaceSent[id] = now; if (cur.spaceShort.indexOf(id) < 0) cur.spaceShort.push(id); cur.spaceDismissed = cur.spaceDismissed.filter(x => x !== id); }
+    else if (b.action === 'unsent') { if (cur.spaceSent) delete cur.spaceSent[id]; }
     cur.spaceSeen[id] = cur.spaceSeen[id] || now;
   });
   if (b.action === 'seen') ids.forEach(id => { cur.spaceSeen[id] = cur.spaceSeen[id] || now; });
