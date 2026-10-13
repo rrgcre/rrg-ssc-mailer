@@ -437,6 +437,18 @@ a.feat:hover{background:#f7f9fc;}
 .ovmeta{display:flex;flex-wrap:wrap;gap:6px 22px;font-size:12.5px;color:var(--muted)}
 .ovmeta b{color:var(--ink);font-weight:700}
 .ovmeta a{color:#2c5c8f;font-weight:700;text-decoration:none}
+/* Marketing card — SSC, Market Attack Plan, Broker Blast */
+.mmrow{display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:1px solid #f0f2f6}
+.mmrow:last-child{border-bottom:none}
+.mmic{width:30px;height:30px;border-radius:8px;background:#f2f5fa;color:#23496f;display:flex;align-items:center;justify-content:center;font-size:14px;flex:none}
+.mmmain{flex:1;min-width:0}
+.mmt{font-size:13px;font-weight:700;color:var(--navy)}
+.mms{font-size:12px;color:#6b7488;margin-top:2px;line-height:1.4}
+.mms .bbp{font-size:10px;font-weight:700;border-radius:999px;padding:1px 7px}
+.mmact{display:flex;gap:5px;align-items:center;flex:none}
+.mmact .bbacts{display:inline-flex;gap:5px}
+.mmact .railadd{background:#fff;border:1px solid #cdd6e6;color:var(--navy);border-radius:6px;height:26px;min-width:28px;padding:0 7px;font:inherit;font-size:16px;font-weight:700;line-height:1;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;text-decoration:none}
+.mmact .railico{padding:0;width:28px;color:#3f4b63}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -1030,10 +1042,16 @@ function applyFeatStrip(){
 }
 // Link this engagement to the tenant's Site Criteria (SSC) document(s) on file — matched by business / company name.
 function _sscNorm(x){ return String(x||'').toLowerCase().replace(/['’`]/g,'').replace(/[^a-z0-9]+/g,''); }
+function _mmSsc(hits){ var sub=document.getElementById('mmSscSub'), act=document.getElementById('mmSscAct'); if(!sub) return;
+  if(!hits.length){ var q='personId='+encodeURIComponent(A.clientPersonId||'')+'&companyId='+encodeURIComponent((A.company&&A.company.id)||'')+'&contact='+encodeURIComponent(A.contact||'')+'&company='+encodeURIComponent((A.company&&A.company.name)||A.business||''); sub.textContent='None on file'; if(act) act.innerHTML='<a class="railadd" href="./ssc_form.html?'+q+'" title="Start a Site Selection Criteria for this tenant">+</a>'; _mmSet('ssc',false); return; }
+  var c=hits[0], d=_mmD(c.when);
+  sub.innerHTML='<span style="font-weight:700;color:#1f8a5b">On file</span>'+(d?(' · '+esc(d)):'')+(hits.length>1?(' · '+hits.length+' versions'):'');
+  if(act) act.innerHTML='<a class="railadd railico" href="/api/ssc/'+encodeURIComponent(c.key)+'/view" target="_blank" rel="noopener" title="View the SSC" aria-label="View the SSC">'+_icoEye+'</a>'; _mmSet('ssc',true); }
 function loadSscLink(){ var el=document.getElementById('sscLink'); if(!el||!A) return;
   var names=[A.business, A.company&&A.company.name].map(_sscNorm).filter(function(n){return n.length>=4;});
   fetch('/api/site-criteria',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
     var hits=((j&&j.criteria)||[]).filter(function(c){ var n=_sscNorm(c.name); if(n.length<4) return false; return names.some(function(m){ return n.indexOf(m)===0||m.indexOf(n)===0; }); });
+    _mmSsc(hits);
     if(!hits.length){ el.innerHTML='<a href="./ssc_form.html" style="color:var(--navy)">+ Start an SSC</a>'; return; }
     _sscAutofill(hits[0]);
     el.innerHTML=hits.slice(0,3).map(function(c,i){ var d=''; try{ d=new Date(c.when).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }catch(e){}
@@ -1208,8 +1226,7 @@ function render(){
     + spacePipelineCard()
     + '</div>'
     + '<div class="rail">'
-    + marketAttackCard()
-    + brokerBlastsCard()
+    + marketingCard()
     + spaceShortlistCard()
     + toursCard()
     + siteFitCard()
@@ -1452,7 +1469,9 @@ function _asgTip(main){ if(!main) return; var seen=false; try{ seen=localStorage
 // Rail sections open only when they have something in them — empty ones start rolled up.
 // Re-checked as counts load in; a section the user opens or closes on this visit is left alone.
 var ACC_USER={};
-function _accHas(card){ var ch=card.querySelector('.ch');
+// Long lists always open closed, even with entries.
+var ACC_START_CLOSED=['Space shortlist'];
+function _accHas(card){ if(ACC_START_CLOSED.indexOf(accTitle(card))>=0) return false; var ch=card.querySelector('.ch');
   var nums=ch?Array.prototype.filter.call(ch.children,function(s){ return s.tagName==='SPAN'&&!s.classList.contains('rgrip')&&!s.classList.contains('accchev')&&/^\d+$/.test(String(s.textContent||'').trim()); }):[];
   if(nums.length) return Number(nums[0].textContent)>0;
   var body=Array.prototype.filter.call(card.children,function(x){ return !x.classList.contains('ch'); }).map(function(x){ return String(x.textContent||''); }).join(' ').replace(/\s+/g,' ').trim();
@@ -1639,6 +1658,18 @@ document.addEventListener('change',function(e){ if(!e.target.closest) return; va
 function _mapFmtD(iso){ try{ var d=new Date(iso); if(isNaN(d.getTime())) return ''; return (d.getMonth()+1)+'/'+d.getDate()+'/'+d.getFullYear(); }catch(e){ return ''; } }
 var _icoEye='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>';
 var _icoTrash='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>';
+// ===== Marketing materials — the SSC, the Market Attack Plan and the Broker Blast in one card (current state, not every send) =====
+function marketingCard(){
+  var row=function(id,ic,t,sub,acts){ return '<div class="mmrow" id="'+id+'"><div class="mmic">'+ic+'</div><div class="mmmain"><div class="mmt">'+t+'</div><div class="mms">'+sub+'</div></div><div class="mmact">'+acts+'</div></div>'; };
+  return '<div class="card" id="mktgCard"><div class="ch"><b>Marketing</b><span class="bbcnt" id="mmCount" hidden>0</span></div><div class="cb" style="padding:4px 16px 6px">'
+    + row('mmSsc','\u25a4','Site Selection Criteria','<span id="mmSscSub">Checking…</span>','<span id="mmSscAct"></span>')
+    + row('mmMap','\u25ce','Market Attack Plan','<span id="mapStatus">Checking…</span>','<button type="button" class="railadd railico" id="mapViewBtn" style="display:none" onclick="mapOpen();return false;" title="View the plan" aria-label="View the plan">'+_icoEye+'</button><button type="button" class="railadd railico raildel" id="mapDelBtn" style="display:none" onclick="mapDelete();return false;" title="Delete the plan" aria-label="Delete the plan">'+_icoTrash+'</button><button type="button" class="railadd" id="mapOpenLink" onclick="mapOpen();return false;" title="Build the plan">+</button>')
+    + row('mmBlast','\u2709','Broker Blast','<span id="blastList">Checking…</span>','<span id="blastActs"></span><button type="button" class="railadd" id="blastAddBtn" style="display:none" onclick="brokerBlastOpen();return false;" title="Draft a blind requirement and blast it to matched brokers">+</button>')
+    + '</div></div>';
+}
+function _mmD(iso){ try{ var d=new Date(iso); if(isNaN(d.getTime())) return ''; return d.toLocaleDateString('en-US',{month:'short',day:'numeric'})+(d.getFullYear()!==new Date().getFullYear()?(', '+d.getFullYear()):''); }catch(e){ return ''; } }
+var _mmHas={ssc:false,map:false,blast:false};
+function _mmSet(k,v){ _mmHas[k]=!!v; var c=document.getElementById('mmCount'); if(c){ var n=(_mmHas.ssc?1:0)+(_mmHas.map?1:0)+(_mmHas.blast?1:0); c.textContent=String(n); c.hidden=!n; } }
 function marketAttackCard(){
   return '<div class="card" id="mapCard"><div class="ch"><b>Market Attack Plan</b>'
     + '<div class="railacts"><button type="button" class="railadd railico" id="mapViewBtn" style="display:none" onclick="mapOpen();return false;" title="View the plan" aria-label="View the plan">'+_icoEye+'</button>'
@@ -1659,18 +1690,18 @@ function applyMapStatus(){
   var m=_tmap, lk=document.getElementById('mapOpenLink'), st=document.getElementById('mapStatus'), dl=document.getElementById('mapDelBtn'), vw=document.getElementById('mapViewBtn');
   if(!lk||!st) return;
   // One plan per engagement: "+" builds it; once it exists the header shows View + Delete instead.
-  if(!m){ lk.style.display=''; lk.title='Build the plan'; if(dl) dl.style.display='none'; if(vw) vw.style.display='none'; return; }
+  if(!m){ lk.style.display=''; lk.title='Build the plan'; if(dl) dl.style.display='none'; if(vw) vw.style.display='none'; st.innerHTML='Not built yet'; _mmSet('map',false); return; }
   lk.style.display='none';
   if(vw) vw.style.display=''; if(dl) dl.style.display='';
   var when=m.updatedAt||m.builtAt||''; var lbl=m.pending?'In progress':'Built';
-  st.innerHTML='<span style="font-weight:700;color:'+(m.pending?'#b5791f':'#1f8a5b')+'">'+lbl+'</span>'+(when?(' <span style="color:#8a93a8">· updated '+esc(_mapFmtD(when))+'</span>'):'')+'<div style="margin-top:4px;color:#8a93a8">Submarkets, target sites, canvass cadence &amp; timeline — anchored to this engagement.</div>';
+  st.innerHTML='<span style="font-weight:700;color:'+(m.pending?'#b5791f':'#1f8a5b')+'">'+lbl+'</span>'+(when?(' · updated '+esc(_mmD(when))):''); _mmSet('map',true);
 }
 function mapDelete(){
   if(!_tmap||!_tmap.id) return;
   var _id=_tmap.id;
   var _go=function(ok){ if(!ok) return;
     fetch('/api/map/'+encodeURIComponent(_id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
-      if(j&&j.ok){ _tmap=null; var st=document.getElementById('mapStatus'); if(st) st.innerHTML='Your plan of attack for this tenant — submarkets, target sites, canvass cadence and timeline. It drives the shortlist and tours below.'; applyMapStatus(); if(window.rrgToast) rrgToast('Market Attack Plan deleted.'); }
+      if(j&&j.ok){ _tmap=null; var st=document.getElementById('mapStatus'); applyMapStatus(); if(window.rrgToast) rrgToast('Market Attack Plan deleted.'); }
       else { if(window.rrgToast){rrgToast((j&&j.error)||'Could not delete the plan.');}else{alert((j&&j.error)||'Could not delete the plan.');} }
     }).catch(function(){ if(window.rrgToast){rrgToast('Could not reach the server.');}else{alert('Could not reach the server.');} });
   };
@@ -1752,41 +1783,23 @@ function brokerBlastsCard(){
 function _bbDate(iso){ try{ var d=new Date(iso); if(isNaN(d.getTime())) return ''; var y=d.getFullYear()!==new Date().getFullYear(); return d.toLocaleString([], {weekday:'short',month:'short',day:'numeric',year:y?'numeric':undefined,hour:'numeric',minute:'2-digit'}); }catch(e){ return ''; } }
 function _bbPct(n,d){ return d?(' ('+Math.round(n*100/d)+'%)'):''; }
 function renderBrokerBlasts(studio){
-  var box=document.getElementById('blastList'), card=document.getElementById('blastCard'); if(!box) return;
+  var box=document.getElementById('blastList'), acts=document.getElementById('blastActs'); if(!box) return;
   var list=_bblasts||[];
-  var cnt=card&&card.querySelector('.ch > .bbcnt'); if(cnt){ cnt.textContent=String(list.length); cnt.hidden=!list.length; }
-  // One blast per engagement (re-sent in rounds from the Email Studio): "+" only while there's none — it returns once the blast is deleted.
-  // Marketing is admin-only: reps see the list read-only (no +, no delete, no scheduling).
+  // One blast per engagement (re-sent in rounds from the Email Studio): "+" only while there's none. Marketing is admin-only.
   var add=document.getElementById('blastAddBtn'); if(add) add.style.display=(list.length||studio===false||!_bbCanSched)?'none':'';
-  if(studio===false){ box.innerHTML='<span style="color:#b5791f">The Email Studio isn’t connected, so blasts can’t be sent or tracked yet.</span>'; return; }
-  if(!list.length){ box.innerHTML='<div style="color:#55607a;line-height:1.55">'+(_bbCanSched?'No blasts yet. Hit <b>+</b> to draft a blind requirement and send it to matched brokers — every send and its results show up here.':'No broker blasts yet. Blasts are sent by RRG marketing — every send and its results will show up here.')+'</div>'; return; }
-  box.innerHTML=list.map(function(b){
-    var runs=(b.runs||[]).filter(function(r){ return r.sentAt||r.sent; });
-    if(runs.length){
-      var head=(b.status==='sending')?'<span class="bbp ing">Sending</span><b>Round '+runs.length+'</b>':'<span class="bbp snt">Sent</span><b>'+runs.length+' round'+(runs.length===1?'':'s')+'</b>';
-      var lines=runs.map(function(r,i){ var n=r.sent||0; return '<div class="bbr"><span class="bbrn">'+(i+1)+'</span><span class="bbrd">'+esc(_bbDate(r.sentAt))+'</span><span class="bbrs">'+Number(n).toLocaleString()+' sent · '+Number(r.opens||0).toLocaleString()+' opens'+_bbPct(r.opens||0,n)+' · '+Number(r.clicks||0).toLocaleString()+' clicks'+_bbPct(r.clicks||0,n)+'</span></div>'; }).join('');
-      var next=_bbPending(b, runs.length);
-      var sched=_bbCanSched?('<a class="bbmore" href="rrg_mass_studio.html?schedule='+encodeURIComponent(b.id)+'#sent" title="Schedule another send of this blast in the Email Studio">+ Schedule another round ↗</a>'):'';
-      return '<div class="bbrow"><div class="bbw">'+head+_bbActs(b)+'</div>'
-        +(b.subject?('<div class="bbj" title="'+esc(b.subject)+'">'+esc(b.subject)+'</div>'):'')
-        +'<div class="bbrounds">'+lines+next+'</div>'+sched+'</div>';
-    }
-    if(b.status==='scheduled' && b.pending && b.pending.length>1){
-      var sched2=_bbCanSched?('<a class="bbmore" href="rrg_mass_studio.html?schedule='+encodeURIComponent(b.id)+'#scheduled" title="Add or change scheduled rounds in the Email Studio">Manage rounds ↗</a>'):'';
-      return '<div class="bbrow"><div class="bbw"><span class="bbp sch">Scheduled</span><b>'+b.pending.length+' rounds</b>'+_bbActs(b)+'</div>'
-        +(b.subject?('<div class="bbj" title="'+esc(b.subject)+'">'+esc(b.subject)+'</div>'):'')
-        +'<div class="bbrounds">'+_bbPending(b,0)+'</div>'+sched2+'</div>';
-    }
-    var pill, when, stats='';
-    if(b.status==='scheduled'){ pill='<span class="bbp sch">Scheduled</span>'; when=_bbDate(b.sendAt); stats=(b.est!=null?('~'+Number(b.est).toLocaleString()+' brokers (recounted at send time)'):'Brokers recounted at send time'); }
-    else if(b.status==='sending'){ pill='<span class="bbp ing">Sending</span>'; when=_bbDate(b.startedAt||b.createdAt); stats=Number(b.sent||0).toLocaleString()+' of '+Number(b.total||0).toLocaleString()+' sent'; }
-    else if(b.finishedAt||b.status==='sent'){ pill='<span class="bbp snt">Sent</span>'; when=_bbDate(b.finishedAt||b.startedAt); var n=b.sent||0; stats=Number(n).toLocaleString()+' sent · '+Number(b.opens||0).toLocaleString()+' opens'+_bbPct(b.opens||0,n)+' · '+Number(b.clicks||0).toLocaleString()+' clicks'+_bbPct(b.clicks||0,n)+(b.unsubs?(' · '+b.unsubs+' unsub'):''); }
-    else { pill='<span class="bbp oth">'+esc(b.status||'Draft')+'</span>'; when=_bbDate(b.startedAt||b.createdAt); }
-    return '<div class="bbrow"><div class="bbw">'+pill+'<b>'+esc(when)+'</b>'
-      +_bbActs(b)+'</div>'
-      +(stats?('<div class="bbs">'+esc(stats)+'</div>'):'')
-      +(b.subject?('<div class="bbj" title="'+esc(b.subject)+'">'+esc(b.subject)+'</div>'):'')+'</div>';
-  }).join('');
+  if(acts) acts.innerHTML='';
+  if(studio===false){ box.innerHTML='<span style="color:#b5791f">Email Studio not connected</span>'; _mmSet('blast',false); return; }
+  if(!list.length){ box.innerHTML=_bbCanSched?'Not sent yet':'Not sent yet — RRG marketing sends these'; _mmSet('blast',false); return; }
+  _mmSet('blast',true);
+  var b=list[0]; var runs=(b.runs||[]).filter(function(r){ return r.sentAt||r.sent; });
+  var sent=0, opens=0; runs.forEach(function(r){ sent+=(r.sent||0); opens+=(r.opens||0); }); if(!runs.length&&(b.finishedAt||b.status==='sent')){ sent=b.sent||0; opens=b.opens||0; }
+  var pill, line;
+  if(b.status==='sending'){ pill='<span class="bbp ing">Sending</span>'; line=Number(b.sent||0).toLocaleString()+' of '+Number(b.total||0).toLocaleString(); }
+  else if(runs.length||b.finishedAt||b.status==='sent'){ var last=runs.length?runs[runs.length-1].sentAt:(b.finishedAt||b.startedAt); pill='<span class="bbp snt">Sent</span>'; line=(runs.length>1?(runs.length+' rounds · '):'')+'last '+esc(_mmD(last))+' · '+Number(sent).toLocaleString()+' brokers · '+(sent?Math.round(opens*100/sent):0)+'% opened'+((b.pending&&b.pending.length)||(b.status==='scheduled')?' · next round scheduled':''); }
+  else if(b.status==='scheduled'){ var at=(b.pending&&b.pending[0])||b.sendAt; pill='<span class="bbp sch">Scheduled</span>'; line=esc(_bbDate(at)); }
+  else { pill='<span class="bbp oth">'+esc(b.status||'Draft')+'</span>'; line=''; }
+  box.innerHTML=pill+' '+line;
+  if(acts) acts.innerHTML=_bbActs(b)+(_bbCanSched?('<a class="railadd railico" href="rrg_mass_studio.html?schedule='+encodeURIComponent(b.id)+'#'+(runs.length?'sent':'scheduled')+'" title="Schedule another round in the Email Studio" style="font-size:13px">\u21bb</a>'):'');
 }
 // Every scheduled round of a blast (numbered after the rounds already sent).
 function _bbPending(b, sentCount){
