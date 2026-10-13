@@ -119,7 +119,16 @@ td [contenteditable]:empty:before{content:attr(data-ph);color:#b6bfce;}
   td [contenteditable]:focus{box-shadow:none;}
   .narr,.callout textarea{min-height:0!important;overflow:visible!important;}
   table,.callout,.strip,.sec,.chk,.kl-block{break-inside:avoid;}
+  /* Pagination: headings stay with what follows; long tables may split but never mid-row, with the header repeated;
+     write-ups print as flowing text (a textarea can't split across pages). */
+  table{break-inside:auto;} thead{display:table-header-group;} tr{break-inside:avoid;}
+  .sec,.kl-block,.kl,.hint,.sublabel{break-after:avoid;} .fg,.f,.chk label{break-inside:avoid;}
+  textarea{display:none!important;} .ptxt{display:block!important;white-space:pre-wrap;font-size:11.5px;line-height:1.55;color:var(--ink);margin:6px 0 10px;orphans:3;widows:3;}
+  .ptxt:empty{display:none!important;} .viewbar{display:none!important;}
+  html,body{background:#fff!important;}
 }
+/* Print copies of the write-ups (shown only when printing) */
+.ptxt{display:none}
 /* Read-only view */
 body.viewmode .toolbar,body.viewmode .rowctl,body.viewmode .trdel{display:none!important;}
 body.viewmode input,body.viewmode textarea{border-color:transparent!important;background:transparent!important;resize:none;cursor:default;box-shadow:none!important;}
@@ -526,6 +535,9 @@ function undoRefine(){
       else { if(window.rrgToast){ rrgToast((j&&j.error)||'Nothing to undo.'); } }
     }).catch(function(){ if(ub){ ub.disabled=false; } if(window.rrgToast) rrgToast('Could not reach the server.'); });
 }
+// Before printing, mirror every write-up into a flowing block so long text paginates instead of being clipped.
+function _printText(){ document.querySelectorAll('textarea').forEach(function(t){ var d=t.nextElementSibling; if(!d||!d.classList||!d.classList.contains('ptxt')){ d=document.createElement('div'); d.className='ptxt'; t.parentNode.insertBefore(d,t.nextSibling); } d.textContent=String(t.value||'').trim(); }); }
+window.addEventListener('beforeprint',_printText);
 // Read-only view (?view=1): the designed plan exactly as it prints — no toolbar, no editing.
 function _viewMode(){
   document.body.classList.add('viewmode');
@@ -538,6 +550,7 @@ function _viewMode(){
   bar.innerHTML='<span>Market Attack Plan</span><a class="btn" href="?map='+encodeURIComponent(MAPID)+'">✎ Edit</a><button class="btn print" onclick="growAll();window.print()">Print / PDF</button>';
   document.body.insertBefore(bar, document.body.firstChild);
   growAll();
+  if(/[?&]print=1/.test(location.search)) setTimeout(function(){ _printText(); window.print(); },500);
 }
 /* init */
 function _boot(){
