@@ -1226,6 +1226,17 @@ function _asgDown(e){ if(e.button!=null&&e.button!==0) return; var card=e.curren
 function _asgMove(e){ if(!_asgDrag) return; _asgMoved=true; var main=_asgDrag.parentNode; if(!main) return; var after=null; _asgCards(main).forEach(function(c){ if(c===_asgDrag) return; var r=c.getBoundingClientRect(); if(e.clientY > r.top + r.height/2) after=c; }); if(after){ if(after.nextSibling!==_asgDrag) main.insertBefore(_asgDrag, after.nextSibling); } else if(main.firstChild!==_asgDrag){ main.insertBefore(_asgDrag, main.firstChild); } }
 function _asgUp(){ document.removeEventListener('pointermove',_asgMove); if(_asgDrag){ _asgDrag.classList.remove('rdragging'); var main=_asgDrag.parentNode; if(main){ var order=_asgCards(main).map(function(c){ return c.getAttribute('data-rk'); }).filter(Boolean); try{ localStorage.setItem(ASG_ORDER_KEY,JSON.stringify(order)); }catch(e){} } } if(_asgMoved){ document.addEventListener('click',function(ev){ ev.stopPropagation(); ev.preventDefault(); },{once:true,capture:true}); } _asgDrag=null; }
 function _asgTip(main){ if(!main) return; var seen=false; try{ seen=localStorage.getItem(ASG_TIP_KEY)==='1'; }catch(e){} if(seen||main.querySelector('.railtip')) return; var tip=document.createElement('div'); tip.className='railtip'; tip.innerHTML='<span class="rtx"><b>Make this yours.</b> Drag any section by its <span class="rtgrip">\u283f</span> handle to reorder it, and use \u25be to collapse the ones you don\u2019t need. Your layout is saved on this device.</span><button type="button" class="rtclose" aria-label="Dismiss">\u00d7</button>'; main.insertBefore(tip, main.firstChild); var x=tip.querySelector('.rtclose'); if(x) x.addEventListener('click',function(){ try{ localStorage.setItem(ASG_TIP_KEY,'1'); }catch(e){} tip.remove(); }); }
+// Rail sections open only when they have something in them — empty ones start rolled up.
+// Re-checked as counts load in; a section the user opens or closes on this visit is left alone.
+var ACC_USER={};
+function _accHas(card){ var ch=card.querySelector('.ch');
+  var nums=ch?Array.prototype.filter.call(ch.children,function(s){ return s.tagName==='SPAN'&&!s.classList.contains('rgrip')&&!s.classList.contains('accchev')&&/^\d+$/.test(String(s.textContent||'').trim()); }):[];
+  if(nums.length) return Number(nums[0].textContent)>0;
+  var body=Array.prototype.filter.call(card.children,function(x){ return !x.classList.contains('ch'); }).map(function(x){ return String(x.textContent||''); }).join(' ').replace(/\s+/g,' ').trim();
+  return !!body && !/^(no |not |nothing |loading)/i.test(body);
+}
+function _accAutoFold(){ document.querySelectorAll('.rail > .card').forEach(function(card){ var t=accTitle(card); if(ACC_USER[t]) return; card.classList.toggle('collapsed',!_accHas(card)); }); }
+var _accFoldT=null; function _accFoldSoon(){ _accAutoFold(); if(_accFoldT) return; _accFoldT=1; [700,1800,4000].forEach(function(ms){ setTimeout(_accAutoFold,ms); }); }
 function setupAccordion(){
   if(!ACC_INIT){ var saved=null; try{ saved=JSON.parse(localStorage.getItem(ASG_COLLAPSE_KEY)||'null'); }catch(e){} if(saved&&typeof saved==='object'){ ACC_STATE=saved; } else { ACC_STATE['Location Tours']=true; ACC_STATE['Data Room Activity']=true; } ACC_INIT=true; }
   var main=document.querySelector('.rail');
@@ -1243,10 +1254,10 @@ function setupAccordion(){
       grip.addEventListener('pointerdown',_asgDown);
       ch.addEventListener('click', function(e){
         if(e.target.closest('button, a, input, select, textarea, .rgrip')) return;
-        var collapsed=card.classList.toggle('collapsed'); ACC_STATE[accTitle(card)]=collapsed; _asgSaveCollapse();
+        var collapsed=card.classList.toggle('collapsed'); ACC_STATE[accTitle(card)]=collapsed; ACC_USER[accTitle(card)]=true; _asgSaveCollapse();
       });
     }
-    if(ACC_STATE[title]) card.classList.add('collapsed'); else card.classList.remove('collapsed');
+    if(ACC_USER[title]){ card.classList.toggle('collapsed',!!ACC_STATE[title]); } else { card.classList.toggle('collapsed',!_accHas(card)); }
   });
   // Center (mid) sections roll up too — collapse only (no drag/reorder).
   document.querySelectorAll('.mid > .card').forEach(function(card){
@@ -1266,6 +1277,7 @@ function setupAccordion(){
   });
   // Hide a "0" count pill so empty rail cards read clean (matches the contact detail page).
   document.querySelectorAll('.rail > .card > .ch > span:not([id])').forEach(function(s){ s.hidden = ((s.textContent||'').trim()==='0'); });
+  _accFoldSoon();
   _asgTip(main);
 }
 function expandSectionOf(el){ var card=el&&el.closest('.card'); if(card){ card.classList.remove('collapsed'); ACC_STATE[accTitle(card)]=false; _asgSaveCollapse(); } }
