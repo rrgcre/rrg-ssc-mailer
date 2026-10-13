@@ -24494,7 +24494,7 @@ function ccPaywalled(url) { let h = ''; try { const u = new URL(String(url || ''
 // over the cap, the extra short-list items from that metro are left unticked (still in the editor to re-include).
 function ccMetro(v) { const t = String(v || '').toLowerCase(); if (/fort worth|dallas|dfw|plano|frisco|arlington|irving|denton|mckinney/.test(t)) return 'DFW'; if (/houston|katy|sugar land|woodlands|spring|pearland|kingwood/.test(t)) return 'Houston'; if (/austin|round rock|cedar park|georgetown|pflugerville|kyle|buda/.test(t)) return 'Austin'; if (/san antonio|new braunfels|boerne|schertz|helotes/.test(t)) return 'San Antonio'; if (/texas|statewide/.test(t)) return 'Texas'; return ''; }
 function ccBalance(D) { const items = []; CC_SECTIONS.forEach(([k]) => (D[k] || []).forEach(x => items.push(x))); const local = items.filter(x => x.market && x.market !== 'Texas'); if (local.length < 6) return;
-  const cap = Math.max(3, Math.ceil(local.length * 0.35)); const n = {}; items.filter(x => x.featured).forEach(x => { if (x.market) n[x.market] = (n[x.market] || 0) + 1; });
+  const cap = Math.max(3, Math.ceil(local.length * 0.3)); const n = {}; items.filter(x => x.featured).forEach(x => { if (x.market) n[x.market] = (n[x.market] || 0) + 1; });
   items.filter(x => !x.featured).forEach(x => { if (!x.market || x.market === 'Texas') return; n[x.market] = (n[x.market] || 0) + 1; if (n[x.market] > cap) x.include = false; }); }
 async function buildChitChatDraft(user) {
   const key = process.env.ANTHROPIC_API_KEY; if (!key) throw new Error('AI is not set up — add ANTHROPIC_API_KEY on the server.');

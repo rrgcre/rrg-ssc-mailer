@@ -1671,7 +1671,7 @@ var _icoTrash='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" strok
 // ===== Marketing materials — the SSC, the Market Attack Plan and the Broker Blast in one card (current state, not every send) =====
 function marketingCard(){
   var row=function(id,ic,t,sub,acts){ return '<div class="mmrow" id="'+id+'"><div class="mmic">'+ic+'</div><div class="mmmain"><div class="mmt">'+t+'</div><div class="mms">'+sub+'</div></div><div class="mmact">'+acts+'</div></div>'; };
-  return '<div class="card" id="mktgCard"><div class="ch"><b>Marketing</b><span class="bbcnt" id="mmCount" hidden>0</span></div><div class="cb" style="padding:4px 16px 6px">'
+  return '<div class="card" id="mktgCard"><div class="ch"><b>Marketing</b><span class="bbcnt" hidden>0</span></div><div class="cb" style="padding:4px 16px 6px">'
     + row('mmSsc','\u25a4','Site Selection Criteria','<span id="mmSscSub">Checking…</span>','<span id="mmSscAct"></span>')
     + row('mmMap','\u25ce','Market Attack Plan','<span id="mapStatus">Checking…</span>','<button type="button" class="railadd railico" id="mapEditBtn" style="display:none;font-size:13px" onclick="mapOpen();return false;" title="Edit the plan" aria-label="Edit the plan">\u270e</button><button type="button" class="railadd railico" id="mapViewBtn" style="display:none" onclick="mapOpen(true);return false;" title="View the plan" aria-label="View the plan">'+_icoEye+'</button><button type="button" class="railadd railico raildel" id="mapDelBtn" style="display:none" onclick="mapDelete();return false;" title="Delete the plan" aria-label="Delete the plan">'+_icoTrash+'</button><button type="button" class="railadd" id="mapOpenLink" onclick="mapOpen();return false;" title="Build the plan">+</button>')
     + row('mmBlast','\u2709','Broker Blast','<span id="blastList">Checking…</span>','<span id="blastActs"></span><button type="button" class="railadd" id="blastAddBtn" style="display:none" onclick="brokerBlastOpen();return false;" title="Draft a blind requirement and blast it to matched brokers">+</button>')
@@ -1679,7 +1679,7 @@ function marketingCard(){
 }
 function _mmD(iso){ try{ var d=new Date(iso); if(isNaN(d.getTime())) return ''; return d.toLocaleDateString('en-US',{month:'short',day:'numeric'})+(d.getFullYear()!==new Date().getFullYear()?(', '+d.getFullYear()):''); }catch(e){ return ''; } }
 var _mmHas={ssc:false,map:false,blast:false};
-function _mmSet(k,v){ _mmHas[k]=!!v; var c=document.getElementById('mmCount'); if(c){ var n=(_mmHas.ssc?1:0)+(_mmHas.map?1:0)+(_mmHas.blast?1:0); c.textContent=String(n); c.hidden=!n; } }
+function _mmSet(k,v){ _mmHas[k]=!!v; var c=document.querySelector('#mktgCard > .ch > .bbcnt'); if(c){ var n=(_mmHas.ssc?1:0)+(_mmHas.map?1:0)+(_mmHas.blast?1:0); c.textContent=String(n); c.hidden=!n; } }
 function marketAttackCard(){
   return '<div class="card" id="mapCard"><div class="ch"><b>Market Attack Plan</b>'
     + '<div class="railacts"><button type="button" class="railadd railico" id="mapViewBtn" style="display:none" onclick="mapOpen(true);return false;" title="View the plan" aria-label="View the plan">'+_icoEye+'</button>'
