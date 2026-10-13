@@ -10579,6 +10579,8 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
 // match market-only broker subscribers. Freeform market text (criteria.markets, the engagement
 // market, and the listing city) is scanned for each firm metro name.
 function dealBlastMetros(av) {
+  const _tbm = (function(){ try { const t = (av && av.assignmentType === 'tenant_rep') ? engTenantBox(av) : null; return (t && t.box && t.box.markets) || []; } catch (e) { return []; } })();
+  if (_tbm.length) return effMarkets().filter(m => _tbm.indexOf(m) >= 0);   // the requirement owns a tenant's markets
   const hay = [
     (av && av.market) || '',
     (av && av.criteria && av.criteria.markets) || '',
