@@ -54,7 +54,7 @@ function esc(s){var d=document.createElement('div');d.textContent=s==null?'':Str
 function $(id){return document.getElementById(id);}
 function post(url,body){return fetch(url,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})}).then(function(r){return r.json();});}
 var ST=null, CUR=null;
-var SECS=[['openings','Now seating — Openings'],['awards','Chef’s kiss — Awards'],['closings','86’D — Closings'],['realestate','Seats open — Real estate'],['moves','On the pass — Moves']];
+var SECS=[['awards','Chef’s kiss — Awards'],['openings','Now seating — Openings'],['closings','86’D — Closings'],['realestate','Seats open — Real estate'],['moves','On the pass — Moves']];
 function msg(id,t,ok){var m=$(id); if(!m) return; m.style.color=ok?'#1f8a5b':(ok===false?'#C0261B':''); m.textContent=t;}
 function load(){
   fetch('/api/admin/chitchat',{credentials:'same-origin',cache:'no-store'}).then(function(r){ if(r.status===401||r.status===403) throw new Error('admin'); return r.json(); }).then(function(j){
