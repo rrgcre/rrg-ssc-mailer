@@ -197,7 +197,8 @@
       { ic: '✉', label: 'Campaigns', href: 'rrg_mass_studio.html', admin: true },
       { ic: '☷', label: 'Subscribers', href: 'rrg_mail_subscribers.html', admin: true },
       { ic: '✎', label: 'Email Templates', href: 'rrg_email_templates.html' },
-      { ic: '⟳', label: 'Automations', href: 'rrg_admin_automations.html', admin: true }
+      { ic: '⟳', label: 'Automations', href: 'rrg_admin_automations.html', admin: true },
+      { ic: '▤', label: 'Texas Chit Chat', href: 'rrg_chitchat.html', admin: true }
     ] },
     { grp: 'Financials', color: '#4fb0a6', items: [
       { ic: '❏', label: 'Invoices', href: 'rrg_invoices.html', admin: true },

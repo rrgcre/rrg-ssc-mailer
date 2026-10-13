@@ -1261,5 +1261,14 @@ function _safePreviewHtml(html) {
   return s.slice(0, 60000);
 }
 async function suppressEmail(email, reason, detail) { if (!DB_READY) return false; const e = _norm(email); if (!_validEmail(e)) return false; await addSuppression(e, reason || 'unsubscribed', detail || ''); return true; }
-module.exports = { mount, dbReady, sesConfigured, importSubscribers, parseCsv, suppressEmail,
+
+// ---- Helpers other modules use (Texas Chit Chat newsletter) ----
+async function listLists() { if (!DB_READY) return []; return (await q('SELECT l.id,l.name,(SELECT count(*)::int FROM mm_list_members m WHERE m.list_id=l.id) AS members FROM mm_lists l WHERE l.tenant=$1 ORDER BY l.name', [TENANT])).rows; }
+async function ensureList(name) { if (!DB_READY) throw new Error('Email Studio storage isn’t configured.'); const nm = String(name || '').trim().slice(0, 160); if (!nm) throw new Error('List name required.');
+  const ex = (await q('SELECT id FROM mm_lists WHERE tenant=$1 AND lower(name)=lower($2) LIMIT 1', [TENANT, nm])).rows[0]; if (ex) return ex.id;
+  return (await q('INSERT INTO mm_lists(tenant,name) VALUES($1,$2) RETURNING id', [TENANT, nm])).rows[0].id; }
+async function addEmailsToList(listId, emails) { if (!DB_READY || !listId) return 0; const em = (emails || []).map(_norm).filter(_validEmail); if (!em.length) return 0;
+  const r = await q('INSERT INTO mm_list_members(list_id, subscriber_id) SELECT $1, s.id FROM mm_subscribers s WHERE s.tenant=$2 AND s.email = ANY($3::text[]) ON CONFLICT (list_id, subscriber_id) DO NOTHING', [Number(listId), TENANT, em]); return r.rowCount || 0; }
+async function createCampaignRecord(b, user) { if (!DB_READY) throw new Error('Email Studio storage isn’t configured.'); return createCampaign(b, user); }
+module.exports = { mount, dbReady, sesConfigured, importSubscribers, parseCsv, suppressEmail, listLists, ensureList, addEmailsToList, createCampaignRecord,
   countSegment, createRequirementCampaign, sendCampaign, scheduleCampaignAt, scheduledRequirementsFor, requirementsFor, removeRequirement, cancelRequirement };

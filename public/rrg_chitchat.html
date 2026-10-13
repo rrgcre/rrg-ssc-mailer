@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Texas Chit Chat</title>
+<style>
+:root{--navy:#0b1636;--navy2:#16346e;--red:#C0261B;--ink:#141a29;--dim:#5f6a7d;--soft:#8a93a3;--line:#e5e9f1;--wash:#f5f7fb;--green:#1f8a5b;--amber:#8a5a12;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#fff;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.wrap{max-width:1040px;margin:0 auto;padding:26px 26px 60px;}
+.top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+h1{font-size:20px;font-weight:700;color:var(--navy);margin:0;}
+.sub{font-size:13px;color:var(--dim);margin-top:6px;line-height:1.5;max-width:640px;}
+.btn{background:var(--navy);color:#fff;border:0;border-radius:9px;padding:10px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;min-height:40px;}
+.btn:disabled{opacity:.55;cursor:default;}
+.btn.ghost{background:#fff;color:var(--navy);border:1px solid #cdd6e6;}
+.btn.red{background:#fff;color:var(--red);border:1px solid #f0c9c5;}
+.card{border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-top:16px;}
+.card h2{font-size:14px;font-weight:700;color:var(--navy);margin:0 0 3px;}
+.ch-sub{font-size:12px;color:var(--soft);margin-bottom:14px;line-height:1.5;}
+.status{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:16px;border:1px solid var(--line);border-radius:12px;padding:12px 15px;font-size:12.5px;color:var(--dim);}
+.status b{color:var(--ink);}
+table.list{width:100%;border-collapse:collapse;font-size:13px;}
+table.list th{text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--soft);padding:6px 8px;border-bottom:1px solid var(--line);}
+table.list td{padding:10px 8px;border-bottom:1px solid #f1f3f8;vertical-align:middle;}
+.pill{display:inline-block;font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;background:#f1f3f8;color:var(--dim);}
+.pill.draft{background:#fff4e0;color:var(--amber);} .pill.approved{background:#e8f6ee;color:var(--green);} .pill.sent{background:#e6f0fb;color:#1f4f86;}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media(max-width:620px){.grid{grid-template-columns:1fr;}}
+.fld{display:flex;flex-direction:column;gap:5px;} .fld.full{grid-column:1/-1;}
+label.lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--soft);}
+input[type=text],input[type=email],input[type=url],input[type=date],select,textarea{border:1px solid #cfd6e2;border-radius:9px;padding:9px 11px;font:inherit;font-size:13.5px;width:100%;background:#fff;}
+textarea{min-height:64px;resize:vertical;line-height:1.45;}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--navy2);box-shadow:0 0 0 2px rgba(22,52,110,.12);}
+.check{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:var(--ink);cursor:pointer;}
+.sec{margin-top:20px;} .sec h3{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--navy);margin:0 0 8px;border-bottom:2px solid var(--navy);padding-bottom:5px;}
+.item{border:1px solid var(--line);border-radius:11px;padding:12px 14px;margin-bottom:10px;}
+.item.off{opacity:.5;}
+.item .row{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:8px;}
+.item .src{font-size:12px;color:var(--soft);margin-left:auto;}
+.savebar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:16px;}
+.msg{font-size:12.5px;font-weight:600;}
+.note{font-size:12px;color:var(--soft);margin-top:12px;line-height:1.55;}
+.gate{color:var(--dim);font-size:13.5px;padding:30px 0;}
+.copy{border:1px solid #cdd6e6;background:#fff;border-radius:7px;padding:3px 9px;font:inherit;font-size:12px;font-weight:700;color:var(--navy);cursor:pointer;}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<div class="wrap" id="root"><div class="gate">Loading…</div></div>
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function $(id){return document.getElementById(id);}
+function post(url,body){return fetch(url,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})}).then(function(r){return r.json();});}
+var ST=null, CUR=null;
+var SECS=[['openings','Now seating — Openings'],['awards','Chef’s kiss — Awards'],['closings','86’D — Closings'],['moves','On the pass — Moves']];
+function msg(id,t,ok){var m=$(id); if(!m) return; m.style.color=ok?'#1f8a5b':(ok===false?'#C0261B':''); m.textContent=t;}
+function load(){
+  fetch('/api/admin/chitchat',{credentials:'same-origin',cache:'no-store'}).then(function(r){ if(r.status===401||r.status===403) throw new Error('admin'); return r.json(); }).then(function(j){
+    if(!j||!j.ok){ $('root').innerHTML='<div class="gate">Could not load Texas Chit Chat.</div>'; return; }
+    ST=j; render();
+  }).catch(function(e){ $('root').innerHTML='<div class="gate">'+((e&&e.message==='admin')?'Texas Chit Chat is limited to administrators.':'Could not reach the server.')+'</div>'; });
+}
+function render(){
+  var s=ST.settings, list=(ST.lists||[]).filter(function(l){return l.id===s.listId;})[0];
+  var h='<div class="top"><div><h1>Texas Chit Chat</h1><div class="sub">The weekly restaurant ticket for owners and operators. Each issue is drafted from the week’s verified industry research, rewritten for operators, then a person reviews it here. Approving turns it into an Email Studio campaign you send or schedule.</div></div>'
+    +'<button class="btn" id="newBtn" type="button">+ New issue</button></div>';
+  h+='<div class="status"><span>List: <b>'+(list?esc(list.name)+' · '+list.members+' subscribers':'none picked')+'</b></span><span>Sending: <b>'+(ST.sending?'ready':'not configured')+'</b></span><span>AI: <b>'+(ST.aiReady?'ready':'not set up')+'</b></span><span>Signup page: <a href="'+esc(ST.signupUrl)+'" target="_blank" rel="noopener">'+esc(ST.signupUrl)+'</a> <button class="copy" type="button" id="cpy">Copy</button></span></div>';
+  h+='<div class="card"><h2>Issues</h2><div class="ch-sub">Drafts stay private. Approved issues get a public web page at /chitchat/&lt;number&gt;.</div>';
+  if(!ST.issues.length) h+='<div class="note">No issues yet. Click <b>+ New issue</b> to draft this week’s.</div>';
+  else h+='<table class="list"><tr><th>#</th><th>Date</th><th>Subject</th><th>Items</th><th>Status</th><th></th></tr>'+ST.issues.map(function(x){ return '<tr><td><b>'+x.n+'</b></td><td>'+esc(x.date)+'</td><td>'+esc(x.subject||'')+'</td><td>'+x.items+' + '+x.events+' events</td><td><span class="pill '+esc(x.status)+'">'+esc(x.status)+'</span></td><td style="text-align:right"><button class="btn ghost" type="button" data-open="'+esc(x.id)+'">Open</button></td></tr>'; }).join('')+'</table>';
+  h+='</div><div id="editor"></div>';
+  h+='<div class="card"><h2>Settings</h2><div class="ch-sub">Who it goes to, who it’s from, and the two ad slots.</div><div class="grid">'
+    +'<div class="fld"><label class="lbl" for="sList">Subscriber list</label><select id="sList"><option value="">— pick a list —</option>'+(ST.lists||[]).map(function(l){return '<option value="'+l.id+'"'+(l.id===s.listId?' selected':'')+'>'+esc(l.name)+' ('+l.members+')</option>';}).join('')+'</select></div>'
+    +'<div class="fld"><label class="lbl">&nbsp;</label><button class="btn ghost" type="button" id="mkList">Create “Texas Chit Chat” list</button></div>'
+    +'<div class="fld"><label class="lbl" for="sFromName">From name</label><input type="text" id="sFromName" value="'+esc(s.fromName)+'"></div>'
+    +'<div class="fld"><label class="lbl" for="sFromEmail">From email</label><input type="email" id="sFromEmail" value="'+esc(s.fromEmail)+'" placeholder="e.g. ticket@texaschitchat.com (blank = Lavano default)"></div>'
+    +'<div class="fld"><label class="lbl" for="sReply">Reply-to</label><input type="email" id="sReply" value="'+esc(s.replyTo)+'"></div>'
+    +'<div class="fld"><label class="lbl" for="sMetros">Masthead metros</label><input type="text" id="sMetros" value="'+esc(s.metros)+'"></div>'
+    +'<div class="fld full"><label class="lbl" for="sPub">Publisher line</label><input type="text" id="sPub" value="'+esc(s.publisher)+'"></div>'
+    +'<div class="fld full"><label class="lbl" for="sAddr">Mailing address (required by law in every email)</label><input type="text" id="sAddr" value="'+esc(s.address)+'"></div></div>'
+    +'<div class="sec"><h3>Sponsor slot</h3><label class="check"><input type="checkbox" id="spOn"'+(s.sponsor.on?' checked':'')+'> Show the sponsor slot</label><div class="grid" style="margin-top:10px">'
+    +'<div class="fld"><label class="lbl" for="spLabel">Sponsor headline</label><input type="text" id="spLabel" value="'+esc(s.sponsor.label)+'"></div><div class="fld"><label class="lbl" for="spCta">Button</label><input type="text" id="spCta" value="'+esc(s.sponsor.cta)+'"></div>'
+    +'<div class="fld full"><label class="lbl" for="spLine">Line</label><input type="text" id="spLine" value="'+esc(s.sponsor.line)+'"></div><div class="fld full"><label class="lbl" for="spUrl">Link</label><input type="url" id="spUrl" value="'+esc(s.sponsor.url)+'" placeholder="https://"></div></div></div>'
+    +'<div class="sec"><h3>RRG house ad</h3><label class="check"><input type="checkbox" id="rgOn"'+(s.rrg.on?' checked':'')+'> Show the RRG ad</label><div class="grid" style="margin-top:10px">'
+    +'<div class="fld"><label class="lbl" for="rgHead">Headline</label><input type="text" id="rgHead" value="'+esc(s.rrg.headline)+'"></div><div class="fld"><label class="lbl" for="rgCta">Button</label><input type="text" id="rgCta" value="'+esc(s.rrg.cta)+'"></div>'
+    +'<div class="fld full"><label class="lbl" for="rgLine">Line</label><input type="text" id="rgLine" value="'+esc(s.rrg.line)+'"></div><div class="fld full"><label class="lbl" for="rgUrl">Link</label><input type="url" id="rgUrl" value="'+esc(s.rrg.url)+'"></div></div></div>'
+    +'<div class="savebar"><button class="btn" type="button" id="sSave">Save settings</button><span class="msg" id="sMsg"></span></div>'
+    +'<div class="note">Until texaschitchat.com is verified for sending, leave From email blank — issues send from the Lavano default. RRG’s ad must carry RRG’s licensed name (Texas real estate advertising rules).</div></div>';
+  $('root').innerHTML=h;
+  $('newBtn').onclick=newIssue; $('sSave').onclick=saveSettings; $('mkList').onclick=function(){ saveSettings(true); };
+  $('cpy').onclick=function(){ try{ navigator.clipboard.writeText(ST.signupUrl); this.textContent='Copied'; }catch(e){} };
+  document.querySelectorAll('[data-open]').forEach(function(b){ b.onclick=function(){ openIssue(b.getAttribute('data-open')); }; });
+  if(CUR) paintEditor();
+}
+function newIssue(){ var b=$('newBtn'); b.disabled=true; var W=window.rrgAiWork; if(W) W.show('Researching this week’s Texas restaurant news and drafting the issue — about a minute…');
+  post('/api/admin/chitchat/draft',{}).then(function(j){ b.disabled=false; if(W) W.hide(); if(j&&j.ok){ CUR=j.issue; load(); } else { if(window.rrgToast) rrgToast((j&&j.error)||'Could not draft.'); else alert((j&&j.error)||'Could not draft.'); } }).catch(function(){ b.disabled=false; if(W) W.hide(); });
+}
+function openIssue(id){ fetch('/api/admin/chitchat/issues/'+encodeURIComponent(id),{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ CUR=j.issue; paintEditor(); var e=$('editor'); if(e) e.scrollIntoView({behavior:'smooth'}); } }); }
+function itemHtml(k,it,i){ var off=it.include===false;
+  return '<div class="item'+(off?' off':'')+'"><div class="row"><label class="check"><input type="checkbox" data-k="'+k+'" data-i="'+i+'" data-f="include"'+(off?'':' checked')+'> Include</label><label class="check"><input type="checkbox" data-k="'+k+'" data-i="'+i+'" data-f="featured"'+(it.featured?' checked':'')+'> Featured story</label><span class="src"><a href="'+esc(it.url)+'" target="_blank" rel="noopener">'+esc(it.source||'source')+' ↗</a></span></div>'
+    +'<div class="grid"><div class="fld full"><label class="lbl">Headline</label><input type="text" data-k="'+k+'" data-i="'+i+'" data-f="headline" value="'+esc(it.headline)+'"></div>'
+    +'<div class="fld full"><label class="lbl">Story</label><textarea data-k="'+k+'" data-i="'+i+'" data-f="body">'+esc(it.body)+'</textarea></div>'
+    +'<div class="fld full"><label class="lbl">Red mod line</label><input type="text" data-k="'+k+'" data-i="'+i+'" data-f="mod" value="'+esc(it.mod)+'"></div>'
+    +'<div class="fld"><label class="lbl">Name (for the short list)</label><input type="text" data-k="'+k+'" data-i="'+i+'" data-f="name" value="'+esc(it.name)+'"></div>'
+    +'<div class="fld"><label class="lbl">Where</label><input type="text" data-k="'+k+'" data-i="'+i+'" data-f="where" value="'+esc(it.where)+'"></div></div></div>'; }
+function paintEditor(){ var x=CUR, D=x.data||{}, locked=x.status==='sent'; var e=$('editor'); if(!e) return;
+  var h='<div class="card"><h2>Issue #'+x.n+' · '+esc(x.date)+' <span class="pill '+esc(x.status)+'">'+esc(x.status)+'</span></h2><div class="ch-sub">Edit anything, untick what shouldn’t run, mark the 1–2 featured stories per section. Every item links to its source — check the facts before you approve.</div>'
+    +'<div class="grid"><div class="fld full"><label class="lbl" for="eSubj">Subject line</label><input type="text" id="eSubj" value="'+esc(D.subject)+'"></div><div class="fld full"><label class="lbl" for="eLede">Lede (*** FIRE ***)</label><textarea id="eLede">'+esc(D.lede)+'</textarea></div></div>';
+  SECS.forEach(function(s){ var xs=D[s[0]]||[]; h+='<div class="sec"><h3>'+s[1]+' · '+xs.length+'</h3>'+(xs.length?xs.map(function(it,i){return itemHtml(s[0],it,i);}).join(''):'<div class="note">Nothing this week.</div>')+'</div>'; });
+  h+='<div class="sec"><h3>On the books — Events · '+(D.events||[]).length+'</h3>'+(D.events||[]).map(function(ev,i){ return '<div class="item'+(ev.include===false?' off':'')+'"><div class="row"><label class="check"><input type="checkbox" data-k="events" data-i="'+i+'" data-f="include"'+(ev.include===false?'':' checked')+'> Include</label><span class="src"><a href="'+esc(ev.url)+'" target="_blank" rel="noopener">source ↗</a></span></div><div class="grid"><div class="fld"><label class="lbl">Date</label><input type="date" data-k="events" data-i="'+i+'" data-f="date" value="'+esc(ev.date)+'"></div><div class="fld"><label class="lbl">City</label><input type="text" data-k="events" data-i="'+i+'" data-f="city" value="'+esc(ev.city)+'"></div><div class="fld full"><label class="lbl">Event</label><input type="text" data-k="events" data-i="'+i+'" data-f="name" value="'+esc(ev.name)+'"></div></div></div>'; }).join('')+'</div>';
+  h+='<div class="savebar">'+(locked?'':'<button class="btn" type="button" id="eSave">Save</button>')+'<button class="btn ghost" type="button" id="ePrev">Preview</button>'
+    +(x.campaignId?'<a class="btn ghost" style="text-decoration:none;display:inline-flex;align-items:center" href="rrg_mass_studio.html?open='+x.campaignId+'">Open in Email Studio</a>':'<button class="btn ghost" type="button" id="eApprove">Approve &amp; create campaign</button><button class="btn red" type="button" id="eDel">Delete draft</button>')
+    +'<span class="msg" id="eMsg"></span></div></div>';
+  e.innerHTML=h;
+  e.querySelectorAll('input[data-f="include"]').forEach(function(c){ c.addEventListener('change',function(){ c.closest('.item').classList.toggle('off',!c.checked); }); });
+  if($('eSave')) $('eSave').onclick=function(){ saveIssue().then(function(ok){ if(ok) msg('eMsg','Saved ✓',true); }); };
+  $('ePrev').onclick=function(){ (locked?Promise.resolve(true):saveIssue()).then(function(){ window.open('/api/admin/chitchat/issues/'+encodeURIComponent(x.id)+'/preview','_blank'); }); };
+  if($('eApprove')) $('eApprove').onclick=approve;
+  if($('eDel')) $('eDel').onclick=delIssue;
+}
+function collect(){ var D=JSON.parse(JSON.stringify(CUR.data||{})); D.subject=$('eSubj').value; D.lede=$('eLede').value;
+  $('editor').querySelectorAll('[data-k]').forEach(function(el){ var k=el.getAttribute('data-k'), i=+el.getAttribute('data-i'), f=el.getAttribute('data-f'); if(!D[k]||!D[k][i]) return; D[k][i][f]=(el.type==='checkbox')?el.checked:el.value; });
+  return D; }
+function saveIssue(){ msg('eMsg','Saving…'); return post('/api/admin/chitchat/issues/'+encodeURIComponent(CUR.id),{data:collect()}).then(function(j){ if(j&&j.ok){ CUR=j.issue; return true; } msg('eMsg',(j&&j.error)||'Could not save.',false); return false; }).catch(function(){ msg('eMsg','Could not reach the server.',false); return false; }); }
+async function approve(){ var ok=window.rrgConfirm?await rrgConfirm('Approve issue #'+CUR.n+'? It becomes an Email Studio campaign to the Texas Chit Chat list (you still press Send or Schedule there), and its web page goes public.'):confirm('Approve?'); if(!ok) return;
+  var saved=await saveIssue(); if(!saved) return; msg('eMsg','Creating campaign…');
+  post('/api/admin/chitchat/issues/'+encodeURIComponent(CUR.id)+'/approve',{}).then(function(j){ if(j&&j.ok){ msg('eMsg','Approved ✓ — campaign created',true); CUR.campaignId=j.campaignId; CUR.status='approved'; load(); } else msg('eMsg',(j&&j.error)||'Could not approve.',false); }); }
+async function delIssue(){ var ok=window.rrgConfirm?await rrgConfirm('Delete draft #'+CUR.n+'?'):confirm('Delete?'); if(!ok) return; post('/api/admin/chitchat/issues/'+encodeURIComponent(CUR.id)+'/delete',{}).then(function(j){ if(j&&j.ok){ CUR=null; load(); } else msg('eMsg',(j&&j.error)||'Could not delete.',false); }); }
+function saveSettings(createList){ var b={ listId:$('sList').value, fromName:$('sFromName').value, fromEmail:$('sFromEmail').value, replyTo:$('sReply').value, metros:$('sMetros').value, publisher:$('sPub').value, address:$('sAddr').value,
+    sponsor:{on:$('spOn').checked,label:$('spLabel').value,line:$('spLine').value,url:$('spUrl').value,cta:$('spCta').value}, rrg:{on:$('rgOn').checked,headline:$('rgHead').value,line:$('rgLine').value,url:$('rgUrl').value,cta:$('rgCta').value} };
+  if(createList===true) b.createList=true; msg('sMsg','Saving…');
+  post('/api/admin/chitchat/settings',b).then(function(j){ if(j&&j.ok){ msg('sMsg','Saved ✓',true); load(); } else msg('sMsg',(j&&j.error)||'Could not save.',false); }).catch(function(){ msg('sMsg','Could not reach the server.',false); }); }
+load();
+</script>
+</body>
+</html>
