@@ -95,6 +95,8 @@
     var sub=d.typeLabel||'';
     // Seller screening reads better with the call type on top and the concept + date beneath it.
     if(d.kind==='seller'){ top=d.typeLabel||'Seller Screening'; var _cpt=d.concept||(d.title && d.title!==top?d.title:''); var _loc=d.location||d.market||''; sub=[_cpt,_loc].filter(Boolean).join(' \u00b7 '); }
+    // Site Selection Criteria (SSC): the document type on top, the business it's for underneath.
+    if(d.kind==='ssc'){ top='Site Selection Criteria'; sub=(d.title && !/^site (selection )?criteria$/i.test(d.title)) ? d.title : (d.companyName||''); }
     // Valuation (BOV): lead with the document type \u2014 in a contact's doc list what it IS matters more
     // than the business name (which is the same across all their docs). Business drops to the subtitle.
     if(d.kind==='valuation'){ top=(d.typeLabel && /opinion/i.test(d.typeLabel)) ? d.typeLabel : 'Opinion of Value'; sub=[(d.title||d.companyName||''),(d.market||'')].filter(Boolean).join(' \u00b7 '); }

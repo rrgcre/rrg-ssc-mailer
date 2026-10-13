@@ -963,6 +963,28 @@ function applyFeatStrip(){
   }
   // 'listing' (business sale) keeps the original static sell-side markup.
 }
+// Link this engagement to the tenant's Site Criteria (SSC) document(s) on file — matched by business / company name.
+function _sscNorm(x){ return String(x||'').toLowerCase().replace(/['’`]/g,'').replace(/[^a-z0-9]+/g,''); }
+function loadSscLink(){ var el=document.getElementById('sscLink'); if(!el||!A) return;
+  var names=[A.business, A.company&&A.company.name].map(_sscNorm).filter(function(n){return n.length>=4;});
+  fetch('/api/site-criteria',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+    var hits=((j&&j.criteria)||[]).filter(function(c){ var n=_sscNorm(c.name); if(n.length<4) return false; return names.some(function(m){ return n.indexOf(m)===0||m.indexOf(n)===0; }); });
+    if(!hits.length){ el.innerHTML='<a href="./ssc_form.html" style="color:var(--navy)">+ Start an SSC</a>'; return; }
+    _sscAutofill(hits[0]);
+    el.innerHTML=hits.slice(0,3).map(function(c,i){ var d=''; try{ d=new Date(c.when).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }catch(e){}
+      return '<a href="/api/ssc/'+encodeURIComponent(c.key)+'/view" target="_blank" rel="noopener" style="color:var(--navy);margin-left:'+(i?'12px':'0')+'" title="'+esc(c.name)+'">View SSC'+(hits.length>1?(' · '+esc(d)):'')+' ↗</a>'; }).join('');
+  }).catch(function(){}); }
+// Empty criteria fields fill themselves from the newest matching SSC (fields someone already typed are never overwritten).
+var _SSC_MAP=[['cr_markets','markets'],['cr_use','useType'],['cr_budget','budget'],['cr_sizemin','sizeMin'],['cr_sizemax','sizeMax'],['cr_term','termYears'],['cr_timeline','timeline'],['cr_parking','parking'],['cr_features','features'],['cr_crnotes','notes']];
+function _sscAutofill(hit){ if(!hit||!A||A.assignmentType!=='tenant_rep') return;
+  var empty=_SSC_MAP.filter(function(m){ var e=document.getElementById(m[0]); return e && !String(e.value||'').trim(); });
+  if(!empty.length) return;
+  fetch('/api/ssc/'+encodeURIComponent(hit.key)+'/criteria',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok||!j.criteria) return; var n=0;
+    empty.forEach(function(m){ var e=document.getElementById(m[0]), v=j.criteria[m[1]]; if(e && v && !String(e.value||'').trim()){ e.value=v; n++; } });
+    if(!n) return; DIRTY=true; save();
+    var el=document.getElementById('sscLink'); if(el){ var t=document.createElement('span'); t.style.cssText='color:#1f8a5b;font-weight:600;margin-right:12px'; t.textContent='Filled '+n+' field'+(n===1?'':'s')+' from the SSC'; el.insertBefore(t, el.firstChild); }
+  }).catch(function(){}); }
 function render(){
   var s=A.stages||{};
   var ST=activeStages();
@@ -1069,7 +1091,7 @@ function render(){
     _sideHtml
     + '<div class="mid">'
     + '<div class="card"><div class="ch"><b>Overview</b><span>'+done+' of '+ST.length+' stages complete</span></div><div class="cb">'+facts+'</div></div>'
-    + '<div class="card"><div class="ch"><b>Site Selection Criteria</b><span style="color:#8a93a3;font-weight:600;font-size:11.5px">what we’re hunting for</span></div><div class="cb" style="padding:14px 20px 18px">'+crBox()+'</div></div>'
+    + '<div class="card"><div class="ch"><b>Site Selection Criteria</b><span style="color:#8a93a3;font-weight:600;font-size:11.5px">what we’re hunting for</span><span id="sscLink" style="margin-left:auto;font-size:12px;font-weight:700"></span></div><div class="cb" style="padding:14px 20px 18px">'+crBox()+'</div></div>'
     + '<div class="card"><div class="ch"><b>Tenant Pipeline</b>'+(pipeName?('<span style="margin-left:8px;color:var(--navy);font-weight:700;font-size:11.5px;background:#eef2fb;border:1px solid #d3ddf3;border-radius:999px;padding:2px 10px">'+esc(pipeName)+'</span>'):'')+'<span>'+started+' of '+ST.length+' started</span></div><div class="track"><div class="hpipe">'+steps+'</div></div></div>'
     + spacePipelineCard()
     + '</div>'
@@ -1123,6 +1145,7 @@ function render(){
   mktWire();
   var _bl=document.getElementById('bizList'); if(_bl && PEOPLE && PEOPLE.length){ var _seen={},_bo=''; PEOPLE.forEach(function(p){ var c=String((p&&p.company)||'').trim(); if(c&&!_seen[c.toLowerCase()]){ _seen[c.toLowerCase()]=1; _bo+='<option value="'+esc(c)+'"></option>'; } }); _bl.innerHTML=_bo; }
   setupAccordion();
+  try{ loadSscLink(); }catch(e){}
 }
 function loadPeople(){ fetch('/api/people',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ PEOPLE=(j&&j.people)||[]; var dl=document.getElementById('peopleList'); if(dl) dl.innerHTML=PEOPLE.map(function(p){return '<option value="'+esc(p.name)+'">'+esc(p.company||p.email||'')+'</option>';}).join(''); var bl=document.getElementById('bizList'); if(bl){ var seen={},bo=''; PEOPLE.forEach(function(p){ var c=String((p&&p.company)||'').trim(); if(c&&!seen[c.toLowerCase()]){ seen[c.toLowerCase()]=1; bo+='<option value="'+esc(c)+'"></option>'; } }); bl.innerHTML=bo; } }).catch(function(){}); }
 function matchBuyersShell(){ return '<div class="card" id="matchBuyersCard"><div class="ch"><b>Matching buyers</b><span id="mbCount" style="color:#8a93a8;font-weight:700;margin-left:6px"></span></div><div class="cb" style="padding:12px 16px"><div id="matchBuyers"><div style="color:#8a93a8;font-size:12.5px;padding:4px 0">Checking your buyer book…</div></div></div></div>'; }
