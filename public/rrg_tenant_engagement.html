@@ -1450,7 +1450,7 @@ function _accHas(card){ var ch=card.querySelector('.ch');
   var nums=ch?Array.prototype.filter.call(ch.children,function(s){ return s.tagName==='SPAN'&&!s.classList.contains('rgrip')&&!s.classList.contains('accchev')&&/^\d+$/.test(String(s.textContent||'').trim()); }):[];
   if(nums.length) return Number(nums[0].textContent)>0;
   var body=Array.prototype.filter.call(card.children,function(x){ return !x.classList.contains('ch'); }).map(function(x){ return String(x.textContent||''); }).join(' ').replace(/\s+/g,' ').trim();
-  return !!body && !/^(no |not |nothing |loading)/i.test(body);
+  return !!body && !/^(no |not |nothing |loading|your plan of attack|fill in |nothing yet)/i.test(body);
 }
 function _accAutoFold(){ document.querySelectorAll('.rail > .card').forEach(function(card){ var t=accTitle(card); if(ACC_USER[t]) return; card.classList.toggle('collapsed',!_accHas(card)); }); }
 var _accFoldT=null; function _accFoldSoon(){ _accAutoFold(); if(_accFoldT) return; _accFoldT=1; [700,1800,4000].forEach(function(ms){ setTimeout(_accAutoFold,ms); }); }
