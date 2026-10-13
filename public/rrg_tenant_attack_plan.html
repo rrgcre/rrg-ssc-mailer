@@ -120,6 +120,15 @@ td [contenteditable]:empty:before{content:attr(data-ph);color:#b6bfce;}
   .narr,.callout textarea{min-height:0!important;overflow:visible!important;}
   table,.callout,.strip,.sec,.chk,.kl-block{break-inside:avoid;}
 }
+/* Read-only view */
+body.viewmode .toolbar,body.viewmode .rowctl,body.viewmode .trdel{display:none!important;}
+body.viewmode input,body.viewmode textarea{border-color:transparent!important;background:transparent!important;resize:none;cursor:default;box-shadow:none!important;}
+body.viewmode .f input{border:1px solid #e3e8f0!important;background:#fafbfd!important;}
+body.viewmode .chk label{cursor:default;}
+body.viewmode td [contenteditable]{cursor:default;}
+.viewbar{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:10px;justify-content:flex-end;max-width:860px;margin:0 auto;padding:12px 4px;}
+.viewbar span{margin-right:auto;font-size:13px;font-weight:800;color:#16223c;}
+.viewbar a.btn{text-decoration:none;display:inline-flex;align-items:center;}
 </style>
 <script src="/rrg_brand.js"></script>
 <script src="/rrg_aiwork.js"></script>
@@ -168,7 +177,7 @@ td [contenteditable]:empty:before{content:attr(data-ph);color:#b6bfce;}
 
 <div class="wrap" id="sheet">
   <div class="band">
-    <div class="confline">Prepared for the Client &nbsp;·&nbsp; Restaurant Realty Group &nbsp;·&nbsp; Confidential Representation Strategy</div>
+    <div class="confline" aria-hidden="true" style="visibility:hidden">Prepared for the Client &nbsp;·&nbsp; Restaurant Realty Group &nbsp;·&nbsp; Confidential Representation Strategy</div>
     <span class="rrg" onclick="location.href='./index.html'" title="Back to dashboard" style="cursor:pointer"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
     <div class="kicker">Market Attack Plan · Tenant Representation</div>
     <h1><input data-k="client" placeholder="Concept / Client Name"></h1>
@@ -291,6 +300,7 @@ var K='rrg_tenantplan_v1';
 // When opened with ?map=<id> this plan is anchored to a deal/engagement and persists on the
 // server (one plan per engagement). Without it, the tool stays a standalone localStorage draft.
 var MAPID=(function(){ try{ return new URLSearchParams(location.search).get('map')||''; }catch(e){ return ''; } })();
+var VIEW=(function(){ try{ return new URLSearchParams(location.search).get('view')==='1'; }catch(e){ return false; } })();
 var COLS = {
   sub:[ {k:'name',ph:'Submarket'}, {k:'why',ph:'Demand drivers — daytime pop, rooftops, generators, gap in market'}, {k:'roof',ph:'e.g. 72k / 19k'}, {k:'pri',ph:'P1',cls:'pri'} ],
   tgt:[ {k:'prop',ph:'Property / address'}, {k:'type',ph:'End cap · 2,600 SF'}, {k:'ask',ph:'$32 + $9.50'}, {k:'ll',ph:'Landlord · broker · contact'}, {k:'mkt',ph:'On / Off'}, {k:'status',ph:'Available'} ],
@@ -354,6 +364,7 @@ function paint(){
 var t, _st;
 function _savechip(){ var c=document.getElementById('savechip'); if(!c) return; c.classList.add('show'); clearTimeout(t); t=setTimeout(function(){c.classList.remove('show');},1200); }
 function save(){
+  if(VIEW) return;
   if(MAPID){ _savechip(); if(_st) clearTimeout(_st); _st=setTimeout(function(){ fetch('/api/map-save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:MAPID,state:state})}).catch(function(){}); },600); return; }
   try{ localStorage.setItem(K, JSON.stringify(state)); }catch(e){} _savechip();
 }
@@ -515,6 +526,19 @@ function undoRefine(){
       else { if(window.rrgToast){ rrgToast((j&&j.error)||'Nothing to undo.'); } }
     }).catch(function(){ if(ub){ ub.disabled=false; } if(window.rrgToast) rrgToast('Could not reach the server.'); });
 }
+// Read-only view (?view=1): the designed plan exactly as it prints — no toolbar, no editing.
+function _viewMode(){
+  document.body.classList.add('viewmode');
+  document.querySelectorAll('input:not([type=checkbox]),textarea').forEach(function(el){ el.readOnly=true; el.removeAttribute('placeholder'); });
+  document.querySelectorAll('textarea').forEach(function(el){ if(!String(el.value||'').trim()) el.style.display='none'; });
+  document.querySelectorAll('input[type=checkbox]').forEach(function(el){ el.disabled=true; var l=el.closest('label'); if(l&&!el.checked) l.style.display='none'; });
+  document.querySelectorAll('[contenteditable]').forEach(function(el){ el.setAttribute('contenteditable','false'); el.removeAttribute('data-ph'); });
+  ['sub','tgt','tl'].forEach(function(w){ var tb=document.querySelector('[data-rows="'+w+'"]'); if(!tb) return; tb.querySelectorAll('tr').forEach(function(tr){ if(!String(tr.textContent||'').replace(/×/g,'').trim()) tr.style.display='none'; }); });
+  var bar=document.createElement('div'); bar.className='viewbar rrg-noprint';
+  bar.innerHTML='<span>Market Attack Plan</span><a class="btn" href="?map='+encodeURIComponent(MAPID)+'">✎ Edit</a><button class="btn print" onclick="growAll();window.print()">Print / PDF</button>';
+  document.body.insertBefore(bar, document.body.firstChild);
+  growAll();
+}
 /* init */
 function _boot(){
   if(!state.rows.sub.length && !state.rows.tgt.length && !state.rows.tl.length){ state.rows={sub:[{}],tgt:[{}],tl:[{}]}; }
@@ -524,7 +548,7 @@ function _boot(){
 // Anchored + brand-new + empty → draft it from the assignment automatically, so "Build the
 // plan" opens a populated plan rather than a blank form. A plan that's already been built (or
 // that a rep deliberately cleared) is left as-is; they can re-draft with the button.
-if(MAPID){ loadServer(function(){ var empty=!_planHasContent(); _boot(); if(empty && !_mapBuilt){ draftFromAssignment(); } }); } else { load(); _boot(); }
+if(MAPID){ loadServer(function(){ var empty=!_planHasContent(); _boot(); if(VIEW){ _viewMode(); return; } if(empty && !_mapBuilt){ draftFromAssignment(); } }); } else { load(); _boot(); }
 window.addEventListener('load', growAll);
 </script>
 </body>
