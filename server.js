@@ -2015,7 +2015,7 @@ app.post('/api/send-ssc', async (req, res) => {
     out = await sendSsc(data, buildTransport(), { cc: sscCcAddr() });
     emailed = true;
   } catch (e) { err = e; }
-  try { store.appendSubmission('ssc', data, { ip: req.ip, emailed, by: req.user && req.user.username }); }
+  try { const _sscRec = store.appendSubmission('ssc', data, { ip: req.ip, emailed, by: req.user && req.user.username }); syncTenantBoxFromSsc(_sscRec, req); }
   catch (le) { console.error('log error:', le); }
   // If the SSC was launched from a contact, log it on that record so it shows in the activity feed.
   try {
@@ -2033,7 +2033,7 @@ app.post('/api/send-ssc', async (req, res) => {
 app.post('/api/log', (req, res) => {
   const data = req.body || {};
   const formType = String(data.formType || 'seller').toLowerCase().replace(/[^a-z]/g, '').slice(0, 20) || 'seller';
-  try { const e = store.appendSubmission(formType, data, { ip: req.ip, emailed: false, by: req.user && req.user.username }); res.json({ ok: true, timestamp: e.timestamp }); }
+  try { const e = store.appendSubmission(formType, data, { ip: req.ip, emailed: false, by: req.user && req.user.username }); res.json({ ok: true, timestamp: e.timestamp }); if (formType === 'ssc') syncTenantBoxFromSsc(e, req); }
   catch (err) { console.error('log error:', err); res.status(500).json({ ok: false, error: String((err && err.message) || err) }); }
   // Every submitted seller screening also drops into the Screening Queue (dedup by formId).
   if (formType === 'seller') {
@@ -6918,27 +6918,67 @@ function findSscForPerson(p) {
     return hit[0] || null;
   } catch (e) { return null; }
 }
-// AI: read the latest SSC on file and propose a Tenant-Box concept (does NOT save — the rep reviews).
-app.post('/api/person/:id/tenantbox/from-ssc', express.json(), async (req, res) => {
-  const arr = loadPeople(); const p = arr.find(x => x.id === req.params.id);
-  if (!p) return res.status(404).json({ ok: false, error: 'Contact not found.' });
-  const rec = findSscForPerson(p);
-  if (!rec) return res.json({ ok: false, error: 'No Site Criteria (SSC) on file for this contact yet.' });
+// AI read of one SSC record -> a clean Tenant-Box concept (shared by the button and the auto-sync).
+async function sscBoxFromRec(rec) {
   const markets = effMarkets();
   const conditions = ['Shell', 'Second-gen', 'Dirt / pad'];
   const spaceTypes = ['End cap', 'Inline', 'Pad / Outparcel', 'Freestanding'];
   const amenities = ['Drive-thru', 'Patio', 'Hood / exhaust', 'Grease trap', 'Gas service', 'Walk-in cooler', 'Bar built-out', 'Fire suppression', '3-phase power', 'Restrooms (ADA)'];
-  let box = {};
-  try { box = await aiassist.sscToTenantBox({ ssc: rec.data || {}, conditions, spaceTypes, amenities, markets }) || {}; }
-  catch (e) { return res.status(502).json({ ok: false, error: String((e && e.message) || e) }); }
+  const box = await aiassist.sscToTenantBox({ ssc: rec.data || {}, conditions, spaceTypes, amenities, markets }) || {};
   const _vl = (v, allow) => Array.isArray(v) ? v.filter(x => allow.indexOf(x) >= 0) : [];
-  const out = {
+  return {
     concept: String(box.concept || rec.name || '').slice(0, 80), active: false,
     sfMin: String(box.sfMin || '').replace(/[^0-9]/g, ''), sfIdeal: String(box.sfIdeal || '').replace(/[^0-9]/g, ''), sfMax: String(box.sfMax || '').replace(/[^0-9]/g, ''),
     deal: (['both', 'lease', 'purchase'].indexOf(box.deal) >= 0 ? box.deal : 'both'),
     condition: _vl(box.condition, conditions), spaceTypes: _vl(box.spaceTypes, spaceTypes), amenities: _vl(box.amenities, amenities), markets: _vl(box.markets, markets),
     budget: String(box.budget || '').replace(/[^0-9]/g, ''), areaNote: String(box.areaNote || '').slice(0, 300), notes: String(box.notes || '').slice(0, 1000),
   };
+}
+// Auto-sync: every SSC saved (new or re-submitted) updates the linked contact's Tenant-Box — same read as
+// "Fill from SSC", but saved. Matches an existing concept by name and overwrites what the SSC states
+// (keeps the rep's Actively-looking flag); otherwise adds the concept as actively looking. Runs in the
+// background so the SSC send never waits on the AI.
+function _tbIsBlank(b) { return !b || (!String(b.concept || '').trim() && !tenantBoxHasCriteria(b) && !String(b.areaNote || '').trim() && !String(b.notes || '').trim()); }
+async function syncTenantBoxFromSsc(rec, req) {
+  try {
+    if (!rec || rec.form !== 'ssc') return;
+    const d = rec.data || {};
+    let ids = [];
+    if (d.personId) ids = [String(d.personId)];
+    else {
+      const cmp = normKey(d.company || ''), ct = normKey(d.contact || ''), cid = String(d.companyId || '');
+      const cands = loadPeople().filter(p => (cid && p.companyId === cid) || (ct && normKey(p.name || '') === ct) || (cmp && normKey(p.company || '') === cmp));
+      ids = cands.filter(p => { const r = findSscForPerson(p); return r && r.timestamp === rec.timestamp; }).map(p => p.id).slice(0, 5);
+    }
+    if (!ids.length) return;
+    const box = await sscBoxFromRec(rec);
+    const ppl = loadPeople(); let changed = false;
+    ids.forEach(id => {
+      const p = ppl.find(x => x.id === id); if (!p) return;
+      const boxes = personTenantBoxes(p).slice();
+      const nk = normKey(box.concept || '');
+      let i = nk ? boxes.findIndex(b => normKey((b && b.concept) || '') === nk) : -1;
+      if (i < 0 && boxes.length === 1 && _tbIsBlank(boxes[0])) i = 0;
+      const patch = {};
+      Object.keys(box).forEach(k => { if (k === 'active') return; const v = box[k]; if (Array.isArray(v) ? v.length : (v !== '' && v != null && !(k === 'deal' && v === 'both' && i >= 0))) patch[k] = v; });
+      if (i >= 0) { const wasBlank = _tbIsBlank(boxes[i]); boxes[i] = tenantBoxClean(Object.assign(patch, wasBlank ? { active: true } : {}), boxes[i]); }
+      else { boxes.push(tenantBoxClean(Object.assign({}, box, { active: true }), {})); i = boxes.length - 1; }
+      p.tenantBoxes = boxes.slice(0, 30); if (p.tenantBox) delete p.tenantBox;
+      try { logActivity(p, 'Note', ('Tenant-Box updated from Site Criteria (SSC)' + (box.concept ? (' — ' + box.concept) : '')).slice(0, 200), { by: (req && req.user && req.user.name) || 'Lavano', byUser: (req && req.user && req.user.username) || '' }); } catch (e) {}
+      p.updatedAt = new Date().toISOString(); changed = true;
+    });
+    if (changed) savePeople(ppl);
+  } catch (e) { console.error('ssc -> tenant-box sync error:', e && e.message); }
+}
+// AI: read the latest SSC on file and propose a Tenant-Box concept (does NOT save — the rep reviews).
+app.post('/api/person/:id/tenantbox/from-ssc', express.json(), async (req, res) => {
+  const arr = loadPeople(); const p = arr.find(x => x.id === req.params.id);
+  if (!p) return res.status(404).json({ ok: false, error: 'Contact not found.' });
+  const rec = findSscForPerson(p);
+  if (!rec) return res.json({ ok: false, error: 'No Site Criteria (SSC) on file for this contact yet.' });
+  let out;
+  try { out = await sscBoxFromRec(rec); }
+  catch (e) { return res.status(502).json({ ok: false, error: String((e && e.message) || e) }); }
   res.json({ ok: true, box: out, sscName: rec.name || (rec.data && rec.data.concept) || 'Site Criteria', sscDate: rec.timestamp || '' });
 });
 // Sites/spaces matching this tenant's requirement sets (open inventory only), grouped by concept.
