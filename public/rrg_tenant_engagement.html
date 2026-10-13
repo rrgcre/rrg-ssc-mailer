@@ -379,13 +379,13 @@ a.feat:hover{background:#f7f9fc;}
 /* Requirement spec card — the tenant's Tenant-Box + Site Selection Criteria at a glance */
 .rq{display:flex;flex-direction:column;gap:16px}
 #rqView{container-type:inline-size}
-.rqhero{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-radius:12px;overflow:hidden;background:linear-gradient(135deg,#000E31 0%,#14295a 100%);color:#fff}
-.rqhero > div{padding:14px 16px 13px;border-left:1px solid rgba(255,255,255,.09);min-width:0}
+.rqhero{display:grid;grid-template-columns:minmax(0,1.7fr) repeat(3,minmax(0,1fr));border-radius:10px;overflow:hidden;background:#f7f9fc;border:1px solid #e6eaf2;color:var(--navy)}
+.rqhero > div{padding:12px 16px 11px;border-left:1px solid #e6eaf2;min-width:0}
 .rqhero > div:first-child{border-left:none}
-.rqhero .k{font-size:9.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#93a6cc}
-.rqhero .v{font-size:21px;font-weight:800;letter-spacing:-.02em;margin-top:3px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
-.rqhero .v small{font-size:12px;font-weight:700;color:#b9c6e2;margin-left:2px}
-.rqhero .s{font-size:11.5px;color:#b9c6e2;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rqhero .k{font-size:9.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#8a93a8}
+.rqhero .v{font-size:19px;font-weight:800;letter-spacing:-.02em;margin-top:3px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+.rqhero .v small{font-size:11.5px;font-weight:700;color:#8a93a8;margin-left:3px}
+.rqhero .s{font-size:11.5px;color:#6b7488;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rqrow{display:grid;grid-template-columns:118px minmax(0,1fr);gap:12px;align-items:start}
 .rqrow .k{font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#8a93a8;padding-top:5px}
 .rqchips{display:flex;flex-wrap:wrap;gap:6px}
@@ -404,7 +404,7 @@ a.feat:hover{background:#f7f9fc;}
 .rqmatch b{background:#1f8a5b;color:#fff;border-radius:999px;padding:0 7px;font-size:11px;line-height:17px}
 #crEdit{display:none;margin-top:4px}
 #crEdit.on{display:block}
-@container (max-width:600px){ .rqhero{grid-template-columns:repeat(2,minmax(0,1fr))} .rqhero > div:nth-child(3){border-left:none} .rqhero > div:nth-child(n+3){border-top:1px solid rgba(255,255,255,.09)} .rqrow{grid-template-columns:1fr;gap:5px} .rqrow .k{padding-top:0} }
+@container (max-width:600px){ .rqhero{grid-template-columns:repeat(2,minmax(0,1fr))} .rqhero > div:nth-child(3){border-left:none} .rqhero > div:nth-child(n+3){border-top:1px solid #e6eaf2} .rqrow{grid-template-columns:1fr;gap:5px} .rqrow .k{padding-top:0} }
 @media (max-width:760px){ .rqhero{grid-template-columns:repeat(2,minmax(0,1fr))} .rqhero > div:nth-child(3){border-left:none} .rqrow{grid-template-columns:1fr;gap:4px} }
 /* Manage panel — grouped, quieter */
 .mng .mngsec{font-size:10.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--navy);margin:16px 0 10px;padding-bottom:6px;border-bottom:2px solid #eef1f6;display:flex;align-items:center;gap:7px}
@@ -1040,7 +1040,7 @@ function loadSscLink(){ var el=document.getElementById('sscLink'); if(!el||!A) r
 var CR_EDIT=false, RQ_TB=null, RQ_MATCH=null;
 function _rqv(id,k){ var e=document.getElementById(id); if(e) return String(e.value||'').trim(); return String(((A&&A.criteria)||{})[k]||'').trim(); }
 function _rqN(v){ var n=Number(String(v==null?'':v).replace(/[^0-9.]/g,'')); return n||0; }
-function _rqK(n){ return n>=1000?(Math.round(n/100)/10).toString().replace(/\.0$/,'')+'K':String(n); }
+function _rqK(n){ return Number(n).toLocaleString('en-US'); }
 function _rqSplit(v,re){ return String(v||'').split(re||/\s*[;·]\s*/).map(function(x){return x.trim();}).filter(Boolean); }
 function _rqPickTb(boxes){ if(!boxes||!boxes.length) return null; var nm=_sscNorm(A&&A.business); var hit=boxes.filter(function(b){ var c=_sscNorm(b&&b.concept); return c.length>=4&&nm.length>=4&&(c.indexOf(nm)===0||nm.indexOf(c)===0); })[0]; return hit||(boxes.length===1?boxes[0]:(boxes.filter(function(b){return b&&b.active;})[0]||boxes[0])); }
 function loadReqTb(){ if(!A||!A.clientPersonId) return; var pid=A.clientPersonId;
@@ -1053,7 +1053,7 @@ function renderReq(){ var host=document.getElementById('rqView'); if(!host||!A) 
   var rent=tb.budget?('$'+_rqN(tb.budget)):'', rentSub=tb.budget?'max /SF/yr':'', crb=_rqv('cr_budget','budget'); if(!rent&&crb){ rent=crb.replace(/\/SF.*$/i,''); rentSub=/\/SF/i.test(crb)?'/SF/yr':(crb.replace(rent,'').trim()||''); }
   var term=_rqv('cr_term','termYears'), tl=_rqv('cr_timeline','timeline');
   var deal={lease:'Lease only',purchase:'Purchase only',both:'Lease or buy'}[tb.deal||'']||'';
-  var cell=function(k,v,unit,sub){ return '<div><div class="k">'+k+'</div><div class="v">'+(v?(esc(v)+(unit?'<small>'+esc(unit)+'</small>':'')):'<span style="color:#5d6f96">—</span>')+'</div><div class="s">'+esc(sub||' ')+'</div></div>'; };
+  var cell=function(k,v,unit,sub){ return '<div><div class="k">'+k+'</div><div class="v">'+(v?(esc(v)+(unit?'<small>'+esc(unit)+'</small>':'')):'<span style="color:#c3cad6">—</span>')+'</div><div class="s">'+esc(sub||' ')+'</div></div>'; };
   var hero='<div class="rqhero">'+cell('Size',size,size?'SF':'',sId?('Ideal '+sId.toLocaleString('en-US')+' SF'):'')+cell('Rent',rent,'',rentSub)+cell('Term',term?(_rqN(term)||term):'',term?'yrs':'',deal)+cell('Open by',tl.replace(/^open by\s*/i,''),'',_rqv('cr_use','useType'))+'</div>';
   var chips=function(list,cls){ return list.map(function(x){ return '<span class="rqc'+(cls?' '+cls:'')+'">'+esc(x)+'</span>'; }).join(''); };
   var row=function(k,html){ return html?('<div class="rqrow"><div class="k">'+k+'</div><div class="rqchips">'+html+'</div></div>'):''; };
