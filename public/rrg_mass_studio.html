@@ -442,7 +442,7 @@ function loadCampaigns(){
         { label:'Complaints', align:'right', sort:function(a,b){ return (a.complaints||0)-(b.complaints||0); }, cell:function(c){ return metricInline(c.complaints,c.total||c.sent||0); } },
         { label:'Bounces', align:'right', sort:function(a,b){ return (a.bounces||0)-(b.bounces||0); }, cell:function(c){ return metricInline(c.bounces,c.total||c.sent||0); } },
         { label:'Created', sort:function(a,b){ return RRGList.cmp(a.created_at||'',b.created_at||''); }, cell:function(c){ return '<span style="font-size:12px;color:var(--muted);white-space:nowrap;">'+fmtDate(c.created_at)+'</span>'; } },
-        { label:'Next send', sort:function(a,b){ return RRGList.cmp(a.next_run||'9999',b.next_run||'9999'); }, cell:function(c){ if(!c.next_run) return '<span style="color:var(--muted);">—</span>'; var more=Math.max(0,Number(c.sched_pending||0)-1); return '<span style="font-size:12px;font-weight:700;color:var(--navy);white-space:nowrap;">'+fmtDate(c.next_run)+'</span>'+(more?('<div style="font-size:11px;color:var(--muted);white-space:nowrap;">+'+more+' more scheduled</div>'):''); } },
+        { label:'Next send', sort:function(a,b){ return RRGList.cmp(a.next_run||'9999',b.next_run||'9999'); }, cell:function(c){ var _nr=(Number(c.resend_days||0)>0&&Number(c.resend_run||0)===0)?('<div style="font-size:11px;color:#2c5c8f;white-space:nowrap;">\u21bb non-openers '+c.resend_days+'d after send</div>'):''; if(!c.next_run) return _nr||'<span style="color:var(--muted);">—</span>'; var more=Math.max(0,Number(c.sched_pending||0)-1); return '<span style="font-size:12px;font-weight:700;color:var(--navy);white-space:nowrap;">'+fmtDate(c.next_run)+'</span>'+(more?('<div style="font-size:11px;color:var(--muted);white-space:nowrap;">+'+more+' more scheduled</div>'):'')+_nr; } },
         { label:'Last sent', sort:function(a,b){ return RRGList.cmp(lastSent(a)||'',lastSent(b)||''); }, cell:function(c){ var d=lastSent(c); return d?('<span style="font-size:12px;color:var(--navy);white-space:nowrap;font-weight:600;">'+fmtDate(d)+'</span>'):'<span style="color:var(--muted);">—</span>'; } },
         { label:'Actions', align:'right', sortable:false, cell:campActionsCell }
       ]
@@ -885,7 +885,7 @@ function openScheduleModal(id){
   var ov=document.getElementById('schedmOv');
   if(!ov){ ov=document.createElement('div'); ov.id='schedmOv'; ov.className='schedm-ov'; document.body.appendChild(ov); ov.addEventListener('click',function(e){ if(e.target===ov) closeScheduleModal(); }); document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeScheduleModal(); }); }
   ov.style.display='flex'; ov.innerHTML='<div class="schedm-card"><div class="schedm-body schedm-note">Loading…</div></div>';
-  api('GET','/api/mail/campaigns/'+id).then(function(r){ if(r&&r.campaign){ SCHEDM.name=r.campaign.name||''; SCHEDM.status=r.campaign.status||''; } return api('GET','/api/mail/campaigns/'+id+'/schedule'); }).then(function(r){ SCHEDM.saved=((r&&r.schedules)||[]).filter(function(x){return x.status==='pending';}); schedmRender(); }).catch(function(){ SCHEDM.saved=[]; schedmRender(); });
+  api('GET','/api/mail/campaigns/'+id).then(function(r){ if(r&&r.campaign){ SCHEDM.name=r.campaign.name||''; SCHEDM.status=r.campaign.status||''; } return api('GET','/api/mail/campaigns/'+id+'/schedule'); }).then(function(r){ SCHEDM.saved=((r&&r.schedules)||[]).filter(function(x){return x.status==='pending';}); SCHEDM.resend=(r&&r.resend)||null; schedmRender(); }).catch(function(){ SCHEDM.saved=[]; schedmRender(); });
 }
 // ===== Schedule sends — NetSuite-style form: Recurrence field group + Sends sublist, live preview =====
 var SCHED_MAX=52;   // hard ceiling per campaign (one a week for a year)
@@ -941,6 +941,7 @@ function schedmRender(){
     +'<div class="nstblw"><table class="nstbl"><thead><tr><th>#</th><th>Date</th><th>Time</th><th>Slot</th><th>Status</th><th></th></tr></thead><tbody>'+body+'</tbody></table></div>'
     +(over?'<div class="nswarn">That’s more than '+SCHED_MAX+' sends on one campaign ('+have+' already scheduled). Lower the number of sends.</div>':'')
     +'<div class="nshelp">Only one send per morning and one per afternoon across all campaigns — if a slot is already taken by another campaign, that send moves to the next open business day at the same time. Tick <b>Allow weekends &amp; holidays</b> for a deliberate one-off that should ignore the calendar rules.</div>'
+    +_nrSection()
     +'<div class="schedm-msg" id="schedmMsg"></div>'
     +'</div>'
     +'<div class="schedm-ft">'+actions+'</div>'
@@ -949,8 +950,25 @@ function schedmRender(){
   var bind=function(id,key,ev,num){ var el=document.getElementById(id); if(!el) return; el.addEventListener(ev||'change',function(){ f[key]=(el.type==='checkbox')?el.checked:el.value; schedmRender(); var nx=document.getElementById(id); if(nx&&nx.focus&&ev==='input'){ try{ nx.focus(); var L=String(nx.value).length; if(nx.setSelectionRange&&nx.type!=='number') nx.setSelectionRange(L,L); }catch(e){} } }); };
   bind('nsFreq','freq'); bind('nsStart','start'); bind('nsEvery','every','input'); bind('nsCount','count','input'); bind('nsAllow','allow');
   ov.querySelectorAll('[data-nsclose]').forEach(function(b){ b.onclick=closeScheduleModal; });
+  var _nrb=document.getElementById('nrSave'); if(_nrb) _nrb.onclick=nrSave;
   ov.querySelectorAll('[data-nssave]').forEach(function(b){ b.onclick=schedmSave; });
   ov.querySelectorAll('[data-cancel]').forEach(function(b){ b.onclick=function(e){ e.preventDefault(); var sid=b.getAttribute('data-cancel'); api('POST','/api/mail/schedules/'+sid+'/cancel',{}).then(function(){ SCHEDM.saved=SCHEDM.saved.filter(function(x){return String(x.id)!==sid;}); schedmRender(); schedmMsg('Send canceled.',false); loadCampaigns(); }); }; });
+}
+// Resend to non-openers — one automatic follow-up to recipients who neither opened nor clicked, X days after the send finishes.
+function _nrSection(){
+  var R=SCHEDM.resend||{days:0,subject:'',run:0,note:''};
+  var done=(R.run>0||R.run===-1);
+  var status=R.run>0?('<span class="nspill sch">Done</span> '+esc(R.note||'Resent')):(R.run===-1?('<span class="nspill">Skipped</span> '+esc(R.note||'')):(R.days?('<span class="nspill new">On</span> '+R.days+' day'+(R.days===1?'':'s')+' after the send finishes'):'<span style="color:var(--muted)">Off</span>'));
+  return '<div class="nsgrp" style="margin-top:18px">Resend to non-openers</div>'
+    +'<div style="font-size:12.5px;margin:2px 0 10px">'+status+'</div>'
+    +(done?'':('<div class="nsgrid"><label class="nsf"><span>Resend after</span><div class="nsinl"><input type="number" id="nrDays" min="0" max="30" value="'+(R.days||0)+'"><em>day(s)</em></div></label>'
+      +'<label class="nsf" style="grid-column:span 2"><span>New subject line (optional)</span><input type="text" id="nrSubj" maxlength="300" value="'+esc(R.subject||'')+'" placeholder="Leave blank to reuse the original subject"></label>'
+      +'<div style="align-self:end"><button class="btn" type="button" id="nrSave">Save</button></div></div>'
+      +'<div class="nshelp">Sends once more, on the first business-day morning that many days after the send finishes, only to people who neither opened nor clicked. Unsubscribes, bounces and anyone suppressed are always left out; for a broker blast, brokers who already replied are left out too. A new subject line usually works better. Set 0 to turn it off.</div>'));
+}
+function nrSave(){
+  var d=Number((document.getElementById('nrDays')||{}).value||0), s=(document.getElementById('nrSubj')||{}).value||'';
+  api('POST','/api/mail/campaigns/'+SCHEDM.id+'/resend',{days:d, subject:s}).then(function(j){ if(!j||!j.ok){ schedmMsg((j&&j.error)||'Could not save.',true); return; } SCHEDM.resend=Object.assign({},SCHEDM.resend||{}, {days:j.resendDays, subject:j.resendSubject}); schedmRender(); schedmMsg(j.resendDays?('Resend to non-openers set: '+j.resendDays+' day'+(j.resendDays===1?'':'s')+' after the send.'):'Resend to non-openers is off.'); if(typeof loadCampaigns==='function') try{ loadCampaigns(); }catch(e){} });
 }
 function schedmAdd(){ schedmRender(); }
 function schedmGen(){ schedmRender(); }

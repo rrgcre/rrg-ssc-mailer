@@ -61,6 +61,10 @@ async function migrate() {
     await pool.query(`ALTER TABLE mm_campaigns ADD COLUMN IF NOT EXISTS ab_enabled BOOLEAN DEFAULT false`);
     await pool.query(`ALTER TABLE mm_campaigns ADD COLUMN IF NOT EXISTS subject_b TEXT DEFAULT ''`);
     await pool.query(`ALTER TABLE mm_campaigns ADD COLUMN IF NOT EXISTS html_b TEXT DEFAULT ''`);
+    await pool.query(`ALTER TABLE mm_campaigns ADD COLUMN IF NOT EXISTS resend_days INT DEFAULT 0`);
+    await pool.query(`ALTER TABLE mm_campaigns ADD COLUMN IF NOT EXISTS resend_subject TEXT DEFAULT ''`);
+    await pool.query(`ALTER TABLE mm_campaigns ADD COLUMN IF NOT EXISTS resend_run INT DEFAULT 0`);
+    await pool.query(`ALTER TABLE mm_campaigns ADD COLUMN IF NOT EXISTS resend_note TEXT DEFAULT ''`);
     await pool.query(`ALTER TABLE mm_campaigns ADD COLUMN IF NOT EXISTS ab_pct INT DEFAULT 30`);
     await pool.query(`ALTER TABLE mm_campaigns ADD COLUMN IF NOT EXISTS ab_metric TEXT DEFAULT 'opens'`);
     await pool.query(`ALTER TABLE mm_campaigns ADD COLUMN IF NOT EXISTS ab_hours INT DEFAULT 4`);
@@ -496,6 +500,45 @@ async function checkSchedules() {
   }
   return fired;
 }
+// ---- Resend to non-openers: X days after a campaign finishes, send it again only to recipients of the last run
+// who neither opened nor clicked (still active, not suppressed, not excluded — e.g. brokers who already replied).
+// Fires on a business day between 9 and 11 AM local, and gives up a week after it was due.
+let _resendExclude = async function () { return []; };
+async function checkNonOpenResends() {
+  if (!DB_READY || !sesConfigured()) return false;
+  const tz = process.env.MAIL_TZ || 'America/Chicago';
+  const nowInf = (await q(`SELECT EXTRACT(DOW FROM now() AT TIME ZONE $1)::int AS dow, EXTRACT(HOUR FROM now() AT TIME ZONE $1)::int AS hr, (now() AT TIME ZONE $1)::date::text AS ld`, [tz])).rows[0];
+  if (nowInf.dow === 0 || nowInf.dow === 6 || _isHolidayLocal(nowInf.ld) || nowInf.hr < 9 || nowInf.hr >= 11) return false;
+  const cands = (await q(`SELECT * FROM mm_campaigns WHERE tenant=$1 AND COALESCE(resend_days,0) > 0 AND COALESCE(resend_run,0) = 0
+      AND status='sent' AND finished_at IS NOT NULL AND finished_at <= now() - (resend_days * interval '1 day')`, [TENANT])).rows;
+  let fired = false;
+  for (const c of cands) {
+    if (Date.parse(c.finished_at) < Date.now() - (Number(c.resend_days) + 7) * 86400000) { await q(`UPDATE mm_campaigns SET resend_run=-1, resend_note='expired (missed its window)' WHERE id=$1`, [c.id]); continue; }
+    const src = Number(c.runs || 1); const runSeq = src + 1;
+    let excl = []; try { excl = ((await _resendExclude(c)) || []).map(x => String(x).trim().toLowerCase()).filter(Boolean); } catch (e) {}
+    const r = await q(`INSERT INTO mm_sends(tenant,campaign_id,subscriber_id,email,token,status,run_seq)
+      SELECT $1, d.campaign_id, d.subscriber_id, d.email, md5(random()::text||clock_timestamp()::text||d.id::text||'nr'), 'pending', $3
+      FROM mm_sends d JOIN mm_subscribers s ON s.id=d.subscriber_id
+      WHERE d.tenant=$1 AND d.campaign_id=$2 AND d.run_seq=$4 AND d.status='sent' AND d.opened_at IS NULL AND d.clicked_at IS NULL
+        AND s.status='active' AND NOT (lower(d.email) = ANY($5::text[]))
+        AND NOT EXISTS (SELECT 1 FROM mm_suppressions x WHERE x.tenant=$1 AND x.email=d.email)`, [TENANT, c.id, runSeq, src, excl]);
+    const n = r.rowCount || 0;
+    if (!n) { await q(`UPDATE mm_campaigns SET resend_run=-1, resend_note='nobody left to resend to' WHERE id=$1`, [c.id]); continue; }
+    await q(`UPDATE mm_campaigns SET status='sending', runs=$2, resend_run=$2, resend_note=$3, last_run_at=now(), finished_at=NULL, total=(SELECT count(*) FROM mm_sends WHERE campaign_id=$1) WHERE id=$1`, [c.id, runSeq, 'resent to ' + n + ' non-openers']);
+    try { _logSys(null, 'Campaigns', 'Resending “' + (c.name || 'Campaign') + '” to ' + n.toLocaleString() + ' who didn’t open it (' + c.resend_days + ' day' + (c.resend_days == 1 ? '' : 's') + ' later)', { tool: 'campaigns', kind: 'resend', id: c.id, by: 'Scheduler', byUser: 'scheduler' }); } catch (e) {}
+    fired = true;
+  }
+  if (fired) kickDrainer();
+  return fired;
+}
+async function setResend(id, days, subject) {
+  const c = (await q(`SELECT id, COALESCE(resend_run,0) AS resend_run FROM mm_campaigns WHERE tenant=$1 AND id=$2`, [TENANT, Number(id)])).rows[0];
+  if (!c) throw new Error('Campaign not found.');
+  if (c.resend_run > 0) throw new Error('This campaign already resent to its non-openers.');
+  const d = Math.max(0, Math.min(30, parseInt(days, 10) || 0));
+  await q(`UPDATE mm_campaigns SET resend_days=$2, resend_subject=$3, resend_run=0, resend_note='' WHERE tenant=$1 AND id=$4`, [TENANT, d, String(subject || '').slice(0, 300), Number(id)]);
+  return { resendDays: d, resendSubject: String(subject || '').slice(0, 300) };
+}
 async function pauseCampaign(campaignId) { await q(`UPDATE mm_campaigns SET status='paused' WHERE tenant=$1 AND id=$2 AND status='sending'`, [TENANT, campaignId]); }
 
 /* ---------------- Send worker (throttled) ---------------- */
@@ -530,7 +573,7 @@ async function maybeDecideAb() {
 async function _loop() {
   while (true) {
     await maybeDecideAb();
-    const batch = (await q(`SELECT d.id,d.email,d.token,d.campaign_id,d.variant,s.first_name,s.last_name
+    const batch = (await q(`SELECT d.id,d.email,d.token,d.campaign_id,d.variant,d.run_seq,s.first_name,s.last_name
       FROM mm_sends d JOIN mm_subscribers s ON s.id=d.subscriber_id JOIN mm_campaigns c ON c.id=d.campaign_id
       WHERE d.status='pending' AND c.status='sending' ORDER BY d.id ASC LIMIT $1`, [RATE])).rows;
     if (!batch.length) {
@@ -557,7 +600,8 @@ async function _loop() {
         const openUrl = BASE + '/mail/o/' + row.token + '.gif';
         const useB = (row.variant === 'B');
         const rawHtml = (useB && c.html_b) ? c.html_b : c.html;
-        const rawSubj = (useB && c.subject_b) ? c.subject_b : c.subject;
+        let rawSubj = (useB && c.subject_b) ? c.subject_b : c.subject;
+        if (c.resend_run > 0 && Number(row.run_seq) === Number(c.resend_run) && String(c.resend_subject || '').trim()) rawSubj = c.resend_subject;   // non-opener resend can carry its own subject
         let html = mergeFields(rawHtml, sub);
         if (c.preheader) html = _injectPreheader(html, mergeFields(c.preheader, sub));
         html = trackLinks(html, lkey, row.token);   // before the footer, so unsubscribe/preferences links stay direct
@@ -712,7 +756,7 @@ function mount(app, deps) {
     const p=[TENANT]; let wh='c.tenant=$1 AND COALESCE(c.archived,false)=$2'; p.push(arch);
     if(qq){ p.push('%'+qq+'%'); wh+=' AND (LOWER(c.name) LIKE $'+p.length+' OR LOWER(c.subject) LIKE $'+p.length+')'; }
     if(days>0){ p.push(days); wh+=' AND c.created_at >= now() - ($'+p.length+" * interval '1 day')"; }
-    const rows = (await q(`SELECT c.id,c.name,c.subject,c.status,c.total,c.sent,c.failed,c.opens,c.clicks,COALESCE(c.clicks_total,0) AS clicks_total,c.bounces,c.complaints,c.unsubs,c.created_at,c.started_at,c.finished_at,COALESCE(c.archived,false) AS archived,COALESCE(c.ab_enabled,false) AS ab_enabled,COALESCE(c.ab_winner,'') AS ab_winner,COALESCE(c.runs,0) AS runs,(SELECT min(run_at) FROM mm_schedules x WHERE x.tenant=c.tenant AND x.campaign_id=c.id AND x.status='pending') AS next_run,(SELECT count(*)::int FROM mm_schedules x WHERE x.tenant=c.tenant AND x.campaign_id=c.id AND x.status='pending') AS sched_pending,l.name AS list_name,COALESCE(c.seg_type,'') AS seg_type,COALESCE(c.seg_mode,'') AS seg_mode FROM mm_campaigns c LEFT JOIN mm_lists l ON l.id=c.list_id WHERE ${wh} ORDER BY c.id DESC LIMIT 500`, p)).rows;
+    const rows = (await q(`SELECT c.id,c.name,c.subject,c.status,c.total,c.sent,c.failed,c.opens,c.clicks,COALESCE(c.clicks_total,0) AS clicks_total,c.bounces,c.complaints,c.unsubs,c.created_at,c.started_at,c.finished_at,COALESCE(c.archived,false) AS archived,COALESCE(c.ab_enabled,false) AS ab_enabled,COALESCE(c.ab_winner,'') AS ab_winner,COALESCE(c.runs,0) AS runs,(SELECT min(run_at) FROM mm_schedules x WHERE x.tenant=c.tenant AND x.campaign_id=c.id AND x.status='pending') AS next_run,(SELECT count(*)::int FROM mm_schedules x WHERE x.tenant=c.tenant AND x.campaign_id=c.id AND x.status='pending') AS sched_pending,COALESCE(c.resend_days,0) AS resend_days,COALESCE(c.resend_run,0) AS resend_run,COALESCE(c.resend_subject,'') AS resend_subject,COALESCE(c.resend_note,'') AS resend_note,l.name AS list_name,COALESCE(c.seg_type,'') AS seg_type,COALESCE(c.seg_mode,'') AS seg_mode FROM mm_campaigns c LEFT JOIN mm_lists l ON l.id=c.list_id WHERE ${wh} ORDER BY c.id DESC LIMIT 500`, p)).rows;
     res.json({ ok: true, campaigns: rows });
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.get('/api/mail/campaigns/:id', requireAdmin, guard, async (req, res) => { try { const c = (await q('SELECT * FROM mm_campaigns WHERE tenant=$1 AND id=$2', [TENANT, req.params.id])).rows[0]; if (!c) return res.status(404).json({ ok: false, error: 'Not found.' }); res.json({ ok: true, campaign: c }); } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
@@ -767,9 +811,13 @@ function mount(app, deps) {
     await q('DELETE FROM mm_campaigns WHERE tenant=$1 AND id=$2', [TENANT, id]);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
+  app.post('/api/mail/campaigns/:id/resend', requireAdmin, guard, express.json(), async (req, res) => { try {
+    const b = req.body || {}; const r = await setResend(req.params.id, b.days, b.subject); res.json(Object.assign({ ok: true }, r));
+  } catch (e) { res.status(400).json({ ok: false, error: String(e.message || e) }); } });
   app.get('/api/mail/campaigns/:id/schedule', requireAdmin, guard, async (req, res) => { try {
     const rows = (await q(`SELECT id, run_at, status, done_at FROM mm_schedules WHERE tenant=$1 AND campaign_id=$2 ORDER BY run_at ASC`, [TENANT, Number(req.params.id)])).rows;
-    res.json({ ok: true, schedules: rows });
+    const rc = (await q(`SELECT COALESCE(resend_days,0) AS d, COALESCE(resend_subject,'') AS s, COALESCE(resend_run,0) AS r, COALESCE(resend_note,'') AS n, subject, finished_at FROM mm_campaigns WHERE tenant=$1 AND id=$2`, [TENANT, Number(req.params.id)])).rows[0] || {};
+    res.json({ ok: true, schedules: rows, resend: { days: rc.d || 0, subject: rc.s || '', run: rc.r || 0, note: rc.n || '', subject0: rc.subject || '', finishedAt: rc.finished_at || null } });
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.post('/api/mail/campaigns/:id/schedule', requireAdmin, guard, express.json(), async (req, res) => { try {
     const id = Number(req.params.id); const b = req.body || {};
@@ -1158,7 +1206,8 @@ function mount(app, deps) {
 
   if (DB_READY && sesConfigured()) { migrate().then(() => kickDrainer()).catch(() => {}); }
   if (DB_READY && !_abTimer) { _abTimer = setInterval(() => { maybeDecideAb().then(r => { if (r) kickDrainer(); }).catch(() => {}); }, 60000); }
-  if (DB_READY && !_schedTimer) { _schedTimer = setInterval(() => { checkSchedules().catch(() => {}); }, 30000); }
+  if (DB_READY && !_schedTimer) { _schedTimer = setInterval(() => { checkSchedules().catch(() => {}); }, 30000); setInterval(() => { checkNonOpenResends().catch(e => console.error('[MAIL] resend: ' + (e && e.message))); }, 10 * 60 * 1000); }
+  if (typeof deps.resendExclude === 'function') _resendExclude = deps.resendExclude;
   if (DB_READY) { migrate().then(() => checkSchedules()).catch(() => {}); }
 }
 
