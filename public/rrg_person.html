@@ -1717,6 +1717,21 @@ function saveTour(){
   fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else { b.disabled=false; m.textContent=(j&&j.error)||'Could not save.'; } }).catch(function(){ b.disabled=false; m.textContent='Could not reach the server.'; });
 }
 function companyRail(){ if(!(CO&&CO.id)) return '<div class="card"><div class="ch"><b>Company</b></div><div class="cb"><div class="empty">Not linked to a company.</div></div></div>'; return '<div class="card"><div class="ch"><b>Company</b></div><div class="cb"><a class="raillink" href="./rrg_company.html?id='+encodeURIComponent(CO.id)+'"><div class="cav" style="width:36px;height:36px;border-radius:8px;background:#eef1f6;color:#6b7488;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12px">'+esc(initials(CO.name))+'</div><div><div style="font-weight:600;color:var(--ink)">'+esc(CO.name)+'</div><div style="font-size:12.5px;color:var(--muted);margin-top:1px">'+esc(CO.type||'Company')+' →</div></div></a></div></div>'; }
+// Email campaigns this contact received (Email Studio) — mass sends stay out of the activity timeline (one line per
+// recipient would bury real activity); they live here, and replies to a blast are logged as activities.
+function mailHistoryCard(){ setTimeout(loadMailHistory,0); return '<div class="card" id="mailHistCard"><div class="ch"><b>Email Campaigns</b><span id="mhCount">0</span></div><div class="cb" id="mhBody"><div class="rrempty">Checking…</div></div></div>'; }
+function loadMailHistory(){
+  var em=String((P&&(P.preferredEmail||P.email||((P.emails||[])[0])))||'').trim(); var body=document.getElementById('mhBody'); if(!body) return;
+  if(!em){ body.innerHTML='<div class="rrempty">No email on file.</div>'; return; }
+  fetch('/api/mail/recipient?email='+encodeURIComponent(em),{credentials:'same-origin'}).then(function(r){ if(r.status===403){ var c=document.getElementById('mailHistCard'); if(c) c.style.display='none'; return null; } return r.json(); }).then(function(j){
+    if(!j) return; var b=document.getElementById('mhBody'), n=document.getElementById('mhCount'); if(!b) return;
+    if(!j.ok){ b.innerHTML='<div class="rrempty">Not available.</div>'; return; }
+    var sends=(j.sends||[]).filter(function(x){ return x.sentAt; }); if(n) n.textContent=String(sends.length);
+    var sup=j.suppression?('<div style="font-size:12px;color:#b23a2c;margin-bottom:6px">Suppressed ('+esc(j.suppression.reason||'')+') — won’t receive campaigns.</div>'):'';
+    if(!sends.length){ b.innerHTML=sup+'<div class="rrempty">No campaigns received yet.</div>'; return; }
+    b.innerHTML=sup+sends.slice(0,8).map(function(x){ var st=x.clickedAt?'Clicked':(x.openedAt?'Opened':'Delivered'); return '<div class="rrow"><div class="rrmain"><div class="rrnm" style="font-weight:600">'+esc(x.subject||x.campaign||'Campaign')+'</div><div class="rrmt">'+esc(fmt(x.sentAt))+' · '+st+'</div></div></div>'; }).join('')+(sends.length>8?('<div class="rrmt" style="margin-top:4px">+'+(sends.length-8)+' more</div>'):'');
+  }).catch(function(){ var b=document.getElementById('mhBody'); if(b) b.innerHTML='<div class="rrempty">Not available.</div>'; });
+}
 function automationsCard(){
   var ens=(P&&P.enrollments)||[];
   var body = ens.length ? ens.map(function(e){
@@ -1800,7 +1815,7 @@ function applyRailOrder(){
   if(order&&order.length){ order.forEach(function(k){ if(!k) return; var c=rail.querySelector('.card[data-rk="'+String(k).replace(/["\\]/g,'')+'"]'); if(c&&c.parentNode===rail) rail.appendChild(c); }); }
   else {
     // First-time default order (no saved layout yet). "Files" is matched loosely since its label is the contact's name.
-    var DEFAULT_RAIL_ORDER=['Listings & Prelistings','Rep Engagements','Tasks','Calendar','Documents','Files','Buy-Box','Automations','Tenant-Box','Inquiries','Tours'];
+    var DEFAULT_RAIL_ORDER=['Listings & Prelistings','Rep Engagements','Tasks','Calendar','Documents','Files','Buy-Box','Automations','Email Campaigns','Tenant-Box','Inquiries','Tours'];
     DEFAULT_RAIL_ORDER.forEach(function(k){ var c; if(k==='Files'){ var cs=_railChildren(rail); for(var i=0;i<cs.length;i++){ if(/Files$/i.test(cs[i].getAttribute('data-rk')||'')){ c=cs[i]; break; } } } else { c=rail.querySelector('.card[data-rk="'+String(k).replace(/["\\]/g,'')+'"]'); } if(c&&c.parentNode===rail) rail.appendChild(c); });
   }
   _railTip(rail);
@@ -1884,7 +1899,7 @@ function render(){
       + ((P.system||P.locked)?('<div class="pdangerz"><div class="pdangernote">🔒 System-required record — permanent and cannot be deleted.</div></div>'):(CAN_DELETE?('<div class="pdangerz"><button class="pdelbtn" id="p_delete">Delete contact</button><div class="pdangernote">Removes this person from the registry. Their name stays on any past offers and tours. Cannot be undone.</div></div>'):''))
     + '</div></div></div>'
     + '<div class="mid">'+statTiles()+activityCard()+'</div>'
-    + '<div class="rail">'+relatedRail()+tasksCard()+appointmentsCard()+interestedCard()+buyBoxCard()+tenantBoxCard()+automationsCard()+agreementsCard()+filesCard()+'</div>';
+    + '<div class="rail">'+relatedRail()+tasksCard()+appointmentsCard()+interestedCard()+buyBoxCard()+tenantBoxCard()+automationsCard()+mailHistoryCard()+agreementsCard()+filesCard()+'</div>';
   var root=document.getElementById('root');
   _mountFlags();
   var pd=document.getElementById('p_delete'); if(pd) pd.addEventListener('click',deletePerson);

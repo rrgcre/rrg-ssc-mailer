@@ -472,6 +472,25 @@ async function listListingCandidates(username, max, daysArg, sources) {
   }));
   return out.filter(Boolean).sort((a, b) => b.ts - a.ts);
 }
+// Messages matching an arbitrary Gmail query, in the same shape as listListingCandidates (used to pull the
+// replies to one broker blast by its subject line).
+async function listByQuery(username, q, max) {
+  const lim = Math.min(Math.max(parseInt(max, 10) || 50, 1), 100);
+  const r = await gapi(username, 'https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=' + lim + '&q=' + encodeURIComponent(String(q || '')), {});
+  const j = await r.json();
+  if (!r.ok) throw new Error((j && j.error && j.error.message) || 'Gmail search failed.');
+  const ids = (j.messages || []).map(m => m.id);
+  const out = await Promise.all(ids.map(async id => {
+    try {
+      const mr = await gapi(username, 'https://gmail.googleapis.com/gmail/v1/users/me/messages/' + id + '?format=full', {});
+      const mj = await mr.json(); if (!mr.ok) return null;
+      const H = mj.payload && mj.payload.headers;
+      const atts = collectAttachments(mj.payload).filter(a => /\.(pdf|docx?)$/i.test(a.filename));
+      return { id: mj.id, threadId: mj.threadId, from: hdr(H, 'From'), subject: hdr(H, 'Subject'), date: hdr(H, 'Date') || '', ts: mj.internalDate ? Number(mj.internalDate) : 0, snippet: mj.snippet || '', body: (decodeBody(mj.payload) || ''), attachments: atts, autoSubmitted: hdr(H, 'Auto-Submitted') || '', precedence: hdr(H, 'Precedence') || '' };
+    } catch (e) { return null; }
+  }));
+  return out.filter(Boolean).sort((a, b) => b.ts - a.ts);
+}
 // Generic authenticated Google API JSON call (People, Calendar, etc.).
 async function gapiJSON(username, url, opts) {
   const r = await gapi(username, url, opts || {});
@@ -482,7 +501,7 @@ async function gapiJSON(username, url, opts) {
 module.exports = {
   isConfigured, SCOPES, statusFor, grantedScopes, redirectUri, authUrl, readState,
   connectFromCode, deleteToken, loadToken, statusForUser: statusFor,
-  messagesForContact, messageFull, searchLeadBodies, listCorrespondents, sendMessage, TOK_DIR,
+  messagesForContact, messageFull, searchLeadBodies, listCorrespondents, sendMessage, TOK_DIR, listByQuery,
   gapi, gapiJSON, accessToken, parseAddrs, listAgreementCandidates, getAttachment, listListingCandidates,
   listLabeledAttachments, sentMessages,
 };

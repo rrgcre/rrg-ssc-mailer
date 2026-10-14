@@ -539,7 +539,10 @@ async function _loop() {
                  finished_at = CASE WHEN EXISTS(SELECT 1 FROM mm_schedules x WHERE x.tenant=mm_campaigns.tenant AND x.campaign_id=mm_campaigns.id AND x.status='pending') THEN finished_at ELSE now() END
                WHERE status='sending'
                  AND NOT EXISTS(SELECT 1 FROM mm_sends d WHERE d.campaign_id=mm_campaigns.id AND d.status='pending')
-                 AND NOT EXISTS(SELECT 1 FROM mm_sends d WHERE d.campaign_id=mm_campaigns.id AND d.status='hold')`);
+                 AND NOT EXISTS(SELECT 1 FROM mm_sends d WHERE d.campaign_id=mm_campaigns.id AND d.status='hold')
+               RETURNING id, name, status, sent, failed, total`).then(function (r) {
+        try { (r.rows || []).forEach(function (c) { const f = Number(c.failed || 0); _logSys(null, 'Campaigns', 'Finished “' + (c.name || 'Campaign') + '”: delivered to ' + Number(c.sent || 0).toLocaleString() + ' of ' + Number(c.total || 0).toLocaleString() + (f ? (' · ' + f.toLocaleString() + ' failed') : ''), { tool: 'campaigns', kind: 'finished', id: c.id, by: 'Email Studio', byUser: 'scheduler' }); }); } catch (e) {}
+      });
       break;
     }
     const t0 = Date.now(); const camps = {};
@@ -1200,6 +1203,53 @@ async function scheduleCampaignAt(id, runAtISO) {
   await q(`UPDATE mm_campaigns SET status='scheduled' WHERE tenant=$1 AND id=$2 AND status IN('draft')`, [TENANT, id]);
   return { campaignId: id, runAt: d.toISOString() };
 }
+// Automation helpers ---------------------------------------------------------------------------
+// Schedule a campaign for the next open business-day slot at a local hour (default 9 AM), never today
+// if that hour has passed. Uses the same one-AM/one-PM-per-day rule as the scheduler (slot taken → next day).
+async function scheduleAutoSlot(id, hour) {
+  id = Number(id); hour = (hour == null) ? 9 : Number(hour);
+  const tz = process.env.MAIL_TZ || 'America/Chicago';
+  const base = (await q(`SELECT (now() AT TIME ZONE $1)::date::text AS today, EXTRACT(HOUR FROM now() AT TIME ZONE $1)::int AS hr`, [tz])).rows[0];
+  let day = base.today; let start = (base.hr < hour) ? 0 : 1;
+  for (let i = start; i < start + 60; i++) {
+    const r = (await q(`SELECT (($1::date + $2::int) + make_interval(hours => $3::int)) AT TIME ZONE $4 AS run_at, ($1::date + $2::int)::text AS ld, EXTRACT(DOW FROM ($1::date + $2::int))::int AS dow`, [day, i, hour, tz])).rows[0];
+    if (r.dow === 0 || r.dow === 6 || _isHolidayLocal(r.ld)) continue;
+    const slot = hour < 12 ? 'am' : 'pm';
+    const taken = (await q(`SELECT count(*)::int AS n FROM mm_schedules WHERE tenant=$1 AND slot_date=$2 AND slot=$3 AND status='pending'`, [TENANT, r.ld, slot])).rows[0].n;
+    if (taken) continue;
+    await q(`INSERT INTO mm_schedules(tenant,campaign_id,run_at,status,slot_date,slot,manual) VALUES($1,$2,$3,'pending',$4,$5,false)`, [TENANT, id, new Date(r.run_at).toISOString(), r.ld, slot]);
+    await q(`UPDATE mm_campaigns SET status='scheduled' WHERE tenant=$1 AND id=$2 AND status IN('draft')`, [TENANT, id]);
+    return { campaignId: id, runAt: new Date(r.run_at).toISOString() };
+  }
+  throw new Error('No open send slot in the next 60 days.');
+}
+// The most recent broker blast for an engagement that actually went out (subject + html), for follow-ups.
+async function latestRequirementFor(srcKey) {
+  const r = (await q(`SELECT id, subject, html FROM mm_campaigns WHERE tenant=$1 AND src='broker-blast' AND src_key=$2 AND COALESCE(sent,0) > 0 ORDER BY COALESCE(finished_at, started_at, created_at) DESC LIMIT 1`, [TENANT, String(srcKey || '')])).rows[0];
+  return r ? { id: String(r.id), subject: r.subject || '', html: r.html || '' } : null;
+}
+// Cancel every pending send of every broker blast on an engagement (sent history is kept). Returns the count.
+async function cancelPendingForSrc(srcKey) {
+  const r = await q(`UPDATE mm_schedules s SET status='canceled', done_at=now() FROM mm_campaigns c
+    WHERE s.tenant=$1 AND s.status='pending' AND c.id=s.campaign_id AND c.tenant=$1 AND c.src='broker-blast' AND c.src_key=$2 RETURNING s.campaign_id`, [TENANT, String(srcKey || '')]);
+  const ids = Array.from(new Set((r.rows || []).map(x => Number(x.campaign_id))));
+  if (ids.length) await q(`UPDATE mm_campaigns SET status='draft', archived=true WHERE tenant=$1 AND id = ANY($2::bigint[]) AND status='scheduled' AND COALESCE(sent,0)=0`, [TENANT, ids]);
+  return r.rowCount || 0;
+}
+// Broker blasts that finished sending within the last `days` days (newest first) — drives reply import + recaps.
+async function recentBlasts(days) {
+  const rows = (await q(`SELECT id, src_key, subject, finished_at, sent, total, bounces, complaints, unsubs, opens FROM mm_campaigns
+    WHERE tenant=$1 AND src='broker-blast' AND COALESCE(sent,0) > 0 AND finished_at IS NOT NULL AND finished_at > now() - ($2::int * interval '1 day')
+    ORDER BY finished_at DESC LIMIT 200`, [TENANT, Math.max(1, parseInt(days, 10) || 30)])).rows;
+  return rows.map(r => ({ id: String(r.id), srcKey: r.src_key || '', subject: r.subject || '', finishedAt: r.finished_at, sent: r.sent || 0, total: r.total || 0, bounces: r.bounces || 0, complaints: r.complaints || 0, unsubs: r.unsubs || 0, opens: r.opens || 0 }));
+}
+// Unsubscribes on a campaign split into "fast" (within 60s of delivery — security-scanner pattern) and the rest.
+async function unsubSplit(id) {
+  const r = (await q(`SELECT count(*) FILTER (WHERE EXTRACT(EPOCH FROM (e.at - s.sent_at)) < 60)::int AS fast, count(*)::int AS total
+    FROM mm_events e LEFT JOIN mm_sends s ON s.campaign_id=e.campaign_id AND s.email=e.email
+    WHERE e.tenant=$1 AND e.campaign_id=$2 AND e.type='unsubscribe'`, [TENANT, Number(id)])).rows[0] || {};
+  return { fast: r.fast || 0, total: r.total || 0 };
+}
 async function scheduledRequirementsFor(srcKey) {
   const rows = (await q(`SELECT c.id, c.subject, s.run_at
     FROM mm_campaigns c JOIN mm_schedules s ON s.campaign_id=c.id AND s.status='pending'
@@ -1294,4 +1344,4 @@ async function addEmailsToList(listId, emails) { if (!DB_READY || !listId) retur
   const r = await q('INSERT INTO mm_list_members(list_id, subscriber_id) SELECT $1, s.id FROM mm_subscribers s WHERE s.tenant=$2 AND s.email = ANY($3::text[]) ON CONFLICT (list_id, subscriber_id) DO NOTHING', [Number(listId), TENANT, em]); return r.rowCount || 0; }
 async function createCampaignRecord(b, user) { if (!DB_READY) throw new Error('Email Studio storage isn’t configured.'); return createCampaign(b, user); }
 module.exports = { mount, dbReady, sesConfigured, importSubscribers, parseCsv, suppressEmail, listLists, ensureList, addEmailsToList, createCampaignRecord,
-  countSegment, createRequirementCampaign, sendCampaign, scheduleCampaignAt, scheduledRequirementsFor, requirementsFor, removeRequirement, cancelRequirement };
+  countSegment, createRequirementCampaign, sendCampaign, scheduleCampaignAt, scheduledRequirementsFor, requirementsFor, removeRequirement, cancelRequirement, scheduleAutoSlot, latestRequirementFor, cancelPendingForSrc, recentBlasts, unsubSplit };

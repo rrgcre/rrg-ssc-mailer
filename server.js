@@ -10703,6 +10703,7 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   if (!ownsAssignment(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
   const overlay = loadAssignOverlay();
   const b = req.body || {}, cur = overlay[d.key] || {};
+  const _oldFlags = Object.assign({}, cur.stageFlags || {}), _oldStatus = cur.status || '';
   if (typeof b.status === 'string' && ASSIGN_STATUSES.indexOf(normAssignStatus(b.status)) >= 0) cur.status = normAssignStatus(b.status);
   // Representation type (Exclusive / Non-exclusive / Other) — its own field, separate from the
   // pipeline status, so the tenant-engagement "Representation" selector persists.
@@ -10788,6 +10789,15 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   if (b.staffing && typeof b.staffing === 'object') { const S = b.staffing; cur.staffing = { ftCount: String(S.ftCount || '').replace(/[^0-9]/g, '').slice(0, 6), ptCount: String(S.ptCount || '').replace(/[^0-9]/g, '').slice(0, 6), gmTenure: String(S.gmTenure || '').slice(0, 80), kmTenure: String(S.kmTenure || '').slice(0, 80) }; }
   cur.updatedAt = new Date().toISOString();
   overlay[d.key] = cur; saveAssignOverlay(overlay);
+  // Pipeline automations also fire when a stage is checked off on the engagement / listing page (not only on a board move):
+  // each newly-checked stage runs its "On enter" automation. A move to a dead status stops the engagement's broker blasts.
+  try {
+    if (b.stageFlags && typeof b.stageFlags === 'object') {
+      const _pipe = loadPipelines().find(x => x.id === listingPipelineIdOf(cur));
+      if (_pipe) (_pipe.stages || []).forEach(function (st, i) { const k = 'g' + i; if (cur.stageFlags && cur.stageFlags[k] && !_oldFlags[k] && st && st.onAssignAuto) { try { _fireStageAutos({ stages: [st] }, d, '', st.name, req); } catch (e) {} } });
+    }
+    if (_deadAssign(cur.status) && !_deadAssign(_oldStatus)) { stopEngagementBlasts(d.key, 'engagement marked ' + cur.status).catch(function () {}); }
+  } catch (e) {}
   res.json({ ok: true });
 });
 
@@ -10923,11 +10933,14 @@ app.post('/api/deal/:key/broker-blast/send', requireAdmin, express.json({ limit:
     // Optional schedule: epoch ms from the rep's local clock (or ISO). Fires via the Studio scheduler.
     let when = 0;
     if (b.sendAt != null && b.sendAt !== '') { const t = (typeof b.sendAt === 'number') ? b.sendAt : Date.parse(b.sendAt); if (isFinite(t)) when = t; }
+    const _logClient = function (note) { try { const pid = av.clientPersonId; if (!pid) return; const ppl = loadPeople(); const pp = ppl.find(x => x.id === pid); if (!pp) return; logActivity(pp, 'Email', note, { auto: true, by: user.name || '', byUser: user.username || '' }); savePeople(ppl); } catch (e) {} };
     if (when && when > Date.now() + 20000) {
       const sch = await massmail.scheduleCampaignAt(campaignId, new Date(when).toISOString());
+      _logClient('Broker blast scheduled for ' + new Date(sch.runAt).toLocaleString('en-US', { timeZone: process.env.MAIL_TZ || 'America/Chicago', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) + ' to ' + count.toLocaleString() + ' brokers (' + metros.join(', ') + '): ' + subject);
       return res.json({ ok: true, scheduled: true, campaignId: String(campaignId), sendAt: sch.runAt, recipientCount: count, markets: metros });
     }
     await massmail.sendCampaign(campaignId, req);
+    _logClient('Broker blast sent to ' + count.toLocaleString() + ' brokers (' + metros.join(', ') + '): ' + subject);
     return res.json({ ok: true, campaignId: String(campaignId), recipientCount: count, markets: metros });
   } catch (e) {
     console.error('broker-blast send error:', e);
@@ -10935,6 +10948,198 @@ app.post('/api/deal/:key/broker-blast/send', requireAdmin, express.json({ limit:
   }
 });
 // Cancel a still-pending scheduled broker blast for this engagement (archives the Studio campaign).
+// Automated broker-blast series on an engagement: what's running, start one, stop all.
+app.get('/api/deal/:key/blast-series', (req, res) => {
+  try {
+    const r = _resolveEngagement(req, res); if (!r) return;
+    const plans = loadAutomations().filter(a => (a.steps || []).some(st => st && st.type === 'brokerblast') && a.active !== false);
+    const ids = plans.map(a => a.id); const out = [];
+    loadPeople().forEach(pp => (pp.enrollments || []).forEach(en => {
+      if (!en || en.dealKey !== r.d.key || ids.indexOf(en.automationId) < 0) return;
+      const pl = plans.find(a => a.id === en.automationId); const steps = (pl && pl.steps) || [];
+      const left = steps.slice(en.stepIndex || 0).filter(st => st.type === 'brokerblast').length;
+      out.push({ eid: en.eid, personId: pp.id, automationId: en.automationId, name: en.automationName || (pl && pl.name) || '', status: en.status, nextAt: en.status === 'active' ? en.nextAt : '', nextKind: en.status === 'active' ? ((steps[en.stepIndex || 0] || {}).type || '') : '', blastsLeft: en.status === 'active' ? left : 0, startedAt: en.startedAt });
+    }));
+    out.sort((x, y) => String(y.startedAt || '').localeCompare(String(x.startedAt || '')));
+    res.json({ ok: true, series: out.slice(0, 10), plans: plans.map(a => ({ id: a.id, name: a.name, blasts: (a.steps || []).filter(st => st.type === 'brokerblast').length })), clientPersonId: r.av.clientPersonId || '', canManage: isSuper(req.user) });
+  } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+app.post('/api/deal/:key/blast-series/start', requireAdmin, express.json(), (req, res) => {
+  try {
+    const r = _resolveEngagement(req, res); if (!r) return;
+    if (r.av.assignmentType !== 'tenant_rep') return res.status(400).json({ ok: false, error: 'Broker blast series are for tenant-rep engagements.' });
+    const pid = r.av.clientPersonId; if (!pid) return res.status(400).json({ ok: false, error: 'Link the client contact to this engagement first.' });
+    const plan = loadAutomations().find(a => a.id === String((req.body || {}).automationId || '') && a.active !== false);
+    if (!plan || !(plan.steps || []).some(st => st.type === 'brokerblast')) return res.status(404).json({ ok: false, error: 'Pick an active broker-blast automation.' });
+    const ppl = loadPeople(); const p = ppl.find(x => x.id === pid); if (!p) return res.status(404).json({ ok: false, error: 'Client contact not found.' });
+    if ((p.enrollments || []).some(en => en.status === 'active' && en.automationId === plan.id && en.dealKey === r.d.key)) return res.status(400).json({ ok: false, error: 'That series is already running on this engagement.' });
+    const en = enrollPerson(p, plan, { byName: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', replyTo: (req.user && req.user.email) || '', dealKey: r.d.key });
+    if (!en) return res.status(400).json({ ok: false, error: 'Could not start the series.' });
+    const skip = Math.max(0, Math.min(plan.steps.length - 1, parseInt((req.body || {}).skip, 10) || 0));
+    if (skip) { en.stepIndex = skip; en.nextAt = new Date(Date.now() + stepDelayMs(plan.steps[skip])).toISOString(); }
+    logActivity(p, 'Note', 'Started broker-blast series: ' + plan.name + (skip ? (' (from step ' + (skip + 1) + ')') : ''), { auto: true, by: (req.user && req.user.name) || '' });
+    savePeople(ppl);
+    res.json({ ok: true, eid: en.eid, nextAt: en.nextAt });
+  } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+app.post('/api/deal/:key/blast-series/stop', requireAdmin, express.json(), async (req, res) => {
+  try { const r = _resolveEngagement(req, res); if (!r) return; const out = await stopEngagementBlasts(r.d.key, 'stopped by ' + ((req.user && req.user.name) || 'a user')); res.json(Object.assign({ ok: true }, out)); }
+  catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+// ===== Broker-blast replies → Lavano (spaces + broker contacts) and the post-send recap =====
+const _AUTO_SUBJ = /^(automatic reply|auto(-| )?reply|autoreply|out of (the )?office|ooo\b|undeliverable|delivery status|mail delivery|returned mail|away from)/i;
+const _LEFT_RX = /((no|not) longer (with|employed|at|works)|has left (the|our) (company|firm)|is no longer|left the company|retired from)/i;
+function _blastCore(subject) { return String(subject || '').replace(/^\s*((re|fwd?|fw)\s*:\s*)+/i, '').replace(/^\s*(site needed|still looking)\s*:\s*/i, '').split('|')[0].replace(/["\\]/g, '').trim(); }
+function _addrOf(f) { const m = String(f || '').match(/<([^>]+)>/); return String(m ? m[1] : f || '').trim().toLowerCase(); }
+function _nameOf(f) { const m = String(f || '').match(/^\s*"?([^"<]+?)"?\s*</); return m ? m[1].trim() : ''; }
+// Pull the replies to an engagement's broker blasts from Gmail: listings become spaces shortlisted on the engagement,
+// each broker gets a contact + activity, and "no longer with the firm" auto-replies are queued as stale contacts.
+async function importBlastReplies(dealKey, username) {
+  if (!massmail.dbReady()) return { ok: false, error: 'Email Studio storage isn’t configured.' };
+  if (!username || !gmail.statusFor(username).connected) return { ok: false, error: 'Connect Gmail on the Account page first.' };
+  const d = assignmentsIndex()[dealKey]; if (!d) return { ok: false, error: 'Engagement not found.' };
+  let av = null; try { av = assignmentView(d, loadAssignOverlay(), { noBoard: true }); } catch (e) {}
+  const blasts = ((await massmail.requirementsFor(dealKey)) || []).filter(b => Number(b.sent || 0) > 0 && b.subject);
+  if (!blasts.length) return { ok: true, replies: 0, sites: 0, created: 0, stale: 0, review: 0, note: 'No sent blasts yet.' };
+  const cores = Array.from(new Set(blasts.map(b => _blastCore(b.subject)).filter(x => x.length >= 8)));
+  const _ov0 = loadAssignOverlay()[dealKey] || {}; const R0 = _ov0.blastReplies || {}; const seenIds = new Set(R0.msgIds || []);
+  const team = new Set(); try { (auth.loadUsers() || []).forEach(u => { if (u && u.email) team.add(String(u.email).trim().toLowerCase()); }); } catch (e) {}
+  let msgs = [];
+  for (const core of cores) { try { msgs = msgs.concat(await gmail.listByQuery(username, 'newer_than:90d subject:"' + core + '" -in:sent -in:drafts', 100)); } catch (e) {} }
+  const byId = {}; msgs.forEach(m => { if (m && m.id) byId[m.id] = m; }); msgs = Object.keys(byId).map(k => byId[k]);
+  const fresh = msgs.filter(m => !seenIds.has(m.id) && !team.has(_addrOf(m.from)));
+  const stale = [], listingCands = [], plain = [];
+  fresh.forEach(m => {
+    const isAuto = _AUTO_SUBJ.test(String(m.subject || '')) || /auto-(replied|generated)/i.test(m.autoSubmitted || '') || /auto_reply|bulk/i.test(m.precedence || '');
+    if (isAuto) { if (_LEFT_RX.test(String(m.body || '') + ' ' + String(m.snippet || ''))) stale.push({ email: _addrOf(m.from), name: _nameOf(m.from), note: String(m.snippet || '').slice(0, 200), at: new Date().toISOString() }); return; }
+    listingCands.push(m);
+  });
+  let scan = { results: [] };
+  if (listingCands.length) scan = await _scanSpacesForUser(username, (auth.findUser(username) || {}).name || username, 90, [], null, { cands: listingCands });
+  const resById = {}; (scan.results || []).forEach(r => { if (r && r.msgId) resById[r.msgId] = r; });
+  // Shortlist + broker contacts
+  const ov = loadAssignOverlay(); const cur = ov[dealKey] || {}; cur.spaceShort = Array.isArray(cur.spaceShort) ? cur.spaceShort : []; cur.spaceDismissed = Array.isArray(cur.spaceDismissed) ? cur.spaceDismissed : [];
+  const R = Object.assign({ msgIds: [], replies: 0, sites: 0, review: 0, stale: [], brokers: [] }, cur.blastReplies || {});
+  const ppl = loadPeople(); let pplCh = false; let sitesNew = 0, repliesNew = 0, reviewNew = 0;
+  const spaces = loadSpaces(); let spCh = false;
+  const biz = (av && av.business) || 'the requirement';
+  listingCands.forEach(m => {
+    const r = resById[m.id] || {}; repliesNew++;
+    const email = _addrOf(m.from); const nm = _nameOf(m.from);
+    let bp = ppl.find(x => personEmails(x).some(e => String(e).toLowerCase() === email));
+    if (!bp && email) { const created = findOrCreatePerson({ user: { name: 'Broker blast', username: 'automation' } }, { name: nm || email, email: email, tag: 'Broker' }); if (created) { bp = loadPeople().find(x => x.id === created.id); } }
+    const bpLive = bp ? ppl.find(x => x.id === bp.id) : null;
+    if (r.spaceId) {
+      sitesNew++; if (cur.spaceShort.indexOf(r.spaceId) < 0) cur.spaceShort.push(r.spaceId); cur.spaceDismissed = cur.spaceDismissed.filter(x => x !== r.spaceId);
+      const sp = spaces.find(x => x.id === r.spaceId); if (sp && bpLive && !sp.brokerPersonId) { sp.brokerPersonId = bpLive.id; sp.brokerName = bpLive.name || ''; spCh = true; }
+      if (bpLive) { logActivity(bpLive, 'Note', 'Submitted a site for ' + biz + ': ' + (r.address || 'see flyer') + ' (broker blast reply)', { auto: true, by: 'Broker blast' }); pplCh = true; }
+    } else if (r.reason === 'needs review') { reviewNew++; if (bpLive) { logActivity(bpLive, 'Note', 'Replied to the ' + biz + ' broker blast (flyer in the Spaces review queue)', { auto: true, by: 'Broker blast' }); pplCh = true; } }
+    else if (bpLive) { logActivity(bpLive, 'Email', 'Replied to the ' + biz + ' broker blast', { auto: true, by: 'Broker blast' }); pplCh = true; }
+    if (email && R.brokers.indexOf(email) < 0) R.brokers.push(email);
+  });
+  if (pplCh) savePeople(ppl);
+  if (spCh) saveSpaces(spaces);
+  const staleSeen = new Set((R.stale || []).map(x => x.email));
+  stale.forEach(x => { if (x.email && !staleSeen.has(x.email)) { R.stale.push(x); staleSeen.add(x.email); } });
+  R.msgIds = (R.msgIds || []).concat(fresh.map(m => m.id)).slice(-2000);
+  R.replies = (R.replies || 0) + repliesNew; R.sites = (R.sites || 0) + sitesNew; R.review = (R.review || 0) + reviewNew; R.lastImport = new Date().toISOString(); R.brokers = R.brokers.slice(-1000);
+  cur.blastReplies = R; ov[dealKey] = cur; saveAssignOverlay(ov);
+  return { ok: true, replies: repliesNew, sites: sitesNew, created: (scan.results || []).filter(r => r.ok).length, review: reviewNew, stale: stale.length, totals: { replies: R.replies, sites: R.sites, review: R.review, stale: (R.stale || []).length } };
+}
+function _blastImportUser(av, req) {
+  const tryU = [req && req.user && req.user.username, av && av.byUser].filter(Boolean);
+  try { (auth.loadUsers() || []).filter(u => !u.disabled && isSuper(u)).forEach(u => tryU.push(u.username)); } catch (e) {}
+  return tryU.find(u => { try { return gmail.statusFor(u).connected; } catch (e) { return false; } }) || '';
+}
+app.post('/api/deal/:key/broker-blast/import-replies', express.json(), async (req, res) => {
+  try {
+    const r = _resolveEngagement(req, res); if (!r) return;
+    const u = _blastImportUser(r.av, req); if (!u) return res.status(400).json({ ok: false, error: 'Connect Gmail on the Account page first.' });
+    res.json(await importBlastReplies(r.d.key, u));
+  } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+app.get('/api/deal/:key/broker-blast/replies', (req, res) => {
+  const r = _resolveEngagement(req, res); if (!r) return;
+  const R = (loadAssignOverlay()[r.d.key] || {}).blastReplies || {};
+  res.json({ ok: true, replies: R.replies || 0, sites: R.sites || 0, review: R.review || 0, stale: R.stale || [], lastImport: R.lastImport || '' });
+});
+// Stale contacts from auto-replies: suppress (admin approves) or dismiss.
+app.post('/api/deal/:key/broker-blast/stale', requireAdmin, express.json(), async (req, res) => {
+  try {
+    const r = _resolveEngagement(req, res); if (!r) return;
+    const b = req.body || {}; const emails = (Array.isArray(b.emails) ? b.emails : []).map(x => String(x).toLowerCase());
+    const ov = loadAssignOverlay(); const cur = ov[r.d.key] || {}; const R = cur.blastReplies || {}; R.stale = R.stale || [];
+    let n = 0;
+    if (b.action === 'suppress') { for (const em of emails) { try { await massmail.suppressEmail(em, 'manual', 'left firm (auto-reply to broker blast)'); n++; } catch (e) {} } }
+    R.stale = R.stale.filter(x => emails.indexOf(String(x.email).toLowerCase()) < 0);
+    cur.blastReplies = R; ov[r.d.key] = cur; saveAssignOverlay(ov);
+    res.json({ ok: true, suppressed: n, stale: R.stale });
+  } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+// ---- Post-send recap (hours after a blast finishes — Admin → Email sets the delay; 0 = off) ----
+function effBlastRecap() { const s = loadSettings(); const h = (s.blastRecapHours == null) ? 24 : Number(s.blastRecapHours); return { hours: (isFinite(h) && h >= 0) ? Math.min(h, 336) : 24, done: (s.blastRecapDone && typeof s.blastRecapDone === 'object') ? s.blastRecapDone : {} }; }
+app.get('/api/admin/blast-recap', (req, res) => { const c = effBlastRecap(); res.json({ ok: true, hours: c.hours, isAdmin: !!(req.user && isSuper(req.user)) }); });
+app.post('/api/admin/blast-recap', requireAdmin, express.json(), (req, res) => {
+  const h = Number((req.body || {}).hours); if (!isFinite(h) || h < 0 || h > 336) return res.status(400).json({ ok: false, error: 'Pick 0 (off) to 336 hours.' });
+  const s = loadSettings(); s.blastRecapHours = Math.round(h); saveSettings(s); res.json({ ok: true, hours: s.blastRecapHours });
+});
+async function buildBlastRecap(bl) {
+  const d = assignmentsIndex()[bl.srcKey]; if (!d) return null;
+  let av = null; try { av = assignmentView(d, loadAssignOverlay(), { noBoard: true }); } catch (e) {}
+  const R = (loadAssignOverlay()[bl.srcKey] || {}).blastReplies || {};
+  let us = { fast: 0, total: bl.unsubs || 0 }; try { us = await massmail.unsubSplit(bl.id); } catch (e) {}
+  const bounceRate = bl.sent ? (bl.bounces / bl.sent * 100) : 0;
+  const realUnsubs = Math.max(0, us.total - us.fast);
+  const biz = (av && av.business) || 'Broker blast';
+  const link = appBaseUrl() + '/rrg_tenant_engagement.html?key=' + encodeURIComponent(bl.srcKey);
+  const lines = [];
+  lines.push('Delivered to ' + Number(bl.sent).toLocaleString() + ' brokers · ' + bl.bounces + ' bounced (' + bounceRate.toFixed(1) + '%) · ' + bl.complaints + ' spam complaint' + (bl.complaints === 1 ? '' : 's'));
+  lines.push((R.replies || 0) + ' replies · ' + (R.sites || 0) + ' site' + ((R.sites || 0) === 1 ? '' : 's') + ' added to the shortlist' + (R.review ? (' · ' + R.review + ' in the Spaces review queue') : ''));
+  if ((R.stale || []).length) lines.push((R.stale || []).length + ' brokers have left their firms (auto-replies) — approve removing them on the engagement');
+  lines.push('Unsubscribes: ' + realUnsubs + ' real' + (us.fast ? (' (' + us.fast + ' more within a minute of delivery — security filters, not people)') : ''));
+  const warn = [];
+  if (bounceRate >= 5) warn.push('Bounce rate is ' + bounceRate.toFixed(1) + '% — over AWS\u2019s 5% review line. Clean this list before the next send.');
+  if (bl.sent && bl.complaints / bl.sent >= 0.001) warn.push('Spam complaints are at or above 0.1% — review the list and the message.');
+  const H = '<div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;font-size:14px;color:#1a2236;line-height:1.55;max-width:560px">'
+    + '<div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#6b7488;font-weight:700">Broker blast recap</div>'
+    + '<div style="font-size:19px;font-weight:800;color:#13233f;margin:4px 0 2px">' + esc(biz) + '</div>'
+    + '<div style="font-size:12.5px;color:#6b7488;margin-bottom:14px">' + esc(bl.subject) + '</div>'
+    + lines.map(l => '<div style="padding:7px 0;border-bottom:1px solid #eef0f4">' + esc(l) + '</div>').join('')
+    + (warn.length ? ('<div style="margin-top:12px;padding:10px 12px;background:#fff4e5;border:1px solid #f3d19e;border-radius:6px;color:#7a4b00">' + warn.map(esc).join('<br>') + '</div>') : '')
+    + '<div style="margin-top:16px"><a href="' + link + '" style="background:#13233f;color:#fff;text-decoration:none;padding:10px 16px;border-radius:6px;font-weight:700;display:inline-block">Open the engagement</a></div>'
+    + '<div style="font-size:11.5px;color:#8a93a8;margin-top:14px">Opens and clicks are left out on purpose — corporate security filters open every email and inflate them.</div></div>';
+  return { subject: 'Broker blast recap — ' + biz, html: H, text: [biz, bl.subject, ''].concat(lines, warn.length ? [''].concat(warn) : [], ['', link]).join('\n'), owner: (av && av.byUser) || '' };
+}
+let _recapRunning = false;
+async function blastRecapTick() {
+  if (_recapRunning) return; _recapRunning = true;
+  try {
+    if (!massmail.dbReady()) return;
+    const cfg = effBlastRecap();
+    const blasts = await massmail.recentBlasts(30);
+    // Keep each recent blast's replies flowing in (every pass), then recap the ones that are due.
+    const keys = Array.from(new Set(blasts.map(b => b.srcKey).filter(Boolean)));
+    for (const k of keys) { try { const d = assignmentsIndex()[k]; if (!d) continue; let av = null; try { av = assignmentView(d, loadAssignOverlay(), { noBoard: true }); } catch (e) {} const u = _blastImportUser(av, null); if (u) await importBlastReplies(k, u); } catch (e) { console.error('blast reply import:', e && e.message); } }
+    if (!cfg.hours) return;
+    const now = Date.now(); const s = loadSettings(); s.blastRecapDone = (s.blastRecapDone && typeof s.blastRecapDone === 'object') ? s.blastRecapDone : {}; let ch = false;
+    for (const bl of blasts) {
+      const fin = Date.parse(bl.finishedAt); if (!isFinite(fin)) continue;
+      if (s.blastRecapDone[bl.id]) continue;
+      if (now < fin + cfg.hours * 3600000) continue;
+      if (now > fin + (cfg.hours + 72) * 3600000) { s.blastRecapDone[bl.id] = 'skipped-old'; ch = true; continue; }   // never fire a stale recap
+      const rc = await buildBlastRecap(bl); if (!rc) { s.blastRecapDone[bl.id] = 'no-engagement'; ch = true; continue; }
+      let to = []; try { const users = auth.loadUsers() || []; const o = users.find(u => u.username === rc.owner && !u.disabled && u.email); if (o) to.push(o.email); if (!to.length) to = users.filter(u => !u.disabled && isSuper(u) && u.email).map(u => u.email); } catch (e) {}
+      if (to.length) { await sendNotifyMail(to, rc.subject, rc.text, rc.html); }
+      s.blastRecapDone[bl.id] = new Date().toISOString(); ch = true;
+      try { logSysEvent(null, 'Broker blast', 'Recap sent for blast #' + bl.id + ' to ' + to.join(', '), { tool: 'marketing' }); } catch (e) {}
+    }
+    const ids = Object.keys(s.blastRecapDone); if (ids.length > 500) { ids.slice(0, ids.length - 500).forEach(k => delete s.blastRecapDone[k]); ch = true; }
+    if (ch) saveSettings(s);
+  } catch (e) { console.error('blastRecapTick:', e && e.message); }
+  finally { _recapRunning = false; }
+}
+setInterval(function () { blastRecapTick(); }, 30 * 60 * 1000);
+setTimeout(function () { blastRecapTick(); }, 90 * 1000);
 app.post('/api/deal/:key/broker-blast/cancel', requireAdmin, express.json(), async (req, res) => {
   try {
     const r = _resolveEngagement(req, res); if (!r) return;
@@ -12052,7 +12257,7 @@ function newAutomationId() { return 'auto_' + Date.now().toString(36) + Math.ran
 function newEnrollId() { return 'enr_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function cleanAutoSteps(arr) {
   return (Array.isArray(arr) ? arr : []).slice(0, 30).map(function (st, i) {
-    const type = ['task', 'notification', 'logactivity', 'assignment', 'pipeline', 'dialog', 'createcontact'].indexOf(st && st.type) >= 0 ? st.type : 'email';
+    const type = ['task', 'notification', 'logactivity', 'assignment', 'pipeline', 'dialog', 'createcontact', 'brokerblast', 'stopblasts'].indexOf(st && st.type) >= 0 ? st.type : 'email';
     const o = { type: type, delayDays: Math.max(0, Math.min(3650, parseInt((st && st.delayDays), 10) || 0)), delayHours: Math.max(0, Math.min(23, parseInt((st && st.delayHours), 10) || 0)), delayMinutes: Math.max(0, Math.min(59, parseInt((st && st.delayMinutes), 10) || 0)), name: String((st && st.name) || '').slice(0, 80) };
     if (type === 'email') { o.subject = String((st && st.subject) || '').slice(0, 300); o.body = String((st && st.body) || '').slice(0, 20000); }
     else if (type === 'task') { o.taskTitle = String((st && st.taskTitle) || '').slice(0, 300); o.taskNote = String((st && st.taskNote) || '').slice(0, 2000); }
@@ -12060,10 +12265,11 @@ function cleanAutoSteps(arr) {
     else if (type === 'logactivity') { o.actType = String((st && st.actType) || 'Note').slice(0, 40); o.actNote = String((st && st.actNote) || '').slice(0, 2000); }
     else if (type === 'assignment') { o.setStatus = String((st && st.setStatus) || '').slice(0, 40); o.advanceStage = String((st && st.advanceStage) || '').slice(0, 20); o.markLive = !!(st && st.markLive); }
     else if (type === 'pipeline') { o.pipelineId = String((st && st.pipelineId) || '').slice(0, 40); o.pipelineStage = String((st && st.pipelineStage) || '').slice(0, 80); }
+    else if (type === 'brokerblast') { o.blastKind = (st && st.blastKind === 'first') ? 'first' : 'followup'; o.intro = String((st && st.intro) || '').slice(0, 2000); }
     else if (type === 'dialog') { o.dialogTitle = String((st && st.dialogTitle) || '').slice(0, 120); o.dialogBody = String((st && st.dialogBody) || '').slice(0, 2000); }
     else if (type === 'createcontact') { o.cName = String((st && st.cName) || '').slice(0, 160); o.cCompany = String((st && st.cCompany) || '').slice(0, 160); o.cEmail = String((st && st.cEmail) || '').slice(0, 160); o.cPhone = String((st && st.cPhone) || '').slice(0, 60); o.cNotes = String((st && st.cNotes) || '').slice(0, 2000); }
     return o;
-  }).filter(function (st) { return (st.type === 'logactivity' || st.type === 'assignment') ? true : (st.type === 'pipeline' ? st.pipelineId : (st.type === 'dialog' ? (st.dialogBody || st.dialogTitle) : (st.type === 'createcontact' ? st.cName : (st.type === 'task' ? st.taskTitle : (st.type === 'notification' ? st.message : (st.subject || st.body)))))); });
+  }).filter(function (st) { return (st.type === 'logactivity' || st.type === 'assignment' || st.type === 'brokerblast' || st.type === 'stopblasts') ? true : (st.type === 'pipeline' ? st.pipelineId : (st.type === 'dialog' ? (st.dialogBody || st.dialogTitle) : (st.type === 'createcontact' ? st.cName : (st.type === 'task' ? st.taskTitle : (st.type === 'notification' ? st.message : (st.subject || st.body)))))); });
 }
 const FLASH_DIALOGS_FILE = path.join(BOV_DATA_DIR, 'flash_dialogs.json');
 function loadFlashDialogs() { try { return rj(FLASH_DIALOGS_FILE) || []; } catch (e) { return []; } }
@@ -12183,8 +12389,56 @@ function automationMeUser(p, en) {
   let fromAddr = ''; try { fromAddr = _fromAddr(); } catch (e) {}
   return { username: (u && u.username) || '', name: (u && u.name) || orgDisplayName(), title: (u && u.title) || '', email: (u && u.email) || org.email || fromAddr || '', phone: (u && u.phone) || org.phone || '' };
 }
+// ---- Broker-blast automation steps (tenant-rep engagements) ----
+let _tickPeople = null;   // the people array automationTick is working on (so in-tick edits are saved by the tick)
+const BLAST_FOLLOWUP_INTRO = 'Our client is still actively searching and has not committed to a site. Thank you to everyone who has sent options. If you have something new, on- or off-market, that fits the criteria below, please send it over.';
+function _blastPlanIds() { try { return loadAutomations().filter(a => (a.steps || []).some(st => st && st.type === 'brokerblast')).map(a => a.id); } catch (e) { return []; } }
+// Stop an engagement's broker blasts: cancel every pending send and end any running blast series for it.
+async function stopEngagementBlasts(dealKey, why) {
+  let canceled = 0, stopped = 0;
+  try { if (massmail.dbReady()) canceled = await massmail.cancelPendingForSrc(dealKey); } catch (e) {}
+  try {
+    const ids = _blastPlanIds(); if (ids.length) {
+      const inTick = !!_tickPeople; const ppl = _tickPeople || loadPeople(); let ch = false;
+      ppl.forEach(pp => (pp.enrollments || []).forEach(en => { if (en && en.status === 'active' && en.dealKey === dealKey && ids.indexOf(en.automationId) >= 0) { en.status = 'stopped'; en.nextAt = ''; en.history = Array.isArray(en.history) ? en.history : []; en.history.push({ stepIndex: en.stepIndex, at: new Date().toISOString(), type: 'stop', result: 'stopped: ' + (why || 'broker blasts stopped') }); stopped++; ch = true; } }));
+      if (ch && !inTick) savePeople(ppl);
+    }
+  } catch (e) {}
+  return { canceled, stopped };
+}
+async function _runBrokerBlastStep(p, en, step, me) {
+  if (!en.dealKey) return 'skipped: no linked engagement';
+  if (!massmail.dbReady() || !massmail.sesConfigured()) return 'skipped: Email Studio sending is not configured';
+  const d = assignmentsIndex()[en.dealKey]; if (!d) return 'skipped: engagement not found';
+  let av = null; try { av = assignmentView(d, loadAssignOverlay(), { noBoard: true }); } catch (e) {}
+  if (!av || av.assignmentType !== 'tenant_rep') return 'skipped: not a tenant-rep engagement';
+  if (_deadAssign(av.status)) { en.status = 'stopped'; en.nextAt = ''; return 'stopped: engagement is ' + av.status; }
+  const metros = dealBlastMetros(av);
+  const count = await massmail.countSegment({ type: 'Broker', mode: 'area', metros: metros });
+  if (!count) return 'skipped: no broker subscribers match this engagement’s markets';
+  const prev = await massmail.latestRequirementFor(en.dealKey);
+  let subject = '', bodyHtml = '';
+  const sig = (me && me.username) ? userSignatureHtml(me.username, auth.findUser ? auth.findUser(me.username) : null) : '';
+  if (step.blastKind === 'followup' && prev) {
+    const tbl = (String(prev.html).match(/<table[\s\S]*?<\/table>/i) || [''])[0];
+    const intro = (step.intro && step.intro.trim()) ? esc(step.intro.trim()).replace(/\n/g, '<br>') : BLAST_FOLLOWUP_INTRO;
+    subject = /^\s*site needed\s*:/i.test(prev.subject) ? prev.subject.replace(/^\s*site needed\s*:/i, 'Still Looking:') : ('Still Looking: ' + prev.subject.replace(/^\s*still looking\s*:\s*/i, ''));
+    bodyHtml = '<p>Colleagues,</p><p>' + intro + '</p>' + (tbl || '') + '<p>If you have anything that fits, please reply directly. We will move quickly.</p>' + (sig ? ('<div style="margin-top:18px">' + sig + '</div>') : '');
+  } else {
+    if (prev && step.blastKind === 'first') return 'skipped: this engagement already has a sent broker blast';
+    const out = await attackgen.generateBrokerRequirement({ business: av.business || '', market: av.market || '', criteria: av.criteria || {}, preparedBy: (me && me.name) || '', blind: true });
+    subject = out.subject || ''; bodyHtml = String(out.body || '') + (sig ? ('<div style="margin-top:18px">' + sig + '</div>') : '');
+  }
+  if (!subject || !bodyHtml) return 'skipped: could not build the email';
+  const cid = await massmail.createRequirementCampaign({ name: 'Broker requirement — ' + (av.business || av.market || 'tenant') + (step.blastKind === 'followup' ? ' (follow-up)' : ''), subject: subject, html: _brokerBlastHtml(bodyHtml), segType: 'Broker', segMode: 'area', segMetros: metros, src: 'broker-blast', srcKey: en.dealKey, byUser: 'Automation' });
+  const sch = await massmail.scheduleAutoSlot(cid, 9);
+  try { logActivity(p, 'Note', 'Automation scheduled a broker blast for ' + (av.business || 'the engagement') + ' — ' + count + ' brokers, ' + new Date(sch.runAt).toLocaleString('en-US', { timeZone: process.env.MAIL_TZ || 'America/Chicago', weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }), { auto: true, by: 'Automation' }); } catch (e) {}
+  return 'broker blast scheduled for ' + sch.runAt + ' to ' + count + ' brokers';
+}
 async function runAutomationStep(p, en, step) {
   const _me = automationMeUser(p, en);
+  if (step.type === 'brokerblast') { try { return await _runBrokerBlastStep(p, en, step, _me); } catch (e) { return 'broker blast error: ' + (e && e.message); } }
+  if (step.type === 'stopblasts') { if (!en.dealKey) return 'skipped: no linked engagement'; try { const r = await stopEngagementBlasts(en.dealKey, 'stopped by automation ' + (en.automationName || '')); try { logActivity(p, 'Note', 'Automation stopped broker blasts (' + r.canceled + ' scheduled send(s) canceled)', { auto: true, by: 'Automation' }); } catch (e) {} return 'stopped broker blasts: ' + r.canceled + ' send(s) canceled, ' + r.stopped + ' series ended'; } catch (e) { return 'stop error: ' + (e && e.message); } }
   if (step.type === 'dialog') { try { queueFlashDialog(en.enrolledByUser || en.enrolledBy || '', mergeTokens(step.dialogTitle || '', p, _me), mergeTokens(step.dialogBody || '', p, _me), p, en); return 'dialog queued for ' + (en.enrolledByUser || 'rep'); } catch (e) { return 'dialog error: ' + (e && e.message); } }
   if (step.type === 'logactivity') { try { logActivity(p, (step.actType || 'Note'), mergeTokens(step.actNote || '', p, _me) || 'Logged by automation', { auto: true, by: 'Automation' }); return 'activity logged'; } catch (e) { return 'activity error: ' + (e && e.message); } }
   if (step.type === 'assignment') { if (!en.dealKey) return 'skipped: no linked assignment'; try { const ov = loadAssignOverlay(); const cur = ov[en.dealKey] || {}; if (step.setStatus && ASSIGN_STATUSES.indexOf(normAssignStatus(step.setStatus)) >= 0) cur.status = normAssignStatus(step.setStatus); if (step.advanceStage && ['outreach','agreed','offers','dd','closing'].indexOf(step.advanceStage) >= 0) { cur.stageFlags = cur.stageFlags || {}; cur.stageFlags[step.advanceStage] = true; } if (step.markLive && !cur.listingStart) cur.listingStart = new Date().toISOString().slice(0, 10); cur.updatedAt = new Date().toISOString(); ov[en.dealKey] = cur; saveAssignOverlay(ov); logActivity(p, 'Note', 'Automation updated the linked assignment', { auto: true, by: 'Automation' }); return 'assignment updated'; } catch (e) { return 'assignment error: ' + (e && e.message); } }
@@ -12277,7 +12531,7 @@ async function automationTick() {
   if (_autoRunning) return; _autoRunning = true;
   try {
     const plans = loadAutomations(); const byId = {}; plans.forEach(function (a) { byId[a.id] = a; });
-    const ppl = loadPeople(); let ch = false; const now = Date.now();
+    const ppl = loadPeople(); let ch = false; const now = Date.now(); _tickPeople = ppl;
     for (const p of ppl) {
       const ens = Array.isArray(p.enrollments) ? p.enrollments : [];
       for (const en of ens) {
@@ -12305,7 +12559,7 @@ async function automationTick() {
     }
     if (ch) savePeople(ppl);
   } catch (e) { console.error('automationTick:', e && e.message); }
-  _autoRunning = false;
+  _tickPeople = null; _autoRunning = false;
 }
 setInterval(function () { automationTick(); }, 5 * 60 * 1000);
 setTimeout(function () { automationTick(); }, 20000);
@@ -14781,8 +15035,13 @@ app.post('/api/person/:id/enroll', express.json(), (req, res) => {
   const plan = loadAutomations().find(x => x.id === String((req.body || {}).automationId || ''));
   if (!plan) return res.status(404).json({ ok: false, error: 'Automation not found.' });
   if (plan.active === false) return res.status(400).json({ ok: false, error: 'That automation is inactive.' });
-  const en = enrollPerson(p, plan, { byName: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', replyTo: (req.user && req.user.email) || '' });
+  const _b = req.body || {}; let _dk = String(_b.dealKey || '');
+  if (_dk) { const _dd = assignmentsIndex()[_dk]; if (!_dd || !ownsAssignment(req, _dd)) _dk = ''; }
+  const en = enrollPerson(p, plan, { byName: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', replyTo: (req.user && req.user.email) || '', dealKey: _dk });
   if (!en) return res.status(400).json({ ok: false, error: 'This contact is already active in that automation.' });
+  // Optionally start partway in (e.g. skip the first blast when one already went out by hand).
+  const _skip = Math.max(0, Math.min((plan.steps || []).length - 1, parseInt(_b.skip, 10) || 0));
+  if (_skip) { en.stepIndex = _skip; en.nextAt = new Date(Date.now() + stepDelayMs(plan.steps[_skip])).toISOString(); }
   logActivity(p, 'Note', 'Enrolled in automation: ' + plan.name, { auto: true, by: (req.user && req.user.name) || '' });
   p.updatedAt = new Date().toISOString(); savePeople(arr);
   res.json({ ok: true, enrollments: p.enrollments });
@@ -16094,11 +16353,13 @@ function _storeReviewFile(revId, filename, buf) { try { if (!buf || !buf.length 
 // Core Gmail -> Space Tracker scan. Reused by the manual button and the background poller.
 // Finds broker listing emails + PDF flyers, AI-parses each into a space, dedupes by address,
 // and stores the brochure PDF on the created space. Skips message ids in skipIds (poller cost control).
-async function _scanSpacesForUser(username, byName, days, skipIds, onProgress) {
+async function _scanSpacesForUser(username, byName, days, skipIds, onProgress, opts) {
   if (!gmail.statusFor(username).connected) return { ok: false, error: 'Gmail not connected', created: 0, scanned: 0, results: [], processedIds: [] };
   const skip = new Set(Array.isArray(skipIds) ? skipIds : []);
   let _srcList = []; try { const _r = (loadSpacePoll()[username]) || {}; const _u = Array.isArray(_r.sources) ? _r.sources : []; const _seen = {}; _srcList = effSpaceScanSources().concat(_u).map(x => String(x).trim().toLowerCase()).filter(x => { if (!x || _seen[x]) return false; _seen[x] = 1; return true; }); } catch (e) {}
-  const cands = await gmail.listListingCandidates(username, 50, days, _srcList);
+  const cands = (opts && Array.isArray(opts.cands)) ? opts.cands : await gmail.listListingCandidates(username, 50, days, _srcList);
+  const _team = new Set(); try { (auth.loadUsers() || []).forEach(u => { if (u && u.email) _team.add(String(u.email).trim().toLowerCase()); }); } catch (e) {}
+  const _fromAddr = f => { const m = String(f || '').match(/<([^>]+)>/); return String(m ? m[1] : f || '').trim().toLowerCase(); };
   const arr = loadSpaces();
   const centers = loadCenters(); let centersDirty = false; let centersMade = 0;
   let _enrichCfg = { fit: false, demo: false, contacts: false, docs: false };
@@ -16114,6 +16375,8 @@ async function _scanSpacesForUser(username, byName, days, skipIds, onProgress) {
   for (const c of cands) {
     if (skip.has(c.id)) continue;
     processedIds.push(c.id); _done++;
+    // Your own team's mail (forwards, replies) is never a new listing — it only made duplicate spaces.
+    if (_team.has(_fromAddr(c.from))) { results.push({ ok: false, msgId: c.id, subject: c.subject || '', reason: 'sent by your team' }); continue; }
     let text = String(c.body || '').slice(0, 20000);
     const pdfs = (c.attachments || []).filter(a => /\.(pdf|docx?)$/i.test(a.filename)).slice(0, 2);
     const pdfBufs = [];
@@ -16131,7 +16394,7 @@ async function _scanSpacesForUser(username, byName, days, skipIds, onProgress) {
     }
     if ((!fd || (!fd.address && fd.size == null)) && text.trim()) { try { fd = await aiassist.parseSpaceListing({ text: text.slice(0, 60000), types: SPACE_TYPES, features: SPACE_FEATURES, centerTypes: CENTER_TYPES }); } catch (e) { /* keep fd */ } }
     const key = fd ? String(fd.address || '').toLowerCase().trim() : '';
-    if ((key && seen.has(key)) || loadSpaces().some(x => x.source === ('email:' + c.id))) { results.push({ ok: false, subject: c.subject || '', reason: 'already in system' }); if (typeof onProgress === 'function') onProgress({ phase: 'item', total: cands.length, done: _done, created }); continue; }
+    if ((key && seen.has(key)) || loadSpaces().some(x => x.source === ('email:' + c.id))) { const _ex = arr.find(x => x.source === ('email:' + c.id)) || (key ? arr.find(x => String(x.address || '').toLowerCase().trim() === key) : null); results.push({ ok: false, msgId: c.id, spaceId: (_ex && _ex.id) || '', address: (_ex && (_ex.address || _ex.name)) || '', subject: c.subject || '', reason: 'already in system' }); if (typeof onProgress === 'function') onProgress({ phase: 'item', total: cands.length, done: _done, created }); continue; }
     if (fd && fd.address) {
       const sp = _spaceFromFields(fd, actor, { source: 'email:' + c.id });
       let fileName = '';
@@ -16155,13 +16418,13 @@ async function _scanSpacesForUser(username, byName, days, skipIds, onProgress) {
         } catch (e) {}
       }
       arr.push(sp); created++; if (key) seen.add(key);
-      results.push({ ok: true, subject: c.subject || '', address: sp.address || sp.name || '', center: sp.center || '', file: fileName });
+      results.push({ ok: true, msgId: c.id, spaceId: sp.id, subject: c.subject || '', address: sp.address || sp.name || '', center: sp.center || '', file: fileName });
     } else if (hasAttach && !review.some(x => x.messageId === c.id) && ((fd && (fd.center || fd.size != null || fd.spaceType || (fd.features && fd.features.length))) || /(for lease|for sublease|available|sq ?ft|square feet|\bNNN\b|triple net|2nd gen|second generation|end cap|retail space|restaurant space|lease rate|offering memorandum)/i.test(text))) {
       // Couldn't confidently extract, but there IS a flyer — send it to the review queue instead of dropping it.
       const rid = newReviewId(); let rext = ''; if (bro) rext = _storeReviewFile(rid, bro.filename, bro.buf) || '';
       review.push({ id: rid, messageId: c.id, subject: c.subject || '', from: c.from || '', date: c.date || '', byUser: username, byName: byName || '', createdAt: new Date().toISOString(), reason: (fd && (fd.center || fd.size != null)) ? 'needs an address' : 'couldn\u2019t read the flyer', fields: { address: (fd && fd.address) || '', center: (fd && fd.center) || '', market: (fd && fd.market) || '', spaceType: (fd && fd.spaceType) || '', size: (fd && fd.size != null ? fd.size : ''), rent: (fd && fd.rent != null ? fd.rent : ''), nnn: (fd && fd.nnn != null ? fd.nnn : ''), features: (fd && fd.features) || [], notes: (fd && fd.notes) || '' }, file: rext ? { name: bro.filename, ext: rext } : null });
       reviewDirty = true; reviewMade++;
-      results.push({ ok: false, subject: c.subject || '', reason: 'needs review' });
+      results.push({ ok: false, msgId: c.id, subject: c.subject || '', reason: 'needs review' });
     } else {
       results.push({ ok: false, subject: c.subject || '', reason: 'not a listing' });
     }

@@ -114,6 +114,12 @@ function render(){
       +'<div class="note">Built fresh each week with live web search, about $0.50 a run. Items the AI can\'t tie to a real source page are dropped. <b>Build now</b> runs a new search (about a minute); <b>Preview</b> and <b>Email me the latest</b> use the last one built.</div>'
     +'</div>'
     +'<div class="card">'
+      +'<h2>Broker blast recap</h2><div class="ch-sub">After a broker blast finishes sending, Lavano emails the engagement owner a short recap: delivered, bounces, spam complaints, replies, sites added to the shortlist, brokers who have left their firms, and real (not security-filter) unsubscribes. Replies are pulled in from Gmail automatically every 30 minutes for 30 days after each blast.</div>'
+      +'<div class="grid" style="margin-top:12px"><div class="fld"><label class="lbl">Send the recap this many hours after a blast finishes</label><input type="number" id="brHours" min="0" max="336" step="1" style="max-width:120px"></div></div>'
+      +'<div class="savebar"><button class="savebtn" id="brSave">Save</button><span class="msg" id="brMsg"></span></div>'
+      +'<div class="note"><b>24</b> is the usual choice — most broker replies land within a day. Set <b>0</b> to turn the recap off.</div>'
+    +'</div>'
+    +'<div class="card">'
       +'<h2>Weekly seller activity report</h2><div class="ch-sub">Automatically email each seller a summary of the marketing on their listing — inquiries, NDAs, tours, offers and confidential data-room views. Keeps owners informed and listings renewing. Sends only for listings that are live on the marketplace and have a seller email on file; a rep can turn it off for any single listing.</div>'
       +'<label class="check" style="margin-top:6px"><input type="checkbox" id="srEnabled"> Send the seller activity report automatically</label>'
       +'<div class="grid" style="margin-top:12px"><div class="fld"><label class="lbl">How often</label><select id="srInterval"><option value="month1">Monthly — 1st business day</option><option value="7">Every 7 days</option><option value="14">Every 14 days</option><option value="30">Every 30 days</option></select></div></div>'
@@ -126,7 +132,7 @@ function render(){
   document.getElementById('save').addEventListener('click',save);
   document.getElementById('test').addEventListener('click',sendTest);
   detectHint();
-  loadSellerReport(); loadDigest(); loadIB();
+  loadSellerReport(); loadDigest(); loadIB(); loadBlastRecap();
 }
 function _wdMsg(t,ok){ var m=document.getElementById('wdMsg'); m.style.color=ok?'#1f8a5b':(ok===false?'#C0261B':''); m.textContent=t; }
 function _wdTo(j){ var t=document.getElementById('wdTo'); if(!t) return; var r=(j&&j.recipients)||[]; t.innerHTML=r.length?('Goes to: <b>'+r.map(esc).join(', ')+'</b>'):'<span style="color:#C0261B">No admin has an email on file — add yours on your Account page, or add an address above.</span>'; }
@@ -159,6 +165,15 @@ function loadIB(){ fetch('/api/admin/industry-brief',{credentials:'same-origin',
 }).catch(function(){}); }
 function saveIB(){ var b=document.getElementById('ibSave'); b.disabled=true; _ibMsg('Saving…'); var users=[].slice.call(document.querySelectorAll('[data-ibu]')).filter(function(x){return x.checked;}).map(function(x){return x.getAttribute('data-ibu');});
   fetch('/api/admin/industry-brief',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({ enabled:chk('ibEnabled'), day:val('ibDay'), hour:val('ibHour'), users:users, extra:val('ibExtra'), markets:val('ibMarkets'), focus:val('ibFocus'), lookahead:val('ibLook') })}).then(function(r){return r.json();}).then(function(j){ b.disabled=false; if(j&&j.ok){ _ibMsg('Saved ✓',true); _ibUsers(j); _ibState(j); } else _ibMsg((j&&j.error)||'Could not save.',false); }).catch(function(){ b.disabled=false; _ibMsg('Could not reach the server.',false); }); }
+function loadBlastRecap(){
+  fetch('/api/admin/blast-recap',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ if(!j||!j.ok) return; var h=document.getElementById('brHours'); if(h) h.value=String(j.hours); var b=document.getElementById('brSave'); if(b) b.onclick=saveBlastRecap; }).catch(function(){});
+}
+function saveBlastRecap(){
+  var b=document.getElementById('brSave'), m=document.getElementById('brMsg'); b.disabled=true; var was=b.textContent; b.textContent='Saving…'; m.textContent='';
+  fetch('/api/admin/blast-recap',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({ hours:Number(val('brHours')) })})
+    .then(function(r){return r.json();}).then(function(j){ b.disabled=false; b.textContent=was; if(j&&j.ok){ m.style.color='#1f8a5b'; m.textContent=(j.hours?('Saved ✓ — recap '+j.hours+' h after each blast'):'Saved ✓ — recap off'); } else { m.style.color='#C0261B'; m.textContent=(j&&j.error)||'Could not save.'; } })
+    .catch(function(){ b.disabled=false; b.textContent=was; m.style.color='#C0261B'; m.textContent='Could not reach the server.'; });
+}
 function loadSellerReport(){
   fetch('/api/admin/seller-report',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok) return;

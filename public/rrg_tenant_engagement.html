@@ -1735,10 +1735,11 @@ function marketingCard(){
     + row('mmSsc','\u25a4','Site Selection Criteria','<span id="mmSscSub">Checking…</span>','<span id="mmSscAct"></span>')
     + row('mmMap','\u25ce','Market Attack Plan','<span id="mapStatus">Checking…</span>','<button type="button" class="railadd railico" id="mapEditBtn" style="display:none;font-size:13px" onclick="mapOpen();return false;" title="Edit the plan" aria-label="Edit the plan">\u270e</button><button type="button" class="railadd railico" id="mapViewBtn" style="display:none" onclick="mapOpen(true);return false;" title="View the plan" aria-label="View the plan">'+_icoEye+'</button><button type="button" class="railadd railico" id="mapPrintBtn" style="display:none" onclick="mapOpen(\'print\');return false;" title="Print / save as PDF" aria-label="Print the plan"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg></button><button type="button" class="railadd railico raildel" id="mapDelBtn" style="display:none" onclick="mapDelete();return false;" title="Delete the plan" aria-label="Delete the plan">'+_icoTrash+'</button><button type="button" class="railadd" id="mapOpenLink" onclick="mapOpen();return false;" title="Build the plan">+</button>')
     + row('mmBlast','\u2709','Broker Blast','<span id="blastList">Checking…</span>','<span id="blastActs"></span><button type="button" class="railadd" id="blastAddBtn" style="display:none" onclick="brokerBlastOpen();return false;" title="Draft a blind requirement and blast it to matched brokers">+</button>')
+    + row('mmAuto','\u21bb','Automated follow-ups','<span id="autoSub">Checking…</span>','<span id="autoActs"></span>')
     + '</div></div>';
 }
 function _mmD(iso){ try{ var d=new Date(iso); if(isNaN(d.getTime())) return ''; return d.toLocaleDateString('en-US',{month:'short',day:'numeric'})+(d.getFullYear()!==new Date().getFullYear()?(', '+d.getFullYear()):''); }catch(e){ return ''; } }
-var _mmHas={ssc:false,map:false,blast:false};
+var _mmHas={ssc:false,map:false,blast:false,auto:false};
 function _mmSet(k,v){ _mmHas[k]=!!v; var c=document.querySelector('#mktgCard > .ch > .bbcnt'); if(c){ var n=(_mmHas.ssc?1:0)+(_mmHas.map?1:0)+(_mmHas.blast?1:0); c.textContent=String(n); c.hidden=!n; } }
 function marketAttackCard(){
   return '<div class="card" id="mapCard"><div class="ch"><b>Market Attack Plan</b>'
@@ -1869,14 +1870,38 @@ function renderBrokerBlasts(studio){
   else if(runs.length||b.finishedAt||b.status==='sent'){ var last=runs.length?runs[runs.length-1].sentAt:(b.finishedAt||b.startedAt); pill='<span class="bbp snt">Sent</span>'; line=(runs.length>1?(runs.length+' rounds · '):'')+'last '+esc(_mmD(last))+' · '+Number(sent).toLocaleString()+' brokers · '+(sent?Math.round(opens*100/sent):0)+'% opened'+((b.pending&&b.pending.length)||(b.status==='scheduled')?' · next round scheduled':''); }
   else if(b.status==='scheduled'){ var at=(b.pending&&b.pending[0])||b.sendAt; pill='<span class="bbp sch">Scheduled</span>'; line=esc(_bbDate(at)); }
   else { pill='<span class="bbp oth">'+esc(b.status||'Draft')+'</span>'; line=''; }
-  box.innerHTML=pill+' '+line;
-  if(acts) acts.innerHTML=_bbActs(b)+(_bbCanSched?('<a class="railadd railico" href="rrg_mass_studio.html?schedule='+encodeURIComponent(b.id)+'#'+(runs.length?'sent':'scheduled')+'" title="Schedule another round in the Email Studio" style="font-size:13px">\u21bb</a>'):'');
+  box.innerHTML=pill+' '+line+((runs.length||b.finishedAt||b.status==='sent')?'<div id="bbReplies" style="margin-top:3px"></div>':'');
+  if(runs.length||b.finishedAt||b.status==='sent') loadBlastReplies();
+  if(acts) acts.innerHTML=_bbActs(b)+((runs.length||b.finishedAt||b.status==='sent')?'<button type="button" class="railadd railico" title="Import replies from Gmail — sites go to the shortlist, brokers get logged" aria-label="Import replies" onclick="importBlastReplies();return false;" style="font-size:14px">\u2913</button>':'')+(_bbCanSched?('<a class="railadd railico" href="rrg_mass_studio.html?schedule='+encodeURIComponent(b.id)+'#'+(runs.length?'sent':'scheduled')+'" title="Schedule another round in the Email Studio" style="font-size:13px">\u21bb</a>'):'');
 }
 // Every scheduled round of a blast (numbered after the rounds already sent).
 function _bbPending(b, sentCount){
   var p=(b.pending&&b.pending.length)?b.pending:(b.sendAt?[b.sendAt]:[]);
   if(b.status==='sending') p=p.slice(0);
   return p.map(function(at,i){ return '<div class="bbr nxt"><span class="bbrn">'+(sentCount+i+1)+'</span><span class="bbrd">'+esc(_bbDate(at))+'</span><span class="bbrs">Scheduled'+(i===0&&b.est!=null?(' · ~'+Number(b.est).toLocaleString()+' brokers'):'')+'</span></div>'; }).join('');
+}
+function loadBlastReplies(){
+  fetch('/api/deal/'+encodeURIComponent(KEY)+'/broker-blast/replies',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(!j||!j.ok) return; _renderBlastReplies(j); }).catch(function(){});
+}
+function _renderBlastReplies(j){
+  var el=document.getElementById('bbReplies'); if(!el) return;
+  var st=(j.stale||[]);
+  var h='<b style="color:var(--navy)">'+(j.replies||0)+' repl'+((j.replies||0)===1?'y':'ies')+' · '+(j.sites||0)+' site'+((j.sites||0)===1?'':'s')+' shortlisted</b>'+(j.review?(' · '+j.review+' to review'):'')+(j.lastImport?(' <span style="color:#8a93a8">· checked '+esc(_mmD(j.lastImport))+'</span>'):' <span style="color:#8a93a8">· not checked yet</span>');
+  if(st.length&&_bbCanSched){ h+='<div style="margin-top:4px;color:#7a4b00">'+st.length+' broker'+(st.length===1?' has':'s have')+' left their firm: '+st.slice(0,4).map(function(x){ return esc(x.name||x.email); }).join(', ')+(st.length>4?' +'+(st.length-4):'')+' <a href="#" onclick="blastStale(\'suppress\');return false;" style="font-weight:700">Remove from list</a> · <a href="#" onclick="blastStale(\'dismiss\');return false;">Keep</a></div>'; }
+  el.innerHTML=h; window._bbStale=st;
+}
+function importBlastReplies(){
+  var el=document.getElementById('bbReplies'); if(el) el.innerHTML='<span style="color:#8a93a8">Reading replies in Gmail… this can take a minute.</span>';
+  fetch('/api/deal/'+encodeURIComponent(KEY)+'/broker-blast/import-replies',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:'{}'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ if(window.rrgToast) window.rrgToast((j&&j.error)||'Could not import replies.','err'); loadBlastReplies(); return; }
+    if(window.rrgToast) window.rrgToast((j.replies||0)+' new repl'+((j.replies||0)===1?'y':'ies')+' · '+(j.sites||0)+' site'+((j.sites||0)===1?'':'s')+' added'+(j.stale?(' · '+j.stale+' left their firm'):''));
+    loadBlastReplies(); if(typeof loadShortlist==='function') try{ loadShortlist(); }catch(e){}
+  }).catch(function(){ if(window.rrgToast) window.rrgToast('Could not reach the server.','err'); loadBlastReplies(); });
+}
+function blastStale(action){
+  var st=window._bbStale||[]; if(!st.length) return;
+  var go=function(ok){ if(!ok) return; fetch('/api/deal/'+encodeURIComponent(KEY)+'/broker-blast/stale',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:action, emails:st.map(function(x){return x.email;})})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&window.rrgToast) window.rrgToast(action==='suppress'?((j.suppressed||0)+' removed from future blasts'):'Kept on the list'); loadBlastReplies(); }); };
+  if(action==='suppress'){ var m='Stop emailing '+st.length+' broker'+(st.length===1?'':'s')+' who left their firm? They’re added to the suppression list.'; (window.rrgConfirm?window.rrgConfirm(m,{title:'Remove stale contacts?',okText:'Remove'}):Promise.resolve(window.confirm(m))).then(go); } else go(true);
 }
 function _bbActs(b){
   var sentOnce=(b.runs||[]).some(function(r){ return r.sentAt||r.sent; });
@@ -1910,8 +1935,45 @@ function deleteBlast(id, status){
   };
   if(window.rrgConfirm){ window.rrgConfirm(msg,{title:sch?'Delete scheduled blast?':'Remove blast?',okText:'Delete',danger:true}).then(go); } else { go(window.confirm(msg)); }
 }
+// ===== Automated broker-blast series (set it and forget it) =====
+var _bsData=null;
+function loadBlastSeries(){
+  if(!KEY) return;
+  fetch('/api/deal/'+encodeURIComponent(KEY)+'/blast-series',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(!j||!j.ok) return; _bsData=j; renderBlastSeries(); }).catch(function(){});
+}
+function renderBlastSeries(){
+  var sub=document.getElementById('autoSub'), acts=document.getElementById('autoActs'); if(!sub||!_bsData) return;
+  var on=(_bsData.series||[]).filter(function(x){ return x.status==='active'; })[0];
+  if(on){
+    var nx=on.nextAt?_mmD(on.nextAt):'';
+    sub.innerHTML='<span class="bbp" style="background:#e6f4ec;color:#2f7a55">On</span> '+esc(on.name)+(on.blastsLeft?(' · '+on.blastsLeft+' blast'+(on.blastsLeft===1?'':'s')+' left'):'')+(nx?(' · next step '+esc(nx)):'')+'<div style="font-size:11px;color:#8a93a8;margin-top:2px">Stops on its own when the engagement reaches the stop stage or is closed / lost.</div>';
+    acts.innerHTML=_bsData.canManage?'<button type="button" class="railadd" style="font-size:12px;font-weight:700;padding:0 10px" onclick="blastSeriesStop();return false;" title="Cancel scheduled blasts and end the series">Stop</button>':'';
+    _mmSet('auto',true);
+  } else {
+    var plans=_bsData.plans||[];
+    sub.innerHTML=plans.length?'<span class="bbp" style="background:#eef1f6;color:#6b7488">Off</span> Follow-up blasts are not running.':'No broker-blast automation set up yet. Create one in Settings → Automations.';
+    acts.innerHTML=(_bsData.canManage&&plans.length)?('<select id="bsPlan" style="font:inherit;font-size:12px;padding:3px 6px;border:1px solid #cdd6e6;border-radius:6px;max-width:150px">'+plans.map(function(p){ return '<option value="'+esc(p.id)+'">'+esc(p.name)+'</option>'; }).join('')+'</select><button type="button" class="railadd" style="font-size:12px;font-weight:700;padding:0 10px" onclick="blastSeriesStart();return false;">Start</button>'):'';
+    _mmSet('auto',false);
+  }
+}
+function blastSeriesStart(){
+  var sel=document.getElementById('bsPlan'); if(!sel) return;
+  var sent=(_bblasts||[]).some(function(b){ return Number(b.sent||0)>0; });
+  var skip=sent?1:0;   // a blast already went out by hand: start at the first follow-up
+  var _m=(sent?'A blast has already gone out, so the series starts with the first follow-up. ':'')+'Each blast is scheduled into the next open 9:00 AM business-day slot and goes to brokers in this engagement’s markets. It stops on its own when the engagement reaches the stop stage or is closed / lost.';
+  (window.rrgConfirm?window.rrgConfirm(_m,{title:'Start automated follow-ups?',okText:'Start'}):Promise.resolve(window.confirm(_m))).then(function(ok){ if(!ok) return;
+    fetch('/api/deal/'+encodeURIComponent(KEY)+'/blast-series/start',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({automationId:sel.value, skip:skip})}).then(function(r){return r.json();}).then(function(j){ if(!j||!j.ok){ (window.rrgToast||alert)((j&&j.error)||'Could not start.','err'); return; } rrgToast('Automated follow-ups are on.'); loadBlastSeries(); });
+  });
+}
+function blastSeriesStop(){
+  var _m='Cancels every scheduled broker blast on this engagement and ends the follow-up series. Blasts already sent are kept.';
+  (window.rrgConfirm?window.rrgConfirm(_m,{title:'Stop broker blasts?',okText:'Stop blasts',danger:true}):Promise.resolve(window.confirm(_m))).then(function(ok){ if(!ok) return;
+    fetch('/api/deal/'+encodeURIComponent(KEY)+'/blast-series/stop',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:'{}'}).then(function(r){return r.json();}).then(function(j){ if(!j||!j.ok){ (window.rrgToast||alert)((j&&j.error)||'Could not stop.','err'); return; } rrgToast('Stopped: '+(j.canceled||0)+' scheduled send(s) canceled.'); loadBlastSeries(); loadBrokerBlasts(); });
+  });
+}
 function loadBrokerBlasts(){
   if(!KEY) return;
+  setTimeout(loadBlastSeries, 50);
   fetch('/api/deal/'+encodeURIComponent(KEY)+'/broker-blasts',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok){ var b=document.getElementById('blastList'); if(b) b.textContent=(j&&j.error)||'Could not load blasts.'; return; }
     _bblasts=j.blasts||[]; _bbStudio=(j.studio!==false); _bbCanSched=!!j.canSchedule; renderBrokerBlasts(_bbStudio);
