@@ -1531,7 +1531,7 @@ app.use(express.urlencoded({ extended: false }));
 const OPEN = new Set(['/health', '/login', '/api/login', '/logout', '/favicon.ico', '/api/appname', '/api/brand', '/api/brand/logo', '/api/brand/logo/light', '/rrg_brand.js', '/rrg_theme.css', '/api/gmail/callback']);
 app.use((req, res, next) => {
   // Buyer-facing data-room links are public (the unguessable token is the gate).
-  if (OPEN.has(req.path) || req.path === '/chitchat' || req.path.startsWith('/chitchat/') || req.path === '/api/chitchat/subscribe' || req.path.startsWith('/room/') || req.path.startsWith('/deal/') || req.path.startsWith('/roomfile/') || req.path.startsWith('/roomview/') || req.path.startsWith('/vendor/') || req.path.startsWith('/sign/') || req.path.startsWith('/api/sign/') || req.path.startsWith('/eo/') || req.path.startsWith('/ec/') || req.path.startsWith('/u/') || req.path.startsWith('/api/u/') || req.path.startsWith('/book/') || req.path.startsWith('/api/book/') || req.path.startsWith('/pay/') || req.path.startsWith('/api/pay/') || req.path === '/api/stripe/webhook' || req.path === '/api/mail/ses-webhook' || req.path.startsWith('/mail/') || req.path === '/market' || req.path === '/api/market/public' || req.path === '/api/market/request-access' || req.path === '/site' || req.path.startsWith('/site/') || req.path === '/sitemap.xml' || req.path === '/robots.txt' || req.path === '/api/website/public' || req.path === '/api/website/lead' || req.path === '/api/website/subscribe' || req.path === '/api/website/hero-image' || req.path.startsWith('/api/property-public-photo/') || req.path.startsWith('/s/') || req.path === '/seller_intake.html' || req.path === '/seller_record.html') return next();
+  if (OPEN.has(req.path) || req.path === '/chitchat' || req.path.startsWith('/chitchat/') || req.path === '/api/chitchat/subscribe' || req.path.startsWith('/room/') || req.path.startsWith('/deal/') || req.path.startsWith('/roomfile/') || req.path.startsWith('/roomview/') || req.path.startsWith('/vendor/') || req.path.startsWith('/sign/') || req.path.startsWith('/api/sign/') || req.path.startsWith('/eo/') || req.path.startsWith('/ec/') || req.path.startsWith('/u/') || req.path.startsWith('/api/u/') || req.path.startsWith('/book/') || req.path.startsWith('/api/book/') || req.path.startsWith('/pay/') || req.path.startsWith('/api/pay/') || req.path === '/api/stripe/webhook' || req.path === '/api/mail/ses-webhook' || req.path.startsWith('/mail/') || req.path === '/market' || req.path === '/api/market/public' || req.path === '/api/market/request-access' || req.path === '/site' || req.path.startsWith('/site/') || req.path === '/sitemap.xml' || req.path === '/robots.txt' || req.path === '/api/website/public' || req.path === '/api/website/lead' || req.path === '/api/website/subscribe' || req.path === '/api/website/hero-image' || req.path.startsWith('/api/property-public-photo/') || req.path.startsWith('/s/') || req.path === '/careers/apply' || req.path === '/api/careers/apply' || req.path === '/seller_intake.html' || req.path === '/seller_record.html') return next();
   const sess = auth.readSession(parseCookies(req)[COOKIE]);
   if (sess) {
     req.user = sess;
@@ -7604,6 +7604,32 @@ function defaultWebsite() {
       { q: 'My space isn\'t a former restaurant — does that matter?', a: 'It matters, and we account for it. Venting, power, grease, and occupancy drive which concepts fit and what build-out a tenant will take on — we match accordingly.' },
       { q: 'Do you represent the landlord or the operator?', a: 'On this side, we represent you, the owner. Our job is to protect your asset and place an operator who will make it succeed.' }
     ],
+    careersHeroHead: 'Build an exciting career in restaurant brokerage.',
+    careersHeroSub: 'Restaurants, bars and breweries are all we do. Join a specialist team with a proven playbook, a live buyer and operator database, and deal technology built in-house — and build a book of business across Texas.',
+    careersValues: [
+      { t: 'Restaurants and bars only', d: 'Every deal you work is a restaurant, bar or brewery. You become the specialist operators, landlords and brokers call first.' },
+      { t: 'A system, not just a desk', d: 'Buyer and operator database, tenant requirement campaigns, data rooms, valuations and deal tracking — built in-house and in your hands on day one.' },
+      { t: 'Mentorship from people who close', d: 'Work alongside brokers with 200+ restaurant transactions behind them. Live deals and real coaching, not sink-or-swim.' },
+      { t: 'A name that opens doors', d: 'Operators and landlords across Texas already know the brand, so your calls get returned and your listings get seen.' }
+    ],
+    careersSteps: [
+      { t: 'Licensed and onboarded', d: 'A Texas real estate sales license (or working toward one), then onboarding into our playbook and platform.' },
+      { t: 'Learn the restaurant playbook', d: 'Valuation, confidential marketing, tenant representation and lease basics — how restaurant deals actually get done.' },
+      { t: 'Build your book', d: 'Work your market — operators, landlords and brokers — with leads, tools and campaigns behind you from day one.' },
+      { t: 'Work deals with a mentor', d: 'Your first listings and searches run alongside a senior broker, so you learn on live deals.' },
+      { t: 'Close and grow', d: 'Typical ramp-up is 6–12 months. After that, your pipeline compounds.' }
+    ],
+    careersFaqs: [
+      { q: 'Do I need a Texas real estate license?', a: 'Yes, to practice and be paid a commission you need a Texas real estate sales license sponsored by our broker. If you are working on yours, apply anyway.' },
+      { q: 'Is this a salaried role?', a: 'No. It is commission-based with high earning potential. Typical ramp-up is 6–12 months, and we recommend having 9–12 months of living expenses saved before you start.' },
+      { q: 'Do I need restaurant or real estate experience?', a: 'It helps, but it is not required. Strong candidates come from commercial or residential real estate, business sales, and restaurant ownership or management. Coachable and driven matters most.' },
+      { q: 'Where are you hiring?', a: 'Across Texas — Austin, Dallas, Houston, San Antonio and New Braunfels.' },
+      { q: 'What happens after I apply?', a: 'We review every application personally and reach out to set up a first conversation.' }
+    ],
+    careersApplyHead: 'Start the conversation',
+    careersApplySub: 'Tell us a little about yourself. We review every application personally and will reach out to set up a first conversation.',
+    careersBandHead: 'Build an exciting career in restaurant brokerage',
+    careersBandSub: 'Restaurants, bars and breweries are all we do. Join a specialist team with a proven playbook, mentorship and deal technology built in-house. Hiring agents across Texas.',
     aboutHead: 'Why operators trust RRG',
     about: 'Restaurant deals fail for predictable reasons. We run a detail-oriented, controlled process — from valuation and positioning through qualified buyers and a clean close — so your transaction gets done right. We represent sellers, buyers, landlords, and tenants across Texas.',
     offices: [
@@ -7667,7 +7693,7 @@ function loadWebsite() {
   try { s = rj(WEBSITE_FILE); } catch (e) {}
   if (!s || typeof s !== 'object') return d;
   const out = Object.assign({}, d, s);
-  ['stats', 'services', 'offices', 'processes', 'wins', 'concepts', 'sellSteps', 'sellValues', 'sellFaqs', 'muSteps', 'muValues', 'muFaqs', 'exitSteps', 'exitValues', 'exitFaqs', 'secSteps', 'secValues', 'secFaqs', 'placeSteps', 'placeValues', 'placeFaqs'].forEach(function (k) { if (!Array.isArray(out[k]) || !out[k].length) out[k] = d[k]; });
+  ['stats', 'services', 'offices', 'processes', 'wins', 'concepts', 'sellSteps', 'sellValues', 'sellFaqs', 'muSteps', 'muValues', 'muFaqs', 'exitSteps', 'exitValues', 'exitFaqs', 'secSteps', 'secValues', 'secFaqs', 'placeSteps', 'placeValues', 'placeFaqs', 'careersValues', 'careersSteps', 'careersFaqs'].forEach(function (k) { if (!Array.isArray(out[k]) || !out[k].length) out[k] = d[k]; });
   return out;
 }
 function saveWebsite(o) { return writeJsonGuarded(WEBSITE_FILE, o || {}, 'saveWebsite'); }
@@ -8015,6 +8041,9 @@ app.get('/site/exit', (req, res) => { res.set('Content-Type', 'text/html; charse
 
 // ===== Tenant-rep / site-selection detail page: /site/secure =====
 app.get('/site/secure', (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8').send(siteSecurePage(req)); });
+
+// ===== Careers / agent recruiting page: /site/careers (applications → contacts tagged Recruit) =====
+app.get('/site/careers', (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8').send(siteCareersPage(req)); });
 function siteSecurePage(req) {
   const s = loadWebsite();
   const org = esc(s.brand || orgDisplayName() || 'Restaurant Realty Group');
@@ -8159,7 +8188,7 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
       <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
-    <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/subscribe">Listing alerts</a></div>
+    <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/subscribe">Listing alerts</a><a href="/site/careers">Careers</a></div>
     <div><h4>Offices</h4>${offLinks}</div>
   </div>
   <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
@@ -8179,6 +8208,195 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
         if(j&&j.ok){ f.reset(); document.getElementById('lf_interest').value='Secure the Right Location'; msg.textContent='Thanks — we’ll be in touch shortly.'; msg.className='lmsg ok'; }
         else { msg.textContent=(j&&j.error)||'Something went wrong. Please call us.'; msg.className='lmsg err'; }
         btn.disabled=false; btn.textContent=old;
+      }).catch(function(){ msg.textContent='Network error. Please call us.'; msg.className='lmsg err'; btn.disabled=false; btn.textContent=old; });
+  });
+})();
+</script>
+</body></html>`;
+}
+
+function siteCareersPage(req) {
+  const s = loadWebsite();
+  const org = esc(s.brand || orgDisplayName() || 'Restaurant Realty Group');
+  const year = new Date().getFullYear();
+  const bookUrl = String(s.bookingUrl || '').replace(/["'<>]/g, '').trim();
+  const bookBtn = bookUrl ? ('<a class="btn gold" href="' + bookUrl + '" target="_blank" rel="noopener">📅 Book a call</a>') : '';
+  const email = esc(s.contactEmail || '');
+
+  const steps = Array.isArray(s.careersSteps) ? s.careersSteps : [];
+  const stepHtml = steps.slice(0, 8).map(function (x, j) { return '<div class="step"><div class="stepn">' + (j + 1) + '</div><div class="stepb"><div class="stept">' + esc(x.t || '') + '</div><div class="stepd">' + esc(x.d || '') + '</div></div></div>'; }).join('');
+
+  const re = /leas|secured|\bsite\b|\bspace\b|endcap|2nd[- ]?gen|second[- ]?gen/i;
+  const hit = (s.wins || []).filter(function (w) { return re.test(String((w && w.label) || '') + ' ' + String((w && w.detail) || '') + ' ' + String((w && w.type) || '')); });
+  const winSrc = hit.length ? hit : (s.wins || []).slice(0, 6);
+  const winHtml = winSrc.slice(0, 6).map(function (w) { const type = String(w.type || '').toLowerCase(); const cls = type.indexOf('sold') >= 0 ? 'sold' : (type.indexOf('leas') >= 0 ? 'leased' : (type.indexOf('plac') >= 0 ? 'placed' : 'other')); const meta = [esc(w.market || ''), esc(w.detail || '')].filter(Boolean).join(' &middot; '); return '<div class="win"><span class="wtag ' + cls + '">' + esc(w.type || 'Closed') + '</span><div class="wl">' + esc(w.label || '') + '</div>' + (w.value ? ('<div class="wval">' + esc(w.value) + '</div>') : '') + (meta ? ('<div class="wm">' + meta + '</div>') : '') + '</div>'; }).join('');
+  const hasWins = false;
+  const _mk = ((s.offices || []).map(function (o) { return String((o && o.city) || '').trim(); }).filter(Boolean)); const careerMarkets = _mk.length ? _mk : CAREER_MARKETS.slice();
+  const _chip = function (name, list, type) { return list.map(function (v) { return '<label class="cchip"><input type="' + (type || 'checkbox') + '" name="' + name + '" value="' + esc(v) + '"> ' + esc(v) + '</label>'; }).join(''); };
+
+  const bookRow = bookUrl ? ('<div style="margin-top:20px"><div style="font-size:12.5px;color:#9fb0cc;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:9px">Prefer to grab a time?</div>' + bookBtn + '</div>') : '';
+  const emailRow = email ? ('<p class="lead" style="margin-top:14px">Prefer email? <a style="color:#fff;font-weight:800" href="mailto:' + email + '">' + email + '</a></p>') : '';
+  const offLinks = (s.offices || []).map(function (o) { const tel = String(o.phone || '').replace(/[^0-9+]/g, ''); return '<a href="tel:' + tel + '">' + esc(o.city || '') + ' &middot; ' + esc(o.phone || '') + '</a>'; }).join('');
+
+  const VIC = [
+    '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.4 15.4 21 21" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>',
+    '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="4" width="14" height="18" rx="2"/><rect x="9" y="2.6" width="6" height="3.4" rx="1.1" fill="#eef3fb"/><path d="M8.5 13l2.2 2.2 4.3-4.6" fill="none" stroke="#eef3fb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="11" y="3" width="2" height="17" rx="1"/><rect x="6" y="19.6" width="12" height="2.2" rx="1"/><path d="M5 6h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M5 6 2.4 11.6h5.2L5 6Z"/><path d="M19 6 16.4 11.6h5.2L19 6Z"/></svg>',
+    '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 6.3a.9.9 0 0 0-.9.9v.25c-1.3.3-2.15 1.25-2.15 2.5 0 1.45 1.2 2.15 2.5 2.55 1 .3 1.35.5 1.35.95 0 .45-.4.75-1.05.75-.6 0-1.1-.2-1.55-.6a.9.9 0 1 0-1.15 1.38c.55.47 1.2.76 1.9.86v.26a.9.9 0 0 0 1.8 0v-.28c1.35-.32 2.2-1.26 2.2-2.52 0-1.5-1.25-2.2-2.6-2.6-.85-.28-1.25-.48-1.25-.9 0-.38.38-.66.95-.66.5 0 .9.12 1.3.4a.9.9 0 1 0 1-1.48c-.4-.28-.85-.47-1.3-.56v-.28a.9.9 0 0 0-.9-.9Z" fill="#eef3fb"/></svg>'
+  ];
+  const valueHtml = (Array.isArray(s.careersValues) ? s.careersValues : []).map(function (v, i) { return '<div class="svc" style="box-shadow:0 10px 26px rgba(10,20,50,.09)"><div class="svcic">' + (VIC[i] || VIC[0]) + '</div><div class="svct">' + esc(v.t || '') + '</div><div class="svcd">' + esc(v.d || '') + '</div></div>'; }).join('');
+  const faqHtml = (Array.isArray(s.careersFaqs) ? s.careersFaqs : []).map(function (f) { return '<details class="faq"><summary>' + esc(f.q || '') + '</summary><div class="fa">' + esc(f.a || '') + '</div></details>'; }).join('');
+
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Careers — ${org}</title>
+<meta name="description" content="Build a career in restaurant brokerage with ${org}. Restaurants, bars and breweries only — hiring agents across Texas.">${seoMeta(req,{path:'/site/careers',title:"Careers — "+(s.brand||orgDisplayName()||'Restaurant Realty Group'),description:"Build a career in restaurant brokerage. Hiring agents across Texas."})}
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>${SITE_CSS}</style>
+<style>
+.shero{position:relative;background:linear-gradient(115deg,#060e22,#0a1733 55%,#122a5a);color:#fff;padding:52px 0 78px;overflow:hidden;}
+.shero::after{content:'';position:absolute;right:-140px;top:-140px;width:460px;height:460px;border-radius:50%;background:radial-gradient(circle,rgba(200,162,75,.16),transparent 70%);pointer-events:none;}
+.shero .wrap{position:relative;z-index:1;}
+.shero .eyebrow{color:var(--gold2);}
+.shero h1{font-family:'Fraunces',serif;font-weight:600;font-size:52px;line-height:1.05;letter-spacing:-.015em;margin:14px 0 0;max-width:18ch;text-wrap:balance;}
+@media(max-width:720px){.shero h1{font-size:34px;}}
+.shero .sub{color:#c6d1e6;font-size:18px;line-height:1.55;max-width:62ch;margin:20px 0 0;}
+.sherocta{display:flex;flex-wrap:wrap;gap:14px;margin-top:30px;}
+.strust{display:flex;flex-wrap:wrap;gap:10px 28px;margin-top:32px;color:#9fb0cc;font-size:13px;font-weight:700;}
+.strust span{display:inline-flex;align-items:center;gap:9px;}
+.strust b{color:var(--gold2);font-weight:800;}
+.sback{display:inline-flex;align-items:center;gap:7px;color:#9fb0cc;font-size:13px;font-weight:700;text-decoration:none;}
+.sback:hover{color:#fff;}
+.svalue{background:var(--cream);}
+.cchips{display:flex;flex-wrap:wrap;gap:8px;}
+.cchip{display:inline-flex !important;align-items:center;gap:7px;border:1px solid #cfd6e2;border-radius:999px;padding:8px 13px;font-size:13.5px !important;font-weight:600 !important;text-transform:none !important;letter-spacing:0 !important;color:var(--ink) !important;cursor:pointer;background:#fff;margin:0 !important;}
+.cchip input{width:auto !important;margin:0;accent-color:var(--navy);}
+.chp{position:absolute;left:-9999px;height:0;overflow:hidden;}
+.cfine{font-size:12.5px;color:#9fb0cc;margin-top:14px;line-height:1.5;}
+.faqwrap{margin-top:38px;display:grid;gap:12px;max-width:840px;}
+.faq{border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden;box-shadow:0 2px 10px rgba(10,20,50,.04);}
+.faq summary{cursor:pointer;list-style:none;padding:19px 22px;font-family:'Fraunces',serif;font-weight:600;font-size:18px;color:var(--navy);display:flex;justify-content:space-between;align-items:center;gap:16px;}
+.faq summary::-webkit-details-marker{display:none;}
+.faq summary::after{content:'+';font-family:Inter,sans-serif;font-size:26px;color:var(--gold);font-weight:400;line-height:1;transition:transform .2s;}
+.faq[open] summary::after{transform:rotate(45deg);}
+.faq .fa{padding:0 22px 20px;color:var(--muted);font-size:15px;line-height:1.62;max-width:72ch;}
+/* hero art: dot-grid texture + abstract line art (decorative, hidden < 900px) */
+.shero::before{content:'';position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.075) 1px,transparent 1.3px);background-size:22px 22px;-webkit-mask-image:linear-gradient(100deg,transparent 22%,#000 70%);mask-image:linear-gradient(100deg,transparent 22%,#000 70%);pointer-events:none;}
+.shero-art{position:absolute;top:0;height:100%;width:540px;right:max(16px,calc((100vw - 1180px) / 2));pointer-events:none;-webkit-mask-image:linear-gradient(90deg,transparent 0%,#000 28%);mask-image:linear-gradient(90deg,transparent 0%,#000 28%);}
+@media(max-width:1100px){.shero-art{display:none;}}
+@media(prefers-reduced-motion:no-preference){.shero-art .hubp{animation:hubp 4.5s ease-in-out infinite;}@keyframes hubp{0%,100%{stroke-opacity:.18}50%{stroke-opacity:.5}}}
+</style></head>
+<body>
+<header><div class="wrap"><nav class="nav">
+  <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
+  <span class="sp"></span>
+  <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a></div></div>
+  <a class="navlink" href="/market">Listings</a>
+  <a class="navlink" href="/site/subscribe">Listing alerts</a>
+  <a class="navlink" href="#process">How we work</a>
+  <a class="navlink" href="#track">Track record</a>
+  <a class="navlink" href="/site#markets">Markets</a>
+  <a class="navcta" href="#apply">Apply now</a>
+</nav></div></header>
+
+<section class="shero"><svg class="shero-art" viewBox="0 0 640 420" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false"><defs><marker id="ah" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L8 4L0 8z" fill="#c8a24b" fill-opacity=".6"/></marker></defs><rect x="245" y="43" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="236" y="109" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="233" y="151" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="258" y="191" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="248" y="258" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="234" y="303" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="252" y="357" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="253" y="401" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="291" y="36" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="299" y="110" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="301" y="158" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="295" y="209" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="287" y="249" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="303" y="313" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="296" y="347" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="292" y="402" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="344" y="55" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="342" y="109" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="361" y="138" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="347" y="202" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="337" y="252" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="362" y="296" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="353" y="348" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="353" y="422" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="394" y="33" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="391" y="100" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="389" y="139" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="402" y="214" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="400" y="252" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="406" y="295" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="405" y="349" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="406" y="423" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="442" y="48" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="457" y="89" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="448" y="164" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="460" y="267" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="447" y="310" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="442" y="355" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="459" y="413" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="514" y="35" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="502" y="109" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="509" y="149" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="504" y="216" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="509" y="241" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="515" y="302" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="505" y="350" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="505" y="406" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="547" y="50" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="547" y="106" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="545" y="158" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="567" y="202" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="564" y="247" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="565" y="304" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="551" y="371" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="556" y="407" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="621" y="43" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="615" y="89" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="620" y="144" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="598" y="216" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="601" y="267" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="624" y="309" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="597" y="346" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><rect x="602" y="407" width="7" height="7" rx="2.5" fill="#d9b867" fill-opacity="0.0" stroke="#d9b867" stroke-opacity="0.22"/><circle class="hubp" cx="458" cy="206" r="30" fill="none" stroke="#c8a24b" stroke-opacity="0.4"/><circle cx="458" cy="206" r="58" fill="none" stroke="#c8a24b" stroke-opacity="0.16" stroke-dasharray="2 5"/><line x1="372" y1="206" x2="418" y2="206" stroke="#c8a24b" stroke-opacity="0.4" stroke-width="1"/><line x1="498" y1="206" x2="544" y2="206" stroke="#c8a24b" stroke-opacity="0.4" stroke-width="1"/><line x1="458" y1="120" x2="458" y2="166" stroke="#c8a24b" stroke-opacity="0.4" stroke-width="1"/><line x1="458" y1="246" x2="458" y2="292" stroke="#c8a24b" stroke-opacity="0.4" stroke-width="1"/><rect x="452" y="200" width="13" height="13" rx="2.5" fill="#d9b867" fill-opacity="0.25" stroke="#d9b867" stroke-opacity="0.95"/><line x1="250" y1="330" x2="640" y2="330" stroke="#c8a24b" stroke-opacity="0.08" stroke-width="1" stroke-dasharray="3 5"/><line x1="250" y1="120" x2="640" y2="120" stroke="#c8a24b" stroke-opacity="0.08" stroke-width="1" stroke-dasharray="3 5"/></svg><div class="wrap">
+  <a class="sback" href="/site">&larr; Back to ${org}</a>
+  <div class="eyebrow" style="margin-top:16px">Careers</div>
+  <h1>${esc(s.careersHeroHead || '')}</h1>
+  ${s.careersHeroSub ? '<p class="sub">' + esc(s.careersHeroSub) + '</p>' : ''}
+  <div class="sherocta">
+    <a class="btn red" href="#apply">Apply now</a>
+    <a class="btn ghost" href="#process">What to expect</a>
+  </div>
+  <div class="strust">
+    <span><b>Restaurants &amp; bars</b> only</span>
+    <span><b>Proven playbook</b> &amp; mentorship</span>
+    <span><b>Hiring</b> across Texas</span>
+  </div>
+</div></section>
+
+<section class="svalue"><div class="wrap">
+  <div class="sec-head"><div class="eyebrow">Why join</div><div class="h2">Why brokers build their careers here</div>
+  <p class="lead">A specialist brand, a real system behind you, and people who have closed the deals you want to close.</p></div>
+  <div class="svcs">${valueHtml}</div>
+</div></section>
+
+<section id="process" class="process"><div class="wrap">
+  <div class="sec-head"><div class="eyebrow">What to expect</div><div class="h2">Your first year</div>
+  <p class="lead">A commission-based role with high earning potential. Typical ramp-up is 6–12 months — plan for 9–12 months of living expenses.</p></div>
+  <div class="ppanel on" style="margin-top:38px"><div class="steps">${stepHtml}</div></div>
+</div></section>
+
+${hasWins ? `<section id="track" class="track"><div class="wrap">
+  <div class="sec-head"><div class="eyebrow">Proof</div><div class="h2">Operators we've helped expand across Texas</div>
+  <p class="lead">Established operators entering Texas and multi-unit groups adding their next location — a sample of the sites we've secured. Details kept confidential; no client names needed to show the work.</p></div>
+  <div class="wins">${winHtml}</div>
+  <div class="trackfoot">Representative closings across Texas. Your outcome depends on your concept, the market, and the deal.</div>
+</div></section>` : ''}
+
+<section class="svalue"><div class="wrap">
+  <div class="sec-head"><div class="eyebrow">Candidate questions</div><div class="h2">Answered, straight</div>
+  <p class="lead">What people ask before they apply.</p></div>
+  <div class="faqwrap">${faqHtml}</div>
+</div></section>
+
+<section id="apply" class="contact"><div class="wrap"><div class="cgrid">
+  <div>
+    <div class="eyebrow">Apply</div>
+    <div class="h2">${esc(s.careersApplyHead || 'Start the conversation')}</div>
+    <p class="lead">${esc(s.careersApplySub || '')}</p>
+    ${emailRow}
+    <p class="cfine">Commission-based role. A Texas real estate sales license is required to practice — if you are working on yours, apply anyway.</p>
+  </div>
+  <form class="form" id="applyForm" novalidate>
+    <div class="row">
+      <div class="fld"><label>First name</label><input id="ap_first" autocomplete="given-name" required></div>
+      <div class="fld"><label>Last name</label><input id="ap_last" autocomplete="family-name" required></div>
+    </div>
+    <div class="row">
+      <div class="fld"><label>Email</label><input id="ap_email" type="email" autocomplete="email" required></div>
+      <div class="fld"><label>Phone</label><input id="ap_phone" type="tel" autocomplete="tel" required></div>
+    </div>
+    <div class="row">
+      <div class="fld"><label>City</label><input id="ap_city" autocomplete="address-level2"></div>
+      <div class="fld"><label>LinkedIn (optional)</label><input id="ap_li" type="url" placeholder="https://linkedin.com/in/…"></div>
+    </div>
+    <div class="fld"><label>Texas real estate sales license?</label><div class="cchips">${_chip('ap_lic', CAREER_LIC, 'radio')}</div></div>
+    <div class="fld"><label>Which markets?</label><div class="cchips">${_chip('ap_mkt', careerMarkets)}</div></div>
+    <div class="fld"><label>Your background</label><div class="cchips">${_chip('ap_exp', CAREER_EXP)}</div></div>
+    <div class="fld"><label>Anything else we should know? (optional)</label><textarea id="ap_msg" maxlength="2000"></textarea></div>
+    <div class="chp" aria-hidden="true"><input id="ap_web" tabindex="-1" autocomplete="off"></div>
+    <div style="margin-top:18px;display:flex;align-items:center"><button type="submit" class="btn red" id="apBtn">Submit application</button><span class="lmsg" id="apMsg"></span></div>
+  </form>
+</div></div></section>
+
+<footer><div class="wrap">
+  <div class="foot">
+    <div>
+      <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
+      <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
+    </div>
+    <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/subscribe">Listing alerts</a><a href="/site/careers">Careers</a></div>
+    <div><h4>Offices</h4>${offLinks}</div>
+  </div>
+  <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
+</div></footer>
+
+<script>
+(function(){
+  var f=document.getElementById('applyForm'); if(!f) return;
+  function val(id){ var el=document.getElementById(id); return el?String(el.value||'').trim():''; }
+  function picks(n){ return [].map.call(f.querySelectorAll('input[name="'+n+'"]:checked'),function(x){return x.value;}); }
+  f.addEventListener('submit',function(e){ e.preventDefault();
+    var msg=document.getElementById('apMsg'), btn=document.getElementById('apBtn');
+    var body={ firstName:val('ap_first'), lastName:val('ap_last'), email:val('ap_email'), phone:val('ap_phone'), city:val('ap_city'), linkedin:val('ap_li'), message:val('ap_msg'), website:val('ap_web'), license:(picks('ap_lic')[0]||''), markets:picks('ap_mkt'), experience:picks('ap_exp') };
+    var err=!body.firstName||!body.lastName?'Add your first and last name.':(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(body.email)?'Add a valid email.':(!body.phone?'Add your phone.':(!body.license?'Answer the license question.':'')));
+    if(err){ msg.textContent=err; msg.className='lmsg err'; return; }
+    var old=btn.textContent; btn.disabled=true; btn.textContent='Sending…'; msg.textContent='';
+    fetch('/api/careers/apply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+      .then(function(r){return r.json();}).then(function(j){
+        if(j&&j.ok){ f.innerHTML='<div style="padding:18px 4px;text-align:center"><div style="font-family:Fraunces,serif;font-size:24px;font-weight:600;color:var(--navy)">Application received</div><p style="color:var(--muted);margin:10px 0 0;line-height:1.55">Thank you. We review every application personally and will reach out shortly.</p></div>'; return; }
+        msg.textContent=(j&&j.error)||'Something went wrong. Please call us.'; msg.className='lmsg err'; btn.disabled=false; btn.textContent=old;
       }).catch(function(){ msg.textContent='Network error. Please call us.'; msg.className='lmsg err'; btn.disabled=false; btn.textContent=old; });
   });
 })();
@@ -8333,7 +8551,7 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
       <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
-    <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/subscribe">Listing alerts</a></div>
+    <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/subscribe">Listing alerts</a><a href="/site/careers">Careers</a></div>
     <div><h4>Offices</h4>${offLinks}</div>
   </div>
   <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
@@ -8505,7 +8723,7 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
       <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
-    <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/subscribe">Listing alerts</a></div>
+    <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/subscribe">Listing alerts</a><a href="/site/careers">Careers</a></div>
     <div><h4>Offices</h4>${offLinks}</div>
   </div>
   <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
@@ -8706,7 +8924,7 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
       <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
-    <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/subscribe">Listing alerts</a></div>
+    <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/subscribe">Listing alerts</a><a href="/site/careers">Careers</a></div>
     <div><h4>Offices</h4>${offLinks}</div>
   </div>
   <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
@@ -9058,7 +9276,7 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
       <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
-    <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/subscribe">Listing alerts</a></div>
+    <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/subscribe">Listing alerts</a><a href="/site/careers">Careers</a></div>
     <div><h4>Offices</h4>${offLinks}</div>
   </div>
   <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
@@ -9231,7 +9449,7 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
       <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
-    <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/subscribe">Listing alerts</a></div>
+    <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/subscribe">Listing alerts</a><a href="/site/careers">Careers</a></div>
     <div><h4>Offices</h4>${offLinks}</div>
   </div>
   <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
@@ -9777,6 +9995,11 @@ ${SITE_CSS}
   <div class="mktmap">${metroGrid}</div>
 </div></div></section>
 
+${s.careersBandHead ? `<section id="careers" style="background:var(--cream);padding:56px 0"><div class="wrap"><div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:22px">
+  <div style="max-width:62ch"><div class="eyebrow">Careers</div><div class="h2">${esc(s.careersBandHead)}</div>${s.careersBandSub ? '<p class="lead">' + esc(s.careersBandSub) + '</p>' : ''}</div>
+  <a class="btn navy" href="/site/careers">See career opportunities &rarr;</a>
+</div></div></section>` : ''}
+
 <section id="contact" class="contact"><div class="wrap"><div class="cgrid">
   <div>
     <div class="eyebrow">Get in touch</div>
@@ -9805,7 +10028,7 @@ ${SITE_CSS}
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
       <div class="annbadge"><span class="anndisc">RRG</span><span class="anntxt"><b>10 Years</b><i>2016 – 2026</i></span></div>
     </div>
-    <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/subscribe">Listing alerts</a></div>
+    <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/subscribe">Listing alerts</a><a href="/site/careers">Careers</a></div>
     <div><h4>Offices</h4>${(s.offices || []).map(function (o) { const tel = String(o.phone || '').replace(/[^0-9+]/g, ''); return '<a href="tel:' + tel + '">' + esc(o.city || '') + ' &middot; ' + esc(o.phone || '') + '</a>'; }).join('')}</div>
   </div>
   <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
@@ -24634,6 +24857,100 @@ app.post('/api/chitchat/subscribe', express.json({ limit: '8kb' }), async (req, 
   await massmail.addEmailsToList(C.listId, [email]); try { logSysEvent(null, 'Texas Chit Chat', 'New Texas Chit Chat subscriber: ' + email, { tool: 'marketing' }); } catch (e) {}
   res.json({ ok: true });
 } catch (e) { res.status(500).json({ ok: false, error: 'Could not subscribe right now.' }); } });
+// ---- Careers: public agent application (rrgcre.com "Apply" → Lavano contact tagged Recruit) ----
+const CAREER_MARKETS = ['Austin', 'Dallas', 'Houston', 'San Antonio', 'New Braunfels'];
+const CAREER_EXP = ['Commercial real estate', 'Residential real estate', 'Restaurant owner', 'Restaurant manager', 'Business sales'];
+const CAREER_LIC = ['Yes', 'No', 'Working on it'];
+const _careerRate = new Map();
+function _careerCors(req, res) { const o = String(req.headers.origin || ''); if (/^https:\/\/(www\.)?rrgcre\.com$/i.test(o)) { res.set('Access-Control-Allow-Origin', o); res.set('Vary', 'Origin'); res.set('Access-Control-Allow-Methods', 'POST, OPTIONS'); res.set('Access-Control-Allow-Headers', 'Content-Type'); } }
+function _careerPage(inner) {
+  const org = (function () { try { return orgDisplayName() || 'Restaurant Realty Group'; } catch (e) { return 'Restaurant Realty Group'; } })();
+  const E = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Careers — ' + E(org) + '</title>'
+    + '<meta name="description" content="Build a career in restaurant brokerage with ' + E(org) + '. Hiring agents across Texas.">'
+    + '<style>*{box-sizing:border-box}body{margin:0;background:#f3f5f9;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#1b2333}'
+    + '.hd{background:#13233f;color:#fff;padding:34px 16px 64px}.hd .in{max-width:640px;margin:0 auto}.logo{height:34px;display:block;margin-bottom:22px}'
+    + '.k{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#9fb3d6;font-weight:700}h1{font-size:30px;line-height:1.15;margin:8px 0 10px;font-weight:800}.hd p{margin:0;color:#d5deee;line-height:1.5;font-size:15px}'
+    + '.card{max-width:640px;margin:-40px auto 40px;background:#fff;border-radius:14px;box-shadow:0 8px 30px rgba(19,35,63,.12);padding:26px}'
+    + '@media(max-width:560px){.card{margin:-40px 12px 30px;padding:20px}h1{font-size:25px}}'
+    + 'label{display:block;font-size:13px;font-weight:700;margin:14px 0 6px}input[type=text],input[type=email],input[type=tel],input[type=url],textarea{width:100%;padding:11px 12px;border:1px solid #cfd6e3;border-radius:9px;font:inherit;font-size:15px;background:#fff}'
+    + 'textarea{min-height:96px;resize:vertical}input:focus,textarea:focus{outline:2px solid #2f6fdb;border-color:#2f6fdb}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media(max-width:560px){.row{grid-template-columns:1fr}}'
+    + '.chips{display:flex;flex-wrap:wrap;gap:8px}.chips label{margin:0;font-weight:500;font-size:14px;display:inline-flex;align-items:center;gap:7px;border:1px solid #cfd6e3;border-radius:999px;padding:8px 13px;cursor:pointer;background:#fff}'
+    + '.chips input{margin:0;accent-color:#13233f}.sub{font-size:12px;color:#6b7488;font-weight:500}.hp{position:absolute;left:-9999px;height:0;overflow:hidden}'
+    + 'button{margin-top:22px;width:100%;background:#13233f;color:#fff;border:0;border-radius:10px;padding:14px;font-size:16px;font-weight:700;cursor:pointer}button:disabled{opacity:.6}'
+    + '.msg{margin-top:12px;font-size:14px;color:#b42318;min-height:1em}.ok{text-align:center;padding:16px 4px}.ok h2{margin:0 0 8px;font-size:22px}.ok p{color:#4a5568;line-height:1.5;margin:0}'
+    + '.req{color:#b42318}.foot{max-width:640px;margin:0 auto 30px;text-align:center;font-size:12px;color:#6b7488;padding:0 16px}</style></head><body>'
+    + '<div class="hd"><div class="in"><img class="logo" src="/api/brand/logo/light" alt="' + E(org) + '" onerror="this.style.display=\'none\'">'
+    + '<div class="k">Careers · Hiring agents across Texas</div><h1>Build an exciting career in restaurant brokerage</h1>'
+    + '<p>Restaurants, bars and breweries are all we do. Our agents work with a proven playbook, a live buyer and operator database, and deal technology built in-house.</p></div></div>'
+    + '<div class="card">' + inner + '</div><div class="foot">' + E(org) + ' · Commission-based role. Typical ramp-up is 6–12 months; plan for 9–12 months of living expenses.</div></body></html>';
+}
+app.get('/careers/apply', (req, res) => {
+  if (req.query.ok) return res.type('html').send(_careerPage('<div class="ok"><h2>Application received</h2><p>Thank you. We review every application personally and will reach out shortly.</p></div>'));
+  const chk = (name, list, type) => '<div class="chips">' + list.map(v => '<label><input type="' + (type || 'checkbox') + '" name="' + name + '" value="' + v + '"' + (type === 'radio' ? ' required' : '') + '> ' + v + '</label>').join('') + '</div>';
+  res.type('html').send(_careerPage(
+    '<form id="f" method="post" action="/api/careers/apply" novalidate>'
+    + '<div class="row"><div><label for="fn">First name <span class="req">*</span></label><input type="text" id="fn" name="firstName" required autocomplete="given-name"></div>'
+    + '<div><label for="ln">Last name <span class="req">*</span></label><input type="text" id="ln" name="lastName" required autocomplete="family-name"></div></div>'
+    + '<div class="row"><div><label for="em">Email <span class="req">*</span></label><input type="email" id="em" name="email" required autocomplete="email"></div>'
+    + '<div><label for="ph">Phone <span class="req">*</span></label><input type="tel" id="ph" name="phone" required autocomplete="tel"></div></div>'
+    + '<div class="row"><div><label for="ci">City</label><input type="text" id="ci" name="city" autocomplete="address-level2"></div>'
+    + '<div><label for="li">LinkedIn <span class="sub">(optional)</span></label><input type="url" id="li" name="linkedin" placeholder="https://linkedin.com/in/…"></div></div>'
+    + '<label>Do you hold a Texas real estate sales license? <span class="req">*</span></label>' + chk('license', CAREER_LIC, 'radio')
+    + '<label>Which markets? <span class="sub">Pick any</span></label>' + chk('markets', CAREER_MARKETS)
+    + '<label>Your background <span class="sub">Pick any</span></label>' + chk('experience', CAREER_EXP)
+    + '<label for="mg">Anything else we should know? <span class="sub">(optional)</span></label><textarea id="mg" name="message" maxlength="2000"></textarea>'
+    + '<div class="hp" aria-hidden="true"><label>Website<input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>'
+    + '<button type="submit" id="go">Submit application</button><div class="msg" id="msg" role="status"></div></form>'
+    + '<script>(function(){var f=document.getElementById("f"),m=document.getElementById("msg"),b=document.getElementById("go");f.addEventListener("submit",function(e){e.preventDefault();'
+    + 'var d={};["firstName","lastName","email","phone","city","linkedin","message","website"].forEach(function(k){d[k]=(f.elements[k]&&f.elements[k].value||"").trim();});'
+    + 'var lic=f.querySelector("input[name=license]:checked");d.license=lic?lic.value:"";d.markets=[].map.call(f.querySelectorAll("input[name=markets]:checked"),function(x){return x.value;});d.experience=[].map.call(f.querySelectorAll("input[name=experience]:checked"),function(x){return x.value;});'
+    + 'if(!d.firstName||!d.lastName){m.textContent="Please enter your first and last name.";return;}if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(d.email)){m.textContent="Please enter a valid email.";return;}if(!d.phone){m.textContent="Please enter your phone.";return;}if(!d.license){m.textContent="Please answer the license question.";return;}'
+    + 'b.disabled=true;m.textContent="Sending…";fetch("/api/careers/apply",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)}).then(function(r){return r.json();}).then(function(j){if(j&&j.ok){location.href="/careers/apply?ok=1";}else{b.disabled=false;m.textContent=(j&&j.error)||"Could not send. Please try again.";}}).catch(function(){b.disabled=false;m.textContent="Could not send. Please try again.";});});})();</script>'));
+});
+app.options('/api/careers/apply', (req, res) => { _careerCors(req, res); res.sendStatus(204); });
+app.post('/api/careers/apply', express.json({ limit: '16kb' }), async (req, res) => {
+  _careerCors(req, res);
+  const isForm = /application\/x-www-form-urlencoded|multipart\/form-data/i.test(String(req.headers['content-type'] || ''));
+  const done = (code, j) => { if (isForm) { if (j.ok) return res.redirect(303, (process.env.CAREERS_THANKS_URL || '/careers/apply?ok=1')); return res.status(code).type('html').send(_careerPage('<div class="ok"><h2>Something is missing</h2><p>' + String(j.error || '').replace(/</g, '&lt;') + '</p><p style="margin-top:12px"><a href="/careers/apply">Back to the application</a></p></div>')); } return res.status(code).json(j); };
+  try {
+    const b = req.body || {}; if (b.website) return done(200, { ok: true });   // honeypot
+    const ip = String(req.headers['x-forwarded-for'] || req.ip || '').split(',')[0].trim(); const now = Date.now(); const h = (_careerRate.get(ip) || []).filter(t => now - t < 3600000); if (h.length >= 5) return done(429, { ok: false, error: 'Too many tries. Please try again later.' }); h.push(now); _careerRate.set(ip, h);
+    const S = (v, n) => String(v == null ? '' : v).trim().slice(0, n);
+    const arr = v => (Array.isArray(v) ? v : (v != null && v !== '' ? [v] : [])).map(x => String(x).trim());
+    let first = S(b.firstName, 80), last = S(b.lastName, 80);
+    if (!first && !last && b.name) { const nm = S(b.name, 160).split(/\s+/); first = nm[0] || ''; last = nm.slice(1).join(' '); }
+    const email = cleanEmailAddr(S(b.email, 160)); const phone = S(b.phone, 60);
+    if (!first || !last) return done(400, { ok: false, error: 'Please enter your first and last name.' });
+    if (!email) return done(400, { ok: false, error: 'Please enter a valid email.' });
+    if (!phone) return done(400, { ok: false, error: 'Please enter your phone.' });
+    const licIn = S(b.license, 40).toLowerCase(); const license = CAREER_LIC.find(x => x.toLowerCase() === licIn) || (/work/.test(licIn) ? 'Working on it' : (licIn === 'yes' ? 'Yes' : (licIn === 'no' ? 'No' : '')));
+    const _allowM = CAREER_MARKETS.concat(((loadWebsite().offices) || []).map(o => String((o && o.city) || '').trim()).filter(Boolean)); const markets = cleanList(arr(b.markets).map(m => _allowM.find(x => x.toLowerCase() === m.toLowerCase())).filter(Boolean), 10, 60);
+    const experience = arr(b.experience).map(m => CAREER_EXP.find(x => x.toLowerCase() === m.toLowerCase())).filter(Boolean);
+    const city = S(b.city, 80), state = S(b.state, 40), linkedin = /^https?:\/\//i.test(S(b.linkedin, 300)) ? S(b.linkedin, 300) : '', message = S(b.message, 2000);
+    const sys = { user: null };
+    const p0 = findOrCreatePerson(sys, { firstName: first, lastName: last, email: email, tag: 'Recruit', strict: true });
+    if (!p0) return done(400, { ok: false, error: 'Please enter your name and email.' });
+    const all = loadPeople(); const p = all.find(x => x.id === p0.id); if (!p) return done(500, { ok: false, error: 'Could not save right now.' });
+    const ph = personPhones(p); if (phone && ph.indexOf(phone) < 0) { p.phones = ph.concat([phone]).slice(0, 10); if (!p.phone) p.phone = phone; }
+    if (!p.leadSource) p.leadSource = 'Website';
+    p.tags = Array.isArray(p.tags) ? p.tags : []; if (p.tags.indexOf('Recruit') < 0) p.tags.push('Recruit');
+    const prevStatus = (p.recruit && p.recruit.status) || '';
+    p.recruit = { status: prevStatus || 'New', license: license, markets: markets, experience: experience, city: city, state: state, linkedin: linkedin, message: message, appliedAt: new Date().toISOString(), applications: ((p.recruit && p.recruit.applications) || 0) + 1 };
+    const lines = ['Career application (website)', 'TX license: ' + (license || '—'), 'Markets: ' + (markets.join(', ') || '—'), 'Background: ' + (experience.join(', ') || '—')];
+    if (city || state) lines.push('Location: ' + [city, state].filter(Boolean).join(', '));
+    if (linkedin) lines.push('LinkedIn: ' + linkedin);
+    if (message) lines.push('Message: ' + message);
+    logActivity(p, 'Form Submitted', lines.join('\n'), { auto: true });
+    savePeople(all);
+    try { logSysEvent(null, 'Careers', 'New agent application: ' + first + ' ' + last + (markets.length ? (' (' + markets.join(', ') + ')') : ''), { tool: 'recruiting', personId: p.id }); } catch (e) {}
+    try {
+      const to = auth.loadUsers().filter(u => !u.disabled && isSuper(u) && u.email).map(u => u.email);
+      if (to.length) { const link = appBaseUrl() + '/rrg_person.html?id=' + encodeURIComponent(p.id); sendNotifyMail(to, 'New agent application — ' + first + ' ' + last, lines.concat(['', 'Email: ' + email, 'Phone: ' + phone, '', 'Open in Lavano: ' + link]).join('\n')); }
+    } catch (e) {}
+    return done(200, { ok: true });
+  } catch (e) { console.error('careers apply:', e && e.message); return done(500, { ok: false, error: 'Could not send right now. Please try again.' }); }
+});
 app.get('/chitchat/:n', (req, res, next) => { const n = parseInt(req.params.n, 10); if (!isFinite(n)) return next(); const x = ccLoad().find(i => i.n === n && i.status !== 'draft'); if (!x) return res.status(404).type('html').send(_ccPublicPage('Not found', '<div class="b">That issue isn’t published. <a href="/chitchat">See Texas Chit Chat</a></div>'));
   res.type('html').send(chitChatHtml(x, { web: true })); });
 app.get('/api/reports/owner', requireAdmin, (req, res) => {
