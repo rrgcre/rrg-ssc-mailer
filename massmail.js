@@ -1095,9 +1095,9 @@ function mount(app, deps) {
   app.post('/mail/u/:token', express.urlencoded({ extended: false }), async (req, res) => { let email = null; try { if (DB_READY) email = await handleUnsub(String(req.params.token)); } catch (e) {} if (req.body && req.body.confirm) { res.set('Content-Type', 'text/html; charset=utf-8'); return res.send(_unsubPage(email)); } res.json({ ok: true }); });
   // Unsubscribes for one campaign with how long after delivery they happened — scanner opt-outs land within seconds.
   app.get('/api/mail/campaigns/:id/unsubs', requireAdmin, guard, async (req, res) => { try {
-    const rows = (await q(`SELECT e.email, e.created_at AS unsub_at, s.sent_at, EXTRACT(EPOCH FROM (e.created_at - s.sent_at))::int AS secs
+    const rows = (await q(`SELECT e.email, e.at AS unsub_at, s.sent_at, EXTRACT(EPOCH FROM (e.at - s.sent_at))::int AS secs
       FROM mm_events e LEFT JOIN mm_sends s ON s.campaign_id=e.campaign_id AND s.email=e.email
-      WHERE e.tenant=$1 AND e.campaign_id=$2 AND e.type='unsubscribe' ORDER BY e.created_at`, [TENANT, Number(req.params.id)])).rows;
+      WHERE e.tenant=$1 AND e.campaign_id=$2 AND e.type='unsubscribe' ORDER BY e.at`, [TENANT, Number(req.params.id)])).rows;
     res.json({ ok: true, unsubs: rows });
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
 
