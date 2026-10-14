@@ -261,6 +261,25 @@
     + '#rrgtop .create{display:inline-flex;align-items:center;gap:6px;background:#fff;color:var(--red,#DA2B1F);border:1px solid var(--red,#DA2B1F);border-radius:9px;padding:8px 15px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;white-space:nowrap;transition:background .12s,color .12s;}'
     + '#rrgtop .create:hover{background:var(--red,#DA2B1F);color:#fff;}'
     + '#rrgtop .create .cplus{font-size:15px;font-weight:700;line-height:1;}'
+    + '#rrgtop .rrghelp{display:inline-flex;align-items:center;gap:7px;background:#eaf1fd;border:1px solid #9fbbe8;color:#1d4ea3;border-radius:3px;padding:7px 13px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;margin-left:8px;}'
+    + '#rrgtop .rrghelp:hover{background:#dbe7fb;border-color:#6f97d9;}'
+    + '#rrgtop .rrghelp .hq{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#1d4ea3;color:#fff;font-size:11.5px;font-weight:800;line-height:1;}'
+    + '@media(max-width:700px){#rrgtop .rrghelp .hlbl{display:none;}#rrgtop .rrghelp{padding:7px 9px;}}'
+    + '.pghead #helpBtn,.btn.helpbtn{display:none!important;}'
+    + '#rrghov{position:fixed;inset:0;background:rgba(20,30,55,.35);z-index:900;opacity:0;visibility:hidden;transition:.18s;}'
+    + '#rrghov.show{opacity:1;visibility:visible;}'
+    + '#rrghpan{position:fixed;top:0;right:0;bottom:0;width:400px;max-width:92vw;background:#fff;z-index:901;box-shadow:-8px 0 30px rgba(10,20,50,.18);transform:translateX(100%);transition:transform .22s;display:flex;flex-direction:column;font-family:inherit;}'
+    + '#rrghov.show #rrghpan{transform:none;}'
+    + '#rrghpan .hh{padding:17px 22px;border-bottom:1px solid #dbe0e9;display:flex;justify-content:space-between;align-items:center;}'
+    + '#rrghpan .hh b{font-size:15px;color:var(--navy,#20334f);}'
+    + '#rrghpan .hx{cursor:pointer;color:#96a1b2;font-size:22px;line-height:1;background:none;border:none;padding:0;}'
+    + '#rrghpan .hb{padding:16px 22px 28px;overflow:auto;flex:1;font-size:13.5px;line-height:1.55;color:#2b3648;}'
+    + '#rrghpan .hb h4{color:#2c5c8f;font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;margin:18px 0 6px;}'
+    + '#rrghpan .hb h4:first-child{margin-top:0;}'
+    + '#rrghpan .hb ul{margin:0;padding-left:18px;}#rrghpan .hb li{margin:4px 0;}'
+    + '#rrghpan .hask{display:flex;gap:8px;margin-top:8px;}'
+    + '#rrghpan .hask input{flex:1;border:1px solid #c4ccda;border-radius:3px;padding:9px 11px;font:inherit;font-size:13.5px;}'
+    + '#rrghpan .hask button{background:#20334f;color:#fff;border:0;border-radius:3px;padding:9px 14px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;}'
     + '#rrgtop .createwrap{position:relative;}'
     + '#rrgtop .createmenu{position:absolute;top:calc(100% + 6px);left:0;min-width:196px;background:#fff;border:1px solid var(--line,#dbe0e9);border-radius:4px;box-shadow:0 10px 30px rgba(12,22,54,.16);padding:5px;z-index:70;}'
     + '#rrgtop .createmenu[hidden]{display:none;}'
@@ -429,7 +448,7 @@
         + '<a href="rrg_agreements.html?new=1"><span class="cmi">⚖</span> Agreement</a>'
         + '<a href="rrg_rooms_queue.html?new=1"><span class="cmi">▤</span> Data Room</a>'
       + '</div>'
-    + '</div><div class="uavwrap"><button class="uav" id="rrguav" type="button" aria-haspopup="true" aria-expanded="false" title="Account menu">·</button><div class="uavmenu" id="rrguavMenu" hidden><div class="uavhd" id="rrguavName">Signed in</div><a class="uavitem" id="rrguavPortal" href="rrg_portal.html"><span class="uavic">⌂</span> My Portal</a><a class="uavitem" id="rrguavRec" href="rrg_user.html"><span class="uavic">❖</span> My Record</a><a class="uavitem" href="rrg_account.html"><span class="uavic">◔</span> Account</a><a class="uavitem" href="index.html"><span class="uavic">?</span> Help</a><div class="uavsep"></div><a class="uavitem danger" href="/logout"><span class="uavic">⏻</span> Log out</a></div></div></div>';
+    + '</div><button class="rrghelp" id="rrgHelpBtn" type="button" title="Help for this page"><span class="hq">?</span><span class="hlbl">Help</span></button><div class="uavwrap"><button class="uav" id="rrguav" type="button" aria-haspopup="true" aria-expanded="false" title="Account menu">·</button><div class="uavmenu" id="rrguavMenu" hidden><div class="uavhd" id="rrguavName">Signed in</div><a class="uavitem" id="rrguavPortal" href="rrg_portal.html"><span class="uavic">⌂</span> My Portal</a><a class="uavitem" id="rrguavRec" href="rrg_user.html"><span class="uavic">❖</span> My Record</a><a class="uavitem" href="rrg_account.html"><span class="uavic">◔</span> Account</a><a class="uavitem" href="#" id="rrguavHelp"><span class="uavic">?</span> Help</a><div class="uavsep"></div><a class="uavitem danger" href="/logout"><span class="uavic">⏻</span> Log out</a></div></div></div>';
 
   document.addEventListener('DOMContentLoaded', mount);
   if (document.readyState !== 'loading') mount();
@@ -642,6 +661,50 @@
       ab.addEventListener('click',function(e){ e.preventDefault(); e.stopPropagation(); if(am.hidden) openM(); else closeM(); });
       document.addEventListener('click',function(e){ if(am.hidden) return; if(!am.contains(e.target)&&e.target!==ab) closeM(); });
       document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeM(); });
+    })();
+    // Help — one button, same place on every page (top bar). Pages with their own detailed help panel open it;
+    // every other page gets a short guide for that page plus "ask a question".
+    (function(){
+      var PH={
+        'rrg_tenant_engagement':['Tenant rep engagement',['The Requirement card is the source of truth: size, rent, markets and must-haves. Edit it there and markets, matching and blasts follow.','Space shortlist: matched spaces from the Spaces list. Star to shortlist, ✉ marks a space as sent to the client.','Marketing card holds the SSC, the Market Attack Plan and broker blasts. Blasts are admin-only.','Lease card tracks lease stages, commission split and rent start.']],
+        'rrg_landlord_engagement':['Landlord engagement',['Track the space you are leasing, the tenant pipeline and offers.','Boxes with records open automatically; empty ones stay folded.']],
+        'rrg_assignment':['Listing',['Everything for one listing: pipeline stage, pricing, financials, buyers, data room and marketing.','Price changes are logged with a dated history.']],
+        'rrg_assignments':['Listings & engagements',['All listings and engagements in one list. Filter, sort and open any row.']],
+        'rrg_person':['Contact',['Left side: who they are and your history with them. Right side: deals, engagements, tasks and the Tenant Box.','Send for signature sends an agreement for e-signature.','The Tenant Box is read-only when the contact has a rep engagement — edit the requirement on the engagement.']],
+        'rrg_company':['Company',['The company file: its contacts, deals, rep engagements, concepts and locations.','Use + in each box to add a record.']],
+        'rrg_people':['Contacts',['Search, filter and open any contact. + Create New (top bar) adds one.']],
+        'rrg_companies':['Companies',['Search, filter and open any company. + Create New (top bar) adds one.']],
+        'rrg_space_tracker':['Spaces',['Every available space you know about. Import from Gmail reads listing emails and flyers and creates spaces for you.','Near-misses land in the review queue for a quick check.','Engagements match against this list automatically.']],
+        'rrg_space':['Space',['One space: size, rent, features, flyers and the centre it belongs to.']],
+        'rrg_tasks':['Tasks',['Your to-dos with due dates and reminders. Tick to complete.']],
+        'rrg_agreements':['Agreements',['Representation, referral and other agreements. Send for e-signature and track status here.']],
+        'rrg_rooms_queue':['Data rooms',['Secure data rooms for buyers. Buyers get a personal access code; every view and download is tracked.']],
+        'rrg_chitchat':['Texas Chit Chat',['Draft, review and approve each issue. Approving turns it into a ready-to-send campaign in Email Campaigns.']],
+        'rrg_website':['Website',['Edit the public site: text, listings, offices and the lead forms. Leads land here and in Contacts.']],
+        'index':['Command',['Your home base: what needs attention today across deals, tasks and engagements.']],
+        'rrg_dashboard':['Command',['Your home base: what needs attention today across deals, tasks and engagements.']]
+      };
+      var page=(location.pathname.split('/').pop()||'index.html').replace(/\.html$/,'')||'index';
+      function pageHelp(){ var pb=document.getElementById('helpBtn'); if(pb){ pb.click(); return true; } if(typeof window.toggleHelp==='function'){ window.toggleHelp(); return true; } return false; }
+      function drawer(){
+        var ov=document.getElementById('rrghov');
+        if(!ov){ ov=document.createElement('div'); ov.id='rrghov'; document.body.appendChild(ov);
+          ov.addEventListener('click',function(e){ if(e.target===ov) ov.classList.remove('show'); });
+          document.addEventListener('keydown',function(e){ if(e.key==='Escape') ov.classList.remove('show'); }); }
+        var h=PH[page]; var title=h?h[0]:((document.title||'').split('—').pop().trim()||'This page');
+        var tips=h?('<h4>On this page</h4><ul>'+h[1].map(function(t){ return '<li>'+esc(t)+'</li>'; }).join('')+'</ul>'):'<h4>On this page</h4><p style="margin:0">No guide for this page yet. Ask below and the assistant will walk you through it.</p>';
+        ov.innerHTML='<div id="rrghpan" role="dialog" aria-label="Help"><div class="hh"><b>Help · '+esc(title)+'</b><button class="hx" type="button" aria-label="Close">&times;</button></div><div class="hb">'+tips
+          +'<h4>Ask a question</h4><div class="hask"><input id="rrghq" placeholder="How do I…?" autocomplete="off"><button type="button" id="rrghgo">Ask</button></div>'
+          +'<h4>Everywhere</h4><ul><li>The search box at the top finds contacts, companies and deals, or answers a question.</li><li><b>+ Create New</b> adds a company, contact, task, agreement or data room from any page.</li><li>Your account, settings and log out are under your initials, top right.</li></ul></div></div>';
+        ov.querySelector('.hx').addEventListener('click',function(){ ov.classList.remove('show'); });
+        function ask(){ var q=document.getElementById('rrghq').value.trim(); if(!q) return; var si=document.getElementById('rrgsearch'), ab=document.getElementById('rrgask'); ov.classList.remove('show'); if(si){ si.value=q; } if(ab){ ab.click(); } }
+        ov.querySelector('#rrghgo').addEventListener('click',ask);
+        ov.querySelector('#rrghq').addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); ask(); } });
+        requestAnimationFrame(function(){ ov.classList.add('show'); setTimeout(function(){ var i=document.getElementById('rrghq'); if(i) i.focus(); },220); });
+      }
+      function openHelp(e){ if(e) e.preventDefault(); var um=document.getElementById('rrguavMenu'); if(um) um.hidden=true; if(!pageHelp()) drawer(); }
+      var hb=document.getElementById('rrgHelpBtn'); hb && hb.addEventListener('click',openHelp);
+      var uh=document.getElementById('rrguavHelp'); uh && uh.addEventListener('click',openHelp);
     })();
     // mobile burger
     var burger=document.getElementById('rrgburger'); if(window.innerWidth<=900){ burger.style.display='flex'; }

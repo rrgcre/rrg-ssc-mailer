@@ -124,6 +124,7 @@ iframe.prev{width:100%;height:420px;border:1px solid var(--line);border-radius:6
 .wtwf b{display:block;font-size:12.5px;color:var(--navy);font-weight:800;}
 .wtwf span{display:block;font-size:11.5px;color:var(--soft);line-height:1.45;margin-top:2px;}
 @media print{.help-ov,.pghead .hbtns,.wtw{display:none!important;}}
+.btn.helpbtn{background:#eaf1fd;border-color:#9fbbe8;color:#1d4ea3;display:inline-flex;align-items:center;gap:7px;}.btn.helpbtn:hover{background:#dbe7fb;border-color:#6f97d9;}.btn.helpbtn .hq{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#1d4ea3;color:#fff;font-size:11.5px;font-weight:800;line-height:1;}
 </style></head>
 <body>
 <div class="wrap" id="app">
@@ -136,7 +137,7 @@ iframe.prev{width:100%;height:420px;border:1px solid var(--line);border-radius:6
       <button class="btn" type="button" id="icsBtn">📅 Blast calendar</button>
       <button class="btn" type="button" id="unsubBtn">✖ Mark unsubscribed</button>
       <button class="btn" type="button" id="featBtn">★ Features</button>
-      <button class="btn" type="button" id="helpBtn">Help</button>
+      <button class="btn helpbtn" type="button" id="helpBtn"><span class="hq">?</span>Help</button>
     </div>
   </div>
   <div id="statusNote"></div>
@@ -441,7 +442,7 @@ function loadCampaigns(){
         { label:'Complaints', align:'right', sort:function(a,b){ return (a.complaints||0)-(b.complaints||0); }, cell:function(c){ return metricInline(c.complaints,c.total||c.sent||0); } },
         { label:'Bounces', align:'right', sort:function(a,b){ return (a.bounces||0)-(b.bounces||0); }, cell:function(c){ return metricInline(c.bounces,c.total||c.sent||0); } },
         { label:'Created', sort:function(a,b){ return RRGList.cmp(a.created_at||'',b.created_at||''); }, cell:function(c){ return '<span style="font-size:12px;color:var(--muted);white-space:nowrap;">'+fmtDate(c.created_at)+'</span>'; } },
-        { label:'Date sent', sort:function(a,b){ return RRGList.cmp(dateSent(a)||'',dateSent(b)||''); }, cell:function(c){ var d=dateSent(c); return d?('<span style="font-size:12px;color:var(--muted);white-space:nowrap;">'+fmtDate(d)+'</span>'):'<span style="color:var(--muted);">—</span>'; } },
+        { label:'Next send', sort:function(a,b){ return RRGList.cmp(a.next_run||'9999',b.next_run||'9999'); }, cell:function(c){ if(!c.next_run) return '<span style="color:var(--muted);">—</span>'; var more=Math.max(0,Number(c.sched_pending||0)-1); return '<span style="font-size:12px;font-weight:700;color:var(--navy);white-space:nowrap;">'+fmtDate(c.next_run)+'</span>'+(more?('<div style="font-size:11px;color:var(--muted);white-space:nowrap;">+'+more+' more scheduled</div>'):''); } },
         { label:'Last sent', sort:function(a,b){ return RRGList.cmp(lastSent(a)||'',lastSent(b)||''); }, cell:function(c){ var d=lastSent(c); return d?('<span style="font-size:12px;color:var(--navy);white-space:nowrap;font-weight:600;">'+fmtDate(d)+'</span>'):'<span style="color:var(--muted);">—</span>'; } },
         { label:'Actions', align:'right', sortable:false, cell:campActionsCell }
       ]
