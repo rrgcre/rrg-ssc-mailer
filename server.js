@@ -9933,7 +9933,7 @@ ${SITE_CSS}
     <h1 class="serif">${esc(s.tagline || '')}</h1>
     <p class="sub">${esc(s.heroSub || '')}</p>
     <div class="hcta">
-      <a class="btn red" href="#contact" onclick="(function(){var i=document.getElementById('lf_interest');if(i){for(var k=0;k<i.options.length;k++){if(/sell/i.test(i.options[k].text)){i.selectedIndex=k;break;}}}})()">Sell your restaurant</a>
+      <a class="btn red" href="/site/sell">Sell your restaurant</a>
       <a class="btn ghost" href="#opportunities">See current listings</a>
     </div>
     <div class="htrust">${(s.stats || []).slice(0, 3).map(function (x) { return '<div><div class="n">' + esc(x.n || '') + '</div><div class="l">' + esc(x.l || '') + '</div></div>'; }).join('')}</div>

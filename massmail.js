@@ -1039,6 +1039,7 @@ function mount(app, deps) {
     res.set('Cache-Control', 'no-store'); res.redirect(302, t.url);
   });
   function _unsubPage(email) { return '<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Unsubscribed</title><body style="font-family:-apple-system,Segoe UI,Arial,sans-serif;background:#eef1f6;margin:0"><div style="max-width:480px;margin:70px auto;background:#fff;border:1px solid #e6e9f0;border-radius:12px;padding:34px;text-align:center"><h2 style="color:#000E31;margin:0 0 8px">You\'re unsubscribed</h2><p style="color:#6b7488">' + (email ? ('<b>' + escapeHtml(email) + '</b> has been removed and won\'t receive further emails.') : 'You will not receive further emails.') + '</p></div></body>'; }
+  function _unsubConfirmPage(token) { const T = String(token || '').replace(/[^a-zA-Z0-9._-]/g, ''); return '<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><meta name=robots content=noindex><title>Unsubscribe</title><body style="font-family:-apple-system,Segoe UI,Arial,sans-serif;background:#eef1f6;margin:0"><div style="max-width:480px;margin:70px auto;background:#fff;border:1px solid #e6e9f0;border-radius:12px;padding:34px;text-align:center"><h2 style="color:#000E31;margin:0 0 8px">Unsubscribe?</h2><p style="color:#6b7488;margin:0 0 22px">Click below to stop receiving these emails.</p><form method="post" action="/mail/u/' + T + '"><input type="hidden" name="confirm" value="1"><button type="submit" style="background:#000E31;color:#fff;border:0;border-radius:9px;padding:12px 22px;font-size:15px;font-weight:700;cursor:pointer">Unsubscribe me</button></form><p style="margin:18px 0 0;font-size:13px"><a href="/mail/prefs/' + T + '" style="color:#6b7488">Update my preferences instead</a></p></div></body>'; }
   function _prefsPage(token) {
     const T = String(token || '').replace(/[^a-zA-Z0-9._-]/g, '');
     return '<!doctype html><html><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Email preferences</title>'
@@ -1087,8 +1088,18 @@ function mount(app, deps) {
       + 'function save(silentReload){ var m=$("msg"); var body=collect(); var sb=$("saveBtn"); if(sb) sb.disabled=true; if(m){m.className="msg";m.textContent="Saving…";} api("POST","/api/mail/prefs/"+TOKEN,body).then(function(j){ if(sb) sb.disabled=false; if(!j||!j.ok){ if(m){m.className="msg err";m.textContent=(j&&j.error)||"Could not save.";} return; } if(j.subscribed!=null) D.subscribed=j.subscribed; if(m){m.className="msg ok";m.textContent="Saved ✓";} renderUnsub(); if(silentReload){ boot(); } }).catch(function(){ if(sb) sb.disabled=false; if(m){m.className="msg err";m.textContent="Could not reach the server.";} }); }'
       + 'boot();})();</script></body></html>';
   }
-  app.get('/mail/u/:token', async (req, res) => { let email = null; try { if (DB_READY) email = await handleUnsub(String(req.params.token)); } catch (e) {} res.set('Content-Type', 'text/html; charset=utf-8').send(_unsubPage(email)); });
-  app.post('/mail/u/:token', express.urlencoded({ extended: false }), async (req, res) => { try { if (DB_READY) await handleUnsub(String(req.params.token)); } catch (e) {} res.json({ ok: true }); });
+  // GET only shows a confirm button: corporate link scanners (Safe Links, Mimecast, Proofpoint) fetch every
+  // URL in an email, and a GET that unsubscribed silently opted brokers out. Mail-client one-click
+  // unsubscribe (RFC 8058) POSTs here directly, and the confirm button POSTs too — both unsubscribe at once.
+  app.get('/mail/u/:token', async (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8'); res.set('X-Robots-Tag', 'noindex'); res.send(_unsubConfirmPage(String(req.params.token || ''))); });
+  app.post('/mail/u/:token', express.urlencoded({ extended: false }), async (req, res) => { let email = null; try { if (DB_READY) email = await handleUnsub(String(req.params.token)); } catch (e) {} if (req.body && req.body.confirm) { res.set('Content-Type', 'text/html; charset=utf-8'); return res.send(_unsubPage(email)); } res.json({ ok: true }); });
+  // Unsubscribes for one campaign with how long after delivery they happened — scanner opt-outs land within seconds.
+  app.get('/api/mail/campaigns/:id/unsubs', requireAdmin, guard, async (req, res) => { try {
+    const rows = (await q(`SELECT e.email, e.created_at AS unsub_at, s.sent_at, EXTRACT(EPOCH FROM (e.created_at - s.sent_at))::int AS secs
+      FROM mm_events e LEFT JOIN mm_sends s ON s.campaign_id=e.campaign_id AND s.email=e.email
+      WHERE e.tenant=$1 AND e.campaign_id=$2 AND e.type='unsubscribe' ORDER BY e.created_at`, [TENANT, Number(req.params.id)])).rows;
+    res.json({ ok: true, unsubs: rows });
+  } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
 
   // ---- Self-service preferences (subscriber reaches this from a per-send token in the email footer) ----
   async function _subByToken(token) {
