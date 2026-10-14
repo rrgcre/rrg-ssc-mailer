@@ -22774,7 +22774,9 @@ const AGREEMENT_TYPES = [
   { key: 'Listing', label: 'Exclusive Business Listing', renewable: true },
   { key: 'TenantRep', label: 'Tenant Rep Agreement', renewable: true },
   { key: 'BizSeller', label: 'Business Seller Agreement', renewable: true },
-  { key: 'AssocBroker', label: 'Associate Broker Agreement', renewable: true }
+  { key: 'AssocBroker', label: 'Associate Broker Agreement', renewable: true },
+  { key: 'Offer', label: 'Offer', renewable: false },
+  { key: 'TransDoc', label: 'Transaction Document', renewable: false }
 ];
 const AGREEMENT_TYPE_KEYS = AGREEMENT_TYPES.map(t => t.key);
 function effAgreementTypes() { const s = loadSettings(); let list = (Array.isArray(s.agreementTypes) && s.agreementTypes.length) ? s.agreementTypes.filter(t => t && t.key && t.label).map(t => ({ key: String(t.key), label: String(t.label) })) : AGREEMENT_TYPES.slice(); if (!list.length) list = AGREEMENT_TYPES.slice(); AGREEMENT_TYPES.forEach(function(rt){ if (!list.some(function(x){ return x.key === rt.key; })) list.push({ key: rt.key, label: rt.label }); });
