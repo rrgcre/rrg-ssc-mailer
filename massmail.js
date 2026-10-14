@@ -779,26 +779,38 @@ function mount(app, deps) {
     const usedBatch = {};
     // Hard ceiling of SCHED_MAX pending sends per campaign (the Studio's schedule window and editor enforce the same number).
     const havePending = (await q(`SELECT count(*)::int AS n FROM mm_schedules WHERE tenant=$1 AND campaign_id=$2 AND status='pending'`, [TENANT, id])).rows[0].n;
+    let moved = 0; const movedTo = [];
+    const _info = async (dt) => (await q(`SELECT EXTRACT(DOW FROM ($1::timestamptz AT TIME ZONE $2))::int AS dow, EXTRACT(HOUR FROM ($1::timestamptz AT TIME ZONE $2))::int AS hr, ($1::timestamptz AT TIME ZONE $2)::date::text AS ld`, [dt.toISOString(), tz])).rows[0];
     for (const t of times) {
       if (havePending + added >= SCHED_MAX) { skipCap++; continue; }
-      const d = new Date(t);
+      let d = new Date(t);
       if (isNaN(d.getTime()) || d.getTime() <= now - 60000) { skipPast++; continue; }
       // classify in the brokerage's local timezone: weekday + AM/PM + local date
-      const info = (await q(`SELECT EXTRACT(DOW FROM ($1::timestamptz AT TIME ZONE $2))::int AS dow, EXTRACT(HOUR FROM ($1::timestamptz AT TIME ZONE $2))::int AS hr, ($1::timestamptz AT TIME ZONE $2)::date::text AS ld`, [d.toISOString(), tz])).rows[0];
+      let info = await _info(d);
       if (!manual && (info.dow === 0 || info.dow === 6)) { skipWeekend++; continue; }  // auto: no weekends
       if (!manual && _isHolidayLocal(info.ld)) { skipHoliday++; continue; }            // auto: no major holidays
-      const slot = info.hr < 12 ? 'am' : 'pm';
-      const key = info.ld + '|' + slot;
-      if (usedBatch[key]) { skipSlot++; continue; }
-      const dup = (await q(`SELECT count(*)::int AS n FROM mm_schedules WHERE tenant=$1 AND slot_date=$2 AND slot=$3 AND status='pending'`, [TENANT, info.ld, slot])).rows[0].n;
-      if (dup > 0) { skipSlot++; continue; }                                          // one AM + one PM per day, tenant-wide
-      usedBatch[key] = true;
-      await q(`INSERT INTO mm_schedules(tenant,campaign_id,run_at,status,slot_date,slot,manual) VALUES($1,$2,$3,'pending',$4,$5,$6)`, [TENANT, id, d.toISOString(), info.ld, slot, manual]);
-      added++;
+      // One AM + one PM send per day, tenant-wide. A taken slot no longer drops the send: it rolls forward,
+      // same time of day, to the next open business day (up to 60 days out).
+      let placed = false, wasMoved = false;
+      for (let hop = 0; hop < 60; hop++) {
+        const slot = info.hr < 12 ? 'am' : 'pm';
+        const key = info.ld + '|' + slot;
+        const okDay = manual || (info.dow !== 0 && info.dow !== 6 && !_isHolidayLocal(info.ld));
+        let free = false;
+        if (okDay && !usedBatch[key]) free = (await q(`SELECT count(*)::int AS n FROM mm_schedules WHERE tenant=$1 AND slot_date=$2 AND slot=$3 AND status='pending'`, [TENANT, info.ld, slot])).rows[0].n === 0;
+        if (free) {
+          usedBatch[key] = true;
+          await q(`INSERT INTO mm_schedules(tenant,campaign_id,run_at,status,slot_date,slot,manual) VALUES($1,$2,$3,'pending',$4,$5,$6)`, [TENANT, id, d.toISOString(), info.ld, slot, manual]);
+          added++; placed = true; if (wasMoved) { moved++; movedTo.push(d.toISOString()); }
+          break;
+        }
+        d = new Date(d.getTime() + 86400000); wasMoved = true; info = await _info(d);
+      }
+      if (!placed) skipSlot++;
     }
     if (added) await q(`UPDATE mm_campaigns SET status='scheduled' WHERE tenant=$1 AND id=$2 AND status IN('draft')`, [TENANT, id]);
     const rows = (await q(`SELECT id, run_at, status, slot, COALESCE(manual,false) AS manual FROM mm_schedules WHERE tenant=$1 AND campaign_id=$2 AND status='pending' ORDER BY run_at ASC`, [TENANT, id])).rows;
-    res.json({ ok: true, added: added, manual: manual, skippedWeekend: skipWeekend, skippedHoliday: skipHoliday, skippedSlot: skipSlot, skippedPast: skipPast, skippedCap: skipCap, max: SCHED_MAX, schedules: rows });
+    res.json({ ok: true, added: added, moved: moved, movedTo: movedTo, manual: manual, skippedWeekend: skipWeekend, skippedHoliday: skipHoliday, skippedSlot: skipSlot, skippedPast: skipPast, skippedCap: skipCap, max: SCHED_MAX, schedules: rows });
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   // Audience label + live recipient estimate for one campaign row (needs seg_type, seg_mode, seg_metros, list_id, list_name).
   async function _campaignAudience(r) {

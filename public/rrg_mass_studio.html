@@ -919,11 +919,11 @@ function schedmRender(){
   var _t=function(t){ try{ return new Date(t).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}); }catch(e){ return ''; } };
   var body=rows.length?rows.map(function(r,k){ return '<tr class="'+(r.st==='new'?'nsnew':'')+'"><td class="nsnum">'+(k+1)+'</td><td>'+esc(_d(r.at))+'</td><td>'+esc(_t(r.at))+'</td><td>'+esc(String(r.slot||'').toUpperCase())+'</td>'
       +'<td>'+(r.st==='new'?('<span class="nspill new">New</span>'+(r.moved?' <span class="nsnote" title="Moved off a weekend/holiday">moved to next business day</span>':'')):'<span class="nspill sch">Scheduled</span>')+'</td>'
-      +'<td class="nsact">'+(r.st==='saved'?'<a href="#" data-cancel="'+esc(r.id)+'">Cancel</a>':'')+'</td></tr>'; }).join('')
+      +'<td class="nsact">'+(r.st==='saved'?'<a href="#" data-cancel="'+esc(r.id)+'">Cancel send</a>':'')+'</td></tr>'; }).join('')
     :'<tr><td colspan="6" class="nsempty">No sends yet. Set the Recurrence above — new sends preview here before you save.</td></tr>';
   var btnLbl=neu.length?('Schedule '+neu.length+' send'+(neu.length===1?'':'s')):'Schedule';
   var dis=(!neu.length||over||sending);
-  var actions='<button class="btn" type="button" data-nsclose>Cancel</button><button class="btn primary" type="button" data-nssave'+(dis?' disabled':'')+'>'+btnLbl+'</button>';
+  var actions='<button class="btn" type="button" data-nsclose>Close</button><button class="btn primary" type="button" data-nssave'+(dis?' disabled':'')+'>'+btnLbl+'</button>';
   ov.innerHTML='<div class="schedm-card nscard">'
     +'<div class="nshd"><div><div class="nskicker">Campaign · Schedule</div><b>Schedule Sends</b><div class="schedm-sub">'+esc(SCHEDM.name||'Campaign')+'</div></div><div class="nsbtns">'+actions+'</div></div>'
     +'<div class="schedm-body nsbody">'
@@ -939,7 +939,7 @@ function schedmRender(){
     +'<div class="nsgrp">Sends <span class="nscount">'+have+' scheduled'+(neu.length?(' · <b>'+neu.length+' new</b> · '+(have+neu.length)+' total'):'')+'</span></div>'
     +'<div class="nstblw"><table class="nstbl"><thead><tr><th>#</th><th>Date</th><th>Time</th><th>Slot</th><th>Status</th><th></th></tr></thead><tbody>'+body+'</tbody></table></div>'
     +(over?'<div class="nswarn">That’s more than '+SCHED_MAX+' sends on one campaign ('+have+' already scheduled). Lower the number of sends.</div>':'')
-    +'<div class="nshelp">Only one send per morning and one per afternoon across all campaigns — if a slot is already taken by another campaign, that send is skipped and reported. Tick <b>Allow weekends &amp; holidays</b> for a deliberate one-off that should ignore the calendar rules.</div>'
+    +'<div class="nshelp">Only one send per morning and one per afternoon across all campaigns — if a slot is already taken by another campaign, that send moves to the next open business day at the same time. Tick <b>Allow weekends &amp; holidays</b> for a deliberate one-off that should ignore the calendar rules.</div>'
     +'<div class="schedm-msg" id="schedmMsg"></div>'
     +'</div>'
     +'<div class="schedm-ft">'+actions+'</div>'
@@ -962,7 +962,7 @@ function schedmSave(){
   document.querySelectorAll('#schedmOv [data-nssave]').forEach(function(b){ b.disabled=true; b.textContent='Scheduling…'; });
   api('POST','/api/mail/campaigns/'+SCHEDM.id+'/schedule',{ times:times, manual:man }).then(function(r){
     if(!r||!r.ok){ schedmRender(); schedmMsg((r&&r.error)||'Could not schedule.',true); return; }
-    var msg='Scheduled '+(r.added||0)+' send'+((r.added===1)?'':'s')+'.'; var sk=[]; if(r.skippedWeekend) sk.push(r.skippedWeekend+' weekend'); if(r.skippedHoliday) sk.push(r.skippedHoliday+' holiday'); if(r.skippedSlot) sk.push(r.skippedSlot+' slot already taken by another campaign'); if(r.skippedPast) sk.push(r.skippedPast+' in the past'); if(r.skippedCap) sk.push(r.skippedCap+' over the '+(r.max||SCHED_MAX)+'-send limit'); if(sk.length) msg+=' Skipped: '+sk.join(', ')+'.';
+    var msg='Scheduled '+(r.added||0)+' send'+((r.added===1)?'':'s')+'.'+(r.moved?(' '+r.moved+' moved to the next open day (slot already taken).'):''); var sk=[]; if(r.skippedWeekend) sk.push(r.skippedWeekend+' weekend'); if(r.skippedHoliday) sk.push(r.skippedHoliday+' holiday'); if(r.skippedSlot) sk.push(r.skippedSlot+' slot already taken by another campaign'); if(r.skippedPast) sk.push(r.skippedPast+' in the past'); if(r.skippedCap) sk.push(r.skippedCap+' over the '+(r.max||SCHED_MAX)+'-send limit'); if(sk.length) msg+=' Skipped: '+sk.join(', ')+'.';
     api('GET','/api/mail/campaigns/'+SCHEDM.id+'/schedule').then(function(rr){ SCHEDM.saved=((rr&&rr.schedules)||[]).filter(function(x){return x.status==='pending';}); var f=SCHEDM.form; if(f){ f.freq='once'; var t=new Date(Date.now()+86400000); t.setHours(9,0,0,0); f.start=''; } schedmRender(); schedmMsg(msg,!!sk.length); loadCampaigns(); });
   }).catch(function(){ schedmRender(); schedmMsg('Could not reach the server.',true); });
 }
