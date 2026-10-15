@@ -23419,6 +23419,72 @@ app.post('/api/agreements/:id/renew', express.json(), (req, res) => {
   try { if (a.personId) { const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.personId); if (pp) { logActivity(pp, 'Note', agreementTypeLabel(a.type) + ' renewed - new term ' + eff + ' to ' + exp, { auto: true }); savePeople(ppl); } } } catch (e) {}
   res.json({ ok: true, agreement: agreementBrief(a) });
 });
+// ---- Upload already-signed agreements (e.g. a DocuSign export) ----
+// Reads the signing certificate in each PDF (envelope ID, subject, signers, completion date),
+// guesses the agreement type, matches the counterparty to a contact and flags duplicates.
+function _agrCertParse(t) {
+  t = String(t || '');
+  const eid = ((t.match(/Envelope I[dD]:\s*([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})/) || [])[1] || '').toUpperCase();
+  const subject = ((t.match(/Subject:\s*([^\n]+)/) || [])[1] || '').trim();
+  const i = t.indexOf('Signer Events'); const j = t.indexOf('In Person Signer Events', i + 1);
+  const sec = i >= 0 ? t.slice(i, j > i ? j : i + 20000) : '';
+  const lines = sec.split('\n').map(x => x.trim()).filter(Boolean);
+  const LBL = /^(Sent|Viewed|Signed|Accepted|ID|Security|Signature|Using IP|Electronic|Timestamp|\(None\)|Signer Events|Holder|Location|Status)/i;
+  const EM = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const signers = []; const seen = {};
+  lines.forEach((ln, k) => {
+    if (!EM.test(ln)) return; const email = ln.toLowerCase(); if (seen[email]) return;
+    let name = '';
+    for (let b = k - 1; b >= Math.max(0, k - 4); b--) { const c = lines[b]; if (!c || EM.test(c) || LBL.test(c) || /\d+\/\d+\/\d{4}/.test(c)) continue; name = c; break; }
+    seen[email] = 1; signers.push({ name: name.replace(/\s+/g, ' ').trim(), email });
+  });
+  const cm = t.match(/Completed\s*Security Checked\s*(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  let completed = cm ? (cm[3] + '-' + cm[1].padStart(2, '0') + '-' + cm[2].padStart(2, '0')) : '';
+  if (!completed) { const sg = [...sec.matchAll(/Signed:\s*(\d{1,2})\/(\d{1,2})\/(\d{4})/g)].pop(); if (sg) completed = sg[3] + '-' + sg[1].padStart(2, '0') + '-' + sg[2].padStart(2, '0'); }
+  return { envelopeId: eid, subject, signers, completed };
+}
+function _agrCleanSubject(s) {
+  return String(s || '').replace(/^(Complete with Docu[Ss]ign:|Please Docu[Ss]ign:|Docu[Ss]ign:|Here is your signed document:)\s*/i, '')
+    .replace(/\.(docx?|pdf)\b/gi, '').replace(/_+/g, ' ').replace(/\s+/g, ' ').trim().replace(/^[,\s]+|[,\s]+$/g, '');
+}
+function _agrGuessUploadType(s, keys) {
+  const l = String(s || '').toLowerCase(); const has = k => keys.indexOf(k) >= 0;
+  const pick = (k, fb) => has(k) ? k : (fb && has(fb) ? fb : '');
+  if (/(^|[^a-z])ab agreement|associate broker/.test(l)) return pick('AssocBroker');
+  if (/referral/.test(l)) return pick('Referral');
+  if (/tenant ?rep|buyer ?rep|buyertenant|tenant representation|lor agreement/.test(l)) return pick('TenantRep', 'ETRA');
+  if (/(^|[^a-z])nda([^a-z]|$)|non.?disclosure|confidential|dual agency/.test(l)) return pick('NDA', 'CA');
+  if (/(^|[^a-z])loi([^a-z]|$)|letter of intent/.test(l)) return pick('Offer', 'TransDoc');
+  if (/(^|[^a-z])ela([^a-z]|$)|listing|right to sell|right to lease|comm listing/.test(l)) return pick('Listing');
+  return pick('TransDoc') || keys[0] || '';
+}
+app.post('/api/agreements/upload-parse', express.json({ limit: '28mb' }), async (req, res) => {
+  const b = req.body || {}; const filename = String(b.filename || 'agreement.pdf').slice(0, 200);
+  const dataB64 = String(b.dataB64 || '').replace(/^data:[^,]*,/, '');
+  if (!dataB64) return res.status(400).json({ ok: false, error: 'No file data.' });
+  const buf = Buffer.from(dataB64, 'base64');
+  if (buf.length > 20 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'File too large (max 20 MB).' });
+  let text = '';
+  try { if (/\.pdf$/i.test(filename) || buf.slice(0, 4).toString() === '%PDF') { const pdf = require('pdf-parse'); text = ((await pdf(buf)) || {}).text || ''; } } catch (e) { text = ''; }
+  const cert = _agrCertParse(text);
+  const keys = effAgreementTypes().map(t => t.key);
+  const subj = _agrCleanSubject(cert.subject || filename.replace(/\.[a-z0-9]+$/i, ''));
+  // Team members are never the counterparty.
+  const teamEmails = {}; const teamNames = {};
+  try { auth.loadUsers().forEach(u => { if (u.email) teamEmails[String(u.email).toLowerCase()] = 1; if (u.name) teamNames[String(u.name).toLowerCase()] = 1; }); } catch (e) {}
+  const firmDomains = [];
+  try { auth.loadUsers().forEach(u => { const d = String(u.email || '').toLowerCase().split('@')[1]; if (d && !/gmail|yahoo|hotmail|outlook|icloud|aol/.test(d) && firmDomains.indexOf(d) < 0) firmDomains.push(d); }); } catch (e) {}
+  const isTeam = s => teamEmails[s.email] || teamNames[String(s.name || '').toLowerCase()] || firmDomains.some(d => s.email.endsWith('@' + d));
+  const parties = cert.signers.filter(s => !isTeam(s)); const team = cert.signers.filter(s => isTeam(s));
+  const idx = {}; loadPeople().forEach(p => { personEmails(p).forEach(e => { const k = String((e && e.email) || e || '').trim().toLowerCase(); if (k && !idx[k]) idx[k] = { id: p.id, name: p.name || '' }; }); });
+  let match = null; for (const s of parties) { if (idx[s.email]) { match = Object.assign({ email: s.email }, idx[s.email]); break; } }
+  const dup = cert.envelopeId ? loadAgreements().find(a => a.envelopeId && a.envelopeId === cert.envelopeId) : null;
+  const sensitive = /cc authorization|credit card|card authorization|ach authorization|w-?9\b/i.test(subj);
+  const who = parties[0] ? parties[0].name : '';
+  const name = (who && subj.toLowerCase().indexOf(who.toLowerCase()) < 0) ? (subj + ' — ' + who) : subj;
+  res.json({ ok: true, filename, certificate: !!cert.envelopeId, envelopeId: cert.envelopeId, subject: subj, name: name.slice(0, 160), type: _agrGuessUploadType(subj, keys), effective: cert.completed,
+    parties, team: team.map(s => s.name || s.email), person: match, duplicateId: dup ? dup.id : '', sensitive });
+});
 app.post('/api/agreements', express.json(), (req, res) => {
   const b = req.body || {}; const all = loadAgreements(); const now = new Date().toISOString();
   const type = String(b.type || '').trim();
@@ -23446,6 +23512,7 @@ app.post('/api/agreements', express.json(), (req, res) => {
   if (typeof b.status === 'string' && ['active', 'expired', 'terminated'].indexOf(b.status) >= 0) a.status = b.status;
   if (!a.status) a.status = 'active';
   if (typeof b.notes === 'string') a.notes = b.notes.slice(0, 2000);
+  if (typeof b.envelopeId === 'string' && /^[0-9A-Fa-f-]{36}$/.test(b.envelopeId) && !a.envelopeId) a.envelopeId = b.envelopeId.toUpperCase();
   if (b.recSigner1 !== undefined || b.recSigner2 !== undefined) {
     const _rs1 = String(b.recSigner1 || '').trim().slice(0, 120);
     const _rs2 = String(b.recSigner2 || '').trim().slice(0, 120);
