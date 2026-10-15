@@ -23425,7 +23425,10 @@ app.post('/api/agreements/:id/renew', express.json(), (req, res) => {
 // guesses the agreement type, matches the counterparty to a contact and flags duplicates.
 function _agrCertParse(t) {
   t = String(t || '');
-  const eid = ((t.match(/Envelope I[dD]:\s*([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})/) || [])[1] || '').toUpperCase();
+  // The certificate's own "Envelope Id" is authoritative — page stamps can carry an earlier envelope's ID when a signed PDF is re-sent.
+  const _ci = t.search(/Certificate Of Completion/i); const _eidRx = /Envelope I[dD]:\s*([0-9A-Fa-f]{8}-?[0-9A-Fa-f]{4}-?[0-9A-Fa-f]{4}-?[0-9A-Fa-f]{4}-?[0-9A-Fa-f]{12})/;
+  const _raw = (((_ci >= 0 ? t.slice(_ci).match(_eidRx) : null) || t.match(_eidRx) || [])[1] || '').toUpperCase().replace(/-/g, '');
+  const eid = _raw.length === 32 ? [_raw.slice(0, 8), _raw.slice(8, 12), _raw.slice(12, 16), _raw.slice(16, 20), _raw.slice(20)].join('-') : '';
   const subject = ((t.match(/Subject:\s*([^\n]+)/) || [])[1] || '').trim();
   const i = t.indexOf('Signer Events'); const j = t.indexOf('In Person Signer Events', i + 1);
   const sec = i >= 0 ? t.slice(i, j > i ? j : i + 20000) : '';
@@ -23470,7 +23473,7 @@ function _agrFindExpiry(body, eff) {
   if (eff) {
     const tr = /(?:term of (?:this (?:agreement|listing)\s*)?(?:shall be|is|will be)?\s*(?:for\s*)?|for a (?:period|term) of\s*)(\d+|[a-z-]+)\s*(?:\(\d+\)\s*)?(year|month|day)s?/i.exec(body)
       || /\b(\d+|one|two|three|six|twelve|eighteen|twenty-four)\s*(?:\(\d+\)\s*)?(year|month|day)s?\s*(?:from|after|following)\s*(?:the\s*)?(?:effective|execution|date)/i.exec(body);
-    if (tr) { const n = /^\d+$/.test(tr[1]) ? +tr[1] : _AGR_NUM[tr[1].toLowerCase()]; if (n && n <= 120) { const d = _agrAddTerm(eff, n, tr[2]); if (ok(d)) return { expires: d, source: 'term: ' + tr[0].slice(0, 60) }; } }
+    if (tr) { const n = /^\d+$/.test(tr[1]) ? +tr[1] : _AGR_NUM[tr[1].toLowerCase()]; if (n && n <= 120) { const d = _agrAddTerm(_agrAddTerm(eff, n, tr[2]), -1, 'd'); if (ok(d)) return { expires: d, source: 'term: ' + tr[0].slice(0, 60) }; } } // a term ends the day before the anniversary (12 months from 9/4 ends 9/3)
   }
   return { expires: '', source: '' };
 }
@@ -23512,8 +23515,10 @@ app.post('/api/agreements/upload-parse', express.json({ limit: '28mb' }), async 
   const dup = cert.envelopeId ? loadAgreements().find(a => a.envelopeId && a.envelopeId === cert.envelopeId) : null;
   const guessType = _agrGuessUploadType(subj, keys);
   const bodyText = (() => { const c = text.search(/Certificate Of Completion/i); return c > 200 ? text.slice(0, c) : text; })();
-  let exp = _agrFindExpiry(bodyText, cert.completed);
-  const wantsExpiry = ['Listing', 'TenantRep', 'ETRA', 'Referral', 'NDA', 'CA', 'AssocBroker', 'BizSeller', 'CommercialLease'].indexOf(guessType) >= 0;
+  // Only term agreements expire. Contracts, APAs, LOIs and leases are one-time transaction documents —
+  // their option/feasibility periods ("within 2 days") are not an agreement expiration.
+  const wantsExpiry = ['Listing', 'TenantRep', 'ETRA', 'Referral', 'NDA', 'CA', 'AssocBroker', 'BizSeller'].indexOf(guessType) >= 0;
+  let exp = wantsExpiry ? _agrFindExpiry(bodyText, cert.completed) : { expires: '', source: '' };
   if (!exp.expires && wantsExpiry && bodyText.length > 100 && b.ai !== false && typeof aiassist.agreementExpiry === 'function' && process.env.ANTHROPIC_API_KEY) {
     // Form PDFs (e.g. TREC listings) keep the filled-in dates where text extraction can't see them — blanks like
     // "begins on and ends at 11:59 p.m. on ." — so hand those to the AI as the PDF itself.
