@@ -11031,7 +11031,8 @@ async function importBlastReplies(dealKey, username) {
     if (!bp && email) { const created = findOrCreatePerson({ user: { name: 'Broker blast', username: 'automation' } }, { name: nm || email, email: email, tag: 'Broker' }); if (created) { bp = loadPeople().find(x => x.id === created.id); } }
     const bpLive = bp ? ppl.find(x => x.id === bp.id) : null;
     if (r.spaceId) {
-      sitesNew++; if (cur.spaceShort.indexOf(r.spaceId) < 0) cur.spaceShort.push(r.spaceId); cur.spaceDismissed = cur.spaceDismissed.filter(x => x !== r.spaceId);
+      sitesNew++; cur.spaceSubmitted = (cur.spaceSubmitted && typeof cur.spaceSubmitted === 'object') ? cur.spaceSubmitted : {}; if (!cur.spaceSubmitted[r.spaceId]) cur.spaceSubmitted[r.spaceId] = { at: new Date().toISOString(), by: email }; // broker-submitted: lands TO REVIEW, never auto-shortlisted
+      cur.spaceDismissed = cur.spaceDismissed.filter(x => x !== r.spaceId);
       const sp = spaces.find(x => x.id === r.spaceId); if (sp && bpLive && !sp.brokerPersonId) { sp.brokerPersonId = bpLive.id; sp.brokerName = bpLive.name || ''; spCh = true; }
       if (bpLive) { logActivity(bpLive, 'Note', 'Submitted a site for ' + biz + ': ' + (r.address || 'see flyer') + ' (broker blast reply)', { auto: true, by: 'Broker blast' }); pplCh = true; }
     } else if (r.reason === 'needs review') { reviewNew++; if (bpLive) { logActivity(bpLive, 'Note', 'Replied to the ' + biz + ' broker blast (flyer in the Spaces review queue)', { auto: true, by: 'Broker blast' }); pplCh = true; } }
@@ -11095,7 +11096,9 @@ async function buildBlastRecap(bl) {
   const link = appBaseUrl() + '/rrg_tenant_engagement.html?key=' + encodeURIComponent(bl.srcKey);
   const lines = [];
   lines.push('Delivered to ' + Number(bl.sent).toLocaleString() + ' brokers · ' + bl.bounces + ' bounced (' + bounceRate.toFixed(1) + '%) · ' + bl.complaints + ' spam complaint' + (bl.complaints === 1 ? '' : 's'));
-  lines.push((R.replies || 0) + ' replies · ' + (R.sites || 0) + ' site' + ((R.sites || 0) === 1 ? '' : 's') + ' added to the shortlist' + (R.review ? (' · ' + R.review + ' in the Spaces review queue') : ''));
+  const _oR = loadAssignOverlay()[bl.srcKey] || {}; const _sub = Object.keys(_oR.spaceSubmitted || {}); const _sl = _oR.spaceShort || [], _dz = _oR.spaceDismissed || [];
+  const _toRev = _sub.filter(id => _sl.indexOf(id) < 0 && _dz.indexOf(id) < 0).length;
+  lines.push((R.replies || 0) + ' replies · ' + (R.sites || 0) + ' site' + ((R.sites || 0) === 1 ? '' : 's') + ' submitted by brokers' + (_toRev ? (' (' + _toRev + ' waiting for your review)') : '') + (R.review ? (' · ' + R.review + ' flyer' + (R.review === 1 ? '' : 's') + ' in the Spaces review queue') : ''));
   if ((R.stale || []).length) lines.push((R.stale || []).length + ' brokers have left their firms (auto-replies) — approve removing them on the engagement');
   lines.push('Unsubscribes: ' + realUnsubs + ' real' + (us.fast ? (' (' + us.fast + ' more within a minute of delivery — security filters, not people)') : ''));
   const warn = [];
@@ -22765,7 +22768,7 @@ app.post('/api/book/manage/:token/cancel', express.json(), (req, res) => {
 // ================= Agreements =================
 const AGREEMENTS_FILE = path.join(BOV_DATA_DIR, 'agreements.json');
 function loadAgreements() { try { return rj(AGREEMENTS_FILE) || []; } catch (e) { return []; } }
-function saveAgreements(a) { return writeJsonGuarded(AGREEMENTS_FILE, a, 'saveAgreements'); }
+function saveAgreements(a) { try { _agrSupCache.set = null; } catch (e) {} return writeJsonGuarded(AGREEMENTS_FILE, a, 'saveAgreements'); }
 function newAgreementId() { return 'agr_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 const AGREEMENT_TYPES = [
   { key: 'NDA', label: 'Non-Disclosure Agreement', renewable: false, termYears: 1 },
@@ -22789,7 +22792,33 @@ function effAgreementTypes() { const s = loadSettings(); let list = (Array.isArr
   list.forEach(function(t){ t.renewable = _ovr ? (_ovr.indexOf(t.key) >= 0) : (!!_defR[t.key]); });
   return list; }
 function agreementTypeKeys() { return effAgreementTypes().map(t => t.key); }
+// Engagements (listings, tenant rep) are what "Active" means. When the same client/deal signs a newer
+// engagement of the same type (a re-sign or extension), the older one is superseded — not a second active one.
+var _AGR_ENGAGE = ['Listing', 'BizSeller', 'TenantRep', 'ETRA'];
+var _AGR_INFORCE = ['NDA', 'CA', 'Referral', 'AssocBroker'];
+var _agrSupCache = { t: 0, set: null };
+function _agrSupersededSet() {
+  const now = Date.now(); if (_agrSupCache.set && now - _agrSupCache.t < 5000) return _agrSupCache.set;
+  const set = {}; const groups = {};
+  loadAgreements().forEach(x => {
+    if (_AGR_ENGAGE.indexOf(x.type) < 0) return;
+    const ss = String(x.signStatus || ''); const done = ss === 'executed' || ss === 'signed' || (!ss && x.entryMethod === 'recorded' && (x.envelopeId || x.docExt || x.hasFinal));
+    if (!done || x.status === 'terminated') return;
+    if (x.renewedById) set[x.id] = 1;
+    [x.personId ? 'p:' + x.personId : '', x.dealKey ? 'd:' + x.dealKey : ''].forEach(k => { if (k) (groups[x.type + '|' + k] = groups[x.type + '|' + k] || []).push(x); });
+  });
+  Object.keys(groups).forEach(k => { const g = groups[k]; if (g.length < 2) return; g.sort((a, b) => String(b.effective || b.createdAt || '').localeCompare(String(a.effective || a.createdAt || ''))); g.slice(1).forEach(x => { set[x.id] = 1; }); });
+  _agrSupCache = { t: now, set }; return set;
+}
 function agreementStatus(a){
+  var _st = _agreementStatusBase(a);
+  if (_st.key === 'active' || _st.key === 'soon') {
+    if (_AGR_ENGAGE.indexOf(a.type) >= 0 && _agrSupersededSet()[a.id]) return { key:'superseded', label:'Superseded' };
+    if (_st.key === 'active' && _AGR_INFORCE.indexOf(a.type) >= 0) return { key:'inforce', label:'In Force' };
+  }
+  return _st;
+}
+function _agreementStatusBase(a){
   a = a || {};
   var today = new Date().toISOString().slice(0,10);
   var ss = String(a.signStatus || '');
@@ -22818,7 +22847,11 @@ function agreementStatus(a){
   if (a.status === 'terminated') return { key:'terminated', label:'Terminated' };
   var eff = String(a.effective || '').slice(0,10);
   if (eff && eff > today) return { key:'executed', label:'Fully Executed' };
-  var exp = String(a.expires || '').slice(0,10);
+  // Use the same expiration the UI shows — a stored date, else effective + the type's default term.
+  var exp = String(agrExpires(a) || '').slice(0,10);
+  // One-time transaction documents (contracts, APAs, LOIs, leases) carry no term: once signed they are
+  // executed and done — not an "active" engagement.
+  if (!exp && (a.type === 'TransDoc' || a.type === 'Offer')) return { key:'executed', label:'Executed' };
   if (exp) {
     if (exp < today) return { key:'expired', label:'Expired' };
     var du = Math.ceil((Date.parse(exp) - Date.parse(today)) / 86400000);
@@ -22973,7 +23006,7 @@ function _agrReferred(a) {
 function agreementBrief(a) {
   var _as = agreementStatus(a);
   var _rf = _agrReferred(a);
-  return { id: a.id, type: a.type, name: a.name || '', personId: a.personId || '', personName: a.personName || '', companyId: a.companyId || '', dealKey: a.dealKey || '', effective: agrEffective(a), expires: agrExpires(a), startOnExec: !!a.startOnExec, termYears: a.termYears || 0, execAuto: a.execAuto || '', emailSubject: a.emailSubject || '', sendAuto: a.sendAuto || '', status: a.status || 'active', notes: a.notes || '', createdByName: a.createdByName || '', createdAt: a.createdAt || '', updatedAt: a.updatedAt || '', canceledAt: a.canceledAt || '', declinedAt: a.declinedAt || '', docExt: a.docExt || '', docName: a.docName || '', signStatus: a.signStatus || ((a.entryMethod === 'recorded' && (a.envelopeId || a.docExt || a.hasFinal)) ? 'executed' : ''), sentAt: a.sentAt || '', sentTo: a.sentTo || '', signedDate: a.signedDate || ((a.entryMethod === 'recorded' && (a.envelopeId || a.docExt || a.hasFinal)) ? (a.effective || '') : ''), signToken: a.signToken || '', signedName: a.signedName || '', signedAt: a.signedAt || '', hasSignature: !!a.hasSignature, repSignedName: a.repSignedName || '', repSignedAt: a.repSignedAt || '', executedAt: a.executedAt || '', hasCountersign: !!a.hasCountersign, signedResponses: a.signedResponses || null, templateId: a.templateId || '', templateName: a.templateName || '', entryMethod: (a.entryMethod || (/^sign & return/i.test(a.name || '') ? 'signreturn' : ((a.signToken || a.templateId || a.sentAt || (Array.isArray(a.pdfFields) && a.pdfFields.length)) ? 'sent' : 'recorded'))), signers: Array.isArray(a.signers) ? a.signers.map(s => ({ order: s.order, role: s.role, label: s.label, name: s.name || '', email: s.email || '', status: s.status || 'pending', signedAt: s.signedAt || '' })) : [], recSigners: Array.isArray(a.recSigners) ? a.recSigners.slice(0,2) : [], signerCount: _clampSigners(a.signerCount), hasFinal: !!a.hasFinal, pdfFieldCount: Array.isArray(a.pdfFields) ? a.pdfFields.length : 0, statusKey: _as.key, statusLabel: _as.label, renewedById: a.renewedById || '', renewalOf: a.renewalOf || '', commBasis: a.commBasis || '', commRate: (a.commRate!=null?a.commRate:''), commFlat: (a.commFlat!=null?a.commFlat:''), commValue: (a.commValue!=null?a.commValue:''), commLocations: (a.commLocations!=null?a.commLocations:''), projectedGci: agrProjectedGci(a), referredName: (_rf&&_rf.name)||'', referredConcept: (_rf&&_rf.concept)||'', referredEmail: (_rf&&_rf.email)||'', referredPhone: (_rf&&_rf.phone)||'' };
+  return { id: a.id, type: a.type, name: a.name || '', personId: a.personId || '', personName: a.personName || '', companyId: a.companyId || '', dealKey: a.dealKey || '', effective: agrEffective(a), expires: agrExpires(a), startOnExec: !!a.startOnExec, termYears: a.termYears || 0, execAuto: a.execAuto || '', emailSubject: a.emailSubject || '', sendAuto: a.sendAuto || '', status: a.status || 'active', notes: a.notes || '', createdByName: a.createdByName || '', createdAt: a.createdAt || '', updatedAt: a.updatedAt || '', canceledAt: a.canceledAt || '', declinedAt: a.declinedAt || '', docExt: a.docExt || '', docName: a.docName || '', signStatus: a.signStatus || ((a.entryMethod === 'recorded' && (a.envelopeId || a.docExt || a.hasFinal)) ? 'executed' : ''), sentAt: a.sentAt || '', sentTo: a.sentTo || '', lastResentAt: a.lastResentAt || '', resendCount: Array.isArray(a.resends) ? a.resends.length : 0, signedDate: a.signedDate || ((a.entryMethod === 'recorded' && (a.envelopeId || a.docExt || a.hasFinal)) ? (a.effective || '') : ''), signToken: a.signToken || '', signedName: a.signedName || '', signedAt: a.signedAt || '', hasSignature: !!a.hasSignature, repSignedName: a.repSignedName || '', repSignedAt: a.repSignedAt || '', executedAt: a.executedAt || '', hasCountersign: !!a.hasCountersign, signedResponses: a.signedResponses || null, templateId: a.templateId || '', templateName: a.templateName || '', entryMethod: (a.entryMethod || (/^sign & return/i.test(a.name || '') ? 'signreturn' : ((a.signToken || a.templateId || a.sentAt || (Array.isArray(a.pdfFields) && a.pdfFields.length)) ? 'sent' : 'recorded'))), signers: Array.isArray(a.signers) ? a.signers.map(s => ({ order: s.order, role: s.role, label: s.label, name: s.name || '', email: s.email || '', status: s.status || 'pending', signedAt: s.signedAt || '' })) : [], recSigners: Array.isArray(a.recSigners) ? a.recSigners.slice(0,2) : [], signerCount: _clampSigners(a.signerCount), hasFinal: !!a.hasFinal, pdfFieldCount: Array.isArray(a.pdfFields) ? a.pdfFields.length : 0, statusKey: _as.key, statusLabel: _as.label, renewedById: a.renewedById || '', renewalOf: a.renewalOf || '', commBasis: a.commBasis || '', commRate: (a.commRate!=null?a.commRate:''), commFlat: (a.commFlat!=null?a.commFlat:''), commValue: (a.commValue!=null?a.commValue:''), commLocations: (a.commLocations!=null?a.commLocations:''), projectedGci: agrProjectedGci(a), referredName: (_rf&&_rf.name)||'', referredConcept: (_rf&&_rf.concept)||'', referredEmail: (_rf&&_rf.email)||'', referredPhone: (_rf&&_rf.phone)||'' };
 }
 // ---------------- Uploaded documents (general file storage) ----------------
 const USERDOCS_DIR = path.join(BOV_DATA_DIR, 'userdocs');
@@ -23664,6 +23697,41 @@ app.post('/api/agreements/:id/send', express.json(), async (req, res) => {
   if (p) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === p.id); if (pp) { logActivity(pp, 'Agreement Sent', label + ' sent for signature to ' + to, { auto: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); if (a.sendAuto && !a.sendAutoFired) { try { const _sp = loadAutomations().find(x => x.id === a.sendAuto && x.active !== false); if (_sp) { enrollPerson(pp, _sp, { byName: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', dealKey: a.dealKey || '' }); a.sendAutoFired = true; try { saveAgreements(all); } catch (e) {} } } catch (e) {} } savePeople(ppl); } } catch (e) {} }
   res.json({ ok: true, agreement: agreementBrief(a), to });
  } catch (e) { console.error('agreement send fatal:', e && (e.stack || e.message)); if (!res.headersSent) res.status(500).json({ ok: false, error: 'Could not send: ' + String((e && e.message) || e) }); }
+});
+// Resend / remind: re-email the SAME signing link to whoever still has to sign. Works for both the basic
+// one-party flow and multi-signer (advanced) agreements — it always goes to the current pending signer.
+app.post('/api/agreements/:id/resend', express.json(), async (req, res) => {
+ try {
+  const all = loadAgreements(); const a = all.find(x => x.id === req.params.id);
+  if (!a) return res.status(404).json({ ok: false, error: 'Agreement not found.' });
+  const ss = String(a.signStatus || '');
+  if (ss === 'awaiting_countersign') return res.status(400).json({ ok: false, error: 'The other party already signed — this one is waiting on RRG\'s countersignature.' });
+  if (ss !== 'sent' && ss !== 'partial') return res.status(400).json({ ok: false, error: 'Only agreements that are out for signature can be resent.' });
+  if (!isEmailConfigured()) return res.status(400).json({ ok: false, error: "Email isn't set up. Configure it in Admin -> Email." });
+  const b = req.body || {};
+  let to = '', token = '', name = a.personName || '', who = '';
+  const sg = Array.isArray(a.signers) ? a.signers.slice().sort((x, y) => x.order - y.order) : [];
+  const pend = sg.find(s => s.status !== 'signed' && s.token);
+  if (pend) { to = String(pend.email || ''); token = pend.token; name = pend.name || name; who = pend.label || ''; }
+  else { to = String(b.to || a.sentTo || ''); token = a.signToken || ''; }
+  if (!token) return res.status(400).json({ ok: false, error: 'No signing link on file — send the agreement first.' });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return res.status(400).json({ ok: false, error: 'No valid email on file for the pending signer.' });
+  const label = agreementTypeLabel(a.type); const signUrl = reqOrigin(req) + '/sign/' + token;
+  const _u = agrSendUser(req, a); const p = a.personId ? personById(a.personId) : null;
+  const subject = (function(){ var _s = String(b.subject || ('Reminder: ' + (a.emailSubject || (label + ' for your signature')))); try { _s = mergeTokens(_s, p, _u); } catch (e) {} return _s.slice(0, 300); })();
+  const _note = (function(){ var m = String(b.message || '').trim() || ('A quick reminder — your ' + label + ' is still waiting for your signature. It only takes a minute.'); try { return mergeTokens(m, p, _u); } catch (e) { return m; } })();
+  const _greet = agrGreetingLine(a.greeting || 'hi', name);
+  const text = ((_greet ? _greet + '\n\n' : '') + _note + '\n\nReview and sign your ' + label + ' online here:\n' + signUrl + '\n\nThank you,\n' + orgDisplayName()).slice(0, 20000);
+  const html = agrEmailHtml(_greet, esc(_note).replace(/\n/g, '<br>'), label, signUrl);
+  try { await sendMailWL({ from: mailFrom(), to, subject, text, html }); }
+  catch (e) { console.error('agreement resend:', e && e.message); return res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+  const now = new Date().toISOString();
+  if (!Array.isArray(a.resends)) a.resends = [];
+  a.resends.push({ at: now, to, by: (req.user && req.user.name) || '' }); if (a.resends.length > 50) a.resends = a.resends.slice(-50);
+  a.lastResentAt = now; a.updatedAt = now; saveAgreements(all);
+  if (a.personId) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.personId); if (pp) { logActivity(pp, 'Agreement Reminder', label + ' re-sent for signature to ' + (who ? who + ' ' : '') + to, { auto: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); savePeople(ppl); } } catch (e) {} }
+  res.json({ ok: true, agreement: agreementBrief(a), to, count: a.resends.length });
+ } catch (e) { console.error('agreement resend fatal:', e && (e.stack || e.message)); if (!res.headersSent) res.status(500).json({ ok: false, error: 'Could not resend: ' + String((e && e.message) || e) }); }
 });
 app.post('/api/agreements/:id/sign', express.json(), (req, res) => {
   const all = loadAgreements(); const a = all.find(x => x.id === req.params.id);
@@ -26521,21 +26589,38 @@ function tenantEngagementsFor(req) {
 function engagementSpaceMatches(e, spaces, opts) {
   opts = opts || {}; const cr = engSpaceCriteria(e.av); const o = e.o || {};
   const dis = Array.isArray(o.spaceDismissed) ? o.spaceDismissed : []; const sl = Array.isArray(o.spaceShort) ? o.spaceShort : []; const seen = o.spaceSeen || {};
+  const sub = (o.spaceSubmitted && typeof o.spaceSubmitted === 'object') ? o.spaceSubmitted : {};
   const out = [];
   (spaces || loadSpaces()).forEach(sp => {
-    const isShort = sl.indexOf(sp.id) >= 0;
+    const isShort = sl.indexOf(sp.id) >= 0; const isSub = !!sub[sp.id];
     if (!opts.includeDismissed && dis.indexOf(sp.id) >= 0) return;
     const r = scoreSpaceForEng(sp, cr);
-    if (!r && !isShort) return;
-    if (r && r.score < SPACE_FIT_MIN && !isShort) return;
+    if (!r && !isShort && !isSub) return;
+    if (r && r.score < SPACE_FIT_MIN && !isShort && !isSub) return;
     const rd = spaceReady(sp);
     out.push({ spaceId: sp.id, name: sp.name || '', center: sp.center || '', address: sp.address || '', market: sp.market || '', size: sp.size, rent: sp.rent, nnn: sp.nnn, status: sp.status || 'Available', spaceType: sp.spaceType || '',
       score: r ? r.score : 0, reasons: r ? r.reasons : [], misses: r ? r.misses : ['no longer fits'], ready: rd.score, readyGrade: rd.grade, savesLo: rd.savesLo, savesHi: rd.savesHi,
-      shortlisted: isShort, dismissed: dis.indexOf(sp.id) >= 0, isNew: !seen[sp.id] && !isShort, createdAt: sp.createdAt || '', flags: spaceFlags(sp) });
+      shortlisted: isShort, dismissed: dis.indexOf(sp.id) >= 0, isNew: !seen[sp.id] && !isShort, createdAt: sp.createdAt || '', flags: spaceFlags(sp),
+      submitted: isSub, submittedAt: isSub ? (sub[sp.id].at || '') : '', toReview: isSub && !isShort && dis.indexOf(sp.id) < 0 });
   });
-  out.sort((a, b) => (b.shortlisted - a.shortlisted) || (b.score - a.score));
+  out.sort((a, b) => (b.shortlisted - a.shortlisted) || (b.toReview - a.toReview) || (b.score - a.score));
   return { criteria: cr, matches: out };
 }
+// One-time fix: broker-blast replies used to drop sites straight onto the shortlist. Move those
+// (email-sourced, never sent to the tenant) back to "submitted — to review" so the shortlist only holds
+// what a rep actually chose.
+setTimeout(function _migrateBlastShortlist() {
+  try {
+    const ov = loadAssignOverlay(); const spaces = loadSpaces(); const byId = {}; spaces.forEach(x => { byId[x.id] = x; }); let ch = false;
+    Object.keys(ov).forEach(k => {
+      const c = ov[k]; if (!c || !c.blastReplies || c.subMigrated) return;
+      const sent = c.spaceSent || {}; const keep = []; c.spaceSubmitted = (c.spaceSubmitted && typeof c.spaceSubmitted === 'object') ? c.spaceSubmitted : {};
+      (c.spaceShort || []).forEach(id => { const sp = byId[id]; if (sp && /^email/.test(String(sp.source || '')) && !sent[id]) { if (!c.spaceSubmitted[id]) c.spaceSubmitted[id] = { at: sp.createdAt || '', by: '' }; } else keep.push(id); });
+      c.spaceShort = keep; c.subMigrated = true; ch = true;
+    });
+    if (ch) saveAssignOverlay(ov);
+  } catch (e) { console.error('blast shortlist migrate:', e && e.message); }
+}, 8000);
 // Engagement-side: the live, scored shortlist.
 app.get('/api/assignment/:key/space-matches', (req, res) => {
   const r = _resolveEngagement(req, res); if (!r) return;
