@@ -113,7 +113,7 @@ function load(){
     if(!j||!j.ok) return; AGR=j.agreements||[]; TYPES=j.types||[]; CAN_DELETE=!!j.canDelete; IS_ADMIN=!!j.isAdmin; buildTypeFilters(); buildSignerFilter(); render();
     try{ if(new URLSearchParams(location.search).get('new')==='1'){ openAgrModal(); history.replaceState({},'',location.pathname); } }catch(e){}
   });
-  fetch('/api/people',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ PEOPLE=(j&&j.people)||[]; var dl=document.getElementById('agrPeopleList'); if(dl) dl.innerHTML=PEOPLE.map(function(p){return '<option value="'+esc(p.name)+'">'+esc(p.companyName||p.company||p.email||'')+'</option>';}).join(''); }).catch(function(){});
+  fetch('/api/people',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ PEOPLE=(j&&j.people)||[]; PTYPES=(j&&j.types)||[]; var dl=document.getElementById('agrPeopleList'); if(dl) dl.innerHTML=PEOPLE.map(function(p){return '<option value="'+esc(p.name)+'">'+esc(p.companyName||p.company||p.email||'')+'</option>';}).join(''); }).catch(function(){});
 }
 function buildSignerFilter(){ var sel=document.getElementById('signerSel'); if(!sel) return; var seen={}, names=[]; AGR.forEach(function(a){ var nm=a.repSignedName||a.createdByName||''; if(nm && !seen[nm]){ seen[nm]=1; names.push(nm); } }); names.sort(function(x,y){return x.toLowerCase().localeCompare(y.toLowerCase());}); sel.innerHTML='<option value="all">All signers</option>'+names.map(function(n){return '<option value="'+esc(n)+'"'+(n===FSG?' selected':'')+'>'+esc(n)+'</option>';}).join(''); if(!sel._wired){ sel._wired=true; sel.addEventListener('change',function(){ FSG=sel.value; render(); }); } }
 function buildTypeFilters(){
@@ -226,7 +226,7 @@ function doImportSelected(){
   var m=document.getElementById('impModal'); if(m) m.addEventListener('click',function(e){ if(e.target===m) closeImportModal(); });
 })();
 /* ---- Upload signed agreements (bulk PDFs, e.g. a DocuSign export) ---- */
-var UP=[]; var UP_BUSY=0;
+var UP=[]; var UP_BUSY=0; var PTYPES=[];
 function upInit(){
   if(!document.getElementById('upCss')){ var st=document.createElement('style'); st.id='upCss'; st.textContent='.upbtn{background:var(--navy,#000E31);color:#fff;border:none;border-radius:9px;padding:9px 16px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap}.upbtn:hover{filter:brightness(1.15)}.upbtn:disabled{opacity:.45;cursor:default}'; document.head.appendChild(st); }
   var f=document.querySelector('.filters'); if(f && !document.getElementById('upOpenBtn')){ var b=document.createElement('button'); b.type='button'; b.id='upOpenBtn'; b.className='upbtn'; b.style.marginLeft='auto'; b.textContent='⤒ Upload signed agreements'; b.addEventListener('click',upOpen); f.style.display='flex'; f.style.alignItems='center'; f.style.flexWrap='wrap'; f.appendChild(b); }
@@ -235,7 +235,7 @@ function upInit(){
   m.innerHTML='<div style="background:#fff;border-radius:14px;max-width:1080px;width:100%;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 24px 70px rgba(0,0,0,.4);overflow:hidden">'
    +'<div style="padding:16px 22px;border-bottom:1px solid var(--line);display:flex;align-items:flex-start;justify-content:space-between;gap:12px"><div><div style="font-size:16px;font-weight:700;color:var(--navy)">Upload signed agreements</div><div style="font-size:12.5px;color:var(--muted);margin-top:2px;max-width:760px">Pick any number of signed PDFs — a DocuSign export works as-is. Lavano reads each signing certificate for the signers, signing date and envelope ID, suggests the type, links the contact by email and skips anything already imported. Review, then import.</div></div><button type="button" id="up_x" aria-label="Close" style="background:none;border:none;font-size:24px;line-height:1;color:#8a94a6;cursor:pointer">×</button></div>'
    +'<div style="padding:11px 22px;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:center;flex-wrap:wrap"><label class="upbtn" style="display:inline-block">⤒ Choose PDFs<input type="file" id="up_files" accept=".pdf,application/pdf" multiple style="display:none"></label>'
-   +'<label style="font-size:12.5px;color:var(--muted);display:inline-flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="up_all" checked> Select all</label><span id="up_count" style="font-size:12.5px;color:var(--muted);font-weight:700"></span><span id="up_msg" style="font-size:12.5px;color:var(--muted);margin-left:auto"></span></div>'
+   +'<label style="font-size:12.5px;color:var(--muted);display:inline-flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="up_all" checked> Select all</label><span id="up_count" style="font-size:12.5px;color:var(--muted);font-weight:700"></span><button type="button" class="upbtn" id="up_mkall" style="display:none;background:#fff;color:var(--navy,#000E31);border:1px solid #cfd6e2">+ Create missing contacts</button><span id="up_msg" style="font-size:12.5px;color:var(--muted);margin-left:auto"></span></div>'
    +'<div id="up_list" style="overflow:auto;padding:6px 22px 12px;flex:1"><div class="empty">No files yet. Choose PDFs to start — you can add more in several batches.</div></div>'
    +'<div style="padding:13px 22px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end;align-items:center"><button type="button" id="up_cancel" style="background:#eef1f6;border:1px solid #d5dbe6;border-radius:9px;padding:9px 16px;font:inherit;font-weight:700;color:#33415c;cursor:pointer">Close</button><button type="button" class="upbtn" id="up_do" disabled>Import selected</button></div></div>';
   document.body.appendChild(m);
@@ -243,6 +243,7 @@ function upInit(){
   document.getElementById('up_files').addEventListener('change',function(e){ var fl=[].slice.call(e.target.files||[]); e.target.value=''; upAddFiles(fl); });
   document.getElementById('up_all').addEventListener('change',function(){ var on=this.checked; UP.forEach(function(r){ if(r.state==='ready') r.sel=on; }); upRender(); });
   document.getElementById('up_do').addEventListener('click',upImport);
+  document.getElementById('up_mkall').addEventListener('click',upCreateAll);
 }
 function upOpen(){ upInit(); document.getElementById('upModal').style.display='flex'; }
 function upClose(){ if(UP_BUSY) return; document.getElementById('upModal').style.display='none'; if(UP.some(function(r){return r.state==='done';})){ UP=UP.filter(function(r){return r.state!=='done';}); load(); } upRender(); }
@@ -259,7 +260,7 @@ async function upPump(){
         try{ var d=await upB64(r.file); r.b64=d;
           var j=await fetch('/api/agreements/upload-parse',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({filename:r.file.name,dataB64:d})}).then(function(x){return x.json();});
           if(!j||!j.ok){ r.state='error'; r.err=(j&&j.error)||'Could not read'; return; }
-          r.meta=j; r.type=j.type; r.name=j.name; r.effective=j.effective; r.personId=j.person?j.person.id:''; r.personName=j.person?j.person.name:'';
+          r.meta=j; r.type=j.type; r.name=j.name; r.effective=j.effective; r.expires=j.expires||''; r.expSrc=j.expiresSource||''; r.personId=j.person?j.person.id:''; r.personName=j.person?j.person.name:'';
           var dupHere=j.envelopeId && UP.some(function(o){ return o!==r && o.meta && o.meta.envelopeId===j.envelopeId && o.state!=='dup'; });
           if(j.duplicateId){ r.state='dup'; r.why='Already in Lavano'; }
           else if(dupHere){ r.state='dup'; r.why='Same envelope as another file'; }
@@ -270,28 +271,49 @@ async function upPump(){
     }
   } finally { UP_BUSY=0; upRender(); }
 }
-function upStatusFor(eff){ if(!eff) return 'active'; var d=new Date(eff+'T00:00:00'); return (Date.now()-d.getTime() > 365*86400000) ? 'expired' : 'active'; }
+function upStatusFor(eff,exp){ if(exp) return (exp<todayStr())?'expired':'active'; if(!eff) return 'active'; var d=new Date(eff+'T00:00:00'); return (Date.now()-d.getTime() > 365*86400000) ? 'expired' : 'active'; }
 function upRender(){
   var el=document.getElementById('up_list'); if(!el) return;
   var n=UP.filter(function(r){return r.state==='ready'&&r.sel;}).length, reading=UP.filter(function(r){return r.state==='reading';}).length, done=UP.filter(function(r){return r.state==='done';}).length, dups=UP.filter(function(r){return r.state==='dup';}).length;
   document.getElementById('up_count').textContent=UP.length?(UP.length+' file'+(UP.length>1?'s':'')+(reading?(' · reading '+reading+'…'):'')+(dups?(' · '+dups+' duplicate'+(dups>1?'s':'')):'')+(done?(' · '+done+' imported'):'')):'';
+  var miss=upMissing().length; var mk=document.getElementById('up_mkall'); if(mk){ mk.style.display=miss?'':'none'; if(!mk.disabled) mk.textContent='+ Create '+miss+' missing contact'+(miss>1?'s':''); }
   var btn=document.getElementById('up_do'); if(btn && !UP_BUSY){ btn.disabled=!n||reading>0; btn.textContent='Import '+(n?(n+' '):'')+'selected'; }
   if(!UP.length){ el.innerHTML='<div class="empty">No files yet. Choose PDFs to start — you can add more in several batches.</div>'; return; }
   var opts=TYPES.map(function(t){ return '<option value="'+esc(t.key)+'">'+esc(t.label)+'</option>'; }).join('');
-  el.innerHTML='<table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr style="text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em"><th style="padding:8px 6px;width:26px"></th><th style="padding:8px 6px">Agreement</th><th style="padding:8px 6px;width:190px">Type</th><th style="padding:8px 6px;width:190px">Contact</th><th style="padding:8px 6px;width:90px">Signed</th><th style="padding:8px 6px;width:150px">Status</th></tr></thead><tbody>'
+  el.innerHTML='<table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr style="text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em"><th style="padding:8px 6px;width:26px"></th><th style="padding:8px 6px">Agreement</th><th style="padding:8px 6px;width:190px">Type</th><th style="padding:8px 6px;width:190px">Contact</th><th style="padding:8px 6px;width:90px">Signed</th><th style="padding:8px 6px;width:140px">Expires</th><th style="padding:8px 6px;width:150px">Status</th></tr></thead><tbody>'
    +UP.map(function(r,i){
      var m=r.meta||{}; var ready=r.state==='ready';
-     var who=r.personId?('<span style="color:#1f8a5b;font-weight:700">✓ '+esc(r.personName)+'</span>'):((m.parties&&m.parties[0])?('<span style="color:#8a94a6" title="'+esc(m.parties[0].email)+'">'+esc(m.parties[0].name||m.parties[0].email)+' · no contact</span>'):'<span style="color:#8a94a6">—</span>');
+     var who=r.personId?('<span style="color:#1f8a5b;font-weight:700">✓ '+esc(r.personName)+'</span>'):((m.parties&&m.parties[0])?('<span style="color:#8a94a6" title="'+esc(m.parties[0].email)+'">'+esc(m.parties[0].name||m.parties[0].email)+'</span>'+((ready||r.state==='done')?(' <button type="button" class="upmk" data-i="'+i+'" style="background:none;border:none;color:#23496f;font:inherit;font-size:12px;font-weight:700;cursor:pointer;padding:0">+ Create</button>'):'')+(r.mkErr?('<div style="color:#DA2B1F;font-size:11px">'+esc(r.mkErr)+'</div>'):'')):'<span style="color:#8a94a6">—</span>');
      var st=r.state==='reading'?'<span style="color:#8a94a6">Reading…</span>':r.state==='error'?('<span style="color:#DA2B1F">'+esc(r.err||'Error')+'</span>'):r.state==='dup'?('<span style="color:#b5791f">'+esc(r.why)+'</span>'):r.state==='saving'?'<span style="color:#23496f">Importing…</span>':r.state==='done'?'<span style="color:#1f8a5b;font-weight:700">✓ Imported</span>':(r.why?('<span style="color:#b5791f">'+esc(r.why)+'</span>'):(m.certificate?'<span style="color:#1f8a5b">Ready</span>':'<span style="color:#b5791f">No certificate — check fields</span>'));
      return '<tr style="border-top:1px solid var(--line)"><td style="padding:7px 6px"><input type="checkbox" class="upchk" data-i="'+i+'"'+(r.sel&&ready?' checked':'')+(ready?'':' disabled')+'></td>'
       +'<td style="padding:7px 6px">'+(ready?('<input class="upname" data-i="'+i+'" value="'+esc(r.name||'')+'" style="width:100%;font:inherit;font-size:12.5px;border:1px solid #d5dbe6;border-radius:7px;padding:5px 7px">'):('<b>'+esc(r.name||r.file.name)+'</b>'))+'<div style="color:#98a1b5;font-size:11px;margin-top:2px">'+esc(r.file.name)+'</div></td>'
       +'<td style="padding:7px 6px">'+(ready?('<select class="uptype" data-i="'+i+'" style="font:inherit;font-size:12.5px;border:1px solid #d5dbe6;border-radius:7px;padding:5px;width:100%">'+opts.replace('value="'+esc(r.type)+'"','value="'+esc(r.type)+'" selected')+'</select>'):esc(label(r.type||'')))+'</td>'
-      +'<td style="padding:7px 6px">'+who+'</td><td style="padding:7px 6px">'+fmt(r.effective||'')+'</td><td style="padding:7px 6px">'+st+'</td></tr>';
+      +'<td style="padding:7px 6px">'+who+'</td><td style="padding:7px 6px">'+fmt(r.effective||'')+'</td><td style="padding:7px 6px">'+(ready?('<input type="date" class="upexp" data-i="'+i+'" value="'+esc(r.expires||'')+'" title="'+esc(r.expSrc?('From '+r.expSrc):'No expiration found — add one if it has a term')+'" style="font:inherit;font-size:12px;border:1px solid '+(r.expires?'#d5dbe6':'#ecd9b0')+';border-radius:7px;padding:4px 5px;width:130px">'+(r.expSrc?('<div style="color:#98a1b5;font-size:10.5px;margin-top:2px" title="'+esc(r.expSrc)+'">'+esc(/^AI/.test(r.expSrc)?'AI-read':(/^term/.test(r.expSrc)?'from term':(r.expSrc==='entered'?'entered':'stated date')))+'</div>'):'')):fmt(r.expires||''))+'</td><td style="padding:7px 6px">'+st+'</td></tr>';
    }).join('')+'</tbody></table>';
   el.querySelectorAll('.upchk').forEach(function(c){ c.addEventListener('change',function(){ UP[+c.getAttribute('data-i')].sel=c.checked; upRender(); }); });
   el.querySelectorAll('.uptype').forEach(function(c){ c.addEventListener('change',function(){ UP[+c.getAttribute('data-i')].type=c.value; }); });
+  el.querySelectorAll('.upexp').forEach(function(c){ c.addEventListener('change',function(){ var r=UP[+c.getAttribute('data-i')]; r.expires=c.value; r.expSrc=c.value?'entered':''; }); });
+  el.querySelectorAll('.upmk').forEach(function(c){ c.addEventListener('click',function(){ c.disabled=true; c.textContent='Creating…'; upCreateContact(UP[+c.getAttribute('data-i')]).then(upRender); }); });
   el.querySelectorAll('.upname').forEach(function(c){ c.addEventListener('change',function(){ UP[+c.getAttribute('data-i')].name=c.value; }); });
 }
+var UP_PTYPE={ Listing:'Selling', BizSeller:'Selling', NDA:'Buying', CA:'Buying', Offer:'Buying', TenantRep:'Leasing', ETRA:'Leasing', CommercialLease:'Leasing', Referral:'Referring', AssocBroker:'Working' };
+function upMissing(){ var seen={}; return UP.filter(function(r){ var p=r.meta&&r.meta.parties&&r.meta.parties[0]; if(!p||r.personId||!(r.state==='ready'||r.state==='done')||seen[p.email]) return false; seen[p.email]=1; return true; }); }
+function upTitle(n){ n=String(n||'').trim(); return (n===n.toUpperCase()||n===n.toLowerCase())?n.toLowerCase().replace(/\b[a-z]/g,function(c){return c.toUpperCase();}):n; }
+async function upCreateContact(r){
+  var p=r.meta&&r.meta.parties&&r.meta.parties[0]; if(!p||r.personId) return;
+  var nm=upTitle(p.name||''); var parts=nm.split(/\s+/).filter(Boolean);
+  if(parts.length<2){ r.mkErr='Needs a first and last name — add this contact by hand'; return; }
+  var want=UP_PTYPE[r.type]||'Other'; var types=PTYPES.length?(PTYPES.indexOf(want)>=0?[want]:(PTYPES.indexOf('Other')>=0?['Other']:[PTYPES[0]])):[want];
+  var co=String(p.company||''); if(/^(security level|signature|using ip)/i.test(co)||co.toLowerCase()===String(p.name||'').toLowerCase()) co='';
+  var body={ firstName:parts[0], lastName:parts.slice(1).join(' '), types:types, emails:[p.email], title:p.title||'', leadSource:'Signed agreement import' }; if(co) body.companyName=co;
+  try{
+    var res=await fetch('/api/person',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}); var j=await res.json();
+    var id=(j&&j.ok&&j.person&&j.person.id)||(j&&j.existingId)||''; var pname=(j&&j.person&&j.person.name)||nm;
+    if(!id){ r.mkErr=(j&&j.error)||'Could not create'; return; }
+    r.mkErr=''; UP.forEach(function(o){ var q=o.meta&&o.meta.parties&&o.meta.parties[0]; if(q&&q.email===p.email&&!o.personId){ o.personId=id; o.personName=pname; if(o.state==='done'&&o.agrId){ fetch('/api/agreements',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:o.agrId,type:o.type,personId:id})}); } } });
+  }catch(e){ r.mkErr='Could not create'; }
+}
+async function upCreateAll(){ var b=document.getElementById('up_mkall'); var list=upMissing(); b.disabled=true; for(var k=0;k<list.length;k++){ b.textContent='Creating '+(k+1)+' of '+list.length+'…'; await upCreateContact(list[k]); } b.disabled=false; upRender(); }
 async function upImport(){
   var rows=UP.filter(function(r){return r.state==='ready'&&r.sel;}); if(!rows.length) return;
   UP_BUSY=1; var btn=document.getElementById('up_do'); btn.disabled=true; btn.textContent='Importing…'; var ok=0, bad=0; var msg=document.getElementById('up_msg');
@@ -300,11 +322,11 @@ async function upImport(){
       r.state='saving'; var m=r.meta||{};
       var notes='Imported from signed PDF'+(m.envelopeId?(' · DocuSign envelope '+m.envelopeId):'')+((m.parties&&m.parties.length)?(' · Signers: '+m.parties.map(function(p){return (p.name||'')+' <'+p.email+'>';}).join(', ')):'')+((m.team&&m.team.length)?(' · RRG: '+m.team.join(', ')):'');
       try{
-        var j=await fetch('/api/agreements',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({type:r.type,name:r.name||m.name||r.file.name,personId:r.personId||'',effective:r.effective||'',status:upStatusFor(r.effective),notes:notes.slice(0,2000),entryMethod:'recorded',envelopeId:m.envelopeId||'',recSigner1:(m.parties&&m.parties[0])?(m.parties[0].name||''):'',recSigner2:(m.team&&m.team[0])||''})}).then(function(x){return x.json();});
+        var j=await fetch('/api/agreements',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({type:r.type,name:r.name||m.name||r.file.name,personId:r.personId||'',effective:r.effective||'',status:upStatusFor(r.effective,r.expires),expires:r.expires||'',notes:notes.slice(0,2000),entryMethod:'recorded',envelopeId:m.envelopeId||'',recSigner1:(m.parties&&m.parties[0])?(m.parties[0].name||''):'',recSigner2:(m.team&&m.team[0])||''})}).then(function(x){return x.json();});
         if(!j||!j.ok) throw new Error((j&&j.error)||'Save failed');
         var d=await fetch('/api/agreements/'+encodeURIComponent(j.agreement.id)+'/doc',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({filename:r.file.name,dataB64:r.b64})}).then(function(x){return x.json();});
         if(!d||!d.ok) throw new Error((d&&d.error)||'File upload failed');
-        r.state='done'; r.b64=null; ok++;
+        r.state='done'; r.agrId=j.agreement.id; r.b64=null; ok++;
       }catch(e){ r.state='error'; r.err=String(e.message||e); bad++; }
       msg.textContent='Imported '+ok+(bad?(' · '+bad+' failed'):'')+' of '+rows.length; upRender();
     }));

@@ -1522,6 +1522,7 @@ app.use(cors({ origin: process.env.ALLOW_ORIGIN || '*' }));
 app.use((req, res, next) => {
   // Stripe signs the raw body — its webhook reads it with express.raw, so the global JSON parser must not consume it first.
   if (req.path === '/api/stripe/webhook') return next();
+  if (req.path === '/api/agreements/upload-parse' || /^\/api\/agreements\/[^/]+\/doc$/.test(req.path)) return next();
   if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/generate-lease' || req.path === '/api/generate-map' || req.path === '/api/valuation-factors' || req.path === '/api/admin/backup/restore' || req.path === '/api/admin/upload-doc' || req.path === '/api/admin/logo' || req.path === '/api/admin/favicon' || req.path === '/api/files' || req.path === '/api/form/build' || req.path === '/api/room-upload' || /^\/api\/room\/[^/]+\/bulk-upload$/.test(req.path) || /^\/api\/company\/[^/]+\/location\/[^/]+\/photo$/.test(req.path) || /^\/api\/company\/[^/]+\/concept\/[^/]+\/logo$/.test(req.path) || /^\/api\/company\/[^/]+\/logo$/.test(req.path) || /^\/api\/email-templates\/[^/]+\/attachment$/.test(req.path) || /^\/api\/agreements\/[^/]+\/doc$/.test(req.path) || /^\/api\/admin\/agreement-templates\/[^/]+\/file$/.test(req.path) || /^\/api\/sign\/[^/]+$/.test(req.path) || req.path.indexOf('/api/admin/import/') === 0 || req.path === '/api/admin/enrich-apply' || req.path === '/api/admin/concepts-apply' || req.path === '/api/admin/cleanup-apply' || req.path === '/api/admin/apply-logos' || req.path === '/api/admin/emaildomain-apply' || req.path === '/api/gmail/send' || /^\/api\/person\/[^/]+\/email$/.test(req.path) || /^\/api\/ticket\/[^/]+\/file$/.test(req.path) || req.path === '/api/subscribers/import' || req.path === '/api/website/hero') return next();
   express.json({ limit: '1mb' })(req, res, next);
 });
@@ -23436,12 +23437,42 @@ function _agrCertParse(t) {
     if (!EM.test(ln)) return; const email = ln.toLowerCase(); if (seen[email]) return;
     let name = '';
     for (let b = k - 1; b >= Math.max(0, k - 4); b--) { const c = lines[b]; if (!c || EM.test(c) || LBL.test(c) || /\d+\/\d+\/\d{4}/.test(c)) continue; name = c; break; }
-    seen[email] = 1; signers.push({ name: name.replace(/\s+/g, ' ').trim(), email });
+    const after = []; for (let a = k + 1; a < Math.min(lines.length, k + 4); a++) { const c = lines[a]; if (EM.test(c) || LBL.test(c) || /\d+\/\d+\/\d{4}/.test(c)) break; after.push(c); }
+    seen[email] = 1; signers.push({ name: name.replace(/\s+/g, ' ').trim(), email, title: (after[0] || '').slice(0, 120), company: (after[1] || '').slice(0, 160) });
   });
   const cm = t.match(/Completed\s*Security Checked\s*(\d{1,2})\/(\d{1,2})\/(\d{4})/);
   let completed = cm ? (cm[3] + '-' + cm[1].padStart(2, '0') + '-' + cm[2].padStart(2, '0')) : '';
   if (!completed) { const sg = [...sec.matchAll(/Signed:\s*(\d{1,2})\/(\d{1,2})\/(\d{4})/g)].pop(); if (sg) completed = sg[3] + '-' + sg[1].padStart(2, '0') + '-' + sg[2].padStart(2, '0'); }
   return { envelopeId: eid, subject, signers, completed };
+}
+const _AGR_MON = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, sept: 9, oct: 10, nov: 11, dec: 12 };
+const _AGR_NUM = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, eighteen: 18, 'twenty-four': 24, thirty: 30, sixty: 60, ninety: 90 };
+function _agrIso(y, m, d) { y = +y; if (y < 100) y += 2000; m = +m; d = +d; if (!(m >= 1 && m <= 12 && d >= 1 && d <= 31 && y >= 2000 && y <= 2100)) return ''; return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0'); }
+function _agrAddTerm(eff, n, unit) { const d = new Date(eff + 'T00:00:00Z'); if (isNaN(d)) return ''; if (/^y/i.test(unit)) d.setUTCFullYear(d.getUTCFullYear() + n); else if (/^m/i.test(unit)) d.setUTCMonth(d.getUTCMonth() + n); else d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
+// Find the expiration in the agreement body: a stated end date near "expires/ends/terminates/through",
+// else a stated term ("term of 12 months", "one (1) year from the effective date") added to the effective date.
+function _agrFindExpiry(body, eff) {
+  body = String(body || '').replace(/\s+/g, ' ');
+  const hi = eff ? _agrAddTerm(eff, 10, 'y') : '2100-01-01';
+  const ok = d => d && (!eff || d > eff) && d <= hi;
+  const dateRx = /\b(?:(jan|feb|mar|apr|may|jun|jul|aug|sept?|oct|nov|dec)[a-z]*\.?\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})|(\d{1,2})\/(\d{1,2})\/(\d{2,4}))\b/gi;
+  const KEY = /(expir|terminat|\bends?\b|ending|until|through|thru|end date|ends at)/i;
+  const NOT = /(commenc|begins?|effective date of|dated|executed|signed|start)/i;
+  let best = '';
+  let m; while ((m = dateRx.exec(body))) {
+    const d = m[1] ? _agrIso(m[3], _AGR_MON[m[1].toLowerCase().slice(0, 4)] || _AGR_MON[m[1].toLowerCase().slice(0, 3)], m[2]) : _agrIso(m[6], m[4], m[5]);
+    if (!ok(d)) continue;
+    const ctx = body.slice(Math.max(0, m.index - 90), m.index);
+    const tail = ctx.slice(-45);
+    if (KEY.test(tail) && !NOT.test(tail)) { if (!best || d > best) best = d; }
+  }
+  if (best) return { expires: best, source: 'stated date' };
+  if (eff) {
+    const tr = /(?:term of (?:this (?:agreement|listing)\s*)?(?:shall be|is|will be)?\s*(?:for\s*)?|for a (?:period|term) of\s*)(\d+|[a-z-]+)\s*(?:\(\d+\)\s*)?(year|month|day)s?/i.exec(body)
+      || /\b(\d+|one|two|three|six|twelve|eighteen|twenty-four)\s*(?:\(\d+\)\s*)?(year|month|day)s?\s*(?:from|after|following)\s*(?:the\s*)?(?:effective|execution|date)/i.exec(body);
+    if (tr) { const n = /^\d+$/.test(tr[1]) ? +tr[1] : _AGR_NUM[tr[1].toLowerCase()]; if (n && n <= 120) { const d = _agrAddTerm(eff, n, tr[2]); if (ok(d)) return { expires: d, source: 'term: ' + tr[0].slice(0, 60) }; } }
+  }
+  return { expires: '', source: '' };
 }
 function _agrCleanSubject(s) {
   return String(s || '').replace(/^(Complete with Docu[Ss]ign:|Please Docu[Ss]ign:|Docu[Ss]ign:|Here is your signed document:)\s*/i, '')
@@ -23479,10 +23510,20 @@ app.post('/api/agreements/upload-parse', express.json({ limit: '28mb' }), async 
   const idx = {}; loadPeople().forEach(p => { personEmails(p).forEach(e => { const k = String((e && e.email) || e || '').trim().toLowerCase(); if (k && !idx[k]) idx[k] = { id: p.id, name: p.name || '' }; }); });
   let match = null; for (const s of parties) { if (idx[s.email]) { match = Object.assign({ email: s.email }, idx[s.email]); break; } }
   const dup = cert.envelopeId ? loadAgreements().find(a => a.envelopeId && a.envelopeId === cert.envelopeId) : null;
+  const guessType = _agrGuessUploadType(subj, keys);
+  const bodyText = (() => { const c = text.search(/Certificate Of Completion/i); return c > 200 ? text.slice(0, c) : text; })();
+  let exp = _agrFindExpiry(bodyText, cert.completed);
+  const wantsExpiry = ['Listing', 'TenantRep', 'ETRA', 'Referral', 'NDA', 'CA', 'AssocBroker', 'BizSeller', 'CommercialLease'].indexOf(guessType) >= 0;
+  if (!exp.expires && wantsExpiry && bodyText.length > 100 && b.ai !== false && typeof aiassist.agreementExpiry === 'function' && process.env.ANTHROPIC_API_KEY) {
+    // Form PDFs (e.g. TREC listings) keep the filled-in dates where text extraction can't see them — blanks like
+    // "begins on and ends at 11:59 p.m. on ." — so hand those to the AI as the PDF itself.
+    const blanks = /(begins on|commenc\w* on|ends at[^.]{0,20} on|expires? on|terminates? on)\s*(and|\.|,)/i.test(bodyText.replace(/\s+/g, ' '));
+    try { const a = await aiassist.agreementExpiry({ text: bodyText, effective: cert.completed, type: guessType, pdfB64: (blanks && buf.length < 12 * 1024 * 1024) ? dataB64 : '' }); if (a.expires && (!cert.completed || a.expires > cert.completed)) exp = { expires: a.expires, source: 'AI: ' + a.basis }; } catch (e) {}
+  }
   const sensitive = /cc authorization|credit card|card authorization|ach authorization|w-?9\b/i.test(subj);
   const who = parties[0] ? parties[0].name : '';
   const name = (who && subj.toLowerCase().indexOf(who.toLowerCase()) < 0) ? (subj + ' — ' + who) : subj;
-  res.json({ ok: true, filename, certificate: !!cert.envelopeId, envelopeId: cert.envelopeId, subject: subj, name: name.slice(0, 160), type: _agrGuessUploadType(subj, keys), effective: cert.completed,
+  res.json({ ok: true, filename, certificate: !!cert.envelopeId, envelopeId: cert.envelopeId, subject: subj, name: name.slice(0, 160), type: guessType, effective: cert.completed, expires: exp.expires, expiresSource: exp.source,
     parties, team: team.map(s => s.name || s.email), person: match, duplicateId: dup ? dup.id : '', sensitive });
 });
 app.post('/api/agreements', express.json(), (req, res) => {
