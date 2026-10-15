@@ -495,7 +495,7 @@ a.feat:hover{background:#f7f9fc;}
 <div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
 <div id="docUpMask" class="dmask" hidden><div class="dcard">
   <div class="dch">Add a document</div>
-  <div class="dcsub">Linked to <span class="dchip">🔗 <span id="docUpRelName">this listing</span></span> — it will show here and in the Doc Vault.</div>
+  <div class="dcsub">Linked to <span class="dchip">🔗 <span id="docUpRelName">this listing</span></span> — it will show here and in Documents.</div>
   <div class="dcb">
     <div class="ddrop" id="docDrop" onclick="document.getElementById('docUpFile').click()">Click to choose a file — PDF, Word, Excel, PowerPoint, image, TXT, CSV or ZIP (max 25 MB)</div>
     <input type="file" id="docUpFile" style="display:none" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.gif,.webp,.txt,.csv,.zip" onchange="docOnPick()">
@@ -1081,7 +1081,7 @@ function sscDelete(key,n){
       else if(window.rrgToast) rrgToast((j&&j.error)||'Could not delete the SSC.');
     }).catch(function(){ if(window.rrgToast) rrgToast('Could not reach the server.'); });
   };
-  var m=(n>1?'Delete the latest version of this Site Selection Criteria? The older version becomes the one on file.':'Delete this Site Selection Criteria? It comes out of Doc Vault too.')+' The Tenant-Box and the criteria already filled in from it are kept. This cannot be undone.';
+  var m=(n>1?'Delete the latest version of this Site Selection Criteria? The older version becomes the one on file.':'Delete this Site Selection Criteria? It comes out of Documents too.')+' The Tenant-Box and the criteria already filled in from it are kept. This cannot be undone.';
   if(window.rrgConfirm){ window.rrgConfirm(m,{title:'Delete SSC?',okText:'Delete',danger:true}).then(go); } else { go(window.confirm(m)); }
 }
 function loadSscLink(){ var el=document.getElementById('sscLink'); if(!el||!A) return;
@@ -1478,7 +1478,7 @@ function renderListingDocs(){
   wireDocRows();
 }
 function wireDocRows(){
-  document.querySelectorAll('[data-docdel]').forEach(function(b){ b.addEventListener('click',async function(){ if(await rrgConfirm('Remove this document? It will be deleted from the Doc Vault too.')) delListingDoc(b.getAttribute('data-docdel')); }); });
+  document.querySelectorAll('[data-docdel]').forEach(function(b){ b.addEventListener('click',async function(){ if(await rrgConfirm('Remove this document? It will be deleted from Documents too.')) delListingDoc(b.getAttribute('data-docdel')); }); });
 }
 function delListingDoc(id){ fetch('/api/files/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ LDOCS=(LDOCS||[]).filter(function(d){return d.id!==id;}); renderListingDocs(); } else alert((j&&j.error)||'Could not remove.'); }).catch(function(){ alert('Could not reach the server.'); }); }
 /* Add-document flow: a compact uploader that pre-links the file to THIS listing so the "Relates to" step can never be forgotten. */

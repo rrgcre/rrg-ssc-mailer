@@ -58,6 +58,7 @@ table.t tr:hover td{background:#fbfcfe;}
           <select id="dCat" class="fld" style="width:100%">
             <option value="Agreement">Agreement</option>
             <option value="Document" selected>Document</option>
+            <option value="Marketing">Marketing</option>
             <option value="Training">Training</option>
           </select>
         </div>
@@ -90,7 +91,7 @@ function fmtDate(s){ if(!s) return ''; var d=new Date(s); if(isNaN(d)) return St
 function render(docs){
   docs=docs||[];
   if(!docs.length){ document.getElementById('docs').innerHTML='<div class="ts">Nothing uploaded yet.</div>'; return; }
-  var order={Agreement:0,Document:1,Training:2};
+  var order={Agreement:0,Document:1,Marketing:2,Training:3};
   docs=docs.slice().sort(function(a,b){
     var oa=order[a.category]==null?9:order[a.category], ob=order[b.category]==null?9:order[b.category];
     if(oa!==ob) return oa-ob;

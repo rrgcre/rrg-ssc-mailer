@@ -4069,7 +4069,7 @@ app.post('/api/admin/upload-doc', requireAdmin, express.json({ limit: '40mb' }),
   let buf; try { buf = Buffer.from(data, 'base64'); } catch (e) { return res.status(400).json({ ok: false, error: 'Could not read the file data.' }); }
   if (!buf.length) return res.status(400).json({ ok: false, error: 'The file appears to be empty.' });
   if (buf.length > 20 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'File too large (max 20 MB).' });
-  const category = (['Agreement', 'Document', 'Training'].indexOf(b.category) >= 0) ? b.category : 'Document';
+  const category = (['Agreement', 'Document', 'Marketing', 'Training'].indexOf(b.category) >= 0) ? b.category : 'Document';
   const title = String(b.title || '').trim().slice(0, 120) || prettyName(orig);
   try { if (!fs.existsSync(DOCS_DIR)) fs.mkdirSync(DOCS_DIR, { recursive: true }); } catch (e) { return res.status(500).json({ ok: false, error: 'Could not create the documents folder.' }); }
   const id = newDocId();
@@ -8111,7 +8111,7 @@ function siteSecurePage(req) {
 </style></head>
 <body>
 <header><div class="wrap"><nav class="nav">
-  <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
+  <a class="brand" href="/site"><span class="disc" style="position:relative">RRG<sup style="position:absolute;top:-5px;right:-11px;font:400 9px Arial,sans-serif;color:#8597b8;letter-spacing:0">&trade;</sup></span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
   <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a></div></div>
   <a class="navlink" href="/market">Listings</a>
@@ -8187,12 +8187,12 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
   <div class="foot">
     <div>
       <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
-      <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
+      <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right.&trade; Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
     <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/subscribe">Listing alerts</a><a href="/site/careers">Careers</a></div>
     <div><h4>Offices</h4>${offLinks}</div>
   </div>
-  <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
+  <div class="footbar"><span>&copy; ${year} ${esc(orgLegalName())}. All rights reserved.</span><span>Restaurant Transactions. Done Right.&trade; and the RRG logo are trademarks of ${esc(orgLegalName())}.</span></div>
 </div></footer>
 
 <script>
@@ -8289,7 +8289,7 @@ function siteCareersPage(req) {
 </style></head>
 <body>
 <header><div class="wrap"><nav class="nav">
-  <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
+  <a class="brand" href="/site"><span class="disc" style="position:relative">RRG<sup style="position:absolute;top:-5px;right:-11px;font:400 9px Arial,sans-serif;color:#8597b8;letter-spacing:0">&trade;</sup></span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
   <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a></div></div>
   <a class="navlink" href="/market">Listings</a>
@@ -8375,12 +8375,12 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
   <div class="foot">
     <div>
       <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
-      <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
+      <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right.&trade; Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
     <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/subscribe">Listing alerts</a><a href="/site/careers">Careers</a></div>
     <div><h4>Offices</h4>${offLinks}</div>
   </div>
-  <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
+  <div class="footbar"><span>&copy; ${year} ${esc(orgLegalName())}. All rights reserved.</span><span>Restaurant Transactions. Done Right.&trade; and the RRG logo are trademarks of ${esc(orgLegalName())}.</span></div>
 </div></footer>
 
 <script>
@@ -8474,7 +8474,7 @@ function siteOperatorPage(req) {
 </style></head>
 <body>
 <header><div class="wrap"><nav class="nav">
-  <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
+  <a class="brand" href="/site"><span class="disc" style="position:relative">RRG<sup style="position:absolute;top:-5px;right:-11px;font:400 9px Arial,sans-serif;color:#8597b8;letter-spacing:0">&trade;</sup></span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
   <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a></div></div>
   <a class="navlink" href="/market">Listings</a>
@@ -8550,12 +8550,12 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
   <div class="foot">
     <div>
       <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
-      <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
+      <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right.&trade; Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
     <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/subscribe">Listing alerts</a><a href="/site/careers">Careers</a></div>
     <div><h4>Offices</h4>${offLinks}</div>
   </div>
-  <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
+  <div class="footbar"><span>&copy; ${year} ${esc(orgLegalName())}. All rights reserved.</span><span>Restaurant Transactions. Done Right.&trade; and the RRG logo are trademarks of ${esc(orgLegalName())}.</span></div>
 </div></footer>
 
 <script>
@@ -8646,7 +8646,7 @@ function siteExitPage(req) {
 </style></head>
 <body>
 <header><div class="wrap"><nav class="nav">
-  <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
+  <a class="brand" href="/site"><span class="disc" style="position:relative">RRG<sup style="position:absolute;top:-5px;right:-11px;font:400 9px Arial,sans-serif;color:#8597b8;letter-spacing:0">&trade;</sup></span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
   <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a></div></div>
   <a class="navlink" href="/market">Listings</a>
@@ -8722,12 +8722,12 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
   <div class="foot">
     <div>
       <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
-      <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
+      <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right.&trade; Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
     <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/subscribe">Listing alerts</a><a href="/site/careers">Careers</a></div>
     <div><h4>Offices</h4>${offLinks}</div>
   </div>
-  <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
+  <div class="footbar"><span>&copy; ${year} ${esc(orgLegalName())}. All rights reserved.</span><span>Restaurant Transactions. Done Right.&trade; and the RRG logo are trademarks of ${esc(orgLegalName())}.</span></div>
 </div></footer>
 
 <script>
@@ -8846,7 +8846,7 @@ function siteAssetPage(req) {
 </style></head>
 <body>
 <header><div class="wrap"><nav class="nav">
-  <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
+  <a class="brand" href="/site"><span class="disc" style="position:relative">RRG<sup style="position:absolute;top:-5px;right:-11px;font:400 9px Arial,sans-serif;color:#8597b8;letter-spacing:0">&trade;</sup></span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
   <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a></div></div>
   <a class="navlink" href="/market">Listings</a>
@@ -8923,12 +8923,12 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
   <div class="foot">
     <div>
       <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
-      <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
+      <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right.&trade; Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
     <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/subscribe">Listing alerts</a><a href="/site/careers">Careers</a></div>
     <div><h4>Offices</h4>${offLinks}</div>
   </div>
-  <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
+  <div class="footbar"><span>&copy; ${year} ${esc(orgLegalName())}. All rights reserved.</span><span>Restaurant Transactions. Done Right.&trade; and the RRG logo are trademarks of ${esc(orgLegalName())}.</span></div>
 </div></footer>
 
 <script>
@@ -9046,7 +9046,7 @@ function siteSubscribePage(req) {
 </style></head>
 <body style="background:var(--cream)">
 <header><div class="wrap"><nav class="nav">
-  <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
+  <a class="brand" href="/site"><span class="disc" style="position:relative">RRG<sup style="position:absolute;top:-5px;right:-11px;font:400 9px Arial,sans-serif;color:#8597b8;letter-spacing:0">&trade;</sup></span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
   <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a></div></div>
   <a class="navlink" href="/market">Listings</a>
@@ -9093,7 +9093,7 @@ function siteSubscribePage(req) {
 </div></div>
 
 <footer><div class="wrap">
-  <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span><a href="/site" style="color:#8597b8">Back to site</a></span></div>
+  <div class="footbar"><span>&copy; ${year} ${esc(orgLegalName())}. All rights reserved.</span><span><a href="/site" style="color:#8597b8">Back to site</a></span></div>
 </div></footer>
 
 <script>
@@ -9199,7 +9199,7 @@ function siteMultiUnitPage(req) {
 </style></head>
 <body>
 <header><div class="wrap"><nav class="nav">
-  <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
+  <a class="brand" href="/site"><span class="disc" style="position:relative">RRG<sup style="position:absolute;top:-5px;right:-11px;font:400 9px Arial,sans-serif;color:#8597b8;letter-spacing:0">&trade;</sup></span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
   <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a></div></div>
   <a class="navlink" href="/market">Listings</a>
@@ -9275,12 +9275,12 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
   <div class="foot">
     <div>
       <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
-      <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
+      <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right.&trade; Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
     <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/subscribe">Listing alerts</a><a href="/site/careers">Careers</a></div>
     <div><h4>Offices</h4>${offLinks}</div>
   </div>
-  <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
+  <div class="footbar"><span>&copy; ${year} ${esc(orgLegalName())}. All rights reserved.</span><span>Restaurant Transactions. Done Right.&trade; and the RRG logo are trademarks of ${esc(orgLegalName())}.</span></div>
 </div></footer>
 
 <script>
@@ -9372,7 +9372,7 @@ function siteSellPage(req) {
 </style></head>
 <body>
 <header><div class="wrap"><nav class="nav">
-  <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
+  <a class="brand" href="/site"><span class="disc" style="position:relative">RRG<sup style="position:absolute;top:-5px;right:-11px;font:400 9px Arial,sans-serif;color:#8597b8;letter-spacing:0">&trade;</sup></span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
   <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a></div></div>
   <a class="navlink" href="/market">Listings</a>
@@ -9448,12 +9448,12 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
   <div class="foot">
     <div>
       <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
-      <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
+      <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right.&trade; Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
     <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/subscribe">Listing alerts</a><a href="/site/careers">Careers</a></div>
     <div><h4>Offices</h4>${offLinks}</div>
   </div>
-  <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
+  <div class="footbar"><span>&copy; ${year} ${esc(orgLegalName())}. All rights reserved.</span><span>Restaurant Transactions. Done Right.&trade; and the RRG logo are trademarks of ${esc(orgLegalName())}.</span></div>
 </div></footer>
 
 <script>
@@ -9916,7 +9916,7 @@ ${SITE_CSS}
 </style>${heroBgStyle}</head>
 <body>
 <header><div class="wrap"><nav class="nav">
-  <a class="brand" href="#top"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
+  <a class="brand" href="#top"><span class="disc" style="position:relative">RRG<sup style="position:absolute;top:-5px;right:-11px;font:400 9px Arial,sans-serif;color:#8597b8;letter-spacing:0">&trade;</sup></span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
   <div class="navdd"><a class="navlink" href="#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a></div></div>
   <a class="navlink" href="/market">Listings</a>
@@ -9931,7 +9931,7 @@ ${SITE_CSS}
 <div class="hero${heroImgSafe ? ' hasimg' : ''}"><div class="wrap"><div class="${heroGridClass}">
   <div>
     <div class="eyebrow">The Texas Restaurant &amp; Bar Brokers</div>
-    <h1 class="serif">${esc(s.tagline || '')}</h1>
+    <h1 class="serif">${esc(s.tagline || '')}${s.tagline ? '<sup style="font-size:.42em;font-weight:400;vertical-align:super;margin-left:2px;letter-spacing:0">&trade;</sup>' : ''}</h1>
     <p class="sub">${esc(s.heroSub || '')}</p>
     <div class="hcta">
       <a class="btn red" href="/site/sell">Sell your restaurant</a>
@@ -10026,13 +10026,13 @@ ${s.careersBandHead ? `<section id="careers" style="background:var(--cream);padd
   <div class="foot">
     <div>
       <a class="brand" href="#top" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
-      <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right. Representing sellers, buyers, landlords, and tenants across Texas.</p>
+      <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right.&trade; Representing sellers, buyers, landlords, and tenants across Texas.</p>
       <div class="annbadge"><span class="anndisc">RRG</span><span class="anntxt"><b>10 Years</b><i>2016 – 2026</i></span></div>
     </div>
     <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/subscribe">Listing alerts</a><a href="/site/careers">Careers</a></div>
     <div><h4>Offices</h4>${(s.offices || []).map(function (o) { const tel = String(o.phone || '').replace(/[^0-9+]/g, ''); return '<a href="tel:' + tel + '">' + esc(o.city || '') + ' &middot; ' + esc(o.phone || '') + '</a>'; }).join('')}</div>
   </div>
-  <div class="footbar"><span>&copy; ${year} ${org}. All rights reserved.</span><span>Restaurant Transactions. Done Right.</span></div>
+  <div class="footbar"><span>&copy; ${year} ${esc(orgLegalName())}. All rights reserved.</span><span>Restaurant Transactions. Done Right.&trade; and the RRG logo are trademarks of ${esc(orgLegalName())}.</span></div>
 </div></footer>
 
 <script>
@@ -10310,7 +10310,7 @@ footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} 
 </style></head>
 <body>
 <header class="sitenav"><div class="in">
-  <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
+  <a class="brand" href="/site"><span class="disc" style="position:relative">RRG<sup style="position:absolute;top:-5px;right:-11px;font:400 9px Arial,sans-serif;color:#8597b8;letter-spacing:0">&trade;</sup></span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
   <span class="sp"></span>
   <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a></div></div>
   <a class="navlink active" href="/market">Listings</a>
@@ -11988,7 +11988,7 @@ function addUpdateProposal(username, upd, person, source) {
   saveProposals(arr);
   return { created: true, id: p.id };
 }
-// Guess a Doc Vault type from a filename + email subject (filename/subject only; no file read).
+// Guess a Documents type from a filename + email subject (filename/subject only; no file read).
 function guessDocType(filename, subject) {
   const s = (String(filename || '') + ' ' + String(subject || '')).toLowerCase();
   if (/\bloi\b|letter[\s_-]?of[\s_-]?intent/.test(s)) return 'LOI';
@@ -16596,7 +16596,7 @@ function _sfOwnsEng(req, key) { const e = _sfEngagement(key); return !!(e && own
 function sfCanSee(req, f) { if (!f) return false; if (canSeeAllDeals(req)) return true; const u = req.user && req.user.username; if (u && f.byUser === u) return true; return !!(f.engagementKey && _sfOwnsEng(req, f.engagementKey)); }
 // Who edits: admins, the maker, or the engagement owner. See-all alone is view-only (same rule as listings).
 function sfCanEdit(req, f) { if (!f) return false; if (req.user && isSuper(req.user)) return true; const u = req.user && req.user.username; if (u && f.byUser === u) return true; return !!(f.engagementKey && _sfOwnsEng(req, f.engagementKey)); }
-// Delete follows the Doc Vault rule: admins, or the delete permission plus edit rights.
+// Delete follows Documents rule: admins, or the delete permission plus edit rights.
 function sfCanDelete(req, f) { if (req.user && isSuper(req.user)) return true; return canDelete(req) && sfCanEdit(req, f); }
 function _sfTenantName(av) { if (!av) return ''; if (av.company && av.company.name) return av.company.name; if (av.clientPersonId) { const p = personById(av.clientPersonId); if (p) return p.name || ''; } return ''; }
 function _sfSpaceLabel(sp) { return sp ? ([sp.center, sp.name].filter(Boolean).join(' · ') || sp.address || 'Space') : ''; }
@@ -23017,8 +23017,8 @@ function newFileId() { return 'file_' + Date.now().toString(36) + Math.random().
 const USERFILE_MIME = { pdf:'application/pdf', doc:'application/msword', docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document', xls:'application/vnd.ms-excel', xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', ppt:'application/vnd.ms-powerpoint', pptx:'application/vnd.openxmlformats-officedocument.presentationml.presentation', png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg', gif:'image/gif', webp:'image/webp', txt:'text/plain', csv:'text/csv', zip:'application/zip' };
 function userFileMime(ext) { return USERFILE_MIME[String(ext||'').toLowerCase()] || 'application/octet-stream'; }
 
-// Doc Vault delete gate: admins always; everyone else needs the Delete permission AND must be able to
-// see the record as its owner — the same per-kind ownership test the Doc Vault list (/api/documents) uses
+// Documents delete gate: admins always; everyone else needs the Delete permission AND must be able to
+// see the record as its owner — the same per-kind ownership test Documents list (/api/documents) uses
 // (agreements, LOIs, site criteria, seller calls & files also open to see-all users, as listings are).
 function docDeleteOk(req, kind, rec) {
   if (req.user && isSuper(req.user)) return true;

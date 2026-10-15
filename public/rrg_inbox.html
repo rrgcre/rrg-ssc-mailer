@@ -280,7 +280,7 @@ function fileCard(p){
   (sug.deals||[]).forEach(function(d){ opts+='<option value="deal:'+esc(d.key)+'">Deal · '+esc(d.business||d.key)+'</option>'; });
   if(sug.personId){ opts+='<option value="contact:'+esc(sug.personId)+'">Contact · '+esc(sug.personName||'')+'</option>'; }
   if(sug.companyId){ opts+='<option value="company:'+esc(sug.companyId)+'">Company · '+esc(sug.companyName||'their company')+'</option>'; }
-  opts+='<option value="none">Just the Doc Vault (no link)</option>';
+  opts+='<option value="none">Just Documents (no link)</option>';
   if(sug.dealKey) defVal='deal:'+sug.dealKey; else if(sug.personId) defVal='contact:'+sug.personId;
   var atts=(f.attachments||[]).map(function(a){
     return ''+

@@ -171,7 +171,7 @@
     { grp: 'Book of Business', color: '#7ea6d8', items: [
       { ic: '▦', label: 'Companies', href: 'rrg_companies.html' },
       { ic: '◑', label: 'Contacts', href: 'rrg_people.html' },
-      { ic: '❐', label: 'Doc Vault', href: 'rrg_documents.html' },
+      { ic: '❐', label: 'Documents', href: 'rrg_documents.html' },
     ] },
     { grp: 'Business Sales', color: '#6bbf95', items: [
       { ic: '⊞', label: 'Listings', href: 'rrg_board.html' },
@@ -520,7 +520,7 @@
       var VS=[
         {k:'companies', ic:'▦', label:'Companies', all:'rrg_companies.html', bi:[]},
         {k:'contacts',  ic:'◑', label:'Contacts',  all:'rrg_people.html', bi:[]},
-        {k:'documents', ic:'❐', label:'Doc Vault', all:'rrg_documents.html', bi:[]},
+        {k:'documents', ic:'❐', label:'Documents', all:'rrg_documents.html', bi:[]},
         {k:'datarooms', ic:'▥', label:'Data Rooms', all:'rrg_rooms_queue.html', bi:[]},
         {k:'listings',  ic:'⊞', label:'Listings',  all:'rrg_assignments.html', bi:[{l:'Board view', h:'rrg_board.html'}]},
         {k:null,        ic:'◎', label:'Buyers',    all:'rrg_buyer_board.html', bi:[]},

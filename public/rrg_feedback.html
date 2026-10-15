@@ -49,6 +49,11 @@ h1{margin:0;font-size:27px;font-weight:700;} .sub{color:#aeb8cf;font-size:13px;m
 .modalcard{max-height:calc(100vh - 40px);display:flex;flex-direction:column;}
 .modalh{flex:0 0 auto;} .modalf{flex:0 0 auto;}
 .modalb{overflow:auto;flex:1 1 auto;min-height:0;}
+
+/* modalcard-fit: long forms scroll inside the dialog so Save/Cancel never fall off-screen */
+.modalcard{max-height:calc(100vh - 40px);display:flex;flex-direction:column;}
+.modalcard>.modalh,.modalcard>.modalf{flex:none;}
+.modalcard>.modalb{overflow:auto;flex:1 1 auto;min-height:0;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
