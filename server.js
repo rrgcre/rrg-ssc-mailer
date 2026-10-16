@@ -22976,6 +22976,9 @@ function agrEffective(a) {
 // Default term (years) built into an agreement type — e.g. an NDA runs 1 year.
 function agrTypeTermYears(type) { const t = AGREEMENT_TYPES.find(x => x.key === type); return (t && t.termYears) || 0; }
 function agrTermYears(a) { return (a && a.termYears) || agrTypeTermYears(a && a.type) || 0; }
+// Term in months is the primary unit (listings run 6 / 12 months); legacy whole-year terms still count.
+function agrTermMonths(a) { return (a && a.termMonths) || ((a && a.termYears) ? a.termYears * 12 : 0) || agrTypeTermYears(a && a.type) * 12 || 0; }
+function _addMonthsEnd(ymd, months) { if (!ymd || !months) return ''; const d = new Date(String(ymd).slice(0, 10) + 'T00:00:00Z'); if (isNaN(d.getTime())) return ''; const day = d.getUTCDate(); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() + months); const last = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate(); if (day > last) { d.setUTCDate(last); } else { d.setUTCDate(day); d.setUTCDate(d.getUTCDate() - 1); } return d.toISOString().slice(0, 10); }
 // Add whole years to a YYYY-MM-DD date.
 // Term-end date: add whole years, then step back one day so a "1 year" term runs
 // THROUGH the day before the anniversary (signed Aug 5 → expires Aug 4 next year = 365 days).
@@ -22984,8 +22987,8 @@ function _addYears(ymd, years) { if (!ymd || !years) return ''; const d = new Da
 // date plus the term (agreement's own term, or the type's default) once it's in effect.
 function agrExpires(a) {
   if (a && a.expires) return String(a.expires).slice(0, 10);
-  const eff = agrEffective(a); const yrs = agrTermYears(a);
-  return (eff && yrs) ? _addYears(eff, yrs) : '';
+  const eff = agrEffective(a); const mos = agrTermMonths(a);
+  return (eff && mos) ? _addMonthsEnd(eff, mos) : '';
 }
 // Who was referred — pull the lead's name / concept / contact off a Referral Agreement's
 // placed fields (rep-filled at send). Labels on the Referral Fee template: "Lead name",
@@ -23014,7 +23017,7 @@ function _agrReferred(a) {
 function agreementBrief(a) {
   var _as = agreementStatus(a);
   var _rf = _agrReferred(a);
-  return { id: a.id, type: a.type, name: a.name || '', personId: a.personId || '', personName: a.personName || '', companyId: a.companyId || '', dealKey: a.dealKey || '', effective: agrEffective(a), expires: agrExpires(a), startOnExec: !!a.startOnExec, termYears: a.termYears || 0, execAuto: a.execAuto || '', emailSubject: a.emailSubject || '', sendAuto: a.sendAuto || '', status: a.status || 'active', notes: a.notes || '', createdByName: a.createdByName || '', createdAt: a.createdAt || '', updatedAt: a.updatedAt || '', canceledAt: a.canceledAt || '', declinedAt: a.declinedAt || '', docExt: a.docExt || '', docName: a.docName || '', signStatus: a.signStatus || ((a.entryMethod === 'recorded' && (a.envelopeId || a.docExt || a.hasFinal)) ? 'executed' : ''), sentAt: a.sentAt || '', sentTo: a.sentTo || '', lastResentAt: a.lastResentAt || '', resendCount: Array.isArray(a.resends) ? a.resends.length : 0, signedDate: a.signedDate || ((a.entryMethod === 'recorded' && (a.envelopeId || a.docExt || a.hasFinal)) ? (a.effective || '') : ''), signToken: a.signToken || '', signedName: a.signedName || '', signedAt: a.signedAt || '', hasSignature: !!a.hasSignature, repSignedName: a.repSignedName || '', repSignedAt: a.repSignedAt || '', executedAt: a.executedAt || '', hasCountersign: !!a.hasCountersign, signedResponses: a.signedResponses || null, templateId: a.templateId || '', templateName: a.templateName || '', entryMethod: (a.entryMethod || (/^sign & return/i.test(a.name || '') ? 'signreturn' : ((a.signToken || a.templateId || a.sentAt || (Array.isArray(a.pdfFields) && a.pdfFields.length)) ? 'sent' : 'recorded'))), signers: Array.isArray(a.signers) ? a.signers.map(s => ({ order: s.order, role: s.role, label: s.label, name: s.name || '', email: s.email || '', status: s.status || 'pending', signedAt: s.signedAt || '' })) : [], recSigners: Array.isArray(a.recSigners) ? a.recSigners.slice(0,2) : [], signerCount: _clampSigners(a.signerCount), hasFinal: !!a.hasFinal, pdfFieldCount: Array.isArray(a.pdfFields) ? a.pdfFields.length : 0, statusKey: _as.key, statusLabel: _as.label, renewedById: a.renewedById || '', renewalOf: a.renewalOf || '', commBasis: a.commBasis || '', commRate: (a.commRate!=null?a.commRate:''), commFlat: (a.commFlat!=null?a.commFlat:''), commValue: (a.commValue!=null?a.commValue:''), commLocations: (a.commLocations!=null?a.commLocations:''), projectedGci: agrProjectedGci(a), referredName: (_rf&&_rf.name)||'', referredConcept: (_rf&&_rf.concept)||'', referredEmail: (_rf&&_rf.email)||'', referredPhone: (_rf&&_rf.phone)||'' };
+  return { id: a.id, type: a.type, name: a.name || '', personId: a.personId || '', personName: a.personName || '', companyId: a.companyId || '', dealKey: a.dealKey || '', effective: agrEffective(a), expires: agrExpires(a), startOnExec: !!a.startOnExec, termYears: a.termYears || 0, termMonths: agrTermMonths(a), execAuto: a.execAuto || '', emailSubject: a.emailSubject || '', sendAuto: a.sendAuto || '', status: a.status || 'active', notes: a.notes || '', createdByName: a.createdByName || '', createdAt: a.createdAt || '', updatedAt: a.updatedAt || '', canceledAt: a.canceledAt || '', declinedAt: a.declinedAt || '', docExt: a.docExt || '', docName: a.docName || '', signStatus: a.signStatus || ((a.entryMethod === 'recorded' && (a.envelopeId || a.docExt || a.hasFinal)) ? 'executed' : ''), sentAt: a.sentAt || '', sentTo: a.sentTo || '', lastResentAt: a.lastResentAt || '', resendCount: Array.isArray(a.resends) ? a.resends.length : 0, signedDate: a.signedDate || ((a.entryMethod === 'recorded' && (a.envelopeId || a.docExt || a.hasFinal)) ? (a.effective || '') : ''), signToken: a.signToken || '', signedName: a.signedName || '', signedAt: a.signedAt || '', hasSignature: !!a.hasSignature, repSignedName: a.repSignedName || '', repSignedAt: a.repSignedAt || '', executedAt: a.executedAt || '', hasCountersign: !!a.hasCountersign, signedResponses: a.signedResponses || null, templateId: a.templateId || '', templateName: a.templateName || '', entryMethod: (a.entryMethod || (/^sign & return/i.test(a.name || '') ? 'signreturn' : ((a.signToken || a.templateId || a.sentAt || (Array.isArray(a.pdfFields) && a.pdfFields.length)) ? 'sent' : 'recorded'))), signers: Array.isArray(a.signers) ? a.signers.map(s => ({ order: s.order, role: s.role, label: s.label, name: s.name || '', email: s.email || '', status: s.status || 'pending', signedAt: s.signedAt || '' })) : [], recSigners: Array.isArray(a.recSigners) ? a.recSigners.slice(0,2) : [], signerCount: _clampSigners(a.signerCount), hasFinal: !!a.hasFinal, pdfFieldCount: Array.isArray(a.pdfFields) ? a.pdfFields.length : 0, statusKey: _as.key, statusLabel: _as.label, renewedById: a.renewedById || '', renewalOf: a.renewalOf || '', commBasis: a.commBasis || '', commRate: (a.commRate!=null?a.commRate:''), commFlat: (a.commFlat!=null?a.commFlat:''), commValue: (a.commValue!=null?a.commValue:''), commLocations: (a.commLocations!=null?a.commLocations:''), projectedGci: agrProjectedGci(a), referredName: (_rf&&_rf.name)||'', referredConcept: (_rf&&_rf.concept)||'', referredEmail: (_rf&&_rf.email)||'', referredPhone: (_rf&&_rf.phone)||'' };
 }
 // ---------------- Uploaded documents (general file storage) ----------------
 const USERDOCS_DIR = path.join(BOV_DATA_DIR, 'userdocs');
@@ -23445,13 +23448,14 @@ app.post('/api/agreements/:id/renew', express.json(), (req, res) => {
   let eff = String(b.effective || '').slice(0, 10);
   if (!eff) eff = (src.expires && src.expires > tday) ? src.expires : tday;
   let exp = String(b.expires || '').slice(0, 10);
-  const years = parseInt(b.termYears != null ? b.termYears : src.termYears, 10) || 1;
-  if (!exp) { try { const d = new Date(eff + 'T00:00:00Z'); d.setUTCFullYear(d.getUTCFullYear() + years); exp = d.toISOString().slice(0, 10); } catch (e) {} }
+  const years = parseInt(b.termYears != null ? b.termYears : src.termYears, 10) || 0;
+  const months = parseInt(b.termMonths, 10) || (b.termYears != null ? years * 12 : 0) || agrTermMonths(src) || 12;
+  if (!exp) exp = _addMonthsEnd(eff, months);
   const a = {
     id: newAgreementId(), createdBy: (req.user && req.user.username) || src.createdBy || '', createdByName: (req.user && req.user.name) || src.createdByName || '', createdAt: now,
     type: src.type, name: (src.name ? (src.name.replace(/\s*\(renewal[^)]*\)\s*$/i, '') + ' (renewal)') : ''),
     personId: src.personId || '', personName: src.personName || '', companyId: src.companyId || '', dealKey: src.dealKey || '',
-    effective: eff, expires: exp, termYears: years, startOnExec: !!src.startOnExec,
+    effective: eff, expires: exp, termMonths: months, startOnExec: !!src.startOnExec,
     status: 'active', notes: src.notes || '', renewalOf: src.id, entryMethod: 'recorded',
     pdfFields: Array.isArray(src.pdfFields) ? JSON.parse(JSON.stringify(src.pdfFields)) : [],
     signerCount: src.signerCount || 1, signer1Label: src.signer1Label || '', signer2Label: src.signer2Label || '', signer3Label: src.signer3Label || '',
@@ -23594,7 +23598,8 @@ app.post('/api/agreements', express.json(), (req, res) => {
   if (typeof b.effective === 'string') a.effective = b.effective.slice(0, 10);
   if (typeof b.expires === 'string') a.expires = b.expires.slice(0, 10);
   if (typeof b.startOnExec === 'boolean') a.startOnExec = b.startOnExec;
-  if (b.termYears !== undefined) { const _ty = parseInt(b.termYears, 10); a.termYears = (isFinite(_ty) && _ty > 0 && _ty <= 99) ? _ty : 0; }
+  if (b.termYears !== undefined) { const _ty = parseInt(b.termYears, 10); a.termYears = (isFinite(_ty) && _ty > 0 && _ty <= 99) ? _ty : 0; if (b.termMonths === undefined) a.termMonths = 0; }
+  if (b.termMonths !== undefined) { const _tm = parseInt(b.termMonths, 10); a.termMonths = (isFinite(_tm) && _tm > 0 && _tm <= 600) ? _tm : 0; if (a.termMonths) a.termYears = 0; }
   if (typeof b.execAuto === 'string') a.execAuto = b.execAuto.slice(0, 40);
   if (typeof b.entryMethod === 'string' && ['sent','recorded','signreturn'].indexOf(b.entryMethod) >= 0 && !a.entryMethod) a.entryMethod = b.entryMethod;
   if (typeof b.status === 'string' && ['active', 'expired', 'terminated'].indexOf(b.status) >= 0) a.status = b.status;
@@ -23915,7 +23920,7 @@ function fmtSignVal(type, val) {
   if (type === 'currency') { const raw = val.replace(/[^0-9.\-]/g, ''); const c = Number(raw); return (raw !== '' && isFinite(c)) ? ('$' + c.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })) : val; }
   return val;
 }
-function templateBrief(t) { return { id: t.id, name: t.name || '', type: t.type || '', fileExt: t.fileExt || '', fileName: t.fileName || '', signFields: Array.isArray(t.signFields) ? t.signFields : [], greeting: t.greeting || 'none', emailSubject: t.emailSubject || '', emailMessage: t.emailMessage || '', sendAuto: t.sendAuto || '', execAuto: t.execAuto || '', pdfFields: Array.isArray(t.pdfFields) ? t.pdfFields : [], signerCount: _clampSigners(t.signerCount), signer1Label: t.signer1Label || 'Signer 1', signer2Label: t.signer2Label || 'Signer 2', signer3Label: t.signer3Label || 'Signer 3', active: t.active !== false, termYears: t.termYears || 0, startOnExec: !!t.startOnExec, commBasis: t.commBasis || '', commRate: (t.commRate!=null?t.commRate:''), commFlat: (t.commFlat!=null?t.commFlat:''), updatedAt: t.updatedAt || '', createdAt: t.createdAt || '', lastUsedAt: t.lastUsedAt || '', useCount: t.useCount || 0 }; }
+function templateBrief(t) { return { id: t.id, name: t.name || '', type: t.type || '', fileExt: t.fileExt || '', fileName: t.fileName || '', signFields: Array.isArray(t.signFields) ? t.signFields : [], greeting: t.greeting || 'none', emailSubject: t.emailSubject || '', emailMessage: t.emailMessage || '', sendAuto: t.sendAuto || '', execAuto: t.execAuto || '', pdfFields: Array.isArray(t.pdfFields) ? t.pdfFields : [], signerCount: _clampSigners(t.signerCount), signer1Label: t.signer1Label || 'Signer 1', signer2Label: t.signer2Label || 'Signer 2', signer3Label: t.signer3Label || 'Signer 3', active: t.active !== false, termYears: t.termYears || 0, termMonths: t.termMonths || ((t.termYears || 0) * 12) || 0, startOnExec: !!t.startOnExec, commBasis: t.commBasis || '', commRate: (t.commRate!=null?t.commRate:''), commFlat: (t.commFlat!=null?t.commFlat:''), updatedAt: t.updatedAt || '', createdAt: t.createdAt || '', lastUsedAt: t.lastUsedAt || '', useCount: t.useCount || 0 }; }
 app.get('/api/agreement-templates', (req, res) => {
   const isAdmin = !!(req.user && isSuper(req.user));
   let all = loadTemplates().map(templateBrief);
@@ -23940,6 +23945,7 @@ app.post('/api/admin/agreement-templates', requireAdmin, express.json(), (req, r
   if (b.execAuto !== undefined) t.execAuto = String(b.execAuto || '').slice(0, 40);
   if (b.active !== undefined) t.active = !!b.active;
   if (b.termYears !== undefined) { const _ty = parseInt(b.termYears, 10); t.termYears = (isFinite(_ty) && _ty > 0 && _ty <= 99) ? _ty : 0; }
+  if (b.termMonths !== undefined) { const _tm = parseInt(b.termMonths, 10); t.termMonths = (isFinite(_tm) && _tm > 0 && _tm <= 600) ? _tm : 0; if (t.termMonths) t.termYears = 0; }
   if (b.startOnExec !== undefined) t.startOnExec = !!b.startOnExec;
   if (b.commBasis !== undefined) { const _cb = String(b.commBasis || ''); t.commBasis = (['custompct','flatfee'].indexOf(_cb) >= 0) ? _cb : ''; }
   if (b.commRate !== undefined) { const _cr = agrNum(b.commRate); t.commRate = (_cr > 0) ? Math.min(100, _cr) : ''; }
@@ -24102,7 +24108,7 @@ app.post('/api/agreements/:id/apply-template', express.json(), (req, res) => {
   a.emailSubject = t.emailSubject || '';
   a.sendAuto = t.sendAuto || '';
   a.execAuto = t.execAuto || a.execAuto || '';
-  if (t.termYears && !a.termYears) a.termYears = t.termYears;   // template default; a per-send term (set at create) wins
+  if (!a.termYears && !a.termMonths) { if (t.termMonths) a.termMonths = t.termMonths; else if (t.termYears) a.termYears = t.termYears; }   // template default; a per-send term (set at create) wins
   if (t.startOnExec != null && a.startOnExec == null) a.startOnExec = !!t.startOnExec;
   if (Array.isArray(t.signFields) && t.signFields.length) a.signFields = t.signFields;
   if (t.type && agreementTypeKeys().indexOf(t.type) >= 0) a.type = t.type;
@@ -24313,7 +24319,7 @@ function runPostExecution(a, req) {
   try {
     if (!a) return;
     const now = new Date().toISOString();
-    try { const ags = loadAgreements(); const aa = ags.find(x => x.id === a.id); if (aa) { let _dty = false; if (aa.startOnExec || !aa.effective) { aa.effective = now.slice(0, 10); _dty = true; } const _yrs = agrTermYears(aa); if (_yrs && !aa.expires) { const _e = _addYears(aa.effective || now.slice(0, 10), _yrs); if (_e) { aa.expires = _e; _dty = true; } } if (_dty) { aa.updatedAt = now; a.effective = aa.effective; a.expires = aa.expires; saveAgreements(ags); } } } catch (e) {}
+    try { const ags = loadAgreements(); const aa = ags.find(x => x.id === a.id); if (aa) { let _dty = false; if (aa.startOnExec || !aa.effective) { aa.effective = now.slice(0, 10); _dty = true; } const _yrs = agrTermMonths(aa); if (_yrs && !aa.expires) { const _e = _addMonthsEnd(aa.effective || now.slice(0, 10), _yrs); if (_e) { aa.expires = _e; _dty = true; } } if (_dty) { aa.updatedAt = now; a.effective = aa.effective; a.expires = aa.expires; saveAgreements(ags); } } } catch (e) {}
     try { if (a.execAuto && a.personId) { const _pp = loadPeople(); const _p = _pp.find(x => x.id === a.personId); if (_p) { const _plan = loadAutomations().find(x => x.id === a.execAuto && x.active !== false); if (_plan) { enrollPerson(_p, _plan, { byName: (req && req.user && req.user.name) || '', byUser: (req && req.user && req.user.username) || '', dealKey: a.dealKey || '' }); savePeople(_pp); } } } } catch (e) {}
     // Structured commission: project GCI, seed the linked deal, and open a tracking task.
     try {
