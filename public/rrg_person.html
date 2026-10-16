@@ -874,11 +874,24 @@ function renderAdvSig(a){
   sig.querySelectorAll('.advname,.advemail').forEach(function(el){ el.addEventListener('change',function(){ saveSigners(); }); });
   var sb=document.getElementById('adv_send'); if(sb) sb.addEventListener('click',function(){ if(!EMAILREADY){ alert('Email is not set up yet (Settings → Email).'); return; } var m=document.getElementById('adv_msg'); m.textContent='Saving…'; saveFillSilent(a).then(function(){ return saveSigners(); }).then(function(){ m.textContent='Sending…'; return fetch('/api/agreements/'+encodeURIComponent(a.id)+'/send-adv',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({})}).then(function(r){return r.json();}); }).then(function(j){ if(j&&j.ok){ load(); } else { m.textContent=(j&&j.error)||'Send failed.'; alert((j&&j.error)||'Send failed.'); } }).catch(function(){ m.textContent='Could not reach the server.'; }); });
 }
+// Opposite checkbox pairs on a form ("Sublease Applicable" / "Sublease Not Applicable", "Advance" / "No Advance")
+// are one question — show a single Yes/No; each answer still ticks its own box on the PDF.
+function _agrNorm(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9& ]+/g,' ').replace(/\s+/g,' ').trim(); }
+function _agrNegOf(pos,neg){ if(!pos||!neg||pos.type!=='checkbox'||neg.type!=='checkbox') return false; var a=_agrNorm(pos.label), b=_agrNorm(neg.label); if(!a||!b) return false; var base=a.replace(/ applicable$/,'');
+  return b==='no '+a||b==='not '+a||b==='non '+a||b==='no '+base||b==='not '+base||b===base+' not applicable'||b===base+' n a'||b===a+' not'||b===base+' not'; }
+function _agrPairs(flds){ var out=[]; for(var i=0;i<flds.length;i++){ var f=flds[i], g=flds[i+1]; var sf=String((f&&f.section)||''), sg=String((g&&g.section)||'');
+  if(g&&sf===sg&&_agrNegOf(f,g)){ out.push({pair:[f,g]}); i++; } else if(g&&sf===sg&&_agrNegOf(g,f)){ out.push({pair:[g,f]}); i++; } else out.push({f:f}); } return out; }
+function _agrPairHtml(pos,neg,cls,req,vPos,vNeg){ var nm='pr_'+String(pos.id).replace(/[^\w-]/g,''); var on=function(v){ return (String(v)==='1'||v===true)?' checked':''; };
+  var st='display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:#1a2236;margin-right:22px;cursor:pointer';
+  return '<div><label style="'+st+'"><input type="radio" name="'+nm+'" class="'+cls+'" data-ff="'+esc(pos.id)+'"'+on(vPos)+(req?' data-req="1"':'')+' style="width:16px;height:16px"> Yes</label><label style="'+st+'"><input type="radio" name="'+nm+'" class="'+cls+'" data-ff="'+esc(neg.id)+'"'+on(vNeg)+' style="width:16px;height:16px"> No</label></div>'; }
+function _agrPairLabel(pos){ var l=String(pos.label||'').trim(); return l+(/\?$/.test(l)?'':'?'); }
 function loadFillSection(a){
   var host=document.getElementById('advfill'); if(!host) return;
   fetch('/api/agreements/'+encodeURIComponent(a.id)+'/fill',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok||!j.fields||!j.fields.length){ host.innerHTML=''; return; }
-    var rows=j.fields.map(function(f){
+    var rows=_agrPairs(j.fields).map(function(it){
+      if(it.pair){ var P=it.pair[0], N=it.pair[1]; return '<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:9px"><label style="font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#8a93a8;font-weight:700">'+esc(_agrPairLabel(P))+((P.required||N.required)?' <span style="color:#DA2B1F">*</span>':'')+'</label>'+_agrPairHtml(P,N,'',false,P.value,N.value)+'</div>'; }
+      var f=it.f;
       var lab=esc(f.label||'Field')+(f.required?' <span style="color:#DA2B1F">*</span>':'');
       var inp;
       if(f.type==='checkbox'){ inp='<label style="display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:#1a2236"><input type="checkbox" data-ff="'+esc(f.id)+'"'+((f.value==='1'||f.value===true)?' checked':'')+' style="width:16px;height:16px"> Yes</label>'; }
@@ -894,7 +907,7 @@ function loadFillSection(a){
     var sv=document.getElementById('advfill_save'); if(sv) sv.addEventListener('click',function(){ saveFill(a); });
   }).catch(function(){ host.innerHTML=''; });
 }
-function collectFill(){ var host=document.getElementById('advfill'); var vals={}; if(!host) return vals; host.querySelectorAll('[data-ff]').forEach(function(el){ var id=el.getAttribute('data-ff'); vals[id]=(el.type==='checkbox')?(el.checked?'1':''):el.value; }); return vals; }
+function collectFill(){ var host=document.getElementById('advfill'); var vals={}; if(!host) return vals; host.querySelectorAll('[data-ff]').forEach(function(el){ var id=el.getAttribute('data-ff'); vals[id]=(el.type==='checkbox'||el.type==='radio')?(el.checked?'1':''):el.value; }); return vals; }
 function saveFill(a){
   var m=document.getElementById('advfill_msg'); if(m){m.textContent='Saving…';m.style.color='#6b7488';}
   fetch('/api/agreements/'+encodeURIComponent(a.id)+'/fill',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({values:collectFill()})}).then(function(r){return r.json();}).then(function(j){ if(m){ if(j&&j.ok){m.style.color='#1f8a5b';m.textContent='Saved ✓';} else {m.style.color='#DA2B1F';m.textContent='Save failed';} setTimeout(function(){ if(m) m.textContent=''; },2500); } }).catch(function(){ if(m){m.style.color='#DA2B1F';m.textContent='Save failed';} });
@@ -1069,9 +1082,16 @@ function smAdvFillHtml(tpl){
   // theirs to fill on their own signing page — so they never appear here.
   var repOrd=smRepOrder(tpl);
   var flds=((tpl&&tpl.pdfFields)||[]).filter(function(f){ return f && f.type!=='signature' && f.type!=='initials' && !String(f.autofill||'').trim() && (!f.signer || f.signer===repOrd); });
-  if(!flds.length) return '';
+  // Counterparty blanks (seller's company, party name…) auto-fill from the contact, but show them so the rep can
+  // confirm or correct them — e.g. the seller's legal entity. One input per field kind fills every copy on the PDF.
+  var _CPK={company:'Company (seller / client)',party_name:'Party name',name:'Party name',first_name:'First name',last_name:'Last name',title:'Title'};
+  var _cp={}, _cpOrder=[];
+  ((tpl&&tpl.pdfFields)||[]).forEach(function(f){ var k=String((f&&f.autofill)||'').toLowerCase(); if(!f||!_CPK[k]||f.type==='signature'||f.type==='initials') return; if(f.signer&&f.signer!==repOrd) return; if(k==='name') k='party_name'; if(!_cp[k]){ _cp[k]={k:k,f:f,ids:[]}; _cpOrder.push(k); } _cp[k].ids.push(f.id); });
+  var cpHtml=_cpOrder.length?('<div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#98a1b5;margin:15px 0 3px;padding-top:12px;border-top:1px solid #eef1f5">Parties</div>'+_cpOrder.map(function(k){ var c=_cp[k]; var v=(c.f.value!=null&&c.f.value!=='')?c.f.value:smPrefill(c.f); return '<label class="fld" style="margin-top:8px">'+esc(_CPK[k])+' <span style="color:#8a93a8;font-weight:600;text-transform:none;letter-spacing:0">— auto-filled, edit if needed</span></label><input type="text" class="sm_af" data-ff="'+esc(c.ids[0])+'" data-ffdup="'+esc(c.ids.slice(1).join(','))+'" value="'+esc(v||'')+'"'+(k==='company'?' data-req="1"':'')+' placeholder="'+esc(_CPK[k])+'" style="width:100%;box-sizing:border-box;border:1px solid #cfd6e2;border-radius:8px;padding:7px 9px;font:inherit;font-size:13px">'; }).join('')):'';
+  if(!flds.length&&!cpHtml) return '';
   var _lastSec=null;
-  var rows=flds.map(function(f){
+  var rows=_agrPairs(flds).map(function(it){
+    var f=it.f||it.pair[0];
     var secHdr=''; var sec=(String((f&&f.section)||'').trim())||_agrSection(f&&f.label);
     if(sec!==_lastSec){ _lastSec=sec; if(sec){ secHdr='<div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#98a1b5;margin:15px 0 3px;padding-top:12px;border-top:1px solid #eef1f5">'+esc(sec)+'</div>'; } }
     var mine=(!f.signer||f.signer===repOrd);
@@ -1082,14 +1102,15 @@ function smAdvFillHtml(tpl){
     var reqAttr=(f.required&&mine)?' data-req="1"':'';
     var lbl='<label class="fld" style="margin-top:8px">'+esc(f.label||'Detail')+reqStar+note+'</label>';
     var inp;
+    if(it.pair){ var P=it.pair[0], N=it.pair[1]; var vP=(P.value!=null&&P.value!=='')?P.value:smPrefill(P), vN=(N.value!=null&&N.value!=='')?N.value:smPrefill(N); var rq=!!((P.required||N.required)&&mine); return secHdr+'<label class="fld" style="margin-top:8px">'+esc(_agrPairLabel(P))+(rq?' <span style="color:#DA2B1F">*</span>':'')+note+'</label>'+_agrPairHtml(P,N,'sm_af',rq,vP,vN); }
     if(f.type==='checkbox'){ inp='<label style="display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:#1a2236"><input type="checkbox" class="sm_af" data-ff="'+esc(f.id)+'"'+((String(val)==='1'||val===true)?' checked':'')+reqAttr+' style="width:16px;height:16px"> Yes</label>'; }
     else if(f.type==='date'){ inp='<input type="date" class="sm_af" data-ff="'+esc(f.id)+'" value="'+esc(val||'')+'"'+reqAttr+' style="width:100%;box-sizing:border-box;border:1px solid #cfd6e2;border-radius:8px;padding:7px 9px;font:inherit;font-size:13px">'; }
     else { var tall=((f.h||0)*792)>=34; if(tall){ inp='<textarea class="sm_af" data-ff="'+esc(f.id)+'" rows="3"'+reqAttr+' placeholder="'+esc(f.label||'')+'" style="width:100%;box-sizing:border-box;border:1px solid #cfd6e2;border-radius:8px;padding:7px 9px;font:inherit;font-size:13px;resize:vertical;line-height:1.35'+_bw+'">'+esc(val||'')+'</textarea>'; } else { inp='<input type="text" class="sm_af" data-ff="'+esc(f.id)+'" value="'+esc(val||'')+'"'+reqAttr+' placeholder="'+esc(f.label||'')+'" style="width:100%;box-sizing:border-box;border:1px solid #cfd6e2;border-radius:8px;padding:7px 9px;font:inherit;font-size:13px'+_bw+'">'; } }
     return secHdr+lbl+inp;
   }).join('');
-  return '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#8a94a6;margin:12px 0 2px">Complete the details</div><div style="font-size:12px;color:#8a93a8;margin:0 0 2px">Fill the deal-specific fields now. Blanks that auto-fill — your name, brokerage, today’s date — are handled for you.</div>'+rows;
+  return '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#8a94a6;margin:12px 0 2px">Complete the details</div><div style="font-size:12px;color:#8a93a8;margin:0 0 2px">Fill the deal-specific fields now. Blanks that auto-fill — your name, brokerage, today’s date — are handled for you.</div>'+cpHtml+rows;
 }
-function smCollectAdvFill(){ var host=document.getElementById('sm_fields'); var vals={}; if(!host) return vals; Array.prototype.forEach.call(host.querySelectorAll('.sm_af'),function(el){ var id=el.getAttribute('data-ff'); if(!id) return; vals[id]=(el.type==='checkbox')?(el.checked?'1':''):el.value; }); return vals; }
+function smCollectAdvFill(){ var host=document.getElementById('sm_fields'); var vals={}; if(!host) return vals; Array.prototype.forEach.call(host.querySelectorAll('.sm_af'),function(el){ var id=el.getAttribute('data-ff'); if(!id) return; vals[id]=(el.type==='checkbox'||el.type==='radio')?(el.checked?'1':''):el.value; var dup=el.getAttribute('data-ffdup'); if(dup) dup.split(',').forEach(function(d){ if(d) vals[d]=vals[id]; }); }); return vals; }
 function _agrOverlay(inner,w){ var ov=document.createElement('div'); ov.className='agrmodal'; ov.innerHTML='<div class="agrmodalbox" style="width:min('+(w||'480px')+',96vw)">'+inner+'</div>'; document.body.appendChild(ov); ov.addEventListener('click',function(e){ if(e.target===ov) ov.remove(); }); return ov; }
 function openAgrChooser(){
   var _i1='<svg viewBox="0 0 24 24"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7z"/></svg>', _i2='<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="m9 15 2 2 4-4"/></svg>', _i3='<svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>';
@@ -1414,7 +1435,7 @@ function doSendAgreement(){
   var adv=!!(tpl&&tpl.pdfFields&&tpl.pdfFields.length);
   var repVals=[];
   if(!adv && tpl && tpl.signFields && tpl.signFields.length){ var _vok=true; document.querySelectorAll('#sm_fields .sm_fld').forEach(function(el){ var vv=el.value.trim(); if(el.getAttribute('data-req')&&!vv){ _vok=false; el.style.borderColor='#DA2B1F'; } repVals.push(vv); }); if(!_vok){ out.textContent='Fill the required fields before sending.'; return; } }
-  if(adv){ var _rok=true; Array.prototype.forEach.call(document.querySelectorAll('#sm_fields .sm_af[data-req]'),function(el){ var vv=(el.type==='checkbox')?(el.checked?'1':''):String(el.value||'').trim(); if(!vv){ _rok=false; el.style.borderColor='#DA2B1F'; } }); if(!_rok){ out.textContent='Complete the required details before sending.'; return; } }
+  if(adv){ var _rok=true; Array.prototype.forEach.call(document.querySelectorAll('#sm_fields .sm_af[data-req]'),function(el){ var vv=(el.type==='radio')?(document.querySelector('#sm_fields input[name="'+el.name+'"]:checked')?'1':''):((el.type==='checkbox')?(el.checked?'1':''):String(el.value||'').trim()); if(!vv){ _rok=false; el.style.borderColor='#DA2B1F'; } }); if(!_rok){ out.textContent='Complete the required details before sending.'; return; } }
   var msg=rrgRTText('sm_msg'); var msgHtml=rrgRTGet('sm_msg');
   var type=tpl?(tpl.type||'NDA'):(document.getElementById('sm_type').value||'NDA');
   var btn=document.getElementById('sm_send'); btn.disabled=true; out.style.color='#6b7488'; out.textContent='Creating…';
