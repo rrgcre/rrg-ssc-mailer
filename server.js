@@ -15062,6 +15062,38 @@ app.post('/api/automations/:id/enroll-segment', requireAdmin, express.json(), (r
   res.json({ ok: true, enrolled, skipped, matched });
 });
 
+// ---- Automation run stats + run log (read from each contact's enrollment history — nothing extra is tracked) ----
+function _autoResultBad(r) { r = String(r || '').toLowerCase(); return /^(error|.*\berror\b)|failed|bounce/.test(r); }
+app.get('/api/admin/automations/stats', requireAdmin, (req, res) => {
+  const since30 = Date.now() - 30 * 864e5; const out = {};
+  const get = id => out[id] = out[id] || { active: 0, done: 0, stopped: 0, enrolled: 0, started30: 0, steps30: 0, stepsAll: 0, errors30: 0, errorsAll: 0, lastRun: null, nextRun: null };
+  loadPeople().forEach(p => {
+    (Array.isArray(p.enrollments) ? p.enrollments : []).forEach(en => {
+      const o = get(en.automationId); o.enrolled++;
+      if (en.status === 'active') o.active++; else if (en.status === 'done') o.done++; else o.stopped++;
+      if (Date.parse(en.startedAt || '') >= since30) o.started30++;
+      (en.history || []).forEach(h => { const t = Date.parse(h.at || ''); const bad = _autoResultBad(h.result); o.stepsAll++; if (bad) o.errorsAll++; if (t >= since30) { o.steps30++; if (bad) o.errors30++; }
+        if (h.type && (!o.lastRun || String(h.at) > o.lastRun.at)) o.lastRun = { at: h.at, personId: p.id, person: p.name || '', type: h.type, result: String(h.result || '').slice(0, 140), bad: bad }; });
+      if (en.status === 'active' && en.nextAt && (!o.nextRun || String(en.nextAt) < o.nextRun.at)) o.nextRun = { at: en.nextAt, personId: p.id, person: p.name || '', stepIndex: en.stepIndex };
+    });
+  });
+  const plans = loadAutomations(); Object.keys(out).forEach(id => { const n = out[id].nextRun; const pl = plans.find(x => x.id === id); if (n && pl && pl.steps && pl.steps[n.stepIndex]) { n.type = pl.steps[n.stepIndex].type; n.name = pl.steps[n.stepIndex].name || ''; } });
+  res.json({ ok: true, stats: out });
+});
+app.get('/api/admin/automations/:id/log', requireAdmin, (req, res) => {
+  const id = req.params.id; const plan = loadAutomations().find(x => x.id === id); const rows = [], upcoming = [];
+  loadPeople().forEach(p => {
+    (Array.isArray(p.enrollments) ? p.enrollments : []).forEach(en => {
+      if (en.automationId !== id) return;
+      rows.push({ at: en.startedAt || '', personId: p.id, person: p.name || '', kind: 'enrolled', type: '', result: 'Enrolled' + (en.enrolledBy ? (' by ' + en.enrolledBy) : ''), bad: false });
+      (en.history || []).forEach(h => rows.push({ at: h.at || '', personId: p.id, person: p.name || '', kind: 'step', step: (h.stepIndex | 0) + 1, type: h.type || '', result: String(h.result || '').slice(0, 300), bad: _autoResultBad(h.result) }));
+      if (en.status === 'stopped' && en.stoppedAt) rows.push({ at: en.stoppedAt, personId: p.id, person: p.name || '', kind: 'stopped', type: '', result: 'Stopped — ' + (en.stopReason || 'removed'), bad: false });
+      if (en.status === 'active' && en.nextAt) { const st = plan && plan.steps && plan.steps[en.stepIndex]; upcoming.push({ at: en.nextAt, personId: p.id, person: p.name || '', step: (en.stepIndex | 0) + 1, type: st ? st.type : '', name: st ? (st.name || '') : '' }); }
+    });
+  });
+  rows.sort((a, b) => String(b.at).localeCompare(String(a.at))); upcoming.sort((a, b) => String(a.at).localeCompare(String(b.at)));
+  res.json({ ok: true, name: plan ? plan.name : '', rows: rows.slice(0, 500), upcoming: upcoming.slice(0, 200), total: rows.length });
+});
 app.get('/api/admin/automation-sms', requireAdmin, (req, res) => res.json({ ok: true, enabled: smsNotifyEnabled(), configured: isSmsConfigured() }));
 app.post('/api/admin/automation-sms', requireAdmin, express.json(), (req, res) => { const s = loadSettings(); s.smsNotifyEnabled = !!(req.body && req.body.enabled); saveSettings(s); res.json({ ok: true, enabled: smsNotifyEnabled(), configured: isSmsConfigured() }); });
 app.post('/api/admin/automations', requireAdmin, express.json({ limit: '1mb' }), (req, res) => {

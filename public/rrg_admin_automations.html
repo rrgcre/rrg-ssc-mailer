@@ -4,7 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Lavano — Automations</title>
-<style>.rl-filtbtn{display:none!important;}</style>
+<style>.rl-filtbtn{display:none!important;}
+.alogov{position:fixed;inset:0;background:rgba(6,14,32,.55);display:flex;align-items:center;justify-content:center;z-index:300;padding:20px} .alogbox{background:#fff;border-radius:12px;width:min(980px,96vw);max-height:88vh;display:flex;flex-direction:column;box-shadow:0 24px 70px rgba(0,0,0,.4);overflow:hidden} .aloghd{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid #e6e9f0;color:#000E31} .alogx{background:none;border:none;font-size:24px;color:#8a94a6;cursor:pointer} .alogbd{overflow:auto;padding:6px 20px 16px} .alogsec{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#8a93a8;margin:14px 0 6px} .alogt{width:100%;border-collapse:collapse;font-size:12.5px} .alogt td{padding:7px 8px;border-bottom:1px solid #eef1f6;vertical-align:top} .alogt td.w{white-space:nowrap;color:#5b6472} .alogt td.res{color:#5b6472} .alogt tr.bad td{background:#fdeceb} .alogt tr.bad td.res{color:#b3261e;font-weight:700} .errlk{color:#b3261e;font-weight:800;text-decoration:none} .errlk:hover{text-decoration:underline}
+</style>
 <script src="/rrg_list.js"></script>
 <style>
 :root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;--blue:#2f6fe0;}
@@ -78,7 +80,20 @@ function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return
 function fmt(iso){ if(!iso) return ''; var x=String(iso).slice(0,10).split('-'); if(x.length!==3) return String(iso).slice(0,10); return x[1]+'/'+x[2]+'/'+x[0]; }
 function api(m,u,b){return fetch(u,{method:m,credentials:'same-origin',headers:b?{'Content-Type':'application/json'}:undefined,body:b?JSON.stringify(b):undefined}).then(function(r){return r.json();});}
 var LIST_SHELL='<div class="card" id="smsCard" style="display:none;margin-bottom:12px"><div class="cb" style="padding:12px 14px"><label class="chk" style="margin:0"><input type="checkbox" id="smsToggle"> Allow <b style="margin:0 4px">text (SMS)</b> notifications in automations</label><div class="note" id="smsHint" style="margin:6px 0 0"></div></div></div><div class="card"><div class="hd"><b>Automations</b><span class="meta" id="tcount"></span><span class="sp"></span><button class="btn sm pri" id="t_new">+ New automation</button></div><div class="cb"><div id="tlist"><div class="empty">Loading…</div></div></div></div><div id="editor"></div>';
-function actionsCell(p){ return '<div class="acts"><button class="btn ghost sm" data-edit="'+esc(p.id)+'">Edit</button><button class="btn danger sm" data-del="'+esc(p.id)+'">Delete</button></div>'; }
+var STATS={};
+function _ago(iso){ if(!iso) return ''; var ms=Date.now()-Date.parse(iso); var fut=ms<0; ms=Math.abs(ms); var m=Math.round(ms/60000), h=Math.round(ms/3600000), d=Math.round(ms/86400000); var t=m<60?(m+'m'):(h<48?(h+'h'):(d+'d')); return fut?('in '+t):(t+' ago'); }
+function _whenFull(iso){ try{ var d=new Date(iso); return d.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' '+d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}); }catch(e){ return String(iso||''); } }
+function stOf(p){ return STATS[p.id]||{active:0,steps30:0,stepsAll:0,errors30:0,enrolled:0}; }
+function loadStats(){ api('GET','/api/admin/automations/stats').then(function(j){ if(j&&j.ok){ STATS=j.stats||{}; if(CTL) CTL.refresh(PLANS); } }).catch(function(){}); }
+function openLog(id){ var p=curById(id)||{}; var ov=document.createElement('div'); ov.className='alogov'; ov.innerHTML='<div class="alogbox"><div class="aloghd"><b>Run log — '+esc(p.name||'Automation')+'</b><button class="alogx" title="Close">×</button></div><div class="alogbd"><div class="empty">Loading…</div></div></div>'; document.body.appendChild(ov);
+  var close=function(){ ov.remove(); }; ov.querySelector('.alogx').onclick=close; ov.addEventListener('click',function(e){ if(e.target===ov) close(); });
+  api('GET','/api/admin/automations/'+encodeURIComponent(id)+'/log').then(function(j){ var bd=ov.querySelector('.alogbd'); if(!j||!j.ok){ bd.innerHTML='<div class="empty">Could not load the log.</div>'; return; }
+    var link=function(r){ return '<a class="lk" href="./rrg_person.html?id='+encodeURIComponent(r.personId)+'">'+esc(r.person||'Contact')+'</a>'; };
+    var up=(j.upcoming||[]).length?('<div class="alogsec">Coming up</div><table class="alogt">'+j.upcoming.slice(0,50).map(function(r){ return '<tr><td class="w">'+esc(_whenFull(r.at))+' <span class="meta">('+esc(_ago(r.at))+')</span></td><td>'+link(r)+'</td><td>Step '+r.step+' · '+esc(r.name||_stepTypeLabel(r.type))+'</td></tr>'; }).join('')+'</table>'):'';
+    var rows=(j.rows||[]).length?('<div class="alogsec">History'+(j.total>500?(' — latest 500 of '+j.total):'')+'</div><table class="alogt">'+j.rows.map(function(r){ var what=r.kind==='step'?('Step '+r.step+' · '+esc(_stepTypeLabel(r.type))):(r.kind==='enrolled'?'Started':'Stopped'); return '<tr'+(r.bad?' class="bad"':'')+'><td class="w">'+esc(_whenFull(r.at))+'</td><td>'+link(r)+'</td><td>'+what+'</td><td class="res">'+esc(r.result||'')+'</td></tr>'; }).join('')+'</table>'):'<div class="empty">This automation hasn\'t run on anyone yet.</div>';
+    bd.innerHTML=up+rows; }); }
+document.addEventListener('click',function(e){ var b=e.target.closest&&e.target.closest('[data-log]'); if(b){ e.preventDefault(); openLog(b.getAttribute('data-log')); } });
+function actionsCell(p){ return '<div class="acts"><button class="btn ghost sm" data-log="'+esc(p.id)+'">Run log</button><button class="btn ghost sm" data-edit="'+esc(p.id)+'">Edit</button><button class="btn danger sm" data-del="'+esc(p.id)+'">Delete</button></div>'; }
 function listCfg(){ return { mount:'#tlist', data:PLANS, key:'automations',
   empty:'<div class="empty">No automations yet. Click <b>+ New automation</b> to build your first sequence.</div>',
   rowId:function(p){return p.id;}, defaultSort:0, defaultDir:1,
@@ -87,7 +102,12 @@ function listCfg(){ return { mount:'#tlist', data:PLANS, key:'automations',
     { label:'Status', sort:function(a,b){return (a.active===false?1:0)-(b.active===false?1:0);}, cell:function(p){ return (p.active===false?'<span class="badge off">Off</span>':'<span class="badge on">Active</span>')+(p.execDefault?' <span class="badge on" title="Default automation for executed listing agreements">Listing-agreement default</span>':''); } },
     { label:'Visibility', sort:function(a,b){return RRGList.cmp(a.scope||'shared',b.scope||'shared');}, cell:function(p){ var who=p.ownerName?(' <span class="meta">· '+esc(p.ownerName)+'</span>'):''; return (p.scope==='private'?'<span class="badge off">Private</span>':'<span class="badge on">Shared</span>')+who; } },
     { label:'Steps', sort:function(a,b){return RRGList.cmp(a.stepCount,b.stepCount);}, cell:function(p){ var n=p.stepCount||0; return n?esc(n+' step'+(n===1?'':'s')):'<span class="meta">—</span>'; } },
-    { label:'Updated', sort:function(a,b){return RRGList.cmp(a.updatedAt,b.updatedAt);}, cell:function(p){ return '<span class="meta">'+esc(fmt(p.updatedAt))+'</span>'; } },
+    { label:'In progress', sort:function(a,b){return stOf(a).active-stOf(b).active;}, cell:function(p){ var s=stOf(p); return s.active?('<b>'+s.active+'</b> <span class="meta">contact'+(s.active===1?'':'s')+'</span>'):'<span class="meta">0</span>'; } },
+    { label:'Runs (30d)', sort:function(a,b){return stOf(a).steps30-stOf(b).steps30;}, cell:function(p){ var s=stOf(p); return '<span title="'+s.stepsAll+' steps all-time · '+s.enrolled+' contacts enrolled ever ('+(s.done||0)+' finished, '+(s.stopped||0)+' stopped)">'+s.steps30+' <span class="meta">step'+(s.steps30===1?'':'s')+' · '+(s.started30||0)+' started</span></span>'; } },
+    { label:'Last run', sort:function(a,b){return RRGList.cmp((stOf(a).lastRun||{}).at||'',(stOf(b).lastRun||{}).at||'');}, cell:function(p){ var l=stOf(p).lastRun; if(!l) return '<span class="meta">never</span>'; return '<span title="'+esc(_whenFull(l.at)+' · '+l.result)+'">'+esc(_ago(l.at))+'</span><div class="meta">'+esc(l.person)+' · '+esc(_stepTypeLabel(l.type))+'</div>'; } },
+    { label:'Next run', sort:function(a,b){return RRGList.cmp((stOf(a).nextRun||{}).at||'9',(stOf(b).nextRun||{}).at||'9');}, cell:function(p){ var n=stOf(p).nextRun; if(!n) return '<span class="meta">—</span>'; return '<span title="'+esc(_whenFull(n.at))+'">'+esc(_ago(n.at))+'</span><div class="meta">'+esc(n.person)+' · '+esc(n.name||_stepTypeLabel(n.type))+'</div>'; } },
+    { label:'Errors (30d)', sort:function(a,b){return stOf(a).errors30-stOf(b).errors30;}, cell:function(p){ var s=stOf(p); return s.errors30?('<a href="#" data-log="'+esc(p.id)+'" class="errlk">'+s.errors30+' failed</a>'):'<span class="meta">0</span>'; } },
+    { label:'Updated', defaultHidden:true, sort:function(a,b){return RRGList.cmp(a.updatedAt,b.updatedAt);}, cell:function(p){ return '<span class="meta">'+esc(fmt(p.updatedAt))+'</span>'; } },
     { label:'', sortable:false, cell:actionsCell }
   ] }; }
 function refreshList(){ if(CTL) CTL.refresh(PLANS); else CTL=RRGList.create(listCfg()); var c=document.getElementById('tcount'); if(c) c.textContent=PLANS.length+' total'; }
@@ -231,7 +251,7 @@ function render(){
 function openEdit(id){ var p=curById(id); if(!p) return; EDIT=JSON.parse(JSON.stringify(p)); renderEditor(); var ed=document.getElementById('editor'); if(ed) ed.scrollIntoView({behavior:'smooth',block:'start'}); }
 function newPlan(){ EDIT={id:'',name:'',active:true,execDefault:false,scope:'shared',steps:[]}; renderEditor(); var ed=document.getElementById('editor'); if(ed) ed.scrollIntoView({behavior:'smooth',block:'start'}); }
 function msg(t,cls){ var m=document.getElementById('msg'); if(!m) return; m.textContent=t; m.className='msg '+(cls||''); if(t){ setTimeout(function(){ if(m.textContent===t){m.textContent='';m.className='msg';} },3000); } }
-function load(){ api('GET','/api/automations').then(function(j){ IS_ADMIN=!!j.isAdmin; PLANS=j.automations||[]; SMSNOTIFY=!!j.smsNotify; SMSREADY=!!j.smsReady; ME=j.me||''; render(); }); }
+function load(){ api('GET','/api/automations').then(function(j){ IS_ADMIN=!!j.isAdmin; PLANS=j.automations||[]; SMSNOTIFY=!!j.smsNotify; SMSREADY=!!j.smsReady; ME=j.me||''; render(); if(IS_ADMIN) loadStats(); }); }
 function loadTpls(){ api('GET','/api/email-templates').then(function(j){ ETPLS=(j&&j.templates)||[]; if(document.getElementById('stepBox')) renderSteps(); }); }
 function loadPipes(){ api('GET','/api/pipelines').then(function(j){ PIPES=(j&&j.pipelines)||[]; if(document.getElementById('stepBox')) renderSteps(); }); }
 function save(){
