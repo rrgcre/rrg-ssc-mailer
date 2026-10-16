@@ -320,7 +320,7 @@ select.nlselect{appearance:none;-webkit-appearance:none;-moz-appearance:none;bac
 .agrrow{cursor:pointer;}
 .agrresendrow{flex:none;background:#fff;border:1px solid #c9d3e3;border-radius:6px;color:#20334f;font:inherit;font-size:11px;font-weight:700;padding:3px 8px;cursor:pointer;margin:0 0 0 6px;white-space:nowrap} .agrresendrow:hover{background:#eef3ff;border-color:#8fa6cf} .agrresendrow:disabled{opacity:.5;cursor:default}
 .agrvoidrow{flex:none;display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;padding:0;background:none;border:none;border-radius:6px;color:#b0788f;cursor:pointer;margin:0 0 0 2px;} .agrvoidrow:hover{background:#fdeceb;color:#DA2B1F;}
-.agrrow .docttl{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.3;} .agrrow .docmeta{white-space:normal;} .agrrow .agrresendrow{margin:0;}
+.agrrow .docttl{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.3;} .agrrow .docmeta{white-space:normal;} .agrrow .agrproj{font-size:12px;font-weight:700;color:#23496f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;} .agrrow .agrresendrow{margin:0;}
 .agrrow.agrvoided .docttl{text-decoration:line-through;color:#98a1b5;} .agrrow.agrvoided .dico.k-agreement{opacity:.5;filter:grayscale(.6);}
 .agrvoidedchip{flex:none;display:inline-flex;align-items:center;font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#b23a2c;background:#fdeceb;border:1px solid #f2c9c4;border-radius:999px;padding:2px 8px;margin-left:6px;white-space:nowrap;}
 .agrx{flex:none;border:none;background:none;color:#c7cedb;cursor:pointer;font-size:16px;line-height:1;padding:0 4px;}
@@ -545,7 +545,7 @@ function agrRow(a){
   var _rsBtn=(a.signStatus==='sent'||a.signStatus==='partial')?'<button type="button" class="agrresendrow" data-agrresend="'+esc(a.id)+'" title="Resend the signing link to whoever has not signed'+(a.lastResentAt?(' · last reminded '+String(a.lastResentAt).slice(0,10)):'')+'">↻ Resend</button>':'';
   var _voidBtn=(a.signStatus==='sent'||a.signStatus==='partial')?'<button type="button" class="agrvoidrow" data-agrvoid="'+esc(a.id)+'" title="Void agreement — stops signing, keeps the record on file"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><line x1="5.6" y1="5.6" x2="18.4" y2="18.4"></line></svg></button>':'';
   var _voidedChip=_voided?'<span class="agrvoidedchip" title="Voided — no longer valid, cannot be signed">Voided</span>':'';
-  return '<div class="rrow agrrow'+(signed?' agrexec':'')+(_voided?' agrvoided':'')+'" data-agr="'+esc(a.id)+'" title="Open the document"><span class="dico k-agreement"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8.5 14.5l1.6 1.6 3.4-3.6"/></svg></span><div class="rrmain" style="min-width:0"><div class="docttl" title="'+esc(title)+'">'+esc(title)+'</div><div class="docmeta">'+meta+'</div>'+_refline+_dtline+_rsline+(_rsBtn?('<div style="margin-top:5px">'+_rsBtn+'</div>'):'')+'</div>'+_voidedChip+expChip(a)+agrEntryIcon(a)+_voidBtn+'</div>';
+  return '<div class="rrow agrrow'+(signed?' agrexec':'')+(_voided?' agrvoided':'')+'" data-agr="'+esc(a.id)+'" title="Open the document"><span class="dico k-agreement"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8.5 14.5l1.6 1.6 3.4-3.6"/></svg></span><div class="rrmain" style="min-width:0"><div class="docttl" title="'+esc(title)+'">'+esc(title)+'</div>'+(a.projectName?('<div class="agrproj" title="'+esc(a.projectName)+'">'+esc(a.projectName)+'</div>'):'')+'<div class="docmeta">'+meta+'</div>'+_refline+_dtline+_rsline+(_rsBtn?('<div style="margin-top:5px">'+_rsBtn+'</div>'):'')+'</div>'+_voidedChip+expChip(a)+agrEntryIcon(a)+_voidBtn+'</div>';
 }
 function apptFmtDT(sv){ if(!sv) return ''; var d=String(sv).slice(0,10).split('-'); var t=String(sv).slice(11,16); var out=d.length===3?(d[1]+'/'+d[2]+'/'+d[0]):String(sv); if(t){ var hh=parseInt(t.slice(0,2),10)||0,mm=t.slice(3,5); out+=' '+((hh%12)||12)+(mm==='00'?'':(':'+mm))+(hh>=12?'p':'a'); } return out; }
 // ---- Tasks (linked to this contact) --------------------------------------------------
@@ -728,7 +728,11 @@ document.addEventListener('click',function(e){ if(!e.target||!e.target.closest) 
 // Every document tied to this contact -- agreements from the record payload (they carry
 // the signature and expiry state), everything else from the shared document library.
 function docListHtml(){
-  var rows=AGREEMENTS.map(agrRow).join('')+(window.RRGDocs?RRGDocs.rowsHtml():'');
+  // Waiting on a signature first (that's the action item), then newest to oldest.
+  var _agrWhen=function(a){ return String(a.sentAt||a.signedDate||a.executedAt||a.effective||a.createdAt||'').slice(0,19); };
+  var _agrWait=function(a){ return (a.signStatus==='sent'||a.signStatus==='partial'||a.signStatus==='awaiting_countersign')?1:0; };
+  var _agrSorted=AGREEMENTS.slice().sort(function(x,y){ return (_agrWait(y)-_agrWait(x))||_agrWhen(y).localeCompare(_agrWhen(x)); });
+  var rows=_agrSorted.map(agrRow).join('')+(window.RRGDocs?RRGDocs.rowsHtml():'');
   if(rows) return rows;
   return '<div class="rrempty">'+((window.RRGDocs&&RRGDocs.ready())?'No documents on file for this contact yet.':'Loading documents\u2026')+'</div>';
 }
