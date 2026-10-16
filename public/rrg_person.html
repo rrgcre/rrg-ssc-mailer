@@ -757,8 +757,8 @@ function refreshDocList(){
 // Out-for-signature badge: who it's waiting on and for how long — the action item stands out from executed docs.
 function _waitPill(a){ var ss=a.signStatus||''; if(ss!=='sent'&&ss!=='partial'&&ss!=='awaiting_countersign') return '';
   var d=a.lastResentAt||a.sentAt||''; var days=d?Math.max(0,Math.floor((Date.now()-Date.parse(d))/864e5)):null; var age=days==null?'':(days===0?' · today':(' · '+days+'d'));
-  var txt; if(ss==='awaiting_countersign') txt='✍ Needs your countersignature'; else { var sg=(a.signers||[]).slice().sort(function(x,y){return x.order-y.order;}); var pend=sg.filter(function(s){return s.status!=='signed';}); var done=sg.length-pend.length;
-    txt='⏳ Awaiting signature'+((pend[0]&&pend[0].name)?(' — '+pend[0].name):''); }
+  var txt; if(ss==='awaiting_countersign') txt='✍ Needs your countersig'; else { var sg=(a.signers||[]).slice().sort(function(x,y){return x.order-y.order;}); var pend=sg.filter(function(s){return s.status!=='signed';}); var done=sg.length-pend.length;
+    txt='⏳ Awaiting sig'+((pend[0]&&pend[0].name)?(' — '+pend[0].name):''); }
   return '<div class="waitpill'+(days!=null&&days>=5?' stale':'')+'" title="'+(a.lastResentAt?'Last reminder ':'Sent ')+esc(String(d).slice(0,10))+'">'+esc(txt+age)+'</div>'; }
 function agreementsCard(){
   var opts=ATYPES.map(function(t){return '<option value="'+esc(t.key)+'">'+esc(t.label)+'</option>';}).join('');
