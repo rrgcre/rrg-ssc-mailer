@@ -23756,6 +23756,7 @@ app.post('/api/agreements/:id/send', express.json(), async (req, res) => {
   catch (e) { console.error('agreement send:', e && e.message); return res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
   const now = new Date().toISOString(); a.signStatus = 'sent'; a.sentAt = now; a.sentTo = to; a.entryMethod = a.entryMethod || 'sent'; if (Array.isArray(b.values)) a.fieldValues = b.values.map(function(v){return String(v==null?'':v).slice(0,500);}); a.updatedAt = now; saveAgreements(all);
   if (p) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === p.id); if (pp) { logActivity(pp, 'Agreement Sent', label + ' sent for signature to ' + to, { auto: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); if (a.sendAuto && !a.sendAutoFired) { try { const _sp = loadAutomations().find(x => x.id === a.sendAuto && x.active !== false); if (_sp) { enrollPerson(pp, _sp, { byName: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', dealKey: a.dealKey || '' }); a.sendAutoFired = true; try { saveAgreements(all); } catch (e) {} } } catch (e) {} } savePeople(ppl); } } catch (e) {} }
+  agrOpenFollowTask(a, all, req);
   res.json({ ok: true, agreement: agreementBrief(a), to });
  } catch (e) { console.error('agreement send fatal:', e && (e.stack || e.message)); if (!res.headersSent) res.status(500).json({ ok: false, error: 'Could not send: ' + String((e && e.message) || e) }); }
 });
@@ -23791,6 +23792,7 @@ app.post('/api/agreements/:id/resend', express.json(), async (req, res) => {
   a.resends.push({ at: now, to, by: (req.user && req.user.name) || '' }); if (a.resends.length > 50) a.resends = a.resends.slice(-50);
   a.lastResentAt = now; a.updatedAt = now; saveAgreements(all);
   if (a.personId) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.personId); if (pp) { logActivity(pp, 'Agreement Reminder', label + ' re-sent for signature to ' + (who ? who + ' ' : '') + to, { auto: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); savePeople(ppl); } } catch (e) {} }
+  agrOpenFollowTask(a, all, req);
   res.json({ ok: true, agreement: agreementBrief(a), to, count: a.resends.length });
  } catch (e) { console.error('agreement resend fatal:', e && (e.stack || e.message)); if (!res.headersSent) res.status(500).json({ ok: false, error: 'Could not resend: ' + String((e && e.message) || e) }); }
 });
@@ -23874,6 +23876,7 @@ app.post('/api/agreements/:id/cancel', express.json(), (req, res) => {
   const now = new Date().toISOString();
   a.signStatus = 'canceled'; a.canceledAt = now; a.updatedAt = now; saveAgreements(all);
   if (a.personId) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.personId); if (pp) { logActivity(pp, 'Agreement Voided', agreementTypeLabel(a.type) + ' was voided before signing', { auto: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); savePeople(ppl); } } catch (e) {} }
+  try { stopSendAutomation(a, 'agreement voided'); agrCloseFollowTask(a, 'agreement voided'); } catch (e) {}
   res.json({ ok: true, agreement: agreementBrief(a) });
 });
 app.post('/api/sign/:token/decline', express.json(), (req, res) => {
@@ -23968,7 +23971,7 @@ function fmtSignVal(type, val) {
   if (type === 'currency') { const raw = val.replace(/[^0-9.\-]/g, ''); const c = Number(raw); return (raw !== '' && isFinite(c)) ? ('$' + c.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })) : val; }
   return val;
 }
-function templateBrief(t) { return { id: t.id, name: t.name || '', type: t.type || '', fileExt: t.fileExt || '', fileName: t.fileName || '', signFields: Array.isArray(t.signFields) ? t.signFields : [], greeting: t.greeting || 'none', emailSubject: t.emailSubject || '', emailMessage: t.emailMessage || '', sendAuto: t.sendAuto || '', execAuto: t.execAuto || '', pdfFields: Array.isArray(t.pdfFields) ? t.pdfFields : [], signerCount: _clampSigners(t.signerCount), signer1Label: t.signer1Label || 'Signer 1', signer2Label: t.signer2Label || 'Signer 2', signer3Label: t.signer3Label || 'Signer 3', active: t.active !== false, termYears: t.termYears || 0, termMonths: t.termMonths || ((t.termYears || 0) * 12) || 0, startOnExec: !!t.startOnExec, commBasis: t.commBasis || '', commRate: (t.commRate!=null?t.commRate:''), commFlat: (t.commFlat!=null?t.commFlat:''), updatedAt: t.updatedAt || '', createdAt: t.createdAt || '', lastUsedAt: t.lastUsedAt || '', useCount: t.useCount || 0 }; }
+function templateBrief(t) { return { id: t.id, name: t.name || '', type: t.type || '', fileExt: t.fileExt || '', fileName: t.fileName || '', signFields: Array.isArray(t.signFields) ? t.signFields : [], greeting: t.greeting || 'none', emailSubject: t.emailSubject || '', emailMessage: t.emailMessage || '', sendAuto: t.sendAuto || '', followUpDays: t.followUpDays || 0, execAuto: t.execAuto || '', pdfFields: Array.isArray(t.pdfFields) ? t.pdfFields : [], signerCount: _clampSigners(t.signerCount), signer1Label: t.signer1Label || 'Signer 1', signer2Label: t.signer2Label || 'Signer 2', signer3Label: t.signer3Label || 'Signer 3', active: t.active !== false, termYears: t.termYears || 0, termMonths: t.termMonths || ((t.termYears || 0) * 12) || 0, startOnExec: !!t.startOnExec, commBasis: t.commBasis || '', commRate: (t.commRate!=null?t.commRate:''), commFlat: (t.commFlat!=null?t.commFlat:''), updatedAt: t.updatedAt || '', createdAt: t.createdAt || '', lastUsedAt: t.lastUsedAt || '', useCount: t.useCount || 0 }; }
 app.get('/api/agreement-templates', (req, res) => {
   const isAdmin = !!(req.user && isSuper(req.user));
   let all = loadTemplates().map(templateBrief);
@@ -23990,6 +23993,7 @@ app.post('/api/admin/agreement-templates', requireAdmin, express.json(), (req, r
   if (b.greeting !== undefined) t.greeting = (['dear','hi','first','none'].indexOf(String(b.greeting)) >= 0) ? String(b.greeting) : 'none';
   if (b.emailSubject !== undefined) t.emailSubject = String(b.emailSubject || '').slice(0, 300);
   if (b.sendAuto !== undefined) t.sendAuto = String(b.sendAuto || '').slice(0, 40);
+  if (b.followUpDays !== undefined) { const _fd = parseInt(b.followUpDays, 10); t.followUpDays = (isFinite(_fd) && _fd > 0 && _fd <= 60) ? _fd : 0; }
   if (b.execAuto !== undefined) t.execAuto = String(b.execAuto || '').slice(0, 40);
   if (b.active !== undefined) t.active = !!b.active;
   if (b.termYears !== undefined) { const _ty = parseInt(b.termYears, 10); t.termYears = (isFinite(_ty) && _ty > 0 && _ty <= 99) ? _ty : 0; }
@@ -24155,6 +24159,7 @@ app.post('/api/agreements/:id/apply-template', express.json(), (req, res) => {
   a.greeting = t.greeting || 'none';
   a.emailSubject = t.emailSubject || '';
   a.sendAuto = t.sendAuto || '';
+  a.followUpDays = parseInt(t.followUpDays, 10) || 0;
   a.execAuto = t.execAuto || a.execAuto || '';
   if (!a.termYears && !a.termMonths) { if (t.termMonths) a.termMonths = t.termMonths; else if (t.termYears) a.termYears = t.termYears; }   // template default; a per-send term (set at create) wins
   if (t.startOnExec != null && a.startOnExec == null) a.startOnExec = !!t.startOnExec;
@@ -24276,6 +24281,7 @@ app.post('/api/agreements/:id/send-adv', express.json(), async (req, res) => {
   try { await sendMailWL({ from: mailFrom(), to: next.email, subject, text: message, html: _htmlA || undefined }); }
   catch (e) { console.error('send-adv:', e && e.message); return res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
   if (a.personId) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.personId); if (pp) { logActivity(pp, 'Agreement Sent', label + ' sent for signature to ' + (next.label || '') + ' ' + next.email, { auto: true }); if (a.sendAuto && !a.sendAutoFired) { try { const _sp = loadAutomations().find(x => x.id === a.sendAuto && x.active !== false); if (_sp) { enrollPerson(pp, _sp, { byName: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', dealKey: a.dealKey || '' }); a.sendAutoFired = true; try { saveAgreements(all); } catch (e) {} } } catch (e) {} } savePeople(ppl); } } catch (e) {} }
+  agrOpenFollowTask(a, all, req);
   res.json({ ok: true, agreement: agreementBrief(a), to: next.email, signer: next.label });
  } catch (e) { console.error('send-adv fatal:', e && (e.stack || e.message)); if (!res.headersSent) res.status(500).json({ ok: false, error: 'Could not send: ' + String((e && e.message) || e) }); }
 });
@@ -24363,9 +24369,44 @@ function maybeGoLive(key, req) {
     try { const ov = loadAssignOverlay(); const cur = ov[key] || {}; if (!cur.status || ['New', 'On Hold'].indexOf(cur.status) >= 0) cur.status = 'Live'; if (!cur.listingStart) cur.listingStart = now.slice(0, 10); cur.updatedAt = now; ov[key] = cur; saveAssignOverlay(ov); } catch (e) {}
   } catch (e) { console.error('maybeGoLive:', e && e.message); }
 }
+// Once an agreement is signed (or voided) its "on send" follow-up sequence has done its job — stop it so no
+// "follow up, not signed yet" task lands after the client already signed.
+// ---- Signature follow-up task ------------------------------------------------------------------
+// A template can ask for a follow-up: the moment the agreement is sent, a task lands on the sender's list
+// due N days out ("Follow up: Bill Bayne — sign the …"). Resend pushes the due date out again; signing or
+// voiding closes it automatically, so nobody chases a client who already signed.
+function _addDaysIso(n) { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); }
+function agrOpenFollowTask(a, all, req) {
+  try {
+    const n = parseInt(a.followUpDays, 10) || 0; if (!n || !a.personId) return;
+    const tasks = loadTasks(); const now = new Date().toISOString();
+    const p = personById(a.personId) || {}; const label = agreementTypeLabel(a.type);
+    let t = a.followTaskId ? tasks.find(x => x.id === a.followTaskId) : null;
+    if (t && t.status !== 'done') { t.due = _addDaysIso(n) + 'T09:00'; t.updatedAt = now; saveTasks(tasks); return; }   // a resend — push the follow-up out
+    if (t) return;   // already handled once
+    const u = req && req.user || {};
+    t = { id: newTaskId(), createdBy: u.username || a.createdBy || '', createdByName: u.name || a.createdByName || '', assignee: u.username || a.createdBy || '', assigneeName: u.name || a.createdByName || '', createdAt: now, updatedAt: now, status: 'open', doneAt: '',
+      title: ('Follow up: ' + (p.name || a.personName || 'client') + ' — sign the ' + (a.name || label)).slice(0, 300),
+      notes: ('Sent for signature ' + now.slice(0, 10) + '. If it isn\'t signed yet, call ' + (personFirst(p) || 'them') + ((preferredPhoneOf && preferredPhoneOf(p)) ? (' at ' + preferredPhoneOf(p)) : '') + ' and walk through any questions, or use ↻ Resend on the agreement. This task closes itself when the agreement is signed or voided.').slice(0, 2000),
+      due: _addDaysIso(n) + 'T09:00', priority: 'Normal', type: '', linkType: 'contact', linkId: a.personId, linkLabel: p.name || a.personName || '', agrId: a.id, remChannels: ['popup'] };
+    tasks.push(t); saveTasks(tasks);
+    a.followTaskId = t.id; saveAgreements(all);
+  } catch (e) { console.error('agreement follow-up task:', e && e.message); }
+}
+function agrCloseFollowTask(a, why) {
+  try { if (!a || !a.followTaskId) return; const tasks = loadTasks(); const t = tasks.find(x => x.id === a.followTaskId); if (!t || t.status === 'done') return;
+    const now = new Date().toISOString(); t.status = 'done'; t.doneAt = now; t.updatedAt = now; t.notes = (String(t.notes || '') + '\nClosed automatically — ' + (why || 'agreement signed') + ' ' + now.slice(0, 10) + '.').slice(0, 2000); saveTasks(tasks);
+  } catch (e) {}
+}
+function stopSendAutomation(a, why) {
+  try { if (!a || !a.sendAuto || !a.personId) return; const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.personId); if (!pp || !Array.isArray(pp.enrollments)) return; let ch = false;
+    pp.enrollments.forEach(e => { if (e.automationId === a.sendAuto && e.status === 'active') { e.status = 'stopped'; e.stoppedAt = new Date().toISOString(); e.stopReason = why || 'agreement signed'; ch = true; } });
+    if (ch) savePeople(ppl); } catch (e) {}
+}
 function runPostExecution(a, req) {
   try {
     if (!a) return;
+    stopSendAutomation(a, 'agreement signed'); agrCloseFollowTask(a, 'agreement signed');
     const now = new Date().toISOString();
     try { const ags = loadAgreements(); const aa = ags.find(x => x.id === a.id); if (aa) { let _dty = false; if (aa.startOnExec || !aa.effective) { aa.effective = now.slice(0, 10); _dty = true; } const _yrs = agrTermMonths(aa); if (_yrs && !aa.expires) { const _e = _addMonthsEnd(aa.effective || now.slice(0, 10), _yrs); if (_e) { aa.expires = _e; _dty = true; } } if (_dty) { aa.updatedAt = now; a.effective = aa.effective; a.expires = aa.expires; saveAgreements(ags); } } } catch (e) {}
     try { if (a.execAuto && a.personId) { const _pp = loadPeople(); const _p = _pp.find(x => x.id === a.personId); if (_p) { const _plan = loadAutomations().find(x => x.id === a.execAuto && x.active !== false); if (_plan) { enrollPerson(_p, _plan, { byName: (req && req.user && req.user.name) || '', byUser: (req && req.user && req.user.username) || '', dealKey: a.dealKey || '' }); savePeople(_pp); } } } } catch (e) {}
