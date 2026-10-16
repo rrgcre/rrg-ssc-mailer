@@ -25339,7 +25339,7 @@ async function buildChitChatDraft(user) {
   all.push(iss); ccSave(all); return iss;
 }
 function chitChatHtml(iss, opt) {
-  opt = opt || {}; const C = effChitChat(); const D = iss.data || {};
+  opt = opt || {}; const C = opt.C || effChitChat(); const D = iss.data || {};
   const E = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   const MONO = "'Courier New',Courier,monospace", SERIF = "Georgia,'Times New Roman',serif", SANS = "'Helvetica Neue',Helvetica,Arial,sans-serif";
   const RED = '#b3261e', INK = '#1c1b19', BODY = '#3d3a34', MUTE = '#6b665c', PAPER = '#fbf8f1', DARK = '#2a2d31';
@@ -25395,6 +25395,17 @@ app.post('/api/admin/chitchat/issues/:id', requireAdmin, express.json({ limit: '
   x.data = D; if (x.status === 'approved' && !x.campaignId) x.status = 'draft'; x.editedAt = new Date().toISOString(); ccSave(all); res.json({ ok: true, issue: x }); });
 app.post('/api/admin/chitchat/issues/:id/delete', requireAdmin, (req, res) => { const all = ccLoad(); const i = all.findIndex(x => x.id === req.params.id); if (i < 0) return res.status(404).json({ ok: false, error: 'Not found.' });
   if (all[i].campaignId) return res.status(400).json({ ok: false, error: 'This issue has an Email Studio campaign — archive it there instead.' }); all.splice(i, 1); ccSave(all); res.json({ ok: true }); });
+// Live preview while editing: renders the issue from the unsaved form (and unsaved settings) without saving anything.
+app.post('/api/admin/chitchat/issues/:id/preview-live', requireAdmin, express.json({ limit: '1mb' }), (req, res) => {
+  const x = ccLoad().find(i => i.id === req.params.id); if (!x) return res.status(404).send('Not found.');
+  const b = req.body || {}; const iss = Object.assign({}, x, { data: (b.data && typeof b.data === 'object') ? b.data : x.data });
+  let C = effChitChat();
+  if (b.settings && typeof b.settings === 'object') { const st = b.settings; const S = (v, n) => String(v == null ? '' : v).slice(0, n);
+    C = Object.assign({}, C); ['fromName', 'metros', 'publisher', 'address'].forEach(k => { if (st[k] !== undefined) C[k] = S(st[k], 300); });
+    if (st.sponsor && typeof st.sponsor === 'object') C.sponsor = Object.assign({}, C.sponsor, { on: !!st.sponsor.on, label: S(st.sponsor.label, 200), line: S(st.sponsor.line, 400), url: S(st.sponsor.url, 400), cta: S(st.sponsor.cta, 60) });
+    if (st.rrg && typeof st.rrg === 'object') C.rrg = Object.assign({}, C.rrg, { on: !!st.rrg.on, headline: S(st.rrg.headline, 200), line: S(st.rrg.line, 400), url: S(st.rrg.url, 400), cta: S(st.rrg.cta, 60) }); }
+  try { res.type('html').send(chitChatHtml(iss, { web: b.web !== false, C })); } catch (e) { res.status(500).send('Could not render: ' + String((e && e.message) || e)); }
+});
 app.get('/api/admin/chitchat/issues/:id/preview', requireAdmin, (req, res) => { const x = ccLoad().find(i => i.id === req.params.id); if (!x) return res.status(404).send('Not found.'); res.type('html').send(chitChatHtml(x, { web: true })); });
 // Send one test copy to the signed-in admin (or a typed address) through the app's regular email — works before approval and before SES production access.
 app.post('/api/admin/chitchat/issues/:id/test', requireAdmin, express.json(), async (req, res) => { try {
