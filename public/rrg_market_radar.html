@@ -23,6 +23,8 @@ h1{margin:3px 0 0;font-size:24px;font-weight:800;color:var(--navy);}
 .cpi{display:flex;align-items:center;gap:10px;padding:7px 14px;cursor:pointer;font-size:13px;} .cpi.on,.cpi:hover{background:#eef3fa;}
 .cpn{flex:1;min-width:0;font-weight:700;color:var(--navy);} .cps{display:block;font-weight:500;font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 @media(max-width:600px){ .rbar{position:relative;} .cpk{position:static;flex:1;min-width:0;} .cpk input{width:100%;} .cpop{left:12px;right:12px;width:auto;} }
+.cpadd{font-size:11px;font-weight:800;color:#23496f;border:1px solid #c9d3e3;border-radius:12px;padding:2px 8px;background:#fff;white-space:nowrap;flex:none} .cpadd:hover{background:#23496f;color:#fff;border-color:#23496f}
+.achips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:2px 0 0} .achip{display:inline-flex;align-items:center;gap:6px;background:#eef2fb;border:1px solid #d3ddf3;color:#23496f;border-radius:100px;padding:4px 10px;font-size:12px;font-weight:700} .achip b{cursor:pointer;color:#8a93a8;font-weight:800} .achip b:hover{color:#DA2B1F}
 .cpc{font-size:11.5px;font-weight:700;color:#4a5570;font-variant-numeric:tabular-nums;} .cpnote{font-size:11px;color:var(--muted);padding:6px 14px 4px;}
 .rlbl{font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
 .presets{display:flex;gap:6px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--line);align-items:center;}
@@ -80,7 +82,7 @@ table{width:100%;border-collapse:collapse;font-size:12.5px;} th{text-align:left;
   <div class="rpgs">Every bar and restaurant in a city, county or metro area, from the Texas Comptroller's monthly mixed-beverage filings and TABC permit records. Filter by how much sales moved, over what window, size and recency — falling sales and stopped filings are the earliest signs of a second-gen space opening up or an owner who may want to sell.</div>
   <div data-rrg-feats="market_radar"></div>
   <div class="rcard">
-    <div class="rbar"><span class="rlbl">Area</span><div class="cpk"><input id="city" value="San Antonio" autocomplete="off" spellcheck="false" placeholder="City, county or metro…" role="combobox" aria-expanded="false" aria-controls="cityPop" aria-autocomplete="list" title="Any Texas city, county or metro area"><div class="cpop" id="cityPop" role="listbox" hidden></div></div><button class="rbtn" id="loadCity">Load</button>
+    <div class="rbar"><span class="rlbl">Area</span><div class="cpk"><input id="city" value="San Antonio" autocomplete="off" spellcheck="false" placeholder="City, county, metro or all of Texas…" role="combobox" aria-expanded="false" aria-controls="cityPop" aria-autocomplete="list" title="Any Texas city, county or metro area"><div class="cpop" id="cityPop" role="listbox" hidden></div></div><button class="rbtn" id="loadCity">Load</button><span class="achips" id="areaChips"></span>
       <input id="q" placeholder="Quick search anything…" style="min-width:200px">
       <span style="margin-left:auto" class="rsub" id="meta"></span><button class="rbtn" id="importBtn" hidden title="Add the operators in this view to the CRM as companies (admins)">＋ Import to CRM</button><button class="rbtn" id="exportBtn">⬇ Export CSV</button><button class="rbtn" id="refresh">Refresh from the state</button></div>
     <div class="presets" id="presets"></div>
@@ -120,14 +122,14 @@ function latest(o){ var s=o.series||[]; return s.length?s[s.length-1]:0; }
 // Sales basis for the min/max filter. A stopped operator is judged on what it did before it stopped.
 function salesBasis(o){ var b=fv('f_basis')||'avg'; if(o.status==='stopped') return b==='t12'?o.priorAvg*12:o.priorAvg; return b==='latest'?latest(o):(b==='t12'?o.trailing12:o.avgMonth); }
 function syncUrl(){ try{ var u=new URL(location.href); u.search=''; if(AREA) u.searchParams.set('area',AREA); else u.searchParams.set('city',fv('city')); if(VIEW!=='ops') u.searchParams.set('view',VIEW); F_IDS.forEach(function(id){ var v=fv(id); if(v&&!(id==='f_win'&&v==='3')&&!(id==='f_basis'&&v==='avg')) u.searchParams.set(id.slice(2),v); }); if(fv('q')) u.searchParams.set('q',fv('q')); if(consOn()) u.searchParams.set('cons',consBy()); history.replaceState(null,'',u.toString()); }catch(e){} }
-function readUrl(){ try{ var p=new URLSearchParams(location.search); if(!p.toString()) return false; if(p.get('area')){ AREA=p.get('area'); AREA_LABEL=areaLabel(AREA); document.getElementById('city').value=AREA_LABEL||'Loading area…'; } else if(p.get('city')) document.getElementById('city').value=p.get('city'); if(p.get('view')) VIEW=p.get('view'); var vals={}; F_IDS.forEach(function(id){ var v=p.get(id.slice(2)); if(v!=null) vals[id]=v; }); setF(vals); if(p.get('q')) document.getElementById('q').value=p.get('q'); if(p.get('cons')){ document.getElementById('f_cons').checked=true; document.getElementById('f_consby').value=(p.get('cons')==='owner'?'owner':'brand'); document.getElementById('f_consby').disabled=false; } return true; }catch(e){ return false; } }
+function readUrl(){ try{ var p=new URLSearchParams(location.search); if(!p.toString()) return false; if(p.get('area')){ AREA=p.get('area'); selFromArea(AREA); AREA_LABEL=areaLabel(AREA); setTimeout(renderChips,0); document.getElementById('city').value=AREA_LABEL||'Loading area…'; } else if(p.get('city')) document.getElementById('city').value=p.get('city'); if(p.get('view')) VIEW=p.get('view'); var vals={}; F_IDS.forEach(function(id){ var v=p.get(id.slice(2)); if(v!=null) vals[id]=v; }); setF(vals); if(p.get('q')) document.getElementById('q').value=p.get('q'); if(p.get('cons')){ document.getElementById('f_cons').checked=true; document.getElementById('f_consby').value=(p.get('cons')==='owner'?'owner':'brand'); document.getElementById('f_consby').disabled=false; } return true; }catch(e){ return false; } }
 // Loading state filings uses the shared working dialog (plain — no AI runs here), with a timer and Cancel.
 // It waits 250 ms so a cached city never flashes it. A metro's first build can take a few minutes.
 var _LD_CTRL=null;
 function load(refresh){ var city=fv('city'); var what=AREA?(AREA_LABEL||'the area'):city;
   document.getElementById('body').innerHTML='<div class="rempty">Loading state filings…</div>';
   if(_LD_CTRL){ try{ _LD_CTRL.abort(); }catch(e){} } var ctrl=(window.AbortController?new AbortController():null); _LD_CTRL=ctrl; var shown=false;
-  var msg=refresh?(AREA?('Pulling fresh filings for every city in '+what+' from the state — a metro can take a few minutes.'):('Pulling fresh filings for '+what+' from data.texas.gov — a big city can take a minute.')):(AREA?('Loading '+what+' — the first load of a metro can take a few minutes.'):('Loading '+what+' from the Comptroller and TABC filings.'));
+  var msg=(AREA==='state:tx')?('Loading every bar and restaurant in Texas from the state filings — the first statewide load takes several minutes; after that it is cached for a day.'):refresh?(AREA?('Pulling fresh filings for every city in '+what+' from the state — a metro can take a few minutes.'):('Pulling fresh filings for '+what+' from data.texas.gov — a big city can take a minute.')):(AREA?('Loading '+what+' — the first load of a metro can take a few minutes.'):('Loading '+what+' from the Comptroller and TABC filings.'));
   var wt=setTimeout(function(){ if(window.rrgWork){ rrgWork.show(msg,function(){ if(ctrl) ctrl.abort(); },{title:'Loading state filings…'}); shown=true; } },250);
   function end(){ clearTimeout(wt); if(shown&&window.rrgWork) rrgWork.hide(); if(_LD_CTRL===ctrl) _LD_CTRL=null; }
   fetch('/api/tx/radar?'+(AREA?('area='+encodeURIComponent(AREA)):('city='+encodeURIComponent(city)))+(refresh?'&refresh=1':''),{credentials:'same-origin',signal:ctrl?ctrl.signal:undefined}).then(function(r){return r.json();}).then(function(j){ end(); D=j; render(); }).catch(function(e){ end(); if(e&&e.name==='AbortError'){ if(!D) document.getElementById('body').innerHTML='<div class="rempty">Loading canceled. Pick an area or click Load.</div>'; else render(); return; } document.getElementById('body').innerHTML='<div class="rempty">Could not reach the server.</div>'; }); }
@@ -226,7 +228,7 @@ function presetCounts(){ var all=D.all||[]; var save={}; F_IDS.forEach(function(
 function applyPreset(key){ var p=PRESETS[key]; PRESET=key; LIMIT=300; if(p.view){ VIEW=p.view; } else { VIEW='ops'; setF(p.f); if(p.cons){ var _c=document.getElementById('f_cons'), _b=document.getElementById('f_consby'); _c.checked=true; _b.value=p.cons; _b.disabled=false; EXP={}; } if(p.sort){ SORT={k:p.sort,d:(p.d!=null?p.d:(p.sort==='chg'&&p.f.f_dir==='down'?1:-1))}; } } render(); }
 function render(){ var b=document.getElementById('body');
   if(!D||!D.ok){ b.innerHTML='<div class="rempty">'+esc((D&&D.error)||'No data.')+'</div>'; document.getElementById('kpis').innerHTML=''; document.getElementById('presets').innerHTML=''; return; }
-  if(D.area&&D.city&&document.activeElement!==document.getElementById('city')){ AREA=D.area; AREA_LABEL=D.city; document.getElementById('city').value=D.city; }
+  if(D.area&&D.city&&document.activeElement!==document.getElementById('city')){ AREA=D.area; AREA_LABEL=D.city; if(!SEL.length||SEL.map(function(x){return x.key;}).sort().join(',')!==String(D.area)) selFromArea(D.area); renderChips(); document.getElementById('city').value=D.city; }
   if(!D.all){ b.innerHTML='<div class="rempty">This city\'s cache is from the older version — click <b>Refresh from the state</b>.</div>'; return; }
   syncUrl();
   document.getElementById('meta').textContent=(D.operators||0).toLocaleString()+' operators'+(D.areaCounties&&D.areaCounties.length>1?(' · '+D.areaCounties.length+' counties'):'')+' · data through '+(D.latestMonth||'—')+(D.partialMonth?(' ('+D.partialMonth+' still coming in — left out)'):'')+(D.cached?' · cached':'');
@@ -282,9 +284,21 @@ F_IDS.forEach(function(id){ var e=document.getElementById(id); if(!e) return; e.
 document.getElementById('q').oninput=function(){ LIMIT=300; render(); };
 /* ---------- Area picker: every Texas city with filers, every county, and the metro areas ---------- */
 var AREA='', AREA_LABEL='', PLACES=null, _pkSel=-1, _pkItems=[];
+// Several areas at once: SEL holds the picked cities / counties / metros (or "All of Texas").
+var SEL=[];
+function tokLabel(t){ t=String(t||''); if(t==='state:tx') return 'All of Texas'; if(t.indexOf('city:')===0){ var c=t.slice(5); return c.replace(/\b\w/g,function(m){return m.toUpperCase();}); } return areaLabel(t)||''; }
+function selFromArea(a){ SEL=String(a||'').split(',').filter(Boolean).map(function(t){ return {key:t,name:tokLabel(t)||t}; }); }
+function applySel(){ var inp=document.getElementById('city');
+  if(!SEL.length){ renderChips(); return; }
+  if(SEL.length===1&&SEL[0].key.indexOf('city:')===0){ AREA=''; AREA_LABEL=''; inp.value=SEL[0].name; }
+  else { AREA=SEL.map(function(x){return x.key;}).join(','); AREA_LABEL=SEL.length===1?SEL[0].name:SEL.map(function(x){return x.name;}).join(' + '); inp.value=AREA_LABEL; }
+  renderChips(); }
+function renderChips(){ var el=document.getElementById('areaChips'); if(!el) return; if(SEL.length<2){ el.innerHTML=''; return; }
+  el.innerHTML=SEL.map(function(x,i){ return '<span class="achip">'+esc(x.name)+'<b data-rm="'+i+'" title="Remove">✕</b></span>'; }).join('');
+  el.querySelectorAll('[data-rm]').forEach(function(b){ b.onclick=function(){ SEL.splice(+b.getAttribute('data-rm'),1); applySel(); load(false); }; }); }
 var PK_FALLBACK=['San Antonio','Austin','Dallas','Houston','Fort Worth','New Braunfels','San Marcos','Boerne','Plano','Frisco','The Woodlands','Round Rock','Georgetown','Arlington','Irving','Corpus Christi','El Paso','Waco','Lubbock','Sugar Land','Katy'];
-function loadPlaces(){ fetch('/api/tx/places',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ PLACES=j; if(AREA&&!AREA_LABEL){ AREA_LABEL=areaLabel(AREA); if(AREA_LABEL) document.getElementById('city').value=AREA_LABEL; } if(document.activeElement===document.getElementById('city')) pkOpen(); } }).catch(function(){}); }
-function areaLabel(a){ if(!PLACES) return ''; var m=String(a).split(':'); if(m[0]==='metro'){ var x=(PLACES.metros||[]).filter(function(t){return t.key===m[1];})[0]; return x?x.label:''; } if(m[0]==='county'){ var c=(PLACES.counties||[]).filter(function(t){return t.code===m[1];})[0]; return c?(c.name+' County'):''; } return ''; }
+function loadPlaces(){ fetch('/api/tx/places',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ PLACES=j; if(SEL.length){ SEL.forEach(function(x){ x.name=tokLabel(x.key)||x.name; }); if(AREA){ AREA_LABEL=''; } renderChips(); } if(AREA&&!AREA_LABEL){ AREA_LABEL=areaLabel(AREA); if(AREA_LABEL) document.getElementById('city').value=AREA_LABEL; } if(document.activeElement===document.getElementById('city')) pkOpen(); } }).catch(function(){}); }
+function areaLabel(a){ a=String(a||''); if(a.indexOf(',')>=0) return a.split(',').map(function(t){ return tokLabel(t)||t; }).join(' + '); if(a==='state:tx') return 'All of Texas'; if(a.indexOf('city:')===0) return tokLabel(a); if(!PLACES) return ''; var m=a.split(':'); if(m[0]==='metro'){ var x=(PLACES.metros||[]).filter(function(t){return t.key===m[1];})[0]; return x?x.label:''; } if(m[0]==='county'){ var c=(PLACES.counties||[]).filter(function(t){return t.code===m[1];})[0]; return c?(c.name+' County'):''; } return ''; }
 function pkNorm(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9 ]+/g,' ').replace(/\s+/g,' ').trim(); }
 function pkBuild(q){
   q=pkNorm(q); var out=[];
@@ -294,6 +308,7 @@ function pkBuild(q){
   var cty=(PLACES.counties||[]).map(function(c){ var sc=!q?0:starts(c.name+' county'); return {s:sc,it:{kind:'county',key:'county:'+c.code,name:c.name+' County',sub:'every city in the county',n:c.ops}}; }).filter(function(x){return x.s>0;});
   var cit=(PLACES.cities||[]).map(function(c){ var sc=!q?1:starts(c.name); return {s:sc,it:{kind:'city',name:c.name,sub:c.countyName?(c.countyName+' Co.'):'',n:c.ops}}; }).filter(function(x){return x.s>0;});
   var by=function(a,b){ return (b.s-a.s)||((b.it.n||0)-(a.it.n||0)); };
+  if(!q||/^(all|tex|state|tx|whole)/.test(q)){ out.push({hdr:'Statewide'}); out.push({kind:'state',key:'state:tx',name:'All of Texas',sub:'every city statewide — the first load takes a few minutes',n:null}); }
   met.sort(by); cty.sort(by); cit.sort(by);
   if(met.length){ out.push({hdr:'Metro areas'}); met.slice(0,q?4:6).forEach(function(x){ out.push(x.it); }); }
   if(cit.length){ out.push({hdr:q?'Cities':'Largest cities'}); cit.slice(0,q?10:12).forEach(function(x){ out.push(x.it); }); }
@@ -302,13 +317,15 @@ function pkBuild(q){
 }
 function pkOpen(){ var inp=document.getElementById('city'), pop=document.getElementById('cityPop'); var q=(AREA&&inp.value===AREA_LABEL)?'':inp.value; if(!AREA&&PLACES&&(PLACES.cities||[]).some(function(c){return pkNorm(c.name)===pkNorm(q);})&&inp.dataset.typed!=='1') q='';
   var r=pkBuild(q); _pkItems=r.items.filter(function(x){return !x.hdr;}); _pkSel=-1;
-  var i=-1; pop.innerHTML=r.items.map(function(x){ if(x.hdr) return '<div class="cph">'+esc(x.hdr)+'</div>'; i++; return '<div class="cpi" role="option" data-i="'+i+'"><span class="cpn">'+esc(x.name)+(x.sub?('<span class="cps">'+esc(x.sub)+'</span>'):'')+'</span>'+(x.n!=null?('<span class="cpc">'+x.n.toLocaleString()+'</span>'):'')+'</div>'; }).join('')+(r.note?('<div class="cpnote">'+esc(r.note)+'</div>'):'')+(PLACES?'<div class="cpnote">Counts = operators filing in the last 4 months.</div>':'');
+  var i=-1; pop.innerHTML=r.items.map(function(x){ if(x.hdr) return '<div class="cph">'+esc(x.hdr)+'</div>'; i++; return '<div class="cpi" role="option" data-i="'+i+'"><span class="cpn">'+esc(x.name)+(x.sub?('<span class="cps">'+esc(x.sub)+'</span>'):'')+'</span>'+(x.n!=null?('<span class="cpc">'+x.n.toLocaleString()+'</span>'):'')+(x.kind!=='state'&&SEL.length?'<span class="cpadd" data-add="'+i+'" title="Add to the areas you are searching">+ Add</span>':'')+'</div>'; }).join('')+(r.note?('<div class="cpnote">'+esc(r.note)+'</div>'):'')+(PLACES?'<div class="cpnote">Counts = operators filing in the last 4 months.</div>':'');
   pop.hidden=false; inp.setAttribute('aria-expanded','true');
-  pop.querySelectorAll('.cpi').forEach(function(el){ el.onmousedown=function(e){ e.preventDefault(); pkPick(_pkItems[+el.getAttribute('data-i')]); }; el.onmousemove=function(){ pkHi(+el.getAttribute('data-i')); }; });
+  pop.querySelectorAll('.cpi').forEach(function(el){ el.onmousedown=function(e){ e.preventDefault(); var add=!!(e.target&&e.target.closest&&e.target.closest('.cpadd')); pkPick(_pkItems[+el.getAttribute('data-i')],add); }; el.onmousemove=function(){ pkHi(+el.getAttribute('data-i')); }; });
 }
 function pkClose(){ var pop=document.getElementById('cityPop'); pop.hidden=true; document.getElementById('city').setAttribute('aria-expanded','false'); }
 function pkHi(i){ _pkSel=i; document.querySelectorAll('#cityPop .cpi').forEach(function(el){ el.classList.toggle('on',+el.getAttribute('data-i')===i); }); var on=document.querySelector('#cityPop .cpi.on'); if(on&&on.scrollIntoView) on.scrollIntoView({block:'nearest'}); }
-function pkPick(it){ if(!it) return; var inp=document.getElementById('city'); inp.dataset.typed=''; if(it.kind==='city'){ AREA=''; AREA_LABEL=''; inp.value=it.name; } else { AREA=it.key; AREA_LABEL=it.name; inp.value=it.name; } pkClose(); inp.blur(); load(false); }
+function pkPick(it,add){ if(!it) return; var inp=document.getElementById('city'); inp.dataset.typed=''; var tok={key:(it.kind==='city'?('city:'+it.name):it.key),name:it.name};
+  if(add&&it.kind!=='state'){ SEL=SEL.filter(function(x){ return x.key!=='state:tx'; }); if(!SEL.some(function(x){ return x.key.toLowerCase()===tok.key.toLowerCase(); })) SEL.push(tok); } else SEL=[tok];
+  applySel(); pkClose(); inp.blur(); load(false); }
 (function(){ var inp=document.getElementById('city');
   inp.addEventListener('focus',function(){ inp.select(); pkOpen(); });
   inp.addEventListener('input',function(){ inp.dataset.typed='1'; if(AREA&&inp.value!==AREA_LABEL){ AREA=''; AREA_LABEL=''; } pkOpen(); });
@@ -317,10 +334,10 @@ function pkPick(it){ if(!it) return; var inp=document.getElementById('city'); in
     if(e.key==='ArrowDown'){ e.preventDefault(); if(document.getElementById('cityPop').hidden) pkOpen(); pkHi(Math.min(_pkItems.length-1,_pkSel+1)); }
     else if(e.key==='ArrowUp'){ e.preventDefault(); pkHi(Math.max(0,_pkSel-1)); }
     else if(e.key==='Escape'){ pkClose(); }
-    else if(e.key==='Enter'){ e.preventDefault(); if(_pkSel>=0&&_pkItems[_pkSel]) pkPick(_pkItems[_pkSel]); else { var v=pkNorm(inp.value); var hit=_pkItems.filter(function(x){ return pkNorm(x.name)===v; })[0]||(_pkItems.length===1?_pkItems[0]:null); if(hit) pkPick(hit); else { AREA=''; AREA_LABEL=''; pkClose(); inp.blur(); load(false); } } }
+    else if(e.key==='Enter'){ e.preventDefault(); if(_pkSel>=0&&_pkItems[_pkSel]) pkPick(_pkItems[_pkSel]); else { var v=pkNorm(inp.value); var hit=_pkItems.filter(function(x){ return pkNorm(x.name)===v; })[0]||(_pkItems.length===1?_pkItems[0]:null); if(hit) pkPick(hit); else { AREA=''; AREA_LABEL=''; SEL=[{key:'city:'+inp.value.trim(),name:inp.value.trim()}]; renderChips(); pkClose(); inp.blur(); load(false); } } }
   });
 })();
-document.getElementById('loadCity').onclick=function(){ var inp=document.getElementById('city'); if(AREA&&inp.value!==AREA_LABEL){ AREA=''; AREA_LABEL=''; } load(false); };
+document.getElementById('loadCity').onclick=function(){ var inp=document.getElementById('city'); if(AREA&&inp.value!==AREA_LABEL){ AREA=''; AREA_LABEL=''; SEL=[{key:'city:'+inp.value.trim(),name:inp.value.trim()}]; renderChips(); } load(false); };
 document.getElementById('refresh').onclick=function(){ load(true); };
 document.getElementById('exportBtn').onclick=exportCsv;
 (function(){ var c=document.getElementById('f_cons'), by=document.getElementById('f_consby'); var sync=function(){ by.disabled=!c.checked; }; c.addEventListener('change',function(){ sync(); EXP={}; LIMIT=300; render(); }); by.addEventListener('change',function(){ EXP={}; LIMIT=300; render(); }); sync(); })();
@@ -353,7 +370,8 @@ function openImport(){ if(!D||!D.all) return; var ov=document.getElementById('im
   if(!IM_USERS){ fetch('/api/users-list',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ IM_USERS=(j&&j.users)||[]; var me=(window.__rrgSession&&window.__rrgSession.username)||''; sel.innerHTML=IM_USERS.map(function(u){ return '<option value="'+esc(u.username)+'"'+(u.username===me?' selected':'')+'>'+esc(u.name||u.username)+(u.username===me?' (me — house)':'')+'</option>'; }).join(''); }).catch(function(){}); }
   imSummary(); }
 document.getElementById('importBtn').onclick=openImport;
-if(!readUrl()){ setF(PRESETS.strong.f); PRESET='strong'; document.getElementById('f_cons').checked=true; document.getElementById('f_consby').value='brand'; document.getElementById('f_consby').disabled=false; SORT={k:'sell',d:-1}; }
+var _ru=readUrl(); if(!SEL.length&&!AREA){ var _cv=(document.getElementById('city').value||'').trim(); if(_cv) SEL=[{key:'city:'+_cv,name:_cv}]; }
+if(!_ru){ setF(PRESETS.strong.f); PRESET='strong'; document.getElementById('f_cons').checked=true; document.getElementById('f_consby').value='brand'; document.getElementById('f_consby').disabled=false; SORT={k:'sell',d:-1}; }
 loadTracked(); loadPlaces(); load(false);
 </script>
 <div class="imov" id="imOv" hidden><div class="imbox" role="dialog" aria-label="Import to CRM"><div class="imhd">Import to CRM <span class="rsub" id="imArea" style="font-weight:600"></span><button type="button" id="imX" aria-label="Close">×</button></div>

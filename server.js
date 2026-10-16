@@ -26947,10 +26947,12 @@ const TXRADAR_DIR = path.join(BOV_DATA_DIR, 'txradar');
 async function txRadarBuild(scope) {
   const isArea = scope && typeof scope === 'object'; const city = isArea ? scope.label : scope;
   const C = _txEsc(city); const since = new Date(Date.now() - 26 * 30.44 * 864e5).toISOString().slice(0, 10);
-  const where = isArea ? ('location_county in (' + scope.counties.map(c => "'" + String(c).replace(/[^0-9]/g, '') + "'").join(',') + ')') : ("upper(location_city)='" + C + "'");
-  const rows = []; for (let off = 0; off < (isArea ? 900000 : 300000); off += 50000) { const page = await txQuery(TX_MB, { '$select': 'taxpayer_name,taxpayer_number,location_name,location_address,location_city,location_zip,tabc_permit_number,obligation_end_date_yyyymmdd,total_receipts,liquor_receipts,wine_receipts,beer_receipts', '$where': where + " AND obligation_end_date_yyyymmdd>='" + since + "'", '$order': 'obligation_end_date_yyyymmdd ASC', '$limit': '50000', '$offset': String(off) }); (page || []).forEach(r => rows.push(r)); if (!page || page.length < 50000) break; }
+  const _geo = []; if (isArea && !scope.all) { if ((scope.counties || []).length) _geo.push('location_county in (' + scope.counties.map(c => "'" + String(c).replace(/[^0-9]/g, '') + "'").join(',') + ')'); if ((scope.extraCities || []).length) _geo.push('upper(location_city) in (' + scope.extraCities.map(c => "'" + _txEsc(c) + "'").join(',') + ')'); }
+  const where = isArea ? (scope.all ? '' : ('(' + (_geo.length ? _geo.join(' OR ') : "location_county='0'") + ') AND ')) : ("upper(location_city)='" + C + "' AND ");
   const ops = {}; let latest = '';
-  rows.forEach(r => { const k = r.tabc_permit_number || (r.location_name + '|' + r.location_address); const o = ops[k] = ops[k] || { name: r.location_name || r.taxpayer_name || '', taxpayer: r.taxpayer_name || '', tpn: r.taxpayer_number || '', address: r.location_address || '', city: txTitle(r.location_city), zip: r.location_zip || '', permit: r.tabc_permit_number || '', months: {}, liq: {}, wine: {}, beer: {} }; const m = txMonthKey(r.obligation_end_date_yyyymmdd); o.months[m] = (o.months[m] || 0) + (Number(r.total_receipts) || 0); o.liq[m] = (o.liq[m] || 0) + (Number(r.liquor_receipts) || 0); o.wine[m] = (o.wine[m] || 0) + (Number(r.wine_receipts) || 0); o.beer[m] = (o.beer[m] || 0) + (Number(r.beer_receipts) || 0); if (m > latest) latest = m; });
+  // Aggregate page by page — a statewide pull is ~600K filing rows, too many to hold at once.
+  const _addRow = r => { const k = r.tabc_permit_number || (r.location_name + '|' + r.location_address); const o = ops[k] = ops[k] || { name: r.location_name || r.taxpayer_name || '', taxpayer: r.taxpayer_name || '', tpn: r.taxpayer_number || '', address: r.location_address || '', city: txTitle(r.location_city), zip: r.location_zip || '', permit: r.tabc_permit_number || '', months: {}, liq: {}, wine: {}, beer: {} }; const m = txMonthKey(r.obligation_end_date_yyyymmdd); o.months[m] = (o.months[m] || 0) + (Number(r.total_receipts) || 0); o.liq[m] = (o.liq[m] || 0) + (Number(r.liquor_receipts) || 0); o.wine[m] = (o.wine[m] || 0) + (Number(r.wine_receipts) || 0); o.beer[m] = (o.beer[m] || 0) + (Number(r.beer_receipts) || 0); if (m > latest) latest = m; };
+  const _maxRows = isArea ? (scope.all ? 3000000 : 1500000) : 300000; for (let off = 0; off < _maxRows; off += 50000) { const page = await txQuery(TX_MB, { '$select': 'taxpayer_name,taxpayer_number,location_name,location_address,location_city,location_zip,tabc_permit_number,obligation_end_date_yyyymmdd,total_receipts,liquor_receipts,wine_receipts,beer_receipts', '$where': where + "obligation_end_date_yyyymmdd>='" + since + "'", '$order': 'obligation_end_date_yyyymmdd ASC', '$limit': '50000', '$offset': String(off) }); (page || []).forEach(_addRow); if (!page || page.length < 50000) break; }
   const mAdd = (m, n) => { const d = new Date(m + '-15T00:00:00Z'); d.setUTCMonth(d.getUTCMonth() + n); return d.toISOString().slice(0, 7); };
   // The state reports with a lag, and the newest month trickles in: a handful of early filers make it "present" while
   // most operators haven't filed it yet. Treating it as current drew every sparkline down to zero and dragged
@@ -26975,7 +26977,8 @@ async function txRadarBuild(scope) {
   });
   let pending = [], credit = [];
   // Permit applications and credit-law notices are filed by city; an area asks for every city in its counties.
-  const cityWhere = isArea ? ((scope.cities || []).length ? ('upper(city) in (' + scope.cities.map(c => "'" + _txEsc(c) + "'").join(',') + ')') : '') : ("upper(city)='" + C + "'");
+  const _allCities = isArea ? (scope.cities || []).concat(scope.extraCities || []) : [];
+  const cityWhere = isArea ? (scope.all ? '' : (_allCities.length ? ('upper(city) in (' + _allCities.slice(0, 400).map(c => "'" + _txEsc(c) + "'").join(',') + ')') : '')) : ("upper(city)='" + C + "'");
   if (cityWhere) {
     try { pending = (await txQuery(TX_PENDING, { '$where': cityWhere, '$order': 'submission_date DESC', '$limit': isArea ? '600' : '200' })) || []; } catch (e) {}
     try { credit = (await txQuery(TX_CREDIT, { '$where': cityWhere, '$order': 'effectivedate DESC', '$limit': isArea ? '600' : '200' })) || []; } catch (e) {}
@@ -26997,13 +27000,13 @@ async function txRadarBuild(scope) {
       chg3: pct(sum(0, 2), sum(12, 14)), chg6: pct(sum(0, 5), sum(12, 17)), chg12: pct(sum(0, 11), sum(12, 23)), series: series,
       liquor12: liquor12, wine12: wine12, beer12: beer12, liquorPct: cat ? Math.round(liquor12 / cat * 100) : null, winePct: cat ? Math.round(wine12 / cat * 100) : null, beerPct: cat ? Math.round(beer12 / cat * 100) : null };
   }).filter(Boolean).sort((a, b) => b.trailing12 - a.trailing12 || b.priorAvg - a.priorAvg);
-  return { ok: true, v: 4, city: city, partialMonth: partialMonth, area: isArea ? scope.area : '', areaCounties: isArea ? scope.countyNames : undefined, at: new Date().toISOString(), latestMonth: cur, operators: Object.keys(ops).length, all: all.slice(0, isArea ? 25000 : 8000), signals: sig.slice(0, isArea ? 1500 : 600),
+  return { ok: true, v: 4, city: city, partialMonth: partialMonth, area: isArea ? scope.area : '', areaCounties: isArea ? scope.countyNames : undefined, at: new Date().toISOString(), latestMonth: cur, operators: Object.keys(ops).length, all: all.slice(0, isArea ? (scope.all ? 40000 : 25000) : 8000), signals: sig.slice(0, isArea ? 1500 : 600),
     pending: pending.map(p => ({ name: p.trade_name || '', owner: p.owner || '', address: [p.address, p.address_2].filter(Boolean).join(' '), city: txTitle(p.city), type: p.license_type || '', submitted: String(p.submission_date || '').slice(0, 10), status: p.applicationstatus || '' })),
     creditLaw: credit.map(c => ({ name: c.tradename || c.corporatename || '', address: c.streetaddress || '', city: txTitle(c.city), effective: String(c.effectivedate || '').slice(0, 10), status: c.permitstatus || '' })) };
 }
 async function txRadarGet(scope, refresh) {
   const isArea = scope && typeof scope === 'object';
-  const fp = path.join(TXRADAR_DIR, isArea ? ('_area_' + scope.area.replace(/[^a-z0-9]+/gi, '-') + '.json') : (scope.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.json'));
+  const fp = path.join(TXRADAR_DIR, isArea ? ('_area_' + (scope.area.length > 60 ? require('crypto').createHash('md5').update(scope.area).digest('hex') : scope.area.replace(/[^a-z0-9]+/gi, '-')) + '.json') : (scope.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.json'));
   try { if (!refresh && fs.existsSync(fp)) { const c = JSON.parse(fs.readFileSync(fp, 'utf8')); if (c && c.v === 4 && c.at && (Date.now() - Date.parse(c.at)) < 24 * 36e5) return Object.assign({ cached: true }, c); } } catch (e) {}
   const r = await txRadarBuild(scope); try { if (!fs.existsSync(TXRADAR_DIR)) fs.mkdirSync(TXRADAR_DIR, { recursive: true }); fs.writeFileSync(fp, JSON.stringify(r)); } catch (e) {} return r;
 }
@@ -27016,7 +27019,7 @@ function txSendJson(req, res, obj) {
   res.type('json').send(body);
 }
 app.get('/api/tx/radar', async (req, res) => {
-  const area = String(req.query.area || '').trim().slice(0, 40);
+  const area = String(req.query.area || '').trim().slice(0, 800);
   let scope = null;
   if (area) { scope = await txAreaScope(area); if (!scope) return res.status(400).json({ ok: false, error: 'Unknown area — pick one from the list.' }); }
   else { scope = String(req.query.city || 'San Antonio').trim().slice(0, 60); if (!scope) return res.status(400).json({ ok: false, error: 'Pick a city.' }); }
@@ -27109,12 +27112,22 @@ async function txPlacesGet() {
 }
 // "metro:sa" / "county:15" → the scope txRadarBuild runs on.
 async function txAreaScope(area) {
-  const m = String(area || '').match(/^(metro|county):([a-z0-9]+)$/i); if (!m) return null;
-  let codes = [], label = '';
-  if (m[1].toLowerCase() === 'metro') { const mt = TX_METROS.find(x => x.key === m[2].toLowerCase()); if (!mt) return null; codes = mt.counties.map(txCountyCode).filter(Boolean); label = mt.label; }
-  else { const nm = txCountyName(m[2]); if (!nm) return null; codes = [String(parseInt(m[2], 10))]; label = nm + ' County'; }
+  // One or more areas, comma-separated: metro:sa, county:015, city:Boerne — or state:tx for all of Texas.
+  const toks = Array.from(new Set(String(area || '').split(',').map(t => t.trim()).filter(Boolean))).slice(0, 25);
+  if (!toks.length) return null;
+  if (toks.some(t => /^state:tx$/i.test(t))) return { area: 'state:tx', label: 'All of Texas', all: true, counties: [], countyNames: ['all counties'], cities: [], extraCities: [] };
+  const codes = [], labels = [], extra = [], keys = [];
+  for (const t of toks) {
+    const m = t.match(/^(metro|county):([a-z0-9]+)$/i); const mc = t.match(/^city:(.{2,60})$/i);
+    if (m && m[1].toLowerCase() === 'metro') { const mt = TX_METROS.find(x => x.key === m[2].toLowerCase()); if (!mt) return null; mt.counties.map(txCountyCode).filter(Boolean).forEach(c => { if (codes.indexOf(c) < 0) codes.push(c); }); labels.push(mt.label); keys.push('metro:' + mt.key); }
+    else if (m) { const nm = txCountyName(m[2]); if (!nm) return null; const c = String(parseInt(m[2], 10)); if (codes.indexOf(c) < 0) codes.push(c); labels.push(nm + ' County'); keys.push('county:' + m[2].toLowerCase()); }
+    else if (mc) { const cn = mc[1].replace(/[^A-Za-z0-9 .'-]/g, '').trim(); if (!cn) return null; extra.push(cn); labels.push(cn); keys.push('city:' + cn.toLowerCase()); }
+    else return null;
+  }
   let cities = []; try { const pl = await txPlacesGet(); cities = (pl.cities || []).filter(c => codes.indexOf(c.county) >= 0).map(c => c.name); } catch (e) {}
-  return { area: m[1].toLowerCase() + ':' + m[2].toLowerCase(), label: label, counties: codes, countyNames: codes.map(txCountyName), cities: cities };
+  const extraCities = extra.filter(c => !cities.some(x => String(x).toLowerCase() === c.toLowerCase()));
+  keys.sort();
+  return { area: keys.join(','), label: labels.length > 4 ? (labels.slice(0, 3).join(' + ') + ' + ' + (labels.length - 3) + ' more') : labels.join(' + '), counties: codes, countyNames: codes.map(txCountyName), cities: cities, extraCities: extraCities };
 }
 app.get('/api/tx/places', async (req, res) => {
   try { res.json(await txPlacesGet()); }
