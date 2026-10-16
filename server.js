@@ -4060,6 +4060,14 @@ app.get('/api/agreements', (_req, res) => {
 app.get('/api/admin/documents', requireAdmin, (req, res) => res.json({ ok: true, documents: loadDocs() }));
 
 // Upload a document (base64 JSON so no multipart dependency). Stored on DATA_DIR.
+// Rename / re-shelve a firm-wide form from the Doc Vault list.
+app.post('/api/admin/docs/:id', requireAdmin, express.json(), (req, res) => {
+  const b = req.body || {}; const all = loadDocs(); const d = all.find(x => x.id === req.params.id);
+  if (!d) return res.status(404).json({ ok: false, error: 'Not found.' });
+  if (typeof b.title === 'string') { const t = b.title.trim().slice(0, 160); if (t) d.title = t; }
+  if (typeof b.category === 'string' && b.category.trim()) d.category = b.category.trim().slice(0, 40);
+  saveDocs(all); res.json({ ok: true, doc: d });
+});
 app.post('/api/admin/upload-doc', requireAdmin, express.json({ limit: '40mb' }), (req, res) => {
   const b = req.body || {};
   const orig = String(b.filename || '').trim();
@@ -23177,7 +23185,7 @@ app.get('/api/documents', (req, res) => {
   const out = [];
   let ag = loadAgreements();
   if (restrictToOwn(req)) ag = ag.filter(a => permOwnerMatch(req, a.createdBy));
-  ag.forEach(a => { const br = agreementBrief(a); out.push({ id:a.id, kind:'agreement', title:(a.name || agreementTypeLabel(a.type) || 'Agreement'), typeLabel:'Agreement', agrType: agreementTypeLabel(a.type), effective: agrEffective(a), expires: agrExpires(a), signStatus:a.signStatus||'', docExt:a.docExt||'', hasFinal:!!a.hasFinal, entryMethod:a.entryMethod||'', personId:a.personId||'', dealKey:a.dealKey||'', companyId:a.companyId||'', companyName: coNameById[a.companyId]||'', personName: a.personName || nameById[a.personId] || '', dealName: bizByKey[a.dealKey]||'', status: br.statusLabel||'', statusKey: br.statusKey||'', owner: a.createdByName || a.createdBy || '', createdAt: a.createdAt||'', deleteUrl: '/api/document/agreement/'+a.id, openUrl: a.hasFinal ? ('/api/agreements/'+a.id+'/final') : (a.docExt ? ('/api/agreements/'+a.id+'/doc') : 'rrg_agreements.html'), downloadUrl: a.hasFinal ? ('/api/agreements/'+a.id+'/final') : (a.docExt ? ('/api/agreements/'+a.id+'/doc') : '') }); });
+  ag.forEach(a => { const br = agreementBrief(a); out.push({ id:a.id, kind:'agreement', agrKey: a.type || '', agrName: a.name || '', title:(a.name || agreementTypeLabel(a.type) || 'Agreement'), typeLabel:'Agreement', agrType: agreementTypeLabel(a.type), effective: agrEffective(a), expires: agrExpires(a), signStatus:a.signStatus||'', docExt:a.docExt||'', hasFinal:!!a.hasFinal, entryMethod:a.entryMethod||'', personId:a.personId||'', dealKey:a.dealKey||'', companyId:a.companyId||'', companyName: coNameById[a.companyId]||'', personName: a.personName || nameById[a.personId] || '', dealName: bizByKey[a.dealKey]||'', status: br.statusLabel||'', statusKey: br.statusKey||'', owner: a.createdByName || a.createdBy || '', createdAt: a.createdAt||'', deleteUrl: '/api/document/agreement/'+a.id, openUrl: a.hasFinal ? ('/api/agreements/'+a.id+'/final') : (a.docExt ? ('/api/agreements/'+a.id+'/doc') : 'rrg_agreements.html'), downloadUrl: a.hasFinal ? ('/api/agreements/'+a.id+'/final') : (a.docExt ? ('/api/agreements/'+a.id+'/doc') : '') }); });
   let bv = loadBovs().filter(b => isAdmin || ownsBov(req, b));
   bv.forEach(b => { out.push({ id:b.id, kind:'valuation', title: b.business || 'Valuation', typeLabel:'Valuation', matchNames:[b.business||''], valueText: (b.targetText||b.rangeText||b.sdeText||''), basis: b.basis||'', personId:b.personId||'', companyId:b.companyId||'', companyName: coNameById[b.companyId]||'', market: b.market || coMktById[b.companyId] || '', personName: nameById[b.personId]||'', dealName:'', status: b.finalizedAt ? ('Final' + ((b.version||1) > 1 ? (' v'+(b.version||1)) : '')) : (b.pending ? 'Requested' : 'Built'), statusKey: b.finalizedAt ? 'final' : (b.pending ? 'pending' : 'built'), owner: b.by || b.byUser || '', createdAt: b.createdAt || '', deleteUrl: '/api/document/valuation/'+b.id, openUrl: (b.pending ? 'rrg_bov_generate.html?bov=' : 'rrg_bov_builder.html?bov=') + encodeURIComponent(b.id), downloadUrl:'' }); });
   let cm = loadCims().filter(c => isAdmin || ownsCim(req, c));
@@ -23306,9 +23314,9 @@ app.get('/api/documents', (req, res) => {
       if (linked) return false;
       return (d.matchNames || []).some(x => { const v = _nm(x); return !!v && _names.indexOf(v) >= 0; });
     };
-    return res.json({ ok:true, isAdmin, scoped:true, documents: out.filter(_hit), docTypes: effDocTypes() });
+    return res.json({ ok:true, isAdmin, scoped:true, documents: out.filter(_hit), docTypes: effDocTypes(), agrTypes: effAgreementTypes().map(t => ({ key: t.key, label: t.label })) });
   }
-  res.json({ ok:true, isAdmin, documents: out, docTypes: effDocTypes() });
+  res.json({ ok:true, isAdmin, documents: out, docTypes: effDocTypes(), agrTypes: effAgreementTypes().map(t => ({ key: t.key, label: t.label })) });
 });
 
 function intakeGrpVal(g){ if (g.kind === 'options') return (g.selected || []).join(', '); if (g.kind === 'field') return g.value || ''; return (g.value != null ? String(g.value) : ((g.selected||[]).join(', '))); }

@@ -461,7 +461,7 @@
       var cur=ed.get?ed.get(item):'';
       if(ed.type==='multiselect'){ return startMultiEdit(td,item,ed,cur); }
       var input;
-      if(ed.type==='select'){ input=document.createElement('select'); var opts=(typeof ed.options==='function'?ed.options():ed.options)||[]; if(ed.allowBlank){ var ob=document.createElement('option'); ob.value=''; ob.textContent='—'; input.appendChild(ob);} opts.forEach(function(o){ var v=(o&&typeof o==='object')?o.value:o; var l=(o&&typeof o==='object')?o.label:o; var op=document.createElement('option'); op.value=v; op.textContent=l; if(String(v)===String(cur)) op.selected=true; input.appendChild(op); }); }
+      if(ed.type==='select'){ input=document.createElement('select'); var opts=(typeof ed.options==='function'?ed.options(item):ed.options)||[]; if(ed.allowBlank){ var ob=document.createElement('option'); ob.value=''; ob.textContent='—'; input.appendChild(ob);} opts.forEach(function(o){ var v=(o&&typeof o==='object')?o.value:o; var l=(o&&typeof o==='object')?o.label:o; var op=document.createElement('option'); op.value=v; op.textContent=l; if(String(v)===String(cur)) op.selected=true; input.appendChild(op); }); }
       else { input=document.createElement('input'); input.type=(ed.type==='date')?'date':'text'; input.value=(cur==null?'':cur); }
       input.className='rl-edinput'; td.innerHTML=''; td.appendChild(input); try{ input.focus(); if(input.select) input.select(); }catch(e){}
       var settled=false;
@@ -472,7 +472,7 @@
     }
     function startMultiEdit(td,item,ed,cur){
       var curArr=Array.isArray(cur)?cur.map(String):(cur?[String(cur)]:[]);
-      var opts=(typeof ed.options==='function'?ed.options():ed.options)||[];
+      var opts=(typeof ed.options==='function'?ed.options(item):ed.options)||[];
       var chosen={}; curArr.forEach(function(v){ chosen[String(v)]=1; });
       var box=document.createElement('div'); box.className='rl-msedit'; box.tabIndex=-1;
       box.style.cssText='position:absolute;z-index:60;left:8px;top:6px;min-width:160px;max-height:240px;overflow:auto;background:#fff;border:1px solid #cfd6e2;border-radius:8px;box-shadow:0 10px 28px rgba(10,20,50,.16);padding:7px;display:flex;flex-direction:column;gap:2px;';
