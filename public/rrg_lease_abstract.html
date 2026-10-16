@@ -165,7 +165,7 @@ function partyRow(label,path,val){
   var s=A.state;
   var masked = (path==='parties.landlord' && s.redactLandlord)
             || (path==='parties.tenant'   && s.redactTenant)
-            || (path==='parties.guarantor'&& s.redactTenant);   // guarantor backs the tenant
+            || (path==='parties.guarantor'&& (s.redactTenant || String(val||'').trim()));   // guarantor names are never shown
   if(masked){ return '<div class="lbl">'+esc(label)+'</div><div class="val"><span class="redacted">Withheld — available under NDA</span></div>'; }
   return row(label,path,val);
 }

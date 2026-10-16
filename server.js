@@ -3207,7 +3207,8 @@ app.get('/api/lease/:id', (req, res) => {
   const l = loadLeases().find(x => x.id === req.params.id);
   if (!l) return res.status(404).json({ ok: false, error: 'Not found.' });
   if (!ownsLease(req, l)) return res.status(403).json({ ok: false, error: 'Not yours.' });
-  res.json({ ok: true, lease: l });
+  const _out = Object.assign({}, l); delete _out.guarantorOnFile;   // guarantor names never leave the server
+  res.json({ ok: true, lease: _out });
 });
 app.delete('/api/lease/:id', (req, res) => {
   const arr = loadLeases();
@@ -3254,6 +3255,48 @@ function leaseForBov(req, bov) {
       || (cid && arr.find(x => x.companyId === cid && ownsLease(req, x)))
       || null;
 }
+// ---- Guarantor redaction --------------------------------------------------------------------
+// Guarantors are private individuals: no abstract ever shows their names. The name the AI (or a rep)
+// puts in Parties → Guarantor is moved to l.guarantorOnFile (server-side only, never sent to a page,
+// PDF, data room or the AI), and every other mention of it in the abstract becomes "the Guarantor".
+const LEASE_GUAR_WITHHELD = 'Withheld — available under NDA';
+function _guarNames(str) {
+  return String(str || '').split(/\s*(?:;|,|\/|\band\b|&|\n)\s*/i).map(x => x.replace(/\(.*?\)/g, '').replace(/^(mr|mrs|ms|dr)\.?\s+/i, '').trim())
+    .filter(x => x.length >= 4 && /[a-z]/i.test(x) && !/^(none|n\/a|not specified|withheld|personal|corporate|limited|guarant|tenant|the guarantor)/i.test(x) && x.split(/\s+/).length <= 6);
+}
+function leaseRedactGuarantors(l, st) {
+  if (!st || typeof st !== 'object') return false;
+  st.parties = st.parties || {};
+  const cur = String(st.parties.guarantor || '').trim();
+  let changed = false;
+  if (cur && cur !== LEASE_GUAR_WITHHELD) {
+    const prev = String(l.guarantorOnFile || '').trim();
+    l.guarantorOnFile = prev && prev.toLowerCase().indexOf(cur.toLowerCase()) >= 0 ? prev : (prev ? (prev + '; ' + cur) : cur).slice(0, 400);
+    st.parties.guarantor = LEASE_GUAR_WITHHELD; changed = true;
+  }
+  // Names written only in the guaranty text ("personally guaranteed by John A. Smith") count too.
+  try { const gtxt = JSON.stringify(st.guaranty || {}) + ' ' + String(st.summary || '') + ' ' + JSON.stringify(st.flags || []);
+    const grx = /[Gg]uarant(?:or|eed by|y (?:from|by|of))\s*[:\-–]?\s*((?:Mr\.?|Mrs\.?|Ms\.?|Dr\.?)?\s*[A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-zA-Z'\-]+){1,2})/g; let m;
+    while ((m = grx.exec(gtxt))) { const nm = m[1].replace(/^(Mr|Mrs|Ms|Dr)\.?\s+/i, '').trim(); if (/^(Tenant|Landlord|Lease|The|Each|Any|Such|Guarantor)\b/.test(nm)) continue; if (String(l.guarantorOnFile || '').toLowerCase().indexOf(nm.toLowerCase()) < 0) { l.guarantorOnFile = (l.guarantorOnFile ? l.guarantorOnFile + '; ' : '') + nm; changed = true; } }
+  } catch (e) {}
+  const names = _guarNames(l.guarantorOnFile).sort((a, b) => b.length - a.length);
+  if (!names.length) return changed;
+  const rx = names.map(n => new RegExp('(?:\\b(?:mr|mrs|ms|dr)\\.?\\s+)?' + n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+') + '\\b', 'gi'));
+  const walk = (o) => { for (const k of Object.keys(o)) { const v = o[k];
+    if (typeof v === 'string') { if (o === st.parties && k === 'guarantor') continue; let w = v; rx.forEach(r => { w = w.replace(r, 'the Guarantor'); }); if (w !== v) { o[k] = w; changed = true; } }
+    else if (v && typeof v === 'object') walk(v); } };
+  walk(st);
+  return changed;
+}
+// One-time pass over every existing abstract; re-files their PDF snapshots without the names.
+setTimeout(function _redactAllGuarantors() {
+  try { const arr = loadLeases() || []; let n = 0; const ids = [];
+    arr.forEach(l => { if (l && l.state && !l.guarRedacted2) { if (leaseRedactGuarantors(l, l.state)) { n++; if (!l.pending) ids.push(l.id); } l.guarRedacted2 = true; } });
+    if (arr.length) saveLeases(arr);
+    ids.forEach(id => { try { queueLeasePdf(id); } catch (e) {} });
+    if (n) console.log('[lease] guarantor names redacted in ' + n + ' abstracts');
+  } catch (e) { console.error('guarantor redaction:', e && e.message); }
+}, 9000);
 // Compact, analyst-facing summary of a lease abstract for the BOV. Leads with the two questions
 // EVERY buyer asks — time remaining and option periods — then the economics that move value.
 function leaseAbstractContext(l) {
@@ -3284,7 +3327,7 @@ function leaseAbstractPrintHtml(l) {
   const row = (k, v) => { v = String(v == null ? '' : v).trim(); if (!v || /^none$/i.test(v) || /^not specified/i.test(v)) return ''; return '<tr><th>' + E(k) + '</th><td>' + E(v) + '</td></tr>'; };
   const section = (title, rows) => { rows = rows.filter(Boolean).join(''); return rows ? ('<h2>' + E(title) + '</h2><table>' + rows + '</table>') : ''; };
   let body = '';
-  body += section('Parties & Premises', [ (redL ? '' : row('Landlord', pa.landlord)), (redT ? '' : row('Tenant', pa.tenant)), row('Guarantor', pa.guarantor), row('Premises', pr.description), row('Suite / Unit', pr.suite), row('Rentable SF', pr.squareFeet), row('Permitted use', use.permittedUse || use.description) ]);
+  body += section('Parties & Premises', [ (redL ? '' : row('Landlord', pa.landlord)), (redT ? '' : row('Tenant', pa.tenant)), (String(pa.guarantor || '').trim() ? '<tr><th>Guarantor</th><td>' + E(LEASE_GUAR_WITHHELD) + '</td></tr>' : ''), row('Premises', pr.description), row('Suite / Unit', pr.suite), row('Rentable SF', pr.squareFeet), row('Permitted use', use.permittedUse || use.description) ]);
   body += section('Term & Options', [ row('Commencement', tm.commencement), row('Original term', tm.originalTerm), row('Lease expiration', tm.expiration), row('Remaining term', tm.remainingTerm), row('Renewal options', op.renewalOptions), row('Option notice', op.renewalNotice), row('Option rent basis', op.renewalRent) ]);
   body += section('Rent & Charges', [ row('Current base rent', rt.current), row('Rent per SF', rt.perSF), row('Escalations', rt.escalation), row('Percentage rent', rt.percentageRent), row('Charge structure', ch.structure), row('NNN / CAM', ch.cam), row('Real estate taxes', ch.taxes), row('Insurance', ch.insurance) ]);
   body += section('Assignment & Guaranty', [ row('Assignment / subletting', asg.assignmentSublet), row('Consent standard', asg.consentStandard), row('Change of control', asg.changeOfControl), row('Guaranty type', gu.type), row('Personal guaranty', gu.personalGuaranty) ]);
@@ -3465,7 +3508,7 @@ app.post('/api/lease-save', express.json({ limit: '4mb' }), (req, res) => {
   if (!ownsLease(req, l)) return res.status(403).json({ ok: false, error: 'Not yours.' });
   let dirty = false;
   if (b.state && typeof b.state === 'object') {
-    l.state = b.state;
+    l.state = b.state; leaseRedactGuarantors(l, l.state);
     if (l.state.header) { l.business = String(l.state.header.business || l.business || 'Lease Abstract').slice(0, 120); l.propertyAddress = String(l.state.header.propertyAddress || l.propertyAddress || '').slice(0, 200); }
     if (l.pending) { l.pending = false; if (!l.builtAt) l.builtAt = new Date().toISOString(); }  // a saved abstract is a built one
     dirty = true;
@@ -3515,7 +3558,7 @@ app.post('/api/generate-lease', express.json({ limit: '48mb' }), async (req, res
     l.business = String(typedName || out.business || l.business || 'Lease Abstract').slice(0, 120);
     if (out.state.header && (typedName || !out.state.header.business)) out.state.header.business = l.business;
     if (out.state.header) l.propertyAddress = String(out.state.header.propertyAddress || '').slice(0, 200);
-    l.state = out.state; l.aiGenerated = true; l.pending = false; l.builtAt = new Date().toISOString();
+    l.state = out.state; leaseRedactGuarantors(l, l.state); l.aiGenerated = true; l.pending = false; l.builtAt = new Date().toISOString();
     saveLeases(arr);
     queueLeasePdf(l.id);   // snapshot the finished abstract to a PDF filed under the contact
     res.json({ ok: true, id: l.id });

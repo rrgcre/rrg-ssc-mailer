@@ -309,6 +309,7 @@ select.nlselect{appearance:none;-webkit-appearance:none;-moz-appearance:none;bac
 .rroom-mk{color:#2c5c8f;}
 .rchip.await{background:#eaf1fb;color:#23496f;}
 .agrrow.agrexec{background:#f4fbf7;}
+.agrrow[data-wait]{background:#fff8ec;box-shadow:inset 3px 0 0 #d99a2b;} .waitpill{display:inline-block;margin:3px 0 1px;padding:2px 9px;border-radius:20px;background:#fdecc8;color:#8a5a0b;font-size:11px;font-weight:800;letter-spacing:.01em;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .waitpill.stale{background:#fde2dd;color:#b3261e}
 .agrthumb{width:30px;height:30px;border-radius:6px;background-size:cover;background-position:center;flex:none;border:1px solid var(--line);}
 .agrbtn{background:#fff;border:1px solid #cdd6e6;color:var(--navy);border-radius:8px;padding:9px 15px;font:inherit;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;}
 .agrbtn:hover{border-color:#9fb0cc;background:#f7f9fc;}
@@ -316,7 +317,8 @@ select.nlselect{appearance:none;-webkit-appearance:none;-moz-appearance:none;bac
 .agrbtn.primary:hover{filter:brightness(1.06);}
 .agrsigbtns{gap:10px !important;margin-top:10px;}
 .railbody{max-height:266px;overflow-y:auto;}
-.agrlist{max-height:280px;overflow-y:auto;margin:-4px 0;}
+.agrlist{max-height:460px;overflow-y:auto;margin:-4px 0;}
+.docfilt[hidden],.docall[hidden]{display:none!important} .docfilt{display:flex;flex-direction:column;gap:7px;margin:0 0 9px} .docfilt input{width:100%;box-sizing:border-box;border:1px solid #cfd6e2;border-radius:8px;padding:6px 10px;font:inherit;font-size:12.5px} .dfchips{display:flex;gap:5px;flex-wrap:wrap} .dfc{background:#fff;border:1px solid #d5dbe6;border-radius:20px;padding:3px 10px;font:inherit;font-size:11.5px;font-weight:700;color:#5b6472;cursor:pointer} .dfc.on{background:#20334f;border-color:#20334f;color:#fff} .docall{display:block;margin-top:8px;font-size:12px;font-weight:700;color:#23496f;text-decoration:none} .docall:hover{text-decoration:underline}
 .agrrow{cursor:pointer;}
 .agrresendrow{flex:none;background:#fff;border:1px solid #c9d3e3;border-radius:6px;color:#20334f;font:inherit;font-size:11px;font-weight:700;padding:3px 8px;cursor:pointer;margin:0 0 0 6px;white-space:nowrap} .agrresendrow:hover{background:#eef3ff;border-color:#8fa6cf} .agrresendrow:disabled{opacity:.5;cursor:default}
 .agrvoidrow{flex:none;display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;padding:0;background:none;border:none;border-radius:6px;color:#b0788f;cursor:pointer;margin:0 0 0 2px;} .agrvoidrow:hover{background:#fdeceb;color:#DA2B1F;}
@@ -545,7 +547,7 @@ function agrRow(a){
   var _rsBtn=(a.signStatus==='sent'||a.signStatus==='partial')?'<button type="button" class="agrresendrow" data-agrresend="'+esc(a.id)+'" title="Resend the signing link to whoever has not signed'+(a.lastResentAt?(' · last reminded '+String(a.lastResentAt).slice(0,10)):'')+'">↻ Resend</button>':'';
   var _voidBtn=(a.signStatus==='sent'||a.signStatus==='partial')?'<button type="button" class="agrvoidrow" data-agrvoid="'+esc(a.id)+'" title="Void agreement — stops signing, keeps the record on file"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><line x1="5.6" y1="5.6" x2="18.4" y2="18.4"></line></svg></button>':'';
   var _voidedChip=_voided?'<span class="agrvoidedchip" title="Voided — no longer valid, cannot be signed">Voided</span>':'';
-  return '<div class="rrow agrrow'+(signed?' agrexec':'')+(_voided?' agrvoided':'')+'" data-agr="'+esc(a.id)+'" title="Open the document"><span class="dico k-agreement"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8.5 14.5l1.6 1.6 3.4-3.6"/></svg></span><div class="rrmain" style="min-width:0"><div class="docttl" title="'+esc(title)+'">'+esc(title)+'</div>'+(a.projectName?('<div class="agrproj" title="'+esc(a.projectName)+'">'+esc(a.projectName)+'</div>'):'')+'<div class="docmeta">'+meta+'</div>'+_refline+_dtline+_rsline+(_rsBtn?('<div style="margin-top:5px">'+_rsBtn+'</div>'):'')+'</div>'+_voidedChip+expChip(a)+agrEntryIcon(a)+_voidBtn+'</div>';
+  return '<div class="rrow agrrow'+(signed?' agrexec':'')+(_voided?' agrvoided':'')+'" data-agr="'+esc(a.id)+'"'+((a.signStatus==='sent'||a.signStatus==='partial'||a.signStatus==='awaiting_countersign')?' data-wait="1"':'')+' title="Open the document"><span class="dico k-agreement"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8.5 14.5l1.6 1.6 3.4-3.6"/></svg></span><div class="rrmain" style="min-width:0"><div class="docttl" title="'+esc(title)+'">'+esc(title)+'</div>'+_waitPill(a)+(a.projectName?('<div class="agrproj" title="'+esc(a.projectName)+'">'+esc(a.projectName)+'</div>'):'')+'<div class="docmeta">'+meta+'</div>'+_refline+_dtline+_rsline+(_rsBtn?('<div style="margin-top:5px">'+_rsBtn+'</div>'):'')+'</div>'+_voidedChip+expChip(a)+agrEntryIcon(a)+_voidBtn+'</div>';
 }
 function apptFmtDT(sv){ if(!sv) return ''; var d=String(sv).slice(0,10).split('-'); var t=String(sv).slice(11,16); var out=d.length===3?(d[1]+'/'+d[2]+'/'+d[0]):String(sv); if(t){ var hh=parseInt(t.slice(0,2),10)||0,mm=t.slice(3,5); out+=' '+((hh%12)||12)+(mm==='00'?'':(':'+mm))+(hh>=12?'p':'a'); } return out; }
 // ---- Tasks (linked to this contact) --------------------------------------------------
@@ -737,15 +739,31 @@ function docListHtml(){
   return '<div class="rrempty">'+((window.RRGDocs&&RRGDocs.ready())?'No documents on file for this contact yet.':'Loading documents\u2026')+'</div>';
 }
 function docCount(){ return AGREEMENTS.length+((window.RRGDocs&&RRGDocs.count())||0); }
+// Find / filter inside the Documents card once a contact has more than a handful of documents.
+var DOCF={k:'all',q:''};
+function docFilterApply(){ var host=document.getElementById('docList'); if(!host) return; var q=DOCF.q.toLowerCase().trim(), shown=0;
+  host.querySelectorAll('.rrow').forEach(function(r){ var isAgr=r.classList.contains('agrrow'); var ok=(DOCF.k==='all')||(DOCF.k==='wait'&&r.getAttribute('data-wait')==='1')||(DOCF.k==='agr'&&isAgr)||(DOCF.k==='other'&&!isAgr);
+    if(ok&&q) ok=(r.textContent||'').toLowerCase().indexOf(q)>=0; r.style.display=ok?'':'none'; if(ok) shown++; });
+  var none=document.getElementById('docFiltNone'); if(none) none.hidden=!(shown===0&&host.querySelector('.rrow')); }
+document.addEventListener('input',function(e){ if(e.target&&e.target.id==='docQ'){ DOCF.q=e.target.value; docFilterApply(); } });
+document.addEventListener('click',function(e){ var b=e.target.closest&&e.target.closest('.dfc[data-dfk]'); if(!b) return; DOCF.k=b.getAttribute('data-dfk'); document.querySelectorAll('.dfc').forEach(function(x){ x.classList.toggle('on',x===b); }); docFilterApply(); });
 function refreshDocList(){
   var host=document.getElementById('docList'); if(host) host.innerHTML=docListHtml();
   var c=document.getElementById('docCount'); if(c) c.textContent=String(docCount());
+  var fb=document.getElementById('docFilt'); if(fb) fb.hidden=docCount()<=4; var da=document.querySelector('.docall'); if(da) da.hidden=docCount()<=4;
+  docFilterApply();
   wireAgrRows();
 }
+// Out-for-signature badge: who it's waiting on and for how long — the action item stands out from executed docs.
+function _waitPill(a){ var ss=a.signStatus||''; if(ss!=='sent'&&ss!=='partial'&&ss!=='awaiting_countersign') return '';
+  var d=a.lastResentAt||a.sentAt||''; var days=d?Math.max(0,Math.floor((Date.now()-Date.parse(d))/864e5)):null; var age=days==null?'':(days===0?' · today':(' · '+days+'d'));
+  var txt; if(ss==='awaiting_countersign') txt='✍ Needs your countersignature'; else { var sg=(a.signers||[]).slice().sort(function(x,y){return x.order-y.order;}); var pend=sg.filter(function(s){return s.status!=='signed';}); var done=sg.length-pend.length;
+    txt='⏳ Awaiting signature'+((pend[0]&&pend[0].name)?(' — '+pend[0].name):''); }
+  return '<div class="waitpill'+(days!=null&&days>=5?' stale':'')+'" title="'+(a.lastResentAt?'Last reminder ':'Sent ')+esc(String(d).slice(0,10))+'">'+esc(txt+age)+'</div>'; }
 function agreementsCard(){
   var opts=ATYPES.map(function(t){return '<option value="'+esc(t.key)+'">'+esc(t.label)+'</option>';}).join('');
   return '<div class="card"><div class="ch"><b>Documents</b><span id="docCount">'+docCount()+'</span><button type="button" class="mfadd" onclick="openAgrChooser()" title="Add an agreement — send a template, record a signed one, or upload a PDF for signature" style="margin-left:auto;padding:5px 11px;font-size:12px">✉ Send for signature</button></div>'
-    +'<div class="cb"><div class="agrlist" id="docList">'+docListHtml()+'</div>'
+    +'<div class="cb"><div id="docFilt" class="docfilt"'+(docCount()>4?'':' hidden')+'><input type="search" id="docQ" placeholder="Find a document…" autocomplete="off"><span class="dfchips">'+[['all','All'],['wait','Needs signature'],['agr','Agreements'],['other','Other']].map(function(c){ return '<button type="button" class="dfc'+(c[0]===DOCF.k?' on':'')+'" data-dfk="'+c[0]+'">'+c[1]+'</button>'; }).join('')+'</span></div><div class="agrlist" id="docList">'+docListHtml()+'</div><div id="docFiltNone" class="rrempty" hidden>No documents match.</div>'+(P&&P.name?('<a class="docall" href="./rrg_documents.html?q='+encodeURIComponent(P.name)+'"'+(docCount()>4?'':' hidden')+'>Open all in Doc Vault ↗</a>'):'')
     +'<div id="agrForm" hidden style="margin-top:12px;border-top:1px solid #e6e9f0;padding-top:12px">'
       +'<input type="hidden" id="agr_id">'
       +'<div class="fldrow"><label class="fld">Agreement name</label><input id="agr_name" placeholder="e.g. Mutual NDA — Cane Rosso"></div>'
