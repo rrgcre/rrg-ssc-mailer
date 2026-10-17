@@ -88,13 +88,13 @@ tr:hover td{background:#fbfcfe;}
 <div class="top"><div class="top-in">
   <span class="brand" onclick="location.href='./index.html'" title="Back to toolbox"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
   <div class="kicker">Book of Business</div>
-  <h1>Listings</h1>
+  <h1>Sellers</h1>
   <div class="sub">Every listing in one place. Each listing ties together its qualification call, questionnaire, valuation, marketing pack, attack plan, data room, and lease abstract — so you can see, at a glance, where every listing stands.</div>
 </div></div>
 <div class="wrap">
   <div class="tiles" id="tiles"></div>
   <div class="card">
-    <div class="hd"><b>Listings</b><span class="cnt" id="cnt"></span><button id="newDealBtn" class="newdeal">+ New listing</button><button id="filterBtn" class="rlf-btn" style="margin-left:8px">⚙ Filters</button><input id="search" placeholder="Search business, market, contact…" oninput="applyFilters()"><select id="stageFilter" class="stagesel" onchange="setStageFilter(this.value)"><option value="">All stages</option><option value="call">Call</option><option value="questionnaire">VQ</option><option value="bov">BOV</option><option value="pack">Pack</option><option value="lease">Lease</option><option value="attack">MAP</option><option value="room">Room</option></select></div>
+    <div class="hd"><b>Sellers</b><span class="cnt" id="cnt"></span><button id="newDealBtn" class="newdeal">+ New seller</button><button id="filterBtn" class="rlf-btn" style="margin-left:8px">⚙ Filters</button><input id="search" placeholder="Search business, market, contact…" oninput="applyFilters()"><select id="stageFilter" class="stagesel" onchange="setStageFilter(this.value)"><option value="">All stages</option><option value="call">Call</option><option value="questionnaire">VQ</option><option value="bov">BOV</option><option value="pack">Pack</option><option value="lease">Lease</option><option value="attack">MAP</option><option value="room">Room</option></select></div>
     <div id="body"></div>
   </div>
 </div>
@@ -232,7 +232,7 @@ function createDeal(){
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_assignment.html?key='+encodeURIComponent(j.key); } else { btn.disabled=false; btn.textContent=TR?'Create assignment':'Create listing'; alert((j&&j.error)||('Could not create the '+(TR?'assignment':'listing')+'.')); } })
     .catch(function(){ btn.disabled=false; btn.textContent=TR?'Create assignment':'Create listing'; alert('Could not reach the server.'); });
 }
-function applyViewType(){ if(!VIEWTYPE) return; var lbl=TR?'Tenant Rep Assignments':'Listings'; var one=TR?'assignment':'listing'; try{document.title='RRG — '+lbl;}catch(e){} var h1=document.querySelector('h1'); if(h1) h1.textContent=lbl; var hdb=document.querySelector('.hd b'); if(hdb) hdb.textContent=lbl; var nb=document.getElementById('newDealBtn'); if(nb) nb.textContent='+ New '+one; var mh=document.querySelector('.modalh'); if(mh) mh.textContent='New '+one; var cb=document.getElementById('nd_create'); if(cb) cb.textContent='Create '+one; }
+function applyViewType(){ if(!VIEWTYPE) return; var lbl=TR?'Tenant Rep Assignments':'Sellers'; var one=TR?'assignment':'seller'; try{document.title='RRG — '+lbl;}catch(e){} var h1=document.querySelector('h1'); if(h1) h1.textContent=lbl; var hdb=document.querySelector('.hd b'); if(hdb) hdb.textContent=lbl; var nb=document.getElementById('newDealBtn'); if(nb) nb.textContent='+ New '+one; var mh=document.querySelector('.modalh'); if(mh) mh.textContent='New '+one; var cb=document.getElementById('nd_create'); if(cb) cb.textContent='Create '+one; }
 applyViewType();
 document.getElementById('newDealBtn').addEventListener('click',openDealModal);
 document.getElementById('nd_cancel').addEventListener('click',closeDealModal);

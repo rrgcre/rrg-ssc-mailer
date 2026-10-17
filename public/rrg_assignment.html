@@ -1297,7 +1297,7 @@ function render(){
     var _t=(A&&A.assignmentType)||'listing';
     var sec=(_t==='tenant_rep')?{lbl:'Tenants',href:'./rrg_board.html?pipelineId=p_tenantrep'}
            :(_t==='landlord_rep')?{lbl:'Space Listings',href:'./rrg_landlord_rep.html'}
-           :{lbl:'Listings',href:'./rrg_board.html'};
+           :{lbl:'Sellers',href:'./rrg_board.html'};
     function setSec(){
       try{ var c=document.querySelector('.crumb a[href]'); if(c){ c.textContent=sec.lbl; c.setAttribute('href',sec.href); } }catch(e){}
       try{ Array.prototype.forEach.call(document.querySelectorAll('.rrgcrumb a'),function(a){ var h=a.getAttribute('href')||''; var tx=(a.textContent||'').trim(); if(/rrg_board\.html($|\?)/.test(h)||tx==='Listings'){ a.textContent=sec.lbl; a.setAttribute('href',sec.href); } }); }catch(e){}

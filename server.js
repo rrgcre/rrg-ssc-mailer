@@ -742,7 +742,7 @@ function renderReminderMsg(tmpl, ctx) { let t = String(tmpl || '').trim() || DEF
 const TOOL_DEFS = [
   { file: 'rrg_companies.html', name: 'Companies' },
   { file: 'rrg_people.html', name: 'Contacts' },
-  { file: 'rrg_assignments.html', name: 'Listings' },
+  { file: 'rrg_assignments.html', name: 'Sellers' },
   { file: 'rrg_loi_builder.html', name: 'LOI Builder' },
   { file: 'rrg_deals.html', name: 'Deals' },
   { file: 'rrg_agreements.html', name: 'Agreements' },
@@ -18301,7 +18301,7 @@ app.get('/api/admin/record-counts', requireAdmin, (req, res) => {
   res.json({ ok: true, counts: [
     { key: 'contacts',   label: 'Contacts',          count: n(loadPeople()),     href: 'rrg_people.html',       primary: true },
     { key: 'companies',  label: 'Companies',         count: companies.length,    href: 'rrg_companies.html',    primary: true },
-    { key: 'listings',   label: 'Listings',          count: n(loadDeals()),      href: 'rrg_board.html',        primary: true },
+    { key: 'listings',   label: 'Sellers',           count: n(loadDeals()),      href: 'rrg_board.html',        primary: true },
     { key: 'datarooms',  label: 'Data Rooms',        count: n(loadRooms()),      href: 'rrg_rooms_queue.html',  primary: true },
     { key: 'concepts',   label: 'Concepts',          count: concepts,            href: 'rrg_companies.html' },
     { key: 'locations',  label: 'Locations',         count: locations,           href: 'rrg_companies.html' },
@@ -24721,7 +24721,7 @@ const PERM_CORE = [
 const GATEABLE_TOOLS = [
   { file: 'rrg_companies.html', name: 'Companies', cat: 'CRM & Records' },
   { file: 'rrg_people.html', name: 'Contacts', cat: 'CRM & Records' },
-  { file: 'rrg_assignments.html', name: 'Listings', cat: 'CRM & Records' },
+  { file: 'rrg_assignments.html', name: 'Sellers', cat: 'CRM & Records' },
   { file: 'rrg_deals.html', name: 'Deals', cat: 'CRM & Records' },
   { file: 'rrg_tasks.html', name: 'Tasks', cat: 'CRM & Records' },
   { file: 'rrg_agreements.html', name: 'Agreements', cat: 'CRM & Records' },

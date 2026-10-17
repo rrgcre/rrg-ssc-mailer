@@ -174,7 +174,7 @@
       { ic: '❐', label: 'Documents', href: 'rrg_documents.html' },
     ] },
     { grp: 'Business Sales', color: '#6bbf95', items: [
-      { ic: '⊞', label: 'Listings', href: 'rrg_board.html' },
+      { ic: '⊞', label: 'Sellers', href: 'rrg_board.html' },
       { ic: '◎', label: 'Buyers', href: 'rrg_buyer_board.html' },
       { ic: '▥', label: 'Data Rooms', href: 'rrg_rooms_queue.html' },
       { ic: '◈', label: 'Deals', href: 'rrg_deals.html' }
@@ -522,7 +522,7 @@
         {k:'contacts',  ic:'◑', label:'Contacts',  all:'rrg_people.html', bi:[]},
         {k:'documents', ic:'❐', label:'Documents', all:'rrg_documents.html', bi:[]},
         {k:'datarooms', ic:'▥', label:'Data Rooms', all:'rrg_rooms_queue.html', bi:[]},
-        {k:'listings',  ic:'⊞', label:'Listings',  all:'rrg_assignments.html', bi:[{l:'Board view', h:'rrg_board.html'}]},
+        {k:'listings',  ic:'⊞', label:'Sellers',  all:'rrg_assignments.html', bi:[{l:'Board view', h:'rrg_board.html'}]},
         {k:null,        ic:'◎', label:'Buyers',    all:'rrg_buyer_board.html', bi:[]},
         {k:'deals',     ic:'◈', label:'Deals',     all:'rrg_deals.html', bi:[]},
         {k:'subscribers', ic:'☷', label:'Subscribers', all:'rrg_mail_subscribers.html', bi:[]},
@@ -669,7 +669,7 @@
         'rrg_tenant_engagement':['Tenant rep engagement',['The Requirement card is the source of truth: size, rent, markets and must-haves. Edit it there and markets, matching and blasts follow.','Space shortlist: matched spaces from the Spaces list. Star to shortlist, ✉ marks a space as sent to the client.','Marketing card holds the SSC, the Market Attack Plan and broker blasts. Blasts are admin-only.','Lease card tracks lease stages, commission split and rent start.']],
         'rrg_landlord_engagement':['Landlord engagement',['Track the space you are leasing, the tenant pipeline and offers.','Boxes with records open automatically; empty ones stay folded.']],
         'rrg_assignment':['Listing',['Everything for one listing: pipeline stage, pricing, financials, buyers, data room and marketing.','Price changes are logged with a dated history.']],
-        'rrg_assignments':['Listings & engagements',['All listings and engagements in one list. Filter, sort and open any row.']],
+        'rrg_assignments':['Sellers',['All listings and engagements in one list. Filter, sort and open any row.']],
         'rrg_person':['Contact',['Left side: who they are and your history with them. Right side: deals, engagements, tasks and the Tenant Box.','Send for signature sends an agreement for e-signature.','The Tenant Box is read-only when the contact has a rep engagement — edit the requirement on the engagement.']],
         'rrg_company':['Company',['The company file: its contacts, deals, rep engagements, concepts and locations.','Use + in each box to add a record.']],
         'rrg_people':['Contacts',['Search, filter and open any contact. + Create New (top bar) adds one.']],

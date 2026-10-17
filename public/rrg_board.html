@@ -204,11 +204,11 @@ var DATA=null, PID=(new URLSearchParams(location.search).get('pipelineId')||''),
 // This board doubles as the Tenants board when the Tenant Rep pipeline is showing — relabel the
 // "listing" language and create tenant-rep assignments instead of business-sale listings.
 function isTenantBoard(){ return /tenant/i.test((DATA&&DATA.pipelineName)||''); }
-function entPlural(){ return isTenantBoard()?'Tenants':'Listings'; }
-function entSingular(){ return isTenantBoard()?'Tenant':'Listing'; }
+function entPlural(){ return isTenantBoard()?'Tenants':'Sellers'; }
+function entSingular(){ return isTenantBoard()?'Tenant':'Seller'; }
 function dealType(){ return isTenantBoard()?'tenant_rep':'listing'; }
 // Lower-case record noun for counts / prompts: "3 engagements" on the Tenants board, "3 listings" elsewhere.
-function entWord(n){ var w=isTenantBoard()?'engagement':'listing'; return (n===1)?w:(w+'s'); }
+function entWord(n){ var w=isTenantBoard()?'engagement':'seller'; return (n===1)?w:(w+'s'); }
 var OFF_STATUSES=['On Hold','Lost','No Deal']; var SHOW_OFF=false;
 var VIEW=(function(){ try{ return localStorage.getItem('rrg_board_view')||'board'; }catch(e){ return 'board'; } })(), LTBL=null;
 var TB={ q:'', owner:'', markets:[], statuses:[], min:'', max:'', sort:'act_desc', per:25 };
