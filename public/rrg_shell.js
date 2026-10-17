@@ -629,8 +629,8 @@
       Object.keys(od).forEach(function(href){ if(href==='rrg_tasks.html') return; var c=od[href]||0; var tl=nav.querySelector('a.it[href="'+href+'"]'); if(!tl||c<=0||tl.querySelector('.navbadge')) return; tl.title=c+' '+(NOUN[href]||'item')+(c===1?'':'s'); _badge(tl,'',c,tl.title); });
       var nb=(j&&j.newbookings)||{}; Object.keys(nb).forEach(function(href){ var c=nb[href]||0; var tl=nav.querySelector('a.it[href="'+href+'"]'); if(!tl||c<=0||tl.querySelector('.navbadge')) return; _badge(tl,'',c,c+' new meeting'+(c===1?'':'s')+' booked',99); });
       var rv=(j&&j.review)||{}; Object.keys(rv).forEach(function(href){ var c=rv[href]||0; var tl=nav.querySelector('a.it[href="'+href+'"]'); if(!tl||c<=0||tl.querySelector('.navbadge')) return; _badge(tl,'',c,c+' lead'+(c===1?'':'s')+' to review',99); });
-      // Tasks nav — three KPIs at a glance: open total (navy), late/overdue (red), due today (gold).
-      (function(){ var tl=nav.querySelector('a.it[href="rrg_tasks.html"]'); if(!tl) return; var open=((j&&j.opentasks)||{})['rrg_tasks.html']||0; var late=((j&&j.overdue)||{})['rrg_tasks.html']||0; var today=((j&&j.dueToday)||{})['rrg_tasks.html']||0; tl.title=open+' open'+(late?(' · '+late+' late'):'')+(today?(' · '+today+' due today'):''); _badge(tl,'open',open,open+' open task'+(open===1?'':'s')); _badge(tl,'',late,late+' late (overdue)'); _badge(tl,'gold',today,today+' due today'); })();
+      // Tasks nav — only what needs action: due today (gold), past due (red). Open total stays in the hover title.
+      (function(){ var tl=nav.querySelector('a.it[href="rrg_tasks.html"]'); if(!tl) return; var open=((j&&j.opentasks)||{})['rrg_tasks.html']||0; var late=((j&&j.overdue)||{})['rrg_tasks.html']||0; var today=((j&&j.dueToday)||{})['rrg_tasks.html']||0; tl.title=open+' open'+(late?(' · '+late+' late'):'')+(today?(' · '+today+' due today'):''); _badge(tl,'gold',today,today+' due today'); _badge(tl,'',late,late+' past due'); })();
     }
     // Public refresh hook — any page can call window.rrgRefreshCounts() after it changes
     // something the toolbar counts (create/complete a task, clear a lead, etc.) to repaint the
