@@ -79,7 +79,7 @@ function load(){
 function render(){
   var s=ST.settings, list=(ST.lists||[]).filter(function(l){return l.id===s.listId;})[0];
   var h='<div class="cctop"><div><h1>Texas Chit Chat</h1><div class="sub">The weekly restaurant ticket for owners and operators. Each issue is drafted from the week’s verified industry research, rewritten for operators, then a person reviews it here. Approving turns it into an Email Studio campaign you send or schedule.</div></div>'
-    +'<div style="display:flex;gap:8px"><button class="btn ghost" id="curBtn" type="button" title="Open the newest issue with its live preview">👁 Current issue</button><button class="btn" id="newBtn" type="button">+ New issue</button></div></div>';
+    +'<div style="display:flex;gap:8px"><button class="btn ghost" id="curBtn" type="button" title="Open the newest issue with its live preview">'+((ST.issues||[]).length?'👁 Current issue':'👁 Preview layout')+'</button><button class="btn" id="newBtn" type="button">+ New issue</button></div></div>';
   h+='<div class="status"><span>List: <b>'+(list?esc(list.name)+' · '+list.members+' subscribers':'none picked')+'</b></span><span>Sending: <b>'+(ST.sending?'ready':'not configured')+'</b></span><span>AI: <b>'+(ST.aiReady?'ready':'not set up')+'</b></span><span>Signup page: <a href="'+esc(ST.signupUrl)+'" target="_blank" rel="noopener">'+esc(ST.signupUrl)+'</a> <button class="copy" type="button" id="cpy">Copy</button></span></div>';
   h+='<div class="card"><h2>Issues</h2><div class="ch-sub">Drafts stay private. Approved issues get a public web page at /chitchat/&lt;number&gt;.</div>';
   if(!ST.issues.length) h+='<div class="note">No issues yet. Click <b>+ New issue</b> to draft this week’s.</div>';
@@ -103,15 +103,15 @@ function render(){
     +'<div class="savebar"><button class="btn" type="button" id="sSave">Save settings</button><span class="msg" id="sMsg"></span></div>'
     +'<div class="note">Until texaschitchat.com is verified for sending, leave From email blank — issues send from the Lavano default. RRG’s ad must carry RRG’s licensed name (Texas real estate advertising rules).</div></div>';
   $('root').innerHTML=h;
-  $('newBtn').onclick=newIssue; var _cb=$('curBtn'); if(_cb){ _cb.disabled=!(ST.issues||[]).length; _cb.onclick=function(){ var x=(ST.issues||[])[0]; if(x) openIssue(x.id); }; } $('sSave').onclick=saveSettings; $('mkList').onclick=function(){ saveSettings(true); };
+  $('newBtn').onclick=newIssue; var _cb=$('curBtn'); if(_cb){ _cb.onclick=function(){ var x=(ST.issues||[])[0]; if(x) openIssue(x.id); else openSample(); }; } $('sSave').onclick=saveSettings; $('mkList').onclick=function(){ saveSettings(true); };
   $('cpy').onclick=function(){ try{ navigator.clipboard.writeText(ST.signupUrl); this.textContent='Copied'; }catch(e){} };
   document.querySelectorAll('[data-open]').forEach(function(b){ b.onclick=function(){ openIssue(b.getAttribute('data-open')); }; });
-  if(CUR) paintEditor();
+  if(CUR) paintEditor(); else if(SAMPLE) openSample();
 }
 function newIssue(){ var b=$('newBtn'); b.disabled=true; var W=window.rrgAiWork; if(W) W.show('Researching this week’s Texas restaurant news and drafting the issue — about a minute…');
   post('/api/admin/chitchat/draft',{}).then(function(j){ b.disabled=false; if(W) W.hide(); if(j&&j.ok){ CUR=j.issue; load(); } else { if(window.rrgToast) rrgToast((j&&j.error)||'Could not draft.'); else alert((j&&j.error)||'Could not draft.'); } }).catch(function(){ b.disabled=false; if(W) W.hide(); });
 }
-function openIssue(id){ fetch('/api/admin/chitchat/issues/'+encodeURIComponent(id),{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ CUR=j.issue; paintEditor(); var e=$('editor'); if(e) e.scrollIntoView({behavior:'smooth'}); } }); }
+function openIssue(id){ SAMPLE=false; fetch('/api/admin/chitchat/issues/'+encodeURIComponent(id),{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ CUR=j.issue; paintEditor(); var e=$('editor'); if(e) e.scrollIntoView({behavior:'smooth'}); } }); }
 function itemHtml(k,it,i){ var off=it.include===false;
   return '<div class="item'+(off?' off':'')+'"><div class="row"><label class="check"><input type="checkbox" data-k="'+k+'" data-i="'+i+'" data-f="include"'+(off?'':' checked')+'> Include</label><label class="check"><input type="checkbox" data-k="'+k+'" data-i="'+i+'" data-f="featured"'+(it.featured?' checked':'')+'> Featured story</label>'+(it.market?'<span class="mkt">'+esc(it.market)+'</span>':'')+'<span class="src"><a href="'+esc(it.url)+'" target="_blank" rel="noopener">'+esc(it.source||'source')+' ↗</a></span></div>'
     +'<div class="grid"><div class="fld full"><label class="lbl">Headline</label><input type="text" data-k="'+k+'" data-i="'+i+'" data-f="headline" value="'+esc(it.headline)+'"></div>'
@@ -141,19 +141,24 @@ function paintEditor(){ var x=CUR, D=x.data||{}, locked=x.status==='sent'; var e
   $('eTest').onclick=function(){ var b=this; b.disabled=true; (locked?Promise.resolve(true):saveIssue()).then(function(ok){ if(!ok){ b.disabled=false; return; } msg('eMsg','Sending test…'); post('/api/admin/chitchat/issues/'+encodeURIComponent(x.id)+'/test',{email:$('eTestTo').value.trim()}).then(function(j){ b.disabled=false; if(j&&j.ok) msg('eMsg','Test sent to '+j.to+' ✓',true); else msg('eMsg',(j&&j.error)||'Could not send.',false); }).catch(function(){ b.disabled=false; msg('eMsg','Could not reach the server.',false); }); }); };
   if($('eDel')) $('eDel').onclick=delIssue;
 }
+// No issue drafted yet: show the layout with placeholder stories; it still follows the Settings fields as you type.
+var SAMPLE=false;
+function openSample(){ SAMPLE=true; CUR=null; var e=$('editor'); if(!e) return;
+  e.innerHTML='<div class="card"><h2>Layout preview <span class="pill draft">sample</span></h2><div class="ch-sub">Placeholder stories so you can see the masthead, sections, sponsor slot and RRG ad. Change the Settings below and watch it update. Click <b>+ New issue</b> to draft a real one.</div><div class="ccpv" style="position:static;margin-top:6px"><div class="ccpvhd">Live preview <span class="st" id="pvState"></span><span class="r"><button type="button" class="pvtab on" data-pv="desk">Desktop</button><button type="button" class="pvtab" data-pv="mobile">Phone</button><button type="button" class="pvtab" id="pvPop" title="Open in a new tab">↗</button></span></div><iframe id="pvFrame" title="Live preview" style="height:75vh"></iframe></div></div>';
+  livePreview(true); e.scrollIntoView({behavior:'smooth'}); }
 // ---- Live preview: re-renders the issue from the form (and the unsaved settings) as you type — nothing is saved ----
 var _pvT=null, _pvSeq=0;
 function collectSettings(){ if(!$('sFromName')) return null; return { fromName:$('sFromName').value, metros:$('sMetros').value, publisher:$('sPub').value, address:$('sAddr').value,
   sponsor:{on:$('spOn').checked,label:$('spLabel').value,line:$('spLine').value,url:$('spUrl').value,cta:$('spCta').value}, rrg:{on:$('rgOn').checked,headline:$('rgHead').value,line:$('rgLine').value,url:$('rgUrl').value,cta:$('rgCta').value} }; }
-function livePreview(now){ if(!CUR||!$('pvFrame')) return; clearTimeout(_pvT); var st=$('pvState'); if(st){ st.style.color='#8a93a3'; st.textContent='updating…'; }
+function livePreview(now){ if((!CUR&&!SAMPLE)||!$('pvFrame')) return; clearTimeout(_pvT); var st=$('pvState'); if(st){ st.style.color='#8a93a3'; st.textContent='updating…'; }
   _pvT=setTimeout(function(){ var seq=++_pvSeq; var fr=$('pvFrame'); var y=0; try{ y=fr.contentWindow.scrollY||0; }catch(e){}
-    fetch('/api/admin/chitchat/issues/'+encodeURIComponent(CUR.id)+'/preview-live',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({data:collect(),settings:collectSettings()})})
+    fetch('/api/admin/chitchat/issues/'+encodeURIComponent(CUR?CUR.id:'sample')+'/preview-live',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({data:CUR?collect():null,settings:collectSettings()})})
       .then(function(r){ return r.text(); }).then(function(html){ if(seq!==_pvSeq) return; fr.onload=function(){ try{ fr.contentWindow.scrollTo(0,y); }catch(e){} }; fr.srcdoc=html; var s2=$('pvState'); if(s2){ s2.style.color=''; s2.textContent='up to date'; } })
       .catch(function(){ var s3=$('pvState'); if(s3){ s3.style.color='#C0261B'; s3.textContent='couldn’t refresh'; } }); }, now?0:600); }
-document.addEventListener('input',function(e){ if(CUR&&e.target&&e.target.closest&&(e.target.closest('#editor')||e.target.closest('.card'))&&!e.target.closest('.ccpv')) livePreview(); });
-document.addEventListener('change',function(e){ if(CUR&&e.target&&e.target.closest&&!e.target.closest('.ccpv')) livePreview(); });
+document.addEventListener('input',function(e){ if((CUR||SAMPLE)&&e.target&&e.target.closest&&(e.target.closest('#editor')||e.target.closest('.card'))&&!e.target.closest('.ccpv')) livePreview(); });
+document.addEventListener('change',function(e){ if((CUR||SAMPLE)&&e.target&&e.target.closest&&!e.target.closest('.ccpv')) livePreview(); });
 document.addEventListener('click',function(e){ var t=e.target.closest&&e.target.closest('[data-pv]'); if(t){ document.querySelectorAll('[data-pv]').forEach(function(b){ b.classList.toggle('on',b===t); }); var fr=$('pvFrame'); if(fr) fr.classList.toggle('mobile',t.getAttribute('data-pv')==='mobile'); return; }
-  if(e.target.closest&&e.target.closest('#pvPop')&&CUR){ var fr2=$('pvFrame'); var w=window.open('','_blank'); if(w&&fr2){ w.document.open(); w.document.write(fr2.srcdoc||''); w.document.close(); } } });
+  if(e.target.closest&&e.target.closest('#pvPop')&&(CUR||SAMPLE)){ var fr2=$('pvFrame'); var w=window.open('','_blank'); if(w&&fr2){ w.document.open(); w.document.write(fr2.srcdoc||''); w.document.close(); } } });
 function collect(){ var D=JSON.parse(JSON.stringify(CUR.data||{})); D.subject=$('eSubj').value; D.lede=$('eLede').value;
   $('editor').querySelectorAll('[data-k]').forEach(function(el){ var k=el.getAttribute('data-k'), i=+el.getAttribute('data-i'), f=el.getAttribute('data-f'); if(!D[k]||!D[k][i]) return; D[k][i][f]=(el.type==='checkbox')?el.checked:el.value; });
   return D; }

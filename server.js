@@ -23923,7 +23923,7 @@ app.post('/api/sign/:token/decline', express.json(), (req, res) => {
 app.post('/api/sign/:token', express.json({ limit: '8mb' }), async (req, res) => {
   const all = loadAgreements(); const _f = findAgrByToken(all, req.params.token); const a = _f ? _f.a : null;
   if (!a) return res.status(404).json({ ok: false, error: 'Invalid signing link.' });
-  if (_f.signer && Array.isArray(a.pdfFields) && a.pdfFields.length) return submitAdvancedSign(req, res, all, a, _f.signer);
+  if (_f.signer && Array.isArray(a.pdfFields) && a.pdfFields.length) { req._agrPages = await agrPageCount(a); return submitAdvancedSign(req, res, all, a, _f.signer); }
   if (['signed','awaiting_countersign','executed'].indexOf(a.signStatus) >= 0) return res.status(400).json({ ok: false, error: 'This agreement has already been signed.' });
   const b = req.body || {};
   const sig = String(b.signature || '');
@@ -24037,7 +24037,7 @@ app.post('/api/admin/agreement-templates', requireAdmin, express.json(), (req, r
   t.updatedAt = now; saveTemplates(all);
   res.json({ ok: true, template: templateBrief(t) });
 });
-app.post('/api/admin/agreement-templates/:id/file', requireAdmin, express.json({ limit: '28mb' }), (req, res) => {
+app.post('/api/admin/agreement-templates/:id/file', requireAdmin, express.json({ limit: '28mb' }), async (req, res) => {
   const all = loadTemplates(); const t = all.find(x => x.id === req.params.id);
   if (!t) return res.status(404).json({ ok: false, error: 'Template not found.' });
   const b = req.body || {}; const dataB64 = String(b.dataB64 || '').replace(/^data:[^,]*,/, '');
@@ -24047,7 +24047,14 @@ app.post('/api/admin/agreement-templates/:id/file', requireAdmin, express.json({
   try { if (!fs.existsSync(AGREEMENT_TPL_DIR)) fs.mkdirSync(AGREEMENT_TPL_DIR, { recursive: true }); if (t.fileExt && t.fileExt !== ext) { try { binDel(path.join(AGREEMENT_TPL_DIR, t.id + '.' + t.fileExt)); } catch (e) {} } binWrite(path.join(AGREEMENT_TPL_DIR, t.id + '.' + ext), buf); }
   catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the file.' }); }
   t.fileExt = ext; t.fileName = String(b.filename || ('template.' + ext)).slice(0, 200); t.updatedAt = new Date().toISOString();
-  saveTemplates(all); res.json({ ok: true, template: templateBrief(t) });
+  // A shorter replacement PDF would strand fields on pages that no longer exist (unseeable, and a
+  // required one blocks signers from finishing). Drop them and report how many were removed.
+  let _dropped = 0;
+  if (ext === 'pdf' && Array.isArray(t.pdfFields) && t.pdfFields.length) {
+    try { const { PDFDocument } = require('pdf-lib'); const n = (await PDFDocument.load(buf, { ignoreEncryption: true })).getPageCount();
+      if (n > 0) { const keep = t.pdfFields.filter(f => (parseInt(f.page, 10) || 0) < n); _dropped = t.pdfFields.length - keep.length; t.pdfFields = keep; } } catch (e) {}
+  }
+  saveTemplates(all); res.json({ ok: true, template: templateBrief(t), droppedFields: _dropped });
 });
 app.get('/api/agreement-templates/:id/file', (req, res) => {
   const t = loadTemplates().find(x => x.id === req.params.id);
@@ -24318,12 +24325,26 @@ app.post('/api/agreements/:id/send-adv', express.json(), async (req, res) => {
  } catch (e) { console.error('send-adv fatal:', e && (e.stack || e.message)); if (!res.headersSent) res.status(500).json({ ok: false, error: 'Could not send: ' + String((e && e.message) || e) }); }
 });
 
-app.get('/api/sign/:token/data', (req, res) => {
+// Fields placed on pages the document doesn't have (left over when a template's PDF was swapped for a
+// shorter one) can never be seen or filled — a required one would block "Finish" forever. Ignore them.
+var _AGR_PG = {};
+async function agrPageCount(a) {
+  try {
+    const p = path.join(AGREEMENT_DOC_DIR, a.id + '.pdf'); const st = fs.statSync(p); const k = a.id + ':' + st.mtimeMs;
+    if (_AGR_PG[k]) return _AGR_PG[k];
+    const { PDFDocument } = require('pdf-lib');
+    const d = await PDFDocument.load(fs.readFileSync(p), { ignoreEncryption: true });
+    const n = d.getPageCount(); _AGR_PG[k] = n; return n;
+  } catch (e) { return 0; }
+}
+function agrLiveFields(a, n) { const fl = a.pdfFields || []; return n > 0 ? fl.filter(f => (parseInt(f.page, 10) || 0) < n) : fl; }
+app.get('/api/sign/:token/data', async (req, res) => {
   const found = findAgrByToken(loadAgreements(), req.params.token);
   if (!found || !found.signer) return res.status(404).json({ ok: false, error: 'Invalid link.' });
   const a = found.a, me = found.signer;
   const anySigned = (a.signers || []).some(s => s.status === 'signed');
-  const fields = (a.pdfFields || []).map(f => {
+  const _npg = await agrPageCount(a);
+  const fields = agrLiveFields(a, _npg).map(f => {
     const isSig = (f.type === 'signature' || f.type === 'initials');
     const signerObj = (a.signers || []).find(s => s.order === f.signer);
     const signerSigned = !!(signerObj && signerObj.status === 'signed');
@@ -24538,7 +24559,7 @@ function submitAdvancedSign(req, res, all, a, me) {
   const b = req.body || {};
   const values = (b.values && typeof b.values === 'object') ? b.values : {};
   const sigs = (b.sigs && typeof b.sigs === 'object') ? b.sigs : {};
-  const myFields = (a.pdfFields || []).filter(f => f.signer === me.order);
+  const myFields = agrLiveFields(a, req._agrPages || 0).filter(f => f.signer === me.order);
   // Security: never accept edits to rep-locked details, or — once another party has already
   // signed — to any content field. A signer may only add their own signature/initials.
   const _anyOtherSigned = (a.signers || []).some(s => s.order !== me.order && s.status === 'signed');
@@ -24578,9 +24599,10 @@ function advancedSignPage(a, me, req) {
   const head = `<div class="kick">Signature Request</div><h1>${esc(label)}</h1><div class="sub">${esc(me.label || ('Signer ' + me.order))}${me.name ? (' &middot; ' + esc(me.name)) : ''} &middot; Provided by Restaurant Realty Group</div>`;
   if (me.status === 'signed') return roomShell(label + ' - Signed', { head, body: `<div class="card"><div style="padding:24px"><b>You have already signed this ${esc(label)}.</b><div style="color:#6b7488;margin-top:8px">Thank you - no further action is needed.</div></div></div>` });
   const body = `<div class="card"><div style="padding:14px 16px"><div id="advmsg" style="text-align:center;color:#6b7488;font-size:14px;padding:44px 20px">Loading your document&hellip;</div><div id="pages"></div>
+  <div id="progbar" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:60;background:#fff;border-top:1px solid #e6e9f0;box-shadow:0 -6px 18px rgba(10,20,50,.10);padding:10px max(14px,calc((100vw - 760px)/2));align-items:center;gap:10px"><span id="progtxt" style="flex:1;font-size:13.5px;font-weight:700;color:#000E31"></span><button id="nextBtn" style="background:#DA2B1F;color:#fff;border:none;border-radius:9px;padding:10px 16px;font:inherit;font-size:14px;font-weight:700;cursor:pointer">Next &rarr;</button></div>
   <div id="actbar" style="display:none"><button id="submitBtn" style="width:100%;margin-top:18px;background:#000E31;color:#fff;border:none;border-radius:10px;padding:14px;font:inherit;font-size:15px;font-weight:700;cursor:pointer">Finish &amp; submit</button>
   <button id="declineBtn" style="width:100%;margin-top:12px;background:none;color:#DA2B1F;border:none;font:inherit;font-size:13px;font-weight:700;cursor:pointer">Decline to sign</button></div>
-  <div id="err" style="text-align:center;color:#DA2B1F;font-size:13px;margin-top:10px"></div></div></div>
+  <div id="err" style="text-align:center;color:#DA2B1F;font-size:13px;margin-top:10px"></div><div style="height:70px"></div></div></div>
   <div id="sigmodal" style="display:none;position:fixed;inset:0;background:rgba(6,16,41,.55);z-index:99;align-items:center;justify-content:center;padding:14px">
     <div style="background:#fff;border-radius:14px;padding:18px;width:min(460px,94vw)"><div style="font-weight:800;color:#000E31;margin-bottom:8px" id="sigmodaltitle">Draw your signature</div>
     <div style="border:1px solid #cfd6e2;border-radius:9px;overflow:hidden"><canvas id="mpad" style="width:100%;height:180px;touch-action:none;display:block"></canvas></div>
@@ -24603,7 +24625,9 @@ function advancedSignPage(a, me, req) {
   mpad.addEventListener('touchmove',function(e){if(!mdraw)return;var q=mpos(e);mctx.beginPath();mctx.moveTo(mlast.x,mlast.y);mctx.lineTo(q.x,q.y);mctx.stroke();mlast=q;mdirty=true;e.preventDefault();},{passive:false});
   document.getElementById('mclear').onclick=function(){mctx.clearRect(0,0,mpad.width,mpad.height);mdirty=false;};
   document.getElementById('mcancel').onclick=function(){document.getElementById('sigmodal').style.display='none';};
-  document.getElementById('mapply').onclick=function(){ if(!mdirty){document.getElementById('sigmodal').style.display='none';return;} SIGS[curField.id]=mpad.toDataURL('image/png'); document.getElementById('sigmodal').style.display='none'; renderField(curField); };
+  document.getElementById('mapply').onclick=function(){ if(!mdirty){document.getElementById('sigmodal').style.display='none';return;} var _png=mpad.toDataURL('image/png'); SIGS[curField.id]=_png; document.getElementById('sigmodal').style.display='none'; renderField(curField);
+    // Adopt once, apply everywhere: every other empty spot of the same kind (signature / initials) for this signer gets it too.
+    (DATA.fields||[]).forEach(function(g){ if(g.mine&&g.type===curField.type&&g.id!==curField.id&&!SIGS[g.id]){ SIGS[g.id]=_png; renderField(g); } }); updateProgress(); };
   function openPad(f){ curField=f; document.getElementById('sigmodaltitle').textContent=(f.type==='initials'?'Draw your initials':'Draw your signature'); document.getElementById('sigmodal').style.display='flex'; setTimeout(function(){fitpad();mctx.clearRect(0,0,mpad.width,mpad.height);mdirty=false;},30); }
 
   function renderField(f){
@@ -24620,6 +24644,13 @@ function advancedSignPage(a, me, req) {
     else { var _tall=(f.type!=='date' && box.offsetHeight>=34); var inp; if(_tall){ inp=document.createElement('textarea'); inp.style.resize='none'; inp.style.height='100%'; inp.style.lineHeight='1.25'; inp.style.overflow='auto'; inp.style.whiteSpace='pre-wrap'; } else { inp=document.createElement('input'); inp.type=(f.type==='date'?'date':'text'); inp.style.height='100%'; } inp.value=(VALS[f.id]!=null?VALS[f.id]:(f.value||'')); VALS[f.id]=inp.value; inp.style.width='100%'; inp.style.border='none'; inp.style.background='transparent'; inp.style.font='inherit'; inp.style.fontSize='12px'; inp.style.padding='2px 3px'; inp.style.color='#0b1a3a'; inp.style.boxSizing='border-box'; if(_tall){ inp.style.verticalAlign='top'; box.style.alignItems='flex-start'; } box.style.cursor='text'; inp.oninput=function(){VALS[f.id]=inp.value;}; box.appendChild(inp); }
   }
 
+  function _isDone(f){ return (f.type==='signature'||f.type==='initials')?!!SIGS[f.id]:(f.type==='checkbox'?(String(VALS[f.id]||'')==='1'):!!String(VALS[f.id]||'').trim()); }
+  function _todo(){ return (DATA&&DATA.fields||[]).filter(function(f){ return f.mine&&f.required&&!_isDone(f); }).sort(function(a,b){ return (a.page-b.page)||(a.y-b.y); }); }
+  function updateProgress(){ if(!DATA) return; var req=(DATA.fields||[]).filter(function(f){return f.mine&&f.required;}); var left=_todo(); var pb=document.getElementById('progbar'), pt=document.getElementById('progtxt'), nb=document.getElementById('nextBtn'); if(!pb) return;
+    pb.style.display=req.length?'flex':'none';
+    if(!left.length){ pt.innerHTML='&#10003; All '+req.length+' required spot'+(req.length===1?'':'s')+' done — click <b>Finish &amp; submit</b>'; nb.textContent='Finish ↓'; nb.style.background='#1f8a5b'; nb.onclick=function(){ var s=document.getElementById('submitBtn'); if(s){ s.scrollIntoView({behavior:'smooth',block:'center'}); } }; }
+    else { pt.textContent=(req.length-left.length)+' of '+req.length+' done · next: '+(left[0].label||'Signature')+' on page '+(left[0].page+1); nb.textContent='Next →'; nb.style.background='#DA2B1F'; nb.onclick=function(){ var f=_todo()[0]; if(!f) return; var b=document.querySelector('[data-fid="'+f.id+'"]'); if(b){ b.scrollIntoView({behavior:'smooth',block:'center'}); b.style.boxShadow='0 0 0 3px rgba(218,43,31,.55)'; setTimeout(function(){ b.style.boxShadow=''; },2000); } if(f.type==='signature'||f.type==='initials'){ setTimeout(function(){ openPad(f); },450); } }; } }
+  document.addEventListener('input',function(){ setTimeout(updateProgress,0); }); document.addEventListener('change',function(){ setTimeout(updateProgress,0); });
   function renderPdf(){
     var pagesEl=document.getElementById('pages'); pagesEl.innerHTML='';
     if(!window.pdfjsLib){ document.getElementById('advmsg').innerHTML='<b style="color:#b23a2c">The document viewer could not load.</b> Please refresh the page, or contact your RRG representative.'; return; }
@@ -24640,15 +24671,16 @@ function advancedSignPage(a, me, req) {
           ov.appendChild(el); renderField(f);
         });
         return page.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;
-      }); }); })(i); }
-      return chain.then(function(){ var _ab=document.getElementById("actbar"); if(_ab) _ab.style.display=""; var _am=document.getElementById("advmsg"); if(_am) _am.style.display="none"; });
+      }).catch(function(){}); }); })(i); }
+      return chain.then(function(){ var _ab=document.getElementById("actbar"); if(_ab) _ab.style.display=""; var _am=document.getElementById("advmsg"); if(_am) _am.style.display="none"; updateProgress(); });
     }).catch(function(){ document.getElementById('advmsg').textContent='Could not load the document.'; });
   }
 
   fetch('/api/sign/'+encodeURIComponent(TOKEN)+'/data',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok){document.getElementById('advmsg').textContent='This link is no longer valid.';return;}
     DATA=j; document.getElementById('advmsg').textContent=j.notes||'Fill your fields, draw your signature, then submit.';
-    renderPdf();
+    var _ab0=document.getElementById('actbar'); if(_ab0) _ab0.style.display='';
+    renderPdf(); updateProgress();
   }).catch(function(){document.getElementById('advmsg').textContent='Could not reach the server.';});
 
   document.getElementById('submitBtn').onclick=function(){
@@ -24656,7 +24688,7 @@ function advancedSignPage(a, me, req) {
     var miss=null, missId=null;
     (DATA.fields||[]).filter(function(f){return f.mine&&f.required;}).forEach(function(f){
       var empty=(f.type==='signature'||f.type==='initials')?!SIGS[f.id]:(f.type==='checkbox'?(String(VALS[f.id]||'')!=='1'):!String(VALS[f.id]||'').trim());
-      if(empty&&!missId){ miss=f.label||((f.type==='signature'||f.type==='initials')?'Signature':'a field'); missId=f.id; }
+      if(empty&&!missId){ miss=(f.label||((f.type==='signature'||f.type==='initials')?'Signature':'a field'))+' on page '+(f.page+1); missId=f.id; }
     });
     if(miss){ err.textContent='Please complete: '+miss; var _mb=document.querySelector('[data-fid="'+missId+'"]'); if(_mb){ try{ _mb.scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){} _mb.style.boxShadow='0 0 0 3px rgba(218,43,31,.55)'; setTimeout(function(){ _mb.style.boxShadow=''; },2400); } return; }
     var btn=document.getElementById('submitBtn'); btn.disabled=true; btn.textContent='Submitting...';
@@ -25395,9 +25427,16 @@ app.post('/api/admin/chitchat/issues/:id', requireAdmin, express.json({ limit: '
   x.data = D; if (x.status === 'approved' && !x.campaignId) x.status = 'draft'; x.editedAt = new Date().toISOString(); ccSave(all); res.json({ ok: true, issue: x }); });
 app.post('/api/admin/chitchat/issues/:id/delete', requireAdmin, (req, res) => { const all = ccLoad(); const i = all.findIndex(x => x.id === req.params.id); if (i < 0) return res.status(404).json({ ok: false, error: 'Not found.' });
   if (all[i].campaignId) return res.status(400).json({ ok: false, error: 'This issue has an Email Studio campaign — archive it there instead.' }); all.splice(i, 1); ccSave(all); res.json({ ok: true }); });
+const CC_SAMPLE_DATA = { subject: 'Sample issue — layout preview', lede: '*** FIRE *** This is placeholder copy so you can see the layout, ads and masthead. Draft a real issue with + New issue.',
+  awards: [{ include: true, featured: true, headline: 'Sample: Local chef named a James Beard semifinalist', body: 'Placeholder story text showing how a featured award item reads.', mod: 'a sample red mod line', name: 'Sample Bistro', where: 'San Antonio', market: 'San Antonio', source: 'Example', url: '' }],
+  openings: [{ include: true, featured: true, headline: 'Sample: New taqueria opens on Broadway', body: 'Placeholder story text for an opening.', mod: '', name: 'Sample Taqueria', where: 'Austin', market: 'Austin', source: 'Example', url: '' }, { include: true, featured: false, headline: 'Sample: Coffee bar adds a second location', body: '', mod: '', name: 'Sample Coffee', where: 'Houston', market: 'Houston', source: '', url: '' }],
+  closings: [{ include: true, featured: true, headline: 'Sample: Longtime diner closes after 30 years', body: 'Placeholder story text for a closing.', mod: 'second-gen space hits the market', name: 'Sample Diner', where: 'DFW', market: 'DFW', source: 'Example', url: '' }],
+  realestate: [{ include: true, featured: true, headline: 'Sample: Former steakhouse space leased', body: 'Placeholder story text for a real estate item.', mod: '', name: 'Sample Space', where: 'San Antonio', market: 'San Antonio', source: '', url: '' }],
+  moves: [], events: [{ include: true, date: new Date(Date.now() + 14 * 864e5).toISOString().slice(0, 10), name: 'Sample: Texas Restaurant Association mixer', where: 'San Antonio', url: '' }] };
 // Live preview while editing: renders the issue from the unsaved form (and unsaved settings) without saving anything.
 app.post('/api/admin/chitchat/issues/:id/preview-live', requireAdmin, express.json({ limit: '1mb' }), (req, res) => {
-  const x = ccLoad().find(i => i.id === req.params.id); if (!x) return res.status(404).send('Not found.');
+  // "sample" = no issue drafted yet — show the layout with placeholder stories so settings changes can still be seen.
+  const x = req.params.id === 'sample' ? { id: 'sample', n: 0, date: new Date().toISOString().slice(0, 10), status: 'draft', data: CC_SAMPLE_DATA } : ccLoad().find(i => i.id === req.params.id); if (!x) return res.status(404).send('Not found.');
   const b = req.body || {}; const iss = Object.assign({}, x, { data: (b.data && typeof b.data === 'object') ? b.data : x.data });
   let C = effChitChat();
   if (b.settings && typeof b.settings === 'object') { const st = b.settings; const S = (v, n) => String(v == null ? '' : v).slice(0, n);
