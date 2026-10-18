@@ -9982,7 +9982,7 @@ ${SITE_CSS}
 <div class="hero${heroImgSafe ? ' hasimg' : ''}"><div class="wrap"><div class="${heroGridClass}">
   <div>
     <div class="eyebrow">The Texas Restaurant &amp; Bar Brokers</div>
-    <h1 class="serif">${esc(s.tagline || '')}${s.tagline ? '<sup style="font:400 .24em/0 Arial,sans-serif;vertical-align:.95em;margin-left:3px;letter-spacing:0;opacity:.55">&trade;</sup>' : ''}</h1>
+    <h1 class="serif">${esc(s.tagline || '')}${s.tagline ? '<sup style="font:400 .29em/0 Arial,sans-serif;vertical-align:.79em;margin-left:3px;letter-spacing:0;opacity:.55">&trade;</sup>' : ''}</h1>
     <p class="sub">${esc(s.heroSub || '')}</p>
     <div class="hcta">
       <a class="btn red" href="/site/sell">Sell your restaurant</a>
