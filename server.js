@@ -24326,14 +24326,14 @@ function signerFieldPrefill(a, fld) {
   if (k === 'my_email') return rep.email;
   if (k === 'my_phone') return rep.phone;
   if (k === 'brokerage' || k === 'brokerage_legal') return orgLegalName();
-  if (k === 'date') return new Date().toISOString().slice(0, 10);
+  if (k === 'date') return firmToday();   // firm's local date — UTC rolls to tomorrow after 7 pm Central
   // Fallback: a date field that was placed but never tagged as a "date" autofill still
   // auto-fills today's signing date (editable by the signer), unless its label clearly
   // marks it as a different date — commencement, possession, expiration, etc.
   if (String(fld.type || '').toLowerCase() === 'date') {
     const L = String(fld.label || '').toLowerCase();
     const otherDate = /commenc|possess|expir|renew|\bterm\b|birth|deliver|occup|\bstart\b|\bend\b|closing|\bclose\b|\bdue\b|vacate|move[- ]?in|move[- ]?out|anniversar/;
-    if (!otherDate.test(L)) return new Date().toISOString().slice(0, 10);
+    if (!otherDate.test(L)) return firmToday();
   }
   return '';
 }
