@@ -23498,7 +23498,10 @@ function agreementExpiryTick() {
       if (a.remindExpires && a.remindExpires !== a.expires) { a.remindA = false; a.remindB = false; changed = true; }
       if (a.remindCfg !== cfgKey) { a.remindA = false; a.remindB = false; a.remindCfg = cfgKey; changed = true; }
       a.remindExpires = a.expires;
-      const dd = daysTo(a.expires); if (dd == null || dd < 0) return;
+      const dd = daysTo(a.expires);
+      // Just expired (last 30 days) on a listing → the Protected Party List is due in 10 business days.
+      if (dd != null && dd < 0 && dd >= -30 && a.dealKey && !a.protTaskId && (a.signStatus === 'executed' || a.entryMethod === 'recorded')) { if (!tasks) tasks = loadTasks(); try { agrOpenProtectedListTask(a, null, a.expires, tasks); changed = true; } catch (e) {} }
+      if (dd == null || dd < 0) return;
       const owner = a.createdBy || ''; if (!owner) return;
       const mk = (days, prio) => {
         if (!tasks) tasks = loadTasks();
@@ -23682,7 +23685,7 @@ app.post('/api/agreements', express.json(), (req, res) => {
   if (b.termMonths !== undefined) { const _tm = parseInt(b.termMonths, 10); a.termMonths = (isFinite(_tm) && _tm > 0 && _tm <= 600) ? _tm : 0; if (a.termMonths) a.termYears = 0; }
   if (typeof b.execAuto === 'string') a.execAuto = b.execAuto.slice(0, 40);
   if (typeof b.entryMethod === 'string' && ['sent','recorded','signreturn'].indexOf(b.entryMethod) >= 0 && !a.entryMethod) a.entryMethod = b.entryMethod;
-  if (typeof b.status === 'string' && ['active', 'expired', 'terminated'].indexOf(b.status) >= 0) a.status = b.status;
+  if (typeof b.status === 'string' && ['active', 'expired', 'terminated'].indexOf(b.status) >= 0) { const _wasTerm = a.status === 'terminated'; a.status = b.status; if (b.status === 'terminated' && !_wasTerm) { a.terminatedAt = a.terminatedAt || now; try { agrOpenProtectedListTask(a, req); } catch (e) {} } }
   if (!a.status) a.status = 'active';
   if (typeof b.notes === 'string') a.notes = b.notes.slice(0, 2000);
   if (typeof b.envelopeId === 'string' && /^[0-9A-Fa-f-]{36}$/.test(b.envelopeId) && !a.envelopeId) a.envelopeId = b.envelopeId.toUpperCase();
@@ -23701,6 +23704,77 @@ app.post('/api/agreements', express.json(), (req, res) => {
   saveAgreements(all);
   // No activity is logged when an agreement is merely created — only when it is actually sent or signed.
   res.json({ ok: true, agreement: agreementBrief(a) });
+});
+// ---- Protected Party List (Seller Rep §2.3(c)) ----
+// Everyone the broker put in front of the business during the term: NDA signers, inquiries, tours,
+// offers/LOIs, and data-room access. Built from the listing's own records so the list is
+// documented, not reconstructed from memory, and is ready to deliver within 10 business days.
+function _addBizDays(fromIso, n) { const d = new Date(String(fromIso || new Date().toISOString()).slice(0, 10) + 'T12:00:00Z'); let k = 0; while (k < n) { d.setUTCDate(d.getUTCDate() + 1); const w = d.getUTCDay(); if (w !== 0 && w !== 6) k++; } return d.toISOString().slice(0, 10); }
+function agrProtectedParties(a) {
+  const key = a && a.dealKey; if (!key) return { parties: [], business: '' };
+  const start = String(agrEffective(a) || '').slice(0, 10);
+  const end = String(a.terminatedAt || a.expires || '9999-12-31').slice(0, 10);
+  const inTerm = (iso) => { const d = String(iso || '').slice(0, 10); return !d || ((!start || d >= start) && d <= end); };
+  const ppl = loadPeople(); const byId = {}; ppl.forEach(p => byId[p.id] = p);
+  const byEmail = {}; ppl.forEach(p => { if (p.email) byEmail[String(p.email).toLowerCase()] = p; });
+  const map = {};
+  function add(rec, kind, date, detail) {
+    if (!rec || !inTerm(date)) return;
+    let person = rec.personId ? byId[rec.personId] : null;
+    const email = String(rec.email || (person && person.email) || '').trim().toLowerCase();
+    if (!person && email) person = byEmail[email] || null;
+    const name = String((person && person.name) || rec.name || rec.party || rec.buyer || '').trim();
+    if (!name && !email) return;
+    const k = person ? ('p:' + person.id) : (email ? ('e:' + email) : ('n:' + name.toLowerCase()));
+    const company = String(rec.company || (person && (person.company || (person.companyId && (loadCompanies().find(c => c.id === person.companyId) || {}).name))) || '').trim();
+    const e = map[k] || (map[k] = { name: name, email: email, company: company, phone: String((person && person.phone) || rec.phone || ''), personId: person ? person.id : '', events: [] });
+    if (!e.company && company) e.company = company; if (!e.email && email) e.email = email;
+    e.events.push({ kind: kind, date: String(date || '').slice(0, 10), detail: String(detail || '').slice(0, 120) });
+  }
+  let business = '';
+  try {
+    const ov = loadAssignOverlay()[key] || {};
+    try { const idx = assignmentsIndex(); if (idx[key]) business = assignmentView(idx[key], loadAssignOverlay(), { noBoard: true }).business || ''; } catch (e) {}
+    (ov.ndas || []).forEach(x => add(x, 'NDA', x.date || x.createdAt, x.status || ''));
+    (ov.inquiries || []).forEach(x => add(x, 'Inquiry', x.createdAt, x.source || ''));
+    (ov.tours || []).forEach(x => add(x, 'Tour', x.date || x.createdAt, ''));
+    (ov.offers || []).forEach(x => add(Object.assign({ name: x.buyer }, x), x.type || 'Offer', x.received || x.createdAt, x.amount || ''));
+  } catch (e) {}
+  try {
+    loadRooms().filter(r => r && r.listingKey === key).forEach(r => {
+      const gById = {}; (r.grants || []).forEach(g => { gById[g.id] = g; add(g, 'Data room access', g.createdAt, g.ndaAt ? 'NDA on file' : ''); if (g.ndaAt) add(g, 'NDA', g.ndaAt, 'data room'); });
+      const seen = {}; (r.access || []).forEach(ev => { const g = gById[ev.grantId]; if (g && !seen[g.id]) { seen[g.id] = 1; add(g, 'Data room view', ev.at, ''); } });
+    });
+  } catch (e) {}
+  const order = { 'NDA': 0, 'LOI': 1, 'Offer': 1, 'Tour': 2, 'Data room view': 3, 'Data room access': 4, 'Inquiry': 5 };
+  const parties = Object.keys(map).map(k => { const e = map[k]; e.events.sort((x, y) => String(x.date).localeCompare(String(y.date))); e.first = (e.events[0] || {}).date || ''; e.kinds = Array.from(new Set(e.events.map(v => v.kind))).sort((x, y) => (order[x] ?? 9) - (order[y] ?? 9)); return e; })
+    .sort((x, y) => ((order[x.kinds[0]] ?? 9) - (order[y.kinds[0]] ?? 9)) || String(x.name).localeCompare(String(y.name)));
+  return { parties: parties, business: business, start: start, end: end };
+}
+app.get('/api/agreements/:id/protected-parties', (req, res) => {
+  const a = loadAgreements().find(x => x.id === req.params.id);
+  if (!a) return res.status(404).json({ ok: false, error: 'Agreement not found.' });
+  if (!a.dealKey) return res.json({ ok: true, parties: [], note: 'This agreement is not linked to a listing, so there is nothing to compile.' });
+  const r = agrProtectedParties(a); res.json(Object.assign({ ok: true }, r));
+});
+app.get('/api/agreements/:id/protected-parties/print', (req, res) => {
+  const a = loadAgreements().find(x => x.id === req.params.id);
+  if (!a) return res.status(404).send('Agreement not found.');
+  const r = agrProtectedParties(a);
+  const seller = (a.companyId && (loadCompanies().find(c => c.id === a.companyId) || {}).name) || a.personName || (personById(a.personId) || {}).name || 'Seller';
+  const asOf = String(a.terminatedAt || new Date().toISOString()).slice(0, 10);
+  const fmt = d => { if (!d) return ''; const x = String(d).slice(0, 10).split('-'); return x.length === 3 ? (x[1] + '/' + x[2] + '/' + x[0]) : d; };
+  const rows = r.parties.map((p, i) => '<tr><td>' + (i + 1) + '</td><td><b>' + esc(p.name || p.email) + '</b>' + (p.company ? '<div class="m">' + esc(p.company) + '</div>' : '') + '</td><td>' + esc(p.email || '') + (p.phone ? '<div class="m">' + esc(p.phone) + '</div>' : '') + '</td><td>' + esc(p.kinds.join(', ')) + '</td><td>' + esc(fmt(p.first)) + '</td></tr>').join('');
+  res.set('Content-Type', 'text/html; charset=utf-8').send('<!doctype html><html><head><meta charset="utf-8"><title>Protected Party List — ' + esc(r.business || seller) + '</title><style>'
+    + 'body{font:12px/1.45 Helvetica,Arial,sans-serif;color:#1a2236;max-width:780px;margin:32px auto;padding:0 24px}h1{font-size:18px;margin:0 0 4px;color:#000E31}.sub{color:#5b6476;margin-bottom:18px}'
+    + 'table{width:100%;border-collapse:collapse;margin-top:10px}th{text-align:left;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#5b6476;border-bottom:1.5px solid #000E31;padding:6px 6px}td{border-bottom:1px solid #e3e7ee;padding:7px 6px;vertical-align:top}.m{color:#5b6476;font-size:11px}'
+    + 'p{margin:10px 0}.sig{margin-top:40px;display:flex;gap:40px}.sig div{flex:1;border-top:1px solid #1a2236;padding-top:4px;font-size:11px;color:#5b6476}.bar{margin:0 0 16px}.bar button{font:inherit;padding:7px 14px;border-radius:6px;border:1px solid #000E31;background:#000E31;color:#fff;cursor:pointer}@media print{.bar{display:none}body{margin:0 auto}}'
+    + '</style></head><body><div class="bar"><button onclick="window.print()">Print / Save PDF</button></div>'
+    + '<h1>Protected Party List</h1><div class="sub">' + esc(orgLegalName()) + ' &middot; delivered under Section 2.3(c) of the Exclusive Business Sale Representation Agreement</div>'
+    + '<p><b>Seller:</b> ' + esc(seller) + (r.business ? ' &nbsp;&middot;&nbsp; <b>Business:</b> ' + esc(r.business) : '') + '<br><b>Term:</b> ' + esc(fmt(r.start)) + ' – ' + esc(fmt(String(a.terminatedAt || a.expires || '').slice(0, 10))) + ' &nbsp;&middot;&nbsp; <b>Protection Period:</b> 365 days after expiration or termination<br><b>List date:</b> ' + esc(fmt(asOf)) + '</p>'
+    + '<p>Each party below was introduced to the Business by Broker during the Term, signed an NDA provided by Broker, received information about the Business from Broker, toured, or communicated with Seller through Broker. Each is a Protected Party, together with its Related Parties as defined in Section 2.3(b). This list does not waive Broker’s rights as to any party not listed whose contact with Broker is documented in writing.</p>'
+    + (r.parties.length ? '<table><thead><tr><th>#</th><th>Party</th><th>Contact</th><th>Basis</th><th>First contact</th></tr></thead><tbody>' + rows + '</tbody></table>' : '<p><i>No parties are recorded against this listing.</i></p>')
+    + '<div class="sig"><div>' + esc(orgLegalName()) + ' — by / date</div><div>Received by Seller — by / date</div></div></body></html>');
 });
 // Executed-agreements roll-up — real agreements tied to clients & deals (for the Agreements page).
 app.get('/api/agreements/executed', (req, res) => {
@@ -24429,6 +24503,18 @@ function maybeGoLive(key, req) {
 // due N days out ("Follow up: Bill Bayne — sign the …"). Resend pushes the due date out again; signing or
 // voiding closes it automatically, so nobody chases a client who already signed.
 function _addDaysIso(n) { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); }
+function agrOpenProtectedListTask(a, req, endedOn, tasksArr) {
+  if (!a.dealKey || a.protTaskId) return;
+  const tasks = tasksArr || loadTasks(); const now = new Date().toISOString(); const u = (req && req.user) || {};
+  const ended = endedOn || a.terminatedAt || now;
+  const due = _addBizDays(ended, 10);
+  const who = a.createdBy || u.username || ''; const whoName = a.createdByName || u.name || '';
+  const t = { id: newTaskId(), createdBy: u.username || who, createdByName: u.name || whoName, assignee: who, assigneeName: whoName, createdAt: now, updatedAt: now, status: 'open',
+    title: ('Deliver Protected Party List — ' + (a.name || agreementTypeLabel(a.type))).slice(0, 300),
+    notes: 'Agreement ended ' + String(ended).slice(0, 10) + '. Section 2.3(c) requires the written Protected Party List within 10 business days (by ' + due + '). Open /api/agreements/' + a.id + '/protected-parties/print, review, and send it to the seller. Keep proof of delivery.',
+    due: due + 'T09:00', priority: 'High', type: '', linkType: a.personId ? 'contact' : '', linkId: a.personId || '', linkLabel: a.personName || '', agrId: a.id, remChannels: ['popup'] };
+  tasks.push(t); if (!tasksArr) saveTasks(tasks); a.protTaskId = t.id;
+}
 function agrOpenFollowTask(a, all, req) {
   try {
     const n = parseInt(a.followUpDays, 10) || 0; if (!n || !a.personId) return;
