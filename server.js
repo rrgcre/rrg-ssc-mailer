@@ -25501,6 +25501,77 @@ async function buildChitChatDraft(user) {
   const iss = { id: 'cc_' + Date.now().toString(36), n, status: 'draft', date: firmToday(), createdAt: new Date().toISOString(), by: (user && user.name) || '', briefAt: B.at, diag: _diag, data: D };
   all.push(iss); ccSave(all); return iss;
 }
+// ---- Prep List: food & drink days + big restaurant dates, 3 weeks ahead (fixed calendar, not AI) ----
+// d = fixed day; nth/dow = "nth weekday of month" (dow 0=Sun … 6=Sat, nth -1 = last); easter = offset from Easter Sunday.
+const CC_FOOD_DAYS = [
+  { m: 1, d: 1, n: 'National Bloody Mary Day', a: 'New Year’s Day brunch — Bloody Mary bar' },
+  { m: 2, nth: 2, dow: 0, n: 'Super Bowl Sunday', a: 'Watch party, wing and party-platter preorders' },
+  { m: 2, d: 9, n: 'National Pizza Day', a: 'Pie special or a by-the-slice deal' },
+  { m: 2, d: 14, n: 'Valentine’s Day', a: 'Prix fixe for two — open reservations early' },
+  { m: 2, d: 22, n: 'National Margarita Day', a: 'Margarita flight or happy-hour pricing all day' },
+  { m: 2, nth: 4, dow: 4, n: 'National Chili Day', a: 'Bowl-of-red special or chili add-on' },
+  { m: 3, d: 2, n: 'Texas Independence Day', a: 'Texas-only beer and spirits feature' },
+  { m: 3, d: 14, n: 'Pi Day', a: '$3.14 slice or pie deal' },
+  { m: 3, d: 17, n: 'St. Patrick’s Day', a: 'Green beer, Irish whiskey, extra bar staff' },
+  { m: 3, d: 23, n: 'National Tamale Day', a: 'Tamale special or dozen-to-go preorders' },
+  { m: 4, nth: 1, dow: 4, n: 'National Burrito Day', a: 'Burrito special or loyalty double points' },
+  { m: 4, d: 7, n: 'National Beer Day', a: 'Local tap takeover or pint special' },
+  { m: 4, d: 12, n: 'National Grilled Cheese Day', a: 'Grilled cheese feature or kids’ deal' },
+  { easter: 0, n: 'Easter Sunday', a: 'Brunch reservations — staff up' },
+  { m: 5, d: 5, n: 'Cinco de Mayo', a: 'Patio, margaritas, mariachi — plan staffing and inventory' },
+  { m: 5, nth: 2, dow: 0, n: 'Mother’s Day', a: 'Busiest brunch of the year — book early, set menu' },
+  { m: 5, d: 16, n: 'National Barbecue Day', a: 'Smoked special or BBQ platter' },
+  { m: 5, d: 25, n: 'National Wine Day', a: 'Half-price bottles or a wine flight' },
+  { m: 5, d: 28, n: 'National Hamburger Day', a: 'Burger special or a limited-run burger' },
+  { m: 5, nth: -1, dow: 1, n: 'Memorial Day', a: 'Patio and family-pack specials' },
+  { m: 6, nth: 1, dow: 5, n: 'National Donut Day', a: 'Free or $1 donut with coffee' },
+  { m: 6, nth: 2, dow: 6, n: 'National Rosé Day', a: 'Rosé by the glass or bottle special' },
+  { m: 6, d: 14, n: 'National Bourbon Day', a: 'Bourbon flight or old-fashioned special' },
+  { m: 6, d: 18, n: 'National Sushi Day', a: 'Roll special or omakase night' },
+  { m: 6, d: 19, n: 'Juneteenth', a: 'Community event or local-partner feature' },
+  { m: 6, nth: 3, dow: 0, n: 'Father’s Day', a: 'Steak, BBQ or brunch — book early' },
+  { m: 7, d: 4, n: 'Independence Day', a: 'Patio, BBQ, family packs to go' },
+  { m: 7, d: 6, n: 'National Fried Chicken Day', a: 'Fried chicken special or bucket deal' },
+  { m: 7, d: 13, n: 'National French Fry Day', a: 'Free fries with purchase or loaded-fry feature' },
+  { m: 7, d: 14, n: 'National Mac & Cheese Day', a: 'Mac & cheese side upgrade' },
+  { m: 7, nth: 3, dow: 3, n: 'National Hot Dog Day', a: 'Dog special or a Texas-style dog' },
+  { m: 7, nth: 3, dow: 0, n: 'National Ice Cream Day', a: 'Dessert feature or free scoop with entrée' },
+  { m: 7, d: 24, n: 'National Tequila Day', a: 'Tequila flight or margarita pricing' },
+  { m: 7, d: 29, n: 'National Chicken Wing Day', a: 'Wing deal — pair with game-day crowd' },
+  { m: 8, nth: 1, dow: 5, n: 'International Beer Day', a: 'Pint special or brewery spotlight' },
+  { m: 8, d: 5, n: 'National Oyster Day', a: 'Oyster happy hour' },
+  { m: 8, d: 16, n: 'National Rum Day', a: 'Rum cocktail feature' },
+  { m: 8, d: 18, n: 'National Fajita Day', a: 'Fajita platter for two' },
+  { m: 9, nth: 1, dow: 1, n: 'Labor Day', a: 'Patio and family-pack specials' },
+  { m: 9, d: 16, n: 'Diez y Seis', a: 'Mexican Independence Day — menu and drink feature' },
+  { m: 9, d: 18, n: 'National Cheeseburger Day', a: 'Cheeseburger special' },
+  { m: 9, d: 20, n: 'National Queso Day', a: 'Free queso with entrée or queso flight' },
+  { m: 9, d: 29, n: 'National Coffee Day', a: 'Free or $1 coffee — push breakfast traffic' },
+  { m: 10, d: 4, n: 'National Taco Day', a: 'Taco special — one of the biggest taco days of the year' },
+  { m: 10, d: 31, n: 'Halloween', a: 'Costume night at the bar, family deals early' },
+  { m: 11, d: 2, n: 'Día de los Muertos', a: 'Pan de muerto, seasonal menu, ofrenda display' },
+  { m: 11, d: 3, n: 'National Sandwich Day', a: 'Sandwich special or BOGO' },
+  { m: 11, d: 6, n: 'National Nacho Day', a: 'Happy-hour nacho special' },
+  { m: 11, nth: 4, dow: 3, n: 'Thanksgiving Eve', a: 'One of the busiest bar nights of the year — staff up' },
+  { m: 11, nth: 4, dow: 4, n: 'Thanksgiving', a: 'To-go dinners and pies — take preorders now' },
+  { m: 11, d: 23, n: 'National Espresso Day', a: 'Espresso martini or coffee feature' },
+  { m: 12, d: 5, n: 'Repeal Day', a: 'Prohibition-era cocktail night' },
+  { m: 12, d: 20, n: 'National Sangria Day', a: 'Pitcher special' },
+  { m: 12, d: 30, n: 'National Bacon Day', a: 'Bacon add-on or brunch feature' },
+  { m: 12, d: 31, n: 'New Year’s Eve', a: 'Prix fixe, late seating, champagne — book now' },
+];
+function _ccEaster(y) { const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451), mo = Math.floor((h + l - 7 * m + 114) / 31), da = ((h + l - 7 * m + 114) % 31) + 1; return new Date(Date.UTC(y, mo - 1, da)); }
+function _ccDayOf(x, y) {
+  if (x.easter != null) { const e = _ccEaster(y); e.setUTCDate(e.getUTCDate() + x.easter); return e; }
+  if (x.d) return new Date(Date.UTC(y, x.m - 1, x.d));
+  if (x.nth > 0) { const f = new Date(Date.UTC(y, x.m - 1, 1)); const off = (x.dow - f.getUTCDay() + 7) % 7; return new Date(Date.UTC(y, x.m - 1, 1 + off + 7 * (x.nth - 1))); }
+  const l = new Date(Date.UTC(y, x.m, 0)); const back = (l.getUTCDay() - x.dow + 7) % 7; return new Date(Date.UTC(y, x.m - 1, l.getUTCDate() - back));
+}
+function ccPrepList(fromIso, days) {
+  const from = new Date(String(fromIso || new Date().toISOString()).slice(0, 10) + 'T00:00:00Z'); const to = new Date(from); to.setUTCDate(to.getUTCDate() + (days || 21));
+  const out = []; [from.getUTCFullYear(), from.getUTCFullYear() + 1].forEach(y => CC_FOOD_DAYS.forEach(x => { const d = _ccDayOf(x, y); if (d > from && d <= to) out.push({ date: d.toISOString().slice(0, 10), name: x.n, angle: x.a }); }));
+  return out.sort((p, q) => p.date.localeCompare(q.date));
+}
 function chitChatHtml(iss, opt) {
   opt = opt || {}; const C = opt.C || effChitChat(); const D = Object.assign({}, iss.data || {});
   { const _ban = o => CC_EXCLUDE_RE.test([o && o.name, o && o.headline, o && o.body, o && o.url].filter(Boolean).join(' ')); Object.keys(D).forEach(k => { if (Array.isArray(D[k])) D[k] = D[k].filter(x => !(x && typeof x === 'object' && _ban(x))); }); if (Array.isArray(D.events)) D.events = D.events.filter(e => !CC_BROKER_EVENT_RE.test([e && e.name, e && e.url].filter(Boolean).join(' '))); }
@@ -25515,25 +25586,27 @@ function chitChatHtml(iss, opt) {
   const also = (lbl, xs) => '<tr><td style="padding:0 0 4px;font-family:' + SANS + ';font-size:14px;line-height:1.7;color:' + BODY + '">' + lbl + ': ' + xs.map(x => '<a href="' + E(x.url) + '" style="color:' + INK + ';font-weight:bold;text-decoration:none">' + E(x.name || x.headline) + '</a>' + (x.where ? (' (' + E(x.where) + ')') : '')).join(' &middot; ') + '</td></tr>';
   const ALSO = { closings: 'Also off the line', openings: 'Also coming', awards: 'Also honored', realestate: 'Also on the market', moves: 'Also' };
   let rows = '', count = 0;
-  if (D.lede) rows += '<tr><td style="padding:0 0 6px;font-family:' + MONO + ';font-size:11px;font-weight:bold;letter-spacing:3px;color:' + RED + '">*** FIRE ***</td></tr><tr><td style="padding:0 0 4px;font-family:' + SERIF + ';font-size:23px;line-height:1.35;font-weight:bold;color:' + INK + '">' + E(D.lede) + '</td></tr>';
+  if (D.lede) rows += '<tr><td style="padding:0 0 6px;font-family:' + MONO + ';font-size:11px;font-weight:bold;letter-spacing:3px;color:' + RED + '">*** FIRE ***</td></tr><tr><td class="cclede" style="padding:0 0 4px;font-family:' + SERIF + ';font-size:23px;line-height:1.35;font-weight:bold;color:' + INK + '">' + E(D.lede) + '</td></tr>';
   CC_SECTIONS.forEach(([k, t]) => { const xs = (D[k] || []).filter(x => x.include !== false && !(CC_FREE_ONLY.indexOf(k) >= 0 && ccPaywalled(x.url))); if (!xs.length) return; count += xs.length;
     const f = xs.filter(x => x.featured), rest = xs.filter(x => !x.featured); const feat = f.length ? f : xs.slice(0, 1); const others = f.length ? rest : xs.slice(1);
     rows += sec(t, (k === 'closings' || k === 'openings') ? xs.length : 0) + feat.map(story).join('') + (others.length ? also(ALSO[k], others) : ''); });
   const evs = (D.events || []).filter(e => e.include !== false && !ccPaywalled(e.url));
   if (evs.length) rows += sec('ON THE BOOKS — EVENTS') + evs.map(e => '<tr><td style="padding:0 0 8px"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td valign="top" width="58" style="font-family:' + MONO + ';font-size:13px;font-weight:bold;color:' + INK + '">' + fmtD(e.date) + '</td><td style="font-family:' + SANS + ';font-size:14px;line-height:1.45;color:' + INK + '"><a href="' + E(e.url) + '" style="color:' + INK + ';text-decoration:none">' + E(e.name) + (e.city ? (' &middot; ' + E(e.city)) : '') + '</a></td></tr></table></td></tr>').join('');
+  const _prep = (iss.data && iss.data.prepOff) ? [] : ccPrepList(iss.date || firmToday(), 21);
+  if (_prep.length) rows += sec('PREP LIST — COMING UP') + _prep.map(p => '<tr><td style="padding:0 0 9px"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td valign="top" width="58" style="font-family:' + MONO + ';font-size:13px;font-weight:bold;color:' + INK + '">' + fmtD(p.date) + '</td><td style="font-family:' + SANS + ';font-size:14px;line-height:1.45;color:' + INK + '"><b>' + E(p.name) + '</b><div style="font-family:' + MONO + ';font-size:12px;line-height:1.5;color:' + RED + '">&gt; ' + E(p.angle) + '</div></td></tr></table></td></tr>').join('');
   const sp = C.sponsor; if (sp.on && sp.label) rows += '<tr><td style="padding:22px 0 0"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #d8d3c6"><tr><td style="padding:16px 18px"><div style="font-family:' + MONO + ';font-size:10px;letter-spacing:3px;color:' + MUTE + '">MOD &middot; SPONSORED</div><div style="font-family:' + SANS + ';font-size:15px;font-weight:bold;color:' + INK + ';padding-top:4px">' + E(sp.label) + '</div>' + (sp.line ? ('<div style="font-family:' + SANS + ';font-size:13px;color:' + BODY + ';padding-top:2px">' + E(sp.line) + '</div>') : '') + (sp.url ? ('<div style="padding-top:10px"><a href="' + E(sp.url) + '" style="display:inline-block;background:' + INK + ';color:' + PAPER + ';font-family:' + SANS + ';font-size:13px;font-weight:bold;text-decoration:none;padding:9px 14px">' + E(sp.cta || 'Learn more') + '</a></div>') : '') + '</td></tr></table></td></tr>';
   const rg = C.rrg; if (rg.on) rows += '<tr><td style="padding:14px 0 0"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="' + INK + '" style="background:' + INK + '"><tr><td style="padding:20px 22px"><div style="font-family:' + MONO + ';font-size:10px;letter-spacing:3px;color:#c9c4b8">SPECIAL REQUEST</div><div style="font-family:' + SERIF + ';font-size:20px;font-weight:bold;color:' + PAPER + ';padding-top:4px">' + E(rg.headline) + '</div><div style="font-family:' + SANS + ';font-size:13px;color:#d9d4c8;padding-top:4px">' + E(rg.line) + '</div>' + (rg.url ? ('<div style="padding-top:12px"><a href="' + E(rg.url) + '" style="display:inline-block;background:' + PAPER + ';color:' + INK + ';font-family:' + SANS + ';font-size:13px;font-weight:bold;text-decoration:none;padding:10px 16px">' + E(rg.cta || 'Learn more') + '</a></div>') : '') + '</td></tr></table></td></tr>';
   rows += '<tr><td style="padding:22px 0 0"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:2px solid ' + INK + '"><tr><td style="padding-top:10px;font-family:' + MONO + ';font-size:12px;font-weight:bold;color:' + INK + '">ITEMS ALL DAY &middot; ' + count + '</td><td align="right" style="padding-top:10px;font-family:' + MONO + ';font-size:12px;font-weight:bold;color:' + INK + '">SEE YOU MONDAY</td></tr></table></td></tr>';
   const unsub = opt.web ? '' : ' &middot; <a href="{{unsubscribe_url}}" style="color:' + MUTE + '">Unsubscribe</a>';
   rows += '<tr><td align="center" style="padding:16px 0 0;font-family:' + SANS + ';font-size:11px;line-height:1.6;color:' + MUTE + '">' + E(C.publisher) + ' &middot; ' + E(C.address) + '<br>' + (base ? ('<a href="' + E(base + '/chitchat') + '" style="color:' + MUTE + '">Forwarded this? Subscribe</a>') : '') + unsub + '</td></tr>';
   const web = (!opt.web && base && iss.status !== 'draft') ? ('<tr><td align="center" style="padding:0 0 10px;font-family:' + SANS + ';font-size:11px;color:#9aa0a8"><a href="' + E(base + '/chitchat/' + iss.n) + '" style="color:#9aa0a8">View in your browser</a></td></tr>') : '';
-  const mast = '<table role="presentation" width="600" cellpadding="0" cellspacing="0" bgcolor="' + PAPER + '" style="width:600px;max-width:100%;background:' + PAPER + '"><tr><td style="padding:20px 30px 16px">'
+  const mast = '<table role="presentation" class="ccw" width="100%" cellpadding="0" cellspacing="0" bgcolor="' + PAPER + '" style="width:100%;max-width:600px;background:' + PAPER + '"><tr><td class="ccpad" style="padding:20px 30px 16px">'
     + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="font-family:' + MONO + ';font-size:11px;letter-spacing:1px;color:' + MUTE + '">ORDER #' + String(iss.n || 0).padStart(3, '0') + '</td><td align="center" style="font-family:' + MONO + ';font-size:11px;letter-spacing:1px;color:' + MUTE + '">' + E(C.metros) + '</td><td align="right" style="font-family:' + MONO + ';font-size:11px;letter-spacing:1px;color:' + MUTE + '">' + E(fmtD(iss.date)) + '</td></tr></table>'
-    + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding-top:8px"><tr><td style="font-family:Impact,\'Arial Narrow Bold\',sans-serif;font-size:42px;line-height:46px;color:' + INK + ';text-transform:uppercase;letter-spacing:1px">TEXAS CHIT CHAT</td></tr></table>'
+    + '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding-top:8px"><tr><td class="ccmast" style="font-family:Impact,\'Arial Narrow Bold\',sans-serif;font-size:42px;line-height:46px;color:' + INK + ';text-transform:uppercase;letter-spacing:1px">TEXAS CHIT CHAT</td></tr></table>'
     + '<div style="font-family:' + MONO + ';font-size:11px;font-weight:bold;letter-spacing:3px;color:' + INK + ';padding-top:4px">THE WEEKLY RESTAURANT TICKET</div></td></tr><tr><td style="border-top:2px dashed ' + INK + ';font-size:0;line-height:0;height:2px">&nbsp;</td></tr></table>';
-  const body = '<table role="presentation" width="600" cellpadding="0" cellspacing="0" bgcolor="#ffffff" style="width:600px;max-width:100%;background:#ffffff"><tr><td style="padding:26px 30px 30px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">' + rows + '</table></td></tr></table>';
-  return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only"><meta name="supported-color-schemes" content="light"><title>Texas Chit Chat #' + (iss.n || '') + '</title></head>'
-    + '<body bgcolor="' + DARK + '" style="margin:0;padding:0;background:' + DARK + '"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="' + DARK + '" style="background:' + DARK + '"><tr><td align="center" style="padding:28px 10px 44px"><table role="presentation" cellpadding="0" cellspacing="0">' + web + '</table>' + mast + body + '</td></tr></table></body></html>';
+  const body = '<table role="presentation" class="ccw" width="100%" cellpadding="0" cellspacing="0" bgcolor="#ffffff" style="width:100%;max-width:600px;background:#ffffff"><tr><td class="ccpad" style="padding:26px 30px 30px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">' + rows + '</table></td></tr></table>';
+  return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only"><meta name="supported-color-schemes" content="light"><title>Texas Chit Chat #' + (iss.n || '') + '</title><style>@media only screen and (max-width:620px){.ccw{width:100%!important;max-width:100%!important}.ccpad{padding-left:18px!important;padding-right:18px!important}.ccmast{font-size:32px!important;line-height:36px!important}.cclede{font-size:19px!important;line-height:1.35!important}.ccout{padding:0!important}}</style></head>'
+    + '<body bgcolor="' + DARK + '" style="margin:0;padding:0;background:' + DARK + '"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="' + DARK + '" style="background:' + DARK + '"><tr><td class="ccout" align="center" style="padding:28px 10px 44px"><table role="presentation" cellpadding="0" cellspacing="0">' + web + '</table>' + mast + body + '</td></tr></table></body></html>';
 }
 function _ccSummary(x) { const D = x.data || {}; const c = CC_SECTIONS.reduce((m, [k]) => m + (D[k] || []).filter(i => i.include !== false).length, 0); return { id: x.id, n: x.n, status: x.status, date: x.date, subject: D.subject, items: c, events: (D.events || []).filter(e => e.include !== false).length, campaignId: x.campaignId || null, approvedBy: x.approvedBy || '', createdAt: x.createdAt }; }
 let _ccBusy = false;
