@@ -513,6 +513,23 @@
     if (document.getElementById('rrgnav')) return;
     document.body.insertBefore(nav, document.body.firstChild);
     document.body.insertBefore(top, document.body.firstChild);
+    // Keep the centered search box clear of the page's own top-bar buttons (e.g. + BOV / + CIM / Actions on a
+    // contact): if the right-hand cluster would overlap it, shrink it; if there's still no room, slide it left.
+    (function(){
+      var sr=top.querySelector('.srch'), acts=top.querySelector('.acts'); if(!sr||!acts) return;
+      function fit(){ try{
+        sr.style.width=''; sr.style.left=''; sr.style.transform='';
+        var tb=top.getBoundingClientRect(), ab=acts.getBoundingClientRect(); var rightLim=ab.left-16;
+        var leftLim=tb.left+16; Array.prototype.forEach.call(top.children,function(c){ if(c===sr||c===acts||c.offsetParent===null) return; var r=c.getBoundingClientRect(); if(r.width&&r.right<tb.left+tb.width/2) leftLim=Math.max(leftLim,r.right+16); });
+        var center=tb.left+tb.width/2, natural=Math.min(560,tb.width*0.46);
+        if(center+natural/2<=rightLim && center-natural/2>=leftLim) return;           // fits as designed
+        var w=Math.max(180,Math.min(natural,rightLim-leftLim));                       // keep full width, slide left so it ends before the buttons
+        sr.style.transform='translateY(-50%)'; sr.style.left=Math.floor(rightLim-w-tb.left)+'px'; sr.style.width=Math.floor(w)+'px';
+      }catch(e){} }
+      var t=null; function later(){ clearTimeout(t); t=setTimeout(fit,60); }
+      window.addEventListener('resize',later); try{ new MutationObserver(later).observe(acts,{childList:true,subtree:true,attributes:true,attributeFilter:['style','hidden','class']}); }catch(e){}
+      later(); setTimeout(fit,600); setTimeout(fit,1800);
+    })();
     document.body.classList.add('rrg-shelled');
     // ---------- Views panel — saved-views navigator across all major sections ----------
     (function(){
