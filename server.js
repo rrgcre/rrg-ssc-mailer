@@ -25283,10 +25283,30 @@ function ibRecipients(cfg) { const out = {}; const sel = ibSelectedUsers(cfg); i
   String(cfg.extra || '').split(/[\s,;]+/).forEach(e => { e = e.trim(); if (_ibEmailOk(e)) out[e.toLowerCase()] = e; }); return Object.values(out); }
 function ibLoad() { try { return rj(IB_FILE) || null; } catch (e) { return null; } }
 function _ibHost(u) { try { return new URL(u).hostname.replace(/^www\./, '').toLowerCase(); } catch (e) { return ''; } }
-async function buildIndustryBrief(cfg) {
+// Texas Chit Chat research desk — same verified-URL pipeline as the managers' brief, but aimed at
+// restaurant & bar OWNERS/OPERATORS: awards and recognition first, then openings, closings, moves and
+// operator events. Nothing for brokers, agents, investors or developers; nothing about TREC.
+function ccResearchPrompt(cfg, today, from, until) {
+  return 'You are the research desk for Texas Chit Chat, a weekly email newsletter read by restaurant and bar OWNERS and OPERATORS in ' + cfg.markets + ' and their suburbs. '
+    + 'Use the web_search tool to gather this week\'s items. Search market by market, free local sources first: CultureMap (San Antonio, Austin, Dallas, Houston), Eater Austin/Dallas/Houston, MySA, San Antonio Current, Austin Chronicle, Dallas Observer, Houston Press, Community Impact, local TV news, Texas Restaurant Association, Michelin Guide, James Beard Foundation.\n'
+    + 'PART 1 — NEWS from ' + from + ' to ' + today + '. Find at least 18 items if they exist, spread across all four metros. Cover, in this order of priority:\n'
+    + '(a) AWARDS & RECOGNITION — always search for these: Michelin Guide Texas stars, Bib Gourmands and recommended lists; James Beard Award nominations, semifinalists and wins; Texas Restaurant Association awards and hall of fame; CultureMap Tastemaker Awards; Eater \'best new restaurants\' and heatmaps; Yelp Top 100 / OpenTable / Food & Wine / Bon Appétit / Esquire / USA Today best-of lists naming Texas restaurants or bars; local \'best of\' and readers\' choice results; chefs and bartenders recognized. Use angle "award".\n'
+    + '(b) OPENINGS and coming-soon announcements (address or shopping center when the source has it).\n'
+    + '(c) CLOSINGS and relocations.\n'
+    + '(d) MOVES: local groups expanding, concept changes, ownership changes, new chefs, notable menu/format pivots.\n'
+    + '(e) OPERATOR-RELEVANT RULES: TABC, health code, minimum wage, tipping, permitting or city ordinance changes affecting restaurants and bars (angle "regulation").\n'
+    + 'PART 2 — EVENTS from ' + today + ' to ' + until + ' that an OPERATOR would attend: Texas Restaurant Association meetings and its Marketplace show, local restaurant association chapter mixers, food & beverage trade shows, chef and hospitality industry events, food and wine festivals, TABC / health / labor compliance seminars. NEVER include events for real estate brokers, agents, investors or developers (e.g. Bisnow, CCIM, ICSC, NAIOP, ULI, realtor or real estate council events) and nothing about TREC.\n'
+    + (cfg.focus ? ('Extra focus: ' + cfg.focus + '\n') : '')
+    + 'RULES: Only include an item if you found it in search results this session and can give its exact source URL. Prefer free-to-read sources; skip paywalled ones (Texas Monthly, Express-News, Houston Chronicle, Dallas Morning News, Austin American-Statesman, Star-Telegram, Business Journals). Never invent names, dates or URLs. Dates exact (YYYY-MM-DD); skip anything outside the date windows. No duplicates.\n'
+    + 'Return ONLY one JSON object, no markdown:\n'
+    + '{"news":[{"headline":"","date":"YYYY-MM-DD","city":"","market":"one of: ' + cfg.markets + ', Texas, National","address":"","source":"","url":"","summary":"1-2 plain sentences","angle":"award|market intel|regulation|space available","why":""}],'
+    + '"events":[{"name":"","date":"YYYY-MM-DD","endDate":"","city":"","market":"one of: ' + cfg.markets + ', Texas, National","venue":"","organizer":"","url":"","category":"trade show|association|festival|conference|networking","priority":"high|medium|low","why":""}]}';
+}
+async function buildIndustryBrief(cfg, opt) {
+  opt = opt || {}; const OPS = !!opt.operator;   // OPS = Texas Chit Chat research: for restaurant OWNERS/OPERATORS, not brokers
   const key = process.env.ANTHROPIC_API_KEY; if (!key) throw new Error('AI is not set up — add ANTHROPIC_API_KEY on the server.');
-  const today = firmToday(); const from = _wdAddDays(today, -7); const until = _wdAddDays(today, cfg.lookahead);
-  const sys = 'You are the research desk for ' + (orgDisplayName() || 'Restaurant Realty Group') + ', a Texas commercial real estate brokerage that works only restaurant and bar deals: selling restaurant businesses (going-concern sales, valuations), tenant representation / site selection for restaurant operators, and landlord leasing of restaurant space. Core markets: ' + cfg.markets + '. This brief is LOCAL AND REGIONAL: our managers act on what happens in these metros and their suburbs (e.g. Stone Oak, Alamo Heights, Boerne, Round Rock, Cedar Park, Frisco, Plano, Fort Worth, Katy, The Woodlands, Sugar Land, San Marcos). National news is noise unless it lands here.\n'
+  const today = firmToday(); const from = _wdAddDays(today, OPS ? -10 : -7); const until = _wdAddDays(today, cfg.lookahead);
+  const sys = OPS ? ccResearchPrompt(cfg, today, from, until) : 'You are the research desk for ' + (orgDisplayName() || 'Restaurant Realty Group') + ', a Texas commercial real estate brokerage that works only restaurant and bar deals: selling restaurant businesses (going-concern sales, valuations), tenant representation / site selection for restaurant operators, and landlord leasing of restaurant space. Core markets: ' + cfg.markets + '. This brief is LOCAL AND REGIONAL: our managers act on what happens in these metros and their suburbs (e.g. Stone Oak, Alamo Heights, Boerne, Round Rock, Cedar Park, Frisco, Plano, Fort Worth, Katy, The Woodlands, Sugar Land, San Marcos). National news is noise unless it lands here.\n'
     + 'Use the web_search tool to build a weekly industry brief for the firm\'s managers. Search market by market, local sources first: the San Antonio, Austin, Dallas and Houston Business Journals, Express-News, MySA, Austin American-Statesman, CultureMap, Eater Austin/Dallas/Houston, Dallas Morning News, Houston Chronicle, Community Impact, local TV news, city/county permit and TABC notices, Texas Restaurant Association, local CCIM/ICSC/NAIOP chapters. Use national trade press only to confirm a story that affects our metros.\n'
     + 'PART 1 — NEWS from ' + from + ' to ' + today + ': restaurant and bar industry news a restaurant broker would act on. Highest priority: restaurant and bar CLOSINGS and relocations in our metros — each one is a second-generation space coming available; give the street address or shopping center when the source has it. Then: local restaurant groups buying, selling or raising capital; concepts expanding into or opening in our metros and the leases they signed; restaurant real estate: second-generation restaurant spaces newly listed for lease or sale, restaurant property sales, and new developments or redevelopments announcing restaurant space; notable local openings; bankruptcies of operators with units here; AWARDS and recognition for restaurants, bars and chefs in our metros (Michelin Guide Texas stars and Bib Gourmand, James Beard semifinalists/finalists/winners, Texas Monthly lists including BBQ, CultureMap Tastemaker Awards, Eater and local best-new-restaurant lists, Texas Restaurant Association honors), because award winners are strong operators: expansion and premium-sale prospects — for every award, link a source that is FREE to read with no subscription: the awarding organization page (guide.michelin.com, jamesbeard.org) or free local outlets (CultureMap, Eater, D Magazine, Houstonia, San Antonio Current, Austin Monthly, Fort Worth Magazine), never Texas Monthly, Express-News, Houston Chronicle, Dallas Morning News, Austin American-Statesman, Star-Telegram or Business Journals; Texas rules affecting restaurants and bars (TABC, permits, labor). At most 2 national items, and only when they clearly land in our metros (e.g. a chain announcing Texas units). SPREAD the news across every metro in ' + cfg.markets + ' — aim for at least 2 items from each, and no single metro more than about a third of the items; if one metro dominates your first results, search the others specifically before you finish. Up to 14 items.\n'
     + 'PART 2 — EVENTS from ' + today + ' to ' + until + ': industry events worth a broker\'s time — restaurant and hospitality trade shows, restaurant association meetings and mixers, ICSC and retail real estate events, CCIM/NAIOP/commercial real estate networking, franchise expos, restaurant finance / M&A conferences, food and beverage festivals where owners gather. Local and Texas events first (restaurant association chapters, local CCIM/ICSC/NAIOP/CREW meetings, chamber and hospitality mixers, Texas trade shows). At most 3 national events, only the major ones (e.g. National Restaurant Association Show, ICSC Las Vegas, Restaurant Finance & Development Conference). Up to 15 items.\n'
@@ -25295,7 +25315,7 @@ async function buildIndustryBrief(cfg) {
     + 'Return ONLY one JSON object, no markdown, no commentary:\n'
     + '{"news":[{"headline":"","date":"YYYY-MM-DD","city":"","market":"one of: ' + cfg.markets + ', Texas, National","address":"street address or shopping center if known","source":"publication name","url":"","summary":"1-2 plain sentences","angle":"seller lead|tenant lead|space available|award|market intel|regulation","why":"one sentence: what RRG should do with this"}],'
     + '"events":[{"name":"","date":"YYYY-MM-DD","endDate":"YYYY-MM-DD or empty","city":"","market":"one of: ' + cfg.markets + ', Texas, National","venue":"","organizer":"","url":"","category":"trade show|association|real estate|networking|conference|festival","priority":"high|medium|low","why":"one sentence: why a restaurant broker should go"}]}';
-  const tools = [{ type: 'web_search_20250305', name: 'web_search', max_uses: 14, user_location: { type: 'approximate', city: 'San Antonio', region: 'Texas', country: 'US', timezone: firmTz() || 'America/Chicago' } }];
+  const tools = [{ type: 'web_search_20250305', name: 'web_search', max_uses: OPS ? 20 : 14, user_location: { type: 'approximate', city: 'San Antonio', region: 'Texas', country: 'US', timezone: firmTz() || 'America/Chicago' } }];
   let messages = [{ role: 'user', content: 'Today is ' + today + '. Build this week\'s industry brief now.' }];
   const seenUrls = new Set(), seenHosts = new Set(); let searches = 0; let final = null;
   for (let turn = 0; turn < 5; turn++) {
@@ -25322,17 +25342,17 @@ async function buildIndustryBrief(cfg) {
   const news = (Array.isArray(J.news) ? J.news : []).map(n => ({ headline: S(n.headline, 200), date: S(n.date, 10), city: S(n.city, 60), market: mkOf(n.market || n.city), address: S(n.address, 160), source: S(n.source, 80), url: S(n.url, 600), summary: S(n.summary, 400), angle: ANG.indexOf(S(n.angle, 30).toLowerCase()) >= 0 ? S(n.angle, 30).toLowerCase() : 'market intel', why: S(n.why, 300) }))
     .filter(n => n.headline && okUrl(n.url) && (!n.date || (isDay(n.date) && n.date >= _wdAddDays(from, -3) && n.date <= today)))
     .filter(n => { const k = n.url.toLowerCase(); if (nk[k]) return false; nk[k] = 1; return true; })
-    .filter(n => !((n.angle === 'space available' || n.angle === 'tenant lead') && LR(n.market) > 1))     // spaces and tenant leads only count in our metros
+    .filter(n => OPS || !((n.angle === 'space available' || n.angle === 'tenant lead') && LR(n.market) > 1))     // spaces and tenant leads only count in our metros
     .filter(n => n.market !== 'Other')
     .filter((n, i, arr) => n.market !== 'National' || arr.slice(0, i).filter(x => x.market === 'National').length < 2)
-    .sort((x, y) => (LR(x.market) - LR(y.market)) || ((x.angle === 'space available' ? 0 : 1) - (y.angle === 'space available' ? 0 : 1))).slice(0, 14);
+    .sort((x, y) => (LR(x.market) - LR(y.market)) || ((x.angle === 'space available' ? 0 : 1) - (y.angle === 'space available' ? 0 : 1))).slice(0, OPS ? 26 : 14);
   const events = (Array.isArray(J.events) ? J.events : []).map(e => ({ name: S(e.name, 160), date: S(e.date, 10), endDate: S(e.endDate, 10), city: S(e.city, 60), market: mkOf(e.market || e.city), venue: S(e.venue, 120), organizer: S(e.organizer, 120), url: S(e.url, 600), category: S(e.category, 30), priority: ['high', 'medium', 'low'].indexOf(S(e.priority, 10).toLowerCase()) >= 0 ? S(e.priority, 10).toLowerCase() : 'medium', why: S(e.why, 300) }))
     .filter(e => e.name && okUrl(e.url) && isDay(e.date) && (e.date >= today || (isDay(e.endDate) && e.endDate >= today)) && e.date <= until)
     .filter(e => { const k = (e.name + '|' + e.date).toLowerCase(); if (ek[k]) return false; ek[k] = 1; return true; })
     .filter((e, i, arr) => (e.market !== 'National' && e.market !== 'Other') || (e.priority === 'high' && arr.slice(0, i).filter(x => x.market === 'National' || x.market === 'Other').length < 3))
     .sort((x, y) => x.date < y.date ? -1 : x.date > y.date ? 1 : 0).slice(0, 15);
   const B = { at: new Date().toISOString(), today, newsFrom: from, until, markets: cfg.markets, searches, news, events, dropped: { news: (Array.isArray(J.news) ? J.news.length : 0) - news.length, events: (Array.isArray(J.events) ? J.events.length : 0) - events.length } };
-  writeJsonGuarded(IB_FILE, B, 'industryBrief'); return B;
+  if (!OPS) writeJsonGuarded(IB_FILE, B, 'industryBrief'); return B;
 }
 function industryBriefHtml(B) {
   const E = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -25425,10 +25445,16 @@ function ccMetro(v) { const t = String(v || '').toLowerCase(); if (/fort worth|d
 function ccBalance(D) { const items = []; CC_SECTIONS.forEach(([k]) => (D[k] || []).forEach(x => items.push(x))); const local = items.filter(x => x.market && x.market !== 'Texas'); if (local.length < 6) return;
   const cap = Math.max(3, Math.ceil(local.length * 0.3)); const n = {}; items.filter(x => x.featured).forEach(x => { if (x.market) n[x.market] = (n[x.market] || 0) + 1; });
   items.filter(x => !x.featured).forEach(x => { if (!x.market || x.market === 'Texas') return; n[x.market] = (n[x.market] || 0) + 1; if (n[x.market] > cap) x.include = false; }); }
+const CC_EXCLUDE_RE = /\bTREC\b|texas real estate commission|trec\.texas\.gov/i;
+// Chit Chat is for restaurant & bar OWNERS/OPERATORS — events aimed at brokers, agents, investors or developers stay out.
+const CC_BROKER_EVENT_RE = /bisnow\.com|recouncil\.com|ntcar\.org|icsc\.|naiop|ccim|\buli\.org|realtor|\bbroker|\breal estate\b|\bCRE\b|commercial property|industrial|residential|multifamily|\boffice market|capital markets|investor (summit|forum)|\bdevelop(er|ment) (summit|forum)|property tax(es)? 101/i;
 async function buildChitChatDraft(user) {
   const key = process.env.ANTHROPIC_API_KEY; if (!key) throw new Error('AI is not set up — add ANTHROPIC_API_KEY on the server.');
-  let B = ibLoad();
-  if (!B || (Date.now() - Date.parse(B.at)) > 3 * 86400000) B = await buildIndustryBrief(effIndustryBrief());   // fresh research if the last brief is stale
+  let B = await buildIndustryBrief(effIndustryBrief(), { operator: true });   // Chit Chat runs its own operator-focused research (awards first), separate from the managers' broker brief
+  // Never in Chit Chat: TREC (Texas Real Estate Commission) — licensing/broker-ed items aren't for operators.
+  const _ccBan = (o) => CC_EXCLUDE_RE.test([o && o.name, o && o.headline, o && o.organizer, o && o.summary, o && o.source, o && o.url, o && o.body].filter(Boolean).join(' '));
+  const _ccBroker = (e) => CC_BROKER_EVENT_RE.test([e && e.name, e && e.organizer, e && e.venue, e && e.url].filter(Boolean).join(' '));
+  B = Object.assign({}, B, { news: (B.news || []).filter(n => !_ccBan(n)), events: (B.events || []).filter(e => !_ccBan(e) && !_ccBroker(e)) });
   const src = { news: (B.news || []).map(n => ({ headline: n.headline, date: n.date, city: n.city, market: n.market, address: n.address, source: n.source, url: n.url, summary: n.summary, angle: n.angle })), events: (B.events || []).map(e => ({ name: e.name, date: e.date, endDate: e.endDate, city: e.city, venue: e.venue, organizer: e.organizer, url: e.url })) };
   const sys = 'You edit Texas Chit Chat, a weekly email newsletter for Texas restaurant and bar owners. Voice: plain, sharp, industry-insider, a little wry; never cute, never hype. '
     + 'You get this week\'s verified research items. Rewrite them for OPERATORS (not brokers). RULES: use ONLY the items given, never add facts, names, numbers or dates that are not in them; keep every url and source exactly as given; '
@@ -25438,6 +25464,8 @@ async function buildChitChatDraft(user) {
     + 'lede: one or two sentences tying the week together — lead with the week\'s awards and recognition when there are any, otherwise the biggest local story, and where the facts allow frame it with momentum (what is opening, growing or winning), never doom. subject: the email subject line, ≤ 60 chars, leads with the biggest local story. events: keep each with date (YYYY-MM-DD), name, city, url. '
     + 'Balance the issue across our metros (San Antonio, Austin, Dallas–Fort Worth, Houston): no single metro should take more than about a third of the items, and featured stories should come from different metros where the items allow. '
     + 'Only use items whose url is free to read — never link a subscription or paywalled publication (e.g. Texas Monthly, San Antonio Express-News, Houston Chronicle, Dallas Morning News, Austin American-Statesman, Fort Worth Star-Telegram, Business Journals); leave such an item out rather than link it. '
+    + 'Never include anything about TREC (the Texas Real Estate Commission) — no TREC classes, events, rules or news. '
+    + 'Readers are restaurant and bar OWNERS and OPERATORS, not brokers: keep only events an operator would attend (restaurant association meetings, food & beverage trade shows, hospitality and chef events, food festivals, TABC / health / labor compliance sessions); drop any event for real estate brokers, agents, investors or developers. If none qualify, return events as []. '
     + 'Return ONLY JSON: {"subject":"","lede":"","openings":[],"awards":[],"closings":[],"realestate":[],"moves":[],"events":[]}';
   const ctrl = new AbortController(); const tm = setTimeout(() => ctrl.abort(), 120000);
   let resp, data; try { resp = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', signal: ctrl.signal, headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' }, body: JSON.stringify({ model: loadAiModel(), max_tokens: 6000, temperature: 0.3, system: sys, messages: [{ role: 'user', content: JSON.stringify(src) }] }) }); data = await resp.json().catch(() => ({})); } finally { clearTimeout(tm); }
@@ -25449,15 +25477,16 @@ async function buildChitChatDraft(user) {
   const mktOf = {}; src.news.forEach(n => { if (n.url) mktOf[n.url] = ccMetro(n.market || n.city); });
   const item = x => ({ include: true, featured: !!x.featured, headline: S(x.headline, 140), body: S(x.body, 500), mod: S(x.mod, 160), name: S(x.name, 100), where: S(x.where, 80), url: S(x.url, 600), source: S(x.source, 80), market: mktOf[S(x.url, 600)] || ccMetro(x.where) });
   const D = { subject: S(J.subject, 120) || 'This week in Texas restaurants', lede: S(J.lede, 500) };
-  CC_SECTIONS.forEach(([k]) => { D[k] = (Array.isArray(J[k]) ? J[k] : []).map(item).filter(x => x.headline && okUrls.has(x.url) && !(CC_FREE_ONLY.indexOf(k) >= 0 && ccPaywalled(x.url))).slice(0, 10); });
+  CC_SECTIONS.forEach(([k]) => { D[k] = (Array.isArray(J[k]) ? J[k] : []).map(item).filter(x => x.headline && okUrls.has(x.url) && !(CC_FREE_ONLY.indexOf(k) >= 0 && ccPaywalled(x.url))).filter(x => !_ccBan(x)).slice(0, 10); });
   ccBalance(D);
-  D.events = (Array.isArray(J.events) ? J.events : []).map(e => ({ include: true, date: S(e.date, 10), name: S(e.name, 160), city: S(e.city, 60), url: S(e.url, 600) })).filter(e => e.name && /^\d{4}-\d{2}-\d{2}$/.test(e.date) && okUrls.has(e.url) && !ccPaywalled(e.url)).slice(0, 10);
+  D.events = (Array.isArray(J.events) ? J.events : []).map(e => ({ include: true, date: S(e.date, 10), name: S(e.name, 160), city: S(e.city, 60), url: S(e.url, 600) })).filter(e => e.name && /^\d{4}-\d{2}-\d{2}$/.test(e.date) && okUrls.has(e.url) && !ccPaywalled(e.url)).filter(e => !_ccBan(e) && !_ccBroker(e)).slice(0, 10);
   const all = ccLoad(); const n = all.reduce((m, x) => Math.max(m, x.n || 0), 0) + 1;
   const iss = { id: 'cc_' + Date.now().toString(36), n, status: 'draft', date: firmToday(), createdAt: new Date().toISOString(), by: (user && user.name) || '', briefAt: B.at, data: D };
   all.push(iss); ccSave(all); return iss;
 }
 function chitChatHtml(iss, opt) {
-  opt = opt || {}; const C = opt.C || effChitChat(); const D = iss.data || {};
+  opt = opt || {}; const C = opt.C || effChitChat(); const D = Object.assign({}, iss.data || {});
+  { const _ban = o => CC_EXCLUDE_RE.test([o && o.name, o && o.headline, o && o.body, o && o.url].filter(Boolean).join(' ')); Object.keys(D).forEach(k => { if (Array.isArray(D[k])) D[k] = D[k].filter(x => !(x && typeof x === 'object' && _ban(x))); }); if (Array.isArray(D.events)) D.events = D.events.filter(e => !CC_BROKER_EVENT_RE.test([e && e.name, e && e.url].filter(Boolean).join(' '))); }
   const E = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   const MONO = "'Courier New',Courier,monospace", SERIF = "Georgia,'Times New Roman',serif", SANS = "'Helvetica Neue',Helvetica,Arial,sans-serif";
   const RED = '#b3261e', INK = '#1c1b19', BODY = '#3d3a34', MUTE = '#6b665c', PAPER = '#fbf8f1', DARK = '#2a2d31';
