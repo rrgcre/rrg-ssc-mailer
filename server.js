@@ -17688,6 +17688,7 @@ app.post('/api/gmail/contacts/classify', express.json({ limit: '2mb' }), async (
 function guessAgreementType(text) {
   const s = String(text || '').toLowerCase();
   if (/tenant\s*rep|tenant\s*representation/.test(s)) return 'TenantRep';
+  if (/business\s*buyer|buyer\s*(representation\s*)?agreement/.test(s)) return 'BuyerRep';
   if (/associate\s*broker/.test(s)) return 'AssocBroker';
   if (/referral/.test(s)) return 'Referral';
   if (/exclusive.*listing|listing\s*agreement|business\s*listing/.test(s)) return 'Listing';
@@ -22869,6 +22870,7 @@ const AGREEMENT_TYPES = [
   { key: 'Listing', label: 'Exclusive Business Listing', renewable: true },
   { key: 'TenantRep', label: 'Tenant Rep Agreement', renewable: true },
   { key: 'BizSeller', label: 'Business Seller Agreement', renewable: true },
+  { key: 'BuyerRep', label: 'Business Buyer Agreement', renewable: true },
   { key: 'AssocBroker', label: 'Associate Broker Agreement', renewable: true },
   { key: 'Offer', label: 'Offer', renewable: false },
   { key: 'TransDoc', label: 'Transaction Document', renewable: false }
@@ -22885,7 +22887,7 @@ function effAgreementTypes() { const s = loadSettings(); let list = (Array.isArr
 function agreementTypeKeys() { return effAgreementTypes().map(t => t.key); }
 // Engagements (listings, tenant rep) are what "Active" means. When the same client/deal signs a newer
 // engagement of the same type (a re-sign or extension), the older one is superseded — not a second active one.
-var _AGR_ENGAGE = ['Listing', 'BizSeller', 'TenantRep', 'ETRA'];
+var _AGR_ENGAGE = ['Listing', 'BizSeller', 'BuyerRep', 'TenantRep', 'ETRA'];
 var _AGR_INFORCE = ['NDA', 'CA', 'Referral', 'AssocBroker'];
 var _agrSupCache = { t: 0, set: null };
 function _agrSupersededSet() {
@@ -23623,6 +23625,7 @@ function _agrGuessUploadType(s, keys) {
   const pick = (k, fb) => has(k) ? k : (fb && has(fb) ? fb : '');
   if (/(^|[^a-z])ab agreement|associate broker/.test(l)) return pick('AssocBroker');
   if (/referral/.test(l)) return pick('Referral');
+  if (/business buyer|buyer (representation )?agreement/.test(l)) return pick('BuyerRep', 'TransDoc');
   if (/tenant ?rep|buyer ?rep|buyertenant|tenant representation|lor agreement/.test(l)) return pick('TenantRep', 'ETRA');
   if (/(^|[^a-z])nda([^a-z]|$)|non.?disclosure|confidential|dual agency/.test(l)) return pick('NDA', 'CA');
   if (/(^|[^a-z])loi([^a-z]|$)|letter of intent/.test(l)) return pick('Offer', 'TransDoc');
@@ -23654,7 +23657,7 @@ app.post('/api/agreements/upload-parse', express.json({ limit: '28mb' }), async 
   const bodyText = (() => { const c = text.search(/Certificate Of Completion/i); return c > 200 ? text.slice(0, c) : text; })();
   // Only term agreements expire. Contracts, APAs, LOIs and leases are one-time transaction documents —
   // their option/feasibility periods ("within 2 days") are not an agreement expiration.
-  const wantsExpiry = ['Listing', 'TenantRep', 'ETRA', 'Referral', 'NDA', 'CA', 'AssocBroker', 'BizSeller'].indexOf(guessType) >= 0;
+  const wantsExpiry = ['Listing', 'BuyerRep', 'TenantRep', 'ETRA', 'Referral', 'NDA', 'CA', 'AssocBroker', 'BizSeller'].indexOf(guessType) >= 0;
   let exp = wantsExpiry ? _agrFindExpiry(bodyText, cert.completed) : { expires: '', source: '' };
   if (!exp.expires && wantsExpiry && bodyText.length > 100 && b.ai !== false && typeof aiassist.agreementExpiry === 'function' && process.env.ANTHROPIC_API_KEY) {
     // Form PDFs (e.g. TREC listings) keep the filled-in dates where text extraction can't see them — blanks like

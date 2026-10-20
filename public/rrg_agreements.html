@@ -321,7 +321,7 @@ function upRender(){
   el.querySelectorAll('.upmk').forEach(function(c){ c.addEventListener('click',function(){ c.disabled=true; c.textContent='Creating…'; upCreateContact(UP[+c.getAttribute('data-i')]).then(upRender); }); });
   el.querySelectorAll('.upname').forEach(function(c){ c.addEventListener('change',function(){ UP[+c.getAttribute('data-i')].name=c.value; }); });
 }
-var UP_PTYPE={ Listing:'Selling', BizSeller:'Selling', NDA:'Buying', CA:'Buying', Offer:'Buying', TenantRep:'Leasing', ETRA:'Leasing', CommercialLease:'Leasing', Referral:'Referring', AssocBroker:'Working' };
+var UP_PTYPE={ Listing:'Selling', BizSeller:'Selling', BuyerRep:'Buying', NDA:'Buying', CA:'Buying', Offer:'Buying', TenantRep:'Leasing', ETRA:'Leasing', CommercialLease:'Leasing', Referral:'Referring', AssocBroker:'Working' };
 function upMissing(){ var seen={}; return UP.filter(function(r){ var p=r.meta&&r.meta.parties&&r.meta.parties[0]; if(!p||r.personId||!(r.state==='ready'||r.state==='done')||seen[p.email]) return false; seen[p.email]=1; return true; }); }
 function upTitle(n){ n=String(n||'').trim(); return (n===n.toUpperCase()||n===n.toLowerCase())?n.toLowerCase().replace(/\b[a-z]/g,function(c){return c.toUpperCase();}):n; }
 async function upCreateContact(r){
