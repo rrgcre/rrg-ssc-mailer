@@ -1631,9 +1631,24 @@ function wireActivity(){
     // First expansion \u2014 stash the snippet, fetch the full message.
     if(!snip.getAttribute('data-snip')) snip.setAttribute('data-snip', snip.innerHTML);
     x.textContent='Loading\u2026';
-    fetch('/api/gmail/message/'+encodeURIComponent(id),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.message){ var full=esc(dec(j.message.body||j.message.snippet||'(no content)')).split('\n').join('<br>'); snip.setAttribute('data-full', full); snip.innerHTML=full; x.textContent='Hide full email'; x.setAttribute('data-state','full'); renderGmAtts(id, j.message.attachments||[]); } else { x.textContent='Could not load'; } }).catch(function(){ x.textContent='Could not load'; }); }); });
+    fetch('/api/gmail/message/'+encodeURIComponent(id),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.message){ var full=gmBodyHtml(dec(j.message.body||j.message.snippet||'(no content)')); snip.setAttribute('data-full', full); snip.innerHTML=full; x.textContent='Hide full email'; x.setAttribute('data-state','full'); renderGmAtts(id, j.message.attachments||[]); } else { x.textContent='Could not load'; } }).catch(function(){ x.textContent='Could not load'; }); }); });
   document.querySelectorAll('[data-gmreply]').forEach(function(x){ x.addEventListener('click',function(ev){ ev.preventDefault(); startReplyFwd(x.getAttribute('data-gmreply'),'reply'); }); });
   document.querySelectorAll('[data-gmfwd]').forEach(function(x){ x.addEventListener('click',function(ev){ ev.preventDefault(); startReplyFwd(x.getAttribute('data-gmfwd'),'forward'); }); });
+}
+// Plain-text email bodies (Outlook especially) carry links as "CLICK HERE<https://…very long…>" and inline
+// images as "[cid:image001.png@…]". Show each link as a short clickable domain chip, drop the image
+// placeholders and mailto echoes, and collapse runs of blank lines so the message reads like an email.
+function gmBodyHtml(t){
+  t=String(t||'').replace(/\r\n?/g,'\n');
+  t=t.replace(/\[cid:[^\]]*\]/gi,'');
+  t=t.replace(/<(mailto|tel|sms):[^>]*>/gi,'');
+  t=t.replace(/<(https?:\/\/[^>]*)>/gi,function(m,u){ return '\u0001'+u.replace(/\s+/g,'')+'\u0002'; });
+  t=t.replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
+  function chip(u){ var d=u.replace(/^https?:\/\//i,'').split(/[\/?#]/)[0].replace(/^www\./i,''); var _dp=d.split('.'); if(_dp.length>2&&!/^(co|com|org|net|gov|ac)$/i.test(_dp[_dp.length-2])) d=_dp.slice(-2).join('.'); return '<a href="'+esc(u).replace(/"/g,'%22')+'" target="_blank" rel="noopener noreferrer" title="'+esc(u)+'" style="display:inline-block;margin:0 2px;padding:0 7px;border:1px solid #dbe3f0;border-radius:999px;background:#f3f6fb;color:#1f4f9a;font-size:12px;text-decoration:none;white-space:nowrap">'+esc(d)+' ↗</a>'; }
+  var out='', re=/\u0001([^\u0002]*)\u0002|(https?:\/\/[^\s<>"]+)/g, last=0, m;
+  while((m=re.exec(t))){ out+=esc(t.slice(last,m.index)); var u=m[1]||m[2]; var trail=''; if(!m[1]){ var tm=u.match(/[).,;:!?\]]+$/); if(tm){ trail=tm[0]; u=u.slice(0,-trail.length); } } out+=chip(u)+esc(trail); last=re.lastIndex; }
+  out+=esc(t.slice(last));
+  return out.split('\n').join('<br>');
 }
 function fbytes(n){ n=Number(n)||0; if(n<1024) return n+' B'; if(n<1048576) return Math.round(n/1024)+' KB'; return (n/1048576).toFixed(1)+' MB'; }
 function renderGmAtts(id, atts){ var box=document.querySelector('[data-gmatts="'+id+'"]'); if(!box) return; if(!atts||!atts.length){ box.innerHTML=''; return; }
