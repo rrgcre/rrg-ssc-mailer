@@ -23,7 +23,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .top a.back:hover{border-color:#fff;color:#fff;}
 .wrap{max-width:none;margin:20px 0;padding:8px 28px 56px;}
 .stats{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px;}
-.stat{background:#fff;border:1px solid var(--line);border-radius:10px;padding:9px 15px;flex:0 0 auto;min-width:84px;}
+.stat{background:#fff;border:1px solid var(--line);border-radius:10px;padding:9px 15px;flex:0 0 auto;min-width:84px;font:inherit;text-align:left;cursor:pointer;transition:border-color .12s,box-shadow .12s;}
+.stat:hover{border-color:#b9c3d4;box-shadow:0 2px 8px rgba(10,20,50,.06);}
+.stat.on{border-color:var(--navy);box-shadow:inset 0 0 0 1.5px var(--navy);background:#f6f8fc;}
 .stat .n{font-size:21px;font-weight:700;color:var(--navy);line-height:1.1;} .stat .n.red{color:var(--red);} .stat .n.amber{color:#b5791f;}
 .stat .l{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;margin-top:2px;}
 .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;}
@@ -127,14 +129,16 @@ function render(){
   var expired=AGR.filter(function(a){return statusOf(a)==='expired';}).length;
   var soon=AGR.filter(function(a){return statusOf(a)==='soon';}).length;
   var active=AGR.filter(function(a){return statusOf(a)==='active';}).length;
-  stats.innerHTML='<div class="stat"><div class="n">'+AGR.length+'</div><div class="l">Total agreements</div></div>'
-    +'<div class="stat"><div class="n">'+active+'</div><div class="l">Active engagements</div></div>'
-    +'<div class="stat"><div class="n amber">'+soon+'</div><div class="l">Expiring ≤60 days</div></div>'
-    +'<div class="stat"><div class="n red">'+expired+'</div><div class="l">Expired</div></div>'
-    +'<div class="stat"><div class="n" style="color:#0f766e">'+AGR.filter(function(a){return statusOf(a)==='inforce';}).length+'</div><div class="l">NDAs &amp; other in force</div></div>'
-    +'<div class="stat"><div class="n" style="color:#3730a3">'+AGR.filter(function(a){return statusOf(a)==='executed';}).length+'</div><div class="l">Executed · no term</div></div>'
-    +(function(){ var p=AGR.filter(function(a){var s=statusOf(a);return s==='draft'||s==='awaiting';}).length; return p?'<div class="stat"><div class="n" style="color:#23496f">'+p+'</div><div class="l">Draft / out for sigs</div></div>':''; })();
-  var rows=AGR.filter(function(a){ if(FT!=='all'&&a.type!==FT) return false; if(FS!=='all'&&statusOf(a)!==FS) return false; if(FSG!=='all'&&(a.repSignedName||a.createdByName||'')!==FSG) return false; return true; });
+  var _st=function(f,n,l,cls,sty){ return '<button type="button" class="stat'+(FS===f?' on':'')+'" data-fs="'+f+'" title="'+(FS===f&&f!=='all'?'Click again to show all':'Show only these')+'"><div class="n'+(cls?(' '+cls):'')+'"'+(sty?(' style="'+sty+'"'):'')+'>'+n+'</div><div class="l">'+l+'</div></button>'; };
+  stats.innerHTML=_st('all',AGR.length,'Total agreements')
+    +_st('active',active,'Active engagements')
+    +_st('soon',soon,'Expiring ≤60 days','amber')
+    +_st('expired',expired,'Expired','red')
+    +_st('inforce',AGR.filter(function(a){return statusOf(a)==='inforce';}).length,'NDAs &amp; other in force','','color:#0f766e')
+    +_st('executed',AGR.filter(function(a){return statusOf(a)==='executed';}).length,'Executed · no term','','color:#3730a3')
+    +(function(){ var p=AGR.filter(function(a){var s=statusOf(a);return s==='draft'||s==='awaiting';}).length; return (p||FS==='pending')?_st('pending',p,'Draft / out for sigs','','color:#23496f'):''; })();
+  stats.querySelectorAll('[data-fs]').forEach(function(b){ b.addEventListener('click',function(){ var f=b.getAttribute('data-fs'); FS=(FS===f&&f!=='all')?'all':f; var ss=document.getElementById('statusSel'); if(ss){ if(!ss.querySelector('option[value="pending"]')){ var o=document.createElement('option'); o.value='pending'; o.textContent='Draft / out for sigs'; ss.appendChild(o); } ss.value=FS; } render(); }); });
+  var rows=AGR.filter(function(a){ if(FT!=='all'&&a.type!==FT) return false; if(FS==='pending'){ var _s=statusOf(a); if(_s!=='draft'&&_s!=='awaiting') return false; } else if(FS!=='all'&&statusOf(a)!==FS) return false; if(FSG!=='all'&&(a.repSignedName||a.createdByName||'')!==FSG) return false; return true; });
   var cfg={ mount:'#list', data:rows, key:'agreements', empty:'<div class="empty">No agreements match.</div>', rowId:function(a){return a.id;}, defaultSort:5, defaultDir:1, bulk:[{label:'↻ Resend to unsigned',min:1,fn:bulkResendAgreements}].concat(CAN_DELETE?[{label:'Delete',danger:true,min:1,fn:bulkDeleteAgreements}]:[]),
     columns:[
       { label:'Type', sort:function(a,b){return RRGList.cmp(label(a.type),label(b.type));}, edit:{ type:'select', options:function(){ return (TYPES||[]).map(function(t){return {value:t.key,label:t.label};}); }, get:function(a){return a.type;}, save:function(a,v){ return agrSaveField(a,{type:v}); } }, cell:function(a){ var c=COLORS[a.type]||{bg:'#eef1f6',fg:'#5b6472'}; return '<span class="jbean" style="background:'+c.bg+';color:'+c.fg+'">'+esc(label(a.type))+'</span>'; } },
