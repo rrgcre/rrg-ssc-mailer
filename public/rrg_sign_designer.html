@@ -206,8 +206,10 @@ function checkTemplate(){
     var le=document.getElementById('s'+s+'label'); var lbl=(le&&le.value)||('Signer '+s);
     if(!FIELDS.some(function(f){ return f.signer===s && (f.type==='signature'||f.type==='initials'); })) issues.push(lbl+' has no signature field.');
   }
-  var over=FIELDS.filter(function(f){ return f.signer>n; }).length;
-  if(over) issues.push(over+' field(s) assigned to a signer that is turned off.');
+  // Text/date fields on a turned-off slot are fine (the rep fills them at send, e.g. broker details on a
+  // client-only template); only a signature or initials there could never be signed.
+  var over=FIELDS.filter(function(f){ return f.signer>n && (f.type==='signature'||f.type==='initials'); }).length;
+  if(over) issues.push(over+' signature field(s) assigned to a signer that is turned off.');
   var reqNo=FIELDS.filter(function(f){ return f.required && (!f.signer||f.signer<1); }).length;
   if(reqNo) issues.push(reqNo+' required field(s) not assigned to a signer.');
   return issues;
