@@ -11131,10 +11131,10 @@ app.post('/api/deal/:key/broker-blast/stale', requireAdmin, express.json(), asyn
 });
 // ---- Post-send recap (hours after a blast finishes — Admin → Email sets the delay; 0 = off) ----
 function effBlastRecap() { const s = loadSettings(); const h = (s.blastRecapHours == null) ? 24 : Number(s.blastRecapHours); return { hours: (isFinite(h) && h >= 0) ? Math.min(h, 336) : 24, done: (s.blastRecapDone && typeof s.blastRecapDone === 'object') ? s.blastRecapDone : {} }; }
-app.get('/api/admin/blast-recap', (req, res) => { const c = effBlastRecap(); res.json({ ok: true, hours: c.hours, isAdmin: !!(req.user && isSuper(req.user)) }); });
+app.get('/api/admin/blast-recap', (req, res) => { const c = effBlastRecap(); const s = loadSettings(); res.json({ ok: true, hours: c.hours, to: String(s.blastRecapTo || ''), toOwner: s.blastRecapOwner !== false, isAdmin: !!(req.user && isSuper(req.user)) }); });
 app.post('/api/admin/blast-recap', requireAdmin, express.json(), (req, res) => {
   const h = Number((req.body || {}).hours); if (!isFinite(h) || h < 0 || h > 336) return res.status(400).json({ ok: false, error: 'Pick 0 (off) to 336 hours.' });
-  const s = loadSettings(); s.blastRecapHours = Math.round(h); saveSettings(s); res.json({ ok: true, hours: s.blastRecapHours });
+  const s = loadSettings(); s.blastRecapHours = Math.round(h); const b = req.body || {}; if (typeof b.to === 'string') s.blastRecapTo = b.to.slice(0, 1000); if (typeof b.toOwner === 'boolean') s.blastRecapOwner = b.toOwner; saveSettings(s); res.json({ ok: true, hours: s.blastRecapHours, to: String(s.blastRecapTo || ''), toOwner: s.blastRecapOwner !== false });
 });
 async function buildBlastRecap(bl) {
   const d = assignmentsIndex()[bl.srcKey]; if (!d) return null;
@@ -11183,7 +11183,11 @@ async function blastRecapTick() {
       if (now < fin + cfg.hours * 3600000) continue;
       if (now > fin + (cfg.hours + 72) * 3600000) { s.blastRecapDone[bl.id] = 'skipped-old'; ch = true; continue; }   // never fire a stale recap
       const rc = await buildBlastRecap(bl); if (!rc) { s.blastRecapDone[bl.id] = 'no-engagement'; ch = true; continue; }
-      let to = []; try { const users = auth.loadUsers() || []; const o = users.find(u => u.username === rc.owner && !u.disabled && u.email); if (o) to.push(o.email); if (!to.length) to = users.filter(u => !u.disabled && isSuper(u) && u.email).map(u => u.email); } catch (e) {}
+      // Recipients: the engagement's rep (unless switched off) + the "Send to" list in Settings → Email.
+      let to = []; try { const users = auth.loadUsers() || []; const _seen = {}; const add = e => { e = String(e || '').trim(); if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) && !_seen[e.toLowerCase()]) { _seen[e.toLowerCase()] = 1; to.push(e); } };
+        if (s.blastRecapOwner !== false) { const o = users.find(u => u.username === rc.owner && !u.disabled); if (o) add(((auth.profileOf(o) || {}).email) || o.email); }
+        String(s.blastRecapTo || '').split(/[\s,;]+/).forEach(add);
+        if (!to.length && s.blastRecapOwner !== false) users.filter(u => !u.disabled && isSuper(u) && u.email).forEach(u => add(u.email)); } catch (e) {}
       if (to.length) { await sendNotifyMail(to, rc.subject, rc.text, rc.html); }
       s.blastRecapDone[bl.id] = new Date().toISOString(); ch = true;
       try { logSysEvent(null, 'Broker blast', 'Recap sent for blast #' + bl.id + ' to ' + to.join(', '), { tool: 'marketing' }); } catch (e) {}
@@ -25185,7 +25189,8 @@ function buildOwnerReports(q) {
 const WD_DEFAULT = { enabled: true, day: 1, hour: 7, extra: '', lastSentWeek: '' };
 function effWeeklyDigest() { const s = loadSettings(); const c = (s.weeklyDigest && typeof s.weeklyDigest === 'object') ? s.weeklyDigest : {}; const o = Object.assign({}, WD_DEFAULT, c);
   o.enabled = o.enabled !== false; o.day = Math.max(0, Math.min(6, parseInt(o.day, 10) || 0)); if (!isFinite(parseInt(c.day, 10))) o.day = WD_DEFAULT.day; o.hour = Math.max(0, Math.min(23, isFinite(parseInt(o.hour, 10)) ? parseInt(o.hour, 10) : 7)); o.extra = String(o.extra || '').slice(0, 600); return o; }
-function wdRecipients(cfg) { const out = {}; try { auth.loadUsers().forEach(u => { if (u.disabled || !isSuper(u)) return; const e = String(((auth.profileOf(u) || {}).email) || u.email || '').trim(); if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) out[e.toLowerCase()] = e; }); } catch (e) {}
+// The box in Settings is THE recipient list once saved (cfg.to). Until then: every admin + the old "also send to".
+function wdRecipients(cfg) { const out = {}; if (cfg && typeof cfg.to === 'string') { cfg.to.split(/[\s,;]+/).forEach(e => { e = e.trim(); if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) out[e.toLowerCase()] = e; }); return Object.values(out); } try { auth.loadUsers().forEach(u => { if (u.disabled || !isSuper(u)) return; const e = String(((auth.profileOf(u) || {}).email) || u.email || '').trim(); if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) out[e.toLowerCase()] = e; }); } catch (e) {}
   String((cfg || {}).extra || '').split(/[\s,;]+/).forEach(e => { e = e.trim(); if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) out[e.toLowerCase()] = e; }); return Object.values(out); }
 function _wdAddDays(day, n) { const d = new Date(day + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
 // Last full Mon–Sun week in the firm's time zone.
@@ -25256,10 +25261,10 @@ async function weeklyDigestTick() { try {
   const n = await sendWeeklyDigest(to); try { logSysEvent(null, 'Weekly Digest', 'Weekly digest emailed to ' + n + ' admin' + (n === 1 ? '' : 's'), { tool: 'reports' }); } catch (e) {}
 } catch (e) { console.error('weeklyDigestTick:', e && e.message); } }
 setInterval(weeklyDigestTick, 10 * 60 * 1000); setTimeout(weeklyDigestTick, 60 * 1000);
-app.get('/api/admin/weekly-digest', requireAdmin, (req, res) => { const c = effWeeklyDigest(); res.json({ ok: true, enabled: c.enabled, day: c.day, hour: c.hour, extra: c.extra, lastSentWeek: c.lastSentWeek, recipients: wdRecipients(c), tz: firmTz(), emailReady: isEmailConfigured() }); });
+app.get('/api/admin/weekly-digest', requireAdmin, (req, res) => { const c = effWeeklyDigest(); const _r = wdRecipients(c); res.json({ ok: true, enabled: c.enabled, day: c.day, hour: c.hour, extra: c.extra, to: (typeof c.to === 'string') ? c.to : _r.join(', '), lastSentWeek: c.lastSentWeek, recipients: _r, tz: firmTz(), emailReady: isEmailConfigured() }); });
 app.post('/api/admin/weekly-digest', requireAdmin, express.json(), (req, res) => { const b = req.body || {}; const s = loadSettings(); const c = Object.assign({}, effWeeklyDigest());
-  if (typeof b.enabled === 'boolean') c.enabled = b.enabled; if (b.day != null) c.day = Math.max(0, Math.min(6, parseInt(b.day, 10) || 0)); if (b.hour != null) c.hour = Math.max(0, Math.min(23, parseInt(b.hour, 10) || 0)); if (typeof b.extra === 'string') c.extra = b.extra.slice(0, 600);
-  s.weeklyDigest = c; if (!saveSettings(s)) return res.status(500).json({ ok: false, error: 'Could not save.' }); res.json({ ok: true, enabled: c.enabled, day: c.day, hour: c.hour, extra: c.extra, recipients: wdRecipients(c) }); });
+  if (typeof b.enabled === 'boolean') c.enabled = b.enabled; if (b.day != null) c.day = Math.max(0, Math.min(6, parseInt(b.day, 10) || 0)); if (b.hour != null) c.hour = Math.max(0, Math.min(23, parseInt(b.hour, 10) || 0)); if (typeof b.extra === 'string') c.extra = b.extra.slice(0, 600); if (typeof b.to === 'string') c.to = b.to.slice(0, 1000);
+  s.weeklyDigest = c; if (!saveSettings(s)) return res.status(500).json({ ok: false, error: 'Could not save.' }); res.json({ ok: true, enabled: c.enabled, day: c.day, hour: c.hour, extra: c.extra, to: (typeof c.to === 'string') ? c.to : '', recipients: wdRecipients(c) }); });
 app.get('/api/admin/weekly-digest/preview', requireAdmin, (req, res) => { try { res.type('html').send(weeklyDigestHtml(buildWeeklyDigest())); } catch (e) { res.status(500).send('Could not build the digest: ' + String(e && e.message)); } });
 app.post('/api/admin/weekly-digest/send-me', requireAdmin, async (req, res) => { try {
   if (!isEmailConfigured()) return res.status(400).json({ ok: false, error: 'Email isn’t set up yet — fill in the SMTP settings above.' });
