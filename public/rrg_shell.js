@@ -171,6 +171,7 @@
     { grp: 'Book of Business', color: '#7ea6d8', items: [
       { ic: '▦', label: 'Companies', href: 'rrg_companies.html' },
       { ic: '◑', label: 'Contacts', href: 'rrg_people.html' },
+      { ic: '⚖', label: 'Agreements', href: 'rrg_agreements.html' },
       { ic: '❐', label: 'Documents', href: 'rrg_documents.html' },
     ] },
     { grp: 'Business Sales', color: '#6bbf95', items: [
@@ -537,6 +538,7 @@
       var VS=[
         {k:'companies', ic:'▦', label:'Companies', all:'rrg_companies.html', bi:[]},
         {k:'contacts',  ic:'◑', label:'Contacts',  all:'rrg_people.html', bi:[]},
+        {k:'agreements', ic:'⚖', label:'Agreements', all:'rrg_agreements.html', bi:[]},
         {k:'documents', ic:'❐', label:'Documents', all:'rrg_documents.html', bi:[]},
         {k:'datarooms', ic:'▥', label:'Data Rooms', all:'rrg_rooms_queue.html', bi:[]},
         {k:'listings',  ic:'⊞', label:'Sellers',  all:'rrg_assignments.html', bi:[{l:'Board view', h:'rrg_board.html'}]},
@@ -646,6 +648,8 @@
       Object.keys(od).forEach(function(href){ if(href==='rrg_tasks.html') return; var c=od[href]||0; var tl=nav.querySelector('a.it[href="'+href+'"]'); if(!tl||c<=0||tl.querySelector('.navbadge')) return; tl.title=c+' '+(NOUN[href]||'item')+(c===1?'':'s'); _badge(tl,'',c,tl.title); });
       var nb=(j&&j.newbookings)||{}; Object.keys(nb).forEach(function(href){ var c=nb[href]||0; var tl=nav.querySelector('a.it[href="'+href+'"]'); if(!tl||c<=0||tl.querySelector('.navbadge')) return; _badge(tl,'',c,c+' new meeting'+(c===1?'':'s')+' booked',99); });
       var rv=(j&&j.review)||{}; Object.keys(rv).forEach(function(href){ var c=rv[href]||0; var tl=nav.querySelector('a.it[href="'+href+'"]'); if(!tl||c<=0||tl.querySelector('.navbadge')) return; _badge(tl,'',c,c+' lead'+(c===1?'':'s')+' to review',99); });
+      // Agreements nav — gold: out for signature; red: waiting on your countersignature.
+      (function(){ var tl=nav.querySelector('a.it[href="rrg_agreements.html"]'); if(!tl) return; var g=((j&&j.agrsig)||{})['rrg_agreements.html']||{}; var o=g.out||0, c=g.counter||0; if(o||c) tl.title=(o?(o+' out for signature'):'')+((o&&c)?' · ':'')+(c?(c+' need your countersignature'):''); _badge(tl,'gold',o,o+' out for signature'); _badge(tl,'',c,c+' need your countersignature'); })();
       // Tasks nav — only what needs action: due today (gold), past due (red). Open total stays in the hover title.
       (function(){ var tl=nav.querySelector('a.it[href="rrg_tasks.html"]'); if(!tl) return; var open=((j&&j.opentasks)||{})['rrg_tasks.html']||0; var late=((j&&j.overdue)||{})['rrg_tasks.html']||0; var today=((j&&j.dueToday)||{})['rrg_tasks.html']||0; tl.title=open+' open'+(late?(' · '+late+' late'):'')+(today?(' · '+today+' due today'):''); _badge(tl,'gold',today,today+' due today'); _badge(tl,'',late,late+' past due'); })();
     }

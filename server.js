@@ -19914,7 +19914,11 @@ app.get('/api/counts', (req, res) => {
   let tasksOpen = 0;
   loadTasks().forEach(t => { if (_mineTask(t)) tasksOpen++; });
   const opentasks = { 'rrg_tasks.html': tasksOpen };
-  res.json({ ok: true, counts, active, expiring, overdue, dueToday, newbookings, review, opentasks });
+  // Agreements nav chips: out for signature (waiting on the other side) and waiting on YOUR countersignature.
+  let agrOut = 0, agrCounter = 0;
+  try { const _seeAll = isAdmin || !restrictToOwn(req); loadAgreements().forEach(a => { if (!a || a.signStatus === 'canceled' || a.status === 'terminated') return; if (!_seeAll && a.createdBy !== _meU) return; if (a.signStatus === 'awaiting_countersign') agrCounter++; else if (a.signStatus === 'sent' || a.signStatus === 'partial') agrOut++; }); } catch (e) {}
+  const agrsig = { 'rrg_agreements.html': { out: agrOut, counter: agrCounter } };
+  res.json({ ok: true, counts, active, expiring, overdue, dueToday, newbookings, review, opentasks, agrsig });
 });
 // ---- Command Center — management + prospecting intelligence across the book & pipeline ----
 function daysUntil(dateStr) {
