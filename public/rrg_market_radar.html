@@ -82,7 +82,7 @@ table{width:100%;border-collapse:collapse;font-size:12.5px;} th{text-align:left;
   <div class="rpgs">Every bar and restaurant in a city, county or metro area, from the Texas Comptroller's monthly mixed-beverage filings and TABC permit records. Filter by how much sales moved, over what window, size and recency — falling sales and stopped filings are the earliest signs of a second-gen space opening up or an owner who may want to sell.</div>
   <div data-rrg-feats="market_radar"></div>
   <div class="rcard">
-    <div class="rbar"><span class="rlbl">Area</span><div class="cpk"><input id="city" value="San Antonio" autocomplete="off" spellcheck="false" placeholder="City, county, metro or all of Texas…" role="combobox" aria-expanded="false" aria-controls="cityPop" aria-autocomplete="list" title="Any Texas city, county or metro area"><div class="cpop" id="cityPop" role="listbox" hidden></div></div><button class="rbtn" id="loadCity">Load</button><span class="achips" id="areaChips"></span>
+    <div class="rbar"><span class="rlbl">Area</span><div class="cpk"><input id="city" value="San Antonio" autocomplete="off" spellcheck="false" placeholder="City, county, metro or all of Texas…" role="combobox" aria-expanded="false" aria-controls="cityPop" aria-autocomplete="list" title="Any Texas city, county or metro area"><div class="cpop" id="cityPop" role="listbox" hidden></div></div><button class="rbtn" id="loadCity">Load</button><button class="rbtn" id="allTx" title="Every bar and restaurant statewide — rebuilt overnight, so it opens fast">All of Texas</button><span class="achips" id="areaChips"></span>
       <input id="q" placeholder="Quick search anything…" style="min-width:200px">
       <span style="margin-left:auto" class="rsub" id="meta"></span><button class="rbtn" id="importBtn" hidden title="Add the operators in this view to the CRM as companies (admins)">＋ Import to CRM</button><button class="rbtn" id="exportBtn">⬇ Export CSV</button><button class="rbtn" id="refresh">Refresh from the state</button></div>
     <div class="presets" id="presets"></div>
@@ -132,7 +132,7 @@ function load(refresh){ var city=fv('city'); var what=AREA?(AREA_LABEL||'the are
   var msg=(AREA==='state:tx')?('Loading every bar and restaurant in Texas from the state filings — the first statewide load takes several minutes; after that it is cached for a day.'):refresh?(AREA?('Pulling fresh filings for every city in '+what+' from the state — a metro can take a few minutes.'):('Pulling fresh filings for '+what+' from data.texas.gov — a big city can take a minute.')):(AREA?('Loading '+what+' — the first load of a metro can take a few minutes.'):('Loading '+what+' from the Comptroller and TABC filings.'));
   var wt=setTimeout(function(){ if(window.rrgWork){ rrgWork.show(msg,function(){ if(ctrl) ctrl.abort(); },{title:'Loading state filings…'}); shown=true; } },250);
   function end(){ clearTimeout(wt); if(shown&&window.rrgWork) rrgWork.hide(); if(_LD_CTRL===ctrl) _LD_CTRL=null; }
-  fetch('/api/tx/radar?'+(AREA?('area='+encodeURIComponent(AREA)):('city='+encodeURIComponent(city)))+(refresh?'&refresh=1':''),{credentials:'same-origin',signal:ctrl?ctrl.signal:undefined}).then(function(r){return r.json();}).then(function(j){ end(); D=j; render(); }).catch(function(e){ end(); if(e&&e.name==='AbortError'){ if(!D) document.getElementById('body').innerHTML='<div class="rempty">Loading canceled. Pick an area or click Load.</div>'; else render(); return; } document.getElementById('body').innerHTML='<div class="rempty">Could not reach the server.</div>'; }); }
+  fetch('/api/tx/radar?'+(AREA?('area='+encodeURIComponent(AREA)):('city='+encodeURIComponent(city)))+(refresh?'&refresh=1':''),{credentials:'same-origin',signal:ctrl?ctrl.signal:undefined}).then(function(r){return r.json();}).then(function(j){ end(); D=j; render(); if(j&&j.ok!==false) saveArea(); }).catch(function(e){ end(); if(e&&e.name==='AbortError'){ if(!D) document.getElementById('body').innerHTML='<div class="rempty">Loading canceled. Pick an area or click Load.</div>'; else render(); return; } document.getElementById('body').innerHTML='<div class="rempty">Could not reach the server.</div>'; }); }
 // Location-level filters (who / where / status) and performance filters (sales, change, mix).
 // With "Consolidate franchises" on, location filters pick the locations, the chain is rolled up, then
 // the performance filters judge the chain's combined numbers.
@@ -372,7 +372,16 @@ function openImport(){ if(!D||!D.all) return; var ov=document.getElementById('im
 document.getElementById('importBtn').onclick=openImport;
 var _ru=readUrl(); if(!SEL.length&&!AREA){ var _cv=(document.getElementById('city').value||'').trim(); if(_cv) SEL=[{key:'city:'+_cv,name:_cv}]; }
 if(!_ru){ setF(PRESETS.strong.f); PRESET='strong'; document.getElementById('f_cons').checked=true; document.getElementById('f_consby').value='brand'; document.getElementById('f_consby').disabled=false; SORT={k:'sell',d:-1}; }
-loadTracked(); loadPlaces(); load(false);
+// Remember the last area this user loaded (server-side, so it follows them to any device) and reopen
+// there. A shared link with its own area in the address always wins.
+var _LAST_AREA='';
+function curAreaKey(){ return AREA?AREA:('city:'+(fv('city')||'').trim()); }
+function saveArea(){ var k=curAreaKey(); if(!k||k==='city:'||k===_LAST_AREA) return; _LAST_AREA=k; fetch('/api/me/prefs',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({radarArea:k})}).catch(function(){}); }
+function applyArea(k){ selFromArea(k); if(SEL.length===1&&SEL[0].key.indexOf('city:')===0){ AREA=''; AREA_LABEL=''; document.getElementById('city').value=SEL[0].name; } else { AREA=k; AREA_LABEL=areaLabel(k); document.getElementById('city').value=AREA_LABEL||'Loading area…'; } renderChips(); }
+document.getElementById('allTx').onclick=function(){ SEL=[{key:'state:tx',name:'All of Texas'}]; applySel(); load(false); };
+loadTracked(); loadPlaces();
+if(_ru){ load(false); }
+else { fetch('/api/me/prefs',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ var k=(j&&j.prefs&&j.prefs.radarArea)||''; if(k){ _LAST_AREA=k; applyArea(k); } load(false); }).catch(function(){ load(false); }); }
 </script>
 <div class="imov" id="imOv" hidden><div class="imbox" role="dialog" aria-label="Import to CRM"><div class="imhd">Import to CRM <span class="rsub" id="imArea" style="font-weight:600"></span><button type="button" id="imX" aria-label="Close">×</button></div>
   <div class="imbd"><div>Adds the operators in your current view as <b>companies</b> — one per location, or one per group when “Consolidate” is on — tagged <b>Alcohol Sales</b> with their signals (Independent, Platform target, Sales declining…). Anything already in the CRM is skipped, never overwritten. No one is added to email lists.</div>

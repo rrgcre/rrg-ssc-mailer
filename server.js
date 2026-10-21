@@ -72,8 +72,8 @@ if (process.env.DATABASE_URL) {
   } catch (e) { _pg = null; PG_OK = false; console.error('[PG] replica init failed — records on disk only. Reason: ' + (e && e.message)); }
 }
 console.log('[DB] Primary store: ' + DB_KIND + (PG_OK ? ' + Postgres backup' : ' (no off-box backup — set DATABASE_URL to add one)'));
-function writeJsonGuarded(file, data, label) {
-  const ok = DB_OK ? _db.writeStore(path.basename(file), data, label) : _fileWriteGuarded(file, data, label);
+function writeJsonGuarded(file, data, label, opts) {
+  const ok = DB_OK ? _db.writeStore(path.basename(file), data, label, opts) : _fileWriteGuarded(file, data, label, opts);
   if (PG_OK) { try { _pg.mirror(path.basename(file), data); } catch (e) {} }
   if (!ok) { _lastWriteFail = { at: Date.now(), label: (label || path.basename(file)) }; console.error('[SAVE] write FAILED for ' + (label || file) + ' — disk may be full or read-only. Nothing was persisted.'); }
   return ok;
@@ -1663,13 +1663,15 @@ app.get('/api/me', (req, res) => { const prof = auth.profileOf(auth.findUser(req
 // Personal UI preferences (per user, server-side so they follow the user to any device).
 // keepNav: keep the sidebar sections open between logins (default: every login starts with them all closed).
 function userPrefsOf(username) { const s = loadSettings(); const all = (s.userPrefs && typeof s.userPrefs === 'object') ? s.userPrefs : {}; const p = all[String(username || '').toLowerCase()]; return (p && typeof p === 'object') ? p : {}; }
-app.get('/api/me/prefs', (req, res) => { res.json({ ok: true, prefs: { keepNav: !!userPrefsOf(req.user.username).keepNav } }); });
+app.get('/api/me/prefs', (req, res) => { const _up = userPrefsOf(req.user.username); res.json({ ok: true, prefs: { keepNav: !!_up.keepNav, radarArea: _up.radarArea || '' } }); });
 app.post('/api/me/prefs', express.json(), (req, res) => {
   const b = req.body || {}; const s = loadSettings(); s.userPrefs = (s.userPrefs && typeof s.userPrefs === 'object') ? s.userPrefs : {};
   const k = String(req.user.username || '').toLowerCase(); const cur = Object.assign({}, s.userPrefs[k] || {});
   if (typeof b.keepNav === 'boolean') cur.keepNav = b.keepNav;
+  // Alcohol Sales: the area this user last loaded, so the page reopens where they left off on any device.
+  if (typeof b.radarArea === 'string') { const _ra = b.radarArea.trim().slice(0, 800); if (!_ra || /^[A-Za-z0-9:,.' -]+$/.test(_ra)) cur.radarArea = _ra; }
   s.userPrefs[k] = cur; if (!saveSettings(s)) return res.status(500).json({ ok: false, error: 'Could not save.' });
-  res.json({ ok: true, prefs: { keepNav: !!cur.keepNav } });
+  res.json({ ok: true, prefs: { keepNav: !!cur.keepNav, radarArea: cur.radarArea || '' } });
 });
 app.post('/api/me/profile', express.json(), (req, res) => {
   try {
@@ -13426,7 +13428,8 @@ app.post('/api/admin/legacy-subscribers/retire', requireAdmin, express.json(), a
     const info = _legacyRetireInfo();
     info.retirements.push({ at: new Date().toISOString(), by: (req.user && (req.user.username || req.user.name)) || '', migrated: !!b.migrate, records: legacy });
     if (!writeJsonGuarded(LEGACY_SUBS_BACKUP, info, 'legacySubsBackup')) return res.status(500).json({ ok: false, error: 'Couldn’t write the backup, so nothing was retired.' });
-    if (!saveSubscribers([])) return res.status(500).json({ ok: false, error: 'Backup written, but the old store couldn’t be cleared.' });
+    // An intentional clear — the full list was just written to the backup above — so bypass the empty-write guard.
+    if (!writeJsonGuarded(SUBSCRIBERS_FILE, [], 'saveSubscribers', { allowEmpty: true })) return res.status(500).json({ ok: false, error: 'Backup written, but the old store couldn’t be cleared.' });
     try { _unsubCache = null; } catch (e) {}
     try { logSysEvent(req, 'Subscribers', 'Legacy subscriber store retired — ' + legacy.length + ' record(s)' + (b.migrate ? ' copied to the Email Studio and' : '') + ' backed up', { count: legacy.length }); } catch (e) {}
     res.json({ ok: true, retired: legacy.length, migrated: mig ? { added: mig.added, updated: mig.updated, suppressed: mig.suppressed } : null });
@@ -27392,12 +27395,36 @@ async function txRadarBuild(scope) {
     pending: pending.map(p => ({ name: p.trade_name || '', owner: p.owner || '', address: [p.address, p.address_2].filter(Boolean).join(' '), city: txTitle(p.city), type: p.license_type || '', submitted: String(p.submission_date || '').slice(0, 10), status: p.applicationstatus || '' })),
     creditLaw: credit.map(c => ({ name: c.tradename || c.corporatename || '', address: c.streetaddress || '', city: txTitle(c.city), effective: String(c.effectivedate || '').slice(0, 10), status: c.permitstatus || '' })) };
 }
+// One build per area at a time: a second request for an area that is already building waits on the
+// same promise instead of starting another multi-minute pull from the state.
+var _TXR_INFLIGHT = {};
 async function txRadarGet(scope, refresh) {
   const isArea = scope && typeof scope === 'object';
   const fp = path.join(TXRADAR_DIR, isArea ? ('_area_' + (scope.area.length > 60 ? require('crypto').createHash('md5').update(scope.area).digest('hex') : scope.area.replace(/[^a-z0-9]+/gi, '-')) + '.json') : (scope.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.json'));
-  try { if (!refresh && fs.existsSync(fp)) { const c = JSON.parse(fs.readFileSync(fp, 'utf8')); if (c && c.v === 4 && c.at && (Date.now() - Date.parse(c.at)) < 24 * 36e5) return Object.assign({ cached: true }, c); } } catch (e) {}
-  const r = await txRadarBuild(scope); try { if (!fs.existsSync(TXRADAR_DIR)) fs.mkdirSync(TXRADAR_DIR, { recursive: true }); fs.writeFileSync(fp, JSON.stringify(r)); } catch (e) {} return r;
+  const isState = isArea && scope.area === 'state:tx';
+  const build = () => { if (_TXR_INFLIGHT[fp]) return _TXR_INFLIGHT[fp];
+    _TXR_INFLIGHT[fp] = txRadarBuild(scope).then(r => { try { if (!fs.existsSync(TXRADAR_DIR)) fs.mkdirSync(TXRADAR_DIR, { recursive: true }); if (r && r.ok !== false) fs.writeFileSync(fp, JSON.stringify(r)); } catch (e) {} return r; })
+      .finally(() => { delete _TXR_INFLIGHT[fp]; });
+    return _TXR_INFLIGHT[fp]; };
+  try { if (!refresh && fs.existsSync(fp)) { const c = JSON.parse(fs.readFileSync(fp, 'utf8')); if (c && c.v === 4 && c.at) { const age = Date.now() - Date.parse(c.at);
+    if (age < 24 * 36e5) return Object.assign({ cached: true }, c);
+    // All of Texas takes minutes to build. A copy up to a week old is served at once while a fresh one builds behind it.
+    if (isState && age < 7 * 864e5) { build().catch(() => {}); return Object.assign({ cached: true, stale: true }, c); } } } } catch (e) {}
+  return build();
 }
+// Nightly: rebuild All of Texas between 3 and 5 a.m. firm time so the statewide view opens instantly all day.
+var _txStateWarmDay = '';
+async function txStateWarmTick() {
+  try {
+    const now = firmNaive(); const hr = parseInt(now.slice(11, 13), 10); const day = now.slice(0, 10);
+    if (hr < 3 || hr >= 5 || _txStateWarmDay === day) return;
+    _txStateWarmDay = day;
+    const scope = await txAreaScope('state:tx'); if (!scope) return;
+    await txRadarGet(scope, true);
+    console.log('[radar] All of Texas rebuilt for ' + day);
+  } catch (e) { console.error('[radar] statewide warm failed:', e && e.message); }
+}
+setInterval(txStateWarmTick, 15 * 60 * 1000);
 // A metro or county area can run to tens of thousands of operators — gzip the JSON when the browser accepts it.
 function txSendJson(req, res, obj) {
   const body = JSON.stringify(obj);

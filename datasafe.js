@@ -28,14 +28,14 @@ function _count(v) {
   return 0;
 }
 
-function writeJsonGuarded(file, data, label) {
+function writeJsonGuarded(file, data, label, opts) {
   try {
     fs.mkdirSync(path.dirname(file), { recursive: true });
 
     const emptyArr = Array.isArray(data) && data.length === 0;
     const emptyObj = data && typeof data === 'object' && !Array.isArray(data) && Object.keys(data).length === 0;
 
-    if (emptyArr || emptyObj) {
+    if ((emptyArr || emptyObj) && !(opts && opts.allowEmpty)) {
       try {
         const cur = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null;
         const n = _count(cur);

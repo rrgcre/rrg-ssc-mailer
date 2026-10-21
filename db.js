@@ -29,10 +29,11 @@ function readStore(name, fallback) {
   if (!row) return fallback === undefined ? null : fallback;
   try { return JSON.parse(row.json); } catch (e) { return fallback === undefined ? null : fallback; }
 }
-function writeStore(name, data, label) {
+// opts.allowEmpty: a deliberate, already-backed-up clear (e.g. retiring a store) — skips the empty-write guard.
+function writeStore(name, data, label, opts) {
   const emptyArr = Array.isArray(data) && data.length === 0;
   const emptyObj = data && typeof data === 'object' && !Array.isArray(data) && Object.keys(data).length === 0;
-  if (emptyArr || emptyObj) {
+  if ((emptyArr || emptyObj) && !(opts && opts.allowEmpty)) {
     const n = _count(readStore(name));
     if (n >= 2) {
       console.error('[DATA GUARD] ' + (label || name) + ' BLOCKED: refused to overwrite ' + n + ' records with empty data.');
