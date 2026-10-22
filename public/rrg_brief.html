@@ -88,7 +88,7 @@ h1{font-size:27px;font-weight:700;margin:5px 0 0;letter-spacing:-.01em;}
 </div>
 <span class="bmeta"><span class="gen" id="date"></span><button class="refresh" id="refresh" title="Run a fresh brief (AI call)">↻ Refresh</button></span>
 </div>
-<div class="wrap"><div data-rrg-feats="brief"></div><div id="out"><div class="state"><span class="spin"></span>Reading your pipeline…</div></div></div>
+<div class="wrap"><div data-rrg-feats="brief"></div><a id="inboxNote" href="rrg_inbox.html" style="display:none;align-items:center;gap:10px;background:#fff;border:1px solid #e6e9f0;border-left:4px solid #C8A24B;border-radius:10px;padding:11px 16px;margin:0 0 14px;text-decoration:none;color:#000E31;font-size:13.5px;font-weight:700"><span style="font-size:15px">✦</span><span id="inboxNoteTxt"></span><span style="margin-left:auto;color:#2647b0;font-size:12.5px">Review now →</span></a><div id="out"><div class="state"><span class="spin"></span>Reading your pipeline…</div></div></div>
 
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
@@ -178,5 +178,13 @@ fetch('/api/appname',{credentials:'same-origin'}).then(function(r){return r.json
 </script>
 <script src="/rrg_brand.js"></script>
 <script src="/rrg_features.js"></script>
+<script>
+// Inbox Suggestions waiting for a yes/no — surfaced on the brief so they're seen first thing.
+(function(){ fetch('/api/inbox',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ var n=(j&&j.pendingCount)||0; var el=document.getElementById('inboxNote'); if(!el||!n) return;
+  var L=(j.pending||[]), nl=L.filter(function(p){return p.kind==='new_lead';}).length, up=L.filter(function(p){return p.kind==='record_update';}).length, fl=L.filter(function(p){return p.kind==='file_attachment';}).length;
+  var parts=[]; if(nl) parts.push(nl+' new lead'+(nl===1?'':'s')); if(up) parts.push(up+' update'+(up===1?'':'s')); if(fl) parts.push(fl+' file'+(fl===1?'':'s'));
+  document.getElementById('inboxNoteTxt').textContent=n+' inbox suggestion'+(n===1?'':'s')+' to confirm'+(parts.length?(' — '+parts.join(', ')):'');
+  el.style.display='flex'; }).catch(function(){}); })();
+</script>
 </body>
 </html>

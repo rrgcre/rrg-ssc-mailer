@@ -11920,8 +11920,13 @@ function proposalBrief(p) {
   };
 }
 // Create a pending lead proposal from a parsed email. Returns {created:bool, id}.
+// Senders a user chose "never suggest" for (vendors, solicitors). Stored per user with their prefs.
+function _addrOf(from) { const m = String(from || '').match(/[A-Za-z0-9._%+'-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/); return m ? m[0].toLowerCase() : ''; }
+function inboxBlockedSenders(username) { const b = userPrefsOf(username).inboxBlocked; return Array.isArray(b) ? b : []; }
+function inboxSenderBlocked(username, from) { const a = _addrOf(from); return !!a && inboxBlockedSenders(username).indexOf(a) >= 0; }
 function addLeadProposal(username, parsed, source) {
   if (!username || !parsed) return { created: false };
+  if (inboxSenderBlocked(username, source && source.from)) return { created: false, blocked: true };
   const msgId = String((source && source.messageId) || '').trim();
   const arr = loadProposals();
   // Dedup: same user + same source message, still pending or already confirmed → skip.
@@ -12270,7 +12275,22 @@ app.post('/api/inbox/:id/dismiss', express.json(), (req, res) => {
   if (!p) return res.status(404).json({ ok: false, error: 'That item is no longer in your queue.' });
   if (p.forUser !== me && !isSuper(req.user)) return res.status(403).json({ ok: false, error: 'Not your item.' });
   if (p.status === 'pending') { p.status = 'dismissed'; p.decidedAt = new Date().toISOString(); p.decidedBy = me; saveProposals(arr); }
-  res.json({ ok: true, pendingCount: pendingProposalCount(me) });
+  // "Never suggest this sender": remember the address and clear anything else pending from it.
+  let blocked = '';
+  if (req.body && req.body.block) {
+    const addr = _addrOf(p.source && p.source.from);
+    if (addr) {
+      const st = loadSettings(); st.userPrefs = (st.userPrefs && typeof st.userPrefs === 'object') ? st.userPrefs : {};
+      const k = String(me).toLowerCase(); const cur = Object.assign({}, st.userPrefs[k] || {});
+      const list = Array.isArray(cur.inboxBlocked) ? cur.inboxBlocked.slice() : [];
+      if (list.indexOf(addr) < 0) list.push(addr); cur.inboxBlocked = list.slice(-500); st.userPrefs[k] = cur; saveSettings(st);
+      const arr2 = loadProposals(); let ch = false; const now = new Date().toISOString();
+      arr2.forEach(x => { if (x.forUser === me && x.status === 'pending' && x.kind === 'new_lead' && _addrOf(x.source && x.source.from) === addr) { x.status = 'dismissed'; x.decidedAt = now; x.decidedBy = me; ch = true; } });
+      if (ch) saveProposals(arr2);
+      blocked = addr;
+    }
+  }
+  res.json({ ok: true, blocked: blocked, pendingCount: pendingProposalCount(me) });
 });
 function cleanupPeopleAddrs() {
   try {

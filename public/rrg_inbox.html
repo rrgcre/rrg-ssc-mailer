@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RRG — Review</title>
+<title>RRG — Inbox Suggestions</title>
 <script src="/rrg_brand.js"></script>
 <style>
 :root{ --navy:#000E31; --red:#DA2B1F; --gold:#C8A24B; --ink:#1a2236; --muted:#6b7488; --line:#e6e9f0; --wash:#f5f7fb; --bg:#eef1f6; --green:#1f8a5b; }
@@ -16,7 +16,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .brand .wm{font-weight:700;font-size:15px;}
 .top a.back{color:#c3ccdf;text-decoration:none;font-weight:600;font-size:13px;border:1px solid rgba(255,255,255,.2);padding:7px 13px;border-radius:8px;}
 .top a.back:hover{border-color:#fff;color:#fff;}
-.wrap{max-width:1080px;margin:0 auto;padding:22px 28px 70px;}
+.wrap{max-width:1320px;margin:0 auto;padding:22px 28px 70px;}
 
 .statusbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-radius:10px;padding:13px 16px;margin-bottom:18px;}
 .statusbar .dot{width:9px;height:9px;border-radius:50%;background:#c3c9d4;flex:0 0 auto;}
@@ -105,11 +105,30 @@ textarea{min-height:52px;resize:vertical;}
 .flash{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(16px);background:var(--navy);color:#fff;font-weight:700;font-size:13px;padding:11px 18px;border-radius:10px;box-shadow:0 10px 30px rgba(16,32,70,.3);opacity:0;pointer-events:none;transition:all .22s;z-index:50;}
 .flash.show{opacity:1;transform:translateX(-50%) translateY(0);}
 .loading{color:var(--muted);text-align:center;padding:40px;font-size:13.5px;}
+/* Compact queue: one line per suggestion; the full form opens under a row only when you need to fix it. */
+.qbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:4px 0 8px;}
+.qbar .sectlabel{margin:0;} .qbar .sp{flex:1;} .qbar .qsel{font-size:12px;color:var(--muted);font-weight:700;}
+.qlist{background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;}
+.item{border-top:1px solid var(--line);} .item:first-child{border-top:none;}
+.irow{display:grid;grid-template-columns:28px 78px minmax(220px,1.3fr) minmax(200px,1fr) 52px auto;align-items:center;gap:10px;padding:9px 14px;cursor:pointer;font-size:13px;}
+.irow:hover{background:#f8fafd;} .item.open>.irow{background:#f3f6fb;}
+.irow input[type=checkbox]{width:16px;height:16px;accent-color:var(--red);margin:0;}
+.ikind{font-size:9.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;border-radius:999px;padding:3px 8px;text-align:center;white-space:nowrap;color:#2647b0;background:#eaf0ff;}
+.ikind.upd{color:#8a5a00;background:#fbf0d8;} .ikind.file{color:#1f6f5c;background:#e3f3ee;}
+.iwho{min-width:0;} .iwho b{color:var(--navy);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;} .iwho span{color:var(--muted);font-size:12px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ifrom{min-width:0;color:#485061;font-size:12px;} .ifrom div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;} .ifrom .isub{color:var(--muted);}
+.iconf{font-size:11px;font-weight:800;color:var(--muted);text-align:right;} .iconf.low{color:#b9761a;}
+.iact{display:flex;gap:6px;justify-content:flex-end;white-space:nowrap;}
+.ib{border:1px solid #cfd6e2;background:#fff;border-radius:7px;padding:5px 10px;font:inherit;font-size:12px;font-weight:700;color:var(--navy);cursor:pointer;}
+.ib:hover{border-color:#9fb0cc;} .ib.ok{background:var(--green);border-color:var(--green);color:#fff;} .ib.ok:hover{background:#18744c;}
+.ib.x{color:#8a93a3;} .ib.blk{color:#8a93a3;font-size:11px;} .ib:disabled{opacity:.5;cursor:default;}
+.iexp{padding:0 14px 14px 52px;background:#f3f6fb;} .iexp .prop{margin:0;}
+@media(max-width:900px){ .irow{grid-template-columns:24px 70px 1fr auto;} .ifrom,.iconf{display:none;} .iexp{padding-left:14px;} }
 </style>
 </head>
 <body>
 <div class="top"><div class="top-inner">
-  <span class="brand"><span class="disc">RRG</span><span class="wm">Review</span></span>
+  <span class="brand"><span class="disc">RRG</span><span class="wm">Inbox Suggestions</span></span>
   <a class="back" href="./index.html">← Dashboard</a>
 </div></div>
 <div class="wrap">
@@ -126,7 +145,9 @@ textarea{min-height:52px;resize:vertical;}
     </div>
   </div>
 
-  <div class="sectlabel" id="pendlabel" style="display:none">To review</div>
+  <div class="qbar"><div class="sectlabel" id="pendlabel" style="display:none">To review</div><span class="sp"></span>
+    <span id="qtools" hidden><label class="toggle" style="margin-right:6px"><input type="checkbox" id="selAll"> Select all</label> <span class="qsel" id="selCnt"></span>
+    <button class="btn ghost sm" id="bulkDis" disabled>Dismiss selected</button> <button class="btn red sm" id="bulkOk" disabled>Confirm selected</button></span></div>
   <div id="pending"><div class="loading">Loading your queue…</div></div>
 
   <div id="recentWrap"></div>
@@ -340,9 +361,11 @@ function wireFileCard(card){
 }
 
 function removeCard(card){
-  card.style.transition='opacity .18s'; card.style.opacity='0';
-  setTimeout(function(){ card.remove(); if(!document.querySelector('#pending .prop')){ load(); } },190);
+  var w=(card.closest&&card.closest('.item'))||card;
+  w.style.transition='opacity .18s'; w.style.opacity='0';
+  setTimeout(function(){ w.remove(); afterRemove(); },190);
 }
+function afterRemove(){ var n=document.querySelectorAll('#pending .item').length; if(!n){ load(); return; } var pl=document.getElementById('pendlabel'); if(pl) pl.textContent='To review ('+n+')'; updSel(); }
 
 function renderStatus(d){
   var sb=document.getElementById('statusbar'); sb.style.display='';
@@ -357,14 +380,17 @@ function render(d){
   INBOX.types=d.types||[]; INBOX.label=d.label||'Lavano';
   renderStatus(d);
   var pend=document.getElementById('pending'); var plabel=document.getElementById('pendlabel');
-  var list=d.pending||[];
+  var list=(d.pending||[]).slice();
+  // Least-confident reads first — those are the ones worth a look; confident ones can be approved in bulk.
+  list.sort(function(a,b){ var ca=(a.confidence==null?0.75:a.confidence), cb=(b.confidence==null?0.75:b.confidence); return ca-cb; });
   if(list.length){
     plabel.style.display=''; plabel.textContent='To review ('+list.length+')';
+    document.getElementById('qtools').hidden=false;
     window._INBOXMAP={}; list.forEach(function(p){ window._INBOXMAP[p.id]=p; });
-    pend.innerHTML=list.map(function(p){ return p.kind==='record_update'?updateCard(p):(p.kind==='file_attachment'?fileCard(p):propCard(p)); }).join('');
-    pend.querySelectorAll('.prop').forEach(function(card){ var k=card.getAttribute('data-kind'); if(k==='record_update') wireUpdateCard(card); else if(k==='file_attachment') wireFileCard(card); else wireCard(card); });
+    pend.innerHTML='<div class="qlist">'+list.map(itemRow).join('')+'</div>';
+    wireRows(pend);
   } else {
-    plabel.style.display='none';
+    plabel.style.display='none'; document.getElementById('qtools').hidden=true;
     pend.innerHTML=''+
       '<div class="empty"><h3>Your queue is clear</h3>'+
       '<p>When the agent reads an email you labeled, what it proposes lands here for you to confirm — a new lead to add, updates to a contact or deal you already have, or attachments to file. Nothing changes in your book without your say-so.</p>'+
@@ -409,6 +435,92 @@ document.getElementById('scanBtn').addEventListener('click',function(){
       flash(j.note||((j.proposed||0)+' new to review.')); load();
     }).catch(function(){ b.disabled=false; b.textContent=old; flash('Scan failed.'); });
 });
+
+// ---------- Compact rows ----------
+function _fromName(f){ f=String(f||''); var m=f.match(/^\s*"?([^"<]+?)"?\s*</); return m?m[1]:f; }
+function rowSummary(p){
+  var f=p.fields||{};
+  if(p.kind==='record_update'){
+    var ch=(f.changes||[]); var parts=ch.slice(0,3).map(function(c){ return (c.label||c.field||'')+' → '+(c.after||''); });
+    return { who:(f.personName||p.title||'Update'), sub:(parts.join(' · ')+(ch.length>3?(' +'+(ch.length-3)+' more'):''))||'Note to log', kind:'upd', kl:'Update', ok:'Apply' };
+  }
+  if(p.kind==='file_attachment'){
+    var a=(f.attachments||[]), sug=f.suggest||{};
+    var tgt=sug.dealKey?((sug.deals||[]).filter(function(x){return x.key===sug.dealKey;}).map(function(x){return 'Deal · '+(x.business||x.key);})[0]||'Deal'):(sug.personId?('Contact · '+(sug.personName||'')):'Documents');
+    return { who:(p.title||'File attachment'), sub:a.length+' file'+(a.length===1?'':'s')+' → '+tgt, kind:'file', kl:'File', ok:'File' };
+  }
+  var nm=((f.firstName||'')+' '+(f.lastName||'')).trim()||f.email||'New contact';
+  return { who:nm+(f.companyName?(' — '+f.companyName):''), sub:[f.title,f.email,f.phone].filter(Boolean).join(' · '), kind:'', kl:'New lead', ok:'Add' };
+}
+function itemRow(p){
+  var r=rowSummary(p), s=p.source||{}, c=p.confidence;
+  var conf=(c==null)?'':('<span class="iconf'+(c<0.7?' low':'')+'" title="How sure the read is">'+Math.round(c*100)+'%</span>');
+  return '<div class="item" data-id="'+esc(p.id)+'"><div class="irow" title="Click to review or edit before confirming">'+
+    '<input type="checkbox" class="isel" aria-label="Select">'+
+    '<span class="ikind '+r.kind+'">'+r.kl+'</span>'+
+    '<div class="iwho"><b>'+esc(r.who)+'</b><span>'+esc(r.sub)+'</span></div>'+
+    '<div class="ifrom"><div>'+esc(_fromName(s.from))+'</div><div class="isub">'+esc(s.subject||'')+'</div></div>'+
+    (conf||'<span></span>')+
+    '<div class="iact"><button class="ib ok" data-q="ok" title="'+r.ok+' as read">✓ '+r.ok+'</button><button class="ib x" data-q="x" title="Dismiss">✕</button>'+
+      (p.kind==='new_lead'?'<button class="ib blk" data-q="blk" title="Dismiss and never suggest this sender again">Block sender</button>':'')+'</div>'+
+  '</div><div class="iexp" hidden></div></div>';
+}
+function quickFields(p){
+  var f=p.fields||{};
+  if(p.kind==='record_update') return { changes:(f.changes||[]).map(function(c){ return {target:c.target,field:c.field,dealKey:c.dealKey,label:c.label,before:c.before,after:c.after}; }), note:f.note||'' };
+  if(p.kind==='file_attachment'){ var sug=f.suggest||{}, ids=[], dt={}; (f.attachments||[]).forEach(function(a){ ids.push(a.attachmentId); dt[a.attachmentId]=a.docType||'General'; });
+    var target={type:'none'}; if(sug.dealKey){ var d=(sug.deals||[]).filter(function(x){return x.key===sug.dealKey;})[0]; target={type:'deal',dealKey:sug.dealKey,dealLabel:d?(d.business||d.key):''}; } else if(sug.personId){ target={type:'contact',personId:sug.personId}; }
+    return { attachmentIds:ids, docTypes:dt, target:target, note:f.note||'' }; }
+  var o={}; ['firstName','lastName','email','phone','title','type','companyName','note'].forEach(function(k){ o[k]=f[k]||''; }); return o;
+}
+function postJ(url,body){ return fetch(url,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})}).then(function(r){return r.json();}); }
+// Confirm one item: if its form is open, use what's typed there; otherwise apply it as read.
+function quickConfirm(item){
+  var id=item.getAttribute('data-id'), p=(window._INBOXMAP||{})[id]; if(!p) return Promise.resolve(false);
+  var open=item.querySelector('.iexp .prop');
+  if(open){ var b=open.querySelector('[data-act="confirm"]'); if(b){ b.click(); } return Promise.resolve(true); }
+  return postJ('/api/inbox/'+encodeURIComponent(id)+'/confirm',{fields:quickFields(p)}).then(function(j){
+    if(!j.ok){ flash(j.error||'Could not apply — open it to fix.'); openItem(item,true); return false; }
+    removeCard(item); setBadge(j.pendingCount||0); return true; }).catch(function(){ flash('Network error.'); return false; });
+}
+function quickDismiss(item,block){
+  var id=item.getAttribute('data-id');
+  return postJ('/api/inbox/'+encodeURIComponent(id)+'/dismiss',block?{block:true}:{}).then(function(j){
+    if(block&&j.blocked){ flash('Blocked '+j.blocked+' — no more suggestions from them.'); load(); }
+    else removeCard(item);
+    setBadge((j&&j.pendingCount)||0); return true; }).catch(function(){ return false; });
+}
+function openItem(item,force){
+  var x=item.querySelector('.iexp'), id=item.getAttribute('data-id'), p=(window._INBOXMAP||{})[id]; if(!p) return;
+  if(!x.hidden&&!force){ x.hidden=true; item.classList.remove('open'); return; }
+  if(!x.innerHTML){ x.innerHTML=p.kind==='record_update'?updateCard(p):(p.kind==='file_attachment'?fileCard(p):propCard(p));
+    var card=x.querySelector('.prop'); var k=card.getAttribute('data-kind'); if(k==='record_update') wireUpdateCard(card); else if(k==='file_attachment') wireFileCard(card); else wireCard(card); }
+  x.hidden=false; item.classList.add('open');
+}
+function updSel(){ var all=document.querySelectorAll('#pending .isel'), on=document.querySelectorAll('#pending .isel:checked').length;
+  var c=document.getElementById('selCnt'); if(c) c.textContent=on?(on+' selected'):'';
+  ['bulkOk','bulkDis'].forEach(function(i){ var b=document.getElementById(i); if(b) b.disabled=!on; });
+  var sa=document.getElementById('selAll'); if(sa){ sa.checked=!!all.length&&on===all.length; sa.indeterminate=on>0&&on<all.length; } }
+function wireRows(root){
+  root.querySelectorAll('.item').forEach(function(item){
+    var row=item.querySelector('.irow');
+    row.addEventListener('click',function(e){ if(e.target.closest('button,input,a')) return; openItem(item); });
+    item.querySelector('.isel').addEventListener('change',updSel);
+    row.querySelectorAll('[data-q]').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); var q=b.getAttribute('data-q'); b.disabled=true;
+      var pr=(q==='ok')?quickConfirm(item):quickDismiss(item,q==='blk'); pr.then(function(okk){ if(!okk) b.disabled=false; if(q==='ok'&&okk) flash('Done.'); }); }); });
+  });
+  updSel();
+}
+function bulk(kind){
+  var items=Array.prototype.slice.call(document.querySelectorAll('#pending .isel:checked')).map(function(c){ return c.closest('.item'); });
+  if(!items.length) return; var n=0, i=0;
+  ['bulkOk','bulkDis'].forEach(function(x){ document.getElementById(x).disabled=true; });
+  (function next(){ if(i>=items.length){ flash((kind==='ok'?'Confirmed ':'Dismissed ')+n+' of '+items.length+'.'); updSel(); return; }
+    var it=items[i++]; (kind==='ok'?quickConfirm(it):quickDismiss(it,false)).then(function(okk){ if(okk) n++; next(); }); })();
+}
+document.getElementById('selAll').addEventListener('change',function(){ var on=this.checked; document.querySelectorAll('#pending .isel').forEach(function(c){ c.checked=on; }); updSel(); });
+document.getElementById('bulkOk').addEventListener('click',function(){ bulk('ok'); });
+document.getElementById('bulkDis').addEventListener('click',function(){ bulk('x'); });
 
 load();
 </script>

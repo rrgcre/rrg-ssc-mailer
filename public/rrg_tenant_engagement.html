@@ -62,6 +62,7 @@ a.hpstep,button.hpstep{cursor:pointer;}
 .card.buyerpipe a.hpstep:hover .hpname,.card.buyerpipe button.hpstep:hover .hpname{color:var(--red);}
 .hpstat{font-size:9.5px;color:var(--soft);margin-top:2px;}
 a.hpstep:hover .hpname,button.hpstep:hover .hpname{color:var(--red);}
+.hptgl{display:flex;flex-direction:column;align-items:center;background:none;border:none;padding:0;font:inherit;cursor:pointer;position:relative;z-index:1;} .hptgl:hover .hpname{color:var(--red);} .hptool{color:#23496f;font-weight:700;text-decoration:none;} .hptool:hover{text-decoration:underline;}
 .step{display:flex;gap:14px;align-items:flex-start;padding:14px 0;border-bottom:1px solid var(--line);}
 .step:last-child{border-bottom:none;}
 .steprail{display:flex;flex-direction:column;align-items:center;position:relative;}
@@ -1240,7 +1241,9 @@ function render(){
     var statTxt = st ? (st.done?'Done':'In progress') : (mflag?'Done':(d.manual?'Not yet':'\u2014'));
     var inner='<div class="hpdot '+cls+'">'+mark+'</div><div class="hpname">'+esc(d.lbl||d.name)+'</div><div class="hpstat">'+statTxt+'</div>';
     if(st){ return '<a class="hpstep'+(st.done?' done':'')+'" href="'+d.href(st)+'" title="'+esc(d.name)+' \u2014 open the tool">'+inner+'</a>'; }
-    if(d.toolHref){ return '<a class="hpstep'+(done?' done':'')+'" href="'+d.toolHref+'" title="'+esc(d.name)+' \u2014 '+esc(d.toolOpen||'open the tool')+'">'+inner+'</a>'; }
+    // A stage linked to a tool (Tours, LOI…) is still marked done by hand: the dot and name toggle it,
+    // and a small "Open" link under it goes to the tool.
+    if(d.toolHref){ return '<div class="hpstep'+(done?' done':'')+'"><button type="button" class="hptgl" data-mstage="'+d.k+'" title="'+esc(d.name)+' \u2014 click to mark '+(done?'not done':'done')+'"><div class="hpdot '+cls+'">'+mark+'</div><div class="hpname">'+esc(d.lbl||d.name)+'</div></button><div class="hpstat">'+statTxt+' \u00b7 <a class="hptool" href="'+d.toolHref+'" title="'+esc(d.toolOpen||'Open the tool')+'">Open \u2197</a></div></div>'; }
     return '<button type="button" class="hpstep hpman'+(done?' on done':'')+'" data-mstage="'+d.k+'" title="'+esc(d.name)+' \u2014 click to mark '+(done?'not done':'done')+'">'+inner+'</button>';
   }).join('');
 

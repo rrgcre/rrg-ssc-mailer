@@ -162,8 +162,8 @@
   var NAV = [
     { title: 'My Work', color: '#8fa2c4', items: [
       { ic: '☀︎', label: 'Daily Brief', href: 'rrg_brief.html', ai: true },
-      { ic: '✦', label: 'Review', href: 'rrg_inbox.html', ai: true },
       { ic: '✔', label: 'Tasks', href: 'rrg_tasks.html' },
+      { ic: '✦', label: 'Inbox Suggestions', href: 'rrg_inbox.html', ai: true },
       { ic: '◫', label: 'Calendar', href: 'rrg_calendar.html' },
       { ic: '◱', label: 'Feed', href: 'rrg_feed.html' },
       { ic: '▤', label: 'Views', href: '#', views: true }
@@ -647,7 +647,7 @@
       var od=(j&&j.overdue)||{}; var NOUN={'rrg_tickets.html':'past-due request','rrg_tasks.html':'overdue task'};
       Object.keys(od).forEach(function(href){ if(href==='rrg_tasks.html') return; var c=od[href]||0; var tl=nav.querySelector('a.it[href="'+href+'"]'); if(!tl||c<=0||tl.querySelector('.navbadge')) return; tl.title=c+' '+(NOUN[href]||'item')+(c===1?'':'s'); _badge(tl,'',c,tl.title); });
       var nb=(j&&j.newbookings)||{}; Object.keys(nb).forEach(function(href){ var c=nb[href]||0; var tl=nav.querySelector('a.it[href="'+href+'"]'); if(!tl||c<=0||tl.querySelector('.navbadge')) return; _badge(tl,'',c,c+' new meeting'+(c===1?'':'s')+' booked',99); });
-      var rv=(j&&j.review)||{}; Object.keys(rv).forEach(function(href){ var c=rv[href]||0; var tl=nav.querySelector('a.it[href="'+href+'"]'); if(!tl||c<=0||tl.querySelector('.navbadge')) return; _badge(tl,'',c,c+' lead'+(c===1?'':'s')+' to review',99); });
+      var rv=(j&&j.review)||{}; Object.keys(rv).forEach(function(href){ var c=rv[href]||0; var tl=nav.querySelector('a.it[href="'+href+'"]'); if(!tl||c<=0||tl.querySelector('.navbadge')) return; _badge(tl,'',c,c+' inbox suggestion'+(c===1?'':'s')+' to confirm',99); });
       // Agreements nav — gold: out for signature; red: waiting on your countersignature.
       (function(){ var tl=nav.querySelector('a.it[href="rrg_agreements.html"]'); if(!tl) return; var g=((j&&j.agrsig)||{})['rrg_agreements.html']||{}; var o=g.out||0, c=g.counter||0; if(o||c) tl.title=(o?(o+' out for signature'):'')+((o&&c)?' · ':'')+(c?(c+' need your countersignature'):''); _badge(tl,'gold',o,o+' out for signature'); _badge(tl,'',c,c+' need your countersignature'); })();
       // Tasks nav — only what needs action: due today (gold), past due (red). Open total stays in the hover title.
