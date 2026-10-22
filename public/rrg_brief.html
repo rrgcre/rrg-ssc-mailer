@@ -183,7 +183,7 @@ fetch('/api/appname',{credentials:'same-origin'}).then(function(r){return r.json
 (function(){ fetch('/api/inbox',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ var n=(j&&j.pendingCount)||0; var el=document.getElementById('inboxNote'); if(!el||!n) return;
   var L=(j.pending||[]), nl=L.filter(function(p){return p.kind==='new_lead';}).length, up=L.filter(function(p){return p.kind==='record_update';}).length, fl=L.filter(function(p){return p.kind==='file_attachment';}).length;
   var parts=[]; if(nl) parts.push(nl+' new lead'+(nl===1?'':'s')); if(up) parts.push(up+' update'+(up===1?'':'s')); if(fl) parts.push(fl+' file'+(fl===1?'':'s'));
-  document.getElementById('inboxNoteTxt').textContent=n+' inbox suggestion'+(n===1?'':'s')+' to confirm'+(parts.length?(' — '+parts.join(', ')):'');
+  document.getElementById('inboxNoteTxt').textContent=n+' item'+(n===1?'':'s')+' from your inbox to confirm'+(parts.length?(' — '+parts.join(', ')):'');
   el.style.display='flex'; }).catch(function(){}); })();
 </script>
 </body>
