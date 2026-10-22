@@ -462,7 +462,7 @@ function itemRow(p){
     '<div class="ifrom"><div>'+esc(_fromName(s.from))+'</div><div class="isub">'+esc(s.subject||'')+'</div></div>'+
     (conf||'<span></span>')+
     '<div class="iact"><button class="ib ok" data-q="ok" title="'+r.ok+' as read">✓ '+r.ok+'</button><button class="ib x" data-q="x" title="Dismiss">✕</button>'+
-      (p.kind==='new_lead'?'<button class="ib blk" data-q="blk" title="Dismiss and never suggest this sender again">Block sender</button>':'')+'</div>'+
+      (p.kind==='new_lead'?'<button class="ib blk" data-q="blk" title="Not someone you\'d do business with — dismiss it and stop suggesting this person as a lead. Their email still reaches you.">Not a lead</button>':'')+'</div>'+
   '</div><div class="iexp" hidden></div></div>';
 }
 function quickFields(p){
@@ -486,7 +486,7 @@ function quickConfirm(item){
 function quickDismiss(item,block){
   var id=item.getAttribute('data-id');
   return postJ('/api/inbox/'+encodeURIComponent(id)+'/dismiss',block?{block:true}:{}).then(function(j){
-    if(block&&j.blocked){ flash('Blocked '+j.blocked+' — no more suggestions from them.'); load(); }
+    if(block&&j.blocked){ flash('Got it — '+j.blocked+' won\u2019t be suggested as a lead again.'); load(); }
     else removeCard(item);
     setBadge((j&&j.pendingCount)||0); return true; }).catch(function(){ return false; });
 }
