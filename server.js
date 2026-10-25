@@ -25654,7 +25654,7 @@ let _ccBusy = false;
 app.get('/api/admin/chitchat', requireAdmin, async (req, res) => { let lists = []; try { lists = await massmail.listLists(); } catch (e) {}
   res.json({ ok: true, settings: effChitChat(), issues: ccLoad().slice().reverse().map(_ccSummary), lists, studio: massmail.dbReady(), sending: massmail.sesConfigured(), aiReady: !!process.env.ANTHROPIC_API_KEY, signupUrl: (appBaseUrl() || '') + '/chitchat' }); });
 app.post('/api/admin/chitchat/settings', requireAdmin, express.json(), async (req, res) => { const b = req.body || {}; const s = loadSettings(); const c = Object.assign({}, effChitChat()); const S = (v, n) => String(v == null ? '' : v).trim().slice(0, n);
-  try { if (b.createList) { c.listId = await massmail.ensureList('Texas Chit Chat'); } else if (b.listId !== undefined) c.listId = b.listId ? Number(b.listId) : null; } catch (e) { return res.status(400).json({ ok: false, error: String(e.message || e) }); }
+  try { if (b.createList) { c.listId = await massmail.ensureList('Texas Chit Chat'); } else if (b.listId !== undefined) c.listId = (b.listId === 'all') ? 'all' : (b.listId ? Number(b.listId) : null); } catch (e) { return res.status(400).json({ ok: false, error: String(e.message || e) }); }
   ['fromName', 'fromEmail', 'replyTo', 'metros', 'publisher', 'address'].forEach(k => { if (b[k] !== undefined) c[k] = S(b[k], 200); });
   if (c.fromEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.fromEmail)) return res.status(400).json({ ok: false, error: 'From email is not a valid address.' });
   if (b.sponsor && typeof b.sponsor === 'object') c.sponsor = { on: !!b.sponsor.on, label: S(b.sponsor.label, 120), line: S(b.sponsor.line, 200), url: /^https?:\/\//i.test(S(b.sponsor.url, 500)) ? S(b.sponsor.url, 500) : '', cta: S(b.sponsor.cta, 40) || 'Learn more' };
@@ -25710,7 +25710,7 @@ app.post('/api/admin/chitchat/issues/:id/approve', requireAdmin, async (req, res
   const C = effChitChat(); if (!massmail.dbReady()) return res.status(400).json({ ok: false, error: 'Email Studio storage isn’t configured.' });
   if (!C.listId) return res.status(400).json({ ok: false, error: 'Pick the subscriber list first (Settings below).' });
   x.status = 'approved'; x.approvedBy = (req.user && req.user.name) || ''; x.approvedAt = new Date().toISOString();
-  const id = await massmail.createCampaignRecord({ name: 'Texas Chit Chat #' + x.n, subject: (x.data && x.data.subject) || ('Texas Chit Chat #' + x.n), preheader: String((x.data && x.data.lede) || '').slice(0, 140), fromName: C.fromName, fromEmail: C.fromEmail, replyTo: C.replyTo, html: chitChatHtml(x), listId: C.listId }, req.user);
+  const id = await massmail.createCampaignRecord({ name: 'Texas Chit Chat #' + x.n, subject: (x.data && x.data.subject) || ('Texas Chit Chat #' + x.n), preheader: String((x.data && x.data.lede) || '').slice(0, 140), fromName: C.fromName, fromEmail: C.fromEmail, replyTo: C.replyTo, html: chitChatHtml(x), listId: (C.listId === 'all' ? null : C.listId), pub: 'chitchat' }, req.user);
   x.campaignId = id; ccSave(all); try { logSysEvent(req, 'Texas Chit Chat', 'Approved Texas Chit Chat #' + x.n + ' — campaign created in Email Studio', { tool: 'marketing' }); } catch (e) {}
   res.json({ ok: true, campaignId: id });
 } catch (e) { res.status(500).json({ ok: false, error: String(e && e.message || e) }); } });
@@ -25732,8 +25732,8 @@ app.post('/api/chitchat/subscribe', express.json({ limit: '8kb' }), async (req, 
   const ip = String(req.headers['x-forwarded-for'] || req.ip || '').split(',')[0].trim(); const now = Date.now(); const h = (_ccRate.get(ip) || []).filter(t => now - t < 3600000); if (h.length >= 5) return res.status(429).json({ ok: false, error: 'Too many tries — try again later.' }); h.push(now); _ccRate.set(ip, h);
   const email = String(b.email || '').trim().toLowerCase(); if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 200) return res.status(400).json({ ok: false, error: 'Enter a valid email.' });
   const C = effChitChat(); if (!massmail.dbReady() || !C.listId) return res.status(503).json({ ok: false, error: 'Signups open soon.' });
-  const nm = String(b.name || '').trim().slice(0, 120).split(/\s+/); await massmail.importSubscribers([{ email, first_name: nm[0] || '', last_name: nm.slice(1).join(' '), type: 'Restaurant', company: String(b.company || '').slice(0, 160) }], 'chitchat', { type: 'Restaurant' });
-  await massmail.addEmailsToList(C.listId, [email]); try { logSysEvent(null, 'Texas Chit Chat', 'New Texas Chit Chat subscriber: ' + email, { tool: 'marketing' }); } catch (e) {}
+  const nm = String(b.name || '').trim().slice(0, 120).split(/\s+/); await massmail.ccSignup({ email, first_name: nm[0] || '', last_name: nm.slice(1).join(' '), type: 'Restaurant', company: String(b.company || '').slice(0, 160) });
+  if (C.listId && C.listId !== 'all') await massmail.addEmailsToList(C.listId, [email]); try { logSysEvent(null, 'Texas Chit Chat', 'New Texas Chit Chat subscriber: ' + email, { tool: 'marketing' }); } catch (e) {}
   res.json({ ok: true });
 } catch (e) { res.status(500).json({ ok: false, error: 'Could not subscribe right now.' }); } });
 // ---- Careers: public agent application (rrgcre.com "Apply" → Lavano contact tagged Recruit) ----

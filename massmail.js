@@ -58,6 +58,13 @@ async function migrate() {
       id BIGSERIAL PRIMARY KEY, tenant TEXT NOT NULL DEFAULT 'default', email TEXT, campaign_id BIGINT,
       type TEXT, ses_message_id TEXT, at TIMESTAMPTZ DEFAULT now(), meta JSONB DEFAULT '{}'::jsonb)`);
     await pool.query(`ALTER TABLE mm_campaigns ADD COLUMN IF NOT EXISTS archived BOOLEAN DEFAULT false`);
+    // Separate publications (RRG emails vs the Texas Chit Chat newsletter) share one subscriber store but
+    // keep their own opt-outs. mm_campaigns.pub = '' (RRG) | 'chitchat'. A suppression's scope is 'all'
+    // (bounce, complaint, "unsubscribe from everything", and every opt-out from before this split) or
+    // 'rrg' (opted out of RRG emails only). Chit Chat-only opt-outs live in mm_cc_optouts.
+    await pool.query(`ALTER TABLE mm_campaigns ADD COLUMN IF NOT EXISTS pub TEXT DEFAULT ''`);
+    await pool.query(`ALTER TABLE mm_suppressions ADD COLUMN IF NOT EXISTS scope TEXT DEFAULT 'all'`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS mm_cc_optouts(tenant TEXT NOT NULL, email TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT now(), PRIMARY KEY(tenant, email))`);
     await pool.query(`ALTER TABLE mm_campaigns ADD COLUMN IF NOT EXISTS ab_enabled BOOLEAN DEFAULT false`);
     await pool.query(`ALTER TABLE mm_campaigns ADD COLUMN IF NOT EXISTS subject_b TEXT DEFAULT ''`);
     await pool.query(`ALTER TABLE mm_campaigns ADD COLUMN IF NOT EXISTS html_b TEXT DEFAULT ''`);
@@ -153,10 +160,22 @@ async function sesSendRaw(rawMime) {
 
 /* ---------------- Suppression ---------------- */
 async function isSuppressed(email) { const r = await q('SELECT 1 FROM mm_suppressions WHERE tenant=$1 AND email=$2 LIMIT 1', [TENANT, _norm(email)]); return r.rowCount > 0; }
-async function addSuppression(email, reason, detail) {
+// Held out of a send for this publication? RRG: any suppression. Chit Chat: an 'all' suppression or a Chit Chat opt-out.
+async function isSuppressedFor(email, pub) {
+  email = _norm(email);
+  if (pub !== 'chitchat') return isSuppressed(email);
+  const r = await q(`SELECT 1 FROM mm_suppressions WHERE tenant=$1 AND email=$2 AND COALESCE(scope,'all')='all'
+                     UNION ALL SELECT 1 FROM mm_cc_optouts WHERE tenant=$1 AND email=$2 LIMIT 1`, [TENANT, email]);
+  return r.rowCount > 0;
+}
+async function addCcOptout(email) { email = _norm(email); if (!email) return; await q('INSERT INTO mm_cc_optouts(tenant,email) VALUES($1,$2) ON CONFLICT DO NOTHING', [TENANT, email]); }
+async function addSuppression(email, reason, detail, scope) {
   email = _norm(email); if (!email) return;
-  await q(`INSERT INTO mm_suppressions(tenant,email,reason,detail) VALUES($1,$2,$3,$4)
-           ON CONFLICT(tenant,email) DO UPDATE SET reason=EXCLUDED.reason, detail=EXCLUDED.detail`, [TENANT, email, reason || 'manual', String(detail || '').slice(0, 300)]);
+  const sc = (scope === 'rrg') ? 'rrg' : 'all';
+  // Widening only: an 'all' suppression never narrows back to 'rrg'.
+  await q(`INSERT INTO mm_suppressions(tenant,email,reason,detail,scope) VALUES($1,$2,$3,$4,$5)
+           ON CONFLICT(tenant,email) DO UPDATE SET reason=EXCLUDED.reason, detail=EXCLUDED.detail,
+             scope = CASE WHEN COALESCE(mm_suppressions.scope,'all')='all' OR EXCLUDED.scope='all' THEN 'all' ELSE EXCLUDED.scope END`, [TENANT, email, reason || 'manual', String(detail || '').slice(0, 300), sc]);
   // Any suppression holds the address out of sends, so reflect it in the
   // subscriber's status too (a manual suppress reads as unsubscribed).
   const st = reason === 'complaint' ? 'complained' : (reason === 'bounce' ? 'bounced' : 'unsubscribed');
@@ -369,14 +388,22 @@ function _abFields(b){
     hours: Math.max(1, Math.min(72, parseInt(b.abHours, 10) || 4))
   };
 }
+// Who a send can reach, per publication ($1 = tenant). RRG: active and not suppressed at all.
+// Chit Chat: active, or opted out of RRG emails only — never an 'all' suppression or a Chit Chat opt-out.
+function _audienceClause(pub, a) {
+  if (pub === 'chitchat') return `(${a}.status='active' OR (${a}.status='unsubscribed' AND EXISTS (SELECT 1 FROM mm_suppressions y WHERE y.tenant=$1 AND y.email=${a}.email AND y.scope='rrg')))
+      AND NOT EXISTS (SELECT 1 FROM mm_suppressions x WHERE x.tenant=$1 AND x.email=${a}.email AND COALESCE(x.scope,'all')='all')
+      AND NOT EXISTS (SELECT 1 FROM mm_cc_optouts o WHERE o.tenant=$1 AND o.email=${a}.email)`;
+  return `${a}.status='active' AND NOT EXISTS (SELECT 1 FROM mm_suppressions x WHERE x.tenant=$1 AND x.email=${a}.email)`;
+}
 async function createCampaign(b, user) {
   const ab = _abFields(b);
-  const r = await q(`INSERT INTO mm_campaigns(tenant,name,subject,preheader,from_name,from_email,reply_to,html,list_id,by_user,ab_enabled,subject_b,html_b,ab_pct,ab_metric,ab_hours)
-    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING id`,
+  const r = await q(`INSERT INTO mm_campaigns(tenant,name,subject,preheader,from_name,from_email,reply_to,html,list_id,by_user,ab_enabled,subject_b,html_b,ab_pct,ab_metric,ab_hours,pub)
+    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING id`,
     [TENANT, String(b.name || '').slice(0, 200), String(b.subject || '').slice(0, 300), String(b.preheader || '').slice(0, 300),
      String(b.fromName || process.env.MAIL_FROM_NAME || '').slice(0, 120), String(b.fromEmail || process.env.SES_FROM || '').slice(0, 200),
      String(b.replyTo || '').slice(0, 200), String(b.html || ''), b.listId ? Number(b.listId) : null, String((user && user.name) || '').slice(0, 120),
-     ab.enabled, ab.subjectB, ab.htmlB, ab.pct, ab.metric, ab.hours]);
+     ab.enabled, ab.subjectB, ab.htmlB, ab.pct, ab.metric, ab.hours, (b.pub === 'chitchat' ? 'chitchat' : '')]);
   return r.rows[0].id;
 }
 async function updateCampaign(id, b) {
@@ -436,8 +463,7 @@ async function materialize(campaignId, runSeq, useAB) {
   const sql = `INSERT INTO mm_sends(tenant,campaign_id,subscriber_id,email,token,status,run_seq)
     SELECT $1, ${campaignId}, s.id, s.email, md5(random()::text||clock_timestamp()::text||s.id::text||'${runSeq}'), 'pending', ${runSeq}
     FROM mm_subscribers s
-    WHERE s.tenant=$1 AND s.status='active'${filt}
-      AND NOT EXISTS (SELECT 1 FROM mm_suppressions x WHERE x.tenant=$1 AND x.email=s.email)
+    WHERE s.tenant=$1 AND ${_audienceClause(c.pub, 's')}${filt}
       AND NOT EXISTS (SELECT 1 FROM mm_sends d WHERE d.campaign_id=${campaignId} AND d.run_seq=${runSeq} AND d.subscriber_id=s.id)`;
   await q(sql, params);
   const tot = (await q('SELECT count(*)::int AS n FROM mm_sends WHERE campaign_id=$1', [campaignId])).rows[0].n;
@@ -520,8 +546,7 @@ async function checkNonOpenResends() {
       SELECT $1, d.campaign_id, d.subscriber_id, d.email, md5(random()::text||clock_timestamp()::text||d.id::text||'nr'), 'pending', $3
       FROM mm_sends d JOIN mm_subscribers s ON s.id=d.subscriber_id
       WHERE d.tenant=$1 AND d.campaign_id=$2 AND d.run_seq=$4 AND d.status='sent' AND d.opened_at IS NULL AND d.clicked_at IS NULL
-        AND s.status='active' AND NOT (lower(d.email) = ANY($5::text[]))
-        AND NOT EXISTS (SELECT 1 FROM mm_suppressions x WHERE x.tenant=$1 AND x.email=d.email)`, [TENANT, c.id, runSeq, src, excl]);
+        AND ${_audienceClause(c.pub, 's')} AND NOT (lower(d.email) = ANY($5::text[]))`, [TENANT, c.id, runSeq, src, excl]);
     const n = r.rowCount || 0;
     if (!n) { await q(`UPDATE mm_campaigns SET resend_run=-1, resend_note='nobody left to resend to' WHERE id=$1`, [c.id]); continue; }
     await q(`UPDATE mm_campaigns SET status='sending', runs=$2, resend_run=$2, resend_note=$3, last_run_at=now(), finished_at=NULL, total=(SELECT count(*) FROM mm_sends WHERE campaign_id=$1) WHERE id=$1`, [c.id, runSeq, 'resent to ' + n + ' non-openers']);
@@ -594,7 +619,7 @@ async function _loop() {
     for (const row of batch) {
       const c = camps[row.campaign_id]; if (!c) continue;
       try {
-        if (await isSuppressed(row.email)) { await q(`UPDATE mm_sends SET status='failed', error='suppressed' WHERE id=$1`, [row.id]); continue; }
+        if (await isSuppressedFor(row.email, c.pub)) { await q(`UPDATE mm_sends SET status='failed', error='suppressed' WHERE id=$1`, [row.id]); continue; }
         const sub = { first_name: row.first_name, last_name: row.last_name, email: row.email };
         const unsubUrl = BASE + '/mail/u/' + row.token;
         const openUrl = BASE + '/mail/o/' + row.token + '.gif';
@@ -642,9 +667,10 @@ async function handleClick(token, url) {
   return { campaignId: d.campaign_id, unique: first };
 }
 async function handleUnsub(token) {
-  const d = (await q('SELECT campaign_id,email FROM mm_sends WHERE token=$1 LIMIT 1', [token])).rows[0];
+  const d = (await q('SELECT s.campaign_id, s.email, COALESCE(c.pub,\'\') AS pub FROM mm_sends s LEFT JOIN mm_campaigns c ON c.id=s.campaign_id WHERE s.token=$1 LIMIT 1', [token])).rows[0];
   if (!d) return null;
-  await addSuppression(d.email, 'unsubscribe', 'one-click');
+  // The link in an email opts out of THAT publication only; "unsubscribe from everything" lives on the preferences page.
+  if (d.pub === 'chitchat') await addCcOptout(d.email); else await addSuppression(d.email, 'unsubscribe', 'one-click', 'rrg');
   await q(`UPDATE mm_campaigns SET unsubs=unsubs+1 WHERE id=$1`, [d.campaign_id]);
   await q(`INSERT INTO mm_events(tenant,email,campaign_id,type) VALUES($1,$2,$3,'unsubscribe')`, [TENANT, d.email, d.campaign_id]);
   return d.email;
@@ -1101,8 +1127,10 @@ function mount(app, deps) {
     if (DB_READY && req.method === 'GET') { try { await handleClick(t.sendToken, t.url); } catch (e) { console.error('[MAIL] click: ' + (e && e.message)); } }
     res.set('Cache-Control', 'no-store'); res.redirect(302, t.url);
   });
-  function _unsubPage(email) { return '<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Unsubscribed</title><body style="font-family:-apple-system,Segoe UI,Arial,sans-serif;background:#eef1f6;margin:0"><div style="max-width:480px;margin:70px auto;background:#fff;border:1px solid #e6e9f0;border-radius:12px;padding:34px;text-align:center"><h2 style="color:#000E31;margin:0 0 8px">You\'re unsubscribed</h2><p style="color:#6b7488">' + (email ? ('<b>' + escapeHtml(email) + '</b> has been removed and won\'t receive further emails.') : 'You will not receive further emails.') + '</p></div></body>'; }
-  function _unsubConfirmPage(token) { const T = String(token || '').replace(/[^a-zA-Z0-9._-]/g, ''); return '<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><meta name=robots content=noindex><title>Unsubscribe</title><body style="font-family:-apple-system,Segoe UI,Arial,sans-serif;background:#eef1f6;margin:0"><div style="max-width:480px;margin:70px auto;background:#fff;border:1px solid #e6e9f0;border-radius:12px;padding:34px;text-align:center"><h2 style="color:#000E31;margin:0 0 8px">Unsubscribe?</h2><p style="color:#6b7488;margin:0 0 22px">Click below to stop receiving these emails.</p><form method="post" action="/mail/u/' + T + '"><input type="hidden" name="confirm" value="1"><button type="submit" style="background:#000E31;color:#fff;border:0;border-radius:9px;padding:12px 22px;font-size:15px;font-weight:700;cursor:pointer">Unsubscribe me</button></form><p style="margin:18px 0 0;font-size:13px"><a href="/mail/prefs/' + T + '" style="color:#6b7488">Update my preferences instead</a></p></div></body>'; }
+  // Which publication a send token belongs to, for the unsubscribe pages' wording.
+  async function _pubOfToken(token) { try { const r = (await q('SELECT COALESCE(c.pub,\'\') AS pub, c.from_name FROM mm_sends s JOIN mm_campaigns c ON c.id=s.campaign_id WHERE s.token=$1 LIMIT 1', [token])).rows[0]; if (!r) return { pub: '', label: '' }; return { pub: r.pub, label: r.pub === 'chitchat' ? 'Texas Chit Chat' : (r.from_name || process.env.MAIL_FROM_NAME || '') }; } catch (e) { return { pub: '', label: '' }; } }
+  function _unsubPage(email, label) { return '<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Unsubscribed</title><body style="font-family:-apple-system,Segoe UI,Arial,sans-serif;background:#eef1f6;margin:0"><div style="max-width:480px;margin:70px auto;background:#fff;border:1px solid #e6e9f0;border-radius:12px;padding:34px;text-align:center"><h2 style="color:#000E31;margin:0 0 8px">You\'re unsubscribed</h2><p style="color:#6b7488">' + (email ? ('<b>' + escapeHtml(email) + '</b> won\'t receive ' + (label ? ('<b>' + escapeHtml(label) + '</b> emails') : 'these emails') + ' anymore.') : 'You will not receive further emails.') + (label ? '<br><br>Other emails you signed up for are unaffected — manage them from the preferences link in any email.' : '') + '</p></div></body>'; }
+  function _unsubConfirmPage(token, label) { const T = String(token || '').replace(/[^a-zA-Z0-9._-]/g, ''); return '<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><meta name=robots content=noindex><title>Unsubscribe</title><body style="font-family:-apple-system,Segoe UI,Arial,sans-serif;background:#eef1f6;margin:0"><div style="max-width:480px;margin:70px auto;background:#fff;border:1px solid #e6e9f0;border-radius:12px;padding:34px;text-align:center"><h2 style="color:#000E31;margin:0 0 8px">Unsubscribe?</h2><p style="color:#6b7488;margin:0 0 22px">Click below to stop receiving ' + (label ? ('<b>' + escapeHtml(label) + '</b> emails') : 'these emails') + '.</p><form method="post" action="/mail/u/' + T + '"><input type="hidden" name="confirm" value="1"><button type="submit" style="background:#000E31;color:#fff;border:0;border-radius:9px;padding:12px 22px;font-size:15px;font-weight:700;cursor:pointer">Unsubscribe me</button></form><p style="margin:18px 0 0;font-size:13px"><a href="/mail/prefs/' + T + '" style="color:#6b7488">Update my preferences instead</a></p></div></body>'; }
   function _prefsPage(token) {
     const T = String(token || '').replace(/[^a-zA-Z0-9._-]/g, '');
     return '<!doctype html><html><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Email preferences</title>'
@@ -1134,6 +1162,8 @@ function mount(app, deps) {
       + 'var mode=D.mode==="metros"?"metros":"all";'
       + 'var h="";'
       + 'h+=\'<div class="row2"><div class="fld"><label class="fl">First name</label><input type="text" id="fn" value="\'+esc(D.first_name)+\'"></div><div class="fld"><label class="fl">Last name</label><input type="text" id="ln" value="\'+esc(D.last_name)+\'"></div></div>\';'
+      + 'var P=D.pubs||{rrg:true,chitchat:true};'
+      + 'h+=\'<div class="fld"><label class="fl">Emails you receive</label><div class="chips"><label class="chip\'+(P.rrg?" on":"")+\'"><input type="checkbox" class="pubcb" value="rrg"\'+(P.rrg?" checked":"")+\'> \'+esc(D.rrgName||"Company emails")+\' — listings &amp; updates</label><label class="chip\'+(P.chitchat?" on":"")+\'"><input type="checkbox" class="pubcb" value="chitchat"\'+(P.chitchat?" checked":"")+\'> Texas Chit Chat — weekly newsletter</label></div></div>\';'
       + 'h+=\'<div class="fld"><label class="fl">Areas of interest</label><div class="seg" id="modeSeg"><label data-mode="all"\'+(mode==="all"?\' class="on"\':"")+\'>All areas</label><label data-mode="metros"\'+(mode==="metros"?\' class="on"\':"")+\'>Specific areas</label></div>\';'
       + 'h+=\'<div id="areaWrap" style="margin-top:10px;\'+(mode==="metros"?"":"display:none")+\'">\';'
       + 'if(areas.length){ h+=\'<div class="chips">\'+areas.map(function(a){return \'<label class="chip\'+(sel[a]?" on":"")+\'"><input type="checkbox" class="areacb" value="\'+esc(a)+\'"\'+(sel[a]?" checked":"")+\'> \'+esc(a)+\'</label>\';}).join("")+\'</div>\'; } else { h+=\'<div class="note">No specific areas are available — you will receive all emails.</div>\'; }'
@@ -1143,19 +1173,19 @@ function mount(app, deps) {
       + 'h+=\'<div class="unsub" id="unsubRow"></div>\';'
       + '$("bd").innerHTML=h; wire(); renderUnsub();'
       + '}'
-      + 'function renderUnsub(){ var r=$("unsubRow"); if(!r)return; if(D.subscribed){ r.innerHTML="Prefer to stop all emails? <a id=unsubLink>Unsubscribe from everything</a>."; var a=$("unsubLink"); if(a) a.onclick=function(){ D.subscribed=false; save(true); }; } else { r.innerHTML="You are currently <b>unsubscribed</b> — you will not receive emails. <a id=resubLink>Re-subscribe</a>."; var b=$("resubLink"); if(b) b.onclick=function(){ D.subscribed=true; save(true); }; } }'
+      + 'function renderUnsub(){ var r=$("unsubRow"); if(!r)return; if(D.subscribed){ r.innerHTML="Prefer to stop all emails? <a id=unsubLink>Unsubscribe from everything</a>."; var a=$("unsubLink"); if(a) a.onclick=function(){ D.subscribed=false; save(true); }; } else { r.innerHTML="You are currently <b>unsubscribed</b> — you will not receive emails. <a id=resubLink>Re-subscribe</a>."; var b=$("resubLink"); if(b) b.onclick=function(){ D.subscribed=true; document.querySelectorAll(".pubcb").forEach(function(cb){ cb.checked=true; }); save(true); }; } }'
       + 'function wire(){ var seg=$("modeSeg"); if(seg){ seg.querySelectorAll("label").forEach(function(l){ l.onclick=function(){ seg.querySelectorAll("label").forEach(function(x){x.classList.remove("on");}); l.classList.add("on"); var m=l.getAttribute("data-mode"); $("areaWrap").style.display=(m==="metros")?"":"none"; }; }); }'
-      + 'document.querySelectorAll(".areacb,.listcb").forEach(function(cb){ cb.onchange=function(){ var lab=cb.closest(".chip"); if(lab) lab.classList.toggle("on",cb.checked); }; });'
+      + 'document.querySelectorAll(".areacb,.listcb,.pubcb").forEach(function(cb){ cb.onchange=function(){ var lab=cb.closest(".chip"); if(lab) lab.classList.toggle("on",cb.checked); }; });'
       + 'var sb=$("saveBtn"); if(sb) sb.onclick=function(){ save(false); }; }'
-      + 'function collect(){ var mode=(document.querySelector("#modeSeg label.on")||{}).getAttribute?document.querySelector("#modeSeg label.on").getAttribute("data-mode"):"all"; var metros=[]; document.querySelectorAll(".areacb:checked").forEach(function(cb){metros.push(cb.value);}); var listIds=[]; document.querySelectorAll(".listcb:checked").forEach(function(cb){listIds.push(cb.value);}); return { first_name:($("fn")?$("fn").value:""), last_name:($("ln")?$("ln").value:""), mode:mode, metros:metros, listIds:listIds, subscribed:D.subscribed }; }'
+      + 'function collect(){ var mode=(document.querySelector("#modeSeg label.on")||{}).getAttribute?document.querySelector("#modeSeg label.on").getAttribute("data-mode"):"all"; var metros=[]; document.querySelectorAll(".areacb:checked").forEach(function(cb){metros.push(cb.value);}); var listIds=[]; document.querySelectorAll(".listcb:checked").forEach(function(cb){listIds.push(cb.value);}); var pubs={}; document.querySelectorAll(".pubcb").forEach(function(cb){ pubs[cb.value]=cb.checked; }); return { first_name:($("fn")?$("fn").value:""), last_name:($("ln")?$("ln").value:""), mode:mode, metros:metros, listIds:listIds, subscribed:D.subscribed, pubs:pubs }; }'
       + 'function save(silentReload){ var m=$("msg"); var body=collect(); var sb=$("saveBtn"); if(sb) sb.disabled=true; if(m){m.className="msg";m.textContent="Saving…";} api("POST","/api/mail/prefs/"+TOKEN,body).then(function(j){ if(sb) sb.disabled=false; if(!j||!j.ok){ if(m){m.className="msg err";m.textContent=(j&&j.error)||"Could not save.";} return; } if(j.subscribed!=null) D.subscribed=j.subscribed; if(m){m.className="msg ok";m.textContent="Saved ✓";} renderUnsub(); if(silentReload){ boot(); } }).catch(function(){ if(sb) sb.disabled=false; if(m){m.className="msg err";m.textContent="Could not reach the server.";} }); }'
       + 'boot();})();</script></body></html>';
   }
   // GET only shows a confirm button: corporate link scanners (Safe Links, Mimecast, Proofpoint) fetch every
   // URL in an email, and a GET that unsubscribed silently opted brokers out. Mail-client one-click
   // unsubscribe (RFC 8058) POSTs here directly, and the confirm button POSTs too — both unsubscribe at once.
-  app.get('/mail/u/:token', async (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8'); res.set('X-Robots-Tag', 'noindex'); res.send(_unsubConfirmPage(String(req.params.token || ''))); });
-  app.post('/mail/u/:token', express.urlencoded({ extended: false }), async (req, res) => { let email = null; try { if (DB_READY) email = await handleUnsub(String(req.params.token)); } catch (e) {} if (req.body && req.body.confirm) { res.set('Content-Type', 'text/html; charset=utf-8'); return res.send(_unsubPage(email)); } res.json({ ok: true }); });
+  app.get('/mail/u/:token', async (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8'); res.set('X-Robots-Tag', 'noindex'); let lb = ''; try { if (DB_READY) lb = (await _pubOfToken(String(req.params.token || ''))).label; } catch (e) {} res.send(_unsubConfirmPage(String(req.params.token || ''), lb)); });
+  app.post('/mail/u/:token', express.urlencoded({ extended: false }), async (req, res) => { let email = null; try { if (DB_READY) email = await handleUnsub(String(req.params.token)); } catch (e) {} if (req.body && req.body.confirm) { let lb = ''; try { if (DB_READY) lb = (await _pubOfToken(String(req.params.token))).label; } catch (e) {} res.set('Content-Type', 'text/html; charset=utf-8'); return res.send(_unsubPage(email, lb)); } res.json({ ok: true }); });
   // Unsubscribes for one campaign with how long after delivery they happened — scanner opt-outs land within seconds.
   app.get('/api/mail/campaigns/:id/unsubs', requireAdmin, guard, async (req, res) => { try {
     const rows = (await q(`SELECT e.email, e.at AS unsub_at, s.sent_at, EXTRACT(EPOCH FROM (e.at - s.sent_at))::int AS secs
@@ -1176,11 +1206,14 @@ function mount(app, deps) {
     const sub = (await q('SELECT first_name,last_name,status,meta FROM mm_subscribers WHERE tenant=$1 AND email=$2', [TENANT, email])).rows[0] || {};
     const meta = sub.meta || {};
     const suppressed = await isSuppressed(email);
+    const supRow = (await q(`SELECT COALESCE(scope,'all') AS scope FROM mm_suppressions WHERE tenant=$1 AND email=$2 LIMIT 1`, [TENANT, email])).rows[0] || null;
+    const ccOut = (await q('SELECT 1 FROM mm_cc_optouts WHERE tenant=$1 AND email=$2', [TENANT, email])).rowCount > 0;
+    const pubs = { rrg: !supRow && (sub.status ? sub.status === 'active' : true), chitchat: !(supRow && supRow.scope === 'all') && !ccOut };
     const lists = (await q(`SELECT l.id, l.name, EXISTS(SELECT 1 FROM mm_list_members m JOIN mm_subscribers s ON s.id=m.subscriber_id WHERE m.list_id=l.id AND s.tenant=$1 AND s.email=$2) AS member FROM mm_lists l WHERE l.tenant=$1 ORDER BY l.name`, [TENANT, email])).rows;
     res.json({ ok: true, email: email, first_name: sub.first_name || '', last_name: sub.last_name || '',
-      subscribed: !suppressed && (sub.status ? sub.status === 'active' : true),
+      subscribed: pubs.rrg || pubs.chitchat,
       mode: (meta.mode === 'metros' ? 'metros' : 'all'), metros: Array.isArray(meta.metros) ? meta.metros : [],
-      areas: subscriberAreas(), lists: lists });
+      areas: subscriberAreas(), lists: lists, pubs: pubs, rrgName: process.env.MAIL_FROM_NAME || 'Restaurant Realty Group' });
   } catch (e) { res.status(500).json({ ok: false, error: 'Could not load your preferences.' }); } });
   app.post('/api/mail/prefs/:token', express.json({ limit: '256kb' }), async (req, res) => { try {
     if (!DB_READY) return res.status(503).json({ ok: false, error: 'Preferences are unavailable right now.' });
@@ -1194,8 +1227,20 @@ function mount(app, deps) {
     await q(`INSERT INTO mm_subscribers(tenant,email,first_name,last_name,meta) VALUES($1,$2,$3,$4,$5::jsonb)
        ON CONFLICT(tenant,email) DO UPDATE SET first_name=EXCLUDED.first_name, last_name=EXCLUDED.last_name, meta = mm_subscribers.meta || EXCLUDED.meta, updated_at=now()`,
       [TENANT, email, fn, ln, JSON.stringify({ mode: mode, metros: metros })]);
-    if (b.subscribed === false) { await addSuppression(email, 'unsubscribe', 'preferences page'); }
-    else if (b.subscribed === true) { await q('DELETE FROM mm_suppressions WHERE tenant=$1 AND email=$2', [TENANT, email]); await q(`UPDATE mm_subscribers SET status='active', updated_at=now() WHERE tenant=$1 AND email=$2`, [TENANT, email]); }
+    if (b.pubs && typeof b.pubs === 'object' && b.subscribed !== false) {
+      // Per-publication choices. Start clean, then record exactly what they unticked.
+      const wantR = b.pubs.rrg !== false, wantC = b.pubs.chitchat !== false;
+      const hard = (await q(`SELECT 1 FROM mm_suppressions WHERE tenant=$1 AND email=$2 AND reason IN ('bounce','complaint')`, [TENANT, email])).rowCount > 0;
+      if (hard) return res.json({ ok: true, subscribed: false });   // bounced / marked as spam: never re-enabled from a link
+      await q('DELETE FROM mm_suppressions WHERE tenant=$1 AND email=$2', [TENANT, email]);
+      await q('DELETE FROM mm_cc_optouts WHERE tenant=$1 AND email=$2', [TENANT, email]);
+      await q(`UPDATE mm_subscribers SET status='active', updated_at=now() WHERE tenant=$1 AND email=$2`, [TENANT, email]);
+      if (!wantR && !wantC) await addSuppression(email, 'unsubscribe', 'preferences page');
+      else { if (!wantR) await addSuppression(email, 'unsubscribe', 'preferences page', 'rrg'); if (!wantC) await addCcOptout(email); }
+      b.subscribed = (wantR || wantC);
+    }
+    else if (b.subscribed === false) { await addSuppression(email, 'unsubscribe', 'preferences page'); await q('DELETE FROM mm_cc_optouts WHERE tenant=$1 AND email=$2', [TENANT, email]); }
+    else if (b.subscribed === true) { await q('DELETE FROM mm_cc_optouts WHERE tenant=$1 AND email=$2', [TENANT, email]); await q('DELETE FROM mm_suppressions WHERE tenant=$1 AND email=$2', [TENANT, email]); await q(`UPDATE mm_subscribers SET status='active', updated_at=now() WHERE tenant=$1 AND email=$2`, [TENANT, email]); }
     if (Array.isArray(b.listIds)) {
       const s = (await q('SELECT id FROM mm_subscribers WHERE tenant=$1 AND email=$2', [TENANT, email])).rows[0];
       if (s) { await q('DELETE FROM mm_list_members WHERE subscriber_id=$1', [s.id]); for (const lid of b.listIds) { const L = Number(lid); if (L) await q('INSERT INTO mm_list_members(list_id,subscriber_id) VALUES($1,$2) ON CONFLICT DO NOTHING', [L, s.id]); } }
@@ -1391,6 +1436,22 @@ async function ensureList(name) { if (!DB_READY) throw new Error('Email Studio s
   return (await q('INSERT INTO mm_lists(tenant,name) VALUES($1,$2) RETURNING id', [TENANT, nm])).rows[0].id; }
 async function addEmailsToList(listId, emails) { if (!DB_READY || !listId) return 0; const em = (emails || []).map(_norm).filter(_validEmail); if (!em.length) return 0;
   const r = await q('INSERT INTO mm_list_members(list_id, subscriber_id) SELECT $1, s.id FROM mm_subscribers s WHERE s.tenant=$2 AND s.email = ANY($3::text[]) ON CONFLICT (list_id, subscriber_id) DO NOTHING', [Number(listId), TENANT, em]); return r.rowCount || 0; }
+// Public Texas Chit Chat sign-up. A brand-new address gets the newsletter only (held out of RRG emails);
+// someone already on the list keeps what they had and is opted back in to Chit Chat. Bounces and spam
+// complaints are never re-enabled.
+async function ccSignup(row) {
+  if (!DB_READY) return { ok: false };
+  const email = _norm(row && row.email); if (!_validEmail(email)) return { ok: false };
+  const had = (await q('SELECT 1 FROM mm_subscribers WHERE tenant=$1 AND email=$2', [TENANT, email])).rowCount > 0;
+  if (!had) {
+    await importSubscribers([Object.assign({}, row, { email: email })], 'chitchat', { type: 'Restaurant' });
+    await addSuppression(email, 'chitchat-only', 'Signed up for Texas Chit Chat only', 'rrg');
+  } else {
+    await q('DELETE FROM mm_cc_optouts WHERE tenant=$1 AND email=$2', [TENANT, email]);
+    await q(`UPDATE mm_suppressions SET scope='rrg' WHERE tenant=$1 AND email=$2 AND COALESCE(scope,'all')='all' AND reason NOT IN ('bounce','complaint')`, [TENANT, email]);
+  }
+  return { ok: true, isNew: !had };
+}
 async function createCampaignRecord(b, user) { if (!DB_READY) throw new Error('Email Studio storage isn’t configured.'); return createCampaign(b, user); }
 module.exports = { mount, dbReady, sesConfigured, importSubscribers, parseCsv, suppressEmail, listLists, ensureList, addEmailsToList, createCampaignRecord,
-  countSegment, createRequirementCampaign, sendCampaign, scheduleCampaignAt, scheduledRequirementsFor, requirementsFor, removeRequirement, cancelRequirement, scheduleAutoSlot, latestRequirementFor, cancelPendingForSrc, recentBlasts, unsubSplit };
+  ccSignup, countSegment, createRequirementCampaign, sendCampaign, scheduleCampaignAt, scheduledRequirementsFor, requirementsFor, removeRequirement, cancelRequirement, scheduleAutoSlot, latestRequirementFor, cancelPendingForSrc, recentBlasts, unsubSplit };
