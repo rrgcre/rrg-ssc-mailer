@@ -25468,7 +25468,7 @@ app.post('/api/admin/industry-brief/send-me', requireAdmin, async (req, res) => 
 // Drafted from the week's industry-brief research, rewritten for operators by AI, approved by a person, then sent through Email Studio.
 const CC_FILE = path.join(BOV_DATA_DIR, 'chitchat_issues.json');
 const CC_DEFAULT = { listId: null, fromName: 'Texas Chit Chat', fromEmail: '', replyTo: '', metros: 'SA · AUSTIN · DFW · HOUSTON',
-  publisher: 'Published by Texas Chit Chat, an affiliate of Restaurant Realty Group', address: '16002 Huebner Blf, San Antonio, TX 78248',
+  publisher: 'Published by Texas Chit Chat', address: '16002 Huebner Blf, San Antonio, TX 78248',
   sponsor: { on: false, label: '', line: '', url: '', cta: 'Learn more' },
   rrg: { on: true, headline: 'Thinking of selling or expanding?', line: 'Restaurant Realty Group — Texas restaurant & bar brokers.', url: 'https://www.rrgcre.com', cta: 'Talk to a broker' } };
 function effChitChat() { const s = loadSettings(); const c = (s.chitChat && typeof s.chitChat === 'object') ? s.chitChat : {}; const o = Object.assign({}, CC_DEFAULT, c);
