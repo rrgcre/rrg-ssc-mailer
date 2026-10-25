@@ -207,6 +207,7 @@ function ticketCfg(){
       { label:'Requested by', defaultHidden:!ISADMIN, sort:function(a,b){return RRGList.cmp(a.by||'',b.by||'');}, cell:function(t){ return t.by?esc(t.by):'<span class="meta">\u2014</span>'; } },
       { label:'Status', sort:function(a,b){return RRGList.cmp(a.status||'',b.status||'');}, cell:statusCell },
       { label:'Due', sort:function(a,b){return RRGList.cmp(a.dueDate||'~',b.dueDate||'~');}, cell:function(t){ if(!t.dueDate) return '<span class="meta">\u2014</span>'; return '<span class="'+(t.overdue?'due-over':'due-ok')+'" title="'+(t.overdue?'Overdue':'Due')+'">'+esc(fmtDate(t.dueDate))+(t.overdue?' \u26A0':'')+'</span>'; } },
+      { label:'Created', sort:function(a,b){return RRGList.cmp(a.createdAt||'',b.createdAt||'');}, cell:function(t){ if(!t.createdAt) return '<span class="meta">\u2014</span>'; var d=new Date(t.createdAt); if(isNaN(d)) return '<span class="meta">\u2014</span>'; return '<span title="'+esc(d.toLocaleString())+'" style="white-space:nowrap">'+(d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2)+'</span>'; } },
       { label:'Opened', sort:function(a,b){return openDays(a)-openDays(b);}, cell:function(t){ return '<span title="'+esc(fmtDate(t.createdAt))+'">'+esc(openLabel(t))+'</span>'; } },
       { label:'', sortable:false, cell:function(t){ return ISADMIN?('<button class="delx" type="button" data-tdel="'+esc(t.id)+'" data-tno="'+esc(t.no)+'" title="Delete request" aria-label="Delete">✕</button>'):''; } }
     ]

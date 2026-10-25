@@ -25337,7 +25337,7 @@ function ccResearchPrompt(cfg, today, from, until, part) {
     + '(d) MOVES: local groups expanding, concept changes, ownership changes, new chefs, notable menu/format pivots.\n'
     + '(e) OPERATOR-RELEVANT RULES: TABC, health code, minimum wage, tipping, permitting or city ordinance changes affecting restaurants and bars (angle "regulation").\n'
     + '(f) TEXAS RESTAURANT ASSOCIATION — always run at least two searches on the TRA itself (txrestaurant.org and its news / advocacy / education pages, the TRA Marketplace show, and the Greater San Antonio, Austin, Greater Dallas and Greater Houston TRA chapters): legislative and advocacy updates, TABC and workforce news, awards and hall-of-fame honorees, chapter news, scholarships and ServSafe/education programs that matter to operators.\n'
-    + 'PART 2 — EVENTS from ' + today + ' to ' + until + ' that an OPERATOR would attend: Texas Restaurant Association meetings and its Marketplace show, local restaurant association chapter mixers, food & beverage trade shows, chef and hospitality industry events, food and wine festivals, TABC / health / labor compliance seminars. NEVER include events for real estate brokers, agents, investors or developers (e.g. Bisnow, CCIM, ICSC, NAIOP, ULI, realtor or real estate council events) and nothing about TREC.\n'
+    + 'PART 2 — EVENTS from ' + today + ' to ' + until + ' that ANY restaurant or bar owner/operator could attend: food & beverage trade shows, chef and hospitality industry events, food and wine festivals, restaurant weeks, TABC / health / labor compliance seminars. Texas Restaurant Association events: AT MOST ONE, and only one open to all operators (such as the TRA Marketplace show) — skip TRA chapter mixers, member meetings, committee/board meetings and anything members-only, since most readers are not members. NEVER include events for real estate brokers, agents, investors or developers (e.g. Bisnow, CCIM, ICSC, NAIOP, ULI, realtor or real estate council events) and nothing about TREC.\n'
     + (cfg.focus ? ('Extra focus: ' + cfg.focus + '\n') : '')
     + 'RULES: Only include an item if you found it in search results this session and can give its exact source URL. Prefer free-to-read sources; skip paywalled ones (Texas Monthly, Express-News, Houston Chronicle, Dallas Morning News, Austin American-Statesman, Star-Telegram, Business Journals). Never invent names, dates or URLs. Dates exact (YYYY-MM-DD); skip anything outside the date windows. No duplicates.\n'
     + 'Return ONLY one JSON object, no markdown:\n'
@@ -25488,6 +25488,12 @@ function ccBalance(D) { const items = []; CC_SECTIONS.forEach(([k]) => (D[k] || 
   const cap = Math.max(3, Math.ceil(local.length * 0.3)); const n = {}; items.filter(x => x.featured).forEach(x => { if (x.market) n[x.market] = (n[x.market] || 0) + 1; });
   items.filter(x => !x.featured).forEach(x => { if (!x.market || x.market === 'Texas') return; n[x.market] = (n[x.market] || 0) + 1; if (n[x.market] > cap) x.include = false; }); }
 const CC_EXCLUDE_RE = /\bTREC\b|texas real estate commission|trec\.texas\.gov/i;
+// Texas Restaurant Association events matter mostly to members, and most readers aren't: keep at most one,
+// and never a members-only one (chapter mixers, member/committee/board meetings).
+const CC_TRA_EVENT_RE = /texas restaurant association|txrestaurant\.org|\bTRA\b|restaurant association chapter/i;
+const CC_MEMBERS_ONLY_RE = /members?[- ]only|member (meeting|mixer|social|luncheon|appreciation)|chapter (meeting|mixer|social|luncheon)|board meeting|committee meeting|membership (meeting|drive)/i;
+function ccTraCap(evs) { let tra = 0; return (evs || []).filter(e => { const t = [e && e.name, e && e.organizer, e && e.venue, e && e.url].filter(Boolean).join(' ');
+  if (!CC_TRA_EVENT_RE.test(t)) return true; if (CC_MEMBERS_ONLY_RE.test(t)) return false; tra++; return tra <= 1; }); }
 // Chit Chat is for restaurant & bar OWNERS/OPERATORS — events aimed at brokers, agents, investors or developers stay out.
 const CC_BROKER_EVENT_RE = /bisnow\.com|recouncil\.com|ntcar\.org|icsc\.|naiop|ccim|\buli\.org|realtor|\bbroker|\breal estate\b|\bCRE\b|commercial property|industrial|residential|multifamily|\boffice market|capital markets|investor (summit|forum)|\bdevelop(er|ment) (summit|forum)|property tax(es)? 101/i;
 async function buildChitChatDraft(user) {
@@ -25530,7 +25536,7 @@ async function buildChitChatDraft(user) {
   const D = { subject: S(J.subject, 120) || 'This week in Texas restaurants', lede: S(J.lede, 500) };
   CC_SECTIONS.forEach(([k]) => { D[k] = (Array.isArray(J[k]) ? J[k] : []).map(item).filter(x => x.headline && okUrls.has(x.url) && !(CC_FREE_ONLY.indexOf(k) >= 0 && ccPaywalled(x.url))).filter(x => !_ccBan(x)).slice(0, 10); });
   ccBalance(D);
-  D.events = (Array.isArray(J.events) ? J.events : []).map(e => ({ include: true, date: S(e.date, 10), name: S(e.name, 160), city: S(e.city, 60), url: S(e.url, 600) })).filter(e => e.name && /^\d{4}-\d{2}-\d{2}$/.test(e.date) && okUrls.has(e.url) && !ccPaywalled(e.url)).filter(e => !_ccBan(e) && !_ccBroker(e)).slice(0, 10);
+  D.events = ccTraCap((Array.isArray(J.events) ? J.events : []).map(e => ({ include: true, date: S(e.date, 10), name: S(e.name, 160), city: S(e.city, 60), url: S(e.url, 600) })).filter(e => e.name && /^\d{4}-\d{2}-\d{2}$/.test(e.date) && okUrls.has(e.url) && !ccPaywalled(e.url)).filter(e => !_ccBan(e) && !_ccBroker(e))).slice(0, 10);
   const all = ccLoad(); const n = all.reduce((m, x) => Math.max(m, x.n || 0), 0) + 1;
   try { _diag.afterBriefMerge = (src.news || []).length; _diag.drafted = CC_SECTIONS.reduce((m, [k]) => m + (D[k] || []).length, 0); _diag.events = (D.events || []).length; } catch (e) {}
   const iss = { id: 'cc_' + Date.now().toString(36), n, status: 'draft', date: firmToday(), createdAt: new Date().toISOString(), by: (user && user.name) || '', briefAt: B.at, diag: _diag, data: D };
@@ -25625,7 +25631,7 @@ function chitChatHtml(iss, opt) {
   CC_SECTIONS.forEach(([k, t]) => { const xs = (D[k] || []).filter(x => x.include !== false && !(CC_FREE_ONLY.indexOf(k) >= 0 && ccPaywalled(x.url))); if (!xs.length) return; count += xs.length;
     const f = xs.filter(x => x.featured), rest = xs.filter(x => !x.featured); const feat = f.length ? f : xs.slice(0, 1); const others = f.length ? rest : xs.slice(1);
     rows += sec(t, (k === 'closings' || k === 'openings') ? xs.length : 0) + feat.map(story).join('') + (others.length ? also(ALSO[k], others) : ''); });
-  const evs = (D.events || []).filter(e => e.include !== false && !ccPaywalled(e.url));
+  const evs = ccTraCap((D.events || []).filter(e => e.include !== false && !ccPaywalled(e.url)));
   if (evs.length) rows += sec('ON THE BOOKS — EVENTS') + evs.map(e => '<tr><td style="padding:0 0 8px"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td valign="top" width="58" style="font-family:' + MONO + ';font-size:13px;font-weight:bold;color:' + INK + '">' + fmtD(e.date) + '</td><td style="font-family:' + SANS + ';font-size:14px;line-height:1.45;color:' + INK + '"><a href="' + E(e.url) + '" style="color:' + INK + ';text-decoration:none">' + E(e.name) + (e.city ? (' &middot; ' + E(e.city)) : '') + '</a></td></tr></table></td></tr>').join('');
   const _prep = (iss.data && iss.data.prepOff) ? [] : ccPrepList(iss.date || firmToday(), 21);
   if (_prep.length) rows += sec('PREP LIST — COMING UP') + _prep.map(p => '<tr><td style="padding:0 0 9px"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td valign="top" width="58" style="font-family:' + MONO + ';font-size:13px;font-weight:bold;color:' + INK + '">' + fmtD(p.date) + '</td><td style="font-family:' + SANS + ';font-size:14px;line-height:1.45;color:' + INK + '"><b>' + E(p.name) + '</b><div style="font-family:' + MONO + ';font-size:12px;line-height:1.5;color:' + RED + '">&gt; ' + E(p.angle) + '</div></td></tr></table></td></tr>').join('');
