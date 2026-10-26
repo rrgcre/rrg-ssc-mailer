@@ -401,7 +401,7 @@ async function createCampaign(b, user) {
   const r = await q(`INSERT INTO mm_campaigns(tenant,name,subject,preheader,from_name,from_email,reply_to,html,list_id,by_user,ab_enabled,subject_b,html_b,ab_pct,ab_metric,ab_hours,pub)
     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING id`,
     [TENANT, String(b.name || '').slice(0, 200), String(b.subject || '').slice(0, 300), String(b.preheader || '').slice(0, 300),
-     String(b.fromName || process.env.MAIL_FROM_NAME || '').slice(0, 120), String(b.fromEmail || process.env.SES_FROM || '').slice(0, 200),
+     String(b.fromName || process.env.MAIL_FROM_NAME || '').slice(0, 120), String(b.fromEmail || process.env.SES_FROM || process.env.MAIL_FROM || '').slice(0, 200),
      String(b.replyTo || '').slice(0, 200), String(b.html || ''), b.listId ? Number(b.listId) : null, String((user && user.name) || '').slice(0, 120),
      ab.enabled, ab.subjectB, ab.htmlB, ab.pct, ab.metric, ab.hours, (b.pub === 'chitchat' ? 'chitchat' : '')]);
   return r.rows[0].id;
@@ -633,7 +633,7 @@ async function _loop() {
         html = ensureFooter(html, unsubUrl);
         html = openPixel(html, openUrl);
         const subject = mergeFields(rawSubj, sub);
-        const mime = buildMime({ to: row.email, subject: subject, html: html, text: htmlToText(html), fromName: c.from_name, fromEmail: c.from_email, replyTo: c.reply_to, unsubUrl: unsubUrl, unsubMailto: process.env.MAIL_UNSUB_MAILTO || '' });
+        const mime = buildMime({ to: row.email, subject: subject, html: html, text: htmlToText(html), fromName: c.from_name, fromEmail: (c.from_email || process.env.SES_FROM || process.env.MAIL_FROM || ''), replyTo: c.reply_to, unsubUrl: unsubUrl, unsubMailto: process.env.MAIL_UNSUB_MAILTO || '' });
         const msgId = await sesSendRaw(mime);
         await q(`UPDATE mm_sends SET status='sent', ses_message_id=$2, sent_at=now(), tries=tries+1 WHERE id=$1`, [row.id, msgId || '']);
         await q(`UPDATE mm_campaigns SET sent=sent+1 WHERE id=$1`, [row.campaign_id]);
@@ -699,7 +699,7 @@ async function sendTest(campaignId, toEmail) {
   let html = mergeFields(c.html, sub); if (c.preheader) html = _injectPreheader(html, mergeFields(c.preheader, sub));
   let lkey = ''; try { lkey = await _linkKey(); } catch (e) {} html = trackLinks(html, lkey, token);  // same tracked links as the real send (a test click redirects but isn't counted)
   html = ensureFooter(html, unsubUrl);
-  const mime = buildMime({ to: toEmail, subject: '[TEST] ' + mergeFields(c.subject, sub), html: html, text: htmlToText(html), fromName: c.from_name, fromEmail: c.from_email, replyTo: c.reply_to, unsubUrl: unsubUrl });
+  const mime = buildMime({ to: toEmail, subject: '[TEST] ' + mergeFields(c.subject, sub), html: html, text: htmlToText(html), fromName: c.from_name, fromEmail: (c.from_email || process.env.SES_FROM || process.env.MAIL_FROM || ''), replyTo: c.reply_to, unsubUrl: unsubUrl });
   return await sesSendRaw(mime);
 }
 

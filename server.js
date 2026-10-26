@@ -15798,6 +15798,89 @@ app.post('/api/space/:id/geo', express.json(), (req, res) => {
   saveSpaces(arr);  // deliberately does NOT bump updatedAt — geocoding shouldn't reorder the list
   res.json({ ok: true });
 });
+// ---- Merge duplicate spaces ----
+// The kept space takes every blank field from the others, unions their features, appends their notes,
+// copies their files over, and every reference elsewhere in the app (tours, shortlists, site fits, LOIs,
+// tasks, activity…) is re-pointed to it. The merged-away records are kept in a backup store, not destroyed.
+const SPACE_MERGES_FILE = path.join(BOV_DATA_DIR, 'space_merges.json');
+function _spEmpty(v) { return v === undefined || v === null || v === '' || (Array.isArray(v) && !v.length) || (typeof v === 'object' && !Array.isArray(v) && !Object.keys(v).length); }
+function _deepSwapIds(o, map) {
+  let n = 0;
+  const walk = (x) => {
+    if (Array.isArray(x)) {
+      let hit = false;
+      for (let i = 0; i < x.length; i++) { const v = x[i]; if (typeof v === 'string' && map[v]) { x[i] = map[v]; n++; hit = true; } else if (v && typeof v === 'object') walk(v); }
+      if (hit && x.every(v => typeof v === 'string')) { const seen = new Set(); for (let i = x.length - 1; i >= 0; i--) { if (seen.has(x[i])) x.splice(i, 1); else seen.add(x[i]); } }
+      return;
+    }
+    if (!x || typeof x !== 'object') return;
+    Object.keys(x).forEach(k => {
+      const v = x[k];
+      if (typeof v === 'string' && map[v]) { x[k] = map[v]; n++; }
+      else if (v && typeof v === 'object') walk(v);
+      if (map[k]) { const nk = map[k]; if (x[nk] === undefined) x[nk] = x[k]; delete x[k]; n++; }
+    });
+  };
+  walk(o); return n;
+}
+function _allStoreNames() {
+  try { if (DB_OK && _db && typeof _db._db === 'function') return _db._db().prepare('SELECT name FROM stores').all().map(r => r.name); } catch (e) {}
+  try { return fs.readdirSync(BOV_DATA_DIR).filter(f => /\.json$/i.test(f) && !/rescue/i.test(f)); } catch (e) { return []; }
+}
+app.post('/api/spaces/merge', express.json(), (req, res) => {
+  if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Only an admin can merge spaces.' });
+  const b = req.body || {}; const keepId = String(b.keepId || '');
+  const ids = Array.from(new Set((Array.isArray(b.mergeIds) ? b.mergeIds : []).map(String).filter(x => x && x !== keepId))).slice(0, 20);
+  if (!keepId || !ids.length) return res.status(400).json({ ok: false, error: 'Pick the space to keep and at least one to merge into it.' });
+  const arr = loadSpaces(); const keep = arr.find(x => x.id === keepId);
+  if (!keep) return res.status(404).json({ ok: false, error: 'The space to keep was not found.' });
+  const srcs = ids.map(id => arr.find(x => x.id === id)).filter(Boolean);
+  if (!srcs.length) return res.status(404).json({ ok: false, error: 'None of the spaces to merge were found.' });
+  const before = JSON.parse(JSON.stringify(keep)); const now = new Date().toISOString(); const who = (req.user && req.user.name) || '';
+  let filesMoved = 0;
+  srcs.forEach(src => {
+    Object.keys(src).forEach(k => {
+      if (['id', 'createdAt', 'by', 'byUser', 'updatedAt', 'files', 'notes', 'features', 'history'].indexOf(k) >= 0) return;
+      if (_spEmpty(keep[k]) && !_spEmpty(src[k])) keep[k] = src[k];
+    });
+    if (Array.isArray(src.features)) keep.features = Array.from(new Set([].concat(keep.features || [], src.features)));
+    const sn = String(src.notes || '').trim(); const kn = String(keep.notes || '').trim();
+    if (sn && kn.indexOf(sn) < 0) keep.notes = (kn ? (kn + '\n\n') : '') + 'Merged from ' + (src.name || src.address || src.id) + ':\n' + sn;
+    (Array.isArray(src.files) ? src.files : []).forEach(f => {
+      const from = path.join(SPACEFILES_DIR, src.id + '_' + f.id + '.' + f.ext), to = path.join(SPACEFILES_DIR, keep.id + '_' + f.id + '.' + f.ext);
+      try { if (fs.existsSync(from) && !fs.existsSync(to)) { binWrite(to, fs.readFileSync(from)); filesMoved++; } } catch (e) {}
+      keep.files = Array.isArray(keep.files) ? keep.files : [];
+      if (!keep.files.some(x => x.id === f.id)) keep.files.push(f);
+    });
+    if (Array.isArray(src.history)) keep.history = [].concat(keep.history || [], src.history);
+    if (src.createdAt && (!keep.createdAt || src.createdAt < keep.createdAt)) keep.createdAt = src.createdAt;
+  });
+  keep.history = Array.isArray(keep.history) ? keep.history : [];
+  keep.history.push({ at: now, by: who, action: 'merged', note: 'Merged in ' + srcs.map(x => x.name || x.address || x.id).join('; '), from: srcs.map(x => x.id) });
+  keep.updatedAt = now;
+  const out = arr.filter(x => ids.indexOf(x.id) < 0);
+  // Backup first, so the merged-away records are never lost.
+  let log = []; try { log = rj(SPACE_MERGES_FILE) || []; } catch (e) { log = []; }
+  log.push({ at: now, by: who, keepId: keep.id, keepBefore: before, merged: srcs });
+  if (!writeJsonGuarded(SPACE_MERGES_FILE, log.slice(-500), 'spaceMerges')) return res.status(500).json({ ok: false, error: 'Could not write the merge backup, so nothing was changed.' });
+  if (!saveSpaces(out)) return res.status(500).json({ ok: false, error: 'Could not save the spaces.' });
+  // Re-point references everywhere else.
+  const map = {}; srcs.forEach(x => { map[x.id] = keep.id; });
+  let refs = 0; const touched = [];
+  _allStoreNames().forEach(name => {
+    if (name === path.basename(SPACES_FILE) || name === path.basename(SPACE_MERGES_FILE)) return;
+    const fp = path.join(BOV_DATA_DIR, name);
+    let data; try { data = rj(fp); } catch (e) { return; }
+    if (!data || typeof data !== 'object') return;
+    let raw = ''; try { raw = JSON.stringify(data); } catch (e) { return; }
+    if (!srcs.some(x => raw.indexOf(x.id) >= 0)) return;
+    const n = _deepSwapIds(data, map);
+    if (n && writeJsonGuarded(fp, data, 'spaceMerge:' + name)) { refs += n; touched.push(name.replace(/\.json$/, '')); }
+  });
+  try { _pplCache = null; _coCache = null; } catch (e) {}
+  try { logSysEvent(req, 'Space', 'Merged ' + srcs.length + ' duplicate space' + (srcs.length === 1 ? '' : 's') + ' into ' + (keep.name || keep.address), { tool: 'spaces', kind: 'merge', spaceId: keep.id }); } catch (e) {}
+  res.json({ ok: true, space: keep, spaces: out, merged: srcs.length, files: filesMoved, refs: refs, stores: touched });
+});
 app.delete('/api/space/:id', (req, res) => {
   if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Admin only.' });
   const arr = loadSpaces().filter(x => x.id !== req.params.id);
