@@ -1640,6 +1640,9 @@ function wireActivity(){
     if(!snip.getAttribute('data-snip')) snip.setAttribute('data-snip', snip.innerHTML);
     x.textContent='Loading\u2026';
     fetch('/api/gmail/message/'+encodeURIComponent(id),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.message){ var full=gmBodyHtml(dec(j.message.body||j.message.snippet||'(no content)')); snip.setAttribute('data-full', full); snip.innerHTML=full; x.textContent='Hide full email'; x.setAttribute('data-state','full'); renderGmAtts(id, j.message.attachments||[]); } else { x.textContent='Could not load'; } }).catch(function(){ x.textContent='Could not load'; }); }); });
+  // Clicking anywhere on a Gmail entry (subject, preview) opens or closes the full email — not just the small link.
+  document.querySelectorAll('.feedrow[data-gmid]').forEach(function(row){ var main=row.querySelector('.feedmain'); if(!main||main._gmWired) return; main._gmWired=1; main.style.cursor='pointer'; main.title='Click to show the full email';
+    main.addEventListener('click',function(ev){ if(ev.target.closest('a,button,input,textarea,select,.gmatts')) return; if(window.getSelection&&String(window.getSelection())) return; var x=row.querySelector('.gmexpand'); if(x) x.click(); }); });
   document.querySelectorAll('[data-gmreply]').forEach(function(x){ x.addEventListener('click',function(ev){ ev.preventDefault(); startReplyFwd(x.getAttribute('data-gmreply'),'reply'); }); });
   document.querySelectorAll('[data-gmfwd]').forEach(function(x){ x.addEventListener('click',function(ev){ ev.preventDefault(); startReplyFwd(x.getAttribute('data-gmfwd'),'forward'); }); });
 }

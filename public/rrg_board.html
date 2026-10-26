@@ -180,7 +180,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 <div id="dealModal" class="bmodal" hidden><div class="bmodalcard">
   <div class="bmodalh">New listing</div>
   <div class="bmodalb">
-    <label class="bmfld">Business / listing name</label><input id="nd_business" placeholder="e.g. Blue Agave Cantina">
+    <label class="bmfld">Business / listing name</label>
+    <div style="position:relative">
+      <input id="nd_business" placeholder="Start typing to find a business, or enter a new one…" autocomplete="off" oninput="ndBizInput()" onfocus="ndBizInput()" onkeydown="ndBizKey(event)" onblur="ndBizBlur()">
+      <div id="nd_bizPop" style="position:absolute;left:0;right:0;top:100%;z-index:61;background:#fff;border:1px solid #d7dce4;border-top:none;border-radius:0 0 8px 8px;box-shadow:0 10px 24px rgba(20,30,55,.14);max-height:236px;overflow:auto;display:none"></div>
+    </div>
     <label class="bmfld" id="nd_marketLbl">Market</label>
     <div id="nd_marketWrap" style="display:flex;flex-wrap:wrap;gap:5px;align-items:center;border:1px solid #d7dce4;border-radius:8px;padding:5px 7px;background:#fff;cursor:text" onclick="document.getElementById('nd_market').focus()">
       <span id="nd_marketChips" style="display:contents"></span>
@@ -284,19 +288,47 @@ function load(){
     renderToolbar(); render();
   }).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not reach the server.</div>'; });
 }
-var PEOPLE=[];
-function loadPeople(){ fetch('/api/people',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ PEOPLE=(j&&j.people)||[]; }).catch(function(){}); }
+var PEOPLE=[], COMPANIES=[], ND_CO=null, ND_PERSON=null;
+function loadPeople(){ fetch('/api/people',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ PEOPLE=(j&&j.people)||[]; }).catch(function(){});
+  if(!COMPANIES.length) fetch('/api/companies',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ COMPANIES=(j&&j.companies)||[]; }).catch(function(){}); }
+// Fuzzy match shared by the Business and Client lookups: ignores case, punctuation and apostrophes
+// ("betos" finds "Beto's"), matches any word start, every typed word in any order, or the letters in order.
+function _fzN(x){ return String(x||'').toLowerCase().replace(/&/g,' and ').replace(/['’`.]/g,'').replace(/[^a-z0-9]+/g,' ').trim(); }
+function fzScore(q,hay){ q=_fzN(q); var h=_fzN(hay); if(!q) return 1; if(!h) return 0; if(h===q) return 100; if(h.indexOf(q)===0) return 80; if((' '+h).indexOf(' '+q)>=0) return 60; if(h.indexOf(q)>=0) return 45;
+  var qt=q.split(' '); if(qt.every(function(t){ return h.indexOf(t)>=0; })) return 35;
+  var hc=h.replace(/ /g,''), qc=q.replace(/ /g,''); if(hc.indexOf(qc)>=0) return 30; var i=0; for(var k=0;k<hc.length&&i<qc.length;k++){ if(hc[k]===qc[i]) i++; } return (i===qc.length&&qc.length>=3)?10:0; }
+var _ndBsel=-1, _ndBmatches=[];
+function ndBizInput(){
+  var inp=document.getElementById('nd_business'), pop=document.getElementById('nd_bizPop'); if(!inp||!pop) return;
+  var v=(inp.value||'').trim(); if(ND_CO&&ND_CO.name!==v) ND_CO=null;
+  if(!v){ pop.style.display='none'; _ndBmatches=[]; return; }
+  _ndBmatches=COMPANIES.map(function(c){ var sc=Math.max(fzScore(v,c.name), fzScore(v,(c.conceptNames||[]).join(' '))*0.8); return {c:c,s:sc}; }).filter(function(x){ return x.s>0; }).sort(function(a,b){ return b.s-a.s || String(a.c.name).localeCompare(String(b.c.name)); }).slice(0,8).map(function(x){ return x.c; });
+  _ndBsel=-1;
+  var exact=_ndBmatches.some(function(c){ return _fzN(c.name)===_fzN(v); });
+  pop.innerHTML=_ndBmatches.map(function(c,i){ var sub=[c.market||(c.markets||[])[0]||'', c.mainContact||'', c.type||''].filter(Boolean).join(' · '); return '<div class="ndcrow" data-i="'+i+'" style="padding:8px 11px;cursor:pointer;border-bottom:1px solid #f0f2f6;font-size:13px" onmousedown="ndBizPick('+i+')"><b style="color:#233">'+esc(c.name||'')+'</b>'+(sub?('<span style="color:#8a93a3;margin-left:7px">'+esc(sub)+'</span>'):'')+'</div>'; }).join('')
+    +(exact?'':'<div style="padding:8px 11px;font-size:12.5px;color:#6b7488;background:#fafbfd">New business: <b style="color:#233">'+esc(v)+'</b> — a company record is created for it</div>');
+  pop.style.display='block';
+}
+function ndBizPick(i){ var c=_ndBmatches[i]; if(!c) return; ND_CO={id:c.id,name:c.name}; var inp=document.getElementById('nd_business'); if(inp) inp.value=c.name||''; var pop=document.getElementById('nd_bizPop'); if(pop) pop.style.display='none';
+  // Fill what the company already knows: its market and its main contact (only into empty fields).
+  var mk=c.market||(c.markets||[])[0]||''; if(mk && typeof SELMARKETS!=='undefined' && !SELMARKETS.length && typeof ndMarketAdd==='function'){ try{ ndMarketAdd(mk); }catch(e){} }
+  var ci=document.getElementById('nd_contact'); if(ci && !ci.value.trim()){ var main=c.mainContactId?PEOPLE.filter(function(p){return p.id===c.mainContactId;})[0]:null; if(!main){ var cp=PEOPLE.filter(function(p){ return p.companyId===c.id; }); if(cp.length===1) main=cp[0]; } if(main){ ci.value=main.name||''; ND_PERSON={id:main.id,name:main.name}; } }
+  updateClientHint(); }
+function ndBizHi(){ var pop=document.getElementById('nd_bizPop'); if(!pop) return; Array.prototype.forEach.call(pop.querySelectorAll('.ndcrow'),function(el,i){ el.style.background=(i===_ndBsel)?'#eef2fb':'#fff'; if(i===_ndBsel) el.scrollIntoView({block:'nearest'}); }); }
+function ndBizKey(e){ var pop=document.getElementById('nd_bizPop'); if(!pop||pop.style.display==='none') return; if(e.key==='ArrowDown'){ e.preventDefault(); _ndBsel=Math.min(_ndBsel+1,_ndBmatches.length-1); ndBizHi(); } else if(e.key==='ArrowUp'){ e.preventDefault(); _ndBsel=Math.max(_ndBsel-1,0); ndBizHi(); } else if(e.key==='Enter'){ if(_ndBsel>=0){ e.preventDefault(); ndBizPick(_ndBsel); } else pop.style.display='none'; } else if(e.key==='Escape'){ pop.style.display='none'; } }
+function ndBizBlur(){ setTimeout(function(){ var pop=document.getElementById('nd_bizPop'); if(pop) pop.style.display='none'; },160); }
 var _ndCsel=-1, _ndCmatches=[];
 function ndContactInput(){
   var inp=document.getElementById('nd_contact'), pop=document.getElementById('nd_contactPop'); if(!inp||!pop) return;
-  var v=(inp.value||'').trim().toLowerCase();
-  var list = v ? PEOPLE.filter(function(p){ var n=(p.name||'').toLowerCase(), c=(p.company||'').toLowerCase(), e=(p.email||'').toLowerCase(); return n.indexOf(v)>=0||c.indexOf(v)>=0||e.indexOf(v)>=0; }) : PEOPLE.slice(0,8);
+  var v=(inp.value||'').trim(); if(ND_PERSON&&ND_PERSON.name!==v) ND_PERSON=null;
+  var list = v ? PEOPLE.map(function(p){ var sc=Math.max(fzScore(v,p.name), fzScore(v,p.company)*0.7, (String(p.email||'').toLowerCase().indexOf(v.toLowerCase())>=0)?40:0); if(ND_CO&&p.companyId===ND_CO.id) sc+=15; return {p:p,s:sc}; }).filter(function(x){ return x.s>0; }).sort(function(a,b){ return b.s-a.s; }).map(function(x){ return x.p; })
+    : (ND_CO ? PEOPLE.filter(function(p){ return p.companyId===ND_CO.id; }) : []).concat(PEOPLE.slice(0,8)).filter(function(p,i,arr){ return arr.indexOf(p)===i; });
   _ndCmatches=list.slice(0,8); _ndCsel=-1;
   if(!_ndCmatches.length){ pop.style.display='none'; updateClientHint(); return; }
   pop.innerHTML=_ndCmatches.map(function(p,i){ var sub=p.company||p.email||p.type||''; return '<div class="ndcrow" data-i="'+i+'" style="padding:8px 11px;cursor:pointer;border-bottom:1px solid #f0f2f6;font-size:13px" onmousedown="ndContactPick('+i+')"><b style="color:#233">'+esc(p.name||'')+'</b>'+(sub?('<span style="color:#8a93a3;margin-left:7px">'+esc(sub)+'</span>'):'')+'</div>'; }).join('');
   pop.style.display='block'; updateClientHint();
 }
-function ndContactPick(i){ var p=_ndCmatches[i]; if(!p) return; var inp=document.getElementById('nd_contact'); if(inp) inp.value=p.name||''; var pop=document.getElementById('nd_contactPop'); if(pop) pop.style.display='none'; updateClientHint(); }
+function ndContactPick(i){ var p=_ndCmatches[i]; if(!p) return; ND_PERSON={id:p.id,name:p.name}; var inp=document.getElementById('nd_contact'); if(inp) inp.value=p.name||''; var pop=document.getElementById('nd_contactPop'); if(pop) pop.style.display='none'; updateClientHint(); }
 function ndContactHi(){ var pop=document.getElementById('nd_contactPop'); if(!pop) return; Array.prototype.forEach.call(pop.querySelectorAll('.ndcrow'),function(el,i){ el.style.background=(i===_ndCsel)?'#eef2fb':'#fff'; if(i===_ndCsel) el.scrollIntoView({block:'nearest'}); }); }
 function ndContactKey(e){ var pop=document.getElementById('nd_contactPop'); if(!pop||pop.style.display==='none') return; if(e.key==='ArrowDown'){ e.preventDefault(); _ndCsel=Math.min(_ndCsel+1,_ndCmatches.length-1); ndContactHi(); } else if(e.key==='ArrowUp'){ e.preventDefault(); _ndCsel=Math.max(_ndCsel-1,0); ndContactHi(); } else if(e.key==='Enter'){ if(_ndCsel>=0){ e.preventDefault(); ndContactPick(_ndCsel); } } else if(e.key==='Escape'){ pop.style.display='none'; } }
 function ndContactBlur(){ setTimeout(function(){ var pop=document.getElementById('nd_contactPop'); if(pop) pop.style.display='none'; },160); }
@@ -308,7 +340,7 @@ function openDealModal(){ var m=document.getElementById('dealModal'); if(!m) ret
     var _h=m.querySelector('.bmodalh'); if(_h) _h.textContent='New '+(isT?'tenant':'listing');
     var _lb=m.querySelectorAll('.bmfld'); if(_lb[0]) _lb[0].textContent=isT?'Tenant / concept name':'Business / listing name'; if(_lb[2]) _lb[2].textContent=isT?'Client contact':'Seller / client contact';
     var _bt=document.getElementById('nd_create'); if(_bt) _bt.textContent='Create '+(isT?'tenant':'listing');
-    var _bp=document.getElementById('nd_business'); if(_bp) _bp.placeholder=isT?'e.g. Blue Agave Cantina (concept seeking space)':'e.g. Blue Agave Cantina';
+    var _bp=document.getElementById('nd_business'); if(_bp) _bp.placeholder=isT?'Start typing to find the tenant / concept, or enter a new one…':'Start typing to find a business, or enter a new one…';
     var _ml=document.getElementById('nd_marketLbl'); if(_ml) _ml.textContent=isT?'Target markets / trade areas':'Market';
     var _mh=document.getElementById('nd_marketHint'); if(_mh) _mh.style.display=isT?'block':'none';
     var _mi=document.getElementById('nd_market'); if(_mi) _mi.placeholder=isT?'Add each market — type or pick, then Enter…':'Start typing to find a market…';
@@ -323,8 +355,8 @@ function ndMarketAdd(v){ v=String(v||'').trim(); var inp=document.getElementById
 function ndMarketDel(i){ SELMARKETS.splice(i,1); ndMarketRender(); }
 function ndMarketKey(e){ var inp=e.target; if(e.key==='Enter'||e.key===','){ e.preventDefault(); ndMarketAdd(inp.value); } else if(e.key==='Backspace' && !inp.value && SELMARKETS.length){ SELMARKETS.pop(); ndMarketRender(); } }
 function ndMarketValue(){ var inp=document.getElementById('nd_market'); var pend=(inp&&inp.value||'').trim(); var all=SELMARKETS.slice(); if(pend && all.map(function(x){return x.toLowerCase();}).indexOf(pend.toLowerCase())<0) all.push(pend); return all.join('; '); }
-function closeDealModal(){ var m=document.getElementById('dealModal'); if(!m) return; m.setAttribute('hidden',''); ['nd_business','nd_market','nd_contact'].forEach(function(id){var _e=document.getElementById(id); if(_e) _e.value='';}); SELMARKETS=[]; ndMarketRender(); var _cp=document.getElementById('nd_contactPop'); if(_cp) _cp.style.display='none'; _ndCmatches=[]; _ndCsel=-1; updateClientHint(); }
-function createDeal(){ var business=(document.getElementById('nd_business').value||'').trim(); if(!business){ document.getElementById('nd_business').focus(); return; } var contact=(document.getElementById('nd_contact').value||'').trim(); if(!contact){ document.getElementById('nd_contact').focus(); var _h=document.getElementById('clientHint'); if(_h) _h.innerHTML='<b style="color:#DA2B1F">A client contact is required — every listing must be linked to a contact.</b>'; return; } var btn=document.getElementById('nd_create'); btn.disabled=true; btn.textContent='Creating…'; fetch('/api/deal/new',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({business:business,market:ndMarketValue(),contact:contact,owner:((document.getElementById('nd_owner')||{}).value||''),type:dealType()})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_assignment.html?key='+encodeURIComponent(j.key); } else { btn.disabled=false; btn.textContent='Create '+entSingular().toLowerCase(); alert((j&&j.error)||'Could not create the '+entSingular().toLowerCase()+'.'); } }).catch(function(){ btn.disabled=false; btn.textContent='Create '+entSingular().toLowerCase(); alert('Could not reach the server.'); }); }
+function closeDealModal(){ var m=document.getElementById('dealModal'); if(!m) return; m.setAttribute('hidden',''); ['nd_business','nd_market','nd_contact'].forEach(function(id){var _e=document.getElementById(id); if(_e) _e.value='';}); ND_CO=null; ND_PERSON=null; SELMARKETS=[]; ndMarketRender(); var _cp=document.getElementById('nd_contactPop'); if(_cp) _cp.style.display='none'; _ndCmatches=[]; _ndCsel=-1; updateClientHint(); }
+function createDeal(){ var business=(document.getElementById('nd_business').value||'').trim(); if(!business){ document.getElementById('nd_business').focus(); return; } var contact=(document.getElementById('nd_contact').value||'').trim(); if(!contact){ document.getElementById('nd_contact').focus(); var _h=document.getElementById('clientHint'); if(_h) _h.innerHTML='<b style="color:#DA2B1F">A client contact is required — every listing must be linked to a contact.</b>'; return; } var btn=document.getElementById('nd_create'); btn.disabled=true; btn.textContent='Creating…'; fetch('/api/deal/new',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({business:business,companyId:((ND_CO&&ND_CO.name===business)?ND_CO.id:''),personId:((ND_PERSON&&ND_PERSON.name===contact)?ND_PERSON.id:''),market:ndMarketValue(),contact:contact,owner:((document.getElementById('nd_owner')||{}).value||''),type:dealType()})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_assignment.html?key='+encodeURIComponent(j.key); } else { btn.disabled=false; btn.textContent='Create '+entSingular().toLowerCase(); alert((j&&j.error)||'Could not create the '+entSingular().toLowerCase()+'.'); } }).catch(function(){ btn.disabled=false; btn.textContent='Create '+entSingular().toLowerCase(); alert('Could not reach the server.'); }); }
 function renderToolbar(){
   var vc=activeFilterCount();
   var perLabel=function(p){ return p===0?'All':String(p); };
