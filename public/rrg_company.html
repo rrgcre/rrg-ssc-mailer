@@ -251,6 +251,8 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 .savebtn:disabled{opacity:.55;cursor:default;}
 .saved{text-align:center;font-size:11.5px;color:var(--green);font-weight:700;margin-top:9px;height:14px;opacity:0;transition:opacity .2s;} .saved.show{opacity:1;}
 .cform{padding:14px 20px 4px;border-bottom:1px solid var(--line);background:#fbfcff;}
+.cpnamerow{display:flex;gap:8px;align-items:stretch;}.cpnamerow input{flex:1;min-width:0;}.cpnamerow .findbtn{white-space:nowrap;}
+.cpaihint{font-size:11.5px;color:#8a93a6;margin-top:6px;line-height:1.45;}.cplink{background:none;border:0;padding:0;font:inherit;font-weight:600;color:var(--navy);cursor:pointer;text-decoration:underline;text-decoration-style:dotted;}.cplink:hover{text-decoration-style:solid;}
 .cgrid{display:grid;grid-template-columns:1fr 1fr;gap:11px;} .cgrid .wide{grid-column:1/-1;} .cgrid .locsec{grid-column:1/-1;margin-top:6px;padding-top:10px;border-top:1px solid var(--line);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);}
 .cgrid input,.cgrid select{padding:9px 11px;font-size:13px;}
 .cbtns{display:flex;gap:9px;margin:12px 0 8px;} .sbtn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:8px;padding:9px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;} .cbtn{background:#fff;color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:9px 14px;font:inherit;font-size:13px;cursor:pointer;}
@@ -749,16 +751,14 @@ function openConceptForm(cpt){
     : '<div class="logorow"><div class="logoprev" id="cp_logoprev"></div><div style="flex:1"><input id="cp_logo" value="'+esc(cpt.logo||'')+'" placeholder="Paste a logo image URL, or use the company logo"><div class="logobtns"><button type="button" class="mfadd" id="cp_uselogo">Use company logo</button></div></div></div>';
   f.innerHTML='<div class="cform findcard"><div class="findhd">'+(isEdit?'Edit concept':'Add a concept')+' <span class="cpsaved" id="cp_saved"></span></div>'
     +'<div class="cgrid">'
-    +'<div><label class="fld">Concept / brand name</label><input id="cp_name" value="'+esc(cpt.name||'')+'" placeholder="e.g. Cane Rosso"></div>'
+    +'<div class="wide"><label class="fld">Concept / brand name</label><div class="cpnamerow"><input id="cp_name" value="'+esc(cpt.name||'')+'" placeholder="e.g. Cane Rosso"><button type="button" class="findbtn" id="cp_build" title="'+esc(ASSISTANT)+' searches the web and fills in the rest — review after">✨ Auto-fill</button></div>'
+      +'<div class="cpaihint">Auto-fill pulls the website, type, cuisine, price, logo and locations from the name. Or fill it in yourself below. <button type="button" class="cplink" id="cp_find">Just find locations</button><input id="cp_findcount" type="hidden" value=""></div></div>'
     +'<div><label class="fld">Website</label><input id="cp_site" value="'+esc(cpt.website||'')+'"></div>'
+    +'<div><label class="fld">Price point</label><select id="cp_price">'+priceOpts+'</select></div>'
     +'<div><label class="fld">Concept type</label><select id="cp_ctype">'+ctypeOpts+'</select></div>'
     +'<div><label class="fld">Cuisine</label><select id="cp_cuisine">'+cuisineOpts+'</select></div>'
-    +'<div><label class="fld">Price point</label><select id="cp_price">'+priceOpts+'</select></div>'
     +'<div class="wide"><label class="fld">Logo</label>'+logoCtl+'</div>'
     +'<div class="wide" style="display:none"><label class="fld">Markets</label><div class="servegrid">'+mboxes+'</div></div>'
-    +'<div class="wide findlocwrap"><div class="findtool"><div class="findtoolhd"><span class="aitag">✨ AI tool</span>Auto-build this concept from its name</div>'
-      +'<div class="findtoolsub">Enter the concept name above, then '+esc(ASSISTANT)+' searches the web to fill the website, type, cuisine &amp; price, pull the logo, and find its locations. Review and edit after.</div>'
-      +'<div class="findloc"><input id="cp_findcount" class="findcount" placeholder="Approx. # (optional)"><button type="button" class="findbtn" id="cp_build">✨ Build from name</button><button type="button" class="mfadd" id="cp_find">Just find locations</button></div></div></div>'
     +'</div><div class="cbtns">'+(isEdit?'<button class="sbtn" id="cp_done">Done</button>':'<button class="sbtn" id="cp_save">Add concept</button>')+'<button class="cbtn" id="cp_cancel">Cancel</button><span id="cp_msg" class="findmsg"></span></div></div>';
   f.removeAttribute('hidden'); expandCardOf(f);
   function drawLogoPrev(){ var u=document.getElementById('cp_logo').value.trim(); var p=document.getElementById('cp_logoprev'); p.innerHTML=u?('<img src="'+esc(u)+'" onerror="this.style.display=\'none\'">'):('<span class="cptlogo-mono" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center">'+esc((document.getElementById('cp_name').value||'?').charAt(0).toUpperCase())+'</span>'); }
@@ -800,7 +800,7 @@ function _doConceptFind(cpt,isEdit){
   var markets=[]; document.querySelectorAll('.cp_mkt:checked').forEach(function(x){ markets.push(x.value); });
   var body={name:name,website:website,logo:document.getElementById('cp_logo').value.trim(),markets:markets,conceptType:cpVal('cp_ctype'),pricePoint:cpVal('cp_price'),cuisine:cpVal('cp_cuisine')};
   if(isEdit&&cpt&&cpt.id) body.id=cpt.id;
-  function fail(t){ aiHide(); if(btn){ btn.disabled=false; btn.textContent='✨ Find locations'; } if(msg) msg.textContent=t; }
+  function fail(t){ aiHide(); if(btn){ btn.disabled=false; btn.textContent='Just find locations'; } if(msg) msg.textContent=t; }
   fetch('/api/company/'+encodeURIComponent(ID)+'/concept',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body),signal:ctrl?ctrl.signal:undefined})
     .then(function(r){return r.json();}).then(function(j){
       if(!j||!j.ok){ fail((j&&j.error)||'Could not save the concept.'); return; }
@@ -812,7 +812,7 @@ function _doConceptFind(cpt,isEdit){
           else fail((j2&&j2.error)||'Search failed.');
         });
     })
-    .catch(function(e){ if(e&&e.name==='AbortError'){ aiHide(); if(btn){ btn.disabled=false; btn.textContent='✨ Find locations'; } return; } fail('Could not reach the server.'); });
+    .catch(function(e){ if(e&&e.name==='AbortError'){ aiHide(); if(btn){ btn.disabled=false; btn.textContent='Just find locations'; } return; } fail('Could not reach the server.'); });
 }
 // ---- Colorful "AI is working" popup (lazily created) ----
 function aiShow(msg,onCancel){ if(window.rrgAiWork) rrgAiWork.show(msg,onCancel); }
