@@ -298,6 +298,7 @@ a.feat:hover{background:#f7f9fc;}
 .ovmono.ovlogo{background:#fff;border:1px solid var(--line);padding:5px;overflow:hidden}
 .ovmono.ovlogo img{width:100%;height:100%;object-fit:contain;display:block;border-radius:5px}
 .ovname{font-size:18px;font-weight:800;color:var(--navy);letter-spacing:-.01em;line-height:1.2;overflow-wrap:anywhere;}
+.ovclient{display:inline-block;margin-top:6px;font-size:12.5px;font-weight:600;color:var(--navy);text-decoration:none;border-bottom:1px dashed #b9c3d3;}.ovclient:hover{border-bottom-style:solid;}
 .ovsub{font-size:12.5px;color:var(--muted);margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
 .ovsub .st{display:inline-block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#23496f;background:#eef2fb;border:1px solid #d3ddf3;border-radius:999px;padding:2px 8px;}
 .ktiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:9px;margin-bottom:15px;}
@@ -595,6 +596,7 @@ var TXNCOMM=['Unpaid','Invoiced','Partial','Paid'];
 var TOUR_INTEREST=['Hot','Warm','Cool','Passed'];
 var NDA_METHODS=['DocuSign','Email','Paper','Other'], NDA_STATUSES=['Sent','Received','Countersigned','Expired'];
 function peopleDatalistHTML(){ return '<datalist id="peopleList">'+PEOPLE.map(function(p){ return '<option value="'+esc(p.name)+'">'+esc(p.company||p.email||'')+'</option>'; }).join('')+'</datalist>'; }
+function _ovClientLink(lab){ var pid=A&&A.clientPersonId; if(!pid) return ''; var p=(typeof PEOPLE!=='undefined'&&PEOPLE||[]).filter(function(x){return x.id===pid;})[0]; var nm=(p&&(p.name||[p.first,p.last].filter(Boolean).join(' ')))||A.contact||'Open contact'; return '<a class="ovclient" href="./rrg_person.html?id='+encodeURIComponent(pid)+'" title="Open this contact">'+esc(lab)+': '+esc(nm)+' \u2192</a>'; }
 function personLine(personId){ if(!personId) return ''; var p=PEOPLE.filter(function(x){return x.id===personId;})[0]; if(!p) return ''; var bits=[p.company,p.email].filter(Boolean).map(esc).join(' · '); return bits?('<span class="plink" title="Linked buyer record">'+bits+'</span>'):''; }
 // stage definitions: key, label, description, link builder
 var STAGES=[
@@ -1220,7 +1222,7 @@ function render(){
   var _tile=function(n,l){ return '<div class="tile"><div class="tn">'+n+'</div><div class="tl">'+esc(l)+'</div></div>'; };
   var _logo=(function(){ var co=A.company||{}; var bn=_sscNorm(_nm); var hit=(co.conceptLogos||[]).filter(function(x){ var n=_sscNorm(x.name); return n.length>=4&&bn.length>=4&&(n.indexOf(bn)===0||bn.indexOf(n)===0); })[0]; return (hit&&hit.logo)||co.logo||''; })();
   var facts='<div class="ovhead">'+(_logo?('<div class="ovmono ovlogo"><img src="'+esc(_logo)+'" alt="" onerror="var p=this.parentNode;p.classList.remove(\'ovlogo\');p.style.background=\'hsl('+_hue+',42%,42%)\';p.textContent=\''+esc(_mono).replace(/'/g,'')+'\';"></div>'):('<div class="ovmono" style="background:hsl('+_hue+',42%,42%)">'+esc(_mono)+'</div>'))
-      +'<div class="ovid"><div class="ovname">'+esc(_nm)+'</div><div class="ovsub">'+(A.market?esc(A.market):'No market set')+'<span class="st">'+esc(A.status||'New')+'</span>'+(A.provisional?'<span class="st" style="color:#b5791f;background:#fdf1df;border-color:#f0d7ad">Provisional</span>':'')+(A.codeName?('<span class="st" title="Confidential project code name" style="color:#5a4b8a;background:#f2eefb;border-color:#ddd2f3">🔒 '+esc(A.codeName)+'</span>'):'')+'</div></div></div>'
+      +'<div class="ovid"><div class="ovname">'+esc(_nm)+'</div><div class="ovsub">'+(A.market?esc(A.market):'No market set')+'<span class="st">'+esc(A.status||'New')+'</span>'+(A.provisional?'<span class="st" style="color:#b5791f;background:#fdf1df;border-color:#f0d7ad">Provisional</span>':'')+(A.codeName?('<span class="st" title="Confidential project code name" style="color:#5a4b8a;background:#f2eefb;border-color:#ddd2f3">🔒 '+esc(A.codeName)+'</span>'):'')+'</div>'+_ovClientLink('Client')+'</div></div>'
     +'<div class="ktiles">'
       +_tile(esc(domDays()||'—'),'Days active')
       +((A.assignmentType==='tenant_rep')?('<div class="tile" title="Spaces sent to the tenant for review — mark them with ✉ on the Space shortlist"><div class="tn" id="kSent">'+((_ss&&_ss.ok)?(_ss.sentCount||0):'—')+'</div><div class="tl">Spaces sent</div></div>'):'')
