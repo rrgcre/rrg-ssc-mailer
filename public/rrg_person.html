@@ -2597,14 +2597,18 @@ load();
       host.appendChild(lbl); var rt=document.getElementById("root"); if(rt&&rt.parentNode) rt.parentNode.insertBefore(host, rt); }
     host.appendChild(wrap);
     // Dock the action buttons on the breadcrumb line (right side) instead of a row of their own.
-    (function dock(n){ var c=document.querySelector('.rrgcrumb'); if(c){ c.style.display='flex'; c.style.alignItems='center'; c.style.flexWrap='wrap'; host.style.padding='0'; host.style.marginLeft='auto'; var lb=host.firstChild; if(lb&&lb.tagName==='SPAN'&&/Actions for/.test(lb.textContent)) lb.style.display='none'; c.appendChild(host); return; } if(n<40) setTimeout(function(){ dock(n+1); },150); })(0);
+    // The host sits as a SIBLING after the crumb (the shell rebuilds the crumb's contents), and
+    // a watchdog re-docks it if anything detaches it.
+    var _lb0=host.firstChild; if(_lb0&&_lb0.tagName==='SPAN'&&/Actions for/.test(_lb0.textContent)) _lb0.style.display='none';
+    function _dockAct(){ try{ var c=document.querySelector('.rrgcrumb'); if(c&&c.parentNode){ if(host.previousElementSibling!==c){ c.parentNode.insertBefore(host, c.nextSibling); } host.style.cssText='display:'+(host.style.display==='none'?'none':'flex')+';justify-content:flex-end;align-items:center;gap:10px;height:0;overflow:visible;position:relative;z-index:50;padding:0 24px;margin:0;top:-17px;pointer-events:none;'; Array.prototype.forEach.call(host.children,function(k){ k.style.pointerEvents='auto'; }); return true; } if(!host.isConnected){ var rt=document.getElementById('root'); if(rt&&rt.parentNode) rt.parentNode.insertBefore(host, rt); } }catch(e){} return false; }
+    (function dock(n){ if(_dockAct()) return; if(n<40) setTimeout(function(){ dock(n+1); },150); })(0);
     // Show only the tools that fit this contact: seller tools for Selling (or a listing they own),
     // tenant rep tools for Leasing / Tenant (or an engagement); nothing for contacts with neither.
     function actVis(){ try{ var it=(typeof pInterests==='function'&&typeof P!=='undefined'&&P)?pInterests(P).map(function(x){return String(x).toLowerCase();}):[]; var D=(typeof DEALS!=='undefined'&&DEALS)||[];
         var sell=it.some(function(x){ return /sell/.test(x); })||D.some(function(d){ return d&&d.type!=='tenant_rep'&&d.type!=='landlord_rep'; });
         var ten=it.some(function(x){ return /leas|tenant/.test(x); })||D.some(function(d){ return d&&d.type==='tenant_rep'; });
         sellGrp.style.display=sell?'inline-flex':'none'; trbtn.style.display=ten?'':'none'; host.style.display=(sell||ten)?'flex':'none'; if(!sell) close(); if(!ten) trclose(); }catch(e){} }
-    actVis(); setInterval(actVis, 1200);
+    actVis(); setInterval(function(){ if(!host.isConnected||host.previousElementSibling!==document.querySelector('.rrgcrumb')) _dockAct(); actVis(); }, 1200);
     try{ applyLane(); }catch(_){} try{refreshValuation();}catch(_){} try{updateTopBtns();}catch(_){}
     function close(){ menu.style.display="none"; }
     btn.addEventListener("click",function(e){ e.stopPropagation(); try{trclose();}catch(_){} var _sw=(menu.style.display==="none"); menu.style.display=(_sw?"block":"none"); if(_sw){ try{refreshValuation();}catch(_){} } });
