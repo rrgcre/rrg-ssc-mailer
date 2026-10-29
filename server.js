@@ -6223,8 +6223,8 @@ function _finTasksOnUpload(room, doc) {
     const base = { createdBy: 'automation', createdByName: 'Lavano', assignee: owner, assigneeName: ownerName, createdAt: new Date().toISOString(), status: 'open', doneAt: '', due: today, reminder: today, priority: 'Normal', type: '', linkType: 'contact', linkId: pid, linkLabel: pname, remChannels: ['popup'] };
     const tasks = loadTasks();
     const add = (key, title, notes) => { const expKey = 'fin:' + room.id + ':' + key; if (tasks.some(t => t.expKey === expKey)) return; tasks.push(Object.assign({}, base, { id: newTaskId(), title: title.slice(0, 300), notes: notes.slice(0, 2000), expKey })); };
-    add('review', 'Review the financials — ' + biz, 'Financials just landed in the data room. Check you have the last three completed years, the trailing 12 months and year-to-date, plus the lease and any amendments. Note add-backs to discuss with the seller.');
-    if (!ivDone) add('interview', 'Send the seller interview — ' + biz, 'The P&Ls are in. Next is the story behind the numbers: Biz Seller Actions → Seller Interview → Email the questions, or do it on a call.');
+    add('review', 'Review the financials — ' + biz, 'Financials just landed in the data room. Check you have the last three completed years, the trailing 12 months and year-to-date, plus the lease and any amendments. Work out SDE or EBITDA, then decide: going concern or asset sale (Biz Seller Actions → Data Collection → Going concern or asset sale?).');
+    if (!ivDone) add('interview', 'Send the seller interview — ' + biz, 'Once the financials support a going concern: Biz Seller Actions → Seller Interview → Email the questions, or do it on a call. If you move it to an asset sale, this task closes itself.');
     saveTasks(tasks);
   } catch (e) { console.error('fin tasks:', e && e.message); }
 }
@@ -10796,6 +10796,9 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   if (typeof b.codeName === 'string') cur.codeName = b.codeName.slice(0, 80);
   if (typeof b.marketOverride === 'string') cur.marketOverride = b.marketOverride.slice(0, 80);
   if (typeof b.saleLane === 'string' && ['business', 'asset', 'other'].indexOf(b.saleLane) >= 0) cur.saleLane = b.saleLane;   // type of listing: going concern / asset sale / other
+  // Financials don't support a going concern → asset sale: the seller interview no longer applies,
+  // so close the open "send the seller interview" task for this seller.
+  if (b.saleLane === 'asset') { try { const _pid = d.contactPersonId || d.clientPersonId || d.personId || ''; if (_pid) { const _ts = loadTasks(); let _ch = false; _ts.forEach(t => { if (t && t.status === 'open' && t.linkId === _pid && /^fin:.*:interview$/.test(String(t.expKey || ''))) { t.status = 'done'; t.doneAt = new Date().toISOString(); t.notes = (String(t.notes || '') + '\nClosed automatically: moved to an asset sale, so no seller interview.').slice(0, 2000); _ch = true; } }); if (_ch) saveTasks(_ts); } } catch (e) {} }
   if (b.stageFlags && typeof b.stageFlags === 'object') {
     // Accept any real pipeline-stage key: generated manual keys (g0, g1…) AND the tool-derived
     // keys a stage can carry when it's manually toggled with no tool state yet (call, bov, pack,

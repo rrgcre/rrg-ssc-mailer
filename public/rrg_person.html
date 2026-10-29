@@ -2436,6 +2436,7 @@ load();
     {hdr:'Data Collection', hid:'data'},
     {id:'sendNda', t:'Send NDA + document request', sub:'One email: the NDA to sign, the documents you\u2019ll need, and what\u2019s next', f:function(){ if(typeof openNda==='function'){ openNda(); } else { alert('Agreements are still loading — try again in a moment.'); } }},
     {id:'dUpload', t:'Upload files to the data room', sub:'Financials, lease & diligence documents', lock:'screen', f:function(){ var pid=(typeof P!=='undefined'&&P&&P.id)||(typeof ID!=='undefined'&&ID)||''; var cid2=(typeof CO!=='undefined'&&CO&&CO.id)||''; var biz=(typeof CO!=='undefined'&&CO&&CO.name)||(typeof P!=='undefined'&&P&&P.company)||(typeof P!=='undefined'&&P&&P.name)||''; if(!pid&&!cid2){ alert('No contact on this record.'); return; } fetch('/api/valuation-room',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({personId:pid,companyId:cid2,business:biz,listingKey:_actKey()})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.id){ location.href='./rrg_room.html?room='+encodeURIComponent(j.id); } else { alert((j&&j.error)||'Could not open a data room.'); } }).catch(function(){ alert('Could not open a data room.'); }); } },
+    {id:'laneDecide', t:'Going concern or asset sale?', sub:'Decide once you’ve reviewed the P&Ls and SDE / EBITDA', f:function(){ _laneDecide(); }},
     {hdr:'Seller Interview', hint:'pick one', hid:'interview'},
     {id:'ivSend', t:'Email the questions', sub:'Seller answers in writing', lock:'screen', f:function(){ if(typeof openSellerIntake==='function'){ openSellerIntake('valuation'); } else { alert('One moment - still loading.'); } }},
     {id:'ivStart', t:'Do it on a call', sub:'You ask, the guided form takes notes', lock:'screen', f:function(){ var nm=encodeURIComponent((typeof P!=='undefined'&&P&&P.name)||''); var co=encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.name)||(typeof P!=='undefined'&&P&&P.company)||''); var mk=encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.market)||''); var ad=encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.address)||''); var pid=encodeURIComponent((typeof P!=='undefined'&&P&&P.id)||(typeof ID!=='undefined'&&ID)||''); var cid=encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.id)||''); location.href='./seller_screening.html?valuation=1&sellerName='+nm+'&company='+co+'&market='+mk+'&address='+ad+'&contactId='+pid+'&companyId='+cid+_actKeyQ(); }},
@@ -2456,6 +2457,27 @@ load();
     {id:'manageDeal', t:'Manage buyers, offers & closing', sub:'Track NDAs, tours and offers, and drive the deal to close', f:function(){ var k=_actKey(); if(k){ location.href='./rrg_assignment.html?key='+encodeURIComponent(k); } else { alert('No listing on file for this seller yet.'); } }}
   ]
   function _rrgActItem(re){ try{ return Array.prototype.slice.call(document.querySelectorAll('#rrgActionsMenu .rrgactitem')).filter(function(b){return re.test(b.textContent);})[0]||null; }catch(_){ return null; } }
+  // After the P&Ls: do the numbers support a going-concern sale? Asset sale drops the interview
+  // and the earnings-based valuation (applyLane) and closes the open interview task.
+  function _laneDecide(){
+    var k=_actKey(); if(!k){ alert('No listing on file for this seller yet.'); return; }
+    var cur=_activeLane();
+    var ov=document.createElement('div'); ov.style.cssText='position:fixed;inset:0;background:rgba(10,20,50,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+    var btn=function(v,t,d){ var on=(cur===v); return '<button type="button" data-lane="'+v+'" style="display:block;width:100%;text-align:left;margin:0 0 8px;border:1.5px solid '+(on?'#2c5c8f':'#d7dde8')+';background:'+(on?'#f2f7fc':'#fff')+';border-radius:8px;padding:11px 13px;cursor:pointer;font:inherit;color:#1a2236"><b style="display:block;font-size:14px">'+t+(on?' <span style="font-size:11px;color:#2c5c8f">(current)</span>':'')+'</b><span style="font-size:12px;color:#6b7488">'+d+'</span></button>'; };
+    ov.innerHTML='<div style="background:#fff;border-radius:10px;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(10,20,50,.3);padding:18px 18px 10px;font-size:13.5px;color:#1a2236">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b style="font-size:13px;letter-spacing:.04em;text-transform:uppercase">Going concern or asset sale?</b><button type="button" data-x="1" style="background:none;border:0;font-size:20px;cursor:pointer;color:#6b7488">&times;</button></div>'
+      +'<div style="color:#5a6478;line-height:1.5;margin-bottom:12px">Based on the P&amp;Ls and SDE / EBITDA, how will this sell?</div>'
+      +btn('business','Going concern','The earnings support a business sale. Next: the seller interview, then the BOV.')
+      +btn('asset','Asset sale','The earnings don’t support it. Sell the space, buildout and equipment. No seller interview; the open interview task closes.')
+      +'<div data-msg="1" style="min-height:18px;font-size:12.5px;font-weight:600;margin:4px 0 6px"></div></div>';
+    document.body.appendChild(ov);
+    ov.addEventListener('click',function(e){ if(e.target===ov||e.target.closest('[data-x]')){ ov.remove(); return; } var b=e.target.closest('[data-lane]'); if(!b) return; var v=b.getAttribute('data-lane'); var m=ov.querySelector('[data-msg]'); m.style.color='#6b7488'; m.textContent='Saving…';
+      fetch('/api/assignment/'+encodeURIComponent(k)+'/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({saleLane:v})}).then(function(r){return r.json();}).then(function(j){ if(!j||j.ok===false){ m.style.color='#DA2B1F'; m.textContent=(j&&j.error)||'Could not save.'; return; }
+        try{ (DEALS||[]).forEach(function(d){ if(d&&d.key===k) d.saleLane=v; }); }catch(_){}
+        ov.remove(); try{ applyLane(); }catch(_){} try{ refreshValuation(); }catch(_){} try{ _rrgTidyHeads(); }catch(_){}
+        if(window.rrgToast) rrgToast(v==='asset'?'Moved to an asset sale. Seller interview is off and its task is closed.':'Set as a going concern. Next: the seller interview.');
+      }).catch(function(){ m.style.color='#DA2B1F'; m.textContent='Could not reach the server.'; }); });
+  }
   function _rrgActById(id){ try{ return document.querySelector('#rrgActionsMenu [data-aid="'+id+'"]'); }catch(_){ return null; } }
   function _rrgSetHeadDone(hid,done){ try{ var el=document.querySelector('#rrgActionsMenu .rrgacthead[data-hid="'+hid+'"]'); if(el) el.classList.toggle('rrgheaddone', !!done); }catch(_){} }
   function _rrgSetGate(el,dim,sub){ if(!el) return; var sb=el.querySelector('.rrgactsub'); if(!sb){ sb=document.createElement('div'); sb.className='rrgactsub'; el.appendChild(sb); } if(dim){ el.classList.add('rrgactdim'); } else { el.classList.remove('rrgactdim'); } sb.textContent=sub||''; }
