@@ -105,7 +105,7 @@ h1{font-size:25px;font-weight:700;margin:0;color:#fff;}
     }).join('');
     applyConds(); f.addEventListener('change',applyConds); f.addEventListener('input',applyConds);
     if(j.submitted){ document.getElementById('doneNote').style.display='block'; document.getElementById('introNote').style.display='none'; }
-    document.getElementById('altline').innerHTML='Prefer to talk it through on camera instead? <a href="./seller_record.html?t='+encodeURIComponent(TOKEN)+'" style="color:#DA2B1F;font-weight:700">Record a short video &rarr;</a>';
+    if(j.video==='none') document.getElementById('altline').innerHTML='Prefer to talk it through? Just reply to the email and we\u2019ll cover it on a short call.'; else document.getElementById('altline').innerHTML='Prefer to talk it through on camera instead? <a href="./seller_record.html?t='+encodeURIComponent(TOKEN)+'" style="color:#DA2B1F;font-weight:700">Record a short video &rarr;</a>';
     hideLoading(); app.style.display='block';
   }).catch(function(){ if(_done) return; _done=true; clearTimeout(_to); showGate('We could not load this page. Please try again in a moment.'); });
   // Conditional questions: a question shows only when its trigger answer matches (e.g. lease

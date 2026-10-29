@@ -14049,8 +14049,12 @@ app.post('/api/admin/accounting', express.json(), (req, res) => {
 // {{firstName}} {{business}} {{formUrl}} {{videoUrl}} {{repName}} {{org}}).
 const SELLER_LINK_EMAIL_DEFAULTS = {
   valuation: {
-    subject: '{{org}} — a few details about {{business}} for your file',
-    body: 'Hi,\n\nThanks again. As we position {{business}} for sale, the financials only tell part of the story — the details behind them are a big part of what a buyer is really paying for. To capture that in your own words, we’ve set up two quick, private options; use whichever you’re more comfortable with (or both):\n\n• Answer a short set of questions in writing: {{formUrl}}\n\n• Or talk through them on a short video: {{videoUrl}}\n\nThere are no wrong answers, and rough figures are fine. Everything is confidential and goes only to your {{org}} representative. Prefer not to be on camera? Just use the written version.\n\n— {{repName}}',
+    subject: '{{org}} — a few questions about {{business}}',
+    body: 'Hi,\n\nThanks for sending the numbers. The financials only tell part of the story — the details behind them shape what {{business}} is worth. Please take about 10 minutes to answer a short set of questions in writing:\n\n{{formUrl}}\n\nRough answers are fine, and you can skip anything you would rather talk through. If it is easier, reply and we will cover it on a short call instead. Everything is confidential and goes only to your {{org}} representative.\n\n— {{repName}}',
+  },
+  ownervideo: {
+    subject: '{{org}} — a short owner video for {{business}}',
+    body: 'Hi,\n\nBuyers respond to hearing from the owner. A short video in your own words — how {{business}} started, what makes it special, and what comes next — is one of the best tools we have to get serious buyers interested.\n\nIt takes about 5 minutes, works on your phone, and walks you through a few simple questions:\n\n{{videoUrl}}\n\nNo script and no retakes needed. It is shared only with qualified buyers who have signed an NDA.\n\n— {{repName}}',
   },
   seller: {
     subject: '{{org}} — tell us about {{business}}',
@@ -14609,10 +14613,22 @@ const SELLER_FORM_FIELDS = [
 // Seller Interview. To enable another (e.g. buyer qualification), add a slot entry here.
 //   slot        = the callForms key it pulls its questionnaire from (Settings → Call Questionnaires)
 //   roomVisible = whether a completed recording surfaces in the buyer data room
+//   video       = 'both' (form + video), 'none' (written only), 'only' (video only)
+// The interview happens BEFORE the valuation, so it's written (or a rep-led call) — no video, and
+// nothing from it goes to buyers. The buyer-facing owner video is its own step after the listing.
 const SELLER_LINK_KINDS = {
-  valuation: { label: 'Seller Interview', noun: 'interview', slot: 'valuation', roomVisible: true },
-  seller: { label: 'Seller Screening', noun: 'screening', slot: 'seller', roomVisible: false },
+  valuation: { label: 'Seller Interview', noun: 'interview', slot: 'valuation', roomVisible: false, video: 'none' },
+  seller: { label: 'Seller Screening', noun: 'screening', slot: 'seller', roomVisible: false, video: 'both' },
+  ownervideo: { label: 'Owner Video', noun: 'owner video', slot: '', roomVisible: true, video: 'only' },
 };
+const OWNER_VIDEO_PROMPTS = [
+  'Introduce yourself and tell us how the business got started.',
+  'What makes the restaurant special to your guests?',
+  'Who are your regulars, and what keeps them coming back?',
+  'What does a typical week look like, and who runs things day to day?',
+  'If you were staying, what opportunities would you go after next?',
+  'Why is now the right time, and what do you hope for the business after you?',
+];
 function linkKind(k) { return SELLER_LINK_KINDS[k] ? k : 'valuation'; }
 function linkKindMeta(k) { return SELLER_LINK_KINDS[linkKind(k)]; }
 // Draws its questions from the questionnaire assigned to this kind's call slot
@@ -14622,7 +14638,7 @@ function sellerInterviewForm(kind) {
     const st = loadSettings();
     const asg = st.callForms || {};
     const on = st.callFormsOnline || {};
-    const meta = linkKindMeta(kind);
+    const meta = linkKindMeta(kind); if (!meta.slot) return null;
     // The self-serve (online) form prefers its own per-call-type assignment; when none is set
     // it falls back to the verbal/live-call form, then the valuation→seller shared fallback.
     const id = on[meta.slot] || asg[meta.slot] || (linkKind(kind) === 'valuation' ? (on.seller || asg.seller) : '') || '';
@@ -14631,6 +14647,7 @@ function sellerInterviewForm(kind) {
   } catch (e) { return null; }
 }
 function sellerInterviewFields(kind) {
+  if (linkKind(kind) === 'ownervideo') return OWNER_VIDEO_PROMPTS.map((p, i) => ({ k: 'ov' + i, label: p, prompt: p, type: 'textarea', options: [], section: '' }));
   const f = sellerInterviewForm(kind);
   if (!f || !Array.isArray(f.categories)) {
     return SELLER_FORM_FIELDS.map(x => ({ k: x.k, label: x.label, prompt: x.label, type: x.ta ? 'textarea' : 'text', options: [], section: '' }));
@@ -14670,7 +14687,7 @@ app.post('/api/seller-link', express.json(), (req, res) => {
         .sort((a, b2) => String(b2.createdAt || '').localeCompare(String(a.createdAt || '')))
         .map(iv => ({ id: iv.id, createdAt: iv.createdAt || '', durationSec: iv.durationSec || 0, transcriptStatus: iv.transcriptStatus || '', viewUrl: '/api/interview/' + iv.id + '/view' }));
     } catch (e) {}
-    res.json({ ok: true, token: rec.token, kind: kind, label: meta.label, roomVisible: !!meta.roomVisible, formUrl: origin + '/seller_intake.html?t=' + rec.token, videoUrl: origin + '/seller_record.html?t=' + rec.token, business: rec.business || '', formSubmitted: !!(rec.form && rec.form.submittedAt), form: rec.form || null, fields: (rec.form && rec.form.fields) || sellerInterviewFields(kind), videoCount: rec.videoCount || 0, recordings: recordings, emailedTo: rec.emailedTo || '' });
+    res.json({ ok: true, token: rec.token, kind: kind, label: meta.label, roomVisible: !!meta.roomVisible, video: meta.video || 'both', formUrl: origin + '/seller_intake.html?t=' + rec.token, videoUrl: origin + '/seller_record.html?t=' + rec.token, business: rec.business || '', formSubmitted: !!(rec.form && rec.form.submittedAt), form: rec.form || null, fields: (rec.form && rec.form.fields) || sellerInterviewFields(kind), videoCount: rec.videoCount || 0, recordings: recordings, emailedTo: rec.emailedTo || '' });
   } catch (e) { console.error('seller-link:', e && e.message); res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 // Rep emails the two links to the seller.
@@ -14705,7 +14722,8 @@ app.post('/api/seller-link/email', express.json(), async (req, res) => {
       }
     } catch (e) {}
     const vars = { org: org, business: biz, formUrl: formUrl, videoUrl: videoUrl, repName: me, firstName: firstName, bookingUrl: bookingUrl, booking_link: bookingUrl };
-    const tpl = effSellerIntakeEmail(rec.kind);
+    const tpl = Object.assign({}, effSellerIntakeEmail(rec.kind));
+    try { const _vm = linkKindMeta(rec.kind).video || 'both'; const _drop = _vm === 'none' ? /\{\{videoUrl\}\}/ : (_vm === 'only' ? /\{\{formUrl\}\}/ : null); if (_drop) tpl.body = String(tpl.body || '').split('\n').filter(l => !_drop.test(l)).join('\n').replace(/\n{3,}/g, '\n\n'); } catch (e) {}
     const subject = fillTemplate(tpl.subject, vars) || (org + ' — ' + linkKindMeta(rec.kind).label + ' for ' + biz);
     const _rendered = sellerEmailRender(tpl.body, vars);
     let _html = _rendered.html, _text = _rendered.text;
@@ -14754,7 +14772,7 @@ function notifySellerInterviewDone(rec, iv, kind, req) {
 app.get('/s/intake', (req, res) => {
   const rec = sellerLinkByToken(req.query.token); if (!rec) return res.status(404).json({ ok: false, error: 'This link is invalid or has expired.' });
   const meta = linkKindMeta(rec.kind);
-  res.json({ ok: true, business: sellerLinkBiz(rec), org: orgDisplayName(), kind: linkKind(rec.kind), label: meta.label, fields: sellerInterviewFields(rec.kind), data: (rec.form && rec.form.data) || {}, submitted: !!(rec.form && rec.form.submittedAt) });
+  res.json({ ok: true, business: sellerLinkBiz(rec), org: orgDisplayName(), kind: linkKind(rec.kind), label: meta.label, video: meta.video || 'both', fields: sellerInterviewFields(rec.kind), data: (rec.form && rec.form.data) || {}, submitted: !!(rec.form && rec.form.submittedAt) });
 });
 app.post('/s/intake/submit', express.json({ limit: '256kb' }), (req, res) => {
   const all = loadSellerLinks(); const rec = all.find(x => x.token === String((req.body && req.body.token) || '')); if (!rec) return res.status(404).json({ ok: false, error: 'This link is invalid or has expired.' });

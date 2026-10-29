@@ -1313,10 +1313,11 @@ function _siRecordings(j){
 function _siRender(j, email){
   var b=document.getElementById('siBody'); if(!b) return;
   var roomVis=(j.roomVisible!==false);
-  b.innerHTML=_siRow('Short online form','#000E31', j.formUrl)
-    +_siRow('Audio/Video form','#DA2B1F', j.videoUrl)
+  var _vm=j.video||'both';
+  b.innerHTML=(_vm!=='only'?_siRow('Short online form','#000E31', j.formUrl):'')
+    +(_vm!=='none'?_siRow(_vm==='only'?'Owner video (recording link)':'Audio/Video form','#DA2B1F', j.videoUrl):'')
     +'<div style="border-top:1px solid #eef1f6;margin-top:6px;padding-top:14px">'
-    +'<div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#8a93a8;margin-bottom:6px">Email both links to the seller</div>'
+    +'<div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#8a93a8;margin-bottom:6px">'+(_vm==='both'?'Email both links to the seller':'Email the link to the seller')+'</div>'
     +'<div style="display:flex;gap:8px;align-items:center"><input id="siEmail" value="'+_siEsc(email||'')+'" placeholder="seller@email.com" style="flex:1;min-width:0;border:1px solid #c4ccda;border-radius:4px;padding:9px 11px;font:inherit;font-size:13px"><button id="siSend" style="background:#2f7a55;color:#fff;border:none;border-radius:3px;padding:9px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">Email</button></div>'
     +'<div id="siMsg" style="font-size:12.5px;margin-top:9px;min-height:16px"></div>'
     +((j.formSubmitted||j.videoCount)? ('<div style="font-size:12px;color:#1f8a5b;font-weight:600;margin-top:8px">'+(j.formSubmitted?'Form completed ✓&nbsp;&nbsp;':'')+(j.videoCount?(j.videoCount+' video'+(j.videoCount===1?'':'s')+' received ✓'+(roomVis?' — in the data room':'')):'')+'</div>') : '')
@@ -1334,13 +1335,14 @@ function _siRender(j, email){
     fetch('/api/seller-link/email',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:j.token,to:to})}).then(function(r){return r.json();}).then(function(k){ send.disabled=false; if(k&&k.ok){ m.style.color='#1f8a5b'; m.textContent='Sent to '+to+' ✓'; setTimeout(function(){ var ov=document.getElementById('siOv'); if(ov) ov.remove(); if(window.rrgToast) rrgToast((j.label||'Seller interview')+' links emailed to '+to+' ✓'); },1000); } else { m.style.color='#DA2B1F'; m.textContent=(k&&k.error)||'Could not send.'; } }).catch(function(){ send.disabled=false; m.style.color='#DA2B1F'; m.textContent='Could not reach the server.'; });
   });
 }
-var _SI_LBL={valuation:'Seller Interview',seller:'Seller Screening'};
+var _SI_LBL={valuation:'Seller Interview',seller:'Seller Screening',ownervideo:'Owner Video'};
 var _SI_BLURB={
-  valuation:'Two private links for <b>{b}</b> to capture the story behind the numbers — the details that shape what the business is worth. The seller uses whichever they prefer: written form, video, or both. Everything comes back to this record.',
+  valuation:'A private link for <b>{b}</b> to answer the interview questions in writing — the story behind the numbers that shapes what the business is worth. No video at this stage. Prefer a call? Use “Start the interview” instead. Answers come back to this record.',
+  ownervideo:'A private recording link for the owner of <b>{b}</b>: a short, guided video in their own words for qualified buyers. It works on a phone and lands in the data room when they finish.',
   seller:'Two private links for <b>{b}</b> to complete the Seller Screening on their own — the concept, the numbers at a high level, the lease, and their goals. The seller uses whichever they prefer: written form, video, or both. Everything comes back to this record.'
 };
 function openSellerIntake(kind){
-  kind=(kind==='seller')?'seller':'valuation';
+  kind=(kind==='seller'||kind==='ownervideo')?kind:'valuation';
   var lbl=_SI_LBL[kind]||'Seller Interview';
   var titleTxt=(kind==='seller')?'Seller Onboarding':('Send '+lbl);
   var pid=(typeof P!=='undefined'&&P&&P.id)||(typeof ID!=='undefined'&&ID)||'';
@@ -2435,7 +2437,7 @@ load();
     {id:'sendNda', t:'Send NDA + document request', sub:'One email: the NDA to sign, the documents you\u2019ll need, and what\u2019s next', f:function(){ if(typeof openNda==='function'){ openNda(); } else { alert('Agreements are still loading — try again in a moment.'); } }},
     {id:'dUpload', t:'Upload files to the data room', sub:'Financials, lease & diligence documents', lock:'screen', f:function(){ var pid=(typeof P!=='undefined'&&P&&P.id)||(typeof ID!=='undefined'&&ID)||''; var cid2=(typeof CO!=='undefined'&&CO&&CO.id)||''; var biz=(typeof CO!=='undefined'&&CO&&CO.name)||(typeof P!=='undefined'&&P&&P.company)||(typeof P!=='undefined'&&P&&P.name)||''; if(!pid&&!cid2){ alert('No contact on this record.'); return; } fetch('/api/valuation-room',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({personId:pid,companyId:cid2,business:biz,listingKey:_actKey()})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.id){ location.href='./rrg_room.html?room='+encodeURIComponent(j.id); } else { alert((j&&j.error)||'Could not open a data room.'); } }).catch(function(){ alert('Could not open a data room.'); }); } },
     {hdr:'Seller Interview', hint:'pick one', hid:'interview'},
-    {id:'ivSend', t:'Send for seller completion (audio/video)', sub:'The seller shares the value story by form or video', lock:'screen', f:function(){ if(typeof openSellerIntake==='function'){ openSellerIntake('valuation'); } else { alert('One moment - still loading.'); } }},
+    {id:'ivSend', t:'Send the interview questions (written)', sub:'The seller answers in writing — no video before the valuation', lock:'screen', f:function(){ if(typeof openSellerIntake==='function'){ openSellerIntake('valuation'); } else { alert('One moment - still loading.'); } }},
     {id:'ivStart', t:'Start the interview (Zoom/Google Meet)', sub:'Run the guided interview while you are on the call', lock:'screen', f:function(){ var nm=encodeURIComponent((typeof P!=='undefined'&&P&&P.name)||''); var co=encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.name)||(typeof P!=='undefined'&&P&&P.company)||''); var mk=encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.market)||''); var ad=encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.address)||''); var pid=encodeURIComponent((typeof P!=='undefined'&&P&&P.id)||(typeof ID!=='undefined'&&ID)||''); var cid=encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.id)||''); location.href='./seller_screening.html?valuation=1&sellerName='+nm+'&company='+co+'&market='+mk+'&address='+ad+'&contactId='+pid+'&companyId='+cid+_actKeyQ(); }},
     {id:'ivSkip', t:'Skip the interview', sub:'Not needed, go straight to valuation', lock:'screen', f:function(){ var pid=(typeof P!=='undefined'&&P&&P.id)||(typeof ID!=='undefined'&&ID)||''; var cid=(typeof CO!=='undefined'&&CO&&CO.id)||''; var _go=function(ok){ if(!ok) return; fetch('/api/seller/skip-interview',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({personId:pid,companyId:cid,listingKey:_actKey()})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ if(window.rrgToast) rrgToast('Seller interview skipped — valuation unlocked ✓'); if(typeof refreshValuation==='function') refreshValuation(); } else alert((j&&j.error)||'Could not skip the interview.'); }).catch(function(){ alert('Could not reach the server.'); }); }; var _msg='Skip the seller interview for this listing? The valuation unlocks without it. You can undo this.'; if(window.rrgConfirm){ window.rrgConfirm(_msg,{title:'Skip interview?',okText:'Skip & continue'}).then(_go); } else { _go(window.confirm(_msg)); } }},
     {hdr:'Valuation', hid:'valuation'},
@@ -2447,6 +2449,7 @@ load();
     {id:'assetSpace', t:'Capture the space & assets', sub:'Lease, space, buildout, FF&E & license', f:function(){ var k=_actKey(); if(k){ location.href='./rrg_asset_space.html?key='+encodeURIComponent(k); } else { alert('No listing on file for this seller yet.'); } }},
     {hdr:'Go to Market', hid:'gtm'},
     {id:'goMarket', t:'Take the listing to market', sub:'Build the marketing pack & market attack plan, then publish to the marketplace', lock:'valuation', f:function(){ var k=_actKey(); if(!k){ alert('No listing on file for this seller yet.'); return; } if(_activeLane()==='asset'){ assetGoToMarket(k); return; } location.href='./rrg_assignment.html?key='+encodeURIComponent(k); }},
+    {id:'ownerVideo', t:'Record the owner video for buyers', sub:'Send the owner a guided recording link — the video goes to the data room', lock:'valuation', f:function(){ if(typeof openSellerIntake==='function') openSellerIntake('ownervideo'); }},
     {id:'openCim', t:'Open the marketing pack (CIM)', sub:'Jump straight to the CIM \u2014 builds it from the valuation if needed', lock:'valuation', f:function(){ rrgCreateCIM(); }},
     {id:'matchBuyers', t:'Match to buyers in your book', sub:'See which active buyers fit this listing — from their saved buy-boxes', f:function(){ var k=_actKey(); if(k){ location.href='./rrg_assignment.html?key='+encodeURIComponent(k)+'#matchBuyersCard'; } else { alert('No listing on file for this seller yet.'); } }},
     {hdr:'Offers & Closing', hid:'close'},
