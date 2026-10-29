@@ -2582,7 +2582,7 @@ load();
       _rrgSetDone(elV, !!j.bovId, 'BOV '+(j.state==='final'?'finalized':(j.state==='built'?'built':'started')));
       var elLA=_rrgActById('sendLA');
       _rrgSetGate(elLA, !j.bovId, j.bovId ? 'Exclusive Business Sales Representation' : 'Create the valuation (BOV) first');
-      var _laDone=(typeof AGREEMENTS!=='undefined') && (AGREEMENTS||[]).some(function(a){ return a && a.type==='Listing'; });
+      var _laDone=(typeof AGREEMENTS!=='undefined') && (AGREEMENTS||[]).some(function(a){ return a && a.type==='Listing' && a.status!=='terminated' && (a.signStatus==='executed'||a.signStatus==='signed'||(!a.signStatus&&a.entryMethod&&a.entryMethod!=='sent')); });
       _rrgSetDone(elLA, _laDone, 'On file');
       // Gate "Take the listing to market" on a finished valuation so a click before then
       // explains itself (the menu's lock handler toasts the sub-note) instead of silently

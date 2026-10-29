@@ -4988,6 +4988,7 @@ app.post('/api/room-upload', express.json({ limit: '40mb' }), (req, res) => {
   try { binWrite(path.join(ROOMS_DIR, id + '.' + ext), buf); } catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the file.' }); }
   r.docs = r.docs || [];
   r.docs.push({ id, title, category, ext, originalName: orig, size: buf.length, hash: hash, uploadedAt: new Date().toISOString(), by: (req.user && req.user.name) || '' });
+  _finTasksOnUpload(r, r.docs[r.docs.length - 1]);
   if (!r.builtAt) r.builtAt = new Date().toISOString();
   saveRooms(arr);
   res.json({ ok: true, docs: r.docs });
@@ -6201,6 +6202,32 @@ function categoryForUploadLabel(label) {
 // human-readable reason on skip — so the UI (and server log) can say exactly why instead of
 // a generic "too large or unreadable". addFileToRoom() below keeps the old doc|null contract
 // for every other caller.
+// First financials into a seller's data room → two tasks for the room's rep: review the
+// financials, and send the seller interview (the interview is about the story behind the numbers,
+// so it goes out once we have them). Fires once per room.
+function _finTasksOnUpload(room, doc) {
+  try {
+    if (!room || !doc || room.finTasksAt) return;
+    const cat = String(doc.category || '');
+    if (cat.indexOf('Financials') !== 0) return;
+    const pid = room.personId || ''; if (!pid) return;
+    // Rooms that already had financials before this feature: mark and stay quiet.
+    if ((room.docs || []).some(d => d && d !== doc && String(d.category || '').indexOf('Financials') === 0)) { room.finTasksAt = new Date().toISOString(); return; }
+    const owner = room.byUser || ''; const ownerName = room.by || '';
+    room.finTasksAt = new Date().toISOString();
+    const p = (loadPeople() || []).find(x => x.id === pid); const pname = (p && p.name) || '';
+    const biz = room.business || (p && p.company) || pname || 'the seller';
+    let ivDone = false;
+    try { ivDone = loadSellerLinks().some(x => x.personId === pid && linkKind(x.kind) === 'valuation' && x.form && x.form.submittedAt); } catch (e) {}
+    const today = new Date().toISOString().slice(0, 10);
+    const base = { createdBy: 'automation', createdByName: 'Lavano', assignee: owner, assigneeName: ownerName, createdAt: new Date().toISOString(), status: 'open', doneAt: '', due: today, reminder: today, priority: 'Normal', type: '', linkType: 'contact', linkId: pid, linkLabel: pname, remChannels: ['popup'] };
+    const tasks = loadTasks();
+    const add = (key, title, notes) => { const expKey = 'fin:' + room.id + ':' + key; if (tasks.some(t => t.expKey === expKey)) return; tasks.push(Object.assign({}, base, { id: newTaskId(), title: title.slice(0, 300), notes: notes.slice(0, 2000), expKey })); };
+    add('review', 'Review the financials — ' + biz, 'Financials just landed in the data room. Check you have the last three completed years, the trailing 12 months and year-to-date, plus the lease and any amendments. Note add-backs to discuss with the seller.');
+    if (!ivDone) add('interview', 'Send the seller interview — ' + biz, 'The P&Ls are in. Next is the story behind the numbers: Biz Seller Actions → Seller Interview → Email the questions, or do it on a call.');
+    saveTasks(tasks);
+  } catch (e) { console.error('fin tasks:', e && e.message); }
+}
 function addFileToRoomEx(room, file, opts) {
   try {
     opts = opts || {};
@@ -6228,6 +6255,7 @@ function addFileToRoomEx(room, file, opts) {
     catch (e) { return { error: (e && e.code === 'ENOSPC') ? 'Server storage is full — free up space and retry.' : ('Could not save to storage (' + ((e && e.code) || 'write error') + ').') }; }
     const doc = { id, title, category, ext, originalName: orig, size: buf.length, hash: hash, uploadedAt: new Date().toISOString(), by: (opts.by || ''), source, auto: true };
     room.docs.push(doc);
+    _finTasksOnUpload(room, doc);
     if (!room.builtAt) room.builtAt = new Date().toISOString();
     return { doc };
   } catch (e) { return { error: 'Unexpected error: ' + ((e && e.message) || 'unknown') + '.' }; }
