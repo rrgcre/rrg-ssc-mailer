@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="rrg-noshell" content="1">
+<title>Site Selection Criteria</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--green:#1f8a5b;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.top{color:#fff;padding:30px 0 32px;background:radial-gradient(95% 130% at 28% 15%,#1c2e5c 0%,#112044 42%,#0b1636 70%,#071029 100%);}
+.in{max-width:680px;margin:0 auto;padding:0 22px;}
+.disc{display:inline-flex;align-items:center;justify-content:center;background:var(--red);color:#fff;border-radius:50%;width:40px;height:40px;font:900 13px 'Arial Black',Arial,sans-serif;letter-spacing:-.04em;}
+.kick{margin:18px 0 4px;color:var(--red);font-weight:700;letter-spacing:.26em;font-size:11px;text-transform:uppercase;}
+h1{font-size:25px;font-weight:700;margin:0;color:#fff;}
+.sub{color:#aeb8cf;font-size:13px;margin-top:7px;line-height:1.5;}
+.wrap{max-width:680px;margin:20px auto;padding:0 22px 70px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:4px;padding:22px;}
+.note{background:#eef2f7;border:1px solid #d3dbe6;border-radius:4px;padding:13px 15px;color:#33465f;font-size:12.5px;line-height:1.55;margin-bottom:18px;}
+.note.ok{background:#e7f5ee;border-color:#b7e0c7;color:var(--green);}
+.fld{margin-bottom:17px;}
+.fld>label{display:block;font-size:13.5px;font-weight:600;color:var(--ink);margin-bottom:7px;line-height:1.4;}
+.fld>label .rq{color:var(--red);}
+.fld>label .many{font-weight:500;color:var(--soft);font-size:12px;}
+.fld>input,.fld>textarea{width:100%;border:1px solid #c4ccda;border-radius:4px;padding:11px 13px;font:inherit;font-size:15px;background:#fff;color:var(--ink);}
+.fld>input:focus,.fld>textarea:focus{outline:none;border-color:#2c5c8f;box-shadow:0 0 0 3px rgba(44,92,143,.15);}
+.fld textarea{min-height:78px;resize:vertical;}
+.sech{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--navy);margin:30px 0 14px;padding-bottom:7px;border-bottom:1px solid #eef1f6;display:flex;justify-content:space-between;}
+.sech:first-child{margin-top:2px;}
+.sech span{color:var(--soft);font-weight:600;letter-spacing:.02em;}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+@media(max-width:520px){.opts{grid-template-columns:1fr;}}
+.optch{display:flex;align-items:flex-start;gap:10px;border:1px solid #d7dde8;border-radius:4px;padding:10px 12px;cursor:pointer;font-size:14px;color:var(--ink);line-height:1.35;}
+.optch:hover{border-color:#9fb0cc;background:#fafcff;}
+.optch input{margin:1px 0 0;flex:none;width:17px;height:17px;accent-color:var(--navy);}
+.optch:has(input:checked){border-color:#2c5c8f;background:#f2f7fc;}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+@media(max-width:520px){.row3{grid-template-columns:1fr;}}
+.row3 .fld>label{font-size:12.5px;}
+.sbtn{background:var(--navy);color:#fff;border:none;border-radius:4px;padding:14px 30px;font:inherit;font-size:15px;font-weight:700;cursor:pointer;}
+.sbtn:disabled{opacity:.6;cursor:default;}
+#smsg{margin-top:13px;font-size:13.5px;font-weight:600;min-height:18px;}
+.foot{max-width:680px;margin:0 auto;padding:0 22px 40px;color:var(--soft);font-size:11px;text-align:center;}
+.gate{max-width:520px;margin:80px auto;text-align:center;color:var(--muted);padding:0 20px;}
+.gate b{display:block;color:var(--navy);font-size:17px;margin-bottom:6px;}
+</style>
+</head>
+<body>
+<div id="app" style="display:none">
+  <div class="top"><div class="in">
+    <span class="disc" id="disc">RRG</span>
+    <div class="kick">Site Selection Criteria</div>
+    <h1 id="hdr">Let's find your next location</h1>
+    <div class="sub" id="hsub">A few questions about your concept and the space you need, so we search for the right sites from day one. Private, and only your representative sees it.</div>
+  </div></div>
+  <div class="wrap">
+    <div class="card">
+      <div class="note ok" id="doneNote" style="display:none"><b>Thanks, we have your answers.</b> Feel free to update anything below and resubmit.</div>
+      <div class="note" id="introNote">Answer what you can. Rough answers are fine, and you can skip anything you'd rather talk through on the phone. It takes about 10 minutes.</div>
+      <form id="sform" autocomplete="off"></form>
+      <button class="sbtn" id="ssubmit" type="button">Submit</button>
+      <div id="smsg"></div>
+    </div>
+  </div>
+  <div class="foot">Confidential &middot; Provided securely by <span id="orgf">your representative</span></div>
+</div>
+<div id="gate" class="gate" style="display:none"></div>
+<div id="loading" class="gate">Loading your form…</div>
+<script>
+(function(){
+  function qp(k){ try{ return new URLSearchParams(location.search).get(k)||''; }catch(e){ return ''; } }
+  function esc(s){ var d=document.createElement('div'); d.textContent=s==null?'':String(s); return d.innerHTML; }
+  var TOKEN=qp('t'), FIELDS=[];
+  var app=document.getElementById('app'), gate=document.getElementById('gate');
+  function hideLoading(){ var l=document.getElementById('loading'); if(l) l.style.display='none'; }
+  function showGate(msg){ hideLoading(); gate.innerHTML='<b>Link unavailable</b>'+esc(msg||'This link is invalid or has expired. Please contact your representative for a new one.'); gate.style.display='block'; }
+  if(!TOKEN){ showGate('No link code found.'); return; }
+  function fieldHtml(fd,data){
+    var raw=data[fd.k]; var lab=esc(fd.prompt)+(fd.req?' <span class="rq">*</span>':'')+(fd.type==='multi'?' <span class="many">(pick any)</span>':'');
+    var input;
+    if(fd.type==='single'||fd.type==='multi'){
+      var sel=Array.isArray(raw)?raw:(raw?[raw]:[]); var t=(fd.type==='multi')?'checkbox':'radio';
+      input='<div class="opts">'+fd.opts.map(function(o){ return '<label class="optch"><input type="'+t+'" name="o_'+fd.k+'" value="'+esc(o.v)+'"'+(sel.indexOf(o.v)>=0?' checked':'')+'><span>'+esc(o.t)+'</span></label>'; }).join('')+'</div>';
+    } else if(fd.type==='textarea'){ input='<textarea id="f_'+fd.k+'" placeholder="'+esc(fd.ph||'')+'">'+esc(raw||'')+'</textarea>'; }
+    else { input='<input id="f_'+fd.k+'" value="'+esc(raw||'')+'" placeholder="'+esc(fd.ph||'')+'">'; }
+    return '<div class="fld"><label>'+lab+'</label>'+input+'</div>';
+  }
+  var _done=false, _to=setTimeout(function(){ if(_done) return; _done=true; showGate('This is taking longer than expected. Please check your connection and reload the page.'); },15000);
+  fetch('/s/ssc?token='+encodeURIComponent(TOKEN)).then(function(r){return r.json();}).then(function(j){
+    if(_done) return; _done=true; clearTimeout(_to);
+    if(!j||!j.ok){ showGate(j&&j.error); return; }
+    FIELDS=j.fields||[]; var data=j.data||{}; var org=j.org||'Restaurant Realty Group';
+    document.getElementById('orgf').textContent=org;
+    try{ document.getElementById('disc').textContent=(org.match(/\b[A-Za-z]/g)||['R']).slice(0,3).join('').toUpperCase(); }catch(e){}
+    if(data.concept){ document.getElementById('hdr').textContent=data.concept; }
+    var secs=[]; FIELDS.forEach(function(fd){ if(secs.indexOf(fd.sec)<0) secs.push(fd.sec); });
+    var html='', cur='', i=0;
+    while(i<FIELDS.length){ var fd=FIELDS[i];
+      if(fd.sec!==cur){ cur=fd.sec; html+='<div class="sech">'+esc(cur)+'<span>'+(secs.indexOf(cur)+1)+' of '+secs.length+'</span></div>'; }
+      if(fd.k==='sfi'){ html+='<div class="row3">'+[FIELDS[i],FIELDS[i+1],FIELDS[i+2]].map(function(x){ return fieldHtml(x,data); }).join('')+'</div>'; i+=3; continue; }
+      html+=fieldHtml(fd,data); i++;
+    }
+    document.getElementById('sform').innerHTML=html;
+    if(j.submitted){ document.getElementById('doneNote').style.display='block'; document.getElementById('introNote').style.display='none'; }
+    hideLoading(); app.style.display='block';
+  }).catch(function(){ if(_done) return; _done=true; clearTimeout(_to); showGate('We could not load this page. Please try again in a moment.'); });
+  document.getElementById('ssubmit').addEventListener('click',function(){
+    var btn=this, m=document.getElementById('smsg'), f=document.getElementById('sform'); var data={};
+    FIELDS.forEach(function(fd){
+      if(fd.type==='single'){ var s=f.querySelector('input[name="o_'+fd.k+'"]:checked'); data[fd.k]=s?s.value:''; }
+      else if(fd.type==='multi'){ data[fd.k]=Array.prototype.map.call(f.querySelectorAll('input[name="o_'+fd.k+'"]:checked'),function(x){return x.value;}); }
+      else { var el=document.getElementById('f_'+fd.k); data[fd.k]=el?el.value.trim():''; }
+    });
+    if(!data.concept){ m.style.color='#DA2B1F'; m.textContent='Please enter the name of your concept (first question).'; var c=document.getElementById('f_concept'); if(c){ c.focus(); c.scrollIntoView({block:'center'}); } return; }
+    btn.disabled=true; m.style.color='#6b7488'; m.textContent='Submitting…';
+    fetch('/s/ssc/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:TOKEN,data:data})}).then(function(r){return r.json();}).then(function(j){
+      btn.disabled=false;
+      if(j&&j.ok){ m.style.color='#1f8a5b'; m.textContent='Thank you. Your answers were sent to your representative. ✓'; document.getElementById('doneNote').style.display='block'; document.getElementById('introNote').style.display='none'; document.getElementById('hdr').textContent=data.concept; window.scrollTo({top:0,behavior:'smooth'}); }
+      else { m.style.color='#DA2B1F'; m.textContent=(j&&j.error)||'Could not submit. Please try again.'; }
+    }).catch(function(){ btn.disabled=false; m.style.color='#DA2B1F'; m.textContent='Could not reach the server. Please try again.'; });
+  });
+})();
+</script>
+</body>
+</html>

@@ -435,6 +435,41 @@ var _nlRe='leased'; function _nlSetRe(v){ _nlRe=(['leased','sell','leaseback'].i
 document.addEventListener('click',function(e){ var b=e.target.closest&&e.target.closest('#nl_re .nlrebtn'); if(b) _nlSetRe(b.getAttribute('data-re')); });
 function _nlSetLane(v){ _nlLane=(v==='asset')?'asset':'business'; try{ var _rw=document.getElementById('nl_rewrap'); if(_rw) _rw.style.display=(_nlLane==='business'&&_nlMode!=='tenant_rep')?'':'none'; }catch(e){} try{ Array.prototype.forEach.call(document.querySelectorAll('#nl_lane .nllanebtn'),function(btn){ var on=(btn.getAttribute('data-lane')===_nlLane); btn.classList.toggle('on',on); btn.style.border='1.5px solid '+(on?'#2c5c8f':'#d7dde8'); btn.style.background=on?'#f2f7fc':'#fff'; }); }catch(e){} }
 document.addEventListener('click',function(e){ var lb=e.target.closest&&e.target.closest('#nl_lane .nllanebtn'); if(lb){ e.preventDefault(); _nlSetLane(lb.getAttribute('data-lane')); } });
+// ── Send the client-facing SSC link ─────────────────────────────────────────────────────
+function openSscClientLink(){
+  var pid=(typeof P!=='undefined'&&P&&P.id)||'', cid=(typeof CO!=='undefined'&&CO&&CO.id)||'';
+  var biz=(typeof CO!=='undefined'&&CO&&CO.name)||'', nm=(P&&P.name)||'', em=(P&&P.email)||'';
+  var ov=document.getElementById('sscLinkModal'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='sscLinkModal'; ov.style.cssText='position:fixed;inset:0;background:rgba(10,20,50,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.innerHTML='<div style="background:#fff;border-radius:10px;max-width:520px;width:100%;box-shadow:0 20px 60px rgba(10,20,50,.3);font-size:13.5px;color:#1a2236">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #e6e9f0"><b style="font-size:13px;letter-spacing:.04em;text-transform:uppercase">Send SSC to client</b><button type="button" id="sl_x" style="background:none;border:0;font-size:20px;cursor:pointer;color:#6b7488">&times;</button></div>'
+    +'<div style="padding:16px 18px">'
+    +'<div style="color:#5a6478;line-height:1.5;margin-bottom:12px">'+esc(nm||'The client')+' gets a simple, branded version of the Site Selection Criteria. Their answers save as their SSC, update the Tenant-Box, and you get an email when they finish.</div>'
+    +'<div id="sl_status" style="margin-bottom:12px;color:#8a93a8">Getting the link…</div>'
+    +'<label style="display:block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8;margin-bottom:5px">Link</label>'
+    +'<div style="display:flex;gap:8px;margin-bottom:14px"><input id="sl_url" readonly style="flex:1;min-width:0;border:1px solid #c4ccda;border-radius:6px;padding:8px 10px;font:inherit;font-size:12.5px;color:#3f4b63;background:#f7f9fc"><button type="button" id="sl_copy" style="border:1px solid #c4ccda;background:#fff;border-radius:6px;padding:0 12px;font:inherit;font-weight:600;cursor:pointer">Copy</button><a id="sl_open" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;border:1px solid #c4ccda;border-radius:6px;padding:0 12px;color:#1a2236;text-decoration:none;font-weight:600">Preview</a></div>'
+    +'<label style="display:block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8;margin-bottom:5px">Email it to</label>'
+    +'<div style="display:flex;gap:8px"><input id="sl_to" value="'+esc(em)+'" placeholder="client@email.com" style="flex:1;min-width:0;border:1px solid #c4ccda;border-radius:6px;padding:8px 10px;font:inherit"><button type="button" id="sl_send" style="background:#000E31;color:#fff;border:0;border-radius:6px;padding:0 16px;font:inherit;font-weight:700;cursor:pointer">Send</button></div>'
+    +'<div id="sl_msg" style="margin-top:10px;font-weight:600;min-height:18px"></div>'
+    +'</div></div>';
+  document.body.appendChild(ov);
+  var close=function(){ ov.remove(); };
+  ov.addEventListener('click',function(e){ if(e.target===ov) close(); });
+  document.getElementById('sl_x').onclick=close;
+  var TOK='';
+  fetch('/api/ssc-link',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({personId:pid,companyId:cid,business:biz,contactName:nm})}).then(function(r){return r.json();}).then(function(j){
+    var st=document.getElementById('sl_status'); if(!st) return;
+    if(!j||!j.ok){ st.style.color='#DA2B1F'; st.textContent=(j&&j.error)||'Could not create the link.'; return; }
+    TOK=j.token; document.getElementById('sl_url').value=j.url; document.getElementById('sl_open').href=j.url;
+    var bits=[]; if(j.emailedAt) bits.push('Emailed to '+esc(j.emailedTo||'client')+' '+esc(new Date(j.emailedAt).toLocaleDateString()));
+    if(j.submittedAt) bits.push('<span style="color:#1f8a5b;font-weight:700">Completed '+esc(new Date(j.submittedAt).toLocaleDateString())+'</span> &middot; <a href="./ssc_form.html?personId='+encodeURIComponent(pid)+'&companyId='+encodeURIComponent(cid)+'&ssc='+encodeURIComponent(j.sscKey||'')+'" style="color:#2c5c8f;font-weight:700">Open their answers in the SSC form &rarr;</a>');
+    st.style.color='#5a6478'; st.innerHTML=bits.length?bits.join('<br>'):'Not sent yet.';
+  }).catch(function(){ var st=document.getElementById('sl_status'); if(st){ st.style.color='#DA2B1F'; st.textContent='Could not reach the server.'; } });
+  document.getElementById('sl_copy').onclick=function(){ var u=document.getElementById('sl_url'); try{ navigator.clipboard.writeText(u.value); }catch(e){ u.select(); document.execCommand('copy'); } this.textContent='Copied'; };
+  document.getElementById('sl_send').onclick=function(){ var b=this, m=document.getElementById('sl_msg'), to=document.getElementById('sl_to').value.trim(); if(!TOK){ m.style.color='#DA2B1F'; m.textContent='One moment, the link is still loading.'; return; }
+    b.disabled=true; m.style.color='#6b7488'; m.textContent='Sending…';
+    fetch('/api/ssc-link/email',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({token:TOK,to:to})}).then(function(r){return r.json();}).then(function(j){ b.disabled=false; if(j&&j.ok){ m.style.color='#1f8a5b'; m.textContent='Sent to '+to+' ✓'; } else { m.style.color='#DA2B1F'; m.textContent=(j&&j.error)||'Could not send.'; } }).catch(function(){ b.disabled=false; m.style.color='#DA2B1F'; m.textContent='Could not reach the server.'; }); };
+}
 function openNewListing(mode){ if(typeof P==='undefined'||!P) return; _nlMode=(mode==='tenant_rep')?'tenant_rep':''; var _tr=(_nlMode==='tenant_rep'); document.getElementById('nl_client').textContent=P.name||'this contact'; var _bz=document.getElementById('nl_biz'); var _co=(typeof CO!=='undefined'&&CO&&CO.name)||''; _bz.value=_tr?(((_co||P.name||'').trim())+' — Tenant Rep'):_co; try{ _bz.setAttribute('placeholder', _tr?'e.g. Blue Agave — 2nd location search':'e.g. Blue Agave Cantina'); }catch(e){} var _hd=document.getElementById('nl_head'); if(_hd) _hd.textContent=_tr?'New Tenant Rep Engagement':'New Listing'; var _cn=document.getElementById('nl_clientnote'); if(_cn) _cn.innerHTML=_tr?'— this engagement links to them as the tenant / client.':'— this listing links to them as the seller / client.'; var _bl=document.getElementById('nl_biglbl'); if(_bl) _bl.innerHTML=(_tr?'Engagement name':'Listing name')+' <span class="req">*</span>'; var _sv=document.getElementById('nl_save'); if(_sv) _sv.textContent=_tr?'Create engagement':'Create listing'; var _lw=document.getElementById('nl_lanewrap'); if(_lw) _lw.style.display=_tr?'none':''; _nlSetRe('leased'); _nlSetLane('business'); _nlFillMarkets((typeof CO!=='undefined'&&CO&&CO.market)||''); document.getElementById('nl_msg').textContent=''; document.getElementById('nlModal').style.display='flex'; setTimeout(function(){ _bz.focus(); _bz.select(); },30); }
 var _nlT=null;
 function _nlHideMenu(){ var m=document.getElementById('nl_matches'); if(m){ m.hidden=true; m.innerHTML=''; } }
@@ -2578,6 +2613,7 @@ load();
       {t:'Start Tenant Rep Engagement', sub:'Sign this client to a space search — opens the tenant pipeline at Needs Analysis', f:function(){ if(typeof openNewListing==='function'){ openNewListing('tenant_rep'); } else { alert('One moment — still loading.'); } }},
       {hdr:'Criteria'},
       {t:'Start Site Criteria (SSC)', sub:'Capture this client’s space & concept criteria — links to this record', f:function(){ var q='personId='+encodeURIComponent(ID)+'&companyId='+encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.id)||'')+'&contact='+encodeURIComponent((P&&P.name)||'')+'&company='+encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.name)||''); location.href='./ssc_form.html?'+q; }},
+      {t:'Send SSC to client', sub:'Email them a simple link to fill it out themselves — answers land in their SSC & Tenant-Box', f:function(){ openSscClientLink(); }},
       {hdr:'Paperwork (optional)'},
       {t:'Send a Tenant Rep Agreement', sub:'Exclusive Tenant Representation — only when the client wants exclusivity', f:function(){ if(typeof openSendModal==='function'){ openSendModal(); } else { alert('Agreements are still loading — try again in a moment.'); } }}
     ];

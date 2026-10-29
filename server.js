@@ -1532,7 +1532,7 @@ app.use(express.urlencoded({ extended: false }));
 const OPEN = new Set(['/health', '/login', '/api/login', '/logout', '/favicon.ico', '/api/appname', '/api/brand', '/api/brand/logo', '/api/brand/logo/light', '/rrg_brand.js', '/rrg_theme.css', '/api/gmail/callback']);
 app.use((req, res, next) => {
   // Buyer-facing data-room links are public (the unguessable token is the gate).
-  if (OPEN.has(req.path) || req.path === '/chitchat' || req.path.startsWith('/chitchat/') || req.path === '/api/chitchat/subscribe' || req.path.startsWith('/room/') || req.path.startsWith('/deal/') || req.path.startsWith('/roomfile/') || req.path.startsWith('/roomview/') || req.path.startsWith('/vendor/') || req.path.startsWith('/sign/') || req.path.startsWith('/api/sign/') || req.path.startsWith('/eo/') || req.path.startsWith('/ec/') || req.path.startsWith('/u/') || req.path.startsWith('/api/u/') || req.path.startsWith('/book/') || req.path.startsWith('/api/book/') || req.path.startsWith('/pay/') || req.path.startsWith('/api/pay/') || req.path === '/api/stripe/webhook' || req.path === '/api/mail/ses-webhook' || req.path.startsWith('/mail/') || req.path === '/market' || req.path === '/api/market/public' || req.path === '/api/market/request-access' || req.path === '/site' || req.path.startsWith('/site/') || req.path === '/sitemap.xml' || req.path === '/robots.txt' || req.path === '/api/website/public' || req.path === '/api/website/lead' || req.path === '/api/website/subscribe' || req.path === '/api/website/hero-image' || req.path.startsWith('/api/property-public-photo/') || req.path.startsWith('/s/') || req.path === '/careers/apply' || req.path === '/api/careers/apply' || req.path === '/seller_intake.html' || req.path === '/seller_record.html') return next();
+  if (OPEN.has(req.path) || req.path === '/chitchat' || req.path.startsWith('/chitchat/') || req.path === '/api/chitchat/subscribe' || req.path.startsWith('/room/') || req.path.startsWith('/deal/') || req.path.startsWith('/roomfile/') || req.path.startsWith('/roomview/') || req.path.startsWith('/vendor/') || req.path.startsWith('/sign/') || req.path.startsWith('/api/sign/') || req.path.startsWith('/eo/') || req.path.startsWith('/ec/') || req.path.startsWith('/u/') || req.path.startsWith('/api/u/') || req.path.startsWith('/book/') || req.path.startsWith('/api/book/') || req.path.startsWith('/pay/') || req.path.startsWith('/api/pay/') || req.path === '/api/stripe/webhook' || req.path === '/api/mail/ses-webhook' || req.path.startsWith('/mail/') || req.path === '/market' || req.path === '/api/market/public' || req.path === '/api/market/request-access' || req.path === '/site' || req.path.startsWith('/site/') || req.path === '/sitemap.xml' || req.path === '/robots.txt' || req.path === '/api/website/public' || req.path === '/api/website/lead' || req.path === '/api/website/subscribe' || req.path === '/api/website/hero-image' || req.path.startsWith('/api/property-public-photo/') || req.path.startsWith('/s/') || req.path === '/careers/apply' || req.path === '/api/careers/apply' || req.path === '/seller_intake.html' || req.path === '/seller_record.html' || req.path === '/ssc_client.html') return next();
   const sess = auth.readSession(parseCookies(req)[COOKIE]);
   if (sess) {
     req.user = sess;
@@ -14763,6 +14763,157 @@ app.post('/s/intake/submit', express.json({ limit: '256kb' }), (req, res) => {
   rec.form = { submittedAt: new Date().toISOString(), data, fields }; saveSellerLinks(all);
   if (_firstForm) { try { if (rec.personId) { const ppl = loadPeople(); const p = ppl.find(x => x.id === rec.personId); if (p) { logActivity(p, 'Note', linkKindMeta(rec.kind).label + ' — written form completed by the seller.', { auto: true }); savePeople(ppl); } } } catch (e) {} }
   if (_firstForm) { try { notifySellerInterviewDone(rec, null, 'form', req); } catch (e) { console.error('seller form notify:', e && e.message); } }
+  res.json({ ok: true });
+});
+// ── Client SSC link ──────────────────────────────────────────────────────────────────────
+// A tenant-friendly version of the Site Selection Criteria the rep can send as a link. Same look
+// as the seller screening; answers are saved as a normal SSC record (same labels/sections as the
+// internal form), so the Tenant-Box sync, SSC view and "open in SSC form" all work unchanged.
+const SSC_LINKS_FILE = path.join(BOV_DATA_DIR, 'ssc_links.json');
+function loadSscLinks() { try { return rj(SSC_LINKS_FILE) || []; } catch (e) { return []; } }
+function saveSscLinks(a) { return writeJsonGuarded(SSC_LINKS_FILE, a, 'saveSscLinks'); }
+function sscLinkByToken(t) { return loadSscLinks().find(x => x.token === String(t || '')); }
+const _sscRDV = [{ v: 'Req.', t: 'Required' }, { v: 'Pref.', t: 'Preferred' }, { v: 'Nice', t: 'Nice to have' }, { v: 'No', t: 'Not needed' }];
+const _sscO = (a) => a.map(x => (typeof x === 'string' ? { v: x, t: x } : x));
+const SSC_CLIENT_FIELDS = [
+  { k: 'concept', hdr: 'restaurant / concept name', sec: 'About your concept', label: 'Restaurant / Concept Name', prompt: 'What is the name of your restaurant or concept?', type: 'text', req: true },
+  { k: 'contact', hdr: 'primary contact', sec: 'About your concept', label: 'Primary Contact', prompt: 'Your name', type: 'text' },
+  { k: 'years', ssc: 'Operator & Concept Profile', sec: 'About your concept', label: 'Years in Operation', prompt: 'How long have you been operating?', ph: 'e.g. 6 years, or "new concept"', type: 'text' },
+  { k: 'locs', ssc: 'Operator & Concept Profile', sec: 'About your concept', label: 'Number of Locations', prompt: 'How many locations do you have today?', type: 'text' },
+  { k: 'peryr', ssc: 'Operator & Concept Profile', sec: 'About your concept', label: 'Target Openings / Year', prompt: 'How many new locations would you like to open per year?', type: 'text' },
+  { k: 'obj', ssc: 'Operator & Concept Profile', sec: 'About your concept', label: 'Expansion Objective', prompt: 'What best describes this search?', type: 'multi', opts: _sscO(['New concept / first location', 'Second location', 'Multi-unit growth', 'New market entry', 'Relocation of existing unit', 'Franchise development', 'Opportunistic / deal-driven', 'Other']) },
+  { k: 'disc', ssc: 'Operator & Concept Profile', sec: 'About your concept', label: 'Search Discretion', prompt: 'How confidential is this search?', type: 'single', opts: _sscO(['Open / shareable', 'Confidential / discreet', 'Strictly confidential / blind search']) },
+  { k: 'ctype', ssc: 'Operator & Concept Profile', sec: 'About your concept', label: 'Concept Type', prompt: 'What type of concept is it?', type: 'single', opts: _sscO(['Fast Casual', 'Casual Dining', 'Full Service', 'Bar / Beverage Forward', 'QSR', 'Other']) },
+  { k: 'alc', ssc: 'Operator & Concept Profile', sec: 'About your concept', label: 'Alcohol Component', prompt: 'Will you serve alcohol?', type: 'single', opts: _sscO(['Beer / Wine', 'Full Bar', 'No Alcohol']) },
+  { k: 'day', ssc: 'Operator & Concept Profile', sec: 'About your concept', label: 'Dayparts', prompt: 'Which parts of the day are you open?', type: 'multi', opts: _sscO(['Breakfast', 'Lunch', 'Happy Hour', 'Dinner / Evening', 'Late Night']) },
+  { k: 'pos', ssc: 'Operator & Concept Profile', sec: 'About your concept', label: 'Concept Positioning', prompt: 'How do most of your guests find you?', type: 'single', opts: [{ v: 'Drive-by dependent', t: 'Driving by — visibility matters most' }, { v: 'Digital / delivery driven', t: 'Online, apps and delivery' }, { v: 'Destination dining / nightlife', t: 'They seek us out — we are a destination' }, { v: 'Mixed strategy', t: 'A mix of these' }] },
+  { k: 'mkts', ssc: 'Market & Trade Area', sec: 'Where you want to be', label: 'Primary Markets', prompt: 'Which markets are you looking in?', type: 'multi', opts: _sscO(['Austin', 'Dallas / Fort Worth', 'Houston', 'San Antonio', 'N. Texas', 'Central Texas', 'South Texas', 'Other']) },
+  { k: 'subm', ssc: 'Market & Trade Area', sec: 'Where you want to be', label: 'Preferred Submarkets', prompt: 'Any specific areas, neighborhoods or corridors you like — or want to avoid?', type: 'textarea' },
+  { k: 'hhi', ssc: 'Market & Trade Area', sec: 'Where you want to be', label: 'Household Income', prompt: 'What household income fits your guest?', type: 'multi', opts: _sscO(['Lower-income', 'Middle-income', 'Upper-income', 'Mixed-income', 'N / A']) },
+  { k: 'drv', ssc: 'Market & Trade Area', sec: 'Where you want to be', label: 'Primary Traffic Drivers', prompt: 'What drives traffic at your best locations?', type: 'multi', opts: _sscO(['Rooftop density', 'Daytime office', 'Grocery-anchored', 'Highway visibility', 'Entertainment / nightlife', 'Mixed-use walkability']) },
+  { k: 'life', ssc: 'Market & Trade Area', sec: 'Where you want to be', label: 'Lifestyle Segments', prompt: 'Who is your core guest?', type: 'multi', opts: _sscO(['Urban foodies', 'College / university', 'Nightlife corridors', 'Family-heavy suburbs', 'Blue-collar / working-class', 'Multicultural neighborhoods', 'Country / Western lifestyle', 'Military / veteran community', 'Young social drinkers (21–40)']) },
+  { k: 'syn', ssc: 'Market & Trade Area', sec: 'Where you want to be', label: 'Synergistic Brands', prompt: 'Which brands or businesses do you like to be near?', ph: 'e.g. H-E-B, Target, a busy gym', type: 'text' },
+  { k: 'sfi', ssc: 'Space Requirements', sec: 'The space', label: 'Ideal Sq Ft', prompt: 'Ideal size (square feet)', type: 'text' },
+  { k: 'sfmin', ssc: 'Space Requirements', sec: 'The space', label: 'Minimum Sq Ft', prompt: 'Smallest you could make work', type: 'text' },
+  { k: 'sfmax', ssc: 'Space Requirements', sec: 'The space', label: 'Maximum Sq Ft', prompt: 'Largest you would consider', type: 'text' },
+  { k: 'stype', ssc: 'Space Requirements', sec: 'The space', label: 'Preferred Space Type', prompt: 'What kind of space works for you?', type: 'multi', opts: [{ v: 'Inline', t: 'Inline (middle of a strip)' }, { v: 'Endcap', t: 'Endcap (end of a strip)' }, { v: 'Freestanding', t: 'Freestanding building' }, { v: 'Pad', t: 'Pad site' }, { v: 'Land', t: 'Land to build on' }, { v: 'Captive Audience', t: 'Captive audience (airport, hospital, campus…)' }] },
+  { k: 'hood', ssc: 'Space Requirements', sec: 'The space', grp: 'Kitchen / Cold Storage', label: 'Vent Hood', prompt: 'Do you need a vent hood (cooking with grease or open flame)?', type: 'single', opts: _sscO(['Required', 'Not Needed']) },
+  { k: 'cool', ssc: 'Space Requirements', sec: 'The space', grp: 'Kitchen / Cold Storage', label: 'Walk-In Cooler', prompt: 'A walk-in cooler?', type: 'single', opts: _sscO(['Required', 'Preferred', 'Not Needed']) },
+  { k: 'bar', ssc: 'Space Requirements', sec: 'The space', label: 'Bar', prompt: 'A bar?', type: 'single', opts: _sscRDV },
+  { k: 'patio', ssc: 'Space Requirements', sec: 'The space', label: 'Patio', prompt: 'A patio?', type: 'single', opts: _sscRDV },
+  { k: 'dt', ssc: 'Space Requirements', sec: 'The space', label: 'Drive-Thru', prompt: 'A drive-thru?', type: 'single', opts: _sscRDV },
+  { k: 'wu', ssc: 'Space Requirements', sec: 'The space', label: 'Walk-Up Window', prompt: 'A walk-up window?', type: 'single', opts: _sscRDV },
+  { k: 'park', ssc: 'Space Requirements', sec: 'The space', label: 'Parking Requirements', prompt: 'How much parking do you need?', type: 'single', opts: _sscO(['High', 'Moderate', 'Light']) },
+  { k: 'open', ssc: 'Space Requirements', sec: 'The space', label: 'If Required Features Limit Supply, Open To…', prompt: 'If the perfect space is hard to find, what would you be open to?', type: 'multi', opts: _sscO(['Smaller footprint', 'Larger footprint', 'Inline instead of freestanding', 'Reduced patio', 'Covered patio at front of shell (in lieu of outdoor)', 'Higher rent tolerance', 'Expanding trade area']) },
+  { k: 'sneeds', ssc: 'Space Requirements', sec: 'The space', label: 'Notes or Special Needs', prompt: 'Anything special the space needs?', type: 'textarea' },
+  { k: 'tabc', ssc: 'Licensing, Zoning & Use', sec: 'Licensing & hours', label: 'TABC / Liquor Licensing', prompt: 'Liquor license — what do you need?', type: 'multi', opts: _sscO(['Full liquor license required', 'Beer / wine only', 'Transfer existing license preferred', 'New license acceptable']) },
+  { k: 'music', ssc: 'Licensing, Zoning & Use', sec: 'Licensing & hours', label: 'Live / Amplified Music', prompt: 'Live or amplified music?', type: 'single', opts: _sscO(['Required', 'Preferred', 'Not needed']) },
+  { k: 'hours', ssc: 'Licensing, Zoning & Use', sec: 'Licensing & hours', label: 'Required Hours of Operation', prompt: 'What hours do you need to operate?', ph: 'e.g. 7am–2am', type: 'text' },
+  { k: 'sales', ssc: 'Economics & Capital Reality', sec: 'Budget', label: 'Projected Annual Sales', prompt: 'What do you expect a new location to do in yearly sales?', ph: 'A rough number is fine', type: 'text' },
+  { k: 'maxrent', ssc: 'Economics & Capital Reality', sec: 'Budget', label: 'Max Lease / Mo (incl. NNN)', prompt: 'The most you would pay per month in total rent, including NNN / CAM?', type: 'text' },
+  { k: 'lop', ssc: 'Economics & Capital Reality', sec: 'Budget', label: 'Lease or Purchase', prompt: 'Lease or buy?', type: 'multi', opts: _sscO(['Lease', 'Purchase', 'Lease (Ground)']) },
+  { k: 'term', ssc: 'Economics & Capital Reality', sec: 'Budget', label: 'Preferred Lease Term', prompt: 'Preferred lease term', type: 'single', opts: _sscO(['5 Yrs', '10 Yrs', '15 Yrs', '20 Yrs']) },
+  { k: 'bo', ssc: 'Economics & Capital Reality', sec: 'Budget', label: 'Build-Out Budget', prompt: 'Budget to build out the space', type: 'single', opts: _sscO(['< $100K', '$100–250K', '$250–500K', '$500K–$1M', '$1M+']) },
+  { k: 'fund', ssc: 'Economics & Capital Reality', sec: 'Budget', label: 'Funding', prompt: 'How will you fund it?', type: 'multi', opts: _sscO(['Cash', 'Bank', 'Equity Partner', 'SBA']) },
+  { k: 'ti', ssc: 'Economics & Capital Reality', sec: 'Budget', label: 'Landlord TI Expectations', prompt: 'Do you need the landlord to help pay for the build-out (a TI allowance)?', type: 'single', opts: _sscO(['Required', 'Helpful', 'Not Needed', 'Unsure']) },
+  { k: 'odate', ssc: 'Timeline & Delivery', sec: 'Timing', label: 'Target Opening Date', prompt: 'When would you like to open?', ph: 'e.g. Spring 2027', type: 'text' },
+  { k: 'tl', ssc: 'Timeline & Delivery', sec: 'Timing', label: 'Timeline', prompt: 'How firm is that timing?', type: 'single', opts: _sscO(['Aggressive', 'Realistic', 'Flexible']) },
+  { k: 'cond', ssc: 'Timeline & Delivery', sec: 'Timing', label: 'Delivery Condition Preference', prompt: 'What condition would you like the space in?', type: 'single', opts: [{ v: 'Turnkey / 2nd Gen', t: 'Turnkey / second-generation restaurant' }, { v: 'Vanilla Shell', t: 'Vanilla shell — we will build it out' }] },
+  { k: 'most', ssc: 'Timeline & Delivery', sec: 'Timing', label: 'Most Important', prompt: 'Which matters more?', type: 'single', opts: [{ v: 'Ideal space', t: 'Getting the ideal space' }, { v: 'Speed', t: 'Opening quickly' }] },
+  { k: 'notes', ssc: 'Other Information', sec: 'Anything else', label: 'Notes', prompt: 'Anything else we should know?', type: 'textarea' },
+];
+function _sscClientData(rec, ans) {
+  const secs = [], byTitle = {}, hdr = {}; let market = '';
+  SSC_CLIENT_FIELDS.forEach(f => {
+    const raw = ans[f.k];
+    if (f.hdr) { hdr[f.hdr] = String(raw || '').slice(0, 300); return; }
+    let sec = byTitle[f.ssc]; if (!sec) { sec = { n: '', title: f.ssc, groups: [] }; byTitle[f.ssc] = sec; secs.push(sec); }
+    if (f.type === 'single' || f.type === 'multi') {
+      const allow = (f.opts || []).map(o => o.v);
+      const sel = (Array.isArray(raw) ? raw : (raw ? [raw] : [])).map(String).filter(v => allow.indexOf(v) >= 0);
+      if (f.grp) { let g = sec.groups.find(x => x.kind === 'subgroups' && x.label === f.grp); if (!g) { g = { kind: 'subgroups', label: f.grp, rows: [] }; sec.groups.push(g); } g.rows.push({ label: f.label, selected: sel }); }
+      else sec.groups.push({ kind: 'options', label: f.label, selected: sel });
+      if (f.label === 'Primary Markets') market = sel.join(', ');
+    } else sec.groups.push({ kind: 'field', label: f.label, value: String(raw || '').slice(0, 4000) });
+  });
+  const d = new Date(); const dt = String(d.getMonth() + 1).padStart(2, '0') + '/' + String(d.getDate()).padStart(2, '0') + '/' + d.getFullYear();
+  return { concept: hdr['restaurant / concept name'] || rec.business || 'Concept', market, contact: hdr['primary contact'] || rec.contactName || '', preparedBy: rec.by || '', date: dt, repEmail: '', personId: rec.personId || '', companyId: rec.companyId || '', company: rec.business || '', source: 'client', sections: secs };
+}
+app.post('/api/ssc-link', express.json(), (req, res) => {
+  try {
+    const b = req.body || {}; const personId = String(b.personId || '').slice(0, 48), companyId = String(b.companyId || '').slice(0, 48);
+    if (!personId && !companyId) return res.status(400).json({ ok: false, error: 'No contact on this record.' });
+    const all = loadSscLinks();
+    let rec = all.find(x => (personId && x.personId === personId) || (!personId && companyId && x.companyId === companyId));
+    if (!rec) { rec = { token: newRoomToken(), personId, companyId, business: String(b.business || '').slice(0, 160), contactName: String(b.contactName || '').slice(0, 120), createdAt: new Date().toISOString(), by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', answers: null }; all.push(rec); saveSscLinks(all); }
+    else { const nb = String(b.business || '').slice(0, 160); if (nb && nb !== rec.business) { rec.business = nb; saveSscLinks(all); } }
+    const origin = req.protocol + '://' + req.get('host');
+    res.json({ ok: true, token: rec.token, url: origin + '/ssc_client.html?t=' + rec.token, submittedAt: rec.submittedAt || '', sscKey: rec.sscKey || '', emailedAt: rec.emailedAt || '', emailedTo: rec.emailedTo || '' });
+  } catch (e) { console.error('ssc-link:', e && e.message); res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+app.post('/api/ssc-link/email', express.json(), async (req, res) => {
+  try {
+    const b = req.body || {}; const to = String(b.to || '').trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return res.status(400).json({ ok: false, error: 'Enter a valid email address.' });
+    const rec = sscLinkByToken(b.token); if (!rec) return res.status(404).json({ ok: false, error: 'Link not found — create it first.' });
+    const origin = req.protocol + '://' + req.get('host'); const url = origin + '/ssc_client.html?t=' + rec.token;
+    const org = orgDisplayName(); const me = (req.user && req.user.name) || org;
+    let first = ''; try { if (rec.personId) { const p = loadPeople().find(x => x.id === rec.personId); if (p) first = String(p.firstName || String(p.name || '').trim().split(/\s+/)[0] || '').trim(); } } catch (e) {}
+    const subject = 'Your site search: a few questions';
+    const text = 'Hi ' + (first || 'there') + ',\n\nTo start your site search, please fill out our Site Selection Criteria. It takes about 10 minutes, rough answers are fine, and you can skip anything you would rather talk through on the phone.\n\n' + url + '\n\nThe better we understand what you need, the faster we can find the right space.\n\n' + me + '\n' + org;
+    const html = '<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#1a2236">'
+      + '<p>Hi ' + esc(first || 'there') + ',</p>'
+      + '<p>To start your site search, please fill out our Site Selection Criteria. It takes about 10 minutes, rough answers are fine, and you can skip anything you would rather talk through on the phone.</p>'
+      + '<p style="margin:22px 0"><a href="' + esc(url) + '" style="background:#000E31;color:#fff;text-decoration:none;font-weight:700;padding:12px 22px;border-radius:4px;display:inline-block">Fill out the Site Selection Criteria</a></p>'
+      + '<p>The better we understand what you need, the faster we can find the right space.</p>'
+      + '<p>' + esc(me) + '<br><span style="color:#8a93a3">' + esc(org) + '</span></p></div>';
+    await sendMailWL({ from: mailFrom(), to, subject, text, html });
+    const all = loadSscLinks(); const i = all.findIndex(x => x.token === rec.token); if (i >= 0) { all[i].emailedAt = new Date().toISOString(); all[i].emailedTo = to; saveSscLinks(all); }
+    try { if (rec.personId) { const ppl = loadPeople(); const p = ppl.find(x => x.id === rec.personId); if (p) { logActivity(p, 'Note', 'Site Criteria (SSC) link emailed to ' + to, { by: me, byUser: (req.user && req.user.username) || '' }); savePeople(ppl); } } } catch (e) {}
+    res.json({ ok: true });
+  } catch (e) { console.error('ssc-link email:', e && e.message); res.status(502).json({ ok: false, error: 'Could not send the email. Check the mailbox connection in Account → Gmail.' }); }
+});
+// Raw SSC record data, so the full SSC form can load a client's answers (?ssc=<key>).
+app.get('/api/ssc/:key/data', (req, res) => {
+  const rec = store.readAll().filter(r => r.form === 'ssc' && r.timestamp === String(req.params.key || ''))[0];
+  if (!rec) return res.status(404).json({ ok: false, error: 'Not found.' });
+  if (restrictToOwn(req) && !sscOwnerMatch(req, rec)) return res.status(403).json({ ok: false, error: 'Not authorized.' });
+  res.json({ ok: true, key: rec.timestamp, data: rec.data || {} });
+});
+// Public (token-gated) endpoints the client page calls.
+app.get('/s/ssc', (req, res) => {
+  const rec = sscLinkByToken(req.query.token); if (!rec) return res.status(404).json({ ok: false, error: 'This link is invalid or has expired.' });
+  const ans = Object.assign({}, rec.answers || {});
+  if (!ans.concept && rec.business && !/portfolio$/i.test(rec.business)) ans.concept = rec.business;
+  if (!ans.contact && rec.contactName) ans.contact = rec.contactName;
+  res.json({ ok: true, org: orgDisplayName(), fields: SSC_CLIENT_FIELDS.map(f => ({ k: f.k, sec: f.sec, prompt: f.prompt, type: f.type, opts: f.opts || [], ph: f.ph || '', req: !!f.req })), data: ans, submitted: !!rec.submittedAt });
+});
+app.post('/s/ssc/submit', express.json({ limit: '256kb' }), (req, res) => {
+  const all = loadSscLinks(); const rec = all.find(x => x.token === String((req.body && req.body.token) || '')); if (!rec) return res.status(404).json({ ok: false, error: 'This link is invalid or has expired.' });
+  const b = (req.body && req.body.data) || {}; const ans = {};
+  SSC_CLIENT_FIELDS.forEach(f => { const v = b[f.k]; ans[f.k] = Array.isArray(v) ? v.map(x => String(x).slice(0, 200)).slice(0, 20) : String(v || '').slice(0, 4000); });
+  if (!String(ans.concept || '').trim()) return res.status(400).json({ ok: false, error: 'Please enter the name of your concept.' });
+  const first = !rec.submittedAt;
+  const data = _sscClientData(rec, ans);
+  let sscRec = null;
+  try { sscRec = store.appendSubmission('ssc', data, { ip: req.ip, emailed: false, by: rec.byUser || '' }); } catch (e) { console.error('ssc client save:', e && e.message); return res.status(500).json({ ok: false, error: 'Could not save. Please try again.' }); }
+  try { syncTenantBoxFromSsc(sscRec, req); } catch (e) {}
+  rec.answers = ans; rec.submittedAt = new Date().toISOString(); rec.sscKey = sscRec.timestamp; saveSscLinks(all);
+  try { if (rec.personId) { const ppl = loadPeople(); const p = ppl.find(x => x.id === rec.personId); if (p) { logActivity(p, 'Note', ('Site Criteria (SSC) ' + (first ? 'completed' : 'updated') + ' by the client — ' + String(data.concept || '').slice(0, 80)).slice(0, 200), { auto: true }); savePeople(ppl); } } } catch (e) {}
+  try {
+    let rep = null; try { rep = (auth.loadUsers() || []).find(u => u.username === (rec.byUser || '')) || null; } catch (e) {}
+    if (rep && rep.email) {
+      const origin = req.protocol + '://' + req.get('host'); const org = orgDisplayName();
+      const formUrl = origin + '/ssc_form.html?personId=' + encodeURIComponent(rec.personId || '') + '&companyId=' + encodeURIComponent(rec.companyId || '') + '&ssc=' + encodeURIComponent(sscRec.timestamp);
+      const contactUrl = rec.personId ? (origin + '/rrg_person.html?id=' + rec.personId) : origin;
+      const nm = String(rep.name || '').trim().split(/\s+/)[0] || 'there';
+      const what = first ? 'completed' : 'updated';
+      const subject = org + ' — Site Criteria ' + what + ': ' + (data.concept || 'client');
+      const html = '<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.55;color:#1a2236"><p>Hi ' + esc(nm) + ',</p><p><b>' + esc(data.concept || 'Your client') + '</b> just ' + what + ' their Site Selection Criteria. Their Tenant-Box is updating from it now.</p><p><a href="' + esc(formUrl) + '" style="color:#1155cc">Open it in the full SSC form</a> to fill the gaps on your call &nbsp;·&nbsp; <a href="' + esc(contactUrl) + '" style="color:#1155cc">Open the contact</a></p><p style="color:#8a93a3">— ' + esc(org) + '</p></div>';
+      const p = sendMailWL({ from: mailFrom(), to: rep.email, subject, html, text: (data.concept || 'Your client') + ' ' + what + ' their Site Selection Criteria.\n\n' + formUrl });
+      if (p && p.catch) p.catch(e => console.error('ssc client notify:', e && e.message));
+    }
+  } catch (e) {}
   res.json({ ok: true });
 });
 app.get('/s/video', (req, res) => {

@@ -851,6 +851,27 @@
       document.querySelectorAll('#sscform .field').forEach(function(el){ var lb=el.querySelector('label.k'), inp=el.querySelector('input,textarea'); if(!lb||!inp||String(inp.value||'').trim()) return; var t=(lb.textContent||'').toLowerCase();
         if(company && /concept name|restaurant/.test(t)) inp.value=company; else if(contact && /primary contact/.test(t)) inp.value=contact; }); }catch(e){} }
     if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',pf); else pf();
+    // ?ssc=<key> loads a saved SSC (e.g. one the client filled out from their link) into this form.
+    var _sk=q.get('ssc'); if(_sk){
+      var _apply=function(d){ try{
+        var norm=function(t){ return String(t||'').replace(/\*/g,'').replace(/\s+/g,' ').trim().toLowerCase(); };
+        var lt=function(lb){ return norm(_labelText(lb)); };
+        var fields={}, osets={};
+        document.querySelectorAll('#sscform .field').forEach(function(el){ var lb=el.querySelector('label.k'); if(lb) fields[lt(lb)]=el.querySelector('input,textarea'); });
+        document.querySelectorAll('#sscform .oset').forEach(function(el){ var lb=el.querySelector('label.k'); if(lb) osets[lt(lb)]=el; });
+        var setV=function(inp,v){ if(inp&&v!=null&&String(v).trim()){ inp.value=v; inp.dispatchEvent(new Event('input',{bubbles:true})); } };
+        var setOpts=function(scope,sel){ if(!scope||!sel||!sel.length) return; Array.prototype.forEach.call(scope.querySelectorAll('.opt'),function(o){ var inp=o.querySelector('input'); if(!inp) return; if(sel.indexOf(o.textContent.trim())>=0&&!inp.checked){ inp.checked=true; inp.dispatchEvent(new Event('change',{bubbles:true})); } }); };
+        setV(fields['restaurant / concept name'], d.concept); setV(fields['primary contact'], d.contact);
+        (d.sections||[]).forEach(function(sec){ (sec.groups||[]).forEach(function(g){
+          if(g.kind==='field') setV(fields[norm(g.label)], g.value);
+          else if(g.kind==='options') setOpts(osets[norm(g.label)], g.selected);
+          else if(g.kind==='subgroups'){ var os=osets[norm(g.label)]; if(!os) return; (g.rows||[]).forEach(function(r){ Array.prototype.forEach.call(os.querySelectorAll('.subrow'),function(sr){ var k=sr.querySelector('.srk'); if(k&&norm(k.textContent)===norm(r.label)) setOpts(sr, r.selected); }); }); }
+        }); });
+        var bar=document.createElement('div'); bar.className='rrg-noprint'; bar.style.cssText='background:#e7f5ee;color:#1f6b45;border-bottom:1px solid #b7e0c7;padding:9px 24px;font-size:13px;font-weight:600'; bar.textContent='Loaded the client\u2019s answers from their Site Criteria link'+(d.date?(' ('+d.date+')'):'')+'. Fill in the rest and submit.'; document.body.insertBefore(bar, document.body.firstChild);
+      }catch(e){} };
+      var _go=function(){ fetch(String(window.RRG_API||'').replace(/\/$/,'')+'/api/ssc/'+encodeURIComponent(_sk)+'/data',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.data) _apply(j.data); }).catch(function(){}); };
+      if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(_go,300); }); else setTimeout(_go,300);
+    }
   }catch(e){} })();
   // The firm's configured CC for emailed SSCs (Brokerage Info email, else the firm's sending mailbox).
   window.__SSC_CC=''; try{ fetch(String(window.RRG_API||'').replace(/\/$/,'')+'/api/ssc-cc',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok) window.__SSC_CC=j.cc||''; }).catch(function(){}); }catch(e){}
@@ -1061,7 +1082,10 @@
    Works when the form is hosted or opened as a file; no server needed. */
 (function(){
   var form=document.getElementById('sscform'); if(!form) return; var _ns=document.createElement('style'); _ns.textContent='@media print{.rrg-noprint{display:none!important}}'; document.head.appendChild(_ns);
-  var KEY='rrgdraft:'+(document.title||location.pathname);
+  // One draft per client — keyed by the contact/company in the URL, so opening the SSC for one client
+  // never restores another client's unsent draft.
+  var _qp=new URLSearchParams(location.search); var _who=_qp.get('personId')||_qp.get('companyId')||_qp.get('id')||_qp.get('key')||'new';
+  var KEY='rrgdraft:'+(document.title||location.pathname)+':'+_who;
   function els(){ return Array.prototype.slice.call(form.querySelectorAll('input,textarea')); }
   var restoring=false, saveTimer=null;
   function serialize(){ return els().map(function(el){ return (el.type==='checkbox'||el.type==='radio')?(el.checked?1:0):el.value; }); }
