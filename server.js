@@ -14643,7 +14643,8 @@ function sellerInterviewFields(kind) {
     if (seen[k]) k = k + '_' + i; seen[k] = 1;
     const isOpt = q.type === 'options' && Array.isArray(q.options) && q.options.length;
     const type = isOpt ? 'options' : ((q.type === 'textarea' || q.type === 'longtext' || /note|describe|explain|why|anything|comment|detail/i.test(label)) ? 'textarea' : 'text');
-    out.push({ k, label, prompt: String(q.prompt || label), type, options: isOpt ? q.options.slice(0, 14) : [], section: String(cat.title || '') });
+    const _si = (q.showIf && q.showIf.q) ? q.showIf : ((cat.showIf && cat.showIf.q) ? cat.showIf : null);
+    out.push({ k, label, prompt: String(q.prompt || label), type, options: isOpt ? q.options.slice(0, 14) : [], section: String(cat.title || ''), qid: String(q.id || ''), showIf: _si });
   }); });
   return out.length ? out : SELLER_FORM_FIELDS.map(x => ({ k: x.k, label: x.label, prompt: x.label, type: x.ta ? 'textarea' : 'text', options: [], section: '' }));
 }
@@ -14759,6 +14760,10 @@ app.post('/s/intake/submit', express.json({ limit: '256kb' }), (req, res) => {
   const all = loadSellerLinks(); const rec = all.find(x => x.token === String((req.body && req.body.token) || '')); if (!rec) return res.status(404).json({ ok: false, error: 'This link is invalid or has expired.' });
   const b = (req.body && req.body.data) || {}; const fields = sellerInterviewFields(rec.kind); const data = {};
   fields.forEach(f => { data[f.k] = String(b[f.k] || '').slice(0, 4000); });
+  // Conditional questions: an answer to a question whose condition is not met doesn't apply — drop it.
+  try { const byQid = {}; fields.forEach(f => { if (f.qid) byQid[f.qid] = f; });
+    const shown = (f, depth) => { const c = f.showIf; if (!c || !c.q || depth > 8) return true; const t = byQid[c.q]; if (!t) return true; if (!shown(t, depth + 1)) return false; const v = String(data[t.k] || '').trim().toLowerCase(); if (!v) return false; const n = x => String(x == null ? '' : x).trim().toLowerCase(); if (Array.isArray(c.any)) return c.any.some(x => n(x) === v); if (Array.isArray(c.not)) return !c.not.some(x => n(x) === v); return true; };
+    fields.forEach(f => { if (!shown(f, 0)) data[f.k] = ''; }); } catch (e) {}
   const _firstForm = !(rec.form && rec.form.submittedAt);
   rec.form = { submittedAt: new Date().toISOString(), data, fields }; saveSellerLinks(all);
   if (_firstForm) { try { if (rec.personId) { const ppl = loadPeople(); const p = ppl.find(x => x.id === rec.personId); if (p) { logActivity(p, 'Note', linkKindMeta(rec.kind).label + ' — written form completed by the seller.', { auto: true }); savePeople(ppl); } } } catch (e) {} }

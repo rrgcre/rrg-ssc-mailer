@@ -91,20 +91,26 @@ h1{font-size:25px;font-weight:700;margin:0;color:#fff;}
     else { document.getElementById('hsub').textContent=(isScreen?'A few questions about your restaurant or bar':'A few questions about the story behind the numbers')+subBase; }
     var f=document.getElementById('sform'); var data=j.data||{}; var curSec='';
     f.innerHTML=FIELDS.map(function(fd){
-      var head=''; if(fd.section && fd.section!==curSec){ curSec=fd.section; head='<div class="sech">'+esc(fd.section)+'</div>'; }
+      var head=''; if(fd.section && fd.section!==curSec){ curSec=fd.section; head='<div class="sech" data-sec="'+esc(fd.section)+'">'+esc(fd.section)+'</div>'; }
       var raw=data[fd.k]||''; var lab=esc(fd.prompt||fd.label); var input;
       if(fd.type==='options' && fd.options && fd.options.length){ input='<div class="opts">'+fd.options.map(function(o){ return '<label class="optch"><input type="radio" name="r_'+fd.k+'" value="'+esc(o)+'"'+(raw===o?' checked':'')+'><span>'+esc(o)+'</span></label>'; }).join('')+'</div>'; }
       else if(fd.type==='textarea'){ input='<textarea id="f_'+fd.k+'">'+esc(raw)+'</textarea>'; }
       else { input='<input id="f_'+fd.k+'" value="'+esc(raw)+'">'; }
-      return head+'<div class="fld"><label>'+lab+'</label>'+input+'</div>';
+      return head+'<div class="fld" data-k="'+esc(fd.k)+'" data-insec="'+esc(fd.section||'')+'"><label>'+lab+'</label>'+input+'</div>';
     }).join('');
+    applyConds(); f.addEventListener('change',applyConds); f.addEventListener('input',applyConds);
     if(j.submitted){ document.getElementById('doneNote').style.display='block'; document.getElementById('introNote').style.display='none'; }
     document.getElementById('altline').innerHTML='Prefer to talk it through on camera instead? <a href="./seller_record.html?t='+encodeURIComponent(TOKEN)+'" style="color:#DA2B1F;font-weight:700">Record a short video &rarr;</a>';
     hideLoading(); app.style.display='block';
   }).catch(function(){ if(_done) return; _done=true; clearTimeout(_to); showGate('We could not load this page. Please try again in a moment.'); });
+  // Conditional questions: a question shows only when its trigger answer matches (e.g. lease
+  // questions only if the property is leased). Unanswered trigger = hidden.
+  function fval(fd){ var f=document.getElementById('sform'); if(fd.type==='options'&&fd.options&&fd.options.length){ var s=f.querySelector('input[name="r_'+fd.k+'"]:checked'); return s?s.value:''; } var el=document.getElementById('f_'+fd.k); return el?el.value:''; }
+  function shown(fd,depth){ var c=fd.showIf; if(!c||!c.q||depth>8) return true; var t=FIELDS.filter(function(x){ return x.qid===c.q; })[0]; if(!t) return true; if(!shown(t,depth+1)) return false; var v=String(fval(t)||'').trim().toLowerCase(); if(!v) return false; var n=function(x){ return String(x==null?'':x).trim().toLowerCase(); }; if(c.any) return c.any.some(function(x){ return n(x)===v; }); if(c.not) return !c.not.some(function(x){ return n(x)===v; }); return true; }
+  function applyConds(){ var vis={}; FIELDS.forEach(function(fd){ var el=document.querySelector('.fld[data-k="'+fd.k+'"]'); if(!el) return; var ok=shown(fd,0); el.style.display=ok?'':'none'; if(ok) vis[fd.section||'']=1; }); Array.prototype.forEach.call(document.querySelectorAll('.sech[data-sec]'),function(h){ h.style.display=vis[h.getAttribute('data-sec')]?'':'none'; }); }
   document.getElementById('ssubmit').addEventListener('click',function(){
     var btn=this, m=document.getElementById('smsg'), f=document.getElementById('sform');
-    var data={}; FIELDS.forEach(function(fd){ if(fd.type==='options' && fd.options && fd.options.length){ var sel=f.querySelector('input[name="r_'+fd.k+'"]:checked'); data[fd.k]=sel?sel.value:''; } else { var el=document.getElementById('f_'+fd.k); data[fd.k]=el?el.value:''; } });
+    var data={}; FIELDS.forEach(function(fd){ data[fd.k]=shown(fd,0)?fval(fd):''; });
     btn.disabled=true; m.style.color='#6b7488'; m.textContent='Submitting…';
     fetch('/s/intake/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:TOKEN,data:data})}).then(function(r){return r.json();}).then(function(j){
       btn.disabled=false;
