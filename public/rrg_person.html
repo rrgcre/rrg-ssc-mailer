@@ -1475,11 +1475,12 @@ function openListingAgreement(){
 // One email for the seller: the NDA to sign + the documents we need + what's next.
 var NDA_DOCS_SUBJECT='Next steps on your sale: NDA and documents';
 var NDA_DOCS_HTML=''
-  +'<p>Great connecting with you. Here\u2019s what happens next so we keep this moving.</p>'
-  +'<p><b>1) Sign the NDA.</b> The link is below. It protects your confidentiality and lets us share your information only with qualified, serious buyers. Nothing goes out until it\u2019s signed.</p>'
-  +'<p><b>2) Start pulling these documents together.</b> To build an accurate opinion of value and present the business in its best light, I\u2019ll need: profit &amp; loss statements for the last three years plus year-to-date; the current lease and any amendments; and a short list of owner add-backs or one-time expenses a buyer should add back.</p>'
-  +'<p><b>3) The seller interview.</b> We\u2019ll set up a brief recorded conversation about the story behind the numbers, what makes the business special, and why now. It sharpens the valuation and gives buyers confidence.</p>'
-  +'<p>Send over any questions in the meantime.</p>';
+  +'<p>Great connecting with you. Here are the next steps to help us evaluate the business and keep things moving.</p>'
+  +'<p><b>1) Complete the NDA.</b><br>Please use the link below to review and sign the confidentiality agreement so we can begin reviewing your business information. Any prospective buyers will also be required to sign an NDA before receiving confidential details.</p>'
+  +'<p><b>2) Gather the key documents.</b><br>To prepare a well-supported opinion of value, we’ll need:</p>'
+  +'<ul><li>Profit and loss statements for the last three completed years, the trailing 12 months, and current year-to-date.</li><li>Your current lease, including all amendments.</li><li>A brief list of potential add-backs, such as owner compensation, personal expenses paid through the business, and unusual or one-time costs. We’ll review these together to determine which adjustments are appropriate.</li></ul>'
+  +'<p>Please send the documents as they become available; you don’t need to wait until you have everything together. Once I’ve reviewed the numbers, we’ll set up a short conversation about the story behind them.</p>'
+  +'<p>Feel free to reach out with any questions along the way.</p>';
 function openNda(){
   if(typeof openSendModal!=='function'){ alert('Agreements are still loading — try again in a moment.'); return; }
   openSendModal();
