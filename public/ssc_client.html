@@ -9,7 +9,7 @@
 :root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--green:#1f8a5b;}
 *{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
-.top{color:#fff;padding:30px 0 32px;background:radial-gradient(95% 130% at 28% 15%,#1c2e5c 0%,#112044 42%,#0b1636 70%,#071029 100%);}
+.top{position:relative;color:#fff;padding:30px 0 32px;background:radial-gradient(95% 130% at 28% 15%,#1c2e5c 0%,#112044 42%,#0b1636 70%,#071029 100%);}
 .in{max-width:680px;margin:0 auto;padding:0 22px;}
 .disc{display:inline-flex;align-items:center;justify-content:center;background:var(--red);color:#fff;border-radius:50%;width:40px;height:40px;font:900 13px 'Arial Black',Arial,sans-serif;letter-spacing:-.04em;}
 .kick{margin:18px 0 4px;color:var(--red);font-weight:700;letter-spacing:.26em;font-size:11px;text-transform:uppercase;}
@@ -44,11 +44,13 @@ h1{font-size:25px;font-weight:700;margin:0;color:#fff;}
 .foot{max-width:680px;margin:0 auto;padding:0 22px 40px;color:var(--soft);font-size:11px;text-align:center;}
 .gate{max-width:520px;margin:80px auto;text-align:center;color:var(--muted);padding:0 20px;}
 .gate b{display:block;color:var(--navy);font-size:17px;margin-bottom:6px;}
+.xclose{position:absolute;top:14px;right:16px;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.28);border-radius:4px;padding:6px 12px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;}.xclose:hover{background:rgba(255,255,255,.2);}
+#closemsg{display:none;position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#000E31;color:#fff;padding:11px 18px;border-radius:6px;font-size:13.5px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.25);z-index:50;}
 </style>
 </head>
 <body>
 <div id="app" style="display:none">
-  <div class="top"><div class="in">
+  <div class="top"><button type="button" class="xclose" onclick="rrgCloseWin()">&times;&nbsp; Close</button><div class="in">
     <span class="disc" id="disc">RRG</span>
     <div class="kick">Site Selection Criteria</div>
     <h1 id="hdr">Let's find your next location</h1>
@@ -61,11 +63,14 @@ h1{font-size:25px;font-weight:700;margin:0;color:#fff;}
       <form id="sform" autocomplete="off"></form>
       <button class="sbtn" id="ssubmit" type="button">Submit</button>
       <div id="smsg"></div>
+      <button type="button" id="donebtn" class="sbtn" style="display:none;margin-top:12px;background:#fff;color:#000E31;border:1px solid #c4ccda" onclick="rrgCloseWin()">Done &mdash; close this window</button>
     </div>
   </div>
   <div class="foot">Confidential &middot; Provided securely by <span id="orgf">your representative</span></div>
 </div>
 <div id="gate" class="gate" style="display:none"></div>
+<div id="closemsg">You can close this tab now.</div>
+<script>function rrgCloseWin(){ try{ window.close(); }catch(e){} setTimeout(function(){ if(!window.closed){ var m=document.getElementById('closemsg'); if(m){ m.style.display='block'; setTimeout(function(){ m.style.display='none'; },4000); } } },250); }</script>
 <div id="loading" class="gate">Loading your form…</div>
 <script>
 (function(){
@@ -116,7 +121,7 @@ h1{font-size:25px;font-weight:700;margin:0;color:#fff;}
     btn.disabled=true; m.style.color='#6b7488'; m.textContent='Submitting…';
     fetch('/s/ssc/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:TOKEN,data:data})}).then(function(r){return r.json();}).then(function(j){
       btn.disabled=false;
-      if(j&&j.ok){ m.style.color='#1f8a5b'; m.textContent='Thank you. Your answers were sent to your representative. ✓'; document.getElementById('doneNote').style.display='block'; document.getElementById('introNote').style.display='none'; document.getElementById('hdr').textContent=data.concept; window.scrollTo({top:0,behavior:'smooth'}); }
+      if(j&&j.ok){ var _db=document.getElementById('donebtn'); if(_db) _db.style.display='inline-block'; m.style.color='#1f8a5b'; m.textContent='Thank you. Your answers were sent to your representative. ✓'; document.getElementById('doneNote').style.display='block'; document.getElementById('introNote').style.display='none'; document.getElementById('hdr').textContent=data.concept; window.scrollTo({top:0,behavior:'smooth'}); }
       else { m.style.color='#DA2B1F'; m.textContent=(j&&j.error)||'Could not submit. Please try again.'; }
     }).catch(function(){ btn.disabled=false; m.style.color='#DA2B1F'; m.textContent='Could not reach the server. Please try again.'; });
   });
