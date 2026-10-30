@@ -19804,7 +19804,7 @@ app.get('/api/value-letter', (req, res) => {
   const key = String(req.query.key || ''); const all = loadValueLetters().filter(x => x.key === key).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
   const L = all[0]; res.json({ ok: true, letter: L ? _vlOut(L, req) : null, canApprove: !!(req.user && isSuper(req.user)) });
 });
-app.post('/api/value-letter/draft', express.json(), (req, res) => {
+app.post('/api/value-letter/draft', express.json(), async (req, res) => {
   try {
     const key = String((req.body && req.body.key) || ''); const { d } = _dealByAnyKey(key);
     if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
@@ -19815,12 +19815,23 @@ app.post('/api/value-letter/draft', express.json(), (req, res) => {
     const all = loadValueLetters(); let L = all.find(x => x.key === key && x.status !== 'sent');
     const now = new Date().toISOString();
     const intro = 'Thank you for the opportunity to review ' + (d.business || 'your business') + '. Based on our review of the space, the buildout, the furniture, fixtures and equipment that convey, and current conditions in the ' + (d.market || 'local') + ' market for second-generation restaurant space, our opinion of the value of the space and assets is:';
-    const base = { key, personId: d.contactPersonId || '', business: d.business || '', address: String(spec.address || d.address || '').slice(0, 200), sellerName: (p && p.name) || d.contact || '', value: String(spec.askingPrice || ''), intro, basis: String(spec.valueReasoning || ''), signer: { name: u.name || '', title: u.title || '', email: u.email || '', phone: u.phone || '' }, updatedAt: now };
+    const _raw = String(spec.valueReasoning || '');
+    let _basis = _raw, _aiNote = '';
+    if (_raw.trim()) { try { _basis = (await aiassist.polishValueBasis({ basis: _raw, business: d.business || '', market: d.market || '', value: spec.askingPrice || '' })) || _raw; } catch (e) { _aiNote = 'AI cleanup was unavailable, so your notes are shown as typed.'; } }
+    const base = { key, personId: d.contactPersonId || '', business: d.business || '', address: String(spec.address || d.address || '').slice(0, 200), sellerName: (p && p.name) || d.contact || '', value: String(spec.askingPrice || ''), intro, basisRaw: _raw, basis: _basis, signer: { name: u.name || '', title: u.title || '', email: u.email || '', phone: u.phone || '' }, updatedAt: now };
     if (L) { Object.assign(L, base, { status: 'draft', approvedBy: '', approvedAt: '', pdfAt: '' }); }
     else { L = Object.assign({ id: 'vl_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), createdAt: now, createdBy: (req.user && req.user.username) || '', createdByName: (req.user && req.user.name) || '', status: 'draft' }, base); all.push(L); }
     saveValueLetters(all);
-    res.json({ ok: true, letter: _vlOut(L, req) });
+    res.json({ ok: true, letter: _vlOut(L, req), aiNote: _aiNote });
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+// Re-run the AI cleanup on whatever is in the basis box now.
+app.post('/api/value-letter/:id/polish', express.json({ limit: '64kb' }), async (req, res) => {
+  const all = loadValueLetters(); const L = all.find(x => x.id === req.params.id); if (!L) return res.status(404).json({ ok: false, error: 'Not found.' });
+  if (!_vlOwns(req, L)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const txt = String((req.body && req.body.basis) || L.basis || '').trim(); if (!txt) return res.status(400).json({ ok: false, error: 'Nothing to clean up yet.' });
+  try { const out = await aiassist.polishValueBasis({ basis: txt, business: L.business, market: '', value: L.value }); res.json({ ok: true, basis: out || txt }); }
+  catch (e) { res.status(502).json({ ok: false, error: String((e && e.message) || 'AI unavailable') }); }
 });
 app.post('/api/value-letter/:id/save', express.json({ limit: '64kb' }), (req, res) => {
   const all = loadValueLetters(); const L = all.find(x => x.id === req.params.id); if (!L) return res.status(404).json({ ok: false, error: 'Not found.' });
