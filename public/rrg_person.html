@@ -2444,10 +2444,10 @@ load();
     {hdr:'Valuation', hid:'valuation'},
     {id:'genVal', t:'Generate the BOV', sub:'Broker opinion of value', f:function(){ var v=window.__valReady||{}; if(!v.ready){ var _miss=(v.missing&&v.missing.slice())||[]; if(_miss.length===1&&_miss[0]==='Lease'){ if(window.confirm('Only the lease is missing. If this business has no lease, open the data room and tick "No lease" in the Lease folder. Open it now?')){ var _pid=(typeof P!=='undefined'&&P&&P.id)||(typeof ID!=='undefined'&&ID)||''; var _cid=(typeof CO!=='undefined'&&CO&&CO.id)||''; fetch('/api/valuation-room',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({personId:_pid,companyId:_cid,listingKey:_actKey()})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.id) location.href='./rrg_room.html?room='+encodeURIComponent(j.id); }); } return; } var _m='Not ready yet — needs: '+(_miss.join(', ')||'financials, lease'); if(window.rrgToast) rrgToast(_m); else alert(_m); return; } var pid=(typeof P!=='undefined'&&P&&P.id)||(typeof ID!=='undefined'&&ID)||''; var cid2=(typeof CO!=='undefined'&&CO&&CO.id)||''; if(v.bovId){ location.href='./rrg_bov_generate.html?bov='+encodeURIComponent(v.bovId); } else { fetch('/api/valuation-ensure',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({personId:pid,companyId:cid2,listingKey:_actKey()})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.bovId){ location.href='./rrg_bov_generate.html?bov='+encodeURIComponent(j.bovId); } else { alert((j&&j.error)||'Could not open the valuation.'); } }).catch(function(){ alert('Could not reach the server.'); }); } } },
     {id:'openBov', t:'Open the BOV', sub:'Jump to this listing\u2019s valuation', f:function(){ rrgCreateBOV(); }},
-    {hdr:'Align & Agree', hid:'align'},
-    {id:'sendLA', t:'Email the listing agreement', sub:'Exclusive representation, to sign', lock:'valuation', f:function(){ if(typeof openListingAgreement==='function'){ openListingAgreement(); } else { alert('Agreements are still loading — try again in a moment.'); } }},
-    {hdr:'Space & Assets', hid:'spacegrp'},
     {id:'assetSpace', t:'Capture space & assets', sub:'Lease, buildout, FF&E and license', f:function(){ var k=_actKey(); if(k){ location.href='./rrg_asset_space.html?key='+encodeURIComponent(k); } else { alert('No listing on file for this seller yet.'); } }},
+    {hdr:'Align & Agree', hid:'align'},
+    {id:'alignPrice', lock:'valuation', t:'Agree on price', sub:'Review the BOV with the seller, set the asking price', f:function(){ _alignPrice(); }},
+    {id:'sendLA', t:'Email the listing agreement', sub:'Exclusive representation, to sign', lock:'valuation', f:function(){ if(typeof openListingAgreement==='function'){ openListingAgreement(); } else { alert('Agreements are still loading — try again in a moment.'); } }},
     {hdr:'Go to Market', hid:'gtm'},
     {id:'goMarket', t:'Take it to market', sub:'Marketing pack, attack plan, marketplace', lock:'valuation', f:function(){ var k=_actKey(); if(!k){ alert('No listing on file for this seller yet.'); return; } if(_activeLane()==='asset'){ assetGoToMarket(k); return; } location.href='./rrg_assignment.html?key='+encodeURIComponent(k); }},
     {id:'ownerVideo', t:'Email the owner video link', sub:'Guided video for buyers, goes to the data room', lock:'valuation', f:function(){ if(typeof openSellerIntake==='function') openSellerIntake('ownervideo'); }},
@@ -2480,6 +2480,35 @@ load();
       }).catch(function(){ m.style.color='#DA2B1F'; m.textContent='Could not reach the server.'; }); });
   }
   function _rrgLaneMark(){ var d=null; try{ var k=_actKey(); d=(DEALS||[]).filter(function(x){ return x&&x.key===k; })[0]||null; }catch(_){} var el=_rrgActById('laneDecide'); var dec=!!(d&&d.laneDecidedAt); if(el) _rrgSetDone(el, dec, dec?((d.saleLane==='asset')?'Asset sale':'Going concern'):''); _rrgSetHeadDone('review', dec); }
+  // Align on price before the listing agreement: walk the seller through the BOV, record the agreed asking price.
+  function _alignPrice(){
+    var k=_actKey(); if(!k){ alert('No listing on file for this seller yet.'); return; }
+    var d=null; try{ d=(DEALS||[]).filter(function(x){ return x&&x.key===k; })[0]||null; }catch(_){}
+    var v=window.__rrgVal||{};
+    var ov=document.createElement('div'); ov.style.cssText='position:fixed;inset:0;background:rgba(10,20,50,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+    ov.innerHTML='<div style="background:#fff;border-radius:10px;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(10,20,50,.3);padding:18px;font-size:13.5px;color:#1a2236">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b style="font-size:13px;letter-spacing:.04em;text-transform:uppercase">Agree on price</b><button type="button" data-x="1" style="background:none;border:0;font-size:20px;cursor:pointer;color:#6b7488">&times;</button></div>'
+      +'<div style="color:#5a6478;line-height:1.5;margin-bottom:12px">Walk the seller through the BOV, then record the asking price you agreed on. The listing agreement unlocks once it’s set.</div>'
+      +(v.bovId?'<button type="button" data-bov="1" style="border:1px solid #c4ccda;background:#fff;border-radius:6px;padding:8px 12px;font:inherit;font-weight:600;cursor:pointer;margin-bottom:12px">Open the BOV ↗</button>':'')
+      +'<label style="display:block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8;margin-bottom:5px">Agreed asking price</label>'
+      +'<div style="display:flex;gap:8px"><input data-p="1" inputmode="numeric" placeholder="$0" value="'+esc((d&&d.listPrice)||'')+'" style="flex:1;min-width:0;border:1px solid #c4ccda;border-radius:6px;padding:9px 11px;font:inherit;font-size:15px;font-weight:700"><button type="button" data-save="1" style="background:#000E31;color:#fff;border:0;border-radius:6px;padding:0 16px;font:inherit;font-weight:700;cursor:pointer">Save</button></div>'
+      +'<div data-msg="1" style="min-height:18px;font-size:12.5px;font-weight:600;margin-top:9px"></div></div>';
+    document.body.appendChild(ov);
+    var inp=ov.querySelector('[data-p]'); var fmt=function(x){ var n=String(x||'').replace(/[^0-9]/g,''); return n?('$'+Number(n).toLocaleString('en-US')):''; };
+    inp.addEventListener('blur',function(){ inp.value=fmt(inp.value); }); setTimeout(function(){ try{ inp.focus(); }catch(_){} },30);
+    ov.addEventListener('click',function(e){
+      if(e.target===ov||e.target.closest('[data-x]')){ ov.remove(); return; }
+      if(e.target.closest('[data-bov]')){ try{ rrgCreateBOV(); }catch(_){} return; }
+      if(!e.target.closest('[data-save]')) return;
+      var p=fmt(inp.value), m=ov.querySelector('[data-msg]'); if(!p){ m.style.color='#DA2B1F'; m.textContent='Enter the asking price.'; return; }
+      m.style.color='#6b7488'; m.textContent='Saving…';
+      fetch('/api/assignment/'+encodeURIComponent(k)+'/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({listPrice:p,priceNote:'Agreed with the seller after the BOV'})}).then(function(r){return r.json();}).then(function(j){
+        if(!j||j.ok===false){ m.style.color='#DA2B1F'; m.textContent=(j&&j.error)||'Could not save.'; return; }
+        try{ if(d) d.listPrice=p; }catch(_){} ov.remove(); try{ refreshValuation(); }catch(_){}
+        if(window.rrgToast) rrgToast('Asking price set at '+p+'. Next: email the listing agreement.');
+      }).catch(function(){ m.style.color='#DA2B1F'; m.textContent='Could not reach the server.'; });
+    });
+  }
   function _rrgActById(id){ try{ return document.querySelector('#rrgActionsMenu [data-aid="'+id+'"]'); }catch(_){ return null; } }
   function _rrgSetHeadDone(hid,done){ try{ var el=document.querySelector('#rrgActionsMenu .rrgacthead[data-hid="'+hid+'"]'); if(el) el.classList.toggle('rrgheaddone', !!done); }catch(_){} }
   function _rrgSetGate(el,dim,sub){ if(!el) return; var sb=el.querySelector('.rrgactsub'); if(!sb){ sb=document.createElement('div'); sb.className='rrgactsub'; el.appendChild(sb); } if(dim){ el.classList.add('rrgactdim'); } else { el.classList.remove('rrgactdim'); } if(!sub){ try{ var _a=ACTIONS[+el.getAttribute('data-i')]; sub=(_a&&_a.sub)||''; }catch(_){} } sb.textContent=sub||''; }
@@ -2545,17 +2574,17 @@ load();
     if(asset){
       // None of the going-concern gates apply on the space lane — clear them so the steps work.
       _rrgSetGate(_rrgActById('dUpload'),false,'Lease, equipment list, floor plan, photos & license');
-      _rrgSetGate(_rrgActById('sendLA'),false,'Space & Assets listing representation');
+      _rrgSetGate(_rrgActById('sendLA'),false,'Space & assets listing, to sign'); try{ var _apA=_rrgActById('alignPrice'); if(_apA && !_apA.classList.contains('rrgactdoneflag')) _rrgSetGate(_apA,false,'Agree the asking price for the space & assets'); }catch(_){}
       var _acd=_activeAssetCoreDone();
-      _rrgSetGate(_rrgActById('goMarket'), !_acd, _acd?'Publish the blind card & spec sheet to the marketplace':'Complete the space & assets intake first');
-      _rrgRelabel('sendLA','Send representation agreement','Space & Assets listing representation');
-      _rrgRelabel('goMarket','Take the space to market','Build the spec sheet & publish the space to the marketplace');
-      _rrgRelabel('matchBuyers','Match to operators','Operators & concepts searching for space — from their buy-boxes');
+      _rrgSetGate(_rrgActById('goMarket'), !_acd, _acd?'Spec sheet and marketplace':'Price the space & assets first');
+      _rrgRelabel('sendLA','Email the representation agreement','Space & assets listing, to sign'); _rrgRelabel('assetSpace','Price the space & assets','Buildout, FF&E, license and lease: your opinion of value');
+      _rrgRelabel('goMarket','Take it to market','Spec sheet and marketplace');
+      _rrgRelabel('matchBuyers','Match operators','Operators whose buy-box fits this space');
     } else {
       // Title-only restore — refreshValuation owns the sendLA/goMarket sub-notes (gate messages).
-      _rrgRelabel('sendLA','Send listing agreement');
-      _rrgRelabel('goMarket','Take the listing to market');
-      _rrgRelabel('matchBuyers','Match to buyers in your book','See which active buyers fit this listing — from their saved buy-boxes');
+      _rrgRelabel('sendLA','Email the listing agreement');
+      _rrgRelabel('goMarket','Take it to market');
+      _rrgRelabel('matchBuyers','Match buyers','Active buyers whose buy-box fits');
     }
     _rrgTidyHeads();
   }
@@ -2605,7 +2634,8 @@ load();
       _rrgSetGate(elView, !j.interviewId, j.interviewId ? 'Transcript, AI debrief & video' : 'No interview received yet');
       _rrgSetDone(elV, !!j.bovId, 'BOV '+(j.state==='final'?'finalized':(j.state==='built'?'built':'started')));
       var elLA=_rrgActById('sendLA');
-      _rrgSetGate(elLA, !j.bovId, j.bovId ? 'Exclusive Business Sales Representation' : 'Create the valuation (BOV) first');
+      var _lpD=(function(){ try{ var k=_actKey(); var d=(DEALS||[]).filter(function(x){ return x&&x.key===k; })[0]; return (d&&d.listPrice)||''; }catch(_){ return ''; } })(); var elAP=_rrgActById('alignPrice'); if(elAP){ if(_lpD) _rrgSetDone(elAP,true,'Asking price '+_lpD); else { _rrgSetDone(elAP,false); _rrgSetGate(elAP, !j.bovId, j.bovId?'':'Create the valuation (BOV) first'); } }
+      _rrgSetGate(elLA, !(j.bovId&&_lpD), !j.bovId ? 'Create the valuation (BOV) first' : (_lpD ? '' : 'Agree on price first'));
       var _laDone=(typeof AGREEMENTS!=='undefined') && (AGREEMENTS||[]).some(function(a){ return a && a.type==='Listing' && a.status!=='terminated' && (a.signStatus==='executed'||a.signStatus==='signed'||(!a.signStatus&&a.entryMethod&&a.entryMethod!=='sent')); });
       _rrgSetDone(elLA, _laDone, 'On file');
       // Gate "Take the listing to market" on a finished valuation so a click before then
@@ -2618,7 +2648,7 @@ load();
       _rrgSetHeadDone('data', !!j.financials);
       try{ var _eLD=_rrgActById('laneDecide'); if(_eLD && !_eLD.classList.contains('rrgactdoneflag')) _rrgSetGate(_eLD, !j.financials, j.financials?'':'Upload the financials first'); _rrgLaneMark(); }catch(_){}
       _rrgSetHeadDone('interview', _ivSettled);
-      _rrgSetHeadDone('valuation', !!j.bovId);
+      _rrgSetHeadDone('valuation', (_activeLane()==='asset') ? _activeAssetCoreDone() : !!j.bovId);
       _rrgSetHeadDone('align', _laDone);
       _rrgTidyHeads();
       try{ applyLane(); }catch(_){}
