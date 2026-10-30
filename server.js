@@ -19784,20 +19784,20 @@ function valueLetterHtml(L) {
   const dt = new Date(L.approvedAt || L.updatedAt || L.createdAt || Date.now()).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   const s = L.signer || {};
   return '<!doctype html><html><head><meta charset="utf-8"><title>Opinion of Value — ' + esc(L.business || '') + '</title><style>'
-    + '@page{size:Letter;margin:0.8in 0.9in}*{box-sizing:border-box}body{font:12pt/1.55 Georgia,"Times New Roman",serif;color:#1a2236;margin:0}@media screen{html{background:#eef1f6}body{background:#fff;max-width:8.5in;margin:0 auto;padding:0.8in 0.9in;min-height:11in}}'
-    + '.lh{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #000E31;padding-bottom:10px;margin-bottom:26px}.lh img{max-height:54px;max-width:220px}.lh .org{font:700 15px Arial,sans-serif;color:#000E31}.lh .ad{font:10px/1.5 Arial,sans-serif;color:#6b7488;text-align:right}'
-    + 'h1{font:700 13px Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#000E31;margin:22px 0 4px}.re{margin:0 0 18px}.val{font:700 24px Arial,sans-serif;color:#000E31;margin:4px 0 18px}'
-    + 'h2{font:700 11px Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#2c5c8f;margin:20px 0 6px}p{margin:0 0 10px}'
-    + '.trec{margin-top:26px;border:1px solid #c4ccda;padding:10px 12px;font-size:12pt}.sig{margin-top:28px}.sig .nm{font-weight:700}.ft{margin-top:26px;font:9px Arial,sans-serif;color:#98a1b5}'
+    + '@page{size:Letter;margin:0.6in 0.8in}*{box-sizing:border-box}body{font:11pt/1.45 Georgia,"Times New Roman",serif;color:#1a2236;margin:0}@media screen{html{background:#eef1f6}body{background:#fff;max-width:8.5in;margin:0 auto;padding:0.6in 0.8in;min-height:11in}}'
+    + '.lh{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #000E31;padding-bottom:8px;margin-bottom:18px}.lh img{max-height:54px;max-width:220px}.lh .org{font:700 15px Arial,sans-serif;color:#000E31}.lh .ad{font:10px/1.5 Arial,sans-serif;color:#6b7488;text-align:right}'
+    + 'h1{font:700 13px Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#000E31;margin:16px 0 2px}.re{margin:0 0 12px}.val{font:700 22px Arial,sans-serif;color:#000E31;margin:2px 0 12px}'
+    + 'h2{font:700 11px Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#2c5c8f;margin:14px 0 5px}p{margin:0 0 8px}'
+    + '.trec{margin-top:16px;border:1px solid #c4ccda;padding:8px 11px;font-size:12pt;line-height:1.4;page-break-inside:avoid}.sig{margin-top:16px;page-break-inside:avoid;break-inside:avoid}.sig .nm{font-weight:700;margin-top:22px}.ft{margin-top:14px;font:9px Arial,sans-serif;color:#98a1b5;page-break-inside:avoid}'
     + '</style></head><body>'
     + '<div class="lh"><div>' + (logo ? ('<img src="' + logo + '" alt="">') : ('<div class="org">' + esc(org) + '</div>')) + '</div><div class="ad">' + esc(o.legalName || org) + (addr ? ('<br>' + esc(addr)) : '') + (o.phone ? ('<br>' + esc(o.phone)) : '') + (o.license ? ('<br>TREC License #' + esc(o.license)) : '') + '</div></div>'
-    + '<div>' + esc(dt) + '</div><div style="margin-top:14px">' + esc(L.sellerName || '') + (L.sellerName ? '<br>' : '') + esc(L.business || '') + (L.address ? ('<br>' + esc(L.address)) : '') + '</div>'
+    + '<div>' + esc(dt) + '</div><div style="margin-top:10px">' + esc(L.sellerName || '') + (L.sellerName ? '<br>' : '') + esc(L.business || '') + (L.address ? ('<br>' + esc(L.address)) : '') + '</div>'
     + '<h1>Opinion of Value</h1><div class="re">Re: ' + esc(L.business || 'The business') + ' — space &amp; assets</div>'
     + (L.intro ? _vlParas(L.intro) : '')
     + '<div class="val">' + esc(_vlMoney(L.value)) + '</div>'
     + (L.basis ? ('<h2>Basis for this opinion</h2>' + _vlParas(L.basis)) : '')
     + '<div class="trec">' + esc(TREC_ESTIMATE_STATEMENT) + '</div>'
-    + '<div class="sig">Respectfully,<br><br><div class="nm">' + esc(s.name || '') + '</div>' + (s.title ? (esc(s.title) + '<br>') : '') + esc(o.legalName || org) + (s.email ? ('<br>' + esc(s.email)) : '') + (s.phone ? (' · ' + esc(s.phone)) : '') + '<br><span style="font-size:10pt;color:#6b7488">Submitted on behalf of ' + esc(o.legalName || org) + (o.license ? (', TREC License #' + esc(o.license)) : '') + '.</span></div>'
+    + '<div class="sig">Respectfully,<div class="nm">' + esc(s.name || '') + '</div>' + (s.title ? (esc(s.title) + '<br>') : '') + esc(o.legalName || org) + (s.email ? ('<br>' + esc(s.email)) : '') + (s.phone ? (' · ' + esc(s.phone)) : '') + '<br><span style="font-size:10pt;color:#6b7488">Submitted on behalf of ' + esc(o.legalName || org) + (o.license ? (', TREC License #' + esc(o.license)) : '') + '.</span></div>'
     + '<div class="ft">Confidential — prepared for the client named above. Based on information available on the date shown; market conditions change.</div>'
     + '</body></html>';
 }
