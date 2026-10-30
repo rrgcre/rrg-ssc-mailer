@@ -2445,6 +2445,7 @@ load();
     {id:'genVal', t:'Generate the BOV', sub:'Broker opinion of value', f:function(){ var v=window.__valReady||{}; if(!v.ready){ var _miss=(v.missing&&v.missing.slice())||[]; if(_miss.length===1&&_miss[0]==='Lease'){ if(window.confirm('Only the lease is missing. If this business has no lease, open the data room and tick "No lease" in the Lease folder. Open it now?')){ var _pid=(typeof P!=='undefined'&&P&&P.id)||(typeof ID!=='undefined'&&ID)||''; var _cid=(typeof CO!=='undefined'&&CO&&CO.id)||''; fetch('/api/valuation-room',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({personId:_pid,companyId:_cid,listingKey:_actKey()})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.id) location.href='./rrg_room.html?room='+encodeURIComponent(j.id); }); } return; } var _m='Not ready yet — needs: '+(_miss.join(', ')||'financials, lease'); if(window.rrgToast) rrgToast(_m); else alert(_m); return; } var pid=(typeof P!=='undefined'&&P&&P.id)||(typeof ID!=='undefined'&&ID)||''; var cid2=(typeof CO!=='undefined'&&CO&&CO.id)||''; if(v.bovId){ location.href='./rrg_bov_generate.html?bov='+encodeURIComponent(v.bovId); } else { fetch('/api/valuation-ensure',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({personId:pid,companyId:cid2,listingKey:_actKey()})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.bovId){ location.href='./rrg_bov_generate.html?bov='+encodeURIComponent(j.bovId); } else { alert((j&&j.error)||'Could not open the valuation.'); } }).catch(function(){ alert('Could not reach the server.'); }); } } },
     {id:'openBov', t:'Open the BOV', sub:'Jump to this listing\u2019s valuation', f:function(){ rrgCreateBOV(); }},
     {id:'assetVal', t:'Price the space & assets', sub:'Your opinion of value and the reasoning', f:function(){ _assetPrice(); }},
+    {id:'valLetter', t:'Opinion of value letter', sub:'Create it, get broker approval, send to the client', f:function(){ _valueLetter(); }},
     {hdr:'Align & Agree', hid:'align'},
     {id:'alignPrice', lock:'valuation', t:'Agree on price', sub:'Review the BOV with the seller, set the asking price', f:function(){ _alignPrice(); }},
     {id:'sendLA', t:'Email the listing agreement', sub:'Exclusive representation, to sign', lock:'valuation', f:function(){ if(typeof openListingAgreement==='function'){ openListingAgreement(); } else { alert('Agreements are still loading — try again in a moment.'); } }},
@@ -2536,6 +2537,55 @@ load();
         }).catch(function(){ m.style.color='#DA2B1F'; m.textContent='Could not reach the server.'; }); });
     }).catch(function(){ ov.querySelector('[data-f]').innerHTML='<div style="color:#DA2B1F">Could not reach the server.</div>'; });
   }
+  // Opinion of value letter: create → (edit) → submit for broker approval → approve → email the client.
+  function _valueLetter(){
+    var k=_actKey(); if(!k){ alert('No listing on file for this seller yet.'); return; }
+    var ov=document.createElement('div'); ov.style.cssText='position:fixed;inset:0;background:rgba(10,20,50,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+    ov.innerHTML='<div style="background:#fff;border-radius:10px;max-width:760px;width:100%;max-height:94vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(10,20,50,.3);font-size:13.5px;color:#1a2236">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid #e6e9f0"><b style="font-size:13px;letter-spacing:.04em;text-transform:uppercase">Opinion of value letter</b><button type="button" data-x="1" style="background:none;border:0;font-size:20px;cursor:pointer;color:#6b7488">&times;</button></div>'
+      +'<div data-b="1" style="padding:16px 18px;overflow:auto">Loading…</div></div>';
+    document.body.appendChild(ov);
+    var B=ov.querySelector('[data-b]'); var close=function(){ ov.remove(); };
+    ov.addEventListener('click',function(e){ if(e.target===ov||e.target.closest('[data-x]')) close(); });
+    var post=function(u,b){ return fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(b||{})}).then(function(r){return r.json();}); };
+    var em=(typeof P!=='undefined'&&P&&(P.email||(P.emails&&P.emails[0])))||'';
+    var btn=function(a,t,pri){ return '<button type="button" data-a="'+a+'" style="'+(pri?'background:#000E31;color:#fff;border:0;':'background:#fff;color:#1a2236;border:1px solid #c4ccda;')+'border-radius:6px;padding:9px 16px;font:inherit;font-weight:700;cursor:pointer">'+t+'</button>'; };
+    function render(L,canApprove){
+      if(!L){ B.innerHTML='<div style="color:#5a6478;line-height:1.5;margin-bottom:14px">Turns your opinion of value and reasoning into a one-page letter on RRG letterhead, signed by you, with the required TREC statement. A broker approves it before it can go to the client.</div>'+btn('create','Create the letter',1)+'<div data-m="1" style="margin-top:10px;font-weight:600;font-size:12.5px"></div>'; return; }
+      var st={draft:['Draft','#b5791f','#fdf1df'],pending:['Waiting for broker approval','#2c5c8f','#e8f0fb'],approved:['Approved by '+(L.approvedBy||'broker'),'#1f6b45','#eaf6ef'],sent:['Sent to '+(L.sentTo||'client')+' '+(L.sentAt?new Date(L.sentAt).toLocaleDateString():''),'#1f6b45','#eaf6ef']}[L.status]||['Draft','#b5791f','#fdf1df'];
+      var h='<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><span style="font-size:11.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:'+st[1]+';background:'+st[2]+';border-radius:4px;padding:3px 8px">'+esc(st[0])+'</span>'+(L.returnNote&&L.status==='draft'?'<span style="font-size:12.5px;color:#a63d3d">Sent back: '+esc(L.returnNote)+'</span>':'')+'</div>';
+      if(L.status==='draft'){
+        h+='<label style="display:block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8;margin-bottom:5px">Opinion of value</label><input data-f="value" value="'+esc(L.value||'')+'" style="width:100%;border:1px solid #c4ccda;border-radius:6px;padding:8px 10px;font:inherit;font-weight:700;font-size:15px;margin-bottom:10px">'
+          +'<label style="display:block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8;margin-bottom:5px">Opening</label><textarea data-f="intro" rows="3" style="width:100%;border:1px solid #c4ccda;border-radius:6px;padding:8px 10px;font:inherit;margin-bottom:10px;resize:vertical">'+esc(L.intro||'')+'</textarea>'
+          +'<label style="display:block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8;margin-bottom:5px">Basis for this opinion</label><textarea data-f="basis" rows="7" style="width:100%;border:1px solid #c4ccda;border-radius:6px;padding:8px 10px;font:inherit;margin-bottom:12px;resize:vertical">'+esc(L.basis||'')+'</textarea>'
+          +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+btn('save','Save')+btn('preview','Preview')+btn('submit','Submit for approval',1)+'</div>';
+      } else if(L.status==='pending'){
+        h+='<iframe src="'+esc(L.viewUrl)+'" style="width:100%;height:420px;border:1px solid #e6e9f0;border-radius:6px;margin-bottom:12px"></iframe>'
+          +(canApprove?('<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+btn('approve','Approve',1)+btn('sendback','Send back')+'</div>'):'<div style="color:#5a6478">A broker has been emailed to review and approve it. You can send it to the client once it’s approved.</div>');
+      } else {
+        h+='<iframe src="'+esc(L.pdfUrl||L.viewUrl)+'" style="width:100%;height:420px;border:1px solid #e6e9f0;border-radius:6px;margin-bottom:12px"></iframe>'
+          +'<label style="display:block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8;margin-bottom:5px">Email it to the client</label><div style="display:flex;gap:8px"><input data-to="1" value="'+esc(L.sentTo||em)+'" style="flex:1;min-width:0;border:1px solid #c4ccda;border-radius:6px;padding:8px 10px;font:inherit">'+btn('email',L.status==='sent'?'Send again':'Send',1)+'</div>'
+          +'<div style="margin-top:10px;display:flex;gap:14px">'+(L.pdfUrl?'<a href="'+esc(L.pdfUrl)+'" target="_blank" rel="noopener" style="color:#2c5c8f;font-weight:600">Open the PDF</a>':'')+'<a href="#" data-a="redo" style="color:#6b7488">Start a new version</a></div>';
+      }
+      h+='<div data-m="1" style="margin-top:10px;font-weight:600;font-size:12.5px"></div>';
+      B.innerHTML=h;
+    }
+    var CUR=null, CAN=false;
+    function load(){ fetch('/api/value-letter?key='+encodeURIComponent(k),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ CUR=j.letter; CAN=!!j.canApprove; render(CUR,CAN); }).catch(function(){ B.textContent='Could not reach the server.'; }); }
+    function msg(t,bad){ var m=B.querySelector('[data-m]'); if(m){ m.style.color=bad?'#DA2B1F':'#6b7488'; m.textContent=t; } }
+    function done(j){ if(!j||j.ok===false){ msg((j&&j.error)||'Something went wrong.',1); return; } CUR=j.letter; render(CUR,CAN); }
+    function fields(){ var o={}; Array.prototype.forEach.call(B.querySelectorAll('[data-f]'),function(el){ o[el.getAttribute('data-f')]=el.value; }); return o; }
+    B.addEventListener('click',function(e){ var a=e.target.closest('[data-a]'); if(!a) return; e.preventDefault(); var act=a.getAttribute('data-a');
+      if(act==='create'||act==='redo'){ msg('Creating…'); post('/api/value-letter/draft',{key:k}).then(done).catch(function(){ msg('Could not reach the server.',1); }); }
+      else if(act==='save'){ msg('Saving…'); post('/api/value-letter/'+CUR.id+'/save',fields()).then(function(j){ done(j); msg('Saved.'); }); }
+      else if(act==='preview'){ post('/api/value-letter/'+CUR.id+'/save',fields()).then(function(j){ done(j); if(j&&j.letter) window.open(j.letter.viewUrl,'_blank'); }); }
+      else if(act==='submit'){ msg('Submitting…'); post('/api/value-letter/'+CUR.id+'/save',fields()).then(function(){ return post('/api/value-letter/'+CUR.id+'/submit',{}); }).then(done); }
+      else if(act==='approve'){ msg('Approving and building the PDF…'); post('/api/value-letter/'+CUR.id+'/approve',{}).then(done); }
+      else if(act==='sendback'){ var n=prompt('What needs to change?')||''; post('/api/value-letter/'+CUR.id+'/approve',{sendBack:true,note:n}).then(done); }
+      else if(act==='email'){ var to=(B.querySelector('[data-to]')||{}).value||''; if(!confirm('Email the opinion of value letter to '+to+'?')) return; msg('Sending…'); post('/api/value-letter/'+CUR.id+'/email',{to:to}).then(function(j){ done(j); if(j&&j.ok) msg('Sent to '+to+' ✓'); }); }
+    });
+    load();
+  }
   function _rrgActById(id){ try{ return document.querySelector('#rrgActionsMenu [data-aid="'+id+'"]'); }catch(_){ return null; } }
   function _rrgSetHeadDone(hid,done){ try{ var el=document.querySelector('#rrgActionsMenu .rrgacthead[data-hid="'+hid+'"]'); if(el) el.classList.toggle('rrgheaddone', !!done); }catch(_){} }
   function _rrgSetGate(el,dim,sub){ if(!el) return; var sb=el.querySelector('.rrgactsub'); if(!sb){ sb=document.createElement('div'); sb.className='rrgactsub'; el.appendChild(sb); } if(dim){ el.classList.add('rrgactdim'); } else { el.classList.remove('rrgactdim'); } if(!sub){ try{ var _a=ACTIONS[+el.getAttribute('data-i')]; sub=(_a&&_a.sub)||''; }catch(_){} } sb.textContent=sub||''; }
@@ -2597,6 +2647,7 @@ load();
     var gv=_rrgActById('genVal'); if(gv) gv.style.display=asset?'none':'';
     // The space-intake step is the reverse — asset lane only.
     var as=_rrgActById('assetSpace'); if(as) as.style.display=asset?'':'none';
+    var vlt=_rrgActById('valLetter'); if(vlt){ vlt.style.display=(asset&&_activeAssetAsking())?'':'none'; }
     var av=_rrgActById('assetVal'); if(av){ av.style.display=asset?'':'none'; if(asset){ var _aa=_activeAssetAsking(); _rrgSetDone(av, !!_aa, _aa?('Opinion of value '+_aa):''); } }
     var ob2=_rrgActById('openBov'), oc2=_rrgActById('openCim'); if(asset){ if(ob2) ob2.style.display='none'; if(oc2) oc2.style.display='none'; } else { if(oc2) oc2.style.display=''; if(ob2) ob2.style.display=((window.__rrgVal||{}).bovId)?'':'none'; } var bb=document.getElementById('rrgTopBov'), cb=document.getElementById('rrgTopCim'); if(bb) bb.style.display=asset?'none':'inline-flex'; if(cb) cb.style.display=asset?'none':'inline-flex';
     if(asset){

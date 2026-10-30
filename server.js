@@ -19757,6 +19757,126 @@ function _dealByAnyKey(key) {
   if (key.indexOf('s_') === 0) return { arr, d: arr.find(x => x.screenId === key.slice(2)) };
   return { arr, d: null };
 }
+// ── Opinion of value letter (asset sales) ───────────────────────────────────────────────
+// Rep enters the opinion of value + reasoning → a one-page letter in RRG's name, signed by the
+// rep who created it. TREC Rule 535.17: a sales agent's estimate must be submitted in the
+// sponsoring broker's name and carry the verbatim statement below (12-pt+). Gate: a broker
+// (admin) must approve before it can be emailed to the client. Never filed to the data room —
+// that room is shown to buyers.
+const VALUE_LETTERS_FILE = path.join(BOV_DATA_DIR, 'value_letters.json');
+const VALUE_LETTER_DIR = path.join(BOV_DATA_DIR, 'valueletters');
+function loadValueLetters() { try { return rj(VALUE_LETTERS_FILE) || []; } catch (e) { return []; } }
+function saveValueLetters(a) { return writeJsonGuarded(VALUE_LETTERS_FILE, a, 'saveValueLetters'); }
+const TREC_ESTIMATE_STATEMENT = 'This represents an estimated sale price for this property. It is not the same as the opinion of value in an appraisal developed by a licensed appraiser under the Uniform Standards of Professional Appraisal Practice.';
+function _vlUser(username) { try { return (auth.loadUsers() || []).find(u => u.username === username) || null; } catch (e) { return null; } }
+function _vlLogoDataUri() {
+  try { const b = loadBrand(); const ext = b.logoLightExt || b.logoExt; if (!ext) return ''; const fn = b.logoLightExt ? ('brand_logo_light.' + ext) : ('brand_logo.' + ext); const buf = fs.readFileSync(path.join(BOV_DATA_DIR, fn)); const mime = (b.logoLightExt ? b.logoLightType : b.logoType) || LOGO_MIME[ext] || 'image/png'; return 'data:' + mime + ';base64,' + buf.toString('base64'); } catch (e) { return ''; }
+}
+function _vlParas(t) { return String(t || '').trim().split(/\n\s*\n|\n/).map(x => x.trim()).filter(Boolean).map(x => '<p>' + esc(x) + '</p>').join(''); }
+function valueLetterHtml(L) {
+  const o = effOrg(); const org = o.name || orgDisplayName();
+  const addr = [o.address, [o.city, o.state].filter(Boolean).join(', ') + (o.zip ? (' ' + o.zip) : '')].filter(x => String(x || '').trim()).join(' · ');
+  const logo = _vlLogoDataUri();
+  const dt = new Date(L.approvedAt || L.updatedAt || L.createdAt || Date.now()).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const s = L.signer || {};
+  return '<!doctype html><html><head><meta charset="utf-8"><title>Opinion of Value — ' + esc(L.business || '') + '</title><style>'
+    + '@page{size:Letter;margin:0.8in 0.9in}*{box-sizing:border-box}body{font:12pt/1.55 Georgia,"Times New Roman",serif;color:#1a2236;margin:0}'
+    + '.lh{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #000E31;padding-bottom:10px;margin-bottom:26px}.lh img{max-height:54px;max-width:220px}.lh .org{font:700 15px Arial,sans-serif;color:#000E31}.lh .ad{font:10px/1.5 Arial,sans-serif;color:#6b7488;text-align:right}'
+    + 'h1{font:700 13px Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#000E31;margin:22px 0 4px}.re{margin:0 0 18px}.val{font:700 24px Arial,sans-serif;color:#000E31;margin:4px 0 18px}'
+    + 'h2{font:700 11px Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#2c5c8f;margin:20px 0 6px}p{margin:0 0 10px}'
+    + '.trec{margin-top:26px;border:1px solid #c4ccda;padding:10px 12px;font-size:12pt}.sig{margin-top:28px}.sig .nm{font-weight:700}.ft{margin-top:26px;font:9px Arial,sans-serif;color:#98a1b5}'
+    + '</style></head><body>'
+    + '<div class="lh"><div>' + (logo ? ('<img src="' + logo + '" alt="">') : ('<div class="org">' + esc(org) + '</div>')) + '</div><div class="ad">' + esc(o.legalName || org) + (addr ? ('<br>' + esc(addr)) : '') + (o.phone ? ('<br>' + esc(o.phone)) : '') + (o.license ? ('<br>TREC License #' + esc(o.license)) : '') + '</div></div>'
+    + '<div>' + esc(dt) + '</div><div style="margin-top:14px">' + esc(L.sellerName || '') + (L.sellerName ? '<br>' : '') + esc(L.business || '') + (L.address ? ('<br>' + esc(L.address)) : '') + '</div>'
+    + '<h1>Opinion of Value</h1><div class="re">Re: ' + esc(L.business || 'The business') + ' — space &amp; assets</div>'
+    + (L.intro ? _vlParas(L.intro) : '')
+    + '<div class="val">' + esc(L.value || '') + '</div>'
+    + (L.basis ? ('<h2>Basis for this opinion</h2>' + _vlParas(L.basis)) : '')
+    + '<div class="trec">' + esc(TREC_ESTIMATE_STATEMENT) + '</div>'
+    + '<div class="sig">Respectfully,<br><br><div class="nm">' + esc(s.name || '') + '</div>' + (s.title ? (esc(s.title) + '<br>') : '') + esc(o.legalName || org) + (s.email ? ('<br>' + esc(s.email)) : '') + (s.phone ? (' · ' + esc(s.phone)) : '') + '<br><span style="font-size:10pt;color:#6b7488">Submitted on behalf of ' + esc(o.legalName || org) + (o.license ? (', TREC License #' + esc(o.license)) : '') + '.</span></div>'
+    + '<div class="ft">Confidential — prepared for the client named above. Based on information available on the date shown; market conditions change.</div>'
+    + '</body></html>';
+}
+function _vlPdfPath(id) { try { if (!fs.existsSync(VALUE_LETTER_DIR)) fs.mkdirSync(VALUE_LETTER_DIR, { recursive: true }); } catch (e) {} return path.join(VALUE_LETTER_DIR, String(id) + '.pdf'); }
+function _vlOut(L, req) { return Object.assign({}, L, { canApprove: !!(req.user && isSuper(req.user)), viewUrl: '/api/value-letter/' + L.id + '/view', pdfUrl: L.pdfAt ? ('/api/value-letter/' + L.id + '/pdf') : '' }); }
+function _vlOwns(req, L) { return !!(req.user && (isSuper(req.user) || L.createdBy === req.user.username)); }
+app.get('/api/value-letter', (req, res) => {
+  const key = String(req.query.key || ''); const all = loadValueLetters().filter(x => x.key === key).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+  const L = all[0]; res.json({ ok: true, letter: L ? _vlOut(L, req) : null, canApprove: !!(req.user && isSuper(req.user)) });
+});
+app.post('/api/value-letter/draft', express.json(), (req, res) => {
+  try {
+    const key = String((req.body && req.body.key) || ''); const { d } = _dealByAnyKey(key);
+    if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
+    if (!ownsDeal(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+    const spec = d.assetSpec || {}; if (!String(spec.askingPrice || '').trim()) return res.status(400).json({ ok: false, error: 'Enter the opinion of value first (Price the space & assets).' });
+    const p = d.contactPersonId ? (loadPeople().find(x => x.id === d.contactPersonId) || null) : null;
+    const u = _vlUser(req.user && req.user.username) || req.user || {};
+    const all = loadValueLetters(); let L = all.find(x => x.key === key && x.status !== 'sent');
+    const now = new Date().toISOString();
+    const intro = 'Thank you for the opportunity to review ' + (d.business || 'your business') + '. Based on our review of the space, the buildout, the furniture, fixtures and equipment that convey, and current conditions in the ' + (d.market || 'local') + ' market for second-generation restaurant space, our opinion of the value of the space and assets is:';
+    const base = { key, personId: d.contactPersonId || '', business: d.business || '', address: String(spec.address || d.address || '').slice(0, 200), sellerName: (p && p.name) || d.contact || '', value: String(spec.askingPrice || ''), intro, basis: String(spec.valueReasoning || ''), signer: { name: u.name || '', title: u.title || '', email: u.email || '', phone: u.phone || '' }, updatedAt: now };
+    if (L) { Object.assign(L, base, { status: 'draft', approvedBy: '', approvedAt: '', pdfAt: '' }); }
+    else { L = Object.assign({ id: 'vl_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), createdAt: now, createdBy: (req.user && req.user.username) || '', createdByName: (req.user && req.user.name) || '', status: 'draft' }, base); all.push(L); }
+    saveValueLetters(all);
+    res.json({ ok: true, letter: _vlOut(L, req) });
+  } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+app.post('/api/value-letter/:id/save', express.json({ limit: '64kb' }), (req, res) => {
+  const all = loadValueLetters(); const L = all.find(x => x.id === req.params.id); if (!L) return res.status(404).json({ ok: false, error: 'Not found.' });
+  if (!_vlOwns(req, L)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  if (L.status === 'sent') return res.status(400).json({ ok: false, error: 'Already sent — create a new letter instead.' });
+  const b = req.body || {};
+  ['value', 'intro', 'basis', 'sellerName', 'address'].forEach(k => { if (typeof b[k] === 'string') L[k] = b[k].slice(0, k === 'basis' || k === 'intro' ? 4000 : 200); });
+  L.status = 'draft'; L.approvedBy = ''; L.approvedAt = ''; L.pdfAt = ''; L.updatedAt = new Date().toISOString();   // any edit needs a fresh approval
+  saveValueLetters(all); res.json({ ok: true, letter: _vlOut(L, req) });
+});
+app.post('/api/value-letter/:id/submit', express.json(), (req, res) => {
+  const all = loadValueLetters(); const L = all.find(x => x.id === req.params.id); if (!L) return res.status(404).json({ ok: false, error: 'Not found.' });
+  if (!_vlOwns(req, L)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  L.status = 'pending'; L.submittedAt = new Date().toISOString(); saveValueLetters(all);
+  try {
+    const origin = req.protocol + '://' + req.get('host');
+    const admins = (auth.loadUsers() || []).filter(u => isSuper(u) && u.email && u.username !== (req.user && req.user.username));
+    const link = L.personId ? (origin + '/rrg_person.html?id=' + L.personId) : origin;
+    admins.forEach(a => { const p = sendMailWL({ from: mailFrom(), to: a.email, subject: 'Approval needed: opinion of value — ' + (L.business || ''), text: ((req.user && req.user.name) || 'A rep') + ' submitted an opinion of value letter for ' + (L.business || 'a listing') + ' (' + (L.value || '') + ') for your approval before it goes to the client.\n\n' + link + '\n\nOpen the contact → Biz Seller Actions → Valuation → Opinion of value letter.' }); if (p && p.catch) p.catch(() => {}); });
+  } catch (e) {}
+  res.json({ ok: true, letter: _vlOut(L, req) });
+});
+app.post('/api/value-letter/:id/approve', express.json(), async (req, res) => {
+  if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Only a broker (admin) can approve.' });
+  const all = loadValueLetters(); const L = all.find(x => x.id === req.params.id); if (!L) return res.status(404).json({ ok: false, error: 'Not found.' });
+  if (req.body && req.body.sendBack) { L.status = 'draft'; L.returnNote = String(req.body.note || '').slice(0, 1000); L.updatedAt = new Date().toISOString(); saveValueLetters(all); return res.json({ ok: true, letter: _vlOut(L, req) }); }
+  L.status = 'approved'; L.approvedBy = req.user.name || req.user.username; L.approvedAt = new Date().toISOString();
+  try { const pdf = await _htmlToPdf(valueLetterHtml(L)); binWrite(_vlPdfPath(L.id), pdf); L.pdfAt = new Date().toISOString(); } catch (e) { console.error('value letter pdf:', e && e.message); }
+  saveValueLetters(all);
+  try { if (L.personId) { const ppl = loadPeople(); const p = ppl.find(x => x.id === L.personId); if (p) { logActivity(p, 'Note', 'Opinion of value letter approved by ' + L.approvedBy + ' — ' + (L.value || ''), { by: req.user.name || '', byUser: req.user.username || '' }); savePeople(ppl); } } } catch (e) {}
+  res.json({ ok: true, letter: _vlOut(L, req) });
+});
+app.get('/api/value-letter/:id/view', (req, res) => {
+  const L = loadValueLetters().find(x => x.id === req.params.id); if (!L) return res.status(404).send('Not found.');
+  res.set('Content-Type', 'text/html; charset=utf-8').send(valueLetterHtml(L));
+});
+app.get('/api/value-letter/:id/pdf', (req, res) => {
+  const L = loadValueLetters().find(x => x.id === req.params.id); if (!L || !L.pdfAt) return res.status(404).send('Not found.');
+  res.set('Content-Type', 'application/pdf'); res.set('Content-Disposition', 'inline; filename="Opinion of Value - ' + String(L.business || 'Listing').replace(/[^\w .&-]/g, '') + '.pdf"');
+  try { res.send(fs.readFileSync(_vlPdfPath(L.id))); } catch (e) { res.status(404).send('Not found.'); }
+});
+app.post('/api/value-letter/:id/email', express.json(), async (req, res) => {
+  try {
+    const all = loadValueLetters(); const L = all.find(x => x.id === req.params.id); if (!L) return res.status(404).json({ ok: false, error: 'Not found.' });
+    if (!_vlOwns(req, L)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+    if (L.status !== 'approved' && L.status !== 'sent') return res.status(400).json({ ok: false, error: 'A broker must approve this letter before it goes to the client.' });
+    const to = String((req.body && req.body.to) || '').trim(); if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return res.status(400).json({ ok: false, error: 'Enter a valid email address.' });
+    if (!L.pdfAt) { const pdf = await _htmlToPdf(valueLetterHtml(L)); binWrite(_vlPdfPath(L.id), pdf); L.pdfAt = new Date().toISOString(); }
+    const first = String(L.sellerName || '').trim().split(/\s+/)[0] || 'there'; const me = (req.user && req.user.name) || orgDisplayName();
+    const text = 'Hi ' + first + ',\n\nAttached is our opinion of value for ' + (L.business || 'the space and assets') + '. Let\'s find a time to walk through it together and agree on an asking price.\n\n' + me + '\n' + orgDisplayName();
+    await sendMailWL({ from: mailFrom(), to, subject: 'Opinion of value — ' + (L.business || ''), text, html: '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.55;color:#1a2236">' + text.split('\n').map(x => x ? esc(x) : '').join('<br>') + '</div>', attachments: [{ filename: 'Opinion of Value - ' + String(L.business || 'Listing').replace(/[^\w .&-]/g, '') + '.pdf', path: _vlPdfPath(L.id) }] });
+    L.status = 'sent'; L.sentAt = new Date().toISOString(); L.sentTo = to; saveValueLetters(all);
+    try { if (L.personId) { const ppl = loadPeople(); const p = ppl.find(x => x.id === L.personId); if (p) { logActivity(p, 'Email', 'Opinion of value letter emailed to ' + to + ' — ' + (L.value || ''), { by: me, byUser: (req.user && req.user.username) || '' }); savePeople(ppl); } } } catch (e) {}
+    res.json({ ok: true, letter: _vlOut(L, req) });
+  } catch (e) { console.error('value letter email:', e && e.message); res.status(502).json({ ok: false, error: 'Could not send the email.' }); }
+});
 app.get('/api/asset-spec', (req, res) => {
   try {
     const { d } = _dealByAnyKey(req.query && req.query.key);
