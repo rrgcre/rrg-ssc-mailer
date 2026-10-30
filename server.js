@@ -19780,7 +19780,7 @@ function valueLetterHtml(L) {
   const dt = new Date(L.approvedAt || L.updatedAt || L.createdAt || Date.now()).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   const s = L.signer || {};
   return '<!doctype html><html><head><meta charset="utf-8"><title>Opinion of Value — ' + esc(L.business || '') + '</title><style>'
-    + '@page{size:Letter;margin:0.8in 0.9in}*{box-sizing:border-box}body{font:12pt/1.55 Georgia,"Times New Roman",serif;color:#1a2236;margin:0}'
+    + '@page{size:Letter;margin:0.8in 0.9in}*{box-sizing:border-box}body{font:12pt/1.55 Georgia,"Times New Roman",serif;color:#1a2236;margin:0}@media screen{html{background:#eef1f6}body{background:#fff;max-width:8.5in;margin:0 auto;padding:0.8in 0.9in;min-height:11in}}'
     + '.lh{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #000E31;padding-bottom:10px;margin-bottom:26px}.lh img{max-height:54px;max-width:220px}.lh .org{font:700 15px Arial,sans-serif;color:#000E31}.lh .ad{font:10px/1.5 Arial,sans-serif;color:#6b7488;text-align:right}'
     + 'h1{font:700 13px Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#000E31;margin:22px 0 4px}.re{margin:0 0 18px}.val{font:700 24px Arial,sans-serif;color:#000E31;margin:4px 0 18px}'
     + 'h2{font:700 11px Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#2c5c8f;margin:20px 0 6px}p{margin:0 0 10px}'
@@ -19830,7 +19830,7 @@ app.post('/api/value-letter/:id/polish', express.json({ limit: '64kb' }), async 
   const all = loadValueLetters(); const L = all.find(x => x.id === req.params.id); if (!L) return res.status(404).json({ ok: false, error: 'Not found.' });
   if (!_vlOwns(req, L)) return res.status(403).json({ ok: false, error: 'Not yours.' });
   const txt = String((req.body && req.body.basis) || L.basis || '').trim(); if (!txt) return res.status(400).json({ ok: false, error: 'Nothing to clean up yet.' });
-  try { const out = await aiassist.polishValueBasis({ basis: txt, business: L.business, market: '', value: L.value }); res.json({ ok: true, basis: out || txt }); }
+  try { const out = await aiassist.polishValueBasis({ basis: txt, business: L.business, market: '', value: L.value }); if (!L.basisRaw) { L.basisRaw = txt; saveValueLetters(all); } res.json({ ok: true, basis: out || txt }); }
   catch (e) { res.status(502).json({ ok: false, error: String((e && e.message) || 'AI unavailable') }); }
 });
 app.post('/api/value-letter/:id/save', express.json({ limit: '64kb' }), (req, res) => {

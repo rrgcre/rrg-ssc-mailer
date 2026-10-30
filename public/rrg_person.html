@@ -2569,6 +2569,7 @@ load();
       }
       h+='<div data-m="1" style="margin-top:10px;font-weight:600;font-size:12.5px"></div>';
       B.innerHTML=h;
+      if(L.status==='draft' && !L.basisRaw && String(L.basis||'').trim() && !render._auto){ render._auto=1; var ta=B.querySelector('[data-f="basis"]'); msg('Cleaning up your reasoning…'); post('/api/value-letter/'+L.id+'/polish',{basis:L.basis}).then(function(j){ if(j&&j.ok&&ta){ ta.value=j.basis; L.basisRaw=L.basis; msg('Cleaned up by AI. Review it, then Save.'); } else msg((j&&j.error)||'AI cleanup unavailable; showing your notes as typed.',1); }); }
     }
     var CUR=null, CAN=false;
     function load(){ fetch('/api/value-letter?key='+encodeURIComponent(k),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ CUR=j.letter; CAN=!!j.canApprove; render(CUR,CAN); }).catch(function(){ B.textContent='Could not reach the server.'; }); }
