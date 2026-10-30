@@ -174,7 +174,7 @@ function brandLogoLightObj() { try { const b = loadBrand(); if (b.logoLightExt) 
 // URL for the light logo (cache-busted). Empty only when neither a light nor a main logo exists.
 function brandLogoLightUrl() { const b = loadBrand(); if (b.logoLightExt) return '/api/brand/logo/light?v=' + encodeURIComponent(b.logoLightUpdatedAt || b.updatedAt || ''); if (b.logoExt) return '/api/brand/logo?v=' + encodeURIComponent(b.updatedAt || ''); return ''; }
 // Brokerage / organization profile — legal name, address, contact — used for white-label documents.
-function effOrg() { const b = loadBrand(); const o = (b && b.org) || {}; return { name: o.name || '', legalName: o.legalName || '', address: o.address || '', city: o.city || '', state: o.state || '', zip: o.zip || '', phone: o.phone || '', email: o.email || '', website: o.website || '', license: o.license || '', ein: o.ein || '' }; }
+function effOrg() { const b = loadBrand(); const o = (b && b.org) || {}; return { name: o.name || '', legalName: o.legalName || '', address: o.address || '', city: o.city || '', state: o.state || '', zip: o.zip || '', phone: o.phone || '', email: o.email || '', website: o.website || '', license: o.license || '', ein: o.ein || '', currency: (/^[A-Z]{3}$/.test(String(o.currency || '')) ? o.currency : 'USD') }; }
 function orgOneLine() { const o = effOrg(); const loc = [o.city, o.state].filter(Boolean).join(', ') + (o.zip ? (' ' + o.zip) : ''); return [o.name || o.legalName, o.address, loc, o.phone].filter(Boolean).join(' · '); }
 function orgDisplayName() { const o = effOrg(); return o.name || o.legalName || loadAppName(); }
 function orgLegalName() { const o = effOrg(); return o.legalName || o.name || loadAppName(); }
@@ -4346,7 +4346,8 @@ app.get('/api/admin/org', requireAdmin, (req, res) => res.json({ ok: true, org: 
 app.post('/api/admin/org', requireAdmin, express.json(), (req, res) => {
   const b = loadBrand(); const x = req.body || {}; const S = (v, n) => String(v == null ? '' : v).trim().slice(0, n);
   // Merge: only fields sent are changed, so a screen that doesn't show a field (e.g. EIN) can never blank it.
-  const LIM = { name: 120, legalName: 160, address: 200, city: 80, state: 20, zip: 20, phone: 40, email: 160, website: 200, license: 60, ein: 40 };
+  const LIM = { name: 120, legalName: 160, address: 200, city: 80, state: 20, zip: 20, phone: 40, email: 160, website: 200, license: 60, ein: 40, currency: 3 };
+  if (x.currency !== undefined) x.currency = String(x.currency || '').toUpperCase().replace(/[^A-Z]/g, '');
   const cur = (b.org && typeof b.org === 'object') ? b.org : {}; const next = {};
   Object.keys(LIM).forEach(k => { next[k] = (x[k] !== undefined) ? S(x[k], LIM[k]) : S(cur[k], LIM[k]); });
   b.org = next;
@@ -19772,6 +19773,9 @@ function _vlUser(username) { try { return (auth.loadUsers() || []).find(u => u.u
 function _vlLogoDataUri() {
   try { const b = loadBrand(); const ext = b.logoLightExt || b.logoExt; if (!ext) return ''; const fn = b.logoLightExt ? ('brand_logo_light.' + ext) : ('brand_logo.' + ext); const buf = fs.readFileSync(path.join(BOV_DATA_DIR, fn)); const mime = (b.logoLightExt ? b.logoLightType : b.logoType) || LOGO_MIME[ext] || 'image/png'; return 'data:' + mime + ';base64,' + buf.toString('base64'); } catch (e) { return ''; }
 }
+// Firm currency (Brokerage Info) — one formatter so money reads the same everywhere it's used.
+function orgMoney(v) { const t = String(v == null ? '' : v).trim(); if (!t) return ''; const n = t.replace(/[^0-9.\-]/g, ''); if (/[a-z]/i.test(t) || !/^-?\d+(\.\d+)?$/.test(n)) return t; const x = Number(n); const cur = effOrg().currency || 'USD'; try { return new Intl.NumberFormat('en-US', { style: 'currency', currency: cur, minimumFractionDigits: (x % 1 ? 2 : 0), maximumFractionDigits: 2 }).format(x); } catch (e) { return '$' + x.toLocaleString('en-US'); } }
+function _vlMoney(v) { return orgMoney(v); }
 function _vlParas(t) { return String(t || '').trim().split(/\n\s*\n|\n/).map(x => x.trim()).filter(Boolean).map(x => '<p>' + esc(x) + '</p>').join(''); }
 function valueLetterHtml(L) {
   const o = effOrg(); const org = o.name || orgDisplayName();
@@ -19790,7 +19794,7 @@ function valueLetterHtml(L) {
     + '<div>' + esc(dt) + '</div><div style="margin-top:14px">' + esc(L.sellerName || '') + (L.sellerName ? '<br>' : '') + esc(L.business || '') + (L.address ? ('<br>' + esc(L.address)) : '') + '</div>'
     + '<h1>Opinion of Value</h1><div class="re">Re: ' + esc(L.business || 'The business') + ' — space &amp; assets</div>'
     + (L.intro ? _vlParas(L.intro) : '')
-    + '<div class="val">' + esc(L.value || '') + '</div>'
+    + '<div class="val">' + esc(_vlMoney(L.value)) + '</div>'
     + (L.basis ? ('<h2>Basis for this opinion</h2>' + _vlParas(L.basis)) : '')
     + '<div class="trec">' + esc(TREC_ESTIMATE_STATEMENT) + '</div>'
     + '<div class="sig">Respectfully,<br><br><div class="nm">' + esc(s.name || '') + '</div>' + (s.title ? (esc(s.title) + '<br>') : '') + esc(o.legalName || org) + (s.email ? ('<br>' + esc(s.email)) : '') + (s.phone ? (' · ' + esc(s.phone)) : '') + '<br><span style="font-size:10pt;color:#6b7488">Submitted on behalf of ' + esc(o.legalName || org) + (o.license ? (', TREC License #' + esc(o.license)) : '') + '.</span></div>'
@@ -19814,11 +19818,11 @@ app.post('/api/value-letter/draft', express.json(), async (req, res) => {
     const u = _vlUser(req.user && req.user.username) || req.user || {};
     const all = loadValueLetters(); let L = all.find(x => x.key === key && x.status !== 'sent');
     const now = new Date().toISOString();
-    const intro = 'Thank you for the opportunity to review ' + (d.business || 'your business') + '. Based on our review of the space, the buildout, the furniture, fixtures and equipment that convey, and current conditions in the ' + (d.market || 'local') + ' market for second-generation restaurant space, our opinion of the value of the space and assets is:';
+    const intro = 'Thank you for the opportunity to review ' + (d.business || 'your business') + '. Based on our review of the financial statements, the business\u2019s current earnings do not support a valuation based on a multiple of cash flow, so we have valued it as an asset sale. Our opinion reflects the value of the space, the buildout, the furniture, fixtures and equipment that convey, and the transferable rights, in light of current conditions in the ' + (d.market || 'local') + ' market for second-generation restaurant space. Our opinion of the value of the space and assets is:';
     const _raw = String(spec.valueReasoning || '');
     let _basis = _raw, _aiNote = '';
     if (_raw.trim()) { try { _basis = (await aiassist.polishValueBasis({ basis: _raw, business: d.business || '', market: d.market || '', value: spec.askingPrice || '' })) || _raw; } catch (e) { _aiNote = 'AI cleanup was unavailable, so your notes are shown as typed.'; } }
-    const base = { key, personId: d.contactPersonId || '', business: d.business || '', address: String(spec.address || d.address || '').slice(0, 200), sellerName: (p && p.name) || d.contact || '', value: String(spec.askingPrice || ''), intro, basisRaw: _raw, basis: _basis, signer: { name: u.name || '', title: u.title || '', email: u.email || '', phone: u.phone || '' }, updatedAt: now };
+    const base = { key, personId: d.contactPersonId || '', business: d.business || '', address: String(spec.address || d.address || '').slice(0, 200), sellerName: (p && p.name) || d.contact || '', value: _vlMoney(spec.askingPrice), intro, basisRaw: _raw, basis: _basis, signer: { name: u.name || '', title: u.title || '', email: u.email || '', phone: u.phone || '' }, updatedAt: now };
     if (L) { Object.assign(L, base, { status: 'draft', approvedBy: '', approvedAt: '', pdfAt: '' }); }
     else { L = Object.assign({ id: 'vl_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), createdAt: now, createdBy: (req.user && req.user.username) || '', createdByName: (req.user && req.user.name) || '', status: 'draft' }, base); all.push(L); }
     saveValueLetters(all);
@@ -19838,7 +19842,7 @@ app.post('/api/value-letter/:id/save', express.json({ limit: '64kb' }), (req, re
   if (!_vlOwns(req, L)) return res.status(403).json({ ok: false, error: 'Not yours.' });
   if (L.status === 'sent') return res.status(400).json({ ok: false, error: 'Already sent — create a new letter instead.' });
   const b = req.body || {};
-  ['value', 'intro', 'basis', 'sellerName', 'address'].forEach(k => { if (typeof b[k] === 'string') L[k] = b[k].slice(0, k === 'basis' || k === 'intro' ? 4000 : 200); });
+  ['value', 'intro', 'basis', 'sellerName', 'address'].forEach(k => { if (typeof b[k] === 'string') L[k] = b[k].slice(0, k === 'basis' || k === 'intro' ? 4000 : 200); }); L.value = _vlMoney(L.value);
   L.status = 'draft'; L.approvedBy = ''; L.approvedAt = ''; L.pdfAt = ''; L.updatedAt = new Date().toISOString();   // any edit needs a fresh approval
   saveValueLetters(all); res.json({ ok: true, letter: _vlOut(L, req) });
 });
