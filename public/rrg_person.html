@@ -2511,6 +2511,8 @@ load();
       }).catch(function(){ m.style.color='#DA2B1F'; m.textContent='Could not reach the server.'; });
     });
   }
+  function _activeValueLetter(){ try{ var k=_actKey(); var d=(DEALS||[]).filter(function(x){ return x&&x.key===k; })[0]; return (d&&d.valueLetter)||''; }catch(_){ return ''; } }
+  function _fmtMoney(v){ var n=String(v||'').replace(/[^0-9.]/g,''); return n?('$'+Number(n).toLocaleString('en-US')):String(v||''); }
   function _activeAssetAsking(){ try{ var k=_actKey(); var d=(DEALS||[]).filter(function(x){ return x&&x.key===k; })[0]; return (d&&d.assetAsking)||''; }catch(_){ return ''; } }
   // Asset sale pricing in one small window: the handful of inputs that set the number.
   function _assetPrice(){
@@ -2545,7 +2547,7 @@ load();
       +'<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid #e6e9f0"><b style="font-size:13px;letter-spacing:.04em;text-transform:uppercase">Opinion of value letter</b><button type="button" data-x="1" style="background:none;border:0;font-size:20px;cursor:pointer;color:#6b7488">&times;</button></div>'
       +'<div data-b="1" style="padding:16px 18px;overflow:auto">Loading…</div></div>';
     document.body.appendChild(ov);
-    var B=ov.querySelector('[data-b]'); var close=function(){ ov.remove(); };
+    var B=ov.querySelector('[data-b]'); var close=function(){ ov.remove(); try{ if(CUR) (DEALS||[]).forEach(function(d){ if(d&&d.key===k) d.valueLetter=CUR.status; }); }catch(_){} try{ applyLane(); }catch(_){} try{ refreshValuation(); }catch(_){} };
     ov.addEventListener('click',function(e){ if(e.target===ov||e.target.closest('[data-x]')) close(); });
     var post=function(u,b){ return fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(b||{})}).then(function(r){return r.json();}); };
     var em=(typeof P!=='undefined'&&P&&(P.email||(P.emails&&P.emails[0])))||'';
@@ -2650,7 +2652,8 @@ load();
     // The space-intake step is the reverse — asset lane only.
     var as=_rrgActById('assetSpace'); if(as) as.style.display=asset?'':'none';
     var vlt=_rrgActById('valLetter'); if(vlt){ vlt.style.display=(asset&&_activeAssetAsking())?'':'none'; }
-    var av=_rrgActById('assetVal'); if(av){ av.style.display=asset?'':'none'; if(asset){ var _aa=_activeAssetAsking(); _rrgSetDone(av, !!_aa, _aa?('Opinion of value '+_aa):''); } }
+    var av=_rrgActById('assetVal'); if(av){ av.style.display=asset?'':'none'; if(asset){ var _aa=_activeAssetAsking(); _rrgSetDone(av, !!_aa, _aa?('Opinion of value '+_fmtMoney(_aa)):''); }
+    var vlt2=_rrgActById('valLetter'); if(vlt2 && asset){ var _vs=_activeValueLetter(); var _vm={draft:'Draft — finish it and submit for approval',pending:'Waiting for broker approval',approved:'Approved — ready to send to the client',sent:'Sent to the client'}; if(_vs==='sent'||_vs==='approved') _rrgSetDone(vlt2,true,_vm[_vs]); else { _rrgSetDone(vlt2,false); _rrgSetGate(vlt2,false,_vm[_vs]||'Create it, get broker approval, send to the client'); }  } }
     var ob2=_rrgActById('openBov'), oc2=_rrgActById('openCim'); if(asset){ if(ob2) ob2.style.display='none'; if(oc2) oc2.style.display='none'; } else { if(oc2) oc2.style.display=''; if(ob2) ob2.style.display=((window.__rrgVal||{}).bovId)?'':'none'; } var bb=document.getElementById('rrgTopBov'), cb=document.getElementById('rrgTopCim'); if(bb) bb.style.display=asset?'none':'inline-flex'; if(cb) cb.style.display=asset?'none':'inline-flex';
     if(asset){
       // None of the going-concern gates apply on the space lane — clear them so the steps work.
@@ -2729,7 +2732,7 @@ load();
       _rrgSetHeadDone('data', !!j.financials);
       try{ var _eLD=_rrgActById('laneDecide'); if(_eLD && !_eLD.classList.contains('rrgactdoneflag')) _rrgSetGate(_eLD, !j.financials, j.financials?'':'Upload the financials first'); _rrgLaneMark(); }catch(_){}
       _rrgSetHeadDone('interview', _ivSettled);
-      _rrgSetHeadDone('valuation', (_activeLane()==='asset') ? !!_activeAssetAsking() : !!j.bovId);
+      _rrgSetHeadDone('valuation', (_activeLane()==='asset') ? (function(){ var st=_activeValueLetter(); return st==='approved'||st==='sent'; })() : !!j.bovId);
       _rrgSetHeadDone('align', _laDone);
       _rrgTidyHeads();
       try{ applyLane(); }catch(_){}
