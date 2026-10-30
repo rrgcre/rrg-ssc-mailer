@@ -196,7 +196,7 @@ input.f:disabled{background:var(--wash);color:var(--soft);}
     </div>
     <div class="sigbox" id="sigBox" contenteditable="true" data-ph="Best regards, Your Name — Your Brokerage"></div>
     <div class="sighint" id="sigHint"></div>
-    <div style="margin-top:12px"><button class="save" id="saveSig" onclick="saveSig()">Save signature</button><span class="msg" id="sigmsg"></span></div>
+    <div style="margin-top:12px"><button class="save" id="saveSig" onclick="saveSig()">Save signature</button> <button class="save" type="button" style="background:#fff;color:#000E31;border:1px solid #c4ccda" onclick="sigFromGmail()">Use my Gmail signature</button><span class="msg" id="sigmsg"></span></div>
   </div>
 
   <div class="card" data-atab="profile">
@@ -341,6 +341,7 @@ function sigInsertLogo(inp){
   rd.readAsDataURL(f);
 }
 function sigSize(){ var n=($('sigBox').innerHTML||'').length; $('sigHint').textContent=n>1200?(Math.round(n/1024)+' KB'):''; }
+function sigFromGmail(){ var m=$('sigmsg'); m.textContent='Reading your Gmail signature…'; fetch(API+'/api/me/signature/from-gmail',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ $('sigBox').innerHTML=j.signature||''; try{ sigSize(); }catch(e){} m.textContent='Imported from Gmail'+(j.from?(' ('+j.from+')'):'')+' and saved ✓'; } else m.textContent=(j&&j.error)||'Could not read your Gmail signature.'; }).catch(function(){ m.textContent='Could not reach the server.'; }); }
 function loadSig(){ fetch(API+'/api/me/signature').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ $('sigBox').innerHTML=j.signature||''; sigSize(); } }).catch(function(){}); }
 function saveSig(){
   var html=$('sigBox').innerHTML;

@@ -2568,15 +2568,20 @@ load();
           +(canApprove?('<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+btn('approve','Approve',1)+btn('sendback','Send back')+'</div>'):'<div style="color:#5a6478">A broker has been emailed to review and approve it. You can send it to the client once it’s approved.</div>');
       } else {
         h+='<iframe src="'+esc(L.pdfUrl||L.viewUrl)+'" style="width:100%;height:420px;border:1px solid #e6e9f0;border-radius:6px;margin-bottom:12px"></iframe>'
-          +'<label style="display:block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8;margin-bottom:5px">Email it to the client</label><div style="display:flex;gap:8px"><input data-to="1" value="'+esc(L.sentTo||em)+'" style="flex:1;min-width:0;border:1px solid #c4ccda;border-radius:6px;padding:8px 10px;font:inherit">'+btn('email',L.status==='sent'?'Send again':'Send',1)+'</div>'
+          +'<div style="border-top:1px solid #e6e9f0;padding-top:12px"><b style="font-size:12px;letter-spacing:.05em;text-transform:uppercase">Email it to the client</b></div>'
+          +'<label style="display:block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8;margin:10px 0 5px">To</label><input data-to="1" value="'+esc(L.sentTo||em)+'" style="width:100%;border:1px solid #c4ccda;border-radius:6px;padding:8px 10px;font:inherit">'
+          +'<label style="display:block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8;margin:10px 0 5px">Subject</label><input data-subj="1" value="'+esc((EMAIL&&EMAIL.subject)||'')+'" style="width:100%;border:1px solid #c4ccda;border-radius:6px;padding:8px 10px;font:inherit">'
+          +'<label style="display:block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8;margin:10px 0 5px">Message</label><textarea data-msgbody="1" rows="9" style="width:100%;border:1px solid #c4ccda;border-radius:6px;padding:8px 10px;font:inherit;resize:vertical">'+esc((EMAIL&&EMAIL.text)||'')+'</textarea>'
+          +'<div style="font-size:12px;color:#8a93a8;margin:6px 0 10px">The PDF is attached and your email signature is added below the message'+((EMAIL&&EMAIL.sigHtml)?'':' (none set yet: add it in Account, or import it from Gmail)')+'. The starting text comes from Marketing \u2192 Email Templates \u2192 \u201cOpinion of value letter\u201d.</div>'
+          +'<div>'+btn('email',L.status==='sent'?'Send again':'Send',1)+'</div>'
           +'<div style="margin-top:10px;display:flex;gap:14px">'+(L.pdfUrl?'<a href="'+esc(L.pdfUrl)+'" target="_blank" rel="noopener" style="color:#2c5c8f;font-weight:600">Open the PDF</a>':'')+'<a href="#" data-a="redo" style="color:#6b7488">Start a new version</a></div>';
       }
       h+='<div data-m="1" style="margin-top:10px;font-weight:600;font-size:12.5px"></div>';
       B.innerHTML=h;
       if(L.status==='draft' && !L.basisRaw && String(L.basis||'').trim() && !render._auto){ render._auto=1; var ta=B.querySelector('[data-f="basis"]'); msg('Cleaning up your reasoning…'); post('/api/value-letter/'+L.id+'/polish',{basis:L.basis}).then(function(j){ if(j&&j.ok&&ta){ ta.value=j.basis; L.basisRaw=L.basis; msg('Cleaned up by AI. Review it, then Save.'); } else msg((j&&j.error)||'AI cleanup unavailable; showing your notes as typed.',1); }); }
     }
-    var CUR=null, CAN=false;
-    function load(){ fetch('/api/value-letter?key='+encodeURIComponent(k),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ CUR=j.letter; CAN=!!j.canApprove; render(CUR,CAN); }).catch(function(){ B.textContent='Could not reach the server.'; }); }
+    var CUR=null, CAN=false, EMAIL=null;
+    function load(){ fetch('/api/value-letter?key='+encodeURIComponent(k),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ CUR=j.letter; CAN=!!j.canApprove; EMAIL=j.email||null; render(CUR,CAN); }).catch(function(){ B.textContent='Could not reach the server.'; }); }
     function msg(t,bad){ var m=B.querySelector('[data-m]'); if(m){ m.style.color=bad?'#DA2B1F':'#6b7488'; m.textContent=t; } }
     function done(j){ if(!j||j.ok===false){ msg((j&&j.error)||'Something went wrong.',1); return; } CUR=j.letter; render(CUR,CAN); }
     function fields(){ var o={}; Array.prototype.forEach.call(B.querySelectorAll('[data-f]'),function(el){ o[el.getAttribute('data-f')]=el.value; }); return o; }
@@ -2586,9 +2591,9 @@ load();
       else if(act==='save'){ msg('Saving…'); post('/api/value-letter/'+CUR.id+'/save',fields()).then(function(j){ done(j); msg('Saved.'); }); }
       else if(act==='preview'){ post('/api/value-letter/'+CUR.id+'/save',fields()).then(function(j){ done(j); if(j&&j.letter) window.open(j.letter.viewUrl,'_blank'); }); }
       else if(act==='submit'){ msg('Submitting…'); post('/api/value-letter/'+CUR.id+'/save',fields()).then(function(){ return post('/api/value-letter/'+CUR.id+'/submit',{}); }).then(done); }
-      else if(act==='approve'){ msg('Approving and building the PDF…'); post('/api/value-letter/'+CUR.id+'/approve',{}).then(done); }
+      else if(act==='approve'){ msg('Approving and building the PDF…'); post('/api/value-letter/'+CUR.id+'/approve',{}).then(function(j){ if(j&&j.ok) load(); else done(j); }); }
       else if(act==='sendback'){ var n=prompt('What needs to change?')||''; post('/api/value-letter/'+CUR.id+'/approve',{sendBack:true,note:n}).then(done); }
-      else if(act==='email'){ var to=(B.querySelector('[data-to]')||{}).value||''; if(!confirm('Email the opinion of value letter to '+to+'?')) return; msg('Sending…'); post('/api/value-letter/'+CUR.id+'/email',{to:to}).then(function(j){ done(j); if(j&&j.ok) msg('Sent to '+to+' ✓'); }); }
+      else if(act==='email'){ var to=(B.querySelector('[data-to]')||{}).value||''; if(!confirm('Email the opinion of value letter to '+to+'?')) return; msg('Sending…'); post('/api/value-letter/'+CUR.id+'/email',{to:to,subject:(B.querySelector('[data-subj]')||{}).value||'',message:(B.querySelector('[data-msgbody]')||{}).value||''}).then(function(j){ done(j); if(j&&j.ok) msg('Sent to '+to+' ✓'); }); }
     });
     load();
   }

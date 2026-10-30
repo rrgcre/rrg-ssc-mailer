@@ -4066,6 +4066,17 @@ app.get('/api/me/signature', (req, res) => {
   try { res.json({ ok: true, signature: auth.getSignature(req.user.username) }); }
   catch (e) { res.status(400).json({ ok: false, error: String((e && e.message) || e) }); }
 });
+// Pull the signature the user already uses in Gmail (Settings → See all settings → Signature) into Lavano.
+app.post('/api/me/signature/from-gmail', express.json(), async (req, res) => {
+  try {
+    const u = req.user && req.user.username; if (!u) return res.status(401).json({ ok: false, error: 'Sign in first.' });
+    const j = await gmail.gapiJSON(u, 'https://gmail.googleapis.com/gmail/v1/users/me/settings/sendAs');
+    const list = (j && j.sendAs) || []; const pick = list.find(x => x.isPrimary && x.signature) || list.find(x => x.isDefault && x.signature) || list.find(x => x.signature);
+    if (!pick) return res.status(404).json({ ok: false, error: 'No signature found in your Gmail. Set one in Gmail → Settings → Signature, then try again.' });
+    const sig = auth.setSignature(u, pick.signature);
+    res.json({ ok: true, signature: sig, from: pick.sendAsEmail || '' });
+  } catch (e) { res.status(400).json({ ok: false, error: 'Couldn\u2019t read your Gmail signature. Make sure Gmail is connected in Account.' }); }
+});
 app.post('/api/me/signature', express.json({ limit: '2mb' }), (req, res) => {
   try { const sig = auth.setSignature(req.user.username, (req.body || {}).signature || ''); res.json({ ok: true, signature: sig }); }
   catch (e) { res.status(400).json({ ok: false, error: String((e && e.message) || e) }); }
@@ -12765,6 +12776,18 @@ const SENDBOV_TPL_BODY_PRIOR = [
   '<p>I’d like to set up a short call to walk you through it, answer your questions, and talk through your goals and timing. What does your week look like?</p>' +
   '<p>Best,<br>{{my_name}}</p>'
 ];
+const VALUELETTER_TPL_ID = 'etpl_value_letter';
+const VALUELETTER_TPL_SUBJECT = 'Opinion of value — {{listing_name}}';
+const VALUELETTER_TPL_BODY =
+  '<p>Hi {{first_name}},</p>' +
+  '<p>Thank you for the time you\u2019ve given us on {{listing_name}}. Attached is our opinion of value for the space and assets.</p>' +
+  '<p>It reflects our review of the financials, the space and buildout, the furniture, fixtures and equipment that convey, and what operators are currently paying for second-generation restaurant space in this market. The letter explains how we arrived at the number.</p>' +
+  '<p>I\u2019d like to walk you through it, answer any questions, and talk about pricing and next steps. Would a 20-minute call this week work for you?</p>' +
+  '<p>The letter is prepared for you and is confidential, so please don\u2019t forward it.</p>';
+function _seedValueLetter(a) {
+  if (!a.some(t => t.id === VALUELETTER_TPL_ID)) { const now = new Date().toISOString(); a.push({ id: VALUELETTER_TPL_ID, name: 'Opinion of value letter — send to seller', category: 'Seller', scope: 'shared', ownerUser: '', ownerName: 'RRG', greeting: 'none', subject: VALUELETTER_TPL_SUBJECT, body: VALUELETTER_TPL_BODY, createdAt: now, updatedAt: now, seeded: true }); try { writeJsonGuarded(EMAIL_TPL_FILE, a, 'seedValueLetter'); } catch (e) {} }
+  return a;
+}
 function _seedSendBov(a) {
   const t = a.find(x => x.id === SENDBOV_TPL_ID);
   if (!t) {
@@ -12983,7 +13006,7 @@ function _seedSscConfirm(a) {
   try { writeJsonGuarded(EMAIL_TPL_FILE, a, 'seedSscConfirm'); fs.writeFileSync(EMAIL_TPL_SSCCONFIRM_FLAG, JSON.stringify({ seededAt: new Date().toISOString() })); } catch (e) {}
   return a;
 }
-function loadEmailTpls() { try { return _seedSscConfirm(_seedMeetingInvite(_seedDataRoom(_seedRefIntro(_seedCimFollowup(_seedProofOfFunds(_seedSendBov(_retireBovVariants(_seedBrokerTemplates(_seedEmailTpls(rj(EMAIL_TPL_FILE) || [])))))))))); } catch (e) { return []; } }
+function loadEmailTpls() { try { return _seedValueLetter(_seedSscConfirm(_seedMeetingInvite(_seedDataRoom(_seedRefIntro(_seedCimFollowup(_seedProofOfFunds(_seedSendBov(_retireBovVariants(_seedBrokerTemplates(_seedEmailTpls(rj(EMAIL_TPL_FILE) || []))))))))))); } catch (e) { return []; } }
 // Which email template the "Send invite" button on a calendar event uses. Admin-chosen; defaults to the seeded meeting-invite template; '' means fall back to the built-in plain-text invite.
 function effMeetingInviteTplId() {
   try {
@@ -19777,6 +19800,13 @@ function _vlLogoDataUri() {
 function orgMoney(v) { const t = String(v == null ? '' : v).trim(); if (!t) return ''; const n = t.replace(/[^0-9.\-]/g, ''); if (/[a-z]/i.test(t) || !/^-?\d+(\.\d+)?$/.test(n)) return t; const x = Number(n); const cur = effOrg().currency || 'USD'; try { return new Intl.NumberFormat('en-US', { style: 'currency', currency: cur, minimumFractionDigits: (x % 1 ? 2 : 0), maximumFractionDigits: 2 }).format(x); } catch (e) { return '$' + x.toLocaleString('en-US'); } }
 function _vlMoney(v) { return orgMoney(v); }
 function _vlParas(t) { return String(t || '').trim().split(/\n\s*\n|\n/).map(x => x.trim()).filter(Boolean).map(x => '<p>' + esc(x) + '</p>').join(''); }
+// Property address for the letter: what's on the letter, else the listing's location, else the company's address.
+function _vlAddress(L) {
+  if (String(L.address || '').trim()) return L.address;
+  try { const ov = loadAssignOverlay()[L.key] || {}; const lo = ov.location || {}; if (String(lo.address || '').trim()) { const tail = [lo.city, [lo.state, lo.zip].filter(Boolean).join(' ')].filter(x => String(x || '').trim()).join(', '); return lo.address + (tail && lo.address.indexOf(lo.city || '~') < 0 ? (', ' + tail) : ''); } } catch (e) {}
+  try { const { d } = _dealByAnyKey(L.key); const c = d && d.companyId ? (loadCompanies().find(x => x.id === d.companyId) || null) : null; const a = c && (c.address || (c.office && c.office.address)); if (String(a || '').trim()) return a; } catch (e) {}
+  return '';
+}
 function valueLetterHtml(L) {
   const o = effOrg(); const org = o.name || orgDisplayName();
   const addr = [o.address, [o.city, o.state].filter(Boolean).join(', ') + (o.zip ? (' ' + o.zip) : '')].filter(x => String(x || '').trim()).join(' · ');
@@ -19791,7 +19821,7 @@ function valueLetterHtml(L) {
     + '.trec{margin-top:16px;border:1px solid #c4ccda;padding:8px 11px;font-size:12pt;line-height:1.4;page-break-inside:avoid}.sig{margin-top:16px;page-break-inside:avoid;break-inside:avoid}.sig .nm{font-weight:700;margin-top:22px}.ft{margin-top:14px;font:9px Arial,sans-serif;color:#98a1b5;page-break-inside:avoid}'
     + '</style></head><body>'
     + '<div class="lh"><div>' + (logo ? ('<img src="' + logo + '" alt="">') : ('<div class="org">' + esc(org) + '</div>')) + '</div><div class="ad">' + esc(o.legalName || org) + (addr ? ('<br>' + esc(addr)) : '') + (o.phone ? ('<br>' + esc(o.phone)) : '') + (o.license ? ('<br>TREC License #' + esc(o.license)) : '') + '</div></div>'
-    + '<div>' + esc(dt) + '</div><div style="margin-top:10px">' + esc(L.sellerName || '') + (L.sellerName ? '<br>' : '') + esc(L.business || '') + (L.address ? ('<br>' + esc(L.address)) : '') + '</div>'
+    + '<div>' + esc(dt) + '</div><div style="margin-top:10px">' + esc(L.sellerName || '') + (L.sellerName ? '<br>' : '') + esc(L.business || '') + (_vlAddress(L) ? ('<br>' + esc(_vlAddress(L))) : '') + '</div>'
     + '<h1>Opinion of Value</h1><div class="re">Re: ' + esc(L.business || 'The business') + ' — space &amp; assets</div>'
     + (L.intro ? _vlParas(L.intro) : '')
     + '<div class="val">' + esc(_vlMoney(L.value)) + '</div>'
@@ -19806,7 +19836,11 @@ function _vlOut(L, req) { return Object.assign({}, L, { canApprove: !!(req.user 
 function _vlOwns(req, L) { return !!(req.user && (isSuper(req.user) || L.createdBy === req.user.username)); }
 app.get('/api/value-letter', (req, res) => {
   const key = String(req.query.key || ''); const all = loadValueLetters().filter(x => x.key === key).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
-  const L = all[0]; res.json({ ok: true, letter: L ? _vlOut(L, req) : null, canApprove: !!(req.user && isSuper(req.user)) });
+  const L = all[0]; let email = null;
+  if (L) { try { const t = loadEmailTpls().find(x => x.id === VALUELETTER_TPL_ID) || { subject: VALUELETTER_TPL_SUBJECT, body: VALUELETTER_TPL_BODY }; const p0 = L.personId ? (loadPeople().find(x => x.id === L.personId) || {}) : {}; const p = Object.assign({}, p0, { _listing: { name: L.business || '', number: '' } }); const u = _vlUser(req.user && req.user.username) || req.user || {};
+    const html = mergeTokens(t.body || '', p, u); const text = String(html).replace(/<br\s*\/?>/gi, '\n').replace(/<\/p>\s*/gi, '\n\n').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+    email = { subject: mergeTokens(t.subject || '', p, u), text: text, sigHtml: userSignatureHtml(req.user && req.user.username, req.user) }; } catch (e) {} }
+  res.json({ ok: true, letter: L ? _vlOut(L, req) : null, email: email, canApprove: !!(req.user && isSuper(req.user)) });
 });
 app.post('/api/value-letter/draft', express.json(), async (req, res) => {
   try {
@@ -19872,8 +19906,9 @@ app.get('/api/value-letter/:id/view', (req, res) => {
   const L = loadValueLetters().find(x => x.id === req.params.id); if (!L) return res.status(404).send('Not found.');
   res.set('Content-Type', 'text/html; charset=utf-8').send(valueLetterHtml(L));
 });
-app.get('/api/value-letter/:id/pdf', (req, res) => {
+app.get('/api/value-letter/:id/pdf', async (req, res) => {
   const L = loadValueLetters().find(x => x.id === req.params.id); if (!L || !L.pdfAt) return res.status(404).send('Not found.');
+  try { binWrite(_vlPdfPath(L.id), await _htmlToPdf(valueLetterHtml(L))); } catch (e) { console.error('value letter pdf rebuild:', e && e.message); }   // always the current layout
   res.set('Content-Type', 'application/pdf'); res.set('Content-Disposition', 'inline; filename="Opinion of Value - ' + String(L.business || 'Listing').replace(/[^\w .&-]/g, '') + '.pdf"');
   try { res.send(fs.readFileSync(_vlPdfPath(L.id))); } catch (e) { res.status(404).send('Not found.'); }
 });
@@ -19883,10 +19918,14 @@ app.post('/api/value-letter/:id/email', express.json(), async (req, res) => {
     if (!_vlOwns(req, L)) return res.status(403).json({ ok: false, error: 'Not yours.' });
     if (L.status !== 'approved' && L.status !== 'sent') return res.status(400).json({ ok: false, error: 'A broker must approve this letter before it goes to the client.' });
     const to = String((req.body && req.body.to) || '').trim(); if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return res.status(400).json({ ok: false, error: 'Enter a valid email address.' });
-    if (!L.pdfAt) { const pdf = await _htmlToPdf(valueLetterHtml(L)); binWrite(_vlPdfPath(L.id), pdf); L.pdfAt = new Date().toISOString(); }
-    const first = String(L.sellerName || '').trim().split(/\s+/)[0] || 'there'; const me = (req.user && req.user.name) || orgDisplayName();
-    const text = 'Hi ' + first + ',\n\nAttached is our opinion of value for ' + (L.business || 'the space and assets') + '. Let\'s find a time to walk through it together and agree on an asking price.\n\n' + me + '\n' + orgDisplayName();
-    await sendMailWL({ from: mailFrom(), to, subject: 'Opinion of value — ' + (L.business || ''), text, html: '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.55;color:#1a2236">' + text.split('\n').map(x => x ? esc(x) : '').join('<br>') + '</div>', attachments: [{ filename: 'Opinion of Value - ' + String(L.business || 'Listing').replace(/[^\w .&-]/g, '') + '.pdf', path: _vlPdfPath(L.id) }] });
+    { const pdf = await _htmlToPdf(valueLetterHtml(L)); binWrite(_vlPdfPath(L.id), pdf); L.pdfAt = new Date().toISOString(); }   // rebuild at send so the client always gets the current layout
+    const me = (req.user && req.user.name) || orgDisplayName();
+    const subject = String((req.body && req.body.subject) || '').trim().slice(0, 300) || ('Opinion of value — ' + (L.business || ''));
+    const msg = String((req.body && req.body.message) || '').trim().slice(0, 8000) || ('Attached is our opinion of value for ' + (L.business || 'the space and assets') + '.');
+    const sigHtml = userSignatureHtml(req.user && req.user.username, req.user); const sigTxt = userSignatureText(req.user && req.user.username, req.user);
+    const text = msg + (sigTxt ? ('\n\n' + sigTxt) : '');
+    const html = '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.55;color:#1a2236">' + msg.split(/\n\s*\n/).map(pp => '<p style="margin:0 0 12px">' + esc(pp).replace(/\n/g, '<br>') + '</p>').join('') + '</div>' + (sigHtml || '');
+    await sendMailWL({ from: mailFrom(), to, subject, text, html, attachments: [{ filename: 'Opinion of Value - ' + String(L.business || 'Listing').replace(/[^\w .&-]/g, '') + '.pdf', path: _vlPdfPath(L.id) }] });
     L.status = 'sent'; L.sentAt = new Date().toISOString(); L.sentTo = to; saveValueLetters(all);
     try { if (L.personId) { const ppl = loadPeople(); const p = ppl.find(x => x.id === L.personId); if (p) { logActivity(p, 'Email', 'Opinion of value letter emailed to ' + to + ' — ' + (L.value || ''), { by: me, byUser: (req.user && req.user.username) || '' }); savePeople(ppl); } } } catch (e) {}
     res.json({ ok: true, letter: _vlOut(L, req) });
