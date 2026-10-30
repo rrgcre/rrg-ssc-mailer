@@ -14090,8 +14090,9 @@ const SELLER_LINK_EMAIL_DEFAULTS = {
   },
   seller: {
     subject: '{{org}} — tell us about {{business}}',
-    body: 'Hi,\n\nThanks for considering {{org}} to help with {{business}}. To get started, we’d like to learn a bit about your restaurant or bar — the concept, the numbers at a high level, your lease, and what you’re hoping to accomplish. It only takes a few minutes, and it helps us tell you exactly where you stand.\n\nUse whichever you prefer (or both):\n\n• Answer a short set of questions in writing: {{formUrl}}\n\n• Or just talk it through on a short video: {{videoUrl}}\n\nRough figures are fine, and everything is confidential — it goes only to your {{org}} representative. Prefer not to be on camera? Use the written version.\n\n— {{repName}}',
+    body: 'Hi,\n\nThanks for considering {{org}} to help with {{business}}. To get started, we’d like to learn a bit about your restaurant or bar — the concept, the numbers at a high level, your lease, and what you’re hoping to accomplish. It takes a few minutes and helps us tell you exactly where you stand:\n\n{{formUrl}}\n\nRough figures are fine, and everything is confidential — it goes only to your {{org}} representative. If it’s easier to talk it through, just reply and we’ll set up a quick call.\n\n— {{repName}}',
   },
+
 };
 // Admin-editable data-room access invite email. Placeholders: {{firstName}} {{business}}
 // {{link}} {{code}} {{repName}} {{org}} {{uploadNote}} {{mfaNote}}.
@@ -14650,7 +14651,7 @@ const SELLER_FORM_FIELDS = [
 // nothing from it goes to buyers. The buyer-facing owner video is its own step after the listing.
 const SELLER_LINK_KINDS = {
   valuation: { label: 'Seller Interview', noun: 'interview', slot: 'valuation', roomVisible: false, video: 'none' },
-  seller: { label: 'Seller Screening', noun: 'screening', slot: 'seller', roomVisible: false, video: 'both' },
+  seller: { label: 'Seller Screening', noun: 'screening', slot: 'seller', roomVisible: false, video: 'none' },
   ownervideo: { label: 'Owner Video', noun: 'owner video', slot: '', roomVisible: true, video: 'only' },
 };
 const OWNER_VIDEO_PROMPTS = [
@@ -14973,6 +14974,7 @@ app.post('/s/ssc/submit', express.json({ limit: '256kb' }), (req, res) => {
 });
 app.get('/s/video', (req, res) => {
   const rec = sellerLinkByToken(req.query.token); if (!rec) return res.status(404).json({ ok: false, error: 'This link is invalid or has expired.' });
+  if ((linkKindMeta(rec.kind).video || 'both') === 'none') return res.status(410).json({ ok: false, error: 'Video isn’t used at this stage. Please use the written questions your representative sent, or reply to their email to set up a quick call.' });
   const meta = linkKindMeta(rec.kind);
   res.json({ ok: true, business: sellerLinkBiz(rec), org: orgDisplayName(), kind: linkKind(rec.kind), label: meta.label, ready: s3Configured(), voice: effVoicePref(), questions: sellerInterviewFields(rec.kind).map(f => f.prompt) });
 });
