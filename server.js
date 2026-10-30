@@ -19725,6 +19725,7 @@ app.post('/api/deal/new', express.json(), (req, res) => {
 // ===== Space & Assets intake (the 'asset' sale lane) =====
 // Field -> max length. Kept flat so the intake page and the server agree by key.
 const ASSET_SPEC_FIELDS = {
+  valueReasoning: 3000,   // internal: the broker's reasoning behind the opinion of value (never on the buyer sheet)
   // Headline
   askingPrice: 60, conveys: 2000, reason: 300, availableDate: 60,
   // Lease (core)
