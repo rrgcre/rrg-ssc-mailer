@@ -93,6 +93,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .hlr{display:flex;align-items:center;gap:8px;margin-bottom:6px;} .hlb{color:var(--red);font-weight:900;width:10px;} .hlr input{flex:1;font:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--inp);border-radius:3px;} .hlr input:focus{outline:none;border-color:var(--primary);} .hlx{border:0;background:none;color:var(--soft);cursor:pointer;font-size:12px;padding:4px;} .hlx:hover{color:var(--red);}
 .stof{font-size:11px;color:var(--soft);font-weight:700;margin-right:8px;}
 .hlbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;} .nsb.ai{color:#5b3fa8;border-color:#cfc3ee;background:#faf8ff;} .nsb.ai:hover{border-color:#5b3fa8;} #hlMsg{font-size:12px;}
+.hvr{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:13px;} .fld .hvr input.oin{width:64px;font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--inp);border-radius:3px;text-align:center;} .hvr .ow{color:var(--muted);} .hvtot{font-size:12px;font-weight:700;color:var(--navy);margin-left:6px;} .lother.hid,.hid{display:none !important;}
 .gate{padding:50px 24px;text-align:center;color:var(--muted);font-size:14px;}
 .banner{border-radius:12px;padding:12px 16px;font-size:13px;font-weight:600;margin-bottom:16px;line-height:1.5;}
 .banner.done{background:#eaf7f0;border:1px solid #bfe6d0;color:#1a6e46;}
@@ -235,6 +236,21 @@ function wireHl(){ var host=document.getElementById('hlRows'); if(!host) return;
     }).catch(function(){ b.disabled=false; m.className='msg err'; m.textContent='Could not reach the server.'; }); };
   document.getElementById('hlAdd').onclick=function(){ var n=host.querySelectorAll('.hlr').length; if(n>=8) return; var d=document.createElement('div'); d.innerHTML=hlRow('',n); host.appendChild(d.firstChild); host.querySelectorAll('[data-hl]')[n].focus(); };
 }
+// HVAC: one row per unit size — [2] units × [7.5] tons each.
+function _hvacRows(){ var L=String(SPEC.hvacList||'').split(';').map(function(x){ var m=x.split('x'); return {u:(m[0]||'').trim(), t:(m[1]||'').trim()}; }).filter(function(r){ return r.u||r.t; });
+  if(!L.length && (SPEC.hvacUnits||SPEC.hvacTons)){ var u=+SPEC.hvacUnits||1, t=+SPEC.hvacTons||0; L=[{u:String(SPEC.hvacUnits||''), t:t?String(Math.round(t/u*10)/10):''}]; } return L.length?L:[{u:'',t:''}]; }
+function hvRow(r){ return '<div class="hvr"><input class="oin" data-hu="1" inputmode="numeric" value="'+esc(r.u)+'" placeholder="1"><span class="ow">unit(s) ×</span><input class="oin" data-ht="1" inputmode="decimal" value="'+esc(r.t)+'" placeholder="5"><span class="ow">tons each</span><button type="button" class="hlx" title="Remove">✕</button></div>'; }
+function hvacHtml(){ return '<div class="fld" data-fk="hvac"><label>HVAC</label><div id="hvRows">'+_hvacRows().map(hvRow).join('')+'</div><div class="hlbar"><button type="button" class="nsb" id="hvAdd">+ Add another size</button><span class="hvtot" id="hvTot"></span></div>'+((!SPEC.hvacList&&!SPEC.hvacUnits&&!SPEC.hvacTons&&SPEC.hvac)?'<div class="hint">Was typed as “'+esc(SPEC.hvac)+'”</div>':'')+'</div>'; }
+function hvacRead(){ var rows=[].slice.call(document.querySelectorAll('#hvRows .hvr')).map(function(r){ return {u:(r.querySelector('[data-hu]').value||'').replace(/[^0-9]/g,''), t:(r.querySelector('[data-ht]').value||'').replace(/[^0-9.]/g,'')}; }).filter(function(r){ return r.u||r.t; });
+  var units=0, tons=0; rows.forEach(function(r){ var u=+r.u||1; units+=u; tons+=u*(+r.t||0); }); tons=Math.round(tons*10)/10;
+  return { list: rows.map(function(r){ return (r.u||'1')+'x'+r.t; }).join(';'), units: units, tons: tons,
+    text: rows.length ? (units+' unit'+(units===1?'':'s')+(tons?(' · '+tons+' tons total'):'')+(rows.length>1||(+rows[0].u||1)>1 ? (' ('+rows.map(function(r){ return (r.u||'1')+' × '+(r.t||'?')+'-ton'; }).join(', ')+')') : '')) : '' }; }
+function wireHvac(){ var host=document.getElementById('hvRows'); if(!host) return;
+  var tot=function(){ var h=hvacRead(); var el=document.getElementById('hvTot'); if(el) el.textContent=h.units?('Total: '+h.units+' unit'+(h.units===1?'':'s')+(h.tons?(' · '+h.tons+' tons'):'')):''; };
+  host.addEventListener('input', function(){ tot(); markDirty(); });
+  host.addEventListener('click', function(e){ var x=e.target.closest('.hlx'); if(!x) return; var r=x.closest('.hvr'); if(host.querySelectorAll('.hvr').length>1) r.remove(); else r.querySelectorAll('input').forEach(function(i){ i.value=''; }); tot(); markDirty(); });
+  document.getElementById('hvAdd').onclick=function(){ var d=document.createElement('div'); d.innerHTML=hvRow({u:'',t:''}); host.appendChild(d.firstChild); host.querySelectorAll('[data-hu]')[host.querySelectorAll('.hvr').length-1].focus(); };
+  tot(); }
 var NUMW=['None','One','Two','Three','Four','Five'];
 function optsText(o){ o=o||SPEC; var c=String(o.optCount||''); if(c==='') return ''; if(c==='0') return 'No renewal options';
   var n=+c, y=String(o.optYears||'').trim(), t=(NUMW[n]||n)+' '+(y?(y+'-year '):'')+'renewal option'+(n===1?'':'s');
@@ -274,12 +290,14 @@ function fieldHtml(f){
   var lab='<label>'+esc(f.l)+(f.core?'<span class="dot">★</span>':'')+absTag+'</label>';
   var need=(f.core && !String(v).trim())?' need':'';
   if(f.date){ return '<div class="fld" data-fk="'+f.k+'">'+lab+'<div class="datef"><input type="text" data-k="'+f.k+'" value="'+esc(v)+'" placeholder="'+esc(f.ph||'')+'"><button type="button" class="cal" data-cal="'+f.k+'" title="Pick a date">📅</button><input type="date" data-calfor="'+f.k+'" tabindex="-1" aria-hidden="true"></div></div>'; }
-  if(f.hvac){ return '<div class="fld" data-fk="hvac"><label>HVAC</label><div class="optline"><input data-k="hvacUnits" class="oin" inputmode="numeric" value="'+esc(SPEC.hvacUnits||'')+'" placeholder="2"><span class="ow">units ·</span><input data-k="hvacTons" class="oin" inputmode="decimal" value="'+esc(SPEC.hvacTons||'')+'" placeholder="15"><span class="ow">tons total</span></div>'+((!SPEC.hvacUnits&&!SPEC.hvacTons&&SPEC.hvac)?'<div class="hint">Was typed as “'+esc(SPEC.hvac)+'”</div>':'')+'</div>'; }
+  if(f.hvac) return hvacHtml();
   if(f.seats){ return '<div class="fld" data-fk="seating"><label>Seating capacity</label><div class="optline"><input data-k="seatsIn" class="oin" inputmode="numeric" value="'+esc(SPEC.seatsIn||'')+'" placeholder="90"><span class="ow">inside ·</span><input data-k="seatsOut" class="oin" inputmode="numeric" value="'+esc(SPEC.seatsOut||'')+'" placeholder="40"><span class="ow">outside</span></div>'+((!SPEC.seatsIn&&!SPEC.seatsOut&&SPEC.seating)?'<div class="hint">Was typed as “'+esc(SPEC.seating)+'”</div>':'')+'</div>'; }
   if(f.hl) return hlHtml();
   if(f.opts) return optsHtml();
   if(f.sel){ var os=OPTS[f.sel]||[]; if(v && os.indexOf(v)<0) os=os.concat([v]); return '<div class="fld'+((f.core&&!String(v).trim())?' need':'')+'" data-fk="'+f.k+'">'+lab+'<select data-k="'+f.k+'" class="sel"><option value="">Select…</option>'+os.map(function(o){ return '<option'+(o===v?' selected':'')+'>'+esc(o)+'</option>'; }).join('')+'</select></div>'; }
-  if(f.list){ return '<div class="fld" data-fk="'+f.k+'">'+lab+'<input type="text" data-k="'+f.k+'" list="dl_'+f.k+'" value="'+esc(v)+'" placeholder="'+esc(f.ph||'')+'" autocomplete="off"><datalist id="dl_'+f.k+'">'+f.list.map(function(o){return '<option value="'+esc(o)+'">';}).join('')+'</datalist></div>'; }
+  if(f.list){ var inL=f.list.indexOf(v)>=0, oth=(!!v && !inL);
+    return '<div class="fld" data-fk="'+f.k+'">'+lab+'<select class="sel" data-lsel="'+f.k+'"><option value="">Select…</option>'+f.list.map(function(o){ return '<option'+(o===v?' selected':'')+'>'+esc(o)+'</option>'; }).join('')+'<option value="__other"'+(oth?' selected':'')+'>Other — type it</option></select>'
+      +'<input type="text" data-k="'+f.k+'" class="lother'+(oth?'':' hid')+'" value="'+esc(v)+'" placeholder="Type the '+esc(f.l.toLowerCase())+'" style="margin-top:6px"></div>'; }
   var ctrl=f.a
     ? '<textarea data-k="'+f.k+'" placeholder="'+esc(f.ph||'')+'">'+esc(v)+'</textarea>'
     : '<input type="text" data-k="'+f.k+'" value="'+esc(v)+'" placeholder="'+esc(f.ph||'')+'">';
@@ -290,7 +308,7 @@ function groupHtml(g){
   // Two-column for the short inputs, full width for textareas — grouped in visual order.
   var rows='', buf=[];
   function flush(){ if(!buf.length) return; rows+='<div class="row2">'+buf.join('')+'</div>'; buf=[]; }
-  g.fields.forEach(function(f){ if(f.a||f.full||f.opts||f.hl){ flush(); rows+=fieldHtml(f); } else { buf.push(fieldHtml(f)); if(buf.length===2) flush(); } });
+  g.fields.forEach(function(f){ if(f.a||f.full||f.opts||f.hl||f.hvac){ flush(); rows+=fieldHtml(f); } else { buf.push(fieldHtml(f)); if(buf.length===2) flush(); } });
   flush();
   if(GROUPS.indexOf(g)===0) rows=vrefHtml()+rows;
   if(g.title==='The lease') rows=absNoteHtml()+rows;
@@ -348,7 +366,8 @@ function render(){
   ffeWire(); wireDates(); wireKit(); wireOpts(); wireHl(); wireHeaders(); refreshBanner();
   GROUPS.forEach(function(g){ g.fields.forEach(function(f){ if(!f.num) return; var el=document.querySelector('[data-k="'+f.k+'"]'); if(!el) return; el.setAttribute('inputmode','numeric'); el.addEventListener('blur', function(){ var d=el.value.replace(/[^0-9]/g,''); var v=d?Number(d).toLocaleString('en-US'):''; if(v!==el.value){ el.value=v; SPEC[f.k]=v; markDirty(); } }); }); });
   GROUPS.forEach(function(g){ g.fields.forEach(function(f){ if(!f.money) return; var el=document.querySelector('[data-k="'+f.k+'"]'); if(!el) return; el.setAttribute('inputmode','decimal'); el.addEventListener('blur', function(){ var v=fmtMoney(el.value); if(v!==el.value){ el.value=v; SPEC[f.k]=v; markDirty(); } }); }); });
-  document.querySelectorAll('input[list]').forEach(function(el){ el.addEventListener('focus', function(){ if(!el.value && el.showPicker){ try{ el.showPicker(); }catch(e){} } }); });
+  document.querySelectorAll('[data-lsel]').forEach(function(sel){ var k=sel.getAttribute('data-lsel'), inp=document.querySelector('input[data-k="'+k+'"]'); sel.addEventListener('change', function(){ if(sel.value==='__other'){ inp.classList.remove('hid'); inp.value=''; inp.focus(); } else { inp.classList.add('hid'); inp.value=sel.value; } SPEC[k]=inp.value; markDirty(); refreshBanner(); }); });
+  wireHvac();
 }
 function _canMkt(){ try{ return window.top!==window.self && typeof window.parent.rrgMktSubmit==='function'; }catch(e){ return false; } }
 function mktBtn(){ if(VREF.mktAt) return '<span class="mktdone">Submitted to marketing ✓'+(VREF.mktAt!=='yes'?(' '+esc(_fmtDate(VREF.mktAt))):'')+'</span>'; if(!_canMkt()) return ''; var n=CORE.filter(_missOf).length; return '<button type="button" class="nsb mktb'+(n?'':' go')+'"'+(n?' disabled title="Finish the '+n+' required field'+(n===1?'':'s')+' first"':'')+' onclick="return goMkt()">Submit to marketing →</button>'+(n?'<span class="mkth">'+n+' required field'+(n===1?'':'s')+' left</span>':''); }
@@ -359,7 +378,7 @@ function openWalk(a){ var phone=Math.min(screen.width,screen.height)<700; try{ i
 function refreshBanner(){ refreshMkt(); var b=document.getElementById('bannerHost'); if(b){ b.innerHTML=bannerHtml(); wireBanner(); } refreshStatus(); }
 function wireBanner(){ document.querySelectorAll('[data-jump]').forEach(function(a){ a.onclick=function(e){ e.preventDefault(); var gi=+a.getAttribute('data-jump'); if(gi>=0) setOpen(gi,true,true); }; }); wireToggles(); }
 function gather(){ var out={}; document.querySelectorAll('[data-k]').forEach(function(el){ var v=el.value.trim(); if(v) out[el.getAttribute('data-k')]=v; }); var _hls=[].slice.call(document.querySelectorAll('[data-hl]')); if(_hls.length){ var _hv=_hls.map(function(x){ return x.value.trim(); }).filter(Boolean).join('\n'); if(_hv) out.highlights=_hv; } else if(SPEC.highlights) out.highlights=SPEC.highlights; if(out.seatsIn||out.seatsOut){ out.seatsIn=String(out.seatsIn||'').replace(/[^0-9]/g,''); out.seatsOut=String(out.seatsOut||'').replace(/[^0-9]/g,''); var _si=+out.seatsIn||0, _so=+out.seatsOut||0; out.seating=[_si?(_si.toLocaleString('en-US')+' inside'):'', _so?(_so.toLocaleString('en-US')+' outside'):''].filter(Boolean).join(' · ')+((_si&&_so)?(' · '+(_si+_so).toLocaleString('en-US')+' total'):''); } else if(SPEC.seating) out.seating=SPEC.seating;
-  if(out.hvacUnits||out.hvacTons){ out.hvacUnits=String(out.hvacUnits||'').replace(/[^0-9]/g,''); out.hvacTons=String(out.hvacTons||'').replace(/[^0-9.]/g,''); var _hu=+out.hvacUnits||0; out.hvac=[_hu?(_hu+' unit'+(_hu===1?'':'s')):'', out.hvacTons?(out.hvacTons+' tons total'):''].filter(Boolean).join(' · '); } else if(SPEC.hvac) out.hvac=SPEC.hvac; var _ot=optsText(out); if(_ot) out.leaseOptions=_ot; else if(SPEC.leaseOptions) out.leaseOptions=SPEC.leaseOptions; if(!FFE.length){ if(SPEC.ffeSchedule) out.ffeSchedule=SPEC.ffeSchedule; if(SPEC.ffeExcluded) out.ffeExcluded=SPEC.ffeExcluded; } return out; }
+  if(document.getElementById('hvRows')){ var _h=hvacRead(); if(_h.list){ out.hvacList=_h.list; out.hvacUnits=String(_h.units); out.hvacTons=_h.tons?String(_h.tons):''; out.hvac=_h.text; } else if(SPEC.hvac && !SPEC.hvacList) out.hvac=SPEC.hvac; } else if(SPEC.hvac) out.hvac=SPEC.hvac; var _ot=optsText(out); if(_ot) out.leaseOptions=_ot; else if(SPEC.leaseOptions) out.leaseOptions=SPEC.leaseOptions; if(!FFE.length){ if(SPEC.ffeSchedule) out.ffeSchedule=SPEC.ffeSchedule; if(SPEC.ffeExcluded) out.ffeExcluded=SPEC.ffeExcluded; } return out; }
 // Autosave: ~1s after the last change. One request at a time; changes made mid-save trigger one more.
 function save(){
   clearTimeout(_sT);

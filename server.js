@@ -20000,7 +20000,7 @@ const ASSET_SPEC_FIELDS = {
   // Licenses (core = liquorTransfer)
   liquorType: 160, liquorTransfer: 400, coOccupancy: 200, healthPermit: 240,
   // Utilities
-  electrical: 200, gas: 200, hvac: 200, hvacUnits: 6, hvacTons: 8, waterSewer: 240,
+  electrical: 200, gas: 200, hvac: 200, hvacUnits: 6, hvacTons: 8, hvacList: 200, waterSewer: 240,
   // Marketing
   photosNote: 300, floorplanNote: 300, videoNote: 300
 };
