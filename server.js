@@ -19959,13 +19959,13 @@ const ASSET_SPEC_FIELDS = {
   // Headline
   askingPrice: 60, conveys: 2000, reason: 300, availableDate: 60,
   // Lease (core)
-  leaseRent: 80, leasePerSF: 40, leaseRemaining: 80, leaseExpiration: 60, leaseOptions: 300, leaseAssignment: 600, leaseNNN: 300, leaseDeposit: 160, leaseUse: 300,
+  leaseRent: 80, leasePerSF: 40, leaseRemaining: 80, leaseExpiration: 60, leaseOptions: 300, leaseAssignment: 600, leaseNNN: 300, leaseDeposit: 160, leaseUse: 300, leaseFixtures: 200,
   // Space (core)
   sqft: 40, seating: 60, patio: 160, deliveryCondition: 160, operatingNow: 60,
   // Buildout / leaseholds
   hood: 400, walkin: 240, ansul: 160, restrooms: 160, buildoutAge: 160, replacementCost: 160,
   // FF&E (core = ffeSchedule)
-  ffeSchedule: 4000, ffeExcluded: 1200, smallwares: 300,
+  ffeSchedule: 4000, ffeExcluded: 1200, smallwares: 300, exclusions: 1200,
   // Licenses (core = liquorTransfer)
   liquorType: 160, liquorTransfer: 400, coOccupancy: 200, healthPermit: 240,
   // Utilities
@@ -20147,8 +20147,7 @@ const CONVEY_KIT = [
   { k: 'walkinC', l: 'Walk-in cooler', to: 'walkin' }, { k: 'walkinF', l: 'Walk-in freezer', to: 'walkin' }, { k: 'dry', l: 'Dry storage' },
   { k: 'hand', l: 'Hand sinks' }, { k: 'prep', l: 'Prep sink' }, { k: 'sink3', l: '3-compartment sink' }, { k: 'mop', l: 'Mop sink' }, { k: 'drains', l: 'Floor drains' },
   { k: 'sprink', l: 'Fire sprinklers' }, { k: 'restrooms', l: 'ADA restrooms', to: 'restrooms' }, { k: 'bar', l: 'Built-in bar' }, { k: 'counter', l: 'Order counter' }, { k: 'window', l: 'Pickup / walk-up window' },
-  { k: 'drive', l: 'Drive-thru' }, { k: 'pdr', l: 'Private dining room' }, { k: 'patio', l: 'Patio', to: 'patio' }, { k: 'office', l: 'Office' }, { k: 'sign', l: 'Sign panel / pylon' },
-  { k: 'ffe', l: 'FF&E per schedule' }, { k: 'liquor', l: 'Liquor license (transfer)' }
+  { k: 'drive', l: 'Drive-thru' }, { k: 'pdr', l: 'Private dining room' }, { k: 'patio', l: 'Patio', to: 'patio' }, { k: 'office', l: 'Office' }, { k: 'sign', l: 'Sign panel / pylon' }
 ];
 function _conveyClean(arr) {
   if (!Array.isArray(arr)) return null;
@@ -20230,10 +20229,10 @@ app.post('/api/asset-spec', express.json({ limit: '256kb' }), (req, res) => {
 // Grouped labels for the buyer-facing spec sheet (Marketing assets are internal — omitted).
 const ASSET_SHEET_GROUPS = [
   ['The Opportunity', [['askingPrice', 'Asking price'], ['conveys', 'What conveys'], ['reason', 'Reason for availability'], ['availableDate', 'Available']]],
-  ['Lease', [['leaseRent', 'Base rent'], ['leasePerSF', 'Rent / SF'], ['leaseRemaining', 'Remaining term'], ['leaseExpiration', 'Expiration'], ['leaseOptions', 'Renewal options'], ['leaseAssignment', 'Assignment & consent'], ['leaseNNN', 'NNN / CAM · taxes · insurance'], ['leaseDeposit', 'Deposit / key money'], ['leaseUse', 'Permitted use']]],
+  ['Lease', [['leaseRent', 'Base rent'], ['leasePerSF', 'Rent / SF'], ['leaseRemaining', 'Remaining term'], ['leaseExpiration', 'Expiration'], ['leaseOptions', 'Renewal options'], ['leaseAssignment', 'Assignment & consent'], ['leaseNNN', 'NNN / CAM · taxes · insurance'], ['leaseDeposit', 'Deposit / key money'], ['leaseFixtures', 'Fixtures at lease end'], ['leaseUse', 'Permitted use']]],
   ['The Space', [['sqft', 'Square footage'], ['seating', 'Seating'], ['patio', 'Patio / outdoor'], ['deliveryCondition', 'Delivery condition'], ['operatingNow', 'Status']]],
   ['Buildout & Leaseholds', [['hood', 'Hood, venting & grease'], ['walkin', 'Walk-in cooler / freezer'], ['ansul', 'Fire suppression'], ['restrooms', 'Restrooms'], ['buildoutAge', 'Buildout age'], ['replacementCost', 'Est. replacement cost']]],
-  ['FF&E', [['ffeSchedule', 'Equipment included'], ['ffeExcluded', 'Excluded items'], ['smallwares', 'Smallwares / POS / furniture']]],
+  ['FF&E', [['ffeSchedule', 'Equipment included'], ['ffeExcluded', 'Excluded — seller keeps'], ['smallwares', 'Smallwares / POS / furniture']]],
   ['Licenses & Entitlements', [['liquorType', 'Liquor / TABC license'], ['liquorTransfer', 'Transferability / key money'], ['coOccupancy', 'Certificate of occupancy'], ['healthPermit', 'Health / venting permits']]],
   ['Utilities & Infrastructure', [['electrical', 'Electrical'], ['gas', 'Gas'], ['hvac', 'HVAC'], ['waterSewer', 'Water / sewer / grease']]]
 ];
@@ -20243,7 +20242,9 @@ function _assetPriceBand(askingPrice) {
 }
 function assetSheetHtml(business, market, spec, ffe, convey) {
   spec = Object.assign({}, spec || {}); ffe = Array.isArray(ffe) ? ffe : [];
-  if (Array.isArray(convey) && convey.length) spec.conveys = _conveyLine(convey) + (String(spec.conveys || '').trim() ? ('\n' + spec.conveys) : '');
+  if (Array.isArray(convey) && convey.length) spec.conveys = _conveyLine(convey) + (String(spec.conveys || '').trim() ? ('\n' + spec.conveys) : '') + '\nLeasehold improvements convey with assignment of the lease, subject to landlord consent.';
+  const _xTyped = String(spec.exclusions || '').trim();
+  if (!ffe.length && _xTyped) spec.ffeExcluded = [String(spec.ffeExcluded || '').trim(), _xTyped].filter(Boolean).join('; ');
   const nl = s => String(s == null ? '' : s).replace(/\n/g, '<br>');
   let secs = '';
   ASSET_SHEET_GROUPS.forEach(g => {
@@ -20255,7 +20256,7 @@ function assetSheetHtml(business, market, spec, ffe, convey) {
       h += '</table>';
       const extra = [];
       if (leased.length) extra.push('<tr><th>Leased / vendor-owned (does not convey)</th><td>' + esc(leased.map(_ffeLine).join('; ')) + '</td></tr>');
-      if (exc.length) extra.push('<tr><th>Excluded items</th><td>' + esc(exc.map(_ffeLine).join('; ')) + '</td></tr>');
+      if (exc.length || _xTyped) extra.push('<tr><th>Excluded — seller keeps</th><td>' + esc(exc.map(_ffeLine).concat(_xTyped ? [_xTyped] : []).join('; ')) + '</td></tr>');
       if (String(spec.smallwares || '').trim()) extra.push('<tr><th>Smallwares / POS / furniture</th><td>' + nl(esc(spec.smallwares)) + '</td></tr>');
       if (extra.length) h += '<table style="margin-top:8px">' + extra.join('') + '</table>';
       secs += h; return;

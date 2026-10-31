@@ -49,7 +49,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .ffet .x{border:0;background:none;color:var(--soft);cursor:pointer;font-size:13px;padding:7px 4px;} .ffet .x:hover{color:var(--red);}
 .datef{display:flex;gap:6px;position:relative;} .datef input[type=text]{flex:1;} .datef .cal{flex:none;width:42px;border:1px solid var(--inp);border-radius:9px;background:#fff;cursor:pointer;font-size:16px;color:var(--navy);} .datef .cal:hover{background:#f4f7fb;}
 .datef input[type=date]{position:absolute;right:0;bottom:0;width:42px;height:1px;opacity:0;pointer-events:none;border:0;padding:0;}
-.kitgrid{display:grid;grid-template-columns:1.25fr 1fr 1fr;gap:18px;} @media(max-width:760px){.kitgrid{grid-template-columns:1fr;}}
+.kitgrid{display:grid;grid-template-columns:1fr 1fr;gap:28px;} @media(max-width:760px){.kitgrid{grid-template-columns:1fr;}}
 .kgh{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--navy);margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--line);}
 .kit{display:flex;align-items:center;gap:8px;min-height:32px;}
 .kit label{flex:1;display:flex !important;align-items:center;gap:7px;margin:0 !important;font-size:13px !important;text-transform:none !important;letter-spacing:0 !important;color:var(--ink) !important;font-weight:500 !important;cursor:pointer;white-space:nowrap;}
@@ -60,6 +60,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .fld .kit:not(.on) input.kd{background:#fafbfd;}
 .qadd{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:10px;font-size:11.5px;color:var(--soft);font-weight:700;}
 .qchip{font:inherit;font-size:12px;font-weight:600;padding:4px 10px;border:1px solid var(--line);border-radius:999px;background:#fbfcfe;color:var(--navy);cursor:pointer;} .qchip:hover{border-color:var(--inp);background:#f1f4f9;}
+.fld label.subh{font-size:12px;color:var(--navy);letter-spacing:.04em;margin-bottom:10px;}
+.sep{height:1px;background:var(--line);margin:18px -20px;}
 .gate{padding:50px 24px;text-align:center;color:var(--muted);font-size:14px;}
 .banner{border-radius:12px;padding:12px 16px;font-size:13px;font-weight:600;margin-bottom:16px;line-height:1.5;}
 .banner.done{background:#eaf7f0;border:1px solid #bfe6d0;color:#1a6e46;}
@@ -90,9 +92,15 @@ function goBack(){ try{ if(window.top!==window.self){ var x=window.parent.docume
 var GROUPS=[
   {title:'The headline', fields:[
     {k:'askingPrice', l:'Asking price', ph:'$185,000', money:1},
-    {k:'conveys', kit:1, l:'What conveys', a:1, ph:'Anything else that conveys or is excluded'},
     {k:'reason', l:'Reason for availability', ph:'Pick a reason or type your own', list:['Owner retiring','Owner relocating','Focusing on other locations','Closing the concept','Changing concepts','Lease expiring','Partnership change','Personal reasons']},
     {k:'availableDate', l:'Target availability / delivery date', ph:'Pick a date · or 60 days after closing', date:1}
+  ]},
+  {title:'What conveys', core:1, convey:1, hint:'Improvements convey with assignment of the lease. Equipment is sold by bill of sale.', fields:[
+    {k:'buildoutAge', l:'Buildout age', ph:'Built out 2019'},
+    {k:'replacementCost', l:'Est. replacement cost', ph:'~$450k to replicate'},
+    {k:'smallwares', l:'Smallwares / POS / furniture', ph:'Included · or excluded'},
+    {k:'exclusions', l:'Excluded — seller keeps', a:1, ph:'Anything the seller is taking: art, the neon sign, the smoker… Items marked “Seller keeps” in the schedule are listed automatically.'},
+    {k:'conveys', l:'Other notes on what conveys', a:1, ph:'Anything else a buyer should know about what is included'}
   ]},
   {title:'The lease', core:1, hint:'The heart of a space deal — how much time is left and how the landlord handles an assignment.', fields:[
     {k:'leaseRent', l:'Current base rent', core:1, ph:'$6,200 / mo'},
@@ -103,20 +111,14 @@ var GROUPS=[
     {k:'leaseAssignment', l:'Assignment & landlord consent', core:1, a:1, ph:"Landlord's posture, the consent process, transfer fees, any personal guaranty…"},
     {k:'leaseNNN', l:'NNN / CAM · taxes · insurance', ph:'$9 / SF NNN'},
     {k:'leaseDeposit', l:'Security deposit / key money to landlord', ph:'$6,200 deposit · $25k key money'},
-    {k:'leaseUse', l:'Permitted use / exclusives', ph:'Full-service restaurant; no exclusives'}
+    {k:'leaseUse', l:'Permitted use / exclusives', ph:'Full-service restaurant; no exclusives'},
+    {k:'leaseFixtures', l:'Fixtures at lease end', ph:'Pick one or cite the lease section', list:['Stay with the space','Tenant may remove','Tenant must remove','Per lease — see section']}
   ]},
   {title:'The space', core:1, fields:[
     {k:'sqft', l:'Interior square footage', core:1, ph:'2,800 SF'},
     {k:'seating', l:'Seating capacity', ph:'90 interior'},
     {k:'deliveryCondition', l:'Delivery condition', core:1, ph:'As-is, fully equipped'},
     {k:'operatingNow', l:'Operating or dark now', ph:'Operating · or Dark since June'}
-  ]},
-  {title:'Buildout & leaseholds', fields:[
-    {k:'buildoutAge', l:'Buildout age', ph:'Built out 2019'},
-    {k:'replacementCost', l:'Est. replacement cost', ph:'~$450k to replicate'}
-  ]},
-  {title:'FF&E', core:1, ffe:1, hint:'The equipment schedule is what a buyer weighs against buying it all new.', fields:[
-    {k:'smallwares', l:'Smallwares / POS / furniture', ph:'Included · or excluded'}
   ]},
   {title:'Licenses & entitlements', core:1, fields:[
     {k:'liquorType', l:'Liquor / TABC license type', ph:'Mixed beverage (MB)'},
@@ -142,7 +144,6 @@ var SPEC={}, BIZ='', DIRTY=false;
 
 function fieldHtml(f){
   var v=SPEC[f.k]||'';
-  if(f.kit) return kitHtml(f);
   var lab='<label>'+esc(f.l)+(f.core?'<span class="dot">★</span>':'')+'</label>';
   var need=(f.core && !String(v).trim())?' need':'';
   if(f.date){ return '<div class="fld" data-fk="'+f.k+'">'+lab+'<div class="datef"><input type="text" data-k="'+f.k+'" value="'+esc(v)+'" placeholder="'+esc(f.ph||'')+'"><button type="button" class="cal" data-cal="'+f.k+'" title="Pick a date">📅</button><input type="date" data-calfor="'+f.k+'" tabindex="-1" aria-hidden="true"></div></div>'; }
@@ -157,9 +158,9 @@ function groupHtml(g){
   // Two-column for the short inputs, full width for textareas — grouped in visual order.
   var rows='', buf=[];
   function flush(){ if(!buf.length) return; rows+='<div class="row2">'+buf.join('')+'</div>'; buf=[]; }
-  g.fields.forEach(function(f){ if(f.kit){ flush(); rows+=kitHtml(f); } else if(f.a){ flush(); rows+=fieldHtml(f); } else { buf.push(fieldHtml(f)); if(buf.length===2) flush(); } });
+  g.fields.forEach(function(f){ if(f.a){ flush(); rows+=fieldHtml(f); } else { buf.push(fieldHtml(f)); if(buf.length===2) flush(); } });
   flush();
-  if(g.ffe) rows=ffeHtml()+'<div style="height:14px"></div>'+rows;
+  if(g.convey) rows=kitHtml()+'<div class="sep"></div>'+ffeHtml()+'<div class="sep"></div>'+rows;
   return '<div class="card"><div class="ch"><b>'+esc(g.title)+'</b>'+(g.core?'<span class="core">Core</span>':'')+(g.hint?'<span class="gh">'+esc(g.hint)+'</span>':'')+'</div><div class="body">'+rows+'</div></div>';
 }
 function bannerHtml(){
@@ -236,7 +237,7 @@ function ffeHtml(){
   } else {
     body='<div class="ffeempty">No equipment schedule yet. Import the seller\'s list — a spreadsheet, PDF, Word file or a phone photo of a handwritten list — and it comes back in standard form for you to review.</div>';
   }
-  return '<div class="fld" data-fk="ffeSchedule"><label>Equipment schedule — what conveys<span class="dot">★</span></label>'
+  return '<div class="fld" data-fk="ffeSchedule"><label class="subh">Equipment (FF&amp;E) — sold by bill of sale<span class="dot">★</span></label>'
     +'<div class="ffebar"><button class="btn sm red" id="ffeImport">Import FF&amp;E list</button><button class="btn sm" id="ffePaste">Paste a list</button><button class="btn sm" id="ffeAdd">+ Add item</button><span class="msg" id="ffeMsg"></span><input type="file" id="ffeFile" accept=".xlsx,.xls,.xlsm,.csv,.tsv,.txt,.pdf,.docx,.jpg,.jpeg,.png,.webp,.gif,image/*" style="display:none"></div>'
     +'<div class="qadd"><span>Quick add:</span>'+QUICK.map(function(q,i){ return '<button type="button" class="qchip" data-q="'+i+'">+ '+esc(q[0])+'</button>'; }).join('')+'</div>'
     +'<div id="ffeWarn">'+ffeWarnHtml()+'</div><div id="ffeBody">'+body+'</div>'
@@ -311,17 +312,15 @@ function wireDates(){
 // "What conveys" checklist — keys mirror the server's CONVEY_KIT.
 var KIT=[
   {g:'Kitchen', items:[['hood1','Type I hood','Length (ft)','ft'],['hood2','Type II hood','Length (ft)','ft'],['ansul','Fire suppression','Certified 2025'],['mua','Make-up air',''],['gas','Gas line','2" natural gas'],['water','Water heater','Gallons or tankless','gal'],['grease','Grease trap / interceptor','Gallons','gal'],['walkinC','Walk-in cooler','8×10'],['walkinF','Walk-in freezer','6×8'],['dry','Dry storage',''],['hand','Hand sinks','How many'],['prep','Prep sink',''],['sink3','3-compartment sink',''],['mop','Mop sink',''],['drains','Floor drains','']]},
-  {g:'Building', items:[['sprink','Fire sprinklers',''],['restrooms','ADA restrooms','How many'],['bar','Built-in bar','24 ft · 14 seats'],['counter','Order counter',''],['window','Pickup / walk-up window',''],['drive','Drive-thru',''],['pdr','Private dining room','Seats','seats'],['patio','Patio','Seats','seats'],['office','Office',''],['sign','Sign panel / pylon','']]},
-  {g:'Rights & assets', items:[['ffe','FF&E per schedule',''],['liquor','Liquor license (transfer)','']]}
+  {g:'Building', items:[['sprink','Fire sprinklers',''],['restrooms','ADA restrooms','How many'],['bar','Built-in bar','24 ft · 14 seats'],['counter','Order counter',''],['window','Pickup / walk-up window',''],['drive','Drive-thru',''],['pdr','Private dining room','Seats','seats'],['patio','Patio','Seats','seats'],['office','Office',''],['sign','Sign panel / pylon','']]}
 ];
 var CONVEY=null;
-function conveyMigrate(){ if(CONVEY) return; CONVEY=[]; var m={hood:'hood1',walkin:'walkinC',ansul:'ansul',restrooms:'restrooms',gas:'gas',patio:'patio'}; Object.keys(m).forEach(function(f){ var v=String(SPEC[f]||'').trim(); if(v) CONVEY.push({k:m[f], d:v.slice(0,160)}); }); if(FFE.length||String(SPEC.ffeSchedule||'').trim()) CONVEY.push({k:'ffe',d:''}); }
+function conveyMigrate(){ if(CONVEY) return; CONVEY=[]; var m={hood:'hood1',walkin:'walkinC',ansul:'ansul',restrooms:'restrooms',gas:'gas',patio:'patio'}; Object.keys(m).forEach(function(f){ var v=String(SPEC[f]||'').trim(); if(v) CONVEY.push({k:m[f], d:v.slice(0,160)}); }); }
 function _cv(k){ for(var i=0;i<CONVEY.length;i++) if(CONVEY[i].k===k) return CONVEY[i]; return null; }
-function kitHtml(f){
+function kitHtml(){
   var cols=KIT.map(function(g){ return '<div class="kitg"><div class="kgh">'+esc(g.g)+'</div>'+g.items.map(function(it){ var c=_cv(it[0]);
     return '<div class="kit'+(c?' on':'')+'"><label><input type="checkbox" data-kit="'+it[0]+'"'+(c?' checked':'')+'> '+esc(it[1])+(it[0]==='hood1'?'<span class="dot">★</span>':'')+'</label>'+(it[2]?'<input type="text" class="kd" data-kitd="'+it[0]+'"'+(it[3]?(' data-unit="'+it[3]+'" inputmode="decimal"'):'')+' value="'+esc(c?c.d:'')+'" placeholder="'+esc(it[2])+'">':'')+'</div>'; }).join('')+'</div>'; }).join('');
-  return '<div class="fld" data-fk="conveys"><label>What conveys — check what\'s included</label><div class="kitgrid">'+cols+'</div>'
-    +'<textarea data-k="conveys" style="margin-top:12px;min-height:54px" placeholder="'+esc(f.ph)+'">'+esc(SPEC.conveys||'')+'</textarea></div>';
+  return '<div class="fld" data-fk="kit"><label class="subh">Leasehold improvements — convey with assignment of the lease</label><div class="kitgrid">'+cols+'</div></div>';
 }
 function wireKit(){
   document.querySelectorAll('[data-kit]').forEach(function(cb){ cb.addEventListener('change', function(){ var k=cb.getAttribute('data-kit'), d=document.querySelector('[data-kitd="'+k+'"]');
