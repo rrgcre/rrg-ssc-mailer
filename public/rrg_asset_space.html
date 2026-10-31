@@ -199,6 +199,9 @@ function setHead(){ var t=BIZ?(BIZ+' — Space & Assets'):'Space & Assets'; docu
 // ── FF&E equipment schedule editor ─────────────────────────────────────────────
 var FFE=[], FFE_CATS=['Cooking','Refrigeration','Prep & Storage','Warewashing','Bar & Beverage','Smallwares','Furniture & Decor','POS & Tech','Signage','Other'];
 var QUICK=[['Fryer','Cooking'],['Grill','Cooking'],['Griddle','Cooking'],['Salamander','Cooking'],['Range','Cooking'],['Reach-in refrigerator','Refrigeration'],['Reach-in freezer','Refrigeration'],['Bar coolers','Bar & Beverage','Confirm'],['Beer system — glycol','Bar & Beverage','Confirm','Number of taps'],['Beer system — direct draw','Bar & Beverage','Confirm','Number of taps'],['Dining tables','Furniture & Decor'],['Dining chairs','Furniture & Decor'],['Patio tables','Furniture & Decor'],['Patio chairs','Furniture & Decor'],['Barstools','Furniture & Decor']];
+// Guess a category from a typed item name (manual rows only).
+var CAT_GUESS=[[/pos|terminal|printer|tablet|ipad|kds|computer|router|camera|speaker|tv|television|music/i,'POS & Tech'],[/beer|draft|draught|keg|tap|glycol|soda|fountain|ice machine|bar |back ?bar|wine|liquor|espresso|coffee|blender|bottle/i,'Bar & Beverage'],[/fridge|refrig|freez|cooler|walk-?in|reach-?in|prep table|sandwich|make ?line|ice cream|chiller|lowboy/i,'Refrigeration'],[/dish|sink|washer|disposal|booster|pre-?rinse/i,'Warewashing'],[/fryer|grill|griddle|range|oven|salamander|broiler|smoker|steamer|kettle|wok|burner|charbroil|hot ?hold|warmer|holding|toaster|microwave|pizza|combi|rotisserie|hood|tilt/i,'Cooking'],[/table|chair|stool|booth|bench|banquette|host stand|decor|art|mirror|lamp|light|umbrella|heater/i,'Furniture & Decor'],[/shelf|shelving|rack|cart|mixer|slicer|scale|work ?table|prep|bin|cabinet|dunnage/i,'Prep & Storage'],[/sign|pylon|neon|menu ?board/i,'Signage'],[/pan|pot|utensil|knife|knives|plate|glass|silverware|flatware|smallware|china|tray/i,'Smallwares']];
+function guessCat(t){ for(var i=0;i<CAT_GUESS.length;i++) if(CAT_GUESS[i][0].test(t)) return CAT_GUESS[i][1]; return ''; }
 var FFE_CONDS=['','New','Excellent','Good','Fair','Poor','Not working'];
 function _opt(list,v,blank){ return list.map(function(o){ return '<option value="'+esc(o)+'"'+(o===v?' selected':'')+'>'+esc(o||blank||'—')+'</option>'; }).join(''); }
 function ffeRowHtml(r,i){
@@ -273,11 +276,13 @@ function ffeWire(){
   document.getElementById('ffePaste').onclick=function(){ var b=document.getElementById('ffePasteBox'); b.style.display=''; document.getElementById('ffePasteTxt').focus(); };
   document.getElementById('ffePasteX').onclick=function(){ document.getElementById('ffePasteBox').style.display='none'; };
   document.getElementById('ffePasteGo').onclick=function(){ var t=document.getElementById('ffePasteTxt').value.trim(); if(!t){ ffeMsg('Paste the list first.','err'); return; } ffeParse({ text:t }); };
-  document.getElementById('ffeAdd').onclick=function(){ FFE.push({cat:'Cooking',item:'',qty:1,model:'',cond:'',own:'Confirm',notes:'',excluded:false}); DIRTY=true; ffeRefresh(); var ins=document.querySelectorAll('.ffet input[data-f="item"]'); if(ins.length) ins[ins.length-1].focus(); };
+  document.getElementById('ffeAdd').onclick=function(){ FFE.push({cat:'Other',item:'',qty:1,model:'',cond:'',own:'Owned',notes:'',excluded:false,_new:1}); DIRTY=true; ffeRefresh(); var ins=document.querySelectorAll('.ffet input[data-f="item"]'); if(ins.length) ins[ins.length-1].focus(); };
   document.querySelectorAll('.qchip').forEach(function(b){ b.onclick=function(){ var q=QUICK[+b.getAttribute('data-q')]; FFE.push({cat:q[1],item:q[0],qty:1,model:'',cond:'',own:q[2]||'Owned',notes:q[3]?(q[3]+': '):'',excluded:false}); DIRTY=true; ffeRefresh(); var qs=document.querySelectorAll('.ffet input[data-f="qty"]'); if(qs.length){ qs[qs.length-1].focus(); qs[qs.length-1].select(); } }; });
   var cv=document.getElementById('ffeConvert'); if(cv) cv.onclick=function(){ ffeParse({ text: String(SPEC.ffeSchedule||'')+(SPEC.ffeExcluded?('\nSeller keeping (excluded): '+SPEC.ffeExcluded):'') }); };
   var tb=document.querySelector('.ffet tbody'); if(!tb) return;
   function upd(el){ var tr=el.closest('tr'); if(!tr) return; var i=+tr.getAttribute('data-i'), k=el.getAttribute('data-f'); if(!FFE[i]) return;
+    if(k==='item' && FFE[i]._new){ var g=guessCat(el.value); if(g && g!==FFE[i].cat){ FFE[i].cat=g; var cs=tr.querySelector('[data-f="cat"]'); if(cs) cs.value=g; } }
+    if(k==='cat') delete FFE[i]._new;
     FFE[i][k]= el.type==='checkbox' ? el.checked : (k==='qty' ? (parseInt(el.value,10)||1) : el.value);
     if(k==='own'){ el.className='own '+el.value.toLowerCase(); }
     if(k==='excluded'){ tr.classList.toggle('exc', el.checked); }
