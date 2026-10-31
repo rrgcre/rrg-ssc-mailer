@@ -11012,7 +11012,7 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   if (typeof b.businessOverride === 'string') cur.businessOverride = b.businessOverride.slice(0, 120);
   if (typeof b.codeName === 'string') cur.codeName = b.codeName.slice(0, 80);
   if (typeof b.marketOverride === 'string') cur.marketOverride = b.marketOverride.slice(0, 80);
-  if (typeof b.saleLane === 'string' && ['business', 'asset', 'other'].indexOf(b.saleLane) >= 0) cur.saleLane = b.saleLane;
+  if (typeof b.saleLane === 'string' && ['business', 'asset', 'other'].indexOf(b.saleLane) >= 0) { cur.saleLane = b.saleLane; try { const _da = _dealByAnyKey(d.key); if (_da.d && _da.d.saleLane !== b.saleLane) { _da.d.saleLane = b.saleLane; saveDeals(_da.arr); } } catch (e) {} }
   if (b.laneDecided === true) cur.laneDecidedAt = new Date().toISOString();
   if (typeof b.mktTicketId === 'string') { cur.mktTicketId = b.mktTicketId.slice(0, 40); cur.mktSubmittedAt = new Date().toISOString(); }   // handed to Marketing via Office Requests   // rep made the going-concern / asset-sale call after reviewing the P&Ls   // type of listing: going concern / asset sale / other
   // Financials don't support a going concern → asset sale: the seller interview no longer applies,
@@ -19987,6 +19987,8 @@ function _dealByAnyKey(key) {
   if (key.indexOf('s_') === 0) return { arr, d: arr.find(x => x.screenId === key.slice(2)) };
   return { arr, d: null };
 }
+// Effective sale lane: the lane decision lives on the assignment overlay; fall back to the deal.
+function _effLane(key, d) { try { const o = loadAssignOverlay()[String(key || '')]; if (o && o.saleLane) return o.saleLane; } catch (e) {} return (d && d.saleLane) || 'business'; }
 // ── Opinion of value letter (asset sales) ───────────────────────────────────────────────
 // Rep enters the opinion of value + reasoning → a one-page letter in RRG's name, signed by the
 // rep who created it. TREC Rule 535.17: a sales agent's estimate must be submitted in the
@@ -20143,7 +20145,7 @@ app.get('/api/asset-spec', (req, res) => {
     if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
     if (!ownsDeal(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
     const spec = d.assetSpec || {};
-    res.json({ ok: true, key: req.query.key, business: d.business || '', market: d.market || '', saleLane: d.saleLane || 'business', spec: spec, core: ASSET_SPEC_CORE, missing: ASSET_SPEC_CORE.filter(k => !spec[k]) });
+    res.json({ ok: true, key: req.query.key, business: d.business || '', market: d.market || '', saleLane: _effLane(req.query.key, d), spec: spec, core: ASSET_SPEC_CORE, missing: ASSET_SPEC_CORE.filter(k => !spec[k]) });
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 app.post('/api/asset-spec', express.json({ limit: '256kb' }), (req, res) => {
@@ -20239,7 +20241,7 @@ app.post('/api/asset-spec/go-to-market', express.json(), (req, res) => {
     const { d } = _dealByAnyKey(b.key);
     if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
     if (!ownsDeal(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
-    if ((d.saleLane || 'business') !== 'asset') return res.status(400).json({ ok: false, error: 'This is not a Space & Assets listing.' });
+    if (_effLane(b.key, d) !== 'asset') return res.status(400).json({ ok: false, error: 'This is not a Space & Assets listing.' });
     const spec = d.assetSpec || {};
     const missing = ASSET_SPEC_CORE.filter(k => !String(spec[k] || '').trim());
     if (missing.length) return res.status(400).json({ ok: false, error: 'Finish the space & assets intake first — still needed: ' + missing.length + ' core field' + (missing.length === 1 ? '' : 's') + '.', missing });

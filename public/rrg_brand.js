@@ -131,6 +131,8 @@
   var file=path.split('/').pop()||'index.html';
   if(/\/login/.test(path)||file==='login') return;
   if(document.querySelector('meta[name="rrg-noshell"]')) return;
+  if(/[?&]embed=1/.test(location.search)) return;
+  try{ if(window.top!==window.self) return; }catch(e){ return; }
   if(document.getElementById('rrgshell-preload')) return;
   var _cw=false; try{ _cw=localStorage.getItem('rrg_nav_collapsed')==='1'; }catch(e){} var _W=_cw?60:238;
   var st=document.createElement('style'); st.id='rrgshell-preload';
