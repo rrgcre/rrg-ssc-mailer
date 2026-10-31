@@ -58,7 +58,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .fld .kit input.kd{width:112px;flex:none;font:inherit;font-size:12px;padding:5px 8px;border:1px solid var(--line);border-radius:7px;color:var(--ink);}
 .kitgrid{margin-top:4px;}
 .fld .kit:not(.on) input.kd{background:#fafbfd;}
-.qadd{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:10px;font-size:11.5px;color:var(--soft);font-weight:700;}
+.qadd{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:12px;background:#fcfdfe;}
+.qhd{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);margin-bottom:6px;}
+.qrow{display:flex;align-items:flex-start;gap:10px;padding:4px 0;} .qrow+.qrow{border-top:1px dashed #edf0f5;}
+.qlbl{flex:none;width:96px;font-size:11.5px;font-weight:700;color:var(--navy);padding-top:5px;} .qchips{display:flex;flex-wrap:wrap;gap:6px;}
 .qchip{font:inherit;font-size:12px;font-weight:600;padding:4px 10px;border:1px solid var(--line);border-radius:999px;background:#fbfcfe;color:var(--navy);cursor:pointer;} .qchip:hover{border-color:var(--inp);background:#f1f4f9;} .qchip.added{background:#e8f6ef;border-color:#bfe6d0;color:var(--green);}
 .fld label.subh{font-size:12px;color:var(--navy);letter-spacing:.04em;margin-bottom:10px;}
 .sep{height:1px;background:var(--line);margin:18px -20px;}
@@ -69,6 +72,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .st.need{color:#9a5b0b;background:#fff3e0;} .st.done{color:var(--green);background:#e8f6ef;} .st.part{color:var(--navy);background:#eef2f9;} .st.opt{color:var(--soft);background:#f3f5f9;}
 @media(max-width:700px){ .ch .gh{display:none;} .ch .gst{margin-left:auto;} }
 .banner .jump{color:inherit;text-decoration:underline;text-underline-offset:2px;} .banner .togall{float:right;color:var(--navy);font-weight:700;font-size:12px;text-decoration:none;margin-left:14px;}
+.kgh .kreq{float:right;color:var(--red);font-size:9.5px;letter-spacing:.03em;text-transform:none;font-weight:700;}
 .gate{padding:50px 24px;text-align:center;color:var(--muted);font-size:14px;}
 .banner{border-radius:12px;padding:12px 16px;font-size:13px;font-weight:600;margin-bottom:16px;line-height:1.5;}
 .banner.done{background:#eaf7f0;border:1px solid #bfe6d0;color:#1a6e46;}
@@ -105,7 +109,7 @@ var GROUPS=[
   {title:'What conveys', core:1, convey:1, hint:'Improvements convey with assignment of the lease. Equipment is sold by bill of sale.', fields:[
     {k:'buildoutAge', l:'Buildout age', ph:'Built out 2019'},
     {k:'replacementCost', l:'Est. replacement cost', ph:'~$450k to replicate'},
-    {k:'smallwares', l:'Smallwares / POS / furniture', ph:'Included · or excluded'},
+    {k:'smallwares', l:'Smallwares / POS / furniture (older listings)', ph:'', legacy:1},
     {k:'exclusions', l:'Excluded — seller keeps', a:1, ph:'Anything the seller is taking: art, the neon sign, the smoker… Items marked “Seller keeps” in the schedule are listed automatically.'},
     {k:'conveys', l:'Other notes on what conveys', a:1, ph:'Anything else a buyer should know about what is included'}
   ]},
@@ -143,12 +147,13 @@ var GROUPS=[
   ]}
 ];
 var CORE=['leaseRent','leaseRemaining','leaseAssignment','sqft','deliveryCondition','hood','ffeSchedule'];
-var CORE_LABEL={ffeSchedule:'Equipment schedule — what conveys', hood:'Hood (What conveys checklist)'};
+var CORE_LABEL={ffeSchedule:'Equipment schedule — what conveys', hood:'Hood — Type I, Type II or No hood'};
 GROUPS.forEach(function(g){ g.fields.forEach(function(f){ if(f.core) CORE_LABEL[f.k]=f.l; }); });
 var SPEC={}, BIZ='', DIRTY=false;
 
 function fieldHtml(f){
   var v=SPEC[f.k]||'';
+  if(f.legacy && !String(v).trim()) return '';
   var lab='<label>'+esc(f.l)+(f.core?'<span class="dot">★</span>':'')+'</label>';
   var need=(f.core && !String(v).trim())?' need':'';
   if(f.date){ return '<div class="fld" data-fk="'+f.k+'">'+lab+'<div class="datef"><input type="text" data-k="'+f.k+'" value="'+esc(v)+'" placeholder="'+esc(f.ph||'')+'"><button type="button" class="cal" data-cal="'+f.k+'" title="Pick a date">📅</button><input type="date" data-calfor="'+f.k+'" tabindex="-1" aria-hidden="true"></div></div>'; }
@@ -170,7 +175,7 @@ function groupHtml(g){
   return '<div class="card'+(open?'':' closed')+'" data-gi="'+gi+'"><div class="ch" data-tog="'+gi+'"><span class="chev">›</span><b>'+esc(g.title)+'</b>'+(g.core?'<span class="core">Core</span>':'')+(g.hint?'<span class="gh">'+esc(g.hint)+'</span>':'<span class="gh"></span>')+'<span class="gst" data-gst="'+gi+'">'+groupStatus(g)+'</span></div><div class="body">'+rows+'</div></div>';
 }
 // ── Collapsible sections ─────────────────────────────────────────────────────
-function _missOf(k){ if(k==='ffeSchedule') return !(FFE.some(function(r){return r.item && !r.excluded;}) || String(SPEC.ffeSchedule||'').trim()); if(k==='hood') return !(CONVEY && (_cv('hood1')||_cv('hood2'))); return !String(SPEC[k]||'').trim(); }
+function _missOf(k){ if(k==='ffeSchedule') return !(FFE.some(function(r){return r.item && !r.excluded;}) || String(SPEC.ffeSchedule||'').trim()); if(k==='hood') return !(CONVEY && (_cv('hood1')||_cv('hood2')||_cv('nohood'))); return !String(SPEC[k]||'').trim(); }
 function groupCore(g){ var ks=g.fields.filter(function(f){return f.core;}).map(function(f){return f.k;}); if(g.convey) ks=ks.concat(['hood','ffeSchedule']); return ks; }
 function groupFilled(g){ var n=g.fields.filter(function(f){ return String(SPEC[f.k]||'').trim(); }).length; if(g.convey) n+=(CONVEY?CONVEY.length:0)+FFE.length; return n; }
 function groupStatus(g){
@@ -235,7 +240,7 @@ function setHead(){ var t=BIZ?(BIZ+' — Space & Assets'):'Space & Assets'; docu
 
 // ── FF&E equipment schedule editor ─────────────────────────────────────────────
 var FFE=[], FFE_CATS=['Cooking','Refrigeration','Prep & Storage','Warewashing','Bar & Beverage','Smallwares','Furniture & Decor','POS & Tech','Signage','Other'];
-var QUICK=[['Range','Cooking'],['Fryer','Cooking'],['Grill','Cooking'],['Griddle','Cooking'],['Salamander','Cooking'],['Reach-in refrigerator','Refrigeration'],['Reach-in freezer','Refrigeration'],['Bar coolers','Bar & Beverage','Confirm'],['Beer system — glycol','Bar & Beverage','Confirm','Number of taps'],['Beer system — direct draw','Bar & Beverage','Confirm','Number of taps'],['Dining tables','Furniture & Decor'],['Dining chairs','Furniture & Decor'],['Patio tables','Furniture & Decor'],['Patio chairs','Furniture & Decor'],['Barstools','Furniture & Decor']];
+var QUICK=[['Range','Cooking'],['Fryer','Cooking'],['Grill','Cooking'],['Griddle','Cooking'],['Salamander','Cooking'],['Stainless prep tables','Prep & Storage'],['Reach-in refrigerator','Refrigeration'],['Dish machine','Warewashing','Confirm','Often leased from the chemical supplier (Ecolab, Auto-Chlor) — confirm owned or rented. '],['Reach-in freezer','Refrigeration'],['Ice machine','Refrigeration','Confirm','Often leased — confirm owned or rented. Make / lbs per day: '],['Bar coolers','Bar & Beverage','Confirm'],['Beer system — glycol','Bar & Beverage','Confirm','Number of taps: '],['Beer system — direct draw','Bar & Beverage','Confirm','Number of taps: '],['POS stations','POS & Tech','Confirm','Hardware only — the software account does not transfer. Brand: '],['Kitchen display screens (KDS)','POS & Tech','Confirm','Screens only — the KDS software is part of the POS account and does not transfer. Brand: '],['Security camera system','POS & Tech','Confirm','Cameras & recorder — any monitoring contract does not transfer. Camera count: '],['Sound system','POS & Tech','Owned','Speakers & amp — music service and licensing (BMI / ASCAP) do not transfer. '],['TVs','POS & Tech','Owned','TVs & mounts — cable / DirecTV / sports packages do not transfer. Sizes: '],['Dining tables','Furniture & Decor'],['Dining chairs','Furniture & Decor'],['Patio tables','Furniture & Decor'],['Patio chairs','Furniture & Decor'],['Barstools','Furniture & Decor'],['Smallwares (lot)','Smallwares','Owned','Pots, pans, utensils, plates, glassware & flatware — sold as a lot, as-is']];
 // Guess a category from a typed item name (manual rows only).
 var CAT_GUESS=[[/pos|terminal|printer|tablet|ipad|kds|computer|router|camera|speaker|tv|television|music/i,'POS & Tech'],[/beer|draft|draught|keg|tap|glycol|soda|fountain|ice machine|bar |back ?bar|wine|liquor|espresso|coffee|blender|bottle/i,'Bar & Beverage'],[/fridge|refrig|freez|cooler|walk-?in|reach-?in|prep table|sandwich|make ?line|ice cream|chiller|lowboy/i,'Refrigeration'],[/dish|sink|washer|disposal|booster|pre-?rinse/i,'Warewashing'],[/fryer|grill|griddle|range|oven|salamander|broiler|smoker|steamer|kettle|wok|burner|charbroil|hot ?hold|warmer|holding|toaster|microwave|pizza|combi|rotisserie|hood|tilt/i,'Cooking'],[/table|chair|stool|booth|bench|banquette|host stand|decor|art|mirror|lamp|light|umbrella|heater/i,'Furniture & Decor'],[/shelf|shelving|rack|cart|mixer|slicer|scale|work ?table|prep|bin|cabinet|dunnage/i,'Prep & Storage'],[/sign|pylon|neon|menu ?board/i,'Signage'],[/pan|pot|utensil|knife|knives|plate|glass|silverware|flatware|smallware|china|tray/i,'Smallwares']];
 function guessCat(t){ for(var i=0;i<CAT_GUESS.length;i++) if(CAT_GUESS[i][0].test(t)) return CAT_GUESS[i][1]; return ''; }
@@ -245,6 +250,7 @@ try{ fetch('/api/session',{credentials:'same-origin'}).then(function(r){return r
 function fmtMoney(t){ t=String(t||'').trim(); if(!t) return t; var m=t.replace(/[\s,$€£¥]|usd|cad|mxn|eur|gbp/gi,'').match(/^(\d+(?:\.\d+)?)([km]?)$/i); if(!m) return t;
   var n=parseFloat(m[1])*(/k/i.test(m[2])?1e3:(/m/i.test(m[2])?1e6:1)); if(!isFinite(n)) return t;
   try{ return new Intl.NumberFormat('en-US',{style:'currency',currency:CUR,maximumFractionDigits:0}).format(Math.round(n)); }catch(e){ return '$'+Math.round(n).toLocaleString('en-US'); } }
+var QGROUPS=[['Cooking',['Cooking']],['Refrigeration',['Refrigeration']],['Prep & dish',['Prep & Storage','Warewashing']],['Bar',['Bar & Beverage']],['Dining room',['Furniture & Decor']],['Tech',['POS & Tech']],['Smallwares',['Smallwares']]];
 function _qIdx(name){ name=String(name).toLowerCase(); for(var i=0;i<FFE.length;i++) if(String(FFE[i].item||'').trim().toLowerCase()===name) return i; return -1; }
 var FFE_CONDS=['','New','Excellent','Good','Fair','Poor','Not working'];
 function _opt(list,v,blank){ return list.map(function(o){ return '<option value="'+esc(o)+'"'+(o===v?' selected':'')+'>'+esc(o||blank||'—')+'</option>'; }).join(''); }
@@ -276,7 +282,7 @@ function ffeHtml(){
   }
   return '<div class="fld" data-fk="ffeSchedule"><label class="subh">Equipment (FF&amp;E) — sold by bill of sale<span class="dot">★</span></label>'
     +'<div class="ffebar"><button class="btn sm red" id="ffeImport">Import FF&amp;E list</button><button class="btn sm" id="ffePaste">Paste a list</button><button class="btn sm" id="ffeAdd">+ Add item</button><span class="msg" id="ffeMsg"></span><input type="file" id="ffeFile" accept=".xlsx,.xls,.xlsm,.csv,.tsv,.txt,.pdf,.docx,.jpg,.jpeg,.png,.webp,.gif,image/*" style="display:none"></div>'
-    +'<div class="qadd"><span>Quick add:</span>'+QUICK.map(function(q,i){ var on=_qIdx(q[0])>=0; return '<button type="button" class="qchip'+(on?' added':'')+'" data-q="'+i+'" title="'+(on?'Already on the schedule — click to edit its quantity':'Add to the schedule')+'">'+(on?'✓ ':'+ ')+esc(q[0])+'</button>'; }).join('')+'</div>'
+    +'<div class="qadd"><div class="qhd">Quick add</div>'+QGROUPS.map(function(G){ var its=[]; QUICK.forEach(function(q,i){ if(G[1].indexOf(q[1])>=0) its.push([q,i]); }); if(!its.length) return ''; return '<div class="qrow"><span class="qlbl">'+esc(G[0])+'</span><span class="qchips">'+its.map(function(x){ var q=x[0], i=x[1], on=_qIdx(q[0])>=0; return '<button type="button" class="qchip'+(on?' added':'')+'" data-q="'+i+'" title="'+(on?'Already on the schedule — click to edit its quantity':'Add to the schedule')+'">'+(on?'✓ ':'+ ')+esc(q[0])+'</button>'; }).join('')+'</span></div>'; }).join('')+'</div>'
     +'<div id="ffeWarn">'+ffeWarnHtml()+'</div><div id="ffeBody">'+body+'</div>'
     +'<div id="ffePasteBox" style="display:none;margin-top:10px"><textarea id="ffePasteTxt" placeholder="Paste the seller\'s equipment list here — any format"></textarea><div style="margin-top:8px;display:flex;gap:8px"><button class="btn sm red" id="ffePasteGo">Read the list</button><button class="btn sm" id="ffePasteX">Cancel</button></div></div>'
     +'<div class="hint">Imported rows are added to the schedule. Leased items print as “does not convey”; items marked Seller keeps print under Excluded.</div></div>';
@@ -321,7 +327,7 @@ function ffeWire(){
   document.getElementById('ffePasteX').onclick=function(){ document.getElementById('ffePasteBox').style.display='none'; };
   document.getElementById('ffePasteGo').onclick=function(){ var t=document.getElementById('ffePasteTxt').value.trim(); if(!t){ ffeMsg('Paste the list first.','err'); return; } ffeParse({ text:t }); };
   document.getElementById('ffeAdd').onclick=function(){ FFE.push({cat:'Other',item:'',qty:1,model:'',cond:'',own:'Owned',notes:'',excluded:false,_new:1}); DIRTY=true; ffeRefresh(); var ins=document.querySelectorAll('.ffet input[data-f="item"]'); if(ins.length) ins[ins.length-1].focus(); };
-  document.querySelectorAll('.qchip').forEach(function(b){ b.onclick=function(){ var q=QUICK[+b.getAttribute('data-q')]; var ex=_qIdx(q[0]); if(ex>=0){ var qi=document.querySelector('.ffet tr[data-i="'+ex+'"] input[data-f="qty"]'); if(qi){ qi.scrollIntoView({block:'center'}); qi.focus(); qi.select(); } return; } FFE.push({cat:q[1],item:q[0],qty:1,model:'',cond:'',own:q[2]||'Owned',notes:q[3]?(q[3]+': '):'',excluded:false}); DIRTY=true; ffeRefresh(); var qs=document.querySelectorAll('.ffet input[data-f="qty"]'); if(qs.length){ qs[qs.length-1].focus(); qs[qs.length-1].select(); } }; });
+  document.querySelectorAll('.qchip').forEach(function(b){ b.onclick=function(){ var q=QUICK[+b.getAttribute('data-q')]; var ex=_qIdx(q[0]); if(ex>=0){ var qi=document.querySelector('.ffet tr[data-i="'+ex+'"] input[data-f="qty"]'); if(qi){ qi.scrollIntoView({block:'center'}); qi.focus(); qi.select(); } return; } FFE.push({cat:q[1],item:q[0],qty:1,model:'',cond:'',own:q[2]||'Owned',notes:q[3]||'',excluded:false}); DIRTY=true; ffeRefresh(); var qs=document.querySelectorAll('.ffet input[data-f="qty"]'); if(qs.length){ qs[qs.length-1].focus(); qs[qs.length-1].select(); } }; });
   var cv=document.getElementById('ffeConvert'); if(cv) cv.onclick=function(){ ffeParse({ text: String(SPEC.ffeSchedule||'')+(SPEC.ffeExcluded?('\nSeller keeping (excluded): '+SPEC.ffeExcluded):'') }); };
   var tb=document.querySelector('.ffet tbody'); if(!tb) return;
   function upd(el){ var tr=el.closest('tr'); if(!tr) return; var i=+tr.getAttribute('data-i'), k=el.getAttribute('data-f'); if(!FFE[i]) return;
@@ -348,19 +354,20 @@ function wireDates(){
 
 // "What conveys" checklist — keys mirror the server's CONVEY_KIT.
 var KIT=[
-  {g:'Kitchen', items:[['hood1','Type I hood','Length (ft)','ft'],['hood2','Type II hood','Length (ft)','ft'],['ansul','Fire suppression','Certified 2025'],['mua','Make-up air',''],['gas','Gas line','2" natural gas'],['water','Water heater','Gallons or tankless','gal'],['grease','Grease trap / interceptor','Gallons','gal'],['walkinC','Walk-in cooler','8×10'],['walkinF','Walk-in freezer','6×8'],['dry','Dry storage',''],['hand','Hand sinks','How many'],['prep','Prep sink',''],['sink3','3-compartment sink',''],['mop','Mop sink',''],['drains','Floor drains','']]},
+  {g:'Kitchen', items:[['hood1','Type I hood','Length (ft)','ft'],['hood2','Type II hood','Length (ft)','ft'],['nohood','No hood',''],['ansul','Fire suppression','Certified 2025'],['mua','Make-up air',''],['gas','Gas line','2" natural gas'],['water','Water heater','Gallons or tankless','gal'],['grease','Grease trap / interceptor','Gallons','gal'],['walkinC','Walk-in cooler','8×10'],['walkinF','Walk-in freezer','6×8'],['dry','Dry storage',''],['hand','Hand sinks','How many'],['prep','Prep sink',''],['sink3','3-compartment sink',''],['mop','Mop sink',''],['drains','Floor drains','']]},
   {g:'Building', items:[['sprink','Fire sprinklers',''],['restrooms','ADA restrooms','How many'],['bar','Built-in bar','24 ft · 14 seats'],['counter','Order counter',''],['window','Pickup / walk-up window',''],['drive','Drive-thru',''],['pdr','Private dining room','Seats','seats'],['patio','Patio','Seats','seats'],['office','Office',''],['sign','Sign panel','']]}
 ];
 var CONVEY=null;
 function conveyMigrate(){ if(CONVEY) return; CONVEY=[]; var m={hood:'hood1',walkin:'walkinC',ansul:'ansul',restrooms:'restrooms',gas:'gas',patio:'patio'}; Object.keys(m).forEach(function(f){ var v=String(SPEC[f]||'').trim(); if(v) CONVEY.push({k:m[f], d:v.slice(0,160)}); }); }
 function _cv(k){ for(var i=0;i<CONVEY.length;i++) if(CONVEY[i].k===k) return CONVEY[i]; return null; }
 function kitHtml(){
-  var cols=KIT.map(function(g){ return '<div class="kitg"><div class="kgh">'+esc(g.g)+'</div>'+g.items.map(function(it){ var c=_cv(it[0]);
-    return '<div class="kit'+(c?' on':'')+'"><label><input type="checkbox" data-kit="'+it[0]+'"'+(c?' checked':'')+'> '+esc(it[1])+(it[0]==='hood1'?'<span class="dot">★</span>':'')+'</label>'+(it[2]?'<input type="text" class="kd" data-kitd="'+it[0]+'"'+(it[3]?(' data-unit="'+it[3]+'" inputmode="decimal"'):'')+' value="'+esc(c?c.d:'')+'" placeholder="'+esc(it[2])+'">':'')+'</div>'; }).join('')+'</div>'; }).join('');
+  var cols=KIT.map(function(g){ return '<div class="kitg"><div class="kgh">'+esc(g.g)+(g.g==='Kitchen'?'<span class="kreq">★ Pick a hood option</span>':'')+'</div>'+g.items.map(function(it){ var c=_cv(it[0]);
+    return '<div class="kit'+(c?' on':'')+'"><label><input type="checkbox" data-kit="'+it[0]+'"'+(c?' checked':'')+'> '+esc(it[1])+'</label>'+(it[2]?'<input type="text" class="kd" data-kitd="'+it[0]+'"'+(it[3]?(' data-unit="'+it[3]+'" inputmode="decimal"'):'')+' value="'+esc(c?c.d:'')+'" placeholder="'+esc(it[2])+'">':'')+'</div>'; }).join('')+'</div>'; }).join('');
   return '<div class="fld" data-fk="kit"><label class="subh">Leasehold improvements — convey with assignment of the lease</label><div class="kitgrid">'+cols+'</div></div>';
 }
 function wireKit(){
   document.querySelectorAll('[data-kit]').forEach(function(cb){ cb.addEventListener('change', function(){ var k=cb.getAttribute('data-kit'), d=document.querySelector('[data-kitd="'+k+'"]');
+    if(cb.checked){ var clash=(k==='nohood')?['hood1','hood2']:((k==='hood1'||k==='hood2')?['nohood']:[]); clash.forEach(function(x){ var o=document.querySelector('[data-kit="'+x+'"]'); if(o&&o.checked){ o.checked=false; o.closest('.kit').classList.remove('on'); CONVEY=CONVEY.filter(function(r){ return r.k!==x; }); } }); }
     CONVEY=CONVEY.filter(function(r){ return r.k!==k; }); if(cb.checked){ CONVEY.push({k:k, d:d?d.value.trim():''}); if(d) d.focus(); }
     cb.closest('.kit').classList.toggle('on', cb.checked); DIRTY=true; refreshBanner(); }); });
   document.querySelectorAll('[data-kitd]').forEach(function(inp){ inp.addEventListener('input', function(){ var k=inp.getAttribute('data-kitd'), c=_cv(k), cb=document.querySelector('[data-kit="'+k+'"]');

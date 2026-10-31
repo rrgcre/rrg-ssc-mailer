@@ -20172,7 +20172,7 @@ app.post('/api/value-letter/:id/email', express.json(), async (req, res) => {
 // "What conveys" checklist. Each item can carry a short detail (hood length, walk-in size…).
 // The checklist is the single source for the buildout fields it maps to (to: spec key).
 const CONVEY_KIT = [
-  { k: 'hood1', l: 'Type I hood', to: 'hood' }, { k: 'hood2', l: 'Type II hood', to: 'hood' }, { k: 'ansul', l: 'Fire suppression', to: 'ansul' }, { k: 'mua', l: 'Make-up air', to: 'hood' },
+  { k: 'hood1', l: 'Type I hood', to: 'hood' }, { k: 'hood2', l: 'Type II hood', to: 'hood' }, { k: 'nohood', l: 'No hood', to: 'hood' }, { k: 'ansul', l: 'Fire suppression', to: 'ansul' }, { k: 'mua', l: 'Make-up air', to: 'hood' },
   { k: 'gas', l: 'Gas line', to: 'gas' }, { k: 'water', l: 'Water heater' }, { k: 'grease', l: 'Grease trap / interceptor', to: 'hood' },
   { k: 'walkinC', l: 'Walk-in cooler', to: 'walkin' }, { k: 'walkinF', l: 'Walk-in freezer', to: 'walkin' }, { k: 'dry', l: 'Dry storage' },
   { k: 'hand', l: 'Hand sinks' }, { k: 'prep', l: 'Prep sink' }, { k: 'sink3', l: '3-compartment sink' }, { k: 'mop', l: 'Mop sink' }, { k: 'drains', l: 'Floor drains' },
