@@ -141,7 +141,7 @@ function finish(){
   h+='<div class="sec">Notes</div><textarea id="noT" placeholder="Anything else a buyer should know">'+esc(SPEC.conveys||'')+'</textarea>';
   var tot=0; FFE.forEach(function(r){ if(!r.excluded) tot+=(r.qty||1); });
   h+='<div class="sec">Summary</div><div class="box sum"><div><span>Built-in items checked</span><b>'+CONVEY.length+'</b></div><div><span>Equipment lines</span><b>'+FFE.length+'</b></div><div><span>Pieces conveying</span><b>'+tot+'</b></div></div>';
-  h+='<div style="margin-top:16px"><a class="btn" style="display:flex;align-items:center;justify-content:center;text-decoration:none" href="./rrg_asset_space.html?key='+encodeURIComponent(KEY)+'">Open the full spec sheet</a></div>';
+  h+='<div style="margin-top:16px"><a class="btn" style="display:flex;align-items:center;justify-content:center;text-decoration:none" href="./rrg_asset_space.html?key='+encodeURIComponent(KEY)+'">Open the full listing details</a></div>';
   return h;
 }
 function draw(){

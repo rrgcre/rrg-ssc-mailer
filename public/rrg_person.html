@@ -2488,7 +2488,7 @@ load();
     {id:'alignPrice', lock:'valuation', t:'Set the asking price', sub:'Agreed with the seller after reviewing the value', f:function(){ _alignPrice(); }},
     {id:'sendLA', t:'Email the listing agreement', sub:'Exclusive representation, to sign', lock:'valuation', f:function(){ if(typeof openListingAgreement==='function'){ openListingAgreement(); } else { alert('Agreements are still loading — try again in a moment.'); } }},
     {hdr:'Go to Market', hid:'gtm'},
-    {id:'assetSpace', t:'Capture space & assets', sub:'Lease, buildout, FF&E and license', f:function(){ var k=_actKey(); if(k){ _rrgPanel('./rrg_asset_space.html?key='+encodeURIComponent(k)+'&embed=1','Spec sheet'); } else { alert('No listing on file for this seller yet.'); } }},
+    {id:'assetSpace', t:'Capture space & assets', sub:'What conveys, the lease and the space', f:function(){ var k=_actKey(); if(k){ _rrgPanel('./rrg_asset_space.html?key='+encodeURIComponent(k)+'&embed=1','Listing details'); } else { alert('No listing on file for this seller yet.'); } }},
     {id:'mktSubmit', t:'Submit to marketing', sub:'Marketing builds the listing page and marketplace listing', f:function(){ _mktSubmit(); }},
     {id:'goMarket', t:'Take it to market', sub:'Marketing pack, attack plan, marketplace', lock:'valuation', f:function(){ var k=_actKey(); if(!k){ alert('No listing on file for this seller yet.'); return; } if(_activeLane()==='asset'){ assetGoToMarket(k); return; } location.href='./rrg_assignment.html?key='+encodeURIComponent(k); }},
     {id:'ownerVideo', t:'Email the owner video link', sub:'Guided video for buyers, goes to the data room', lock:'valuation', f:function(){ if(typeof openSellerIntake==='function') openSellerIntake('ownervideo'); }},
@@ -2647,16 +2647,16 @@ load();
       +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b style="font-size:13px;letter-spacing:.04em;text-transform:uppercase">Submit to marketing</b><button type="button" data-x="1" style="background:none;border:0;font-size:20px;cursor:pointer;color:#6b7488">&times;</button></div>'
       +'<div style="color:#5a6478;line-height:1.5;margin-bottom:10px">Sends <b>'+esc(d.business||'this listing')+'</b> to Marketing &amp; Creative with the listing, data room and pricing linked. They build it; you’ll see the status here.</div>'
       +'<div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8;margin:8px 0 2px">What’s needed</div>'
-      +chk('page','Listing page and marketplace listing (blind)',1)+chk('photos','Photography',0)+chk('sign','Signage / rider',0)+chk('pack',asset?'Spec sheet':'Marketing pack (CIM) review',1)+chk('blast','Announce to buyers (email blast)',1)
+      +chk('page','Listing page and marketplace listing (blind)',1)+chk('photos','Photography',0)+chk('sign','Signage / rider',0)+chk('pack',asset?'Offering sheet':'Marketing pack (CIM) review',1)+chk('blast','Announce to buyers (email blast)',1)
       +'<label style="display:block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8;margin:10px 0 5px">Notes for marketing</label><textarea data-n="1" rows="4" placeholder="Anything they should know: confidentiality, best photos, timing, showing instructions…" style="width:100%;border:1px solid #c4ccda;border-radius:6px;padding:8px 10px;font:inherit;resize:vertical"></textarea>'
       +'<div style="display:flex;align-items:center;gap:10px;margin-top:12px"><button type="button" data-go="1" style="background:#000E31;color:#fff;border:0;border-radius:6px;padding:9px 18px;font:inherit;font-weight:700;cursor:pointer">Submit</button><span data-m="1" style="font-size:12.5px;font-weight:600"></span></div></div>';
     document.body.appendChild(ov);
     ov.addEventListener('click',function(e){ if(e.target===ov||e.target.closest('[data-x]')){ ov.remove(); return; } if(!e.target.closest('[data-go]')) return;
-      var m=ov.querySelector('[data-m]'); var need=[]; var L={page:'Listing page + marketplace listing (blind)',photos:'Photography',sign:'Signage / rider',pack:(asset?'Spec sheet':'Marketing pack (CIM) review'),blast:'Announce to buyers (email blast)'};
+      var m=ov.querySelector('[data-m]'); var need=[]; var L={page:'Listing page + marketplace listing (blind)',photos:'Photography',sign:'Signage / rider',pack:(asset?'Offering sheet':'Marketing pack (CIM) review'),blast:'Announce to buyers (email blast)'};
       Array.prototype.forEach.call(ov.querySelectorAll('[data-c]'),function(c){ if(c.checked) need.push('- '+L[c.getAttribute('data-c')]); });
       var note=(ov.querySelector('[data-n]').value||'').trim();
       var lines=['New listing ready for marketing: '+(d.business||''),'Type: '+(asset?'Asset sale (space & assets)':'Business sale (going concern)'),(d.market?('Market: '+d.market):''),((d.listPrice||d.assetAsking)?('Asking price: '+(d.listPrice||_fmtMoney(d.assetAsking))):''),'Seller: '+((typeof P!=='undefined'&&P&&P.name)||''),'',
-        'Listing: '+origin+'/rrg_assignment.html?key='+encodeURIComponent(d.key),(d.roomId?('Data room: '+origin+'/rrg_room.html?room='+encodeURIComponent(d.roomId)):''),(asset?('Spec sheet: '+origin+'/rrg_asset_space.html?key='+encodeURIComponent(d.key)):''),'Contact: '+origin+'/rrg_person.html?id='+encodeURIComponent((typeof ID!=='undefined'&&ID)||''),'',
+        'Listing: '+origin+'/rrg_assignment.html?key='+encodeURIComponent(d.key),(d.roomId?('Data room: '+origin+'/rrg_room.html?room='+encodeURIComponent(d.roomId)):''),(asset?('Listing details: '+origin+'/rrg_asset_space.html?key='+encodeURIComponent(d.key)):''),'Contact: '+origin+'/rrg_person.html?id='+encodeURIComponent((typeof ID!=='undefined'&&ID)||''),'',
         'Needed:'].concat(need).concat(note?['','Notes from the rep:',note]:[]).filter(function(x,i,a){ return x!==''||(a[i-1]!==''); });
       m.style.color='#6b7488'; m.textContent='Submitting…';
       fetch('/api/ticket',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({subject:'List: '+(d.business||'new listing')+(d.market?(' ('+d.market+')'):''),details:lines.join('\n'),category:'Marketing',priority:'Normal'})}).then(function(r){return r.json();}).then(function(j){
@@ -2764,9 +2764,9 @@ load();
       _rrgSetGate(_rrgActById('dUpload'),false,'Lease, equipment list, floor plan, photos & license');
       _rrgSetGate(_rrgActById('sendLA'),false,'Space & assets listing, to sign'); try{ var _apA=_rrgActById('alignPrice'); if(_apA && !_apA.classList.contains('rrgactdoneflag')) _rrgSetGate(_apA,false,'Agreed with the seller after reviewing the value'); }catch(_){}
       var _acd=_activeAssetCoreDone();
-      _rrgSetGate(_rrgActById('goMarket'), !_acd, _acd?'Spec sheet and marketplace':'Complete the spec sheet first');
-      _rrgRelabel('sendLA','Email the representation agreement','Space & assets listing, to sign'); _rrgRelabel('assetSpace','Complete the spec sheet','Lease, space, buildout, FF&E and licenses for buyers');
-      _rrgRelabel('goMarket','Take it to market','Spec sheet and marketplace');
+      _rrgSetGate(_rrgActById('goMarket'), !_acd, _acd?'Offering sheet and marketplace':'Complete the listing details first');
+      _rrgRelabel('sendLA','Email the representation agreement','Space & assets listing, to sign'); _rrgRelabel('assetSpace','Complete the listing details','What conveys, the lease and the space');
+      _rrgRelabel('goMarket','Take it to market','Offering sheet and marketplace');
       _rrgRelabel('matchBuyers','Match operators','Operators whose buy-box fits this space');
     } else {
       // Title-only restore — refreshValuation owns the sendLA/goMarket sub-notes (gate messages).

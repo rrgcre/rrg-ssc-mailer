@@ -20305,7 +20305,7 @@ function assetSheetHtml(business, market, spec, ffe, convey) {
   });
   if (!secs) secs = '<p class="empty">No details captured yet.</p>';
   const org = esc(orgDisplayName());
-  return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + esc(business || 'Space & Assets') + ' — Listing Sheet</title>'
+  return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + esc(business || 'Space & Assets') + ' — Offering Sheet</title>'
     + '<style>*{box-sizing:border-box}body{margin:0;background:#fff;color:#1a2236;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;font-size:13px;line-height:1.5}'
     + '.wrap{max-width:760px;margin:0 auto;padding:34px 40px 60px}'
     + '.hd{border-bottom:3px solid #DA2B1F;padding-bottom:16px;margin-bottom:8px}'
@@ -20320,12 +20320,12 @@ function assetSheetHtml(business, market, spec, ffe, convey) {
     + 'table.ffe th{width:auto;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;padding:5px 10px 5px 0;border-bottom:1px solid #e6e9f0}table.ffe td{padding:4px 10px 4px 0;font-size:12.5px}table.ffe .q{width:44px;text-align:right;padding-right:16px}table.ffe tr.cat td{font-weight:800;color:#000E31;font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding-top:10px}table.ffe .nt{color:#6b7488;font-size:11px}table.ffe tr{page-break-inside:avoid}'
     + '.empty{color:#8a93a8}.foot{margin-top:34px;padding-top:14px;border-top:1px solid #e6e9f0;color:#8a93a8;font-size:11px}'
     + '@media print{.wrap{padding:0}}</style></head><body><div class="wrap">'
-    + '<div class="hd"><div class="kick">Space &amp; Assets — Listing Sheet</div><h1>' + esc(business || 'Restaurant Space') + '</h1><div class="mkt">' + esc(market || '') + '</div></div>'
+    + '<div class="hd"><div class="kick">Offering Sheet · Space &amp; Assets</div><h1>' + esc(business || 'Restaurant Space') + '</h1><div class="mkt">' + esc(market || '') + '</div></div>'
     + secs
     + '<div class="foot">Prepared by ' + org + '. Confidential — shared under NDA. Information believed reliable but not guaranteed; buyer to verify.</div>'
     + '</div></body></html>';
 }
-// Broker-facing printable spec sheet.
+// Printable Offering Sheet (buyer-facing).
 app.get('/api/asset-spec/sheet', (req, res) => {
   try {
     const { d } = _dealByAnyKey(req.query && req.query.key);
@@ -20346,8 +20346,8 @@ async function depositAssetSheetToRoom(d, key) {
     const hash = crypto.createHash('sha256').update(pdf).digest('hex');
     const cats = roomServeCats(live);
     const category = cats.indexOf('Menus & Marketing') >= 0 ? 'Menus & Marketing' : (cats.indexOf('Lease') >= 0 ? 'Lease' : 'Other');
-    const title = ((d.business ? (d.business + ' — ') : '') + 'Space & Assets Sheet').slice(0, 140);
-    const orig = ('Space & Assets Sheet' + (d.business ? (' - ' + d.business) : '')).replace(/\s+/g, ' ').slice(0, 116) + '.pdf';
+    const title = ((d.business ? (d.business + ' — ') : '') + 'Offering Sheet').slice(0, 140);
+    const orig = ('Offering Sheet' + (d.business ? (' - ' + d.business) : '')).replace(/\s+/g, ' ').slice(0, 116) + '.pdf';
     try { if (!fs.existsSync(ROOMS_DIR)) fs.mkdirSync(ROOMS_DIR, { recursive: true }); } catch (e) { return; }
     let doc = live.docs.find(x => x && x.auto === 'asset-sheet' && x.srcKey === key);
     if (doc) { if (doc.hash === hash) return; try { binWrite(path.join(ROOMS_DIR, doc.id + '.pdf'), pdf); } catch (e) { return; } doc.title = title; doc.category = category; doc.ext = 'pdf'; doc.originalName = orig; doc.size = pdf.length; doc.hash = hash; doc.uploadedAt = new Date().toISOString(); }

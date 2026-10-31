@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lavano — Space & Assets</title>
+<title>Lavano — Listing details</title>
 <style>
 :root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;--inp:#cfd6e2;}
 *{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
@@ -97,9 +97,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 <div class="top"><div class="top-in">
   <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
   <div class="crumb"><a href="#" onclick="goBack();return false;">Listing</a> &nbsp;›&nbsp; <span id="crumb">Space &amp; Assets</span></div>
-  <div class="kicker">Space &amp; Assets</div>
+  <div class="kicker">Listing details · Space &amp; Assets</div>
   <h1 id="h1">Space &amp; Assets</h1>
-  <div class="sub">The turnkey listing sheet — what conveys, the lease and the space. The starred fields are what a space buyer asks first; fill those and you're market-ready. Everything else is optional.</div>
+  <div class="sub">Everything a space buyer asks — what conveys, the lease and the space. It prints as the Offering Sheet. The starred fields are what a space buyer asks first; fill those and you're market-ready. Everything else is optional.</div>
 </div></div>
 <div class="wrap"><div id="root"><div class="gate">Loading…</div></div></div>
 <script>
@@ -168,7 +168,7 @@ function vrefHtml(){ var r=[];
   if(VREF.bov) r.push('<div><span>BOV'+(VREF.bov.final?'':' (draft)')+'</span><b>'+esc(VREF.bov.target||VREF.bov.range)+'</b>'+(VREF.bov.target&&VREF.bov.range?'<i>Range '+esc(VREF.bov.range)+'</i>':'')+'<a href="./rrg_bov_generate.html?bov='+encodeURIComponent(VREF.bov.id)+'" target="_blank">Open ↗</a></div>');
   if(VREF.letter) r.push('<div><span>Opinion of value</span><b>'+esc(VREF.letter.value)+'</b><i>'+esc(({draft:'Draft',pending:'Awaiting approval',approved:'Approved',sent:'Sent'})[VREF.letter.status]||VREF.letter.status)+(VREF.letter.at?(' · '+esc(_fmtDate(VREF.letter.at))):'')+'</i></div>');
   if(VREF.listPrice) r.push('<div><span>Agreed asking price</span><b>'+esc(VREF.listPrice)+'</b></div>');
-  return r.length?'<div class="vref"><div class="vrh">For reference — internal, not on the spec sheet</div>'+r.join('')+'</div>':''; }
+  return r.length?'<div class="vref"><div class="vrh">For reference — internal, not on the offering sheet</div>'+r.join('')+'</div>':''; }
 var OPTS={spaceTypes:['End cap','Inline','Pad / Outparcel','Freestanding'],centerTypes:['Grocery-anchored','Power / big-box','Lifestyle / mixed-use','Strip / unanchored','Freestanding pad','Downtown / street retail','Mall / food court','Entertainment / hospitality node','Other']};
 var CORE=['spaceType','leaseRent','leaseRemaining','leaseAssignment','sqft','deliveryCondition','hood','ffeSchedule'];
 var CORE_LABEL={ffeSchedule:'Equipment schedule — what conveys', hood:'Hood — Type I, Type II or No hood'};
@@ -239,7 +239,7 @@ function render(){
   host.innerHTML='<a class="wt" href="./rrg_walkthrough.html?key='+encodeURIComponent(KEY)+'" onclick="return openWalk(this)"><span class="wti">📱</span><span><b>Walkthrough mode</b><span class="wts">Room by room on your phone — big buttons, autosaves as you go</span></span><span class="wtg">›</span></a>'
     +'<div id="bannerHost">'+bannerHtml()+'</div>'
     +GROUPS.map(groupHtml).join('')
-    +'<div class="actbar"><button class="btn red" id="saveBtn">Save listing sheet</button><span class="msg" id="msg"></span><a class="btn ghost sm" href="#" onclick="goBack();return false;" style="margin-left:auto">Back</a></div>';
+    +'<div class="actbar"><button class="btn red" id="saveBtn">Save listing details</button><span class="msg" id="msg"></span><a class="btn ghost sm" href="#" onclick="return openSheet()" title="Save first — opens what buyers see">View offering sheet ↗</a><a class="btn ghost sm" href="#" onclick="goBack();return false;" style="margin-left:auto">Back</a></div>';
   host.querySelectorAll('[data-k]').forEach(function(el){
     el.addEventListener('input', function(){ SPEC[el.getAttribute('data-k')]=el.value; DIRTY=true; var fld=el.closest('.fld'); if(fld){ var k=fld.getAttribute('data-fk'); if(CORE.indexOf(k)>=0) fld.classList.toggle('need', !el.value.trim()); } refreshBanner(); });
   });
@@ -248,6 +248,7 @@ function render(){
   GROUPS.forEach(function(g){ g.fields.forEach(function(f){ if(!f.money) return; var el=document.querySelector('[data-k="'+f.k+'"]'); if(!el) return; el.setAttribute('inputmode','decimal'); el.addEventListener('blur', function(){ var v=fmtMoney(el.value); if(v!==el.value){ el.value=v; SPEC[f.k]=v; DIRTY=true; } }); }); });
   document.querySelectorAll('input[list]').forEach(function(el){ el.addEventListener('focus', function(){ if(!el.value && el.showPicker){ try{ el.showPicker(); }catch(e){} } }); });
 }
+function openSheet(){ window.open('/api/asset-spec/sheet?key='+encodeURIComponent(KEY),'_blank'); return false; }
 function openWalk(a){ var phone=Math.min(screen.width,screen.height)<700; try{ if(phone){ window.top.location.href=a.href; } else { window.open(a.href,'_blank'); } }catch(e){ location.href=a.href; } return false; }
 function refreshBanner(){ var b=document.getElementById('bannerHost'); if(b){ b.innerHTML=bannerHtml(); wireBanner(); } refreshStatus(); }
 function wireBanner(){ document.querySelectorAll('[data-jump]').forEach(function(a){ a.onclick=function(e){ e.preventDefault(); var gi=+a.getAttribute('data-jump'); if(gi>=0) setOpen(gi,true,true); }; }); wireToggles(); }
@@ -264,7 +265,7 @@ function save(){
     refreshBanner();
   }).catch(function(){ btn.disabled=false; msg.className='msg err'; msg.textContent='Could not reach the server.'; });
 }
-function setHead(){ var t=BIZ?(BIZ+' — Space & Assets'):'Space & Assets'; document.getElementById('h1').textContent=BIZ||'Space & Assets'; document.getElementById('crumb').textContent=BIZ||'Space & Assets'; document.title='Lavano — '+t; }
+function setHead(){ var t=BIZ?(BIZ+' — Listing details'):'Listing details'; document.getElementById('h1').textContent=BIZ||'Space & Assets'; document.getElementById('crumb').textContent=BIZ||'Space & Assets'; document.title='Lavano — '+t; }
 
 // ── FF&E equipment schedule editor ─────────────────────────────────────────────
 // Guess a category from a typed item name (manual rows only).
