@@ -78,6 +78,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 @media(min-width:900px){ .wt{padding:9px 14px;} }
 .fld select.sel{font:inherit;font-size:14px;padding:10px 12px;border:1px solid var(--inp);border-radius:9px;width:100%;color:var(--ink);background:#fff;}
 .fld.need select.sel{border-color:#e6b4ae;background:#fffafa;}
+.vref{border:1px solid #dfe5f0;background:#f7f9fd;border-radius:10px;padding:10px 14px;margin-bottom:14px;}
+.vrh{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--soft);margin-bottom:4px;}
+.vref>div:not(.vrh){display:flex;align-items:baseline;gap:10px;padding:5px 0;flex-wrap:wrap;} .vref>div+div:not(.vrh){border-top:1px dashed #e3e8f1;}
+.vref span{width:150px;font-size:12.5px;color:var(--muted);font-weight:600;} .vref b{font-size:15px;color:var(--navy);} .vref i{font-style:normal;font-size:12px;color:var(--soft);} .vref a{margin-left:auto;font-size:12px;font-weight:700;color:var(--navy);text-decoration:none;}
 .gate{padding:50px 24px;text-align:center;color:var(--muted);font-size:14px;}
 .banner{border-radius:12px;padding:12px 16px;font-size:13px;font-weight:600;margin-bottom:16px;line-height:1.5;}
 .banner.done{background:#eaf7f0;border:1px solid #bfe6d0;color:#1a6e46;}
@@ -159,6 +163,12 @@ var GROUPS=[
     {k:'videoNote', l:'Walkthrough video', ph:'Link (optional)'}
   ]}
 ];
+var VREF={};
+function vrefHtml(){ var r=[];
+  if(VREF.bov) r.push('<div><span>BOV'+(VREF.bov.final?'':' (draft)')+'</span><b>'+esc(VREF.bov.target||VREF.bov.range)+'</b>'+(VREF.bov.target&&VREF.bov.range?'<i>Range '+esc(VREF.bov.range)+'</i>':'')+'<a href="./rrg_bov_generate.html?bov='+encodeURIComponent(VREF.bov.id)+'" target="_blank">Open ↗</a></div>');
+  if(VREF.letter) r.push('<div><span>Opinion of value</span><b>'+esc(VREF.letter.value)+'</b><i>'+esc(({draft:'Draft',pending:'Awaiting approval',approved:'Approved',sent:'Sent'})[VREF.letter.status]||VREF.letter.status)+(VREF.letter.at?(' · '+esc(_fmtDate(VREF.letter.at))):'')+'</i></div>');
+  if(VREF.listPrice) r.push('<div><span>Agreed asking price</span><b>'+esc(VREF.listPrice)+'</b></div>');
+  return r.length?'<div class="vref"><div class="vrh">For reference — internal, not on the spec sheet</div>'+r.join('')+'</div>':''; }
 var OPTS={spaceTypes:['End cap','Inline','Pad / Outparcel','Freestanding'],centerTypes:['Grocery-anchored','Power / big-box','Lifestyle / mixed-use','Strip / unanchored','Freestanding pad','Downtown / street retail','Mall / food court','Entertainment / hospitality node','Other']};
 var CORE=['spaceType','leaseRent','leaseRemaining','leaseAssignment','sqft','deliveryCondition','hood','ffeSchedule'];
 var CORE_LABEL={ffeSchedule:'Equipment schedule — what conveys', hood:'Hood — Type I, Type II or No hood'};
@@ -185,6 +195,7 @@ function groupHtml(g){
   function flush(){ if(!buf.length) return; rows+='<div class="row2">'+buf.join('')+'</div>'; buf=[]; }
   g.fields.forEach(function(f){ if(f.a||f.full){ flush(); rows+=fieldHtml(f); } else { buf.push(fieldHtml(f)); if(buf.length===2) flush(); } });
   flush();
+  if(GROUPS.indexOf(g)===0) rows=vrefHtml()+rows;
   if(g.convey) rows=kitHtml()+'<div class="sep"></div>'+ffeHtml()+'<div class="sep"></div>'+rows;
   var gi=GROUPS.indexOf(g), open=_isOpen(gi);
   return '<div class="card'+(open?'':' closed')+'" data-gi="'+gi+'"><div class="ch" data-tog="'+gi+'"><span class="chev">›</span><b>'+esc(g.title)+'</b>'+(g.core?'<span class="core">Core</span>':'')+(g.hint?'<span class="gh">'+esc(g.hint)+'</span>':'<span class="gh"></span>')+'<span class="gst" data-gst="'+gi+'">'+groupStatus(g)+'</span></div><div class="body">'+rows+'</div></div>';
@@ -389,7 +400,7 @@ function wireKit(){
   if(!KEY){ document.getElementById('root').innerHTML='<div class="gate">No listing specified.</div>'; return; }
   api('GET','/api/asset-spec?key='+encodeURIComponent(KEY)).then(function(j){
     if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">'+esc((j&&j.error)||'Listing not found.')+'</div>'; return; }
-    SPEC=j.spec||{}; BIZ=j.business||''; FFE=j.ffe||[]; CONVEY=j.convey||null; if(j.spaceTypes&&j.spaceTypes.length) OPTS.spaceTypes=j.spaceTypes; if(j.centerTypes&&j.centerTypes.length) OPTS.centerTypes=j.centerTypes; if(!String(SPEC.address||'').trim() && j.locAddress){ SPEC.address=j.locAddress; } conveyMigrate(); if(j.ffeCats&&j.ffeCats.length) FFE_CATS=j.ffeCats; setHead();
+    SPEC=j.spec||{}; BIZ=j.business||''; FFE=j.ffe||[]; CONVEY=j.convey||null; VREF=j.valueRefs||{}; if(!String(SPEC.askingPrice||'').trim() && VREF.listPrice) SPEC.askingPrice=VREF.listPrice; if(j.spaceTypes&&j.spaceTypes.length) OPTS.spaceTypes=j.spaceTypes; if(j.centerTypes&&j.centerTypes.length) OPTS.centerTypes=j.centerTypes; if(!String(SPEC.address||'').trim() && j.locAddress){ SPEC.address=j.locAddress; } conveyMigrate(); if(j.ffeCats&&j.ffeCats.length) FFE_CATS=j.ffeCats; setHead();
     if(j.saleLane && j.saleLane!=='asset'){ document.getElementById('root').innerHTML='<div class="gate">This listing is a Business Sale, not a Space &amp; Assets listing. <a href="./rrg_assignment.html?key='+encodeURIComponent(KEY)+'" style="color:var(--navy);font-weight:700">Open its workspace →</a></div>'; return; }
     render();
   }).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not load this listing.</div>'; });

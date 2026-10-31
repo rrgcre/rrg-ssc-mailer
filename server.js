@@ -20234,13 +20234,21 @@ app.post('/api/asset-spec/ffe-parse', express.json({ limit: '30mb' }), async (re
     res.json({ ok: true, items: items });
   } catch (e) { console.error('ffe parse:', e && e.message); res.status(502).json({ ok: false, error: String((e && e.message) || 'Could not read the list.') }); }
 });
+// Internal value references for the spec sheet headline (never printed on the buyer sheet).
+function _assetValueRefs(key, d) {
+  const out = {};
+  try { const v = assignmentsIndex()[key]; const bid = v && v.bov && v.bov.id; if (bid) { const b = loadBovs().find(x => x.id === bid); if (b && (b.targetText || b.rangeText)) out.bov = { id: b.id, target: b.targetText || '', range: b.rangeText || '', final: !!b.finalizedAt, at: (b.finalizedAt || b.updatedAt || b.createdAt || '').slice(0, 10) }; } } catch (e) {}
+  try { const L = loadValueLetters().filter(x => x.key === key).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0]; if (L && L.value) out.letter = { value: orgMoney(L.value), status: L.status || '', at: String(L.sentAt || L.approvedAt || L.createdAt || '').slice(0, 10) }; } catch (e) {}
+  try { const ov = loadAssignOverlay()[key] || {}; if (ov.listPrice) out.listPrice = ov.listPrice; } catch (e) {}
+  return out;
+}
 app.get('/api/asset-spec', (req, res) => {
   try {
     const { d } = _dealByAnyKey(req.query && req.query.key);
     if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
     if (!ownsDeal(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
     const spec = d.assetSpec || {};
-    res.json({ ok: true, key: req.query.key, business: d.business || '', market: d.market || '', saleLane: _effLane(req.query.key, d), spec: spec, ffe: d.assetFfe || [], ffeCats: aiassist.FFE_CATS || [], convey: d.assetConvey || null, conveyKit: CONVEY_KIT, spaceTypes: SPACE_TYPES, centerTypes: CENTER_TYPES, locAddress: _vlAddress({ key: String(req.query.key || '') }), core: ASSET_SPEC_CORE, missing: ASSET_SPEC_CORE.filter(k => !spec[k]) });
+    res.json({ ok: true, key: req.query.key, business: d.business || '', market: d.market || '', saleLane: _effLane(req.query.key, d), spec: spec, ffe: d.assetFfe || [], ffeCats: aiassist.FFE_CATS || [], convey: d.assetConvey || null, conveyKit: CONVEY_KIT, spaceTypes: SPACE_TYPES, centerTypes: CENTER_TYPES, locAddress: _vlAddress({ key: String(req.query.key || '') }), valueRefs: _assetValueRefs(String(req.query.key || ''), d), core: ASSET_SPEC_CORE, missing: ASSET_SPEC_CORE.filter(k => !spec[k]) });
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 app.post('/api/asset-spec', express.json({ limit: '256kb' }), (req, res) => {
