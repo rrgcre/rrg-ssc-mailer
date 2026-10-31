@@ -73,6 +73,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 @media(max-width:700px){ .ch .gh{display:none;} .ch .gst{margin-left:auto;} }
 .banner .jump{color:inherit;text-decoration:underline;text-underline-offset:2px;} .banner .togall{float:right;color:var(--navy);font-weight:700;font-size:12px;text-decoration:none;margin-left:14px;}
 .kgh .kreq{float:right;color:var(--red);font-size:9.5px;letter-spacing:.03em;text-transform:none;font-weight:700;}
+.wt{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px 14px;margin-bottom:12px;text-decoration:none;color:var(--ink);box-shadow:0 4px 14px rgba(11,26,56,.04);}
+.wt:hover{border-color:var(--inp);} .wti{font-size:20px;} .wt b{display:block;color:var(--navy);font-size:13.5px;} .wts{display:block;font-size:12px;color:var(--soft);margin-top:1px;} .wtg{margin-left:auto;color:var(--soft);font-size:20px;}
+@media(min-width:900px){ .wt{padding:9px 14px;} }
+.fld select.sel{font:inherit;font-size:14px;padding:10px 12px;border:1px solid var(--inp);border-radius:9px;width:100%;color:var(--ink);background:#fff;}
+.fld.need select.sel{border-color:#e6b4ae;background:#fffafa;}
 .gate{padding:50px 24px;text-align:center;color:var(--muted);font-size:14px;}
 .banner{border-radius:12px;padding:12px 16px;font-size:13px;font-weight:600;margin-bottom:16px;line-height:1.5;}
 .banner.done{background:#eaf7f0;border:1px solid #bfe6d0;color:#1a6e46;}
@@ -81,6 +86,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .rrg-back{position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28);}
 </style>
 <script src="/rrg_brand.js"></script>
+<script src="/rrg_asset_kit.js"></script>
 </head>
 <body>
 <a href="#" onclick="goBack();return false;" class="rrg-back" aria-label="Back"><span style="font-size:14px;line-height:1">←</span> Back</a>
@@ -126,10 +132,17 @@ var GROUPS=[
     {k:'leaseFixtures', l:'Fixtures at lease end', ph:'Pick one or cite the lease section', list:['Stay with the space','Tenant may remove','Tenant must remove','Per lease — see section']}
   ]},
   {title:'The space', core:1, fields:[
+    {k:'address', l:'Address', full:1, ph:'Street, city, state ZIP'},
+    {k:'spaceType', l:'Space type', core:1, sel:'spaceTypes'},
+    {k:'centerType', l:'Center type', sel:'centerTypes'},
+    {k:'centerName', l:'Center / building name', ph:'The Rim · or n/a for freestanding'},
+    {k:'coTenants', l:'Anchors & co-tenants', ph:'H-E-B, Starbucks, Chase'},
     {k:'sqft', l:'Interior square footage', core:1, ph:'2,800 SF'},
     {k:'seating', l:'Seating capacity', ph:'90 interior'},
     {k:'deliveryCondition', l:'Delivery condition', core:1, ph:'As-is, fully equipped'},
-    {k:'operatingNow', l:'Operating or dark now', ph:'Operating · or Dark since June'}
+    {k:'operatingNow', l:'Operating or dark now', ph:'Operating · or Dark since June'},
+    {k:'frontage', l:'Frontage, signage & traffic', ph:'Faces Loop 1604 · monument sign · 45k cars/day'},
+    {k:'parking', l:'Parking', ph:'120 shared spaces · 5 / 1,000 SF'}
   ]},
   {title:'Permits & occupancy', fields:[
     {k:'coOccupancy', l:'Certificate of occupancy / load', ph:'CO on file · occupancy 110'},
@@ -146,7 +159,8 @@ var GROUPS=[
     {k:'videoNote', l:'Walkthrough video', ph:'Link (optional)'}
   ]}
 ];
-var CORE=['leaseRent','leaseRemaining','leaseAssignment','sqft','deliveryCondition','hood','ffeSchedule'];
+var OPTS={spaceTypes:['End cap','Inline','Pad / Outparcel','Freestanding'],centerTypes:['Grocery-anchored','Power / big-box','Lifestyle / mixed-use','Strip / unanchored','Freestanding pad','Downtown / street retail','Mall / food court','Entertainment / hospitality node','Other']};
+var CORE=['spaceType','leaseRent','leaseRemaining','leaseAssignment','sqft','deliveryCondition','hood','ffeSchedule'];
 var CORE_LABEL={ffeSchedule:'Equipment schedule — what conveys', hood:'Hood — Type I, Type II or No hood'};
 GROUPS.forEach(function(g){ g.fields.forEach(function(f){ if(f.core) CORE_LABEL[f.k]=f.l; }); });
 var SPEC={}, BIZ='', DIRTY=false;
@@ -157,6 +171,7 @@ function fieldHtml(f){
   var lab='<label>'+esc(f.l)+(f.core?'<span class="dot">★</span>':'')+'</label>';
   var need=(f.core && !String(v).trim())?' need':'';
   if(f.date){ return '<div class="fld" data-fk="'+f.k+'">'+lab+'<div class="datef"><input type="text" data-k="'+f.k+'" value="'+esc(v)+'" placeholder="'+esc(f.ph||'')+'"><button type="button" class="cal" data-cal="'+f.k+'" title="Pick a date">📅</button><input type="date" data-calfor="'+f.k+'" tabindex="-1" aria-hidden="true"></div></div>'; }
+  if(f.sel){ var os=OPTS[f.sel]||[]; if(v && os.indexOf(v)<0) os=os.concat([v]); return '<div class="fld'+((f.core&&!String(v).trim())?' need':'')+'" data-fk="'+f.k+'">'+lab+'<select data-k="'+f.k+'" class="sel"><option value="">Select…</option>'+os.map(function(o){ return '<option'+(o===v?' selected':'')+'>'+esc(o)+'</option>'; }).join('')+'</select></div>'; }
   if(f.list){ return '<div class="fld" data-fk="'+f.k+'">'+lab+'<input type="text" data-k="'+f.k+'" list="dl_'+f.k+'" value="'+esc(v)+'" placeholder="'+esc(f.ph||'')+'" autocomplete="off"><datalist id="dl_'+f.k+'">'+f.list.map(function(o){return '<option value="'+esc(o)+'">';}).join('')+'</datalist></div>'; }
   var ctrl=f.a
     ? '<textarea data-k="'+f.k+'" placeholder="'+esc(f.ph||'')+'">'+esc(v)+'</textarea>'
@@ -168,7 +183,7 @@ function groupHtml(g){
   // Two-column for the short inputs, full width for textareas — grouped in visual order.
   var rows='', buf=[];
   function flush(){ if(!buf.length) return; rows+='<div class="row2">'+buf.join('')+'</div>'; buf=[]; }
-  g.fields.forEach(function(f){ if(f.a){ flush(); rows+=fieldHtml(f); } else { buf.push(fieldHtml(f)); if(buf.length===2) flush(); } });
+  g.fields.forEach(function(f){ if(f.a||f.full){ flush(); rows+=fieldHtml(f); } else { buf.push(fieldHtml(f)); if(buf.length===2) flush(); } });
   flush();
   if(g.convey) rows=kitHtml()+'<div class="sep"></div>'+ffeHtml()+'<div class="sep"></div>'+rows;
   var gi=GROUPS.indexOf(g), open=_isOpen(gi);
@@ -210,7 +225,8 @@ function bannerHtml(){
 }
 function render(){
   var host=document.getElementById('root');
-  host.innerHTML='<div id="bannerHost">'+bannerHtml()+'</div>'
+  host.innerHTML='<a class="wt" href="./rrg_walkthrough.html?key='+encodeURIComponent(KEY)+'" onclick="return openWalk(this)"><span class="wti">📱</span><span><b>Walkthrough mode</b><span class="wts">Room by room on your phone — big buttons, autosaves as you go</span></span><span class="wtg">›</span></a>'
+    +'<div id="bannerHost">'+bannerHtml()+'</div>'
     +GROUPS.map(groupHtml).join('')
     +'<div class="actbar"><button class="btn red" id="saveBtn">Save listing sheet</button><span class="msg" id="msg"></span><a class="btn ghost sm" href="#" onclick="goBack();return false;" style="margin-left:auto">Back</a></div>';
   host.querySelectorAll('[data-k]').forEach(function(el){
@@ -221,6 +237,7 @@ function render(){
   GROUPS.forEach(function(g){ g.fields.forEach(function(f){ if(!f.money) return; var el=document.querySelector('[data-k="'+f.k+'"]'); if(!el) return; el.setAttribute('inputmode','decimal'); el.addEventListener('blur', function(){ var v=fmtMoney(el.value); if(v!==el.value){ el.value=v; SPEC[f.k]=v; DIRTY=true; } }); }); });
   document.querySelectorAll('input[list]').forEach(function(el){ el.addEventListener('focus', function(){ if(!el.value && el.showPicker){ try{ el.showPicker(); }catch(e){} } }); });
 }
+function openWalk(a){ var phone=Math.min(screen.width,screen.height)<700; try{ if(phone){ window.top.location.href=a.href; } else { window.open(a.href,'_blank'); } }catch(e){ location.href=a.href; } return false; }
 function refreshBanner(){ var b=document.getElementById('bannerHost'); if(b){ b.innerHTML=bannerHtml(); wireBanner(); } refreshStatus(); }
 function wireBanner(){ document.querySelectorAll('[data-jump]').forEach(function(a){ a.onclick=function(e){ e.preventDefault(); var gi=+a.getAttribute('data-jump'); if(gi>=0) setOpen(gi,true,true); }; }); wireToggles(); }
 function gather(){ var out={}; document.querySelectorAll('[data-k]').forEach(function(el){ var v=el.value.trim(); if(v) out[el.getAttribute('data-k')]=v; }); if(!FFE.length){ if(SPEC.ffeSchedule) out.ffeSchedule=SPEC.ffeSchedule; if(SPEC.ffeExcluded) out.ffeExcluded=SPEC.ffeExcluded; } return out; }
@@ -239,19 +256,15 @@ function save(){
 function setHead(){ var t=BIZ?(BIZ+' — Space & Assets'):'Space & Assets'; document.getElementById('h1').textContent=BIZ||'Space & Assets'; document.getElementById('crumb').textContent=BIZ||'Space & Assets'; document.title='Lavano — '+t; }
 
 // ── FF&E equipment schedule editor ─────────────────────────────────────────────
-var FFE=[], FFE_CATS=['Cooking','Refrigeration','Prep & Storage','Warewashing','Bar & Beverage','Smallwares','Furniture & Decor','POS & Tech','Signage','Other'];
-var QUICK=[['Range','Cooking'],['Fryer','Cooking'],['Grill','Cooking'],['Griddle','Cooking'],['Salamander','Cooking'],['Stainless prep tables','Prep & Storage'],['Reach-in refrigerator','Refrigeration'],['Dish machine','Warewashing','Confirm','Often leased from the chemical supplier (Ecolab, Auto-Chlor) — confirm owned or rented. '],['Reach-in freezer','Refrigeration'],['Ice machine','Refrigeration','Confirm','Often leased — confirm owned or rented. Make / lbs per day: '],['Bar coolers','Bar & Beverage','Confirm'],['Beer system — glycol','Bar & Beverage','Confirm','Number of taps: '],['Beer system — direct draw','Bar & Beverage','Confirm','Number of taps: '],['POS stations','POS & Tech','Confirm','Hardware only — the software account does not transfer. Brand: '],['Kitchen display screens (KDS)','POS & Tech','Confirm','Screens only — the KDS software is part of the POS account and does not transfer. Brand: '],['Security camera system','POS & Tech','Confirm','Cameras & recorder — any monitoring contract does not transfer. Camera count: '],['Sound system','POS & Tech','Owned','Speakers & amp — music service and licensing (BMI / ASCAP) do not transfer. '],['TVs','POS & Tech','Owned','TVs & mounts — cable / DirecTV / sports packages do not transfer. Sizes: '],['Dining tables','Furniture & Decor'],['Dining chairs','Furniture & Decor'],['Patio tables','Furniture & Decor'],['Patio chairs','Furniture & Decor'],['Barstools','Furniture & Decor'],['Smallwares (lot)','Smallwares','Owned','Pots, pans, utensils, plates, glassware & flatware — sold as a lot, as-is']];
 // Guess a category from a typed item name (manual rows only).
-var CAT_GUESS=[[/pos|terminal|printer|tablet|ipad|kds|computer|router|camera|speaker|tv|television|music/i,'POS & Tech'],[/beer|draft|draught|keg|tap|glycol|soda|fountain|ice machine|bar |back ?bar|wine|liquor|espresso|coffee|blender|bottle/i,'Bar & Beverage'],[/fridge|refrig|freez|cooler|walk-?in|reach-?in|prep table|sandwich|make ?line|ice cream|chiller|lowboy/i,'Refrigeration'],[/dish|sink|washer|disposal|booster|pre-?rinse/i,'Warewashing'],[/fryer|grill|griddle|range|oven|salamander|broiler|smoker|steamer|kettle|wok|burner|charbroil|hot ?hold|warmer|holding|toaster|microwave|pizza|combi|rotisserie|hood|tilt/i,'Cooking'],[/table|chair|stool|booth|bench|banquette|host stand|decor|art|mirror|lamp|light|umbrella|heater/i,'Furniture & Decor'],[/shelf|shelving|rack|cart|mixer|slicer|scale|work ?table|prep|bin|cabinet|dunnage/i,'Prep & Storage'],[/sign|pylon|neon|menu ?board/i,'Signage'],[/pan|pot|utensil|knife|knives|plate|glass|silverware|flatware|smallware|china|tray/i,'Smallwares']];
-function guessCat(t){ for(var i=0;i<CAT_GUESS.length;i++) if(CAT_GUESS[i][0].test(t)) return CAT_GUESS[i][1]; return ''; }
 // Money fields: "250000", "250k", "$1.2m" → firm currency, whole units. Text like "Make an offer" is left alone.
 var CUR='USD';
 try{ fetch('/api/session',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.currency) CUR=j.currency; }).catch(function(){}); }catch(e){}
 function fmtMoney(t){ t=String(t||'').trim(); if(!t) return t; var m=t.replace(/[\s,$€£¥]|usd|cad|mxn|eur|gbp/gi,'').match(/^(\d+(?:\.\d+)?)([km]?)$/i); if(!m) return t;
   var n=parseFloat(m[1])*(/k/i.test(m[2])?1e3:(/m/i.test(m[2])?1e6:1)); if(!isFinite(n)) return t;
   try{ return new Intl.NumberFormat('en-US',{style:'currency',currency:CUR,maximumFractionDigits:0}).format(Math.round(n)); }catch(e){ return '$'+Math.round(n).toLocaleString('en-US'); } }
-var QGROUPS=[['Cooking',['Cooking']],['Refrigeration',['Refrigeration']],['Prep & dish',['Prep & Storage','Warewashing']],['Bar',['Bar & Beverage']],['Dining room',['Furniture & Decor']],['Tech',['POS & Tech']],['Smallwares',['Smallwares']]];
 function _qIdx(name){ name=String(name).toLowerCase(); for(var i=0;i<FFE.length;i++) if(String(FFE[i].item||'').trim().toLowerCase()===name) return i; return -1; }
+var FFE=[];
 var FFE_CONDS=['','New','Excellent','Good','Fair','Poor','Not working'];
 function _opt(list,v,blank){ return list.map(function(o){ return '<option value="'+esc(o)+'"'+(o===v?' selected':'')+'>'+esc(o||blank||'—')+'</option>'; }).join(''); }
 function ffeRowHtml(r,i){
@@ -353,10 +366,6 @@ function wireDates(){
 }
 
 // "What conveys" checklist — keys mirror the server's CONVEY_KIT.
-var KIT=[
-  {g:'Kitchen', items:[['hood1','Type I hood','Length (ft)','ft'],['hood2','Type II hood','Length (ft)','ft'],['nohood','No hood',''],['ansul','Fire suppression','Certified 2025'],['mua','Make-up air',''],['gas','Gas line','2" natural gas'],['water','Water heater','Gallons or tankless','gal'],['grease','Grease trap / interceptor','Gallons','gal'],['walkinC','Walk-in cooler','8×10'],['walkinF','Walk-in freezer','6×8'],['dry','Dry storage',''],['hand','Hand sinks','How many'],['prep','Prep sink',''],['sink3','3-compartment sink',''],['mop','Mop sink',''],['drains','Floor drains','']]},
-  {g:'Building', items:[['sprink','Fire sprinklers',''],['restrooms','ADA restrooms','How many'],['bar','Built-in bar','24 ft · 14 seats'],['counter','Order counter',''],['window','Pickup / walk-up window',''],['drive','Drive-thru',''],['pdr','Private dining room','Seats','seats'],['patio','Patio','Seats','seats'],['office','Office',''],['sign','Sign panel','']]}
-];
 var CONVEY=null;
 function conveyMigrate(){ if(CONVEY) return; CONVEY=[]; var m={hood:'hood1',walkin:'walkinC',ansul:'ansul',restrooms:'restrooms',gas:'gas',patio:'patio'}; Object.keys(m).forEach(function(f){ var v=String(SPEC[f]||'').trim(); if(v) CONVEY.push({k:m[f], d:v.slice(0,160)}); }); }
 function _cv(k){ for(var i=0;i<CONVEY.length;i++) if(CONVEY[i].k===k) return CONVEY[i]; return null; }
@@ -380,7 +389,7 @@ function wireKit(){
   if(!KEY){ document.getElementById('root').innerHTML='<div class="gate">No listing specified.</div>'; return; }
   api('GET','/api/asset-spec?key='+encodeURIComponent(KEY)).then(function(j){
     if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">'+esc((j&&j.error)||'Listing not found.')+'</div>'; return; }
-    SPEC=j.spec||{}; BIZ=j.business||''; FFE=j.ffe||[]; CONVEY=j.convey||null; conveyMigrate(); if(j.ffeCats&&j.ffeCats.length) FFE_CATS=j.ffeCats; setHead();
+    SPEC=j.spec||{}; BIZ=j.business||''; FFE=j.ffe||[]; CONVEY=j.convey||null; if(j.spaceTypes&&j.spaceTypes.length) OPTS.spaceTypes=j.spaceTypes; if(j.centerTypes&&j.centerTypes.length) OPTS.centerTypes=j.centerTypes; if(!String(SPEC.address||'').trim() && j.locAddress){ SPEC.address=j.locAddress; } conveyMigrate(); if(j.ffeCats&&j.ffeCats.length) FFE_CATS=j.ffeCats; setHead();
     if(j.saleLane && j.saleLane!=='asset'){ document.getElementById('root').innerHTML='<div class="gate">This listing is a Business Sale, not a Space &amp; Assets listing. <a href="./rrg_assignment.html?key='+encodeURIComponent(KEY)+'" style="color:var(--navy);font-weight:700">Open its workspace →</a></div>'; return; }
     render();
   }).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not load this listing.</div>'; });

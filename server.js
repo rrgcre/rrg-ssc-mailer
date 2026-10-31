@@ -19991,6 +19991,7 @@ const ASSET_SPEC_FIELDS = {
   // Lease (core)
   leaseRent: 80, leasePerSF: 40, leaseRemaining: 80, leaseExpiration: 60, leaseOptions: 300, leaseAssignment: 600, leaseNNN: 300, leaseDeposit: 160, leaseUse: 300, leaseFixtures: 200,
   // Space (core)
+  spaceType: 40, centerType: 60, centerName: 120, address: 200, coTenants: 300, frontage: 300, parking: 160,
   sqft: 40, seating: 60, patio: 160, deliveryCondition: 160, operatingNow: 60,
   // Buildout / leaseholds
   hood: 400, walkin: 240, ansul: 160, restrooms: 160, buildoutAge: 160, replacementCost: 160,
@@ -20004,7 +20005,7 @@ const ASSET_SPEC_FIELDS = {
   photosNote: 300, floorplanNote: 300, videoNote: 300
 };
 // The five blocks that answer what a space buyer asks first — required for a complete intake.
-const ASSET_SPEC_CORE = ['leaseRent', 'leaseRemaining', 'leaseAssignment', 'sqft', 'deliveryCondition', 'hood', 'ffeSchedule'];
+const ASSET_SPEC_CORE = ['spaceType', 'leaseRent', 'leaseRemaining', 'leaseAssignment', 'sqft', 'deliveryCondition', 'hood', 'ffeSchedule'];
 function _assetSpecClean(raw) {
   raw = (raw && typeof raw === 'object') ? raw : {};
   const out = {};
@@ -20239,7 +20240,7 @@ app.get('/api/asset-spec', (req, res) => {
     if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
     if (!ownsDeal(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
     const spec = d.assetSpec || {};
-    res.json({ ok: true, key: req.query.key, business: d.business || '', market: d.market || '', saleLane: _effLane(req.query.key, d), spec: spec, ffe: d.assetFfe || [], ffeCats: aiassist.FFE_CATS || [], convey: d.assetConvey || null, conveyKit: CONVEY_KIT, core: ASSET_SPEC_CORE, missing: ASSET_SPEC_CORE.filter(k => !spec[k]) });
+    res.json({ ok: true, key: req.query.key, business: d.business || '', market: d.market || '', saleLane: _effLane(req.query.key, d), spec: spec, ffe: d.assetFfe || [], ffeCats: aiassist.FFE_CATS || [], convey: d.assetConvey || null, conveyKit: CONVEY_KIT, spaceTypes: SPACE_TYPES, centerTypes: CENTER_TYPES, locAddress: _vlAddress({ key: String(req.query.key || '') }), core: ASSET_SPEC_CORE, missing: ASSET_SPEC_CORE.filter(k => !spec[k]) });
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 app.post('/api/asset-spec', express.json({ limit: '256kb' }), (req, res) => {
@@ -20260,7 +20261,7 @@ app.post('/api/asset-spec', express.json({ limit: '256kb' }), (req, res) => {
 const ASSET_SHEET_GROUPS = [
   ['The Opportunity', [['askingPrice', 'Asking price'], ['conveys', 'What conveys'], ['reason', 'Reason for availability'], ['availableDate', 'Available']]],
   ['Lease', [['leaseRent', 'Base rent'], ['leasePerSF', 'Rent / SF'], ['leaseRemaining', 'Remaining term'], ['leaseExpiration', 'Expiration'], ['leaseOptions', 'Renewal options'], ['leaseAssignment', 'Assignment & consent'], ['leaseNNN', 'NNN / CAM · taxes · insurance'], ['leaseDeposit', 'Deposit / key money'], ['leaseFixtures', 'Fixtures at lease end'], ['leaseUse', 'Permitted use']]],
-  ['The Space', [['sqft', 'Square footage'], ['seating', 'Seating'], ['patio', 'Patio / outdoor'], ['deliveryCondition', 'Delivery condition'], ['operatingNow', 'Status']]],
+  ['The Space', [['address', 'Address'], ['spaceType', 'Space type'], ['centerType', 'Center type'], ['centerName', 'Center / building'], ['coTenants', 'Anchors & co-tenants'], ['frontage', 'Frontage, signage & traffic'], ['parking', 'Parking'], ['sqft', 'Square footage'], ['seating', 'Seating'], ['patio', 'Patio / outdoor'], ['deliveryCondition', 'Delivery condition'], ['operatingNow', 'Status']]],
   ['Buildout & Leaseholds', [['hood', 'Hood, venting & grease'], ['walkin', 'Walk-in cooler / freezer'], ['ansul', 'Fire suppression'], ['restrooms', 'Restrooms'], ['buildoutAge', 'Buildout age'], ['replacementCost', 'Est. replacement cost']]],
   ['FF&E', [['ffeSchedule', 'Equipment included'], ['ffeExcluded', 'Excluded — seller keeps'], ['smallwares', 'Smallwares / POS / furniture']]],
   ['Permits & Occupancy', [['coOccupancy', 'Certificate of occupancy'], ['healthPermit', 'Health / venting permits']]],

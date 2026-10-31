@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="rrg-noshell" content="1">
+<meta name="theme-color" content="#000E31">
+<title>Lavano — Walkthrough</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;--amber:#9a6a0b;--inp:#cfd6e2;}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;background:#eef1f6;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);font-size:16px;padding-bottom:calc(84px + env(safe-area-inset-bottom));}
+.top{position:sticky;top:0;z-index:20;background:var(--navy);color:#fff;padding:calc(10px + env(safe-area-inset-top)) 16px 0;}
+.tr{display:flex;align-items:center;gap:10px;}
+.tr .x{color:#cdd7ea;text-decoration:none;font-size:22px;line-height:1;padding:4px 6px 4px 0;}
+.tt{flex:1;min-width:0;} .tt b{display:block;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;} .tt span{font-size:11.5px;color:#aeb8cf;letter-spacing:.08em;text-transform:uppercase;font-weight:700;}
+.sv{font-size:12px;font-weight:700;color:#9fdcbf;white-space:nowrap;} .sv.busy{color:#cdd7ea;} .sv.err{color:#ffb4ad;}
+.tabs{display:flex;gap:6px;overflow-x:auto;padding:12px 0 10px;scrollbar-width:none;} .tabs::-webkit-scrollbar{display:none;}
+.tab{flex:none;border:1px solid rgba(255,255,255,.22);background:transparent;color:#dfe6f3;border-radius:999px;padding:8px 13px;font:inherit;font-size:13.5px;font-weight:700;white-space:nowrap;}
+.tab.on{background:#fff;color:var(--navy);border-color:#fff;} .tab .n{display:inline-block;min-width:18px;margin-left:5px;font-size:11px;border-radius:9px;padding:1px 5px;background:rgba(255,255,255,.18);}
+.tab.on .n{background:#e8edf6;}
+.wrap{padding:14px 14px 0;max-width:640px;margin:0 auto;}
+h2{font-size:20px;margin:4px 2px 12px;color:var(--navy);}
+.sec{font-size:11.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--soft);margin:18px 4px 8px;}
+.box{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;}
+.ck{display:flex;align-items:center;gap:12px;padding:0 14px;min-height:56px;border-top:1px solid #f0f2f6;}
+.ck:first-child{border-top:0;}
+.ck .t{flex:1;font-size:16px;font-weight:500;padding:14px 0;}
+.ck .bx{flex:none;width:28px;height:28px;border-radius:8px;border:2px solid var(--inp);display:flex;align-items:center;justify-content:center;color:#fff;font-size:17px;font-weight:900;}
+.ck.on .bx{background:var(--navy);border-color:var(--navy);} .ck.on .t{font-weight:700;color:var(--navy);}
+.ck input.d{flex:none;width:118px;font:inherit;font-size:15px;padding:9px 10px;border:1px solid var(--inp);border-radius:9px;}
+.eq{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px;}
+.eq.add{display:flex;align-items:center;gap:10px;border-style:dashed;background:#fbfcfe;}
+.eq.add .t{flex:1;font-size:16px;font-weight:600;color:var(--navy);}
+.eq.add button{flex:none;}
+.eq .h{display:flex;align-items:center;gap:10px;}
+.eq .h .t{flex:1;font-size:16px;font-weight:700;color:var(--navy);min-width:0;}
+.eq .h input.t{font:inherit;font-size:16px;font-weight:700;color:var(--navy);border:0;border-bottom:1px dashed var(--inp);padding:4px 0;background:transparent;}
+.step{display:flex;align-items:center;border:1px solid var(--inp);border-radius:12px;overflow:hidden;flex:none;}
+.step button{width:44px;height:44px;border:0;background:#f4f6fa;font-size:22px;font-weight:700;color:var(--navy);}
+.step b{min-width:40px;text-align:center;font-size:17px;}
+.seg{display:flex;gap:6px;margin-top:10px;}
+.seg button{flex:1;height:42px;border-radius:10px;border:1px solid var(--inp);background:#fff;font:inherit;font-size:14px;font-weight:700;color:var(--muted);}
+.seg button.on.o{background:#e8f6ef;border-color:#9fd6b9;color:var(--green);}
+.seg button.on.l{background:#fdeceb;border-color:#f1b9b3;color:var(--red);}
+.seg button.on.c{background:#fff3e0;border-color:#efcf95;color:var(--amber);}
+.eq .more{display:flex;gap:8px;margin-top:10px;align-items:center;}
+.eq .more input{flex:1;min-width:0;font:inherit;font-size:14px;padding:10px;border:1px solid var(--line);border-radius:9px;color:var(--ink);}
+.keep{flex:none;height:42px;padding:0 12px;border-radius:10px;border:1px solid var(--inp);background:#fff;font:inherit;font-size:13px;font-weight:700;color:var(--muted);}
+.keep.on{background:#f1f2f5;color:var(--ink);border-color:#9aa3b5;}
+.eq.kept{opacity:.6;}
+.btn{font:inherit;font-size:15px;font-weight:700;height:44px;padding:0 16px;border:1px solid var(--inp);border-radius:11px;background:#fff;color:var(--navy);}
+.btn.red{background:var(--red);border-color:var(--red);color:#fff;}
+.other{display:flex;gap:8px;margin-top:4px;}
+.other input{flex:1;min-width:0;font:inherit;font-size:16px;padding:11px 12px;border:1px solid var(--inp);border-radius:11px;}
+textarea{width:100%;font:inherit;font-size:16px;padding:12px;border:1px solid var(--inp);border-radius:12px;min-height:96px;resize:vertical;}
+.warn{background:#fff5e6;border:1px solid #f0d9a8;color:#7a5713;border-radius:12px;padding:12px 14px;font-size:14px;line-height:1.45;font-weight:600;}
+.okb{background:#eaf7f0;border:1px solid #bfe6d0;color:#1a6e46;border-radius:12px;padding:12px 14px;font-size:14px;font-weight:700;}
+.sum div{padding:9px 14px;border-top:1px solid #f0f2f6;font-size:15px;display:flex;justify-content:space-between;gap:10px;} .sum div:first-child{border-top:0;}
+.foot{position:fixed;left:0;right:0;bottom:0;z-index:20;background:#fff;border-top:1px solid var(--line);padding:10px 14px calc(10px + env(safe-area-inset-bottom));display:flex;gap:10px;}
+.foot .btn{flex:1;height:50px;font-size:16px;}
+.gate{padding:60px 24px;text-align:center;color:var(--muted);}
+.hint{font-size:13px;color:var(--soft);margin:8px 4px 0;line-height:1.45;}
+</style>
+<script src="/rrg_brand.js"></script>
+<script src="/rrg_asset_kit.js"></script>
+</head>
+<body>
+<div class="top">
+  <div class="tr"><a href="#" class="x" id="xBtn" aria-label="Close">‹</a><div class="tt"><span>Walkthrough</span><b id="biz">Loading…</b></div><div class="sv" id="sv"></div></div>
+  <div class="tabs" id="tabs"></div>
+</div>
+<div class="wrap" id="root"><div class="gate">Loading…</div></div>
+<div class="foot" id="foot" style="display:none"><button class="btn" id="prevB">‹ Back</button><button class="btn red" id="nextB">Next ›</button></div>
+<script>
+function qs(k){ try{ return new URLSearchParams(location.search).get(k)||''; }catch(e){ return ''; } }
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function api(m,u,b){return fetch(u,{method:m,credentials:'same-origin',headers:b?{'Content-Type':'application/json'}:undefined,body:b?JSON.stringify(b):undefined}).then(function(r){return r.json();});}
+var KEY=qs('key'), SPEC={}, FFE=[], CONVEY=[], ROOM=0;
+// Rooms in walking order. kit = checklist keys from KIT; cats = equipment categories shown in the room.
+var ROOMS=[
+  {n:'Cook line', kit:['hood1','hood2','nohood','ansul','mua','gas'], cats:['Cooking'], def:'Cooking'},
+  {n:'Prep & dish', kit:['water','grease','hand','prep','sink3','mop','drains','dry'], cats:['Prep & Storage','Warewashing','Smallwares'], def:'Prep & Storage'},
+  {n:'Cold storage', kit:['walkinC','walkinF'], cats:['Refrigeration'], def:'Refrigeration'},
+  {n:'Bar', kit:['bar'], cats:['Bar & Beverage'], def:'Bar & Beverage'},
+  {n:'Dining & front', kit:['sprink','restrooms','counter','window','drive','pdr','patio','office','sign'], cats:['Furniture & Decor','Signage'], def:'Furniture & Decor'},
+  {n:'Tech', kit:[], cats:['POS & Tech'], def:'POS & Tech'},
+  {n:'Finish', fin:1}
+];
+var KITBY={}; KIT.forEach(function(g){ g.items.forEach(function(it){ KITBY[it[0]]=it; }); });
+function _cv(k){ for(var i=0;i<CONVEY.length;i++) if(CONVEY[i].k===k) return CONVEY[i]; return null; }
+function _qIdx(name){ name=String(name).toLowerCase(); for(var i=0;i<FFE.length;i++) if(String(FFE[i].item||'').trim().toLowerCase()===name) return i; return -1; }
+function roomOfCat(cat){ for(var i=0;i<ROOMS.length;i++) if(ROOMS[i].cats && ROOMS[i].cats.indexOf(cat)>=0) return i; return 5; }
+function roomCount(r){ var R=ROOMS[r]; if(R.fin) return 0; var n=R.kit.filter(function(k){return _cv(k);}).length; FFE.forEach(function(x){ if(roomOfCat(x.cat)===r) n++; }); return n; }
+
+// ── Save (debounced autosave after every tap) ─────────────────────────────────
+var _t=null, _saving=false, _again=false;
+function sv(t,c){ var e=document.getElementById('sv'); e.className='sv'+(c?(' '+c):''); e.textContent=t; }
+function dirty(){ sv('Saving…','busy'); clearTimeout(_t); _t=setTimeout(save,700); }
+function save(){
+  if(_saving){ _again=true; return; } _saving=true;
+  api('POST','/api/asset-spec',{ key:KEY, spec:SPEC, ffe:FFE.filter(function(r){ return String(r.item||'').trim(); }), convey:CONVEY }).then(function(j){
+    _saving=false; if(!j||!j.ok){ sv('Not saved','err'); return; }
+    SPEC=j.spec||SPEC; sv('Saved ✓'); if(_again){ _again=false; save(); }
+  }).catch(function(){ _saving=false; sv('Offline — will retry','err'); setTimeout(save,4000); });
+}
+window.addEventListener('pagehide', function(){ if(_t){ clearTimeout(_t); try{ navigator.sendBeacon && navigator.sendBeacon('/api/asset-spec', new Blob([JSON.stringify({ key:KEY, spec:SPEC, ffe:FFE, convey:CONVEY })],{type:'application/json'})); }catch(e){} } });
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function tabs(){
+  document.getElementById('tabs').innerHTML=ROOMS.map(function(R,i){ var n=roomCount(i); return '<button class="tab'+(i===ROOM?' on':'')+'" data-r="'+i+'">'+esc(R.n)+(n?'<span class="n">'+n+'</span>':'')+'</button>'; }).join('');
+  document.querySelectorAll('.tab').forEach(function(b){ b.onclick=function(){ go(+b.getAttribute('data-r')); }; });
+  var on=document.querySelector('.tab.on'); if(on) on.scrollIntoView({inline:'center',block:'nearest'});
+}
+function ckHtml(k){ var it=KITBY[k]; if(!it) return ''; var c=_cv(k);
+  return '<div class="ck'+(c?' on':'')+'" data-ck="'+k+'"><span class="bx">'+(c?'✓':'')+'</span><span class="t">'+esc(it[1])+'</span>'
+    +(it[2] && c ? '<input class="d" data-cd="'+k+'" value="'+esc(c.d||'')+'" placeholder="'+esc(it[2])+'"'+(it[3]?' inputmode="decimal" data-unit="'+it[3]+'"':'')+'>' : '')+'</div>'; }
+function eqHtml(i){ var r=FFE[i]; var own=r.own||'Confirm';
+  return '<div class="eq'+(r.excluded?' kept':'')+'" data-i="'+i+'"><div class="h"><input class="t" data-f="item" value="'+esc(r.item)+'"><div class="step"><button data-st="-1">−</button><b>'+(r.qty||1)+'</b><button data-st="1">+</button></div></div>'
+    +'<div class="seg">'+[['Owned','o'],['Leased','l'],['Confirm','c']].map(function(o){ return '<button class="'+o[1]+(own===o[0]?' on':'')+'" data-own="'+o[0]+'">'+o[0]+'</button>'; }).join('')+'</div>'
+    +'<div class="more"><input data-f="notes" value="'+esc(r.notes||'')+'" placeholder="Make / model / notes"><button class="keep'+(r.excluded?' on':'')+'" data-keep="1">'+(r.excluded?'Seller keeps ✓':'Seller keeps')+'</button></div></div>'; }
+function room(){
+  var R=ROOMS[ROOM], h='<h2>'+esc(R.n)+'</h2>';
+  if(R.fin) return finish();
+  if(R.kit.length) h+='<div class="sec">Built in — conveys with the lease</div><div class="box">'+R.kit.map(ckHtml).join('')+'</div>'+(ROOM===0?'<div class="hint">Pick Type I, Type II or No hood.</div>':'');
+  h+='<div class="sec">Equipment</div>';
+  var shown={};
+  FFE.forEach(function(r,i){ if(R.cats.indexOf(r.cat)>=0 || (ROOM===5 && FFE_CATS.indexOf(r.cat)<0) || (ROOM===5 && r.cat==='Other')){ h+=eqHtml(i); shown[String(r.item).toLowerCase()]=1; } });
+  QUICK.forEach(function(q,qi){ if(R.cats.indexOf(q[1])<0 || _qIdx(q[0])>=0) return; h+='<div class="eq add"><span class="t">'+esc(q[0])+'</span><button class="btn" data-q="'+qi+'">+ Add</button></div>'; });
+  h+='<div class="other"><input id="otherIn" placeholder="Something else in the '+esc(R.n.toLowerCase())+'…"><button class="btn" id="otherB">Add</button></div>';
+  return h;
+}
+function finish(){
+  var conf=FFE.filter(function(r){ return !r.excluded && r.own==='Confirm'; });
+  var hood=_cv('hood1')||_cv('hood2')||_cv('nohood');
+  var h='<h2>Finish</h2>';
+  h+=hood?'':'<div class="warn" style="margin-bottom:10px">No hood answer yet — go back to Cook line and pick Type I, Type II or No hood.</div>';
+  h+=conf.length?'<div class="warn">Ask the seller before you leave — owned or leased?<br>'+conf.map(function(r){ return '• '+esc(r.item); }).join('<br>')+'</div>':'<div class="okb">✓ Ownership settled on every item.</div>';
+  h+='<div class="sec">Excluded — seller keeps</div><textarea id="exT" placeholder="Anything else the seller is taking">'+esc(SPEC.exclusions||'')+'</textarea>';
+  h+='<div class="sec">Notes</div><textarea id="noT" placeholder="Anything else a buyer should know">'+esc(SPEC.conveys||'')+'</textarea>';
+  var tot=0; FFE.forEach(function(r){ if(!r.excluded) tot+=(r.qty||1); });
+  h+='<div class="sec">Summary</div><div class="box sum"><div><span>Built-in items checked</span><b>'+CONVEY.length+'</b></div><div><span>Equipment lines</span><b>'+FFE.length+'</b></div><div><span>Pieces conveying</span><b>'+tot+'</b></div></div>';
+  h+='<div style="margin-top:16px"><a class="btn" style="display:flex;align-items:center;justify-content:center;text-decoration:none" href="./rrg_asset_space.html?key='+encodeURIComponent(KEY)+'">Open the full spec sheet</a></div>';
+  return h;
+}
+function draw(){
+  document.getElementById('root').innerHTML=room(); tabs(); wire();
+  document.getElementById('prevB').disabled=ROOM===0; document.getElementById('prevB').style.visibility=ROOM===0?'hidden':'visible';
+  document.getElementById('nextB').textContent=ROOM===ROOMS.length-1?'Done':(ROOM===ROOMS.length-2?'Finish ›':'Next ›');
+}
+function go(r){ ROOM=Math.max(0,Math.min(ROOMS.length-1,r)); draw(); window.scrollTo(0,0); }
+function _unit(inp){ var u=inp.getAttribute('data-unit'); if(!u) return; var m=inp.value.replace(/,/g,'').match(/^\s*(\d+(?:\.\d+)?)\s*(?:gal(?:lons?)?|ft|feet|foot|'|seats?)?\s*$/i); if(!m) return; inp.value=parseFloat(m[1]).toLocaleString('en-US',{maximumFractionDigits:1})+' '+u; }
+function wire(){
+  var root=document.getElementById('root');
+  root.querySelectorAll('[data-ck]').forEach(function(row){ row.addEventListener('click', function(e){ if(e.target.tagName==='INPUT') return; var k=row.getAttribute('data-ck');
+    if(_cv(k)) CONVEY=CONVEY.filter(function(r){ return r.k!==k; });
+    else { if(k==='nohood') CONVEY=CONVEY.filter(function(r){ return r.k!=='hood1'&&r.k!=='hood2'; }); if(k==='hood1'||k==='hood2') CONVEY=CONVEY.filter(function(r){ return r.k!=='nohood'; }); CONVEY.push({k:k,d:''}); }
+    dirty(); draw(); var d=document.querySelector('[data-cd="'+k+'"]'); if(d && !d.value) d.focus(); }); });
+  root.querySelectorAll('[data-cd]').forEach(function(inp){ inp.addEventListener('input', function(){ var c=_cv(inp.getAttribute('data-cd')); if(c){ c.d=inp.value.trim(); dirty(); } }); inp.addEventListener('blur', function(){ _unit(inp); var c=_cv(inp.getAttribute('data-cd')); if(c && c.d!==inp.value.trim()){ c.d=inp.value.trim(); dirty(); } }); });
+  root.querySelectorAll('[data-q]').forEach(function(b){ b.onclick=function(){ var q=QUICK[+b.getAttribute('data-q')]; FFE.push({cat:q[1],item:q[0],qty:1,model:'',cond:'',own:q[2]||'Owned',notes:q[3]||'',excluded:false}); dirty(); draw(); }; });
+  root.querySelectorAll('.eq[data-i]').forEach(function(card){ var i=+card.getAttribute('data-i');
+    card.querySelectorAll('[data-st]').forEach(function(b){ b.onclick=function(){ var n=(FFE[i].qty||1)+(+b.getAttribute('data-st')); if(n<1){ if(confirm('Remove '+(FFE[i].item||'this item')+'?')){ FFE.splice(i,1); dirty(); draw(); } return; } FFE[i].qty=n; card.querySelector('.step b').textContent=n; dirty(); }; });
+    card.querySelectorAll('[data-own]').forEach(function(b){ b.onclick=function(){ FFE[i].own=b.getAttribute('data-own'); card.querySelectorAll('[data-own]').forEach(function(x){ x.classList.toggle('on', x===b); }); dirty(); }; });
+    card.querySelector('[data-keep]').onclick=function(){ FFE[i].excluded=!FFE[i].excluded; dirty(); draw(); };
+    card.querySelectorAll('input[data-f]').forEach(function(inp){ inp.addEventListener('input', function(){ FFE[i][inp.getAttribute('data-f')]=inp.value; dirty(); }); });
+  });
+  var oi=document.getElementById('otherIn'), ob=document.getElementById('otherB');
+  if(ob){ var add=function(){ var t=oi.value.trim(); if(!t) return; var R=ROOMS[ROOM]; var g=guessCat(t); FFE.push({cat:(g && R.cats.indexOf(g)>=0)?g:R.def,item:t,qty:1,model:'',cond:'',own:'Owned',notes:'',excluded:false}); dirty(); draw(); }; ob.onclick=add; oi.addEventListener('keydown', function(e){ if(e.key==='Enter'){ e.preventDefault(); add(); } }); }
+  var ex=document.getElementById('exT'); if(ex) ex.addEventListener('input', function(){ SPEC.exclusions=ex.value; dirty(); });
+  var no=document.getElementById('noT'); if(no) no.addEventListener('input', function(){ SPEC.conveys=no.value; dirty(); });
+}
+document.getElementById('prevB').onclick=function(){ go(ROOM-1); };
+document.getElementById('nextB').onclick=function(){ if(ROOM===ROOMS.length-1){ location.href='./rrg_asset_space.html?key='+encodeURIComponent(KEY); return; } go(ROOM+1); };
+document.getElementById('xBtn').onclick=function(e){ e.preventDefault(); location.href='./rrg_asset_space.html?key='+encodeURIComponent(KEY); };
+(function boot(){
+  if(!KEY){ document.getElementById('root').innerHTML='<div class="gate">No listing specified.</div>'; return; }
+  api('GET','/api/asset-spec?key='+encodeURIComponent(KEY)).then(function(j){
+    if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">'+esc((j&&j.error)||'Listing not found.')+'</div>'; return; }
+    if(j.saleLane && j.saleLane!=='asset'){ document.getElementById('root').innerHTML='<div class="gate">The walkthrough is for space &amp; assets listings.</div>'; return; }
+    SPEC=j.spec||{}; FFE=j.ffe||[]; CONVEY=j.convey||null; if(!CONVEY){ CONVEY=[]; var m={hood:'hood1',walkin:'walkinC',ansul:'ansul',restrooms:'restrooms',gas:'gas',patio:'patio'}; Object.keys(m).forEach(function(f){ var v=String(SPEC[f]||'').trim(); if(v) CONVEY.push({k:m[f], d:v.slice(0,160)}); }); } if(j.ffeCats&&j.ffeCats.length) FFE_CATS=j.ffeCats;
+    document.getElementById('biz').textContent=j.business||'Space & Assets'; document.title='Walkthrough — '+(j.business||'');
+    document.getElementById('foot').style.display=''; sv(''); draw();
+  }).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not load this listing.</div>'; });
+})();
+</script>
+</body>
+</html>
