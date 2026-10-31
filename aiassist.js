@@ -530,7 +530,7 @@ async function suggestHighlights({ facts, current, market }) {
     + "- Location: you may name a well-known landmark, district or attraction the address is plainly in or adjacent to (e.g. downtown San Antonio's River Walk, La Villita, the Pearl) ONLY when you are confident from the address itself; otherwise describe the location generically from the facts given. Never guess distances.\n"
     + "- What operators value most: location and visibility, a hood/grease/walk-in buildout already in place (saves $200k+ and months), patio, seating capacity, turnkey condition, lease runway and renewal options, recent investment in the space, drive-thru, liquor-friendly bar buildout.\n"
     + "- If the rep already wrote highlights, keep every fact they gave, fix wording/grammar/capitalization, and include them; add new ones only from the facts.\n"
-    + "- Use title-style sentence case (first word capitalized). Dollar amounts in full with commas ($800,000). Square footage as 2,800 SF.";
+    + "- Sentence case: capitalize only the first word and proper nouns (\"Steps from the River Walk\", never \"Steps From The River Walk\"). Dollar amounts in full with commas ($800,000). Square footage as 2,800 SF.";
   const user = 'Market: ' + String(market || '') + '\n\nFACTS:\n' + String(facts || '').slice(0, 6000) + '\n\nREP\'S CURRENT HIGHLIGHTS (may be empty or rough):\n' + (Array.isArray(current) && current.length ? current.map(x => '- ' + x).join('\n') : '(none)');
   const j = extractJson(await callClaude(sys, user, 700)) || {};
   return (Array.isArray(j.highlights) ? j.highlights : []).map(x => String(x || '').replace(/^[-•*\s]+/, '').replace(/[.!]+$/, '').trim().slice(0, 140)).filter(Boolean).slice(0, 8);

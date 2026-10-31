@@ -149,9 +149,20 @@ html,body{background:#e9ebf0;} body{font-size:13px;-webkit-font-smoothing:antial
 .vref{border-radius:3px;padding:8px 12px;background:#f4f6f9;} .vref b{font-size:14px;}
 .datef .cal{border-radius:3px;width:38px;font-size:14px;}
 .rrg-back{border-radius:3px !important;}
+
+/* Quick add is a helper — keep it quiet so the schedule rows lead. */
+.qadd{background:transparent !important;border:1px dashed #dde2ea !important;padding:6px 10px !important;}
+.qhd{font-size:9.5px !important;color:var(--soft) !important;margin-bottom:2px !important;}
+.qrow{padding:2px 0 !important;gap:8px !important;} .qrow+.qrow{border-top:0 !important;}
+.qlbl{width:84px !important;font-size:10px !important;font-weight:600 !important;color:var(--soft) !important;text-transform:uppercase;letter-spacing:.04em;padding-top:4px !important;}
+.qchip{font-size:11px !important;font-weight:500 !important;color:var(--muted) !important;background:#fff !important;border-color:#e3e7ee !important;padding:2px 7px !important;}
+.qchip:hover{color:var(--navy) !important;border-color:var(--inp) !important;}
+.qchip.added{color:var(--green) !important;background:#f3faf6 !important;border-color:#d3ecdf !important;}
+.ffet input[data-f="item"]{font-weight:600;color:var(--navy);}
 </style>
 <script src="/rrg_brand.js"></script>
 <script src="/rrg_asset_kit.js"></script>
+<script src="/rrg_features.js"></script>
 </head>
 <body>
 <a href="#" onclick="goBack();return false;" class="rrg-back" aria-label="Back"><span style="font-size:14px;line-height:1">←</span> Back</a>
@@ -162,7 +173,7 @@ html,body{background:#e9ebf0;} body{font-size:13px;-webkit-font-smoothing:antial
   <h1 id="h1">Space &amp; Assets</h1>
   <div class="sub">Everything a space buyer asks — what conveys, the lease and the space. It prints as the Offering Sheet. The starred fields are what a space buyer asks first; fill those and you're market-ready. Everything else is optional.</div>
 </div></div>
-<div class="wrap"><div id="root"><div class="gate">Loading…</div></div></div>
+<div class="wrap"><div data-rrg-feats="listing_details"></div><div id="root"><div class="gate">Loading…</div></div></div>
 <script>
 function qs(k){ try{ return new URLSearchParams(location.search).get(k)||''; }catch(e){ return ''; } }
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
@@ -178,8 +189,9 @@ var GROUPS=[
     {k:'availableDate', l:'Target availability / delivery date', ph:'Pick a date · or 60 days after closing', date:1}
   ]},
   {title:'What conveys', core:1, convey:1, hint:'Leasehold improvements — convey with assignment of the lease.', fields:[
-    {k:'buildoutAge', l:'Buildout age', ph:'Built out 2019'},
-    {k:'replacementCost', l:'Est. replacement cost', ph:'~$450k to replicate'},
+    {k:'remodelYear', l:'Year of last buildout / remodel', ph:'2024', num:1, year:1},
+    {k:'remodelCost', l:'Approximate cost of that buildout', ph:'$800,000', money:1},
+    {k:'buildoutAge', l:'Buildout age (older listings)', ph:'', legacy:1},
     {k:'conveys', l:'Other notes on what conveys', a:1, ph:'Anything else a buyer should know about what is included'}
   ]},
   {title:'FF&E', core:1, ffe:1, hint:'Furniture, fixtures & equipment — sold by bill of sale.', fields:[
@@ -204,6 +216,8 @@ var GROUPS=[
     {k:'centerType', l:'Center type', sel:'centerTypes'},
     {k:'centerName', l:'Center / building name', ph:'The Rim · or n/a for freestanding'},
     {k:'coTenants', l:'Anchors & co-tenants', ph:'H-E-B, Starbucks, Chase'},
+    {k:'zoning', l:'Zoning', ph:'C-2 · D (Downtown) · None — Houston'},
+    {k:'overlay', l:'Historic / overlay district', ph:'La Villita Historic District · or none'},
     {k:'sqft', l:'Interior square footage', core:1, ph:'2,800 SF'},
     {k:'seating', l:'Seating capacity', seats:1},
     {k:'deliveryCondition', l:'Delivery condition', core:1, sel:'delivery'},
@@ -386,7 +400,7 @@ function render(){
     el.addEventListener('input', function(){ SPEC[el.getAttribute('data-k')]=el.value; markDirty(); var fld=el.closest('.fld'); if(fld){ var k=fld.getAttribute('data-fk'); if(CORE.indexOf(k)>=0) fld.classList.toggle('need', !el.value.trim()); } refreshBanner(); });
   });
   ffeWire(); wireDates(); wireKit(); wireOpts(); wireHl(); wirePhotos(); wireHeaders(); refreshBanner();
-  GROUPS.forEach(function(g){ g.fields.forEach(function(f){ if(!f.num) return; var el=document.querySelector('[data-k="'+f.k+'"]'); if(!el) return; el.setAttribute('inputmode','numeric'); el.addEventListener('blur', function(){ var d=el.value.replace(/[^0-9]/g,''); var v=d?Number(d).toLocaleString('en-US'):''; if(v!==el.value){ el.value=v; SPEC[f.k]=v; markDirty(); } }); }); });
+  GROUPS.forEach(function(g){ g.fields.forEach(function(f){ if(!f.num) return; var el=document.querySelector('[data-k="'+f.k+'"]'); if(!el) return; el.setAttribute('inputmode','numeric'); el.addEventListener('blur', function(){ var d=el.value.replace(/[^0-9]/g,''); var v=d?(f.year?d.slice(0,4):Number(d).toLocaleString('en-US')):''; if(v!==el.value){ el.value=v; SPEC[f.k]=v; markDirty(); } }); }); });
   GROUPS.forEach(function(g){ g.fields.forEach(function(f){ if(!f.money) return; var el=document.querySelector('[data-k="'+f.k+'"]'); if(!el) return; el.setAttribute('inputmode','decimal'); el.addEventListener('blur', function(){ var v=fmtMoney(el.value); if(v!==el.value){ el.value=v; SPEC[f.k]=v; markDirty(); } }); }); });
   document.querySelectorAll('[data-lsel]').forEach(function(sel){ var k=sel.getAttribute('data-lsel'), inp=document.querySelector('input[data-k="'+k+'"]'); sel.addEventListener('change', function(){ if(sel.value==='__other'){ inp.classList.remove('hid'); inp.value=''; inp.focus(); } else { inp.classList.add('hid'); inp.value=sel.value; } SPEC[k]=inp.value; markDirty(); refreshBanner(); }); });
   wireHvac();
@@ -436,7 +450,7 @@ function _opt(list,v,blank){ return list.map(function(o){ return '<option value=
 function ffeRowHtml(r,i){
   return '<tr data-i="'+i+'"'+(r.excluded?' class="exc"':'')+'>'
     +'<td><select data-f="cat">'+_opt(FFE_CATS,r.cat)+'</select></td>'
-    +'<td><input data-f="item" value="'+esc(r.item)+'" placeholder="Item">'+(isBeer(r.item)?'<label class="taps">Taps <input data-f="taps" class="q" inputmode="numeric" value="'+esc(r.taps||'')+'" placeholder="#"></label>':'')+'<input data-f="notes" class="nt" value="'+esc(r.notes||'')+'" placeholder="Notes (age, size, location)"></td>'
+    +'<td><input data-f="item" value="'+esc(r.item)+'" placeholder="Item">'+(isBeer(r.item)?'<label class="taps">Taps <input data-f="taps" class="q" inputmode="numeric" value="'+esc(r.taps||'')+'" placeholder="#"></label>':'')+'<input data-f="notes" class="nt" value="'+esc(r.notes||'')+'" placeholder="'+esc(quickHint(r.item)||'Notes (age, size, location)')+'"></td>'
     +'<td><input data-f="qty" class="q" inputmode="numeric" value="'+esc(r.qty||1)+'"></td>'
     +'<td><input data-f="model" value="'+esc(r.model||'')+'" placeholder="Make / model"></td>'
     +'<td><select data-f="cond">'+_opt(FFE_CONDS,r.cond||'','—')+'</select></td>'
@@ -536,7 +550,7 @@ var CONVEY=null;
 function conveyMigrate(){ if(CONVEY) return; CONVEY=[]; var m={hood:'hood1',walkin:'walkinC',ansul:'ansul',restrooms:'restrooms',gas:'gas',patio:'patio'}; Object.keys(m).forEach(function(f){ var v=String(SPEC[f]||'').trim(); if(v) CONVEY.push({k:m[f], d:v.slice(0,160)}); }); }
 function _cv(k){ for(var i=0;i<CONVEY.length;i++) if(CONVEY[i].k===k) return CONVEY[i]; return null; }
 function kitHtml(){
-  var cols=KIT.map(function(g){ return '<div class="kitg"><div class="kgh">'+esc(g.g)+(g.g==='Kitchen'?'<span class="kreq">★ Pick a hood option</span>':'')+'</div>'+g.items.map(function(it){ var c=_cv(it[0]);
+  var cols=KIT.map(function(g){ return '<div class="kitg"><div class="kgh">'+esc(g.g)+''+'</div>'+g.items.map(function(it){ var c=_cv(it[0]);
     return '<div class="kit'+(c?' on':'')+'"><label><input type="checkbox" data-kit="'+it[0]+'"'+(c?' checked':'')+'> '+esc(it[1])+'</label>'+(it[2]?'<input type="text" class="kd" data-kitd="'+it[0]+'"'+(it[3]?(' data-unit="'+it[3]+'" inputmode="decimal"'):'')+' value="'+esc(c?c.d:'')+'" placeholder="'+esc(it[2])+'">':'')+'</div>'; }).join('')+'</div>'; }).join('');
   return '<div class="fld" data-fk="kit"><label class="subh">Check what\'s built in</label><div class="kitgrid">'+cols+'</div></div>';
 }

@@ -19991,10 +19991,10 @@ const ASSET_SPEC_FIELDS = {
   // Lease (core)
   leaseRent: 80, leasePerSF: 40, leaseRemaining: 80, leaseExpiration: 60, leaseOptions: 300, leaseAssignment: 600, leaseNNN: 300, leaseDeposit: 160, leaseUse: 300, leaseFixtures: 200, optCount: 10, optYears: 10, optNotice: 10, optRent: 40,
   // Space (core)
-  spaceType: 40, centerType: 60, centerName: 120, address: 200, coTenants: 300, frontage: 300, parking: 160,
+  spaceType: 40, centerType: 60, centerName: 120, zoning: 80, overlay: 120, address: 200, coTenants: 300, frontage: 300, parking: 160,
   sqft: 40, seating: 60, seatsIn: 6, seatsOut: 6, patio: 160, deliveryCondition: 160, operatingNow: 60,
   // Buildout / leaseholds
-  hood: 400, walkin: 240, ansul: 160, restrooms: 160, buildoutAge: 160, replacementCost: 160,
+  hood: 400, walkin: 240, ansul: 160, restrooms: 160, buildoutAge: 160, remodelYear: 4, remodelCost: 40, replacementCost: 160,
   // FF&E (core = ffeSchedule)
   ffeSchedule: 4000, ffeExcluded: 1200, smallwares: 300, exclusions: 1200,
   // Licenses (core = liquorTransfer)
@@ -20178,7 +20178,7 @@ const CONVEY_KIT = [
   { k: 'walkinC', l: 'Walk-in cooler', to: 'walkin' }, { k: 'walkinF', l: 'Walk-in freezer', to: 'walkin' }, { k: 'dry', l: 'Dry storage' },
   { k: 'hand', l: 'Hand sinks' }, { k: 'prep', l: 'Prep sink' }, { k: 'sink3', l: '3-compartment sink' }, { k: 'mop', l: 'Mop sink' }, { k: 'drains', l: 'Floor drains' },
   { k: 'sprink', l: 'Fire sprinklers' }, { k: 'restrooms', l: 'ADA restrooms', to: 'restrooms' }, { k: 'bar', l: 'Built-in bar' }, { k: 'counter', l: 'Order counter' }, { k: 'window', l: 'Pickup / walk-up window' },
-  { k: 'drive', l: 'Drive-thru' }, { k: 'pdr', l: 'Private dining room' }, { k: 'patio', l: 'Patio', to: 'patio' }, { k: 'office', l: 'Office' }, { k: 'sign', l: 'Sign panel' }
+  { k: 'drive', l: 'Drive-thru' }, { k: 'pdr', l: 'Private dining room' }, { k: 'patio', l: 'Patio' }, { k: 'office', l: 'Office' }
 ];
 function _conveyClean(arr) {
   if (!Array.isArray(arr)) return null;
@@ -20189,7 +20189,7 @@ function _conveySync(spec, conv) {
   if (!conv || !conv.length) return spec;
   const lab = {}; CONVEY_KIT.forEach(c => { lab[c.k] = c; });
   const by = {}; conv.forEach(r => { const c = lab[r.k]; if (c && c.to) (by[c.to] = by[c.to] || []).push(c.l + (r.d ? (' — ' + r.d) : '')); });
-  ['hood', 'ansul', 'gas', 'walkin', 'restrooms', 'patio'].forEach(f => { if (by[f]) spec[f] = by[f].join(' · ').slice(0, ASSET_SPEC_FIELDS[f]); else delete spec[f]; });
+  ['hood', 'ansul', 'gas', 'walkin', 'restrooms'].forEach(f => { if (by[f]) spec[f] = by[f].join(' · ').slice(0, ASSET_SPEC_FIELDS[f]); else delete spec[f]; });
   return spec;
 }
 function _conveyLine(conv) { const kit = {}; CONVEY_KIT.forEach(c => { kit[c.k] = c; }); return (conv || []).filter(r => kit[r.k]).map(r => kit[r.k].l + ((!kit[r.k].to && r.d) ? (' (' + r.d + ')') : '')).join(' · '); }
@@ -20279,9 +20279,9 @@ app.post('/api/asset-spec/highlights', express.json({ limit: '256kb' }), async (
     const sp = _assetSpecClean(b.spec || d.assetSpec || {}), conv = _conveyClean(b.convey) || d.assetConvey || [], ffe = Array.isArray(b.ffe) ? _ffeClean(b.ffe) : (d.assetFfe || []);
     const L = [];
     const add = (k, v) => { v = String(v || '').trim(); if (v) L.push(k + ': ' + v); };
-    add('Business / trade name', d.business); add('Address', sp.address); add('Space type', sp.spaceType); add('Center type', sp.centerType); add('Center / building', sp.centerName); add('Anchors & co-tenants', sp.coTenants);
+    add('Business / trade name', d.business); add('Address', sp.address); add('Space type', sp.spaceType); add('Center type', sp.centerType); add('Center / building', sp.centerName); add('Anchors & co-tenants', sp.coTenants); add('Zoning', sp.zoning); add('Historic / overlay district', sp.overlay);
     add('Interior square footage', sp.sqft); add('Seating', sp.seating); add('Parking spaces', sp.parking); add('Delivery condition', sp.deliveryCondition); add('Operating status', sp.operatingNow);
-    add('Built in (conveys with the lease)', _conveyLine(conv)); add('Buildout age', sp.buildoutAge); add('Estimated replacement cost', sp.replacementCost);
+    add('Built in (conveys with the lease)', _conveyLine(conv)); add('Buildout age', sp.buildoutAge); add('Year of last buildout / remodel', sp.remodelYear); add('Approximate cost of that buildout / remodel', sp.remodelCost);
     add('Equipment conveying (count of lines)', ffe.filter(r => !r.excluded && r.own !== 'Leased').length || ''); add('Notable equipment', ffe.filter(r => !r.excluded && r.own !== 'Leased').slice(0, 12).map(_ffeLine).join('; '));
     add('Base rent', sp.leaseRent); add('Remaining lease term', sp.leaseRemaining); add('Renewal options', sp.leaseOptions); add('Permitted use', sp.leaseUse);
     add('Asking price', sp.askingPrice); add('Reason for availability', sp.reason); add('Other notes', sp.conveys);
@@ -20319,8 +20319,8 @@ app.post('/api/asset-spec', express.json({ limit: '256kb' }), (req, res) => {
 const ASSET_SHEET_GROUPS = [
   ['The Opportunity', [['askingPrice', 'Asking price'], ['conveys', 'What conveys'], ['reason', 'Reason for availability'], ['availableDate', 'Available']]],
   ['Lease', [['leaseRent', 'Base rent'], ['leasePerSF', 'Rent / SF'], ['leaseRemaining', 'Remaining term'], ['leaseExpiration', 'Expiration'], ['leaseOptions', 'Renewal options'], ['leaseAssignment', 'Assignment & consent'], ['leaseNNN', 'NNN / CAM · taxes · insurance'], ['leaseDeposit', 'Deposit / key money'], ['leaseFixtures', 'Fixtures at lease end'], ['leaseUse', 'Permitted use']]],
-  ['The Space', [['address', 'Address'], ['spaceType', 'Space type'], ['centerType', 'Center type'], ['centerName', 'Center / building'], ['coTenants', 'Anchors & co-tenants'], ['parking', 'Parking spaces'], ['sqft', 'Square footage'], ['seating', 'Seating'], ['patio', 'Patio / outdoor'], ['deliveryCondition', 'Delivery condition'], ['operatingNow', 'Status']]],
-  ['Buildout & Leaseholds', [['hood', 'Hood, venting & grease'], ['walkin', 'Walk-in cooler / freezer'], ['ansul', 'Fire suppression'], ['restrooms', 'Restrooms'], ['buildoutAge', 'Buildout age'], ['replacementCost', 'Est. replacement cost']]],
+  ['The Space', [['address', 'Address'], ['spaceType', 'Space type'], ['centerType', 'Center type'], ['centerName', 'Center / building'], ['coTenants', 'Anchors & co-tenants'], ['zoning', 'Zoning'], ['overlay', 'Historic / overlay district'], ['parking', 'Parking spaces'], ['sqft', 'Square footage'], ['seating', 'Seating'], ['patio', 'Patio / outdoor'], ['deliveryCondition', 'Delivery condition'], ['operatingNow', 'Status']]],
+  ['Buildout & Leaseholds', [['hood', 'Hood, venting & grease'], ['walkin', 'Walk-in cooler / freezer'], ['ansul', 'Fire suppression'], ['restrooms', 'Restrooms'], ['buildoutAge', 'Buildout age']]],
   ['FF&E', [['ffeSchedule', 'Equipment included'], ['ffeExcluded', 'Excluded — seller keeps'], ['smallwares', 'Smallwares / POS / furniture']]],
   ['Utilities & Infrastructure', [['electrical', 'Electrical'], ['gas', 'Gas'], ['hvac', 'HVAC'], ['waterSewer', 'Water / sewer / grease']]]
 ];
@@ -20328,52 +20328,105 @@ function _assetPriceBand(askingPrice) {
   const n = parseInt(String(askingPrice || '').replace(/[^0-9]/g, ''), 10) || 0;
   if (!n) return ''; if (n < 1000000) return 'u1m'; if (n < 3000000) return '1-3m'; if (n < 5000000) return '3-5m'; return '5m+';
 }
-function assetSheetHtml(business, market, spec, ffe, convey) {
-  spec = Object.assign({}, spec || {}); ffe = Array.isArray(ffe) ? ffe : [];
-  if (Array.isArray(convey) && convey.length) spec.conveys = _conveyLine(convey) + (String(spec.conveys || '').trim() ? ('\n' + spec.conveys) : '') + '\nLeasehold improvements convey with assignment of the lease, subject to landlord consent.';
-  const _xTyped = String(spec.exclusions || '').trim();
-  if (!ffe.length && _xTyped) spec.ffeExcluded = [String(spec.ffeExcluded || '').trim(), _xTyped].filter(Boolean).join('; ');
-  const nl = s => String(s == null ? '' : s).replace(/\n/g, '<br>');
-  let secs = '';
-  ASSET_SHEET_GROUPS.forEach(g => {
-    if (g[0] === 'FF&E' && ffe.length) {
-      const conv = ffe.filter(r => !r.excluded && r.own !== 'Leased'), leased = ffe.filter(r => !r.excluded && r.own === 'Leased'), exc = ffe.filter(r => r.excluded);
-      const cats = []; conv.forEach(r => { if (cats.indexOf(r.cat) < 0) cats.push(r.cat); });
-      let h = '<h2>FF&amp;E — equipment schedule</h2><table class="ffe"><tr><th>Item</th><th class="q">Qty</th><th>Make / model</th><th>Condition</th></tr>';
-      cats.forEach(c => { h += '<tr class="cat"><td colspan="4">' + esc(c) + '</td></tr>' + conv.filter(r => r.cat === c).map(r => '<tr><td>' + esc(r.item) + (r.taps ? (' — ' + r.taps + ' taps') : '') + (r.notes ? '<div class="nt">' + esc(r.notes) + '</div>' : '') + '</td><td class="q">' + r.qty + '</td><td>' + esc(r.model || '—') + '</td><td>' + esc(r.cond || '—') + '</td></tr>').join(''); });
-      h += '</table>';
-      const extra = [];
-      if (leased.length) extra.push('<tr><th>Leased / vendor-owned (does not convey)</th><td>' + esc(leased.map(_ffeLine).join('; ')) + '</td></tr>');
-      if (exc.length || _xTyped) extra.push('<tr><th>Excluded — seller keeps</th><td>' + esc(exc.map(_ffeLine).concat(_xTyped ? [_xTyped] : []).join('; ')) + '</td></tr>');
-      if (String(spec.smallwares || '').trim()) extra.push('<tr><th>Smallwares / POS / furniture</th><td>' + nl(esc(spec.smallwares)) + '</td></tr>');
-      if (extra.length) h += '<table style="margin-top:8px">' + extra.join('') + '</table>';
-      secs += h; return;
+// Printable Offering Sheet — buyer-facing, Letter size. Photos, key facts, highlights, what conveys,
+// equipment, lease, space, utilities, and the listing rep's contact block.
+function _ffeNotePublic(n) {
+  // Rep-facing prompts from quick-add must never reach a buyer.
+  return String(n || '')
+    .replace(/Often leased[^.—]*(—[^.]*)?\.?\s*/gi, '')
+    .replace(/\b(Make \/ lbs per day|Camera count|Brand|Sizes|Number of taps)\s*:\s*$/i, '')
+    .replace(/\s*[—·-]\s*$/, '').trim();
+}
+function _assetSheetOpts(d, key, req) {
+  const o = { photos: [], rep: null, logo: '' };
+  try { o.logo = _vlLogoDataUri() || ''; } catch (e) {}
+  try {
+    const ov = loadAssignOverlay()[key] || {};
+    const uname = ov.ownerUser || d.byUser || (req && req.user && req.user.username) || '';
+    const u = (uname && _vlUser(uname)) || (req && req.user) || null;
+    if (u) o.rep = { name: u.name || '', title: u.title || '', email: u.email || '', phone: u.phone || '' };
+    const med = (ov.media && typeof ov.media === 'object') ? ov.media : {};
+    let ph = (Array.isArray(med.photos) ? med.photos : []).slice().sort((a, b) => (a.ord || 0) - (b.ord || 0));
+    if (med.coverPhotoId) ph = ph.filter(p => p.id === med.coverPhotoId).concat(ph.filter(p => p.id !== med.coverPhotoId));
+    ph.slice(0, 4).forEach(p => {
+      try { const buf = fs.readFileSync(path.join(DEAL_PHOTO_DIR, dealKeySafe(key), p.id + '.' + p.ext)); if (buf.length < 6 * 1024 * 1024) o.photos.push('data:' + spaceFileMime(p.ext) + ';base64,' + buf.toString('base64')); } catch (e) {}
+    });
+  } catch (e) {}
+  return o;
+}
+function assetSheetHtml(business, market, spec, ffe, convey, opts) {
+  spec = Object.assign({}, spec || {}); ffe = Array.isArray(ffe) ? ffe : []; opts = opts || {}; convey = Array.isArray(convey) ? convey : [];
+  const nl = s => esc(String(s == null ? '' : s)).replace(/\n/g, '<br>');
+  const v = k => String(spec[k] || '').trim();
+  const row = (label, val) => val ? ('<tr><th>' + esc(label) + '</th><td>' + nl(val) + '</td></tr>') : '';
+  const sec = (title, rows) => rows ? ('<h2>' + title + '</h2><table class="kv">' + rows + '</table>') : '';
+  const org = orgDisplayName();
+  // Key facts band
+  const facts = [['Asking price', v('askingPrice')], ['Square feet', v('sqft') ? (v('sqft').replace(/\s*SF$/i, '') + ' SF') : ''], ['Seating', v('seating').replace(/ · \d[\d,]* total$/, '')], ['Base rent', v('leaseRent')], ['Lease remaining', v('leaseRemaining')], ['Delivery', v('deliveryCondition').replace(/ — .*/, '')]].filter(f => f[1]).slice(0, 6);
+  const factsHtml = facts.length ? ('<div class="facts">' + facts.map(f => '<div><span>' + esc(f[0]) + '</span><b>' + esc(f[1]) + '</b></div>').join('') + '</div>') : '';
+  // Photos
+  const P = opts.photos || [];
+  const photosHtml = P.length ? ('<div class="ph"><img class="hero" src="' + P[0] + '" alt="">' + (P.length > 1 ? ('<div class="thumbs" style="grid-template-columns:repeat(' + (P.length - 1) + ',1fr)">' + P.slice(1).map(u => '<img src="' + u + '" alt="">').join('') + '</div>') : '') + '</div>') : '';
+  // Highlights
+  const hl = v('highlights').split(/\n+/).map(x => x.replace(/^[-•*\s]+/, '').trim()).filter(Boolean).slice(0, 8);
+  const hlHtml = hl.length ? ('<ul class="hl">' + hl.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>') : '';
+  // What conveys with the lease
+  const kit = {}; CONVEY_KIT.forEach(c => { kit[c.k] = c.l; });
+  const items = convey.filter(r => kit[r.k] && r.k !== 'nohood').map(r => '<li>' + esc(kit[r.k]) + (r.d ? ' <i>' + esc(r.d) + '</i>' : '') + '</li>');
+  let conveyHtml = '';
+  const remodel = [v('remodelYear') ? ('Last buildout / remodel ' + v('remodelYear')) : (v('buildoutAge') || ''), v('remodelCost') ? ('approx. ' + v('remodelCost')) : ''].filter(Boolean).join(' · ');
+  if (items.length || remodel || v('conveys')) {
+    conveyHtml = '<h2>What conveys with the lease</h2>' + (items.length ? ('<ul class="ck">' + items.join('') + '</ul>') : '')
+      + (convey.some(r => r.k === 'nohood') ? '<p class="note">No kitchen hood.</p>' : '')
+      + (remodel ? ('<p class="note"><b>' + esc(remodel) + '</b></p>') : '') + (v('conveys') ? ('<p class="note">' + nl(v('conveys')) + '</p>') : '')
+      + '<p class="fine">Leasehold improvements convey with assignment of the lease, subject to landlord consent.</p>';
+  }
+  // Equipment
+  let ffeHtml = '';
+  const xTyped = v('exclusions');
+  if (ffe.length || xTyped) {
+    const conv = ffe.filter(r => !r.excluded && r.own !== 'Leased'), leased = ffe.filter(r => !r.excluded && r.own === 'Leased'), exc = ffe.filter(r => r.excluded);
+    const cats = []; conv.forEach(r => { if (cats.indexOf(r.cat) < 0) cats.push(r.cat); });
+    ffeHtml = '<h2>Equipment — furniture, fixtures &amp; equipment</h2>';
+    if (conv.length) {
+      ffeHtml += '<table class="ffe"><tr><th>Item</th><th class="q">Qty</th><th>Make / model</th><th>Condition</th></tr>';
+      cats.forEach(c => { ffeHtml += '<tr class="cat"><td colspan="4">' + esc(c) + '</td></tr>' + conv.filter(r => r.cat === c).map(r => { const n = _ffeNotePublic(r.notes); return '<tr><td>' + esc(r.item) + (r.taps ? (' — ' + r.taps + ' taps') : '') + (n ? '<div class="nt">' + esc(n) + '</div>' : '') + '</td><td class="q">' + r.qty + '</td><td>' + esc(r.model || '—') + '</td><td>' + esc(r.cond || '—') + '</td></tr>'; }).join(''); });
+      ffeHtml += '</table><p class="fine">Equipment is sold by bill of sale, as-is.</p>';
     }
-    const rows = g[1].filter(f => String(spec[f[0]] || '').trim()).map(f => '<tr><th>' + esc(f[1]) + '</th><td>' + nl(esc(spec[f[0]])) + '</td></tr>').join('');
-    if (rows) secs += '<h2>' + esc(g[0]) + '</h2><table>' + rows + '</table>';
-  });
-  if (!secs) secs = '<p class="empty">No details captured yet.</p>';
-  const org = esc(orgDisplayName());
-  return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + esc(business || 'Space & Assets') + ' — Offering Sheet</title>'
-    + '<style>*{box-sizing:border-box}body{margin:0;background:#fff;color:#1a2236;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;font-size:13px;line-height:1.5}'
-    + '.wrap{max-width:760px;margin:0 auto;padding:34px 40px 60px}'
-    + '.hd{border-bottom:3px solid #DA2B1F;padding-bottom:16px;margin-bottom:8px}'
-    + '.kick{color:#DA2B1F;font-weight:800;letter-spacing:.22em;font-size:10px;text-transform:uppercase}'
-    + 'h1{font-size:23px;margin:6px 0 3px;color:#000E31}'
-    + '.mkt{color:#6b7488;font-size:13px;font-weight:600}'
-    + 'h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#000E31;margin:22px 0 7px;padding-bottom:5px;border-bottom:1px solid #e6e9f0}'
-    + 'table{width:100%;border-collapse:collapse;margin:0}'
-    + 'th{text-align:left;width:210px;vertical-align:top;color:#6b7488;font-weight:700;font-size:11.5px;padding:5px 12px 5px 0}'
-    + 'td{vertical-align:top;padding:5px 0;color:#1a2236}'
-    + 'tr+tr th,tr+tr td{border-top:1px solid #f2f4f8}'
-    + 'ul.hl{margin:14px 0 4px;padding:12px 16px 12px 30px;background:#f6f8fc;border-left:3px solid #DA2B1F;}ul.hl li{margin:3px 0;font-size:13.5px;font-weight:600;color:#000E31;}'
-    + 'table.ffe th{width:auto;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;padding:5px 10px 5px 0;border-bottom:1px solid #e6e9f0}table.ffe td{padding:4px 10px 4px 0;font-size:12.5px}table.ffe .q{width:44px;text-align:right;padding-right:16px}table.ffe tr.cat td{font-weight:800;color:#000E31;font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding-top:10px}table.ffe .nt{color:#6b7488;font-size:11px}table.ffe tr{page-break-inside:avoid}'
-    + '.empty{color:#8a93a8}.foot{margin-top:34px;padding-top:14px;border-top:1px solid #e6e9f0;color:#8a93a8;font-size:11px}'
+    const ex = [];
+    if (leased.length) ex.push(row('Leased / vendor-owned — does not convey', leased.map(_ffeLine).join('; ')));
+    if (exc.length || xTyped) ex.push(row('Excluded — seller keeps', exc.map(_ffeLine).concat(xTyped ? [xTyped] : []).join('; ')));
+    if (v('smallwares')) ex.push(row('Smallwares / POS / furniture', v('smallwares')));
+    if (ex.length) ffeHtml += '<table class="kv">' + ex.join('') + '</table>';
+  } else if (v('ffeSchedule')) ffeHtml = sec('Equipment', row('Equipment included', v('ffeSchedule')) + row('Excluded', v('ffeExcluded')));
+  // Lease / Space / Utilities
+  const leaseHtml = sec('The lease', row('Base rent', v('leaseRent')) + row('Rent / SF', v('leasePerSF')) + row('NNN / CAM · taxes · insurance', v('leaseNNN')) + row('Remaining term', v('leaseRemaining')) + row('Expiration', v('leaseExpiration')) + row('Renewal options', v('leaseOptions')) + row('Assignment & landlord consent', v('leaseAssignment')) + row('Deposit / key money', v('leaseDeposit')) + row('Permitted use / exclusives', v('leaseUse')) + row('Fixtures at lease end', v('leaseFixtures')));
+  const spaceHtml = sec('The space', row('Address', v('address')) + row('Space type', v('spaceType')) + row('Center', [v('centerName'), v('centerType')].filter(Boolean).join(' · ')) + row('Anchors & co-tenants', v('coTenants')) + row('Zoning', v('zoning')) + row('Historic / overlay district', v('overlay')) + row('Square footage', v('sqft')) + row('Seating', v('seating')) + row('Parking spaces', v('parking')) + row('Delivery condition', v('deliveryCondition')) + row('Status', v('operatingNow')) + row('Reason for availability', v('reason')) + row('Available', v('availableDate')));
+  const utilHtml = sec('Utilities', row('Electrical', v('electrical')) + row('HVAC', v('hvac')) + row('Water / sewer', v('waterSewer')));
+  // Contact
+  const r = opts.rep || {};
+  const contact = '<div class="contact"><div><div class="cl">For information or a showing</div><div class="cn">' + esc(r.name || org) + '</div>' + (r.title ? '<div class="ct">' + esc(r.title) + '</div>' : '') + '<div class="cd">' + [r.phone ? esc(r.phone) : '', r.email ? ('<a href="mailto:' + esc(r.email) + '">' + esc(r.email) + '</a>') : ''].filter(Boolean).join(' · ') + '</div></div><div class="corg">' + (opts.logo ? '<img src="' + opts.logo + '" alt="">' : '<b>' + esc(org) + '</b>') + '</div></div>';
+  const addrLine = [v('address'), market && v('address').indexOf(market) < 0 ? market : ''].filter(Boolean).join(' · ') || market || '';
+  return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + esc(business || 'Restaurant space') + ' — Offering Sheet</title><style>'
+    + '@page{size:Letter;margin:0.45in 0.55in}*{box-sizing:border-box}body{margin:0;background:#fff;color:#1a2236;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;font-size:11.5px;line-height:1.45}'
+    + '@media screen{html{background:#eef1f6}.wrap{max-width:8.5in;margin:18px auto;background:#fff;padding:0.45in 0.55in;box-shadow:0 4px 22px rgba(0,0,0,.08)}}'
+    + '.top{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #000E31;padding-bottom:8px}.top img{max-height:40px;max-width:190px}.top .org{font-weight:800;color:#000E31;font-size:14px}.top .kick{color:#DA2B1F;font-weight:800;letter-spacing:.2em;font-size:9.5px;text-transform:uppercase}'
+    + 'h1{font-size:24px;line-height:1.15;margin:12px 0 2px;color:#000E31;letter-spacing:-.01em}.addr{color:#5b6476;font-size:12.5px;font-weight:600;margin-bottom:10px}'
+    + '.ph{margin:8px 0 10px}.ph .hero{width:100%;height:3.1in;object-fit:cover;display:block;border-radius:2px}.thumbs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px}.thumbs img{width:100%;height:1.15in;object-fit:cover;display:block;border-radius:2px}'
+    + '.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(1.1in,1fr));border:1px solid #dbe0e9;border-left:4px solid #DA2B1F;margin:10px 0}.facts div{padding:7px 10px;border-left:1px solid #edf0f5}.facts div:first-child{border-left:0}.facts span{display:block;font-size:8.5px;text-transform:uppercase;letter-spacing:.08em;color:#6b7488;font-weight:700}.facts b{display:block;font-size:13.5px;color:#000E31;margin-top:1px}'
+    + 'ul.hl{margin:10px 0 4px;padding:9px 14px 9px 28px;background:#f6f8fc}ul.hl li{margin:2px 0;font-size:12.5px;font-weight:600;color:#000E31}'
+    + 'h2{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:#000E31;margin:16px 0 6px;padding-bottom:4px;border-bottom:1px solid #dbe0e9;page-break-after:avoid}'
+    + 'ul.ck{columns:3;column-gap:18px;margin:0;padding:0;list-style:none}ul.ck li{break-inside:avoid;padding:2px 0 2px 16px;position:relative}ul.ck li:before{content:"✓";position:absolute;left:0;color:#1f8a5b;font-weight:800}ul.ck i{font-style:normal;color:#6b7488}'
+    + '.note{margin:6px 0 0}.fine{margin:5px 0 0;font-size:9.5px;color:#8a93a8}'
+    + 'table{width:100%;border-collapse:collapse}table.kv th{text-align:left;width:2.1in;vertical-align:top;color:#6b7488;font-weight:700;font-size:10.5px;padding:3px 10px 3px 0}table.kv td{vertical-align:top;padding:3px 0}table.kv tr+tr th,table.kv tr+tr td{border-top:1px solid #f1f3f7}'
+    + 'table.ffe th{text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:#6b7488;padding:3px 8px 3px 0;border-bottom:1px solid #dbe0e9}table.ffe td{padding:2px 8px 2px 0;font-size:11px;vertical-align:top}table.ffe .q{width:.45in;text-align:right;padding-right:14px}table.ffe tr.cat td{font-weight:800;color:#000E31;font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;padding-top:7px}table.ffe .nt{color:#6b7488;font-size:9.5px}table.ffe tr,table.kv tr{page-break-inside:avoid}'
+    + '.contact{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-top:18px;padding:11px 14px;background:#000E31;color:#fff;page-break-inside:avoid}.contact .cl{font-size:8.5px;text-transform:uppercase;letter-spacing:.12em;color:#9fb0cf;font-weight:700}.contact .cn{font-size:15px;font-weight:800;margin-top:2px}.contact .ct{font-size:10.5px;color:#c9d3e6}.contact .cd{font-size:11.5px;margin-top:2px}.contact a{color:#fff}.contact .corg img{max-height:36px;max-width:170px;background:#fff;padding:4px 6px;border-radius:2px}'
+    + '.foot{margin-top:8px;color:#8a93a8;font-size:8.5px;line-height:1.4}'
     + '@media print{.wrap{padding:0}}</style></head><body><div class="wrap">'
-    + '<div class="hd"><div class="kick">Offering Sheet · Space &amp; Assets</div><h1>' + esc(business || 'Restaurant Space') + '</h1><div class="mkt">' + esc(market || '') + '</div></div>'
-    + (function () { const hl = String(spec.highlights || '').split(/\n+/).map(x => x.replace(/^[-•*\s]+/, '').trim()).filter(Boolean).slice(0, 8); return hl.length ? ('<ul class="hl">' + hl.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>') : ''; })()
-    + secs
-    + '<div class="foot">Prepared by ' + org + '. Confidential — shared under NDA. Information believed reliable but not guaranteed; buyer to verify.</div>'
+    + '<div class="top">' + (opts.logo ? '<img src="' + opts.logo + '" alt="">' : '<span class="org">' + esc(org) + '</span>') + '<span class="kick">Offering Sheet · Restaurant Space</span></div>'
+    + '<h1>' + esc(business || 'Restaurant space') + '</h1>' + (addrLine ? '<div class="addr">' + esc(addrLine) + '</div>' : '')
+    + photosHtml + factsHtml + hlHtml + conveyHtml + ffeHtml + leaseHtml + spaceHtml + utilHtml + contact
+    + '<div class="foot">Prepared by ' + esc(org) + '. Confidential. Information is believed reliable but is not guaranteed; buyers should verify all details, including the lease and the condition and ownership of equipment. The lease assignment is subject to landlord approval.</div>'
     + '</div></body></html>';
 }
 // Printable Offering Sheet (buyer-facing).
@@ -20382,7 +20435,7 @@ app.get('/api/asset-spec/sheet', (req, res) => {
     const { d } = _dealByAnyKey(req.query && req.query.key);
     if (!d) return res.status(404).send('Listing not found.');
     if (!ownsDeal(req, d)) return res.status(403).send('Not yours.');
-    res.set('Content-Type', 'text/html; charset=utf-8').send(assetSheetHtml(d.business || '', d.market || '', d.assetSpec || {}, d.assetFfe || [], d.assetConvey || null));
+    res.set('Content-Type', 'text/html; charset=utf-8').send(assetSheetHtml(d.business || '', d.market || '', d.assetSpec || {}, d.assetFfe || [], d.assetConvey || null, _assetSheetOpts(d, String(req.query.key || ''), req)));
   } catch (e) { res.status(500).send('Could not render the sheet.'); }
 });
 // Drop a PDF of the spec sheet into the deal's data room (best-effort) so NDA'd buyers can pull it.
@@ -20390,7 +20443,7 @@ async function depositAssetSheetToRoom(d, key) {
   try {
     const room = resolveRoomFor({ dealKey: key, id: d.id, personId: d.contactPersonId, companyId: d.companyId });
     if (!room) return;
-    const pdf = await _htmlToPdf(assetSheetHtml(d.business || '', d.market || '', d.assetSpec || {}, d.assetFfe || [], d.assetConvey || null));
+    const pdf = await _htmlToPdf(assetSheetHtml(d.business || '', d.market || '', d.assetSpec || {}, d.assetFfe || [], d.assetConvey || null, _assetSheetOpts(d, key, null)));
     if (!pdf || !pdf.length) return;
     const rooms = loadRooms(); const live = rooms.find(x => x.id === room.id); if (!live) return;
     live.docs = live.docs || [];

@@ -89,7 +89,7 @@ var ROOMS=[
   {n:'Prep & dish', kit:['water','grease','hand','prep','sink3','mop','drains','dry'], cats:['Prep & Storage','Warewashing','Smallwares'], def:'Prep & Storage'},
   {n:'Cold storage', kit:['walkinC','walkinF'], cats:['Refrigeration'], def:'Refrigeration'},
   {n:'Bar', kit:['bar'], cats:['Bar & Beverage'], def:'Bar & Beverage'},
-  {n:'Dining & front', kit:['sprink','restrooms','counter','window','drive','pdr','patio','office','sign'], cats:['Furniture & Decor','Signage'], def:'Furniture & Decor'},
+  {n:'Dining & front', kit:['sprink','restrooms','counter','window','drive','pdr','patio','office'], cats:['Furniture & Decor','Signage'], def:'Furniture & Decor'},
   {n:'Tech', kit:[], cats:['POS & Tech'], def:'POS & Tech'},
   {n:'Finish', fin:1}
 ];
@@ -125,7 +125,7 @@ function eqHtml(i){ var r=FFE[i]; var own=r.own||'Confirm';
   return '<div class="eq'+(r.excluded?' kept':'')+'" data-i="'+i+'"><div class="h"><input class="t" data-f="item" value="'+esc(r.item)+'"><div class="step"><button data-st="-1">−</button><b>'+(r.qty||1)+'</b><button data-st="1">+</button></div></div>'
     +(isBeer(r.item)?'<div class="taprow"><span>Taps</span><div class="step"><button data-tp="-1">−</button><b>'+(r.taps||0)+'</b><button data-tp="1">+</button></div></div>':'')
     +'<div class="seg">'+[['Owned','o'],['Leased','l'],['Confirm','c']].map(function(o){ return '<button class="'+o[1]+(own===o[0]?' on':'')+'" data-own="'+o[0]+'">'+o[0]+'</button>'; }).join('')+'</div>'
-    +'<div class="more"><input data-f="notes" value="'+esc(r.notes||'')+'" placeholder="Make / model / notes"><button class="keep'+(r.excluded?' on':'')+'" data-keep="1">'+(r.excluded?'Seller keeps ✓':'Seller keeps')+'</button></div></div>'; }
+    +'<div class="more"><input data-f="notes" value="'+esc(r.notes||'')+'" placeholder="'+esc(quickHint(r.item)||'Make / model / notes')+'"><button class="keep'+(r.excluded?' on':'')+'" data-keep="1">'+(r.excluded?'Seller keeps ✓':'Seller keeps')+'</button></div></div>'; }
 // Photos per room: camera or camera roll; shrunk on the phone, then uploaded one at a time.
 var MEDIA=null;
 function roomPhotos(R){ return ((MEDIA&&MEDIA.photos)||[]).filter(function(p){ return String(p.caption||'').indexOf(R.n+' ')===0; }); }
