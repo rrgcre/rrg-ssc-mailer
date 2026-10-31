@@ -2637,6 +2637,7 @@ load();
   }
   function _actDeal(){ try{ var k=_actKey(); return (DEALS||[]).filter(function(x){ return x&&x.key===k; })[0]||null; }catch(_){ return null; } }
   // Hand the listing to Marketing & Creative as an Office Request: everything they need in one place.
+  window.rrgMktSubmit=function(){ _mktSubmit(); };
   function _mktSubmit(){
     var d=_actDeal(); if(!d){ alert('No listing on file for this seller yet.'); return; }
     if(d.mktTicket){ location.href='./rrg_tickets.html#'+encodeURIComponent(d.mktTicket.id); return; }

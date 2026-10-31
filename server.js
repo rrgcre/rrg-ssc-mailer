@@ -20239,7 +20239,7 @@ function _assetValueRefs(key, d) {
   const out = {};
   try { const v = assignmentsIndex()[key]; const bid = v && v.bov && v.bov.id; if (bid) { const b = loadBovs().find(x => x.id === bid); if (b && (b.targetText || b.rangeText)) out.bov = { id: b.id, target: b.targetText || '', range: b.rangeText || '', final: !!b.finalizedAt, at: (b.finalizedAt || b.updatedAt || b.createdAt || '').slice(0, 10) }; } } catch (e) {}
   try { const L = loadValueLetters().filter(x => x.key === key).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0]; if (L && L.value) out.letter = { value: orgMoney(L.value), status: L.status || '', at: String(L.sentAt || L.approvedAt || L.createdAt || '').slice(0, 10) }; } catch (e) {}
-  try { const ov = loadAssignOverlay()[key] || {}; if (ov.listPrice) out.listPrice = ov.listPrice; } catch (e) {}
+  try { const ov = loadAssignOverlay()[key] || {}; if (ov.listPrice) out.listPrice = ov.listPrice; if (ov.mktTicketId) out.mktAt = String(ov.mktSubmittedAt || '').slice(0, 10) || 'yes'; } catch (e) {}
   return out;
 }
 app.get('/api/asset-spec', (req, res) => {

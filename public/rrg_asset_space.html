@@ -82,6 +82,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .vrh{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--soft);margin-bottom:4px;}
 .vref>div:not(.vrh){display:flex;align-items:baseline;gap:10px;padding:5px 0;flex-wrap:wrap;} .vref>div+div:not(.vrh){border-top:1px dashed #e3e8f1;}
 .vref span{width:150px;font-size:12.5px;color:var(--muted);font-weight:600;} .vref b{font-size:15px;color:var(--navy);} .vref i{font-style:normal;font-size:12px;color:var(--soft);} .vref a{margin-left:auto;font-size:12px;font-weight:700;color:var(--navy);text-decoration:none;}
+.mktb{margin-left:4px;} .mktb.go{background:var(--navy);border-color:var(--navy);color:#fff;} .mktb:disabled{opacity:.5;cursor:not-allowed;} .mkth{font-size:11.5px;color:var(--soft);margin-left:8px;} .mktdone{font-size:12.5px;font-weight:700;color:var(--green);margin-left:6px;}
 .gate{padding:50px 24px;text-align:center;color:var(--muted);font-size:14px;}
 .banner{border-radius:12px;padding:12px 16px;font-size:13px;font-weight:600;margin-bottom:16px;line-height:1.5;}
 .banner.done{background:#eaf7f0;border:1px solid #bfe6d0;color:#1a6e46;}
@@ -239,7 +240,7 @@ function render(){
   host.innerHTML='<a class="wt" href="./rrg_walkthrough.html?key='+encodeURIComponent(KEY)+'" onclick="return openWalk(this)"><span class="wti">📱</span><span><b>Walkthrough mode</b><span class="wts">Room by room on your phone — big buttons, autosaves as you go</span></span><span class="wtg">›</span></a>'
     +'<div id="bannerHost">'+bannerHtml()+'</div>'
     +GROUPS.map(groupHtml).join('')
-    +'<div class="actbar"><button class="btn red" id="saveBtn">Save listing details</button><span class="msg" id="msg"></span><a class="btn ghost sm" href="#" onclick="return openSheet()" title="Save first — opens what buyers see">View offering sheet ↗</a><a class="btn ghost sm" href="#" onclick="goBack();return false;" style="margin-left:auto">Back</a></div>';
+    +'<div class="actbar"><button class="btn red" id="saveBtn">Save listing details</button><span id="mktHost"></span><span class="msg" id="msg"></span><a class="btn ghost sm" href="#" onclick="return openSheet()" title="Save first — opens what buyers see">View offering sheet ↗</a><a class="btn ghost sm" href="#" onclick="goBack();return false;" style="margin-left:auto">Back</a></div>';
   host.querySelectorAll('[data-k]').forEach(function(el){
     el.addEventListener('input', function(){ SPEC[el.getAttribute('data-k')]=el.value; DIRTY=true; var fld=el.closest('.fld'); if(fld){ var k=fld.getAttribute('data-fk'); if(CORE.indexOf(k)>=0) fld.classList.toggle('need', !el.value.trim()); } refreshBanner(); });
   });
@@ -248,9 +249,13 @@ function render(){
   GROUPS.forEach(function(g){ g.fields.forEach(function(f){ if(!f.money) return; var el=document.querySelector('[data-k="'+f.k+'"]'); if(!el) return; el.setAttribute('inputmode','decimal'); el.addEventListener('blur', function(){ var v=fmtMoney(el.value); if(v!==el.value){ el.value=v; SPEC[f.k]=v; DIRTY=true; } }); }); });
   document.querySelectorAll('input[list]').forEach(function(el){ el.addEventListener('focus', function(){ if(!el.value && el.showPicker){ try{ el.showPicker(); }catch(e){} } }); });
 }
+function _canMkt(){ try{ return window.top!==window.self && typeof window.parent.rrgMktSubmit==='function'; }catch(e){ return false; } }
+function mktBtn(){ if(VREF.mktAt) return '<span class="mktdone">Submitted to marketing ✓'+(VREF.mktAt!=='yes'?(' '+esc(_fmtDate(VREF.mktAt))):'')+'</span>'; if(!_canMkt()) return ''; var n=CORE.filter(_missOf).length; return '<button type="button" class="btn sm mktb'+(n?'':' go')+'"'+(n?' disabled title="Finish the '+n+' required field'+(n===1?'':'s')+' first"':'')+' onclick="return goMkt()">Submit to marketing →</button>'+(n?'<span class="mkth">'+n+' required field'+(n===1?'':'s')+' left</span>':''); }
+function refreshMkt(){ var h=document.getElementById('mktHost'); if(h) h.innerHTML=mktBtn(); }
+function goMkt(){ if(DIRTY){ alert('Save the listing details first.'); return false; } try{ var p=window.parent; var x=p.document.querySelector('#rrgPanelOv [data-x]'); if(x) x.click(); setTimeout(function(){ p.rrgMktSubmit(); },60); }catch(e){} return false; }
 function openSheet(){ window.open('/api/asset-spec/sheet?key='+encodeURIComponent(KEY),'_blank'); return false; }
 function openWalk(a){ var phone=Math.min(screen.width,screen.height)<700; try{ if(phone){ window.top.location.href=a.href; } else { window.open(a.href,'_blank'); } }catch(e){ location.href=a.href; } return false; }
-function refreshBanner(){ var b=document.getElementById('bannerHost'); if(b){ b.innerHTML=bannerHtml(); wireBanner(); } refreshStatus(); }
+function refreshBanner(){ refreshMkt(); var b=document.getElementById('bannerHost'); if(b){ b.innerHTML=bannerHtml(); wireBanner(); } refreshStatus(); }
 function wireBanner(){ document.querySelectorAll('[data-jump]').forEach(function(a){ a.onclick=function(e){ e.preventDefault(); var gi=+a.getAttribute('data-jump'); if(gi>=0) setOpen(gi,true,true); }; }); wireToggles(); }
 function gather(){ var out={}; document.querySelectorAll('[data-k]').forEach(function(el){ var v=el.value.trim(); if(v) out[el.getAttribute('data-k')]=v; }); if(!FFE.length){ if(SPEC.ffeSchedule) out.ffeSchedule=SPEC.ffeSchedule; if(SPEC.ffeExcluded) out.ffeExcluded=SPEC.ffeExcluded; } return out; }
 function save(){
