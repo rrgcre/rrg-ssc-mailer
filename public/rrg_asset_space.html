@@ -89,6 +89,47 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .banner.need{background:#fff5e6;border:1px solid #f0d9a8;color:#7a5713;}
 .actbar{position:sticky;bottom:0;background:linear-gradient(#fff9,#fff);backdrop-filter:blur(4px);border-top:1px solid var(--line);padding:12px 0;margin-top:8px;display:flex;align-items:center;gap:12px;}
 .rrg-back{position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28);}
+
+/* ── NetSuite skin (matches the BOV builder / data room): flat, squared 3–4px corners,
+   muted palette, blue primary actions, compact type, toolbar on top. ── */
+:root{--navy:#20334f;--primary:#2c5c8f;--primary-d:#23496f;--red:#b23a2c;--ink:#2b3648;--muted:#69748a;--soft:#8894a8;--line:#dbe0e9;--wash:#f4f6f9;--inp:#c4ccda;--green:#2f7a55;}
+html,body{background:#e9ebf0;} body{font-size:13px;-webkit-font-smoothing:antialiased;}
+.top{background:#000E31;border-bottom:2px solid var(--primary);padding:15px 0 16px;} .disc{border-radius:3px !important;width:30px !important;height:30px !important;font-size:11px !important;}
+.top h1{font-size:19px;} .kicker{color:#8fa2be;letter-spacing:.15em;font-size:10px;} .sub{color:#a9b4c8;font-size:12px;}
+.wrap{margin-top:12px;}
+.nstb{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:6px;flex-wrap:wrap;background:#f4f6f9;border:1px solid var(--line);border-radius:4px;padding:7px 8px;margin-bottom:10px;}
+.nsb{font:inherit;font-size:12px;font-weight:600;color:var(--navy);background:#fff;border:1px solid var(--inp);border-radius:3px;padding:6px 12px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:5px;line-height:1.2;}
+.nsb:hover{border-color:var(--primary);color:var(--primary-d);}
+.nsb.pri,.nsb.mktb.go{background:var(--primary);border-color:var(--primary);color:#fff;} .nsb.pri:hover,.nsb.mktb.go:hover{background:var(--primary-d);color:#fff;}
+.nsb:disabled{opacity:.45;cursor:not-allowed;} .nsb:disabled:hover{border-color:var(--inp);color:var(--navy);}
+.nssep{width:1px;height:20px;background:var(--line);margin:0 2px;}
+.nstb .msg{margin-left:auto;font-size:12px;} .mkth{font-size:11px;} .mktdone{font-size:12px;}
+.banner{border-radius:3px;padding:8px 12px;font-size:12px;margin-bottom:10px;}
+.banner.need{background:#fdf7ec;border-color:#ecd9b0;} .banner .togall{font-size:11.5px;color:var(--primary);}
+.card{border-radius:4px;box-shadow:none;margin-bottom:8px;border-color:var(--line);}
+.ch{padding:8px 14px;background:#eef1f6;border-bottom:1px solid var(--line);gap:8px;} .ch:hover{background:#e6eaf1;}
+.ch b{font-size:12.5px;color:var(--navy);text-transform:uppercase;letter-spacing:.04em;}
+.ch .core{border-radius:3px;font-size:9px;padding:1px 6px;color:var(--red);background:#fbeceb;border-color:#efc8c3;}
+.ch .gh{font-size:11px;} .ch .chev{font-size:15px;}
+.st{border-radius:3px;font-size:10.5px;padding:2px 7px;}
+.body{padding:12px 14px 14px;}
+.fld{margin-bottom:10px;} .fld label{font-size:9.5px;letter-spacing:.1em;color:var(--muted);margin-bottom:4px;}
+.fld input[type=text],.fld textarea,.fld select.sel{font-size:13px;padding:7px 9px;border-radius:3px;border-color:var(--inp);}
+.fld input[type=text]:focus,.fld textarea:focus,.fld select.sel:focus{outline:none;border-color:var(--primary);}
+.fld textarea{min-height:58px;}
+.row2{gap:12px;margin-bottom:10px;}
+.fld.need input,.fld.need textarea,.fld.need select.sel{border-color:#e2b7b1;background:#fffafa;}
+.btn{border-radius:3px;font-size:12px;padding:6px 12px;} .btn.red{background:var(--primary);border-color:var(--primary);}
+.sep{margin:14px -14px;}
+.fld label.subh{font-size:11px;color:var(--navy);letter-spacing:.06em;}
+.kgh{font-size:10px;} .kit label{font-size:12.5px !important;} .kit{min-height:28px;}
+.fld .kit input.kd{border-radius:3px;font-size:12px;padding:4px 7px;border-color:var(--inp);}
+.qadd{border-radius:3px;padding:8px 10px;} .qchip{border-radius:3px;font-size:11.5px;padding:3px 8px;} .qlbl{font-size:11px;}
+.ffewrap{border-radius:3px;} .ffet th{background:#eef1f6;font-size:9.5px;} .ffet{font-size:12.5px;}
+.ffewarn{border-radius:3px;font-size:12px;padding:7px 10px;} .ffeempty{border-radius:3px;font-size:12.5px;}
+.vref{border-radius:3px;padding:8px 12px;background:#f4f6f9;} .vref b{font-size:14px;}
+.datef .cal{border-radius:3px;width:38px;font-size:14px;}
+.rrg-back{border-radius:3px !important;}
 </style>
 <script src="/rrg_brand.js"></script>
 <script src="/rrg_asset_kit.js"></script>
@@ -237,10 +278,9 @@ function bannerHtml(){
 }
 function render(){
   var host=document.getElementById('root');
-  host.innerHTML='<a class="wt" href="./rrg_walkthrough.html?key='+encodeURIComponent(KEY)+'" onclick="return openWalk(this)"><span class="wti">📱</span><span><b>Walkthrough mode</b><span class="wts">Room by room on your phone — big buttons, autosaves as you go</span></span><span class="wtg">›</span></a>'
+  host.innerHTML='<div class="nstb"><button class="nsb pri" id="saveBtn">Save</button><span id="mktHost"></span><span class="nssep"></span><a class="nsb" href="#" onclick="return openSheet()" title="Save first — opens what buyers see">View offering sheet ↗</a><a class="nsb" href="./rrg_walkthrough.html?key='+encodeURIComponent(KEY)+'" onclick="return openWalk(this)" title="Room by room on your phone — big buttons, autosaves as you go">📱 Walkthrough</a><span class="msg" id="msg"></span></div>'
     +'<div id="bannerHost">'+bannerHtml()+'</div>'
-    +GROUPS.map(groupHtml).join('')
-    +'<div class="actbar"><button class="btn red" id="saveBtn">Save listing details</button><span id="mktHost"></span><span class="msg" id="msg"></span><a class="btn ghost sm" href="#" onclick="return openSheet()" title="Save first — opens what buyers see">View offering sheet ↗</a><a class="btn ghost sm" href="#" onclick="goBack();return false;" style="margin-left:auto">Back</a></div>';
+    +GROUPS.map(groupHtml).join('');
   host.querySelectorAll('[data-k]').forEach(function(el){
     el.addEventListener('input', function(){ SPEC[el.getAttribute('data-k')]=el.value; DIRTY=true; var fld=el.closest('.fld'); if(fld){ var k=fld.getAttribute('data-fk'); if(CORE.indexOf(k)>=0) fld.classList.toggle('need', !el.value.trim()); } refreshBanner(); });
   });
@@ -250,7 +290,7 @@ function render(){
   document.querySelectorAll('input[list]').forEach(function(el){ el.addEventListener('focus', function(){ if(!el.value && el.showPicker){ try{ el.showPicker(); }catch(e){} } }); });
 }
 function _canMkt(){ try{ return window.top!==window.self && typeof window.parent.rrgMktSubmit==='function'; }catch(e){ return false; } }
-function mktBtn(){ if(VREF.mktAt) return '<span class="mktdone">Submitted to marketing ✓'+(VREF.mktAt!=='yes'?(' '+esc(_fmtDate(VREF.mktAt))):'')+'</span>'; if(!_canMkt()) return ''; var n=CORE.filter(_missOf).length; return '<button type="button" class="btn sm mktb'+(n?'':' go')+'"'+(n?' disabled title="Finish the '+n+' required field'+(n===1?'':'s')+' first"':'')+' onclick="return goMkt()">Submit to marketing →</button>'+(n?'<span class="mkth">'+n+' required field'+(n===1?'':'s')+' left</span>':''); }
+function mktBtn(){ if(VREF.mktAt) return '<span class="mktdone">Submitted to marketing ✓'+(VREF.mktAt!=='yes'?(' '+esc(_fmtDate(VREF.mktAt))):'')+'</span>'; if(!_canMkt()) return ''; var n=CORE.filter(_missOf).length; return '<button type="button" class="nsb mktb'+(n?'':' go')+'"'+(n?' disabled title="Finish the '+n+' required field'+(n===1?'':'s')+' first"':'')+' onclick="return goMkt()">Submit to marketing →</button>'+(n?'<span class="mkth">'+n+' required field'+(n===1?'':'s')+' left</span>':''); }
 function refreshMkt(){ var h=document.getElementById('mktHost'); if(h) h.innerHTML=mktBtn(); }
 function goMkt(){ if(DIRTY){ alert('Save the listing details first.'); return false; } try{ var p=window.parent; var x=p.document.querySelector('#rrgPanelOv [data-x]'); if(x) x.click(); setTimeout(function(){ p.rrgMktSubmit(); },60); }catch(e){} return false; }
 function openSheet(){ window.open('/api/asset-spec/sheet?key='+encodeURIComponent(KEY),'_blank'); return false; }
