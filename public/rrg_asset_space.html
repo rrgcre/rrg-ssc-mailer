@@ -55,7 +55,7 @@ function qs(k){ try{ return new URLSearchParams(location.search).get(k)||''; }ca
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 function api(m,u,b){return fetch(u,{method:m,credentials:'same-origin',headers:b?{'Content-Type':'application/json'}:undefined,body:b?JSON.stringify(b):undefined}).then(function(r){return r.json();});}
 var KEY=qs('key');
-function goBack(){ if(history.length>1){ history.back(); } else if(KEY){ location.href='./rrg_assignment.html?key='+encodeURIComponent(KEY); } else { location.href='./index.html'; } }
+function goBack(){ try{ if(window.top!==window.self){ var x=window.parent.document.querySelector('#rrgPanelOv [data-x]'); if(x){ x.click(); return; } } }catch(e){} if(history.length>1){ history.back(); } else if(KEY){ location.href='./rrg_assignment.html?key='+encodeURIComponent(KEY); } else { location.href='./index.html'; } }
 
 // Field definition — mirrors the server's ASSET_SPEC_FIELDS. a=textarea, core=required block.
 var GROUPS=[
