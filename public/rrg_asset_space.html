@@ -158,12 +158,14 @@ var GROUPS=[
     {k:'reason', l:'Reason for availability', ph:'Pick a reason or type your own', list:['Owner retiring','Owner relocating','Focusing on other locations','Closing the concept','Changing concepts','Lease expiring','Partnership change','Personal reasons']},
     {k:'availableDate', l:'Target availability / delivery date', ph:'Pick a date · or 60 days after closing', date:1}
   ]},
-  {title:'What conveys', core:1, convey:1, hint:'Improvements convey with assignment of the lease. Equipment is sold by bill of sale.', fields:[
+  {title:'What conveys', core:1, convey:1, hint:'Leasehold improvements — convey with assignment of the lease.', fields:[
     {k:'buildoutAge', l:'Buildout age', ph:'Built out 2019'},
     {k:'replacementCost', l:'Est. replacement cost', ph:'~$450k to replicate'},
-    {k:'smallwares', l:'Smallwares / POS / furniture (older listings)', ph:'', legacy:1},
-    {k:'exclusions', l:'Excluded — seller keeps', a:1, ph:'Anything the seller is taking: art, the neon sign, the smoker… Items marked “Seller keeps” in the schedule are listed automatically.'},
     {k:'conveys', l:'Other notes on what conveys', a:1, ph:'Anything else a buyer should know about what is included'}
+  ]},
+  {title:'FF&E', core:1, ffe:1, hint:'Furniture, fixtures & equipment — sold by bill of sale.', fields:[
+    {k:'smallwares', l:'Smallwares / POS / furniture (older listings)', ph:'', legacy:1},
+    {k:'exclusions', l:'Excluded — seller keeps', a:1, ph:'Anything the seller is taking: art, the neon sign, the smoker… Items marked “Seller keeps” in the schedule are listed automatically.'}
   ]},
   {title:'The lease', core:1, hint:'The heart of a space deal — how much time is left and how the landlord handles an assignment.', fields:[
     {k:'leaseRent', l:'Current base rent', core:1, ph:'$6,200 / mo'},
@@ -238,14 +240,15 @@ function groupHtml(g){
   g.fields.forEach(function(f){ if(f.a||f.full){ flush(); rows+=fieldHtml(f); } else { buf.push(fieldHtml(f)); if(buf.length===2) flush(); } });
   flush();
   if(GROUPS.indexOf(g)===0) rows=vrefHtml()+rows;
-  if(g.convey) rows=kitHtml()+'<div class="sep"></div>'+ffeHtml()+'<div class="sep"></div>'+rows;
+  if(g.convey) rows=kitHtml()+'<div class="sep"></div>'+rows;
+  if(g.ffe) rows=ffeHtml()+'<div class="sep"></div>'+rows;
   var gi=GROUPS.indexOf(g), open=_isOpen(gi);
   return '<div class="card'+(open?'':' closed')+'" data-gi="'+gi+'"><div class="ch" data-tog="'+gi+'"><span class="chev">›</span><b>'+esc(g.title)+'</b>'+(g.core?'<span class="core">Core</span>':'')+(g.hint?'<span class="gh">'+esc(g.hint)+'</span>':'<span class="gh"></span>')+'<span class="gst" data-gst="'+gi+'">'+groupStatus(g)+'</span></div><div class="body">'+rows+'</div></div>';
 }
 // ── Collapsible sections ─────────────────────────────────────────────────────
 function _missOf(k){ if(k==='ffeSchedule') return !(FFE.some(function(r){return r.item && !r.excluded;}) || String(SPEC.ffeSchedule||'').trim()); if(k==='hood') return !(CONVEY && (_cv('hood1')||_cv('hood2')||_cv('nohood'))); return !String(SPEC[k]||'').trim(); }
-function groupCore(g){ var ks=g.fields.filter(function(f){return f.core;}).map(function(f){return f.k;}); if(g.convey) ks=ks.concat(['hood','ffeSchedule']); return ks; }
-function groupFilled(g){ var n=g.fields.filter(function(f){ return String(SPEC[f.k]||'').trim(); }).length; if(g.convey) n+=(CONVEY?CONVEY.length:0)+FFE.length; return n; }
+function groupCore(g){ var ks=g.fields.filter(function(f){return f.core;}).map(function(f){return f.k;}); if(g.convey) ks=ks.concat(['hood']); if(g.ffe) ks=ks.concat(['ffeSchedule']); return ks; }
+function groupFilled(g){ var n=g.fields.filter(function(f){ return String(SPEC[f.k]||'').trim(); }).length; if(g.convey) n+=(CONVEY?CONVEY.length:0); if(g.ffe) n+=FFE.length; return n; }
 function groupStatus(g){
   var miss=groupCore(g).filter(_missOf).length;
   if(miss) return '<span class="st need">'+miss+' required open</span>';
@@ -350,7 +353,7 @@ function ffeHtml(){
   } else {
     body='<div class="ffeempty">No equipment schedule yet. Import the seller\'s list — a spreadsheet, PDF, Word file or a phone photo of a handwritten list — and it comes back in standard form for you to review.</div>';
   }
-  return '<div class="fld" data-fk="ffeSchedule"><label class="subh">Equipment (FF&amp;E) — sold by bill of sale<span class="dot">★</span></label>'
+  return '<div class="fld" data-fk="ffeSchedule"><label class="subh">Equipment schedule<span class="dot">★</span></label>'
     +'<div class="ffebar"><button class="btn sm red" id="ffeImport">Import FF&amp;E list</button><button class="btn sm" id="ffePaste">Paste a list</button><button class="btn sm" id="ffeAdd">+ Add item</button><span class="msg" id="ffeMsg"></span><input type="file" id="ffeFile" accept=".xlsx,.xls,.xlsm,.csv,.tsv,.txt,.pdf,.docx,.jpg,.jpeg,.png,.webp,.gif,image/*" style="display:none"></div>'
     +'<div class="qadd"><div class="qhd">Quick add</div>'+QGROUPS.map(function(G){ var its=[]; QUICK.forEach(function(q,i){ if(G[1].indexOf(q[1])>=0) its.push([q,i]); }); if(!its.length) return ''; return '<div class="qrow"><span class="qlbl">'+esc(G[0])+'</span><span class="qchips">'+its.map(function(x){ var q=x[0], i=x[1], on=_qIdx(q[0])>=0; return '<button type="button" class="qchip'+(on?' added':'')+'" data-q="'+i+'" title="'+(on?'Already on the schedule — click to edit its quantity':'Add to the schedule')+'">'+(on?'✓ ':'+ ')+esc(q[0])+'</button>'; }).join('')+'</span></div>'; }).join('')+'</div>'
     +'<div id="ffeWarn">'+ffeWarnHtml()+'</div><div id="ffeBody">'+body+'</div>'
@@ -429,7 +432,7 @@ function _cv(k){ for(var i=0;i<CONVEY.length;i++) if(CONVEY[i].k===k) return CON
 function kitHtml(){
   var cols=KIT.map(function(g){ return '<div class="kitg"><div class="kgh">'+esc(g.g)+(g.g==='Kitchen'?'<span class="kreq">★ Pick a hood option</span>':'')+'</div>'+g.items.map(function(it){ var c=_cv(it[0]);
     return '<div class="kit'+(c?' on':'')+'"><label><input type="checkbox" data-kit="'+it[0]+'"'+(c?' checked':'')+'> '+esc(it[1])+'</label>'+(it[2]?'<input type="text" class="kd" data-kitd="'+it[0]+'"'+(it[3]?(' data-unit="'+it[3]+'" inputmode="decimal"'):'')+' value="'+esc(c?c.d:'')+'" placeholder="'+esc(it[2])+'">':'')+'</div>'; }).join('')+'</div>'; }).join('');
-  return '<div class="fld" data-fk="kit"><label class="subh">Leasehold improvements — convey with assignment of the lease</label><div class="kitgrid">'+cols+'</div></div>';
+  return '<div class="fld" data-fk="kit"><label class="subh">Check what\'s built in</label><div class="kitgrid">'+cols+'</div></div>';
 }
 function wireKit(){
   document.querySelectorAll('[data-kit]').forEach(function(cb){ cb.addEventListener('change', function(){ var k=cb.getAttribute('data-kit'), d=document.querySelector('[data-kitd="'+k+'"]');
