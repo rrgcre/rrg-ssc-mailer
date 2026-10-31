@@ -11126,6 +11126,10 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
     const _laneName = l => l === 'asset' ? 'Asset sale (space & assets)' : (l === 'business' ? 'Going-concern sale' : 'Other');
     if (cur.laneDecidedAt && (b.laneDecided === true || typeof b.saleLane === 'string') && (cur.saleLane || '') !== _oldLane) _listingMilestone(d.key, 'Sale type set: ' + _laneName(cur.saleLane) + (cur.saleLane === 'asset' ? ' — financials don’t support a going-concern sale' : ''), req);
     if ((cur.listPrice || '') !== _oldLP && cur.listPrice) _listingMilestone(d.key, _oldLP ? ('Asking price changed: ' + _oldLP + ' → ' + cur.listPrice) : ('Asking price set: ' + cur.listPrice), req);
+    if (b.stageFlags && typeof b.stageFlags === 'object') {
+      const _pp = loadPipelines().find(x => x.id === listingPipelineIdOf(cur));
+      if (_pp) (_pp.stages || []).forEach(function (st, i) { const k = 'g' + i; if (st && st.name && cur.stageFlags && cur.stageFlags[k] && !_oldFlags[k]) _listingMilestone(d.key, 'Stage complete: ' + st.name, req); });
+    }
     if (cur.mktTicketId && cur.mktTicketId !== _oldMkt) _listingMilestone(d.key, 'Submitted to Marketing for the listing page and marketplace listing', req);
     if ((cur.status || '') !== _oldStatus && cur.status) _listingMilestone(d.key, 'Status: ' + (_oldStatus ? (_oldStatus + ' → ') : '') + cur.status, req);
   } catch (e) {}
@@ -21871,6 +21875,7 @@ app.post('/api/assignment/:key/stage', express.json(), (req, res) => {
   if (_oldStage !== stage) cur.stageSince = cur.updatedAt;
   overlay[d.key] = cur; saveAssignOverlay(overlay);
   try { _fireStageAutos(pipe, d, _oldStage, stage, req); } catch (e) {}
+  if (_oldStage !== stage && stage) _listingMilestone(d.key, 'Pipeline stage: ' + (_oldStage ? (_oldStage + ' → ') : '') + stage, req);
   res.json({ ok: true });
 });
 
