@@ -41,7 +41,7 @@
     var st=document.createElement('style'); st.id='rrgDocsCss';
     st.textContent='.docrow{cursor:pointer;}'
       +'.dico{width:26px;height:26px;flex:none;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;line-height:1;box-shadow:0 1px 2px rgba(16,24,40,.15), inset 0 1px 0 rgba(255,255,255,.18);}'+'.dico svg{width:14px;height:14px;display:block;}'+'.dico.k-agreement{background:linear-gradient(160deg,#3a5cc8,#1f3ea0);}.dico.k-valuation{background:linear-gradient(160deg,#25a06b,#167a4c);}.dico.k-marketingpack{background:linear-gradient(160deg,#d08a2a,#a5661a);}.dico.k-lease{background:linear-gradient(160deg,#4a86b6,#356594);}.dico.k-file{background:linear-gradient(160deg,#7d5bd6,#553aa0);}.dico.k-ssc{background:linear-gradient(160deg,#12a6bd,#0b7285);}.dico.k-loi{background:linear-gradient(160deg,#d24a63,#a5334a);}.dico.k-seller{background:linear-gradient(160deg,#6d954a,#4b6b2f);}'
-      +'.dico.x-pdf{background:linear-gradient(160deg,#c15a51,#9a4038);}.dico.x-doc{background:linear-gradient(160deg,#4a6aa8,#33507e);}.dico.x-sheet{background:linear-gradient(160deg,#3f9068,#2c6647);}.dico.x-slide{background:linear-gradient(160deg,#c07f3c,#95602a);}.dico.x-img{background:linear-gradient(160deg,#5d8593,#456a78);}.dico.x-zip{background:linear-gradient(160deg,#8c8069,#6a6050);}.dico.x-txt{background:linear-gradient(160deg,#727b8e,#565e70);}'
+      +'.dico.x-pdf{background:#d93025;}.dico.x-doc{background:#2b579a;}.dico.x-sheet{background:#217346;}.dico.x-slide{background:#d24726;}.dico.x-img{background:#7b4fb0;}.dico.x-zip{background:#7a6a4f;}.dico.x-txt{background:#5f6b7f;}.dico.xlab{border-radius:5px;}.dico.xlab b{font:800 8.5px/1 Arial,Helvetica,sans-serif;letter-spacing:.02em;color:#fff;}'
       +'.docttl{font-size:13px;font-weight:400;color:#1d2739;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}'
       +'.docmeta{font-size:11px;color:#8a93a8;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}'
       +'.docmenu{position:absolute;z-index:60;background:#fff;border:1px solid #e0e5ee;border-radius:10px;box-shadow:0 12px 30px rgba(16,32,70,.16);padding:5px;min-width:172px;}'
@@ -113,7 +113,8 @@
     var roombadge=_inrooms?('<span class="docinroom" title="In data room: '+esc(_rnames)+'">\u2713 room</span>'):'';
     var toroom=(d.kind==='file')?('<button type="button" class="docroom'+(_inrooms?' in':'')+'" data-doctoroom="'+esc(d.id)+'" title="'+(_inrooms?('In: '+esc(_rnames)+' \u2014 send to another data room'):'Send to a data room')+'">\u25a5</button>'):'';
     var _icoCls='k-'+d.kind, _icoGlyph=(KICON[d.kind]||KICON.file);
-    if(d.kind==='file'){ var _cat=extCat(d.ext); if(_cat){ _icoCls='x-'+_cat; _icoGlyph=EXTICON[_cat]; } }
+    // Files read as their type at a glance: a labelled badge in the colour people already know (PDF red, Word blue, Excel green…).
+    if(d.kind==='file'){ var _cat=extCat(d.ext); var _lab={pdf:'PDF',doc:'DOC',sheet:'XLS',slide:'PPT',img:'IMG',zip:'ZIP',txt:'TXT'}[_cat]||String(d.ext||'FILE').toUpperCase().slice(0,4); if(_cat==='img'){ var _e=String(d.ext||'').toUpperCase(); if(_e&&_e.length<=4) _lab=(_e==='JPEG'?'JPG':_e); } _icoCls='x-'+(_cat||'txt')+' xlab'; _icoGlyph='<b>'+esc(_lab)+'</b>'; }
     return '<div class="rrow docrow" data-docurl="'+esc(d.openUrl||'')+'" data-dockind="'+esc(d.kind)+'" title="Open '+esc(d.title||'document')+'">'
       +'<span class="dico '+esc(_icoCls)+'">'+_icoGlyph+'</span>'
       +'<div class="rrmain" style="min-width:0"><div class="docttl">'+esc(top)+'</div><div class="docmeta">'+esc(sub)+'</div></div>'

@@ -177,6 +177,10 @@ body.booting .flagbtn{transition:none!important;}
 .railtip .rtclose{background:none;border:none;color:#8a94a6;font-size:16px;line-height:1;cursor:pointer;padding:0 2px;flex:none;}
 .railtip .rtclose:hover{color:#20334f;}
 .rail .card.railcollapsed > .cb, .rail .card.railcollapsed > .railbody{display:none;}
+/* One icon column across every right-rail card: list rows inside a card body drop their own side padding (the body already has it), and task checkboxes center on the same line as the document/listing icons. */
+.rail .card .rrow{padding-left:27px;padding-right:4px;}
+.rail .card .cb .rrow{padding-left:11px;}
+.rail .trow .taskck{margin-left:17px;}
 /* Buy-Box card */
 .bblab{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#8a93a8;margin:10px 0 4px;}
 .bbchips{display:flex;flex-wrap:wrap;gap:5px;}
@@ -791,7 +795,7 @@ function docListHtml(){
 // Opinion of value letters (asset sales) live with the contact's documents — internal, never in the buyer data room.
 function _vlDocList(){ return (typeof DEALS!=='undefined'&&DEALS||[]).filter(function(d){ return d&&d.valueLetter; }); }
 function _vlDocRows(){ var st={draft:['Draft','#b5791f','#fdf1df'],pending:['Awaiting approval','#2c5c8f','#e8f0fb'],approved:['Approved, not sent','#1f6b45','#eaf6ef'],sent:['Sent','#1f6b45','#eaf6ef']};
-  return _vlDocList().map(function(d){ var c=st[d.valueLetter]||st.draft; return '<a href="#" data-vletter="'+esc(d.key)+'" style="display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid #eef1f6;text-decoration:none;color:#1a2236"><span style="width:26px;height:26px;border-radius:5px;background:#000E31;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex:none">\u00a7</span><span style="flex:1;min-width:0"><b style="display:block;font-size:13px">Opinion of Value — '+esc(d.business||'Listing')+'</b><span style="font-size:11.5px;color:#8a93a8">Value letter'+(d.assetAsking?(' \u00b7 '+esc(_fmtMoneyG(d.assetAsking))):'')+'</span></span><span style="font-size:10.5px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:'+c[1]+';background:'+c[2]+';border-radius:4px;padding:2px 7px;white-space:nowrap">'+c[0]+'</span></a>'; }).join(''); }
+  return _vlDocList().map(function(d){ var c=st[d.valueLetter]||st.draft; return '<a href="#" class="rrow" data-vletter="'+esc(d.key)+'" title="Open the opinion of value letter"><span class="dico" style="background:#000E31;color:#fff;font-weight:800;font-size:13px;display:inline-flex;align-items:center;justify-content:center">\u00a7</span><div class="rrmain" style="min-width:0"><div class="docttl">Opinion of Value — '+esc(d.business||'Listing')+'</div><div class="docmeta">Value letter'+(d.assetAsking?(' \u00b7 '+esc(_fmtMoneyG(d.assetAsking))):'')+'</div></div><span style="font-size:10.5px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:'+c[1]+';background:'+c[2]+';border-radius:4px;padding:2px 7px;white-space:nowrap">'+c[0]+'</span></a>'; }).join(''); }
 function _fmtMoneyG(v){ var n=String(v||'').replace(/[^0-9.]/g,''); return n?('$'+Number(n).toLocaleString('en-US')):String(v||''); }
 function docCount(){ return AGREEMENTS.length+_vlDocList().length+((window.RRGDocs&&RRGDocs.count())||0); }
 // Find / filter inside the Documents card once a contact has more than a handful of documents.
