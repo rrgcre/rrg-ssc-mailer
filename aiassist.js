@@ -504,10 +504,10 @@ async function polishValueBasis({ basis, business, market, value }) {
 // FF&E list (spreadsheet, PDF, photo, typed) → one standard equipment schedule.
 const FFE_CATS = ['Cooking', 'Refrigeration', 'Prep & Storage', 'Warewashing', 'Bar & Beverage', 'Smallwares', 'Furniture & Decor', 'POS & Tech', 'Signage', 'Other'];
 async function parseFfeList({ text, blocks }) {
-  const sys = 'You turn a restaurant or bar seller\'s furniture, fixtures & equipment (FF&E) list into a standard equipment schedule for a broker\'s listing sheet. Return ONLY JSON: {"items":[{"cat":"","item":"","qty":1,"model":"","cond":"","own":"","notes":""}]}.\n'
+  const sys = 'You turn a restaurant or bar seller\'s furniture, fixtures & equipment (FF&E) list into a standard equipment schedule for a broker\'s listing sheet. Return ONLY JSON: {"items":[{"cat":"","item":"","qty":1,"taps":0,"model":"","cond":"","own":"","notes":""}]}.\n'
     + 'Rules:\n- cat is exactly one of: ' + FFE_CATS.join(', ') + '.\n'
     + '- item: a clean, plain name ("6-burner range with oven", "3-compartment sink"). Title case not required. Fix spelling. Do not invent items, sizes or brands that are not in the source.\n'
-    + '- qty: a whole number; 1 if not stated.\n- model: make and/or model only if stated (e.g. "Vulcan 36S-6B"), else "".\n'
+    + '- qty: a whole number; 1 if not stated.\n- taps: for a beer / draft system only, the number of taps if stated (a number), else omit.\n- model: make and/or model only if stated (e.g. "Vulcan 36S-6B"), else "".\n'
     + '- cond: only if stated — one of New, Excellent, Good, Fair, Poor, Not working — else "".\n'
     + '- own: "Owned" if the source says owned/paid off; "Leased" if it says leased, rented, financed, vendor-owned or on loan from a vendor; otherwise "Confirm". Items COMMONLY leased or vendor-owned in restaurants — POS terminals and card readers, dish machines, ice machines, CO2/beer and draft systems, soda/fountain guns, coffee/espresso machines, beverage coolers branded by a distributor, grease containers, linen — get "Confirm" unless the source clearly states owned.\n'
     + '- notes: anything else the source says about the item (age, size, location, "seller keeping"), short. If the source says the seller is keeping or excluding an item, put "Excluded" at the start of notes.\n'
@@ -519,7 +519,7 @@ async function parseFfeList({ text, blocks }) {
   const CONDS = ['New', 'Excellent', 'Good', 'Fair', 'Poor', 'Not working'];
   return rows.slice(0, 400).map(r => {
     r = r || {}; const notes = String(r.notes || '').slice(0, 200);
-    return { cat: FFE_CATS.indexOf(r.cat) >= 0 ? r.cat : 'Other', item: String(r.item || '').slice(0, 140), qty: Math.max(1, Math.min(999, parseInt(r.qty, 10) || 1)), model: String(r.model || '').slice(0, 100), cond: CONDS.indexOf(r.cond) >= 0 ? r.cond : '', own: (['Owned', 'Leased', 'Confirm'].indexOf(r.own) >= 0 ? r.own : 'Confirm'), notes: notes.replace(/^Excluded[\s:—-]*/i, ''), excluded: /^Excluded/i.test(notes) };
+    return { cat: FFE_CATS.indexOf(r.cat) >= 0 ? r.cat : 'Other', item: String(r.item || '').slice(0, 140), qty: Math.max(1, Math.min(999, parseInt(r.qty, 10) || 1)), model: String(r.model || '').slice(0, 100), cond: CONDS.indexOf(r.cond) >= 0 ? r.cond : '', own: (['Owned', 'Leased', 'Confirm'].indexOf(r.own) >= 0 ? r.own : 'Confirm'), notes: notes.replace(/^Excluded[\s:—-]*/i, ''), excluded: /^Excluded/i.test(notes), taps: (parseInt(r.taps, 10) > 0 ? Math.min(200, parseInt(r.taps, 10)) : undefined) };
   }).filter(r => r.item);
 }
 module.exports = { FFE_CATS, parseFfeList, agreementExpiry, rewriteEmail, parseSpaceListing, parseSpaceListingDoc, enrichCenters, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, parseEmailContact, parseEmailUpdate, sscToTenantBox, parseConceptList, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, enrichCenterDetail, enrichPropertyDetail, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary, buildQuestionnaire, classifyRoomDocs, polishPrompts, refineBov, polishValueBasis };

@@ -60,6 +60,7 @@ textarea{width:100%;font:inherit;font-size:16px;padding:12px;border:1px solid va
 .sum div{padding:9px 14px;border-top:1px solid #f0f2f6;font-size:15px;display:flex;justify-content:space-between;gap:10px;} .sum div:first-child{border-top:0;}
 .foot{position:fixed;left:0;right:0;bottom:0;z-index:20;background:#fff;border-top:1px solid var(--line);padding:10px 14px calc(10px + env(safe-area-inset-bottom));display:flex;gap:10px;}
 .foot .btn{flex:1;height:50px;font-size:16px;}
+.taprow{display:flex;align-items:center;justify-content:space-between;margin-top:10px;font-size:15px;font-weight:700;color:var(--navy);}
 .gate{padding:60px 24px;text-align:center;color:var(--muted);}
 .hint{font-size:13px;color:var(--soft);margin:8px 4px 0;line-height:1.45;}
 </style>
@@ -118,6 +119,7 @@ function ckHtml(k){ var it=KITBY[k]; if(!it) return ''; var c=_cv(k);
     +(it[2] && c ? '<input class="d" data-cd="'+k+'" value="'+esc(c.d||'')+'" placeholder="'+esc(it[2])+'"'+(it[3]?' inputmode="decimal" data-unit="'+it[3]+'"':'')+'>' : '')+'</div>'; }
 function eqHtml(i){ var r=FFE[i]; var own=r.own||'Confirm';
   return '<div class="eq'+(r.excluded?' kept':'')+'" data-i="'+i+'"><div class="h"><input class="t" data-f="item" value="'+esc(r.item)+'"><div class="step"><button data-st="-1">−</button><b>'+(r.qty||1)+'</b><button data-st="1">+</button></div></div>'
+    +(isBeer(r.item)?'<div class="taprow"><span>Taps</span><div class="step"><button data-tp="-1">−</button><b>'+(r.taps||0)+'</b><button data-tp="1">+</button></div></div>':'')
     +'<div class="seg">'+[['Owned','o'],['Leased','l'],['Confirm','c']].map(function(o){ return '<button class="'+o[1]+(own===o[0]?' on':'')+'" data-own="'+o[0]+'">'+o[0]+'</button>'; }).join('')+'</div>'
     +'<div class="more"><input data-f="notes" value="'+esc(r.notes||'')+'" placeholder="Make / model / notes"><button class="keep'+(r.excluded?' on':'')+'" data-keep="1">'+(r.excluded?'Seller keeps ✓':'Seller keeps')+'</button></div></div>'; }
 function room(){
@@ -161,6 +163,7 @@ function wire(){
   root.querySelectorAll('[data-q]').forEach(function(b){ b.onclick=function(){ var q=QUICK[+b.getAttribute('data-q')]; FFE.push({cat:q[1],item:q[0],qty:1,model:'',cond:'',own:q[2]||'Owned',notes:q[3]||'',excluded:false}); dirty(); draw(); }; });
   root.querySelectorAll('.eq[data-i]').forEach(function(card){ var i=+card.getAttribute('data-i');
     card.querySelectorAll('[data-st]').forEach(function(b){ b.onclick=function(){ var n=(FFE[i].qty||1)+(+b.getAttribute('data-st')); if(n<1){ if(confirm('Remove '+(FFE[i].item||'this item')+'?')){ FFE.splice(i,1); dirty(); draw(); } return; } FFE[i].qty=n; card.querySelector('.step b').textContent=n; dirty(); }; });
+    card.querySelectorAll('[data-tp]').forEach(function(b){ b.onclick=function(){ var n=Math.max(0,(FFE[i].taps||0)+(+b.getAttribute('data-tp'))); FFE[i].taps=n||undefined; b.parentNode.querySelector('b').textContent=n; dirty(); }; });
     card.querySelectorAll('[data-own]').forEach(function(b){ b.onclick=function(){ FFE[i].own=b.getAttribute('data-own'); card.querySelectorAll('[data-own]').forEach(function(x){ x.classList.toggle('on', x===b); }); dirty(); }; });
     card.querySelector('[data-keep]').onclick=function(){ FFE[i].excluded=!FFE[i].excluded; dirty(); draw(); };
     card.querySelectorAll('input[data-f]').forEach(function(inp){ inp.addEventListener('input', function(){ FFE[i][inp.getAttribute('data-f')]=inp.value; dirty(); }); });

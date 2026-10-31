@@ -19987,9 +19987,9 @@ app.post('/api/deal/new', express.json(), (req, res) => {
 const ASSET_SPEC_FIELDS = {
   valueReasoning: 3000,   // internal: the broker's reasoning behind the opinion of value (never on the buyer sheet)
   // Headline
-  askingPrice: 60, conveys: 2000, reason: 300, availableDate: 60,
+  askingPrice: 60, highlights: 1200, conveys: 2000, reason: 300, availableDate: 60,
   // Lease (core)
-  leaseRent: 80, leasePerSF: 40, leaseRemaining: 80, leaseExpiration: 60, leaseOptions: 300, leaseAssignment: 600, leaseNNN: 300, leaseDeposit: 160, leaseUse: 300, leaseFixtures: 200,
+  leaseRent: 80, leasePerSF: 40, leaseRemaining: 80, leaseExpiration: 60, leaseOptions: 300, leaseAssignment: 600, leaseNNN: 300, leaseDeposit: 160, leaseUse: 300, leaseFixtures: 200, optCount: 10, optYears: 10, optNotice: 10, optRent: 40,
   // Space (core)
   spaceType: 40, centerType: 60, centerName: 120, address: 200, coTenants: 300, frontage: 300, parking: 160,
   sqft: 40, seating: 60, patio: 160, deliveryCondition: 160, operatingNow: 60,
@@ -20000,7 +20000,7 @@ const ASSET_SPEC_FIELDS = {
   // Licenses (core = liquorTransfer)
   liquorType: 160, liquorTransfer: 400, coOccupancy: 200, healthPermit: 240,
   // Utilities
-  electrical: 200, gas: 200, hvac: 200, waterSewer: 240,
+  electrical: 200, gas: 200, hvac: 200, hvacUnits: 6, hvacTons: 8, waterSewer: 240,
   // Marketing
   photosNote: 300, floorplanNote: 300, videoNote: 300
 };
@@ -20198,9 +20198,9 @@ function _conveyLine(conv) { const kit = {}; CONVEY_KIT.forEach(c => { kit[c.k] 
 function _ffeClean(arr) {
   if (!Array.isArray(arr)) return [];
   const CATS = aiassist.FFE_CATS || [];
-  return arr.slice(0, 400).map(r => { r = r || {}; return { cat: CATS.indexOf(r.cat) >= 0 ? r.cat : 'Other', item: String(r.item || '').trim().slice(0, 140), qty: Math.max(1, Math.min(999, parseInt(r.qty, 10) || 1)), model: String(r.model || '').trim().slice(0, 100), cond: String(r.cond || '').trim().slice(0, 30), own: (['Owned', 'Leased', 'Confirm'].indexOf(r.own) >= 0 ? r.own : 'Confirm'), notes: String(r.notes || '').trim().slice(0, 200), excluded: !!r.excluded }; }).filter(r => r.item);
+  return arr.slice(0, 400).map(r => { r = r || {}; return { cat: CATS.indexOf(r.cat) >= 0 ? r.cat : 'Other', item: String(r.item || '').trim().slice(0, 140), qty: Math.max(1, Math.min(999, parseInt(r.qty, 10) || 1)), model: String(r.model || '').trim().slice(0, 100), cond: String(r.cond || '').trim().slice(0, 30), own: (['Owned', 'Leased', 'Confirm'].indexOf(r.own) >= 0 ? r.own : 'Confirm'), notes: String(r.notes || '').trim().slice(0, 200), excluded: !!r.excluded, taps: Math.max(0, Math.min(200, parseInt(r.taps, 10) || 0)) || undefined }; }).filter(r => r.item);
 }
-function _ffeLine(r) { return (r.qty > 1 ? (r.qty + ' × ') : '') + r.item + (r.model ? (' (' + r.model + ')') : ''); }
+function _ffeLine(r) { return (r.qty > 1 ? (r.qty + ' × ') : '') + r.item + (r.taps ? (' — ' + r.taps + ' taps') : '') + (r.model ? (' (' + r.model + ')') : ''); }
 function _ffeSyncText(spec, ffe) {
   if (!ffe.length) return spec;
   const conv = ffe.filter(r => !r.excluded && r.own !== 'Leased'), leased = ffe.filter(r => !r.excluded && r.own === 'Leased'), exc = ffe.filter(r => r.excluded);
@@ -20234,6 +20234,32 @@ app.post('/api/asset-spec/ffe-parse', express.json({ limit: '30mb' }), async (re
     res.json({ ok: true, items: items });
   } catch (e) { console.error('ffe parse:', e && e.message); res.status(502).json({ ok: false, error: String((e && e.message) || 'Could not read the list.') }); }
 });
+// Lease abstract → listing-details lease fields (prefill for blanks; the rep confirms).
+function _assetLeaseAbs(req, key, d) {
+  try {
+    const arr = loadLeases(); let l = null;
+    try { const v = assignmentsIndex()[key]; if (v && v.lease && v.lease.id) l = arr.find(x => x.id === v.lease.id) || null; } catch (e) {}
+    const pid = d && (d.contactPersonId || d.clientPersonId);
+    if (!l && pid) l = arr.filter(x => x.personId === pid && x.state && !x.pending).sort((a, b) => String(b.builtAt || '').localeCompare(String(a.builtAt || '')))[0] || null;
+    if (!l || !l.state || l.pending) return null;
+    const S = l.state, g = (o, k) => String((o && o[k]) || '').trim(), none = v => (/^(none|n\/a|not specified|not stated)/i.test(v) ? '' : v);
+    const f = {};
+    f.leaseRent = g(S.rent, 'current'); f.leasePerSF = g(S.rent, 'perSF'); f.leaseRemaining = g(S.term, 'remainingTerm'); f.leaseExpiration = g(S.term, 'expiration');
+    f.leaseNNN = [g(S.charges, 'structure'), none(g(S.economics, 'nnnAnnual'))].filter(Boolean).join(' · ');
+    f.leaseDeposit = none(g(S.deposit, 'securityDeposit'));
+    f.leaseUse = [g(S.use, 'permittedUse'), none(g(S.use, 'exclusive')) ? ('Exclusive: ' + g(S.use, 'exclusive')) : ''].filter(Boolean).join(' · ');
+    f.leaseAssignment = [g(S.assignment, 'consentStandard') || g(S.assignment, 'assignmentSublet'), none(g(S.assignment, 'transferFee')) ? ('Transfer fee: ' + g(S.assignment, 'transferFee')) : '', none(g(S.guaranty, 'personalGuaranty')) ? ('Guaranty: ' + g(S.guaranty, 'personalGuaranty')) : ''].filter(Boolean).join(' · ');
+    f.sqft = g(S.premises, 'squareFeet'); f.address = g(S.header, 'propertyAddress');
+    const ro = g(S.options, 'renewalOptions'), rn = g(S.options, 'renewalNotice'), rr = g(S.options, 'renewalRent');
+    const W = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, a: 1, an: 1, single: 1 };
+    if (/^(none|no )/i.test(ro)) f.optCount = '0';
+    else if (ro) { const m = ro.toLowerCase().match(/\b(\d+|one|two|three|four|five|six|a|an|single)\b[^0-9]*?(\d+)\s*[- ]?\s*(?:year|yr)/); if (m) { f.optCount = String(W[m[1]] || parseInt(m[1], 10) || ''); f.optYears = m[2]; } }
+    if (rn) { let m = rn.match(/(\d+)\s*(month|mo)/i); if (m) f.optNotice = m[1]; else { m = rn.match(/(\d+)\s*days?/i); if (m) f.optNotice = String(Math.round(parseInt(m[1], 10) / 30)); } }
+    if (rr) f.optRent = /market|fmv/i.test(rr) ? 'Fair market value' : (/cpi/i.test(rr) ? 'CPI adjustment' : (/%|increase|bump|escalat/i.test(rr) ? 'Fixed increase' : (/schedule|stated|set/i.test(rr) ? 'Set in the lease' : '')));
+    Object.keys(f).forEach(k => { f[k] = String(f[k] || '').slice(0, (ASSET_SPEC_FIELDS[k] || 200)); if (!f[k]) delete f[k]; });
+    return { id: l.id, at: String(l.builtAt || '').slice(0, 10), fields: f, optionsText: [ro, rn, rr].filter(Boolean).join(' · ') };
+  } catch (e) { return null; }
+}
 // Internal value references for the spec sheet headline (never printed on the buyer sheet).
 function _assetValueRefs(key, d) {
   const out = {};
@@ -20248,7 +20274,7 @@ app.get('/api/asset-spec', (req, res) => {
     if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
     if (!ownsDeal(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
     const spec = d.assetSpec || {};
-    res.json({ ok: true, key: req.query.key, business: d.business || '', market: d.market || '', saleLane: _effLane(req.query.key, d), spec: spec, ffe: d.assetFfe || [], ffeCats: aiassist.FFE_CATS || [], convey: d.assetConvey || null, conveyKit: CONVEY_KIT, spaceTypes: SPACE_TYPES, centerTypes: CENTER_TYPES, locAddress: _vlAddress({ key: String(req.query.key || '') }), valueRefs: _assetValueRefs(String(req.query.key || ''), d), core: ASSET_SPEC_CORE, missing: ASSET_SPEC_CORE.filter(k => !spec[k]) });
+    res.json({ ok: true, key: req.query.key, business: d.business || '', market: d.market || '', saleLane: _effLane(req.query.key, d), spec: spec, ffe: d.assetFfe || [], ffeCats: aiassist.FFE_CATS || [], convey: d.assetConvey || null, conveyKit: CONVEY_KIT, spaceTypes: SPACE_TYPES, centerTypes: CENTER_TYPES, locAddress: _vlAddress({ key: String(req.query.key || '') }), valueRefs: _assetValueRefs(String(req.query.key || ''), d), leaseAbs: _assetLeaseAbs(req, String(req.query.key || ''), d), core: ASSET_SPEC_CORE, missing: ASSET_SPEC_CORE.filter(k => !spec[k]) });
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 app.post('/api/asset-spec', express.json({ limit: '256kb' }), (req, res) => {
@@ -20269,10 +20295,9 @@ app.post('/api/asset-spec', express.json({ limit: '256kb' }), (req, res) => {
 const ASSET_SHEET_GROUPS = [
   ['The Opportunity', [['askingPrice', 'Asking price'], ['conveys', 'What conveys'], ['reason', 'Reason for availability'], ['availableDate', 'Available']]],
   ['Lease', [['leaseRent', 'Base rent'], ['leasePerSF', 'Rent / SF'], ['leaseRemaining', 'Remaining term'], ['leaseExpiration', 'Expiration'], ['leaseOptions', 'Renewal options'], ['leaseAssignment', 'Assignment & consent'], ['leaseNNN', 'NNN / CAM · taxes · insurance'], ['leaseDeposit', 'Deposit / key money'], ['leaseFixtures', 'Fixtures at lease end'], ['leaseUse', 'Permitted use']]],
-  ['The Space', [['address', 'Address'], ['spaceType', 'Space type'], ['centerType', 'Center type'], ['centerName', 'Center / building'], ['coTenants', 'Anchors & co-tenants'], ['frontage', 'Frontage, signage & traffic'], ['parking', 'Parking'], ['sqft', 'Square footage'], ['seating', 'Seating'], ['patio', 'Patio / outdoor'], ['deliveryCondition', 'Delivery condition'], ['operatingNow', 'Status']]],
+  ['The Space', [['address', 'Address'], ['spaceType', 'Space type'], ['centerType', 'Center type'], ['centerName', 'Center / building'], ['coTenants', 'Anchors & co-tenants'], ['parking', 'Parking spaces'], ['sqft', 'Square footage'], ['seating', 'Seating'], ['patio', 'Patio / outdoor'], ['deliveryCondition', 'Delivery condition'], ['operatingNow', 'Status']]],
   ['Buildout & Leaseholds', [['hood', 'Hood, venting & grease'], ['walkin', 'Walk-in cooler / freezer'], ['ansul', 'Fire suppression'], ['restrooms', 'Restrooms'], ['buildoutAge', 'Buildout age'], ['replacementCost', 'Est. replacement cost']]],
   ['FF&E', [['ffeSchedule', 'Equipment included'], ['ffeExcluded', 'Excluded — seller keeps'], ['smallwares', 'Smallwares / POS / furniture']]],
-  ['Permits & Occupancy', [['coOccupancy', 'Certificate of occupancy'], ['healthPermit', 'Health / venting permits']]],
   ['Utilities & Infrastructure', [['electrical', 'Electrical'], ['gas', 'Gas'], ['hvac', 'HVAC'], ['waterSewer', 'Water / sewer / grease']]]
 ];
 function _assetPriceBand(askingPrice) {
@@ -20291,7 +20316,7 @@ function assetSheetHtml(business, market, spec, ffe, convey) {
       const conv = ffe.filter(r => !r.excluded && r.own !== 'Leased'), leased = ffe.filter(r => !r.excluded && r.own === 'Leased'), exc = ffe.filter(r => r.excluded);
       const cats = []; conv.forEach(r => { if (cats.indexOf(r.cat) < 0) cats.push(r.cat); });
       let h = '<h2>FF&amp;E — equipment schedule</h2><table class="ffe"><tr><th>Item</th><th class="q">Qty</th><th>Make / model</th><th>Condition</th></tr>';
-      cats.forEach(c => { h += '<tr class="cat"><td colspan="4">' + esc(c) + '</td></tr>' + conv.filter(r => r.cat === c).map(r => '<tr><td>' + esc(r.item) + (r.notes ? '<div class="nt">' + esc(r.notes) + '</div>' : '') + '</td><td class="q">' + r.qty + '</td><td>' + esc(r.model || '—') + '</td><td>' + esc(r.cond || '—') + '</td></tr>').join(''); });
+      cats.forEach(c => { h += '<tr class="cat"><td colspan="4">' + esc(c) + '</td></tr>' + conv.filter(r => r.cat === c).map(r => '<tr><td>' + esc(r.item) + (r.taps ? (' — ' + r.taps + ' taps') : '') + (r.notes ? '<div class="nt">' + esc(r.notes) + '</div>' : '') + '</td><td class="q">' + r.qty + '</td><td>' + esc(r.model || '—') + '</td><td>' + esc(r.cond || '—') + '</td></tr>').join(''); });
       h += '</table>';
       const extra = [];
       if (leased.length) extra.push('<tr><th>Leased / vendor-owned (does not convey)</th><td>' + esc(leased.map(_ffeLine).join('; ')) + '</td></tr>');
@@ -20317,10 +20342,12 @@ function assetSheetHtml(business, market, spec, ffe, convey) {
     + 'th{text-align:left;width:210px;vertical-align:top;color:#6b7488;font-weight:700;font-size:11.5px;padding:5px 12px 5px 0}'
     + 'td{vertical-align:top;padding:5px 0;color:#1a2236}'
     + 'tr+tr th,tr+tr td{border-top:1px solid #f2f4f8}'
+    + 'ul.hl{margin:14px 0 4px;padding:12px 16px 12px 30px;background:#f6f8fc;border-left:3px solid #DA2B1F;}ul.hl li{margin:3px 0;font-size:13.5px;font-weight:600;color:#000E31;}'
     + 'table.ffe th{width:auto;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;padding:5px 10px 5px 0;border-bottom:1px solid #e6e9f0}table.ffe td{padding:4px 10px 4px 0;font-size:12.5px}table.ffe .q{width:44px;text-align:right;padding-right:16px}table.ffe tr.cat td{font-weight:800;color:#000E31;font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding-top:10px}table.ffe .nt{color:#6b7488;font-size:11px}table.ffe tr{page-break-inside:avoid}'
     + '.empty{color:#8a93a8}.foot{margin-top:34px;padding-top:14px;border-top:1px solid #e6e9f0;color:#8a93a8;font-size:11px}'
     + '@media print{.wrap{padding:0}}</style></head><body><div class="wrap">'
     + '<div class="hd"><div class="kick">Offering Sheet · Space &amp; Assets</div><h1>' + esc(business || 'Restaurant Space') + '</h1><div class="mkt">' + esc(market || '') + '</div></div>'
+    + (function () { const hl = String(spec.highlights || '').split(/\n+/).map(x => x.replace(/^[-•*\s]+/, '').trim()).filter(Boolean).slice(0, 8); return hl.length ? ('<ul class="hl">' + hl.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>') : ''; })()
     + secs
     + '<div class="foot">Prepared by ' + org + '. Confidential — shared under NDA. Information believed reliable but not guaranteed; buyer to verify.</div>'
     + '</div></body></html>';

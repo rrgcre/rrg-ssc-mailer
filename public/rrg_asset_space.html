@@ -83,6 +83,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .vref>div:not(.vrh){display:flex;align-items:baseline;gap:10px;padding:5px 0;flex-wrap:wrap;} .vref>div+div:not(.vrh){border-top:1px dashed #e3e8f1;}
 .vref span{width:150px;font-size:12.5px;color:var(--muted);font-weight:600;} .vref b{font-size:15px;color:var(--navy);} .vref i{font-style:normal;font-size:12px;color:var(--soft);} .vref a{margin-left:auto;font-size:12px;font-weight:700;color:var(--navy);text-decoration:none;}
 .mktb{margin-left:4px;} .mktb.go{background:var(--navy);border-color:var(--navy);color:#fff;} .mktb:disabled{opacity:.5;cursor:not-allowed;} .mkth{font-size:11.5px;color:var(--soft);margin-left:8px;} .mktdone{font-size:12.5px;font-weight:700;color:var(--green);margin-left:6px;}
+.ffet label.taps{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--navy);margin:2px 0 0 7px;} .ffet label.taps input{width:54px;padding:3px 6px;border-color:var(--line);}
+.abst{margin-left:8px;font-size:9px;letter-spacing:.04em;text-transform:uppercase;color:#2c5c8f;background:#e8eef7;border-radius:3px;padding:1px 5px;font-weight:700;}
+.absnote{background:#eef3fa;border:1px solid #cfdcee;border-radius:3px;padding:7px 10px;font-size:12px;color:var(--ink);margin-bottom:10px;} .absnote a{color:var(--primary);font-weight:700;text-decoration:none;}
+.optline{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;font-size:13px;color:var(--ink);}
+.optline .osel{font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--inp);border-radius:3px;background:#fff;color:var(--ink);}
+.fld .optline input.oin{width:56px;font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--inp);border-radius:3px;text-align:center;}
+.optline .ow{color:var(--muted);} .optline .hid,.optline .hid *{display:none;}
+.hlr{display:flex;align-items:center;gap:8px;margin-bottom:6px;} .hlb{color:var(--red);font-weight:900;width:10px;} .hlr input{flex:1;font:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--inp);border-radius:3px;} .hlr input:focus{outline:none;border-color:var(--primary);} .hlx{border:0;background:none;color:var(--soft);cursor:pointer;font-size:12px;padding:4px;} .hlx:hover{color:var(--red);}
 .gate{padding:50px 24px;text-align:center;color:var(--muted);font-size:14px;}
 .banner{border-radius:12px;padding:12px 16px;font-size:13px;font-weight:600;margin-bottom:16px;line-height:1.5;}
 .banner.done{background:#eaf7f0;border:1px solid #bfe6d0;color:#1a6e46;}
@@ -102,6 +110,7 @@ html,body{background:#e9ebf0;} body{font-size:13px;-webkit-font-smoothing:antial
 .nsb:hover{border-color:var(--primary);color:var(--primary-d);}
 .nsb.pri,.nsb.mktb.go{background:var(--primary);border-color:var(--primary);color:#fff;} .nsb.pri:hover,.nsb.mktb.go:hover{background:var(--primary-d);color:#fff;}
 .nsb:disabled{opacity:.45;cursor:not-allowed;} .nsb:disabled:hover{border-color:var(--inp);color:var(--navy);}
+.autos{font-size:11.5px;color:var(--soft);font-weight:600;padding:0 4px;}
 .nssep{width:1px;height:20px;background:var(--line);margin:0 2px;}
 .nstb .msg{margin-left:auto;font-size:12px;} .mkth{font-size:11px;} .mktdone{font-size:12px;}
 .banner{border-radius:3px;padding:8px 12px;font-size:12px;margin-bottom:10px;}
@@ -154,6 +163,7 @@ function goBack(){ try{ if(window.top!==window.self){ var x=window.parent.docume
 // Field definition — mirrors the server's ASSET_SPEC_FIELDS. a=textarea, core=required block.
 var GROUPS=[
   {title:'The headline', fields:[
+    {k:'highlights', l:'Highlights — why a buyer wants this space', hl:1},
     {k:'askingPrice', l:'Asking price', ph:'$185,000', money:1},
     {k:'reason', l:'Reason for availability', ph:'Pick a reason or type your own', list:['Owner retiring','Owner relocating','Focusing on other locations','Closing the concept','Changing concepts','Lease expiring','Partnership change','Personal reasons']},
     {k:'availableDate', l:'Target availability / delivery date', ph:'Pick a date · or 60 days after closing', date:1}
@@ -172,7 +182,7 @@ var GROUPS=[
     {k:'leasePerSF', l:'Rent per SF', ph:'$38 / SF'},
     {k:'leaseRemaining', l:'Remaining term', core:1, ph:'4 yrs 3 mos'},
     {k:'leaseExpiration', l:'Lease expiration', ph:'Mar 2030'},
-    {k:'leaseOptions', l:'Renewal options', ph:'Two 5-yr options · 6-mo notice'},
+    {k:'leaseOptions', l:'Renewal options', opts:1},
     {k:'leaseAssignment', l:'Assignment & landlord consent', core:1, a:1, ph:"Landlord's posture, the consent process, transfer fees, any personal guaranty…"},
     {k:'leaseNNN', l:'NNN / CAM · taxes · insurance', ph:'$9 / SF NNN'},
     {k:'leaseDeposit', l:'Security deposit / key money to landlord', ph:'$6,200 deposit · $25k key money'},
@@ -188,17 +198,12 @@ var GROUPS=[
     {k:'sqft', l:'Interior square footage', core:1, ph:'2,800 SF'},
     {k:'seating', l:'Seating capacity', ph:'90 interior'},
     {k:'deliveryCondition', l:'Delivery condition', core:1, ph:'As-is, fully equipped'},
-    {k:'operatingNow', l:'Operating or dark now', ph:'Operating · or Dark since June'},
-    {k:'frontage', l:'Frontage, signage & traffic', ph:'Faces Loop 1604 · monument sign · 45k cars/day'},
-    {k:'parking', l:'Parking', ph:'120 shared spaces · 5 / 1,000 SF'}
-  ]},
-  {title:'Permits & occupancy', fields:[
-    {k:'coOccupancy', l:'Certificate of occupancy / load', ph:'CO on file · occupancy 110'},
-    {k:'healthPermit', l:'Health / venting permits', ph:'Current health permit'}
+    {k:'operatingNow', l:'Operating or dark', sel:'opStatus'},
+    {k:'parking', l:'Parking spaces', ph:'120', num:1}
   ]},
   {title:'Utilities & infrastructure', fields:[
     {k:'electrical', l:'Electrical service', ph:'400A · 3-phase'},
-    {k:'hvac', l:'HVAC', ph:'15 tons · 2 units'},
+    {k:'hvac', l:'HVAC', hvac:1},
     {k:'waterSewer', l:'Water / sewer / grease', ph:'2" water · 1,500-gal interceptor'}
   ]},
   {title:'Marketing assets', fields:[
@@ -207,24 +212,62 @@ var GROUPS=[
     {k:'videoNote', l:'Walkthrough video', ph:'Link (optional)'}
   ]}
 ];
-var VREF={};
+var VREF={}, LABS=null, ABSF={};
+// Renewal options as a fill-in sentence so every rep records them the same way.
+// Highlights: short selling points, one per line, printed as bullets at the top of the offering sheet.
+var HL_PH=['At the entrance to La Villita','Largest patio on the River Walk','Seller invested $800,000 in 2024','Corner end cap with a drive-thru'];
+function _hlList(){ return String(SPEC.highlights||'').split(/\n+/).map(function(x){ return x.trim(); }).filter(Boolean); }
+function hlHtml(){ var L=_hlList(); if(!L.length) L=['']; return '<div class="fld" data-fk="highlights"><label>Highlights — why a buyer wants this space</label><div id="hlRows">'+L.map(function(v,i){ return hlRow(v,i); }).join('')+'</div><button type="button" class="nsb" id="hlAdd">+ Add highlight</button><div class="hint">Short and factual — one selling point per line. Prints as bullets at the top of the offering sheet (up to 8).</div></div>'; }
+function hlRow(v,i){ return '<div class="hlr"><span class="hlb">•</span><input type="text" data-hl="1" value="'+esc(v)+'" placeholder="'+esc(HL_PH[i%HL_PH.length])+'" maxlength="140"><button type="button" class="hlx" title="Remove">✕</button></div>'; }
+function _hlSync(){ SPEC.highlights=[].slice.call(document.querySelectorAll('[data-hl]')).map(function(x){ return x.value.trim(); }).filter(Boolean).join('\n'); }
+function wireHl(){ var host=document.getElementById('hlRows'); if(!host) return;
+  host.addEventListener('input', function(e){ if(e.target.getAttribute('data-hl')){ _hlSync(); markDirty(); } });
+  host.addEventListener('click', function(e){ var x=e.target.closest('.hlx'); if(!x) return; var r=x.closest('.hlr'); if(host.querySelectorAll('.hlr').length>1) r.remove(); else r.querySelector('input').value=''; _hlSync(); markDirty(); });
+  host.addEventListener('keydown', function(e){ if(e.key==='Enter' && e.target.getAttribute('data-hl')){ e.preventDefault(); document.getElementById('hlAdd').click(); } });
+  document.getElementById('hlAdd').onclick=function(){ var n=host.querySelectorAll('.hlr').length; if(n>=8) return; var d=document.createElement('div'); d.innerHTML=hlRow('',n); host.appendChild(d.firstChild); host.querySelectorAll('[data-hl]')[n].focus(); };
+}
+var NUMW=['None','One','Two','Three','Four','Five'];
+function optsText(o){ o=o||SPEC; var c=String(o.optCount||''); if(c==='') return ''; if(c==='0') return 'No renewal options';
+  var n=+c, y=String(o.optYears||'').trim(), t=(NUMW[n]||n)+' '+(y?(y+'-year '):'')+'renewal option'+(n===1?'':'s');
+  if(String(o.optNotice||'').trim()) t+=' · '+o.optNotice+' months’ notice'; if(o.optRent) t+=' · rent at '+String(o.optRent).replace(/^Fair market value$/,'fair market value').replace(/^Fixed increase$/,'a fixed increase').replace(/^CPI adjustment$/,'CPI').replace(/^Set in the lease$/,'rates set in the lease'); return t; }
+function optsHtml(){
+  var c=String(SPEC.optCount||''), none=(c==='0');
+  var sel=function(k,opts){ return '<select data-k="'+k+'" class="osel">'+opts.map(function(o){ return '<option value="'+esc(o[0])+'"'+(String(SPEC[k]||'')===o[0]?' selected':'')+'>'+esc(o[1])+'</option>'; }).join('')+'</select>'; };
+  var h='<div class="fld" data-fk="leaseOptions"><label>Renewal options'+(ABSF.optCount||ABSF.optYears?'<span class="abst">from abstract</span>':'')+'</label><div class="optline">'
+    +sel('optCount',[['','—'],['0','None'],['1','One'],['2','Two'],['3','Three'],['4','Four'],['5','Five']])
+    +'<span class="ow'+(none?' hid':'')+'">option(s) of</span><input data-k="optYears" class="oin'+(none?' hid':'')+'" inputmode="numeric" value="'+esc(SPEC.optYears||'')+'" placeholder="5"><span class="ow'+(none?' hid':'')+'">years each · exercise with</span>'
+    +'<input data-k="optNotice" class="oin'+(none?' hid':'')+'" inputmode="numeric" value="'+esc(SPEC.optNotice||'')+'" placeholder="6"><span class="ow'+(none?' hid':'')+'">months’ notice · option rent at</span>'
+    +'<span class="'+(none?'hid':'')+'">'+sel('optRent',[['','—'],['Fair market value','Fair market value'],['Fixed increase','Fixed increase'],['CPI adjustment','CPI adjustment'],['Set in the lease','Set in the lease']])+'</span></div>'
+    +'<div class="hint">Prints as: <b id="optPrev">'+esc(optsText()||'—')+'</b>'+((!c && SPEC.leaseOptions)?(' · <span>was typed as “'+esc(SPEC.leaseOptions)+'”</span>'):'')+(LABS&&LABS.optionsText?(' · <span>abstract says “'+esc(LABS.optionsText)+'”</span>'):'')+'</div></div>';
+  return h;
+}
+function wireOpts(){ var host=document.querySelector('[data-fk="leaseOptions"]'); if(!host) return; host.querySelectorAll('[data-k]').forEach(function(el){ var upd=function(){ SPEC[el.getAttribute('data-k')]=el.value.trim(); if(el.getAttribute('data-k')==='optCount'){ var none=el.value==='0'; host.querySelectorAll('.ow,.oin').forEach(function(x){ x.classList.toggle('hid',none); }); var r=host.querySelector('[data-k="optRent"]'); if(r) r.parentNode.classList.toggle('hid',none); } var p=document.getElementById('optPrev'); if(p) p.textContent=optsText()||'—'; }; el.addEventListener('input',upd); el.addEventListener('change',upd); }); }
+function applyAbstract(force){ if(!LABS||!LABS.fields) return 0; var n=0; Object.keys(LABS.fields).forEach(function(k){ var v=LABS.fields[k]; if(!v) return; if(force || !String(SPEC[k]||'').trim()){ if(SPEC[k]!==v){ SPEC[k]=v; ABSF[k]=1; n++; } } }); return n; }
+function absNoteHtml(){ if(!LABS) return ''; var n=Object.keys(ABSF).length; return '<div class="absnote">'+(n?('<b>'+n+' field'+(n===1?'':'s')+' filled from the lease abstract</b>'+(LABS.at?(' ('+esc(_fmtDate(LABS.at))+')'):'')+' — confirm each one.'):'A lease abstract is on file.')+' <a href="./rrg_lease_abstract.html?lease='+encodeURIComponent(LABS.id)+'" target="_blank">Open abstract ↗</a> · <a href="#" onclick="return refillAbs()">Fill blanks from abstract</a></div>'; }
+function refillAbs(){ var n=applyAbstract(false); if(n){ render(); markDirty(); } else alert('Nothing to fill — every lease field already has a value.'); return false; }
 function vrefHtml(){ var r=[];
   if(VREF.bov) r.push('<div><span>BOV'+(VREF.bov.final?'':' (draft)')+'</span><b>'+esc(VREF.bov.target||VREF.bov.range)+'</b>'+(VREF.bov.target&&VREF.bov.range?'<i>Range '+esc(VREF.bov.range)+'</i>':'')+'<a href="./rrg_bov_generate.html?bov='+encodeURIComponent(VREF.bov.id)+'" target="_blank">Open ↗</a></div>');
   if(VREF.letter) r.push('<div><span>Opinion of value</span><b>'+esc(VREF.letter.value)+'</b><i>'+esc(({draft:'Draft',pending:'Awaiting approval',approved:'Approved',sent:'Sent'})[VREF.letter.status]||VREF.letter.status)+(VREF.letter.at?(' · '+esc(_fmtDate(VREF.letter.at))):'')+'</i></div>');
   if(VREF.listPrice) r.push('<div><span>Agreed asking price</span><b>'+esc(VREF.listPrice)+'</b></div>');
   return r.length?'<div class="vref"><div class="vrh">For reference — internal, not on the offering sheet</div>'+r.join('')+'</div>':''; }
-var OPTS={spaceTypes:['End cap','Inline','Pad / Outparcel','Freestanding'],centerTypes:['Grocery-anchored','Power / big-box','Lifestyle / mixed-use','Strip / unanchored','Freestanding pad','Downtown / street retail','Mall / food court','Entertainment / hospitality node','Other']};
+var OPTS={opStatus:['Operating','Dark'],spaceTypes:['End cap','Inline','Pad / Outparcel','Freestanding'],centerTypes:['Grocery-anchored','Power / big-box','Lifestyle / mixed-use','Strip / unanchored','Freestanding pad','Downtown / street retail','Mall / food court','Entertainment / hospitality node','Other']};
 var CORE=['spaceType','leaseRent','leaseRemaining','leaseAssignment','sqft','deliveryCondition','hood','ffeSchedule'];
 var CORE_LABEL={ffeSchedule:'Equipment schedule — what conveys', hood:'Hood — Type I, Type II or No hood'};
 GROUPS.forEach(function(g){ g.fields.forEach(function(f){ if(f.core) CORE_LABEL[f.k]=f.l; }); });
-var SPEC={}, BIZ='', DIRTY=false;
+var SPEC={}, BIZ='', DIRTY=false, _sT=null, _sP=null, _sAgain=false;
+function markDirty(){ DIRTY=true; say('','Unsaved…'); clearTimeout(_sT); _sT=setTimeout(save,900); return true; }
+function say(cls,t){ var m=document.getElementById('msg'); if(m){ m.className='msg'+(cls?(' '+cls):''); m.textContent=t; } }
 
 function fieldHtml(f){
   var v=SPEC[f.k]||'';
+  var absTag=(ABSF[f.k]?'<span class="abst" title="Filled from the lease abstract — confirm it">from abstract</span>':'');
   if(f.legacy && !String(v).trim()) return '';
-  var lab='<label>'+esc(f.l)+(f.core?'<span class="dot">★</span>':'')+'</label>';
+  var lab='<label>'+esc(f.l)+(f.core?'<span class="dot">★</span>':'')+absTag+'</label>';
   var need=(f.core && !String(v).trim())?' need':'';
   if(f.date){ return '<div class="fld" data-fk="'+f.k+'">'+lab+'<div class="datef"><input type="text" data-k="'+f.k+'" value="'+esc(v)+'" placeholder="'+esc(f.ph||'')+'"><button type="button" class="cal" data-cal="'+f.k+'" title="Pick a date">📅</button><input type="date" data-calfor="'+f.k+'" tabindex="-1" aria-hidden="true"></div></div>'; }
+  if(f.hvac){ return '<div class="fld" data-fk="hvac"><label>HVAC</label><div class="optline"><input data-k="hvacUnits" class="oin" inputmode="numeric" value="'+esc(SPEC.hvacUnits||'')+'" placeholder="2"><span class="ow">units ·</span><input data-k="hvacTons" class="oin" inputmode="decimal" value="'+esc(SPEC.hvacTons||'')+'" placeholder="15"><span class="ow">tons total</span></div>'+((!SPEC.hvacUnits&&!SPEC.hvacTons&&SPEC.hvac)?'<div class="hint">Was typed as “'+esc(SPEC.hvac)+'”</div>':'')+'</div>'; }
+  if(f.hl) return hlHtml();
+  if(f.opts) return optsHtml();
   if(f.sel){ var os=OPTS[f.sel]||[]; if(v && os.indexOf(v)<0) os=os.concat([v]); return '<div class="fld'+((f.core&&!String(v).trim())?' need':'')+'" data-fk="'+f.k+'">'+lab+'<select data-k="'+f.k+'" class="sel"><option value="">Select…</option>'+os.map(function(o){ return '<option'+(o===v?' selected':'')+'>'+esc(o)+'</option>'; }).join('')+'</select></div>'; }
   if(f.list){ return '<div class="fld" data-fk="'+f.k+'">'+lab+'<input type="text" data-k="'+f.k+'" list="dl_'+f.k+'" value="'+esc(v)+'" placeholder="'+esc(f.ph||'')+'" autocomplete="off"><datalist id="dl_'+f.k+'">'+f.list.map(function(o){return '<option value="'+esc(o)+'">';}).join('')+'</datalist></div>'; }
   var ctrl=f.a
@@ -237,9 +280,10 @@ function groupHtml(g){
   // Two-column for the short inputs, full width for textareas — grouped in visual order.
   var rows='', buf=[];
   function flush(){ if(!buf.length) return; rows+='<div class="row2">'+buf.join('')+'</div>'; buf=[]; }
-  g.fields.forEach(function(f){ if(f.a||f.full){ flush(); rows+=fieldHtml(f); } else { buf.push(fieldHtml(f)); if(buf.length===2) flush(); } });
+  g.fields.forEach(function(f){ if(f.a||f.full||f.opts||f.hl){ flush(); rows+=fieldHtml(f); } else { buf.push(fieldHtml(f)); if(buf.length===2) flush(); } });
   flush();
   if(GROUPS.indexOf(g)===0) rows=vrefHtml()+rows;
+  if(g.title==='The lease') rows=absNoteHtml()+rows;
   if(g.convey) rows=kitHtml()+'<div class="sep"></div>'+rows;
   if(g.ffe) rows=ffeHtml()+'<div class="sep"></div>'+rows;
   var gi=GROUPS.indexOf(g), open=_isOpen(gi);
@@ -281,38 +325,44 @@ function bannerHtml(){
 }
 function render(){
   var host=document.getElementById('root');
-  host.innerHTML='<div class="nstb"><button class="nsb pri" id="saveBtn">Save</button><span id="mktHost"></span><span class="nssep"></span><a class="nsb" href="#" onclick="return openSheet()" title="Save first — opens what buyers see">View offering sheet ↗</a><a class="nsb" href="./rrg_walkthrough.html?key='+encodeURIComponent(KEY)+'" onclick="return openWalk(this)" title="Room by room on your phone — big buttons, autosaves as you go">📱 Walkthrough</a><span class="msg" id="msg"></span></div>'
+  host.innerHTML='<div class="nstb"><span class="autos">Autosaves</span><span class="nssep"></span><span id="mktHost"></span><span class="nssep"></span><a class="nsb" href="#" onclick="return openSheet()" title="Opens what buyers see">View offering sheet ↗</a><a class="nsb" href="./rrg_walkthrough.html?key='+encodeURIComponent(KEY)+'" onclick="return openWalk(this)" title="Room by room on your phone — big buttons, autosaves as you go">📱 Walkthrough</a><span class="msg" id="msg"></span></div>'
     +'<div id="bannerHost">'+bannerHtml()+'</div>'
     +GROUPS.map(groupHtml).join('');
   host.querySelectorAll('[data-k]').forEach(function(el){
-    el.addEventListener('input', function(){ SPEC[el.getAttribute('data-k')]=el.value; DIRTY=true; var fld=el.closest('.fld'); if(fld){ var k=fld.getAttribute('data-fk'); if(CORE.indexOf(k)>=0) fld.classList.toggle('need', !el.value.trim()); } refreshBanner(); });
+    el.addEventListener('input', function(){ SPEC[el.getAttribute('data-k')]=el.value; markDirty(); var fld=el.closest('.fld'); if(fld){ var k=fld.getAttribute('data-fk'); if(CORE.indexOf(k)>=0) fld.classList.toggle('need', !el.value.trim()); } refreshBanner(); });
   });
-  document.getElementById('saveBtn').addEventListener('click', save);
-  ffeWire(); wireDates(); wireKit(); wireHeaders(); refreshBanner();
-  GROUPS.forEach(function(g){ g.fields.forEach(function(f){ if(!f.money) return; var el=document.querySelector('[data-k="'+f.k+'"]'); if(!el) return; el.setAttribute('inputmode','decimal'); el.addEventListener('blur', function(){ var v=fmtMoney(el.value); if(v!==el.value){ el.value=v; SPEC[f.k]=v; DIRTY=true; } }); }); });
+  ffeWire(); wireDates(); wireKit(); wireOpts(); wireHl(); wireHeaders(); refreshBanner();
+  GROUPS.forEach(function(g){ g.fields.forEach(function(f){ if(!f.num) return; var el=document.querySelector('[data-k="'+f.k+'"]'); if(!el) return; el.setAttribute('inputmode','numeric'); el.addEventListener('blur', function(){ var d=el.value.replace(/[^0-9]/g,''); var v=d?Number(d).toLocaleString('en-US'):''; if(v!==el.value){ el.value=v; SPEC[f.k]=v; markDirty(); } }); }); });
+  GROUPS.forEach(function(g){ g.fields.forEach(function(f){ if(!f.money) return; var el=document.querySelector('[data-k="'+f.k+'"]'); if(!el) return; el.setAttribute('inputmode','decimal'); el.addEventListener('blur', function(){ var v=fmtMoney(el.value); if(v!==el.value){ el.value=v; SPEC[f.k]=v; markDirty(); } }); }); });
   document.querySelectorAll('input[list]').forEach(function(el){ el.addEventListener('focus', function(){ if(!el.value && el.showPicker){ try{ el.showPicker(); }catch(e){} } }); });
 }
 function _canMkt(){ try{ return window.top!==window.self && typeof window.parent.rrgMktSubmit==='function'; }catch(e){ return false; } }
 function mktBtn(){ if(VREF.mktAt) return '<span class="mktdone">Submitted to marketing ✓'+(VREF.mktAt!=='yes'?(' '+esc(_fmtDate(VREF.mktAt))):'')+'</span>'; if(!_canMkt()) return ''; var n=CORE.filter(_missOf).length; return '<button type="button" class="nsb mktb'+(n?'':' go')+'"'+(n?' disabled title="Finish the '+n+' required field'+(n===1?'':'s')+' first"':'')+' onclick="return goMkt()">Submit to marketing →</button>'+(n?'<span class="mkth">'+n+' required field'+(n===1?'':'s')+' left</span>':''); }
 function refreshMkt(){ var h=document.getElementById('mktHost'); if(h) h.innerHTML=mktBtn(); }
-function goMkt(){ if(DIRTY){ alert('Save the listing details first.'); return false; } try{ var p=window.parent; var x=p.document.querySelector('#rrgPanelOv [data-x]'); if(x) x.click(); setTimeout(function(){ p.rrgMktSubmit(); },60); }catch(e){} return false; }
-function openSheet(){ window.open('/api/asset-spec/sheet?key='+encodeURIComponent(KEY),'_blank'); return false; }
+function goMkt(){ flush().then(function(){ try{ var p=window.parent; var x=p.document.querySelector('#rrgPanelOv [data-x]'); if(x) x.click(); setTimeout(function(){ p.rrgMktSubmit(); },60); }catch(e){} }); return false; }
+function openSheet(){ var u='/api/asset-spec/sheet?key='+encodeURIComponent(KEY); if(!DIRTY && !_sP){ window.open(u,'_blank'); return false; } var w=window.open('about:blank','_blank'); flush().then(function(){ if(w) w.location.href=u; else window.open(u,'_blank'); }); return false; }
 function openWalk(a){ var phone=Math.min(screen.width,screen.height)<700; try{ if(phone){ window.top.location.href=a.href; } else { window.open(a.href,'_blank'); } }catch(e){ location.href=a.href; } return false; }
 function refreshBanner(){ refreshMkt(); var b=document.getElementById('bannerHost'); if(b){ b.innerHTML=bannerHtml(); wireBanner(); } refreshStatus(); }
 function wireBanner(){ document.querySelectorAll('[data-jump]').forEach(function(a){ a.onclick=function(e){ e.preventDefault(); var gi=+a.getAttribute('data-jump'); if(gi>=0) setOpen(gi,true,true); }; }); wireToggles(); }
-function gather(){ var out={}; document.querySelectorAll('[data-k]').forEach(function(el){ var v=el.value.trim(); if(v) out[el.getAttribute('data-k')]=v; }); if(!FFE.length){ if(SPEC.ffeSchedule) out.ffeSchedule=SPEC.ffeSchedule; if(SPEC.ffeExcluded) out.ffeExcluded=SPEC.ffeExcluded; } return out; }
+function gather(){ var out={}; document.querySelectorAll('[data-k]').forEach(function(el){ var v=el.value.trim(); if(v) out[el.getAttribute('data-k')]=v; }); var _hls=[].slice.call(document.querySelectorAll('[data-hl]')); if(_hls.length){ var _hv=_hls.map(function(x){ return x.value.trim(); }).filter(Boolean).join('\n'); if(_hv) out.highlights=_hv; } else if(SPEC.highlights) out.highlights=SPEC.highlights; if(out.hvacUnits||out.hvacTons){ out.hvacUnits=String(out.hvacUnits||'').replace(/[^0-9]/g,''); out.hvacTons=String(out.hvacTons||'').replace(/[^0-9.]/g,''); var _hu=+out.hvacUnits||0; out.hvac=[_hu?(_hu+' unit'+(_hu===1?'':'s')):'', out.hvacTons?(out.hvacTons+' tons total'):''].filter(Boolean).join(' · '); } else if(SPEC.hvac) out.hvac=SPEC.hvac; var _ot=optsText(out); if(_ot) out.leaseOptions=_ot; else if(SPEC.leaseOptions) out.leaseOptions=SPEC.leaseOptions; if(!FFE.length){ if(SPEC.ffeSchedule) out.ffeSchedule=SPEC.ffeSchedule; if(SPEC.ffeExcluded) out.ffeExcluded=SPEC.ffeExcluded; } return out; }
+// Autosave: ~1s after the last change. One request at a time; changes made mid-save trigger one more.
 function save(){
-  var btn=document.getElementById('saveBtn'), msg=document.getElementById('msg');
-  btn.disabled=true; msg.className='msg'; msg.textContent='Saving…';
-  api('POST','/api/asset-spec',{ key:KEY, spec:gather(), ffe:FFE.filter(function(r){ return String(r.item||'').trim(); }), convey:CONVEY||[] }).then(function(j){
-    btn.disabled=false;
-    if(!j||!j.ok){ msg.className='msg err'; msg.textContent=(j&&j.error)||'Could not save.'; return; }
-    SPEC=j.spec||{}; DIRTY=false; if(j.ffe){ FFE=j.ffe; ffeRefresh(); } if(j.convey) CONVEY=j.convey;
-    var n=(j.missing||[]).length;
-    msg.className='msg ok'; msg.textContent=n?('Saved ✓ · '+n+' core field'+(n===1?'':'s')+' still open'):'Saved ✓ · market-ready';
-    refreshBanner();
-  }).catch(function(){ btn.disabled=false; msg.className='msg err'; msg.textContent='Could not reach the server.'; });
+  clearTimeout(_sT);
+  if(_sP){ _sAgain=true; return _sP; }
+  var sent=JSON.stringify({ key:KEY, spec:gather(), ffe:FFE.filter(function(r){ return String(r.item||'').trim(); }), convey:CONVEY||[] });
+  DIRTY=false; say('','Saving…');
+  _sP=fetch('/api/asset-spec',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:sent}).then(function(r){ return r.json(); }).then(function(j){
+    _sP=null;
+    if(!j||!j.ok){ DIRTY=true; say('err',(j&&j.error)||'Not saved — will retry'); _sT=setTimeout(save,5000); return; }
+    var keepSpec=SPEC; SPEC=j.spec||{}; Object.keys(keepSpec).forEach(function(k){ if(!(k in SPEC) && document.querySelector('[data-k="'+k+'"]')) SPEC[k]=keepSpec[k]; });
+    if(j.convey) CONVEY=j.convey;
+    if(_sAgain||DIRTY){ _sAgain=false; return save(); }
+    say('ok','Saved ✓'); refreshBanner();
+  }).catch(function(){ _sP=null; DIRTY=true; say('err','Offline — will retry'); _sT=setTimeout(save,5000); });
+  return _sP;
 }
+function flush(){ if(DIRTY||_sP) return Promise.resolve(save()).then(function(){ return _sP; }); return Promise.resolve(); }
+window.addEventListener('pagehide', function(){ if(DIRTY){ try{ navigator.sendBeacon('/api/asset-spec', new Blob([JSON.stringify({ key:KEY, spec:gather(), ffe:FFE.filter(function(r){ return String(r.item||'').trim(); }), convey:CONVEY||[] })],{type:'application/json'})); }catch(e){} } });
 function setHead(){ var t=BIZ?(BIZ+' — Listing details'):'Listing details'; document.getElementById('h1').textContent=BIZ||'Space & Assets'; document.getElementById('crumb').textContent=BIZ||'Space & Assets'; document.title='Lavano — '+t; }
 
 // ── FF&E equipment schedule editor ─────────────────────────────────────────────
@@ -330,7 +380,7 @@ function _opt(list,v,blank){ return list.map(function(o){ return '<option value=
 function ffeRowHtml(r,i){
   return '<tr data-i="'+i+'"'+(r.excluded?' class="exc"':'')+'>'
     +'<td><select data-f="cat">'+_opt(FFE_CATS,r.cat)+'</select></td>'
-    +'<td><input data-f="item" value="'+esc(r.item)+'" placeholder="Item"><input data-f="notes" class="nt" value="'+esc(r.notes||'')+'" placeholder="Notes (age, size, location)"></td>'
+    +'<td><input data-f="item" value="'+esc(r.item)+'" placeholder="Item">'+(isBeer(r.item)?'<label class="taps">Taps <input data-f="taps" class="q" inputmode="numeric" value="'+esc(r.taps||'')+'" placeholder="#"></label>':'')+'<input data-f="notes" class="nt" value="'+esc(r.notes||'')+'" placeholder="Notes (age, size, location)"></td>'
     +'<td><input data-f="qty" class="q" inputmode="numeric" value="'+esc(r.qty||1)+'"></td>'
     +'<td><input data-f="model" value="'+esc(r.model||'')+'" placeholder="Make / model"></td>'
     +'<td><select data-f="cond">'+_opt(FFE_CONDS,r.cond||'','—')+'</select></td>'
@@ -362,7 +412,7 @@ function ffeHtml(){
 }
 function ffeRefresh(){ var b=document.getElementById('ffeBody'); if(!b) return; var host=b.closest('.fld'); var tmp=document.createElement('div'); tmp.innerHTML=ffeHtml(); host.replaceWith(tmp.firstChild); ffeWire(); refreshBanner(); }
 function ffeMsg(t,cls){ var m=document.getElementById('ffeMsg'); if(m){ m.className='msg'+(cls?(' '+cls):''); m.textContent=t||''; } }
-function ffeAddRows(items){ FFE=FFE.concat(items||[]); DIRTY=true; ffeRefresh(); ffeMsg(items.length+' item'+(items.length===1?'':'s')+' added — review, then Save','ok'); }
+function ffeAddRows(items){ FFE=FFE.concat(items||[]); markDirty(); ffeRefresh(); ffeMsg(items.length+' item'+(items.length===1?'':'s')+' added and saved — review below','ok'); }
 function ffeParse(payload){
   ffeMsg('Reading the list…');
   ['ffeImport','ffePaste','ffePasteGo','ffeConvert'].forEach(function(id){ var e=document.getElementById(id); if(e) e.disabled=true; });
@@ -399,21 +449,21 @@ function ffeWire(){
   document.getElementById('ffePaste').onclick=function(){ var b=document.getElementById('ffePasteBox'); b.style.display=''; document.getElementById('ffePasteTxt').focus(); };
   document.getElementById('ffePasteX').onclick=function(){ document.getElementById('ffePasteBox').style.display='none'; };
   document.getElementById('ffePasteGo').onclick=function(){ var t=document.getElementById('ffePasteTxt').value.trim(); if(!t){ ffeMsg('Paste the list first.','err'); return; } ffeParse({ text:t }); };
-  document.getElementById('ffeAdd').onclick=function(){ FFE.push({cat:'Other',item:'',qty:1,model:'',cond:'',own:'Owned',notes:'',excluded:false,_new:1}); DIRTY=true; ffeRefresh(); var ins=document.querySelectorAll('.ffet input[data-f="item"]'); if(ins.length) ins[ins.length-1].focus(); };
-  document.querySelectorAll('.qchip').forEach(function(b){ b.onclick=function(){ var q=QUICK[+b.getAttribute('data-q')]; var ex=_qIdx(q[0]); if(ex>=0){ var qi=document.querySelector('.ffet tr[data-i="'+ex+'"] input[data-f="qty"]'); if(qi){ qi.scrollIntoView({block:'center'}); qi.focus(); qi.select(); } return; } FFE.push({cat:q[1],item:q[0],qty:1,model:'',cond:'',own:q[2]||'Owned',notes:q[3]||'',excluded:false}); DIRTY=true; ffeRefresh(); var qs=document.querySelectorAll('.ffet input[data-f="qty"]'); if(qs.length){ qs[qs.length-1].focus(); qs[qs.length-1].select(); } }; });
+  document.getElementById('ffeAdd').onclick=function(){ FFE.push({cat:'Other',item:'',qty:1,model:'',cond:'',own:'Owned',notes:'',excluded:false,_new:1}); markDirty(); ffeRefresh(); var ins=document.querySelectorAll('.ffet input[data-f="item"]'); if(ins.length) ins[ins.length-1].focus(); };
+  document.querySelectorAll('.qchip').forEach(function(b){ b.onclick=function(){ var q=QUICK[+b.getAttribute('data-q')]; var ex=_qIdx(q[0]); if(ex>=0){ var qi=document.querySelector('.ffet tr[data-i="'+ex+'"] input[data-f="qty"]'); if(qi){ qi.scrollIntoView({block:'center'}); qi.focus(); qi.select(); } return; } FFE.push({cat:q[1],item:q[0],qty:1,model:'',cond:'',own:q[2]||'Owned',notes:q[3]||'',excluded:false}); markDirty(); ffeRefresh(); var qs=document.querySelectorAll('.ffet input[data-f="qty"]'); if(qs.length){ qs[qs.length-1].focus(); qs[qs.length-1].select(); } }; });
   var cv=document.getElementById('ffeConvert'); if(cv) cv.onclick=function(){ ffeParse({ text: String(SPEC.ffeSchedule||'')+(SPEC.ffeExcluded?('\nSeller keeping (excluded): '+SPEC.ffeExcluded):'') }); };
   var tb=document.querySelector('.ffet tbody'); if(!tb) return;
   function upd(el){ var tr=el.closest('tr'); if(!tr) return; var i=+tr.getAttribute('data-i'), k=el.getAttribute('data-f'); if(!FFE[i]) return;
     if(k==='item' && FFE[i]._new){ var g=guessCat(el.value); if(g && g!==FFE[i].cat){ FFE[i].cat=g; var cs=tr.querySelector('[data-f="cat"]'); if(cs) cs.value=g; } }
     if(k==='cat') delete FFE[i]._new;
-    FFE[i][k]= el.type==='checkbox' ? el.checked : (k==='qty' ? (parseInt(el.value,10)||1) : el.value);
+    FFE[i][k]= el.type==='checkbox' ? el.checked : (k==='qty' ? (parseInt(el.value,10)||1) : (k==='taps' ? (parseInt(el.value,10)||'') : el.value));
     if(k==='own'){ el.className='own '+el.value.toLowerCase(); }
     if(k==='excluded'){ tr.classList.toggle('exc', el.checked); }
     if(k==='own'||k==='excluded'){ document.getElementById('ffeWarn').innerHTML=ffeWarnHtml(); }
-    DIRTY=true; }
+    markDirty(); }
   tb.addEventListener('input', function(e){ if(e.target.getAttribute('data-f')) upd(e.target); });
   tb.addEventListener('change', function(e){ if(e.target.getAttribute('data-f')) upd(e.target); });
-  tb.addEventListener('click', function(e){ var b=e.target.closest('[data-del]'); if(!b) return; FFE.splice(+b.getAttribute('data-del'),1); DIRTY=true; ffeRefresh(); });
+  tb.addEventListener('click', function(e){ var b=e.target.closest('[data-del]'); if(!b) return; FFE.splice(+b.getAttribute('data-del'),1); markDirty(); ffeRefresh(); });
 }
 // Target availability: free text, with a calendar to pick a date.
 function _fmtDate(v){ var p=String(v||'').split('-'); if(p.length!==3) return v; var m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][(+p[1])-1]; return m+' '+(+p[2])+', '+p[0]; }
@@ -421,7 +471,7 @@ function wireDates(){
   document.querySelectorAll('[data-cal]').forEach(function(b){
     var k=b.getAttribute('data-cal'), hid=document.querySelector('input[data-calfor="'+k+'"]'), txt=document.querySelector('[data-k="'+k+'"]');
     b.onclick=function(){ try{ if(hid.showPicker){ hid.showPicker(); } else { hid.focus(); hid.click(); } }catch(e){ hid.focus(); } };
-    hid.onchange=function(){ if(!hid.value) return; txt.value=_fmtDate(hid.value); SPEC[k]=txt.value; DIRTY=true; };
+    hid.onchange=function(){ if(!hid.value) return; txt.value=_fmtDate(hid.value); SPEC[k]=txt.value; markDirty(); };
   });
 }
 
@@ -438,23 +488,23 @@ function wireKit(){
   document.querySelectorAll('[data-kit]').forEach(function(cb){ cb.addEventListener('change', function(){ var k=cb.getAttribute('data-kit'), d=document.querySelector('[data-kitd="'+k+'"]');
     if(cb.checked){ var clash=(k==='nohood')?['hood1','hood2']:((k==='hood1'||k==='hood2')?['nohood']:[]); clash.forEach(function(x){ var o=document.querySelector('[data-kit="'+x+'"]'); if(o&&o.checked){ o.checked=false; o.closest('.kit').classList.remove('on'); CONVEY=CONVEY.filter(function(r){ return r.k!==x; }); } }); }
     CONVEY=CONVEY.filter(function(r){ return r.k!==k; }); if(cb.checked){ CONVEY.push({k:k, d:d?d.value.trim():''}); if(d) d.focus(); }
-    cb.closest('.kit').classList.toggle('on', cb.checked); DIRTY=true; refreshBanner(); }); });
+    cb.closest('.kit').classList.toggle('on', cb.checked); markDirty(); refreshBanner(); }); });
   document.querySelectorAll('[data-kitd]').forEach(function(inp){ inp.addEventListener('input', function(){ var k=inp.getAttribute('data-kitd'), c=_cv(k), cb=document.querySelector('[data-kit="'+k+'"]');
     if(!c && inp.value.trim()){ c={k:k,d:''}; CONVEY.push(c); cb.checked=true; cb.closest('.kit').classList.add('on'); }
-    if(c) c.d=inp.value.trim(); DIRTY=true; refreshBanner(); });
-    var u=inp.getAttribute('data-unit'); if(u) inp.addEventListener('blur', function(){ var m=inp.value.replace(/,/g,'').match(/^\s*(\d+(?:\.\d+)?)\s*(?:gal(?:lons?)?|ft|feet|foot|'|seats?)?\s*$/i); if(!m) return; var n=parseFloat(m[1]); inp.value=n.toLocaleString('en-US',{maximumFractionDigits:1})+' '+u; var c=_cv(inp.getAttribute('data-kitd')); if(c) c.d=inp.value; DIRTY=true; }); });
+    if(c) c.d=inp.value.trim(); markDirty(); refreshBanner(); });
+    var u=inp.getAttribute('data-unit'); if(u) inp.addEventListener('blur', function(){ var m=inp.value.replace(/,/g,'').match(/^\s*(\d+(?:\.\d+)?)\s*(?:gal(?:lons?)?|ft|feet|foot|'|seats?)?\s*$/i); if(!m) return; var n=parseFloat(m[1]); inp.value=n.toLocaleString('en-US',{maximumFractionDigits:1})+' '+u; var c=_cv(inp.getAttribute('data-kitd')); if(c) c.d=inp.value; markDirty(); }); });
 }
 
 (function boot(){
   if(!KEY){ document.getElementById('root').innerHTML='<div class="gate">No listing specified.</div>'; return; }
   api('GET','/api/asset-spec?key='+encodeURIComponent(KEY)).then(function(j){
     if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">'+esc((j&&j.error)||'Listing not found.')+'</div>'; return; }
-    SPEC=j.spec||{}; BIZ=j.business||''; FFE=j.ffe||[]; CONVEY=j.convey||null; VREF=j.valueRefs||{}; if(!String(SPEC.askingPrice||'').trim() && VREF.listPrice) SPEC.askingPrice=VREF.listPrice; if(j.spaceTypes&&j.spaceTypes.length) OPTS.spaceTypes=j.spaceTypes; if(j.centerTypes&&j.centerTypes.length) OPTS.centerTypes=j.centerTypes; if(!String(SPEC.address||'').trim() && j.locAddress){ SPEC.address=j.locAddress; } conveyMigrate(); if(j.ffeCats&&j.ffeCats.length) FFE_CATS=j.ffeCats; setHead();
+    SPEC=j.spec||{}; BIZ=j.business||''; FFE=j.ffe||[]; CONVEY=j.convey||null; VREF=j.valueRefs||{}; LABS=j.leaseAbs||null; var _absN=applyAbstract(false); if(!String(SPEC.askingPrice||'').trim() && VREF.listPrice) SPEC.askingPrice=VREF.listPrice; if(j.spaceTypes&&j.spaceTypes.length) OPTS.spaceTypes=j.spaceTypes; if(j.centerTypes&&j.centerTypes.length) OPTS.centerTypes=j.centerTypes; if(!String(SPEC.address||'').trim() && j.locAddress){ SPEC.address=j.locAddress; } conveyMigrate(); if(j.ffeCats&&j.ffeCats.length) FFE_CATS=j.ffeCats; setHead();
     if(j.saleLane && j.saleLane!=='asset'){ document.getElementById('root').innerHTML='<div class="gate">This listing is a Business Sale, not a Space &amp; Assets listing. <a href="./rrg_assignment.html?key='+encodeURIComponent(KEY)+'" style="color:var(--navy);font-weight:700">Open its workspace →</a></div>'; return; }
-    render();
+    render(); if(_absN) markDirty();
   }).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not load this listing.</div>'; });
 })();
-window.addEventListener('beforeunload', function(e){ if(DIRTY){ e.preventDefault(); e.returnValue=''; } });
+
 </script>
 </body>
 </html>
