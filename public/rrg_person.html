@@ -1986,6 +1986,7 @@ function applyRailOrder(){
   _railTip(rail);
   _railChildren(rail).forEach(function(c){ var h=c.querySelector('.ch'); if(h&&!h._railwired){ h._railwired=true; h.style.cursor='grab'; h.style.touchAction='none'; h.title='Drag to reorder — click ▾ to collapse'; h.addEventListener('pointerdown',_railDown); } if(h&&!h._railcollapse){ h._railcollapse=true; var key=_railKey(c); var chev=document.createElement('button'); chev.type='button'; chev.className='rchev'; chev.setAttribute('aria-label','Collapse or expand'); chev.innerHTML='▾'; h.insertBefore(chev,h.firstChild); var grip=document.createElement('span'); grip.className='rgrip'; grip.setAttribute('aria-hidden','true'); grip.textContent='\u283f'; h.insertBefore(grip,chev); chev.addEventListener('click',function(ev){ ev.stopPropagation(); ev.preventDefault(); c._userFold=true; c.classList.toggle('railcollapsed'); var st={}; try{st=JSON.parse(localStorage.getItem('rrgRailCollapsedV2')||'{}');}catch(e){} st[key]=c.classList.contains('railcollapsed'); try{localStorage.setItem('rrgRailCollapsedV2',JSON.stringify(st));}catch(e){} }); } });
   _railFoldSoon(rail);
+  setTimeout(_railRelevance,0); setTimeout(_railRelevance,800);
 }
 function _railTip(rail){ if(!rail) return; var seen=false; try{ seen=localStorage.getItem('rrg_railtip_seen')==='1'; }catch(e){} if(seen||rail.querySelector('.railtip')) return; var tip=document.createElement('div'); tip.className='railtip'; tip.innerHTML='<span class="rtx"><b>Make this yours.</b> Drag any card by its <span class="rtgrip">\u283f</span> handle to reorder it, and use \u25be to collapse the ones you don\u2019t need. Your layout is saved on this device.</span><button type="button" class="rtclose" aria-label="Dismiss">\u00d7</button>'; rail.insertBefore(tip, rail.firstChild); var x=tip.querySelector('.rtclose'); if(x) x.addEventListener('click',function(){ try{ localStorage.setItem('rrg_railtip_seen','1'); }catch(e){} tip.remove(); }); }
 function _railDown(e){ if(e.button!=null&&e.button!==0) return; if(e.target.closest&&e.target.closest('button,a,input,select,textarea')) return; var card=e.currentTarget.closest('.card'); if(!card) return; e.preventDefault(); _railDrag=card; card.style.opacity='.55'; e.currentTarget.style.cursor='grabbing'; document.addEventListener('pointermove',_railMove); document.addEventListener('pointerup',_railUp,{once:true}); }
@@ -2073,6 +2074,7 @@ function render(){
   (function(){ var lead=document.getElementById('p_lead'), row=document.getElementById('p_refbyrow'); if(lead&&row){ lead.addEventListener('change',function(){ if(_isRef(lead.value)){ row.removeAttribute('hidden'); var rb=document.getElementById('p_refby'); if(rb){ try{rb.focus();}catch(e){} } } else { row.setAttribute('hidden',''); var rb2=document.getElementById('p_refby'); if(rb2) rb2.value=''; } }); }
     var rb=document.getElementById('p_refby'); if(rb){ rb.addEventListener('input',function(){ _refbySearch(); queueSave(); }); rb.addEventListener('change',queueSave); } })();
   P_INT=interestPills('p_types', pInterests(P), queueSave);
+  setTimeout(_railRelevance,0);
   document.querySelectorAll('.p_prefchk').forEach(function(c){ c.addEventListener('change', queueSave); });
   root.querySelectorAll('input.p_email,input.p_phone').forEach(function(el){
     el.addEventListener('input',function(){ if(el.classList.contains('p_phone')) el.value=fmtPhoneVal(el.value); _autoPref(el); queueSave(); });
@@ -2102,6 +2104,30 @@ var BB_CONCEPTS=['Breakfast / Brunch','Bar / Nightlife','Fast Casual','Full Serv
 var BB_METROS=[]; // hydrated from the admin Markets list (effMarkets) on load
 var BB_PRICE=[['','Any'],['u1m','Under $1M'],['1-3m','$1M–$3M'],['3-5m','$3M–$5M'],['5m+','$5M+']];
 var BB_CASH=[['','Any'],['250k','$250K+ SDE'],['500k','$500K+ SDE'],['1m','$1M+ SDE']];
+// Right rail shows only the cards that fit this contact: by their interest chips, plus any card that already
+// has something in it. The rest sit on one "More" line at the bottom; clicking one opens it for this visit.
+var _railShown={};
+function _railRelevance(){ try{
+  var rail=document.querySelector('.rail'); if(!rail) return;
+  var ints=(P_INT&&P_INT.get?P_INT.get():pInterests(P)).map(function(x){ return String(x).toLowerCase(); });
+  var has=function(rx){ return ints.some(function(x){ return rx.test(x); }); };
+  var sell=has(/sell/), buy=has(/buy/), ten=has(/leas|tenant/);
+  var REL={ 'Listings & Prelistings':sell, 'Rep Engagements':ten, 'Buy-Box':buy, 'Tenant-Box':ten, 'Inquiries':buy||ten, 'Tours':buy||ten, 'Email Campaigns':false, 'Automations':false };
+  var tbEng=(typeof _tbEngs==='function'&&_tbEngs().length>0);
+  var hidden=[];
+  _railChildren(rail).forEach(function(c){ var k=c.getAttribute('data-rk')||_railKey(c); if(!k) return;
+    var always=!(k in REL);   // Tasks, Calendar, Documents, Files, anything new: always shown
+    var full=false; try{ full=_railHas(c); }catch(_){}
+    if(k==='Tenant-Box'&&tbEng) full=true;
+    var show=always||REL[k]||full||!!_railShown[k];
+    c.style.display=show?'':'none'; if(!show) hidden.push(k); });
+  var more=rail.querySelector('.railmore'); if(!more){ more=document.createElement('div'); more.className='railmore'; more.style.cssText='font-size:12px;color:#8a93a8;padding:4px 4px 10px;line-height:1.9'; rail.appendChild(more);
+    more.addEventListener('click',function(e){ var a=e.target.closest('[data-rmore]'); if(!a) return; e.preventDefault(); var k=a.getAttribute('data-rmore'); _railShown[k]=1; _railRelevance(); var c=rail.querySelector('.card[data-rk="'+k.replace(/"/g,'')+'"]'); if(c){ c.classList.remove('railcollapsed'); c._userFold=true; try{ c.scrollIntoView({behavior:'smooth',block:'nearest'}); }catch(_){} } }); }
+  else if(more.parentNode===rail && rail.lastElementChild!==more) rail.appendChild(more);
+  more.style.display=hidden.length?'':'none';
+  more.innerHTML=hidden.length?('More: '+hidden.map(function(k){ return '<a href="#" data-rmore="'+esc(k)+'" style="color:#2c5c8f;font-weight:600;text-decoration:none;margin-right:10px">+ '+esc(k)+'</a>'; }).join('')):'';
+}catch(e){} }
+document.addEventListener('click',function(e){ if(e.target.closest&&e.target.closest('#p_types')) setTimeout(_railRelevance,60); });
 function buyBoxCard(){
   var bb=(P&&P.buyBox)||{};
   var chips=function(list,sel,cls){ return list.map(function(x){ var on=(sel||[]).indexOf(x)>=0; return '<label class="bbchip'+(on?' on':'')+'"><input type="checkbox" class="'+cls+'" value="'+esc(x)+'"'+(on?' checked':'')+'>'+esc(x)+'</label>'; }).join(''); };
