@@ -20177,7 +20177,7 @@ const CONVEY_KIT = [
   { k: 'walkinC', l: 'Walk-in cooler', to: 'walkin' }, { k: 'walkinF', l: 'Walk-in freezer', to: 'walkin' }, { k: 'dry', l: 'Dry storage' },
   { k: 'hand', l: 'Hand sinks' }, { k: 'prep', l: 'Prep sink' }, { k: 'sink3', l: '3-compartment sink' }, { k: 'mop', l: 'Mop sink' }, { k: 'drains', l: 'Floor drains' },
   { k: 'sprink', l: 'Fire sprinklers' }, { k: 'restrooms', l: 'ADA restrooms', to: 'restrooms' }, { k: 'bar', l: 'Built-in bar' }, { k: 'counter', l: 'Order counter' }, { k: 'window', l: 'Pickup / walk-up window' },
-  { k: 'drive', l: 'Drive-thru' }, { k: 'pdr', l: 'Private dining room' }, { k: 'patio', l: 'Patio', to: 'patio' }, { k: 'office', l: 'Office' }, { k: 'sign', l: 'Sign panel / pylon' }
+  { k: 'drive', l: 'Drive-thru' }, { k: 'pdr', l: 'Private dining room' }, { k: 'patio', l: 'Patio', to: 'patio' }, { k: 'office', l: 'Office' }, { k: 'sign', l: 'Sign panel' }
 ];
 function _conveyClean(arr) {
   if (!Array.isArray(arr)) return null;
