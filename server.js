@@ -1532,7 +1532,7 @@ app.use(express.urlencoded({ extended: false }));
 const OPEN = new Set(['/health', '/login', '/api/login', '/logout', '/favicon.ico', '/api/appname', '/api/brand', '/api/brand/logo', '/api/brand/logo/light', '/rrg_brand.js', '/rrg_theme.css', '/api/gmail/callback']);
 app.use((req, res, next) => {
   // Buyer-facing data-room links are public (the unguessable token is the gate).
-  if (OPEN.has(req.path) || req.path === '/chitchat' || req.path.startsWith('/chitchat/') || req.path === '/api/chitchat/subscribe' || req.path.startsWith('/room/') || req.path.startsWith('/deal/') || req.path.startsWith('/roomfile/') || req.path.startsWith('/roomview/') || req.path.startsWith('/vendor/') || req.path.startsWith('/sign/') || req.path.startsWith('/api/sign/') || req.path.startsWith('/eo/') || req.path.startsWith('/ec/') || req.path.startsWith('/u/') || req.path.startsWith('/api/u/') || req.path.startsWith('/book/') || req.path.startsWith('/api/book/') || req.path.startsWith('/pay/') || req.path.startsWith('/api/pay/') || req.path === '/api/stripe/webhook' || req.path === '/api/mail/ses-webhook' || req.path.startsWith('/mail/') || req.path === '/market' || req.path === '/api/market/public' || req.path === '/api/market/request-access' || req.path === '/site' || req.path.startsWith('/site/') || req.path === '/sitemap.xml' || req.path === '/robots.txt' || req.path === '/api/website/public' || req.path === '/api/website/lead' || req.path === '/api/website/subscribe' || req.path === '/api/website/hero-image' || req.path.startsWith('/api/property-public-photo/') || req.path.startsWith('/s/') || req.path === '/careers/apply' || req.path === '/api/careers/apply' || req.path === '/seller_intake.html' || req.path === '/seller_record.html' || req.path === '/ssc_client.html') return next();
+  if (OPEN.has(req.path) || req.path === '/chitchat' || req.path.startsWith('/chitchat/') || req.path === '/api/chitchat/subscribe' || req.path.startsWith('/room/') || req.path.startsWith('/deal/') || req.path.startsWith('/roomfile/') || req.path.startsWith('/roomview/') || req.path.startsWith('/vendor/') || req.path.startsWith('/sign/') || req.path.startsWith('/api/sign/') || req.path.startsWith('/eo/') || req.path.startsWith('/ec/') || req.path.startsWith('/u/') || req.path.startsWith('/api/u/') || req.path.startsWith('/book/') || req.path.startsWith('/api/book/') || req.path.startsWith('/pay/') || req.path.startsWith('/api/pay/') || req.path === '/api/stripe/webhook' || req.path === '/api/mail/ses-webhook' || req.path.startsWith('/mail/') || req.path === '/market' || req.path === '/api/market/public' || req.path === '/api/market/request-access' || req.path === '/site' || req.path.startsWith('/site/') || req.path === '/sitemap.xml' || req.path === '/robots.txt' || req.path === '/api/website/public' || req.path === '/api/website/lead' || req.path === '/api/website/subscribe' || req.path === '/api/website/hero-image' || req.path.startsWith('/api/property-public-photo/') || req.path.startsWith('/s/') || req.path === '/careers/apply' || req.path === '/api/careers/apply' || req.path === '/seller_intake.html' || req.path === '/seller_record.html' || req.path === '/ssc_client.html' || /^\/(sell-my-restaurant|restaurant-valuation|restaurants-for-sale|bars-for-sale|restaurant-space-for-lease)\/[a-z-]+$/.test(req.path) || req.path.startsWith('/listing/')) return next();
   const sess = auth.readSession(parseCookies(req)[COOKIE]);
   if (sess) {
     req.user = sess;
@@ -8110,9 +8110,205 @@ app.get('/robots.txt', (req, res) => {
   const body = 'User-agent: *\nAllow: /\nDisallow: /api/\n' + (base ? ('Sitemap: ' + base + '/sitemap.xml\n') : '');
   res.set('Content-Type', 'text/plain; charset=utf-8').send(body);
 });
+// ===================== Local SEO landing pages (city × search intent) + public listing pages =====================
+// One page per thing people actually search: "sell my restaurant San Antonio", "restaurants for sale Austin"…
+// Each city has its own copy (no find-and-replace doorway pages) and pulls live inventory from the Marketplace
+// (blind details only). Empty inventory never renders an empty grid — it pivots to the seller offer.
+const SEO_CITIES = {
+  'san-antonio': { name: 'San Antonio', metros: ['San Antonio'], locRx: /san antonio|new braunfels|boerne|schertz|helotes|stone oak|alamo heights|seguin/i,
+    area: 'San Antonio and the I-35 corridor: downtown and the River Walk, the Pearl and Southtown, Alamo Heights, Stone Oak, the Medical Center, The Rim and La Cantera, and north to New Braunfels',
+    local: 'San Antonio is our home market. Tourism keeps the River Walk and downtown busy year-round, while the north side and the 1604 loop are driven by rooftops, families and the medical and military workforce. Second-generation space with a hood, a patio and parking moves quickly; well-run neighborhood concepts with steady regulars are what buyers ask us for most.' },
+  'austin': { name: 'Austin', metros: ['Austin', 'Central Texas'], locRx: /austin|round rock|cedar park|pflugerville|georgetown|leander|lakeway|kyle|buda|bee cave/i,
+    area: 'Austin and its suburbs: South Congress and South Lamar, East Austin, downtown and Rainey Street, the Domain, Mueller, and out to Round Rock, Cedar Park, Pflugerville and Bee Cave',
+    local: 'Austin is one of the most competitive restaurant markets in Texas. Rents in the urban core are high and good second-generation space is scarce, so a built-out kitchen with a transferable lease is often worth real money on its own. Operators from other markets watch Austin closely, which widens the buyer pool for the right concept.' },
+  'dallas': { name: 'Dallas', metros: ['Dallas', 'Fort Worth'], locRx: /dallas|fort worth|plano|frisco|richardson|irving|arlington|mckinney|addison|grapevine|southlake|denton/i,
+    area: 'Dallas–Fort Worth: Uptown, Deep Ellum, Lower Greenville and Bishop Arts, Plano, Frisco and Legacy West, Addison, and Fort Worth from the Near Southside to the Stockyards',
+    local: 'Dallas–Fort Worth is a big, spread-out market with a deep bench of multi-unit operators and franchise groups, which makes it one of the best places in Texas to sell a proven concept. Suburban growth to the north keeps demand high for second-generation space with drive-thru, patio and parking, while the urban neighborhoods reward chef-driven and nightlife concepts.' },
+  'houston': { name: 'Houston', metros: ['Houston'], locRx: /houston|katy|sugar land|the woodlands|kingwood|pearland|cypress|spring|humble|league city|bellaire/i,
+    area: 'Greater Houston: Montrose, the Heights, Midtown, EaDo, Rice Village and the Galleria, and out to Katy, Sugar Land, Cypress, the Woodlands and Kingwood',
+    local: 'Houston has no zoning code and an enormous, diverse dining scene, so concepts of every kind find a home here, and buyers range from first-time operators to established restaurant groups. Deals often turn on the lease and the build-out as much as the numbers, and the suburbs from Katy to the Woodlands keep steady demand for family and fast-casual space.' },
+};
+const SEO_TYPES = {
+  'sell-my-restaurant': { kind: 'sell', title: c => 'Sell My Restaurant in ' + c.name + ', TX', h1: c => 'Sell your restaurant in ' + c.name, kicker: 'Confidential restaurant sales',
+    desc: c => 'Thinking about selling your restaurant or bar in ' + c.name + '? Get a confidential valuation and a controlled, discreet sale from Texas restaurant transaction specialists.',
+    intro: c => 'Selling a restaurant is not like selling a house. Staff, regulars and vendors can’t find out, the lease has to transfer, and buyers need to understand the numbers before they’ll pay for them. We sell restaurants and bars in ' + c.area + ', and we only work with restaurants and bars.',
+    cta: 'Request a confidential valuation', interest: 'Sell Your Restaurant',
+    faqs: c => [['How much is my restaurant worth?', 'Most profitable restaurants sell on a multiple of owner earnings (SDE or EBITDA), adjusted for the lease, the location and how much the business depends on you. If the earnings don’t support that, the value is in the space, buildout and equipment. We tell you which applies, and why, before you decide anything.'],
+      ['Will my staff find out I’m selling?', 'Not from us. Listings are blind (no name or address), and buyers sign an NDA before they learn which business it is.'],
+      ['How long does it take to sell a restaurant in ' + c.name + '?', 'It depends on price, earnings and the lease, but plan on a few months from listing to closing. Clean financials and a lease with enough term left shorten it.']] },
+  'restaurant-valuation': { kind: 'sell', title: c => 'Restaurant Valuation in ' + c.name + ', TX', h1: c => 'What is your ' + c.name + ' restaurant worth?', kicker: 'Restaurant & bar valuations',
+    desc: c => 'Find out what your restaurant or bar in ' + c.name + ' is worth. A confidential opinion of value based on your earnings, lease, location and equipment.',
+    intro: c => 'A restaurant’s value comes from two places: what it earns, and what the space and equipment are worth to the next operator. We look at both, explain the number in plain English, and show you what would raise it. Confidential, with no obligation to sell.',
+    cta: 'Get a confidential valuation', interest: 'Restaurant Valuation',
+    faqs: c => [['What do you need from me?', 'Usually the last three years of P&Ls, year-to-date numbers, and your lease. We keep everything confidential.'],
+      ['Is this an appraisal?', 'No. It’s a broker’s opinion of value based on how restaurants actually trade in the ' + c.name + ' market. It is not an appraisal by a licensed appraiser.'],
+      ['What if my restaurant isn’t profitable?', 'Then the value is usually in the space, buildout, equipment and lease, and second-generation restaurant space can be worth a lot to the right operator. We’ll tell you plainly.']] },
+  'restaurants-for-sale': { kind: 'buy', title: c => 'Restaurants for Sale in ' + c.name + ', TX', h1: c => 'Restaurants for sale in ' + c.name, kicker: 'Restaurant listings',
+    desc: c => 'Restaurants and restaurant businesses for sale in ' + c.name + ', TX. Confidential listings from Texas restaurant transaction specialists, plus first look at new opportunities.',
+    intro: c => 'Current restaurant opportunities in ' + c.area + '. Listings are confidential: sign an NDA and we’ll share the name, location and financials.',
+    cta: 'Get new listings first', interest: 'Buy a Restaurant', filter: t => t.kind !== 'lease',
+    faqs: c => [['Why don’t listings show the restaurant’s name?', 'To protect the seller’s staff and customers. Request access on any listing and we’ll share the details after you sign an NDA.'],
+      ['Can I get listings before they’re public?', 'Yes. Sign up for listing alerts and tell us what you’re looking for in ' + c.name + '; many deals are matched to buyers before they’re ever posted.']] },
+  'bars-for-sale': { kind: 'buy', title: c => 'Bars for Sale in ' + c.name + ', TX', h1: c => 'Bars for sale in ' + c.name, kicker: 'Bar & nightlife listings',
+    desc: c => 'Bars, pubs and nightlife businesses for sale in ' + c.name + ', TX. Confidential listings, TABC license guidance, and first look at new opportunities.',
+    intro: c => 'Bar and nightlife opportunities in ' + c.area + '. A bar sale lives or dies on the TABC license, the lease and late-night use, and we work through all three.',
+    cta: 'Get new listings first', interest: 'Buy a Bar', filter: t => /bar|night|pub|tavern|lounge/i.test(String(t.conceptKey || '') + ' ' + String(t.headline || '')),
+    faqs: c => [['Does the liquor license transfer?', 'A TABC permit doesn’t simply transfer with the business; the buyer usually applies for their own, and the timing has to be planned into the deal. We map it out up front.'],
+      ['Why don’t listings show the bar’s name?', 'To protect the seller’s staff and regulars. Request access and we’ll share details under NDA.']] },
+  'restaurant-space-for-lease': { kind: 'lease', title: c => 'Restaurant Space for Lease in ' + c.name + ', TX', h1: c => 'Restaurant space for lease in ' + c.name, kicker: 'Second-generation restaurant space',
+    desc: c => 'Second-generation restaurant and bar space for lease in ' + c.name + ', TX: hoods, walk-ins and buildouts in place. Tenant representation from restaurant specialists.',
+    intro: c => 'Built-out restaurant and bar space in ' + c.area + '. A second-generation space with a hood, grease trap and walk-in can save hundreds of thousands in build-out. Tell us what you need and we’ll find it, including spaces that never hit the market.',
+    cta: 'Tell us what you need', interest: 'Find Restaurant Space', filter: t => t.kind === 'lease' || t.kind === 'asset',
+    faqs: c => [['What does second-generation mean?', 'A space that was already a restaurant, so the hood, grease trap, plumbing and often the walk-in and dining room are in place.'],
+      ['Do I pay for tenant representation?', 'Typically no; in most lease deals the landlord pays the tenant’s broker. We’ll confirm how it works for your search.']] },
+};
+function _seoSlug(t) { return String(t || '').toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 70) || 'listing'; }
+function _seoListingUrl(t) { return '/listing/' + _seoSlug(t.headline) + '--' + encodeURIComponent(t.id); }
+function _seoAllTeasers() { let a = []; try { a = mktPublicList(); } catch (e) {} try { a = a.concat(publicPropertyTeasers()); } catch (e) {} return a; }
+function _seoCityListings(c, filter) {
+  return _seoAllTeasers().filter(t => ((c.metros.indexOf(t.marketKey) >= 0) || c.locRx.test(String(t.loc || ''))) && (!filter || filter(t)) && !t.noShop);
+}
+function _seoCard(t) {
+  const meta = [t.loc, t.conceptKey && t.conceptKey !== 'Other' ? t.conceptKey : '', t.priceBand].filter(Boolean).map(esc).join(' &middot; ');
+  const nums = [t.revenue ? ('Revenue ' + esc(t.revenue)) : '', t.sde ? (esc(t.earnBasis || 'SDE') + ' ' + esc(t.sde)) : '', t.sf ? (esc(t.sf) + ' SF') : '', t.rate ? esc(t.rate) : ''].filter(Boolean).join(' &middot; ');
+  return '<a class="lcard" href="' + _seoListingUrl(t) + '">' + (t.photo ? ('<div class="lph" style="background-image:url(\'' + esc(t.photo) + '\')"></div>') : '<div class="lph lph0"></div>')
+    + '<div class="lbd">' + (t.flagLabel ? ('<span class="lflag" style="background:' + esc(t.flagColor || '#C8A24B') + '">' + esc(t.flagLabel) + '</span>') : '') + '<div class="lh">' + esc(t.headline) + '</div><div class="lm">' + meta + '</div>' + (nums ? ('<div class="ln">' + nums + '</div>') : '') + '</div></a>';
+}
+const SEO_CSS = `
+.chero{background:linear-gradient(115deg,#060e22,#0a1733 55%,#122a5a);color:#fff;padding:54px 0 60px;}
+.chero h1{font-family:'Fraunces',Georgia,serif;font-size:clamp(30px,4.6vw,46px);line-height:1.12;font-weight:600;margin:10px 0 14px;}
+.chero .lead{color:#c7d2e6;font-size:17px;max-width:64ch;}
+.chero .eyebrow{color:var(--gold2);}
+.csec{padding:52px 0;} .csec.alt{background:var(--cream);}
+.csec h2{font-family:'Fraunces',Georgia,serif;font-size:28px;font-weight:600;margin-bottom:12px;color:var(--navy2);}
+.csec p{color:var(--muted);font-size:16px;max-width:72ch;margin-bottom:12px;}
+.lgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:18px;margin-top:18px;}
+.lcard{display:block;text-decoration:none;background:#fff;border:1px solid #e3e8f1;border-radius:12px;overflow:hidden;transition:box-shadow .15s,transform .15s;}
+.lcard:hover{box-shadow:0 12px 30px rgba(10,20,50,.12);transform:translateY(-2px);}
+.lph{height:150px;background:#dfe6f1 center/cover no-repeat;} .lph0{background:linear-gradient(135deg,#0a1733,#2C5C8F);}
+.lbd{padding:14px 16px 16px;} .lh{font-weight:800;color:var(--navy2);font-size:15.5px;line-height:1.3;margin-bottom:5px;} .lm{font-size:12.5px;color:var(--muted);} .ln{font-size:12.5px;color:var(--ink);font-weight:600;margin-top:6px;}
+.lflag{display:inline-block;color:#fff;font-size:10.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;border-radius:4px;padding:2px 7px;margin-bottom:7px;}
+.cform{background:#fff;border-radius:14px;padding:24px;box-shadow:0 14px 40px rgba(10,20,50,.12);max-width:560px;}
+.cform input,.cform textarea{width:100%;border:1px solid #cfd8e6;border-radius:9px;padding:12px 13px;font:inherit;font-size:15px;margin-bottom:10px;}
+.cform textarea{min-height:90px;resize:vertical;} .cform .lmsg{font-size:13.5px;font-weight:600;margin-top:8px;} .cform .lmsg.ok{color:#1f8a5b;} .cform .lmsg.err{color:#DA2B1F;}
+.cgrid2{display:grid;grid-template-columns:1.1fr .9fr;gap:40px;align-items:start;} @media(max-width:860px){.cgrid2{grid-template-columns:1fr;}}
+.faq{border-bottom:1px solid #e3e8f1;padding:14px 0;} .faq summary{font-weight:700;color:var(--navy2);cursor:pointer;font-size:16px;} .faq .fa{color:var(--muted);margin-top:8px;font-size:15px;}
+.clinks{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:10px;} .clinks a{color:var(--blue);font-weight:600;text-decoration:none;font-size:14px;} .clinks a:hover{text-decoration:underline;}
+.cempty{background:#fff;border:1px dashed #c9d3e3;border-radius:12px;padding:22px;color:var(--muted);margin-top:16px;}
+.ldet{display:grid;grid-template-columns:1.3fr .7fr;gap:36px;align-items:start;} @media(max-width:860px){.ldet{grid-template-columns:1fr;}}
+.lfacts{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin:18px 0;} .lfact{background:var(--cream);border-radius:10px;padding:12px 14px;} .lfact b{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);margin-bottom:3px;} .lfact span{font-weight:700;color:var(--navy2);}
+`;
+function _seoShell(req, o) {
+  const s = loadWebsite(); const org = esc(s.brand || orgDisplayName() || 'Restaurant Realty Group'); const year = new Date().getFullYear();
+  const offLinks = (s.offices || []).map(function (x) { const tel = String(x.phone || '').replace(/[^0-9+]/g, ''); return '<a href="tel:' + tel + '">' + esc(x.city || '') + ' &middot; ' + esc(x.phone || '') + '</a>'; }).join('');
+  const cityLinks = Object.keys(SEO_CITIES).map(k => '<a href="/sell-my-restaurant/' + k + '">Sell a restaurant in ' + esc(SEO_CITIES[k].name) + '</a>').join('');
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(o.title)} | ${org}</title>
+<meta name="description" content="${esc(o.desc)}">${seoMeta(req, { path: o.path, title: o.title + ' | ' + (s.brand || orgDisplayName() || ''), description: o.desc, image: o.image })}
+${o.jsonld ? ('<script type="application/ld+json">' + JSON.stringify(o.jsonld).replace(/</g, '\\u003c') + '</script>') : ''}
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>${SITE_CSS}</style><style>${SEO_CSS}</style></head><body>
+<header><div class="wrap"><nav class="nav">
+  <a class="brand" href="/site"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
+  <span class="sp"></span>
+  <div class="navdd"><a class="navlink" href="/site#services">Services</a><div class="navdd-menu"><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a></div></div>
+  <a class="navlink" href="/market">Listings</a>
+  <a class="navlink" href="/site/subscribe">Listing alerts</a>
+  <a class="navcta" href="#contact">Request a valuation</a>
+</nav></div></header>
+${o.body}
+<footer><div class="wrap">
+  <div class="foot">
+    <div><a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
+      <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right.&trade; Representing sellers, buyers, landlords, and tenants across Texas.</p></div>
+    <div><h4>Markets</h4>${cityLinks}</div>
+    <div><h4>Offices</h4>${offLinks}</div>
+  </div>
+  <div class="footbar"><span>&copy; ${year} ${esc(orgLegalName())}. All rights reserved.</span></div>
+</div></footer>
+<script>
+(function(){ var f=document.getElementById('leadForm'); if(!f) return; function v(id){ var el=document.getElementById(id); return el?String(el.value||'').trim():''; }
+  f.addEventListener('submit',function(e){ e.preventDefault(); var msg=document.getElementById('leadMsg'), btn=document.getElementById('leadBtn');
+    var body={ name:v('lf_name'), email:v('lf_email'), phone:v('lf_phone'), interest:f.getAttribute('data-interest')||'Website', message:v('lf_message') };
+    if(!body.name || (!body.email && !body.phone)){ msg.textContent='Add your name and an email or phone.'; msg.className='lmsg err'; return; }
+    var old=btn.textContent; btn.disabled=true; btn.textContent='Sending…'; msg.textContent='';
+    fetch('/api/website/lead',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){
+      if(j&&j.ok){ f.reset(); msg.textContent='Thanks, we’ll be in touch shortly, confidentially.'; msg.className='lmsg ok'; } else { msg.textContent=(j&&j.error)||'Something went wrong. Please call us.'; msg.className='lmsg err'; }
+      btn.disabled=false; btn.textContent=old; }).catch(function(){ msg.textContent='Network error. Please call us.'; msg.className='lmsg err'; btn.disabled=false; btn.textContent=old; }); });
+})();
+</script></body></html>`;
+}
+function _seoForm(cta, interest, placeholder) {
+  return '<form class="cform" id="leadForm" data-interest="' + esc(interest) + '"><input id="lf_name" placeholder="Your name" autocomplete="name"><input id="lf_email" type="email" placeholder="Email" autocomplete="email"><input id="lf_phone" placeholder="Phone (optional)" autocomplete="tel"><textarea id="lf_message" placeholder="' + esc(placeholder) + '"></textarea><button class="btn red" id="leadBtn" type="submit" style="width:100%">' + esc(cta) + '</button><div class="lmsg" id="leadMsg"></div><div style="font-size:12px;color:#8a93a8;margin-top:8px">Confidential. We never share your information.</div></form>';
+}
+function seoCityPage(req, typeKey, cityKey) {
+  const T = SEO_TYPES[typeKey], C = SEO_CITIES[cityKey]; if (!T || !C) return null;
+  const path = '/' + typeKey + '/' + cityKey; const base = siteBaseUrl(req);
+  const list = T.kind === 'sell' ? _seoCityListings(C, null) : _seoCityListings(C, T.filter);
+  const faqs = T.faqs(C);
+  const sibs = Object.keys(SEO_TYPES).filter(k => k !== typeKey).map(k => '<a href="/' + k + '/' + cityKey + '">' + esc(SEO_TYPES[k].title(C).replace(/, TX$/, '')) + '</a>').join('');
+  const others = Object.keys(SEO_CITIES).filter(k => k !== cityKey).map(k => '<a href="/' + typeKey + '/' + k + '">' + esc(SEO_TYPES[typeKey].title(SEO_CITIES[k]).replace(/, TX$/, '')) + '</a>').join('');
+  const s = loadWebsite();
+  const wins = (s.wins || []).filter(w => C.locRx.test(String(w.market || '')) || C.metros.some(m => String(w.market || '').indexOf(m) >= 0)).slice(0, 6);
+  const winsHtml = wins.length ? ('<div class="lgrid">' + wins.map(w => '<div class="lcard" style="padding:16px"><span class="lflag" style="background:#1f6b45">' + esc(w.type || 'Closed') + '</span><div class="lh">' + esc(w.label || '') + '</div><div class="lm">' + esc([w.market, w.detail].filter(Boolean).join(' · ')) + '</div></div>').join('') + '</div>') : '';
+  let listSec = '';
+  if (T.kind === 'sell') {
+    listSec = '<section class="csec alt"><div class="wrap"><h2>Why owners in ' + esc(C.name) + ' work with us</h2><p>' + esc(C.local) + '</p><p>We value the business on what it actually earns, market it blind so your staff and regulars never know, qualify every buyer before they see your name, and manage the lease assignment and the close.</p>'
+      + (winsHtml ? ('<h2 style="margin-top:26px;font-size:22px">Recent transactions</h2>' + winsHtml) : '') + '</div></section>';
+  } else {
+    listSec = '<section class="csec alt"><div class="wrap"><h2>' + (list.length ? (list.length + ' current ' + (list.length === 1 ? 'opportunity' : 'opportunities')) : 'Current opportunities') + '</h2>'
+      + (list.length ? ('<div class="lgrid">' + list.slice(0, 24).map(_seoCard).join('') + '</div>')
+        : ('<div class="cempty">Nothing public in ' + esc(C.name) + ' right now. Most of our deals are matched to buyers before they’re posted. <a href="/site/subscribe" style="color:var(--blue);font-weight:700">Get listing alerts</a> or tell us what you’re looking for below. <br><br><b>Own a restaurant in ' + esc(C.name) + '?</b> <a href="/sell-my-restaurant/' + cityKey + '" style="color:var(--blue);font-weight:700">See what it’s worth</a>.</div>'))
+      + '<h2 style="margin-top:34px;font-size:22px">The ' + esc(C.name) + ' market</h2><p>' + esc(C.local) + '</p></div></section>';
+  }
+  const placeholder = T.kind === 'sell' ? 'Tell us a little about your restaurant (optional)' : (T.kind === 'lease' ? 'What are you looking for? Size, area, budget, timing' : 'What are you looking for? Concept, area, budget');
+  const body = '<section class="chero"><div class="wrap"><div class="eyebrow">' + esc(T.kicker) + ' &middot; ' + esc(C.name) + ', Texas</div><h1>' + esc(T.h1(C)) + '</h1><p class="lead">' + esc(T.intro(C)) + '</p><div style="margin-top:22px"><a class="btn gold" href="#contact">' + esc(T.cta) + '</a></div></div></section>'
+    + listSec
+    + '<section class="csec" id="contact"><div class="wrap cgrid2"><div><h2>' + esc(T.cta) + '</h2><p>' + (T.kind === 'sell' ? 'Tell us about your restaurant and we’ll follow up personally, confidentially. No obligation.' : 'Tell us what you’re after in ' + esc(C.name) + ' and we’ll send matching opportunities, including ones that never hit the market.') + '</p>'
+    + '<h2 style="margin-top:30px;font-size:22px">Questions</h2>' + faqs.map(f => '<details class="faq"><summary>' + esc(f[0]) + '</summary><div class="fa">' + esc(f[1]) + '</div></details>').join('')
+    + '<h2 style="margin-top:30px;font-size:18px">More in ' + esc(C.name) + '</h2><div class="clinks">' + sibs + '</div>'
+    + '<h2 style="margin-top:20px;font-size:18px">Other markets</h2><div class="clinks">' + others + '</div></div>'
+    + '<div>' + _seoForm(T.cta, T.interest + ' — ' + C.name, placeholder) + '</div></div></section>';
+  const ld = [{ '@context': 'https://schema.org', '@type': 'RealEstateAgent', name: orgDisplayName(), url: base + '/site', areaServed: { '@type': 'City', name: C.name + ', TX' }, description: T.desc(C) },
+    { '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: faqs.map(f => ({ '@type': 'Question', name: f[0], acceptedAnswer: { '@type': 'Answer', text: f[1] } })) }];
+  if (T.kind !== 'sell' && list.length) ld.push({ '@context': 'https://schema.org', '@type': 'ItemList', itemListElement: list.slice(0, 24).map((t, i) => ({ '@type': 'ListItem', position: i + 1, url: base + _seoListingUrl(t), name: t.headline })) });
+  return _seoShell(req, { path, title: T.title(C), desc: T.desc(C), body, jsonld: ld });
+}
+function seoListingPage(req, key) {
+  const t = _seoAllTeasers().find(x => String(x.id) === String(key)); if (!t) return null;
+  const facts = [['Location', t.loc], ['Concept', t.conceptKey && t.conceptKey !== 'Other' ? t.conceptKey : ''], ['Price', t.price || t.priceBand], ['Revenue', t.revenue], [t.earnBasis || 'SDE', t.sde], ['Square feet', t.sf], ['Rent', t.rate], ['Lease term', t.term], ['FF&E', t.ffe]].filter(f => String(f[1] || '').trim());
+  const city = Object.keys(SEO_CITIES).find(k => SEO_CITIES[k].metros.indexOf(t.marketKey) >= 0 || SEO_CITIES[k].locRx.test(String(t.loc || '')));
+  const back = city ? ('<a href="/' + (t.kind === 'lease' ? 'restaurant-space-for-lease' : 'restaurants-for-sale') + '/' + city + '" style="color:#c7d2e6;text-decoration:none;font-size:13.5px">← More in ' + esc(SEO_CITIES[city].name) + '</a>') : '<a href="/market" style="color:#c7d2e6;text-decoration:none;font-size:13.5px">← All listings</a>';
+  const desc = (t.headline || 'Restaurant opportunity') + (t.loc ? (' in ' + t.loc) : '') + '. Confidential listing: request access to see the name, location and financials under NDA.';
+  const body = '<section class="chero"><div class="wrap">' + back + '<div class="eyebrow" style="margin-top:14px">' + esc(t.kind === 'lease' ? 'For lease' : (t.kind === 'asset' ? 'Asset sale' : 'For sale')) + (t.loc ? (' &middot; ' + esc(t.loc)) : '') + '</div><h1>' + esc(t.headline) + '</h1>' + (t.flagLabel ? ('<span class="lflag" style="background:' + esc(t.flagColor || '#C8A24B') + '">' + esc(t.flagLabel) + '</span>') : '') + '</div></section>'
+    + '<section class="csec"><div class="wrap ldet"><div>' + (t.photo ? ('<div class="lph" style="height:320px;border-radius:12px;background-image:url(\'' + esc(t.photo) + '\')"></div>') : '')
+    + '<div class="lfacts">' + facts.map(f => '<div class="lfact"><b>' + esc(f[0]) + '</b><span>' + esc(f[1]) + '</span></div>').join('') + '</div>'
+    + '<p>This is a confidential listing. To protect the business, its staff and customers, the name and exact location are shared only with qualified buyers who sign a non-disclosure agreement.</p></div>'
+    + '<div id="contact">' + _seoForm('Request access', 'Listing access — ' + (t.headline || '') + ' [' + t.id + ']', 'Tell us a little about yourself and your experience (optional)') + '</div></div></section>';
+  const ld = { '@context': 'https://schema.org', '@type': 'Offer', name: t.headline, description: desc, url: siteBaseUrl(req) + _seoListingUrl(t), areaServed: t.loc || undefined, seller: { '@type': 'RealEstateAgent', name: orgDisplayName() } };
+  return _seoShell(req, { path: _seoListingUrl(t), title: t.headline + (t.loc ? (' — ' + t.loc) : ''), desc, body, jsonld: ld, image: t.photo || undefined });
+}
+app.get('/:type(sell-my-restaurant|restaurant-valuation|restaurants-for-sale|bars-for-sale|restaurant-space-for-lease)/:city', (req, res) => {
+  const h = seoCityPage(req, req.params.type, req.params.city);
+  if (!h) return res.status(404).send('Not found.');
+  res.set('Content-Type', 'text/html; charset=utf-8').send(h);
+});
+app.get('/listing/:slug', (req, res) => {
+  const m = String(req.params.slug || '').match(/--(.+)$/); const key = m ? decodeURIComponent(m[1]) : '';
+  const h = key ? seoListingPage(req, key) : null;
+  if (!h) return res.status(404).set('Content-Type', 'text/html; charset=utf-8').send('<!doctype html><meta charset="utf-8"><p style="font-family:Arial;padding:40px">This listing is no longer available. <a href="/market">See current listings</a>.</p>');
+  res.set('Content-Type', 'text/html; charset=utf-8').send(h);
+});
+function seoSitemapPaths() {
+  const out = [];
+  Object.keys(SEO_TYPES).forEach(t => Object.keys(SEO_CITIES).forEach(c => out.push('/' + t + '/' + c)));
+  try { _seoAllTeasers().forEach(t => out.push(_seoListingUrl(t))); } catch (e) {}
+  return out;
+}
 app.get('/sitemap.xml', (req, res) => {
   const base = siteBaseUrl(req);
-  const paths = ['/site', '/site/sell', '/site/multi-unit', '/site/exit', '/site/secure', '/site/place', '/site/assets', '/site/subscribe', '/market'];
+  const paths = ['/site', '/site/sell', '/site/multi-unit', '/site/exit', '/site/secure', '/site/place', '/site/assets', '/site/subscribe', '/market'].concat(seoSitemapPaths());
   const today = new Date().toISOString().slice(0, 10);
   const urls = paths.map(function (p) {
     return '<url><loc>' + esc(base + p) + '</loc><lastmod>' + today + '</lastmod><changefreq>weekly</changefreq><priority>' + (p === '/site' ? '1.0' : '0.8') + '</priority></url>';
@@ -8282,6 +8478,7 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
       <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right.&trade; Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
+    <div><h4>Markets</h4><a href="/sell-my-restaurant/san-antonio">San Antonio</a><a href="/sell-my-restaurant/austin">Austin</a><a href="/sell-my-restaurant/dallas">Dallas–Fort Worth</a><a href="/sell-my-restaurant/houston">Houston</a><a href="/restaurants-for-sale/san-antonio">Restaurants for sale</a><a href="/restaurant-space-for-lease/san-antonio">Space for lease</a></div>
     <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/subscribe">Listing alerts</a><a href="/site/careers">Careers</a></div>
     <div><h4>Offices</h4>${offLinks}</div>
   </div>
@@ -8470,6 +8667,7 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
       <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right.&trade; Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
+    <div><h4>Markets</h4><a href="/sell-my-restaurant/san-antonio">San Antonio</a><a href="/sell-my-restaurant/austin">Austin</a><a href="/sell-my-restaurant/dallas">Dallas–Fort Worth</a><a href="/sell-my-restaurant/houston">Houston</a><a href="/restaurants-for-sale/san-antonio">Restaurants for sale</a><a href="/restaurant-space-for-lease/san-antonio">Space for lease</a></div>
     <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/subscribe">Listing alerts</a><a href="/site/careers">Careers</a></div>
     <div><h4>Offices</h4>${offLinks}</div>
   </div>
@@ -8645,6 +8843,7 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
       <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right.&trade; Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
+    <div><h4>Markets</h4><a href="/sell-my-restaurant/san-antonio">San Antonio</a><a href="/sell-my-restaurant/austin">Austin</a><a href="/sell-my-restaurant/dallas">Dallas–Fort Worth</a><a href="/sell-my-restaurant/houston">Houston</a><a href="/restaurants-for-sale/san-antonio">Restaurants for sale</a><a href="/restaurant-space-for-lease/san-antonio">Space for lease</a></div>
     <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/subscribe">Listing alerts</a><a href="/site/careers">Careers</a></div>
     <div><h4>Offices</h4>${offLinks}</div>
   </div>
@@ -8817,6 +9016,7 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
       <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right.&trade; Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
+    <div><h4>Markets</h4><a href="/sell-my-restaurant/san-antonio">San Antonio</a><a href="/sell-my-restaurant/austin">Austin</a><a href="/sell-my-restaurant/dallas">Dallas–Fort Worth</a><a href="/sell-my-restaurant/houston">Houston</a><a href="/restaurants-for-sale/san-antonio">Restaurants for sale</a><a href="/restaurant-space-for-lease/san-antonio">Space for lease</a></div>
     <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/subscribe">Listing alerts</a><a href="/site/careers">Careers</a></div>
     <div><h4>Offices</h4>${offLinks}</div>
   </div>
@@ -9018,6 +9218,7 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
       <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right.&trade; Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
+    <div><h4>Markets</h4><a href="/sell-my-restaurant/san-antonio">San Antonio</a><a href="/sell-my-restaurant/austin">Austin</a><a href="/sell-my-restaurant/dallas">Dallas–Fort Worth</a><a href="/sell-my-restaurant/houston">Houston</a><a href="/restaurants-for-sale/san-antonio">Restaurants for sale</a><a href="/restaurant-space-for-lease/san-antonio">Space for lease</a></div>
     <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/subscribe">Listing alerts</a><a href="/site/careers">Careers</a></div>
     <div><h4>Offices</h4>${offLinks}</div>
   </div>
@@ -9370,6 +9571,7 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
       <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right.&trade; Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
+    <div><h4>Markets</h4><a href="/sell-my-restaurant/san-antonio">San Antonio</a><a href="/sell-my-restaurant/austin">Austin</a><a href="/sell-my-restaurant/dallas">Dallas–Fort Worth</a><a href="/sell-my-restaurant/houston">Houston</a><a href="/restaurants-for-sale/san-antonio">Restaurants for sale</a><a href="/restaurant-space-for-lease/san-antonio">Space for lease</a></div>
     <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/subscribe">Listing alerts</a><a href="/site/careers">Careers</a></div>
     <div><h4>Offices</h4>${offLinks}</div>
   </div>
@@ -9543,6 +9745,7 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
       <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right.&trade; Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
+    <div><h4>Markets</h4><a href="/sell-my-restaurant/san-antonio">San Antonio</a><a href="/sell-my-restaurant/austin">Austin</a><a href="/sell-my-restaurant/dallas">Dallas–Fort Worth</a><a href="/sell-my-restaurant/houston">Houston</a><a href="/restaurants-for-sale/san-antonio">Restaurants for sale</a><a href="/restaurant-space-for-lease/san-antonio">Space for lease</a></div>
     <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/subscribe">Listing alerts</a><a href="/site/careers">Careers</a></div>
     <div><h4>Offices</h4>${offLinks}</div>
   </div>
@@ -9774,7 +9977,7 @@ footer{background:#05081a;color:#8597b8;font-size:13px;padding:40px 0 30px;}
 .annbadge .anntxt{display:flex;flex-direction:column;line-height:1.12;}
 .annbadge .anntxt b{color:#fff;font-weight:800;font-size:12.5px;letter-spacing:.09em;text-transform:uppercase;}
 .annbadge .anntxt i{color:#E0C27E;font-style:normal;font-size:10px;font-weight:700;letter-spacing:.11em;margin-top:2px;}
-.foot{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:24px;}
+.foot{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:24px;}
 @media(max-width:720px){.foot{grid-template-columns:1fr;gap:18px;}}
 .foot h4{color:#fff;font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;}
 .foot a{color:#b9c6df;text-decoration:none;display:block;margin:5px 0;}
@@ -10122,6 +10325,7 @@ ${s.careersBandHead ? `<section id="careers" style="background:var(--cream);padd
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right.&trade; Representing sellers, buyers, landlords, and tenants across Texas.</p>
       <div class="annbadge"><span class="anndisc">RRG</span><span class="anntxt"><b>10 Years</b><i>2016 – 2026</i></span></div>
     </div>
+    <div><h4>Markets</h4><a href="/sell-my-restaurant/san-antonio">San Antonio</a><a href="/sell-my-restaurant/austin">Austin</a><a href="/sell-my-restaurant/dallas">Dallas–Fort Worth</a><a href="/sell-my-restaurant/houston">Houston</a><a href="/restaurants-for-sale/san-antonio">Restaurants for sale</a><a href="/restaurant-space-for-lease/san-antonio">Space for lease</a></div>
     <div><h4>Explore</h4><a href="/site/sell">Sell a restaurant</a><a href="/site/multi-unit">Multi-unit &amp; portfolios</a><a href="/site/assets">Asset sales</a><a href="/site/exit">Exit a lease</a><a href="/site/secure">Secure a location</a><a href="/site/place">Place an operator</a><a href="/site/subscribe">Listing alerts</a><a href="/site/careers">Careers</a></div>
     <div><h4>Offices</h4>${(s.offices || []).map(function (o) { const tel = String(o.phone || '').replace(/[^0-9+]/g, ''); return '<a href="tel:' + tel + '">' + esc(o.city || '') + ' &middot; ' + esc(o.phone || '') + '</a>'; }).join('')}</div>
   </div>
