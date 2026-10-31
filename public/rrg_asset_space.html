@@ -101,6 +101,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .phadd{width:118px;height:88px;border:1.5px dashed var(--inp);border-radius:3px;display:flex !important;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;color:var(--primary);background:#fbfcfe;margin:0 !important;text-transform:none !important;letter-spacing:0 !important;}
 .phadd b{font-size:22px;line-height:1;} .phadd span{font-size:11.5px;font-weight:700;}
 #phZone.drag{outline:2px dashed var(--primary);outline-offset:4px;background:#f2f6fb;}
+.subhd{font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--primary);margin:14px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--line);} .body>.subhd:first-child,.absnote+.subhd{margin-top:2px;}
 .gate{padding:50px 24px;text-align:center;color:var(--muted);font-size:14px;}
 .banner{border-radius:12px;padding:12px 16px;font-size:13px;font-weight:600;margin-bottom:16px;line-height:1.5;}
 .banner.done{background:#eaf7f0;border:1px solid #bfe6d0;color:#1a6e46;}
@@ -199,14 +200,17 @@ var GROUPS=[
     {k:'exclusions', l:'Excluded — seller keeps', a:1, ph:'Anything the seller is taking: art, the neon sign, the smoker… Items marked “Seller keeps” in the schedule are listed automatically.'}
   ]},
   {title:'The lease', core:1, hint:'The heart of a space deal — how much time is left and how the landlord handles an assignment.', fields:[
-    {k:'leaseRent', l:'Current base rent', core:1, ph:'$6,200 / mo'},
-    {k:'leasePerSF', l:'Rent per SF', ph:'$38 / SF'},
-    {k:'leaseRemaining', l:'Remaining term', core:1, ph:'4 yrs 3 mos'},
-    {k:'leaseExpiration', l:'Lease expiration', ph:'Mar 2030'},
+    {sub:'Rent'},
+    {k:'leaseRent', l:'Base rent — monthly', core:1, ph:'$6,200', money:1, suffix:' / mo'},
+    {k:'leasePerSF', l:'Rent per SF — annual', ph:'$38.00', psf:1},
+    {k:'leaseNNN', l:'NNN / CAM · taxes · insurance', ph:'$9.00 / SF / yr'},
+    {k:'leaseDeposit', l:'Security deposit / key money to landlord', ph:'$6,200 deposit · $25,000 key money'},
+    {sub:'Term'},
+    {k:'leaseExpiration', l:'Lease expiration', ph:'Pick the date', date:1},
+    {k:'leaseRemaining', l:'Remaining term', core:1, ph:'Fills from the expiration'},
     {k:'leaseOptions', l:'Renewal options', opts:1},
+    {sub:'Use & transfer'},
     {k:'leaseAssignment', l:'Assignment & landlord consent', core:1, a:1, ph:"Landlord's posture, the consent process, transfer fees, any personal guaranty…"},
-    {k:'leaseNNN', l:'NNN / CAM · taxes · insurance', ph:'$9 / SF NNN'},
-    {k:'leaseDeposit', l:'Security deposit / key money to landlord', ph:'$6,200 deposit · $25k key money'},
     {k:'leaseUse', l:'Permitted use / exclusives', ph:'Full-service restaurant; no exclusives'},
     {k:'leaseFixtures', l:'Fixtures at lease end', ph:'Pick one or cite the lease section', list:['Stay with the space','Tenant may remove','Tenant must remove','Per lease — see section']}
   ]},
@@ -343,7 +347,7 @@ function groupHtml(g){
   // Two-column for the short inputs, full width for textareas — grouped in visual order.
   var rows='', buf=[];
   function flush(){ if(!buf.length) return; rows+='<div class="row2">'+buf.join('')+'</div>'; buf=[]; }
-  g.fields.forEach(function(f){ if(f.a||f.full||f.opts||f.hl||f.hvac){ flush(); rows+=fieldHtml(f); } else { buf.push(fieldHtml(f)); if(buf.length===2) flush(); } });
+  g.fields.forEach(function(f){ if(f.sub){ flush(); rows+='<div class="subhd">'+esc(f.sub)+'</div>'; return; } if(f.a||f.full||f.opts||f.hl||f.hvac){ flush(); rows+=fieldHtml(f); } else { buf.push(fieldHtml(f)); if(buf.length===2) flush(); } });
   flush();
   if(GROUPS.indexOf(g)===0) rows=vrefHtml()+rows;
   if(g.title==='The lease') rows=absNoteHtml()+rows;
@@ -359,7 +363,7 @@ function groupCore(g){ var ks=g.fields.filter(function(f){return f.core;}).map(f
 function _fFilled(f){ var v=function(k){ return String(SPEC[k]||'').trim(); };
   if(f.seats) return !!(v('seatsIn')||v('seatsOut')||v('seating')); if(f.hvac) return !!(v('hvacUnits')||v('hvacTons')||v('hvac'));
   if(f.opts) return !!(v('optCount')||v('leaseOptions')); return !!v(f.k); }
-function _fCounts(f){ return !(f.legacy && !String(SPEC[f.k]||'').trim()); }
+function _fCounts(f){ return !f.sub && !(f.legacy && !String(SPEC[f.k]||'').trim()); }
 function groupFilled(g){ var n=g.fields.filter(function(f){ return _fCounts(f) && _fFilled(f); }).length; if(g.photos && MEDIA && (MEDIA.photos||[]).length) n++; if(g.convey && CONVEY && CONVEY.length) n++; if(g.ffe && FFE.length) n++; return n; }
 function groupTotal(g){ var m=g.fields.filter(_fCounts).length; if(g.photos) m++; if(g.convey) m++; if(g.ffe) m++; return m; }
 function groupStatus(g){
@@ -401,7 +405,9 @@ function render(){
   });
   ffeWire(); wireDates(); wireKit(); wireOpts(); wireHl(); wirePhotos(); wireHeaders(); refreshBanner();
   GROUPS.forEach(function(g){ g.fields.forEach(function(f){ if(!f.num) return; var el=document.querySelector('[data-k="'+f.k+'"]'); if(!el) return; el.setAttribute('inputmode','numeric'); el.addEventListener('blur', function(){ var d=el.value.replace(/[^0-9]/g,''); var v=d?(f.year?d.slice(0,4):Number(d).toLocaleString('en-US')):''; if(v!==el.value){ el.value=v; SPEC[f.k]=v; markDirty(); } }); }); });
-  GROUPS.forEach(function(g){ g.fields.forEach(function(f){ if(!f.money) return; var el=document.querySelector('[data-k="'+f.k+'"]'); if(!el) return; el.setAttribute('inputmode','decimal'); el.addEventListener('blur', function(){ var v=fmtMoney(el.value); if(v!==el.value){ el.value=v; SPEC[f.k]=v; markDirty(); } }); }); });
+  GROUPS.forEach(function(g){ g.fields.forEach(function(f){ if(!f.money) return; var el=document.querySelector('[data-k="'+f.k+'"]'); if(!el) return; el.setAttribute('inputmode','decimal'); el.addEventListener('blur', function(){ var raw=el.value.replace(/\s*\/\s*mo(nth)?\.?\s*$/i,''); var v=fmtMoney(raw); if(f.suffix && /^\$/.test(v)) v+=f.suffix; if(v!==el.value){ el.value=v; SPEC[f.k]=v; markDirty(); } }); }); });
+  GROUPS.forEach(function(g){ g.fields.forEach(function(f){ if(!f.psf) return; var el=document.querySelector('[data-k="'+f.k+'"]'); if(!el) return; el.setAttribute('inputmode','decimal'); el.addEventListener('blur', function(){ var m=el.value.replace(/[$,\s]/g,'').match(/^(\d+(?:\.\d+)?)/); if(!m) return; var v='$'+parseFloat(m[1]).toFixed(2)+' / SF / yr'; if(v!==el.value){ el.value=v; SPEC[f.k]=v; markDirty(); } }); }); });
+  (function(){ var ex=document.querySelector('[data-k="leaseExpiration"]'); if(ex) ex.addEventListener('blur', autoRemaining); })();
   document.querySelectorAll('[data-lsel]').forEach(function(sel){ var k=sel.getAttribute('data-lsel'), inp=document.querySelector('input[data-k="'+k+'"]'); sel.addEventListener('change', function(){ if(sel.value==='__other'){ inp.classList.remove('hid'); inp.value=''; inp.focus(); } else { inp.classList.add('hid'); inp.value=sel.value; } SPEC[k]=inp.value; markDirty(); refreshBanner(); }); });
   wireHvac();
 }
@@ -536,12 +542,14 @@ function ffeWire(){
   tb.addEventListener('click', function(e){ var b=e.target.closest('[data-del]'); if(!b) return; FFE.splice(+b.getAttribute('data-del'),1); markDirty(); ffeRefresh(); });
 }
 // Target availability: free text, with a calendar to pick a date.
+// Remaining term from the expiration date: "3 yrs 4 mos".
+function autoRemaining(){ var ex=document.querySelector('[data-k="leaseExpiration"]'), rm=document.querySelector('[data-k="leaseRemaining"]'); if(!ex||!rm) return; var t=Date.parse(ex.value); if(isNaN(t)) return; var now=new Date(), d=new Date(t); var mo=(d.getFullYear()-now.getFullYear())*12+(d.getMonth()-now.getMonth())-(d.getDate()<now.getDate()?1:0); var v=mo<=0?'Expired or expiring':((Math.floor(mo/12)?(Math.floor(mo/12)+' yr'+(Math.floor(mo/12)===1?'':'s')):'')+(mo%12?((mo>=12?' ':'')+(mo%12)+' mo'+(mo%12===1?'':'s')):'')); if(rm.value!==v){ rm.value=v; SPEC.leaseRemaining=v; var f=rm.closest('.fld'); if(f) f.classList.remove('need'); markDirty(); refreshBanner(); } }
 function _fmtDate(v){ var p=String(v||'').split('-'); if(p.length!==3) return v; var m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][(+p[1])-1]; return m+' '+(+p[2])+', '+p[0]; }
 function wireDates(){
   document.querySelectorAll('[data-cal]').forEach(function(b){
     var k=b.getAttribute('data-cal'), hid=document.querySelector('input[data-calfor="'+k+'"]'), txt=document.querySelector('[data-k="'+k+'"]');
     b.onclick=function(){ try{ if(hid.showPicker){ hid.showPicker(); } else { hid.focus(); hid.click(); } }catch(e){ hid.focus(); } };
-    hid.onchange=function(){ if(!hid.value) return; txt.value=_fmtDate(hid.value); SPEC[k]=txt.value; markDirty(); };
+    hid.onchange=function(){ if(!hid.value) return; txt.value=_fmtDate(hid.value); SPEC[k]=txt.value; markDirty(); if(k==='leaseExpiration') autoRemaining(); };
   });
 }
 
