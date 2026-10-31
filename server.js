@@ -20139,6 +20139,29 @@ app.post('/api/value-letter/:id/email', express.json(), async (req, res) => {
     res.json({ ok: true, letter: _vlOut(L, req) });
   } catch (e) { console.error('value letter email:', e && e.message); res.status(502).json({ ok: false, error: 'Could not send the email.' }); }
 });
+// "What conveys" checklist. Each item can carry a short detail (hood length, walk-in size…).
+// The checklist is the single source for the buildout fields it maps to (to: spec key).
+const CONVEY_KIT = [
+  { k: 'hood1', l: 'Type I hood', to: 'hood' }, { k: 'hood2', l: 'Type II hood', to: 'hood' }, { k: 'mua', l: 'Make-up air', to: 'hood' }, { k: 'grease', l: 'Grease trap / interceptor', to: 'hood' },
+  { k: 'ansul', l: 'Fire suppression', to: 'ansul' }, { k: 'gas', l: 'Gas line', to: 'gas' },
+  { k: 'walkinC', l: 'Walk-in cooler', to: 'walkin' }, { k: 'walkinF', l: 'Walk-in freezer', to: 'walkin' },
+  { k: 'sink3', l: '3-compartment sink' }, { k: 'mop', l: 'Mop sink' }, { k: 'drains', l: 'Floor drains' },
+  { k: 'restrooms', l: 'ADA restrooms', to: 'restrooms' }, { k: 'bar', l: 'Built-in bar' }, { k: 'drive', l: 'Drive-thru' }, { k: 'sign', l: 'Sign panel / pylon' },
+  { k: 'ffe', l: 'FF&E per schedule' }, { k: 'liquor', l: 'Liquor license (transfer)' }
+];
+function _conveyClean(arr) {
+  if (!Array.isArray(arr)) return null;
+  const ok = {}; CONVEY_KIT.forEach(c => { ok[c.k] = 1; }); const seen = {};
+  return arr.map(r => ({ k: String((r && r.k) || ''), d: String((r && r.d) || '').trim().slice(0, 160) })).filter(r => ok[r.k] && !seen[r.k] && (seen[r.k] = 1));
+}
+function _conveySync(spec, conv) {
+  if (!conv || !conv.length) return spec;
+  const lab = {}; CONVEY_KIT.forEach(c => { lab[c.k] = c; });
+  const by = {}; conv.forEach(r => { const c = lab[r.k]; if (c && c.to) (by[c.to] = by[c.to] || []).push(c.l + (r.d ? (' — ' + r.d) : '')); });
+  ['hood', 'ansul', 'gas', 'walkin', 'restrooms'].forEach(f => { if (by[f]) spec[f] = by[f].join(' · ').slice(0, ASSET_SPEC_FIELDS[f]); else delete spec[f]; });
+  return spec;
+}
+function _conveyLine(conv) { const lab = {}; CONVEY_KIT.forEach(c => { lab[c.k] = c.l; }); return (conv || []).map(r => lab[r.k]).filter(Boolean).join(' · '); }
 // FF&E equipment schedule (structured rows). Rows drive the spec sheet table; the plain-text
 // ffeSchedule / ffeExcluded fields are regenerated from them so older consumers keep working.
 function _ffeClean(arr) {
@@ -20186,7 +20209,7 @@ app.get('/api/asset-spec', (req, res) => {
     if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
     if (!ownsDeal(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
     const spec = d.assetSpec || {};
-    res.json({ ok: true, key: req.query.key, business: d.business || '', market: d.market || '', saleLane: _effLane(req.query.key, d), spec: spec, ffe: d.assetFfe || [], ffeCats: aiassist.FFE_CATS || [], core: ASSET_SPEC_CORE, missing: ASSET_SPEC_CORE.filter(k => !spec[k]) });
+    res.json({ ok: true, key: req.query.key, business: d.business || '', market: d.market || '', saleLane: _effLane(req.query.key, d), spec: spec, ffe: d.assetFfe || [], ffeCats: aiassist.FFE_CATS || [], convey: d.assetConvey || null, conveyKit: CONVEY_KIT, core: ASSET_SPEC_CORE, missing: ASSET_SPEC_CORE.filter(k => !spec[k]) });
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 app.post('/api/asset-spec', express.json({ limit: '256kb' }), (req, res) => {
@@ -20196,10 +20219,11 @@ app.post('/api/asset-spec', express.json({ limit: '256kb' }), (req, res) => {
     if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
     if (!ownsDeal(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
     if (Array.isArray(b.ffe)) d.assetFfe = _ffeClean(b.ffe);
-    d.assetSpec = _ffeSyncText(_assetSpecClean(b.spec), d.assetFfe || []);
+    if (Array.isArray(b.convey)) d.assetConvey = _conveyClean(b.convey);
+    d.assetSpec = _conveySync(_ffeSyncText(_assetSpecClean(b.spec), d.assetFfe || []), d.assetConvey);
     d.updatedAt = new Date().toISOString();
     saveDeals(arr);
-    res.json({ ok: true, spec: d.assetSpec, ffe: d.assetFfe || [], missing: ASSET_SPEC_CORE.filter(k => !d.assetSpec[k]) });
+    res.json({ ok: true, spec: d.assetSpec, ffe: d.assetFfe || [], convey: d.assetConvey || null, missing: ASSET_SPEC_CORE.filter(k => !d.assetSpec[k]) });
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 // Grouped labels for the buyer-facing spec sheet (Marketing assets are internal — omitted).
@@ -20216,8 +20240,9 @@ function _assetPriceBand(askingPrice) {
   const n = parseInt(String(askingPrice || '').replace(/[^0-9]/g, ''), 10) || 0;
   if (!n) return ''; if (n < 1000000) return 'u1m'; if (n < 3000000) return '1-3m'; if (n < 5000000) return '3-5m'; return '5m+';
 }
-function assetSheetHtml(business, market, spec, ffe) {
-  spec = spec || {}; ffe = Array.isArray(ffe) ? ffe : [];
+function assetSheetHtml(business, market, spec, ffe, convey) {
+  spec = Object.assign({}, spec || {}); ffe = Array.isArray(ffe) ? ffe : [];
+  if (Array.isArray(convey) && convey.length) spec.conveys = _conveyLine(convey) + (String(spec.conveys || '').trim() ? ('\n' + spec.conveys) : '');
   const nl = s => String(s == null ? '' : s).replace(/\n/g, '<br>');
   let secs = '';
   ASSET_SHEET_GROUPS.forEach(g => {
@@ -20265,7 +20290,7 @@ app.get('/api/asset-spec/sheet', (req, res) => {
     const { d } = _dealByAnyKey(req.query && req.query.key);
     if (!d) return res.status(404).send('Listing not found.');
     if (!ownsDeal(req, d)) return res.status(403).send('Not yours.');
-    res.set('Content-Type', 'text/html; charset=utf-8').send(assetSheetHtml(d.business || '', d.market || '', d.assetSpec || {}, d.assetFfe || []));
+    res.set('Content-Type', 'text/html; charset=utf-8').send(assetSheetHtml(d.business || '', d.market || '', d.assetSpec || {}, d.assetFfe || [], d.assetConvey || null));
   } catch (e) { res.status(500).send('Could not render the sheet.'); }
 });
 // Drop a PDF of the spec sheet into the deal's data room (best-effort) so NDA'd buyers can pull it.
@@ -20273,7 +20298,7 @@ async function depositAssetSheetToRoom(d, key) {
   try {
     const room = resolveRoomFor({ dealKey: key, id: d.id, personId: d.contactPersonId, companyId: d.companyId });
     if (!room) return;
-    const pdf = await _htmlToPdf(assetSheetHtml(d.business || '', d.market || '', d.assetSpec || {}, d.assetFfe || []));
+    const pdf = await _htmlToPdf(assetSheetHtml(d.business || '', d.market || '', d.assetSpec || {}, d.assetFfe || [], d.assetConvey || null));
     if (!pdf || !pdf.length) return;
     const rooms = loadRooms(); const live = rooms.find(x => x.id === room.id); if (!live) return;
     live.docs = live.docs || [];
