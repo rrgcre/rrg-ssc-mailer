@@ -20142,11 +20142,12 @@ app.post('/api/value-letter/:id/email', express.json(), async (req, res) => {
 // "What conveys" checklist. Each item can carry a short detail (hood length, walk-in size…).
 // The checklist is the single source for the buildout fields it maps to (to: spec key).
 const CONVEY_KIT = [
-  { k: 'hood1', l: 'Type I hood', to: 'hood' }, { k: 'hood2', l: 'Type II hood', to: 'hood' }, { k: 'mua', l: 'Make-up air', to: 'hood' }, { k: 'grease', l: 'Grease trap / interceptor', to: 'hood' },
-  { k: 'ansul', l: 'Fire suppression', to: 'ansul' }, { k: 'gas', l: 'Gas line', to: 'gas' },
-  { k: 'walkinC', l: 'Walk-in cooler', to: 'walkin' }, { k: 'walkinF', l: 'Walk-in freezer', to: 'walkin' },
-  { k: 'sink3', l: '3-compartment sink' }, { k: 'mop', l: 'Mop sink' }, { k: 'drains', l: 'Floor drains' },
-  { k: 'restrooms', l: 'ADA restrooms', to: 'restrooms' }, { k: 'bar', l: 'Built-in bar' }, { k: 'drive', l: 'Drive-thru' }, { k: 'sign', l: 'Sign panel / pylon' },
+  { k: 'hood1', l: 'Type I hood', to: 'hood' }, { k: 'hood2', l: 'Type II hood', to: 'hood' }, { k: 'ansul', l: 'Fire suppression', to: 'ansul' }, { k: 'mua', l: 'Make-up air', to: 'hood' },
+  { k: 'gas', l: 'Gas line', to: 'gas' }, { k: 'water', l: 'Water heater' }, { k: 'grease', l: 'Grease trap / interceptor', to: 'hood' },
+  { k: 'walkinC', l: 'Walk-in cooler', to: 'walkin' }, { k: 'walkinF', l: 'Walk-in freezer', to: 'walkin' }, { k: 'dry', l: 'Dry storage' },
+  { k: 'hand', l: 'Hand sinks' }, { k: 'prep', l: 'Prep sink' }, { k: 'sink3', l: '3-compartment sink' }, { k: 'mop', l: 'Mop sink' }, { k: 'drains', l: 'Floor drains' },
+  { k: 'sprink', l: 'Fire sprinklers' }, { k: 'restrooms', l: 'ADA restrooms', to: 'restrooms' }, { k: 'bar', l: 'Built-in bar' }, { k: 'counter', l: 'Order counter' }, { k: 'window', l: 'Pickup / walk-up window' },
+  { k: 'drive', l: 'Drive-thru' }, { k: 'pdr', l: 'Private dining room' }, { k: 'patio', l: 'Patio', to: 'patio' }, { k: 'office', l: 'Office' }, { k: 'sign', l: 'Sign panel / pylon' },
   { k: 'ffe', l: 'FF&E per schedule' }, { k: 'liquor', l: 'Liquor license (transfer)' }
 ];
 function _conveyClean(arr) {
@@ -20158,10 +20159,10 @@ function _conveySync(spec, conv) {
   if (!conv || !conv.length) return spec;
   const lab = {}; CONVEY_KIT.forEach(c => { lab[c.k] = c; });
   const by = {}; conv.forEach(r => { const c = lab[r.k]; if (c && c.to) (by[c.to] = by[c.to] || []).push(c.l + (r.d ? (' — ' + r.d) : '')); });
-  ['hood', 'ansul', 'gas', 'walkin', 'restrooms'].forEach(f => { if (by[f]) spec[f] = by[f].join(' · ').slice(0, ASSET_SPEC_FIELDS[f]); else delete spec[f]; });
+  ['hood', 'ansul', 'gas', 'walkin', 'restrooms', 'patio'].forEach(f => { if (by[f]) spec[f] = by[f].join(' · ').slice(0, ASSET_SPEC_FIELDS[f]); else delete spec[f]; });
   return spec;
 }
-function _conveyLine(conv) { const lab = {}; CONVEY_KIT.forEach(c => { lab[c.k] = c.l; }); return (conv || []).map(r => lab[r.k]).filter(Boolean).join(' · '); }
+function _conveyLine(conv) { const kit = {}; CONVEY_KIT.forEach(c => { kit[c.k] = c; }); return (conv || []).filter(r => kit[r.k]).map(r => kit[r.k].l + ((!kit[r.k].to && r.d) ? (' (' + r.d + ')') : '')).join(' · '); }
 // FF&E equipment schedule (structured rows). Rows drive the spec sheet table; the plain-text
 // ffeSchedule / ffeExcluded fields are regenerated from them so older consumers keep working.
 function _ffeClean(arr) {

@@ -89,7 +89,7 @@ function goBack(){ try{ if(window.top!==window.self){ var x=window.parent.docume
 // Field definition — mirrors the server's ASSET_SPEC_FIELDS. a=textarea, core=required block.
 var GROUPS=[
   {title:'The headline', fields:[
-    {k:'askingPrice', l:'Asking price', ph:'$185,000'},
+    {k:'askingPrice', l:'Asking price', ph:'$185,000', money:1},
     {k:'conveys', kit:1, l:'What conveys', a:1, ph:'Anything else that conveys or is excluded'},
     {k:'reason', l:'Reason for availability', ph:'Pick a reason or type your own', list:['Owner retiring','Owner relocating','Focusing on other locations','Closing the concept','Changing concepts','Lease expiring','Partnership change','Personal reasons']},
     {k:'availableDate', l:'Target availability / delivery date', ph:'Pick a date · or 60 days after closing', date:1}
@@ -108,7 +108,6 @@ var GROUPS=[
   {title:'The space', core:1, fields:[
     {k:'sqft', l:'Interior square footage', core:1, ph:'2,800 SF'},
     {k:'seating', l:'Seating capacity', ph:'90 interior'},
-    {k:'patio', l:'Patio / outdoor', ph:'20-seat patio'},
     {k:'deliveryCondition', l:'Delivery condition', core:1, ph:'As-is, fully equipped'},
     {k:'operatingNow', l:'Operating or dark now', ph:'Operating · or Dark since June'}
   ]},
@@ -178,6 +177,7 @@ function render(){
   });
   document.getElementById('saveBtn').addEventListener('click', save);
   ffeWire(); wireDates(); wireKit();
+  GROUPS.forEach(function(g){ g.fields.forEach(function(f){ if(!f.money) return; var el=document.querySelector('[data-k="'+f.k+'"]'); if(!el) return; el.setAttribute('inputmode','decimal'); el.addEventListener('blur', function(){ var v=fmtMoney(el.value); if(v!==el.value){ el.value=v; SPEC[f.k]=v; DIRTY=true; } }); }); });
   document.querySelectorAll('input[list]').forEach(function(el){ el.addEventListener('focus', function(){ if(!el.value && el.showPicker){ try{ el.showPicker(); }catch(e){} } }); });
 }
 function refreshBanner(){ var b=document.getElementById('bannerHost'); if(b) b.innerHTML=bannerHtml(); }
@@ -198,10 +198,16 @@ function setHead(){ var t=BIZ?(BIZ+' — Space & Assets'):'Space & Assets'; docu
 
 // ── FF&E equipment schedule editor ─────────────────────────────────────────────
 var FFE=[], FFE_CATS=['Cooking','Refrigeration','Prep & Storage','Warewashing','Bar & Beverage','Smallwares','Furniture & Decor','POS & Tech','Signage','Other'];
-var QUICK=[['Fryer','Cooking'],['Grill','Cooking'],['Griddle','Cooking'],['Salamander','Cooking'],['Range','Cooking'],['Reach-in refrigerator','Refrigeration'],['Reach-in freezer','Refrigeration'],['Bar coolers','Bar & Beverage','Confirm'],['Beer system — glycol','Bar & Beverage','Confirm','Number of taps'],['Beer system — direct draw','Bar & Beverage','Confirm','Number of taps'],['Dining tables','Furniture & Decor'],['Dining chairs','Furniture & Decor'],['Patio tables','Furniture & Decor'],['Patio chairs','Furniture & Decor'],['Barstools','Furniture & Decor']];
+var QUICK=[['Range','Cooking'],['Fryer','Cooking'],['Grill','Cooking'],['Griddle','Cooking'],['Salamander','Cooking'],['Reach-in refrigerator','Refrigeration'],['Reach-in freezer','Refrigeration'],['Bar coolers','Bar & Beverage','Confirm'],['Beer system — glycol','Bar & Beverage','Confirm','Number of taps'],['Beer system — direct draw','Bar & Beverage','Confirm','Number of taps'],['Dining tables','Furniture & Decor'],['Dining chairs','Furniture & Decor'],['Patio tables','Furniture & Decor'],['Patio chairs','Furniture & Decor'],['Barstools','Furniture & Decor']];
 // Guess a category from a typed item name (manual rows only).
 var CAT_GUESS=[[/pos|terminal|printer|tablet|ipad|kds|computer|router|camera|speaker|tv|television|music/i,'POS & Tech'],[/beer|draft|draught|keg|tap|glycol|soda|fountain|ice machine|bar |back ?bar|wine|liquor|espresso|coffee|blender|bottle/i,'Bar & Beverage'],[/fridge|refrig|freez|cooler|walk-?in|reach-?in|prep table|sandwich|make ?line|ice cream|chiller|lowboy/i,'Refrigeration'],[/dish|sink|washer|disposal|booster|pre-?rinse/i,'Warewashing'],[/fryer|grill|griddle|range|oven|salamander|broiler|smoker|steamer|kettle|wok|burner|charbroil|hot ?hold|warmer|holding|toaster|microwave|pizza|combi|rotisserie|hood|tilt/i,'Cooking'],[/table|chair|stool|booth|bench|banquette|host stand|decor|art|mirror|lamp|light|umbrella|heater/i,'Furniture & Decor'],[/shelf|shelving|rack|cart|mixer|slicer|scale|work ?table|prep|bin|cabinet|dunnage/i,'Prep & Storage'],[/sign|pylon|neon|menu ?board/i,'Signage'],[/pan|pot|utensil|knife|knives|plate|glass|silverware|flatware|smallware|china|tray/i,'Smallwares']];
 function guessCat(t){ for(var i=0;i<CAT_GUESS.length;i++) if(CAT_GUESS[i][0].test(t)) return CAT_GUESS[i][1]; return ''; }
+// Money fields: "250000", "250k", "$1.2m" → firm currency, whole units. Text like "Make an offer" is left alone.
+var CUR='USD';
+try{ fetch('/api/session',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.currency) CUR=j.currency; }).catch(function(){}); }catch(e){}
+function fmtMoney(t){ t=String(t||'').trim(); if(!t) return t; var m=t.replace(/[\s,$€£¥]|usd|cad|mxn|eur|gbp/gi,'').match(/^(\d+(?:\.\d+)?)([km]?)$/i); if(!m) return t;
+  var n=parseFloat(m[1])*(/k/i.test(m[2])?1e3:(/m/i.test(m[2])?1e6:1)); if(!isFinite(n)) return t;
+  try{ return new Intl.NumberFormat('en-US',{style:'currency',currency:CUR,maximumFractionDigits:0}).format(Math.round(n)); }catch(e){ return '$'+Math.round(n).toLocaleString('en-US'); } }
 var FFE_CONDS=['','New','Excellent','Good','Fair','Poor','Not working'];
 function _opt(list,v,blank){ return list.map(function(o){ return '<option value="'+esc(o)+'"'+(o===v?' selected':'')+'>'+esc(o||blank||'—')+'</option>'; }).join(''); }
 function ffeRowHtml(r,i){
@@ -304,16 +310,16 @@ function wireDates(){
 
 // "What conveys" checklist — keys mirror the server's CONVEY_KIT.
 var KIT=[
-  {g:'Kitchen', items:[['hood1','Type I hood','Length — 16 ft'],['hood2','Type II hood','Length — 8 ft'],['mua','Make-up air',''],['grease','Grease trap / interceptor','1,500 gal'],['ansul','Fire suppression','Certified 2025'],['gas','Gas line','2" natural gas'],['walkinC','Walk-in cooler','8×10'],['walkinF','Walk-in freezer','6×8'],['sink3','3-compartment sink',''],['mop','Mop sink',''],['drains','Floor drains','']]},
-  {g:'Building', items:[['restrooms','ADA restrooms','How many'],['bar','Built-in bar','24 ft · 14 seats'],['drive','Drive-thru',''],['sign','Sign panel / pylon','']]},
+  {g:'Kitchen', items:[['hood1','Type I hood','Length (ft)','ft'],['hood2','Type II hood','Length (ft)','ft'],['ansul','Fire suppression','Certified 2025'],['mua','Make-up air',''],['gas','Gas line','2" natural gas'],['water','Water heater','Gallons or tankless','gal'],['grease','Grease trap / interceptor','Gallons','gal'],['walkinC','Walk-in cooler','8×10'],['walkinF','Walk-in freezer','6×8'],['dry','Dry storage',''],['hand','Hand sinks','How many'],['prep','Prep sink',''],['sink3','3-compartment sink',''],['mop','Mop sink',''],['drains','Floor drains','']]},
+  {g:'Building', items:[['sprink','Fire sprinklers',''],['restrooms','ADA restrooms','How many'],['bar','Built-in bar','24 ft · 14 seats'],['counter','Order counter',''],['window','Pickup / walk-up window',''],['drive','Drive-thru',''],['pdr','Private dining room','Seats','seats'],['patio','Patio','Seats','seats'],['office','Office',''],['sign','Sign panel / pylon','']]},
   {g:'Rights & assets', items:[['ffe','FF&E per schedule',''],['liquor','Liquor license (transfer)','']]}
 ];
 var CONVEY=null;
-function conveyMigrate(){ if(CONVEY) return; CONVEY=[]; var m={hood:'hood1',walkin:'walkinC',ansul:'ansul',restrooms:'restrooms',gas:'gas'}; Object.keys(m).forEach(function(f){ var v=String(SPEC[f]||'').trim(); if(v) CONVEY.push({k:m[f], d:v.slice(0,160)}); }); if(FFE.length||String(SPEC.ffeSchedule||'').trim()) CONVEY.push({k:'ffe',d:''}); }
+function conveyMigrate(){ if(CONVEY) return; CONVEY=[]; var m={hood:'hood1',walkin:'walkinC',ansul:'ansul',restrooms:'restrooms',gas:'gas',patio:'patio'}; Object.keys(m).forEach(function(f){ var v=String(SPEC[f]||'').trim(); if(v) CONVEY.push({k:m[f], d:v.slice(0,160)}); }); if(FFE.length||String(SPEC.ffeSchedule||'').trim()) CONVEY.push({k:'ffe',d:''}); }
 function _cv(k){ for(var i=0;i<CONVEY.length;i++) if(CONVEY[i].k===k) return CONVEY[i]; return null; }
 function kitHtml(f){
   var cols=KIT.map(function(g){ return '<div class="kitg"><div class="kgh">'+esc(g.g)+'</div>'+g.items.map(function(it){ var c=_cv(it[0]);
-    return '<div class="kit'+(c?' on':'')+'"><label><input type="checkbox" data-kit="'+it[0]+'"'+(c?' checked':'')+'> '+esc(it[1])+(it[0]==='hood1'?'<span class="dot">★</span>':'')+'</label>'+(it[2]?'<input type="text" class="kd" data-kitd="'+it[0]+'" value="'+esc(c?c.d:'')+'" placeholder="'+esc(it[2])+'">':'')+'</div>'; }).join('')+'</div>'; }).join('');
+    return '<div class="kit'+(c?' on':'')+'"><label><input type="checkbox" data-kit="'+it[0]+'"'+(c?' checked':'')+'> '+esc(it[1])+(it[0]==='hood1'?'<span class="dot">★</span>':'')+'</label>'+(it[2]?'<input type="text" class="kd" data-kitd="'+it[0]+'"'+(it[3]?(' data-unit="'+it[3]+'" inputmode="decimal"'):'')+' value="'+esc(c?c.d:'')+'" placeholder="'+esc(it[2])+'">':'')+'</div>'; }).join('')+'</div>'; }).join('');
   return '<div class="fld" data-fk="conveys"><label>What conveys — check what\'s included</label><div class="kitgrid">'+cols+'</div>'
     +'<textarea data-k="conveys" style="margin-top:12px;min-height:54px" placeholder="'+esc(f.ph)+'">'+esc(SPEC.conveys||'')+'</textarea></div>';
 }
@@ -323,7 +329,8 @@ function wireKit(){
     cb.closest('.kit').classList.toggle('on', cb.checked); DIRTY=true; refreshBanner(); }); });
   document.querySelectorAll('[data-kitd]').forEach(function(inp){ inp.addEventListener('input', function(){ var k=inp.getAttribute('data-kitd'), c=_cv(k), cb=document.querySelector('[data-kit="'+k+'"]');
     if(!c && inp.value.trim()){ c={k:k,d:''}; CONVEY.push(c); cb.checked=true; cb.closest('.kit').classList.add('on'); }
-    if(c) c.d=inp.value.trim(); DIRTY=true; refreshBanner(); }); });
+    if(c) c.d=inp.value.trim(); DIRTY=true; refreshBanner(); });
+    var u=inp.getAttribute('data-unit'); if(u) inp.addEventListener('blur', function(){ var m=inp.value.replace(/,/g,'').match(/^\s*(\d+(?:\.\d+)?)\s*(?:gal(?:lons?)?|ft|feet|foot|'|seats?)?\s*$/i); if(!m) return; var n=parseFloat(m[1]); inp.value=n.toLocaleString('en-US',{maximumFractionDigits:1})+' '+u; var c=_cv(inp.getAttribute('data-kitd')); if(c) c.d=inp.value; DIRTY=true; }); });
 }
 
 (function boot(){
