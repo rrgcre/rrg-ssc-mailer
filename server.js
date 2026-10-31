@@ -273,7 +273,7 @@ const RETIRED_PERSON_TYPES = ['buyer', 'seller', 'tenant', 'investor', 'broker',
 const LEAD_SOURCES = ['Referral', 'BizBuySell', 'Cold Call', 'Website', 'CoStar', 'LoopNet', 'Walk-in', 'Event / Networking', 'Existing Client', 'Social Media', 'Other'];
 // System-required lead sources: cannot be deleted in admin — referral tracking / attribution depends on them.
 const SYSTEM_LEAD_SOURCES = ['Referral', 'BizBuySell'];
-const ACTIVITY_TYPES = ['Tour', 'Photo Shoot', 'Meal', 'Text', 'Call', 'Email', 'Form Submitted', 'Agreement Sent', 'Agreement Signed', 'LOI Sent', 'LOI Received', 'LOI Countered', 'LOI Accepted', 'Diligence', 'Note', 'To-Do'];
+const ACTIVITY_TYPES = ['Tour', 'Photo Shoot', 'Meal', 'Text', 'Call', 'Email', 'Form Submitted', 'Agreement Sent', 'Agreement Signed', 'LOI Sent', 'LOI Received', 'LOI Countered', 'LOI Accepted', 'Diligence', 'Milestone', 'Note', 'To-Do'];
 // Reasons a broker closes & archives a data room — editable in Admin → Lists.
 const ROOM_CLOSE_REASONS = ['Transaction closed (sold)', 'Deal cancelled', 'Listing expired', 'Seller withdrew', 'Buyer withdrew', 'Financing fell through', 'Other'];
 const CUISINE_TYPES = ['American', 'Tex-Mex', 'Mexican', 'Italian', 'Pizza', 'Burgers', 'BBQ', 'Steakhouse', 'Seafood', 'Chinese', 'Japanese / Sushi', 'Thai', 'Vietnamese', 'Korean', 'Indian', 'Mediterranean', 'Greek', 'Southern / Soul', 'Breakfast / Brunch', 'Coffee / Cafe', 'Hawaiian', 'Desserts', 'Bar / Lounge'];
@@ -781,9 +781,24 @@ function logActivity(p, type, note, o) {
   const date = at.slice(0, 10);
   const e = { id: newActivityId(), type: String(type || 'Note'), date, at, note: String(note || '').slice(0, 2000), by: o.by || '', byUser: o.byUser || '', auto: !!o.auto };
   p.activities.unshift(e); p.activities = p.activities.slice(0, 800);
-  if (type !== 'To-Do') { if (!p.lastContacted || date > p.lastContacted) p.lastContacted = date; }
+  if (type !== 'To-Do' && type !== 'Milestone') { if (!p.lastContacted || date > p.lastContacted) p.lastContacted = date; }
   p.updatedAt = now;
   return e;
+}
+// Listing milestones (sale type, price, BOV, marketing, on market, status) → the seller's activity log.
+// Type 'Milestone' so they filter apart from calls/emails and don't count as "last contacted".
+function _listingMilestone(key, note, req) {
+  try {
+    key = String(key || ''); if (!key) return;
+    let pid = '';
+    try { const ov = loadAssignOverlay()[key]; if (ov && ov.clientPersonId) pid = ov.clientPersonId; } catch (e) {}
+    if (!pid) { try { const { d } = _dealByAnyKey(key); if (d) pid = d.contactPersonId || d.clientPersonId || ''; } catch (e) {} }
+    if (!pid) { try { const v = assignmentsIndex()[key]; if (v) pid = v.clientPersonId || v.contactPersonId || ''; } catch (e) {} }
+    if (!pid) return;
+    const ppl = loadPeople(); const p = ppl.find(x => x.id === pid); if (!p) return;
+    logActivity(p, 'Milestone', String(note).slice(0, 400), { auto: true, by: (req && req.user && req.user.name) || 'Lavano', byUser: (req && req.user && req.user.username) || '' });
+    savePeople(ppl);
+  } catch (e) { console.error('milestone:', e && e.message); }
 }
 // ---- System event log (enrichment, imports, merges) + auto-numbering import batch ----
 const SYSEVENTS_FILE = path.join(BOV_DATA_DIR, 'system_events.json');
@@ -3988,6 +4003,7 @@ app.post('/api/bov/:id/finalize', (req, res) => {
   b.finalizedByUser = (req.user && req.user.username) || '';
   saveBovs(bovs);
   const _lk = syncBovFinancialsToListing(b);
+  if (_lk) _listingMilestone(_lk, 'BOV finalized' + ((b.version || 1) > 1 ? (' (v' + b.version + ')') : '') + ' — ready to walk the seller through', req);
   res.json({ ok: true, version: b.version, finalizedAt: b.finalizedAt, finalizedBy: b.finalizedBy, syncedListing: _lk });
 });
 // Revise a finalized valuation — archives the finalized copy into the version history
@@ -7370,6 +7386,8 @@ app.post('/api/marketplace/:key', express.json(), (req, res) => {
     [['guide'], ['price']].forEach(function (f) { f = f[0]; const a = num(pm[f]), z = num(m[f]); if (pm[f] && m[f] && isFinite(a) && isFinite(z) && z < a) { const P = Object.assign({}, mktPromosOf(m)); const cp = P.price || {}; P.price = { on: true, at: (cp.on && cp.at) ? cp.at : now, days: cp.days == null ? null : cp.days, was: String(pm[f]).slice(0, 40) }; m.promos = P; if (!m.flag) m.flag = 'price'; } }); } catch (e) {}
   cur.market = m; overlay[key] = cur; saveAssignOverlay(overlay);
   let _matched = 0; if (m.published) { try { _matched = runBuyerMatchPush(key, req); } catch (e) {} }
+  if (m.published && !wasPub) _listingMilestone(key, 'Listing published to the marketplace — on market' + (_matched ? (' · ' + _matched + ' matching buyer' + (_matched === 1 ? '' : 's') + ' notified') : ''), req);
+  else if (!m.published && wasPub) _listingMilestone(key, 'Listing taken off the marketplace', req);
   res.json({ ok: true, teaser: m, matched: _matched });
 });
 // PUBLIC feed for the buyer page.
@@ -11003,6 +11021,7 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   const overlay = loadAssignOverlay();
   const b = req.body || {}, cur = overlay[d.key] || {};
   const _oldFlags = Object.assign({}, cur.stageFlags || {}), _oldStatus = cur.status || '';
+  const _oldLane = cur.laneDecidedAt ? (cur.saleLane || '') : '', _oldLP = cur.listPrice || '', _oldMkt = cur.mktTicketId || '';
   if (typeof b.status === 'string' && ASSIGN_STATUSES.indexOf(normAssignStatus(b.status)) >= 0) cur.status = normAssignStatus(b.status);
   // Representation type (Exclusive / Non-exclusive / Other) — its own field, separate from the
   // pipeline status, so the tenant-engagement "Representation" selector persists.
@@ -11102,6 +11121,13 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
       if (_pipe) (_pipe.stages || []).forEach(function (st, i) { const k = 'g' + i; if (cur.stageFlags && cur.stageFlags[k] && !_oldFlags[k] && st && st.onAssignAuto) { try { _fireStageAutos({ stages: [st] }, d, '', st.name, req); } catch (e) {} } });
     }
     if (_deadAssign(cur.status) && !_deadAssign(_oldStatus)) { stopEngagementBlasts(d.key, 'engagement marked ' + cur.status).catch(function () {}); }
+  } catch (e) {}
+  try {
+    const _laneName = l => l === 'asset' ? 'Asset sale (space & assets)' : (l === 'business' ? 'Going-concern sale' : 'Other');
+    if (cur.laneDecidedAt && (b.laneDecided === true || typeof b.saleLane === 'string') && (cur.saleLane || '') !== _oldLane) _listingMilestone(d.key, 'Sale type set: ' + _laneName(cur.saleLane) + (cur.saleLane === 'asset' ? ' — financials don’t support a going-concern sale' : ''), req);
+    if ((cur.listPrice || '') !== _oldLP && cur.listPrice) _listingMilestone(d.key, _oldLP ? ('Asking price changed: ' + _oldLP + ' → ' + cur.listPrice) : ('Asking price set: ' + cur.listPrice), req);
+    if (cur.mktTicketId && cur.mktTicketId !== _oldMkt) _listingMilestone(d.key, 'Submitted to Marketing for the listing page and marketplace listing', req);
+    if ((cur.status || '') !== _oldStatus && cur.status) _listingMilestone(d.key, 'Status: ' + (_oldStatus ? (_oldStatus + ' → ') : '') + cur.status, req);
   } catch (e) {}
   res.json({ ok: true });
 });
@@ -20343,6 +20369,7 @@ app.post('/api/asset-spec/go-to-market', express.json(), (req, res) => {
     if (!cur.status || cur.status === 'Unqualified' || cur.status === 'New') cur.status = 'Live';
     cur.updatedAt = now; overlay[key] = cur; saveAssignOverlay(overlay);
     let matched = 0; try { matched = runBuyerMatchPush(key, req); } catch (e) {}
+    _listingMilestone(key, 'Space & assets listing published — on market' + (matched ? (' · ' + matched + ' matching buyer' + (matched === 1 ? '' : 's') + ' notified') : ''), req);
     try { depositAssetSheetToRoom(d, key); } catch (e) {}   // best-effort, async
     res.json({ ok: true, published: true, matched: matched, sheetUrl: '/api/asset-spec/sheet?key=' + encodeURIComponent(key), marketUrl: (req.protocol + '://' + req.get('host') + '/market') });
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
