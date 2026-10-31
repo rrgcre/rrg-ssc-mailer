@@ -19974,7 +19974,7 @@ const ASSET_SPEC_FIELDS = {
   photosNote: 300, floorplanNote: 300, videoNote: 300
 };
 // The five blocks that answer what a space buyer asks first — required for a complete intake.
-const ASSET_SPEC_CORE = ['leaseRent', 'leaseRemaining', 'leaseAssignment', 'sqft', 'deliveryCondition', 'hood', 'ffeSchedule', 'liquorTransfer'];
+const ASSET_SPEC_CORE = ['leaseRent', 'leaseRemaining', 'leaseAssignment', 'sqft', 'deliveryCondition', 'hood', 'ffeSchedule'];
 function _assetSpecClean(raw) {
   raw = (raw && typeof raw === 'object') ? raw : {};
   const out = {};
@@ -20233,7 +20233,7 @@ const ASSET_SHEET_GROUPS = [
   ['The Space', [['sqft', 'Square footage'], ['seating', 'Seating'], ['patio', 'Patio / outdoor'], ['deliveryCondition', 'Delivery condition'], ['operatingNow', 'Status']]],
   ['Buildout & Leaseholds', [['hood', 'Hood, venting & grease'], ['walkin', 'Walk-in cooler / freezer'], ['ansul', 'Fire suppression'], ['restrooms', 'Restrooms'], ['buildoutAge', 'Buildout age'], ['replacementCost', 'Est. replacement cost']]],
   ['FF&E', [['ffeSchedule', 'Equipment included'], ['ffeExcluded', 'Excluded — seller keeps'], ['smallwares', 'Smallwares / POS / furniture']]],
-  ['Licenses & Entitlements', [['liquorType', 'Liquor / TABC license'], ['liquorTransfer', 'Transferability / key money'], ['coOccupancy', 'Certificate of occupancy'], ['healthPermit', 'Health / venting permits']]],
+  ['Permits & Occupancy', [['coOccupancy', 'Certificate of occupancy'], ['healthPermit', 'Health / venting permits']]],
   ['Utilities & Infrastructure', [['electrical', 'Electrical'], ['gas', 'Gas'], ['hvac', 'HVAC'], ['waterSewer', 'Water / sewer / grease']]]
 ];
 function _assetPriceBand(askingPrice) {

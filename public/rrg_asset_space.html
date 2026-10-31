@@ -78,7 +78,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
   <div class="crumb"><a href="#" onclick="goBack();return false;">Listing</a> &nbsp;›&nbsp; <span id="crumb">Space &amp; Assets</span></div>
   <div class="kicker">Space &amp; Assets</div>
   <h1 id="h1">Space &amp; Assets</h1>
-  <div class="sub">The turnkey listing sheet — lease, space, buildout, equipment and license. The five starred blocks are what a space buyer asks first; fill those and you're market-ready. Everything else is optional.</div>
+  <div class="sub">The turnkey listing sheet — what conveys, the lease and the space. The starred fields are what a space buyer asks first; fill those and you're market-ready. Everything else is optional.</div>
 </div></div>
 <div class="wrap"><div id="root"><div class="gate">Loading…</div></div></div>
 <script>
@@ -120,9 +120,7 @@ var GROUPS=[
     {k:'deliveryCondition', l:'Delivery condition', core:1, ph:'As-is, fully equipped'},
     {k:'operatingNow', l:'Operating or dark now', ph:'Operating · or Dark since June'}
   ]},
-  {title:'Licenses & entitlements', core:1, fields:[
-    {k:'liquorType', l:'Liquor / TABC license type', ph:'Mixed beverage (MB)'},
-    {k:'liquorTransfer', l:'License transferability / key money', core:1, a:1, ph:'Transferable with TABC approval · seller asking $30k · or not included'},
+  {title:'Permits & occupancy', fields:[
     {k:'coOccupancy', l:'Certificate of occupancy / load', ph:'CO on file · occupancy 110'},
     {k:'healthPermit', l:'Health / venting permits', ph:'Current health permit'}
   ]},
@@ -137,7 +135,7 @@ var GROUPS=[
     {k:'videoNote', l:'Walkthrough video', ph:'Link (optional)'}
   ]}
 ];
-var CORE=['leaseRent','leaseRemaining','leaseAssignment','sqft','deliveryCondition','hood','ffeSchedule','liquorTransfer'];
+var CORE=['leaseRent','leaseRemaining','leaseAssignment','sqft','deliveryCondition','hood','ffeSchedule'];
 var CORE_LABEL={ffeSchedule:'Equipment schedule — what conveys', hood:'Hood (What conveys checklist)'};
 GROUPS.forEach(function(g){ g.fields.forEach(function(f){ if(f.core) CORE_LABEL[f.k]=f.l; }); });
 var SPEC={}, BIZ='', DIRTY=false;
