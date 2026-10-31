@@ -19992,7 +19992,7 @@ const ASSET_SPEC_FIELDS = {
   leaseRent: 80, leasePerSF: 40, leaseRemaining: 80, leaseExpiration: 60, leaseOptions: 300, leaseAssignment: 600, leaseNNN: 300, leaseDeposit: 160, leaseUse: 300, leaseFixtures: 200, optCount: 10, optYears: 10, optNotice: 10, optRent: 40,
   // Space (core)
   spaceType: 40, centerType: 60, centerName: 120, address: 200, coTenants: 300, frontage: 300, parking: 160,
-  sqft: 40, seating: 60, patio: 160, deliveryCondition: 160, operatingNow: 60,
+  sqft: 40, seating: 60, seatsIn: 6, seatsOut: 6, patio: 160, deliveryCondition: 160, operatingNow: 60,
   // Buildout / leaseholds
   hood: 400, walkin: 240, ansul: 160, restrooms: 160, buildoutAge: 160, replacementCost: 160,
   // FF&E (core = ffeSchedule)
@@ -20268,6 +20268,30 @@ function _assetValueRefs(key, d) {
   try { const ov = loadAssignOverlay()[key] || {}; if (ov.listPrice) out.listPrice = ov.listPrice; if (ov.mktTicketId) out.mktAt = String(ov.mktSubmittedAt || '').slice(0, 10) || 'yes'; } catch (e) {}
   return out;
 }
+// AI draft of the offering-sheet highlights from what's on the listing details (rep reviews before it's used).
+app.post('/api/asset-spec/highlights', express.json({ limit: '256kb' }), async (req, res) => {
+  try {
+    const b = req.body || {};
+    const { d } = _dealByAnyKey(b.key);
+    if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
+    if (!ownsDeal(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+    if (!aiAllowed(req)) return res.status(403).json({ ok: false, error: 'AI is not enabled for your role.' });
+    const sp = _assetSpecClean(b.spec || d.assetSpec || {}), conv = _conveyClean(b.convey) || d.assetConvey || [], ffe = Array.isArray(b.ffe) ? _ffeClean(b.ffe) : (d.assetFfe || []);
+    const L = [];
+    const add = (k, v) => { v = String(v || '').trim(); if (v) L.push(k + ': ' + v); };
+    add('Business / trade name', d.business); add('Address', sp.address); add('Space type', sp.spaceType); add('Center type', sp.centerType); add('Center / building', sp.centerName); add('Anchors & co-tenants', sp.coTenants);
+    add('Interior square footage', sp.sqft); add('Seating', sp.seating); add('Parking spaces', sp.parking); add('Delivery condition', sp.deliveryCondition); add('Operating status', sp.operatingNow);
+    add('Built in (conveys with the lease)', _conveyLine(conv)); add('Buildout age', sp.buildoutAge); add('Estimated replacement cost', sp.replacementCost);
+    add('Equipment conveying (count of lines)', ffe.filter(r => !r.excluded && r.own !== 'Leased').length || ''); add('Notable equipment', ffe.filter(r => !r.excluded && r.own !== 'Leased').slice(0, 12).map(_ffeLine).join('; '));
+    add('Base rent', sp.leaseRent); add('Remaining lease term', sp.leaseRemaining); add('Renewal options', sp.leaseOptions); add('Permitted use', sp.leaseUse);
+    add('Asking price', sp.askingPrice); add('Reason for availability', sp.reason); add('Other notes', sp.conveys);
+    const current = String(sp.highlights || '').split(/\n+/).map(x => x.trim()).filter(Boolean);
+    if (L.length < 3 && !current.length) return res.status(400).json({ ok: false, error: 'Fill in the address and a few details first — the AI only writes from facts on the listing.' });
+    const out = await aiassist.suggestHighlights({ facts: L.join('\n'), current: current, market: d.market || '' });
+    if (!out.length) return res.status(502).json({ ok: false, error: 'No highlights came back — try again.' });
+    res.json({ ok: true, highlights: out });
+  } catch (e) { console.error('highlights:', e && e.message); res.status(502).json({ ok: false, error: String((e && e.message) || 'Could not draft highlights.') }); }
+});
 app.get('/api/asset-spec', (req, res) => {
   try {
     const { d } = _dealByAnyKey(req.query && req.query.key);
