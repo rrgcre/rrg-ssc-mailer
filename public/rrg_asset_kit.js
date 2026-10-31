@@ -11,3 +11,33 @@ var KIT=[
   {g:'Kitchen', items:[['hood1','Type I hood','Length (ft)','ft'],['hood2','Type II hood','Length (ft)','ft'],['nohood','No hood',''],['ansul','Fire suppression','Certified 2025'],['mua','Make-up air',''],['gas','Gas line','2" natural gas'],['water','Water heater','Gallons or tankless','gal'],['grease','Grease trap / interceptor','Gallons','gal'],['walkinC','Walk-in cooler','8×10'],['walkinF','Walk-in freezer','6×8'],['dry','Dry storage',''],['hand','Hand sinks','How many'],['prep','Prep sink',''],['sink3','3-compartment sink',''],['mop','Mop sink',''],['drains','Floor drains','']]},
   {g:'Building', items:[['sprink','Fire sprinklers',''],['restrooms','ADA restrooms','How many'],['bar','Built-in bar','24 ft · 14 seats'],['counter','Order counter',''],['window','Pickup / walk-up window',''],['drive','Drive-thru',''],['pdr','Private dining room','Seats','seats'],['patio','Patio',''],['office','Office',''],['sign','Sign panel','']]}
 ];
+// ── Listing photos (shared by listing details + walkthrough) ───────────────────
+// Phone photos are shrunk in the browser (longest side 2000px, JPEG) so they upload fast over cell
+// signal, then go one at a time to the listing's photos and are copied into the data room (Photos).
+function rrgShrinkPhoto(file){
+  return new Promise(function(res,rej){
+    var fr=new FileReader(); fr.onerror=rej; fr.onload=function(){
+      var img=new Image(); img.onerror=function(){ rej(new Error('img')); }; img.onload=function(){
+        var M=2000, w=img.naturalWidth, h=img.naturalHeight, s=Math.min(1, M/Math.max(w,h));
+        var c=document.createElement('canvas'); c.width=Math.round(w*s); c.height=Math.round(h*s);
+        c.getContext('2d').drawImage(img,0,0,c.width,c.height); res(c.toDataURL('image/jpeg',0.82));
+      }; img.src=fr.result;
+    }; fr.readAsDataURL(file);
+  });
+}
+function rrgUploadPhotos(key, files, captionFor, onStep, startMedia){
+  files=[].slice.call(files||[]).filter(function(f){ return /^image\//.test(f.type) || /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(f.name||''); });
+  var media=startMedia||null, done=0, failed=0;
+  function post(u,b){ return fetch(u,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}).then(function(r){ return r.json(); }); }
+  return files.reduce(function(chain,f,i){ return chain.then(function(){
+    if(onStep) onStep(i,files.length);
+    return rrgShrinkPhoto(f).then(function(dataUrl){
+      var before={}; ((media&&media.photos)||[]).forEach(function(p){ before[p.id]=1; });
+      return post('/api/assignment/'+encodeURIComponent(key)+'/photos',{ files:[{ filename:'photo.jpg', dataB64:dataUrl, caption:captionFor(i) }] }).then(function(j){
+        if(!j||!j.ok){ failed++; return; } media=j.media; done++;
+        var fresh=(media.photos||[]).filter(function(p){ return !before[p.id] && p.caption===captionFor(i); })[0];
+        if(fresh) return post('/api/assignment/'+encodeURIComponent(key)+'/photo/'+encodeURIComponent(fresh.id)+'/to-room',{}).then(function(r){ if(r&&r.media) media=r.media; }).catch(function(){});
+      });
+    }).catch(function(){ failed++; });
+  }); }, Promise.resolve()).then(function(){ return { media:media, done:done, failed:failed, total:files.length }; });
+}

@@ -94,6 +94,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .stof{font-size:11px;color:var(--soft);font-weight:700;margin-right:8px;}
 .hlbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;} .nsb.ai{color:#5b3fa8;border-color:#cfc3ee;background:#faf8ff;} .nsb.ai:hover{border-color:#5b3fa8;} #hlMsg{font-size:12px;}
 .hvr{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:13px;} .fld .hvr input.oin{width:64px;font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--inp);border-radius:3px;text-align:center;} .hvr .ow{color:var(--muted);} .hvtot{font-size:12px;font-weight:700;color:var(--navy);margin-left:6px;} .lother.hid,.hid{display:none !important;}
+.phstrip{display:flex;flex-wrap:wrap;gap:8px;}
+.phth{position:relative;width:118px;height:88px;border:1px solid var(--line);border-radius:3px;overflow:hidden;display:block;background:#f4f6f9;}
+.phth img{width:100%;height:100%;object-fit:cover;display:block;} .phth span{position:absolute;left:0;right:0;bottom:0;background:rgba(0,14,49,.6);color:#fff;font-size:10.5px;padding:2px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.phth i{position:absolute;top:3px;right:4px;font-style:normal;color:#fff;font-size:11px;text-shadow:0 1px 2px #000;}
+.phadd{width:118px;height:88px;border:1.5px dashed var(--inp);border-radius:3px;display:flex !important;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;color:var(--primary);background:#fbfcfe;margin:0 !important;text-transform:none !important;letter-spacing:0 !important;}
+.phadd b{font-size:22px;line-height:1;} .phadd span{font-size:11.5px;font-weight:700;}
+#phZone.drag{outline:2px dashed var(--primary);outline-offset:4px;background:#f2f6fb;}
 .gate{padding:50px 24px;text-align:center;color:var(--muted);font-size:14px;}
 .banner{border-radius:12px;padding:12px 16px;font-size:13px;font-weight:600;margin-bottom:16px;line-height:1.5;}
 .banner.done{background:#eaf7f0;border:1px solid #bfe6d0;color:#1a6e46;}
@@ -211,8 +218,8 @@ var GROUPS=[
   {title:'Highlights', hint:'Why a buyer wants this space — prints first on the offering sheet. Fill it last; AI writes from everything above.', fields:[
     {k:'highlights', l:'Highlights — why a buyer wants this space', hl:1}
   ]},
-  {title:'Marketing assets', fields:[
-    {k:'photosNote', l:'Photos', ph:'Link or note — where the photos live'},
+  {title:'Marketing assets', photos:1, fields:[
+    {k:'photosNote', l:'Photo notes', ph:'Anything Marketing should know — e.g. professional shoot booked for the 12th'},
     {k:'floorplanNote', l:'Floor plan', ph:'Link or note'},
     {k:'videoNote', l:'Walkthrough video', ph:'Link (optional)'}
   ]}
@@ -251,6 +258,20 @@ function wireHvac(){ var host=document.getElementById('hvRows'); if(!host) retur
   host.addEventListener('click', function(e){ var x=e.target.closest('.hlx'); if(!x) return; var r=x.closest('.hvr'); if(host.querySelectorAll('.hvr').length>1) r.remove(); else r.querySelectorAll('input').forEach(function(i){ i.value=''; }); tot(); markDirty(); });
   document.getElementById('hvAdd').onclick=function(){ var d=document.createElement('div'); d.innerHTML=hvRow({u:'',t:''}); host.appendChild(d.firstChild); host.querySelectorAll('[data-hu]')[host.querySelectorAll('.hvr').length-1].focus(); };
   tot(); }
+// Listing photos — strip + upload (drag & drop on desktop, camera / library on a phone).
+var MEDIA=null;
+function photosHtml(){ var P=(MEDIA&&MEDIA.photos)||[];
+  return '<div class="fld" data-fk="photos" id="phZone"><label class="subh">Photos'+(P.length?(' · '+P.length):'')+'</label>'
+    +'<div class="phstrip">'+P.map(function(p){ return '<a class="phth" href="'+esc(p.url)+'" target="_blank" title="'+esc(p.caption||'')+'"><img src="'+esc(p.url)+'" loading="lazy" alt=""><span>'+esc(p.caption||'')+'</span>'+(p.inRoom?'<i title="Also in the data room">▣</i>':'')+'</a>'; }).join('')
+    +'<label class="phadd"><input type="file" id="phIn" accept="image/*" multiple hidden><b>+</b><span>Add photos</span></label></div>'
+    +'<div class="hint">Drag photos here, or use <b>📱 Walkthrough</b> to shoot them room by room on a phone. Photos go to the listing (for Marketing) and the data room under Photos. <span class="msg" id="phMsg"></span></div></div>'; }
+function phRefresh(){ var z=document.getElementById('phZone'); if(!z) return; var t=document.createElement('div'); t.innerHTML=photosHtml(); z.replaceWith(t.firstChild); wirePhotos(); refreshStatus(); }
+function phUpload(files){ var m=document.getElementById('phMsg'); var n0=((MEDIA&&MEDIA.photos)||[]).length;
+  rrgUploadPhotos(KEY, files, function(i){ return 'Photo '+(n0+i+1); }, function(i,t){ if(m){ m.className='msg'; m.textContent='Uploading '+(i+1)+' of '+t+'…'; } }, MEDIA).then(function(r){ if(r.media) MEDIA=r.media; phRefresh(); var mm=document.getElementById('phMsg'); if(mm){ mm.className='msg '+(r.failed?'err':'ok'); mm.textContent=r.done+' added'+(r.failed?(' · '+r.failed+' could not be read (iPhone HEIC on a computer? export as JPG)'):' ✓'); } }); }
+function wirePhotos(){ var z=document.getElementById('phZone'); if(!z) return; var inp=document.getElementById('phIn');
+  inp.onchange=function(){ if(inp.files&&inp.files.length) phUpload(inp.files); };
+  z.addEventListener('dragover', function(e){ e.preventDefault(); z.classList.add('drag'); }); z.addEventListener('dragleave', function(){ z.classList.remove('drag'); });
+  z.addEventListener('drop', function(e){ e.preventDefault(); z.classList.remove('drag'); if(e.dataTransfer&&e.dataTransfer.files.length) phUpload(e.dataTransfer.files); }); }
 var NUMW=['None','One','Two','Three','Four','Five'];
 function optsText(o){ o=o||SPEC; var c=String(o.optCount||''); if(c==='') return ''; if(c==='0') return 'No renewal options';
   var n=+c, y=String(o.optYears||'').trim(), t=(NUMW[n]||n)+' '+(y?(y+'-year '):'')+'renewal option'+(n===1?'':'s');
@@ -313,6 +334,7 @@ function groupHtml(g){
   if(GROUPS.indexOf(g)===0) rows=vrefHtml()+rows;
   if(g.title==='The lease') rows=absNoteHtml()+rows;
   if(g.convey) rows=kitHtml()+'<div class="sep"></div>'+rows;
+  if(g.photos) rows=photosHtml()+'<div class="sep"></div>'+rows;
   if(g.ffe) rows=ffeHtml()+'<div class="sep"></div>'+rows;
   var gi=GROUPS.indexOf(g), open=_isOpen(gi);
   return '<div class="card'+(open?'':' closed')+'" data-gi="'+gi+'"><div class="ch" data-tog="'+gi+'"><span class="chev">›</span><b>'+esc(g.title)+'</b>'+(g.core?'<span class="core">Core</span>':'')+(g.hint?'<span class="gh">'+esc(g.hint)+'</span>':'<span class="gh"></span>')+'<span class="gst" data-gst="'+gi+'">'+groupStatus(g)+'</span></div><div class="body">'+rows+'</div></div>';
@@ -324,8 +346,8 @@ function _fFilled(f){ var v=function(k){ return String(SPEC[k]||'').trim(); };
   if(f.seats) return !!(v('seatsIn')||v('seatsOut')||v('seating')); if(f.hvac) return !!(v('hvacUnits')||v('hvacTons')||v('hvac'));
   if(f.opts) return !!(v('optCount')||v('leaseOptions')); return !!v(f.k); }
 function _fCounts(f){ return !(f.legacy && !String(SPEC[f.k]||'').trim()); }
-function groupFilled(g){ var n=g.fields.filter(function(f){ return _fCounts(f) && _fFilled(f); }).length; if(g.convey && CONVEY && CONVEY.length) n++; if(g.ffe && FFE.length) n++; return n; }
-function groupTotal(g){ var m=g.fields.filter(_fCounts).length; if(g.convey) m++; if(g.ffe) m++; return m; }
+function groupFilled(g){ var n=g.fields.filter(function(f){ return _fCounts(f) && _fFilled(f); }).length; if(g.photos && MEDIA && (MEDIA.photos||[]).length) n++; if(g.convey && CONVEY && CONVEY.length) n++; if(g.ffe && FFE.length) n++; return n; }
+function groupTotal(g){ var m=g.fields.filter(_fCounts).length; if(g.photos) m++; if(g.convey) m++; if(g.ffe) m++; return m; }
 function groupStatus(g){
   var miss=groupCore(g).filter(_missOf).length, n=groupFilled(g), m=groupTotal(g), of='<span class="stof">'+n+' of '+m+'</span>';
   if(miss) return of+'<span class="st need">'+miss+' required open</span>';
@@ -363,7 +385,7 @@ function render(){
   host.querySelectorAll('[data-k]').forEach(function(el){
     el.addEventListener('input', function(){ SPEC[el.getAttribute('data-k')]=el.value; markDirty(); var fld=el.closest('.fld'); if(fld){ var k=fld.getAttribute('data-fk'); if(CORE.indexOf(k)>=0) fld.classList.toggle('need', !el.value.trim()); } refreshBanner(); });
   });
-  ffeWire(); wireDates(); wireKit(); wireOpts(); wireHl(); wireHeaders(); refreshBanner();
+  ffeWire(); wireDates(); wireKit(); wireOpts(); wireHl(); wirePhotos(); wireHeaders(); refreshBanner();
   GROUPS.forEach(function(g){ g.fields.forEach(function(f){ if(!f.num) return; var el=document.querySelector('[data-k="'+f.k+'"]'); if(!el) return; el.setAttribute('inputmode','numeric'); el.addEventListener('blur', function(){ var d=el.value.replace(/[^0-9]/g,''); var v=d?Number(d).toLocaleString('en-US'):''; if(v!==el.value){ el.value=v; SPEC[f.k]=v; markDirty(); } }); }); });
   GROUPS.forEach(function(g){ g.fields.forEach(function(f){ if(!f.money) return; var el=document.querySelector('[data-k="'+f.k+'"]'); if(!el) return; el.setAttribute('inputmode','decimal'); el.addEventListener('blur', function(){ var v=fmtMoney(el.value); if(v!==el.value){ el.value=v; SPEC[f.k]=v; markDirty(); } }); }); });
   document.querySelectorAll('[data-lsel]').forEach(function(sel){ var k=sel.getAttribute('data-lsel'), inp=document.querySelector('input[data-k="'+k+'"]'); sel.addEventListener('change', function(){ if(sel.value==='__other'){ inp.classList.remove('hid'); inp.value=''; inp.focus(); } else { inp.classList.add('hid'); inp.value=sel.value; } SPEC[k]=inp.value; markDirty(); refreshBanner(); }); });
@@ -533,7 +555,7 @@ function wireKit(){
   if(!KEY){ document.getElementById('root').innerHTML='<div class="gate">No listing specified.</div>'; return; }
   api('GET','/api/asset-spec?key='+encodeURIComponent(KEY)).then(function(j){
     if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">'+esc((j&&j.error)||'Listing not found.')+'</div>'; return; }
-    SPEC=j.spec||{}; BIZ=j.business||''; FFE=j.ffe||[]; CONVEY=j.convey||null; VREF=j.valueRefs||{}; LABS=j.leaseAbs||null; var _absN=applyAbstract(false); if(!String(SPEC.askingPrice||'').trim() && VREF.listPrice) SPEC.askingPrice=VREF.listPrice; if(j.spaceTypes&&j.spaceTypes.length) OPTS.spaceTypes=j.spaceTypes; if(j.centerTypes&&j.centerTypes.length) OPTS.centerTypes=j.centerTypes; if(!String(SPEC.address||'').trim() && j.locAddress){ SPEC.address=j.locAddress; } conveyMigrate(); if(j.ffeCats&&j.ffeCats.length) FFE_CATS=j.ffeCats; setHead();
+    SPEC=j.spec||{}; BIZ=j.business||''; FFE=j.ffe||[]; CONVEY=j.convey||null; VREF=j.valueRefs||{}; MEDIA=j.media||null; LABS=j.leaseAbs||null; var _absN=applyAbstract(false); if(!String(SPEC.askingPrice||'').trim() && VREF.listPrice) SPEC.askingPrice=VREF.listPrice; if(j.spaceTypes&&j.spaceTypes.length) OPTS.spaceTypes=j.spaceTypes; if(j.centerTypes&&j.centerTypes.length) OPTS.centerTypes=j.centerTypes; if(!String(SPEC.address||'').trim() && j.locAddress){ SPEC.address=j.locAddress; } conveyMigrate(); if(j.ffeCats&&j.ffeCats.length) FFE_CATS=j.ffeCats; setHead();
     if(j.saleLane && j.saleLane!=='asset'){ document.getElementById('root').innerHTML='<div class="gate">This listing is a Business Sale, not a Space &amp; Assets listing. <a href="./rrg_assignment.html?key='+encodeURIComponent(KEY)+'" style="color:var(--navy);font-weight:700">Open its workspace →</a></div>'; return; }
     render(); if(_absN) markDirty();
   }).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not load this listing.</div>'; });

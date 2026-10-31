@@ -20298,7 +20298,7 @@ app.get('/api/asset-spec', (req, res) => {
     if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
     if (!ownsDeal(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
     const spec = d.assetSpec || {};
-    res.json({ ok: true, key: req.query.key, business: d.business || '', market: d.market || '', saleLane: _effLane(req.query.key, d), spec: spec, ffe: d.assetFfe || [], ffeCats: aiassist.FFE_CATS || [], convey: d.assetConvey || null, conveyKit: CONVEY_KIT, spaceTypes: SPACE_TYPES, centerTypes: CENTER_TYPES, locAddress: _vlAddress({ key: String(req.query.key || '') }), valueRefs: _assetValueRefs(String(req.query.key || ''), d), leaseAbs: _assetLeaseAbs(req, String(req.query.key || ''), d), core: ASSET_SPEC_CORE, missing: ASSET_SPEC_CORE.filter(k => !spec[k]) });
+    res.json({ ok: true, key: req.query.key, business: d.business || '', market: d.market || '', saleLane: _effLane(req.query.key, d), spec: spec, ffe: d.assetFfe || [], ffeCats: aiassist.FFE_CATS || [], convey: d.assetConvey || null, conveyKit: CONVEY_KIT, spaceTypes: SPACE_TYPES, centerTypes: CENTER_TYPES, locAddress: _vlAddress({ key: String(req.query.key || '') }), valueRefs: _assetValueRefs(String(req.query.key || ''), d), leaseAbs: _assetLeaseAbs(req, String(req.query.key || ''), d), media: (function () { try { return _dealMediaOut(String(req.query.key || '')); } catch (e) { return null; } })(), core: ASSET_SPEC_CORE, missing: ASSET_SPEC_CORE.filter(k => !spec[k]) });
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 app.post('/api/asset-spec', express.json({ limit: '256kb' }), (req, res) => {

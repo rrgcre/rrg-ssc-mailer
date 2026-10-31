@@ -61,6 +61,10 @@ textarea{width:100%;font:inherit;font-size:16px;padding:12px;border:1px solid va
 .foot{position:fixed;left:0;right:0;bottom:0;z-index:20;background:#fff;border-top:1px solid var(--line);padding:10px 14px calc(10px + env(safe-area-inset-bottom));display:flex;gap:10px;}
 .foot .btn{flex:1;height:50px;font-size:16px;}
 .taprow{display:flex;align-items:center;justify-content:space-between;margin-top:10px;font-size:15px;font-weight:700;color:var(--navy);}
+.phb{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:6px;}
+.phbtn{display:flex;align-items:center;justify-content:center;gap:8px;height:52px;border-radius:12px;background:var(--navy);color:#fff;font-size:16px;font-weight:700;cursor:pointer;}
+.phs{display:flex;gap:6px;overflow-x:auto;margin-top:10px;} .phs img{width:84px;height:64px;object-fit:cover;border-radius:8px;flex:none;}
+.phm{font-size:13px;color:var(--muted);margin-top:6px;font-weight:600;min-height:4px;}
 .gate{padding:60px 24px;text-align:center;color:var(--muted);}
 .hint{font-size:13px;color:var(--soft);margin:8px 4px 0;line-height:1.45;}
 </style>
@@ -122,8 +126,14 @@ function eqHtml(i){ var r=FFE[i]; var own=r.own||'Confirm';
     +(isBeer(r.item)?'<div class="taprow"><span>Taps</span><div class="step"><button data-tp="-1">−</button><b>'+(r.taps||0)+'</b><button data-tp="1">+</button></div></div>':'')
     +'<div class="seg">'+[['Owned','o'],['Leased','l'],['Confirm','c']].map(function(o){ return '<button class="'+o[1]+(own===o[0]?' on':'')+'" data-own="'+o[0]+'">'+o[0]+'</button>'; }).join('')+'</div>'
     +'<div class="more"><input data-f="notes" value="'+esc(r.notes||'')+'" placeholder="Make / model / notes"><button class="keep'+(r.excluded?' on':'')+'" data-keep="1">'+(r.excluded?'Seller keeps ✓':'Seller keeps')+'</button></div></div>'; }
+// Photos per room: camera or camera roll; shrunk on the phone, then uploaded one at a time.
+var MEDIA=null;
+function roomPhotos(R){ return ((MEDIA&&MEDIA.photos)||[]).filter(function(p){ return String(p.caption||'').indexOf(R.n+' ')===0; }); }
+function photoBlock(R){ var P=roomPhotos(R);
+  return '<div class="phb"><label class="phbtn"><input type="file" id="phIn" accept="image/*" multiple hidden>📷 '+(P.length?'Add more photos':'Take photos of the '+esc(R.n.toLowerCase()))+'</label>'
+    +(P.length?'<div class="phs">'+P.map(function(p){ return '<img src="'+esc(p.url)+'" alt="" loading="lazy">'; }).join('')+'</div>':'')+'<div class="phm" id="phMsg"></div></div>'; }
 function room(){
-  var R=ROOMS[ROOM], h='<h2>'+esc(R.n)+'</h2>';
+  var R=ROOMS[ROOM], h='<h2>'+esc(R.n)+'</h2>'+photoBlock(R);
   if(R.fin) return finish();
   if(R.kit.length) h+='<div class="sec">Built in — conveys with the lease</div><div class="box">'+R.kit.map(ckHtml).join('')+'</div>'+(ROOM===0?'<div class="hint">Pick Type I, Type II or No hood.</div>':'');
   h+='<div class="sec">Equipment</div>';
@@ -153,7 +163,10 @@ function draw(){
 }
 function go(r){ ROOM=Math.max(0,Math.min(ROOMS.length-1,r)); draw(); window.scrollTo(0,0); }
 function _unit(inp){ var u=inp.getAttribute('data-unit'); if(!u) return; var m=inp.value.replace(/,/g,'').match(/^\s*(\d+(?:\.\d+)?)\s*(?:gal(?:lons?)?|ft|feet|foot|'|seats?)?\s*$/i); if(!m) return; inp.value=parseFloat(m[1]).toLocaleString('en-US',{maximumFractionDigits:1})+' '+u; }
+function wirePh(){ var inp=document.getElementById('phIn'); if(!inp) return; inp.onchange=function(){ var R=ROOMS[ROOM], files=inp.files; if(!files||!files.length) return; var n0=roomPhotos(R).length, msg=document.getElementById('phMsg');
+  rrgUploadPhotos(KEY, files, function(i){ return R.n+' '+(n0+i+1); }, function(i,t){ if(msg) msg.textContent='Uploading '+(i+1)+' of '+t+'…'; }, MEDIA).then(function(r){ if(r.media) MEDIA=r.media; draw(); var m=document.getElementById('phMsg'); if(m) m.textContent=r.done+' photo'+(r.done===1?'':'s')+' saved'+(r.failed?(' · '+r.failed+' failed'):' ✓'); }); }; }
 function wire(){
+  wirePh();
   var root=document.getElementById('root');
   root.querySelectorAll('[data-ck]').forEach(function(row){ row.addEventListener('click', function(e){ if(e.target.tagName==='INPUT') return; var k=row.getAttribute('data-ck');
     if(_cv(k)) CONVEY=CONVEY.filter(function(r){ return r.k!==k; });
@@ -181,7 +194,7 @@ document.getElementById('xBtn').onclick=function(e){ e.preventDefault(); locatio
   api('GET','/api/asset-spec?key='+encodeURIComponent(KEY)).then(function(j){
     if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">'+esc((j&&j.error)||'Listing not found.')+'</div>'; return; }
     if(j.saleLane && j.saleLane!=='asset'){ document.getElementById('root').innerHTML='<div class="gate">The walkthrough is for space &amp; assets listings.</div>'; return; }
-    SPEC=j.spec||{}; FFE=j.ffe||[]; CONVEY=j.convey||null; if(!CONVEY){ CONVEY=[]; var m={hood:'hood1',walkin:'walkinC',ansul:'ansul',restrooms:'restrooms',gas:'gas',patio:'patio'}; Object.keys(m).forEach(function(f){ var v=String(SPEC[f]||'').trim(); if(v) CONVEY.push({k:m[f], d:v.slice(0,160)}); }); } if(j.ffeCats&&j.ffeCats.length) FFE_CATS=j.ffeCats;
+    MEDIA=j.media||null; SPEC=j.spec||{}; FFE=j.ffe||[]; CONVEY=j.convey||null; if(!CONVEY){ CONVEY=[]; var m={hood:'hood1',walkin:'walkinC',ansul:'ansul',restrooms:'restrooms',gas:'gas',patio:'patio'}; Object.keys(m).forEach(function(f){ var v=String(SPEC[f]||'').trim(); if(v) CONVEY.push({k:m[f], d:v.slice(0,160)}); }); } if(j.ffeCats&&j.ffeCats.length) FFE_CATS=j.ffeCats;
     document.getElementById('biz').textContent=j.business||'Space & Assets'; document.title='Walkthrough — '+(j.business||'');
     document.getElementById('foot').style.display=''; sv(''); draw();
   }).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not load this listing.</div>'; });
