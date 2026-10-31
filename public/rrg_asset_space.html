@@ -215,7 +215,7 @@ var OPEN=null;
 function _openKey(){ return 'rrg_asset_open_'+KEY; }
 function _isOpen(gi){
   if(OPEN===null){ try{ OPEN=JSON.parse(localStorage.getItem(_openKey())||'null'); }catch(e){ OPEN=null; }
-    if(!OPEN){ OPEN={}; GROUPS.forEach(function(g,i){ var miss=groupCore(g).filter(_missOf).length; OPEN[i]= !!miss || (i===0 && !groupFilled(g)); }); } }
+    if(!OPEN) OPEN={}; }
   return !!OPEN[gi];
 }
 function _saveOpen(){ try{ localStorage.setItem(_openKey(), JSON.stringify(OPEN)); }catch(e){} }
