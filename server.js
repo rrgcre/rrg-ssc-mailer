@@ -20139,13 +20139,54 @@ app.post('/api/value-letter/:id/email', express.json(), async (req, res) => {
     res.json({ ok: true, letter: _vlOut(L, req) });
   } catch (e) { console.error('value letter email:', e && e.message); res.status(502).json({ ok: false, error: 'Could not send the email.' }); }
 });
+// FF&E equipment schedule (structured rows). Rows drive the spec sheet table; the plain-text
+// ffeSchedule / ffeExcluded fields are regenerated from them so older consumers keep working.
+function _ffeClean(arr) {
+  if (!Array.isArray(arr)) return [];
+  const CATS = aiassist.FFE_CATS || [];
+  return arr.slice(0, 400).map(r => { r = r || {}; return { cat: CATS.indexOf(r.cat) >= 0 ? r.cat : 'Other', item: String(r.item || '').trim().slice(0, 140), qty: Math.max(1, Math.min(999, parseInt(r.qty, 10) || 1)), model: String(r.model || '').trim().slice(0, 100), cond: String(r.cond || '').trim().slice(0, 30), own: (['Owned', 'Leased', 'Confirm'].indexOf(r.own) >= 0 ? r.own : 'Confirm'), notes: String(r.notes || '').trim().slice(0, 200), excluded: !!r.excluded }; }).filter(r => r.item);
+}
+function _ffeLine(r) { return (r.qty > 1 ? (r.qty + ' × ') : '') + r.item + (r.model ? (' (' + r.model + ')') : ''); }
+function _ffeSyncText(spec, ffe) {
+  if (!ffe.length) return spec;
+  const conv = ffe.filter(r => !r.excluded && r.own !== 'Leased'), leased = ffe.filter(r => !r.excluded && r.own === 'Leased'), exc = ffe.filter(r => r.excluded);
+  const byCat = {}; conv.forEach(r => { (byCat[r.cat] = byCat[r.cat] || []).push(_ffeLine(r)); });
+  let t = Object.keys(byCat).map(c => c + ': ' + byCat[c].join('; ')).join('\n');
+  if (leased.length) t += (t ? '\n' : '') + 'Leased / vendor-owned (does not convey): ' + leased.map(_ffeLine).join('; ');
+  if (t) spec.ffeSchedule = t.slice(0, ASSET_SPEC_FIELDS.ffeSchedule); else delete spec.ffeSchedule;
+  if (exc.length) spec.ffeExcluded = exc.map(_ffeLine).join('; ').slice(0, ASSET_SPEC_FIELDS.ffeExcluded); else delete spec.ffeExcluded;
+  return spec;
+}
+// Read a seller's FF&E list (spreadsheet, CSV, PDF, Word, photo or pasted text) into rows for review.
+app.post('/api/asset-spec/ffe-parse', express.json({ limit: '30mb' }), async (req, res) => {
+  try {
+    const b = req.body || {};
+    const { d } = _dealByAnyKey(b.key);
+    if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
+    if (!ownsDeal(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+    if (!aiAllowed(req)) return res.status(403).json({ ok: false, error: 'AI is not enabled for your role.' });
+    const name = String(b.filename || ''), ext = ((name.match(/\.([a-z0-9]+)$/i) || [])[1] || '').toLowerCase();
+    const data = String(b.dataB64 || '').replace(/^data:[^,]*,/, '');
+    let text = String(b.text || '').trim(), blocks = null;
+    if (!text && data) {
+      if (['jpg', 'jpeg', 'png', 'webp', 'gif'].indexOf(ext) >= 0) blocks = [{ type: 'image', source: { type: 'base64', media_type: (ext === 'jpg' ? 'image/jpeg' : ('image/' + ext)), data: data } }];
+      else if (['xlsx', 'xls', 'xlsm'].indexOf(ext) >= 0) { const X = _xlsxLib(); if (!X) return res.status(500).json({ ok: false, error: 'Spreadsheet reading is unavailable on the server.' }); const wb = X.read(Buffer.from(data, 'base64'), { type: 'buffer' }); text = wb.SheetNames.map(n => '## ' + n + '\n' + X.utils.sheet_to_csv(wb.Sheets[n])).join('\n\n'); }
+      else if (ext === 'pdf') { try { text = (await extractQuestionnaireText(name, data)).trim(); } catch (e) { text = ''; } if (text.length < 80) { text = ''; blocks = [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: data } }]; } }
+      else { try { text = await extractQuestionnaireText(name, data); } catch (e) { return res.status(400).json({ ok: false, error: 'Upload a spreadsheet, CSV, PDF, Word file or photo — or paste the list.' }); } }
+    }
+    if (!text && !blocks) return res.status(400).json({ ok: false, error: 'Nothing to read — upload the list or paste it.' });
+    const items = await aiassist.parseFfeList({ text: text, blocks: blocks });
+    if (!items.length) return res.status(422).json({ ok: false, error: 'No equipment found in that file.' });
+    res.json({ ok: true, items: items });
+  } catch (e) { console.error('ffe parse:', e && e.message); res.status(502).json({ ok: false, error: String((e && e.message) || 'Could not read the list.') }); }
+});
 app.get('/api/asset-spec', (req, res) => {
   try {
     const { d } = _dealByAnyKey(req.query && req.query.key);
     if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
     if (!ownsDeal(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
     const spec = d.assetSpec || {};
-    res.json({ ok: true, key: req.query.key, business: d.business || '', market: d.market || '', saleLane: _effLane(req.query.key, d), spec: spec, core: ASSET_SPEC_CORE, missing: ASSET_SPEC_CORE.filter(k => !spec[k]) });
+    res.json({ ok: true, key: req.query.key, business: d.business || '', market: d.market || '', saleLane: _effLane(req.query.key, d), spec: spec, ffe: d.assetFfe || [], ffeCats: aiassist.FFE_CATS || [], core: ASSET_SPEC_CORE, missing: ASSET_SPEC_CORE.filter(k => !spec[k]) });
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 app.post('/api/asset-spec', express.json({ limit: '256kb' }), (req, res) => {
@@ -20154,10 +20195,11 @@ app.post('/api/asset-spec', express.json({ limit: '256kb' }), (req, res) => {
     const { arr, d } = _dealByAnyKey(b.key);
     if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
     if (!ownsDeal(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
-    d.assetSpec = _assetSpecClean(b.spec);
+    if (Array.isArray(b.ffe)) d.assetFfe = _ffeClean(b.ffe);
+    d.assetSpec = _ffeSyncText(_assetSpecClean(b.spec), d.assetFfe || []);
     d.updatedAt = new Date().toISOString();
     saveDeals(arr);
-    res.json({ ok: true, spec: d.assetSpec, missing: ASSET_SPEC_CORE.filter(k => !d.assetSpec[k]) });
+    res.json({ ok: true, spec: d.assetSpec, ffe: d.assetFfe || [], missing: ASSET_SPEC_CORE.filter(k => !d.assetSpec[k]) });
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 // Grouped labels for the buyer-facing spec sheet (Marketing assets are internal — omitted).
@@ -20174,11 +20216,24 @@ function _assetPriceBand(askingPrice) {
   const n = parseInt(String(askingPrice || '').replace(/[^0-9]/g, ''), 10) || 0;
   if (!n) return ''; if (n < 1000000) return 'u1m'; if (n < 3000000) return '1-3m'; if (n < 5000000) return '3-5m'; return '5m+';
 }
-function assetSheetHtml(business, market, spec) {
-  spec = spec || {};
+function assetSheetHtml(business, market, spec, ffe) {
+  spec = spec || {}; ffe = Array.isArray(ffe) ? ffe : [];
   const nl = s => String(s == null ? '' : s).replace(/\n/g, '<br>');
   let secs = '';
   ASSET_SHEET_GROUPS.forEach(g => {
+    if (g[0] === 'FF&E' && ffe.length) {
+      const conv = ffe.filter(r => !r.excluded && r.own !== 'Leased'), leased = ffe.filter(r => !r.excluded && r.own === 'Leased'), exc = ffe.filter(r => r.excluded);
+      const cats = []; conv.forEach(r => { if (cats.indexOf(r.cat) < 0) cats.push(r.cat); });
+      let h = '<h2>FF&amp;E — equipment schedule</h2><table class="ffe"><tr><th>Item</th><th class="q">Qty</th><th>Make / model</th><th>Condition</th></tr>';
+      cats.forEach(c => { h += '<tr class="cat"><td colspan="4">' + esc(c) + '</td></tr>' + conv.filter(r => r.cat === c).map(r => '<tr><td>' + esc(r.item) + (r.notes ? '<div class="nt">' + esc(r.notes) + '</div>' : '') + '</td><td class="q">' + r.qty + '</td><td>' + esc(r.model || '—') + '</td><td>' + esc(r.cond || '—') + '</td></tr>').join(''); });
+      h += '</table>';
+      const extra = [];
+      if (leased.length) extra.push('<tr><th>Leased / vendor-owned (does not convey)</th><td>' + esc(leased.map(_ffeLine).join('; ')) + '</td></tr>');
+      if (exc.length) extra.push('<tr><th>Excluded items</th><td>' + esc(exc.map(_ffeLine).join('; ')) + '</td></tr>');
+      if (String(spec.smallwares || '').trim()) extra.push('<tr><th>Smallwares / POS / furniture</th><td>' + nl(esc(spec.smallwares)) + '</td></tr>');
+      if (extra.length) h += '<table style="margin-top:8px">' + extra.join('') + '</table>';
+      secs += h; return;
+    }
     const rows = g[1].filter(f => String(spec[f[0]] || '').trim()).map(f => '<tr><th>' + esc(f[1]) + '</th><td>' + nl(esc(spec[f[0]])) + '</td></tr>').join('');
     if (rows) secs += '<h2>' + esc(g[0]) + '</h2><table>' + rows + '</table>';
   });
@@ -20196,6 +20251,7 @@ function assetSheetHtml(business, market, spec) {
     + 'th{text-align:left;width:210px;vertical-align:top;color:#6b7488;font-weight:700;font-size:11.5px;padding:5px 12px 5px 0}'
     + 'td{vertical-align:top;padding:5px 0;color:#1a2236}'
     + 'tr+tr th,tr+tr td{border-top:1px solid #f2f4f8}'
+    + 'table.ffe th{width:auto;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;padding:5px 10px 5px 0;border-bottom:1px solid #e6e9f0}table.ffe td{padding:4px 10px 4px 0;font-size:12.5px}table.ffe .q{width:44px;text-align:right;padding-right:16px}table.ffe tr.cat td{font-weight:800;color:#000E31;font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding-top:10px}table.ffe .nt{color:#6b7488;font-size:11px}table.ffe tr{page-break-inside:avoid}'
     + '.empty{color:#8a93a8}.foot{margin-top:34px;padding-top:14px;border-top:1px solid #e6e9f0;color:#8a93a8;font-size:11px}'
     + '@media print{.wrap{padding:0}}</style></head><body><div class="wrap">'
     + '<div class="hd"><div class="kick">Space &amp; Assets — Listing Sheet</div><h1>' + esc(business || 'Restaurant Space') + '</h1><div class="mkt">' + esc(market || '') + '</div></div>'
@@ -20209,7 +20265,7 @@ app.get('/api/asset-spec/sheet', (req, res) => {
     const { d } = _dealByAnyKey(req.query && req.query.key);
     if (!d) return res.status(404).send('Listing not found.');
     if (!ownsDeal(req, d)) return res.status(403).send('Not yours.');
-    res.set('Content-Type', 'text/html; charset=utf-8').send(assetSheetHtml(d.business || '', d.market || '', d.assetSpec || {}));
+    res.set('Content-Type', 'text/html; charset=utf-8').send(assetSheetHtml(d.business || '', d.market || '', d.assetSpec || {}, d.assetFfe || []));
   } catch (e) { res.status(500).send('Could not render the sheet.'); }
 });
 // Drop a PDF of the spec sheet into the deal's data room (best-effort) so NDA'd buyers can pull it.
@@ -20217,7 +20273,7 @@ async function depositAssetSheetToRoom(d, key) {
   try {
     const room = resolveRoomFor({ dealKey: key, id: d.id, personId: d.contactPersonId, companyId: d.companyId });
     if (!room) return;
-    const pdf = await _htmlToPdf(assetSheetHtml(d.business || '', d.market || '', d.assetSpec || {}));
+    const pdf = await _htmlToPdf(assetSheetHtml(d.business || '', d.market || '', d.assetSpec || {}, d.assetFfe || []));
     if (!pdf || !pdf.length) return;
     const rooms = loadRooms(); const live = rooms.find(x => x.id === room.id); if (!live) return;
     live.docs = live.docs || [];
