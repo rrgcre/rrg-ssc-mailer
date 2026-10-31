@@ -80,7 +80,7 @@ var GROUPS=[
   {title:'The headline', fields:[
     {k:'askingPrice', l:'Asking price', ph:'$185,000'},
     {k:'conveys', l:'What conveys — assets & rights included', a:1, ph:'FF&E, hood system, walk-ins, liquor license, lease assignment…'},
-    {k:'reason', l:'Reason for availability', ph:'Relocating / closing the concept / lease expiring'},
+    {k:'reason', l:'Reason for availability', ph:'Pick a reason or type your own', list:['Owner retiring','Owner relocating','Focusing on other locations','Closing the concept','Changing concepts','Lease expiring','Partnership change','Personal reasons']},
     {k:'availableDate', l:'Target availability / delivery date', ph:'Pick a date · or 60 days after closing', date:1}
   ]},
   {title:'The lease', core:1, hint:'The heart of a space deal — how much time is left and how the landlord handles an assignment.', fields:[
@@ -140,6 +140,7 @@ function fieldHtml(f){
   var lab='<label>'+esc(f.l)+(f.core?'<span class="dot">★</span>':'')+'</label>';
   var need=(f.core && !String(v).trim())?' need':'';
   if(f.date){ return '<div class="fld" data-fk="'+f.k+'">'+lab+'<div class="datef"><input type="text" data-k="'+f.k+'" value="'+esc(v)+'" placeholder="'+esc(f.ph||'')+'"><button type="button" class="cal" data-cal="'+f.k+'" title="Pick a date">📅</button><input type="date" data-calfor="'+f.k+'" tabindex="-1" aria-hidden="true"></div></div>'; }
+  if(f.list){ return '<div class="fld" data-fk="'+f.k+'">'+lab+'<input type="text" data-k="'+f.k+'" list="dl_'+f.k+'" value="'+esc(v)+'" placeholder="'+esc(f.ph||'')+'" autocomplete="off"><datalist id="dl_'+f.k+'">'+f.list.map(function(o){return '<option value="'+esc(o)+'">';}).join('')+'</datalist></div>'; }
   var ctrl=f.a
     ? '<textarea data-k="'+f.k+'" placeholder="'+esc(f.ph||'')+'">'+esc(v)+'</textarea>'
     : '<input type="text" data-k="'+f.k+'" value="'+esc(v)+'" placeholder="'+esc(f.ph||'')+'">';
@@ -170,6 +171,7 @@ function render(){
   });
   document.getElementById('saveBtn').addEventListener('click', save);
   ffeWire(); wireDates();
+  document.querySelectorAll('input[list]').forEach(function(el){ el.addEventListener('focus', function(){ if(!el.value && el.showPicker){ try{ el.showPicker(); }catch(e){} } }); });
 }
 function refreshBanner(){ var b=document.getElementById('bannerHost'); if(b) b.innerHTML=bannerHtml(); }
 function gather(){ var out={}; document.querySelectorAll('[data-k]').forEach(function(el){ var v=el.value.trim(); if(v) out[el.getAttribute('data-k')]=v; }); if(!FFE.length){ if(SPEC.ffeSchedule) out.ffeSchedule=SPEC.ffeSchedule; if(SPEC.ffeExcluded) out.ffeExcluded=SPEC.ffeExcluded; } return out; }
