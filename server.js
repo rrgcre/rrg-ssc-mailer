@@ -8554,7 +8554,7 @@ ${o.jsonld ? ('<script type="application/ld+json">' + JSON.stringify(o.jsonld).r
 ${o.body}
 <footer><div class="wrap">
   <div class="foot">
-    <div><a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
+    <div><a class="brand" href="/site" aria-label="${org}"><img src="/api/brand/logo" alt="${org}" style="height:64px;width:auto;display:block;border-radius:4px"></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right.&trade; Representing sellers, buyers, landlords, and tenants across Texas.</p></div>
     <div><h4>Markets</h4>${cityLinks}</div>
     <div><h4>Offices</h4>${offLinks}</div>
@@ -9112,7 +9112,7 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
 <footer><div class="wrap">
   <div class="foot">
     <div>
-      <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
+      <a class="brand" href="/site" aria-label="${org}"><img src="/api/brand/logo" alt="${org}" style="height:64px;width:auto;display:block;border-radius:4px"></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right.&trade; Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
     <div><h4>Markets</h4><a href="/sell-my-restaurant/san-antonio">San Antonio</a><a href="/sell-my-restaurant/austin">Austin</a><a href="/sell-my-restaurant/dallas">Dallas–Fort Worth</a><a href="/sell-my-restaurant/houston">Houston</a><a href="/restaurants-for-sale/san-antonio">Restaurants for sale</a><a href="/restaurant-space-for-lease/san-antonio">Space for lease</a></div>
@@ -9301,7 +9301,7 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
 <footer><div class="wrap">
   <div class="foot">
     <div>
-      <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
+      <a class="brand" href="/site" aria-label="${org}"><img src="/api/brand/logo" alt="${org}" style="height:64px;width:auto;display:block;border-radius:4px"></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right.&trade; Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
     <div><h4>Markets</h4><a href="/sell-my-restaurant/san-antonio">San Antonio</a><a href="/sell-my-restaurant/austin">Austin</a><a href="/sell-my-restaurant/dallas">Dallas–Fort Worth</a><a href="/sell-my-restaurant/houston">Houston</a><a href="/restaurants-for-sale/san-antonio">Restaurants for sale</a><a href="/restaurant-space-for-lease/san-antonio">Space for lease</a></div>
@@ -9477,7 +9477,7 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
 <footer><div class="wrap">
   <div class="foot">
     <div>
-      <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
+      <a class="brand" href="/site" aria-label="${org}"><img src="/api/brand/logo" alt="${org}" style="height:64px;width:auto;display:block;border-radius:4px"></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right.&trade; Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
     <div><h4>Markets</h4><a href="/sell-my-restaurant/san-antonio">San Antonio</a><a href="/sell-my-restaurant/austin">Austin</a><a href="/sell-my-restaurant/dallas">Dallas–Fort Worth</a><a href="/sell-my-restaurant/houston">Houston</a><a href="/restaurants-for-sale/san-antonio">Restaurants for sale</a><a href="/restaurant-space-for-lease/san-antonio">Space for lease</a></div>
@@ -9650,7 +9650,7 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
 <footer><div class="wrap">
   <div class="foot">
     <div>
-      <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
+      <a class="brand" href="/site" aria-label="${org}"><img src="/api/brand/logo" alt="${org}" style="height:64px;width:auto;display:block;border-radius:4px"></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right.&trade; Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
     <div><h4>Markets</h4><a href="/sell-my-restaurant/san-antonio">San Antonio</a><a href="/sell-my-restaurant/austin">Austin</a><a href="/sell-my-restaurant/dallas">Dallas–Fort Worth</a><a href="/sell-my-restaurant/houston">Houston</a><a href="/restaurants-for-sale/san-antonio">Restaurants for sale</a><a href="/restaurant-space-for-lease/san-antonio">Space for lease</a></div>
@@ -9852,7 +9852,7 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
 <footer><div class="wrap">
   <div class="foot">
     <div>
-      <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
+      <a class="brand" href="/site" aria-label="${org}"><img src="/api/brand/logo" alt="${org}" style="height:64px;width:auto;display:block;border-radius:4px"></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right.&trade; Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
     <div><h4>Markets</h4><a href="/sell-my-restaurant/san-antonio">San Antonio</a><a href="/sell-my-restaurant/austin">Austin</a><a href="/sell-my-restaurant/dallas">Dallas–Fort Worth</a><a href="/sell-my-restaurant/houston">Houston</a><a href="/restaurants-for-sale/san-antonio">Restaurants for sale</a><a href="/restaurant-space-for-lease/san-antonio">Space for lease</a></div>
@@ -10024,6 +10024,7 @@ function siteSubscribePage(req) {
 </div></div>
 
 <footer><div class="wrap">
+  <div style="padding:6px 0 18px"><a href="/site" aria-label="${org}" style="display:inline-block"><img src="/api/brand/logo" alt="${org}" style="height:64px;width:auto;display:block;border-radius:4px"></a></div>
   <div class="footbar"><span>&copy; ${year} ${esc(orgLegalName())}. All rights reserved.</span><span><a href="/site" style="color:#8597b8">Back to site</a></span></div>
 </div></footer>
 
@@ -10205,7 +10206,7 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
 <footer><div class="wrap">
   <div class="foot">
     <div>
-      <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
+      <a class="brand" href="/site" aria-label="${org}"><img src="/api/brand/logo" alt="${org}" style="height:64px;width:auto;display:block;border-radius:4px"></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right.&trade; Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
     <div><h4>Markets</h4><a href="/sell-my-restaurant/san-antonio">San Antonio</a><a href="/sell-my-restaurant/austin">Austin</a><a href="/sell-my-restaurant/dallas">Dallas–Fort Worth</a><a href="/sell-my-restaurant/houston">Houston</a><a href="/restaurants-for-sale/san-antonio">Restaurants for sale</a><a href="/restaurant-space-for-lease/san-antonio">Space for lease</a></div>
@@ -10379,7 +10380,7 @@ ${hasWins ? `<section id="track" class="track"><div class="wrap">
 <footer><div class="wrap">
   <div class="foot">
     <div>
-      <a class="brand" href="/site" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
+      <a class="brand" href="/site" aria-label="${org}"><img src="/api/brand/logo" alt="${org}" style="height:64px;width:auto;display:block;border-radius:4px"></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right.&trade; Representing sellers, buyers, landlords, and tenants across Texas.</p>
     </div>
     <div><h4>Markets</h4><a href="/sell-my-restaurant/san-antonio">San Antonio</a><a href="/sell-my-restaurant/austin">Austin</a><a href="/sell-my-restaurant/dallas">Dallas–Fort Worth</a><a href="/sell-my-restaurant/houston">Houston</a><a href="/restaurants-for-sale/san-antonio">Restaurants for sale</a><a href="/restaurant-space-for-lease/san-antonio">Space for lease</a></div>
@@ -10958,7 +10959,7 @@ ${s.careersBandHead ? `<section id="careers" style="background:var(--cream);padd
 <footer><div class="wrap">
   <div class="foot">
     <div>
-      <a class="brand" href="#top" style="color:#fff"><span class="disc">RRG</span><span class="bn">${org}<i>Restaurant &amp; Bar Brokers</i></span></a>
+      <a class="brand" href="#top" aria-label="${org}"><img src="/api/brand/logo" alt="${org}" style="height:64px;width:auto;display:block;border-radius:4px"></a>
       <p style="margin-top:14px;max-width:34ch;color:#8597b8">Restaurant Transactions. Done Right.&trade; Representing sellers, buyers, landlords, and tenants across Texas.</p>
       <div class="annbadge"><span class="anndisc">RRG</span><span class="anntxt"><b>10 Years</b><i>2016 – 2026</i></span></div>
     </div>
@@ -11307,8 +11308,8 @@ footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} 
 </div>
 
 <footer><div class="wrap ft">
-  <div style="max-width:660px"><b>Confidential.</b> Business names, addresses, and financials for operating businesses are released only to qualified buyers under an executed NDA. Real estate and asset listings are openly marketed. All inquiries route exclusively through ${org}.</div>
-  <div style="text-align:right"><b>${org}</b><br>Austin &middot; Dallas &middot; Fort Worth &middot; Houston &middot; San Antonio</div>
+  <div style="max-width:660px"><b>Confidential.</b> Business names, addresses, and financials for operating businesses are released only to qualified buyers under an executed NDA. Asset sales of operating restaurants follow the same rule; real estate is openly marketed. All inquiries route exclusively through ${org}.</div>
+  <div style="text-align:right"><a href="/site" aria-label="${org}" style="display:inline-block"><img src="/api/brand/logo" alt="${org}" style="height:64px;width:auto;display:block;margin-left:auto;border-radius:4px"></a><div style="margin-top:8px">Austin &middot; Dallas &middot; Fort Worth &middot; Houston &middot; San Antonio</div></div>
 </div></footer>
 
 <div class="ov" id="ov"><div class="mbox">
