@@ -6937,7 +6937,7 @@ app.get('/api/assignment/:key/teaser', (req, res) => {
   const deals = assignmentsIndex(); const d = deals[req.params.key];
   if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
   const cur = loadAssignOverlay()[req.params.key] || {};
-  res.json(Object.assign({ ok: true, canEdit: _canMarketReq(req) }, _teaserOut(req.params.key, cur)));
+  res.json(Object.assign({ ok: true, canEdit: _canMarketReq(req), draft: (_canMarketReq(req) && cur.teaserDraft) ? cur.teaserDraft : null }, _teaserOut(req.params.key, cur)));
 });
 app.post('/api/assignment/:key/teaser', express.json({ limit: '128kb' }), (req, res) => {
   const deals = assignmentsIndex(); const d = deals[req.params.key];
@@ -6963,6 +6963,12 @@ app.post('/api/assignment/:key/teaser/draft', express.json(), async (req, res) =
     if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
     if (!_canMarketReq(req)) return res.status(403).json({ ok: false, error: 'Marketing writes the teaser.' });
     if (!aiAllowed(req)) return res.status(403).json({ ok: false, error: 'AI is not enabled for your role.' });
+    const F = _teaserFacts(d); const L = F.L, asset = F.asset;
+    const out = await aiassist.teaserEmail({ facts: L.join('\n'), asset: asset });
+    res.json({ ok: true, subject: out.subject, body: out.body });
+  } catch (e) { console.error('teaser draft:', e && e.message); res.status(502).json({ ok: false, error: String((e && e.message) || 'Could not draft the teaser.') }); }
+});
+function _teaserFacts(d) {
     const overlay = loadAssignOverlay(); let view = {}; try { view = assignmentView(d, overlay) || {}; } catch (e) {}
     const { d: deal } = _dealByAnyKey(d.key); const sp = (deal && deal.assetSpec) || {};
     const asset = _effLane(d.key, deal) === 'asset';
@@ -6972,10 +6978,8 @@ app.post('/api/assignment/:key/teaser/draft', express.json(), async (req, res) =
     add('Space type', sp.spaceType); add('Square footage', sp.sqft); add('Seating', sp.seating); add('Delivery condition', sp.deliveryCondition);
     add('Built in', _conveyLine((deal && deal.assetConvey) || [])); add('Highlights', String(sp.highlights || '').replace(/\n+/g, '; ')); add('Remaining lease term', sp.leaseRemaining); add('Renewal options', sp.leaseOptions);
     if (!asset) { add('Concept', view.concept || ''); add('Revenue', view.revenue || view.revText || ''); add('Cash flow / SDE', view.sde || ''); }
-    const out = await aiassist.teaserEmail({ facts: L.join('\n'), asset: asset });
-    res.json({ ok: true, subject: out.subject, body: out.body });
-  } catch (e) { console.error('teaser draft:', e && e.message); res.status(502).json({ ok: false, error: String((e && e.message) || 'Could not draft the teaser.') }); }
-});
+  return { L: L, asset: asset };
+}
 // Called from the email send paths (via _tplExecAuto) — records a teaser send on the listing.
 function _teaserSent(templateId, p, user) {
   try {
@@ -7016,6 +7020,7 @@ function _mktRow(key, d, o, tickets, people) {
   let v = {}; try { v = assignmentView(d, { [key]: o }) || {}; } catch (e) {}
   const t = tickets.find(x => x.id === o.mktTicketId) || null;
   const lane = o.saleLane || v.saleLane || 'business';
+  const typeLbl = (o.assignmentType === 'landlord_rep') ? 'Landlord lease' : (o.assignmentType === 'tenant_rep' ? 'Tenant rep' : (lane === 'asset' ? 'Asset sale' : (lane === 'business' ? ((o.reIncluded || o.reOwnership === 'sell') ? 'Going concern + real estate' : (o.reOwnership === 'leaseback' ? 'Going concern + leaseback' : 'Going concern')) : 'Real estate / other')));
   let needs = Array.isArray(o.mktItems) && o.mktItems.length ? o.mktItems.slice() : MKT_DEFAULT_NEEDS.concat(lane === 'business' ? ['pack'] : []);
   needs = MKT_ITEMS.filter(i => needs.indexOf(i.id) >= 0 && (!i.lane || i.lane === lane)).map(i => i.id);
   const auto = {
@@ -7032,14 +7037,14 @@ function _mktRow(key, d, o, tickets, people) {
   const sentAt = o.mktSubmittedAt || (t && t.createdAt) || '';
   const closed = !!(t && t.status === 'Closed');
   return {
-    key, business: v.business || o.businessOverride || 'Listing', market: v.market || o.marketOverride || '', lane,
+    key, business: v.business || o.businessOverride || 'Listing', market: v.market || o.marketOverride || '', lane, type: typeLbl,
     rep: o.owner || v.owner || (t && t.by) || '', seller: p ? (p.name || '') : (o.contact || ''), sellerId: p ? p.id : '',
     asking: o.listPrice || (d.deal && d.deal.assetSpec && d.deal.assetSpec.askingPrice) || '',
     sentAt, days: sentAt ? Math.max(0, Math.floor((Date.now() - Date.parse(sentAt)) / 86400000)) : null,
     ticket: t ? { id: t.id, num: t.num || '', status: t.status || 'Open', notes: _mktRepNotes(t.details || '') } : null,
     needs, items, done, total: needs.length, complete: needs.length > 0 && done === needs.length, closed,
     published: auto.market, cover, roomId: v.roomId || (d.room && d.room.id) || '',
-    doneAt: o.mktDoneAt || ''
+    doneAt: o.mktDoneAt || '', drafts: o.mktDrafts || null, chitchat: (o.chitchatDraft && o.chitchatDraft.text) || '', blastId: o.blastCampaignId || '', blastStudioId: o.blastStudioId || ''
   };
 }
 function _mktRepNotes(details) { const m = String(details || '').split(/\nNotes from the rep:\n/); return m.length > 1 ? m[1].trim().slice(0, 1500) : ''; }
@@ -7073,6 +7078,72 @@ app.post('/api/marketing/queue/:key/item', express.json(), (req, res) => {
   const lbl = (MKT_ITEMS.find(i => i.id === item) || {}).l || item;
   if (b.done) _listingMilestone(key, 'Marketing: ' + lbl + ' done', req);
   res.json({ ok: true, row: row, allDone: row.complete && !row.closed });
+});
+// "Prepare drafts" — one click builds a first draft of every requested deliverable. Nothing is
+// published or sent: drafts wait for Marketing to review, publish or send, and tick the box.
+app.post('/api/marketing/queue/:key/prepare', express.json(), async (req, res) => {
+  if (!_canMarketReq(req)) return res.status(403).json({ ok: false, error: 'The listing queue is for Marketing.' });
+  if (!aiAllowed(req)) return res.status(403).json({ ok: false, error: 'AI is not enabled for your role.' });
+  const key = req.params.key; const idx = assignmentsIndex(); const a = idx[key];
+  let overlay = loadAssignOverlay(); let cur = overlay[key];
+  if (!a || !cur || !cur.mktTicketId) return res.status(404).json({ ok: false, error: 'Not in the queue.' });
+  const { d: deal } = _dealByAnyKey(key); const sp = (deal && deal.assetSpec) || {};
+  const row0 = _mktRow(key, a, cur, loadTickets(), loadPeople()); const needs = row0.needs;
+  const asset = _effLane(key, deal) === 'asset'; const out = {}; const now = new Date().toISOString();
+  let view = {}; try { view = assignmentView(a, overlay) || {}; } catch (e) {}
+  const biz = view.business || (deal && deal.business) || 'Listing';
+  // Teaser (also feeds the blast)
+  let tz = cur.teaser && cur.teaser.body ? { subject: cur.teaser.subject, body: cur.teaser.body } : (cur.teaserDraft || null);
+  if ((needs.indexOf('teaser') >= 0 || needs.indexOf('blast') >= 0) && !tz) {
+    try { const F = _teaserFacts(a); tz = await aiassist.teaserEmail({ facts: F.L.join('\n'), asset: F.asset }); tz.at = now; } catch (e) { out.teaser = { state: 'error', note: 'Could not draft the teaser.' }; }
+  }
+  if (needs.indexOf('teaser') >= 0 && !out.teaser) out.teaser = (cur.teaser && cur.teaser.body) ? { state: 'done', note: 'Teaser already saved.' } : { state: 'draft', note: 'Draft in the teaser box — edit and Save teaser.' };
+  // BizBuySell entries
+  if (needs.indexOf('bbs') >= 0) {
+    if (cur.bbsDraft && cur.bbsDraft.ad) out.bbs = { state: 'draft', note: 'Entries ready to copy.' };
+    else if (deal && asset) { try { const L = _bbsFacts(deal); if (L.length >= 5) { const ad = await aiassist.bizBuySellAd({ facts: L.join('\n') }); cur.bbsDraft = { ad: ad, at: now }; out.bbs = { state: 'draft', note: 'Entries ready to copy.' }; } else out.bbs = { state: 'blocked', note: 'Finish the listing details first.' }; } catch (e) { out.bbs = { state: 'error', note: 'Could not write the entries.' }; } }
+    else out.bbs = { state: 'blocked', note: 'BizBuySell entries are written from the listing details (space & assets).' };
+  }
+  // Marketplace card (unpublished)
+  if (needs.indexOf('market') >= 0 || needs.indexOf('web') >= 0) {
+    if (cur.market && cur.market.published) out.market = { state: 'done', note: 'Already published.' };
+    else if (asset) {
+      const mkKey = effMarkets().filter(m => String((deal && deal.market) || view.market || '').toLowerCase().indexOf(String(m).toLowerCase()) >= 0)[0] || 'Other';
+      const hl = String(sp.highlights || '').split(/\n+/).map(x => x.trim()).filter(Boolean)[0] || '';
+      cur.market = mktClean({ published: false, conceptType: 'Turnkey space', headline: (hl || ('Turnkey restaurant space' + (sp.sqft ? (' · ' + sp.sqft) : ''))).slice(0, 140), loc: (deal && deal.market) || view.market || '', marketKey: mkKey, priceBand: _assetPriceBand(sp.askingPrice), guide: sp.askingPrice || '' }, cur.market || {});
+      cur.market.updatedAt = now;
+      out.market = { state: 'draft', note: 'Marketplace card filled in, not published — review it and publish; that also puts the web listing live.' };
+    } else out.market = { state: 'todo', note: 'Fill the marketplace card on the listing page (going-concern listings stay blind).' };
+  }
+  // Lease abstract
+  if (needs.indexOf('abstract') >= 0) {
+    if (_mktLeaseOnFile(key, a)) out.abstract = { state: 'done', note: 'Abstract on file.' };
+    else { let hasLease = false; try { const room = resolveRoomFor({ dealKey: key, id: deal && deal.id, personId: deal && deal.contactPersonId, companyId: deal && deal.companyId }); hasLease = !!(room && (room.docs || []).some(x => _isLeaseDoc(x))); } catch (e) {} out.abstract = hasLease ? { state: 'todo', note: 'The lease is in the data room — build the abstract from Lease Abstracts.' } : { state: 'blocked', note: 'No lease in the data room yet — ask the rep to upload it.' }; }
+  }
+  // Email blast — a draft campaign in Email Studio (never sent from here)
+  if (needs.indexOf('blast') >= 0 && tz) {
+    try {
+      if (cur.blastStudioId) out.blast = { state: 'draft', note: 'Draft campaign already in Campaigns — review, pick the list and send.', studioId: cur.blastStudioId };
+      else if (massmail.dbReady()) {
+        const id = await massmail.createCampaignRecord({ name: 'Listing — ' + biz, subject: tz.subject || ('New listing: ' + biz), preheader: String(sp.highlights || '').split(/\n+/)[0] || '', html: _teaserBodyHtml(String(tz.body || '').replace(/\{\{my_name\}\}/g, (req.user && req.user.name) || 'Restaurant Realty Group')) }, req.user);
+        cur.blastStudioId = id; out.blast = { state: 'draft', note: 'Draft campaign created in Campaigns — pick the list, review and send.', studioId: id };
+      } else {
+        const camps = loadCampaigns(); let c = cur.blastCampaignId ? camps.find(x => x.id === cur.blastCampaignId) : null;
+        if (!c) { c = { id: newCampaignId(), status: 'draft', by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', createdAt: now }; camps.unshift(c); }
+        if (c.status === 'sent' || c.status === 'sending') out.blast = { state: 'done', note: 'Campaign already sent.' };
+        else { c.name = 'Listing — ' + biz; c.subject = tz.subject || ('New listing: ' + biz); c.body = _teaserBodyHtml(tz.body); c.templateId = ''; c.audience = c.audience || {}; c.metros = [(deal && deal.market) || view.market || ''].filter(Boolean); c.recipientCount = massAudience(c.audience, c.metros).length; c.updatedAt = now; saveCampaigns(camps); cur.blastCampaignId = c.id; out.blast = { state: 'draft', note: 'Draft campaign created (' + c.recipientCount + ' subscribers) — review and send.', campaignId: c.id }; }
+      }
+    } catch (e) { out.blast = { state: 'error', note: 'Could not create the campaign draft: ' + String((e && e.message) || '').slice(0, 120) }; }
+  }
+  // Texas Chit Chat blurb
+  if (needs.indexOf('chitchat') >= 0) {
+    try { const F = _teaserFacts(a); const txt = await aiassist.chitChatBlurb({ facts: F.L.join('\n'), asset: F.asset }); cur.chitchatDraft = { text: txt, at: now }; out.chitchat = { state: 'draft', note: 'Blurb ready for the next issue.', text: txt }; } catch (e) { out.chitchat = { state: 'error', note: 'Could not write the blurb.' }; }
+  }
+  if (tz && !(cur.teaser && cur.teaser.body)) cur.teaserDraft = { subject: tz.subject, body: tz.body, at: tz.at || now };
+  cur.mktDrafts = Object.assign({}, cur.mktDrafts || {}, out, { at: now, by: (req.user && req.user.name) || '' });
+  overlay = loadAssignOverlay(); overlay[key] = Object.assign(overlay[key] || {}, { teaserDraft: cur.teaserDraft, bbsDraft: cur.bbsDraft, market: cur.market, blastCampaignId: cur.blastCampaignId, blastStudioId: cur.blastStudioId, chitchatDraft: cur.chitchatDraft, mktDrafts: cur.mktDrafts }); saveAssignOverlay(overlay);
+  _listingMilestone(key, 'Marketing drafts prepared — ' + Object.keys(out).length + ' item' + (Object.keys(out).length === 1 ? '' : 's'), req);
+  res.json({ ok: true, drafts: cur.mktDrafts, row: _mktRow(key, a, overlay[key], loadTickets(), loadPeople()) });
 });
 // Close (complete) or reopen the Marketing request for a listing.
 app.post('/api/marketing/queue/:key/close', express.json(), (req, res) => {
@@ -20197,7 +20268,7 @@ app.post('/api/deal/new', express.json(), (req, res) => {
 const ASSET_SPEC_FIELDS = {
   valueReasoning: 3000,   // internal: the broker's reasoning behind the opinion of value (never on the buyer sheet)
   // Headline
-  askingPrice: 60, highlights: 1200, conveys: 2000, reason: 300, availableDate: 60,
+  askingPrice: 60, agentUser: 60, coAgentUser: 60, highlights: 1200, conveys: 2000, reason: 300, availableDate: 60,
   // Lease (core)
   leaseRent: 80, leaseTotal: 80, leasePerSF: 40, leaseRemaining: 80, leaseExpiration: 60, leaseOptions: 300, leaseAssignment: 600, leaseNNN: 300, leaseDeposit: 160, leaseUse: 300, leaseFixtures: 200, optCount: 10, optYears: 10, optNotice: 10, optRent: 40,
   // Space (core)
@@ -20481,13 +20552,7 @@ function _assetValueRefs(key, d) {
 }
 // AI draft of the offering-sheet highlights from what's on the listing details (rep reviews before it's used).
 // BizBuySell ad entries from the listing details (Marketing copies them into BizBuySell).
-app.post('/api/asset-spec/bbs-ad', express.json(), async (req, res) => {
-  try {
-    const b = req.body || {};
-    const { d } = _dealByAnyKey(b.key);
-    if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
-    if (!ownsDeal(req, d) && !(req.user && (isSuper(req.user) || userDepartmentIds(req.user.username).indexOf('marketing') >= 0))) return res.status(403).json({ ok: false, error: 'Not yours.' });
-    if (!aiAllowed(req)) return res.status(403).json({ ok: false, error: 'AI is not enabled for your role.' });
+function _bbsFacts(d) {
     const sp = d.assetSpec || {}, conv = d.assetConvey || [], ffe = d.assetFfe || [];
     const L = []; const add = (k, v) => { v = String(v || '').trim(); if (v) L.push(k + ': ' + v); };
     add('Market', d.market); add('Address (do not publish)', sp.address); add('Space type', sp.spaceType); add('Center', [sp.centerName, sp.centerType].filter(Boolean).join(' · ')); add('Anchors & co-tenants', sp.coTenants); add('Zoning', sp.zoning); add('Historic / overlay district', sp.overlay);
@@ -20495,9 +20560,22 @@ app.post('/api/asset-spec/bbs-ad', express.json(), async (req, res) => {
     add('Asking price', sp.askingPrice); add('Total monthly rent', sp.leaseTotal); add('Base rent', sp.leaseRent); add('Remaining lease term', sp.leaseRemaining); add('Lease expiration', sp.leaseExpiration); add('Renewal options', sp.leaseOptions); add('Permitted use', sp.leaseUse);
     add('Built in (conveys with the lease)', _conveyLine(conv)); add('Last buildout / remodel', [sp.remodelYear, sp.remodelCost ? ('approx. ' + sp.remodelCost) : ''].filter(Boolean).join(' · '));
     add('Equipment conveying', ffe.filter(r => !r.excluded && r.own !== 'Leased').slice(0, 20).map(_ffeLine).join('; ')); add('HVAC', sp.hvac); add('Highlights', String(sp.highlights || '').replace(/\n+/g, '; '));
+  return L;
+}
+app.post('/api/asset-spec/bbs-ad', express.json(), async (req, res) => {
+  try {
+    const b = req.body || {};
+    const { d } = _dealByAnyKey(b.key);
+    if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
+    if (!ownsDeal(req, d) && !(req.user && (isSuper(req.user) || userDepartmentIds(req.user.username).indexOf('marketing') >= 0))) return res.status(403).json({ ok: false, error: 'Not yours.' });
+    const overlay = loadAssignOverlay(); const cur = overlay[b.key] || {};
+    if (!b.fresh && cur.bbsDraft && cur.bbsDraft.ad) return res.json({ ok: true, ad: cur.bbsDraft.ad, at: cur.bbsDraft.at, cached: true });
+    if (!aiAllowed(req)) return res.status(403).json({ ok: false, error: 'AI is not enabled for your role.' });
+    const L = _bbsFacts(d);
     if (L.length < 5) return res.status(400).json({ ok: false, error: 'Complete the listing details first — the ad is written from them.' });
     const ad = await aiassist.bizBuySellAd({ facts: L.join('\n') });
-    res.json({ ok: true, ad: ad });
+    const ov2 = loadAssignOverlay(); const c2 = ov2[b.key] || {}; c2.bbsDraft = { ad: ad, at: new Date().toISOString() }; ov2[b.key] = c2; saveAssignOverlay(ov2);
+    res.json({ ok: true, ad: ad, at: c2.bbsDraft.at });
   } catch (e) { console.error('bbs ad:', e && e.message); res.status(502).json({ ok: false, error: String((e && e.message) || 'Could not write the ad.') }); }
 });
 app.post('/api/asset-spec/highlights', express.json({ limit: '256kb' }), async (req, res) => {
@@ -20529,7 +20607,7 @@ app.get('/api/asset-spec', (req, res) => {
     if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
     if (!ownsDeal(req, d) && !(req.user && userDepartmentIds(req.user.username).indexOf('marketing') >= 0)) return res.status(403).json({ ok: false, error: 'Not yours.' });
     const spec = d.assetSpec || {};
-    res.json({ ok: true, key: req.query.key, business: d.business || '', market: d.market || '', saleLane: _effLane(req.query.key, d), spec: spec, ffe: d.assetFfe || [], ffeCats: aiassist.FFE_CATS || [], convey: d.assetConvey || null, conveyKit: CONVEY_KIT, spaceTypes: SPACE_TYPES, centerTypes: CENTER_TYPES, locAddress: _vlAddress({ key: String(req.query.key || '') }), valueRefs: _assetValueRefs(String(req.query.key || ''), d), leaseAbs: _assetLeaseAbs(req, String(req.query.key || ''), d), media: (function () { try { return _dealMediaOut(String(req.query.key || '')); } catch (e) { return null; } })(), walkVideo: (function () { try { const ov = loadAssignOverlay()[String(req.query.key || '')] || {}; return _walkVideoOut(String(req.query.key || ''), ov.media && ov.media.walkVideo); } catch (e) { return null; } })(), seller: (function () { try { const pid = d.contactPersonId || d.clientPersonId || ''; const p = pid ? loadPeople().find(x => x.id === pid) : null; return p ? { id: p.id, name: p.name || [p.firstName, p.lastName].filter(Boolean).join(' ') } : null; } catch (e) { return null; } })(), core: ASSET_SPEC_CORE, missing: ASSET_SPEC_CORE.filter(k => !spec[k]) });
+    res.json({ ok: true, key: req.query.key, business: d.business || '', market: d.market || '', saleLane: _effLane(req.query.key, d), spec: spec, ffe: d.assetFfe || [], ffeCats: aiassist.FFE_CATS || [], convey: d.assetConvey || null, conveyKit: CONVEY_KIT, spaceTypes: SPACE_TYPES, centerTypes: CENTER_TYPES, locAddress: _vlAddress({ key: String(req.query.key || '') }), valueRefs: _assetValueRefs(String(req.query.key || ''), d), leaseAbs: _assetLeaseAbs(req, String(req.query.key || ''), d), media: (function () { try { return _dealMediaOut(String(req.query.key || '')); } catch (e) { return null; } })(), walkVideo: (function () { try { const ov = loadAssignOverlay()[String(req.query.key || '')] || {}; return _walkVideoOut(String(req.query.key || ''), ov.media && ov.media.walkVideo); } catch (e) { return null; } })(), agents: (function () { try { return (auth.loadUsers() || []).filter(u => !u.disabled).map(u => ({ v: u.username, l: (u.name || u.username) + (u.title ? (' — ' + u.title) : '') })).sort((a, b) => a.l.localeCompare(b.l)); } catch (e) { return []; } })(), agentDefault: (function () { try { const ov = loadAssignOverlay()[String(req.query.key || '')] || {}; if (ov.ownerUser) return ov.ownerUser; const nm = String(ov.owner || '').toLowerCase(); const u = nm ? (auth.loadUsers() || []).find(x => String(x.name || '').toLowerCase() === nm) : null; return (u && u.username) || d.byUser || ''; } catch (e) { return ''; } })(), seller: (function () { try { const pid = d.contactPersonId || d.clientPersonId || ''; const p = pid ? loadPeople().find(x => x.id === pid) : null; return p ? { id: p.id, name: p.name || [p.firstName, p.lastName].filter(Boolean).join(' ') } : null; } catch (e) { return null; } })(), core: ASSET_SPEC_CORE, missing: ASSET_SPEC_CORE.filter(k => !spec[k]) });
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 app.post('/api/asset-spec', express.json({ limit: '256kb' }), (req, res) => {
@@ -20573,9 +20651,12 @@ function _assetSheetOpts(d, key, req) {
   try { o.logo = _vlLogoDataUri() || ''; } catch (e) {}
   try {
     const ov = loadAssignOverlay()[key] || {};
-    const uname = ov.ownerUser || d.byUser || (req && req.user && req.user.username) || '';
+    const sp = d.assetSpec || {};
+    const uname = sp.agentUser || ov.ownerUser || d.byUser || (req && req.user && req.user.username) || '';
     const u = (uname && _vlUser(uname)) || (req && req.user) || null;
     if (u) o.rep = { name: u.name || '', title: u.title || '', email: u.email || '', phone: u.phone || '' };
+    const cu = sp.coAgentUser && sp.coAgentUser !== uname ? _vlUser(sp.coAgentUser) : null;
+    if (cu) o.rep2 = { name: cu.name || '', title: cu.title || '', email: cu.email || '', phone: cu.phone || '' };
     const med = (ov.media && typeof ov.media === 'object') ? ov.media : {};
     let ph = (Array.isArray(med.photos) ? med.photos : []).slice().sort((a, b) => (a.ord || 0) - (b.ord || 0));
     if (med.coverPhotoId) ph = ph.filter(p => p.id === med.coverPhotoId).concat(ph.filter(p => p.id !== med.coverPhotoId));
@@ -20636,7 +20717,8 @@ function assetSheetHtml(business, market, spec, ffe, convey, opts) {
   const utilHtml = sec('Utilities', row('Electrical', v('electrical')) + row('HVAC', v('hvac')) + row('Water / sewer', v('waterSewer')));
   // Contact
   const r = opts.rep || {};
-  const contact = '<div class="contact"><div><div class="cl">For information or a showing</div><div class="cn">' + esc(r.name || org) + '</div>' + (r.title ? '<div class="ct">' + esc(r.title) + '</div>' : '') + '<div class="cd">' + [r.phone ? esc(r.phone) : '', r.email ? ('<a href="mailto:' + esc(r.email) + '">' + esc(r.email) + '</a>') : ''].filter(Boolean).join(' · ') + '</div></div><div class="corg">' + (opts.logo ? '<img src="' + opts.logo + '" alt="">' : '<b>' + esc(org) + '</b>') + '</div></div>';
+  const _agent = x => '<div class="cag"><div class="cn">' + esc(x.name || org) + '</div>' + (x.title ? '<div class="ct">' + esc(x.title) + '</div>' : '') + '<div class="cd">' + [x.phone ? esc(x.phone) : '', x.email ? ('<a href="mailto:' + esc(x.email) + '">' + esc(x.email) + '</a>') : ''].filter(Boolean).join(' · ') + '</div></div>';
+  const contact = '<div class="contact"><div><div class="cl">For information or a showing</div><div class="cags">' + _agent(r) + (opts.rep2 ? _agent(opts.rep2) : '') + '</div></div><div class="corg">' + (opts.logo ? '<img src="' + opts.logo + '" alt="">' : '<b>' + esc(org) + '</b>') + '</div></div>';
   const addrLine = [v('address'), market && v('address').indexOf(market) < 0 ? market : ''].filter(Boolean).join(' · ') || market || '';
   return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + esc(business || 'Restaurant space') + ' — Offering Sheet</title><style>'
     + '@page{size:Letter;margin:0.45in 0.55in}*{box-sizing:border-box}body{margin:0;background:#fff;color:#1a2236;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;font-size:11.5px;line-height:1.45}'
@@ -20651,7 +20733,7 @@ function assetSheetHtml(business, market, spec, ffe, convey, opts) {
     + '.note{margin:6px 0 0}.fine{margin:5px 0 0;font-size:9.5px;color:#8a93a8}'
     + 'table{width:100%;border-collapse:collapse}table.kv th{text-align:left;width:2.1in;vertical-align:top;color:#6b7488;font-weight:700;font-size:10.5px;padding:3px 10px 3px 0}table.kv td{vertical-align:top;padding:3px 0}table.kv tr+tr th,table.kv tr+tr td{border-top:1px solid #f1f3f7}'
     + 'table.ffe th{text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:#6b7488;padding:3px 8px 3px 0;border-bottom:1px solid #dbe0e9}table.ffe td{padding:2px 8px 2px 0;font-size:11px;vertical-align:top}table.ffe .q{width:.45in;text-align:right;padding-right:14px}table.ffe tr.cat td{font-weight:800;color:#000E31;font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;padding-top:7px}table.ffe .nt{color:#6b7488;font-size:9.5px}table.ffe tr,table.kv tr{page-break-inside:avoid}'
-    + '.contact{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-top:18px;padding:11px 14px;background:#000E31;color:#fff;page-break-inside:avoid}.contact .cl{font-size:8.5px;text-transform:uppercase;letter-spacing:.12em;color:#9fb0cf;font-weight:700}.contact .cn{font-size:15px;font-weight:800;margin-top:2px}.contact .ct{font-size:10.5px;color:#c9d3e6}.contact .cd{font-size:11.5px;margin-top:2px}.contact a{color:#fff}.contact .corg img{max-height:36px;max-width:170px;background:#fff;padding:4px 6px;border-radius:2px}'
+    + '.contact{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-top:18px;padding:11px 14px;background:#000E31;color:#fff;page-break-inside:avoid}.contact .cl{font-size:8.5px;text-transform:uppercase;letter-spacing:.12em;color:#9fb0cf;font-weight:700}.contact .cn{font-size:15px;font-weight:800;margin-top:2px}.contact .ct{font-size:10.5px;color:#c9d3e6}.contact .cd{font-size:11.5px;margin-top:2px}.contact a{color:#fff}.contact .cags{display:flex;gap:28px;flex-wrap:wrap}.contact .corg img{max-height:36px;max-width:170px;background:#fff;padding:4px 6px;border-radius:2px}'
     + '.foot{margin-top:8px;color:#8a93a8;font-size:8.5px;line-height:1.4}'
     + '@media print{.wrap{padding:0}}</style></head><body><div class="wrap">'
     + '<div class="top">' + (opts.logo ? '<img src="' + opts.logo + '" alt="">' : '<span class="org">' + esc(org) + '</span>') + '<span class="kick">Offering Sheet · Restaurant Space</span></div>'

@@ -562,4 +562,12 @@ async function teaserEmail({ facts, asset }) {
   const j = extractJson(await callClaude(sys, 'FACTS:\n' + String(facts || '').slice(0, 6000), 900)) || {};
   return { subject: String(j.subject || '').slice(0, 200), body: String(j.body || '').slice(0, 6000) };
 }
-module.exports = { teaserEmail, bizBuySellAd, suggestHighlights, FFE_CATS, parseFfeList, agreementExpiry, rewriteEmail, parseSpaceListing, parseSpaceListingDoc, enrichCenters, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, parseEmailContact, parseEmailUpdate, sscToTenantBox, parseConceptList, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, enrichCenterDetail, enrichPropertyDetail, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary, buildQuestionnaire, classifyRoomDocs, polishPrompts, refineBov, polishValueBasis };
+// Two-line "Seats Open" blurb for the Texas Chit Chat newsletter.
+async function chitChatBlurb({ facts, asset }) {
+  const sys = "You write one item for the 'Seats Open' section of Texas Chit Chat, a weekly newsletter for Texas restaurant and bar owners. Return ONLY the item text: a bold-worthy lead phrase, then one or two plain sentences, under 45 words total. Factual and conversational, no hype, no exclamation marks, no price."
+    + (asset ? " You may name the area or landmark." : " This is a CONFIDENTIAL business sale: never name the business, owner or street.")
+    + " End with: 'Ask Restaurant Realty Group for details.'";
+  const out = await callClaude(sys, 'FACTS:\n' + String(facts || '').slice(0, 4000), 200);
+  return String(out || '').replace(/^["\s]+|["\s]+$/g, '').slice(0, 400);
+}
+module.exports = { chitChatBlurb, teaserEmail, bizBuySellAd, suggestHighlights, FFE_CATS, parseFfeList, agreementExpiry, rewriteEmail, parseSpaceListing, parseSpaceListingDoc, enrichCenters, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, parseEmailContact, parseEmailUpdate, sscToTenantBox, parseConceptList, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, enrichCenterDetail, enrichPropertyDetail, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary, buildQuestionnaire, classifyRoomDocs, polishPrompts, refineBov, polishValueBasis };
