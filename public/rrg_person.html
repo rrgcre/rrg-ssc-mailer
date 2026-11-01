@@ -1523,6 +1523,10 @@ var PRENDA_BODY=''
   +'<p><b>3) The seller interview.</b> We’ll also set up a brief recorded conversation about the business — the story behind the numbers, what makes it special, and why now is the right time to sell. It’s one of the most valuable things we do: it sharpens the valuation and gives buyers confidence.</p>'
   +'<p>Send over any questions in the meantime. Looking forward to it.</p>'
   +'<p>Best,<br>{{my_name}}</p>';
+// ?tpl=<template id> (e.g. "Send teaser" from a listing's matching buyers) opens the composer with it loaded.
+function openTplEmail(id){ var tabBtn=document.querySelector('.cotab[data-tab="email"]'); if(tabBtn) tabBtn.click();
+  try{ var to=document.getElementById('em_to'); if(to && !to.value.trim()){ to.value=_pEmail(); } var sel=document.getElementById('em_tpl'); if(sel) sel.value=id; applyEmailTemplate(id); var c=document.querySelector('.actcomposer'); if(c) c.scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){} }
+(function(){ var m=location.search.match(/[?&]tpl=([^&]+)/); if(!m) return; var id=decodeURIComponent(m[1]), n=0; var iv=setInterval(function(){ n++; if(n>80){ clearInterval(iv); return; } if(typeof P==='undefined'||!P||!(EMAILTPLS||[]).some(function(t){ return t.id===id; })||!document.getElementById('em_tpl')) return; clearInterval(iv); if(!(EMAILREADY||GMAILCONN)){ alert('Email is not set up yet (Settings → Email).'); return; } openTplEmail(id); }, 250); })();
 function openPreNdaEmail(){
   if(!(EMAILREADY||GMAILCONN)){ alert('Email is not set up yet (Settings → Email), so this note can’t be composed here. Set up email, or send it from your own inbox.'); return; }
   var tabBtn=document.querySelector('.cotab[data-tab="email"]'); if(tabBtn) tabBtn.click();
@@ -2662,12 +2666,12 @@ load();
     ov.innerHTML='<div class="mkt-box"><div class="mkt-hd"><b>Submit to marketing</b><button type="button" data-x="1" aria-label="Close">&times;</button></div><div class="mkt-bd">'
       +'<p class="mkt-lead">Sends <b>'+esc(d.business||'this listing')+'</b> to Marketing &amp; Creative with the listing, data room and pricing linked. You\u2019ll see the status in the menu.</p>'
       +'<div class="mkt-sec">What\u2019s needed</div><div class="mkt-grid">'
-      +chk('market','RRG Marketplace posting',1)+chk('web','Web listing page',1)+chk('abstract','Lease abstract',1)+(asset?'':chk('pack','Marketing pack (CIM) review',1))+chk('teaser','Teaser copy',1)+chk('blast','Email blast message',1)+chk('bbs','BizBuySell ad',1)+chk('chitchat','Texas Chit Chat mention (Seats Open)',0)
+      +chk('market','RRG Marketplace posting',1)+chk('web','Web listing page',1)+chk('abstract','Lease abstract',1)+(asset?'':chk('pack','Marketing pack (CIM) review',1))+chk('teaser','Teaser email (reps send it 1:1)',1)+chk('blast','Email blast message',1)+chk('bbs','BizBuySell ad',1)+chk('chitchat','Texas Chit Chat mention (Seats Open)',0)
       +'</div><div class="mkt-sec">Notes for marketing</div><textarea data-n="1" rows="4" placeholder="Confidentiality, best photos, timing, showing instructions\u2026"></textarea>'
       +'<div class="mkt-ft"><button type="button" class="mkt-go" data-go="1">Submit to marketing</button><button type="button" class="mkt-cancel" data-x="1">Cancel</button><span data-m="1" style="font-size:12.5px;font-weight:600"></span></div></div></div>';
     document.body.appendChild(ov);
     ov.addEventListener('click',function(e){ if(e.target===ov||e.target.closest('[data-x]')){ ov.remove(); return; } if(!e.target.closest('[data-go]')) return;
-      var m=ov.querySelector('[data-m]'); var need=[]; var L={market:'RRG Marketplace posting',web:'Web listing page',abstract:'Lease abstract',pack:'Marketing pack (CIM) review',teaser:'Teaser copy',blast:'Email blast message',bbs:'BizBuySell ad'+(asset?(' — entries: '+origin+'/rrg_asset_space.html?key='+encodeURIComponent(d.key)+'&bbs=1'):''),chitchat:'Texas Chit Chat mention (Seats Open)'};
+      var m=ov.querySelector('[data-m]'); var need=[]; var L={market:'RRG Marketplace posting',web:'Web listing page',abstract:'Lease abstract',pack:'Marketing pack (CIM) review',teaser:'Teaser email — write it on the listing details (Marketing assets); reps send it 1:1 to prospects',blast:'Email blast message',bbs:'BizBuySell ad'+(asset?(' — entries: '+origin+'/rrg_asset_space.html?key='+encodeURIComponent(d.key)+'&bbs=1'):''),chitchat:'Texas Chit Chat mention (Seats Open)'};
       Array.prototype.forEach.call(ov.querySelectorAll('[data-c]'),function(c){ if(c.checked) need.push('- '+L[c.getAttribute('data-c')]); });
       var note=(ov.querySelector('[data-n]').value||'').trim();
       var lines=['New listing ready for marketing: '+(d.business||''),'Type: '+(asset?'Asset sale (space & assets)':'Business sale (going concern)'),(d.market?('Market: '+d.market):''),((d.listPrice||d.assetAsking)?('Asking price: '+(d.listPrice||_fmtMoney(d.assetAsking))):''),'Seller: '+((typeof P!=='undefined'&&P&&P.name)||''),'',

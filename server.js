@@ -6914,8 +6914,80 @@ app.get('/api/assignment/:key/buyer-matches', (req, res) => {
   const arr = loadPeople(); const out = [];
   arr.forEach(p => { if (!p.buyBox || !p.buyBox.active) return; const r = buyBoxMatch(p.buyBox, L); if (r.match) out.push({ id: p.id, name: p.name || '', company: p.company || '', email: preferredEmailOf(p), phone: preferredPhoneOf(p), reasons: r.reasons }); });
   out.sort((a, b) => (b.reasons.length - a.reasons.length) || String(a.name || '').localeCompare(String(b.name || '')));
-  res.json({ ok: true, characterized: L.hasTeaser, business: view.business || '', buyers: out });
+  const _tz = _teaserOut(req.params.key, overlay[req.params.key] || {}); const _sent = {}; (_tz.sends || []).forEach(s => { _sent[s.pid] = s; });
+  out.forEach(b => { if (_sent[b.id]) b.teaserSent = { at: _sent[b.id].at, by: _sent[b.id].by }; });
+  res.json({ ok: true, characterized: L.hasTeaser, business: view.business || '', buyers: out, teaserTplId: (_tz.teaser && _tz.teaser.tplId) || '' });
 });
+
+// ===== Teaser email — Marketing writes it once per listing; reps send it one-to-one =====
+// Saved on the listing (overlay.teaser) and mirrored as a shared email template "Teaser — <business>"
+// so it appears in every rep's composer. Sends are recorded on the listing so two reps don't email
+// the same prospect.
+function _canMarketReq(req) { try { return !!(req.user && (isSuper(req.user) || (permsEnabled() && effectivePerms(req.user).publish_listings) || userDepartmentIds(req.user.username).indexOf('marketing') >= 0)); } catch (e) { return false; } }
+function _teaserTplId(key) { return 'etpl_teaser_' + dealKeySafe(key); }
+function _teaserOut(key, cur) {
+  const t = cur.teaser || null; const sends = Array.isArray(cur.teaserSends) ? cur.teaserSends : [];
+  return { teaser: t ? { subject: t.subject || '', body: t.body || '', tplId: t.tplId || '', at: t.at || '', by: t.by || '' } : null, sends: sends.slice(-200) };
+}
+function _teaserBodyHtml(txt) {
+  const s = String(txt || '').trim(); if (/<p[\s>]/i.test(s)) return s;
+  return s.split(/\n\s*\n/).map(p => '<p>' + esc(p).replace(/\n/g, '<br>') + '</p>').join('');
+}
+app.get('/api/assignment/:key/teaser', (req, res) => {
+  const deals = assignmentsIndex(); const d = deals[req.params.key];
+  if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
+  const cur = loadAssignOverlay()[req.params.key] || {};
+  res.json(Object.assign({ ok: true, canEdit: _canMarketReq(req) }, _teaserOut(req.params.key, cur)));
+});
+app.post('/api/assignment/:key/teaser', express.json({ limit: '128kb' }), (req, res) => {
+  const deals = assignmentsIndex(); const d = deals[req.params.key];
+  if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
+  if (!_canMarketReq(req)) return res.status(403).json({ ok: false, error: 'Marketing writes the teaser.' });
+  const b = req.body || {}; const subject = String(b.subject || '').trim().slice(0, 200), body = String(b.body || '').trim().slice(0, 12000);
+  if (!subject || !body) return res.status(400).json({ ok: false, error: 'Add a subject and the email.' });
+  const overlay = loadAssignOverlay(); const cur = overlay[d.key] || {}; let biz = '';
+  try { biz = (assignmentView(d, overlay) || {}).business || ''; } catch (e) {}
+  const now = new Date().toISOString(), tplId = _teaserTplId(d.key);
+  cur.teaser = { subject, body, tplId, at: now, by: (req.user && req.user.name) || '' }; cur.updatedAt = now; overlay[d.key] = cur; saveAssignOverlay(overlay);
+  const all = loadEmailTpls(); let t = all.find(x => x.id === tplId);
+  if (!t) { t = { id: tplId, ownerUser: (req.user && req.user.username) || '', ownerName: (req.user && req.user.name) || '', createdAt: now }; all.push(t); }
+  Object.assign(t, { name: 'Teaser — ' + (biz || 'listing'), subject: subject, body: _teaserBodyHtml(body), scope: 'shared', category: 'Buyer', folder: 'Teasers', active: true, greeting: 'none', listingKey: d.key, updatedAt: now });
+  try { registerEmailTplFolder('Teasers'); } catch (e) {}
+  saveEmailTpls(all);
+  _listingMilestone(d.key, 'Teaser email ready — reps can send it to prospects', req);
+  res.json(Object.assign({ ok: true, canEdit: true }, _teaserOut(d.key, cur)));
+});
+app.post('/api/assignment/:key/teaser/draft', express.json(), async (req, res) => {
+  try {
+    const deals = assignmentsIndex(); const d = deals[req.params.key];
+    if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
+    if (!_canMarketReq(req)) return res.status(403).json({ ok: false, error: 'Marketing writes the teaser.' });
+    if (!aiAllowed(req)) return res.status(403).json({ ok: false, error: 'AI is not enabled for your role.' });
+    const overlay = loadAssignOverlay(); let view = {}; try { view = assignmentView(d, overlay) || {}; } catch (e) {}
+    const { d: deal } = _dealByAnyKey(d.key); const sp = (deal && deal.assetSpec) || {};
+    const asset = _effLane(d.key, deal) === 'asset';
+    const L = []; const add = (k, v) => { v = String(v || '').trim(); if (v) L.push(k + ': ' + v); };
+    add('Sale type', asset ? 'Asset sale — second-generation restaurant space and equipment; buyer takes over the lease' : 'Going-concern business sale (confidential — do not name the business)');
+    add('Business name', asset ? (view.business || '') : ''); add('Market', view.market || (deal && deal.market)); add('Area (no street address)', sp.centerName || '');
+    add('Space type', sp.spaceType); add('Square footage', sp.sqft); add('Seating', sp.seating); add('Delivery condition', sp.deliveryCondition);
+    add('Built in', _conveyLine((deal && deal.assetConvey) || [])); add('Highlights', String(sp.highlights || '').replace(/\n+/g, '; ')); add('Remaining lease term', sp.leaseRemaining); add('Renewal options', sp.leaseOptions);
+    if (!asset) { add('Concept', view.concept || ''); add('Revenue', view.revenue || view.revText || ''); add('Cash flow / SDE', view.sde || ''); }
+    const out = await aiassist.teaserEmail({ facts: L.join('\n'), asset: asset });
+    res.json({ ok: true, subject: out.subject, body: out.body });
+  } catch (e) { console.error('teaser draft:', e && e.message); res.status(502).json({ ok: false, error: String((e && e.message) || 'Could not draft the teaser.') }); }
+});
+// Called from the email send paths (via _tplExecAuto) — records a teaser send on the listing.
+function _teaserSent(templateId, p, user) {
+  try {
+    if (!templateId || !p || String(templateId).indexOf('etpl_teaser_') !== 0) return;
+    const t = loadEmailTpls().find(x => x.id === templateId); if (!t || !t.listingKey) return;
+    const overlay = loadAssignOverlay(); const cur = overlay[t.listingKey]; if (!cur) return;
+    cur.teaserSends = Array.isArray(cur.teaserSends) ? cur.teaserSends : [];
+    cur.teaserSends.push({ pid: p.id, name: p.name || '', at: new Date().toISOString(), by: (user && user.name) || '' });
+    if (cur.teaserSends.length > 500) cur.teaserSends = cur.teaserSends.slice(-500);
+    overlay[t.listingKey] = cur; saveAssignOverlay(overlay);
+  } catch (e) {}
+}
 
 // ===== Tenant Requirement Box — a tenant's space criteria, matched against the sites/spaces inventory =====
 const TB_CONDITIONS = ['Shell', 'Second-gen', 'Dirt / pad'];
@@ -13325,6 +13397,7 @@ function inferTplCategory(t) {
   return 'General';
 }
 function _tplExecAuto(templateId, p, user) {
+  try { _teaserSent(templateId, p, user); } catch (e) {}
   try {
     if (!templateId || !p) return;
     const t = loadEmailTpls().find(x => x.id === templateId);

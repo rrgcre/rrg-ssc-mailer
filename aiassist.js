@@ -551,4 +551,15 @@ async function bizBuySellAd({ facts }) {
   if (out.title.length > 70) out.title = out.title.slice(0, 70).replace(/\s+\S*$/, '');
   return out;
 }
-module.exports = { bizBuySellAd, suggestHighlights, FFE_CATS, parseFfeList, agreementExpiry, rewriteEmail, parseSpaceListing, parseSpaceListingDoc, enrichCenters, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, parseEmailContact, parseEmailUpdate, sscToTenantBox, parseConceptList, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, enrichCenterDetail, enrichPropertyDetail, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary, buildQuestionnaire, classifyRoomDocs, polishPrompts, refineBov, polishValueBasis };
+// Teaser email a rep sends one-to-one to a prospect (Marketing writes it once per listing).
+async function teaserEmail({ facts, asset }) {
+  const sys = "You write a short teaser email for a Texas restaurant brokerage. A rep sends it personally, one-to-one, to a restaurant operator or buyer during outreach. Return ONLY JSON: {\"subject\":\"\",\"body\":\"\"}.\n"
+    + "Rules:\n- body is plain text: a greeting line exactly 'Hi {{first_name}},' then 3 short paragraphs, then a sign-off line 'Best,' and on the next line '{{my_name}}'. Separate paragraphs with a blank line. 90–150 words before the sign-off.\n"
+    + "- Tone: personal and direct, one operator-savvy person to another. No hype words (amazing, rare, incredible, prime, must-see), no exclamation marks, no bullet points.\n"
+    + (asset ? "- This is a second-generation restaurant space being sold with its equipment; you MAY name the location area and landmark. Do NOT state the asking price or rent.\n" : "- This is a CONFIDENTIAL business sale: never name the business, the owner, the street or anything that identifies it; describe the concept and market generally. Do NOT state price, revenue or cash flow figures.\n")
+    + "- Use only the facts given; never invent numbers or features.\n- Paragraph 1: why you're reaching out to them. Paragraph 2: the 2–3 strongest facts about the opportunity. Paragraph 3: a soft ask — reply if they'd like the offering sheet (or the NDA for a business sale) and a showing.\n"
+    + "- subject: 6–9 words, specific, no clickbait, no name of a confidential business.";
+  const j = extractJson(await callClaude(sys, 'FACTS:\n' + String(facts || '').slice(0, 6000), 900)) || {};
+  return { subject: String(j.subject || '').slice(0, 200), body: String(j.body || '').slice(0, 6000) };
+}
+module.exports = { teaserEmail, bizBuySellAd, suggestHighlights, FFE_CATS, parseFfeList, agreementExpiry, rewriteEmail, parseSpaceListing, parseSpaceListingDoc, enrichCenters, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, parseEmailContact, parseEmailUpdate, sscToTenantBox, parseConceptList, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, enrichCenterDetail, enrichPropertyDetail, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary, buildQuestionnaire, classifyRoomDocs, polishPrompts, refineBov, polishValueBasis };

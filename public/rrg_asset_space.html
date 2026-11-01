@@ -100,6 +100,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .phth i{position:absolute;top:3px;right:4px;font-style:normal;color:#fff;font-size:11px;text-shadow:0 1px 2px #000;}
 .phtools{position:absolute;top:3px;right:3px;display:none;gap:3px;font-style:normal;} .phth:hover .phtools{display:flex;} .phtools button{width:22px;height:22px;border:0;border-radius:3px;background:rgba(0,14,49,.75);color:#fff;font-size:12px;line-height:22px;padding:0;cursor:pointer;} .phtools button[data-del]:hover{background:#b23a2c;} .phth.cov{outline:2px solid var(--primary);outline-offset:1px;} .phth span b{font-weight:800;}
 .vidcard video{width:100%;max-height:300px;background:#000;border-radius:3px;display:block;} .vidmeta{font-size:11.5px;color:var(--muted);margin-top:4px;} .vidmeta a{color:var(--primary);font-weight:700;text-decoration:none;}
+.tzin{width:100%;font:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--inp);border-radius:3px;margin-bottom:6px;} .tzta{width:100%;font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--inp);border-radius:3px;line-height:1.5;margin-bottom:6px;resize:vertical;} .tzview{border:1px solid var(--line);border-radius:3px;padding:10px 12px;font-size:13px;line-height:1.55;background:#fbfcfe;} .tzview b{display:block;margin-bottom:6px;color:var(--navy);}
 .phadd{width:118px;height:88px;border:1.5px dashed var(--inp);border-radius:3px;display:flex !important;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;color:var(--primary);background:#fbfcfe;margin:0 !important;text-transform:none !important;letter-spacing:0 !important;}
 .phadd b{font-size:22px;line-height:1;} .phadd span{font-size:11.5px;font-weight:700;}
 #phZone.drag{outline:2px dashed var(--primary);outline-offset:4px;background:#f2f6fb;}
@@ -304,7 +305,20 @@ function wireHvac(){ var host=document.getElementById('hvRows'); if(!host) retur
   document.getElementById('hvAdd').onclick=function(){ var d=document.createElement('div'); d.innerHTML=hvRow({u:'',t:''}); host.appendChild(d.firstChild); host.querySelectorAll('[data-hu]')[host.querySelectorAll('.hvr').length-1].focus(); };
   tot(); }
 // Listing photos — strip + upload (drag & drop on desktop, camera / library on a phone).
-var MEDIA=null, WALKVID=null;
+var MEDIA=null, WALKVID=null, TZ=null;
+// Teaser email — Marketing writes it; it becomes a template reps send one-to-one from a prospect's record.
+function teaserHtml(){ var t=(TZ&&TZ.teaser)||null, ed=!!(TZ&&TZ.canEdit), n=((TZ&&TZ.sends)||[]).length;
+  var h='<div class="fld" id="tzZone"><label class="subh">Teaser email'+(n?(' · sent to '+n+' prospect'+(n===1?'':'s')):'')+'</label>';
+  if(!ed){ h+= t ? ('<div class="tzview"><b>'+esc(t.subject)+'</b><div>'+esc(t.body).replace(/\n/g,'<br>')+'</div></div><div class="hint">Written by Marketing. Send it from a prospect\'s record: Send Email → template “Teaser — '+esc(BIZ||'this listing')+'”.</div>') : '<div class="hint">Marketing writes the teaser after you submit the listing. Once it\'s saved, you can send it to prospects from their records.</div>'; return h+'</div>'; }
+  h+='<input type="text" id="tzSubj" class="tzin" value="'+esc(t?t.subject:'')+'" placeholder="Subject — 6 to 9 words">'
+   +'<textarea id="tzBody" class="tzta" rows="9" placeholder="Hi {{first_name}},&#10;&#10;…&#10;&#10;Best,&#10;{{my_name}}">'+esc(t?t.body:'')+'</textarea>'
+   +'<div class="hlbar"><button type="button" class="nsb pri" id="tzSave">Save teaser</button><button type="button" class="nsb ai" id="tzAi">Draft with AI</button><span class="msg" id="tzMsg">'+(t?('Saved '+esc(_fmtDate(String(t.at||'').slice(0,10)))+(t.by?(' by '+esc(t.by)):'')):'')+'</span></div>'
+   +'<div class="hint">Reps send this one-to-one from a prospect\'s record (template “Teaser — '+esc(BIZ||'this listing')+'”). {{first_name}} and {{my_name}} fill in on send. Don\'t put the price in it — the reply starts the conversation.</div>';
+  return h+'</div>'; }
+function wireTeaser(){ var sv=document.getElementById('tzSave'); if(!sv) return; var m=document.getElementById('tzMsg');
+  sv.onclick=function(){ var su=document.getElementById('tzSubj').value.trim(), bo=document.getElementById('tzBody').value.trim(); if(!su||!bo){ m.className='msg err'; m.textContent='Add a subject and the email.'; return; } sv.disabled=true; m.className='msg'; m.textContent='Saving…';
+    api('POST','/api/assignment/'+encodeURIComponent(KEY)+'/teaser',{ subject:su, body:bo }).then(function(j){ sv.disabled=false; if(!j||!j.ok){ m.className='msg err'; m.textContent=(j&&j.error)||'Could not save.'; return; } TZ=j; m.className='msg ok'; m.textContent='Saved ✓ — reps can send it now'; }); };
+  document.getElementById('tzAi').onclick=function(){ var b=this; b.disabled=true; m.className='msg'; m.textContent='Writing…'; flush().then(function(){ return api('POST','/api/assignment/'+encodeURIComponent(KEY)+'/teaser/draft',{}); }).then(function(j){ b.disabled=false; if(!j||!j.ok){ m.className='msg err'; m.textContent=(j&&j.error)||'Could not draft.'; return; } document.getElementById('tzSubj').value=j.subject||''; document.getElementById('tzBody').value=j.body||''; m.className='msg'; m.textContent='AI draft — edit it, then Save teaser.'; }); }; }
 function photosHtml(){ var P=(MEDIA&&MEDIA.photos)||[];
   return '<div class="fld" data-fk="photos" id="phZone"><label class="subh">Photos'+(P.length?(' · '+P.length):'')+'</label>'
     +'<div class="phstrip">'+P.map(function(p){ var cov=(MEDIA.coverPhotoId===p.id); return '<a class="phth'+(cov?' cov':'')+'" href="'+esc(p.url)+'" target="_blank" title="'+esc(p.caption||'')+'"><img src="'+esc(p.url)+'" loading="lazy" alt=""><span>'+(cov?'<b>Cover</b> · ':'')+esc(p.caption||'')+'</span><em class="phtools"><button type="button" data-cov="'+esc(p.id)+'" title="Make this the cover photo">'+(cov?'★':'☆')+'</button><button type="button" data-del="'+esc(p.id)+'" title="Delete this photo">✕</button></em></a>'; }).join('')
@@ -382,7 +396,7 @@ function groupHtml(g){
   if(GROUPS.indexOf(g)===0) rows=vrefHtml()+rows;
   if(g.title==='The lease') rows=absNoteHtml()+rows;
   if(g.convey) rows=kitHtml()+'<div class="sep"></div>'+rows;
-  if(g.photos) rows=photosHtml()+'<div class="sep"></div>'+rows;
+  if(g.photos) rows=photosHtml()+'<div class="sep"></div>'+teaserHtml()+'<div class="sep"></div>'+rows;
   if(g.ffe) rows=ffeHtml()+'<div class="sep"></div>'+rows;
   var gi=GROUPS.indexOf(g), open=_isOpen(gi);
   return '<div class="card'+(open?'':' closed')+'" data-gi="'+gi+'"><div class="ch" data-tog="'+gi+'"><span class="chev">›</span><b>'+esc(g.title)+'</b>'+(g.core?'<span class="core">Core</span>':'')+(g.hint?'<span class="gh">'+esc(g.hint)+'</span>':'<span class="gh"></span>')+'<span class="gst" data-gst="'+gi+'">'+groupStatus(g)+'</span></div><div class="body">'+rows+'</div></div>';
@@ -434,7 +448,7 @@ function render(){
   host.querySelectorAll('[data-k]').forEach(function(el){
     el.addEventListener('input', function(){ SPEC[el.getAttribute('data-k')]=el.value; markDirty(); var fld=el.closest('.fld'); if(fld){ var k=fld.getAttribute('data-fk'); if(CORE.indexOf(k)>=0) fld.classList.toggle('need', !el.value.trim()); } refreshBanner(); });
   });
-  ffeWire(); wireDates(); wireKit(); wireOpts(); wireHl(); wirePhotos(); wireHeaders(); refreshBanner();
+  ffeWire(); wireDates(); wireKit(); wireOpts(); wireHl(); wirePhotos(); wireTeaser(); wireHeaders(); refreshBanner();
   GROUPS.forEach(function(g){ g.fields.forEach(function(f){ if(!f.num) return; var el=document.querySelector('[data-k="'+f.k+'"]'); if(!el) return; el.setAttribute('inputmode','numeric'); el.addEventListener('blur', function(){ var d=el.value.replace(/[^0-9]/g,''); var v=d?(f.year?d.slice(0,4):Number(d).toLocaleString('en-US')):''; if(v!==el.value){ el.value=v; SPEC[f.k]=v; markDirty(); } }); }); });
   GROUPS.forEach(function(g){ g.fields.forEach(function(f){ if(!f.money) return; var el=document.querySelector('[data-k="'+f.k+'"]'); if(!el) return; el.setAttribute('inputmode','decimal'); el.addEventListener('blur', function(){ var raw=el.value.replace(/\s*\/\s*mo(nth)?\.?\s*$/i,''); var v=fmtMoney(raw); if(f.suffix && /^\$/.test(v)) v+=f.suffix; if(v!==el.value){ el.value=v; SPEC[f.k]=v; markDirty(); } }); }); });
   GROUPS.forEach(function(g){ g.fields.forEach(function(f){ if(!f.psf) return; var el=document.querySelector('[data-k="'+f.k+'"]'); if(!el) return; el.setAttribute('inputmode','decimal'); el.addEventListener('blur', function(){ var m=el.value.replace(/[$,\s]/g,'').match(/^(\d+(?:\.\d+)?)/); if(!m) return; var v='$'+parseFloat(m[1]).toFixed(2)+' / SF / yr'; if(v!==el.value){ el.value=v; SPEC[f.k]=v; markDirty(); } }); }); });
@@ -625,6 +639,7 @@ function wireKit(){
     SPEC=j.spec||{}; BIZ=j.business||''; FFE=j.ffe||[]; CONVEY=j.convey||null; VREF=j.valueRefs||{}; try{ fetch('/api/session',{credentials:'same-origin'}).then(function(r){ return r.json(); }).then(function(ss){ var b=document.getElementById('bbsBtn'); if(b && ss && ss.canMarket) b.style.display=''; if(ss && ss.canMarket && /[?&]bbs=1/.test(location.search)) setTimeout(openBbs,300); }); }catch(e){} SELLER=j.seller||null; try{ var cb=document.getElementById('crumbBack'); if(cb&&SELLER) cb.textContent=SELLER.name||'Seller'; }catch(e){} MEDIA=j.media||null; WALKVID=j.walkVideo||null; LABS=j.leaseAbs||null; var _absN=applyAbstract(false); if(!String(SPEC.askingPrice||'').trim() && VREF.listPrice) SPEC.askingPrice=VREF.listPrice; if(j.spaceTypes&&j.spaceTypes.length) OPTS.spaceTypes=j.spaceTypes; if(j.centerTypes&&j.centerTypes.length) OPTS.centerTypes=j.centerTypes; if(!String(SPEC.address||'').trim() && j.locAddress){ SPEC.address=j.locAddress; } conveyMigrate(); if(j.ffeCats&&j.ffeCats.length) FFE_CATS=j.ffeCats; setHead();
     if(j.saleLane && j.saleLane!=='asset'){ document.getElementById('root').innerHTML='<div class="gate">This listing is a Business Sale, not a Space &amp; Assets listing. <a href="./rrg_assignment.html?key='+encodeURIComponent(KEY)+'" style="color:var(--navy);font-weight:700">Open its workspace →</a></div>'; return; }
     render(); if(_absN) markDirty();
+    api('GET','/api/assignment/'+encodeURIComponent(KEY)+'/teaser').then(function(t){ if(t&&t.ok){ TZ=t; var z=document.getElementById('tzZone'); if(z){ var d=document.createElement('div'); d.innerHTML=teaserHtml(); z.replaceWith(d.firstChild); wireTeaser(); } } }).catch(function(){});
   }).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not load this listing.</div>'; });
 })();
 
