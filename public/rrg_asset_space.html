@@ -169,7 +169,7 @@ html,body{background:#e9ebf0;} body{font-size:13px;-webkit-font-smoothing:antial
 <a href="#" onclick="goBack();return false;" class="rrg-back" aria-label="Back"><span style="font-size:14px;line-height:1">←</span> Back</a>
 <div class="top"><div class="top-in">
   <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
-  <div class="crumb"><a href="#" onclick="goBack();return false;">Listing</a> &nbsp;›&nbsp; <span id="crumb">Space &amp; Assets</span></div>
+  <div class="crumb"><a href="#" id="crumbBack" onclick="goBack();return false;">Seller</a> &nbsp;›&nbsp; <span id="crumb">Listing details</span></div>
   <div class="kicker">Listing details · Space &amp; Assets</div>
   <h1 id="h1">Space &amp; Assets</h1>
   <div class="sub">Everything a space buyer asks — what conveys, the lease and the space. It prints as the Offering Sheet. The starred fields are what a space buyer asks first; fill those and you're market-ready. Everything else is optional.</div>
@@ -180,7 +180,8 @@ function qs(k){ try{ return new URLSearchParams(location.search).get(k)||''; }ca
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 function api(m,u,b){return fetch(u,{method:m,credentials:'same-origin',headers:b?{'Content-Type':'application/json'}:undefined,body:b?JSON.stringify(b):undefined}).then(function(r){return r.json();});}
 var KEY=qs('key');
-function goBack(){ try{ if(window.top!==window.self){ var x=window.parent.document.querySelector('#rrgPanelOv [data-x]'); if(x){ x.click(); return; } } }catch(e){} if(history.length>1){ history.back(); } else if(KEY){ location.href='./rrg_assignment.html?key='+encodeURIComponent(KEY); } else { location.href='./index.html'; } }
+var SELLER=null;
+function goBack(){ try{ if(window.top!==window.self){ var x=window.parent.document.querySelector('#rrgPanelOv [data-x]'); if(x){ x.click(); return; } } }catch(e){} if(SELLER&&SELLER.id){ location.href='./rrg_person.html?id='+encodeURIComponent(SELLER.id); return; } if(history.length>1){ history.back(); } else if(KEY){ location.href='./rrg_assignment.html?key='+encodeURIComponent(KEY); } else { location.href='./index.html'; } }
 
 // Field definition — mirrors the server's ASSET_SPEC_FIELDS. a=textarea, core=required block.
 var GROUPS=[
@@ -201,7 +202,8 @@ var GROUPS=[
   ]},
   {title:'The lease', core:1, hint:'The heart of a space deal — how much time is left and how the landlord handles an assignment.', fields:[
     {sub:'Rent'},
-    {k:'leaseRent', l:'Base rent — monthly', core:1, ph:'$6,200', money:1, suffix:' / mo'},
+    {k:'leaseTotal', l:'Monthly rent — total the tenant pays', core:1, ph:'$8,500', money:1, suffix:' / mo'},
+    {k:'leaseRent', l:'Base rent — monthly, if known', ph:'$6,200', money:1, suffix:' / mo'},
     {k:'leasePerSF', l:'Rent per SF — annual', ph:'$38.00', psf:1},
     {k:'leaseNNN', l:'NNN / CAM · taxes · insurance', ph:'$9.00 / SF / yr'},
     {k:'leaseDeposit', l:'Security deposit / key money to landlord', ph:'$6,200 deposit · $25,000 key money'},
@@ -315,7 +317,7 @@ function vrefHtml(){ var r=[];
   if(VREF.listPrice) r.push('<div><span>Agreed asking price</span><b>'+esc(VREF.listPrice)+'</b></div>');
   return r.length?'<div class="vref"><div class="vrh">For reference — internal, not on the offering sheet</div>'+r.join('')+'</div>':''; }
 var OPTS={delivery:['Turnkey — ready to operate','As-is, where-is — fully equipped','As-is — partially equipped','Second-generation shell — equipment removed'],opStatus:['Operating','Dark'],spaceTypes:['End cap','Inline','Pad / Outparcel','Freestanding'],centerTypes:['Grocery-anchored','Power / big-box','Lifestyle / mixed-use','Strip / unanchored','Freestanding pad','Downtown / street retail','Mall / food court','Entertainment / hospitality node','Other']};
-var CORE=['spaceType','leaseRent','leaseRemaining','leaseAssignment','sqft','deliveryCondition','hood','ffeSchedule'];
+var CORE=['spaceType','leaseTotal','leaseRemaining','leaseAssignment','sqft','deliveryCondition','hood','ffeSchedule'];
 var CORE_LABEL={ffeSchedule:'Equipment schedule — what conveys', hood:'Hood — Type I, Type II or No hood'};
 GROUPS.forEach(function(g){ g.fields.forEach(function(f){ if(f.core) CORE_LABEL[f.k]=f.l; }); });
 var SPEC={}, BIZ='', DIRTY=false, _sT=null, _sP=null, _sAgain=false;
@@ -397,7 +399,8 @@ function bannerHtml(){
 }
 function render(){
   var host=document.getElementById('root');
-  host.innerHTML='<div class="nstb"><span class="autos">Autosaves</span><span class="nssep"></span><span id="mktHost"></span><span class="nssep"></span><a class="nsb" href="#" onclick="return openSheet()" title="Opens what buyers see">View offering sheet ↗</a><a class="nsb" href="./rrg_walkthrough.html?key='+encodeURIComponent(KEY)+'" onclick="return openWalk(this)" title="Room by room on your phone — big buttons, autosaves as you go">📱 Walkthrough</a><span class="msg" id="msg"></span></div>'
+  var _emb=false; try{ _emb=(window.top!==window.self); }catch(e){ _emb=true; }
+  host.innerHTML='<div class="nstb">'+((!_emb&&SELLER)?('<a class="nsb" href="./rrg_person.html?id='+encodeURIComponent(SELLER.id)+'">← '+esc(SELLER.name||'Seller')+'</a><span class="nssep"></span>'):'')+'<span class="autos">Autosaves</span><span class="nssep"></span><span id="mktHost"></span><span class="nssep"></span><a class="nsb" href="#" onclick="return openSheet()" title="Opens what buyers see">View offering sheet ↗</a><a class="nsb" href="./rrg_walkthrough.html?key='+encodeURIComponent(KEY)+'" onclick="return openWalk(this)" title="Room by room on your phone — big buttons, autosaves as you go">📱 Walkthrough</a><span class="msg" id="msg"></span></div>'
     +'<div id="bannerHost">'+bannerHtml()+'</div>'
     +GROUPS.map(groupHtml).join('');
   host.querySelectorAll('[data-k]').forEach(function(el){
@@ -577,7 +580,7 @@ function wireKit(){
   if(!KEY){ document.getElementById('root').innerHTML='<div class="gate">No listing specified.</div>'; return; }
   api('GET','/api/asset-spec?key='+encodeURIComponent(KEY)).then(function(j){
     if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">'+esc((j&&j.error)||'Listing not found.')+'</div>'; return; }
-    SPEC=j.spec||{}; BIZ=j.business||''; FFE=j.ffe||[]; CONVEY=j.convey||null; VREF=j.valueRefs||{}; MEDIA=j.media||null; LABS=j.leaseAbs||null; var _absN=applyAbstract(false); if(!String(SPEC.askingPrice||'').trim() && VREF.listPrice) SPEC.askingPrice=VREF.listPrice; if(j.spaceTypes&&j.spaceTypes.length) OPTS.spaceTypes=j.spaceTypes; if(j.centerTypes&&j.centerTypes.length) OPTS.centerTypes=j.centerTypes; if(!String(SPEC.address||'').trim() && j.locAddress){ SPEC.address=j.locAddress; } conveyMigrate(); if(j.ffeCats&&j.ffeCats.length) FFE_CATS=j.ffeCats; setHead();
+    SPEC=j.spec||{}; BIZ=j.business||''; FFE=j.ffe||[]; CONVEY=j.convey||null; VREF=j.valueRefs||{}; SELLER=j.seller||null; try{ var cb=document.getElementById('crumbBack'); if(cb&&SELLER) cb.textContent=SELLER.name||'Seller'; }catch(e){} MEDIA=j.media||null; LABS=j.leaseAbs||null; var _absN=applyAbstract(false); if(!String(SPEC.askingPrice||'').trim() && VREF.listPrice) SPEC.askingPrice=VREF.listPrice; if(j.spaceTypes&&j.spaceTypes.length) OPTS.spaceTypes=j.spaceTypes; if(j.centerTypes&&j.centerTypes.length) OPTS.centerTypes=j.centerTypes; if(!String(SPEC.address||'').trim() && j.locAddress){ SPEC.address=j.locAddress; } conveyMigrate(); if(j.ffeCats&&j.ffeCats.length) FFE_CATS=j.ffeCats; setHead();
     if(j.saleLane && j.saleLane!=='asset'){ document.getElementById('root').innerHTML='<div class="gate">This listing is a Business Sale, not a Space &amp; Assets listing. <a href="./rrg_assignment.html?key='+encodeURIComponent(KEY)+'" style="color:var(--navy);font-weight:700">Open its workspace →</a></div>'; return; }
     render(); if(_absN) markDirty();
   }).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not load this listing.</div>'; });

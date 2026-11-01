@@ -19989,7 +19989,7 @@ const ASSET_SPEC_FIELDS = {
   // Headline
   askingPrice: 60, highlights: 1200, conveys: 2000, reason: 300, availableDate: 60,
   // Lease (core)
-  leaseRent: 80, leasePerSF: 40, leaseRemaining: 80, leaseExpiration: 60, leaseOptions: 300, leaseAssignment: 600, leaseNNN: 300, leaseDeposit: 160, leaseUse: 300, leaseFixtures: 200, optCount: 10, optYears: 10, optNotice: 10, optRent: 40,
+  leaseRent: 80, leaseTotal: 80, leasePerSF: 40, leaseRemaining: 80, leaseExpiration: 60, leaseOptions: 300, leaseAssignment: 600, leaseNNN: 300, leaseDeposit: 160, leaseUse: 300, leaseFixtures: 200, optCount: 10, optYears: 10, optNotice: 10, optRent: 40,
   // Space (core)
   spaceType: 40, centerType: 60, centerName: 120, zoning: 80, overlay: 120, address: 200, coTenants: 300, frontage: 300, parking: 160,
   sqft: 40, seating: 60, seatsIn: 6, seatsOut: 6, patio: 160, deliveryCondition: 160, operatingNow: 60,
@@ -20005,7 +20005,7 @@ const ASSET_SPEC_FIELDS = {
   photosNote: 300, floorplanNote: 300, videoNote: 300
 };
 // The five blocks that answer what a space buyer asks first — required for a complete intake.
-const ASSET_SPEC_CORE = ['spaceType', 'leaseRent', 'leaseRemaining', 'leaseAssignment', 'sqft', 'deliveryCondition', 'hood', 'ffeSchedule'];
+const ASSET_SPEC_CORE = ['spaceType', 'leaseTotal', 'leaseRemaining', 'leaseAssignment', 'sqft', 'deliveryCondition', 'hood', 'ffeSchedule'];
 function _assetSpecClean(raw) {
   raw = (raw && typeof raw === 'object') ? raw : {};
   const out = {};
@@ -20244,7 +20244,8 @@ function _assetLeaseAbs(req, key, d) {
     if (!l || !l.state || l.pending) return null;
     const S = l.state, g = (o, k) => String((o && o[k]) || '').trim(), none = v => (/^(none|n\/a|not specified|not stated)/i.test(v) ? '' : v);
     const f = {};
-    f.leaseRent = g(S.rent, 'current'); f.leasePerSF = g(S.rent, 'perSF'); f.leaseRemaining = g(S.term, 'remainingTerm'); f.leaseExpiration = g(S.term, 'expiration');
+    f.leaseRent = g(S.rent, 'current');
+    { const occ = parseFloat(String(g(S.economics, 'totalOccupancyAnnual')).replace(/[^0-9.]/g, '')); if (occ > 0) f.leaseTotal = '$' + Math.round(occ / 12).toLocaleString('en-US') + ' / mo'; } f.leasePerSF = g(S.rent, 'perSF'); f.leaseRemaining = g(S.term, 'remainingTerm'); f.leaseExpiration = g(S.term, 'expiration');
     f.leaseNNN = [g(S.charges, 'structure'), none(g(S.economics, 'nnnAnnual'))].filter(Boolean).join(' · ');
     f.leaseDeposit = none(g(S.deposit, 'securityDeposit'));
     f.leaseUse = [g(S.use, 'permittedUse'), none(g(S.use, 'exclusive')) ? ('Exclusive: ' + g(S.use, 'exclusive')) : ''].filter(Boolean).join(' · ');
@@ -20283,7 +20284,7 @@ app.post('/api/asset-spec/highlights', express.json({ limit: '256kb' }), async (
     add('Interior square footage', sp.sqft); add('Seating', sp.seating); add('Parking spaces', sp.parking); add('Delivery condition', sp.deliveryCondition); add('Operating status', sp.operatingNow);
     add('Built in (conveys with the lease)', _conveyLine(conv)); add('Buildout age', sp.buildoutAge); add('Year of last buildout / remodel', sp.remodelYear); add('Approximate cost of that buildout / remodel', sp.remodelCost);
     add('Equipment conveying (count of lines)', ffe.filter(r => !r.excluded && r.own !== 'Leased').length || ''); add('Notable equipment', ffe.filter(r => !r.excluded && r.own !== 'Leased').slice(0, 12).map(_ffeLine).join('; '));
-    add('Base rent', sp.leaseRent); add('Remaining lease term', sp.leaseRemaining); add('Renewal options', sp.leaseOptions); add('Permitted use', sp.leaseUse);
+    add('Total monthly rent', sp.leaseTotal); add('Base rent', sp.leaseRent); add('Remaining lease term', sp.leaseRemaining); add('Renewal options', sp.leaseOptions); add('Permitted use', sp.leaseUse);
     add('Asking price', sp.askingPrice); add('Reason for availability', sp.reason); add('Other notes', sp.conveys);
     const current = String(sp.highlights || '').split(/\n+/).map(x => x.trim()).filter(Boolean);
     if (L.length < 3 && !current.length) return res.status(400).json({ ok: false, error: 'Fill in the address and a few details first — the AI only writes from facts on the listing.' });
@@ -20298,7 +20299,7 @@ app.get('/api/asset-spec', (req, res) => {
     if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
     if (!ownsDeal(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
     const spec = d.assetSpec || {};
-    res.json({ ok: true, key: req.query.key, business: d.business || '', market: d.market || '', saleLane: _effLane(req.query.key, d), spec: spec, ffe: d.assetFfe || [], ffeCats: aiassist.FFE_CATS || [], convey: d.assetConvey || null, conveyKit: CONVEY_KIT, spaceTypes: SPACE_TYPES, centerTypes: CENTER_TYPES, locAddress: _vlAddress({ key: String(req.query.key || '') }), valueRefs: _assetValueRefs(String(req.query.key || ''), d), leaseAbs: _assetLeaseAbs(req, String(req.query.key || ''), d), media: (function () { try { return _dealMediaOut(String(req.query.key || '')); } catch (e) { return null; } })(), core: ASSET_SPEC_CORE, missing: ASSET_SPEC_CORE.filter(k => !spec[k]) });
+    res.json({ ok: true, key: req.query.key, business: d.business || '', market: d.market || '', saleLane: _effLane(req.query.key, d), spec: spec, ffe: d.assetFfe || [], ffeCats: aiassist.FFE_CATS || [], convey: d.assetConvey || null, conveyKit: CONVEY_KIT, spaceTypes: SPACE_TYPES, centerTypes: CENTER_TYPES, locAddress: _vlAddress({ key: String(req.query.key || '') }), valueRefs: _assetValueRefs(String(req.query.key || ''), d), leaseAbs: _assetLeaseAbs(req, String(req.query.key || ''), d), media: (function () { try { return _dealMediaOut(String(req.query.key || '')); } catch (e) { return null; } })(), seller: (function () { try { const pid = d.contactPersonId || d.clientPersonId || ''; const p = pid ? loadPeople().find(x => x.id === pid) : null; return p ? { id: p.id, name: p.name || [p.firstName, p.lastName].filter(Boolean).join(' ') } : null; } catch (e) { return null; } })(), core: ASSET_SPEC_CORE, missing: ASSET_SPEC_CORE.filter(k => !spec[k]) });
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 app.post('/api/asset-spec', express.json({ limit: '256kb' }), (req, res) => {
@@ -20362,7 +20363,7 @@ function assetSheetHtml(business, market, spec, ffe, convey, opts) {
   const sec = (title, rows) => rows ? ('<h2>' + title + '</h2><table class="kv">' + rows + '</table>') : '';
   const org = orgDisplayName();
   // Key facts band
-  const facts = [['Asking price', v('askingPrice')], ['Square feet', v('sqft') ? (v('sqft').replace(/\s*SF$/i, '') + ' SF') : ''], ['Seating', v('seating').replace(/ · \d[\d,]* total$/, '')], ['Base rent', v('leaseRent')], ['Lease remaining', v('leaseRemaining')], ['Delivery', v('deliveryCondition').replace(/ — .*/, '')]].filter(f => f[1]).slice(0, 6);
+  const facts = [['Asking price', v('askingPrice')], ['Square feet', v('sqft') ? (v('sqft').replace(/\s*SF$/i, '') + ' SF') : ''], ['Seating', v('seating').replace(/ · \d[\d,]* total$/, '')], ['Monthly rent', v('leaseTotal') || v('leaseRent')], ['Lease remaining', v('leaseRemaining')], ['Delivery', v('deliveryCondition').replace(/ — .*/, '')]].filter(f => f[1]).slice(0, 6);
   const factsHtml = facts.length ? ('<div class="facts">' + facts.map(f => '<div><span>' + esc(f[0]) + '</span><b>' + esc(f[1]) + '</b></div>').join('') + '</div>') : '';
   // Photos
   const P = opts.photos || [];
@@ -20400,7 +20401,7 @@ function assetSheetHtml(business, market, spec, ffe, convey, opts) {
     if (ex.length) ffeHtml += '<table class="kv">' + ex.join('') + '</table>';
   } else if (v('ffeSchedule')) ffeHtml = sec('Equipment', row('Equipment included', v('ffeSchedule')) + row('Excluded', v('ffeExcluded')));
   // Lease / Space / Utilities
-  const leaseHtml = sec('The lease', row('Base rent', v('leaseRent')) + row('Rent / SF', v('leasePerSF')) + row('NNN / CAM · taxes · insurance', v('leaseNNN')) + row('Remaining term', v('leaseRemaining')) + row('Expiration', v('leaseExpiration')) + row('Renewal options', v('leaseOptions')) + row('Assignment & landlord consent', v('leaseAssignment')) + row('Deposit / key money', v('leaseDeposit')) + row('Permitted use / exclusives', v('leaseUse')) + row('Fixtures at lease end', v('leaseFixtures')));
+  const leaseHtml = sec('The lease', row('Monthly rent (total)', v('leaseTotal')) + row('Base rent', v('leaseRent')) + row('Rent / SF', v('leasePerSF')) + row('NNN / CAM · taxes · insurance', v('leaseNNN')) + row('Remaining term', v('leaseRemaining')) + row('Expiration', v('leaseExpiration')) + row('Renewal options', v('leaseOptions')) + row('Assignment & landlord consent', v('leaseAssignment')) + row('Deposit / key money', v('leaseDeposit')) + row('Permitted use / exclusives', v('leaseUse')) + row('Fixtures at lease end', v('leaseFixtures')));
   const spaceHtml = sec('The space', row('Address', v('address')) + row('Space type', v('spaceType')) + row('Center', [v('centerName'), v('centerType')].filter(Boolean).join(' · ')) + row('Anchors & co-tenants', v('coTenants')) + row('Zoning', v('zoning')) + row('Historic / overlay district', v('overlay')) + row('Square footage', v('sqft')) + row('Seating', v('seating')) + row('Parking spaces', v('parking')) + row('Delivery condition', v('deliveryCondition')) + row('Status', v('operatingNow')) + row('Reason for availability', v('reason')) + row('Available', v('availableDate')));
   const utilHtml = sec('Utilities', row('Electrical', v('electrical')) + row('HVAC', v('hvac')) + row('Water / sewer', v('waterSewer')));
   // Contact
