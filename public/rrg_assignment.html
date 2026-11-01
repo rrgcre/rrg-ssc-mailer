@@ -2340,11 +2340,12 @@ load();
 /* Primary information: Manage as a 4-column field grid */
 .nsrec > .side{margin-bottom:12px;}
 .nsrec > .side .card > .ch{cursor:pointer;user-select:none;}
-.nsrec > .side .card > .ch::before{content:'';width:8px;height:8px;border-right:2px solid #3f4b63;border-bottom:2px solid #3f4b63;transform:rotate(45deg);margin:0 8px 3px 4px;flex:none;transition:transform .15s ease;}
-.nsrec > .side .card.nsfold > .ch::before{transform:rotate(-45deg);margin-bottom:0;}
-.nsrec .accchev{font-size:0 !important;width:22px;height:22px;transform:none !important;}
-.nsrec .accchev::before{content:'';width:8px;height:8px;border-right:2px solid #3f4b63;border-bottom:2px solid #3f4b63;transform:rotate(45deg);margin-top:-4px;transition:transform .15s ease;}
-.nsrec .card.collapsed .accchev::before{transform:rotate(-45deg);margin-top:0;margin-left:-3px;}
+.nsrec > .side .card > .ch::before{content:'▾';display:inline-flex;align-items:center;justify-content:center;width:16px;font-size:16px;font-weight:700;line-height:1;color:#5b6678;margin-right:4px;transition:transform .15s ease;}
+.nsrec > .side .card.nsfold > .ch::before{transform:rotate(-90deg);}
+.nsrec .accchev{width:16px;height:16px;}
+.nsrec > .side .card.nsbox .cb > .listingbox{border-top:0;padding-top:0;margin-top:0;}
+.nsrec > .side .card.nsbox .listinghd{display:none !important;}
+.nsrec > .side .card + .card{margin-top:0;}
 .nsrec .card > .ch{cursor:pointer;}
 .nsrec .card > .ch:hover{background:#eef2f7;}
 .nstabs .nsroll{margin-left:auto;align-self:center;background:#fff;border:1px solid #c4ccda;color:#20334f;border-radius:3px;font-size:12px;font-weight:600;padding:5px 10px;margin-bottom:4px;}
@@ -2399,7 +2400,18 @@ load();
       root.insertBefore(mid, side);
       var bar=document.createElement('div'); bar.className='nsbar'; bar.id='nsBar'; root.insertBefore(bar, side);
       var tb=document.createElement('div'); tb.className='nstabs'; tb.id='nsTabs'; root.insertBefore(tb, rail);
-      var mc=side.querySelector('.card'); if(mc){ var hb=mc.querySelector('.ch b'); if(hb) hb.textContent='Primary information'; var ch=mc.querySelector('.ch'); if(ch) ch.addEventListener('click',function(e){ if(e.target.closest('button,a,input,select')) return; mc.classList.toggle('nsfold'); try{ localStorage.setItem('rrgAsgPrimFold', mc.classList.contains('nsfold')?'1':''); }catch(_){} }); try{ if(localStorage.getItem('rrgAsgPrimFold')==='1') mc.classList.add('nsfold'); }catch(_){} }
+      var mc=side.querySelector('.card');
+      var _fold=function(card,key,def){ var ch=card.querySelector('.ch'); if(ch) ch.addEventListener('click',function(e){ if(e.target.closest('button,a,input,select')) return; card.classList.toggle('nsfold'); try{ localStorage.setItem(key, card.classList.contains('nsfold')?'1':'0'); }catch(_){} }); var v=null; try{ v=localStorage.getItem(key); }catch(_){} if(v==='1'||(v===null&&def)) card.classList.add('nsfold'); };
+      if(mc){ var hb=mc.querySelector('.ch b'); if(hb) hb.textContent='Primary information';
+        var after=mc;
+        Array.prototype.slice.call(mc.querySelectorAll('.cb > .listingbox')).forEach(function(lb){
+          var hd=lb.querySelector('.listinghd'); var ttl=hd?String(hd.childNodes[0]&&hd.childNodes[0].nodeType===3?hd.childNodes[0].textContent:hd.textContent).replace(/[▾▸]/g,'').trim():'Details';
+          lb.classList.remove('lbxcol');
+          var card=document.createElement('div'); card.className='card nsbox'; card.innerHTML='<div class="ch"><b></b></div><div class="cb"></div>'; card.querySelector('b').textContent=ttl; card.querySelector('.cb').appendChild(lb);
+          after.parentNode.insertBefore(card, after.nextSibling); after=card;
+          _fold(card,'rrgAsgFold:'+ttl,false);
+        });
+        _fold(mc,'rrgAsgPrimFold',false); }
       drawBar();
     }
   }
