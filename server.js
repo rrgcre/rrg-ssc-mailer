@@ -7149,6 +7149,10 @@ app.post('/api/marketing/queue/:key/prepare', express.json(), async (req, res) =
   const asset = _effLane(key, deal) === 'asset'; const out = {}; const now = new Date().toISOString();
   let view = {}; try { view = assignmentView(a, overlay) || {}; } catch (e) {}
   const biz = view.business || (deal && deal.business) || 'Listing';
+  // Teasers (email blast, teaser email, Chit Chat) stay blind while the listing is confidential.
+  const _open = !asset || _listingOpen(key, 'asset', cur.market);
+  const _pubName = _open ? biz : (((cur.market && cur.market.headline) ? mktTeaser(key, view, cur.market).headline : '') || 'a confidential restaurant space');
+  const _pre = _open ? (String(sp.highlights || '').split(/\n+/)[0] || '') : (String((cur.market && cur.market.blindHl) || '').split(/\n+/)[0] || '');
   // Teaser (also feeds the blast)
   let tz = cur.teaser && cur.teaser.body ? { subject: cur.teaser.subject, body: cur.teaser.body } : (cur.teaserDraft || null);
   if ((needs.indexOf('teaser') >= 0 || needs.indexOf('blast') >= 0) && !tz) {
@@ -7158,7 +7162,7 @@ app.post('/api/marketing/queue/:key/prepare', express.json(), async (req, res) =
   // BizBuySell entries
   if (needs.indexOf('bbs') >= 0) {
     if (cur.bbsDraft && cur.bbsDraft.ad) out.bbs = { state: 'draft', note: 'Entries ready to copy.' };
-    else if (deal && asset) { try { const L = _bbsFacts(deal); if (L.length >= 5) { const ad = await aiassist.bizBuySellAd({ facts: L.join('\n') }); cur.bbsDraft = { ad: ad, at: now }; out.bbs = { state: 'draft', note: 'Entries ready to copy.' }; } else out.bbs = { state: 'blocked', note: 'Finish the listing details first.' }; } catch (e) { out.bbs = { state: 'error', note: 'Could not write the entries.' }; } }
+    else if (deal && asset) { try { const L = _bbsFacts(deal, _open ? undefined : String((cur.market && cur.market.blindHl) || '')); if (L.length >= 5) { const ad = await aiassist.bizBuySellAd({ facts: L.join('\n') }); cur.bbsDraft = { ad: ad, at: now }; out.bbs = { state: 'draft', note: 'Entries ready to copy.' }; } else out.bbs = { state: 'blocked', note: 'Finish the listing details first.' }; } catch (e) { out.bbs = { state: 'error', note: 'Could not write the entries.' }; } }
     else out.bbs = { state: 'blocked', note: 'BizBuySell entries are written from the listing details (space & assets).' };
   }
   // Marketplace card (unpublished)
@@ -7183,13 +7187,13 @@ app.post('/api/marketing/queue/:key/prepare', express.json(), async (req, res) =
     try {
       if (cur.blastStudioId) out.blast = { state: 'draft', note: 'Draft campaign already in Campaigns — review, pick the list and send.', studioId: cur.blastStudioId };
       else if (massmail.dbReady()) {
-        const id = await massmail.createCampaignRecord({ name: 'Listing — ' + biz, subject: tz.subject || ('New listing: ' + biz), preheader: String(sp.highlights || '').split(/\n+/)[0] || '', html: _teaserBodyHtml(String(tz.body || '').replace(/\{\{my_name\}\}/g, (req.user && req.user.name) || 'Restaurant Realty Group')) }, req.user);
+        const id = await massmail.createCampaignRecord({ name: 'Listing — ' + biz, subject: tz.subject || ('New listing: ' + _pubName), preheader: _pre, html: _teaserBodyHtml(String(tz.body || '').replace(/\{\{my_name\}\}/g, (req.user && req.user.name) || 'Restaurant Realty Group')) }, req.user);
         cur.blastStudioId = id; out.blast = { state: 'draft', note: 'Draft campaign created in Campaigns — pick the list, review and send.', studioId: id };
       } else {
         const camps = loadCampaigns(); let c = cur.blastCampaignId ? camps.find(x => x.id === cur.blastCampaignId) : null;
         if (!c) { c = { id: newCampaignId(), status: 'draft', by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', createdAt: now }; camps.unshift(c); }
         if (c.status === 'sent' || c.status === 'sending') out.blast = { state: 'done', note: 'Campaign already sent.' };
-        else { c.name = 'Listing — ' + biz; c.subject = tz.subject || ('New listing: ' + biz); c.body = _teaserBodyHtml(tz.body); c.templateId = ''; c.audience = c.audience || {}; c.metros = [(deal && deal.market) || view.market || ''].filter(Boolean); c.recipientCount = massAudience(c.audience, c.metros).length; c.updatedAt = now; saveCampaigns(camps); cur.blastCampaignId = c.id; out.blast = { state: 'draft', note: 'Draft campaign created (' + c.recipientCount + ' subscribers) — review and send.', campaignId: c.id }; }
+        else { c.name = 'Listing — ' + biz; c.subject = tz.subject || ('New listing: ' + _pubName); c.body = _teaserBodyHtml(tz.body); c.templateId = ''; c.audience = c.audience || {}; c.metros = [(deal && deal.market) || view.market || ''].filter(Boolean); c.recipientCount = massAudience(c.audience, c.metros).length; c.updatedAt = now; saveCampaigns(camps); cur.blastCampaignId = c.id; out.blast = { state: 'draft', note: 'Draft campaign created (' + c.recipientCount + ' subscribers) — review and send.', campaignId: c.id }; }
       }
     } catch (e) { out.blast = { state: 'error', note: 'Could not create the campaign draft: ' + String((e && e.message) || '').slice(0, 120) }; }
   }
@@ -8712,7 +8716,8 @@ function _plPage(req, key) {
   const wantPv = req && req.query && req.query.preview === '1' && _plStaff(req);
   const x = _plData(key) || (wantPv ? _plData(key, true) : null); if (!x) return null;
   const tok = String((req && req.query && req.query.a) || '');
-  const full = !x.open && x.kind === 'asset' && ((req && req.query && req.query.full === '1' && _plStaff(req)) || (tok && tok === _plToken(key)));
+  const _byTok = !!(tok && tok === _plToken(key)); const _byStaff = !_byTok && _plStaff(req);
+  const full = !x.open && x.kind === 'asset' && (_byTok || _byStaff);
   const tq = (full && tok) ? ('?a=' + encodeURIComponent(tok)) : '';
   const t = x.t, sp = (x.deal && x.deal.assetSpec) || {}, kindL = PL_KIND[x.kind] || 'For sale';
   const agents = _plAgents(x);
@@ -8726,7 +8731,7 @@ function _plPage(req, key) {
   let body, title, desc, img = t.photo || undefined;
   if (x.open || full) {
     const name = x.kind === 'asset' ? (x.view.business || '') : '';
-    const h1 = t.headline || name || 'Restaurant space';
+    const h1 = (full && x.m && x.m.headline) || t.headline || name || 'Restaurant space';
     const addr = sp.address || t.addr || x.view.locAddress || '';
     const loc = [sp.centerName, t.loc].filter(Boolean).join(' · ');
     const price = sp.askingPrice || t.price || '';
@@ -8805,7 +8810,7 @@ function _plPage(req, key) {
   }
   if (full) img = undefined;
   const ld = { '@context': 'https://schema.org', '@type': 'Offer', name: title, description: desc, url: siteBaseUrl(req) + _seoListingUrl(t), areaServed: t.loc || undefined, image: img ? (siteBaseUrl(req) + img) : undefined, seller: { '@type': 'RealEstateAgent', name: orgDisplayName() } };
-  const fullBar = full ? '<div style="background:#eef2f8;border-bottom:1px solid #d5dce8;color:#20334f;font-size:13px;font-weight:600;padding:9px 0"><div class="wrap">Confidential — shared with you under NDA. Please don\'t forward this page.</div></div>' : '';
+  const fullBar = full ? '<div style="background:#eef2f8;border-bottom:1px solid #d5dce8;color:#20334f;font-size:13px;font-weight:600;padding:9px 0"><div class="wrap">' + (_byStaff ? 'Full listing — staff view. Buyers see this page only through the NDA link on the listing\'s Marketplace card; the public sees the confidential teaser.' : 'Confidential — shared with you under NDA. Please don\'t forward this page.') + '</div></div>' : '';
   const pvBar = fullBar + (x.preview ? '<div style="background:#fff4e6;border-bottom:1px solid #f3d9a8;color:#8a5a12;font-size:13px;font-weight:600;padding:9px 0"><div class="wrap">Preview — only signed-in staff can see this. It goes public when Marketing turns on <b>Public</b> on the listing\'s Marketplace card.</div></div>' : '');
   let html = _seoShell(req, { path: _seoListingUrl(t), title, desc, body: '<style>' + PL_CSS + '</style>' + pvBar + body, jsonld: ld, image: img });
   if (x.preview || full) html = html.replace('<head>', '<head><meta name="robots" content="noindex,nofollow">');
@@ -20921,14 +20926,17 @@ function _assetValueRefs(key, d) {
 }
 // AI draft of the offering-sheet highlights from what's on the listing details (rep reviews before it's used).
 // BizBuySell ad entries from the listing details (Marketing copies them into BizBuySell).
-function _bbsFacts(d) {
+function _bbsFacts(d, blindHl) {
+    // blindHl given = confidential listing: nothing that identifies the place (no address, center, co-tenants or open highlights).
+    const blind = typeof blindHl === 'string';
     const sp = d.assetSpec || {}, conv = d.assetConvey || [], ffe = d.assetFfe || [];
     const L = []; const add = (k, v) => { v = String(v || '').trim(); if (v) L.push(k + ': ' + v); };
-    add('Market', d.market); add('Address (do not publish)', sp.address); add('Space type', sp.spaceType); add('Center', [sp.centerName, sp.centerType].filter(Boolean).join(' · ')); add('Anchors & co-tenants', sp.coTenants); add('Zoning', sp.zoning); add('Historic / overlay district', sp.overlay);
+    if (blind) add('CONFIDENTIAL', 'The restaurant is still operating — never name the business, street, shopping center, building, co-tenants or a landmark that identifies it.');
+    add('Market', d.market); if (!blind) { add('Address (do not publish)', sp.address); add('Center', [sp.centerName, sp.centerType].filter(Boolean).join(' · ')); add('Anchors & co-tenants', sp.coTenants); } add('Space type', sp.spaceType); add('Zoning', sp.zoning); add('Historic / overlay district', sp.overlay);
     add('Square footage', sp.sqft); add('Seating', sp.seating); add('Parking spaces', sp.parking); add('Delivery condition', sp.deliveryCondition); add('Operating status', sp.operatingNow); add('Reason for availability', sp.reason); add('Available', sp.availableDate);
     add('Asking price', sp.askingPrice); add('Total monthly rent', sp.leaseTotal); add('Base rent', sp.leaseRent); add('Remaining lease term', sp.leaseRemaining); add('Lease expiration', sp.leaseExpiration); add('Renewal options', sp.leaseOptions); add('Permitted use', sp.leaseUse);
     add('Built in (conveys with the lease)', _conveyLine(conv)); add('Last buildout / remodel', [sp.remodelYear, sp.remodelCost ? ('approx. ' + sp.remodelCost) : ''].filter(Boolean).join(' · '));
-    add('Equipment conveying', ffe.filter(r => !r.excluded && r.own !== 'Leased').slice(0, 20).map(_ffeLine).join('; ')); add('HVAC', sp.hvac); add('Highlights', String(sp.highlights || '').replace(/\n+/g, '; '));
+    add('Equipment conveying', ffe.filter(r => !r.excluded && r.own !== 'Leased').slice(0, 20).map(_ffeLine).join('; ')); add('HVAC', sp.hvac); add('Highlights', String(blind ? blindHl : (sp.highlights || '')).replace(/\n+/g, '; '));
   return L;
 }
 app.post('/api/asset-spec/bbs-ad', express.json(), async (req, res) => {
@@ -20940,7 +20948,7 @@ app.post('/api/asset-spec/bbs-ad', express.json(), async (req, res) => {
     const overlay = loadAssignOverlay(); const cur = overlay[b.key] || {};
     if (!b.fresh && cur.bbsDraft && cur.bbsDraft.ad) return res.json({ ok: true, ad: cur.bbsDraft.ad, at: cur.bbsDraft.at, cached: true });
     if (!aiAllowed(req)) return res.status(403).json({ ok: false, error: 'AI is not enabled for your role.' });
-    const L = _bbsFacts(d);
+    const _om = cur.market || {}; const L = _bbsFacts(d, _listingOpen(b.key, 'asset', _om) ? undefined : String(_om.blindHl || ''));
     if (L.length < 5) return res.status(400).json({ ok: false, error: 'Complete the listing details first — the ad is written from them.' });
     const ad = await aiassist.bizBuySellAd({ facts: L.join('\n') });
     const ov2 = loadAssignOverlay(); const c2 = ov2[b.key] || {}; c2.bbsDraft = { ad: ad, at: new Date().toISOString() }; ov2[b.key] = c2; saveAssignOverlay(ov2);

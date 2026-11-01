@@ -1287,7 +1287,7 @@ function applyFeatStrip(){
       _featCard('🤝','Tours &amp; LOIs','Log every site visit and each letter of intent as the search moves toward a signed lease.'),
       _featCard('🔑','Lease abstract &amp; commission','Abstract the executed lease and forecast your fee — all tied to this engagement.'),
       _featCard('🔐','Data room activity','Keep the tenant’s documents and site materials in one confidential room, and see who’s reviewing them.'),
-      _featCard('🧩','Make it yours','Drag any card in the right rail to reorder it and collapse the ones you don’t need — saved on this device.')
+      _featCard('🗂','One record, five tabs','Header and key money on top, Primary information below, then Marketing · Buyers · Deal · Files (and Business for going concerns). Asset sales skip the Business tab. The tab you used last opens next time.')
     ].join('');
   } else if(t==='landlord_rep'){
     if(sh) sh.textContent='one file to run a single landlord / leasing assignment end to end — market the space, work the prospects, sign the lease';
@@ -1300,7 +1300,7 @@ function applyFeatStrip(){
       _featCard('🤝','Tours &amp; LOIs','Record each showing and every letter of intent as prospects move toward a lease.'),
       _featCard('🔑','Lease &amp; commission','Track the deal to a signed lease and bill your fee — all tied to this listing.'),
       _featCard('🔐','Data room activity','See who opened the room, signed in, and what they reviewed.'),
-      _featCard('🧩','Make it yours','Drag any card in the right rail to reorder it and collapse the ones you don’t need — saved on this device.')
+      _featCard('🗂','One record, five tabs','Header and key money on top, Primary information below, then Marketing · Buyers · Deal · Files (and Business for going concerns). Asset sales skip the Business tab. The tab you used last opens next time.')
     ].join('');
   }
   // 'listing' (business sale) keeps the original static sell-side markup.
@@ -2323,5 +2323,115 @@ function load(){
 }
 load();
 </script>
+<style id="nsRecCss">
+/* ===== NetSuite-style record layout (listing records): header · primary information · subtabs ===== */
+.wrap.nsrec{display:block;padding:0 24px 70px;}
+.nsrec .card{border-radius:4px;box-shadow:none;border-color:#d5dbe5;margin-bottom:12px;}
+.nsrec .card .ch{padding:10px 14px;background:#f5f7fa;}
+.nsrec .card .ch b{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:#20334f;}
+.nsrec > .mid{max-width:none;}
+.nsrec .nsbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px;}
+.nsrec .nsbar a,.nsrec .nsbar button{display:inline-flex;align-items:center;height:30px;padding:0 12px;border:1px solid #c4ccda;border-radius:3px;background:#fff;color:#20334f;font:inherit;font-size:12.5px;font-weight:600;text-decoration:none;cursor:pointer;}
+.nsrec .nsbar a:hover{background:#f2f5f9;border-color:#9fb0cc;}
+.nsrec .nsbar .sp{flex:1;}
+.nsrec .nsbar .lane{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#4b5568;background:#eef1f5;border:1px solid #d5dbe5;border-radius:3px;padding:4px 8px;}
+/* Primary information: Manage as a 4-column field grid */
+.nsrec > .side{margin-bottom:12px;}
+.nsrec > .side .card > .ch{cursor:pointer;user-select:none;}
+.nsrec > .side .card > .ch::before{content:'▾';color:#8a93a8;font-size:11px;margin-right:2px;}
+.nsrec > .side .card.nsfold > .ch::before{content:'▸';}
+.nsrec > .side .card.nsfold > .cb{display:none;}
+.nsrec > .side .cb{display:grid !important;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px 18px;align-items:start;}
+.nsrec > .side .cb > *{min-width:0;}
+.nsrec > .side .cb > .listingbox{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px 18px;border:0;border-top:1px solid #e6eaf0;border-radius:0;background:none;padding:10px 0 0;margin:6px 0 0;}
+.nsrec > .side .cb > .listingbox > .listinghd,.nsrec > .side .cb > .listingbox > .expnote{grid-column:1/-1;}
+.nsrec > .side .cb > .listingbox > .fldrow2{grid-column:span 2;}
+.nsrec > .side .cb > .fldrow:has(#f_notes){grid-column:1/-1;}
+.nsrec > .side .cb > .hqbar,.nsrec > .side .cb > .hqnote{grid-column:1/-1;}
+.nsrec > .side .cb > .savebtn,.nsrec > .side .cb > .saved,.nsrec > .side .cb > .hqbtn.del{grid-column:span 1;width:auto !important;}
+.nsrec > .side .cb textarea#f_notes{min-height:56px;}
+/* Subtabs */
+.nstabs{display:flex;gap:0;border-bottom:2px solid #20334f;margin:6px 0 12px;overflow-x:auto;}
+.nstabs button{border:1px solid #d5dbe5;border-bottom:0;background:#eef1f5;color:#4b5568;font:inherit;font-size:12.5px;font-weight:700;padding:8px 18px;margin-right:3px;border-radius:3px 3px 0 0;cursor:pointer;white-space:nowrap;}
+.nstabs button.on{background:#20334f;color:#fff;border-color:#20334f;}
+.nstabs button i{font-style:normal;font-weight:600;opacity:.75;margin-left:6px;font-size:11px;}
+.nsrec > .rail{column-count:2;column-gap:14px;}
+.nsrec > .rail > .card{break-inside:avoid;display:block;width:100%;}
+.nsrec > .rail > .card.nsoff{display:none;}
+.nsrec > .rail > .card.nswide{column-span:all;}
+.nsrec > .rail > .railtip{display:none;}
+@media(max-width:1300px){.nsrec > .rail{column-count:1;} .nsrec > .side .cb,.nsrec > .side .cb > .listingbox{grid-template-columns:repeat(2,minmax(0,1fr));}}
+</style>
+<script>
+/* ===== Record layout: wraps setupAccordion so it runs after every render / re-render ===== */
+(function(){
+  var TABS=[
+    {id:'marketing', l:'Marketing', t:['Marketplace','Photos']},
+    {id:'buyers', l:'Buyers', t:['Matching buyers','Buyer Leads','NDAs','Location Tours','Offers — IOIs & LOIs','Buyer Pipeline']},
+    {id:'deal', l:'Deal', t:['Deal','Seller activity report','Deal Expenses','Invoices','Seller Pipeline','Agreements']},
+    {id:'files', l:'Files', t:['Documents','Data Room']},
+    {id:'business', l:'Business', t:['Financials','Valuation & Pricing','Business snapshot','Locations / Units','Online presence']}
+  ];
+  var WIDE={'Marketplace':1};
+  var TAB_KEY='rrgAsgTabV1';
+  function on(){ return !!(window.A && (A.assignmentType||'listing')==='listing'); }
+  function asset(){ return !!(window.A && A.saleLane==='asset'); }
+  function tabOf(title){ if(asset() && title==='Valuation & Pricing') return 'deal'; for(var i=0;i<TABS.length;i++){ if(TABS[i].t.indexOf(title)>=0) return TABS[i].id; } return 'deal'; }
+  function cur(){ var t=''; try{ t=localStorage.getItem(TAB_KEY)||''; }catch(e){} if(!t||(t==='business'&&asset())) t='marketing'; return t; }
+  function titleOf(c){ var b=c.querySelector('.ch b'); return b?b.textContent.trim():''; }
+  function layout(){
+    var root=document.getElementById('root'); if(!root||!on()) return;
+    var side=root.querySelector(':scope > .side'), mid=root.querySelector(':scope > .mid'), rail=root.querySelector(':scope > .rail'); if(!side||!mid||!rail) return;
+    if(!root.classList.contains('nsrec')){
+      root.classList.add('nsrec');
+      // Overview stays on top (the record header); every other center card moves into the tabbed area.
+      var ov=mid.querySelector(':scope > .card');
+      Array.prototype.slice.call(mid.children).forEach(function(c){ if(c!==ov && c.classList && c.classList.contains('card')) rail.insertBefore(c, rail.firstChild); });
+      // Order: header, button bar, primary information, tabs, tab content.
+      root.insertBefore(mid, side);
+      var bar=document.createElement('div'); bar.className='nsbar'; bar.id='nsBar'; root.insertBefore(bar, side);
+      var tb=document.createElement('div'); tb.className='nstabs'; tb.id='nsTabs'; root.insertBefore(tb, rail);
+      var mc=side.querySelector('.card'); if(mc){ var hb=mc.querySelector('.ch b'); if(hb) hb.textContent='Primary information'; var ch=mc.querySelector('.ch'); if(ch) ch.addEventListener('click',function(e){ if(e.target.closest('button,a,input,select')) return; mc.classList.toggle('nsfold'); try{ localStorage.setItem('rrgAsgPrimFold', mc.classList.contains('nsfold')?'1':''); }catch(_){} }); try{ if(localStorage.getItem('rrgAsgPrimFold')==='1') mc.classList.add('nsfold'); }catch(_){} }
+      drawBar();
+    }
+  }
+  function drawBar(){
+    var bar=document.getElementById('nsBar'); if(!bar||!window.A) return;
+    var k=encodeURIComponent(window.KEY||''), h=[];
+    h.push('<span class="lane">'+(asset()?'Asset sale':(A.saleLane==='other'?'Other':'Going concern'))+'</span>');
+    var price=A.listPrice?(String(A.listPrice).charAt(0)==='$'?A.listPrice:('$'+Number(String(A.listPrice).replace(/[^0-9.]/g,'')).toLocaleString('en-US'))):'';
+    if(price) h.push('<span style="font-size:13px;color:#20334f"><b>'+(asset()?'Key money':'Asking price')+'</b> '+price+'</span>');
+    h.push('<span class="sp"></span>');
+    if(asset()) h.push('<a href="./rrg_asset_space.html?key='+k+'">Listing details</a>');
+    var wu=(window.MKT&&MKT.listing&&MKT.listing.webUrl)||''; if(wu) h.push('<a href="'+wu+'" target="_blank" rel="noopener">'+(/preview=1/.test(wu)?'Preview web listing ↗':'Web listing ↗')+'</a>');
+    var rid=(A.roomId||(A.room&&A.room.id)||''); if(rid) h.push('<a href="./rrg_room.html?room='+encodeURIComponent(rid)+'">Data room ↗</a>');
+    if(A.clientPersonId) h.push('<a href="./rrg_person.html?id='+encodeURIComponent(A.clientPersonId)+'">Seller ↗</a>');
+    bar.innerHTML=h.join('');
+  }
+  function tabify(){
+    var root=document.getElementById('root'); if(!root||!root.classList.contains('nsrec')) return;
+    var rail=root.querySelector(':scope > .rail'), tb=document.getElementById('nsTabs'); if(!rail||!tb) return;
+    var t=cur(), counts={};
+    Array.prototype.forEach.call(rail.children,function(c){ if(!c.classList||!c.classList.contains('card')) return; var ti=titleOf(c); var tab=tabOf(ti);
+      var hide=(tab==='business' && asset());
+      c.setAttribute('data-nstab',tab); c.classList.toggle('nsoff', hide || tab!==t); c.classList.toggle('nswide', !!WIDE[ti]);
+      if(!hide) counts[tab]=(counts[tab]||0)+1; });
+    tb.innerHTML=TABS.filter(function(x){ return !(x.id==='business'&&asset()); }).map(function(x){ return '<button type="button" data-nst="'+x.id+'" class="'+(x.id===t?'on':'')+'">'+x.l+'</button>'; }).join('');
+    tb.querySelectorAll('[data-nst]').forEach(function(b){ b.onclick=function(){ try{ localStorage.setItem(TAB_KEY,b.getAttribute('data-nst')); }catch(_){} tabify(); }; });
+    drawBar();
+  }
+  window._nsTabify=tabify;
+  var _orig=window.setupAccordion;
+  if(typeof _orig==='function'){
+    window.setupAccordion=function(){ layout(); var r=_orig.apply(this,arguments); try{ tabify(); }catch(e){} return r; };
+    setupAccordion=window.setupAccordion;
+  }
+  // Cards swapped in later (re-renders, async loads) get their tab too; the web-listing link appears once the Marketplace loads.
+  var _mo=null; setInterval(function(){ var rail=document.querySelector('#root.nsrec > .rail'); if(!rail) return; if(_mo&&_mo._r===rail) return; if(_mo) _mo.disconnect(); _mo=new MutationObserver(function(){ var bad=Array.prototype.some.call(rail.children,function(c){ return c.classList&&c.classList.contains('card')&&!c.hasAttribute('data-nstab'); }); if(bad) tabify(); }); _mo._r=rail; _mo.observe(rail,{childList:true}); },700);
+  setTimeout(function(){ var root=document.getElementById('root'); if(root&&root.querySelector(':scope > .side')&&!root.classList.contains('nsrec')){ layout(); tabify(); } },0);
+  var _wuT=setInterval(function(){ if(window.MKT&&MKT.listing){ drawBar(); clearInterval(_wuT); } },800);
+})();
+</script>
+
 </body>
 </html>
