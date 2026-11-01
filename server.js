@@ -11543,6 +11543,39 @@ app.post('/api/assignment/:key/photos', express.json({ limit: '40mb' }), (req, r
   res.json({ ok: true, added: added, media: _dealMediaOut(d.key) });
 });
 
+// Walkthrough video: the rep records it on the phone in the walkthrough; streamed straight to disk
+// (no JSON, no base64) with a size cap, and linked on the listing details for Marketing.
+app.post('/api/assignment/:key/walkvideo', (req, res) => {
+  const d = _assignForMedia(req, res); if (!d) return;
+  const ext = ((String(req.query.ext || '').toLowerCase().match(/^(mp4|mov|m4v|webm|3gp)$/) || [])[1]) || 'mp4';
+  const MAX = 600 * 1024 * 1024;
+  const dir = path.join(DEAL_PHOTO_DIR, dealKeySafe(d.key));
+  try { if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }); } catch (e) { return res.status(500).json({ ok: false, error: 'Could not prepare storage.' }); }
+  const id = 'vid_' + Date.now().toString(36); const fp = path.join(dir, id + '.' + ext);
+  let size = 0, aborted = false; const ws = fs.createWriteStream(fp);
+  req.on('data', ch => { size += ch.length; if (size > MAX && !aborted) { aborted = true; req.unpipe(ws); ws.destroy(); try { fs.unlinkSync(fp); } catch (e) {} res.status(413).json({ ok: false, error: 'That video is over 600 MB — keep it to about 2 minutes.' }); } });
+  req.pipe(ws);
+  ws.on('finish', () => {
+    if (aborted) return;
+    if (size < 1000) { try { fs.unlinkSync(fp); } catch (e) {} return res.status(400).json({ ok: false, error: 'The video came through empty.' }); }
+    try { blobstore.mirrorPut(fp); } catch (e) {}
+    const overlay = loadAssignOverlay(); const cur = overlay[d.key] || {}; const med = (cur.media && typeof cur.media === 'object') ? cur.media : {};
+    const old = med.walkVideo; med.walkVideo = { id: id, ext: ext, size: size, at: new Date().toISOString(), by: (req.user && req.user.name) || '' };
+    cur.media = med; cur.updatedAt = med.walkVideo.at; overlay[d.key] = cur; saveAssignOverlay(overlay);
+    if (old && old.id) { try { binDel(path.join(dir, old.id + '.' + old.ext)); } catch (e) {} }
+    res.json({ ok: true, video: _walkVideoOut(d.key, med.walkVideo) });
+  });
+  ws.on('error', () => { if (!res.headersSent) res.status(500).json({ ok: false, error: 'Could not save the video.' }); });
+});
+function _walkVideoOut(key, v) { return v ? { url: '/api/dealvideo/' + dealKeySafe(key) + '/' + v.id + '.' + v.ext, size: v.size, at: v.at, by: v.by || '', ext: v.ext } : null; }
+app.get('/api/dealvideo/:key/:file', (req, res) => {
+  const m = String(req.params.file || '').match(/^(vid_[a-z0-9]+)\.(mp4|mov|m4v|webm|3gp)$/i); if (!m) return res.status(404).end();
+  const deals = assignmentsIndex(); const k = Object.keys(deals).find(x => dealKeySafe(x) === req.params.key); const d = k ? deals[k] : null;
+  if (!d || !(ownsAssignment(req, d) || (req.user && userDepartmentIds(req.user.username).indexOf('marketing') >= 0))) return res.status(403).end();
+  const fp = path.join(DEAL_PHOTO_DIR, dealKeySafe(req.params.key), m[0]);
+  if (!fs.existsSync(fp)) return res.status(404).end();
+  res.sendFile(fp, { headers: { 'Content-Type': ({ mov: 'video/quicktime', webm: 'video/webm', '3gp': 'video/3gpp' })[m[2].toLowerCase()] || 'video/mp4', 'Cache-Control': 'private, max-age=300' } });
+});
 // Serve a listing photo (auth-gated, same-origin cookie)
 app.get('/api/dealphoto/:key/:file', (req, res) => {
   const safe = dealKeySafe(req.params.key);
@@ -20319,7 +20352,7 @@ app.get('/api/asset-spec', (req, res) => {
     if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
     if (!ownsDeal(req, d) && !(req.user && userDepartmentIds(req.user.username).indexOf('marketing') >= 0)) return res.status(403).json({ ok: false, error: 'Not yours.' });
     const spec = d.assetSpec || {};
-    res.json({ ok: true, key: req.query.key, business: d.business || '', market: d.market || '', saleLane: _effLane(req.query.key, d), spec: spec, ffe: d.assetFfe || [], ffeCats: aiassist.FFE_CATS || [], convey: d.assetConvey || null, conveyKit: CONVEY_KIT, spaceTypes: SPACE_TYPES, centerTypes: CENTER_TYPES, locAddress: _vlAddress({ key: String(req.query.key || '') }), valueRefs: _assetValueRefs(String(req.query.key || ''), d), leaseAbs: _assetLeaseAbs(req, String(req.query.key || ''), d), media: (function () { try { return _dealMediaOut(String(req.query.key || '')); } catch (e) { return null; } })(), seller: (function () { try { const pid = d.contactPersonId || d.clientPersonId || ''; const p = pid ? loadPeople().find(x => x.id === pid) : null; return p ? { id: p.id, name: p.name || [p.firstName, p.lastName].filter(Boolean).join(' ') } : null; } catch (e) { return null; } })(), core: ASSET_SPEC_CORE, missing: ASSET_SPEC_CORE.filter(k => !spec[k]) });
+    res.json({ ok: true, key: req.query.key, business: d.business || '', market: d.market || '', saleLane: _effLane(req.query.key, d), spec: spec, ffe: d.assetFfe || [], ffeCats: aiassist.FFE_CATS || [], convey: d.assetConvey || null, conveyKit: CONVEY_KIT, spaceTypes: SPACE_TYPES, centerTypes: CENTER_TYPES, locAddress: _vlAddress({ key: String(req.query.key || '') }), valueRefs: _assetValueRefs(String(req.query.key || ''), d), leaseAbs: _assetLeaseAbs(req, String(req.query.key || ''), d), media: (function () { try { return _dealMediaOut(String(req.query.key || '')); } catch (e) { return null; } })(), walkVideo: (function () { try { const ov = loadAssignOverlay()[String(req.query.key || '')] || {}; return _walkVideoOut(String(req.query.key || ''), ov.media && ov.media.walkVideo); } catch (e) { return null; } })(), seller: (function () { try { const pid = d.contactPersonId || d.clientPersonId || ''; const p = pid ? loadPeople().find(x => x.id === pid) : null; return p ? { id: p.id, name: p.name || [p.firstName, p.lastName].filter(Boolean).join(' ') } : null; } catch (e) { return null; } })(), core: ASSET_SPEC_CORE, missing: ASSET_SPEC_CORE.filter(k => !spec[k]) });
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 app.post('/api/asset-spec', express.json({ limit: '256kb' }), (req, res) => {

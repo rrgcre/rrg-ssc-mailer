@@ -65,6 +65,8 @@ textarea{width:100%;font:inherit;font-size:16px;padding:12px;border:1px solid va
 .phbtn{display:flex;align-items:center;justify-content:center;gap:8px;height:52px;border-radius:12px;background:var(--navy);color:#fff;font-size:16px;font-weight:700;cursor:pointer;}
 .phs{display:flex;gap:6px;overflow-x:auto;margin-top:10px;} .phs img{width:84px;height:64px;object-fit:cover;border-radius:8px;flex:none;}
 .phm{font-size:13px;color:var(--muted);margin-top:6px;font-weight:600;min-height:4px;}
+.vidopt{margin-top:18px;text-align:center;} .vidlnk{display:inline-block;color:var(--muted);font-size:14px;font-weight:600;text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:8px;}
+.vbar{height:8px;background:#e6e9f0;border-radius:4px;overflow:hidden;margin-top:8px;} .vbar i{display:block;height:100%;width:0;background:var(--navy);transition:width .2s;}
 .gate{padding:60px 24px;text-align:center;color:var(--muted);}
 .hint{font-size:13px;color:var(--soft);margin:8px 4px 0;line-height:1.45;}
 </style>
@@ -127,7 +129,7 @@ function eqHtml(i){ var r=FFE[i]; var own=r.own||'Confirm';
     +'<div class="seg">'+[['Owned','o'],['Leased','l'],['Confirm','c']].map(function(o){ return '<button class="'+o[1]+(own===o[0]?' on':'')+'" data-own="'+o[0]+'">'+o[0]+'</button>'; }).join('')+'</div>'
     +'<div class="more"><input data-f="notes" value="'+esc(r.notes||'')+'" placeholder="'+esc(quickHint(r.item)||'Make / model / notes')+'"><button class="keep'+(r.excluded?' on':'')+'" data-keep="1">'+(r.excluded?'Seller keeps ✓':'Seller keeps')+'</button></div></div>'; }
 // Photos per room: camera or camera roll; shrunk on the phone, then uploaded one at a time.
-var MEDIA=null;
+var MEDIA=null, WALKVID=null;
 function roomPhotos(R){ return ((MEDIA&&MEDIA.photos)||[]).filter(function(p){ return String(p.caption||'').indexOf(R.n+' ')===0; }); }
 function photoBlock(R){ var P=roomPhotos(R);
   return '<div class="phb"><label class="phbtn"><input type="file" id="phIn" accept="image/*" multiple hidden>📷 '+(P.length?'Add more photos':'Take photos of the '+esc(R.n.toLowerCase()))+'</label>'
@@ -147,6 +149,7 @@ function finish(){
   var conf=FFE.filter(function(r){ return !r.excluded && r.own==='Confirm'; });
   var hood=_cv('hood1')||_cv('hood2')||_cv('nohood');
   var h='<h2>Finish</h2>';
+  var _vidH='<div class="vidopt"><label class="vidlnk"><input type="file" id="vidIn" accept="video/*" capture="environment" hidden>🎥 '+(WALKVID?'Re-record the walkthrough video':'Optional: record a walkthrough video')+'</label><div class="phm" id="vidMsg">'+(WALKVID?('Saved ✓ · '+Math.round(WALKVID.size/1048576)+' MB'):'')+'</div><div class="vbar" id="vidBar" hidden><i></i></div></div>';
   h+=hood?'':'<div class="warn" style="margin-bottom:10px">No hood answer yet — go back to Cook line and pick Type I, Type II or No hood.</div>';
   h+=conf.length?'<div class="warn">Ask the seller before you leave — owned or leased?<br>'+conf.map(function(r){ return '• '+esc(r.item); }).join('<br>')+'</div>':'<div class="okb">✓ Ownership settled on every item.</div>';
   h+='<div class="sec">Excluded — seller keeps</div><textarea id="exT" placeholder="Anything else the seller is taking">'+esc(SPEC.exclusions||'')+'</textarea>';
@@ -154,6 +157,7 @@ function finish(){
   var tot=0; FFE.forEach(function(r){ if(!r.excluded) tot+=(r.qty||1); });
   h+='<div class="sec">Summary</div><div class="box sum"><div><span>Built-in items checked</span><b>'+CONVEY.length+'</b></div><div><span>Equipment lines</span><b>'+FFE.length+'</b></div><div><span>Pieces conveying</span><b>'+tot+'</b></div></div>';
   h+='<div style="margin-top:16px"><a class="btn" style="display:flex;align-items:center;justify-content:center;text-decoration:none" href="./rrg_asset_space.html?key='+encodeURIComponent(KEY)+'">Open the full listing details</a></div>';
+  h+=_vidH;
   return h;
 }
 function draw(){
@@ -165,8 +169,17 @@ function go(r){ ROOM=Math.max(0,Math.min(ROOMS.length-1,r)); draw(); window.scro
 function _unit(inp){ var u=inp.getAttribute('data-unit'); if(!u) return; var m=inp.value.replace(/,/g,'').match(/^\s*(\d+(?:\.\d+)?)\s*(?:gal(?:lons?)?|ft|feet|foot|'|seats?)?\s*$/i); if(!m) return; inp.value=parseFloat(m[1]).toLocaleString('en-US',{maximumFractionDigits:1})+' '+u; }
 function wirePh(){ var inp=document.getElementById('phIn'); if(!inp) return; inp.onchange=function(){ var R=ROOMS[ROOM], files=inp.files; if(!files||!files.length) return; var n0=roomPhotos(R).length, msg=document.getElementById('phMsg');
   rrgUploadPhotos(KEY, files, function(i){ return R.n+' '+(n0+i+1); }, function(i,t){ if(msg) msg.textContent='Uploading '+(i+1)+' of '+t+'…'; }, MEDIA).then(function(r){ if(r.media) MEDIA=r.media; draw(); var m=document.getElementById('phMsg'); if(m) m.textContent=r.done+' photo'+(r.done===1?'':'s')+' saved'+(r.failed?(' · '+r.failed+' failed'):' ✓'); }); }; }
+function wireVid(){ var inp=document.getElementById('vidIn'); if(!inp) return; inp.onchange=function(){ var f=inp.files&&inp.files[0]; if(!f) return; var msg=document.getElementById('vidMsg'), bar=document.getElementById('vidBar'), fill=bar.querySelector('i');
+  if(f.size>600*1048576){ msg.textContent='That video is over 600 MB — keep it to about 2 minutes.'; return; }
+  var ext=((f.name||'').match(/\.([a-z0-9]+)$/i)||[])[1]||(/quicktime/.test(f.type)?'mov':'mp4');
+  var x=new XMLHttpRequest(); x.open('POST','/api/assignment/'+encodeURIComponent(KEY)+'/walkvideo?ext='+encodeURIComponent(ext.toLowerCase())); x.withCredentials=true;
+  bar.hidden=false; msg.textContent='Uploading… keep this screen open.';
+  x.upload.onprogress=function(e){ if(e.lengthComputable){ var p=Math.round(e.loaded/e.total*100); fill.style.width=p+'%'; msg.textContent='Uploading '+p+'% of '+Math.round(f.size/1048576)+' MB… keep this screen open.'; } };
+  x.onload=function(){ var j={}; try{ j=JSON.parse(x.responseText); }catch(e){} bar.hidden=true; if(x.status===200&&j.ok){ WALKVID=j.video; draw(); } else msg.textContent=(j&&j.error)||'Upload failed — try again on Wi-Fi.'; };
+  x.onerror=function(){ bar.hidden=true; msg.textContent='Upload failed — try again on Wi-Fi.'; };
+  x.send(f); }; }
 function wire(){
-  wirePh();
+  wirePh(); wireVid();
   var root=document.getElementById('root');
   root.querySelectorAll('[data-ck]').forEach(function(row){ row.addEventListener('click', function(e){ if(e.target.tagName==='INPUT') return; var k=row.getAttribute('data-ck');
     if(_cv(k)) CONVEY=CONVEY.filter(function(r){ return r.k!==k; });
@@ -194,7 +207,7 @@ document.getElementById('xBtn').onclick=function(e){ e.preventDefault(); locatio
   api('GET','/api/asset-spec?key='+encodeURIComponent(KEY)).then(function(j){
     if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">'+esc((j&&j.error)||'Listing not found.')+'</div>'; return; }
     if(j.saleLane && j.saleLane!=='asset'){ document.getElementById('root').innerHTML='<div class="gate">The walkthrough is for space &amp; assets listings.</div>'; return; }
-    MEDIA=j.media||null; SPEC=j.spec||{}; FFE=j.ffe||[]; CONVEY=j.convey||null; if(!CONVEY){ CONVEY=[]; var m={hood:'hood1',walkin:'walkinC',ansul:'ansul',restrooms:'restrooms',gas:'gas',patio:'patio'}; Object.keys(m).forEach(function(f){ var v=String(SPEC[f]||'').trim(); if(v) CONVEY.push({k:m[f], d:v.slice(0,160)}); }); } if(j.ffeCats&&j.ffeCats.length) FFE_CATS=j.ffeCats;
+    MEDIA=j.media||null; WALKVID=j.walkVideo||null; SPEC=j.spec||{}; FFE=j.ffe||[]; CONVEY=j.convey||null; if(!CONVEY){ CONVEY=[]; var m={hood:'hood1',walkin:'walkinC',ansul:'ansul',restrooms:'restrooms',gas:'gas',patio:'patio'}; Object.keys(m).forEach(function(f){ var v=String(SPEC[f]||'').trim(); if(v) CONVEY.push({k:m[f], d:v.slice(0,160)}); }); } if(j.ffeCats&&j.ffeCats.length) FFE_CATS=j.ffeCats;
     document.getElementById('biz').textContent=j.business||'Space & Assets'; document.title='Walkthrough — '+(j.business||'');
     document.getElementById('foot').style.display=''; sv(''); draw();
   }).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not load this listing.</div>'; });

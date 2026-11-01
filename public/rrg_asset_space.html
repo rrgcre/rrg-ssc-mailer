@@ -98,6 +98,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .phth{position:relative;width:118px;height:88px;border:1px solid var(--line);border-radius:3px;overflow:hidden;display:block;background:#f4f6f9;}
 .phth img{width:100%;height:100%;object-fit:cover;display:block;} .phth span{position:absolute;left:0;right:0;bottom:0;background:rgba(0,14,49,.6);color:#fff;font-size:10.5px;padding:2px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .phth i{position:absolute;top:3px;right:4px;font-style:normal;color:#fff;font-size:11px;text-shadow:0 1px 2px #000;}
+.phtools{position:absolute;top:3px;right:3px;display:none;gap:3px;font-style:normal;} .phth:hover .phtools{display:flex;} .phtools button{width:22px;height:22px;border:0;border-radius:3px;background:rgba(0,14,49,.75);color:#fff;font-size:12px;line-height:22px;padding:0;cursor:pointer;} .phtools button[data-del]:hover{background:#b23a2c;} .phth.cov{outline:2px solid var(--primary);outline-offset:1px;} .phth span b{font-weight:800;}
+.vidcard video{width:100%;max-height:300px;background:#000;border-radius:3px;display:block;} .vidmeta{font-size:11.5px;color:var(--muted);margin-top:4px;} .vidmeta a{color:var(--primary);font-weight:700;text-decoration:none;}
 .phadd{width:118px;height:88px;border:1.5px dashed var(--inp);border-radius:3px;display:flex !important;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;color:var(--primary);background:#fbfcfe;margin:0 !important;text-transform:none !important;letter-spacing:0 !important;}
 .phadd b{font-size:22px;line-height:1;} .phadd span{font-size:11.5px;font-weight:700;}
 #phZone.drag{outline:2px dashed var(--primary);outline-offset:4px;background:#f2f6fb;}
@@ -264,8 +266,7 @@ var GROUPS=[
   ]},
   {title:'Marketing assets', photos:1, fields:[
     {k:'photosNote', l:'Photo notes', ph:'Anything Marketing should know — e.g. professional shoot booked for the 12th'},
-    {k:'floorplanNote', l:'Floor plan', ph:'Link or note'},
-    {k:'videoNote', l:'Walkthrough video', ph:'Link (optional)'}
+    {k:'videoNote', l:'Walkthrough video', ph:'Link — or record it in 📱 Walkthrough on the Finish step', vid:1}
   ]}
 ];
 var VREF={}, LABS=null, ABSF={};
@@ -303,16 +304,18 @@ function wireHvac(){ var host=document.getElementById('hvRows'); if(!host) retur
   document.getElementById('hvAdd').onclick=function(){ var d=document.createElement('div'); d.innerHTML=hvRow({u:'',t:''}); host.appendChild(d.firstChild); host.querySelectorAll('[data-hu]')[host.querySelectorAll('.hvr').length-1].focus(); };
   tot(); }
 // Listing photos — strip + upload (drag & drop on desktop, camera / library on a phone).
-var MEDIA=null;
+var MEDIA=null, WALKVID=null;
 function photosHtml(){ var P=(MEDIA&&MEDIA.photos)||[];
   return '<div class="fld" data-fk="photos" id="phZone"><label class="subh">Photos'+(P.length?(' · '+P.length):'')+'</label>'
-    +'<div class="phstrip">'+P.map(function(p){ return '<a class="phth" href="'+esc(p.url)+'" target="_blank" title="'+esc(p.caption||'')+'"><img src="'+esc(p.url)+'" loading="lazy" alt=""><span>'+esc(p.caption||'')+'</span>'+(p.inRoom?'<i title="Also in the data room">▣</i>':'')+'</a>'; }).join('')
+    +'<div class="phstrip">'+P.map(function(p){ var cov=(MEDIA.coverPhotoId===p.id); return '<a class="phth'+(cov?' cov':'')+'" href="'+esc(p.url)+'" target="_blank" title="'+esc(p.caption||'')+'"><img src="'+esc(p.url)+'" loading="lazy" alt=""><span>'+(cov?'<b>Cover</b> · ':'')+esc(p.caption||'')+'</span><em class="phtools"><button type="button" data-cov="'+esc(p.id)+'" title="Make this the cover photo">'+(cov?'★':'☆')+'</button><button type="button" data-del="'+esc(p.id)+'" title="Delete this photo">✕</button></em></a>'; }).join('')
     +'<label class="phadd"><input type="file" id="phIn" accept="image/*" multiple hidden><b>+</b><span>Add photos</span></label></div>'
     +'<div class="hint">Drag photos here, or use <b>📱 Walkthrough</b> to shoot them room by room on a phone. Photos go to the listing (for Marketing) and the data room under Photos. <span class="msg" id="phMsg"></span></div></div>'; }
 function phRefresh(){ var z=document.getElementById('phZone'); if(!z) return; var t=document.createElement('div'); t.innerHTML=photosHtml(); z.replaceWith(t.firstChild); wirePhotos(); refreshStatus(); }
 function phUpload(files){ var m=document.getElementById('phMsg'); var n0=((MEDIA&&MEDIA.photos)||[]).length;
   rrgUploadPhotos(KEY, files, function(i){ return 'Photo '+(n0+i+1); }, function(i,t){ if(m){ m.className='msg'; m.textContent='Uploading '+(i+1)+' of '+t+'…'; } }, MEDIA).then(function(r){ if(r.media) MEDIA=r.media; phRefresh(); var mm=document.getElementById('phMsg'); if(mm){ mm.className='msg '+(r.failed?'err':'ok'); mm.textContent=r.done+' added'+(r.failed?(' · '+r.failed+' could not be read (iPhone HEIC on a computer? export as JPG)'):' ✓'); } }); }
 function wirePhotos(){ var z=document.getElementById('phZone'); if(!z) return; var inp=document.getElementById('phIn');
+  z.querySelectorAll('[data-del]').forEach(function(b){ b.onclick=function(e){ e.preventDefault(); e.stopPropagation(); if(!confirm('Delete this photo from the listing?')) return; fetch('/api/assignment/'+encodeURIComponent(KEY)+'/photo/'+encodeURIComponent(b.getAttribute('data-del')),{method:'DELETE',credentials:'same-origin'}).then(function(r){ return r.json(); }).then(function(j){ if(j&&j.ok){ MEDIA=j.media; phRefresh(); } else alert((j&&j.error)||'Could not delete.'); }); }; });
+  z.querySelectorAll('[data-cov]').forEach(function(b){ b.onclick=function(e){ e.preventDefault(); e.stopPropagation(); api('POST','/api/assignment/'+encodeURIComponent(KEY)+'/photos/order',{ coverPhotoId:b.getAttribute('data-cov') }).then(function(j){ if(j&&j.ok&&j.media){ MEDIA=j.media; phRefresh(); } else { if(MEDIA) MEDIA.coverPhotoId=b.getAttribute('data-cov'); phRefresh(); } }); }; });
   inp.onchange=function(){ if(inp.files&&inp.files.length) phUpload(inp.files); };
   z.addEventListener('dragover', function(e){ e.preventDefault(); z.classList.add('drag'); }); z.addEventListener('dragleave', function(){ z.classList.remove('drag'); });
   z.addEventListener('drop', function(e){ e.preventDefault(); z.classList.remove('drag'); if(e.dataTransfer&&e.dataTransfer.files.length) phUpload(e.dataTransfer.files); }); }
@@ -357,6 +360,7 @@ function fieldHtml(f){
   if(f.date){ return '<div class="fld" data-fk="'+f.k+'">'+lab+'<div class="datef"><input type="text" data-k="'+f.k+'" value="'+esc(v)+'" placeholder="'+esc(f.ph||'')+'"><button type="button" class="cal" data-cal="'+f.k+'" title="Pick a date">📅</button><input type="date" data-calfor="'+f.k+'" tabindex="-1" aria-hidden="true"></div></div>'; }
   if(f.hvac) return hvacHtml();
   if(f.seats){ return '<div class="fld" data-fk="seating"><label>Seating capacity</label><div class="optline"><input data-k="seatsIn" class="oin" inputmode="numeric" value="'+esc(SPEC.seatsIn||'')+'" placeholder="90"><span class="ow">inside ·</span><input data-k="seatsOut" class="oin" inputmode="numeric" value="'+esc(SPEC.seatsOut||'')+'" placeholder="40"><span class="ow">outside</span></div>'+((!SPEC.seatsIn&&!SPEC.seatsOut&&SPEC.seating)?'<div class="hint">Was typed as “'+esc(SPEC.seating)+'”</div>':'')+'</div>'; }
+  if(f.vid && WALKVID){ return '<div class="fld" data-fk="videoNote"><label>Walkthrough video</label><div class="vidcard"><video src="'+esc(WALKVID.url)+'" controls preload="metadata"></video><div class="vidmeta">Recorded on the walkthrough'+(WALKVID.by?(' by '+esc(WALKVID.by)):'')+' · '+esc(_fmtDate(String(WALKVID.at||'').slice(0,10)))+' · '+Math.round((WALKVID.size||0)/1048576)+' MB · <a href="'+esc(WALKVID.url)+'" download>Download</a></div></div><input type="text" data-k="videoNote" value="'+esc(v)+'" placeholder="Another link (optional) — YouTube, Matterport…" style="margin-top:6px"></div>'; }
   if(f.hl) return hlHtml();
   if(f.opts) return optsHtml();
   if(f.sel){ var os=OPTS[f.sel]||[]; if(v && os.indexOf(v)<0) os=os.concat([v]); return '<div class="fld'+((f.core&&!String(v).trim())?' need':'')+'" data-fk="'+f.k+'">'+lab+'<select data-k="'+f.k+'" class="sel"><option value="">Select…</option>'+os.map(function(o){ return '<option'+(o===v?' selected':'')+'>'+esc(o)+'</option>'; }).join('')+'</select></div>'; }
@@ -373,7 +377,7 @@ function groupHtml(g){
   // Two-column for the short inputs, full width for textareas — grouped in visual order.
   var rows='', buf=[];
   function flush(){ if(!buf.length) return; rows+='<div class="row2">'+buf.join('')+'</div>'; buf=[]; }
-  g.fields.forEach(function(f){ if(f.sub){ flush(); rows+='<div class="subhd">'+esc(f.sub)+'</div>'; return; } if(f.a||f.full||f.opts||f.hl||f.hvac){ flush(); rows+=fieldHtml(f); } else { buf.push(fieldHtml(f)); if(buf.length===2) flush(); } });
+  g.fields.forEach(function(f){ if(f.vid && WALKVID){ flush(); rows+=fieldHtml(f); return; } if(f.sub){ flush(); rows+='<div class="subhd">'+esc(f.sub)+'</div>'; return; } if(f.a||f.full||f.opts||f.hl||f.hvac){ flush(); rows+=fieldHtml(f); } else { buf.push(fieldHtml(f)); if(buf.length===2) flush(); } });
   flush();
   if(GROUPS.indexOf(g)===0) rows=vrefHtml()+rows;
   if(g.title==='The lease') rows=absNoteHtml()+rows;
@@ -388,7 +392,7 @@ function _missOf(k){ if(k==='ffeSchedule') return !(FFE.some(function(r){return 
 function groupCore(g){ var ks=g.fields.filter(function(f){return f.core;}).map(function(f){return f.k;}); if(g.convey) ks=ks.concat(['hood']); if(g.ffe) ks=ks.concat(['ffeSchedule']); return ks; }
 function _fFilled(f){ var v=function(k){ return String(SPEC[k]||'').trim(); };
   if(f.seats) return !!(v('seatsIn')||v('seatsOut')||v('seating')); if(f.hvac) return !!(v('hvacUnits')||v('hvacTons')||v('hvac'));
-  if(f.opts) return !!(v('optCount')||v('leaseOptions')); return !!v(f.k); }
+  if(f.opts) return !!(v('optCount')||v('leaseOptions')); if(f.vid && WALKVID) return true; return !!v(f.k); }
 function _fCounts(f){ return !f.sub && !(f.legacy && !String(SPEC[f.k]||'').trim()); }
 function groupFilled(g){ var n=g.fields.filter(function(f){ return _fCounts(f) && _fFilled(f); }).length; if(g.photos && MEDIA && (MEDIA.photos||[]).length) n++; if(g.convey && CONVEY && CONVEY.length) n++; if(g.ffe && FFE.length) n++; return n; }
 function groupTotal(g){ var m=g.fields.filter(_fCounts).length; if(g.photos) m++; if(g.convey) m++; if(g.ffe) m++; return m; }
@@ -618,7 +622,7 @@ function wireKit(){
   if(!KEY){ document.getElementById('root').innerHTML='<div class="gate">No listing specified.</div>'; return; }
   api('GET','/api/asset-spec?key='+encodeURIComponent(KEY)).then(function(j){
     if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">'+esc((j&&j.error)||'Listing not found.')+'</div>'; return; }
-    SPEC=j.spec||{}; BIZ=j.business||''; FFE=j.ffe||[]; CONVEY=j.convey||null; VREF=j.valueRefs||{}; try{ fetch('/api/session',{credentials:'same-origin'}).then(function(r){ return r.json(); }).then(function(ss){ var b=document.getElementById('bbsBtn'); if(b && ss && ss.canMarket) b.style.display=''; if(ss && ss.canMarket && /[?&]bbs=1/.test(location.search)) setTimeout(openBbs,300); }); }catch(e){} SELLER=j.seller||null; try{ var cb=document.getElementById('crumbBack'); if(cb&&SELLER) cb.textContent=SELLER.name||'Seller'; }catch(e){} MEDIA=j.media||null; LABS=j.leaseAbs||null; var _absN=applyAbstract(false); if(!String(SPEC.askingPrice||'').trim() && VREF.listPrice) SPEC.askingPrice=VREF.listPrice; if(j.spaceTypes&&j.spaceTypes.length) OPTS.spaceTypes=j.spaceTypes; if(j.centerTypes&&j.centerTypes.length) OPTS.centerTypes=j.centerTypes; if(!String(SPEC.address||'').trim() && j.locAddress){ SPEC.address=j.locAddress; } conveyMigrate(); if(j.ffeCats&&j.ffeCats.length) FFE_CATS=j.ffeCats; setHead();
+    SPEC=j.spec||{}; BIZ=j.business||''; FFE=j.ffe||[]; CONVEY=j.convey||null; VREF=j.valueRefs||{}; try{ fetch('/api/session',{credentials:'same-origin'}).then(function(r){ return r.json(); }).then(function(ss){ var b=document.getElementById('bbsBtn'); if(b && ss && ss.canMarket) b.style.display=''; if(ss && ss.canMarket && /[?&]bbs=1/.test(location.search)) setTimeout(openBbs,300); }); }catch(e){} SELLER=j.seller||null; try{ var cb=document.getElementById('crumbBack'); if(cb&&SELLER) cb.textContent=SELLER.name||'Seller'; }catch(e){} MEDIA=j.media||null; WALKVID=j.walkVideo||null; LABS=j.leaseAbs||null; var _absN=applyAbstract(false); if(!String(SPEC.askingPrice||'').trim() && VREF.listPrice) SPEC.askingPrice=VREF.listPrice; if(j.spaceTypes&&j.spaceTypes.length) OPTS.spaceTypes=j.spaceTypes; if(j.centerTypes&&j.centerTypes.length) OPTS.centerTypes=j.centerTypes; if(!String(SPEC.address||'').trim() && j.locAddress){ SPEC.address=j.locAddress; } conveyMigrate(); if(j.ffeCats&&j.ffeCats.length) FFE_CATS=j.ffeCats; setHead();
     if(j.saleLane && j.saleLane!=='asset'){ document.getElementById('root').innerHTML='<div class="gate">This listing is a Business Sale, not a Space &amp; Assets listing. <a href="./rrg_assignment.html?key='+encodeURIComponent(KEY)+'" style="color:var(--navy);font-weight:700">Open its workspace →</a></div>'; return; }
     render(); if(_absN) markDirty();
   }).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not load this listing.</div>'; });
