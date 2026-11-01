@@ -1288,7 +1288,7 @@ function applyFeatStrip(){
       _featCard('🤝','Tours &amp; LOIs','Log every site visit and each letter of intent as the search moves toward a signed lease.'),
       _featCard('🔑','Lease abstract &amp; commission','Abstract the executed lease and forecast your fee — all tied to this engagement.'),
       _featCard('🔐','Data room activity','Keep the tenant’s documents and site materials in one confidential room, and see who’s reviewing them.'),
-      _featCard('🗂','One record, five tabs','Header and key money on top, Primary information below, then Marketing · Buyers · Deal · Files (and Business for going concerns). Asset sales skip the Business tab. The tab you used last opens next time.')
+      _featCard('🗂','One record, one flow','Header with key money, stage and Save on top; Primary information below; then tabs — Details · Marketing · Buyers · Deal · Files (and Business for going concerns). The tab you used last opens next time.')
     ].join('');
   } else if(t==='landlord_rep'){
     if(sh) sh.textContent='one file to run a single landlord / leasing assignment end to end — market the space, work the prospects, sign the lease';
@@ -1301,7 +1301,7 @@ function applyFeatStrip(){
       _featCard('🤝','Tours &amp; LOIs','Record each tour and every letter of intent as prospects move toward a lease.'),
       _featCard('🔑','Lease &amp; commission','Track the deal to a signed lease and bill your fee — all tied to this listing.'),
       _featCard('🔐','Data room activity','See who opened the room, signed in, and what they reviewed.'),
-      _featCard('🗂','One record, five tabs','Header and key money on top, Primary information below, then Marketing · Buyers · Deal · Files (and Business for going concerns). Asset sales skip the Business tab. The tab you used last opens next time.')
+      _featCard('🗂','One record, one flow','Header with key money, stage and Save on top; Primary information below; then tabs — Details · Marketing · Buyers · Deal · Files (and Business for going concerns). The tab you used last opens next time.')
     ].join('');
   }
   // 'listing' (business sale) keeps the original static sell-side markup.
@@ -2326,102 +2326,113 @@ function load(){
 load();
 </script>
 <style id="nsRecCss">
-/* ===== NetSuite-style record layout (listing records): header · primary information · subtabs ===== */
+/* ===== NetSuite-style record (listing records): record header · primary information · subtabs ===== */
 .wrap.nsrec{display:block;padding:0 24px 70px;}
+.nsrec > .mid{display:none;}
 .nsrec .card{border-radius:4px;box-shadow:none;border-color:#d5dbe5;margin-bottom:12px;}
-.nsrec .card .ch{padding:10px 14px;background:#f5f7fa;}
+.nsrec .card .ch{padding:10px 14px;background:#f5f7fa;cursor:pointer;}
+.nsrec .card .ch:hover{background:#eef2f7;}
 .nsrec .card .ch b{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:#20334f;}
-.nsrec > .mid{max-width:none;}
-.nsrec .nsbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px;}
-.nsrec .nsbar a,.nsrec .nsbar button{display:inline-flex;align-items:center;height:30px;padding:0 12px;border:1px solid #c4ccda;border-radius:3px;background:#fff;color:#20334f;font:inherit;font-size:12.5px;font-weight:600;text-decoration:none;cursor:pointer;}
-.nsrec .nsbar a:hover{background:#f2f5f9;border-color:#9fb0cc;}
-.nsrec .nsbar .sp{flex:1;}
-.nsrec .nsbar .lane{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#4b5568;background:#eef1f5;border:1px solid #d5dbe5;border-radius:3px;padding:4px 8px;}
-/* Primary information: Manage as a 4-column field grid */
-.nsrec > .side{margin-bottom:12px;}
-.nsrec > .side .card > .ch{cursor:pointer;user-select:none;}
+.nsrec .accchev{width:16px;height:16px;}
+/* Record header: identity left, actions right — always visible */
+.nshead{display:flex;align-items:center;gap:18px;flex-wrap:wrap;background:#fff;border:1px solid #d5dbe5;border-top:3px solid #20334f;border-radius:4px;padding:12px 16px;margin:0 0 12px;}
+.nshead .ovhead{flex:1 1 420px;min-width:0;margin:0;padding:0;border:0;}
+.nshead .nsact{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;}
+.nshead .nsact .km{font-size:13px;color:#20334f;margin-right:6px;white-space:nowrap;}
+.nshead .nsact .stg{font-size:12px;color:#6b7690;margin-right:6px;white-space:nowrap;}
+.nshead .nsact a{display:inline-flex;align-items:center;height:30px;padding:0 12px;border:1px solid #c4ccda;border-radius:3px;background:#fff;color:#20334f;font-size:12.5px;font-weight:600;text-decoration:none;}
+.nshead .nsact a:hover{background:#f2f5f9;border-color:#9fb0cc;}
+.nshead .nsact .savebtn{width:auto !important;height:30px;padding:0 16px;margin:0 !important;border-radius:3px;}
+.nshead .nsact .saved{margin:0 !important;}
+/* Primary information: 5-column field grid */
+.nsrec > .side{margin-bottom:6px;}
+.nsrec > .side .card > .ch{user-select:none;}
 .nsrec > .side .card > .ch::before{content:'▾';display:inline-flex;align-items:center;justify-content:center;width:16px;font-size:16px;font-weight:700;line-height:1;color:#5b6678;margin-right:4px;transition:transform .15s ease;}
 .nsrec > .side .card.nsfold > .ch::before{transform:rotate(-90deg);}
-.nsrec .accchev{width:16px;height:16px;}
-.nsrec > .side .card.nsbox .cb > .listingbox{border-top:0;padding-top:0;margin-top:0;}
-.nsrec > .side .card.nsbox .listinghd{display:none !important;}
-.nsrec > .side .card + .card{margin-top:0;}
-.nsrec .card > .ch{cursor:pointer;}
-.nsrec .card > .ch:hover{background:#eef2f7;}
-.nstabs .nsroll{margin-left:auto;align-self:center;background:#fff;border:1px solid #c4ccda;color:#20334f;border-radius:3px;font-size:12px;font-weight:600;padding:5px 10px;margin-bottom:4px;}
-.nsrec > .side .card.nsfold > .cb{display:none;}
-.nsrec > .side .cb{display:grid !important;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px 18px;align-items:start;}
+.nsrec > .side .card.nsfold > .cb{display:none !important;}
+.nsrec > .side .cb{display:grid !important;grid-template-columns:repeat(5,minmax(0,1fr));gap:2px 18px;align-items:start;padding-top:12px !important;}
 .nsrec > .side .cb > *{min-width:0;}
-.nsrec > .side .cb > .listingbox{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px 18px;border:0;border-top:1px solid #e6eaf0;border-radius:0;background:none;padding:10px 0 0;margin:6px 0 0;}
-.nsrec > .side .cb > .listingbox > .listinghd,.nsrec > .side .cb > .listingbox > .expnote{grid-column:1/-1;}
-.nsrec > .side .cb > .listingbox > .fldrow2{grid-column:span 2;}
-.nsrec > .side .cb > .fldrow:has(#f_notes){grid-column:1/-1;}
 .nsrec > .side .cb > .hqbar,.nsrec > .side .cb > .hqnote{grid-column:1/-1;}
-.nsrec > .side .cb > .savebtn,.nsrec > .side .cb > .saved,.nsrec > .side .cb > .hqbtn.del{grid-column:span 1;width:auto !important;}
-.nsrec > .side .cb textarea#f_notes{min-height:56px;}
+.nsrec > .side .cb label.fld > span{display:none;}
+.nsrec > .side .cb label.fld{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+/* Details tab: listing agreement, IDs, notes */
+.nsrec > .rail .listingbox{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:2px 18px;border:0;border-radius:0;background:none;padding:0;margin:0;}
+.nsrec > .rail .listingbox > .listinghd{display:none !important;}
+.nsrec > .rail .listingbox > .expnote{grid-column:1/-1;}
+.nsrec > .rail .listingbox > .fldrow2{grid-column:span 2;}
+.nsrec > .rail textarea#f_notes{min-height:0;height:90px;}
+.nsrec > .rail .nsdanger{display:flex;justify-content:flex-end;padding-top:6px;}
+.nsrec > .rail .nsdanger .hqbtn.del{width:auto !important;margin:0 !important;}
 /* Subtabs */
-.nstabs{display:flex;gap:0;border-bottom:2px solid #20334f;margin:6px 0 12px;overflow-x:auto;}
+.nstabs{display:flex;gap:0;border-bottom:2px solid #20334f;margin:12px 0 12px;overflow-x:auto;}
 .nstabs button{border:1px solid #d5dbe5;border-bottom:0;background:#eef1f5;color:#4b5568;font:inherit;font-size:12.5px;font-weight:700;padding:8px 18px;margin-right:3px;border-radius:3px 3px 0 0;cursor:pointer;white-space:nowrap;}
 .nstabs button.on{background:#20334f;color:#fff;border-color:#20334f;}
-.nstabs button i{font-style:normal;font-weight:600;opacity:.75;margin-left:6px;font-size:11px;}
-.nsrec > .rail{column-count:2;column-gap:14px;}
-.nsrec > .rail > .card{break-inside:avoid;display:block;width:100%;}
+.nstabs .nsroll{margin-left:auto;align-self:center;background:#fff;border:1px solid #c4ccda;color:#20334f;border-radius:3px;font-size:12px;font-weight:600;padding:5px 10px;margin-bottom:4px;}
+.nstabs .nsroll + .nsroll{margin-left:6px;}
+.nsrec > .rail > .card{display:block;width:100%;}
 .nsrec > .rail > .card.nsoff{display:none;}
-.nsrec > .rail > .card.nswide{column-span:all;}
 .nsrec > .rail > .railtip{display:none;}
-@media(max-width:1300px){.nsrec > .rail{column-count:1;} .nsrec > .side .cb,.nsrec > .side .cb > .listingbox{grid-template-columns:repeat(2,minmax(0,1fr));}}
+@media(max-width:1600px){.nsrec > .side .cb{grid-template-columns:repeat(4,minmax(0,1fr));}}
+@media(max-width:1300px){.nsrec > .side .cb,.nsrec > .rail .listingbox{grid-template-columns:repeat(2,minmax(0,1fr));}}
 </style>
 <script>
 /* ===== Record layout: wraps setupAccordion so it runs after every render / re-render ===== */
 (function(){
   var TABS=[
-    {id:'marketing', l:'Marketing', t:['Marketplace','Photos']},
+    {id:'details', l:'Details', t:['Listing agreement','Listing IDs & lead routing','Notes']},
+    {id:'marketing', l:'Marketing', t:['Marketplace','Photos','Marketplace performance']},
     {id:'buyers', l:'Buyers', t:['Matching buyers','Buyer Leads','NDAs','Location Tours','Offers — IOIs & LOIs','Buyer Pipeline']},
     {id:'deal', l:'Deal', t:['Deal','Seller activity report','Deal Expenses','Invoices','Seller Pipeline','Agreements']},
     {id:'files', l:'Files', t:['Documents','Data Room']},
     {id:'business', l:'Business', t:['Financials','Valuation & Pricing','Business snapshot','Locations / Units','Online presence']}
   ];
-  var WIDE={'Marketplace':1};
   var TAB_KEY='rrgAsgTabV1';
   function on(){ return !!(window.A && (A.assignmentType||'listing')==='listing'); }
   function asset(){ return !!(window.A && A.saleLane==='asset'); }
   function tabOf(title){ if(asset() && title==='Valuation & Pricing') return 'deal'; for(var i=0;i<TABS.length;i++){ if(TABS[i].t.indexOf(title)>=0) return TABS[i].id; } return 'deal'; }
   function cur(){ var t=''; try{ t=localStorage.getItem(TAB_KEY)||''; }catch(e){} if(!t||(t==='business'&&asset())) t='marketing'; return t; }
   function titleOf(c){ var b=c.querySelector('.ch b'); return b?b.textContent.trim():''; }
+  function mkCard(title){ var c=document.createElement('div'); c.className='card'; c.innerHTML='<div class="ch"><b></b></div><div class="cb" style="padding:14px 16px"></div>'; c.querySelector('b').textContent=title; return c; }
   function layout(){
     var root=document.getElementById('root'); if(!root||!on()) return;
     var side=root.querySelector(':scope > .side'), mid=root.querySelector(':scope > .mid'), rail=root.querySelector(':scope > .rail'); if(!side||!mid||!rail) return;
-    if(!root.classList.contains('nsrec')){
-      root.classList.add('nsrec');
-      // Overview stays on top (the record header); every other center card moves into the tabbed area.
-      var ov=mid.querySelector(':scope > .card');
-      Array.prototype.slice.call(mid.children).forEach(function(c){ if(c!==ov && c.classList && c.classList.contains('card')) rail.insertBefore(c, rail.firstChild); });
-      // Order: header, button bar, primary information, tabs, tab content.
-      root.insertBefore(mid, side);
-      var bar=document.createElement('div'); bar.className='nsbar'; bar.id='nsBar'; root.insertBefore(bar, side);
-      var tb=document.createElement('div'); tb.className='nstabs'; tb.id='nsTabs'; root.insertBefore(tb, rail);
-      var mc=side.querySelector('.card');
-      var _fold=function(card,key,def){ var ch=card.querySelector('.ch'); if(ch) ch.addEventListener('click',function(e){ if(e.target.closest('button,a,input,select')) return; card.classList.toggle('nsfold'); try{ localStorage.setItem(key, card.classList.contains('nsfold')?'1':'0'); }catch(_){} }); var v=null; try{ v=localStorage.getItem(key); }catch(_){} if(v==='1'||(v===null&&def)) card.classList.add('nsfold'); };
-      if(mc){ var hb=mc.querySelector('.ch b'); if(hb) hb.textContent='Primary information';
-        var after=mc;
-        Array.prototype.slice.call(mc.querySelectorAll('.cb > .listingbox')).forEach(function(lb){
-          var hd=lb.querySelector('.listinghd'); var ttl=hd?String(hd.childNodes[0]&&hd.childNodes[0].nodeType===3?hd.childNodes[0].textContent:hd.textContent).replace(/[▾▸]/g,'').trim():'Details';
-          lb.classList.remove('lbxcol');
-          var card=document.createElement('div'); card.className='card nsbox'; card.innerHTML='<div class="ch"><b></b></div><div class="cb"></div>'; card.querySelector('b').textContent=ttl; card.querySelector('.cb').appendChild(lb);
-          after.parentNode.insertBefore(card, after.nextSibling); after=card;
-          _fold(card,'rrgAsgFold:'+ttl,false);
-        });
-        _fold(mc,'rrgAsgPrimFold',false); }
-      drawBar();
+    if(root.classList.contains('nsrec')) return;
+    root.classList.add('nsrec');
+    var ov=mid.querySelector(':scope > .card');
+    // 1) Record header — identity (from Overview) + key money + stage + actions + Save. Always visible.
+    var head=document.createElement('div'); head.className='nshead'; head.id='nsHead';
+    var oh=ov&&ov.querySelector('.ovhead'); if(oh) head.appendChild(oh);
+    var act=document.createElement('div'); act.className='nsact'; act.innerHTML='<span id="nsBar" style="display:contents"></span>';
+    var stg=ov&&ov.querySelector('.ch span'); if(stg){ var s=document.createElement('span'); s.className='stg'; s.id='nsStg'; s.textContent=stg.textContent.trim(); act.insertBefore(s, act.firstChild); }
+    var sb=side.querySelector('#savebtn'), sv=side.querySelector('#saved'); if(sb) act.appendChild(sb); if(sv) act.appendChild(sv);
+    head.appendChild(act);
+    root.insertBefore(head, root.firstChild);
+    // 2) Every center card goes to the tabs, in order; Overview's stats become "Marketplace performance".
+    var first=rail.firstChild;
+    Array.prototype.slice.call(mid.children).forEach(function(c){ if(c.classList && c.classList.contains('card')) rail.insertBefore(c, first); });
+    if(ov){ var ob=ov.querySelector('.ch b'); if(ob) ob.textContent='Marketplace performance'; var os=ov.querySelector('.ch > span:not(.rgrip):not(.accchev)'); if(os) os.style.display='none'; }
+    // 3) Primary information keeps only the core fields; listing agreement, IDs and notes move to the Details tab.
+    var mc=side.querySelector('.card');
+    if(mc){
+      var hb=mc.querySelector('.ch b'); if(hb) hb.textContent='Primary information';
+      var det=[];
+      Array.prototype.slice.call(mc.querySelectorAll('.cb > .listingbox')).forEach(function(lb){
+        var hd=lb.querySelector('.listinghd'); var ttl=hd?String(hd.childNodes[0]&&hd.childNodes[0].nodeType===3?hd.childNodes[0].textContent:hd.textContent).replace(/[▾▸]/g,'').trim():'Details';
+        lb.classList.remove('lbxcol'); var c=mkCard(ttl); c.querySelector('.cb').appendChild(lb); det.push(c); });
+      var nf=mc.querySelector('#f_notes'); var nrow=nf&&nf.closest('.fldrow'); var del=mc.querySelector('#delDealBtn');
+      if(nrow||del){ var nc=mkCard('Notes'); if(nrow) nc.querySelector('.cb').appendChild(nrow); if(del){ var dz=document.createElement('div'); dz.className='nsdanger'; dz.appendChild(del); nc.querySelector('.cb').appendChild(dz); } det.push(nc); }
+      det.forEach(function(c){ rail.insertBefore(c, first); });
+      var ch=mc.querySelector('.ch'); if(ch) ch.addEventListener('click',function(e){ if(e.target.closest('button,a,input,select')) return; mc.classList.toggle('nsfold'); try{ localStorage.setItem('rrgAsgPrimFold', mc.classList.contains('nsfold')?'1':'0'); }catch(_){} });
+      try{ if(localStorage.getItem('rrgAsgPrimFold')==='1') mc.classList.add('nsfold'); }catch(_){}
     }
+    var tb=document.createElement('div'); tb.className='nstabs'; tb.id='nsTabs'; root.insertBefore(tb, rail);
+    drawBar();
   }
   function drawBar(){
     var bar=document.getElementById('nsBar'); if(!bar||!window.A) return;
     var k=encodeURIComponent(window.KEY||''), h=[];
-    h.push('<span class="lane">'+(asset()?'Asset sale':(A.saleLane==='other'?'Other':'Going concern'))+'</span>');
     var price=A.listPrice?(String(A.listPrice).charAt(0)==='$'?A.listPrice:('$'+Number(String(A.listPrice).replace(/[^0-9.]/g,'')).toLocaleString('en-US'))):'';
-    if(price) h.push('<span style="font-size:13px;color:#20334f"><b>'+(asset()?'Key money':'Asking price')+'</b> '+price+'</span>');
-    h.push('<span class="sp"></span>');
+    if(price) h.push('<span class="km"><b>'+(asset()?'Key money':'Asking price')+'</b> '+price+'</span>');
     if(asset()) h.push('<a href="./rrg_asset_space.html?key='+k+'">Listing details</a>');
     var wu=(window.MKT&&MKT.listing&&MKT.listing.webUrl)||''; if(wu) h.push('<a href="'+wu+'" target="_blank" rel="noopener">'+(/preview=1/.test(wu)?'Preview web listing ↗':'Web listing ↗')+'</a>');
     var rid=(A.roomId||(A.room&&A.room.id)||''); if(rid) h.push('<a href="./rrg_room.html?room='+encodeURIComponent(rid)+'">Data room ↗</a>');
@@ -2431,12 +2442,10 @@ load();
   function tabify(){
     var root=document.getElementById('root'); if(!root||!root.classList.contains('nsrec')) return;
     var rail=root.querySelector(':scope > .rail'), tb=document.getElementById('nsTabs'); if(!rail||!tb) return;
-    var t=cur(), counts={};
-    Array.prototype.forEach.call(rail.children,function(c){ if(!c.classList||!c.classList.contains('card')) return; var ti=titleOf(c); var tab=tabOf(ti);
-      var hide=(tab==='business' && asset());
-      c.setAttribute('data-nstab',tab); c.classList.toggle('nsoff', hide || tab!==t); c.classList.toggle('nswide', !!WIDE[ti]);
-      if(!hide) counts[tab]=(counts[tab]||0)+1; });
-    tb.innerHTML=TABS.filter(function(x){ return !(x.id==='business'&&asset()); }).map(function(x){ return '<button type="button" data-nst="'+x.id+'" class="'+(x.id===t?'on':'')+'">'+x.l+'</button>'; }).join('')+'<button type="button" class="nsroll" id="nsRollX">Roll up all</button><button type="button" class="nsroll" id="nsRollO" style="margin-left:6px">Expand all</button>';
+    var t=cur();
+    Array.prototype.forEach.call(rail.children,function(c){ if(!c.classList||!c.classList.contains('card')) return; var tab=tabOf(titleOf(c));
+      c.setAttribute('data-nstab',tab); c.classList.toggle('nsoff', (tab==='business'&&asset()) || tab!==t); });
+    tb.innerHTML=TABS.filter(function(x){ return !(x.id==='business'&&asset()); }).map(function(x){ return '<button type="button" data-nst="'+x.id+'" class="'+(x.id===t?'on':'')+'">'+x.l+'</button>'; }).join('')+'<button type="button" class="nsroll" id="nsRollX">Roll up all</button><button type="button" class="nsroll" id="nsRollO">Expand all</button>';
     var _vis=function(){ return Array.prototype.filter.call(rail.children,function(c){ return c.classList&&c.classList.contains('card')&&!c.classList.contains('nsoff'); }); };
     var _setAll=function(col){ _vis().forEach(function(c){ c.classList.toggle('collapsed',col); try{ ACC_STATE[titleOf(c)]=col; ACC_USER[titleOf(c)]=true; }catch(_){} }); try{ _asgSaveCollapse(); }catch(_){} };
     document.getElementById('nsRollX').onclick=function(){ _setAll(true); }; document.getElementById('nsRollO').onclick=function(){ _setAll(false); };
@@ -2449,7 +2458,7 @@ load();
     window.setupAccordion=function(){ layout(); var r=_orig.apply(this,arguments); try{ tabify(); }catch(e){} return r; };
     setupAccordion=window.setupAccordion;
   }
-  // Cards swapped in later (re-renders, async loads) get their tab too; the web-listing link appears once the Marketplace loads.
+  // Cards swapped in later (re-renders, async loads) get their tab; the web-listing link appears once the Marketplace loads.
   var _mo=null; setInterval(function(){ var rail=document.querySelector('#root.nsrec > .rail'); if(!rail) return; if(_mo&&_mo._r===rail) return; if(_mo) _mo.disconnect(); _mo=new MutationObserver(function(){ var bad=Array.prototype.some.call(rail.children,function(c){ return c.classList&&c.classList.contains('card')&&!c.hasAttribute('data-nstab'); }); if(bad) tabify(); }); _mo._r=rail; _mo.observe(rail,{childList:true}); },700);
   setTimeout(function(){ var root=document.getElementById('root'); if(root&&root.querySelector(':scope > .side')&&!root.classList.contains('nsrec')){ layout(); tabify(); } },0);
   var _wuT=setInterval(function(){ if(window.MKT&&MKT.listing){ drawBar(); clearInterval(_wuT); } },800);
