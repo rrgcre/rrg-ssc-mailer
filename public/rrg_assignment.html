@@ -1557,14 +1557,14 @@ function photosCard(){
     grid='<div class="phgrid">'+photos.map(function(p){
       var isCover=(p.id===m.coverPhotoId);
       return '<div class="phcell'+(isCover?' cover':'')+'" data-pid="'+esc(p.id)+'"><img src="'+esc(p.url)+'" alt="'+esc(p.caption||'listing photo')+'" loading="lazy">'
-        +'<div class="phacts"><button type="button" class="phbtn" data-setcover="'+esc(p.id)+'" title="'+(isCover?'Cover photo':'Make cover')+'">'+(isCover?'★':'☆')+'</button><button type="button" class="phbtn room'+(p.inRoom?' on':'')+'" data-toroom="'+esc(p.id)+'" title="'+(p.inRoom?'In the data room — buyers can see this':'Send to data room for NDA’d buyers')+'">'+(p.inRoom?'✓':'⤴')+'</button><button type="button" class="phbtn del" data-phdel="'+esc(p.id)+'" title="Delete photo">×</button></div>'
-        +(isCover?'<span class="phcoverbadge">Cover</span>':'')+(p.inRoom?'<span class="phroombadge" title="In the data room">🔒 Room</span>':'')+'</div>';
+        +'<div class="phacts"><button type="button" class="phbtn" data-setcover="'+esc(p.id)+'" title="'+(isCover?'Main photo':'Set as main photo')+'">'+(isCover?'★':'☆')+'</button><button type="button" class="phbtn room'+(p.inRoom?' on':'')+'" data-toroom="'+esc(p.id)+'" title="'+(p.inRoom?'In the data room — buyers can see this':'Send to data room for NDA’d buyers')+'">'+(p.inRoom?'✓':'⤴')+'</button><button type="button" class="phbtn del" data-phdel="'+esc(p.id)+'" title="Delete photo">×</button></div>'
+        +(isCover?'<span class="phcoverbadge">Main</span>':'')+(p.inRoom?'<span class="phroombadge" title="In the data room">🔒 Room</span>':'')+'</div>';
     }).join('')+'</div>';
   } else {
-    grid='<div class="phempty">No photos yet. Add storefront, interior, kitchen and food shots so the whole team can recognize the place at a glance. The cover photo also seeds the marketplace teaser.</div>';
+    grid='<div class="phempty">No photos yet. Add storefront, interior, kitchen and food shots so the whole team can recognize the place at a glance. The main photo (☆) leads the marketplace card and offering sheet.</div>';
   }
   grid+='<div class="phdrop" id="phDrop">Drop images here, or click to choose — JPG, PNG, GIF or WebP, up to 15 MB each.</div><input type="file" id="phInput" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden>';
-  grid+='<div class="phxlink">Internal reference shots — the cover also seeds the marketplace teaser. Hover a photo and hit <b>⤴</b> to send it to the data room for NDA’d buyers. Paperwork lives in <a href="#docsCard" onclick="var c=document.getElementById(\'docsCard\');if(c){c.classList.remove(\'collapsed\');c.scrollIntoView({behavior:\'smooth\',block:\'start\'});}return false;">Documents ↓</a>.</div>';
+  grid+='<div class="phxlink">Internal reference shots — ☆ sets the main photo, which leads the marketplace card and offering sheet. Hover a photo and hit <b>⤴</b> to send it to the data room for NDA’d buyers. Paperwork lives in <a href="#docsCard" onclick="var c=document.getElementById(\'docsCard\');if(c){c.classList.remove(\'collapsed\');c.scrollIntoView({behavior:\'smooth\',block:\'start\'});}return false;">Documents ↓</a>.</div>';
   return '<div class="card" id="photosCard"><div class="ch"><b>Photos</b><span>'+(m.count||0)+'</span><button type="button" class="phupload" id="phAddBtn">＋ Add photos</button></div><div class="cb" style="padding:12px 16px">'+grid+'</div></div>';
 }
 function wirePhotos(){

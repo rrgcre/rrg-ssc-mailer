@@ -6916,7 +6916,7 @@ app.get('/api/assignment/:key/buyer-matches', (req, res) => {
   out.sort((a, b) => (b.reasons.length - a.reasons.length) || String(a.name || '').localeCompare(String(b.name || '')));
   const _tz = _teaserOut(req.params.key, overlay[req.params.key] || {}); const _sent = {}; (_tz.sends || []).forEach(s => { _sent[s.pid] = s; });
   out.forEach(b => { if (_sent[b.id]) b.teaserSent = { at: _sent[b.id].at, by: _sent[b.id].by }; });
-  res.json({ ok: true, characterized: L.hasTeaser, business: view.business || '', buyers: out, teaserTplId: (_tz.teaser && _tz.teaser.tplId) || '' });
+  res.json({ ok: true, characterized: L.hasTeaser, business: view.business || '', buyers: out, teaserTplId: (function () { const id = (_tz.teaser && _tz.teaser.tplId) || ''; if (!id) return ''; const t = loadEmailTpls().find(x => x.id === id); return (t && _tplCanSee(t, req.user)) ? id : ''; })() });
 });
 
 // ===== Teaser email — Marketing writes it once per listing; reps send it one-to-one =====
@@ -6925,6 +6925,32 @@ app.get('/api/assignment/:key/buyer-matches', (req, res) => {
 // the same prospect.
 function _canMarketReq(req) { try { return !!(req.user && (isSuper(req.user) || (permsEnabled() && effectivePerms(req.user).publish_listings) || userDepartmentIds(req.user.username).indexOf('marketing') >= 0)); } catch (e) { return false; } }
 function _teaserTplId(key) { return 'etpl_teaser_' + dealKeySafe(key); }
+// The teaser template lives in the LISTING AGENT's template list as a Personal template; the co-agent
+// sees it too (viewers). Marketing writes and edits it on the listing details — reps send it, can't edit it.
+function _teaserAgents(key) {
+  try {
+    const ov = loadAssignOverlay()[key] || {}; const { d } = _dealByAnyKey(key); const sp = (d && d.assetSpec) || {};
+    const owner = sp.agentUser || ov.ownerUser || (d && d.byUser) || '';
+    const co = sp.coAgentUser && sp.coAgentUser !== owner ? sp.coAgentUser : '';
+    return { owner: owner, co: co };
+  } catch (e) { return { owner: '', co: '' }; }
+}
+function _teaserTplSync(key, all) {
+  try {
+    const own = !all; all = all || loadEmailTpls();
+    const t = all.find(x => x.id === _teaserTplId(key)); if (!t) return false;
+    const a = _teaserAgents(key); if (!a.owner) return false;
+    const before = JSON.stringify([t.scope, t.ownerUser, t.viewers, t.marketingOwned]);
+    const u = _vlUser(a.owner);
+    t.scope = 'personal'; t.ownerUser = a.owner; t.ownerName = (u && u.name) || a.owner; t.viewers = a.co ? [a.co] : []; t.marketingOwned = true;
+    const changed = before !== JSON.stringify([t.scope, t.ownerUser, t.viewers, t.marketingOwned]);
+    if (changed && own) saveEmailTpls(all);
+    return changed;
+  } catch (e) { return false; }
+}
+function _tplCanSee(t, u) { return !!(u && (t.scope === 'shared' || t.ownerUser === u.username || isSuper(u) || (Array.isArray(t.viewers) && t.viewers.indexOf(u.username) >= 0))); }
+function _tplLocked(t, req) { return !!(t && t.marketingOwned && !_canMarketReq(req)); }
+setTimeout(function () { try { const all = loadEmailTpls(); let n = 0; all.forEach(t => { if (String(t.id).indexOf('etpl_teaser_') === 0 && t.listingKey && _teaserTplSync(t.listingKey, all)) n++; }); if (n) { saveEmailTpls(all); console.log('teaser templates made private:', n); } } catch (e) {} }, 8000);
 function _teaserOut(key, cur) {
   const t = cur.teaser || null; const sends = Array.isArray(cur.teaserSends) ? cur.teaserSends : [];
   return { teaser: t ? { subject: t.subject || '', body: t.body || '', tplId: t.tplId || '', at: t.at || '', by: t.by || '' } : null, sends: sends.slice(-200) };
@@ -6951,10 +6977,11 @@ app.post('/api/assignment/:key/teaser', express.json({ limit: '128kb' }), (req, 
   cur.teaser = { subject, body, tplId, at: now, by: (req.user && req.user.name) || '' }; cur.updatedAt = now; overlay[d.key] = cur; saveAssignOverlay(overlay);
   const all = loadEmailTpls(); let t = all.find(x => x.id === tplId);
   if (!t) { t = { id: tplId, ownerUser: (req.user && req.user.username) || '', ownerName: (req.user && req.user.name) || '', createdAt: now }; all.push(t); }
-  Object.assign(t, { name: 'Teaser — ' + (biz || 'listing'), subject: subject, body: _teaserBodyHtml(body), scope: 'shared', category: 'Buyer', folder: 'Teasers', active: true, greeting: 'none', listingKey: d.key, updatedAt: now });
+  Object.assign(t, { name: 'Teaser — ' + (biz || 'listing'), subject: subject, body: _teaserBodyHtml(body), scope: 'personal', category: 'Buyer', folder: 'Teasers', active: true, greeting: 'none', listingKey: d.key, marketingOwned: true, updatedAt: now });
+  _teaserTplSync(d.key, all);
   try { registerEmailTplFolder('Teasers'); } catch (e) {}
   saveEmailTpls(all);
-  _listingMilestone(d.key, 'Teaser email ready — reps can send it to prospects', req);
+  _listingMilestone(d.key, 'Teaser email ready — in the listing agent\'s templates', req);
   res.json(Object.assign({ ok: true, canEdit: true }, _teaserOut(d.key, cur)));
 });
 app.post('/api/assignment/:key/teaser/draft', express.json(), async (req, res) => {
@@ -13586,7 +13613,7 @@ function _tplExecAuto(templateId, p, user) {
 function effEmailTplFolders() { const s = loadSettings(); return (Array.isArray(s.emailTplFolders) ? s.emailTplFolders : []).map(x => String(x || '').slice(0, 60)).filter(Boolean); }
 function saveEmailTplFolders(list) { const s = loadSettings(); s.emailTplFolders = (Array.isArray(list) ? list : []).map(x => String(x || '').slice(0, 60)).filter(Boolean); saveSettings(s); return s.emailTplFolders; }
 function registerEmailTplFolder(name) { name = String(name || '').slice(0, 60).trim(); if (!name) return; const cur = effEmailTplFolders(); if (!cur.some(x => x.toLowerCase() === name.toLowerCase())) { cur.push(name); saveEmailTplFolders(cur); } }
-function emailTplBrief(t, user) { return { id: t.id, name: t.name || '', subject: t.subject || '', body: t.body || '', scope: (t.scope === 'shared' ? 'shared' : 'personal'), category: inferTplCategory(t), folder: t.folder || '', active: t.active !== false, useCount: t.useCount || 0, lastUsedAt: t.lastUsedAt || '', ownerName: t.ownerName || '', ownerUser: t.ownerUser || '', mine: !!(user && (t.ownerUser === user.username || isSuper(user))), canShare: !!(user && isSuper(user)), execAuto: t.execAuto || '', greeting: (['dear','hi','first','none'].indexOf(String(t.greeting)) >= 0 ? String(t.greeting) : 'none'), updatedAt: t.updatedAt || '', attachments: (Array.isArray(t.attachments) ? t.attachments : []).map(a => ({ id: a.id, name: a.name || 'attachment', size: a.size || 0, type: a.type || '' })) }; }
+function emailTplBrief(t, user) { return { id: t.id, name: t.name || '', subject: t.subject || '', body: t.body || '', scope: (t.scope === 'shared' ? 'shared' : 'personal'), category: inferTplCategory(t), folder: t.folder || '', active: t.active !== false, useCount: t.useCount || 0, lastUsedAt: t.lastUsedAt || '', ownerName: t.ownerName || '', ownerUser: t.ownerUser || '', mine: !!(user && (t.ownerUser === user.username || isSuper(user)) && !(t.marketingOwned && !_canMarketReq({ user: user }))), locked: !!t.marketingOwned, canShare: !!(user && isSuper(user)), execAuto: t.execAuto || '', greeting: (['dear','hi','first','none'].indexOf(String(t.greeting)) >= 0 ? String(t.greeting) : 'none'), updatedAt: t.updatedAt || '', attachments: (Array.isArray(t.attachments) ? t.attachments : []).map(a => ({ id: a.id, name: a.name || 'attachment', size: a.size || 0, type: a.type || '' })) }; }
 const DEFAULT_SALES_TEMPLATES = [
   { name: 'Buyer — first response (inquiry)', subject: 'Thanks for your interest, {{first_name}}', body: `Hi {{first_name}},
 
@@ -13709,7 +13736,7 @@ function seedEmailTemplates() {
 app.get('/api/email-templates', (req, res) => {
   const u = req.user || {}; const all = loadEmailTpls();
   const showAll = req.query.all === '1' || req.query.all === 'true';
-  const vis = all.filter(t => (t.scope === 'shared' || t.ownerUser === u.username || isSuper(u)) && (showAll || t.active !== false));
+  const vis = all.filter(t => _tplCanSee(t, u) && (showAll || t.active !== false));
   vis.sort((a, b) => String(a.name || '').toLowerCase().localeCompare(String(b.name || '').toLowerCase()));
   res.json({ ok: true, templates: vis.map(t => emailTplBrief(t, u)), folders: effEmailTplFolders(), automations: loadAutomations().filter(a => a.active !== false && ((a.scope !== 'private') || a.ownerUser === u.username || isSuper(u))).map(a => ({ id: a.id, name: a.name || '' })) });
 });
@@ -13738,7 +13765,7 @@ app.post('/api/email-templates', express.json({ limit: '256kb' }), (req, res) =>
   const u = req.user || {}; const b = req.body || {}; const all = loadEmailTpls();
   const name = String(b.name || '').trim().slice(0, 120); if (!name) return res.status(400).json({ ok: false, error: 'Name the template.' });
   let t;
-  if (b.id) { t = all.find(x => x.id === b.id); if (!t) return res.status(404).json({ ok: false, error: 'Template not found.' }); if (!(t.ownerUser === u.username || isSuper(u))) return res.status(403).json({ ok: false, error: 'You can only edit your own templates.' }); }
+  if (b.id) { t = all.find(x => x.id === b.id); if (!t) return res.status(404).json({ ok: false, error: 'Template not found.' }); if (!(t.ownerUser === u.username || isSuper(u))) return res.status(403).json({ ok: false, error: 'You can only edit your own templates.' }); if (_tplLocked(t, req)) return res.status(403).json({ ok: false, error: 'Marketing writes the teaser — ask Marketing for changes.' }); }
   else { t = { id: newEmailTplId(), ownerUser: u.username || '', ownerName: u.name || '', createdAt: new Date().toISOString() }; all.push(t); }
   if (b.scope === 'shared' && !isSuper(u) && !(b.id && t.scope === 'shared')) return res.status(403).json({ ok: false, error: 'Only admins can publish Shared (firm) templates. Save it as Personal, or ask an admin to publish it firm-wide.' });
   t.name = name;
@@ -13757,6 +13784,7 @@ app.delete('/api/email-templates/:id', (req, res) => {
   const u = req.user || {}; let all = loadEmailTpls(); const t = all.find(x => x.id === req.params.id);
   if (!t) return res.status(404).json({ ok: false, error: 'Not found.' });
   if (!(t.ownerUser === u.username || isSuper(u))) return res.status(403).json({ ok: false, error: 'You can only delete your own templates.' });
+  if (_tplLocked(t, req)) return res.status(403).json({ ok: false, error: 'Marketing writes the teaser — ask Marketing for changes.' });
   all = all.filter(x => x.id !== req.params.id); saveEmailTpls(all);
   if (req.params.id === POF_TPL_ID) { try { fs.writeFileSync(EMAIL_TPL_POF_DELETED, JSON.stringify({ deletedAt: new Date().toISOString(), by: u.username || '' })); } catch (e) {} }
   if (req.params.id === ASSETBOV_TPL_ID) { try { fs.writeFileSync(EMAIL_TPL_ASSETBOV_DELETED, JSON.stringify({ deletedAt: new Date().toISOString(), by: u.username || '' })); } catch (e) {} }
@@ -13775,6 +13803,7 @@ app.post('/api/email-templates/:id/attachment', express.json({ limit: '25mb' }),
   const t = all.find(x => x.id === req.params.id);
   if (!t) return res.status(404).json({ ok: false, error: 'Template not found.' });
   if (!(t.ownerUser === u.username || isSuper(u))) return res.status(403).json({ ok: false, error: t.scope === 'shared' ? 'Only admins can change firm (Shared) templates.' : 'You can only edit your own templates.' });
+  if (_tplLocked(t, req)) return res.status(403).json({ ok: false, error: 'Marketing writes the teaser — ask Marketing for changes.' });
   const name = String(b.name || '').trim().slice(0, 200) || 'attachment';
   const buf = Buffer.from(String(b.dataB64 || '').replace(/^data:[^,]*,/, ''), 'base64');
   if (!buf.length) return res.status(400).json({ ok: false, error: 'That file appears to be empty — try adding it again.' });
@@ -13792,6 +13821,7 @@ app.delete('/api/email-templates/:id/attachment/:aid', (req, res) => {
   const u = req.user || {}; const all = loadEmailTpls(); const t = all.find(x => x.id === req.params.id);
   if (!t) return res.status(404).json({ ok: false, error: 'Template not found.' });
   if (!(t.ownerUser === u.username || isSuper(u))) return res.status(403).json({ ok: false, error: t.scope === 'shared' ? 'Only admins can change firm (Shared) templates.' : 'You can only edit your own templates.' });
+  if (_tplLocked(t, req)) return res.status(403).json({ ok: false, error: 'Marketing writes the teaser — ask Marketing for changes.' });
   const a = (t.attachments || []).find(x => x.id === req.params.aid);
   if (a) { try { const p = _tplAttPath(t.id, a.id, a.ext); if (fs.existsSync(p)) fs.unlinkSync(p); } catch (e) {} }
   t.attachments = (t.attachments || []).filter(x => x.id !== req.params.aid);
@@ -20621,6 +20651,7 @@ app.post('/api/asset-spec', express.json({ limit: '256kb' }), (req, res) => {
     d.assetSpec = _conveySync(_ffeSyncText(_assetSpecClean(b.spec), d.assetFfe || []), d.assetConvey);
     d.updatedAt = new Date().toISOString();
     saveDeals(arr);
+    try { _teaserTplSync(b.key); } catch (e) {}
     res.json({ ok: true, spec: d.assetSpec, ffe: d.assetFfe || [], convey: d.assetConvey || null, missing: ASSET_SPEC_CORE.filter(k => !d.assetSpec[k]) });
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });

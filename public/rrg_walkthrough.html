@@ -63,7 +63,7 @@ textarea{width:100%;font:inherit;font-size:16px;padding:12px;border:1px solid va
 .taprow{display:flex;align-items:center;justify-content:space-between;margin-top:10px;font-size:15px;font-weight:700;color:var(--navy);}
 .phb{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:6px;}
 .phbtn{display:flex;align-items:center;justify-content:center;gap:8px;height:52px;border-radius:12px;background:var(--navy);color:#fff;font-size:16px;font-weight:700;cursor:pointer;}
-.phs{display:flex;gap:6px;overflow-x:auto;margin-top:10px;} .phs img{width:84px;height:64px;object-fit:cover;border-radius:8px;flex:none;}
+.phs{display:flex;gap:6px;overflow-x:auto;margin-top:10px;} .phs img{width:84px;height:64px;object-fit:cover;border-radius:8px;flex:none;} .phs .pw{position:relative;flex:none;} .phs .pw b{position:absolute;left:4px;top:4px;background:#20334f;color:#fff;font-size:9px;font-weight:800;letter-spacing:.05em;border-radius:4px;padding:1px 5px;} .phs .pw.main img{outline:2px solid #20334f;outline-offset:1px;}
 .phm{font-size:13px;color:var(--muted);margin-top:6px;font-weight:600;min-height:4px;}
 .vidopt{margin-top:18px;text-align:center;} .vidlnk{display:inline-block;color:var(--muted);font-size:14px;font-weight:600;text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:8px;}
 .vbar{height:8px;background:#e6e9f0;border-radius:4px;overflow:hidden;margin-top:8px;} .vbar i{display:block;height:100%;width:0;background:var(--navy);transition:width .2s;}
@@ -133,7 +133,7 @@ var MEDIA=null, WALKVID=null;
 function roomPhotos(R){ return ((MEDIA&&MEDIA.photos)||[]).filter(function(p){ return String(p.caption||'').indexOf(R.n+' ')===0; }); }
 function photoBlock(R){ var P=roomPhotos(R);
   return '<div class="phb"><label class="phbtn"><input type="file" id="phIn" accept="image/*" multiple hidden>📷 '+(P.length?'Add more photos':'Take photos of the '+esc(R.n.toLowerCase()))+'</label>'
-    +(P.length?'<div class="phs">'+P.map(function(p){ return '<img src="'+esc(p.url)+'" alt="" loading="lazy">'; }).join('')+'</div>':'')+'<div class="phm" id="phMsg"></div></div>'; }
+    +(P.length?'<div class="phs">'+P.map(function(p){ var mn=(MEDIA&&MEDIA.coverPhotoId===p.id); return '<span class="pw'+(mn?' main':'')+'" data-main="'+esc(p.id)+'"><img src="'+esc(p.url)+'" alt="" loading="lazy">'+(mn?'<b>MAIN</b>':'')+'</span>'; }).join('')+'</div><div class="phm" style="color:#8a93a3">Tap a photo to make it the main listing photo.</div>':'')+'<div class="phm" id="phMsg"></div></div>'; }
 function room(){
   var R=ROOMS[ROOM], h='<h2>'+esc(R.n)+'</h2>'+photoBlock(R);
   if(R.fin) return finish();
@@ -167,7 +167,7 @@ function draw(){
 }
 function go(r){ ROOM=Math.max(0,Math.min(ROOMS.length-1,r)); draw(); window.scrollTo(0,0); }
 function _unit(inp){ var u=inp.getAttribute('data-unit'); if(!u) return; var m=inp.value.replace(/,/g,'').match(/^\s*(\d+(?:\.\d+)?)\s*(?:gal(?:lons?)?|ft|feet|foot|'|seats?)?\s*$/i); if(!m) return; inp.value=parseFloat(m[1]).toLocaleString('en-US',{maximumFractionDigits:1})+' '+u; }
-function wirePh(){ var inp=document.getElementById('phIn'); if(!inp) return; inp.onchange=function(){ var R=ROOMS[ROOM], files=inp.files; if(!files||!files.length) return; var n0=roomPhotos(R).length, msg=document.getElementById('phMsg');
+function wirePh(){ document.querySelectorAll('[data-main]').forEach(function(el){ el.onclick=function(){ var id=el.getAttribute('data-main'); fetch('/api/assignment/'+encodeURIComponent(KEY)+'/photos/order',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({coverPhotoId:id})}).then(function(r){ return r.json(); }).then(function(j){ if(j&&j.ok){ if(j.media) MEDIA=j.media; else MEDIA.coverPhotoId=id; draw(); } }); }; }); var inp=document.getElementById('phIn'); if(!inp) return; inp.onchange=function(){ var R=ROOMS[ROOM], files=inp.files; if(!files||!files.length) return; var n0=roomPhotos(R).length, msg=document.getElementById('phMsg');
   rrgUploadPhotos(KEY, files, function(i){ return R.n+' '+(n0+i+1); }, function(i,t){ if(msg) msg.textContent='Uploading '+(i+1)+' of '+t+'…'; }, MEDIA).then(function(r){ if(r.media) MEDIA=r.media; draw(); var m=document.getElementById('phMsg'); if(m) m.textContent=r.done+' photo'+(r.done===1?'':'s')+' saved'+(r.failed?(' · '+r.failed+' failed'):' ✓'); }); }; }
 function wireVid(){ var inp=document.getElementById('vidIn'); if(!inp) return; inp.onchange=function(){ var f=inp.files&&inp.files[0]; if(!f) return; var msg=document.getElementById('vidMsg'), bar=document.getElementById('vidBar'), fill=bar.querySelector('i');
   if(f.size>600*1048576){ msg.textContent='That video is over 600 MB — keep it to about 2 minutes.'; return; }
