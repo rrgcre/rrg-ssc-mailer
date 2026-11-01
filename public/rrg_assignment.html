@@ -292,7 +292,7 @@ a.feat:hover{background:#f7f9fc;}
 /* Listing photos — cover banner on the Overview + a manageable gallery */
 .phupload{font:inherit;font-size:12px;font-weight:600;color:var(--navy);background:#fff;border:1px solid #cdd6e6;border-radius:8px;padding:6px 11px;cursor:pointer;margin-left:auto;white-space:nowrap;}
 .phupload:hover{background:#f4f7fb;border-color:#9fb0cc;}
-.phgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;}
+.phgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;}
 .phcell{position:relative;aspect-ratio:4/3;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#f2f4f8;}
 .phcell img{width:100%;height:100%;object-fit:cover;display:block;}
 .phcell.cover{outline:2px solid var(--navy);outline-offset:-2px;}
@@ -1298,7 +1298,7 @@ function applyFeatStrip(){
       _featCard('🏬','The space','Size, asking rate, availability, permitted use and site details for the space you’re leasing.'),
       _featCard('🚦','Landlord-rep pipeline','Move the listing through its leasing stages, from available to signed.'),
       _featCard('🧲','Prospect leads &amp; matches','Log every prospective tenant, and see active tenant-rep searches from your book whose criteria fit this space.'),
-      _featCard('🤝','Tours &amp; LOIs','Record each showing and every letter of intent as prospects move toward a lease.'),
+      _featCard('🤝','Tours &amp; LOIs','Record each tour and every letter of intent as prospects move toward a lease.'),
       _featCard('🔑','Lease &amp; commission','Track the deal to a signed lease and bill your fee — all tied to this listing.'),
       _featCard('🔐','Data room activity','See who opened the room, signed in, and what they reviewed.'),
       _featCard('🗂','One record, five tabs','Header and key money on top, Primary information below, then Marketing · Buyers · Deal · Files (and Business for going concerns). Asset sales skip the Business tab. The tab you used last opens next time.')
@@ -1574,14 +1574,15 @@ function photosCard(){
       var isCover=(p.id===m.coverPhotoId);
       return '<div class="phcell'+(isCover?' cover':'')+'" data-pid="'+esc(p.id)+'"><img src="'+esc(p.url)+'" alt="'+esc(p.caption||'listing photo')+'" loading="lazy">'
         +'<div class="phacts"><button type="button" class="phbtn" data-setcover="'+esc(p.id)+'" title="'+(isCover?'Main photo':'Set as main photo')+'">'+(isCover?'★':'☆')+'</button><button type="button" class="phbtn room'+(p.inRoom?' on':'')+'" data-toroom="'+esc(p.id)+'" title="'+(p.inRoom?'In the data room — buyers can see this':'Send to data room for NDA’d buyers')+'">'+(p.inRoom?'✓':'⤴')+'</button><button type="button" class="phbtn del" data-phdel="'+esc(p.id)+'" title="Delete photo">×</button></div>'
-        +(isCover?'<span class="phcoverbadge">Main</span>':'')+(p.inRoom?'<span class="phroombadge" title="In the data room">🔒 Room</span>':'')+'</div>';
+        +(isCover?'<span class="phcoverbadge">Main</span>':'')+'</div>';
     }).join('')+'</div>';
   } else {
     grid='<div class="phempty">No photos yet. Add storefront, interior, kitchen and food shots so the whole team can recognize the place at a glance. The main photo (☆) leads the marketplace card and offering sheet.</div>';
   }
   grid+='<div class="phdrop" id="phDrop">Drop images here, or click to choose — JPG, PNG, GIF or WebP, up to 15 MB each.</div><input type="file" id="phInput" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden>';
   grid+='<div class="phxlink">Internal reference shots — ☆ sets the main photo, which leads the marketplace card and offering sheet. Hover a photo and hit <b>⤴</b> to send it to the data room for NDA’d buyers. Paperwork lives in <a href="#docsCard" onclick="var c=document.getElementById(\'docsCard\');if(c){c.classList.remove(\'collapsed\');c.scrollIntoView({behavior:\'smooth\',block:\'start\'});}return false;">Documents ↓</a>.</div>';
-  return '<div class="card" id="photosCard"><div class="ch"><b>Photos</b><span>'+(m.count||0)+'</span><button type="button" class="phupload" id="phAddBtn">＋ Add photos</button></div><div class="cb" style="padding:12px 16px">'+grid+'</div></div>';
+  var _inR=photos.filter(function(p){ return p.inRoom; }).length;
+  return '<div class="card" id="photosCard"><div class="ch"><b>Photos</b><span>'+(m.count||0)+'</span>'+(photos.length?('<span id="phRoomN" style="font-weight:600">'+(_inR===photos.length?'all in the data room':(_inR+' in the data room'))+'</span>'):'')+'<button type="button" class="phupload" id="phAddBtn">＋ Add photos</button></div><div class="cb" style="padding:12px 16px">'+grid+'</div></div>';
 }
 function wirePhotos(){
   var input=document.getElementById('phInput'), addb=document.getElementById('phAddBtn'), drop=document.getElementById('phDrop');
@@ -2339,8 +2340,14 @@ load();
 /* Primary information: Manage as a 4-column field grid */
 .nsrec > .side{margin-bottom:12px;}
 .nsrec > .side .card > .ch{cursor:pointer;user-select:none;}
-.nsrec > .side .card > .ch::before{content:'▾';color:#8a93a8;font-size:11px;margin-right:2px;}
-.nsrec > .side .card.nsfold > .ch::before{content:'▸';}
+.nsrec > .side .card > .ch::before{content:'';width:8px;height:8px;border-right:2px solid #3f4b63;border-bottom:2px solid #3f4b63;transform:rotate(45deg);margin:0 8px 3px 4px;flex:none;transition:transform .15s ease;}
+.nsrec > .side .card.nsfold > .ch::before{transform:rotate(-45deg);margin-bottom:0;}
+.nsrec .accchev{font-size:0 !important;width:22px;height:22px;transform:none !important;}
+.nsrec .accchev::before{content:'';width:8px;height:8px;border-right:2px solid #3f4b63;border-bottom:2px solid #3f4b63;transform:rotate(45deg);margin-top:-4px;transition:transform .15s ease;}
+.nsrec .card.collapsed .accchev::before{transform:rotate(-45deg);margin-top:0;margin-left:-3px;}
+.nsrec .card > .ch{cursor:pointer;}
+.nsrec .card > .ch:hover{background:#eef2f7;}
+.nstabs .nsroll{margin-left:auto;align-self:center;background:#fff;border:1px solid #c4ccda;color:#20334f;border-radius:3px;font-size:12px;font-weight:600;padding:5px 10px;margin-bottom:4px;}
 .nsrec > .side .card.nsfold > .cb{display:none;}
 .nsrec > .side .cb{display:grid !important;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px 18px;align-items:start;}
 .nsrec > .side .cb > *{min-width:0;}
@@ -2417,7 +2424,10 @@ load();
       var hide=(tab==='business' && asset());
       c.setAttribute('data-nstab',tab); c.classList.toggle('nsoff', hide || tab!==t); c.classList.toggle('nswide', !!WIDE[ti]);
       if(!hide) counts[tab]=(counts[tab]||0)+1; });
-    tb.innerHTML=TABS.filter(function(x){ return !(x.id==='business'&&asset()); }).map(function(x){ return '<button type="button" data-nst="'+x.id+'" class="'+(x.id===t?'on':'')+'">'+x.l+'</button>'; }).join('');
+    tb.innerHTML=TABS.filter(function(x){ return !(x.id==='business'&&asset()); }).map(function(x){ return '<button type="button" data-nst="'+x.id+'" class="'+(x.id===t?'on':'')+'">'+x.l+'</button>'; }).join('')+'<button type="button" class="nsroll" id="nsRollX">Roll up all</button><button type="button" class="nsroll" id="nsRollO" style="margin-left:6px">Expand all</button>';
+    var _vis=function(){ return Array.prototype.filter.call(rail.children,function(c){ return c.classList&&c.classList.contains('card')&&!c.classList.contains('nsoff'); }); };
+    var _setAll=function(col){ _vis().forEach(function(c){ c.classList.toggle('collapsed',col); try{ ACC_STATE[titleOf(c)]=col; ACC_USER[titleOf(c)]=true; }catch(_){} }); try{ _asgSaveCollapse(); }catch(_){} };
+    document.getElementById('nsRollX').onclick=function(){ _setAll(true); }; document.getElementById('nsRollO').onclick=function(){ _setAll(false); };
     tb.querySelectorAll('[data-nst]').forEach(function(b){ b.onclick=function(){ try{ localStorage.setItem(TAB_KEY,b.getAttribute('data-nst')); }catch(_){} tabify(); }; });
     drawBar();
   }

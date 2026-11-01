@@ -7545,7 +7545,7 @@ function sellerActivityEmailHtml(sum, opts) {
   // Landlord-rep listings market SPACE to prospective tenants — not a confidential business sale to buyers.
   const LL = !!sum.landlord;
   const rows = (LL
-    ? [['Tenant inquiries', sum.inquiries], ['NDAs signed', sum.ndas], ['Showings', sum.tours], ['LOIs received', sum.offers], ['Data-room views', sum.views], ['Documents downloaded', sum.downloads]]
+    ? [['Tenant inquiries', sum.inquiries], ['NDAs signed', sum.ndas], ['Tours', sum.tours], ['LOIs received', sum.offers], ['Data-room views', sum.views], ['Documents downloaded', sum.downloads]]
     : [['Buyer inquiries', sum.inquiries], ['NDAs signed', sum.ndas], ['Property tours', sum.tours], ['Offers received', sum.offers], ['Confidential data-room views', sum.views], ['Documents downloaded', sum.downloads]]).filter(r => r[1] > 0);
   const periodPhrase = sum.periodLabel || (sum.days === 7 ? 'past week' : ('last ' + sum.days + ' days'));
   const P = 'margin:0 0 14px;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.55;color:#25303f';
@@ -21096,7 +21096,7 @@ function assetSheetHtml(business, market, spec, ffe, convey, opts) {
   // Contact
   const r = opts.rep || {};
   const _agent = x => '<div class="cag"><div class="cn">' + esc(x.name || org) + '</div>' + (x.title ? '<div class="ct">' + esc(x.title) + '</div>' : '') + '<div class="cd">' + [x.phone ? esc(x.phone) : '', x.email ? ('<a href="mailto:' + esc(x.email) + '">' + esc(x.email) + '</a>') : ''].filter(Boolean).join(' · ') + '</div></div>';
-  const contact = '<div class="contact"><div><div class="cl">For information or a showing</div><div class="cags">' + _agent(r) + (opts.rep2 ? _agent(opts.rep2) : '') + '</div></div><div class="corg">' + (opts.logo ? '<img src="' + opts.logo + '" alt="">' : '<b>' + esc(org) + '</b>') + '</div></div>';
+  const contact = '<div class="contact"><div><div class="cl">For information or a tour</div><div class="cags">' + _agent(r) + (opts.rep2 ? _agent(opts.rep2) : '') + '</div></div><div class="corg">' + (opts.logo ? '<img src="' + opts.logo + '" alt="">' : '<b>' + esc(org) + '</b>') + '</div></div>';
   const addrLine = [v('address'), market && v('address').indexOf(market) < 0 ? market : ''].filter(Boolean).join(' · ') || market || '';
   return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + esc(business || 'Restaurant space') + ' — Offering Sheet</title><style>'
     + '@page{size:Letter;margin:0.45in 0.55in}*{box-sizing:border-box}body{margin:0;background:#fff;color:#1a2236;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;font-size:11.5px;line-height:1.45}'
@@ -22426,7 +22426,7 @@ function defaultPipelines() {
     _seedPipeline('p_assetsale', 'Space & Assets', 'Space & Assets', ['Unqualified','Signed','On Market','Touring','LOI / Offer','Lease Assignment','Closed'], 10),
     _seedPipeline('p_tenantrep', 'Tenant Rep', 'Tenant Rep', ['Needs Analysis','Site Search','Tours','LOI Out','Lease Negotiation','Build-out','Open'], 14),
     _seedPipeline('p_llrep', 'Landlord Rep', 'Landlord Rep', ['Listing Setup','Marketing','Tours','LOI Received','Lease Negotiation','Executed'], 14),
-    _seedPipeline('p_reprop', 'Property Sales', 'Property Sales', ['Listing Prep','On Market','Tours / Showings','LOI / Offer','Under Contract','Due Diligence','Closing'], 14)
+    _seedPipeline('p_reprop', 'Property Sales', 'Property Sales', ['Listing Prep','On Market','Tours','LOI / Offer','Under Contract','Due Diligence','Closing'], 14)
   ];
 }
 let _pipeCache = null, _pipeCacheAt = 0;
@@ -22477,7 +22477,7 @@ function seedPropertyPipeline() {
     if (fs.existsSync(marker)) return;
     const all = loadPipelines();
     if (!all.some(p => p.id === 'p_reprop')) {
-      all.push(_seedPipeline('p_reprop', 'Property Sales', 'Property Sales', ['Listing Prep', 'On Market', 'Tours / Showings', 'LOI / Offer', 'Under Contract', 'Due Diligence', 'Closing'], 14));
+      all.push(_seedPipeline('p_reprop', 'Property Sales', 'Property Sales', ['Listing Prep', 'On Market', 'Tours', 'LOI / Offer', 'Under Contract', 'Due Diligence', 'Closing'], 14));
       savePipelines(all);
       console.log('Seeded Property Sales pipeline.');
     }
