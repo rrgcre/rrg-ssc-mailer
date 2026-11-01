@@ -7824,9 +7824,10 @@ app.post('/api/market/track', express.json(), (req, res) => {
 app.get('/api/market/photo/:key/:file', (req, res) => {
   const key = req.params.key;
   const overlay = loadAssignOverlay(); const o = overlay[key];
-  if (!o || !o.market || !o.market.published) return res.status(404).end();
-  const kind = (MKT_KINDS.indexOf(o.market.kind) >= 0) ? o.market.kind : ((o.saleLane === 'asset') ? 'asset' : 'business');
-  if (kind === 'business') return res.status(404).end();   // blind business listings never expose imagery; RE/asset do
+  const _stf = _plStaff(req);
+  if (!o || ((!o.market || !o.market.published) && !_stf)) return res.status(404).end();
+  const kind = (o.market && MKT_KINDS.indexOf(o.market.kind) >= 0) ? o.market.kind : ((o.saleLane === 'asset' || _effLane(key, (_dealByAnyKey(key) || {}).d) === 'asset') ? 'asset' : 'business');
+  if (kind === 'business' && !_stf) return res.status(404).end();   // blind business listings never expose imagery; RE/asset do
   const file = String(req.params.file || '').replace(/[^A-Za-z0-9_.]/g, '');
   const m = file.match(/^(ph_[A-Za-z0-9]+)\.(png|jpg|gif|webp)$/i);
   if (!m) return res.status(404).end();
@@ -8597,19 +8598,22 @@ function _mktSpecFill(key, m, view) {
 // highlights, key facts, what conveys, equipment, lease, the space, agent cards, Offering Sheet download
 // and an inquiry form that lands with the listing agent. CONFIDENTIAL mode (going concern) stays blind.
 const PL_KIND = { asset: 'Asset sale', lease: 'For lease', sale: 'For sale', business: 'Business for sale' };
-function _plData(key) {
+function _plStaff(req) { try { return !!auth.readSession(parseCookies(req)[COOKIE]); } catch (e) { return false; } }
+function _plData(key, preview) {
   try {
     const idx = assignmentsIndex(); const d = idx[key]; if (!d) return null;
-    const overlay = loadAssignOverlay(); const o = overlay[key] || {}; const m = o.market; if (!m || !m.published) return null;
+    const overlay = loadAssignOverlay(); const o = overlay[key] || {}; let m = o.market;
+    if (!preview && (!m || !m.published)) return null;
     let view = {}; try { view = assignmentView(d, overlay) || {}; } catch (e) {}
-    const stat = mktStatusOf(view, m); if (mktSoldExpired(stat)) return null;
+    if (preview) m = _mktSpecFill(key, m || {}, view) || (m || {});
+    const stat = mktStatusOf(view, m); if (!preview && mktSoldExpired(stat)) return null;
     const kind = _teaserKind(m, view);
     const { d: deal } = _dealByAnyKey(key);
     const t = mktTeaser(key, view, m);
-    return { key, d, o, m, view, kind, deal: deal || {}, t, open: kind !== 'business' };
+    return { key, d, o, m, view, kind, deal: deal || {}, t, open: kind !== 'business', preview: !!preview && !(o.market && o.market.published) };
   } catch (e) { return null; }
 }
-function _plWebUrl(key) { const x = _plData(key); return x ? _seoListingUrl(x.t) : ''; }
+function _plWebUrl(key) { const x = _plData(key); if (x) return _seoListingUrl(x.t); const y = _plData(key, true); return y ? (_seoListingUrl(y.t) + '?preview=1') : ''; }
 function _plAgents(x) {
   const sp = (x.deal && x.deal.assetSpec) || {};
   const uname = sp.agentUser || x.o.ownerUser || (x.deal && x.deal.byUser) || '';
@@ -8667,7 +8671,8 @@ const PL_CSS = `
 @media(max-width:900px){.pl-body{grid-template-columns:1fr}.pl-side{position:static}.pl-gal{grid-template-columns:1fr 1fr;grid-template-rows:240px 120px}.pl-gal a:first-child{grid-column:1/3;grid-row:auto}.pl-gal a:nth-child(n+4){display:none}.pl-cols{columns:1}}
 `;
 function _plPage(req, key) {
-  const x = _plData(key); if (!x) return null;
+  const wantPv = req && req.query && req.query.preview === '1' && _plStaff(req);
+  const x = _plData(key) || (wantPv ? _plData(key, true) : null); if (!x) return null;
   const t = x.t, sp = (x.deal && x.deal.assetSpec) || {}, kindL = PL_KIND[x.kind] || 'For sale';
   const agents = _plAgents(x);
   const sec = (h, inner) => inner ? ('<div class="pl-sec"><h2>' + esc(h) + '</h2>' + inner + '</div>') : '';
@@ -8709,7 +8714,7 @@ function _plPage(req, key) {
       + (vid ? sec('Video', '<iframe class="pl-vid" src="' + esc(vid) + '" allowfullscreen loading="lazy"></iframe>') : '')
       + (mapQ ? sec('Location', '<iframe class="pl-map" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=' + encodeURIComponent(mapQ) + '&output=embed"></iframe>') : '')
       + '</div><aside class="pl-side">'
-      + '<a class="pl-dl" href="' + esc(_seoListingUrl(t)) + '/offering-sheet" target="_blank" rel="noopener">Download the Offering Sheet</a>'
+      + '<a class="pl-dl" href="' + esc(_seoListingUrl(t)) + '/offering-sheet' + (x.preview ? '?preview=1' : '') + '" target="_blank" rel="noopener">Download the Offering Sheet</a>'
       + agentCard
       + '<div class="pl-card" id="contact"><h3>Ask about this listing</h3>' + form + '</div>'
       + '</aside></div></div></section>'
@@ -8735,13 +8740,16 @@ function _plPage(req, key) {
     img = undefined;
   }
   const ld = { '@context': 'https://schema.org', '@type': 'Offer', name: title, description: desc, url: siteBaseUrl(req) + _seoListingUrl(t), areaServed: t.loc || undefined, image: img ? (siteBaseUrl(req) + img) : undefined, seller: { '@type': 'RealEstateAgent', name: orgDisplayName() } };
-  return _seoShell(req, { path: _seoListingUrl(t), title, desc, body: '<style>' + PL_CSS + '</style>' + body, jsonld: ld, image: img });
+  const pvBar = x.preview ? '<div style="background:#fff4e6;border-bottom:1px solid #f3d9a8;color:#8a5a12;font-size:13px;font-weight:600;padding:9px 0"><div class="wrap">Preview — only signed-in staff can see this. It goes public when Marketing turns on <b>Public</b> on the listing\'s Marketplace card.</div></div>' : '';
+  let html = _seoShell(req, { path: _seoListingUrl(t), title, desc, body: '<style>' + PL_CSS + '</style>' + pvBar + body, jsonld: ld, image: img });
+  if (x.preview) html = html.replace('<head>', '<head><meta name="robots" content="noindex,nofollow">');
+  return html;
 }
 // Public Offering Sheet PDF for OPEN listings (cached until the listing changes).
 const _plSheetCache = {};
 app.get('/listing/:slug/offering-sheet', async (req, res) => {
   const m = String(req.params.slug || '').match(/--(.+)$/); const key = m ? decodeURIComponent(m[1]) : '';
-  const x = key ? _plData(key) : null;
+  const x = key ? (_plData(key) || (_plStaff(req) ? _plData(key, true) : null)) : null;
   if (!x || !x.open || !x.deal || !x.deal.assetSpec) return res.status(404).set('Content-Type', 'text/html; charset=utf-8').send('<!doctype html><meta charset="utf-8"><p style="font-family:Arial;padding:40px">The Offering Sheet is not available for this listing. <a href="/market">See current listings</a>.</p>');
   const html = assetSheetHtml(x.view.business || x.deal.business || '', x.deal.market || x.view.market || '', x.deal.assetSpec || {}, x.deal.assetFfe || [], x.deal.assetConvey || null, _assetSheetOpts(x.deal, key, null));
   const fname = _seoSlug((x.view.business || x.t.headline) + ' offering sheet') + '.pdf';
