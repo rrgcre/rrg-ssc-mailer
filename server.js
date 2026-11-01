@@ -6655,7 +6655,7 @@ function cleanMarketTheme(b, prev) { b = b || {}; const out = Object.assign({}, 
 function effMarketTheme() { const s = loadSettings(); const t = (s.marketTheme && typeof s.marketTheme === 'object') ? s.marketTheme : {}; const _def = marketThemeDefaults(); const T = {}; MARKET_THEME_KEYS.forEach(function (k) { T[k] = _hexOr(t[k], _def[k]); }); T.dark2 = _shadeHex(T.dark, 1.45); T.accentD = _shadeHex(T.accent, 0.82); T.linkD = _shadeHex(T.link, 0.78); T.zebraH = _shadeHex(T.zebra, 0.95); T.zebraF = _shadeHex(T.zebra, 0.975); return T; }
 // Admin-editable top-strip lines on the public marketplace: line 1 is the brokerage tagline,
 // line 2 the service-area list. Plain text; rendered escaped.
-const MARKET_HEADER_DEFAULT = { tagline: 'Confidential brokerage — restaurants, bars & hospitality real estate', areas: 'Austin · Dallas · Houston · San Antonio', heading: '', lede: 'Confidential restaurant & bar businesses for acquisition, plus restaurant real estate and turnkey asset sales — for sale or lease. Operating businesses are marketed blind until NDA; real estate and asset sales are openly listed with photos and location.' };
+const MARKET_HEADER_DEFAULT = { tagline: 'Confidential brokerage — restaurants, bars & hospitality real estate', areas: 'Austin · Dallas · Houston · San Antonio', heading: '', lede: 'Confidential restaurant & bar businesses for acquisition, plus restaurant real estate and turnkey asset sales — for sale or lease. Operating restaurants — business and asset sales — are marketed confidentially until NDA; real estate is openly listed with photos and location.' };
 // The default headline follows the brokerage name unless the admin overrides it.
 function marketHeaderDefaults() { return { tagline: MARKET_HEADER_DEFAULT.tagline, areas: MARKET_HEADER_DEFAULT.areas, heading: 'Exclusive listings', lede: MARKET_HEADER_DEFAULT.lede }; }
 function effMarketHeader() { const s = loadSettings(); const h = (s.marketHeader && typeof s.marketHeader === 'object') ? s.marketHeader : {}; const d = marketHeaderDefaults(); return { tagline: (typeof h.tagline === 'string' && h.tagline.trim()) ? h.tagline : d.tagline, areas: (typeof h.areas === 'string' && h.areas.trim()) ? h.areas : d.areas, heading: (typeof h.heading === 'string' && h.heading.trim() && !/marketplace/i.test(h.heading)) ? h.heading : d.heading, lede: (typeof h.lede === 'string' && h.lede.trim()) ? h.lede : d.lede }; }
@@ -11080,7 +11080,7 @@ header{background:linear-gradient(180deg,var(--navy2),var(--navy));border-bottom
 .mkthero .modeseg .c{opacity:1;font-size:11px;font-weight:800;border-radius:999px;padding:1px 8px;background:rgba(255,255,255,.16);color:#fff;}
 .mkthero .modeseg button.on .c{background:var(--navy);color:#fff;}
 .mkthero .modeseg button:focus-visible{outline:2px solid #e0c27e;outline-offset:2px;}
-.mkthero .modeseg button .lx{white-space:pre;}
+.mkthero .modeseg button .lx{white-space:pre;margin-left:-8px;}
 @media(max-width:600px){.mkthero .modeseg{display:flex;width:100%;}.mkthero .modeseg button{flex:1;justify-content:center;padding:11px 8px;font-size:13.5px;gap:6px;white-space:nowrap;}.mkthero .modeseg button .lx{display:none;}}
 .tools{margin-top:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
 .search{position:relative;flex:1;min-width:220px;max-width:380px;}
@@ -11476,6 +11476,7 @@ function renderRE(){
   list=list.filter(function(l){return l.status!=='sold';}).concat(list.filter(function(l){return l.status==='sold';}));
   var feats=list.filter(function(l){return l.featured&&l.status!=='sold';});
   var rest=list.filter(function(l){return !(l.featured&&l.status!=='sold');});
+  if(!rest.length&&feats.length){ rest=feats; feats=[]; }   // everything is featured — show one list, not an empty-looking split
   var fb=document.getElementById('reFeat');
   if(feats.length){ fb.style.display=''; fb.innerHTML='<div class="fhdr"><h2>Featured Listings</h2><span class="ln"></span><span class="n">'+feats.length+' highlighted</span></div><div class="refeat">'+feats.map(featCardRE).join('')+'</div>'; }
   else { fb.style.display='none'; fb.innerHTML=''; }
