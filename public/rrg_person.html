@@ -2538,8 +2538,8 @@ load();
     var v=window.__rrgVal||{};
     var ov=document.createElement('div'); ov.style.cssText='position:fixed;inset:0;background:rgba(10,20,50,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
     ov.innerHTML='<div style="background:#fff;border-radius:10px;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(10,20,50,.3);padding:18px;font-size:13.5px;color:#1a2236">'
-      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b style="font-size:13px;letter-spacing:.04em;text-transform:uppercase">Set the asking price</b><button type="button" data-x="1" style="background:none;border:0;font-size:20px;cursor:pointer;color:#6b7488">&times;</button></div>'
-      +'<div style="color:#5a6478;line-height:1.5;margin-bottom:12px">Walk the seller through the BOV, then record the asking price you agreed on. The listing agreement unlocks once it’s set.</div>'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b style="font-size:13px;letter-spacing:.04em;text-transform:uppercase">'+((d&&d.saleLane==='asset')?'Set the key money':'Set the asking price')+'</b><button type="button" data-x="1" style="background:none;border:0;font-size:20px;cursor:pointer;color:#6b7488">&times;</button></div>'
+      +'<div style="color:#5a6478;line-height:1.5;margin-bottom:12px">Walk the seller through the BOV, then record the '+((d&&d.saleLane==='asset')?'key money':'asking price')+' you agreed on. The listing agreement unlocks once it’s set.</div>'
       +(v.bovId?'<button type="button" data-bov="1" style="border:1px solid #c4ccda;background:#fff;border-radius:6px;padding:8px 12px;font:inherit;font-weight:600;cursor:pointer;margin-bottom:12px">Open the BOV ↗</button>':'')
       +'<label style="display:block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8;margin-bottom:5px">Agreed asking price</label>'
       +'<div style="display:flex;gap:8px"><input data-p="1" inputmode="numeric" placeholder="$0" value="'+esc((d&&(d.listPrice||d.assetAsking))||'')+'" style="flex:1;min-width:0;border:1px solid #c4ccda;border-radius:6px;padding:9px 11px;font:inherit;font-size:15px;font-weight:700"><button type="button" data-save="1" style="background:#000E31;color:#fff;border:0;border-radius:6px;padding:0 16px;font:inherit;font-weight:700;cursor:pointer">Save</button></div>'
@@ -2845,8 +2845,8 @@ load();
       _rrgSetGate(elView, !j.interviewId, j.interviewId ? 'Transcript, AI debrief & video' : 'No interview received yet');
       _rrgSetDone(elV, !!j.bovId, 'BOV '+(j.state==='final'?'finalized':(j.state==='built'?'built':'started')));
       var elLA=_rrgActById('sendLA');
-      var _lpD=(function(){ try{ var k=_actKey(); var d=(DEALS||[]).filter(function(x){ return x&&x.key===k; })[0]; return (d&&d.listPrice)||''; }catch(_){ return ''; } })(); var elAP=_rrgActById('alignPrice'); if(elAP){ if(_lpD) _rrgSetDone(elAP,true,'Asking price '+_lpD); else { _rrgSetDone(elAP,false); _rrgSetGate(elAP, !j.bovId, j.bovId?'':'Create the valuation (BOV) first'); } }
-      _rrgSetGate(elLA, !(j.bovId&&_lpD), !j.bovId ? 'Create the valuation (BOV) first' : (_lpD ? '' : 'Set the asking price first'));
+      var _lpD=(function(){ try{ var k=_actKey(); var d=(DEALS||[]).filter(function(x){ return x&&x.key===k; })[0]; return (d&&d.listPrice)||''; }catch(_){ return ''; } })(); var elAP=_rrgActById('alignPrice'); if(elAP){ if(_lpD) _rrgSetDone(elAP,true,((typeof _activeLane==='function'&&_activeLane()==='asset')?'Key money ':'Asking price ')+_lpD); else { _rrgSetDone(elAP,false); _rrgSetGate(elAP, !j.bovId, j.bovId?'':'Create the valuation (BOV) first'); } }
+      _rrgSetGate(elLA, !(j.bovId&&_lpD), !j.bovId ? 'Create the valuation (BOV) first' : (_lpD ? '' : ((typeof _activeLane==='function'&&_activeLane()==='asset')?'Set the key money first':'Set the asking price first')));
       var _laDone=(typeof AGREEMENTS!=='undefined') && (AGREEMENTS||[]).some(function(a){ return a && a.type==='Listing' && a.status!=='terminated' && (a.signStatus==='executed'||a.signStatus==='signed'||(!a.signStatus&&a.entryMethod&&a.entryMethod!=='sent')); });
       _rrgSetDone(elLA, _laDone, 'On file');
       try{ _mktMark(_laDone); }catch(_){}

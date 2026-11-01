@@ -552,11 +552,11 @@ async function bizBuySellAd({ facts }) {
   return out;
 }
 // Teaser email a rep sends one-to-one to a prospect (Marketing writes it once per listing).
-async function teaserEmail({ facts, asset }) {
+async function teaserEmail({ facts, asset, open }) {
   const sys = "You write a short teaser email for a Texas restaurant brokerage. A rep sends it personally, one-to-one, to a restaurant operator or buyer during outreach. Return ONLY JSON: {\"subject\":\"\",\"body\":\"\"}.\n"
     + "Rules:\n- body is plain text: a greeting line exactly 'Hi {{first_name}},' then 3 short paragraphs, then a sign-off line 'Best,' and on the next line '{{my_name}}'. Separate paragraphs with a blank line. 90–150 words before the sign-off.\n"
     + "- Tone: personal and direct, one operator-savvy person to another. No hype words (amazing, rare, incredible, prime, must-see), no exclamation marks, no bullet points.\n"
-    + (asset ? "- This is a second-generation restaurant space being sold with its equipment; you MAY name the location area and landmark. Do NOT state the asking price or rent.\n" : "- This is a CONFIDENTIAL business sale: never name the business, the owner, the street or anything that identifies it; describe the concept and market generally. Do NOT state price, revenue or cash flow figures.\n")
+    + (asset && open ? "- This is a second-generation restaurant space being sold with its equipment; you MAY name the location area and landmark. Do NOT state the key money or rent.\n" : asset ? "- This is a CONFIDENTIAL asset sale of a restaurant that is still operating: never name the business, the street, the shopping center or a landmark that identifies it; describe the area and the space generally. Do NOT state the key money or rent.\n" : "- This is a CONFIDENTIAL business sale: never name the business, the owner, the street or anything that identifies it; describe the concept and market generally. Do NOT state price, revenue or cash flow figures.\n")
     + "- Use only the facts given; never invent numbers or features.\n- Paragraph 1: why you're reaching out to them. Paragraph 2: the 2–3 strongest facts about the opportunity. Paragraph 3: a soft ask — reply if they'd like the offering sheet (or the NDA for a business sale) and a showing.\n"
     + "- subject: 6–9 words, specific, no clickbait, no name of a confidential business.";
   const j = extractJson(await callClaude(sys, 'FACTS:\n' + String(facts || '').slice(0, 6000), 900)) || {};
@@ -570,4 +570,14 @@ async function chitChatBlurb({ facts, asset }) {
   const out = await callClaude(sys, 'FACTS:\n' + String(facts || '').slice(0, 4000), 200);
   return String(out || '').replace(/^["\s]+|["\s]+$/g, '').slice(0, 400);
 }
-module.exports = { chitChatBlurb, teaserEmail, bizBuySellAd, suggestHighlights, FFE_CATS, parseFfeList, agreementExpiry, rewriteEmail, parseSpaceListing, parseSpaceListingDoc, enrichCenters, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, parseEmailContact, parseEmailUpdate, sscToTenantBox, parseConceptList, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, enrichCenterDetail, enrichPropertyDetail, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary, buildQuestionnaire, classifyRoomDocs, polishPrompts, refineBov, polishValueBasis };
+// Blind (public) highlights for a confidential asset sale.
+async function blindHighlights({ highlights, market, facts }) {
+  const sys = "You rewrite highlight bullets for the PUBLIC listing of a CONFIDENTIAL restaurant asset sale (the restaurant is still operating; staff and customers must not be able to identify it). Return ONLY JSON: {\"highlights\":[\"...\"]}.\n"
+    + "Rules:\n- 3 to 5 bullets, sentence case, 4-12 words each, no ending periods, no hype words.\n"
+    + "- NEVER include the business name, street, shopping center or building name, a named landmark/attraction/district that pins the spot, exact dollar amounts the owner invested, or anything unique enough to identify it. Generalize instead: 'Steps from a major downtown destination', 'Recent six-figure renovation', 'One of the largest patios in the area'.\n"
+    + "- Keep facts that don't identify it: square footage, seating, hood and walk-ins, patio, drive-thru, turnkey condition, lease runway.\n- Use only what is given; never invent.";
+  const user = 'Market: ' + String(market || '') + '\n\nORIGINAL HIGHLIGHTS:\n' + String(highlights || '').slice(0, 3000) + '\n\nOTHER FACTS:\n' + String(facts || '').slice(0, 2000);
+  const j = extractJson(await callClaude(sys, user, 500)) || {};
+  return (Array.isArray(j.highlights) ? j.highlights : []).map(x => String(x || '').replace(/^[-•*\s]+/, '').replace(/[.!]+$/, '').trim().slice(0, 120)).filter(Boolean).slice(0, 6);
+}
+module.exports = { blindHighlights, chitChatBlurb, teaserEmail, bizBuySellAd, suggestHighlights, FFE_CATS, parseFfeList, agreementExpiry, rewriteEmail, parseSpaceListing, parseSpaceListingDoc, enrichCenters, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, parseEmailContact, parseEmailUpdate, sscToTenantBox, parseConceptList, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, enrichCenterDetail, enrichPropertyDetail, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary, buildQuestionnaire, classifyRoomDocs, polishPrompts, refineBov, polishValueBasis };

@@ -236,7 +236,7 @@ tr:hover td{background:#fbfcfe;}
           </div>
           <div style="margin-top:12px">
             <label class="pubrow"><input type="checkbox" id="p_public"> <span><b>Show on the public marketplace</b> — open listing (address, price and photos visible)</span></label>
-            <label class="pubrow"><input type="checkbox" id="p_featured"> <span>Feature it near the top of the marketplace</span></label>
+            <label class="pubrow"><input type="checkbox" id="p_featured"> <span>Feature it near the top of the marketplace</span></label><a id="p_weblink" href="#" target="_blank" rel="noopener" style="display:none;margin-top:6px;font-size:12.5px;font-weight:700;color:#23496f;text-decoration:none">Preview web listing ↗</a>
           </div>
         </div>
       </details>
@@ -353,7 +353,7 @@ function openEdit(id){
   document.getElementById('p_featured').checked=!!(EDIT&&EDIT.featured);
   setPropFeatures((EDIT&&EDIT.features)||[]);
   ['secSale','secLease','secBldg','secFit','secFeat','secContacts','secMkt','secDocs'].forEach(function(sid,i){ var d=document.getElementById(sid); if(d) d.open=(sid==='secSale'); });
-  document.getElementById('mktTag').textContent=(EDIT&&EDIT.public)?'On marketplace':'';
+  document.getElementById('mktTag').textContent=(EDIT&&EDIT.public)?'On marketplace':''; (function(){ var wl=document.getElementById('p_weblink'); if(!wl) return; var u=EDIT&&EDIT.webUrl; if(u){ wl.href=u; wl.textContent=(/preview=1/.test(u)?'Preview web listing ↗':'Open web listing ↗'); wl.style.display='inline-block'; } else wl.style.display='none'; })();
   renderBoardBar();
   var th=document.getElementById('phThumb');
   if(EDIT&&EDIT.hasPhoto){ th.style.backgroundImage='url(/api/property-photo/'+EDIT.id+'?t='+encodeURIComponent(EDIT.updatedAt||'')+')'; th.textContent=''; } else { th.style.backgroundImage=''; th.textContent='🏢'; }

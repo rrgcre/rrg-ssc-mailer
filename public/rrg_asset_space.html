@@ -215,7 +215,7 @@ var GROUPS=[
   {title:'The headline', fields:[
     {k:'agentUser', l:'Listing agent', sel:'agents', core:1},
     {k:'coAgentUser', l:'Co-listing agent (optional)', sel:'agents'},
-    {k:'askingPrice', l:'Asking price', ph:'$185,000', money:1},
+    {k:'askingPrice', l:'Key money', ph:'$185,000', money:1, help:'What the buyer pays for the space, equipment and lease rights. BizBuySell calls it Asking Price.'},
     {k:'reason', l:'Reason for availability', ph:'Pick a reason or type your own', list:['Owner retiring','Owner relocating','Focusing on other locations','Closing the concept','Changing concepts','Lease expiring','Partnership change','Personal reasons']},
     {k:'availableDate', l:'Target availability / delivery date', ph:'Pick a date · or 60 days after closing', date:1}
   ]},
@@ -358,7 +358,7 @@ function refillAbs(){ var n=applyAbstract(false); if(n){ render(); markDirty(); 
 function vrefHtml(){ var r=[];
   if(VREF.bov) r.push('<div><span>BOV'+(VREF.bov.final?'':' (draft)')+'</span><b>'+esc(VREF.bov.target||VREF.bov.range)+'</b>'+(VREF.bov.target&&VREF.bov.range?'<i>Range '+esc(VREF.bov.range)+'</i>':'')+'<a href="./rrg_bov_generate.html?bov='+encodeURIComponent(VREF.bov.id)+'" target="_blank">Open ↗</a></div>');
   if(VREF.letter) r.push('<div><span>Opinion of value</span><b>'+esc(VREF.letter.value)+'</b><i>'+esc(({draft:'Draft',pending:'Awaiting approval',approved:'Approved',sent:'Sent'})[VREF.letter.status]||VREF.letter.status)+(VREF.letter.at?(' · '+esc(_fmtDate(VREF.letter.at))):'')+'</i></div>');
-  if(VREF.listPrice) r.push('<div><span>Agreed asking price</span><b>'+esc(VREF.listPrice)+'</b></div>');
+  if(VREF.listPrice) r.push('<div><span>Agreed key money</span><b>'+esc(VREF.listPrice)+'</b></div>');
   return r.length?'<div class="vref"><div class="vrh">For reference — internal, not on the offering sheet</div>'+r.join('')+'</div>':''; }
 var OPTS={delivery:['Turnkey — ready to operate','As-is, where-is — fully equipped','As-is — partially equipped','Second-generation shell — equipment removed'],opStatus:['Operating','Dark'],spaceTypes:['End cap','Inline','Pad / Outparcel','Freestanding'],centerTypes:['Grocery-anchored','Power / big-box','Lifestyle / mixed-use','Strip / unanchored','Freestanding pad','Downtown / street retail','Mall / food court','Entertainment / hospitality node','Other']};
 var CORE=['spaceType','leaseTotal','leaseRemaining','leaseAssignment','sqft','deliveryCondition','hood','ffeSchedule'];

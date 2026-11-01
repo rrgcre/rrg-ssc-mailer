@@ -332,7 +332,7 @@ const PROPERTY_TYPES = ['Freestanding restaurant', 'Freestanding retail', 'Retai
 const PROPERTY_LISTING_FOR = ['For Sale', 'For Lease', 'For Sale or Lease'];
 const PROPERTY_STATUSES = ['Available', 'Under Contract', 'Sold', 'Leased', 'Off-market'];
 const PROPERTY_FEATURES = ['24-Hour Access', 'Air Conditioning', 'Corner Lot', 'Drive-Thru', 'Fenced Lot', 'Freeway Visibility', 'Grease Trap', 'Hood / Ventilation', 'Monument Signage', 'Outdoor Patio', 'Pylon Signage', 'Restaurant', 'Roof Terrace', 'Security System', 'Signalized Corner', 'Walk-In Cooler'];
-function propertyBrief(p) { return Object.assign({}, p, { hasPhoto: !!p.photoExt, fileCount: Array.isArray(p.files) ? p.files.length : 0 }); }
+function propertyBrief(p) { return Object.assign({}, p, { webUrl: (function () { try { return _plPropUrl(p); } catch (e) { return ''; } })(), hasPhoto: !!p.photoExt, fileCount: Array.isArray(p.files) ? p.files.length : 0 }); }
 // ---- Shopping-center enrichment: derive metro, address, city and a photo from the listings we already have ----
 const _METRO_CITIES = {
   'Austin': ['austin', 'round rock', 'cedar park', 'georgetown', 'leander', 'pflugerville', 'kyle', 'buda', 'bee cave', 'lakeway', 'jarrell', 'creedmoor', 'manor', 'hutto', 'dripping springs', 'bastrop', 'san marcos', 'wells branch', 'del valle', 'elgin', 'taylor', 'liberty hill', 'volente', 'lago vista'],
@@ -6703,6 +6703,8 @@ function mktClean(b, prev) {
   if (b.sf !== undefined) out.sf = s(b.sf, 40);                        // building / space size
   if (b.ffe !== undefined) out.ffe = s(b.ffe, 40);                     // FF&E value for asset sales
   if (b.price !== undefined) out.price = s(b.price, 40);              // exact asking price for RE (openly marketed)
+  if (b.openMode !== undefined) out.openMode = (['open', 'blind'].indexOf(b.openMode) >= 0) ? b.openMode : '';
+  if (b.blindHl !== undefined) out.blindHl = s(b.blindHl, 1200);
   if (b.lat !== undefined) { const n = parseFloat(b.lat); out.lat = (isFinite(n) && n >= -90 && n <= 90) ? n : ''; }   // precise pin (geocoded from addr)
   if (b.lng !== undefined) { const n = parseFloat(b.lng); out.lng = (isFinite(n) && n >= -180 && n <= 180) ? n : ''; }
   return out;
@@ -6731,7 +6733,20 @@ function mktTeaser(key, view, m) {
   const ab = stat ? { id: stat.id, label: stat.label, color: stat.color } : (promos[0] || null);
   const _pr = promos.find(function (p) { return p.id === 'price'; });
   const kind = _teaserKind(m, view);
-  const isRE = (kind !== 'business');   // asset / lease / sale are openly marketed on the property side (photos + area)
+  const isRE = _listingOpen(key, kind, m);
+  // Blind asset sale: never a headline that names the place (auto-filled from the open highlights, or naming the business / street / center).
+  let _hd = m.headline || '';
+  if (kind === 'asset' && !isRE) {
+    try {
+      const _sp = ((_dealByAnyKey(key) || {}).d || {}).assetSpec || {};
+      const _low = String(_hd).toLowerCase(); const _hls = String(_sp.highlights || '').split(/\n+/).map(x => x.trim().toLowerCase()).filter(Boolean);
+      const _ids = [view.business, _sp.centerName, String(_sp.address || '').split(',')[0]].map(x => String(x || '').trim().toLowerCase()).filter(x => x.length > 3);
+      if (!_hd || _hls.indexOf(_low.trim()) >= 0 || _ids.some(x => _low.indexOf(x) >= 0)) {
+        _hd = String(m.blindHl || '').split(/\n+/).map(x => x.trim()).filter(Boolean)[0] || ('Turnkey restaurant space' + (_sp.sqft ? (' · ' + Number(String(_sp.sqft).replace(/[^0-9]/g, '')).toLocaleString('en-US') + ' SF') : ''));
+      }
+    } catch (e) {}
+  }
+  const _sf = /^\s*\d{4,}\s*(sf)?\s*$/i.test(String(m.sf || '')) ? (Number(String(m.sf).replace(/[^0-9]/g, '')).toLocaleString('en-US') + ' SF') : (m.sf || '');   // asset / lease / sale are openly marketed on the property side (photos + area)
   // Public cover photo — only for openly-marketed real estate; blind business/asset listings never expose imagery.
   let photo = '';
   try {
@@ -6743,16 +6758,16 @@ function mktTeaser(key, view, m) {
     }
   } catch (e) {}
   const cen = _metroCentroid(m.marketKey || '') || _metroCentroid(_metroForCity(view.market || '')) || null;
-  const plat = (typeof m.lat === 'number' && isFinite(m.lat)) ? m.lat : (cen ? cen.lat : null);   // precise geocoded pin wins; metro centroid is the fallback
-  const plng = (typeof m.lng === 'number' && isFinite(m.lng)) ? m.lng : (cen ? cen.lng : null);
+  const plat = (isRE && typeof m.lat === 'number' && isFinite(m.lat)) ? m.lat : (cen ? cen.lat : null);   // precise geocoded pin wins; metro centroid is the fallback
+  const plng = (isRE && typeof m.lng === 'number' && isFinite(m.lng)) ? m.lng : (cen ? cen.lng : null);
   return {
-    id: key, kind: kind, headline: m.headline || (view.codeName || 'Confidential restaurant opportunity'),
+    id: key, kind: kind, blind: !isRE, headline: _hd || m.headline || (view.codeName || 'Confidential restaurant opportunity'),
     loc: m.loc || view.market || '', badge: badge,
     conceptKey: m.conceptKey || '', marketKey: m.marketKey || 'Other',
     priceBand: m.priceBand || '', cashBand: m.cashBand || '',
     revenue: m.revenue || '', sde: m.sde || '', earnBasis: m.earnBasis || 'SDE', guide: m.guide || '',
     // real-estate attributes (present when the rep fills them in)
-    propType: m.propType || '', addr: isRE ? (m.addr || '') : '', rate: m.rate || '', term: m.term || '', cap: m.cap || '', lot: m.lot || '', sf: m.sf || '', ffe: m.ffe || '', price: isRE ? (m.price || '') : '',
+    propType: m.propType || '', addr: isRE ? (m.addr || '') : '', rate: m.rate || '', term: m.term || '', cap: m.cap || '', lot: m.lot || '', sf: _sf, ffe: m.ffe || '', price: kind !== 'business' ? (m.price || '') : '',
     photo: photo, lat: plat, lng: plng,
     flag: ab ? ab.id : '', flagLabel: ab ? ab.label : '', flagColor: ab ? ab.color : '', featured: !!m.featured, publishedAt: m.publishedAt || '', icon: m.icon || '',
     noShop: !!(stat && stat.noShop), status: stat ? stat.id : '', statusLabel: stat ? stat.label : '', statusColor: stat ? stat.color : '', statusNote: stat ? (stat.note || '') : '',
@@ -6798,7 +6813,19 @@ app.get('/api/marketplace/:key', (req, res) => {
   if (!(canSeeAllDeals(req) || ownsAssignment(req, d))) return res.status(403).json({ ok: false, error: 'Not yours.' });
   const overlay = loadAssignOverlay(); const view = assignmentView(d, overlay); const o = overlay[key] || {};
   res.json({ ok: true, metros: effMarkets(), concepts: MKT_CONCEPTS, priceBands: MKT_PRICE, cashBands: MKT_CASH, flags: MKT_FLAGS, badges: effMktBadges(), marketStyle: effMarketStyle(), icons: MKT_ICONS, publicUrl: (req.protocol + '://' + req.get('host') + '/market'),
-    listing: { key: key, business: view.business, market: view.market, value: view.value, roomId: view.roomId, status: view.status, teaser: _mktSpecFill(key, o.market || null, view), suggest: mktSuggest(view), webUrl: _plWebUrl(key) } });
+    listing: { key: key, business: view.business, market: view.market, value: view.value, roomId: view.roomId, status: view.status, teaser: _mktSpecFill(key, o.market || null, view), suggest: mktSuggest(view), webUrl: _plWebUrl(key), fullUrl: _plFullUrl(key), operatingNow: ((((_dealByAnyKey(key) || {}).d || {}).assetSpec) || {}).operatingNow || '' } });
+});
+// Public (blind) highlights for a confidential asset sale — no name, street, center or identifying landmark.
+app.post('/api/marketplace/:key/blind-highlights', express.json(), async (req, res) => {
+  try {
+    const key = req.params.key; const d = assignmentsIndex()[key];
+    if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
+    if (!(canSeeAllDeals(req) || ownsAssignment(req, d) || _canMarketReq(req))) return res.status(403).json({ ok: false, error: 'Not yours.' });
+    if (!aiAllowed(req)) return res.status(403).json({ ok: false, error: 'AI is not enabled for your role.' });
+    const { d: deal } = _dealByAnyKey(key); const sp = (deal && deal.assetSpec) || {};
+    const lines = await aiassist.blindHighlights({ highlights: sp.highlights || '', market: (deal && deal.market) || '', facts: [sp.spaceType, sp.sqft ? (sp.sqft + ' SF') : '', sp.seating, sp.deliveryCondition, sp.patio, sp.leaseRemaining ? (sp.leaseRemaining + ' remaining on the lease') : '', _conveyLine((deal && deal.assetConvey) || [])].filter(Boolean).join('\n') });
+    res.json({ ok: true, text: lines.join('\n') });
+  } catch (e) { res.status(502).json({ ok: false, error: String((e && e.message) || 'Could not write them.') }); }
 });
 // Featured-listing curation — the currently-featured listings in their admin-set order (Settings → Marketplace).
 function _featuredItems() {
@@ -6991,7 +7018,7 @@ app.post('/api/assignment/:key/teaser/draft', express.json(), async (req, res) =
     if (!_canMarketReq(req)) return res.status(403).json({ ok: false, error: 'Marketing writes the teaser.' });
     if (!aiAllowed(req)) return res.status(403).json({ ok: false, error: 'AI is not enabled for your role.' });
     const F = _teaserFacts(d); const L = F.L, asset = F.asset;
-    const out = await aiassist.teaserEmail({ facts: L.join('\n'), asset: asset });
+    const out = await aiassist.teaserEmail({ facts: L.join('\n'), asset: asset, open: F.open });
     res.json({ ok: true, subject: out.subject, body: out.body });
   } catch (e) { console.error('teaser draft:', e && e.message); res.status(502).json({ ok: false, error: String((e && e.message) || 'Could not draft the teaser.') }); }
 });
@@ -7001,11 +7028,12 @@ function _teaserFacts(d) {
     const asset = _effLane(d.key, deal) === 'asset';
     const L = []; const add = (k, v) => { v = String(v || '').trim(); if (v) L.push(k + ': ' + v); };
     add('Sale type', asset ? 'Asset sale — second-generation restaurant space and equipment; buyer takes over the lease' : 'Going-concern business sale (confidential — do not name the business)');
-    add('Business name', asset ? (view.business || '') : ''); add('Market', view.market || (deal && deal.market)); add('Area (no street address)', sp.centerName || '');
+    const open = asset && _listingOpen(d.key, 'asset', (overlay[d.key] || {}).market);
+    add('Business name', open ? (view.business || '') : ''); add('Market', view.market || (deal && deal.market)); add('Area (no street address)', open ? (sp.centerName || '') : '');
     add('Space type', sp.spaceType); add('Square footage', sp.sqft); add('Seating', sp.seating); add('Delivery condition', sp.deliveryCondition);
-    add('Built in', _conveyLine((deal && deal.assetConvey) || [])); add('Highlights', String(sp.highlights || '').replace(/\n+/g, '; ')); add('Remaining lease term', sp.leaseRemaining); add('Renewal options', sp.leaseOptions);
+    add('Built in', _conveyLine((deal && deal.assetConvey) || [])); add('Highlights', open ? String(sp.highlights || '').replace(/\n+/g, '; ') : String(((overlay[d.key] || {}).market || {}).blindHl || '').replace(/\n+/g, '; ')); add('Remaining lease term', sp.leaseRemaining); add('Renewal options', sp.leaseOptions);
     if (!asset) { add('Concept', view.concept || ''); add('Revenue', view.revenue || view.revText || ''); add('Cash flow / SDE', view.sde || ''); }
-  return { L: L, asset: asset };
+  return { L: L, asset: asset, open: open };
 }
 // Called from the email send paths (via _tplExecAuto) — records a teaser send on the listing.
 function _teaserSent(templateId, p, user) {
@@ -7124,7 +7152,7 @@ app.post('/api/marketing/queue/:key/prepare', express.json(), async (req, res) =
   // Teaser (also feeds the blast)
   let tz = cur.teaser && cur.teaser.body ? { subject: cur.teaser.subject, body: cur.teaser.body } : (cur.teaserDraft || null);
   if ((needs.indexOf('teaser') >= 0 || needs.indexOf('blast') >= 0) && !tz) {
-    try { const F = _teaserFacts(a); tz = await aiassist.teaserEmail({ facts: F.L.join('\n'), asset: F.asset }); tz.at = now; } catch (e) { out.teaser = { state: 'error', note: 'Could not draft the teaser.' }; }
+    try { const F = _teaserFacts(a); tz = await aiassist.teaserEmail({ facts: F.L.join('\n'), asset: F.asset, open: F.open }); tz.at = now; } catch (e) { out.teaser = { state: 'error', note: 'Could not draft the teaser.' }; }
   }
   if (needs.indexOf('teaser') >= 0 && !out.teaser) out.teaser = (cur.teaser && cur.teaser.body) ? { state: 'done', note: 'Teaser already saved.' } : { state: 'draft', note: 'Draft in the teaser box — edit and Save teaser.' };
   // BizBuySell entries
@@ -7140,6 +7168,7 @@ app.post('/api/marketing/queue/:key/prepare', express.json(), async (req, res) =
       const mkKey = effMarkets().filter(m => String((deal && deal.market) || view.market || '').toLowerCase().indexOf(String(m).toLowerCase()) >= 0)[0] || 'Other';
       const hl = String(sp.highlights || '').split(/\n+/).map(x => x.trim()).filter(Boolean)[0] || '';
       cur.market = mktClean(Object.assign({ published: false }, _mktSpecFill(key, cur.market || {}, view)), cur.market || {}); void hl; void mkKey;
+      if (!cur.market.blindHl && sp.highlights && !_assetOpen(cur.market, sp)) { try { cur.market.blindHl = (await aiassist.blindHighlights({ highlights: sp.highlights, market: (deal && deal.market) || '', facts: '' })).join('\n'); } catch (e) {} }
       cur.market.updatedAt = now;
       out.market = { state: 'draft', note: 'Marketplace card filled in, not published — review it and publish; that also puts the web listing live.' };
     } else out.market = { state: 'todo', note: 'Fill the marketplace card on the listing page (going-concern listings stay blind).' };
@@ -7735,6 +7764,7 @@ app.post('/api/market/request-access', express.json(), (req, res) => {
     pr.inquiries = Array.isArray(pr.inquiries) ? pr.inquiries : [];
     pr.inquiries.push({ id: newInquiryId(), source: 'Marketplace', personId: (cap && cap.personId) || '', companyId: (cap && cap.companyId) || '', name: name, email: email, phone: phone, company: company, experience: experience, linkedin: linkedin, note: ['Property info request', qual, note].filter(Boolean).join(' — '), createdAt: new Date().toISOString() });
     pr.updatedAt = new Date().toISOString(); saveProperties(arr);
+    try { _plInquiry(key, { name, email, phone, message: note }); } catch (e) {}
     try { sendAccessRequestAlert({ deal: dealLabel, ref: key, market: market, type: String(pr.propType || pr.kind || 'Real estate').slice(0, 60), asking: String(pr.rate || pr.price || pr.guide || pr.ask || '').slice(0, 40), name: name, email: email, phone: phone, company: company, experience: experience, linkedin: linkedin, note: note }).catch(function (e) { console.error('access alert error:', e && e.message); }); } catch (e) {}
     return res.json({ ok: true });
   }
@@ -7748,6 +7778,7 @@ app.post('/api/market/request-access', express.json(), (req, res) => {
   const inqs = Array.isArray(cur.inquiries) ? cur.inquiries : [];
   inqs.push({ id: newInquiryId(), source: 'Marketplace', personId: (cap && cap.personId) || '', companyId: (cap && cap.companyId) || '', name: name, email: email, phone: phone, company: company, experience: experience, linkedin: linkedin, status: (buyerStageNamesFor(cur)[0] || 'Unqualified'), note: ['Marketplace access request', qual, note].filter(Boolean).join(' — '), createdAt: new Date().toISOString() });
   cur.inquiries = inqs; cur.updatedAt = new Date().toISOString(); overlay[key] = cur; saveAssignOverlay(overlay);
+  try { _plInquiry(key, { name, email, phone, message: note }); } catch (e) {}
   try { sendAccessRequestAlert({ deal: dealLabel, ref: key, market: market, type: String(_m.conceptType || _m.propType || _kl[_m.kind] || _m.kind || '').slice(0, 60), asking: String(_m.guide || _m.price || _m.rate || '').slice(0, 40), name: name, email: email, phone: phone, company: company, experience: experience, linkedin: linkedin, note: note }).catch(function (e) { console.error('access alert error:', e && e.message); }); } catch (e) {}
   res.json({ ok: true });
 });
@@ -7827,7 +7858,8 @@ app.get('/api/market/photo/:key/:file', (req, res) => {
   const _stf = _plStaff(req);
   if (!o || ((!o.market || !o.market.published) && !_stf)) return res.status(404).end();
   const kind = (o.market && MKT_KINDS.indexOf(o.market.kind) >= 0) ? o.market.kind : ((o.saleLane === 'asset' || _effLane(key, (_dealByAnyKey(key) || {}).d) === 'asset') ? 'asset' : 'business');
-  if (kind === 'business' && !_stf) return res.status(404).end();   // blind business listings never expose imagery; RE/asset do
+  if (kind === 'business' && !_stf) return res.status(404).end();
+  if (kind === 'asset' && !_stf && !_assetOpen(o.market, ((_dealByAnyKey(key) || {}).d || {}).assetSpec || {}) && !(req.query && req.query.a && String(req.query.a) === (o.webToken || '~'))) return res.status(404).end();   // blind business listings never expose imagery; RE/asset do
   const file = String(req.params.file || '').replace(/[^A-Za-z0-9_.]/g, '');
   const m = file.match(/^(ph_[A-Za-z0-9]+)\.(png|jpg|gif|webp)$/i);
   if (!m) return res.status(404).end();
@@ -8531,8 +8563,9 @@ ${o.body}
     var body={ name:v('lf_name'), email:v('lf_email'), phone:v('lf_phone'), interest:f.getAttribute('data-interest')||'Website', message:v('lf_message'), listingKey:f.getAttribute('data-listing')||'' };
     if(!body.name || (!body.email && !body.phone)){ msg.textContent='Add your name and an email or phone.'; msg.className='lmsg err'; return; }
     var old=btn.textContent; btn.disabled=true; btn.textContent='Sending…'; msg.textContent='';
-    fetch('/api/website/lead',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){
-      if(j&&j.ok){ f.reset(); msg.textContent='Thanks, we’ll be in touch shortly, confidentially.'; msg.className='lmsg ok'; } else { msg.textContent=(j&&j.error)||'Something went wrong. Please call us.'; msg.className='lmsg err'; }
+    var _lk=f.getAttribute('data-listing')||''; if(_lk && !body.email){ msg.textContent='Add your email so we can send the NDA and details.'; msg.className='lmsg err'; btn.disabled=false; btn.textContent=old; return; }
+    fetch(_lk?'/api/market/request-access':'/api/website/lead',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(_lk?{ listingKey:_lk, name:body.name, email:body.email, phone:body.phone, note:body.message }:body)}).then(function(r){return r.json();}).then(function(j){
+      if(j&&j.ok){ f.reset(); msg.textContent=_lk?'Thanks — your agent will be in touch shortly with the NDA and next steps.':'Thanks, we’ll be in touch shortly, confidentially.'; msg.className='lmsg ok'; } else { msg.textContent=(j&&j.error)||'Something went wrong. Please call us.'; msg.className='lmsg err'; }
       btn.disabled=false; btn.textContent=old; }).catch(function(){ msg.textContent='Network error. Please call us.'; msg.className='lmsg err'; btn.disabled=false; btn.textContent=old; }); });
 })();
 </script></body></html>`;
@@ -8583,8 +8616,9 @@ function _mktSpecFill(key, m, view) {
     const mkKey = effMarkets().filter(k => String((deal && deal.market) || (view && view.market) || '').toLowerCase().indexOf(String(k).toLowerCase()) >= 0)[0] || '';
     const rent = sp.leaseTotal ? (String(sp.leaseTotal) + (/mo/i.test(sp.leaseTotal) ? '' : ' / mo')) : (sp.leasePerSF || '');
     const nFfe = Array.isArray(deal && deal.assetFfe) ? deal.assetFfe.length : 0;
-    const def = { kind: 'asset', conceptType: 'Turnkey space', headline: (hl || ('Turnkey restaurant space' + (sp.sqft ? (' · ' + sp.sqft + ' SF') : ''))).slice(0, 140),
-      loc: [sp.centerName, (deal && deal.market) || (view && view.market) || ''].filter(Boolean).join(' · ').slice(0, 60), marketKey: mkKey,
+    const _bl = String(out.blindHl || '').split(/\n+/).map(x => x.trim()).filter(Boolean)[0] || ''; const _gen = 'Turnkey restaurant space' + (sp.sqft ? (' · ' + String(sp.sqft).replace(/\s*sf$/i, '') + ' SF') : '');
+    const def = { kind: 'asset', conceptType: 'Turnkey space', headline: (_assetOpen(out, sp) ? (hl || _gen) : (_bl || _gen)).slice(0, 140),
+      loc: String((deal && deal.market) || (view && view.market) || '').slice(0, 60), marketKey: mkKey,
       propType: [sp.spaceType, sp.centerType].filter(Boolean).join(' · ').slice(0, 60), addr: String(sp.address || '').slice(0, 120),
       sf: sp.sqft ? (String(sp.sqft).replace(/\s*sf$/i, '') + ' SF') : '', price: sp.askingPrice || '', guide: sp.askingPrice || '',
       priceBand: _assetPriceBand(sp.askingPrice), rate: rent, term: sp.leaseRemaining ? (sp.leaseRemaining + ' remaining') : '',
@@ -8610,9 +8644,13 @@ function _plData(key, preview) {
     const kind = _teaserKind(m, view);
     const { d: deal } = _dealByAnyKey(key);
     const t = mktTeaser(key, view, m);
-    return { key, d, o, m, view, kind, deal: deal || {}, t, open: kind !== 'business', preview: !!preview && !(o.market && o.market.published) };
+    return { key, d, o, m, view, kind, deal: deal || {}, t, open: _listingOpen(key, kind, m), preview: !!preview && !(o.market && o.market.published) };
   } catch (e) { return null; }
 }
+function _assetOpen(m, sp) { const md = m && m.openMode; if (md === 'open') return true; if (md === 'blind') return false; return /dark|closed|vacant/i.test(String((sp && sp.operatingNow) || '')); }
+function _listingOpen(key, kind, m) { if (kind === 'business') return false; if (kind !== 'asset') return true; let sp = {}; try { sp = ((_dealByAnyKey(key) || {}).d || {}).assetSpec || {}; } catch (e) {} return _assetOpen(m, sp); }
+function _plToken(key, create) { try { const ov = loadAssignOverlay(); const o = ov[key]; if (!o) return ''; if (!o.webToken && create) { o.webToken = crypto.randomBytes(12).toString('hex'); ov[key] = o; saveAssignOverlay(ov); } return o.webToken || ''; } catch (e) { return ''; } }
+function _plFullUrl(key) { const x = _plData(key) || _plData(key, true); if (!x || x.kind !== 'asset' || x.open) return ''; return _seoListingUrl(x.t) + '?a=' + _plToken(key, true); }
 function _plWebUrl(key) { const x = _plData(key); if (x) return _seoListingUrl(x.t); const y = _plData(key, true); return y ? (_seoListingUrl(y.t) + '?preview=1') : ''; }
 function _plAgents(x) {
   const sp = (x.deal && x.deal.assetSpec) || {};
@@ -8622,11 +8660,11 @@ function _plAgents(x) {
   return out;
 }
 function _plList(s) { return String(s || '').split(/\n+|\s*;\s*|\s+·\s+/).map(v => v.replace(/^[-•*\s]+/, '').trim()).filter(Boolean); }
-function _plPhotos(x) {
+function _plPhotos(x, q) {
   const med = (x.o.media && typeof x.o.media === 'object') ? x.o.media : {};
   let ph = (Array.isArray(med.photos) ? med.photos : []).slice().sort((a, b) => (a.ord || 0) - (b.ord || 0));
   if (med.coverPhotoId) ph = ph.filter(p => p.id === med.coverPhotoId).concat(ph.filter(p => p.id !== med.coverPhotoId));
-  return ph.slice(0, 40).map(p => ({ url: '/api/market/photo/' + encodeURIComponent(x.key) + '/' + p.id + '.' + p.ext, cap: String(p.caption || '').replace(/^Photo \d+$/, '') }));
+  return ph.slice(0, 40).map(p => ({ url: '/api/market/photo/' + encodeURIComponent(x.key) + '/' + p.id + '.' + p.ext + (q || ''), cap: String(p.caption || '').replace(/^Photo \d+$/, '') }));
 }
 const PL_CSS = `
 .pl-hero{background:#0a1733;color:#fff;padding:34px 0 30px;}
@@ -8673,24 +8711,28 @@ const PL_CSS = `
 function _plPage(req, key) {
   const wantPv = req && req.query && req.query.preview === '1' && _plStaff(req);
   const x = _plData(key) || (wantPv ? _plData(key, true) : null); if (!x) return null;
+  const tok = String((req && req.query && req.query.a) || '');
+  const full = !x.open && x.kind === 'asset' && ((req && req.query && req.query.full === '1' && _plStaff(req)) || (tok && tok === _plToken(key)));
+  const tq = (full && tok) ? ('?a=' + encodeURIComponent(tok)) : '';
   const t = x.t, sp = (x.deal && x.deal.assetSpec) || {}, kindL = PL_KIND[x.kind] || 'For sale';
   const agents = _plAgents(x);
   const sec = (h, inner) => inner ? ('<div class="pl-sec"><h2>' + esc(h) + '</h2>' + inner + '</div>') : '';
   const kv = rows => { rows = rows.filter(r => String(r[1] || '').trim()); return rows.length ? '<table class="pl-kv">' + rows.map(r => '<tr><td>' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td></tr>').join('') + '</table>' : ''; };
   const facts = rows => { rows = rows.filter(r => String(r[1] || '').trim()); return rows.length ? '<div class="pl-facts">' + rows.map(r => '<div><b>' + esc(r[0]) + '</b><span>' + esc(r[1]) + '</span></div>').join('') + '</div>' : ''; };
   const stat = t.statusLabel ? '<span class="pl-st">' + esc(t.statusLabel) + '</span>' : '';
-  const interest = 'Listing — ' + (x.open ? (x.view.business || t.headline) : t.headline);
-  const form = _seoForm(x.open ? 'Ask about this listing' : 'Request access', interest, x.open ? 'Questions, or a good time to tour (optional)' : 'Tell us a little about yourself and your experience (optional)').replace('<form class="cform" id="leadForm"', '<form class="cform" id="leadForm" data-listing="' + esc(key) + '"');
+  const interest = 'Listing — ' + ((x.open || full) ? (x.view.business || t.headline) : t.headline);
+  const form = _seoForm((x.open || full) ? 'Ask about this listing' : 'Request access', interest, (x.open || full) ? 'Questions, or a good time to tour (optional)' : 'Tell us a little about yourself and your experience (optional)').replace('<form class="cform" id="leadForm"', '<form class="cform" id="leadForm" data-listing="' + esc(key) + '"');
   const agentCard = agents.length ? '<div class="pl-card"><h3>' + (agents.length > 1 ? 'Listing agents' : 'Listing agent') + '</h3>' + agents.map(a => '<div class="pl-ag"><b>' + esc(a.name) + '</b><i>' + esc(a.title) + '</i>' + (a.phone ? '<a href="tel:' + esc(String(a.phone).replace(/[^0-9+]/g, '')) + '">' + esc(a.phone) + '</a>' : '') + (a.email ? '<a href="mailto:' + esc(a.email) + '?subject=' + encodeURIComponent(interest) + '">' + esc(a.email) + '</a>' : '') + '</div>').join('') + '</div>' : '';
   let body, title, desc, img = t.photo || undefined;
-  if (x.open) {
+  if (x.open || full) {
     const name = x.kind === 'asset' ? (x.view.business || '') : '';
     const h1 = t.headline || name || 'Restaurant space';
     const addr = sp.address || t.addr || x.view.locAddress || '';
     const loc = [sp.centerName, t.loc].filter(Boolean).join(' · ');
     const price = sp.askingPrice || t.price || '';
+    const askL = x.kind === 'asset' ? 'Key money' : 'Asking price';
     const rent = sp.leaseTotal ? (sp.leaseTotal + (/mo/i.test(sp.leaseTotal) ? '' : ' / mo')) : (t.rate || '');
-    const ph = _plPhotos(x);
+    const ph = _plPhotos(x, tq);
     const gl = ph.slice(0, 5), nCls = gl.length < 4 ? (' n' + gl.length) : '';
     const gallery = gl.length ? '<div class="pl-gal' + nCls + '">' + gl.map((p, i) => '<a href="' + esc(p.url) + '" data-i="' + i + '" style="background-image:url(\'' + esc(p.url) + '\')"' + ((i === gl.length - 1 && ph.length > gl.length) ? (' class="more" data-more="+' + (ph.length - gl.length) + ' photos"') : '') + ' aria-label="Photo ' + (i + 1) + '"></a>').join('') + '</div>' : '';
     const seats = (sp.seatsIn || sp.seatsOut) ? [sp.seatsIn ? (sp.seatsIn + ' inside') : '', sp.seatsOut ? (sp.seatsOut + ' patio') : ''].filter(Boolean).join(' · ') : (sp.seating || '');
@@ -8703,10 +8745,10 @@ function _plPage(req, key) {
     body = '<section class="pl-hero"><div class="wrap"><a class="pl-back" href="/market">← All listings</a>'
       + '<div class="eyebrow" style="margin-top:14px">' + esc(kindL) + stat + '</div><h1>' + esc(h1) + '</h1>'
       + '<div class="addr">' + esc([name && name !== h1 ? name : '', addr || loc].filter(Boolean).join(' — ')) + '</div>'
-      + '<div class="px">' + [['Asking price', price], ['Monthly rent', rent], ['Square feet', sp.sqft || t.sf], ['Seats', seats]].filter(f => String(f[1] || '').trim()).map(f => '<div><b>' + esc(f[0]) + '</b><span>' + esc(f[1]) + '</span></div>').join('') + '</div></div></section>'
+      + '<div class="px">' + [[askL, price], ['Monthly rent', rent], ['Square feet', sp.sqft || t.sf], ['Seats', seats]].filter(f => String(f[1] || '').trim()).map(f => '<div><b>' + esc(f[0]) + '</b><span>' + esc(f[1]) + '</span></div>').join('') + '</div></div></section>'
       + '<section class="pl-main"><div class="wrap">' + gallery + '<div class="pl-body"><div>'
       + sec('Why this space', hl.length ? '<ul class="pl-hl">' + hl.map(h => '<li>' + esc(h) + '</li>').join('') + '</ul>' : '')
-      + sec('At a glance', facts([['Asking price', price], ['Space type', sp.spaceType || t.propType], ['Square feet', sp.sqft || t.sf], ['Seating', seats], ['Patio', sp.patio], ['Parking', sp.parking ? (sp.parking + ' spaces') : ''], ['Delivery condition', sp.deliveryCondition], ['Status', sp.operatingNow], ['Available', sp.availableDate], ['Buildout', remodel || sp.buildoutAge], ['Zoning', sp.zoning]]))
+      + sec('At a glance', facts([[askL, price], ['Space type', sp.spaceType || t.propType], ['Square feet', sp.sqft || t.sf], ['Seating', seats], ['Patio', sp.patio], ['Parking', sp.parking ? (sp.parking + ' spaces') : ''], ['Delivery condition', sp.deliveryCondition], ['Status', sp.operatingNow], ['Available', sp.availableDate], ['Buildout', remodel || sp.buildoutAge], ['Zoning', sp.zoning]]))
       + sec('What conveys', conv.length ? '<ul class="pl-cols">' + conv.map(c => '<li>' + esc(c) + '</li>').join('') + '</ul>' + (sp.exclusions ? '<p class="pl-note" style="margin-top:10px"><b>Excluded:</b> ' + esc(sp.exclusions) + '</p>' : '') : '')
       + sec('Equipment', ffe.length ? '<ul class="pl-cols">' + ffe.slice(0, 60).map(c => '<li>' + esc(c) + '</li>').join('') + '</ul>' + (ffe.length > 60 ? '<p class="pl-note">Full schedule in the Offering Sheet.</p>' : '') : '')
       + sec('Lease', kv([['Monthly rent (all-in)', rent], ['Rent / SF', sp.leasePerSF], ['Remaining term', sp.leaseRemaining], ['Expires', sp.leaseExpiration], ['Renewal options', sp.leaseOptions], ['Assignment', sp.leaseAssignment], ['NNN / CAM', sp.leaseNNN], ['Deposit', sp.leaseDeposit], ['Permitted use', sp.leaseUse]]))
@@ -8714,7 +8756,7 @@ function _plPage(req, key) {
       + (vid ? sec('Video', '<iframe class="pl-vid" src="' + esc(vid) + '" allowfullscreen loading="lazy"></iframe>') : '')
       + (mapQ ? sec('Location', '<iframe class="pl-map" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=' + encodeURIComponent(mapQ) + '&output=embed"></iframe>') : '')
       + '</div><aside class="pl-side">'
-      + '<a class="pl-dl" href="' + esc(_seoListingUrl(t)) + '/offering-sheet' + (x.preview ? '?preview=1' : '') + '" target="_blank" rel="noopener">Download the Offering Sheet</a>'
+      + '<a class="pl-dl" href="' + esc(_seoListingUrl(t)) + '/offering-sheet' + (x.preview ? '?preview=1' : tq) + '" target="_blank" rel="noopener">Download the Offering Sheet</a>'
       + agentCard
       + '<div class="pl-card" id="contact"><h3>Ask about this listing</h3>' + form + '</div>'
       + '</aside></div></div></section>'
@@ -8722,7 +8764,29 @@ function _plPage(req, key) {
       + '<script>(function(){var P=' + JSON.stringify(ph).replace(/</g, '\\u003c') + ',i=0,lb=document.getElementById("plLb");if(!lb||!P.length)return;var im=lb.querySelector("img"),c=lb.querySelector(".c");function sh(n){i=(n+P.length)%P.length;im.src=P[i].url;c.textContent=(i+1)+" / "+P.length+(P[i].cap?(" · "+P[i].cap):"");lb.classList.add("on");}'
       + 'document.querySelectorAll(".pl-gal a").forEach(function(a){a.addEventListener("click",function(e){e.preventDefault();sh(+a.getAttribute("data-i"));});});lb.querySelector(".x").onclick=function(){lb.classList.remove("on");};lb.querySelector(".p").onclick=function(){sh(i-1);};lb.querySelector(".n").onclick=function(){sh(i+1);};lb.addEventListener("click",function(e){if(e.target===lb)lb.classList.remove("on");});document.addEventListener("keydown",function(e){if(!lb.classList.contains("on"))return;if(e.key==="Escape")lb.classList.remove("on");if(e.key==="ArrowLeft")sh(i-1);if(e.key==="ArrowRight")sh(i+1);});})();</script>';
     title = h1 + (t.loc ? (' — ' + t.loc) : '');
-    desc = [kindL, h1, addr || t.loc, price ? ('Asking ' + price) : '', hl[0] || ''].filter(Boolean).join('. ').slice(0, 300);
+    desc = [kindL, h1, addr || t.loc, price ? (askL + ' ' + price) : '', hl[0] || ''].filter(Boolean).join('. ').slice(0, 300);
+  } else if (x.kind === 'asset') {
+    // CONFIDENTIAL ASSET SALE — operating restaurant: no name, address, map, photos or Offering Sheet until the NDA.
+    const price = sp.askingPrice || t.price || '';
+    const rent = sp.leaseTotal ? (sp.leaseTotal + (/mo/i.test(sp.leaseTotal) ? '' : ' / mo')) : (t.rate || '');
+    const seats = (sp.seatsIn || sp.seatsOut) ? [sp.seatsIn ? (sp.seatsIn + ' inside') : '', sp.seatsOut ? (sp.seatsOut + ' patio') : ''].filter(Boolean).join(' · ') : (sp.seating || '');
+    const bh = _plList(x.m.blindHl || '');
+    const conv = _plList(sp.conveys || (x.deal ? _conveyLine(x.deal.assetConvey || []) : ''));
+    const nFfe = _plList(sp.ffeSchedule).length;
+    body = '<section class="pl-hero"><div class="wrap"><a class="pl-back" href="/market">← All listings</a>'
+      + '<div class="eyebrow" style="margin-top:14px">Asset sale' + stat + (t.loc ? (' · ' + esc(t.loc)) : '') + '</div><h1>' + esc(t.headline || 'Second-generation restaurant space') + '</h1>'
+      + '<div class="addr">Confidential listing · second-generation restaurant space with equipment</div>'
+      + '<div class="px">' + [['Key money', price], ['Monthly rent', rent], ['Square feet', sp.sqft || t.sf], ['Seats', seats]].filter(f => String(f[1] || '').trim()).map(f => '<div><b>' + esc(f[0]) + '</b><span>' + esc(f[1]) + '</span></div>').join('') + '</div></div></section>'
+      + '<section class="pl-main"><div class="wrap"><div class="pl-body"><div>'
+      + sec('Highlights', bh.length ? '<ul class="pl-hl">' + bh.map(h => '<li>' + esc(h) + '</li>').join('') + '</ul>' : '')
+      + sec('At a glance', facts([['Key money', price], ['Area', t.loc], ['Space type', sp.spaceType], ['Square feet', sp.sqft || t.sf], ['Seating', seats], ['Patio', sp.seatsOut ? 'Yes' : ''], ['Parking', sp.parking ? (sp.parking + ' spaces') : ''], ['Delivery condition', sp.deliveryCondition], ['Available', sp.availableDate], ['Last remodel', sp.remodelYear]]))
+      + sec('Lease', kv([['Monthly rent (all-in)', rent], ['Remaining term', sp.leaseRemaining], ['Renewal options', sp.leaseOptions], ['Assignment', sp.leaseAssignment]]))
+      + sec('What conveys', conv.length ? '<ul class="pl-cols">' + conv.map(c => '<li>' + esc(c) + '</li>').join('') + '</ul>' + (nFfe ? '<p class="pl-note" style="margin-top:10px">Plus ' + nFfe + ' pieces of equipment — the full schedule comes with the Offering Sheet.</p>' : '') : '')
+      + sec('How it works', '<p class="pl-note" style="font-size:15px;color:#1b2440">This restaurant is still operating, so the name and location are shared only with qualified buyers. Request access and sign a short non-disclosure agreement, and you get the full listing: address, photos, equipment schedule, lease details and the Offering Sheet.</p>')
+      + '</div><aside class="pl-side">' + agentCard + '<div class="pl-card" id="contact"><h3>Request access</h3>' + form + '</div></aside></div></div></section>';
+    title = (t.headline || 'Restaurant space') + (t.loc ? (' — ' + t.loc) : '');
+    desc = ('Asset sale. ' + (t.headline || 'Second-generation restaurant space') + (t.loc ? (' in ' + t.loc) : '') + (price ? ('. Key money ' + price) : '') + '. Confidential: request access to see the name and location under NDA.').slice(0, 300);
+    img = undefined;
   } else {
     // CONFIDENTIAL — never the name, address or photos.
     const mh = Array.isArray(x.m.highlights) ? x.m.highlights : _plList(x.m.highlights || '');
@@ -8739,18 +8803,79 @@ function _plPage(req, key) {
     desc = (t.headline || 'Restaurant opportunity') + (t.loc ? (' in ' + t.loc) : '') + '. Confidential listing: request access to see the name, location and financials under NDA.';
     img = undefined;
   }
+  if (full) img = undefined;
   const ld = { '@context': 'https://schema.org', '@type': 'Offer', name: title, description: desc, url: siteBaseUrl(req) + _seoListingUrl(t), areaServed: t.loc || undefined, image: img ? (siteBaseUrl(req) + img) : undefined, seller: { '@type': 'RealEstateAgent', name: orgDisplayName() } };
-  const pvBar = x.preview ? '<div style="background:#fff4e6;border-bottom:1px solid #f3d9a8;color:#8a5a12;font-size:13px;font-weight:600;padding:9px 0"><div class="wrap">Preview — only signed-in staff can see this. It goes public when Marketing turns on <b>Public</b> on the listing\'s Marketplace card.</div></div>' : '';
+  const fullBar = full ? '<div style="background:#eef2f8;border-bottom:1px solid #d5dce8;color:#20334f;font-size:13px;font-weight:600;padding:9px 0"><div class="wrap">Confidential — shared with you under NDA. Please don\'t forward this page.</div></div>' : '';
+  const pvBar = fullBar + (x.preview ? '<div style="background:#fff4e6;border-bottom:1px solid #f3d9a8;color:#8a5a12;font-size:13px;font-weight:600;padding:9px 0"><div class="wrap">Preview — only signed-in staff can see this. It goes public when Marketing turns on <b>Public</b> on the listing\'s Marketplace card.</div></div>' : '');
   let html = _seoShell(req, { path: _seoListingUrl(t), title, desc, body: '<style>' + PL_CSS + '</style>' + pvBar + body, jsonld: ld, image: img });
-  if (x.preview) html = html.replace('<head>', '<head><meta name="robots" content="noindex,nofollow">');
+  if (x.preview || full) html = html.replace('<head>', '<head><meta name="robots" content="noindex,nofollow">');
   return html;
 }
+
+// ===== Public web listing — PROPERTY listings (Property Listings: real estate for sale / lease) =====
+// Same frame as the open deal page; property content: sale or lease terms, the building and land,
+// restaurant fit, highlights & features, description, map, listing agent and an inquiry form.
+function _plPropPage(req, key) {
+  const p = loadProperties().find(x => x.id === key);
+  const staff = req && req.query && req.query.preview === '1' && _plStaff(req);
+  if (!p || ['Sold', 'Off-market'].indexOf(p.status) >= 0 && !staff) return null;
+  if (!p.public && !staff) return null;
+  const t = propertyMktTeaser(p); const preview = !p.public;
+  const lease = p.listingFor === 'For Lease';
+  const n = v => (v == null || v === '' || !isFinite(Number(v))) ? '' : Number(v).toLocaleString('en-US');
+  const $ = v => n(v) ? ('$' + n(v)) : '';
+  const yn = v => { v = String(v || '').trim(); return /^(y|yes|true)$/i.test(v) ? 'Yes' : (/^(n|no|false)$/i.test(v) ? '' : v); };
+  const sec = (h, inner) => inner ? ('<div class="pl-sec"><h2>' + esc(h) + '</h2>' + inner + '</div>') : '';
+  const kv = rows => { rows = rows.filter(r => String(r[1] || '').trim()); return rows.length ? '<table class="pl-kv">' + rows.map(r => '<tr><td>' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td></tr>').join('') + '</table>' : ''; };
+  const addr = [p.address, p.city, [p.state, p.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+  const lot = p.lotAcres ? (n(p.lotAcres) + ' acres') : (p.lotSF ? (n(p.lotSF) + ' SF') : '');
+  const rent = p.askingRentSF ? ('$' + Number(p.askingRentSF).toFixed(2) + ' / SF / yr' + (p.leaseType ? (' ' + p.leaseType) : '')) : '';
+  const head = lease
+    ? [['Asking rent', rent], ['Available', p.availableSF ? (n(p.availableSF) + ' SF') : ''], ['Building', p.buildingSF ? (n(p.buildingSF) + ' SF') : ''], ['Lot', lot]]
+    : [['Price', $(p.price)], ['Cap rate', p.capRate ? (p.capRate + '%') : ''], ['Building', p.buildingSF ? (n(p.buildingSF) + ' SF') : ''], ['Lot', lot]];
+  const hl = _plList(p.highlights); const feats = Array.isArray(p.features) ? p.features.filter(Boolean) : [];
+  const fit = [['Drive-thru', yn(p.driveThru)], ['End cap', yn(p.endCap)], ['Pad site', yn(p.padSite)], ['Grease hood', yn(p.greaseHood)], ['Patio', yn(p.patio)], ['Second-generation restaurant', yn(p.secondGen)], ['Existing / prior use', p.existingUse]];
+  const photo = p.photoExt ? ('/api/property-public-photo/' + encodeURIComponent(p.id) + (preview ? '?preview=1' : '')) : '';
+  const ag = []; [p.byUser].forEach(un => { const u = un && _vlUser(un); if (u) ag.push({ name: u.name || un, title: u.title || 'Restaurant Transaction Advisor', email: u.email || '', phone: u.phone || '' }); });
+  if (p.cobrokerName) ag.push({ name: p.cobrokerName, title: 'Co-broker', email: p.cobrokerEmail || '', phone: p.cobrokerPhone || '' });
+  const interest = 'Listing — ' + (p.name || addr || 'property');
+  const agentCard = ag.length ? '<div class="pl-card"><h3>' + (ag.length > 1 ? 'Listing agents' : 'Listing agent') + '</h3>' + ag.map(a => '<div class="pl-ag"><b>' + esc(a.name) + '</b><i>' + esc(a.title) + '</i>' + (a.phone ? '<a href="tel:' + esc(String(a.phone).replace(/[^0-9+]/g, '')) + '">' + esc(a.phone) + '</a>' : '') + (a.email ? '<a href="mailto:' + esc(a.email) + '?subject=' + encodeURIComponent(interest) + '">' + esc(a.email) + '</a>' : '') + '</div>').join('') + '</div>' : '';
+  const form = _seoForm('Ask about this property', interest, lease ? 'Your concept, size needed, or a good time to tour (optional)' : 'Questions, or a good time to tour (optional)').replace('<form class="cform" id="leadForm"', '<form class="cform" id="leadForm" data-listing="' + esc(p.id) + '"');
+  const kindL = (lease ? 'For lease' : 'For sale') + (p.propertyType ? (' · ' + p.propertyType) : '');
+  const stat = (p.status && p.status !== 'Available') ? '<span class="pl-st">' + esc(p.status) + '</span>' : '';
+  const body = (preview ? '<div style="background:#fff4e6;border-bottom:1px solid #f3d9a8;color:#8a5a12;font-size:13px;font-weight:600;padding:9px 0"><div class="wrap">Preview — only signed-in staff can see this. It goes public when <b>Public</b> is turned on for the property.</div></div>' : '')
+    + '<section class="pl-hero"><div class="wrap"><a class="pl-back" href="/market">← All listings</a>'
+    + '<div class="eyebrow" style="margin-top:14px">' + esc(kindL) + stat + '</div><h1>' + esc(p.name || addr || 'Property') + '</h1>'
+    + '<div class="addr">' + esc(addr) + '</div>'
+    + '<div class="px">' + head.filter(f => String(f[1] || '').trim()).map(f => '<div><b>' + esc(f[0]) + '</b><span>' + esc(f[1]) + '</span></div>').join('') + '</div></div></section>'
+    + '<section class="pl-main"><div class="wrap">'
+    + (photo ? '<div class="pl-gal n1"><a href="' + esc(photo) + '" target="_blank" style="background-image:url(\'' + esc(photo) + '\')" aria-label="Photo"></a></div>' : '<div style="height:22px"></div>')
+    + '<div class="pl-body"><div>'
+    + sec('Highlights', hl.length ? '<ul class="pl-hl">' + hl.map(h => '<li>' + esc(h) + '</li>').join('') + '</ul>' : '')
+    + sec('About the property', p.description ? String(p.description).split(/\n\s*\n/).map(x => '<p style="font-size:15.5px;line-height:1.6;color:#1b2440;margin:0 0 12px">' + esc(x).replace(/\n/g, '<br>') + '</p>').join('') : '')
+    + (lease
+      ? sec('Lease terms', kv([['Asking rent', rent], ['NNN / CAM', p.nnnSF ? ('$' + Number(p.nnnSF).toFixed(2) + ' / SF / yr') : ''], ['Available', p.availableSF ? (n(p.availableSF) + ' SF') : ''], ['Lease type', p.leaseType], ['Term', p.termYears ? (n(p.termYears) + ' years') : ''], ['TI allowance', p.tiAllowance ? ('$' + n(p.tiAllowance) + ' / SF') : '']]))
+      : sec('Sale terms', kv([['Price', $(p.price)], ['Price / SF', p.pricePerSF ? ('$' + n(p.pricePerSF)) : ''], ['Cap rate', p.capRate ? (p.capRate + '%') : ''], ['NOI', $(p.noi)], ['Occupancy', p.occupancy != null && p.occupancy !== '' ? (p.occupancy + '%') : ''], ['Tenancy', p.tenancy], ['Sale type', p.saleType], ['Sale conditions', p.saleConditions], ['Property taxes', $(p.taxes)]])))
+    + sec('The property', kv([['Address', addr], ['Property type', [p.propertyType, p.secondaryType].filter(Boolean).join(' · ')], ['Building size', p.buildingSF ? (n(p.buildingSF) + ' SF') : ''], ['Lot size', lot], ['Year built', p.yearBuilt ? String(p.yearBuilt) : ''], ['Renovated', p.renovatedYear ? String(p.renovatedYear) : ''], ['Stories', n(p.stories)], ['Units', n(p.unitsCount)], ['Construction', p.construction], ['Ceiling height', p.ceilingHeight], ['Sprinklers', p.sprinklers], ['Condition', p.condition], ['Zoning', p.zoning], ['Parking', p.parking], ['Frontage', p.frontage], ['Traffic', p.trafficVPD ? (n(p.trafficVPD) + ' vehicles / day') : '']]))
+    + sec('Restaurant fit', kv(fit))
+    + sec('Features', feats.length ? '<ul class="pl-cols">' + feats.map(f => '<li>' + esc(f) + '</li>').join('') + '</ul>' : '')
+    + (addr ? sec('Location', '<iframe class="pl-map" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=' + encodeURIComponent(addr) + '&output=embed"></iframe>') : '')
+    + '</div><aside class="pl-side">' + agentCard + '<div class="pl-card" id="contact"><h3>Ask about this property</h3>' + form + '</div></aside></div></div></section>';
+  const title = (p.name || addr) + (t.loc ? (' — ' + t.loc) : '');
+  const desc = [kindL, p.name, addr, lease ? rent : ($(p.price) ? ('Price ' + $(p.price)) : ''), hl[0] || ''].filter(Boolean).join('. ').slice(0, 300);
+  const ld = { '@context': 'https://schema.org', '@type': 'Offer', name: title, description: desc, url: siteBaseUrl(req) + _seoListingUrl(t), areaServed: t.loc || undefined, image: photo ? (siteBaseUrl(req) + photo) : undefined, seller: { '@type': 'RealEstateAgent', name: orgDisplayName() } };
+  let html = _seoShell(req, { path: _seoListingUrl(t), title, desc, body: '<style>' + PL_CSS + '</style>' + body, jsonld: ld, image: photo || undefined });
+  if (preview) html = html.replace('<head>', '<head><meta name="robots" content="noindex,nofollow">');
+  return html;
+}
+function _plPropUrl(p) { const t = propertyMktTeaser(p); return _seoListingUrl(t) + (p.public ? '' : '?preview=1'); }
 // Public Offering Sheet PDF for OPEN listings (cached until the listing changes).
 const _plSheetCache = {};
 app.get('/listing/:slug/offering-sheet', async (req, res) => {
   const m = String(req.params.slug || '').match(/--(.+)$/); const key = m ? decodeURIComponent(m[1]) : '';
   const x = key ? (_plData(key) || (_plStaff(req) ? _plData(key, true) : null)) : null;
-  if (!x || !x.open || !x.deal || !x.deal.assetSpec) return res.status(404).set('Content-Type', 'text/html; charset=utf-8').send('<!doctype html><meta charset="utf-8"><p style="font-family:Arial;padding:40px">The Offering Sheet is not available for this listing. <a href="/market">See current listings</a>.</p>');
+  const _ok = x && (x.open || _plStaff(req) || (req.query && req.query.a && String(req.query.a) === _plToken(key)));
+  if (!x || !_ok || x.kind === 'business' || !x.deal || !x.deal.assetSpec) return res.status(404).set('Content-Type', 'text/html; charset=utf-8').send('<!doctype html><meta charset="utf-8"><p style="font-family:Arial;padding:40px">The Offering Sheet is not available for this listing. <a href="/market">See current listings</a>.</p>');
   const html = assetSheetHtml(x.view.business || x.deal.business || '', x.deal.market || x.view.market || '', x.deal.assetSpec || {}, x.deal.assetFfe || [], x.deal.assetConvey || null, _assetSheetOpts(x.deal, key, null));
   const fname = _seoSlug((x.view.business || x.t.headline) + ' offering sheet') + '.pdf';
   const stamp = String(x.deal.updatedAt || '') + '|' + String(x.o.updatedAt || '');
@@ -8763,6 +8888,12 @@ app.get('/listing/:slug/offering-sheet', async (req, res) => {
 // A listing inquiry from the public page → task for the listing agent + milestone on the seller.
 function _plInquiry(key, lead) {
   try {
+    if (String(key).indexOf('prop:') === 0 || String(key).indexOf('prop_') === 0) {
+      const p = loadProperties().find(x => x.id === String(key).replace(/^prop:/, '')); if (!p || !p.byUser) return;
+      const u = _vlUser(p.byUser); const tasks = loadTasks();
+      tasks.push({ id: newTaskId(), createdBy: p.byUser, createdByName: 'Website', assignee: p.byUser, assigneeName: (u && u.name) || p.byUser, createdAt: new Date().toISOString(), status: 'open', doneAt: '', title: 'Web inquiry — ' + (p.name || 'property') + ': ' + lead.name, notes: [lead.name, lead.email, lead.phone].filter(Boolean).join(' · ') + (lead.message ? ('\n\n' + lead.message) : ''), due: '', priority: 'High', type: '', linkType: 'property', linkId: p.id, linkLabel: p.name || 'Property', remChannels: ['popup'] });
+      saveTasks(tasks); return;
+    }
     const x = _plData(key); if (!x) return;
     const ag = _plAgents(x)[0]; const biz = x.view.business || x.t.headline;
     if (ag) {
@@ -8776,6 +8907,7 @@ function _plInquiry(key, lead) {
 
 function seoListingPage(req, key) {
   try { const _pl = _plPage(req, key); if (_pl) return _pl; } catch (e) { console.error('public listing:', e && e.message); }
+  try { const _pp = _plPropPage(req, key); if (_pp) return _pp; } catch (e) { console.error('public property:', e && e.message); }
   const t = _seoAllTeasers().find(x => String(x.id) === String(key)); if (!t) return null;
   const facts = [['Location', t.loc], ['Concept', t.conceptKey && t.conceptKey !== 'Other' ? t.conceptKey : ''], ['Price', t.price || t.priceBand], ['Revenue', t.revenue], [t.earnBasis || 'SDE', t.sde], ['Square feet', t.sf], ['Rent', t.rate], ['Lease term', t.term], ['FF&E', t.ffe]].filter(f => String(f[1] || '').trim());
   const city = Object.keys(SEO_CITIES).find(k => SEO_CITIES[k].metros.indexOf(t.marketKey) >= 0 || SEO_CITIES[k].locRx.test(String(t.loc || '')));
@@ -11310,7 +11442,7 @@ function reMetrics(l){
   var cells;
   if(l.kind==='lease') cells=[['Rate', l.rate||askLabel(l)||'Contact'],['Size', l.sf],['Term', l.term]];
   else if(l.kind==='sale') cells=[['Price', askLabel(l)||'Contact'],['Size', l.sf],['Cap', l.cap]];
-  else cells=[['Asking', askLabel(l)||'Contact'],['FF&E', l.ffe],['Size', l.sf]];
+  else cells=[['Key money', askLabel(l)||'Contact'],['FF&E', l.ffe],['Size', l.sf]];
   var first=true;
   return cells.filter(function(c){return c[1];}).map(function(c){ var big=first; first=false; return '<div><div class="k">'+esc(c[0])+'</div><div class="v'+(big?'':' sub')+' num">'+esc(c[1])+'</div></div>'; }).join('') || '<div><div class="k">Details</div><div class="v sub">On request</div></div>';
 }
@@ -11318,20 +11450,20 @@ function reCard(l){
   var img=l.photo?('<img src="'+esc(l.photo)+'" alt="">'):svgIcon(l,'ico');
   return '<div class="recard'+(l.status==='sold'?' sold-card':'')+'" data-id="'+esc(l.id)+'">'
     +'<div class="rph"><span class="txn '+esc(l.kind)+'">'+esc(TXNLBL[l.kind]||'Listing')+'</span>'+(l.status?ribbonHtml(l):(l.featured?'<span class="feat2">Featured</span>':''))+img+'</div>'
-    +'<div class="rd"><div class="rtype">'+esc(l.propType||l.badge||'Restaurant real estate')+'</div><h3>'+esc(l.headline)+'</h3>'
+    +'<div class="rd"><div class="rtype">'+esc(l.blind?('Confidential · '+(l.propType||'Restaurant space')):(l.propType||l.badge||'Restaurant real estate'))+'</div><h3>'+esc(l.headline)+'</h3>'
       +'<div class="addr">'+esc(l.addr||l.loc||l.marketKey||'Texas')+'</div>'
       +'<div class="rstats">'+reMetrics(l)+'</div>'
-      +'<div class="rfoot"><span class="adv"><b>'+esc(ORG)+'</b> Advisory</span>'+((l.promos&&l.promos.length&&!l.status)?statusPill(l):'')+ctaHtml(l,'act',true,'Request info')+'</div>'
+      +'<div class="rfoot"><span class="adv"><b>'+esc(ORG)+'</b> Advisory</span>'+((l.promos&&l.promos.length&&!l.status)?statusPill(l):'')+ctaHtml(l,'act',!l.blind,l.blind?'Request access':'Request info')+'</div>'
     +'</div></div>';
 }
 function featCardRE(l){
   var img=l.photo?('<img src="'+esc(l.photo)+'" alt="">'):svgIcon(l,'ico');
   return '<div class="refcard" data-id="'+esc(l.id)+'">'
     +'<div class="rfph"><span class="txn '+esc(l.kind)+'">'+esc(TXNLBL[l.kind]||'Listing')+'</span>'+(l.status?ribbonHtml(l):'<span class="fribbon">&#9733; Featured</span>')+img+'</div>'
-    +'<div class="rfbody"><div class="rtype">'+esc(l.propType||l.badge||'Restaurant real estate')+'</div><h3>'+esc(l.headline)+'</h3>'
+    +'<div class="rfbody"><div class="rtype">'+esc(l.blind?('Confidential · '+(l.propType||'Restaurant space')):(l.propType||l.badge||'Restaurant real estate'))+'</div><h3>'+esc(l.headline)+'</h3>'
       +'<div class="addr">'+esc(l.addr||l.loc||l.marketKey||'Texas')+'</div>'
       +'<div class="rstats">'+reMetrics(l)+'</div>'
-      +'<div class="rfoot"><span class="adv"><b>'+esc(ORG)+'</b> Advisory</span>'+((l.promos&&l.promos.length&&!l.status)?statusPill(l):'')+ctaHtml(l,'act',true,'Request info')+'</div>'
+      +'<div class="rfoot"><span class="adv"><b>'+esc(ORG)+'</b> Advisory</span>'+((l.promos&&l.promos.length&&!l.status)?statusPill(l):'')+ctaHtml(l,'act',!l.blind,l.blind?'Request access':'Request info')+'</div>'
     +'</div></div>';
 }
 function renderRE(){
@@ -11606,7 +11738,7 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   try {
     const _laneName = l => l === 'asset' ? 'Asset sale (space & assets)' : (l === 'business' ? 'Going-concern sale' : 'Other');
     if (cur.laneDecidedAt && (b.laneDecided === true || typeof b.saleLane === 'string') && (cur.saleLane || '') !== _oldLane) _listingMilestone(d.key, 'Sale type set: ' + _laneName(cur.saleLane) + (cur.saleLane === 'asset' ? ' — financials don’t support a going-concern sale' : ''), req);
-    if ((cur.listPrice || '') !== _oldLP && cur.listPrice) _listingMilestone(d.key, _oldLP ? ('Asking price changed: ' + _oldLP + ' → ' + cur.listPrice) : ('Asking price set: ' + cur.listPrice), req);
+    if ((cur.listPrice || '') !== _oldLP && cur.listPrice) { const _pl = (cur.saleLane === 'asset') ? 'Key money' : 'Asking price'; _listingMilestone(d.key, _oldLP ? (_pl + ' changed: ' + _oldLP + ' → ' + cur.listPrice) : (_pl + ' set: ' + cur.listPrice), req); }
     if (b.stageFlags && typeof b.stageFlags === 'object') {
       const _pp = loadPipelines().find(x => x.id === listingPipelineIdOf(cur));
       if (_pp) (_pp.stages || []).forEach(function (st, i) { const k = 'g' + i; if (st && st.name && cur.stageFlags && cur.stageFlags[k] && !_oldFlags[k]) _listingMilestone(d.key, 'Stage complete: ' + st.name, req); });
@@ -17160,7 +17292,7 @@ app.get('/api/property-file/:id/:fid', (req, res) => {
 app.get('/api/property-public-photo/:id', (req, res) => {
   const id = String(req.params.id || '').replace(/\.[a-z0-9]+$/i, '');
   const p = loadProperties().find(x => x.id === id);
-  if (!p || !p.public || !p.photoExt) return res.status(404).end();
+  if (!p || !p.photoExt || (!p.public && !_plStaff(req))) return res.status(404).end();
   try { const buf = fs.readFileSync(path.join(PROPERTY_PHOTO_DIR, p.id + '.' + p.photoExt)); res.set('Content-Type', spaceFileMime(p.photoExt)); res.set('Cache-Control', 'public, max-age=600'); res.send(buf); }
   catch (e) { res.status(404).end(); }
 });
@@ -20830,7 +20962,7 @@ app.post('/api/asset-spec/highlights', express.json({ limit: '256kb' }), async (
     add('Built in (conveys with the lease)', _conveyLine(conv)); add('Buildout age', sp.buildoutAge); add('Year of last buildout / remodel', sp.remodelYear); add('Approximate cost of that buildout / remodel', sp.remodelCost);
     add('Equipment conveying (count of lines)', ffe.filter(r => !r.excluded && r.own !== 'Leased').length || ''); add('Notable equipment', ffe.filter(r => !r.excluded && r.own !== 'Leased').slice(0, 12).map(_ffeLine).join('; '));
     add('Total monthly rent', sp.leaseTotal); add('Base rent', sp.leaseRent); add('Remaining lease term', sp.leaseRemaining); add('Renewal options', sp.leaseOptions); add('Permitted use', sp.leaseUse);
-    add('Asking price', sp.askingPrice); add('Reason for availability', sp.reason); add('Other notes', sp.conveys);
+    add('Key money (price for the space, equipment and lease)', sp.askingPrice); add('Reason for availability', sp.reason); add('Other notes', sp.conveys);
     const current = String(sp.highlights || '').split(/\n+/).map(x => x.trim()).filter(Boolean);
     if (L.length < 3 && !current.length) return res.status(400).json({ ok: false, error: 'Fill in the address and a few details first — the AI only writes from facts on the listing.' });
     const out = await aiassist.suggestHighlights({ facts: L.join('\n'), current: current, market: d.market || '' });
@@ -20864,7 +20996,7 @@ app.post('/api/asset-spec', express.json({ limit: '256kb' }), (req, res) => {
 });
 // Grouped labels for the buyer-facing spec sheet (Marketing assets are internal — omitted).
 const ASSET_SHEET_GROUPS = [
-  ['The Opportunity', [['askingPrice', 'Asking price'], ['conveys', 'What conveys'], ['reason', 'Reason for availability'], ['availableDate', 'Available']]],
+  ['The Opportunity', [['askingPrice', 'Key money'], ['conveys', 'What conveys'], ['reason', 'Reason for availability'], ['availableDate', 'Available']]],
   ['Lease', [['leaseRent', 'Base rent'], ['leasePerSF', 'Rent / SF'], ['leaseRemaining', 'Remaining term'], ['leaseExpiration', 'Expiration'], ['leaseOptions', 'Renewal options'], ['leaseAssignment', 'Assignment & consent'], ['leaseNNN', 'NNN / CAM · taxes · insurance'], ['leaseDeposit', 'Deposit / key money'], ['leaseFixtures', 'Fixtures at lease end'], ['leaseUse', 'Permitted use']]],
   ['The Space', [['address', 'Address'], ['spaceType', 'Space type'], ['centerType', 'Center type'], ['centerName', 'Center / building'], ['coTenants', 'Anchors & co-tenants'], ['zoning', 'Zoning'], ['overlay', 'Historic / overlay district'], ['parking', 'Parking spaces'], ['sqft', 'Square footage'], ['seating', 'Seating'], ['patio', 'Patio / outdoor'], ['deliveryCondition', 'Delivery condition'], ['operatingNow', 'Status']]],
   ['Buildout & Leaseholds', [['hood', 'Hood, venting & grease'], ['walkin', 'Walk-in cooler / freezer'], ['ansul', 'Fire suppression'], ['restrooms', 'Restrooms'], ['buildoutAge', 'Buildout age']]],
@@ -20912,7 +21044,7 @@ function assetSheetHtml(business, market, spec, ffe, convey, opts) {
   const sec = (title, rows) => rows ? ('<h2>' + title + '</h2><table class="kv">' + rows + '</table>') : '';
   const org = orgDisplayName();
   // Key facts band
-  const facts = [['Asking price', v('askingPrice')], ['Square feet', v('sqft') ? (v('sqft').replace(/\s*SF$/i, '') + ' SF') : ''], ['Seating', v('seating').replace(/ · \d[\d,]* total$/, '')], ['Monthly rent', v('leaseTotal') || v('leaseRent')], ['Lease remaining', v('leaseRemaining')], ['Delivery', v('deliveryCondition').replace(/ — .*/, '')]].filter(f => f[1]).slice(0, 6);
+  const facts = [['Key money', v('askingPrice')], ['Square feet', v('sqft') ? (v('sqft').replace(/\s*SF$/i, '') + ' SF') : ''], ['Seating', v('seating').replace(/ · \d[\d,]* total$/, '')], ['Monthly rent', v('leaseTotal') || v('leaseRent')], ['Lease remaining', v('leaseRemaining')], ['Delivery', v('deliveryCondition').replace(/ — .*/, '')]].filter(f => f[1]).slice(0, 6);
   const factsHtml = facts.length ? ('<div class="facts">' + facts.map(f => '<div><span>' + esc(f[0]) + '</span><b>' + esc(f[1]) + '</b></div>').join('') + '</div>') : '';
   // Photos
   const P = opts.photos || [];

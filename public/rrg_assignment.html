@@ -813,7 +813,7 @@ function _valBridgeInner(){
   if(askN>0){
     var benchN=reOn?totN:valN, benchLbl=reOn?'total value':'business value';
     var rel=(benchN>0)?(askN>benchN?'<b>above</b>':(askN<benchN?'<b>below</b>':'at')):'';
-    note='<div style="font-size:11.5px;color:#6b7488;margin-top:9px;padding-top:9px;border-top:1px dashed #dfe4ec">Asking price <b>'+_money(A.listPrice)+'</b> — set independently'+(rel?(', '+rel+' the '+benchLbl):'')+'.</div>';
+    note='<div style="font-size:11.5px;color:#6b7488;margin-top:9px;padding-top:9px;border-top:1px dashed #dfe4ec">'+((A&&A.saleLane==='asset')?'Key money':'Asking price')+' <b>'+_money(A.listPrice)+'</b> — set independently'+(rel?(', '+rel+' the '+benchLbl):'')+'.</div>';
   }
   return row+note;
 }
@@ -1103,12 +1103,19 @@ function fillMarketplaceCard(){
       +[['business','Business — going concern'],['asset','Asset sale — space & FF&E'],['lease','Property — for lease'],['sale','Property — for sale']].map(function(k){return '<option value="'+k[0]+'"'+(dKind===k[0]?' selected':'')+'>'+k[1]+'</option>';}).join('')
       +'</select></div><div class="mkf wide" style="display:flex;align-items:flex-end"><div id="mkKindHint" style="font-size:11.5px;color:#8a93a3;padding-bottom:9px"></div></div></div>'
     +'<div id="mkReWrap" style="display:none">'
+      +'<div id="mkAssetWrap" style="display:none;border:1px solid #e1e6ef;border-radius:6px;padding:10px 12px 8px;margin-bottom:12px;background:#f8f9fb">'
+        +'<div class="mkrow" style="margin-bottom:8px"><div class="mkf wide"><label>Public detail</label><select class="mki" data-f="openMode" id="mkOpen">'
+          +[['','Auto — confidential while operating, open once dark'],['blind','Confidential — NDA required'],['open','Open — show name, address, photos & map']].map(function(o){ return '<option value="'+o[0]+'"'+(String(v('openMode',''))===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('')
+        +'</select><div id="mkOpenNote" style="font-size:11.5px;color:#6b7690;margin-top:5px"></div></div></div>'
+        +'<div class="mkrow" style="margin-bottom:6px"><div class="mkf wide"><label style="display:flex;align-items:center;gap:8px">Public highlights — no name, street, center or landmark (keep the headline blind too) <button type="button" id="mkBhAi" style="margin-left:auto;border:1px solid #c4ccda;background:#fff;border-radius:4px;padding:3px 9px;font:inherit;font-size:11.5px;font-weight:600;cursor:pointer;text-transform:none;letter-spacing:0">AI write</button></label><textarea class="mki" data-f="blindHl" id="mkBh" rows="4" style="width:100%;box-sizing:border-box" placeholder="Steps from a major downtown destination&#10;Recent six-figure renovation">'+esc(v('blindHl',''))+'</textarea><div id="mkBhMsg" style="font-size:11.5px;color:#8a93a3;margin-top:4px"></div></div></div>'
+        +((L.fullUrl)?('<div style="font-size:12px;color:#26324a;padding-top:4px">Full listing for buyers who signed the NDA: <a href="'+esc(L.fullUrl)+'" target="_blank" rel="noopener" style="color:#23496f;font-weight:700">Open ↗</a> · <a href="#" id="mkFullCopy" style="color:#23496f;font-weight:700">Copy link</a> <span style="color:#8a93a3">— send it only after the NDA is signed</span></div>'):'')
+      +'</div>'
       +'<div class="mkrow">'
         +'<div class="mkf" id="mkfProp"><label>Property type — buyers see this</label><input class="mki" data-f="propType" value="'+esc(v('propType',''))+'" placeholder="Freestanding / Restaurant, Retail endcap, Pad site…"></div>'
         +'<div class="mkf wide" id="mkfAddr"><label>Address / area — buyers see this &amp; it sets the map pin</label><input class="mki" data-f="addr" id="mkAddr" value="'+esc(v('addr',''))+'" placeholder="1420 W 7th St, Fort Worth, TX"><div id="mkGeo" style="font-size:11px;color:#8a93a3;margin-top:5px"></div></div>'
       +'</div>'
       +'<div class="mkrow">'
-        +'<div class="mkf" id="mkfPrice"><label>Asking price</label><input class="mki" data-f="price" value="'+esc(v('price',''))+'" placeholder="$1,950,000"></div>'
+        +'<div class="mkf" id="mkfPrice"><label>'+(dKind==='asset'?'Key money':'Asking price')+'</label><input class="mki" data-f="price" value="'+esc(v('price',''))+'" placeholder="$1,950,000"></div>'
         +'<div class="mkf" id="mkfRate"><label>Lease rate</label><input class="mki" data-f="rate" value="'+esc(v('rate',''))+'" placeholder="$38.00/SF NNN"></div>'
         +'<div class="mkf" id="mkfSf"><label>Size</label><input class="mki" data-f="sf" value="'+esc(v('sf',''))+'" placeholder="4,800 SF"></div>'
       +'</div>'
@@ -1159,6 +1166,10 @@ function fillMarketplaceCard(){
   body.querySelectorAll('.mkico').forEach(function(b){ b.addEventListener('click',function(){ var hid=body.querySelector('[data-f="icon"]'); if(hid) hid.value=b.getAttribute('data-ico')||''; body.querySelectorAll('.mkico').forEach(function(x){ x.classList.remove('on'); }); b.classList.add('on'); mkPreview(); }); });
   document.getElementById('mkSave').addEventListener('click',mkSave);
   var _kSel=document.getElementById('mkKind'); if(_kSel) _kSel.addEventListener('change',function(){ _mkApplyKind(); mkPreview(); });
+  var _oSel=document.getElementById('mkOpen'); if(_oSel) _oSel.addEventListener('change',function(){ _mkApplyKind(); });
+  var _bhB=document.getElementById('mkBhAi'); if(_bhB) _bhB.addEventListener('click',function(){ var m=document.getElementById('mkBhMsg'); _bhB.disabled=true; if(m) m.textContent='Writing…';
+    fetch('/api/marketplace/'+encodeURIComponent(KEY)+'/blind-highlights',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'}).then(function(r){return r.json();}).then(function(j){ _bhB.disabled=false; if(j&&j.ok){ document.getElementById('mkBh').value=j.text||''; if(m) m.textContent='Check it names nothing identifying, then Save.'; } else if(m) m.textContent=(j&&j.error)||'Could not write them.'; }).catch(function(){ _bhB.disabled=false; if(m) m.textContent='Could not write them.'; }); });
+  var _fc=document.getElementById('mkFullCopy'); if(_fc) _fc.addEventListener('click',function(e){ e.preventDefault(); var u=location.origin+((MKT&&MKT.listing&&MKT.listing.fullUrl)||''); try{ navigator.clipboard.writeText(u); _fc.textContent='Copied ✓'; setTimeout(function(){ _fc.textContent='Copy link'; },1600); }catch(_){ prompt('Copy this link',u); } });
   var _aInp=document.getElementById('mkAddr'); if(_aInp) _aInp.addEventListener('blur',_mkGeocode);
   _mkApplyKind();
   if(dKind!=='business' && _aInp && _aInp.value.trim() && !((document.getElementById('mkLat')||{}).value)) _mkGeocode();
@@ -1168,12 +1179,16 @@ function fillMarketplaceCard(){
 function _mkApplyKind(){
   var k=((document.getElementById('mkKind')||{}).value)||'business'; var re=(k!=='business');
   var sh=function(id,on){ var e=document.getElementById(id); if(e) e.style.display=on?'':'none'; };
-  sh('mkReWrap',re); sh('mkBizWrap',!re);
+  sh('mkReWrap',re); sh('mkBizWrap',!re); sh('mkAssetWrap',k==='asset');
+  var _om=((document.getElementById('mkOpen')||{}).value)||''; var _op=String(((MKT&&MKT.listing)||{}).operatingNow||''); var _assetOpenNow=(_om==='open')||(_om===''&&/dark|closed|vacant/i.test(_op));
+  var _on=document.getElementById('mkOpenNote'); if(_on) _on.textContent=(_om==='')?('Listing details says '+(_op||'nothing yet')+' — so it shows '+(_assetOpenNow?'open.':'confidential.')):'';
   sh('mkfPrice', k==='asset'||k==='sale'); sh('mkfRate', k==='lease'); sh('mkfTerm', k==='lease');
   sh('mkfFfe', k==='asset'); sh('mkfCap', k==='sale'); sh('mkfLot', k==='sale');
   var note=document.getElementById('mkBlindNote');
-  if(note) note.innerHTML= re
-    ? 'This is <b>real estate</b> — address, photo and price are shown publicly (not blind).'
+  if(note) note.innerHTML= (k==='asset' && !_assetOpenNow)
+    ? 'Confidential <b>asset sale</b> — public sees the area, key money, size, rent and what conveys. Name, address, photos and the Offering Sheet stay hidden until the buyer signs the NDA.'
+    : re
+    ? 'This is <b>'+(k==='asset'?'an open asset sale':'real estate')+'</b> — address, photo and price are shown publicly (not blind).'
     : 'Public shows this as a <b>blind</b> teaser — business name, address and contact stay hidden until a buyer signs an NDA.';
   var hint=document.getElementById('mkKindHint'); if(hint) hint.textContent= re ? 'Appears on the Real Estate & Assets side with photo + map pin.' : 'Appears blind on the Businesses side.';
 }
