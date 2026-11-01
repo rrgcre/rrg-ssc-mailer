@@ -6798,7 +6798,7 @@ app.get('/api/marketplace/:key', (req, res) => {
   if (!(canSeeAllDeals(req) || ownsAssignment(req, d))) return res.status(403).json({ ok: false, error: 'Not yours.' });
   const overlay = loadAssignOverlay(); const view = assignmentView(d, overlay); const o = overlay[key] || {};
   res.json({ ok: true, metros: effMarkets(), concepts: MKT_CONCEPTS, priceBands: MKT_PRICE, cashBands: MKT_CASH, flags: MKT_FLAGS, badges: effMktBadges(), marketStyle: effMarketStyle(), icons: MKT_ICONS, publicUrl: (req.protocol + '://' + req.get('host') + '/market'),
-    listing: { key: key, business: view.business, market: view.market, value: view.value, roomId: view.roomId, status: view.status, teaser: o.market || null, suggest: mktSuggest(view) } });
+    listing: { key: key, business: view.business, market: view.market, value: view.value, roomId: view.roomId, status: view.status, teaser: _mktSpecFill(key, o.market || null, view), suggest: mktSuggest(view), webUrl: _plWebUrl(key) } });
 });
 // Featured-listing curation — the currently-featured listings in their admin-set order (Settings → Marketplace).
 function _featuredItems() {
@@ -7027,7 +7027,7 @@ function _teaserSent(templateId, p, user) {
 // rep's Biz Seller Actions shows ✓, and the listing moves to the Done tab.
 const MKT_ITEMS = [
   { id: 'market', l: 'Marketplace', auto: 'Published to the RRG Marketplace' },
-  { id: 'web', l: 'Web listing' },
+  { id: 'web', l: 'Web listing', auto: 'Live on the website (published)' },
   { id: 'abstract', l: 'Lease abstract', auto: 'A lease abstract is on file' },
   { id: 'pack', l: 'CIM review', lane: 'business' },
   { id: 'teaser', l: 'Teaser email', auto: 'Teaser saved on the listing' },
@@ -7052,6 +7052,7 @@ function _mktRow(key, d, o, tickets, people) {
   needs = MKT_ITEMS.filter(i => needs.indexOf(i.id) >= 0 && (!i.lane || i.lane === lane)).map(i => i.id);
   const auto = {
     market: !!(o.market && o.market.published),
+    web: !!(o.market && o.market.published),
     teaser: !!(o.teaser && o.teaser.body),
     abstract: _mktLeaseOnFile(key, d)
   };
@@ -7071,6 +7072,7 @@ function _mktRow(key, d, o, tickets, people) {
     ticket: t ? { id: t.id, num: t.num || '', status: t.status || 'Open', notes: _mktRepNotes(t.details || '') } : null,
     needs, items, done, total: needs.length, complete: needs.length > 0 && done === needs.length, closed,
     published: auto.market, cover, roomId: v.roomId || (d.room && d.room.id) || '',
+    webUrl: (o.market && o.market.published) ? _plWebUrl(key) : '',
     doneAt: o.mktDoneAt || '', drafts: o.mktDrafts || null, chitchat: (o.chitchatDraft && o.chitchatDraft.text) || '', blastId: o.blastCampaignId || '', blastStudioId: o.blastStudioId || ''
   };
 }
@@ -7137,7 +7139,7 @@ app.post('/api/marketing/queue/:key/prepare', express.json(), async (req, res) =
     else if (asset) {
       const mkKey = effMarkets().filter(m => String((deal && deal.market) || view.market || '').toLowerCase().indexOf(String(m).toLowerCase()) >= 0)[0] || 'Other';
       const hl = String(sp.highlights || '').split(/\n+/).map(x => x.trim()).filter(Boolean)[0] || '';
-      cur.market = mktClean({ published: false, conceptType: 'Turnkey space', headline: (hl || ('Turnkey restaurant space' + (sp.sqft ? (' · ' + sp.sqft) : ''))).slice(0, 140), loc: (deal && deal.market) || view.market || '', marketKey: mkKey, priceBand: _assetPriceBand(sp.askingPrice), guide: sp.askingPrice || '' }, cur.market || {});
+      cur.market = mktClean(Object.assign({ published: false }, _mktSpecFill(key, cur.market || {}, view)), cur.market || {}); void hl; void mkKey;
       cur.market.updatedAt = now;
       out.market = { state: 'draft', note: 'Marketplace card filled in, not published — review it and publish; that also puts the web listing live.' };
     } else out.market = { state: 'todo', note: 'Fill the marketplace card on the listing page (going-concern listings stay blind).' };
@@ -8179,9 +8181,11 @@ app.post('/api/website/lead', express.json({ limit: '64kb' }), (req, res) => {
   const message = String(b.message || '').trim().slice(0, 2000);
   if (!name || (!email && !phone)) return res.status(400).json({ ok: false, error: 'Please include your name and an email or phone.' });
   let leads = loadWebsiteLeads();
-  leads.unshift({ id: newInquiryId(), name: name, email: email, phone: phone, interest: interest, message: message, source: 'Website', createdAt: new Date().toISOString(), handled: false });
+  const listingKey = String(b.listingKey || '').slice(0, 120);
+  leads.unshift({ id: newInquiryId(), name: name, email: email, phone: phone, interest: interest, message: message, source: listingKey ? 'Web listing' : 'Website', listingKey: listingKey || undefined, createdAt: new Date().toISOString(), handled: false });
   if (leads.length > 5000) leads = leads.slice(0, 5000);
   saveWebsiteLeads(leads);
+  if (listingKey) _plInquiry(listingKey, { name, email, phone, message });
   res.json({ ok: true });
 });
 // Admin — mark a website lead handled, or remove it
@@ -8523,7 +8527,7 @@ ${o.body}
 <script>
 (function(){ var f=document.getElementById('leadForm'); if(!f) return; function v(id){ var el=document.getElementById(id); return el?String(el.value||'').trim():''; }
   f.addEventListener('submit',function(e){ e.preventDefault(); var msg=document.getElementById('leadMsg'), btn=document.getElementById('leadBtn');
-    var body={ name:v('lf_name'), email:v('lf_email'), phone:v('lf_phone'), interest:f.getAttribute('data-interest')||'Website', message:v('lf_message') };
+    var body={ name:v('lf_name'), email:v('lf_email'), phone:v('lf_phone'), interest:f.getAttribute('data-interest')||'Website', message:v('lf_message'), listingKey:f.getAttribute('data-listing')||'' };
     if(!body.name || (!body.email && !body.phone)){ msg.textContent='Add your name and an email or phone.'; msg.className='lmsg err'; return; }
     var old=btn.textContent; btn.disabled=true; btn.textContent='Sending…'; msg.textContent='';
     fetch('/api/website/lead',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){
@@ -8568,7 +8572,202 @@ function seoCityPage(req, typeKey, cityKey) {
   if (T.kind !== 'sell' && list.length) ld.push({ '@context': 'https://schema.org', '@type': 'ItemList', itemListElement: list.slice(0, 24).map((t, i) => ({ '@type': 'ListItem', position: i + 1, url: base + _seoListingUrl(t), name: t.headline })) });
   return _seoShell(req, { path, title: T.title(C), desc: T.desc(C), body, jsonld: ld });
 }
+// Asset sales: fill any empty marketplace-card field from Listing details (never overwrites what Marketing typed).
+function _mktSpecFill(key, m, view) {
+  const out = Object.assign({}, m || {});
+  try {
+    const { d: deal } = _dealByAnyKey(key); const sp = (deal && deal.assetSpec) || {};
+    const lane = _effLane(key, deal); if (lane !== 'asset' && out.kind !== 'asset') return m || null;
+    const hl = String(sp.highlights || '').split(/\n+/).map(x => x.trim()).filter(Boolean)[0] || '';
+    const mkKey = effMarkets().filter(k => String((deal && deal.market) || (view && view.market) || '').toLowerCase().indexOf(String(k).toLowerCase()) >= 0)[0] || '';
+    const rent = sp.leaseTotal ? (String(sp.leaseTotal) + (/mo/i.test(sp.leaseTotal) ? '' : ' / mo')) : (sp.leasePerSF || '');
+    const nFfe = Array.isArray(deal && deal.assetFfe) ? deal.assetFfe.length : 0;
+    const def = { kind: 'asset', conceptType: 'Turnkey space', headline: (hl || ('Turnkey restaurant space' + (sp.sqft ? (' · ' + sp.sqft + ' SF') : ''))).slice(0, 140),
+      loc: [sp.centerName, (deal && deal.market) || (view && view.market) || ''].filter(Boolean).join(' · ').slice(0, 60), marketKey: mkKey,
+      propType: [sp.spaceType, sp.centerType].filter(Boolean).join(' · ').slice(0, 60), addr: String(sp.address || '').slice(0, 120),
+      sf: sp.sqft ? (String(sp.sqft).replace(/\s*sf$/i, '') + ' SF') : '', price: sp.askingPrice || '', guide: sp.askingPrice || '',
+      priceBand: _assetPriceBand(sp.askingPrice), rate: rent, term: sp.leaseRemaining ? (sp.leaseRemaining + ' remaining') : '',
+      ffe: nFfe ? (nFfe + ' items included') : (sp.ffeSchedule ? 'Included' : '') };
+    Object.keys(def).forEach(k => { if ((out[k] === undefined || out[k] === '' || out[k] == null) && def[k]) out[k] = def[k]; });
+  } catch (e) {}
+  return out;
+}
+// ===== Public web listing — /listing/<slug>--<key> =====
+// OPEN mode (asset sale, lease space, real estate): name, address, map, gallery led by the main photo,
+// highlights, key facts, what conveys, equipment, lease, the space, agent cards, Offering Sheet download
+// and an inquiry form that lands with the listing agent. CONFIDENTIAL mode (going concern) stays blind.
+const PL_KIND = { asset: 'Asset sale', lease: 'For lease', sale: 'For sale', business: 'Business for sale' };
+function _plData(key) {
+  try {
+    const idx = assignmentsIndex(); const d = idx[key]; if (!d) return null;
+    const overlay = loadAssignOverlay(); const o = overlay[key] || {}; const m = o.market; if (!m || !m.published) return null;
+    let view = {}; try { view = assignmentView(d, overlay) || {}; } catch (e) {}
+    const stat = mktStatusOf(view, m); if (mktSoldExpired(stat)) return null;
+    const kind = _teaserKind(m, view);
+    const { d: deal } = _dealByAnyKey(key);
+    const t = mktTeaser(key, view, m);
+    return { key, d, o, m, view, kind, deal: deal || {}, t, open: kind !== 'business' };
+  } catch (e) { return null; }
+}
+function _plWebUrl(key) { const x = _plData(key); return x ? _seoListingUrl(x.t) : ''; }
+function _plAgents(x) {
+  const sp = (x.deal && x.deal.assetSpec) || {};
+  const uname = sp.agentUser || x.o.ownerUser || (x.deal && x.deal.byUser) || '';
+  const out = []; const add = (un) => { const u = un && _vlUser(un); if (u && !out.some(a => a.un === un)) out.push({ un, name: u.name || un, title: u.title || 'Restaurant Transaction Advisor', email: u.email || '', phone: u.phone || '' }); };
+  add(uname); if (sp.coAgentUser && sp.coAgentUser !== uname) add(sp.coAgentUser);
+  return out;
+}
+function _plList(s) { return String(s || '').split(/\n+|\s*;\s*|\s+·\s+/).map(v => v.replace(/^[-•*\s]+/, '').trim()).filter(Boolean); }
+function _plPhotos(x) {
+  const med = (x.o.media && typeof x.o.media === 'object') ? x.o.media : {};
+  let ph = (Array.isArray(med.photos) ? med.photos : []).slice().sort((a, b) => (a.ord || 0) - (b.ord || 0));
+  if (med.coverPhotoId) ph = ph.filter(p => p.id === med.coverPhotoId).concat(ph.filter(p => p.id !== med.coverPhotoId));
+  return ph.slice(0, 40).map(p => ({ url: '/api/market/photo/' + encodeURIComponent(x.key) + '/' + p.id + '.' + p.ext, cap: String(p.caption || '').replace(/^Photo \d+$/, '') }));
+}
+const PL_CSS = `
+.pl-hero{background:#0a1733;color:#fff;padding:34px 0 30px;}
+.pl-hero .eyebrow{color:#c7d2e6;font-size:12px;letter-spacing:.12em;text-transform:uppercase;font-weight:700}
+.pl-hero h1{font-family:'Fraunces',Georgia,serif;font-size:clamp(28px,4.2vw,42px);line-height:1.12;font-weight:600;margin:8px 0 6px;}
+.pl-hero .addr{color:#c7d2e6;font-size:15px}
+.pl-hero .px{display:flex;gap:26px;flex-wrap:wrap;margin-top:16px}
+.pl-hero .px div b{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#8fa0c2;font-weight:700}
+.pl-hero .px div span{font-size:22px;font-weight:700}
+.pl-st{display:inline-block;margin-left:8px;padding:2px 8px;border-radius:3px;background:#fff;color:#0a1733;font-size:11px;letter-spacing:.06em}
+.pl-gal{display:grid;grid-template-columns:2fr 1fr 1fr;grid-template-rows:200px 200px;gap:6px;margin:22px 0 6px;}
+.pl-gal a{display:block;background:#e8edf5 center/cover no-repeat;border-radius:6px;position:relative;cursor:zoom-in}
+.pl-gal a:first-child{grid-row:1/3}
+.pl-gal a.more::after{content:attr(data-more);position:absolute;inset:0;background:rgba(10,23,51,.55);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;border-radius:6px}
+.pl-gal.n1{grid-template-columns:1fr;grid-template-rows:420px}.pl-gal.n1 a:first-child{grid-row:auto}
+.pl-gal.n2{grid-template-columns:2fr 1fr;grid-template-rows:200px 200px}.pl-gal.n2 a:nth-child(2){grid-row:1/3}
+.pl-gal.n3{grid-template-columns:2fr 1fr}
+.pl-body{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:36px;padding:18px 0 56px}
+.pl-sec{border-top:1px solid #e1e6ef;padding:22px 0 4px}
+.pl-sec:first-child{border-top:0;padding-top:4px}
+.pl-sec h2{font-family:'Fraunces',Georgia,serif;font-size:22px;font-weight:600;margin:0 0 12px;color:#0a1733}
+.pl-facts{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:0;border:1px solid #e1e6ef;border-radius:6px;overflow:hidden}
+.pl-facts div{background:#fff;padding:11px 13px;box-shadow:0 0 0 .5px #e1e6ef}.pl-facts b{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#6b7690;font-weight:700;margin-bottom:3px}.pl-facts span{font-size:15px;color:#0a1733;font-weight:600}
+.pl-hl{margin:0;padding:0;list-style:none}.pl-hl li{position:relative;padding:6px 0 6px 22px;font-size:15.5px;line-height:1.5;color:#1b2440}.pl-hl li::before{content:'';position:absolute;left:4px;top:15px;width:7px;height:7px;background:#C8A24B;border-radius:1px}
+.pl-cols{columns:2;column-gap:28px;margin:0;padding:0;list-style:none}.pl-cols li{break-inside:avoid;padding:5px 0 5px 20px;position:relative;font-size:14.5px;color:#1b2440}.pl-cols li::before{content:'✓';position:absolute;left:0;color:#2f7a55;font-weight:700}
+.pl-kv{width:100%;border-collapse:collapse;font-size:14.5px}.pl-kv td{padding:8px 0;border-bottom:1px solid #eef1f6;vertical-align:top}.pl-kv td:first-child{color:#6b7690;width:42%;padding-right:12px}.pl-kv td:last-child{color:#0a1733;font-weight:500}
+.pl-map{width:100%;height:300px;border:0;border-radius:6px;margin-top:6px}
+.pl-vid{width:100%;aspect-ratio:16/9;border:0;border-radius:6px}
+.pl-side{position:sticky;top:18px;align-self:start}
+.pl-card{border:1px solid #dfe5ee;border-radius:8px;padding:18px;background:#fff;margin-bottom:14px}
+.pl-card h3{margin:0 0 12px;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:#6b7690}
+.pl-ag{display:flex;flex-direction:column;gap:1px;padding:10px 0;border-top:1px solid #eef1f6}.pl-ag:first-of-type{border-top:0;padding-top:0}
+.pl-ag b{font-size:16px;color:#0a1733}.pl-ag i{font-style:normal;font-size:12.5px;color:#6b7690;margin-bottom:4px}.pl-ag a{color:#2C5C8F;text-decoration:none;font-size:14px}
+.pl-dl{display:block;text-align:center;background:#0a1733;color:#fff;text-decoration:none;font-weight:700;padding:12px;border-radius:6px;margin-bottom:10px}
+.pl-dl.ghost{background:#fff;color:#0a1733;border:1px solid #c4ccda}
+.pl-card .cform{box-shadow:none;border:0;background:none;padding:0;margin:0;max-width:none}.pl-card .cform input,.pl-card .cform textarea{width:100%;box-sizing:border-box}
+.pl-main{padding:0!important}.pl-back{display:block;color:#c7d2e6;text-decoration:none;font-size:13.5px}
+.pl-lb{position:fixed;inset:0;background:rgba(5,10,25,.92);display:none;align-items:center;justify-content:center;z-index:99}.pl-lb.on{display:flex}
+.pl-lb img{max-width:92vw;max-height:84vh;border-radius:4px}.pl-lb button{position:absolute;background:none;border:0;color:#fff;font-size:34px;cursor:pointer;padding:14px}
+.pl-lb .x{top:8px;right:12px}.pl-lb .p{left:8px}.pl-lb .n{right:8px}.pl-lb .c{position:absolute;bottom:16px;left:0;right:0;text-align:center;color:#c7d2e6;font-size:13px}
+.pl-note{font-size:13px;color:#6b7690;line-height:1.5}
+@media(max-width:900px){.pl-body{grid-template-columns:1fr}.pl-side{position:static}.pl-gal{grid-template-columns:1fr 1fr;grid-template-rows:240px 120px}.pl-gal a:first-child{grid-column:1/3;grid-row:auto}.pl-gal a:nth-child(n+4){display:none}.pl-cols{columns:1}}
+`;
+function _plPage(req, key) {
+  const x = _plData(key); if (!x) return null;
+  const t = x.t, sp = (x.deal && x.deal.assetSpec) || {}, kindL = PL_KIND[x.kind] || 'For sale';
+  const agents = _plAgents(x);
+  const sec = (h, inner) => inner ? ('<div class="pl-sec"><h2>' + esc(h) + '</h2>' + inner + '</div>') : '';
+  const kv = rows => { rows = rows.filter(r => String(r[1] || '').trim()); return rows.length ? '<table class="pl-kv">' + rows.map(r => '<tr><td>' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td></tr>').join('') + '</table>' : ''; };
+  const facts = rows => { rows = rows.filter(r => String(r[1] || '').trim()); return rows.length ? '<div class="pl-facts">' + rows.map(r => '<div><b>' + esc(r[0]) + '</b><span>' + esc(r[1]) + '</span></div>').join('') + '</div>' : ''; };
+  const stat = t.statusLabel ? '<span class="pl-st">' + esc(t.statusLabel) + '</span>' : '';
+  const interest = 'Listing — ' + (x.open ? (x.view.business || t.headline) : t.headline);
+  const form = _seoForm(x.open ? 'Ask about this listing' : 'Request access', interest, x.open ? 'Questions, or a good time to tour (optional)' : 'Tell us a little about yourself and your experience (optional)').replace('<form class="cform" id="leadForm"', '<form class="cform" id="leadForm" data-listing="' + esc(key) + '"');
+  const agentCard = agents.length ? '<div class="pl-card"><h3>' + (agents.length > 1 ? 'Listing agents' : 'Listing agent') + '</h3>' + agents.map(a => '<div class="pl-ag"><b>' + esc(a.name) + '</b><i>' + esc(a.title) + '</i>' + (a.phone ? '<a href="tel:' + esc(String(a.phone).replace(/[^0-9+]/g, '')) + '">' + esc(a.phone) + '</a>' : '') + (a.email ? '<a href="mailto:' + esc(a.email) + '?subject=' + encodeURIComponent(interest) + '">' + esc(a.email) + '</a>' : '') + '</div>').join('') + '</div>' : '';
+  let body, title, desc, img = t.photo || undefined;
+  if (x.open) {
+    const name = x.kind === 'asset' ? (x.view.business || '') : '';
+    const h1 = t.headline || name || 'Restaurant space';
+    const addr = sp.address || t.addr || x.view.locAddress || '';
+    const loc = [sp.centerName, t.loc].filter(Boolean).join(' · ');
+    const price = sp.askingPrice || t.price || '';
+    const rent = sp.leaseTotal ? (sp.leaseTotal + (/mo/i.test(sp.leaseTotal) ? '' : ' / mo')) : (t.rate || '');
+    const ph = _plPhotos(x);
+    const gl = ph.slice(0, 5), nCls = gl.length < 4 ? (' n' + gl.length) : '';
+    const gallery = gl.length ? '<div class="pl-gal' + nCls + '">' + gl.map((p, i) => '<a href="' + esc(p.url) + '" data-i="' + i + '" style="background-image:url(\'' + esc(p.url) + '\')"' + ((i === gl.length - 1 && ph.length > gl.length) ? (' class="more" data-more="+' + (ph.length - gl.length) + ' photos"') : '') + ' aria-label="Photo ' + (i + 1) + '"></a>').join('') + '</div>' : '';
+    const seats = (sp.seatsIn || sp.seatsOut) ? [sp.seatsIn ? (sp.seatsIn + ' inside') : '', sp.seatsOut ? (sp.seatsOut + ' patio') : ''].filter(Boolean).join(' · ') : (sp.seating || '');
+    const remodel = sp.remodelYear ? ('Remodeled ' + sp.remodelYear + (sp.remodelCost ? (' · approx. ' + sp.remodelCost) : '')) : '';
+    const hl = _plList(sp.highlights);
+    const conv = _plList(sp.conveys || (x.deal ? _conveyLine(x.deal.assetConvey || []) : ''));
+    const ffe = _plList(sp.ffeSchedule);
+    const vid = (x.o.media && x.o.media.videoUrl) ? videoEmbedUrl(x.o.media.videoUrl) : '';
+    const mapQ = addr || (name && t.loc ? (name + ', ' + t.loc) : '');
+    body = '<section class="pl-hero"><div class="wrap"><a class="pl-back" href="/market">← All listings</a>'
+      + '<div class="eyebrow" style="margin-top:14px">' + esc(kindL) + stat + '</div><h1>' + esc(h1) + '</h1>'
+      + '<div class="addr">' + esc([name && name !== h1 ? name : '', addr || loc].filter(Boolean).join(' — ')) + '</div>'
+      + '<div class="px">' + [['Asking price', price], ['Monthly rent', rent], ['Square feet', sp.sqft || t.sf], ['Seats', seats]].filter(f => String(f[1] || '').trim()).map(f => '<div><b>' + esc(f[0]) + '</b><span>' + esc(f[1]) + '</span></div>').join('') + '</div></div></section>'
+      + '<section class="pl-main"><div class="wrap">' + gallery + '<div class="pl-body"><div>'
+      + sec('Why this space', hl.length ? '<ul class="pl-hl">' + hl.map(h => '<li>' + esc(h) + '</li>').join('') + '</ul>' : '')
+      + sec('At a glance', facts([['Asking price', price], ['Space type', sp.spaceType || t.propType], ['Square feet', sp.sqft || t.sf], ['Seating', seats], ['Patio', sp.patio], ['Parking', sp.parking ? (sp.parking + ' spaces') : ''], ['Delivery condition', sp.deliveryCondition], ['Status', sp.operatingNow], ['Available', sp.availableDate], ['Buildout', remodel || sp.buildoutAge], ['Zoning', sp.zoning]]))
+      + sec('What conveys', conv.length ? '<ul class="pl-cols">' + conv.map(c => '<li>' + esc(c) + '</li>').join('') + '</ul>' + (sp.exclusions ? '<p class="pl-note" style="margin-top:10px"><b>Excluded:</b> ' + esc(sp.exclusions) + '</p>' : '') : '')
+      + sec('Equipment', ffe.length ? '<ul class="pl-cols">' + ffe.slice(0, 60).map(c => '<li>' + esc(c) + '</li>').join('') + '</ul>' + (ffe.length > 60 ? '<p class="pl-note">Full schedule in the Offering Sheet.</p>' : '') : '')
+      + sec('Lease', kv([['Monthly rent (all-in)', rent], ['Rent / SF', sp.leasePerSF], ['Remaining term', sp.leaseRemaining], ['Expires', sp.leaseExpiration], ['Renewal options', sp.leaseOptions], ['Assignment', sp.leaseAssignment], ['NNN / CAM', sp.leaseNNN], ['Deposit', sp.leaseDeposit], ['Permitted use', sp.leaseUse]]))
+      + sec('The space', kv([['Address', addr], ['Center / building', sp.centerName], ['Center type', sp.centerType], ['Anchors & co-tenants', sp.coTenants], ['Historic / overlay', sp.overlay], ['Hood & venting', sp.hood], ['Walk-ins', sp.walkin], ['Restrooms', sp.restrooms], ['HVAC', sp.hvac], ['Electrical', sp.electrical], ['Gas', sp.gas], ['Water / sewer / grease', sp.waterSewer]]))
+      + (vid ? sec('Video', '<iframe class="pl-vid" src="' + esc(vid) + '" allowfullscreen loading="lazy"></iframe>') : '')
+      + (mapQ ? sec('Location', '<iframe class="pl-map" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=' + encodeURIComponent(mapQ) + '&output=embed"></iframe>') : '')
+      + '</div><aside class="pl-side">'
+      + '<a class="pl-dl" href="' + esc(_seoListingUrl(t)) + '/offering-sheet" target="_blank" rel="noopener">Download the Offering Sheet</a>'
+      + agentCard
+      + '<div class="pl-card" id="contact"><h3>Ask about this listing</h3>' + form + '</div>'
+      + '</aside></div></div></section>'
+      + '<div class="pl-lb" id="plLb"><button class="x" aria-label="Close">×</button><button class="p" aria-label="Previous">‹</button><img alt=""><button class="n" aria-label="Next">›</button><div class="c"></div></div>'
+      + '<script>(function(){var P=' + JSON.stringify(ph).replace(/</g, '\\u003c') + ',i=0,lb=document.getElementById("plLb");if(!lb||!P.length)return;var im=lb.querySelector("img"),c=lb.querySelector(".c");function sh(n){i=(n+P.length)%P.length;im.src=P[i].url;c.textContent=(i+1)+" / "+P.length+(P[i].cap?(" · "+P[i].cap):"");lb.classList.add("on");}'
+      + 'document.querySelectorAll(".pl-gal a").forEach(function(a){a.addEventListener("click",function(e){e.preventDefault();sh(+a.getAttribute("data-i"));});});lb.querySelector(".x").onclick=function(){lb.classList.remove("on");};lb.querySelector(".p").onclick=function(){sh(i-1);};lb.querySelector(".n").onclick=function(){sh(i+1);};lb.addEventListener("click",function(e){if(e.target===lb)lb.classList.remove("on");});document.addEventListener("keydown",function(e){if(!lb.classList.contains("on"))return;if(e.key==="Escape")lb.classList.remove("on");if(e.key==="ArrowLeft")sh(i-1);if(e.key==="ArrowRight")sh(i+1);});})();</script>';
+    title = h1 + (t.loc ? (' — ' + t.loc) : '');
+    desc = [kindL, h1, addr || t.loc, price ? ('Asking ' + price) : '', hl[0] || ''].filter(Boolean).join('. ').slice(0, 300);
+  } else {
+    // CONFIDENTIAL — never the name, address or photos.
+    const mh = Array.isArray(x.m.highlights) ? x.m.highlights : _plList(x.m.highlights || '');
+    body = '<section class="pl-hero"><div class="wrap"><a class="pl-back" href="/market">← All listings</a>'
+      + '<div class="eyebrow" style="margin-top:14px">' + esc(kindL) + stat + (t.loc ? (' · ' + esc(t.loc)) : '') + '</div><h1>' + esc(t.headline) + '</h1>'
+      + '<div class="addr">Confidential listing · ' + esc(t.badge || 'Restaurant') + '</div>'
+      + '<div class="px">' + [['Price', t.guide || (MKT_PRICE[t.priceBand] || '')], ['Revenue', t.revenue], [t.earnBasis || 'SDE', t.sde], ['Cash to close', MKT_CASH[t.cashBand] || '']].filter(f => String(f[1] || '').trim()).map(f => '<div><b>' + esc(f[0]) + '</b><span>' + esc(f[1]) + '</span></div>').join('') + '</div></div></section>'
+      + '<section class="pl-main"><div class="wrap"><div class="pl-body"><div>'
+      + sec('Highlights', mh.length ? '<ul class="pl-hl">' + mh.map(h => '<li>' + esc(h) + '</li>').join('') + '</ul>' : '')
+      + sec('At a glance', facts([['Location', t.loc], ['Concept', t.conceptKey && t.conceptKey !== 'Other' ? t.conceptKey : ''], ['Revenue', t.revenue], [t.earnBasis || 'SDE', t.sde], ['Square feet', t.sf], ['Rent', t.rate], ['Lease term', t.term], ['FF&E', t.ffe], ['Real estate', x.m.reAvailable ? 'Available' : '']]))
+      + sec('How it works', '<p class="pl-note" style="font-size:15px;color:#1b2440">To protect the business, its staff and customers, the name, location and financials are shared only with qualified buyers. Request access, sign a short non-disclosure agreement, and you get the full offering memorandum and data room.</p>')
+      + '</div><aside class="pl-side">' + agentCard + '<div class="pl-card" id="contact"><h3>Request access</h3>' + form + '</div></aside></div></div></section>';
+    title = t.headline + (t.loc ? (' — ' + t.loc) : '');
+    desc = (t.headline || 'Restaurant opportunity') + (t.loc ? (' in ' + t.loc) : '') + '. Confidential listing: request access to see the name, location and financials under NDA.';
+    img = undefined;
+  }
+  const ld = { '@context': 'https://schema.org', '@type': 'Offer', name: title, description: desc, url: siteBaseUrl(req) + _seoListingUrl(t), areaServed: t.loc || undefined, image: img ? (siteBaseUrl(req) + img) : undefined, seller: { '@type': 'RealEstateAgent', name: orgDisplayName() } };
+  return _seoShell(req, { path: _seoListingUrl(t), title, desc, body: '<style>' + PL_CSS + '</style>' + body, jsonld: ld, image: img });
+}
+// Public Offering Sheet PDF for OPEN listings (cached until the listing changes).
+const _plSheetCache = {};
+app.get('/listing/:slug/offering-sheet', async (req, res) => {
+  const m = String(req.params.slug || '').match(/--(.+)$/); const key = m ? decodeURIComponent(m[1]) : '';
+  const x = key ? _plData(key) : null;
+  if (!x || !x.open || !x.deal || !x.deal.assetSpec) return res.status(404).set('Content-Type', 'text/html; charset=utf-8').send('<!doctype html><meta charset="utf-8"><p style="font-family:Arial;padding:40px">The Offering Sheet is not available for this listing. <a href="/market">See current listings</a>.</p>');
+  const html = assetSheetHtml(x.view.business || x.deal.business || '', x.deal.market || x.view.market || '', x.deal.assetSpec || {}, x.deal.assetFfe || [], x.deal.assetConvey || null, _assetSheetOpts(x.deal, key, null));
+  const fname = _seoSlug((x.view.business || x.t.headline) + ' offering sheet') + '.pdf';
+  const stamp = String(x.deal.updatedAt || '') + '|' + String(x.o.updatedAt || '');
+  try {
+    let c = _plSheetCache[key];
+    if (!c || c.stamp !== stamp) { const pdf = await _htmlToPdf(html); if (!pdf || !pdf.length) throw new Error('empty'); c = _plSheetCache[key] = { stamp, pdf }; }
+    res.set('Content-Type', 'application/pdf'); res.set('Content-Disposition', 'inline; filename="' + fname + '"'); res.send(c.pdf);
+  } catch (e) { res.set('Content-Type', 'text/html; charset=utf-8').send(html); }
+});
+// A listing inquiry from the public page → task for the listing agent + milestone on the seller.
+function _plInquiry(key, lead) {
+  try {
+    const x = _plData(key); if (!x) return;
+    const ag = _plAgents(x)[0]; const biz = x.view.business || x.t.headline;
+    if (ag) {
+      const tasks = loadTasks();
+      tasks.push({ id: newTaskId(), createdBy: ag.un, createdByName: 'Website', assignee: ag.un, assigneeName: ag.name, createdAt: new Date().toISOString(), status: 'open', doneAt: '', title: 'Web inquiry — ' + biz + ': ' + lead.name, notes: [lead.name, lead.email, lead.phone].filter(Boolean).join(' · ') + (lead.message ? ('\n\n' + lead.message) : ''), due: '', priority: 'High', type: '', linkType: 'deal', linkId: key, linkLabel: biz, remChannels: ['popup'] });
+      saveTasks(tasks);
+    }
+    _listingMilestone(key, 'Web inquiry from ' + lead.name, null);
+  } catch (e) { console.error('listing inquiry:', e && e.message); }
+}
+
 function seoListingPage(req, key) {
+  try { const _pl = _plPage(req, key); if (_pl) return _pl; } catch (e) { console.error('public listing:', e && e.message); }
   const t = _seoAllTeasers().find(x => String(x.id) === String(key)); if (!t) return null;
   const facts = [['Location', t.loc], ['Concept', t.conceptKey && t.conceptKey !== 'Other' ? t.conceptKey : ''], ['Price', t.price || t.priceBand], ['Revenue', t.revenue], [t.earnBasis || 'SDE', t.sde], ['Square feet', t.sf], ['Rent', t.rate], ['Lease term', t.term], ['FF&E', t.ffe]].filter(f => String(f[1] || '').trim());
   const city = Object.keys(SEO_CITIES).find(k => SEO_CITIES[k].metros.indexOf(t.marketKey) >= 0 || SEO_CITIES[k].locRx.test(String(t.loc || '')));
@@ -8577,7 +8776,7 @@ function seoListingPage(req, key) {
   const body = '<section class="chero"><div class="wrap">' + back + '<div class="eyebrow" style="margin-top:14px">' + esc(t.kind === 'lease' ? 'For lease' : (t.kind === 'asset' ? 'Asset sale' : 'For sale')) + (t.loc ? (' &middot; ' + esc(t.loc)) : '') + '</div><h1>' + esc(t.headline) + '</h1>' + (t.flagLabel ? ('<span class="lflag" style="background:' + esc(t.flagColor || '#C8A24B') + '">' + esc(t.flagLabel) + '</span>') : '') + '</div></section>'
     + '<section class="csec"><div class="wrap ldet"><div>' + (t.photo ? ('<div class="lph" style="height:320px;border-radius:12px;background-image:url(\'' + esc(t.photo) + '\')"></div>') : '')
     + '<div class="lfacts">' + facts.map(f => '<div class="lfact"><b>' + esc(f[0]) + '</b><span>' + esc(f[1]) + '</span></div>').join('') + '</div>'
-    + '<p>This is a confidential listing. To protect the business, its staff and customers, the name and exact location are shared only with qualified buyers who sign a non-disclosure agreement.</p></div>'
+    + (t.kind === 'business' ? '<p>This is a confidential listing. To protect the business, its staff and customers, the name and exact location are shared only with qualified buyers who sign a non-disclosure agreement.</p>' : (t.addr ? ('<p><b>' + esc(t.addr) + '</b></p>') : '')) + '</div>'
     + '<div id="contact">' + _seoForm('Request access', 'Listing access — ' + (t.headline || '') + ' [' + t.id + ']', 'Tell us a little about yourself and your experience (optional)') + '</div></div></section>';
   const ld = { '@context': 'https://schema.org', '@type': 'Offer', name: t.headline, description: desc, url: siteBaseUrl(req) + _seoListingUrl(t), areaServed: t.loc || undefined, seller: { '@type': 'RealEstateAgent', name: orgDisplayName() } };
   return _seoShell(req, { path: _seoListingUrl(t), title: t.headline + (t.loc ? (' — ' + t.loc) : ''), desc, body, jsonld: ld, image: t.photo || undefined });
@@ -20637,7 +20836,7 @@ app.get('/api/asset-spec', (req, res) => {
     if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
     if (!ownsDeal(req, d) && !(req.user && userDepartmentIds(req.user.username).indexOf('marketing') >= 0)) return res.status(403).json({ ok: false, error: 'Not yours.' });
     const spec = d.assetSpec || {};
-    res.json({ ok: true, key: req.query.key, business: d.business || '', market: d.market || '', saleLane: _effLane(req.query.key, d), spec: spec, ffe: d.assetFfe || [], ffeCats: aiassist.FFE_CATS || [], convey: d.assetConvey || null, conveyKit: CONVEY_KIT, spaceTypes: SPACE_TYPES, centerTypes: CENTER_TYPES, locAddress: _vlAddress({ key: String(req.query.key || '') }), valueRefs: _assetValueRefs(String(req.query.key || ''), d), leaseAbs: _assetLeaseAbs(req, String(req.query.key || ''), d), media: (function () { try { return _dealMediaOut(String(req.query.key || '')); } catch (e) { return null; } })(), walkVideo: (function () { try { const ov = loadAssignOverlay()[String(req.query.key || '')] || {}; return _walkVideoOut(String(req.query.key || ''), ov.media && ov.media.walkVideo); } catch (e) { return null; } })(), agents: (function () { try { return (auth.loadUsers() || []).filter(u => !u.disabled).map(u => ({ v: u.username, l: (u.name || u.username) + (u.title ? (' — ' + u.title) : '') })).sort((a, b) => a.l.localeCompare(b.l)); } catch (e) { return []; } })(), agentDefault: (function () { try { const ov = loadAssignOverlay()[String(req.query.key || '')] || {}; if (ov.ownerUser) return ov.ownerUser; const nm = String(ov.owner || '').toLowerCase(); const u = nm ? (auth.loadUsers() || []).find(x => String(x.name || '').toLowerCase() === nm) : null; return (u && u.username) || d.byUser || ''; } catch (e) { return ''; } })(), seller: (function () { try { const pid = d.contactPersonId || d.clientPersonId || ''; const p = pid ? loadPeople().find(x => x.id === pid) : null; return p ? { id: p.id, name: p.name || [p.firstName, p.lastName].filter(Boolean).join(' ') } : null; } catch (e) { return null; } })(), core: ASSET_SPEC_CORE, missing: ASSET_SPEC_CORE.filter(k => !spec[k]) });
+    res.json({ ok: true, webUrl: _plWebUrl(String(req.query.key || '')), key: req.query.key, business: d.business || '', market: d.market || '', saleLane: _effLane(req.query.key, d), spec: spec, ffe: d.assetFfe || [], ffeCats: aiassist.FFE_CATS || [], convey: d.assetConvey || null, conveyKit: CONVEY_KIT, spaceTypes: SPACE_TYPES, centerTypes: CENTER_TYPES, locAddress: _vlAddress({ key: String(req.query.key || '') }), valueRefs: _assetValueRefs(String(req.query.key || ''), d), leaseAbs: _assetLeaseAbs(req, String(req.query.key || ''), d), media: (function () { try { return _dealMediaOut(String(req.query.key || '')); } catch (e) { return null; } })(), walkVideo: (function () { try { const ov = loadAssignOverlay()[String(req.query.key || '')] || {}; return _walkVideoOut(String(req.query.key || ''), ov.media && ov.media.walkVideo); } catch (e) { return null; } })(), agents: (function () { try { return (auth.loadUsers() || []).filter(u => !u.disabled).map(u => ({ v: u.username, l: (u.name || u.username) + (u.title ? (' — ' + u.title) : '') })).sort((a, b) => a.l.localeCompare(b.l)); } catch (e) { return []; } })(), agentDefault: (function () { try { const ov = loadAssignOverlay()[String(req.query.key || '')] || {}; if (ov.ownerUser) return ov.ownerUser; const nm = String(ov.owner || '').toLowerCase(); const u = nm ? (auth.loadUsers() || []).find(x => String(x.name || '').toLowerCase() === nm) : null; return (u && u.username) || d.byUser || ''; } catch (e) { return ''; } })(), seller: (function () { try { const pid = d.contactPersonId || d.clientPersonId || ''; const p = pid ? loadPeople().find(x => x.id === pid) : null; return p ? { id: p.id, name: p.name || [p.firstName, p.lastName].filter(Boolean).join(' ') } : null; } catch (e) { return null; } })(), core: ASSET_SPEC_CORE, missing: ASSET_SPEC_CORE.filter(k => !spec[k]) });
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 app.post('/api/asset-spec', express.json({ limit: '256kb' }), (req, res) => {
