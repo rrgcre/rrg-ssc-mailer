@@ -21538,6 +21538,8 @@ app.get('/api/counts', (req, res) => {
   try { const me = req.user && req.user.username; if (me) { const seen = ((loadSettings().bookingSeen || {})[String(me).toLowerCase()]) || ''; loadAppts().forEach(a => { if (a && a.source === 'booking' && a.byUser === me && a.status !== 'cancelled' && a.status !== 'deleted' && String(a.createdAt || '') > seen) newBookings++; }); } } catch (e) {}
   const newbookings = { 'rrg_calendar.html': newBookings };
   const review = { 'rrg_inbox.html': pendingProposalCount(req.user && req.user.username) };
+  // Listing Queue: open Marketing requests (Marketing & admins only).
+  try { if (_canMarketReq(req)) { const _ov = loadAssignOverlay(), _ix = assignmentsIndex(), _tk = {}; loadTickets().forEach(t => { _tk[t.id] = t; }); review['rrg_marketing_queue.html'] = Object.keys(_ov).filter(k => { const o = _ov[k]; if (!o || !o.mktTicketId || !_ix[k]) return false; const t = _tk[o.mktTicketId]; return !(t && t.status === 'Closed'); }).length; } } catch (e) {}
   let tasksOpen = 0;
   loadTasks().forEach(t => { if (_mineTask(t)) tasksOpen++; });
   const opentasks = { 'rrg_tasks.html': tasksOpen };

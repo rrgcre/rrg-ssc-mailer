@@ -151,7 +151,7 @@ tr:hover td{background:#fbfcfe;}
 <script src="/rrg_filters.js"></script>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
-function typeColor(t){ var m={'Seller':['#e8f0fd','#2c5c8f'],'Buyer':['#f1f3f7','#4b5568'],'Restaurant Group':['#f3edfb','#7a4fd0'],'Landlord':['#f1f3f7','#4b5568'],'Investor':['#f3edfb','#7a4fd0'],'Other':['#eef1f6','#6b7488']}; if(m[t]) return m[t]; var pal=[['#e8f0fd','#2c5c8f'],['#f1f3f7','#4b5568'],['#f3edfb','#7a4fd0'],['#f1f3f7','#4b5568'],['#fdeef4','#b83280'],['#f1f3f7','#4b5568']]; var h=0; for(var i=0;i<t.length;i++) h=(h*31+t.charCodeAt(i))>>>0; return pal[h%pal.length]; }
+function typeColor(t){ return ['#eef1f5','#20334f']; }  /* NetSuite restraint: interests are labels, not colors */
 function aiShow(msg,onCancel){ if(window.rrgAiWork) rrgAiWork.show(msg,onCancel); }
 function aiSetMsg(msg){ if(window.rrgAiWork) rrgAiWork.setMsg(msg); }
 function aiHide(){ if(window.rrgAiWork) rrgAiWork.hide(); }
