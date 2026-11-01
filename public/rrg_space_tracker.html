@@ -196,10 +196,10 @@ function esc(s){var d=document.createElement('div');d.textContent=s==null?'':Str
 function money(n){ return (n==null||n==='')?'':('$'+Number(n).toFixed(2)); }
 function sf(n){ return (n==null||n==='')?'':(Number(n).toLocaleString()+' SF'); }
 function fmtDate(d){ if(!d) return ''; try{ return new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }catch(e){ return String(d).slice(0,10); } }
-function stColor(s){ return ({'Available':['#e7f5ee','#1f8a5b'],'Toured':['#e8f0fd','#2f6fd0'],'LOI Out':['#fdf1df','#b5791f'],'Leased':['#eceff5','#3a4c74'],'Passed':['#f3f4f7','#98a1b5'],'Off-market':['#f3edfb','#6a43b8']})[s]||['#eceff5','#3a4c74']; }
+function stColor(s){ return ({'Available':['#f1f3f7','#4b5568'],'Toured':['#e8f0fd','#2f6fd0'],'LOI Out':['#f1f3f7','#4b5568'],'Leased':['#eceff5','#3a4c74'],'Passed':['#f3f4f7','#98a1b5'],'Off-market':['#f3edfb','#6a43b8']})[s]||['#eceff5','#3a4c74']; }
 var INS={};
 function loadInsights(){ fetch('/api/spaces/insights',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ INS=(j&&j.insights)||{}; draw(); }).catch(function(){}); }
-function readyPill(sp){ var x=INS[sp.id]; if(!x||x.readyGrade==='Unknown') return '<span class="meta">—</span>'; var c=x.ready>=70?['#e7f5ee','#1f6b45']:(x.ready>=40?['#fff4e6','#9a6a12']:['#f3f4f7','#6b7488']); return '<span title="'+esc(x.readyGrade)+(x.savesHi?(' · avoids ~$'+Math.round(x.savesLo/1000)+'–'+Math.round(x.savesHi/1000)+'K build-out'):'')+'" style="background:'+c[0]+';color:'+c[1]+';font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px">'+x.ready+'</span>'; }
+function readyPill(sp){ var x=INS[sp.id]; if(!x||x.readyGrade==='Unknown') return '<span class="meta">—</span>'; var c=x.ready>=70?['#f1f3f7','#4b5568']:(x.ready>=40?['#f1f3f7','#4b5568']:['#f3f4f7','#6b7488']); return '<span title="'+esc(x.readyGrade)+(x.savesHi?(' · avoids ~$'+Math.round(x.savesLo/1000)+'–'+Math.round(x.savesHi/1000)+'K build-out'):'')+'" style="background:'+c[0]+';color:'+c[1]+';font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px">'+x.ready+'</span>'; }
 function fitsCell(sp){ var x=INS[sp.id]; if(!x||!x.fits) return '<span class="meta">—</span>'; return '<a href="./rrg_space.html?id='+encodeURIComponent(sp.id)+'" title="'+esc((x.fitWho||[]).join(', '))+'" style="background:#eef4fb;color:#23496f;font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;text-decoration:none">'+x.fits+' tenant'+(x.fits===1?'':'s')+'</a>'; }
 function flagHtml(sp){ var x=INS[sp.id]; var f=(x&&x.flags)||{}; var h=''; if(f.priceDrop) h+='<span title="Price drop" style="color:#1f8a5b;font-weight:800;font-size:11px;margin-left:6px">↓$'+(f.priceDrop.from-f.priceDrop.to).toFixed(2)+'</span>'; if(f.stale) h+='<span title="No update in '+f.stale+' days" style="color:#b5791f;font-weight:800;font-size:11px;margin-left:6px">stale</span>'; if(f.dom!=null&&f.dom>=120) h+='<span title="Days on market" style="color:#8a93a8;font-size:11px;margin-left:6px">'+f.dom+'d</span>'; return h; }
 // ---- Merge duplicate spaces (admins): pick the one to keep; the rest fold into it. ----
@@ -238,7 +238,7 @@ function renderTiles(){
   var counts={}; SPACES.forEach(function(sp){ counts[sp.status]=(counts[sp.status]||0)+1; });
   var defs=[['','All spaces',SPACES.length]].concat(STATUS.map(function(s){ return [s,s,counts[s]||0]; }));
   document.getElementById('tiles').innerHTML=defs.map(function(d){
-    var cc = d[0] ? stColor(d[0]) : ['#eef2fb','#2c5c8f'];
+    var cc = d[0] ? stColor(d[0]) : ['#f1f3f7','#4b5568'];
     return '<div class="tile'+(FILTER===d[0]?' on':'')+'" data-f="'+esc(d[0])+'" style="--tc:'+cc[1]+';--tcbg:'+cc[0]+'"><div class="n">'+d[2]+'</div><div class="l">'+esc(d[1])+'</div></div>';
   }).join('');
   document.querySelectorAll('.tile').forEach(function(t){ t.addEventListener('click',function(){ FILTER=t.getAttribute('data-f'); renderTiles(); draw(); }); });

@@ -41,7 +41,7 @@ tr:hover .primchk{opacity:.7;}
 .fsel{border:1px solid var(--line);border-radius:9px;padding:8px 30px 8px 12px;font:inherit;font-size:13px;font-weight:600;color:var(--ink);background:#fff;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' stroke='%236b7488' stroke-width='1.6' fill='none' stroke-linecap='round'/></svg>");background-repeat:no-repeat;background-position:right 10px center;}
 .typetxt{font-weight:600;color:var(--ink);}
 .tags2{display:flex;gap:5px;flex-wrap:wrap;margin-top:4px;}
-.tags2 .tg{font-size:10px;font-weight:700;color:#3a4c74;background:#eef2fb;border:1px solid #dbe4f5;border-radius:6px;padding:2px 7px;}
+.tags2 .tg{font-size:10px;font-weight:700;color:#3a4c74;background:#f1f3f7;border:1px solid #dbe4f5;border-radius:6px;padding:2px 7px;}
 .card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 6px 24px rgba(10,20,50,.06);}
 .hd{display:flex;align-items:center;padding:15px 20px;border-bottom:1px solid var(--line);gap:12px;}
 .hd b{color:var(--navy);font-size:14px;} .hd .cnt{color:var(--muted);font-size:12.5px;}
@@ -205,7 +205,7 @@ function interestPills(hostId, selected, onChange){
   paint();
   return { get:function(){ return opts.filter(function(t){return sel[t];}); }, set:function(a){ sel={}; (a||[]).forEach(function(t){ sel[t]=1; }); paint(); } };
 }
-function typeColor(t){ var m={'Buyer':['#e7f5ee','#1f8a5b'],'Seller':['#e8f0fd','#2c5c8f'],'Tenant':['#e6f5f3','#0f766e'],'Investor':['#f3edfb','#7a4fd0'],'Broker':['#fdf1df','#b5791f'],'Referral Source':['#fdeef4','#b83280'],'Internal Personnel':['#eaeef5','#3a4a66'],'Other':['#eef1f6','#6b7488']}; if(m[t]) return m[t]; var pal=[['#e7f5ee','#1f8a5b'],['#e8f0fd','#2c5c8f'],['#f3edfb','#7a4fd0'],['#fdf1df','#b5791f'],['#fdeef4','#b83280'],['#e6f5f3','#0f766e']]; var h=0; for(var i=0;i<t.length;i++) h=(h*31+t.charCodeAt(i))>>>0; return pal[h%pal.length]; }
+function typeColor(t){ var m={'Buyer':['#f1f3f7','#4b5568'],'Seller':['#e8f0fd','#2c5c8f'],'Tenant':['#f1f3f7','#4b5568'],'Investor':['#f3edfb','#7a4fd0'],'Broker':['#f1f3f7','#4b5568'],'Referral Source':['#fdeef4','#b83280'],'Internal Personnel':['#eaeef5','#3a4a66'],'Other':['#eef1f6','#6b7488']}; if(m[t]) return m[t]; var pal=[['#f1f3f7','#4b5568'],['#e8f0fd','#2c5c8f'],['#f3edfb','#7a4fd0'],['#f1f3f7','#4b5568'],['#fdeef4','#b83280'],['#f1f3f7','#4b5568']]; var h=0; for(var i=0;i<t.length;i++) h=(h*31+t.charCodeAt(i))>>>0; return pal[h%pal.length]; }
 function initials(n){ n=String(n||'').trim(); if(!n) return '?'; var p=n.split(/\s+/); return (((p[0]||'')[0]||'')+((p[1]||'')[0]||'')).toUpperCase(); }
 function tclass(t){ return 't-'+String(t||'other').toLowerCase().replace(/[^a-z]+/g,''); }
 var ALL=[], CTL=null, FILTER='', TYPES=[], IS_ADMIN=false, CAN_DELETE=false, VIPONLY=false, PIPELINES=[];

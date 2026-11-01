@@ -20270,6 +20270,26 @@ function _assetValueRefs(key, d) {
   return out;
 }
 // AI draft of the offering-sheet highlights from what's on the listing details (rep reviews before it's used).
+// BizBuySell ad entries from the listing details (Marketing copies them into BizBuySell).
+app.post('/api/asset-spec/bbs-ad', express.json(), async (req, res) => {
+  try {
+    const b = req.body || {};
+    const { d } = _dealByAnyKey(b.key);
+    if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
+    if (!ownsDeal(req, d) && !(req.user && (isSuper(req.user) || userDepartmentIds(req.user.username).indexOf('marketing') >= 0))) return res.status(403).json({ ok: false, error: 'Not yours.' });
+    if (!aiAllowed(req)) return res.status(403).json({ ok: false, error: 'AI is not enabled for your role.' });
+    const sp = d.assetSpec || {}, conv = d.assetConvey || [], ffe = d.assetFfe || [];
+    const L = []; const add = (k, v) => { v = String(v || '').trim(); if (v) L.push(k + ': ' + v); };
+    add('Market', d.market); add('Address (do not publish)', sp.address); add('Space type', sp.spaceType); add('Center', [sp.centerName, sp.centerType].filter(Boolean).join(' · ')); add('Anchors & co-tenants', sp.coTenants); add('Zoning', sp.zoning); add('Historic / overlay district', sp.overlay);
+    add('Square footage', sp.sqft); add('Seating', sp.seating); add('Parking spaces', sp.parking); add('Delivery condition', sp.deliveryCondition); add('Operating status', sp.operatingNow); add('Reason for availability', sp.reason); add('Available', sp.availableDate);
+    add('Asking price', sp.askingPrice); add('Total monthly rent', sp.leaseTotal); add('Base rent', sp.leaseRent); add('Remaining lease term', sp.leaseRemaining); add('Lease expiration', sp.leaseExpiration); add('Renewal options', sp.leaseOptions); add('Permitted use', sp.leaseUse);
+    add('Built in (conveys with the lease)', _conveyLine(conv)); add('Last buildout / remodel', [sp.remodelYear, sp.remodelCost ? ('approx. ' + sp.remodelCost) : ''].filter(Boolean).join(' · '));
+    add('Equipment conveying', ffe.filter(r => !r.excluded && r.own !== 'Leased').slice(0, 20).map(_ffeLine).join('; ')); add('HVAC', sp.hvac); add('Highlights', String(sp.highlights || '').replace(/\n+/g, '; '));
+    if (L.length < 5) return res.status(400).json({ ok: false, error: 'Complete the listing details first — the ad is written from them.' });
+    const ad = await aiassist.bizBuySellAd({ facts: L.join('\n') });
+    res.json({ ok: true, ad: ad });
+  } catch (e) { console.error('bbs ad:', e && e.message); res.status(502).json({ ok: false, error: String((e && e.message) || 'Could not write the ad.') }); }
+});
 app.post('/api/asset-spec/highlights', express.json({ limit: '256kb' }), async (req, res) => {
   try {
     const b = req.body || {};
@@ -20297,7 +20317,7 @@ app.get('/api/asset-spec', (req, res) => {
   try {
     const { d } = _dealByAnyKey(req.query && req.query.key);
     if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
-    if (!ownsDeal(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+    if (!ownsDeal(req, d) && !(req.user && userDepartmentIds(req.user.username).indexOf('marketing') >= 0)) return res.status(403).json({ ok: false, error: 'Not yours.' });
     const spec = d.assetSpec || {};
     res.json({ ok: true, key: req.query.key, business: d.business || '', market: d.market || '', saleLane: _effLane(req.query.key, d), spec: spec, ffe: d.assetFfe || [], ffeCats: aiassist.FFE_CATS || [], convey: d.assetConvey || null, conveyKit: CONVEY_KIT, spaceTypes: SPACE_TYPES, centerTypes: CENTER_TYPES, locAddress: _vlAddress({ key: String(req.query.key || '') }), valueRefs: _assetValueRefs(String(req.query.key || ''), d), leaseAbs: _assetLeaseAbs(req, String(req.query.key || ''), d), media: (function () { try { return _dealMediaOut(String(req.query.key || '')); } catch (e) { return null; } })(), seller: (function () { try { const pid = d.contactPersonId || d.clientPersonId || ''; const p = pid ? loadPeople().find(x => x.id === pid) : null; return p ? { id: p.id, name: p.name || [p.firstName, p.lastName].filter(Boolean).join(' ') } : null; } catch (e) { return null; } })(), core: ASSET_SPEC_CORE, missing: ASSET_SPEC_CORE.filter(k => !spec[k]) });
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }

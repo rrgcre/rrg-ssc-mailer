@@ -59,7 +59,7 @@ function num(v){ if(v==null) return NaN; var n=parseFloat(String(v).replace(/[^0
 function money(n,d){ if(!isFinite(n)) return '<span class="dash">—</span>'; return '$'+n.toLocaleString('en-US',{minimumFractionDigits:d==null?0:d,maximumFractionDigits:d==null?0:d}); }
 function psf(n){ return isFinite(n)?('$'+n.toFixed(2)):'<span class="dash">—</span>'; }
 function txt(v){ return (v==null||String(v).trim()==='')?'<span class="dash">—</span>':esc(String(v)); }
-function pill(st){ var c=({Draft:['#eef1f6','#6b7488'],Sent:['#e8f0fd','#2c5c8f'],Countered:['#fdf1df','#b5791f'],Negotiating:['#f3edfb','#7a4fd0'],Accepted:['#e7f5ee','#1f8a5b'],Dead:['#f3f4f7','#98a1b5']})[st||'Draft']||['#eef1f6','#6b7488']; return '<span class="pill" style="background:'+c[0]+';color:'+c[1]+'">'+esc(st||'Draft')+'</span>'; }
+function pill(st){ var c=({Draft:['#eef1f6','#6b7488'],Sent:['#e8f0fd','#2c5c8f'],Countered:['#f1f3f7','#4b5568'],Negotiating:['#f3edfb','#7a4fd0'],Accepted:['#f1f3f7','#4b5568'],Dead:['#f3f4f7','#98a1b5']})[st||'Draft']||['#eef1f6','#6b7488']; return '<span class="pill" style="background:'+c[0]+';color:'+c[1]+'">'+esc(st||'Draft')+'</span>'; }
 // Net effective rent: (base rent over the term − free-rent value − TI allowance) ÷ (SF × years).
 // Escalations compound annually (% or fixed $/SF); free rent abates base rent from day one; NNN held flat.
 function calc(l){

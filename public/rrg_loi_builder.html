@@ -49,7 +49,7 @@ h1{font-size:27px;font-weight:800;margin:5px 0 0;letter-spacing:-.01em;}
 .clhd{display:flex;align-items:center;gap:11px;padding:11px 13px;cursor:pointer;}
 .clhd input{width:18px;height:18px;flex:none;accent-color:var(--gold);cursor:pointer;}
 .cltitle{font-weight:500;color:var(--ink);font-size:13px;flex:1;}
-.lbadge{font-size:10px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;padding:3px 9px;border-radius:999px;margin-left:9px;vertical-align:middle;} .lbadge.tr{background:#fdf1df;color:#b5791f;} .lbadge.biz{background:#e6f5ee;color:#1f8a5b;}
+.lbadge{font-size:10px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;padding:3px 9px;border-radius:999px;margin-left:9px;vertical-align:middle;} .lbadge.tr{background:#f1f3f7;color:#b5791f;} .lbadge.biz{background:#e6f5ee;color:#1f8a5b;}
 .cltoggle{color:var(--muted);font-size:12px;cursor:pointer;user-select:none;}
 .clbody{padding:0 13px 12px 42px;color:#42506b;font-size:12.5px;line-height:1.55;display:none;}
 .clause.exp .clbody{display:block;}
@@ -59,7 +59,7 @@ h1{font-size:27px;font-weight:800;margin:5px 0 0;letter-spacing:-.01em;}
 .clfilters input,.clfilters select{border:1px solid #cfd6e2;border-radius:8px;padding:7px 10px;font:inherit;font-size:13px;background:#fff;}
 .clfilters #clSearch{flex:1;min-width:150px;}
 .vbadge{font-size:9px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;padding:2px 7px;border-radius:999px;margin-left:6px;}
-.vbadge.rest{background:#fdf1df;color:#b5791f;} .vbadge.bar{background:#e8f0fd;color:#2c5c8f;} .vbadge.dh{background:#f3edfb;color:#7a4fd0;}
+.vbadge.rest{background:#f1f3f7;color:#b5791f;} .vbadge.bar{background:#e8f0fd;color:#2c5c8f;} .vbadge.dh{background:#f3edfb;color:#7a4fd0;}
 .actions{display:flex;align-items:center;gap:12px;margin-top:4px;flex-wrap:wrap;}
 .gen{background:var(--red);color:#fff;border:none;border-radius:10px;padding:13px 26px;font:inherit;font-size:15px;font-weight:800;cursor:pointer;}
 .gen:disabled{opacity:.6;cursor:default;}
@@ -368,8 +368,8 @@ function _doLoiReviewRun(txt){
    }).catch(function(e){ if(e&&e.name==='AbortError') return; if(!aiActive(req)) return; showAiResult('Review draft','Network error.'); });
 }
 (function(){ var x=document.getElementById('airx'); if(x) x.addEventListener('click',aiCancel); var ov=document.getElementById('airov'); if(ov) ov.addEventListener('click',function(e){ if(e.target===this){ /* stay open */ } }); })();
-function negoPill(st){ st=st||'Draft'; var c=({Draft:['#eef1f6','#6b7488'],Sent:['#e8f0fd','#2c5c8f'],Countered:['#fdf1df','#b5791f'],Negotiating:['#f3edfb','#7a4fd0'],Accepted:['#e7f5ee','#1f8a5b'],Dead:['#f3f4f7','#98a1b5']})[st]||['#eef1f6','#6b7488']; return '<span style="background:'+c[0]+';color:'+c[1]+';font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px">'+esc(st)+'</span>'; }
-function termColor(st){ return ({Open:['#eef1f6','#6b7488'],Proposed:['#e8f0fd','#2c5c8f'],Accepted:['#e7f5ee','#1f8a5b'],Countered:['#fdf1df','#b5791f'],Rejected:['#fdeceb','#DA2B1F']})[st||'Open']||['#eef1f6','#6b7488']; }
+function negoPill(st){ st=st||'Draft'; var c=({Draft:['#eef1f6','#6b7488'],Sent:['#e8f0fd','#2c5c8f'],Countered:['#f1f3f7','#4b5568'],Negotiating:['#f3edfb','#7a4fd0'],Accepted:['#f1f3f7','#4b5568'],Dead:['#f3f4f7','#98a1b5']})[st]||['#eef1f6','#6b7488']; return '<span style="background:'+c[0]+';color:'+c[1]+';font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px">'+esc(st)+'</span>'; }
+function termColor(st){ return ({Open:['#eef1f6','#6b7488'],Proposed:['#e8f0fd','#2c5c8f'],Accepted:['#f1f3f7','#4b5568'],Countered:['#f1f3f7','#4b5568'],Rejected:['#fdeceb','#DA2B1F']})[st||'Open']||['#eef1f6','#6b7488']; }
 function openNego(id){ var body=document.getElementById('negoBody'); body.innerHTML='<div style="color:#6b7488;padding:20px">Loading…</div>'; document.getElementById('negov').hidden=false; fetch('/api/loi/'+encodeURIComponent(id),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(!j||!j.ok){ body.innerHTML='<div style="color:#a5352c;padding:20px">'+esc((j&&j.error)||'Could not load.')+'</div>'; return; } NEGO={id:id,loi:j.loi||{},terms:j.terms||[],statuses:j.statuses||['Draft','Sent','Countered','Negotiating','Accepted','Dead'],termStates:j.termStates||['Open','Proposed','Accepted','Countered','Rejected']}; var l=NEGO.loi; document.getElementById('negoTitle').textContent=(l.type==='business_sale'?'Business Sale':'Tenant Rep')+(l.property?(' — '+l.property):'')+' · Negotiation'; renderNego(); }).catch(function(){ body.innerHTML='<div style="color:#a5352c;padding:20px">Network error.</div>'; }); }
 function renderNego(){ var l=NEGO.loi||{}; var terms=NEGO.terms||[]; var ts=l.termStatus||{}; var vals=l.values||{}; var statusOpts=NEGO.statuses.map(function(x){return '<option'+((l.status||'Draft')===x?' selected':'')+'>'+esc(x)+'</option>';}).join(''); var h='';
  h+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap"><span style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Status</span><select id="negoStatus" style="border:1px solid #cfd6e2;border-radius:8px;padding:7px 10px;font:inherit;font-size:13px">'+statusOpts+'</select>'+negoPill(l.status)+'<span style="margin-left:auto;display:flex;gap:6px"><button class="btn" data-negoquick="Accepted" style="padding:6px 12px;font-size:12px;background:#1f8a5b;border-color:#1f8a5b">Mark accepted</button><button class="btn" data-negoquick="Dead" style="padding:6px 12px;font-size:12px;background:#98a1b5;border-color:#98a1b5">Dead</button></span></div>';

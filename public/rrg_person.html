@@ -30,8 +30,8 @@ h1{font-size:21px;font-weight:700;margin:3px 0 0;color:#fff;letter-spacing:-.01e
 .row{display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--line);text-decoration:none;color:inherit;} .row:last-child{border-bottom:none;} .row:hover{background:#fbfcfe;}
 .rbiz{font-weight:700;color:var(--navy);font-size:13.5px;} .rmeta{font-size:11.5px;color:var(--muted);margin-top:2px;}
 .rt{margin-left:auto;font-size:11px;font-weight:700;color:var(--ink);white-space:nowrap;}
-.tag{font-size:9.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:#eef2fb;color:#23496f;border:1px solid #d3ddf3;}
-.tag.loi{background:#fff4e6;color:#b9761a;border-color:#f0d7ad;}
+.tag{font-size:9.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:#f1f3f7;color:#23496f;border:1px solid #d3ddf3;}
+.tag.loi{background:#f1f3f7;color:#b9761a;border-color:#f0d7ad;}
 .empty{color:var(--muted);font-size:12.5px;font-style:italic;padding:16px 20px;}
 label.fld{display:block;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--soft);font-weight:700;margin:2px 0 7px;}
 input,select,textarea{width:100%;border:1px solid #c4ccda;border-radius:4px;padding:11px 13px;font:inherit;font-size:14px;color:var(--ink);background:#fff;}
@@ -57,11 +57,11 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 .jbean b{font-weight:700;}
 .jrm{border:none;background:rgba(0,0,0,.10);color:inherit;width:17px;height:17px;border-radius:50%;font-size:12px;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;}
 .jrm:hover{background:rgba(0,0,0,.22);}
-.prefstar{flex:none;display:inline-flex;align-items:center;cursor:pointer;} .prefstar input{margin:0;cursor:pointer;accent-color:#DA2B1F;width:15px;height:15px;}
+.prefstar{flex:none;display:inline-flex;align-items:center;cursor:pointer;} .prefstar input{margin:0;cursor:pointer;accent-color:#20334f;width:15px;height:15px;}
 .vipchip{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;letter-spacing:.03em;padding:3px 10px;border-radius:999px;border:1px solid #d6dbe6;color:#8a93a8;background:#fff;cursor:pointer;user-select:none;}
 .vipchip.on{border-color:#e2b93a;color:#8a6d10;background:#fff8e6;box-shadow:0 0 0 2px rgba(226,185,58,.18);}
 .cautionchip{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;letter-spacing:.03em;padding:3px 10px;border-radius:999px;border:1px solid #d6dbe6;color:#8a93a8;background:#fff;cursor:pointer;user-select:none;}
-.cautionchip.on{border-color:#DA2B1F;color:#a5352c;background:#fdeceb;box-shadow:0 0 0 2px rgba(218,43,31,.14);}
+.cautionchip.on{border-color:#DA2B1F;color:#a5352c;background:#f1f3f7;box-shadow:0 0 0 2px rgba(218,43,31,.14);}
 .flagrow{display:inline-flex;gap:6px;vertical-align:middle;}
 /* Keep the badges hidden through the brief multi-render load window so they can't flash;
    they reveal once the page settles (booting class is dropped ~900ms after open). */
@@ -83,7 +83,7 @@ body.booting .flagbtn{transition:none!important;}
 .feed.condensed .feednote,.feed.condensed .acttask,.feed.condensed .gmexpand,.feed.condensed .gmacts,.feed.condensed .gmatts,.feed.condensed .feedmeta{display:none;}
 .feed.condensed .feedrow{padding-top:5px!important;padding-bottom:5px!important;}
 .mfrow{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
-.tagedit{display:flex;flex-wrap:wrap;gap:6px;} .tagbean{background:#eef2fb;color:#23496f;cursor:default;} .tagempty{color:#98a1b5;font-size:12px;}
+.tagedit{display:flex;flex-wrap:wrap;gap:6px;} .tagbean{background:#f1f3f7;color:#23496f;cursor:default;} .tagempty{color:#98a1b5;font-size:12px;}
 .tagfieldhost{position:relative;}
 .tagfield{border:1px solid #c4ccda;border-radius:4px;background:#fff;padding:5px 6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;position:relative;min-height:38px;cursor:text;}
 .tagfield:focus-within{border-color:#2c5c8f;box-shadow:0 0 0 2px rgba(44,92,143,.12);}
@@ -111,7 +111,7 @@ body.booting .flagbtn{transition:none!important;}
 .actnote{font-size:13px;color:#3a4560;margin-top:3px;white-space:pre-wrap;} .acttask{font-size:11.5px;color:#23496f;margin-top:3px;font-weight:600;}
 .actdel{flex:none;border:none;background:transparent;color:#c3ccdf;font-size:16px;cursor:pointer;line-height:1;padding:2px 4px;} .actdel:hover{color:#DA2B1F;}
 .agrsig{margin-top:12px;border-top:1px solid #e6e9f0;padding-top:10px;} .agrsighd{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#6b7488;font-weight:700;display:flex;align-items:center;gap:8px;} .agrsigrow{margin:8px 0;} .agrdoc{font-size:12.5px;color:#3a4560;} .agrsigbtns{display:flex;gap:8px;align-items:center;flex-wrap:wrap;} .agrsignote{font-size:12px;color:#98a1b5;}
-.sigpill{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;padding:2px 8px;border-radius:20px;background:#eef1f6;color:#6b7488;} .sigpill.sent{background:#fff4e6;color:#b5791f;} .sigpill.signed{background:#e7f5ee;color:#1f8a5b;} .sigpill.await{background:#eaf1fb;color:#23496f;} .sigpill.bad{background:#fdeceb;color:#DA2B1F;} .sigpill.mut{background:#f2f4f8;color:#8a93a8;} .agrsignedinfo{font-size:12.5px;color:#3a4560;margin:8px 0;} .agrsignedinfo a{color:#23496f;font-weight:700;text-decoration:none;} .agrlinkrow{display:flex;gap:6px;align-items:center;margin-top:10px;} .agrlinkrow input{flex:1;min-width:0;border:1px solid #d5dbe6;border-radius:4px;padding:6px 9px;font:inherit;font-size:12px;color:#3a4560;background:#f7f9fc;} .agrlinkrow .mfadd{white-space:nowrap;} .agrtplrow{display:flex;align-items:center;gap:6px;margin:8px 0;flex-wrap:wrap;} .agrtplrow select{border:1px solid #d5dbe6;border-radius:4px;padding:6px 9px;font:inherit;font-size:12.5px;color:#3a4560;background:#fff;max-width:100%;} .agrtplrow .fld{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#6b7488;font-weight:700;} .advsigners{display:flex;flex-direction:column;gap:8px;margin:8px 0;} .advsrow{display:grid;gap:5px;border:1px solid #e6e9f0;border-radius:4px;padding:9px 10px;background:#fbfcfe;} .advslbl{font-size:12px;font-weight:700;color:#3a4560;display:flex;align-items:center;gap:7px;} .advname,.advemail{border:1px solid #d5dbe6;border-radius:4px;padding:6px 9px;font:inherit;font-size:12.5px;} .advsrow input:disabled{background:#eef1f6;color:#98a1b5;}
+.sigpill{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;padding:2px 8px;border-radius:20px;background:#eef1f6;color:#6b7488;} .sigpill.sent{background:#f1f3f7;color:#b5791f;} .sigpill.signed{background:#f1f3f7;color:#1f8a5b;} .sigpill.await{background:#eaf1fb;color:#23496f;} .sigpill.bad{background:#f1f3f7;color:#DA2B1F;} .sigpill.mut{background:#f2f4f8;color:#8a93a8;} .agrsignedinfo{font-size:12.5px;color:#3a4560;margin:8px 0;} .agrsignedinfo a{color:#23496f;font-weight:700;text-decoration:none;} .agrlinkrow{display:flex;gap:6px;align-items:center;margin-top:10px;} .agrlinkrow input{flex:1;min-width:0;border:1px solid #d5dbe6;border-radius:4px;padding:6px 9px;font:inherit;font-size:12px;color:#3a4560;background:#f7f9fc;} .agrlinkrow .mfadd{white-space:nowrap;} .agrtplrow{display:flex;align-items:center;gap:6px;margin:8px 0;flex-wrap:wrap;} .agrtplrow select{border:1px solid #d5dbe6;border-radius:4px;padding:6px 9px;font:inherit;font-size:12.5px;color:#3a4560;background:#fff;max-width:100%;} .agrtplrow .fld{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#6b7488;font-weight:700;} .advsigners{display:flex;flex-direction:column;gap:8px;margin:8px 0;} .advsrow{display:grid;gap:5px;border:1px solid #e6e9f0;border-radius:4px;padding:9px 10px;background:#fbfcfe;} .advslbl{font-size:12px;font-weight:700;color:#3a4560;display:flex;align-items:center;gap:7px;} .advname,.advemail{border:1px solid #d5dbe6;border-radius:4px;padding:6px 9px;font:inherit;font-size:12.5px;} .advsrow input:disabled{background:#eef1f6;color:#98a1b5;}
 .agrmodal{position:fixed;inset:0;background:rgba(6,16,41,.5);z-index:80;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto}
 .agrmodal[hidden]{display:none}
 .agrvmeta{display:flex;gap:18px;font-size:12.5px;color:#4a5568;margin:8px 0 4px;flex-wrap:wrap}
@@ -308,9 +308,9 @@ select.nlselect{appearance:none;-webkit-appearance:none;-moz-appearance:none;bac
 .rrnm{font-size:13px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .rrmt{font-size:11.5px;color:var(--muted);margin-top:1px;}
 .rchip{flex:none;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:999px;background:#f2f4f8;color:#6b7488;}
-.rchip.bad{background:#fdeceb;color:#DA2B1F;}
-.rchip.exec{background:#e7f5ee;color:#1f8a5b;}
-.rchip.sent{background:#fff4e6;color:#b5791f;}
+.rchip.bad{background:#f1f3f7;color:#DA2B1F;}
+.rchip.exec{background:#f1f3f7;color:#1f8a5b;}
+.rchip.sent{background:#f1f3f7;color:#b5791f;}
 .rrowd{display:block;}
 .rroom{display:flex;align-items:center;gap:6px;text-decoration:none;font-size:11.5px;font-weight:700;color:#0e7a53;padding:0 18px 9px 56px;margin-top:-4px;}
 .rroom:hover{text-decoration:underline;}
@@ -333,7 +333,7 @@ select.nlselect{appearance:none;-webkit-appearance:none;-moz-appearance:none;bac
 .agrvoidrow{flex:none;display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;padding:0;background:none;border:none;border-radius:6px;color:#b0788f;cursor:pointer;margin:0 0 0 2px;} .agrvoidrow:hover{background:#fdeceb;color:#DA2B1F;}
 .agrrow .docttl{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.3;} .agrrow .docmeta{white-space:normal;} .agrrow .agrproj{font-size:12px;font-weight:700;color:#23496f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;} .agrrow .agrresendrow{margin:0;}
 .agrrow.agrvoided .docttl{text-decoration:line-through;color:#98a1b5;} .agrrow.agrvoided .dico.k-agreement{opacity:.5;filter:grayscale(.6);}
-.agrvoidedchip{flex:none;display:inline-flex;align-items:center;font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#b23a2c;background:#fdeceb;border:1px solid #f2c9c4;border-radius:999px;padding:2px 8px;margin-left:6px;white-space:nowrap;}
+.agrvoidedchip{flex:none;display:inline-flex;align-items:center;font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#b23a2c;background:#f1f3f7;border:1px solid #f2c9c4;border-radius:999px;padding:2px 8px;margin-left:6px;white-space:nowrap;}
 .agrx{flex:none;border:none;background:none;color:#c7cedb;cursor:pointer;font-size:16px;line-height:1;padding:0 4px;}
 .agrx:hover{color:var(--red);}
 .rrempty{font-size:12.5px;color:var(--soft);padding:8px 18px;}
@@ -517,7 +517,7 @@ var ID=qs('id'); try{ if(window.RRGRecordNav) RRGRecordNav.mount({ key:'contacts
 var P=null, CO=null, DEALS=[], OFFERS=[], TOURS=[], NDAS=[], INTERESTED=[], AGREEMENTS=[], ATYPES=[], PTYPES=['Buyer'], LEADSOURCES=[], ALLTAGS=[], CURTAGS=[], SAVET=null, EMAILREADY=false, COMPANIESLIST=[], ACTIVITIES=[], ACTTYPES=[], USERS=[], TEMPLATES=[], IS_ADMIN=false, CAN_DELETE=false, CANROOMS=false, DIRTY=false, GMAIL=[], GMAILCONN=false, GMAILEMAIL='', GMAILLOADED=false, PENDING_AGR_FILE=null, AUTOMATIONS=[], EMAILTPLS=[], EMAILFOLDERS=[], TASKS=[], TASKPRIOS=['Normal','High','Urgent'], ALL_LISTINGS=[], P_TAGF=null, P_INT=null;
 // Main Interests — a contact can carry more than one (Buying, Selling, ...). `types` is the source of truth; `type` is the first.
 function pInterests(p){ return (p&&Array.isArray(p.types)&&p.types.length)?p.types:(p&&p.type?[p.type]:[]); }
-function typeColor(t){ var m={'Buyer':['#e7f5ee','#1f8a5b'],'Buying':['#e7f5ee','#1f8a5b'],'Seller':['#e8f0fd','#2c5c8f'],'Selling':['#e8f0fd','#2c5c8f'],'Tenant':['#e6f5f3','#0f766e'],'Investor':['#f3edfb','#7a4fd0'],'Investing':['#f3edfb','#7a4fd0'],'Broker':['#fdf1df','#b5791f'],'Referring':['#fdeef4','#b83280'],'Referral Source':['#fdeef4','#b83280'],'Working':['#eaeef5','#3a4a66'],'Internal Personnel':['#eaeef5','#3a4a66'],'Other':['#eef1f6','#6b7488']}; if(m[t]) return m[t]; var pal=[['#e7f5ee','#1f8a5b'],['#e8f0fd','#2c5c8f'],['#f3edfb','#7a4fd0'],['#fdf1df','#b5791f'],['#fdeef4','#b83280'],['#e6f5f3','#0f766e']]; var h=0; for(var i=0;i<String(t).length;i++) h=(h*31+String(t).charCodeAt(i))>>>0; return pal[h%pal.length]; }
+function typeColor(t){ var m={'Buyer':['#f1f3f7','#4b5568'],'Buying':['#f1f3f7','#4b5568'],'Seller':['#e8f0fd','#2c5c8f'],'Selling':['#e8f0fd','#2c5c8f'],'Tenant':['#f1f3f7','#4b5568'],'Investor':['#f3edfb','#7a4fd0'],'Investing':['#f3edfb','#7a4fd0'],'Broker':['#f1f3f7','#4b5568'],'Referring':['#fdeef4','#b83280'],'Referral Source':['#fdeef4','#b83280'],'Working':['#eaeef5','#3a4a66'],'Internal Personnel':['#eaeef5','#3a4a66'],'Other':['#eef1f6','#6b7488']}; if(m[t]) return m[t]; var pal=[['#f1f3f7','#4b5568'],['#e8f0fd','#2c5c8f'],['#f3edfb','#7a4fd0'],['#f1f3f7','#4b5568'],['#fdeef4','#b83280'],['#f1f3f7','#4b5568']]; var h=0; for(var i=0;i<String(t).length;i++) h=(h*31+String(t).charCodeAt(i))>>>0; return pal[h%pal.length]; }
 function interestPills(hostId, selected, onChange){
   var host=document.getElementById(hostId); if(!host) return {get:function(){return [];}};
   var opts=(PTYPES&&PTYPES.length?PTYPES:['Buying','Selling']); var sel={}; (selected||[]).forEach(function(t){ sel[t]=1; });
@@ -539,12 +539,12 @@ function listCard(title,items,builder,emptyMsg){
   var body = items.length ? items.map(builder).join('') : '<div class="empty">'+esc(emptyMsg)+'</div>';
   return '<div class="card"><div class="ch"><b>'+esc(title)+'</b><span>'+items.length+'</span></div><div>'+body+'</div></div>';
 }
-var ATYPE_COLORS={ NDA:{bg:'#eef2fb',fg:'#23496f'}, CA:{bg:'#e6f5f3',fg:'#0f766e'}, ETRA:{bg:'#f1ebfb',fg:'#6d28d9'}, Referral:{bg:'#fdf1df',fg:'#b5791f'}, Listing:{bg:'#fdeceb',fg:'#DA2B1F'} };
+var ATYPE_COLORS={ NDA:{bg:'#f1f3f7',fg:'#4b5568'}, CA:{bg:'#f1f3f7',fg:'#4b5568'}, ETRA:{bg:'#f1f3f7',fg:'#4b5568'}, Referral:{bg:'#f1f3f7',fg:'#4b5568'}, Listing:{bg:'#fdeceb',fg:'#DA2B1F'} };
 function atypeLabel(k){ for(var i=0;i<ATYPES.length;i++){ if(ATYPES[i].key===k) return ATYPES[i].label; } return k; }
 function todayStr(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function daysUntil(d){ if(!d) return 99999; var t=new Date(d+'T00:00:00'); if(isNaN(t)) return 99999; return Math.round((t.getTime()-Date.now())/86400000); }
 function agrChip(a){
-  var c=ATYPE_COLORS[a.type]||{bg:'#eef1f6',fg:'#6b7488'};
+  var c=ATYPE_COLORS[a.type]||{bg:'#f1f3f7',fg:'#4b5568'};
   var today=todayStr(); var expired=(a.status==='terminated')||(a.expires&&a.expires<today);
   var du=daysUntil(a.expires); var soon=a.expires&&!expired&&du<=60;
   var border=expired?'#DA2B1F':(soon?'#b5791f':'transparent');
@@ -1641,7 +1641,7 @@ function wireCompanyAuto(){
 }
 function actColor(t){ /* NetSuite restraint: activity types are labels, not colors. */ if(t==='Milestone') return ['#e8edf5','#20334f']; if(/Declined|Voided|Bad/i.test(String(t||''))) return ['#fbeceb','#b23a2c']; return ['#eef1f6','#4b5568'];
   return actColorOld(t); }
-function actColorOld(t){ var m={'Milestone':['#fff4e5','#b45309'],'Tour':['#eef2fb','#23496f'],'Photo Shoot':['#f1ebfb','#6d28d9'],'Meal':['#fdf1df','#b5791f'],'Text':['#e6f5f3','#0f766e'],'Call':['#e7f5ee','#1f8a5b'],'Email':['#eef2fb','#3949ab'],'Form Submitted':['#eef1f6','#5b6472'],'Contact Added':['#e7f5ee','#1f8a5b'],'Agreement Sent':['#fff4e6','#b9761a'],'Agreement Signed':['#e7f5ee','#1f8a5b'],'LOI Sent':['#e9f1ff','#1d6fd6'],'LOI Received':['#eef7ee','#2f9e50'],'Note':['#eef1f6','#5b6472'],'File':['#eef2fb','#3949ab'],'To-Do':['#fdeceb','#DA2B1F']}; return m[t]||['#eef1f6','#5b6472']; }
+function actColorOld(t){ var m={'Milestone':['#f1f3f7','#4b5568'],'Tour':['#f1f3f7','#4b5568'],'Photo Shoot':['#f1f3f7','#4b5568'],'Meal':['#f1f3f7','#4b5568'],'Text':['#f1f3f7','#4b5568'],'Call':['#f1f3f7','#4b5568'],'Email':['#f1f3f7','#4b5568'],'Form Submitted':['#eef1f6','#5b6472'],'Contact Added':['#f1f3f7','#4b5568'],'Agreement Sent':['#f1f3f7','#4b5568'],'Agreement Signed':['#f1f3f7','#4b5568'],'LOI Sent':['#e9f1ff','#1d6fd6'],'LOI Received':['#eef7ee','#2f9e50'],'Note':['#eef1f6','#5b6472'],'File':['#f1f3f7','#4b5568'],'To-Do':['#fdeceb','#DA2B1F']}; return m[t]||['#eef1f6','#5b6472']; }
 var ACTICON={'Milestone':'⚑','Call':'☎','Email':'✉','Note':'✎','To-Do':'◻','Tour':'◈','Meal':'◑','Text':'✆','Meeting':'▫','Contact Added':'＋','Agreement Sent':'⚖','Agreement Signed':'✓','LOI Sent':'§','LOI Received':'§','Form Submitted':'▤','Photo Shoot':'◎','File':'📎'}; function actIcon(t){ return ACTICON[t]||'•'; }
 function addrLabel(s){ s=String(s||''); var m=s.match(/<([^>]+)>/); var nm=s.replace(/<[^>]+>/,'').replace(/"/g,'').trim(); if(m){ return nm||m[1]; } return s.trim(); }
 function loadGmail(quiet){ if(!ID) return Promise.resolve(); return fetch('/api/gmail/status',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ GMAILCONN=!!(j&&j.connected); GMAILEMAIL=(j&&j.email)||''; if(GMAILCONN){ return fetch('/api/person/'+encodeURIComponent(ID)+'/gmail',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(g){ GMAIL=(g&&g.messages)||[]; }); } }).then(function(){ GMAILLOADED=true; if(P&&!quiet) scheduleRender(); }).catch(function(){ GMAILLOADED=true; }); }
@@ -1906,7 +1906,7 @@ function loadMailHistory(){
 function automationsCard(){
   var ens=(P&&P.enrollments)||[];
   var body = ens.length ? ens.map(function(e){
-    var c = e.status==='active'?['#e7f5ee','#1f8a5b']:(e.status==='paused'?['#fff4e6','#b5791f']:(e.status==='done'?['#eef2fb','#23496f']:['#eef1f6','#8a94a6']));
+    var c = e.status==='active'?['#f1f3f7','#4b5568']:(e.status==='paused'?['#f1f3f7','#4b5568']:(e.status==='done'?['#f1f3f7','#4b5568']:['#eef1f6','#8a94a6']));
     var label = String(e.status||'').charAt(0).toUpperCase()+String(e.status||'').slice(1);
     var meta = (e.status==='active'&&e.nextAt)?('Next step '+fmt(e.nextAt)):(e.status==='done'?'Completed':(e.status==='paused'?'Paused':'Stopped'));
     var ctrl='';
@@ -2649,17 +2649,25 @@ load();
     if(d.mktTicket){ location.href='./rrg_tickets.html#'+encodeURIComponent(d.mktTicket.id); return; }
     var asset=(_activeLane()==='asset'); var origin=location.origin;
     var ov=document.createElement('div'); ov.style.cssText='position:fixed;inset:0;background:rgba(10,20,50,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
-    var chk=function(id,t,on){ return '<label style="display:flex;gap:8px;align-items:flex-start;margin:6px 0;font-size:13px"><input type="checkbox" data-c="'+id+'"'+(on?' checked':'')+' style="margin-top:2px"> '+t+'</label>'; };
-    ov.innerHTML='<div style="background:#fff;border-radius:10px;max-width:520px;width:100%;max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(10,20,50,.3);padding:18px;font-size:13.5px;color:#1a2236">'
-      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b style="font-size:13px;letter-spacing:.04em;text-transform:uppercase">Submit to marketing</b><button type="button" data-x="1" style="background:none;border:0;font-size:20px;cursor:pointer;color:#6b7488">&times;</button></div>'
-      +'<div style="color:#5a6478;line-height:1.5;margin-bottom:10px">Sends <b>'+esc(d.business||'this listing')+'</b> to Marketing &amp; Creative with the listing, data room and pricing linked. They build it; you’ll see the status here.</div>'
-      +'<div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8;margin:8px 0 2px">What’s needed</div>'
-      +chk('page','Listing page and marketplace listing (blind)',1)+chk('photos','Photography',0)+chk('sign','Signage / rider',0)+chk('pack',asset?'Offering sheet':'Marketing pack (CIM) review',1)+chk('blast','Announce to buyers (email blast)',1)
-      +'<label style="display:block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8;margin:10px 0 5px">Notes for marketing</label><textarea data-n="1" rows="4" placeholder="Anything they should know: confidentiality, best photos, timing, showing instructions…" style="width:100%;border:1px solid #c4ccda;border-radius:6px;padding:8px 10px;font:inherit;resize:vertical"></textarea>'
-      +'<div style="display:flex;align-items:center;gap:10px;margin-top:12px"><button type="button" data-go="1" style="background:#000E31;color:#fff;border:0;border-radius:6px;padding:9px 18px;font:inherit;font-weight:700;cursor:pointer">Submit</button><span data-m="1" style="font-size:12.5px;font-weight:600"></span></div></div>';
+    if(!document.getElementById('mktCss')){ var cs=document.createElement('style'); cs.id='mktCss'; cs.textContent='.mkt-box{background:#fff;border-radius:4px;max-width:540px;width:100%;max-height:92vh;overflow:auto;box-shadow:0 18px 44px rgba(10,20,50,.28);font-size:13px;color:#2b3648;text-align:left}'
+      +'.mkt-hd{display:flex;align-items:center;justify-content:space-between;padding:11px 16px;background:#f4f6f9;border-bottom:1px solid #dbe0e9}.mkt-hd b{font-size:12.5px;letter-spacing:.05em;text-transform:uppercase;color:#20334f}.mkt-hd button{background:none;border:0;font-size:18px;line-height:1;cursor:pointer;color:#8894a8}'
+      +'.mkt-bd{padding:14px 16px 16px}.mkt-lead{color:#5a6478;line-height:1.5;margin:0 0 12px}.mkt-sec{font-size:9.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#69748a;margin:0 0 6px}'
+      +'.mkt-grid{display:grid;grid-template-columns:1fr 1fr;gap:2px 14px;border:1px solid #dbe0e9;border-radius:3px;padding:8px 10px;margin-bottom:12px}'
+      +'.mkt-ck{display:flex !important;align-items:center;gap:8px;margin:0 !important;padding:5px 2px;font-size:13px !important;font-weight:500 !important;color:#2b3648 !important;text-transform:none !important;letter-spacing:0 !important;cursor:pointer;text-align:left;justify-content:flex-start}'
+      +'.mkt-ck input{width:15px !important;height:15px;margin:0 !important;flex:none;accent-color:#2c5c8f}'
+      +'.mkt-bd textarea{width:100%;box-sizing:border-box;border:1px solid #c4ccda;border-radius:3px;padding:8px 10px;font:inherit;font-size:13px;resize:vertical}.mkt-bd textarea:focus{outline:none;border-color:#2c5c8f}'
+      +'.mkt-ft{display:flex;align-items:center;gap:10px;margin-top:12px}.mkt-go{background:#2c5c8f;color:#fff;border:1px solid #2c5c8f;border-radius:3px;padding:7px 18px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer}.mkt-go:hover{background:#23496f}.mkt-cancel{background:#fff;color:#20334f;border:1px solid #c4ccda;border-radius:3px;padding:7px 14px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer}'
+      +'@media(max-width:520px){.mkt-grid{grid-template-columns:1fr}}'; document.head.appendChild(cs); }
+    var chk=function(id,t,on){ return '<label class="mkt-ck"><input type="checkbox" data-c="'+id+'"'+(on?' checked':'')+'><span>'+t+'</span></label>'; };
+    ov.innerHTML='<div class="mkt-box"><div class="mkt-hd"><b>Submit to marketing</b><button type="button" data-x="1" aria-label="Close">&times;</button></div><div class="mkt-bd">'
+      +'<p class="mkt-lead">Sends <b>'+esc(d.business||'this listing')+'</b> to Marketing &amp; Creative with the listing, data room and pricing linked. You\u2019ll see the status in the menu.</p>'
+      +'<div class="mkt-sec">What\u2019s needed</div><div class="mkt-grid">'
+      +chk('market','RRG Marketplace posting',1)+chk('web','Web listing page',1)+chk('abstract','Lease abstract',1)+(asset?'':chk('pack','Marketing pack (CIM) review',1))+chk('teaser','Teaser copy',1)+chk('blast','Email blast message',1)+chk('bbs','BizBuySell ad',1)+chk('chitchat','Texas Chit Chat mention (Seats Open)',0)
+      +'</div><div class="mkt-sec">Notes for marketing</div><textarea data-n="1" rows="4" placeholder="Confidentiality, best photos, timing, showing instructions\u2026"></textarea>'
+      +'<div class="mkt-ft"><button type="button" class="mkt-go" data-go="1">Submit to marketing</button><button type="button" class="mkt-cancel" data-x="1">Cancel</button><span data-m="1" style="font-size:12.5px;font-weight:600"></span></div></div></div>';
     document.body.appendChild(ov);
     ov.addEventListener('click',function(e){ if(e.target===ov||e.target.closest('[data-x]')){ ov.remove(); return; } if(!e.target.closest('[data-go]')) return;
-      var m=ov.querySelector('[data-m]'); var need=[]; var L={page:'Listing page + marketplace listing (blind)',photos:'Photography',sign:'Signage / rider',pack:(asset?'Offering sheet':'Marketing pack (CIM) review'),blast:'Announce to buyers (email blast)'};
+      var m=ov.querySelector('[data-m]'); var need=[]; var L={market:'RRG Marketplace posting',web:'Web listing page',abstract:'Lease abstract',pack:'Marketing pack (CIM) review',teaser:'Teaser copy',blast:'Email blast message',bbs:'BizBuySell ad'+(asset?(' — entries: '+origin+'/rrg_asset_space.html?key='+encodeURIComponent(d.key)+'&bbs=1'):''),chitchat:'Texas Chit Chat mention (Seats Open)'};
       Array.prototype.forEach.call(ov.querySelectorAll('[data-c]'),function(c){ if(c.checked) need.push('- '+L[c.getAttribute('data-c')]); });
       var note=(ov.querySelector('[data-n]').value||'').trim();
       var lines=['New listing ready for marketing: '+(d.business||''),'Type: '+(asset?'Asset sale (space & assets)':'Business sale (going concern)'),(d.market?('Market: '+d.market):''),((d.listPrice||d.assetAsking)?('Asking price: '+(d.listPrice||_fmtMoney(d.assetAsking))):''),'Seller: '+((typeof P!=='undefined'&&P&&P.name)||''),'',

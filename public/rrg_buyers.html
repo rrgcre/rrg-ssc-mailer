@@ -75,7 +75,7 @@ tr:hover td{background:#fbfcfe;}
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 var ALL=[], STAGES=[], SORT={k:'updatedAt',dir:-1};
-function stageColor(name){ var pal=[['#eef1f6','#6b7488'],['#e8f0fd','#2c5c8f'],['#f3edfb','#7a4fd0'],['#e6f5f3','#0f766e'],['#fdf1df','#b5791f'],['#e7f5ee','#1f8a5b'],['#fdeef4','#b83280'],['#e3e8f5','#20335f']]; var t=String(name||''); var h=0; for(var i=0;i<t.length;i++) h=(h*31+t.charCodeAt(i))>>>0; return pal[h%pal.length]; }
+function stageColor(name){ var pal=[['#eef1f6','#6b7488'],['#e8f0fd','#2c5c8f'],['#f3edfb','#7a4fd0'],['#f1f3f7','#4b5568'],['#f1f3f7','#4b5568'],['#f1f3f7','#4b5568'],['#fdeef4','#b83280'],['#e3e8f5','#20335f']]; var t=String(name||''); var h=0; for(var i=0;i<t.length;i++) h=(h*31+t.charCodeAt(i))>>>0; return pal[h%pal.length]; }
 function stagePill(name){ var c=stageColor(name); return '<span class="spill" style="background:'+c[0]+';color:'+c[1]+'">'+esc(name||'—')+'</span>'; }
 function money(v){ var m=String(v==null?'':v).replace(/[, $]/g,'').match(/-?\d+(\.\d+)?/); return m?parseFloat(m[0]):0; }
 function fmtMoney(v){ var n=money(v); if(!n) return ''; return '$'+Math.round(n).toLocaleString('en-US'); }

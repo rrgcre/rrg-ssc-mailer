@@ -303,7 +303,7 @@ var PFIELDS=['name','listingFor','status','propertyType','secondaryType','alsoMa
   'sellerName','sellerPhone','sellerEmail','ownerOfRecord','cobrokerName','cobrokerPhone','cobrokerEmail',
   'description','listingStart','listingExpires','notes'];
 var TRASH_SVG='<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>';
-var STCOL={'Available':['#e7f5ee','#1f8a5b'],'Under Contract':['#fdf1df','#b5791f'],'Sold':['#eceff5','#3a4c74'],'Leased':['#e8f0fd','#2f6fd0'],'Off-market':['#f3f4f7','#98a1b5']};
+var STCOL={'Available':['#f1f3f7','#4b5568'],'Under Contract':['#f1f3f7','#4b5568'],'Sold':['#eceff5','#3a4c74'],'Leased':['#e8f0fd','#2f6fd0'],'Off-market':['#f3f4f7','#98a1b5']};
 function stPill(s){ var c=STCOL[s]||['#eceff5','#3a4c74']; return '<span class="stpill" style="background:'+c[0]+';color:'+c[1]+'">'+esc(s||'—')+'</span>'; }
 function forChip(v){ var cls=v==='For Sale'?'forsale':(v==='For Lease'?'forlease':'forboth'); return v?('<span class="chip '+cls+'">'+esc(v)+'</span>'):''; }
 function load(){
