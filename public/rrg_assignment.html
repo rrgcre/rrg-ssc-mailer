@@ -298,6 +298,7 @@ a.feat:hover{background:#f7f9fc;}
 .phcell.cover{outline:2px solid var(--navy);outline-offset:-2px;}
 .phacts{position:absolute;top:4px;right:4px;display:flex;gap:4px;opacity:0;transition:opacity .12s;}
 .phcell:hover .phacts{opacity:1;}
+.phacts{opacity:1;} .phacts .phbtn:not([data-setcover]){opacity:0;transition:opacity .12s;} .phcell:hover .phacts .phbtn{opacity:1;} .phcell.cover .phacts [data-setcover]{display:none;}
 .phbtn{width:24px;height:24px;border:none;border-radius:6px;background:rgba(11,22,54,.78);color:#fff;cursor:pointer;font-size:13px;line-height:1;display:inline-flex;align-items:center;justify-content:center;}
 .phbtn:hover{background:rgba(11,22,54,.96);} .phbtn.del:hover{background:var(--red);}
 .phcoverbadge{position:absolute;left:5px;bottom:5px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#fff;background:var(--navy);border-radius:4px;padding:2px 6px;}
