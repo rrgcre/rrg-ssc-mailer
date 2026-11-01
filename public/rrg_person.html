@@ -2681,7 +2681,7 @@ load();
       fetch('/api/ticket',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({subject:'List: '+(d.business||'new listing')+(d.market?(' ('+d.market+')'):''),details:lines.join('\n'),category:'Marketing',priority:'Normal'})}).then(function(r){return r.json();}).then(function(j){
         if(!j||!j.ok){ m.style.color='#DA2B1F'; m.textContent=(j&&j.error)||'Could not submit.'; return; }
         var t=j.ticket||{}; d.mktTicket={id:t.id,num:t.num,status:t.status||'Open'};
-        fetch('/api/assignment/'+encodeURIComponent(d.key)+'/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({mktTicketId:t.id||''})});
+        fetch('/api/assignment/'+encodeURIComponent(d.key)+'/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({mktTicketId:t.id||'',mktNum:t.num||'',mktNeeds:need.map(function(x){ return x.replace(/^- /,'').replace(/ — .*$/,''); }).join(', ')})});
         ov.remove(); try{ applyLane(); }catch(_){} try{ refreshValuation(); }catch(_){}
         if(window.rrgToast) rrgToast('Sent to Marketing & Creative'+(t.num?(' (request #'+t.num+')'):'')+'. You’ll see the status in the menu.');
       }).catch(function(){ m.style.color='#DA2B1F'; m.textContent='Could not reach the server.'; });

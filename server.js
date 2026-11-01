@@ -11202,7 +11202,7 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
       const _pp = loadPipelines().find(x => x.id === listingPipelineIdOf(cur));
       if (_pp) (_pp.stages || []).forEach(function (st, i) { const k = 'g' + i; if (st && st.name && cur.stageFlags && cur.stageFlags[k] && !_oldFlags[k]) _listingMilestone(d.key, 'Stage complete: ' + st.name, req); });
     }
-    if (cur.mktTicketId && cur.mktTicketId !== _oldMkt) _listingMilestone(d.key, 'Submitted to Marketing for the listing page and marketplace listing', req);
+    if (cur.mktTicketId && cur.mktTicketId !== _oldMkt) _listingMilestone(d.key, 'Submitted to Marketing' + (b.mktNum ? (' — request #' + String(b.mktNum).slice(0, 12)) : '') + (b.mktNeeds ? (': ' + String(b.mktNeeds).slice(0, 300)) : ''), req);
     if ((cur.status || '') !== _oldStatus && cur.status) _listingMilestone(d.key, 'Status: ' + (_oldStatus ? (_oldStatus + ' → ') : '') + cur.status, req);
   } catch (e) {}
   res.json({ ok: true });
