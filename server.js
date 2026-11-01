@@ -8755,7 +8755,7 @@ function _plPage(req, key) {
       + sec('Why this space', hl.length ? '<ul class="pl-hl">' + hl.map(h => '<li>' + esc(h) + '</li>').join('') + '</ul>' : '')
       + sec('At a glance', facts([[askL, price], ['Space type', sp.spaceType || t.propType], ['Square feet', sp.sqft || t.sf], ['Seating', seats], ['Patio', sp.patio], ['Parking', sp.parking ? (sp.parking + ' spaces') : ''], ['Delivery condition', sp.deliveryCondition], ['Status', sp.operatingNow], ['Available', sp.availableDate], ['Buildout', remodel || sp.buildoutAge], ['Zoning', sp.zoning]]))
       + sec('What conveys', conv.length ? '<ul class="pl-cols">' + conv.map(c => '<li>' + esc(c) + '</li>').join('') + '</ul>' + (sp.exclusions ? '<p class="pl-note" style="margin-top:10px"><b>Excluded:</b> ' + esc(sp.exclusions) + '</p>' : '') : '')
-      + sec('Equipment', ffe.length ? '<ul class="pl-cols">' + ffe.slice(0, 60).map(c => '<li>' + esc(c) + '</li>').join('') + '</ul>' + (ffe.length > 60 ? '<p class="pl-note">Full schedule in the Offering Sheet.</p>' : '') : '')
+      + sec('Equipment', ffe.length ? '<ul class="pl-cols">' + ffe.slice(0, 60).map(c => '<li>' + esc(c) + '</li>').join('') + '</ul>' + (ffe.length > 60 ? '<p class="pl-note">Full schedule in the Offering Sheet.</p>' : '') + '<p class="pl-note" style="margin-top:10px">' + esc(FFE_DISCLAIMER) + '</p>' : '')
       + sec('Lease', kv([['Monthly rent (all-in)', rent], ['Rent / SF', sp.leasePerSF], ['Remaining term', sp.leaseRemaining], ['Expires', sp.leaseExpiration], ['Renewal options', sp.leaseOptions], ['Assignment', sp.leaseAssignment], ['NNN / CAM', sp.leaseNNN], ['Deposit', sp.leaseDeposit], ['Permitted use', sp.leaseUse]]))
       + sec('The space', kv([['Address', addr], ['Center / building', sp.centerName], ['Center type', sp.centerType], ['Anchors & co-tenants', sp.coTenants], ['Historic / overlay', sp.overlay], ['Hood & venting', sp.hood], ['Walk-ins', sp.walkin], ['Restrooms', sp.restrooms], ['HVAC', sp.hvac], ['Electrical', sp.electrical], ['Gas', sp.gas], ['Water / sewer / grease', sp.waterSewer]]))
       + (vid ? sec('Video', '<iframe class="pl-vid" src="' + esc(vid) + '" allowfullscreen loading="lazy"></iframe>') : '')
@@ -20689,6 +20689,8 @@ function loadValueLetters() { try { return rj(VALUE_LETTERS_FILE) || []; } catch
 function saveValueLetters(a) { return writeJsonGuarded(VALUE_LETTERS_FILE, a, 'saveValueLetters'); }
 const TREC_ESTIMATE_STATEMENT = 'This represents an estimated sale price for this property. It is not the same as the opinion of value in an appraisal developed by a licensed appraiser under the Uniform Standards of Professional Appraisal Practice.';
 function _vlUser(username) { try { return (auth.loadUsers() || []).find(u => u.username === username) || null; } catch (e) { return null; } }
+// The logo made for dark backgrounds (Settings → Brand, main logo) — for navy bands and footers.
+function _brandDarkLogoDataUri() { try { const b = loadBrand(); if (!b.logoExt) return ''; const buf = fs.readFileSync(path.join(BOV_DATA_DIR, 'brand_logo.' + b.logoExt)); const mime = b.logoExt === 'svg' ? 'image/svg+xml' : (b.logoExt === 'jpg' || b.logoExt === 'jpeg' ? 'image/jpeg' : ('image/' + b.logoExt)); return 'data:' + mime + ';base64,' + buf.toString('base64'); } catch (e) { return ''; } }
 function _vlLogoDataUri() {
   try { const b = loadBrand(); const ext = b.logoLightExt || b.logoExt; if (!ext) return ''; const fn = b.logoLightExt ? ('brand_logo_light.' + ext) : ('brand_logo.' + ext); const buf = fs.readFileSync(path.join(BOV_DATA_DIR, fn)); const mime = (b.logoLightExt ? b.logoLightType : b.logoType) || LOGO_MIME[ext] || 'image/png'; return 'data:' + mime + ';base64,' + buf.toString('base64'); } catch (e) { return ''; }
 }
@@ -21029,6 +21031,7 @@ function _ffeNotePublic(n) {
 function _assetSheetOpts(d, key, req) {
   const o = { photos: [], rep: null, logo: '' };
   try { o.logo = _vlLogoDataUri() || ''; } catch (e) {}
+  try { o.logoDark = _brandDarkLogoDataUri() || ''; } catch (e) {}
   try {
     const ov = loadAssignOverlay()[key] || {};
     const sp = d.assetSpec || {};
@@ -21046,6 +21049,7 @@ function _assetSheetOpts(d, key, req) {
   } catch (e) {}
   return o;
 }
+const FFE_DISCLAIMER = 'Equipment list is a representative summary provided by the seller — not a complete inventory — and is not warranted as to make, model, quantity, condition, working order or ownership. Equipment conveys as-is, where-is, by bill of sale; items under vendor lease or financing do not convey unless stated. The final list of included FF&E is set by the purchase agreement. Buyers should inspect and verify during due diligence.';
 function assetSheetHtml(business, market, spec, ffe, convey, opts) {
   spec = Object.assign({}, spec || {}); ffe = Array.isArray(ffe) ? ffe : []; opts = opts || {}; convey = Array.isArray(convey) ? convey : [];
   const nl = s => esc(String(s == null ? '' : s)).replace(/\n/g, '<br>');
@@ -21083,14 +21087,14 @@ function assetSheetHtml(business, market, spec, ffe, convey, opts) {
     if (conv.length) {
       ffeHtml += '<table class="ffe"><tr><th>Item</th><th class="q">Qty</th><th>Make / model</th><th>Condition</th></tr>';
       cats.forEach(c => { ffeHtml += '<tr class="cat"><td colspan="4">' + esc(c) + '</td></tr>' + conv.filter(r => r.cat === c).map(r => { const n = _ffeNotePublic(r.notes); return '<tr><td>' + esc(r.item) + (r.taps ? (' — ' + r.taps + ' taps') : '') + (n ? '<div class="nt">' + esc(n) + '</div>' : '') + '</td><td class="q">' + r.qty + '</td><td>' + esc(r.model || '—') + '</td><td>' + esc(r.cond || '—') + '</td></tr>'; }).join(''); });
-      ffeHtml += '</table><p class="fine">Equipment is sold by bill of sale, as-is.</p>';
+      ffeHtml += '</table><p class="fine">' + esc(FFE_DISCLAIMER) + '</p>';
     }
     const ex = [];
     if (leased.length) ex.push(row('Leased / vendor-owned — does not convey', leased.map(_ffeLine).join('; ')));
     if (exc.length || xTyped) ex.push(row('Excluded — seller keeps', exc.map(_ffeLine).concat(xTyped ? [xTyped] : []).join('; ')));
     if (v('smallwares')) ex.push(row('Smallwares / POS / furniture', v('smallwares')));
     if (ex.length) ffeHtml += '<table class="kv">' + ex.join('') + '</table>';
-  } else if (v('ffeSchedule')) ffeHtml = sec('Equipment', row('Equipment included', v('ffeSchedule')) + row('Excluded', v('ffeExcluded')));
+  } else if (v('ffeSchedule')) ffeHtml = sec('Equipment', row('Equipment included', v('ffeSchedule')) + row('Excluded', v('ffeExcluded'))) + '<p class="fine">' + esc(FFE_DISCLAIMER) + '</p>';
   // Lease / Space / Utilities
   const leaseHtml = sec('The lease', row('Monthly rent (total)', v('leaseTotal')) + row('Base rent', v('leaseRent')) + row('Rent / SF', v('leasePerSF')) + row('NNN / CAM · taxes · insurance', v('leaseNNN')) + row('Remaining term', v('leaseRemaining')) + row('Expiration', v('leaseExpiration')) + row('Renewal options', v('leaseOptions')) + row('Assignment & landlord consent', v('leaseAssignment')) + row('Deposit / key money', v('leaseDeposit')) + row('Permitted use / exclusives', v('leaseUse')) + row('Fixtures at lease end', v('leaseFixtures')));
   const spaceHtml = sec('The space', row('Address', v('address')) + row('Space type', v('spaceType')) + row('Center', [v('centerName'), v('centerType')].filter(Boolean).join(' · ')) + row('Anchors & co-tenants', v('coTenants')) + row('Zoning', v('zoning')) + row('Historic / overlay district', v('overlay')) + row('Square footage', v('sqft')) + row('Seating', v('seating')) + row('Parking spaces', v('parking')) + row('Delivery condition', v('deliveryCondition')) + row('Status', v('operatingNow')) + row('Reason for availability', v('reason')) + row('Available', v('availableDate')));
@@ -21098,7 +21102,7 @@ function assetSheetHtml(business, market, spec, ffe, convey, opts) {
   // Contact
   const r = opts.rep || {};
   const _agent = x => '<div class="cag"><div class="cn">' + esc(x.name || org) + '</div>' + (x.title ? '<div class="ct">' + esc(x.title) + '</div>' : '') + '<div class="cd">' + [x.phone ? esc(x.phone) : '', x.email ? ('<a href="mailto:' + esc(x.email) + '">' + esc(x.email) + '</a>') : ''].filter(Boolean).join(' · ') + '</div></div>';
-  const contact = '<div class="contact"><div><div class="cl">For information or a tour</div><div class="cags">' + _agent(r) + (opts.rep2 ? _agent(opts.rep2) : '') + '</div></div><div class="corg">' + (opts.logo ? '<img src="' + opts.logo + '" alt="">' : '<b>' + esc(org) + '</b>') + '</div></div>';
+  const contact = '<div class="contact"><div><div class="cl">For information or a tour</div><div class="cags">' + _agent(r) + (opts.rep2 ? _agent(opts.rep2) : '') + '</div></div><div class="corg">' + (opts.logoDark ? '<img class="dk" src="' + opts.logoDark + '" alt="">' : (opts.logo ? '<img src="' + opts.logo + '" alt="">' : '<b>' + esc(org) + '</b>')) + '</div></div>';
   const addrLine = [v('address'), market && v('address').indexOf(market) < 0 ? market : ''].filter(Boolean).join(' · ') || market || '';
   return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + esc(business || 'Restaurant space') + ' — Offering Sheet</title><style>'
     + '@page{size:Letter;margin:0.45in 0.55in}*{box-sizing:border-box}body{margin:0;background:#fff;color:#1a2236;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;font-size:11.5px;line-height:1.45}'
@@ -21113,7 +21117,7 @@ function assetSheetHtml(business, market, spec, ffe, convey, opts) {
     + '.note{margin:6px 0 0}.fine{margin:5px 0 0;font-size:9.5px;color:#8a93a8}'
     + 'table{width:100%;border-collapse:collapse}table.kv th{text-align:left;width:2.1in;vertical-align:top;color:#6b7488;font-weight:700;font-size:10.5px;padding:3px 10px 3px 0}table.kv td{vertical-align:top;padding:3px 0}table.kv tr+tr th,table.kv tr+tr td{border-top:1px solid #f1f3f7}'
     + 'table.ffe th{text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:#6b7488;padding:3px 8px 3px 0;border-bottom:1px solid #dbe0e9}table.ffe td{padding:2px 8px 2px 0;font-size:11px;vertical-align:top}table.ffe .q{width:.45in;text-align:right;padding-right:14px}table.ffe tr.cat td{font-weight:800;color:#000E31;font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;padding-top:7px}table.ffe .nt{color:#6b7488;font-size:9.5px}table.ffe tr,table.kv tr{page-break-inside:avoid}'
-    + '.contact{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-top:18px;padding:11px 14px;background:#000E31;color:#fff;page-break-inside:avoid}.contact .cl{font-size:8.5px;text-transform:uppercase;letter-spacing:.12em;color:#9fb0cf;font-weight:700}.contact .cn{font-size:15px;font-weight:800;margin-top:2px}.contact .ct{font-size:10.5px;color:#c9d3e6}.contact .cd{font-size:11.5px;margin-top:2px}.contact a{color:#fff}.contact .cags{display:flex;gap:28px;flex-wrap:wrap}.contact .corg img{max-height:36px;max-width:170px;background:#fff;padding:4px 6px;border-radius:2px}'
+    + '.contact{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-top:18px;padding:11px 14px;background:#000E31;color:#fff;page-break-inside:avoid}.contact .cl{font-size:8.5px;text-transform:uppercase;letter-spacing:.12em;color:#9fb0cf;font-weight:700}.contact .cn{font-size:15px;font-weight:800;margin-top:2px}.contact .ct{font-size:10.5px;color:#c9d3e6}.contact .cd{font-size:11.5px;margin-top:2px}.contact a{color:#fff}.contact .cags{display:flex;gap:28px;flex-wrap:wrap}.contact .corg img{max-height:36px;max-width:170px;background:#fff;padding:4px 6px;border-radius:2px}.corg img.dk{background:none;padding:0;max-height:46px;max-width:190px}'
     + '.foot{margin-top:8px;color:#8a93a8;font-size:8.5px;line-height:1.4}'
     + '@media print{.wrap{padding:0}}</style></head><body><div class="wrap">'
     + '<div class="top">' + (opts.logo ? '<img src="' + opts.logo + '" alt="">' : '<span class="org">' + esc(org) + '</span>') + '<span class="kick">Offering Sheet · Restaurant Space</span></div>'
