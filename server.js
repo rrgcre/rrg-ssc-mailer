@@ -6989,6 +6989,110 @@ function _teaserSent(templateId, p, user) {
   } catch (e) {}
 }
 
+// ===== Marketing — Listing Queue =====
+// Every listing submitted to Marketing, with one box per requested deliverable. Some boxes tick
+// themselves from the listing (teaser saved, lease abstract on file, published to the marketplace);
+// Marketing ticks the rest. When every requested box is done the Marketing request closes, the
+// rep's Biz Seller Actions shows ✓, and the listing moves to the Done tab.
+const MKT_ITEMS = [
+  { id: 'market', l: 'Marketplace', auto: 'Published to the RRG Marketplace' },
+  { id: 'web', l: 'Web listing' },
+  { id: 'abstract', l: 'Lease abstract', auto: 'A lease abstract is on file' },
+  { id: 'pack', l: 'CIM review', lane: 'business' },
+  { id: 'teaser', l: 'Teaser email', auto: 'Teaser saved on the listing' },
+  { id: 'blast', l: 'Email blast' },
+  { id: 'bbs', l: 'BizBuySell' },
+  { id: 'chitchat', l: 'Chit Chat' }
+];
+const MKT_DEFAULT_NEEDS = ['market', 'web', 'abstract', 'teaser', 'blast', 'bbs'];
+function _mktLeaseOnFile(key, d) {
+  try {
+    const v = assignmentsIndex()[key]; if (v && v.lease && v.lease.id) return true;
+    const { d: deal } = _dealByAnyKey(key); const pid = deal && (deal.contactPersonId || deal.clientPersonId);
+    return !!(pid && loadLeases().some(x => x.personId === pid && x.state && !x.pending));
+  } catch (e) { return false; }
+}
+function _mktRow(key, d, o, tickets, people) {
+  let v = {}; try { v = assignmentView(d, { [key]: o }) || {}; } catch (e) {}
+  const t = tickets.find(x => x.id === o.mktTicketId) || null;
+  const lane = o.saleLane || v.saleLane || 'business';
+  let needs = Array.isArray(o.mktItems) && o.mktItems.length ? o.mktItems.slice() : MKT_DEFAULT_NEEDS.concat(lane === 'business' ? ['pack'] : []);
+  needs = MKT_ITEMS.filter(i => needs.indexOf(i.id) >= 0 && (!i.lane || i.lane === lane)).map(i => i.id);
+  const auto = {
+    market: !!(o.market && o.market.published),
+    teaser: !!(o.teaser && o.teaser.body),
+    abstract: _mktLeaseOnFile(key, d)
+  };
+  const manual = (o.mktDone && typeof o.mktDone === 'object') ? o.mktDone : {};
+  const items = {}; let done = 0;
+  needs.forEach(id => { const a = !!auto[id], m = manual[id] || null; const ok = a || !!m; if (ok) done++; items[id] = { done: ok, auto: a, at: m ? m.at : '', by: m ? m.by : '' }; });
+  const pid = o.clientPersonId || (v.clientPersonId) || (d.deal && d.deal.contactPersonId) || '';
+  const p = pid ? people.find(x => x.id === pid) : null;
+  let cover = ''; try { const mv = _dealMediaOut(key); const ph = (mv.photos || []); const c = ph.find(x => x.id === mv.coverPhotoId) || ph[0]; if (c) cover = c.url; } catch (e) {}
+  const sentAt = o.mktSubmittedAt || (t && t.createdAt) || '';
+  const closed = !!(t && t.status === 'Closed');
+  return {
+    key, business: v.business || o.businessOverride || 'Listing', market: v.market || o.marketOverride || '', lane,
+    rep: o.owner || v.owner || (t && t.by) || '', seller: p ? (p.name || '') : (o.contact || ''), sellerId: p ? p.id : '',
+    asking: o.listPrice || (d.deal && d.deal.assetSpec && d.deal.assetSpec.askingPrice) || '',
+    sentAt, days: sentAt ? Math.max(0, Math.floor((Date.now() - Date.parse(sentAt)) / 86400000)) : null,
+    ticket: t ? { id: t.id, num: t.num || '', status: t.status || 'Open', notes: _mktRepNotes(t.details || '') } : null,
+    needs, items, done, total: needs.length, complete: needs.length > 0 && done === needs.length, closed,
+    published: auto.market, cover, roomId: v.roomId || (d.room && d.room.id) || '',
+    doneAt: o.mktDoneAt || ''
+  };
+}
+function _mktRepNotes(details) { const m = String(details || '').split(/\nNotes from the rep:\n/); return m.length > 1 ? m[1].trim().slice(0, 1500) : ''; }
+function _mktQueueRows(req) {
+  const overlay = loadAssignOverlay(), idx = assignmentsIndex(), tickets = loadTickets(), people = loadPeople();
+  const rows = [];
+  Object.keys(overlay).forEach(k => { const o = overlay[k]; if (!o || !o.mktTicketId || !idx[k]) return; rows.push(_mktRow(k, idx[k], o, tickets, people)); });
+  return rows;
+}
+app.get('/api/marketing/queue', (req, res) => {
+  if (!_canMarketReq(req)) return res.status(403).json({ ok: false, error: 'The listing queue is for Marketing.' });
+  try {
+    const rows = _mktQueueRows(req);
+    const open = rows.filter(r => !r.closed).sort((a, b) => String(a.sentAt).localeCompare(String(b.sentAt)));
+    const done = rows.filter(r => r.closed).sort((a, b) => String(b.doneAt || b.sentAt).localeCompare(String(a.doneAt || a.sentAt)));
+    res.json({ ok: true, items: MKT_ITEMS, open, done });
+  } catch (e) { console.error('mkt queue:', e && e.message); res.status(500).json({ ok: false, error: 'Could not load the queue.' }); }
+});
+// Tick / untick one deliverable. Auto items can't be unticked here (they follow the listing).
+app.post('/api/marketing/queue/:key/item', express.json(), (req, res) => {
+  if (!_canMarketReq(req)) return res.status(403).json({ ok: false, error: 'The listing queue is for Marketing.' });
+  const key = req.params.key, b = req.body || {}, item = String(b.item || '');
+  if (!MKT_ITEMS.some(i => i.id === item)) return res.status(400).json({ ok: false, error: 'Unknown item.' });
+  const overlay = loadAssignOverlay(), idx = assignmentsIndex(); const o = overlay[key];
+  if (!o || !o.mktTicketId || !idx[key]) return res.status(404).json({ ok: false, error: 'Not in the queue.' });
+  o.mktDone = (o.mktDone && typeof o.mktDone === 'object') ? o.mktDone : {};
+  const who = (req.user && req.user.name) || '';
+  if (b.done) o.mktDone[item] = { at: new Date().toISOString(), by: who }; else delete o.mktDone[item];
+  overlay[key] = o; saveAssignOverlay(overlay);
+  const row = _mktRow(key, idx[key], o, loadTickets(), loadPeople());
+  const lbl = (MKT_ITEMS.find(i => i.id === item) || {}).l || item;
+  if (b.done) _listingMilestone(key, 'Marketing: ' + lbl + ' done', req);
+  res.json({ ok: true, row: row, allDone: row.complete && !row.closed });
+});
+// Close (complete) or reopen the Marketing request for a listing.
+app.post('/api/marketing/queue/:key/close', express.json(), (req, res) => {
+  if (!_canMarketReq(req)) return res.status(403).json({ ok: false, error: 'The listing queue is for Marketing.' });
+  const key = req.params.key, reopen = !!(req.body || {}).reopen;
+  const overlay = loadAssignOverlay(), idx = assignmentsIndex(); const o = overlay[key];
+  if (!o || !o.mktTicketId || !idx[key]) return res.status(404).json({ ok: false, error: 'Not in the queue.' });
+  const tickets = loadTickets(); const t = tickets.find(x => x.id === o.mktTicketId);
+  if (!t) return res.status(404).json({ ok: false, error: 'The Marketing request was not found.' });
+  const now = new Date().toISOString(), who = (req.user && req.user.name) || '';
+  t.status = reopen ? 'Open' : 'Closed'; t.updatedAt = now; if (!reopen) { t.closedAt = now; t.closedBy = who; }
+  t.thread = Array.isArray(t.thread) ? t.thread : [];
+  t.thread.push({ from: 'office', name: who || 'Marketing', at: now, text: reopen ? 'Reopened from the Listing Queue.' : 'All requested marketing is done — closed from the Listing Queue.' });
+  saveTickets(tickets);
+  if (reopen) delete o.mktDoneAt; else o.mktDoneAt = now;
+  overlay[key] = o; saveAssignOverlay(overlay);
+  _listingMilestone(key, reopen ? 'Marketing request reopened' : ('Marketing complete' + (t.num ? (' — request #' + t.num) : '')), req);
+  res.json({ ok: true, row: _mktRow(key, idx[key], o, tickets, loadPeople()) });
+});
+
 // ===== Tenant Requirement Box — a tenant's space criteria, matched against the sites/spaces inventory =====
 const TB_CONDITIONS = ['Shell', 'Second-gen', 'Dirt / pad'];
 const TB_AMENITIES = SPACE_FEATURES.slice(); // reuse the space feature vocabulary so matching lines up
@@ -11105,7 +11209,7 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   if (typeof b.marketOverride === 'string') cur.marketOverride = b.marketOverride.slice(0, 80);
   if (typeof b.saleLane === 'string' && ['business', 'asset', 'other'].indexOf(b.saleLane) >= 0) { cur.saleLane = b.saleLane; try { const _da = _dealByAnyKey(d.key); if (_da.d && _da.d.saleLane !== b.saleLane) { _da.d.saleLane = b.saleLane; saveDeals(_da.arr); } } catch (e) {} }
   if (b.laneDecided === true) cur.laneDecidedAt = new Date().toISOString();
-  if (typeof b.mktTicketId === 'string') { cur.mktTicketId = b.mktTicketId.slice(0, 40); cur.mktSubmittedAt = new Date().toISOString(); }   // handed to Marketing via Office Requests   // rep made the going-concern / asset-sale call after reviewing the P&Ls   // type of listing: going concern / asset sale / other
+  if (typeof b.mktTicketId === 'string') { cur.mktTicketId = b.mktTicketId.slice(0, 40); cur.mktSubmittedAt = new Date().toISOString(); cur.mktDone = {}; delete cur.mktDoneAt; if (Array.isArray(b.mktItems)) cur.mktItems = b.mktItems.map(x => String(x).slice(0, 20)).slice(0, 12); }   // handed to Marketing via Office Requests   // rep made the going-concern / asset-sale call after reviewing the P&Ls   // type of listing: going concern / asset sale / other
   // Financials don't support a going concern → asset sale: the seller interview no longer applies,
   // so close the open "send the seller interview" task for this seller.
   if (b.saleLane === 'asset') { try { const _pid = d.contactPersonId || d.clientPersonId || d.personId || ''; if (_pid) { const _ts = loadTasks(); let _ch = false; _ts.forEach(t => { if (t && t.status === 'open' && t.linkId === _pid && /^fin:.*:interview$/.test(String(t.expKey || ''))) { t.status = 'done'; t.doneAt = new Date().toISOString(); t.notes = (String(t.notes || '') + '\nClosed automatically: moved to an asset sale, so no seller interview.').slice(0, 2000); _ch = true; } }); if (_ch) saveTasks(_ts); } } catch (e) {} }
@@ -22024,6 +22128,7 @@ app.get('/api/board', (req, res) => {
   const _dueByStage = {}; (pipe.stages || []).forEach(function(st){ if (st && st.targetDays) _dueByStage[st.name] = st.targetDays; });
   const isAdmin = req.user && isSuper(req.user);
   const cards = [];
+  const _tkById = {}; try { loadTickets().forEach(t => { _tkById[t.id] = t; }); } catch (e) {}
   const coNameById = {}; try { loadCompanies().forEach(c => { coNameById[c.id] = c.name; }); } catch (e) {}
   // Rep avatars — map an owner's name (and username) to their profile photo so the board can show faces.
   const ownerPhotoBy = {};
@@ -22040,7 +22145,7 @@ app.get('/api/board', (req, res) => {
     let stage = listingBoardStage(d, overlay);
     if (stageNames.indexOf(stage) < 0) stage = stageNames[0] || '';
     const _prov = !!(d.screen && d.screen.provisional);
-    cards.push({ key: d.key, canEdit: !!(isAdmin || ownsAssignment(req, d)), business: v.business, listingNo: o.listingNo || 0, listingId: (o.listingNo ? ('RRG-' + o.listingNo) : ''), codeName: o.codeName || '', company: coNameById[v.companyId] || (d.screen && d.screen.data && d.screen.data.company) || '', companyId: v.companyId || '', contactPersonId: v.clientPersonId || '', concept: v.business, contact: v.contact || '', value: v.value || '', valueBov: !!v.valueBov, market: v.market || '', owner: v.owner || '', lastActivity: v.lastActivity || '', createdAt: v.createdAt || '', status: _prov ? 'Pending Approval' : (o.status || 'New'), provisional: _prov, bbsNumber: v.bbsNumber || '', stage: stage, isLead: !!_preSet[stage], winPct: (_winByStage[stage] != null ? _winByStage[stage] : ''), stageSince: o.stageSince || v.createdAt || '', published: !!(o.market && o.market.published), listPrice: o.listPrice || v.value || '', commission: (o.totalCommission || estCommissionFromPrice(o.listPrice || v.value || '') || (v.transaction && v.transaction.commissionDue) || ''), commissionEst: estCommissionFromPrice(o.listPrice || v.value || ''), totalCommission: o.totalCommission || (v.transaction && v.transaction.commissionDue) || '', ownerPhoto: ownerPhotoBy[String(v.owner || '').toLowerCase()] || '', avatarUrl: (v.avatar && v.avatar.url) || '', avatarFit: (v.avatar && v.avatar.fit) || 'contain',
+    cards.push({ key: d.key, mkt: (o.mktTicketId ? (((_tkById[o.mktTicketId] || {}).status === 'Closed') ? 'done' : 'open') : ''), canEdit: !!(isAdmin || ownsAssignment(req, d)), business: v.business, listingNo: o.listingNo || 0, listingId: (o.listingNo ? ('RRG-' + o.listingNo) : ''), codeName: o.codeName || '', company: coNameById[v.companyId] || (d.screen && d.screen.data && d.screen.data.company) || '', companyId: v.companyId || '', contactPersonId: v.clientPersonId || '', concept: v.business, contact: v.contact || '', value: v.value || '', valueBov: !!v.valueBov, market: v.market || '', owner: v.owner || '', lastActivity: v.lastActivity || '', createdAt: v.createdAt || '', status: _prov ? 'Pending Approval' : (o.status || 'New'), provisional: _prov, bbsNumber: v.bbsNumber || '', stage: stage, isLead: !!_preSet[stage], winPct: (_winByStage[stage] != null ? _winByStage[stage] : ''), stageSince: o.stageSince || v.createdAt || '', published: !!(o.market && o.market.published), listPrice: o.listPrice || v.value || '', commission: (o.totalCommission || estCommissionFromPrice(o.listPrice || v.value || '') || (v.transaction && v.transaction.commissionDue) || ''), commissionEst: estCommissionFromPrice(o.listPrice || v.value || ''), totalCommission: o.totalCommission || (v.transaction && v.transaction.commissionDue) || '', ownerPhoto: ownerPhotoBy[String(v.owner || '').toLowerCase()] || '', avatarUrl: (v.avatar && v.avatar.url) || '', avatarFit: (v.avatar && v.avatar.fit) || 'contain',
       isTenant: (o.assignmentType === 'tenant_rep'), stageTargetDays: (_dueByStage[stage] != null ? _dueByStage[stage] : 0),
       saleLane: (o.assignmentType === 'tenant_rep' || o.assignmentType === 'landlord_rep') ? '' : (v.saleLane || 'business'),
       crSf: (function(){ var c=v.criteria||{}; var a=String(c.sizeMin||'').trim(), b=String(c.sizeMax||'').trim(); if(a&&b) return a+'–'+b+' SF'; if(a) return a+'+ SF'; if(b) return 'up to '+b+' SF'; return ''; })(),

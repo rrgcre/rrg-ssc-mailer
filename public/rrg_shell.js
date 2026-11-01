@@ -197,6 +197,7 @@
     { grp: 'Marketing', color: '#c77dc0', items: [
       { ic: '✉', label: 'Campaigns', href: 'rrg_mass_studio.html', admin: true },
       { ic: '☷', label: 'Subscribers', href: 'rrg_mail_subscribers.html', admin: true },
+      { ic: '☑', label: 'Listing Queue', href: 'rrg_marketing_queue.html', need: 'market' },
       { ic: '✎', label: 'Email Templates', href: 'rrg_email_templates.html' },
       { ic: '⟳', label: 'Automations', href: 'rrg_admin_automations.html', admin: true },
       { ic: '▤', label: 'Texas Chit Chat', href: 'rrg_chitchat.html', admin: true }
@@ -814,6 +815,7 @@
         try{ var _nl=(s&&s.navLabels)||{}; try{ localStorage.setItem('rrg_nav_labels_v1', JSON.stringify(_nl)); }catch(e){} nav.querySelectorAll('a.it[data-lbl]').forEach(function(el){ var d=el.getAttribute('data-lbl'); var lb=_nl[d]||d; var sp=el.querySelector('.itlbl'); if(sp && sp.textContent!==lb) sp.textContent=lb; el.setAttribute('title', lb); }); }catch(e){}
         if(s&&(s.role==='admin'||s.role==='creator')){ nav.querySelectorAll('[data-admingrp]').forEach(function(g){ g.style.display=''; }); nav.querySelectorAll('[data-adminit]').forEach(function(el){ el.style.display=''; }); }
         if(s&&s.canManageLoi){ nav.querySelectorAll('a.it[data-need="loi"]').forEach(function(el){ el.style.display=''; }); }
+        if(s&&s.canMarket){ nav.querySelectorAll('a.it[data-need="market"]').forEach(function(el){ el.style.display=''; }); }
         (function(){ var _role=(s&&s.role)||''; var _owner=(_role==='admin'||_role==='creator'); var _nv=(s&&s.navVis)||{}; if(!_owner){ nav.querySelectorAll('.lbl[data-grp]').forEach(function(l){ var gg=l.getAttribute('data-grp'); var allow=_nv[gg]; if(allow&&allow.length&&allow.indexOf(_role)<0){ var grp=l.closest('.grp'); if(grp) grp.style.display='none'; } }); } })();
         try{ AI_OK = !!(s && s.canUseAi); }catch(e){}
         if(s&&!s.canUseAi){ var aist=document.createElement('style'); aist.textContent='[data-ai]{display:none !important;}'; document.head.appendChild(aist); }

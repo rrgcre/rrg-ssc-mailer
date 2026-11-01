@@ -111,6 +111,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .cardx .contactlink{color:var(--navy,#000E31);text-decoration:none;font-weight:600;}
 .cardx .contactlink:hover{text-decoration:underline;}
 .cardx .flags{display:inline-flex;gap:4px;flex:none;align-items:center;}
+.mkttag{display:inline-block;font-size:9px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#5b6476;background:#f1f3f7;border:1px solid #dbe0e9;border-radius:3px;padding:1px 5px;margin-left:4px;white-space:nowrap;vertical-align:1px;} a.mkttagl{text-decoration:none;} a.mkttagl:hover .mkttag{border-color:#2c5c8f;color:#2c5c8f;}
 .fbadge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 2px;border-radius:50%;font-size:11px;font-weight:700;line-height:1;}
 .fbadge.hv{background:#d1f4e0;color:#0e7a53;}
 .fbadge.slip{background:#f1f3f7;color:#DA2B1F;font-weight:800;}
@@ -376,6 +377,7 @@ function renderToolbar(){
     ) : '')
     // UI standard: title · view toggle … then the primary + New pushed right (with any page-level links).
     +'<span style="margin-left:auto;display:inline-flex;gap:8px;align-items:center">'
+    +(!isTenantBoard()?'<a class="tbtn mktqbtn" href="rrg_marketing_queue.html" title="Listings with Marketing and what\u2019s left to do" style="text-decoration:none;display:none">\u2611 Marketing queue</a>':'')
     +(!isTenantBoard()?'<a class="tbtn" href="/market" target="_blank" rel="noopener" title="Open the public confidential marketplace in a new tab" style="text-decoration:none">\ud83d\udce3 Marketplace \u2197</a>':'<a class="tbtn" href="rrg_tours.html" title="Every space toured across your tenant searches, in one list" style="text-decoration:none">\u229a Tours</a>')
     +'<button class="tbtn" id="tb_newlisting" style="background:#000E31;color:#fff;border-color:#000E31;font-weight:600">+ New '+entSingular()+'</button></span>'
     +'</div>';
@@ -652,9 +654,14 @@ function cardFieldsHtml(c){
 }
 function saleLaneBadge(c){ if(!c.saleLane) return ''; var lane=c.saleLane; var m=(lane==='asset')?{t:'Asset Sale — space, fixtures &amp; equipment',bg:'#3f7cac',ltr:'A'}:((lane==='other')?{t:'Other listing type',bg:'#8a93a3',ltr:'O'}:{t:'Going Concern — operating business (business sale)',bg:'#1c7a45',ltr:'B'}); return '<span title="'+m.t+'" style="flex:none;display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;border-radius:50%;font-size:10px;font-weight:800;color:#fff;background:'+m.bg+'">'+m.ltr+'</span>'; }
 function cardAvatar(c){ if(!c.avatarUrl || CARDF.photo===false) return ''; return '<img class="cav" src="'+esc(c.avatarUrl)+'" alt="" style="object-fit:'+((c.avatarFit==='cover')?'cover':'contain')+'">'; }
+// Marketing (and admins) get the queue button and clickable "With Marketing" tags once the session loads.
+function _mktSess(sess){ if(!sess||!sess.canMarket) return; document.querySelectorAll('.mktqbtn').forEach(function(b){ b.style.display=''; }); document.querySelectorAll('.cardx[data-key] .mkttag').forEach(function(t){ if(t.parentNode.tagName==='A') return; var k=t.closest('.cardx').getAttribute('data-key'); var a=document.createElement('a'); a.className='mkttagl'; a.href='./rrg_marketing_queue.html#'+encodeURIComponent(k); a.onclick=function(e){ e.stopPropagation(); }; t.parentNode.insertBefore(a,t); a.appendChild(t); }); }
+document.addEventListener('rrg:session', function(e){ _mktSess(e.detail); });
+setInterval(function(){ if(window.__rrgSession) _mktSess(window.__rrgSession); }, 1500);
+function mktTag(c){ if(c.mkt!=='open') return ''; var canQ=!!(window.__rrgSession&&window.__rrgSession.canMarket); var t='<span class="mkttag" title="Submitted to Marketing — work in progress">With Marketing</span>'; return canQ?('<a class="mkttagl" href="./rrg_marketing_queue.html#'+encodeURIComponent(c.key)+'" onclick="event.stopPropagation()">'+t+'</a>'):t; }
 function cardHtml(c){
   var open='./rrg_assignment.html?key='+encodeURIComponent(c.key);
-  var flags=flagBadges(c);
+  var flags=flagBadges(c)+mktTag(c);
   var slb=saleLaneBadge(c);
   var rolled=!!ROLLED[c.key];
   var chev='<button class="rollup" data-roll="'+esc(c.key)+'" title="Roll up / expand">▾</button>';
