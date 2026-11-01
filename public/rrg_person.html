@@ -2374,11 +2374,11 @@ function savePerson(silent){
     .catch(function(){ if(m)m.textContent='Could not reach the server.'; if(st)st.textContent=''; });
 }
 function uploadPhoto(file){
-  var m=document.getElementById('p_msg'); if(file.size>6*1024*1024){ if(m)m.textContent='Image too large (max 6 MB).'; return; }
+  var m=document.getElementById('p_msg'); if(['image/jpeg','image/png','image/gif','image/webp'].indexOf(String(file.type).toLowerCase())<0){ if(m)m.textContent='That file isn\u2019t an image Lavano can use. Upload a JPG, PNG, GIF or WebP (iPhone HEIC photos: export or screenshot as JPG first).'; alert('That file isn\u2019t an image Lavano can use. Upload a JPG, PNG, GIF or WebP (iPhone HEIC photos: export or screenshot as JPG first).'); return; } if(file.size>6*1024*1024){ if(m)m.textContent='Image too large (max 6 MB).'; alert('Image too large (max 6 MB).'); return; }
   if(m) m.textContent='Uploading photo…';
   var rd=new FileReader();
   rd.onload=function(){ fetch('/api/person/'+encodeURIComponent(ID)+'/photo',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({filename:file.name,dataB64:String(rd.result||'')})})
-    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ P.photoExt=(j.photoUrl.split('.').pop()||'').split('?')[0]; P.updatedAt=new Date().toISOString(); if(m)m.textContent=''; render(); } else { if(m)m.textContent=(j&&j.error)||'Upload failed.'; } })
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ P.photoExt=(j.photoUrl.split('.').pop()||'').split('?')[0]; P.updatedAt=new Date().toISOString(); if(m)m.textContent=''; render(); } else { if(m)m.textContent=(j&&j.error)||'Upload failed.'; alert((j&&j.error)||'Upload failed.'); } })
     .catch(function(){ if(m)m.textContent='Could not reach the server.'; }); };
   rd.readAsDataURL(file);
 }

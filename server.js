@@ -609,7 +609,7 @@ function backlinkBbsLeads() {
 }
 function companyBrief(c) { return c ? { id: c.id, name: c.name || '', market: c.market || '', type: c.type || '', mainContactId: c.mainContactId || '', address: (c.office && [c.office.address, c.office.city, c.office.state].filter(Boolean).join(', ')) || '', logo: _coLogo(c), conceptLogos: (Array.isArray(c.concepts) ? c.concepts : []).filter(x => x && x.logo).slice(0, 20).map(x => ({ name: x.name || '', logo: x.logo })) } : null; }
 // A company's logo: the one set on it, else its first concept's, else the favicon of its website.
-function _coLogo(c) { try { if (String(c.logo || '').trim()) return c.logo; const cp = (c.concepts || []).find(x => x && String(x.logo || '').trim()); if (cp) return cp.logo; return logoFromWebsite(c.website || (c.office && c.office.website) || '') || ''; } catch (e) { return ''; } }
+function _coLogo(c) { try { if (String(c.logo || '').trim()) return c.logo; if (c.logoOff) return ''; const cp = (c.concepts || []).find(x => x && String(x.logo || '').trim()); if (cp) return cp.logo; return logoFromWebsite(c.website || (c.office && c.office.website) || '') || ''; } catch (e) { return ''; } }
 // Company activity feed: this company's own logged activity + every contact's activity, newest first.
 function companyActivityFeed(c) {
   if (!c) return [];
@@ -16710,7 +16710,8 @@ app.post('/api/person', express.json(), (req, res) => {
   if (_editTypes) { typesIn = b.types.map(t => String(t)).filter((t, i, self) => _validTypes.indexOf(t) >= 0 && self.indexOf(t) === i); }
   else if (_editType) { typesIn = (_validTypes.indexOf(b.type) >= 0 && b.type) ? [b.type] : []; }
   else { typesIn = personTypesOf(p); }
-  if ((isNew || _editType || _editTypes) && !typesIn.length) return res.status(400).json({ ok: false, error: 'A contact type is required.' });
+  // noInterest: true = deliberately leave Main Interests empty (prospects added from research, interest unknown).
+  if ((isNew || _editType || _editTypes) && !typesIn.length && b.noInterest !== true) return res.status(400).json({ ok: false, error: 'A contact type is required.' });
   // Multiple emails / phones — all emails must be globally unique.
   const emails = (b.emails !== undefined || b.email !== undefined) ? cleanList(b.emails !== undefined ? b.emails : b.email, 10, 160) : (p ? personEmails(p) : []);
   const phones = (b.phones !== undefined || b.phone !== undefined) ? cleanList(b.phones !== undefined ? b.phones : b.phone, 10, 60) : (p ? personPhones(p) : []);
@@ -19106,13 +19107,16 @@ app.delete('/api/person/:id/tour/:tourId', (req, res) => {
   p.updatedAt = new Date().toISOString(); savePeople(arr);
   res.json({ ok: true, tours: p.tours });
 });
+// Real image check from the file's first bytes — the name alone lies (HEIC renamed .jpg, PDFs, etc.).
+function _imgKindOf(buf) { if (!buf || buf.length < 12) return ''; if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47) return 'png'; if (buf[0] === 0xFF && buf[1] === 0xD8 && buf[2] === 0xFF) return 'jpg'; if (buf.slice(0, 3).toString('ascii') === 'GIF') return 'gif'; if (buf.slice(0, 4).toString('ascii') === 'RIFF' && buf.slice(8, 12).toString('ascii') === 'WEBP') return 'webp'; return ''; }
+const IMG_TYPE_ERR = 'That file isn’t an image Lavano can use. Upload a JPG, PNG, GIF or WebP (iPhone HEIC photos: export or screenshot as JPG first).';
 app.post('/api/person/:id/photo', express.json({ limit: '8mb' }), (req, res) => {
   const arr = loadPeople(); const p = arr.find(x => x.id === req.params.id);
   if (!p) return res.status(404).json({ ok: false, error: 'Contact not found.' });
   const dataB64 = String((req.body && req.body.dataB64) || '').replace(/^data:[^,]*,/, '');
   if (!dataB64) return res.status(400).json({ ok: false, error: 'No image data.' });
-  const ext = photoExtFromName((req.body && req.body.filename) || '');
   const buf = Buffer.from(dataB64, 'base64');
+  const ext = _imgKindOf(buf); if (!ext) return res.status(400).json({ ok: false, error: IMG_TYPE_ERR });
   if (buf.length > 6 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'Image too large (max 6 MB).' });
   try { if (!fs.existsSync(PERSONPHOTO_DIR)) fs.mkdirSync(PERSONPHOTO_DIR, { recursive: true }); binWrite(path.join(PERSONPHOTO_DIR, p.id + '.' + ext), buf); }
   catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the photo.' }); }
@@ -19148,7 +19152,7 @@ app.get('/api/companies', (req, res) => {
     let _main = c.mainContactId ? _cp.find(p => p.id === c.mainContactId) : null;
     if (!_main && _cp.length === 1) _main = _cp[0];   // only one contact → treat it as the main/preferred
     const _pref = (_main && Array.isArray(_main.prefContact) && _main.prefContact.length) ? _main.prefContact.map(x => String(x).charAt(0).toUpperCase() + String(x).slice(1)).join(', ') : '';
-    return { id: c.id, name: c.name, markets: Object.keys(mk), market: c.market || '', address: (c.office && [c.office.address, c.office.city, c.office.state].filter(Boolean).join(', ')) || '', type: c.type || '', tags: Array.isArray(c.tags) ? c.tags : [], logo: c.logo || '', logoAuto: logoFromWebsite((c.office && c.office.website) || ((c.concepts && c.concepts[0] && c.concepts[0].website) || '')), concepts: (c.concepts || []).length, conceptNames: (c.concepts || []).map(cp => cp.name).filter(Boolean), contacts: _cp.length, locations: (c.locations || []).length, deals: deals.filter(d => d.companyId === c.id).length, mainContactId: (_main && _main.id) || '', mainContact: (_main && _main.name) || '', preferredContact: _pref, createdAt: c.createdAt, owner: c.by || '', leadSource: c.leadSource || '', star: !!c.star, interactions: (Array.isArray(c.activities) ? c.activities.length : 0), lastActiveAt: _companyLastActive(c, _coActMax[c.id] || '') };
+    return { id: c.id, name: c.name, markets: Object.keys(mk), market: c.market || '', address: (c.office && [c.office.address, c.office.city, c.office.state].filter(Boolean).join(', ')) || '', type: c.type || '', tags: Array.isArray(c.tags) ? c.tags : [], logo: c.logo || '', logoAuto: c.logoOff ? '' : logoFromWebsite((c.office && c.office.website) || ((c.concepts && c.concepts[0] && c.concepts[0].website) || '')), concepts: (c.concepts || []).length, conceptNames: (c.concepts || []).map(cp => cp.name).filter(Boolean), contacts: _cp.length, locations: (c.locations || []).length, deals: deals.filter(d => d.companyId === c.id).length, mainContactId: (_main && _main.id) || '', mainContact: (_main && _main.name) || '', preferredContact: _pref, createdAt: c.createdAt, owner: c.by || '', leadSource: c.leadSource || '', star: !!c.star, interactions: (Array.isArray(c.activities) ? c.activities.length : 0), lastActiveAt: _companyLastActive(c, _coActMax[c.id] || '') };
   });
   const _cities = {}; cos.forEach(c => { if (c.office && c.office.city) _cities[c.office.city] = 1; (c.locations || []).forEach(l => { if (l.city) _cities[l.city] = 1; }); }); const _titles = {}; people.forEach(pp => { if (pp.title) _titles[pp.title] = 1; });
   res.json({ ok: true, companies: rows, recencyDays: (effListRecencyEnabled() ? effListRecencyDays() : 0), canDelete: canDelete(req), types: effCompanyTypes(), cuisineTypes: effCuisineTypes(), conceptTypes: effConceptTypes(), leadSources: effLeadSources(), users: auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => String(a.name).localeCompare(String(b.name))), defaultState: effDefaultState(), personTypes: effPersonTypes(), metros: effMarkets(), cities: Object.keys(_cities).sort((x,y)=>x.toLowerCase().localeCompare(y.toLowerCase())), titles: Object.keys(_titles).sort((x,y)=>x.toLowerCase().localeCompare(y.toLowerCase())), allTags: allTagsList(), me: (req.user && req.user.username) || '', isAdmin: !!(req.user && isSuper(req.user)) });
@@ -19796,7 +19800,7 @@ app.get('/api/company/:id', (req, res) => {
   const dealRows = loadDeals().filter(d => d.companyId === c.id || (d.contactPersonId && _cids.indexOf(d.contactPersonId) >= 0)).map(d => ({ id: d.id, business: d.business, market: d.market || '', started: !!d.screenId, key: d.screenId ? ('s_' + d.screenId) : ('d_' + d.id), type: ((_coOv[d.screenId ? ('s_' + d.screenId) : ('d_' + d.id)] || {}).assignmentType) || 'listing', roomId: (function(){ const _r = roomForDeal(d); return _r ? _r.id : ''; })() }));
   const _pn = {}; loadPeople().forEach(p => { _pn[p.id] = p.name; });
   const companyAgreements = loadAgreements().filter(a => a.companyId === c.id || _cids.indexOf(a.personId) >= 0).map(a => Object.assign(agreementBrief(a), { personName: a.personName || _pn[a.personId] || '' })).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999')));
-  const companyLogoAuto = logoFromWebsite(c.website || (c.office && c.office.website) || ((c.concepts && c.concepts[0] && c.concepts[0].website) || ''));
+  const companyLogoAuto = c.logoOff ? '' : logoFromWebsite(c.website || (c.office && c.office.website) || ((c.concepts && c.concepts[0] && c.concepts[0].website) || ''));
   const companyActivity = companyActivityFeed(c);
   res.json({ ok: true, company: c, relationship: (function(){ try{ return relationshipRollupCompany(c.id); }catch(e){ return null; } })(), logoAuto: companyLogoAuto, contacts, deals: dealRows, agreements: companyAgreements, agreementTypes: effAgreementTypes(), automations: loadAutomations().filter(a => a.active !== false).map(a => ({ id: a.id, name: a.name || '' })), activity: companyActivity, users: auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => String(a.name).localeCompare(String(b.name))), activityTypes: effActivityTypes(), locations: c.locations || [], concepts: c.concepts || [], types: effCompanyTypes(), personTypes: effPersonTypes(), locationStatuses: LOCATION_STATUSES, siteTypes: LOCATION_SITETYPES, conceptTypes: effConceptTypes(), pricePoints: PRICE_POINTS, cuisineTypes: effCuisineTypes(), leadSources: effLeadSources(), markets: effMarkets(), titles: Object.keys(loadPeople().reduce((m, pp) => { if (pp.title) m[pp.title] = 1; return m; }, {})).sort((x, y) => x.toLowerCase().localeCompare(y.toLowerCase())), allTags: allTagsList(), hasMaps: !!loadGmapsKey(), canRooms: userCan(req.user, 'tool:rrg_rooms_queue.html'), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
 });
@@ -19922,12 +19926,12 @@ app.post('/api/company/:id/logo', express.json({ limit: '8mb' }), (req, res) => 
   if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
   const dataB64 = String((req.body && req.body.dataB64) || '').replace(/^data:[^,]*,/, '');
   if (!dataB64) return res.status(400).json({ ok: false, error: 'No image data.' });
-  const ext = photoExtFromName((req.body && req.body.filename) || '');
   const buf = Buffer.from(dataB64, 'base64');
+  const ext = _imgKindOf(buf); if (!ext) return res.status(400).json({ ok: false, error: IMG_TYPE_ERR });
   if (buf.length > 6 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'Image too large (max 6 MB).' });
   try { if (!fs.existsSync(COLOGO_DIR)) fs.mkdirSync(COLOGO_DIR, { recursive: true }); binWrite(path.join(COLOGO_DIR, c.id + '.' + ext), buf); }
   catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the logo.' }); }
-  c.logoExt = ext; c.logo = '/api/cologo/' + c.id + '.' + ext + '?v=' + Date.now(); c.updatedAt = new Date().toISOString();
+  c.logoExt = ext; c.logo = '/api/cologo/' + c.id + '.' + ext + '?v=' + Date.now(); c.logoOff = false; c.updatedAt = new Date().toISOString();
   saveCompanies(arr);
   res.json({ ok: true, logo: c.logo });
 });
@@ -20064,7 +20068,7 @@ app.post('/api/company/:id/find-concepts', express.json(), async (req, res) => {
       const arr2 = loadCompanies(); const c2 = arr2.find(x => x.id === req.params.id);
       if (c2) { c2.office = c2.office || {}; let ch = false;
         if (!String(c2.office.website || '').trim()) { c2.office.website = out.website.slice(0, 200); ch = true; }
-        if (!String(c2.logo || '').trim()) { const lg = logoFromWebsite(out.website); if (lg) { c2.logo = lg; ch = true; } }
+        if (!String(c2.logo || '').trim() && !c2.logoOff) { const lg = logoFromWebsite(out.website); if (lg) { c2.logo = lg; ch = true; } }
         if (ch) { c2.updatedAt = new Date().toISOString(); saveCompanies(arr2); } }
     }
     res.json({ ok: true, concepts: out.concepts, groupWebsite: out.website || '' });
@@ -20228,7 +20232,7 @@ app.post('/api/company/:id/build-concepts', express.json(), async (req, res) => 
     if (groupSite) {
       c.office = c.office || {};
       if (!String(c.office.website || '').trim()) c.office.website = groupSite.slice(0, 200);
-      if (!String(c.logo || '').trim()) { const lg = logoFromWebsite(groupSite); if (lg) { c.logo = lg; companyLogoSet = true; } }
+      if (!String(c.logo || '').trim() && !c.logoOff) { const lg = logoFromWebsite(groupSite); if (lg) { c.logo = lg; companyLogoSet = true; } }
     }
 
     // Log the AI build to the company's activity feed so the record tells the whole story
@@ -20320,7 +20324,8 @@ app.post('/api/company', express.json(), (req, res) => {
   }
   if (typeof b.mainContactId === 'string') c.mainContactId = b.mainContactId.slice(0, 40);
   if (typeof b.star === 'boolean') c.star = b.star;
-  if (typeof b.logo === 'string') c.logo = b.logo.slice(0, 400);
+  if (typeof b.logo === 'string') { c.logo = b.logo.slice(0, 400); if (c.logo) c.logoOff = false; }
+  if (b.logoOff !== undefined) c.logoOff = !!b.logoOff;   // user removed the logo — don't auto-fill one from the website
   if (b.office && typeof b.office === 'object') {
     const o = c.office || {};
     ['address', 'city', 'state', 'phone', 'website', 'email'].forEach(k => { if (typeof b.office[k] === 'string') o[k] = b.office[k].slice(0, 200); });
@@ -23088,7 +23093,7 @@ app.post('/api/admin/enrich-apply', requireAdmin, express.json({ limit: '3mb' })
       if (a.phone && !l.phone) l.phone = String(a.phone).slice(0, 40);
       if (a.website && !l.website) l.website = String(a.website).slice(0, 200);
       if (a.pricePoint && PRICE_POINTS.indexOf(a.pricePoint) >= 0) { const cpt = (c.concepts || []).find(cp => normKey(cp.name) === normKey(l.concept)); if (cpt && !String(cpt.pricePoint || '').trim()) cpt.pricePoint = a.pricePoint; }
-      if (!c.logo) { const _site = a.website || l.website || (c.office && c.office.website) || (a.google && a.google.website) || ''; if (_site) { const _lg = faviconHiRes(_site) || logoFromWebsite(_site); if (_lg) { c.logo = _lg; c.updatedAt = now; } } }
+      if (!c.logo && !c.logoOff) { const _site = a.website || l.website || (c.office && c.office.website) || (a.google && a.google.website) || ''; if (_site) { const _lg = faviconHiRes(_site) || logoFromWebsite(_site); if (_lg) { c.logo = _lg; c.updatedAt = now; } } }
       applied++;
     });
     c.updatedAt = now;
@@ -26925,16 +26930,25 @@ function _ibHost(u) { try { return new URL(u).hostname.replace(/^www\./, '').toL
 // Texas Chit Chat research desk — same verified-URL pipeline as the managers' brief, but aimed at
 // restaurant & bar OWNERS/OPERATORS: awards and recognition first, then openings, closings, moves and
 // operator events. Nothing for brokers, agents, investors or developers; nothing about TREC.
+// Texas Chit Chat covers the whole state: the four big metros (desk B, deep) plus every other major metro (desk C).
+const CC_BIG_METROS = ['San Antonio', 'Austin', 'Dallas–Fort Worth', 'Houston'];
+const CC_MORE_METROS = ['El Paso', 'Rio Grande Valley', 'Corpus Christi', 'Lubbock', 'Waco', 'Killeen–Temple', 'Bryan–College Station', 'Amarillo', 'Laredo', 'Midland–Odessa', 'Tyler', 'Beaumont'];
+const CC_ALL_METROS = CC_BIG_METROS.concat(['New Braunfels']).concat(CC_MORE_METROS).join(', ');
 function ccResearchPrompt(cfg, today, from, until, part) {
+  if (part === 'C') return 'You are the research desk for Texas Chit Chat, a weekly email newsletter read by restaurant and bar OWNERS and OPERATORS across Texas. '
+    + 'Cover the state\'s other major metros, one at a time: ' + CC_MORE_METROS.join('; ') + '. Run at least one search per metro (two for El Paso, Rio Grande Valley and Corpus Christi) on free local sources: local TV news sites (KTSM, KRGV, KRIS, KCBD, KWTX, KBTX, KAMR, KGNS, KWES, KLTV, KFDM), free local outlets (El Paso Matters, the Rio Grande Valley’s ValleyCentral and KRGV, Laredo Morning Times where free), Community Impact, city and county news pages, Eater and CultureMap where they cover it. Skip metered Gannett papers (El Paso Times, Lubbock Avalanche-Journal, Caller-Times) and other paywalled papers.\n'
+    + 'NEWS from ' + from + ' to ' + today + ': restaurant and bar OPENINGS and coming-soon announcements, CLOSINGS and relocations, AWARDS, and MOVES (local groups expanding, new locations signed, concept or ownership changes). Find at least 1–2 items per metro if they exist — 15+ total. Give the street address or shopping center when the source has it.\n'
+    + 'RULES: Only include an item you found in search results this session, with its exact source URL. Skip paywalled sources (Texas Monthly, Express-News, Houston Chronicle, Dallas Morning News, Austin American-Statesman, Star-Telegram, Business Journals, Caller-Times). Never invent names, dates or URLs. Dates exact (YYYY-MM-DD). No duplicates. Nothing about TREC or for real estate brokers.\n'
+    + 'Return ONLY one JSON object, no markdown: {"news":[{"headline":"","date":"YYYY-MM-DD","city":"","market":"one of: ' + cfg.markets + ', Texas","address":"","source":"","url":"","summary":"1-2 plain sentences","angle":"award|market intel|space available","why":""}],"events":[]}';
   const metros = String(cfg.markets || '').split(',').map(x => x.trim()).filter(Boolean);
-  if (part === 'B') return 'You are the research desk for Texas Chit Chat, a weekly email newsletter read by restaurant and bar OWNERS and OPERATORS in ' + cfg.markets + ' and their suburbs. '
-    + 'Use the web_search tool and search EACH metro separately (' + metros.join('; ') + ') — at least three searches per metro — on free local sources: CultureMap, Eater, MySA, San Antonio Current, Austin Chronicle, Dallas Observer, Houston Press, Community Impact, local TV news sites.\n'
+  if (part === 'B') return 'You are the research desk for Texas Chit Chat, a weekly email newsletter read by restaurant and bar OWNERS and OPERATORS in ' + CC_BIG_METROS.join(', ') + ' and their suburbs. '
+    + 'Use the web_search tool and search EACH metro separately (' + CC_BIG_METROS.concat(['New Braunfels / Hill Country']).join('; ') + ') — at least three searches per metro — on free local sources: CultureMap, Eater, MySA, San Antonio Current, Austin Chronicle, Dallas Observer, Houston Press, Community Impact, local TV news sites.\n'
     + 'NEWS from ' + from + ' to ' + today + ': restaurant and bar OPENINGS and coming-soon announcements, CLOSINGS and relocations, and MOVES (local groups expanding, concept changes, ownership or chef changes, new locations signed). Find at least 5 items per metro if they exist — 20+ total. Give the street address or shopping center when the source has it.\n'
     + 'RULES: Only include an item you found in search results this session, with its exact source URL. Skip paywalled sources (Texas Monthly, Express-News, Houston Chronicle, Dallas Morning News, Austin American-Statesman, Star-Telegram, Business Journals). Never invent names, dates or URLs. Dates exact (YYYY-MM-DD). No duplicates. Nothing about TREC or for real estate brokers.\n'
     + 'Return ONLY one JSON object, no markdown: {"news":[{"headline":"","date":"YYYY-MM-DD","city":"","market":"one of: ' + cfg.markets + ', Texas","address":"","source":"","url":"","summary":"1-2 plain sentences","angle":"market intel|space available","why":""}],"events":[]}';
   return 'You are the research desk for Texas Chit Chat, a weekly email newsletter read by restaurant and bar OWNERS and OPERATORS in ' + cfg.markets + ' and their suburbs. '
     + 'Use the web_search tool to gather this week\'s items. Search market by market, free local sources first: CultureMap (San Antonio, Austin, Dallas, Houston), Eater Austin/Dallas/Houston, MySA, San Antonio Current, Austin Chronicle, Dallas Observer, Houston Press, Community Impact, local TV news, Texas Restaurant Association, Michelin Guide, James Beard Foundation.\n'
-    + 'PART 1 — NEWS from ' + from + ' to ' + today + '. Find at least 18 items if they exist, spread across all four metros. Cover, in this order of priority:\n'
+    + 'PART 1 — NEWS from ' + from + ' to ' + today + '. Find at least 18 items if they exist, spread across the metros — awards and statewide items can come from anywhere in Texas. Cover, in this order of priority:\n'
     + '(a) AWARDS & RECOGNITION — always search for these: Michelin Guide Texas stars, Bib Gourmands and recommended lists; James Beard Award nominations, semifinalists and wins; Texas Restaurant Association awards and hall of fame; CultureMap Tastemaker Awards; Eater \'best new restaurants\' and heatmaps; Yelp Top 100 / OpenTable / Food & Wine / Bon Appétit / Esquire / USA Today best-of lists naming Texas restaurants or bars; local \'best of\' and readers\' choice results; chefs and bartenders recognized. Use angle "award".\n'
     + '(b) OPENINGS and coming-soon announcements (address or shopping center when the source has it).\n'
     + '(c) CLOSINGS and relocations.\n'
@@ -26961,7 +26975,7 @@ async function buildIndustryBrief(cfg, opt) {
     + 'Return ONLY one JSON object, no markdown, no commentary:\n'
     + '{"news":[{"headline":"","date":"YYYY-MM-DD","city":"","market":"one of: ' + cfg.markets + ', Texas, National","address":"street address or shopping center if known","source":"publication name","url":"","summary":"1-2 plain sentences","angle":"seller lead|tenant lead|space available|award|market intel|regulation","why":"one sentence: what RRG should do with this"}],'
     + '"events":[{"name":"","date":"YYYY-MM-DD","endDate":"YYYY-MM-DD or empty","city":"","market":"one of: ' + cfg.markets + ', Texas, National","venue":"","organizer":"","url":"","category":"trade show|association|real estate|networking|conference|festival","priority":"high|medium|low","why":"one sentence: why a restaurant broker should go"}]}';
-  const tools = [{ type: 'web_search_20250305', name: 'web_search', max_uses: OPS ? 20 : 14, user_location: { type: 'approximate', city: 'San Antonio', region: 'Texas', country: 'US', timezone: firmTz() || 'America/Chicago' } }];
+  const tools = [{ type: 'web_search_20250305', name: 'web_search', max_uses: OPS ? (opt.part === 'C' ? 24 : 22) : 14, user_location: { type: 'approximate', city: 'San Antonio', region: 'Texas', country: 'US', timezone: firmTz() || 'America/Chicago' } }];
   let messages = [{ role: 'user', content: 'Today is ' + today + '. Build this week\'s industry brief now.' }];
   const seenUrls = new Set(), seenHosts = new Set(); let searches = 0; let final = null;
   for (let turn = 0; turn < 5; turn++) {
@@ -26991,7 +27005,7 @@ async function buildIndustryBrief(cfg, opt) {
     .filter(n => OPS || !((n.angle === 'space available' || n.angle === 'tenant lead') && LR(n.market) > 1))     // spaces and tenant leads only count in our metros
     .filter(n => n.market !== 'Other')
     .filter((n, i, arr) => n.market !== 'National' || arr.slice(0, i).filter(x => x.market === 'National').length < 2)
-    .sort((x, y) => (LR(x.market) - LR(y.market)) || ((x.angle === 'space available' ? 0 : 1) - (y.angle === 'space available' ? 0 : 1))).slice(0, OPS ? 26 : 14);
+    .sort((x, y) => (LR(x.market) - LR(y.market)) || ((x.angle === 'space available' ? 0 : 1) - (y.angle === 'space available' ? 0 : 1))).slice(0, OPS ? 40 : 14);
   const events = (Array.isArray(J.events) ? J.events : []).map(e => ({ name: S(e.name, 160), date: S(e.date, 10), endDate: S(e.endDate, 10), city: S(e.city, 60), market: mkOf(e.market || e.city), venue: S(e.venue, 120), organizer: S(e.organizer, 120), url: S(e.url, 600), category: S(e.category, 30), priority: ['high', 'medium', 'low'].indexOf(S(e.priority, 10).toLowerCase()) >= 0 ? S(e.priority, 10).toLowerCase() : 'medium', why: S(e.why, 300) }))
     .filter(e => e.name && okUrl(e.url) && isDay(e.date) && (e.date >= today || (isDay(e.endDate) && e.endDate >= today)) && e.date <= until)
     .filter(e => { const k = (e.name + '|' + e.date).toLowerCase(); if (ek[k]) return false; ek[k] = 1; return true; })
@@ -27071,7 +27085,7 @@ app.post('/api/admin/industry-brief/send-me', requireAdmin, async (req, res) => 
 // ===== Texas Chit Chat — the public weekly newsletter for restaurant owners (separate brand; RRG is the disclosed affiliate).
 // Drafted from the week's industry-brief research, rewritten for operators by AI, approved by a person, then sent through Email Studio.
 const CC_FILE = path.join(BOV_DATA_DIR, 'chitchat_issues.json');
-const CC_DEFAULT = { listId: null, fromName: 'Texas Chit Chat', fromEmail: '', replyTo: '', metros: 'SA · AUSTIN · DFW · HOUSTON',
+const CC_DEFAULT = { listId: null, fromName: 'Texas Chit Chat', fromEmail: '', replyTo: '', metros: 'SA · AUSTIN · DFW · HOUSTON · ACROSS TEXAS',
   publisher: 'Published by Texas Chit Chat', address: '16002 Huebner Blf, San Antonio, TX 78248',
   sponsor: { on: false, label: '', line: '', url: '', cta: 'Learn more' },
   rrg: { on: true, headline: 'Thinking of selling or expanding?', line: 'Restaurant Realty Group — Texas restaurant & bar brokers.', url: 'https://www.rrgcre.com', cta: 'Talk to a broker' } };
@@ -27082,12 +27096,12 @@ function ccSave(a) { return writeJsonGuarded(CC_FILE, a.slice(-200), 'chitChat')
 const CC_SECTIONS = [['awards', 'CHEF’S KISS — AWARDS'], ['openings', 'NOW SEATING — OPENINGS'], ['closings', '86’D — CLOSINGS'], ['realestate', 'SEATS OPEN — REAL ESTATE'], ['moves', 'ON THE PASS — MOVES']];   // awards lead, then openings — good news first; closings still get their own section
 // Texas Chit Chat links only to articles a subscriber can read for free. Known subscription / metered-paywall
 // publications are blocked in every section and in events.
-const CC_PAYWALL = ['texasmonthly.com', 'expressnews.com', 'houstonchronicle.com', 'dallasnews.com', 'statesman.com', 'mystatesman.com', 'star-telegram.com', 'bizjournals.com', 'nytimes.com', 'wsj.com', 'washingtonpost.com', 'bloomberg.com', 'ft.com', 'therealdeal.com', 'caller.com', 'mysanantonio.com', 'austinchronicle.com/subscribe', 'theathletic.com', 'businessinsider.com', 'newyorker.com', 'theinformation.com'];
+const CC_PAYWALL = ['elpasotimes.com', 'lubbockonline.com', 'wacotrib.com', 'amarillo.com', 'oaoa.com', 'mrt.com', 'tylerpaper.com', 'beaumontenterprise.com', 'texasmonthly.com', 'expressnews.com', 'houstonchronicle.com', 'dallasnews.com', 'statesman.com', 'mystatesman.com', 'star-telegram.com', 'bizjournals.com', 'nytimes.com', 'wsj.com', 'washingtonpost.com', 'bloomberg.com', 'ft.com', 'therealdeal.com', 'caller.com', 'mysanantonio.com', 'austinchronicle.com/subscribe', 'theathletic.com', 'businessinsider.com', 'newyorker.com', 'theinformation.com'];
 const CC_FREE_ONLY = ['awards', 'openings', 'closings', 'realestate', 'moves'];
 function ccPaywalled(url) { let h = ''; try { const u = new URL(String(url || '')); h = (u.hostname.replace(/^www\./, '') + u.pathname).toLowerCase(); } catch (e) { return false; } return CC_PAYWALL.some(d => h === d || h.indexOf(d) === 0 || h.indexOf('.' + d) >= 0); }
 // Geographic balance: no one metro takes more than ~a third of the issue. Featured stories always stay;
 // over the cap, the extra short-list items from that metro are left unticked (still in the editor to re-include).
-function ccMetro(v) { const t = String(v || '').toLowerCase(); if (/fort worth|dallas|dfw|plano|frisco|arlington|irving|denton|mckinney/.test(t)) return 'DFW'; if (/houston|katy|sugar land|woodlands|spring|pearland|kingwood/.test(t)) return 'Houston'; if (/austin|round rock|cedar park|georgetown|pflugerville|kyle|buda/.test(t)) return 'Austin'; if (/san antonio|new braunfels|boerne|schertz|helotes/.test(t)) return 'San Antonio'; if (/texas|statewide/.test(t)) return 'Texas'; return ''; }
+function ccMetro(v) { const t = String(v || '').toLowerCase(); if (/fort worth|dallas|dfw|plano|frisco|arlington|irving|denton|mckinney/.test(t)) return 'DFW'; if (/houston|katy|sugar land|woodlands|spring|pearland|kingwood/.test(t)) return 'Houston'; if (/austin|round rock|cedar park|georgetown|pflugerville|kyle|buda/.test(t)) return 'Austin'; if (/san antonio|new braunfels|boerne|schertz|helotes/.test(t)) return 'San Antonio'; if (/el paso/.test(t)) return 'El Paso'; if (/mcallen|edinburg|mission|harlingen|brownsville|rio grande valley|\brgv\b|pharr|weslaco/.test(t)) return 'Rio Grande Valley'; if (/corpus christi|portland, tx|port aransas/.test(t)) return 'Corpus Christi'; if (/lubbock/.test(t)) return 'Lubbock'; if (/\bwaco\b/.test(t)) return 'Waco'; if (/killeen|temple|belton|harker heights/.test(t)) return 'Killeen–Temple'; if (/college station|bryan/.test(t)) return 'Bryan–College Station'; if (/amarillo/.test(t)) return 'Amarillo'; if (/laredo/.test(t)) return 'Laredo'; if (/midland|odessa/.test(t)) return 'Midland–Odessa'; if (/\btyler\b|longview/.test(t)) return 'Tyler'; if (/beaumont|port arthur/.test(t)) return 'Beaumont'; if (/texas|statewide/.test(t)) return 'Texas'; return ''; }
 function ccBalance(D) { const items = []; CC_SECTIONS.forEach(([k]) => (D[k] || []).forEach(x => items.push(x))); const local = items.filter(x => x.market && x.market !== 'Texas'); if (local.length < 6) return;
   const cap = Math.max(3, Math.ceil(local.length * 0.3)); const n = {}; items.filter(x => x.featured).forEach(x => { if (x.market) n[x.market] = (n[x.market] || 0) + 1; });
   items.filter(x => !x.featured).forEach(x => { if (!x.market || x.market === 'Texas') return; n[x.market] = (n[x.market] || 0) + 1; if (n[x.market] > cap) x.include = false; }); }
@@ -27102,9 +27116,9 @@ function ccTraCap(evs) { let tra = 0; return (evs || []).filter(e => { const t =
 const CC_BROKER_EVENT_RE = /bisnow\.com|recouncil\.com|ntcar\.org|icsc\.|naiop|ccim|\buli\.org|realtor|\bbroker|\breal estate\b|\bCRE\b|commercial property|industrial|residential|multifamily|\boffice market|capital markets|investor (summit|forum)|\bdevelop(er|ment) (summit|forum)|property tax(es)? 101/i;
 async function buildChitChatDraft(user) {
   const key = process.env.ANTHROPIC_API_KEY; if (!key) throw new Error('AI is not set up — add ANTHROPIC_API_KEY on the server.');
-  // Two research desks run side by side: A = awards, operator rules & events; B = openings / closings / moves, metro by metro.
-  const _cfg = effIndustryBrief();
-  const _rs = await Promise.allSettled([buildIndustryBrief(_cfg, { operator: true, part: 'A' }), buildIndustryBrief(_cfg, { operator: true, part: 'B' })]);
+  // Three research desks run side by side: A = awards, operator rules & events; B = openings / closings / moves in the four big metros; C = the rest of Texas's major metros.
+  const _cfg = Object.assign({}, effIndustryBrief(), { markets: CC_ALL_METROS });
+  const _rs = await Promise.allSettled([buildIndustryBrief(_cfg, { operator: true, part: 'A' }), buildIndustryBrief(_cfg, { operator: true, part: 'B' }), buildIndustryBrief(_cfg, { operator: true, part: 'C' })]);
   const _ok = _rs.filter(x => x.status === 'fulfilled').map(x => x.value);
   if (!_ok.length) throw (_rs[0].reason || new Error('Research failed — try again.'));
   let B = { at: new Date().toISOString(), searches: 0, news: [], events: [] }; const _seenU = new Set();
@@ -27123,7 +27137,7 @@ async function buildChitChatDraft(user) {
     + 'Sort items into sections: openings, awards, closings, realestate (second-generation restaurant spaces on the market, restaurant leases signed, restaurant property sales, new developments with restaurant space — only what the items report), moves (deals, expansions, relocations, rule changes and anything else). In each section mark the 1–2 most important as featured. '
     + 'For each item give: headline (≤ 80 chars, specific), body (1–2 sentences, include the address or neighborhood when the item has it), mod (≤ 90 chars, a factual note about the space or the market — e.g. what the space is, what is coming next — or empty), name (business name), where (≤ 50 chars, neighborhood and city), url, source, featured (true/false). '
     + 'lede: one or two sentences tying the week together — lead with the week\'s awards and recognition when there are any, otherwise the biggest local story, and where the facts allow frame it with momentum (what is opening, growing or winning), never doom. subject: the email subject line, ≤ 60 chars, leads with the biggest local story. events: keep each with date (YYYY-MM-DD), name, city, url. '
-    + 'Balance the issue across our metros (San Antonio, Austin, Dallas–Fort Worth, Houston): no single metro should take more than about a third of the items, and featured stories should come from different metros where the items allow. '
+    + 'Cover the whole state: use items from every metro you are given (San Antonio, Austin, Dallas–Fort Worth, Houston, plus El Paso, the Rio Grande Valley, Corpus Christi, Lubbock, Waco, Killeen–Temple, Bryan–College Station, Amarillo, Laredo, Midland–Odessa, Tyler, Beaumont). No single metro should take more than about a third of the items, and featured stories should come from different metros where the items allow; give each item its city in where. '
     + 'Only use items whose url is free to read — never link a subscription or paywalled publication (e.g. Texas Monthly, San Antonio Express-News, Houston Chronicle, Dallas Morning News, Austin American-Statesman, Fort Worth Star-Telegram, Business Journals); leave such an item out rather than link it. '
     + 'Never include anything about TREC (the Texas Real Estate Commission) — no TREC classes, events, rules or news. '
     + 'Readers are restaurant and bar OWNERS and OPERATORS, not brokers: keep only events an operator would attend (restaurant association meetings, food & beverage trade shows, hospitality and chef events, food festivals, TABC / health / labor compliance sessions); drop any event for real estate brokers, agents, investors or developers. If none qualify, return events as []. '
@@ -27138,7 +27152,7 @@ async function buildChitChatDraft(user) {
   const mktOf = {}; src.news.forEach(n => { if (n.url) mktOf[n.url] = ccMetro(n.market || n.city); });
   const item = x => ({ include: true, featured: !!x.featured, headline: S(x.headline, 140), body: S(x.body, 500), mod: S(x.mod, 160), name: S(x.name, 100), where: S(x.where, 80), url: S(x.url, 600), source: S(x.source, 80), market: mktOf[S(x.url, 600)] || ccMetro(x.where) });
   const D = { subject: S(J.subject, 120) || 'This week in Texas restaurants', lede: S(J.lede, 500) };
-  CC_SECTIONS.forEach(([k]) => { D[k] = (Array.isArray(J[k]) ? J[k] : []).map(item).filter(x => x.headline && okUrls.has(x.url) && !(CC_FREE_ONLY.indexOf(k) >= 0 && ccPaywalled(x.url))).filter(x => !_ccBan(x)).slice(0, 10); });
+  CC_SECTIONS.forEach(([k]) => { D[k] = (Array.isArray(J[k]) ? J[k] : []).map(item).filter(x => x.headline && okUrls.has(x.url) && !(CC_FREE_ONLY.indexOf(k) >= 0 && ccPaywalled(x.url))).filter(x => !_ccBan(x)).slice(0, 16); });
   ccBalance(D);
   D.events = ccTraCap((Array.isArray(J.events) ? J.events : []).map(e => ({ include: true, date: S(e.date, 10), name: S(e.name, 160), city: S(e.city, 60), url: S(e.url, 600) })).filter(e => e.name && /^\d{4}-\d{2}-\d{2}$/.test(e.date) && okUrls.has(e.url) && !ccPaywalled(e.url)).filter(e => !_ccBan(e) && !_ccBroker(e))).slice(0, 10);
   const all = ccLoad(); const n = all.reduce((m, x) => Math.max(m, x.n || 0), 0) + 1;
