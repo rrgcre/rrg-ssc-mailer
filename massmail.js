@@ -578,10 +578,13 @@ const RATE = Math.max(1, Number(process.env.SES_MAX_RATE || 10)); // messages pe
 function _sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 function _injectPreheader(html, txt) { const ph = '<div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all">' + escapeHtml(txt) + '</div>'; if (/<body[^>]*>/i.test(html)) return html.replace(/(<body[^>]*>)/i, '$1' + ph); return ph + html; }
 function kickDrainer() { if (_draining) return; if (!DB_READY || !sesConfigured()) return; _draining = true; _loop().catch(e => console.error('[MAIL] drain loop: ' + (e && e.message))).finally(() => { _draining = false; }); }
-async function maybeDecideAb() {
+async function maybeDecideAb(forceId) {
   if (!DB_READY) return false;
   let released = false;
-  const cands = (await q(`SELECT id, ab_metric, ab_hours FROM mm_campaigns
+  // forceId = "pick the winner now" for one campaign: skips the wait window, still waits for the test sends to finish.
+  const cands = forceId
+    ? (await q(`SELECT id, ab_metric, ab_hours FROM mm_campaigns WHERE tenant=$1 AND id=$2 AND status='sending' AND ab_enabled=true AND (ab_winner='' OR ab_winner IS NULL)`, [TENANT, Number(forceId)])).rows
+    : (await q(`SELECT id, ab_metric, ab_hours FROM mm_campaigns
      WHERE tenant=$1 AND status='sending' AND ab_enabled=true AND (ab_winner='' OR ab_winner IS NULL)
        AND started_at IS NOT NULL AND now() >= started_at + (COALESCE(ab_hours,4) * interval '1 hour')`, [TENANT])).rows;
   for (const c of cands) {
@@ -854,6 +857,21 @@ function mount(app, deps) {
     const note = 'Imported ' + total.toLocaleString() + ' subscriber' + (total === 1 ? '' : 's') + (type ? (' (' + type + ')') : '') + (listName ? (' → ' + listName) : '') + (bits.length ? (' — ' + bits.join(', ')) : '') + (src ? (' · ' + src) : '');
     _logSys(req, 'Subscribers', note, { tool: 'subscribers', kind: 'import' });
     res.json({ ok: true });
+  } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
+  // End an A/B test early: pick the current leader now and release the held recipients with that subject.
+  app.post('/api/mail/campaigns/:id/ab-decide', requireAdmin, guard, async (req, res) => { try {
+    const id = Number(req.params.id);
+    const c = (await q(`SELECT status, COALESCE(ab_enabled,false) AS ab, COALESCE(ab_winner,'') AS w FROM mm_campaigns WHERE tenant=$1 AND id=$2`, [TENANT, id])).rows[0];
+    if (!c) return res.status(404).json({ ok: false, error: 'Campaign not found.' });
+    if (!c.ab) return res.status(400).json({ ok: false, error: 'This campaign is not running an A/B test.' });
+    if (c.w) return res.json({ ok: true, winner: c.w, already: true });
+    if (c.status !== 'sending') return res.status(400).json({ ok: false, error: 'The A/B test is not running right now.' });
+    await maybeDecideAb(id);
+    const w = (await q(`SELECT COALESCE(ab_winner,'') AS w FROM mm_campaigns WHERE id=$1`, [id])).rows[0].w;
+    if (!w) return res.status(409).json({ ok: false, error: 'The test sends are still going out — try again in a minute.' });
+    kickDrainer();
+    try { _logSys(req.user || null, 'Campaigns', 'Ended the A/B test early — subject ' + w + ' going to everyone else', { tool: 'campaigns', kind: 'ab', id: id }); } catch (e) {}
+    res.json({ ok: true, winner: w });
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.post('/api/mail/campaigns/:id/pause', requireAdmin, guard, async (req, res) => { try { await pauseCampaign(Number(req.params.id)); res.json({ ok: true }); } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.post('/api/mail/campaigns/:id/archive', requireAdmin, guard, express.json(), async (req, res) => { try { const a = (req.body||{}).archived !== false; await q('UPDATE mm_campaigns SET archived=$3 WHERE tenant=$1 AND id=$2', [TENANT, Number(req.params.id), a]); res.json({ ok: true, archived: a }); } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
