@@ -27188,7 +27188,7 @@ async function buildChitChatDraft(user) {
   CC_SECTIONS.forEach(([k]) => { D[k] = (Array.isArray(J[k]) ? J[k] : []).map(item).filter(x => x.headline && okUrls.has(x.url) && !(CC_FREE_ONLY.indexOf(k) >= 0 && ccPaywalled(x.url))).filter(x => !_ccBan(x)).slice(0, 16); });
   ccBalance(D);
   D.events = ccTraCap((Array.isArray(J.events) ? J.events : []).map(e => ({ include: true, date: S(e.date, 10), name: S(e.name, 160), city: S(e.city, 60), url: S(e.url, 600) })).filter(e => e.name && /^\d{4}-\d{2}-\d{2}$/.test(e.date) && okUrls.has(e.url) && !ccPaywalled(e.url)).filter(e => !_ccBan(e) && !_ccBroker(e))).slice(0, 10);
-  const all = ccLoad(); const n = all.reduce((m, x) => Math.max(m, x.n || 0), 0) + 1;
+  const all = ccLoad(); const n = all.filter(x => !x.archived).reduce((m, x) => Math.max(m, x.n || 0), 0) + 1;   // archived test issues don't count — numbering restarts after a reset
   try { _diag.afterBriefMerge = (src.news || []).length; _diag.drafted = CC_SECTIONS.reduce((m, [k]) => m + (D[k] || []).length, 0); _diag.events = (D.events || []).length; } catch (e) {}
   const iss = { id: 'cc_' + Date.now().toString(36), n, status: 'draft', date: firmToday(), createdAt: new Date().toISOString(), by: (user && user.name) || '', briefAt: B.at, diag: _diag, data: D };
   all.push(iss); ccSave(all); return iss;
@@ -27303,7 +27303,7 @@ function chitChatHtml(iss, opt) {
 function _ccSummary(x) { const D = x.data || {}; const c = CC_SECTIONS.reduce((m, [k]) => m + (D[k] || []).filter(i => i.include !== false).length, 0); return { id: x.id, n: x.n, status: x.status, date: x.date, subject: D.subject, items: c, events: (D.events || []).filter(e => e.include !== false).length, campaignId: x.campaignId || null, approvedBy: x.approvedBy || '', createdAt: x.createdAt }; }
 let _ccBusy = false;
 app.get('/api/admin/chitchat', requireAdmin, async (req, res) => { let lists = []; try { lists = await massmail.listLists(); } catch (e) {}
-  res.json({ ok: true, settings: effChitChat(), issues: ccLoad().slice().reverse().map(_ccSummary), lists, studio: massmail.dbReady(), sending: massmail.sesConfigured(), aiReady: !!process.env.ANTHROPIC_API_KEY, signupUrl: (appBaseUrl() || '') + '/chitchat' }); });
+  res.json({ ok: true, settings: effChitChat(), issues: ccLoad().filter(x => !x.archived).slice().reverse().map(_ccSummary), lists, studio: massmail.dbReady(), sending: massmail.sesConfigured(), aiReady: !!process.env.ANTHROPIC_API_KEY, signupUrl: (appBaseUrl() || '') + '/chitchat' }); });
 app.post('/api/admin/chitchat/settings', requireAdmin, express.json(), async (req, res) => { const b = req.body || {}; const s = loadSettings(); const c = Object.assign({}, effChitChat()); const S = (v, n) => String(v == null ? '' : v).trim().slice(0, n);
   try { if (b.createList) { c.listId = await massmail.ensureList('Texas Chit Chat'); } else if (b.listId !== undefined) c.listId = (b.listId === 'all') ? 'all' : (b.listId ? Number(b.listId) : null); } catch (e) { return res.status(400).json({ ok: false, error: String(e.message || e) }); }
   ['fromName', 'fromEmail', 'replyTo', 'metros', 'publisher', 'address'].forEach(k => { if (b[k] !== undefined) c[k] = S(b[k], 200); });
@@ -27322,6 +27322,8 @@ app.post('/api/admin/chitchat/issues/:id', requireAdmin, express.json({ limit: '
   CC_SECTIONS.forEach(([k]) => { if (Array.isArray(b[k])) D[k] = b[k].slice(0, 12).map((it, i) => { const old = (D[k] || [])[i] || {}; return { include: it.include !== false, featured: !!it.featured, headline: S(it.headline, 140), body: S(it.body, 500), mod: S(it.mod, 160), name: S(it.name, 100), where: S(it.where, 80), url: old.url || '', source: old.source || '', market: old.market || '' }; }); });
   if (Array.isArray(b.events)) D.events = b.events.slice(0, 12).map((e, i) => { const old = (D.events || [])[i] || {}; return { include: e.include !== false, date: /^\d{4}-\d{2}-\d{2}$/.test(e.date) ? e.date : old.date, name: S(e.name, 160), city: S(e.city, 60), url: old.url || '' }; });
   x.data = D; if (x.status === 'approved' && !x.campaignId) x.status = 'draft'; x.editedAt = new Date().toISOString(); ccSave(all); res.json({ ok: true, issue: x }); });
+// Start fresh: set every existing issue aside (kept on file, hidden everywhere, not counted). The next issue is #1.
+app.post('/api/admin/chitchat/archive-all', requireAdmin, (req, res) => { const all = ccLoad(); const now = new Date().toISOString(); let k = 0; all.forEach(x => { if (!x.archived) { x.archived = true; x.archivedAt = now; x.archivedBy = (req.user && req.user.name) || ''; k++; } }); ccSave(all); res.json({ ok: true, archived: k }); });
 app.post('/api/admin/chitchat/issues/:id/delete', requireAdmin, (req, res) => { const all = ccLoad(); const i = all.findIndex(x => x.id === req.params.id); if (i < 0) return res.status(404).json({ ok: false, error: 'Not found.' });
   if (all[i].campaignId) return res.status(400).json({ ok: false, error: 'This issue has an Email Studio campaign — archive it there instead.' }); all.splice(i, 1); ccSave(all); res.json({ ok: true }); });
 const CC_SAMPLE_DATA = { subject: 'Sample issue — layout preview', lede: '*** FIRE *** This is placeholder copy so you can see the layout, ads and masthead. Draft a real issue with + New issue.',
@@ -27369,7 +27371,7 @@ app.post('/api/admin/chitchat/issues/:id/approve', requireAdmin, async (req, res
 function _ccPublicPage(title, inner) { return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + title + '</title><meta name="description" content="Texas Chit Chat — the weekly restaurant ticket: closings, openings, awards and events across San Antonio, Austin, DFW and Houston.">'
   + '<style>body{margin:0;background:#2a2d31;font-family:Georgia,"Times New Roman",serif;color:#1c1b19}.w{max-width:600px;margin:0 auto;padding:40px 16px}.t{background:#fbf8f1;padding:26px 28px}.mono{font-family:"Courier New",Courier,monospace}.h{font-family:Impact,"Arial Narrow Bold",sans-serif;font-size:44px;line-height:1;text-transform:uppercase;margin:8px 0 4px}.b{background:#fff;padding:26px 28px;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#3d3a34}label{display:block;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#6b665c;margin:14px 0 6px}input,select{width:100%;box-sizing:border-box;border:1px solid #cfc9bb;padding:12px;font-size:15px;font-family:inherit}button{margin-top:18px;background:#1c1b19;color:#fbf8f1;border:0;padding:14px 20px;font-size:15px;font-weight:700;cursor:pointer;min-height:44px}a{color:#1c1b19}.hp{position:absolute;left:-9999px}</style></head><body><div class="w">' + inner + '</div></body></html>'; }
 app.get('/chitchat', (req, res) => { const E = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); const C = effChitChat();
-  const past = ccLoad().filter(x => x.status !== 'draft').slice(-8).reverse();
+  const past = ccLoad().filter(x => x.status !== 'draft' && !x.archived).slice(-8).reverse();
   res.set('Content-Type', 'text/html; charset=utf-8').send(_ccPublicPage('Texas Chit Chat — the weekly restaurant ticket',
     '<div class="t"><div class="mono" style="font-size:11px;letter-spacing:1px;color:#6b665c">' + E(C.metros) + '</div><div class="h">Texas Chit Chat</div><div class="mono" style="font-size:11px;font-weight:700;letter-spacing:3px">THE WEEKLY RESTAURANT TICKET</div></div>'
     + '<div class="b"><p style="margin-top:0">Every Monday at 7: who closed, who’s opening, who won what, and where to be — across San Antonio, Austin, DFW and Houston. Free, two minutes, written for owners and operators.</p>'
@@ -27481,7 +27483,7 @@ app.post('/api/careers/apply', express.json({ limit: '16kb' }), async (req, res)
     return done(200, { ok: true });
   } catch (e) { console.error('careers apply:', e && e.message); return done(500, { ok: false, error: 'Could not send right now. Please try again.' }); }
 });
-app.get('/chitchat/:n', (req, res, next) => { const n = parseInt(req.params.n, 10); if (!isFinite(n)) return next(); const x = ccLoad().find(i => i.n === n && i.status !== 'draft'); if (!x) return res.status(404).type('html').send(_ccPublicPage('Not found', '<div class="b">That issue isn’t published. <a href="/chitchat">See Texas Chit Chat</a></div>'));
+app.get('/chitchat/:n', (req, res, next) => { const n = parseInt(req.params.n, 10); if (!isFinite(n)) return next(); const x = ccLoad().find(i => i.n === n && i.status !== 'draft' && !i.archived); if (!x) return res.status(404).type('html').send(_ccPublicPage('Not found', '<div class="b">That issue isn’t published. <a href="/chitchat">See Texas Chit Chat</a></div>'));
   res.type('html').send(chitChatHtml(x, { web: true })); });
 app.get('/api/reports/owner', requireAdmin, (req, res) => {
   try { res.json(buildOwnerReports(req.query || {})); }
