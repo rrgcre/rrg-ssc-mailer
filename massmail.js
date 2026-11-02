@@ -794,6 +794,30 @@ function mount(app, deps) {
     const rows = (await q(`SELECT c.id,c.name,c.subject,c.status,c.total,c.sent,c.failed,c.opens,c.clicks,COALESCE(c.clicks_total,0) AS clicks_total,c.bounces,c.complaints,c.unsubs,c.created_at,c.started_at,c.finished_at,COALESCE(c.archived,false) AS archived,COALESCE(c.ab_enabled,false) AS ab_enabled,COALESCE(c.ab_winner,'') AS ab_winner,COALESCE(c.runs,0) AS runs,(SELECT min(run_at) FROM mm_schedules x WHERE x.tenant=c.tenant AND x.campaign_id=c.id AND x.status='pending') AS next_run,(SELECT count(*)::int FROM mm_schedules x WHERE x.tenant=c.tenant AND x.campaign_id=c.id AND x.status='pending') AS sched_pending,COALESCE(c.resend_days,0) AS resend_days,COALESCE(c.resend_run,0) AS resend_run,COALESCE(c.resend_subject,'') AS resend_subject,COALESCE(c.resend_note,'') AS resend_note,l.name AS list_name,COALESCE(c.seg_type,'') AS seg_type,COALESCE(c.seg_mode,'') AS seg_mode FROM mm_campaigns c LEFT JOIN mm_lists l ON l.id=c.list_id WHERE ${wh} ORDER BY c.id DESC LIMIT 500`, p)).rows;
     res.json({ ok: true, campaigns: rows });
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
+  // Live pulse for one campaign: headline counts, A/B split, an opens/clicks timeline and the latest activity.
+  app.get('/api/mail/campaigns/:id/live', requireAdmin, guard, async (req, res) => { try {
+    const id = Number(req.params.id);
+    const c = (await q(`SELECT id,name,subject,COALESCE(subject_b,'') AS subject_b,status,total,sent,failed,opens,clicks,COALESCE(clicks_total,0) AS clicks_total,bounces,complaints,unsubs,
+        started_at,finished_at,last_run_at,COALESCE(ab_enabled,false) AS ab_enabled,COALESCE(ab_winner,'') AS ab_winner,ab_decided_at,COALESCE(ab_hours,0) AS ab_hours,COALESCE(seg_type,'') AS seg_type,
+        (SELECT min(run_at) FROM mm_schedules x WHERE x.tenant=mm_campaigns.tenant AND x.campaign_id=mm_campaigns.id AND x.status='pending') AS next_run
+      FROM mm_campaigns WHERE tenant=$1 AND id=$2`, [TENANT, id])).rows[0];
+    if (!c) return res.status(404).json({ ok: false, error: 'Not found.' });
+    const pend = (await q(`SELECT count(*) FILTER (WHERE status IN ('pending','hold'))::int AS queued FROM mm_sends WHERE campaign_id=$1`, [id])).rows[0];
+    let ab = null;
+    if (c.ab_enabled) {
+      const r = (await q(`SELECT variant, count(*) FILTER (WHERE status='sent')::int AS sent, count(*) FILTER (WHERE opened_at IS NOT NULL)::int AS opens, count(*) FILTER (WHERE clicked_at IS NOT NULL)::int AS clicks
+        FROM mm_sends WHERE campaign_id=$1 AND variant IN ('A','B') GROUP BY variant`, [id])).rows;
+      ab = { A: { sent: 0, opens: 0, clicks: 0 }, B: { sent: 0, opens: 0, clicks: 0 }, winner: c.ab_winner || '', decidedAt: c.ab_decided_at || null, hours: c.ab_hours };
+      r.forEach(x => { ab[x.variant] = { sent: x.sent, opens: x.opens, clicks: x.clicks }; });
+    }
+    // Timeline: 10-minute buckets of sends, opens and clicks over the last 24 hours of this campaign's activity.
+    const tl = (await q(`WITH ev AS (
+        SELECT sent_at AS at, 'sent' AS t FROM mm_sends WHERE campaign_id=$1 AND sent_at > now() - interval '24 hours'
+        UNION ALL SELECT at, type FROM mm_events WHERE tenant=$2 AND campaign_id=$1 AND type IN ('open','click','unsubscribe') AND at > now() - interval '24 hours')
+      SELECT to_timestamp(floor(extract(epoch FROM at)/600)*600) AS b, t, count(*)::int AS n FROM ev GROUP BY 1,2 ORDER BY 1`, [id, TENANT])).rows;
+    const recent = (await q(`SELECT type, email, at FROM mm_events WHERE tenant=$1 AND campaign_id=$2 AND type IN ('open','click','unsubscribe','bounce','complaint') ORDER BY at DESC LIMIT 25`, [TENANT, id])).rows;
+    res.json({ ok: true, now: new Date().toISOString(), campaign: c, queued: pend.queued, ab, timeline: tl, recent });
+  } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.get('/api/mail/campaigns/:id', requireAdmin, guard, async (req, res) => { try { const c = (await q('SELECT * FROM mm_campaigns WHERE tenant=$1 AND id=$2', [TENANT, req.params.id])).rows[0]; if (!c) return res.status(404).json({ ok: false, error: 'Not found.' }); res.json({ ok: true, campaign: c }); } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   // Per-send (per-run) breakdown for a campaign that has gone out more than once, plus the total.
   app.get('/api/mail/campaigns/:id/runs', requireAdmin, guard, async (req, res) => { try {

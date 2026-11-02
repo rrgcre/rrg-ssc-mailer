@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Live — Campaign</title>
+<style>
+:root{--navy:#16233f;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--line:#e3e7ef;--wash:#f4f6fa;--green:#1f8a5b;--blue:#2563c9;--amber:#b7791f;}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:var(--wash);}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;font-size:13px;}
+.hd{background:var(--navy);color:#fff;padding:12px 16px 14px;}
+.hd .row{display:flex;align-items:center;gap:8px;}
+.live{display:inline-flex;align-items:center;gap:6px;font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#9fb3d9;}
+.dot{width:8px;height:8px;border-radius:50%;background:#3ddc84;box-shadow:0 0 0 0 rgba(61,220,132,.6);animation:pulse 1.8s infinite;}
+.dot.off{background:#7d8aa5;animation:none;}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(61,220,132,.55);}70%{box-shadow:0 0 0 8px rgba(61,220,132,0);}100%{box-shadow:0 0 0 0 rgba(61,220,132,0);}}
+.st{margin-left:auto;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:3px;background:rgba(255,255,255,.12);}
+.nm{font-size:15px;font-weight:700;margin-top:8px;line-height:1.25;}
+.sj{font-size:12px;color:#b9c5de;margin-top:3px;line-height:1.35;}
+.wrap{padding:12px 14px 16px;}
+.prog{background:#fff;border:1px solid var(--line);border-radius:6px;padding:10px 12px;margin-bottom:10px;}
+.prog .l{display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);margin-bottom:6px;}
+.prog .l b{color:var(--ink);}
+.bar{height:8px;border-radius:4px;background:#e8ecf3;overflow:hidden;}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,#2563c9,#3d82f0);width:0;transition:width .6s ease;}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
+.t{background:#fff;border:1px solid var(--line);border-radius:6px;padding:10px 12px;position:relative;overflow:hidden;}
+.t .k{font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);}
+.t .v{font-size:26px;font-weight:800;line-height:1.1;margin-top:4px;font-variant-numeric:tabular-nums;}
+.t .r{font-size:11.5px;color:var(--muted);margin-top:2px;}
+.t .d{position:absolute;top:9px;right:10px;font-size:11px;font-weight:800;color:var(--green);opacity:0;transition:opacity .3s;}
+.t.flash{animation:fl 1.2s ease;} .t.flash .d{opacity:1;}
+@keyframes fl{0%{background:#eafaf1;}100%{background:#fff;}}
+.t.opens .v{color:var(--blue);} .t.clicks .v{color:var(--green);} .t.unsubs .v{color:var(--red);}
+.mini{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin:0 2px 10px;}
+.mini b{color:var(--ink);font-variant-numeric:tabular-nums;}
+.card{background:#fff;border:1px solid var(--line);border-radius:6px;padding:10px 12px;margin-bottom:10px;}
+.card h3{margin:0 0 8px;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between;}
+.card h3 span{text-transform:none;letter-spacing:0;font-weight:600;}
+.lg{display:flex;gap:12px;font-size:11px;color:var(--muted);margin-top:4px;}
+.lg i{display:inline-block;width:10px;height:3px;border-radius:2px;vertical-align:middle;margin-right:4px;}
+.ab{display:grid;grid-template-columns:22px 1fr auto;gap:6px 8px;align-items:center;font-size:12px;}
+.ab .tag{width:20px;height:20px;border-radius:4px;background:#eef2f8;color:var(--navy);font-weight:800;font-size:11px;display:flex;align-items:center;justify-content:center;}
+.ab .tag.win{background:var(--green);color:#fff;}
+.ab .s{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ab .n{font-variant-numeric:tabular-nums;color:var(--muted);text-align:right;white-space:nowrap;}
+.ab .n b{color:var(--ink);}
+.abnote{font-size:11.5px;color:var(--muted);margin-top:8px;}
+.feed{max-height:240px;overflow:auto;margin:0 -2px;}
+.ev{display:flex;align-items:center;gap:8px;padding:5px 2px;border-bottom:1px solid #f0f2f6;font-size:12px;}
+.ev:last-child{border-bottom:0;}
+.ev .ic{width:56px;flex:none;font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;}
+.ev .ic.open{color:var(--blue);} .ev .ic.click{color:var(--green);} .ev .ic.unsubscribe,.ev .ic.complaint{color:var(--red);} .ev .ic.bounce{color:var(--amber);}
+.ev .em{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ev .tm{flex:none;color:var(--muted);font-size:11px;font-variant-numeric:tabular-nums;}
+.ev.new{animation:fl 1.6s ease;}
+.empty{color:var(--muted);font-size:12px;padding:6px 0;}
+.foot{font-size:11px;color:var(--muted);text-align:center;margin-top:4px;}
+.pick a{display:block;padding:9px 10px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);text-decoration:none;margin-bottom:6px;}
+.pick a small{display:block;color:var(--muted);margin-top:2px;}
+.pick a:hover{border-color:#9fb0cc;}
+.err{color:var(--red);padding:16px;}
+</style>
+</head>
+<body>
+<div class="hd">
+  <div class="row"><span class="live"><span class="dot" id="dot"></span><span id="liveTxt">Live</span></span><span class="st" id="st">—</span></div>
+  <div class="nm" id="nm">Loading…</div>
+  <div class="sj" id="sj"></div>
+</div>
+<div class="wrap" id="wrap"></div>
+<script>
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function api(u){return fetch(u,{credentials:'same-origin'}).then(function(r){return r.json();});}
+function n(v){return Number(v||0);}
+function f(v){return n(v).toLocaleString('en-US');}
+function pct(a,b){ b=n(b); if(!b) return '0%'; var x=n(a)/b*100; return (x>=10?Math.round(x):Math.round(x*10)/10)+'%'; }
+function ago(d){ var s=Math.max(0,Math.round((Date.now()-new Date(d).getTime())/1000)); if(s<60) return s+'s ago'; if(s<3600) return Math.floor(s/60)+'m ago'; if(s<86400) return Math.floor(s/3600)+'h ago'; return Math.floor(s/86400)+'d ago'; }
+function when(d){ try{ var x=new Date(d); return x.toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }catch(e){ return ''; } }
+var ID=new URLSearchParams(location.search).get('id')||'', PREV=null, SEEN={}, TIMER=null;
+
+function picker(){
+  document.getElementById('nm').textContent='Pick a campaign'; document.getElementById('st').textContent=''; document.getElementById('dot').className='dot off';
+  api('/api/mail/campaigns').then(function(j){
+    var rows=((j&&j.campaigns)||[]).filter(function(c){ return c.status!=='draft'; }).slice(0,20);
+    document.getElementById('wrap').innerHTML='<div class="pick">'+(rows.length?rows.map(function(c){ return '<a href="?id='+encodeURIComponent(c.id)+'">'+esc(c.name||'Campaign')+'<small>'+esc(c.status)+' · '+f(c.sent)+' sent · '+f(c.opens)+' opens</small></a>'; }).join(''):'<div class="empty">No campaigns have been sent or scheduled yet.</div>')+'</div>';
+  });
+}
+
+function spark(tl){
+  // 10-minute buckets → three series; draw opens + clicks lines with sends as faint bars.
+  var B={}; (tl||[]).forEach(function(r){ var k=new Date(r.b).getTime(); (B[k]=B[k]||{sent:0,open:0,click:0,unsubscribe:0})[r.t]=n(r.n); });
+  var keys=Object.keys(B).map(Number).sort(function(a,b){return a-b;});
+  if(!keys.length) return '<div class="empty">Activity will chart here once the send starts.</div>';
+  var start=keys[0], end=Math.max(keys[keys.length-1], Date.now()-Date.now()%600000), step=600000, pts=[];
+  for(var t=start;t<=end;t+=step) pts.push(B[t]||{sent:0,open:0,click:0,unsubscribe:0});
+  if(pts.length>144) pts=pts.slice(-144);
+  var W=380,H=80,mx=1; pts.forEach(function(p){ mx=Math.max(mx,p.open,p.click); });
+  var ms=1; pts.forEach(function(p){ ms=Math.max(ms,p.sent); });
+  var dx=pts.length>1?W/(pts.length-1):W;
+  function line(key,col){ return '<polyline fill="none" stroke="'+col+'" stroke-width="2" stroke-linejoin="round" points="'+pts.map(function(p,i){ return (i*dx).toFixed(1)+','+(H-4-(p[key]/mx)*(H-10)).toFixed(1); }).join(' ')+'"/>'; }
+  var bw=Math.max(1,dx*.7), bars=pts.map(function(p,i){ if(!p.sent) return ''; var h=(p.sent/ms)*(H-10); return '<rect x="'+(i*dx-bw/2).toFixed(1)+'" y="'+(H-h).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+h.toFixed(1)+'" fill="#dfe6f2"/>'; }).join('');
+  return '<svg viewBox="0 0 '+W+' '+H+'" width="100%" height="'+H+'" preserveAspectRatio="none" style="display:block">'+bars+line('open','#2563c9')+line('click','#1f8a5b')+'</svg>'
+    +'<div class="lg"><span><i style="background:#2563c9"></i>Opens</span><span><i style="background:#1f8a5b"></i>Clicks</span><span><i style="background:#dfe6f2;height:8px"></i>Sends</span><span style="margin-left:auto">per 10 min</span></div>';
+}
+
+function tile(cls,k,v,r,delta){ return '<div class="t '+cls+(delta>0?' flash':'')+'" ><div class="k">'+k+'</div><div class="v">'+f(v)+'</div><div class="r">'+r+'</div><div class="d">+'+f(delta)+'</div></div>'; }
+
+function draw(j){
+  var c=j.campaign, sent=n(c.sent), tot=n(c.total), p=PREV||{};
+  var active=(c.status==='sending'||c.status==='queued');
+  var recentFinish=c.finished_at && (Date.now()-new Date(c.finished_at).getTime()<72*3600000);
+  document.getElementById('dot').className='dot'+((active||recentFinish)?'':' off');
+  document.getElementById('liveTxt').textContent=active?'Live · sending':(c.status==='scheduled'?'Scheduled':(recentFinish?'Live · tracking':'Final'));
+  document.getElementById('st').textContent=c.status||'';
+  document.getElementById('nm').textContent=c.name||'Campaign';
+  document.getElementById('sj').textContent=c.ab_enabled?('A: '+c.subject+'  ·  B: '+c.subject_b):(c.subject||'');
+  document.title=(active?'● ':'')+f(c.opens)+' opens — '+(c.name||'Campaign');
+  var h='';
+  if(c.status==='scheduled' && !sent){
+    h+='<div class="prog"><div class="l"><span>Goes out</span><b>'+esc(when(c.next_run))+'</b></div><div class="bar"><i style="width:0"></i></div></div>';
+  } else {
+    var w=tot?Math.min(100,sent/tot*100):0;
+    h+='<div class="prog"><div class="l"><span>'+(active?'Sending':'Delivered')+' — <b>'+f(sent)+'</b> of '+f(tot)+(n(j.queued)?(' · '+f(j.queued)+' queued'):'')+'</span><b>'+Math.round(w)+'%</b></div><div class="bar"><i style="width:'+w.toFixed(1)+'%"></i></div></div>';
+  }
+  h+='<div class="tiles">'
+    +tile('sent','Sent',sent,f(tot)+' audience',PREV?sent-n(p.sent):0)
+    +tile('opens','Opens',c.opens,pct(c.opens,sent)+' open rate',PREV?n(c.opens)-n(p.opens):0)
+    +tile('clicks','Clicks',c.clicks,pct(c.clicks,sent)+' click rate',PREV?n(c.clicks)-n(p.clicks):0)
+    +tile('unsubs','Unsubs',c.unsubs,pct(c.unsubs,sent)+' of sent',PREV?n(c.unsubs)-n(p.unsubs):0)
+    +'</div>';
+  h+='<div class="mini"><span>Bounces <b>'+f(c.bounces)+'</b> ('+pct(c.bounces,sent)+')</span><span>Complaints <b>'+f(c.complaints)+'</b></span>'+(n(c.failed)?('<span>Failed <b>'+f(c.failed)+'</b></span>'):'')+'<span>Total clicks <b>'+f(c.clicks_total)+'</b></span></div>';
+  if(j.ab){
+    var A=j.ab.A, Bv=j.ab.B, win=j.ab.winner;
+    var decide=(!win && c.started_at && j.ab.hours)?(' · winner picked '+when(new Date(new Date(c.started_at).getTime()+j.ab.hours*3600000))):'';
+    h+='<div class="card"><h3>A/B subject test <span>'+(win?('Winner: '+win):'Testing'+decide)+'</span></h3><div class="ab">'
+      +'<div class="tag'+(win==='A'?' win':'')+'">A</div><div class="s" title="'+esc(c.subject)+'">'+esc(c.subject)+'</div><div class="n"><b>'+pct(A.opens,A.sent)+'</b> · '+f(A.opens)+'/'+f(A.sent)+'</div>'
+      +'<div class="tag'+(win==='B'?' win':'')+'">B</div><div class="s" title="'+esc(c.subject_b)+'">'+esc(c.subject_b)+'</div><div class="n"><b>'+pct(Bv.opens,Bv.sent)+'</b> · '+f(Bv.opens)+'/'+f(Bv.sent)+'</div>'
+      +'</div><div class="abnote">Open rate · opens / sent in the test group'+(win?' — the winner went to everyone else.':'.')+'</div></div>';
+  }
+  h+='<div class="card"><h3>Activity <span>last 24 hours</span></h3>'+spark(j.timeline)+'</div>';
+  var rec=j.recent||[];
+  h+='<div class="card"><h3>Latest <span>'+(rec.length?'':'nothing yet')+'</span></h3><div class="feed">'+(rec.length?rec.map(function(e){ var key=e.type+'|'+e.email+'|'+e.at, isNew=PREV&&!SEEN[key]; SEEN[key]=1; var lab={open:'Opened',click:'Clicked',unsubscribe:'Unsub',bounce:'Bounced',complaint:'Spam'}[e.type]||e.type; return '<div class="ev'+(isNew?' new':'')+'"><span class="ic '+esc(e.type)+'">'+lab+'</span><span class="em">'+esc(e.email||'')+'</span><span class="tm">'+ago(e.at)+'</span></div>'; }).join(''):'<div class="empty">Opens, clicks and unsubscribes show up here as they happen.</div>')+'</div></div>';
+  h+='<div class="foot">Updates every '+(active?'5':'15')+' seconds · <a href="./rrg_mass_studio.html" target="_blank" rel="noopener" style="color:inherit">Open Campaigns ↗</a></div>';
+  document.getElementById('wrap').innerHTML=h;
+  PREV={sent:sent,opens:c.opens,clicks:c.clicks,unsubs:c.unsubs};
+  clearTimeout(TIMER); TIMER=setTimeout(tick, active?5000:15000);
+}
+function tick(){
+  if(document.hidden){ TIMER=setTimeout(tick,5000); return; }
+  api('/api/mail/campaigns/'+encodeURIComponent(ID)+'/live').then(function(j){
+    if(!j||!j.ok){ document.getElementById('wrap').innerHTML='<div class="err">'+esc((j&&j.error)||'Could not load this campaign.')+'</div>'; TIMER=setTimeout(tick,15000); return; }
+    draw(j);
+  }).catch(function(){ TIMER=setTimeout(tick,15000); });
+}
+document.addEventListener('visibilitychange',function(){ if(!document.hidden && ID){ clearTimeout(TIMER); tick(); } });
+if(ID) tick(); else picker();
+</script>
+</body>
+</html>

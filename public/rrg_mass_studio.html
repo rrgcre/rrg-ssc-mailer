@@ -410,6 +410,8 @@ function loadCampaigns(){
     api('GET','/api/mail/schedule-events')
   ]).then(function(res){
     var active=(res[0]&&res[0].campaigns)||[], archivedRows=(res[1]&&res[1].campaigns)||[];
+    _LIVE_ON=active.some(function(c){ var fin=c.finished_at?new Date(c.finished_at).getTime():0; return c.status==='sending'||c.status==='queued'||(fin && Date.now()-fin<72*3600000); });
+    if(!_LIVE_T) _liveListTick();
     _UPCOMING=(res[2]&&res[2].events)||[];
     var sent=active.filter(function(c){ return c.status==='sent'||c.status==='sending'||Number(c.sent||0)>0||Number(c.runs||0)>0; });
     // Drafts = never sent and nothing pending on the schedule.
@@ -453,13 +455,14 @@ function loadCampaigns(){
     RRGList.create(cfg);
     var body=$('campBody');
     if(body){ body.addEventListener('click',function(e){
-      var t=e.target.closest?e.target.closest('[data-open],[data-prev],[data-test],[data-exp],[data-arch],[data-sched],[data-hist],[data-del]'):null; if(!t) return;
+      var t=e.target.closest?e.target.closest('[data-open],[data-prev],[data-test],[data-live],[data-exp],[data-arch],[data-sched],[data-hist],[data-del]'):null; if(!t) return;
       if(t.hasAttribute('data-open')) openCampaign(t.getAttribute('data-open'));
       else if(t.hasAttribute('data-del')) deleteCampaign(t);
       else if(t.hasAttribute('data-sched')) openScheduleModal(t.getAttribute('data-sched'));
       else if(t.hasAttribute('data-hist')) openRunHistory(t.getAttribute('data-hist'));
       else if(t.hasAttribute('data-prev')) previewCampaign(t.getAttribute('data-prev'));
       else if(t.hasAttribute('data-test')) openTestModal(t.getAttribute('data-test'));
+      else if(t.hasAttribute('data-live')) openLive(t.getAttribute('data-live'));
       else if(t.hasAttribute('data-exp')) window.open('/api/mail/campaigns/'+t.getAttribute('data-exp')+'/export','_blank');
       else if(t.hasAttribute('data-arch')) api('POST','/api/mail/campaigns/'+t.getAttribute('data-arch')+'/archive',{ archived:t.getAttribute('data-a')==='1' }).then(function(){ loadCampaigns(); });
     }); }
@@ -599,6 +602,7 @@ function campActionsCell(c){
     +' <span data-sched="'+c.id+'" style="color:var(--blue);cursor:pointer;">Schedule</span>'
     +' <span data-prev="'+c.id+'" style="color:var(--blue);cursor:pointer;">Preview</span>'
     +' <span data-test="'+c.id+'" style="color:var(--blue);cursor:pointer;">Send test</span>'
+    +(c.status!=='draft'?(' <span data-live="'+c.id+'" style="color:var(--green);cursor:pointer;font-weight:600;" title="Open a small live window: sends, opens, clicks and unsubs as they happen">\u25CF Live</span>'):'')
     +' <span data-exp="'+c.id+'" style="color:var(--blue);cursor:pointer;">Export</span>'
     +((c.runs||0)>=1||Number(c.sent||0)>0?' <span data-hist="'+c.id+'" style="color:var(--blue);cursor:pointer;">History</span>':'')
     +' <span data-arch="'+c.id+'" data-a="'+(c.archived?'0':'1')+'" style="color:var(--muted);cursor:pointer;">'+(c.archived?'Restore':'Archive')+'</span>'
@@ -636,6 +640,19 @@ function previewCampaign(id){
 }
 // Send a test copy of a campaign (from the list row) — the real email, merge tags and all, to one address.
 function _testTo(c){ var v=''; try{ v=localStorage.getItem('rrgMailTestTo')||''; }catch(e){} return v||(c&&(c.reply_to||c.from_email))||''; }
+// Live pop-out: a small always-updating window for one campaign (sends, opens, clicks, unsubs, A/B, latest activity).
+function openLive(id){ var w=window.open('./rrg_mail_live.html?id='+encodeURIComponent(id),'rrgLive'+id,'width=460,height=820,resizable=yes,scrollbars=yes'); if(!w) location.href='./rrg_mail_live.html?id='+encodeURIComponent(id); }
+// The campaign list refreshes itself while anything is sending or still collecting opens (finished in the last 72h).
+var _LIVE_T=null, _LIVE_ON=false;
+function _liveListTick(){
+  clearTimeout(_LIVE_T);
+  _LIVE_T=setTimeout(function(){
+    var onList=!EDIT && $('campBody') && !document.hidden && $('tabCamps') && !$('tabCamps').hidden;
+    var busy=document.querySelector('#campBody input[type=checkbox]:checked') || (document.activeElement && /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) || $('testModal') || document.querySelector('.schedm-card');
+    if(onList && _LIVE_ON && !busy){ var y=window.scrollY; loadCampaigns(); loadStats(); setTimeout(function(){ window.scrollTo(0,y); },60); }
+    _liveListTick();
+  }, 10000);
+}
 function openTestModal(id){
   var old=$('testModal'); if(old) old.remove();
   var ov=document.createElement('div'); ov.id='testModal';
@@ -1138,7 +1155,7 @@ boot();
       <h4>2 · Compose the email</h4>
       <p>Create a campaign and edit it in the visual block editor — header, hero, text, buttons, stats, signature, footer — or switch to <b>HTML</b> for full control. The look (logo, colors and email style) comes from your branding in Admin. <b>Pull from a listing</b> to auto-fill a campaign from one of your live listings. Always send yourself a <b>test</b> before a real blast.</p>
       <h4>3 · Choose the audience</h4>
-      <p>In the editor, <b>Send to</b> picks one of your lists, every active <b>restaurant</b> or every active <b>broker</b> (by subscriber type), or all active subscribers. Asset-sale blasts start the subject with the standard 🔑 icon — added automatically for asset-sale listings; the <b>🔑 Asset sale</b> button next to the subject adds or removes it. Before it goes to everyone, use <b>Send test</b> (on the campaign row, or next to Save draft in the editor) to get the real email in your own inbox. The <b>Active restaurants</b> and <b>Active brokers</b> tiles at the top show how many each choice reaches today (unsubscribed, bounced and suppressed left out). Unsubscribed, bounced and suppressed addresses are always left out, and the audience is re-checked at every send. Broker blasts started from a tenant-rep engagement target <b>Brokers · area-matched</b> and show that audience instead.</p>
+      <p>In the editor, <b>Send to</b> picks one of your lists, every active <b>restaurant</b> or every active <b>broker</b> (by subscriber type), or all active subscribers. Asset-sale blasts start the subject with the standard 🔑 icon — added automatically for asset-sale listings; the <b>🔑 Asset sale</b> button next to the subject adds or removes it. Click <b>● Live</b> on a sent or scheduled campaign for a small pop-out window that updates every few seconds: sends, opens, clicks, unsubs, the A/B race and the latest activity. The campaign list also refreshes itself every 10 seconds while a campaign is sending or still collecting opens. Before it goes to everyone, use <b>Send test</b> (on the campaign row, or next to Save draft in the editor) to get the real email in your own inbox. The <b>Active restaurants</b> and <b>Active brokers</b> tiles at the top show how many each choice reaches today (unsubscribed, bounced and suppressed left out). Unsubscribed, bounced and suppressed addresses are always left out, and the audience is re-checked at every send. Broker blasts started from a tenant-rep engagement target <b>Brokers · area-matched</b> and show that audience instead.</p>
       <h4>4 · Schedule the send</h4>
       <p>Send now, or schedule one or more times. The <b>Standard cadence</b> button fills your firm's default series in one click (by default 12 sends: the first 6 about 26 days apart, the last 6 about 30), on weekdays at 9&nbsp;AM. <b>Auto-scheduling stays on business days</b> — never weekends or major holidays, and one send per morning / one per afternoon system-wide. Tick <b>Deliberate send</b> to lift the blackout for an intentional holiday greeting. You can <b>reschedule</b> or <b>cancel</b> any scheduled send inline. The defaults live in <b>Settings → Campaign send cadence</b>.</p>
       <h4>5 · Track results</h4>
