@@ -11313,6 +11313,7 @@ footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} 
   <section id="mRe" style="display:none">
     <div class="tools">
       <span class="seg" id="txnSeg"><button class="on" data-t="all">All</button><button data-t="lease">For Lease</button><button data-t="sale">For Sale</button><button data-t="asset">Asset Sale</button></span>
+      <select class="sel" id="reMarket" style="margin-left:10px"><option value="">All metros</option></select>
       <span class="spacer"></span>
       <button class="maptog" id="maptog">Hide map</button>
     </div>
@@ -11350,7 +11351,7 @@ footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin></script>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
-var ALL=[], BIZ=[], RE=[], MODE='biz', reTxn='all', mapObj=null, markers={};
+var ALL=[], BIZ=[], RE=[], MODE='biz', reTxn='all', reMkt='', mapObj=null, markers={};
 var BIZ_PGSZ=20, bizPage=1, RE_PGSZ=20, rePage=1;
 var PB=${JSON.stringify(MKT_PRICE)}, CB=${JSON.stringify(MKT_CASH)}, ICON=${JSON.stringify(MKT_ICON_BY)};
 var ORG=${JSON.stringify(orgDisplayName())};
@@ -11491,7 +11492,7 @@ function featCardRE(l){
     +'</div></div>';
 }
 function renderRE(){
-  var list=RE.filter(function(l){ return reTxn==='all'||l.kind===reTxn; });
+  var list=RE.filter(function(l){ return (reTxn==='all'||l.kind===reTxn) && (!reMkt||l.marketKey===reMkt); });
   list=list.filter(function(l){return l.status!=='sold';}).concat(list.filter(function(l){return l.status==='sold';}));
   var feats=list.filter(function(l){return l.featured&&l.status!=='sold';});
   var rest=list.filter(function(l){return !(l.featured&&l.status!=='sold');});
@@ -11563,7 +11564,12 @@ function setMode(m){ MODE=m;
 function fillFilters(){
   var mks={}, cks={};
   BIZ.forEach(function(l){ if(l.marketKey) mks[l.marketKey]=1; if(l.conceptKey) cks[l.conceptKey]=1; });
-  var fm=document.getElementById('fMarket'); Object.keys(mks).sort().forEach(function(m){ var o=document.createElement('option'); o.value=m;o.textContent=m; fm.appendChild(o); });
+  var bn={}; BIZ.forEach(function(l){ if(l.marketKey) bn[l.marketKey]=(bn[l.marketKey]||0)+1; });
+  var fm=document.getElementById('fMarket'); Object.keys(mks).sort().forEach(function(m){ var o=document.createElement('option'); o.value=m;o.textContent=m+' ('+bn[m]+')'; fm.appendChild(o); });
+  // Real estate & assets: metro filter, metros that have listings, with counts.
+  var rn={}; RE.forEach(function(l){ if(l.marketKey&&l.marketKey!=='Other') rn[l.marketKey]=(rn[l.marketKey]||0)+1; });
+  var rm=document.getElementById('reMarket'); if(rm){ Object.keys(rn).sort().forEach(function(m){ var o=document.createElement('option'); o.value=m; o.textContent=m+' ('+rn[m]+')'; rm.appendChild(o); });
+    rm.addEventListener('change',function(){ reMkt=rm.value; try{ rePage=1; }catch(e){} renderRE(); }); }
   var fc=document.getElementById('fConcept'); Object.keys(cks).sort().forEach(function(c){ var o=document.createElement('option'); o.value=c;o.textContent=c; fc.appendChild(o); });
 }
 function render(){

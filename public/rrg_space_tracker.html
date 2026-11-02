@@ -87,6 +87,7 @@ h1{font-size:30px;font-weight:700;margin:0;letter-spacing:-.01em;}
 #mapLegend .dot{width:11px;height:11px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.18);}
 #mapNote{font-size:11.5px;color:var(--muted);padding:2px 12px 8px;}
 .leaflet-popup-content{font:inherit;font-size:13px;margin:11px 13px;}
+.spclu{background:#20334f;color:#fff;border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 1px rgba(0,0,0,.2);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11.5px;}
 .mapop b{color:var(--navy);font-size:13.5px;}
 .mapop .med{margin-top:4px;color:var(--muted);font-size:12px;}
 .mapop .st{margin-top:6px;}
@@ -101,6 +102,8 @@ h1{font-size:30px;font-weight:700;margin:0;letter-spacing:-.01em;}
 </style>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js"></script>
 </head>
 <body>
 <a href="./index.html" class="rrg-back" aria-label="Back to toolbox" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28)"><span style="font-size:14px;line-height:1">&larr;</span> Toolbox</a>
@@ -576,7 +579,10 @@ function ensureMap(){
   if(typeof L==='undefined'){ document.getElementById('spmap').innerHTML='<div class="empty" style="padding:40px">The map library didn’t load — check the connection and reload.</div>'; return; }
   MAP=L.map('spmap',{scrollWheelZoom:true}).setView([31.3,-99.0],5);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(MAP);
-  MAP_LAYER=L.layerGroup().addTo(MAP);
+  MAP_LAYER=(L.markerClusterGroup?L.markerClusterGroup({ showCoverageOnHover:false, maxClusterRadius:38, spiderfyOnMaxZoom:true, disableClusteringAtZoom:17, chunkedLoading:true,
+    iconCreateFunction:function(c){ var n=c.getChildCount(), d=n<10?28:(n<100?34:42); return L.divIcon({ html:'<div class="spclu" style="width:'+d+'px;height:'+d+'px">'+n+'</div>', className:'', iconSize:[d,d] }); } }):L.layerGroup()).addTo(MAP);
+  // Dots get smaller when zoomed out so a metro doesn't turn into one blob.
+  MAP.on('zoomend',function(){ var z=MAP.getZoom(), r=z<=6?4:(z<=9?5:(z<=12?7:8)); MAP_LAYER.eachLayer&&MAP_LAYER.eachLayer(function(l){ if(l.setRadius) l.setRadius(l.options._approx?Math.max(3,r-2):r); }); });
   setTimeout(function(){ MAP.invalidateSize(); },60);
 }
 function _mapFilteredSpaces(){
@@ -590,7 +596,7 @@ function mapRefresh(fit){
   var rows=(CTL&&CTL.filtered)?CTL.filtered():_mapFilteredSpaces();
   var pts=[], exact=0, approx=0, none=0;
   rows.forEach(function(sp){
-    var lat=sp.lat, lng=sp.lng;
+    var lat=(sp.lat==null||sp.lat==='')?NaN:parseFloat(sp.lat), lng=(sp.lng==null||sp.lng==='')?NaN:parseFloat(sp.lng);   // null counts as "no pin" (isFinite(null) is true)
     if(!(isFinite(lat)&&isFinite(lng))){ var cc=GEO_CACHE[_spAddrKey(sp)]; if(cc){ lat=cc[0]; lng=cc[1]; sp.lat=lat; sp.lng=lng; } }
     if(isFinite(lat)&&isFinite(lng)){ _addMarker(sp,lat,lng,false); pts.push([lat,lng]); exact++; }
     else { var cen=_centroidFor(sp); if(cen){ _addMarker(sp,cen[0],cen[1],true); pts.push(cen); approx++; } else none++;
@@ -602,8 +608,10 @@ function mapRefresh(fit){
 }
 function _mapNote(exact,approx,none,total){ var n=document.getElementById('mapNote'); if(!n) return; var loc=GEO_Q.length+(GEO_BUSY?1:0); var p=[(exact+approx)+' of '+total+' on the map']; if(approx||loc) p.push('pinpointing exact addresses…'); if(none) p.push(none+' without a locatable address'); n.textContent=p.join(' · '); }
 function _addMarker(sp,lat,lng,approx){
+  lat=parseFloat(lat); lng=parseFloat(lng); if(!isFinite(lat)||!isFinite(lng)) return;
   var c=stColor(sp.status);
-  var mk=L.circleMarker([lat,lng],{radius:approx?6:8,color:'#fff',weight:2,fillColor:c[1],fillOpacity:approx?0.5:1});
+  var _z=MAP?MAP.getZoom():10, _r=_z<=6?4:(_z<=9?5:(_z<=12?7:8));
+  var mk=L.circleMarker([lat,lng],{radius:approx?Math.max(3,_r-2):_r,color:'#fff',weight:approx?1:2,fillColor:c[1],fillOpacity:approx?0.5:1,_approx:!!approx});
   var tot=totalRent(sp); var sub=[sp.spaceType, (sp.size!=null?sf(sp.size):''), (tot!=null?(money(tot)+'/SF'):'')].filter(Boolean).map(esc).join(' · ');
   var html='<div class="mapop"><b>'+esc(sp.name||sp.address||'Space')+'</b>'+((sp.name&&sp.address)?('<div class="med">'+esc(sp.address)+'</div>'):'')+((sp.center||sp.market)?('<div class="med">'+esc([sp.center,sp.market].filter(Boolean).join(' · '))+'</div>'):'')+(sub?('<div class="med">'+sub+'</div>'):'')+(approx?'<div class="med" style="color:#b5791f">○ Approximate — pinpointing exact address…</div>':'')+'<div class="st">'+stPill(sp.status)+'</div><a class="ed" data-mapedit="'+esc(sp.id)+'">Edit space →</a></div>';
   mk.bindPopup(html);
