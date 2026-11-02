@@ -8693,6 +8693,7 @@ const PL_CSS = `
 .pl-facts{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:0;border:1px solid #e1e6ef;border-radius:6px;overflow:hidden}
 .pl-facts div{background:#fff;padding:11px 13px;box-shadow:0 0 0 .5px #e1e6ef}.pl-facts b{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#6b7690;font-weight:700;margin-bottom:3px}.pl-facts span{font-size:15px;color:#0a1733;font-weight:600}
 .pl-hl{margin:0;padding:0;list-style:none}.pl-hl li{position:relative;padding:6px 0 6px 22px;font-size:15.5px;line-height:1.5;color:#1b2440}.pl-hl li::before{content:'';position:absolute;left:4px;top:15px;width:7px;height:7px;background:#C8A24B;border-radius:1px}
+.pl-eqs{display:grid;gap:0}.pl-eg{display:grid;grid-template-columns:170px 1fr;gap:12px;padding:8px 0;border-bottom:1px solid #eef1f6;font-size:14.5px;color:#1b2440}.pl-eg b{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#6b7690;padding-top:3px}.pl-eg i{font-style:normal;color:#6b7690}.pl-eqall{margin-top:10px}.pl-eqall summary{cursor:pointer;color:#2C5C8F;font-weight:600;font-size:14px}.pl-eqall[open] summary{margin-bottom:6px}.pl-eqall[open] + .pl-note{margin-top:4px}@media(max-width:700px){.pl-eg{grid-template-columns:1fr;gap:2px}}
 .pl-cols{columns:2;column-gap:28px;margin:0;padding:0;list-style:none}.pl-cols li{break-inside:avoid;padding:5px 0 5px 20px;position:relative;font-size:14.5px;color:#1b2440}.pl-cols li::before{content:'✓';position:absolute;left:0;color:#2f7a55;font-weight:700}
 .pl-kv{width:100%;border-collapse:collapse;font-size:14.5px}.pl-kv td{padding:8px 0;border-bottom:1px solid #eef1f6;vertical-align:top}.pl-kv td:first-child{color:#6b7690;width:42%;padding-right:12px}.pl-kv td:last-child{color:#0a1733;font-weight:500}
 .pl-map{width:100%;height:300px;border:0;border-radius:6px;margin-top:6px}
@@ -8712,6 +8713,23 @@ const PL_CSS = `
 .pl-note{font-size:13px;color:#6b7690;line-height:1.5}
 @media(max-width:900px){.pl-body{grid-template-columns:1fr}.pl-side{position:static}.pl-gal{grid-template-columns:1fr 1fr;grid-template-rows:240px 120px}.pl-gal a:first-child{grid-column:1/3;grid-row:auto}.pl-gal a:nth-child(n+4){display:none}.pl-cols{columns:1}}
 `;
+// Equipment grouped by category in the quick-add order — used by the web listing (and its long-list handling).
+function _ffeGroups(ffe) {
+  const conv = (ffe || []).filter(r => r && !r.excluded && r.own !== 'Leased' && r.item);
+  const co = aiassist.FFE_CATS || []; const ci = c => (co.indexOf(c) < 0 ? 99 : co.indexOf(c));
+  const by = {}; conv.forEach(r => { (by[r.cat || 'Other'] = by[r.cat || 'Other'] || []).push((r.qty > 1 ? (r.qty + ' × ') : '') + r.item + (r.taps ? (' (' + r.taps + ' taps)') : '')); });
+  return { total: conv.length, groups: Object.keys(by).sort((a, b) => ci(a) - ci(b)).map(c => ({ cat: c, items: by[c] })) };
+}
+function _plEquipHtml(x, sp) {
+  const G = _ffeGroups(x.deal && x.deal.assetFfe);
+  const disc = '<p class="pl-note" style="margin-top:10px">' + esc(FFE_DISCLAIMER) + '</p>';
+  if (!G.total) { const L = _plList(sp.ffeSchedule); return L.length ? '<ul class="pl-cols">' + L.slice(0, 40).map(c => '<li>' + esc(c) + '</li>').join('') + '</ul>' + disc : ''; }
+  const block = (g, max) => '<div class="pl-eg"><b>' + esc(g.cat) + '</b><span>' + g.items.slice(0, max || 999).map(esc).join(' · ') + (max && g.items.length > max ? (' · <i>+' + (g.items.length - max) + ' more</i>') : '') + '</span></div>';
+  if (G.total <= 16) return '<div class="pl-eqs">' + G.groups.map(g => block(g)).join('') + '</div>' + disc;
+  // Long list: one line per category up front, the full list one click away.
+  return '<div class="pl-eqs">' + G.groups.map(g => block(g, 4)).join('') + '</div>'
+    + '<details class="pl-eqall"><summary>See all ' + G.total + ' items</summary><div class="pl-eqs">' + G.groups.map(g => block(g)).join('') + '</div></details>' + disc;
+}
 function _plPage(req, key) {
   const wantPv = req && req.query && req.query.preview === '1' && _plStaff(req);
   const x = _plData(key) || (wantPv ? _plData(key, true) : null); if (!x) return null;
@@ -8755,7 +8773,7 @@ function _plPage(req, key) {
       + sec('Why this space', hl.length ? '<ul class="pl-hl">' + hl.map(h => '<li>' + esc(h) + '</li>').join('') + '</ul>' : '')
       + sec('At a glance', facts([[askL, price], ['Space type', sp.spaceType || t.propType], ['Square feet', sp.sqft || t.sf], ['Seating', seats], ['Patio', sp.patio], ['Parking', sp.parking ? (sp.parking + ' spaces') : ''], ['Delivery condition', sp.deliveryCondition], ['Status', sp.operatingNow], ['Available', sp.availableDate], ['Buildout', remodel || sp.buildoutAge], ['Zoning', sp.zoning]]))
       + sec('What conveys', conv.length ? '<ul class="pl-cols">' + conv.map(c => '<li>' + esc(c) + '</li>').join('') + '</ul>' + (sp.exclusions ? '<p class="pl-note" style="margin-top:10px"><b>Excluded:</b> ' + esc(sp.exclusions) + '</p>' : '') : '')
-      + sec('Equipment', ffe.length ? '<ul class="pl-cols">' + ffe.slice(0, 60).map(c => '<li>' + esc(c) + '</li>').join('') + '</ul>' + (ffe.length > 60 ? '<p class="pl-note">Full schedule in the Offering Sheet.</p>' : '') + '<p class="pl-note" style="margin-top:10px">' + esc(FFE_DISCLAIMER) + '</p>' : '')
+      + sec('Equipment', _plEquipHtml(x, sp))
       + sec('Lease', kv([['Monthly rent (all-in)', rent], ['Rent / SF', sp.leasePerSF], ['Remaining term', sp.leaseRemaining], ['Expires', sp.leaseExpiration], ['Renewal options', sp.leaseOptions], ['Assignment', sp.leaseAssignment], ['NNN / CAM', sp.leaseNNN], ['Deposit', sp.leaseDeposit], ['Permitted use', sp.leaseUse]]))
       + sec('The space', kv([['Address', addr], ['Center / building', sp.centerName], ['Center type', sp.centerType], ['Anchors & co-tenants', sp.coTenants], ['Historic / overlay', sp.overlay], ['Hood & venting', sp.hood], ['Walk-ins', sp.walkin], ['Restrooms', sp.restrooms], ['HVAC', sp.hvac], ['Electrical', sp.electrical], ['Gas', sp.gas], ['Water / sewer / grease', sp.waterSewer]]))
       + (vid ? sec('Video', '<iframe class="pl-vid" src="' + esc(vid) + '" allowfullscreen loading="lazy"></iframe>') : '')
@@ -21084,14 +21102,20 @@ function assetSheetHtml(business, market, spec, ffe, convey, opts) {
       + '<p class="fine">Leasehold improvements convey with assignment of the lease, subject to landlord consent.</p>';
   }
   // Equipment
-  let ffeHtml = '';
+  let ffeHtml = '', appxHtml = '';
   const xTyped = v('exclusions');
   if (ffe.length || xTyped) {
     const conv = ffe.filter(r => !r.excluded && r.own !== 'Leased'), leased = ffe.filter(r => !r.excluded && r.own === 'Leased'), exc = ffe.filter(r => r.excluded);
     const cats = []; conv.forEach(r => { if (cats.indexOf(r.cat) < 0) cats.push(r.cat); });
     const _co = aiassist.FFE_CATS || []; cats.sort((a, b) => (_co.indexOf(a) < 0 ? 99 : _co.indexOf(a)) - (_co.indexOf(b) < 0 ? 99 : _co.indexOf(b)));   // same order as the quick-add groups
     ffeHtml = '<h2>Equipment — furniture, fixtures &amp; equipment</h2>';
-    if (conv.length) {
+    if (conv.length > 16) {
+      // Long list: a one-line-per-category summary here, the full schedule on its own page at the back.
+      ffeHtml += '<table class="kv">' + cats.map(c => { const its = conv.filter(r => r.cat === c); return row(c, its.slice(0, 6).map(_ffeLine).join('; ') + (its.length > 6 ? ('; +' + (its.length - 6) + ' more') : '')); }).join('') + '</table><p class="fine">Full equipment schedule — ' + conv.length + ' items — on the last page.</p>';
+      let t = '<div class="appx"><h2>Equipment schedule — ' + conv.length + ' items</h2><table class="ffe"><tr><th>Item</th><th class="q">Qty</th><th>Make / model</th><th>Condition</th></tr>';
+      cats.forEach(c => { t += '<tr class="cat"><td colspan="4">' + esc(c) + '</td></tr>' + conv.filter(r => r.cat === c).map(r => { const n = _ffeNotePublic(r.notes); return '<tr><td>' + esc(r.item) + (r.taps ? (' — ' + r.taps + ' taps') : '') + (n ? '<div class="nt">' + esc(n) + '</div>' : '') + '</td><td class="q">' + r.qty + '</td><td>' + esc(r.model || '—') + '</td><td>' + esc(r.cond || '—') + '</td></tr>'; }).join(''); });
+      appxHtml = t + '</table><p class="fine">' + esc(FFE_DISCLAIMER) + '</p></div>';
+    } else if (conv.length) {
       ffeHtml += '<table class="ffe"><tr><th>Item</th><th class="q">Qty</th><th>Make / model</th><th>Condition</th></tr>';
       cats.forEach(c => { ffeHtml += '<tr class="cat"><td colspan="4">' + esc(c) + '</td></tr>' + conv.filter(r => r.cat === c).map(r => { const n = _ffeNotePublic(r.notes); return '<tr><td>' + esc(r.item) + (r.taps ? (' — ' + r.taps + ' taps') : '') + (n ? '<div class="nt">' + esc(n) + '</div>' : '') + '</td><td class="q">' + r.qty + '</td><td>' + esc(r.model || '—') + '</td><td>' + esc(r.cond || '—') + '</td></tr>'; }).join(''); });
       ffeHtml += '</table><p class="fine">' + esc(FFE_DISCLAIMER) + '</p>';
@@ -21125,11 +21149,12 @@ function assetSheetHtml(business, market, spec, ffe, convey, opts) {
     + 'table{width:100%;border-collapse:collapse}table.kv th{text-align:left;width:2.1in;vertical-align:top;color:#6b7488;font-weight:700;font-size:10.5px;padding:3px 10px 3px 0}table.kv td{vertical-align:top;padding:3px 0}table.kv tr+tr th,table.kv tr+tr td{border-top:1px solid #f1f3f7}'
     + 'table.ffe th{text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:#6b7488;padding:3px 8px 3px 0;border-bottom:1px solid #dbe0e9}table.ffe td{padding:2px 8px 2px 0;font-size:11px;vertical-align:top}table.ffe .q{width:.45in;text-align:right;padding-right:14px}table.ffe tr.cat td{font-weight:800;color:#000E31;font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;padding-top:7px}table.ffe .nt{color:#6b7488;font-size:9.5px}table.ffe tr,table.kv tr{page-break-inside:avoid}'
     + '.contact{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-top:18px;padding:11px 14px;background:#000E31;color:#fff;page-break-inside:avoid}.contact .cl{font-size:8.5px;text-transform:uppercase;letter-spacing:.12em;color:#9fb0cf;font-weight:700}.contact .cn{font-size:15px;font-weight:800;margin-top:2px}.contact .ct{font-size:10.5px;color:#c9d3e6}.contact .cd{font-size:11.5px;margin-top:2px}.contact a{color:#fff}.contact .cags{display:flex;gap:28px;flex-wrap:wrap}.contact .corg img{max-height:36px;max-width:170px;background:#fff;padding:4px 6px;border-radius:2px}.corg img.dk{background:none;padding:0;max-height:46px;max-width:190px}'
-    + '.foot{margin-top:8px;color:#8a93a8;font-size:8.5px;line-height:1.4}'
+    + '.foot{margin-top:8px;color:#8a93a8;font-size:8.5px;line-height:1.4}.appx{page-break-before:always;break-before:page;padding-top:4px}.appx table.ffe td{font-size:10.5px}'
     + '@media print{.wrap{padding:0}}</style></head><body><div class="wrap">'
     + '<div class="top">' + (opts.logo ? '<img src="' + opts.logo + '" alt="">' : '<span class="org">' + esc(org) + '</span>') + '<span class="kick">Offering Sheet · Restaurant Space</span></div>'
     + '<h1>' + esc(business || 'Restaurant space') + '</h1>' + (addrLine ? '<div class="addr">' + esc(addrLine) + '</div>' : '')
     + photosHtml + factsHtml + hlHtml + conveyHtml + ffeHtml + leaseHtml + spaceHtml + utilHtml + contact
+    + appxHtml
     + '<div class="foot">Prepared by ' + esc(org) + '. Confidential. Information is believed reliable but is not guaranteed; buyers should verify all details, including the lease and the condition and ownership of equipment. The lease assignment is subject to landlord approval.</div>'
     + '</div></body></html>';
 }
