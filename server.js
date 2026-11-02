@@ -27156,7 +27156,7 @@ async function buildChitChatDraft(user) {
   if (!_ok.length) throw (_rs[0].reason || new Error('Research failed — try again.'));
   let B = { at: new Date().toISOString(), searches: 0, news: [], events: [] }; const _seenU = new Set();
   _ok.forEach(R => { B.searches += (R.searches || 0); (R.news || []).forEach(n => { const k = String(n.url || '').toLowerCase(); if (k && !_seenU.has(k)) { _seenU.add(k); B.news.push(n); } }); (R.events || []).forEach(e => B.events.push(e)); });
-  const _diag = { searches: B.searches, researchNews: B.news.length, researchEvents: B.events.length, desksOk: _ok.length };
+  const _diag = { searches: B.searches, researchNews: B.news.length, researchEvents: B.events.length, desksOk: _ok.length, deskErrors: _rs.map((x, i) => x.status === 'rejected' ? ('ABC'[i] + ': ' + String((x.reason && x.reason.message) || x.reason).slice(0, 160)) : '').filter(Boolean) };
   // Fold in this week's openings/closings/moves from the managers' brief (news only — its events are broker-facing).
   try { const IB = ibLoad(); if (IB && (Date.now() - Date.parse(IB.at)) < 7 * 86400000 && Array.isArray(IB.news)) { const seen = new Set((B.news || []).map(n => String(n.url || '').toLowerCase())); B.news = (B.news || []).concat(IB.news.filter(n => n && n.url && !seen.has(String(n.url).toLowerCase()))); } } catch (e) {}   // Chit Chat runs its own operator-focused research (awards first), separate from the managers' broker brief
   // Never in Chit Chat: TREC (Texas Real Estate Commission) — licensing/broker-ed items aren't for operators.

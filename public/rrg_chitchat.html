@@ -108,8 +108,15 @@ function render(){
   document.querySelectorAll('[data-open]').forEach(function(b){ b.onclick=function(){ openIssue(b.getAttribute('data-open')); }; });
   if(CUR) paintEditor(); else if(SAMPLE) openSample();
 }
-function newIssue(){ var b=$('newBtn'); b.disabled=true; var W=window.rrgAiWork; if(W) W.show('Researching this week’s Texas restaurant news and drafting the issue — about a minute…');
-  post('/api/admin/chitchat/draft',{}).then(function(j){ b.disabled=false; if(W) W.hide(); if(j&&j.ok){ CUR=j.issue; load(); } else { if(window.rrgToast) rrgToast((j&&j.error)||'Could not draft.'); else alert((j&&j.error)||'Could not draft.'); } }).catch(function(){ b.disabled=false; if(W) W.hide(); });
+function newIssue(){ var b=$('newBtn'); if(!b||b.disabled) return; b.disabled=true; var W=window.rrgAiWork; var t0=Date.now(), lbl=b.textContent;
+  var msg='Researching Texas restaurant news across every metro and drafting the issue — this takes about 4–6 minutes. You can leave this page; the draft appears here when it’s done.';
+  if(W&&W.show) W.show(msg);
+  // Always show progress on the button itself (and a line under the header), even if the shared overlay isn't on the page.
+  var st=document.getElementById('ccWork'); if(!st){ st=document.createElement('div'); st.id='ccWork'; st.style.cssText='margin:10px 0;padding:10px 12px;background:#eef2f8;border:1px solid #d5dce8;border-radius:4px;color:#20334f;font-size:13px;font-weight:600'; var host=b.closest('.card')||document.body; host.insertBefore(st, host.firstChild.nextSibling); }
+  var tick=function(){ var s=Math.round((Date.now()-t0)/1000); var mm=Math.floor(s/60)+':'+('0'+(s%60)).slice(-2); b.textContent='Researching… '+mm; st.textContent='⏳ '+msg+' ('+mm+')'; };
+  tick(); var iv=setInterval(tick,1000);
+  var done=function(){ clearInterval(iv); b.disabled=false; b.textContent=lbl; if(st&&st.parentNode) st.parentNode.removeChild(st); if(W&&W.hide) W.hide(); };
+  post('/api/admin/chitchat/draft',{}).then(function(j){ done(); if(j&&j.ok){ CUR=j.issue; load(); } else { if(window.rrgToast) rrgToast((j&&j.error)||'Could not draft.'); else alert((j&&j.error)||'Could not draft.'); } }).catch(function(){ done(); alert('Lost the connection while drafting — reload in a few minutes; the draft may still finish.'); });
 }
 function openIssue(id){ SAMPLE=false; fetch('/api/admin/chitchat/issues/'+encodeURIComponent(id),{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ CUR=j.issue; paintEditor(); var e=$('editor'); if(e) e.scrollIntoView({behavior:'smooth'}); } }); }
 function itemHtml(k,it,i){ var off=it.include===false;
