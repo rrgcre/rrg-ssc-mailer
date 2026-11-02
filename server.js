@@ -20869,7 +20869,8 @@ function _ffeSyncText(spec, ffe) {
   if (!ffe.length) return spec;
   const conv = ffe.filter(r => !r.excluded && r.own !== 'Leased'), leased = ffe.filter(r => !r.excluded && r.own === 'Leased'), exc = ffe.filter(r => r.excluded);
   const byCat = {}; conv.forEach(r => { (byCat[r.cat] = byCat[r.cat] || []).push(_ffeLine(r)); });
-  let t = Object.keys(byCat).map(c => c + ': ' + byCat[c].join('; ')).join('\n');
+  const _co = aiassist.FFE_CATS || []; const _ci = c => (_co.indexOf(c) < 0 ? 99 : _co.indexOf(c));
+  let t = Object.keys(byCat).sort((a, b) => _ci(a) - _ci(b)).map(c => c + ': ' + byCat[c].join('; ')).join('\n');
   if (leased.length) t += (t ? '\n' : '') + 'Leased / vendor-owned (does not convey): ' + leased.map(_ffeLine).join('; ');
   if (t) spec.ffeSchedule = t.slice(0, ASSET_SPEC_FIELDS.ffeSchedule); else delete spec.ffeSchedule;
   if (exc.length) spec.ffeExcluded = exc.map(_ffeLine).join('; ').slice(0, ASSET_SPEC_FIELDS.ffeExcluded); else delete spec.ffeExcluded;
@@ -21088,6 +21089,7 @@ function assetSheetHtml(business, market, spec, ffe, convey, opts) {
   if (ffe.length || xTyped) {
     const conv = ffe.filter(r => !r.excluded && r.own !== 'Leased'), leased = ffe.filter(r => !r.excluded && r.own === 'Leased'), exc = ffe.filter(r => r.excluded);
     const cats = []; conv.forEach(r => { if (cats.indexOf(r.cat) < 0) cats.push(r.cat); });
+    const _co = aiassist.FFE_CATS || []; cats.sort((a, b) => (_co.indexOf(a) < 0 ? 99 : _co.indexOf(a)) - (_co.indexOf(b) < 0 ? 99 : _co.indexOf(b)));   // same order as the quick-add groups
     ffeHtml = '<h2>Equipment — furniture, fixtures &amp; equipment</h2>';
     if (conv.length) {
       ffeHtml += '<table class="ffe"><tr><th>Item</th><th class="q">Qty</th><th>Make / model</th><th>Condition</th></tr>';

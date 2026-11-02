@@ -502,7 +502,7 @@ async function polishValueBasis({ basis, business, market, value }) {
   return String(out || '').replace(/^#+\s.*$/gm, '').replace(/\*\*/g, '').trim();
 }
 // FF&E list (spreadsheet, PDF, photo, typed) → one standard equipment schedule.
-const FFE_CATS = ['Cooking', 'Refrigeration', 'Prep & Storage', 'Warewashing', 'Bar & Beverage', 'Smallwares', 'Furniture & Decor', 'POS & Tech', 'Signage', 'Other'];
+const FFE_CATS = ['Cooking', 'Refrigeration', 'Prep & Storage', 'Warewashing', 'Bar & Beverage', 'Display & Retail', 'Furniture & Decor', 'POS & Tech', 'Smallwares', 'Signage', 'Other'];
 async function parseFfeList({ text, blocks }) {
   const sys = 'You turn a restaurant or bar seller\'s furniture, fixtures & equipment (FF&E) list into a standard equipment schedule for a broker\'s listing sheet. Return ONLY JSON: {"items":[{"cat":"","item":"","qty":1,"taps":0,"model":"","cond":"","own":"","notes":""}]}.\n'
     + 'Rules:\n- cat is exactly one of: ' + FFE_CATS.join(', ') + '.\n'
