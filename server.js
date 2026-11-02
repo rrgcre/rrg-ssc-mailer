@@ -12924,6 +12924,8 @@ function addLeadProposal(username, parsed, source) {
   return { created: true, id: p.id };
 }
 // Read-only: find an existing person by email (no creation).
+// Small lookup: is there a Lavano contact with this email? (Subscriber page links to it.)
+app.get('/api/person-by-email', (req, res) => { try { const p = findPersonByEmail(req.query.email); if (!p) return res.json({ ok: true, person: null }); res.json({ ok: true, person: { id: p.id, name: p.name || ((p.firstName || '') + ' ' + (p.lastName || '')).trim(), company: p.company || '', companyId: p.companyId || '', title: p.title || '', phone: (Array.isArray(p.phones) && p.phones[0]) || p.phone || '' } }); } catch (e) { res.json({ ok: false }); } });
 function findPersonByEmail(email) {
   const e = cleanEmailAddr(String(email || '')); if (!e) return null;
   const k = normKey(e); if (!k) return null;

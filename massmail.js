@@ -398,24 +398,27 @@ function _audienceClause(pub, a) {
 }
 async function createCampaign(b, user) {
   const ab = _abFields(b);
-  const r = await q(`INSERT INTO mm_campaigns(tenant,name,subject,preheader,from_name,from_email,reply_to,html,list_id,by_user,ab_enabled,subject_b,html_b,ab_pct,ab_metric,ab_hours,pub)
-    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING id`,
+  const r = await q(`INSERT INTO mm_campaigns(tenant,name,subject,preheader,from_name,from_email,reply_to,html,list_id,by_user,ab_enabled,subject_b,html_b,ab_pct,ab_metric,ab_hours,pub,seg_type)
+    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING id`,
     [TENANT, String(b.name || '').slice(0, 200), String(b.subject || '').slice(0, 300), String(b.preheader || '').slice(0, 300),
      String(b.fromName || process.env.MAIL_FROM_NAME || '').slice(0, 120), String(b.fromEmail || process.env.SES_FROM || process.env.MAIL_FROM || '').slice(0, 200),
      String(b.replyTo || '').slice(0, 200), String(b.html || ''), b.listId ? Number(b.listId) : null, String((user && user.name) || '').slice(0, 120),
-     ab.enabled, ab.subjectB, ab.htmlB, ab.pct, ab.metric, ab.hours, (b.pub === 'chitchat' ? 'chitchat' : '')]);
+     ab.enabled, ab.subjectB, ab.htmlB, ab.pct, ab.metric, ab.hours, (b.pub === 'chitchat' ? 'chitchat' : ''), _segTypeIn(b.segType) || '']);
   return r.rows[0].id;
 }
 async function updateCampaign(id, b) {
   const ab = _abFields(b);
   await q(`UPDATE mm_campaigns SET name=$3,subject=$4,preheader=$5,from_name=$6,from_email=$7,reply_to=$8,html=$9,list_id=$10,
-           ab_enabled=$11,subject_b=$12,html_b=$13,ab_pct=$14,ab_metric=$15,ab_hours=$16
+           ab_enabled=$11,subject_b=$12,html_b=$13,ab_pct=$14,ab_metric=$15,ab_hours=$16,
+           seg_type=CASE WHEN $17::text IS NULL OR COALESCE(src,'')='broker-blast' THEN seg_type ELSE $17::text END
            WHERE tenant=$1 AND id=$2 AND status IN('draft','scheduled')`,
     [TENANT, id, String(b.name || '').slice(0, 200), String(b.subject || '').slice(0, 300), String(b.preheader || '').slice(0, 300),
      String(b.fromName || '').slice(0, 120), String(b.fromEmail || '').slice(0, 200), String(b.replyTo || '').slice(0, 200),
      String(b.html || ''), b.listId ? Number(b.listId) : null,
-     ab.enabled, ab.subjectB, ab.htmlB, ab.pct, ab.metric, ab.hours]);
+     ab.enabled, ab.subjectB, ab.htmlB, ab.pct, ab.metric, ab.hours, (b.segType === undefined ? null : (_segTypeIn(b.segType) || ''))]);
 }
+// Studio "Send to" can target a subscriber type (every active Restaurant, or every active Broker) instead of a list.
+function _segTypeIn(v) { const t = String(v || '').trim(); return (t === 'Restaurant' || t === 'Broker') ? t : ''; }
 // Materialize the recipient set (active subscribers in the list, minus suppression) into mm_sends.
 // US major-holiday calendar (with federal observed shifts). Blocks marketing sends.
 function _holidaySet(year){

@@ -40,6 +40,7 @@ table{width:100%;border-collapse:collapse;} th{text-align:left;font-size:10.5px;
 .msg{font-size:12.5px;font-weight:700;} .msg.ok{color:var(--green);} .msg.err{color:#b23a2c;}
 .rrg-back{position:fixed;left:16px;bottom:74px;z-index:60;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28);}
 .gate{max-width:600px;margin:60px auto;background:#fff;border:1px solid var(--line);border-radius:14px;padding:34px;text-align:center;color:var(--muted);}
+.sidhd{border-bottom:1px solid #edf0f5;padding-bottom:10px;margin-bottom:12px}.sidem{font-size:16px;font-weight:700;word-break:break-all}.sidem a{color:#20334f;text-decoration:none}.sidem a:hover{text-decoration:underline}.sidcp{margin-left:6px;border:1px solid #c4ccda;background:#fff;border-radius:3px;font:inherit;font-size:11.5px;font-weight:600;color:#20334f;padding:2px 8px;cursor:pointer;vertical-align:middle}.sidmeta{font-size:12.5px;color:#6b7690;margin-top:4px}.sidmeta a{color:#2C5C8F;font-weight:600;text-decoration:none}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -58,7 +59,7 @@ function api(m,u,b){return fetch(u,{method:m,credentials:'same-origin',headers:b
 function qs(k){return new URLSearchParams(location.search).get(k)||'';}
 function fmtDT(d){ if(!d) return '—'; try{ var x=new Date(d); if(isNaN(x.getTime())) return String(d).slice(0,10); return (x.getMonth()+1)+'/'+x.getDate()+'/'+String(x.getFullYear()).slice(2)+' '+x.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}); }catch(e){ return String(d).slice(0,10); } }
 function fmtD(d){ if(!d) return '—'; var p=String(d).slice(0,10).split('-'); return (p.length===3)?(p[1]+'/'+p[2]+'/'+p[0].slice(2)):String(d).slice(0,10); }
-var EMAIL=qs('email'), SUB=null, LISTS=[], MARKETS=[], SENDS=[], TOTALS={}, SUPP=null, MODE='all';
+var EMAIL=qs('email'), LASTSENT='', LASTOPEN='', SUB=null, LISTS=[], MARKETS=[], SENDS=[], TOTALS={}, SUPP=null, MODE='all';
 
 function boot(){
   if(!EMAIL){ document.getElementById('root').innerHTML='<div class="gate">No subscriber specified. <a href="./rrg_mail_subscribers.html">← Back to Subscribers</a></div>'; return; }
@@ -68,11 +69,13 @@ function boot(){
   ]).then(function(res){
     var j=res[0]||{};
     if(!j.ok){ document.getElementById('root').innerHTML='<div class="gate">'+esc(j.error||'Subscriber not found.')+'<br><br><a href="./rrg_mail_subscribers.html">← Back to Subscribers</a></div>'; return; }
-    SUB=j.subscriber; LISTS=j.lists||[]; SENDS=j.sends||[]; TOTALS=j.totals||{}; SUPP=j.suppression||null; MODE=(SUB.mode==='metros'?'metros':'all');
+    SUB=j.subscriber; LASTSENT=j.lastSent||''; LASTOPEN=j.lastOpened||''; LISTS=j.lists||[]; SENDS=j.sends||[]; TOTALS=j.totals||{}; SUPP=j.suppression||null; MODE=(SUB.mode==='metros'?'metros':'all');
     MARKETS=(res[1]&&(res[1].subscriberAreas||res[1].markets))||[];
-    setHead(); render();
+    setHead(); render(); wireSid();
   }).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not reach the server.</div>'; });
 }
+function wireSid(){ var cp=document.getElementById('sCopy'); if(cp) cp.onclick=function(){ try{ navigator.clipboard.writeText(SUB.email); cp.textContent='Copied ✓'; setTimeout(function(){ cp.textContent='Copy'; },1500); }catch(e){} };
+  api('GET','/api/person-by-email?email='+encodeURIComponent(SUB.email)).then(function(j){ var el=document.getElementById('sContact'); if(!el) return; var p=j&&j.person; el.innerHTML=p?('Lavano contact: <a href="./rrg_person.html?id='+encodeURIComponent(p.id)+'">'+esc(p.name||SUB.email)+'</a>'+(p.title?(' · '+esc(p.title)):'')+(p.company?(' · '+(p.companyId?('<a href="./rrg_company.html?id='+encodeURIComponent(p.companyId)+'">'+esc(p.company)+'</a>'):esc(p.company))):'')+(p.phone?(' · '+esc(p.phone)):'')):'Not a Lavano contact yet.'; }).catch(function(){ var el=document.getElementById('sContact'); if(el) el.textContent=''; }); }
 function setHead(){ document.getElementById('h1').textContent=SUB.email; document.getElementById('crumb').textContent=SUB.email; document.title='RRG — '+SUB.email; var nm=((SUB.firstName||'')+' '+(SUB.lastName||'')).trim(); document.getElementById('subline').textContent=(nm?nm+' · ':'')+'Source: '+(SUB.source||'—')+' · Added '+fmtD(SUB.createdAt); }
 
 function typeOptions(cur){
@@ -88,6 +91,9 @@ function render(){
   var st=SUB.status||'active';
   var left=''+
     '<div class="card"><div class="ch"><b>Subscriber details</b></div><div class="cb">'+
+      '<div class="sidhd"><div class="sidem"><a href="mailto:'+esc(SUB.email)+'">'+esc(SUB.email)+'</a> <button type="button" class="sidcp" id="sCopy" title="Copy the email address">Copy</button></div>'+
+      '<div class="sidmeta">'+[(SUB.status?('Status: '+esc(SUB.status)):''),('Source: '+esc(SUB.source||'—')),('Added '+esc(fmtD(SUB.createdAt))),(LASTSENT?('Last sent '+esc(fmtD(LASTSENT))):''),(LASTOPEN?('Last opened '+esc(fmtD(LASTOPEN))):'')].filter(Boolean).join(' · ')+'</div>'+
+      '<div class="sidmeta" id="sContact">Checking Lavano contacts…</div></div>'+
       '<div class="row2">'+
         '<div class="fld"><label class="fl">First name</label><input class="f" id="fFirst" value="'+esc(SUB.firstName||'')+'"></div>'+
         '<div class="fld"><label class="fl">Last name</label><input class="f" id="fLast" value="'+esc(SUB.lastName||'')+'"></div>'+

@@ -688,9 +688,10 @@ function renderEditor(){
   $('tabCamps').innerHTML=h;
   var sel=$('cList');
   // A broker blast targets a segment (seg_type, optionally area-matched), not a list — show that audience, read-only.
-  if(c.seg_type){ sel.innerHTML='<option value="">'+esc(_audLabel(c))+'</option>'; sel.disabled=true; sel.title='Set by the broker blast that created this campaign'; }
-  else { sel.innerHTML='<option value="">All active subscribers (whole list)</option>'; }
-  if(!c.seg_type) api('GET','/api/mail/lists').then(function(r){
+  var _bb=(c.seg_type && (c.src==='broker-blast' || c.seg_mode==='area'));
+  if(_bb){ sel.innerHTML='<option value="">'+esc(_audLabel(c))+'</option>'; sel.disabled=true; sel.title='Set by the broker blast that created this campaign'; }
+  else { sel.innerHTML='<option value="">All active subscribers (whole list)</option><option value="type:Restaurant"'+(c.seg_type==='Restaurant'?' selected':'')+'>All active restaurants</option><option value="type:Broker"'+(c.seg_type==='Broker'?' selected':'')+'>All active brokers</option>'; }
+  if(!_bb) api('GET','/api/mail/lists').then(function(r){
     ((r&&r.lists)||[]).forEach(function(l){ var o=document.createElement('option'); o.value=l.id; o.textContent=l.name+' ('+l.members+')'; if(String(c.list_id||'')===String(l.id)) o.selected=true; sel.appendChild(o); });
   });
   $('backList').onclick=function(){ EDIT=null; loadCampaigns(); };
@@ -753,7 +754,7 @@ function openPreviewHtml(html){
   var w=window.open('','_blank'); if(w){ w.document.open(); w.document.write('<!doctype html><meta charset="utf-8"><title>Preview</title>'+html); w.document.close(); }
 }
 function formData(){
-  return { id:EDIT.id, name:$('cName').value.trim(), subject:$('cSubj').value.trim(), preheader:$('cPre').value.trim(), fromName:$('cFN').value.trim(), fromEmail:$('cFE').value.trim(), replyTo:$('cRT').value.trim(), html:$('cHtml').value, listId:($('cList').value||null),
+  return { id:EDIT.id, name:$('cName').value.trim(), subject:$('cSubj').value.trim(), preheader:$('cPre').value.trim(), fromName:$('cFN').value.trim(), fromEmail:$('cFE').value.trim(), replyTo:$('cRT').value.trim(), html:$('cHtml').value, listId:(/^type:/.test($('cList').value)?null:($('cList').value||null)), segType:($('cList').disabled?undefined:(/^type:/.test($('cList').value)?$('cList').value.slice(5):'')),
     abEnabled: !!($('abOn')&&$('abOn').checked), subjectB: ($('abSubjB')?$('abSubjB').value.trim():''), abPct: ($('abPct')?$('abPct').value:30), abMetric: ($('abMetric')?$('abMetric').value:'opens'), abHours: ($('abHours')?$('abHours').value:4) };
 }
 function saveCampaign(silent){
@@ -1106,7 +1107,7 @@ boot();
       <h4>2 · Compose the email</h4>
       <p>Create a campaign and edit it in the visual block editor — header, hero, text, buttons, stats, signature, footer — or switch to <b>HTML</b> for full control. The look (logo, colors and email style) comes from your branding in Admin. <b>Pull from a listing</b> to auto-fill a campaign from one of your live listings. Always send yourself a <b>test</b> before a real blast.</p>
       <h4>3 · Choose the audience</h4>
-      <p>In the editor, <b>Send to</b> picks one of your lists, or all active subscribers. Unsubscribed, bounced and suppressed addresses are always left out, and the audience is re-checked at every send. Broker blasts started from a tenant-rep engagement target <b>Brokers · area-matched</b> and show that audience instead.</p>
+      <p>In the editor, <b>Send to</b> picks one of your lists, every active <b>restaurant</b> or every active <b>broker</b> (by subscriber type), or all active subscribers. Unsubscribed, bounced and suppressed addresses are always left out, and the audience is re-checked at every send. Broker blasts started from a tenant-rep engagement target <b>Brokers · area-matched</b> and show that audience instead.</p>
       <h4>4 · Schedule the send</h4>
       <p>Send now, or schedule one or more times. The <b>Standard cadence</b> button fills your firm's default series in one click (by default 12 sends: the first 6 about 26 days apart, the last 6 about 30), on weekdays at 9&nbsp;AM. <b>Auto-scheduling stays on business days</b> — never weekends or major holidays, and one send per morning / one per afternoon system-wide. Tick <b>Deliberate send</b> to lift the blackout for an intentional holiday greeting. You can <b>reschedule</b> or <b>cancel</b> any scheduled send inline. The defaults live in <b>Settings → Campaign send cadence</b>.</p>
       <h4>5 · Track results</h4>
