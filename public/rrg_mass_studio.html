@@ -191,6 +191,7 @@ function paintStatus(){
 }
 function loadStats(){
   if(!CFG.storage){ $('tiles').innerHTML=''; return; }
+  if(!_LIVE_T) _liveListTick();
   api('GET','/api/mail/stats').then(function(s){
     if(!s||!s.ok){ $('tiles').innerHTML=''; return; }
     var c=s.campaigns||{}, subs=s.subscribers||{};
@@ -649,9 +650,10 @@ function _liveListTick(){
   _LIVE_T=setTimeout(function(){
     var onList=!EDIT && $('campBody') && !document.hidden && $('tabCamps') && !$('tabCamps').hidden;
     var busy=document.querySelector('#campBody input[type=checkbox]:checked') || (document.activeElement && /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) || $('testModal') || document.querySelector('.schedm-card');
-    if(onList && _LIVE_ON && !busy){ var y=window.scrollY; loadCampaigns(); loadStats(); setTimeout(function(){ window.scrollTo(0,y); },60); }
+    if(!document.hidden) loadStats();   // KPI tiles always stay current
+    if(onList && !busy){ var y=window.scrollY; loadCampaigns(); setTimeout(function(){ window.scrollTo(0,y); },60); }
     _liveListTick();
-  }, 10000);
+  }, _LIVE_ON?10000:20000);
 }
 function openTestModal(id){
   var old=$('testModal'); if(old) old.remove();
@@ -1155,7 +1157,7 @@ boot();
       <h4>2 · Compose the email</h4>
       <p>Create a campaign and edit it in the visual block editor — header, hero, text, buttons, stats, signature, footer — or switch to <b>HTML</b> for full control. The look (logo, colors and email style) comes from your branding in Admin. <b>Pull from a listing</b> to auto-fill a campaign from one of your live listings. Always send yourself a <b>test</b> before a real blast.</p>
       <h4>3 · Choose the audience</h4>
-      <p>In the editor, <b>Send to</b> picks one of your lists, every active <b>restaurant</b> or every active <b>broker</b> (by subscriber type), or all active subscribers. Asset-sale blasts start the subject with the standard 🔑 icon — added automatically for asset-sale listings; the <b>🔑 Asset sale</b> button next to the subject adds or removes it. Click <b>● Live</b> on a sent or scheduled campaign for a small pop-out window that updates every few seconds: sends, opens, clicks, unsubs, the A/B race and the latest activity. The campaign list also refreshes itself every 10 seconds while a campaign is sending or still collecting opens. Before it goes to everyone, use <b>Send test</b> (on the campaign row, or next to Save draft in the editor) to get the real email in your own inbox. The <b>Active restaurants</b> and <b>Active brokers</b> tiles at the top show how many each choice reaches today (unsubscribed, bounced and suppressed left out). Unsubscribed, bounced and suppressed addresses are always left out, and the audience is re-checked at every send. Broker blasts started from a tenant-rep engagement target <b>Brokers · area-matched</b> and show that audience instead.</p>
+      <p>In the editor, <b>Send to</b> picks one of your lists, every active <b>restaurant</b> or every active <b>broker</b> (by subscriber type), or all active subscribers. Asset-sale blasts start the subject with the standard 🔑 icon — added automatically for asset-sale listings; the <b>🔑 Asset sale</b> button next to the subject adds or removes it. Click <b>● Live</b> on a sent or scheduled campaign for a small pop-out window that updates every few seconds: sends, opens, clicks, unsubs, the A/B race and the latest activity. The KPI tiles and the campaign list refresh themselves — every 10 seconds while a campaign is sending or still collecting opens, every 20 seconds otherwise. Before it goes to everyone, use <b>Send test</b> (on the campaign row, or next to Save draft in the editor) to get the real email in your own inbox. The <b>Active restaurants</b> and <b>Active brokers</b> tiles at the top show how many each choice reaches today (unsubscribed, bounced and suppressed left out). Unsubscribed, bounced and suppressed addresses are always left out, and the audience is re-checked at every send. Broker blasts started from a tenant-rep engagement target <b>Brokers · area-matched</b> and show that audience instead.</p>
       <h4>4 · Schedule the send</h4>
       <p>Send now, or schedule one or more times. The <b>Standard cadence</b> button fills your firm's default series in one click (by default 12 sends: the first 6 about 26 days apart, the last 6 about 30), on weekdays at 9&nbsp;AM. <b>Auto-scheduling stays on business days</b> — never weekends or major holidays, and one send per morning / one per afternoon system-wide. Tick <b>Deliberate send</b> to lift the blackout for an intentional holiday greeting. You can <b>reschedule</b> or <b>cancel</b> any scheduled send inline. The defaults live in <b>Settings → Campaign send cadence</b>.</p>
       <h4>5 · Track results</h4>
