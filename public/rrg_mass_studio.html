@@ -203,7 +203,10 @@ function loadStats(){
       +tile('Emails sent',sentTot,'', 'all time')
       +tile('Opens',opens,'', orate+'% open rate')
       +tile('Clicks',clicks,'', crate+'% click rate')
-      +tile('Active subscribers',Number(subs.active||0),'green', Number(s.total||0).toLocaleString()+' total');
+      +tile('Active subscribers',Number(subs.active||0),'green', Number(s.total||0).toLocaleString()+' total')
+      +(function(){ var bt=s.byType||{}, R=bt.Restaurant||{}, B=bt.Broker||{};
+          return tile('Active restaurants',Number(R.active||0),'green', Number(R.total||0).toLocaleString()+' total')
+                +tile('Active brokers',Number(B.active||0),'green', Number(B.total||0).toLocaleString()+' total'); })();
   }).catch(function(){});
 }
 
@@ -450,12 +453,13 @@ function loadCampaigns(){
     RRGList.create(cfg);
     var body=$('campBody');
     if(body){ body.addEventListener('click',function(e){
-      var t=e.target.closest?e.target.closest('[data-open],[data-prev],[data-exp],[data-arch],[data-sched],[data-hist],[data-del]'):null; if(!t) return;
+      var t=e.target.closest?e.target.closest('[data-open],[data-prev],[data-test],[data-exp],[data-arch],[data-sched],[data-hist],[data-del]'):null; if(!t) return;
       if(t.hasAttribute('data-open')) openCampaign(t.getAttribute('data-open'));
       else if(t.hasAttribute('data-del')) deleteCampaign(t);
       else if(t.hasAttribute('data-sched')) openScheduleModal(t.getAttribute('data-sched'));
       else if(t.hasAttribute('data-hist')) openRunHistory(t.getAttribute('data-hist'));
       else if(t.hasAttribute('data-prev')) previewCampaign(t.getAttribute('data-prev'));
+      else if(t.hasAttribute('data-test')) openTestModal(t.getAttribute('data-test'));
       else if(t.hasAttribute('data-exp')) window.open('/api/mail/campaigns/'+t.getAttribute('data-exp')+'/export','_blank');
       else if(t.hasAttribute('data-arch')) api('POST','/api/mail/campaigns/'+t.getAttribute('data-arch')+'/archive',{ archived:t.getAttribute('data-a')==='1' }).then(function(){ loadCampaigns(); });
     }); }
@@ -594,6 +598,7 @@ function campActionsCell(c){
   return '<span data-open="'+c.id+'" style="color:var(--blue);cursor:pointer;font-weight:600;">Open</span>'
     +' <span data-sched="'+c.id+'" style="color:var(--blue);cursor:pointer;">Schedule</span>'
     +' <span data-prev="'+c.id+'" style="color:var(--blue);cursor:pointer;">Preview</span>'
+    +' <span data-test="'+c.id+'" style="color:var(--blue);cursor:pointer;">Send test</span>'
     +' <span data-exp="'+c.id+'" style="color:var(--blue);cursor:pointer;">Export</span>'
     +((c.runs||0)>=1||Number(c.sent||0)>0?' <span data-hist="'+c.id+'" style="color:var(--blue);cursor:pointer;">History</span>':'')
     +' <span data-arch="'+c.id+'" data-a="'+(c.archived?'0':'1')+'" style="color:var(--muted);cursor:pointer;">'+(c.archived?'Restore':'Archive')+'</span>'
@@ -626,8 +631,30 @@ function previewCampaign(id){
   api('GET','/api/mail/campaigns/'+id).then(function(r){
     if(!r||!r.campaign) return;
     var html=(r.campaign.html||'').replace(/{{\s*first_name\s*}}/g,'Jane').replace(/{{\s*last_name\s*}}/g,'Doe').replace(/{{\s*email\s*}}/g,'jane@example.com').replace(/{{\s*unsubscribe_url\s*}}/g,'#');
-    var w=window.open('','_blank'); if(w){ w.document.open(); w.document.write('<!doctype html><title>'+esc(r.campaign.subject||'Preview')+'</title>'+html); w.document.close(); }
+    var w=window.open('','_blank'); if(w){ w.document.open(); w.document.write('<!doctype html><meta charset="utf-8"><title>'+esc(r.campaign.subject||'Preview')+'</title>'+html); w.document.close(); }
   });
+}
+// Send a test copy of a campaign (from the list row) — the real email, merge tags and all, to one address.
+function _testTo(c){ var v=''; try{ v=localStorage.getItem('rrgMailTestTo')||''; }catch(e){} return v||(c&&(c.reply_to||c.from_email))||''; }
+function openTestModal(id){
+  var old=$('testModal'); if(old) old.remove();
+  var ov=document.createElement('div'); ov.id='testModal';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(16,24,40,.45);z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px;';
+  ov.innerHTML='<div style="background:#fff;border-radius:8px;max-width:440px;width:100%;padding:18px 20px;box-shadow:0 12px 40px rgba(0,0,0,.25)">'
+    +'<div style="font-weight:700;font-size:15px;margin-bottom:4px">Send a test</div><div id="tmName" style="color:var(--muted);font-size:12.5px;margin-bottom:12px"></div>'
+    +'<label class="fl">Send to</label><input id="tmTo" placeholder="you@example.com" style="width:100%">'
+    +'<div class="pgs" style="margin-top:6px">Goes only to this address, exactly as subscribers will get it. Nothing is sent to the list.</div>'
+    +'<div style="display:flex;gap:8px;align-items:center;margin-top:14px"><button class="btn primary" id="tmSend" type="button">Send test</button><button class="btn" id="tmClose" type="button">Close</button><span class="msg" id="tmMsg"></span></div></div>';
+  document.body.appendChild(ov);
+  ov.addEventListener('click',function(e){ if(e.target===ov) ov.remove(); });
+  $('tmClose').onclick=function(){ ov.remove(); };
+  api('GET','/api/mail/campaigns/'+id).then(function(r){ var c=(r&&r.campaign)||{}; $('tmName').textContent=(c.name||'Campaign')+(c.subject?(' \u2014 '+c.subject):''); if(!$('tmTo').value) $('tmTo').value=_testTo(c); $('tmTo').focus(); });
+  $('tmSend').onclick=function(){ var to=$('tmTo').value.trim(), m=$('tmMsg'); if(!to){ m.className='msg err'; m.textContent='Enter an address.'; return; }
+    if(!CFG.sending){ m.className='msg err'; m.textContent='Sending is not configured.'; return; }
+    try{ localStorage.setItem('rrgMailTestTo',to); }catch(e){}
+    m.className='msg'; m.textContent='Sending\u2026'; $('tmSend').disabled=true;
+    api('POST','/api/mail/campaigns/'+id+'/test',{ email:to }).then(function(r){ $('tmSend').disabled=false; if(!r||!r.ok){ m.className='msg err'; m.textContent=(r&&r.error)||'Test failed.'; return; } m.className='msg ok'; m.textContent='Test sent to '+to+'.'; }).catch(function(){ $('tmSend').disabled=false; m.className='msg err'; m.textContent='Could not reach the server.'; });
+  };
 }
 function openCampaign(id){
   api('GET','/api/mail/campaigns/'+id).then(function(r){ if(r&&r.campaign){ EDIT=r.campaign; renderEditor(); } });
@@ -642,7 +669,7 @@ function renderEditor(){
      '<div class="fld half"><label class="fl">Campaign name</label><input id="cName" value="'+esc(c.name||'')+'" placeholder="Internal name"></div>'+
      '<div class="fld half"><label class="fl">Send to</label><select id="cList"></select></div>'+
    '</div>'+
-   '<div class="fld"><label class="fl">Subject line</label><input id="cSubj" value="'+esc(c.subject||'')+'" placeholder="What recipients see"></div>'+
+   '<div class="fld"><label class="fl">Subject line</label><div style="display:flex;gap:6px;"><input id="cSubj" value="'+esc(c.subject||'')+'" placeholder="What recipients see" style="flex:1"><button class="btn" id="cKey" type="button" title="Add or remove the standard asset-sale key icon at the start of the subject">\u{1F511} Asset sale</button></div><div class="pgs" style="margin-top:4px">Asset-sale blasts start with \u{1F511}. Leave it off confidential, personal-style outreach.</div></div>'+
    '<div class="fld"><label class="fl">Preheader</label><input id="cPre" value="'+esc(c.preheader||'')+'" placeholder="Preview text shown after the subject"></div>'+
    '<div class="row">'+
      '<div class="fld half"><label class="fl">From name</label><input id="cFN" value="'+esc(c.from_name||CFG.fromName||'')+'"></div>'+
@@ -697,6 +724,8 @@ function renderEditor(){
   $('backList').onclick=function(){ EDIT=null; loadCampaigns(); };
   $('cSave').onclick=function(){ saveCampaign(false); };
   $('cTestBtn').onclick=sendTest;
+  if($('cKey')) $('cKey').onclick=function(){ var K='\u{1F511}', f=$('cSubj'), v=f.value.trim(); f.value = (v.indexOf(K)===0) ? v.slice(K.length).trim() : (K+' '+v); f.focus(); };
+  if($('cTest') && !$('cTest').value) $('cTest').value=_testTo(c);
   $('cSend').onclick=sendCampaign;
   if($('abOn')) $('abOn').onclick=function(){ $('abBody').style.display=$('abOn').checked?'':'none'; };
   initDesign();
@@ -746,6 +775,7 @@ function fillFromListing(key,title){
     var a=(j&&j.assignment)||{ business:title||'New Listing' };
     if(!window.RRGComposer){ return; }
     $('cHtml').value=window.RRGComposer.export(listingBlocks(a), CFG.brand||{});
+    if(a.saleLane==='asset' && $('cSubj')){ var K='\u{1F511}', sv=$('cSubj').value.trim(); if(!sv) sv='New listing: '+(a.business||'Restaurant space'); if(sv.indexOf(K)!==0) $('cSubj').value=K+' '+sv; }
     initDesign();
   }).catch(function(){});
 }
@@ -771,6 +801,7 @@ function saveCampaign(silent){
 function sendTest(){
   var m=$('cMsg'); var to=$('cTest').value.trim();
   if(!to){ m.className='msg err'; m.textContent='Enter a test address.'; return; }
+  try{ localStorage.setItem('rrgMailTestTo',to); }catch(e){}
   saveCampaign(true).then(function(ok){ if(!ok) return;
     m.className='msg'; m.textContent='Sending test...';
     api('POST','/api/mail/campaigns/'+EDIT.id+'/test',{ email:to }).then(function(r){
@@ -1107,7 +1138,7 @@ boot();
       <h4>2 · Compose the email</h4>
       <p>Create a campaign and edit it in the visual block editor — header, hero, text, buttons, stats, signature, footer — or switch to <b>HTML</b> for full control. The look (logo, colors and email style) comes from your branding in Admin. <b>Pull from a listing</b> to auto-fill a campaign from one of your live listings. Always send yourself a <b>test</b> before a real blast.</p>
       <h4>3 · Choose the audience</h4>
-      <p>In the editor, <b>Send to</b> picks one of your lists, every active <b>restaurant</b> or every active <b>broker</b> (by subscriber type), or all active subscribers. Unsubscribed, bounced and suppressed addresses are always left out, and the audience is re-checked at every send. Broker blasts started from a tenant-rep engagement target <b>Brokers · area-matched</b> and show that audience instead.</p>
+      <p>In the editor, <b>Send to</b> picks one of your lists, every active <b>restaurant</b> or every active <b>broker</b> (by subscriber type), or all active subscribers. Asset-sale blasts start the subject with the standard 🔑 icon — added automatically for asset-sale listings; the <b>🔑 Asset sale</b> button next to the subject adds or removes it. Before it goes to everyone, use <b>Send test</b> (on the campaign row, or next to Save draft in the editor) to get the real email in your own inbox. The <b>Active restaurants</b> and <b>Active brokers</b> tiles at the top show how many each choice reaches today (unsubscribed, bounced and suppressed left out). Unsubscribed, bounced and suppressed addresses are always left out, and the audience is re-checked at every send. Broker blasts started from a tenant-rep engagement target <b>Brokers · area-matched</b> and show that audience instead.</p>
       <h4>4 · Schedule the send</h4>
       <p>Send now, or schedule one or more times. The <b>Standard cadence</b> button fills your firm's default series in one click (by default 12 sends: the first 6 about 26 days apart, the last 6 about 30), on weekdays at 9&nbsp;AM. <b>Auto-scheduling stays on business days</b> — never weekends or major holidays, and one send per morning / one per afternoon system-wide. Tick <b>Deliberate send</b> to lift the blackout for an intentional holiday greeting. You can <b>reschedule</b> or <b>cancel</b> any scheduled send inline. The defaults live in <b>Settings → Campaign send cadence</b>.</p>
       <h4>5 · Track results</h4>

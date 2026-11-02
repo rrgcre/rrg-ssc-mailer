@@ -502,7 +502,8 @@ async function startCampaign(campaignId, actor) {
   if (c.status === 'paused') { await q(`UPDATE mm_campaigns SET status='sending' WHERE tenant=$1 AND id=$2`, [TENANT, campaignId]); kickDrainer(); return; }  // resume same run
   await _beginRun(campaignId, true, actor);
 }
-async function startRun(campaignId) { await _beginRun(campaignId, false); }  // scheduled repeat — plain full send, no A/B
+// Scheduled send. The FIRST run of a campaign honors its A/B split (same as Send now); later repeats are plain full sends.
+async function startRun(campaignId) { const c = (await q('SELECT COALESCE(runs,0) AS runs FROM mm_campaigns WHERE tenant=$1 AND id=$2', [TENANT, campaignId])).rows[0]; await _beginRun(campaignId, !!(c && Number(c.runs) === 0)); }
 // Fire any due schedules. One run per due row; a campaign still sending a prior run waits for the next tick.
 async function checkSchedules() {
   if (!DB_READY || !sesConfigured()) return false;
@@ -737,7 +738,12 @@ function mount(app, deps) {
           count(*) FILTER (WHERE COALESCE(finished_at, started_at) >= now() - interval '30 days')::int AS last_30d_count
         FROM mm_campaigns WHERE tenant=$1 AND COALESCE(archived,false)=false`, [TENANT])).rows[0] || camp;
     } catch (e) {}
-    res.json({ ok: true, subscribers: by, total: Object.keys(by).reduce((a, k) => a + by[k], 0), suppressions: supp, campaigns: camp });
+    // Mailable reach by subscriber type (active and not suppressed — the same people a type-targeted campaign reaches).
+    const byType = {};
+    try { (await q(`SELECT COALESCE(s.meta->>'type','') AS t, count(*)::int AS total,
+        count(*) FILTER (WHERE s.status='active' AND NOT EXISTS (SELECT 1 FROM mm_suppressions x WHERE x.tenant=$1 AND x.email=s.email))::int AS active
+        FROM mm_subscribers s WHERE s.tenant=$1 GROUP BY 1`, [TENANT])).rows.forEach(r => { byType[r.t || 'Other'] = { active: r.active, total: r.total }; }); } catch (e) {}
+    res.json({ ok: true, subscribers: by, total: Object.keys(by).reduce((a, k) => a + by[k], 0), suppressions: supp, campaigns: camp, byType: byType });
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.post('/api/mail/import', requireAdmin, guard, express.json({ limit: '60mb' }), async (req, res) => { try {
     const b = req.body || {}; const rows = Array.isArray(b.rows) ? b.rows : (b.csv ? parseCsv(b.csv) : []);

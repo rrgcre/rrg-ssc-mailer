@@ -6711,6 +6711,9 @@ function mktClean(b, prev) {
 }
 // The four public listing kinds. '' on the teaser = derive from the listing's saleLane.
 const MKT_KINDS = ['business', 'asset', 'lease', 'sale'];
+// Standard subject-line icon for email blasts, by listing kind (asset sales = key). Never doubled.
+const BLAST_ICON = { asset: '\u{1F511}' };
+function _blastSubject(kind, subj) { const ic = BLAST_ICON[kind] || ''; subj = String(subj || '').trim(); return (ic && subj.indexOf(ic) !== 0) ? (ic + ' ' + subj) : subj; }
 function _teaserKind(m, view) {
   if (m && MKT_KINDS.indexOf(m.kind) >= 0) return m.kind;
   return (view && view.saleLane === 'asset') ? 'asset' : 'business';
@@ -7187,13 +7190,13 @@ app.post('/api/marketing/queue/:key/prepare', express.json(), async (req, res) =
     try {
       if (cur.blastStudioId) out.blast = { state: 'draft', note: 'Draft campaign already in Campaigns — review, pick the list and send.', studioId: cur.blastStudioId };
       else if (massmail.dbReady()) {
-        const id = await massmail.createCampaignRecord({ name: 'Listing — ' + biz, subject: tz.subject || ('New listing: ' + _pubName), preheader: _pre, html: _teaserBodyHtml(String(tz.body || '').replace(/\{\{my_name\}\}/g, (req.user && req.user.name) || 'Restaurant Realty Group')) }, req.user);
+        const id = await massmail.createCampaignRecord({ name: 'Listing — ' + biz, subject: _blastSubject(_teaserKind(cur.market, view), tz.subject || ('New listing: ' + _pubName)), preheader: _pre, html: _teaserBodyHtml(String(tz.body || '').replace(/\{\{my_name\}\}/g, (req.user && req.user.name) || 'Restaurant Realty Group')) }, req.user);
         cur.blastStudioId = id; out.blast = { state: 'draft', note: 'Draft campaign created in Campaigns — pick the list, review and send.', studioId: id };
       } else {
         const camps = loadCampaigns(); let c = cur.blastCampaignId ? camps.find(x => x.id === cur.blastCampaignId) : null;
         if (!c) { c = { id: newCampaignId(), status: 'draft', by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', createdAt: now }; camps.unshift(c); }
         if (c.status === 'sent' || c.status === 'sending') out.blast = { state: 'done', note: 'Campaign already sent.' };
-        else { c.name = 'Listing — ' + biz; c.subject = tz.subject || ('New listing: ' + _pubName); c.body = _teaserBodyHtml(tz.body); c.templateId = ''; c.audience = c.audience || {}; c.metros = [(deal && deal.market) || view.market || ''].filter(Boolean); c.recipientCount = massAudience(c.audience, c.metros).length; c.updatedAt = now; saveCampaigns(camps); cur.blastCampaignId = c.id; out.blast = { state: 'draft', note: 'Draft campaign created (' + c.recipientCount + ' subscribers) — review and send.', campaignId: c.id }; }
+        else { c.name = 'Listing — ' + biz; c.subject = _blastSubject(_teaserKind(cur.market, view), tz.subject || ('New listing: ' + _pubName)); c.body = _teaserBodyHtml(tz.body); c.templateId = ''; c.audience = c.audience || {}; c.metros = [(deal && deal.market) || view.market || ''].filter(Boolean); c.recipientCount = massAudience(c.audience, c.metros).length; c.updatedAt = now; saveCampaigns(camps); cur.blastCampaignId = c.id; out.blast = { state: 'draft', note: 'Draft campaign created (' + c.recipientCount + ' subscribers) — review and send.', campaignId: c.id }; }
       }
     } catch (e) { out.blast = { state: 'error', note: 'Could not create the campaign draft: ' + String((e && e.message) || '').slice(0, 120) }; }
   }
