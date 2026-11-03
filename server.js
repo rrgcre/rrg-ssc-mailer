@@ -17706,6 +17706,18 @@ function _storeReviewFile(revId, filename, buf) { try { if (!buf || !buf.length 
 // Core Gmail -> Space Tracker scan. Reused by the manual button and the background poller.
 // Finds broker listing emails + PDF flyers, AI-parses each into a space, dedupes by address,
 // and stores the brochure PDF on the created space. Skips message ids in skipIds (poller cost control).
+// Address key for de-duping imports: "2726 N. St. Mary's Street", "2726 N Saint Marys St" and
+// "2726 N St Marys, San Antonio, TX 78212" all become "2726 n st marys". Suite numbers are kept.
+function _addrKey(a) {
+  let s = String(a || '').toLowerCase().trim();
+  s = s.replace(/,\s*[a-z .'-]+,\s*(tx|texas)\b.*$/, '').replace(/\s+(tx|texas)\s+\d{5}(-\d{4})?\s*$/, '');
+  s = s.replace(/[.,#']/g, ' ').replace(/\bsaint\b/g, 'st').replace(/\bstreet\b/g, 'st').replace(/\bnorth\b/g, 'n').replace(/\bsouth\b/g, 's').replace(/\beast\b/g, 'e').replace(/\bwest\b/g, 'w')
+    .replace(/\bavenue\b/g, 'ave').replace(/\bboulevard\b/g, 'blvd').replace(/\broad\b/g, 'rd').replace(/\bdrive\b/g, 'dr').replace(/\bhighway\b/g, 'hwy').replace(/\bparkway\b/g, 'pkwy').replace(/\blane\b/g, 'ln')
+    .replace(/\b(suite|ste|unit)\b/g, 'ste').replace(/\bmary s\b/g, 'marys').replace(/\s+/g, ' ').trim();
+  s = s.replace(/\b(n|s) (w|e)\b/g, '$1$2');
+  s = s.replace(/\b(st|ave|blvd|rd|dr|hwy|pkwy|ln)\b(?=\s+ste\b|$)/g, '').replace(/\s+/g, ' ').trim();
+  return s;
+}
 async function _scanSpacesForUser(username, byName, days, skipIds, onProgress, opts) {
   if (!gmail.statusFor(username).connected) return { ok: false, error: 'Gmail not connected', created: 0, scanned: 0, results: [], processedIds: [] };
   const skip = new Set(Array.isArray(skipIds) ? skipIds : []);
@@ -17722,7 +17734,7 @@ async function _scanSpacesForUser(username, byName, days, skipIds, onProgress, o
   const _enrichWant = ['fit', 'demo', 'contacts'].filter(k => _enrichCfg[k]);
   const _gkeyScan = loadGmapsKey();
   const review = loadSpaceReview(); let reviewDirty = false; let reviewMade = 0;
-  const seen = new Set(arr.map(s => String(s.address || '').toLowerCase().trim()).filter(Boolean));
+  const seen = new Set(arr.map(s => _addrKey(s.address)).filter(Boolean));
   const results = []; let created = 0; const processedIds = [];
   const actor = { user: { name: byName || username, username: username } };
   let _done = 0;
@@ -17760,8 +17772,8 @@ async function _scanSpacesForUser(username, byName, days, skipIds, onProgress, o
   // STEP 2 (one at a time, in a queue): de-dupe by address, create the space / center, or route to review.
   async function _commit(p) {
     const { c, text, bro, hasAttach, fd } = p;
-    const key = fd ? String(fd.address || '').toLowerCase().trim() : '';
-    if ((key && seen.has(key)) || arr.some(x => x.source === ('email:' + c.id))) { const _ex = arr.find(x => x.source === ('email:' + c.id)) || (key ? arr.find(x => String(x.address || '').toLowerCase().trim() === key) : null); results.push({ ok: false, msgId: c.id, spaceId: (_ex && _ex.id) || '', address: (_ex && (_ex.address || _ex.name)) || '', subject: c.subject || '', reason: 'already in system' }); return; }
+    const key = fd ? _addrKey(fd.address) : '';
+    if ((key && seen.has(key)) || arr.some(x => x.source === ('email:' + c.id))) { const _ex = arr.find(x => x.source === ('email:' + c.id)) || (key ? arr.find(x => _addrKey(x.address) === key) : null); results.push({ ok: false, msgId: c.id, spaceId: (_ex && _ex.id) || '', address: (_ex && (_ex.address || _ex.name)) || '', subject: c.subject || '', reason: 'already in system' }); return; }
     if (fd && fd.address) {
       const sp = _spaceFromFields(fd, actor, { source: 'email:' + c.id });
       let fileName = '';
