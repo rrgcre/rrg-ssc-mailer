@@ -139,11 +139,12 @@ h1{font-size:25px;font-weight:700;margin:0;color:#fff;}
     fetch('/api/ssc-rep/submit',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({personId:PID,companyId:CID,company:qp('company'),data:data,email:!!email,repEmail:window.__REP_EMAIL})}).then(function(r){return r.json();}).then(function(j){
       Array.prototype.forEach.call(bs,function(b){ b.disabled=false; });
       if(j&&j.ok){ try{ localStorage.removeItem(DKEY); }catch(e){} document.getElementById('draftNote').textContent='';
-        m.style.color='#1f8a5b'; m.innerHTML='Saved ✓'+(j.emailed?' A copy was emailed to you.':'')+' <a href="'+esc(j.viewUrl)+'" target="_blank" rel="noopener" style="color:#000E31;font-weight:700;margin-left:6px">View SSC ↗</a>'+(PID?(' <a href="./rrg_person.html?id='+encodeURIComponent(PID)+'" style="color:#000E31;font-weight:700;margin-left:6px">Back to contact</a>'):'')+(j.emailErr?('<div style="color:#b7791f;margin-top:6px">'+esc(j.emailErr)+'</div>'):''); }
+        m.style.color='#1f8a5b'; m.innerHTML='Saved ✓'+(j.emailed?' A copy was emailed to you.':'')+' <a href="'+esc(j.viewUrl)+'" target="_blank" rel="noopener" style="color:#000E31;font-weight:700;margin-left:6px">View SSC ↗</a>'+(j.shareUrl?(' <a href="#" data-share="'+esc(j.shareUrl)+'" style="color:#000E31;font-weight:700;margin-left:6px" title="Anyone with this link can view and print the SSC, no sign-in">Copy share link</a>'):'')+(PID?(' <a href="./rrg_person.html?id='+encodeURIComponent(PID)+'" style="color:#000E31;font-weight:700;margin-left:6px">Back to contact</a>'):'')+(j.emailErr?('<div style="color:#b7791f;margin-top:6px">'+esc(j.emailErr)+'</div>'):''); }
       else { m.style.color='#DA2B1F'; m.textContent=(j&&j.error)||'Could not save.'; }
     }).catch(function(){ Array.prototype.forEach.call(bs,function(b){ b.disabled=false; }); m.style.color='#DA2B1F'; m.textContent='Could not reach the server.'; });
   }
   document.getElementById('ssave').addEventListener('click',function(){ submit(false,this); });
+  document.addEventListener('click',function(e){ var a=e.target.closest&&e.target.closest('[data-share]'); if(!a) return; e.preventDefault(); var u=a.getAttribute('data-share'); var ok=function(){ a.textContent='Link copied ✓'; setTimeout(function(){ a.textContent='Copy share link'; },2500); }; if(navigator.clipboard) navigator.clipboard.writeText(u).then(ok,function(){ prompt('Share link (anyone with it can view):',u); }); else prompt('Share link (anyone with it can view):',u); });
   document.getElementById('semail').addEventListener('click',function(){ submit(true,this); });
 })();
 </script>

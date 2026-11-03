@@ -121,7 +121,7 @@ h1{font-size:25px;font-weight:700;margin:0;color:#fff;}
     btn.disabled=true; m.style.color='#6b7488'; m.textContent='Submitting…';
     fetch('/s/ssc/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:TOKEN,data:data})}).then(function(r){return r.json();}).then(function(j){
       btn.disabled=false;
-      if(j&&j.ok){ var _db=document.getElementById('donebtn'); if(_db) _db.style.display='inline-block'; m.style.color='#1f8a5b'; m.textContent='Thank you. Your answers were sent to your representative. ✓'; document.getElementById('doneNote').style.display='block'; document.getElementById('introNote').style.display='none'; document.getElementById('hdr').textContent=data.concept; window.scrollTo({top:0,behavior:'smooth'}); }
+      if(j&&j.ok){ var _db=document.getElementById('donebtn'); if(_db) _db.style.display='inline-block'; m.style.color='#1f8a5b'; m.innerHTML='Thank you. Your answers were sent to your representative. ✓'+(j.docUrl?(' <a href="'+esc(j.docUrl)+'" target="_blank" rel="noopener" style="color:#000E31;font-weight:700;margin-left:6px">View &amp; print your Site Selection Criteria ↗</a>'):''); document.getElementById('doneNote').style.display='block'; document.getElementById('introNote').style.display='none'; document.getElementById('hdr').textContent=data.concept; window.scrollTo({top:0,behavior:'smooth'}); }
       else { m.style.color='#DA2B1F'; m.textContent=(j&&j.error)||'Could not submit. Please try again.'; }
     }).catch(function(){ btn.disabled=false; m.style.color='#DA2B1F'; m.textContent='Could not reach the server. Please try again.'; });
   });

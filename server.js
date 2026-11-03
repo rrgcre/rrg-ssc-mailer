@@ -36,7 +36,7 @@ app.use(function (req, res, next) {
     const mb = String(process.env.MAIL_LINK_BASE || '').trim(); if (!mb) return next();
     const mh = new URL(mb).hostname.toLowerCase(); const h = String(req.hostname || '').toLowerCase();
     if (h !== mh) return next();
-    if (/^\/mail\//.test(req.path) || req.path === '/api/brand/logo' || req.path === '/favicon.ico') return next();
+    if (/^\/mail\//.test(req.path) || /^\/s\/ssc-doc\//.test(req.path) || req.path === '/api/brand/logo' || req.path === '/favicon.ico') return next();
     return res.redirect(302, process.env.MAIL_LINK_HOME || 'https://www.rrgcre.com');
   } catch (e) { return next(); }
 });
@@ -15862,6 +15862,16 @@ app.post('/s/intake/submit', express.json({ limit: '256kb' }), (req, res) => {
 const SSC_LINKS_FILE = path.join(BOV_DATA_DIR, 'ssc_links.json');
 function loadSscLinks() { try { return rj(SSC_LINKS_FILE) || []; } catch (e) { return []; } }
 function saveSscLinks(a) { return writeJsonGuarded(SSC_LINKS_FILE, a, 'saveSscLinks'); }
+// Share links for a finished SSC document — anyone with the link can view/print it, no sign-in.
+// One unguessable token per SSC version: { token, key, createdAt, by }.
+const SSC_SHARES_FILE = path.join(BOV_DATA_DIR, 'ssc_shares.json');
+function loadSscShares() { try { return rj(SSC_SHARES_FILE) || []; } catch (e) { return []; } }
+function sscShareToken(key, by) {
+  const all = loadSscShares(); let r = all.find(x => x.key === key);
+  if (!r) { r = { token: newRoomToken(), key: String(key), createdAt: new Date().toISOString(), by: by || '' }; all.push(r); writeJsonGuarded(SSC_SHARES_FILE, all, 'saveSscShares'); }
+  return r.token;
+}
+function sscShareUrl(req, key, by) { const origin = String(process.env.MAIL_LINK_BASE || '').trim().replace(/\/+$/, '') || (req.protocol + '://' + req.get('host')); return origin + '/s/ssc-doc/' + sscShareToken(key, by); }
 function sscLinkByToken(t) { return loadSscLinks().find(x => x.token === String(t || '')); }
 const _sscRDV = [{ v: 'Req.', t: 'Required' }, { v: 'Pref.', t: 'Preferred' }, { v: 'Nice', t: 'Nice to have' }, { v: 'No', t: 'Not needed' }];
 const _sscO = (a) => a.map(x => (typeof x === 'string' ? { v: x, t: x } : x));
@@ -16019,7 +16029,8 @@ app.post('/api/ssc-rep/submit', express.json({ limit: '256kb' }), async (req, re
     try { syncTenantBoxFromSsc(sscRec, req); } catch (e) {}
     try { const all = loadSscLinks(); const i = all.findIndex(x => (personId && x.personId === personId) || (!personId && companyId && x.companyId === companyId)); if (i >= 0) { const keep = {}; SSC_CLIENT_FIELDS.forEach(f => { keep[f.k] = ans[f.k]; }); all[i].answers = keep; all[i].sscKey = sscRec.timestamp; saveSscLinks(all); } } catch (e) {}
     try { if (personId) { const ppl = loadPeople(); const pp = ppl.find(x => x.id === personId); if (pp) { logActivity(pp, 'Note', ('Site Criteria (SSC) ' + (emailed ? 'saved & emailed' : 'saved') + ' — ' + String(data.concept || '').slice(0, 80)).slice(0, 200), { by: me, byUser: (req.user && req.user.username) || '' }); pp.updatedAt = new Date().toISOString(); savePeople(ppl); } } } catch (e) {}
-    res.json({ ok: true, key: sscRec.timestamp, emailed, emailErr, viewUrl: '/api/ssc/' + encodeURIComponent(sscRec.timestamp) + '/view' });
+    let shareUrl = ''; try { shareUrl = sscShareUrl(req, sscRec.timestamp, (req.user && req.user.username) || ''); } catch (e) {}
+    res.json({ ok: true, key: sscRec.timestamp, emailed, emailErr, viewUrl: '/api/ssc/' + encodeURIComponent(sscRec.timestamp) + '/view', shareUrl });
   } catch (e) { console.error('ssc-rep submit:', e && e.message); res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 app.post('/api/ssc-link', express.json(), (req, res) => {
@@ -16097,7 +16108,8 @@ app.post('/s/ssc/submit', express.json({ limit: '256kb' }), (req, res) => {
       if (p && p.catch) p.catch(e => console.error('ssc client notify:', e && e.message));
     }
   } catch (e) {}
-  res.json({ ok: true });
+  let docUrl = ''; try { docUrl = sscShareUrl(req, rec.sscKey, rec.byUser || ''); } catch (e) {}
+  res.json({ ok: true, docUrl });
 });
 app.get('/s/video', (req, res) => {
   const rec = sellerLinkByToken(req.query.token); if (!rec) return res.status(404).json({ ok: false, error: 'This link is invalid or has expired.' });
@@ -25367,12 +25379,25 @@ app.get('/api/ssc/:key/criteria', (req, res) => {
   if (restrictToOwn(req) && !sscOwnerMatch(req, rec)) return res.status(403).json({ ok: false, error: 'Not authorized.' });
   res.json({ ok: true, key: rec.timestamp, name: rec.name || '', criteria: sscToCriteria(rec) });
 });
+app.post('/api/ssc/:key/share', (req, res) => {
+  const rec = store.readAll().filter(r => r.form === 'ssc' && r.timestamp === String(req.params.key || ''))[0];
+  if (!rec) return res.status(404).json({ ok: false, error: 'Not found.' });
+  if (restrictToOwn(req) && !sscOwnerMatch(req, rec)) return res.status(403).json({ ok: false, error: 'Not authorized.' });
+  res.json({ ok: true, url: sscShareUrl(req, rec.timestamp, (req.user && req.user.username) || '') });
+});
+app.get('/s/ssc-doc/:token', (req, res) => {
+  const sh = loadSscShares().find(x => x.token === String(req.params.token || ''));
+  const rec = sh ? store.readAll().filter(r => r.form === 'ssc' && r.timestamp === sh.key)[0] : null;
+  res.set('X-Robots-Tag', 'noindex, nofollow');
+  if (!rec) return res.status(404).set('Content-Type', 'text/html; charset=utf-8').send('<!doctype html><meta charset=utf-8><div style="font-family:Arial;max-width:480px;margin:80px auto;text-align:center;color:#6b7488"><b style="color:#0b1636;font-size:17px;display:block;margin-bottom:6px">Link unavailable</b>This link is invalid or has expired. Please contact your representative.</div>');
+  res.set('Content-Type', 'text/html; charset=utf-8').send(require('./template.js').buildHtml(rec.data || {}, { screen: true }));
+});
 app.get('/api/ssc/:key/view', (req, res) => {
   const rec = store.readAll().filter(r => r.form === 'ssc' && r.timestamp === String(req.params.key||''))[0];
   if (!rec) return res.status(404).send('Not found.');
   if (restrictToOwn(req) && !sscOwnerMatch(req, rec)) return res.status(403).send('Not authorized.');
   // Same document as the emailed PDF (agreement style, Letter pages), with a Print / Save PDF button on screen.
-  try { res.set('Content-Type','text/html; charset=utf-8').send(require('./template.js').buildHtml(rec.data || {}, { screen: true })); } catch (e) { res.set('Content-Type','text/html; charset=utf-8').send(intakeViewHtml(rec, 'Site & Concept Criteria')); }
+  try { res.set('Content-Type','text/html; charset=utf-8').send(require('./template.js').buildHtml(rec.data || {}, { screen: true, shareKey: rec.timestamp })); } catch (e) { res.set('Content-Type','text/html; charset=utf-8').send(intakeViewHtml(rec, 'Site & Concept Criteria')); }
 });
 app.get('/api/seller/:key/view', (req, res) => {
   const rec = store.readAll().filter(r => r.form === 'seller' && r.timestamp === String(req.params.key||''))[0];

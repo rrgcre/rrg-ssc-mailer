@@ -53,7 +53,9 @@ function panels(cells) {
     row.push(c); if (row.length === 3) flush();
   });
   flush();
-  return html.join('');
+  // Never leave a sub-heading stranded at the bottom of a page: glue it to the panel that follows.
+  const out = []; for (let i = 0; i < html.length; i++) { if (/^<div class="subhead"/.test(html[i]) && html[i + 1]) { out.push('<div class="keep">' + html[i] + html[i + 1] + '</div>'); i++; } else out.push(html[i]); }
+  return out;
 }
 
 // Puppeteer header/footer (repeat on every PDF page). Inline styles only — they render outside the page CSS.
@@ -76,12 +78,18 @@ function buildHtml(data, opts) {
     ['Ideal footprint', size],
     ['Top priority', findFirst(data, 'most important')],
   ].filter(x => x[1]);
+  const SIGN = `<div class="sign"><div class="note">Reviewed and confirmed as the basis for the site search.</div>
+    <div class="row"><div class="ln">Client signature</div><div class="ln">Date</div></div>
+    <div class="row"><div class="ln">Restaurant Realty Group, LLC</div><div class="ln">Date</div></div></div>`;
   let n = 0;
-  const sections = (data.sections || []).map(sec => {
-    const cells = cellsOf(sec); if (!cells.some(c => !c.head)) return '';
+  const secParts = (data.sections || []).map(sec => { const cells = cellsOf(sec); return cells.some(c => !c.head) ? { title: sec.title, ps: panels(cells) } : null; }).filter(Boolean);
+  // The sign-off rides with the last panel, so it never lands alone on a final page.
+  if (secParts.length) { const L = secParts[secParts.length - 1]; if (L.ps.length > 1) { L.ps[L.ps.length - 1] = `<div class="keep">${L.ps[L.ps.length - 1]}${SIGN}</div>`; } else { L.signInFirst = true; } }
+  const sections = secParts.map(sp => {
     n++;
-    return `<section><h2><span class="n">${n}</span>${esc(sec.title)}</h2>${panels(cells)}</section>`;
-  }).filter(Boolean).join('');
+    // A section heading always travels with its first panel, so no heading ever sits alone at the foot of a page.
+    return `<section><div class="keep"><h2><span class="n">${n}</span>${esc(sp.title)}</h2>${sp.ps[0] || ''}${sp.signInFirst ? SIGN : ''}</div>${sp.ps.slice(1).join('')}</section>`;
+  }).join('');
   const prepared = data.preparedBy || findFirst(data, 'tenant rep');
 
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Site Selection Criteria — ${concept}</title><style>
@@ -126,6 +134,8 @@ function buildHtml(data, opts) {
   .panel .cell:last-child{border-right:0;}
   .panel .v{font:700 10pt/1.3 'Archivo',Arial;color:var(--navy);margin-top:3px;}
   .panel .v.long{font:500 9.2pt/1.5 'Inter',Arial;color:var(--ink);}
+  .keep{break-inside:avoid;page-break-inside:avoid;}
+  .panel .v{overflow-wrap:anywhere;}
   .subhead{font:700 7pt 'Archivo',Arial;letter-spacing:.14em;text-transform:uppercase;color:var(--red);margin:10px 0 5px;}
   .sign{margin-top:24px;break-inside:avoid;page-break-inside:avoid;}
   .sign .note{font-size:8.4pt;color:var(--muted);}
@@ -136,7 +146,7 @@ function buildHtml(data, opts) {
   @media screen and (max-width:900px){body{margin:0;padding:22px 16px;box-shadow:none}.shdr{margin:0 0 16px}.snap,.prep,.panel.c3,.panel.c2{grid-template-columns:1fr!important}.snap .cell,.prep .cell,.panel .cell{border-right:0;border-bottom:1px solid var(--line)}}
   @media print{.prt,.shdr{display:none!important}}` : ''}
   </style></head><body>
-  ${screen ? `<div class="prt"><button onclick="window.print()">Print / Save PDF</button></div><div class="shdr"><b>RESTAURANT REALTY GROUP</b>&nbsp; /&nbsp; SITE SELECTION CRITERIA &nbsp;·&nbsp; ${esc(String(data.concept || '').toUpperCase())}</div>` : ''}
+  ${screen ? `<div class="prt">${opts.shareKey ? `<button id="shr" style="background:#fff;color:#0b1636;border:1px solid #c4ccda;margin-right:6px" onclick="(function(b){fetch('/api/ssc/${encodeURIComponent(opts.shareKey)}/share',{method:'POST',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(!j||!j.ok){ b.textContent='Could not create link'; return; } var done=function(){ b.textContent='Link copied ✓'; setTimeout(function(){ b.textContent='Copy share link'; },2500); }; if(navigator.clipboard){ navigator.clipboard.writeText(j.url).then(done,function(){ prompt('Share link (anyone with it can view):', j.url); }); } else prompt('Share link (anyone with it can view):', j.url); });})(this)" title="A link anyone can open to view and print this SSC — no sign-in">Copy share link</button>` : ''}<button onclick="window.print()">Print / Save PDF</button></div><div class="shdr"><b>RESTAURANT REALTY GROUP</b>&nbsp; /&nbsp; SITE SELECTION CRITERIA &nbsp;·&nbsp; ${esc(String(data.concept || '').toUpperCase())}</div>` : ''}
   <div class="band">
     <div class="lock"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></div>
     <div class="kick">Tenant Representation</div>
@@ -154,9 +164,7 @@ function buildHtml(data, opts) {
     <div class="cell"><div class="k">Date</div><div class="v">${esc(data.date || '')}</div><div class="s">${data.source === 'client' ? 'Completed by the client' : 'Site Selection Criteria'}</div></div>
   </div>
   ${sections}
-  <div class="sign"><div class="note">Reviewed and confirmed as the basis for the site search.</div>
-    <div class="row"><div class="ln">Client signature</div><div class="ln">Date</div></div>
-    <div class="row"><div class="ln">Restaurant Realty Group, LLC</div><div class="ln">Date</div></div></div>
+  ${secParts.length ? '' : SIGN}</div>
   </body></html>`;
 }
 
