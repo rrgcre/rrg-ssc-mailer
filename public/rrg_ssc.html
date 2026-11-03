@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Site Selection Criteria</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--green:#1f8a5b;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.top{position:relative;color:#fff;padding:30px 0 32px;background:radial-gradient(95% 130% at 28% 15%,#1c2e5c 0%,#112044 42%,#0b1636 70%,#071029 100%);}
+.in{max-width:680px;margin:0 auto;padding:0 22px;}
+.disc{display:inline-flex;align-items:center;justify-content:center;background:var(--red);color:#fff;border-radius:50%;width:40px;height:40px;font:900 13px 'Arial Black',Arial,sans-serif;letter-spacing:-.04em;}
+.kick{margin:18px 0 4px;color:var(--red);font-weight:700;letter-spacing:.26em;font-size:11px;text-transform:uppercase;}
+h1{font-size:25px;font-weight:700;margin:0;color:#fff;}
+.sub{color:#aeb8cf;font-size:13px;margin-top:7px;line-height:1.5;}
+.wrap{max-width:680px;margin:20px auto;padding:0 22px 70px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:4px;padding:22px;}
+.note{background:#eef2f7;border:1px solid #d3dbe6;border-radius:4px;padding:13px 15px;color:#33465f;font-size:12.5px;line-height:1.55;margin-bottom:18px;}
+.note.ok{background:#e7f5ee;border-color:#b7e0c7;color:var(--green);}
+.fld{margin-bottom:17px;}
+.fld>label{display:block;font-size:13.5px;font-weight:600;color:var(--ink);margin-bottom:7px;line-height:1.4;}
+.fld>label .rq{color:var(--red);}
+.fld>label .many{font-weight:500;color:var(--soft);font-size:12px;}
+.fld>input,.fld>textarea{width:100%;border:1px solid #c4ccda;border-radius:4px;padding:11px 13px;font:inherit;font-size:15px;background:#fff;color:var(--ink);}
+.fld>input:focus,.fld>textarea:focus{outline:none;border-color:#2c5c8f;box-shadow:0 0 0 3px rgba(44,92,143,.15);}
+.fld textarea{min-height:78px;resize:vertical;}
+.sech{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--navy);margin:30px 0 14px;padding-bottom:7px;border-bottom:1px solid #eef1f6;display:flex;justify-content:space-between;}
+.sech:first-child{margin-top:2px;}
+.sech span{color:var(--soft);font-weight:600;letter-spacing:.02em;}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+@media(max-width:520px){.opts{grid-template-columns:1fr;}}
+.optch{display:flex;align-items:flex-start;gap:10px;border:1px solid #d7dde8;border-radius:4px;padding:10px 12px;cursor:pointer;font-size:14px;color:var(--ink);line-height:1.35;}
+.optch:hover{border-color:#9fb0cc;background:#fafcff;}
+.optch input{margin:1px 0 0;flex:none;width:17px;height:17px;accent-color:var(--navy);}
+.optch:has(input:checked){border-color:#2c5c8f;background:#f2f7fc;}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+@media(max-width:520px){.row3{grid-template-columns:1fr;}}
+.row3 .fld>label{font-size:12.5px;}
+.sbtn{background:var(--navy);color:#fff;border:none;border-radius:4px;padding:14px 30px;font:inherit;font-size:15px;font-weight:700;cursor:pointer;}
+.sbtn:disabled{opacity:.6;cursor:default;}
+#smsg{margin-top:13px;font-size:13.5px;font-weight:600;min-height:18px;}
+.foot{max-width:680px;margin:0 auto;padding:0 22px 40px;color:var(--soft);font-size:11px;text-align:center;}
+.gate{max-width:520px;margin:80px auto;text-align:center;color:var(--muted);padding:0 20px;}
+.gate b{display:block;color:var(--navy);font-size:17px;margin-bottom:6px;}
+.xclose{position:absolute;top:14px;right:16px;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.28);border-radius:4px;padding:6px 12px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;}.xclose:hover{background:rgba(255,255,255,.2);}
+#closemsg{display:none;position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#000E31;color:#fff;padding:11px 18px;border-radius:6px;font-size:13.5px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.25);z-index:50;}
+.repsec{background:#fbf7ef;border:1px solid #efe1c4;border-radius:4px;padding:4px 16px 2px;margin-top:8px;}
+.repsec .sech{color:#7a5a12;border-bottom-color:#efe1c4;}
+.btns{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:8px;}
+.sbtn.alt{background:#fff;color:var(--navy);border:1px solid #c4ccda;}
+.lnk{font-size:12.5px;color:var(--muted);margin-left:auto;}
+.lnk a{color:var(--navy);font-weight:700;}
+.loaded{background:#e7f5ee;border:1px solid #b7e0c7;color:#1f6b45;border-radius:4px;padding:10px 14px;font-size:12.5px;font-weight:600;margin-bottom:16px;}
+.draft{font-size:11.5px;color:var(--soft);margin-top:8px;}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<div id="app" style="display:none">
+  <div class="top"><div class="in">
+    <span class="disc" id="disc">RRG</span>
+    <div class="kick">Site Selection Criteria</div>
+    <h1 id="hdr">New Site Selection Criteria</h1>
+    <div class="sub" id="hsub">Capture the concept and the space they need. No market search begins without a completed SSC.</div>
+  </div></div>
+  <div class="wrap" style="max-width:760px">
+    <div data-rrg-feats="ssc_form" style="margin-bottom:14px"></div>
+    <div class="card">
+      <div class="loaded" id="loadedNote" style="display:none"></div>
+      <form id="sform" autocomplete="off"></form>
+      <div class="btns">
+        <button class="sbtn" id="ssave" type="button">Save SSC</button>
+        <button class="sbtn alt" id="semail" type="button">Save &amp; email me a copy</button>
+        <span class="lnk"><a href="#" id="paperLnk">Paper / print version</a></span>
+      </div>
+      <div id="smsg"></div>
+      <div class="draft" id="draftNote"></div>
+    </div>
+  </div>
+</div>
+<div id="gate" class="gate" style="display:none"></div>
+<div id="loading" class="gate">Loading…</div>
+<script>
+(function(){
+  var Q=new URLSearchParams(location.search); function qp(k){ return Q.get(k)||''; }
+  function esc(s){ var d=document.createElement('div'); d.textContent=s==null?'':String(s); return d.innerHTML.replace(/"/g,'&quot;'); }
+  var PID=qp('personId'), CID=qp('companyId'), FIELDS=[], DKEY='rrgSscDraft_'+(PID||CID||'new');
+  document.getElementById('paperLnk').href='./ssc_form.html?paper=1&'+location.search.replace(/^\?/,'');
+  function hideLoading(){ var l=document.getElementById('loading'); if(l) l.style.display='none'; }
+  function showGate(msg){ hideLoading(); var g=document.getElementById('gate'); g.innerHTML='<b>Couldn’t open the SSC</b>'+esc(msg||''); g.style.display='block'; }
+  function fieldHtml(fd,data){
+    var raw=data[fd.k]; var lab=esc(fd.prompt)+(fd.req?' <span class="rq">*</span>':'')+(fd.type==='multi'?' <span class="many">(pick any)</span>':'');
+    var input;
+    if(fd.type==='single'||fd.type==='multi'){
+      var sel=Array.isArray(raw)?raw:(raw?[raw]:[]); var t=(fd.type==='multi')?'checkbox':'radio';
+      input='<div class="opts">'+fd.opts.map(function(o){ return '<label class="optch"><input type="'+t+'" name="o_'+fd.k+'" value="'+esc(o.v)+'"'+(sel.indexOf(o.v)>=0?' checked':'')+'><span>'+esc(o.t)+'</span></label>'; }).join('')+'</div>';
+    } else if(fd.type==='textarea'){ input='<textarea id="f_'+fd.k+'" placeholder="'+esc(fd.ph||'')+'">'+esc(raw||'')+'</textarea>'; }
+    else { input='<input id="f_'+fd.k+'" value="'+esc(raw||'')+'" placeholder="'+esc(fd.ph||'')+'">'; }
+    return '<div class="fld"><label>'+lab+'</label>'+input+'</div>';
+  }
+  function collect(){ var f=document.getElementById('sform'), data={};
+    FIELDS.forEach(function(fd){
+      if(fd.type==='single'){ var s=f.querySelector('input[name="o_'+fd.k+'"]:checked'); data[fd.k]=s?s.value:''; }
+      else if(fd.type==='multi'){ data[fd.k]=Array.prototype.map.call(f.querySelectorAll('input[name="o_'+fd.k+'"]:checked'),function(x){return x.value;}); }
+      else { var el=document.getElementById('f_'+fd.k); data[fd.k]=el?el.value.trim():''; }
+    }); return data; }
+  function render(data){
+    var secs=[]; FIELDS.forEach(function(fd){ if(secs.indexOf(fd.sec)<0) secs.push(fd.sec); });
+    var html='', cur='', i=0, inRep=false;
+    while(i<FIELDS.length){ var fd=FIELDS[i];
+      if(fd.sec!==cur){ if(inRep){ html+='</div>'; inRep=false; } cur=fd.sec; if(fd.rep){ html+='<div class="repsec">'; inRep=true; } html+='<div class="sech">'+esc(cur)+'<span>'+(secs.indexOf(cur)+1)+' of '+secs.length+'</span></div>'; }
+      if(fd.k==='sfi'&&FIELDS[i+2]){ html+='<div class="row3">'+[FIELDS[i],FIELDS[i+1],FIELDS[i+2]].map(function(x){ return fieldHtml(x,data); }).join('')+'</div>'; i+=3; continue; }
+      html+=fieldHtml(fd,data); i++;
+    }
+    if(inRep) html+='</div>';
+    document.getElementById('sform').innerHTML=html;
+  }
+  // Autosave a draft in this browser so nothing is lost mid-call.
+  var _dt=null; function saveDraft(){ clearTimeout(_dt); _dt=setTimeout(function(){ try{ localStorage.setItem(DKEY, JSON.stringify({t:Date.now(),d:collect()})); document.getElementById('draftNote').textContent='Draft saved on this computer '+new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})+'.'; }catch(e){} },600); }
+  fetch('/api/ssc-rep/form?'+location.search.replace(/^\?/,''),{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ showGate(j&&j.error); return; }
+    FIELDS=j.fields||[]; var data=j.data||{}; var note='';
+    var dr=null; try{ dr=JSON.parse(localStorage.getItem(DKEY)||'null'); }catch(e){}
+    var srcT=j.when?new Date(j.when).getTime():0;
+    if(dr&&dr.d&&dr.t>srcT){ data=dr.d; note='Restored your unsaved draft from '+new Date(dr.t).toLocaleString()+'.'; }
+    else if(j.from==='ssc'){ note='Loaded the SSC on file from '+new Date(j.when).toLocaleDateString()+'. Saving creates a new version.'; }
+    else if(j.from==='client'){ note='Loaded the client’s answers from their Site Criteria link. Fill in the broker details and save.'; }
+    if(note){ var ln=document.getElementById('loadedNote'); ln.textContent=note; ln.style.display='block'; }
+    if(data.concept){ document.getElementById('hdr').textContent=data.concept; }
+    window.__REP_EMAIL=j.repEmail||''; if(!j.canEmail||!j.repEmail){ var se=document.getElementById('semail'); se.title=!j.canEmail?'Email isn’t set up':'Add an email to your user record to get a copy'; }
+    render(data); var f=document.getElementById('sform'); f.addEventListener('input',saveDraft); f.addEventListener('change',saveDraft);
+    hideLoading(); document.getElementById('app').style.display='block';
+  }).catch(function(){ showGate('Could not reach the server.'); });
+  function submit(email,btn){
+    var m=document.getElementById('smsg'), data=collect();
+    if(!data.concept){ m.style.color='#DA2B1F'; m.textContent='Enter the restaurant / concept name (first question).'; var c=document.getElementById('f_concept'); if(c){ c.focus(); c.scrollIntoView({block:'center'}); } return; }
+    var bs=document.querySelectorAll('.btns .sbtn'); Array.prototype.forEach.call(bs,function(b){ b.disabled=true; }); m.style.color='#6b7488'; m.textContent=email?'Saving and emailing…':'Saving…';
+    fetch('/api/ssc-rep/submit',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({personId:PID,companyId:CID,company:qp('company'),data:data,email:!!email,repEmail:window.__REP_EMAIL})}).then(function(r){return r.json();}).then(function(j){
+      Array.prototype.forEach.call(bs,function(b){ b.disabled=false; });
+      if(j&&j.ok){ try{ localStorage.removeItem(DKEY); }catch(e){} document.getElementById('draftNote').textContent='';
+        m.style.color='#1f8a5b'; m.innerHTML='Saved ✓'+(j.emailed?' A copy was emailed to you.':'')+' <a href="'+esc(j.viewUrl)+'" target="_blank" rel="noopener" style="color:#000E31;font-weight:700;margin-left:6px">View SSC ↗</a>'+(PID?(' <a href="./rrg_person.html?id='+encodeURIComponent(PID)+'" style="color:#000E31;font-weight:700;margin-left:6px">Back to contact</a>'):'')+(j.emailErr?('<div style="color:#b7791f;margin-top:6px">'+esc(j.emailErr)+'</div>'):''); }
+      else { m.style.color='#DA2B1F'; m.textContent=(j&&j.error)||'Could not save.'; }
+    }).catch(function(){ Array.prototype.forEach.call(bs,function(b){ b.disabled=false; }); m.style.color='#DA2B1F'; m.textContent='Could not reach the server.'; });
+  }
+  document.getElementById('ssave').addEventListener('click',function(){ submit(false,this); });
+  document.getElementById('semail').addEventListener('click',function(){ submit(true,this); });
+})();
+</script>
+<script src="/rrg_features.js"></script>
+</body>
+</html>

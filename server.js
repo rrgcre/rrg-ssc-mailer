@@ -1795,7 +1795,8 @@ app.post('/api/me/password', express.json(), (req, res) => {
 // Block admin-only tool files for non-admins (even by direct URL).
 app.use((req, res, next) => {
   if (req.method === 'GET' && /\.html$/.test(req.path) && !(req.user && isSuper(req.user))) {
-    const file = req.path.replace(/^\//, '');
+    let file = req.path.replace(/^\//, '');
+    if (file === 'rrg_ssc.html') file = 'ssc_form.html';   // the modern SSC page shares the SSC tool's access rules
     if (auth.loadToolAccess().indexOf(file) >= 0) return res.redirect('/');
     if (permsEnabled() && GATEABLE_TOOLS.some(t => t.file === file) && !effectivePerms(req.user)['tool:' + file]) return res.redirect('/');
   }
@@ -15911,9 +15912,9 @@ const SSC_CLIENT_FIELDS = [
   { k: 'most', ssc: 'Timeline & Delivery', sec: 'Timing', label: 'Most Important', prompt: 'Which matters more?', type: 'single', opts: [{ v: 'Ideal space', t: 'Getting the ideal space' }, { v: 'Speed', t: 'Opening quickly' }] },
   { k: 'notes', ssc: 'Other Information', sec: 'Anything else', label: 'Notes', prompt: 'Anything else we should know?', type: 'textarea' },
 ];
-function _sscClientData(rec, ans) {
+function _sscClientData(rec, ans, fieldList) {
   const secs = [], byTitle = {}, hdr = {}; let market = '';
-  SSC_CLIENT_FIELDS.forEach(f => {
+  (fieldList || SSC_CLIENT_FIELDS).forEach(f => {
     const raw = ans[f.k];
     if (f.hdr) { hdr[f.hdr] = String(raw || '').slice(0, 300); return; }
     let sec = byTitle[f.ssc]; if (!sec) { sec = { n: '', title: f.ssc, groups: [] }; byTitle[f.ssc] = sec; secs.push(sec); }
@@ -15928,6 +15929,90 @@ function _sscClientData(rec, ans) {
   const d = new Date(); const dt = String(d.getMonth() + 1).padStart(2, '0') + '/' + String(d.getDate()).padStart(2, '0') + '/' + d.getFullYear();
   return { concept: hdr['restaurant / concept name'] || rec.business || 'Concept', market, contact: hdr['primary contact'] || rec.contactName || '', preparedBy: rec.by || '', date: dt, repEmail: '', personId: rec.personId || '', companyId: rec.companyId || '', company: rec.business || '', source: 'client', sections: secs };
 }
+// ---- Rep-side SSC in the modern (client-style) look. Same questions the client sees, plus the
+// broker-only items. Saves the exact same SSC record shape as the paper form, so PDFs, the Tenant-Box
+// sync, Documents and "View SSC" all keep working. The paper form stays for print (ssc_form.html?paper=1).
+const SSC_REP_FIELDS = [
+  { k: 'mktnotes', ssc: 'Market & Trade Area', sec: 'Broker details', label: 'Notes on Market Strategy', prompt: 'Notes on market strategy', type: 'textarea', rep: true },
+  { k: 'boh', ssc: 'Space Requirements', sec: 'Broker details', label: 'BOH % (Approx.)', prompt: 'Back-of-house % (approx.)', type: 'text', rep: true },
+  { k: 'ceil', ssc: 'Space Requirements', sec: 'Broker details', label: 'Min Ceiling Height (Ft)', prompt: 'Minimum ceiling height (ft)', type: 'text', rep: true },
+  { k: 'hoodft', ssc: 'Space Requirements', sec: 'Broker details', label: 'Min Hood (Linear Ft)', prompt: 'Minimum hood (linear ft)', type: 'text', rep: true },
+  { k: 'coex', ssc: 'Space Requirements', sec: 'Broker details', label: 'Do These Requirements Coexist Here?', prompt: 'Do these requirements realistically coexist in the target markets?', type: 'single', opts: _sscO(['Yes', 'Partially', 'No']), rep: true },
+  { k: 'tabcd', ssc: 'Licensing, Zoning & Use', sec: 'Broker details', label: 'TABC Distance Rules (300-ft)', prompt: 'TABC distance rules (300 ft)', type: 'multi', opts: _sscO(['Must clear school / church / daycare', 'Open to variance / waiver', 'Not a factor']), rep: true },
+  { k: 'zone', ssc: 'Licensing, Zoning & Use', sec: 'Broker details', label: 'Zoning / Permitted Use', prompt: 'Zoning / permitted use', type: 'multi', opts: _sscO(['Bar / tavern use permitted', 'Dance hall / assembly use permitted', 'Late-night use permitted', 'Specific Use Permit (SUP) acceptable', 'By-right use required (no SUP)', 'Outdoor / patio alcohol permitted']), rep: true },
+  { k: 'lznotes', ssc: 'Licensing, Zoning & Use', sec: 'Broker details', label: 'Licensing & Zoning Notes', prompt: 'Licensing & zoning notes', type: 'textarea', rep: true },
+  { k: 'occ', ssc: 'Economics & Capital Reality', sec: 'Broker details', label: 'Target Occupancy %', prompt: 'Target occupancy cost (% of sales)', type: 'text', rep: true },
+  { k: 'viable', ssc: 'Economics & Capital Reality', sec: 'Broker details', label: 'Viable Monthly Rent', prompt: 'Viable monthly rent (your read)', type: 'text', rep: true },
+  { k: 'basis', ssc: 'Economics & Capital Reality', sec: 'Broker details', label: 'Budget Basis', prompt: 'Build-out budget basis', type: 'single', opts: _sscO(['All-in budget', 'Construction only', 'Construction + soft costs']), rep: true },
+  { k: 'abate', ssc: 'Economics & Capital Reality', sec: 'Broker details', label: 'Abated Rent for TI', prompt: 'Abated rent in lieu of TI?', type: 'single', opts: _sscO(['Yes', 'No']), rep: true },
+  { k: 'advisor', ssc: 'Other Information', sec: 'Broker details', label: 'Tenant Rep', prompt: 'RRG advisor / tenant rep', type: 'text', rep: true },
+];
+function _sscAllFields() { return SSC_CLIENT_FIELDS.concat(SSC_REP_FIELDS); }
+const _sscN = t => String(t || '').replace(/\*/g, '').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim().toLowerCase();
+// Saved SSC record (sections/groups) -> flat answers keyed like the fields above.
+function _sscAnswersFromData(d) {
+  const ans = {}; if (!d) return ans;
+  if (d.concept) ans.concept = d.concept; if (d.contact) ans.contact = d.contact;
+  const secs = Array.isArray(d.sections) ? d.sections : [];
+  _sscAllFields().forEach(f => {
+    if (f.hdr) return;
+    for (const sec of secs) {
+      for (const g of (sec.groups || [])) {
+        if (f.grp) { if (g.kind === 'subgroups' && _sscN(g.label) === _sscN(f.grp)) { const r = (g.rows || []).find(x => _sscN(x.label) === _sscN(f.label)); if (r) { ans[f.k] = f.type === 'multi' ? (r.selected || []) : ((r.selected || [])[0] || ''); return; } } continue; }
+        if (_sscN(g.label) !== _sscN(f.label)) continue;
+        if (g.kind === 'field') { ans[f.k] = g.value || ''; return; }
+        if (g.kind === 'options') { ans[f.k] = f.type === 'multi' ? (g.selected || []) : ((g.selected || [])[0] || ''); return; }
+      }
+    }
+  });
+  return ans;
+}
+function _sscLatestFor(personId, companyId) {
+  try {
+    const all = store.readAll().filter(r => r.form === 'ssc' && r.data && ((personId && r.data.personId === personId) || (!personId && companyId && r.data.companyId === companyId)));
+    all.sort((a, b) => String(b.timestamp).localeCompare(String(a.timestamp)));
+    return all[0] || null;
+  } catch (e) { return null; }
+}
+app.get('/api/ssc-rep/form', (req, res) => {
+  try {
+    const personId = String(req.query.personId || '').slice(0, 48), companyId = String(req.query.companyId || '').slice(0, 48), key = String(req.query.ssc || '');
+    let src = null, from = '';
+    if (key) { src = store.readAll().filter(r => r.form === 'ssc' && r.timestamp === key)[0] || null; from = src ? 'ssc' : ''; }
+    if (!src && (personId || companyId)) { src = _sscLatestFor(personId, companyId); from = src ? 'ssc' : ''; }
+    if (src && restrictToOwn(req) && !sscOwnerMatch(req, src)) src = null;
+    let ans = src ? _sscAnswersFromData(src.data) : {};
+    // Client answers from their link fill anything the saved SSC doesn't have.
+    try { const lk = loadSscLinks().find(x => (personId && x.personId === personId) || (!personId && companyId && x.companyId === companyId)); if (lk && lk.answers) { Object.keys(lk.answers).forEach(k => { const v = lk.answers[k]; if ((ans[k] == null || ans[k] === '' || (Array.isArray(ans[k]) && !ans[k].length)) && v != null && v !== '' && !(Array.isArray(v) && !v.length)) ans[k] = v; }); if (!from && lk.submittedAt) from = 'client'; } } catch (e) {}
+    const company = String(req.query.company || ''), contact = String(req.query.contact || '');
+    if (!ans.concept && company) ans.concept = company; if (!ans.contact && contact) ans.contact = contact;
+    if (!ans.advisor && req.user) ans.advisor = req.user.name || '';
+    res.json({ ok: true, from, key: src ? src.timestamp : '', when: src ? src.timestamp : '', fields: _sscAllFields().map(f => ({ k: f.k, sec: f.sec, prompt: f.prompt, type: f.type, opts: f.opts || [], ph: f.ph || '', req: !!f.req, rep: !!f.rep })), data: ans, repEmail: (req.user && req.user.email) || '', canEmail: isEmailConfigured() });
+  } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+app.post('/api/ssc-rep/submit', express.json({ limit: '256kb' }), async (req, res) => {
+  try {
+    const b = req.body || {}; const personId = String(b.personId || '').slice(0, 48), companyId = String(b.companyId || '').slice(0, 48);
+    const raw = b.data || {}; const ans = {};
+    _sscAllFields().forEach(f => { const v = raw[f.k]; ans[f.k] = Array.isArray(v) ? v.map(x => String(x).slice(0, 200)).slice(0, 20) : String(v || '').slice(0, 4000); });
+    if (!String(ans.concept || '').trim()) return res.status(400).json({ ok: false, error: 'Enter the restaurant / concept name.' });
+    const me = (req.user && req.user.name) || '';
+    const data = _sscClientData({ business: String(b.company || ans.concept || '').slice(0, 160), contactName: ans.contact || '', by: ans.advisor || me, personId, companyId }, ans, _sscAllFields());
+    data.source = 'rep'; data.preparedBy = ans.advisor || me;
+    const repEmail = String(b.repEmail || (req.user && req.user.email) || '').trim(); data.repEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(repEmail) ? repEmail : '';
+    let emailed = false, emailErr = '';
+    if (b.email) {
+      if (!data.repEmail) emailErr = 'No email on your user record, so no copy was emailed.';
+      else if (!isEmailConfigured()) emailErr = 'Email isn’t set up, so no copy was emailed.';
+      else { try { await sendSsc(data, buildTransport(), { cc: sscCcAddr() }); emailed = true; } catch (e) { emailErr = 'Saved, but the email copy failed: ' + String((e && e.message) || e).slice(0, 140); } }
+    }
+    const sscRec = store.appendSubmission('ssc', data, { ip: req.ip, emailed, by: req.user && req.user.username });
+    try { syncTenantBoxFromSsc(sscRec, req); } catch (e) {}
+    try { const all = loadSscLinks(); const i = all.findIndex(x => (personId && x.personId === personId) || (!personId && companyId && x.companyId === companyId)); if (i >= 0) { const keep = {}; SSC_CLIENT_FIELDS.forEach(f => { keep[f.k] = ans[f.k]; }); all[i].answers = keep; all[i].sscKey = sscRec.timestamp; saveSscLinks(all); } } catch (e) {}
+    try { if (personId) { const ppl = loadPeople(); const pp = ppl.find(x => x.id === personId); if (pp) { logActivity(pp, 'Note', ('Site Criteria (SSC) ' + (emailed ? 'saved & emailed' : 'saved') + ' — ' + String(data.concept || '').slice(0, 80)).slice(0, 200), { by: me, byUser: (req.user && req.user.username) || '' }); pp.updatedAt = new Date().toISOString(); savePeople(ppl); } } } catch (e) {}
+    res.json({ ok: true, key: sscRec.timestamp, emailed, emailErr, viewUrl: '/api/ssc/' + encodeURIComponent(sscRec.timestamp) + '/view' });
+  } catch (e) { console.error('ssc-rep submit:', e && e.message); res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
 app.post('/api/ssc-link', express.json(), (req, res) => {
   try {
     const b = req.body || {}; const personId = String(b.personId || '').slice(0, 48), companyId = String(b.companyId || '').slice(0, 48);

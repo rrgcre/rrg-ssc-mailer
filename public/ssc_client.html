@@ -75,7 +75,7 @@ h1{font-size:25px;font-weight:700;margin:0;color:#fff;}
 <script>
 (function(){
   function qp(k){ try{ return new URLSearchParams(location.search).get(k)||''; }catch(e){ return ''; } }
-  function esc(s){ var d=document.createElement('div'); d.textContent=s==null?'':String(s); return d.innerHTML; }
+  function esc(s){ var d=document.createElement('div'); d.textContent=s==null?'':String(s); return d.innerHTML.replace(/"/g,'&quot;'); }
   var TOKEN=qp('t'), FIELDS=[];
   var app=document.getElementById('app'), gate=document.getElementById('gate');
   function hideLoading(){ var l=document.getElementById('loading'); if(l) l.style.display='none'; }
