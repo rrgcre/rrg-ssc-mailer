@@ -2888,21 +2888,70 @@ load();
     // The engagement itself needs no agreement — many tenant-rep deals are non-exclusive —
     // so "Start Tenant Rep Engagement" is the primary path and the agreement is optional.
     if(!document.getElementById("rrgTrCss")){ var st3=document.createElement("style"); st3.id="rrgTrCss"; st3.textContent="#rrgTrMenu .rrgactitem{display:block;width:100%;text-align:left;background:none;border:none;border-radius:8px;padding:8px 14px;font:inherit;font-size:14px;font-weight:600;color:#1a2236;cursor:pointer;white-space:nowrap;line-height:1.2} #rrgTrMenu .rrgactitem:hover{background:#eef3fb;color:#1f3aa6} #rrgTrMenu .rrgactsub{font-size:11.5px;color:#8a93a8;font-weight:500;margin-top:2px;white-space:nowrap} #rrgTrMenu .rrgacthead{font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#98a1b5;padding:8px 14px 3px;margin-top:3px;border-top:1px solid #eef1f6} #rrgTrMenu .rrgacthead:first-child{border-top:none;margin-top:0}"; document.head.appendChild(st3); }
+    // Tenant Rep Actions — works like Biz Seller Actions: steps in order, a ✓ on what's done,
+    // locked steps say why, the current stage opens and finished stages fold to a ✓ line,
+    // and the next step is highlighted. Several engagements → a "Working on" selector.
+    (function(){ try{ var css=(document.getElementById('rrgActionsCss')||{}).textContent||''; if(css && !document.getElementById('rrgTrCss2')){ var s5=document.createElement('style'); s5.id='rrgTrCss2'; s5.textContent=css.split('#rrgActionsMenu').join('#rrgTrMenu'); document.head.appendChild(s5); } }catch(_){} })();
+    function _trEngs(){ try{ return ((typeof DEALS!=='undefined'&&DEALS)||[]).filter(function(d){ return d&&d.type==='tenant_rep'; }); }catch(_){ return []; } }
+    var _trKey='';
+    function _trEng(){ var L=_trEngs(); if(!L.length) return null; var hit=L.filter(function(d){ return d.key===_trKey; })[0]; return hit||L[0]; }
+    function _trEngUrl(hash){ var e=_trEng(); return e?('./rrg_tenant_engagement.html?key='+encodeURIComponent(e.key)+(hash||'')):''; }
+    function _trSscUrl(){ return './rrg_ssc.html?personId='+encodeURIComponent(ID)+'&companyId='+encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.id)||'')+'&contact='+encodeURIComponent((P&&P.name)||'')+'&company='+encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.name)||(P&&P.company)||''); }
     var TRA=[
-      {hdr:'Engagement'},
-      {t:'Start Tenant Rep Engagement', sub:'Sign this client to a space search — opens the tenant pipeline at Needs Analysis', f:function(){ if(typeof openNewListing==='function'){ openNewListing('tenant_rep'); } else { alert('One moment — still loading.'); } }},
-      {hdr:'Criteria'},
-      {t:'Start Site Criteria (SSC)', sub:'Capture this client’s space & concept criteria — links to this record', f:function(){ var q='personId='+encodeURIComponent(ID)+'&companyId='+encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.id)||'')+'&contact='+encodeURIComponent((P&&P.name)||'')+'&company='+encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.name)||''); location.href='./ssc_form.html?'+q; }},
-      {t:'Send SSC to client', sub:'Email them a simple link to fill it out themselves — answers land in their SSC & Tenant-Box', f:function(){ openSscClientLink(); }},
-      {hdr:'Paperwork (optional)'},
-      {t:'Send a Tenant Rep Agreement', sub:'Exclusive Tenant Representation — only when the client wants exclusivity', f:function(){ if(typeof openSendModal==='function'){ openSendModal(); } else { alert('Agreements are still loading — try again in a moment.'); } }}
+      {hdr:'Engagement', hid:'eng'},
+      {id:'eng', t:'Start Tenant Rep Engagement', sub:'Sign this client to a space search — opens the tenant pipeline at Needs Analysis', f:function(){ var u=_trEngUrl(); if(u){ location.href=u; return; } if(typeof openNewListing==='function'){ openNewListing('tenant_rep'); } else { alert('One moment — still loading.'); } }},
+      {hdr:'Site Criteria (SSC)', hid:'ssc', hint:'no search without one'},
+      {id:'sendSsc', t:'Send SSC to client', sub:'Email them a simple link to fill it out themselves — answers land in their SSC & Tenant-Box', f:function(){ openSscClientLink(); }},
+      {id:'ssc', t:'Fill in the SSC', sub:'Capture the concept & space criteria with the client — links to this record', f:function(){ location.href=_trSscUrl(); }},
+      {hdr:'The search', hid:'search'},
+      {id:'blast', t:'Send the broker blast', sub:'Blind requirement email to brokers who cover their markets', f:function(){ location.href=_trEngUrl('#blast'); }},
+      {id:'tours', t:'Plan tours', sub:'Shortlist spaces and schedule tours', f:function(){ var e=_trEng(); location.href='./rrg_tours.html'+(e?('?key='+encodeURIComponent(e.key)):''); }},
+      {id:'loi', t:'Write an LOI', sub:'Draft a letter of intent on a space', f:function(){ var e=_trEng(); location.href='./rrg_loi_builder.html'+(e?('?key='+encodeURIComponent(e.key)+'#new'):''); }},
+      {hdr:'Paperwork (optional)', hid:'agr', opt:1},
+      {id:'agr', t:'Send a Tenant Rep Agreement', sub:'Exclusive Tenant Representation — only when the client wants exclusivity', f:function(){ if(typeof openSendModal==='function'){ openSendModal(); } else { alert('Agreements are still loading — try again in a moment.'); } }}
     ];
     var trbtn=document.createElement("button"); trbtn.type="button"; trbtn.className="create"; trbtn.style.cssText="font-size:14px;padding:10px 18px;cursor:pointer"; trbtn.innerHTML="Tenant Rep Actions <span style=\"font-size:10px;margin-left:3px;opacity:.85\">▾</span>";
     var trmenu=document.createElement("div"); trmenu.id="rrgTrMenu"; trmenu.style.cssText="position:absolute;top:calc(100% + 6px);right:0;background:#fff;border:1px solid #e1e6ef;border-radius:11px;box-shadow:0 14px 44px rgba(10,20,50,.18);z-index:200;min-width:312px;padding:6px;display:none";
-    trmenu.innerHTML=TRA.map(function(a,i){ if(a.hdr){ return "<div class=\"rrgacthead\">"+esc(a.hdr)+"</div>"; } return "<button type=\"button\" class=\"rrgactitem\" data-tri=\""+i+"\">"+esc(a.t)+(a.sub?("<div class=\"rrgactsub\">"+esc(a.sub)+"</div>"):"")+"</button>"; }).join("");
+    function _trBuild(){
+      var L=_trEngs(), sc='';
+      if(L.length>=2){ if(!_trKey||!L.some(function(d){ return d.key===_trKey; })) _trKey=L[0].key; sc='<div class="rrgactscope"><span class="rrgactscopel">Working on</span><select class="rrgactscopesel">'+L.map(function(d){ return '<option value="'+esc(d.key)+'"'+(d.key===_trKey?' selected':'')+'>'+esc(d.business||d.name||'Engagement')+'</option>'; }).join('')+'</select></div>'; }
+      trmenu.innerHTML=sc+TRA.map(function(a,i){ if(a.hdr){ return '<div class="rrgacthead" data-hid="'+a.hid+'"'+(a.opt?' data-opt="1"':'')+'>'+esc(a.hdr)+(a.hint?(' <span class="rrghhint">'+esc(a.hint)+'</span>'):'')+'</div>'; } return '<button type="button" class="rrgactitem" data-tri="'+i+'" data-aid="'+a.id+'">'+esc(a.t)+'<div class="rrgactsub">'+esc(a.sub||'')+'</div></button>'; }).join('');
+      var sel=trmenu.querySelector('.rrgactscopesel'); if(sel){ sel.addEventListener('click',function(e){ e.stopPropagation(); }); sel.addEventListener('change',function(){ _trKey=sel.value; _trRefresh(); }); }
+    }
+    function _tById(id){ return trmenu.querySelector('[data-aid="'+id+'"]'); }
+    function _tSub(el,txt){ var sb=el&&el.querySelector('.rrgactsub'); if(sb) sb.textContent=txt; }
+    function _tDone(el,done,note){ if(!el) return; var mk=el.querySelector('.rrgactck'); if(done){ if(!mk){ mk=document.createElement('span'); mk.className='rrgactck'; mk.textContent='✓'; el.appendChild(mk); } el.classList.add('rrgactdoneflag'); el.classList.remove('rrgactdim'); _tSub(el,note||''); } else { if(mk) mk.remove(); el.classList.remove('rrgactdoneflag'); } }
+    function _tGate(el,dim,why){ if(!el) return; el.classList.toggle('rrgactdim',!!dim); el.dataset.why=dim?(why||''):''; if(dim) _tSub(el,why||''); else { var a=TRA[+el.getAttribute('data-tri')]; if(!el.classList.contains('rrgactdoneflag')) _tSub(el,(a&&a.sub)||''); } }
+    var _trOpen={};
+    function _trFocus(){ var secs=[], cur=null; Array.prototype.forEach.call(trmenu.children,function(el){ if(el.classList.contains('rrgacthead')){ cur={h:el,items:[]}; secs.push(cur); } else if(el.classList.contains('rrgactitem')&&cur){ cur.items.push(el); } });
+      var found=false; secs.forEach(function(s){ var vis=s.items.filter(function(x){ return x.style.display!=='none'; }); var done=s.h.classList.contains('rrgheaddone')||(vis.length>0&&vis.every(function(x){ return x.classList.contains('rrgactdoneflag'); }));
+        var st=done?'done':(!found&&vis.length&&!s.h.getAttribute('data-opt')?'now':'later'); if(st==='now') found=true;
+        var k=s.h.getAttribute('data-hid'); var open=(k in _trOpen)?_trOpen[k]:(st==='now');
+        s.h.classList.remove('rrgsecdone','rrgsecnow','rrgseclater'); s.h.classList.add('rrgsec'+st); s.h.classList.toggle('rrgsecopen',open); s.items.forEach(function(x){ x.classList.toggle('rrgfold',!open); }); });
+      var hit=null, head=null; Array.prototype.forEach.call(trmenu.children,function(el){ if(el.classList.contains('rrgacthead')){ head=el; return; } if(!el.classList.contains('rrgactitem')) return; el.classList.remove('rrgactnext'); if(hit||(head&&head.classList.contains('rrgsecdone'))) return; if(el.style.display==='none'||el.classList.contains('rrgactdoneflag')||el.classList.contains('rrgactdim')) return; hit=el; }); if(hit) hit.classList.add('rrgactnext'); }
+    function _trRefresh(){ try{
+      var e=_trEng(), pid=(P&&P.id)||ID||'', cid=(typeof CO!=='undefined'&&CO&&CO.id)||'';
+      var elE=_tById('eng'); if(e){ _tDone(elE,true,'Open — '+(e.business||'engagement')+' · '+(e.stage||'in progress')); var t0=elE.firstChild; if(t0&&t0.nodeType===3) t0.nodeValue='Open the engagement'; } else { _tDone(elE,false); var t1=elE.firstChild; if(t1&&t1.nodeType===3) t1.nodeValue='Start Tenant Rep Engagement'; _tSub(elE,TRA[1].sub); }
+      var agr=((typeof AGREEMENTS!=='undefined'&&AGREEMENTS)||[]).filter(function(a){ return a&&(a.type==='TenantRep'||a.type==='ETRA')&&a.status!=='terminated'; });
+      var exe=agr.some(function(a){ return a.signStatus==='executed'||a.signStatus==='signed'||(!a.signStatus&&a.entryMethod&&a.entryMethod!=='sent'); });
+      var elA=_tById('agr'); if(exe) _tDone(elA,true,'Signed — on file'); else { _tDone(elA,false); _tSub(elA, agr.length?'Sent — waiting on signature':TRA[TRA.length-1].sub); }
+      fetch('/api/ssc-rep/status?personId='+encodeURIComponent(pid)+'&companyId='+encodeURIComponent(cid),{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ j=j||{};
+        var elS=_tById('ssc'), elSend=_tById('sendSsc'); var fmt=function(d){ try{ return new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric'}); }catch(_){ return ''; } };
+        if(j.onFile){ _tDone(elS,true,'On file · '+fmt(j.when)+' — click to open or update'); var t2=elS.firstChild; if(t2&&t2.nodeType===3) t2.nodeValue='Open the SSC'; } else { _tDone(elS,false); _tSub(elS,TRA[4].sub); }
+        if(j.clientDone) _tDone(elSend,true,'Completed by the client · '+fmt(j.submittedAt)); else if(j.onFile){ elSend.style.display='none'; } else { _tDone(elSend,false); _tSub(elSend, j.emailedAt?('Sent '+fmt(j.emailedAt)+' — waiting on the client'):TRA[3].sub); }
+        if(j.onFile && !j.clientDone) elSend.style.display='none'; else elSend.style.display='';
+        var noEng=!e, noSsc=!j.onFile;
+        ['blast','tours','loi'].forEach(function(id){ var el=_tById(id); _tGate(el, noEng||noSsc, noEng?'Start the engagement first':'Complete the SSC first — no search starts without one'); });
+        _trFocus();
+      }).catch(function(){ _trFocus(); });
+    }catch(err){} }
+    _trBuild();
     function trclose(){ trmenu.style.display="none"; }
-    trbtn.addEventListener("click",function(e){ e.stopPropagation(); var _sw=(trmenu.style.display==="none"); try{close();}catch(_){} trmenu.style.display=(_sw?"block":"none"); });
-    trmenu.addEventListener("click",function(e){ var b2=e.target.closest(".rrgactitem"); if(!b2) return; var i2=+b2.getAttribute("data-tri"); var a2=TRA[i2]; trclose(); if(a2&&a2.f) try{ a2.f(); }catch(err){} });
+    trbtn.addEventListener("click",function(e){ e.stopPropagation(); var _sw=(trmenu.style.display==="none"); try{close();}catch(_){} if(_sw){ _trBuild(); _trRefresh(); } trmenu.style.display=(_sw?"block":"none"); });
+    trmenu.addEventListener("click",function(e){ var h=e.target.closest('.rrgacthead'); if(h){ e.stopPropagation(); var k=h.getAttribute('data-hid'); _trOpen[k]=!h.classList.contains('rrgsecopen'); _trFocus(); return; }
+      var b2=e.target.closest(".rrgactitem"); if(!b2) return; e.stopPropagation();
+      if(b2.classList.contains('rrgactdim')){ if(window.rrgToast) rrgToast(b2.dataset.why||'Not available yet'); return; }
+      var a2=TRA[+b2.getAttribute("data-tri")]; trclose(); if(a2&&a2.f) try{ a2.f(); }catch(err){} });
     wrap.appendChild(trbtn); wrap.appendChild(trmenu);
     // These are actions on THIS contact, so they live in the contact's own action bar above the page —
     // the shared top bar keeps its normal "+ Create New" like every other page.

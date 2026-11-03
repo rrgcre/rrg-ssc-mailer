@@ -2060,6 +2060,8 @@ function brokerBlastOpen(){
       var mask=document.getElementById('blastMask'); if(mask) mask.hidden=false;
     }).catch(function(){ if(window.rrgAiWork) rrgAiWork.hide(); if(window.rrgToast){rrgToast('Could not reach the server.');}else{alert('Could not reach the server.');} });
 }
+// Arriving with #blast (from the contact's Tenant Rep Actions) opens the broker blast once the engagement has loaded.
+(function(){ if(location.hash!=='#blast') return; var n=0; (function t(){ if(typeof A!=='undefined'&&A&&typeof brokerBlastOpen==='function'){ try{ history.replaceState(null,'',location.pathname+location.search); }catch(_){} brokerBlastOpen(); return; } if(++n<40) setTimeout(t,250); })(); })();
 function closeBlast(){ var m=document.getElementById('blastMask'); if(m) m.hidden=true; }
 function blastConfirmSend(){
   var mg=document.getElementById('blastMsg');

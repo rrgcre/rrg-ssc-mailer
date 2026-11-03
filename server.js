@@ -15990,6 +15990,15 @@ app.get('/api/ssc-rep/form', (req, res) => {
     res.json({ ok: true, from, key: src ? src.timestamp : '', when: src ? src.timestamp : '', fields: _sscAllFields().map(f => ({ k: f.k, sec: f.sec, prompt: f.prompt, type: f.type, opts: f.opts || [], ph: f.ph || '', req: !!f.req, rep: !!f.rep })), data: ans, repEmail: (req.user && req.user.email) || '', canEmail: isEmailConfigured() });
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
+// Where this contact's SSC stands — drives the Tenant Rep Actions menu (✓ on file / sent / completed by client).
+app.get('/api/ssc-rep/status', (req, res) => {
+  try {
+    const personId = String(req.query.personId || '').slice(0, 48), companyId = String(req.query.companyId || '').slice(0, 48);
+    const rec = _sscLatestFor(personId, companyId);
+    let lk = null; try { lk = loadSscLinks().find(x => (personId && x.personId === personId) || (!personId && companyId && x.companyId === companyId)) || null; } catch (e) {}
+    res.json({ ok: true, onFile: !!rec, when: rec ? rec.timestamp : '', key: rec ? rec.timestamp : '', emailedAt: (lk && lk.emailedAt) || '', emailedTo: (lk && lk.emailedTo) || '', clientDone: !!(lk && lk.submittedAt), submittedAt: (lk && lk.submittedAt) || '' });
+  } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
 app.post('/api/ssc-rep/submit', express.json({ limit: '256kb' }), async (req, res) => {
   try {
     const b = req.body || {}; const personId = String(b.personId || '').slice(0, 48), companyId = String(b.companyId || '').slice(0, 48);
