@@ -17870,10 +17870,10 @@ app.post('/api/spaces/scan-poll', express.json(), (req, res) => {
   if (typeof b.enabled === 'boolean') rec.enabled = b.enabled;
   if (b.intervalMin != null) { const m = parseInt(b.intervalMin, 10); rec.intervalMin = (isFinite(m) && m >= 5) ? Math.min(m, 720) : 30; }
   if (b.days != null) { const d = parseInt(b.days, 10); if (isFinite(d)) rec.days = Math.max(1, Math.min(365, d)); }
-  if (b.sources !== undefined) { const raw = Array.isArray(b.sources) ? b.sources : String(b.sources || '').split(/[\s,;\n]+/); rec.sources = raw.map(x => String(x).trim().toLowerCase().replace(/^from:/, '').replace(/[<>]/g, '')).filter(x => x && x.indexOf('.') > 0 && x.length < 120).slice(0, 40); }
+  if (b.sources !== undefined) { const raw = Array.isArray(b.sources) ? b.sources : String(b.sources || '').split(/[\s,;\n]+/); const _sd = {}; rec.sources = raw.map(x => String(x).trim().toLowerCase().replace(/^from:/, '').replace(/^@/, '').replace(/[<>]/g, '')).filter(x => { if (!x || x.indexOf('.') <= 0 || x.length >= 120 || _sd[x]) return false; _sd[x] = 1; return true; }).slice(0, 600); }
   if (b.enrich && typeof b.enrich === 'object') { rec.enrich = { fit: !!b.enrich.fit, demo: !!b.enrich.demo, contacts: !!b.enrich.contacts, docs: !!b.enrich.docs }; }
   store[u] = rec; saveSpacePoll(store);
-  res.json({ ok: true, enabled: !!rec.enabled, intervalMin: rec.intervalMin || 30, days: rec.days || 30, enrich: _centerEnrichCfg(rec) });
+  res.json({ ok: true, enabled: !!rec.enabled, intervalMin: rec.intervalMin || 30, days: rec.days || 30, enrich: _centerEnrichCfg(rec), sourcesCount: Array.isArray(rec.sources) ? rec.sources.length : 0 });
 });
 let _spacePolling = false;
 async function spacePollTick() {

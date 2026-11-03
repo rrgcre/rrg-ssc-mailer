@@ -449,17 +449,25 @@ async function listListingCandidates(username, max, daysArg, sources) {
   // Also catch flyers whose details live only in the attached PDF (short email body): any recent
   // message that HAS a pdf and whose subject hints at a space. Vision + the review queue sort them out.
   const attachHint = '(has:attachment filename:pdf subject:(space OR lease OR available OR retail OR restaurant OR sublease OR flyer OR brochure OR listing OR "for lease" OR "2nd gen" OR "1st gen" OR endcap OR "end cap" OR sf OR "sq ft"))';
-  const src = (Array.isArray(sources) ? sources : []).map(x => String(x).trim()).filter(Boolean).slice(0, 40);
+  const _seenSrc = {};
+  const src = (Array.isArray(sources) ? sources : []).map(x => String(x).trim()).filter(x => { if (!x || _seenSrc[x]) return false; _seenSrc[x] = 1; return true; }).slice(0, 600);
   // When the rep has named their flyer sources (broker domains/addresses), scan ONLY those senders —
   // any attachment or CRE-worded mail from them. Far higher precision than keyword guessing.
-  const q = src.length
-    ? ('newer_than:' + days + 'd from:(' + src.join(' OR ') + ') (has:attachment OR ' + kw + ')')
-    : ('newer_than:' + days + 'd (' + kw + ' OR ' + attachHint + ')');
-  const u = 'https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=' + lim + '&q=' + encodeURIComponent(q);
-  const r = await gapi(username, u, {});
-  const j = await r.json();
-  if (!r.ok) throw new Error((j && j.error && j.error.message) || 'Gmail search failed.');
-  const ids = (j.messages || []).map(m => m.id);
+  // Gmail queries have a length limit, so a long source list is searched in batches of 30 senders and
+  // the results merged newest-first (round-robin across batches) — every source gets looked at.
+  const qs = [];
+  if (src.length) { for (let i = 0; i < src.length; i += 30) qs.push('newer_than:' + days + 'd from:(' + src.slice(i, i + 30).join(' OR ') + ') (has:attachment OR ' + kw + ')'); }
+  else qs.push('newer_than:' + days + 'd (' + kw + ' OR ' + attachHint + ')');
+  const perQ = qs.length > 1 ? Math.min(lim, 40) : lim;
+  const lists = [];
+  for (const q of qs) {
+    const r = await gapi(username, 'https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=' + perQ + '&q=' + encodeURIComponent(q), {});
+    const j = await r.json();
+    if (!r.ok) throw new Error((j && j.error && j.error.message) || 'Gmail search failed.');
+    lists.push((j.messages || []).map(m => m.id));
+  }
+  const ids = []; const _got = {}; const cap = qs.length > 1 ? Math.min(lim * 2, 120) : lim;
+  for (let k = 0; ids.length < cap; k++) { let any = false; for (const L of lists) { if (k < L.length) { any = true; const id = L[k]; if (!_got[id]) { _got[id] = 1; ids.push(id); if (ids.length >= cap) break; } } } if (!any) break; }
   const out = await Promise.all(ids.map(async id => {
     try {
       const mr = await gapi(username, 'https://gmail.googleapis.com/gmail/v1/users/me/messages/' + id + '?format=full', {});
