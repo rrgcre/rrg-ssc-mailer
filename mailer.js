@@ -1,6 +1,6 @@
 // PDF rendering + email sending for the RRG SSC mailer.
 const puppeteer = require('puppeteer');
-const { buildHtml } = require('./template.js');
+const { buildHtml, headerTemplate, footerTemplate } = require('./template.js');
 
 const CC_ALWAYS = process.env.CC_ALWAYS || 'van@rrgcre.com';
 
@@ -14,7 +14,8 @@ async function renderPdf(data) {
   try {
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0' });
-    return await page.pdf({ printBackground: true, preferCSSPageSize: true, format: 'Letter' });
+    // Letter (8.5x11) pages with the agreement-style running header and "CONFIDENTIAL • n" footer on every page.
+    return await page.pdf({ printBackground: true, format: 'Letter', displayHeaderFooter: true, headerTemplate: headerTemplate(data), footerTemplate: footerTemplate(), margin: { top: '0.75in', bottom: '0.7in', left: '0.75in', right: '0.75in' } });
   } finally {
     await browser.close();
   }

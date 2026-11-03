@@ -25371,7 +25371,8 @@ app.get('/api/ssc/:key/view', (req, res) => {
   const rec = store.readAll().filter(r => r.form === 'ssc' && r.timestamp === String(req.params.key||''))[0];
   if (!rec) return res.status(404).send('Not found.');
   if (restrictToOwn(req) && !sscOwnerMatch(req, rec)) return res.status(403).send('Not authorized.');
-  res.set('Content-Type','text/html; charset=utf-8').send(intakeViewHtml(rec, 'Site & Concept Criteria'));
+  // Same document as the emailed PDF (agreement style, Letter pages), with a Print / Save PDF button on screen.
+  try { res.set('Content-Type','text/html; charset=utf-8').send(require('./template.js').buildHtml(rec.data || {}, { screen: true })); } catch (e) { res.set('Content-Type','text/html; charset=utf-8').send(intakeViewHtml(rec, 'Site & Concept Criteria')); }
 });
 app.get('/api/seller/:key/view', (req, res) => {
   const rec = store.readAll().filter(r => r.form === 'seller' && r.timestamp === String(req.params.key||''))[0];
