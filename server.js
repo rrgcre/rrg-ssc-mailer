@@ -17710,7 +17710,9 @@ async function _scanSpacesForUser(username, byName, days, skipIds, onProgress, o
   if (!gmail.statusFor(username).connected) return { ok: false, error: 'Gmail not connected', created: 0, scanned: 0, results: [], processedIds: [] };
   const skip = new Set(Array.isArray(skipIds) ? skipIds : []);
   let _srcList = []; try { const _r = (loadSpacePoll()[username]) || {}; const _u = Array.isArray(_r.sources) ? _r.sources : []; const _seen = {}; _srcList = effSpaceScanSources().concat(_u).map(x => String(x).trim().toLowerCase()).filter(x => { if (!x || _seen[x]) return false; _seen[x] = 1; return true; }); } catch (e) {}
-  const cands = (opts && Array.isArray(opts.cands)) ? opts.cands : await gmail.listListingCandidates(username, 50, days, _srcList);
+  // No cap: every unread candidate in the look-back window. Ids are listed up front; each message is fetched
+  // only when its turn comes (keeps memory flat on big backlogs).
+  const cands = (opts && Array.isArray(opts.cands)) ? opts.cands : (await gmail.listListingCandidateIds(username, days, _srcList, Array.from(skip))).map(id => ({ id: id, _lazy: true }));
   const _team = new Set(); try { (auth.loadUsers() || []).forEach(u => { if (u && u.email) _team.add(String(u.email).trim().toLowerCase()); }); } catch (e) {}
   const _fromAddr = f => { const m = String(f || '').match(/<([^>]+)>/); return String(m ? m[1] : f || '').trim().toLowerCase(); };
   const arr = loadSpaces();
@@ -17725,11 +17727,18 @@ async function _scanSpacesForUser(username, byName, days, skipIds, onProgress, o
   const actor = { user: { name: byName || username, username: username } };
   let _done = 0;
   if (typeof onProgress === 'function') onProgress({ phase: 'listed', total: cands.length, done: 0, created: 0 });
-  for (const c of cands) {
-    if (skip.has(c.id)) continue;
-    processedIds.push(c.id); _done++;
-    // Your own team's mail (forwards, replies) is never a new listing — it only made duplicate spaces.
-    if (_team.has(_fromAddr(c.from))) { results.push({ ok: false, msgId: c.id, subject: c.subject || '', reason: 'sent by your team' }); continue; }
+  // Only mail FROM a watched source counts (exact address, or the domain / any subdomain of it). Gmail's from:
+  // search is loose, so this is the strict check. Explicit candidate lists (opts.cands) are taken as given.
+  const _srcAddrs = new Set(), _srcDoms = [];
+  _srcList.forEach(x => { if (x.indexOf('@') > 0) _srcAddrs.add(x); else _srcDoms.push(x.replace(/^@/, '')); });
+  const _fromSource = f => { if (opts && Array.isArray(opts.cands)) return true; if (!_srcList.length) return true; const a = _fromAddr(f); if (_srcAddrs.has(a)) return true; const d = a.split('@')[1] || ''; return !!d && _srcDoms.some(x => d === x || d.endsWith('.' + x)); };
+  const _prog = () => { if (typeof onProgress === 'function') onProgress({ phase: 'item', total: cands.length, done: _done, created }); };
+  // STEP 1 (runs 4 at a time): fetch the email, pull its PDFs, have AI read the flyer.
+  async function _prepare(_c0) {
+    const c = _c0._lazy ? await gmail.getListingCandidate(username, _c0.id) : _c0;
+    if (!c) return null;   // couldn't fetch now — not marked read, so the next scan retries it
+    if (_team.has(_fromAddr(c.from))) return { c, done: { ok: false, msgId: c.id, subject: c.subject || '', reason: 'sent by your team' } };
+    if (!_fromSource(c.from)) return { c, done: { ok: false, msgId: c.id, subject: c.subject || '', reason: 'not from a watched source' } };
     let text = String(c.body || '').slice(0, 20000);
     const pdfs = (c.attachments || []).filter(a => /\.(pdf|docx?)$/i.test(a.filename)).slice(0, 2);
     const pdfBufs = [];
@@ -17738,7 +17747,7 @@ async function _scanSpacesForUser(username, byName, days, skipIds, onProgress, o
     }
     const bro = pdfBufs.filter(x => /\.pdf$/i.test(x.filename))[0] || pdfBufs[0];
     const hasAttach = pdfBufs.length > 0;
-    if (!text.trim() && !hasAttach) { if (typeof onProgress === 'function') onProgress({ phase: 'item', total: cands.length, done: _done, created }); continue; }
+    if (!text.trim() && !hasAttach) return { c, done: null };
     // Parse — prefer VISION on the flyer PDF so image-based flyers actually read; fall back to text.
     let fd = null;
     const _broPdf = pdfBufs.filter(x => /\.pdf$/i.test(x.filename))[0];
@@ -17746,8 +17755,13 @@ async function _scanSpacesForUser(username, byName, days, skipIds, onProgress, o
       try { fd = await aiassist.parseSpaceListingDoc({ pdfB64: _broPdf.buf.toString('base64'), text: text.slice(0, 8000), types: SPACE_TYPES, features: SPACE_FEATURES, centerTypes: CENTER_TYPES }); } catch (e) { fd = null; }
     }
     if ((!fd || (!fd.address && fd.size == null)) && text.trim()) { try { fd = await aiassist.parseSpaceListing({ text: text.slice(0, 60000), types: SPACE_TYPES, features: SPACE_FEATURES, centerTypes: CENTER_TYPES }); } catch (e) { /* keep fd */ } }
+    return { c, text, bro, hasAttach, fd };
+  }
+  // STEP 2 (one at a time, in a queue): de-dupe by address, create the space / center, or route to review.
+  async function _commit(p) {
+    const { c, text, bro, hasAttach, fd } = p;
     const key = fd ? String(fd.address || '').toLowerCase().trim() : '';
-    if ((key && seen.has(key)) || loadSpaces().some(x => x.source === ('email:' + c.id))) { const _ex = arr.find(x => x.source === ('email:' + c.id)) || (key ? arr.find(x => String(x.address || '').toLowerCase().trim() === key) : null); results.push({ ok: false, msgId: c.id, spaceId: (_ex && _ex.id) || '', address: (_ex && (_ex.address || _ex.name)) || '', subject: c.subject || '', reason: 'already in system' }); if (typeof onProgress === 'function') onProgress({ phase: 'item', total: cands.length, done: _done, created }); continue; }
+    if ((key && seen.has(key)) || arr.some(x => x.source === ('email:' + c.id))) { const _ex = arr.find(x => x.source === ('email:' + c.id)) || (key ? arr.find(x => String(x.address || '').toLowerCase().trim() === key) : null); results.push({ ok: false, msgId: c.id, spaceId: (_ex && _ex.id) || '', address: (_ex && (_ex.address || _ex.name)) || '', subject: c.subject || '', reason: 'already in system' }); return; }
     if (fd && fd.address) {
       const sp = _spaceFromFields(fd, actor, { source: 'email:' + c.id });
       let fileName = '';
@@ -17758,13 +17772,9 @@ async function _scanSpacesForUser(username, byName, days, skipIds, onProgress, o
         let _ctrNew = false;
         if (!ctr) { ctr = { id: newCenterId(), name: String(fd.center).slice(0, 160), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), by: byName || '', byUser: username, source: 'email-scan' }; centers.push(ctr); centersDirty = true; centersMade++; _ctrNew = true; }
         sp.centerId = ctr.id; sp.center = ctr.name;
-        // Populate the center's address, city, metro and (flyer-stated) type/anchor from this listing.
         if (_enrichCenterFrom(ctr, [sp], {})) centersDirty = true;
-        // On a brand-new center, verify address/city/metro against Google and pull a real Street View / Places photo.
         if (_gkeyScan && _ctrNew) { try { const _wr = await _centerWebEnrich(_gkeyScan, ctr, {}); if (_wr.changed) centersDirty = true; } catch (e) {} }
-        // Flyer photo as a fallback if Google gave no picture (or no key configured).
         try { if (!ctr.photoExt && await _centerPhotoFromSpaces(ctr, [sp])) centersDirty = true; } catch (e) {}
-        // Auto-enrich the center's detail areas from this flyer, per the rep's config (files the brochure + fills blanks only).
         try {
           if (_enrichCfg.docs && bro && bro.buf) { if (_storeCenterBrochure(ctr, bro.filename, bro.buf, byName)) centersDirty = true; }
           if (_enrichWant.length && text && text.trim()) { if (await _enrichCenterDetail(ctr, text, _enrichWant, {})) centersDirty = true; }
@@ -17772,17 +17782,33 @@ async function _scanSpacesForUser(username, byName, days, skipIds, onProgress, o
       }
       arr.push(sp); created++; if (key) seen.add(key);
       results.push({ ok: true, msgId: c.id, spaceId: sp.id, subject: c.subject || '', address: sp.address || sp.name || '', center: sp.center || '', file: fileName });
+      // Save as we go so a long backlog scan never loses work.
+      if (created % 10 === 0) { try { saveSpaces(arr); if (centersDirty) { saveCenters(centers); centersDirty = false; } } catch (e) {} }
     } else if (hasAttach && !review.some(x => x.messageId === c.id) && ((fd && (fd.center || fd.size != null || fd.spaceType || (fd.features && fd.features.length))) || /(for lease|for sublease|available|sq ?ft|square feet|\bNNN\b|triple net|2nd gen|second generation|end cap|retail space|restaurant space|lease rate|offering memorandum)/i.test(text))) {
-      // Couldn't confidently extract, but there IS a flyer — send it to the review queue instead of dropping it.
       const rid = newReviewId(); let rext = ''; if (bro) rext = _storeReviewFile(rid, bro.filename, bro.buf) || '';
-      review.push({ id: rid, messageId: c.id, subject: c.subject || '', from: c.from || '', date: c.date || '', byUser: username, byName: byName || '', createdAt: new Date().toISOString(), reason: (fd && (fd.center || fd.size != null)) ? 'needs an address' : 'couldn\u2019t read the flyer', fields: { address: (fd && fd.address) || '', center: (fd && fd.center) || '', market: (fd && fd.market) || '', spaceType: (fd && fd.spaceType) || '', size: (fd && fd.size != null ? fd.size : ''), rent: (fd && fd.rent != null ? fd.rent : ''), nnn: (fd && fd.nnn != null ? fd.nnn : ''), features: (fd && fd.features) || [], notes: (fd && fd.notes) || '' }, file: rext ? { name: bro.filename, ext: rext } : null });
+      review.push({ id: rid, messageId: c.id, subject: c.subject || '', from: c.from || '', date: c.date || '', byUser: username, byName: byName || '', createdAt: new Date().toISOString(), reason: (fd && (fd.center || fd.size != null)) ? 'needs an address' : 'couldn’t read the flyer', fields: { address: (fd && fd.address) || '', center: (fd && fd.center) || '', market: (fd && fd.market) || '', spaceType: (fd && fd.spaceType) || '', size: (fd && fd.size != null ? fd.size : ''), rent: (fd && fd.rent != null ? fd.rent : ''), nnn: (fd && fd.nnn != null ? fd.nnn : ''), features: (fd && fd.features) || [], notes: (fd && fd.notes) || '' }, file: rext ? { name: bro.filename, ext: rext } : null });
       reviewDirty = true; reviewMade++;
       results.push({ ok: false, msgId: c.id, subject: c.subject || '', reason: 'needs review' });
     } else {
       results.push({ ok: false, subject: c.subject || '', reason: 'not a listing' });
     }
-    if (typeof onProgress === 'function') onProgress({ phase: 'item', total: cands.length, done: _done, created });
   }
+  let _q = Promise.resolve();
+  const _serial = fn => { const n = _q.then(fn, fn); _q = n.catch(() => {}); return n; };
+  let _next = 0;
+  async function _worker() {
+    while (_next < cands.length) {
+      const _c0 = cands[_next++];
+      if (skip.has(_c0.id)) continue;
+      let p = null; try { p = await _prepare(_c0); } catch (e) { p = null; }
+      if (!p) { _done++; _prog(); continue; }
+      try { await _serial(async () => { processedIds.push(p.c.id); if (p.done !== undefined) { if (p.done) results.push(p.done); } else { await _commit(p); } }); } catch (e) {}
+      _done++; _prog();
+    }
+  }
+  const _W = Math.max(1, Math.min(4, cands.length));
+  await Promise.all(Array.from({ length: _W }, () => _worker()));
+  await _q;
   if (centersDirty) saveCenters(centers);
   if (reviewDirty) saveSpaceReview(review);
   if (created) saveSpaces(arr);
@@ -17794,9 +17820,9 @@ app.post('/api/spaces/ai-email-scan', express.json(), async (req, res) => {
   if (!gmail.statusFor(u).connected) return res.status(400).json({ ok: false, error: 'Connect your Gmail first on the Account page.' });
   const days = Math.min(Math.max(parseInt((req.body || {}).days, 10) || 90, 1), 730);
   try {
-    const r = await _scanSpacesForUser(u, (req.user && req.user.name) || u, days, []);
+    const r = await _scanSpacesForUser(u, (req.user && req.user.name) || u, days, ((loadSpacePoll()[u]) || {}).seenIds || []);
     // Record processed ids on the poll record so the background poller won't re-parse these.
-    try { const store = loadSpacePoll(); const rec = store[u] || {}; if (Array.isArray(r.processedIds) && r.processedIds.length) { rec.seenIds = (Array.isArray(rec.seenIds) ? rec.seenIds : []).concat(r.processedIds).slice(-800); store[u] = rec; saveSpacePoll(store); } } catch (e) {}
+    try { const store = loadSpacePoll(); const rec = store[u] || {}; if (Array.isArray(r.processedIds) && r.processedIds.length) { rec.seenIds = (Array.isArray(rec.seenIds) ? rec.seenIds : []).concat(r.processedIds).slice(-50000); store[u] = rec; saveSpacePoll(store); } } catch (e) {}
     res.json({ ok: true, created: r.created, centersMade: r.centersMade || 0, reviewMade: r.reviewMade || 0, scanned: r.scanned, results: r.results, spaces: r.spaces || loadSpaces() });
   } catch (e) { res.status(502).json({ ok: false, error: String((e && e.message) || e) }); }
 });
@@ -17850,8 +17876,9 @@ app.get('/api/spaces/ai-email-scan-stream', async (req, res) => {
   if (!gmail.statusFor(u).connected) { send({ phase: 'error', error: 'Connect your Gmail first on the Account page.' }); return res.end(); }
   const days = Math.min(Math.max(parseInt(req.query.days, 10) || 90, 1), 730);
   try {
-    const r = await _scanSpacesForUser(u, (req.user && req.user.name) || u, days, [], function (evt) { send(evt); });
-    try { const store = loadSpacePoll(); const rec = store[u] || {}; if (Array.isArray(r.processedIds) && r.processedIds.length) { rec.seenIds = (Array.isArray(rec.seenIds) ? rec.seenIds : []).concat(r.processedIds).slice(-800); store[u] = rec; saveSpacePoll(store); } } catch (e) {}
+    const _seen0 = ((loadSpacePoll()[u]) || {}).seenIds || [];  // skip emails already read, so each Scan now takes the next unread batch
+    const r = await _scanSpacesForUser(u, (req.user && req.user.name) || u, days, _seen0, function (evt) { send(evt); });
+    try { const store = loadSpacePoll(); const rec = store[u] || {}; if (Array.isArray(r.processedIds) && r.processedIds.length) { rec.seenIds = (Array.isArray(rec.seenIds) ? rec.seenIds : []).concat(r.processedIds).slice(-50000); store[u] = rec; saveSpacePoll(store); } } catch (e) {}
     send({ phase: 'done', created: r.created, centersMade: r.centersMade || 0, reviewMade: r.reviewMade || 0, scanned: r.scanned, results: r.results });
   } catch (e) { send({ phase: 'error', error: String((e && e.message) || e) }); }
   res.end();
@@ -17890,7 +17917,7 @@ async function spacePollTick() {
         try {
           const r = await _scanSpacesForUser(uname, prof.name || uname, rec.days || 30, rec.seenIds || []);
           rec.lastRun = new Date().toISOString(); rec.lastCount = (r && r.created) || 0;
-          if (r && Array.isArray(r.processedIds) && r.processedIds.length) rec.seenIds = (Array.isArray(rec.seenIds) ? rec.seenIds : []).concat(r.processedIds).slice(-800);
+          if (r && Array.isArray(r.processedIds) && r.processedIds.length) rec.seenIds = (Array.isArray(rec.seenIds) ? rec.seenIds : []).concat(r.processedIds).slice(-50000);
           if (r && r.created) console.log('Space scan poll: created ' + r.created + ' space(s) for ' + uname);
         } catch (e) { console.error('space poll error ' + uname + ':', e && e.message); rec.lastRun = new Date().toISOString(); }
         dirty = true;

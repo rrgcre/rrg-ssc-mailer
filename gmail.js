@@ -442,43 +442,51 @@ async function listCorrespondents(username, months, maxMsgs) {
 }
 
 // Find likely commercial-listing emails (broker flyers, CoStar/LoopNet/Crexi, available space) — body + PDF attachments.
-async function listListingCandidates(username, max, daysArg, sources) {
-  const lim = Math.min(max || 30, 80);
+// Every listing-candidate message id in the look-back window — NO cap. Long source lists are searched in
+// batches of 30 senders (Gmail query length limit); each batch is paged to the end. Ids in skipIds (already
+// read) are dropped. Order: newest first within each batch, interleaved across batches.
+async function listListingCandidateIds(username, daysArg, sources, skipIds) {
   const days = Math.min(Math.max(parseInt(daysArg, 10) || 90, 1), 730);
+  const _skip = new Set(Array.isArray(skipIds) ? skipIds : []);
   const kw = '(listing OR "for lease" OR "for sublease" OR "available space" OR "available for lease" OR "sq ft" OR "square feet" OR NNN OR "triple net" OR "end cap" OR "2nd gen" OR "second generation" OR "lease rate" OR CoStar OR LoopNet OR Crexi OR "retail space" OR "restaurant space" OR "offering memorandum" OR flyer OR brochure)';
-  // Also catch flyers whose details live only in the attached PDF (short email body): any recent
-  // message that HAS a pdf and whose subject hints at a space. Vision + the review queue sort them out.
   const attachHint = '(has:attachment filename:pdf subject:(space OR lease OR available OR retail OR restaurant OR sublease OR flyer OR brochure OR listing OR "for lease" OR "2nd gen" OR "1st gen" OR endcap OR "end cap" OR sf OR "sq ft"))';
   const _seenSrc = {};
-  const src = (Array.isArray(sources) ? sources : []).map(x => String(x).trim()).filter(x => { if (!x || _seenSrc[x]) return false; _seenSrc[x] = 1; return true; }).slice(0, 600);
-  // When the rep has named their flyer sources (broker domains/addresses), scan ONLY those senders —
-  // any attachment or CRE-worded mail from them. Far higher precision than keyword guessing.
-  // Gmail queries have a length limit, so a long source list is searched in batches of 30 senders and
-  // the results merged newest-first (round-robin across batches) — every source gets looked at.
+  const src = (Array.isArray(sources) ? sources : []).map(x => String(x).trim()).filter(x => { if (!x || _seenSrc[x]) return false; _seenSrc[x] = 1; return true; });
   const qs = [];
   if (src.length) { for (let i = 0; i < src.length; i += 30) qs.push('newer_than:' + days + 'd from:(' + src.slice(i, i + 30).join(' OR ') + ') (has:attachment OR ' + kw + ')'); }
   else qs.push('newer_than:' + days + 'd (' + kw + ' OR ' + attachHint + ')');
-  const perQ = qs.length > 1 ? Math.min(lim, 40) : lim;
   const lists = [];
   for (const q of qs) {
-    const r = await gapi(username, 'https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=' + perQ + '&q=' + encodeURIComponent(q), {});
-    const j = await r.json();
-    if (!r.ok) throw new Error((j && j.error && j.error.message) || 'Gmail search failed.');
-    lists.push((j.messages || []).map(m => m.id));
+    const L = []; let pageToken = '';
+    for (let page = 0; page < 200; page++) {   // 200 pages x 500 = runaway guard only
+      const r = await gapi(username, 'https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=500&q=' + encodeURIComponent(q) + (pageToken ? ('&pageToken=' + encodeURIComponent(pageToken)) : ''), {});
+      const j = await r.json();
+      if (!r.ok) throw new Error((j && j.error && j.error.message) || 'Gmail search failed.');
+      (j.messages || []).forEach(m => { if (!_skip.has(m.id)) L.push(m.id); });
+      pageToken = j.nextPageToken || ''; if (!pageToken) break;
+    }
+    lists.push(L);
   }
-  const ids = []; const _got = {}; const cap = qs.length > 1 ? Math.min(lim * 2, 120) : lim;
-  for (let k = 0; ids.length < cap; k++) { let any = false; for (const L of lists) { if (k < L.length) { any = true; const id = L[k]; if (!_got[id]) { _got[id] = 1; ids.push(id); if (ids.length >= cap) break; } } } if (!any) break; }
-  const out = await Promise.all(ids.map(async id => {
-    try {
-      const mr = await gapi(username, 'https://gmail.googleapis.com/gmail/v1/users/me/messages/' + id + '?format=full', {});
-      const mj = await mr.json();
-      if (!mr.ok) return null;
-      const H = mj.payload && mj.payload.headers;
-      const atts = collectAttachments(mj.payload).filter(a => /\.(pdf|docx?)$/i.test(a.filename));
-      return { id: mj.id, from: hdr(H, 'From'), subject: hdr(H, 'Subject'), date: hdr(H, 'Date') || '', ts: mj.internalDate ? Number(mj.internalDate) : 0, snippet: mj.snippet || '', body: (decodeBody(mj.payload) || ''), attachments: atts };
-    } catch (e) { return null; }
-  }));
-  return out.filter(Boolean).sort((a, b) => b.ts - a.ts);
+  const ids = []; const _got = {};
+  for (let k = 0; ; k++) { let any = false; for (const L of lists) { if (k < L.length) { any = true; const id = L[k]; if (!_got[id]) { _got[id] = 1; ids.push(id); } } } if (!any) break; }
+  return ids;
+}
+// One candidate message in full (body + pdf/doc attachment refs), or null.
+async function getListingCandidate(username, id) {
+  try {
+    const mr = await gapi(username, 'https://gmail.googleapis.com/gmail/v1/users/me/messages/' + id + '?format=full', {});
+    const mj = await mr.json();
+    if (!mr.ok) return null;
+    const H = mj.payload && mj.payload.headers;
+    const atts = collectAttachments(mj.payload).filter(a => /\.(pdf|docx?)$/i.test(a.filename));
+    return { id: mj.id, from: hdr(H, 'From'), subject: hdr(H, 'Subject'), date: hdr(H, 'Date') || '', ts: mj.internalDate ? Number(mj.internalDate) : 0, snippet: mj.snippet || '', body: (decodeBody(mj.payload) || ''), attachments: atts };
+  } catch (e) { return null; }
+}
+// Back-compat: up to `max` candidates, fetched in full, newest first.
+async function listListingCandidates(username, max, daysArg, sources, skipIds) {
+  const ids = (await listListingCandidateIds(username, daysArg, sources, skipIds)).slice(0, Math.max(1, parseInt(max, 10) || 30));
+  const out = []; for (const id of ids) { const c = await getListingCandidate(username, id); if (c) out.push(c); }
+  return out.sort((a, b) => b.ts - a.ts);
 }
 // Messages matching an arbitrary Gmail query, in the same shape as listListingCandidates (used to pull the
 // replies to one broker blast by its subject line).
@@ -510,6 +518,6 @@ module.exports = {
   isConfigured, SCOPES, statusFor, grantedScopes, redirectUri, authUrl, readState,
   connectFromCode, deleteToken, loadToken, statusForUser: statusFor,
   messagesForContact, messageFull, searchLeadBodies, listCorrespondents, sendMessage, TOK_DIR, listByQuery,
-  gapi, gapiJSON, accessToken, parseAddrs, listAgreementCandidates, getAttachment, listListingCandidates,
+  gapi, gapiJSON, accessToken, parseAddrs, listAgreementCandidates, getAttachment, listListingCandidates, listListingCandidateIds, getListingCandidate,
   listLabeledAttachments, sentMessages,
 };
