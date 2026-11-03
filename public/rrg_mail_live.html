@@ -105,7 +105,8 @@ function spark(tl){
     +'<div class="lg"><span><i style="background:#2563c9"></i>Opens</span><span><i style="background:#1f8a5b"></i>Clicks</span><span><i style="background:#dfe6f2;height:8px"></i>Sends</span><span style="margin-left:auto">per 10 min</span></div>';
 }
 
-function tile(cls,k,v,r,delta){ return '<div class="t '+cls+(delta>0?' flash':'')+'" ><div class="k">'+k+'</div><div class="v">'+f(v)+'</div><div class="r">'+r+'</div><div class="d">+'+f(delta)+'</div></div>'; }
+var VMAP={sent:'all',opens:'opened',clicks:'clicked',unsubs:'unsub'};
+function tile(cls,k,v,r,delta){ return '<div class="t '+cls+(delta>0?' flash':'')+'" style="cursor:pointer" title="See who" onclick="window.open(\'./rrg_mail_recipients.html?id='+encodeURIComponent(ID)+'&view='+VMAP[cls]+'\',\'_blank\')"><div class="k">'+k+'</div><div class="v">'+f(v)+'</div><div class="r">'+r+'</div><div class="d">+'+f(delta)+'</div></div>'; }
 
 function draw(j){
   var c=j.campaign, sent=n(c.sent), tot=n(c.total), p=PREV||{};

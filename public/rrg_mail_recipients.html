@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Campaign recipients</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;--blue:#2563c9;--amber:#b7791f;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.top{color:#fff;padding:24px 0;background:radial-gradient(95% 130% at 28% 15%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
+.top-in{max-width:none;margin:0;padding:0 28px;}
+.crumb{font-size:12px;color:#aeb8cf;margin-bottom:8px;} .crumb a{color:#cdd7ea;text-decoration:none;font-weight:600;} .crumb a:hover{color:#fff;}
+.top h1{font-size:23px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
+.sub{color:#aeb8cf;font-size:12.5px;margin-top:6px;}
+.wrap{margin:20px 0;padding:0 28px 70px;}
+.tiles{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;}
+.tile{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 15px;flex:1 1 120px;min-width:120px;max-width:190px;cursor:pointer;transition:border-color .12s,box-shadow .12s;}
+.tile:hover{border-color:#c3ccdb;} .tile.on{border-color:var(--navy);box-shadow:0 0 0 2px rgba(11,22,54,.12);}
+.tile .n{font-size:21px;font-weight:800;color:var(--navy);line-height:1.1;font-variant-numeric:tabular-nums;}
+.tile .l{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);font-weight:700;margin-top:2px;}
+.tile .r{font-size:11px;font-weight:700;margin-top:2px;color:var(--muted);}
+.tile.op .n{color:var(--blue);} .tile.cl .n{color:var(--green);} .tile.un .n,.tile.cp .n{color:var(--red);} .tile.bo .n{color:var(--amber);}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 8px 30px rgba(11,26,56,.06);}
+.hd{display:flex;align-items:center;padding:15px 20px;border-bottom:1px solid var(--line);gap:10px;flex-wrap:wrap;}
+.hd b{color:var(--navy);font-size:14px;} .hd .cnt{color:var(--muted);font-size:12.5px;}
+.rlf-btn{background:#fff;border:1px solid var(--line);border-radius:9px;padding:8px 12px;font:inherit;font-size:12.5px;font-weight:700;color:var(--navy);cursor:pointer;text-decoration:none;}
+.rlf-btn:hover{background:#f4f7fb;}
+.searchwrap{margin-left:auto;position:relative;display:flex;align-items:center;}
+.searchwrap input{padding:8px 12px;min-width:240px;border:1px solid var(--line);border-radius:9px;font:inherit;font-size:13px;color:var(--ink);}
+.meta{color:var(--soft);font-size:12px;}
+.res{display:inline-block;font-size:10.5px;font-weight:800;border-radius:99px;padding:2px 9px;letter-spacing:.02em;margin-right:3px;}
+.res.clicked{background:#e7f6ee;color:var(--green);} .res.opened{background:#e8f0fd;color:var(--blue);} .res.unsub{background:#eef1f6;color:#5b6476;}
+.res.bounced{background:#fdf3e3;color:var(--amber);} .res.complained{background:#fdebe9;color:#a5352c;} .res.sent{background:#f4f6fa;color:var(--muted);} .res.pending{background:#f4f6fa;color:var(--soft);} .res.failed{background:#fdebe9;color:#a5352c;}
+.tag{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px;background:#eef2f7;color:#3a4560;}
+.var{display:inline-block;width:18px;height:18px;line-height:18px;text-align:center;border-radius:4px;background:#eef2f8;color:var(--navy);font-weight:800;font-size:10.5px;}
+.empty{padding:48px 20px;text-align:center;color:var(--muted);font-size:14px;}
+.listloading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:72px 20px;color:#6b7488;font-size:14px;font-weight:600;gap:15px}.listspin{width:38px;height:38px;border-radius:50%;border:3px solid #e6e9f0;border-top-color:#DA2B1F;animation:listspin .8s linear infinite}@keyframes listspin{to{transform:rotate(360deg)}}
+.rrg-back{position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28);}
+.note{font-size:12px;color:var(--muted);margin:-6px 0 14px;}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<a href="./rrg_mass_studio.html" class="rrg-back"><span style="font-size:14px;line-height:1">←</span> Campaigns</a>
+<div class="top"><div class="top-in">
+  <div class="crumb"><a href="./rrg_mass_studio.html">Campaigns</a> › <span>Recipients</span></div>
+  <h1 id="h1">Recipients</h1>
+  <div class="sub" id="subl"></div>
+</div></div>
+<div class="wrap">
+  <div class="tiles" id="tiles"></div>
+  <div class="note">Opens are counted when the email's images load, so Apple Mail and some security scanners can register an open the person never made. Clicks and replies are the stronger signal.</div>
+  <div class="card">
+    <div class="hd"><b id="lbl">Everyone</b><span class="cnt" id="cnt"></span>
+      <button class="rlf-btn" id="liveBtn" type="button">● Live</button>
+      <div class="searchwrap"><input id="search" placeholder="Search email, name, type…" autocomplete="off"></div>
+    </div>
+    <div id="body"><div class="listloading"><div class="listspin"></div>Loading recipients…</div></div>
+  </div>
+</div>
+<script src="/rrg_list.js"></script>
+<script>
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function qs(k){return new URLSearchParams(location.search).get(k)||'';}
+function f(v){return Number(v||0).toLocaleString('en-US');}
+function pct(a,b){ b=Number(b||0); if(!b) return '0%'; var x=Number(a||0)/b*100; return (x>=10?Math.round(x):Math.round(x*10)/10)+'%'; }
+function dt(d){ if(!d) return ''; var x=new Date(d); if(isNaN(x.getTime())) return ''; return (x.getMonth()+1)+'/'+x.getDate()+' '+x.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}); }
+function nameOf(r){ return [r.first_name,r.last_name].filter(Boolean).join(' '); }
+var ID=qs('id'), ALL=[], C=null, VIEW=(qs('view')||'all'), CTL=null, CFG=null;
+// What each person did, strongest first.
+function results(r){ var o=[];
+  if(r.status==='complained'||r.complaint_at) o.push('complained');
+  if(r.status==='bounced'||r.bounce_at) o.push('bounced');
+  if(r.unsub_at) o.push('unsub');
+  if(r.clicked_at) o.push('clicked');
+  if(r.opened_at) o.push('opened');
+  if(!o.length) o.push(r.status==='sent'?'sent':(r.status==='failed'?'failed':'pending'));
+  return o; }
+var RES_LABEL={clicked:'Clicked',opened:'Opened',unsub:'Unsubscribed',bounced:'Bounced',complained:'Spam complaint',sent:'Delivered',pending:'Queued',failed:'Failed'};
+var VIEWS=[
+  {k:'all',l:'Sent to',cls:'',test:function(r){ return true; }},
+  {k:'opened',l:'Opened',cls:'op',test:function(r){ return !!r.opened_at; }},
+  {k:'clicked',l:'Clicked',cls:'cl',test:function(r){ return !!r.clicked_at; }},
+  {k:'notopened',l:'Not opened',cls:'',test:function(r){ return r.status==='sent' && !r.opened_at && !r.clicked_at; }},
+  {k:'unsub',l:'Unsubscribed',cls:'un',test:function(r){ return !!r.unsub_at; }},
+  {k:'bounced',l:'Bounced',cls:'bo',test:function(r){ return r.status==='bounced'||!!r.bounce_at; }},
+  {k:'complained',l:'Complaints',cls:'cp',test:function(r){ return r.status==='complained'||!!r.complaint_at; }}
+];
+function viewOf(k){ for(var i=0;i<VIEWS.length;i++) if(VIEWS[i].k===k) return VIEWS[i]; return VIEWS[0]; }
+function drawTiles(){
+  var sent=ALL.filter(function(r){ return r.status!=='pending'&&r.status!=='hold'; }).length;
+  document.getElementById('tiles').innerHTML=VIEWS.map(function(v){ var n=ALL.filter(v.test).length;
+    var sub=v.k==='all'?(f(ALL.length)+' total'):(pct(n,sent)+' of sent');
+    return '<div class="tile '+v.cls+(VIEW===v.k?' on':'')+'" data-v="'+v.k+'"><div class="n">'+f(n)+'</div><div class="l">'+v.l+'</div><div class="r">'+sub+'</div></div>'; }).join('');
+  Array.prototype.forEach.call(document.querySelectorAll('.tile[data-v]'),function(t){ t.onclick=function(){ VIEW=t.getAttribute('data-v'); var u=new URL(location.href); u.searchParams.set('view',VIEW); history.replaceState(null,'',u); drawTiles(); apply(); }; });
+}
+function apply(){
+  var v=viewOf(VIEW), q=(document.getElementById('search').value||'').trim().toLowerCase();
+  var list=ALL.filter(v.test);
+  if(q){ var t=q.split(/\s+/); list=list.filter(function(r){ var h=(r.email+' '+nameOf(r)+' '+r.type+' '+results(r).map(function(x){return RES_LABEL[x];}).join(' ')).toLowerCase(); return t.every(function(x){ return h.indexOf(x)>=0; }); }); }
+  document.getElementById('lbl').textContent=v.k==='all'?'Everyone':v.l;
+  render(list);
+}
+function render(list){
+  var ab=C&&C.ab_enabled;
+  var cols=[
+    { label:'Email', width:260, sort:function(a,b){return RRGList.cmp(a.email,b.email);}, cell:function(r){ var nm=nameOf(r); return '<div><a href="./rrg_mail_subscriber.html?email='+encodeURIComponent(r.email)+'" style="font-weight:600;color:var(--navy);text-decoration:none">'+esc(r.email)+'</a>'+(nm?('<div class="meta">'+esc(nm)+'</div>'):'')+'</div>'; } },
+    { label:'Type', width:110, sort:function(a,b){return RRGList.cmp(a.type,b.type);}, filterVal:function(r){return r.type||'';}, cell:function(r){ return r.type?('<span class="tag">'+esc(r.type)+'</span>'):'<span class="meta">—</span>'; } },
+    { label:'Result', width:200, sort:function(a,b){ var o=['complained','bounced','unsub','clicked','opened','sent','pending','failed']; return o.indexOf(results(a)[0])-o.indexOf(results(b)[0]); }, filterVal:function(r){ return results(r).map(function(x){return RES_LABEL[x];}).join(' '); }, cell:function(r){ return results(r).map(function(x){ return '<span class="res '+x+'">'+RES_LABEL[x]+'</span>'; }).join(''); } },
+    { label:'Opened', width:120, sort:function(a,b){return RRGList.cmp(a.opened_at||'',b.opened_at||'');}, cell:function(r){ return r.opened_at?('<span class="meta">'+esc(dt(r.opened_at))+'</span>'):'<span class="meta">—</span>'; } },
+    { label:'Clicked', width:120, sort:function(a,b){return RRGList.cmp(a.clicked_at||'',b.clicked_at||'');}, cell:function(r){ return r.clicked_at?('<span class="meta">'+esc(dt(r.clicked_at))+'</span>'+(Number(r.clicks)>1?(' <span class="meta">×'+r.clicks+'</span>'):'')):'<span class="meta">—</span>'; } },
+    { label:'Unsubscribed', width:120, sort:function(a,b){return RRGList.cmp(a.unsub_at||'',b.unsub_at||'');}, cell:function(r){ return r.unsub_at?('<span class="meta">'+esc(dt(r.unsub_at))+'</span>'):'<span class="meta">—</span>'; } },
+    { label:'Sent', width:120, sort:function(a,b){return RRGList.cmp(a.sent_at||'',b.sent_at||'');}, cell:function(r){ return r.sent_at?('<span class="meta">'+esc(dt(r.sent_at))+'</span>'):'<span class="meta">—</span>'; } }
+  ];
+  if(ab) cols.splice(3,0,{ label:'Subject', width:80, sort:function(a,b){return RRGList.cmp(a.variant,b.variant);}, filterVal:function(r){return r.variant||'';}, cell:function(r){ var v=(r.variant==='A'||r.variant==='B')?r.variant:''; return v?('<span class="var" title="'+esc(v==='A'?C.subject:C.subject_b)+'">'+v+'</span>'):'<span class="meta">—</span>'; } });
+  var em='<div class="empty">'+(ALL.length?'No one matches.':'This campaign hasn’t gone out yet.')+'</div>';
+  if(CTL){ CFG.empty=em; CTL.refresh(list); return; }
+  CFG={ mount:'#body', data:list, key:'mail_recipients_v1', countEl:'#cnt', per:100, compact:true, empty:em,
+    rowId:function(r){ return r.email; }, rowHref:function(id){ return './rrg_mail_subscriber.html?email='+encodeURIComponent(id); },
+    defaultSort:(ab?4:3), defaultDir:-1, columns:cols };
+  CTL=RRGList.create(CFG);
+}
+function load(){
+  if(!ID){ document.getElementById('body').innerHTML='<div class="empty">No campaign selected. Open one from <a href="./rrg_mass_studio.html">Campaigns</a>.</div>'; return; }
+  fetch('/api/mail/campaigns/'+encodeURIComponent(ID)+'/recipients',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ document.getElementById('body').innerHTML='<div class="empty">'+esc((j&&j.error)||'Could not load recipients.')+'</div>'; return; }
+    C=j.campaign; ALL=j.recipients||[];
+    document.title='RRG — '+(C.name||'Campaign')+' · recipients';
+    document.getElementById('h1').textContent=C.name||'Campaign';
+    document.getElementById('subl').textContent=C.ab_enabled?('A: '+C.subject+'   ·   B: '+C.subject_b+(C.ab_winner?('   ·   Winner: '+C.ab_winner):'')):(C.subject||'');
+    drawTiles(); apply();
+  }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not reach the server.</div>'; });
+}
+document.getElementById('liveBtn').onclick=function(){ var w=window.open('./rrg_mail_live.html?id='+encodeURIComponent(ID),'rrgLive'+ID,'width=460,height=820,resizable=yes,scrollbars=yes'); if(!w) location.href='./rrg_mail_live.html?id='+encodeURIComponent(ID); };
+var _sT=null; document.getElementById('search').oninput=function(){ clearTimeout(_sT); _sT=setTimeout(apply,150); };
+load();
+</script>
+</body>
+</html>

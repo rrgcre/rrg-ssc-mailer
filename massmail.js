@@ -1142,6 +1142,22 @@ function mount(app, deps) {
     await q(`UPDATE mm_campaigns SET failed=GREATEST(0,failed-$2), status='sending', finished_at=NULL WHERE id=$1`, [id, n]);
     kickDrainer(); res.json({ ok: true, requeued: n });
   } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
+  // Everyone this campaign went to, with what each person did (opened / clicked / unsubscribed / bounced / complained).
+  app.get('/api/mail/campaigns/:id/recipients', requireAdmin, guard, async (req, res) => { try {
+    const id = Number(req.params.id);
+    const c = (await q(`SELECT id,name,subject,COALESCE(subject_b,'') AS subject_b,COALESCE(ab_enabled,false) AS ab_enabled,COALESCE(ab_winner,'') AS ab_winner,status,total,sent,opens,clicks,unsubs,bounces,complaints,started_at
+      FROM mm_campaigns WHERE tenant=$1 AND id=$2`, [TENANT, id])).rows[0];
+    if (!c) return res.status(404).json({ ok: false, error: 'Not found.' });
+    const rows = (await q(`SELECT d.email, d.status, COALESCE(d.variant,'') AS variant, d.run_seq, d.sent_at, d.opened_at, d.clicked_at, COALESCE(d.click_count,0) AS clicks,
+        COALESCE(s.first_name,'') AS first_name, COALESCE(s.last_name,'') AS last_name, COALESCE(s.meta->>'type','') AS type,
+        e.unsub_at, e.bounce_at, e.complaint_at
+      FROM mm_sends d
+      LEFT JOIN mm_subscribers s ON s.id=d.subscriber_id
+      LEFT JOIN (SELECT lower(email) AS em, max(at) FILTER (WHERE type='unsubscribe') AS unsub_at, max(at) FILTER (WHERE type='bounce') AS bounce_at, max(at) FILTER (WHERE type='complaint') AS complaint_at
+                 FROM mm_events WHERE tenant=$1 AND campaign_id=$2 GROUP BY lower(email)) e ON e.em=lower(d.email)
+      WHERE d.tenant=$1 AND d.campaign_id=$2 ORDER BY d.id`, [TENANT, id])).rows;
+    res.json({ ok: true, campaign: c, recipients: rows });
+  } catch (e) { res.status(500).json({ ok: false, error: String(e.message || e) }); } });
   app.get('/api/mail/campaigns/:id/export', requireAdmin, guard, async (req, res) => { try {
     const c = (await q('SELECT name FROM mm_campaigns WHERE tenant=$1 AND id=$2', [TENANT, Number(req.params.id)])).rows[0]; if(!c) return res.status(404).json({ ok:false, error:'Not found.' });
     const rows = (await q(`SELECT email,status,sent_at,opened_at,clicked_at,COALESCE(click_count,0) AS clicks FROM mm_sends WHERE tenant=$1 AND campaign_id=$2 ORDER BY id`, [TENANT, Number(req.params.id)])).rows;
