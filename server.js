@@ -28,6 +28,18 @@ const valgen = require('./valgen.js');
 const fs = require('fs');
 const path = require('path');
 const app = express();
+// The email-link host (MAIL_LINK_BASE, e.g. email.rrgcre.com) serves ONLY the public email endpoints —
+// unsubscribe, preferences, open pixel, click redirects. Anything else there goes to the public RRG site,
+// so nobody who follows an email link can reach the app.
+app.use(function (req, res, next) {
+  try {
+    const mb = String(process.env.MAIL_LINK_BASE || '').trim(); if (!mb) return next();
+    const mh = new URL(mb).hostname.toLowerCase(); const h = String(req.hostname || '').toLowerCase();
+    if (h !== mh) return next();
+    if (/^\/mail\//.test(req.path) || req.path === '/api/brand/logo' || req.path === '/favicon.ico') return next();
+    return res.redirect(302, process.env.MAIL_LINK_HOME || 'https://www.rrgcre.com');
+  } catch (e) { return next(); }
+});
 const COOKIE = 'rrg_sess';
 // Deploy stamp — set when the server boots, so it reflects the latest Render deploy.
 const BUILD = new Date().toISOString();
@@ -1544,7 +1556,7 @@ app.use((req, res, next) => {
 app.use(express.urlencoded({ extended: false }));
 
 /* ---------- auth gate ---------- */
-const OPEN = new Set(['/health', '/login', '/api/login', '/logout', '/favicon.ico', '/api/appname', '/api/brand', '/api/brand/logo', '/api/brand/logo/light', '/rrg_brand.js', '/rrg_theme.css', '/api/gmail/callback']);
+const OPEN = new Set(['/health', '/login', '/api/login', '/api/login/verify', '/api/login/resend', '/logout', '/favicon.ico', '/api/appname', '/api/brand', '/api/brand/logo', '/api/brand/logo/light', '/rrg_brand.js', '/rrg_theme.css', '/api/gmail/callback']);
 app.use((req, res, next) => {
   // Buyer-facing data-room links are public (the unguessable token is the gate).
   if (OPEN.has(req.path) || req.path === '/chitchat' || req.path.startsWith('/chitchat/') || req.path === '/api/chitchat/subscribe' || req.path.startsWith('/room/') || req.path.startsWith('/deal/') || req.path.startsWith('/roomfile/') || req.path.startsWith('/roomview/') || req.path.startsWith('/vendor/') || req.path.startsWith('/sign/') || req.path.startsWith('/api/sign/') || req.path.startsWith('/eo/') || req.path.startsWith('/ec/') || req.path.startsWith('/u/') || req.path.startsWith('/api/u/') || req.path.startsWith('/book/') || req.path.startsWith('/api/book/') || req.path.startsWith('/pay/') || req.path.startsWith('/api/pay/') || req.path === '/api/stripe/webhook' || req.path === '/api/mail/ses-webhook' || req.path.startsWith('/mail/') || req.path === '/market' || req.path === '/api/market/public' || req.path === '/api/market/request-access' || req.path === '/site' || req.path.startsWith('/site/') || req.path === '/sitemap.xml' || req.path === '/robots.txt' || req.path === '/api/website/public' || req.path === '/api/website/lead' || req.path === '/api/website/subscribe' || req.path === '/api/website/hero-image' || req.path.startsWith('/api/property-public-photo/') || req.path.startsWith('/s/') || req.path === '/careers/apply' || req.path === '/api/careers/apply' || req.path === '/seller_intake.html' || req.path === '/seller_record.html' || req.path === '/ssc_client.html' || /^\/(sell-my-restaurant|restaurant-valuation|restaurants-for-sale|bars-for-sale|restaurant-space-for-lease)\/[a-z-]+$/.test(req.path) || req.path.startsWith('/listing/')) return next();
@@ -1625,9 +1637,84 @@ app.post('/api/login', (req, res) => {
     auth.logLogin({ ...meta, result: 'fail' });
     return res.status(401).json({ ok: false, error: 'Wrong username or password.' });
   }
+  // 2-step: email a one-time code (same mechanism as the data room) unless this browser is trusted.
+  if (_loginMfaNeeded(req, user)) {
+    const n = crypto.randomBytes(18).toString('hex'); const code = genOtpCode();
+    _loginOtp.set(n, { u: user.username, hash: _loginOtpHash(n, user.username, code), exp: Date.now() + LOGIN_MFA_MS, tries: 0, sentAt: Date.now() });
+    _sendLoginOtp(user, code);
+    res.append('Set-Cookie', LOGIN_MFA_COOKIE + '=' + n + '; Path=/; HttpOnly; SameSite=Lax; Max-Age=' + (LOGIN_MFA_MS / 1000));
+    auth.logLogin({ ...meta, username: user.username, result: 'code-sent' });
+    return res.json({ ok: false, mfa: true, to: maskEmail(_userEmail(user)) });
+  }
   auth.logLogin({ ...meta, username: user.username, result: 'success' });
   setSessionCookie(res, auth.makeSession(user));
   res.json({ ok: true, role: user.role, name: user.name, keepNav: !!userPrefsOf(user.username).keepNav });
+});
+// ---- Staff sign-in 2-step verification (emailed one-time code — the same mechanism the data room uses) ----
+// On by default (Admin → Sign-in Security). Skipped only when email sending isn't set up or the user has no
+// email on file (so nobody is locked out); the admin page lists anyone in that state.
+const LOGIN_MFA_COOKIE = 'rrg_login_mfa', LOGIN_TRUST_COOKIE = 'rrg_login_trust';
+const LOGIN_MFA_MS = 10 * 60 * 1000, LOGIN_TRUST_MS = 30 * 24 * 60 * 60 * 1000;
+const _loginOtp = new Map();
+function effStaffMfa() { return loadSettings().staffMfa !== false; }
+function _userEmail(user) { try { const p = auth.profileOf(auth.findUser(user.username)) || {}; return String(p.email || user.email || '').trim(); } catch (e) { return String((user && user.email) || '').trim(); } }
+function _loginOtpHash(n, u, code) { return crypto.createHmac('sha256', roomSecret()).update('login|' + n + '|' + u + '|' + String(code)).digest('hex'); }
+function _loginTrusted(req, u) { const t = readRoomSess(parseCookies(req)[LOGIN_TRUST_COOKIE]); const ep = (loadSettings().staffMfaEpoch || 0); return !!(t && t.lt && t.u === u && (t.ep || 0) === ep); }
+function _loginMfaNeeded(req, user) { if (!effStaffMfa()) return false; if (!isEmailConfigured()) return false; if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(_userEmail(user))) return false; return !_loginTrusted(req, user.username); }
+function _sendLoginOtp(user, code) {
+  const to = _userEmail(user); if (!to) return;
+  const org = orgDisplayName(); const who = String(user.name || '').split(' ')[0] || 'there';
+  const subject = org + ' — your sign-in code: ' + code;
+  const text = 'Hi ' + who + ',\n\nYour one-time sign-in code is:\n\n    ' + code + '\n\nIt expires in 10 minutes. If you didn’t just try to sign in, change your password right away and tell your admin.\n\n— ' + org;
+  const html = '<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.55;color:#1a2236">'
+    + '<p>Hi ' + esc(who) + ',</p><p>Your one-time sign-in code is:</p>'
+    + '<div style="font-size:30px;font-weight:800;letter-spacing:.28em;color:#000E31;background:#f6f8fc;border:1px solid #e2e8f4;border-radius:10px;padding:16px 20px;text-align:center;margin:10px 0">' + esc(code) + '</div>'
+    + '<p style="color:#6b7488">It expires in 10 minutes. If you didn’t just try to sign in, change your password right away and tell your admin.</p>'
+    + '<p style="color:#8a93a3">— ' + esc(org) + '</p></div>';
+  const p = sendMailWL({ from: mailFrom(), to, subject, text, html });
+  if (p && p.catch) p.catch(e => console.error('login otp send:', e && e.message));
+}
+setInterval(() => { const now = Date.now(); for (const [k, v] of _loginOtp) if (v.exp < now) _loginOtp.delete(k); }, 60000);
+app.post('/api/login/verify', (req, res) => {
+  const n = parseCookies(req)[LOGIN_MFA_COOKIE]; const p = n ? _loginOtp.get(n) : null;
+  const meta = { ip: req.headers['x-forwarded-for'] || req.ip, userAgent: req.headers['user-agent'] };
+  if (!p || p.exp < Date.now()) return res.status(400).json({ ok: false, expired: true, error: 'That code expired. Sign in again.' });
+  const code = String((req.body || {}).code || '').replace(/\D/g, '');
+  p.tries++;
+  if (p.tries > 5) { _loginOtp.delete(n); auth.logLogin({ ...meta, username: p.u, result: 'code-locked' }); return res.status(429).json({ ok: false, expired: true, error: 'Too many wrong codes. Sign in again.' }); }
+  const want = Buffer.from(p.hash), got = Buffer.from(_loginOtpHash(n, p.u, code));
+  if (code.length !== 6 || want.length !== got.length || !crypto.timingSafeEqual(want, got)) { auth.logLogin({ ...meta, username: p.u, result: 'code-wrong' }); return res.status(401).json({ ok: false, error: 'That code isn’t right. Check the latest email and try again.' }); }
+  _loginOtp.delete(n);
+  const raw = auth.findUser(p.u); if (!raw || raw.disabled) return res.status(401).json({ ok: false, expired: true, error: 'Sign in again.' });
+  const user = auth.profileOf(raw);
+  res.append('Set-Cookie', LOGIN_MFA_COOKIE + '=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0');
+  if ((req.body || {}).trust) res.append('Set-Cookie', LOGIN_TRUST_COOKIE + '=' + signRoomSess({ lt: 1, u: user.username, ep: (loadSettings().staffMfaEpoch || 0), exp: Date.now() + LOGIN_TRUST_MS }) + '; Path=/; HttpOnly; SameSite=Lax; Max-Age=' + (LOGIN_TRUST_MS / 1000));
+  auth.logLogin({ ...meta, username: user.username, result: 'success' });
+  setSessionCookie(res, auth.makeSession(user));
+  res.json({ ok: true, role: user.role, name: user.name, keepNav: !!userPrefsOf(user.username).keepNav });
+});
+app.post('/api/login/resend', (req, res) => {
+  const n = parseCookies(req)[LOGIN_MFA_COOKIE]; const p = n ? _loginOtp.get(n) : null;
+  if (!p || p.exp < Date.now()) return res.status(400).json({ ok: false, expired: true, error: 'That sign-in expired. Sign in again.' });
+  if (Date.now() - p.sentAt < 30000) return res.status(429).json({ ok: false, error: 'Wait a few seconds before asking for another code.' });
+  const raw = auth.findUser(p.u); if (!raw) return res.status(400).json({ ok: false, expired: true, error: 'Sign in again.' });
+  const code = genOtpCode(); p.hash = _loginOtpHash(n, p.u, code); p.exp = Date.now() + LOGIN_MFA_MS; p.tries = 0; p.sentAt = Date.now();
+  _sendLoginOtp(auth.profileOf(raw), code);
+  res.json({ ok: true });
+});
+// Admin: sign-in security settings + who would be skipped (no email on file).
+app.get('/api/admin/signin-security', requireAdmin, (req, res) => {
+  const s = loadSettings(); const users = (auth.loadUsers() || []).filter(u => !u.disabled);
+  const noEmail = users.filter(u => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(_userEmail(u))).map(u => ({ username: u.username, name: u.name || u.username }));
+  res.json({ ok: true, on: s.staffMfa !== false, emailReady: isEmailConfigured(), users: users.length, noEmail, epochAt: s.staffMfaEpochAt || '' });
+});
+app.post('/api/admin/signin-security', requireAdmin, express.json(), (req, res) => {
+  const b = req.body || {}; const s = loadSettings();
+  if (typeof b.on === 'boolean') s.staffMfa = b.on;
+  if (b.forgetDevices === true) { s.staffMfaEpoch = (s.staffMfaEpoch || 0) + 1; s.staffMfaEpochAt = new Date().toISOString(); }
+  saveSettings(s);
+  try { logSysEvent(req, 'System', (typeof b.on === 'boolean' ? ('Sign-in 2-step verification turned ' + (b.on ? 'on' : 'off')) : 'Signed out every trusted device (2-step required again)'), { tool: 'security', kind: 'mfa' }); } catch (e) {}
+  res.json({ ok: true, on: s.staffMfa !== false, epochAt: s.staffMfaEpochAt || '' });
 });
 
 app.get('/logout', (_req, res) => { clearSessionCookie(res); res.redirect('/login?e=1'); });
@@ -22405,7 +22492,7 @@ button:hover{background:var(--ink);}
 .note{color:#1f8a5b;font-size:12px;margin-top:14px;text-align:center;}
 .foot{text-align:center;font-size:10px;color:#8894a8;margin-top:22px;letter-spacing:.03em;}
 </style></head><body>
-<form class="card" onsubmit="return go(this)">
+<form class="card" id="f1" onsubmit="return go(this)">
   <div class="brand">${brandMark}</div>
   <h1>Sign in</h1>
   <p class="sub">Sign in to ${_appEsc}</p>
@@ -22417,12 +22504,37 @@ button:hover{background:var(--ink);}
   ${note ? `<div class="note">${esc(note)}</div>` : ''}
   <div class="foot">Proprietary &amp; Confidential · Internal ${_appEsc} use only</div>
 </form>
+<form class="card" id="f2" onsubmit="return verify(this)" style="display:none">
+  <div class="brand">${brandMark}</div>
+  <h1>Check your email</h1>
+  <p class="sub" id="sentTo">We sent a 6-digit sign-in code to your email.</p>
+  <div class="rule"></div>
+  <label>Sign-in code</label><input name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="123456" style="font-size:22px;letter-spacing:.3em;text-align:center">
+  <label style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:13px;color:#2b3648;font-weight:600;cursor:pointer;margin-top:16px"><input type="checkbox" name="trust" checked style="width:16px;height:16px;margin:0"> Trust this device for 30 days</label>
+  <div class="err" id="err2"></div>
+  <button>Verify &amp; sign in</button>
+  <div class="note" style="color:#5f6a7d">Didn’t get it? <a href="#" onclick="return resend()" style="color:#2c5c8f;font-weight:700">Send a new code</a> · <a href="/login" style="color:#2c5c8f;font-weight:700">Start over</a></div>
+  <div class="foot">The code expires in 10 minutes.</div>
+</form>
 <script>
+function done(j){ if(!j.keepNav) try{ localStorage.removeItem('rrg_navcoll_v2'); localStorage.removeItem('rrg_nav_html_v1'); localStorage.removeItem('rrg_views_coll_v1'); }catch(_e){} location.href='/'; }
 function go(f){
   var e=document.getElementById('err'); e.style.display='none';
   fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:f.username.value,password:f.password.value})})
-    .then(r=>r.json()).then(j=>{ if(j.ok){ if(!j.keepNav) try{ localStorage.removeItem('rrg_navcoll_v2'); localStorage.removeItem('rrg_nav_html_v1'); localStorage.removeItem('rrg_views_coll_v1'); }catch(_e){} location.href='/'; } else { e.textContent=j.error||'Sign in failed.'; e.style.display='block'; } })
+    .then(r=>r.json()).then(j=>{ if(j.ok){ done(j); } else if(j.mfa){ document.getElementById('f1').style.display='none'; var g=document.getElementById('f2'); g.style.display=''; document.getElementById('sentTo').textContent='We sent a 6-digit sign-in code to '+(j.to||'your email')+'.'; g.code.focus(); } else { e.textContent=j.error||'Sign in failed.'; e.style.display='block'; } })
     .catch(()=>{ e.textContent='Network error.'; e.style.display='block'; });
+  return false;
+}
+function verify(f){
+  var e=document.getElementById('err2'); e.style.display='none';
+  fetch('/api/login/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:f.code.value,trust:f.trust.checked})})
+    .then(r=>r.json()).then(j=>{ if(j.ok){ done(j); } else { e.textContent=j.error||'Verification failed.'; e.style.display='block'; if(j.expired) setTimeout(function(){ location.href='/login'; },1800); else { f.code.value=''; f.code.focus(); } } })
+    .catch(()=>{ e.textContent='Network error.'; e.style.display='block'; });
+  return false;
+}
+function resend(){
+  var e=document.getElementById('err2'); e.style.display='none';
+  fetch('/api/login/resend',{method:'POST'}).then(r=>r.json()).then(j=>{ e.textContent=j.ok?'New code sent.':(j.error||'Could not send a new code.'); e.style.display='block'; e.style.background=j.ok?'#e9f6ef':''; e.style.color=j.ok?'#1f8a5b':''; e.style.borderColor=j.ok?'#cbe8d8':''; if(j.expired) setTimeout(function(){ location.href='/login'; },1800); });
   return false;
 }
 </script></body></html>`;

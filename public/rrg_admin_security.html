@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Sign-in Security</title>
+<style>
+:root{--navy:#20334f;--navy2:#23496f;--primary:#2c5c8f;--red:#b23a2c;--ink:#2b3648;--dim:#5f6a7d;--soft:#8a93a3;--line:#dbe0e9;--wash:#f4f6f9;--green:#2f7a55;--inp:#c4ccda;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#fff;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.wrap{max-width:1040px;margin:0 auto;padding:24px 26px 60px;}
+h1{font-size:16px;font-weight:700;color:var(--navy);margin:0;}
+.sub{font-size:13px;color:var(--dim);margin-top:6px;line-height:1.5;max-width:640px;}
+.card{border:1px solid var(--line);border-radius:6px;background:#fff;margin-top:18px;overflow:hidden;}
+.cardh{background:var(--wash);border-bottom:1px solid var(--line);padding:11px 16px;font-size:11.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--navy);}
+.cardb{padding:2px 16px 14px;}
+.row{display:flex;align-items:flex-start;gap:14px;border-top:1px solid var(--line);padding:15px 2px;}
+.cardb .row:first-child{border-top:none;}
+.row .tx{flex:1;}
+.row .tx b{font-size:14px;color:var(--navy);font-weight:700;}
+.row .tx p{font-size:12.5px;color:var(--dim);margin:4px 0 0;line-height:1.55;}
+.switch{position:relative;display:inline-block;width:44px;height:24px;flex:none;margin-top:2px;}
+.switch input{opacity:0;width:0;height:0;}
+.sl{position:absolute;cursor:pointer;inset:0;background:#c6cede;border-radius:24px;transition:.15s;}
+.sl:before{position:absolute;content:"";height:18px;width:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.15s;box-shadow:0 1px 2px rgba(0,0,0,.3);}
+.switch input:checked+.sl{background:var(--green);}
+.switch input:checked+.sl:before{transform:translateX(20px);}
+label.fl{display:block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--soft);margin:14px 0 6px;}
+input.tin,textarea.tin{width:100%;border:1px solid var(--inp);border-radius:4px;padding:10px 12px;font:inherit;font-size:13.5px;background:#fff;color:var(--ink);}
+textarea.tin{min-height:190px;resize:vertical;line-height:1.55;}
+input.tin:focus,textarea.tin:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(44,92,143,.15);}
+.chips{margin:9px 0 2px;display:flex;flex-wrap:wrap;gap:7px;}
+.chip{font-size:11.5px;font-weight:700;color:var(--navy2);background:#eef2f7;border:1px solid #d3dbe6;border-radius:3px;padding:4px 10px;cursor:pointer;}
+.chip:hover{background:#e3ebf3;}
+.savebar{display:flex;align-items:center;gap:12px;margin-top:16px;}
+.savebtn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:3px;padding:9px 18px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;}
+.savebtn:disabled{opacity:.5;cursor:default;}
+.resetbtn{background:#fff;color:#33415c;border:1px solid var(--inp);border-radius:3px;padding:9px 15px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;}
+.msg{font-size:12.5px;font-weight:600;min-height:16px;}
+.note{font-size:12px;color:var(--soft);margin-top:14px;line-height:1.6;}
+.hint{font-size:12px;color:var(--dim);margin:0 0 12px;line-height:1.55;}
+.gate{color:var(--dim);font-size:13.5px;padding:30px 0;}
+.pkick{font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--soft);margin:0 0 3px;}
+</style>
+<script src="/rrg_rte.js"></script>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<div class="wrap" id="root"><div class="gate">Loading…</div></div>
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+var C=null;
+function render(){
+  var c=C||{};
+  var warn='';
+  if(c.on && !c.emailReady) warn+='<div class="row"><div class="tx"><b style="color:#b23a2c">Email sending isn’t set up</b><p>Codes can’t be emailed, so sign-in is currently password-only. Set up outgoing email in Admin → Email and 2-step turns on automatically.</p></div></div>';
+  if(c.on && c.noEmail && c.noEmail.length) warn+='<div class="row"><div class="tx"><b style="color:#b23a2c">'+c.noEmail.length+' user'+(c.noEmail.length===1?' has':'s have')+' no email on file</b><p>They sign in with a password only until an email is added on the Users page: '+c.noEmail.map(function(u){return esc(u.name);}).join(', ')+'.</p></div></div>';
+  document.getElementById('root').innerHTML=''
+    +'<div class="pkick">Admin · Users &amp; Access</div><h1>Sign-in Security</h1>'
+    +'<div class="sub">Two-step verification for everyone who signs in to Lavano. After the password, a 6-digit code is emailed to the user — the same verification your data-room buyers use.</div>'
+    +'<div class="card"><div class="cardh">2-step verification</div><div class="cardb">'
+      +'<div class="row"><div class="tx"><b>🔐 Require a code at sign-in</b><p>After entering their password, each user enters a one-time code emailed to the address on their user record. Codes expire in 10 minutes; five wrong tries ends the attempt. Users can tick <b>Trust this device for 30 days</b> so they aren’t asked every time on their own computer.</p></div>'
+      +'<label class="switch"><input type="checkbox" id="on" '+(c.on?'checked':'')+'><span class="sl"></span></label></div>'
+      +warn
+      +'<div class="row"><div class="tx"><b>Sign out every trusted device</b><p>Forces everyone to enter a code at their next sign-in, on every device. Use it if a laptop or phone is lost, or someone leaves the firm.'+(c.epochAt?(' Last done '+esc(new Date(c.epochAt).toLocaleString())+'.'):'')+'</p></div>'
+      +'<button class="resetbtn" id="forget" type="button">Sign out all devices</button></div>'
+    +'</div></div>'
+    +'<div class="msg" id="msg" style="margin-top:12px"></div>'
+    +'<div class="note">Every sign-in, code sent, wrong code and lockout is recorded in Activity &amp; Logs.</div>';
+  document.getElementById('on').addEventListener('change',function(){ save({on:this.checked},this); });
+  document.getElementById('forget').addEventListener('click',function(){ if(!confirm('Sign out every trusted device? Everyone will need a code at their next sign-in.')) return; save({forgetDevices:true}); });
+}
+function save(body,inp){
+  var m=document.getElementById('msg'); m.style.color='#5f6a7d'; m.textContent='Saving…';
+  fetch('/api/admin/signin-security',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load('Saved ✓'); } else { if(inp) inp.checked=!inp.checked; m.style.color='#b23a2c'; m.textContent=(j&&j.error)||'Could not save.'; } })
+    .catch(function(){ if(inp) inp.checked=!inp.checked; m.style.color='#b23a2c'; m.textContent='Could not reach the server.'; });
+}
+function load(note){
+  fetch('/api/admin/signin-security',{credentials:'same-origin',cache:'no-store'}).then(function(r){ if(r.status===401||r.status===403) throw new Error('admin'); return r.json(); })
+    .then(function(j){ if(!j||!j.ok) throw new Error(''); C=j; render(); if(note){ var m=document.getElementById('msg'); m.style.color='#2f7a55'; m.textContent=note; setTimeout(function(){ if(m.textContent===note) m.textContent=''; },1600); } })
+    .catch(function(e){ document.getElementById('root').innerHTML='<div class="gate">'+((e&&e.message==='admin')?'Sign-in security is limited to administrators.':'Could not reach the server.')+'</div>'; });
+}
+load();
+</script>
+</body>
+</html>

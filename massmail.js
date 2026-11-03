@@ -717,7 +717,9 @@ function mount(app, deps) {
   const subscriberAreas = deps.subscriberAreas || function () { return []; };  // firm's subset of areas offered to subscribers
   const mailCadence = deps.mailCadence || function () { return {}; };  // admin defaults for the Standard cadence scheduler
   _logSys = deps.logSysEvent || function () {};  // feed logger for imports & sends
-  BASE = (deps.appBaseUrl && deps.appBaseUrl()) || '';
+  // Links inside emails (unsubscribe, preferences, open pixel, click tracking) use MAIL_LINK_BASE when set —
+  // a branded host like https://email.rrgcre.com — so recipients never see or reach the app's own address.
+  BASE = String(process.env.MAIL_LINK_BASE || '').trim().replace(/\/+$/, '') || (deps.appBaseUrl && deps.appBaseUrl()) || '';
   const express = require('express');
   initDb();
   const _isAdm = deps.isAdmin || function (u) { return !!(u && (u.role === 'admin' || u.role === 'creator')); };
