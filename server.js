@@ -16951,7 +16951,30 @@ app.post('/api/person', express.json(), (req, res) => {
   p.email = preferredEmailOf(p); p.phone = preferredPhoneOf(p);
   if (typeof b.company === 'string') p.company = b.company.slice(0, 160);
   if (typeof b.companyId === 'string') p.companyId = b.companyId.slice(0, 40);
-  if (typeof b.companyName === 'string' && b.companyName.trim()) { const co = findOrCreateCompany(req, { name: b.companyName }); if (co) { p.companyId = co.id; p.company = co.name; } }
+  if (typeof b.companyName === 'string' && b.companyName.trim()) {
+    // A company this contact created moments ago (still empty, no one else on it) is a typing draft:
+    // when the rep keeps typing ("Luxor" -> "Luxor Mediterranean"), rename it instead of creating another.
+    let _renamed = null;
+    try {
+      const _nm = b.companyName.trim().slice(0, 160);
+      const _arr = loadCompanies();
+      const _exists = _arr.find(x => normKey(x.name) === normKey(_nm));
+      const _cur = p.companyId ? _arr.find(x => x.id === p.companyId) : null;
+      if (!_exists && _cur && normKey(_cur.name) !== normKey(_nm)) {
+        const _age = Date.now() - new Date(_cur.createdAt || 0).getTime();
+        const _a = normKey(_cur.name), _b = normKey(_nm);
+        const _related = _a && _b && (_b.indexOf(_a) === 0 || _a.indexOf(_b) === 0);
+        const _empty = !_cur.logo && !_cur.logoUrl && !String(_cur.notes || '').trim() && !_cur.website && !_cur.phone;
+        const _others = loadPeople().some(x => x && x.id !== p.id && x.companyId === _cur.id);
+        const _deals = (loadDeals() || []).some(d => d && (d.companyId === _cur.id));
+        if (_age >= 0 && _age < 30 * 60 * 1000 && _related && _empty && !_others && !_deals) {
+          _cur.name = _nm; _cur.updatedAt = new Date().toISOString(); saveCompanies(_arr); _renamed = _cur;
+        }
+      }
+    } catch (e) {}
+    const co = _renamed || findOrCreateCompany(req, { name: b.companyName });
+    if (co) { p.companyId = co.id; p.company = co.name; }
+  }
   if (typeof b.title === 'string') p.title = b.title.slice(0, 120);
   if (typeof b.nickname === 'string') p.nickname = b.nickname.slice(0, 80);
   if (typeof b.leadSource === 'string') p.leadSource = b.leadSource.slice(0, 160);

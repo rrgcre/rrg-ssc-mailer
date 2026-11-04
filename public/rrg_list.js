@@ -36,6 +36,8 @@
       +'.rl-colopt input{width:15px;height:15px;cursor:pointer;accent-color:var(--primary,#2c5c8f)}'
       +'.rl-colhint{font-size:11px;color:#98a1b5;padding:7px 9px 3px;border-top:1px solid #eef1f6;margin-top:5px}'
       +'.rl-bulk{display:flex;align-items:center;gap:10px;background:#fff5f4;border:1px solid #f0cfca;border-radius:4px;padding:7px 12px;margin:0 0 12px;font-size:12.5px}'
+      +'.rl-bulk{min-height:44px;box-sizing:border-box}'
+      +'.rl-bulk.rl-bulkidle{background:#f7f8fa;border-color:#e6e9f0;color:#8a93a3}'
       +'.rl-bulk b{color:var(--navy,#000E31)}'
       +'.rl-bulk button{font:inherit;font-size:12px;font-weight:800;padding:6px 12px;border-radius:3px;border:1px solid #cfd6e2;background:#fff;color:#0b1a3a;cursor:pointer}'
       +'.rl-bulk button.danger{background:var(--red,#DA2B1F);border-color:var(--red,#DA2B1F);color:#fff}'
@@ -294,6 +296,11 @@
           + '<div class="rl-morewrap"><button class="rl-morebtn" title="Bulk actions">Actions <span class="rlic">\u22ef</span></button><div class="rl-moremenu" hidden>'+_bitems+'</div></div>'
           + (_selAll?('<span class="rl-selallwrap">'+_selAll+'</span>'):'')
           + '<a class="rl-clear">Clear</a></div>';
+      } else if(opts.bulk && opts.bulk.length){
+        // Keep the bar's space reserved when nothing is ticked, so ticking the first row doesn't push the
+        // list down under the pointer (the next click used to land on the wrong row). It also says what's there.
+        var _names = opts.bulk.map(function(b){ return String(b.label||'').replace(/\u2026|\.\.\.$/,'').toLowerCase(); }).filter(Boolean);
+        bulk = '<div class="rl-bulk rl-bulkidle">Tick rows to '+esc(_names.slice(0,4).join(', '))+(_names.length>4?', and more':'')+'.</div>';
       }
 
       var head = '<th class="rl-ck"><input type="checkbox" class="rl-all"'+(allChecked?' checked':'')+' title="Select all on this page"></th>';
@@ -320,7 +327,7 @@
 
       var _fixed = vis.length && vis.every(function(m){ return state.widths[m.key]!=null; });
       var table = total ? ('<div class="rl-wrap"><table'+(_fixed?' style="table-layout:fixed"':'')+'><thead><tr>'+head+'</tr></thead><tbody>'+body+'</tbody></table></div>')
-                        : (opts.empty || '<div class="empty">Nothing here yet.</div>');
+                        : ((state.data && state.data.length) ? '<div class="empty"><b>No matches.</b>Nothing fits the current search or filters.</div>' : (opts.empty || '<div class="empty">Nothing here yet.</div>'));
       mount.innerHTML = bar + filterPanel + bulk + table + botPager;
       // Group the page's own filter button into the toolbar, right before Saved,
       // so Filters + Saved sit together in the same spot on every list.

@@ -1652,6 +1652,9 @@ function wireCompanyAuto(){
   function close(){ sug.setAttribute('hidden',''); sug.innerHTML=''; }
   inp.addEventListener('input',function(){ var q=inp.value.trim(); if(!q||coKey(q).length<2){ close(); return; } var ms=coMatch(q); var kq=coKey(q); var exact=ms.some(function(c){ return coKey(c.name)===kq; }); var rows=ms.map(function(c){ return '<div class="cosugrow" data-nm="'+esc(c.name)+'">'+esc(c.name)+'</div>'; }); if(!exact){ rows.push('<div class="cosugrow cosugnew" data-new="'+esc(q)+'"><span class="conew">+ Create new company:</span> "'+esc(q)+'"</div>'); } sug.innerHTML=rows.join(''); sug.removeAttribute('hidden'); sug.querySelectorAll('.cosugrow').forEach(function(r){ r.addEventListener('mousedown',function(e){ e.preventDefault(); inp.value=r.getAttribute('data-new')||r.getAttribute('data-nm'); close(); queueSave(); }); }); });
   inp.addEventListener('blur',function(){ setTimeout(close,160); });
+  // Save the company only when the rep is done typing (leaves the field or picks a row) — saving on
+  // every keystroke created a new company for each partial name ("Luxor", "Luxor Med", ...).
+  inp.addEventListener('change',queueSave);
 }
 function actColor(t){ /* NetSuite restraint: activity types are labels, not colors. */ if(t==='Milestone') return ['#e8edf5','#20334f']; if(/Declined|Voided|Bad/i.test(String(t||''))) return ['#fbeceb','#b23a2c']; return ['#eef1f6','#4b5568'];
   return actColorOld(t); }
@@ -2141,7 +2144,7 @@ function render(){
   var root=document.getElementById('root');
   _mountFlags();
   var pd=document.getElementById('p_delete'); if(pd) pd.addEventListener('click',deletePerson);
-  ['p_first','p_last','p_nick','p_title','p_company','p_lead','p_owner','p_url','p_lastcontact','p_notes'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener(el.tagName==='SELECT'?'change':'input',queueSave); });
+  ['p_first','p_last','p_nick','p_title','p_lead','p_owner','p_url','p_lastcontact','p_notes'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener(el.tagName==='SELECT'?'change':'input',queueSave); });
   _refbySeed();
   (function(){ var lead=document.getElementById('p_lead'), row=document.getElementById('p_refbyrow'); if(lead&&row){ lead.addEventListener('change',function(){ if(_isRef(lead.value)){ row.removeAttribute('hidden'); var rb=document.getElementById('p_refby'); if(rb){ try{rb.focus();}catch(e){} } } else { row.setAttribute('hidden',''); var rb2=document.getElementById('p_refby'); if(rb2) rb2.value=''; } }); }
     var rb=document.getElementById('p_refby'); if(rb){ rb.addEventListener('input',function(){ _refbySearch(); queueSave(); }); rb.addEventListener('change',queueSave); } })();
