@@ -16972,13 +16972,25 @@ app.post('/api/person', express.json(), (req, res) => {
   if (typeof b.blurb === 'string') p.blurb = b.blurb.slice(0, 200);   // short one-line description shown on the contacts list
   if (isNew) logContactAdded(p, req);
   p.updatedAt = now; savePeople(arr);
+  // A company can be created (with its pipeline listing) a moment before its contact. Hand that
+  // contact-less listing to this person so the contact page sees it — otherwise the rep starts a
+  // second listing for the same business (how Butterfly Cakery got two).
+  let _adopted = '';
+  try {
+    if (isNew && p.companyId) {
+      const _ds = loadDeals(); let _ch = false; const _cut = Date.now() - 2 * 3600 * 1000;
+      _ds.forEach(d => { if (d && d.companyId === p.companyId && !d.contactPersonId && Date.parse(d.createdAt || 0) >= _cut) { d.contactPersonId = p.id; if (!d.contact) d.contact = p.name || ''; _ch = true; if (!_adopted) _adopted = 'd_' + d.id; } });
+      if (_ch) saveDeals(_ds);
+    }
+  } catch (e) { console.error('adopt company listing:', e && e.message); }
   // Optionally start a pipeline listing for a brand-new contact (mirrors /api/company).
   // The lead enters the board immediately as Unqualified; it links to the contact's company
   // when one is set, otherwise the listing is named after the contact. No data room yet.
   let _listingKey = '';
   try {
     const _pipeId = String(b.pipelineId || '').trim();
-    if (isNew && _pipeId) {
+    if (_adopted) _listingKey = _adopted;   // the company's listing already exists — don't start a second one
+    if (isNew && _pipeId && !_adopted) {
       const _pipe = loadPipelines().find(pl => pl.id === _pipeId);
       if (_pipe) {
         const _biz = String(p.company || p.name || 'Untitled').slice(0, 120);
@@ -20880,6 +20892,22 @@ app.post('/api/deal/new', express.json(), (req, res) => {
   // ...and reuse the linked client, or locate/onboard one by name, associated with that company.
   if (_linkedPerson) { rec.contactPersonId = _linkedPerson.id; if (!String(rec.contact || '').trim()) rec.contact = _linkedPerson.name; }
   else if (rec.contact || b.contactEmail) { const p = findOrCreatePerson(req, { name: rec.contact, email: b.contactEmail, type: 'Client', companyId: rec.companyId }); if (p) { rec.contactPersonId = p.id; if (!rec.contact) rec.contact = p.name; } }
+  // Duplicate guard: a seller listing for this same company and business name that has no contact yet
+  // (started when the company was created) is the same deal — attach the contact to it instead of
+  // creating a second card on the board.
+  if (!_isTR && !_isLL && rec.companyId) {
+    try {
+      const _all = loadDeals(), _ov0 = loadAssignOverlay(), _nm = rec.business.trim().toLowerCase();
+      const _dup = _all.find(d => d && d.companyId === rec.companyId && !d.contactPersonId && String(d.business || '').trim().toLowerCase() === _nm
+        && !/tenant_rep|landlord_rep/.test(String((_ov0['d_' + d.id] || {}).assignmentType || '')) && !/closed|lost|dead/i.test(String((_ov0['d_' + d.id] || {}).status || '')));
+      if (_dup) {
+        _dup.contactPersonId = rec.contactPersonId || ''; if (!_dup.contact) _dup.contact = rec.contact || ''; if (!_dup.market && rec.market) _dup.market = rec.market; if (!_dup.saleLane && rec.saleLane) _dup.saleLane = rec.saleLane;
+        if (!_dup.roomId) { const _rm = ensureRoomForDeal(req, _dup); if (_rm) _dup.roomId = _rm.id; }
+        saveDeals(_all);
+        return res.json({ ok: true, id: _dup.id, key: 'd_' + _dup.id, roomId: _dup.roomId, contactPersonId: _dup.contactPersonId, people: loadPeople().map(personBrief), reused: true });
+      }
+    } catch (e) { console.error('deal dedupe:', e && e.message); }
+  }
   const arr = loadDeals(); arr.push(rec);
   // Tenant-rep engagements are space searches for a client — there's nothing to sell, so no data room.
   // Sellers and landlord-rep listings still get their structured data room auto-built.

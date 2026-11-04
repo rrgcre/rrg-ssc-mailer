@@ -175,6 +175,16 @@ body.booting .flagbtn{transition:none!important;}
 .rail .card .ch span:has(button),.rail .card .ch span:has(select),.rail .card .ch span:has(a),.rail .card .ch span:has(input),.rail .card .ch span:has(label){background:none;padding:0;border-radius:0;}
 .rail .card .ch:hover .rgrip{color:#2c5c8f;}
 .rail .card .ch .rgrip:active{cursor:grabbing;}
+.rail .card.raildragging{position:fixed;z-index:9000;pointer-events:none;box-shadow:0 18px 40px rgba(16,32,70,.28);transform:rotate(.6deg);opacity:.96;}
+.railslot{border:2px dashed #9fb3d4;border-radius:10px;background:#eef3fb;margin-bottom:12px;max-height:60px;}
+body.raildragon{user-select:none;cursor:grabbing;}
+body.raildragon .rail .card .cb,body.raildragon .rail .card .railbody{display:none!important;}
+.rail .card.raildropped{box-shadow:0 0 0 3px rgba(44,92,143,.35);transition:box-shadow .6s;}
+.rail .card .ch .rgrip{padding:6px 5px;margin:-6px -2px -6px -4px;border-radius:4px;font-size:14px;}
+.rail .card .ch .rgrip:hover{background:#e8eef7;}
+.railmenu{position:absolute;z-index:9500;background:#fff;border:1px solid #dbe0e9;border-radius:8px;box-shadow:0 10px 28px rgba(16,32,70,.18);padding:4px;display:flex;flex-direction:column;min-width:150px;}
+.railmenu button{background:none;border:none;text-align:left;padding:8px 12px;font:inherit;font-size:13px;color:#20334f;border-radius:6px;cursor:pointer;}
+.railmenu button:hover{background:#f1f4f9;}
 .railtip{margin:0 0 10px;background:#f4f6f9;border:1px solid #dbe0e9;border-left:3px solid #2c5c8f;border-radius:3px;padding:9px 11px;display:flex;align-items:flex-start;gap:9px;font-size:11.5px;line-height:1.5;color:#3f4b63;}
 .railtip .rtx{flex:1;min-width:0;} .railtip b{color:#20334f;font-weight:700;}
 .railtip .rtgrip{color:#2c5c8f;font-weight:700;letter-spacing:-2px;}
@@ -1994,14 +2004,66 @@ function applyRailOrder(){
     DEFAULT_RAIL_ORDER.forEach(function(k){ var c; if(k==='Files'){ var cs=_railChildren(rail); for(var i=0;i<cs.length;i++){ if(/Files$/i.test(cs[i].getAttribute('data-rk')||'')){ c=cs[i]; break; } } } else { c=rail.querySelector('.card[data-rk="'+String(k).replace(/["\\]/g,'')+'"]'); } if(c&&c.parentNode===rail) rail.appendChild(c); });
   }
   _railTip(rail);
-  _railChildren(rail).forEach(function(c){ var h=c.querySelector('.ch'); if(h&&!h._railwired){ h._railwired=true; h.style.cursor='grab'; h.style.touchAction='none'; h.title='Drag to reorder — click ▾ to collapse'; h.addEventListener('pointerdown',_railDown); } if(h&&!h._railcollapse){ h._railcollapse=true; var key=_railKey(c); var chev=document.createElement('button'); chev.type='button'; chev.className='rchev'; chev.setAttribute('aria-label','Collapse or expand'); chev.innerHTML='▾'; h.insertBefore(chev,h.firstChild); var grip=document.createElement('span'); grip.className='rgrip'; grip.setAttribute('aria-hidden','true'); grip.textContent='\u283f'; h.insertBefore(grip,chev); chev.addEventListener('click',function(ev){ ev.stopPropagation(); ev.preventDefault(); c._userFold=true; c.classList.toggle('railcollapsed'); var st={}; try{st=JSON.parse(localStorage.getItem('rrgRailCollapsedV2')||'{}');}catch(e){} st[key]=c.classList.contains('railcollapsed'); try{localStorage.setItem('rrgRailCollapsedV2',JSON.stringify(st));}catch(e){} }); } });
+  _railChildren(rail).forEach(function(c){ var h=c.querySelector('.ch'); if(h&&!h._railwired){ h._railwired=true; h.style.cursor='grab'; h.style.touchAction='none'; h.title='Drag to move this card (or click ⠿ for Move up / down) — ▾ collapses it'; h.addEventListener('pointerdown',_railDown); } if(h&&!h._railcollapse){ h._railcollapse=true; var key=_railKey(c); var chev=document.createElement('button'); chev.type='button'; chev.className='rchev'; chev.setAttribute('aria-label','Collapse or expand'); chev.innerHTML='▾'; h.insertBefore(chev,h.firstChild); var grip=document.createElement('span'); grip.className='rgrip'; grip.setAttribute('aria-hidden','true'); grip.textContent='\u283f'; h.insertBefore(grip,chev); chev.addEventListener('click',function(ev){ ev.stopPropagation(); ev.preventDefault(); c._userFold=true; c.classList.toggle('railcollapsed'); var st={}; try{st=JSON.parse(localStorage.getItem('rrgRailCollapsedV2')||'{}');}catch(e){} st[key]=c.classList.contains('railcollapsed'); try{localStorage.setItem('rrgRailCollapsedV2',JSON.stringify(st));}catch(e){} }); } });
   _railFoldSoon(rail);
   setTimeout(_railRelevance,0); setTimeout(_railRelevance,800);
 }
-function _railTip(rail){ if(!rail) return; var seen=false; try{ seen=localStorage.getItem('rrg_railtip_seen')==='1'; }catch(e){} if(seen||rail.querySelector('.railtip')) return; var tip=document.createElement('div'); tip.className='railtip'; tip.innerHTML='<span class="rtx"><b>Make this yours.</b> Drag any card by its <span class="rtgrip">\u283f</span> handle to reorder it, and use \u25be to collapse the ones you don\u2019t need. Your layout is saved on this device.</span><button type="button" class="rtclose" aria-label="Dismiss">\u00d7</button>'; rail.insertBefore(tip, rail.firstChild); var x=tip.querySelector('.rtclose'); if(x) x.addEventListener('click',function(){ try{ localStorage.setItem('rrg_railtip_seen','1'); }catch(e){} tip.remove(); }); }
-function _railDown(e){ if(e.button!=null&&e.button!==0) return; if(e.target.closest&&e.target.closest('button,a,input,select,textarea')) return; var card=e.currentTarget.closest('.card'); if(!card) return; e.preventDefault(); _railDrag=card; card.style.opacity='.55'; e.currentTarget.style.cursor='grabbing'; document.addEventListener('pointermove',_railMove); document.addEventListener('pointerup',_railUp,{once:true}); }
-function _railMove(e){ if(!_railDrag) return; var rail=_railDrag.parentNode; if(!rail) return; var after=null; _railChildren(rail).forEach(function(c){ if(c===_railDrag) return; var r=c.getBoundingClientRect(); if(e.clientY > r.top + r.height/2) after=c; }); if(after){ if(after.nextSibling!==_railDrag) rail.insertBefore(_railDrag, after.nextSibling); } else if(rail.firstChild!==_railDrag){ rail.insertBefore(_railDrag, rail.firstChild); } }
-function _railUp(){ document.removeEventListener('pointermove',_railMove); if(_railDrag){ _railDrag.style.opacity=''; var h=_railDrag.querySelector('.ch'); if(h) h.style.cursor='grab'; var rail=_railDrag.parentNode; if(rail){ var order=_railChildren(rail).map(function(c){ return c.getAttribute('data-rk'); }).filter(Boolean); try{ localStorage.setItem('rrgRailOrderV2',JSON.stringify(order)); }catch(e){} } } _railDrag=null; }
+function _railTip(rail){ if(!rail) return; var seen=false; try{ seen=localStorage.getItem('rrg_railtip_seen')==='1'; }catch(e){} if(seen||rail.querySelector('.railtip')) return; var tip=document.createElement('div'); tip.className='railtip'; tip.innerHTML='<span class="rtx"><b>Make this yours.</b> Drag any card by its header to move it (or click <span class="rtgrip">\u283f</span> for Move up / down), and use \u25be to collapse the ones you don\u2019t need. Your layout is saved on this device.</span><button type="button" class="rtclose" aria-label="Dismiss">\u00d7</button>'; rail.insertBefore(tip, rail.firstChild); var x=tip.querySelector('.rtclose'); if(x) x.addEventListener('click',function(){ try{ localStorage.setItem('rrg_railtip_seen','1'); }catch(e){} tip.remove(); }); }
+// Card drag (rail). Easier to move than before:
+//  • every card folds to its header line while you drag, so the whole rail fits and short moves are short;
+//  • a dashed slot shows exactly where it will land, and the card follows the pointer;
+//  • the page scrolls by itself near the top/bottom edge;
+//  • page re-renders wait until you let go; folds go back to how they were.
+// Click the ⠿ handle (no drag) for Move to top / up / down / bottom.
+var _rd=null;
+function _railDown(e){ if(e.button!=null&&e.button!==0) return; if(e.target.closest&&e.target.closest('button,a,input,select,textarea')&&!e.target.closest('.rgrip')) return; var card=e.currentTarget.closest('.card'); if(!card) return; e.preventDefault();
+  _rd={ card:card, sx:e.clientX, sy:e.clientY, on:false, fromGrip:!!(e.target.closest&&e.target.closest('.rgrip')) };
+  document.addEventListener('pointermove',_railMove); document.addEventListener('pointerup',_railUp,{once:true}); document.addEventListener('pointercancel',_railUp,{once:true}); }
+function _railStart(e){ var card=_rd.card, rail=card.parentNode; _rd.on=true; _railDrag=card;
+  // Fold every card to its header for the drag; remember who was open.
+  _rd.folds=_railChildren(rail).map(function(c){ return [c, c.classList.contains('railcollapsed')]; });
+  _railChildren(rail).forEach(function(c){ c.classList.add('railcollapsed'); });
+  var r=card.getBoundingClientRect();
+  var ph=document.createElement('div'); ph.className='railslot'; ph.style.height=r.height+'px'; rail.insertBefore(ph, card); _rd.ph=ph;
+  _rd.dx=e.clientX-r.left; _rd.dy=e.clientY-r.top;
+  card.classList.add('raildragging'); card.style.width=r.width+'px'; card.style.left=r.left+'px'; card.style.top=r.top+'px';
+  document.body.classList.add('raildragon');
+  (function scroll(){ if(!_rd||!_rd.on) return; var y=_rd.y||0, H=window.innerHeight, v=0; if(y<70) v=-Math.ceil((70-y)/5); else if(y>H-70) v=Math.ceil((y-(H-70))/5); if(v){ window.scrollBy(0,v); _railPlace(); } _rd.raf=requestAnimationFrame(scroll); })();
+}
+function _railPlace(){ if(!_rd||!_rd.on) return; var card=_rd.card, ph=_rd.ph, rail=ph.parentNode; if(!rail) return; var y=_rd.y;
+  // Hidden cards (not relevant to this contact) have no position — skip them, or the drop snaps next to them.
+  var after=null; _railChildren(rail).forEach(function(c){ if(c===card||!c.offsetParent||c.offsetHeight===0) return; var r=c.getBoundingClientRect(); if(y > r.top + r.height/2) after=c; });
+  var tip=rail.querySelector(':scope > .railtip');
+  if(after){ if(after.nextSibling!==ph) rail.insertBefore(ph, after.nextSibling); } else { var first=tip?tip.nextSibling:rail.firstChild; if(first!==ph) rail.insertBefore(ph, first); } }
+function _railMove(e){ if(!_rd) return; _rd.y=e.clientY;
+  if(!_rd.on){ if(Math.abs(e.clientY-_rd.sy)+Math.abs(e.clientX-_rd.sx)<6) return; _railStart(e); }
+  var card=_rd.card; card.style.left=(e.clientX-_rd.dx)+'px'; card.style.top=(e.clientY-_rd.dy)+'px'; _railPlace(); }
+function _railUp(){ document.removeEventListener('pointermove',_railMove); document.removeEventListener('pointerup',_railUp); document.removeEventListener('pointercancel',_railUp);
+  var d=_rd; _rd=null; if(!d) return;
+  if(!d.on){ if(d.fromGrip) _railMenu(d.card); return; }
+  cancelAnimationFrame(d.raf); var card=d.card, ph=d.ph, rail=ph.parentNode;
+  if(rail){ rail.insertBefore(card, ph); ph.remove(); }
+  card.classList.remove('raildragging'); card.style.width=card.style.left=card.style.top='';
+  document.body.classList.remove('raildragon');
+  (d.folds||[]).forEach(function(f){ f[0].classList.toggle('railcollapsed', f[1]); });
+  _railDrag=null; _railSave(card.parentNode);
+  try{ card.classList.add('raildropped'); setTimeout(function(){ card.classList.remove('raildropped'); },700); }catch(_){}
+  if(_railPendingRender){ _railPendingRender=false; scheduleRender(); } }
+function _railSave(rail){ if(!rail) return; var order=_railChildren(rail).map(function(c){ return c.getAttribute('data-rk'); }).filter(Boolean); try{ localStorage.setItem('rrgRailOrderV2',JSON.stringify(order)); }catch(e){} }
+var _railPendingRender=false;
+// Click on the ⠿ handle: a small menu to move the card without dragging.
+function _railMenu(card){ var old=document.getElementById('railMoveMenu'); if(old) old.remove(); var rail=card.parentNode; if(!rail) return;
+  var g=card.querySelector('.rgrip'), r=(g||card).getBoundingClientRect();
+  var m=document.createElement('div'); m.id='railMoveMenu'; m.className='railmenu'; m.style.left=(r.left+window.scrollX)+'px'; m.style.top=(r.bottom+window.scrollY+4)+'px';
+  m.innerHTML='<button type="button" data-mv="top">Move to top</button><button type="button" data-mv="up">Move up</button><button type="button" data-mv="down">Move down</button><button type="button" data-mv="bottom">Move to bottom</button>';
+  document.body.appendChild(m);
+  m.addEventListener('click',function(ev){ var b=ev.target.closest('[data-mv]'); if(!b) return; ev.stopPropagation(); var mv=b.getAttribute('data-mv'), cs=_railChildren(rail).filter(function(c){ return c===card||(c.offsetParent&&c.offsetHeight>0); }), i=cs.indexOf(card), tip=rail.querySelector(':scope > .railtip');
+    if(mv==='top') rail.insertBefore(card, tip?tip.nextSibling:rail.firstChild);
+    else if(mv==='bottom') rail.appendChild(card);
+    else if(mv==='up'&&i>0) rail.insertBefore(card, cs[i-1]);
+    else if(mv==='down'&&i<cs.length-1) rail.insertBefore(card, cs[i+1].nextSibling);
+    _railSave(rail); m.remove(); try{ card.scrollIntoView({block:'nearest',behavior:'smooth'}); card.classList.add('raildropped'); setTimeout(function(){ card.classList.remove('raildropped'); },700); }catch(_){} });
+  setTimeout(function(){ document.addEventListener('click',function off(ev){ if(!m.contains(ev.target)){ m.remove(); document.removeEventListener('click',off); } }); },0); }
 function setCoCrumb(){ try{ if(!window.rrgSetCrumb){ return setTimeout(setCoCrumb,150); } var trail=[]; if(CO&&CO.id&&CO.name&&CO.name!=='No Company'){ trail.push({label:'Companies',href:'rrg_companies.html'}); trail.push({label:CO.name,href:'rrg_company.html?id='+encodeURIComponent(CO.id)}); } else { trail.push({label:'Contacts',href:'rrg_people.html'}); } trail.push({label:(P&&P.name)||'Contact'}); window.rrgSetCrumb(trail); }catch(e){} }
 // Coalesce the burst of re-renders that fire as the async loaders (Gmail, templates,
 // docs, tasks) resolve right after open. Each render() rebuilds the whole page via
@@ -2012,7 +2074,7 @@ var _renderQ=null;
 // ms and each would otherwise trigger its own full re-render. Collapse a burst into ONE render a
 // beat after the last one lands, so the header — and the flag badges — settle once instead of
 // flashing several times.
-function scheduleRender(){ if(!P) return; if(_renderQ) clearTimeout(_renderQ); _renderQ=setTimeout(function(){ _renderQ=null; if(P) render(); }, 90); }
+function scheduleRender(){ if(!P) return; if(_railDrag){ _railPendingRender=true; return; } if(_renderQ) clearTimeout(_renderQ); _renderQ=setTimeout(function(){ _renderQ=null; if(P) render(); }, 90); }
 function render(){
   // Preserve an open Send-agreement modal across re-renders (late gmail/template
   // loads rebuild the DOM and would otherwise flash it closed).
