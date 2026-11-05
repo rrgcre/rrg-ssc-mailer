@@ -40,6 +40,18 @@ app.use(function (req, res, next) {
     return res.redirect(302, process.env.MAIL_LINK_HOME || 'https://www.rrgcre.com');
   } catch (e) { return next(); }
 });
+// Seller lead site (SELL_SITE_HOST, e.g. "sellmytexasrestaurant.com,www.sellmytexasrestaurant.com"): that domain
+// serves ONLY the landing page and its lead endpoint. Nothing else in the app is reachable from it.
+app.use(function (req, res, next) {
+  try {
+    const hosts = String(process.env.SELL_SITE_HOST || '').toLowerCase().split(/[\s,]+/).filter(Boolean); if (!hosts.length) return next();
+    const h = String(req.hostname || '').toLowerCase(); if (hosts.indexOf(h) < 0) return next();
+    if (req.path === '/' || req.path === '/index.html') { res.set('Cache-Control', 'no-cache'); return res.sendFile(path.join(__dirname, 'public', 'sell_site.html')); }
+    if (req.path === '/api/sell/lead' || req.path === '/favicon.ico') return next();
+    if (req.path === '/robots.txt') return res.type('text/plain').send('User-agent: *\nAllow: /\n');
+    return res.redirect(302, '/');
+  } catch (e) { return next(); }
+});
 const COOKIE = 'rrg_sess';
 // Deploy stamp — set when the server boots, so it reflects the latest Render deploy.
 const BUILD = new Date().toISOString();
@@ -1556,7 +1568,7 @@ app.use((req, res, next) => {
 app.use(express.urlencoded({ extended: false }));
 
 /* ---------- auth gate ---------- */
-const OPEN = new Set(['/health', '/login', '/api/login', '/api/login/verify', '/api/login/resend', '/logout', '/favicon.ico', '/api/appname', '/api/brand', '/api/brand/logo', '/api/brand/logo/light', '/rrg_brand.js', '/rrg_theme.css', '/api/gmail/callback']);
+const OPEN = new Set(['/health', '/api/sell/lead', '/login', '/api/login', '/api/login/verify', '/api/login/resend', '/logout', '/favicon.ico', '/api/appname', '/api/brand', '/api/brand/logo', '/api/brand/logo/light', '/rrg_brand.js', '/rrg_theme.css', '/api/gmail/callback']);
 app.use((req, res, next) => {
   // Buyer-facing data-room links are public (the unguessable token is the gate).
   if (OPEN.has(req.path) || req.path === '/chitchat' || req.path.startsWith('/chitchat/') || req.path === '/api/chitchat/subscribe' || req.path.startsWith('/room/') || req.path.startsWith('/deal/') || req.path.startsWith('/roomfile/') || req.path.startsWith('/roomview/') || req.path.startsWith('/vendor/') || req.path.startsWith('/sign/') || req.path.startsWith('/api/sign/') || req.path.startsWith('/eo/') || req.path.startsWith('/ec/') || req.path.startsWith('/u/') || req.path.startsWith('/api/u/') || req.path.startsWith('/book/') || req.path.startsWith('/api/book/') || req.path.startsWith('/pay/') || req.path.startsWith('/api/pay/') || req.path === '/api/stripe/webhook' || req.path === '/api/mail/ses-webhook' || req.path.startsWith('/mail/') || req.path === '/market' || req.path === '/api/market/public' || req.path === '/api/market/request-access' || req.path === '/site' || req.path.startsWith('/site/') || req.path === '/sitemap.xml' || req.path === '/robots.txt' || req.path === '/api/website/public' || req.path === '/api/website/lead' || req.path === '/api/website/subscribe' || req.path === '/api/website/hero-image' || req.path.startsWith('/api/property-public-photo/') || req.path.startsWith('/s/') || req.path === '/careers/apply' || req.path === '/api/careers/apply' || req.path === '/seller_intake.html' || req.path === '/seller_record.html' || req.path === '/ssc_client.html' || /^\/(sell-my-restaurant|restaurant-valuation|restaurants-for-sale|bars-for-sale|restaurant-space-for-lease)\/[a-z-]+$/.test(req.path) || req.path.startsWith('/listing/')) return next();
@@ -8300,6 +8312,81 @@ app.get('/api/website/public', (req, res) => {
   res.json({ ok: true, site: pub, org: orgDisplayName(), listings: websitePublicListings() });
 });
 // Public — contact / lead form submission, captured for the Website manager
+// ===== Seller lead site ("Sell My Texas Restaurant") =====
+// Staff preview of the landing page on the app's own domain (login required like every other page).
+app.get('/sell-site', (req, res) => res.sendFile(path.join(__dirname, 'public', 'sell_site.html')));
+// Value range — SDE (owner earnings) × a multiple that rises with size. Mirrors the page's own math.
+function _sellEstimate(d) {
+  const sales = d.sales, other = 0.12;
+  const sde = sales * (1 - d.cogsPct / 100 - d.laborPct / 100 - other) - d.rent * 12;
+  const bands = [[100000, 1.5, 2.0], [250000, 1.8, 2.4], [500000, 2.1, 2.8], [1000000, 2.4, 3.2], [1e15, 3.0, 4.0]];
+  const b = bands.filter(x => sde < x[0])[0]; let lo = b[1], hi = b[2];
+  if (d.trend === 'up') { lo += 0.1; hi += 0.2; } if (d.trend === 'down') { lo -= 0.3; hi -= 0.3; }
+  if (d.years < 2) { lo -= 0.3; hi -= 0.3; } else if (d.years >= 10) { hi += 0.1; }
+  lo = Math.max(1, lo); hi = Math.max(lo + 0.3, hi);
+  const asset = (sde < 60000) || (sde / sales < 0.05) || (d.trend === 'down' && sde < 120000);
+  const r = n => Math.round(n / 10000) * 10000;
+  return { sde: Math.round(sde), asset, low: asset ? 0 : r(sde * lo), high: asset ? 0 : r(sde * hi), rentPct: sales ? (d.rent * 12 / sales * 100) : 0 };
+}
+const _sellHits = new Map();
+app.post('/api/sell/lead', express.json({ limit: '32kb' }), async (req, res) => {
+  try {
+    const b = req.body || {};
+    if (String(b.website || '').trim()) return res.json({ ok: true, estimate: null });   // honeypot: bots fill the hidden field
+    const ip = String(req.headers['x-forwarded-for'] || req.ip || '').split(',')[0].trim(); const now = Date.now();
+    const hits = (_sellHits.get(ip) || []).filter(t => now - t < 3600e3); if (hits.length >= 8) return res.status(429).json({ ok: false, error: 'Too many submissions from this connection. Try again in an hour.' });
+    hits.push(now); _sellHits.set(ip, hits);
+    const S = (v, n) => String(v == null ? '' : v).trim().slice(0, n || 120);
+    const N = v => { const n = parseFloat(String(v == null ? '' : v).replace(/[^0-9.]/g, '')); return isFinite(n) ? n : NaN; };
+    const d = { business: S(b.business, 120), market: S(b.market, 60), concept: S(b.concept, 60), years: N(b.years) || 0, units: N(b.units) || 1,
+      sales: N(b.sales), cogsPct: N(b.cogsPct), laborPct: N(b.laborPct), rent: N(b.rent) || 0, trend: ['up', 'flat', 'down'].indexOf(b.trend) >= 0 ? b.trend : 'flat',
+      firstName: S(b.firstName, 80), lastName: S(b.lastName, 80), email: S(b.email, 160), phone: S(b.phone, 40) };
+    if (!d.firstName || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(d.email) || d.phone.replace(/\D/g, '').length < 10) return res.status(400).json({ ok: false, error: 'Enter your name, a valid email and a 10-digit phone.' });
+    if (!(d.sales >= 50000) || !(d.cogsPct > 0 && d.cogsPct < 80) || !(d.laborPct > 0 && d.laborPct < 80) || !(d.rent >= 0)) return res.status(400).json({ ok: false, error: 'Check the sales, cost and rent numbers and try again.' });
+    const est = _sellEstimate(d);
+    // Who works the lead: SELL_SITE_OWNER (a username), else the first admin.
+    const users = (auth.loadUsers() || []).filter(u => !u.disabled);
+    const owner = users.find(u => u.username === String(process.env.SELL_SITE_OWNER || '').trim()) || users.find(u => isSuper(u)) || users[0] || {};
+    const actor = { user: { name: owner.name || owner.username || 'Website', username: owner.username || '' } };
+    const k = n => n >= 1e6 ? ('$' + (n / 1e6).toFixed(2).replace(/0$/, '') + 'M') : ('$' + Math.round(n / 1e3) + 'K');
+    const grade = est.asset ? 'C' : ((est.sde >= 150000 && d.trend !== 'down') ? 'A' : 'B');
+    const range = est.asset ? 'Likely asset sale (space & equipment)' : (k(est.low) + '–' + k(est.high));
+    let co = null, per = null;
+    try { if (d.business) co = findOrCreateCompany(actor, { name: d.business, market: d.market, tag: 'Seller site' }); } catch (e) {}
+    try { per = findOrCreatePerson(actor, { firstName: d.firstName, lastName: d.lastName, email: d.email, phones: [d.phone], company: d.business, companyId: (co && co.id) || '', type: 'Selling', tag: 'Seller site' }); } catch (e) {}
+    const summary = [
+      'Seller site value estimate — grade ' + grade,
+      'Restaurant: ' + (d.business || '—') + ' · ' + (d.concept || '—') + ' · ' + (d.market || '—') + ' · ' + d.years + ' yrs · ' + d.units + ' location' + (d.units === 1 ? '' : 's'),
+      'Sales (12 mo): ' + k(d.sales) + ' · Food & drink ' + d.cogsPct + '% · Payroll ' + d.laborPct + '% · Rent $' + Math.round(d.rent).toLocaleString('en-US') + '/mo (' + est.rentPct.toFixed(1) + '% of sales) · Trend ' + d.trend,
+      'Est. owner earnings (SDE): ' + k(Math.max(0, est.sde)) + ' · Range shown: ' + range,
+    ].join('\n');
+    if (per) {
+      try {
+        const arr = loadPeople(); const p = arr.find(x => x.id === per.id);
+        if (p) {
+          if (!p.leadSource) p.leadSource = 'Website';
+          if (!p.phone && d.phone) { p.phones = Array.isArray(p.phones) ? p.phones : []; if (p.phones.indexOf(d.phone) < 0) p.phones.push(d.phone); p.phone = p.phones[0]; }
+          if (!p.byUser && owner.username) { p.byUser = owner.username; p.by = owner.name || owner.username; }
+          logActivity(p, 'Form Submitted', summary, { auto: true, by: 'Website', byUser: owner.username || '' });
+          savePeople(arr);
+        }
+      } catch (e) {}
+    }
+    try {
+      const tasks = loadTasks();
+      tasks.push({ id: newTaskId(), createdBy: owner.username || '', createdByName: 'Seller site', assignee: owner.username || '', assigneeName: owner.name || owner.username || '', createdAt: new Date().toISOString(), status: 'open', doneAt: '',
+        title: 'Call seller lead (' + grade + ') — ' + (d.business || (d.firstName + ' ' + d.lastName)) + ', ' + (d.market || 'Texas'), notes: summary + '\n\n' + d.firstName + ' ' + d.lastName + ' · ' + d.phone + ' · ' + d.email + '\nThe site promised a call within one business day.',
+        due: new Date(now + 24 * 3600e3).toISOString().slice(0, 10), priority: grade === 'C' ? 'Medium' : 'High', type: '', linkType: 'contact', linkId: (per && per.id) || '', linkLabel: (per && per.name) || (d.firstName + ' ' + d.lastName), remChannels: ['popup'] });
+      saveTasks(tasks);
+    } catch (e) {}
+    try { let leads = loadWebsiteLeads(); leads.unshift({ id: newInquiryId(), name: (d.firstName + ' ' + d.lastName).trim(), email: d.email, phone: d.phone, interest: 'Sell my restaurant (' + grade + ')', message: summary, source: 'Seller site', createdAt: new Date().toISOString(), handled: false }); saveWebsiteLeads(leads.slice(0, 5000)); } catch (e) {}
+    try {
+      const to = owner.email || mailFrom();
+      if (to && isEmailConfigured()) sendNotifyMail(to, 'New seller lead (' + grade + '): ' + (d.business || d.firstName + ' ' + d.lastName) + ' — ' + range, summary + '\n\n' + d.firstName + ' ' + d.lastName + '\n' + d.phone + '\n' + d.email + '\n\nCall within one business day — the site promised it.', null).catch(() => {});
+    } catch (e) {}
+    res.json({ ok: true, estimate: est });
+  } catch (e) { console.error('sell lead:', e && e.message); res.status(500).json({ ok: false, error: 'Something went wrong on our end. Call or try again shortly.' }); }
+});
 app.post('/api/website/lead', express.json({ limit: '64kb' }), (req, res) => {
   const b = req.body || {};
   const name = String(b.name || '').trim().slice(0, 120);

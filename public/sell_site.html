@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sell My Texas Restaurant — What is your restaurant worth?</title>
+<meta name="description" content="Get a free value range for your Texas restaurant in two minutes, then get matched with qualified buyers. Confidential, no cost to talk.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#1c2620;        /* green-black ink */
+  --forest:#1e4d3a;     /* buttons, links */
+  --forest-2:#163b2c;
+  --page:#f5f6f2;
+  --check:#e6efd9;      /* guest-check paper */
+  --rule:#bcd6ad;       /* guest-check ruling */
+  --checkred:#b3261e;   /* totals ink */
+  --muted:#5d6b62;
+  --line:#d9ded5;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--page);color:var(--ink);font:400 17px/1.6 "Public Sans",system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--forest)}
+.wrap{max-width:1140px;margin:0 auto;padding:0 24px}
+:focus-visible{outline:3px solid #e0a32a;outline-offset:2px}
+
+/* Top bar */
+.top{display:flex;align-items:center;justify-content:space-between;padding:22px 0}
+.brand{font-weight:800;font-size:18px;letter-spacing:-.01em;color:var(--ink);text-decoration:none;display:flex;align-items:center;gap:10px}
+.brand svg{flex:0 0 auto}
+.top a.call{font-weight:600;font-size:15px;text-decoration:none}
+
+/* Hero */
+.hero{display:grid;grid-template-columns:1.05fr .95fr;gap:56px;align-items:start;padding:28px 0 72px}
+.hero h1{font-size:clamp(36px,5vw,58px);line-height:1.04;letter-spacing:-.025em;font-weight:800;margin:18px 0 20px;max-width:13ch}
+.hero .lede{font-size:19px;color:#34413a;max-width:46ch;margin:0 0 30px}
+.facts{list-style:none;margin:0;padding:0;display:grid;gap:14px;max-width:46ch}
+.facts li{display:grid;grid-template-columns:22px 1fr;gap:12px;align-items:start;font-size:16px}
+.facts li svg{margin-top:4px}
+.facts b{font-weight:700}
+
+/* The guest check */
+.check{position:relative;background:var(--check);border-radius:3px 3px 0 0;box-shadow:0 1px 0 #c6d6b6,0 18px 40px -18px rgba(28,38,32,.45);padding:0 0 26px;
+  background-image:repeating-linear-gradient(to bottom,transparent 0,transparent 39px,var(--rule) 39px,var(--rule) 40px);background-position:0 92px;transform:rotate(.6deg)}
+.check:after{content:"";position:absolute;left:0;right:0;bottom:-10px;height:10px;
+  background:linear-gradient(-45deg,transparent 7px,var(--check) 0) 0 0/14px 10px,linear-gradient(45deg,transparent 7px,var(--check) 0) 0 0/14px 10px}
+.check-hd{display:grid;grid-template-columns:1fr auto;align-items:end;padding:18px 24px 12px;border-bottom:2px solid var(--checkred)}
+.check-hd .t{font-weight:800;font-size:15px;color:var(--checkred);letter-spacing:.01em}
+.check-hd .no{font-family:Caveat,cursive;font-size:24px;color:var(--checkred);line-height:1}
+.steps{display:flex;gap:6px;padding:12px 24px 0}
+.steps span{flex:1;height:4px;border-radius:2px;background:#c9dbb8}
+.steps span.on{background:var(--forest)}
+form{padding:8px 24px 0;transform:rotate(-.6deg)}
+fieldset{border:0;margin:0;padding:0;min-width:0}
+fieldset[hidden]{display:none}
+legend{font-weight:700;font-size:18px;padding:10px 0 6px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+label{display:block;font-size:13.5px;font-weight:600;color:#33433a;margin:12px 0 5px}
+label .h{font-weight:400;color:var(--muted)}
+input,select{width:100%;font:500 16px/1.2 "Public Sans",sans-serif;color:var(--ink);background:#fbfdf8;border:1px solid #b9cdaa;border-radius:6px;padding:11px 12px;min-height:46px}
+input:focus,select:focus{border-color:var(--forest);outline:2px solid rgba(30,77,58,.25);outline-offset:0}
+.pre{position:relative}.pre input{padding-left:26px}.pre:before{content:attr(data-p);position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:600}
+.post{position:relative}.post input{padding-right:30px}.post:after{content:attr(data-p);position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:600}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.seg label{margin:0;display:flex;align-items:center;justify-content:center;gap:6px;border:1px solid #b9cdaa;background:#fbfdf8;border-radius:6px;min-height:46px;font-size:15px;font-weight:600;cursor:pointer}
+.seg input{position:absolute;opacity:0;width:1px;height:1px}
+.seg input:checked+span{color:#fff}
+.seg label:has(input:checked){background:var(--forest);border-color:var(--forest);color:#fff}
+.seg label:has(input:focus-visible){outline:3px solid #e0a32a;outline-offset:2px}
+.nav{display:flex;gap:10px;align-items:center;margin-top:22px}
+button{font:700 16px/1 "Public Sans",sans-serif;border:0;border-radius:6px;padding:15px 22px;cursor:pointer;min-height:50px}
+.go{background:var(--forest);color:#fff;flex:1}
+.go:hover{background:var(--forest-2)}
+.back{background:transparent;color:var(--forest);padding:15px 8px}
+.err{color:var(--checkred);font-size:14px;font-weight:600;min-height:20px;margin-top:10px}
+.fine{font-size:12.5px;color:var(--muted);margin:12px 0 0;line-height:1.5}
+.hp{position:absolute;left:-5000px;width:1px;height:1px;overflow:hidden}
+
+/* Result on the check */
+.result{padding:8px 24px 0;transform:rotate(-.6deg)}
+.result[hidden]{display:none}
+.result .lbl{font-weight:700;font-size:15px;margin-top:14px}
+.total{font-family:Caveat,cursive;font-weight:700;color:var(--checkred);font-size:clamp(46px,7vw,64px);line-height:1;margin:6px 0 4px;letter-spacing:.5px}
+.total.sm{font-size:clamp(30px,5vw,40px)}
+.lines{margin:12px 0 0;padding:0;list-style:none;font-size:15px}
+.lines li{display:flex;justify-content:space-between;gap:12px;height:40px;align-items:center}
+.lines li b{font-family:Caveat,cursive;font-size:26px;color:var(--ink);font-weight:700}
+.next{background:#fbfdf8;border:1px solid #b9cdaa;border-radius:6px;padding:14px 16px;margin-top:16px;font-size:15px}
+.next b{display:block;margin-bottom:2px}
+
+/* Sections */
+section{padding:72px 0;border-top:1px solid var(--line)}
+section h2{font-size:clamp(28px,3.4vw,38px);line-height:1.12;letter-spacing:-.02em;font-weight:800;margin:0 0 14px;max-width:22ch}
+section .intro{color:#34413a;max-width:60ch;margin:0 0 34px}
+.how{display:grid;grid-template-columns:repeat(3,1fr);gap:34px;counter-reset:s;list-style:none;margin:0;padding:0}
+.how li{counter-increment:s;padding-top:52px;position:relative}
+.how li:before{content:counter(s);position:absolute;top:0;left:0;font-family:Caveat,cursive;font-weight:700;font-size:46px;line-height:1;color:var(--checkred)}
+.how h3{font-size:19px;margin:0 0 6px}
+.how p{margin:0;color:#34413a;font-size:16px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:56px}
+.who ul{margin:0;padding:0;list-style:none;display:grid;gap:10px}
+.who li{padding-left:22px;position:relative}
+.who li:before{content:"";position:absolute;left:0;top:11px;width:10px;height:2px;background:var(--checkred)}
+details{border-bottom:1px solid var(--line);padding:16px 0}
+details:first-of-type{border-top:1px solid var(--line)}
+summary{font-weight:700;font-size:17px;cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:16px}
+summary::-webkit-details-marker{display:none}
+summary:after{content:"+";font-weight:400;font-size:24px;line-height:1;color:var(--forest)}
+details[open] summary:after{content:"–"}
+details p{margin:10px 0 0;color:#34413a;max-width:62ch}
+.cta-band{background:var(--forest);color:#eaf2e3;border:0}
+.cta-band h2{color:#fff}
+.cta-band .intro{color:#cfe0c4}
+.cta-band a.btn{display:inline-block;background:#fff;color:var(--forest);text-decoration:none;font-weight:800;padding:16px 24px;border-radius:6px}
+footer{padding:36px 0 48px;font-size:13.5px;color:var(--muted)}
+footer p{max-width:80ch;margin:0 0 8px}
+
+@media (max-width:900px){
+  .hero{grid-template-columns:1fr;gap:34px}
+  .how,.two{grid-template-columns:1fr;gap:28px}
+  .check{transform:none}form,.result{transform:none}
+}
+@media (max-width:480px){.top a.call{display:none}.brand{font-size:16px;white-space:nowrap}.row{grid-template-columns:1fr}.wrap{padding:0 16px}.check-hd,.steps,form,.result{padding-left:16px;padding-right:16px}}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="#top" aria-label="Sell My Texas Restaurant">
+      <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><rect x="2" y="2" width="24" height="24" rx="3" fill="#1e4d3a"/><path d="M8 9h12M8 14h12M8 19h7" stroke="#e6efd9" stroke-width="2.2" stroke-linecap="round"/><circle cx="20" cy="19" r="2.2" fill="#b3261e"/></svg>
+      Sell My Texas Restaurant
+    </a>
+    <a class="call" href="#estimate">Get my value range</a>
+  </header>
+
+  <main id="top">
+  <div class="hero">
+    <div>
+      <h1>What would a buyer pay for your restaurant?</h1>
+      <p class="lede">Answer a few questions about the last 12 months and see a value range in about two minutes. If the number makes sense to you, we put your restaurant in front of buyers who are looking right now. Quietly.</p>
+      <ul class="facts">
+        <li><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="10" fill="#1e4d3a"/><path d="M6.5 11.3l3 3 6-6.3" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>Confidential.</b> Buyers sign an NDA before they learn your name or location. Your staff won’t hear it from us.</span></li>
+        <li><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="10" fill="#1e4d3a"/><path d="M6.5 11.3l3 3 6-6.3" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>Real buyers.</b> Operators, multi-unit groups and investors buying restaurants in Texas today.</span></li>
+        <li><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="10" fill="#1e4d3a"/><path d="M6.5 11.3l3 3 6-6.3" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>No cost to find out.</b> The value range and the first conversation are free.</span></li>
+      </ul>
+    </div>
+
+    <div class="check" id="estimate" aria-label="Restaurant value estimator">
+      <div class="check-hd"><span class="t">Restaurant value estimate</span><span class="no" aria-hidden="true">No. 0127</span></div>
+      <div class="steps" aria-hidden="true"><span class="on" id="st1"></span><span id="st2"></span><span id="st3"></span></div>
+
+      <form id="f" novalidate>
+        <fieldset id="p1">
+          <legend>Your restaurant</legend>
+          <label for="biz">Restaurant name <span class="h">(kept private)</span></label>
+          <input id="biz" name="business" autocomplete="organization" required>
+          <div class="row">
+            <div><label for="mkt">Where</label>
+              <select id="mkt" name="market" required><option value="">Choose…</option><option>San Antonio</option><option>Austin</option><option>Dallas–Fort Worth</option><option>Houston</option><option>New Braunfels / Hill Country</option><option>Rio Grande Valley</option><option>Other Texas</option></select></div>
+            <div><label for="cpt">Type</label>
+              <select id="cpt" name="concept" required><option value="">Choose…</option><option>Full service</option><option>Fast casual</option><option>Quick service</option><option>Bar / nightlife</option><option>Café / bakery / coffee</option><option>Pizza</option><option>Other</option></select></div>
+          </div>
+          <div class="row">
+            <div><label for="yrs">Years open</label><input id="yrs" name="years" inputmode="numeric" placeholder="e.g. 6" required></div>
+            <div><label for="loc">Locations</label><input id="loc" name="units" inputmode="numeric" value="1" required></div>
+          </div>
+          <div class="nav"><button type="button" class="go" data-next="2">Continue</button></div>
+          <div class="err" id="e1" role="alert"></div>
+        </fieldset>
+
+        <fieldset id="p2" hidden>
+          <legend>The last 12 months</legend>
+          <label for="sales">Total sales</label>
+          <div class="pre" data-p="$"><input id="sales" name="sales" inputmode="numeric" placeholder="1,400,000" required></div>
+          <div class="row">
+            <div><label for="cogs">Food &amp; drink cost</label><div class="post" data-p="%"><input id="cogs" name="cogsPct" inputmode="decimal" placeholder="30" required></div></div>
+            <div><label for="lab">Payroll <span class="h">(not you)</span></label><div class="post" data-p="%"><input id="lab" name="laborPct" inputmode="decimal" placeholder="30" required></div></div>
+          </div>
+          <label for="rent">Monthly rent <span class="h">(base + NNN)</span></label>
+          <div class="pre" data-p="$"><input id="rent" name="rent" inputmode="numeric" placeholder="9,500" required></div>
+          <label id="trl">Sales compared with last year</label>
+          <div class="seg" role="radiogroup" aria-labelledby="trl">
+            <label><input type="radio" name="trend" value="up"><span>Up</span></label>
+            <label><input type="radio" name="trend" value="flat" checked><span>About the same</span></label>
+            <label><input type="radio" name="trend" value="down"><span>Down</span></label>
+          </div>
+          <div class="nav"><button type="button" class="back" data-next="1">Back</button><button type="button" class="go" data-next="3">Continue</button></div>
+          <div class="err" id="e2" role="alert"></div>
+        </fieldset>
+
+        <fieldset id="p3" hidden>
+          <legend>Where should we send it?</legend>
+          <div class="row">
+            <div><label for="fn">First name</label><input id="fn" name="firstName" autocomplete="given-name" required></div>
+            <div><label for="ln">Last name</label><input id="ln" name="lastName" autocomplete="family-name" required></div>
+          </div>
+          <label for="em">Email</label><input id="em" name="email" type="email" autocomplete="email" required>
+          <label for="ph">Mobile phone</label><input id="ph" name="phone" type="tel" autocomplete="tel" required>
+          <div class="hp" aria-hidden="true"><label for="web">Website</label><input id="web" name="website" tabindex="-1" autocomplete="off"></div>
+          <div class="nav"><button type="button" class="back" data-next="2">Back</button><button type="submit" class="go" id="sub">See my value range</button></div>
+          <div class="err" id="e3" role="alert"></div>
+          <p class="fine">We use this to send your range and, if you want, to talk about buyers. We never share your details with a buyer without your OK.</p>
+        </fieldset>
+      </form>
+
+      <div class="result" id="res" hidden aria-live="polite"></div>
+    </div>
+  </div>
+  </main>
+</div>
+
+<section>
+  <div class="wrap">
+    <h2>How it works</h2>
+    <p class="intro">You stay in control at every step. Nothing goes to a buyer until you say so.</p>
+    <ol class="how">
+      <li><h3>See your range</h3><p>Two minutes of questions about sales, costs and rent. The range is based on what buyers pay for Texas restaurants with similar earnings.</p></li>
+      <li><h3>Talk it through</h3><p>A specialist calls within one business day, looks at your real numbers with you, and tells you what a sale would look like.</p></li>
+      <li><h3>Meet the buyers</h3><p>If you decide to sell, we market your restaurant without naming it, screen every buyer, and handle the deal through closing.</p></li>
+    </ol>
+  </div>
+</section>
+
+<section>
+  <div class="wrap two">
+    <div class="who">
+      <h2>Who our buyers are looking for</h2>
+      <ul>
+        <li>Profitable restaurants and bars with at least two years of history</li>
+        <li>Full service, fast casual, bars, cafés and bakeries</li>
+        <li>Single locations and small groups</li>
+        <li>San Antonio, Austin, Dallas–Fort Worth, Houston and the Hill Country</li>
+      </ul>
+    </div>
+    <div>
+      <h2>Questions owners ask</h2>
+      <details><summary>Are you buying my restaurant?</summary><p>No. We represent restaurant owners and bring the buyers to you: operators, multi-unit groups and investors. That way you get more than one offer, not just ours.</p></details>
+      <details><summary>Will my staff or customers find out?</summary><p>Not from us. Listings never show the name or address, and every buyer signs an NDA before they learn which restaurant it is.</p></details>
+      <details><summary>What does it cost?</summary><p>The value range and the first conversation are free. If you sell through us, a success fee is paid at closing. Nothing is owed if you don’t sell.</p></details>
+      <details><summary>How accurate is the range?</summary><p>It’s a starting point built from the numbers you enter. Your lease, equipment, trend and books all move the price. We confirm a number once we’ve seen your financials.</p></details>
+      <details><summary>What if my sales are down?</summary><p>You still have options. Many restaurants sell as a space with its build-out and equipment, priced on the lease and location rather than earnings.</p></details>
+    </div>
+  </div>
+</section>
+
+<section class="cta-band">
+  <div class="wrap">
+    <h2>Find out what your restaurant is worth</h2>
+    <p class="intro">Two minutes. Free. Confidential.</p>
+    <a class="btn" href="#estimate">Get my value range</a>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>Sell My Texas Restaurant connects Texas restaurant owners with qualified buyers. We are not a buyer. Services are provided by a licensed Texas real estate broker.</p>
+    <p>Value ranges are estimates for information only. They are not an appraisal, an offer, or a guarantee of price.</p>
+    <p>© <span id="yr"></span> Sell My Texas Restaurant</p>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var $=function(id){return document.getElementById(id);};
+  $('yr').textContent=new Date().getFullYear();
+  var num=function(v){ v=String(v||'').replace(/[^0-9.]/g,''); var n=parseFloat(v); return isFinite(n)?n:NaN; };
+  var money=function(n){ if(n>=1e6) return '$'+(Math.round(n/1e5)/10).toFixed(n>=1e7?0:1).replace(/\.0$/,'')+'M'; return '$'+Math.round(n/1e3)+'K'; };
+  // Same math as the server (it recomputes and stores its own copy).
+  function estimate(d){
+    var sales=d.sales, other=0.12, sde=sales*(1-d.cogsPct/100-d.laborPct/100-other)-d.rent*12;
+    var bands=[[100000,1.5,2.0],[250000,1.8,2.4],[500000,2.1,2.8],[1000000,2.4,3.2],[1e15,3.0,4.0]];
+    var b=bands.filter(function(x){return sde<x[0];})[0]; var lo=b[1], hi=b[2];
+    if(d.trend==='up'){lo+=.1;hi+=.2;} if(d.trend==='down'){lo-=.3;hi-=.3;}
+    if(d.years<2){lo-=.3;hi-=.3;} else if(d.years>=10){hi+=.1;}
+    lo=Math.max(1,lo); hi=Math.max(lo+.3,hi);
+    var asset=(sde<60000)||(sde/sales<0.05)||(d.trend==='down'&&sde<120000);
+    var r=function(n){return Math.round(n/10000)*10000;};
+    return { sde:Math.round(sde), asset:asset, low:asset?0:r(sde*lo), high:asset?0:r(sde*hi), rentPct:sales?(d.rent*12/sales*100):0 };
+  }
+  function show(step){ [1,2,3].forEach(function(i){ $('p'+i).hidden=(i!==step); $('st'+i).className=(i<=step?'on':''); }); var f=$('p'+step).querySelector('input,select'); if(f) f.focus({preventScroll:true}); }
+  function check(step){
+    var e=$('e'+step); e.textContent='';
+    var bad=[].slice.call($('p'+step).querySelectorAll('[required]')).filter(function(x){return !String(x.value).trim();});
+    if(bad.length){ e.textContent='Fill in '+(bad.length===1?'this field':'these fields')+' to continue.'; bad[0].focus(); return false; }
+    if(step===2){ var s=num($('sales').value), c=num($('cogs').value), l=num($('lab').value), r=num($('rent').value);
+      if(!(s>=50000)){ e.textContent='Enter total sales for the last 12 months, like 1,400,000.'; $('sales').focus(); return false; }
+      if(!(c>0&&c<80)||!(l>0&&l<80)){ e.textContent='Enter food & drink cost and payroll as a percent of sales, like 30.'; (c>0&&c<80?$('lab'):$('cogs')).focus(); return false; }
+      if(!(r>=0)){ e.textContent='Enter your monthly rent, like 9,500.'; $('rent').focus(); return false; } }
+    if(step===3){ if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test($('em').value.trim())){ e.textContent='Enter a valid email address.'; $('em').focus(); return false; }
+      if(String($('ph').value).replace(/\D/g,'').length<10){ e.textContent='Enter a 10-digit phone number.'; $('ph').focus(); return false; } }
+    return true;
+  }
+  document.querySelectorAll('[data-next]').forEach(function(b){ b.addEventListener('click',function(){ var to=+b.getAttribute('data-next'); var cur=+b.closest('fieldset').id.slice(1); if(to>cur && !check(cur)) return; show(to); }); });
+  $('f').addEventListener('submit',function(ev){
+    ev.preventDefault(); if(!check(3)) return;
+    var d={ business:$('biz').value.trim(), market:$('mkt').value, concept:$('cpt').value, years:num($('yrs').value)||0, units:num($('loc').value)||1,
+      sales:num($('sales').value), cogsPct:num($('cogs').value), laborPct:num($('lab').value), rent:num($('rent').value)||0,
+      trend:(document.querySelector('input[name=trend]:checked')||{}).value||'flat',
+      firstName:$('fn').value.trim(), lastName:$('ln').value.trim(), email:$('em').value.trim(), phone:$('ph').value.trim(), website:$('web').value,
+      page:location.href.slice(0,300), ref:document.referrer.slice(0,300) };
+    var btn=$('sub'); btn.disabled=true; btn.textContent='Working it out…';
+    fetch('/api/sell/lead',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).then(function(r){return r.json().catch(function(){return null;});}).then(function(j){
+      if(!j||!j.ok){ var e=new Error((j&&j.error)||''); e.server=true; throw e; }
+      render(j.estimate||estimate(d), d);
+    }).catch(function(err){ btn.disabled=false; btn.textContent='See my value range'; $('e3').textContent=(err&&err.server&&err.message)||'That didn’t go through. Check your connection and try again.'; });
+  });
+  function render(x,d){
+    $('f').hidden=true; [1,2,3].forEach(function(i){$('st'+i).className='on';});
+    var h='<div class="lbl">'+(x.asset?'Most likely sale type':'Estimated value range')+'</div>';
+    if(x.asset){ h+='<div class="total sm">Space &amp; equipment sale</div><p style="margin:6px 0 0;font-size:15px">At these numbers, buyers usually price the restaurant on its lease, location and build-out, not its earnings. That can still be a good outcome. We’ll give you a number after a short call.</p>'; }
+    else { h+='<div class="total">'+money(x.low)+' – '+money(x.high)+'</div>'; }
+    h+='<ul class="lines"><li><span>Sales, last 12 months</span><b>'+money(d.sales)+'</b></li><li><span>Owner earnings (est.)</span><b>'+(x.sde>0?money(x.sde):'$0')+'</b></li><li><span>Rent as % of sales</span><b>'+(Math.round(x.rentPct*10)/10)+'%</b></li></ul>';
+    h+='<div class="next"><b>What happens next</b>A specialist will call you within one business day to go over your numbers and the buyers looking in '+(d.market||'Texas')+'. Thanks, '+d.firstName.replace(/[<>&"]/g,'')+'.</div>';
+    h+='<p class="fine">Owner earnings assume about 12% of sales for other costs like utilities, card fees, repairs and insurance. This is an estimate, not an offer or appraisal.</p>';
+    $('res').innerHTML=h; $('res').hidden=false; $('estimate').scrollIntoView({behavior:'smooth',block:'start'});
+  }
+})();
+</script>
+</body>
+</html>
