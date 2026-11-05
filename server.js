@@ -8328,6 +8328,40 @@ function _sellEstimate(d) {
   const r = n => Math.round(n / 10000) * 10000;
   return { sde: Math.round(sde), asset, low: asset ? 0 : r(sde * lo), high: asset ? 0 : r(sde * hi), rentPct: sales ? (d.rent * 12 / sales * 100) : 0 };
 }
+// The owner's copy of their range. Written to move them from "what's it worth" to sending real financials —
+// the step that turns a curious owner into a listing. From the specialist by name; replies go to them.
+async function _sellOwnerEmail(d, est, owner, k) {
+  const brand = String(process.env.SELL_SITE_NAME || 'Sell My Texas Restaurant');
+  const who = owner.name || owner.username || brand;
+  const phone = String(process.env.SELL_SITE_PHONE || owner.phone || '').trim();
+  const E = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const biz = d.business || 'your restaurant';
+  const range = est.asset ? '' : (k(est.low) + ' to ' + k(est.high));
+  const subject = est.asset ? ('Your value estimate for ' + biz) : ('Your value range for ' + biz + ': ' + k(est.low) + '–' + k(est.high));
+  const paras = est.asset ? [
+    'Thanks for running the numbers on ' + biz + '.',
+    'At the numbers you entered, buyers usually price a restaurant on its lease, location and build-out rather than its earnings. That can still be a good sale, and the right lease is worth real money.',
+    'If you send me the lease and a recent P&L, I can tell you what a buyer would pay and how long it would take. It’s confidential and costs nothing.',
+  ] : [
+    'Thanks for running the numbers on ' + biz + '. Based on what you entered, buyers would likely pay ' + range + ' for a restaurant like yours.',
+    'That range comes from six numbers. Buyers pay on your actual books, and things like owner add-backs, your lease terms and your trend can move the price a lot, often up.',
+    'If you send me your last two years of P&Ls, I’ll tell you the number a buyer would actually pay and what it would take to get it. It’s confidential and costs nothing.',
+  ];
+  const close = phone ? ('I’ll call you shortly from ' + phone + '. Or just reply with a good time to talk.') : 'I’ll call you shortly. Or just reply with a good time to talk.';
+  const text = 'Hi ' + d.firstName + ',\n\n' + paras.join('\n\n') + '\n\n' + close + '\n\n' + who + '\n' + brand + (phone ? ('\n' + phone) : '') + '\n\nThis is an estimate, not an appraisal or an offer. ' + brand + ' connects restaurant owners with qualified buyers; we are not a buyer.';
+  const html = '<!doctype html><html><body style="margin:0;padding:24px 14px;background:#f5f6f2;font-family:Arial,Helvetica,sans-serif;color:#1c2620">'
+    + '<table role="presentation" width="100%"><tr><td align="center"><table role="presentation" width="560" style="max-width:560px;width:100%;background:#fff;border:1px solid #d9ded5;border-radius:8px">'
+    + '<tr><td style="padding:26px 28px 8px;font-size:15.5px;line-height:1.6">'
+    + '<p style="margin:0 0 14px">Hi ' + E(d.firstName) + ',</p>'
+    + (est.asset ? '' : '<p style="margin:0 0 6px;font-size:13px;color:#5d6b62">Estimated value range</p><p style="margin:0 0 16px;font-size:30px;font-weight:800;color:#b3261e">' + E(k(est.low)) + ' – ' + E(k(est.high)) + '</p>')
+    + paras.map(x => '<p style="margin:0 0 14px">' + E(x) + '</p>').join('')
+    + '<p style="margin:0 0 18px">' + E(close) + '</p>'
+    + '<p style="margin:0 0 4px;font-weight:700">' + E(who) + '</p><p style="margin:0;color:#5d6b62">' + E(brand) + (phone ? (' · ' + E(phone)) : '') + '</p>'
+    + '</td></tr><tr><td style="padding:16px 28px 22px;font-size:12px;color:#5d6b62;line-height:1.5;border-top:1px solid #eef0ea">This is an estimate, not an appraisal or an offer. ' + E(brand) + ' connects restaurant owners with qualified buyers; we are not a buyer.</td></tr>'
+    + '</table></td></tr></table></body></html>';
+  const from = String(process.env.SELL_SITE_FROM || '').trim() || mailFromAs(who + ' · ' + brand);
+  return sendMailWL({ from: from, to: d.email, replyTo: owner.email || undefined, subject: subject, text: text, html: html });
+}
 const _sellHits = new Map();
 app.post('/api/sell/lead', express.json({ limit: '32kb' }), async (req, res) => {
   try {
@@ -8346,7 +8380,8 @@ app.post('/api/sell/lead', express.json({ limit: '32kb' }), async (req, res) => 
     const est = _sellEstimate(d);
     // Who works the lead: SELL_SITE_OWNER (a username), else the first admin.
     const users = (auth.loadUsers() || []).filter(u => !u.disabled);
-    const owner = users.find(u => u.username === String(process.env.SELL_SITE_OWNER || '').trim()) || users.find(u => isSuper(u)) || users[0] || {};
+    let owner = users.find(u => u.username === String(process.env.SELL_SITE_OWNER || '').trim()) || users.find(u => isSuper(u)) || users[0] || {};
+    try { const _pr = (auth.profileOf && auth.profileOf(owner)) || {}; owner = Object.assign({}, owner, { name: owner.name || _pr.name || '', email: owner.email || _pr.email || '', phone: owner.phone || _pr.phone || '' }); } catch (e) {}
     const actor = { user: { name: owner.name || owner.username || 'Website', username: owner.username || '' } };
     const k = n => n >= 1e6 ? ('$' + (n / 1e6).toFixed(2).replace(/0$/, '') + 'M') : ('$' + Math.round(n / 1e3) + 'K');
     const grade = est.asset ? 'C' : ((est.sde >= 150000 && d.trend !== 'down') ? 'A' : 'B');
@@ -8382,8 +8417,18 @@ app.post('/api/sell/lead', express.json({ limit: '32kb' }), async (req, res) => 
     try { let leads = loadWebsiteLeads(); leads.unshift({ id: newInquiryId(), name: (d.firstName + ' ' + d.lastName).trim(), email: d.email, phone: d.phone, interest: 'Sell my restaurant (' + grade + ')', message: summary, source: 'Seller site', createdAt: new Date().toISOString(), handled: false }); saveWebsiteLeads(leads.slice(0, 5000)); } catch (e) {}
     try {
       const to = owner.email || mailFrom();
-      if (to && isEmailConfigured()) sendNotifyMail(to, 'New seller lead (' + grade + '): ' + (d.business || d.firstName + ' ' + d.lastName) + ' — ' + range, summary + '\n\n' + d.firstName + ' ' + d.lastName + '\n' + d.phone + '\n' + d.email + '\n\nCall within one business day — the site promised it.', null).catch(() => {});
+      if (to && isEmailConfigured()) sendNotifyMail(to, 'New seller lead (' + grade + '): ' + (d.business || d.firstName + ' ' + d.lastName) + ' — ' + range, summary + '\n\n' + d.firstName + ' ' + d.lastName + '\n' + d.phone + '\n' + d.email + '\n\nCall now — the first five minutes matter most.', null).catch(() => {});
     } catch (e) {}
+    // Text the lead to whoever works it (their phone on their user profile) and any extra numbers in SELL_SITE_ALERT_PHONES.
+    try {
+      if (isSmsConfigured()) {
+        const nums = [owner.phone].concat(String(process.env.SELL_SITE_ALERT_PHONES || '').split(/[\s,;]+/)).map(x => String(x || '').trim()).filter(Boolean);
+        const sms = 'Seller lead (' + grade + '): ' + (d.business || 'restaurant') + ', ' + (d.market || 'TX') + ' · ' + k(d.sales) + ' sales · ' + range + '. ' + d.firstName + ' ' + d.lastName + ' ' + d.phone + '. Call now.';
+        Array.from(new Set(nums)).forEach(n => { sendSms(n, sms.slice(0, 320)).catch(() => {}); });
+      }
+    } catch (e) {}
+    // The page promises to send the owner their range — send it, from the person who will call them.
+    try { if (isEmailConfigured()) _sellOwnerEmail(d, est, owner, k).catch(() => {}); } catch (e) {}
     res.json({ ok: true, estimate: est });
   } catch (e) { console.error('sell lead:', e && e.message); res.status(500).json({ ok: false, error: 'Something went wrong on our end. Call or try again shortly.' }); }
 });
