@@ -42,6 +42,9 @@ h1{font-size:30px;font-weight:700;margin:0;letter-spacing:-.01em;}
 .tile .l{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:800;margin-top:2px;}
 .bone{display:inline-block;font-size:10.5px;font-weight:700;color:#3a4c74;background:#eef2fb;border:1px solid #dbe4f5;border-radius:6px;padding:1px 7px;margin:1px 3px 1px 0;white-space:nowrap;}
 .spname{color:var(--navy);text-decoration:none;font-weight:600;}
+.spcell{display:flex;align-items:center;gap:10px;}
+.spthumb{width:44px;height:34px;object-fit:cover;border-radius:5px;border:1px solid #e5e9f0;flex:0 0 auto;background:#f1f3f7;display:block;}
+.spthumb0{display:inline-block;}
 .meta{color:var(--muted);font-size:11.5px;}
 .empty{color:var(--muted);font-size:13.5px;padding:26px 4px;text-align:center;}
 /* modal */
@@ -182,7 +185,7 @@ h1{font-size:30px;font-weight:700;margin:0;letter-spacing:-.01em;}
     </div>
     <div class="msg" id="au_status" style="margin-top:12px;color:var(--muted)"></div>
   </div>
-  <div class="mf"><button class="btn primary" id="au_save">Save</button><button class="btn" id="au_scan">⟳ Scan now</button><span class="msg" id="au_msg"></span></div>
+  <div class="mf"><button class="btn primary" id="au_save">Save</button><button class="btn" id="au_scan">⟳ Scan now</button><button class="btn" id="au_media" title="Re-open each imported email and pull up to 2 photos and the brochure PDF onto the space">📷 Get photos &amp; brochures</button><span class="msg" id="au_msg"></span></div>
 </div></div>
 <div class="ov" id="revOv" hidden><div class="modal" style="max-width:680px">
   <div class="mh"><b>⚑ Brochures needing review</b><button class="x" id="revX">✕</button></div>
@@ -259,7 +262,7 @@ function draw(){
     bulk:[{ label:'⬇ Market survey PDF', fn:function(ids,done){ surveyDl(ids,done); } }].concat(IS_ADMIN?[{ label:'⇄ Merge duplicates', fn:function(ids,done){ mergeOpen(ids,done); } }]:[]),
     onRowClick:function(id){ var sp=SPACES.filter(function(s){return s.id===id;})[0]; if(sp) openForm(sp); },
     columns:[
-      { label:'Space', filterable:false, sort:function(a,b){ return RRGList.cmp(a.name||a.address,b.name||b.address); }, cell:function(sp){ var t=esc(sp.name||sp.address||'Untitled space'); var sub=[ (sp.name?sp.address:'') ].filter(Boolean).map(esc).join(' · '); var head='<a class="spname" href="./rrg_space.html?id='+encodeURIComponent(sp.id)+'">'+t+'</a>'+(sp.url?(' <a href="'+esc(sp.url)+'" target="_blank" rel="noopener" title="Original listing" style="font-size:11px;color:#8a93a8;text-decoration:none">↗</a>'):''); return '<div>'+head+'</div>'+(sub?('<div class="meta">'+sub+'</div>'):''); } },
+      { label:'Space', filterable:false, sort:function(a,b){ return RRGList.cmp(a.name||a.address,b.name||b.address); }, cell:function(sp){ var _ph=(sp.files||[]).filter(function(f){return f.kind==='photo';})[0]; var _th=_ph?('<img class="spthumb" loading="lazy" src="/api/space-file/'+encodeURIComponent(sp.id)+'/'+encodeURIComponent(_ph.id)+'" alt="">'):'<span class="spthumb spthumb0"></span>'; var t=esc(sp.name||sp.address||'Untitled space'); var sub=[ (sp.name?sp.address:'') ].filter(Boolean).map(esc).join(' · '); var head='<a class="spname" href="./rrg_space.html?id='+encodeURIComponent(sp.id)+'">'+t+'</a>'+(sp.url?(' <a href="'+esc(sp.url)+'" target="_blank" rel="noopener" title="Original listing" style="font-size:11px;color:#8a93a8;text-decoration:none">↗</a>'):''); return '<div class="spcell">'+_th+'<div style="min-width:0"><div>'+head+'</div>'+(sub?('<div class="meta">'+sub+'</div>'):'')+'</div></div>'; } },
       { label:'Shopping center', filterVal:function(sp){ return sp.center||''; }, sort:function(a,b){ return RRGList.cmp(a.center,b.center); }, cell:function(sp){ return sp.center?esc(sp.center):'<span class="meta">—</span>'; } },
       { label:'Market', filterVal:function(sp){ return sp.market||''; }, sort:function(a,b){ return RRGList.cmp(a.market,b.market); }, cell:function(sp){ return sp.market?esc(sp.market):'<span class="meta">—</span>'; } },
       { label:'Type', filterVal:function(sp){ return sp.spaceType||''; }, sort:function(a,b){ return RRGList.cmp(a.spaceType,b.spaceType); }, cell:function(sp){ return sp.spaceType?esc(sp.spaceType):'<span class="meta">—</span>'; } },
@@ -427,6 +430,20 @@ document.addEventListener('click',function(e){ if(!e.target.closest) return;
   var dis=e.target.closest('.rvdismiss'); if(dis){ var card2=dis.closest('.revcard'); if(!card2) return; var rid2=card2.getAttribute('data-rid'); fetch('/api/spaces/review/'+encodeURIComponent(rid2)+'/dismiss',{method:'POST',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(){ renderReviewList(); loadReviewCount(); }); return; }
   var _rov=document.getElementById('revOv'); if(_rov&&e.target===_rov){ closeReview(); }
 });
+// Backfill: pull photos + brochures onto spaces already imported from email (safe to re-run; picks up where it stopped).
+function mediaFill(){
+  var msg=document.getElementById('au_msg'); var btn=document.getElementById('au_media'); if(btn) btn.disabled=true;
+  var orb=window.rrgAiWork; if(orb&&orb.show) orb.show('Pulling photos and brochures from your listing emails…'); if(msg) msg.textContent='';
+  var es; try{ es=new EventSource('/api/spaces/media-backfill-stream'); }catch(e){ if(btn)btn.disabled=false; if(orb&&orb.hide)orb.hide(); if(msg)msg.textContent='Could not start.'; return; }
+  function fin(t){ try{es.close();}catch(_){} if(btn) btn.disabled=false; if(msg) msg.textContent=t||''; }
+  es.onmessage=function(ev){ var d; try{ d=JSON.parse(ev.data); }catch(_){ return; }
+    if(d.phase==='listed'){ if(!d.total){ if(orb&&orb.hide) orb.hide(); fin('Every imported space has already been checked.'); return; } if(orb&&orb.setMsg) orb.setMsg('Checking '+d.total+' space'+(d.total===1?'':'s')+'…'); }
+    else if(d.phase==='item'){ var m=d.photos+' photo'+(d.photos===1?'':'s')+' · '+d.brochures+' brochure'+(d.brochures===1?'':'s')+' · '+d.done+' of '+d.total; if(orb&&orb.progress) orb.progress(d.done,d.total,{msg:m}); else if(orb&&orb.setMsg) orb.setMsg(m); }
+    else if(d.phase==='done'){ var sum='Added '+d.photos+' photo'+(d.photos===1?'':'s')+' and '+d.brochures+' brochure'+(d.brochures===1?'':'s')+' to '+d.touched+' space'+(d.touched===1?'':'s')+'.'; if(orb&&orb.done) orb.done({msg:sum}); else if(orb&&orb.hide) orb.hide(); fin(sum); load(); }
+    else if(d.phase==='error'){ if(orb&&orb.hide) orb.hide(); fin(d.error||'Failed.'); }
+  };
+  es.onerror=function(){ if(orb&&orb.hide) orb.hide(); fin('Connection dropped — it keeps running on the server. Click again in a few minutes to finish the rest.'); };
+}
 function scanNow(){
   var days=parseInt((document.getElementById('au_days')||{}).value,10)||30;
   var msg=document.getElementById('au_msg'); var btn=document.getElementById('au_scan'); if(btn) btn.disabled=true;
@@ -442,7 +459,7 @@ function scanNow(){
   };
   es.onerror=function(){ if(orb&&orb.hide) orb.hide(); fin((msg&&msg.textContent)?msg.textContent:'Connection interrupted — try again.'); };
 }
-document.addEventListener('click',function(e){ if(e.target.closest&&e.target.closest('#autoBtn')){ openAuto(); return; } if(e.target.closest&&e.target.closest('#autoX')){ closeAuto(); return; } if(e.target.closest&&e.target.closest('#au_save')){ saveAutoCfg(); return; } if(e.target.closest&&e.target.closest('#au_scan')){ scanNow(); return; } var _ov=document.getElementById('autoOv'); if(_ov&&e.target===_ov){ closeAuto(); } });
+document.addEventListener('click',function(e){ if(e.target.closest&&e.target.closest('#autoBtn')){ openAuto(); return; } if(e.target.closest&&e.target.closest('#autoX')){ closeAuto(); return; } if(e.target.closest&&e.target.closest('#au_save')){ saveAutoCfg(); return; } if(e.target.closest&&e.target.closest('#au_scan')){ scanNow(); return; } if(e.target.closest&&e.target.closest('#au_media')){ mediaFill(); return; } var _ov=document.getElementById('autoOv'); if(_ov&&e.target===_ov){ closeAuto(); } });
 function load(){
   fetch('/api/session',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(s){ IS_ADMIN=!!(s&&(s.role==='admin'||s.role==='creator')); }).catch(function(){}).then(function(){
     fetch('/api/spaces',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){

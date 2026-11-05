@@ -18,6 +18,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .spacts{display:flex;gap:8px;flex-wrap:wrap;}
 .btn{font:inherit;font-size:12.5px;font-weight:700;border:1px solid #cfd6e2;background:#fff;color:var(--navy);border-radius:8px;padding:8px 13px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;}
 .btn:hover{border-color:#9fb0cc;} .btn.pri{background:var(--navy);color:#fff;border-color:var(--navy);} .btn.sm{padding:5px 10px;font-size:12px;} .btn[disabled]{opacity:.55;cursor:default;}
+.media{display:flex;gap:10px;align-items:stretch;flex-wrap:wrap;margin-bottom:14px;}
+.media .mph{flex:1 1 260px;max-width:420px;height:220px;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#f1f3f7;display:block;}
+.media .mph img{width:100%;height:100%;object-fit:cover;display:block;}
+.media .mph0{display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;height:120px;}
+.media .mdocs{display:flex;flex-direction:column;gap:8px;justify-content:center;min-width:200px;}
+.media .mdocs .btn{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:14px;}
 .kpi{background:#fff;padding:13px 16px;} .kpi .n{font-size:20px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums;} .kpi .l{font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:2px;}
 .kpi .n.g{color:var(--green);}
@@ -98,6 +104,11 @@ function render(){
   var deg=Math.round(3.6*rd.score); var gc=rd.score>=70?'#1f8a5b':(rd.score>=40?'#e0a53a':'#c0392b');
   var h='<div class="hd"><div><div class="kick">Space Tracker</div><h1>'+esc(sp.center||sp.address||'Space')+(sp.name?(' · '+esc(sp.name)):'')+'</h1><div class="sub">'+esc([sp.address,sp.market,sp.spaceType,sp.condition].filter(Boolean).join(' · '))+'</div><div class="flags">'+flags+'</div></div>'
     +'<div class="spacts"><a class="btn" href="./rrg_space_tracker.html">← Spaces</a><a class="btn" href="./rrg_space_tracker.html?edit='+encodeURIComponent(sp.id)+'">Edit details</a><a class="btn" href="./rrg_site_fit.html?space='+encodeURIComponent(sp.id)+'" title="Score this space for a concept — Site Fit">✚ Run Fit</a><button class="btn pri" id="surveyBtn">⬇ Survey PDF</button></div></div>';
+  // Photos + brochure, pulled from the listing email (or added by hand on Edit details).
+  var _fs=(sp.files||[]), _phs=_fs.filter(function(f){return f.kind==='photo';}), _pdfs=_fs.filter(function(f){return f.ext==='pdf';});
+  var _fu=function(f){ return '/api/space-file/'+encodeURIComponent(sp.id)+'/'+encodeURIComponent(f.id); };
+  h+='<div class="media">'+(_phs.length?_phs.slice(0,3).map(function(f){ return '<a class="mph" href="'+_fu(f)+'" target="_blank" rel="noopener"><img src="'+_fu(f)+'" alt="'+esc(f.name)+'"></a>'; }).join(''):'<div class="mph mph0">No photos yet — <a href="./rrg_space_tracker.html?edit='+encodeURIComponent(sp.id)+'">add one</a></div>')
+    +'<div class="mdocs">'+(_pdfs.length?_pdfs.map(function(f){ return '<a class="btn" href="'+_fu(f)+'" target="_blank" rel="noopener">📄 '+esc(/brochure|flyer/i.test(f.name)?f.name:('Brochure · '+f.name))+'</a>'; }).join(''):'<span class="muted" style="font-size:12.5px">No brochure on file.</span>')+'</div></div>';
   h+='<div class="kpis"><div class="kpi"><div class="n">'+(n(sp.size)!=null?n(sp.size).toLocaleString('en-US'):'—')+'</div><div class="l">Square feet</div></div><div class="kpi"><div class="n">'+money(sp.rent)+'</div><div class="l">Base $/SF/yr</div></div><div class="kpi"><div class="n">'+money(sp.nnn)+'</div><div class="l">NNN $/SF/yr</div></div><div class="kpi"><div class="n">'+(g?('$'+g.toFixed(2)):'—')+'</div><div class="l">Gross $/SF/yr</div></div><div class="kpi"><div class="n">'+(rd.characterized?rd.score:'—')+'</div><div class="l">Restaurant-ready</div></div><div class="kpi"><div class="n g">'+(rd.savesHi?(k(rd.savesLo)+'–'+k(rd.savesHi)):'—')+'</div><div class="l">Build-out avoided (est.)</div></div></div>';
   h+='<div class="cols"><div>';
   // Restaurant-ready

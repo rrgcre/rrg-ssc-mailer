@@ -340,6 +340,26 @@ function parseAddrs(str) {
   return out;
 }
 // Walk a message payload and collect downloadable file attachments.
+// The raw HTML part of a message ('' when it has none) — listing blasts carry their photos and brochure links here.
+function htmlBodyOf(payload) {
+  function walk(part) {
+    if (!part) return '';
+    if (part.mimeType === 'text/html' && part.body && part.body.data) return Buffer.from(part.body.data, 'base64url').toString('utf8');
+    if (part.parts) { for (const p of part.parts) { const t = walk(p); if (t) return t; } }
+    return '';
+  }
+  try { return walk(payload).slice(0, 600000); } catch (e) { return ''; }
+}
+// Image parts (attached or inline), biggest first. Logos and signature icons are small; property photos aren't.
+function collectImages(payload) {
+  const out = [];
+  (function walk(part) {
+    if (!part) return;
+    if (/^image\//i.test(part.mimeType || '') && part.body && part.body.attachmentId) out.push({ filename: part.filename || ('photo.' + String(part.mimeType).split('/')[1]), attachmentId: part.body.attachmentId, mimeType: part.mimeType || '', size: (part.body && part.body.size) || 0 });
+    if (part.parts) part.parts.forEach(walk);
+  })(payload);
+  return out.sort((a, b) => b.size - a.size);
+}
 function collectAttachments(payload) {
   const out = [];
   (function walk(part) {
@@ -479,7 +499,7 @@ async function getListingCandidate(username, id) {
     if (!mr.ok) return null;
     const H = mj.payload && mj.payload.headers;
     const atts = collectAttachments(mj.payload).filter(a => /\.(pdf|docx?)$/i.test(a.filename));
-    return { id: mj.id, from: hdr(H, 'From'), subject: hdr(H, 'Subject'), date: hdr(H, 'Date') || '', ts: mj.internalDate ? Number(mj.internalDate) : 0, snippet: mj.snippet || '', body: (decodeBody(mj.payload) || ''), attachments: atts };
+    return { id: mj.id, from: hdr(H, 'From'), subject: hdr(H, 'Subject'), date: hdr(H, 'Date') || '', ts: mj.internalDate ? Number(mj.internalDate) : 0, snippet: mj.snippet || '', body: (decodeBody(mj.payload) || ''), attachments: atts, html: htmlBodyOf(mj.payload), images: collectImages(mj.payload) };
   } catch (e) { return null; }
 }
 // Back-compat: up to `max` candidates, fetched in full, newest first.

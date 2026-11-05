@@ -17946,6 +17946,100 @@ function _addrKey(a) {
   s = s.replace(/\b(st|ave|blvd|rd|dr|hwy|pkwy|ln)\b(?=\s+ste\b|$)/g, '').replace(/\s+/g, ' ').trim();
   return s;
 }
+// ---- Photos + brochure for spaces imported from listing emails ----
+// Broker blasts carry the property photos inline (attached or hosted) and usually LINK the brochure rather than attach it.
+function _okRemoteUrl(u) { try { const x = new URL(u); if (!/^https?:$/.test(x.protocol)) return false; const h = x.hostname.toLowerCase(); if (h === 'localhost' || h === '[::1]' || /^(127\.|10\.|192\.168\.|169\.254\.|0\.)/.test(h) || /^172\.(1[6-9]|2\d|3[01])\./.test(h) || h.endsWith('.local') || h.endsWith('.internal')) return false; return true; } catch (e) { return false; } }
+async function _fetchBuf(u, maxBytes, ms) {
+  if (!_okRemoteUrl(u)) return null;
+  const ac = new AbortController(); const t = setTimeout(() => ac.abort(), ms || 10000);
+  try {
+    const r = await fetch(u, { redirect: 'follow', signal: ac.signal, headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Lavano listing import)' } });
+    if (!r.ok || !_okRemoteUrl(r.url || u)) return null;
+    const len = parseInt(r.headers.get('content-length') || '0', 10); if (len && len > maxBytes) return null;
+    const ab = await r.arrayBuffer(); if (ab.byteLength > maxBytes) return null;
+    return { buf: Buffer.from(ab), type: String(r.headers.get('content-type') || '').toLowerCase(), url: r.url || u, disp: String(r.headers.get('content-disposition') || '') };
+  } catch (e) { return null; } finally { clearTimeout(t); }
+}
+const _IMG_SKIP = /(logo|icon|spacer|space\.gif|pixel|track|beacon|\/tp\/t\/|web-analytics|previewing|social|facebook|linkedin|twitter|instagram|youtube|tiktok|signature|badge|button|btn_|arrow|divider|footer|unsubscribe|avatar|headshot|qr[-_]?code)/i;
+function _htmlDecode(s) { return String(s || '').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>'); }
+function _emailImgUrls(html) {
+  const out = []; const seen = {};
+  String(html || '').replace(/<img\b[^>]*>/gi, function (tag) {
+    const m = tag.match(/\bsrc\s*=\s*["']([^"']+)["']/i); if (!m) return tag;
+    const src = _htmlDecode(m[1]).trim(); if (!/^https?:\/\//i.test(src) || seen[src]) return tag;
+    const w = parseInt((tag.match(/\bwidth\s*=\s*["']?(\d+)/i) || [])[1] || '0', 10), h = parseInt((tag.match(/\bheight\s*=\s*["']?(\d+)/i) || [])[1] || '0', 10);
+    if ((w && w < 220) || (h && h < 140) || /display\s*:\s*none/i.test(tag)) return tag;
+    const alt = (tag.match(/\balt\s*=\s*["']([^"']*)["']/i) || [])[1] || '';
+    if (_IMG_SKIP.test(src) || _IMG_SKIP.test(alt)) return tag;
+    seen[src] = 1; out.push(src); return tag;
+  });
+  return out.slice(0, 10);
+}
+function _emailPdfLinks(html) {
+  const out = []; const seen = {};
+  String(html || '').replace(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi, function (all, attrs, inner) {
+    const m = attrs.match(/\bhref\s*=\s*["']([^"']+)["']/i); if (!m) return all;
+    const href = _htmlDecode(m[1]).trim(); if (!/^https?:\/\//i.test(href) || seen[href]) return all;
+    const txt = String(inner).replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+    let score = 0;
+    if (/\.pdf(\?|#|$)/i.test(href)) score += 3;
+    if (/(brochure|flyer|flier|marketing (package|flyer)|offering memo|\bOM\b|property (info|details|package)|download|view (the )?(pdf|flyer|brochure)|leasing (package|brochure)|more info)/i.test(txt)) score += 2;
+    if (/(buildout\.com|crexi\.com|loopnet\.com|catylist|brochure|flyer)/i.test(href)) score += 1;
+    // Never our own documents (the IABS link in RRG signatures) or social / unsubscribe links.
+    if (/(unsubscribe|optout|opt-out|preferences|privacy|facebook|linkedin|twitter|instagram|youtube|mailto:|tel:|iabs|information about brokerage|rrgcre\.com)/i.test(href + ' ' + txt)) score = 0;
+    if (score >= 2) { seen[href] = 1; out.push({ href, score }); }
+    return all;
+  });
+  return out.sort((a, b) => b.score - a.score).slice(0, 4).map(x => x.href);
+}
+function _photoName(name, mime, i) { let n = String(name || '').replace(/[^\w.\- ]+/g, '').slice(0, 80); const ext = ((String(mime || '').match(/(jpe?g|png|webp|gif)/i) || [])[1] || (n.match(/\.(jpe?g|png|webp|gif)$/i) || [])[1] || 'jpg').toLowerCase().replace('jpeg', 'jpg'); if (!/\.(jpe?g|png|webp|gif)$/i.test(n) || n.length < 6) n = 'Photo ' + (i + 1) + '.' + ext; return n; }
+// Up to 2 photos and (when none is attached) one linked brochure PDF from a listing email. Never throws.
+async function _listingMediaFromEmail(username, c, haveBrochure) {
+  const photos = []; let brochure = null;
+  try {
+    for (const im of (c.images || [])) {
+      if (photos.length >= 2) break;
+      if ((im.size || 0) < 25000 || _IMG_SKIP.test(im.filename || '')) continue;
+      try { const buf = await gmail.getAttachment(username, c.id, im.attachmentId); if (buf && buf.length >= 25000) photos.push({ filename: _photoName(im.filename, im.mimeType, photos.length), buf }); } catch (e) {}
+    }
+    if (photos.length < 2) {
+      for (const u of _emailImgUrls(c.html)) {
+        if (photos.length >= 2) break;
+        const r = await _fetchBuf(u, 12 * 1024 * 1024, 8000);
+        if (!r || !/^image\/(jpe?g|png|webp|gif)/.test(r.type) || r.buf.length < 25000) continue;
+        photos.push({ filename: _photoName(decodeURIComponent(u.split('?')[0].split('/').pop() || ''), r.type, photos.length), buf: r.buf });
+      }
+    }
+    if (!haveBrochure) {
+      for (const u of _emailPdfLinks(c.html)) {
+        const r = await _fetchBuf(u, 20 * 1024 * 1024, 12000);
+        if (!r || !r.buf || r.buf.length < 1000) continue;
+        if (!(/application\/pdf/.test(r.type) || r.buf.slice(0, 4).toString() === '%PDF')) continue;
+        let nm = ''; try { nm = (r.disp.match(/filename\*?=(?:UTF-8'')?["']?([^"';]+)/i) || [])[1] || decodeURIComponent(String(r.url).split('?')[0].split('/').pop() || ''); } catch (e) {}
+        if (!/\.pdf$/i.test(nm)) nm = 'Brochure.pdf';
+        brochure = { filename: nm.slice(0, 120), buf: r.buf }; break;
+      }
+    }
+  } catch (e) {}
+  return { photos, brochure };
+}
+// Store what _listingMediaFromEmail found on a space: the brochure if it has none, photos up to 2, and — when
+// the email had no usable photo — the brochure's cover page as the photo. Returns { photos, brochures } added.
+async function _addSpaceMedia(sp, media, byName) {
+  const out = { photos: 0, brochures: 0 };
+  try {
+    sp.files = Array.isArray(sp.files) ? sp.files : [];
+    if (media && media.brochure && !sp.files.some(f => f.ext === 'pdf')) { if (_storeSpaceBrochure(sp, media.brochure.filename, media.brochure.buf, byName)) out.brochures++; }
+    let want = 2 - sp.files.filter(f => f.kind === 'photo').length;
+    for (const ph of ((media && media.photos) || [])) { if (want <= 0) break; if (_storeSpaceBrochure(sp, ph.filename, ph.buf, byName)) { out.photos++; want--; } }
+    if (!sp.files.some(f => f.kind === 'photo')) {
+      const pf = sp.files.find(f => f.ext === 'pdf');
+      let buf = null; if (pf) { try { buf = fs.readFileSync(path.join(SPACEFILES_DIR, sp.id + '_' + pf.id + '.pdf')); } catch (e) {} }
+      if (buf) { const png = await _pdfFirstPagePng(buf); if (png && png.length && _storeSpaceBrochure(sp, 'Brochure cover.png', png, byName)) out.photos++; }
+    }
+  } catch (e) {}
+  return out;
+}
 async function _scanSpacesForUser(username, byName, days, skipIds, onProgress, opts) {
   if (!gmail.statusFor(username).connected) return { ok: false, error: 'Gmail not connected', created: 0, scanned: 0, results: [], processedIds: [] };
   const skip = new Set(Array.isArray(skipIds) ? skipIds : []);
@@ -17985,6 +18079,10 @@ async function _scanSpacesForUser(username, byName, days, skipIds, onProgress, o
     for (const a of pdfs) {
       try { const buf = await gmail.getAttachment(username, c.id, a.attachmentId); if (buf && buf.length) { pdfBufs.push({ filename: a.filename, buf }); const t = String(await extractQuestionnaireText(a.filename, buf.toString('base64')) || ''); if (t) text += '\n\n' + t.slice(0, 20000); } } catch (e) {}
     }
+    // Photos, and the brochure when it's linked instead of attached (then the AI reads that brochure too).
+    let media = { photos: [], brochure: null };
+    try { media = await _listingMediaFromEmail(username, c, pdfBufs.some(x => /\.pdf$/i.test(x.filename))); } catch (e) {}
+    if (media.brochure) { pdfBufs.push(media.brochure); try { const t = String(await extractQuestionnaireText(media.brochure.filename, media.brochure.buf.toString('base64')) || ''); if (t) text += '\n\n' + t.slice(0, 20000); } catch (e) {} }
     const bro = pdfBufs.filter(x => /\.pdf$/i.test(x.filename))[0] || pdfBufs[0];
     const hasAttach = pdfBufs.length > 0;
     if (!text.trim() && !hasAttach) return { c, done: null };
@@ -17995,17 +18093,19 @@ async function _scanSpacesForUser(username, byName, days, skipIds, onProgress, o
       try { fd = await aiassist.parseSpaceListingDoc({ pdfB64: _broPdf.buf.toString('base64'), text: text.slice(0, 8000), types: SPACE_TYPES, features: SPACE_FEATURES, centerTypes: CENTER_TYPES }); } catch (e) { fd = null; }
     }
     if ((!fd || (!fd.address && fd.size == null)) && text.trim()) { try { fd = await aiassist.parseSpaceListing({ text: text.slice(0, 60000), types: SPACE_TYPES, features: SPACE_FEATURES, centerTypes: CENTER_TYPES }); } catch (e) { /* keep fd */ } }
-    return { c, text, bro, hasAttach, fd };
+    return { c, text, bro, hasAttach, fd, media };
   }
   // STEP 2 (one at a time, in a queue): de-dupe by address, create the space / center, or route to review.
   async function _commit(p) {
-    const { c, text, bro, hasAttach, fd } = p;
+    const { c, text, bro, hasAttach, fd, media } = p;
     const key = fd ? _addrKey(fd.address) : '';
     if ((key && seen.has(key)) || arr.some(x => x.source === ('email:' + c.id))) { const _ex = arr.find(x => x.source === ('email:' + c.id)) || (key ? arr.find(x => _addrKey(x.address) === key) : null); results.push({ ok: false, msgId: c.id, spaceId: (_ex && _ex.id) || '', address: (_ex && (_ex.address || _ex.name)) || '', subject: c.subject || '', reason: 'already in system' }); return; }
     if (fd && fd.address) {
       const sp = _spaceFromFields(fd, actor, { source: 'email:' + c.id });
       let fileName = '';
       if (bro) { const fid = _storeSpaceBrochure(sp, bro.filename, bro.buf, byName); if (fid) fileName = bro.filename; }
+      try { await _addSpaceMedia(sp, { photos: (media && media.photos) || [], brochure: null }, byName); } catch (e) {}
+      sp.mediaCheckedAt = new Date().toISOString();
       if (fd.center && String(fd.center).trim()) {
         const _cn = String(fd.center).trim().toLowerCase();
         let ctr = centers.find(x => String(x.name || '').trim().toLowerCase() === _cn);
@@ -18108,6 +18208,58 @@ app.post('/api/spaces/review/:id/dismiss', (req, res) => {
   all.splice(i, 1); saveSpaceReview(all); res.json({ ok: true });
 });
 // Streaming version of the manual scan — emits live progress so the UI can count as it imports.
+// Backfill photos + brochures onto spaces already imported from email: re-open each space's source email and pull
+// its photos and (linked or attached) brochure. Streams progress; resumable — a space is checked once unless ?all=1.
+let _mediaFillRunning = {};
+app.get('/api/spaces/media-backfill-stream', async (req, res) => {
+  const u = (req.user && req.user.username) || ''; const byName = (req.user && req.user.name) || u;
+  res.setHeader('Content-Type', 'text/event-stream'); res.setHeader('Cache-Control', 'no-store'); res.setHeader('Connection', 'keep-alive');
+  try { res.flushHeaders && res.flushHeaders(); } catch (e) {}
+  const send = (o) => { try { res.write('data: ' + JSON.stringify(o) + '\n\n'); } catch (e) {} };
+  if (!gmail.statusFor(u).connected) { send({ phase: 'error', error: 'Connect your Gmail first on the Account page.' }); return res.end(); }
+  if (_mediaFillRunning[u]) { send({ phase: 'error', error: 'Already running — give it a few minutes.' }); return res.end(); }
+  _mediaFillRunning[u] = true;
+  const all = req.query.all === '1';
+  try {
+    const list = loadSpaces().filter(sp => /^email:/.test(String(sp.source || '')) && (!sp.byUser || sp.byUser === u)
+      && (all || !sp.mediaCheckedAt)
+      && !((sp.files || []).some(f => f.kind === 'photo') && (sp.files || []).some(f => f.ext === 'pdf')));
+    const total = list.length; let done = 0, photos = 0, brochures = 0, touched = 0;
+    send({ phase: 'listed', total });
+    const pending = {}; // space id -> { files: [...new], checkedAt }
+    const flush = () => {
+      const ids = Object.keys(pending); if (!ids.length) return;
+      const arr = loadSpaces();
+      ids.forEach(id => { const sp = arr.find(x => x.id === id); const pd = pending[id]; if (!sp) return; sp.files = Array.isArray(sp.files) ? sp.files : []; pd.files.forEach(f => { if (!sp.files.some(x => x.id === f.id)) sp.files.push(f); }); sp.mediaCheckedAt = pd.at; if (pd.files.length) sp.updatedAt = pd.at; });
+      saveSpaces(arr); Object.keys(pending).forEach(k => delete pending[k]);
+    };
+    let next = 0;
+    async function worker() {
+      while (next < list.length) {
+        const sp0 = list[next++];
+        const tmp = { id: sp0.id, files: (sp0.files || []).slice() }; const before = tmp.files.length;
+        try {
+          const c = await gmail.getListingCandidate(u, String(sp0.source).slice(6));
+          if (c) {
+            let haveBro = tmp.files.some(f => f.ext === 'pdf');
+            const media = await _listingMediaFromEmail(u, c, haveBro);
+            if (!haveBro && !media.brochure) { const a = (c.attachments || []).find(x => /\.pdf$/i.test(x.filename)); if (a) { try { const buf = await gmail.getAttachment(u, c.id, a.attachmentId); if (buf && buf.length) media.brochure = { filename: a.filename, buf }; } catch (e) {} } }
+            const r = await _addSpaceMedia(tmp, media, byName); photos += r.photos; brochures += r.brochures;
+          }
+        } catch (e) {}
+        const added = tmp.files.slice(before); if (added.length) touched++;
+        pending[sp0.id] = { files: added, at: new Date().toISOString() };
+        done++; if (done % 10 === 0) { try { flush(); } catch (e) {} }
+        send({ phase: 'item', total, done, photos, brochures });
+      }
+    }
+    await Promise.all(Array.from({ length: Math.max(1, Math.min(4, list.length)) }, () => worker()));
+    try { flush(); } catch (e) {}
+    send({ phase: 'done', total, photos, brochures, touched });
+  } catch (e) { send({ phase: 'error', error: String((e && e.message) || e) }); }
+  finally { delete _mediaFillRunning[u]; }
+  res.end();
+});
 app.get('/api/spaces/ai-email-scan-stream', async (req, res) => {
   const u = (req.user && req.user.username) || '';
   res.setHeader('Content-Type', 'text/event-stream'); res.setHeader('Cache-Control', 'no-store'); res.setHeader('Connection', 'keep-alive');
