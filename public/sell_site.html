@@ -274,6 +274,14 @@ footer a{color:#fff}
   var $=function(id){return document.getElementById(id);};
   $('yr').textContent=new Date().getFullYear();
   var VARIANT=document.body.getAttribute('data-variant')||'groups';
+  // Remember where the visitor came from (Google Ads click id, UTM tags, referring site) for the lead record.
+  try{ var _q=new URLSearchParams(location.search), _a={}; ['gclid','utm_source','utm_medium','utm_campaign','utm_term','utm_content'].forEach(function(k){ var v=_q.get(k); if(v) _a[k]=v.slice(0,120); });
+    if(document.referrer && document.referrer.indexOf(location.host)<0) _a.ref=document.referrer.split('/')[2]||'';
+    if(Object.keys(_a).length) sessionStorage.setItem('sellAttrib',JSON.stringify(_a)); }catch(e){}
+  function track(ev,params){ try{ if(window.gtag) gtag('event',ev,params||{}); }catch(e){} }
+  var _started=false; $('f').addEventListener('input',function(){ if(_started) return; _started=true; track('form_start',{page:VARIANT}); },true);
+  $('f').addEventListener('change',function(){ if(_started) return; _started=true; track('form_start',{page:VARIANT}); },true);
+
   $('exitTab').textContent=(VARIANT==='restaurant')?'EXIT 1':'EXIT 2+';
   // Cursor waiting in the first box on desktop. Skipped on phones, where focusing pops the keyboard over the page.
   try{ if(window.matchMedia&&matchMedia('(min-width: 900px) and (pointer: fine)').matches&&!location.hash){ $('mkt').focus({preventScroll:true}); } }catch(e){}
@@ -312,11 +320,13 @@ footer a{color:#fff}
     var d={ business:$('biz').value.trim(), market:$('mkt').value, concept:$('cpt').value, years:num($('yrs').value)||0, units:Math.max(1,Math.round(num($('loc').value)||1)),
       sales:num($('sales').value), cogsPct:num($('cogs').value), laborPct:num($('lab').value), rent:num($('rent').value)||0,
       trend:(document.querySelector('input[name=trend]:checked')||{}).value||'flat',
-      nda:!!$('nda').checked, firstName:$('fn').value.trim(), lastName:$('ln').value.trim(), email:$('em').value.trim(), phone:$('ph').value.trim(), website:$('web').value,
+      nda:!!$('nda').checked, attrib:(function(){ try{ return JSON.parse(sessionStorage.getItem('sellAttrib')||'{}'); }catch(e){ return {}; } })(), firstName:$('fn').value.trim(), lastName:$('ln').value.trim(), email:$('em').value.trim(), phone:$('ph').value.trim(), website:$('web').value,
       page:location.href.slice(0,300), variant:VARIANT, ref:document.referrer.slice(0,300) };
     var btn=$('sub'); btn.disabled=true; btn.textContent='Working it out…';
     fetch('/api/sell/lead',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).then(function(r){return r.json().catch(function(){return null;});}).then(function(j){
       if(!j||!j.ok){ var e=new Error((j&&j.error)||''); e.server=true; throw e; }
+      // Count the lead in Google Ads (the conversion) and GA4.
+      try{ var T=window.SELL_TRACK||{}; if(window.gtag){ if(T.ads&&T.label) gtag('event','conversion',{send_to:T.ads+'/'+T.label}); gtag('event','generate_lead',{page:VARIANT,units:d.units}); } }catch(e){}
       render(j.estimate||estimate(d), d);
     }).catch(function(err){ btn.disabled=false; btn.textContent='See my value range'; $('e3').textContent=(err&&err.server&&err.message)||'That didn’t go through. Check your connection and try again.'; });
   });

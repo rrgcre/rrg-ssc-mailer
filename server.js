@@ -8327,7 +8327,8 @@ app.get('/api/website/public', (req, res) => {
 // live on save. Brand, phone and footer are shared; everything else is per page.
 const SELL_CONTENT_FILE = path.join(BOV_DATA_DIR, 'sell_site_content.json');
 const _SF = (g, k, l, long) => [g, k, l, long ? 1 : 0];
-const SELL_SHARED = [_SF('Brand & contact', 'brand', 'Brand name'), _SF('Brand & contact', 'phone', 'Phone (footer link and the owner email)'), _SF('Footer', 'footer1', 'Who we are', 1), _SF('Footer', 'footer2', 'Estimate disclaimer', 1)];
+const SELL_TRACK_KEYS = { gAdsId: /^AW-\d{6,14}$/, gAdsLabel: /^[A-Za-z0-9_-]{4,40}$/, ga4Id: /^G-[A-Z0-9]{4,16}$/ };
+const SELL_SHARED = [_SF('Tracking (Google Ads)', 'gAdsId', 'Google Ads ID — AW-1234567890'), _SF('Tracking (Google Ads)', 'gAdsLabel', 'Lead conversion label (from the conversion action’s tag setup)'), _SF('Tracking (Google Ads)', 'ga4Id', 'Google Analytics 4 ID — G-XXXXXXX (optional)'), _SF('Brand & contact', 'brand', 'Brand name'), _SF('Brand & contact', 'phone', 'Phone (footer link and the owner email)'), _SF('Footer', 'footer1', 'Who we are', 1), _SF('Footer', 'footer2', 'Estimate disclaimer', 1)];
 const SELL_LANDING = [
   _SF('Search & browser', 'title', 'Browser tab title'), _SF('Search & browser', 'metaDesc', 'Google description', 1),
   _SF('Top of page', 'navCta', 'Top-right link'), _SF('Top of page', 'heroTitle', 'Headline'), _SF('Top of page', 'heroIntro', 'Intro paragraph', 1),
@@ -8399,11 +8400,18 @@ function renderSellPage(pageId, base) {
   const E = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   Object.keys(vals).forEach(k => {
     const v = String(vals[k] == null ? '' : vals[k]).trim(); if (!v) return;
+    if (SELL_TRACK_KEYS[k]) return;
     if (k === 'metaDesc') { html = html.replace(/(data-k="metaDesc" content=")[^"]*(")/, (m0, a, b) => a + E(v) + b); return; }
     const txt = k === 'phone' ? (' · <a href="tel:' + E(v.replace(/[^0-9+]/g, '')) + '">' + E(v) + '</a>') : E(v.replace(/\s*\n\s*/g, ' '));
     html = html.replace(_sellSlotRe(k), (all, open, tag, inner, close) => open + txt + close);
   });
   html = html.replace(/data-variant="[a-z]+"/, 'data-variant="' + pg.id + '"').replace(/\{\{BASE\}\}/g, base || '');
+  // Google tag (Ads + GA4) — only on the public domain, never on the staff preview, so test visits don't count.
+  const T = c.shared || {}; const ads = SELL_TRACK_KEYS.gAdsId.test(T.gAdsId || '') ? T.gAdsId : '', ga4 = SELL_TRACK_KEYS.ga4Id.test(T.ga4Id || '') ? T.ga4Id : '', lbl = SELL_TRACK_KEYS.gAdsLabel.test(T.gAdsLabel || '') ? T.gAdsLabel : '';
+  if (!base && (ads || ga4)) {
+    const tag = '<script async src="https://www.googletagmanager.com/gtag/js?id=' + (ads || ga4) + '"></script>\n<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag(\'js\',new Date());' + (ads ? 'gtag(\'config\',\'' + ads + '\');' : '') + (ga4 ? 'gtag(\'config\',\'' + ga4 + '\');' : '') + 'window.SELL_TRACK={ads:\'' + ads + '\',label:\'' + lbl + '\'};</script>\n';
+    html = html.replace('</head>', tag + '</head>');
+  }
   return html;
 }
 function renderSellSite() { return renderSellPage('home', ''); }   // back-compat
@@ -8418,7 +8426,7 @@ app.get('/api/admin/sell-site', requireAdmin, (req, res) => {
 app.post('/api/admin/sell-site', requireAdmin, express.json({ limit: '256kb' }), (req, res) => {
   const pages = (req.body && req.body.pages) || {}; const out = {};
   SELL_PAGES.forEach(pg => { const vals = pages[pg.id] || {}; const d = sellDefaults(pg.id); const o = {};
-    pg.fields.forEach(f => { const k = f[1]; const v = String(vals[k] == null ? '' : vals[k]).trim().slice(0, f[3] ? 1200 : 200); if (v && v !== d[k]) o[k] = v; });
+    pg.fields.forEach(f => { const k = f[1]; const v = String(vals[k] == null ? '' : vals[k]).trim().slice(0, f[3] ? 1200 : 200); if (SELL_TRACK_KEYS[k] && v && !SELL_TRACK_KEYS[k].test(v)) return; if (v && v !== d[k]) o[k] = v; });
     out[pg.id] = o; });
   out._updatedAt = new Date().toISOString(); out._by = (req.user && req.user.name) || '';
   try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); if (!writeJsonGuarded(SELL_CONTENT_FILE, out, 'saveSellContent')) throw new Error('write'); } catch (e) { return res.status(500).json({ ok: false, error: 'Could not save. Try again.' }); }
@@ -8492,6 +8500,8 @@ app.post('/api/sell/lead', express.json({ limit: '32kb' }), async (req, res) => 
     if (!d.firstName || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(d.email) || d.phone.replace(/\D/g, '').length < 10) return res.status(400).json({ ok: false, error: 'Enter your name, a valid email and a 10-digit phone.' });
     if (!(d.sales >= 50000) || !(d.cogsPct > 0 && d.cogsPct < 80) || !(d.laborPct > 0 && d.laborPct < 80) || !(d.rent >= 0)) return res.status(400).json({ ok: false, error: 'Check the sales, cost and rent numbers and try again.' });
     const page = ['restaurant', 'groups'].indexOf(String(b.variant || '')) >= 0 ? String(b.variant) : 'groups';
+    const A = (b.attrib && typeof b.attrib === 'object') ? b.attrib : {}; const AS = k => String(A[k] || '').replace(/[\r\n]+/g, ' ').trim().slice(0, 120);
+    const srcLine = 'Source: ' + (A.gclid ? ('Google Ads' + (AS('utm_term') ? (' — "' + AS('utm_term') + '"') : '')) : (AS('utm_source') ? AS('utm_source') : (AS('ref') ? AS('ref') : 'direct')));
     const est = _sellEstimate(d);
     // Who works the lead: SELL_SITE_OWNER (a username), else the first admin.
     const users = (auth.loadUsers() || []).filter(u => !u.disabled);
@@ -8507,6 +8517,7 @@ app.post('/api/sell/lead', express.json({ limit: '32kb' }), async (req, res) => 
     const summary = [
       'Seller site value estimate — grade ' + grade,
       'Came in on the ' + (page === 'restaurant' ? 'one-restaurant' : 'restaurant-groups') + ' page',
+      srcLine,
       (d.nda ? 'WANTS AN NDA FIRST — send our Mutual NDA before asking for anything' : ''),
       (d.units > 1 ? ('Multi-unit group: ' + d.units + ' locations · avg ' + k(d.sales / d.units) + ' per location') : 'Single location'),
       'Restaurant: ' + (d.business || '—') + ' · ' + (d.concept || '—') + ' · ' + (d.market || '—') + ' · ' + d.years + ' yrs · ' + d.units + ' location' + (d.units === 1 ? '' : 's'),
