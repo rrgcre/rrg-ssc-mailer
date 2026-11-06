@@ -8335,7 +8335,7 @@ const SELL_LANDING = [
   _SF('Top of page', 'f3t', 'Point 3 — bold'), _SF('Top of page', 'f3d', 'Point 3 — text', 1),
   _SF('Estimator form', 'estTitle', 'Estimator heading'), _SF('Estimator form', 'legend1', 'Step 1 heading'), _SF('Estimator form', 'lBiz', 'Name field'), _SF('Estimator form', 'lMkt', 'Market field'),
   _SF('Estimator form', 'lYrs', 'Years field'), _SF('Estimator form', 'lLoc', 'Locations field'), _SF('Estimator form', 'legend2', 'Step 2 heading'), _SF('Estimator form', 'lSales', 'Sales field'),
-  _SF('Estimator form', 'lRent', 'Rent field'), _SF('Estimator form', 'lTrend', 'Trend question'),
+  _SF('Estimator form', 'lRent', 'Rent field'), _SF('Estimator form', 'lTrend', 'Trend question'), _SF('Estimator form', 'lNda', 'NDA checkbox'),
   _SF('How it works', 'howTitle', 'Heading'), _SF('How it works', 'howIntro', 'Intro', 1), _SF('How it works', 's1t', 'Step 1 — title'), _SF('How it works', 's1d', 'Step 1 — text', 1),
   _SF('How it works', 's2t', 'Step 2 — title'), _SF('How it works', 's2d', 'Step 2 — text', 1), _SF('How it works', 's3t', 'Step 3 — title'), _SF('How it works', 's3d', 'Step 3 — text', 1),
   _SF('Buyers & questions', 'whoTitle', 'Buyers heading'), _SF('Buyers & questions', 'who1', 'Buyer line 1'), _SF('Buyers & questions', 'who2', 'Buyer line 2'), _SF('Buyers & questions', 'who3', 'Buyer line 3'), _SF('Buyers & questions', 'who4', 'Buyer line 4'),
@@ -8460,6 +8460,7 @@ async function _sellOwnerEmail(d, est, owner, k) {
     'That range comes from six numbers. Buyers pay on your actual books, and things like owner add-backs, your lease terms and your trend can move the price a lot, often up.',
     (d.units > 1 ? 'If you send me the last two years of P&Ls by location, I’ll tell you what a buyer would pay for the whole group, and for each location if you’d rather sell some and keep the rest. It’s confidential and costs nothing.' : 'If you send me your last two years of P&Ls, I’ll tell you the number a buyer would actually pay and what it would take to get it. It’s confidential and costs nothing.'),
   ];
+  if (d.nda) paras.push('You asked for an NDA first. I’ll send ours to sign before we talk or you share anything.');
   const close = phone ? ('I’ll call you shortly from ' + phone + '. Or just reply with a good time to talk.') : 'I’ll call you shortly. Or just reply with a good time to talk.';
   const text = 'Hi ' + d.firstName + ',\n\n' + paras.join('\n\n') + '\n\n' + close + '\n\n' + who + '\n' + brand + (phone ? ('\n' + phone) : '') + '\n\nThis is an estimate, not an appraisal or an offer. ' + brand + ' connects restaurant owners with qualified buyers; we are not a buyer.';
   const html = '<!doctype html><html><body style="margin:0;padding:24px 14px;background:#f5f6f2;font-family:Arial,Helvetica,sans-serif;color:#1c2620">'
@@ -8487,7 +8488,7 @@ app.post('/api/sell/lead', express.json({ limit: '32kb' }), async (req, res) => 
     const N = v => { const n = parseFloat(String(v == null ? '' : v).replace(/[^0-9.]/g, '')); return isFinite(n) ? n : NaN; };
     const d = { business: S(b.business, 120), market: S(b.market, 60), concept: S(b.concept, 60), years: N(b.years) || 0, units: Math.max(1, Math.min(500, Math.round(N(b.units) || 1))),
       sales: N(b.sales), cogsPct: N(b.cogsPct), laborPct: N(b.laborPct), rent: N(b.rent) || 0, trend: ['up', 'flat', 'down'].indexOf(b.trend) >= 0 ? b.trend : 'flat',
-      firstName: S(b.firstName, 80), lastName: S(b.lastName, 80), email: S(b.email, 160), phone: S(b.phone, 40) };
+      firstName: S(b.firstName, 80), lastName: S(b.lastName, 80), email: S(b.email, 160), phone: S(b.phone, 40), nda: b.nda === true };
     if (!d.firstName || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(d.email) || d.phone.replace(/\D/g, '').length < 10) return res.status(400).json({ ok: false, error: 'Enter your name, a valid email and a 10-digit phone.' });
     if (!(d.sales >= 50000) || !(d.cogsPct > 0 && d.cogsPct < 80) || !(d.laborPct > 0 && d.laborPct < 80) || !(d.rent >= 0)) return res.status(400).json({ ok: false, error: 'Check the sales, cost and rent numbers and try again.' });
     const page = ['restaurant', 'groups'].indexOf(String(b.variant || '')) >= 0 ? String(b.variant) : 'groups';
@@ -8506,11 +8507,12 @@ app.post('/api/sell/lead', express.json({ limit: '32kb' }), async (req, res) => 
     const summary = [
       'Seller site value estimate — grade ' + grade,
       'Came in on the ' + (page === 'restaurant' ? 'one-restaurant' : 'restaurant-groups') + ' page',
+      (d.nda ? 'WANTS AN NDA FIRST — send our Mutual NDA before asking for anything' : ''),
       (d.units > 1 ? ('Multi-unit group: ' + d.units + ' locations · avg ' + k(d.sales / d.units) + ' per location') : 'Single location'),
       'Restaurant: ' + (d.business || '—') + ' · ' + (d.concept || '—') + ' · ' + (d.market || '—') + ' · ' + d.years + ' yrs · ' + d.units + ' location' + (d.units === 1 ? '' : 's'),
       'Sales (12 mo): ' + k(d.sales) + ' · Food & drink ' + d.cogsPct + '% · Payroll ' + d.laborPct + '% · Rent $' + Math.round(d.rent).toLocaleString('en-US') + '/mo (' + est.rentPct.toFixed(1) + '% of sales) · Trend ' + d.trend,
       'Est. owner earnings (SDE): ' + k(Math.max(0, est.sde)) + ' · Range shown: ' + range,
-    ].join('\n');
+    ].filter(Boolean).join('\n');
     if (per) {
       try {
         const arr = loadPeople(); const p = arr.find(x => x.id === per.id);
@@ -8526,7 +8528,7 @@ app.post('/api/sell/lead', express.json({ limit: '32kb' }), async (req, res) => 
     try {
       const tasks = loadTasks();
       tasks.push({ id: newTaskId(), createdBy: owner.username || '', createdByName: 'Seller site', assignee: owner.username || '', assigneeName: owner.name || owner.username || '', createdAt: new Date().toISOString(), status: 'open', doneAt: '',
-        title: 'Call seller lead (' + grade + ') — ' + (d.business || (d.firstName + ' ' + d.lastName)) + (d.units > 1 ? (' (' + d.units + ' units)') : '') + ', ' + (d.market || 'Texas'), notes: summary + '\n\n' + d.firstName + ' ' + d.lastName + ' · ' + d.phone + ' · ' + d.email + '\nThe site promised a call within one business day.',
+        title: 'Call seller lead (' + grade + ') — ' + (d.business || (d.firstName + ' ' + d.lastName)) + (d.units > 1 ? (' (' + d.units + ' units)') : '') + ', ' + (d.market || 'Texas') + (d.nda ? ' · send NDA first' : ''), notes: summary + '\n\n' + d.firstName + ' ' + d.lastName + ' · ' + d.phone + ' · ' + d.email + '\nThe site promised a call within one business day.',
         due: new Date(now + 24 * 3600e3).toISOString().slice(0, 10), priority: grade === 'C' ? 'Medium' : 'High', type: '', linkType: 'contact', linkId: (per && per.id) || '', linkLabel: (per && per.name) || (d.firstName + ' ' + d.lastName), remChannels: ['popup'] });
       saveTasks(tasks);
     } catch (e) {}

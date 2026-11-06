@@ -76,6 +76,8 @@ button{font:800 17px/1 Overpass,Arial,sans-serif;border:0;border-radius:6px;padd
 .back{background:transparent;color:#fff;padding:16px 8px 13px}
 .err{color:#ffe28a;font-size:14px;font-weight:700;min-height:20px;margin-top:10px}
 .fine{font-size:13px;color:#b9d8c9;margin:10px 0 0;line-height:1.5}
+.ndachk{display:flex;align-items:flex-start;gap:10px;margin:14px 0 0;font-weight:600;color:#fff;cursor:pointer}
+.ndachk input{width:20px;height:20px;min-height:0;margin:1px 0 0;flex:0 0 auto;accent-color:var(--yellow)}
 .hp{position:absolute;left:-5000px;width:1px;height:1px;overflow:hidden}
 
 /* Result on the sign */
@@ -159,8 +161,6 @@ footer a{color:#fff}
       <form id="f" novalidate>
         <fieldset id="p1">
           <legend data-k="legend1">Your restaurants</legend>
-          <label for="biz"><span data-k="lBiz">Restaurant or group name</span> <span class="h">(kept private)</span></label>
-          <input id="biz" name="business" autocomplete="organization" required>
           <div class="row">
             <div><label for="mkt" data-k="lMkt">Main market</label>
               <select id="mkt" name="market" required><option value="">Choose…</option><option>San Antonio</option><option>Austin</option><option>Dallas–Fort Worth</option><option>Houston</option><option>New Braunfels / Hill Country</option><option>Rio Grande Valley</option><option>Other Texas</option></select></div>
@@ -203,6 +203,9 @@ footer a{color:#fff}
           </div>
           <label for="em">Email</label><input id="em" name="email" type="email" autocomplete="email" required>
           <label for="ph">Mobile phone</label><input id="ph" name="phone" type="tel" autocomplete="tel" required>
+          <label for="biz"><span data-k="lBiz">Restaurant or group name</span> <span class="h">(optional, kept private)</span></label>
+          <input id="biz" name="business" autocomplete="organization">
+          <label class="ndachk" for="nda"><input type="checkbox" id="nda" name="nda"> <span data-k="lNda">Send me an NDA to sign before we talk</span></label>
           <div class="hp" aria-hidden="true"><label for="web">Website</label><input id="web" name="website" tabindex="-1" autocomplete="off"></div>
           <div class="nav"><button type="button" class="back" data-next="2">Back</button><button type="submit" class="go" id="sub">See my value range</button></div>
           <div class="err" id="e3" role="alert"></div>
@@ -272,6 +275,8 @@ footer a{color:#fff}
   $('yr').textContent=new Date().getFullYear();
   var VARIANT=document.body.getAttribute('data-variant')||'groups';
   $('exitTab').textContent=(VARIANT==='restaurant')?'EXIT 1':'EXIT 2+';
+  // Cursor waiting in the first box on desktop. Skipped on phones, where focusing pops the keyboard over the page.
+  try{ if(window.matchMedia&&matchMedia('(min-width: 900px) and (pointer: fine)').matches&&!location.hash){ $('mkt').focus({preventScroll:true}); } }catch(e){}
   if(VARIANT==='restaurant'){ $('sales').placeholder='1,400,000'; $('rent').placeholder='9,500'; $('loc').value='1'; $('loc').placeholder='1'; }
   var num=function(v){ v=String(v||'').replace(/[^0-9.]/g,''); var n=parseFloat(v); return isFinite(n)?n:NaN; };
   var money=function(n){ if(n>=1e6) return '$'+(Math.round(n/1e5)/10).toFixed(n>=1e7?0:1).replace(/\.0$/,'')+'M'; return '$'+Math.round(n/1e3)+'K'; };
@@ -307,7 +312,7 @@ footer a{color:#fff}
     var d={ business:$('biz').value.trim(), market:$('mkt').value, concept:$('cpt').value, years:num($('yrs').value)||0, units:Math.max(1,Math.round(num($('loc').value)||1)),
       sales:num($('sales').value), cogsPct:num($('cogs').value), laborPct:num($('lab').value), rent:num($('rent').value)||0,
       trend:(document.querySelector('input[name=trend]:checked')||{}).value||'flat',
-      firstName:$('fn').value.trim(), lastName:$('ln').value.trim(), email:$('em').value.trim(), phone:$('ph').value.trim(), website:$('web').value,
+      nda:!!$('nda').checked, firstName:$('fn').value.trim(), lastName:$('ln').value.trim(), email:$('em').value.trim(), phone:$('ph').value.trim(), website:$('web').value,
       page:location.href.slice(0,300), variant:VARIANT, ref:document.referrer.slice(0,300) };
     var btn=$('sub'); btn.disabled=true; btn.textContent='Working it out…';
     fetch('/api/sell/lead',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).then(function(r){return r.json().catch(function(){return null;});}).then(function(j){
