@@ -17322,6 +17322,7 @@ app.post('/api/space', express.json(), (req, res) => {
   if (typeof b.url === 'string') sp.url = b.url.slice(0, 300);
   if (Array.isArray(b.features)) sp.features = b.features.map(x => String(x).slice(0, 40)).filter(Boolean).slice(0, 40);
   if (typeof b.notes === 'string') sp.notes = b.notes.slice(0, 4000);
+  if (b.site && typeof b.site === 'object') sp.site = _cleanSpaceSite(b.site);   // traffic, parking, frontage, corner… (rep-entered or from the flyer)
   // Restaurant infrastructure detail (feeds the restaurant-ready score).
   if (b.infra && typeof b.infra === 'object') { const inf = sp.infra || {}; ['hoodFt', 'greaseGal', 'amps', 'parking', 'patioSf', 'seats', 'ceilingFt', 'prevUse'].forEach(k => { if (b.infra[k] !== undefined) inf[k] = String(b.infra[k] == null ? '' : b.infra[k]).slice(0, 80); }); sp.infra = inf; }
   // Listing broker.
@@ -18075,6 +18076,7 @@ function _spaceFromFields(fd, req, extra) {
     spaceType: SPACE_TYPES.indexOf(fd.spaceType) >= 0 ? fd.spaceType : '', size: num(fd.size), rent: num(fd.rent), nnn: num(fd.nnn),
     features: Array.isArray(fd.features) ? fd.features.map(x => String(x).slice(0, 40)).filter(Boolean).slice(0, 40) : [],
     notes: String(fd.notes || '').slice(0, 4000),
+    site: (fd.site && typeof fd.site === 'object') ? _cleanSpaceSite(fd.site) : {},
     centerAddress: String(fd.centerAddress || '').slice(0, 200), centerCity: String(fd.centerCity || '').slice(0, 120), anchor: String(fd.anchor || '').slice(0, 160), coTenants: String(fd.coTenants || '').slice(0, 400), centerType: (CENTER_TYPES.indexOf(fd.centerType) >= 0 ? fd.centerType : '') }, extra || {});
 }
 // Store a brochure/flyer file onto a space (used by the email scanner). Mirrors POST /api/space/:id/file.
@@ -29240,6 +29242,59 @@ function engTenantBox(av) {
     if (i < 0) i = boxes.length === 1 ? 0 : boxes.findIndex(b => b && b.active); if (i < 0) i = 0;
     return { box: boxes[i], index: i, personId: p.id };
   } catch (e) { return null; } }
+// ---- Measurable site criteria (from the tenant's SSC) checked against a space ----
+// Space-level facts come from the flyer (sp.site) or the rep; area facts fall back to the shopping center record.
+const _SPACE_SITE_KEYS = ['vpd', 'parkingRatio', 'parkingSpaces', 'frontageFt', 'pop3', 'hhi3', 'daytimePop1'];
+function _cleanSpaceSite(x) {
+  const o = {}; x = x || {};
+  _SPACE_SITE_KEYS.forEach(k => { const n = _siteNum(x[k]); if (n != null) o[k] = n; });
+  ['hardCorner', 'signalized'].forEach(k => { if (x[k] === true || x[k] === 'true' || x[k] === 'Yes') o[k] = true; else if (x[k] === false || x[k] === 'false' || x[k] === 'No') o[k] = false; });
+  return o;
+}
+// "75,000" → 75000 · "$95K" → 95000 · "1.2M" → 1200000 · "e.g." text → null
+function _siteNum(v) { if (v == null || v === '') return null; if (typeof v === 'number') return isFinite(v) && v > 0 ? v : null; const m = String(v).replace(/,/g, '').match(/(\d+(?:\.\d+)?)\s*([kKmM])?/); if (!m) return null; let n = parseFloat(m[1]); const u = (m[2] || '').toLowerCase(); if (u === 'k') n *= 1e3; if (u === 'm') n *= 1e6; return isFinite(n) && n > 0 ? n : null; }
+// The tenant's measurable targets, read straight from their latest SSC (no AI). Cached briefly — many spaces score per call.
+const _siteTgtCache = new Map();
+function _sscSiteTargetsFor(personId) {
+  if (!personId) return null;
+  const hit = _siteTgtCache.get(personId); if (hit && Date.now() - hit.at < 60000) return hit.t;
+  let t = null;
+  try {
+    const p = loadPeople().find(x => x.id === personId); const rec = p ? findSscForPerson(p) : null;
+    if (rec) {
+      const a = _sscAnswersFromData(rec.data || {});
+      const req = v => String(v || '') === 'Required';
+      t = { popMin3: _siteNum(a.dpop), hhiMin3: _siteNum(a.dhhi), dayPopMin1: _siteNum(a.ddaypop), vpdMin: _siteNum(a.tvpd), parkRatioMin: _siteNum(a.pratio),
+        frontMin: _siteNum(a.vfront), cornerReq: req(a.acorner), signalReq: req(a.alight) };
+      Object.keys(t).forEach(k => { if (t[k] == null || t[k] === false) delete t[k]; });
+      if (!Object.keys(t).length) t = null;
+    }
+  } catch (e) { t = null; }
+  _siteTgtCache.set(personId, { at: Date.now(), t });
+  return t;
+}
+let _ctrById = null, _ctrAt = 0;
+function _centerFor(sp) { if (!sp || !sp.centerId) return null; if (!_ctrById || Date.now() - _ctrAt > 30000) { _ctrById = {}; loadCenters().forEach(c => { _ctrById[c.id] = c; }); _ctrAt = Date.now(); } return _ctrById[sp.centerId] || null; }
+// Each target → met / missed / unknown, with the numbers. Minimums: a space at or above the number meets it.
+function siteCriteriaCheck(sp, T) {
+  if (!T) return null;
+  const S = sp.site || {}, C = _centerFor(sp) || {};
+  const pick = (a, b) => (a != null && a !== '' ? Number(a) : (b != null && b !== '' ? Number(b) : null));
+  const fmtN = n => Math.round(n).toLocaleString('en-US'), fmt$ = n => '$' + (n >= 1000 ? Math.round(n / 1000) + 'K' : Math.round(n));
+  const rows = [];
+  const min = (key, label, tgt, have, f) => { if (!tgt) return; if (have == null || !isFinite(have)) rows.push({ key, label, status: 'unknown', text: label + ' unknown (need ' + f(tgt) + '+)' });
+    else rows.push({ key, label, status: have >= tgt ? 'met' : 'missed', text: label + ' ' + f(have) + (have >= tgt ? ' ≥ ' : ' < ') + f(tgt) }); };
+  min('vpd', 'Traffic', T.vpdMin, pick(S.vpd, C.vpd), n => fmtN(n) + ' VPD');
+  min('pop3', 'Population (3 mi)', T.popMin3, pick(S.pop3, C.pop3), fmtN);
+  min('hhi3', 'Household income', T.hhiMin3, pick(S.hhi3, C.hhIncome), fmt$);
+  min('day1', 'Daytime population', T.dayPopMin1, pick(S.daytimePop1, C.daytimePop), fmtN);
+  min('park', 'Parking', T.parkRatioMin, pick(S.parkingRatio, null), n => (Math.round(n * 10) / 10) + '/1,000 SF');
+  min('front', 'Frontage', T.frontMin, pick(S.frontageFt, null), n => fmtN(n) + ' ft');
+  const flag = (key, label, need, have) => { if (!need) return; rows.push({ key, label, status: have === true ? 'met' : (have === false ? 'missed' : 'unknown'), text: label + (have === true ? ' ✓' : (have === false ? ' — no' : ' unknown')) }); };
+  flag('corner', 'Hard corner', T.cornerReq, S.hardCorner != null ? S.hardCorner : null);
+  flag('signal', 'Signalized entrance', T.signalReq, S.signalized != null ? S.signalized : null);
+  return rows.length ? { rows, met: rows.filter(r => r.status === 'met').length, missed: rows.filter(r => r.status === 'missed').length, unknown: rows.filter(r => r.status === 'unknown').length } : null;
+}
 function engSpaceCriteria(av) {
   const c = (av && av.criteria) || {};
   const _tb = engTenantBox(av); const T = (_tb && _tb.box) || null;
@@ -29262,7 +29317,8 @@ function engSpaceCriteria(av) {
     _SPACE_NEED_WORDS.forEach(w => { if ((w.feat && want.indexOf(w.feat) >= 0) || (w.type && want.indexOf(w.type) >= 0)) { if (needs.indexOf(w) < 0) needs.push(w); } });
   }
   const useTxt = String(c.useType || '').toLowerCase(); const isFood = !useTxt || /restaurant|bar|cafe|caf|kitchen|food|grill|pizza|taco|bbq|coffee|brew|bakery|qsr|fast/i.test(useTxt);
-  return { sizeMin: sMin, sizeMax: sMax, metroKeys: mk, tokens: tokens, budget: bud, needs: needs, isFood: isFood, fromTenantBox: !!T,
+  const site = _sscSiteTargetsFor((_tb && _tb.personId) || (av && av.clientPersonId) || '');
+  return { sizeMin: sMin, sizeMax: sMax, metroKeys: mk, tokens: tokens, budget: bud, needs: needs, isFood: isFood, fromTenantBox: !!T, site: site,
     // Enough to search on: a size range, or a location plus a budget or build need. A bare metro would match everything.
     has: !!(sMin || sMax || ((mk.length || tokens.length) && (bud || needs.length))) };
 }
@@ -29304,7 +29360,10 @@ function scoreSpaceForEng(sp, cr) {
     score += Math.round(20 * (rd.characterized || cr.needs.some(n => n.type) ? hit / cr.needs.length : 0.4));
   } else if (cr.isFood) { score += Math.round(20 * (rd.characterized ? rd.score / 100 : 0.4)); if (rd.grade === 'Restaurant-ready') reasons.push('restaurant-ready'); }
   else score += 12;
-  return { score: Math.max(0, Math.min(100, score)), reasons: reasons, misses: misses };
+  // Measurable site criteria from the SSC: each missed minimum costs 8 points; each met one adds 3. Unknowns are listed, not penalized.
+  const sc = siteCriteriaCheck(sp, cr.site);
+  if (sc) { sc.rows.forEach(r => { if (r.status === 'met') { score += 3; } else if (r.status === 'missed') { score -= 8; misses.push(r.text); } }); }
+  return { score: Math.max(0, Math.min(100, score)), reasons: reasons, misses: misses, site: sc };
 }
 const SPACE_FIT_MIN = 55;
 function tenantEngagementsFor(req) {
@@ -29383,7 +29442,7 @@ app.post('/api/assignment/:key/space-match', express.json(), (req, res) => {
 app.get('/api/space/:id/engagement-matches', (req, res) => {
   const sp = loadSpaces().find(x => x.id === req.params.id); if (!sp) return res.status(404).json({ ok: false, error: 'Space not found.' });
   const out = [];
-  tenantEngagementsFor(req).forEach(e => { const r = scoreSpaceForEng(sp, engSpaceCriteria(e.av)); const sl = (e.o.spaceShort || []).indexOf(sp.id) >= 0; if ((r && r.score >= SPACE_FIT_MIN) || sl) out.push({ key: e.av.key, business: e.av.business || '', owner: e.av.owner || '', score: r ? r.score : 0, reasons: r ? r.reasons : [], misses: r ? r.misses : [], shortlisted: sl }); });
+  tenantEngagementsFor(req).forEach(e => { const r = scoreSpaceForEng(sp, engSpaceCriteria(e.av)); const sl = (e.o.spaceShort || []).indexOf(sp.id) >= 0; if ((r && r.score >= SPACE_FIT_MIN) || sl) out.push({ key: e.av.key, business: e.av.business || '', owner: e.av.owner || '', score: r ? r.score : 0, reasons: r ? r.reasons : [], misses: (r ? r.misses : []).filter(t => !(r.site && r.site.rows.some(x => x.text === t))), site: (r && r.site) ? r.site.rows : [], shortlisted: sl }); });
   out.sort((a, b) => b.score - a.score);
   res.json({ ok: true, matches: out });
 });
