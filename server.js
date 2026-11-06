@@ -16038,6 +16038,28 @@ const SSC_CLIENT_FIELDS = [
   { k: 'park', ssc: 'Space Requirements', sec: 'The space', label: 'Parking Requirements', prompt: 'How much parking do you need?', type: 'single', opts: _sscO(['High', 'Moderate', 'Light']) },
   { k: 'open', ssc: 'Space Requirements', sec: 'The space', label: 'If Required Features Limit Supply, Open To…', prompt: 'If the perfect space is hard to find, what would you be open to?', type: 'multi', opts: _sscO(['Smaller footprint', 'Larger footprint', 'Inline instead of freestanding', 'Reduced patio', 'Covered patio at front of shell (in lieu of outdoor)', 'Higher rent tolerance', 'Expanding trade area']) },
   { k: 'sneeds', ssc: 'Space Requirements', sec: 'The space', label: 'Notes or Special Needs', prompt: 'Anything special the space needs?', type: 'textarea' },
+  // Measurable site criteria — hard numbers a space can be checked against (demographics, traffic, parking, visibility, access, delivery).
+  { k: 'dpop', ssc: 'Site Criteria', sec: 'Location criteria', grp: 'Demographics', label: 'Min Population (3-Mile Radius)', prompt: 'Minimum population within 3 miles', ph: 'e.g. 75,000', type: 'text' },
+  { k: 'dhhi', ssc: 'Site Criteria', sec: 'Location criteria', grp: 'Demographics', label: 'Min Median Household Income (3-Mile)', prompt: 'Minimum median household income within 3 miles', ph: 'e.g. $85,000', type: 'text' },
+  { k: 'ddaypop', ssc: 'Site Criteria', sec: 'Location criteria', grp: 'Demographics', label: 'Min Daytime Population (1-Mile)', prompt: 'Minimum daytime population (workers) within 1 mile', ph: 'e.g. 15,000', type: 'text' },
+  { k: 'dage', ssc: 'Site Criteria', sec: 'Location criteria', grp: 'Demographics', label: 'Target Median Age', prompt: 'Target median age of the area', ph: 'e.g. 25–44', type: 'text' },
+  { k: 'dother', ssc: 'Site Criteria', sec: 'Location criteria', grp: 'Demographics', label: 'Other Demographic Targets', prompt: 'Any other demographic targets?', ph: 'e.g. 30,000+ households within 3 miles', type: 'text' },
+  { k: 'tvpd', ssc: 'Site Criteria', sec: 'Location criteria', grp: 'Traffic', label: 'Min Traffic Count (Vehicles / Day)', prompt: 'Minimum traffic count on the main road (vehicles per day)', ph: 'e.g. 25,000', type: 'text' },
+  { k: 'tvisits', ssc: 'Site Criteria', sec: 'Location criteria', grp: 'Traffic', label: 'Min Center Visits / Month', prompt: 'Minimum monthly visits to the center, if you track it (Placer.ai or similar)', ph: 'e.g. 150,000', type: 'text' },
+  { k: 'tpeak', ssc: 'Site Criteria', sec: 'Location criteria', grp: 'Traffic', label: 'Traffic Must Peak At', prompt: 'When does traffic need to be strongest?', type: 'multi', opts: _sscO(['Morning commute', 'Lunch', 'Evening commute', 'Weekends', 'Late night']) },
+  { k: 'pratio', ssc: 'Site Criteria', sec: 'Location criteria', grp: 'Parking', label: 'Min Parking Ratio (Spaces / 1,000 SF)', prompt: 'Minimum parking ratio (spaces per 1,000 SF)', ph: 'e.g. 10', type: 'text' },
+  { k: 'pded', ssc: 'Site Criteria', sec: 'Location criteria', grp: 'Parking', label: 'Min Spaces Near the Door', prompt: 'Minimum parking spaces close to your door', ph: 'e.g. 40', type: 'text' },
+  { k: 'ptype', ssc: 'Site Criteria', sec: 'Location criteria', grp: 'Parking', label: 'Acceptable Parking', prompt: 'What kind of parking works?', type: 'multi', opts: _sscO(['Surface lot', 'Shared center parking', 'Garage / structured', 'Street parking', 'Valet']) },
+  { k: 'vfront', ssc: 'Site Criteria', sec: 'Location criteria', grp: 'Visibility', label: 'Min Storefront Frontage (Ft)', prompt: 'Minimum storefront width facing the road (feet)', ph: 'e.g. 40', type: 'text' },
+  { k: 'vsee', ssc: 'Site Criteria', sec: 'Location criteria', grp: 'Visibility', label: 'Visible From the Main Road', prompt: 'Must the storefront be visible from the main road?', type: 'single', opts: _sscO(['Required', 'Preferred', 'Not needed']) },
+  { k: 'vsign', ssc: 'Site Criteria', sec: 'Location criteria', grp: 'Visibility', label: 'Signage Needed', prompt: 'What signage do you need?', type: 'multi', opts: _sscO(['Building sign facing the main road', 'Pylon / monument panel', 'Signs on 2+ sides', 'Blade / projecting sign']) },
+  { k: 'acorner', ssc: 'Site Criteria', sec: 'Location criteria', grp: 'Access', label: 'Hard Corner', prompt: 'A hard corner (at an intersection)?', type: 'single', opts: _sscO(['Required', 'Preferred', 'Not needed']) },
+  { k: 'alight', ssc: 'Site Criteria', sec: 'Location criteria', grp: 'Access', label: 'Signalized Entrance', prompt: 'An entrance at a traffic light?', type: 'single', opts: _sscO(['Required', 'Preferred', 'Not needed']) },
+  { k: 'aturn', ssc: 'Site Criteria', sec: 'Location criteria', grp: 'Access', label: 'Left Turns In & Out', prompt: 'Can guests turn left in and out of the site?', type: 'single', opts: _sscO(['Required', 'Preferred', 'Not needed']) },
+  { k: 'ahwy', ssc: 'Site Criteria', sec: 'Location criteria', grp: 'Access', label: 'Max Distance From Highway (Mi)', prompt: 'Farthest you would be from a highway or major road (miles)', ph: 'e.g. 1', type: 'text' },
+  { k: 'dlpct', ssc: 'Site Criteria', sec: 'Location criteria', grp: 'Delivery', label: 'Delivery & Takeout % of Sales', prompt: 'What share of sales do you expect from delivery and takeout?', ph: 'e.g. 30%', type: 'text' },
+  { k: 'dlhh', ssc: 'Site Criteria', sec: 'Location criteria', grp: 'Delivery', label: 'Min Households in 10-Min Drive', prompt: 'Minimum households within a 10-minute drive', ph: 'e.g. 25,000', type: 'text' },
+  { k: 'dlfeat', ssc: 'Site Criteria', sec: 'Location criteria', grp: 'Delivery', label: 'Delivery & Pickup Features', prompt: 'What does the space need for delivery and pickup?', type: 'multi', opts: _sscO(['Pickup parking stalls', 'Pickup shelf near the door', 'Drive-thru pickup lane', 'Easy courier in / out', 'Back door for couriers']) },
   { k: 'tabc', ssc: 'Licensing, Zoning & Use', sec: 'Licensing & hours', label: 'TABC / Liquor Licensing', prompt: 'Liquor license — what do you need?', type: 'multi', opts: _sscO(['Full liquor license required', 'Beer / wine only', 'Transfer existing license preferred', 'New license acceptable']) },
   { k: 'music', ssc: 'Licensing, Zoning & Use', sec: 'Licensing & hours', label: 'Live / Amplified Music', prompt: 'Live or amplified music?', type: 'single', opts: _sscO(['Required', 'Preferred', 'Not needed']) },
   { k: 'hours', ssc: 'Licensing, Zoning & Use', sec: 'Licensing & hours', label: 'Required Hours of Operation', prompt: 'What hours do you need to operate?', ph: 'e.g. 7am–2am', type: 'text' },
@@ -16046,8 +16068,14 @@ const SSC_CLIENT_FIELDS = [
   { k: 'lop', ssc: 'Economics & Capital Reality', sec: 'Budget', label: 'Lease or Purchase', prompt: 'Lease or buy?', type: 'multi', opts: _sscO(['Lease', 'Purchase', 'Lease (Ground)']) },
   { k: 'term', ssc: 'Economics & Capital Reality', sec: 'Budget', label: 'Preferred Lease Term', prompt: 'Preferred lease term', type: 'single', opts: _sscO(['5 Yrs', '10 Yrs', '15 Yrs', '20 Yrs']) },
   { k: 'bo', ssc: 'Economics & Capital Reality', sec: 'Budget', label: 'Build-Out Budget', prompt: 'Budget to build out the space', type: 'single', opts: _sscO(['< $100K', '$100–250K', '$250–500K', '$500K–$1M', '$1M+']) },
+  { k: 'botot', ssc: 'Economics & Capital Reality', sec: 'Budget', grp: 'Build-Out Budget Detail', label: 'Total Budget to Open ($)', prompt: 'Total budget to open, all-in (build-out, equipment, fees)', ph: 'e.g. $850,000', type: 'text' },
+  { k: 'bopsf', ssc: 'Economics & Capital Reality', sec: 'Budget', grp: 'Build-Out Budget Detail', label: 'Construction ($ / SF)', prompt: 'Construction budget per square foot', ph: 'e.g. $175 / SF', type: 'text' },
+  { k: 'boeq', ssc: 'Economics & Capital Reality', sec: 'Budget', grp: 'Build-Out Budget Detail', label: 'Kitchen Equipment & FF&E ($)', prompt: 'Kitchen equipment, furniture and fixtures', ph: 'e.g. $250,000', type: 'text' },
+  { k: 'bosoft', ssc: 'Economics & Capital Reality', sec: 'Budget', grp: 'Build-Out Budget Detail', label: 'Soft Costs ($)', prompt: 'Soft costs: design, engineering, permits and fees', ph: 'e.g. $60,000', type: 'text' },
+  { k: 'bopre', ssc: 'Economics & Capital Reality', sec: 'Budget', grp: 'Build-Out Budget Detail', label: 'Pre-Opening & Working Capital ($)', prompt: 'Pre-opening costs and working capital', ph: 'e.g. $100,000', type: 'text' },
   { k: 'fund', ssc: 'Economics & Capital Reality', sec: 'Budget', label: 'Funding', prompt: 'How will you fund it?', type: 'multi', opts: _sscO(['Cash', 'Bank', 'Equity Partner', 'SBA']) },
   { k: 'ti', ssc: 'Economics & Capital Reality', sec: 'Budget', label: 'Landlord TI Expectations', prompt: 'Do you need the landlord to help pay for the build-out (a TI allowance)?', type: 'single', opts: _sscO(['Required', 'Helpful', 'Not Needed', 'Unsure']) },
+  { k: 'tipsf', ssc: 'Economics & Capital Reality', sec: 'Budget', label: 'Target TI Allowance ($ / SF)', prompt: 'TI allowance you’re targeting, per square foot', ph: 'e.g. $40 / SF', type: 'text' },
   { k: 'odate', ssc: 'Timeline & Delivery', sec: 'Timing', label: 'Target Opening Date', prompt: 'When would you like to open?', ph: 'e.g. Spring 2027', type: 'text' },
   { k: 'tl', ssc: 'Timeline & Delivery', sec: 'Timing', label: 'Timeline', prompt: 'How firm is that timing?', type: 'single', opts: _sscO(['Aggressive', 'Realistic', 'Flexible']) },
   { k: 'cond', ssc: 'Timeline & Delivery', sec: 'Timing', label: 'Delivery Condition Preference', prompt: 'What condition would you like the space in?', type: 'single', opts: [{ v: 'Turnkey / 2nd Gen', t: 'Turnkey / second-generation restaurant' }, { v: 'Vanilla Shell', t: 'Vanilla shell — we will build it out' }] },
@@ -16066,6 +16094,12 @@ function _sscClientData(rec, ans, fieldList) {
       if (f.grp) { let g = sec.groups.find(x => x.kind === 'subgroups' && x.label === f.grp); if (!g) { g = { kind: 'subgroups', label: f.grp, rows: [] }; sec.groups.push(g); } g.rows.push({ label: f.label, selected: sel }); }
       else sec.groups.push({ kind: 'options', label: f.label, selected: sel });
       if (f.label === 'Primary Markets') market = sel.join(', ');
+    } else if (f.grp) {
+      // A typed answer inside a group (e.g. Demographics → Min Population) is stored as a one-value row so every
+      // reader of the SSC (PDF, View SSC, Tenant-Box) shows it under its group.
+      const v = String(raw || '').trim().slice(0, 400);
+      let g = sec.groups.find(x => x.kind === 'subgroups' && x.label === f.grp); if (!g) { g = { kind: 'subgroups', label: f.grp, rows: [] }; sec.groups.push(g); }
+      g.rows.push({ label: f.label, selected: v ? [v] : [] });
     } else sec.groups.push({ kind: 'field', label: f.label, value: String(raw || '').slice(0, 4000) });
   });
   const d = new Date(); const dt = String(d.getMonth() + 1).padStart(2, '0') + '/' + String(d.getDate()).padStart(2, '0') + '/' + d.getFullYear();
@@ -16083,6 +16117,7 @@ const SSC_REP_FIELDS = [
   { k: 'tabcd', ssc: 'Licensing, Zoning & Use', sec: 'Broker details', label: 'TABC Distance Rules (300-ft)', prompt: 'TABC distance rules (300 ft)', type: 'multi', opts: _sscO(['Must clear school / church / daycare', 'Open to variance / waiver', 'Not a factor']), rep: true },
   { k: 'zone', ssc: 'Licensing, Zoning & Use', sec: 'Broker details', label: 'Zoning / Permitted Use', prompt: 'Zoning / permitted use', type: 'multi', opts: _sscO(['Bar / tavern use permitted', 'Dance hall / assembly use permitted', 'Late-night use permitted', 'Specific Use Permit (SUP) acceptable', 'By-right use required (no SUP)', 'Outdoor / patio alcohol permitted']), rep: true },
   { k: 'lznotes', ssc: 'Licensing, Zoning & Use', sec: 'Broker details', label: 'Licensing & Zoning Notes', prompt: 'Licensing & zoning notes', type: 'textarea', rep: true },
+  { k: 'sitenotes', ssc: 'Site Criteria', sec: 'Broker details', label: 'Site Criteria Notes', prompt: 'Your read on these site criteria: realistic? data sources used?', type: 'textarea', rep: true },
   { k: 'occ', ssc: 'Economics & Capital Reality', sec: 'Broker details', label: 'Target Occupancy %', prompt: 'Target occupancy cost (% of sales)', type: 'text', rep: true },
   { k: 'viable', ssc: 'Economics & Capital Reality', sec: 'Broker details', label: 'Viable Monthly Rent', prompt: 'Viable monthly rent (your read)', type: 'text', rep: true },
   { k: 'basis', ssc: 'Economics & Capital Reality', sec: 'Broker details', label: 'Budget Basis', prompt: 'Build-out budget basis', type: 'single', opts: _sscO(['All-in budget', 'Construction only', 'Construction + soft costs']), rep: true },

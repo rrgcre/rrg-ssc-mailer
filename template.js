@@ -27,21 +27,26 @@ function findFirst(data, labelStarts, all) {
 }
 // One "cell" per answered item: { k: label, v: value, wide: needs the full row }.
 function cellsOf(sec) {
-  const out = [];
+  // Plain answers first, then each headed group (Demographics, Traffic…), so a group heading never sits over unrelated items.
+  const plain = [], grouped = [];
+  const out = { push: function (c) { (this._g ? grouped : plain).push(c); }, _g: false };
   (sec.groups || []).forEach(g => {
     if (g.kind === 'subhead') { if (!/\bmark\b/i.test(g.text || '')) out.push({ head: g.text }); return; }
     if (sec.title === 'Other Information' && /^(tenant rep|operator contact|tenant rep email)/i.test(g.label || '')) return;   // already on page 1
     if (g.kind === 'subgroups') {
       const rows = (g.rows || []).filter(r => r.selected && r.selected.length);
       if (!rows.length) return;
+      out._g = true;
+      if (rows.length > 1 || !/kitchen/i.test(g.label || '')) out.push({ head: g.label });   // Demographics, Traffic, Parking… get their own heading
       rows.forEach(r => out.push({ k: r.label, v: r.selected.map(x => ABBR[x] || x).join(' · ') }));
+      out._g = false;
       return;
     }
     let v = g.kind === 'field' ? String(g.value || '').trim() : (g.kind === 'options' ? (g.selected || []).map(x => ABBR[x] || x).join(' · ') : '');
     if (!v) return;
     out.push({ k: g.label, v, wide: v.length > 46 || /\n/.test(v), long: v.length > 46 || /\n/.test(v) });
   });
-  return out;
+  return plain.concat(grouped);
 }
 // Pack cells into grey panels like the Di Campli's SSC: short answers three to a panel, long ones on their own row.
 function panels(cells) {
@@ -53,8 +58,15 @@ function panels(cells) {
     row.push(c); if (row.length === 3) flush();
   });
   flush();
-  // Never leave a sub-heading stranded at the bottom of a page: glue it to the panel that follows.
-  const out = []; for (let i = 0; i < html.length; i++) { if (/^<div class="subhead"/.test(html[i]) && html[i + 1]) { out.push('<div class="keep">' + html[i] + html[i + 1] + '</div>'); i++; } else out.push(html[i]); }
+  // Never leave a sub-heading stranded, or split a short group (Access, Delivery…) across pages: keep a heading
+  // with its whole group when the group is 3 panels or fewer, else with its first panel.
+  const out = []; for (let i = 0; i < html.length; i++) {
+    if (/^<div class="subhead"/.test(html[i]) && html[i + 1]) {
+      let j = i + 1; while (j < html.length && !/^<div class="subhead"/.test(html[j])) j++;
+      const end = (j - (i + 1) <= 3) ? j : i + 2;
+      out.push('<div class="keep">' + html.slice(i, end).join('') + '</div>'); i = end - 1;
+    } else out.push(html[i]);
+  }
   return out;
 }
 
@@ -84,7 +96,8 @@ function buildHtml(data, opts) {
   let n = 0;
   const secParts = (data.sections || []).map(sec => { const cells = cellsOf(sec); return cells.some(c => !c.head) ? { title: sec.title, ps: panels(cells) } : null; }).filter(Boolean);
   // The sign-off rides with the last panel, so it never lands alone on a final page.
-  if (secParts.length) { const L = secParts[secParts.length - 1]; if (L.ps.length > 1) { L.ps[L.ps.length - 1] = `<div class="keep">${L.ps[L.ps.length - 1]}${SIGN}</div>`; } else { L.signInFirst = true; } }
+  // A short last section (3 blocks or fewer) stays whole with the signature block, so the sign-off never sits alone on a page.
+  if (secParts.length) { const L = secParts[secParts.length - 1]; if (L.ps.length > 1 && L.ps.length <= 3) { L.ps = [L.ps.join('')]; L.signInFirst = true; } else if (L.ps.length > 1) { L.ps[L.ps.length - 1] = `<div class="keep">${L.ps[L.ps.length - 1]}${SIGN}</div>`; } else { L.signInFirst = true; } }
   const sections = secParts.map(sp => {
     n++;
     // A section heading always travels with its first panel, so no heading ever sits alone at the foot of a page.
