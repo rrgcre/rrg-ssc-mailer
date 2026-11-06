@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title data-k="title">Sell My Texas Restaurant — What is your restaurant worth?</title>
+<meta name="description" data-k="metaDesc" content="See what buyers would pay for your Texas restaurant or restaurant group in two minutes, then meet qualified buyers. Confidential, no cost to talk.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#1c2620;--forest:#1e4d3a;--forest-2:#163b2c;--page:#f5f6f2;--check:#e6efd9;--rule:#bcd6ad;--checkred:#b3261e;--muted:#5d6b62;--line:#d9ded5}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);font:400 17px/1.6 "Public Sans",system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--forest)}
+.wrap{max-width:1040px;margin:0 auto;padding:0 24px}
+:focus-visible{outline:3px solid #e0a32a;outline-offset:2px}
+.top{display:flex;align-items:center;padding:22px 0}
+.brand{font-weight:800;font-size:18px;letter-spacing:-.01em;color:var(--ink);text-decoration:none;display:flex;align-items:center;gap:10px}
+main{padding:56px 0 84px}
+h1{font-size:clamp(36px,5.4vw,62px);line-height:1.04;letter-spacing:-.025em;font-weight:800;margin:0 0 20px;max-width:15ch}
+.lede{font-size:19px;color:#34413a;max-width:52ch;margin:0 0 36px}
+.fork{display:grid;grid-template-columns:1fr 1fr;gap:22px;max-width:860px}
+.pick{position:relative;display:block;text-decoration:none;color:var(--ink);background:var(--check);border-radius:3px;padding:28px 28px 30px;box-shadow:0 1px 0 #c6d6b6,0 18px 36px -20px rgba(28,38,32,.45);
+  background-image:repeating-linear-gradient(to bottom,transparent 0,transparent 39px,var(--rule) 39px,var(--rule) 40px);background-position:0 78px;transition:transform .15s ease}
+.pick:nth-child(1){transform:rotate(-.6deg)} .pick:nth-child(2){transform:rotate(.6deg)}
+.pick:hover,.pick:focus-visible{transform:rotate(0) translateY(-3px)}
+.pick .n{font-family:Caveat,cursive;font-weight:700;color:var(--checkred);font-size:44px;line-height:1;display:block;margin-bottom:10px}
+.pick b{display:block;font-size:24px;font-weight:800;letter-spacing:-.01em;margin-bottom:6px}
+.pick span.s{display:block;color:#34413a;font-size:16px;max-width:30ch}
+.pick .go{display:inline-block;margin-top:18px;background:var(--forest);color:#fff;font-weight:700;font-size:15px;padding:12px 18px;border-radius:6px}
+.trust{margin-top:34px;color:var(--muted);font-size:15px;max-width:60ch}
+footer{border-top:1px solid var(--line);padding:30px 0 44px;font-size:13.5px;color:var(--muted)}
+footer p{max-width:80ch;margin:0 0 8px}
+@media (max-width:760px){.fork{grid-template-columns:1fr}.pick:nth-child(n){transform:none}main{padding:28px 0 60px}}
+@media (max-width:480px){.wrap{padding:0 16px}.brand{font-size:16px}}
+@media (prefers-reduced-motion:reduce){.pick{transition:none}}
+</style>
+</head>
+<body data-variant="home">
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="{{BASE}}/" aria-label="Home">
+      <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><rect x="2" y="2" width="24" height="24" rx="3" fill="#1e4d3a"/><path d="M8 9h12M8 14h12M8 19h7" stroke="#e6efd9" stroke-width="2.2" stroke-linecap="round"/><circle cx="20" cy="19" r="2.2" fill="#b3261e"/></svg>
+      <span data-k="brand">Sell My Texas Restaurant</span>
+    </a>
+  </header>
+  <main>
+    <h1 data-k="homeTitle">What would a buyer pay for your restaurant?</h1>
+    <p class="lede" data-k="homeIntro">See a value range in about two minutes, then meet buyers looking for restaurants like yours. Confidential and free. Start here:</p>
+    <div class="fork">
+      <a class="pick" href="{{BASE}}/restaurant"><span class="n" aria-hidden="true">1</span><b data-k="homeOne">I own one restaurant</b><span class="s" data-k="homeOneSub">A single location, owner-run or with a manager in place.</span><span class="go" data-k="homeOneBtn">Value my restaurant</span></a>
+      <a class="pick" href="{{BASE}}/groups"><span class="n" aria-hidden="true">2+</span><b data-k="homeMany">I own several</b><span class="s" data-k="homeManySub">Two or more locations. Sell the whole group, or just some units.</span><span class="go" data-k="homeManyBtn">Value my group</span></a>
+    </div>
+    <p class="trust" data-k="homeTrust">Buyers sign an NDA before they learn your name or locations. Your staff won’t hear it from us.</p>
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <p data-k="footer1">Sell My Texas Restaurant connects Texas restaurant owners with qualified buyers. We are not a buyer. Services are provided by a licensed Texas real estate broker.</p>
+    <p data-k="footer2">Value ranges are estimates for information only. They are not an appraisal, an offer, or a guarantee of price.</p>
+    <p>© <span id="yr"></span> <span data-k="brand">Sell My Texas Restaurant</span><span data-k="phone"></span></p>
+  </div>
+</footer>
+<script>document.getElementById('yr').textContent=new Date().getFullYear();</script>
+</body>
+</html>

@@ -126,10 +126,10 @@ footer p{max-width:80ch;margin:0 0 8px}
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 </style>
 </head>
-<body>
+<body data-variant="groups">
 <div class="wrap">
   <header class="top">
-    <a class="brand" href="#top" aria-label="Sell My Texas Restaurant">
+    <a class="brand" href="{{BASE}}/" aria-label="Home">
       <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><rect x="2" y="2" width="24" height="24" rx="3" fill="#1e4d3a"/><path d="M8 9h12M8 14h12M8 19h7" stroke="#e6efd9" stroke-width="2.2" stroke-linecap="round"/><circle cx="20" cy="19" r="2.2" fill="#b3261e"/></svg>
       <span data-k="brand">Sell My Texas Restaurant</span>
     </a>
@@ -154,34 +154,34 @@ footer p{max-width:80ch;margin:0 0 8px}
 
       <form id="f" novalidate>
         <fieldset id="p1">
-          <legend>Your restaurants</legend>
-          <label for="biz">Restaurant or group name <span class="h">(kept private)</span></label>
+          <legend data-k="legend1">Your restaurants</legend>
+          <label for="biz"><span data-k="lBiz">Restaurant or group name</span> <span class="h">(kept private)</span></label>
           <input id="biz" name="business" autocomplete="organization" required>
           <div class="row">
-            <div><label for="mkt">Main market</label>
+            <div><label for="mkt" data-k="lMkt">Main market</label>
               <select id="mkt" name="market" required><option value="">Choose…</option><option>San Antonio</option><option>Austin</option><option>Dallas–Fort Worth</option><option>Houston</option><option>New Braunfels / Hill Country</option><option>Rio Grande Valley</option><option>Other Texas</option></select></div>
             <div><label for="cpt">Type</label>
               <select id="cpt" name="concept" required><option value="">Choose…</option><option>Full service</option><option>Fast casual</option><option>Quick service</option><option>Bar / nightlife</option><option>Café / bakery / coffee</option><option>Pizza</option><option>Other</option></select></div>
           </div>
           <div class="row">
-            <div><label for="yrs">Years in business</label><input id="yrs" name="years" inputmode="numeric" placeholder="e.g. 6" required></div>
-            <div><label for="loc">Number of locations</label><input id="loc" name="units" inputmode="numeric" placeholder="e.g. 4" required></div>
+            <div><label for="yrs" data-k="lYrs">Years in business</label><input id="yrs" name="years" inputmode="numeric" placeholder="e.g. 6" required></div>
+            <div><label for="loc" data-k="lLoc">Number of locations</label><input id="loc" name="units" inputmode="numeric" placeholder="e.g. 4" required></div>
           </div>
           <div class="nav"><button type="button" class="go" data-next="2">Continue</button></div>
           <div class="err" id="e1" role="alert"></div>
         </fieldset>
 
         <fieldset id="p2" hidden>
-          <legend>The last 12 months, all locations</legend>
-          <label for="sales">Total sales, all locations combined</label>
+          <legend data-k="legend2">The last 12 months, all locations</legend>
+          <label for="sales" data-k="lSales">Total sales, all locations combined</label>
           <div class="pre" data-p="$"><input id="sales" name="sales" inputmode="numeric" placeholder="6,500,000" required></div>
           <div class="row">
             <div><label for="cogs">Food &amp; drink cost</label><div class="post" data-p="%"><input id="cogs" name="cogsPct" inputmode="decimal" placeholder="30" required></div></div>
             <div><label for="lab">Payroll <span class="h">(not you)</span></label><div class="post" data-p="%"><input id="lab" name="laborPct" inputmode="decimal" placeholder="30" required></div></div>
           </div>
-          <label for="rent">Total monthly rent, all locations <span class="h">(base + NNN)</span></label>
+          <label for="rent"><span data-k="lRent">Total monthly rent, all locations</span> <span class="h">(base + NNN)</span></label>
           <div class="pre" data-p="$"><input id="rent" name="rent" inputmode="numeric" placeholder="42,000" required></div>
-          <label id="trl">Same-store sales compared with last year</label>
+          <label id="trl" data-k="lTrend">Same-store sales compared with last year</label>
           <div class="seg" role="radiogroup" aria-labelledby="trl">
             <label><input type="radio" name="trend" value="up"><span>Up</span></label>
             <label><input type="radio" name="trend" value="flat" checked><span>About the same</span></label>
@@ -266,6 +266,8 @@ footer p{max-width:80ch;margin:0 0 8px}
 (function(){
   var $=function(id){return document.getElementById(id);};
   $('yr').textContent=new Date().getFullYear();
+  var VARIANT=document.body.getAttribute('data-variant')||'groups';
+  if(VARIANT==='restaurant'){ $('sales').placeholder='1,400,000'; $('rent').placeholder='9,500'; $('loc').value='1'; $('loc').placeholder='1'; }
   var num=function(v){ v=String(v||'').replace(/[^0-9.]/g,''); var n=parseFloat(v); return isFinite(n)?n:NaN; };
   var money=function(n){ if(n>=1e6) return '$'+(Math.round(n/1e5)/10).toFixed(n>=1e7?0:1).replace(/\.0$/,'')+'M'; return '$'+Math.round(n/1e3)+'K'; };
   // Same math as the server (it recomputes and stores its own copy).
@@ -301,7 +303,7 @@ footer p{max-width:80ch;margin:0 0 8px}
       sales:num($('sales').value), cogsPct:num($('cogs').value), laborPct:num($('lab').value), rent:num($('rent').value)||0,
       trend:(document.querySelector('input[name=trend]:checked')||{}).value||'flat',
       firstName:$('fn').value.trim(), lastName:$('ln').value.trim(), email:$('em').value.trim(), phone:$('ph').value.trim(), website:$('web').value,
-      page:location.href.slice(0,300), ref:document.referrer.slice(0,300) };
+      page:location.href.slice(0,300), variant:VARIANT, ref:document.referrer.slice(0,300) };
     var btn=$('sub'); btn.disabled=true; btn.textContent='Working it out…';
     fetch('/api/sell/lead',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).then(function(r){return r.json().catch(function(){return null;});}).then(function(j){
       if(!j||!j.ok){ var e=new Error((j&&j.error)||''); e.server=true; throw e; }
