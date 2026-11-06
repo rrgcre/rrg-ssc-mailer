@@ -46,7 +46,7 @@ app.use(function (req, res, next) {
   try {
     const hosts = String(process.env.SELL_SITE_HOST || '').toLowerCase().split(/[\s,]+/).filter(Boolean); if (!hosts.length) return next();
     const h = String(req.hostname || '').toLowerCase(); if (hosts.indexOf(h) < 0) return next();
-    if (req.path === '/' || req.path === '/index.html') { res.set('Cache-Control', 'no-cache'); return res.sendFile(path.join(__dirname, 'public', 'sell_site.html')); }
+    if (req.path === '/' || req.path === '/index.html') { res.set('Cache-Control', 'no-cache'); return res.type('html').send(renderSellSite()); }
     if (req.path === '/api/sell/lead' || req.path === '/favicon.ico') return next();
     if (req.path === '/robots.txt') return res.type('text/plain').send('User-agent: *\nAllow: /\n');
     return res.redirect(302, '/');
@@ -8314,7 +8314,54 @@ app.get('/api/website/public', (req, res) => {
 // Public — contact / lead form submission, captured for the Website manager
 // ===== Seller lead site ("Sell My Texas Restaurant") =====
 // Staff preview of the landing page on the app's own domain (login required like every other page).
-app.get('/sell-site', (req, res) => res.sendFile(path.join(__dirname, 'public', 'sell_site.html')));
+app.get('/sell-site', (req, res) => { res.set('Cache-Control', 'no-cache'); res.type('html').send(renderSellSite()); });
+// ---- Editable text for the seller site (Settings → Seller Site). Every element marked data-k="…" in
+// sell_site.html is a text slot; saved wording replaces the default at serve time, so edits go live on save.
+const SELL_CONTENT_FILE = path.join(BOV_DATA_DIR, 'sell_site_content.json');
+const SELL_FIELDS = [
+  ['Brand & contact', 'brand', 'Brand name'], ['Brand & contact', 'phone', 'Phone (shown in the footer and the owner email)'],
+  ['Brand & contact', 'title', 'Browser tab title'], ['Brand & contact', 'metaDesc', 'Google description', 1],
+  ['Top of page', 'navCta', 'Top-right link'], ['Top of page', 'heroTitle', 'Headline'], ['Top of page', 'heroIntro', 'Intro paragraph', 1],
+  ['Top of page', 'f1t', 'Point 1 — bold'], ['Top of page', 'f1d', 'Point 1 — text', 1], ['Top of page', 'f2t', 'Point 2 — bold'], ['Top of page', 'f2d', 'Point 2 — text', 1],
+  ['Top of page', 'f3t', 'Point 3 — bold'], ['Top of page', 'f3d', 'Point 3 — text', 1], ['Top of page', 'estTitle', 'Estimator heading'],
+  ['How it works', 'howTitle', 'Heading'], ['How it works', 'howIntro', 'Intro', 1], ['How it works', 's1t', 'Step 1 — title'], ['How it works', 's1d', 'Step 1 — text', 1],
+  ['How it works', 's2t', 'Step 2 — title'], ['How it works', 's2d', 'Step 2 — text', 1], ['How it works', 's3t', 'Step 3 — title'], ['How it works', 's3d', 'Step 3 — text', 1],
+  ['Buyers & questions', 'whoTitle', 'Buyers heading'], ['Buyers & questions', 'who1', 'Buyer line 1'], ['Buyers & questions', 'who2', 'Buyer line 2'], ['Buyers & questions', 'who3', 'Buyer line 3'], ['Buyers & questions', 'who4', 'Buyer line 4'],
+  ['Buyers & questions', 'faqTitle', 'Questions heading'],
+  ['Buyers & questions', 'q1', 'Question 1'], ['Buyers & questions', 'a1', 'Answer 1', 1], ['Buyers & questions', 'q2', 'Question 2'], ['Buyers & questions', 'a2', 'Answer 2', 1],
+  ['Buyers & questions', 'q3', 'Question 3'], ['Buyers & questions', 'a3', 'Answer 3', 1], ['Buyers & questions', 'q4', 'Question 4'], ['Buyers & questions', 'a4', 'Answer 4', 1],
+  ['Buyers & questions', 'q5', 'Question 5'], ['Buyers & questions', 'a5', 'Answer 5', 1],
+  ['Bottom of page', 'ctaTitle', 'Closing heading'], ['Bottom of page', 'ctaIntro', 'Closing line'], ['Bottom of page', 'ctaBtn', 'Closing button'],
+  ['Bottom of page', 'footer1', 'Footer — who we are', 1], ['Bottom of page', 'footer2', 'Footer — estimate disclaimer', 1],
+];
+function loadSellContent() { try { return rj(SELL_CONTENT_FILE) || {}; } catch (e) { return {}; } }
+function _htmlUnesc(t) { return String(t || '').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\s+/g, ' ').trim(); }
+let _sellTpl = { at: 0, html: '' };
+function _sellTemplate() { const f = path.join(__dirname, 'public', 'sell_site.html'); try { const st = fs.statSync(f); if (st.mtimeMs !== _sellTpl.at) _sellTpl = { at: st.mtimeMs, html: fs.readFileSync(f, 'utf8') }; } catch (e) {} return _sellTpl.html; }
+const _sellSlotRe = k => new RegExp('(<([a-z0-9]+)\\b[^>]*\\bdata-k="' + k + '"[^>]*>)([\\s\\S]*?)(</\\2>)', 'g');
+function sellDefaults() { const html = _sellTemplate(), out = {}; SELL_FIELDS.forEach(f => { const k = f[1]; if (k === 'metaDesc') { const m = html.match(/data-k="metaDesc" content="([^"]*)"/); out[k] = m ? _htmlUnesc(m[1]) : ''; return; } const m = _sellSlotRe(k).exec(html); out[k] = m ? _htmlUnesc(m[3]) : ''; }); return out; }
+function renderSellSite() {
+  let html = _sellTemplate(); const c = loadSellContent();
+  const E = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  Object.keys(c).forEach(k => {
+    const v = String(c[k] == null ? '' : c[k]).trim(); if (!v || !SELL_FIELDS.some(f => f[1] === k)) return;
+    if (k === 'metaDesc') { html = html.replace(/(data-k="metaDesc" content=")[^"]*(")/, '$1' + E(v) + '$2'); return; }
+    const txt = k === 'phone' ? (' · <a href="tel:' + E(v.replace(/[^0-9+]/g, '')) + '">' + E(v) + '</a>') : E(v.replace(/\s*\n\s*/g, ' '));
+    html = html.replace(_sellSlotRe(k), (all, open, tag, inner, close) => open + txt + close);
+  });
+  return html;
+}
+app.get('/api/admin/sell-site', requireAdmin, (req, res) => {
+  const c = loadSellContent(), d = sellDefaults();
+  res.json({ ok: true, host: String(process.env.SELL_SITE_HOST || '').split(/[\s,]+/).filter(Boolean)[0] || '', fields: SELL_FIELDS.map(f => ({ group: f[0], k: f[1], label: f[2], long: !!f[3], def: d[f[1]] || '', value: c[f[1]] || '' })), updatedAt: c._updatedAt || '', by: c._by || '' });
+});
+app.post('/api/admin/sell-site', requireAdmin, express.json({ limit: '128kb' }), (req, res) => {
+  const vals = (req.body && req.body.values) || {}; const d = sellDefaults(); const out = {};
+  SELL_FIELDS.forEach(f => { const k = f[1]; const v = String(vals[k] == null ? '' : vals[k]).trim().slice(0, f[3] ? 1200 : 200); if (v && v !== d[k]) out[k] = v; });
+  out._updatedAt = new Date().toISOString(); out._by = (req.user && req.user.name) || '';
+  try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); if (!writeJsonGuarded(SELL_CONTENT_FILE, out, 'saveSellContent')) throw new Error('write'); } catch (e) { return res.status(500).json({ ok: false, error: 'Could not save. Try again.' }); }
+  res.json({ ok: true, updatedAt: out._updatedAt });
+});
 // Value range — SDE (owner earnings) × a multiple that rises with size. Mirrors the page's own math.
 function _sellEstimate(d) {
   const sales = d.sales, other = 0.12;
@@ -8331,9 +8378,10 @@ function _sellEstimate(d) {
 // The owner's copy of their range. Written to move them from "what's it worth" to sending real financials —
 // the step that turns a curious owner into a listing. From the specialist by name; replies go to them.
 async function _sellOwnerEmail(d, est, owner, k) {
-  const brand = String(process.env.SELL_SITE_NAME || 'Sell My Texas Restaurant');
+  const _sc = loadSellContent();
+  const brand = String(_sc.brand || process.env.SELL_SITE_NAME || 'Sell My Texas Restaurant');
   const who = owner.name || owner.username || brand;
-  const phone = String(process.env.SELL_SITE_PHONE || owner.phone || '').trim();
+  const phone = String(_sc.phone || process.env.SELL_SITE_PHONE || owner.phone || '').trim();
   const E = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   const biz = d.business || 'your restaurant';
   const range = est.asset ? '' : (k(est.low) + ' to ' + k(est.high));
