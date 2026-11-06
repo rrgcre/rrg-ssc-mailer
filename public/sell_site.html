@@ -3,135 +3,139 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title data-k="title">Sell My Texas Restaurant — What is your restaurant group worth?</title>
+<title data-k="title">Texas Restaurant Exit — What is your restaurant group worth?</title>
 <meta name="description" data-k="metaDesc" content="Own one Texas restaurant or a group of them? Get a free value range in two minutes, then meet buyers looking to add Texas units. Confidential, no cost to talk.">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <style>
+/* Texas Restaurant Exit — highway-sign look: asphalt, interstate green, sign yellow, concrete. */
 :root{
-  --ink:#1c2620;        /* green-black ink */
-  --forest:#1e4d3a;     /* buttons, links */
-  --forest-2:#163b2c;
-  --page:#f5f6f2;
-  --check:#e6efd9;      /* guest-check paper */
-  --rule:#bcd6ad;       /* guest-check ruling */
-  --checkred:#b3261e;   /* totals ink */
-  --muted:#5d6b62;
-  --line:#d9ded5;
+  --asph:#2e3337;     /* asphalt */
+  --green:#006b54;    /* interstate sign green */
+  --green-2:#00553f;
+  --yellow:#f2c300;   /* exit tab / lane paint */
+  --ink:#23282c;
+  --page:#eceee9;     /* concrete */
+  --muted:#4a5258;
+  --pale:#d6eadf;     /* text on green */
+  --line:#d5d9d3;
 }
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
-body{margin:0;background:var(--page);color:var(--ink);font:400 17px/1.6 "Public Sans",system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased}
-a{color:var(--forest)}
-.wrap{max-width:1140px;margin:0 auto;padding:0 24px}
-:focus-visible{outline:3px solid #e0a32a;outline-offset:2px}
+body{margin:0;background:var(--page);color:var(--ink);font:400 18px/1.55 Overpass,"Arial Narrow",Arial,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--green)}
+.wrap{max-width:1240px;margin:0 auto;padding:0 32px}
+:focus-visible{outline:3px solid var(--yellow);outline-offset:2px}
 
-/* Top bar */
-.top{display:flex;align-items:center;justify-content:space-between;padding:22px 0}
-.brand{font-weight:800;font-size:18px;letter-spacing:-.01em;color:var(--ink);text-decoration:none;display:flex;align-items:center;gap:10px}
-.brand svg{flex:0 0 auto}
-.top a.call{font-weight:600;font-size:15px;text-decoration:none}
+/* Asphalt band: header + hero */
+.asphalt{background:var(--asph);color:#fff;position:relative;padding-bottom:84px}
+.lane{position:absolute;left:0;right:0;bottom:34px;height:6px;background:repeating-linear-gradient(90deg,var(--yellow) 0 64px,transparent 64px 112px)}
+.top{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:20px 0}
+.brand{display:inline-flex;text-decoration:none;background:var(--green);color:#fff;border-radius:8px;padding:4px}
+.brand .sign{display:inline-block;border:2px solid #fff;border-radius:6px;padding:7px 14px 4px;font-weight:800;font-size:17px;letter-spacing:.02em;text-transform:uppercase;white-space:nowrap}
+.top a.call{background:var(--yellow);color:var(--ink);text-decoration:none;font-weight:800;font-size:16px;padding:12px 18px 9px;border-radius:6px}
+.hero{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:start;padding:40px 0 0}
+.hero h1{font-size:clamp(38px,5vw,62px);line-height:1.02;letter-spacing:-.01em;font-weight:900;margin:8px 0 22px;max-width:14ch}
+.hero .lede{font-size:20px;color:#cfd5d1;max-width:48ch;margin:0 0 28px}
+.facts{list-style:none;margin:0;padding:0;display:grid;gap:14px;max-width:48ch}
+.facts li{display:grid;grid-template-columns:22px 1fr;gap:12px;align-items:start;font-size:17px;color:#e9ece8}
+.facts li svg{margin-top:3px}
+.facts b{font-weight:800;color:#fff}
 
-/* Hero */
-.hero{display:grid;grid-template-columns:1.05fr .95fr;gap:56px;align-items:start;padding:28px 0 72px}
-.hero h1{font-size:clamp(36px,5vw,58px);line-height:1.04;letter-spacing:-.025em;font-weight:800;margin:18px 0 20px;max-width:13ch}
-.hero .lede{font-size:19px;color:#34413a;max-width:46ch;margin:0 0 30px}
-.facts{list-style:none;margin:0;padding:0;display:grid;gap:14px;max-width:46ch}
-.facts li{display:grid;grid-template-columns:22px 1fr;gap:12px;align-items:start;font-size:16px}
-.facts li svg{margin-top:4px}
-.facts b{font-weight:700}
-
-/* The guest check */
-.check{position:relative;background:var(--check);border-radius:3px 3px 0 0;box-shadow:0 1px 0 #c6d6b6,0 18px 40px -18px rgba(28,38,32,.45);padding:0 0 26px;
-  background-image:repeating-linear-gradient(to bottom,transparent 0,transparent 39px,var(--rule) 39px,var(--rule) 40px);background-position:0 92px;transform:rotate(.6deg)}
-.check:after{content:"";position:absolute;left:0;right:0;bottom:-10px;height:10px;
-  background:linear-gradient(-45deg,transparent 7px,var(--check) 0) 0 0/14px 10px,linear-gradient(45deg,transparent 7px,var(--check) 0) 0 0/14px 10px}
-.check-hd{display:grid;grid-template-columns:1fr auto;align-items:end;padding:18px 24px 12px;border-bottom:2px solid var(--checkred)}
-.check-hd .t{font-weight:800;font-size:15px;color:var(--checkred);letter-spacing:.01em}
-.check-hd .no{font-family:Caveat,cursive;font-size:24px;color:var(--checkred);line-height:1}
-.steps{display:flex;gap:6px;padding:12px 24px 0}
-.steps span{flex:1;height:4px;border-radius:2px;background:#c9dbb8}
-.steps span.on{background:var(--forest)}
-form{padding:8px 24px 0;transform:rotate(-.6deg)}
+/* The estimator is the exit sign: green panel, white inset border, on two posts */
+.check{position:relative;background:var(--green);color:#fff;border:3px solid #fff;border-radius:11px;outline:8px solid var(--green);margin:8px 8px 88px;padding:0 0 22px;box-shadow:0 30px 50px -24px rgba(0,0,0,.7)}
+.check:before,.check:after{content:"";position:absolute;bottom:-91px;width:14px;height:80px;background:#8c9399}
+.check:before{left:24%}.check:after{right:24%}
+.check-hd{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 22px 10px}
+.check-hd .t{font-weight:800;font-size:15px;color:var(--pale);letter-spacing:.03em}
+.check-hd .no{background:var(--yellow);color:var(--ink);border:2px solid var(--ink);border-radius:5px;padding:6px 10px 3px;font-weight:900;font-size:16px;white-space:nowrap}
+.steps{display:flex;gap:6px;padding:4px 22px 0}
+.steps span{flex:1;height:5px;border-radius:3px;background:rgba(255,255,255,.22)}
+.steps span.on{background:var(--yellow)}
+form{padding:6px 22px 0}
 fieldset{border:0;margin:0;padding:0;min-width:0}
 fieldset[hidden]{display:none}
-legend{font-weight:700;font-size:18px;padding:10px 0 6px}
+legend{font-weight:900;font-size:24px;line-height:1.15;padding:12px 0 4px;color:#fff}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-label{display:block;font-size:13.5px;font-weight:600;color:#33433a;margin:12px 0 5px}
-label .h{font-weight:400;color:var(--muted)}
-input,select{width:100%;font:500 16px/1.2 "Public Sans",sans-serif;color:var(--ink);background:#fbfdf8;border:1px solid #b9cdaa;border-radius:6px;padding:11px 12px;min-height:46px}
-input:focus,select:focus{border-color:var(--forest);outline:2px solid rgba(30,77,58,.25);outline-offset:0}
-.pre{position:relative}.pre input{padding-left:26px}.pre:before{content:attr(data-p);position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:600}
-.post{position:relative}.post input{padding-right:30px}.post:after{content:attr(data-p);position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:600}
+label{display:block;font-size:14px;font-weight:700;color:var(--pale);margin:12px 0 5px}
+label .h{font-weight:400;color:#a9cdbc}
+input,select{width:100%;font:600 17px/1.2 Overpass,Arial,sans-serif;color:var(--ink);background:#fff;border:2px solid #fff;border-radius:6px;padding:12px 12px 9px;min-height:48px}
+input::placeholder{color:#8a9196;font-weight:400}
+input:focus,select:focus{border-color:var(--yellow);outline:none}
+.pre{position:relative}.pre input{padding-left:26px}.pre:before{content:attr(data-p);position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#6b7378;font-weight:700}
+.post{position:relative}.post input{padding-right:30px}.post:after{content:attr(data-p);position:absolute;right:12px;top:50%;transform:translateY(-50%);color:#6b7378;font-weight:700}
 .seg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.seg label{margin:0;display:flex;align-items:center;justify-content:center;gap:6px;border:1px solid #b9cdaa;background:#fbfdf8;border-radius:6px;min-height:46px;font-size:15px;font-weight:600;cursor:pointer}
+.seg label{margin:0;display:flex;align-items:center;justify-content:center;border:2px solid rgba(255,255,255,.55);color:#fff;border-radius:6px;min-height:48px;font-size:15px;font-weight:700;cursor:pointer;text-align:center;padding:4px 6px}
 .seg input{position:absolute;opacity:0;width:1px;height:1px}
-.seg input:checked+span{color:#fff}
-.seg label:has(input:checked){background:var(--forest);border-color:var(--forest);color:#fff}
-.seg label:has(input:focus-visible){outline:3px solid #e0a32a;outline-offset:2px}
+.seg label:has(input:checked){background:var(--yellow);border-color:var(--yellow);color:var(--ink)}
+.seg label:has(input:focus-visible){outline:3px solid var(--yellow);outline-offset:2px}
 .nav{display:flex;gap:10px;align-items:center;margin-top:22px}
-button{font:700 16px/1 "Public Sans",sans-serif;border:0;border-radius:6px;padding:15px 22px;cursor:pointer;min-height:50px}
-.go{background:var(--forest);color:#fff;flex:1}
-.go:hover{background:var(--forest-2)}
-.back{background:transparent;color:var(--forest);padding:15px 8px}
-.err{color:var(--checkred);font-size:14px;font-weight:600;min-height:20px;margin-top:10px}
-.fine{font-size:12.5px;color:var(--muted);margin:12px 0 0;line-height:1.5}
+button{font:800 17px/1 Overpass,Arial,sans-serif;border:0;border-radius:6px;padding:16px 22px 13px;cursor:pointer;min-height:52px}
+.go{background:var(--yellow);color:var(--ink);flex:1}
+.go:hover{background:#ffd21f}
+.back{background:transparent;color:#fff;padding:16px 8px 13px}
+.err{color:#ffe28a;font-size:14px;font-weight:700;min-height:20px;margin-top:10px}
+.fine{font-size:13px;color:#b9d8c9;margin:10px 0 0;line-height:1.5}
 .hp{position:absolute;left:-5000px;width:1px;height:1px;overflow:hidden}
 
-/* Result on the check */
-.result{padding:8px 24px 0;transform:rotate(-.6deg)}
+/* Result on the sign */
+.result{padding:6px 22px 0}
 .result[hidden]{display:none}
-.result .lbl{font-weight:700;font-size:15px;margin-top:14px}
-.total{font-family:Caveat,cursive;font-weight:700;color:var(--checkred);font-size:clamp(46px,7vw,64px);line-height:1;margin:6px 0 4px;letter-spacing:.5px}
-.total.sm{font-size:clamp(30px,5vw,40px)}
-.lines{margin:12px 0 0;padding:0;list-style:none;font-size:15px}
-.lines li{display:flex;justify-content:space-between;gap:12px;height:40px;align-items:center}
-.lines li b{font-family:Caveat,cursive;font-size:26px;color:var(--ink);font-weight:700}
-.next{background:#fbfdf8;border:1px solid #b9cdaa;border-radius:6px;padding:14px 16px;margin-top:16px;font-size:15px}
+.result .lbl{font-weight:800;font-size:15px;color:var(--pale);margin-top:12px}
+.total{font-weight:900;color:var(--yellow);font-size:clamp(40px,6vw,56px);line-height:1.05;margin:6px 0 6px;letter-spacing:-.01em}
+.total.sm{font-size:clamp(28px,4vw,36px)}
+.lines{margin:10px 0 0;padding:0;list-style:none;font-size:16px}
+.lines li{display:flex;justify-content:space-between;gap:12px;padding:10px 0 8px;border-top:1px solid rgba(255,255,255,.25);color:var(--pale)}
+.lines li b{font-weight:900;color:#fff;font-size:18px}
+.next{background:rgba(0,0,0,.2);border-radius:6px;padding:14px 16px 12px;margin-top:16px;font-size:16px;color:#fff}
 .next b{display:block;margin-bottom:2px}
 
-/* Sections */
-section{padding:72px 0;border-top:1px solid var(--line)}
-section h2{font-size:clamp(28px,3.4vw,38px);line-height:1.12;letter-spacing:-.02em;font-weight:800;margin:0 0 14px;max-width:22ch}
-section .intro{color:#34413a;max-width:60ch;margin:0 0 34px}
-.how{display:grid;grid-template-columns:repeat(3,1fr);gap:34px;counter-reset:s;list-style:none;margin:0;padding:0}
-.how li{counter-increment:s;padding-top:52px;position:relative}
-.how li:before{content:counter(s);position:absolute;top:0;left:0;font-family:Caveat,cursive;font-weight:700;font-size:46px;line-height:1;color:var(--checkred)}
-.how h3{font-size:19px;margin:0 0 6px}
-.how p{margin:0;color:#34413a;font-size:16px}
+/* Sections on concrete */
+section{padding:84px 0;border-top:1px solid var(--line)}
+section h2{font-size:clamp(28px,3.4vw,40px);line-height:1.1;font-weight:900;margin:0 0 12px;max-width:22ch}
+section .intro{color:var(--muted);max-width:60ch;margin:0 0 40px;font-size:19px}
+.how{display:grid;grid-template-columns:repeat(3,1fr);gap:36px;counter-reset:s;list-style:none;margin:0;padding:0}
+.how li{counter-increment:s;position:relative;padding-left:76px;min-height:72px}
+.how li:before{content:"MILE\A" counter(s);white-space:pre;position:absolute;top:0;left:0;width:56px;background:var(--green);color:#fff;border-radius:6px;text-align:center;padding:9px 0 6px;font-weight:900;font-size:17px;line-height:1.15;letter-spacing:.04em}
+.how h3{font-size:22px;font-weight:800;margin:2px 0 6px}
+.how p{margin:0;color:var(--muted);font-size:17px}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:56px}
-.who ul{margin:0;padding:0;list-style:none;display:grid;gap:10px}
-.who li{padding-left:22px;position:relative}
-.who li:before{content:"";position:absolute;left:0;top:11px;width:10px;height:2px;background:var(--checkred)}
-details{border-bottom:1px solid var(--line);padding:16px 0}
+.who ul{margin:0;padding:0;list-style:none;display:grid;gap:12px}
+.who li{padding-left:28px;position:relative}
+.who li:before{content:"";position:absolute;left:2px;top:8px;width:10px;height:10px;background:var(--yellow);border:2px solid var(--ink);transform:rotate(45deg)}
+details{border-bottom:1px solid var(--line);padding:16px 0 12px}
 details:first-of-type{border-top:1px solid var(--line)}
-summary{font-weight:700;font-size:17px;cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:16px}
+summary{font-weight:800;font-size:18px;cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:16px}
 summary::-webkit-details-marker{display:none}
-summary:after{content:"+";font-weight:400;font-size:24px;line-height:1;color:var(--forest)}
+summary:after{content:"+";font-weight:700;font-size:26px;line-height:1;color:var(--green)}
 details[open] summary:after{content:"–"}
-details p{margin:10px 0 0;color:#34413a;max-width:62ch}
-.cta-band{background:var(--forest);color:#eaf2e3;border:0}
+details p{margin:10px 0 0;color:var(--muted);max-width:62ch}
+.cta-band{background:var(--green);color:#fff;border:0}
 .cta-band h2{color:#fff}
-.cta-band .intro{color:#cfe0c4}
-.cta-band a.btn{display:inline-block;background:#fff;color:var(--forest);text-decoration:none;font-weight:800;padding:16px 24px;border-radius:6px}
-footer{padding:36px 0 48px;font-size:13.5px;color:var(--muted)}
-footer p{max-width:80ch;margin:0 0 8px}
+.cta-band .intro{color:var(--pale)}
+.cta-band a.btn{display:inline-block;background:var(--yellow);color:var(--ink);text-decoration:none;font-weight:900;padding:16px 24px 13px;border-radius:6px}
+footer{background:var(--asph);color:#b9c0bb;padding:36px 0 48px;font-size:14px}
+footer p{max-width:82ch;margin:0 0 8px}
+footer a{color:#fff}
 
-@media (max-width:900px){
-  .hero{grid-template-columns:1fr;gap:34px}
+@media (max-width:960px){
+  .hero{grid-template-columns:1fr;gap:28px}
   .how,.two{grid-template-columns:1fr;gap:28px}
-  .check{transform:none}form,.result{transform:none}
 }
-@media (max-width:480px){.top a.call{display:none}.brand{font-size:16px;white-space:nowrap}.row{grid-template-columns:1fr}.wrap{padding:0 16px}.check-hd,.steps,form,.result{padding-left:16px;padding-right:16px}}
+@media (max-width:520px){
+  .wrap{padding:0 16px}.row{grid-template-columns:1fr}
+  .top a.call{display:none}.brand .sign{font-size:15px}
+  .check-hd,.steps,form,.result{padding-left:16px;padding-right:16px}
+  .check:before{left:18%}.check:after{right:18%}
+}
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 </style>
 </head>
 <body data-variant="groups">
-<div class="wrap">
+<div class="asphalt"><div class="wrap">
   <header class="top">
     <a class="brand" href="{{BASE}}/" aria-label="Home">
-      <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><rect x="2" y="2" width="24" height="24" rx="3" fill="#1e4d3a"/><path d="M8 9h12M8 14h12M8 19h7" stroke="#e6efd9" stroke-width="2.2" stroke-linecap="round"/><circle cx="20" cy="19" r="2.2" fill="#b3261e"/></svg>
-      <span data-k="brand">Sell My Texas Restaurant</span>
+      <span class="sign"><span data-k="brand">Texas Restaurant Exit</span></span>
     </a>
     <a class="call" href="#estimate" data-k="navCta">Get my value range</a>
   </header>
@@ -142,14 +146,14 @@ footer p{max-width:80ch;margin:0 0 8px}
       <h1 data-k="heroTitle">What would a buyer pay for your restaurants?</h1>
       <p class="lede" data-k="heroIntro">Whether you run two locations or twenty, answer a few questions about the last 12 months and see what buyers would pay for your group in about two minutes. If the number makes sense, we put it in front of operators who are buying right now. Quietly.</p>
       <ul class="facts">
-        <li><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="10" fill="#1e4d3a"/><path d="M6.5 11.3l3 3 6-6.3" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b data-k="f1t">Confidential.</b> <span data-k="f1d">Buyers sign an NDA before they learn your brand or locations. Your managers and staff won’t hear it from us.</span></span></li>
-        <li><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="10" fill="#1e4d3a"/><path d="M6.5 11.3l3 3 6-6.3" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b data-k="f2t">Buyers who buy groups.</b> <span data-k="f2d">Multi-unit operators, regional brands and investor-backed platforms looking to add Texas units.</span></span></li>
-        <li><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="10" fill="#1e4d3a"/><path d="M6.5 11.3l3 3 6-6.3" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b data-k="f3t">Sell all or some.</b> <span data-k="f3d">Sell the whole group in one deal, or sell a few locations and keep the rest. The first conversation is free.</span></span></li>
+        <li><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="10" fill="#f2c300"/><path d="M6.5 11.3l3 3 6-6.3" stroke="#23282c" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b data-k="f1t">Confidential.</b> <span data-k="f1d">Buyers sign an NDA before they learn your brand or locations. Your managers and staff won’t hear it from us.</span></span></li>
+        <li><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="10" fill="#f2c300"/><path d="M6.5 11.3l3 3 6-6.3" stroke="#23282c" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b data-k="f2t">Buyers who buy groups.</b> <span data-k="f2d">Multi-unit operators, regional brands and investor-backed platforms looking to add Texas units.</span></span></li>
+        <li><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="10" fill="#f2c300"/><path d="M6.5 11.3l3 3 6-6.3" stroke="#23282c" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b data-k="f3t">Sell all or some.</b> <span data-k="f3d">Sell the whole group in one deal, or sell a few locations and keep the rest. The first conversation is free.</span></span></li>
       </ul>
     </div>
 
     <div class="check" id="estimate" aria-label="Restaurant value estimator">
-      <div class="check-hd"><span class="t" data-k="estTitle">Restaurant value estimate</span><span class="no" aria-hidden="true">No. 0127</span></div>
+      <div class="check-hd"><span class="t" data-k="estTitle">Restaurant value estimate</span><span class="no" id="exitTab" aria-hidden="true">EXIT</span></div>
       <div class="steps" aria-hidden="true"><span class="on" id="st1"></span><span id="st2"></span><span id="st3"></span></div>
 
       <form id="f" novalidate>
@@ -210,7 +214,7 @@ footer p{max-width:80ch;margin:0 0 8px}
     </div>
   </div>
   </main>
-</div>
+</div><div class="lane" aria-hidden="true"></div></div>
 
 <section>
   <div class="wrap">
@@ -256,9 +260,9 @@ footer p{max-width:80ch;margin:0 0 8px}
 
 <footer>
   <div class="wrap">
-    <p data-k="footer1">Sell My Texas Restaurant connects Texas restaurant owners with qualified buyers. We are not a buyer. Services are provided by a licensed Texas real estate broker.</p>
+    <p data-k="footer1">Texas Restaurant Exit connects Texas restaurant owners with qualified buyers. We are not a buyer. Services are provided by a licensed Texas real estate broker.</p>
     <p data-k="footer2">Value ranges are estimates for information only. They are not an appraisal, an offer, or a guarantee of price.</p>
-    <p>© <span id="yr"></span> <span data-k="brand">Sell My Texas Restaurant</span><span data-k="phone"></span></p>
+    <p>© <span id="yr"></span> <span data-k="brand">Texas Restaurant Exit</span><span data-k="phone"></span></p>
   </div>
 </footer>
 
@@ -267,6 +271,7 @@ footer p{max-width:80ch;margin:0 0 8px}
   var $=function(id){return document.getElementById(id);};
   $('yr').textContent=new Date().getFullYear();
   var VARIANT=document.body.getAttribute('data-variant')||'groups';
+  $('exitTab').textContent=(VARIANT==='restaurant')?'EXIT 1':'EXIT 2+';
   if(VARIANT==='restaurant'){ $('sales').placeholder='1,400,000'; $('rent').placeholder='9,500'; $('loc').value='1'; $('loc').placeholder='1'; }
   var num=function(v){ v=String(v||'').replace(/[^0-9.]/g,''); var n=parseFloat(v); return isFinite(n)?n:NaN; };
   var money=function(n){ if(n>=1e6) return '$'+(Math.round(n/1e5)/10).toFixed(n>=1e7?0:1).replace(/\.0$/,'')+'M'; return '$'+Math.round(n/1e3)+'K'; };

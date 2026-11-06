@@ -11,8 +11,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .wrap{max-width:900px;margin:0 auto;padding:24px 26px 90px;}
 h1{font-size:16px;font-weight:700;color:var(--navy);margin:0;}
 .sub{font-size:13px;color:var(--dim);margin-top:6px;line-height:1.55;max-width:660px;}
-.sub a{color:var(--primary);font-weight:600;}
-.card{border:1px solid var(--line);border-radius:6px;background:#fff;margin-top:18px;overflow:hidden;}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin-top:18px;border-bottom:1px solid var(--line);}
+.tab{background:none;border:1px solid transparent;border-bottom:none;border-radius:4px 4px 0 0;padding:9px 14px;font:inherit;font-size:13px;font-weight:600;color:var(--dim);cursor:pointer;margin-bottom:-1px;}
+.tab.on{background:#fff;border-color:var(--line);color:var(--navy);}
+.tab .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);margin-left:6px;vertical-align:middle;}
+.pv{margin-top:12px;font-size:12.5px;color:var(--dim);}
+.pv a{color:var(--primary);font-weight:600;}
+.card{border:1px solid var(--line);border-radius:6px;background:#fff;margin-top:16px;overflow:hidden;}
 .cardh{background:var(--wash);border-bottom:1px solid var(--line);padding:11px 16px;font-size:11.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--navy);}
 .cardb{padding:4px 16px 16px;}
 label.fl{display:flex;justify-content:space-between;gap:10px;font-size:12px;font-weight:700;color:var(--navy);margin:14px 0 6px;}
@@ -24,7 +29,6 @@ input.tin:focus,textarea.tin:focus{outline:none;border-color:var(--primary);box-
 .bar{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);padding:12px 26px;display:flex;align-items:center;gap:12px;justify-content:center;}
 .savebtn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:3px;padding:9px 20px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;}
 .savebtn:disabled{opacity:.5;cursor:default;}
-.ghost{background:#fff;color:#33415c;border:1px solid var(--inp);border-radius:3px;padding:9px 15px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;text-decoration:none;}
 .msg{font-size:12.5px;font-weight:600;min-height:16px;}
 .help{border:1px solid #dbe6f3;background:#f5f9fd;border-radius:6px;padding:12px 14px;font-size:12.5px;color:var(--dim);line-height:1.6;margin-top:14px;}
 .help b{color:var(--navy);}
@@ -34,35 +38,51 @@ input.tin:focus,textarea.tin:focus{outline:none;border-color:var(--primary);box-
 <body>
 <div class="wrap">
   <h1>Seller Site</h1>
-  <div class="sub" id="sub">Edit the wording on your seller lead site. Saving puts it live right away — no push needed. <a href="/sell-site" target="_blank" rel="noopener">Preview the site</a></div>
-  <div class="help"><b>What this section does.</b> Every block of text on the seller site — headline, points, steps, buyer list, questions, footer, brand name and phone — is a box below. Leave a box as it is to keep the default; clear it and save to go back to the default. The brand name and phone also go in the email owners get with their value range. Keep the footer true: the site connects owners with buyers and is not a buyer.</div>
+  <div class="sub">Edit the wording on your seller lead site. Saving puts it live right away — no push needed.</div>
+  <div class="help"><b>What this section does.</b> The seller site has three pages: a <b>home page</b> that asks “one restaurant or several?”, a <b>one-restaurant page</b> for single-unit owners, and a <b>restaurant-groups page</b> for multi-unit operators. Send ads straight to the page that fits (e.g. “sell my restaurant group” → the groups page). Each tab below is one page; <b>Brand &amp; footer</b> applies to all three and also goes in the email owners get with their value range. Leave a box as it is to keep the default; <b>Reset</b> puts the default back. Every lead lands in Lavano tagged with the page it came from. Keep the footer true: the site connects owners with buyers and is not a buyer.</div>
+  <div class="tabs" id="tabs"></div>
+  <div class="pv" id="pv"></div>
   <div id="root"><div class="sub" style="margin-top:18px">Loading…</div></div>
 </div>
-<div class="bar"><button class="savebtn" id="save" disabled>Save &amp; publish</button><a class="ghost" href="/sell-site" target="_blank" rel="noopener">Preview</a><span class="msg" id="msg"></span></div>
+<div class="bar"><button class="savebtn" id="save" disabled>Save &amp; publish</button><span class="msg" id="msg"></span></div>
 <script>
 (function(){
-  var F=[], dirty=false;
+  var P=[], CUR='', VALS={}, dirty=false;
   function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   function $(id){ return document.getElementById(id); }
-  function cur(f){ var el=$('k_'+f.k); return el?el.value:''; }
-  function mark(f){ var t=$('t_'+f.k); if(!t) return; var v=cur(f).trim(); t.innerHTML=(v && v!==f.def)?'<span class="ch">Edited</span> <span class="rs" data-rs="'+f.k+'">Reset</span>':''; }
+  function page(id){ return P.filter(function(p){return p.id===id;})[0]; }
+  function edited(pg){ return pg.fields.some(function(f){ var v=(VALS[pg.id][f.k]||'').trim(); return v && v!==f.def; }); }
+  function tabs(){ $('tabs').innerHTML=P.map(function(p){ return '<button type="button" class="tab'+(p.id===CUR?' on':'')+'" data-tab="'+p.id+'">'+esc(p.label)+(edited(p)?'<span class="dot" title="Has edits"></span>':'')+'</button>'; }).join(''); }
+  function show(id){
+    CUR=id; tabs(); var pg=page(id);
+    $('pv').innerHTML=pg.path?('Preview: <a href="/sell-site'+(pg.path==='/'?'':pg.path)+'" target="_blank" rel="noopener">'+esc(pg.label)+'</a>'+(HOST?(' · live at '+esc(HOST+pg.path)):'')+' <span style="color:#8a93a3">(preview shows saved wording)</span>'):'These apply to every page.';
+    var groups=[], by={};
+    pg.fields.forEach(function(f){ if(!by[f.group]){ by[f.group]=[]; groups.push(f.group); } by[f.group].push(f); });
+    $('root').innerHTML=groups.map(function(g){ return '<div class="card"><div class="cardh">'+esc(g)+'</div><div class="cardb">'+by[g].map(function(f){
+      var v=VALS[pg.id][f.k]; var ph=(f.k==='phone')?'(210) 555-0100':'';
+      return '<label class="fl" for="k_'+f.k+'"><span>'+esc(f.label)+'</span><span id="t_'+f.k+'"></span></label>'+(f.long?('<textarea class="tin" id="k_'+f.k+'" data-k="'+f.k+'">'+esc(v)+'</textarea>'):('<input class="tin" id="k_'+f.k+'" data-k="'+f.k+'" value="'+esc(v)+'" placeholder="'+esc(ph)+'">'));
+    }).join('')+'</div></div>'; }).join('');
+    pg.fields.forEach(mark);
+  }
+  function mark(f){ var t=$('t_'+f.k); if(!t) return; var v=(VALS[CUR][f.k]||'').trim(); t.innerHTML=(v && v!==f.def)?'<span class="ch">Edited</span> <span class="rs" data-rs="'+f.k+'">Reset</span>':''; }
   function setDirty(){ dirty=true; $('save').disabled=false; $('msg').textContent=''; }
+  var HOST='';
   fetch('/api/admin/sell-site',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok){ $('root').innerHTML='<div class="sub" style="margin-top:18px;color:#b23a2c">'+esc((j&&j.error)||'Only admins can edit the seller site.')+'</div>'; return; }
-    F=j.fields||[]; var groups=[], by={};
-    F.forEach(function(f){ if(!by[f.group]){ by[f.group]=[]; groups.push(f.group); } by[f.group].push(f); });
-    $('root').innerHTML=groups.map(function(g){ return '<div class="card"><div class="cardh">'+esc(g)+'</div><div class="cardb">'+by[g].map(function(f){
-      var v=f.value||f.def; var ph=(f.k==='phone')?'(210) 555-0100':'';
-      return '<label class="fl" for="k_'+f.k+'"><span>'+esc(f.label)+'</span><span id="t_'+f.k+'"></span></label>'+(f.long?('<textarea class="tin" id="k_'+f.k+'">'+esc(v)+'</textarea>'):('<input class="tin" id="k_'+f.k+'" value="'+esc(v)+'" placeholder="'+esc(ph)+'">'));
-    }).join('')+'</div></div>'; }).join('');
-    F.forEach(function(f){ mark(f); var el=$('k_'+f.k); el.addEventListener('input',function(){ setDirty(); mark(f); }); });
+    P=j.pages||[]; HOST=j.host?('https://'+j.host):'';
+    P.forEach(function(p){ VALS[p.id]={}; p.fields.forEach(function(f){ VALS[p.id][f.k]=f.value||f.def; }); });
+    show(P[1]?P[1].id:P[0].id);
     if(j.updatedAt) $('msg').textContent='Last saved '+new Date(j.updatedAt).toLocaleString()+(j.by?(' by '+j.by):'');
   }).catch(function(){ $('root').innerHTML='<div class="sub" style="margin-top:18px;color:#b23a2c">Could not reach the server.</div>'; });
-  document.addEventListener('click',function(e){ var k=e.target&&e.target.getAttribute&&e.target.getAttribute('data-rs'); if(!k) return; var f=F.filter(function(x){return x.k===k;})[0]; if(!f) return; $('k_'+k).value=f.def; mark(f); setDirty(); });
+  document.addEventListener('click',function(e){
+    var t=e.target.closest&&e.target.closest('[data-tab]'); if(t){ show(t.getAttribute('data-tab')); return; }
+    var k=e.target&&e.target.getAttribute&&e.target.getAttribute('data-rs'); if(!k) return;
+    var f=page(CUR).fields.filter(function(x){return x.k===k;})[0]; if(!f) return; VALS[CUR][k]=f.def; $('k_'+k).value=f.def; mark(f); tabs(); setDirty();
+  });
+  document.addEventListener('input',function(e){ var k=e.target&&e.target.getAttribute&&e.target.getAttribute('data-k'); if(!k||!CUR) return; VALS[CUR][k]=e.target.value; var f=page(CUR).fields.filter(function(x){return x.k===k;})[0]; if(f) mark(f); tabs(); setDirty(); });
   $('save').addEventListener('click',function(){
-    var vals={}; F.forEach(function(f){ vals[f.k]=cur(f); });
-    $('save').disabled=true; $('msg').textContent='Saving…';
-    fetch('/api/admin/sell-site',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:vals})}).then(function(r){return r.json();}).then(function(j){
+    $('save').disabled=true; $('msg').style.color=''; $('msg').textContent='Saving…';
+    fetch('/api/admin/sell-site',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({pages:VALS})}).then(function(r){return r.json();}).then(function(j){
       if(j&&j.ok){ dirty=false; $('msg').style.color='#2f7a55'; $('msg').textContent='Saved — live on the site now.'; }
       else { $('save').disabled=false; $('msg').style.color='#b23a2c'; $('msg').textContent=(j&&j.error)||'Could not save.'; }
     }).catch(function(){ $('save').disabled=false; $('msg').style.color='#b23a2c'; $('msg').textContent='Could not reach the server.'; });

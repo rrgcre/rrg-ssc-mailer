@@ -8353,7 +8353,7 @@ const SELL_PAGES = [
 ];
 // The single-unit page shares the groups page's layout; these are its own default words.
 const SELL_RESTAURANT_DEFAULTS = {
-  title: 'Sell My Texas Restaurant — What is your restaurant worth?',
+  title: 'Texas Restaurant Exit — What is your restaurant worth?',
   metaDesc: 'Get a free value range for your Texas restaurant in two minutes, then meet qualified buyers. Confidential, no cost to talk.',
   heroTitle: 'What would a buyer pay for your restaurant?',
   heroIntro: 'Answer a few questions about the last 12 months and see a value range in about two minutes. If the number makes sense to you, we put your restaurant in front of buyers who are looking right now. Quietly.',
@@ -8437,7 +8437,7 @@ function _sellEstimate(d) {
 // the step that turns a curious owner into a listing. From the specialist by name; replies go to them.
 async function _sellOwnerEmail(d, est, owner, k) {
   const _sc = loadSellContent().shared || {};
-  const brand = String(_sc.brand || process.env.SELL_SITE_NAME || 'Sell My Texas Restaurant');
+  const brand = String(_sc.brand || process.env.SELL_SITE_NAME || 'Texas Restaurant Exit');
   const who = owner.name || owner.username || brand;
   const phone = String(_sc.phone || process.env.SELL_SITE_PHONE || owner.phone || '').trim();
   const E = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');

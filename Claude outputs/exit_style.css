@@ -1,0 +1,125 @@
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+/* Texas Restaurant Exit — highway-sign look: asphalt, interstate green, sign yellow, concrete. */
+:root{
+  --asph:#2e3337;     /* asphalt */
+  --green:#006b54;    /* interstate sign green */
+  --green-2:#00553f;
+  --yellow:#f2c300;   /* exit tab / lane paint */
+  --ink:#23282c;
+  --page:#eceee9;     /* concrete */
+  --muted:#4a5258;
+  --pale:#d6eadf;     /* text on green */
+  --line:#d5d9d3;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--page);color:var(--ink);font:400 18px/1.55 Overpass,"Arial Narrow",Arial,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--green)}
+.wrap{max-width:1240px;margin:0 auto;padding:0 32px}
+:focus-visible{outline:3px solid var(--yellow);outline-offset:2px}
+
+/* Asphalt band: header + hero */
+.asphalt{background:var(--asph);color:#fff;position:relative;padding-bottom:84px}
+.lane{position:absolute;left:0;right:0;bottom:34px;height:6px;background:repeating-linear-gradient(90deg,var(--yellow) 0 64px,transparent 64px 112px)}
+.top{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:20px 0}
+.brand{display:inline-flex;text-decoration:none;background:var(--green);color:#fff;border-radius:8px;padding:4px}
+.brand .sign{display:inline-block;border:2px solid #fff;border-radius:6px;padding:7px 14px 4px;font-weight:800;font-size:17px;letter-spacing:.02em;text-transform:uppercase;white-space:nowrap}
+.top a.call{background:var(--yellow);color:var(--ink);text-decoration:none;font-weight:800;font-size:16px;padding:12px 18px 9px;border-radius:6px}
+.hero{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:start;padding:40px 0 0}
+.hero h1{font-size:clamp(38px,5vw,62px);line-height:1.02;letter-spacing:-.01em;font-weight:900;margin:8px 0 22px;max-width:14ch}
+.hero .lede{font-size:20px;color:#cfd5d1;max-width:48ch;margin:0 0 28px}
+.facts{list-style:none;margin:0;padding:0;display:grid;gap:14px;max-width:48ch}
+.facts li{display:grid;grid-template-columns:22px 1fr;gap:12px;align-items:start;font-size:17px;color:#e9ece8}
+.facts li svg{margin-top:3px}
+.facts b{font-weight:800;color:#fff}
+
+/* The estimator is the exit sign: green panel, white inset border, on two posts */
+.check{position:relative;background:var(--green);color:#fff;border:3px solid #fff;border-radius:11px;outline:8px solid var(--green);margin:8px 8px 88px;padding:0 0 22px;box-shadow:0 30px 50px -24px rgba(0,0,0,.7)}
+.check:before,.check:after{content:"";position:absolute;bottom:-91px;width:14px;height:80px;background:#8c9399}
+.check:before{left:24%}.check:after{right:24%}
+.check-hd{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 22px 10px}
+.check-hd .t{font-weight:800;font-size:15px;color:var(--pale);letter-spacing:.03em}
+.check-hd .no{background:var(--yellow);color:var(--ink);border:2px solid var(--ink);border-radius:5px;padding:6px 10px 3px;font-weight:900;font-size:16px;white-space:nowrap}
+.steps{display:flex;gap:6px;padding:4px 22px 0}
+.steps span{flex:1;height:5px;border-radius:3px;background:rgba(255,255,255,.22)}
+.steps span.on{background:var(--yellow)}
+form{padding:6px 22px 0}
+fieldset{border:0;margin:0;padding:0;min-width:0}
+fieldset[hidden]{display:none}
+legend{font-weight:900;font-size:24px;line-height:1.15;padding:12px 0 4px;color:#fff}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+label{display:block;font-size:14px;font-weight:700;color:var(--pale);margin:12px 0 5px}
+label .h{font-weight:400;color:#a9cdbc}
+input,select{width:100%;font:600 17px/1.2 Overpass,Arial,sans-serif;color:var(--ink);background:#fff;border:2px solid #fff;border-radius:6px;padding:12px 12px 9px;min-height:48px}
+input::placeholder{color:#8a9196;font-weight:400}
+input:focus,select:focus{border-color:var(--yellow);outline:none}
+.pre{position:relative}.pre input{padding-left:26px}.pre:before{content:attr(data-p);position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#6b7378;font-weight:700}
+.post{position:relative}.post input{padding-right:30px}.post:after{content:attr(data-p);position:absolute;right:12px;top:50%;transform:translateY(-50%);color:#6b7378;font-weight:700}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.seg label{margin:0;display:flex;align-items:center;justify-content:center;border:2px solid rgba(255,255,255,.55);color:#fff;border-radius:6px;min-height:48px;font-size:15px;font-weight:700;cursor:pointer;text-align:center;padding:4px 6px}
+.seg input{position:absolute;opacity:0;width:1px;height:1px}
+.seg label:has(input:checked){background:var(--yellow);border-color:var(--yellow);color:var(--ink)}
+.seg label:has(input:focus-visible){outline:3px solid var(--yellow);outline-offset:2px}
+.nav{display:flex;gap:10px;align-items:center;margin-top:22px}
+button{font:800 17px/1 Overpass,Arial,sans-serif;border:0;border-radius:6px;padding:16px 22px 13px;cursor:pointer;min-height:52px}
+.go{background:var(--yellow);color:var(--ink);flex:1}
+.go:hover{background:#ffd21f}
+.back{background:transparent;color:#fff;padding:16px 8px 13px}
+.err{color:#ffe28a;font-size:14px;font-weight:700;min-height:20px;margin-top:10px}
+.fine{font-size:13px;color:#b9d8c9;margin:10px 0 0;line-height:1.5}
+.hp{position:absolute;left:-5000px;width:1px;height:1px;overflow:hidden}
+
+/* Result on the sign */
+.result{padding:6px 22px 0}
+.result[hidden]{display:none}
+.result .lbl{font-weight:800;font-size:15px;color:var(--pale);margin-top:12px}
+.total{font-weight:900;color:var(--yellow);font-size:clamp(40px,6vw,56px);line-height:1.05;margin:6px 0 6px;letter-spacing:-.01em}
+.total.sm{font-size:clamp(28px,4vw,36px)}
+.lines{margin:10px 0 0;padding:0;list-style:none;font-size:16px}
+.lines li{display:flex;justify-content:space-between;gap:12px;padding:10px 0 8px;border-top:1px solid rgba(255,255,255,.25);color:var(--pale)}
+.lines li b{font-weight:900;color:#fff;font-size:18px}
+.next{background:rgba(0,0,0,.2);border-radius:6px;padding:14px 16px 12px;margin-top:16px;font-size:16px;color:#fff}
+.next b{display:block;margin-bottom:2px}
+
+/* Sections on concrete */
+section{padding:84px 0;border-top:1px solid var(--line)}
+section h2{font-size:clamp(28px,3.4vw,40px);line-height:1.1;font-weight:900;margin:0 0 12px;max-width:22ch}
+section .intro{color:var(--muted);max-width:60ch;margin:0 0 40px;font-size:19px}
+.how{display:grid;grid-template-columns:repeat(3,1fr);gap:36px;counter-reset:s;list-style:none;margin:0;padding:0}
+.how li{counter-increment:s;position:relative;padding-left:76px;min-height:72px}
+.how li:before{content:"MILE\A" counter(s);white-space:pre;position:absolute;top:0;left:0;width:56px;background:var(--green);color:#fff;border-radius:6px;text-align:center;padding:9px 0 6px;font-weight:900;font-size:17px;line-height:1.15;letter-spacing:.04em}
+.how h3{font-size:22px;font-weight:800;margin:2px 0 6px}
+.how p{margin:0;color:var(--muted);font-size:17px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:56px}
+.who ul{margin:0;padding:0;list-style:none;display:grid;gap:12px}
+.who li{padding-left:28px;position:relative}
+.who li:before{content:"";position:absolute;left:2px;top:8px;width:10px;height:10px;background:var(--yellow);border:2px solid var(--ink);transform:rotate(45deg)}
+details{border-bottom:1px solid var(--line);padding:16px 0 12px}
+details:first-of-type{border-top:1px solid var(--line)}
+summary{font-weight:800;font-size:18px;cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:16px}
+summary::-webkit-details-marker{display:none}
+summary:after{content:"+";font-weight:700;font-size:26px;line-height:1;color:var(--green)}
+details[open] summary:after{content:"–"}
+details p{margin:10px 0 0;color:var(--muted);max-width:62ch}
+.cta-band{background:var(--green);color:#fff;border:0}
+.cta-band h2{color:#fff}
+.cta-band .intro{color:var(--pale)}
+.cta-band a.btn{display:inline-block;background:var(--yellow);color:var(--ink);text-decoration:none;font-weight:900;padding:16px 24px 13px;border-radius:6px}
+footer{background:var(--asph);color:#b9c0bb;padding:36px 0 48px;font-size:14px}
+footer p{max-width:82ch;margin:0 0 8px}
+footer a{color:#fff}
+
+@media (max-width:960px){
+  .hero{grid-template-columns:1fr;gap:28px}
+  .how,.two{grid-template-columns:1fr;gap:28px}
+}
+@media (max-width:520px){
+  .wrap{padding:0 16px}.row{grid-template-columns:1fr}
+  .top a.call{display:none}.brand .sign{font-size:15px}
+  .check-hd,.steps,form,.result{padding-left:16px;padding-right:16px}
+  .check:before{left:18%}.check:after{right:18%}
+}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
