@@ -45,7 +45,14 @@ app.use(function (req, res, next) {
 app.use(function (req, res, next) {
   try {
     const hosts = String(process.env.SELL_SITE_HOST || '').toLowerCase().split(/[\s,]+/).filter(Boolean); if (!hosts.length) return next();
-    const h = String(req.hostname || '').toLowerCase(); if (hosts.indexOf(h) < 0) return next();
+    const h = String(req.hostname || '').toLowerCase();
+    // Extra domains (SELL_SITE_ALIASES, e.g. sellmytexasrestaurant.com) send a permanent redirect to the main one,
+    // so Google sees one site and the ads' domain still lands in the right place.
+    const aliases = String(process.env.SELL_SITE_ALIASES || '').toLowerCase().split(/[\s,]+/).filter(Boolean);
+    if (aliases.indexOf(h) >= 0) return res.redirect(301, 'https://' + hosts[0] + req.originalUrl);
+    if (hosts.indexOf(h) < 0) return next();
+    // www → the bare domain (or whichever is listed first), same path.
+    if (h !== hosts[0]) return res.redirect(301, 'https://' + hosts[0] + req.originalUrl);
     const _pg = _sellPageFor(req.path); if (_pg) { res.set('Cache-Control', 'no-cache'); return res.type('html').send(renderSellPage(_pg, '')); }
     if (req.path === '/api/sell/lead' || req.path === '/favicon.ico') return next();
     if (req.path === '/robots.txt') return res.type('text/plain').send('User-agent: *\nAllow: /\n');
