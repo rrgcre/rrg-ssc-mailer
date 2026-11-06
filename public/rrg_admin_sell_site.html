@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Seller Site</title>
+<style>
+:root{--navy:#20334f;--primary:#2c5c8f;--ink:#2b3648;--dim:#5f6a7d;--soft:#8a93a3;--line:#dbe0e9;--wash:#f4f6f9;--green:#2f7a55;--inp:#c4ccda;--red:#b23a2c;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#fff;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.wrap{max-width:900px;margin:0 auto;padding:24px 26px 90px;}
+h1{font-size:16px;font-weight:700;color:var(--navy);margin:0;}
+.sub{font-size:13px;color:var(--dim);margin-top:6px;line-height:1.55;max-width:660px;}
+.sub a{color:var(--primary);font-weight:600;}
+.card{border:1px solid var(--line);border-radius:6px;background:#fff;margin-top:18px;overflow:hidden;}
+.cardh{background:var(--wash);border-bottom:1px solid var(--line);padding:11px 16px;font-size:11.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--navy);}
+.cardb{padding:4px 16px 16px;}
+label.fl{display:flex;justify-content:space-between;gap:10px;font-size:12px;font-weight:700;color:var(--navy);margin:14px 0 6px;}
+label.fl .rs{font-weight:600;color:var(--primary);cursor:pointer;font-size:11.5px;}
+label.fl .ch{font-weight:600;color:var(--green);font-size:11.5px;}
+input.tin,textarea.tin{width:100%;border:1px solid var(--inp);border-radius:4px;padding:9px 11px;font:inherit;font-size:13.5px;background:#fff;color:var(--ink);}
+textarea.tin{min-height:70px;resize:vertical;line-height:1.5;}
+input.tin:focus,textarea.tin:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(44,92,143,.15);}
+.bar{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);padding:12px 26px;display:flex;align-items:center;gap:12px;justify-content:center;}
+.savebtn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:3px;padding:9px 20px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;}
+.savebtn:disabled{opacity:.5;cursor:default;}
+.ghost{background:#fff;color:#33415c;border:1px solid var(--inp);border-radius:3px;padding:9px 15px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;text-decoration:none;}
+.msg{font-size:12.5px;font-weight:600;min-height:16px;}
+.help{border:1px solid #dbe6f3;background:#f5f9fd;border-radius:6px;padding:12px 14px;font-size:12.5px;color:var(--dim);line-height:1.6;margin-top:14px;}
+.help b{color:var(--navy);}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <h1>Seller Site</h1>
+  <div class="sub" id="sub">Edit the wording on your seller lead site. Saving puts it live right away — no push needed. <a href="/sell-site" target="_blank" rel="noopener">Preview the site</a></div>
+  <div class="help"><b>What this section does.</b> Every block of text on the seller site — headline, points, steps, buyer list, questions, footer, brand name and phone — is a box below. Leave a box as it is to keep the default; clear it and save to go back to the default. The brand name and phone also go in the email owners get with their value range. Keep the footer true: the site connects owners with buyers and is not a buyer.</div>
+  <div id="root"><div class="sub" style="margin-top:18px">Loading…</div></div>
+</div>
+<div class="bar"><button class="savebtn" id="save" disabled>Save &amp; publish</button><a class="ghost" href="/sell-site" target="_blank" rel="noopener">Preview</a><span class="msg" id="msg"></span></div>
+<script>
+(function(){
+  var F=[], dirty=false;
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function $(id){ return document.getElementById(id); }
+  function cur(f){ var el=$('k_'+f.k); return el?el.value:''; }
+  function mark(f){ var t=$('t_'+f.k); if(!t) return; var v=cur(f).trim(); t.innerHTML=(v && v!==f.def)?'<span class="ch">Edited</span> <span class="rs" data-rs="'+f.k+'">Reset</span>':''; }
+  function setDirty(){ dirty=true; $('save').disabled=false; $('msg').textContent=''; }
+  fetch('/api/admin/sell-site',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ $('root').innerHTML='<div class="sub" style="margin-top:18px;color:#b23a2c">'+esc((j&&j.error)||'Only admins can edit the seller site.')+'</div>'; return; }
+    F=j.fields||[]; var groups=[], by={};
+    F.forEach(function(f){ if(!by[f.group]){ by[f.group]=[]; groups.push(f.group); } by[f.group].push(f); });
+    $('root').innerHTML=groups.map(function(g){ return '<div class="card"><div class="cardh">'+esc(g)+'</div><div class="cardb">'+by[g].map(function(f){
+      var v=f.value||f.def; var ph=(f.k==='phone')?'(210) 555-0100':'';
+      return '<label class="fl" for="k_'+f.k+'"><span>'+esc(f.label)+'</span><span id="t_'+f.k+'"></span></label>'+(f.long?('<textarea class="tin" id="k_'+f.k+'">'+esc(v)+'</textarea>'):('<input class="tin" id="k_'+f.k+'" value="'+esc(v)+'" placeholder="'+esc(ph)+'">'));
+    }).join('')+'</div></div>'; }).join('');
+    F.forEach(function(f){ mark(f); var el=$('k_'+f.k); el.addEventListener('input',function(){ setDirty(); mark(f); }); });
+    if(j.updatedAt) $('msg').textContent='Last saved '+new Date(j.updatedAt).toLocaleString()+(j.by?(' by '+j.by):'');
+  }).catch(function(){ $('root').innerHTML='<div class="sub" style="margin-top:18px;color:#b23a2c">Could not reach the server.</div>'; });
+  document.addEventListener('click',function(e){ var k=e.target&&e.target.getAttribute&&e.target.getAttribute('data-rs'); if(!k) return; var f=F.filter(function(x){return x.k===k;})[0]; if(!f) return; $('k_'+k).value=f.def; mark(f); setDirty(); });
+  $('save').addEventListener('click',function(){
+    var vals={}; F.forEach(function(f){ vals[f.k]=cur(f); });
+    $('save').disabled=true; $('msg').textContent='Saving…';
+    fetch('/api/admin/sell-site',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:vals})}).then(function(r){return r.json();}).then(function(j){
+      if(j&&j.ok){ dirty=false; $('msg').style.color='#2f7a55'; $('msg').textContent='Saved — live on the site now.'; }
+      else { $('save').disabled=false; $('msg').style.color='#b23a2c'; $('msg').textContent=(j&&j.error)||'Could not save.'; }
+    }).catch(function(){ $('save').disabled=false; $('msg').style.color='#b23a2c'; $('msg').textContent='Could not reach the server.'; });
+  });
+  window.addEventListener('beforeunload',function(e){ if(dirty){ e.preventDefault(); e.returnValue=''; } });
+})();
+</script>
+</body>
+</html>
