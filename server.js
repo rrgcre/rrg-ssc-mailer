@@ -54,7 +54,11 @@ app.use(function (req, res, next) {
     // www → the bare domain (or whichever is listed first), same path.
     if (h !== hosts[0]) return res.redirect(301, 'https://' + hosts[0] + req.originalUrl);
     const _pg = _sellPageFor(req.path); if (_pg) { res.set('Cache-Control', 'no-cache'); return res.type('html').send(renderSellPage(_pg, '')); }
-    if (req.path === '/api/sell/lead' || req.path === '/favicon.ico') return next();
+    // The seller site has its own icons (exit sign), never Lavano's.
+    const _ico = { '/favicon.ico': 'sell_favicon.ico', '/favicon.svg': 'sell_favicon.svg', '/apple-touch-icon.png': 'sell_apple_touch.png', '/apple-touch-icon-precomposed.png': 'sell_apple_touch.png', '/icon-192.png': 'sell_icon_192.png', '/icon-512.png': 'sell_icon_512.png' }[req.path];
+    if (_ico) { res.set('Cache-Control', 'public, max-age=86400'); return res.sendFile(path.join(__dirname, 'public', _ico)); }
+    if (req.path === '/site.webmanifest') return res.type('application/manifest+json').send(JSON.stringify({ name: 'Texas Restaurant Exit', short_name: 'TX Exit', icons: [{ src: '/icon-192.png', sizes: '192x192', type: 'image/png' }, { src: '/icon-512.png', sizes: '512x512', type: 'image/png' }], theme_color: '#2e3337', background_color: '#2e3337', display: 'browser' }));
+    if (req.path === '/api/sell/lead') return next();
     if (req.path === '/robots.txt') return res.type('text/plain').send('User-agent: *\nAllow: /\n');
     return res.redirect(302, '/');
   } catch (e) { return next(); }
